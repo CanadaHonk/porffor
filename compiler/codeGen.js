@@ -2,10 +2,10 @@ import { Opcodes, Valtype } from "./wasmSpec.js";
 import { signedLEB128, unsignedLEB128, encodeVector, encodeLocal } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 
-const globals = {};
 const importedFuncs = { print: 0 };
-const funcs = [];
-const funcIndex = {};
+let globals = {};
+let funcs = [];
+let funcIndex = {};
 let currentFuncIndex = 1;
 
 const debug = str => {
@@ -87,7 +87,8 @@ const generateIdent = (scope, decl) => {
     if (globals[decl.name] !== undefined) return [ Opcodes.global_get, globals[decl.name] ];
   }
 
-  if (idx === undefined) throw new Error(`could not find idx for ${decl.name} (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
+  // if (idx === undefined) throw new Error(`could not find idx for ${decl.name} (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
+  if (idx === undefined) throw new ReferenceError(`${decl.name} is not defined`);
 
   return [ Opcodes.local_get, idx ];
 };
@@ -254,6 +255,11 @@ const generateCode = (scope, decl) => {
 };
 
 export default program => {
+  globals = {};
+  funcs = [];
+  funcIndex = {};
+  currentFuncIndex = 1;
+
   program.id = { name: 'main' };
 
   const scope = {
