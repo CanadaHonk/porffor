@@ -49,6 +49,7 @@ basically nothing will work :). see files in `test` for examples.
 ### 1. why name
 `purple` in Welsh is `porffor`. why purple?
 - no other js engine is purple colored
+- purple is pretty cool
 - purple apparently represents "ambition", which is.. one word to describe this project
 - the hard to speak name is also the noise your brain makes in reaction to this idea
 
