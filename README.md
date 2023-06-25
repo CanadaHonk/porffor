@@ -26,7 +26,6 @@ age: <1 day. rough hours of work: 6
 - switch from i32 to f64 for number
 - basic arrow functions?
 - `console.log`/etc hack
-- really basic bools (not the actual type just convert to number lol)
 - moar math operators
 - equality operators
 - `if`
