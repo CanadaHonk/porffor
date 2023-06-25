@@ -35,6 +35,10 @@ for (const test of fs.readdirSync('test')) {
   if (pass) passes++;
 
   console.log(`${pass ? '\u001b[92mPASS' : '\u001b[91mFAIL'} ${test}\u001b[0m`);
+
+  if (!pass) {
+    console.log(`  got: ${out}\n  expected: ${expect}\n`);
+  }
 }
 
 console.log(`\u001b[1m\n${passes}/${total} tests passed (took ${(performance.now() - t0).toFixed(2)}ms)\u001b[0m`);
