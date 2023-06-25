@@ -18,6 +18,7 @@ age: <1 day. rough hours of work: 6
 - `return`
 - `let`/`const`/`var` basic declarations
 - integer `+-/*`
+- declaring multiple variables in one
 
 ## soon todo
 - switch from i32 to f64 for number
