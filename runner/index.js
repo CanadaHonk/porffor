@@ -29,7 +29,8 @@ const print = str => process.stdout.write(str);
 const t1 = performance.now();
 const { instance } = await WebAssembly.instantiate(wasm, {
   '': {
-    p: i => print(i.toString())
+    p: i => print(i.toString()),
+    c: i => print(String.fromCharCode(i))
   }
 });
 console.log(`instantiated in ${(performance.now() - t1).toFixed(2)}ms\n\n${underline('output')}`);
