@@ -6,27 +6,20 @@ const createSection = (type, data) => [
   ...encodeVector(data)
 ];
 
-export default (funcs, globals, flags) => {
-  if (process.argv.includes('-funcs')) console.log(funcs);
+const importFuncs = ['p', 'c'];
 
+export default (funcs, globals, flags) => {
   const typeSection = createSection(
     Section.type,
     encodeVector([
-      [ FuncType, ...encodeVector([Valtype.i32]), Empty ], // print
-      ...funcs.map(x => [ FuncType, ...encodeVector(x.params.map(_ => Valtype.i32)), ...encodeVector(x.name !== 'main' || flags.includes('return') ? [Valtype.i32] : []) ])
+      ...importFuncs.map(_ => [ FuncType, ...encodeVector([Valtype.i32]), Empty ]),
+      ...funcs.map(x => [ FuncType, ...encodeVector(x.params.map(_ => Valtype.i32)), ...encodeVector(x.return && (x.name !== 'main' || flags.includes('return')) ? [Valtype.i32] : []) ])
     ])
   );
 
-  const printFunctionImport = [
-    0,
-    ...encodeString("p"),
-    ExportDesc.func,
-    0x00
-  ];
-
   const importSection = createSection(
     Section.import,
-    encodeVector([printFunctionImport])
+    encodeVector(importFuncs.map(x => [ 0, ...encodeString(x), ExportDesc.func, 0 ]))
   );
 
   const funcSection = createSection(
