@@ -34,6 +34,7 @@ age: <1 day. rough hours of work: 8
 - `if`
 - `for (let i = 0; i < N; i++)`/etc
 - `assert` func
+- cli repl
 - inline functions (insane opt)
 - tree shake wasm imports (lol)
 
