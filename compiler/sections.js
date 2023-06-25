@@ -6,9 +6,38 @@ const createSection = (type, data) => [
   ...encodeVector(data)
 ];
 
-const importFuncs = ['p', 'c'];
+const allImportFuncs = ['p', 'c'];
+const optLog = process.argv.includes('-opt-log');
 
 export default (funcs, globals, flags) => {
+  let importFuncs = [];
+
+  if (process.argv.includes('-O0') || process.argv.includes('-O1')) {
+    importFuncs = allImportFuncs;
+  } else {
+    // tree shake imports
+    for (const f of funcs) {
+      const wasm = f.innerWasm;
+      for (let i = 0; i < wasm.length; i++) {
+        if (wasm[i] === Opcodes.call && wasm[i + 1] < allImportFuncs.length) {
+          const idx = wasm[i + 1];
+          const func = allImportFuncs[idx];
+          if (!importFuncs.includes(func)) importFuncs.push(func);
+
+          wasm[i + 1] = importFuncs.indexOf(func);
+          // if (optLog) console.log(`treeshake: rewrote call for ${func} (${idx} -> ${importFuncs.indexOf(func)})`);
+        }
+      }
+    }
+
+    // fix func indexes
+    for (const f of funcs) {
+      f.index -= (allImportFuncs.length - importFuncs.length);
+    }
+  }
+
+  if (optLog) console.log(`treeshake: using ${importFuncs.length}/${allImportFuncs.length} imports`);
+
   const typeSection = createSection(
     Section.type,
     encodeVector([

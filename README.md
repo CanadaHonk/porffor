@@ -34,12 +34,13 @@ age: <1 day. rough hours of work: 12
 - `undefined`/`null` as ints (hack)
 - update expressions (`a++`, `++b`, `c--`, etc)
 - for loops (`for (let i = 0; i < N; i++)`, etc)
+- hack for "chars" as ints (`'X'` -> `88`)
+- tree shaking wasm imports
 
 ## soon todo
 - switch from i32 to f64 for number
 - `console.log`/etc hack
 - `assert` func
-- tree shake wasm imports (lol)
 - nicer errors
 
 ## optimizations
@@ -71,7 +72,7 @@ basically nothing will work :). see files in `test` for examples.
 - `-raw` for no info logs (just raw js output)
 - `-O0` to disable opt
 - `-O1` to enable basic opt
-- `-O2`/`-O` (default) to enable advanced opt (inlining)
+- `-O2`/`-O` (default) to enable advanced opt (inlining, treeshake wasm imports)
 - `-opt-log` to log some opts
 - `-funcs` to log funcs (internal representations)
 - `-opt-funcs` to log funcs after opt
