@@ -6,38 +6,36 @@ import fs from 'node:fs';
   v8.setFlagsFromString('--experimental-wasm-gc');
 } */
 
-if (process.argv.includes('-raw')) {
-  console.log = () => {};
-}
+const raw = process.argv.includes('-raw');
 
 const source = fs.readFileSync(process.argv.slice(2).filter(x => x[0] !== '-')[0], 'utf8');
 
 const underline = x => `\u001b[4m\u001b[1m${x}\u001b[0m`;
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
-console.log(`\n${underline('source')}\n` + source);
-console.log(`\n\n${underline('processing')}`);
+if (!raw) console.log(`\n${underline('source')}\n` + source);
+if (!raw) console.log(`\n\n${underline('processing')}`);
 
 const t0 = performance.now();
-const wasm = compile(source, [ 'info' ]);
-console.log(bold(`compiled in ${(performance.now() - t0).toFixed(2)}ms`));
+const wasm = compile(source, raw ? [] : [ 'info' ]);
+if (!raw) console.log(bold(`compiled in ${(performance.now() - t0).toFixed(2)}ms`));
 
-fs.writeFileSync('out.wasm', Buffer.from(wasm));
+if (!raw) fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
 const print = str => process.stdout.write(str);
 
 const t1 = performance.now();
 const { instance } = await WebAssembly.instantiate(wasm, {
   '': {
-    p: i => print(i.toString()),
-    c: i => print(String.fromCharCode(i))
+    p: i => print(Number(i).toString()),
+    c: i => print(String.fromCharCode(Number(i)))
   }
 });
-console.log(`instantiated in ${(performance.now() - t1).toFixed(2)}ms\n\n${underline('output')}`);
+if (!raw) console.log(`instantiated in ${(performance.now() - t1).toFixed(2)}ms\n\n${underline('output')}`);
 
 const t2 = performance.now();
 instance.exports.m();
 
-console.log(bold(`\n\nexecuted in ${(performance.now() - t2).toFixed(2)}ms`));
-console.log(bold(`wasm binary is ${wasm.byteLength} bytes`));
+if (!raw) console.log(bold(`\n\nexecuted in ${(performance.now() - t2).toFixed(2)}ms`));
+if (!raw) console.log(bold(`wasm binary is ${wasm.byteLength} bytes`));
 // console.log(`total: ${(performance.now() - t0).toFixed(2)}ms`);

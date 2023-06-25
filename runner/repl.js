@@ -31,8 +31,8 @@ const run = async (source, _context, _filename, callback) => {
 
   const { instance } = await WebAssembly.instantiate(wasm, {
     '': {
-      p: i => print(i.toString()),
-      c: i => print(String.fromCharCode(i))
+      p: i => print(Number(i).toString()),
+      c: i => print(String.fromCharCode(Number(i)))
     }
   });
 

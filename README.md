@@ -43,6 +43,7 @@ age: <1 day. rough hours of work: 12
 - switch from i32 to f64 for number
 - `assert` func
 - nicer errors
+- `break`, `continue`
 
 ## optimizations
 mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable.
@@ -71,6 +72,7 @@ basically nothing will work :). see files in `test` for examples.
 
 ### flags
 - `-raw` for no info logs (just raw js output)
+- `-valtype=i32|i64|f64` to set valtype, i32 by default (experimental)
 - `-O0` to disable opt
 - `-O1` to enable basic opt
 - `-O2`/`-O` (default) to enable advanced opt (inlining, treeshake wasm imports)

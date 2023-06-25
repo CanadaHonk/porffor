@@ -4,6 +4,7 @@ import opt from './opt.js';
 import produceSections from './sections.js';
 
 export default (code, flags = [ 'module' ]) => {
+
   const t0 = performance.now();
   const program = parse(code, flags);
   if (flags.includes('info')) console.log(`1. parsed in ${(performance.now() - t0).toFixed(2)}ms`);

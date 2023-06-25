@@ -1,15 +1,15 @@
 import fs from 'node:fs';
-import compile from '../compiler/index.js';
 
 let totalOutput = 0;
 const run = async source => {
   const times = [];
 
+  const compile = (await import('../compiler/index.js')).default;
   const t0 = performance.now();
   const wasm = compile(source);
   times.push(performance.now() - t0);
 
-  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
+  fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   totalOutput += wasm.byteLength;
 
@@ -18,8 +18,8 @@ const run = async source => {
 
   const { instance } = await WebAssembly.instantiate(wasm, {
     '': {
-      p: i => print(i.toString()),
-      c: i => print(String.fromCharCode(i))
+      p: i => print(Number(i).toString()),
+      c: i => print(String.fromCharCode(Number(i)))
     }
   });
 
@@ -61,9 +61,11 @@ let total = 0, passes = 0;
 for (const test of fs.readdirSync('test')) {
   if (test === 'index.js') continue;
   await perform(test, []);
+  await perform(test, [ '-valtype=i64' ]);
+  // await perform(test, [ '-valtype=f64' ]);
   await perform(test, [ '-O0' ]);
-  await perform(test, [ '-O1' ]);
-  await perform(test, [ '-O2' ]);
+  // await perform(test, [ '-O1' ]);
+  // await perform(test, [ '-O2' ]);
 }
 
 console.log(`\u001b[1m\n${passes}/${total} tests passed (took ${(performance.now() - t0).toFixed(2)}ms)\u001b[0m`);

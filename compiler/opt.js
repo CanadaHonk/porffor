@@ -58,7 +58,7 @@ export default (funcs, globals) => {
 
         // remake func wasm from new inner wasm and locals
         const localCount = Object.keys(t.locals).length - t.params.length;
-        const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype.i32)] : [];
+        const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : [];
         t.innerWasm = tWasm;
         t.wasm = encodeVector([ ...encodeVector(localDecl), ...tWasm, Opcodes.end ]);
 

@@ -41,8 +41,8 @@ export default (funcs, globals, flags) => {
   const typeSection = createSection(
     Section.type,
     encodeVector([
-      ...importFuncs.map(_ => [ FuncType, ...encodeVector([Valtype.i32]), Empty ]),
-      ...funcs.map(x => [ FuncType, ...encodeVector(x.params.map(_ => Valtype.i32)), ...encodeVector(x.return && (x.name !== 'main' || flags.includes('return')) ? [Valtype.i32] : []) ])
+      ...importFuncs.map(_ => [ FuncType, ...encodeVector([Valtype[valtype]]), Empty ]),
+      ...funcs.map(x => [ FuncType, ...encodeVector(x.params.map(_ => Valtype[valtype])), ...encodeVector(x.return && (x.name !== 'main' || flags.includes('return')) ? [Valtype[valtype]] : []) ])
     ])
   );
 
@@ -58,7 +58,7 @@ export default (funcs, globals, flags) => {
 
   const globalSection = Object.keys(globals).length === 0 ? [] : createSection(
     Section.global,
-    encodeVector(Object.keys(globals).map(_ => [ Valtype.i32, 0x01, Opcodes.i32_const, 0x00, Opcodes.end ]))
+    encodeVector(Object.keys(globals).map(_ => [ Valtype[valtype], 0x01, Opcodes.const, 0x00, Opcodes.end ]))
   );
 
   const exportSection = createSection(

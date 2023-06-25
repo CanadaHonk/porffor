@@ -7,6 +7,8 @@ export const Mut = enumify('const', 'var');
 
 export const Valtype = {
   i32: 0x7f,
+  i64: 0x7e,
+  f64: 0x7c
 };
 
 export const Blocktype = {
@@ -39,11 +41,16 @@ export const Opcodes = {
   global_set: 0x24,
 
   i32_load: 0x28,
+  i64_load: 0x29,
+  f64_load: 0x2b,
+
   i32_load8_s: 0x2c,
   i32_store: 0x36,
   i32_store8: 0x3a,
 
   i32_const: 0x41,
+  i64_const: 0x42,
+  f64_const: 0x44,
 
   i32_eqz: 0x45,
   i32_eq: 0x46,
@@ -62,7 +69,43 @@ export const Opcodes = {
 
   i32_and: 0x71,
   i32_or: 0x72,
-  i32_xor: 0x73
+  i32_xor: 0x73,
+
+  i64_eqz: 0x50,
+  i64_eq: 0x51,
+  i64_ne: 0x52,
+
+  i64_lt_s: 0x53,
+  i64_le_s: 0x57,
+  i64_gt_s: 0x55,
+  i64_ge_s: 0x59,
+
+  i64_add: 0x7c,
+  i64_sub: 0x7d,
+  i64_mul: 0x7e,
+  i64_div_s: 0x7f,
+  i64_rem_s: 0x81,
+
+  i64_and: 0x83,
+  i64_or: 0x84,
+  i64_xor: 0x85,
+
+  f64_eq: 0x61,
+  f64_ne: 0x62,
+
+  f64_lt: 0x63,
+  f64_le: 0x65,
+  f64_gt: 0x64,
+  f64_ge: 0x66,
+
+  f64_add: 0xa0,
+  f64_sub: 0xa1,
+  f64_mul: 0xa2,
+  f64_div: 0xa3,
+
+  i32_wrap_i64: 0xa7,
+  i64_extend_i32_s: 0xac,
+  i64_extend_i32_u: 0xad,
 };
 
 export const FuncType = 0x60;

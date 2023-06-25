@@ -39,7 +39,7 @@ const todo = msg => {
   return code;
 };
 
-const number = n => [ Opcodes.i32_const, ...signedLEB128(n) ];
+const number = n => [ Opcodes.const, ...signedLEB128(n) ];
 
 const generate = (scope, decl) => {
   switch (decl.type) {
@@ -128,11 +128,15 @@ const generateReturn = (scope, decl) => {
 const generateBinaryExp = (scope, decl) => {
   // TODO: this assumes all variables are numbers !!!
 
-  return [
+  const out = [
     ...generate(scope, decl.left),
     ...generate(scope, decl.right),
-    operatorOpcode[decl.operator]
+    operatorOpcode[valtype][decl.operator],
   ];
+
+  if (valtype === 'i64' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i64_extend_i32_u);
+
+  return out;
 };
 
 const asmFunc = (name, wasm, params, localCount) => {
@@ -142,7 +146,7 @@ const asmFunc = (name, wasm, params, localCount) => {
   const func = {
     name,
     params,
-    wasm: encodeVector([ ...encodeVector(localCount > 0 ? [encodeLocal(localCount, Valtype.i32)] : []), ...wasm, Opcodes.end ]),
+    wasm: encodeVector([ ...encodeVector(localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : []), ...wasm, Opcodes.end ]),
     index: currentFuncIndex++
   };
 
@@ -173,7 +177,9 @@ const generateLogicExp = (scope, decl) => {
       ...generate(scope, decl.left),
       Opcodes.local_tee, scope.locals.tmp1,
       // Opcodes.i32_eqz, Opcodes.i32_eqz, // != 0 (fail ||)
-      Opcodes.if, Valtype.i32,
+      // Opcodes.eqz, Opcodes.i32_eqz
+      Opcodes.i32_to,
+      Opcodes.if, Valtype[valtype],
       ...generate(scope, decl.right),
       Opcodes.else,
       Opcodes.local_get, scope.locals.tmp1,
@@ -192,8 +198,8 @@ const generateLogicExp = (scope, decl) => {
     return [
       ...generate(scope, decl.left),
       Opcodes.local_tee, scope.locals.tmp1,
-      Opcodes.i32_eqz, // == 0 (success &&)
-      Opcodes.if, Valtype.i32,
+      Opcodes.eqz, // == 0 (success &&)
+      Opcodes.if, Valtype[valtype],
       ...generate(scope, decl.right),
       Opcodes.else,
       Opcodes.local_get, scope.locals.tmp1,
@@ -359,12 +365,13 @@ const generateUnary = (scope, decl) => {
 
     case '-':
       // * -1
-      out.push(...number(-1), Opcodes.i32_mul);
+      out.push(...number(-1), Opcodes.mul);
       break;
 
     case '!':
       // !=
-      out.push(Opcodes.i32_eqz);
+      out.push(Opcodes.eqz);
+      if (valtype === 'i64') out.push(Opcodes.i64_extend_i32_u);
       break;
   }
 
@@ -392,11 +399,11 @@ const generateUpdate = (scope, decl) => {
 
   switch (decl.operator) {
     case '++':
-      out.push(...number(1), Opcodes.i32_add);
+      out.push(...number(1), Opcodes.add);
       break;
 
     case '--':
-      out.push(...number(1), Opcodes.i32_sub);
+      out.push(...number(1), Opcodes.sub);
       break;
   }
 
@@ -407,11 +414,11 @@ const generateUpdate = (scope, decl) => {
 };
 
 const generateIf = (scope, decl) => {
-  const out = [
-    ...generate(scope, decl.test),
-    Opcodes.if, Blocktype.void,
-    ...generate(scope, decl.consequent)
-  ];
+  const out = [ ...generate(scope, decl.test) ];
+
+  out.push(Opcodes.i32_to, Opcodes.if, Blocktype.void);
+
+  out.push(...generate(scope, decl.consequent));
 
   if (decl.alternate) {
     out.push(Opcodes.else);
@@ -429,7 +436,7 @@ const generateFor = (scope, decl) => {
 
   out.push(Opcodes.loop, Blocktype.void);
 
-  out.push(...generate(scope, decl.test));
+  out.push(...generate(scope, decl.test), Opcodes.i32_to);
   out.push(Opcodes.if, Blocktype.void);
 
   out.push(...generate(scope, decl.body));
@@ -470,7 +477,7 @@ const hasReturn = node => {
 const objectHack = node => {
   if (node.type === 'MemberExpression') {
     const name = '__' + node.object.name + '_' + node.property.name;
-    console.log(`object hack! ${node.object.name}.${node.property.name} -> ${name}`);
+    // console.log(`object hack! ${node.object.name}.${node.property.name} -> ${name}`);
 
     return {
       type: 'Identifier',
@@ -479,7 +486,7 @@ const objectHack = node => {
   }
 
   for (const x in node) {
-    if (typeof node[x] === 'object') {
+    if (node[x] != null && typeof node[x] === 'object') {
       if (node[x].type) node[x] = objectHack(node[x]);
       if (Array.isArray(node[x])) node[x] = node[x].map(y => objectHack(y));
     }
@@ -515,12 +522,12 @@ const generateFunc = (scope, decl) => {
     params,
     return: hasReturn(body),
     locals: innerScope.locals,
-    wasm: generate(innerScope, body),
+    wasm: generate(innerScope, body).filter(x => x !== null),
     index: currentFuncIndex++
   };
 
   const localCount = Object.keys(innerScope.locals).length - params.length;
-  const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype.i32)] : [];
+  const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : [];
   func.innerWasm = func.wasm;
   func.wasm = encodeVector([ ...encodeVector(localDecl), ...func.wasm, Opcodes.end ]);
 
@@ -545,6 +552,20 @@ export default program => {
   funcs = [];
   funcIndex = {};
   currentFuncIndex = Object.keys(importedFuncs).length;
+
+  global.valtype = 'i32';
+
+  const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
+  if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
+
+  const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
+
+  Opcodes.const = [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const ][valtypeInd];
+  Opcodes.eqz = [ Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.unreachable ][valtypeInd];
+  Opcodes.mul = [ Opcodes.i32_mul, Opcodes.i64_mul, Opcodes.f64_mul ][valtypeInd];
+  Opcodes.add = [ Opcodes.i32_add, Opcodes.i64_add, Opcodes.f64_add ][valtypeInd];
+  Opcodes.sub = [ Opcodes.i32_sub, Opcodes.i64_sub, Opcodes.f64_sub ][valtypeInd];
+  Opcodes.i32_to = [ null, Opcodes.i32_wrap_i64, Opcodes.unreachable ][valtypeInd];
 
   program.id = { name: 'main' };
 
