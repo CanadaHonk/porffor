@@ -49,7 +49,8 @@ const generate = (scope, decl) => {
       return generateIdent(scope, decl);
 
     case 'FunctionDeclaration':
-      return generateFunc(scope, decl);
+      generateFunc(scope, decl);
+      return [];
 
     case 'BlockStatement':
       return generateCode(scope, decl);
@@ -150,6 +151,10 @@ const generateCall = (scope, decl) => {
     Opcodes.call_indirect,
   ]; */
 
+  if (decl.callee.type === 'FunctionExpression') {
+    const func = generateFunc(decl.callee);
+  }
+
   // TODO: only allows callee as literal
   if (!decl.callee.name) return todo(`only literal callees`);
 
@@ -174,6 +179,13 @@ const generateVar = (scope, decl, global = false) => {
     for (const x of decl.declarations) {
       const name = x.id.name;
 
+      if (x.init.type === 'FunctionExpression') {
+        // hack for var a = function () { ... }
+        x.init.id = { name };
+        generateFunc(scope, x.init);
+        continue;
+      }
+
       const idx = Object.keys(globals).length;
       globals[name] = idx;
 
@@ -187,6 +199,13 @@ const generateVar = (scope, decl, global = false) => {
   for (const x of decl.declarations) {
     const name = x.id.name;
 
+    if (x.init.type === 'FunctionExpression') {
+      // hack for let a = function () { ... }
+      x.init.id = { name };
+      generateFunc(scope, x.init);
+      continue;
+    }
+
     const idx = Object.keys(scope.locals).length;
     scope.locals[name] = idx;
 
@@ -199,6 +218,14 @@ const generateVar = (scope, decl, global = false) => {
 
 const generateAssign = (scope, decl) => {
   const { name } = decl.left;
+
+  if (decl.right.type === 'FunctionExpression') {
+    // hack for a = function () { ... }
+    decl.right.id = { name };
+    generateFunc(scope, decl.right);
+    return [];
+  }
+
   let idx = scope.locals[name], op = Opcodes.local_set;
 
   if (idx === undefined && globals[name] !== undefined) {
@@ -266,8 +293,10 @@ const generateAssignPat = (scope, decl) => {
   return todo('assignment pattern (optional arg)');
 };
 
+const randId = () => Math.random().toString(16).slice(0, -4);
+
 const generateFunc = (scope, decl) => {
-  const name = decl.id.name;
+  const name = decl.id ? decl.id.name : `anonymous_${randId()}`;
   const params = decl.params ?? [];
 
   // const innerScope = { ...scope };
@@ -293,7 +322,7 @@ const generateFunc = (scope, decl) => {
   funcs.push(func);
   funcIndex[name] = func.index;
 
-  return [];
+  return func;
 };
 
 const generateCode = (scope, decl) => {

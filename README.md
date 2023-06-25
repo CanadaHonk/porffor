@@ -25,6 +25,8 @@ age: <1 day. rough hours of work: 8
 - functions returning 1 number
 - bool literals as ints (not real type)
 - `if` and `if ... else`
+- anonymous functions
+- setting functions using vars (`const foo = function() { ... }`)
 
 ## soon todo
 - switch from i32 to f64 for number
@@ -37,6 +39,7 @@ age: <1 day. rough hours of work: 8
 - cli repl
 - inline functions (insane opt)
 - tree shake wasm imports (lol)
+- nicer errors
 
 ## usecases
 basically none (other than giving people headaches). potential as a tiny fast advanced expression evaluator (for math)?
