@@ -1,6 +1,7 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { signedLEB128, unsignedLEB128, encodeVector, encodeLocal } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
+import parse from "./parse.js";
 
 const importedFuncs = { print: 0, printChar: 1 };
 let globals = {};
@@ -146,7 +147,17 @@ const asmFunc = (name, wasm, params, localCount) => {
   };
 
   funcs.push(func);
+  funcIndex[name] = func.index;
+
   return func;
+};
+
+const includeBuiltin = (scope, js) => {
+  return parse(js, []).body.map(x => generate(scope, x));
+};
+
+const builtins = {
+  '__console_log': `function __console_log(x) { print(x); printChar('\\n'); }`
 };
 
 const generateLogicExp = (scope, decl) => {
@@ -235,11 +246,18 @@ const generateCall = (scope, decl) => {
     const func = generateFunc(decl.callee);
   }
 
-  // TODO: only allows callee as literal
-  if (!decl.callee.name) return todo(`only literal callees`);
+  const name = decl.callee.name;
 
-  const idx = funcIndex[decl.callee.name] ?? importedFuncs[decl.callee.name];
-  if (idx === undefined) throw new Error(`failed to find func idx for ${decl.callee.name} (funcIndex: ${Object.keys(funcIndex)})`);
+  // TODO: only allows callee as literal
+  if (!name) return todo(`only literal callees (got ${decl.callee.type})`);
+
+  let idx = funcIndex[name] ?? importedFuncs[name];
+  if (idx === undefined && builtins[name]) {
+    includeBuiltin(scope, builtins[name]);
+    idx = funcIndex[name];
+  }
+
+  if (idx === undefined) throw new Error(`failed to find func idx for ${name} (funcIndex: ${Object.keys(funcIndex)})`);
 
   const out = [];
   for (const arg of decl.arguments) {
@@ -449,6 +467,27 @@ const hasReturn = node => {
   return node.type === 'ReturnStatement';
 };
 
+const objectHack = node => {
+  if (node.type === 'MemberExpression') {
+    const name = '__' + node.object.name + '_' + node.property.name;
+    console.log(`object hack! ${node.object.name}.${node.property.name} -> ${name}`);
+
+    return {
+      type: 'Identifier',
+      name
+    };
+  }
+
+  for (const x in node) {
+    if (typeof node[x] === 'object') {
+      if (node[x].type) node[x] = objectHack(node[x]);
+      if (Array.isArray(node[x])) node[x] = node[x].map(y => objectHack(y));
+    }
+  }
+
+  return node;
+};
+
 const generateFunc = (scope, decl) => {
   const name = decl.id ? decl.id.name : `anonymous_${randId()}`;
   const params = decl.params ?? [];
@@ -462,7 +501,7 @@ const generateFunc = (scope, decl) => {
     innerScope.locals[param.name] = i;
   }
 
-  let body = decl.body;
+  let body = objectHack(decl.body);
   if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
     // hack: () => 0 -> () => return 0
     body = {
