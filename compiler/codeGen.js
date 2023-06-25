@@ -1,4 +1,4 @@
-import { Opcodes, Valtype } from "./wasmSpec.js";
+import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { signedLEB128, unsignedLEB128, encodeVector, encodeLocal } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 
@@ -74,6 +74,9 @@ const generate = (scope, decl) => {
 
     case 'UnaryExpression':
       return generateUnary(scope, decl);
+
+    case 'IfStatement':
+      return generateIf(scope, decl);
 
     case 'EmptyStatement':
       return generateEmpty(scope, decl);
@@ -233,6 +236,22 @@ const generateUnary = (scope, decl) => {
       break;
   }
 
+  return out;
+};
+
+const generateIf = (scope, decl) => {
+  const out = [
+    ...generate(scope, decl.test),
+    Opcodes.if, Blocktype.void,
+    ...generate(scope, decl.consequent)
+  ];
+
+  if (decl.alternate) {
+    out.push(Opcodes.else);
+    out.push(...generate(scope, decl.alternate));
+  }
+
+  out.push(Opcodes.end);
   return out;
 };
 

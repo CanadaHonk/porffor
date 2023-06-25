@@ -24,6 +24,7 @@ age: <1 day. rough hours of work: 8
 - global variables (`var`/none in top scope)
 - functions returning 1 number
 - bool literals as ints (not real type)
+- `if` and `if ... else`
 
 ## soon todo
 - switch from i32 to f64 for number
@@ -31,7 +32,6 @@ age: <1 day. rough hours of work: 8
 - `console.log`/etc hack
 - moar math operators
 - anonymous functions
-- `if`
 - `for (let i = 0; i < N; i++)`/etc
 - `assert` func
 - cli repl

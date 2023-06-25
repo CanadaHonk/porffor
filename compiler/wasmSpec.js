@@ -20,6 +20,7 @@ export const Opcodes = {
   block: 0x02,
   loop: 0x03,
   if: 0x04,
+  else: 0x05,
 
   return: 0x0F,
   call: 0x10,
