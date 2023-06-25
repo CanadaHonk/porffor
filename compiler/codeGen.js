@@ -152,9 +152,9 @@ const asmFunc = (name, wasm, params, localCount) => {
 const generateLogicExp = (scope, decl) => {
   if (decl.operator === '||') {
     // it basically does:
-    // (a) || (b)
+    // {a} || {b}
     // -->
-    // let _ = (a); if (!_) { (b) } _
+    // _ = {a}; if (!_) {b} else _
 
     if (scope.locals.tmp1 === undefined) scope.locals.tmp1 = Object.keys(scope.locals).length;
 
@@ -172,16 +172,16 @@ const generateLogicExp = (scope, decl) => {
 
   if (decl.operator === '&&') {
     // it basically does:
-    // (a) && (b)
+    // {a} && {b}
     // -->
-    // let _ = (a); if (_) { (b) } _
+    // _ = {a}; if (_) {b} else _
 
     if (scope.locals.tmp1 === undefined) scope.locals.tmp1 = Object.keys(scope.locals).length;
 
     return [
       ...generate(scope, decl.left),
       Opcodes.local_tee, scope.locals.tmp1,
-      Opcodes.i32_eqz, // == 0 (fail &&)
+      Opcodes.i32_eqz, // == 0 (success &&)
       Opcodes.if, Valtype.i32,
       ...generate(scope, decl.right),
       Opcodes.else,
