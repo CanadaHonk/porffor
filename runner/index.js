@@ -15,7 +15,7 @@ const source = fs.readFileSync(process.argv.slice(2).filter(x => x[0] !== '-')[0
 const underline = x => `\u001b[4m\u001b[1m${x}\u001b[0m`;
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
-console.log(`\n${underline('source')}` + source);
+console.log(`\n${underline('source')}\n` + source);
 console.log(`\n\n${underline('processing')}`);
 
 const t0 = performance.now();
