@@ -18,6 +18,9 @@ const run = async source => {
   return out;
 };
 
+const t0 = performance.now();
+
+let total = 0, passes = 0;
 for (const test of fs.readdirSync('test')) {
   const content = fs.readFileSync('test/' + test, 'utf8');
   const spl = content.split('\n');
@@ -26,5 +29,11 @@ for (const test of fs.readdirSync('test')) {
 
   const out = await run(code);
   const pass = out === expect;
-  console.log(`${pass ? 'PASS' : 'FAIL'} ${test}`);
+
+  total++;
+  if (pass) passes++;
+
+  console.log(`${pass ? '\u001b[92mPASS' : '\u001b[91mFAIL'} ${test}\u001b[0m`);
 }
+
+console.log(`\u001b[1m\n${passes}/${total} tests passed (took ${(performance.now() - t0).toFixed(2)}ms)\u001b[0m`);
