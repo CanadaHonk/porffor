@@ -1,8 +1,15 @@
 import fs from 'node:fs';
 import compile from '../compiler/index.js';
 
+let totalOutput = 0;
 const run = async source => {
+  const times = [];
+
+  const t0 = performance.now();
   const wasm = compile(source);
+  times.push(performance.now() - t0);
+
+  totalOutput += wasm.byteLength;
 
   let out = '';
   const print = str => out += str;
@@ -13,9 +20,11 @@ const run = async source => {
     }
   });
 
+  const t1 = performance.now();
   instance.exports.m();
+  times.push(performance.now() - t1);
 
-  return out;
+  return [ out, times ];
 };
 
 const t0 = performance.now();
@@ -28,17 +37,20 @@ for (const test of fs.readdirSync('test')) {
   const expect = spl[0].slice(2).trim();
   const code = spl.slice(1).join('\n');
 
-  const out = await run(code);
+  const t1 = performance.now();
+  const [ out, times ] = await run(code);
+  const time = performance.now() - t1;
   const pass = out === expect;
 
   total++;
   if (pass) passes++;
 
-  console.log(`${pass ? '\u001b[92mPASS' : '\u001b[91mFAIL'} ${test}\u001b[0m`);
+  console.log(`${pass ? '\u001b[92mPASS' : '\u001b[91mFAIL'} ${test}\u001b[0m ${' '.repeat(40 - test.length)}\u001b[90m(${time.toFixed(2)}ms | compile: ${times[0].toFixed(2)}ms, exec: ${times[1].toFixed(2)}ms)\u001b[0m`);
 
   if (!pass) {
-    console.log(`  got: ${out}\n  expected: ${expect}\n`);
+    console.log(`expected: ${expect}\n  got: ${out}\n`);
   }
 }
 
 console.log(`\u001b[1m\n${passes}/${total} tests passed (took ${(performance.now() - t0).toFixed(2)}ms)\u001b[0m`);
+console.log(`total wasm binary output: ${totalOutput} bytes`);
