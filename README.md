@@ -43,7 +43,7 @@ age: <1 day. rough hours of work: 12
 - nicer errors
 
 ## optimizations
-for size and time/perf, mostly size target.
+mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable.
 
 ### traditional opts
 - inlining functions
