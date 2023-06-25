@@ -68,6 +68,9 @@ const generate = (scope, decl) => {
     case 'VariableDeclaration':
       return lastCode = generateVar(scope, decl);
 
+    case 'AssignmentExpression':
+      return lastCode = generateAssign(scope, decl);
+
     default:
       return todo(`no generation for ${decl.type}!`);
   }
@@ -177,6 +180,23 @@ const generateVar = (scope, decl) => {
   }
 
   return out;
+};
+
+const generateAssign = (scope, decl) => {
+  const { name } = decl.left;
+  let idx = scope.locals[name], op = Opcodes.local_set;
+
+  if (idx === undefined && globals[name] !== undefined) {
+    idx = globals[name];
+    op = Opcodes.global_set;
+  }
+
+  if (idx === undefined) throw new Error(`could not find idx for ${decl.name} (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
+
+  return [
+    ...generate(scope, decl.right),
+    op, idx
+  ];
 };
 
 const generateAssignPat = (scope, decl) => {
