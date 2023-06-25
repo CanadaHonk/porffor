@@ -1,7 +1,7 @@
 # porffor
 a **very basic** wip js wasm jit compiler in js. rough hours of work: 6
 
-## missing/limitations
+## limitations
 - **only number type, no string/array/object at all**
 - no built-ins/prototype/etc
 - no errors
