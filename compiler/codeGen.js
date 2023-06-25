@@ -204,6 +204,12 @@ const generateLiteral = (scope, decl) => {
       // hack: bool as int (1/0)
       return number(decl.value ? 1 : 0);
 
+    case 'string':
+      if (decl.value.length > 1) todo(`cannot generate string literal (char only)`);
+
+      // hack: char as int
+      return number(decl.value.charCodeAt(0));
+
     default:
       return todo(`cannot generate literal of type ${typeof decl.value}`);
   }
