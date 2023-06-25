@@ -86,6 +86,9 @@ const generate = (scope, decl) => {
     case 'IfStatement':
       return generateIf(scope, decl);
 
+    case 'ForStatement':
+      return generateFor(scope, decl);
+
     case 'EmptyStatement':
       return generateEmpty(scope, decl);
 
@@ -392,6 +395,26 @@ const generateIf = (scope, decl) => {
   }
 
   out.push(Opcodes.end);
+  return out;
+};
+
+const generateFor = (scope, decl) => {
+  const out = [];
+
+  if (decl.init) out.push(...generate(scope, decl.init));
+
+  out.push(Opcodes.loop, Blocktype.void);
+
+  out.push(...generate(scope, decl.test));
+  out.push(Opcodes.if, Blocktype.void);
+
+  out.push(...generate(scope, decl.body));
+
+  out.push(...generate(scope, decl.update));
+
+  out.push(Opcodes.br, ...signedLEB128(1));
+  out.push(Opcodes.end, Opcodes.end);
+
   return out;
 };
 
