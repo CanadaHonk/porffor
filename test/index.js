@@ -22,6 +22,7 @@ const t0 = performance.now();
 
 let total = 0, passes = 0;
 for (const test of fs.readdirSync('test')) {
+  if (test === 'index.js') continue;
   const content = fs.readFileSync('test/' + test, 'utf8');
   const spl = content.split('\n');
   const expect = spl[0].slice(2).trim();
