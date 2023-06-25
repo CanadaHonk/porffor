@@ -4,7 +4,9 @@ import { encodeVector, encodeLocal } from "./encoding.js";
 const optLog = process.argv.includes('-opt-log');
 
 export default (funcs, globals) => {
-  if (!process.argv.includes('-no-inline')) {
+  if (process.argv.includes('-O0')) return;
+
+  if (!process.argv.includes('-O1')) {
     // inline pass (very WIP)
     // get candidates for inlining
     // todo: pick smart in future (if func is used <N times? or?)
@@ -108,6 +110,8 @@ export default (funcs, globals) => {
         }
       }
     }
+
+    if (process.argv.includes('-O1')) return;
 
     // remove ununeeded var: check pass
     const unneededVar = {};

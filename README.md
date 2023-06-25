@@ -69,7 +69,9 @@ basically nothing will work :). see files in `test` for examples.
 
 ### flags
 - `-raw` for no info logs (just raw js output)
-- `-no-inline` to disable inlining
+- `-O0` to disable opt
+- `-O1` to enable basic opt
+- `-O2`/`-O` (default) to enable advanced opt (inlining)
 - `-opt-log` to log some opts
 - `-funcs` to log funcs (internal representations)
 - `-sections` to log sections as hex
