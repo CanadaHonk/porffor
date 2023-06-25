@@ -1,5 +1,6 @@
 # porffor
-a **very basic** wip js wasm jit compiler in js. rough hours of work: 6
+a **very basic** wip js wasm jit compiler in js. this is not a serious project ;)<br>
+age: <1 day. rough hours of work: 6
 
 ## limitations
 - **only number type, no string/array/object at all**
@@ -23,10 +24,13 @@ a **very basic** wip js wasm jit compiler in js. rough hours of work: 6
 - basic arrow functions?
 - global variables
 - `console.log`/etc hack
-- really basic bools
+- really basic bools (not the actual type just convert to number lol)
 - moar operators
 - `if`
 - `for (let i = 0; i < N; i++)`/etc
+
+## usecases
+basically none (other than giving people headaches). potential as a tiny fast advanced expression evaluator (for math)?
 
 ## parser
 uses [acorn](https://github.com/acornjs/acorn), pretty neat.
