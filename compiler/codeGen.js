@@ -99,8 +99,8 @@ const generateIdent = (scope, decl) => {
 
   if (idx === undefined) {
     // no local var with name
-    if (importedFuncs[decl.name] !== undefined) return generateLiteral(importedFuncs[decl.name]);
-    if (funcIndex[decl.name] !== undefined) return generateLiteral(funcIndex[decl.name]);
+    if (importedFuncs[decl.name] !== undefined) return number(importedFuncs[decl.name]);
+    if (funcIndex[decl.name] !== undefined) return number(funcIndex[decl.name]);
 
     if (globals[decl.name] !== undefined) return [ Opcodes.global_get, globals[decl.name] ];
   }
