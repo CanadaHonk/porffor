@@ -64,8 +64,8 @@ basically nothing will work :). see files in `test` for examples.
 
 1. clone repo
 2. `npm install`
-3. `node runner path/to/code.js` to run a file
-4. `node test` to run tests
+3. `node test` to run tests (all should pass)
+4. `node runner path/to/code.js` to run a file
 
 ### flags
 - `-raw` for no info logs (just raw js output)
