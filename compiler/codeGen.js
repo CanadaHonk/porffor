@@ -437,6 +437,18 @@ const generateAssignPat = (scope, decl) => {
 
 const randId = () => Math.random().toString(16).slice(0, -4);
 
+const hasReturn = node => {
+  if (node.body && !Array.isArray(node.body)) return hasReturn(node.body);
+
+  if (Array.isArray(node.body)) {
+    for (const x of node.body) {
+      if (hasReturn(x)) return true;
+    }
+  }
+
+  return node.type === 'ReturnStatement';
+};
+
 const generateFunc = (scope, decl) => {
   const name = decl.id ? decl.id.name : `anonymous_${randId()}`;
   const params = decl.params ?? [];
@@ -462,6 +474,7 @@ const generateFunc = (scope, decl) => {
   const func = {
     name,
     params,
+    return: hasReturn(body),
     locals: innerScope.locals,
     wasm: generate(innerScope, body),
     index: currentFuncIndex++
