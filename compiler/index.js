@@ -19,7 +19,7 @@ export default (code, flags = [ 'module' ]) => {
   console.log(`3. optimized code in ${(performance.now() - t2).toFixed(2)}ms`);
 
   const t3 = performance.now();
-  const sections = produceSections(funcs, globals);
+  const sections = produceSections(funcs, globals, flags);
   console.log(`4. produced sections in ${(performance.now() - t3).toFixed(2)}ms`);
 
   return sections;

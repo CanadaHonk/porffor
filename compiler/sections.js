@@ -6,14 +6,14 @@ const createSection = (type, data) => [
   ...encodeVector(data)
 ];
 
-export default (funcs, globals) => {
+export default (funcs, globals, flags) => {
   if (process.argv.includes('-funcs')) console.log(funcs);
 
   const typeSection = createSection(
     Section.type,
     encodeVector([
       [ FuncType, ...encodeVector([Valtype.i32]), Empty ], // print
-      ...funcs.map(x => [ FuncType, ...encodeVector(x.params.map(_ => Valtype.i32)), ...encodeVector(x.name !== 'main' ? [Valtype.i32] : []) ])
+      ...funcs.map(x => [ FuncType, ...encodeVector(x.params.map(_ => Valtype.i32)), ...encodeVector(x.name !== 'main' || flags.includes('return') ? [Valtype.i32] : []) ])
     ])
   );
 
