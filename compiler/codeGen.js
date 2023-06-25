@@ -38,41 +38,40 @@ const todo = msg => {
   return code;
 };
 
-let lastCode;
 const generate = (scope, decl) => {
   switch (decl.type) {
     case 'BinaryExpression':
-      return lastCode = generateBinaryExp(scope, decl);
+      return generateBinaryExp(scope, decl);
 
     case 'Identifier':
-      return lastCode = generateIdent(scope, decl);
+      return generateIdent(scope, decl);
 
     case 'FunctionDeclaration':
-      return lastCode = generateFunc(scope, decl);
+      return generateFunc(scope, decl);
 
     case 'BlockStatement':
-      return lastCode = generateCode(scope, decl);
+      return generateCode(scope, decl);
 
     case 'ReturnStatement':
-      return lastCode = generateReturn(scope, decl);
+      return generateReturn(scope, decl);
 
     case 'ExpressionStatement':
-      return lastCode = generateExp(scope, decl);
+      return generateExp(scope, decl);
 
     case 'CallExpression':
-      return lastCode = generateCall(scope, decl);
+      return generateCall(scope, decl);
 
     case 'Literal':
-      return lastCode = generateLiteral(scope, decl);
+      return generateLiteral(scope, decl);
 
     case 'VariableDeclaration':
-      return lastCode = generateVar(scope, decl);
+      return generateVar(scope, decl);
 
     case 'AssignmentExpression':
-      return lastCode = generateAssign(scope, decl);
+      return generateAssign(scope, decl);
 
     case 'EmptyStatement':
-      return lastCode = generateEmpty(scope, decl);
+      return generateEmpty(scope, decl);
 
     default:
       return todo(`no generation for ${decl.type}!`);
