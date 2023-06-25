@@ -41,7 +41,9 @@ export default (funcs, globals) => {
               i += 2;
             }
 
-            let iWasm = cWasm.slice(0, -1); // remove return
+            let iWasm = cWasm.slice();
+            if (iWasm[iWasm.length - 1] === Opcodes.return) iWasm = iWasm.slice(0, -1);
+
             for (let j = 0; j < iWasm.length; j++) {
               if (iWasm[j] === Opcodes.local_get || iWasm[j] === Opcodes.local_set) {
                 iWasm[j + 1] = paramIdx[iWasm[j + 1]];
