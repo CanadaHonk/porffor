@@ -1,3 +1,4 @@
+// 112
 globul = 1;
 function inside() {
   globul2 = 2;

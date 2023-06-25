@@ -19,7 +19,7 @@ console.log(`\n${underline('source')}\n` + source);
 console.log(`\n\n${underline('processing')}`);
 
 const t0 = performance.now();
-const wasm = compile(source);
+const wasm = compile(source, [ 'info' ]);
 console.log(bold(`compiled in ${(performance.now() - t0).toFixed(2)}ms`));
 
 fs.writeFileSync('out.wasm', Buffer.from(wasm));
