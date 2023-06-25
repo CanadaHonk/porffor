@@ -91,6 +91,9 @@ const generate = (scope, decl) => {
 const generateIdent = (scope, decl) => {
   let idx = scope.locals[decl.name];
 
+  if (decl.name === 'undefined') return number(UNDEFINED);
+  if (decl.name === 'null') return number(NULL);
+
   if (idx === undefined) {
     // no local var with name
     if (importedFuncs[decl.name] !== undefined) return generateLiteral(importedFuncs[decl.name]);
@@ -123,6 +126,8 @@ const generateBinaryExp = (scope, decl) => {
 };
 
 const generateLiteral = (scope, decl) => {
+  if (decl.value === null) return number(NULL);
+
   switch (typeof decl.value) {
     case 'number':
       return number(decl.value);
@@ -172,6 +177,13 @@ const generateCall = (scope, decl) => {
   return out;
 };
 
+// bad hack for undefined and null working without additional logic
+const UNDEFINED = 0, NULL = 0;
+const DEFAULT_VALUE = {
+  type: 'Identifier',
+  name: 'undefined'
+};
+
 const generateVar = (scope, decl, global = false) => {
   const out = [];
 
@@ -180,7 +192,7 @@ const generateVar = (scope, decl, global = false) => {
     for (const x of decl.declarations) {
       const name = x.id.name;
 
-      if (x.init.type.endsWith('FunctionExpression')) {
+      if (x.init && x.init.type.endsWith('FunctionExpression')) {
         // hack for var a = function () { ... }
         x.init.id = { name };
         generateFunc(scope, x.init);
@@ -190,7 +202,7 @@ const generateVar = (scope, decl, global = false) => {
       const idx = Object.keys(globals).length;
       globals[name] = idx;
 
-      out.push(...generate(scope, x.init));
+      out.push(...generate(scope, x.init ?? DEFAULT_VALUE));
       out.push(Opcodes.global_set, idx);
     }
 
@@ -200,7 +212,7 @@ const generateVar = (scope, decl, global = false) => {
   for (const x of decl.declarations) {
     const name = x.id.name;
 
-    if (x.init.type.endsWith('FunctionExpression')) {
+    if (x.init && x.init.type.endsWith('FunctionExpression')) {
       // hack for let a = function () { ... }
       x.init.id = { name };
       generateFunc(scope, x.init);
@@ -210,7 +222,7 @@ const generateVar = (scope, decl, global = false) => {
     const idx = Object.keys(scope.locals).length;
     scope.locals[name] = idx;
 
-    out.push(...generate(scope, x.init));
+    out.push(...generate(scope, x.init ?? DEFAULT_VALUE));
     out.push(Opcodes.local_set, idx);
   }
 
