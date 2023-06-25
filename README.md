@@ -1,6 +1,6 @@
 # porffor
 a **very basic** wip js wasm compiler in js. this is not a serious project ;)<br>
-age: <1 day. rough hours of work: 6
+age: <1 day. rough hours of work: 8
 
 ## limitations
 - **only number type, no string/array/object/etc at all**
