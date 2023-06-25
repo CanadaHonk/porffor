@@ -27,13 +27,12 @@ age: <1 day. rough hours of work: 8
 - `if` and `if ... else`
 - anonymous functions
 - setting functions using vars (`const foo = function() { ... }`)
+- arrow functions
 
 ## soon todo
 - switch from i32 to f64 for number
-- basic arrow functions?
 - `console.log`/etc hack
 - moar math operators
-- anonymous functions
 - `for (let i = 0; i < N; i++)`/etc
 - `assert` func
 - cli repl
@@ -52,8 +51,8 @@ basically nothing will work :). see files in `test` for examples.
 
 1. clone repo
 2. `npm install`
-3. `node runner path/to/code.js`
-4. profit
+3. `node runner path/to/code.js` to run a file
+4. `node test` to run tests
 
 ### flags
 - `-raw` for no info logs (just raw js output)

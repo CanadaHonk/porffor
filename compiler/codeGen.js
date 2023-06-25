@@ -48,6 +48,7 @@ const generate = (scope, decl) => {
     case 'Identifier':
       return generateIdent(scope, decl);
 
+    case 'ArrowFunctionExpression':
     case 'FunctionDeclaration':
       generateFunc(scope, decl);
       return [];
@@ -151,7 +152,7 @@ const generateCall = (scope, decl) => {
     Opcodes.call_indirect,
   ]; */
 
-  if (decl.callee.type === 'FunctionExpression') {
+  if (decl.callee.type.endsWith('FunctionExpression')) {
     const func = generateFunc(decl.callee);
   }
 
@@ -179,7 +180,7 @@ const generateVar = (scope, decl, global = false) => {
     for (const x of decl.declarations) {
       const name = x.id.name;
 
-      if (x.init.type === 'FunctionExpression') {
+      if (x.init.type.endsWith('FunctionExpression')) {
         // hack for var a = function () { ... }
         x.init.id = { name };
         generateFunc(scope, x.init);
@@ -199,7 +200,7 @@ const generateVar = (scope, decl, global = false) => {
   for (const x of decl.declarations) {
     const name = x.id.name;
 
-    if (x.init.type === 'FunctionExpression') {
+    if (x.init.type.endsWith('FunctionExpression')) {
       // hack for let a = function () { ... }
       x.init.id = { name };
       generateFunc(scope, x.init);
@@ -219,7 +220,7 @@ const generateVar = (scope, decl, global = false) => {
 const generateAssign = (scope, decl) => {
   const { name } = decl.left;
 
-  if (decl.right.type === 'FunctionExpression') {
+  if (decl.right.type.endsWith('FunctionExpression')) {
     // hack for a = function () { ... }
     decl.right.id = { name };
     generateFunc(scope, decl.right);
@@ -308,10 +309,19 @@ const generateFunc = (scope, decl) => {
     innerScope.locals[param.name] = i;
   }
 
+  let body = decl.body;
+  if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
+    // hack: () => 0 -> () => return 0
+    body = {
+      type: 'ReturnStatement',
+      argument: decl.body
+    };
+  }
+
   const func = {
     name,
     params,
-    wasm: generate(innerScope, decl.body),
+    wasm: generate(innerScope, body),
     index: currentFuncIndex++
   };
 
