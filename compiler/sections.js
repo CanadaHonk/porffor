@@ -1,4 +1,4 @@
-import { Valtype, FuncType, Empty, ExportDesc, Section, Magic, ModuleVersion } from './wasmSpec.js';
+import { Valtype, FuncType, Empty, ExportDesc, Section, Magic, ModuleVersion, Opcodes } from './wasmSpec.js';
 import { encodeVector, encodeString } from './encoding.js';
 
 const createSection = (type, data) => [
@@ -6,7 +6,7 @@ const createSection = (type, data) => [
   ...encodeVector(data)
 ];
 
-export default funcs => {
+export default (funcs, globals) => {
   if (process.argv.includes('-funcs')) console.log(funcs);
 
   const typeSection = createSection(
@@ -34,6 +34,11 @@ export default funcs => {
     encodeVector(funcs.map(x => x.index)) // type indexes
   );
 
+  const globalSection = Object.keys(globals).length === 0 ? [] : createSection(
+    Section.global,
+    encodeVector(Object.keys(globals).map(_ => [ Valtype.i32, 0x01, Opcodes.i32_const, 0x00, Opcodes.end ]))
+  );
+
   const exportSection = createSection(
     Section.export,
     encodeVector(funcs.filter(x => x.name === 'main').map((x, i) => [ ...encodeString('m'), ExportDesc.func, x.index ]))
@@ -58,6 +63,7 @@ export default funcs => {
     ...typeSection,
     ...importSection,
     ...funcSection,
+    ...globalSection,
     ...exportSection,
     ...codeSection
   ]);

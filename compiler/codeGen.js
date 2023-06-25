@@ -2,6 +2,7 @@ import { Opcodes, Valtype } from "./wasmSpec.js";
 import { signedLEB128, unsignedLEB128, encodeVector, encodeLocal } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 
+const globals = {};
 const importedFuncs = { print: 0 };
 const funcs = [];
 const funcIndex = {};
@@ -74,15 +75,16 @@ const generate = (scope, decl) => {
 
 const generateIdent = (scope, decl) => {
   let idx = scope.locals[decl.name];
-  if (idx === undefined && importedFuncs[decl.name]) {
-    return generateLiteral(importedFuncs[decl.name]);
+
+  if (idx === undefined) {
+    // no local var with name
+    if (importedFuncs[decl.name] !== undefined) return generateLiteral(importedFuncs[decl.name]);
+    if (funcIndex[decl.name] !== undefined) return generateLiteral(funcIndex[decl.name]);
+
+    if (globals[decl.name] !== undefined) return [ Opcodes.global_get, idx ];
   }
 
-  if (idx === undefined && funcIndex[decl.name]) {
-    return generateLiteral(funcIndex[decl.name]);
-  }
-
-  if (idx === undefined) throw new Error(`could not find local idx ${decl.name} (locals: ${Object.keys(scope.locals)})`);
+  if (idx === undefined) throw new Error(`could not find idx for ${decl.name} (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
 
   return [ Opcodes.local_get, idx ];
 };
@@ -149,6 +151,21 @@ const generateCall = (scope, decl) => {
 const generateVar = (scope, decl) => {
   const out = [];
 
+  // global variable if in top scope (main) and var ...
+  if (scope.name === 'main' && decl.kind === 'var') {
+    for (const x of decl.declarations) {
+      const name = x.id.name;
+
+      const idx = Object.keys(globals).length;
+      globals[name] = idx;
+
+      out.push(...generate(scope, x.init));
+      out.push(Opcodes.global_set, idx);
+    }
+
+    return out;
+  }
+
   for (const x of decl.declarations) {
     const name = x.id.name;
 
@@ -175,7 +192,7 @@ const generateFunc = (scope, decl) => {
 
   // const innerScope = { ...scope };
   // TODO: share scope/locals between !!!
-  const innerScope = { locals: {} };
+  const innerScope = { locals: {}, name };
 
   for (let i = 0; i < params.length; i++) {
     const param = params[i];
@@ -223,5 +240,5 @@ export default program => {
 
   generateFunc(scope, program);
 
-  return funcs;
+  return { funcs, globals };
 };

@@ -3,6 +3,8 @@ import { enumify } from "../util/enum.js";
 export const Section = enumify('custom', 'type', 'import', 'func', 'table', 'memory', 'global', 'export', 'start', 'element', 'code', 'data');
 export const ExportDesc = enumify('func', 'table', 'mem', 'global');
 
+export const Mut = enumify('const', 'var');
+
 export const Valtype = {
   i32: 0x7f,
 };
@@ -31,6 +33,9 @@ export const Opcodes = {
   local_get: 0x20,
   local_set: 0x21,
   local_tee: 0x22, // set and return value (set and get combined)
+
+  global_get: 0x23,
+  global_set: 0x24,
 
   i32_load: 0x28,
   i32_load8_s: 0x2c,

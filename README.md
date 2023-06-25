@@ -19,11 +19,12 @@ age: <1 day. rough hours of work: 6
 - `let`/`const`/`var` basic declarations
 - integer `+-/*`
 - declaring multiple variables in one
+- global variables (`var` in top scope)
+- functions returning 1 number
 
 ## soon todo
 - switch from i32 to f64 for number
 - basic arrow functions?
-- global variables
 - `console.log`/etc hack
 - really basic bools (not the actual type just convert to number lol)
 - moar math operators
