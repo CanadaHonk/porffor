@@ -1,6 +1,6 @@
 # porffor
 a **very basic** wip js wasm compiler in js. this is not a serious project ;)<br>
-age: <1 day. rough hours of work: 8
+age: <1 day. rough hours of work: 12
 
 ## limitations
 - **only number type, no string/array/object/etc at all**
@@ -42,6 +42,17 @@ age: <1 day. rough hours of work: 8
 - tree shake wasm imports (lol)
 - nicer errors
 
+## optimizations
+for size and time/perf, mostly size target.
+
+### traditional opts
+- inlining functions
+
+### wasm transforms
+- `local.set`, `local.get` -> `local.tee`
+- `return`, `end` -> `end`
+- remove some redundant sets/gets
+
 ## usecases
 basically none (other than giving people headaches). potential as a tiny fast advanced expression evaluator (for math)?
 
@@ -58,6 +69,8 @@ basically nothing will work :). see files in `test` for examples.
 
 ### flags
 - `-raw` for no info logs (just raw js output)
+- `-no-inline` to disable inlining
+- `-opt-log` to log some opts
 - `-funcs` to log funcs (internal representations)
 - `-sections` to log sections as hex
 

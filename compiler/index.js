@@ -13,9 +13,9 @@ export default (code, flags = [ 'module' ]) => {
   if (flags.includes('info')) console.log(`2. generated code in ${(performance.now() - t1).toFixed(2)}ms`);
 
   const t2 = performance.now();
-  for (const f of funcs) {
-    f.wasm = opt(f.wasm);
-  }
+  // console.log(funcs);
+  opt(funcs, globals);
+  // console.log(funcs);
   if (flags.includes('info')) console.log(`3. optimized code in ${(performance.now() - t2).toFixed(2)}ms`);
 
   const t3 = performance.now();

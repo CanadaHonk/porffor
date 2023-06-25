@@ -395,12 +395,14 @@ const generateFunc = (scope, decl) => {
   const func = {
     name,
     params,
+    locals: innerScope.locals,
     wasm: generate(innerScope, body),
     index: currentFuncIndex++
   };
 
   const localCount = Object.keys(innerScope.locals).length - params.length;
   const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype.i32)] : [];
+  func.innerWasm = func.wasm;
   func.wasm = encodeVector([ ...encodeVector(localDecl), ...func.wasm, Opcodes.end ]);
 
   funcs.push(func);
