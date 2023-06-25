@@ -80,6 +80,9 @@ const generate = (scope, decl) => {
     case 'UnaryExpression':
       return generateUnary(scope, decl);
 
+    case 'UpdateExpression':
+      return generateUpdate(scope, decl);
+
     case 'IfStatement':
       return generateIf(scope, decl);
 
@@ -155,7 +158,7 @@ const generateLogicExp = (scope, decl) => {
     return [
       ...generate(scope, decl.left),
       Opcodes.local_tee, scope.locals.tmp1,
-      Opcodes.i32_eqz, Opcodes.i32_eqz, // != 0 (fail ||)
+      // Opcodes.i32_eqz, Opcodes.i32_eqz, // != 0 (fail ||)
       Opcodes.if, Valtype.i32,
       ...generate(scope, decl.right),
       Opcodes.else,
@@ -337,6 +340,41 @@ const generateUnary = (scope, decl) => {
       out.push(Opcodes.i32_eqz);
       break;
   }
+
+  return out;
+};
+
+const generateUpdate = (scope, decl) => {
+  const { name } = decl.argument;
+
+  let idx = scope.locals[name], global = false;
+
+  if (idx === undefined && globals[name] !== undefined) {
+    idx = globals[name];
+    global = true;
+  }
+
+  if (idx === undefined) {
+    return todo(`update expression with undefined variable`);
+  }
+
+  const out = [];
+
+  out.push(global ? Opcodes.global_get : Opcodes.local_get, idx);
+  if (!decl.prefix) out.push(global ? Opcodes.global_get : Opcodes.local_get, idx);
+
+  switch (decl.operator) {
+    case '++':
+      out.push(...number(1), Opcodes.i32_add);
+      break;
+
+    case '--':
+      out.push(...number(1), Opcodes.i32_sub);
+      break;
+  }
+
+  out.push(global ? Opcodes.global_set : Opcodes.local_set, idx);
+  if (decl.prefix) out.push(global ? Opcodes.global_get : Opcodes.local_get, idx);
 
   return out;
 };

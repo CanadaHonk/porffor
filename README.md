@@ -31,6 +31,7 @@ age: <1 day. rough hours of work: 12
 - setting functions using vars (`const foo = function() { ... }`)
 - arrow functions
 - `undefined`/`null` as ints (hack)
+- update expressions (`a++`, `++b`, `c--`, etc)
 
 ## soon todo
 - switch from i32 to f64 for number
