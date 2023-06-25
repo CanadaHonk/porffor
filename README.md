@@ -23,6 +23,8 @@ a **very basic** wip js wasm jit compiler in js. rough hours of work: 6
 - basic arrow functions?
 - global variables
 - `console.log`/etc hack
+- really basic bools
+- moar operators
 - `if`
 - `for (let i = 0; i < N; i++)`/etc
 
