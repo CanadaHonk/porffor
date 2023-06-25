@@ -28,6 +28,7 @@ age: <1 day. rough hours of work: 6
 - moar operators
 - `if`
 - `for (let i = 0; i < N; i++)`/etc
+- inline functions (insane opt)
 
 ## usecases
 basically none (other than giving people headaches). potential as a tiny fast advanced expression evaluator (for math)?
