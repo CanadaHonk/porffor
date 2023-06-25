@@ -29,8 +29,12 @@ export default (funcs, globals) => {
             const paramIdx = {};
             for (let j = c.params.length - 1; j >= 0; j--) {
               const name = `__porf_inline_${c.name}_param_${j}`;
-              const idx = Object.keys(t.locals).length;
-              t.locals[name] = idx;
+
+              if (t.locals[name] === undefined) {
+                t.locals[name] = Object.keys(t.locals).length;
+              }
+
+              const idx = t.locals[name];
               paramIdx[j] = idx;
 
               tWasm.splice(i, 0, Opcodes.local_set, idx);
