@@ -74,6 +74,7 @@ basically nothing will work :). see files in `test` for examples.
 - `-O2`/`-O` (default) to enable advanced opt (inlining)
 - `-opt-log` to log some opts
 - `-funcs` to log funcs (internal representations)
+- `-opt-funcs` to log funcs after opt
 - `-sections` to log sections as hex
 
 ## faq
