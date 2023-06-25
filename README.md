@@ -20,7 +20,7 @@ age: <1 day. rough hours of work: 6
 - integer `+-/*`
 - equality operators (`==`, `!=`, etc)
 - declaring multiple variables in one
-- global variables (`var` in top scope)
+- global variables (`var`/none in top scope)
 - functions returning 1 number
 - bool literals as ints (not real type)
 

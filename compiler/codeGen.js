@@ -84,7 +84,7 @@ const generateIdent = (scope, decl) => {
     if (importedFuncs[decl.name] !== undefined) return generateLiteral(importedFuncs[decl.name]);
     if (funcIndex[decl.name] !== undefined) return generateLiteral(funcIndex[decl.name]);
 
-    if (globals[decl.name] !== undefined) return [ Opcodes.global_get, idx ];
+    if (globals[decl.name] !== undefined) return [ Opcodes.global_get, globals[decl.name] ];
   }
 
   if (idx === undefined) throw new Error(`could not find idx for ${decl.name} (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
@@ -155,11 +155,11 @@ const generateCall = (scope, decl) => {
   return out;
 };
 
-const generateVar = (scope, decl) => {
+const generateVar = (scope, decl, global = false) => {
   const out = [];
 
-  // global variable if in top scope (main) and var ...
-  if (scope.name === 'main' && decl.kind === 'var') {
+  // global variable if in top scope (main) and var ..., or if wanted
+  if ((scope.name === 'main' && decl.kind === 'var') || global) {
     for (const x of decl.declarations) {
       const name = x.id.name;
 
@@ -195,7 +195,10 @@ const generateAssign = (scope, decl) => {
     op = Opcodes.global_set;
   }
 
-  if (idx === undefined) throw new Error(`could not find idx for ${decl.name} (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
+  if (idx === undefined) {
+    // set global (eg a = 2)
+    return generateVar(scope, { declarations: [ { id: { name }, init: decl.right } ] }, true);
+  }
 
   return [
     ...generate(scope, decl.right),
