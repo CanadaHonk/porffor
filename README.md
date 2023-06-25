@@ -36,8 +36,8 @@ age: <1 day. rough hours of work: 12
 - for loops (`for (let i = 0; i < N; i++)`, etc)
 - hack for "chars" as ints (`'X'` -> `88`)
 - tree shaking wasm imports
-- *basic* objects hack
-- `console.log` hack
+- *basic* objects (hack)
+- `console.log` (hack)
 
 ## soon todo
 - switch from i32 to f64 for number
