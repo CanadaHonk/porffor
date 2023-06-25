@@ -2,11 +2,11 @@ import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { signedLEB128, unsignedLEB128, encodeVector, encodeLocal } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 
-const importedFuncs = { print: 0 };
+const importedFuncs = { print: 0, printChar: 1 };
 let globals = {};
 let funcs = [];
 let funcIndex = {};
-let currentFuncIndex = 1;
+let currentFuncIndex = Object.keys(importedFuncs).length;
 
 const debug = str => {
   const code = [];
@@ -486,7 +486,7 @@ export default program => {
   globals = {};
   funcs = [];
   funcIndex = {};
-  currentFuncIndex = 1;
+  currentFuncIndex = Object.keys(importedFuncs).length;
 
   program.id = { name: 'main' };
 
