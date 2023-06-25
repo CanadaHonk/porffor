@@ -114,6 +114,10 @@ const generateLiteral = (scope, decl) => {
     case 'number':
       return [ Opcodes.i32_const, ...signedLEB128(decl.value) ];
 
+    case 'boolean':
+      // hack: bool as int (1/0)
+      return [ Opcodes.i32_const, ...signedLEB128(decl.value ? 1 : 0) ];
+
     default:
       return todo(`cannot generate literal of type ${typeof decl.value}`);
   }

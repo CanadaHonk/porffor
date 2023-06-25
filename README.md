@@ -3,7 +3,7 @@ a **very basic** wip js wasm jit compiler in js. this is not a serious project ;
 age: <1 day. rough hours of work: 6
 
 ## limitations
-- **only number type, no string/array/object at all**
+- **only number type, no string/array/object/etc at all**
 - no built-ins/prototype/etc
 - no errors
 - no global variables
@@ -21,6 +21,7 @@ age: <1 day. rough hours of work: 6
 - declaring multiple variables in one
 - global variables (`var` in top scope)
 - functions returning 1 number
+- bool literals as ints (not real type)
 
 ## soon todo
 - switch from i32 to f64 for number
