@@ -6,7 +6,6 @@ age: <1 day. rough hours of work: 6
 - **only number type, no string/array/object/etc at all**
 - no built-ins/prototype/etc
 - no errors
-- no global variables
 - no variables between scopes (except args)
 - literal callees only in calls (eg `print()` works, `a = print; a()` does not)
 - there is no version of the spec this is based on, I add (easy) things I use
