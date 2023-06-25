@@ -33,11 +33,11 @@ age: <1 day. rough hours of work: 12
 - arrow functions
 - `undefined`/`null` as ints (hack)
 - update expressions (`a++`, `++b`, `c--`, etc)
+- for loops (`for (let i = 0; i < N; i++)`, etc)
 
 ## soon todo
 - switch from i32 to f64 for number
 - `console.log`/etc hack
-- `for (let i = 0; i < N; i++)`/etc
 - `assert` func
 - tree shake wasm imports (lol)
 - nicer errors
