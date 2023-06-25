@@ -71,6 +71,9 @@ const generate = (scope, decl) => {
     case 'AssignmentExpression':
       return lastCode = generateAssign(scope, decl);
 
+    case 'EmptyStatement':
+      return lastCode = generateEmpty(scope, decl);
+
     default:
       return todo(`no generation for ${decl.type}!`);
   }
@@ -205,6 +208,10 @@ const generateAssign = (scope, decl) => {
     ...generate(scope, decl.right),
     op, idx
   ];
+};
+
+const generateEmpty = (scope, decl) => {
+  return [];
 };
 
 const generateAssignPat = (scope, decl) => {
