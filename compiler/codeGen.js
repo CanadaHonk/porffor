@@ -12,7 +12,7 @@ const debug = str => {
   const code = [];
 
   const logChar = n => {
-    code.push(Opcodes.i32_const, ...signedLEB128(n));
+    code.push(...number(n));
 
     code.push(Opcodes.call);
     code.push(...unsignedLEB128(0));
@@ -37,6 +37,8 @@ const todo = msg => {
 
   return code;
 };
+
+const number = n => [ Opcodes.i32_const, ...signedLEB128(n) ];
 
 const generate = (scope, decl) => {
   switch (decl.type) {
@@ -69,6 +71,9 @@ const generate = (scope, decl) => {
 
     case 'AssignmentExpression':
       return generateAssign(scope, decl);
+
+    case 'UnaryExpression':
+      return generateUnary(scope, decl);
 
     case 'EmptyStatement':
       return generateEmpty(scope, decl);
@@ -115,11 +120,11 @@ const generateBinaryExp = (scope, decl) => {
 const generateLiteral = (scope, decl) => {
   switch (typeof decl.value) {
     case 'number':
-      return [ Opcodes.i32_const, ...signedLEB128(decl.value) ];
+      return number(decl.value);
 
     case 'boolean':
       // hack: bool as int (1/0)
-      return [ Opcodes.i32_const, ...signedLEB128(decl.value ? 1 : 0) ];
+      return number(decl.value ? 1 : 0);
 
     default:
       return todo(`cannot generate literal of type ${typeof decl.value}`);
@@ -207,6 +212,28 @@ const generateAssign = (scope, decl) => {
     ...generate(scope, decl.right),
     op, idx
   ];
+};
+
+const generateUnary = (scope, decl) => {
+  const out = [ ...generate(scope, decl.argument) ];
+
+  switch (decl.operator) {
+    case '+':
+      // stub
+      break;
+
+    case '-':
+      // * -1
+      out.push(...number(-1), Opcodes.i32_mul);
+      break;
+
+    case '!':
+      // !=
+      out.push(Opcodes.i32_eqz);
+      break;
+  }
+
+  return out;
 };
 
 const generateEmpty = (scope, decl) => {
