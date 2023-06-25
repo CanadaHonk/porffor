@@ -6,6 +6,7 @@ age: <1 day. rough hours of work: 6
 - **only number type, no string/array/object/etc at all**
 - no built-ins/prototype/etc
 - no errors
+- no async/promise/await
 - no variables between scopes (except args)
 - literal callees only in calls (eg `print()` works, `a = print; a()` does not)
 - there is no version of the spec this is based on, I add (easy) things I use
@@ -26,6 +27,7 @@ age: <1 day. rough hours of work: 6
 ## soon todo
 - switch from i32 to f64 for number
 - basic arrow functions?
+- some unary operators (`!`, `+`, `-`)
 - `console.log`/etc hack
 - moar math operators
 - `if`
