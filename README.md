@@ -19,6 +19,7 @@ age: <1 day. rough hours of work: 6
 - `let`/`const`/`var` basic declarations
 - integer `+-/*`
 - equality operators (`==`, `!=`, etc)
+- some unary operators (`!`, `+`, `-`)
 - declaring multiple variables in one
 - global variables (`var`/none in top scope)
 - functions returning 1 number
@@ -27,9 +28,9 @@ age: <1 day. rough hours of work: 6
 ## soon todo
 - switch from i32 to f64 for number
 - basic arrow functions?
-- some unary operators (`!`, `+`, `-`)
 - `console.log`/etc hack
 - moar math operators
+- anonymous functions
 - `if`
 - `for (let i = 0; i < N; i++)`/etc
 - `assert` func
