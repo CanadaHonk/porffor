@@ -1,5 +1,5 @@
 # porffor
-a **very basic** wip js wasm jit compiler in js. this is not a serious project ;)<br>
+a **very basic** wip js wasm compiler in js. this is not a serious project ;)<br>
 age: <1 day. rough hours of work: 6
 
 ## limitations
