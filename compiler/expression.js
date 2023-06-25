@@ -14,5 +14,10 @@ export const operatorOpcode = {
   '==': Opcodes.i32_eq,
   '===': Opcodes.i32_eq,
   '!=': Opcodes.i32_ne,
-  '!==': Opcodes.i32_ne
+  '!==': Opcodes.i32_ne,
+
+  '>': Opcodes.i32_gt_s,
+  '>=': Opcodes.i32_ge_s,
+  '<': Opcodes.i32_lt_s,
+  '<=': Opcodes.i32_le_s
 };

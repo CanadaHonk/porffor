@@ -20,6 +20,7 @@ age: <1 day. rough hours of work: 12
 - some basic integer operators (`+-/*%`)
 - some basic integer bitwise operators (`&|`)
 - equality operators (`==`, `!=`, etc)
+- gt/lt operators (`>`, `<`, `>=`, etc)
 - some unary operators (`!`, `+`, `-`)
 - logical operators (`&&`, `||`)
 - declaring multiple variables in one
