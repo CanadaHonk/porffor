@@ -17,6 +17,7 @@ age: <1 day. rough hours of work: 6
 - `return`
 - `let`/`const`/`var` basic declarations
 - integer `+-/*`
+- equality operators (`==`, `!=`, etc)
 - declaring multiple variables in one
 - global variables (`var` in top scope)
 - functions returning 1 number
@@ -27,7 +28,6 @@ age: <1 day. rough hours of work: 6
 - basic arrow functions?
 - `console.log`/etc hack
 - moar math operators
-- equality operators
 - `if`
 - `for (let i = 0; i < N; i++)`/etc
 - `assert` func
