@@ -11,12 +11,12 @@ a **very basic** wip js wasm jit compiler in js. rough hours of work: 6
 - there is no version of the spec this is based on, I add (easy) things I use
 
 ## supported
-- [X] number literals
-- [X] declaring functions
-- [X] calling functions *literal callees only*
-- [X] `return`
-- [X] `let`/`const`/`var` basic declarations
-- [X] integer +-/*
+- number literals
+- declaring functions
+- calling functions *literal callees only*
+- `return`
+- `let`/`const`/`var` basic declarations
+- integer `+-/*`
 
 ## soon todo
 - switch from i32 to f64 for number
