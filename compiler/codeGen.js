@@ -45,6 +45,9 @@ const generate = (scope, decl) => {
     case 'BinaryExpression':
       return generateBinaryExp(scope, decl);
 
+    case 'LogicalExpression':
+      return generateLogicExp(scope, decl);
+
     case 'Identifier':
       return generateIdent(scope, decl);
 
@@ -123,6 +126,65 @@ const generateBinaryExp = (scope, decl) => {
     ...generate(scope, decl.right),
     operatorOpcode[decl.operator]
   ];
+};
+
+const asmFunc = (name, wasm, params, localCount) => {
+  const existing = funcs.find(x => x.name === name);
+  if (existing) return existing;
+
+  const func = {
+    name,
+    params,
+    wasm: encodeVector([ ...encodeVector(localCount > 0 ? [encodeLocal(localCount, Valtype.i32)] : []), ...wasm, Opcodes.end ]),
+    index: currentFuncIndex++
+  };
+
+  funcs.push(func);
+  return func;
+};
+
+const generateLogicExp = (scope, decl) => {
+  if (decl.operator === '||') {
+    // it basically does:
+    // (a) || (b)
+    // -->
+    // let _ = (a); if (!_) { (b) } _
+
+    if (scope.locals.tmp1 === undefined) scope.locals.tmp1 = Object.keys(scope.locals).length;
+
+    return [
+      ...generate(scope, decl.left),
+      Opcodes.local_tee, scope.locals.tmp1,
+      Opcodes.i32_eqz, Opcodes.i32_eqz, // != 0 (fail ||)
+      Opcodes.if, Valtype.i32,
+      ...generate(scope, decl.right),
+      Opcodes.else,
+      Opcodes.local_get, scope.locals.tmp1,
+      Opcodes.end,
+    ];
+  }
+
+  if (decl.operator === '&&') {
+    // it basically does:
+    // (a) && (b)
+    // -->
+    // let _ = (a); if (_) { (b) } _
+
+    if (scope.locals.tmp1 === undefined) scope.locals.tmp1 = Object.keys(scope.locals).length;
+
+    return [
+      ...generate(scope, decl.left),
+      Opcodes.local_tee, scope.locals.tmp1,
+      Opcodes.i32_eqz, // == 0 (fail &&)
+      Opcodes.if, Valtype.i32,
+      ...generate(scope, decl.right),
+      Opcodes.else,
+      Opcodes.local_get, scope.locals.tmp1,
+      Opcodes.end,
+    ];
+  }
+
+  return todo(`logical op ${decl.operator} not implemented`);
 };
 
 const generateLiteral = (scope, decl) => {

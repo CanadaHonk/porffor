@@ -21,6 +21,7 @@ age: <1 day. rough hours of work: 8
 - some basic integer bitwise operators (`&|`)
 - equality operators (`==`, `!=`, etc)
 - some unary operators (`!`, `+`, `-`)
+- logical operators (`&&`, `||`)
 - declaring multiple variables in one
 - global variables (`var`/none in top scope)
 - functions returning 1 number
@@ -34,7 +35,6 @@ age: <1 day. rough hours of work: 8
 ## soon todo
 - switch from i32 to f64 for number
 - `console.log`/etc hack
-- moar math operators
 - `for (let i = 0; i < N; i++)`/etc
 - `assert` func
 - cli repl
