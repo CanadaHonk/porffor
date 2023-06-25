@@ -7,7 +7,7 @@ age: <1 day. rough hours of work: 6
 - no built-ins/prototype/etc
 - no errors
 - no async/promise/await
-- no variables between scopes (except args)
+- no variables between scopes (except args and globals)
 - literal callees only in calls (eg `print()` works, `a = print; a()` does not)
 - there is no version of the spec this is based on, I add (easy) things I use
 
