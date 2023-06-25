@@ -52,7 +52,12 @@ export const Opcodes = {
   i32_add: 0x6a,
   i32_sub: 0x6b,
   i32_mul: 0x6c,
-  i32_div_s: 0x6d
+  i32_div_s: 0x6d,
+  i32_rem_s: 0x6f,
+
+  i32_and: 0x71,
+  i32_or: 0x72,
+  i32_xor: 0x73
 };
 
 export const FuncType = 0x60;

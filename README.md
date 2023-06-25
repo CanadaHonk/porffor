@@ -17,7 +17,8 @@ age: <1 day. rough hours of work: 8
 - calling functions *literal callees only*
 - `return`
 - `let`/`const`/`var` basic declarations
-- integer `+-/*`
+- some basic integer operators (`+-/*%`)
+- some basic integer bitwise operators (`&|`)
 - equality operators (`==`, `!=`, etc)
 - some unary operators (`!`, `+`, `-`)
 - declaring multiple variables in one
