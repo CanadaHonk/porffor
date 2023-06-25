@@ -53,6 +53,7 @@ export default (funcs, globals) => {
     typeSection: typeSection.map(x => x.toString(16)),
     importSection: importSection.map(x => x.toString(16)),
     funcSection: funcSection.map(x => x.toString(16)),
+    globalSection: globalSection.map(x => x.toString(16)),
     exportSection: exportSection.map(x => x.toString(16)),
     codeSection: codeSection.map(x => x.toString(16))
   });
