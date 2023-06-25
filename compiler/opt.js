@@ -45,7 +45,8 @@ export default (funcs, globals) => {
             if (iWasm[iWasm.length - 1] === Opcodes.return) iWasm = iWasm.slice(0, -1);
 
             for (let j = 0; j < iWasm.length; j++) {
-              if (iWasm[j] === Opcodes.local_get || iWasm[j] === Opcodes.local_set) {
+              if ((iWasm[j] === Opcodes.local_get || iWasm[j] === Opcodes.local_set) && iWasm[j + 1] < c.params.length) {
+                if (optLog) console.log(`opt: replacing local operand in inline wasm. ${iWasm[j + 1]} -> ${paramIdx[iWasm[j + 1]]}`);
                 iWasm[j + 1] = paramIdx[iWasm[j + 1]];
               }
             }
