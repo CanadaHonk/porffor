@@ -37,8 +37,6 @@ age: <1 day. rough hours of work: 12
 - `console.log`/etc hack
 - `for (let i = 0; i < N; i++)`/etc
 - `assert` func
-- cli repl
-- inline functions (insane opt)
 - tree shake wasm imports (lol)
 - nicer errors
 
