@@ -25,10 +25,13 @@ age: <1 day. rough hours of work: 6
 - global variables
 - `console.log`/etc hack
 - really basic bools (not the actual type just convert to number lol)
-- moar operators
+- moar math operators
+- equality operators
 - `if`
 - `for (let i = 0; i < N; i++)`/etc
+- `assert` func
 - inline functions (insane opt)
+- tree shake wasm imports (lol)
 
 ## usecases
 basically none (other than giving people headaches). potential as a tiny fast advanced expression evaluator (for math)?
