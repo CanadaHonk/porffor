@@ -90,6 +90,15 @@ const generate = (scope, decl) => {
     case 'ForStatement':
       return generateFor(scope, decl);
 
+    case 'WhileStatement':
+      return generateWhile(scope, decl);
+
+    case 'BreakStatement':
+      return generateBreak(scope, decl);
+
+    case 'ContinueStatement':
+      return generateContinue(scope, decl);
+
     case 'EmptyStatement':
       return generateEmpty(scope, decl);
 
@@ -417,6 +426,7 @@ const generateIf = (scope, decl) => {
   const out = [ ...generate(scope, decl.test) ];
 
   out.push(Opcodes.i32_to, Opcodes.if, Blocktype.void);
+  depth.push('if');
 
   out.push(...generate(scope, decl.consequent));
 
@@ -426,27 +436,74 @@ const generateIf = (scope, decl) => {
   }
 
   out.push(Opcodes.end);
+  depth.pop();
+
   return out;
 };
 
+let depth = [];
 const generateFor = (scope, decl) => {
   const out = [];
 
   if (decl.init) out.push(...generate(scope, decl.init));
 
   out.push(Opcodes.loop, Blocktype.void);
+  depth.push('for');
 
   out.push(...generate(scope, decl.test), Opcodes.i32_to);
   out.push(Opcodes.if, Blocktype.void);
+  depth.push('if');
 
+  out.push(Opcodes.block, Blocktype.void);
+  depth.push('block');
   out.push(...generate(scope, decl.body));
+  out.push(Opcodes.end);
 
   out.push(...generate(scope, decl.update));
+  depth.pop();
 
   out.push(Opcodes.br, ...signedLEB128(1));
   out.push(Opcodes.end, Opcodes.end);
+  depth.pop(); depth.pop();
 
   return out;
+};
+
+const generateWhile = (scope, decl) => {
+  const out = [];
+
+  out.push(Opcodes.loop, Blocktype.void);
+  depth.push('while');
+
+  out.push(...generate(scope, decl.test), Opcodes.i32_to);
+  out.push(Opcodes.if, Blocktype.void);
+  depth.push('if');
+
+  out.push(...generate(scope, decl.body));
+
+  out.push(Opcodes.br, ...signedLEB128(1));
+  out.push(Opcodes.end, Opcodes.end);
+  depth.pop(); depth.pop();
+
+  return out;
+};
+
+const getNearestLoop = () => {
+  for (let i = depth.length - 1; i >= 0; i--) {
+    if (depth[i] === 'while' || depth[i] === 'for') return i;
+  }
+
+  return -1;
+};
+
+const generateBreak = (scope, decl) => {
+  const nearestLoop = depth.length - getNearestLoop();
+  return [ Opcodes.br, ...signedLEB128(nearestLoop - 2) ];
+};
+
+const generateContinue = (scope, decl) => {
+  const nearestLoop = depth.length - getNearestLoop();
+  return [ Opcodes.br, ...signedLEB128(nearestLoop - 3) ];
 };
 
 const generateEmpty = (scope, decl) => {
@@ -551,6 +608,7 @@ export default program => {
   globals = {};
   funcs = [];
   funcIndex = {};
+  depth = [];
   currentFuncIndex = Object.keys(importedFuncs).length;
 
   global.valtype = 'i32';
