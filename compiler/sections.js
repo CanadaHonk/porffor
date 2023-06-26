@@ -54,7 +54,7 @@ export default (funcs, globals, flags) => {
 
   const importSection = createSection(
     Section.import,
-    encodeVector(importFuncs.map(x => [ 0, ...encodeString(x), ExportDesc.func, 0 ]))
+    encodeVector(importFuncs.map((x, i) => [ 0, ...encodeString(x), ExportDesc.func, i ]))
   );
 
   const funcSection = createSection(
