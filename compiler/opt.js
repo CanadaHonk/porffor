@@ -97,14 +97,14 @@ export default (funcs, globals) => {
 
     // main pass
     for (let i = 0; i < wasm.length; i++) {
-      const inst = wasm[i];
+      let inst = wasm[i];
       if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth++;
       if (inst[0] === Opcodes.end) depth--;
 
       if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
 
       if (i < 1) continue;
-      const lastInst = wasm[i - 1];
+      let lastInst = wasm[i - 1];
 
       if (lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_set && inst[0] === Opcodes.local_get) {
         // replace set, get -> tee (sets and returns)
@@ -115,6 +115,8 @@ export default (funcs, globals) => {
 
         lastInst[0] = Opcodes.local_tee; // replace last inst opcode (set -> tee)
         wasm.splice(i, 1); // remove this inst (get)
+        i--;
+        inst = wasm[i];
         // if (optLog) console.log(`opt: consolidated set, get -> tee`);
       }
 
@@ -127,6 +129,8 @@ export default (funcs, globals) => {
 
         inst[0] = Opcodes.eqz; // eq -> eqz
         wasm.splice(i - 1, 1); // remove const 0
+        i--;
+        lastInst = wasm[i - 1];
       }
 
       if (i === wasm.length - 1 && inst[0] === Opcodes.return) {
@@ -137,6 +141,8 @@ export default (funcs, globals) => {
         // end
 
         wasm.splice(i, 1); // remove this inst (return)
+        i--;
+        inst = wasm[i];
         // if (optLog) console.log(`opt: removed redundant return at end`);
       }
 
@@ -151,6 +157,7 @@ export default (funcs, globals) => {
         // <nothing>
 
         wasm.splice(i - 2, 3); // remove this, last, 2nd last insts
+        i -= 3;
         if (optLog) console.log(`opt: removed redundant inline param local handling`);
       }
     }
@@ -170,12 +177,14 @@ export default (funcs, globals) => {
 
       if (lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_set && inst[0] === Opcodes.local_get && unneededCandidates.includes(inst[1])) {
         wasm.splice(i - 1, 2); // remove insts
+        i -= 2;
         delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
         if (optLog) console.log(`opt: removed redundant local (getset ${inst[1]})`);
       }
 
       if (inst[0] === Opcodes.local_tee && unneededCandidates.includes(inst[1])) {
         wasm.splice(i, 1); // remove inst
+        i--;
         delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
         if (optLog) console.log(`opt: removed redundant local (tee ${inst[1]})`);
       }
