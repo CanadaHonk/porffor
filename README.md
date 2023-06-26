@@ -54,7 +54,7 @@ porffor is a very unique js engine, due a very different approach. it is serious
 - more math operations (`**`, etc)
 - nicer errors
 - opt: smarter inline selection (snapshots?)
-- opt: smart types section (no dups)
+- begin `Math` (`Math.sqrt`, etc)
 
 ## optimizations
 mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable.
@@ -68,6 +68,7 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 - `return`, `end` -> `end`
 - remove some redundant sets/gets
 - remove unneeded single just used vars
+- type cache
 
 ## usecases
 basically none (other than giving people headaches). potential as a tiny fast advanced expression evaluator (for math)?
