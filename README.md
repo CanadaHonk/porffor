@@ -6,6 +6,7 @@ age: ~2 days
 porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. key differences:
 - 100% aot compiled *(not jit)*
 - everything is a number
+- no constant runtime/preluded code
 
 ## limitations
 - **only number type, no string/array/object/etc at all**
@@ -49,6 +50,8 @@ porffor is a very unique js engine, due a very different approach. it is serious
 ## soon todo
 - switch from i32 to f64 for number
 - `assert` func
+- assignment operators (`+=`, `-=`, etc)
+- more math operations (`**`, etc)
 - nicer errors
 
 ## optimizations
@@ -88,6 +91,7 @@ you can also use deno (`deno run -A ...` instead of `node ...`)
 - `-funcs` to log funcs (internal representations)
 - `-opt-funcs` to log funcs after opt
 - `-sections` to log sections as hex
+- `-no-run` to not run wasm output, just compile
 
 ## faq
 
