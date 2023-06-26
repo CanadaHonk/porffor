@@ -64,15 +64,25 @@ const perform = async (test, args) => {
 
 const t0 = performance.now();
 
+const argsValtypes = [ '-valtype=i64' ];
+const argsOptlevels = [ '-O0', '-O1' ];
+
 let total = 0, passes = 0;
 for (const test of fs.readdirSync('test')) {
   if (test === 'index.js') continue;
   await perform(test, []);
-  await perform(test, [ '-valtype=i64' ]);
-  // await perform(test, [ '-valtype=f64' ]);
-  await perform(test, [ '-O0' ]);
-  // await perform(test, [ '-O1' ]);
-  // await perform(test, [ '-O2' ]);
+
+  for (const x of argsOptlevels) {
+    await perform(test, [ x ]);
+  }
+
+  for (const x of argsValtypes) {
+    await perform(test, [ x ]);
+
+    for (const y of argsOptlevels) {
+      await perform(test, [ x, y ]);
+    }
+  }
 }
 
 console.log(`\u001b[1m\n${passes}/${total} tests passed (took ${(performance.now() - t0).toFixed(2)}ms)\u001b[0m`);
