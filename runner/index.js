@@ -46,7 +46,8 @@ const t1 = performance.now();
 const { instance } = await WebAssembly.instantiate(wasm, {
   '': {
     p: i => print(Number(i).toString()),
-    c: i => print(String.fromCharCode(Number(i)))
+    c: i => print(String.fromCharCode(Number(i))),
+    a: c => { if (!Number(c)) throw new Error(`assert failed`); }
   }
 });
 if (!raw) console.log(`instantiated in ${(performance.now() - t1).toFixed(2)}ms\n\n${underline('output')}`);

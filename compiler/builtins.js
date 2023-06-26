@@ -3,7 +3,7 @@ import { signedLEB128 } from "./encoding.js";
 
 // import parse from "./parse.js";
 
-export const importedFuncs = { print: 0, printChar: 1 };
+export const importedFuncs = { print: 0, printChar: 1, assert: 2 };
 
 const number = n => [ [ Opcodes.const, ...signedLEB128(n) ] ];
 const char = c => number(c.charCodeAt(0));

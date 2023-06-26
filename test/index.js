@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import compile from '../compiler/index.js';
+import { assert } from 'node:console';
 
 // deno compat
 const textEncoder = new TextEncoder();
@@ -18,13 +19,14 @@ const run = async source => {
 
   totalOutput += wasm.byteLength;
 
-  let out = '';
+  let out = '', assertFailed = false;
   const print = str => out += str;
 
   const { instance } = await WebAssembly.instantiate(wasm, {
     '': {
       p: i => print(Number(i).toString()),
-      c: i => print(String.fromCharCode(Number(i)))
+      c: i => print(String.fromCharCode(Number(i))),
+      a: c => { if (!Number(c)) assertFailed = true; }
     }
   });
 
@@ -32,7 +34,7 @@ const run = async source => {
   instance.exports.m();
   times.push(performance.now() - t1);
 
-  return [ out, times, wasm ];
+  return [ out, assertFailed, times, wasm ];
 };
 
 const perform = async (test, args) => {
@@ -43,9 +45,9 @@ const perform = async (test, args) => {
   const code = spl.slice(1).join('\n');
 
   const t1 = performance.now();
-  let [ out, times, wasm ] = await run(code);
+  let [ out, assertFailed, times, wasm ] = await run(code);
   const time = performance.now() - t1;
-  const pass = out === expect;
+  const pass = !assertFailed && out === expect;
 
   total++;
   if (pass) passes++;
@@ -53,7 +55,8 @@ const perform = async (test, args) => {
   console.log(`${pass ? '\u001b[92mPASS' : '\u001b[91mFAIL'} ${test}\u001b[0m ${args.join(' ')} ${' '.repeat(40 - test.length - args.join(' ').length)}\u001b[90m${time.toFixed(2)}ms (compile: ${times[0].toFixed(2)}ms, exec: ${times[1].toFixed(2)}ms)${' '.repeat(10)}${wasm.byteLength}b\u001b[0m`);
 
   if (!pass) {
-    console.log(`expected: ${JSON.stringify(expect)}\n     got: ${JSON.stringify(out)}\n`);
+    if (out !== expect) console.log(`expected: ${JSON.stringify(expect)}\n     got: ${JSON.stringify(out)}\n`);
+    if (assertFailed) console.log(`an assert failed`);
   }
 
   return pass;

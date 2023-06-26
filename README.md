@@ -46,10 +46,10 @@ porffor is a very unique js engine, due a very different approach. it is serious
 - `console.log` (hack)
 - `while` loops
 - `break` and `continue`
+- basic `assert` func
 
 ## soon todo
-- switch from i32 to f64 for number
-- `assert` func
+- support f64 as valtype (wip)
 - assignment operators (`+=`, `-=`, etc)
 - more math operations (`**`, etc)
 - nicer errors

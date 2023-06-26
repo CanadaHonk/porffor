@@ -6,7 +6,7 @@ const createSection = (type, data) => [
   ...encodeVector(data)
 ];
 
-const allImportFuncs = ['p', 'c'];
+const allImportFuncs = [ 'p', 'c', 'a' ];
 const optLog = process.argv.includes('-opt-log');
 
 export default (funcs, globals, flags) => {
