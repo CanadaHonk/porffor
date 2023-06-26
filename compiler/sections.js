@@ -1,5 +1,5 @@
 import { Valtype, FuncType, Empty, ExportDesc, Section, Magic, ModuleVersion, Opcodes } from './wasmSpec.js';
-import { encodeVector, encodeString } from './encoding.js';
+import { encodeVector, encodeString, encodeLocal } from './encoding.js';
 
 const createSection = (type, data) => [
   type,
@@ -17,22 +17,28 @@ export default (funcs, globals, flags) => {
   } else {
     // tree shake imports
     for (const f of funcs) {
-      const wasm = f.innerWasm;
-      for (let i = 0; i < wasm.length; i++) {
-        if (wasm[i] === Opcodes.call && wasm[i + 1] < allImportFuncs.length) {
-          const idx = wasm[i + 1];
+      for (const inst of f.wasm) {
+        if (inst[0] === Opcodes.call && inst[1] < allImportFuncs.length) {
+          const idx = inst[1];
           const func = allImportFuncs[idx];
           if (!importFuncs.includes(func)) importFuncs.push(func);
 
-          wasm[i + 1] = importFuncs.indexOf(func);
+          inst[1] = importFuncs.indexOf(func);
           // if (optLog) console.log(`treeshake: rewrote call for ${func} (${idx} -> ${importFuncs.indexOf(func)})`);
         }
       }
     }
 
-    // fix func indexes
+    // fix call indexes for non-imports
+    const delta = allImportFuncs.length - importFuncs.length;
     for (const f of funcs) {
-      f.index -= (allImportFuncs.length - importFuncs.length);
+      f.index -= delta;
+
+      for (const inst of f.wasm) {
+        if (inst[0] === Opcodes.call && inst[1] >= allImportFuncs.length) {
+          inst[1] -= delta;
+        }
+      }
     }
   }
 
@@ -68,7 +74,11 @@ export default (funcs, globals, flags) => {
 
   const codeSection = createSection(
     Section.code,
-    encodeVector(funcs.map(x => x.wasm))
+    encodeVector(funcs.map(x => {
+      const localCount = Object.keys(x.locals).length - x.params.length;
+      const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : [];
+      return encodeVector([ ...encodeVector(localDecl), ...x.wasm.flat().filter(x => x !== null), Opcodes.end ]);
+    }))
   );
 
   if (process.argv.includes('-sections')) console.log({

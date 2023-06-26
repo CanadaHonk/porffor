@@ -6,6 +6,7 @@ import fs from 'node:fs';
   v8.setFlagsFromString('--experimental-wasm-gc');
 } */
 
+// deno compat
 const raw = process.argv.includes('-raw');
 
 const source = fs.readFileSync(process.argv.slice(2).filter(x => x[0] !== '-')[0], 'utf8');
@@ -22,7 +23,15 @@ if (!raw) console.log(bold(`compiled in ${(performance.now() - t0).toFixed(2)}ms
 
 if (!raw) fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
-const print = str => process.stdout.write(str);
+let cache = '';
+const print = str => {
+  cache += str;
+
+  if (str === '\n') {
+    process.stdout.write(cache);
+    cache = '';
+  }
+};
 
 const t1 = performance.now();
 const { instance } = await WebAssembly.instantiate(wasm, {
@@ -36,6 +45,8 @@ if (!raw) console.log(`instantiated in ${(performance.now() - t1).toFixed(2)}ms\
 const t2 = performance.now();
 instance.exports.m();
 
+print('\n');
+
 if (!raw) console.log(bold(`\n\nexecuted in ${(performance.now() - t2).toFixed(2)}ms`));
 if (!raw) console.log(bold(`wasm binary is ${wasm.byteLength} bytes`));
-// console.log(`total: ${(performance.now() - t0).toFixed(2)}ms`);
+if (!raw) console.log(`total: ${(performance.now() - t0).toFixed(2)}ms`);

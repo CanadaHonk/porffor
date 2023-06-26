@@ -9,7 +9,13 @@ const rev = fs.readFileSync('.git/refs/heads/main', 'utf8').trim();
 process.argv.push('-O0'); // disable opts
 
 console.log(`welcome to porffor rev ${rev.slice(0, 7)}`);
+console.log(`info: using opt -O0 and valtype ${valtype}`);
 console.log();
+
+globalThis.valtype = 'i32';
+
+const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
+if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
 
 let prev = '';
 const run = async (source, _context, _filename, callback) => {

@@ -1,6 +1,11 @@
 # porffor
 a **very basic** wip js *aot* wasm compiler in js. this is not a serious project ;)<br>
-age: <1 day. rough hours of work: 12
+age: ~2 days
+
+## design
+porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. key differences:
+- 100% aot compiled *(not jit)*
+- everything is a number
 
 ## limitations
 - **only number type, no string/array/object/etc at all**
@@ -33,17 +38,18 @@ age: <1 day. rough hours of work: 12
 - arrow functions
 - `undefined`/`null` as ints (hack)
 - update expressions (`a++`, `++b`, `c--`, etc)
-- for loops (`for (let i = 0; i < N; i++)`, etc)
+- `for` loops (`for (let i = 0; i < N; i++)`, etc)
 - hack for "chars" as ints (`'X'` -> `88`)
 - tree shaking wasm imports
 - *basic* objects (hack)
 - `console.log` (hack)
+- `while` loops
+- `break` and `continue`
 
 ## soon todo
 - switch from i32 to f64 for number
 - `assert` func
 - nicer errors
-- `break`, `continue`
 
 ## optimizations
 mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable.
@@ -69,6 +75,8 @@ basically nothing will work :). see files in `test` for examples.
 2. `npm install`
 3. `node test` to run tests (all should pass)
 4. `node runner path/to/code.js` to run a file
+
+you can also use deno (`deno run -A ...` instead of `node ...`)
 
 ### flags
 - `-raw` for no info logs (just raw js output)

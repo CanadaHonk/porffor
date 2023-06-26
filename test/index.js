@@ -1,5 +1,9 @@
 import fs from 'node:fs';
 
+// deno compat
+const textEncoder = new TextEncoder();
+if (typeof process === 'undefined') globalThis.process = { argv: ['', '', ...Deno.args], stdout: { write: str => Deno.writeAllSync(Deno.stdout, textEncoder.encode(str)) } };
+
 let totalOutput = 0;
 const run = async source => {
   const times = [];
@@ -9,7 +13,7 @@ const run = async source => {
   const wasm = compile(source);
   times.push(performance.now() - t0);
 
-  fs.writeFileSync('out.wasm', Buffer.from(wasm));
+  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   totalOutput += wasm.byteLength;
 

@@ -39,8 +39,9 @@ const todo = msg => {
   return code;
 };
 
-const number = n => [ Opcodes.const, ...signedLEB128(n) ];
+const number = n => [ [ Opcodes.const, ...signedLEB128(n) ] ];
 
+const isFuncType = type => type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
 const generate = (scope, decl) => {
   switch (decl.type) {
     case 'BinaryExpression':
@@ -118,19 +119,19 @@ const generateIdent = (scope, decl) => {
     if (importedFuncs[decl.name] !== undefined) return number(importedFuncs[decl.name]);
     if (funcIndex[decl.name] !== undefined) return number(funcIndex[decl.name]);
 
-    if (globals[decl.name] !== undefined) return [ Opcodes.global_get, globals[decl.name] ];
+    if (globals[decl.name] !== undefined) return [ [ Opcodes.global_get, globals[decl.name] ] ];
   }
 
   // if (idx === undefined) throw new Error(`could not find idx for ${decl.name} (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
   if (idx === undefined) throw new ReferenceError(`${decl.name} is not defined`);
 
-  return [ Opcodes.local_get, idx ];
+  return [ [ Opcodes.local_get, idx ] ];
 };
 
 const generateReturn = (scope, decl) => {
   return [
     ...generate(scope, decl.argument),
-    Opcodes.return
+    [ Opcodes.return ]
   ];
 };
 
@@ -140,10 +141,10 @@ const generateBinaryExp = (scope, decl) => {
   const out = [
     ...generate(scope, decl.left),
     ...generate(scope, decl.right),
-    operatorOpcode[valtype][decl.operator],
+    [ operatorOpcode[valtype][decl.operator], ]
   ];
 
-  if (valtype === 'i64' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i64_extend_i32_u);
+  if (valtype === 'i64' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push([ Opcodes.i64_extend_i32_u ]);
 
   return out;
 };
@@ -184,15 +185,15 @@ const generateLogicExp = (scope, decl) => {
 
     return [
       ...generate(scope, decl.left),
-      Opcodes.local_tee, scope.locals.tmp1,
+      [ Opcodes.local_tee, scope.locals.tmp1 ],
       // Opcodes.i32_eqz, Opcodes.i32_eqz, // != 0 (fail ||)
       // Opcodes.eqz, Opcodes.i32_eqz
-      Opcodes.i32_to,
-      Opcodes.if, Valtype[valtype],
+      [ Opcodes.i32_to ],
+      [ Opcodes.if, Valtype[valtype] ],
       ...generate(scope, decl.right),
-      Opcodes.else,
-      Opcodes.local_get, scope.locals.tmp1,
-      Opcodes.end,
+      [ Opcodes.else ],
+      [ Opcodes.local_get, scope.locals.tmp1 ],
+      [ Opcodes.end ]
     ];
   }
 
@@ -206,13 +207,13 @@ const generateLogicExp = (scope, decl) => {
 
     return [
       ...generate(scope, decl.left),
-      Opcodes.local_tee, scope.locals.tmp1,
-      Opcodes.eqz, // == 0 (success &&)
-      Opcodes.if, Valtype[valtype],
+      [ Opcodes.local_tee, scope.locals.tmp1 ],
+      [ Opcodes.eqz ], // == 0 (success &&)
+      [ Opcodes.if, Valtype[valtype] ],
       ...generate(scope, decl.right),
-      Opcodes.else,
-      Opcodes.local_get, scope.locals.tmp1,
-      Opcodes.end,
+      [ Opcodes.else ],
+      [ Opcodes.local_get, scope.locals.tmp1 ],
+      [ Opcodes.end ]
     ];
   }
 
@@ -257,7 +258,7 @@ const generateCall = (scope, decl) => {
     Opcodes.call_indirect,
   ]; */
 
-  if (decl.callee.type.endsWith('FunctionExpression')) {
+  if (isFuncType(decl.callee.type)) {
     const func = generateFunc(decl.callee);
   }
 
@@ -279,7 +280,7 @@ const generateCall = (scope, decl) => {
     out.push(...generate(scope, arg));
   }
 
-  out.push(Opcodes.call, idx);
+  out.push([ Opcodes.call, idx ]);
 
   return out;
 };
@@ -299,7 +300,7 @@ const generateVar = (scope, decl, global = false) => {
     for (const x of decl.declarations) {
       const name = x.id.name;
 
-      if (x.init && x.init.type.endsWith('FunctionExpression')) {
+      if (x.init && isFuncType(x.init.type)) {
         // hack for var a = function () { ... }
         x.init.id = { name };
         generateFunc(scope, x.init);
@@ -310,7 +311,7 @@ const generateVar = (scope, decl, global = false) => {
       globals[name] = idx;
 
       out.push(...generate(scope, x.init ?? DEFAULT_VALUE));
-      out.push(Opcodes.global_set, idx);
+      out.push([ Opcodes.global_set, idx ]);
     }
 
     return out;
@@ -319,7 +320,7 @@ const generateVar = (scope, decl, global = false) => {
   for (const x of decl.declarations) {
     const name = x.id.name;
 
-    if (x.init && x.init.type.endsWith('FunctionExpression')) {
+    if (x.init && isFuncType(x.init.type)) {
       // hack for let a = function () { ... }
       x.init.id = { name };
       generateFunc(scope, x.init);
@@ -330,7 +331,7 @@ const generateVar = (scope, decl, global = false) => {
     scope.locals[name] = idx;
 
     out.push(...generate(scope, x.init ?? DEFAULT_VALUE));
-    out.push(Opcodes.local_set, idx);
+    out.push([ Opcodes.local_set, idx ]);
   }
 
   return out;
@@ -339,7 +340,7 @@ const generateVar = (scope, decl, global = false) => {
 const generateAssign = (scope, decl) => {
   const { name } = decl.left;
 
-  if (decl.right.type.endsWith('FunctionExpression')) {
+  if (isFuncType(decl.right.type)) {
     // hack for a = function () { ... }
     decl.right.id = { name };
     generateFunc(scope, decl.right);
@@ -360,7 +361,7 @@ const generateAssign = (scope, decl) => {
 
   return [
     ...generate(scope, decl.right),
-    op, idx
+    [ op, idx ]
   ];
 };
 
@@ -374,13 +375,13 @@ const generateUnary = (scope, decl) => {
 
     case '-':
       // * -1
-      out.push(...number(-1), Opcodes.mul);
+      out.push(...number(-1), [ Opcodes.mul ]);
       break;
 
     case '!':
       // !=
-      out.push(Opcodes.eqz);
-      if (valtype === 'i64') out.push(Opcodes.i64_extend_i32_u);
+      out.push([ Opcodes.eqz ]);
+      if (valtype === 'i64') out.push([ Opcodes.i64_extend_i32_u ]);
       break;
   }
 
@@ -403,21 +404,21 @@ const generateUpdate = (scope, decl) => {
 
   const out = [];
 
-  out.push(global ? Opcodes.global_get : Opcodes.local_get, idx);
-  if (!decl.prefix) out.push(global ? Opcodes.global_get : Opcodes.local_get, idx);
+  out.push([ global ? Opcodes.global_get : Opcodes.local_get, idx ]);
+  if (!decl.prefix) out.push([ global ? Opcodes.global_get : Opcodes.local_get, idx ]);
 
   switch (decl.operator) {
     case '++':
-      out.push(...number(1), Opcodes.add);
+      out.push(...number(1), [ Opcodes.add ]);
       break;
 
     case '--':
-      out.push(...number(1), Opcodes.sub);
+      out.push(...number(1), [ Opcodes.sub ]);
       break;
   }
 
-  out.push(global ? Opcodes.global_set : Opcodes.local_set, idx);
-  if (decl.prefix) out.push(global ? Opcodes.global_get : Opcodes.local_get, idx);
+  out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
+  if (decl.prefix) out.push([ global ? Opcodes.global_get : Opcodes.local_get, idx ]);
 
   return out;
 };
@@ -425,17 +426,17 @@ const generateUpdate = (scope, decl) => {
 const generateIf = (scope, decl) => {
   const out = [ ...generate(scope, decl.test) ];
 
-  out.push(Opcodes.i32_to, Opcodes.if, Blocktype.void);
+  out.push([ Opcodes.i32_to ], [ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
   out.push(...generate(scope, decl.consequent));
 
   if (decl.alternate) {
-    out.push(Opcodes.else);
+    out.push([ Opcodes.else ]);
     out.push(...generate(scope, decl.alternate));
   }
 
-  out.push(Opcodes.end);
+  out.push([ Opcodes.end ]);
   depth.pop();
 
   return out;
@@ -447,23 +448,23 @@ const generateFor = (scope, decl) => {
 
   if (decl.init) out.push(...generate(scope, decl.init));
 
-  out.push(Opcodes.loop, Blocktype.void);
+  out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('for');
 
-  out.push(...generate(scope, decl.test), Opcodes.i32_to);
-  out.push(Opcodes.if, Blocktype.void);
+  out.push(...generate(scope, decl.test));
+  out.push([ Opcodes.i32_to ], [ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
-  out.push(Opcodes.block, Blocktype.void);
+  out.push([ Opcodes.block, Blocktype.void ]);
   depth.push('block');
   out.push(...generate(scope, decl.body));
-  out.push(Opcodes.end);
+  out.push([ Opcodes.end ]);
 
   out.push(...generate(scope, decl.update));
   depth.pop();
 
-  out.push(Opcodes.br, ...signedLEB128(1));
-  out.push(Opcodes.end, Opcodes.end);
+  out.push([ Opcodes.br, ...signedLEB128(1) ]);
+  out.push([ Opcodes.end ], [ Opcodes.end ]);
   depth.pop(); depth.pop();
 
   return out;
@@ -472,17 +473,17 @@ const generateFor = (scope, decl) => {
 const generateWhile = (scope, decl) => {
   const out = [];
 
-  out.push(Opcodes.loop, Blocktype.void);
+  out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('while');
 
-  out.push(...generate(scope, decl.test), Opcodes.i32_to);
-  out.push(Opcodes.if, Blocktype.void);
+  out.push(...generate(scope, decl.test));
+  out.push([ Opcodes.i32_to ], [ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
   out.push(...generate(scope, decl.body));
 
-  out.push(Opcodes.br, ...signedLEB128(1));
-  out.push(Opcodes.end, Opcodes.end);
+  out.push([ Opcodes.br, ...signedLEB128(1) ]);
+  out.push([ Opcodes.end ], [ Opcodes.end ]);
   depth.pop(); depth.pop();
 
   return out;
@@ -498,12 +499,16 @@ const getNearestLoop = () => {
 
 const generateBreak = (scope, decl) => {
   const nearestLoop = depth.length - getNearestLoop();
-  return [ Opcodes.br, ...signedLEB128(nearestLoop - 2) ];
+  return [
+    [ Opcodes.br, ...signedLEB128(nearestLoop - 2) ]
+  ];
 };
 
 const generateContinue = (scope, decl) => {
   const nearestLoop = depth.length - getNearestLoop();
-  return [ Opcodes.br, ...signedLEB128(nearestLoop - 3) ];
+  return [
+    [ Opcodes.br, ...signedLEB128(nearestLoop - 3) ]
+  ];
 };
 
 const generateEmpty = (scope, decl) => {
@@ -520,7 +525,7 @@ const generateAssignPat = (scope, decl) => {
 const randId = () => Math.random().toString(16).slice(0, -4);
 
 const hasReturn = node => {
-  if (node.type === 'FunctionDeclaration') return false;
+  if (isFuncType(node.type)) return false;
 
   for (const x in node) {
     if (node[x] != null && typeof node[x] === 'object') {
@@ -575,7 +580,7 @@ const generateFunc = (scope, decl) => {
     };
   }
 
-  const wasm = generate(innerScope, body).filter(x => x !== null);
+  const wasm = generate(innerScope, body);
   const func = {
     name,
     params,
@@ -584,13 +589,13 @@ const generateFunc = (scope, decl) => {
     index: currentFuncIndex++
   };
 
-  if (func.return && wasm[wasm.length - 1] !== Opcodes.return) wasm.push(...number(0), Opcodes.return);
+  if (func.return && wasm[wasm.length - 1][0] !== Opcodes.return) wasm.push(...number(0), [ Opcodes.return ]);
   func.wasm = wasm;
 
-  const localCount = Object.keys(innerScope.locals).length - params.length;
+  /* const localCount = Object.keys(innerScope.locals).length - params.length;
   const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : [];
   func.innerWasm = func.wasm;
-  func.wasm = encodeVector([ ...encodeVector(localDecl), ...func.wasm, Opcodes.end ]);
+  func.wasm = encodeVector([ ...encodeVector(localDecl), ...func.wasm, Opcodes.end ]); */
 
   funcs.push(func);
   funcIndex[name] = func.index;
@@ -615,7 +620,7 @@ export default program => {
   depth = [];
   currentFuncIndex = Object.keys(importedFuncs).length;
 
-  global.valtype = 'i32';
+  globalThis.valtype = 'i32';
 
   const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
   if (valtypeOpt) valtype = valtypeOpt.split('=')[1];

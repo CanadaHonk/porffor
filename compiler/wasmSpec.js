@@ -32,6 +32,7 @@ export const Opcodes = {
   br: 0x0c,
   br_if: 0x0d,
   call: 0x10,
+  drop: 0x1a,
 
   local_get: 0x20,
   local_set: 0x21,
