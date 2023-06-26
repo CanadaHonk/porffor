@@ -21,7 +21,7 @@ const t0 = performance.now();
 const wasm = compile(source, raw ? [] : [ 'info' ]);
 if (!raw) console.log(bold(`compiled in ${(performance.now() - t0).toFixed(2)}ms`));
 
-if (!raw) fs.writeFileSync('out.wasm', Buffer.from(wasm));
+if (!raw && typeof Deno === 'undefined') fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
 let cache = '';
 const print = str => {
@@ -42,11 +42,14 @@ const { instance } = await WebAssembly.instantiate(wasm, {
 });
 if (!raw) console.log(`instantiated in ${(performance.now() - t1).toFixed(2)}ms\n\n${underline('output')}`);
 
-const t2 = performance.now();
-instance.exports.m();
+if (!process.argv.includes('-no-run')) {
+  const t2 = performance.now();
+  instance.exports.m();
 
-print('\n');
+  print('\n');
 
-if (!raw) console.log(bold(`\n\nexecuted in ${(performance.now() - t2).toFixed(2)}ms`));
+  if (!raw) console.log(bold(`\n\nexecuted in ${(performance.now() - t2).toFixed(2)}ms`));
+}
+
 if (!raw) console.log(bold(`wasm binary is ${wasm.byteLength} bytes`));
 if (!raw) console.log(`total: ${(performance.now() - t0).toFixed(2)}ms`);
