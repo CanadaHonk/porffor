@@ -1,3 +1,3 @@
-// 10
+// "10"
 print(true);
 print(false);

@@ -1,4 +1,4 @@
-// 101
+// "101"
 a = true;
 print(a);
 print(!a);

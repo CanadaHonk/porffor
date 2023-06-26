@@ -1,4 +1,4 @@
-// 01234
+// "01234"
 let a;
 let b = undefined;
 let c = null;

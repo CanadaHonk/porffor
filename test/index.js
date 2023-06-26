@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import compile from '../compiler/index.js';
 
 // deno compat
 const textEncoder = new TextEncoder();
@@ -8,7 +9,7 @@ let totalOutput = 0;
 const run = async source => {
   const times = [];
 
-  const compile = (await import('../compiler/index.js')).default;
+  // const compile = (await import('../compiler/index.js')).default;
   const t0 = performance.now();
   const wasm = compile(source);
   times.push(performance.now() - t0);
@@ -38,12 +39,11 @@ const perform = async (test, args) => {
   process.argv = process.argv.slice(0, 2).concat(args);
   const content = fs.readFileSync('test/' + test, 'utf8');
   const spl = content.split('\n');
-  const expect = spl[0].slice(2).trim().replaceAll('\\n', '\n');
+  const expect = JSON.parse(spl[0].slice(2)).replaceAll('\\n', '\n');
   const code = spl.slice(1).join('\n');
 
   const t1 = performance.now();
   let [ out, times, wasm ] = await run(code);
-  out = out.trim();
   const time = performance.now() - t1;
   const pass = out === expect;
 
@@ -53,7 +53,7 @@ const perform = async (test, args) => {
   console.log(`${pass ? '\u001b[92mPASS' : '\u001b[91mFAIL'} ${test}\u001b[0m ${args.join(' ')} ${' '.repeat(40 - test.length - args.join(' ').length)}\u001b[90m${time.toFixed(2)}ms (compile: ${times[0].toFixed(2)}ms, exec: ${times[1].toFixed(2)}ms)${' '.repeat(10)}${wasm.byteLength}b\u001b[0m`);
 
   if (!pass) {
-    console.log(`expected: ${expect}\n     got: ${out}\n`);
+    console.log(`expected: ${JSON.stringify(expect)}\n     got: ${JSON.stringify(out)}\n`);
   }
 
   return pass;

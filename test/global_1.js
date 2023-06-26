@@ -1,4 +1,4 @@
-// 11
+// "11"
 var globul = 1;
 function inside() {
   return globul;

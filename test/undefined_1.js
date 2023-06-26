@@ -1,4 +1,4 @@
-// 000
+// "000"
 let a;
 let b = undefined;
 let c = null;
