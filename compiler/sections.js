@@ -19,7 +19,7 @@ export default (funcs, globals, flags) => {
     if (optLog) console.log(`opt sections: getType (${params}, ${returns}) -> ${hash}. cached: ${typeCache[hash]}`);
     if (optLevel >= 2 && typeCache[hash] !== undefined) return typeCache[hash];
 
-    const type = [ FuncType, ...encodeVector(new Array(params.length).fill(Valtype[valtype])), ...encodeVector(returns ? [Valtype[valtype]] : []) ];
+    const type = [ FuncType, ...encodeVector(new Array(params).fill(Valtype[valtype])), ...encodeVector(returns ? [Valtype[valtype]] : []) ];
     const idx = types.length;
 
     types.push(type);
