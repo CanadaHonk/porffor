@@ -65,7 +65,7 @@ export default (funcs, globals) => {
             // adjust local operands to go to correct param index
             for (const inst of iWasm) {
               if ((inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set) && inst[1] < c.params.length) {
-                if (optLog) console.log(`opt: replacing local operand in inline wasm. ${inst[1]} -> ${paramIdx[inst[1]]}`);
+                if (optLog) console.log(`opt: replacing local operand in inlined wasm (${inst[1]} -> ${paramIdx[inst[1]]})`);
                 inst[1] = paramIdx[inst[1]];
               }
             }
@@ -89,10 +89,17 @@ export default (funcs, globals) => {
     const wasm = f.wasm;
 
     let depth = 0;
+
+    const getCount = {};
+    for (const x in f.locals) getCount[f.locals[x]] = 0;
+
+    // main pass
     for (let i = 0; i < wasm.length; i++) {
       const inst = wasm[i];
       if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth++;
       if (inst[0] === Opcodes.end) depth--;
+
+      if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
 
       if (i < 1) continue;
       const lastInst = wasm[i - 1];
@@ -148,27 +155,27 @@ export default (funcs, globals) => {
 
     if (process.argv.includes('-O1')) return;
 
-    // remove ununeeded var: check pass
-    /* const unneededVar = {};
-    const getCount = {};
-    for (let i = 0; i < wasm.length; i++) {
-      if (i > 2) {
-        if (wasm[i] === Opcodes.local_get && wasm[i - 2] === Opcodes.local_set && wasm[i - 1] === wasm[i + 1]) unneededVar[wasm[i + 1]] = (unneededVar[wasm[i + 1]] ?? 0) + 1;
-        if (wasm[i] === Opcodes.local_get) getCount[wasm[i + 1]] = (getCount[wasm[i + 1]] ?? 0) + 1;
+    // remove unneeded var: remove pass
+    // locals only got once. we don't need to worry about sets/else as these are only candidates and we will check for matching set + get insts in wasm
+    const unneededCandidates = Object.keys(getCount).filter(x => getCount[x] === 1).map(x => parseInt(x));
+    if (optLog && unneededCandidates.length > 0) console.log(`opt: found unneeded locals candidates: ${unneededCandidates.join(', ')} (${unneededCandidates.length}/${Object.keys(getCount).length})`);
+
+    if (unneededCandidates.length > 0) for (let i = 0; i < wasm.length; i++) {
+      if (i < 1) continue;
+
+      const inst = wasm[i];
+      const lastInst = wasm[i - 1];
+
+      if (lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_set && inst[0] === Opcodes.local_get && unneededCandidates.includes(inst[1])) {
+        wasm.splice(i - 1, 2);
+        if (optLog) console.log(`opt: removed redundant local (getset ${inst[1]})`);
+      }
+
+      if (inst[0] === Opcodes.local_tee && unneededCandidates.includes(inst[1])) {
+        wasm.splice(i, 1);
+        if (optLog) console.log(`opt: removed redundant local (tee ${inst[1]})`);
       }
     }
-
-    // remove unneeded var: remove pass
-    const unneeded = Object.keys(unneededVar).filter(x => unneededVar[x] === 1 && getCount[x] === 1).map(x => parseInt(x));
-    if (optLog && unneeded.length > 0) console.log(`opt: found unneeded vars:\n${unneeded.map(x => `  idx: ${x} (name: ${Object.keys(f.locals)[x]})`).join('\n')}`);
-
-    for (let i = 0; i < wasm.length; i++) {
-      if (wasm[i] === Opcodes.local_get && wasm[i - 2] === Opcodes.local_set && unneeded.includes(wasm[i + 1])) {
-        if (optLog) console.log(`opt: removed unneeded var ${wasm[i + 1]}`);
-        wasm.splice(i - 2, 4);
-        wasm[0] -= 4;
-      }
-    } */
   }
 
   // return funcs;
