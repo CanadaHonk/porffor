@@ -153,10 +153,15 @@ const asmFunc = (name, wasm, params, localCount, returns) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
+  const locals = {};
+  for (let i = 0; i < localCount; i++) {
+    locals[i] = i;
+  }
+
   const func = {
     name,
     params,
-    locals: new Array(localCount).fill('local'),
+    locals,
     return: returns,
     wasm,
     internal: true,
