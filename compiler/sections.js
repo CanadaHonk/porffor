@@ -83,7 +83,8 @@ export default (funcs, globals, flags) => {
   const codeSection = createSection(
     Section.code,
     encodeVector(funcs.map(x => {
-      const localCount = Object.keys(x.locals).length - x.params.length;
+      const maxLocal = x.locals.length === 0 ? -1 : Math.max(...Object.values(x.locals));
+      const localCount = (maxLocal + 1) - x.params.length;
       const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : [];
       return encodeVector([ ...encodeVector(localDecl), ...x.wasm.flat().filter(x => x !== null), Opcodes.end ]);
     }))
