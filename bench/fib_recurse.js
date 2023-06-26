@@ -6,6 +6,6 @@ function fibonacci(n) {
   }
 }
 
-for (let i = 0; i <= 40; i++) {
+for (let i = 0; i <= 45; i++) {
   console.log(fibonacci(i));
 }
