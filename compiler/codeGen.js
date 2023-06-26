@@ -520,11 +520,12 @@ const generateAssignPat = (scope, decl) => {
 const randId = () => Math.random().toString(16).slice(0, -4);
 
 const hasReturn = node => {
-  if (node.body && !Array.isArray(node.body)) return hasReturn(node.body);
+  if (node.type === 'FunctionDeclaration') return false;
 
-  if (Array.isArray(node.body)) {
-    for (const x of node.body) {
-      if (hasReturn(x)) return true;
+  for (const x in node) {
+    if (node[x] != null && typeof node[x] === 'object') {
+      if (Array.isArray(node[x]) && node[x].some(y => hasReturn(y))) return true;
+      if (hasReturn(node[x])) return true;
     }
   }
 
