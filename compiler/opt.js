@@ -32,7 +32,6 @@ export default (funcs, globals) => {
     }
 
     for (const c of candidates) {
-      const snapshot = { ...funcs }
       let cWasm = c.wasm;
 
       for (const t of funcs) {
@@ -108,6 +107,17 @@ export default (funcs, globals) => {
         lastInst[0] = Opcodes.local_tee; // replace last inst opcode (set -> tee)
         wasm.splice(i, 1); // remove this inst (get)
         // if (optLog) console.log(`opt: consolidated set, get -> tee`);
+      }
+
+      if (inst[0] === Opcodes.eq && lastInst[0] === Opcodes.const && lastInst[1] === 0) {
+        // replace const 0, eq -> eqz
+        // i32.const 0
+        // i32.eq
+        // -->
+        // i32.eqz
+
+        inst[0] = Opcodes.eqz; // eq -> eqz
+        wasm.splice(i - 1, 1); // remove const 0
       }
 
       if (i === wasm.length - 1 && inst[0] === Opcodes.return) {

@@ -629,7 +629,9 @@ export default program => {
 
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
 
+  // set generic opcodes for current valtype
   Opcodes.const = [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const ][valtypeInd];
+  Opcodes.eq = [ Opcodes.i32_eq, Opcodes.i64_eq, Opcodes.f64_eq ][valtypeInd];
   Opcodes.eqz = [ Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.unreachable ][valtypeInd];
   Opcodes.mul = [ Opcodes.i32_mul, Opcodes.i64_mul, Opcodes.f64_mul ][valtypeInd];
   Opcodes.add = [ Opcodes.i32_add, Opcodes.i64_add, Opcodes.f64_add ][valtypeInd];
