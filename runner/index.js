@@ -9,7 +9,16 @@ import fs from 'node:fs';
 // deno compat
 const raw = process.argv.includes('-raw');
 
-const source = fs.readFileSync(process.argv.slice(2).filter(x => x[0] !== '-')[0], 'utf8');
+const file = process.argv.slice(2).find(x => x[0] !== '-');
+if (!file) {
+  // run repl if no file given
+  await import('./repl.js');
+
+  // do nothing for the rest of this file
+  await new Promise(() => {});
+}
+
+const source = fs.readFileSync(file, 'utf8');
 
 const underline = x => `\u001b[4m\u001b[1m${x}\u001b[0m`;
 const bold = x => `\u001b[1m${x}\u001b[0m`;

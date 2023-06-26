@@ -77,7 +77,7 @@ basically nothing will work :). see files in `test` for examples.
 1. clone repo
 2. `npm install`
 3. `node test` to run tests (all should pass)
-4. `node runner path/to/code.js` to run a file
+4. `node runner path/to/code.js` to run a file (or `node runner` to use wip repl)
 
 you can also use deno (`deno run -A ...` instead of `node ...`)
 
