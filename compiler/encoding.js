@@ -66,6 +66,9 @@ export const ieee754_binary64 = value => {
   let isLE = false, mLen = 11, nBytes = 8, offset = 0;
   let buffer = new Array(nBytes * 4).fill(0);
 
+  // from https://github.com/feross/ieee754
+  // BSD 3-Clause. Copyright 2008 Fair Oaks Labs, Inc. (https://github.com/feross/ieee754/blob/master/LICENSE)
+
   let e, m, c
   let eLen = (nBytes * 8) - mLen - 1
   const eMax = (1 << eLen) - 1
