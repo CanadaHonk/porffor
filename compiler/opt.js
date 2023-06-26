@@ -10,7 +10,7 @@ export default (funcs, globals) => {
     // inline pass (very WIP)
     // get candidates for inlining
     // todo: pick smart in future (if func is used <N times? or?)
-    const candidates = funcs.filter(x => x.name !== 'main' && Object.keys(x.locals).length === x.params.length).reverse();
+    const candidates = funcs.filter(x => x.name !== 'main' && Object.keys(x.locals).length === x.params.length && x.wasm.reduce((acc, x) => acc + (x === Opcodes.return ? 1 : 0), 0) === 1).reverse();
     if (optLog && candidates.length > 0) console.log(`opt: found inline candidates: ${candidates.map(x => x.name).join(', ')} (${candidates.length}/${funcs.length - 1})`);
 
     for (const c of candidates) {
