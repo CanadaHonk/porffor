@@ -6,7 +6,6 @@ import fs from 'node:fs';
   v8.setFlagsFromString('--experimental-wasm-gc');
 } */
 
-// deno compat
 const raw = process.argv.includes('-raw');
 
 const file = process.argv.slice(2).find(x => x[0] !== '-');
