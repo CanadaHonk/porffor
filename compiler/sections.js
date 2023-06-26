@@ -10,9 +10,25 @@ const allImportFuncs = [ 'p', 'c', 'a' ];
 const optLog = process.argv.includes('-opt-log');
 
 export default (funcs, globals, flags) => {
+  const types = [], typeCache = {};
+
+  const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : 2);
+
+  const getType = (params, returns) => {
+    const hash = `${params}_${returns ? 1 : 0}`;
+    if (optLog) console.log(`opt sections: getType (${params}, ${returns}) -> ${hash}. cached: ${typeCache[hash]}`);
+    if (optLevel >= 2 && typeCache[hash] !== undefined) return typeCache[hash];
+
+    const type = [ FuncType, ...encodeVector(new Array(params.length).fill(Valtype[valtype])), ...encodeVector(returns ? [Valtype[valtype]] : []) ];
+    const idx = types.length;
+
+    types.push(type);
+    return typeCache[hash] = idx;
+  };
+
   let importFuncs = [];
 
-  if (process.argv.includes('-O0') || process.argv.includes('-O1')) {
+  if (optLevel < 2) {
     importFuncs = allImportFuncs;
   } else {
     // tree shake imports
@@ -44,22 +60,14 @@ export default (funcs, globals, flags) => {
 
   if (optLog) console.log(`treeshake: using ${importFuncs.length}/${allImportFuncs.length} imports`);
 
-  const typeSection = createSection(
-    Section.type,
-    encodeVector([
-      ...importFuncs.map(_ => [ FuncType, ...encodeVector([Valtype[valtype]]), Empty ]),
-      ...funcs.map(x => [ FuncType, ...encodeVector(x.params.map(_ => Valtype[valtype])), ...encodeVector(x.return && (x.name !== 'main' || flags.includes('return')) ? [Valtype[valtype]] : []) ])
-    ])
-  );
-
   const importSection = createSection(
     Section.import,
-    encodeVector(importFuncs.map((x, i) => [ 0, ...encodeString(x), ExportDesc.func, i ]))
+    encodeVector(importFuncs.map((x, i) => [ 0, ...encodeString(x), ExportDesc.func, getType(1, false) ]))
   );
 
   const funcSection = createSection(
     Section.func,
-    encodeVector(funcs.map(x => x.index)) // type indexes
+    encodeVector(funcs.map(x => getType(x.params.length, x.return))) // type indexes
   );
 
   const globalSection = Object.keys(globals).length === 0 ? [] : createSection(
@@ -79,6 +87,11 @@ export default (funcs, globals, flags) => {
       const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : [];
       return encodeVector([ ...encodeVector(localDecl), ...x.wasm.flat().filter(x => x !== null), Opcodes.end ]);
     }))
+  );
+
+  const typeSection = createSection(
+    Section.type,
+    encodeVector(types)
   );
 
   if (process.argv.includes('-sections')) console.log({
