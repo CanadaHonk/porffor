@@ -575,14 +575,17 @@ const generateFunc = (scope, decl) => {
     };
   }
 
+  const wasm = generate(innerScope, body).filter(x => x !== null);
   const func = {
     name,
     params,
     return: hasReturn(body),
     locals: innerScope.locals,
-    wasm: generate(innerScope, body).filter(x => x !== null),
     index: currentFuncIndex++
   };
+
+  if (func.return && wasm[wasm.length - 1] !== Opcodes.return) wasm.push(...number(0), Opcodes.return);
+  func.wasm = wasm;
 
   const localCount = Object.keys(innerScope.locals).length - params.length;
   const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : [];
