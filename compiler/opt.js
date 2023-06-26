@@ -36,6 +36,8 @@ export default (funcs, globals) => {
 
       for (const t of funcs) {
         const tWasm = t.wasm;
+        if (t.name === c.name) continue; // skip self
+
         for (let i = 0; i < tWasm.length; i++) {
           const inst = tWasm[i];
           if (inst[0] === Opcodes.call && inst[1] === c.index) {
