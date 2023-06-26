@@ -29,5 +29,13 @@ export default wasm => {
     out += '\n';
   }
 
-  return out;
+  return highlightAsm(out);
 };
+
+export const highlightAsm = asm =>
+  asm
+    .replace(/local\.[^\s]*/g, _ => `\x1B[31m${_}\x1B[0m`)
+    .replace(/(call|br_if|br|if|return)/g, _ => `\x1B[35m${_}\x1B[0m`)
+    .replace(/(block|loop|if|end)/g, _ => `\x1B[95m${_}\x1B[0m`)
+    .replace(/(i32|i64|f32|f64)\.[^\s]*/g, _ => `\x1B[36m${_}\x1B[0m`)
+    .replace(/ [0-9\-]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
