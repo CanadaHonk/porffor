@@ -167,12 +167,14 @@ export default (funcs, globals) => {
       const lastInst = wasm[i - 1];
 
       if (lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_set && inst[0] === Opcodes.local_get && unneededCandidates.includes(inst[1])) {
-        wasm.splice(i - 1, 2);
+        wasm.splice(i - 1, 2); // remove insts
+        delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
         if (optLog) console.log(`opt: removed redundant local (getset ${inst[1]})`);
       }
 
       if (inst[0] === Opcodes.local_tee && unneededCandidates.includes(inst[1])) {
-        wasm.splice(i, 1);
+        wasm.splice(i, 1); // remove inst
+        delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
         if (optLog) console.log(`opt: removed redundant local (tee ${inst[1]})`);
       }
     }
