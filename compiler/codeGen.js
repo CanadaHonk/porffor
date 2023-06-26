@@ -1,13 +1,13 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { signedLEB128, unsignedLEB128, encodeVector, encodeLocal } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
-import parse from "./parse.js";
+import { makeBuiltins, importedFuncs } from "./builtins.js";
 
-const importedFuncs = { print: 0, printChar: 1 };
 let globals = {};
 let funcs = [];
 let funcIndex = {};
 let currentFuncIndex = Object.keys(importedFuncs).length;
+let builtins = {};
 
 const debug = str => {
   const code = [];
@@ -149,14 +149,17 @@ const generateBinaryExp = (scope, decl) => {
   return out;
 };
 
-const asmFunc = (name, wasm, params, localCount) => {
+const asmFunc = (name, wasm, params, localCount, returns) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
   const func = {
     name,
     params,
-    wasm: encodeVector([ ...encodeVector(localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : []), ...wasm, Opcodes.end ]),
+    locals: new Array(localCount).fill('local'),
+    return: returns,
+    wasm,
+    internal: true,
     index: currentFuncIndex++
   };
 
@@ -166,12 +169,11 @@ const asmFunc = (name, wasm, params, localCount) => {
   return func;
 };
 
-const includeBuiltin = (scope, js) => {
-  return parse(js, []).body.map(x => generate(scope, x));
-};
+const includeBuiltin = (scope, builtin) => {
+  const code = builtins[builtin];
+  if (code.wasm) return asmFunc(builtin, code.wasm, code.params, code.locals, code.return);
 
-const builtins = {
-  '__console_log': `function __console_log(x) { print(x); printChar('\\n'); }`
+  return code.body.map(x => generate(scope, x));
 };
 
 const generateLogicExp = (scope, decl) => {
@@ -269,7 +271,7 @@ const generateCall = (scope, decl) => {
 
   let idx = funcIndex[name] ?? importedFuncs[name];
   if (idx === undefined && builtins[name]) {
-    includeBuiltin(scope, builtins[name]);
+    includeBuiltin(scope, name);
     idx = funcIndex[name];
   }
 
@@ -633,6 +635,8 @@ export default program => {
   Opcodes.add = [ Opcodes.i32_add, Opcodes.i64_add, Opcodes.f64_add ][valtypeInd];
   Opcodes.sub = [ Opcodes.i32_sub, Opcodes.i64_sub, Opcodes.f64_sub ][valtypeInd];
   Opcodes.i32_to = [ null, Opcodes.i32_wrap_i64, Opcodes.unreachable ][valtypeInd];
+
+  builtins = makeBuiltins();
 
   program.id = { name: 'main' };
 
