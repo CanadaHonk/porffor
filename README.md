@@ -53,6 +53,8 @@ porffor is a very unique js engine, due a very different approach. it is serious
 - assignment operators (`+=`, `-=`, etc)
 - more math operations (`**`, etc)
 - nicer errors
+- opt: smarter inline selection (snapshots?)
+- opt: smart types section (no dups)
 
 ## optimizations
 mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable.
@@ -62,8 +64,10 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 
 ### wasm transforms
 - `local.set`, `local.get` -> `local.tee`
+- `i32.const 0`, `i32.eq` -> `i32.eqz`
 - `return`, `end` -> `end`
 - remove some redundant sets/gets
+- remove unneeded single just used vars
 
 ## usecases
 basically none (other than giving people headaches). potential as a tiny fast advanced expression evaluator (for math)?
