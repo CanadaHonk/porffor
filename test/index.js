@@ -38,7 +38,7 @@ const perform = async (test, args) => {
   process.argv = process.argv.slice(0, 2).concat(args);
   const content = fs.readFileSync('test/' + test, 'utf8');
   const spl = content.split('\n');
-  const expect = spl[0].slice(2).trim();
+  const expect = spl[0].slice(2).trim().replaceAll('\\n', '\n');
   const code = spl.slice(1).join('\n');
 
   const t1 = performance.now();
