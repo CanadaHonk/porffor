@@ -99,7 +99,7 @@ export default (funcs, globals) => {
   for (const f of funcs) {
     const wasm = f.wasm;
 
-    let depth = 0;
+    let depth = [];
 
     let getCount = {}, setCount = {};
     for (const x in f.locals) {
@@ -110,8 +110,9 @@ export default (funcs, globals) => {
     // main pass
     for (let i = 0; i < wasm.length; i++) {
       let inst = wasm[i];
-      if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth++;
-      if (inst[0] === Opcodes.end) depth--;
+
+      if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth.push(inst[0]);
+      if (inst[0] === Opcodes.end) depth.pop();
 
       if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
       if (inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) setCount[inst[1]]++;
