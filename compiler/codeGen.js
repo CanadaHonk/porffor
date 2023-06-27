@@ -671,5 +671,9 @@ export default program => {
 
   // export main
   funcs[funcs.length - 1].export = true;
+
+  // if blank main func, remove it
+  if (funcs[funcs.length - 1].wasm.length === 0) funcs.splice(funcs.length - 1, 1);
+
   return { funcs, globals };
 };
