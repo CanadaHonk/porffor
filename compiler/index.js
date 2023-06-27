@@ -17,7 +17,7 @@ const logFuncs = funcs => {
 
     console.log(`params: ${f.params.join(', ')}`);
     console.log(`returns: ${f.return}`);
-    console.log(`locals: ${Object.keys(f.locals).join(', ')}`);
+    console.log(`locals: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]})`).join(', ')}`);
     console.log(`index: ${f.index}`);
     console.log();
     console.log(decompile(f.wasm));
