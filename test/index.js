@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import compile from '../compiler/index.js';
-import { assert } from 'node:console';
 
 // deno compat
 const textEncoder = new TextEncoder();
