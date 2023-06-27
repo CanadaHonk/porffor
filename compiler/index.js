@@ -20,7 +20,7 @@ const logFuncs = funcs => {
     console.log(`locals: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]})`).join(', ')}`);
     console.log(`index: ${f.index}`);
     console.log();
-    console.log(decompile(f.wasm));
+    console.log(decompile(f.wasm, f.locals));
   }
 
   console.log();

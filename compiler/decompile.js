@@ -4,7 +4,9 @@ const inv = obj => Object.keys(obj).reduce((acc, x) => { acc[obj[x]] = x; return
 const invOpcodes = inv(Opcodes);
 const invValtype = inv(Valtype);
 
-export default wasm => {
+export default (wasm, locals = {}) => {
+  const invLocals = inv(locals);
+
   let out = '', depth = 0;
   for (const inst of wasm) {
     if (inst[0] === null) continue;
@@ -26,6 +28,18 @@ export default wasm => {
       }
     }
 
+    if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else) {
+      out += ` ;; label @${depth}`;
+    }
+
+    if (inst[0] === Opcodes.br) {
+      out += ` ;; goto @${depth - inst[1]}`;
+    }
+
+    if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) {
+      out += ` ;; ${invLocals[inst[1]]}`;
+    }
+
     out += '\n';
   }
 
@@ -39,3 +53,4 @@ export const highlightAsm = asm =>
     .replace(/(call|br_if|br|return)/g, _ => `\x1B[35m${_}\x1B[0m`)
     .replace(/(block|loop|if|end|else)/g, _ => `\x1B[95m${_}\x1B[0m`)
     .replace(/ [0-9\-]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
+    .replace(/ ;;.*$/gm, _ => `\u001b[90m${_}\x1B[0m`);
