@@ -148,6 +148,20 @@ export default (funcs, globals) => {
         lastInst = wasm[i - 1];
       }
 
+      if (inst[0] === Opcodes.i32_wrap_i64 && lastInst[0] === Opcodes.i64_extend_i32_u) {
+        // remove unneeded i32 -> i64 -> i32
+        // i64.extend_i32_u
+        // i32.wrap_i64
+        // -->
+        // <nothing>
+
+        wasm.splice(i - 1, 2); // remove this inst and last
+        i -= 2;
+
+        inst = wasm[i];
+        lastInst = wasm[i - 1];
+      }
+
       if (i === wasm.length - 1 && inst[0] === Opcodes.return) {
         // replace final return, end -> end (wasm has implicit return)
         // return
