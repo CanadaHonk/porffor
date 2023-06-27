@@ -77,7 +77,7 @@ export default (funcs, globals, flags) => {
 
   const exportSection = createSection(
     Section.export,
-    encodeVector(funcs.filter(x => x.name === 'main').map((x, i) => [ ...encodeString('m'), ExportDesc.func, x.index ]))
+    encodeVector(funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, x.index ]))
   );
 
   const codeSection = createSection(
