@@ -7,10 +7,10 @@ const invValtype = inv(Valtype);
 export default (wasm, name = '', locals = {}, params = [], returns = []) => {
   const invLocals = inv(locals);
 
-  let out = '', depth = 0;
+  let out = '', depth = 1;
   out += `(${params.join(', ')}) -> (${returns.join(', ')}) ;; ${name}\n`;
 
-  for (const inst of wasm) {
+  for (const inst of wasm.concat([ [ Opcodes.end ] ])) {
     if (inst[0] === null) continue;
 
     if (inst[0] === Opcodes.end || inst[0] === Opcodes.else) depth--;
