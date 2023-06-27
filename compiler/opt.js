@@ -110,7 +110,7 @@ export default (funcs, globals) => {
       if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth++;
       if (inst[0] === Opcodes.end) depth--;
 
-      if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_tee) getCount[inst[1]]++;
+      if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
 
       if (i < 1) continue;
       let lastInst = wasm[i - 1];
@@ -126,6 +126,8 @@ export default (funcs, globals) => {
         wasm.splice(i, 1); // remove this inst (get)
         i--;
         inst = wasm[i];
+
+        getCount[inst[1]]--;
         // if (optLog) console.log(`opt: consolidated set, get -> tee`);
       }
 
@@ -173,10 +175,12 @@ export default (funcs, globals) => {
 
     if (optLevel < 2) return;
 
+    if (optLog) console.log(`opt: get counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]}): ${getCount[f.locals[x]]}`).join(', ')}`);
+
     // remove unneeded var: remove pass
     // locals only got once. we don't need to worry about sets/else as these are only candidates and we will check for matching set + get insts in wasm
-    const unneededCandidates = Object.keys(getCount).filter(x => getCount[x] === 1).map(x => parseInt(x));
-    if (optLog && unneededCandidates.length > 0) console.log(`opt: found unneeded locals candidates: ${unneededCandidates.join(', ')} (${unneededCandidates.length}/${Object.keys(getCount).length})`);
+    const unneededCandidates = Object.keys(getCount).filter(x => getCount[x] <= 1).map(x => parseInt(x));
+    if (optLog) console.log(`opt: found unneeded locals candidates: ${unneededCandidates.join(', ')} (${unneededCandidates.length}/${Object.keys(getCount).length})`);
 
     if (unneededCandidates.length > 0) for (let i = 0; i < wasm.length; i++) {
       if (i < 1) continue;
@@ -199,13 +203,13 @@ export default (funcs, globals) => {
       }
     }
 
-    getCount = {};
-    for (const x in f.locals) getCount[f.locals[x]] = 0;
+    const useCount = {};
+    for (const x in f.locals) useCount[f.locals[x]] = 0;
 
     // final pass
     for (let i = 0; i < wasm.length; i++) {
       const inst = wasm[i];
-      if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_tee) getCount[inst[1]]++;
+      if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) useCount[inst[1]]++;
 
       if (i < 2) continue;
       const lastInst = wasm[i - 1];
@@ -236,13 +240,15 @@ export default (funcs, globals) => {
     }
 
     // remove unused locals (cleanup)
-    for (const x in getCount) {
-      if (getCount[x] === 0) {
+    for (const x in useCount) {
+      if (useCount[x] === 0) {
         const name = Object.keys(f.locals)[Object.values(f.locals).indexOf(parseInt(x))];
         if (optLog) console.log(`opt: removed internal local ${x} (${name})`);
         delete f.locals[name];
       }
     }
+
+    if (optLog) console.log(`opt: final use counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]}): ${useCount[f.locals[x]]}`).join(', ')}`);
   }
 
   // return funcs;
