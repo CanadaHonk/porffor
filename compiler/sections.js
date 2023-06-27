@@ -12,7 +12,7 @@ const optLog = process.argv.includes('-opt-log');
 export default (funcs, globals, flags) => {
   const types = [], typeCache = {};
 
-  const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : 2);
+  const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : (process.argv.includes('-O2') ? 2 : 3));
 
   const getType = (params, returns) => {
     const hash = `${params}_${returns ? 1 : 0}`;

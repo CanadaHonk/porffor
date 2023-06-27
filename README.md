@@ -91,7 +91,8 @@ you can also use deno (`deno run -A ...` instead of `node ...`)
 - `-valtype=i32|i64|f64` to set valtype, i32 by default (experimental)
 - `-O0` to disable opt
 - `-O1` to enable basic opt
-- `-O2`/`-O` (default) to enable advanced opt (inlining, treeshake wasm imports)
+- `-O2` to enable advanced opt (inlining, treeshake wasm imports)
+- `-O3` (default) to enable advanceder opt (precompute const math)
 - `-opt-log` to log some opts
 - `-funcs` to log funcs (internal representations)
 - `-opt-funcs` to log funcs after opt

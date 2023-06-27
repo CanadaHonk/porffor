@@ -65,7 +65,7 @@ const perform = async (test, args) => {
 const t0 = performance.now();
 
 const argsValtypes = [ '-valtype=i64' ];
-const argsOptlevels = [ '-O0', '-O1' ];
+const argsOptlevels = [ '-O0', '-O1', '-O2' ];
 
 let total = 0, passes = 0;
 for (const test of fs.readdirSync('test')) {

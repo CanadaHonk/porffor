@@ -16,7 +16,7 @@ const performWasmOp = (op, a, b) => {
 };
 
 export default (funcs, globals) => {
-  const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : 2);
+  const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : (process.argv.includes('-O2') ? 2 : 3));
   if (optLevel === 0) return;
 
   if (optLevel >= 2) {
@@ -212,7 +212,7 @@ export default (funcs, globals) => {
       const lastLastInst = wasm[i - 2];
 
       // todo: add more math ops
-      if ((inst[0] === Opcodes.add || inst[0] === Opcodes.sub || inst[0] === Opcodes.mul) && lastLastInst[0] === Opcodes.const && lastInst[0] === Opcodes.const) {
+      if (optLevel >= 3 && (inst[0] === Opcodes.add || inst[0] === Opcodes.sub || inst[0] === Opcodes.mul) && lastLastInst[0] === Opcodes.const && lastInst[0] === Opcodes.const) {
         // inline const math ops
         // i32.const a
         // i32.const b
