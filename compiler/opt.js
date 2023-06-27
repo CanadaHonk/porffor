@@ -250,9 +250,46 @@ export default (funcs, globals) => {
     for (const x in f.locals) useCount[f.locals[x]] = 0;
 
     // final pass
+    depth = [];
     for (let i = 0; i < wasm.length; i++) {
-      const inst = wasm[i];
+      let inst = wasm[i];
       if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) useCount[inst[1]]++;
+
+      if (inst[0] === Opcodes.block && depth.length === 2) {
+        if (depth[0] === Opcodes.loop && depth[1] === Opcodes.if) {
+          // remove unneeded block in for loops, if no br (continue/break)
+          // if
+          //   block
+          //   ...
+          //   end
+          // -->
+          // if
+          // ...
+
+          let hasBranch = false, j = i;
+          for (; j < wasm.length; j++) {
+            const op = wasm[j][0];
+            if (op === Opcodes.end) break;
+            if (op === Opcodes.br) {
+              hasBranch = true;
+              break;
+            }
+          }
+
+          if (!hasBranch) {
+            wasm.splice(i, 1); // remove this inst (block)
+            i--;
+            inst = wasm[i];
+
+            wasm.splice(j - 1, 1); // remove end of this block
+
+            if (optLog) console.log(`opt: removed unneeded block in for loop`);
+          }
+        }
+      }
+
+      if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth.push(inst[0]);
+      if (inst[0] === Opcodes.end) depth.pop();
 
       if (i < 2) continue;
       const lastInst = wasm[i - 1];
