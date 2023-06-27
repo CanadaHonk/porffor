@@ -63,13 +63,16 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 
 ### traditional opts
 - inlining functions
+- inline const math ops
 
 ### wasm transforms
 - `local.set`, `local.get` -> `local.tee`
 - `i32.const 0`, `i32.eq` -> `i32.eqz`
+- `i64.extend_i32_u`, `i32.wrap_i64` -> ``
 - `return`, `end` -> `end`
 - remove some redundant sets/gets
 - remove unneeded single just used vars
+- remove unneeded blocks
 - type cache
 
 ## usecases
