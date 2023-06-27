@@ -1,5 +1,5 @@
 # porffor
-a **very basic** wip js *aot* optimizing wasm compiler in js. this is not a serious project ;)<br>
+a **very basic** wip js *aot* optimizing wasm compiler in js. not serious/intended for (real) use<br>
 age: ~3 days
 
 ## design
@@ -10,7 +10,7 @@ porffor is a very unique js engine, due a very different approach. it is serious
 
 ## limitations
 - **only number type, no string/array/object/etc at all**
-- no built-ins/prototype/etc
+- little built-ins, no prototype
 - no errors
 - no async/promise/await
 - no variables between scopes (except args and globals)
