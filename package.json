@@ -2,5 +2,9 @@
   "dependencies": {
     "acorn": "^8.9.0"
   },
+  "bin": {
+    "porffor": "./runner/index.js"
+  },
+  "main": "./runner/wrap.js",
   "type": "module"
 }
