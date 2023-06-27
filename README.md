@@ -93,11 +93,12 @@ you can also use deno (`deno run -A ...` instead of `node ...`)
 - `-O1` to enable basic opt
 - `-O2` to enable advanced opt (inlining, treeshake wasm imports)
 - `-O3` (default) to enable advanceder opt (precompute const math)
+- `-no-run` to not run wasm output, just compile
 - `-opt-log` to log some opts
 - `-funcs` to log funcs (internal representations)
 - `-opt-funcs` to log funcs after opt
 - `-sections` to log sections as hex
-- `-no-run` to not run wasm output, just compile
+- `-opt-no-inline` to not inline any funcs
 
 ## faq
 

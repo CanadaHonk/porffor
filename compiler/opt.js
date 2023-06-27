@@ -19,7 +19,7 @@ export default (funcs, globals) => {
   const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : (process.argv.includes('-O2') ? 2 : 3));
   if (optLevel === 0) return;
 
-  if (optLevel >= 2) {
+  if (optLevel >= 2 && !process.argv.includes('-opt-no-inline')) {
     // inline pass (very WIP)
     // get candidates for inlining
     // todo: pick smart in future (if func is used <N times? or?)
