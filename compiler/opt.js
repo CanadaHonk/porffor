@@ -161,6 +161,20 @@ export default (funcs, globals) => {
         // if (optLog) console.log(`opt: removed redundant return at end`);
       }
 
+      if (depth === 2) {
+        // hack to remove unneeded before get in for loops with (...; i++)
+        if (lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_get && inst[0] === Opcodes.local_get) {
+          // local.get 1
+          // local.get 1
+          // -->
+          // local.get 1
+
+          wasm.splice(i, 1); // remove this inst (second get)
+          i--;
+          inst = wasm[i];
+        }
+      }
+
       if (i < 2) continue;
       const lastLastInst = wasm[i - 2];
 
