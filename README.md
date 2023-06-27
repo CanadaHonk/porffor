@@ -47,6 +47,7 @@ porffor is a very unique js engine, due a very different approach. it is serious
 - `while` loops
 - `break` and `continue`
 - basic `assert` func
+- named export funcs
 
 ## soon todo
 - support f64 as valtype (wip)
