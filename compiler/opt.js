@@ -160,6 +160,7 @@ export default (funcs, globals) => {
 
         inst = wasm[i];
         lastInst = wasm[i - 1];
+        // if (optLog) console.log(`opt: removed redundant i32 -> i64 -> i32 conversion ops`);
       }
 
       if (i === wasm.length - 1 && inst[0] === Opcodes.return) {
@@ -205,7 +206,7 @@ export default (funcs, globals) => {
       }
     }
 
-    if (optLevel < 2) return;
+    if (optLevel < 2) continue;
 
     if (optLog) console.log(`opt: get counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]}): ${getCount[f.locals[x]]}`).join(', ')}`);
 
