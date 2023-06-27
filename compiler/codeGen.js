@@ -102,6 +102,18 @@ const generate = (scope, decl) => {
     case 'EmptyStatement':
       return generateEmpty(scope, decl);
 
+    case 'ExportNamedDeclaration':
+      // hack to flag new func for export
+      const funcsBefore = funcs.length;
+      generate(scope, decl.declaration);
+
+      if (funcsBefore === funcs.length) throw new Error('no new func added in export');
+
+      const newFunc = funcs[funcs.length - 1];
+      newFunc.export = true;
+
+      return [];
+
     default:
       return todo(`no generation for ${decl.type}!`);
   }
@@ -657,5 +669,7 @@ export default program => {
 
   generateFunc(scope, program);
 
+  // export main
+  funcs[funcs.length - 1].export = true;
   return { funcs, globals };
 };
