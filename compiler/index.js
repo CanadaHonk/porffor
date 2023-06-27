@@ -20,7 +20,7 @@ const logFuncs = funcs => {
     console.log(`locals: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]})`).join(', ')}`);
     console.log(`index: ${f.index}`);
     console.log();
-    console.log(decompile(f.wasm, f.locals));
+    console.log(decompile(f.wasm, f.locals, f.params.map(_ => 'i32'), new Array(f.return ? 1 : 0).fill('i32')));
   }
 
   console.log();

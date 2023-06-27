@@ -4,10 +4,12 @@ const inv = obj => Object.keys(obj).reduce((acc, x) => { acc[obj[x]] = x; return
 const invOpcodes = inv(Opcodes);
 const invValtype = inv(Valtype);
 
-export default (wasm, locals = {}) => {
+export default (wasm, locals = {}, params = [], returns = []) => {
   const invLocals = inv(locals);
 
   let out = '', depth = 0;
+  out += `(${params.join(', ')}) -> (${returns.join(', ')})\n`;
+
   for (const inst of wasm) {
     if (inst[0] === null) continue;
 
@@ -49,8 +51,8 @@ export default (wasm, locals = {}) => {
 export const highlightAsm = asm =>
   asm
     .replace(/local\.[^\s]*/g, _ => `\x1B[31m${_}\x1B[0m`)
-    .replace(/(i32|i64|f32|f64)\.[^\s]*/g, _ => `\x1B[36m${_}\x1B[0m`)
+    .replace(/(i32|i64|f32|f64)(\.[^\s]*)?/g, _ => `\x1B[36m${_}\x1B[0m`)
     .replace(/(call|br_if|br|return)/g, _ => `\x1B[35m${_}\x1B[0m`)
     .replace(/(block|loop|if|end|else)/g, _ => `\x1B[95m${_}\x1B[0m`)
-    .replace(/ [0-9\-]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
+    .replace(/ [0-9]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
     .replace(/ ;;.*$/gm, _ => `\u001b[90m${_}\x1B[0m`);
