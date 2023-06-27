@@ -255,36 +255,32 @@ export default (funcs, globals) => {
       let inst = wasm[i];
       if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) useCount[inst[1]]++;
 
-      if (inst[0] === Opcodes.block && depth.length === 2) {
-        if (depth[0] === Opcodes.loop && depth[1] === Opcodes.if) {
-          // remove unneeded block in for loops, if no br (continue/break)
-          // if
-          //   block
-          //   ...
-          //   end
-          // -->
-          // if
-          // ...
+      if (inst[0] === Opcodes.block) {
+        // remove unneeded blocks (no brs inside)
+        // block
+        //   ...
+        // end
+        // -->
+        // ...
 
-          let hasBranch = false, j = i;
-          for (; j < wasm.length; j++) {
-            const op = wasm[j][0];
-            if (op === Opcodes.end) break;
-            if (op === Opcodes.br) {
-              hasBranch = true;
-              break;
-            }
+        let hasBranch = false, j = i;
+        for (; j < wasm.length; j++) {
+          const op = wasm[j][0];
+          if (op === Opcodes.end) break;
+          if (op === Opcodes.br) {
+            hasBranch = true;
+            break;
           }
+        }
 
-          if (!hasBranch) {
-            wasm.splice(i, 1); // remove this inst (block)
-            i--;
-            inst = wasm[i];
+        if (!hasBranch) {
+          wasm.splice(i, 1); // remove this inst (block)
+          i--;
+          inst = wasm[i];
 
-            wasm.splice(j - 1, 1); // remove end of this block
+          wasm.splice(j - 1, 1); // remove end of this block
 
-            if (optLog) console.log(`opt: removed unneeded block in for loop`);
-          }
+          if (optLog) console.log(`opt: removed unneeded block in for loop`);
         }
       }
 
