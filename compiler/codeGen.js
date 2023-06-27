@@ -566,7 +566,7 @@ const objectHack = node => {
 
 const generateFunc = (scope, decl) => {
   const name = decl.id ? decl.id.name : `anonymous_${randId()}`;
-  const params = decl.params ?? [];
+  const params = decl.params?.map(x => x.name) ?? [];
 
   // const innerScope = { ...scope };
   // TODO: share scope/locals between !!!
@@ -574,7 +574,7 @@ const generateFunc = (scope, decl) => {
 
   for (let i = 0; i < params.length; i++) {
     const param = params[i];
-    innerScope.locals[param.name] = i;
+    innerScope.locals[param] = i;
   }
 
   let body = objectHack(decl.body);
