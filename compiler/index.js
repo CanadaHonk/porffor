@@ -35,6 +35,8 @@ export default (code, flags = [ 'module' ]) => {
   const { funcs, globals } = codeGen(program);
   if (flags.includes('info')) console.log(`2. generated code in ${(performance.now() - t1).toFixed(2)}ms`);
 
+  if (flags.includes('return')) funcs.find(x => x.name === 'main').return = true;
+
   if (process.argv.includes('-funcs')) logFuncs(funcs);
 
   const t2 = performance.now();
