@@ -11,8 +11,10 @@ export default async source => {
     }
   });
 
-  instance.exports.main = instance.exports.m;
-  delete instance.exports.m;
+  const exports = { ...instance.exports };
 
-  return instance.exports;
+  exports.main = exports.m;
+  delete exports.m;
+
+  return exports;
 };
