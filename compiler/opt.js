@@ -101,8 +101,11 @@ export default (funcs, globals) => {
 
     let depth = 0;
 
-    let getCount = {};
-    for (const x in f.locals) getCount[f.locals[x]] = 0;
+    let getCount = {}, setCount = {};
+    for (const x in f.locals) {
+      getCount[f.locals[x]] = 0;
+      setCount[f.locals[x]] = 0;
+    }
 
     // main pass
     for (let i = 0; i < wasm.length; i++) {
@@ -111,6 +114,7 @@ export default (funcs, globals) => {
       if (inst[0] === Opcodes.end) depth--;
 
       if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
+      if (inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) setCount[inst[1]]++;
 
       if (i < 1) continue;
       let lastInst = wasm[i - 1];
@@ -179,7 +183,7 @@ export default (funcs, globals) => {
 
     // remove unneeded var: remove pass
     // locals only got once. we don't need to worry about sets/else as these are only candidates and we will check for matching set + get insts in wasm
-    const unneededCandidates = Object.keys(getCount).filter(x => getCount[x] <= 1).map(x => parseInt(x));
+    const unneededCandidates = Object.keys(getCount).filter(x => getCount[x] === 0 || (getCount[x] === 1 && setCount[x] === 0)).map(x => parseInt(x));
     if (optLog) console.log(`opt: found unneeded locals candidates: ${unneededCandidates.join(', ')} (${unneededCandidates.length}/${Object.keys(getCount).length})`);
 
     if (unneededCandidates.length > 0) for (let i = 0; i < wasm.length; i++) {
@@ -189,6 +193,11 @@ export default (funcs, globals) => {
       const lastInst = wasm[i - 1];
 
       if (lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_set && inst[0] === Opcodes.local_get && unneededCandidates.includes(inst[1])) {
+        // local.set N
+        // local.get N
+        // -->
+        // <nothing>
+
         wasm.splice(i - 1, 2); // remove insts
         i -= 2;
         delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
@@ -196,6 +205,10 @@ export default (funcs, globals) => {
       }
 
       if (inst[0] === Opcodes.local_tee && unneededCandidates.includes(inst[1])) {
+        // local.tee N
+        // -->
+        // <nothing>
+
         wasm.splice(i, 1); // remove inst
         i--;
         delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
@@ -235,6 +248,7 @@ export default (funcs, globals) => {
         console.log('a', a, b);
 
         inst[1] = performWasmOp(inst[0], a, b);
+        if (optLog) console.log(`opt: inlined math op (${a} ${inst[0].toString(16)} ${b} -> ${inst[1]})`);
         inst[0] = Opcodes.const;
       }
     }
