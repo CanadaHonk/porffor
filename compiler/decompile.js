@@ -4,11 +4,11 @@ const inv = obj => Object.keys(obj).reduce((acc, x) => { acc[obj[x]] = x; return
 const invOpcodes = inv(Opcodes);
 const invValtype = inv(Valtype);
 
-export default (wasm, locals = {}, params = [], returns = []) => {
+export default (wasm, name = '', locals = {}, params = [], returns = []) => {
   const invLocals = inv(locals);
 
   let out = '', depth = 0;
-  out += `(${params.join(', ')}) -> (${returns.join(', ')})\n`;
+  out += `(${params.join(', ')}) -> (${returns.join(', ')}) ;; ${name}\n`;
 
   for (const inst of wasm) {
     if (inst[0] === null) continue;
