@@ -1,11 +1,9 @@
 import { Opcodes } from "./wasmSpec.js";
-import { signedLEB128 } from "./encoding.js";
-
+import { number } from "./embedding.js";
 // import parse from "./parse.js";
 
 export const importedFuncs = { print: 0, printChar: 1, assert: 2 };
 
-const number = n => [ [ Opcodes.const, ...signedLEB128(n) ] ];
 const char = c => number(c.charCodeAt(0));
 
 export const makeBuiltins = () => ({

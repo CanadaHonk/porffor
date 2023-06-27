@@ -1,5 +1,5 @@
-import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
-import { encodeVector, encodeLocal } from "./encoding.js";
+import { Opcodes, Valtype } from "./wasmSpec.js";
+import { number } from "./embedding.js";
 
 // deno compat
 const textEncoder = new TextEncoder();
@@ -7,10 +7,19 @@ if (typeof process === 'undefined') globalThis.process = { argv: ['', '', ...Den
 
 const optLog = process.argv.includes('-opt-log');
 
-export default (funcs, globals) => {
-  if (process.argv.includes('-O0')) return;
+const performWasmOp = (op, a, b) => {
+  switch (op) {
+    case Opcodes.add: return a + b;
+    case Opcodes.sub: return a - b;
+    case Opcodes.mul: return a * b;
+  }
+};
 
-  if (!process.argv.includes('-O1')) {
+export default (funcs, globals) => {
+  const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : 2);
+  if (optLevel === 0) return;
+
+  if (optLevel >= 2) {
     // inline pass (very WIP)
     // get candidates for inlining
     // todo: pick smart in future (if func is used <N times? or?)
@@ -92,7 +101,7 @@ export default (funcs, globals) => {
 
     let depth = 0;
 
-    const getCount = {};
+    let getCount = {};
     for (const x in f.locals) getCount[f.locals[x]] = 0;
 
     // main pass
@@ -101,7 +110,7 @@ export default (funcs, globals) => {
       if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth++;
       if (inst[0] === Opcodes.end) depth--;
 
-      if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
+      if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_tee) getCount[inst[1]]++;
 
       if (i < 1) continue;
       let lastInst = wasm[i - 1];
@@ -162,7 +171,7 @@ export default (funcs, globals) => {
       }
     }
 
-    if (process.argv.includes('-O1')) return;
+    if (optLevel < 2) return;
 
     // remove unneeded var: remove pass
     // locals only got once. we don't need to worry about sets/else as these are only candidates and we will check for matching set + get insts in wasm
@@ -187,6 +196,51 @@ export default (funcs, globals) => {
         i--;
         delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
         if (optLog) console.log(`opt: removed redundant local (tee ${inst[1]})`);
+      }
+    }
+
+    getCount = {};
+    for (const x in f.locals) getCount[f.locals[x]] = 0;
+
+    // final pass
+    for (let i = 0; i < wasm.length; i++) {
+      const inst = wasm[i];
+      if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_tee) getCount[inst[1]]++;
+
+      if (i < 2) continue;
+      const lastInst = wasm[i - 1];
+      const lastLastInst = wasm[i - 2];
+
+      // todo: add more math ops
+      if ((inst[0] === Opcodes.add || inst[0] === Opcodes.sub || inst[0] === Opcodes.mul) && lastLastInst[0] === Opcodes.const && lastInst[0] === Opcodes.const) {
+        // inline const math ops
+        // i32.const a
+        // i32.const b
+        // i32.add
+        // -->
+        // i32.const a + b
+
+        // does not work with leb encoded
+        if (lastInst.length > 2 || lastLastInst.length > 2) continue;
+
+        wasm.splice(i - 2, 2); // remove consts
+        i -= 2;
+
+        let a = lastLastInst[1];
+        let b = lastInst[1];
+        console.log('a', a, b);
+
+        inst[1] = performWasmOp(inst[0], a, b);
+        inst[0] = Opcodes.const;
+      }
+    }
+
+    // remove unused locals (cleanup)
+    for (const x in getCount) {
+      if (getCount[x] === 0) {
+        const name = Object.keys(f.locals)[Object.values(f.locals).indexOf(parseInt(x))];
+        if (optLog) console.log(`opt: removed internal local ${x} (${name})`);
+        delete f.locals[name];
       }
     }
   }

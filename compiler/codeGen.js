@@ -1,7 +1,8 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
-import { signedLEB128, unsignedLEB128, encodeVector, encodeLocal } from "./encoding.js";
+import { signedLEB128, unsignedLEB128 } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 import { makeBuiltins, importedFuncs } from "./builtins.js";
+import { number } from "./embedding.js";
 
 let globals = {};
 let funcs = [];
@@ -38,8 +39,6 @@ const todo = msg => {
 
   return code;
 };
-
-const number = n => [ [ Opcodes.const, ...signedLEB128(n) ] ];
 
 const isFuncType = type => type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
 const generate = (scope, decl) => {
@@ -470,7 +469,7 @@ const generateFor = (scope, decl) => {
   out.push(...generate(scope, decl.update));
   depth.pop();
 
-  out.push([ Opcodes.br, ...signedLEB128(1) ]);
+  out.push([ Opcodes.br, 1 ]);
   out.push([ Opcodes.end ], [ Opcodes.end ]);
   depth.pop(); depth.pop();
 
@@ -489,7 +488,7 @@ const generateWhile = (scope, decl) => {
 
   out.push(...generate(scope, decl.body));
 
-  out.push([ Opcodes.br, ...signedLEB128(1) ]);
+  out.push([ Opcodes.br, 1 ]);
   out.push([ Opcodes.end ], [ Opcodes.end ]);
   depth.pop(); depth.pop();
 
