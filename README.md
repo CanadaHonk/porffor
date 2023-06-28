@@ -105,6 +105,59 @@ you can also use deno (`deno run -A ...` instead of `node ...`)
 - `-sections` to log sections as hex
 - `-opt-no-inline` to not inline any funcs
 
+## wasm output
+porffor optimizes for size as much as possible. current output is ~as small as possible (even with manual asm editing) for some simple functions.
+
+### example
+this javascript:
+```js
+function isPrime(number) {
+  if (number === 1) return false;
+
+  for (let i = 2; i < number; i++) {
+    if (number % i == 0) return false;
+  }
+
+  return true;
+}
+```
+
+compiles into this wasm:
+```wasm
+(i32) -> (i32) ;; isPrime
+  local.get 0 ;; number
+  i32.const 1
+  i32.eq
+  if ;; label @2
+    i32.const 0
+    return
+  end
+  i32.const 2
+  local.set 1 ;; i
+  loop ;; label @2
+    local.get 1 ;; i
+    local.get 0 ;; number
+    i32.lt_s
+    if ;; label @3
+      local.get 0 ;; number
+      local.get 1 ;; i
+      i32.rem_s
+      i32.eqz
+      if ;; label @4
+        i32.const 0
+        return
+      end
+      local.get 1 ;; i
+      i32.const 1
+      i32.add
+      local.set 1 ;; i
+      br 1 ;; goto @2
+    end
+  end
+  i32.const 1
+end
+```
+
 ## faq
 
 ### 1. why name
