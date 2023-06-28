@@ -1,6 +1,6 @@
 # porffor
-a **very basic** wip js *aot* optimizing wasm compiler in js. not serious/intended for (real) use<br>
-age: ~3 days
+a **very basic** wip js *aot* optimizing wasm compiler in js. not serious/intended for (real) use, but this is a straight forward honest readme<br>
+age: ~4 days
 
 ## design
 porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. key differences:
@@ -109,7 +109,7 @@ you can also use deno (`deno run -A ...` instead of `node ...`)
 porffor optimizes for size as much as possible. current output is ~as small as possible (even with manual asm editing) for some simple functions.
 
 ### example
-this javascript:
+this javascript (159 bytes unminified):
 ```js
 function isPrime(number) {
   if (number === 1) return false;
@@ -122,7 +122,7 @@ function isPrime(number) {
 }
 ```
 
-compiles into this wasm:
+compiles into this wasm (104 bytes including module):
 ```wasm
 (i32) -> (i32) ;; isPrime
   local.get 0 ;; number
