@@ -54,8 +54,9 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 ## soon todo
 - support f64 as valtype (wip)
 - assignment operators (`+=`, `-=`, etc)
-- more math operations (`**`, etc)
+- more math operators (`**`, etc)
 - `do { ... } while(...)`
+- conditional/ternary operator
 - nicer errors
 - opt: smarter inline selection (snapshots?)
 - begin `Math` (`Math.sqrt`, etc)
