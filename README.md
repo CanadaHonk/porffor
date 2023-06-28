@@ -64,7 +64,7 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable. we do not use/rely on external opt tools (`wasm-opt`, etc), instead doing optimization inside the compiler itself creating even smaller code sizes than `wasm-opt` itself can produce as we have more internal information. (this also enables fast + small runtime use as a potential cursed jit in frontend).
 
 ### traditional opts
-- inlining functions
+- inlining functions (wip, limited)
 - inline const math ops
 
 ### wasm transforms
