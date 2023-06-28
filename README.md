@@ -121,7 +121,7 @@ function isPrime(number) {
 }
 ```
 
-compiles into this wasm (104 bytes including module):
+compiles into this wasm (90 bytes including module):
 ```wasm
 (i32) -> (i32) ;; isPrime
   local.get 0 ;; number
