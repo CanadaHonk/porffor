@@ -8,6 +8,8 @@ porffor is a very unique js engine, due a very different approach. it is serious
 - everything is a number
 - no constant runtime/preluded code
 
+porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself.
+
 ## limitations
 - **only number type, no string/array/object/etc at all**
 - little built-ins, no prototype
@@ -77,9 +79,6 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 
 ## usecases
 basically none (other than giving people headaches). potential as a tiny fast advanced expression evaluator (for math)?
-
-## parser
-uses [acorn](https://github.com/acornjs/acorn), pretty neat.
 
 ## usage
 basically nothing will work :). see files in `test` for examples.
