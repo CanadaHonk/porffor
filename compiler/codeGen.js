@@ -673,7 +673,7 @@ export default program => {
   funcs[funcs.length - 1].export = true;
 
   // if blank main func and other exports, remove it
-  if (funcs[funcs.length - 1].wasm.length === 0 && funcs.reduce((acc, x) => acc + x.export ? 1 : 0, 0) > 1) funcs.splice(funcs.length - 1, 1);
+  if (funcs[funcs.length - 1].wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(funcs.length - 1, 1);
 
   return { funcs, globals };
 };
