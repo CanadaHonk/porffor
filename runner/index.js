@@ -44,8 +44,8 @@ const print = str => {
 const t1 = performance.now();
 const { instance } = await WebAssembly.instantiate(wasm, {
   '': {
-    p: i => print(Number(i).toString()),
-    c: i => print(String.fromCharCode(Number(i))),
+    p: i => valtype === 'i64' ? print(Number(i).toString()) : print(i.toString()),
+    c: i => valtype === 'i64' ? print(String.fromCharCode(Number(i))) : print(String.fromCharCode(i)),
     a: c => { if (!Number(c)) throw new Error(`assert failed`); }
   }
 });
