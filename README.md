@@ -55,9 +55,14 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 - support f64 as valtype (wip)
 - assignment operators (`+=`, `-=`, etc)
 - more math operations (`**`, etc)
+- `do { ... } while(...)`
 - nicer errors
 - opt: smarter inline selection (snapshots?)
 - begin `Math` (`Math.sqrt`, etc)
+- experiment with hack for supporting multiple values as outputs
+- opt: tail calls
+- simd api?
+- a way to inline wasm inside source
 - website with code input, wasm output, output and timings
 
 ## optimizations
@@ -74,8 +79,11 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 - `return`, `end` -> `end`
 - remove some redundant sets/gets
 - remove unneeded single just used vars
-- remove unneeded blocks
-- type cache
+- remove unneeded blocks (no `br`s inside)
+
+### wasm module
+- type cache/index (no repeated types)
+- no main func if empty (and other exports)
 
 ## usecases
 basically none (other than giving people headaches). potential as a tiny fast advanced expression evaluator (for math)?
