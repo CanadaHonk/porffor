@@ -3,6 +3,8 @@ import compile from '../compiler/index.js';
 export default async source => {
   const wasm = compile(source, []);
 
+  const print = str => process.stdout.write(str);
+
   const { instance } = await WebAssembly.instantiate(wasm, {
     '': {
       p: i => print(Number(i).toString()),
