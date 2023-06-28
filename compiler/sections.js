@@ -60,7 +60,7 @@ export default (funcs, globals, flags) => {
 
   if (optLog) console.log(`treeshake: using ${importFuncs.length}/${allImportFuncs.length} imports`);
 
-  const importSection = createSection(
+  const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
     encodeVector(importFuncs.map((x, i) => [ 0, ...encodeString(x), ExportDesc.func, getType(1, false) ]))
   );
