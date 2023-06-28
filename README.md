@@ -59,7 +59,7 @@ porffor is a very unique js engine, due a very different approach. it is serious
 - website with code input, wasm output, output and timings
 
 ## optimizations
-mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable.
+mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable. we do not use/rely on external opt tools (`wasm-opt`, etc), instead doing optimization inside the compiler itself (this also enables fast + small runtime use as a potential jit in frontend).
 
 ### traditional opts
 - inlining functions
