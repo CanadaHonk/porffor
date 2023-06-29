@@ -9,9 +9,11 @@ export default (wasm, name = '', locals = {}, params = [], returns = []) => {
 
   let out = '', depth = 1;
   out += `(${params.map(x => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')}) ;; ${name}\n`;
-  out += `  local ${Object.values(locals).map(x => invValtype[x.type]).join(' ')}\n`;
 
-  for (const inst of wasm.concat([ [ Opcodes.end ] ])) {
+  const justLocals = Object.values(locals).slice(params.length).sort((a, b) => a.idx - b.idx);
+  if (justLocals.length > 0) out += `  local ${justLocals.map(x => invValtype[x.type]).join(' ')}\n`;
+
+  for (let inst of wasm.concat([ [ Opcodes.end ] ])) {
     if (inst[0] === null) continue;
 
     if (inst[0] === Opcodes.end || inst[0] === Opcodes.else) depth--;
