@@ -43,19 +43,31 @@ const perform = async (test, args) => {
   const expect = JSON.parse(spl[0].slice(2)).replaceAll('\\n', '\n');
   const code = spl.slice(1).join('\n');
 
+  // process.stdout.write(`\u001b[90m.... ${test}\u001b[0m ${args.join(' ')}\u001b[0m`);
+
   const t1 = performance.now();
-  let [ out, assertFailed, times, wasm ] = await run(code);
+  let out, assertFailed, times, wasm;
+  try {
+    0, [ out, assertFailed, times, wasm ] = await run(code);
+  } catch (e) {
+    console.log(`\u001b[91mFAIL ${test}\u001b[0m ${args.join(' ')}`);
+    console.log(`  an error was thrown: ${e}\n`);
+    return false;
+  }
+
   const time = performance.now() - t1;
   const pass = !assertFailed && out === expect;
 
   total++;
   if (pass) passes++;
 
+  process.stdout.write(`\r${' '.repeat(90)}\r`);
   console.log(`${pass ? '\u001b[92mPASS' : '\u001b[91mFAIL'} ${test}\u001b[0m ${args.join(' ')} ${' '.repeat(40 - test.length - args.join(' ').length)}\u001b[90m${time.toFixed(2)}ms (compile: ${times[0].toFixed(2)}ms, exec: ${times[1].toFixed(2)}ms)${' '.repeat(10)}${wasm.byteLength}b\u001b[0m`);
 
   if (!pass) {
-    if (out !== expect) console.log(`expected: ${JSON.stringify(expect)}\n     got: ${JSON.stringify(out)}\n`);
-    if (assertFailed) console.log(`an assert failed`);
+    if (out !== expect) console.log(`  expected: ${JSON.stringify(expect)}\n       got: ${JSON.stringify(out)}`);
+    if (assertFailed) console.log(`  an assert failed`);
+    console.log();
   }
 
   return pass;
