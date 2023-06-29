@@ -109,7 +109,8 @@ export const Opcodes = {
   i64_extend_i32_s: 0xac,
   i64_extend_i32_u: 0xad,
 
-  // simd insts are 0xFD simdop:varuint32
+  // simd insts are 0xFD simdop: varuint32
+  v128_load: [ 0xfd, 0x00 ],
   v128_const: [ 0xfd, 0x0c ],
 
   i8x16_shuffle: [ 0xfd, 0x0d ],
