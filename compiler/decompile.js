@@ -8,7 +8,7 @@ export default (wasm, name = '', locals = {}, params = [], returns = []) => {
   const invLocals = inv(locals);
 
   let out = '', depth = 1;
-  out += `(${params.join(', ')}) -> (${returns.join(', ')}) ;; ${name}\n`;
+  out += `(${params.map(x => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')}) ;; ${name}\n`;
 
   for (const inst of wasm.concat([ [ Opcodes.end ] ])) {
     if (inst[0] === null) continue;

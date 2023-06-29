@@ -24,7 +24,7 @@ export default (funcs, globals) => {
     // get candidates for inlining
     // todo: pick smart in future (if func is used <N times? or?)
     const suitableReturns = wasm => wasm.reduce((acc, x) => acc + (x[0] === Opcodes.return), 0) === 1;
-    const candidates = funcs.filter(x => x.name !== 'main' && Object.keys(x.locals).length === x.params.length && (!x.return || suitableReturns(x.wasm))).reverse();
+    const candidates = funcs.filter(x => x.name !== 'main' && Object.keys(x.locals).length === x.params.length && (x.returns.length === 0 || suitableReturns(x.wasm))).reverse();
     if (optLog) {
       console.log(`opt: found inline candidates: ${candidates.map(x => x.name).join(', ')} (${candidates.length}/${funcs.length - 1})`);
 
@@ -34,7 +34,7 @@ export default (funcs, globals) => {
 
         if (f.name === 'main') reasons[f.name].push('main');
         if (Object.keys(f.locals).length !== f.params.length) reasons[f.name].push('cannot inline funcs with locals yet');
-        if (f.return && !suitableReturns(f.wasm)) reasons[f.name].push('cannot inline funcs with multiple returns yet');
+        if (f.returns.length !== 0 && !suitableReturns(f.wasm)) reasons[f.name].push('cannot inline funcs with multiple returns yet');
       }
 
       console.log(`     reasons not:\n${Object.keys(reasons).filter(x => reasons[x].length > 0).map(x => `       ${x}: ${reasons[x].join(', ')}`).join('\n')}\n`)
@@ -308,7 +308,6 @@ export default (funcs, globals) => {
 
         let a = lastLastInst[1];
         let b = lastInst[1];
-        console.log('a', a, b);
 
         inst[1] = performWasmOp(inst[0], a, b);
         if (optLog) console.log(`opt: inlined math op (${a} ${inst[0].toString(16)} ${b} -> ${inst[1]})`);

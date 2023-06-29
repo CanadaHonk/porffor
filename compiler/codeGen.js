@@ -173,7 +173,7 @@ const asmFunc = (name, wasm, params, localCount, returns) => {
     name,
     params,
     locals,
-    return: returns,
+    returns,
     wasm,
     internal: true,
     index: currentFuncIndex++
@@ -187,7 +187,7 @@ const asmFunc = (name, wasm, params, localCount, returns) => {
 
 const includeBuiltin = (scope, builtin) => {
   const code = builtins[builtin];
-  if (code.wasm) return asmFunc(builtin, code.wasm, code.params, code.locals, code.return);
+  if (code.wasm) return asmFunc(builtin, code.wasm, code.params, code.locals, code.returns);
 
   return code.body.map(x => generate(scope, x));
 };
@@ -601,13 +601,13 @@ const generateFunc = (scope, decl) => {
   const wasm = generate(innerScope, body);
   const func = {
     name,
-    params,
-    return: hasReturn(body),
+    params: new Array(params.length).fill(Valtype[valtype]),
+    returns: hasReturn(body) ? [ Valtype[valtype] ] : [],
     locals: innerScope.locals,
     index: currentFuncIndex++
   };
 
-  if (func.return && wasm[wasm.length - 1][0] !== Opcodes.return) wasm.push(...number(0), [ Opcodes.return ]);
+  if (func.returns.length !== 0 && wasm[wasm.length - 1][0] !== Opcodes.return) wasm.push(...number(0), [ Opcodes.return ]);
   func.wasm = wasm;
 
   /* const localCount = Object.keys(innerScope.locals).length - params.length;

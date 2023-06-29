@@ -15,15 +15,17 @@ export default (funcs, globals, flags) => {
   const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : (process.argv.includes('-O2') ? 2 : 3));
 
   const getType = (params, returns) => {
-    const hash = `${params}_${returns ? 1 : 0}`;
+    const hash = `${params.join(',')}_${returns.join(',')}`;
     if (optLog) console.log(`opt sections: getType (${params}, ${returns}) -> ${hash}. cached: ${typeCache[hash]}`);
     if (optLevel >= 2 && typeCache[hash] !== undefined) return typeCache[hash];
 
-    const type = [ FuncType, ...encodeVector(new Array(params).fill(Valtype[valtype])), ...encodeVector(returns ? [Valtype[valtype]] : []) ];
+    const type = [ FuncType, ...encodeVector(params), ...encodeVector(returns) ];
     const idx = types.length;
 
     types.push(type);
-    return typeCache[hash] = idx;
+
+    if (optLevel >= 2) typeCache[hash] = idx;
+    return idx;
   };
 
   let importFuncs = [];
@@ -62,12 +64,12 @@ export default (funcs, globals, flags) => {
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
-    encodeVector(importFuncs.map((x, i) => [ 0, ...encodeString(x), ExportDesc.func, getType(1, false) ]))
+    encodeVector(importFuncs.map((x, i) => [ 0, ...encodeString(x), ExportDesc.func, getType([ Valtype[valtype] ], []) ]))
   );
 
   const funcSection = createSection(
     Section.func,
-    encodeVector(funcs.map(x => getType(x.params.length, x.return))) // type indexes
+    encodeVector(funcs.map(x => getType(x.params, x.returns))) // type indexes
   );
 
   const globalSection = Object.keys(globals).length === 0 ? [] : createSection(

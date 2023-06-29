@@ -3,6 +3,7 @@ import codeGen from './codeGen.js';
 import opt from './opt.js';
 import produceSections from './sections.js';
 import decompile from './decompile.js';
+import { Valtype } from './wasmSpec.js';
 
 globalThis.decompile = decompile;
 
@@ -13,14 +14,13 @@ const logFuncs = funcs => {
   console.log('\n' + underline(bold('funcs')));
 
   for (const f of funcs) {
-    console.log(underline(f.name));
+    console.log(`${underline(f.name)} (${f.index})`);
 
-    console.log(`params: ${f.params.join(', ')}`);
-    console.log(`returns: ${f.return}`);
+    console.log(`params: ${f.params.map((_, i) => f.locals[i]).join(', ')}`);
+    console.log(`returns: ${f.returns.length > 0 ? true : false}`);
     console.log(`locals: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]})`).join(', ')}`);
-    console.log(`index: ${f.index}`);
     console.log();
-    console.log(decompile(f.wasm, f.name, f.locals, f.params.map(_ => 'i32'), new Array(f.return ? 1 : 0).fill('i32')));
+    console.log(decompile(f.wasm, f.name, f.locals, f.params, f.returns));
   }
 
   console.log();
@@ -35,14 +35,12 @@ export default (code, flags = [ 'module' ]) => {
   const { funcs, globals } = codeGen(program);
   if (flags.includes('info')) console.log(`2. generated code in ${(performance.now() - t1).toFixed(2)}ms`);
 
-  if (flags.includes('return')) funcs.find(x => x.name === 'main').return = true;
+  if (flags.includes('return')) funcs.find(x => x.name === 'main').returns = [ Valtype.i32 ];
 
   if (process.argv.includes('-funcs')) logFuncs(funcs);
 
   const t2 = performance.now();
-  // console.log(funcs);
   opt(funcs, globals);
-  // console.log(funcs);
   if (flags.includes('info')) console.log(`3. optimized code in ${(performance.now() - t2).toFixed(2)}ms`);
 
   if (process.argv.includes('-opt-funcs')) logFuncs(funcs);
