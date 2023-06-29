@@ -332,6 +332,7 @@ const generateCall = (scope, decl) => {
 
   if (isFuncType(decl.callee.type)) {
     const func = generateFunc(decl.callee);
+    // todo: iife support
   }
 
   const name = decl.callee.name;
@@ -343,6 +344,18 @@ const generateCall = (scope, decl) => {
   if (idx === undefined && builtins[name]) {
     includeBuiltin(scope, name);
     idx = funcIndex[name];
+
+    // infer arguments types from builtins params
+    const func = funcs.find(x => x.name === name);
+    for (let i = 0; i < decl.arguments.length; i++) {
+      const arg = decl.arguments[i];
+      if (!arg.name) continue;
+
+      const local = scope.locals[arg.name];
+      if (!local) continue;
+
+      local.type = func.params[i];
+    }
   }
 
   if (idx === undefined) throw new Error(`failed to find func idx for ${name} (funcIndex: ${Object.keys(funcIndex)})`);
