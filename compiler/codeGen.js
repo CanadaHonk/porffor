@@ -134,6 +134,11 @@ const generate = (scope, decl) => {
           continue;
         }
 
+        if (asm[0] === 'memory') {
+          scope.memory = true;
+          continue;
+        }
+
         let inst = Opcodes[asm[0].replace('.', '_')];
         if (!inst) throw new Error(`inline asm: inst ${asm[0]} not found`);
 
