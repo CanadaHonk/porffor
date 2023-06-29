@@ -702,6 +702,8 @@ export default program => {
   Opcodes.sub = [ Opcodes.i32_sub, Opcodes.i64_sub, Opcodes.f64_sub ][valtypeInd];
   Opcodes.i32_to = [ null, Opcodes.i32_wrap_i64, Opcodes.unreachable ][valtypeInd];
 
+  Opcodes.sqrt = [ Opcodes.unreachable ]; // todo
+
   builtins = makeBuiltins();
 
   program.id = { name: 'main' };
