@@ -77,9 +77,18 @@ export default (funcs, globals, flags) => {
     encodeVector(Object.keys(globals).map(_ => [ valtypeBinary, 0x01, Opcodes.const, 0x00, Opcodes.end ]))
   );
 
+  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, x.index ]);
+
+  const usesMemory = funcs.some(x => x.memory);
+  const memorySection = !usesMemory ? [] : createSection(
+    Section.memory,
+    encodeVector([ [ 0x00, 0x01 ] ])
+  );
+  if (usesMemory) exports.unshift([ ...encodeString('$'), ExportDesc.mem, 0x00 ]);
+
   const exportSection = createSection(
     Section.export,
-    encodeVector(funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, x.index ]))
+    encodeVector(exports)
   );
 
   const codeSection = createSection(
@@ -125,6 +134,7 @@ export default (funcs, globals, flags) => {
     ...typeSection,
     ...importSection,
     ...funcSection,
+    ...memorySection,
     ...globalSection,
     ...exportSection,
     ...codeSection
