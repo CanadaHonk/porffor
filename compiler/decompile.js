@@ -16,6 +16,11 @@ export default (wasm, name = '', locals = {}, params = [], returns = []) => {
   for (let inst of wasm.concat([ [ Opcodes.end ] ])) {
     if (inst[0] === null) continue;
 
+    if (inst[0] === 0xfd) {
+      if (inst[1] >= 128) inst = [ [ inst[0], inst[1], inst[2] ], ...inst.slice(3) ];
+        else inst = [ [ inst[0], inst[1] ], ...inst.slice(2) ]; // simd inst prefix
+    }
+
     if (inst[0] === Opcodes.end || inst[0] === Opcodes.else) depth--;
 
     const opStr = invOpcodes[inst[0]];
@@ -55,8 +60,9 @@ export default (wasm, name = '', locals = {}, params = [], returns = []) => {
 
 export const highlightAsm = asm =>
   asm
-    .replace(/local\.[^\s]*/g, _ => `\x1B[31m${_}\x1B[0m`)
-    .replace(/(i32|i64|f32|f64)(\.[^\s]*)?/g, _ => `\x1B[36m${_}\x1B[0m`)
+    .replace(/(local|global)\.[^\s]*/g, _ => `\x1B[31m${_}\x1B[0m`)
+    .replace(/(i(8|16|32|64)x[0-9]+|v128)(\.[^\s]*)?/g, _ => `\x1B[34m${_}\x1B[0m`)
+    .replace(/[^m](i32|i64|f32|f64)(\.[^\s]*)?/g, _ => `${_[0]}\x1B[36m${_.slice(1)}\x1B[0m`)
     .replace(/(call|br_if|br|return)/g, _ => `\x1B[35m${_}\x1B[0m`)
     .replace(/(block|loop|if|end|else)/g, _ => `\x1B[95m${_}\x1B[0m`)
     .replace(/ [0-9]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
