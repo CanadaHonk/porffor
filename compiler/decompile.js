@@ -56,4 +56,4 @@ export const highlightAsm = asm =>
     .replace(/(call|br_if|br|return)/g, _ => `\x1B[35m${_}\x1B[0m`)
     .replace(/(block|loop|if|end|else)/g, _ => `\x1B[95m${_}\x1B[0m`)
     .replace(/ [0-9]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
-    .replace(/ ;;.*$/gm, _ => `\u001b[90m${_}\x1B[0m`);
+    .replace(/ ;;.*$/gm, _ => `\x1B[90m${_.replaceAll(/\x1B\[[0-9]+m/g, '')}\x1B[0m`);
