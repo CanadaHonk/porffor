@@ -8,7 +8,8 @@ export const Mut = enumify('const', 'var');
 export const Valtype = {
   i32: 0x7f,
   i64: 0x7e,
-  f64: 0x7c
+  f64: 0x7c,
+  v128: 0x7b
 };
 
 export const Blocktype = {
@@ -107,6 +108,19 @@ export const Opcodes = {
   i32_wrap_i64: 0xa7,
   i64_extend_i32_s: 0xac,
   i64_extend_i32_u: 0xad,
+
+  // simd insts are 0xFD simdop:varuint32
+  v128_const: [ 0xfd, 0x0c ],
+
+  i8x16_shuffle: [ 0xfd, 0x0d ],
+
+  i32x4_splat: [ 0xfd, 0x11 ],
+  i32x4_extract_lane: [ 0xfd, 0x1b ],
+  i32x4_replace_lane: [ 0xfd, 0x1c ],
+
+  i32x4_add: [ 0xfd, 0xae, 0x01 ],
+  i32x4_sub: [ 0xfd, 0xb1, 0x01 ],
+  i32x4_mul: [ 0xfd, 0xb5, 0x01 ]
 };
 
 export const FuncType = 0x60;
