@@ -7,9 +7,9 @@ export const importedFuncs = { print: 0, printChar: 1, assert: 2 };
 const char = c => number(c.charCodeAt(0));
 
 export const makeBuiltins = () => ({
-  '__console_log': { // `function __console_log(x) { print(x); printChar('\\n'); }`
-    params: [ Valtype[valtype] ],
-    locals: 1,
+  __console_log: { // `function __console_log(x) { print(x); printChar('\\n'); }`
+    params: [ valtypeBinary ],
+    locals: [],
     returns: [],
     wasm: [
       [ Opcodes.local_get, 0 ],
