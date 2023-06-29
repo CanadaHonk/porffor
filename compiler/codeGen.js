@@ -119,24 +119,33 @@ const generate = (scope, decl) => {
   }
 };
 
+const lookupName = (scope, name) => {
+  let local = scope.locals[name];
+  if (local) return [ local, false ];
+
+  let global = globals[name];
+  if (global) return [ global, true ];
+
+  return [ undefined, undefined ];
+};
+
 const generateIdent = (scope, decl) => {
-  let idx = scope.locals[decl.name];
+  let local = scope.locals[decl.name];
 
   if (decl.name === 'undefined') return number(UNDEFINED);
   if (decl.name === 'null') return number(NULL);
 
-  if (idx === undefined) {
+  if (local === undefined) {
     // no local var with name
     if (importedFuncs[decl.name] !== undefined) return number(importedFuncs[decl.name]);
     if (funcIndex[decl.name] !== undefined) return number(funcIndex[decl.name]);
 
-    if (globals[decl.name] !== undefined) return [ [ Opcodes.global_get, globals[decl.name] ] ];
+    if (globals[decl.name] !== undefined) return [ [ Opcodes.global_get, globals[decl.name].idx ] ];
   }
 
-  // if (idx === undefined) throw new Error(`could not find idx for ${decl.name} (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
-  if (idx === undefined) throw new ReferenceError(`${decl.name} is not defined`);
+  if (local === undefined) throw new ReferenceError(`${decl.name} is not defined (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
 
-  return [ [ Opcodes.local_get, idx ] ];
+  return [ [ Opcodes.local_get, local.idx ] ];
 };
 
 const generateReturn = (scope, decl) => {
@@ -160,13 +169,14 @@ const generateBinaryExp = (scope, decl) => {
   return out;
 };
 
-const asmFunc = (name, wasm, params, localCount, returns) => {
+const asmFunc = (name, wasm, params, localTypes, returns) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
+  const allLocals = params.concat(localTypes);
   const locals = {};
-  for (let i = 0; i < localCount; i++) {
-    locals[i] = i;
+  for (let i = 0; i < allLocals.length; i++) {
+    locals[i] = { ind: i, type: allLocals[i] };
   }
 
   const func = {
@@ -193,24 +203,32 @@ const includeBuiltin = (scope, builtin) => {
 };
 
 const generateLogicExp = (scope, decl) => {
+  const getLocalTmp = ind => {
+    const name = `tmp${ind}`;
+    if (scope.locals[name]) return scope.locals[name].idx;
+
+    const idx = Object.keys(scope.locals).length;
+    scope.locals[name] = { idx, type: valtypeBinary };
+
+    return idx;
+  };
+
   if (decl.operator === '||') {
     // it basically does:
     // {a} || {b}
     // -->
     // _ = {a}; if (!_) {b} else _
 
-    if (scope.locals.tmp1 === undefined) scope.locals.tmp1 = Object.keys(scope.locals).length;
-
     return [
       ...generate(scope, decl.left),
-      [ Opcodes.local_tee, scope.locals.tmp1 ],
+      [ Opcodes.local_tee, getLocalTmp(1) ],
       // Opcodes.i32_eqz, Opcodes.i32_eqz, // != 0 (fail ||)
       // Opcodes.eqz, Opcodes.i32_eqz
       [ Opcodes.i32_to ],
-      [ Opcodes.if, Valtype[valtype] ],
+      [ Opcodes.if, valtypeBinary ],
       ...generate(scope, decl.right),
       [ Opcodes.else ],
-      [ Opcodes.local_get, scope.locals.tmp1 ],
+      [ Opcodes.local_get, getLocalTmp(1) ],
       [ Opcodes.end ]
     ];
   }
@@ -221,16 +239,14 @@ const generateLogicExp = (scope, decl) => {
     // -->
     // _ = {a}; if (_) {b} else _
 
-    if (scope.locals.tmp1 === undefined) scope.locals.tmp1 = Object.keys(scope.locals).length;
-
     return [
       ...generate(scope, decl.left),
-      [ Opcodes.local_tee, scope.locals.tmp1 ],
+      [ Opcodes.local_tee, getLocalTmp(1) ],
       [ Opcodes.eqz ], // == 0 (success &&)
-      [ Opcodes.if, Valtype[valtype] ],
+      [ Opcodes.if, valtypeBinary ],
       ...generate(scope, decl.right),
       [ Opcodes.else ],
-      [ Opcodes.local_get, scope.locals.tmp1 ],
+      [ Opcodes.local_get, getLocalTmp(1) ],
       [ Opcodes.end ]
     ];
   }
@@ -328,9 +344,26 @@ const generateVar = (scope, decl, globalWanted = false) => {
     }
 
     const idx = Object.keys(target).length;
-    target[name] = idx;
+    target[name] = { idx, type: valtypeBinary };
 
     out.push(...generate(scope, x.init ?? DEFAULT_VALUE));
+
+    // if our value is the result of a function, infer the type from that func's return value
+    if (out[out.length - 1][0] === Opcodes.call) {
+      const ind = out[out.length - 1][1];
+      if (ind >= Object.keys(importedFuncs).length) { // not an imported func
+        const func = funcs.find(x => x.index === ind);
+        if (!func) throw new Error('could not find func being called as var value to infer type'); // sanity check
+
+        const returns = func.returns;
+        if (returns.length > 1) throw new Error('func returning >1 value being set as 1 local'); // sanity check
+
+        target[name].type = func.returns[0];
+      } else {
+        // we do not have imports that return yet, ignore for now
+      }
+    }
+
     out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
   }
 
@@ -347,21 +380,16 @@ const generateAssign = (scope, decl) => {
     return [];
   }
 
-  let idx = scope.locals[name], op = Opcodes.local_set;
+  const [ local, isGlobal ] = lookupName(scope, name);
 
-  if (idx === undefined && globals[name] !== undefined) {
-    idx = globals[name];
-    op = Opcodes.global_set;
-  }
-
-  if (idx === undefined) {
+  if (local === undefined) {
     // set global (eg a = 2)
     return generateVar(scope, { declarations: [ { id: { name }, init: decl.right } ] }, true);
   }
 
   return [
     ...generate(scope, decl.right),
-    [ op, idx ]
+    [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ]
   ];
 };
 
@@ -391,21 +419,17 @@ const generateUnary = (scope, decl) => {
 const generateUpdate = (scope, decl) => {
   const { name } = decl.argument;
 
-  let idx = scope.locals[name], global = false;
+  const [ local, isGlobal ] = lookupName(scope, name);
 
-  if (idx === undefined && globals[name] !== undefined) {
-    idx = globals[name];
-    global = true;
-  }
-
-  if (idx === undefined) {
+  if (local === undefined) {
     return todo(`update expression with undefined variable`);
   }
 
+  const idx = local.idx;
   const out = [];
 
-  out.push([ global ? Opcodes.global_get : Opcodes.local_get, idx ]);
-  if (!decl.prefix) out.push([ global ? Opcodes.global_get : Opcodes.local_get, idx ]);
+  out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
+  if (!decl.prefix) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
 
   switch (decl.operator) {
     case '++':
@@ -417,8 +441,8 @@ const generateUpdate = (scope, decl) => {
       break;
   }
 
-  out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
-  if (decl.prefix) out.push([ global ? Opcodes.global_get : Opcodes.local_get, idx ]);
+  out.push([ isGlobal ? Opcodes.global_set : Opcodes.local_set, idx ]);
+  if (decl.prefix) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
 
   return out;
 };
@@ -568,7 +592,7 @@ const generateFunc = (scope, decl) => {
 
   for (let i = 0; i < params.length; i++) {
     const param = params[i];
-    innerScope.locals[param] = i;
+    innerScope.locals[param] = { idx: i, type: valtypeBinary };
   }
 
   let body = objectHack(decl.body);
@@ -583,19 +607,14 @@ const generateFunc = (scope, decl) => {
   const wasm = generate(innerScope, body);
   const func = {
     name,
-    params: new Array(params.length).fill(Valtype[valtype]),
-    returns: hasReturn(body) ? [ Valtype[valtype] ] : [],
+    params: new Array(params.length).fill(valtypeBinary),
+    returns: hasReturn(body) ? [ valtypeBinary ] : [],
     locals: innerScope.locals,
     index: currentFuncIndex++
   };
 
   if (func.returns.length !== 0 && wasm[wasm.length - 1][0] !== Opcodes.return) wasm.push(...number(0), [ Opcodes.return ]);
   func.wasm = wasm;
-
-  /* const localCount = Object.keys(innerScope.locals).length - params.length;
-  const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : [];
-  func.innerWasm = func.wasm;
-  func.wasm = encodeVector([ ...encodeVector(localDecl), ...func.wasm, Opcodes.end ]); */
 
   funcs.push(func);
   funcIndex[name] = func.index;
@@ -624,6 +643,8 @@ export default program => {
 
   const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
   if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
+
+  globalThis.valtypeBinary = Valtype[valtype];
 
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
 

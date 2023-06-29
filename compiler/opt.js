@@ -55,14 +55,15 @@ export default (funcs, globals) => {
 
             // add params as locals and set in reverse order
             const paramIdx = {};
+            let localIdx = Math.max(...Object.values(t.locals).map(x => x.idx));
             for (let j = c.params.length - 1; j >= 0; j--) {
               const name = `__porf_inline_${c.name}_param_${j}`;
 
               if (t.locals[name] === undefined) {
-                t.locals[name] = Object.keys(t.locals).length;
+                t.locals[name] = { idx: localIdx++, type: c.params[j] };
               }
 
-              const idx = t.locals[name];
+              const idx = t.locals[name].idx;
               paramIdx[j] = idx;
 
               tWasm.splice(i, 0, [ Opcodes.local_set, idx ]);
@@ -103,8 +104,8 @@ export default (funcs, globals) => {
 
     let getCount = {}, setCount = {};
     for (const x in f.locals) {
-      getCount[f.locals[x]] = 0;
-      setCount[f.locals[x]] = 0;
+      getCount[f.locals[x].idx] = 0;
+      setCount[f.locals[x].idx] = 0;
     }
 
     // main pass
@@ -209,7 +210,7 @@ export default (funcs, globals) => {
 
     if (optLevel < 2) continue;
 
-    if (optLog) console.log(`opt: get counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]}): ${getCount[f.locals[x]]}`).join(', ')}`);
+    if (optLog) console.log(`opt: get counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${getCount[f.locals[x].idx]}`).join(', ')}`);
 
     // remove unneeded var: remove pass
     // locals only got once. we don't need to worry about sets/else as these are only candidates and we will check for matching set + get insts in wasm
@@ -247,7 +248,7 @@ export default (funcs, globals) => {
     }
 
     const useCount = {};
-    for (const x in f.locals) useCount[f.locals[x]] = 0;
+    for (const x in f.locals) useCount[f.locals[x].idx] = 0;
 
     // final pass
     depth = [];
@@ -315,16 +316,17 @@ export default (funcs, globals) => {
       }
     }
 
+    const localIdxs = Object.values(f.locals).map(x => x.idx);
     // remove unused locals (cleanup)
     for (const x in useCount) {
       if (useCount[x] === 0) {
-        const name = Object.keys(f.locals)[Object.values(f.locals).indexOf(parseInt(x))];
+        const name = Object.keys(f.locals)[localIdxs.indexOf(parseInt(x))];
         if (optLog) console.log(`opt: removed internal local ${x} (${name})`);
         delete f.locals[name];
       }
     }
 
-    if (optLog) console.log(`opt: final use counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]}): ${useCount[f.locals[x]]}`).join(', ')}`);
+    if (optLog) console.log(`opt: final use counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]}): ${useCount[f.locals[x].idx]}`).join(', ')}`);
   }
 
   // return funcs;

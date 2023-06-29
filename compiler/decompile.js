@@ -1,14 +1,15 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 
-const inv = obj => Object.keys(obj).reduce((acc, x) => { acc[obj[x]] = x; return acc; }, {});
+const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[keyMap(obj[x])] = x; return acc; }, {});
 const invOpcodes = inv(Opcodes);
 const invValtype = inv(Valtype);
 
 export default (wasm, name = '', locals = {}, params = [], returns = []) => {
-  const invLocals = inv(locals);
+  const invLocals = inv(locals, x => x.idx);
 
   let out = '', depth = 1;
   out += `(${params.map(x => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')}) ;; ${name}\n`;
+  out += `  local ${Object.values(locals).map(x => invValtype[x.type]).join(' ')}\n`;
 
   for (const inst of wasm.concat([ [ Opcodes.end ] ])) {
     if (inst[0] === null) continue;

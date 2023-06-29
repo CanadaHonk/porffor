@@ -64,7 +64,7 @@ export default (funcs, globals, flags) => {
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
-    encodeVector(importFuncs.map((x, i) => [ 0, ...encodeString(x), ExportDesc.func, getType([ Valtype[valtype] ], []) ]))
+    encodeVector(importFuncs.map((x, i) => [ 0, ...encodeString(x), ExportDesc.func, getType([ valtypeBinary ], []) ]))
   );
 
   const funcSection = createSection(
@@ -74,7 +74,7 @@ export default (funcs, globals, flags) => {
 
   const globalSection = Object.keys(globals).length === 0 ? [] : createSection(
     Section.global,
-    encodeVector(Object.keys(globals).map(_ => [ Valtype[valtype], 0x01, Opcodes.const, 0x00, Opcodes.end ]))
+    encodeVector(Object.keys(globals).map(_ => [ valtypeBinary, 0x01, Opcodes.const, 0x00, Opcodes.end ]))
   );
 
   const exportSection = createSection(
@@ -85,9 +85,22 @@ export default (funcs, globals, flags) => {
   const codeSection = createSection(
     Section.code,
     encodeVector(funcs.map(x => {
-      const maxLocal = Object.keys(x.locals).length === 0 ? -1 : Math.max(...Object.values(x.locals));
-      const localCount = (maxLocal + 1) - x.params.length;
-      const localDecl = localCount > 0 ? [encodeLocal(localCount, Valtype[valtype])] : [];
+      const locals = Object.values(x.locals).slice(x.params.length).sort((a, b) => a.idx - b.idx);
+
+      let localDecl = [], typeCount = 0, lastType;
+      for (let i = 0; i < locals.length; i++) {
+        const local = locals[i];
+        if (i !== 0 && local.type !== lastType) {
+          localDecl.push(encodeLocal(typeCount, lastType));
+          typeCount = 0;
+        }
+
+        typeCount++;
+        lastType = local.type;
+      }
+
+      if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
+
       return encodeVector([ ...encodeVector(localDecl), ...x.wasm.flat().filter(x => x !== null), Opcodes.end ]);
     }))
   );

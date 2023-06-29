@@ -18,7 +18,7 @@ const logFuncs = funcs => {
 
     console.log(`params: ${f.params.map((_, i) => f.locals[i]).join(', ')}`);
     console.log(`returns: ${f.returns.length > 0 ? true : false}`);
-    console.log(`locals: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]})`).join(', ')}`);
+    console.log(`locals: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx})`).join(', ')}`);
     console.log();
     console.log(decompile(f.wasm, f.name, f.locals, f.params, f.returns));
   }

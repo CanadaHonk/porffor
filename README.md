@@ -62,6 +62,7 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 - begin `Math` (`Math.sqrt`, etc)
 - experiment with hack for supporting multiple values as outputs
 - opt: tail calls
+- opt: rewrite local indexes per func for smallest local header and remove unused idxs
 - simd api?
 - a way to inline wasm inside source
 - website with code input, wasm output, output and timings
