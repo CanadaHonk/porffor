@@ -310,30 +310,12 @@ const DEFAULT_VALUE = {
   name: 'undefined'
 };
 
-const generateVar = (scope, decl, global = false) => {
+const generateVar = (scope, decl, globalWanted = false) => {
   const out = [];
 
   // global variable if in top scope (main) and var ..., or if wanted
-  if ((scope.name === 'main' && decl.kind === 'var') || global) {
-    for (const x of decl.declarations) {
-      const name = x.id.name;
-
-      if (x.init && isFuncType(x.init.type)) {
-        // hack for var a = function () { ... }
-        x.init.id = { name };
-        generateFunc(scope, x.init);
-        continue;
-      }
-
-      const idx = Object.keys(globals).length;
-      globals[name] = idx;
-
-      out.push(...generate(scope, x.init ?? DEFAULT_VALUE));
-      out.push([ Opcodes.global_set, idx ]);
-    }
-
-    return out;
-  }
+  const global = globalWanted || (scope.name === 'main' && decl.kind === 'var');
+  const target = global ? globals : scope.locals;
 
   for (const x of decl.declarations) {
     const name = x.id.name;
@@ -345,11 +327,11 @@ const generateVar = (scope, decl, global = false) => {
       continue;
     }
 
-    const idx = Object.keys(scope.locals).length;
-    scope.locals[name] = idx;
+    const idx = Object.keys(target).length;
+    target[name] = idx;
 
     out.push(...generate(scope, x.init ?? DEFAULT_VALUE));
-    out.push([ Opcodes.local_set, idx ]);
+    out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
   }
 
   return out;
