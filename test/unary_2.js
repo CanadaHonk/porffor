@@ -1,5 +1,5 @@
 // "101"
-a = true;
+let a = true;
 print(a);
 print(!a);
 print(!!a);
