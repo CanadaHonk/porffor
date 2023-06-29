@@ -42,7 +42,9 @@ export default (wasm, name = '', locals = {}, params = [], returns = []) => {
     }
 
     if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) {
-      out += ` ;; ${invLocals[inst[1]]}`;
+      const name = invLocals[inst[1]];
+      const type = invValtype[locals[name].type];
+      out += ` ;; $${name}${type !== valtype ? ` (${type})` : ''}`;
     }
 
     out += '\n';
