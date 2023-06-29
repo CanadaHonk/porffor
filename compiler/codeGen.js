@@ -204,7 +204,7 @@ const generateBinaryExp = (scope, decl) => {
   return out;
 };
 
-const asmFunc = (name, wasm, params, localTypes, returns) => {
+const asmFunc = (name, { wasm, params, locals: localTypes, returns, memory }) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
@@ -222,6 +222,7 @@ const asmFunc = (name, wasm, params, localTypes, returns) => {
     locals,
     returns,
     wasm,
+    memory,
     internal: true,
     index: currentFuncIndex++
   };
@@ -234,7 +235,7 @@ const asmFunc = (name, wasm, params, localTypes, returns) => {
 
 const includeBuiltin = (scope, builtin) => {
   const code = builtins[builtin];
-  if (code.wasm) return asmFunc(builtin, code.wasm, code.params, code.locals, code.returns);
+  if (code.wasm) return asmFunc(builtin, code);
 
   return code.body.map(x => generate(scope, x));
 };
@@ -656,6 +657,7 @@ const generateFunc = (scope, decl) => {
   if (func.returns.length !== 0 && wasm[wasm.length - 1][0] !== Opcodes.return) wasm.push(...number(0), [ Opcodes.return ]);
 
   if (innerScope.returns) func.returns = innerScope.returns;
+  if (innerScope.memory) func.memory = innerScope.memory;
 
   func.wasm = wasm;
 
