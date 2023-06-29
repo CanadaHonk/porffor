@@ -45,6 +45,8 @@ const perform = async (test, args) => {
 
   // process.stdout.write(`\u001b[90m.... ${test}\u001b[0m ${args.join(' ')}\u001b[0m`);
 
+  total++;
+
   const t1 = performance.now();
   let out, assertFailed, times, wasm;
   try {
@@ -58,7 +60,6 @@ const perform = async (test, args) => {
   const time = performance.now() - t1;
   const pass = !assertFailed && out === expect;
 
-  total++;
   if (pass) passes++;
 
   process.stdout.write(`\r${' '.repeat(90)}\r`);
