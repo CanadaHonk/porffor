@@ -565,7 +565,10 @@ const hasReturn = node => {
 
 const objectHack = node => {
   if (node.type === 'MemberExpression') {
-    const name = '__' + node.object.name + '_' + node.property.name;
+    let objectName = node.object.name;
+    if (!objectName) objectName = objectHack(node.object).name.slice(2);
+
+    const name = '__' + objectName + '_' + node.property.name;
     // console.log(`object hack! ${node.object.name}.${node.property.name} -> ${name}`);
 
     return {
