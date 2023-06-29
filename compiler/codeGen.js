@@ -114,6 +114,36 @@ const generate = (scope, decl) => {
 
       return [];
 
+    case 'TaggedTemplateExpression':
+      // hack for inline asm
+      if (decl.tag.name !== 'asm') return todo('tagged template expressions not implemented');
+      const str = decl.quasi.quasis[0].value.raw;
+      let out = [];
+      for (const line of str.split('\n')) {
+        const asm = line.trim().split(';;')[0].split(' ');
+        if (asm[0] === '') continue; // blank
+
+        if (asm[0] === 'local') {
+          const [ name, idx, type ] = asm.slice(1);
+          scope.locals[name] = { idx, type: Valtype[type] };
+          continue;
+        }
+
+        if (asm[0] === 'returns') {
+          scope.returns = asm.slice(1).map(x => Valtype[x]);
+          continue;
+        }
+
+        let inst = Opcodes[asm[0].replace('.', '_')];
+        if (!inst) throw new Error(`inline asm: inst ${asm[0]} not found`);
+
+        if (!Array.isArray(inst)) inst = [ inst ];
+        const immediates = asm.slice(1).map(x => parseInt(x));
+
+        out.push([ ...inst, ...immediates ]);
+      }
+      return out;
+
     default:
       return todo(`no generation for ${decl.type}!`);
   }
@@ -619,6 +649,9 @@ const generateFunc = (scope, decl) => {
   };
 
   if (func.returns.length !== 0 && wasm[wasm.length - 1][0] !== Opcodes.return) wasm.push(...number(0), [ Opcodes.return ]);
+
+  if (innerScope.returns) func.returns = innerScope.returns;
+
   func.wasm = wasm;
 
   funcs.push(func);
