@@ -50,6 +50,7 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 - `break` and `continue`
 - basic `assert` func
 - named export funcs
+- inlining wasm via ``asm`...``\` "macro"
 
 ## soon todo
 - support f64 as valtype (wip)
@@ -64,7 +65,6 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 - opt: tail calls
 - opt: rewrite local indexes per func for smallest local header and remove unused idxs
 - simd api?
-- a way to inline wasm inside source
 - website with code input, wasm output, output and timings
 
 ## optimizations
