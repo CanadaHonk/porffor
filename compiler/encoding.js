@@ -23,6 +23,10 @@ export const encodeLocal = (count, type) => [
 ];
 
 export const signedLEB128 = n => {
+  // just input for small numbers (for perf as common)
+  if (n >= 0 && n <= 63) return [ n ];
+  if (n >= -64 && n <= 0) return [ 128 + n ];
+
   const buffer = [];
   const isNegative = n < 0;
   const bitCount = Math.ceil(Math.log2(Math.abs(n))) + 1;
@@ -49,6 +53,9 @@ export const signedLEB128 = n => {
 };
 
 export const unsignedLEB128 = n => {
+  // just input for small numbers (for perf as common)
+  if (n >= 0 && n <= 127) return [ n ];
+
   const buffer = [];
   do {
     let byte = n & 0x7f;
