@@ -125,7 +125,7 @@ const generate = (scope, decl) => {
 
         if (asm[0] === 'local') {
           const [ name, idx, type ] = asm.slice(1);
-          scope.locals[name] = { idx, type: Valtype[type] };
+          scope.locals[name] = { idx: parseInt(idx), type: Valtype[type] };
           continue;
         }
 
