@@ -759,6 +759,41 @@ const generateFunc = (scope, decl) => {
     }
   }
 
+  // change v128 return into many <type> instead as unsupported return valtype
+  const lastReturnLocal = wasm.length > 2 && wasm[wasm.length - 1][0] === Opcodes.return && Object.values(func.locals).find(x => x.idx === wasm[wasm.length - 2][1]);
+  // console.log(wasm[wasm.length - 2]?.[1], Object.values(innerScope.locals).find(x => x.ind === wasm[wasm.length - 2][1]);
+  if (lastReturnLocal && lastReturnLocal.type === Valtype.v128) {
+    const name = Object.keys(func.locals)[Object.values(func.locals).indexOf(lastReturnLocal)];
+    // extract valtype and lane count from vec type (i32x4 = i32 4, i8x16 = i8 16, etc)
+    const { vecType } = lastReturnLocal;
+    let [ type, lanes ] = vecType.split('x');
+    if (!type || !lanes) throw new Error('bad metadata from vec params'); // sanity check
+
+    lanes = parseInt(lanes);
+    type = Valtype[type];
+
+    const vecIdx = lastReturnLocal.idx;
+
+    const lastIdx = Math.max(...Object.values(func.locals).map(x => x.idx));
+    const tmpIdx = [];
+    for (let i = 0; i < lanes; i++) {
+      const idx = lastIdx + i + 1;
+      tmpIdx.push(idx);
+      func.locals[name + i] = { idx, type, vecReturnAutogen: true };
+    }
+
+    wasm.splice(wasm.length - 1, 1,
+      ...new Array(lanes).fill(0).flatMap((_, i) => [
+        i === 0 ? null : [ Opcodes.local_get, vecIdx ],
+        [ ...Opcodes[vecType + '_extract_lane'], i ],
+        [ Opcodes.local_set, tmpIdx[i] ],
+      ].filter(x => x !== null)),
+      ...new Array(lanes).fill(0).map((_, i) => [ Opcodes.local_get, tmpIdx[i]])
+    );
+
+    func.returns = new Array(lanes).fill(type);
+  }
+
   func.wasm = wasm;
 
   funcs.push(func);
