@@ -661,7 +661,7 @@ const generateFunc = (scope, decl) => {
   const wasm = generate(innerScope, body);
   const func = {
     name,
-    params: new Array(params.length).fill(valtypeBinary),
+    params: Object.values(innerScope.locals).slice(0, params.length).map(x => x.type),
     returns: hasReturn(body) ? [ valtypeBinary ] : [],
     locals: innerScope.locals,
     index: currentFuncIndex++
