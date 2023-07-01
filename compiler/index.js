@@ -16,7 +16,7 @@ const logFuncs = funcs => {
   for (const f of funcs) {
     console.log(`${underline(f.name)} (${f.index})`);
 
-    console.log(`params: ${f.params.map((_, i) => Object.keys(f.locals)[i]).join(', ')}`);
+    console.log(`params: ${f.params.map((_, i) => Object.keys(f.locals)[Object.values(f.locals).indexOf(Object.values(f.locals).find(x => x.idx === i))]).join(', ')}`);
     console.log(`returns: ${f.returns.length > 0 ? true : false}`);
     console.log(`locals: ${Object.keys(f.locals).sort((a, b) => f.locals[a].idx - f.locals[b].idx).map(x => `${x} (${f.locals[x].idx})`).join(', ')}`);
     console.log();
