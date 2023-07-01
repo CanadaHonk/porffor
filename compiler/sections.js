@@ -94,7 +94,7 @@ export default (funcs, globals, flags) => {
   const codeSection = createSection(
     Section.code,
     encodeVector(funcs.map(x => {
-      const locals = Object.values(x.locals).slice(x.params.length).sort((a, b) => a.idx - b.idx);
+      const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx).slice(x.params.length).sort((a, b) => a.idx - b.idx);
 
       let localDecl = [], typeCount = 0, lastType;
       for (let i = 0; i < locals.length; i++) {
