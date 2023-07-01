@@ -1,5 +1,5 @@
-import { number } from "./embedding.js";
 import { Opcodes, Valtype } from "./wasmSpec.js";
+import { number, i32x4 } from "./embedding.js";
 // import parse from "./parse.js";
 
 export const importedFuncs = { print: 0, printChar: 1, assert: 2 };
@@ -16,6 +16,185 @@ export const makeBuiltins = () => ({
       [ Opcodes.call, importedFuncs.print ],
       ...char('\n'),
       [ Opcodes.call, importedFuncs.printChar ]
+    ]
+  },
+
+  __Math_sqrt: {
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ ...Opcodes.sqrt ]
+    ]
+  },
+
+  __SIMD_i32x4_load: {
+    params: [ Valtype.i32 ],
+    locals: [],
+    returns: [ Valtype.v128 ],
+    memory: true,
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ ...Opcodes.v128_load, 0, 0 ]
+    ]
+  },
+
+  __SIMD_i32x4_splat: {
+    params: [ Valtype.i32 ],
+    locals: [],
+    returns: [ Valtype.v128 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ ...Opcodes.i32x4_splat ],
+    ]
+  },
+
+  __SIMD_i16x8_create: {
+    params: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32 ],
+    locals: [],
+    returns: [ Valtype.v128 ],
+    wasm: [
+      ...i32x4(0, 0, 0, 0),
+      [ Opcodes.local_get, 0 ],
+      [ ...Opcodes.i16x8_replace_lane, 0 ],
+      [ Opcodes.local_get, 1 ],
+      [ ...Opcodes.i16x8_replace_lane, 1 ],
+      [ Opcodes.local_get, 2 ],
+      [ ...Opcodes.i16x8_replace_lane, 2 ],
+      [ Opcodes.local_get, 3 ],
+      [ ...Opcodes.i16x8_replace_lane, 3 ],
+      [ Opcodes.local_get, 4 ],
+      [ ...Opcodes.i16x8_replace_lane, 4 ],
+      [ Opcodes.local_get, 5 ],
+      [ ...Opcodes.i16x8_replace_lane, 5 ],
+      [ Opcodes.local_get, 6 ],
+      [ ...Opcodes.i16x8_replace_lane, 6 ],
+      [ Opcodes.local_get, 7 ],
+      [ ...Opcodes.i16x8_replace_lane, 7 ],
+    ]
+  },
+
+  __SIMD_i32x4_dot_i16x8: {
+    params: [ Valtype.v128, Valtype.v128 ],
+    locals: [],
+    returns: [ Valtype.v128 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 1 ],
+      [ ...Opcodes.i32x4_dot_i16x8_s ]
+    ]
+  },
+
+  __SIMD_i32x4_create: {
+    params: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32 ],
+    locals: [],
+    returns: [ Valtype.v128 ],
+    wasm: [
+      ...i32x4(0, 0, 0, 0),
+      [ Opcodes.local_get, 0 ],
+      [ ...Opcodes.i32x4_replace_lane, 0 ],
+      [ Opcodes.local_get, 1 ],
+      [ ...Opcodes.i32x4_replace_lane, 1 ],
+      [ Opcodes.local_get, 2 ],
+      [ ...Opcodes.i32x4_replace_lane, 2 ],
+      [ Opcodes.local_get, 3 ],
+      [ ...Opcodes.i32x4_replace_lane, 3 ],
+    ]
+  },
+
+  __SIMD_i32x4_add: {
+    params: [ Valtype.v128, Valtype.v128 ],
+    locals: [],
+    returns: [ Valtype.v128 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 1 ],
+      [ ...Opcodes.i32x4_add ]
+    ]
+  },
+
+  __SIMD_i32x4_sub: {
+    params: [ Valtype.v128, Valtype.v128 ],
+    locals: [],
+    returns: [ Valtype.v128 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 1 ],
+      [ ...Opcodes.i32x4_sub ]
+    ]
+  },
+
+  __SIMD_i32x4_mul: {
+    params: [ Valtype.v128, Valtype.v128 ],
+    locals: [],
+    returns: [ Valtype.v128 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 1 ],
+      [ ...Opcodes.i32x4_mul ]
+    ]
+  },
+
+  __SIMD_i32x4_get0: {
+    params: [ Valtype.v128 ],
+    locals: [],
+    returns: [ Valtype.i32 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ ...Opcodes.i32x4_extract_lane, 0 ],
+    ],
+  },
+
+  __SIMD_i32x4_get1: {
+    params: [ Valtype.v128 ],
+    locals: [],
+    returns: [ Valtype.i32 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ ...Opcodes.i32x4_extract_lane, 1 ],
+    ],
+  },
+
+  __SIMD_i32x4_get2: {
+    params: [ Valtype.v128 ],
+    locals: [],
+    returns: [ Valtype.i32 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ ...Opcodes.i32x4_extract_lane, 2 ],
+    ],
+  },
+
+  __SIMD_i32x4_get3: {
+    params: [ Valtype.v128 ],
+    locals: [],
+    returns: [ Valtype.i32 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ ...Opcodes.i32x4_extract_lane, 3 ],
+    ],
+  },
+
+  __SIMD_i32x4_shuffle_000c: {
+    params: [ Valtype.v128 ],
+    locals: [],
+    returns: [ Valtype.v128 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      ...i32x4(0, 0, 0, 0),
+      [ ...Opcodes.i8x16_shuffle, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 8, 9, 10, 11 ], // i32x4 (a, b, c, d) -> i32x4 (0, 0, 0, c)
+    ]
+  },
+
+  __SIMD_i32x4_shuffle_00ab: {
+    params: [ Valtype.v128 ],
+    locals: [],
+    returns: [ Valtype.v128 ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      ...i32x4(0, 0, 0, 0),
+      [ ...Opcodes.i8x16_shuffle, 16, 16, 16, 16, 16, 16, 16, 16, 0, 1, 2, 3, 4, 5, 6, 7 ], // i32x4 (a, b, c, d) -> i32x4 (0, 0, a, b)
     ]
   }
 });
