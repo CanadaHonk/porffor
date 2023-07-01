@@ -2,7 +2,7 @@ import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { signedLEB128, unsignedLEB128 } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 import { makeBuiltins, importedFuncs } from "./builtins.js";
-import { number } from "./embedding.js";
+import { number, i32x4 } from "./embedding.js";
 
 let globals = {};
 let funcs = [];
@@ -679,6 +679,85 @@ const generateFunc = (scope, decl) => {
 
   if (innerScope.returns) func.returns = innerScope.returns;
   if (innerScope.memory) func.memory = innerScope.memory;
+
+  // change v128 params into many <type> (i32x4 -> i32/etc) instead as unsupported param valtype
+  let offset = 0, vecParams = 0;
+  for (let i = 0; i < params.length; i++) {
+    const name = params[i];
+    const local = func.locals[name];
+    if (local.type === Valtype.v128) {
+      vecParams++;
+
+      /* func.memory = true; // mark func as using memory
+
+      wasm.unshift( // add v128 load for param
+        [ Opcodes.i32_const, 0 ],
+        [ ...Opcodes.v128_load, 0, i * 16 ],
+        [ Opcodes.local_set, local.idx ]
+      ); */
+
+      // using params and replace_lane is noticably faster than just loading from memory (above) somehow
+
+      // extract valtype and lane count from vec type (i32x4 = i32 4, i8x16 = i8 16, etc)
+      const { vecType } = local;
+      let [ type, lanes ] = vecType.split('x');
+      if (!type || !lanes) throw new Error('bad metadata from vec params'); // sanity check
+
+      lanes = parseInt(lanes);
+      type = Valtype[type];
+
+      const name = params[i]; // get original param name
+
+      func.params.splice(offset, 1, ...new Array(lanes).fill(type)); // add new params of {type}, {lanes} times
+
+      // update index of original local
+      // delete func.locals[name];
+
+      // add new locals for params
+      for (let j = 0; j < lanes; j++) {
+        func.locals[name + j] = { idx: offset + j, type, vecParamAutogen: true };
+      }
+
+      // prepend wasm to generate expected v128 locals
+      wasm.splice(i * 2 + offset * 2, 0,
+        ...i32x4(0, 0, 0, 0),
+        ...new Array(lanes).fill(0).flatMap((_, j) => [
+          [ Opcodes.local_get, offset + j ],
+          [ ...Opcodes[vecType + '_replace_lane'], j ]
+        ]),
+        [ Opcodes.local_set, i ]
+      );
+
+      offset += lanes;
+
+      // note: wrapping is disabled for now due to perf/dx concerns (so this will never run)
+      /* if (!func.name.startsWith('#')) func.name = '##' + func.name;
+
+      // add vec type index to hash name prefix for wrapper to know how to wrap
+      const vecTypeIdx = [ 'i8x16', 'i16x8', 'i32x4', 'i64x2', 'f32x4', 'f64x2' ].indexOf(local.vecType);
+      const secondHash = func.name.slice(1).indexOf('#');
+      func.name = '#' + func.name.slice(1, secondHash) + vecTypeIdx + func.name.slice(secondHash); */
+    }
+  }
+
+  if (offset !== 0) {
+    // bump local indexes for all other locals after
+    for (const x in func.locals) {
+      const local = func.locals[x];
+      if (!local.vecParamAutogen) local.idx += offset;
+    }
+
+    // bump local indexes in wasm local.get/set
+    for (let j = 0; j < wasm.length; j++) {
+      const inst = wasm[j];
+      if (j < offset * 2 + vecParams * 2) {
+        if (inst[0] === Opcodes.local_set) inst[1] += offset;
+        continue;
+      }
+
+      if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set) inst[1] += offset;
+    }
+  }
 
   func.wasm = wasm;
 
