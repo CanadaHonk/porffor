@@ -414,6 +414,10 @@ const generateVar = (scope, decl, globalWanted = false) => {
         if (returns.length > 1) throw new Error('func returning >1 value being set as 1 local'); // sanity check
 
         target[name].type = func.returns[0];
+        if (target[name].type === Valtype.v128) {
+          // specify vec subtype inferred from first vec type in function name
+          target[name].vecType = func.name.split('_').find(x => x.includes('x'));
+        }
       } else {
         // we do not have imports that return yet, ignore for now
       }
