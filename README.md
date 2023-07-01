@@ -1,6 +1,6 @@
 # porffor
-a **very basic** wip js *aot* optimizing wasm compiler in js. not serious/intended for (real) use, but this is a straight forward honest readme<br>
-age: ~4 days
+a basic experimental wip js *aot* optimizing wasm compiler in js. not serious/intended for (real) use, but this is a straight forward honest readme<br>
+age: ~5 days
 
 ## design
 porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. key differences:
@@ -8,7 +8,7 @@ porffor is a very unique js engine, due a very different approach. it is serious
 - everything is a number
 - no constant runtime/preluded code
 
-porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself.
+porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself. you could imagine it as compiling a language which is a sub (and super) set of javascript.
 
 ## limitations
 - **only number type, no string/array/object/etc at all**
@@ -50,7 +50,10 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 - `break` and `continue`
 - basic `assert` func
 - named export funcs
+- intrinsic functions (see below)
 - inlining wasm via ``asm`...``\` "macro"
+- SIMD api (docs needed)
+- nice v128 param/return func exports (allowed as params and returns via wrapping)
 
 ## soon todo
 - support f64 as valtype (wip)
@@ -64,7 +67,9 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 - experiment with hack for supporting multiple values as outputs
 - opt: tail calls
 - opt: rewrite local indexes per func for smallest local header and remove unused idxs
-- simd api?
+- iife support
+- opt: remove const ifs (`if (true)`, etc)
+- add simd api tests
 - website with code input, wasm output, output and timings
 
 ## optimizations
