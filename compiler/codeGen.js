@@ -355,6 +355,10 @@ const generateCall = (scope, decl) => {
       if (!local) continue;
 
       local.type = func.params[i];
+      if (local.type === Valtype.v128) {
+        // specify vec subtype inferred from last vec type in function name
+        local.vecType = name.split('_').reverse().find(x => x.includes('x'));
+      }
     }
   }
 
