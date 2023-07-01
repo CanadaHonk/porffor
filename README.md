@@ -60,7 +60,7 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 - assignment operators (`+=`, `-=`, etc)
 - more math operators (`**`, etc)
 - `do { ... } while(...)`
-- conditional/ternary operator
+- conditional/ternary operator (`cond ? a : b`)
 - nicer errors
 - opt: smarter inline selection (snapshots?)
 - begin `Math` (`Math.sqrt`, etc)
@@ -114,6 +114,7 @@ you can also use deno (`deno run -A ...` instead of `node ...`)
 - `-O3` (default) to enable advanceder opt (precompute const math)
 - `-no-run` to not run wasm output, just compile
 - `-opt-log` to log some opts
+- `-code-log` to log some codegen (you probably want `-funcs`)
 - `-funcs` to log funcs (internal representations)
 - `-opt-funcs` to log funcs after opt
 - `-sections` to log sections as hex
