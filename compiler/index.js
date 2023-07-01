@@ -7,8 +7,19 @@ import { Valtype } from './wasmSpec.js';
 
 globalThis.decompile = decompile;
 
+const rgb = (r, g, b, x) => `\x1b[38;2;${r};${g};${b}m${x}\u001b[0m`;
 const underline = x => `\u001b[4m${x}\u001b[0m`;
 const bold = x => `\u001b[1m${x}\u001b[0m`;
+
+const areaColors = {
+  codegen: [ 20, 80, 250 ],
+  opt: [ 250, 20, 80 ],
+  sections: [ 20, 250, 80 ]
+};
+
+globalThis.log = (area, ...args) => console.log(`\u001b[90m[\u001b[0m${rgb(...areaColors[area], area)}\u001b[90m]\u001b[0m`, ...args);
+globalThis.optLog = process.argv.includes('-opt-log');
+globalThis.codeLog = process.argv.includes('-code-log');
 
 const logFuncs = funcs => {
   console.log('\n' + underline(bold('funcs')));

@@ -5,8 +5,6 @@ import { number } from "./embedding.js";
 const textEncoder = new TextEncoder();
 if (typeof process === 'undefined') globalThis.process = { argv: ['', '', ...Deno.args], stdout: { write: str => Deno.writeAllSync(Deno.stdout, textEncoder.encode(str)) } };
 
-const optLog = process.argv.includes('-opt-log');
-
 const performWasmOp = (op, a, b) => {
   switch (op) {
     case Opcodes.add: return a + b;
@@ -26,7 +24,7 @@ export default (funcs, globals) => {
     const suitableReturns = wasm => wasm.reduce((acc, x) => acc + (x[0] === Opcodes.return), 0) <= 1;
     const candidates = funcs.filter(x => x.name !== 'main' && Object.keys(x.locals).length === x.params.length && (x.returns.length === 0 || suitableReturns(x.wasm))).reverse();
     if (optLog) {
-      console.log(`opt: found inline candidates: ${candidates.map(x => x.name).join(', ')} (${candidates.length}/${funcs.length - 1})`);
+      log('opt', `found inline candidates: ${candidates.map(x => x.name).join(', ')} (${candidates.length}/${funcs.length - 1})`);
 
       let reasons = {};
       for (const f of funcs) {
@@ -50,7 +48,7 @@ export default (funcs, globals) => {
         for (let i = 0; i < tWasm.length; i++) {
           const inst = tWasm[i];
           if (inst[0] === Opcodes.call && inst[1] === c.index) {
-            if (optLog) console.log(`opt: inlining call for ${c.name} (in ${t.name})`);
+            if (optLog) log('opt', `inlining call for ${c.name} (in ${t.name})`);
             tWasm.splice(i, 1); // remove this call
 
             // add params as locals and set in reverse order
@@ -77,7 +75,7 @@ export default (funcs, globals) => {
             // adjust local operands to go to correct param index
             for (const inst of iWasm) {
               if ((inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set) && inst[1] < c.params.length) {
-                if (optLog) console.log(`opt: replacing local operand in inlined wasm (${inst[1]} -> ${paramIdx[inst[1]]})`);
+                if (optLog) log('opt', `replacing local operand in inlined wasm (${inst[1]} -> ${paramIdx[inst[1]]})`);
                 inst[1] = paramIdx[inst[1]];
               }
             }
@@ -135,7 +133,7 @@ export default (funcs, globals) => {
         inst = wasm[i];
 
         getCount[inst[1]]--;
-        // if (optLog) console.log(`opt: consolidated set, get -> tee`);
+        // if (optLog) log('opt', `consolidated set, get -> tee`);
       }
 
       if (inst[0] === Opcodes.eq && lastInst[0] === Opcodes.const && lastInst[1] === 0) {
@@ -163,7 +161,7 @@ export default (funcs, globals) => {
 
         inst = wasm[i];
         lastInst = wasm[i - 1];
-        // if (optLog) console.log(`opt: removed redundant i32 -> i64 -> i32 conversion ops`);
+        // if (optLog) log('opt', `removed redundant i32 -> i64 -> i32 conversion ops`);
       }
 
       if (i === wasm.length - 1 && inst[0] === Opcodes.return) {
@@ -176,7 +174,7 @@ export default (funcs, globals) => {
         wasm.splice(i, 1); // remove this inst (return)
         i--;
         inst = wasm[i];
-        // if (optLog) console.log(`opt: removed redundant return at end`);
+        // if (optLog) log('opt', `removed redundant return at end`);
       }
 
       if (i < 2) continue;
@@ -205,18 +203,18 @@ export default (funcs, globals) => {
 
         wasm.splice(i - 2, 3); // remove this, last, 2nd last insts
         i -= 3;
-        if (optLog) console.log(`opt: removed redundant inline param local handling`);
+        if (optLog) log('opt', `removed redundant inline param local handling`);
       }
     }
 
     if (optLevel < 2) continue;
 
-    if (optLog) console.log(`opt: get counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${getCount[f.locals[x].idx]}`).join(', ')}`);
+    if (optLog) log('opt', `get counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${getCount[f.locals[x].idx]}`).join(', ')}`);
 
     // remove unneeded var: remove pass
     // locals only got once. we don't need to worry about sets/else as these are only candidates and we will check for matching set + get insts in wasm
     const unneededCandidates = Object.keys(getCount).filter(x => getCount[x] === 0 || (getCount[x] === 1 && setCount[x] === 0)).map(x => parseInt(x));
-    if (optLog) console.log(`opt: found unneeded locals candidates: ${unneededCandidates.join(', ')} (${unneededCandidates.length}/${Object.keys(getCount).length})`);
+    if (optLog) log('opt', `found unneeded locals candidates: ${unneededCandidates.join(', ')} (${unneededCandidates.length}/${Object.keys(getCount).length})`);
 
     if (unneededCandidates.length > 0) for (let i = 0; i < wasm.length; i++) {
       if (i < 1) continue;
@@ -233,7 +231,7 @@ export default (funcs, globals) => {
         wasm.splice(i - 1, 2); // remove insts
         i -= 2;
         delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
-        if (optLog) console.log(`opt: removed redundant local (getset ${inst[1]})`);
+        if (optLog) log('opt', `removed redundant local (getset ${inst[1]})`);
       }
 
       if (inst[0] === Opcodes.local_tee && unneededCandidates.includes(inst[1])) {
@@ -244,7 +242,7 @@ export default (funcs, globals) => {
         wasm.splice(i, 1); // remove inst
         i--;
         delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
-        if (optLog) console.log(`opt: removed redundant local (tee ${inst[1]})`);
+        if (optLog) log('opt', `removed redundant local (tee ${inst[1]})`);
       }
     }
 
@@ -282,7 +280,7 @@ export default (funcs, globals) => {
 
           wasm.splice(j - 1, 1); // remove end of this block
 
-          if (optLog) console.log(`opt: removed unneeded block in for loop`);
+          if (optLog) log('opt', `removed unneeded block in for loop`);
         }
       }
 
@@ -312,7 +310,7 @@ export default (funcs, globals) => {
         let b = lastInst[1];
 
         inst[1] = performWasmOp(inst[0], a, b);
-        if (optLog) console.log(`opt: inlined math op (${a} ${inst[0].toString(16)} ${b} -> ${inst[1]})`);
+        if (optLog) log('opt', `inlined math op (${a} ${inst[0].toString(16)} ${b} -> ${inst[1]})`);
         inst[0] = Opcodes.const;
       }
     }
@@ -322,12 +320,12 @@ export default (funcs, globals) => {
     for (const x in useCount) {
       if (useCount[x] === 0) {
         const name = Object.keys(f.locals)[localIdxs.indexOf(parseInt(x))];
-        if (optLog) console.log(`opt: removed internal local ${x} (${name})`);
+        if (optLog) log('opt', `removed internal local ${x} (${name})`);
         delete f.locals[name];
       }
     }
 
-    if (optLog) console.log(`opt: final use counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x]}): ${useCount[f.locals[x].idx]}`).join(', ')}`);
+    if (optLog) log('opt', `final use counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${useCount[f.locals[x].idx]}`).join(', ')}`);
   }
 
   // return funcs;

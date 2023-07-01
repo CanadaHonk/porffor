@@ -626,7 +626,7 @@ const objectHack = node => {
     if (!objectName) objectName = objectHack(node.object).name.slice(2);
 
     const name = '__' + objectName + '_' + node.property.name;
-    // console.log(`object hack! ${node.object.name}.${node.property.name} -> ${name}`);
+    if (codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
 
     return {
       type: 'Identifier',
@@ -761,7 +761,6 @@ const generateFunc = (scope, decl) => {
 
   // change v128 return into many <type> instead as unsupported return valtype
   const lastReturnLocal = wasm.length > 2 && wasm[wasm.length - 1][0] === Opcodes.return && Object.values(func.locals).find(x => x.idx === wasm[wasm.length - 2][1]);
-  // console.log(wasm[wasm.length - 2]?.[1], Object.values(innerScope.locals).find(x => x.ind === wasm[wasm.length - 2][1]);
   if (lastReturnLocal && lastReturnLocal.type === Valtype.v128) {
     const name = Object.keys(func.locals)[Object.values(func.locals).indexOf(lastReturnLocal)];
     // extract valtype and lane count from vec type (i32x4 = i32 4, i8x16 = i8 16, etc)

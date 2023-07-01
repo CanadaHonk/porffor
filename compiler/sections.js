@@ -7,7 +7,6 @@ const createSection = (type, data) => [
 ];
 
 const allImportFuncs = [ 'p', 'c', 'a' ];
-const optLog = process.argv.includes('-opt-log');
 
 export default (funcs, globals, flags) => {
   const types = [], typeCache = {};
@@ -16,7 +15,7 @@ export default (funcs, globals, flags) => {
 
   const getType = (params, returns) => {
     const hash = `${params.join(',')}_${returns.join(',')}`;
-    if (optLog) console.log(`opt sections: getType (${params}, ${returns}) -> ${hash}. cached: ${typeCache[hash]}`);
+    if (optLog) log('sections', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
     if (optLevel >= 2 && typeCache[hash] !== undefined) return typeCache[hash];
 
     const type = [ FuncType, ...encodeVector(params), ...encodeVector(returns) ];
@@ -60,7 +59,7 @@ export default (funcs, globals, flags) => {
     }
   }
 
-  if (optLog) console.log(`treeshake: using ${importFuncs.length}/${allImportFuncs.length} imports`);
+  if (optLog) log('sections', `treeshake: using ${importFuncs.length}/${allImportFuncs.length} imports`);
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
