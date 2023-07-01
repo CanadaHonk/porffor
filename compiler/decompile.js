@@ -10,7 +10,7 @@ export default (wasm, name = '', locals = {}, params = [], returns = []) => {
   let out = '', depth = 1;
   out += `(${params.map(x => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')}) ;; ${name}\n`;
 
-  const justLocals = Object.values(locals).slice(params.length).sort((a, b) => a.idx - b.idx);
+  const justLocals = Object.values(locals).sort((a, b) => a.idx - b.idx).slice(params.length);
   if (justLocals.length > 0) out += `  local ${justLocals.map(x => invValtype[x.type]).join(' ')}\n`;
 
   for (let inst of wasm.concat([ [ Opcodes.end ] ])) {
