@@ -20,6 +20,8 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 - there is no version of the spec this is based on, I add (easy) things I use
 
 ## supported
+see [optimizations](#optimizations) for opts implemented/supported.
+
 - number literals
 - declaring functions
 - calling functions *literal callees only*
@@ -65,10 +67,13 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 - opt: smarter inline selection (snapshots?)
 - begin `Math` (`Math.sqrt`, etc)
 - experiment with hack for supporting multiple values as outputs
-- opt: tail calls
-- opt: rewrite local indexes per func for smallest local header and remove unused idxs
 - iife support
-- opt: remove const ifs (`if (true)`, etc)
+- exceptions
+  - `throw` (/ `throw new Error(...)` as alias)
+  - `try { ... } catch { ... }`
+- optimizations
+  - rewrite local indexes per func for smallest local header and remove unused idxs
+  - remove const ifs (`if (true)`, etc)
 - add simd api tests
 - website with code input, wasm output, output and timings
 
@@ -78,6 +83,7 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 ### traditional opts
 - inlining functions (wip, limited)
 - inline const math ops
+- tail calls (behind flag `-tail-call`)
 
 ### wasm transforms
 - `local.set`, `local.get` -> `local.tee`
@@ -119,6 +125,7 @@ you can also use deno (`deno run -A ...` instead of `node ...`)
 - `-opt-funcs` to log funcs after opt
 - `-sections` to log sections as hex
 - `-opt-no-inline` to not inline any funcs
+- `-tail-call` to enable tail calls (not widely implemented)
 
 ## wasm output
 porffor optimizes for size as much as possible. current output is ~as small as possible (even with manual asm editing) for some simple functions.
