@@ -60,5 +60,10 @@ export default (code, flags = [ 'module' ]) => {
   const sections = produceSections(funcs, globals, flags);
   if (flags.includes('info')) console.log(`4. produced sections in ${(performance.now() - t3).toFixed(2)}ms`);
 
+  if (flags.includes('decomp')) {
+    const time = performance.now() - t0;
+    return [ sections, funcs.map(x => decompile(x.wasm, x.name, x.locals, x.params, x.returns, funcs)), time ];
+  }
+
   return sections;
 };
