@@ -193,10 +193,13 @@ const generateReturn = (scope, decl) => {
 const generateBinaryExp = (scope, decl) => {
   // TODO: this assumes all variables are numbers !!!
 
+  const opcode = operatorOpcode[valtype][decl.operator];
+  if (!opcode) throw new Error(`unknown operator ${decl.operator}`)
+
   const out = [
     ...generate(scope, decl.left),
     ...generate(scope, decl.right),
-    [ operatorOpcode[valtype][decl.operator], ]
+    Array.isArray(opcode) ? opcode : [ opcode ]
   ];
 
   if (valtype === 'i64' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push([ Opcodes.i64_extend_i32_u ]);
