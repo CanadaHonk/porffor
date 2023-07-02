@@ -4,11 +4,13 @@ const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[
 const invOpcodes = inv(Opcodes);
 const invValtype = inv(Valtype);
 
-export default (wasm, name = '', locals = {}, params = [], returns = []) => {
+export default (wasm, name = '', locals = {}, params = [], returns = [], funcs = []) => {
   const invLocals = inv(locals, x => x.idx);
 
+  const makeSignature = (params, returns) => `(${params.map(x => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`;
+
   let out = '', depth = 1;
-  out += `(${params.map(x => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')}) ;; ${name}\n`;
+  out += `${makeSignature(params, returns)} ;; $${name}\n`;
 
   const justLocals = Object.values(locals).sort((a, b) => a.idx - b.idx).slice(params.length);
   if (justLocals.length > 0) out += `  local ${justLocals.map(x => invValtype[x.type]).join(' ')}\n`;
@@ -44,6 +46,11 @@ export default (wasm, name = '', locals = {}, params = [], returns = []) => {
 
     if (inst[0] === Opcodes.br) {
       out += ` ;; goto @${depth - inst[1]}`;
+    }
+
+    if (inst[0] === Opcodes.call || inst[0] === Opcodes.return_call) {
+      const callFunc = funcs.find(x => x.index === inst[1]);
+      if (callFunc) out += ` ;; $${callFunc.name} ${makeSignature(callFunc.params, callFunc.returns)}`;
     }
 
     if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) {

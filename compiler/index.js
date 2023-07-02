@@ -31,7 +31,7 @@ const logFuncs = funcs => {
     console.log(`returns: ${f.returns.length > 0 ? true : false}`);
     console.log(`locals: ${Object.keys(f.locals).sort((a, b) => f.locals[a].idx - f.locals[b].idx).map(x => `${x} (${f.locals[x].idx})`).join(', ')}`);
     console.log();
-    console.log(decompile(f.wasm, f.name, f.locals, f.params, f.returns));
+    console.log(decompile(f.wasm, f.name, f.locals, f.params, f.returns, funcs));
   }
 
   console.log();
