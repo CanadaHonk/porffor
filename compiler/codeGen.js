@@ -330,12 +330,11 @@ const generateCall = (scope, decl) => {
     Opcodes.call_indirect,
   ]; */
 
-  if (isFuncType(decl.callee.type)) {
-    const func = generateFunc(decl.callee);
-    // todo: iife support
+  let name = decl.callee.name;
+  if (isFuncType(decl.callee.type)) { // iife
+    const func = generateFunc(scope, decl.callee);
+    name = func.name;
   }
-
-  const name = decl.callee.name;
 
   // TODO: only allows callee as literal
   if (!name) return todo(`only literal callees (got ${decl.callee.type})`);
