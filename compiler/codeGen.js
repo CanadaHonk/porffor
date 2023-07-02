@@ -450,12 +450,28 @@ const generateAssign = (scope, decl) => {
   const [ local, isGlobal ] = lookupName(scope, name);
 
   if (local === undefined) {
+    // only allow = for this
+    if (decl.operator !== '=') throw new ReferenceError(`${decl.name} is not defined (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
+
     // set global (eg a = 2)
     return generateVar(scope, { declarations: [ { id: { name }, init: decl.right } ] }, true);
   }
 
+  if (decl.operator === '=') {
+    return [
+      ...generate(scope, decl.right),
+      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ]
+    ];
+  }
+
+  const mathOp = decl.operator[0];
+  const opcode = operatorOpcode[valtype][mathOp];
+  if (!opcode) throw new Error(`unknown operator ${decl.operator}`)
+
   return [
+    [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
     ...generate(scope, decl.right),
+    Array.isArray(opcode) ? opcode : [ opcode ],
     [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ]
   ];
 };
