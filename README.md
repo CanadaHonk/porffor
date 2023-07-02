@@ -8,7 +8,7 @@ porffor is a very unique js engine, due a very different approach. it is serious
 - everything is a number
 - no constant runtime/preluded code
 
-porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself. you could imagine it as compiling a language which is a sub (and super) set of javascript.
+porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself. you could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript.
 
 ## limitations
 - **only number type, no string/array/object/etc at all**
@@ -126,6 +126,9 @@ you can also use deno (`deno run -A ...` instead of `node ...`)
 - `-sections` to log sections as hex
 - `-opt-no-inline` to not inline any funcs
 - `-tail-call` to enable tail calls (not widely implemented)
+
+## vscode extension
+there is a vscode extension in `porffor-for-vscode` which tweaks js syntax highlighting to be nicer with porffor features (eg highlighting wasm inside of inline asm).
 
 ## wasm output
 porffor optimizes for size as much as possible. current output is ~as small as possible (even with manual asm editing) for some simple functions.
