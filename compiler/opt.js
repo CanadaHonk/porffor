@@ -17,6 +17,9 @@ export default (funcs, globals) => {
   const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : (process.argv.includes('-O2') ? 2 : 3));
   if (optLevel === 0) return;
 
+  const tailCall = process.argv.includes('-tail-call');
+  if (tailCall) log('opt', 'tail call proposal is not widely implemented! (you used -tail-call)');
+
   if (optLevel >= 2 && !process.argv.includes('-opt-no-inline')) {
     // inline pass (very WIP)
     // get candidates for inlining
@@ -163,6 +166,22 @@ export default (funcs, globals) => {
         inst = wasm[i];
         lastInst = wasm[i - 1];
         // if (optLog) log('opt', `removed redundant i32 -> i64 -> i32 conversion ops`);
+      }
+
+      if (tailCall && lastInst[0] === Opcodes.call && inst[0] === Opcodes.return) {
+        // replace call, return with tail calls (return_call)
+        // call X
+        // return
+        // -->
+        // return_call X
+
+        lastInst[0] = Opcodes.return_call; // change last inst return -> return_call
+
+        wasm.splice(i, 1); // remove this inst (return)
+        i--;
+        inst = wasm[i];
+
+        if (optLog) log('opt', `tail called return, call`);
       }
 
       if (i === wasm.length - 1 && inst[0] === Opcodes.return) {
