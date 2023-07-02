@@ -56,10 +56,11 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - inlining wasm via ``asm`...``\` "macro"
 - SIMD api (docs needed)
 - nice v128 param/return func exports (allowed as params and returns via wrapping)
+- iife support
+- assignment operators (`+=`, `-=`, etc)
 
 ## soon todo
 - support f64 as valtype (wip)
-- assignment operators (`+=`, `-=`, etc)
 - more math operators (`**`, etc)
 - `do { ... } while(...)`
 - conditional/ternary operator (`cond ? a : b`)
@@ -67,7 +68,6 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - opt: smarter inline selection (snapshots?)
 - begin `Math` (`Math.sqrt`, etc)
 - experiment with hack for supporting multiple values as outputs
-- iife support
 - exceptions
   - `throw` (/ `throw new Error(...)` as alias)
   - `try { ... } catch { ... }`
