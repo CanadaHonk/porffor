@@ -26,8 +26,11 @@ export const Opcodes = {
   else: 0x05,
 
   return: 0x0F,
+
   call: 0x10,
   call_indirect: 0x11,
+  return_call: 0x12,
+  return_call_indirect: 0x13,
 
   end: 0x0b,
   br: 0x0c,
