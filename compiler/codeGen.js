@@ -773,7 +773,7 @@ const generateFunc = (scope, decl) => {
 
     const vecIdx = lastReturnLocal.idx;
 
-    const lastIdx = Math.max(...Object.values(func.locals).map(x => x.idx));
+    const lastIdx = Math.max(0, ...Object.values(func.locals).map(x => x.idx));
     const tmpIdx = [];
     for (let i = 0; i < lanes; i++) {
       const idx = lastIdx + i + 1;

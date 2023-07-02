@@ -53,7 +53,7 @@ export default (funcs, globals) => {
 
             // add params as locals and set in reverse order
             const paramIdx = {};
-            let localIdx = Math.max(...Object.values(t.locals).map(x => x.idx));
+            let localIdx = Math.max(0, ...Object.values(t.locals).map(x => x.idx));
             for (let j = c.params.length - 1; j >= 0; j--) {
               const name = `__porf_inline_${c.name}_param_${j}`;
 
