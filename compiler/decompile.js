@@ -70,7 +70,7 @@ export const highlightAsm = asm =>
     .replace(/(local|global)\.[^\s]*/g, _ => `\x1B[31m${_}\x1B[0m`)
     .replace(/(i(8|16|32|64)x[0-9]+|v128)(\.[^\s]*)?/g, _ => `\x1B[34m${_}\x1B[0m`)
     .replace(/[^m](i32|i64|f32|f64)(\.[^\s]*)?/g, _ => `${_[0]}\x1B[36m${_.slice(1)}\x1B[0m`)
-    .replace(/(call|br_if|br|return)/g, _ => `\x1B[35m${_}\x1B[0m`)
+    .replace(/(return_call|call|br_if|br|return)/g, _ => `\x1B[35m${_}\x1B[0m`)
     .replace(/(block|loop|if|end|else)/g, _ => `\x1B[95m${_}\x1B[0m`)
     .replace(/ [0-9]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
     .replace(/ ;;.*$/gm, _ => `\x1B[90m${_.replaceAll(/\x1B\[[0-9]+m/g, '')}\x1B[0m`);
