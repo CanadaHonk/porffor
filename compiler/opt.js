@@ -28,6 +28,7 @@ export default (funcs, globals) => {
 
       let reasons = {};
       for (const f of funcs) {
+        if (f.name === 'main') continue;
         reasons[f.name] = [];
 
         if (f.name === 'main') reasons[f.name].push('main');
@@ -35,7 +36,7 @@ export default (funcs, globals) => {
         if (f.returns.length !== 0 && !suitableReturns(f.wasm)) reasons[f.name].push('cannot inline funcs with multiple returns yet');
       }
 
-      console.log(`     reasons not:\n${Object.keys(reasons).filter(x => reasons[x].length > 0).map(x => `       ${x}: ${reasons[x].join(', ')}`).join('\n')}\n`)
+      if (Object.values(reasons).some(x => x.length > 0)) console.log(`     reasons not:\n${Object.keys(reasons).filter(x => reasons[x].length > 0).map(x => `       ${x}: ${reasons[x].join(', ')}`).join('\n')}\n`)
     }
 
     for (const c of candidates) {
