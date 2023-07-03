@@ -2,8 +2,10 @@ import { Opcodes, Valtype } from "./wasmSpec.js";
 import { number } from "./embedding.js";
 
 // deno compat
-const textEncoder = new TextEncoder();
-if (typeof process === 'undefined') globalThis.process = { argv: ['', '', ...Deno.args], stdout: { write: str => Deno.writeAllSync(Deno.stdout, textEncoder.encode(str)) } };
+if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
+  const textEncoder = new TextEncoder();
+  globalThis.process = { argv: ['', '', ...Deno.args], stdout: { write: str => Deno.writeAllSync(Deno.stdout, textEncoder.encode(str)) } };
+}
 
 const performWasmOp = (op, a, b) => {
   switch (op) {
