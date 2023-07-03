@@ -166,7 +166,7 @@
     }
 
     p {
-      font-size: 22px;
+      font-size: 18px;
       font-family: var(--font-normal);
       color: var(--text-muted);
 
@@ -554,6 +554,30 @@
     .ansi-90 {
       color: rgb(118, 118, 118);
     }
+
+    #wasm-size {
+      position: absolute;
+      right: 6px;
+      top: 6px;
+      pointer-events: none;
+    }
+
+    #split > * {
+      position: relative;
+    }
+
+    #js-size {
+      position: absolute;
+      right: 24px;
+      top: 6px;
+      pointer-events: none;
+
+      z-index: 9;
+
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: #d0d0d0;
+    }
   </style>
 </head>
 
@@ -578,7 +602,6 @@
     </ul> -->
 
     <input type="text" placeholder="compiler args (try -O0, -O1, -O2, -valtype=i64)" id="args">
-    <div id="f"></div>
     <div id="split"></div>
     <div id="output"></div>
     <div id="status"></div>
@@ -605,6 +628,10 @@
     // monacoContainer.style.width = '100%';
     // monacoContainer.style.height = '75vh';
     split.appendChild(monacoContainer);
+
+    const jsSize = document.createElement('div');
+    jsSize.id = 'js-size';
+    monacoContainer.append(jsSize);
 
     const wasmView = document.createElement('div');
     split.appendChild(wasmView);
@@ -652,6 +679,8 @@ while (counter <= 10000) {
         argv: ['', '', ...args.value.split(' ')]
       };
 
+      jsSize.textContent = `${new Blob([code]).size} bytes`;
+
       status.textContent = 'compiling...';
       let wasm, decomps, time;
       try {
@@ -661,7 +690,7 @@ while (counter <= 10000) {
         return;
       }
 
-      wasmView.innerHTML = decomps.join('\n').replaceAll('\x1B[0m', '</span>').replace(/\x1B\[([0-9]{2})m/g, (_, esc) => `<span class="ansi-${esc}">`);
+      wasmView.innerHTML = `<div id="wasm-size">${wasm.byteLength} bytes</div>` + decomps.join('\n').replaceAll('\x1B[0m', '</span>').replace(/\x1B\[([0-9]{2})m/g, (_, esc) => `<span class="ansi-${esc}">`);
       status.textContent = `compiled in ${time.toFixed(2)}ms`;
 
       let cache = '';
