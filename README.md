@@ -58,12 +58,12 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - nice v128 param/return func exports (allowed as params and returns via wrapping)
 - iife support
 - assignment operators (`+=`, `-=`, etc)
+- conditional/ternary operator (`cond ? a : b`)
 
 ## soon todo
 - support f64 as valtype (wip)
 - more math operators (`**`, etc)
 - `do { ... } while(...)`
-- conditional/ternary operator (`cond ? a : b`)
 - nicer errors
 - opt: smarter inline selection (snapshots?)
 - begin `Math` (`Math.sqrt`, etc)
