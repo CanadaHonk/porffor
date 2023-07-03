@@ -1,5 +1,5 @@
 # porffor
-a basic experimental wip js *aot* optimizing wasm compiler in js. not serious/intended for (real) use, but this is a straight forward honest readme<br>
+a basic experimental wip *aot* optimizing wasm js compiler in js. not serious/intended for (real) use, but this is a straight forward honest readme<br>
 age: ~5 days
 
 ## design
