@@ -1,0 +1,709 @@
+<head>
+  <title>porffor</title>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <meta itemprop="name" content="porffor">
+  <meta property="og:title" content="porffor">
+  <meta itemprop="description" content="a basic experimental wip JS AOT optimizing Wasm compiler in JS">
+  <meta property="og:description" content="a basic experimental wip JS AOT optimizing Wasm compiler in JS">
+  <meta property="og:type" content="website">
+
+  <style>
+    @font-face {
+      font-family: Whitney;
+      font-style: normal;
+      font-weight: 400;
+      src: url(https://capybara.openasar.dev/whitney.woff2) format("woff2")
+    }
+
+    @font-face {
+      font-family: Ginto;
+      font-style: normal;
+      font-weight: 500;
+      src: url(https://capybara.openasar.dev/ginto.woff2) format("woff2")
+    }
+
+    :root {
+      --font-normal: Whitney, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --font-header: Ginto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --font-mono: Consolas, "Andale Mono WT", "Andale Mono", "Lucida Console", "Lucida Sans Typewriter", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation Mono", "Nimbus Mono L", Monaco, "Courier New", Courier, monospace;
+
+      --header-primary: #ffffff;
+      --header-secondary: #b9bbbe;
+
+      /* --text-normal: #dcddde;
+      --text-muted: #a3a6aa; */
+
+      --text-normal: #ffffff;
+      --text-muted: #c1c1c2;
+
+      --accent: #8545cf;
+      --accent-light: #9c60e0;
+      --accent-dark: #6b2faf;
+
+      --background-primary: #101418;
+      --background-secondary: #202428;
+      --background-header: 0, 4, 8;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--background-primary);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    h1 {
+      font-weight: 500;
+      font-family: var(--font-header);
+      font-size: 32px;
+
+      color: var(--header-primary);
+
+      margin: 0;
+    }
+
+    h2 {
+      font-weight: 500;
+      font-family: var(--font-header);
+      font-size: 28px;
+
+      color: var(--header-primary);
+
+      margin-top: 60px;
+      margin-bottom: 8px;
+    }
+
+    header {
+      width: 100%;
+      height: fit-content;
+
+      padding: 4px 24px;
+
+      background: rgba(var(--background-header), 0.6);
+      box-shadow: 0 8px 16px rgb(0 0 0 / 24%);
+      backdrop-filter: blur(2px) saturate(0.5);
+
+      display: flex;
+      align-items: baseline;
+
+      position: sticky;
+      top: 0;
+    }
+
+    header > h1 {
+      color: var(--accent-light);
+    }
+
+    header code {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      color: var(--text-muted);
+    }
+
+    header > div {
+      flex-grow: 1;
+      margin-left: 4vw;
+
+      display: flex;
+      gap: 50px;
+
+      /* justify-content: flex-end; */
+    }
+
+    header a {
+      color: var(--text-normal);
+      text-decoration: none;
+
+      font-weight: 500;
+      font-family: var(--font-header);
+      font-size: 24px;
+
+      transition: .5s color;
+    }
+
+    a:after {
+      content: '';
+      display: block;
+      margin: auto;
+      margin-top: 2px;
+      height: 2px;
+      width: 0px;
+      background: transparent;
+      transition: width .5s ease, background-color .5s ease;
+    }
+
+    header a:hover {
+      color: var(--header-primary);
+    }
+
+    a:hover:after {
+      width: 100%;
+      background: var(--accent-light);
+    }
+
+    a:active:after {
+      width: 100%;
+      background: var(--accent);
+    }
+
+    article {
+      padding: 6px 50px;
+      width: 100%;
+      max-width: 2000px;
+      margin: auto;
+    }
+
+    .tagline {
+    }
+
+    p {
+      font-size: 22px;
+      font-family: var(--font-normal);
+      color: var(--text-muted);
+
+      margin-bottom: 20px;
+      margin-top: 0px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 80px;
+
+      margin-top: 12px;
+      margin-bottom: 60px;
+    }
+
+    .columns {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .cards > div {
+      background: var(--background-secondary);
+      box-shadow: 0 8px 16px rgb(0 0 0 / 24%);
+      padding: 16px;
+
+      display: flex;
+
+      border-radius: 8px;
+
+      flex-direction: column;
+    }
+
+    .cards > div svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .cards > div svg.stroke path {
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 6px;
+    }
+
+    .cards > div > h1 {
+      font-family: var(--font-header);
+      color: var(--header-primary);
+
+      display: flex;
+      gap: 10px;
+
+      align-items: center;
+    }
+
+    .cards > div > p {
+      font-family: var(--font-normal);
+      color: var(--text-normal);
+      font-size: 22px;
+
+      margin-top: 12px;
+      margin-bottom: 10px;
+    }
+
+    .cards > span {
+      color: var(--text-muted);
+      font-family: var(--font-header);
+      font-size: 28px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stats {
+      display: flex;
+      flex-direction: column;
+      align-self: center;
+    }
+
+    .stats > h2 {
+      margin: 0;
+      color: var(--text-normal);
+      font-weight: 400;
+
+      display: flex;
+      align-items: center;
+    }
+
+    .stats > h2:not(:last-child) {
+      margin-bottom: 40px;
+    }
+
+    .stats span {
+      font-weight: 600;
+      color: var(--accent-light);
+    }
+
+    .stats svg {
+      width: 32px;
+      height: 32px;
+      margin-right: 12px;
+    }
+
+    header .stats svg {
+      width: 24px;
+      height: 24px;
+      margin-right: 8px;
+    }
+
+    .stats [id^="stat_"] {
+      margin: 0 8px;
+    }
+
+    /* .stats::before {
+      content: '';
+      width: 80%;
+      height: 2px;
+      background: var(--background-secondary);
+      margin: auto;
+
+      position: relative;
+      top: -4vw;
+    }
+
+    article > :nth-last-child(2) {
+      margin-bottom: 4vw;
+    } */
+
+    a {
+      color: var(--accent-light);
+      text-decoration: none;
+      font-weight: 600;
+
+      display: inline-block;
+    }
+
+    ::-webkit-scrollbar {
+      width: 16px;
+    }
+
+    ::-webkit-scrollbar-corner {
+      background-color: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background-color: #000408;
+    }
+
+    ::-webkit-scrollbar-track {
+      background-color: #303438;
+    }
+
+    ::-webkit-scrollbar-thumb, ::-webkit-scrollbar-track {
+      border: 4px solid transparent;
+      background-clip: padding-box;
+      border-radius: 12px;
+    }
+
+    table {
+      background: #202428;
+      color: var(--header-primary);
+      font-family: var(--font-header);
+
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .compat tr:first-child {
+      background: #101418;
+      font-size: 20px;
+    }
+
+    .compat tr:first-child > td:nth-child(2), .compat tr:first-child > td:nth-child(3) {
+      width: 160px;
+    }
+
+    .compat tr {
+      border: 2px solid var(--header-secondary);
+      font-size: 18px;
+    }
+
+    .compat td {
+      padding: 4px;
+      border: 2px solid black;
+    }
+
+    .compat td:not(:first-child) {
+      text-align: center;
+    }
+
+    td.most {
+      background: #97ca00;
+    }
+
+    td.some {
+      background: #dfb317;
+    }
+
+    td.initial {
+      background: #fe7d37;
+    }
+
+    td.unsupported {
+      background: #e05d44;
+    }
+
+    .index {
+      margin-bottom: 20px;
+    }
+
+    .index td {
+      padding: 4px;
+    }
+
+    .index td:first-child {
+      border-left: 3px solid transparent;
+      padding-left: 10px;
+    }
+
+    .index td:nth-child(2) {
+      width: 70%;
+      color: var(--text-normal);
+    }
+
+    .sandbox-table {
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }
+
+    .sandbox-table td {
+      padding: 6px;
+    }
+
+    .sandbox-table td:last-child {
+      text-align: center;
+    }
+
+    .detailed.cards {
+      gap: 60px;
+    }
+
+    .detailed.cards p {
+      font-size: 20px;
+      margin-bottom: 20px;
+    }
+
+    .detailed.cards h2 {
+      font-size: 24px;
+      color: var(--text-normal);
+      margin-top: 10px;
+      margin-bottom: -4px;
+    }
+
+    .detailed.cards p + p {
+      margin-top: 0;
+    }
+
+    ul, ol {
+      margin-top: 0px;
+      margin-bottom: 16px;
+
+      color: var(--text-muted);
+      font-family: var(--font-normal);
+      font-size: 20px;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 80%;
+      color: var(--text-muted);
+    }
+
+    .usage-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .usage-header code {
+      font-size: 16px;
+    }
+
+    .check {
+      border-radius: 50%;
+      background: var(--accent);
+      width: 20px;
+      height: 20px;
+    }
+
+    .check.no {
+      background: none;
+    }
+
+    .tagline {
+      font-size: 32px;
+    }
+
+    .subtag {
+      color: #dcddde;
+      font-size: 18px;
+      margin: 0;
+      margin-top: 4px;
+      margin-bottom: 26px;
+    }
+
+    #split {
+      border-top: 1px solid #606468;
+      display: grid;
+      grid-template-columns: 60% 1fr;
+
+      width: 100%;
+      height: 70vh;
+    }
+
+    #split > :last-child {
+      background: #0c0c0c;
+      color: #d0d0d0;
+
+      padding: 6px;
+
+      font-family: var(--font-mono);
+      font-size: 14px;
+      border-left: 1px solid #606468;
+
+      white-space: pre;
+
+      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    #output, #status {
+      border-top: 1px solid #606468;
+      color: var(--text-muted);
+      background: var(--background-secondary);
+      font-family: var(--font-mono);
+
+      width: 100%;
+      height: 8vh;
+      font-size: 14px;
+      padding: 6px;
+
+      white-space: pre;
+
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    #status {
+      padding: 4px;
+      font-size: 14px;
+      height: 26px;
+    }
+
+    #args {
+      background: var(--background-secondary);
+      font-family: var(--font-mono);
+
+      width: 100%;
+      margin: 0;
+
+      color: var(--text-normal);
+      border: 0;
+      padding: 4px;
+      font-size: 14px;
+    }
+
+    .ansi-31 {
+      color: rgb(197, 15, 31);
+    }
+    .ansi-34 {
+      color: rgb(0, 55, 218);
+    }
+    .ansi-36 {
+      color: rgb(58, 150, 221);
+    }
+    .ansi-35 {
+      color: rgb(136, 23, 152);
+    }
+    .ansi-95 {
+      color: rgb(180, 0, 158);
+    }
+    .ansi-33 {
+      color: rgb(193, 156, 0);
+    }
+    .ansi-90 {
+      color: rgb(118, 118, 118);
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>porffor</h1>
+
+    <div>
+      <a href="https://github.com/CanadaHonk/porffor">GitHub</a>
+    </div>
+  </header>
+
+  <article>
+    <h1 class="tagline">a basic experimental wip JS AOT optimizing Wasm compiler in JS</h1>
+    <!-- <h2 class="subtag">about as insane as it sounds</h2> -->
+
+    <p>porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well.</p>
+    <!-- <ul>
+      <li>100% aot compiled</li>
+      <li>everything is a number</li>
+      <li>no constant runtime/preluded code</li>
+    </ul> -->
+
+    <input type="text" placeholder="compiler args (try -O0, -O1, -O2, -valtype=i64)" id="args">
+    <div id="f"></div>
+    <div id="split"></div>
+    <div id="output"></div>
+    <div id="status"></div>
+  </article>
+
+  <script> (async () => {
+    const loadScript = async x => {
+      const el = document.createElement('script');
+      el.src = x;
+      document.head.append(el);
+
+      await new Promise(res => el.onload = res);
+    };
+
+    if (!window.monaco) {
+      await loadScript('https://cdn.openasar.dev/monaco-editor/min/vs/loader.js');
+      // await new Promise(res => setTimeout(res, 500));
+
+      require.config({ paths: { vs: 'https://cdn.openasar.dev/monaco-editor/min/vs' } });
+      await new Promise(res => require(['vs/editor/editor.main'], res));
+    }
+
+    const monacoContainer = document.createElement('div');
+    // monacoContainer.style.width = '100%';
+    // monacoContainer.style.height = '75vh';
+    split.appendChild(monacoContainer);
+
+    const wasmView = document.createElement('div');
+    split.appendChild(wasmView);
+
+    const status = document.getElementById('status');
+
+    const defaultCode = `function isPrime(number) {
+  if (number < 2) return false;
+
+  for (let i = 2; i < number; i++) {
+    if (number % i == 0) return false;
+  }
+
+  return true;
+}
+
+let counter = 0;
+while (counter <= 10000) {
+  if (isPrime(counter)) console.log(counter);
+  counter++;
+}`;
+
+    window.editor = monaco.editor.create(monacoContainer, {
+      value: defaultCode,
+      language: 'javascript',
+      theme: 'vs-dark',
+      minimap: {
+        enabled: false
+      }
+    });
+
+    const debounce = (handler, timeout) => {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => handler(...args), timeout);
+      };
+    };
+
+    const compile = (await import('../compiler/index.js')).default;
+
+    let code = defaultCode;
+    const comp = debounce(async () => {
+      globalThis.process = {
+        argv: ['', '', ...args.value.split(' ')]
+      };
+
+      status.textContent = 'compiling...';
+      let wasm, decomps, time;
+      try {
+        [ wasm, decomps, time ] = compile(code, [ 'decomp' ]);
+      } catch (e) {
+        status.textContent = `${e.message}`;
+        return;
+      }
+
+      wasmView.innerHTML = decomps.join('\n').replaceAll('\x1B[0m', '</span>').replace(/\x1B\[([0-9]{2})m/g, (_, esc) => `<span class="ansi-${esc}">`);
+      status.textContent = `compiled in ${time.toFixed(2)}ms`;
+
+      let cache = '';
+      const print = str => {
+        cache += str;
+
+        if (str === '\n') {
+          // output.textContent += cache;
+          // cache = '';
+        }
+      };
+
+      const { instance } = await WebAssembly.instantiate(wasm, {
+        '': {
+          p: i => valtype === 'i64' ? print(Number(i).toString()) : print(i.toString()),
+          c: i => valtype === 'i64' ? print(String.fromCharCode(Number(i))) : print(String.fromCharCode(i)),
+          a: c => { if (!Number(c)) throw new Error(`assert failed`); }
+        }
+      });
+
+      const t2 = performance.now();
+      try {
+        instance.exports.m();
+      } catch (e) {
+        status.textContent = `${e.message}`;
+        return;
+      }
+
+      print('\n');
+
+      status.textContent += `. executed in ${(performance.now() - t2).toFixed(2)}ms`;
+
+      output.textContent = cache;
+    }, 500);
+
+    editor.getModel().onDidChangeContent(e => {
+      code = editor.getValue();
+      comp();
+    });
+
+    args.oninput = () => comp();
+
+    comp();
+  })();</script>
+</body>

@@ -18,8 +18,6 @@ const areaColors = {
 };
 
 globalThis.log = (area, ...args) => console.log(`\u001b[90m[\u001b[0m${rgb(...areaColors[area], area)}\u001b[90m]\u001b[0m`, ...args);
-globalThis.optLog = process.argv.includes('-opt-log');
-globalThis.codeLog = process.argv.includes('-code-log');
 
 const logFuncs = funcs => {
   console.log('\n' + underline(bold('funcs')));
@@ -38,6 +36,9 @@ const logFuncs = funcs => {
 };
 
 export default (code, flags = [ 'module' ]) => {
+  globalThis.optLog = process.argv.includes('-opt-log');
+  globalThis.codeLog = process.argv.includes('-code-log');
+
   const t0 = performance.now();
   const program = parse(code, flags);
   if (flags.includes('info')) console.log(`1. parsed in ${(performance.now() - t0).toFixed(2)}ms`);
