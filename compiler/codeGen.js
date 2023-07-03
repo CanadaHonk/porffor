@@ -102,6 +102,9 @@ const generate = (scope, decl) => {
     case 'EmptyStatement':
       return generateEmpty(scope, decl);
 
+    case 'ConditionalExpression':
+      return generateConditional(scope, decl);
+
     case 'ExportNamedDeclaration':
       // hack to flag new func for export
       const funcsBefore = funcs.length;
@@ -542,6 +545,23 @@ const generateIf = (scope, decl) => {
     out.push([ Opcodes.else ]);
     out.push(...generate(scope, decl.alternate));
   }
+
+  out.push([ Opcodes.end ]);
+  depth.pop();
+
+  return out;
+};
+
+const generateConditional = (scope, decl) => {
+  const out = [ ...generate(scope, decl.test) ];
+
+  out.push([ Opcodes.i32_to ], [ Opcodes.if, valtypeBinary ]);
+  depth.push('if');
+
+  out.push(...generate(scope, decl.consequent));
+
+  out.push([ Opcodes.else ]);
+  out.push(...generate(scope, decl.alternate));
 
   out.push([ Opcodes.end ]);
   depth.pop();
