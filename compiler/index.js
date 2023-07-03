@@ -29,7 +29,7 @@ const logFuncs = funcs => {
     console.log(`returns: ${f.returns.length > 0 ? true : false}`);
     console.log(`locals: ${Object.keys(f.locals).sort((a, b) => f.locals[a].idx - f.locals[b].idx).map(x => `${x} (${f.locals[x].idx})`).join(', ')}`);
     console.log();
-    console.log(decompile(f.wasm, f.name, f.locals, f.params, f.returns, funcs));
+    console.log(decompile(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs));
   }
 
   console.log();
@@ -63,7 +63,7 @@ export default (code, flags = [ 'module' ]) => {
 
   if (flags.includes('decomp')) {
     const time = performance.now() - t0;
-    return [ sections, funcs.map(x => decompile(x.wasm, x.name, x.locals, x.params, x.returns, funcs)), time ];
+    return [ sections, funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs)), time ];
   }
 
   return sections;
