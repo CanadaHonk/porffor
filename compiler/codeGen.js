@@ -367,12 +367,17 @@ const generateCall = (scope, decl) => {
     }
   }
 
+  if (idx === undefined && name === scope.name) {
+    // hack: calling self, func generator will fix later
+    idx = -1;
+  }
+
   if (idx === undefined) throw new Error(`failed to find func idx for ${name} (funcIndex: ${Object.keys(funcIndex)})`);
 
   const func = funcs.find(x => x.index === idx);
   if (
-    (func && decl.arguments.length !== func.params.length) || // normal func
-    (!func && decl.arguments.length !== 1) // imported func (always 1 arg)
+    (func && decl.arguments.length !== func.params.length) //|| // normal func
+    // (!func && decl.arguments.length !== 1) // imported func (always 1 arg)
   ) throw new Error(`mismatched arguments length (${decl.arguments.length}) for func ${func.name}, expected ${func.params.length}`);
 
   const out = [];
@@ -718,6 +723,14 @@ const generateFunc = (scope, decl) => {
     locals: innerScope.locals,
     index: currentFuncIndex++
   };
+  funcIndex[name] = func.index;
+
+  // quick hack fixes
+  for (const inst of wasm) {
+    if (inst[0] === Opcodes.call && inst[1] === -1) {
+      inst[1] = func.index;
+    }
+  }
 
   if (func.returns.length !== 0 && wasm[wasm.length - 1][0] !== Opcodes.return) wasm.push(...number(0), [ Opcodes.return ]);
 
@@ -840,7 +853,6 @@ const generateFunc = (scope, decl) => {
   func.wasm = wasm;
 
   funcs.push(func);
-  funcIndex[name] = func.index;
 
   return func;
 };
