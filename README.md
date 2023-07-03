@@ -59,6 +59,7 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - iife support
 - assignment operators (`+=`, `-=`, etc)
 - conditional/ternary operator (`cond ? a : b`)
+- recursive functions
 
 ## soon todo
 - support f64 as valtype (wip)
