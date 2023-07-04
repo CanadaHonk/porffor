@@ -687,7 +687,7 @@ for (let i = 2; i <= 45; i++) {
   console.log(t);
 }`,
 'Factorial': `const factorial = n => n === 0 ? 1 : (n * factorial(n - 1));
-console.log(factorial(20));`,
+console.log(factorial(10));`,
 'Sum of Digits': `let n = 654, sum = 0;
 while (n > 0) {
   sum += n % 10;
@@ -797,7 +797,7 @@ console.log(sum);`
       } catch {}
 
       const evalTime = performance.now() - t3;
-      status.textContent += `. eval took ${evalTime.toFixed(2)}ms (${((evalTime / execTime) * 100).toFixed(0)}%)`;
+      status.textContent += `. eval took ${evalTime.toFixed(2)}ms (${(evalTime / execTime).toFixed(1)}x)`;
 
       output.textContent = cache;
     };
