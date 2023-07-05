@@ -682,6 +682,10 @@ const returnsValue = node => {
 const objectHack = node => {
   if (node.type === 'MemberExpression') {
     let objectName = node.object.name;
+
+    // if object is not identifier or another member exp, give up
+    if (node.object.type !== 'Identifier' && node.object.type !== 'MemberExpression') return node;
+
     if (!objectName) objectName = objectHack(node.object).name.slice(2);
 
     const name = '__' + objectName + '_' + node.property.name;
