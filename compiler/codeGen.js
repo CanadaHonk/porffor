@@ -187,6 +187,14 @@ const generateIdent = (scope, decl) => {
 };
 
 const generateReturn = (scope, decl) => {
+  if (decl.argument === null) {
+    // just bare "return"
+    return [
+      ...(scope.returns.length === 0 ? [] : number(0)), // "undefined" if func returns
+      [ Opcodes.return ]
+    ];
+  }
+
   scope.returns = [ valtypeBinary ];
 
   return [
@@ -658,6 +666,19 @@ const generateAssignPat = (scope, decl) => {
 
 const randId = () => Math.random().toString(16).slice(0, -4);
 
+const returnsValue = node => {
+  if (isFuncType(node.type)) return false;
+
+  for (const x in node) {
+    if (node[x] != null && typeof node[x] === 'object') {
+      if (Array.isArray(node[x]) && node[x].some(y => returnsValue(y))) return true;
+      if (returnsValue(node[x])) return true;
+    }
+  }
+
+  return node.type === 'ReturnStatement' && node.argument !== null;
+};
+
 const objectHack = node => {
   if (node.type === 'MemberExpression') {
     let objectName = node.object.name;
@@ -708,6 +729,8 @@ const generateFunc = (scope, decl) => {
       argument: decl.body
     };
   }
+
+  if (returnsValue(body)) innerScope.returns = [ valtypeBinary ];
 
   const wasm = generate(innerScope, body);
   const func = {
