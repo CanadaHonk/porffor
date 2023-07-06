@@ -3,6 +3,6 @@ const { parse } = (await import(globalThis.document ? 'https://esm.sh/acorn' : '
 export default (input, flags) => {
   return parse(input, {
     ecmaVersion: 'latest',
-    sourceType: 'module' // flags.includes('module') ? 'module' : 'script'
+    sourceType: flags.includes('module') ? 'module' : 'script'
   });
 };
