@@ -287,7 +287,7 @@ const generateLogicExp = (scope, decl) => {
       [ Opcodes.local_tee, getLocalTmp(1) ],
       // Opcodes.i32_eqz, Opcodes.i32_eqz, // != 0 (fail ||)
       // Opcodes.eqz, Opcodes.i32_eqz
-      [ Opcodes.i32_to ],
+      Opcodes.i32_to,
       [ Opcodes.if, valtypeBinary ],
       ...generate(scope, decl.right),
       [ Opcodes.else ],
