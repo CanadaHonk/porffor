@@ -19,9 +19,13 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
   for (let inst of wasm.concat(name ? [ [ Opcodes.end ] ] : [])) {
     if (inst[0] === null) continue;
 
-    if (inst[0] === 0xfd) {
+    if (inst[0] === 0xfd) { // simd inst prefix
       if (inst[1] >= 128) inst = [ [ inst[0], inst[1], inst[2] ], ...inst.slice(3) ];
-        else inst = [ [ inst[0], inst[1] ], ...inst.slice(2) ]; // simd inst prefix
+        else inst = [ [ inst[0], inst[1] ], ...inst.slice(2) ];
+    }
+
+    if (inst[0] === 0xfc) { // misc inst prefix
+      inst = [ [ inst[0], inst[1] ], ...inst.slice(2) ];
     }
 
     if (inst[0] === Opcodes.end || inst[0] === Opcodes.else || inst[0] === Opcodes.catch_all) depth--;
