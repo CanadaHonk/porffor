@@ -78,7 +78,7 @@ export default (funcs, globals) => {
 
             let iWasm = cWasm.slice().map(x => x.slice()); // deep clone arr (depth 2)
             // remove final return
-            if (iWasm[iWasm.length - 1][0] === Opcodes.return) iWasm = iWasm.slice(0, -1);
+            if (iWasm.length !== 0 && iWasm[iWasm.length - 1][0] === Opcodes.return) iWasm = iWasm.slice(0, -1);
 
             // adjust local operands to go to correct param index
             for (const inst of iWasm) {
