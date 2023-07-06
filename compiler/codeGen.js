@@ -110,6 +110,9 @@ const generate = (scope, decl) => {
     case 'ThrowStatement':
       return generateThrow(scope, decl);
 
+    case 'TryStatement':
+      return generateTry(scope, decl);
+
     case 'ExportNamedDeclaration':
       // hack to flag new func for export
       const funcsBefore = funcs.length;
@@ -684,6 +687,30 @@ const generateThrow = (scope, decl) => {
     [ Opcodes.i32_const, signedLEB128(exceptId) ],
     [ Opcodes.throw, tagIdx ]
   ];
+};
+
+const generateTry = (scope, decl) => {
+  if (decl.finalizer) return todo('try finally not implemented yet');
+
+  const out = [];
+
+  out.push([ Opcodes.try, Blocktype.void ]);
+  depth.push('try');
+
+  out.push(...generate(scope, decl.block));
+
+  if (decl.handler) {
+    depth.pop();
+    depth.push('catch');
+
+    out.push([ Opcodes.catch_all ]);
+    out.push(...generate(scope, decl.handler.body));
+  }
+
+  out.push([ Opcodes.end ]);
+  depth.pop();
+
+  return out;
 };
 
 const generateEmpty = (scope, decl) => {
