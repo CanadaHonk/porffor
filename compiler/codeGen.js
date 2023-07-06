@@ -181,6 +181,16 @@ const generateIdent = (scope, decl) => {
   if (decl.name === 'undefined') return number(UNDEFINED);
   if (decl.name === 'null') return number(NULL);
 
+  if (decl.name === 'NaN') {
+    if (valtype[0] === 'i') throw new Error(`Cannot use NaN with integer valtype`);
+    return number(NaN);
+  }
+
+  if (decl.name === 'Infinity') {
+    if (valtype[0] === 'i') throw new Error(`Cannot use Infinity with integer valtype`);
+    return number(Infinity);
+  }
+
   if (local === undefined) {
     // no local var with name
     if (importedFuncs[decl.name] !== undefined) return number(importedFuncs[decl.name]);
