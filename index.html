@@ -694,7 +694,8 @@ while (n > 0) {
   n /= 10;
 }
 
-console.log(sum);`
+console.log(sum);`,
+'Exception': `throw new Error('Hello, world!')`
     };
     const defaultExample = 'Prime Numbers';
     let code = examples[defaultExample];
@@ -731,7 +732,7 @@ console.log(sum);`
       };
     };
 
-    const compile = (await import('../compiler/index.js')).default;
+    const compile = (await import('../compiler/wrap.js')).default;
 
     const comp = async () => {
       globalThis.process = {
@@ -739,20 +740,6 @@ console.log(sum);`
       };
 
       jsSize.textContent = `${new Blob([code]).size} bytes`;
-
-      status.textContent = 'compiling...';
-      let wasm, decomps, time;
-      try {
-        [ wasm, decomps, time ] = compile(code, [ 'decomp' ]);
-      } catch (e) {
-        status.textContent = `${e.message}`;
-        return;
-      }
-
-      wasmView.innerHTML = `<div id="wasm-size">${wasm.byteLength} bytes</div>` + decomps.join('\n').replaceAll('\x1B[0m', '</span>').replace(/\x1B\[([0-9]{2})m/g, (_, esc) => `<span class="ansi-${esc}">`);
-      status.textContent = `compiled in ${time.toFixed(2)}ms`;
-
-      await new Promise(res => setTimeout(res, 10));
 
       let cache = '';
       const print = str => {
@@ -764,25 +751,27 @@ console.log(sum);`
         }
       };
 
-      let instance;
+      output.textContent = '';
+      status.textContent = 'compiling...';
+
+      let wasm, exports, times, decomps;
       try {
-        0, { instance } = await WebAssembly.instantiate(wasm, {
-          '': {
-            p: i => valtype === 'i64' ? print(Number(i).toString()) : print(i.toString()),
-            c: i => valtype === 'i64' ? print(String.fromCharCode(Number(i))) : print(String.fromCharCode(i)),
-            a: c => { if (!Number(c)) throw new Error(`assert failed`); }
-          }
-        });
+        0, { wasm, exports, times, decomps } = await compile(code, [ 'decomp' ], {}, print);
       } catch (e) {
-        status.textContent = `${e.message}`;
+        status.textContent = `${e.constructor.name}: ${e.message}`;
         return;
       }
 
+      wasmView.innerHTML = `<div id="wasm-size">${wasm.byteLength} bytes</div>` + decomps.join('\n').replaceAll('\x1B[0m', '</span>').replace(/\x1B\[([0-9]{2})m/g, (_, esc) => `<span class="ansi-${esc}">`);
+      status.textContent = `compiled in ${times[0].toFixed(2)}ms`;
+
+      await new Promise(res => setTimeout(res, 10));
+
       const t2 = performance.now();
       try {
-        instance.exports.m();
+        exports.main();
       } catch (e) {
-        status.textContent = `${e.message}`;
+        status.textContent = `${e.constructor.name}: ${e.message}`;
         return;
       }
 
