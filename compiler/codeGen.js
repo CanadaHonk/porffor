@@ -405,8 +405,8 @@ const generateCall = (scope, decl) => {
     args = args.slice(0, func.params.length);
   }
 
-  if (func.memory) scope.memory = true;
-  if (func.throws) scope.throws = true;
+  if (func && func.memory) scope.memory = true;
+  if (func && func.throws) scope.throws = true;
 
   const out = [];
   for (const arg of args) {
