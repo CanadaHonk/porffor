@@ -60,23 +60,24 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - assignment operators (`+=`, `-=`, etc)
 - conditional/ternary operator (`cond ? a : b`)
 - recursive functions
+- bare returns (`return`)
+- `throw` (literals only)
 
 ## soon todo
 - support f64 as valtype (wip)
 - more math operators (`**`, etc)
 - `do { ... } while(...)`
 - nicer errors
-- opt: smarter inline selection (snapshots?)
 - begin `Math` (`Math.sqrt`, etc)
 - experiment with hack for supporting multiple values as outputs
+- `finally`
 - exceptions
-  - `throw` (/ `throw new Error(...)` as alias)
   - `try { ... } catch { ... }`
 - optimizations
   - rewrite local indexes per func for smallest local header and remove unused idxs
+  - smarter inline selection (snapshots?)
   - remove const ifs (`if (true)`, etc)
 - add simd api tests
-- website with code input, wasm output, output and timings
 
 ## optimizations
 mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable. we do not use/rely on external opt tools (`wasm-opt`, etc), instead doing optimization inside the compiler itself creating even smaller code sizes than `wasm-opt` itself can produce as we have more internal information. (this also enables fast + small runtime use as a potential cursed jit in frontend).
