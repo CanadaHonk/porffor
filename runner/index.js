@@ -36,7 +36,7 @@ const print = str => {
 };
 
 const t0 = performance.now();
-const { wasm, exports } = await compile(source, raw ? [] : [ 'info' ], {}, print);
+const { wasm, exports } = await compile(source, raw ? [ 'module' ] : [ 'module', 'info' ], {}, print);
 
 if (!raw && typeof Deno === 'undefined') fs.writeFileSync('out.wasm', Buffer.from(wasm));
 

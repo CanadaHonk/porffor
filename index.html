@@ -756,7 +756,7 @@ console.log(sum);`,
 
       let wasm, exports, times, decomps;
       try {
-        0, { wasm, exports, times, decomps } = await compile(code, [ 'decomp' ], {}, print);
+        0, { wasm, exports, times, decomps } = await compile(code, [ 'module', 'decomp' ], {}, print);
       } catch (e) {
         status.textContent = `${e.constructor.name}: ${e.message}`;
         return;

@@ -10,7 +10,7 @@ const run = async source => {
   let out = '', assertFailed = false;
   const print = str => out += str;
 
-  const { exports, wasm, times } = await compile(source, [], {
+  const { exports, wasm, times } = await compile(source, [ 'module' ], {
     p: i => print(Number(i).toString()),
     c: i => print(String.fromCharCode(Number(i))),
     a: c => { if (!Number(c)) assertFailed = true; }
