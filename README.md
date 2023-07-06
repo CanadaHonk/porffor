@@ -64,9 +64,9 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - `throw` (literals only)
 - basic `try { ... } catch { ... }` (no error given)
 - calling functions with non-matching arguments (eg `f(a, b); f(0); f(1, 2, 3);`)
+- supports i32, i64, and f64 for valtypes
 
 ## soon todo
-- support f64 as valtype (wip)
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
 - nicer errors
