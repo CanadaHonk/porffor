@@ -1,7 +1,7 @@
 import { enumify } from "../util/enum.js";
 
-export const Section = enumify('custom', 'type', 'import', 'func', 'table', 'memory', 'global', 'export', 'start', 'element', 'code', 'data');
-export const ExportDesc = enumify('func', 'table', 'mem', 'global');
+export const Section = enumify('custom', 'type', 'import', 'func', 'table', 'memory', 'global', 'export', 'start', 'element', 'code', 'data', 'data_count', 'tag');
+export const ExportDesc = enumify('func', 'table', 'mem', 'global', 'tag');
 
 export const Mut = enumify('const', 'var');
 
