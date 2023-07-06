@@ -9,14 +9,14 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
   const makeSignature = (params, returns) => `(${params.map(x => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`;
 
-  let out = '', depth = 1;
-  out += `${makeSignature(params, returns)} ;; $${name} (${ind})\n`;
+  let out = '', depth = name ? 1 : 0;
+  if (name) out += `${makeSignature(params, returns)} ;; $${name} (${ind})\n`;
 
   const justLocals = Object.values(locals).sort((a, b) => a.idx - b.idx).slice(params.length);
   if (justLocals.length > 0) out += `  local ${justLocals.map(x => invValtype[x.type]).join(' ')}\n`;
 
   let i = 0;
-  for (let inst of wasm.concat([ [ Opcodes.end ] ])) {
+  for (let inst of wasm.concat(name ? [ [ Opcodes.end ] ] : [])) {
     if (inst[0] === null) continue;
 
     if (inst[0] === 0xfd) {
@@ -57,12 +57,12 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
     if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) {
       const name = invLocals[inst[1]];
       const type = invValtype[locals[name]?.type];
-      out += ` ;; $${name}${type !== valtype ? ` (${type})` : ''}`;
+      if (name) out += ` ;; $${name}${type !== valtype ? ` (${type})` : ''}`;
     }
 
     if (inst[0] === Opcodes.throw) {
       const exception = exceptions[inst[1]];
-      out += ` ;; ${exception.constructor ? `${exception.constructor}('${exception.message}')` : `'${exception.message}'`}`;
+      if (exception) out += ` ;; ${exception.constructor ? `${exception.constructor}('${exception.message}')` : `'${exception.message}'`}`;
     }
 
     out += '\n';
