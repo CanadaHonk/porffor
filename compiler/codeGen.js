@@ -223,8 +223,7 @@ const generateBinaryExp = (scope, decl) => {
     Array.isArray(opcode) ? opcode : [ opcode ]
   ];
 
-  if (valtype === 'i64' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push([ Opcodes.i64_extend_i32_u ]);
-  if (valtype === 'f64' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push([ Opcodes.f64_convert_i32_u ]);
+  if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from);
 
   return out;
 };
@@ -305,7 +304,7 @@ const generateLogicExp = (scope, decl) => {
     return [
       ...generate(scope, decl.left),
       [ Opcodes.local_tee, getLocalTmp(1) ],
-      [ Opcodes.eqz ], // == 0 (success &&)
+      ...Opcodes.eqz, // == 0 (success &&)
       [ Opcodes.if, valtypeBinary ],
       ...generate(scope, decl.right),
       [ Opcodes.else ],
@@ -528,8 +527,8 @@ const generateUnary = (scope, decl) => {
 
     case '!':
       // !=
-      out.push([ Opcodes.eqz ]);
-      if (valtype === 'i64') out.push([ Opcodes.i64_extend_i32_u ]);
+      out.push(...Opcodes.eqz);
+      if (valtype !== 'i32') out.push(Opcodes.i32_from);
       break;
   }
 
@@ -983,13 +982,12 @@ export default program => {
   // set generic opcodes for current valtype
   Opcodes.const = [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const ][valtypeInd];
   Opcodes.eq = [ Opcodes.i32_eq, Opcodes.i64_eq, Opcodes.f64_eq ][valtypeInd];
-  Opcodes.eqz = [ Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.unreachable ][valtypeInd];
+  Opcodes.eqz = [ [ [ Opcodes.i32_eqz ] ], [ [ Opcodes.i64_eqz ] ], [ ...number(0), [ Opcodes.f64_eq ] ] ][valtypeInd];
   Opcodes.mul = [ Opcodes.i32_mul, Opcodes.i64_mul, Opcodes.f64_mul ][valtypeInd];
   Opcodes.add = [ Opcodes.i32_add, Opcodes.i64_add, Opcodes.f64_add ][valtypeInd];
   Opcodes.sub = [ Opcodes.i32_sub, Opcodes.i64_sub, Opcodes.f64_sub ][valtypeInd];
-
-  Opcodes.i32_to = [ null, Opcodes.i32_wrap_i64, Opcodes.i32_trunc_sat_f64_s ][valtypeInd];
-  if (!Array.isArray(Opcodes.i32_to)) Opcodes.i32_to = [ Opcodes.i32_to ];
+  Opcodes.i32_to = [ [ null ], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_s ][valtypeInd];
+  Opcodes.i32_from = [ [ null ], [ Opcodes.i64_extend_i32_u ], [ Opcodes.f64_convert_i32_u ] ][valtypeInd];
 
   Opcodes.sqrt = [ Opcodes.unreachable ]; // todo
 
