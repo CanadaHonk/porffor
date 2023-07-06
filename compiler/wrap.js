@@ -27,7 +27,7 @@ export default async (source, flags = [], customImports = {}, print = str => pro
 
   const exports = {};
 
-  let exceptTag = instance.exports['0'];
+  const exceptTag = instance.exports['0'];
   for (const x in instance.exports) {
     if (x === '0') continue;
 
@@ -59,7 +59,7 @@ export default async (source, flags = [], customImports = {}, print = str => pro
   }
 
   if (flags.includes('decomp')) {
-    return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs)) };
+    return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, exceptions)) };
   }
 
   return { exports, wasm, times };

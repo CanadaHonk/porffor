@@ -4,7 +4,7 @@ const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[
 const invOpcodes = inv(Opcodes);
 const invValtype = inv(Valtype);
 
-export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = [], funcs = []) => {
+export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = [], funcs = [], exceptions = []) => {
   const invLocals = inv(locals, x => x.idx);
 
   const makeSignature = (params, returns) => `(${params.map(x => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`;
@@ -15,6 +15,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
   const justLocals = Object.values(locals).sort((a, b) => a.idx - b.idx).slice(params.length);
   if (justLocals.length > 0) out += `  local ${justLocals.map(x => invValtype[x.type]).join(' ')}\n`;
 
+  let i = 0;
   for (let inst of wasm.concat([ [ Opcodes.end ] ])) {
     if (inst[0] === null) continue;
 
@@ -27,7 +28,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
     const opStr = invOpcodes[inst[0]];
     if (!opStr) console.log(`decomp: unknown op ${inst[0].toString(16)}`)
-    out += ' '.repeat(depth * 2) + opStr.replace('_', '.');
+    out += /* ' '.repeat(3 - i.toString().length) + i + ' ' + */ ' '.repeat(depth * 2) + opStr.replace('_', '.').replace('return.', 'return_').replace('call.', 'call_').replace('br.', 'br_');
 
     if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else) depth++;
 
@@ -59,7 +60,13 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       out += ` ;; $${name}${type !== valtype ? ` (${type})` : ''}`;
     }
 
+    if (inst[0] === Opcodes.throw) {
+      const exception = exceptions[inst[1]];
+      out += ` ;; ${exception.constructor ? `${exception.constructor}('${exception.message}')` : `'${exception.message}'`}`;
+    }
+
     out += '\n';
+    i++;
   }
 
   return highlightAsm(out);
@@ -70,7 +77,7 @@ export const highlightAsm = asm =>
     .replace(/(local|global)\.[^\s]*/g, _ => `\x1B[31m${_}\x1B[0m`)
     .replace(/(i(8|16|32|64)x[0-9]+|v128)(\.[^\s]*)?/g, _ => `\x1B[34m${_}\x1B[0m`)
     .replace(/[^m](i32|i64|f32|f64)(\.[^\s]*)?/g, _ => `${_[0]}\x1B[36m${_.slice(1)}\x1B[0m`)
-    .replace(/(return_call|call|br_if|br|return)/g, _ => `\x1B[35m${_}\x1B[0m`)
-    .replace(/(block|loop|if|end|else)/g, _ => `\x1B[95m${_}\x1B[0m`)
+    .replace(/(return_call|call|br_if|br|return|throw|rethrow)/g, _ => `\x1B[35m${_}\x1B[0m`)
+    .replace(/(block|loop|if|end|else|try|catch|catch_all|delegate)/g, _ => `\x1B[95m${_}\x1B[0m`)
     .replace(/ [0-9]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
     .replace(/ ;;.*$/gm, _ => `\x1B[90m${_.replaceAll(/\x1B\[[0-9]+m/g, '')}\x1B[0m`);
