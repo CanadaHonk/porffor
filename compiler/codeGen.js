@@ -395,12 +395,12 @@ const generateCall = (scope, decl) => {
   const func = funcs.find(x => x.index === idx);
 
   let args = decl.arguments;
-  if (func && decl.arguments.length < func.params.length) {
+  if (func && args.length < func.params.length) {
     // too little args, push undefineds
-    args.concat(new Array(func.params.length - decl.arguments.length).fill(DEFAULT_VALUE));
+    args = args.concat(new Array(func.params.length - args.length).fill(DEFAULT_VALUE));
   }
 
-  if (func && decl.arguments.length > func.params.length) {
+  if (func && args.length > func.params.length) {
     // too many args, slice extras off
     args = args.slice(0, func.params.length);
   }
