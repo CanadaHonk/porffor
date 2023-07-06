@@ -35,7 +35,7 @@ const logFuncs = funcs => {
   console.log();
 };
 
-export default (code, flags = [ 'module' ]) => {
+export default (code, flags) => {
   globalThis.optLog = process.argv.includes('-opt-log');
   globalThis.codeLog = process.argv.includes('-code-log');
 
@@ -66,5 +66,5 @@ export default (code, flags = [ 'module' ]) => {
     return [ sections, funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs)), time ];
   }
 
-  return sections;
+  return { wasm: sections, funcs, globals, tags, exceptions };
 };
