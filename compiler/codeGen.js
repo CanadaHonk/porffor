@@ -522,6 +522,12 @@ const generateUnary = (scope, decl) => {
 
     case '-':
       // * -1
+
+      if (decl.prefix && decl.argument.type === 'Literal' && typeof decl.argument.value === 'number') {
+        // if -<N>, just return that
+        return number(-1 * decl.argument.value);
+      }
+
       out.push(...number(-1), [ Opcodes.mul ]);
       break;
 
