@@ -3,7 +3,6 @@ import codeGen from './codeGen.js';
 import opt from './opt.js';
 import produceSections from './sections.js';
 import decompile from './decompile.js';
-import { Valtype } from './wasmSpec.js';
 
 globalThis.decompile = decompile;
 
