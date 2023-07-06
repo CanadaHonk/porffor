@@ -42,7 +42,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
         try {
           return exp.apply(this, arguments);
         } catch (e) {
-          if (e.is(exceptTag)) {
+          if (e.is && e.is(exceptTag)) {
             const exceptId = e.getArg(exceptTag, 0);
             const exception = exceptions[exceptId];
 
