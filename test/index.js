@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import compile from '../compiler/index.js';
+import compile from '../compiler/wrap.js';
 
 // deno compat
 const textEncoder = new TextEncoder();
@@ -7,30 +7,19 @@ if (typeof process === 'undefined') globalThis.process = { argv: ['', '', ...Den
 
 let totalOutput = 0;
 const run = async source => {
-  const times = [];
-
-  // const compile = (await import('../compiler/index.js')).default;
-  const t0 = performance.now();
-  const wasm = compile(source);
-  times.push(performance.now() - t0);
-
-  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
-
-  totalOutput += wasm.byteLength;
-
   let out = '', assertFailed = false;
   const print = str => out += str;
 
-  const { instance } = await WebAssembly.instantiate(wasm, {
-    '': {
-      p: i => print(Number(i).toString()),
-      c: i => print(String.fromCharCode(Number(i))),
-      a: c => { if (!Number(c)) assertFailed = true; }
-    }
+  const { exports, wasm, times } = await compile(source, [], {
+    p: i => print(Number(i).toString()),
+    c: i => print(String.fromCharCode(Number(i))),
+    a: c => { if (!Number(c)) assertFailed = true; }
   });
 
+  totalOutput += wasm.byteLength;
+
   const t1 = performance.now();
-  instance.exports.m();
+  exports.main();
   times.push(performance.now() - t1);
 
   return [ out, assertFailed, times, wasm ];
@@ -43,7 +32,7 @@ const perform = async (test, args) => {
   const expect = JSON.parse(spl[0].slice(2)).replaceAll('\\n', '\n');
   const code = spl.slice(1).join('\n');
 
-  // process.stdout.write(`\u001b[90m.... ${test}\u001b[0m ${args.join(' ')}\u001b[0m`);
+  process.stdout.write(`\u001b[90m.... ${test}\u001b[0m ${args.join(' ')}\u001b[0m`);
 
   total++;
 
@@ -52,9 +41,13 @@ const perform = async (test, args) => {
   try {
     0, [ out, assertFailed, times, wasm ] = await run(code);
   } catch (e) {
-    console.log(`\u001b[91mFAIL ${test}\u001b[0m ${args.join(' ')}`);
-    console.log(`  an error was thrown: ${e}\n`);
-    return false;
+    out = `${e.constructor.name}: ${e.message}`;
+    if (expect !== out) {
+      process.stdout.write(`\r${' '.repeat(90)}\r`);
+      console.log(`\u001b[91mFAIL ${test}\u001b[0m ${args.join(' ')}`);
+      console.log(`  an error was thrown: ${e}\n`);
+      return false;
+    }
   }
 
   const time = performance.now() - t1;
@@ -63,7 +56,7 @@ const perform = async (test, args) => {
   if (pass) passes++;
 
   process.stdout.write(`\r${' '.repeat(90)}\r`);
-  console.log(`${pass ? '\u001b[92mPASS' : '\u001b[91mFAIL'} ${test}\u001b[0m ${args.join(' ')} ${' '.repeat(40 - test.length - args.join(' ').length)}\u001b[90m${time.toFixed(2)}ms (compile: ${times[0].toFixed(2)}ms, exec: ${times[1].toFixed(2)}ms)${' '.repeat(10)}${wasm.byteLength}b\u001b[0m`);
+  console.log(`${pass ? '\u001b[92mPASS' : '\u001b[91mFAIL'} ${test}\u001b[0m ${args.join(' ')} ${' '.repeat(40 - test.length - args.join(' ').length)}\u001b[90m${time.toFixed(2)}ms ${times ? `(compile: ${times[0].toFixed(2)}ms, exec: ${times[1].toFixed(2)}ms)` : ''}${' '.repeat(10)}${wasm ? `${wasm.byteLength}b\u001b[0m` : ''}`);
 
   if (!pass) {
     if (out !== expect) console.log(`  expected: ${JSON.stringify(expect)}\n       got: ${JSON.stringify(out)}`);
