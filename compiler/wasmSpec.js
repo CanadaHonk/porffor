@@ -25,6 +25,13 @@ export const Opcodes = {
   if: 0x04,
   else: 0x05,
 
+  try: 0x06,
+  catch: 0x07,
+  catch_all: 0x19,
+  delegate: 0x18,
+  throw: 0x08,
+  rethrow: 0x09,
+
   return: 0x0F,
 
   call: 0x10,
