@@ -44,7 +44,7 @@ export default (code, flags = [ 'module' ]) => {
   if (flags.includes('info')) console.log(`1. parsed in ${(performance.now() - t0).toFixed(2)}ms`);
 
   const t1 = performance.now();
-  const { funcs, globals } = codeGen(program);
+  const { funcs, globals, tags, exceptions } = codeGen(program);
   if (flags.includes('info')) console.log(`2. generated code in ${(performance.now() - t1).toFixed(2)}ms`);
 
   if (flags.includes('return')) funcs.find(x => x.name === 'main').returns = [ Valtype.i32 ];
@@ -58,7 +58,7 @@ export default (code, flags = [ 'module' ]) => {
   if (process.argv.includes('-opt-funcs')) logFuncs(funcs);
 
   const t3 = performance.now();
-  const sections = produceSections(funcs, globals, flags);
+  const sections = produceSections(funcs, globals, tags, flags);
   if (flags.includes('info')) console.log(`4. produced sections in ${(performance.now() - t3).toFixed(2)}ms`);
 
   if (flags.includes('decomp')) {
