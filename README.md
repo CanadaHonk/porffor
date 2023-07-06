@@ -63,6 +63,7 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - bare returns (`return`)
 - `throw` (literals only)
 - basic `try { ... } catch { ... }` (no error given)
+- calling functions with non-matching arguments (eg `f(a, b); f(0); f(1, 2, 3);`)
 
 ## soon todo
 - support f64 as valtype (wip)
