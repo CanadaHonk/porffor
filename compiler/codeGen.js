@@ -224,6 +224,7 @@ const generateBinaryExp = (scope, decl) => {
   ];
 
   if (valtype === 'i64' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push([ Opcodes.i64_extend_i32_u ]);
+  if (valtype === 'f64' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push([ Opcodes.f64_convert_i32_u ]);
 
   return out;
 };
