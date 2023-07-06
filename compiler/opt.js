@@ -172,6 +172,21 @@ export default (funcs, globals) => {
         // if (optLog) log('opt', `removed redundant i32 -> i64 -> i32 conversion ops`);
       }
 
+      if (inst[0] === Opcodes.i32_trunc_sat_f64_s[0] && inst[1] === Opcodes.i32_trunc_sat_f64_s[1] && lastInst[0] === Opcodes.f64_convert_i32_u) {
+        // remove unneeded i32 -> f64 -> i32
+        // f64.convert_i32_u
+        // i32.trunc_sat_f64_s
+        // -->
+        // <nothing>
+
+        wasm.splice(i - 1, 2); // remove this inst and last
+        i -= 2;
+
+        inst = wasm[i];
+        lastInst = wasm[i - 1];
+        // if (optLog) log('opt', `removed redundant i32 -> f64 -> i32 conversion ops`);
+      }
+
       if (tailCall && lastInst[0] === Opcodes.call && inst[0] === Opcodes.return) {
         // replace call, return with tail calls (return_call)
         // call X
