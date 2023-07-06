@@ -67,25 +67,21 @@ const perform = async (test, args) => {
   return pass;
 };
 
+const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
+const optOpt = process.argv.find(x => x.startsWith('-O'));
+
 const t0 = performance.now();
 
-const argsValtypes = [ '-valtype=i64' ];
-const argsOptlevels = [ '-O0', '-O1', '-O2' ];
+const argsValtypes = [ '-valtype=i32', '-valtype=i64', '-valtype=f64' ];
+const argsOptlevels = [ '-O0', '-O1', '-O2', '-O3' ];
 
 let total = 0, passes = 0;
 for (const test of fs.readdirSync('test')) {
   if (test === 'index.js') continue;
-  await perform(test, []);
-
-  for (const x of argsOptlevels) {
-    await perform(test, [ x ]);
-  }
 
   for (const x of argsValtypes) {
-    await perform(test, [ x ]);
-
     for (const y of argsOptlevels) {
-      await perform(test, [ x, y ]);
+      if ((!valtypeOpt || valtypeOpt === x) && (!optOpt || optOpt === y)) await perform(test, [ x, y ]);
     }
   }
 }
