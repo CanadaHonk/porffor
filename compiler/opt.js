@@ -47,7 +47,7 @@ export default (funcs, globals) => {
     }
 
     for (const c of candidates) {
-      let cWasm = c.wasm;
+      const cWasm = c.wasm;
 
       for (const t of funcs) {
         const tWasm = t.wasm;
@@ -76,7 +76,7 @@ export default (funcs, globals) => {
               i++;
             }
 
-            let iWasm = cWasm.slice();
+            let iWasm = cWasm.slice().map(x => x.slice()); // deep clone arr (depth 2)
             // remove final return
             if (iWasm[iWasm.length - 1][0] === Opcodes.return) iWasm = iWasm.slice(0, -1);
 
