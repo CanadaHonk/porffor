@@ -80,6 +80,9 @@ for (const test of fs.readdirSync('test')) {
   if (test === 'index.js') continue;
 
   for (const x of argsValtypes) {
+    if (test.startsWith('int_') && x.endsWith('f64')) continue;
+    if (test.startsWith('float_') && !x.endsWith('f64')) continue;
+
     for (const y of argsOptlevels) {
       if ((!valtypeOpt || valtypeOpt === x) && (!optOpt || optOpt === y)) await perform(test, [ x, y ]);
     }
