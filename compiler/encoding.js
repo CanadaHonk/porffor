@@ -70,8 +70,8 @@ export const unsignedLEB128 = n => {
 
 // ieee 754 binary64
 export const ieee754_binary64 = value => {
-  let isLE = false, mLen = 11, nBytes = 8, offset = 0;
-  let buffer = new Array(nBytes * 4).fill(0);
+  let isLE = true, mLen = 52, nBytes = 8, offset = 0;
+  let buffer = new Array(nBytes).fill(0);
 
   // from https://github.com/feross/ieee754
   // BSD 3-Clause. Copyright 2008 Fair Oaks Labs, Inc. (https://github.com/feross/ieee754/blob/master/LICENSE)
