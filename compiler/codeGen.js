@@ -570,7 +570,7 @@ const generateUpdate = (scope, decl) => {
 const generateIf = (scope, decl) => {
   const out = [ ...generate(scope, decl.test) ];
 
-  out.push([ Opcodes.i32_to ], [ Opcodes.if, Blocktype.void ]);
+  out.push(Opcodes.i32_to, [ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
   out.push(...generate(scope, decl.consequent));
@@ -589,7 +589,7 @@ const generateIf = (scope, decl) => {
 const generateConditional = (scope, decl) => {
   const out = [ ...generate(scope, decl.test) ];
 
-  out.push([ Opcodes.i32_to ], [ Opcodes.if, valtypeBinary ]);
+  out.push(Opcodes.i32_to, [ Opcodes.if, valtypeBinary ]);
   depth.push('if');
 
   out.push(...generate(scope, decl.consequent));
@@ -613,7 +613,7 @@ const generateFor = (scope, decl) => {
   depth.push('for');
 
   out.push(...generate(scope, decl.test));
-  out.push([ Opcodes.i32_to ], [ Opcodes.if, Blocktype.void ]);
+  out.push(Opcodes.i32_to, [ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
   out.push([ Opcodes.block, Blocktype.void ]);
@@ -638,7 +638,7 @@ const generateWhile = (scope, decl) => {
   depth.push('while');
 
   out.push(...generate(scope, decl.test));
-  out.push([ Opcodes.i32_to ], [ Opcodes.if, Blocktype.void ]);
+  out.push(Opcodes.i32_to, [ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
   out.push(...generate(scope, decl.body));
@@ -987,7 +987,9 @@ export default program => {
   Opcodes.mul = [ Opcodes.i32_mul, Opcodes.i64_mul, Opcodes.f64_mul ][valtypeInd];
   Opcodes.add = [ Opcodes.i32_add, Opcodes.i64_add, Opcodes.f64_add ][valtypeInd];
   Opcodes.sub = [ Opcodes.i32_sub, Opcodes.i64_sub, Opcodes.f64_sub ][valtypeInd];
-  Opcodes.i32_to = [ null, Opcodes.i32_wrap_i64, Opcodes.unreachable ][valtypeInd];
+
+  Opcodes.i32_to = [ null, Opcodes.i32_wrap_i64, Opcodes.i32_trunc_sat_f64_s ][valtypeInd];
+  if (!Array.isArray(Opcodes.i32_to)) Opcodes.i32_to = [ Opcodes.i32_to ];
 
   Opcodes.sqrt = [ Opcodes.unreachable ]; // todo
 
