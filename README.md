@@ -65,10 +65,12 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - basic `try { ... } catch { ... }` (no error given)
 - calling functions with non-matching arguments (eg `f(a, b); f(0); f(1, 2, 3);`)
 - supports i32, i64, and f64 for valtypes
+- `NaN` and `Infinity` (f64 only)
 
 ## soon todo
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
+- `isNaN` and `isFinite` (f64 only)
 - nicer errors
 - begin `Math` (`Math.sqrt`, etc)
 - experiment with hack for supporting multiple values as outputs
