@@ -144,14 +144,14 @@ export default (funcs, globals) => {
         // if (optLog) log('opt', `consolidated set, get -> tee`);
       }
 
-      if (inst[0] === Opcodes.eq && lastInst[0] === Opcodes.const && lastInst[1] === 0) {
+      if (inst[0] === Opcodes.eq && lastInst[0] === Opcodes.const && lastInst[1] === 0 && valtype !== 'f64') {
         // replace const 0, eq -> eqz
         // i32.const 0
         // i32.eq
         // -->
         // i32.eqz
 
-        inst[0] = Opcodes.eqz; // eq -> eqz
+        inst[0] = Opcodes.eqz[0][0]; // eq -> eqz
         wasm.splice(i - 1, 1); // remove const 0
         i--;
         lastInst = wasm[i - 1];
