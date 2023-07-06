@@ -572,7 +572,7 @@
       background: var(--background-secondary);
       font-family: var(--font-mono);
 
-      width: calc(100% - 180px);
+      width: calc(100% - 180px - 240px);
       margin: 0;
 
       color: var(--text-normal);
@@ -580,19 +580,42 @@
       padding: 6px;
       float: right;
       font-size: 14px;
-
-      border-left: 1px solid #606468;
     }
 
     #examples_dropdown {
       width: 180px;
-      padding: 6px;
+      padding: 4px;
       height: 29px;
       display: inline-block;
 
       color: var(--text-normal);
+      font-family: var(--font-normal);
+      font-size: 16px;
       background: var(--background-secondary);
       border: none;
+
+      margin-right: 20px;
+    }
+
+    article {
+      color: var(--text-muted);
+      font-family: var(--font-normal);
+    }
+
+    #valtype_dropdown, #opt_dropdown {
+      width: fit-content;
+      padding: 4px;
+      height: 29px;
+      display: inline-block;
+
+      color: var(--text-normal);
+      font-family: var(--font-normal);
+      font-size: 14px;
+      background: var(--background-secondary);
+      border: none;
+
+      margin-left: 4px;
+      margin-right: 12px;
     }
   </style>
 </head>
@@ -618,7 +641,9 @@
     </ul> -->
 
     <select id="examples_dropdown"></select>
-    <input type="text" placeholder="compiler args (try -O0, -O1, -O2, -valtype=i64)" id="args">
+    valtype <select id="valtype_dropdown"></select>
+    opt <select id="opt_dropdown"></select>
+    <input type="text" placeholder="extra compiler args" id="args">
     <div id="split"></div>
     <div id="output"></div>
     <div id="status"></div>
@@ -700,19 +725,28 @@ console.log(sum);`,
     const defaultExample = 'Prime Numbers';
     let code = examples[defaultExample];
 
-    for (const x in examples) {
-      const el = document.createElement('option');
-      el.textContent = x;
-      el.selected = x === defaultExample;
+    const addOptions = (container, options, def) => {
+      for (const x of options) {
+        const el = document.createElement('option');
+        el.textContent = x;
+        el.selected = x === def;
 
-      examples_dropdown.appendChild(el);
-    }
+        container.appendChild(el);
+      }
+    };
+
+    addOptions(examples_dropdown, Object.keys(examples), defaultExample);
+
+    addOptions(valtype_dropdown, [ 'i32', 'i64', 'f64' ], 'i32');
+    addOptions(opt_dropdown, [ 0, 1, 2, 3 ], 3);
 
     examples_dropdown.oninput = () => {
       code = examples[examples_dropdown.value];
       editor.setValue(code);
       comp();
     };
+
+    valtype_dropdown.oninput = opt_dropdown.oninput = () => comp();
 
     window.editor = monaco.editor.create(monacoContainer, {
       value: code,
@@ -736,7 +770,7 @@ console.log(sum);`,
 
     const comp = async () => {
       globalThis.process = {
-        argv: ['', '', ...args.value.split(' ')]
+        argv: ['', '', ...args.value.split(' '), `-valtype=${valtype_dropdown.value}`, `-O${opt_dropdown.value}`]
       };
 
       jsSize.textContent = `${new Blob([code]).size} bytes`;
@@ -752,12 +786,14 @@ console.log(sum);`,
       };
 
       output.textContent = '';
+      wasmView.innerHTML = '';
       status.textContent = 'compiling...';
 
       let wasm, exports, times, decomps;
       try {
         0, { wasm, exports, times, decomps } = await compile(code, [ 'module', 'decomp' ], {}, print);
       } catch (e) {
+        console.error(e);
         status.textContent = `${e.constructor.name}: ${e.message}`;
         return;
       }
@@ -771,6 +807,7 @@ console.log(sum);`,
       try {
         exports.main();
       } catch (e) {
+        console.error(e);
         status.textContent = `${e.constructor.name}: ${e.message}`;
         return;
       }
