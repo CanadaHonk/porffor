@@ -778,6 +778,9 @@ const objectHack = node => {
 };
 
 const generateFunc = (scope, decl) => {
+  if (decl.async) return todo('async functions are not supported');
+  if (decl.generator) return todo('generator functions are not supported');
+
   const name = decl.id ? decl.id.name : `anonymous_${randId()}`;
   const params = decl.params?.map(x => x.name) ?? [];
 
