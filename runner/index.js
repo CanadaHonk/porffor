@@ -1,4 +1,4 @@
-import compile from '../compiler/index.js';
+import compile from '../compiler/wrap.js';
 import fs from 'node:fs';
 
 /* if (globalThis.process) {
@@ -25,12 +25,6 @@ const bold = x => `\u001b[1m${x}\u001b[0m`;
 if (!raw) console.log(`\n${underline('source')}\n` + source);
 if (!raw) console.log(`\n\n${underline('processing')}`);
 
-const t0 = performance.now();
-const wasm = compile(source, raw ? [] : [ 'info' ]);
-if (!raw) console.log(bold(`compiled in ${(performance.now() - t0).toFixed(2)}ms`));
-
-if (!raw && typeof Deno === 'undefined') fs.writeFileSync('out.wasm', Buffer.from(wasm));
-
 let cache = '';
 const print = str => {
   cache += str;
@@ -41,20 +35,16 @@ const print = str => {
   }
 };
 
-const t1 = performance.now();
-const { instance } = await WebAssembly.instantiate(wasm, {
-  '': {
-    p: i => valtype === 'i64' ? print(Number(i).toString()) : print(i.toString()),
-    c: i => valtype === 'i64' ? print(String.fromCharCode(Number(i))) : print(String.fromCharCode(i)),
-    a: c => { if (!Number(c)) throw new Error(`assert failed`); }
-  }
-});
-if (!raw) console.log(`instantiated in ${(performance.now() - t1).toFixed(2)}ms\n\n${underline('output')}`);
+const t0 = performance.now();
+const { wasm, exports } = await compile(source, raw ? [] : [ 'info' ], {}, print);
+
+if (!raw && typeof Deno === 'undefined') fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
 if (!process.argv.includes('-no-run')) {
+  console.log(`\n\n${underline('output')}`);
   const t2 = performance.now();
-  instance.exports.m();
 
+  exports.main();
   print('\n');
 
   if (!raw) console.log(bold(`\n\nexecuted in ${(performance.now() - t2).toFixed(2)}ms`));
