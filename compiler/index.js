@@ -47,7 +47,7 @@ export default (code, flags) => {
   const { funcs, globals, tags, exceptions } = codeGen(program);
   if (flags.includes('info')) console.log(`2. generated code in ${(performance.now() - t1).toFixed(2)}ms`);
 
-  if (flags.includes('return')) funcs.find(x => x.name === 'main').returns = [ Valtype.i32 ];
+  if (flags.includes('return')) funcs.find(x => x.name === 'main').returns = [ valtypeBinary ];
 
   if (process.argv.includes('-funcs')) logFuncs(funcs, exceptions);
 
