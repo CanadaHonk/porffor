@@ -5,6 +5,6 @@
   "bin": {
     "porffor": "./runner/index.js"
   },
-  "main": "./runner/wrap.js",
+  "main": "./runner/index.js",
   "type": "module"
 }
