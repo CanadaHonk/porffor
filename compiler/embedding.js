@@ -1,7 +1,7 @@
 import { Opcodes } from "./wasmSpec.js";
-import { signedLEB128 } from "./encoding.js";
+import { signedLEB128, ieee754_binary64 } from "./encoding.js";
 
-export const number = n => [ [ Opcodes.const, ...signedLEB128(n) ] ];
+export const number = n => valtype !== 'f64' ? [ [ Opcodes.const, ...signedLEB128(n) ] ] : [ [ Opcodes.const, ...ieee754_binary64(n) ] ];
 
 const enforceTwoBytes = arr => [ arr[0] ?? 0, arr[1] ?? 0, arr[2] ?? 0, arr[3] ?? 0 ];
 export const i32x4 = (a, b, c, d) => [ [
