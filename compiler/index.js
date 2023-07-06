@@ -61,10 +61,5 @@ export default (code, flags) => {
   const sections = produceSections(funcs, globals, tags, flags);
   if (flags.includes('info')) console.log(`4. produced sections in ${(performance.now() - t3).toFixed(2)}ms`);
 
-  if (flags.includes('decomp')) {
-    const time = performance.now() - t0;
-    return [ sections, funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs)), time ];
-  }
-
   return { wasm: sections, funcs, globals, tags, exceptions };
 };

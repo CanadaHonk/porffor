@@ -1,5 +1,5 @@
 import compile from './index.js';
-// import fs from 'fs';
+import decompile from './decompile.js';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
@@ -56,6 +56,10 @@ export default async (source, flags = [], customImports = {}, print = str => pro
         }
       };
     }
+  }
+
+  if (flags.includes('decomp')) {
+    return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs)) };
   }
 
   return { exports, wasm, times };
