@@ -15,7 +15,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
   const justLocals = Object.values(locals).sort((a, b) => a.idx - b.idx).slice(params.length);
   if (justLocals.length > 0) out += `  local ${justLocals.map(x => invValtype[x.type]).join(' ')}\n`;
 
-  let i = 0;
+  let i = 0, lastInst;
   for (let inst of wasm.concat(name ? [ [ Opcodes.end ] ] : [])) {
     if (inst[0] === null) continue;
 
@@ -24,13 +24,13 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
         else inst = [ [ inst[0], inst[1] ], ...inst.slice(2) ]; // simd inst prefix
     }
 
-    if (inst[0] === Opcodes.end || inst[0] === Opcodes.else) depth--;
+    if (inst[0] === Opcodes.end || inst[0] === Opcodes.else || inst[0] === Opcodes.catch_all) depth--;
 
     const opStr = invOpcodes[inst[0]];
     if (!opStr) console.log(`decomp: unknown op ${inst[0].toString(16)}`)
     out += /* ' '.repeat(3 - i.toString().length) + i + ' ' + */ ' '.repeat(depth * 2) + opStr.replace('_', '.').replace('return.', 'return_').replace('call.', 'call_').replace('br.', 'br_');
 
-    if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else) depth++;
+    if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else || inst[0] === Opcodes.try || inst[0] === Opcodes.catch_all) depth++;
 
     for (const operand of inst.slice(1)) {
       if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) {
@@ -61,11 +61,12 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
     }
 
     if (inst[0] === Opcodes.throw) {
-      const exception = exceptions[inst[1]];
+      const exception = exceptions[lastInst[1]];
       if (exception) out += ` ;; ${exception.constructor ? `${exception.constructor}('${exception.message}')` : `'${exception.message}'`}`;
     }
 
     out += '\n';
+    lastInst = inst;
     i++;
   }
 
