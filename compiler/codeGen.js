@@ -393,13 +393,20 @@ const generateCall = (scope, decl) => {
   if (idx === undefined) throw new Error(`failed to find func idx for ${name} (funcIndex: ${Object.keys(funcIndex)})`);
 
   const func = funcs.find(x => x.index === idx);
-  if (
-    (func && decl.arguments.length !== func.params.length) //|| // normal func
-    // (!func && decl.arguments.length !== 1) // imported func (always 1 arg)
-  ) throw new Error(`mismatched arguments length (${decl.arguments.length}) for func ${func.name}, expected ${func.params.length}`);
+
+  let args = decl.arguments;
+  if (func && decl.arguments.length < func.params.length) {
+    // too little args, push undefineds
+    args.concat(new Array(func.params.length - decl.arguments.length).fill(DEFAULT_VALUE));
+  }
+
+  if (func && decl.arguments.length > func.params.length) {
+    // too many args, slice extras off
+    args = args.slice(0, func.params.length);
+  }
 
   const out = [];
-  for (const arg of decl.arguments) {
+  for (const arg of args) {
     out.push(...generate(scope, arg));
   }
 
