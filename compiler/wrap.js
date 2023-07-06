@@ -3,11 +3,11 @@ import decompile from './decompile.js';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
-export default async (source, flags = [], customImports = {}, print = str => process.stdout.write(str)) => {
+export default async (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {
   const times = [];
 
   const t1 = performance.now();
-  const { wasm, funcs, globals, tags, exceptions } = compile(source, flags.concat([ 'metadata' ]));
+  const { wasm, funcs, globals, tags, exceptions } = compile(source, flags);
 
   times.push(performance.now() - t1);
   if (flags.includes('info')) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
