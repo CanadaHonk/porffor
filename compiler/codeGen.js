@@ -5,7 +5,9 @@ import { makeBuiltins, importedFuncs } from "./builtins.js";
 import { number, i32x4 } from "./embedding.js";
 
 let globals = {};
+let tags = [];
 let funcs = [];
+let exceptions = [];
 let funcIndex = {};
 let currentFuncIndex = Object.keys(importedFuncs).length;
 let builtins = {};
@@ -104,6 +106,9 @@ const generate = (scope, decl) => {
 
     case 'ConditionalExpression':
       return generateConditional(scope, decl);
+
+    case 'ThrowStatement':
+      return generateThrow(scope, decl);
 
     case 'ExportNamedDeclaration':
       // hack to flag new func for export
@@ -653,6 +658,34 @@ const generateContinue = (scope, decl) => {
   ];
 };
 
+const generateThrow = (scope, decl) => {
+  scope.throws = true;
+
+  let message = decl.argument.value, constructor = null;
+
+  // hack: throw new X("...") -> throw "..."
+  if (!message && decl.argument.type === 'NewExpression') {
+    constructor = decl.argument.callee.name;
+    message = decl.argument.arguments[0].value;
+  }
+
+  if (tags.length === 0) tags.push({
+    params: [ Valtype.i32 ],
+    results: [],
+    idx: tags.length
+  });
+
+  let exceptId = exceptions.push({ constructor, message }) - 1;
+  let tagIdx = tags[0].idx;
+
+  // todo: write a description of how this works lol
+
+  return [
+    [ Opcodes.i32_const, signedLEB128(exceptId) ],
+    [ Opcodes.throw, tagIdx ]
+  ];
+};
+
 const generateEmpty = (scope, decl) => {
   return [];
 };
@@ -717,6 +750,7 @@ const generateFunc = (scope, decl) => {
     locals: {},
     returns: [],
     memory: false,
+    throws: false,
     name
   };
 
@@ -743,6 +777,7 @@ const generateFunc = (scope, decl) => {
     returns: innerScope.returns,
     locals: innerScope.locals,
     memory: innerScope.memory,
+    throws: innerScope.throws,
     index: currentFuncIndex++
   };
   funcIndex[name] = func.index;
@@ -888,6 +923,8 @@ const generateCode = (scope, decl) => {
 
 export default program => {
   globals = {};
+  tags = [];
+  exceptions = [];
   funcs = [];
   funcIndex = {};
   depth = [];
@@ -934,5 +971,5 @@ export default program => {
   // if blank main func and other exports, remove it
   if (funcs[funcs.length - 1].wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(funcs.length - 1, 1);
 
-  return { funcs, globals };
+  return { funcs, globals, tags, exceptions };
 };
