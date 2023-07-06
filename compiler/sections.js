@@ -8,7 +8,7 @@ const createSection = (type, data) => [
 
 const allImportFuncs = [ 'p', 'c', 'a' ];
 
-export default (funcs, globals, flags) => {
+export default (funcs, globals, tags, flags) => {
   const types = [], typeCache = {};
 
   const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : (process.argv.includes('-O2') ? 2 : 3));
@@ -83,7 +83,17 @@ export default (funcs, globals, flags) => {
     Section.memory,
     encodeVector([ [ 0x00, 0x01 ] ])
   );
+
+  // export memory if used
   if (usesMemory) exports.unshift([ ...encodeString('$'), ExportDesc.mem, 0x00 ]);
+
+  const tagSection = tags.length === 0 ? [] : createSection(
+    Section.tag,
+    encodeVector(tags.map(x => [ 0x00, getType(x.params, x.results) ]))
+  );
+
+  // export first tag if used
+  if (tags.length !== 0) exports.unshift([ ...encodeString('0'), ExportDesc.tag, 0x00 ]);
 
   const exportSection = createSection(
     Section.export,
@@ -134,6 +144,7 @@ export default (funcs, globals, flags) => {
     ...importSection,
     ...funcSection,
     ...memorySection,
+    ...tagSection,
     ...globalSection,
     ...exportSection,
     ...codeSection
