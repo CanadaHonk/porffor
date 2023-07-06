@@ -20,7 +20,7 @@ console.log();
 let prev = '';
 const run = async (source, _context, _filename, callback) => {
   let toRun = prev + source.trim();
-  if (source.includes('=')) toRun += ';' + source.split('=')[0].trim().split(' ').pop();
+  if (source.includes(' = ')) toRun += ';' + source.split('=')[0].trim().split(' ').pop();
 
   const flags = [];
 
@@ -31,7 +31,7 @@ const run = async (source, _context, _filename, callback) => {
   const { exports, wasm } = await compile(toRun, flags);
   fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
-  if (source.includes('=')) prev += source + '\n';
+  if (source.includes(' = ')) prev += source + '\n';
 
   const ret = exports.main();
   callback(null, ret);
