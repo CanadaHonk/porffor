@@ -327,15 +327,14 @@ export default (funcs, globals) => {
         // does not work with leb encoded
         if (lastInst.length > 2 || lastLastInst.length > 2) continue;
 
-        wasm.splice(i - 2, 2); // remove consts
-        i -= 2;
-
         let a = lastLastInst[1];
         let b = lastInst[1];
 
-        inst[1] = performWasmOp(inst[0], a, b);
-        if (optLog) log('opt', `inlined math op (${a} ${inst[0].toString(16)} ${b} -> ${inst[1]})`);
-        inst[0] = Opcodes.const;
+        const val = performWasmOp(inst[0], a, b);
+        if (optLog) log('opt', `inlined math op (${a} ${inst[0].toString(16)} ${b} -> ${val})`);
+
+        wasm.splice(i - 2, 3, ...number(val)); // remove consts, math op and add new const
+        i -= 2;
       }
     }
 
