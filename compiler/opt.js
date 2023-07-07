@@ -253,10 +253,11 @@ export default (funcs, globals) => {
 
     // remove unneeded var: remove pass
     // locals only got once. we don't need to worry about sets/else as these are only candidates and we will check for matching set + get insts in wasm
-    const unneededCandidates = Object.keys(getCount).filter(x => getCount[x] === 0 || (getCount[x] === 1 && setCount[x] === 0)).map(x => parseInt(x));
+    let unneededCandidates = Object.keys(getCount).filter(x => getCount[x] === 0 || (getCount[x] === 1 && setCount[x] === 0)).map(x => parseInt(x));
     if (optLog) log('opt', `found unneeded locals candidates: ${unneededCandidates.join(', ')} (${unneededCandidates.length}/${Object.keys(getCount).length})`);
 
-    if (unneededCandidates.length > 0) for (let i = 0; i < wasm.length; i++) {
+    // note: disabled for now due to instability
+    if (unneededCandidates.length > 0 && false) for (let i = 0; i < wasm.length; i++) {
       if (i < 1) continue;
 
       const inst = wasm[i];
@@ -271,7 +272,7 @@ export default (funcs, globals) => {
         wasm.splice(i - 1, 2); // remove insts
         i -= 2;
         delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
-        if (optLog) log('opt', `removed redundant local (getset ${inst[1]})`);
+        if (optLog) log('opt', `removed redundant local (get set ${inst[1]})`);
       }
 
       if (inst[0] === Opcodes.local_tee && unneededCandidates.includes(inst[1])) {
@@ -281,8 +282,25 @@ export default (funcs, globals) => {
 
         wasm.splice(i, 1); // remove inst
         i--;
-        delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
-        if (optLog) log('opt', `removed redundant local (tee ${inst[1]})`);
+
+        const localName = Object.keys(f.locals)[inst[1]];
+        const removedIdx = f.locals[localName].idx;
+        delete f.locals[localName]; // remove from locals
+
+        // fix locals index for locals after
+        for (const x in f.locals) {
+          const local = f.locals[x];
+          if (local.idx > removedIdx) local.idx--;
+        }
+
+        for (const inst of wasm) {
+          if ((inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) && inst[1] > removedIdx) inst[1]--;
+        }
+
+        unneededCandidates.splice(unneededCandidates.indexOf(inst[1]), 1);
+        unneededCandidates = unneededCandidates.map(x => x > removedIdx ? (x - 1) : x);
+
+        if (optLog) log('opt', `removed redundant local ${localName} (tee ${inst[1]})`);
       }
     }
 
