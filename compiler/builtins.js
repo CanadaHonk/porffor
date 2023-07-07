@@ -18,6 +18,24 @@ export const BuiltinVars = function() {
 
   this.Infinity = number(Infinity);
   this.Infinity.floatOnly = true;
+
+  switch (valtype) {
+    case 'i32':
+      this.__Number_MAX_VALUE = number(2147483647);
+      this.__Number_MIN_VALUE = number(-2147483648);
+      break;
+
+    case 'i64':
+      // todo: we use 32 bit limits here as we cannot encode 64 bit integers yet
+      this.__Number_MAX_VALUE = number(2147483647);
+      this.__Number_MIN_VALUE = number(-2147483648);
+      break;
+
+    case 'f64':
+      this.__Number_MAX_VALUE = number(1.7976931348623157e+308);
+      this.__Number_MIN_VALUE = number(5e-324);
+      break;
+  }
 };
 
 export const BuiltinFuncs = function() {
