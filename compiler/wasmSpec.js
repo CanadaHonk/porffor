@@ -110,6 +110,8 @@ export const Opcodes = {
   f64_gt: 0x64,
   f64_ge: 0x66,
 
+  f64_abs: 0x99,
+
   f64_add: 0xa0,
   f64_sub: 0xa1,
   f64_mul: 0xa2,
