@@ -72,7 +72,7 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
 - nicer errors
-- begin `Math` (`Math.sqrt`, etc)
+- begin `Math` (`Math.sqrt`, `Math.abs`, `Math.floor`, `Math.sign`, `Math.round`, `Math.trunc`)
 - experiment with hack for supporting multiple values as outputs
 - exceptions
   - `try { } finally {}`
