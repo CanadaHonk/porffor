@@ -36,20 +36,15 @@ export const Builtins = function() {
   this.isFinite = {
     floatOnly: true,
     params: [ valtypeBinary ],
-    locals: [],
+    locals: [ valtypeBinary ],
     returns: [ valtypeBinary ],
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_sub ],
+      [ Opcodes.local_tee, 1 ],
+      [ Opcodes.local_get, 1 ],
       [ Opcodes.f64_eq ],
-      [ Opcodes.if, Valtype.i32 ],
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_abs ],
-      ...number(Infinity),
-      [ Opcodes.f64_ne ],
-      [ Opcodes.else ],
-      [ Opcodes.i32_const, 0 ],
-      [ Opcodes.end ],
       Opcodes.i32_from
     ]
   };
