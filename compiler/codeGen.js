@@ -373,6 +373,8 @@ const generateCall = (scope, decl) => {
 
   let idx = funcIndex[name] ?? importedFuncs[name];
   if (idx === undefined && builtins[name]) {
+    if (builtins[name].floatOnly && valtype !== 'f64') throw new Error(`Cannot use built-in ${name} with integer valtype`);
+
     includeBuiltin(scope, name);
     idx = funcIndex[name];
 
