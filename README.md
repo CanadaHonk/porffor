@@ -67,6 +67,7 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - supports i32, i64, and f64 for valtypes
 - `NaN` and `Infinity` (f64 only)
 - `isNaN` and `isFinite` (f64 only)
+- most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`)
 
 ## soon todo
 - more math operators (`**`, etc)
