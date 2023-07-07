@@ -31,8 +31,29 @@ export const Builtins = function() {
       Opcodes.i32_from
     ]
   };
-
   this.__Number_isNaN = this.isNaN;
+
+  this.isFinite = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_eq ],
+      [ Opcodes.if, Valtype.i32 ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_abs ],
+      ...number(Infinity),
+      [ Opcodes.f64_ne ],
+      [ Opcodes.else ],
+      [ Opcodes.i32_const, 0 ],
+      [ Opcodes.end ],
+      Opcodes.i32_from
+    ]
+  };
+  this.__Number_isFinite = this.isFinite;
 
   this.__Math_sqrt = {
     params: [ valtypeBinary ],
