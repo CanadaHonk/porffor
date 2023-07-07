@@ -1,7 +1,7 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { signedLEB128, unsignedLEB128 } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
-import { Builtins, importedFuncs } from "./builtins.js";
+import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from "./builtins.js";
 import { number, i32x4 } from "./embedding.js";
 
 let globals = {};
@@ -10,7 +10,8 @@ let funcs = [];
 let exceptions = [];
 let funcIndex = {};
 let currentFuncIndex = Object.keys(importedFuncs).length;
-let builtins = {};
+let builtinFuncs = {};
+let builtinVars = {};
 
 const debug = str => {
   const code = [];
@@ -178,17 +179,9 @@ const lookupName = (scope, name) => {
 const generateIdent = (scope, decl) => {
   let local = scope.locals[decl.name];
 
-  if (decl.name === 'undefined') return number(UNDEFINED);
-  if (decl.name === 'null') return number(NULL);
-
-  if (decl.name === 'NaN') {
-    if (valtype[0] === 'i') throw new Error(`Cannot use NaN with integer valtype`);
-    return number(NaN);
-  }
-
-  if (decl.name === 'Infinity') {
-    if (valtype[0] === 'i') throw new Error(`Cannot use Infinity with integer valtype`);
-    return number(Infinity);
+  if (builtinVars[decl.name]) {
+    if (builtinVars[decl.name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${decl.name} with integer valtype`);
+    return builtinVars[decl.name];
   }
 
   if (local === undefined) {
@@ -268,7 +261,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, returns, memory }) =>
 };
 
 const includeBuiltin = (scope, builtin) => {
-  const code = builtins[builtin];
+  const code = builtinFuncs[builtin];
   if (code.wasm) return asmFunc(builtin, code);
 
   return code.body.map(x => generate(scope, x));
@@ -372,8 +365,8 @@ const generateCall = (scope, decl) => {
   if (!name) return todo(`only literal callees (got ${decl.callee.type})`);
 
   let idx = funcIndex[name] ?? importedFuncs[name];
-  if (idx === undefined && builtins[name]) {
-    if (builtins[name].floatOnly && valtype !== 'f64') throw new Error(`Cannot use built-in ${name} with integer valtype`);
+  if (idx === undefined && builtinFuncs[name]) {
+    if (builtinFuncs[name].floatOnly && valtype !== 'f64') throw new Error(`Cannot use built-in ${name} with integer valtype`);
 
     includeBuiltin(scope, name);
     idx = funcIndex[name];
@@ -429,7 +422,6 @@ const generateCall = (scope, decl) => {
 };
 
 // bad hack for undefined and null working without additional logic
-const UNDEFINED = 0, NULL = 0;
 const DEFAULT_VALUE = {
   type: 'Identifier',
   name: 'undefined'
@@ -1007,7 +999,8 @@ export default program => {
 
   Opcodes.sqrt = [ Opcodes.unreachable ]; // todo
 
-  builtins = new Builtins();
+  builtinFuncs = new BuiltinFuncs();
+  builtinVars = new BuiltinVars();
 
   program.id = { name: 'main' };
 
