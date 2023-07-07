@@ -23,6 +23,8 @@ export const encodeLocal = (count, type) => [
 ];
 
 export const signedLEB128 = n => {
+  // todo: this only works with integers within 32 bit range
+
   // just input for small numbers (for perf as common)
   if (n >= 0 && n <= 63) return [ n ];
   if (n >= -64 && n <= 0) return [ 128 + n ];
