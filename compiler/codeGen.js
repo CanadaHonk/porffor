@@ -242,7 +242,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, returns, memory }) =>
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
-  const nameParam = i => params.length === 1 ? 'x' : ['a', 'b', 'c'][i];
+  const nameParam = i => i >= params.length ? ['a', 'b', 'c'][i - params.length] : ['x', 'y', 'z'][i];
 
   const allLocals = params.concat(localTypes);
   const locals = {};
