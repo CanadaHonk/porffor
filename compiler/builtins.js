@@ -6,8 +6,8 @@ export const importedFuncs = { print: 0, printChar: 1, assert: 2 };
 
 const char = c => number(c.charCodeAt(0));
 
-export const makeBuiltins = () => ({
-  __console_log: { // `function __console_log(x) { print(x); printChar('\\n'); }`
+export const Builtins = function() {
+  this.__console_log = {
     params: [ valtypeBinary ],
     locals: [],
     returns: [],
@@ -17,9 +17,24 @@ export const makeBuiltins = () => ({
       ...char('\n'),
       [ Opcodes.call, importedFuncs.printChar ]
     ]
-  },
+  };
 
-  __Math_sqrt: {
+  this.isNaN = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_ne ],
+      Opcodes.i32_from
+    ]
+  };
+
+  this.__Number_isNaN = this.isNaN;
+
+  this.__Math_sqrt = {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
@@ -27,9 +42,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 0 ],
       [ ...Opcodes.sqrt ]
     ]
-  },
+  };
 
-  __SIMD_i32x4_load: {
+  this.__SIMD_i32x4_load = {
     params: [ Valtype.i32 ],
     locals: [],
     returns: [ Valtype.v128 ],
@@ -38,9 +53,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 0 ],
       [ ...Opcodes.v128_load, 0, 0 ]
     ]
-  },
+  };
 
-  __SIMD_i32x4_splat: {
+  this.__SIMD_i32x4_splat = {
     params: [ Valtype.i32 ],
     locals: [],
     returns: [ Valtype.v128 ],
@@ -48,9 +63,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 0 ],
       [ ...Opcodes.i32x4_splat ],
     ]
-  },
+  };
 
-  __SIMD_i16x8_create: {
+  this.__SIMD_i16x8_create = {
     params: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32 ],
     locals: [],
     returns: [ Valtype.v128 ],
@@ -73,9 +88,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 7 ],
       [ ...Opcodes.i16x8_replace_lane, 7 ],
     ]
-  },
+  };
 
-  __SIMD_i32x4_dot_i16x8: {
+  this.__SIMD_i32x4_dot_i16x8 = {
     params: [ Valtype.v128, Valtype.v128 ],
     locals: [],
     returns: [ Valtype.v128 ],
@@ -84,9 +99,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 1 ],
       [ ...Opcodes.i32x4_dot_i16x8_s ]
     ]
-  },
+  };
 
-  __SIMD_i32x4_create: {
+  this.__SIMD_i32x4_create = {
     params: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32 ],
     locals: [],
     returns: [ Valtype.v128 ],
@@ -101,9 +116,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 3 ],
       [ ...Opcodes.i32x4_replace_lane, 3 ],
     ]
-  },
+  };
 
-  __SIMD_i32x4_add: {
+  this.__SIMD_i32x4_add = {
     params: [ Valtype.v128, Valtype.v128 ],
     locals: [],
     returns: [ Valtype.v128 ],
@@ -112,9 +127,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 1 ],
       [ ...Opcodes.i32x4_add ]
     ]
-  },
+  };
 
-  __SIMD_i32x4_sub: {
+  this.__SIMD_i32x4_sub = {
     params: [ Valtype.v128, Valtype.v128 ],
     locals: [],
     returns: [ Valtype.v128 ],
@@ -123,9 +138,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 1 ],
       [ ...Opcodes.i32x4_sub ]
     ]
-  },
+  };
 
-  __SIMD_i32x4_mul: {
+  this.__SIMD_i32x4_mul = {
     params: [ Valtype.v128, Valtype.v128 ],
     locals: [],
     returns: [ Valtype.v128 ],
@@ -134,9 +149,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 1 ],
       [ ...Opcodes.i32x4_mul ]
     ]
-  },
+  };
 
-  __SIMD_i32x4_get0: {
+  this.__SIMD_i32x4_get0 = {
     params: [ Valtype.v128 ],
     locals: [],
     returns: [ Valtype.i32 ],
@@ -146,7 +161,7 @@ export const makeBuiltins = () => ({
     ],
   },
 
-  __SIMD_i32x4_get1: {
+  this.__SIMD_i32x4_get1 = {
     params: [ Valtype.v128 ],
     locals: [],
     returns: [ Valtype.i32 ],
@@ -154,9 +169,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 0 ],
       [ ...Opcodes.i32x4_extract_lane, 1 ],
     ],
-  },
+  };
 
-  __SIMD_i32x4_get2: {
+  this.__SIMD_i32x4_get2 = {
     params: [ Valtype.v128 ],
     locals: [],
     returns: [ Valtype.i32 ],
@@ -164,9 +179,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 0 ],
       [ ...Opcodes.i32x4_extract_lane, 2 ],
     ],
-  },
+  };
 
-  __SIMD_i32x4_get3: {
+  this.__SIMD_i32x4_get3 = {
     params: [ Valtype.v128 ],
     locals: [],
     returns: [ Valtype.i32 ],
@@ -174,9 +189,9 @@ export const makeBuiltins = () => ({
       [ Opcodes.local_get, 0 ],
       [ ...Opcodes.i32x4_extract_lane, 3 ],
     ],
-  },
+  };
 
-  __SIMD_i32x4_shuffle_000c: {
+  this.__SIMD_i32x4_shuffle_000c = {
     params: [ Valtype.v128 ],
     locals: [],
     returns: [ Valtype.v128 ],
@@ -185,9 +200,9 @@ export const makeBuiltins = () => ({
       ...i32x4(0, 0, 0, 0),
       [ ...Opcodes.i8x16_shuffle, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 8, 9, 10, 11 ], // i32x4 (a, b, c, d) -> i32x4 (0, 0, 0, c)
     ]
-  },
+  };
 
-  __SIMD_i32x4_shuffle_00ab: {
+  this.__SIMD_i32x4_shuffle_00ab = {
     params: [ Valtype.v128 ],
     locals: [],
     returns: [ Valtype.v128 ],
@@ -196,8 +211,8 @@ export const makeBuiltins = () => ({
       ...i32x4(0, 0, 0, 0),
       [ ...Opcodes.i8x16_shuffle, 16, 16, 16, 16, 16, 16, 16, 16, 0, 1, 2, 3, 4, 5, 6, 7 ], // i32x4 (a, b, c, d) -> i32x4 (0, 0, a, b)
     ]
-  }
-});
+  };
+};
 
 /* for (const x in builtins) {
   if (x.wasm) continue;

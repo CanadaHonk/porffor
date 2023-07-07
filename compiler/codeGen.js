@@ -1,7 +1,7 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { signedLEB128, unsignedLEB128 } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
-import { makeBuiltins, importedFuncs } from "./builtins.js";
+import { Builtins, importedFuncs } from "./builtins.js";
 import { number, i32x4 } from "./embedding.js";
 
 let globals = {};
@@ -1007,7 +1007,7 @@ export default program => {
 
   Opcodes.sqrt = [ Opcodes.unreachable ]; // todo
 
-  builtins = makeBuiltins();
+  builtins = new Builtins();
 
   program.id = { name: 'main' };
 
