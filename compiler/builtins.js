@@ -6,7 +6,21 @@ export const importedFuncs = { print: 0, printChar: 1, assert: 2 };
 
 const char = c => number(c.charCodeAt(0));
 
-export const Builtins = function() {
+export const UNDEFINED = 0;
+export const NULL = 0;
+
+export const BuiltinVars = function() {
+  this.undefined = number(UNDEFINED);
+  this.null = number(NULL);
+
+  this.NaN = number(NaN);
+  this.NaN.floatOnly = true;
+
+  this.Infinity = number(Infinity);
+  this.Infinity.floatOnly = true;
+};
+
+export const BuiltinFuncs = function() {
   this.__console_log = {
     params: [ valtypeBinary ],
     locals: [],
