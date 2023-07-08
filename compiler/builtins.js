@@ -130,6 +130,16 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  // just echo given for now
+  this.Number = {
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ]
+    ]
+  };
+
   this.__console_log = {
     params: [ valtypeBinary ],
     locals: [],
