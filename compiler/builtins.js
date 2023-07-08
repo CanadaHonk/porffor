@@ -188,6 +188,21 @@ export const BuiltinFuncs = function() {
   };
   this.__Number_isFinite = this.isFinite;
 
+  // todo: should be false for +-Infinity
+  this.__Number_isInteger = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_trunc ],
+      [ Opcodes.f64_eq ],
+      Opcodes.i32_from
+    ]
+  };
+
   this.__Math_sqrt = {
     floatOnly: true,
     params: [ valtypeBinary ],
