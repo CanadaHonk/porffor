@@ -68,7 +68,7 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - `NaN` and `Infinity` (f64 only)
 - `isNaN` and `isFinite` (f64 only)
 - most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`, `isInteger`, `isSafeInteger`) (some f64 only)
-- some `Math` funcs (`Math.sqrt`, `Math.abs`, `Math.floor`, `Math.sign`, `Math.round`, `Math.trunc`, `Math.clz32`) (f64 only)
+- some `Math` funcs (`Math.sqrt`, `Math.abs`, `Math.floor`, `Math.sign`, `Math.round`, `Math.trunc`, `Math.clz32`, `Math.fround`) (f64 only)
 
 ## soon todo
 - more math operators (`**`, etc)

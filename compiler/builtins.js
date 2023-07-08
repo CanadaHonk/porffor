@@ -316,6 +316,18 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  this.__Math_fround = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f32_demote_f64 ],
+      [ Opcodes.f64_promote_f32 ]
+    ]
+  };
+
   this.__SIMD_i32x4_load = {
     params: [ Valtype.i32 ],
     locals: [],

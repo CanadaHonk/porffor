@@ -133,6 +133,9 @@ export const Opcodes = {
   i64_extend_i32_s: 0xac,
   i64_extend_i32_u: 0xad,
 
+  f32_demote_f64: 0xb6,
+  f64_promote_f32: 0xbb,
+
   f64_convert_i32_u: 0xb8,
   i32_trunc_sat_f64_s: [ 0xfc, 0x02 ],
   i32_trunc_sat_f64_u: [ 0xfc, 0x03 ],
