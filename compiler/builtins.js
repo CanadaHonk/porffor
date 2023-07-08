@@ -130,7 +130,7 @@ export const BuiltinFuncs = function() {
     ]
   };
 
-  // just echo given for now
+  // just echo given for now, for type constructors
   this.Number = {
     params: [ valtypeBinary ],
     locals: [],
@@ -139,6 +139,8 @@ export const BuiltinFuncs = function() {
       [ Opcodes.local_get, 0 ]
     ]
   };
+
+  this.Boolean = this.Number;
 
   this.__console_log = {
     params: [ valtypeBinary ],
