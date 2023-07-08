@@ -216,14 +216,27 @@ const generateReturn = (scope, decl) => {
 
 const generateBinaryExp = (scope, decl) => {
   // TODO: this assumes all variables are numbers !!!
+  let ops = operatorOpcode[valtype][decl.operator];
 
-  const opcode = operatorOpcode[valtype][decl.operator];
-  if (!opcode) throw new Error(`unknown operator ${decl.operator}`)
+  // some complex ops are implemented as builtin funcs
+  const builtinName = `${valtype}_${decl.operator}`;
+  if (!ops && builtinFuncs[builtinName]) {
+    includeBuiltin(scope, builtinName);
+    const idx = funcIndex[builtinName];
+
+    ops = [
+      [ Opcodes.call, idx ]
+    ];
+  }
+
+  if (!ops) throw new Error(`unknown operator ${decl.operator}`);
+
+  if (!Array.isArray(ops)) ops = [ [ ops ] ];
 
   const out = [
     ...generate(scope, decl.left),
     ...generate(scope, decl.right),
-    Array.isArray(opcode) ? opcode : [ opcode ]
+    ...ops
   ];
 
   if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from);
