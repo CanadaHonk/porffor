@@ -62,6 +62,26 @@ export const BuiltinVars = function() {
 };
 
 export const BuiltinFuncs = function() {
+  this['f64_%'] = {
+    params: [ valtypeBinary, valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [ // x - (x // y) * y
+      [ Opcodes.local_get, 0 ], // x
+
+      [ Opcodes.local_get, 0 ], // x
+      [ Opcodes.local_get, 1 ], // y
+
+      [ Opcodes.f64_div ],
+      [ Opcodes.f64_trunc ],
+
+      [ Opcodes.local_get, 1 ], // y
+      [ Opcodes.f64_mul ],
+
+      [ Opcodes.f64_sub ]
+    ]
+  };
+
   this.__console_log = {
     params: [ valtypeBinary ],
     locals: [],
