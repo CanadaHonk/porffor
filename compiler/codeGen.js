@@ -231,7 +231,7 @@ const performOp = (scope, op) => {
     ];
   }
 
-  if (!ops) throw new Error(`unknown operator ${op}`);
+  if (!ops) return todo(`operator ${op} not implemented yet`); // throw new Error(`unknown operator ${op}`);
 
   if (!Array.isArray(ops)) ops = [ [ ops ] ];
   return ops;
@@ -442,7 +442,7 @@ const generateCall = (scope, decl) => {
 const generateNew = (scope, decl) => {
   // hack: basically treat this as a normal call for builtins for now
   const name = decl.callee.name;
-  if (!builtinFuncs[name]) throw new Error(`new statement is not supported yet (new ${name})`);
+  if (!builtinFuncs[name]) return todo(`new statement is not supported yet (new ${name})`);
 
   return generateCall(scope, decl);
 };
