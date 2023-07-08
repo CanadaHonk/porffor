@@ -459,8 +459,17 @@ const generateVar = (scope, decl, globalWanted = false) => {
       continue;
     }
 
-    const idx = Object.keys(target).length;
-    target[name] = { idx, type: valtypeBinary };
+    let idx;
+    // already declared
+    if (target[name]) {
+      // parser should catch this but sanity check anyway
+      if (decl.kind !== 'var') throw new SyntaxError(`Identifier '${name}' has already been declared`);
+
+      idx = target[name].idx;
+    } else {
+      idx = Object.keys(target).length;
+      target[name] = { idx, type: valtypeBinary };
+    }
 
     out.push(...generate(scope, x.init ?? DEFAULT_VALUE));
 
