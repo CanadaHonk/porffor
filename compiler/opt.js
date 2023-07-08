@@ -16,7 +16,7 @@ const performWasmOp = (op, a, b) => {
 };
 
 export default (funcs, globals) => {
-  const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : (process.argv.includes('-O2') ? 2 : 3));
+  const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
   if (optLevel === 0) return;
 
   const tailCall = process.argv.includes('-tail-call');

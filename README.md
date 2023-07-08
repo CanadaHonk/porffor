@@ -120,11 +120,11 @@ you can also use deno (`deno run -A ...` instead of `node ...`)
 
 ### flags
 - `-raw` for no info logs (just raw js output)
-- `-valtype=i32|i64|f64` to set valtype, i32 by default (experimental)
+- `-valtype=i32|i64|f64` to set valtype, f64 by default
 - `-O0` to disable opt
-- `-O1` to enable basic opt
-- `-O2` to enable advanced opt (inlining, treeshake wasm imports)
-- `-O3` (default) to enable advanceder opt (precompute const math)
+- `-O1` (default) to enable basic opt (simplify insts, treeshake wasm imports)
+- `-O2` to enable advanced opt (inlining)
+- `-O3` to enable advanceder opt (precompute const math)
 - `-no-run` to not run wasm output, just compile
 - `-opt-log` to log some opts
 - `-code-log` to log some codegen (you probably want `-funcs`)

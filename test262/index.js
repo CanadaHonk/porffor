@@ -15,7 +15,7 @@ const _tests = new Test262Stream(test262Path, {
 
 const prelude = fs.readFileSync('test262/prelude.js', 'utf8');
 
-let valtype = 'i32';
+let valtype = 'f64';
 
 const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
 if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
@@ -149,7 +149,7 @@ for await (const test of tests) {
   if (!resultOnly) process.stdout.write(`\r${' '.repeat(200)}\r`);
   if (!resultOnly) console.log(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
 
-  // if (!pass) console.log(result.message);
+  if (process.argv.includes('-log-errors') && !pass) console.log(result.message);
 
   let y = dirs;
   for (const x of file.split('/')) {

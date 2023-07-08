@@ -1011,7 +1011,7 @@ export default program => {
   depth = [];
   currentFuncIndex = Object.keys(importedFuncs).length;
 
-  globalThis.valtype = 'i32';
+  globalThis.valtype = 'f64';
 
   const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
   if (valtypeOpt) valtype = valtypeOpt.split('=')[1];

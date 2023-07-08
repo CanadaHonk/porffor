@@ -15,7 +15,7 @@ const _tests = new Test262Stream(test262Path, {
 
 const prelude = fs.readFileSync('test262/prelude.js', 'utf8');
 
-let valtype = 'i32';
+let valtype = 'f64';
 
 const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
 if (valtypeOpt) valtype = valtypeOpt.split('=')[1];

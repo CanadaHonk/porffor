@@ -737,8 +737,8 @@ console.log(sum);`,
 
     addOptions(examples_dropdown, Object.keys(examples), defaultExample);
 
-    addOptions(valtype_dropdown, [ 'i32', 'i64', 'f64' ], 'i32');
-    addOptions(opt_dropdown, [ 0, 1, 2, 3 ], 3);
+    addOptions(valtype_dropdown, [ 'i32', 'i64', 'f64' ], 'f64');
+    addOptions(opt_dropdown, [ 0, 1, 2, 3 ], 1);
 
     examples_dropdown.oninput = () => {
       code = examples[examples_dropdown.value];

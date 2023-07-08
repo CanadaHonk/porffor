@@ -12,25 +12,24 @@ const allImportFuncs = [ 'p', 'c', 'a' ];
 export default (funcs, globals, tags, flags) => {
   const types = [], typeCache = {};
 
-  const optLevel = process.argv.includes('-O0') ? 0 : (process.argv.includes('-O1') ? 1 : (process.argv.includes('-O2') ? 2 : 3));
+  const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
 
   const getType = (params, returns) => {
     const hash = `${params.join(',')}_${returns.join(',')}`;
     if (optLog) log('sections', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
-    if (optLevel >= 2 && typeCache[hash] !== undefined) return typeCache[hash];
+    if (optLevel >= 1 && typeCache[hash] !== undefined) return typeCache[hash];
 
     const type = [ FuncType, ...encodeVector(params), ...encodeVector(returns) ];
     const idx = types.length;
 
     types.push(type);
 
-    if (optLevel >= 2) typeCache[hash] = idx;
-    return idx;
+    return typeCache[hash] = idx;
   };
 
   let importFuncs = [];
 
-  if (optLevel < 2) {
+  if (optLevel < 1) {
     importFuncs = allImportFuncs;
   } else {
     // tree shake imports
