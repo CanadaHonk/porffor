@@ -73,16 +73,17 @@ const hacks = [
   }
 ];
 
-const run = async ({ contents }, flags) => {
+const run = async ({ contents, attrs }) => {
   const singleContents = contents.split('---*/').pop();
 
-  let toRun = prelude + singleContents;
+  let toRun = attrs.flags.raw ? contents : (prelude + singleContents);
 
   for (const hack of hacks) {
     toRun = hack(toRun);
   }
 
-  // console.log(toRun);
+  const flags = [];
+  if (attrs.flags.module) flags.push('module');
 
   let exports;
   try {
@@ -126,10 +127,7 @@ for await (const test of tests) {
   const expected = test.attrs.negative ? true : false;
   const expectedType = test.attrs.negative?.type;
 
-  const flags = [];
-  if (test.attrs.flags.module) flags.push('module');
-
-  const [ stage, result ] = await run(test, flags);
+  const [ stage, result ] = await run(test);
   const errored = stage !== 2;
 
   let pass = errored === expected;
@@ -194,8 +192,7 @@ const table = (overall, ...arr) => {
   console.log(out);
 };
 
-const bar = (...arr) => {
-  const barWidth = 120;
+const bar = (barWidth, ...arr) => {
   const total = arr[0];
 
   let out = '';
@@ -230,7 +227,7 @@ const nextMajorPercent = Math.floor(percent) + 1;
 const togo = next => `${Math.floor((total * next / 100) - passes)} to go until ${next}%`;
 
 console.log(`\u001b[1m${whatTests}: ${passes}/${total} passed - ${percent}%${whatTests === 'test' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
-bar(total, passes, fails, runtimeErrors, compileErrors + todos + wasmErrors, 0);
+bar(140, total, passes, fails, runtimeErrors, compileErrors + todos + wasmErrors, 0);
 process.stdout.write('  ');
 table(whatTests === 'test', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, todos);
 
@@ -240,10 +237,23 @@ if (whatTests === 'test') {
   for (const dir of dirs.keys()) {
     const results = dirs.get(dir);
     process.stdout.write(dir + ' '.repeat(14 - dir.length));
-    bar(results.total, results.pass ?? 0, results.fail ?? 0, results.runtimeError ?? 0, (results.compileError ?? 0) + (results.todo ?? 0) + (results.wasmError ?? 0), 0);
+    bar(120, results.total, results.pass ?? 0, results.fail ?? 0, results.runtimeError ?? 0, (results.compileError ?? 0) + (results.todo ?? 0) + (results.wasmError ?? 0), 0);
     process.stdout.write(' '.repeat(14 + 2));
     table(false, results.total, results.pass ?? 0, results.fail ?? 0, results.runtimeError ?? 0, results.wasmError ?? 0, results.compileError ?? 0, results.todo ?? 0);
     console.log();
+
+    if (process.argv.includes('-subdirs')) {
+      for (const dir2 of results.keys()) {
+        if (['total', 'pass', 'fail', 'runtimeError', 'compileError', 'todo', 'wasmError'].includes(dir2) || dir2.endsWith('.js')) continue;
+
+        const results2 = results.get(dir2);
+        process.stdout.write(' '.repeat(8) + dir2 + ' '.repeat(30 - dir2.length));
+        bar(80, results2.total, results2.pass ?? 0, results2.fail ?? 0, results2.runtimeError ?? 0, (results2.compileError ?? 0) + (results2.todo ?? 0) + (results2.wasmError ?? 0), 0);
+        process.stdout.write(' '.repeat(8) + ' '.repeat(30 + 2));
+        table(false, results2.total, results2.pass ?? 0, results2.fail ?? 0, results2.runtimeError ?? 0, results2.wasmError ?? 0, results2.compileError ?? 0, results2.todo ?? 0);
+      }
+      console.log();
+    }
   }
 
   console.log(`\n\n\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastPasses.includes(x)).join('\n')}\n\n`);
