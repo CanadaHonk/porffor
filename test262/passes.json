@@ -1,0 +1,1 @@
+{"passes":["built-ins/Number/isInteger/integers.js","built-ins/Number/isInteger/nan.js","built-ins/Number/isInteger/non-integers.js"],"total":9}

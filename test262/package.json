@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "test262-stream": "github:CanadaHonk/test262-stream"
+  },
+  "type": "module"
+}

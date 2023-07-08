@@ -3,3 +3,5 @@
 
 node_modules
 package-lock.json
+
+/test262/test262
