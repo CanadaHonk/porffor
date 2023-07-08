@@ -572,6 +572,11 @@ const generateUnary = (scope, decl) => {
       if (valtype !== 'i32') out.push(Opcodes.i32_from);
       break;
 
+    case 'void':
+      // drop current expression value after running, give undefined
+      out.push([ Opcodes.drop ], ...number(UNDEFINED));
+      break;
+
     default:
       return todo(`unary operator ${decl.operator} not implemented yet`);
   }
