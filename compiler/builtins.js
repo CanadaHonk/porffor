@@ -1,4 +1,4 @@
-import { Opcodes, Valtype } from "./wasmSpec.js";
+import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { number, i32x4 } from "./embedding.js";
 // import parse from "./parse.js";
 
@@ -199,6 +199,28 @@ export const BuiltinFuncs = function() {
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_trunc ],
       [ Opcodes.f64_eq ],
+      Opcodes.i32_from
+    ]
+  };
+
+  this.__Number_isSafeInteger = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_trunc ],
+      [ Opcodes.f64_ne ],
+      [ Opcodes.if, Blocktype.void ],
+      ...number(0),
+      [ Opcodes.return ],
+      [ Opcodes.end ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_abs ],
+      ...number(9007199254740991),
+      [ Opcodes.f64_le ],
       Opcodes.i32_from
     ]
   };
