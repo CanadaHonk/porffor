@@ -72,6 +72,9 @@ const generate = (scope, decl) => {
     case 'CallExpression':
       return generateCall(scope, decl);
 
+    case 'NewExpression':
+      return generateNew(scope, decl);
+
     case 'Literal':
       return generateLiteral(scope, decl);
 
@@ -434,6 +437,14 @@ const generateCall = (scope, decl) => {
   out.push([ Opcodes.call, idx ]);
 
   return out;
+};
+
+const generateNew = (scope, decl) => {
+  // hack: basically treat this as a normal call for builtins for now
+  const name = decl.callee.name;
+  if (!builtinFuncs[name]) throw new Error(`new statement is not supported yet (new ${name})`);
+
+  return generateCall(scope, decl);
 };
 
 // bad hack for undefined and null working without additional logic
