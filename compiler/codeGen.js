@@ -530,7 +530,9 @@ const generateUnary = (scope, decl) => {
         return number(-1 * decl.argument.value);
       }
 
-      out.push(...number(-1), [ Opcodes.mul ]);
+      if (valtype === 'f64') out.push([ Opcodes.f64_neg ]);
+        else out.push(...number(-1), [ Opcodes.mul ]);
+
       break;
 
     case '!':
