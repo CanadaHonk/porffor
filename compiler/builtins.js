@@ -189,12 +189,80 @@ export const BuiltinFuncs = function() {
   this.__Number_isFinite = this.isFinite;
 
   this.__Math_sqrt = {
+    floatOnly: true,
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
     wasm: [
       [ Opcodes.local_get, 0 ],
-      [ ...Opcodes.sqrt ]
+      [ Opcodes.f64_sqrt ]
+    ]
+  };
+
+  this.__Math_abs = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_abs ]
+    ]
+  };
+
+  this.__Math_sign = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      ...number(1),
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_copysign ]
+    ]
+  };
+
+  this.__Math_floor = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_floor ]
+    ]
+  };
+
+  this.__Math_ceil = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_ceil ]
+    ]
+  };
+
+  this.__Math_round = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_nearest ]
+    ]
+  };
+
+  this.__Math_trunc = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_trunc ]
     ]
   };
 

@@ -118,10 +118,12 @@ export const Opcodes = {
   f64_trunc: 0x9d,
   f64_nearest: 0x9e,
 
+  f64_sqrt: 0x9f,
   f64_add: 0xa0,
   f64_sub: 0xa1,
   f64_mul: 0xa2,
   f64_div: 0xa3,
+  f64_copysign: 0xa6,
 
   i32_wrap_i64: 0xa7,
   i64_extend_i32_s: 0xac,

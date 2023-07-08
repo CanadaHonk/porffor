@@ -67,13 +67,13 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - supports i32, i64, and f64 for valtypes
 - `NaN` and `Infinity` (f64 only)
 - `isNaN` and `isFinite` (f64 only)
-- most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`)
+- most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`) (some f64 only)
+- some `Math` funcs (`Math.sqrt`, `Math.abs`, `Math.floor`, `Math.sign`, `Math.round`, `Math.trunc`) (f64 only)
 
 ## soon todo
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
 - nicer errors
-- begin `Math` (`Math.sqrt`, `Math.abs`, `Math.floor`, `Math.sign`, `Math.round`, `Math.trunc`)
 - experiment with hack for supporting multiple values as outputs
 - exceptions
   - `try { } finally {}`
