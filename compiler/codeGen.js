@@ -214,12 +214,11 @@ const generateReturn = (scope, decl) => {
   ];
 };
 
-const generateBinaryExp = (scope, decl) => {
-  // TODO: this assumes all variables are numbers !!!
-  let ops = operatorOpcode[valtype][decl.operator];
+const performOp = (scope, op) => {
+  let ops = operatorOpcode[valtype][op];
 
   // some complex ops are implemented as builtin funcs
-  const builtinName = `${valtype}_${decl.operator}`;
+  const builtinName = `${valtype}_${op}`;
   if (!ops && builtinFuncs[builtinName]) {
     includeBuiltin(scope, builtinName);
     const idx = funcIndex[builtinName];
@@ -229,14 +228,17 @@ const generateBinaryExp = (scope, decl) => {
     ];
   }
 
-  if (!ops) throw new Error(`unknown operator ${decl.operator}`);
+  if (!ops) throw new Error(`unknown operator ${op}`);
 
   if (!Array.isArray(ops)) ops = [ [ ops ] ];
+  return ops;
+};
 
+const generateBinaryExp = (scope, decl) => {
   const out = [
     ...generate(scope, decl.left),
     ...generate(scope, decl.right),
-    ...ops
+    ...performOp(scope, decl.operator)
   ];
 
   if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from);
@@ -515,14 +517,10 @@ const generateAssign = (scope, decl) => {
     ];
   }
 
-  const mathOp = decl.operator[0];
-  const opcode = operatorOpcode[valtype][mathOp];
-  if (!opcode) throw new Error(`unknown operator ${decl.operator}`)
-
   return [
     [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
     ...generate(scope, decl.right),
-    Array.isArray(opcode) ? opcode : [ opcode ],
+    ...performOp(scope, decl.operator[0]),
     [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ]
   ];
 };
