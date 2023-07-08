@@ -303,6 +303,19 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  // todo: does not follow spec with +-Infinity and values >2**32
+  this.__Math_clz32 = {
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      Opcodes.i32_trunc_sat_f64_u,
+      [ Opcodes.i32_clz ],
+      Opcodes.i32_from
+    ]
+  };
+
   this.__SIMD_i32x4_load = {
     params: [ Valtype.i32 ],
     locals: [],

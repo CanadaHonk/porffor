@@ -73,6 +73,10 @@ export const Opcodes = {
   i32_gt_s: 0x4a,
   i32_ge_s: 0x4e,
 
+  i32_clz: 0x67,
+  i32_ctz: 0x68,
+  i32_popcnt: 0x69,
+
   i32_add: 0x6a,
   i32_sub: 0x6b,
   i32_mul: 0x6c,
@@ -131,6 +135,7 @@ export const Opcodes = {
 
   f64_convert_i32_u: 0xb8,
   i32_trunc_sat_f64_s: [ 0xfc, 0x02 ],
+  i32_trunc_sat_f64_u: [ 0xfc, 0x03 ],
 
   // simd insts are 0xFD simdop: varuint32
   v128_load: [ 0xfd, 0x00 ],
