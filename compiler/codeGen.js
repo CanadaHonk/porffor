@@ -571,6 +571,9 @@ const generateUnary = (scope, decl) => {
       out.push(...Opcodes.eqz);
       if (valtype !== 'i32') out.push(Opcodes.i32_from);
       break;
+
+    default:
+      return todo(`unary operator ${decl.operator} not implemented yet`);
   }
 
   return out;
