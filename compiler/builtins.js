@@ -142,6 +142,9 @@ export const BuiltinFuncs = function() {
 
   this.Boolean = this.Number;
 
+  // just return given (default 0) for (new) Object() as we somewhat supports object just not constructor
+  this.Object = this.Number;
+
   this.__console_log = {
     params: [ valtypeBinary ],
     locals: [],
