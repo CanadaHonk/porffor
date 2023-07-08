@@ -7,11 +7,15 @@ import compile from '../compiler/wrap.js';
 const veryStart = performance.now();
 
 const test262Path = 'test262/test262';
-const whatTests = process.argv.slice(2).find(x => x[0] !== '-') ?? 'test';
+let whatTests = process.argv.slice(2).find(x => x[0] !== '-') ?? '';
+if (!whatTests.startsWith('test/')) whatTests = 'test/' + whatTests;
+if (whatTests.endsWith('/')) whatTests = whatTests.slice(0, -1);
 
 const _tests = new Test262Stream(test262Path, {
   paths: [ whatTests ]
 });
+
+if (process.argv.includes('-open')) execSync(`code ${test262Path}/${whatTests}`);
 
 const prelude = fs.readFileSync('test262/prelude.js', 'utf8');
 
@@ -69,7 +73,7 @@ const hacks = [
   }
 ];
 
-const run = async ({ contents, copyright }, flags) => {
+const run = async ({ contents }, flags) => {
   const singleContents = contents.split('---*/').pop();
 
   let toRun = prelude + singleContents;
@@ -116,7 +120,7 @@ for await (const test of tests) {
   const file = test.file.replaceAll('\\', '/').replace('test/', '');
 
   total++;
-  if (!resultOnly) process.stdout.write(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m ${file} \u001b[90m${test.scenario}\u001b[0m`);
+  // if (!resultOnly) process.stdout.write(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m ${file} \u001b[90m${test.scenario}\u001b[0m`);
 
   // todo: parse vs runtime expected
   const expected = test.attrs.negative ? true : false;
@@ -146,7 +150,7 @@ for await (const test of tests) {
 
   if (pass) passFiles.push(file);
 
-  if (!resultOnly) process.stdout.write(`\r${' '.repeat(200)}\r`);
+  // if (!resultOnly) process.stdout.write(`\r${' '.repeat(200)}\r`);
   if (!resultOnly) console.log(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
 
   if (process.argv.includes('-log-errors') && !pass) console.log(result.message);
@@ -225,10 +229,10 @@ const nextMajorPercent = Math.floor(percent) + 1;
 
 const togo = next => `${Math.floor((total * next / 100) - passes)} to go until ${next}%`;
 
-console.log(`\u001b[1m${whatTests}: ${passes}/${total} passed - ${percent}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
+console.log(`\u001b[1m${whatTests}: ${passes}/${total} passed - ${percent}%${whatTests === 'test' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
 bar(total, passes, fails, runtimeErrors, compileErrors + todos + wasmErrors, 0);
 process.stdout.write('  ');
-table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, todos);
+table(whatTests === 'test', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, todos);
 
 console.log();
 
@@ -244,8 +248,8 @@ if (whatTests === 'test') {
 
   console.log(`\n\n\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastPasses.includes(x)).join('\n')}\n\n`);
   console.log(`\u001b[4mnew fails\u001b[0m\n${lastPasses.filter(x => !passFiles.includes(x)).join('\n')}`);
+
+  fs.writeFileSync('test262/passes.json', JSON.stringify({ passes: passFiles, total }));
 }
 
 console.log(`\u001b[90mtook ${((performance.now() - start) / 1000).toFixed(1)}s to run (${((performance.now() - veryStart) / 1000).toFixed(1)}s total)\u001b[0m`);
-
-fs.writeFileSync('test262/passes.json', JSON.stringify({ passes: passFiles, total }));
