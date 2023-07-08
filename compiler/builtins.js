@@ -140,7 +140,23 @@ export const BuiltinFuncs = function() {
     ]
   };
 
-  this.Boolean = this.Number;
+  // todo: return false for NaN
+  this.Boolean = {
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      ...(valtype === 'f64' ? [
+        ...number(0),
+        [ Opcodes.f64_ne ]
+      ] : [
+        ...Opcodes.eqz,
+        [ Opcodes.i32_eqz ]
+      ]),
+      Opcodes.i32_from
+    ]
+  };
 
   // just return given (default 0) for (new) Object() as we somewhat supports object just not constructor
   this.Object = this.Number;
