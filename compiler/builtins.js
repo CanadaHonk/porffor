@@ -82,6 +82,54 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  this['f64_&'] = {
+    params: [ valtypeBinary, valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      Opcodes.i32_to,
+
+      [ Opcodes.local_get, 1 ],
+      Opcodes.i32_to,
+
+      [ Opcodes.i32_and ],
+      Opcodes.i32_from
+    ]
+  };
+
+  this['f64_|'] = {
+    params: [ valtypeBinary, valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      Opcodes.i32_to,
+
+      [ Opcodes.local_get, 1 ],
+      Opcodes.i32_to,
+
+      [ Opcodes.i32_or ],
+      Opcodes.i32_from
+    ]
+  };
+
+  this['f64_^'] = {
+    params: [ valtypeBinary, valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      Opcodes.i32_to,
+
+      [ Opcodes.local_get, 1 ],
+      Opcodes.i32_to,
+
+      [ Opcodes.i32_xor ],
+      Opcodes.i32_from
+    ]
+  };
+
   this.__console_log = {
     params: [ valtypeBinary ],
     locals: [],
