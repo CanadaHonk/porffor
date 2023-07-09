@@ -482,29 +482,32 @@ const generateVar = (scope, decl, globalWanted = false) => {
       target[name] = { idx, type: valtypeBinary };
     }
 
-    out.push(...generate(scope, x.init ?? DEFAULT_VALUE));
+    // x.init ??= DEFAULT_VALUE;
+    if (x.init) {
+      out.push(...generate(scope, x.init));
 
-    // if our value is the result of a function, infer the type from that func's return value
-    if (out[out.length - 1][0] === Opcodes.call) {
-      const ind = out[out.length - 1][1];
-      if (ind >= Object.keys(importedFuncs).length) { // not an imported func
-        const func = funcs.find(x => x.index === ind);
-        if (!func) throw new Error('could not find func being called as var value to infer type'); // sanity check
+      // if our value is the result of a function, infer the type from that func's return value
+      if (out[out.length - 1][0] === Opcodes.call) {
+        const ind = out[out.length - 1][1];
+        if (ind >= Object.keys(importedFuncs).length) { // not an imported func
+          const func = funcs.find(x => x.index === ind);
+          if (!func) throw new Error('could not find func being called as var value to infer type'); // sanity check
 
-        const returns = func.returns;
-        if (returns.length > 1) throw new Error('func returning >1 value being set as 1 local'); // sanity check
+          const returns = func.returns;
+          if (returns.length > 1) throw new Error('func returning >1 value being set as 1 local'); // sanity check
 
-        target[name].type = func.returns[0];
-        if (target[name].type === Valtype.v128) {
-          // specify vec subtype inferred from first vec type in function name
-          target[name].vecType = func.name.split('_').find(x => x.includes('x'));
+          target[name].type = func.returns[0];
+          if (target[name].type === Valtype.v128) {
+            // specify vec subtype inferred from first vec type in function name
+            target[name].vecType = func.name.split('_').find(x => x.includes('x'));
+          }
+        } else {
+          // we do not have imports that return yet, ignore for now
         }
-      } else {
-        // we do not have imports that return yet, ignore for now
       }
-    }
 
-    out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
+      out.push([ global ? Opcodes.global_set : Opcodes.local_set, unsignedLEB128(idx) ]);
+    }
   }
 
   return out;

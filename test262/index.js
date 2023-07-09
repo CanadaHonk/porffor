@@ -159,7 +159,7 @@ for await (const test of tests) {
   if (logErrors && !pass) console.log(result.message);
 
   let y = dirs;
-  if (file.length < 42 || subdirs) for (const x of file.split('/')) {
+  for (const x of file.split('/')) {
     if (!y.has(x)) y.set(x, new Map());
     y = y.get(x);
 
