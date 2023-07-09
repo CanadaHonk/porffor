@@ -5,6 +5,7 @@ import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from "./bui
 import { number, i32x4 } from "./embedding.js";
 
 let globals = {};
+let globalInd = 0;
 let tags = [];
 let funcs = [];
 let exceptions = [];
@@ -290,7 +291,7 @@ const generateLogicExp = (scope, decl) => {
     const name = `tmp${ind}`;
     if (scope.locals[name]) return scope.locals[name].idx;
 
-    const idx = Object.keys(scope.locals).length;
+    let idx = scope.localInd++;
     scope.locals[name] = { idx, type: valtypeBinary };
 
     return idx;
@@ -482,7 +483,7 @@ const generateVar = (scope, decl, globalWanted = false) => {
 
       idx = target[name].idx;
     } else {
-      idx = Object.keys(target).length;
+      idx = global ? globalInd++ : scope.localInd++;
       target[name] = { idx, type: valtypeBinary };
     }
 
@@ -849,6 +850,7 @@ const generateFunc = (scope, decl) => {
   // TODO: share scope/locals between !!!
   const innerScope = {
     locals: {},
+    localInd: 0,
     returns: [],
     memory: false,
     throws: false,
@@ -857,7 +859,7 @@ const generateFunc = (scope, decl) => {
 
   for (let i = 0; i < params.length; i++) {
     const param = params[i];
-    innerScope.locals[param] = { idx: i, type: valtypeBinary };
+    innerScope.locals[param] = { idx: innerScope.localInd++, type: valtypeBinary };
   }
 
   let body = objectHack(decl.body);
@@ -1024,6 +1026,7 @@ const generateCode = (scope, decl) => {
 
 export default program => {
   globals = {};
+  globalInd = 0;
   tags = [];
   exceptions = [];
   funcs = [];
@@ -1057,7 +1060,8 @@ export default program => {
   program.id = { name: 'main' };
 
   const scope = {
-    locals: {}
+    locals: {},
+    localInd: 0
   };
 
   program.body = {
