@@ -617,6 +617,50 @@
       margin-left: 4px;
       margin-right: 12px;
     }
+
+    #commit_log {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+
+      margin: 48px;
+    }
+
+    #commit_log > div {
+      display: flex;
+      flex-direction: column;
+
+      background: var(--background-secondary);
+      padding: 8px;
+      border-radius: 8px;
+    }
+
+    #commit_log > div > :first-child {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-normal);
+    }
+
+    #commit_log > div > :first-child > div {
+      font-size: 24px;
+      font-weight: 500;
+      color: #57F287;
+      float: right;
+    }
+
+    #commit_log > div > :first-child > div > span {
+      color: var(--text-muted);
+      font-size: 18px;
+      margin-left: 6px;
+    }
+
+    #commit_log > div > :last-child {
+      font-size: 18px;
+      font-weight: 400;
+      color: var(--text-muted);
+
+      margin-bottom: 6px;
+    }
   </style>
 </head>
 
@@ -647,6 +691,8 @@
     <div id="split"></div>
     <div id="output"></div>
     <div id="status"></div>
+
+    <div id="commit_log"></div>
   </article>
 
   <script> (async () => {
@@ -838,5 +884,51 @@ console.log(sum);`,
     args.oninput = () => compDebounce();
 
     comp();
+
+    const niceDate = x => {
+      let hours = x.getHours();
+      let ind = 'am';
+      if (hours >= 12) {
+        hours = hours % 12;
+        if (hours === 0) hours = 12;
+        ind = 'pm';
+      }
+
+      return `${hours}:${x.getMinutes().toString().padStart(2, '0')} ${ind} · ${x.toLocaleString('default', { month: 'long' })} ${x.getDate()}, ${x.getFullYear()}`;
+    };
+
+    let commits = await (await fetch('https://api.github.com/repos/canadahonk/porffor/commits')).json();
+
+    const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]\.[0-9]+)%/)[1]);
+    const getCommitPasses = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+)\//)[1]);
+
+    for (let i = 0; i < commits.length; i++) {
+      const x = commits[i];
+      const msg = x.commit.message.trim().split('\n');
+      const el = document.createElement('div');
+
+      const textEl = document.createElement('div');
+      textEl.textContent = msg[0].slice(0, 60) + (msg[0].length > 60 ? '...' : '');
+
+      const when = new Date(x.commit.committer.date);
+      const whenEl = document.createElement('div');
+      whenEl.textContent = niceDate(when);
+
+      const percent = getCommitPercent(x);
+      if (isNaN(percent)) continue;
+
+      const prevPercent = getCommitPercent(commits[i + 1]);
+      let change = 0;
+      if (isNaN(prevPercent)) change = 0;
+        else change = percent - prevPercent;
+
+      const percentEl = document.createElement('div');
+      percentEl.innerHTML = `${percent.toFixed(2)}%${change !== 0 ? `<span>(${change > 0 ? '+' : ''}${change.toFixed(2)})</span>` : ''}`;
+
+      textEl.append(percentEl);
+
+      el.append(textEl, whenEl);
+      commit_log.append(el);
+    }
   })();</script>
 </body>
