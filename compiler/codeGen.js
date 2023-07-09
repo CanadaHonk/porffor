@@ -360,7 +360,11 @@ const generateLiteral = (scope, decl) => {
 const generateExp = (scope, decl) => {
   const expression = decl.expression;
 
-  return generate(scope, expression);
+  const out = generate(scope, expression);
+
+  if (out.length !== 0 && (out[out.length - 1][0] === Opcodes.local_get || out[out.length - 1][0] === Opcodes.local_tee || out[out.length - 1][0] === Opcodes.global_get)) out.push([ Opcodes.drop ]);
+
+  return out;
 };
 
 const generateCall = (scope, decl) => {
@@ -529,14 +533,18 @@ const generateAssign = (scope, decl) => {
     // only allow = for this
     if (decl.operator !== '=') throw new ReferenceError(`${decl.name} is not defined (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
 
-    // set global (eg a = 2)
-    return generateVar(scope, { declarations: [ { id: { name }, init: decl.right } ] }, true);
+    // set global and return (eg a = 2)
+    return [
+      ...generateVar(scope, { declarations: [ { id: { name }, init: decl.right } ] }, true),
+      [ Opcodes.global_get, globals[name].idx ]
+    ];
   }
 
   if (decl.operator === '=') {
     return [
       ...generate(scope, decl.right),
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ]
+      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
     ];
   }
 
@@ -544,7 +552,8 @@ const generateAssign = (scope, decl) => {
     [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
     ...generate(scope, decl.right),
     ...performOp(scope, decl.operator[0]),
-    [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ]
+    [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+    [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
   ];
 };
 
@@ -1058,11 +1067,27 @@ export default program => {
 
   generateFunc(scope, program);
 
-  // export main
-  funcs[funcs.length - 1].export = true;
+  const main = funcs[funcs.length - 1];
+  main.export = true;
+  main.returns = [ valtypeBinary ];
+
+  const lastInst = main.wasm[main.wasm.length - 1] ?? [ Opcodes.end ];
+  if (lastInst[0] === Opcodes.drop) {
+    main.wasm.splice(main.wasm.length - 1, 1);
+  }
+
+  if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
+    main.returns = [];
+  }
+
+  if (lastInst[0] === Opcodes.call) {
+    const func = funcs.find(x => x.index === lastInst[1]);
+    if (func) main.returns = func.returns.slice();
+      else main.returns = [];
+  }
 
   // if blank main func and other exports, remove it
-  if (funcs[funcs.length - 1].wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(funcs.length - 1, 1);
+  if (main.wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(funcs.length - 1, 1);
 
   return { funcs, globals, tags, exceptions };
 };

@@ -19,19 +19,14 @@ console.log();
 
 let prev = '';
 const run = async (source, _context, _filename, callback) => {
+  const ast = parse(source, []);
+
   let toRun = prev + source.trim();
-  if (source.includes(' = ')) toRun += ';' + source.split('=')[0].trim().split(' ').pop();
 
-  const flags = [];
-
-  const ast = parse(toRun, []);
-  const lastType = ast.body[ast.body.length - 1].type;
-  if (lastType === 'ExpressionStatement' || lastType === 'VariableDeclaration') flags.push('return');
-
-  const { exports, wasm } = await compile(toRun, flags);
+  const { exports, wasm } = await compile(toRun, [ 'return' ]);
   fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
-  if (source.includes(' = ')) prev += source + '\n';
+  if (source.includes(' = ')) prev += source + ';\n';
 
   const ret = exports.main();
   callback(null, ret);

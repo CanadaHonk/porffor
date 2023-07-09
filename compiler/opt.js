@@ -145,6 +145,38 @@ export default (funcs, globals) => {
         // if (optLog) log('opt', `consolidated set, get -> tee`);
       }
 
+      if ((lastInst[0] === Opcodes.local_get || lastInst[0] === Opcodes.global_get) && inst[0] === Opcodes.drop) {
+        // replace get, drop -> nothing
+        // local.get 0
+        // drop
+        // -->
+        //
+
+        getCount[lastInst[1]]--;
+
+        wasm.splice(i - 1, 2); // remove this inst and last
+        i -= 2;
+
+        inst = wasm[i];
+        lastInst = wasm[i - 1];
+      }
+
+      if (lastInst[0] === Opcodes.local_tee && inst[0] === Opcodes.drop) {
+        // replace tee, drop -> set
+        // local.tee 0
+        // drop
+        // -->
+        // local.set 0
+
+        getCount[lastInst[1]]--;
+
+        lastInst[0] = Opcodes.local_set; // change last op
+
+        wasm.splice(i, 1); // remove this inst
+        i -= 1;
+        inst = wasm[i];
+      }
+
       if (inst[0] === Opcodes.eq && lastInst[0] === Opcodes.const && lastInst[1] === 0 && valtype !== 'f64') {
         // replace const 0, eq -> eqz
         // i32.const 0
