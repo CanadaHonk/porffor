@@ -37,6 +37,8 @@ const hacks = [
   x => {
     const str = `if (err.constructor !== Test262Error) {`;
     const ind = x.indexOf(str);
+    if (ind === -1) return x;
+
     const nextEnd = x.indexOf('}', ind + str.length);
 
     return x.replace(x.slice(ind, nextEnd + 1), '');
@@ -112,13 +114,16 @@ for await (const test of _tests) {
 
 if (!resultOnly) console.log();
 
+const logErrors = process.argv.includes('-log-errors');
+const subdirs = process.argv.includes('-subdirs');
+
 const start = performance.now();
 
 const passFiles = [];
 let dirs = new Map(), features = new Map();
 let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, todos = 0;
 for await (const test of tests) {
-  const file = test.file.replaceAll('\\', '/').replace('test/', '');
+  const file = test.file.replaceAll('\\', '/').slice(5);
 
   total++;
   // if (!resultOnly) process.stdout.write(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m ${file} \u001b[90m${test.scenario}\u001b[0m`);
@@ -151,10 +156,10 @@ for await (const test of tests) {
   // if (!resultOnly) process.stdout.write(`\r${' '.repeat(200)}\r`);
   if (!resultOnly) console.log(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
 
-  if (process.argv.includes('-log-errors') && !pass) console.log(result.message);
+  if (logErrors && !pass) console.log(result.message);
 
   let y = dirs;
-  for (const x of file.split('/')) {
+  if (file.length < 42 || subdirs) for (const x of file.split('/')) {
     if (!y.has(x)) y.set(x, new Map());
     y = y.get(x);
 
@@ -242,7 +247,7 @@ if (whatTests === 'test') {
     table(false, results.total, results.pass ?? 0, results.fail ?? 0, results.runtimeError ?? 0, results.wasmError ?? 0, results.compileError ?? 0, results.todo ?? 0);
     console.log();
 
-    if (process.argv.includes('-subdirs')) {
+    if (subdirs) {
       for (const dir2 of results.keys()) {
         if (['total', 'pass', 'fail', 'runtimeError', 'compileError', 'todo', 'wasmError'].includes(dir2) || dir2.endsWith('.js')) continue;
 
