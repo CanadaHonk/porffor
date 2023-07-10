@@ -358,12 +358,30 @@ const generateLiteral = (scope, decl) => {
   }
 };
 
+const disposeLeftover = wasm => {
+  let shouldDrop = false;
+
+  const lastInst = wasm[wasm.length - 1];
+  if (!lastInst) return;
+
+  if (!(lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set)) {
+    shouldDrop = true;
+  }
+
+  if (lastInst[0] === Opcodes.call) {
+    const func = funcs.find(x => x.index === lastInst[1]);
+    if (func && func.returns.length !== 0) shouldDrop = true;
+      else shouldDrop = false;
+  }
+
+  if (shouldDrop) wasm.push([ Opcodes.drop ]);
+};
+
 const generateExp = (scope, decl) => {
   const expression = decl.expression;
 
   const out = generate(scope, expression);
-
-  if (out.length !== 0 && (out[out.length - 1][0] === Opcodes.local_get || out[out.length - 1][0] === Opcodes.local_tee || out[out.length - 1][0] === Opcodes.global_get)) out.push([ Opcodes.drop ]);
+  disposeLeftover(out);
 
   return out;
 };
@@ -458,11 +476,13 @@ const DEFAULT_VALUE = {
   name: 'undefined'
 };
 
-const generateVar = (scope, decl, globalWanted = false) => {
+const generateVar = (scope, decl) => {
   const out = [];
 
+  const topLevel = scope.name === 'main';
+
   // global variable if in top scope (main) and var ..., or if wanted
-  const global = globalWanted || (scope.name === 'main' && decl.kind === 'var');
+  const global = decl.kind === 'var';
   const target = global ? globals : scope.locals;
 
   for (const x of decl.declarations) {
@@ -473,6 +493,14 @@ const generateVar = (scope, decl, globalWanted = false) => {
       x.init.id = { name };
       generateFunc(scope, x.init);
       continue;
+    }
+
+    // console.log(name);
+    if (topLevel && builtinVars[name]) {
+      // cannot redeclare
+      if (decl.kind !== 'var') throw new SyntaxError(`Identifier '${name}' has already been declared`);
+
+      continue; // always ignore
     }
 
     let idx;
@@ -519,7 +547,12 @@ const generateVar = (scope, decl, globalWanted = false) => {
 };
 
 const generateAssign = (scope, decl) => {
-  const { name } = decl.left;
+  const { type, name } = decl.left;
+
+  if (type === 'ObjectPattern') {
+    // hack: ignore object parts of `var a = {} = 2`
+    return generate(scope, decl.right);
+  }
 
   if (isFuncType(decl.right.type)) {
     // hack for a = function () { ... }
@@ -531,12 +564,19 @@ const generateAssign = (scope, decl) => {
   const [ local, isGlobal ] = lookupName(scope, name);
 
   if (local === undefined) {
+    // todo: this should be a devtools/repl/??? only thing
+
     // only allow = for this
     if (decl.operator !== '=') throw new ReferenceError(`${decl.name} is not defined (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
 
+    if (builtinVars[name]) {
+      // just return rhs (eg `NaN = 2`)
+      return generate(scope, decl.right);
+    }
+
     // set global and return (eg a = 2)
     return [
-      ...generateVar(scope, { declarations: [ { id: { name }, init: decl.right } ] }, true),
+      ...generateVar(scope, { kind: 'var', declarations: [ { id: { name }, init: decl.right } ] }),
       [ Opcodes.global_get, globals[name].idx ]
     ];
   }
@@ -668,7 +708,10 @@ let depth = [];
 const generateFor = (scope, decl) => {
   const out = [];
 
-  if (decl.init) out.push(...generate(scope, decl.init));
+  if (decl.init) {
+    out.push(...generate(scope, decl.init));
+    disposeLeftover(out);
+  }
 
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('for');
