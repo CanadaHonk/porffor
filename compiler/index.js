@@ -18,7 +18,7 @@ const areaColors = {
 
 globalThis.log = (area, ...args) => console.log(`\u001b[90m[\u001b[0m${rgb(...areaColors[area], area)}\u001b[90m]\u001b[0m`, ...args);
 
-const logFuncs = (funcs, exceptions) => {
+const logFuncs = (funcs, globals, exceptions) => {
   console.log('\n' + underline(bold('funcs')));
 
   for (const f of funcs) {
@@ -28,7 +28,7 @@ const logFuncs = (funcs, exceptions) => {
     console.log(`returns: ${f.returns.length > 0 ? true : false}`);
     console.log(`locals: ${Object.keys(f.locals).sort((a, b) => f.locals[a].idx - f.locals[b].idx).map(x => `${x} (${f.locals[x].idx})`).join(', ')}`);
     console.log();
-    console.log(decompile(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, exceptions));
+    console.log(decompile(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
   }
 
   console.log();
@@ -46,13 +46,13 @@ export default (code, flags) => {
   const { funcs, globals, tags, exceptions } = codeGen(program);
   if (flags.includes('info')) console.log(`2. generated code in ${(performance.now() - t1).toFixed(2)}ms`);
 
-  if (process.argv.includes('-funcs')) logFuncs(funcs, exceptions);
+  if (process.argv.includes('-funcs')) logFuncs(funcs, globals, exceptions);
 
   const t2 = performance.now();
   opt(funcs, globals);
   if (flags.includes('info')) console.log(`3. optimized code in ${(performance.now() - t2).toFixed(2)}ms`);
 
-  if (process.argv.includes('-opt-funcs')) logFuncs(funcs, exceptions);
+  if (process.argv.includes('-opt-funcs')) logFuncs(funcs, globals, exceptions);
 
   const t3 = performance.now();
   const sections = produceSections(funcs, globals, tags, flags);

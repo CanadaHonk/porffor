@@ -1,11 +1,13 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
+import { read_ieee754_binary64 } from "./encoding.js";
 
 const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[keyMap(obj[x])] = x; return acc; }, {});
 const invOpcodes = inv(Opcodes);
 const invValtype = inv(Valtype);
 
-export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = [], funcs = [], exceptions = []) => {
+export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = [], funcs = [], globals = {}, exceptions = []) => {
   const invLocals = inv(locals, x => x.idx);
+  const invGlobals = inv(globals, x => x.idx);
 
   const makeSignature = (params, returns) => `(${params.map(x => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`;
 
@@ -36,7 +38,9 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
     if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else || inst[0] === Opcodes.try || inst[0] === Opcodes.catch_all) depth++;
 
-    for (const operand of inst.slice(1)) {
+    if (inst[0] === Opcodes.f64_const) {
+      out += ` ${read_ieee754_binary64(inst.slice(1))}`;
+    } else for (const operand of inst.slice(1)) {
       if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) {
         if (operand === Blocktype.void) continue;
         out += ` ${invValtype[operand]}`;
@@ -64,6 +68,12 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       if (name) out += ` ;; $${name}${type !== valtype ? ` (${type})` : ''}`;
     }
 
+    if (inst[0] === Opcodes.global_get || inst[0] === Opcodes.global_set) {
+      const name = invGlobals[inst[1]];
+      const type = invValtype[globals[name]?.type];
+      if (name) out += ` ;; $${name}${type !== valtype ? ` (${type})` : ''}`;
+    }
+
     if (inst[0] === Opcodes.throw) {
       const exception = exceptions[lastInst[1]];
       if (exception) out += ` ;; ${exception.constructor ? `${exception.constructor}('${exception.message}')` : `'${exception.message}'`}`;
@@ -84,5 +94,5 @@ export const highlightAsm = asm =>
     .replace(/[^m](i32|i64|f32|f64)(\.[^\s]*)?/g, _ => `${_[0]}\x1B[36m${_.slice(1)}\x1B[0m`)
     .replace(/(return_call|call|br_if|br|return|throw|rethrow)/g, _ => `\x1B[35m${_}\x1B[0m`)
     .replace(/(block|loop|if|end|else|try|catch|catch_all|delegate)/g, _ => `\x1B[95m${_}\x1B[0m`)
-    .replace(/ [0-9]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
+    .replace(/ \-?[0-9\.]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
     .replace(/ ;;.*$/gm, _ => `\x1B[90m${_.replaceAll(/\x1B\[[0-9]+m/g, '')}\x1B[0m`);

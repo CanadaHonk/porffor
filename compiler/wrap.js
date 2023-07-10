@@ -59,7 +59,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   }
 
   if (flags.includes('decomp')) {
-    return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, exceptions)) };
+    return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, globals, exceptions)) };
   }
 
   return { exports, wasm, times };

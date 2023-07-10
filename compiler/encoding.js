@@ -66,12 +66,12 @@ export const unsignedLEB128 = n => {
 };
 
 // ieee 754 binary64
+
+// from https://github.com/feross/ieee754
+// BSD 3-Clause. Copyright 2008 Fair Oaks Labs, Inc. (https://github.com/feross/ieee754/blob/master/LICENSE)
 export const ieee754_binary64 = value => {
   let isLE = true, mLen = 52, nBytes = 8, offset = 0;
   let buffer = new Array(nBytes).fill(0);
-
-  // from https://github.com/feross/ieee754
-  // BSD 3-Clause. Copyright 2008 Fair Oaks Labs, Inc. (https://github.com/feross/ieee754/blob/master/LICENSE)
 
   let e, m, c
   let eLen = (nBytes * 8) - mLen - 1
@@ -134,4 +134,47 @@ export const ieee754_binary64 = value => {
   buffer[offset + i - d] |= s * 128
 
   return buffer;
+};
+
+export const read_ieee754_binary64 = buffer => {
+  let isLE = true, mLen = 52, nBytes = 8, offset = 0;
+
+  let e, m
+  const eLen = (nBytes * 8) - mLen - 1
+  const eMax = (1 << eLen) - 1
+  const eBias = eMax >> 1
+  let nBits = -7
+  let i = isLE ? (nBytes - 1) : 0
+  const d = isLE ? -1 : 1
+  let s = buffer[offset + i]
+
+  i += d
+
+  e = s & ((1 << (-nBits)) - 1)
+  s >>= (-nBits)
+  nBits += eLen
+  while (nBits > 0) {
+    e = (e * 256) + buffer[offset + i]
+    i += d
+    nBits -= 8
+  }
+
+  m = e & ((1 << (-nBits)) - 1)
+  e >>= (-nBits)
+  nBits += mLen
+  while (nBits > 0) {
+    m = (m * 256) + buffer[offset + i]
+    i += d
+    nBits -= 8
+  }
+
+  if (e === 0) {
+    e = 1 - eBias
+  } else if (e === eMax) {
+    return m ? NaN : ((s ? -1 : 1) * Infinity)
+  } else {
+    m = m + Math.pow(2, mLen)
+    e = e - eBias
+  }
+  return (s ? -1 : 1) * m * Math.pow(2, e - mLen)
 };
