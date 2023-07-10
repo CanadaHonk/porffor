@@ -26,7 +26,7 @@ if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
 
 const excludeNegative = process.argv.includes('-exclude-negative');
 
-const lastPasses = JSON.parse(fs.readFileSync('test262/passes.json', 'utf8')).passes;
+const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
 const lastCommitResults = execSync(`git log -1 --pretty=%B`).toString().split('\n').filter(x => x).pop().split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
 
@@ -108,7 +108,7 @@ if (!resultOnly) console.log('reading tests... (may take ~30s)');
 const tests = [];
 for await (const test of _tests) {
   if (test.scenario === 'strict mode') continue;
-  if (excludeNegative && test.attrs.negative) continue;
+  // if (excludeNegative && test.attrs.negative) continue;
   tests.push(test);
 }
 
@@ -120,6 +120,8 @@ const subdirs = process.argv.includes('-subdirs');
 const start = performance.now();
 
 const passFiles = [];
+const wasmErrorFiles = [];
+const compileErrorFiles = [];
 let dirs = new Map(), features = new Map();
 let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, todos = 0;
 for await (const test of tests) {
@@ -142,8 +144,13 @@ for await (const test of tests) {
 
   if (!pass && result && result.message.startsWith('todo:')) todos++;
   else if (!pass && stage === 0) {
-    if (result.constructor.name === 'CompileError') wasmErrors++;
-      else compileErrors++;
+    if (result.constructor.name === 'CompileError') {
+      wasmErrors++;
+      wasmErrorFiles.push(file);
+    } else {
+      compileErrors++;
+      compileErrorFiles.push(file);
+    }
   }
   else if (!pass && stage === 1) {
     if (result.constructor.name === 'Test262Error') fails++;
@@ -261,10 +268,13 @@ if (whatTests === 'test') {
     }
   }
 
-  console.log(`\n\n\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastPasses.includes(x)).join('\n')}\n\n`);
-  console.log(`\u001b[4mnew fails\u001b[0m\n${lastPasses.filter(x => !passFiles.includes(x)).join('\n')}`);
+  if (lastResults.compileErrors) console.log(`\n\n\u001b[4mnew compile errors\u001b[0m\n${compileErrorFiles.filter(x => !lastResults.compileErrors.includes(x)).join('\n')}\n\n`);
+  if (lastResults.wasmErrors) console.log(`\u001b[4mnew wasm errors\u001b[0m\n${wasmErrorFiles.filter(x => !lastResults.wasmErrors.includes(x)).join('\n')}\n\n`);
 
-  fs.writeFileSync('test262/passes.json', JSON.stringify({ passes: passFiles, total }));
+  if (lastResults.passes) console.log(`\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastResults.passes.includes(x)).join('\n')}\n\n`);
+  if (lastResults.passes) console.log(`\u001b[4mnew fails\u001b[0m\n${lastResults.passes.filter(x => !passFiles.includes(x)).join('\n')}`);
+
+  fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, total }));
 }
 
 console.log(`\u001b[90mtook ${((performance.now() - start) / 1000).toFixed(1)}s to run (${((performance.now() - veryStart) / 1000).toFixed(1)}s total)\u001b[0m`);
