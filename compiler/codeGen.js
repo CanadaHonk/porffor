@@ -244,12 +244,10 @@ const generateReturn = (scope, decl) => {
   if (decl.argument === null) {
     // just bare "return"
     return [
-      ...(scope.returns.length === 0 ? [] : number(0)), // "undefined" if func returns
+      ...number(0), // "undefined" if func returns
       [ Opcodes.return ]
     ];
   }
-
-  scope.returns = [ valtypeBinary ];
 
   return [
     ...generate(scope, decl.argument),
@@ -911,19 +909,6 @@ const generateAssignPat = (scope, decl) => {
 
 const randId = () => Math.random().toString(16).slice(0, -4);
 
-const returnsValue = node => {
-  if (isFuncType(node.type)) return false;
-
-  for (const x in node) {
-    if (node[x] != null && typeof node[x] === 'object') {
-      if (Array.isArray(node[x]) && node[x].some(y => returnsValue(y))) return true;
-      if (returnsValue(node[x])) return true;
-    }
-  }
-
-  return node.type === 'ReturnStatement' && node.argument !== null;
-};
-
 const objectHack = node => {
   if (node.type === 'MemberExpression') {
     let objectName = node.object.name;
@@ -964,7 +949,7 @@ const generateFunc = (scope, decl) => {
   const innerScope = {
     locals: {},
     localInd: 0,
-    returns: [],
+    returns: [ valtypeBinary ],
     memory: false,
     throws: false,
     name
@@ -983,8 +968,6 @@ const generateFunc = (scope, decl) => {
       argument: decl.body
     };
   }
-
-  if (returnsValue(body)) innerScope.returns = [ valtypeBinary ];
 
   const wasm = generate(innerScope, body);
   const func = {
@@ -1005,7 +988,7 @@ const generateFunc = (scope, decl) => {
     }
   }
 
-  if (func.returns.length !== 0 && wasm[wasm.length - 1][0] !== Opcodes.return) wasm.push(...number(0), [ Opcodes.return ]);
+  if (func.returns.length !== 0 && wasm[wasm.length - 1]?.[0] !== Opcodes.return) wasm.push(...number(0), [ Opcodes.return ]);
 
   // change v128 params into many <type> (i32x4 -> i32/etc) instead as unsupported param valtype
   let offset = 0, vecParams = 0;
