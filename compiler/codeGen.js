@@ -118,6 +118,10 @@ const generate = (scope, decl) => {
     case 'TryStatement':
       return generateTry(scope, decl);
 
+    case 'DebuggerStatement':
+      // todo: add fancy terminal debugger?
+      return [];
+
     case 'ExportNamedDeclaration':
       // hack to flag new func for export
       const funcsBefore = funcs.length;
