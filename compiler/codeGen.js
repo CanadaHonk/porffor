@@ -195,32 +195,44 @@ const lookupName = (scope, _name) => {
 };
 
 const generateIdent = (scope, decl) => {
-  const rawName = decl.name;
-  const name = mapName(rawName);
+  const lookup = rawName => {
+    const name = mapName(rawName);
+    let local = scope.locals[rawName];
 
-  let local = scope.locals[rawName];
+    if (builtinVars[name]) {
+      if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${name} with integer valtype`);
+      return builtinVars[name];
+    }
 
-  if (builtinVars[name]) {
-    if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${name} with integer valtype`);
-    return builtinVars[name];
-  }
+    if (builtinFuncs[name]) {
+      // todo: return an actual something
+      return number(1);
+    }
 
-  if (builtinFuncs[name]) {
-    // todo: return an actual something
-    return number(1);
-  }
+    if (local === undefined) {
+      // no local var with name
+      if (importedFuncs[name] !== undefined) return number(importedFuncs[name]);
+      if (funcIndex[name] !== undefined) return number(funcIndex[name]);
 
-  if (local === undefined) {
-    // no local var with name
-    if (importedFuncs[name] !== undefined) return number(importedFuncs[name]);
-    if (funcIndex[name] !== undefined) return number(funcIndex[name]);
+      if (globals[name] !== undefined) return [ [ Opcodes.global_get, globals[name].idx ] ];
+    }
 
-    if (globals[name] !== undefined) return [ [ Opcodes.global_get, globals[name].idx ] ];
-  }
+    if (local === undefined && rawName.startsWith('__')) {
+      let parent = rawName.slice(2).split('_').slice(0, -1).join('_');
+      if (parent.includes('_')) parent = '__' + parent;
 
-  if (local === undefined) throw new ReferenceError(`${name} is not defined (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
+      try {
+        lookup(parent);
+        return number(UNDEFINED);
+      } catch {}
+    }
 
-  return [ [ Opcodes.local_get, local.idx ] ];
+    if (local === undefined) throw new ReferenceError(`${name} is not defined (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
+
+    return [ [ Opcodes.local_get, local.idx ] ];
+  };
+
+  return lookup(decl.name);
 };
 
 const generateReturn = (scope, decl) => {
