@@ -218,6 +218,7 @@ const generateIdent = (scope, decl) => {
     }
 
     if (local === undefined && rawName.startsWith('__')) {
+      // return undefined if unknown key in already known var
       let parent = rawName.slice(2).split('_').slice(0, -1).join('_');
       if (parent.includes('_')) parent = '__' + parent;
 
@@ -662,6 +663,15 @@ const generateUnary = (scope, decl) => {
     case 'void':
       // drop current expression value after running, give undefined
       out.push([ Opcodes.drop ], ...number(UNDEFINED));
+      break;
+
+    case '~':
+      out.push(
+        Opcodes.i32_to,
+        [ Opcodes.i32_const, signedLEB128(-1) ],
+        [ Opcodes.i32_xor ],
+        Opcodes.i32_from
+      );
       break;
 
     default:
@@ -1129,7 +1139,7 @@ export default program => {
   Opcodes.sub = [ Opcodes.i32_sub, Opcodes.i64_sub, Opcodes.f64_sub ][valtypeInd];
 
   Opcodes.i32_to = [ [ null ], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_s ][valtypeInd];
-  Opcodes.i32_from = [ [ null ], [ Opcodes.i64_extend_i32_u ], [ Opcodes.f64_convert_i32_u ] ][valtypeInd];
+  Opcodes.i32_from = [ [ null ], [ Opcodes.i64_extend_i32_u ], [ Opcodes.f64_convert_i32_s ] ][valtypeInd];
 
   builtinFuncs = new BuiltinFuncs();
   builtinVars = new BuiltinVars();
