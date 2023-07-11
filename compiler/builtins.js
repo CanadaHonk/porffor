@@ -6,6 +6,7 @@ export const importedFuncs = { print: 0, printChar: 1, assert: 2 };
 
 const char = c => number(c.charCodeAt(0));
 
+// todo: somehow diff between these (undefined != null) while remaining falsey in wasm as a number value
 export const UNDEFINED = 0;
 export const NULL = 0;
 
@@ -59,6 +60,9 @@ export const BuiltinVars = function() {
 
       break;
   }
+
+  // stubs just so that parent objects exist
+  this.Math = number(1);
 };
 
 export const BuiltinFuncs = function() {
@@ -66,7 +70,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary, valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
-    wasm: [ // x - (x // y) * y
+    wasm: [ // x - truncf(x / y) * y
       [ Opcodes.local_get, 0 ], // x
 
       [ Opcodes.local_get, 0 ], // x
