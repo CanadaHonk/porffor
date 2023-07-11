@@ -638,12 +638,10 @@ const generateAssign = (scope, decl) => {
 };
 
 const generateUnary = (scope, decl) => {
-  const out = [ ...generate(scope, decl.argument) ];
-
   switch (decl.operator) {
     case '+':
       // stub
-      break;
+      return generate(scope, decl.argument);
 
     case '-':
       // * -1
@@ -653,36 +651,60 @@ const generateUnary = (scope, decl) => {
         return number(-1 * decl.argument.value);
       }
 
-      if (valtype === 'f64') out.push([ Opcodes.f64_neg ]);
-        else out.push(...number(-1), [ Opcodes.mul ]);
-
-      break;
+      return [
+        ...generate(scope, decl.argument),
+        ...(valtype === 'f64' ? [ [ Opcodes.f64_neg ] ] : [ ...number(-1), [ Opcodes.mul ] ])
+      ];
 
     case '!':
       // !=
-      out.push(...Opcodes.eqz);
-      if (valtype !== 'i32') out.push(Opcodes.i32_from);
-      break;
+      return [
+        ...generate(scope, decl.argument),
+        ...Opcodes.eqz,
+        Opcodes.i32_from
+      ];
 
-    case 'void':
+    case 'void': {
       // drop current expression value after running, give undefined
-      out.push([ Opcodes.drop ], ...number(UNDEFINED));
-      break;
+      const out = generate(scope, decl.argument);
+      disposeLeftover(out);
+
+      out.push(...number(UNDEFINED));
+      return out;
+    }
+
+    case 'delete':
+      let toReturn = true, toGenerate = true;
+
+      if (decl.argument.type === 'Identifier') {
+        // if ReferenceError (undeclared var), ignore and return true. otherwise false
+        try {
+          generateIdent(scope, decl.argument);
+          toReturn = false;
+        } catch {
+          toReturn = true;
+          toGenerate = false;
+        }
+      }
+
+      const out = toGenerate ? generate(scope, decl.argument) : [];
+      disposeLeftover(out);
+
+      out.push(...number(toReturn ? 1 : 0));
+      return out;
 
     case '~':
-      out.push(
+      return [
+        ...generate(scope, decl.argument),
         Opcodes.i32_to,
         [ Opcodes.i32_const, signedLEB128(-1) ],
         [ Opcodes.i32_xor ],
         Opcodes.i32_from
-      );
-      break;
+      ]
 
     default:
       return todo(`unary operator ${decl.operator} not implemented yet`);
   }
-
-  return out;
 };
 
 const generateUpdate = (scope, decl) => {
