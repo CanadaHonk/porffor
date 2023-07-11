@@ -170,7 +170,21 @@ const generate = (scope, decl) => {
   }
 };
 
-const lookupName = (scope, name) => {
+const mapName = x => {
+  if (!x) return x;
+
+  if (x.startsWith('__globalThis_')) {
+    const key = x.slice('__globalThis_'.length);
+    // hack: this will not work properly
+    return key.includes('_') ? ('__' + key) : key;
+  }
+
+  return x;
+};
+
+const lookupName = (scope, _name) => {
+  const name = mapName(_name);
+
   let local = scope.locals[name];
   if (local) return [ local, false ];
 
@@ -181,22 +195,30 @@ const lookupName = (scope, name) => {
 };
 
 const generateIdent = (scope, decl) => {
-  let local = scope.locals[decl.name];
+  const rawName = decl.name;
+  const name = mapName(rawName);
 
-  if (builtinVars[decl.name]) {
-    if (builtinVars[decl.name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${decl.name} with integer valtype`);
-    return builtinVars[decl.name];
+  let local = scope.locals[rawName];
+
+  if (builtinVars[name]) {
+    if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${name} with integer valtype`);
+    return builtinVars[name];
+  }
+
+  if (builtinFuncs[name]) {
+    // todo: return an actual something
+    return number(1);
   }
 
   if (local === undefined) {
     // no local var with name
-    if (importedFuncs[decl.name] !== undefined) return number(importedFuncs[decl.name]);
-    if (funcIndex[decl.name] !== undefined) return number(funcIndex[decl.name]);
+    if (importedFuncs[name] !== undefined) return number(importedFuncs[name]);
+    if (funcIndex[name] !== undefined) return number(funcIndex[name]);
 
-    if (globals[decl.name] !== undefined) return [ [ Opcodes.global_get, globals[decl.name].idx ] ];
+    if (globals[name] !== undefined) return [ [ Opcodes.global_get, globals[name].idx ] ];
   }
 
-  if (local === undefined) throw new ReferenceError(`${decl.name} is not defined (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
+  if (local === undefined) throw new ReferenceError(`${name} is not defined (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
 
   return [ [ Opcodes.local_get, local.idx ] ];
 };
@@ -396,7 +418,7 @@ const generateCall = (scope, decl) => {
     Opcodes.call_indirect,
   ]; */
 
-  let name = decl.callee.name;
+  let name = mapName(decl.callee.name);
   if (isFuncType(decl.callee.type)) { // iife
     const func = generateFunc(scope, decl.callee);
     name = func.name;
@@ -464,7 +486,7 @@ const generateCall = (scope, decl) => {
 
 const generateNew = (scope, decl) => {
   // hack: basically treat this as a normal call for builtins for now
-  const name = decl.callee.name;
+  const name = mapName(decl.callee.name);
   if (!builtinFuncs[name]) return todo(`new statement is not supported yet (new ${name})`);
 
   return generateCall(scope, decl);
@@ -486,7 +508,7 @@ const generateVar = (scope, decl) => {
   const target = global ? globals : scope.locals;
 
   for (const x of decl.declarations) {
-    const name = x.id.name;
+    const name = mapName(x.id.name);
 
     if (x.init && isFuncType(x.init.type)) {
       // hack for let a = function () { ... }
