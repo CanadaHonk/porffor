@@ -140,6 +140,7 @@ export default (funcs, globals) => {
         wasm.splice(i, 1); // remove this inst (get)
 
         getCount[inst[1]]--;
+        i--;
         // if (optLog) log('opt', `consolidated set, get -> tee`);
         continue;
       }
@@ -154,6 +155,7 @@ export default (funcs, globals) => {
         getCount[lastInst[1]]--;
 
         wasm.splice(i - 1, 2); // remove this inst and last
+        i -= 2;
         continue;
       }
 
@@ -169,6 +171,19 @@ export default (funcs, globals) => {
         lastInst[0] = Opcodes.local_set; // change last op
 
         wasm.splice(i, 1); // remove this inst
+        i--;
+        continue;
+      }
+
+      if ((lastInst[0] === Opcodes.i32_const || lastInst[0] === Opcodes.i64_const || lastInst[0] === Opcodes.f64_const) && inst[0] === Opcodes.drop) {
+        // replace const, drop -> <nothing>
+        // i32.const 0
+        // drop
+        // -->
+        // <nothing>>
+
+        wasm.splice(i - 1, 2); // remove this inst
+        i -= 2;
         continue;
       }
 
@@ -181,7 +196,7 @@ export default (funcs, globals) => {
 
         inst[0] = Opcodes.eqz[0][0]; // eq -> eqz
         wasm.splice(i - 1, 1); // remove const 0
-
+        i--;
         continue;
       }
 
@@ -193,7 +208,7 @@ export default (funcs, globals) => {
         // <nothing>
 
         wasm.splice(i - 1, 2); // remove this inst and last
-
+        i -= 2;
         // if (optLog) log('opt', `removed redundant i32 -> i64 -> i32 conversion ops`);
         continue;
       }
@@ -206,7 +221,7 @@ export default (funcs, globals) => {
         // <nothing>
 
         wasm.splice(i - 1, 2); // remove this inst and last
-
+        i -= 2;
         // if (optLog) log('opt', `removed redundant i32 -> f64 -> i32 conversion ops`);
         continue;
       }
@@ -221,7 +236,7 @@ export default (funcs, globals) => {
         lastInst[0] = Opcodes.return_call; // change last inst return -> return_call
 
         wasm.splice(i, 1); // remove this inst (return)
-
+        i--;
         if (optLog) log('opt', `tail called return, call`);
         continue;
       }
@@ -234,6 +249,7 @@ export default (funcs, globals) => {
         // end
 
         wasm.splice(i, 1); // remove this inst (return)
+        i--;
         // if (optLog) log('opt', `removed redundant return at end`);
         continue;
       }
@@ -250,6 +266,7 @@ export default (funcs, globals) => {
           // local.get 1
 
           wasm.splice(i, 1); // remove this inst (second get)
+          i--;
           continue;
         }
       }
@@ -263,6 +280,7 @@ export default (funcs, globals) => {
 
         wasm.splice(i - 2, 3); // remove this, last, 2nd last insts
         if (optLog) log('opt', `removed redundant inline param local handling`);
+        i -= 3;
         continue;
       }
     }
