@@ -395,23 +395,34 @@ const generateLiteral = (scope, decl) => {
   }
 };
 
+const countLeftover = wasm => {
+  let count = 0, depth = 0;
+
+  for (const inst of wasm) {
+    if (depth === 0 && inst[0] === Opcodes.if) count--;
+    if ([Opcodes.if, Opcodes.try, Opcodes.else, Opcodes.catch_all, Opcodes.block].includes(inst[0])) depth++;
+    if (inst[0] === Opcodes.end) depth--;
+
+    if (depth === 0)
+      if ([Opcodes.throw, Opcodes.return, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
+        else if ([Opcodes.i32_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.i32_trunc_sat_f64_s, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg].includes(inst[0])) {}
+        else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const].includes(inst[0])) count++;
+        else if (inst[0] === Opcodes.call) {
+          let func = funcs.find(x => x.index === inst[1]);
+          if (func) {
+            count -= func.params.length;
+          } else count--;
+          if (func) count += func.returns.length;
+        } else count--;
+  }
+
+  return count;
+};
+
 const disposeLeftover = wasm => {
-  let shouldDrop = false;
+  let leftover = countLeftover(wasm);
 
-  const lastInst = wasm[wasm.length - 1];
-  if (!lastInst) return;
-
-  if (!(lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set)) {
-    shouldDrop = true;
-  }
-
-  if (lastInst[0] === Opcodes.call) {
-    const func = funcs.find(x => x.index === lastInst[1]);
-    if (func && func.returns.length !== 0) shouldDrop = true;
-      else shouldDrop = false;
-  }
-
-  if (shouldDrop) wasm.push([ Opcodes.drop ]);
+  for (let i = 0; i < leftover; i++) wasm.push([ Opcodes.drop ]);
 };
 
 const generateExp = (scope, decl) => {
@@ -743,10 +754,12 @@ const generateIf = (scope, decl) => {
   depth.push('if');
 
   out.push(...generate(scope, decl.consequent));
+  disposeLeftover(out);
 
   if (decl.alternate) {
     out.push([ Opcodes.else ]);
     out.push(...generate(scope, decl.alternate));
+    disposeLeftover(out);
   }
 
   out.push([ Opcodes.end ]);
