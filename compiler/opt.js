@@ -138,11 +138,10 @@ export default (funcs, globals) => {
 
         lastInst[0] = Opcodes.local_tee; // replace last inst opcode (set -> tee)
         wasm.splice(i, 1); // remove this inst (get)
-        i--;
-        inst = wasm[i];
 
         getCount[inst[1]]--;
         // if (optLog) log('opt', `consolidated set, get -> tee`);
+        continue;
       }
 
       if ((lastInst[0] === Opcodes.local_get || lastInst[0] === Opcodes.global_get) && inst[0] === Opcodes.drop) {
@@ -155,10 +154,7 @@ export default (funcs, globals) => {
         getCount[lastInst[1]]--;
 
         wasm.splice(i - 1, 2); // remove this inst and last
-        i -= 2;
-
-        inst = wasm[i];
-        lastInst = wasm[i - 1];
+        continue;
       }
 
       if (lastInst[0] === Opcodes.local_tee && inst[0] === Opcodes.drop) {
@@ -173,8 +169,7 @@ export default (funcs, globals) => {
         lastInst[0] = Opcodes.local_set; // change last op
 
         wasm.splice(i, 1); // remove this inst
-        i -= 1;
-        inst = wasm[i];
+        continue;
       }
 
       if (inst[0] === Opcodes.eq && lastInst[0] === Opcodes.const && lastInst[1] === 0 && valtype !== 'f64') {
@@ -186,8 +181,8 @@ export default (funcs, globals) => {
 
         inst[0] = Opcodes.eqz[0][0]; // eq -> eqz
         wasm.splice(i - 1, 1); // remove const 0
-        i--;
-        lastInst = wasm[i - 1];
+
+        continue;
       }
 
       if (inst[0] === Opcodes.i32_wrap_i64 && lastInst[0] === Opcodes.i64_extend_i32_u) {
@@ -198,11 +193,9 @@ export default (funcs, globals) => {
         // <nothing>
 
         wasm.splice(i - 1, 2); // remove this inst and last
-        i -= 2;
 
-        inst = wasm[i];
-        lastInst = wasm[i - 1];
         // if (optLog) log('opt', `removed redundant i32 -> i64 -> i32 conversion ops`);
+        continue;
       }
 
       if (inst[0] === Opcodes.i32_trunc_sat_f64_s[0] && inst[1] === Opcodes.i32_trunc_sat_f64_s[1] && lastInst[0] === Opcodes.f64_convert_i32_u) {
@@ -213,11 +206,9 @@ export default (funcs, globals) => {
         // <nothing>
 
         wasm.splice(i - 1, 2); // remove this inst and last
-        i -= 2;
 
-        inst = wasm[i];
-        lastInst = wasm[i - 1];
         // if (optLog) log('opt', `removed redundant i32 -> f64 -> i32 conversion ops`);
+        continue;
       }
 
       if (tailCall && lastInst[0] === Opcodes.call && inst[0] === Opcodes.return) {
@@ -230,13 +221,12 @@ export default (funcs, globals) => {
         lastInst[0] = Opcodes.return_call; // change last inst return -> return_call
 
         wasm.splice(i, 1); // remove this inst (return)
-        i--;
-        inst = wasm[i];
 
         if (optLog) log('opt', `tail called return, call`);
+        continue;
       }
 
-      if (i === wasm.length - 1 && inst[0] === Opcodes.return) {
+      if (false && i === wasm.length - 1 && inst[0] === Opcodes.return) {
         // replace final return, end -> end (wasm has implicit return)
         // return
         // end
@@ -244,9 +234,8 @@ export default (funcs, globals) => {
         // end
 
         wasm.splice(i, 1); // remove this inst (return)
-        i--;
-        inst = wasm[i];
         // if (optLog) log('opt', `removed redundant return at end`);
+        continue;
       }
 
       if (i < 2) continue;
@@ -261,8 +250,7 @@ export default (funcs, globals) => {
           // local.get 1
 
           wasm.splice(i, 1); // remove this inst (second get)
-          i--;
-          inst = wasm[i];
+          continue;
         }
       }
 
@@ -274,8 +262,8 @@ export default (funcs, globals) => {
         // <nothing>
 
         wasm.splice(i - 2, 3); // remove this, last, 2nd last insts
-        i -= 3;
         if (optLog) log('opt', `removed redundant inline param local handling`);
+        continue;
       }
     }
 
