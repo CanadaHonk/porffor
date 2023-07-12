@@ -3,6 +3,7 @@ import { signedLEB128, unsignedLEB128 } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from "./builtins.js";
 import { number, i32x4 } from "./embedding.js";
+import parse from "./parse.js";
 
 let globals = {};
 let globalInd = 0;
@@ -399,13 +400,16 @@ const countLeftover = wasm => {
   let count = 0, depth = 0;
 
   for (const inst of wasm) {
-    if (depth === 0 && inst[0] === Opcodes.if) count--;
-    if ([Opcodes.if, Opcodes.try, Opcodes.else, Opcodes.catch_all, Opcodes.block].includes(inst[0])) depth++;
+    if (depth === 0 && inst[0] === Opcodes.if) {
+      count--;
+      if (inst[1] !== Blocktype.void) count++;
+    }
+    if ([Opcodes.if, Opcodes.try, Opcodes.block].includes(inst[0])) depth++;
     if (inst[0] === Opcodes.end) depth--;
 
     if (depth === 0)
       if ([Opcodes.throw, Opcodes.return, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
-        else if ([Opcodes.i32_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.i32_trunc_sat_f64_s, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg].includes(inst[0])) {}
+        else if ([Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end].includes(inst[0]) || inst[0] === Opcodes.i32_trunc_sat_f64_s[0] || inst[0] === null) {}
         else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const].includes(inst[0])) count++;
         else if (inst[0] === Opcodes.call) {
           let func = funcs.find(x => x.index === inst[1]);
@@ -448,6 +452,26 @@ const generateCall = (scope, decl) => {
   if (isFuncType(decl.callee.type)) { // iife
     const func = generateFunc(scope, decl.callee);
     name = func.name;
+  }
+
+  if (name === 'eval' && decl.arguments[0].type === 'Literal') {
+    // literal eval hack
+    const code = decl.arguments[0].value;
+    const parsed = parse(code, []);
+
+    const out = generate(scope, {
+      type: 'BlockStatement',
+      body: parsed.body
+    });
+
+    const lastInst = out[out.length - 1];
+    if (lastInst && lastInst[0] === Opcodes.drop) {
+      out.splice(out.length - 1, 1);
+    } else if (countLeftover(out) === 0) {
+      out.push(...number(UNDEFINED));
+    }
+
+    return out;
   }
 
   // TODO: only allows callee as literal
@@ -753,13 +777,16 @@ const generateIf = (scope, decl) => {
   out.push(Opcodes.i32_to, [ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
-  out.push(...generate(scope, decl.consequent));
-  disposeLeftover(out);
+  const consOut = generate(scope, decl.consequent);
+  disposeLeftover(consOut);
+  out.push(...consOut);
 
   if (decl.alternate) {
     out.push([ Opcodes.else ]);
-    out.push(...generate(scope, decl.alternate));
-    disposeLeftover(out);
+
+    const altOut = generate(scope, decl.alternate);
+    disposeLeftover(altOut);
+    out.push(...altOut);
   }
 
   out.push([ Opcodes.end ]);
@@ -1001,7 +1028,9 @@ const generateFunc = (scope, decl) => {
     }
   }
 
-  if (func.returns.length !== 0 && wasm[wasm.length - 1]?.[0] !== Opcodes.return) wasm.push(...number(0), [ Opcodes.return ]);
+  if (name !== 'main' && func.returns.length !== 0 && wasm[wasm.length - 1]?.[0] !== Opcodes.return) {
+    wasm.push(...number(0), [ Opcodes.return ]);
+  }
 
   // change v128 params into many <type> (i32x4 -> i32/etc) instead as unsupported param valtype
   let offset = 0, vecParams = 0;
@@ -1161,7 +1190,7 @@ export default program => {
   Opcodes.sub = [ Opcodes.i32_sub, Opcodes.i64_sub, Opcodes.f64_sub ][valtypeInd];
 
   Opcodes.i32_to = [ [ null ], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_s ][valtypeInd];
-  Opcodes.i32_from = [ [ null ], [ Opcodes.i64_extend_i32_u ], [ Opcodes.f64_convert_i32_s ] ][valtypeInd];
+  Opcodes.i32_from = [ [ null ], [ Opcodes.i64_extend_i32_s ], [ Opcodes.f64_convert_i32_s ] ][valtypeInd];
 
   builtinFuncs = new BuiltinFuncs();
   builtinVars = new BuiltinVars();
