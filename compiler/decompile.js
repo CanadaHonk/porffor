@@ -34,7 +34,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
     const opStr = invOpcodes[inst[0]];
     if (!opStr) console.log(`decomp: unknown op ${inst[0].toString(16)}`)
-    out += /* ' '.repeat(3 - i.toString().length) + i + ' ' + */ ' '.repeat(depth * 2) + opStr.replace('_', '.').replace('return.', 'return_').replace('call.', 'call_').replace('br.', 'br_');
+    out += /* ' '.repeat(3 - i.toString().length) + i + ' ' + */ ' '.repeat(Math.max(0, depth * 2)) + opStr.replace('_', '.').replace('return.', 'return_').replace('call.', 'call_').replace('br.', 'br_');
 
     if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else || inst[0] === Opcodes.try || inst[0] === Opcodes.catch_all) depth++;
 
@@ -74,7 +74,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       if (name) out += ` ;; $${name}${type !== valtype ? ` (${type})` : ''}`;
     }
 
-    if (inst[0] === Opcodes.throw) {
+    if (inst[0] === Opcodes.throw && lastInst && exceptions) {
       const exception = exceptions[lastInst[1]];
       if (exception) out += ` ;; ${exception.constructor ? `${exception.constructor}('${exception.message}')` : `'${exception.message}'`}`;
     }

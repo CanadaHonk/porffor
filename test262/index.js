@@ -161,9 +161,10 @@ for await (const test of tests) {
   if (pass) passFiles.push(file);
 
   // if (!resultOnly) process.stdout.write(`\r${' '.repeat(200)}\r`);
-  if (!resultOnly) console.log(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
+  if (!resultOnly) console.log(`\u001b[90m${Math.floor((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
 
-  if (logErrors && !pass) console.log(result.message);
+  if (logErrors && !pass && result) console.log(result.stack);
+  // if (!pass && stage === 0 && result.constructor.name === 'CompileError') console.log(file, test.contents.split('---*/').pop(), '\n');
 
   let y = dirs;
   for (const x of file.split('/')) {
