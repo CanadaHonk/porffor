@@ -233,7 +233,7 @@ const generateIdent = (scope, decl) => {
       } catch {}
     }
 
-    if (local === undefined) throw new ReferenceError(`${name} is not defined (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
+    if (local === undefined) throw new ReferenceError(`${name} is not defined`);
 
     return [ [ Opcodes.local_get, local.idx ] ];
   };
@@ -639,7 +639,7 @@ const generateAssign = (scope, decl) => {
     // todo: this should be a devtools/repl/??? only thing
 
     // only allow = for this
-    if (decl.operator !== '=') throw new ReferenceError(`${decl.name} is not defined (locals: ${Object.keys(scope.locals)}, globals: ${Object.keys(globals)})`);
+    if (decl.operator !== '=') throw new ReferenceError(`${decl.name} is not defined`);
 
     if (builtinVars[name]) {
       // just return rhs (eg `NaN = 2`)
