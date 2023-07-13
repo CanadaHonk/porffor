@@ -15,8 +15,8 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   const t2 = performance.now();
   const { instance } = await WebAssembly.instantiate(wasm, {
     '': {
-      p: i => valtype === 'i64' ? print(Number(i).toString()) : print(i.toString()),
-      c: i => valtype === 'i64' ? print(String.fromCharCode(Number(i))) : print(String.fromCharCode(i)),
+      p: valtype === 'i64' ? i => print(Number(i).toString()) : i => print(i.toString()),
+      c: valtype === 'i64' ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
       a: c => { if (!Number(c)) throw new Error(`assert failed`); },
       ...customImports
     }
