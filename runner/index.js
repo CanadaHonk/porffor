@@ -22,7 +22,11 @@ const print = str => {
   }
 };
 
-const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
+try {
+  const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
 
-exports.main();
-print('\n');
+  exports.main();
+  print('\n');
+} catch (e) {
+  console.error(`${e.constructor.name}: ${e.message}`);
+}
