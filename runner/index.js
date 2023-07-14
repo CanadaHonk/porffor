@@ -26,7 +26,7 @@ try {
   const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
 
   exports.main();
-  print('\n');
+  if (cache) process.stdout.write(cache);
 } catch (e) {
   console.error(`${e.constructor.name}: ${e.message}`);
 }
