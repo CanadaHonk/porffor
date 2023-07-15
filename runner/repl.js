@@ -23,7 +23,7 @@ const run = async (source, _context, _filename, callback) => {
 
   let toRun = prev + source.trim();
 
-  const { exports, wasm } = await compile(toRun, [ 'return' ]);
+  const { exports, wasm } = await compile(toRun, []);
   fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   if (source.includes(' = ')) prev += source + ';\n';
