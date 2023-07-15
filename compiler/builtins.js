@@ -115,53 +115,25 @@ export const BuiltinFuncs = function() {
     ]
   };
 
-  this['f64_&'] = {
-    params: [ valtypeBinary, valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      Opcodes.i32_to,
+  // add bitwise ops by converting operands to i32 first
+  for (const [ char, op ] of [ ['&', Opcodes.i32_and], ['|', Opcodes.i32_or], ['^', Opcodes.i32_xor], ['<<', Opcodes.i32_shl], ['>>', Opcodes.i32_shr_s] ]) {
+    this[`f64_${char}`] = {
+      params: [ valtypeBinary, valtypeBinary ],
+      locals: [],
+      returns: [ valtypeBinary ],
+      wasm: [
+        [ Opcodes.local_get, 0 ],
+        Opcodes.i32_to,
 
-      [ Opcodes.local_get, 1 ],
-      Opcodes.i32_to,
+        [ Opcodes.local_get, 1 ],
+        Opcodes.i32_to,
 
-      [ Opcodes.i32_and ],
-      Opcodes.i32_from
-    ]
-  };
+        [ op ],
+        Opcodes.i32_from
+      ]
+    };
+  }
 
-  this['f64_|'] = {
-    params: [ valtypeBinary, valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      Opcodes.i32_to,
-
-      [ Opcodes.local_get, 1 ],
-      Opcodes.i32_to,
-
-      [ Opcodes.i32_or ],
-      Opcodes.i32_from
-    ]
-  };
-
-  this['f64_^'] = {
-    params: [ valtypeBinary, valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      Opcodes.i32_to,
-
-      [ Opcodes.local_get, 1 ],
-      Opcodes.i32_to,
-
-      [ Opcodes.i32_xor ],
-      Opcodes.i32_from
-    ]
-  };
 
   // just echo given for now, for type constructors
   this.Number = {

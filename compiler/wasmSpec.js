@@ -86,6 +86,9 @@ export const Opcodes = {
   i32_and: 0x71,
   i32_or: 0x72,
   i32_xor: 0x73,
+  i32_shl: 0x74,
+  i32_shr_s: 0x75,
+  i32_shr_u: 0x76,
 
   i64_eqz: 0x50,
   i64_eq: 0x51,
@@ -105,6 +108,9 @@ export const Opcodes = {
   i64_and: 0x83,
   i64_or: 0x84,
   i64_xor: 0x85,
+  i64_shl: 0x86,
+  i64_shr_s: 0x87,
+  i64_shr_u: 0x88,
 
   f64_eq: 0x61,
   f64_ne: 0x62,
