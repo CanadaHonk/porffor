@@ -1,5 +1,4 @@
 import compile from '../compiler/wrap.js';
-import parse from '../compiler/parse.js';
 
 import repl from 'node:repl';
 import fs from 'node:fs';
@@ -19,8 +18,6 @@ console.log();
 
 let prev = '';
 const run = async (source, _context, _filename, callback) => {
-  const ast = parse(source, []);
-
   let toRun = prev + source.trim();
 
   const { exports, wasm } = await compile(toRun, []);
