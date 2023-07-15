@@ -637,13 +637,13 @@
     }
 
     #commit_log > div > :first-child {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 600;
       color: var(--text-normal);
     }
 
     #commit_log > div > :first-child > div {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 500;
       color: #57F287;
       float: right;
@@ -651,16 +651,16 @@
 
     #commit_log > div > :first-child > div > span {
       color: var(--text-muted);
-      font-size: 18px;
+      font-size: 16px;
       margin-left: 6px;
     }
 
     #commit_log > div > :last-child {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 400;
       color: var(--text-muted);
 
-      margin-bottom: 6px;
+      margin-top: 6px;
     }
   </style>
 </head>
@@ -900,8 +900,8 @@ console.log(sum);`,
 
     let commits = await (await fetch('https://api.github.com/repos/canadahonk/porffor/commits')).json();
 
-    const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+\.[0-9]+)%/)[1]);
-    const getCommitPasses = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+)\//)[1]);
+    const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+(\.[0-9]+)?)%/)?.[1]);
+    const getCommitPasses = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+)\//)?.[1]);
 
     for (let i = 0; i < commits.length; i++) {
       const x = commits[i];
@@ -922,6 +922,8 @@ console.log(sum);`,
       let change = 0;
       if (isNaN(prevPercent)) change = 0;
         else change = percent - prevPercent;
+
+      if (change === 0) continue;
 
       const percentEl = document.createElement('div');
       percentEl.innerHTML = `${percent.toFixed(2)}%${change !== 0 ? `<span>(${change > 0 ? '+' : ''}${change.toFixed(2)})</span>` : ''}`;
