@@ -899,7 +899,7 @@ console.log(sum);`,
 
     let commits = await (await fetch('https://api.github.com/repos/canadahonk/porffor/commits')).json();
 
-    const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]\.[0-9]+)%/)[1]);
+    const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+\.[0-9]+)%/)[1]);
     const getCommitPasses = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+)\//)[1]);
 
     for (let i = 0; i < commits.length; i++) {
