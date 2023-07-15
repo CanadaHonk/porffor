@@ -1,13 +1,12 @@
 import { Valtype, FuncType, Empty, ExportDesc, Section, Magic, ModuleVersion, Opcodes } from './wasmSpec.js';
 import { encodeVector, encodeString, encodeLocal } from './encoding.js';
 import { number } from './embedding.js';
+import { importedFuncs } from './builtins.js';
 
 const createSection = (type, data) => [
   type,
   ...encodeVector(data)
 ];
-
-const allImportFuncs = [ 'p', 'c', 'a' ];
 
 export default (funcs, globals, tags, flags) => {
   const types = [], typeCache = {};
@@ -30,40 +29,43 @@ export default (funcs, globals, tags, flags) => {
   let importFuncs = [];
 
   if (optLevel < 1) {
-    importFuncs = allImportFuncs;
+    importFuncs = importedFuncs;
   } else {
+    let imports = new Map();
+
     // tree shake imports
     for (const f of funcs) {
       for (const inst of f.wasm) {
-        if (inst[0] === Opcodes.call && inst[1] < allImportFuncs.length) {
+        if (inst[0] === Opcodes.call && inst[1] < importedFuncs.length) {
           const idx = inst[1];
-          const func = allImportFuncs[idx];
-          if (!importFuncs.includes(func)) importFuncs.push(func);
+          const func = importedFuncs[idx];
 
-          inst[1] = importFuncs.indexOf(func);
-          // if (optLog) console.log(`treeshake: rewrote call for ${func} (${idx} -> ${importFuncs.indexOf(func)})`);
+          if (!imports.has(func.name)) imports.set(func.name, { ...func, idx: imports.size });
+          inst[1] = imports.get(func.name).idx;
         }
       }
     }
 
+    importFuncs = [...imports.values()];
+
     // fix call indexes for non-imports
-    const delta = allImportFuncs.length - importFuncs.length;
+    const delta = importedFuncs.length - importFuncs.length;
     for (const f of funcs) {
       f.index -= delta;
 
       for (const inst of f.wasm) {
-        if (inst[0] === Opcodes.call && inst[1] >= allImportFuncs.length) {
+        if (inst[0] === Opcodes.call && inst[1] >= importedFuncs.length) {
           inst[1] -= delta;
         }
       }
     }
   }
 
-  if (optLog) log('sections', `treeshake: using ${importFuncs.length}/${allImportFuncs.length} imports`);
+  if (optLog) log('sections', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
-    encodeVector(importFuncs.map((x, i) => [ 0, ...encodeString(x), ExportDesc.func, getType([ valtypeBinary ], []) ]))
+    encodeVector(importFuncs.map(x => [ 0, ...encodeString(x.import), ExportDesc.func, getType(new Array(x.params).fill(valtypeBinary), new Array(x.returns).fill(valtypeBinary)) ]))
   );
 
   const funcSection = createSection(

@@ -11,7 +11,7 @@ let tags = [];
 let funcs = [];
 let exceptions = [];
 let funcIndex = {};
-let currentFuncIndex = Object.keys(importedFuncs).length;
+let currentFuncIndex = importedFuncs.length;
 let builtinFuncs = {};
 let builtinVars = {};
 
@@ -265,7 +265,7 @@ const performOp = (scope, op) => {
     includeBuiltin(scope, builtinName);
     const idx = funcIndex[builtinName];
 
-    ops = [
+    return [
       [ Opcodes.call, idx ]
     ];
   }
@@ -594,7 +594,7 @@ const generateVar = (scope, decl) => {
       // if our value is the result of a function, infer the type from that func's return value
       if (out[out.length - 1][0] === Opcodes.call) {
         const ind = out[out.length - 1][1];
-        if (ind >= Object.keys(importedFuncs).length) { // not an imported func
+        if (ind >= importedFuncs.length) { // not an imported func
           const func = funcs.find(x => x.index === ind);
           if (!func) throw new Error('could not find func being called as var value to infer type'); // sanity check
 
@@ -1170,7 +1170,7 @@ export default program => {
   funcs = [];
   funcIndex = {};
   depth = [];
-  currentFuncIndex = Object.keys(importedFuncs).length;
+  currentFuncIndex = importedFuncs.length;
 
   globalThis.valtype = 'f64';
 

@@ -1,8 +1,37 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { number, i32x4 } from "./embedding.js";
-// import parse from "./parse.js";
 
-export const importedFuncs = { print: 0, printChar: 1, assert: 2 };
+export const importedFuncs = [
+  {
+    name: 'print',
+    import: 'p',
+    params: 1,
+    returns: 0
+  },
+  {
+    name: 'printChar',
+    import: 'c',
+    params: 1,
+    returns: 0
+  },
+  {
+    name: 'assert',
+    import: 'a',
+    params: 1,
+    returns: 0
+  },
+  {
+    name: 'time',
+    import: 't',
+    params: 0,
+    returns: 1
+  }
+];
+
+for (let i = 0; i < importedFuncs.length; i++) {
+  const f = importedFuncs[i];
+  importedFuncs[f.name] = i;
+}
 
 const char = c => number(c.charCodeAt(0));
 
@@ -165,6 +194,7 @@ export const BuiltinFuncs = function() {
   // just return given (default 0) for (new) Object() as we somewhat supports object just not constructor
   this.Object = this.Number;
 
+
   this.__console_log = {
     params: [ valtypeBinary ],
     locals: [],
@@ -176,6 +206,9 @@ export const BuiltinFuncs = function() {
       [ Opcodes.call, importedFuncs.printChar ]
     ]
   };
+
+  // todo: add more console funcs
+
 
   this.isNaN = {
     floatOnly: true,
@@ -244,6 +277,7 @@ export const BuiltinFuncs = function() {
       Opcodes.i32_from
     ]
   };
+
 
   this.__Math_sqrt = {
     floatOnly: true,
@@ -347,6 +381,17 @@ export const BuiltinFuncs = function() {
       [ Opcodes.f64_promote_f32 ]
     ]
   };
+
+
+  this.__performance_now = {
+    params: [],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.call, importedFuncs.time ]
+    ]
+  };
+
 
   this.__SIMD_i32x4_load = {
     params: [ Valtype.i32 ],
@@ -517,8 +562,3 @@ export const BuiltinFuncs = function() {
     ]
   };
 };
-
-/* for (const x in builtins) {
-  if (x.wasm) continue;
-  // builtins[x] = parse(x, []);
-} */
