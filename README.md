@@ -1,6 +1,6 @@
 # porffor
 a basic experimental wip *aot* optimizing wasm js compiler in js. not serious/intended for (real) use, but this is a straight forward honest readme<br>
-age: ~5 days
+age: ~3 weeks
 
 ## design
 porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. key differences:
