@@ -265,6 +265,11 @@ export default (funcs, globals) => {
           // -->
           // local.get 1
 
+          // remove drop at the end as well
+          if (wasm[i + 4][0] === Opcodes.drop) {
+            wasm.splice(i + 4, 1);
+          }
+
           wasm.splice(i, 1); // remove this inst (second get)
           i--;
           continue;

@@ -404,7 +404,7 @@ const countLeftover = wasm => {
       count--;
       if (inst[1] !== Blocktype.void) count++;
     }
-    if ([Opcodes.if, Opcodes.try, Opcodes.block].includes(inst[0])) depth++;
+    if ([Opcodes.if, Opcodes.try, Opcodes.loop, Opcodes.block].includes(inst[0])) depth++;
     if (inst[0] === Opcodes.end) depth--;
 
     if (depth === 0)
