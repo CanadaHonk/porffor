@@ -57,7 +57,7 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - SIMD api (docs needed)
 - nice v128 param/return func exports (allowed as params and returns via wrapping)
 - iife support
-- assignment operators (`+=`, `-=`, etc)
+- assignment operators (`+=`, `-=`, `>>=`, `&&=`, etc)
 - conditional/ternary operator (`cond ? a : b`)
 - recursive functions
 - bare returns (`return`)
@@ -68,10 +68,12 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - `NaN` and `Infinity` (f64 only)
 - `isNaN` and `isFinite` (f64 only)
 - most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`, `isInteger`, `isSafeInteger`) (some f64 only)
-- some `Math` funcs (`Math.sqrt`, `Math.abs`, `Math.floor`, `Math.sign`, `Math.round`, `Math.trunc`, `Math.clz32`, `Math.fround`) (f64 only)
+- some `Math` funcs (`Math.sqrt`, `Math.abs`, `Math.floor`, `Math.sign`, `Math.round`, `Math.trunc`, `Math.clz32`, `Math.fround`, `Math.random`) (f64 only)
 - basic `globalThis` support
 - basic `Boolean` and `Number`
 - basic `eval` (literals only)
+- `Math.random` using self-made xorshift128+ PRNG
+- some of `performance` (`now()`)
 
 ## soon todo
 - more math operators (`**`, etc)

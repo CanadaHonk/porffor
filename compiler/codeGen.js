@@ -256,7 +256,45 @@ const generateReturn = (scope, decl) => {
   ];
 };
 
-const performOp = (scope, op) => {
+const performLogicOp = (scope, op, left, right) => {
+  const getLocalTmp = ind => {
+    const name = `logictmp${ind}`;
+    if (scope.locals[name]) return scope.locals[name].idx;
+
+    let idx = scope.localInd++;
+    scope.locals[name] = { idx, type: valtypeBinary };
+
+    return idx;
+  };
+
+  const checks = {
+    '||': Opcodes.eqz,
+    '&&': [ Opcodes.i32_to ]
+    // todo: ??
+  };
+
+  if (!checks[op]) return todo(`logic operator ${op} not implemented yet`);
+
+  // generic structure for {a} OP {b}
+  // -->
+  // _ = {a}; if (OP_CHECK) {b} else _
+  return [
+    ...left,
+    [ Opcodes.local_tee, getLocalTmp(1) ],
+    ...checks[op],
+    [ Opcodes.if, valtypeBinary ],
+    ...right,
+    [ Opcodes.else ],
+    [ Opcodes.local_get, getLocalTmp(1) ],
+    [ Opcodes.end ]
+  ];
+};
+
+const performOp = (scope, op, left, right) => {
+  if (op === '||' || op === '&&' || op === '??') {
+    return performLogicOp(scope, op, left, right);
+  }
+
   let ops = operatorOpcode[valtype][op];
 
   // some complex ops are implemented as builtin funcs
@@ -266,21 +304,26 @@ const performOp = (scope, op) => {
     const idx = funcIndex[builtinName];
 
     return [
+      ...left,
+      ...right,
       [ Opcodes.call, idx ]
     ];
   }
 
   if (!ops) return todo(`operator ${op} not implemented yet`); // throw new Error(`unknown operator ${op}`);
 
-  if (!Array.isArray(ops)) ops = [ [ ops ] ];
-  return ops;
+  if (!Array.isArray(ops)) ops = [ ops ];
+
+  return [
+    ...left,
+    ...right,
+    ops
+  ];
 };
 
 const generateBinaryExp = (scope, decl) => {
   const out = [
-    ...generate(scope, decl.left),
-    ...generate(scope, decl.right),
-    ...performOp(scope, decl.operator)
+    ...performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right))
   ];
 
   if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from);
@@ -342,53 +385,7 @@ const includeBuiltin = (scope, builtin) => {
 };
 
 const generateLogicExp = (scope, decl) => {
-  const getLocalTmp = ind => {
-    const name = `tmp${ind}`;
-    if (scope.locals[name]) return scope.locals[name].idx;
-
-    let idx = scope.localInd++;
-    scope.locals[name] = { idx, type: valtypeBinary };
-
-    return idx;
-  };
-
-  if (decl.operator === '||') {
-    // it basically does:
-    // {a} || {b}
-    // -->
-    // _ = {a}; if (!_) {b} else _
-
-    return [
-      ...generate(scope, decl.left),
-      [ Opcodes.local_tee, getLocalTmp(1) ],
-      ...Opcodes.eqz, // == 0 (fail ||)
-      [ Opcodes.if, valtypeBinary ],
-      ...generate(scope, decl.right),
-      [ Opcodes.else ],
-      [ Opcodes.local_get, getLocalTmp(1) ],
-      [ Opcodes.end ]
-    ];
-  }
-
-  if (decl.operator === '&&') {
-    // it basically does:
-    // {a} && {b}
-    // -->
-    // _ = {a}; if (_) {b} else _
-
-    return [
-      ...generate(scope, decl.left),
-      [ Opcodes.local_tee, getLocalTmp(1) ],
-      Opcodes.i32_to, // != 0 (success &&)
-      [ Opcodes.if, valtypeBinary ],
-      ...generate(scope, decl.right),
-      [ Opcodes.else ],
-      [ Opcodes.local_get, getLocalTmp(1) ],
-      [ Opcodes.end ]
-    ];
-  }
-
-  return todo(`logical op ${decl.operator} not implemented`);
+  return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right));
 };
 
 const generateLiteral = (scope, decl) => {
@@ -679,9 +676,7 @@ const generateAssign = (scope, decl) => {
   }
 
   return [
-    [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
-    ...generate(scope, decl.right),
-    ...performOp(scope, decl.operator.slice(0, -1)),
+    ...performOp(scope, decl.operator.slice(0, -1), [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right)),
     [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
     [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
   ];
