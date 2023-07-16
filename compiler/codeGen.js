@@ -681,7 +681,7 @@ const generateAssign = (scope, decl) => {
   return [
     [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
     ...generate(scope, decl.right),
-    ...performOp(scope, decl.operator[0]),
+    ...performOp(scope, decl.operator.slice(0, -1)),
     [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
     [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
   ];
