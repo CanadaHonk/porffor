@@ -1,5 +1,5 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
-import { read_ieee754_binary64 } from "./encoding.js";
+import { read_ieee754_binary64, read_signedLEB128 } from "./encoding.js";
 
 const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[keyMap(obj[x])] = x; return acc; }, {});
 const invOpcodes = inv(Opcodes);
@@ -40,6 +40,8 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
     if (inst[0] === Opcodes.f64_const) {
       out += ` ${read_ieee754_binary64(inst.slice(1))}`;
+    } else if (inst[0] === Opcodes.i32_const || inst[0] === Opcodes.i64_const) {
+      out += ` ${read_signedLEB128(inst.slice(1))}`;
     } else for (const operand of inst.slice(1)) {
       if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) {
         if (operand === Blocktype.void) continue;

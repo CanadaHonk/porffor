@@ -75,7 +75,7 @@ export default (funcs, globals, tags, flags) => {
 
   const globalSection = Object.keys(globals).length === 0 ? [] : createSection(
     Section.global,
-    encodeVector(Object.keys(globals).map(_ => [ valtypeBinary, 0x01, ...number(0).flat(), Opcodes.end ]))
+    encodeVector(Object.keys(globals).map(x => [ globals[x].type, 0x01, ...number(globals[x].init ?? 0, globals[x].type).flat(), Opcodes.end ]))
   );
 
   const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, x.index ]);

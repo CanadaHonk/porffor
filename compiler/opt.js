@@ -364,10 +364,14 @@ export default (funcs, globals) => {
         // -->
         // ...
 
-        let hasBranch = false, j = i;
+        let hasBranch = false, j = i, depth = 0;
         for (; j < wasm.length; j++) {
           const op = wasm[j][0];
-          if (op === Opcodes.end) break;
+          if (op === Opcodes.if || op === Opcodes.block || op === Opcodes.loop || op === Opcodes.try) depth++;
+          if (op === Opcodes.end) {
+            depth--;
+            if (depth <= 0) break;
+          }
           if (op === Opcodes.br) {
             hasBranch = true;
             break;

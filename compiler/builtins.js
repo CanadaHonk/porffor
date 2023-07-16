@@ -1,5 +1,6 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { number, i32x4 } from "./embedding.js";
+import { signedLEB128 } from "./encoding.js";
 
 export const importedFuncs = [
   {
@@ -351,6 +352,75 @@ export const BuiltinFuncs = function() {
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f32_demote_f64 ],
       [ Opcodes.f64_promote_f32 ]
+    ]
+  };
+
+  // this is an implementation of xorshift128+ (in wasm bytecode)
+  // fun fact: v8, SM, JSC also use this (you will need this fun fact to maintain your sanity reading this code)
+  const prngSeed0 = Math.floor(Math.random() * (2 ** 30)), prngSeed1 = Math.floor(Math.random() * (2 ** 30));
+
+  this.__Math_random = {
+    floatOnly: true,
+    params: [],
+    locals: [ Valtype.i64, Valtype.i64 ],
+    localNames: [ 's1', 's0' ],
+    globals: [ Valtype.i64, Valtype.i64 ],
+    globalNames: [ 'state0', 'state1' ],
+    globalInits: [ prngSeed0, prngSeed1 ],
+    returns: [ Valtype.f64 ],
+    wasm: [
+      // setup: s1 = state0, s0 = state1, state0 = s0
+      [ Opcodes.global_get, 0 ], // state0
+      [ Opcodes.local_set, 0 ], // s1
+      [ Opcodes.global_get, 1 ], // state1
+      [ Opcodes.local_tee, 1, ], // s0
+      [ Opcodes.global_set, 0 ], // state0
+
+      // s1 ^= s1 << 23
+      [ Opcodes.local_get, 0 ], // s1
+      [ Opcodes.local_get, 0 ], // s1
+      [ Opcodes.i64_const, 23 ],
+      [ Opcodes.i64_shl ], // <<
+      [ Opcodes.i64_xor ], // ^
+      [ Opcodes.local_set, 0 ], // s1
+
+      // state1 = s1 ^ s0 ^ (s1 >> 17) ^ (s0 >> 26)
+      // s1 ^ s0
+      [ Opcodes.local_get, 0 ], // s1
+      [ Opcodes.local_get, 1 ], // s0
+      [ Opcodes.i64_xor ], // ^
+
+      // ^ (s1 >> 17)
+      [ Opcodes.local_get, 0 ], // s1
+      [ Opcodes.i64_const, 17 ],
+      [ Opcodes.i64_shr_u ], // >>
+      [ Opcodes.i64_xor ], // ^
+
+      // ^ (s0 >> 26)
+      [ Opcodes.local_get, 1 ], // s0
+      [ Opcodes.i64_const, 26 ],
+      [ Opcodes.i64_shr_u ], // >>
+      [ Opcodes.i64_xor ], // ^
+
+      // state1 =
+      [ Opcodes.global_set, 1 ],
+
+      // you thought it was over? now we need the result as a f64 between 0-1 :)
+
+      // mantissa = (state1 + s0) & ((1 << 53) - 1)
+      [ Opcodes.global_get, 1 ], // state1
+      [ Opcodes.local_get, 1 ], // s0
+      [ Opcodes.i64_add ],
+
+      [ Opcodes.i64_const, ...signedLEB128((1 << 53) - 1) ],
+      [ Opcodes.i64_and ],
+
+      // double(mantissa)
+      [ Opcodes.f64_convert_i64_u ],
+
+      // / (1 << 53)
+      ...number(1 << 53),
+      [ Opcodes.f64_div ]
     ]
   };
 

@@ -288,16 +288,33 @@ const generateBinaryExp = (scope, decl) => {
   return out;
 };
 
-const asmFunc = (name, { wasm, params, locals: localTypes, returns, memory }) => {
+const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, memory, localNames = [], globalNames = [] }) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
-  const nameParam = i => i >= params.length ? ['a', 'b', 'c'][i - params.length] : ['x', 'y', 'z'][i];
+  const nameParam = i => localNames[i] ?? (i >= params.length ? ['a', 'b', 'c'][i - params.length] : ['x', 'y', 'z'][i]);
 
   const allLocals = params.concat(localTypes);
   const locals = {};
   for (let i = 0; i < allLocals.length; i++) {
     locals[nameParam(i)] = { idx: i, type: allLocals[i] };
+  }
+
+  let baseGlobalIdx, i = 0;
+  for (const type of globalTypes) {
+    if (baseGlobalIdx === undefined) baseGlobalIdx = globalInd;
+
+    globals[globalNames[i] ?? `${name}_global_${i}`] = { idx: globalInd++, type, init: globalInits[i] ?? 0 };
+    i++;
+  }
+
+  if (globalTypes.length !== 0) {
+    // offset global ops for base global idx
+    for (const inst of wasm) {
+      if (inst[0] === Opcodes.global_get || inst[0] === Opcodes.global_set) {
+        inst[1] += baseGlobalIdx;
+      }
+    }
   }
 
   const func = {
@@ -611,7 +628,7 @@ const generateVar = (scope, decl) => {
         }
       }
 
-      out.push([ global ? Opcodes.global_set : Opcodes.local_set, unsignedLEB128(idx) ]);
+      out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
     }
   }
 
