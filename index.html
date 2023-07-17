@@ -619,12 +619,23 @@
       margin-right: 12px;
     }
 
+    #test262 {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 24px;
+      margin: 48px 0;
+
+      width: 100%;
+      /* height: 80vh; */
+      height: 600px;
+    }
+
     #commit_log {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 24px;
 
-      margin: 48px;
+      overflow-x: auto;
     }
 
     #commit_log > div {
@@ -637,36 +648,89 @@
     }
 
     #commit_log > div > :first-child {
-      font-size: 22px;
-      font-weight: 600;
+      font-size: 18px;
+      font-weight: 500;
       color: var(--text-normal);
     }
 
-    #commit_log > div > :first-child > div {
-      font-size: 22px;
+    #commit_log > div > :last-child {
+      font-size: 18px;
       font-weight: 500;
+
       color: #57F287;
-      float: right;
+
+      margin-top: 6px;
     }
 
-    #commit_log > div > :first-child > div > span {
+    #commit_log > div > :last-child > span {
       color: var(--text-muted);
       font-size: 16px;
       margin-left: 6px;
     }
 
-    #commit_log > div > :last-child {
+    #commit_log > div > :last-child > div {
       font-size: 16px;
       font-weight: 400;
       color: var(--text-muted);
 
-      margin-top: 6px;
+      display: inline;
+      float: right;
     }
 
     header img {
       vertical-align: middle;
       border-radius: 4px;
       margin-right: 8px;
+    }
+
+    #graph {
+      /* background: var(--background-secondary);
+
+      border-radius: 8px;
+      padding: 8px; */
+    }
+
+    #graph > div {
+      display: inline-flex;
+      flex-direction: column;
+      height: 100%;
+      vertical-align: top;
+    }
+
+    #graph > div > :first-child {
+      height: calc(100% - 20px);
+
+      display: flex;
+      flex-direction: column;
+    }
+
+    #graph > div > :last-child {
+      height: 20px;
+      font-size: 12px;
+      font-family: var(--font-header);
+      padding: 2px;
+
+      border-top: 1px solid #606468;
+      background: #000408;
+    }
+
+    .graph-0 {
+      background: #13a10e;
+    }
+    .graph-1 {
+      background: #c19c00;
+    }
+    .graph-2 {
+      background: #e74856;
+    }
+    .graph-3 {
+      background: #792027;
+    }
+    .graph-4 {
+      background: #c50f1f;
+    }
+    .graph-5 {
+      background: #dd5719;
     }
   </style>
 </head>
@@ -699,7 +763,10 @@
     <div id="output"></div>
     <div id="status"></div>
 
-    <div id="commit_log"></div>
+    <div id="test262">
+      <div id="commit_log"></div>
+      <div id="graph"></div>
+    </div>
   </article>
 
   <script> (async () => {
@@ -901,21 +968,23 @@ console.log(sum);`,
         ind = 'pm';
       }
 
-      return `${hours}:${x.getMinutes().toString().padStart(2, '0')} ${ind} · ${x.toLocaleString('default', { month: 'long' })} ${x.getDate()}, ${x.getFullYear()}`;
+      return `${x.toLocaleString('default', { month: 'long' })} ${x.getDate()}, ${x.getFullYear()}`;
+      // return `${hours}:${x.getMinutes().toString().padStart(2, '0')} ${ind} · ${x.toLocaleString('default', { month: 'long' })} ${x.getDate()}, ${x.getFullYear()}`;
     };
 
     let commits = await (await fetch('https://api.github.com/repos/canadahonk/porffor/commits?per_page=100')).json();
 
     const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+(\.[0-9]+)?)%/)?.[1]);
-    const getCommitPasses = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+)\//)?.[1]);
+    const getCommitDetails = x => x.commit.message.trim().split('\n').pop().split(' | ').slice(1).map(x => x.split(' ')[1]);
 
+    const graphData = {};
     for (let i = 0; i < commits.length; i++) {
       const x = commits[i];
       const msg = x.commit.message.trim().split('\n');
       const el = document.createElement('div');
 
       const textEl = document.createElement('div');
-      textEl.textContent = msg[0].slice(0, 60) + (msg[0].length > 60 ? '...' : '');
+      textEl.textContent = msg[0].slice(0, 42) + (msg[0].length > 42 ? '...' : '');
 
       const when = new Date(x.commit.committer.date);
       const whenEl = document.createElement('div');
@@ -934,10 +1003,53 @@ console.log(sum);`,
       const percentEl = document.createElement('div');
       percentEl.innerHTML = `${percent.toFixed(2)}%${change !== 0 ? `<span>(${change > 0 ? '+' : ''}${change.toFixed(2)})</span>` : ''}`;
 
-      textEl.append(percentEl);
+      // textEl.append(percentEl);
+      percentEl.append(whenEl);
 
-      el.append(textEl, whenEl);
+      el.append(textEl, percentEl);
       commit_log.append(el);
+
+      const details = getCommitDetails(x);
+      if (!details) continue;
+
+      const key = `${when.getDate().toString().padStart(2, '0')}/${(when.getMonth() + 1).toString().padStart(2, '0')}`;
+      if (graphData[key]) continue;
+      graphData[key] = details;
+    }
+
+    let last;
+    for (let i = 8; i <= (new Date()).getDate(); i++) {
+      const key = `${i.toString().padStart(2, '0')}/07`;
+      if (!graphData[key]) graphData[key] = last;
+        else last = graphData[key];
+    }
+
+    for (const x of Object.keys(graphData).sort((a, b) => parseInt(a.slice(0, 2)) - parseInt(b.slice(0, 2)))) {
+      const details = graphData[x];
+      const [ total, passes, fails, runtimeErrors, wasmErrors, compileErrors, todos ] = details;
+
+      const containerEl = document.createElement('div');
+      const barEl = document.createElement('div');
+
+      let i = 0;
+      for (const y of details.slice(1)) {
+        const el = document.createElement('div');
+        el.style.height = `${(y / total) * 100}%`;
+        el.className = `graph-${i}`;
+
+        el.title = (['Pass', 'Fail', 'Runtime error', 'Wasm error', 'Compile error', 'Todo'])[i] + `: ${y} (${((y / total) * 100).toFixed(2)}%)`;
+
+        barEl.appendChild(el);
+
+        i++;
+      }
+
+      const keyEl = document.createElement('div');
+      keyEl.textContent = x;
+
+      containerEl.append(barEl, keyEl);
+
+      graph.appendChild(containerEl);
     }
   })();</script>
 </body>
