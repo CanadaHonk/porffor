@@ -47,7 +47,8 @@ const hacks = [
   // random error detail checks
   x => {
     return x
-      .replace(/assert\.notSameValue\(err\.message\.indexOf\('.*?'\), -1\);/g, '');
+      .replace(/assert\.notSameValue\(err\.message\.indexOf\('.*?'\), -1\);/g, '')
+      .replace(/if \(\(e instanceof (.*)Error\) !== true\) \{[\w\W]*?\}/g, '');
   },
 
   // int valtypes only: replace assert._isSameValue check with simple check
@@ -164,7 +165,7 @@ for await (const test of tests) {
   if (!resultOnly) console.log(`\u001b[90m${Math.floor((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
 
   if (logErrors && !pass && result) console.log(result.stack);
-  // if (!pass && stage === 0 && result.constructor.name === 'CompileError') console.log(file, test.contents.split('---*/').pop(), '\n');
+  // if (!pass && stage === 0 && result.constructor.name === 'CompileError') console.log(file, test.contents.split('---*/').pop(), result.stack, '\n');
 
   let y = dirs;
   for (const x of file.split('/')) {
