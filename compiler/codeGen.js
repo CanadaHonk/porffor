@@ -406,6 +406,18 @@ const generateLogicExp = (scope, decl) => {
   return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right));
 };
 
+const typeBase = 0x12345;
+const TYPES = {
+  number: typeBase,
+  boolean: typeBase + 1,
+  string: typeBase + 2,
+  undefined: typeBase + 3,
+  object: typeBase + 4,
+  function: typeBase + 5,
+  symbol: typeBase + 6,
+  bigint: typeBase + 7
+};
+
 const generateLiteral = (scope, decl) => {
   if (decl.value === null) return number(NULL);
 
@@ -418,6 +430,18 @@ const generateLiteral = (scope, decl) => {
       return number(decl.value ? 1 : 0);
 
     case 'string':
+      // this is a terrible hack which changes type strings ("number" etc) to known const number values
+      switch (decl.value) {
+        case 'number': return number(TYPES.number);
+        case 'boolean': return number(TYPES.boolean);
+        case 'string': return number(TYPES.string);
+        case 'undefined': return number(TYPES.undefined);
+        case 'object': return number(TYPES.object);
+        case 'function': return number(TYPES.function);
+        case 'symbol': return number(TYPES.symbol);
+        case 'bigint': return number(TYPES.bigint);
+      }
+
       if (decl.value.length > 1) todo(`cannot generate string literal (char only)`);
 
       // hack: char as int
@@ -735,6 +759,15 @@ const generateUnary = (scope, decl) => {
         Opcodes.i32_from
       ];
 
+    case '~':
+      return [
+        ...generate(scope, decl.argument),
+        Opcodes.i32_to,
+        [ Opcodes.i32_const, signedLEB128(-1) ],
+        [ Opcodes.i32_xor ],
+        Opcodes.i32_from
+      ];
+
     case 'void': {
       // drop current expression value after running, give undefined
       const out = generate(scope, decl.argument);
@@ -764,14 +797,8 @@ const generateUnary = (scope, decl) => {
       out.push(...number(toReturn ? 1 : 0));
       return out;
 
-    case '~':
-      return [
-        ...generate(scope, decl.argument),
-        Opcodes.i32_to,
-        [ Opcodes.i32_const, signedLEB128(-1) ],
-        [ Opcodes.i32_xor ],
-        Opcodes.i32_from
-      ]
+    case 'typeof':
+      return number(TYPES.number);
 
     default:
       return todo(`unary operator ${decl.operator} not implemented yet`);
