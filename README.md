@@ -89,6 +89,9 @@ see [optimizations](#optimizations) for opts implemented/supported.
   - remove const ifs (`if (true)`, etc)
 - add simd api tests
 
+## test262
+porffor can run test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). it currently passes >10% (see latest commit desc for latest and details). use `node test262` to test, it will also show a difference of overall results between the last commit and current results.
+
 ## optimizations
 mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable. we do not use/rely on external opt tools (`wasm-opt`, etc), instead doing optimization inside the compiler itself creating even smaller code sizes than `wasm-opt` itself can produce as we have more internal information. (this also enables fast + small runtime use as a potential cursed jit in frontend).
 
