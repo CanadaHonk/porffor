@@ -418,6 +418,35 @@ const TYPES = {
   bigint: typeBase + 7
 };
 
+const typeStates = {};
+
+const getType = (scope, name) => {
+  if (scope.locals[name]) return typeStates[name];
+
+  if (builtinVars[name]) return builtinVars['$' + name] ?? TYPES.number;
+  if (builtinFuncs[name] || importedFuncs[name] || funcIndex[name]) return TYPES.function;
+  if (globals[name]) return typeStates[name];
+
+  return TYPES.undefined;
+};
+
+const getNodeType = (scope, node) => {
+  if (node.type === 'Literal') {
+    return TYPES[typeof node.value];
+  }
+
+  if (isFuncType(node.type)) {
+    return TYPES.function;
+  }
+
+  if (node.type === 'Identifier') {
+    return getType(scope, node.name);
+  }
+
+  // default to number
+  return TYPES.number;
+};
+
 const generateLiteral = (scope, decl) => {
   if (decl.value === null) return number(NULL);
 
@@ -651,6 +680,8 @@ const generateVar = (scope, decl) => {
       target[name] = { idx, type: valtypeBinary };
     }
 
+    typeStates[name] = x.init ? getNodeType(scope, x.init) : TYPES.undefined;
+
     // x.init ??= DEFAULT_VALUE;
     if (x.init) {
       out.push(...generate(scope, x.init));
@@ -718,12 +749,16 @@ const generateAssign = (scope, decl) => {
   }
 
   if (decl.operator === '=') {
+    typeStates[name] = getNodeType(scope, decl.right);
+
     return [
       ...generate(scope, decl.right),
       [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
       [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
     ];
   }
+
+  typeStates[name] = TYPES.number;
 
   return [
     ...performOp(scope, decl.operator.slice(0, -1), [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right)),
@@ -798,7 +833,7 @@ const generateUnary = (scope, decl) => {
       return out;
 
     case 'typeof':
-      return number(TYPES.number);
+      return number(getNodeType(scope, decl.argument));
 
     default:
       return todo(`unary operator ${decl.operator} not implemented yet`);
