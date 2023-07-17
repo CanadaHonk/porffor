@@ -138,8 +138,10 @@ const generate = (scope, decl) => {
     case 'TaggedTemplateExpression':
       // hack for inline asm
       if (decl.tag.name !== 'asm') return todo('tagged template expressions not implemented');
+
       const str = decl.quasi.quasis[0].value.raw;
       let out = [];
+
       for (const line of str.split('\n')) {
         const asm = line.trim().split(';;')[0].split(' ');
         if (asm[0] === '') continue; // blank
@@ -168,6 +170,7 @@ const generate = (scope, decl) => {
 
         out.push([ ...inst, ...immediates ]);
       }
+
       return out;
 
     default:
@@ -199,13 +202,30 @@ const lookupName = (scope, _name) => {
   return [ undefined, undefined ];
 };
 
+const internalThrow = (scope, constructor, message, expectsValue = false) => [
+  ...generateThrow(scope, {
+    argument: {
+      type: 'NewExpression',
+      callee: {
+        name: constructor
+      },
+      arguments: [
+        {
+          value: message
+        }
+      ]
+    }
+  }),
+  ...(expectsValue ? number(UNDEFINED) : [])
+];
+
 const generateIdent = (scope, decl) => {
   const lookup = rawName => {
     const name = mapName(rawName);
     let local = scope.locals[rawName];
 
     if (builtinVars[name]) {
-      if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${name} with integer valtype`);
+      if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${unhackName(name)} with integer valtype`);
       return builtinVars[name];
     }
 
@@ -227,13 +247,11 @@ const generateIdent = (scope, decl) => {
       let parent = rawName.slice(2).split('_').slice(0, -1).join('_');
       if (parent.includes('_')) parent = '__' + parent;
 
-      try {
-        lookup(parent);
-        return number(UNDEFINED);
-      } catch {}
+      const parentLookup = lookup(parent);
+      if (!parentLookup[1]) return number(UNDEFINED);
     }
 
-    if (local === undefined) throw new ReferenceError(`${name} is not defined`);
+    if (local === undefined) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
     return [ [ Opcodes.local_get, local.idx ] ];
   };
@@ -493,7 +511,7 @@ const generateCall = (scope, decl) => {
 
   let idx = funcIndex[name] ?? importedFuncs[name];
   if (idx === undefined && builtinFuncs[name]) {
-    if (builtinFuncs[name].floatOnly && valtype !== 'f64') throw new Error(`Cannot use built-in ${name} with integer valtype`);
+    if (builtinFuncs[name].floatOnly && valtype !== 'f64') throw new Error(`Cannot use built-in ${unhackName(name)} with integer valtype`);
 
     includeBuiltin(scope, name);
     idx = funcIndex[name];
@@ -520,7 +538,10 @@ const generateCall = (scope, decl) => {
     idx = -1;
   }
 
-  if (idx === undefined) throw new Error(`failed to find func idx for ${name} (funcIndex: ${Object.keys(funcIndex)})`);
+  if (idx === undefined) {
+    if (scope.locals[name] !== undefined || globals[name] !== undefined || builtinVars[name] !== undefined) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`);
+    return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
+  }
 
   const func = funcs.find(x => x.index === idx);
 
@@ -551,7 +572,7 @@ const generateCall = (scope, decl) => {
 const generateNew = (scope, decl) => {
   // hack: basically treat this as a normal call for builtins for now
   const name = mapName(decl.callee.name);
-  if (!builtinFuncs[name]) return todo(`new statement is not supported yet (new ${name})`);
+  if (!builtinFuncs[name]) return todo(`new statement is not supported yet (new ${unhackName(name)})`);
 
   return generateCall(scope, decl);
 };
@@ -560,6 +581,11 @@ const generateNew = (scope, decl) => {
 const DEFAULT_VALUE = {
   type: 'Identifier',
   name: 'undefined'
+};
+
+const unhackName = name => {
+  if (name.startsWith('__')) return name.slice(2).replaceAll('_', '.');
+  return name;
 };
 
 const generateVar = (scope, decl) => {
@@ -584,7 +610,7 @@ const generateVar = (scope, decl) => {
     // console.log(name);
     if (topLevel && builtinVars[name]) {
       // cannot redeclare
-      if (decl.kind !== 'var') throw new SyntaxError(`Identifier '${name}' has already been declared`);
+      if (decl.kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
 
       continue; // always ignore
     }
@@ -593,7 +619,7 @@ const generateVar = (scope, decl) => {
     // already declared
     if (target[name]) {
       // parser should catch this but sanity check anyway
-      if (decl.kind !== 'var') throw new SyntaxError(`Identifier '${name}' has already been declared`);
+      if (decl.kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
 
       idx = target[name].idx;
     } else {
@@ -653,7 +679,7 @@ const generateAssign = (scope, decl) => {
     // todo: this should be a devtools/repl/??? only thing
 
     // only allow = for this
-    if (decl.operator !== '=') throw new ReferenceError(`${decl.name} is not defined`);
+    if (decl.operator !== '=') return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
 
     if (builtinVars[name]) {
       // just return rhs (eg `NaN = 2`)
@@ -902,7 +928,7 @@ const generateThrow = (scope, decl) => {
   let message = decl.argument.value, constructor = null;
 
   // hack: throw new X("...") -> throw "..."
-  if (!message && decl.argument.type === 'NewExpression') {
+  if (!message && (decl.argument.type === 'NewExpression' || decl.argument.type === 'CallExpression')) {
     constructor = decl.argument.callee.name;
     message = decl.argument.arguments[0].value;
   }
