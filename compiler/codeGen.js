@@ -443,7 +443,7 @@ const getNodeType = (scope, node) => {
     return getType(scope, node.name);
   }
 
-  if (node.type === 'CallExpression') {
+  if (node.type === 'CallExpression' || node.type === 'NewExpression') {
     const name = node.callee.name;
     if (builtinFuncs[name]) return TYPES[builtinFuncs[name].returnType ?? 'number'];
 
