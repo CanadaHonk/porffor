@@ -816,11 +816,14 @@ const generateUnary = (scope, decl) => {
       let toReturn = true, toGenerate = true;
 
       if (decl.argument.type === 'Identifier') {
+        const out = generateIdent(scope, decl.argument);
+
         // if ReferenceError (undeclared var), ignore and return true. otherwise false
-        try {
-          generateIdent(scope, decl.argument);
+        if (!out[1]) {
+          // exists
           toReturn = false;
-        } catch {
+        } else {
+          // does not exist (2 ops from throw)
           toReturn = true;
           toGenerate = false;
         }
