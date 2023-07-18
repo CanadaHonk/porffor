@@ -151,6 +151,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: 'boolean',
     wasm: [
       [ Opcodes.local_get, 0 ],
       ...(valtype === 'f64' ? [
@@ -165,7 +166,15 @@ export const BuiltinFuncs = function() {
   };
 
   // just return given (default 0) for (new) Object() as we somewhat supports object just not constructor
-  this.Object = this.Number;
+  this.Object = {
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    returnType: 'object',
+    wasm: [
+      [ Opcodes.local_get, 0 ]
+    ]
+  };
 
 
   this.__console_log = {
@@ -188,6 +197,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: 'boolean',
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
@@ -202,6 +212,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [ valtypeBinary ],
     returns: [ valtypeBinary ],
+    returnType: 'boolean',
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
@@ -220,6 +231,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: 'boolean',
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
@@ -234,6 +246,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: 'boolean',
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
