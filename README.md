@@ -74,6 +74,8 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - basic `eval` (literals only)
 - `Math.random` using self-made xorshift128+ PRNG
 - some of `performance` (`now()`)
+- `typeof` mostly (static-ish)
+- runtime errors for undeclared variables (`ReferenceError`), not functions (`TypeError`)
 
 ## soon todo
 - more math operators (`**`, etc)
@@ -209,3 +211,6 @@ end
 
 ### 2. why at all
 yes.
+
+### 3. but what about spec compliance?
+lol, no. (sorry.)
