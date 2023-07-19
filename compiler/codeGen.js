@@ -1138,7 +1138,7 @@ const generateFunc = (scope, decl) => {
     }
   }
 
-  if (name !== 'main' && func.returns.length !== 0 && wasm[wasm.length - 1]?.[0] !== Opcodes.return) {
+  if (name !== 'main' && func.returns.length !== 0 && wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
     wasm.push(...number(0), [ Opcodes.return ]);
   }
 
