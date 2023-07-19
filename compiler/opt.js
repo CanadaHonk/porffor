@@ -200,9 +200,9 @@ export default (funcs, globals) => {
         continue;
       }
 
-      if (inst[0] === Opcodes.i32_wrap_i64 && lastInst[0] === Opcodes.i64_extend_i32_u) {
+      if (inst[0] === Opcodes.i32_wrap_i64 && (lastInst[0] === Opcodes.i64_extend_i32_s || lastInst[0] === Opcodes.i64_extend_i32_u)) {
         // remove unneeded i32 -> i64 -> i32
-        // i64.extend_i32_u
+        // i64.extend_i32_s
         // i32.wrap_i64
         // -->
         // <nothing>
@@ -213,10 +213,10 @@ export default (funcs, globals) => {
         continue;
       }
 
-      if (inst[0] === Opcodes.i32_trunc_sat_f64_s[0] && inst[1] === Opcodes.i32_trunc_sat_f64_s[1] && lastInst[0] === Opcodes.f64_convert_i32_u) {
+      if (inst[0] === Opcodes.i32_trunc_sat_f64_s[0] && (lastInst[0] === Opcodes.f64_convert_i32_u || lastInst[0] === Opcodes.f64_convert_i32_s)) {
         // remove unneeded i32 -> f64 -> i32
-        // f64.convert_i32_u
-        // i32.trunc_sat_f64_s
+        // f64.convert_i32_s || f64.convert_i32_u
+        // i32.trunc_sat_f64_s || i32.trunc_sat_f64_u
         // -->
         // <nothing>
 
