@@ -261,12 +261,16 @@ const generateIdent = (scope, decl) => {
 
 const generateReturn = (scope, decl) => {
   if (decl.argument === null) {
+    if (!scope.returnType) scope.returnType = TYPES.undefined;
+
     // just bare "return"
     return [
-      ...number(0), // "undefined" if func returns
+      ...number(UNDEFINED), // "undefined" if func returns
       [ Opcodes.return ]
     ];
   }
+
+  if (!scope.returnType) scope.returnType = getNodeType(scope, decl.argument);
 
   return [
     ...generate(scope, decl.argument),
@@ -349,7 +353,7 @@ const generateBinaryExp = (scope, decl) => {
   return out;
 };
 
-const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, memory, localNames = [], globalNames = [] }) => {
+const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, memory, localNames = [], globalNames = [] }) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
@@ -383,6 +387,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     params,
     locals,
     returns,
+    returnType,
     wasm,
     memory,
     internal: true,
@@ -444,10 +449,12 @@ const getNodeType = (scope, node) => {
   }
 
   if (node.type === 'CallExpression' || node.type === 'NewExpression') {
-    const name = node.callee.name;
-    if (builtinFuncs[name]) return TYPES[builtinFuncs[name].returnType ?? 'number'];
+    const func = funcs.find(x => x.name === node.callee.name);
+    return func?.returnType ?? TYPES.number;
+  }
 
-    return TYPES.number;
+  if (node.type === 'ExpressionStatement') {
+    return getNodeType(scope, node.expression);
   }
 
   // default to number
@@ -1125,6 +1132,7 @@ const generateFunc = (scope, decl) => {
     name,
     params: Object.values(innerScope.locals).slice(0, params.length).map(x => x.type),
     returns: innerScope.returns,
+    returnType: innerScope.returnType ?? TYPES.number,
     locals: innerScope.locals,
     memory: innerScope.memory,
     throws: innerScope.throws,
@@ -1328,6 +1336,7 @@ export default program => {
   const lastInst = main.wasm[main.wasm.length - 1] ?? [ Opcodes.end ];
   if (lastInst[0] === Opcodes.drop) {
     main.wasm.splice(main.wasm.length - 1, 1);
+    main.returnType = getNodeType(main, program.body.body[program.body.body.length - 1]);
   }
 
   if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
