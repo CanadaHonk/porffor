@@ -42,7 +42,10 @@ export const NULL = 0;
 
 export const BuiltinVars = function() {
   this.undefined = number(UNDEFINED);
+  this.undefined.type = 'undefined';
+
   this.null = number(NULL);
+  this.null.type = 'object';
 
   this.NaN = number(NaN);
   this.NaN.floatOnly = true;

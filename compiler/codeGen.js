@@ -423,7 +423,7 @@ let typeStates = {};
 const getType = (scope, name) => {
   if (scope.locals[name]) return typeStates[name];
 
-  if (builtinVars[name]) return builtinVars['$' + name] ?? TYPES.number;
+  if (builtinVars[name]) return TYPES[builtinVars[name].type ?? 'number'];
   if (builtinFuncs[name] || importedFuncs[name] || funcIndex[name]) return TYPES.function;
   if (globals[name]) return typeStates[name];
 
