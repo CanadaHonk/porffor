@@ -418,7 +418,7 @@ const TYPES = {
   bigint: typeBase + 7
 };
 
-const typeStates = {};
+let typeStates = {};
 
 const getType = (scope, name) => {
   if (scope.locals[name]) return typeStates[name];
@@ -1281,6 +1281,7 @@ export default program => {
   funcs = [];
   funcIndex = {};
   depth = [];
+  typeStates = {};
   currentFuncIndex = importedFuncs.length;
 
   globalThis.valtype = 'f64';
