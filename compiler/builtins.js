@@ -91,6 +91,10 @@ export const BuiltinVars = function() {
 
       this.__Number_EPSILON = number(2.220446049250313e-16);
 
+      // https://github.com/rwaldron/proposal-math-extensions/issues/10
+      this.__Math_RAD_PER_DEG = number(Math.PI / 180);
+      this.__Math_DEG_PER_RAD = number(180 / Math.PI);
+
       break;
   }
 
@@ -453,6 +457,90 @@ export const BuiltinFuncs = function() {
       // / (1 << 53)
       ...number(1 << 53),
       [ Opcodes.f64_div ]
+    ]
+  };
+
+  this.__Math_radians = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      ...number(Math.PI / 180),
+      [ Opcodes.f64_mul ]
+    ]
+  };
+
+  this.__Math_degrees = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      ...number(180 / Math.PI),
+      [ Opcodes.f64_mul ]
+    ]
+  };
+
+  this.__Math_clamp = {
+    floatOnly: true,
+    params: [ valtypeBinary, valtypeBinary, valtypeBinary ],
+    locals: [],
+    localNames: [ 'x', 'lower', 'upper' ],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.f64_max ],
+      [ Opcodes.local_get, 2 ],
+      [ Opcodes.f64_min ]
+    ]
+  };
+
+  this.__Math_scale = {
+    floatOnly: true,
+    params: [ valtypeBinary, valtypeBinary, valtypeBinary, valtypeBinary, valtypeBinary ],
+    locals: [],
+    localNames: [ 'x', 'inLow', 'inHigh', 'outLow', 'outHigh' ],
+    returns: [ valtypeBinary ],
+    wasm: [
+      // (x − inLow) * (outHigh − outLow) / (inHigh - inLow) + outLow
+
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.f64_sub ],
+
+      [ Opcodes.local_get, 4 ],
+      [ Opcodes.local_get, 3 ],
+      [ Opcodes.f64_sub ],
+
+      [ Opcodes.f64_mul ],
+
+      [ Opcodes.local_get, 2 ],
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.f64_sub ],
+
+      [ Opcodes.f64_div ],
+
+      [ Opcodes.local_get, 3 ],
+      [ Opcodes.f64_add ]
+    ]
+  };
+
+  // todo: fix for -0
+  this.__Math_signbit = {
+    floatOnly: true,
+    params: [ valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    returnType: 'boolean',
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      ...number(0),
+      [ Opcodes.f64_le ],
+      Opcodes.i32_from
     ]
   };
 

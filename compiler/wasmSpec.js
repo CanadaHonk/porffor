@@ -133,6 +133,8 @@ export const Opcodes = {
   f64_sub: 0xa1,
   f64_mul: 0xa2,
   f64_div: 0xa3,
+  f64_min: 0xa4,
+  f64_max: 0xa5,
   f64_copysign: 0xa6,
 
   i32_wrap_i64: 0xa7,

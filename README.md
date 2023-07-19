@@ -22,6 +22,17 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 ## supported
 see [optimizations](#optimizations) for opts implemented/supported.
 
+### proposals
+these include some early (stage 1/0) and/or dead (last commit years ago) proposals but *I* think they are pretty neat, so.
+
+#### `Math` proposals (stage 1/0)
+
+- [`Math.clamp` Proposal](https://github.com/Richienb/proposal-math-clamp): `Math.clamp` (stage 0 - last commit april 2023)
+- [`Math` Extensions Proposal](https://github.com/rwaldron/proposal-math-extensions): `Math.scale`, `Math.radians`, `Math.degrees`, `Math.RAD_PER_DEG`, `Math.DEG_PER_RAD` (stage 1 - last commit september 2020)
+- [`Math.signbit` Proposal](https://github.com/tc39/proposal-Math.signbit): `Math.signbit` (stage 1 - last commit february 2020)
+
+### language
+
 - number literals
 - declaring functions
 - calling functions *literal callees only*
@@ -33,7 +44,7 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - gt/lt operators (`>`, `<`, `>=`, etc)
 - some unary operators (`!`, `+`, `-`)
 - logical operators (`&&`, `||`)
-- declaring multiple variables in one
+- declaring multiple variables in one (`let a, b = 0`)
 - global variables (`var`/none in top scope)
 - functions returning 1 number
 - bool literals as ints (not real type)
@@ -45,17 +56,11 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - update expressions (`a++`, `++b`, `c--`, etc)
 - `for` loops (`for (let i = 0; i < N; i++)`, etc)
 - hack for "chars" as ints (`'X'` -> `88`)
-- tree shaking wasm imports
 - *basic* objects (hack)
 - `console.log` (hack)
 - `while` loops
 - `break` and `continue`
-- basic `assert` func
 - named export funcs
-- intrinsic functions (see below)
-- inlining wasm via ``asm`...``\` "macro"
-- SIMD api (docs needed)
-- nice v128 param/return func exports (allowed as params and returns via wrapping)
 - iife support
 - assignment operators (`+=`, `-=`, `>>=`, `&&=`, etc)
 - conditional/ternary operator (`cond ? a : b`)
@@ -64,18 +69,28 @@ see [optimizations](#optimizations) for opts implemented/supported.
 - `throw` (literals only)
 - basic `try { ... } catch { ... }` (no error given)
 - calling functions with non-matching arguments (eg `f(a, b); f(0); f(1, 2, 3);`)
-- supports i32, i64, and f64 for valtypes
+- `typeof` mostly (static-ish)
+- runtime errors for undeclared variables (`ReferenceError`), not functions (`TypeError`)
+
+### built-ins
+
 - `NaN` and `Infinity` (f64 only)
-- `isNaN` and `isFinite` (f64 only)
+- `isNaN()` and `isFinite()` (f64 only)
 - most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`, `isInteger`, `isSafeInteger`) (some f64 only)
 - some `Math` funcs (`Math.sqrt`, `Math.abs`, `Math.floor`, `Math.sign`, `Math.round`, `Math.trunc`, `Math.clz32`, `Math.fround`, `Math.random`) (f64 only)
 - basic `globalThis` support
 - basic `Boolean` and `Number`
 - basic `eval` (literals only)
-- `Math.random` using self-made xorshift128+ PRNG
+- `Math.random()` using self-made xorshift128+ PRNG
 - some of `performance` (`now()`)
-- `typeof` mostly (static-ish)
-- runtime errors for undeclared variables (`ReferenceError`), not functions (`TypeError`)
+
+### custom
+
+- basic `assert` func
+- supports i32, i64, and f64 for valtypes
+- wip SIMD api (docs needed)
+- intrinsic functions (see below)
+- inlining wasm via ``asm`...``\` "macro"
 
 ## soon todo
 - more math operators (`**`, etc)
@@ -105,11 +120,13 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 ### wasm transforms
 - `local.set`, `local.get` -> `local.tee`
 - `i32.const 0`, `i32.eq` -> `i32.eqz`
-- `i64.extend_i32_u`, `i32.wrap_i64` -> ``
+- `i64.extend_i32_s`, `i32.wrap_i64` -> ``
+- `f64.convert_i32_u`, `i32.trunc_sat_f64_s` -> ``
 - `return`, `end` -> `end`
 - remove some redundant sets/gets
 - remove unneeded single just used vars
 - remove unneeded blocks (no `br`s inside)
+- remove unused imports
 
 ### wasm module
 - type cache/index (no repeated types)
