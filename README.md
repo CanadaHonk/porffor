@@ -23,7 +23,7 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 see [optimizations](#optimizations) for opts implemented/supported.
 
 ### proposals
-these include some early (stage 1/0) and/or dead (last commit years ago) proposals but *I* think they are pretty neat, so.
+these include some early (stage 1/0) and/or dead (last commit years ago) proposals but *I* think they are pretty neat, so. (and first ever engine to implement!!1)
 
 #### `Math` proposals (stage 1/0)
 

@@ -387,7 +387,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     params,
     locals,
     returns,
-    returnType,
+    returnType: TYPES[returnType ?? 'number'],
     wasm,
     memory,
     internal: true,
@@ -449,8 +449,13 @@ const getNodeType = (scope, node) => {
   }
 
   if (node.type === 'CallExpression' || node.type === 'NewExpression') {
-    const func = funcs.find(x => x.name === node.callee.name);
-    return func?.returnType ?? TYPES.number;
+    const name = node.callee.name;
+    const func = funcs.find(x => x.name === name);
+    if (func) return func.returnType ?? TYPES.number;
+
+    if (builtinFuncs[name]) return TYPES[builtinFuncs[name].returnType ?? 'number'];
+
+    return TYPES.number;
   }
 
   if (node.type === 'ExpressionStatement') {
