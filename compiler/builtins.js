@@ -368,6 +368,22 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  // todo: this does not overflow correctly
+  this.__Math_imul = {
+    floatOnly: true,
+    params: [ valtypeBinary, valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 0 ],
+      Opcodes.i32_trunc_sat_f64_s,
+      [ Opcodes.local_get, 1 ],
+      Opcodes.i32_trunc_sat_f64_s,
+      [ Opcodes.i32_mul ],
+      Opcodes.i32_from
+    ]
+  };
+
   // this is an implementation of xorshift128+ (in wasm bytecode)
   // fun fact: v8, SM, JSC also use this (you will need this fun fact to maintain your sanity reading this code)
   const prngSeed0 = Math.floor(Math.random() * (2 ** 30)), prngSeed1 = Math.floor(Math.random() * (2 ** 30));
