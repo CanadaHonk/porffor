@@ -115,6 +115,29 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 - type cache/index (no repeated types)
 - no main func if empty (and other exports)
 
+## codebase
+- `compiler`: contains the compiler itself
+  - `builtins.js`: all built-ins of the engine (spec, custom. vars, funcs)
+  - `codeGen.js`: code (wasm) generation, ast -> wasm, the bulk of the effort
+  - `decompile.js`: basic wasm decompiler for debug info
+  - `embedding.js`: utils for embedding consts
+  - `encoding.js`: utils for encoding things as bytes as wasm expects
+  - `expression.js`: mapping most operators to an opcode (advanced are as built-ins eg `f64_%`)
+  - `index.js`: doing all the compiler steps, takes code in, wasm out
+  - `opt.js`: self-made wasm bytecode optimizer
+  - `parse.js`: parser simply wrapping acorn
+  - `sections.js`: assembles wasm ops and metadata into a wasm module/file
+  - `wasmSpec.js`: "enums"/info from wasm spec
+  - `wrap.js`: wrapper for compiler which instantiates and produces nice exports
+
+- `runner`: contains utils for running js with the compiler
+  - `index.js`: the main file, you probably want to use this
+  - `info.js`: runs with extra info printed
+  - `repl.js`: basic repl (uses `node:repl`)
+
+- `test`: contains many test files for majority of supported features
+- `test262`: test262 runner and utils
+
 ## usecases
 basically none (other than giving people headaches). potential as a tiny fast advanced expression evaluator (for math)?
 
@@ -126,7 +149,7 @@ basically nothing will work :). see files in `test` for examples.
 3. `node test` to run tests (all should pass)
 4. `node runner path/to/code.js` to run a file (or `node runner` to use wip repl)
 
-you can also use deno (`deno run -A ...` instead of `node ...`)
+you can also use deno (`deno run -A ...` instead of `node ...`), or bun (`bun ...` instead of `node ...`)
 
 ### flags
 - `-raw` for no info logs (just raw js output)
