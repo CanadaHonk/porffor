@@ -411,16 +411,18 @@ const generateLogicExp = (scope, decl) => {
   return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right));
 };
 
-const typeBase = 0x12345;
 const TYPES = {
-  number: typeBase,
-  boolean: typeBase + 1,
-  string: typeBase + 2,
-  undefined: typeBase + 3,
-  object: typeBase + 4,
-  function: typeBase + 5,
-  symbol: typeBase + 6,
-  bigint: typeBase + 7
+  number: 0xffffffffffff0,
+  boolean: 0xffffffffffff1,
+  string: 0xffffffffffff2,
+  undefined: 0xffffffffffff3,
+  object: 0xffffffffffff4,
+  function: 0xffffffffffff5,
+  symbol: 0xffffffffffff6,
+  bigint: 0xffffffffffff7,
+
+  // these are not "typeof" types but tracked internally
+  _array: 0xffffffffffff8
 };
 
 let typeStates = {};
@@ -856,7 +858,11 @@ const generateUnary = (scope, decl) => {
       return out;
 
     case 'typeof':
-      return number(getNodeType(scope, decl.argument));
+      const type = getNodeType(scope, decl.argument);
+
+      // for custom types, just return object
+      if (type > 0xffffffffffff7) return number(TYPES.object);
+      return number(type);
 
     default:
       return todo(`unary operator ${decl.operator} not implemented yet`);
