@@ -91,6 +91,15 @@ export const BuiltinVars = function() {
 
       this.__Number_EPSILON = number(2.220446049250313e-16);
 
+      this.__Math_E = number(Math.E);
+      this.__Math_LN10 = number(Math.LN10);
+      this.__Math_LN2 = number(Math.LN2);
+      this.__Math_LOG10E = number(Math.LOG10E);
+      this.__Math_LOG2E = number(Math.LOG2E);
+      this.__Math_PI = number(Math.PI);
+      this.__Math_SQRT1_2 = number(Math.SQRT1_2);
+      this.__Math_SQRT2 = number(Math.SQRT2);
+
       // https://github.com/rwaldron/proposal-math-extensions/issues/10
       this.__Math_RAD_PER_DEG = number(Math.PI / 180);
       this.__Math_DEG_PER_RAD = number(180 / Math.PI);
