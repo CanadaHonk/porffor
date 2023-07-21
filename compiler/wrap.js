@@ -4,11 +4,28 @@ import decompile from './decompile.js';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
+const typeBase = 0xffffffffffff0;
+const TYPES = {
+  [typeBase]: 'number',
+  [typeBase + 1]: 'boolean',
+  [typeBase + 2]: 'string',
+  [typeBase + 3]: 'undefined',
+  [typeBase + 4]: 'object',
+  [typeBase + 5]: 'function',
+  [typeBase + 6]: 'symbol',
+  [typeBase + 7]: 'bigint',
+
+  // internal
+  [typeBase + 8]: '_array'
+};
+
 export default async (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {
   const times = [];
 
   const t1 = performance.now();
   const { wasm, funcs, globals, tags, exceptions } = compile(source, flags);
+
+  if (source.includes('export function')) flags.push('module');
 
   // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
@@ -31,9 +48,13 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
   const exports = {};
 
-  const exceptTag = instance.exports['0'];
+  const exceptTag = instance.exports['0'], memory = instance.exports['$'];
   for (const x in instance.exports) {
     if (x === '0') continue;
+    if (x === '$') {
+      exports.$ = instance.exports.$;
+      continue;
+    }
 
     const name = x === 'm' ? 'main' : x;
     const func = funcs.find(x => x.name === name);
@@ -41,25 +62,41 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
     const exp = instance.exports[x];
     exports[func.name] = exp;
 
-    if (func.throws) {
-      exports[func.name] = function() {
-        try {
-          return exp.apply(this, arguments);
-        } catch (e) {
-          if (e.is && e.is(exceptTag)) {
-            const exceptId = e.getArg(exceptTag, 0);
-            const exception = exceptions[exceptId];
+    exports[func.name] = function() {
+      try {
+        const ret = exp.apply(this, arguments);
 
-            const constructorName = exception.constructor ?? 'Error';
-            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
+        if (ret >= typeBase && ret <= typeBase + 8) return ret > (typeBase + 7) ? 'object' : TYPES[ret];
+        if (TYPES[func.returnType] === 'boolean') return Boolean(ret);
 
-            throw new constructor(exception.message);
-          }
+        if (TYPES[func.returnType] === 'undefined') return undefined;
 
-          throw e;
+        if (TYPES[func.returnType] === 'object') {
+          if (ret === 0) return null;
+            else return {};
         }
-      };
-    }
+
+        if (TYPES[func.returnType] === '_array') {
+          const [ arrayNumber, length ] = ret;
+
+          return Array.from(new Float64Array(memory.buffer, (arrayNumber + 1) * 65536, length));
+        }
+
+        return ret;
+      } catch (e) {
+        if (e.is && e.is(exceptTag)) {
+          const exceptId = e.getArg(exceptTag, 0);
+          const exception = exceptions[exceptId];
+
+          const constructorName = exception.constructor ?? 'Error';
+          const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
+
+          throw new constructor(exception.message);
+        }
+
+        throw e;
+      }
+    };
   }
 
   if (flags.includes('decomp')) {
