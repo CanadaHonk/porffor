@@ -124,7 +124,7 @@ export const BuiltinFuncs = function() {
   };
 
   // add bitwise ops by converting operands to i32 first
-  for (const [ char, op ] of [ ['&', Opcodes.i32_and], ['|', Opcodes.i32_or], ['^', Opcodes.i32_xor], ['<<', Opcodes.i32_shl], ['>>', Opcodes.i32_shr_s] ]) {
+  for (const [ char, op ] of [ ['&', Opcodes.i32_and], ['|', Opcodes.i32_or], ['^', Opcodes.i32_xor], ['<<', Opcodes.i32_shl], ['>>', Opcodes.i32_shr_s], ['>>>', Opcodes.i32_shr_u] ]) {
     this[`f64_${char}`] = {
       params: [ valtypeBinary, valtypeBinary ],
       locals: [],

@@ -13,6 +13,7 @@ export const operatorOpcode = {
     '^': Opcodes.i32_xor,
     '<<': Opcodes.i32_shl,
     '>>': Opcodes.i32_shr_s,
+    '>>>': Opcodes.i32_shr_u,
 
     '==': Opcodes.i32_eq,
     '===': Opcodes.i32_eq,
@@ -37,6 +38,7 @@ export const operatorOpcode = {
     '^': Opcodes.i64_xor,
     '<<': Opcodes.i64_shl,
     '>>': Opcodes.i64_shr_s,
+    '>>>': Opcodes.i64_shr_u,
 
     '==': Opcodes.i64_eq,
     '===': Opcodes.i64_eq,
