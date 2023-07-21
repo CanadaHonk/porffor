@@ -1,4 +1,4 @@
-import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
+import { Blocktype, Opcodes, Valtype, PageSize, ValtypeSize } from "./wasmSpec.js";
 import { signedLEB128, unsignedLEB128 } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from "./builtins.js";
@@ -46,7 +46,7 @@ const todo = msg => {
 };
 
 const isFuncType = type => type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
-const generate = (scope, decl) => {
+const generate = (scope, decl, global = false, name = undefined) => {
   switch (decl.type) {
     case 'BinaryExpression':
       return generateBinaryExp(scope, decl);
@@ -122,6 +122,12 @@ const generate = (scope, decl) => {
     case 'DebuggerStatement':
       // todo: add fancy terminal debugger?
       return [];
+
+    case 'ArrayExpression':
+      return generateArray(scope, decl, global, name);
+
+    case 'MemberExpression':
+      return generateMember(scope, decl);
 
     case 'ExportNamedDeclaration':
       // hack to flag new func for export
@@ -464,6 +470,14 @@ const getNodeType = (scope, node) => {
     return getNodeType(scope, node.expression);
   }
 
+  if (node.type === 'AssignmentExpression') {
+    return getNodeType(scope, node.right);
+  }
+
+  if (node.type === 'ArrayExpression') {
+    return TYPES._array;
+  }
+
   // default to number
   return TYPES.number;
 };
@@ -515,9 +529,9 @@ const countLeftover = wasm => {
 
     if (depth === 0)
       if ([Opcodes.throw, Opcodes.return, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
-        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane].includes(inst[0])) {}
-        else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const, Opcodes.v128_load].includes(inst[0])) count++;
-        else if ([Opcodes.i32_store].includes(inst[0])) count -= 2;
+        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.v128_load, Opcodes.memory_grow].includes(inst[0])) {}
+        else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const].includes(inst[0])) count++;
+        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store].includes(inst[0])) count -= 2;
         else if (inst[0] === Opcodes.call) {
           let func = funcs.find(x => x.index === inst[1]);
           if (func) {
@@ -706,7 +720,7 @@ const generateVar = (scope, decl) => {
 
     // x.init ??= DEFAULT_VALUE;
     if (x.init) {
-      out.push(...generate(scope, x.init));
+      out.push(...generate(scope, x.init, global, name));
 
       // if our value is the result of a function, infer the type from that func's return value
       if (out[out.length - 1][0] === Opcodes.call) {
@@ -774,7 +788,7 @@ const generateAssign = (scope, decl) => {
     typeStates[name] = getNodeType(scope, decl.right);
 
     return [
-      ...generate(scope, decl.right),
+      ...generate(scope, decl.right, isGlobal, name),
       [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
       [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
     ];
@@ -1076,10 +1090,91 @@ const generateAssignPat = (scope, decl) => {
   return todo('assignment pattern (optional arg)');
 };
 
+let arrays = [];
+const generateArray = (scope, decl, global = false, name = '$undeclared') => {
+  const out = [];
+  let arrayNumber;
+
+  if (!arrays.includes(name) || name === '$undeclared') {
+    arrayNumber = arrays.push(name) - 1;
+
+    // todo: track this internally and use as initial pages value for memory, instead of growing at runtime?
+    // grow memory by 1 page (which we are now using)
+    out.push(
+      ...number(1, Valtype.i32),
+      [ Opcodes.memory_grow, 0 ],
+      [ Opcodes.drop ]
+    );
+  } else {
+    arrayNumber = arrays.indexOf(name);
+  }
+
+  const length = decl.elements.length;
+
+  if (name) {
+    const target = global ? globals : scope.locals;
+    const lengthName = '__' + name + '_length';
+
+    let idx;
+    if (target[lengthName]) {
+      idx = target[lengthName].idx;
+    } else {
+      idx = global ? globalInd++ : scope.localInd++;
+      target[lengthName] = { idx, type: valtypeBinary };
+    }
+
+    out.push(
+      ...number(length),
+      [ global ? Opcodes.global_set : Opcodes.local_set, idx ]
+    );
+  }
+
+  for (let i = 0; i < length; i++) {
+    out.push(
+      ...number((arrayNumber + 1) * PageSize + i * ValtypeSize[valtype], Valtype.i32),
+      ...generate(scope, decl.elements[i]),
+      [ Opcodes.store, 0, 0 ]
+    );
+  }
+
+  // local value as array number
+  out.push(...number(arrayNumber));
+
+  scope.memory = true;
+
+  return out;
+};
+
+export const generateMember = (scope, decl) => {
+  // this is just for arr[ind] for now. objects are partially supported via object hack (a.b -> __a_b)
+  const name = decl.object.name;
+  if (!name || getNodeType(scope, decl.object) !== TYPES._array) return todo(`computed member expression for objects are not supported yet`);
+
+  // todo: fallback on using actual local value?
+  const arrayNumber = arrays.indexOf(name);
+
+  scope.memory = true;
+
+  return [
+    // get index as valtype
+    ...generate(scope, decl.property),
+
+    // convert to i32 and turn into byte offset by * valtypeSize (4 for i32, 8 for i64/f64)
+    Opcodes.i32_to,
+    ...number(ValtypeSize[valtype], Valtype.i32),
+    [ Opcodes.i32_mul ],
+
+    // read from memory
+    [ Opcodes.load, 0, ...unsignedLEB128((arrayNumber + 1) * PageSize) ]
+  ];
+};
+
 const randId = () => Math.random().toString(16).slice(0, -4);
 
 const objectHack = node => {
   if (node.type === 'MemberExpression') {
+    if (node.computed || node.optional) return node;
+
     let objectName = node.object.name;
 
     // if object is not identifier or another member exp, give up
@@ -1301,6 +1396,7 @@ export default program => {
   funcIndex = {};
   depth = [];
   typeStates = {};
+  arrays = [];
   currentFuncIndex = importedFuncs.length;
 
   globalThis.valtype = 'f64';
@@ -1322,6 +1418,9 @@ export default program => {
 
   Opcodes.i32_to = [ [ null ], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_s ][valtypeInd];
   Opcodes.i32_from = [ [ null ], [ Opcodes.i64_extend_i32_s ], [ Opcodes.f64_convert_i32_s ] ][valtypeInd];
+
+  Opcodes.load = [ Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load ][valtypeInd];
+  Opcodes.store = [ Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store ][valtypeInd];
 
   builtinFuncs = new BuiltinFuncs();
   builtinVars = new BuiltinVars();
@@ -1347,7 +1446,21 @@ export default program => {
   const lastInst = main.wasm[main.wasm.length - 1] ?? [ Opcodes.end ];
   if (lastInst[0] === Opcodes.drop) {
     main.wasm.splice(main.wasm.length - 1, 1);
-    main.returnType = getNodeType(main, program.body.body[program.body.body.length - 1]);
+
+    const finalStatement = program.body.body[program.body.body.length - 1];
+    main.returnType = getNodeType(main, finalStatement);
+
+    if (main.returnType === TYPES._array) {
+      // if last thing in main is an array return [ arrayNumber, length ]
+
+      const lastName = finalStatement.expression?.left?.name ?? '$undeclared';
+      const lengthName = '__' + lastName + '_length';
+      const [ lengthLocal, lengthIsGlobal ] = lookupName(main, lengthName);
+
+      main.wasm.push([ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, lengthLocal.idx ]);
+
+      main.returns = [ valtypeBinary, valtypeBinary ];
+    }
   }
 
   if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
