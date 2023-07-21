@@ -57,8 +57,13 @@ export const Opcodes = {
   f64_load: 0x2b,
 
   i32_load8_s: 0x2c,
-  i32_store: 0x36,
   i32_store8: 0x3a,
+
+  i32_store: 0x36,
+  i64_store: 0x37,
+  f64_store: 0x39,
+
+  memory_grow: 0x40,
 
   i32_const: 0x41,
   i64_const: 0x42,
@@ -177,3 +182,11 @@ export const Empty = 0x00;
 
 export const Magic = [0x00, 0x61, 0x73, 0x6d];
 export const ModuleVersion = [0x01, 0x00, 0x00, 0x00];
+
+export const PageSize = 65536; // 64KiB (1024 * 8)
+
+export const ValtypeSize = {
+  i32: 4,
+  i64: 8,
+  f64: 8
+};
