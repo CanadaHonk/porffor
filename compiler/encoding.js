@@ -85,6 +85,23 @@ export const read_signedLEB128 = _input => {
   }
 };
 
+// todo: check this with large unsigned values
+export const read_unsignedLEB128 = _input => {
+  const input = [..._input];
+  let result = 0, shift = 0;
+
+  while (true) {
+    const byte = input.shift();
+    result |= (byte & 0x7f) << shift;
+
+    shift += 7;
+
+    if ((0x80 & byte) === 0) {
+      return result;
+    }
+  }
+};
+
 // ieee 754 binary64
 
 // from https://github.com/feross/ieee754

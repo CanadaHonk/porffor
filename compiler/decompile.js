@@ -1,5 +1,5 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
-import { read_ieee754_binary64, read_signedLEB128 } from "./encoding.js";
+import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from "./encoding.js";
 
 const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[keyMap(obj[x])] = x; return acc; }, {});
 const invOpcodes = inv(Opcodes);
@@ -42,6 +42,8 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       out += ` ${read_ieee754_binary64(inst.slice(1))}`;
     } else if (inst[0] === Opcodes.i32_const || inst[0] === Opcodes.i64_const) {
       out += ` ${read_signedLEB128(inst.slice(1))}`;
+    } else if (inst[0] === Opcodes.i32_load || inst[0] === Opcodes.i64_load || inst[0] === Opcodes.f64_load) {
+      out += ` ${inst[1]} ${read_unsignedLEB128(inst.slice(2))}`
     } else for (const operand of inst.slice(1)) {
       if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) {
         if (operand === Blocktype.void) continue;
@@ -91,7 +93,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
 export const highlightAsm = asm =>
   asm
-    .replace(/(local|global)\.[^\s]*/g, _ => `\x1B[31m${_}\x1B[0m`)
+    .replace(/(local|global|memory)\.[^\s]*/g, _ => `\x1B[31m${_}\x1B[0m`)
     .replace(/(i(8|16|32|64)x[0-9]+|v128)(\.[^\s]*)?/g, _ => `\x1B[34m${_}\x1B[0m`)
     .replace(/[^m](i32|i64|f32|f64)(\.[^\s]*)?/g, _ => `${_[0]}\x1B[36m${_.slice(1)}\x1B[0m`)
     .replace(/(return_call|call|br_if|br|return|throw|rethrow)/g, _ => `\x1B[35m${_}\x1B[0m`)
