@@ -4,7 +4,7 @@ import { countPrimes, randoms, factorial, arrayAccess, arithmetic } from './inde
 
 const suite = new Benchmark.Suite();
 
-const maxes = [ 10000, 100000, 100, 45, 45, undefined, undefined ];
+const maxes = [ 10000, 100000, 100, undefined, undefined ];
 const funcs = [ countPrimes, randoms, factorial, arrayAccess, arithmetic ];
 for (let i = 0; i < funcs.length; i++) {
   const func = funcs[i];
