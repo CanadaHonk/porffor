@@ -16,7 +16,7 @@ for (let i = 0; i < funcs.length; i++) {
 
   const compiled = (await compile('export ' + func.toString())).exports[func.name];
 
-  suite.add(`porffor(default) ${func.name}(${max})`, () => {
+  suite.add(`porffor ${func.name}(${max})`, () => {
     compiled(max);
   });
 
