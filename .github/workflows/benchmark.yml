@@ -29,4 +29,5 @@ jobs:
           auto-push: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           gh-pages-branch: main
+          skip-fetch-gh-pages: true
           benchmark-data-dir-path: bench
