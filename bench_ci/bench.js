@@ -7,14 +7,22 @@ const suite = new Benchmark.Suite();
 const funcs = [ countPrimes, randoms ];
 const max = 10000;
 for (const x of funcs) {
-  const compiled = (await compile('export ' + x.toString())).exports[x.name];
-
   suite.add(`node ${x.name}(${max})`, () => {
     x(max);
   });
 
-  suite.add(`porffor ${x.name}(${max})`, () => {
+  const compiled = (await compile('export ' + x.toString())).exports[x.name];
+
+  suite.add(`porffor(default) ${x.name}(${max})`, () => {
     compiled(max);
+  });
+
+  process.argv.push('-valtype=i32');
+  const compiledI32 = (await compile('export ' + x.toString())).exports[x.name];
+  process.argv.pop();
+
+  suite.add(`porffor(i32) ${x.name}(${max})`, () => {
+    compiledI32(max);
   });
 }
 

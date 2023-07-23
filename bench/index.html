@@ -126,16 +126,24 @@
           _: '#333333'
         };
 
+        const projectColors = {
+          node: '#5dae47',
+          porffor: '#9c60e0'
+        };
+
+        const benchInfo = name => name.split(' ');
+
         function init() {
           function collectBenchesPerTestCase(entries) {
             const map = new Map();
             for (const entry of entries) {
               const {commit, date, tool, benches} = entry;
               for (const bench of benches) {
-                const result = { commit, date, tool, bench };
-                const arr = map.get(bench.name);
+                const [ project, name ] = benchInfo(bench.name);
+                const result = { commit, date, tool, bench, project };
+                const arr = map.get(name);
                 if (arr === undefined) {
-                  map.set(bench.name, [result]);
+                  map.set(name, [result]);
                 } else {
                   arr.push(result);
                 }
@@ -169,23 +177,31 @@
         }
 
         function renderAllChars(dataSets) {
-
           function renderGraph(parent, name, dataset) {
             const canvas = document.createElement('canvas');
             canvas.className = 'benchmark-chart';
             parent.appendChild(canvas);
 
-            const color = toolColors[dataset.length > 0 ? dataset[0].tool : '_'];
+            const datasets = new Map();
+            for (const x of dataset) {
+              if (!datasets.get(x.project)) {
+                const color = projectColors[x.project.split('(')[0]];
+                datasets.set(x.project, {
+                  label: x.project,
+                  data: [],
+                  borderColor: color,
+                  backgroundColor: color + '60'
+                });
+              }
+
+              datasets.get(x.project).data.push((1 / x.bench.value) * 1000);
+            }
+
+            const unit = 'ms';
+
             const data = {
               labels: dataset.map(d => d.commit.id.slice(0, 7)),
-              datasets: [
-                {
-                  label: name,
-                  data: dataset.map(d => d.bench.value),
-                  borderColor: color,
-                  backgroundColor: color + '60', // Add alpha for #rrggbbaa
-                }
-              ],
+              datasets: [...datasets.values()]
             };
             const options = {
               scales: {
@@ -201,7 +217,7 @@
                   {
                     scaleLabel: {
                       display: true,
-                      labelString: dataset.length > 0 ? dataset[0].bench.unit : '',
+                      labelString: unit + ' (lower is better)'
                     },
                     ticks: {
                       beginAtZero: true,
@@ -211,23 +227,19 @@
               },
               tooltips: {
                 callbacks: {
-                  afterTitle: items => {
-                    const {index} = items[0];
+                  title: items => {
+                    const { index, label } = items[0];
                     const data = dataset[index];
-                    return '\n' + data.commit.message + '\n\n' + data.commit.timestamp + ' committed by @' + data.commit.committer.username + '\n';
+                    return label + ': ' + data.commit.message.split('\n')[0].trim() + '\n' + new Date(data.commit.timestamp).toString();
                   },
                   label: item => {
-                    let label = item.value;
-                    const { range, unit } = dataset[item.index].bench;
+                    let label = 1 / item.value;
+                    const { extra, range } = dataset[item.index].bench;
                     label += ' ' + unit;
                     if (range) {
-                      label += ' (' + range + ')';
+                      label += ' (' + extra + ', ' + range + ')';
                     }
                     return label;
-                  },
-                  afterLabel: item => {
-                    const { extra } = dataset[item.index].bench;
-                    return extra ? '\n' + extra : '';
                   }
                 }
               },
@@ -264,7 +276,11 @@
             setElem.appendChild(graphsElem);
 
             for (const [benchName, benches] of benchSet.entries()) {
-              renderGraph(graphsElem, benchName, benches)
+              const headerElem = document.createElement('h2');
+              headerElem.textContent = benchName;
+              graphsElem.appendChild(headerElem);
+
+              renderGraph(graphsElem, benchName, benches);
             }
           }
 
