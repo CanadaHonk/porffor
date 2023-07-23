@@ -16,9 +16,9 @@ jobs:
 
       - name: Run benchmark
         run: |
-        npm install
-        npm install benchmark
-        node bench_ci/bench.js | tee output.txt
+          npm install
+          npm install benchmark
+          node bench_ci/bench.js | tee output.txt
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1.18.0
