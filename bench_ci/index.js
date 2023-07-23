@@ -32,3 +32,12 @@ export function factorial(n) {
 
   return n * factorial(n - 1);
 }
+
+export function arrayAccess() {
+  let test = [ 1, 2, 3, 4, 5 ];
+  return test[2];
+}
+
+export function arithmetic() {
+  return ((2 + 2) * 3 / 100 - 5 * -1000) * 2 + 100 - 8;
+}
