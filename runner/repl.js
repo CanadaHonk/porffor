@@ -23,10 +23,10 @@ const run = async (source, _context, _filename, callback) => {
   const { exports, wasm } = await compile(toRun, []);
   fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
-  if (source.includes(' = ')) prev += source + ';\n';
-
   const ret = exports.main();
   callback(null, ret);
+
+  if (source.includes(' = ') || source.includes('let ') || source.includes('var ') || source.includes('const ')) prev += source + ';\n';
 };
 
 repl.start({ prompt: '> ', eval: run });
