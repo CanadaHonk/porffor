@@ -4,7 +4,7 @@ import { countPrimes, randoms, factorial, recursiveFib, iterativeFib } from './i
 
 const suite = new Benchmark.Suite();
 
-const maxes = [ 10000, 10000, 100, 45, 45 ];
+const maxes = [ 10000, 100000, 100, 45, 45 ];
 const funcs = [ countPrimes, randoms, factorial, recursiveFib, iterativeFib ];
 for (let i = 0; i < funcs.length; i++) {
   const func = funcs[i];

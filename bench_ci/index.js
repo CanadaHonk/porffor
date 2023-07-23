@@ -27,7 +27,11 @@ export function randoms(max) {
   return sum;
 }
 
-export const factorial = n => n === 0 ? 1 : (n * factorial(n - 1));
+export function factorial(n) {
+  if (n === 0) return 1;
+
+  return n * factorial(n - 1);
+}
 
 export function recursiveFib(max) {
   function fibonacci(n) {
