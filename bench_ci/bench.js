@@ -17,13 +17,17 @@ for (const x of funcs) {
     compiled(max);
   });
 
-  process.argv.push('-valtype=i32');
-  const compiledI32 = (await compile('export ' + x.toString())).exports[x.name];
-  process.argv.pop();
+  try {
+    process.argv.push('-valtype=i32');
+    const compiledI32 = (await compile('export ' + x.toString())).exports[x.name];
+    process.argv.pop();
 
-  suite.add(`porffor(i32) ${x.name}(${max})`, () => {
-    compiledI32(max);
-  });
+    suite.add(`porffor(i32) ${x.name}(${max})`, () => {
+      compiledI32(max);
+    });
+  } catch {
+    // ignore as some things are unsupported in i32 mode
+  }
 }
 
 suite
