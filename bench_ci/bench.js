@@ -1,11 +1,11 @@
 import Benchmark from 'benchmark';
 import compile from '../compiler/wrap.js';
-import { countPrimes, randoms, factorial, recursiveFib, iterativeFib } from './index.js';
+import { countPrimes, randoms, factorial } from './index.js';
 
 const suite = new Benchmark.Suite();
 
 const maxes = [ 10000, 100000, 100, 45, 45 ];
-const funcs = [ countPrimes, randoms, factorial, recursiveFib, iterativeFib ];
+const funcs = [ countPrimes, randoms, factorial ];
 for (let i = 0; i < funcs.length; i++) {
   const func = funcs[i];
   const max = maxes[i];

@@ -8,5 +8,5 @@ function randoms(max) {
 }
 
 let t = performance.now();
-randoms(10000);
+randoms(100000);
 console.log(performance.now() - t);

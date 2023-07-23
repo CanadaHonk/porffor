@@ -32,35 +32,3 @@ export function factorial(n) {
 
   return n * factorial(n - 1);
 }
-
-export function recursiveFib(max) {
-  function fibonacci(n) {
-    if (n < 2) {
-      return n;
-    } else {
-      return fibonacci(n - 1) + fibonacci(n - 2);
-    }
-  }
-
-  let sum = 0;
-  for (let i = 0; i <= max; i++) {
-    sum += fibonacci(i);
-  }
-
-  return sum;
-}
-
-export function iterativeFib(max) {
-  let sum = 1;
-  let a = 0, b = 1;
-
-  for (let i = 2; i <= max; i++) {
-    let t = b + a;
-    a = b;
-    b = t;
-
-    sum += t;
-  }
-
-  return sum;
-}
