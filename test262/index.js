@@ -28,7 +28,7 @@ const excludeNegative = process.argv.includes('-exclude-negative');
 
 const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
-const lastCommitResults = execSync(`git log -1 --pretty=%B`).toString().split('\n').filter(x => x).pop().split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
+const lastCommitResults = execSync(`git log -40 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262:')).split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
 
 const resultOnly = process.env.RESULT_ONLY;
 
