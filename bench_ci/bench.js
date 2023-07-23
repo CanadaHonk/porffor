@@ -1,28 +1,33 @@
 import Benchmark from 'benchmark';
 import compile from '../compiler/wrap.js';
-import { countPrimes, randoms } from './index.js';
+import { countPrimes, randoms, factorial, recursiveFib, iterativeFib } from './index.js';
 
 const suite = new Benchmark.Suite();
 
-const funcs = [ countPrimes, randoms ];
-const max = 10000;
-for (const x of funcs) {
-  suite.add(`node ${x.name}(${max})`, () => {
-    x(max);
+const maxes = [ 10000, 10000, 100, 45, 45 ];
+const funcs = [ countPrimes, randoms, factorial, recursiveFib, iterativeFib ];
+for (let i = 0; i < funcs.length; i++) {
+  const func = funcs[i];
+  const max = maxes[i];
+
+  suite.add(`node ${func.name}(${max})`, () => {
+    func(max);
   });
 
-  const compiled = (await compile('export ' + x.toString())).exports[x.name];
+  const compiled = (await compile('export ' + func.toString())).exports[func.name];
 
-  suite.add(`porffor(default) ${x.name}(${max})`, () => {
+  suite.add(`porffor(default) ${func.name}(${max})`, () => {
     compiled(max);
   });
 
   try {
+    if (['factorial'].includes(func.name)) throw 'overflow';
+
     process.argv.push('-valtype=i32');
-    const compiledI32 = (await compile('export ' + x.toString())).exports[x.name];
+    const compiledI32 = (await compile('export ' + func.toString())).exports[func.name];
     process.argv.pop();
 
-    suite.add(`porffor(i32) ${x.name}(${max})`, () => {
+    suite.add(`porffor(i32) ${func.name}(${max})`, () => {
       compiledI32(max);
     });
   } catch {

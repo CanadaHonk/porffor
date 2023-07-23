@@ -235,7 +235,7 @@
                     return label + ' | ' + data.commit.message.split('\n')[0].trim() + '\n' + new Date(data.commit.timestamp).toString();
                   },
                   label: item => {
-                    let label = `${datasetLabels[item.datasetIndex]}: ${1 / item.value}`;
+                    let label = `${datasetLabels[item.datasetIndex]}: ${item.value}`;
                     const { extra, range } = dataset[item.index].bench;
                     label += ' ' + unit;
                     if (range) {
@@ -254,6 +254,12 @@
                 const url = dataset[index].commit.url;
                 window.open(url, '_blank');
               },
+              title: {
+                display: true,
+                text: name,
+
+                fontSize: 22
+              }
             };
 
             new Chart(canvas, {
@@ -278,10 +284,6 @@
             setElem.appendChild(graphsElem);
 
             for (const [benchName, benches] of benchSet.entries()) {
-              const headerElem = document.createElement('h2');
-              headerElem.textContent = benchName;
-              graphsElem.appendChild(headerElem);
-
               renderGraph(graphsElem, benchName, benches);
             }
           }
