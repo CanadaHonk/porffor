@@ -1453,13 +1453,14 @@ export default program => {
     if (main.returnType === TYPES._array) {
       // if last thing in main is an array return [ arrayNumber, length ]
 
-      const lastName = finalStatement.expression?.left?.name ?? '$undeclared';
+      const lastName = finalStatement.expression?.name ?? finalStatement.expression?.left?.name ?? '$undeclared';
       const lengthName = '__' + lastName + '_length';
       const [ lengthLocal, lengthIsGlobal ] = lookupName(main, lengthName);
 
-      main.wasm.push([ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, lengthLocal.idx ]);
-
-      main.returns = [ valtypeBinary, valtypeBinary ];
+      if (lengthLocal) {
+        main.wasm.push([ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, lengthLocal.idx ]);
+        main.returns = [ valtypeBinary, valtypeBinary ];
+      }
     }
   }
 
