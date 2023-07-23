@@ -1,6 +1,6 @@
 import compile from '../compiler/wrap.js';
+import Benchmark from 'benchmark';
 
-const Benchmark = require('benchmark');
 const suite = new Benchmark.Suite();
 const { countPrimes, randoms } = require('./index.js');
 
