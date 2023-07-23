@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690149963847,
+  "lastUpdate": 1690150706008,
   "repoUrl": "https://github.com/CanadaHonk/porffor",
   "entries": {
     "porffor benches": [
@@ -230,6 +230,121 @@ window.BENCHMARK_DATA = {
             "range": "±0.25%",
             "unit": "ops/sec",
             "extra": "92 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "oj@oojmed.com",
+            "name": "CanadaHonk",
+            "username": "CanadaHonk"
+          },
+          "committer": {
+            "email": "oj@oojmed.com",
+            "name": "CanadaHonk",
+            "username": "CanadaHonk"
+          },
+          "distinct": true,
+          "id": "d5be2670db3316be7df53aef12af7b269d306503",
+          "message": "bench ci: fix params for new",
+          "timestamp": "2023-07-23T23:16:32+01:00",
+          "tree_id": "272cfbbc1e1b11d70b0e8291182afe289d7c5f7d",
+          "url": "https://github.com/CanadaHonk/porffor/commit/d5be2670db3316be7df53aef12af7b269d306503"
+        },
+        "date": 1690150705986,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "node countPrimes(10000)",
+            "value": 32.4,
+            "range": "±0.90%",
+            "unit": "ops/sec",
+            "extra": "57 samples"
+          },
+          {
+            "name": "porffor countPrimes(10000)",
+            "value": 40.12,
+            "range": "±0.23%",
+            "unit": "ops/sec",
+            "extra": "53 samples"
+          },
+          {
+            "name": "porffor(i32) countPrimes(10000)",
+            "value": 37.21,
+            "range": "±0.07%",
+            "unit": "ops/sec",
+            "extra": "64 samples"
+          },
+          {
+            "name": "node randoms(100000)",
+            "value": 724,
+            "range": "±0.10%",
+            "unit": "ops/sec",
+            "extra": "95 samples"
+          },
+          {
+            "name": "porffor randoms(100000)",
+            "value": 1651,
+            "range": "±0.08%",
+            "unit": "ops/sec",
+            "extra": "98 samples"
+          },
+          {
+            "name": "node factorial(100)",
+            "value": 913880,
+            "range": "±0.10%",
+            "unit": "ops/sec",
+            "extra": "94 samples"
+          },
+          {
+            "name": "porffor factorial(100)",
+            "value": 931416,
+            "range": "±0.10%",
+            "unit": "ops/sec",
+            "extra": "97 samples"
+          },
+          {
+            "name": "node arrayAccess()",
+            "value": 120964583,
+            "range": "±0.16%",
+            "unit": "ops/sec",
+            "extra": "92 samples"
+          },
+          {
+            "name": "porffor arrayAccess()",
+            "value": 1709,
+            "range": "±81.39%",
+            "unit": "ops/sec",
+            "extra": "8 samples"
+          },
+          {
+            "name": "porffor(i32) arrayAccess()",
+            "value": 937,
+            "range": "±155.38%",
+            "unit": "ops/sec",
+            "extra": "8 samples"
+          },
+          {
+            "name": "node arithmetic()",
+            "value": 115721094,
+            "range": "±1.14%",
+            "unit": "ops/sec",
+            "extra": "91 samples"
+          },
+          {
+            "name": "porffor arithmetic()",
+            "value": 1612519,
+            "range": "±0.40%",
+            "unit": "ops/sec",
+            "extra": "92 samples"
+          },
+          {
+            "name": "porffor(i32) arithmetic()",
+            "value": 1614420,
+            "range": "±0.32%",
+            "unit": "ops/sec",
+            "extra": "94 samples"
           }
         ]
       }
