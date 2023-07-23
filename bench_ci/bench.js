@@ -21,17 +21,17 @@ for (let i = 0; i < funcs.length; i++) {
   });
 
   try {
-    if (['factorial'].includes(func.name)) throw 'overflow';
-
     process.argv.push('-valtype=i32');
+    if (['factorial'].includes(func.name)) throw 'overflow';
     const compiledI32 = (await compile('export ' + func.toString())).exports[func.name];
-    process.argv.pop();
 
     suite.add(`porffor(i32) ${func.name}(${max ?? ''})`, () => {
       compiledI32(max);
     });
   } catch {
     // ignore as some things are unsupported in i32 mode
+  } finally {
+    process.argv.pop();
   }
 }
 
