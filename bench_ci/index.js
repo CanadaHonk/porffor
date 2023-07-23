@@ -41,3 +41,7 @@ export function arrayAccess() {
 export function arithmetic() {
   return ((2 + 2) * 3 / 100 - 5 * -1000) * 2 + 100 - 8;
 }
+
+export function mathFuncs() {
+  return Math.round(1.2) + Math.fround(5.05) + Math.floor(1.9) + Math.ceil(1.1) + Math.trunc(1.6) + Math.abs(-2) + Math.sqrt(4) + Math.sign(1) + Math.clz32(5);
+}

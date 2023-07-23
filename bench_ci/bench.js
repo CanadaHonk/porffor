@@ -1,11 +1,11 @@
 import Benchmark from 'benchmark';
 import compile from '../compiler/wrap.js';
-import { countPrimes, randoms, factorial, arrayAccess, arithmetic } from './index.js';
+import { countPrimes, randoms, factorial, arrayAccess, arithmetic, mathFuncs } from './index.js';
 
 const suite = new Benchmark.Suite();
 
-const maxes = [ 10000, 100000, 100, undefined, undefined ];
-const funcs = [ countPrimes, randoms, factorial, arrayAccess, arithmetic ];
+const maxes = [ 10000, 100000, 100, undefined, undefined, undefined ];
+const funcs = [ countPrimes, randoms, factorial, arrayAccess, arithmetic, mathFuncs ];
 for (let i = 0; i < funcs.length; i++) {
   const func = funcs[i];
   const max = maxes[i];
