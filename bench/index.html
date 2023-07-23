@@ -128,7 +128,8 @@
 
         const projectColors = {
           node: '#5dae47',
-          porffor: '#9c60e0'
+          'porffor(default)': '#9c60e0',
+          'porffor(i32)': '#502090'
         };
 
         const benchInfo = name => name.split(' ');
@@ -185,7 +186,7 @@
             const datasets = new Map();
             for (const x of dataset) {
               if (!datasets.get(x.project)) {
-                const color = projectColors[x.project.split('(')[0]];
+                const color = projectColors[x.project];
                 datasets.set(x.project, {
                   label: x.project,
                   data: [],
@@ -199,6 +200,7 @@
 
             const unit = 'ms';
 
+            const datasetLabels = [...datasets.keys()];
             const data = {
               labels: dataset.map(d => d.commit.id.slice(0, 7)),
               datasets: [...datasets.values()]
@@ -230,10 +232,10 @@
                   title: items => {
                     const { index, label } = items[0];
                     const data = dataset[index];
-                    return label + ': ' + data.commit.message.split('\n')[0].trim() + '\n' + new Date(data.commit.timestamp).toString();
+                    return label + ' | ' + data.commit.message.split('\n')[0].trim() + '\n' + new Date(data.commit.timestamp).toString();
                   },
                   label: item => {
-                    let label = 1 / item.value;
+                    let label = `${datasetLabels[item.datasetIndex]}: ${1 / item.value}`;
                     const { extra, range } = dataset[item.index].bench;
                     label += ' ' + unit;
                     if (range) {
