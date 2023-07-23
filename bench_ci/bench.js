@@ -1,8 +1,8 @@
-import compile from '../compiler/wrap.js';
 import Benchmark from 'benchmark';
+import compile from '../compiler/wrap.js';
+import { countPrimes, randoms } from './index.js';
 
 const suite = new Benchmark.Suite();
-const { countPrimes, randoms } = require('./index.js');
 
 const funcs = [ countPrimes, randoms ];
 const max = 10000;
