@@ -4,6 +4,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  deployments: write
+
 jobs:
   benchmark:
     name: Run benchmarks
