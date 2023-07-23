@@ -1,0 +1,32 @@
+name: Benchmark
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  benchmark:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Run benchmark
+        run: |
+        npm install
+        npm install benchmark
+        node bench_ci/bench.js | tee output.txt
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1.18.0
+        with:
+          name: porffor benches
+          tool: "benchmarkjs"
+          output-file-path: output.txt
+          auto-push: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gh-pages-branch: main
+          benchmark-data-dir-path: bench
