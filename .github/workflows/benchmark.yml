@@ -1,8 +1,7 @@
 name: Benchmark
 on:
   push:
-    branches:
-      # - main
+    branches: []
 
 permissions:
   contents: write
