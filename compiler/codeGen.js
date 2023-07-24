@@ -1090,24 +1090,37 @@ const generateAssignPat = (scope, decl) => {
   return todo('assignment pattern (optional arg)');
 };
 
-let arrays = [];
+let pages = new Map();
+const allocPage = reason => {
+  if (pages.has(reason)) return pages.get(reason);
+
+  let ind = pages.size + 1; // base (1) + current page amount
+  pages.set(reason, ind);
+
+  if (codeLog) log('codegen', `allocated new page of memory (${ind}) | ${reason}`);
+
+  return ind;
+};
+
+let arrays = new Map();
 const generateArray = (scope, decl, global = false, name = '$undeclared') => {
   const out = [];
-  let arrayNumber;
 
-  if (!arrays.includes(name) || name === '$undeclared') {
-    arrayNumber = arrays.push(name) - 1;
-
-    // todo: track this internally and use as initial pages value for memory, instead of growing at runtime?
-    // grow memory by 1 page (which we are now using)
-    out.push(
-      ...number(1, Valtype.i32),
-      [ Opcodes.memory_grow, 0 ],
-      [ Opcodes.drop ]
-    );
-  } else {
-    arrayNumber = arrays.indexOf(name);
+  if (!arrays.has(name) || name === '$undeclared') {
+    if (process.argv.includes('-runtime-alloc')) {
+      out.push(
+        ...number(1, Valtype.i32),
+        [ Opcodes.memory_grow, 0 ],
+        [ Opcodes.drop ]
+      );
+    } else {
+      // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
+      const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
+      arrays.set(name, allocPage(`array: ${uniqueName}`) - 1);
+    }
   }
+
+  let arrayNumber = arrays.get(name);
 
   const length = decl.elements.length;
 
@@ -1133,7 +1146,7 @@ const generateArray = (scope, decl, global = false, name = '$undeclared') => {
     out.push(
       ...number((arrayNumber + 1) * PageSize + i * ValtypeSize[valtype], Valtype.i32),
       ...generate(scope, decl.elements[i]),
-      [ Opcodes.store, 0, 0 ]
+      [ Opcodes.store, Math.log2(ValtypeSize[valtype]), 0 ]
     );
   }
 
@@ -1151,7 +1164,7 @@ export const generateMember = (scope, decl) => {
   if (!name || getNodeType(scope, decl.object) !== TYPES._array) return todo(`computed member expression for objects are not supported yet`);
 
   // todo: fallback on using actual local value?
-  const arrayNumber = arrays.indexOf(name);
+  const arrayNumber = arrays.get(name);
 
   scope.memory = true;
 
@@ -1165,7 +1178,7 @@ export const generateMember = (scope, decl) => {
     [ Opcodes.i32_mul ],
 
     // read from memory
-    [ Opcodes.load, 0, ...unsignedLEB128((arrayNumber + 1) * PageSize) ]
+    [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128((arrayNumber + 1) * PageSize) ]
   ];
 };
 
@@ -1396,7 +1409,8 @@ export default program => {
   funcIndex = {};
   depth = [];
   typeStates = {};
-  arrays = [];
+  arrays = new Map();
+  pages = new Map();
   currentFuncIndex = importedFuncs.length;
 
   globalThis.valtype = 'f64';
@@ -1477,5 +1491,5 @@ export default program => {
   // if blank main func and other exports, remove it
   if (main.wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(funcs.length - 1, 1);
 
-  return { funcs, globals, tags, exceptions };
+  return { funcs, globals, tags, exceptions, pages };
 };

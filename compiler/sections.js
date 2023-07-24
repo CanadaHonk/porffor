@@ -8,7 +8,7 @@ const createSection = (type, data) => [
   ...encodeVector(data)
 ];
 
-export default (funcs, globals, tags, flags) => {
+export default (funcs, globals, tags, pages, flags) => {
   const types = [], typeCache = {};
 
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
@@ -83,7 +83,7 @@ export default (funcs, globals, tags, flags) => {
   const usesMemory = funcs.some(x => x.memory);
   const memorySection = !usesMemory ? [] : createSection(
     Section.memory,
-    encodeVector([ [ 0x00, 0x01 ] ])
+    encodeVector([ [ 0x00, 1 + pages.size ] ])
   );
 
   // export memory if used
