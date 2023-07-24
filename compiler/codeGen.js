@@ -2,6 +2,7 @@ import { Blocktype, Opcodes, Valtype, PageSize, ValtypeSize } from "./wasmSpec.j
 import { signedLEB128, unsignedLEB128 } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from "./builtins.js";
+import { PrototypeFuncs } from "./prototype.js";
 import { number, i32x4 } from "./embedding.js";
 import parse from "./parse.js";
 
@@ -12,8 +13,7 @@ let funcs = [];
 let exceptions = [];
 let funcIndex = {};
 let currentFuncIndex = importedFuncs.length;
-let builtinFuncs = {};
-let builtinVars = {};
+let builtinFuncs = {}, builtinVars = {}, prototypeFuncs = {};
 
 const debug = str => {
   const code = [];
@@ -593,6 +593,32 @@ const generateCall = (scope, decl) => {
     }
 
     return out;
+  }
+
+  // literal member, check for prototypes. this is a hack for array prototypes
+  if (name.startsWith('__')) {
+    const spl = name.slice(2).split('_');
+
+    const baseName = spl.slice(0, -1).join('_');
+    const baseType = getType(scope, baseName);
+
+    const func = spl[spl.length - 1];
+    const protoFunc = prototypeFuncs[baseType]?.[func];
+
+    if (protoFunc) {
+      if (baseType === TYPES._array) {
+        scope.memory = true;
+
+        const arrayNumber = arrays.get(baseName);
+
+        const [ length, lengthIsGlobal ] = lookupName(scope, '__' + baseName + '_length');
+
+        return protoFunc(arrayNumber, {
+          get: [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ],
+          set: [ lengthIsGlobal ? Opcodes.global_set : Opcodes.local_set, length.idx ],
+        }, decl.arguments.length === 0 ? [] : generate(scope, decl.arguments[0]));
+      }
+    }
   }
 
   // TODO: only allows callee as literal
@@ -1438,6 +1464,7 @@ export default program => {
 
   builtinFuncs = new BuiltinFuncs();
   builtinVars = new BuiltinVars();
+  prototypeFuncs = new PrototypeFuncs();
 
   program.id = { name: 'main' };
 
