@@ -11,9 +11,8 @@ porffor is a very unique js engine, due a very different approach. it is serious
 porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself. you could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript.
 
 ## limitations
-- **only number type, no string/array/object/etc at all**
+- **no strings/full object support yet**
 - little built-ins, no prototype
-- no errors
 - no async/promise/await
 - no variables between scopes (except args and globals)
 - literal callees only in calls (eg `print()` works, `a = print; a()` does not)
@@ -71,6 +70,8 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - calling functions with non-matching arguments (eg `f(a, b); f(0); f(1, 2, 3);`)
 - `typeof` mostly (static-ish)
 - runtime errors for undeclared variables (`ReferenceError`), not functions (`TypeError`)
+- array creation via `[]` (eg `let arr = [ 1, 2, 3 ]`)
+- array member access via `arr[ind]` (eg `arr[0]`)
 
 ### built-ins
 
