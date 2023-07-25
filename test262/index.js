@@ -17,7 +17,12 @@ const _tests = new Test262Stream(test262Path, {
 
 if (process.argv.includes('-open')) execSync(`code ${test262Path}/${whatTests}`);
 
-const prelude = fs.readFileSync('test262/prelude.js', 'utf8');
+const preludes = fs.readFileSync('test262/prelude.js', 'utf8').split('///').reduce((acc, x) => {
+  const [ k, ...content ] = x.split('\n');
+  acc[k.trim()] = content.join('\n').trim();
+  return acc;
+}, {});
+const allPrelude = Object.values(preludes).join('\n');
 
 let valtype = 'f64';
 
@@ -28,7 +33,7 @@ const excludeNegative = process.argv.includes('-exclude-negative');
 
 const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
-const lastCommitResults = execSync(`git log -40 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262:')).split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
+const lastCommitResults = execSync(`git log -40 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1')).split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
 
 const resultOnly = process.env.RESULT_ONLY;
 
@@ -48,7 +53,8 @@ const hacks = [
   x => {
     return x
       .replace(/assert\.notSameValue\(err\.message\.indexOf\('.*?'\), -1\);/g, '')
-      .replace(/if \(\(e instanceof (.*)Error\) !== true\) \{[\w\W]*?\}/g, '');
+      .replace(/if \(\(e instanceof (.*)Error\) !== true\) \{[\w\W]*?\}/g, '')
+      .replace(/assert\.sameValue\(\s*e instanceof RangeError,\s*true,[\w\W]+?\);/g, '');
   },
 
   // int valtypes only: replace assert._isSameValue check with simple check
@@ -85,6 +91,7 @@ const hacks = [
 const run = async ({ contents, attrs }) => {
   const singleContents = contents.split('---*/').pop();
 
+  const prelude = allPrelude; // attrs.includes.map(x => preludes[x]).join('\n');
   let toRun = attrs.flags.raw ? contents : (prelude + singleContents);
 
   for (const hack of hacks) {

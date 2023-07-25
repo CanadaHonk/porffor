@@ -43,4 +43,6 @@ export const PrototypeFuncs = function() {
       lArrayLength.get,
     ]
   };
+
+  this[TYPES._array].push.noArgNoOp = true;
 };

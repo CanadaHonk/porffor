@@ -72,10 +72,10 @@ const generate = (scope, decl, global = false, name = undefined) => {
       return generateExp(scope, decl);
 
     case 'CallExpression':
-      return generateCall(scope, decl);
+      return generateCall(scope, decl, global, name);
 
     case 'NewExpression':
-      return generateNew(scope, decl);
+      return generateNew(scope, decl, global, name);
 
     case 'Literal':
       return generateLiteral(scope, decl);
@@ -235,14 +235,14 @@ const generateIdent = (scope, decl) => {
       return builtinVars[name];
     }
 
-    if (builtinFuncs[name]) {
+    if (builtinFuncs[name] || internalConstrs[name]) {
       // todo: return an actual something
       return number(1);
     }
 
     if (local === undefined) {
       // no local var with name
-      if (importedFuncs[name] !== undefined) return number(importedFuncs[name]);
+      if (importedFuncs.hasOwnProperty(name)) return number(importedFuncs[name]);
       if (funcIndex[name] !== undefined) return number(funcIndex[name]);
 
       if (globals[name] !== undefined) return [ [ Opcodes.global_get, globals[name].idx ] ];
@@ -437,7 +437,7 @@ const getType = (scope, name) => {
   if (scope.locals[name]) return typeStates[name];
 
   if (builtinVars[name]) return TYPES[builtinVars[name].type ?? 'number'];
-  if (builtinFuncs[name] !== undefined || importedFuncs[name] !== undefined || funcIndex[name] !== undefined) return TYPES.function;
+  if (builtinFuncs[name] !== undefined || importedFuncs[name] !== undefined || funcIndex[name] !== undefined || internalConstrs[name] !== undefined) return TYPES.function;
   if (globals[name]) return typeStates[name];
 
   return TYPES.undefined;
@@ -462,6 +462,7 @@ const getNodeType = (scope, node) => {
     if (func) return func.returnType ?? TYPES.number;
 
     if (builtinFuncs[name]) return TYPES[builtinFuncs[name].returnType ?? 'number'];
+    if (internalConstrs[name]) return internalConstrs[name].type;
 
     return TYPES.number;
   }
@@ -559,7 +560,7 @@ const generateExp = (scope, decl) => {
   return out;
 };
 
-const generateCall = (scope, decl) => {
+const generateCall = (scope, decl, _global, _name) => {
   /* const callee = decl.callee;
   const args = decl.arguments;
 
@@ -613,10 +614,12 @@ const generateCall = (scope, decl) => {
 
         const [ length, lengthIsGlobal ] = lookupName(scope, '__' + baseName + '_length');
 
+        if (protoFunc.noArgNoOp && decl.arguments.length === 0) return [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ];
+
         return protoFunc(arrayNumber, {
           get: [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ],
           set: [ lengthIsGlobal ? Opcodes.global_set : Opcodes.local_set, length.idx ],
-        }, decl.arguments.length === 0 ? [] : generate(scope, decl.arguments[0]));
+        }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE));
       }
     }
   }
@@ -647,6 +650,8 @@ const generateCall = (scope, decl) => {
       }
     }
   }
+
+  if (idx === undefined && internalConstrs[_name]) return internalConstrs[name].generate(scope, decl, _global, _name);
 
   if (idx === undefined && name === scope.name) {
     // hack: calling self, func generator will fix later
@@ -684,9 +689,10 @@ const generateCall = (scope, decl) => {
   return out;
 };
 
-const generateNew = (scope, decl) => {
+const generateNew = (scope, decl, _global, _name) => {
   // hack: basically treat this as a normal call for builtins for now
   const name = mapName(decl.callee.name);
+  if (internalConstrs[name]) return internalConstrs[name].generate(scope, decl, _global, _name);
   if (!builtinFuncs[name]) return todo(`new statement is not supported yet (new ${unhackName(name)})`);
 
   return generateCall(scope, decl);
@@ -1129,7 +1135,7 @@ const allocPage = reason => {
 };
 
 let arrays = new Map();
-const generateArray = (scope, decl, global = false, name = '$undeclared') => {
+const generateArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false) => {
   const out = [];
 
   if (!arrays.has(name) || name === '$undeclared') {
@@ -1168,7 +1174,9 @@ const generateArray = (scope, decl, global = false, name = '$undeclared') => {
     );
   }
 
-  for (let i = 0; i < length; i++) {
+  if (!initEmpty) for (let i = 0; i < length; i++) {
+    if (decl.elements[i] === undefined) continue;
+
     out.push(
       ...number((arrayNumber + 1) * PageSize + i * ValtypeSize[valtype], Valtype.i32),
       ...generate(scope, decl.elements[i]),
@@ -1424,6 +1432,21 @@ const generateCode = (scope, decl) => {
   }
 
   return out;
+};
+
+const internalConstrs = {
+  Array: {
+    generate: (scope, decl, global, name) => {
+      // todo: only works with literal argument
+      const value = decl.arguments[0]?.value ?? 0;
+      if (value < 0 || !Number.isFinite(value) || value > 4294967295) return internalThrow(scope, 'RangeThrow', 'Invalid array length');
+
+      return generateArray(scope, {
+        elements: new Array(value)
+      }, global, name, true);
+    },
+    type: TYPES._array
+  }
 };
 
 export default program => {
