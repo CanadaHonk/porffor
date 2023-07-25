@@ -157,6 +157,8 @@ export const Opcodes = {
   i32_trunc_sat_f64_s: [ 0xfc, 0x02 ],
   i32_trunc_sat_f64_u: [ 0xfc, 0x03 ],
 
+  memory_copy: [ 0xfc, 0x0a ],
+
   // simd insts are 0xFD simdop: varuint32
   v128_load: [ 0xfd, 0x00 ],
   v128_const: [ 0xfd, 0x0c ],

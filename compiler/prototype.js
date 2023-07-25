@@ -68,6 +68,34 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_mul ],
 
       [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128((arrayNumber + 1) * PageSize) ]
+    ],
+
+    shift: (arrayNumber, lArrayLength) => [
+      // if length == 0, noop
+      lArrayLength.get,
+      ...Opcodes.eqz,
+      [ Opcodes.if, Blocktype.void ],
+      ...number(UNDEFINED),
+      [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      // todo: should we store 0/undefined in "removed" element?
+
+      // decrement length by 1
+      lArrayLength.get,
+      ...number(1),
+      [ Opcodes.sub ],
+      lArrayLength.set,
+
+      // load first element
+      ...number(0, Valtype.i32),
+      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128((arrayNumber + 1) * PageSize) ],
+
+      // offset all elements by -1 ind
+      ...number((arrayNumber + 1) * PageSize, Valtype.i32), // dst = base array index
+      ...number((arrayNumber + 1) * PageSize + ValtypeSize[valtype], Valtype.i32), // src = base array index + an index
+      ...number(PageSize - ValtypeSize[valtype], Valtype.i32), // size = PageSize - an index
+      [ ...Opcodes.memory_copy, 0x00, 0x00 ]
     ]
   };
 
