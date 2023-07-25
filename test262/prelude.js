@@ -63,3 +63,13 @@ var date_2100_start = 4102444800000;
 
 var start_of_time = -8.64e15;
 var end_of_time = 8.64e15;
+
+/// nans.js
+var NaNs = [
+  NaN,
+  Number.NaN,
+  NaN * 0,
+  0/0,
+  Infinity/Infinity,
+  -(0/0)
+];
