@@ -37,6 +37,19 @@ export const PrototypeFuncs = function() {
 
       [ Opcodes.local_get, iTmp ],
 
+      ...(valtype === 'f64' ? [
+        ...number(0),
+        [ Opcodes.f64_max ]
+      ] : [
+        ...number(0),
+        [ Opcodes.lt ],
+        [ Opcodes.if, valtypeBinary ],
+        ...number(0),
+        [ Opcodes.add ],
+        [ Opcodes.local_get, iTmp ],
+        [ Opcodes.end ],
+      ]),
+
       Opcodes.i32_to,
       ...number(ValtypeSize[valtype], Valtype.i32),
       [ Opcodes.i32_mul ],
