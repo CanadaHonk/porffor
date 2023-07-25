@@ -843,13 +843,19 @@ console.log(sum);`,
 'Exception': `throw new Error('Hello, world!')`,
 'Array Reading': `let arr = [ 2, 4, 8, 16 ];
 for (let i = 0; i < arr.length; i++) console.log(arr[i]);`,
+'Array Prototype': `let arr = [ 1, 2, 3 ];
+arr.push(4); // 4
+arr.shift(); // 1
+arr.pop(); // 4
+
+arr.at(0); // 2
+arr.at(-1); // 3`,
 'Math Proposals': `console.log(Math.signbit(1)) // false
 console.log(Math.signbit(-1)) // true
 console.log(Math.radians(180)) // 3.141592...
 console.log(Math.RAD_PER_DEG) // 0.017453...
 console.log(Math.clamp(12, 0, 10)) // 10
-console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4
-`,
+console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
     };
     const defaultExample = 'Prime Numbers';
     let code = examples[defaultExample];
