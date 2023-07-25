@@ -84,6 +84,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - basic `eval` (literals only)
 - `Math.random()` using self-made xorshift128+ PRNG
 - some of `performance` (`now()`)
+- some of `Array.prototype` (`push`) (eg `[ 1, 2 ].push(3)`)
 
 ### custom
 
@@ -97,7 +98,8 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
 - nicer errors
-- experiment with hack for supporting multiple values as outputs
+- add more `Array` prototypes
+- use data segments for initing arrays
 - exceptions
   - `try { } finally {}`
   - rethrowing inside catch

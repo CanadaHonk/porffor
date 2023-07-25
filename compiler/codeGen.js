@@ -614,7 +614,7 @@ const generateCall = (scope, decl, _global, _name) => {
 
         const [ length, lengthIsGlobal ] = lookupName(scope, '__' + baseName + '_length');
 
-        if (protoFunc.noArgNoOp && decl.arguments.length === 0) return [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ];
+        if (protoFunc.noArgRetLength && decl.arguments.length === 0) return [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ];
 
         return protoFunc(arrayNumber, {
           get: [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ],

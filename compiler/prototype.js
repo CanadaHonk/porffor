@@ -44,5 +44,5 @@ export const PrototypeFuncs = function() {
     ]
   };
 
-  this[TYPES._array].push.noArgNoOp = true;
+  this[TYPES._array].push.noArgRetLength = true;
 };
