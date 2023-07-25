@@ -1,6 +1,7 @@
-import { Opcodes, Valtype, ValtypeSize, PageSize } from "./wasmSpec.js";
+import { Opcodes, Blocktype, Valtype, ValtypeSize, PageSize } from "./wasmSpec.js";
 import { number } from "./embedding.js";
 import { unsignedLEB128 } from "./encoding.js";
+import { UNDEFINED } from "./builtins.js";
 
 // todo: do not duplicate this
 const TYPES = {
@@ -41,6 +42,32 @@ export const PrototypeFuncs = function() {
       [ Opcodes.add ],
       lArrayLength.set,
       lArrayLength.get,
+    ],
+
+    pop: (arrayNumber, lArrayLength) => [
+      // if length == 0, noop
+      lArrayLength.get,
+      ...Opcodes.eqz,
+      [ Opcodes.if, Blocktype.void ],
+      ...number(UNDEFINED),
+      [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      // todo: should we store 0/undefined in "removed" element?
+
+      // decrement length by 1
+      lArrayLength.get,
+      ...number(1),
+      [ Opcodes.sub ],
+      lArrayLength.set,
+
+      // load last element
+      lArrayLength.get,
+      Opcodes.i32_to,
+      ...number(ValtypeSize[valtype], Valtype.i32),
+      [ Opcodes.i32_mul ],
+
+      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128((arrayNumber + 1) * PageSize) ]
     ]
   };
 
