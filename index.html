@@ -987,7 +987,15 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       // return `${hours}:${x.getMinutes().toString().padStart(2, '0')} ${ind} · ${x.toLocaleString('default', { month: 'long' })} ${x.getDate()}, ${x.getFullYear()}`;
     };
 
-    let commits = await (await fetch('https://api.github.com/repos/canadahonk/porffor/commits?per_page=100')).json();
+    const getCommits = async pages => {
+      let out = [];
+      for (let i = 1; i <= pages; i++) {
+        out.push(...(await (await fetch('https://api.github.com/repos/canadahonk/porffor/commits?per_page=100&page=' + i)).json()));
+      }
+
+      return out;
+    };
+    let commits = await getCommits(3);
 
     const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+(\.[0-9]+)?)%/)?.[1]);
     const getCommitDetails = x => x.commit.message.trim().split('\n').pop().split(' | ').slice(1).map(x => x.split(' ')[1]);
