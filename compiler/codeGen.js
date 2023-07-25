@@ -1437,6 +1437,12 @@ const generateCode = (scope, decl) => {
 const internalConstrs = {
   Array: {
     generate: (scope, decl, global, name) => {
+      // new Array(i0, i1, ...)
+      if (decl.arguments.length > 1) return generateArray(scope, {
+        elements: decl.arguments
+      }, global, name);
+
+      // new Array(n)
       // todo: only works with literal argument
       const value = decl.arguments[0]?.value ?? 0;
       if (value < 0 || !Number.isFinite(value) || value > 4294967295) return internalThrow(scope, 'RangeThrow', 'Invalid array length');
