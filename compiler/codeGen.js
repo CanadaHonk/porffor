@@ -433,12 +433,15 @@ const TYPES = {
 
 let typeStates = {};
 
-const getType = (scope, name) => {
+const getType = (scope, _name) => {
+  const name = mapName(_name);
   if (scope.locals[name]) return typeStates[name];
 
   if (builtinVars[name]) return TYPES[builtinVars[name].type ?? 'number'];
   if (builtinFuncs[name] !== undefined || importedFuncs[name] !== undefined || funcIndex[name] !== undefined || internalConstrs[name] !== undefined) return TYPES.function;
   if (globals[name]) return typeStates[name];
+
+  if (name.startsWith('__Array_prototype_') && prototypeFuncs[TYPES._array][name.slice(18)]) return TYPES.function;
 
   return TYPES.undefined;
 };
