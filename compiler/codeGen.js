@@ -617,10 +617,18 @@ const generateCall = (scope, decl, _global, _name) => {
 
         if (protoFunc.noArgRetLength && decl.arguments.length === 0) return [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ];
 
+        let protoLocal;
+        if (protoFunc.local) {
+          const localName = `_Array_${protoFunc}_tmp`;
+          if (!scope.locals[localName]) scope.locals[localName] = { idx: scope.localInd++, type: valtypeBinary };
+
+          protoLocal = scope.locals[localName].idx;
+        }
+
         return protoFunc(arrayNumber, {
           get: [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ],
           set: [ lengthIsGlobal ? Opcodes.global_set : Opcodes.local_set, length.idx ],
-        }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE));
+        }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal);
       }
     }
   }
@@ -1491,6 +1499,8 @@ export default program => {
 
   Opcodes.load = [ Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load ][valtypeInd];
   Opcodes.store = [ Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store ][valtypeInd];
+
+  Opcodes.lt = [ Opcodes.i32_lt_s, Opcodes.i64_lt_s, Opcodes.f64_lt ][valtypeInd];
 
   builtinFuncs = new BuiltinFuncs();
   builtinVars = new BuiltinVars();

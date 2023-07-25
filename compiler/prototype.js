@@ -20,9 +20,32 @@ const TYPES = {
 
 export const PrototypeFuncs = function() {
   this[TYPES._array] = {
-    // lX = local index of X ({ get, set }), wX = wasm ops of X
-    // todo: these are only for 1 argument
+    // lX = local accessor of X ({ get, set }), iX = local index of X, wX = wasm ops of X
+    at: (arrayNumber, lArrayLength, wIndex, iTmp) => [
+      ...wIndex,
+      [ Opcodes.local_tee, iTmp ],
 
+      // if index < 0: access index + array length
+      ...number(0),
+      [ Opcodes.lt ],
+      [ Opcodes.if, Blocktype.void ],
+      [ Opcodes.local_get, iTmp ],
+      lArrayLength.get,
+      [ Opcodes.add ],
+      [ Opcodes.local_set, iTmp ],
+      [ Opcodes.end ],
+
+      [ Opcodes.local_get, iTmp ],
+
+      Opcodes.i32_to,
+      ...number(ValtypeSize[valtype], Valtype.i32),
+      [ Opcodes.i32_mul ],
+
+      // read from memory
+      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128((arrayNumber + 1) * PageSize) ]
+    ],
+
+    // todo: only for 1 argument
     push: (arrayNumber, lArrayLength, wNewMember) => [
       // get memory offset of array at last index (length)
       lArrayLength.get,
@@ -99,5 +122,6 @@ export const PrototypeFuncs = function() {
     ]
   };
 
+  this[TYPES._array].at.local = true;
   this[TYPES._array].push.noArgRetLength = true;
 };
