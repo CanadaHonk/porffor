@@ -1184,7 +1184,7 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
   }
 
   if (!initEmpty) for (let i = 0; i < length; i++) {
-    if (decl.elements[i] === undefined) continue;
+    if (decl.elements[i] == null) continue;
 
     out.push(
       ...number((arrayNumber + 1) * PageSize + i * ValtypeSize[valtype], Valtype.i32),
@@ -1228,6 +1228,8 @@ export const generateMember = (scope, decl) => {
 const randId = () => Math.random().toString(16).slice(0, -4);
 
 const objectHack = node => {
+  if (!node) return node;
+
   if (node.type === 'MemberExpression') {
     if (node.computed || node.optional) return node;
 
