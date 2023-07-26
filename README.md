@@ -8,15 +8,14 @@ porffor is a very unique js engine, due a very different approach. it is serious
 - everything is a number
 - no constant runtime/preluded code
 
-porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself. you could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript.
+porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself. you could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript. not based on any particular spec version.
 
 ## limitations
 - **no strings/full object support yet**
-- little built-ins, no prototype
+- little built-ins/prototype
 - no async/promise/await
 - no variables between scopes (except args and globals)
 - literal callees only in calls (eg `print()` works, `a = print; a()` does not)
-- there is no version of the spec this is based on, I add (easy) things I use
 
 ## supported
 see [optimizations](#optimizations) for opts implemented/supported.
