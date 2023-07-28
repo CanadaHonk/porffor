@@ -33,7 +33,8 @@ const excludeNegative = process.argv.includes('-exclude-negative');
 
 const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
-const lastCommitResults = execSync(`git log -40 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1')).split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
+let lastCommitResults = execSync(`git log -40 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1')).split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
+if (lastCommitResults.length === 8) lastCommitResults = [ ...lastCommitResults.slice(0, 7), 0, lastCommitResults[7] ];
 
 const resultOnly = process.env.RESULT_ONLY;
 
@@ -88,10 +89,24 @@ const hacks = [
   }
 ];
 
-const run = async ({ contents, attrs }) => {
+import vm from 'node:vm';
+
+function timeout(function_, timeout) {
+	const script = new vm.Script('returnValue = function_()');
+
+  const context = {
+    function_
+  };
+
+  script.runInNewContext(context, { timeout });
+
+  return context.returnValue;
+}
+
+const run = async ({ file, contents, attrs }) => {
   const singleContents = contents.split('---*/').pop();
 
-  const prelude = allPrelude; // attrs.includes.map(x => preludes[x]).join('\n');
+  const prelude = attrs.includes.map(x => preludes[x]).join('\n');
   let toRun = attrs.flags.raw ? contents : (prelude + singleContents);
 
   for (const hack of hacks) {
@@ -109,7 +124,9 @@ const run = async ({ contents, attrs }) => {
   }
 
   try {
-    exports.main();
+    // only timeout some due to big perf impact
+    if (['test\\language\\statements\\for\\scope-body-lex-boundary.js', 'test\\language\\statements\\while\\S12.6.2_A1.js'].includes(file)) timeout(exports.main, 2000);
+      else exports.main();
   } catch (e) {
     return [ 1, e ];
   }
@@ -137,12 +154,12 @@ const passFiles = [];
 const wasmErrorFiles = [];
 const compileErrorFiles = [];
 let dirs = new Map(), features = new Map();
-let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, todos = 0;
+let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0, todos = 0;
 for await (const test of tests) {
   const file = test.file.replaceAll('\\', '/').slice(5);
 
   total++;
-  // if (!resultOnly) process.stdout.write(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m ${file} \u001b[90m${test.scenario}\u001b[0m`);
+  if (!resultOnly) process.stdout.write(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m ${file} \u001b[90m${test.scenario}\u001b[0m`);
 
   // todo: parse vs runtime expected
   const expected = test.attrs.negative ? true : false;
@@ -168,13 +185,14 @@ for await (const test of tests) {
   }
   else if (!pass && stage === 1) {
     if (result.constructor.name === 'Test262Error') fails++;
+      else if (result.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') timeouts++;
       else runtimeErrors++;
   }
   else if (!pass && stage === 2) fails++;
 
   if (pass) passFiles.push(file);
 
-  // if (!resultOnly) process.stdout.write(`\r${' '.repeat(200)}\r`);
+  if (!resultOnly) process.stdout.write(`\r${' '.repeat(200)}\r`);
   if (!resultOnly) console.log(`\u001b[90m${Math.floor((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
 
   if (logErrors && !pass && result) console.log(result.stack);
@@ -195,6 +213,7 @@ for await (const test of tests) {
     }
     else if (!pass && stage === 1) {
       if (result.constructor.name === 'Test262Error') k = 'fail';
+        else if (result.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') k = 'timeout';
         else k = 'runtimeError';
     }
     else if (!pass && stage === 2) k = 'fail';
@@ -208,7 +227,7 @@ for await (const test of tests) {
 const table = (overall, ...arr) => {
   let out = '';
   for (let i = 0; i < arr.length; i++) {
-    let icon = [ '🧪', '🤠', '❌', '💀', '🧩', '💥', '📝' ][i];
+    let icon = [ '🧪', '🤠', '❌', '💀', '🧩', '💥', '⏰', '📝' ][i];
     let change = arr[i] - lastCommitResults[i + 1];
     let str = `${icon} ${arr[i]}${overall && change !== 0 ? ` (${change > 0 ? '+' : ''}${change})` : ''}`;
 
@@ -242,7 +261,7 @@ const percentChange = parseFloat((percent - lastCommitResults[0]).toFixed(2));
 
 if (resultOnly) {
   process.stdout.write(`test262: ${percent}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange})` : ''} | `);
-  table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, todos);
+  table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
   process.exit();
 }
 
@@ -254,9 +273,9 @@ const nextMajorPercent = Math.floor(percent) + 1;
 const togo = next => `${Math.floor((total * next / 100) - passes)} to go until ${next}%`;
 
 console.log(`\u001b[1m${whatTests}: ${passes}/${total} passed - ${percent}%${whatTests === 'test' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
-bar(140, total, passes, fails, runtimeErrors, compileErrors + todos + wasmErrors, 0);
+bar(140, total, passes, fails, runtimeErrors, compileErrors + todos + wasmErrors + timeouts, 0);
 process.stdout.write('  ');
-table(whatTests === 'test', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, todos);
+table(whatTests === 'test', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
 
 console.log();
 
@@ -264,9 +283,9 @@ if (whatTests === 'test') {
   for (const dir of dirs.keys()) {
     const results = dirs.get(dir);
     process.stdout.write(dir + ' '.repeat(14 - dir.length));
-    bar(120, results.total, results.pass ?? 0, results.fail ?? 0, results.runtimeError ?? 0, (results.compileError ?? 0) + (results.todo ?? 0) + (results.wasmError ?? 0), 0);
+    bar(120, results.total, results.pass ?? 0, results.fail ?? 0, (results.runtimeError ?? 0) + (results.timeout ?? 0), (results.compileError ?? 0) + (results.todo ?? 0) + (results.wasmError ?? 0), 0);
     process.stdout.write(' '.repeat(14 + 2));
-    table(false, results.total, results.pass ?? 0, results.fail ?? 0, results.runtimeError ?? 0, results.wasmError ?? 0, results.compileError ?? 0, results.todo ?? 0);
+    table(false, results.total, results.pass ?? 0, results.fail ?? 0, results.runtimeError ?? 0, results.wasmError ?? 0, results.compileError ?? 0, results.timeout ?? 0, results.todo ?? 0);
     console.log();
 
     if (subdirs) {
@@ -275,9 +294,9 @@ if (whatTests === 'test') {
 
         const results2 = results.get(dir2);
         process.stdout.write(' '.repeat(8) + dir2 + ' '.repeat(30 - dir2.length));
-        bar(80, results2.total, results2.pass ?? 0, results2.fail ?? 0, results2.runtimeError ?? 0, (results2.compileError ?? 0) + (results2.todo ?? 0) + (results2.wasmError ?? 0), 0);
+        bar(80, results2.total, results2.pass ?? 0, results2.fail ?? 0, results2.runtimeError ?? 0, (results2.compileError ?? 0) + (results2.todo ?? 0) + (results2.wasmError ?? 0) + (results2.timeout ?? 0), 0);
         process.stdout.write(' '.repeat(8) + ' '.repeat(30 + 2));
-        table(false, results2.total, results2.pass ?? 0, results2.fail ?? 0, results2.runtimeError ?? 0, results2.wasmError ?? 0, results2.compileError ?? 0, results2.todo ?? 0);
+        table(false, results2.total, results2.pass ?? 0, results2.fail ?? 0, results2.runtimeError ?? 0, results2.wasmError ?? 0, results2.compileError ?? 0, results2.timeout ?? 0, results2.todo ?? 0);
       }
       console.log();
     }
