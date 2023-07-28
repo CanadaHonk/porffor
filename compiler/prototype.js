@@ -21,7 +21,7 @@ const TYPES = {
 export const PrototypeFuncs = function() {
   this[TYPES._array] = {
     // lX = local accessor of X ({ get, set }), iX = local index of X, wX = wasm ops of X
-    at: (arrayNumber, lArrayLength, wIndex, iTmp) => [
+    at: (page, lArrayLength, wIndex, iTmp) => [
       ...wIndex,
       [ Opcodes.local_tee, iTmp ],
 
@@ -55,11 +55,11 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_mul ],
 
       // read from memory
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128((arrayNumber + 1) * PageSize) ]
+      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128(page * PageSize) ]
     ],
 
     // todo: only for 1 argument
-    push: (arrayNumber, lArrayLength, wNewMember) => [
+    push: (page, lArrayLength, wNewMember) => [
       // get memory offset of array at last index (length)
       lArrayLength.get,
       Opcodes.i32_to,
@@ -70,7 +70,7 @@ export const PrototypeFuncs = function() {
       ...wNewMember,
 
       // store in memory
-      [ Opcodes.store, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128((arrayNumber + 1) * PageSize) ],
+      [ Opcodes.store, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128(page * PageSize) ],
 
       // bump array length by 1 and return it
       lArrayLength.get,
@@ -80,7 +80,7 @@ export const PrototypeFuncs = function() {
       lArrayLength.get,
     ],
 
-    pop: (arrayNumber, lArrayLength) => [
+    pop: (page, lArrayLength) => [
       // if length == 0, noop
       lArrayLength.get,
       ...Opcodes.eqz,
@@ -103,10 +103,10 @@ export const PrototypeFuncs = function() {
       ...number(ValtypeSize[valtype], Valtype.i32),
       [ Opcodes.i32_mul ],
 
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128((arrayNumber + 1) * PageSize) ]
+      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128(page * PageSize) ]
     ],
 
-    shift: (arrayNumber, lArrayLength) => [
+    shift: (page, lArrayLength) => [
       // if length == 0, noop
       lArrayLength.get,
       ...Opcodes.eqz,
@@ -125,11 +125,11 @@ export const PrototypeFuncs = function() {
 
       // load first element
       ...number(0, Valtype.i32),
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128((arrayNumber + 1) * PageSize) ],
+      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128(page * PageSize) ],
 
       // offset all elements by -1 ind
-      ...number((arrayNumber + 1) * PageSize, Valtype.i32), // dst = base array index
-      ...number((arrayNumber + 1) * PageSize + ValtypeSize[valtype], Valtype.i32), // src = base array index + an index
+      ...number(page * PageSize, Valtype.i32), // dst = base array index
+      ...number(page * PageSize + ValtypeSize[valtype], Valtype.i32), // src = base array index + an index
       ...number(PageSize - ValtypeSize[valtype], Valtype.i32), // size = PageSize - an index
       [ ...Opcodes.memory_copy, 0x00, 0x00 ]
     ]

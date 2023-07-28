@@ -8,10 +8,10 @@ porffor is a very unique js engine, due a very different approach. it is serious
 - everything is a number
 - no constant runtime/preluded code
 
-porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself. you could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript. not based on any particular spec version.
+porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself. you could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript. not based on any particular spec version, focusing on function/working over spec compliance.
 
 ## limitations
-- **no strings/full object support yet**
+- no full object support yet
 - little built-ins/prototype
 - no async/promise/await
 - no variables between scopes (except args and globals)
@@ -71,6 +71,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - runtime errors for undeclared variables (`ReferenceError`), not functions (`TypeError`)
 - array creation via `[]` (eg `let arr = [ 1, 2, 3 ]`)
 - array member access via `arr[ind]` (eg `arr[0]`)
+- string literals (`'hello world'`)
 
 ### built-ins
 
@@ -94,11 +95,17 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - inlining wasm via ``asm`...``\` "macro"
 
 ## soon todo
+- arrays
+  - member setting (`arr[0] = 2`)
+  - more of `Array` prototype
+  - arrays/strings inside arrays
+- strings
+  - member access
+  - member setting
+  - concat (`+`)
+  - equality + falseyness
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
-- nicer errors
-- add more `Array` prototypes
-- use data segments for initing arrays
 - exceptions
   - `try { } finally {}`
   - rethrowing inside catch
@@ -106,7 +113,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
   - rewrite local indexes per func for smallest local header and remove unused idxs
   - smarter inline selection (snapshots?)
   - remove const ifs (`if (true)`, etc)
-- add simd api tests
+  - use data segments for initing arrays
 
 ## test262
 porffor can run test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). it currently passes >10% (see latest commit desc for latest and details). use `node test262` to test, it will also show a difference of overall results between the last commit and current results.

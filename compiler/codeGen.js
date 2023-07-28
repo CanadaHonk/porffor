@@ -78,7 +78,7 @@ const generate = (scope, decl, global = false, name = undefined) => {
       return generateNew(scope, decl, global, name);
 
     case 'Literal':
-      return generateLiteral(scope, decl);
+      return generateLiteral(scope, decl, global, name);
 
     case 'VariableDeclaration':
       return generateVar(scope, decl);
@@ -486,7 +486,7 @@ const getNodeType = (scope, node) => {
   return TYPES.number;
 };
 
-const generateLiteral = (scope, decl) => {
+const generateLiteral = (scope, decl, global, name) => {
   if (decl.value === null) return number(NULL);
 
   switch (typeof decl.value) {
@@ -510,10 +510,15 @@ const generateLiteral = (scope, decl) => {
         case 'bigint': return number(TYPES.bigint);
       }
 
-      if (decl.value.length > 1) todo(`cannot generate string literal (char only)`);
+      const str = decl.value;
+      const rawElements = new Array(str.length);
+      for (let i = 0; i < str.length; i++) {
+        rawElements[i] = str.charCodeAt(i);
+      }
 
-      // hack: char as int
-      return number(decl.value.charCodeAt(0));
+      return makeArray(scope, {
+        rawElements
+      }, global, name, false, 'i16');
 
     default:
       return todo(`cannot generate literal of type ${typeof decl.value}`);
@@ -535,7 +540,7 @@ const countLeftover = wasm => {
       if ([Opcodes.throw, Opcodes.return, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
         else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.v128_load, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x0a)) {}
         else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const].includes(inst[0])) count++;
-        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store].includes(inst[0])) count -= 2;
+        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.i32_store16, Opcodes.i32_store8].includes(inst[0])) count -= 2;
         else if (Opcodes.memory_copy[0] === inst[0] && Opcodes.memory_copy[1] === inst[1]) count -= 3;
         else if (inst[0] === Opcodes.call) {
           let func = funcs.find(x => x.index === inst[1]);
@@ -614,7 +619,7 @@ const generateCall = (scope, decl, _global, _name) => {
       if (baseType === TYPES._array) {
         scope.memory = true;
 
-        const arrayNumber = arrays.get(baseName);
+        const page = arrays.get(baseName);
 
         const [ length, lengthIsGlobal ] = lookupName(scope, '__' + baseName + '_length');
 
@@ -628,7 +633,7 @@ const generateCall = (scope, decl, _global, _name) => {
           protoLocal = scope.locals[localName].idx;
         }
 
-        return protoFunc(arrayNumber, {
+        return protoFunc(page, {
           get: [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ],
           set: [ lengthIsGlobal ? Opcodes.global_set : Opcodes.local_set, length.idx ],
         }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal);
@@ -1146,27 +1151,40 @@ const allocPage = reason => {
   return ind;
 };
 
-let arrays = new Map();
-const generateArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false) => {
+const itemTypeToValtype = {
+  i32: 'i32',
+  i64: 'i64',
+  f64: 'f64',
+
+  i8: 'i32',
+  i16: 'i32'
+};
+
+const storeOps = {
+  i32: Opcodes.i32_store,
+  i64: Opcodes.i64_store,
+  f64: Opcodes.f64_store,
+
+  // expects i32 input!
+  i8: Opcodes.i32_store8,
+  i16: Opcodes.i32_store16
+};
+
+const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype) => {
   const out = [];
 
   if (!arrays.has(name) || name === '$undeclared') {
-    if (process.argv.includes('-runtime-alloc')) {
-      out.push(
-        ...number(1, Valtype.i32),
-        [ Opcodes.memory_grow, 0 ],
-        [ Opcodes.drop ]
-      );
-    } else {
-      // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
-      const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
-      arrays.set(name, allocPage(`array: ${uniqueName}`) - 1);
-    }
+    // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
+    const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
+    arrays.set(name, allocPage(`array: ${uniqueName}`));
   }
 
-  let arrayNumber = arrays.get(name);
+  let page = arrays.get(name);
 
-  const length = decl.elements.length;
+  const useRawElements = !!decl.rawElements;
+  const elements = useRawElements ? decl.rawElements : decl.elements;
+
+  const length = elements.length;
 
   if (name) {
     const target = global ? globals : scope.locals;
@@ -1186,22 +1204,30 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
     );
   }
 
+  const storeOp = storeOps[itemType];
+  const valtype = itemTypeToValtype[itemType];
+
   if (!initEmpty) for (let i = 0; i < length; i++) {
-    if (decl.elements[i] == null) continue;
+    if (elements[i] == null) continue;
 
     out.push(
-      ...number((arrayNumber + 1) * PageSize + i * ValtypeSize[valtype], Valtype.i32),
-      ...generate(scope, decl.elements[i]),
-      [ Opcodes.store, Math.log2(ValtypeSize[valtype]), 0 ]
+      ...number(page * PageSize + i * ValtypeSize[itemType], Valtype.i32),
+      ...(useRawElements ? number(elements[i], Valtype[valtype]) : generate(scope, elements[i])),
+      [ storeOp, Math.log2(ValtypeSize[itemType]) - 1, 0 ]
     );
   }
 
-  // local value as array number
-  out.push(...number(arrayNumber));
+  // local value as page number
+  out.push(...number(page));
 
   scope.memory = true;
 
   return out;
+};
+
+let arrays = new Map();
+const generateArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false) => {
+  return makeArray(scope, decl, global, name, initEmpty, valtype);
 };
 
 export const generateMember = (scope, decl) => {
@@ -1210,7 +1236,7 @@ export const generateMember = (scope, decl) => {
   if (!name || getNodeType(scope, decl.object) !== TYPES._array) return todo(`computed member expression for objects are not supported yet`);
 
   // todo: fallback on using actual local value?
-  const arrayNumber = arrays.get(name);
+  const page = arrays.get(name);
 
   scope.memory = true;
 
@@ -1224,7 +1250,7 @@ export const generateMember = (scope, decl) => {
     [ Opcodes.i32_mul ],
 
     // read from memory
-    [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128((arrayNumber + 1) * PageSize) ]
+    [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(page * PageSize) ]
   ];
 };
 
@@ -1536,8 +1562,8 @@ export default program => {
     const finalStatement = program.body.body[program.body.body.length - 1];
     main.returnType = getNodeType(main, finalStatement);
 
-    if (main.returnType === TYPES._array) {
-      // if last thing in main is an array return [ arrayNumber, length ]
+    if (main.returnType === TYPES._array || main.returnType === TYPES.string) {
+      // if last thing in main is an array return [ page, length ]
 
       const lastName = finalStatement.expression?.name ?? finalStatement.expression?.left?.name ?? '$undeclared';
       const lengthName = '__' + lastName + '_length';

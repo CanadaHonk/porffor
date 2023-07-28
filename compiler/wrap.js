@@ -1,9 +1,10 @@
 import compile from './index.js';
 import decompile from './decompile.js';
-// import fs from 'node:fs';
+import fs from 'node:fs';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
+const PageSize = 65536;
 const typeBase = 0xffffffffffff0;
 const TYPES = {
   [typeBase]: 'number',
@@ -27,7 +28,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
   if (source.includes('export function')) flags.push('module');
 
-  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
+  fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
   if (flags.includes('info')) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
@@ -67,22 +68,26 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
         const ret = exp.apply(this, arguments);
 
         if (ret >= typeBase && ret <= typeBase + 8) return ret > (typeBase + 7) ? 'object' : TYPES[ret];
-        if (TYPES[func.returnType] === 'boolean') return Boolean(ret);
 
-        if (TYPES[func.returnType] === 'undefined') return undefined;
+        switch (TYPES[func.returnType]) {
+          case 'boolean': return Boolean(ret);
+          case 'undefined': return undefined;
+          case 'object': return ret === 0 ? null : {};
 
-        if (TYPES[func.returnType] === 'object') {
-          if (ret === 0) return null;
-            else return {};
+          case '_array': {
+            const [ page, length ] = ret;
+
+            return Array.from(new Float64Array(memory.buffer, page * PageSize, length));
+          }
+
+          case 'string': {
+            const [ page, length ] = ret;
+
+            return Array.from(new Uint16Array(memory.buffer, page * PageSize, length)).map(x => String.fromCharCode(x)).join('');
+          }
+
+          default: return ret;
         }
-
-        if (TYPES[func.returnType] === '_array') {
-          const [ arrayNumber, length ] = ret;
-
-          return Array.from(new Float64Array(memory.buffer, (arrayNumber + 1) * 65536, length));
-        }
-
-        return ret;
       } catch (e) {
         if (e.is && e.is(exceptTag)) {
           const exceptId = e.getArg(exceptTag, 0);

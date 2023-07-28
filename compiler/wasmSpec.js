@@ -58,6 +58,7 @@ export const Opcodes = {
 
   i32_load8_s: 0x2c,
   i32_store8: 0x3a,
+  i32_store16: 0x3b,
 
   i32_store: 0x36,
   i64_store: 0x37,
@@ -190,5 +191,9 @@ export const PageSize = 65536; // 64KiB (1024 * 8)
 export const ValtypeSize = {
   i32: 4,
   i64: 8,
-  f64: 8
+  f64: 8,
+
+  // special
+  i8: 1,
+  i16: 2
 };
