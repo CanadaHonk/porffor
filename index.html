@@ -730,6 +730,9 @@
       background: #c50f1f;
     }
     .graph-5 {
+      background: #cccccc;
+    }
+    .graph-6 {
       background: #dd5719;
     }
   </style>
@@ -1016,11 +1019,14 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const percent = getCommitPercent(x);
       if (isNaN(percent)) continue;
 
-      const prevPercent = getCommitPercent(commits[i + 1]);
-      let change = 0;
-      if (isNaN(prevPercent)) change = 0;
-        else change = percent - prevPercent;
+      let prevPercent = NaN;
+      for (let j = i + 1; j < commits.length; j++) {
+        prevPercent = getCommitPercent(commits[j]);
+        if (!isNaN(prevPercent)) break;
+      }
 
+      let change = 0;
+      if (!isNaN(prevPercent)) change = percent - prevPercent;
       if (change === 0) continue;
 
       const percentEl = document.createElement('div');
@@ -1032,8 +1038,11 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       el.append(textEl, percentEl);
       commit_log.append(el);
 
-      const details = getCommitDetails(x);
-      if (!details) continue;
+      let details = getCommitDetails(x);
+      if (!details || details.length === 0) continue;
+
+      // add 0 timeouts if not included
+      if (details.length === 7) details = [ ...details.slice(0, 6), 0, details[6] ];
 
       const key = `${when.getDate().toString().padStart(2, '0')}/${(when.getMonth() + 1).toString().padStart(2, '0')}`;
       if (graphData[key]) continue;
@@ -1049,7 +1058,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
     for (const x of Object.keys(graphData).sort((a, b) => parseInt(a.slice(0, 2)) - parseInt(b.slice(0, 2)))) {
       const details = graphData[x];
-      const [ total, passes, fails, runtimeErrors, wasmErrors, compileErrors, todos ] = details;
+      const [ total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos ] = details;
 
       const containerEl = document.createElement('div');
       const barEl = document.createElement('div');
@@ -1060,7 +1069,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         el.style.height = `${(y / total) * 100}%`;
         el.className = `graph-${i}`;
 
-        el.title = (['Pass', 'Fail', 'Runtime error', 'Wasm error', 'Compile error', 'Todo'])[i] + `: ${y} (${((y / total) * 100).toFixed(2)}%)`;
+        el.title = (['Pass', 'Fail', 'Runtime error', 'Wasm error', 'Compile error', 'Timeout', 'Todo'])[i] + `: ${y} (${((y / total) * 100).toFixed(2)}%)`;
 
         barEl.appendChild(el);
 
