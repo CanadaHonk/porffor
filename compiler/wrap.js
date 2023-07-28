@@ -1,6 +1,6 @@
 import compile from './index.js';
 import decompile from './decompile.js';
-import fs from 'node:fs';
+// import fs from 'node:fs';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
@@ -28,7 +28,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
   if (source.includes('export function')) flags.push('module');
 
-  fs.writeFileSync('out.wasm', Buffer.from(wasm));
+  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
   if (flags.includes('info')) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
