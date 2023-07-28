@@ -735,6 +735,56 @@
     .graph-6 {
       background: #dd5719;
     }
+
+    #benches {
+      width: 100%;
+
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px 64px;
+
+      margin-bottom: 64px;
+    }
+
+    #benches h2 {
+      font-size: 22px;
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+
+    #benches code {
+      font-size: 1em;
+    }
+
+    #benches > div > div {
+      display: flex;
+      margin-bottom: 6px;
+    }
+
+    #benches > div > div > :first-child {
+      font-size: 18px;
+      color: var(--text-normal);
+      flex-basis: 140px;
+      flex-shrink: 0;
+    }
+
+    #benches > div > div > :last-child {
+      padding: 0 4px;
+      background: var(--background-secondary);
+
+      color: var(--text-muted);
+      font-size: 16px;
+
+      height: 22px;
+      line-height: 22px;
+
+      border-radius: 6px;
+    }
+
+    #benches .porffor {
+      background: var(--accent-light) !important;
+      color: var(--text-normal) !important;
+    }
   </style>
 </head>
 
@@ -769,6 +819,20 @@
     <div id="test262">
       <div id="commit_log"></div>
       <div id="graph"></div>
+    </div>
+
+    <div id="benches">
+      <div id="bench_0">
+        <h2>sum 1 million random numbers</h2>
+      </div>
+
+      <div id="bench_1">
+        <h2>count prime numbers 1-10000</h2>
+      </div>
+
+      <div id="bench_2">
+        <h2>factorial of 100</h2>
+      </div>
     </div>
   </article>
 
@@ -998,7 +1062,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
       return out;
     };
-    let commits = await getCommits(3);
+    let commits = []; // await getCommits(3);
 
     const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+(\.[0-9]+)?)%/)?.[1]);
     const getCommitDetails = x => x.commit.message.trim().split('\n').pop().split(' | ').slice(1).map(x => x.split(' ')[1]);
@@ -1049,7 +1113,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       graphData[key] = details;
     }
 
-    let last;
+    let last = [];
     for (let i = 8; i <= (new Date()).getDate(); i++) {
       const key = `${i.toString().padStart(2, '0')}/07`;
       if (!graphData[key]) graphData[key] = last;
@@ -1083,5 +1147,118 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
       graph.appendChild(containerEl);
     }
+
+    const benches = async () => {
+      const SAMPLES = 10;
+      const results = {};
+
+      const avg = arr => arr.reduce((acc, x) => acc + x, 0) / arr.length;
+
+      const bench = (which, what, run) => {
+        let times = [];
+
+        for (let i = 0; i < SAMPLES; i++) {
+          const t = performance.now();
+          run();
+          times.push(performance.now() - t);
+        }
+
+        if (!results[which]) results[which] = {};
+        results[which][what] = avg(times);
+      };
+
+      function randoms(max) {
+        let sum = 0;
+        for (let i = 0; i < max; i++) {
+          sum += Math.random();
+        }
+
+        return sum;
+      }
+
+      function countPrimes(max) {
+        function isPrime(number) {
+          if (number < 2) return false;
+
+          for (let i = 2; i < number; i++) {
+            if (number % i == 0) return false;
+          }
+
+          return true;
+        }
+
+        let counter = 0, primes = 0;
+        while (counter <= max) {
+          if (isPrime(counter)) primes++;
+          counter++;
+        }
+
+        return primes;
+      }
+
+      function factorial(n) {
+        if (n === 0) return 1;
+
+        return n * factorial(n - 1);
+      }
+
+      const maxes = [ 1000000, 10000, 100 ];
+      const funcs = [ randoms, countPrimes, factorial ];
+
+      for (let i = 0; i < funcs.length; i++) {
+        const func = funcs[i];
+        const max = maxes[i];
+
+        bench(i, 'your browser', () => {
+          func(max);
+        });
+
+        globalThis.process = { argv: [] };
+        const compiled = (await compile('export ' + func.toString())).exports[func.name];
+
+        bench(i, 'porffor', () => {
+          compiled(max);
+        });
+
+        /* try {
+          process.argv.push('-valtype=i32');
+          if (['factorial'].includes(func.name)) throw 'overflow';
+          const compiledI32 = (await compile('export ' + func.toString())).exports[func.name];
+
+          bench(i, 'porffor (i32)', () => {
+            compiledI32(max);
+          });
+        } catch {
+          // ignore as some things are unsupported in i32 mode
+        } finally {
+          process.argv.pop();
+        } */
+      }
+
+      for (let i = 0; i < funcs.length; i++) {
+        const maxTime = Math.max(...Object.values(results[i])) * 1.1;
+
+        const parentEl = document.getElementById(`bench_${i}`);
+
+        const keys = Object.keys(results[i]).sort((a, b) => results[i][a] - results[i][b]);
+        for (const x of keys) {
+          const result = results[i][x];
+          const el = document.createElement('div');
+
+          const labelEl = document.createElement('div');
+          labelEl.textContent = x;
+
+          const barEl = document.createElement('div');
+          barEl.textContent = result.toFixed(2) + 'ms';
+          barEl.style.width = `calc((100% - 140px) * ${(result / maxTime)})`;
+          barEl.className = x;
+
+          el.append(labelEl, barEl);
+          parentEl.append(el);
+        }
+      }
+    };
+
+    setTimeout(benches, 3000);
   })();</script>
 </body>
