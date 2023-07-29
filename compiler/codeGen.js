@@ -508,6 +508,10 @@ const getNodeType = (scope, node) => {
     return TYPES._array;
   }
 
+  if (node.type === 'BinaryExpression' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(node.operator)) {
+    return TYPES.boolean;
+  }
+
   // default to number
   return TYPES.number;
 };
