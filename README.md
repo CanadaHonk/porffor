@@ -1,12 +1,13 @@
 # porffor
-a basic experimental wip *aot* optimizing wasm js compiler in js. not serious/intended for (real) use, but this is a straight forward honest readme<br>
-age: ~3 weeks
+a basic experimental wip *aot* optimizing js -> wasm engine/compiler/runtime in js. not serious/intended for (real) use. (this is a straight forward, honest readme)<br>
+age: ~1 month
 
 ## design
 porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. key differences:
 - 100% aot compiled *(not jit)*
 - everything is a number
 - no constant runtime/preluded code
+- least Wasm imports possible (only stdio)
 
 porffor is mostly built from scratch, the only thing that is not is the parser (using [acorn](https://github.com/acornjs/acorn)). binaryen/etc is not used, we make final wasm binaries ourself. you could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript. not based on any particular spec version, focusing on function/working over spec compliance.
 
@@ -85,7 +86,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - `Math.random()` using self-made xorshift128+ PRNG
 - some of `performance` (`now()`)
 - some of `Array.prototype` (`at`, `push`, `pop`, `shift`)
-- some of `String.prototype` (`at`)
+- some of `String.prototype` (`at`, `charAt`, `charCodeAt`)
 
 ### custom
 

@@ -564,7 +564,7 @@ const countLeftover = wasm => {
 
     if (depth === 0)
       if ([Opcodes.throw, Opcodes.return, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
-        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x0a)) {}
+        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x0a)) {}
         else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const].includes(inst[0])) count++;
         else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.i32_store16].includes(inst[0])) count -= 2;
         else if (Opcodes.memory_copy[0] === inst[0] && Opcodes.memory_copy[1] === inst[1]) count -= 3;
@@ -631,34 +631,51 @@ const generateCall = (scope, decl, _global, _name) => {
     return out;
   }
 
-  // literal member, check for prototypes. this is a hack for array prototypes
-  if (name.startsWith('__')) {
+  let out = [];
+  let protoFunc, protoName, baseType, baseName = '$undeclared';
+  // ident.func()
+  if (name && name.startsWith('__')) {
     const spl = name.slice(2).split('_');
 
-    const baseName = spl.slice(0, -1).join('_');
-    const baseType = getType(scope, baseName);
+    baseName = spl.slice(0, -1).join('_');
+    baseType = getType(scope, baseName);
 
     const func = spl[spl.length - 1];
-    const protoFunc = prototypeFuncs[baseType]?.[func];
+    protoFunc = prototypeFuncs[baseType]?.[func];
+    protoName = func;
+  }
 
-    if (protoFunc) {
-      scope.memory = true;
+  // literal.func()
+  if (!name && decl.callee.type === 'MemberExpression') {
+    baseType = getNodeType(scope, decl.callee.object);
 
-      const page = arrays.get(baseName);
+    const func = decl.callee.property.name;
+    protoFunc = prototypeFuncs[baseType]?.[func];
+    protoName = func;
 
-      const [ length, lengthIsGlobal ] = lookupName(scope, '__' + baseName + '_length');
+    out = generate(scope, decl.callee.object);
+    out.push([ Opcodes.drop ]);
+  }
 
-      if (protoFunc.noArgRetLength && decl.arguments.length === 0) return [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ];
+  if (protoFunc) {
+    scope.memory = true;
 
-      let protoLocal;
-      if (protoFunc.local) {
-        const localName = `__${TYPE_NAMES[baseType]}_${protoFunc}_tmp`;
-        if (!scope.locals[localName]) scope.locals[localName] = { idx: scope.localInd++, type: valtypeBinary };
+    const page = arrays.get(baseName);
+    const [ length, lengthIsGlobal ] = lookupName(scope, '__' + baseName + '_length');
 
-        protoLocal = scope.locals[localName].idx;
-      }
+    if (protoFunc.noArgRetLength && decl.arguments.length === 0) return [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ];
 
-      return protoFunc(page, {
+    let protoLocal;
+    if (protoFunc.local) {
+      const localName = `__${TYPE_NAMES[baseType]}_${protoName}_tmp`;
+      if (!scope.locals[localName]) scope.locals[localName] = { idx: scope.localInd++, type: protoFunc.local };
+
+      protoLocal = scope.locals[localName].idx;
+    }
+
+    return [
+      ...out,
+      ...protoFunc(page, {
         get: [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ],
         set: [ lengthIsGlobal ? Opcodes.global_set : Opcodes.local_set, length.idx ],
       }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, (length, itemType) => {
@@ -666,8 +683,8 @@ const generateCall = (scope, decl, _global, _name) => {
           rawElements: new Array(length)
         }, _global, _name, true, itemType);
         return [ out, arrays.get(_name ?? '$undeclared') ];
-      });
-    }
+      })
+    ];
   }
 
   // TODO: only allows callee as literal
@@ -725,7 +742,6 @@ const generateCall = (scope, decl, _global, _name) => {
   if (func && func.memory) scope.memory = true;
   if (func && func.throws) scope.throws = true;
 
-  const out = [];
   for (const arg of args) {
     out.push(...generate(scope, arg));
   }
@@ -1555,6 +1571,7 @@ export default program => {
 
   Opcodes.i32_to = [ [ null ], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_s ][valtypeInd];
   Opcodes.i32_from = [ [ null ], [ Opcodes.i64_extend_i32_s ], [ Opcodes.f64_convert_i32_s ] ][valtypeInd];
+  Opcodes.i32_from_u = [ [ null ], [ Opcodes.i64_extend_i32_u ], [ Opcodes.f64_convert_i32_u ] ][valtypeInd];
 
   Opcodes.load = [ Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load ][valtypeInd];
   Opcodes.store = [ Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store ][valtypeInd];

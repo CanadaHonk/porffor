@@ -21,6 +21,7 @@ const TYPES = {
 export const PrototypeFuncs = function() {
   this[TYPES._array] = {
     // lX = local accessor of X ({ get, set }), iX = local index of X, wX = wasm ops of X
+    // todo: out of bounds properly
     at: (page, lArrayLength, wIndex, iTmp) => [
       ...wIndex,
       [ Opcodes.local_tee, iTmp ],
@@ -135,10 +136,11 @@ export const PrototypeFuncs = function() {
     ]
   };
 
-  this[TYPES._array].at.local = true;
+  this[TYPES._array].at.local = valtypeBinary;
   this[TYPES._array].push.noArgRetLength = true;
 
   this[TYPES.string] = {
+    // todo: out of bounds properly
     at: (page, lLength, wIndex, iTmp, arrayShell) => {
       const [ newOut, newPage ] = arrayShell(1, 'i16');
 
@@ -190,9 +192,73 @@ export const PrototypeFuncs = function() {
         // return new string (page)
         ...number(newPage)
       ];
-    }
+    },
+
+    // todo: out of bounds properly
+    charAt: (page, lLength, wIndex, _, arrayShell) => {
+      const [ newOut, newPage ] = arrayShell(1, 'i16');
+
+      return [
+        // setup new/out array
+        ...newOut,
+        [ Opcodes.drop ],
+
+        ...number(0, Valtype.i32), // base 0 for store later
+
+        ...wIndex,
+
+        Opcodes.i32_to,
+        ...number(ValtypeSize.i16, Valtype.i32),
+        [ Opcodes.i32_mul ],
+
+        // load current string ind {arg}
+        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(page * PageSize) ],
+
+        // store to new string ind 0
+        [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(newPage * PageSize) ],
+
+        // return new string (page)
+        ...number(newPage)
+      ];
+    },
+
+    // todo: out of bounds properly
+    charCodeAt: (page, lLength, wIndex, iTmp) => {
+      return [
+        ...wIndex,
+        Opcodes.i32_to,
+
+        // index < 0
+        [ Opcodes.local_tee, iTmp ],
+        ...number(0, Valtype.i32),
+        [ Opcodes.i32_lt_s ],
+
+        // index >= length
+        [ Opcodes.local_get, iTmp ],
+        lLength.get,
+        Opcodes.i32_to,
+        [ Opcodes.i32_ge_s ],
+
+        [ Opcodes.i32_or ],
+        [ Opcodes.if, Blocktype.void ],
+        // todo: what about int valtypes?
+        ...number(NaN),
+        [ Opcodes.return ],
+        [ Opcodes.end ],
+
+        [ Opcodes.local_get, iTmp ],
+        ...number(ValtypeSize.i16, Valtype.i32),
+        [ Opcodes.i32_mul ],
+
+        // load current string ind {arg}
+        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(page * PageSize) ],
+        Opcodes.i32_from_u
+      ];
+    },
   };
 
-  this[TYPES.string].at.local = true;
+  this[TYPES.string].at.local = valtypeBinary;
   this[TYPES.string].at.returnType = TYPES.string;
+  this[TYPES.string].charAt.returnType = TYPES.string;
+  this[TYPES.string].charCodeAt.local = Valtype.i32;
 };
