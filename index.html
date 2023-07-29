@@ -1062,7 +1062,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
       return out;
     };
-    let commits = []; // await getCommits(3);
+    let commits = await getCommits(3);
 
     const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+(\.[0-9]+)?)%/)?.[1]);
     const getCommitDetails = x => x.commit.message.trim().split('\n').pop().split(' | ').slice(1).map(x => x.split(' ')[1]);
