@@ -85,6 +85,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - `Math.random()` using self-made xorshift128+ PRNG
 - some of `performance` (`now()`)
 - some of `Array.prototype` (`at`, `push`, `pop`, `shift`)
+- some of `String.prototype` (`at`)
 
 ### custom
 

@@ -55,7 +55,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_mul ],
 
       // read from memory
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128(page * PageSize) ]
+      [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(page * PageSize) ]
     ],
 
     // todo: only for 1 argument
@@ -70,7 +70,7 @@ export const PrototypeFuncs = function() {
       ...wNewMember,
 
       // store in memory
-      [ Opcodes.store, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128(page * PageSize) ],
+      [ Opcodes.store, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(page * PageSize) ],
 
       // bump array length by 1 and return it
       lArrayLength.get,
@@ -103,7 +103,7 @@ export const PrototypeFuncs = function() {
       ...number(ValtypeSize[valtype], Valtype.i32),
       [ Opcodes.i32_mul ],
 
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128(page * PageSize) ]
+      [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(page * PageSize) ]
     ],
 
     shift: (page, lArrayLength) => [
@@ -125,7 +125,7 @@ export const PrototypeFuncs = function() {
 
       // load first element
       ...number(0, Valtype.i32),
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]), ...unsignedLEB128(page * PageSize) ],
+      [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(page * PageSize) ],
 
       // offset all elements by -1 ind
       ...number(page * PageSize, Valtype.i32), // dst = base array index
@@ -137,4 +137,62 @@ export const PrototypeFuncs = function() {
 
   this[TYPES._array].at.local = true;
   this[TYPES._array].push.noArgRetLength = true;
+
+  this[TYPES.string] = {
+    at: (page, lLength, wIndex, iTmp, arrayShell) => {
+      const [ newOut, newPage ] = arrayShell(1, 'i16');
+
+      return [
+        // setup new/out array
+        ...newOut,
+        [ Opcodes.drop ],
+
+        ...number(0, Valtype.i32), // base 0 for store later
+
+        ...wIndex,
+        [ Opcodes.local_tee, iTmp ],
+
+        // if index < 0: access index + array length
+        ...number(0),
+        [ Opcodes.lt ],
+        [ Opcodes.if, Blocktype.void ],
+        [ Opcodes.local_get, iTmp ],
+        lLength.get,
+        [ Opcodes.add ],
+        [ Opcodes.local_set, iTmp ],
+        [ Opcodes.end ],
+
+        [ Opcodes.local_get, iTmp ],
+
+        ...(valtype === 'f64' ? [
+          ...number(0),
+          [ Opcodes.f64_max ]
+        ] : [
+          ...number(0),
+          [ Opcodes.lt ],
+          [ Opcodes.if, valtypeBinary ],
+          ...number(0),
+          [ Opcodes.add ],
+          [ Opcodes.local_get, iTmp ],
+          [ Opcodes.end ],
+        ]),
+
+        Opcodes.i32_to,
+        ...number(ValtypeSize.i16, Valtype.i32),
+        [ Opcodes.i32_mul ],
+
+        // load current string ind {arg}
+        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(page * PageSize) ],
+
+        // store to new string ind 0
+        [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(newPage * PageSize) ],
+
+        // return new string (page)
+        ...number(newPage)
+      ];
+    }
+  };
+
+  this[TYPES.string].at.local = true;
+  this[TYPES.string].at.returnType = TYPES.string;
 };

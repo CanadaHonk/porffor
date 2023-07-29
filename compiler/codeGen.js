@@ -431,6 +431,19 @@ const TYPES = {
   _array: 0xffffffffffff8
 };
 
+const TYPE_NAMES = {
+  [TYPES.number]: 'Number',
+  [TYPES.boolean]: 'Boolean',
+  [TYPES.string]: 'String',
+  [TYPES.undefined]: 'undefined',
+  [TYPES.object]: 'Object',
+  [TYPES.function]: 'Function',
+  [TYPES.symbol]: 'Symbol',
+  [TYPES.bigint]: 'BigInt',
+
+  [TYPES._array]: 'Array'
+};
+
 let typeStates = {};
 
 const getType = (scope, _name) => {
@@ -442,6 +455,7 @@ const getType = (scope, _name) => {
   if (globals[name]) return typeStates[name];
 
   if (name.startsWith('__Array_prototype_') && prototypeFuncs[TYPES._array][name.slice(18)]) return TYPES.function;
+  if (name.startsWith('__String_prototype_') && prototypeFuncs[TYPES.string][name.slice(19)]) return TYPES.function;
 
   return TYPES.undefined;
 };
@@ -466,6 +480,18 @@ const getNodeType = (scope, node) => {
 
     if (builtinFuncs[name]) return TYPES[builtinFuncs[name].returnType ?? 'number'];
     if (internalConstrs[name]) return internalConstrs[name].type;
+
+    if (name && name.startsWith('__')) {
+      const spl = name.slice(2).split('_');
+
+      const baseName = spl.slice(0, -1).join('_');
+      const baseType = getType(scope, baseName);
+
+      const func = spl[spl.length - 1];
+      const protoFunc = prototypeFuncs[baseType]?.[func];
+
+      if (protoFunc) return protoFunc.returnType ?? TYPES.number;
+    }
 
     return TYPES.number;
   }
@@ -538,9 +564,9 @@ const countLeftover = wasm => {
 
     if (depth === 0)
       if ([Opcodes.throw, Opcodes.return, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
-        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.v128_load, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x0a)) {}
+        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x0a)) {}
         else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const].includes(inst[0])) count++;
-        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.i32_store16, Opcodes.i32_store8].includes(inst[0])) count -= 2;
+        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.i32_store16].includes(inst[0])) count -= 2;
         else if (Opcodes.memory_copy[0] === inst[0] && Opcodes.memory_copy[1] === inst[1]) count -= 3;
         else if (inst[0] === Opcodes.call) {
           let func = funcs.find(x => x.index === inst[1]);
@@ -616,28 +642,31 @@ const generateCall = (scope, decl, _global, _name) => {
     const protoFunc = prototypeFuncs[baseType]?.[func];
 
     if (protoFunc) {
-      if (baseType === TYPES._array) {
-        scope.memory = true;
+      scope.memory = true;
 
-        const page = arrays.get(baseName);
+      const page = arrays.get(baseName);
 
-        const [ length, lengthIsGlobal ] = lookupName(scope, '__' + baseName + '_length');
+      const [ length, lengthIsGlobal ] = lookupName(scope, '__' + baseName + '_length');
 
-        if (protoFunc.noArgRetLength && decl.arguments.length === 0) return [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ];
+      if (protoFunc.noArgRetLength && decl.arguments.length === 0) return [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ];
 
-        let protoLocal;
-        if (protoFunc.local) {
-          const localName = `_Array_${protoFunc}_tmp`;
-          if (!scope.locals[localName]) scope.locals[localName] = { idx: scope.localInd++, type: valtypeBinary };
+      let protoLocal;
+      if (protoFunc.local) {
+        const localName = `__${TYPE_NAMES[baseType]}_${protoFunc}_tmp`;
+        if (!scope.locals[localName]) scope.locals[localName] = { idx: scope.localInd++, type: valtypeBinary };
 
-          protoLocal = scope.locals[localName].idx;
-        }
-
-        return protoFunc(page, {
-          get: [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ],
-          set: [ lengthIsGlobal ? Opcodes.global_set : Opcodes.local_set, length.idx ],
-        }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal);
+        protoLocal = scope.locals[localName].idx;
       }
+
+      return protoFunc(page, {
+        get: [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ],
+        set: [ lengthIsGlobal ? Opcodes.global_set : Opcodes.local_set, length.idx ],
+      }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, (length, itemType) => {
+        const out = makeArray(scope, {
+          rawElements: new Array(length)
+        }, _global, _name, true, itemType);
+        return [ out, arrays.get(_name ?? '$undeclared') ];
+      });
     }
   }
 
@@ -712,7 +741,7 @@ const generateNew = (scope, decl, _global, _name) => {
   if (internalConstrs[name]) return internalConstrs[name].generate(scope, decl, _global, _name);
   if (!builtinFuncs[name]) return todo(`new statement is not supported yet (new ${unhackName(name)})`);
 
-  return generateCall(scope, decl);
+  return generateCall(scope, decl, _global, _name);
 };
 
 // bad hack for undefined and null working without additional logic
@@ -1166,7 +1195,6 @@ const storeOps = {
   f64: Opcodes.f64_store,
 
   // expects i32 input!
-  i8: Opcodes.i32_store8,
   i16: Opcodes.i32_store16
 };
 
