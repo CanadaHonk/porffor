@@ -51,7 +51,7 @@ const memoryToString = mem => {
 let prev = '';
 const run = async (source, _context, _filename, callback, run = true) => {
   let toRun = prev + source.trim();
-  prev = toRun + ';\n';
+  // prev = toRun + ';\n';
 
   const { exports, wasm, pages } = await compile(toRun, []);
   fs.writeFileSync('out.wasm', Buffer.from(wasm));
@@ -65,7 +65,7 @@ const run = async (source, _context, _filename, callback, run = true) => {
   callback(null, ret);
 
   // if (source.includes(' = ') || source.includes('let ') || source.includes('var ') || source.includes('const ')) prev += source + ';\n';
-  // prev = toRun + ';\n';
+  prev = toRun + ';\n';
 };
 
 const replServer = repl.start({ prompt: '> ', eval: run });
