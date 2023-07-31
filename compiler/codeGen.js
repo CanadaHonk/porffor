@@ -548,9 +548,9 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     // any other math op, NaN
     if (!['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(op)) return number(NaN);
 
-    // else false for bools
-    // todo: handle == 0 (and >= <=)
-    return number(0);
+    // else leave bool ops
+    // todo: convert string to number if string and number or le/ge op
+    // todo: string equality
   }
 
   let ops = operatorOpcode[valtype][op];
