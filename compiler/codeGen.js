@@ -1034,7 +1034,7 @@ const generateCall = (scope, decl, _global, _name) => {
     }
   }
 
-  if (idx === undefined && internalConstrs[_name]) return internalConstrs[name].generate(scope, decl, _global, _name);
+  if (idx === undefined && internalConstrs[name]) return internalConstrs[name].generate(scope, decl, _global, _name);
 
   if (idx === undefined && name === scope.name) {
     // hack: calling self, func generator will fix later
@@ -1902,13 +1902,24 @@ const internalConstrs = {
       }, global, name);
 
       // new Array(n)
-      // todo: only works with literal argument
-      const value = decl.arguments[0]?.value ?? 0;
-      if (value < 0 || !Number.isFinite(value) || value > 4294967295) return internalThrow(scope, 'RangeThrow', 'Invalid array length');
 
-      return generateArray(scope, {
-        elements: new Array(value)
+      makeArray(scope, {
+        rawElements: new Array(0)
       }, global, name, true);
+      const pointer = arrays.get(name ?? '$undeclared');
+
+      // todo: check in wasm instead of here
+      const literalValue = decl.arguments[0]?.value ?? 0;
+      if (literalValue < 0 || !Number.isFinite(literalValue) || literalValue > 4294967295) return internalThrow(scope, 'RangeThrow', 'Invalid array length');
+
+      return [
+        ...number(0, Valtype.i32),
+        ...generate(scope, decl.arguments[0], global, name),
+        Opcodes.i32_to,
+        [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ],
+
+        ...number(pointer)
+      ];
     },
     type: TYPES._array
   }
