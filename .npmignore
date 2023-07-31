@@ -7,10 +7,10 @@
 /bench
 /bench_ci
 /bench_jit
+/test262
+/test
 
 # tmp
 /asur
 
 /porffor-for-vscode
-
-/test262/test262
