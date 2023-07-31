@@ -3,7 +3,12 @@ import compile from '../compiler/wrap.js';
 import repl from 'node:repl';
 import fs from 'node:fs';
 
-const rev = fs.readFileSync('.git/refs/heads/main', 'utf8').trim();
+let rev = 'unknown';
+try {
+  rev = fs.readFileSync(new URL('../.git/refs/heads/main', import.meta.url), 'utf8').trim().slice(0, 7);
+} catch {
+  rev = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version.split('-')[1];
+}
 
 // process.argv.push('-O0'); // disable opts
 
