@@ -16,17 +16,84 @@ console.log(`welcome to porffor rev ${rev.slice(0, 7)}`);
 console.log(`info: using opt ${process.argv.find(x => x.startsWith('-O')) ?? '-O1'} and valtype ${valtype}`);
 console.log();
 
-let prev = '';
-const run = async (source, _context, _filename, callback) => {
-  let toRun = prev + source.trim();
+let lastMemory, lastPages;
+const PageSize = 65536;
+const memoryToString = mem => {
+  let out = '';
+  const pages = lastPages.length;
+  const wasmPages = mem.buffer.byteLength / PageSize;
 
-  const { exports, wasm } = await compile(toRun, []);
-  fs.writeFileSync('out.wasm', Buffer.from(wasm));
+  out += `\x1B[1mallocated ${mem.buffer.byteLength / 1024}KiB\x1B[0m for ${pages} things using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}\n`;
 
-  const ret = exports.main();
-  callback(null, ret);
+  const buf = new Uint8Array(mem.buffer);
 
-  if (source.includes(' = ') || source.includes('let ') || source.includes('var ') || source.includes('const ')) prev += source + ';\n';
+  for (let i = 0; i < pages; i++) {
+    out += `\x1B[36m${lastPages[i]}\x1B[2m | \x1B[0m`;
+
+    for (let j = 0; j < 50; j++) {
+      const val = buf[i * pageSize + j];
+      if (val === 0) out += '\x1B[2m';
+      out += val.toString(16).padStart(2, '0');
+      if (val === 0) out += '\x1B[0m';
+      out += ' ';
+    }
+    out += '\n';
+  }
+
+  return out;
 };
 
-repl.start({ prompt: '> ', eval: run });
+let prev = '';
+const run = async (source, _context, _filename, callback, run = true) => {
+  let toRun = prev + source.trim();
+  prev = toRun + ';\n';
+
+  const { exports, wasm, pages } = await compile(toRun, []);
+  fs.writeFileSync('out.wasm', Buffer.from(wasm));
+
+  if (exports.$) {
+    lastMemory = exports.$;
+    lastPages = [...pages.keys()];
+  }
+
+  const ret = run ? exports.main() : undefined;
+  callback(null, ret);
+
+  // if (source.includes(' = ') || source.includes('let ') || source.includes('var ') || source.includes('const ')) prev += source + ';\n';
+  // prev = toRun + ';\n';
+};
+
+const replServer = repl.start({ prompt: '> ', eval: run });
+
+replServer.setupHistory('.repl_history', () => {});
+
+replServer.defineCommand('memory', {
+  help: 'Log Wasm memory',
+  action() {
+    this.clearBufferedCommand();
+    console.log(memoryToString(lastMemory));
+    this.displayPrompt();
+  }
+});
+replServer.defineCommand('asm', {
+  help: 'Log Wasm decompiled bytecode',
+  async action() {
+    this.clearBufferedCommand();
+
+    try {
+      process.argv.push('-opt-funcs');
+      await run('', null, null, () => {}, false);
+      process.argv.pop();
+    } catch { }
+
+    this.displayPrompt();
+  }
+});
+replServer.defineCommand('js', {
+  help: 'Log JS being actually ran',
+  async action() {
+    this.clearBufferedCommand();
+    console.log(prev);
+    this.displayPrompt();
+  }
+});
