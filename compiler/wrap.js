@@ -4,7 +4,6 @@ import decompile from './decompile.js';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
-const PageSize = 65536;
 const typeBase = 0xffffffffffff0;
 const TYPES = {
   [typeBase]: 'number',
@@ -24,7 +23,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   const times = [];
 
   const t1 = performance.now();
-  const { wasm, funcs, globals, tags, exceptions } = compile(source, flags);
+  const { wasm, funcs, globals, tags, exceptions, pages } = compile(source, flags);
 
   if (source.includes('export function')) flags.push('module');
 
@@ -75,15 +74,20 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
           case 'object': return ret === 0 ? null : {};
 
           case '_array': {
-            const [ page, length ] = ret;
+            const pointer = ret;
+            const length = new Int32Array(memory.buffer, pointer, 1);
 
-            return Array.from(new Float64Array(memory.buffer, page * PageSize, length));
+            // have to slice because of memory alignment
+            const buf = memory.buffer.slice(pointer + 4, pointer + 4 + 8 * length);
+
+            return Array.from(new Float64Array(buf));
           }
 
           case 'string': {
-            const [ page, length ] = ret;
+            const pointer = ret;
+            const length = new Int32Array(memory.buffer, pointer, 1);
 
-            return Array.from(new Uint16Array(memory.buffer, page * PageSize, length)).map(x => String.fromCharCode(x)).join('');
+            return Array.from(new Uint16Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
           }
 
           default: return ret;
@@ -93,9 +97,12 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
           const exceptId = e.getArg(exceptTag, 0);
           const exception = exceptions[exceptId];
 
-          const constructorName = exception.constructor ?? 'Error';
-          const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
+          const constructorName = exception.constructor;
 
+          // no constructor, just throw message
+          if (!constructorName) throw exception.message;
+
+          const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
           throw new constructor(exception.message);
         }
 
@@ -108,5 +115,5 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
     return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, globals, exceptions)) };
   }
 
-  return { exports, wasm, times };
+  return { exports, wasm, times, pages };
 };

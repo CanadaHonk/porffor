@@ -3,6 +3,7 @@ import codeGen from './codeGen.js';
 import opt from './opt.js';
 import produceSections from './sections.js';
 import decompile from './decompile.js';
+import { BuiltinPreludes } from './builtins.js';
 
 globalThis.decompile = decompile;
 
@@ -38,6 +39,10 @@ export default (code, flags) => {
   globalThis.optLog = process.argv.includes('-opt-log');
   globalThis.codeLog = process.argv.includes('-code-log');
 
+  for (const x in BuiltinPreludes) {
+    if (code.indexOf(x + '(') !== -1) code = BuiltinPreludes[x] + code;
+  }
+
   const t0 = performance.now();
   const program = parse(code, flags);
   if (flags.includes('info')) console.log(`1. parsed in ${(performance.now() - t0).toFixed(2)}ms`);
@@ -58,5 +63,5 @@ export default (code, flags) => {
   const sections = produceSections(funcs, globals, tags, pages, flags);
   if (flags.includes('info')) console.log(`4. produced sections in ${(performance.now() - t3).toFixed(2)}ms`);
 
-  return { wasm: sections, funcs, globals, tags, exceptions };
+  return { wasm: sections, funcs, globals, tags, exceptions, pages };
 };

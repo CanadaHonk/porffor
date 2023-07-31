@@ -41,7 +41,7 @@ const perform = async (test, args) => {
   try {
     0, [ out, assertFailed, times, wasm ] = await run(code);
   } catch (e) {
-    out = `${e.constructor.name}: ${e.message}`;
+    out = e.message ? `${e.constructor.name}: ${e.message}` : e;
     if (expect !== out) {
       process.stdout.write(`\r${' '.repeat(90)}\r`);
       console.log(`\u001b[91mFAIL ${test}\u001b[0m ${args.join(' ')}`);

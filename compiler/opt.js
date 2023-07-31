@@ -126,6 +126,39 @@ export default (funcs, globals) => {
       if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
       if (inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) setCount[inst[1]]++;
 
+      if (inst[0] === Opcodes.block) {
+        // remove unneeded blocks (no brs inside)
+        // block
+        //   ...
+        // end
+        // -->
+        // ...
+
+        let hasBranch = false, j = i, depth = 0;
+        for (; j < wasm.length; j++) {
+          const op = wasm[j][0];
+          if (op === Opcodes.if || op === Opcodes.block || op === Opcodes.loop || op === Opcodes.try) depth++;
+          if (op === Opcodes.end) {
+            depth--;
+            if (depth <= 0) break;
+          }
+          if (op === Opcodes.br) {
+            hasBranch = true;
+            break;
+          }
+        }
+
+        if (!hasBranch) {
+          wasm.splice(i, 1); // remove this inst (block)
+          i--;
+          inst = wasm[i];
+
+          wasm.splice(j - 1, 1); // remove end of this block
+
+          if (optLog) log('opt', `removed unneeded block in for loop`);
+        }
+      }
+
       if (i < 1) continue;
       let lastInst = wasm[i - 1];
 
@@ -355,39 +388,6 @@ export default (funcs, globals) => {
     for (let i = 0; i < wasm.length; i++) {
       let inst = wasm[i];
       if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) useCount[inst[1]]++;
-
-      if (inst[0] === Opcodes.block) {
-        // remove unneeded blocks (no brs inside)
-        // block
-        //   ...
-        // end
-        // -->
-        // ...
-
-        let hasBranch = false, j = i, depth = 0;
-        for (; j < wasm.length; j++) {
-          const op = wasm[j][0];
-          if (op === Opcodes.if || op === Opcodes.block || op === Opcodes.loop || op === Opcodes.try) depth++;
-          if (op === Opcodes.end) {
-            depth--;
-            if (depth <= 0) break;
-          }
-          if (op === Opcodes.br) {
-            hasBranch = true;
-            break;
-          }
-        }
-
-        if (!hasBranch) {
-          wasm.splice(i, 1); // remove this inst (block)
-          i--;
-          inst = wasm[i];
-
-          wasm.splice(j - 1, 1); // remove end of this block
-
-          if (optLog) log('opt', `removed unneeded block in for loop`);
-        }
-      }
 
       if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth.push(inst[0]);
       if (inst[0] === Opcodes.end) depth.pop();

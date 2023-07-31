@@ -73,6 +73,9 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - array creation via `[]` (eg `let arr = [ 1, 2, 3 ]`)
 - array member access via `arr[ind]` (eg `arr[0]`)
 - string literals (`'hello world'`)
+- string member (char) access via `str[ind]` (eg `str[0]`)
+- string concat (`+`) (eg `'a' + 'b'`)
+- truthy/falsy (eg `!'' == true`)
 
 ### built-ins
 
@@ -102,10 +105,8 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
   - more of `Array` prototype
   - arrays/strings inside arrays
 - strings
-  - member access
   - member setting
-  - concat (`+`)
-  - equality + falseyness
+  - equality
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
 - exceptions
@@ -250,6 +251,13 @@ compiles into this wasm, in 7.3ms (just compile time), 90 bytes large (including
   i32.const 1
 end
 ```
+
+## isn't this the same as assemblyscript?
+no. they are not alike at all internally and have different goals/ideals:
+- porffor is made as a generic js engine, not for wasm stuff specifically
+- porffor takes in js, not a different language or typescript like assemblyscript
+- porffor is made in pure js and compiles itself, not using binaryen/etc
+- (also I didn't know it existed when I started this)
 
 ## faq
 

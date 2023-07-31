@@ -49,7 +49,7 @@ const isFuncType = type => type === 'FunctionDeclaration' || type === 'FunctionE
 const generate = (scope, decl, global = false, name = undefined) => {
   switch (decl.type) {
     case 'BinaryExpression':
-      return generateBinaryExp(scope, decl);
+      return generateBinaryExp(scope, decl, global, name);
 
     case 'LogicalExpression':
       return generateLogicExp(scope, decl);
@@ -127,7 +127,7 @@ const generate = (scope, decl, global = false, name = undefined) => {
       return generateArray(scope, decl, global, name);
 
     case 'MemberExpression':
-      return generateMember(scope, decl);
+      return generateMember(scope, decl, global, name);
 
     case 'ExportNamedDeclaration':
       // hack to flag new func for export
@@ -165,6 +165,8 @@ const generate = (scope, decl, global = false, name = undefined) => {
 
         if (asm[0] === 'memory') {
           scope.memory = true;
+          allocPage('asm instrinsic');
+          // todo: add to store/load offset insts
           continue;
         }
 
@@ -318,9 +320,237 @@ const performLogicOp = (scope, op, left, right) => {
   ];
 };
 
-const performOp = (scope, op, left, right) => {
+const concatStrings = (scope, left, right, global, name, assign) => {
+  // todo: this should be rewritten into a built-in/func: String.prototype.concat
+  // todo: convert left and right to strings if not
+  // todo: optimize by looking up names in arrays and using that if exists?
+  // todo: optimize this if using literals/known lengths?
+
+  scope.memory = true;
+
+  const getLocalTmp = (name, type = Valtype.i32) => {
+    if (scope.locals[name]) return scope.locals[name].idx;
+
+    let idx = scope.localInd++;
+    scope.locals[name] = { idx, type };
+
+    return idx;
+  };
+
+  const pointer = arrays.get(name ?? '$undeclared');
+
+  const rightPointer = getLocalTmp(`concat_right_pointer`);
+  const rightLength = getLocalTmp(`concat_right_length`);
+  const leftLength = getLocalTmp(`concat_left_length`);
+
+  if (assign) {
+    return [
+      // setup right
+      ...right,
+      Opcodes.i32_to,
+      [ Opcodes.local_set, rightPointer ],
+
+      // calculate length
+      ...number(0, Valtype.i32), // base 0 for store later
+
+      ...number(pointer, Valtype.i32),
+      [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+      [ Opcodes.local_tee, leftLength ],
+
+      [ Opcodes.local_get, rightPointer ],
+      [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+      [ Opcodes.local_tee, rightLength ],
+
+      [ Opcodes.i32_add ],
+
+      // store length
+      [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ],
+
+      // copy right
+      // dst = out pointer + length size + current length * i16 size
+      ...number(pointer + ValtypeSize.i32, Valtype.i32),
+
+      [ Opcodes.local_get, leftLength ],
+      ...number(ValtypeSize.i16, Valtype.i32),
+      [ Opcodes.i32_mul ],
+      [ Opcodes.i32_add ],
+
+      // src = right pointer + length size
+      [ Opcodes.local_get, rightPointer ],
+      ...number(ValtypeSize.i32, Valtype.i32),
+      [ Opcodes.i32_add ],
+
+      // size = right length * i16 size
+      [ Opcodes.local_get, rightLength ],
+      ...number(ValtypeSize.i16, Valtype.i32),
+      [ Opcodes.i32_mul ],
+
+      [ ...Opcodes.memory_copy, 0x00, 0x00 ],
+
+      // return new string (page)
+      ...number(pointer)
+    ];
+  }
+
+  const leftPointer = getLocalTmp(`concat_left_pointer`);
+
+  const newOut = makeArray(scope, {
+    rawElements: new Array(0)
+  }, global, name, true, 'i16');
+
+  return [
+    // setup new/out array
+    ...newOut,
+    [ Opcodes.drop ],
+
+    // setup left
+    ...left,
+    Opcodes.i32_to,
+    [ Opcodes.local_set, leftPointer ],
+
+    // setup right
+    ...right,
+    Opcodes.i32_to,
+    [ Opcodes.local_set, rightPointer ],
+
+    // calculate length
+    ...number(0, Valtype.i32), // base 0 for store later
+
+    [ Opcodes.local_get, leftPointer ],
+    [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+    [ Opcodes.local_tee, leftLength ],
+
+    [ Opcodes.local_get, rightPointer ],
+    [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+    [ Opcodes.local_tee, rightLength ],
+
+    [ Opcodes.i32_add ],
+
+    // store length
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ],
+
+    // copy left
+    // dst = out pointer + length size
+    ...number(pointer + ValtypeSize.i32, Valtype.i32),
+
+    // src = left pointer + length size
+    [ Opcodes.local_get, leftPointer ],
+    ...number(ValtypeSize.i32, Valtype.i32),
+    [ Opcodes.i32_add ],
+
+    // size = PageSize - length size. we do not need to calculate length as init value
+    ...number(pageSize - ValtypeSize.i32, Valtype.i32),
+    [ ...Opcodes.memory_copy, 0x00, 0x00 ],
+
+    // copy right
+    // dst = out pointer + length size + left length * i16 size
+    ...number(pointer + ValtypeSize.i32, Valtype.i32),
+
+    [ Opcodes.local_get, leftLength ],
+    ...number(ValtypeSize.i16, Valtype.i32),
+    [ Opcodes.i32_mul ],
+    [ Opcodes.i32_add ],
+
+    // src = right pointer + length size
+    [ Opcodes.local_get, rightPointer ],
+    ...number(ValtypeSize.i32, Valtype.i32),
+    [ Opcodes.i32_add ],
+
+    // size = right length * i16 size
+    [ Opcodes.local_get, rightLength ],
+    ...number(ValtypeSize.i16, Valtype.i32),
+    [ Opcodes.i32_mul ],
+
+    [ ...Opcodes.memory_copy, 0x00, 0x00 ],
+
+    // return new string (page)
+    ...number(pointer)
+  ];
+};
+
+const falsy = (scope, wasm, type) => {
+  // arrays are always truthy
+  if (type === TYPES._array) return [
+    ...wasm,
+    [ Opcodes.drop ],
+    number(0)
+  ];
+
+  if (type === TYPES.string) {
+    // if "" (length = 0)
+    return [
+      // pointer
+      ...wasm,
+
+      // get length
+      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+
+      // if length == 0
+      [ Opcodes.i32_eqz ],
+      Opcodes.i32_from
+    ]
+  }
+
+  // if = 0
+  return [
+    ...wasm,
+
+    ...Opcodes.eqz,
+    Opcodes.i32_from
+  ];
+};
+
+const truthy = (scope, wasm, type) => {
+  // arrays are always truthy
+  if (type === TYPES._array) return [
+    ...wasm,
+    [ Opcodes.drop ],
+    number(1)
+  ];
+
+  if (type === TYPES.string) {
+    // if not "" (length = 0)
+    return [
+      // pointer
+      ...wasm,
+
+      // get length
+      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+
+      // if length != 0
+      /* [ Opcodes.i32_eqz ],
+      [ Opcodes.i32_eqz ], */
+      Opcodes.i32_from
+    ]
+  }
+
+  // if != 0
+  return [
+    ...wasm,
+
+    /* Opcodes.eqz,
+    [ Opcodes.i32_eqz ],
+    Opcodes.i32_from */
+  ];
+};
+
+const performOp = (scope, op, left, right, leftType, rightType, _global = false, _name = '$unspecified', assign = false) => {
   if (op === '||' || op === '&&' || op === '??') {
     return performLogicOp(scope, op, left, right);
+  }
+
+  if (leftType === TYPES.string || rightType === TYPES.string) {
+    if (op === '+') {
+      // string concat (a + b)
+      return concatStrings(scope, left, right, _global, _name, assign);
+    }
+
+    // any other math op, NaN
+    if (!['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(op)) return number(NaN);
+
+    // else false for bools
+    // todo: handle == 0 (and >= <=)
+    return number(0);
   }
 
   let ops = operatorOpcode[valtype][op];
@@ -349,9 +579,9 @@ const performOp = (scope, op, left, right) => {
   ];
 };
 
-const generateBinaryExp = (scope, decl) => {
+const generateBinaryExp = (scope, decl, _global, _name) => {
   const out = [
-    ...performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right))
+    ...performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right), _global, _name)
   ];
 
   if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from);
@@ -481,6 +711,8 @@ const getNodeType = (scope, node) => {
     if (builtinFuncs[name]) return TYPES[builtinFuncs[name].returnType ?? 'number'];
     if (internalConstrs[name]) return internalConstrs[name].type;
 
+    let protoFunc;
+    // ident.func()
     if (name && name.startsWith('__')) {
       const spl = name.slice(2).split('_');
 
@@ -488,10 +720,18 @@ const getNodeType = (scope, node) => {
       const baseType = getType(scope, baseName);
 
       const func = spl[spl.length - 1];
-      const protoFunc = prototypeFuncs[baseType]?.[func];
-
-      if (protoFunc) return protoFunc.returnType ?? TYPES.number;
+      protoFunc = prototypeFuncs[baseType]?.[func];
     }
+
+    // literal.func()
+    if (!name && node.callee.type === 'MemberExpression') {
+      const baseType = getNodeType(scope, node.callee.object);
+
+      const func = node.callee.property.name;
+      protoFunc = prototypeFuncs[baseType]?.[func];
+    }
+
+    if (protoFunc) return protoFunc.returnType ?? TYPES.number;
 
     return TYPES.number;
   }
@@ -508,8 +748,22 @@ const getNodeType = (scope, node) => {
     return TYPES._array;
   }
 
-  if (node.type === 'BinaryExpression' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(node.operator)) {
-    return TYPES.boolean;
+  if (node.type === 'BinaryExpression') {
+    if (['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(node.operator)) return TYPES.boolean;
+
+    if (node.operator === '+' && (getNodeType(scope, node.left) === TYPES.string || getNodeType(scope, node.right) === TYPES.string)) return TYPES.string;
+  }
+
+  if (node.type === 'UnaryExpression') {
+    if (node.operator === '!') return TYPES.boolean;
+    if (node.operator === 'void') return TYPES.undefined;
+    if (node.operator === 'delete') return TYPES.boolean;
+  }
+
+  if (node.type === 'MemberExpression') {
+    const objectType = getNodeType(scope, node.object);
+
+    if (objectType === TYPES.string && node.computed) return TYPES.string;
   }
 
   // default to number
@@ -559,8 +813,8 @@ const countLeftover = wasm => {
   let count = 0, depth = 0;
 
   for (const inst of wasm) {
-    if (depth === 0 && inst[0] === Opcodes.if) {
-      count--;
+    if (depth === 0 && (inst[0] === Opcodes.if || inst[0] === Opcodes.block || inst[0] === Opcodes.loop)) {
+      if (inst[0] === Opcodes.if) count--;
       if (inst[1] !== Blocktype.void) count++;
     }
     if ([Opcodes.if, Opcodes.try, Opcodes.loop, Opcodes.block].includes(inst[0])) depth++;
@@ -597,6 +851,32 @@ const generateExp = (scope, decl) => {
   disposeLeftover(out);
 
   return out;
+};
+
+const arrayUtil = {
+  getLengthI32: pointer => [
+    ...number(0, Valtype.i32),
+    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
+  ],
+
+  getLength: pointer => [
+    ...number(0, Valtype.i32),
+    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ],
+    Opcodes.i32_from
+  ],
+
+  setLengthI32: (pointer, value) => [
+    ...number(0, Valtype.i32),
+    ...value,
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
+  ],
+
+  setLength: (pointer, value) => [
+    ...number(0, Valtype.i32),
+    ...value,
+    Opcodes.i32_to,
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
+  ]
 };
 
 const generateCall = (scope, decl, _global, _name) => {
@@ -645,7 +925,7 @@ const generateCall = (scope, decl, _global, _name) => {
     baseType = getType(scope, baseName);
 
     const func = spl[spl.length - 1];
-    protoFunc = prototypeFuncs[baseType]?.[func];
+    protoFunc = prototypeFuncs[baseType]?.[func] ?? Object.values(prototypeFuncs).map(x => x[func]).find(x => x);
     protoName = func;
   }
 
@@ -654,7 +934,7 @@ const generateCall = (scope, decl, _global, _name) => {
     baseType = getNodeType(scope, decl.callee.object);
 
     const func = decl.callee.property.name;
-    protoFunc = prototypeFuncs[baseType]?.[func];
+    protoFunc = prototypeFuncs[baseType]?.[func] ?? Object.values(prototypeFuncs).map(x => x[func]).find(x => x);
     protoName = func;
 
     out = generate(scope, decl.callee.object);
@@ -664,10 +944,32 @@ const generateCall = (scope, decl, _global, _name) => {
   if (protoFunc) {
     scope.memory = true;
 
-    const page = arrays.get(baseName);
-    const [ length, lengthIsGlobal ] = lookupName(scope, '__' + baseName + '_length');
+    let pointer = arrays.get(baseName);
 
-    if (protoFunc.noArgRetLength && decl.arguments.length === 0) return [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ];
+    if (pointer == null) {
+      // unknown dynamic pointer, so clone to new pointer which we know aot. now that's what I call inefficient™
+      if (codeLog) log('codegen', 'cloning unknown dynamic pointer');
+
+      // register array
+      makeArray(scope, {
+        rawElements: new Array(0)
+      }, _global, baseName, true, baseType === TYPES.string ? 'i16' : valtype);
+      pointer = arrays.get(baseName);
+
+      const [ local, isGlobal ] = lookupName(scope, baseName);
+
+      out = [
+        // clone to new pointer
+        ...number(pointer, Valtype.i32), // dst = new pointer
+        [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ], // src = unknown pointer
+        Opcodes.i32_to,
+        ...number(pageSize, Valtype.i32), // size = pagesize
+
+        [ ...Opcodes.memory_copy, 0x00, 0x00 ],
+      ];
+    }
+
+    if (protoFunc.noArgRetLength && decl.arguments.length === 0) return arrayUtil.getLength(pointer)
 
     let protoLocal;
     if (protoFunc.local) {
@@ -677,17 +979,31 @@ const generateCall = (scope, decl, _global, _name) => {
       protoLocal = scope.locals[localName].idx;
     }
 
+    // use local for cached i32 length as commonly used
+    const lengthLocalName = `__proto_length_tmp`;
+    if (!scope.locals[lengthLocalName]) scope.locals[lengthLocalName] = { idx: scope.localInd++, type: Valtype.i32 };
+    let lengthLocal = scope.locals[lengthLocalName].idx;
+
     return [
       ...out,
-      ...protoFunc(page, {
-        get: [ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, length.idx ],
-        set: [ lengthIsGlobal ? Opcodes.global_set : Opcodes.local_set, length.idx ],
+
+      ...arrayUtil.getLengthI32(pointer),
+      [ Opcodes.local_set, lengthLocal ],
+
+      [ Opcodes.block, valtypeBinary ],
+      ...protoFunc(pointer, {
+        cachedI32: [ [ Opcodes.local_get, lengthLocal ] ],
+        get: arrayUtil.getLength(pointer),
+        getI32: arrayUtil.getLengthI32(pointer),
+        set: value => arrayUtil.setLength(pointer, value),
+        setI32: value => arrayUtil.setLengthI32(pointer, value)
       }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, (length, itemType) => {
         const out = makeArray(scope, {
           rawElements: new Array(length)
         }, _global, _name, true, itemType);
         return [ out, arrays.get(_name ?? '$undeclared') ];
-      })
+      }),
+      [ Opcodes.end ]
     ];
   }
 
@@ -892,10 +1208,8 @@ const generateAssign = (scope, decl) => {
     ];
   }
 
-  typeStates[name] = TYPES.number;
-
   return [
-    ...performOp(scope, decl.operator.slice(0, -1), [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right)),
+    ...performOp(scope, decl.operator.slice(0, -1), [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
     [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
     [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
   ];
@@ -922,11 +1236,7 @@ const generateUnary = (scope, decl) => {
 
     case '!':
       // !=
-      return [
-        ...generate(scope, decl.argument),
-        ...Opcodes.eqz,
-        Opcodes.i32_from
-      ];
+      return falsy(scope, generate(scope, decl.argument));
 
     case '~':
       return [
@@ -1013,7 +1323,7 @@ const generateUpdate = (scope, decl) => {
 };
 
 const generateIf = (scope, decl) => {
-  const out = [ ...generate(scope, decl.test) ];
+  const out = truthy(scope, generate(scope, decl.test), decl.test);
 
   out.push(Opcodes.i32_to, [ Opcodes.if, Blocktype.void ]);
   depth.push('if');
@@ -1192,7 +1502,7 @@ let pages = new Map();
 const allocPage = reason => {
   if (pages.has(reason)) return pages.get(reason);
 
-  let ind = pages.size + 1; // base (1) + current page amount
+  let ind = pages.size;
   pages.set(reason, ind);
 
   if (codeLog) log('codegen', `allocated new page of memory (${ind}) | ${reason}`);
@@ -1224,33 +1534,22 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   if (!arrays.has(name) || name === '$undeclared') {
     // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
     const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
-    arrays.set(name, allocPage(`array: ${uniqueName}`));
+    arrays.set(name, allocPage(`${itemType === 'i16' ? 'string' : 'array'}: ${uniqueName}`) * pageSize);
   }
 
-  let page = arrays.get(name);
+  const pointer = arrays.get(name);
 
   const useRawElements = !!decl.rawElements;
   const elements = useRawElements ? decl.rawElements : decl.elements;
 
   const length = elements.length;
 
-  if (name) {
-    const target = global ? globals : scope.locals;
-    const lengthName = '__' + name + '_length';
-
-    let idx;
-    if (target[lengthName]) {
-      idx = target[lengthName].idx;
-    } else {
-      idx = global ? globalInd++ : scope.localInd++;
-      target[lengthName] = { idx, type: valtypeBinary };
-    }
-
-    out.push(
-      ...number(length),
-      [ global ? Opcodes.global_set : Opcodes.local_set, idx ]
-    );
-  }
+  // store length as 0th array
+  out.push(
+    ...number(0, Valtype.i32),
+    ...number(length, Valtype.i32),
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
+  );
 
   const storeOp = storeOps[itemType];
   const valtype = itemTypeToValtype[itemType];
@@ -1259,14 +1558,14 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     if (elements[i] == null) continue;
 
     out.push(
-      ...number(page * PageSize + i * ValtypeSize[itemType], Valtype.i32),
+      ...number(0, Valtype.i32),
       ...(useRawElements ? number(elements[i], Valtype[valtype]) : generate(scope, elements[i])),
-      [ storeOp, Math.log2(ValtypeSize[itemType]) - 1, 0 ]
+      [ storeOp, Math.log2(ValtypeSize[itemType]) - 1, ...unsignedLEB128(pointer + ValtypeSize.i32 + i * ValtypeSize[itemType]) ]
     );
   }
 
-  // local value as page number
-  out.push(...number(page));
+  // local value as pointer
+  out.push(...number(pointer));
 
   scope.memory = true;
 
@@ -1278,27 +1577,96 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
   return makeArray(scope, decl, global, name, initEmpty, valtype);
 };
 
-export const generateMember = (scope, decl) => {
-  // this is just for arr[ind] for now. objects are partially supported via object hack (a.b -> __a_b)
-  const name = decl.object.name;
-  if (!name || getNodeType(scope, decl.object) !== TYPES._array) return todo(`computed member expression for objects are not supported yet`);
+export const generateMember = (scope, decl, _global, _name) => {
+  const type = getNodeType(scope, decl.object);
 
-  // todo: fallback on using actual local value?
-  const page = arrays.get(name);
+  // hack: .length
+  if (decl.property.name === 'length') {
+    // if (![TYPES._array, TYPES.string].includes(type)) return number(UNDEFINED);
+
+    const name = decl.object.name;
+    const pointer = arrays.get(name);
+
+    scope.memory = true;
+
+    const aotPointer = pointer != null;
+
+    return [
+      ...(aotPointer ? number(0, Valtype.i32) : [
+        ...generate(scope, decl.object),
+        Opcodes.i32_to
+      ]),
+
+      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128((aotPointer ? pointer : 0)) ],
+      Opcodes.i32_from
+    ];
+  }
+
+  // this is just for arr[ind] for now. objects are partially supported via object hack (a.b -> __a_b)
+  if (![TYPES._array, TYPES.string].includes(type)) return todo(`computed member expression for objects are not supported yet`);
+
+  const name = decl.object.name;
+  const pointer = arrays.get(name);
 
   scope.memory = true;
 
+  const aotPointer = pointer != null;
+
+  if (type === TYPES._array) {
+    return [
+      // get index as valtype
+      ...generate(scope, decl.property),
+
+      // convert to i32 and turn into byte offset by * valtypeSize (4 for i32, 8 for i64/f64)
+      Opcodes.i32_to,
+      ...number(ValtypeSize[valtype], Valtype.i32),
+      [ Opcodes.i32_mul ],
+
+      ...(aotPointer ? [] : [
+        ...generate(scope, decl.object),
+        Opcodes.i32_to,
+        [ Opcodes.i32_add ]
+      ]),
+
+      // read from memory
+      [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
+    ];
+  }
+
+  // string
+
+  const newOut = makeArray(scope, {
+    rawElements: new Array(1)
+  }, _global, _name, true, 'i16');
+  const newPointer = arrays.get(_name ?? '$undeclared');
+
   return [
-    // get index as valtype
+    // setup new/out array
+    ...newOut,
+    [ Opcodes.drop ],
+
+    ...number(0, Valtype.i32), // base 0 for store later
+
     ...generate(scope, decl.property),
 
-    // convert to i32 and turn into byte offset by * valtypeSize (4 for i32, 8 for i64/f64)
     Opcodes.i32_to,
-    ...number(ValtypeSize[valtype], Valtype.i32),
+    ...number(ValtypeSize.i16, Valtype.i32),
     [ Opcodes.i32_mul ],
 
-    // read from memory
-    [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(page * PageSize) ]
+    ...(aotPointer ? [] : [
+      ...generate(scope, decl.object),
+      Opcodes.i32_to,
+      [ Opcodes.i32_add ]
+    ]),
+
+    // load current string ind {arg}
+    [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
+
+    // store to new string ind 0
+    [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+
+    // return new string (page)
+    ...number(newPointer)
   ];
 };
 
@@ -1316,6 +1684,9 @@ const objectHack = node => {
     if (node.object.type !== 'Identifier' && node.object.type !== 'MemberExpression') return node;
 
     if (!objectName) objectName = objectHack(node.object).name.slice(2);
+
+    // if .length, give up (hack within a hack!)
+    if (node.property.name === 'length') return node;
 
     const name = '__' + objectName + '_' + node.property.name;
     if (codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
@@ -1588,6 +1959,10 @@ export default program => {
 
   program.id = { name: 'main' };
 
+  globalThis.pageSize = PageSize;
+  const pageSizeOpt = process.argv.find(x => x.startsWith('-page-size='));
+  if (pageSizeOpt) pageSize = parseInt(pageSizeOpt.split('=')[1]) * 1024;
+
   const scope = {
     locals: {},
     localInd: 0
@@ -1610,19 +1985,6 @@ export default program => {
 
     const finalStatement = program.body.body[program.body.body.length - 1];
     main.returnType = getNodeType(main, finalStatement);
-
-    if (main.returnType === TYPES._array || main.returnType === TYPES.string) {
-      // if last thing in main is an array return [ page, length ]
-
-      const lastName = finalStatement.expression?.name ?? finalStatement.expression?.left?.name ?? '$undeclared';
-      const lengthName = '__' + lastName + '_length';
-      const [ lengthLocal, lengthIsGlobal ] = lookupName(main, lengthName);
-
-      if (lengthLocal) {
-        main.wasm.push([ lengthIsGlobal ? Opcodes.global_get : Opcodes.local_get, lengthLocal.idx ]);
-        main.returns = [ valtypeBinary, valtypeBinary ];
-      }
-    }
   }
 
   if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {

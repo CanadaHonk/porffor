@@ -1,4 +1,4 @@
-import { Valtype, FuncType, Empty, ExportDesc, Section, Magic, ModuleVersion, Opcodes } from './wasmSpec.js';
+import { Valtype, FuncType, Empty, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize } from './wasmSpec.js';
 import { encodeVector, encodeString, encodeLocal } from './encoding.js';
 import { number } from './embedding.js';
 import { importedFuncs } from './builtins.js';
@@ -80,10 +80,10 @@ export default (funcs, globals, tags, pages, flags) => {
 
   const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, x.index ]);
 
-  const usesMemory = funcs.some(x => x.memory);
+  const usesMemory = pages.size > 0;
   const memorySection = !usesMemory ? [] : createSection(
     Section.memory,
-    encodeVector([ [ 0x00, 1 + pages.size ] ])
+    encodeVector([ [ 0x00, Math.ceil((pages.size * pageSize) / PageSize) ] ])
   );
 
   // export memory if used
