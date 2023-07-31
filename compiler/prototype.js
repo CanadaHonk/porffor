@@ -157,7 +157,7 @@ export const PrototypeFuncs = function() {
         [ Opcodes.drop ],
 
         ...number(0, Valtype.i32), // base 0 for store later
-        Opcodes.i32_to,
+        Opcodes.i32_to_u,
 
         ...wIndex,
         [ Opcodes.local_tee, iTmp ],
