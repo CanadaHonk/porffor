@@ -1,0 +1,16 @@
+/.github
+/.repl_history
+
+*.wasm
+*.csv
+
+/bench
+/bench_ci
+/bench_jit
+
+# tmp
+/asur
+
+/porffor-for-vscode
+
+/test262/test262

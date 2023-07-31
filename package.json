@@ -1,10 +1,23 @@
 {
+  "name": "porffor",
+  "description": "a basic experimental wip aot optimizing js -> wasm engine/compiler/runtime in js",
+  "version": "0.1.0",
+  "author": "CanadaHonk",
+  "license": "MIT",
   "dependencies": {
     "acorn": "^8.9.0"
   },
   "bin": {
-    "porffor": "./runner/index.js"
+    "porf": "./runner/index.js"
   },
   "main": "./runner/index.js",
-  "type": "module"
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CanadaHonk/porffor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CanadaHonk/porffor/issues"
+  },
+  "homepage": "https://porffor.goose.icu"
 }
