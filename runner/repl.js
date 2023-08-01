@@ -64,8 +64,8 @@ const run = async (source, _context, _filename, callback, run = true) => {
   const ret = run ? exports.main() : undefined;
   callback(null, ret);
 
-  // if (source.includes(' = ') || source.includes('let ') || source.includes('var ') || source.includes('const ')) prev += source + ';\n';
-  prev = toRun + ';\n';
+  if (source.includes(' = ') || source.includes('let ') || source.includes('var ') || source.includes('const ') || source.includes('function ')) prev = toRun + ';\n';
+  // prev = toRun + ';\n';
 };
 
 const replServer = repl.start({ prompt: '> ', eval: run });
