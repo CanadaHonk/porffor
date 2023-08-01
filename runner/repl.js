@@ -56,7 +56,7 @@ const run = async (source, _context, _filename, callback, run = true) => {
   const { exports, wasm, pages } = await compile(toRun, []);
   fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
-  if (exports.$) {
+  if (run && exports.$) {
     lastMemory = exports.$;
     lastPages = [...pages.keys()];
   }
