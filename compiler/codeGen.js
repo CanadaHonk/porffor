@@ -327,13 +327,15 @@ const concatStrings = (scope, left, right, global, name, assign) => {
 
   scope.memory = true;
 
-  const pointer = arrays.get(name ?? '$undeclared');
+  const getLocalTmp = name => localTmp(scope, name + binaryExpDepth);
 
   const rightPointer = localTmp(scope, 'concat_right_pointer', Valtype.i32);
   const rightLength = localTmp(scope, 'concat_right_length', Valtype.i32);
   const leftLength = localTmp(scope, 'concat_left_length', Valtype.i32);
 
   if (assign) {
+    const pointer = arrays.get(name ?? '$undeclared');
+
     return [
       // setup right
       ...right,
@@ -384,15 +386,12 @@ const concatStrings = (scope, left, right, global, name, assign) => {
 
   const leftPointer = localTmp(scope, 'concat_left_pointer', Valtype.i32);
 
-  const newOut = makeArray(scope, {
+  // alloc/assign array
+  const [ , pointer ] = makeArray(scope, {
     rawElements: new Array(0)
   }, global, name, true, 'i16');
 
   return [
-    // setup new/out array
-    ...newOut,
-    [ Opcodes.drop ],
-
     // setup left
     ...left,
     Opcodes.i32_to_u,
@@ -524,7 +523,7 @@ const truthy = (scope, wasm, type) => {
   ];
 };
 
-const performOp = (scope, op, left, right, leftType, rightType, _global = false, _name = '$unspecified', assign = false) => {
+const performOp = (scope, op, left, right, leftType, rightType, _global = false, _name = '$undeclared', assign = false) => {
   if (op === '||' || op === '&&' || op === '??') {
     return performLogicOp(scope, op, left, right);
   }
@@ -569,13 +568,17 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   ];
 };
 
+let binaryExpDepth = 0;
 const generateBinaryExp = (scope, decl, _global, _name) => {
+  binaryExpDepth++;
+
   const out = [
     ...performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right), _global, _name)
   ];
 
   if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from_u);
 
+  binaryExpDepth--;
   return out;
 };
 
@@ -792,7 +795,7 @@ const generateLiteral = (scope, decl, global, name) => {
 
       return makeArray(scope, {
         rawElements
-      }, global, name, false, 'i16');
+      }, global, name, false, 'i16')[0];
 
     default:
       return todo(`cannot generate literal of type ${typeof decl.value}`);
@@ -941,10 +944,9 @@ const generateCall = (scope, decl, _global, _name) => {
       if (codeLog) log('codegen', 'cloning unknown dynamic pointer');
 
       // register array
-      makeArray(scope, {
+      const [ , pointer ] = makeArray(scope, {
         rawElements: new Array(0)
       }, _global, baseName, true, baseType === TYPES.string ? 'i16' : valtype);
-      pointer = arrays.get(baseName);
 
       const [ local, isGlobal ] = lookupName(scope, baseName);
 
@@ -980,10 +982,9 @@ const generateCall = (scope, decl, _global, _name) => {
         set: value => arrayUtil.setLength(pointer, value),
         setI32: value => arrayUtil.setLengthI32(pointer, value)
       }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, (length, itemType) => {
-        const out = makeArray(scope, {
+        return makeArray(scope, {
           rawElements: new Array(length)
         }, _global, _name, true, itemType);
-        return [ out, arrays.get(_name ?? '$undeclared') ];
       }),
       [ Opcodes.end ]
     ];
@@ -1578,12 +1579,12 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
   scope.memory = true;
 
-  return out;
+  return [ out, pointer ];
 };
 
 let arrays = new Map();
 const generateArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false) => {
-  return makeArray(scope, decl, global, name, initEmpty, valtype);
+  return makeArray(scope, decl, global, name, initEmpty, valtype)[0];
 };
 
 export const generateMember = (scope, decl, _global, _name) => {
@@ -1644,10 +1645,9 @@ export const generateMember = (scope, decl, _global, _name) => {
 
   // string
 
-  const newOut = makeArray(scope, {
+  const [ newOut, newPointer ] = makeArray(scope, {
     rawElements: new Array(1)
   }, _global, _name, true, 'i16');
-  const newPointer = arrays.get(_name ?? '$undeclared');
 
   return [
     // setup new/out array
@@ -1912,10 +1912,9 @@ const internalConstrs = {
 
       // new Array(n)
 
-      makeArray(scope, {
+      const [ , pointer ] = makeArray(scope, {
         rawElements: new Array(0)
       }, global, name, true);
-      const pointer = arrays.get(name ?? '$undeclared');
 
       const arg = decl.arguments[0] ?? DEFAULT_VALUE;
 
