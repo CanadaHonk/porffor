@@ -327,8 +327,6 @@ const concatStrings = (scope, left, right, global, name, assign) => {
 
   scope.memory = true;
 
-  const getLocalTmp = name => localTmp(scope, name + binaryExpDepth);
-
   const rightPointer = localTmp(scope, 'concat_right_pointer', Valtype.i32);
   const rightLength = localTmp(scope, 'concat_right_length', Valtype.i32);
   const leftLength = localTmp(scope, 'concat_left_length', Valtype.i32);
@@ -528,6 +526,23 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     return performLogicOp(scope, op, left, right);
   }
 
+  if (codeLog && (!leftType || !rightType)) log('codegen', 'untracked type in op', op, _name, '\n' + new Error().stack.split('\n').slice(1).join('\n'));
+
+  // if strict (in)equal and known types mismatch, return false (===)/true (!==)
+  if ((op === '===' || op === '!==') && leftType && rightType && leftType !== rightType) {
+    return [
+      ...left,
+      ...right,
+
+      // drop values
+      [ Opcodes.drop ],
+      [ Opcodes.drop ],
+
+      // return false (===)/true (!==)
+      ...number(op === '===' ? 0 : 1, Valtype.i32)
+    ];
+  }
+
   if (leftType === TYPES.string || rightType === TYPES.string) {
     if (op === '+') {
       // string concat (a + b)
@@ -538,8 +553,13 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     if (!['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(op)) return number(NaN);
 
     // else leave bool ops
-    // todo: convert string to number if string and number or le/ge op
-    // todo: string equality
+    // todo: convert string to number if string and number/bool
+    // todo: string (>|>=|<|<=) string
+
+    // string equality
+    if (op === '===') {
+
+    }
   }
 
   let ops = operatorOpcode[valtype][op];
@@ -699,7 +719,7 @@ const getNodeType = (scope, node) => {
   if (node.type === 'CallExpression' || node.type === 'NewExpression') {
     const name = node.callee.name;
     const func = funcs.find(x => x.name === name);
-    if (func) return func.returnType ?? TYPES.number;
+    if (func) return func.returnType;
 
     if (builtinFuncs[name]) return TYPES[builtinFuncs[name].returnType ?? 'number'];
     if (internalConstrs[name]) return internalConstrs[name].type;
@@ -724,9 +744,7 @@ const getNodeType = (scope, node) => {
       protoFunc = prototypeFuncs[baseType]?.[func];
     }
 
-    if (protoFunc) return protoFunc.returnType ?? TYPES.number;
-
-    return TYPES.number;
+    if (protoFunc) return protoFunc.returnType;
   }
 
   if (node.type === 'ExpressionStatement') {
@@ -758,9 +776,6 @@ const getNodeType = (scope, node) => {
 
     if (objectType === TYPES.string && node.computed) return TYPES.string;
   }
-
-  // default to number
-  return TYPES.number;
 };
 
 const generateLiteral = (scope, decl, global, name) => {
@@ -1290,7 +1305,7 @@ const generateUnary = (scope, decl) => {
       return out;
 
     case 'typeof':
-      const type = getNodeType(scope, decl.argument);
+      const type = getNodeType(scope, decl.argument) ?? TYPES.number;
 
       // for custom types, just return object
       if (type > 0xffffffffffff7) return number(TYPES.object);
@@ -1753,7 +1768,7 @@ const generateFunc = (scope, decl) => {
     name,
     params: Object.values(innerScope.locals).slice(0, params.length).map(x => x.type),
     returns: innerScope.returns,
-    returnType: innerScope.returnType ?? TYPES.number,
+    returnType: innerScope.returnType,
     locals: innerScope.locals,
     memory: innerScope.memory,
     throws: innerScope.throws,
