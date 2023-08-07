@@ -455,6 +455,112 @@ const concatStrings = (scope, left, right, global, name, assign) => {
   ];
 };
 
+const compareStrings = (scope, left, right) => {
+  // todo: this should be rewritten into a built-in/func: String.prototype.concat
+  // todo: convert left and right to strings if not
+  // todo: optimize by looking up names in arrays and using that if exists?
+  // todo: optimize this if using literals/known lengths?
+
+  scope.memory = true;
+
+  const leftPointer = localTmp(scope, 'compare_left_pointer', Valtype.i32);
+  const leftLength = localTmp(scope, 'compare_left_length', Valtype.i32);
+  const rightPointer = localTmp(scope, 'compare_right_pointer', Valtype.i32);
+  const rightLength = localTmp(scope, 'compare_right_length', Valtype.i32);
+
+  const index = localTmp(scope, 'compare_index', Valtype.i32);
+  const indexEnd = localTmp(scope, 'compare_index_end', Valtype.i32);
+
+  return [
+    // use block to "return" a value early
+    [ Opcodes.block, Valtype.i32 ],
+
+    // setup left
+    ...left,
+    Opcodes.i32_to_u,
+    [ Opcodes.local_tee, leftPointer ],
+
+    // setup right
+    ...right,
+    Opcodes.i32_to_u,
+    [ Opcodes.local_tee, rightPointer ],
+
+    // fast path: check leftPointer == rightPointer
+    [ Opcodes.i32_eq ],
+    [ Opcodes.if, Blocktype.void ],
+    ...number(1, Valtype.i32),
+    [ Opcodes.br, 1 ],
+    [ Opcodes.end ],
+
+    // get lengths
+    [ Opcodes.local_get, leftPointer ],
+    [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+    [ Opcodes.local_tee, leftLength ],
+
+    [ Opcodes.local_get, rightPointer ],
+    [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+    [ Opcodes.local_tee, rightLength ],
+
+    // fast path: check leftLength != rightLength
+    [ Opcodes.i32_ne ],
+    [ Opcodes.if, Blocktype.void ],
+    ...number(0, Valtype.i32),
+    [ Opcodes.br, 1 ],
+    [ Opcodes.end ],
+
+    // no fast path for length = 0 as it would probably be slower for most of the time?
+
+    // setup index end as length * sizeof i16 (2)
+    // we do this instead of having to do mul/div each iter for perf™
+    [ Opcodes.local_get, leftLength ],
+    ...number(ValtypeSize.i16, Valtype.i32),
+    [ Opcodes.i32_mul ],
+    [ Opcodes.local_set, indexEnd ],
+
+    // iterate over each char and check if eq
+    [ Opcodes.loop, Blocktype.void ],
+
+    // fetch left
+    [ Opcodes.local_get, index ],
+    [ Opcodes.local_get, leftPointer ],
+    [ Opcodes.i32_add ],
+    [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+
+    // fetch right
+    [ Opcodes.local_get, index ],
+    [ Opcodes.local_get, rightPointer ],
+    [ Opcodes.i32_add ],
+    [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+
+    // not equal, "return" false
+    [ Opcodes.i32_ne ],
+    [ Opcodes.if, Blocktype.void ],
+    ...number(0, Valtype.i32),
+    [ Opcodes.br, 2 ],
+    [ Opcodes.end ],
+
+    // index += sizeof i16 (2)
+    [ Opcodes.local_get, index ],
+    ...number(ValtypeSize.i16, Valtype.i32),
+    [ Opcodes.i32_add ],
+    [ Opcodes.local_tee, index ],
+
+    // if index != index end (length * sizeof 16), loop
+    [ Opcodes.local_get, indexEnd ],
+    [ Opcodes.i32_ne ],
+    [ Opcodes.br_if, 0 ],
+    [ Opcodes.end ],
+
+    // no failed checks, so true!
+    ...number(1, Valtype.i32),
+    [ Opcodes.end ],
+
+    // convert i32 result to valtype
+    // do not do as automatically added by binary exp gen for equality ops
+    // Opcodes.i32_from_u
+  ];
+};
+
 const falsy = (scope, wasm, type) => {
   // arrays are always truthy
   if (type === TYPES._array) return [
@@ -556,9 +662,16 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     // todo: convert string to number if string and number/bool
     // todo: string (>|>=|<|<=) string
 
-    // string equality
-    if (op === '===') {
+    // string comparison
+    if (op === '===' || op === '==') {
+      return compareStrings(scope, left, right);
+    }
 
+    if (op === '!==' || op === '!=') {
+      return [
+        ...compareStrings(scope, left, right),
+        [ Opcodes.i32_eqz ]
+      ];
     }
   }
 
@@ -705,6 +818,7 @@ const getType = (scope, _name) => {
 
 const getNodeType = (scope, node) => {
   if (node.type === 'Literal') {
+    if (['number', 'boolean', 'string', 'undefined', 'object', 'function', 'symbol', 'bigint'].includes(node.value)) return TYPES.number;
     return TYPES[typeof node.value];
   }
 
