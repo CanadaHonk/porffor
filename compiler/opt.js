@@ -20,7 +20,7 @@ export default (funcs, globals) => {
   if (optLevel === 0) return;
 
   const tailCall = process.argv.includes('-tail-call');
-  if (tailCall) log('opt', 'tail call proposal is not widely implemented! (you used -tail-call)');
+  if (tailCall) log('opt', 'warning: tail call proposal is not widely implemented! (you used -tail-call)');
 
   if (optLevel >= 2 && !process.argv.includes('-opt-no-inline')) {
     // inline pass (very WIP)
