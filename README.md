@@ -76,6 +76,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - string member (char) access via `str[ind]` (eg `str[0]`)
 - string concat (`+`) (eg `'a' + 'b'`)
 - truthy/falsy (eg `!'' == true`)
+- string comparison (eg `'a' == 'a'`, `'a' != 'b'`)
 
 ### built-ins
 
@@ -106,7 +107,6 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
   - arrays/strings inside arrays
 - strings
   - member setting
-  - equality
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
 - exceptions

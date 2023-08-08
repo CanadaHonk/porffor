@@ -472,9 +472,6 @@ const compareStrings = (scope, left, right) => {
   const indexEnd = localTmp(scope, 'compare_index_end', Valtype.i32);
 
   return [
-    // use block to "return" a value early
-    [ Opcodes.block, Valtype.i32 ],
-
     // setup left
     ...left,
     Opcodes.i32_to_u,
@@ -486,11 +483,9 @@ const compareStrings = (scope, left, right) => {
     [ Opcodes.local_tee, rightPointer ],
 
     // fast path: check leftPointer == rightPointer
-    [ Opcodes.i32_eq ],
-    [ Opcodes.if, Blocktype.void ],
-    ...number(1, Valtype.i32),
-    [ Opcodes.br, 1 ],
-    [ Opcodes.end ],
+    // use if (block) for everything after to "return" a value early
+    [ Opcodes.i32_ne ],
+    [ Opcodes.if, Valtype.i32 ],
 
     // get lengths
     [ Opcodes.local_get, leftPointer ],
@@ -552,6 +547,10 @@ const compareStrings = (scope, left, right) => {
     [ Opcodes.end ],
 
     // no failed checks, so true!
+    ...number(1, Valtype.i32),
+
+    // pointers match, so true
+    [ Opcodes.else ],
     ...number(1, Valtype.i32),
     [ Opcodes.end ],
 
