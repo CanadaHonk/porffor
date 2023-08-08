@@ -90,6 +90,15 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
             return Array.from(new Uint16Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
           }
 
+          case 'function': {
+            // wasm func index, including all imports
+            const func = funcs.find(x => (x.originalIndex ?? x.index) === ret);
+            if (!func) return ret;
+
+            // make fake empty func for repl/etc
+            return {[func.name]() {}}[func.name];
+          }
+
           default: return ret;
         }
       } catch (e) {

@@ -51,6 +51,7 @@ export default (funcs, globals, tags, pages, flags) => {
     // fix call indexes for non-imports
     const delta = importedFuncs.length - importFuncs.length;
     for (const f of funcs) {
+      f.originalIndex = f.index;
       f.index -= delta;
 
       for (const inst of f.wasm) {
