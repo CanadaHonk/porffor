@@ -25,7 +25,6 @@ export const PrototypeFuncs = function() {
 
   this[TYPES._array] = {
     // lX = local accessor of X ({ get, set }), iX = local index of X, wX = wasm ops of X
-    // todo: out of bounds (>) properly
     at: (pointer, length, wIndex, iTmp) => [
       ...wIndex,
       Opcodes.i32_to,
@@ -147,7 +146,6 @@ export const PrototypeFuncs = function() {
   this[TYPES._array].push.noArgRetLength = true;
 
   this[TYPES.string] = {
-    // todo: out of bounds properly
     at: (pointer, length, wIndex, iTmp, arrayShell) => {
       const [ newOut, newPointer ] = arrayShell(1, 'i16');
 
@@ -157,9 +155,9 @@ export const PrototypeFuncs = function() {
         [ Opcodes.drop ],
 
         ...number(0, Valtype.i32), // base 0 for store later
-        Opcodes.i32_to_u,
 
         ...wIndex,
+        Opcodes.i32_to_u,
         [ Opcodes.local_tee, iTmp ],
 
         // if index < 0: access index + array length
@@ -265,7 +263,7 @@ export const PrototypeFuncs = function() {
     },
   };
 
-  this[TYPES.string].at.local = valtypeBinary;
+  this[TYPES.string].at.local = Valtype.i32;
   this[TYPES.string].at.returnType = TYPES.string;
   this[TYPES.string].charAt.returnType = TYPES.string;
   this[TYPES.string].charCodeAt.local = Valtype.i32;
