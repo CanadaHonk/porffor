@@ -42,8 +42,8 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       out += ` ${read_ieee754_binary64(inst.slice(1))}`;
     } else if (inst[0] === Opcodes.i32_const || inst[0] === Opcodes.i64_const) {
       out += ` ${read_signedLEB128(inst.slice(1))}`;
-    } else if (inst[0] === Opcodes.i32_load || inst[0] === Opcodes.i64_load || inst[0] === Opcodes.f64_load || inst[0] === Opcodes.i32_store || inst[0] === Opcodes.i64_store || inst[0] === Opcodes.f64_store) {
-      out += ` ${inst[1]} ${read_unsignedLEB128(inst.slice(2))}`
+    } else if (inst[0] === Opcodes.i32_load || inst[0] === Opcodes.i64_load || inst[0] === Opcodes.f64_load || inst[0] === Opcodes.i32_store || inst[0] === Opcodes.i64_store || inst[0] === Opcodes.f64_store || inst[0] === Opcodes.i32_store16 || inst[0] === Opcodes.i32_load16_u) {
+      out += ` ${inst[1]} ${read_unsignedLEB128(inst.slice(2))}`;
     } else for (const operand of inst.slice(1)) {
       if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) {
         if (operand === Blocktype.void) continue;
