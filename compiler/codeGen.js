@@ -1382,8 +1382,27 @@ const generateAssign = (scope, decl) => {
     ];
   }
 
+  const op = decl.operator.slice(0, -1);
+  if (op === '||' || op === '&&' || op === '??') {
+    // todo: is this needed?
+    // for logical assignment ops, it is not left @= right ~= left = left @ right
+    // instead, left @ (left = right)
+    // eg, x &&= y ~= x && (x = y)
+
+    return [
+      ...performOp(scope, op, [
+        [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
+      ], [
+        ...generate(scope, decl.right),
+        [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+        [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
+      ], getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
+      [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
+    ];
+  }
+
   return [
-    ...performOp(scope, decl.operator.slice(0, -1), [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
+    ...performOp(scope, op, [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
     [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
     [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
   ];
