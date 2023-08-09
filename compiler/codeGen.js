@@ -306,7 +306,7 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   const checks = {
     '||': falsy,
     '&&': truthy,
-    // todo: ??
+    '??': nullish
   };
 
   if (!checks[op]) return todo(`logic operator ${op} not implemented yet`);
@@ -572,8 +572,8 @@ const truthy = (scope, wasm, type) => {
   // arrays are always truthy
   if (type === TYPES._array) return [
     ...wasm,
-    ...(wasm.length === 0 ? [] : [ [ Opcodes.drop ] ]),
-    number(1)
+    [ Opcodes.drop ],
+    ...number(1)
   ];
 
   if (type === TYPES.string) {
@@ -607,8 +607,8 @@ const falsy = (scope, wasm, type) => {
   // arrays are always truthy
   if (type === TYPES._array) return [
     ...wasm,
-    ...(wasm.length === 0 ? [] : [ [ Opcodes.drop ] ]),
-    number(0)
+    [ Opcodes.drop ],
+    ...number(0)
   ];
 
   if (type === TYPES.string) {
@@ -633,6 +633,29 @@ const falsy = (scope, wasm, type) => {
 
     ...Opcodes.eqz,
     Opcodes.i32_from_u
+  ];
+};
+
+const nullish = (scope, wasm, type) => {
+  // undefined
+  if (type === TYPES.undefined) return [
+    ...wasm,
+    [ Opcodes.drop ],
+    ...number(1)
+  ];
+
+  // null (if object and = "0")
+  if (type === TYPES.object) return [
+    ...wasm,
+    ...Opcodes.eqz,
+    Opcodes.i32_from_u
+  ];
+
+  // not
+  return [
+    ...wasm,
+    [ Opcodes.drop ],
+    ...number(0)
   ];
 };
 
@@ -943,7 +966,8 @@ const generateLiteral = (scope, decl, global, name) => {
 const countLeftover = wasm => {
   let count = 0, depth = 0;
 
-  for (const inst of wasm) {
+  for (let i = 0; i < wasm.length; i++) {
+    const inst = wasm[i];
     if (depth === 0 && (inst[0] === Opcodes.if || inst[0] === Opcodes.block || inst[0] === Opcodes.loop)) {
       if (inst[0] === Opcodes.if) count--;
       if (inst[1] !== Blocktype.void) count++;

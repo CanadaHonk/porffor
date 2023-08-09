@@ -77,6 +77,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - string concat (`+`) (eg `'a' + 'b'`)
 - truthy/falsy (eg `!'' == true`)
 - string comparison (eg `'a' == 'a'`, `'a' != 'b'`)
+- nullish coalescing operator (`??`)
 
 ### built-ins
 
