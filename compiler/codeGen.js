@@ -1650,7 +1650,16 @@ const allocPage = reason => {
   let ind = pages.size;
   pages.set(reason, ind);
 
-  if (codeLog) log('codegen', `allocated new page of memory (${ind}) | ${reason}`);
+  if (allocLog) log('alloc', `allocated new page of memory (${ind}) | ${reason}`);
+
+  return ind;
+};
+
+const freePage = reason => {
+  let ind = pages.get(reason);
+  pages.delete(reason);
+
+  if (allocLog) log('alloc', `freed page of memory (${ind}) | ${reason}`);
 
   return ind;
 };

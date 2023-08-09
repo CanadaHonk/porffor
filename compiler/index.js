@@ -14,7 +14,8 @@ const bold = x => `\u001b[1m${x}\u001b[0m`;
 const areaColors = {
   codegen: [ 20, 80, 250 ],
   opt: [ 250, 20, 80 ],
-  sections: [ 20, 250, 80 ]
+  sections: [ 20, 250, 80 ],
+  alloc: [ 250, 250, 20 ]
 };
 
 globalThis.log = (area, ...args) => console.log(`\u001b[90m[\u001b[0m${rgb(...areaColors[area], area)}\u001b[90m]\u001b[0m`, ...args);
@@ -38,6 +39,7 @@ const logFuncs = (funcs, globals, exceptions) => {
 export default (code, flags) => {
   globalThis.optLog = process.argv.includes('-opt-log');
   globalThis.codeLog = process.argv.includes('-code-log');
+  globalThis.allocLog = process.argv.includes('-alloc-log');
 
   for (const x in BuiltinPreludes) {
     if (code.indexOf(x + '(') !== -1) code = BuiltinPreludes[x] + code;
@@ -62,6 +64,13 @@ export default (code, flags) => {
   const t3 = performance.now();
   const sections = produceSections(funcs, globals, tags, pages, flags);
   if (flags.includes('info')) console.log(`4. produced sections in ${(performance.now() - t3).toFixed(2)}ms`);
+
+  if (allocLog) {
+    const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
+    const bytes = wasmPages * 65536;
+    log('alloc', `\x1B[1mallocated ${bytes / 1024}KiB\x1B[0m for ${pages.size} things using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}`);
+    // console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n'));
+  }
 
   return { wasm: sections, funcs, globals, tags, exceptions, pages };
 };
