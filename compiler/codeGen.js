@@ -1071,7 +1071,7 @@ const generateCall = (scope, decl, _global, _name) => {
   }
 
   let out = [];
-  let protoFunc, protoName, baseType, baseName = '$undeclared';
+  let protoFunc, protoName, baseType, baseName;
   // ident.func()
   if (name && name.startsWith('__')) {
     const spl = name.slice(2).split('_');
@@ -1094,6 +1094,8 @@ const generateCall = (scope, decl, _global, _name) => {
 
     out = generate(scope, decl.callee.object);
     out.push([ Opcodes.drop ]);
+
+    baseName = [...arrays.keys()].pop();
   }
 
   if (protoFunc) {
@@ -1106,7 +1108,7 @@ const generateCall = (scope, decl, _global, _name) => {
       if (codeLog) log('codegen', 'cloning unknown dynamic pointer');
 
       // register array
-      const [ , pointer ] = makeArray(scope, {
+      0, [ , pointer ] = makeArray(scope, {
         rawElements: new Array(0)
       }, _global, baseName, true, baseType === TYPES.string ? 'i16' : valtype);
 
