@@ -285,7 +285,7 @@ const generateReturn = (scope, decl) => {
     ];
   }
 
-  if (!scope.returnType) scope.returnType = getNodeType(scope, decl.argument);
+  scope.returnType = getNodeType(scope, decl.argument);
 
   return [
     ...generate(scope, decl.argument),
@@ -1921,6 +1921,7 @@ const generateFunc = (scope, decl) => {
     locals: {},
     localInd: 0,
     returns: [ valtypeBinary ],
+    returnType: null,
     memory: false,
     throws: false,
     name
@@ -1962,6 +1963,8 @@ const generateFunc = (scope, decl) => {
 
   if (name !== 'main' && func.returns.length !== 0 && wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
     wasm.push(...number(0), [ Opcodes.return ]);
+
+    if (func.returnType === null) func.returnType = TYPES.undefined;
   }
 
   // change v128 params into many <type> (i32x4 -> i32/etc) instead as unsupported param valtype
