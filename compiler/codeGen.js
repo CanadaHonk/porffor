@@ -302,10 +302,10 @@ const localTmp = (scope, name, type = valtypeBinary) => {
   return idx;
 };
 
-const performLogicOp = (scope, op, left, right) => {
+const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   const checks = {
-    '||': Opcodes.eqz,
-    '&&': [ Opcodes.i32_to ]
+    '||': falsy,
+    '&&': truthy,
     // todo: ??
   };
 
@@ -317,7 +317,8 @@ const performLogicOp = (scope, op, left, right) => {
   return [
     ...left,
     [ Opcodes.local_tee, localTmp(scope, 'logictmp') ],
-    ...checks[op],
+    ...checks[op](scope, [], leftType),
+    Opcodes.i32_to,
     [ Opcodes.if, valtypeBinary ],
     ...right,
     [ Opcodes.else ],
@@ -567,43 +568,11 @@ const compareStrings = (scope, left, right) => {
   ];
 };
 
-const falsy = (scope, wasm, type) => {
-  // arrays are always truthy
-  if (type === TYPES._array) return [
-    ...wasm,
-    [ Opcodes.drop ],
-    number(0)
-  ];
-
-  if (type === TYPES.string) {
-    // if "" (length = 0)
-    return [
-      // pointer
-      ...wasm,
-
-      // get length
-      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-
-      // if length == 0
-      [ Opcodes.i32_eqz ],
-      Opcodes.i32_from_u
-    ]
-  }
-
-  // if = 0
-  return [
-    ...wasm,
-
-    ...Opcodes.eqz,
-    Opcodes.i32_from_u
-  ];
-};
-
 const truthy = (scope, wasm, type) => {
   // arrays are always truthy
   if (type === TYPES._array) return [
     ...wasm,
-    [ Opcodes.drop ],
+    ...(wasm.length === 0 ? [] : [ [ Opcodes.drop ] ]),
     number(1)
   ];
 
@@ -612,6 +581,7 @@ const truthy = (scope, wasm, type) => {
     return [
       // pointer
       ...wasm,
+      Opcodes.i32_to_u,
 
       // get length
       [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
@@ -633,9 +603,42 @@ const truthy = (scope, wasm, type) => {
   ];
 };
 
+const falsy = (scope, wasm, type) => {
+  // arrays are always truthy
+  if (type === TYPES._array) return [
+    ...wasm,
+    ...(wasm.length === 0 ? [] : [ [ Opcodes.drop ] ]),
+    number(0)
+  ];
+
+  if (type === TYPES.string) {
+    // if "" (length = 0)
+    return [
+      // pointer
+      ...wasm,
+      Opcodes.i32_to_u,
+
+      // get length
+      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+
+      // if length == 0
+      [ Opcodes.i32_eqz ],
+      Opcodes.i32_from_u
+    ]
+  }
+
+  // if = 0
+  return [
+    ...wasm,
+
+    ...Opcodes.eqz,
+    Opcodes.i32_from_u
+  ];
+};
+
 const performOp = (scope, op, left, right, leftType, rightType, _global = false, _name = '$undeclared', assign = false) => {
   if (op === '||' || op === '&&' || op === '??') {
-    return performLogicOp(scope, op, left, right);
+    return performLogicOp(scope, op, left, right, leftType, rightType);
   }
 
   if (codeLog && (!leftType || !rightType)) log('codegen', 'untracked type in op', op, _name, '\n' + new Error().stack.split('\n').slice(1).join('\n'));
@@ -776,7 +779,7 @@ const includeBuiltin = (scope, builtin) => {
 };
 
 const generateLogicExp = (scope, decl) => {
-  return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right));
+  return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
 };
 
 const TYPES = {
@@ -1381,7 +1384,7 @@ const generateUnary = (scope, decl) => {
 
     case '!':
       // !=
-      return falsy(scope, generate(scope, decl.argument));
+      return falsy(scope, generate(scope, decl.argument), getNodeType(scope, decl.argument));
 
     case '~':
       return [
