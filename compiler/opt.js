@@ -1,5 +1,6 @@
 import { Opcodes, Valtype } from "./wasmSpec.js";
 import { number } from "./embedding.js";
+import { read_signedLEB128, read_ieee754_binary64 } from "./encoding.js";
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -213,9 +214,9 @@ export default (funcs, globals) => {
         // i32.const 0
         // drop
         // -->
-        // <nothing>>
+        // <nothing>
 
-        wasm.splice(i - 1, 2); // remove this inst
+        wasm.splice(i - 1, 2); // remove these inst
         i -= 2;
         continue;
       }
@@ -256,6 +257,36 @@ export default (funcs, globals) => {
         wasm.splice(i - 1, 2); // remove this inst and last
         i -= 2;
         // if (optLog) log('opt', `removed redundant i32 -> f64 -> i32 conversion ops`);
+        continue;
+      }
+
+      if (lastInst[0] === Opcodes.const && (inst === Opcodes.i32_to || inst === Opcodes.i32_to_u)) {
+        // change const and immediate i32 convert to i32 const
+        // f64.const 0
+        // i32.trunc_sat_f64_s || i32.trunc_sat_f64_u
+        // -->
+        // i32.const 0
+
+        wasm[i - 1] = number((valtype === 'f64' ? read_ieee754_binary64 : read_signedLEB128)(lastInst.slice(1)), Valtype.i32)[0]; // f64.const -> i32.const
+
+        wasm.splice(i, 1); // remove this inst
+        i--;
+        if (optLog) log('opt', `converted const -> i32 convert into i32 const`);
+        continue;
+      }
+
+      if (lastInst[0] === Opcodes.i32_const && (inst === Opcodes.i32_from || inst === Opcodes.i32_from_u)) {
+        // change i32 const and immediate convert to const (opposite way of previous)
+        // i32.const 0
+        // f64.convert_i32_s || f64.convert_i32_u
+        // -->
+        // f64.const 0
+
+        wasm[i - 1] = number(read_signedLEB128(lastInst.slice(1)))[0]; // i32.const -> f64.const
+
+        wasm.splice(i, 1); // remove this inst
+        i--;
+        if (optLog) log('opt', `converted i32 const -> convert into const`);
         continue;
       }
 

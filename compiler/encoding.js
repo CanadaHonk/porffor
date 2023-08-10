@@ -22,15 +22,15 @@ export const encodeLocal = (count, type) => [
   type
 ];
 
+// todo: this only works with integers within 32 bit range
 export const signedLEB128 = n => {
-  // todo: this only works with integers within 32 bit range
+  n |= 0;
 
   // just input for small numbers (for perf as common)
   if (n >= 0 && n <= 63) return [ n ];
   if (n >= -64 && n <= 0) return [ 128 + n ];
 
   const buffer = [];
-  n |= 0;
 
   while (true) {
     let byte = n & 0x7f;
@@ -50,6 +50,8 @@ export const signedLEB128 = n => {
 };
 
 export const unsignedLEB128 = n => {
+  n |= 0;
+
   // just input for small numbers (for perf as common)
   if (n >= 0 && n <= 127) return [ n ];
 

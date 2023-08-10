@@ -136,6 +136,7 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 - `i64.extend_i32_s`, `i32.wrap_i64` -> ``
 - `f64.convert_i32_u`, `i32.trunc_sat_f64_s` -> ``
 - `return`, `end` -> `end`
+- change const, convert to const of converted valtype (eg `f64.const`, `i32.trunc_sat_f64_s -> `i32.const`)
 - remove some redundant sets/gets
 - remove unneeded single just used vars
 - remove unneeded blocks (no `br`s inside)
