@@ -106,12 +106,16 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
   - member setting (`arr[0] = 2`)
   - more of `Array` prototype
   - arrays/strings inside arrays
+  - destructuring
+  - for .. of
 - strings
   - member setting
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
+- rewrite `console.log` to work with strings/arrays
 - exceptions
-  - `try { } finally {}`
+  - rewrite to use actual strings (optional?)
+  - `try { } finally { }`
   - rethrowing inside catch
 - optimizations
   - rewrite local indexes per func for smallest local header and remove unused idxs
