@@ -101,7 +101,9 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - intrinsic functions (see below)
 - inlining wasm via ``asm`...``\` "macro"
 
-## soon todo
+## todo
+no particular order and no guarentees, just what could happen soon™
+
 - arrays
   - member setting (`arr[0] = 2`)
   - more of `Array` prototype
@@ -110,6 +112,12 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
   - for .. of
 - strings
   - member setting
+- objects
+  - basic object expressions (eg `{}`, `{ a: 0 }`)
+- wasm
+  - *basic* wasm engine (interpreter) in js
+- regex
+  - *basic* regex engine (in wasm compiled aot or js interpreter?)
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
 - rewrite `console.log` to work with strings/arrays
