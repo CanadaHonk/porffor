@@ -1432,10 +1432,11 @@ const generateUnary = (scope, decl) => {
       return falsy(scope, generate(scope, decl.argument), getNodeType(scope, decl.argument));
 
     case '~':
+      // todo: does not handle Infinity properly (should convert to 0) (but opt const converting saves us sometimes)
       return [
         ...generate(scope, decl.argument),
         Opcodes.i32_to,
-        [ Opcodes.i32_const, signedLEB128(-1) ],
+        [ Opcodes.i32_const, ...signedLEB128(-1) ],
         [ Opcodes.i32_xor ],
         Opcodes.i32_from
       ];
