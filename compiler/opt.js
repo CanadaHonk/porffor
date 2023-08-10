@@ -96,7 +96,6 @@ export default (funcs, globals) => {
         }
 
         if (t.index > c.index) t.index--; // adjust index if after removed func
-        if (c.memory) t.memory = true;
       }
 
       funcs.splice(funcs.indexOf(c), 1); // remove func from funcs

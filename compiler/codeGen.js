@@ -171,7 +171,6 @@ const generate = (scope, decl, global = false, name = undefined) => {
         }
 
         if (asm[0] === 'memory') {
-          scope.memory = true;
           allocPage('asm instrinsic');
           // todo: add to store/load offset insts
           continue;
@@ -333,8 +332,6 @@ const concatStrings = (scope, left, right, global, name, assign) => {
   // todo: optimize by looking up names in arrays and using that if exists?
   // todo: optimize this if using literals/known lengths?
 
-  scope.memory = true;
-
   const rightPointer = localTmp(scope, 'concat_right_pointer', Valtype.i32);
   const rightLength = localTmp(scope, 'concat_right_length', Valtype.i32);
   const leftLength = localTmp(scope, 'concat_left_length', Valtype.i32);
@@ -468,8 +465,6 @@ const compareStrings = (scope, left, right) => {
   // todo: convert left and right to strings if not
   // todo: optimize by looking up names in arrays and using that if exists?
   // todo: optimize this if using literals/known lengths?
-
-  scope.memory = true;
 
   const leftPointer = localTmp(scope, 'compare_left_pointer', Valtype.i32);
   const leftLength = localTmp(scope, 'compare_left_length', Valtype.i32);
@@ -1099,8 +1094,6 @@ const generateCall = (scope, decl, _global, _name) => {
   }
 
   if (protoFunc) {
-    scope.memory = true;
-
     let pointer = arrays.get(baseName);
 
     if (pointer == null) {
@@ -1206,7 +1199,6 @@ const generateCall = (scope, decl, _global, _name) => {
     args = args.slice(0, func.params.length);
   }
 
-  if (func && func.memory) scope.memory = true;
   if (func && func.throws) scope.throws = true;
 
   for (const arg of args) {
@@ -1329,8 +1321,6 @@ const generateAssign = (scope, decl) => {
   if (decl.left.type === 'MemberExpression' && decl.left.property.name === 'length') {
     const name = decl.left.object.name;
     const pointer = arrays.get(name);
-
-    scope.memory = true;
 
     const aotPointer = pointer != null;
 
@@ -1770,8 +1760,6 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   // local value as pointer
   out.push(...number(pointer));
 
-  scope.memory = true;
-
   return [ out, pointer ];
 };
 
@@ -1789,8 +1777,6 @@ export const generateMember = (scope, decl, _global, _name) => {
 
     const name = decl.object.name;
     const pointer = arrays.get(name);
-
-    scope.memory = true;
 
     const aotPointer = pointer != null;
 
@@ -1810,8 +1796,6 @@ export const generateMember = (scope, decl, _global, _name) => {
 
   const name = decl.object.name;
   const pointer = arrays.get(name);
-
-  scope.memory = true;
 
   const aotPointer = pointer != null;
 
@@ -1949,7 +1933,6 @@ const generateFunc = (scope, decl) => {
     returns: innerScope.returns,
     returnType: innerScope.returnType,
     locals: innerScope.locals,
-    memory: innerScope.memory,
     throws: innerScope.throws,
     index: currentFuncIndex++
   };
@@ -1976,9 +1959,7 @@ const generateFunc = (scope, decl) => {
     if (local.type === Valtype.v128) {
       vecParams++;
 
-      /* func.memory = true; // mark func as using memory
-
-      wasm.unshift( // add v128 load for param
+      /* wasm.unshift( // add v128 load for param
         [ Opcodes.i32_const, 0 ],
         [ ...Opcodes.v128_load, 0, i * 16 ],
         [ Opcodes.local_set, local.idx ]
