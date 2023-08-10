@@ -131,6 +131,11 @@ no particular order and no guarentees, just what could happen soon™
   - remove const ifs (`if (true)`, etc)
   - use data segments for initing arrays
 
+## porfformance
+*for the things it supports*, porffor is blazingly faster compared to most interpreters, and engines running without JIT. for those with JIT, it is not that much slower like a traditional interpreter would be.
+
+![Screenshot of comparison chart](https://github.com/CanadaHonk/porffor/assets/19228318/76c75264-cc68-4be1-8891-c06dc389d97a)
+
 ## test262
 porffor can run test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). it currently passes >10% (see latest commit desc for latest and details). use `node test262` to test, it will also show a difference of overall results between the last commit and current results.
 
@@ -204,11 +209,12 @@ you can also use deno (`deno run -A ...` instead of `node ...`), or bun (`bun ..
 - `-no-run` to not run wasm output, just compile
 - `-opt-log` to log some opts
 - `-code-log` to log some codegen (you probably want `-funcs`)
-- `-funcs` to log funcs (internal representations)
+- `-funcs` to log funcs
 - `-opt-funcs` to log funcs after opt
 - `-sections` to log sections as hex
 - `-opt-no-inline` to not inline any funcs
-- `-tail-call` to enable tail calls (not widely implemented)
+- `-tail-call` to enable tail calls (experimental + not widely implemented)
+- `-compile-hints` to enable V8 compilation hints (experimental + doesn't seem to do much?)
 
 ## vscode extension
 there is a vscode extension in `porffor-for-vscode` which tweaks js syntax highlighting to be nicer with porffor features (eg highlighting wasm inside of inline asm).
