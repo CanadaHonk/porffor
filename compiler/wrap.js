@@ -5,6 +5,7 @@ import decompile from './decompile.js';
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
 const typeBase = 0xffffffffffff0;
+const internalTypeBase = 0xfffffffffff0f;
 const TYPES = {
   [typeBase]: 'number',
   [typeBase + 1]: 'boolean',
@@ -16,7 +17,8 @@ const TYPES = {
   [typeBase + 7]: 'bigint',
 
   // internal
-  [typeBase + 8]: '_array'
+  [internalTypeBase]: '_array',
+  [internalTypeBase + 1]: '_regexp'
 };
 
 export default async (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {

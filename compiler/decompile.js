@@ -57,7 +57,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       out += ` ;; label @${depth}`;
     }
 
-    if (inst[0] === Opcodes.br) {
+    if (inst[0] === Opcodes.br || inst[0] === Opcodes.br_if) {
       out += ` ;; goto @${depth - inst[1]}`;
     }
 

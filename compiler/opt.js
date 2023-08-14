@@ -142,7 +142,7 @@ export default (funcs, globals) => {
             depth--;
             if (depth <= 0) break;
           }
-          if (op === Opcodes.br) {
+          if (op === Opcodes.br || op === Opcodes.br_if) {
             hasBranch = true;
             break;
           }

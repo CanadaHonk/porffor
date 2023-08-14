@@ -5,6 +5,7 @@ import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from "./bui
 import { PrototypeFuncs } from "./prototype.js";
 import { number, i32x4 } from "./embedding.js";
 import parse from "./parse.js";
+import * as Rhemyn from "../rhemyn/compile.js";
 
 let globals = {};
 let globalInd = 0;
@@ -742,7 +743,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
   return out;
 };
 
-const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, memory, localNames = [], globalNames = [] }) => {
+const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, localNames = [], globalNames = [] }) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
@@ -778,7 +779,6 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     returns,
     returnType: TYPES[returnType ?? 'number'],
     wasm,
-    memory,
     internal: true,
     index: currentFuncIndex++
   };
@@ -811,7 +811,8 @@ const TYPES = {
   bigint: 0xffffffffffff7,
 
   // these are not "typeof" types but tracked internally
-  _array: 0xffffffffffff8
+  _array: 0xfffffffffff0f,
+  _regexp: 0xfffffffffff1f
 };
 
 const TYPE_NAMES = {
@@ -846,6 +847,8 @@ const getType = (scope, _name) => {
 const getNodeType = (scope, node) => {
   if (node.type === 'Literal') {
     if (['number', 'boolean', 'string', 'undefined', 'object', 'function', 'symbol', 'bigint'].includes(node.value)) return TYPES.number;
+    if (node.regex) return TYPES._regexp;
+
     return TYPES[typeof node.value];
   }
 
@@ -879,6 +882,11 @@ const getNodeType = (scope, node) => {
 
     // literal.func()
     if (!name && node.callee.type === 'MemberExpression') {
+      if (node.callee.object.regex) {
+        const funcName = node.callee.property.name;
+        return Rhemyn[funcName] ? TYPES.boolean : TYPES.undefined;
+      }
+
       const baseType = getNodeType(scope, node.callee.object);
 
       const func = node.callee.property.name;
@@ -921,6 +929,11 @@ const getNodeType = (scope, node) => {
 
 const generateLiteral = (scope, decl, global, name) => {
   if (decl.value === null) return number(NULL);
+
+  if (decl.regex) {
+    scope.regex[name] = decl.regex;
+    return number(1);
+  }
 
   switch (typeof decl.value) {
     case 'number':
@@ -1081,6 +1094,25 @@ const generateCall = (scope, decl, _global, _name) => {
 
   // literal.func()
   if (!name && decl.callee.type === 'MemberExpression') {
+    // megahack for /regex/.func()
+    if (decl.callee.object.regex) {
+      const funcName = decl.callee.property.name;
+      const func = Rhemyn[funcName](decl.callee.object.regex.pattern, currentFuncIndex++);
+
+      funcIndex[func.name] = func.index;
+      funcs.push(func);
+
+      return [
+        // make string arg
+        ...generate(scope, decl.arguments[0]),
+
+        // call regex func
+        Opcodes.i32_to_u,
+        [ Opcodes.call, func.index ],
+        Opcodes.i32_from
+      ];
+    }
+
     baseType = getNodeType(scope, decl.callee.object);
 
     const func = decl.callee.property.name;
@@ -1091,6 +1123,31 @@ const generateCall = (scope, decl, _global, _name) => {
     out.push([ Opcodes.drop ]);
 
     baseName = [...arrays.keys()].pop();
+  }
+
+  if (protoName && baseType === TYPES.string && Rhemyn[protoName]) {
+    const func = Rhemyn[protoName](decl.arguments[0].regex.pattern, currentFuncIndex++);
+
+    funcIndex[func.name] = func.index;
+    funcs.push(func);
+
+    const pointer = arrays.get(baseName);
+    const [ local, isGlobal ] = lookupName(scope, baseName);
+
+    return [
+      ...out,
+
+      ...(pointer == null ? [
+        [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+        Opcodes.i32_to_u,
+      ] : [
+        ...number(pointer, Valtype.i32)
+      ]),
+
+      // call regex func
+      [ Opcodes.call, func.index ],
+      Opcodes.i32_from
+    ];
   }
 
   if (protoFunc) {
@@ -1907,7 +1964,6 @@ const generateFunc = (scope, decl) => {
     localInd: 0,
     returns: [ valtypeBinary ],
     returnType: null,
-    memory: false,
     throws: false,
     name
   };

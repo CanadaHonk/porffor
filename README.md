@@ -5,7 +5,6 @@ age: ~1 month
 ## design
 porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. key differences:
 - 100% aot compiled *(not jit)*
-- everything is a number
 - no constant runtime/preluded code
 - least Wasm imports possible (only stdio)
 
@@ -17,6 +16,9 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 - no async/promise/await
 - no variables between scopes (except args and globals)
 - literal callees only in calls (eg `print()` works, `a = print; a()` does not)
+
+## rhemyn
+rhemyn is porffor's own regex engine; it compiles literal regex to wasm bytecode aot (remind you of anything?). it is quite basic and wip. see [its readme](rhemyn/README.md) for more details.
 
 ## supported
 see [optimizations](#optimizations) for opts implemented/supported.
@@ -116,8 +118,6 @@ no particular order and no guarentees, just what could happen soon™
   - basic object expressions (eg `{}`, `{ a: 0 }`)
 - wasm
   - *basic* wasm engine (interpreter) in js
-- regex
-  - *basic* regex engine (in wasm compiled aot or js interpreter?)
 - more math operators (`**`, etc)
 - `do { ... } while (...)`
 - rewrite `console.log` to work with strings/arrays
@@ -135,9 +135,6 @@ no particular order and no guarentees, just what could happen soon™
 *for the things it supports*, porffor is blazingly faster compared to most interpreters, and engines running without JIT. for those with JIT, it is not that much slower like a traditional interpreter would be.
 
 ![Screenshot of comparison chart](https://github.com/CanadaHonk/porffor/assets/19228318/76c75264-cc68-4be1-8891-c06dc389d97a)
-
-## test262
-porffor can run test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). it currently passes >10% (see latest commit desc for latest and details). use `node test262` to test, it will also show a difference of overall results between the last commit and current results.
 
 ## optimizations
 mostly for reducing size. do not really care about compiler perf/time as long as it is reasonable. we do not use/rely on external opt tools (`wasm-opt`, etc), instead doing optimization inside the compiler itself creating even smaller code sizes than `wasm-opt` itself can produce as we have more internal information. (this also enables fast + small runtime use as a potential cursed jit in frontend).
@@ -163,6 +160,9 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 - type cache/index (no repeated types)
 - no main func if empty (and other exports)
 
+## test262
+porffor can run test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). it currently passes >10% (see latest commit desc for latest and details). use `node test262` to test, it will also show a difference of overall results between the last commit and current results.
+
 ## codebase
 - `compiler`: contains the compiler itself
   - `builtins.js`: all built-ins of the engine (spec, custom. vars, funcs)
@@ -182,6 +182,10 @@ mostly for reducing size. do not really care about compiler perf/time as long as
   - `index.js`: the main file, you probably want to use this
   - `info.js`: runs with extra info printed
   - `repl.js`: basic repl (uses `node:repl`)
+
+- `rhemyn`: contains [rhemyn](#rhemyn) - the regex engine used by porffor
+  - `compile.js`: compiles regex ast into wasm bytecode
+  - `parse.js`: own regex parser
 
 - `test`: contains many test files for majority of supported features
 - `test262`: test262 runner and utils

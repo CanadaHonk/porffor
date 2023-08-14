@@ -568,7 +568,6 @@ export const BuiltinFuncs = function() {
     params: [ Valtype.i32 ],
     locals: [],
     returns: [ Valtype.v128 ],
-    memory: true,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ ...Opcodes.v128_load, 0, 0 ]

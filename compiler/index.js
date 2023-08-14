@@ -40,6 +40,7 @@ export default (code, flags) => {
   globalThis.optLog = process.argv.includes('-opt-log');
   globalThis.codeLog = process.argv.includes('-code-log');
   globalThis.allocLog = process.argv.includes('-alloc-log');
+  globalThis.regexLog = process.argv.includes('-regex-log');
 
   for (const x in BuiltinPreludes) {
     if (code.indexOf(x + '(') !== -1) code = BuiltinPreludes[x] + code;

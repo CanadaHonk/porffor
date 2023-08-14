@@ -15,7 +15,8 @@ const TYPES = {
   bigint: 0xffffffffffff7,
 
   // these are not "typeof" types but tracked internally
-  _array: 0xffffffffffff8
+  _array: 0xfffffffffff0f,
+  _regexp: 0xfffffffffff1f
 };
 
 // todo: turn these into built-ins once arrays and these become less hacky
