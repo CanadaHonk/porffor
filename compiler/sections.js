@@ -76,6 +76,7 @@ export default (funcs, globals, tags, pages, flags) => {
       }
     }
   }
+  globalThis.importFuncs = importFuncs;
 
   if (optLog) log('sections', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 

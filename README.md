@@ -1,5 +1,5 @@
 # porffor
-a basic experimental wip *aot* optimizing js -> wasm engine/compiler/runtime in js. not serious/intended for (real) use. (this is a straight forward, honest readme)<br>
+a basic experimental wip *aot* optimizing js -> wasm/c engine/compiler/runtime in js. not serious/intended for (real) use. (this is a straight forward, honest readme)<br>
 age: ~1 month
 
 ## design
@@ -19,6 +19,9 @@ porffor is mostly built from scratch, the only thing that is not is the parser (
 
 ## rhemyn
 rhemyn is porffor's own regex engine; it compiles literal regex to wasm bytecode aot (remind you of anything?). it is quite basic and wip. see [its readme](rhemyn/README.md) for more details.
+
+## 2c
+2c is porffor's own wasm -> c compiler, using generated wasm bytecode and internal info to generate specific and efficient/fast c code. no boilerplate/preluded code or required external files, just for cli binaries (not like wasm2c very much at all).
 
 ## supported
 see [optimizations](#optimizations) for opts implemented/supported.
@@ -204,8 +207,13 @@ basically nothing will work :). see files in `test` for examples.
 you can also use deno (`deno run -A ...` instead of `node ...`), or bun (`bun ...` instead of `node ...`)
 
 ### flags
-- `-raw` for no info logs (just raw js output)
-- `-valtype=i32|i64|f64` to set valtype, f64 by default
+- `-target=wasm|c|native` (default: `wasm`) to set target output (native compiles c output to binary, see args below)
+- `-target=c|native` only:
+  - `-o=out.c|out.exe|out` to set file to output c or binary
+- `-target=native` only:
+  - `-compiler=clang` to set compiler binary (path/name) to use to compile
+  - `-cO=O3` to set compiler opt argument
+- `-valtype=i32|i64|f64` (default: `f64`) to set valtype
 - `-O0` to disable opt
 - `-O1` (default) to enable basic opt (simplify insts, treeshake wasm imports)
 - `-O2` to enable advanced opt (inlining)
@@ -213,6 +221,7 @@ you can also use deno (`deno run -A ...` instead of `node ...`), or bun (`bun ..
 - `-no-run` to not run wasm output, just compile
 - `-opt-log` to log some opts
 - `-code-log` to log some codegen (you probably want `-funcs`)
+- `-regex-log` to log some regex
 - `-funcs` to log funcs
 - `-opt-funcs` to log funcs after opt
 - `-sections` to log sections as hex

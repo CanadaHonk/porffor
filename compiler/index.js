@@ -4,6 +4,8 @@ import opt from './opt.js';
 import produceSections from './sections.js';
 import decompile from './decompile.js';
 import { BuiltinPreludes } from './builtins.js';
+import toc from './2c.js';
+
 
 globalThis.decompile = decompile;
 
@@ -15,7 +17,8 @@ const areaColors = {
   codegen: [ 20, 80, 250 ],
   opt: [ 250, 20, 80 ],
   sections: [ 20, 250, 80 ],
-  alloc: [ 250, 250, 20 ]
+  alloc: [ 250, 250, 20 ],
+  '2c': [ 20, 250, 250 ]
 };
 
 globalThis.log = (area, ...args) => console.log(`\u001b[90m[\u001b[0m${rgb(...areaColors[area], area)}\u001b[90m]\u001b[0m`, ...args);
@@ -35,6 +38,11 @@ const logFuncs = (funcs, globals, exceptions) => {
 
   console.log();
 };
+
+const getArg = name => process.argv.find(x => x.startsWith(`-${name}=`))?.slice(name.length + 2);
+
+const writeFileSync = (typeof process !== 'undefined' ? (await import('node:fs')).writeFileSync : undefined);
+const execSync = (typeof process !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
 
 export default (code, flags) => {
   globalThis.optLog = process.argv.includes('-opt-log');
@@ -73,5 +81,38 @@ export default (code, flags) => {
     // console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n'));
   }
 
-  return { wasm: sections, funcs, globals, tags, exceptions, pages };
+  const out = { wasm: sections, funcs, globals, tags, exceptions, pages };
+
+  const target = getArg('target') ?? getArg('t') ?? 'wasm';
+  const outFile = getArg('o');
+
+  if (target === 'c') {
+    const c = toc(out);
+
+    if (outFile) {
+      writeFileSync(outFile, c);
+    } else {
+      console.log(c);
+    }
+
+    process.exit();
+  }
+
+  if (target === 'native') {
+    const compiler = getArg('compiler') ?? 'clang';
+    const cO = getArg('cO') ?? 'O3';
+
+    const tmpfile = 'tmp.c';
+    const args = [ compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
+
+    const c = toc(out);
+    writeFileSync(tmpfile, c);
+
+    // obvious command escape is obvious
+    execSync(args.join(' '), { stdio: 'inherit' });
+
+    process.exit();
+  }
+
+  return out;
 };
