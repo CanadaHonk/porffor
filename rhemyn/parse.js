@@ -18,33 +18,33 @@ const getArg = (name, def) => {
 };
 
 // full is spec-compliant but slower. not needed most of the time. (evil)
-const DotChars = ({
+const DotChars = () => ({
   full: [ '\n', '\r', '\u2028', '\u2029' ],
   simple: [ '\n', '\r' ],
   fast: [ '\n' ]
 })[getArg('regex-dot', 'fast')];
 
-const WordChars = ({
+const WordChars = () => ({
   full: [ [ 'a', 'z' ], [ 'A', 'Z' ], [ '0', '9' ], '_' ],
   fast: [ [ '_', 'z' ], [ 'A', 'Z' ], [ '0', '9' ] ] // skip individual _ with _-z BUT it also matches '`'
 })[getArg('regex-word', 'full')];
 
-const WhitespaceChars = ({
+const WhitespaceChars = () => ({
   full: [ ' ', '\t', '\n', '\r', '\u2028', '\u2029' ],
   simple: [ ' ', '\t', '\n', '\r' ]
 })[getArg('regex-ws', 'simple')];
 
 const Metachars = {
   unescaped: {
-    '.': [ DotChars, true ], // dot
+    '.': [ DotChars(), true ], // dot
   },
   escaped: {
     d: [ [ [ '0', '9' ] ], false ], // digit
     D: [ [ [ '0', '9' ] ], true ], // not digit
-    w: [ WordChars, false ], // word
-    W: [ WordChars, true ], // not word
-    s: [ WhitespaceChars, false ], // whitespace
-    S: [ WhitespaceChars, true ], // not whitespace
+    w: [ WordChars(), false ], // word
+    W: [ WordChars(), true ], // not word
+    s: [ WhitespaceChars(), false ], // whitespace
+    S: [ WhitespaceChars(), true ], // not whitespace
   }
 };
 

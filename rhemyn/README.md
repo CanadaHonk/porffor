@@ -31,7 +31,7 @@ made for use with porffor but could possibly be adapted, implementation/library 
   - 🟠 lazy modifier (eg `a*?`)
   - 🔴 n repetitions (eg `a{4}`)
   - 🔴 n-m repetitions (eg `a{2,4}`)
-- 🔴 anchors
+- 🔴 assertions
   - 🔴 beginning (eg `^a`)
   - 🔴 end (eg `a$`)
   - 🔴 word boundary assertion (eg `\b\B`)
