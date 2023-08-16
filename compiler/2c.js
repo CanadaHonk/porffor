@@ -2,8 +2,6 @@ import { read_ieee754_binary64, read_signedLEB128 } from './encoding.js';
 import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
 
-import fs from 'fs';
-
 const CValtype = {
   i8: 'char',
   i16: 'unsigned short', // presume all i16 stuff is unsigned
