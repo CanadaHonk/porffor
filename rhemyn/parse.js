@@ -34,7 +34,7 @@ const WhitespaceChars = () => ({
   simple: [ ' ', '\t', '\n', '\r' ]
 })[getArg('regex-ws', 'simple')];
 
-const Metachars = {
+const _Metachars = () => ({
   unescaped: {
     '.': [ DotChars(), true ], // dot
   },
@@ -46,7 +46,7 @@ const Metachars = {
     s: [ WhitespaceChars(), false ], // whitespace
     S: [ WhitespaceChars(), true ], // not whitespace
   }
-};
+});
 
 const EscapeSequences = {
   f: '\f',
@@ -60,6 +60,8 @@ const EscapeSequences = {
 const HexDigit = /[0-9a-fA-F]/;
 
 export default str => {
+  const Metachars = _Metachars();
+
   const out = {
     type: 'Expression',
     body: []
