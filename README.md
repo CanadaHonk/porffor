@@ -83,6 +83,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - truthy/falsy (eg `!'' == true`)
 - string comparison (eg `'a' == 'a'`, `'a' != 'b'`)
 - nullish coalescing operator (`??`)
+- `for...of` (arrays and strings)
 
 ### built-ins
 
@@ -114,7 +115,6 @@ no particular order and no guarentees, just what could happen soon™
   - more of `Array` prototype
   - arrays/strings inside arrays
   - destructuring
-  - for .. of
 - strings
   - member setting
 - objects

@@ -109,6 +109,9 @@ const generate = (scope, decl, global = false, name = undefined) => {
     case 'WhileStatement':
       return generateWhile(scope, decl);
 
+    case 'ForOfStatement':
+      return generateForOf(scope, decl);
+
     case 'BreakStatement':
       return generateBreak(scope, decl);
 
@@ -729,17 +732,11 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   ];
 };
 
-let binaryExpDepth = 0;
 const generateBinaryExp = (scope, decl, _global, _name) => {
-  binaryExpDepth++;
-
-  const out = [
-    ...performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right), _global, _name)
-  ];
+  const out = performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right), _global, _name);
 
   if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from_u);
 
-  binaryExpDepth--;
   return out;
 };
 
@@ -1564,7 +1561,7 @@ const generateUpdate = (scope, decl) => {
 };
 
 const generateIf = (scope, decl) => {
-  const out = truthy(scope, generate(scope, decl.test), decl.test);
+  const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test));
 
   out.push(Opcodes.i32_to, [ Opcodes.if, Blocktype.void ]);
   depth.push('if');
@@ -1654,9 +1651,116 @@ const generateWhile = (scope, decl) => {
   return out;
 };
 
+const generateForOf = (scope, decl) => {
+  const out = [];
+
+  const rightType = getNodeType(scope, decl.right);
+  const valtypeSize = rightType === TYPES._array ? ValtypeSize[valtype] : ValtypeSize.i16; // presume array (:()
+
+  // todo: for of inside for of might fuck up?
+  const pointer = localTmp(scope, 'forof_base_pointer', Valtype.i32);
+  const length = localTmp(scope, 'forof_length', Valtype.i32);
+  const counter = localTmp(scope, 'forof_counter', Valtype.i32);
+
+  out.push(
+    // set pointer as right
+    ...generate(scope, decl.right),
+    Opcodes.i32_to_u,
+    [ Opcodes.local_set, pointer ],
+
+    // get length
+    [ Opcodes.local_get, pointer ],
+    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+    [ Opcodes.local_set, length ]
+  );
+
+  out.push([ Opcodes.loop, Blocktype.void ]);
+  depth.push('forof');
+
+  // setup local for left
+  generate(scope, decl.left);
+
+  const leftName = decl.left.declarations[0].id.name;
+
+  // set type for local
+  typeStates[leftName] = rightType === TYPES._array ? TYPES.number : TYPES.string;
+
+  const [ local, isGlobal ] = lookupName(scope, leftName);
+
+  if (rightType === TYPES._array) { // array
+    out.push(
+      [ Opcodes.local_get, pointer ],
+      [ Opcodes.load, Math.log2(valtypeSize) - 1, ...unsignedLEB128(ValtypeSize.i32) ]
+    );
+  } else { // string
+    const [ newOut, newPointer ] = makeArray(scope, {
+      rawElements: new Array(1)
+    }, isGlobal, leftName, true, 'i16');
+
+    out.push(
+      // setup new/out array
+      ...newOut,
+      [ Opcodes.drop ],
+
+      ...number(0, Valtype.i32), // base 0 for store after
+
+      // load current string ind {arg}
+      [ Opcodes.local_get, pointer ],
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+
+      // store to new string ind 0
+      [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+
+      // return new string (page)
+      ...number(newPointer)
+    );
+  }
+
+  // set left value
+  out.push([ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ]);
+
+  out.push(
+    [ Opcodes.block, Blocktype.void ],
+    [ Opcodes.block, Blocktype.void ]
+  );
+  depth.push('block');
+  depth.push('block');
+
+  out.push(
+    ...generate(scope, decl.body),
+    [ Opcodes.end ]
+  );
+  depth.pop();
+
+  out.push(
+    // increment iter pointer by valtype size
+    [ Opcodes.local_get, pointer ],
+    ...number(valtypeSize, Valtype.i32),
+    [ Opcodes.i32_add ],
+    [ Opcodes.local_set, pointer ],
+
+    // increment counter by 1
+    [ Opcodes.local_get, counter ],
+    ...number(1, Valtype.i32),
+    [ Opcodes.i32_add ],
+    [ Opcodes.local_tee, counter ],
+
+    // loop if counter != length
+    [ Opcodes.local_get, length ],
+    [ Opcodes.i32_ne ],
+    [ Opcodes.br_if, 1 ],
+
+    [ Opcodes.end ], [ Opcodes.end ]
+  );
+  depth.pop();
+  depth.pop();
+
+  return out;
+};
+
 const getNearestLoop = () => {
   for (let i = depth.length - 1; i >= 0; i--) {
-    if (depth[i] === 'while' || depth[i] === 'for') return i;
+    if (depth[i] === 'while' || depth[i] === 'for' || depth[i] === 'forof') return i;
   }
 
   return -1;
