@@ -100,10 +100,10 @@ export default (code, flags) => {
 
   if (target === 'native') {
     const compiler = getArg('compiler') ?? 'clang';
-    const cO = getArg('cO') ?? 'O3';
+    const cO = getArg('cO') ?? 'Ofast';
 
     const tmpfile = 'tmp.c';
-    const args = [ compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
+    const args = [ compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO, '-march=native' ];
 
     const c = toc(out);
     writeFileSync(tmpfile, c);

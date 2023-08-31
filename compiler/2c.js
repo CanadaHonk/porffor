@@ -34,18 +34,24 @@ const todo = msg => {
   throw new TodoError(`todo: ${msg}`);
 };
 
+const removeBrackets = str => str.startsWith('(') && str.endsWith(')') ? str.slice(1, -1) : str;
+
 export default ({ funcs, globals, tags, exceptions, pages }) => {
-  const invOperatorOpcode = inv(operatorOpcode[valtype]);
+  const invOperatorOpcode = Object.values(operatorOpcode).reduce((acc, x) => {
+    for (const k in x) {
+      acc[x[k]] = k;
+    }
+    return acc;
+  }, {});
   const invGlobals = inv(globals, x => x.idx);
 
-  const includes = new Map();
+  const includes = new Map(), unixIncludes = new Map(), winIncludes = new Map();
   let out = '';
 
   for (const x in globals) {
     const g = globals[x];
 
-    out += `${CValtype[g.type]} ${x}`;
-    if (x.init) out += ` ${x.init}`;
+    out += `${CValtype[g.type]} ${x} = ${g.init ?? 0}`;
     out += ';\n';
   }
 
@@ -56,7 +62,43 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
 
   if (out) out += '\n';
 
+  let depth = 1;
+  const line = (str, semi = true) => out += `${' '.repeat(depth * 2)}${str}${semi ? ';' : ''}\n`;
+  const lines = lines => {
+    for (const x of lines) {
+      out += `${' '.repeat(depth * 2)}${x}\n`;
+    }
+  };
+
+  const platformSpecific = (win, unix, add = true) => {
+    let tmp = '';
+
+    if (win) {
+      if (add) out += '#ifdef _WIN32\n';
+        else tmp += '#ifdef _WIN32\n';
+
+      if (add) lines(win.split('\n'));
+        else tmp += win + (win.endsWith('\n') ? '' : '\n');
+    }
+
+    if (unix) {
+      if (add) out += (win ? '#else' : '#ifndef _WIN32') + '\n';
+        else tmp += (win ? '#else' : '#ifndef _WIN32') + '\n';
+
+      if (add) lines(unix.split('\n'));
+        else tmp += unix + (unix.endsWith('\n') ? '' : '\n');
+    }
+
+    if (win || unix)
+      if (add) out += '#endif\n';
+        else tmp += '#endif\n';
+
+    return tmp;
+  };
+
   for (const f of funcs) {
+    depth = 1;
+
     const invLocals = inv(f.locals, x => x.idx);
     if (f.returns.length > 1) todo('funcs returning >1 value unsupported');
 
@@ -64,16 +106,13 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
 
     const returns = f.returns.length === 1;
 
-    const shouldInline = ['f64_%'].includes(f.name);
+    const shouldInline = f.internal;
     out += `${f.name === 'main' ? 'int' : CValtype[f.returns[0]]} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
-
-    let depth = 1;
-    const line = (str, semi = true) => out += `${' '.repeat(depth * 2)}${str}${semi ? ';' : ''}\n`;
 
     const localKeys = Object.keys(f.locals).sort((a, b) => f.locals[a].idx - f.locals[b].idx).slice(f.params.length).sort((a, b) => f.locals[a].idx - f.locals[b].idx);
     for (const x of localKeys) {
       const l = f.locals[x];
-      line(`${CValtype[l.type]} ${x}`);
+      line(`${CValtype[l.type]} ${x} = 0`);
     }
 
     if (localKeys.length !== 0) out += '\n';
@@ -94,7 +133,8 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
         if (['==', '!=', '>', '>=', '<', '<='].includes(op)) lastCond = true;
           else lastCond = false;
 
-        vals.push(`${a} ${op} ${b}`);
+        // vals.push(`${a} ${op} ${b}`);
+        vals.push(`(${removeBrackets(a)} ${op} ${b})`);
         continue;
       }
 
@@ -118,6 +158,7 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
 
       switch (i[0]) {
         case Opcodes.i32_const:
+        case Opcodes.i64_const:
           vals.push(read_signedLEB128(i.slice(1)).toString());
           break;
 
@@ -130,24 +171,42 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
           break;
 
         case Opcodes.local_set:
-          line(`${invLocals[i[1]]} = ${vals.pop()}`);
+          line(`${invLocals[i[1]]} = ${removeBrackets(vals.pop())}`);
           break;
 
         case Opcodes.local_tee:
-          vals.push(`${invLocals[i[1]]} = ${vals.pop()}`);
+          line(`${invLocals[i[1]]} = ${removeBrackets(vals.pop())}`);
+          vals.push(`${invLocals[i[1]]}`);
+          // vals.push(`${invLocals[i[1]]} = ${vals.pop()}`);
+          break;
+
+        case Opcodes.global_get:
+          vals.push(`${invGlobals[i[1]]}`);
+          break;
+
+        case Opcodes.global_set:
+          line(`${invGlobals[i[1]]} = ${removeBrackets(vals.pop())}`);
           break;
 
         case Opcodes.f64_trunc:
           // vals.push(`trunc(${vals.pop()})`);
-          vals.push(`(int)(${vals.pop()})`); // this is ~10x faster with clang. what the fuck.
+          vals.push(`(int)(${removeBrackets(vals.pop())})`); // this is ~10x faster with clang??
+          break;
+
+        case Opcodes.f64_convert_i32_u:
+        case Opcodes.f64_convert_i32_s:
+        case Opcodes.f64_convert_i64_u:
+        case Opcodes.f64_convert_i64_s:
+          // int to double
+          vals.push(`(double)${vals.pop()}`);
           break;
 
         case Opcodes.return:
-          line(`return${returns ? ` ${vals.pop()}` : ''}`);
+          line(`return${returns ? ` ${removeBrackets(vals.pop())}` : ''}`);
           break;
 
         case Opcodes.if:
-          let cond = vals.pop();
+          let cond = removeBrackets(vals.pop());
           if (!lastCond) {
             if (cond.startsWith('(long)')) cond = `${cond.slice(6)} == 1e+0`;
               else cond += ' == 1';
@@ -212,12 +271,44 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
                 line(`printf("%f\\n", ${vals.pop()})`);
                 includes.set('stdio.h', true);
                 break;
+
+              case 'time':
+                line(`double _time_out`);
+                /* platformSpecific(
+`FILETIME _time_filetime;
+GetSystemTimeAsFileTime(&_time_filetime);
+
+ULARGE_INTEGER _time_ularge;
+_time_ularge.LowPart = _time_filetime.dwLowDateTime;
+_time_ularge.HighPart = _time_filetime.dwHighDateTime;
+_time_out = (_time_ularge.QuadPart - 116444736000000000i64) / 10000.;`,
+`struct timespec _time;
+clock_gettime(CLOCK_MONOTONIC, &_time);
+_time_out = _time.tv_nsec / 1000000.;`); */
+                platformSpecific(
+`LARGE_INTEGER _time_freq, _time_t;
+QueryPerformanceFrequency(&_time_freq);
+QueryPerformanceCounter(&_time_t);
+_time_out = ((double)_time_t.QuadPart / _time_freq.QuadPart) * 1000.;`,
+`struct timespec _time;
+clock_gettime(CLOCK_MONOTONIC, &_time);
+_time_out = _time.tv_nsec / 1000000.;`);
+                vals.push(`_time_out`);
+
+                unixIncludes.set('time.h', true);
+                winIncludes.set('windows.h', true);
+                break;
+
+              default:
+                log('2c', `unimplemented import: ${importFunc.name}`);
+                break;
             }
+
             break;
           }
 
           let args = [];
-          for (let j = 0; j < func.params.length; j++) args.unshift(vals.pop());
+          for (let j = 0; j < func.params.length; j++) args.unshift(removeBrackets(vals.pop()));
 
           if (func.returns.length === 1) vals.push(`${sanitize(func.name)}(${args.join(', ')})`)
             else line(`${sanitize(func.name)}(${args.join(', ')})`);
@@ -249,7 +340,11 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
     out += '}\n\n';
   }
 
-  out = [...includes.keys()].map(x => `#include <${x}>`).join('\n') + '\n\n' + out;
+  depth = 0;
+
+  const makeIncludes = includes => [...includes.keys()].map(x => `#include <${x}>\n`).join('');
+
+  out = platformSpecific(makeIncludes(winIncludes), makeIncludes(unixIncludes), false) + '\n' + makeIncludes(includes) + '\n' + out;
 
   return out;
 };
