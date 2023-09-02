@@ -152,44 +152,65 @@ const generate = (scope, decl, global = false, name = undefined) => {
 
       return [];
 
-    case 'TaggedTemplateExpression':
-      // hack for inline asm
-      if (decl.tag.name !== 'asm') return todo('tagged template expressions not implemented');
+    case 'TaggedTemplateExpression': {
+      const funcs = {
+        asm: str => {
+          let out = [];
 
-      const str = decl.quasi.quasis[0].value.raw;
-      let out = [];
+          for (const line of str.split('\n')) {
+            const asm = line.trim().split(';;')[0].split(' ');
+            if (asm[0] === '') continue; // blank
 
-      for (const line of str.split('\n')) {
-        const asm = line.trim().split(';;')[0].split(' ');
-        if (asm[0] === '') continue; // blank
+            if (asm[0] === 'local') {
+              const [ name, idx, type ] = asm.slice(1);
+              scope.locals[name] = { idx: parseInt(idx), type: Valtype[type] };
+              continue;
+            }
 
-        if (asm[0] === 'local') {
-          const [ name, idx, type ] = asm.slice(1);
-          scope.locals[name] = { idx: parseInt(idx), type: Valtype[type] };
-          continue;
+            if (asm[0] === 'returns') {
+              scope.returns = asm.slice(1).map(x => Valtype[x]);
+              continue;
+            }
+
+            if (asm[0] === 'memory') {
+              allocPage('asm instrinsic');
+              // todo: add to store/load offset insts
+              continue;
+            }
+
+            let inst = Opcodes[asm[0].replace('.', '_')];
+            if (!inst) throw new Error(`inline asm: inst ${asm[0]} not found`);
+
+            if (!Array.isArray(inst)) inst = [ inst ];
+            const immediates = asm.slice(1).map(x => parseInt(x));
+
+            out.push([ ...inst, ...immediates ]);
+          }
+
+          return out;
+        },
+
+        __internal_print_type: str => {
+          const type = getType(scope, str) - TYPES.number;
+
+          return [
+            ...number(type),
+            [ Opcodes.call, importedFuncs.print ],
+
+            // newline
+            ...number(10),
+            [ Opcodes.call, importedFuncs.printChar ]
+          ];
         }
-
-        if (asm[0] === 'returns') {
-          scope.returns = asm.slice(1).map(x => Valtype[x]);
-          continue;
-        }
-
-        if (asm[0] === 'memory') {
-          allocPage('asm instrinsic');
-          // todo: add to store/load offset insts
-          continue;
-        }
-
-        let inst = Opcodes[asm[0].replace('.', '_')];
-        if (!inst) throw new Error(`inline asm: inst ${asm[0]} not found`);
-
-        if (!Array.isArray(inst)) inst = [ inst ];
-        const immediates = asm.slice(1).map(x => parseInt(x));
-
-        out.push([ ...inst, ...immediates ]);
       }
 
-      return out;
+      const name = decl.tag.name;
+      // hack for inline asm
+      if (!funcs[name]) return todo('tagged template expressions not implemented');
+
+      const str = decl.quasi.quasis[0].value.raw;
+      return funcs[name](str);
+    }
 
     default:
       return todo(`no generation for ${decl.type}!`);
@@ -993,6 +1014,8 @@ const countLeftover = wasm => {
           } else count--;
           if (func) count += func.returns.length;
         } else count--;
+
+    // console.log(count, decompile([ inst ]).slice(0, -1));
   }
 
   return count;
@@ -1396,6 +1419,47 @@ const generateAssign = (scope, decl) => {
     ];
   }
 
+  if (decl.left.type === 'MemberExpression' && decl.left.computed) {
+    // arr[i] | str[i]
+    const name = decl.left.object.name;
+    const pointer = arrays.get(name);
+
+    const aotPointer = pointer != null;
+
+    const newValueTmp = localTmp(scope, '__member_setter_tmp');
+
+    const parentType = getNodeType(scope, decl.left.object);
+
+    const op = decl.operator.slice(0, -1);
+    return [
+      ...(aotPointer ? number(0, Valtype.i32) : [
+        ...generate(scope, decl.left.object),
+        Opcodes.i32_to_u
+      ]),
+
+      // get index as valtype
+      ...generate(scope, decl.left.property),
+
+      // convert to i32 and turn into byte offset by * valtypeSize (4 for i32, 8 for i64/f64)
+      Opcodes.i32_to_u,
+      ...number(ValtypeSize[valtype], Valtype.i32),
+      [ Opcodes.i32_mul ],
+      [ Opcodes.i32_add ],
+
+      ...(op === '' ? generate(scope, decl.right, false, name) : performOp(scope, op, generate(scope, decl.left), generate(scope, decl.right), parentType === TYPES._array ? TYPES.number : TYPES.string, getNodeType(scope, decl.right), false, name, true)),
+      [ Opcodes.local_tee, newValueTmp ],
+
+      ...(parentType === TYPES._array ? [
+        [ Opcodes.store, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
+      ] : [
+        Opcodes.i32_to_u,
+        [ StoreOps.i16, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
+      ]),
+
+      [ Opcodes.local_get, newValueTmp ]
+    ];
+  }
+
   const [ local, isGlobal ] = lookupName(scope, name);
 
   if (local === undefined) {
@@ -1416,8 +1480,10 @@ const generateAssign = (scope, decl) => {
     ];
   }
 
+  typeStates[name] = getNodeType(scope, decl.right);
+
   if (decl.operator === '=') {
-    typeStates[name] = getNodeType(scope, decl.right);
+    // typeStates[name] = getNodeType(scope, decl.right);
 
     return [
       ...generate(scope, decl.right, isGlobal, name),
@@ -1873,7 +1939,7 @@ const itemTypeToValtype = {
   i16: 'i32'
 };
 
-const storeOps = {
+const StoreOps = {
   i32: Opcodes.i32_store,
   i64: Opcodes.i64_store,
   f64: Opcodes.f64_store,
@@ -1905,7 +1971,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
   );
 
-  const storeOp = storeOps[itemType];
+  const storeOp = StoreOps[itemType];
   const valtype = itemTypeToValtype[itemType];
 
   if (!initEmpty) for (let i = 0; i < length; i++) {

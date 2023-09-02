@@ -84,6 +84,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - string comparison (eg `'a' == 'a'`, `'a' != 'b'`)
 - nullish coalescing operator (`??`)
 - `for...of` (arrays and strings)
+- array member setting (`arr[0] = 2`)
 
 ### built-ins
 
@@ -111,7 +112,6 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 no particular order and no guarentees, just what could happen soon™
 
 - arrays
-  - member setting (`arr[0] = 2`)
   - more of `Array` prototype
   - arrays/strings inside arrays
   - destructuring
