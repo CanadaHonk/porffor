@@ -103,6 +103,9 @@ function timeout(function_, timeout) {
   return context.returnValue;
 }
 
+const trackPages = process.argv.includes('-pages');
+const trackErrors = process.argv.includes('-errors');
+
 const run = async ({ file, contents, attrs }) => {
   const singleContents = contents.split('---*/').pop();
 
@@ -116,11 +119,16 @@ const run = async ({ file, contents, attrs }) => {
   const flags = [];
   if (attrs.flags.module) flags.push('module');
 
-  let exports;
+  let exports, pages;
   try {
-    0, { exports } = await compile(toRun, flags);
+    0, { exports, pages } = await compile(toRun, flags);
   } catch (e) {
     return [ 0, e ];
+  }
+
+  if (trackPages) {
+    if (!pagesUsed.has(pages.size)) pagesUsed.set(pages.size, []);
+    pagesUsed.set(pages.size, pagesUsed.get(pages.size).concat(file.replaceAll('\\', '/').slice(5)));
   }
 
   try {
@@ -153,7 +161,7 @@ const start = performance.now();
 const passFiles = [];
 const wasmErrorFiles = [];
 const compileErrorFiles = [];
-let dirs = new Map(), features = new Map();
+let dirs = new Map(), features = new Map(), errors = new Map(), pagesUsed = new Map();
 let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0, todos = 0;
 for await (const test of tests) {
   const file = test.file.replaceAll('\\', '/').slice(5);
@@ -171,9 +179,15 @@ for await (const test of tests) {
   let pass = errored === expected;
   if (pass && expected) pass = result.constructor.name === expectedType;
 
+  if (trackErrors && errored && result && result.message) {
+    const errorStr = `${result.constructor.name}: ${result.message}`;
+    if (!errors.has(errorStr)) errors.set(errorStr, []);
+    errors.set(errorStr, errors.get(errorStr).concat(file));
+  }
+
   if (pass) passes++;
 
-  if (!pass && result && result.message.startsWith('todo:')) todos++;
+  if (!pass && result && result.message && result.message.startsWith('todo:')) todos++;
   else if (!pass && stage === 0) {
     if (result.constructor.name === 'CompileError') {
       wasmErrors++;
@@ -206,7 +220,7 @@ for await (const test of tests) {
     y.total = (y.total ?? 0) + 1;
 
     let k = pass ? 'pass' : 'unknown';
-    if (!pass && result && result.message.startsWith('todo:')) k = 'todo';
+    if (!pass && result && result.message && result.message.startsWith('todo:')) k = 'todo';
     else if (!pass && stage === 0) {
       if (result.constructor.name === 'CompileError') k = 'wasmError';
         else k = 'compileError';
@@ -312,3 +326,23 @@ if (whatTests === 'test') {
 }
 
 console.log(`\u001b[90mtook ${((performance.now() - start) / 1000).toFixed(1)}s to run (${((performance.now() - veryStart) / 1000).toFixed(1)}s total)\u001b[0m`);
+
+if (trackErrors) {
+  console.log('\n');
+
+  for (const x of [...errors.keys()].sort((a, b) => errors.get(a).length - errors.get(b).length)) {
+    console.log(`${errors.get(x).length.toString().padStart(4, ' ')} ${x}`);
+  }
+
+  console.log();
+
+  const errorsByClass = [...errors.keys()].reduce((acc, x) => {
+    const k = x.slice(0, x.indexOf(':'));
+    acc[k] = (acc[k] ?? []).concat(errors.get(x));
+    return acc;
+  }, {});
+
+  for (const x of Object.keys(errorsByClass).sort((a, b) => errorsByClass[b].length - errorsByClass[a].length)) {
+    console.log(`${errorsByClass[x].length.toString().padStart(4, ' ')} ${x}`);
+  }
+}
