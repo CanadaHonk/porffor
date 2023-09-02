@@ -1,7 +1,7 @@
 // "0 1 1 2 3 5 8 13 21 34 55 "
 const p = x => {
   print(x);
-  printChar(' ');
+  printChar(32);
 };
 
 let a = 0, b = 1;
