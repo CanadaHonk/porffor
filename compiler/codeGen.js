@@ -1279,7 +1279,7 @@ const generateCall = (scope, decl, _global, _name) => {
   if (func && func.throws) scope.throws = true;
 
   for (const arg of args) {
-    out.push(...generate(scope, arg));
+    out = out.concat(generate(scope, arg));
   }
 
   out.push([ Opcodes.call, idx ]);
@@ -2296,10 +2296,10 @@ const generateFunc = (scope, decl) => {
 };
 
 const generateCode = (scope, decl) => {
-  const out = [];
+  let out = [];
 
   for (const x of decl.body) {
-    out.push(...generate(scope, x));
+    out = out.concat(generate(scope, x));
   }
 
   return out;
