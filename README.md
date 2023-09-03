@@ -1,6 +1,6 @@
 # porffor
 a basic experimental wip *aot* optimizing js -> wasm/c engine/compiler/runtime in js. not serious/intended for (real) use. (this is a straight forward, honest readme)<br>
-age: ~1 month
+age: ~2 months
 
 ## design
 porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. key differences:
@@ -135,7 +135,7 @@ no particular order and no guarentees, just what could happen soon™
   - use data segments for initing arrays
 
 ## porfformance
-*for the things it supports*, porffor is blazingly faster compared to most interpreters, and engines running without JIT. for those with JIT, it is not that much slower like a traditional interpreter would be.
+*for the things it supports most of the time*, porffor is blazingly fast compared to most interpreters, and common engines running without JIT. for those with JIT, it is not that much slower like a traditional interpreter would be; mostly the same or a bit faster/slower depending on what.
 
 ![Screenshot of comparison chart](https://github.com/CanadaHonk/porffor/assets/19228318/76c75264-cc68-4be1-8891-c06dc389d97a)
 

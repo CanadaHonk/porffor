@@ -801,7 +801,7 @@
     <h1 class="tagline">a basic experimental wip AOT optimizing JS -> Wasm compiler in JS</h1>
     <!-- <h2 class="subtag">about as insane as it sounds</h2> -->
 
-    <p>porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. made from scratch except parser. began ~3 weeks ago.</p>
+    <p>porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. made from scratch except parser. began ~2 months ago.</p>
     <!-- <ul>
       <li>100% aot compiled</li>
       <li>everything is a number</li>
@@ -1067,7 +1067,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
     const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+(\.[0-9]+)?)%/)?.[1]);
     const getCommitDetails = x => x.commit.message.trim().split('\n').pop().split(' | ').slice(1).map(x => x.split(' ')[1]);
 
-    const graphData = {};
+    let graphData = {};
     for (let i = 0; i < commits.length; i++) {
       const x = commits[i];
       const msg = x.commit.message.trim().split('\n');
@@ -1114,13 +1114,44 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
     }
 
     let last = [];
-    for (let i = 8; i <= (new Date()).getDate(); i++) {
+    for (let i = 8; i <= 31; i++) {
       const key = `${i.toString().padStart(2, '0')}/07`;
       if (!graphData[key]) graphData[key] = last;
         else last = graphData[key];
     }
 
-    for (const x of Object.keys(graphData).sort((a, b) => parseInt(a.slice(0, 2)) - parseInt(b.slice(0, 2)))) {
+    for (let i = 1; i <= 31; i++) {
+      const key = `${i.toString().padStart(2, '0')}/08`;
+      if (!graphData[key]) graphData[key] = last;
+        else last = graphData[key];
+    }
+
+    for (let i = 1; i <= (new Date()).getDate(); i++) {
+      const key = `${i.toString().padStart(2, '0')}/09`;
+      if (!graphData[key]) graphData[key] = last;
+        else last = graphData[key];
+    }
+
+    const _graphData = graphData;
+    graphData = {};
+
+    // daily to weekly
+    for (let j = 7; j <= 9; j++) {
+      for (let i = 1; i <= 31; i += 7) {
+        let data;
+        for (let x = 0; x < 7; x++) {
+          const key = `${(i + x).toString().padStart(2, '0')}/${j.toString().padStart(2, '0')}`;
+          if (_graphData[key]) data = _graphData[key];
+        }
+
+        const key = `${i.toString().padStart(2, '0')}/${j.toString().padStart(2, '0')}`;
+        if (data) graphData[key] = data;
+      }
+    }
+
+    const dateVal = x => parseInt(x.slice(3, 5) + x.slice(0, 2));
+
+    for (const x of Object.keys(graphData).sort((a, b) => dateVal(a) - dateVal(b))) {
       const details = graphData[x];
       const [ total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos ] = details;
 
