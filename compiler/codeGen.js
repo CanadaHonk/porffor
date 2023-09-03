@@ -686,20 +686,35 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
 
   if (codeLog && (!leftType || !rightType)) log('codegen', 'untracked type in op', op, _name, '\n' + new Error().stack.split('\n').slice(1).join('\n'));
 
-  // if strict (in)equal and known types mismatch, return false (===)/true (!==)
-  if ((op === '===' || op === '!==') && leftType && rightType && leftType !== rightType) {
+  const eqOp = ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(op);
+
+  if (leftType && rightType && (
+    // if strict (in)equal and known types mismatch, return false (===)/true (!==)
+    ((op === '===' || op === '!==') && leftType !== rightType) ||
+
+    // if equality op and an operand is undefined, return false
+    (eqOp && leftType === TYPES.undefined ^ rightType === TYPES.undefined)
+  )) {
+    // undefined == null
+    if (((leftType === TYPES.undefined && rightType === TYPES.object) || (leftType === TYPES.object && rightType === TYPES.undefined)) && (op === '==' || op === '!=')) return [
+      ...(leftType === TYPES.object ? left : right),
+      ...Opcodes.eqz,
+      ...(op === '!=' ? [ [ Opcodes.i32_eqz ] ] : [])
+    ];
+
     return [
       ...left,
+      [ Opcodes.drop ],
+
       ...right,
-
-      // drop values
-      [ Opcodes.drop ],
       [ Opcodes.drop ],
 
-      // return false (===)/true (!==)
-      ...number(op === '===' ? 0 : 1, Valtype.i32)
+      // return true (!=/!==) or false (else)
+      ...number(op === '!=' || op === '!==' ? 1 : 0, Valtype.i32)
     ];
   }
+
+  // todo: niche null hell with 0
 
   if (leftType === TYPES.string || rightType === TYPES.string) {
     if (op === '+') {
@@ -707,8 +722,8 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       return concatStrings(scope, left, right, _global, _name, assign);
     }
 
-    // any other math op, NaN
-    if (!['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(op)) return number(NaN);
+    // not an equality op, NaN
+    if (!eqOp) return number(NaN);
 
     // else leave bool ops
     // todo: convert string to number if string and number/bool
