@@ -1217,25 +1217,34 @@ const generateCall = (scope, decl, _global, _name) => {
     // use local for cached i32 length as commonly used
     let lengthLocal = localTmp(scope, '__proto_length_cache', Valtype.i32);
 
+    let lengthI32CacheUsed = false;
+
+    const protoOut = protoFunc(pointer, {
+      getCachedI32: () => {
+        lengthI32CacheUsed = true;
+        return [ [ Opcodes.local_get, lengthLocal ] ]
+      },
+      setCachedI32: () => [ [ Opcodes.local_set, lengthLocal ] ],
+      get: () => arrayUtil.getLength(pointer),
+      getI32: () => arrayUtil.getLengthI32(pointer),
+      set: value => arrayUtil.setLength(pointer, value),
+      setI32: value => arrayUtil.setLengthI32(pointer, value)
+    }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, (length, itemType) => {
+      return makeArray(scope, {
+        rawElements: new Array(length)
+      }, _global, _name, true, itemType);
+    });
+
     return [
       ...out,
 
-      ...arrayUtil.getLengthI32(pointer),
-      [ Opcodes.local_set, lengthLocal ],
+      ...(!lengthI32CacheUsed ? [] : [
+        ...arrayUtil.getLengthI32(pointer),
+        [ Opcodes.local_set, lengthLocal ],
+      ]),
 
       [ Opcodes.block, valtypeBinary ],
-      ...protoFunc(pointer, {
-        getCachedI32: () => [ [ Opcodes.local_get, lengthLocal ] ],
-        setCachedI32: () => [ [ Opcodes.local_set, lengthLocal ] ],
-        get: () => arrayUtil.getLength(pointer),
-        getI32: () => arrayUtil.getLengthI32(pointer),
-        set: value => arrayUtil.setLength(pointer, value),
-        setI32: value => arrayUtil.setLengthI32(pointer, value)
-      }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, (length, itemType) => {
-        return makeArray(scope, {
-          rawElements: new Array(length)
-        }, _global, _name, true, itemType);
-      }),
+      ...protoOut,
       [ Opcodes.end ]
     ];
   }
