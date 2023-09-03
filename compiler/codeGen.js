@@ -1444,6 +1444,9 @@ const generateAssign = (scope, decl) => {
     ];
   }
 
+  const op = decl.operator.slice(0, -1) || '=';
+
+  // arr[i] | str[i]
   if (decl.left.type === 'MemberExpression' && decl.left.computed) {
     // arr[i] | str[i]
     const name = decl.left.object.name;
@@ -1451,13 +1454,13 @@ const generateAssign = (scope, decl) => {
 
     const aotPointer = pointer != null;
 
-    const newValueTmp = localTmp(scope, '__member_setter_tmp');
+    const newValueTmp = localTmp(scope, '__member_setter_val_tmp');
+    const pointerTmp = op === '=' ? -1 : localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
     const parentType = getNodeType(scope, decl.left.object);
 
-    const op = decl.operator.slice(0, -1);
     return [
-      ...(aotPointer ? number(0, Valtype.i32) : [
+      ...(aotPointer ? [] : [
         ...generate(scope, decl.left.object),
         Opcodes.i32_to_u
       ]),
@@ -1469,9 +1472,13 @@ const generateAssign = (scope, decl) => {
       Opcodes.i32_to_u,
       ...number(ValtypeSize[valtype], Valtype.i32),
       [ Opcodes.i32_mul ],
-      [ Opcodes.i32_add ],
+      ...(aotPointer ? [] : [ [ Opcodes.i32_add ] ]),
+      ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-      ...(op === '' ? generate(scope, decl.right, false, name) : performOp(scope, op, generate(scope, decl.left), generate(scope, decl.right), parentType === TYPES._array ? TYPES.number : TYPES.string, getNodeType(scope, decl.right), false, name, true)),
+      ...(op === '=' ? generate(scope, decl.right, false, name) : performOp(scope, op, [
+        [ Opcodes.local_get, pointerTmp ],
+        [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
+      ], generate(scope, decl.right), parentType === TYPES._array ? TYPES.number : TYPES.string, getNodeType(scope, decl.right), false, name, true)),
       [ Opcodes.local_tee, newValueTmp ],
 
       ...(parentType === TYPES._array ? [
@@ -1491,7 +1498,7 @@ const generateAssign = (scope, decl) => {
     // todo: this should be a devtools/repl/??? only thing
 
     // only allow = for this
-    if (decl.operator !== '=') return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
+    if (op !== '=') return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
 
     if (builtinVars[name]) {
       // just return rhs (eg `NaN = 2`)
@@ -1507,7 +1514,7 @@ const generateAssign = (scope, decl) => {
 
   typeStates[name] = getNodeType(scope, decl.right);
 
-  if (decl.operator === '=') {
+  if (op === '=') {
     // typeStates[name] = getNodeType(scope, decl.right);
 
     return [
@@ -1517,7 +1524,6 @@ const generateAssign = (scope, decl) => {
     ];
   }
 
-  const op = decl.operator.slice(0, -1);
   if (op === '||' || op === '&&' || op === '??') {
     // todo: is this needed?
     // for logical assignment ops, it is not left @= right ~= left = left @ right
