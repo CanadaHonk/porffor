@@ -48,6 +48,45 @@ assert.notSameValue = function (actual, unexpected) {
   throw new Test262Error('assert.notSameValue failed');
 };
 
+/// compareArray.js
+// hack: this has to be before the actual function decl (which is invalid)
+compareArray.isSameValue = function(a, b) {
+  if (a === 0 && b === 0) return 1 / a === 1 / b;
+  if (a !== a && b !== b) return true;
+
+  return a === b;
+};
+
+function compareArray(a, b) {
+  // if either are nullish
+  if (a == null || b == null) return false;
+
+  // megahack: all arrays from now on will be >0 pointer
+  const _hack = '';
+
+  // hack: enforce type inference of being arrays
+  a ??= [];
+  b ??= [];
+
+  if (b.length !== a.length) {
+    return false;
+  }
+
+  for (var i = 0; i < a.length; i++) {
+    if (!compareArray.isSameValue(b[i], a[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+assert.compareArray = function(actual, expected) {
+  if (compareArray(actual, expected)) return;
+
+  throw new Test262Error('assert.compareArray failed');
+};
+
 /// tcoHelper.js
 var $MAX_ITERATIONS = 100000;
 

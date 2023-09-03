@@ -1225,9 +1225,10 @@ const generateCall = (scope, decl, _global, _name) => {
 
       [ Opcodes.block, valtypeBinary ],
       ...protoFunc(pointer, {
-        cachedI32: [ [ Opcodes.local_get, lengthLocal ] ],
-        get: arrayUtil.getLength(pointer),
-        getI32: arrayUtil.getLengthI32(pointer),
+        getCachedI32: () => [ [ Opcodes.local_get, lengthLocal ] ],
+        setCachedI32: () => [ [ Opcodes.local_set, lengthLocal ] ],
+        get: () => arrayUtil.getLength(pointer),
+        getI32: () => arrayUtil.getLengthI32(pointer),
         set: value => arrayUtil.setLength(pointer, value),
         setI32: value => arrayUtil.setLengthI32(pointer, value)
       }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, (length, itemType) => {

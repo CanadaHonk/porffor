@@ -23,6 +23,7 @@ const TYPES = {
 
 export const PrototypeFuncs = function() {
   const noUnlikelyChecks = process.argv.includes('-funsafe-no-unlikely-proto-checks');
+  const noCCAChecks = process.argv.includes('-funsafe-no-charcodeat-checks');
 
   this[TYPES._array] = {
     // lX = local accessor of X ({ get, set }), iX = local index of X, wX = wasm ops of X
@@ -36,7 +37,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_lt_s ],
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, iTmp ],
-      ...length.cachedI32,
+      ...length.getCachedI32(),
       [ Opcodes.i32_add ],
       [ Opcodes.local_set, iTmp ],
       [ Opcodes.end ],
@@ -47,7 +48,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_lt_s ],
 
       [ Opcodes.local_get, iTmp ],
-      ...length.cachedI32,
+      ...length.getCachedI32(),
       [ Opcodes.i32_ge_s ],
       [ Opcodes.i32_or ],
 
@@ -67,7 +68,7 @@ export const PrototypeFuncs = function() {
     // todo: only for 1 argument
     push: (pointer, length, wNewMember) => [
       // get memory offset of array at last index (length)
-      ...length.cachedI32,
+      ...length.getCachedI32(),
       ...number(ValtypeSize[valtype], Valtype.i32),
       [ Opcodes.i32_mul ],
 
@@ -79,17 +80,17 @@ export const PrototypeFuncs = function() {
 
       // bump array length by 1 and return it
       ...length.setI32([
-        ...length.cachedI32,
+        ...length.getCachedI32(),
         ...number(1, Valtype.i32),
         [ Opcodes.i32_add ]
       ]),
 
-      ...length.get
+      ...length.get()
     ],
 
     pop: (pointer, length) => [
       // if length == 0, noop
-      ...length.cachedI32,
+      ...length.getCachedI32(),
       [ Opcodes.i32_eqz ],
       [ Opcodes.if, Blocktype.void ],
       ...number(UNDEFINED),
@@ -100,13 +101,13 @@ export const PrototypeFuncs = function() {
 
       // decrement length by 1
       ...length.setI32([
-        ...length.cachedI32,
+        ...length.getCachedI32(),
         ...number(1, Valtype.i32),
         [ Opcodes.i32_sub ]
       ]),
 
       // load last element
-      ...length.cachedI32,
+      ...length.getCachedI32(),
       ...number(ValtypeSize[valtype], Valtype.i32),
       [ Opcodes.i32_mul ],
 
@@ -115,7 +116,7 @@ export const PrototypeFuncs = function() {
 
     shift: (pointer, length) => [
       // if length == 0, noop
-      ...length.cachedI32,
+      ...length.getCachedI32(),
       Opcodes.i32_eqz,
       [ Opcodes.if, Blocktype.void ],
       ...number(UNDEFINED),
@@ -126,7 +127,7 @@ export const PrototypeFuncs = function() {
 
       // decrement length by 1
       ...length.setI32([
-        ...length.cachedI32,
+        ...length.getCachedI32(),
         ...number(1, Valtype.i32),
         [ Opcodes.i32_sub ]
       ]),
@@ -140,11 +141,66 @@ export const PrototypeFuncs = function() {
       ...number(pointer + ValtypeSize.i32 + ValtypeSize[valtype], Valtype.i32), // src = base array index + length size + an index
       ...number(pageSize - ValtypeSize.i32 - ValtypeSize[valtype], Valtype.i32), // size = PageSize - length size - an index
       [ ...Opcodes.memory_copy, 0x00, 0x00 ]
+    ],
+
+    fill: (pointer, length, wElement, iTmp) => [
+      ...wElement,
+      [ Opcodes.local_set, iTmp ],
+
+      // use cached length i32 as pointer
+      ...length.getCachedI32(),
+
+      // length - 1 for indexes
+      ...number(1, Valtype.i32),
+      [ Opcodes.i32_sub ],
+
+      // * sizeof value
+      ...number(ValtypeSize[valtype], Valtype.i32),
+      [ Opcodes.i32_mul ],
+
+      ...length.setCachedI32(),
+
+      ...(noUnlikelyChecks ? [] : [
+        ...length.getCachedI32(),
+        ...number(0, Valtype.i32),
+        [ Opcodes.i32_lt_s ],
+        [ Opcodes.if, Blocktype.void ],
+        ...number(pointer),
+        [ Opcodes.br, 1 ],
+        [ Opcodes.end ]
+      ]),
+
+      [ Opcodes.loop, Blocktype.void ],
+
+      // set element using pointer
+      ...length.getCachedI32(),
+      [ Opcodes.local_get, iTmp ],
+      [ Opcodes.store, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(pointer + ValtypeSize.i32) ],
+
+      // pointer - sizeof value
+      ...length.getCachedI32(),
+      ...number(ValtypeSize[valtype], Valtype.i32),
+      [ Opcodes.i32_sub ],
+
+      ...length.setCachedI32(),
+
+      // if pointer >= 0, loop
+      ...length.getCachedI32(),
+      ...number(0, Valtype.i32),
+      [ Opcodes.i32_ge_s ],
+      [ Opcodes.br_if, 0 ],
+
+      [ Opcodes.end ],
+
+      // return this array
+      ...number(pointer)
     ]
   };
 
   this[TYPES._array].at.local = Valtype.i32;
   this[TYPES._array].push.noArgRetLength = true;
+  this[TYPES._array].fill.local = valtypeBinary;
+  this[TYPES._array].fill.returnType = TYPES._array;
 
   this[TYPES.string] = {
     at: (pointer, length, wIndex, iTmp, arrayShell) => {
@@ -166,7 +222,7 @@ export const PrototypeFuncs = function() {
         [ Opcodes.i32_lt_s ],
         [ Opcodes.if, Blocktype.void ],
         [ Opcodes.local_get, iTmp ],
-        ...length.cachedI32,
+        ...length.getCachedI32(),
         [ Opcodes.i32_add ],
         [ Opcodes.local_set, iTmp ],
         [ Opcodes.end ],
@@ -177,7 +233,7 @@ export const PrototypeFuncs = function() {
         [ Opcodes.i32_lt_s ],
 
         [ Opcodes.local_get, iTmp ],
-        ...length.cachedI32,
+        ...length.getCachedI32(),
         [ Opcodes.i32_ge_s ],
         [ Opcodes.i32_or ],
 
@@ -233,27 +289,31 @@ export const PrototypeFuncs = function() {
       return [
         ...wIndex,
         Opcodes.i32_to,
-        [ Opcodes.local_set, iTmp ],
 
-        // index < 0
-        ...(noUnlikelyChecks ? [] : [
+        ...(noCCAChecks ? [] : [
+          [ Opcodes.local_set, iTmp ],
+
+          // index < 0
+          ...(noUnlikelyChecks ? [] : [
+            [ Opcodes.local_get, iTmp ],
+            ...number(0, Valtype.i32),
+            [ Opcodes.i32_lt_s ],
+          ]),
+
+          // index >= length
           [ Opcodes.local_get, iTmp ],
-          ...number(0, Valtype.i32),
-          [ Opcodes.i32_lt_s ],
+          ...length.getCachedI32(),
+          [ Opcodes.i32_ge_s ],
+
+          ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
+          [ Opcodes.if, Blocktype.void ],
+          ...number(NaN),
+          [ Opcodes.br, 1 ],
+          [ Opcodes.end ],
+
+          [ Opcodes.local_get, iTmp ],
         ]),
 
-        // index >= length
-        [ Opcodes.local_get, iTmp ],
-        ...length.cachedI32,
-        [ Opcodes.i32_ge_s ],
-
-        ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
-        [ Opcodes.if, Blocktype.void ],
-        ...number(NaN),
-        [ Opcodes.br, 1 ],
-        [ Opcodes.end ],
-
-        [ Opcodes.local_get, iTmp ],
         ...number(ValtypeSize.i16, Valtype.i32),
         [ Opcodes.i32_mul ],
 
