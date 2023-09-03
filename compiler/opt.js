@@ -317,27 +317,23 @@ export default (funcs, globals) => {
         continue;
       }
 
+      // remove unneeded before get with update exprs (n++, etc) when value is unused
+      if (i < wasm.length - 4 && lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_get && inst[0] === Opcodes.local_get && wasm[i + 1][0] === Opcodes.const && [Opcodes.add, Opcodes.sub].includes(wasm[i + 2][0]) && wasm[i + 3][0] === Opcodes.local_set && wasm[i + 3][1] === inst[1] && (wasm[i + 4][0] === Opcodes.drop || wasm[i + 4][0] === Opcodes.br)) {
+        // local.get 1
+        // local.get 1
+        // -->
+        // local.get 1
+
+        // remove drop at the end as well
+        if (wasm[i + 4][0] === Opcodes.drop) wasm.splice(i + 4, 1);
+
+        wasm.splice(i, 1); // remove this inst (second get)
+        i--;
+        continue;
+      }
+
       if (i < 2) continue;
       const lastLastInst = wasm[i - 2];
-
-      if (depth.length === 2) {
-        // hack to remove unneeded before get in for loops with (...; i++)
-        if (lastLastInst[0] === Opcodes.end && lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_get && inst[0] === Opcodes.local_get) {
-          // local.get 1
-          // local.get 1
-          // -->
-          // local.get 1
-
-          // remove drop at the end as well
-          if (wasm[i + 4][0] === Opcodes.drop) {
-            wasm.splice(i + 4, 1);
-          }
-
-          wasm.splice(i, 1); // remove this inst (second get)
-          i--;
-          continue;
-        }
-      }
 
       if (lastLastInst[1] === inst[1] && inst[0] === Opcodes.local_get && lastInst[0] === Opcodes.local_tee && lastLastInst[0] === Opcodes.local_set) {
         // local.set x
