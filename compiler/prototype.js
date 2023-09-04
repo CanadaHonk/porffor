@@ -23,7 +23,9 @@ const TYPES = {
 
 export const PrototypeFuncs = function() {
   const noUnlikelyChecks = process.argv.includes('-funsafe-no-unlikely-proto-checks');
-  const noCCAChecks = process.argv.includes('-funsafe-no-charcodeat-checks');
+  let zeroChecks = process.argv.find(x => x.startsWith('-funsafe-zero-proto-checks='));
+  if (zeroChecks) zeroChecks = zeroChecks.split('=')[1].split(',').reduce((acc, x) => { acc[x.toLowerCase()] = true; return acc; }, {});
+    else zeroChecks = {};
 
   this[TYPES._array] = {
     // lX = local accessor of X ({ get, set }), iX = local index of X, wX = wasm ops of X
@@ -290,7 +292,7 @@ export const PrototypeFuncs = function() {
         ...wIndex,
         Opcodes.i32_to,
 
-        ...(noCCAChecks ? [] : [
+        ...(zeroChecks.charcodeat ? [] : [
           [ Opcodes.local_set, iTmp ],
 
           // index < 0
