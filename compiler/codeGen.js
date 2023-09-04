@@ -1,9 +1,9 @@
 import { Blocktype, Opcodes, Valtype, PageSize, ValtypeSize } from "./wasmSpec.js";
-import { signedLEB128, unsignedLEB128 } from "./encoding.js";
+import { ieee754_binary64, signedLEB128, unsignedLEB128 } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from "./builtins.js";
 import { PrototypeFuncs } from "./prototype.js";
-import { number, i32x4 } from "./embedding.js";
+import { number, i32x4, enforceOneByte, enforceTwoBytes, enforceFourBytes, enforceEightBytes } from "./embedding.js";
 import parse from "./parse.js";
 import * as Rhemyn from "../rhemyn/compile.js";
 
@@ -1448,7 +1448,6 @@ const generateAssign = (scope, decl) => {
 
   // arr[i] | str[i]
   if (decl.left.type === 'MemberExpression' && decl.left.computed) {
-    // arr[i] | str[i]
     const name = decl.left.object.name;
     const pointer = arrays.get(name);
 
@@ -1979,10 +1978,25 @@ const StoreOps = {
   i16: Opcodes.i32_store16
 };
 
+let data = [];
+
+const compileBytes = (val, itemType, signed = true) => {
+  switch (itemType) {
+    case 'i8': return enforceOneByte(unsignedLEB128(val));
+    case 'i16': return enforceTwoBytes(unsignedLEB128(val));
+    case 'i32': return enforceFourBytes(signedLEB128(val));
+    case 'i64': return enforceEightBytes(signedLEB128(val));
+    case 'f64': return enforceEightBytes(ieee754_binary64(val));
+  }
+};
+
 const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype) => {
   const out = [];
 
+  let firstAssign = false;
   if (!arrays.has(name) || name === '$undeclared') {
+    firstAssign = true;
+
     // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
     const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
     arrays.set(name, allocPage(`${itemType === 'i16' ? 'string' : 'array'}: ${uniqueName}`, itemType) * pageSize);
@@ -1993,7 +2007,28 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   const useRawElements = !!decl.rawElements;
   const elements = useRawElements ? decl.rawElements : decl.elements;
 
+  const valtype = itemTypeToValtype[itemType];
   const length = elements.length;
+
+  if (firstAssign && useRawElements) {
+    let bytes = compileBytes(length, 'i32');
+
+    if (!initEmpty) for (let i = 0; i < length; i++) {
+      if (elements[i] == null) continue;
+
+      bytes.push(...compileBytes(elements[i], itemType));
+    }
+
+    data.push({
+      offset: pointer,
+      bytes
+    });
+
+    // local value as pointer
+    out.push(...number(pointer));
+
+    return [ out, pointer ];
+  }
 
   // store length as 0th array
   out.push(
@@ -2003,7 +2038,6 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   );
 
   const storeOp = StoreOps[itemType];
-  const valtype = itemTypeToValtype[itemType];
 
   if (!initEmpty) for (let i = 0; i < length; i++) {
     if (elements[i] == null) continue;
@@ -2380,6 +2414,7 @@ export default program => {
   typeStates = {};
   arrays = new Map();
   pages = new Map();
+  data = [];
   currentFuncIndex = importedFuncs.length;
 
   globalThis.valtype = 'f64';
@@ -2456,5 +2491,5 @@ export default program => {
   // if blank main func and other exports, remove it
   if (main.wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(funcs.length - 1, 1);
 
-  return { funcs, globals, tags, exceptions, pages };
+  return { funcs, globals, tags, exceptions, pages, data };
 };

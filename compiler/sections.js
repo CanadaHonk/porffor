@@ -1,5 +1,5 @@
 import { Valtype, FuncType, Empty, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize } from './wasmSpec.js';
-import { encodeVector, encodeString, encodeLocal } from './encoding.js';
+import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128 } from './encoding.js';
 import { number } from './embedding.js';
 import { importedFuncs } from './builtins.js';
 
@@ -20,7 +20,7 @@ const chHint = (topTier, baselineTier, strategy) => {
   return (strategy | (baselineTier << 2) | (topTier << 4));
 };
 
-export default (funcs, globals, tags, pages, flags) => {
+export default (funcs, globals, tags, pages, data, flags) => {
   const types = [], typeCache = {};
 
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
@@ -155,13 +155,24 @@ export default (funcs, globals, tags, pages, flags) => {
     encodeVector(types)
   );
 
+  const dataSection = data.length === 0 ? [] : createSection(
+    Section.data,
+    encodeVector(data.map(x => [ 0x00, Opcodes.i32_const, ...signedLEB128(x.offset), Opcodes.end, ...encodeVector(x.bytes) ]))
+  );
+
+  const dataCountSection = data.length === 0 ? [] : createSection(
+    Section.data_count,
+    unsignedLEB128(data.length)
+  );
+
   if (process.argv.includes('-sections')) console.log({
     typeSection: typeSection.map(x => x.toString(16)),
     importSection: importSection.map(x => x.toString(16)),
     funcSection: funcSection.map(x => x.toString(16)),
     globalSection: globalSection.map(x => x.toString(16)),
     exportSection: exportSection.map(x => x.toString(16)),
-    codeSection: codeSection.map(x => x.toString(16))
+    codeSection: codeSection.map(x => x.toString(16)),
+    dataSection: dataSection.map(x => x.toString(16)),
   });
 
   return Uint8Array.from([
@@ -175,6 +186,8 @@ export default (funcs, globals, tags, pages, flags) => {
     ...tagSection,
     ...globalSection,
     ...exportSection,
-    ...codeSection
+    ...dataCountSection,
+    ...codeSection,
+    ...dataSection
   ]);
 };

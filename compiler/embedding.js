@@ -9,11 +9,15 @@ export const number = (n, valtype = valtypeBinary) => {
   }
 };
 
-const enforceTwoBytes = arr => [ arr[0] ?? 0, arr[1] ?? 0, arr[2] ?? 0, arr[3] ?? 0 ];
+export const enforceOneByte = arr => [ arr[0] ?? 0 ];
+export const enforceTwoBytes = arr => [ arr[0] ?? 0, arr[1] ?? 0 ];
+export const enforceFourBytes = arr => [ arr[0] ?? 0, arr[1] ?? 0, arr[2] ?? 0, arr[3] ?? 0 ];
+export const enforceEightBytes = arr => [ arr[0] ?? 0, arr[1] ?? 0, arr[2] ?? 0, arr[3] ?? 0, arr[4] ?? 0, arr[5] ?? 0, arr[6] ?? 0, arr[7] ?? 0 ];
+
 export const i32x4 = (a, b, c, d) => [ [
   ...Opcodes.v128_const,
-  ...enforceTwoBytes(signedLEB128(a)),
-  ...enforceTwoBytes(signedLEB128(b)),
-  ...enforceTwoBytes(signedLEB128(c)),
-  ...enforceTwoBytes(signedLEB128(d))
+  ...enforceFourBytes(signedLEB128(a)),
+  ...enforceFourBytes(signedLEB128(b)),
+  ...enforceFourBytes(signedLEB128(c)),
+  ...enforceFourBytes(signedLEB128(d))
 ] ];

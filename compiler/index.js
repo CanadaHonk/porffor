@@ -59,7 +59,7 @@ export default (code, flags) => {
   if (flags.includes('info')) console.log(`1. parsed in ${(performance.now() - t0).toFixed(2)}ms`);
 
   const t1 = performance.now();
-  const { funcs, globals, tags, exceptions, pages } = codeGen(program);
+  const { funcs, globals, tags, exceptions, pages, data } = codeGen(program);
   if (flags.includes('info')) console.log(`2. generated code in ${(performance.now() - t1).toFixed(2)}ms`);
 
   if (process.argv.includes('-funcs')) logFuncs(funcs, globals, exceptions);
@@ -71,14 +71,14 @@ export default (code, flags) => {
   if (process.argv.includes('-opt-funcs')) logFuncs(funcs, globals, exceptions);
 
   const t3 = performance.now();
-  const sections = produceSections(funcs, globals, tags, pages, flags);
+  const sections = produceSections(funcs, globals, tags, pages, data, flags);
   if (flags.includes('info')) console.log(`4. produced sections in ${(performance.now() - t3).toFixed(2)}ms`);
 
   if (allocLog) {
     const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
     const bytes = wasmPages * 65536;
     log('alloc', `\x1B[1mallocated ${bytes / 1024}KiB\x1B[0m for ${pages.size} things using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}`);
-    // console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n'));
+    console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n') + '\n');
   }
 
   const out = { wasm: sections, funcs, globals, tags, exceptions, pages };

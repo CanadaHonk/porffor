@@ -84,7 +84,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - string comparison (eg `'a' == 'a'`, `'a' != 'b'`)
 - nullish coalescing operator (`??`)
 - `for...of` (arrays and strings)
-- array member setting (`arr[0] = 2`)
+- array member setting (`arr[0] = 2`, `arr[0] += 2`, etc)
 
 ### built-ins
 
@@ -132,7 +132,6 @@ no particular order and no guarentees, just what could happen soon™
   - rewrite local indexes per func for smallest local header and remove unused idxs
   - smarter inline selection (snapshots?)
   - remove const ifs (`if (true)`, etc)
-  - use data segments for initing arrays
 
 ## porfformance
 *for the things it supports most of the time*, porffor is blazingly fast compared to most interpreters, and common engines running without JIT. for those with JIT, it is not that much slower like a traditional interpreter would be; mostly the same or a bit faster/slower depending on what.
@@ -158,6 +157,7 @@ mostly for reducing size. do not really care about compiler perf/time as long as
 - remove unneeded single just used vars
 - remove unneeded blocks (no `br`s inside)
 - remove unused imports
+- use data segments for initing arrays/strings
 
 ### wasm module
 - type cache/index (no repeated types)
