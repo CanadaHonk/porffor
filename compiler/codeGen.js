@@ -1315,7 +1315,7 @@ const generateCall = (scope, decl, _global, _name) => {
 const generateNew = (scope, decl, _global, _name) => {
   // hack: basically treat this as a normal call for builtins for now
   const name = mapName(decl.callee.name);
-  if (internalConstrs[name]) return internalConstrs[name].generate(scope, decl, _global, _name);
+  if (internalConstrs[name] && !internalConstrs[name].notConstr) return internalConstrs[name].generate(scope, decl, _global, _name);
   if (!builtinFuncs[name]) return todo(`new statement is not supported yet`); // return todo(`new statement is not supported yet (new ${unhackName(name)})`);
 
   return generateCall(scope, decl, _global, _name);
@@ -2400,6 +2400,18 @@ const internalConstrs = {
       ];
     },
     type: TYPES._array
+  },
+
+  __Array_of: {
+    // this is not a constructor but best fits internal structure here
+    generate: (scope, decl, global, name) => {
+      // Array.of(i0, i1, ...)
+      return generateArray(scope, {
+        elements: decl.arguments
+      }, global, name);
+    },
+    type: TYPES._array,
+    notConstr: true
   }
 };
 

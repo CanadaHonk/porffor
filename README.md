@@ -85,6 +85,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - nullish coalescing operator (`??`)
 - `for...of` (arrays and strings)
 - array member setting (`arr[0] = 2`, `arr[0] += 2`, etc)
+- array constructor (`Array(5)`, `new Array(1, 2, 3)`)
 
 ### built-ins
 
@@ -97,7 +98,7 @@ these include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - basic `eval` (literals only)
 - `Math.random()` using self-made xorshift128+ PRNG
 - some of `performance` (`now()`)
-- some of `Array.prototype` (`at`, `push`, `pop`, `shift`)
+- some of `Array.prototype` (`at`, `push`, `pop`, `shift`, `fill`)
 - some of `String.prototype` (`at`, `charAt`, `charCodeAt`)
 
 ### custom
