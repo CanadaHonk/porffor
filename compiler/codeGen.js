@@ -682,8 +682,7 @@ const falsy = (scope, wasm, type, int = false) => {
   return [
     ...wasm,
 
-    ...Opcodes.eqz,
-    ...(int ? [] : [ Opcodes.i32_from_u ])
+    ...(int ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz, Opcodes.i32_from_u ])
   ];
 };
 
@@ -698,8 +697,7 @@ const nullish = (scope, wasm, type, int = false) => {
   // null (if object and = "0")
   if (type === TYPES.object) return [
     ...wasm,
-    ...Opcodes.eqz,
-    ...(int ? [] : [ Opcodes.i32_from_u ])
+    ...(int ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz, Opcodes.i32_from_u ])
   ];
 
   // not
