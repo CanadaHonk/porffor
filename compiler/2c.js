@@ -292,7 +292,7 @@ QueryPerformanceCounter(&_time_t);
 _time_out = ((double)_time_t.QuadPart / _time_freq.QuadPart) * 1000.;`,
 `struct timespec _time;
 clock_gettime(CLOCK_MONOTONIC, &_time);
-_time_out = _time.tv_nsec / 1000000.;`);
+_time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
                 vals.push(`_time_out`);
 
                 unixIncludes.set('time.h', true);
