@@ -1338,7 +1338,7 @@ const generateVar = (scope, decl) => {
   const topLevel = scope.name === 'main';
 
   // global variable if in top scope (main) and var ..., or if wanted
-  const global = decl.kind === 'var';
+  const global = topLevel; // decl.kind === 'var';
   const target = global ? globals : scope.locals;
 
   for (const x of decl.declarations) {
