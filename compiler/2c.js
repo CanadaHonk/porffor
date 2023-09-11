@@ -175,9 +175,9 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
           break;
 
         case Opcodes.local_tee:
-          line(`${invLocals[i[1]]} = ${removeBrackets(vals.pop())}`);
-          vals.push(`${invLocals[i[1]]}`);
-          // vals.push(`${invLocals[i[1]]} = ${vals.pop()}`);
+          // line(`${invLocals[i[1]]} = ${removeBrackets(vals.pop())}`);
+          // vals.push(`${invLocals[i[1]]}`);
+          vals.push(`((${invLocals[i[1]]} = ${vals.pop()}))`);
           break;
 
         case Opcodes.global_get:
