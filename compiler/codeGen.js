@@ -1982,11 +1982,14 @@ let data = [];
 
 const compileBytes = (val, itemType, signed = true) => {
   switch (itemType) {
-    case 'i8': return enforceOneByte(unsignedLEB128(val));
-    case 'i16': return enforceTwoBytes(unsignedLEB128(val));
-    case 'i32': return enforceFourBytes(signedLEB128(val));
-    case 'i64': return enforceEightBytes(signedLEB128(val));
-    case 'f64': return enforceEightBytes(ieee754_binary64(val));
+    case 'i8': return [ val % 256 ];
+    case 'i16': return [ val % 256, Math.floor(val / 256) ];
+
+    case 'i32':
+    case 'i64':
+      return enforceFourBytes(signedLEB128(val));
+
+    case 'f64': return ieee754_binary64(val);
   }
 };
 
