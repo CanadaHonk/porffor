@@ -1389,7 +1389,7 @@ const unhackName = name => {
 };
 
 const generateVar = (scope, decl) => {
-  const out = [];
+  let out = [];
 
   const topLevel = scope.name === 'main';
 
@@ -1431,7 +1431,7 @@ const generateVar = (scope, decl) => {
 
     // x.init ??= DEFAULT_VALUE;
     if (x.init) {
-      out.push(...generate(scope, x.init, global, name));
+      out = out.concat(generate(scope, x.init, global, name));
 
       // if our value is the result of a function, infer the type from that func's return value
       if (out[out.length - 1][0] === Opcodes.call) {
