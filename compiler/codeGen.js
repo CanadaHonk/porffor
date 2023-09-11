@@ -1394,7 +1394,7 @@ const generateVar = (scope, decl) => {
   const topLevel = scope.name === 'main';
 
   // global variable if in top scope (main) and var ..., or if wanted
-  const global = topLevel; // decl.kind === 'var';
+  const global = topLevel || decl._bare; // decl.kind === 'var';
   const target = global ? globals : scope.locals;
 
   for (const x of decl.declarations) {
@@ -1550,7 +1550,7 @@ const generateAssign = (scope, decl) => {
   const [ local, isGlobal ] = lookupName(scope, name);
 
   if (local === undefined) {
-    // todo: this should be a devtools/repl/??? only thing
+    // todo: this should be a sloppy mode only thing
 
     // only allow = for this
     if (op !== '=') return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
@@ -1562,7 +1562,7 @@ const generateAssign = (scope, decl) => {
 
     // set global and return (eg a = 2)
     return [
-      ...generateVar(scope, { kind: 'var', declarations: [ { id: { name }, init: decl.right } ] }),
+      ...generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name }, init: decl.right } ] }),
       [ Opcodes.global_get, globals[name].idx ]
     ];
   }
