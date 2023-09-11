@@ -389,6 +389,9 @@ const concatStrings = (scope, left, right, global, name, assign) => {
   const rightLength = localTmp(scope, 'concat_right_length', Valtype.i32);
   const leftLength = localTmp(scope, 'concat_left_length', Valtype.i32);
 
+  const aotWFA = process.argv.includes('-aot-well-formed-string-approximation');
+  if (aotWFA) addVarMeta(name, { wellFormed: undefined });
+
   if (assign) {
     const pointer = arrays.get(name ?? '$undeclared');
 
@@ -1017,11 +1020,37 @@ const generateLiteral = (scope, decl, global, name) => {
         case 'bigint': return number(TYPES.bigint);
       }
 
+      const aotWFA = process.argv.includes('-aot-well-formed-string-approximation');
+      let wellFormed = aotWFA ? true : undefined;
+
       const str = decl.value;
       const rawElements = new Array(str.length);
+      let j = 0;
       for (let i = 0; i < str.length; i++) {
         rawElements[i] = str.charCodeAt(i);
+
+        if (wellFormed) {
+          // check if surrogate
+          if ((str.charCodeAt(j) & 0xF800) === 0xD800) {
+            // unpaired trailing surrogate
+            if (str.charCodeAt(j) >= 0xDC00) {
+              wellFormed = false;
+            }
+
+            // unpaired leading surrogate
+            // if (++j >= str.length || (str.charCodeAt(j) & 0xFC00) != 0xDC00) {
+            if ((str.charCodeAt(++j) & 0xFC00) != 0xDC00) {
+              wellFormed = false;
+            }
+          }
+
+          j++;
+        }
       }
+
+      // console.log(wellFormed, str);
+
+      if (aotWFA) addVarMeta(name, { wellFormed });
 
       return makeArray(scope, {
         rawElements
@@ -1241,6 +1270,7 @@ const generateCall = (scope, decl, _global, _name) => {
     if (protoFunc.noArgRetLength && decl.arguments.length === 0) return arrayUtil.getLength(pointer)
 
     let protoLocal = protoFunc.local ? localTmp(scope, `__${TYPE_NAMES[baseType]}_${protoName}_tmp`, protoFunc.local) : -1;
+    let protoLocal2 = protoFunc.local2 ? localTmp(scope, `__${TYPE_NAMES[baseType]}_${protoName}_tmp2`, protoFunc.local2) : -1;
 
     // use local for cached i32 length as commonly used
     let lengthLocal = localTmp(scope, '__proto_length_cache', Valtype.i32);
@@ -1257,11 +1287,11 @@ const generateCall = (scope, decl, _global, _name) => {
       getI32: () => arrayUtil.getLengthI32(pointer),
       set: value => arrayUtil.setLength(pointer, value),
       setI32: value => arrayUtil.setLengthI32(pointer, value)
-    }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, (length, itemType) => {
+    }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, protoLocal2, (length, itemType) => {
       return makeArray(scope, {
         rawElements: new Array(length)
       }, _global, _name, true, itemType);
-    });
+    }, varMetadata.get(baseName));
 
     return [
       ...out,
@@ -2091,6 +2121,17 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
   return makeArray(scope, decl, global, name, initEmpty, valtype)[0];
 };
 
+let varMetadata = new Map();
+const addVarMeta = (_name, obj) => {
+  const name = _name ?? '$undeclared';
+  if (!varMetadata.has(name)) varMetadata.set(name, {});
+
+  const meta = varMetadata.get(name);
+  for (const k in obj) {
+    meta[k] = obj[k];
+  }
+};
+
 export const generateMember = (scope, decl, _global, _name) => {
   const type = getNodeType(scope, decl.object);
 
@@ -2456,6 +2497,7 @@ export default program => {
   depth = [];
   typeStates = {};
   arrays = new Map();
+  varMetadata = new Map();
   pages = new Map();
   data = [];
   currentFuncIndex = importedFuncs.length;
