@@ -326,6 +326,8 @@ const localTmp = (scope, name, type = valtypeBinary) => {
   return idx;
 };
 
+const isIntOp = op => op[0] >= 0xb7 && op[0] <= 0xba;
+
 const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   const checks = {
     '||': falsy,
@@ -338,6 +340,32 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   // generic structure for {a} OP {b}
   // -->
   // _ = {a}; if (OP_CHECK) {b} else _
+
+  // if we can, use int tmp and convert at the end to help prevent unneeded conversions
+  // (like if we are in an if condition - very common)
+  const leftIsInt = isIntOp(left[left.length - 1]);
+  const rightIsInt = isIntOp(right[right.length - 1]);
+
+  const canInt = leftIsInt && rightIsInt;
+
+  if (canInt) {
+    // remove int -> float conversions from left and right
+    left.pop();
+    right.pop();
+
+    return [
+      ...left,
+      [ Opcodes.local_tee, localTmp(scope, 'logictmpi', Valtype.i32) ],
+      ...checks[op](scope, [], leftType, true),
+      [ Opcodes.if, Valtype.i32 ],
+      ...right,
+      [ Opcodes.else ],
+      [ Opcodes.local_get, localTmp(scope, 'logictmpi', Valtype.i32) ],
+      [ Opcodes.end ],
+      Opcodes.i32_from
+    ];
+  }
+
   return [
     ...left,
     [ Opcodes.local_tee, localTmp(scope, 'logictmp') ],
@@ -588,12 +616,12 @@ const compareStrings = (scope, left, right) => {
   ];
 };
 
-const truthy = (scope, wasm, type) => {
+const truthy = (scope, wasm, type, int = false) => {
   // arrays are always truthy
   if (type === TYPES._array) return [
     ...wasm,
     [ Opcodes.drop ],
-    ...number(1)
+    ...number(1, int ? Valtype.i32 : valtypeBinary)
   ];
 
   if (type === TYPES.string) {
@@ -609,8 +637,8 @@ const truthy = (scope, wasm, type) => {
       // if length != 0
       /* [ Opcodes.i32_eqz ],
       [ Opcodes.i32_eqz ], */
-      Opcodes.i32_from_u
-    ]
+      ...(int ? [] : [ Opcodes.i32_from_u ])
+    ];
   }
 
   // if != 0
@@ -623,12 +651,12 @@ const truthy = (scope, wasm, type) => {
   ];
 };
 
-const falsy = (scope, wasm, type) => {
+const falsy = (scope, wasm, type, int = false) => {
   // arrays are always truthy
   if (type === TYPES._array) return [
     ...wasm,
     [ Opcodes.drop ],
-    ...number(0)
+    ...number(0, int ? Valtype.i32 : valtypeBinary)
   ];
 
   if (type === TYPES.string) {
@@ -643,7 +671,7 @@ const falsy = (scope, wasm, type) => {
 
       // if length == 0
       [ Opcodes.i32_eqz ],
-      Opcodes.i32_from_u
+      ...(int ? [] : [ Opcodes.i32_from_u ])
     ]
   }
 
@@ -652,30 +680,30 @@ const falsy = (scope, wasm, type) => {
     ...wasm,
 
     ...Opcodes.eqz,
-    Opcodes.i32_from_u
+    ...(int ? [] : [ Opcodes.i32_from_u ])
   ];
 };
 
-const nullish = (scope, wasm, type) => {
+const nullish = (scope, wasm, type, int = false) => {
   // undefined
   if (type === TYPES.undefined) return [
     ...wasm,
     [ Opcodes.drop ],
-    ...number(1)
+    ...number(1, int ? Valtype.i32 : valtypeBinary)
   ];
 
   // null (if object and = "0")
   if (type === TYPES.object) return [
     ...wasm,
     ...Opcodes.eqz,
-    Opcodes.i32_from_u
+    ...(int ? [] : [ Opcodes.i32_from_u ])
   ];
 
   // not
   return [
     ...wasm,
     [ Opcodes.drop ],
-    ...number(0)
+    ...number(0, int ? Valtype.i32 : valtypeBinary)
   ];
 };
 
