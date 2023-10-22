@@ -41,7 +41,7 @@ const memoryToString = mem => {
   return out;
 };
 
-const alwaysPrev = process.argv.includes('-always-prev');
+const alwaysPrev = process.argv.includes('-prev');
 
 let prev = '';
 const run = async (source, _context, _filename, callback, run = true) => {
@@ -49,7 +49,7 @@ const run = async (source, _context, _filename, callback, run = true) => {
   if (alwaysPrev) prev = toRun + ';\n';
 
   const { exports, wasm, pages } = await compile(toRun, []);
-  fs.writeFileSync('out.wasm', Buffer.from(wasm));
+  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   if (run && exports.$) {
     lastMemory = exports.$;
