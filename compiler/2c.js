@@ -133,8 +133,8 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
         if (['==', '!=', '>', '>=', '<', '<='].includes(op)) lastCond = true;
           else lastCond = false;
 
-        // vals.push(`${a} ${op} ${b}`);
-        vals.push(`(${removeBrackets(a)} ${op} ${b})`);
+        // vals.push(`(${removeBrackets(a)} ${op} ${b})`);
+        vals.push(`(${a} ${op} ${b})`);
         continue;
       }
 
@@ -269,6 +269,10 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
             switch (importFunc.name) {
               case 'print':
                 line(`printf("%f\\n", ${vals.pop()})`);
+                includes.set('stdio.h', true);
+                break;
+              case 'printChar':
+                line(`printf("%c", (int)(${vals.pop()}))`);
                 includes.set('stdio.h', true);
                 break;
 
