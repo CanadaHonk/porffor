@@ -1,4 +1,4 @@
-# porffor&nbsp; <sup>/ˈpɔrfɔr/</sup>
+# porffor &nbsp;<sup><sub>/ˈpɔrfɔr/</sup></sub>
 a basic experimental wip *aot* optimizing js -> wasm/c engine/compiler/runtime in js. not serious/intended for (real) use. (this is a straight forward, honest readme)<br>
 age: ~2 months
 
