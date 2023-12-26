@@ -1,6 +1,5 @@
 import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
 import { number, i32x4 } from "./embedding.js";
-import { signedLEB128 } from "./encoding.js";
 
 export const importedFuncs = [
   {
@@ -416,13 +415,13 @@ export const BuiltinFuncs = function() {
     wasm: [
       // setup: s1 = state0, s0 = state1, state0 = s0
       [ Opcodes.global_get, 0 ], // state0
-      [ Opcodes.local_set, 0 ], // s1
+      [ Opcodes.local_tee, 0 ], // s1
       [ Opcodes.global_get, 1 ], // state1
       [ Opcodes.local_tee, 1, ], // s0
       [ Opcodes.global_set, 0 ], // state0
 
       // s1 ^= s1 << 23
-      [ Opcodes.local_get, 0 ], // s1
+      // [ Opcodes.local_get, 0 ], // s1
       [ Opcodes.local_get, 0 ], // s1
       [ Opcodes.i64_const, 23 ],
       [ Opcodes.i64_shl ], // <<
@@ -452,20 +451,24 @@ export const BuiltinFuncs = function() {
 
       // you thought it was over? now we need the result as a f64 between 0-1 :)
 
-      // mantissa = (state1 + s0) & ((1 << 53) - 1)
+      // state1 + s0
       [ Opcodes.global_get, 1 ], // state1
       [ Opcodes.local_get, 1 ], // s0
       [ Opcodes.i64_add ],
 
-      [ Opcodes.i64_const, ...signedLEB128((1 << 53) - 1) ],
-      [ Opcodes.i64_and ],
+      // should we >> 12 here?
+      // it feels like it but it breaks values
 
-      // double(mantissa)
-      [ Opcodes.f64_convert_i64_u ],
+      // | 0x3FF0000000000000
+      [ Opcodes.i64_const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xf8, 0x3f ],
+      [ Opcodes.i64_or ],
 
-      // / (1 << 53)
-      ...number(1 << 53),
-      [ Opcodes.f64_div ]
+      // bit cast as f64
+      [ Opcodes.f64_reinterpret_i64 ],
+
+      // - 1
+      ...number(1),
+      [ Opcodes.f64_sub ],
     ]
   };
 
