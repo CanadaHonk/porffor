@@ -10,12 +10,15 @@
 /test262
 /test
 
-sw.json
+sw.js
 logo.png
 index.html
 CNAME
 
 # tmp
 /asur
+
+*.txt
+*.exe
 
 /porffor-for-vscode

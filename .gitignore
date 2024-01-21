@@ -1,5 +1,7 @@
 *.wasm
 *.csv
+*.txt
+*.exe
 
 node_modules
 package-lock.json
