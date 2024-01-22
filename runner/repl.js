@@ -21,7 +21,7 @@ const memoryToString = mem => {
   const pages = lastPages.length;
   const wasmPages = mem.buffer.byteLength / PageSize;
 
-  out += `\x1B[1mallocated ${mem.buffer.byteLength / 1024}KiB\x1B[0m for ${pages} things using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}\n`;
+  out += `\x1B[1mallocated ${mem.buffer.byteLength / 1024}KB\x1B[0m for ${pages} thing${pages === 1 ? '' : 's'} using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}\n`;
 
   const buf = new Uint8Array(mem.buffer);
 
@@ -41,14 +41,17 @@ const memoryToString = mem => {
   return out;
 };
 
-const alwaysPrev = process.argv.includes('-prev');
-
 let prev = '';
 const run = async (source, _context, _filename, callback, run = true) => {
-  let toRun = prev + source.trim();
-  if (alwaysPrev) prev = toRun + ';\n';
+  // hack: print "secret" before latest code ran to only enable printing for new code
 
-  const { exports, wasm, pages } = await compile(toRun, []);
+  let toRun = prev + `;\nprint(-0x1337);\n` + source.trim();
+
+  let shouldPrint = false;
+  const { exports, wasm, pages } = await compile(toRun, [], {}, str => {
+    if (shouldPrint) process.stdout.write(str);
+    if (str === '-4919') shouldPrint = true;
+  });
   // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   if (run && exports.$) {
@@ -59,8 +62,7 @@ const run = async (source, _context, _filename, callback, run = true) => {
   const ret = run ? exports.main() : undefined;
   callback(null, ret);
 
-  if (!alwaysPrev && (source.includes(' = ') || source.includes('let ') || source.includes('var ') || source.includes('const ') || source.includes('function '))) prev = toRun + ';\n';
-  // prev = toRun + ';\n';
+  prev = prev + ';\n' + source.trim();
 };
 
 const replServer = repl.start({ prompt: '> ', eval: run });

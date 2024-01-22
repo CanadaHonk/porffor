@@ -1,11 +1,11 @@
 import compile from './index.js';
 import decompile from './decompile.js';
-// import fs from 'node:fs';
+import fs from 'node:fs';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
-const typeBase = 0xffffffffffff0;
-const internalTypeBase = 0xfffffffffff0f;
+const typeBase = 0x00;
+const internalTypeBase = 0x10;
 const TYPES = {
   [typeBase]: 'number',
   [typeBase + 1]: 'boolean',
@@ -39,7 +39,6 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
     '': {
       p: valtype === 'i64' ? i => print(Number(i).toString()) : i => print(i.toString()),
       c: valtype === 'i64' ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
-      a: c => { if (!Number(c)) throw new Error(`assert failed`); },
       t: _ => performance.now(),
       ...customImports
     }
@@ -66,11 +65,15 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
     exports[func.name] = function() {
       try {
-        const ret = exp.apply(this, arguments);
+        const _ret = exp.apply(this, arguments);
 
-        if (ret >= typeBase && ret <= typeBase + 8) return ret > (typeBase + 7) ? 'object' : TYPES[ret];
+        if (_ret == null) return undefined;
 
-        switch (TYPES[func.returnType]) {
+        const [ ret, type ] = _ret;
+
+        // if (ret >= typeBase && ret <= typeBase + 8) return ret > (typeBase + 7) ? 'object' : TYPES[ret];
+
+        switch (TYPES[type]) {
           case 'boolean': return Boolean(ret);
           case 'undefined': return undefined;
           case 'object': return ret === 0 ? null : {};

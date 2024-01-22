@@ -17,8 +17,10 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
   const justLocals = Object.values(locals).sort((a, b) => a.idx - b.idx).slice(params.length);
   if (justLocals.length > 0) out += `  local ${justLocals.map(x => invValtype[x.type]).join(' ')}\n`;
 
-  let i = 0, lastInst;
+  let i = -1, lastInst;
+  let byte = 0;
   for (let inst of wasm.concat(name ? [ [ Opcodes.end ] ] : [])) {
+    i++;
     if (inst[0] === null) continue;
 
     if (inst[0] === 0xfd) { // simd inst prefix
@@ -32,9 +34,30 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
     if (inst[0] === Opcodes.end || inst[0] === Opcodes.else || inst[0] === Opcodes.catch_all) depth--;
 
-    const opStr = invOpcodes[inst[0]];
-    if (!opStr) console.log(`decomp: unknown op ${inst[0].toString(16)}`)
-    out += /* ' '.repeat(3 - i.toString().length) + i + ' ' + */ ' '.repeat(Math.max(0, depth * 2)) + opStr.replace('_', '.').replace('return.', 'return_').replace('call.', 'call_').replace('br.', 'br_');
+    out += ' '.repeat(Math.max(0, depth * 2));
+
+    let opStr = invOpcodes[inst[0]];
+    if (!opStr) {
+      console.log(`decomp: unknown op ${inst[0]?.toString?.(16)} @${i}`);
+      // console.log(`prior: ${invOpcodes[wasm[i - 1][0]]}`);
+      out += `;; unknown op ${inst[0]?.toString?.(16)}\n`;
+      continue;
+    }
+
+    // out += '0x' + byte.toString(10).padStart(2, '0');
+    byte += inst.length;
+
+    out += opStr.replace('_', '.').replace('return.', 'return_').replace('call.', 'call_').replace('br.', 'br_').replace('catch.', 'catch_');
+
+    const comments = [];
+    inst = inst.filter(x => {
+      if (typeof x === 'string') {
+        comments.push(x);
+        return false;
+      }
+
+      return true;
+    })
 
     if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else || inst[0] === Opcodes.try || inst[0] === Opcodes.catch_all) depth++;
 
@@ -52,6 +75,8 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
         out += ` ${operand}`;
       }
     }
+
+    if (comments.length > 0) out += ` ;; ${comments.join(' ')}`;
 
     if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else) {
       out += ` ;; label @${depth}`;
@@ -95,8 +120,9 @@ export const highlightAsm = asm =>
   asm
     .replace(/(local|global|memory)\.[^\s]*/g, _ => `\x1B[31m${_}\x1B[0m`)
     .replace(/(i(8|16|32|64)x[0-9]+|v128)(\.[^\s]*)?/g, _ => `\x1B[34m${_}\x1B[0m`)
-    .replace(/[^m](i32|i64|f32|f64)(\.[^\s]*)?/g, _ => `${_[0]}\x1B[36m${_.slice(1)}\x1B[0m`)
+    .replace(/[^m](i32|i64|f32|f64|drop)(\.[^\s]*)?/g, _ => `${_[0]}\x1B[36m${_.slice(1)}\x1B[0m`)
     .replace(/(return_call|call|br_if|br|return|throw|rethrow)/g, _ => `\x1B[35m${_}\x1B[0m`)
-    .replace(/(block|loop|if|end|else|try|catch|catch_all|delegate)/g, _ => `\x1B[95m${_}\x1B[0m`)
+    .replace(/(block|loop|if|end|else|try|catch_all|catch|delegate)/g, _ => `\x1B[95m${_}\x1B[0m`)
+    .replace(/unreachable/g, _ => `\x1B[91m${_}\x1B[0m`)
     .replace(/ \-?[0-9\.]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
     .replace(/ ;;.*$/gm, _ => `\x1B[90m${_.replaceAll(/\x1B\[[0-9]+m/g, '')}\x1B[0m`);

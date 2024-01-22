@@ -119,6 +119,8 @@ const run = async ({ file, contents, attrs }) => {
   const flags = [];
   if (attrs.flags.module) flags.push('module');
 
+  // fs.writeFileSync('r.js', toRun);
+
   let exports, pages;
   try {
     0, { exports, pages } = await compile(toRun, flags);
@@ -296,9 +298,9 @@ console.log();
 if (whatTests === 'test') {
   for (const dir of dirs.keys()) {
     const results = dirs.get(dir);
-    process.stdout.write(dir + ' '.repeat(14 - dir.length));
+    process.stdout.write(' '.repeat(6) + dir + ' '.repeat(14 - dir.length));
     bar(120, results.total, results.pass ?? 0, results.fail ?? 0, (results.runtimeError ?? 0) + (results.timeout ?? 0), (results.compileError ?? 0) + (results.todo ?? 0) + (results.wasmError ?? 0), 0);
-    process.stdout.write(' '.repeat(14 + 2));
+    process.stdout.write(' '.repeat(6) + ' '.repeat(14 + 2));
     table(false, results.total, results.pass ?? 0, results.fail ?? 0, results.runtimeError ?? 0, results.wasmError ?? 0, results.compileError ?? 0, results.timeout ?? 0, results.todo ?? 0);
     console.log();
 

@@ -25,14 +25,6 @@ assert._isSameValue = function (a, b) {
 };
 
 assert.sameValue = function (actual, expected) {
-  /* try {
-    if (assert._isSameValue(actual, expected)) {
-      return;
-    }
-  } catch (error) {
-    throw new Test262Error('_isSameValue operation threw');
-  } */
-
   if (assert._isSameValue(actual, expected)) {
     return;
   }

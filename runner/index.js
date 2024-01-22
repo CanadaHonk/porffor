@@ -34,20 +34,22 @@ const source = fs.readFileSync(file, 'utf8');
 
 let cache = '';
 const print = str => {
-  cache += str;
+  /* cache += str;
 
   if (str === '\n') {
     process.stdout.write(cache);
     cache = '';
-  }
+  } */
+
+  process.stdout.write(str);
 };
 
 try {
   const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
 
-  exports.main();
+  if (!process.argv.includes('-no-run')) exports.main();
   if (cache) process.stdout.write(cache);
 } catch (e) {
   if (cache) process.stdout.write(cache);
-  console.error(`${e.constructor.name}: ${e.message}`);
+  console.error(process.argv.includes('-i') ? e : `${e.constructor.name}: ${e.message}`);
 }

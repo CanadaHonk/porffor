@@ -2,6 +2,7 @@ import { Valtype, FuncType, Empty, ExportDesc, Section, Magic, ModuleVersion, Op
 import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128 } from './encoding.js';
 import { number } from './embedding.js';
 import { importedFuncs } from './builtins.js';
+import { log } from "./log.js";
 
 const createSection = (type, data) => [
   type,
@@ -26,7 +27,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
 
   const compileHints = process.argv.includes('-compile-hints');
-  if (compileHints) log('sections', 'warning: compile hints is V8 only w/ experimental arg! (you used -compile-hints)');
+  if (compileHints) log.warning('sections', 'compile hints is V8 only w/ experimental arg! (you used -compile-hints)');
 
   const getType = (params, returns) => {
     const hash = `${params.join(',')}_${returns.join(',')}`;
@@ -90,7 +91,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
     encodeVector(funcs.map(x => getType(x.params, x.returns))) // type indexes
   );
 
-  // compilation hints section - unspec v8 only
+  // compilation hints section - unspecd, v8 only
   // https://github.com/WebAssembly/design/issues/1473#issuecomment-1431274746
   const chSection = !compileHints ? [] : customSection(
     'compilationHints',
@@ -106,11 +107,12 @@ export default (funcs, globals, tags, pages, data, flags) => {
   const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, x.index ]);
 
   if (process.argv.includes('-always-memory') && pages.size === 0) pages.set('-always-memory', 0);
+  if (optLevel === 0) pages.set('O0 precaution', 0);
 
   const usesMemory = pages.size > 0;
   const memorySection = !usesMemory ? [] : createSection(
     Section.memory,
-    encodeVector([ [ 0x00, Math.ceil((pages.size * pageSize) / PageSize) ] ])
+    encodeVector([ [ 0x00, ...unsignedLEB128(Math.ceil((pages.size * pageSize) / PageSize)) ] ])
   );
 
   // export memory if used
@@ -148,7 +150,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
 
       if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
 
-      return encodeVector([ ...encodeVector(localDecl), ...x.wasm.flat().filter(x => x !== null), Opcodes.end ]);
+      return encodeVector([ ...encodeVector(localDecl), ...x.wasm.flat().filter(x => x <= 0xff), Opcodes.end ]);
     }))
   );
 

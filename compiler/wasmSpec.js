@@ -118,6 +118,7 @@ export const Opcodes = {
   i64_shl: 0x86,
   i64_shr_s: 0x87,
   i64_shr_u: 0x88,
+  i64_rotl: 0x89,
 
   f64_eq: 0x61,
   f64_ne: 0x62,
@@ -155,6 +156,8 @@ export const Opcodes = {
   f64_convert_i32_u: 0xb8,
   f64_convert_i64_s: 0xb9,
   f64_convert_i64_u: 0xba,
+
+  f64_reinterpret_i64: 0xbf,
 
   i32_trunc_sat_f64_s: [ 0xfc, 0x02 ],
   i32_trunc_sat_f64_u: [ 0xfc, 0x03 ],

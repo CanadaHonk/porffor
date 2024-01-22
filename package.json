@@ -1,11 +1,16 @@
 {
   "name": "porffor",
   "description": "a basic experimental wip aot optimizing js -> wasm engine/compiler/runtime in js",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "author": "CanadaHonk",
   "license": "MIT",
   "dependencies": {
     "acorn": "^8.9.0"
+  },
+  "optionalDependencies": {
+    "@babel/parser": "^7.23.6",
+    "hermes-parser": "^0.18.2",
+    "meriyah": "^4.3.9"
   },
   "bin": {
     "porf": "./runner/index.js"

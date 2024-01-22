@@ -15,12 +15,6 @@ export const importedFuncs = [
     returns: 0
   },
   {
-    name: 'assert',
-    import: 'a',
-    params: 1,
-    returns: 0
-  },
-  {
     name: 'time',
     import: 't',
     params: 0,
@@ -401,7 +395,7 @@ export const BuiltinFuncs = function() {
 
   // this is an implementation of xorshift128+ (in wasm bytecode)
   // fun fact: v8, SM, JSC also use this (you will need this fun fact to maintain your sanity reading this code)
-  const prngSeed0 = Math.floor(Math.random() * (2 ** 30)), prngSeed1 = Math.floor(Math.random() * (2 ** 30));
+  const prngSeed0 = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), prngSeed1 = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
 
   this.__Math_random = {
     floatOnly: true,
@@ -460,15 +454,25 @@ export const BuiltinFuncs = function() {
       // it feels like it but it breaks values
 
       // | 0x3FF0000000000000
-      [ Opcodes.i64_const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xf8, 0x3f ],
-      [ Opcodes.i64_or ],
+      // [ Opcodes.i64_const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xf8, 0x3f ],
+      // [ Opcodes.i64_or ],
 
       // bit cast as f64
-      [ Opcodes.f64_reinterpret_i64 ],
+      // [ Opcodes.f64_reinterpret_i64 ],
 
       // - 1
-      ...number(1),
-      [ Opcodes.f64_sub ],
+      // ...number(1),
+      // [ Opcodes.f64_sub ],
+
+      ...number((1 << 53) - 1, Valtype.i64),
+      [ Opcodes.i64_and ],
+
+      // double(mantissa)
+      [ Opcodes.f64_convert_i64_u ],
+
+      // / (1 << 53)
+      ...number(1 << 53),
+      [ Opcodes.f64_div ]
     ]
   };
 

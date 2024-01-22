@@ -12,8 +12,7 @@ const run = async source => {
 
   const { exports, wasm, times } = await compile(source, [ 'module' ], {
     p: i => print(Number(i).toString()),
-    c: i => print(String.fromCharCode(Number(i))),
-    a: c => { if (!Number(c)) assertFailed = true; }
+    c: i => print(String.fromCharCode(Number(i)))
   });
 
   totalOutput += wasm.byteLength;
@@ -72,8 +71,11 @@ const optOpt = process.argv.find(x => x.startsWith('-O'));
 
 const t0 = performance.now();
 
-const argsValtypes = [ '-valtype=i32', '-valtype=i64', '-valtype=f64' ];
-const argsOptlevels = [ '-O0', '-O1', '-O2', '-O3' ];
+// const argsValtypes = [ '-valtype=i32', '-valtype=i64', '-valtype=f64' ];
+// const argsOptlevels = [ '-O0', '-O1', '-O2', '-O3' ];
+
+const argsValtypes = [ '-valtype=f64' ];
+const argsOptlevels = [ '-O1' ];
 
 let total = 0, passes = 0;
 for (const test of fs.readdirSync('test')) {

@@ -109,6 +109,8 @@ export const read_unsignedLEB128 = _input => {
 // from https://github.com/feross/ieee754
 // BSD 3-Clause. Copyright 2008 Fair Oaks Labs, Inc. (https://github.com/feross/ieee754/blob/master/LICENSE)
 export const ieee754_binary64 = value => {
+  return [...new Uint8Array(new Float64Array([ value ]).buffer)];
+
   let isLE = true, mLen = 52, nBytes = 8, offset = 0;
   let buffer = new Array(nBytes).fill(0);
 
@@ -176,6 +178,8 @@ export const ieee754_binary64 = value => {
 };
 
 export const read_ieee754_binary64 = buffer => {
+  return new Float64Array(new Uint8Array(buffer).buffer)[0];
+
   let isLE = true, mLen = 52, nBytes = 8, offset = 0;
 
   let e, m

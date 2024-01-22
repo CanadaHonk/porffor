@@ -1,3 +1,4 @@
+import { underline, bold, log } from './log.js';
 import parse from './parse.js';
 import codeGen from './codeGen.js';
 import opt from './opt.js';
@@ -6,28 +7,14 @@ import decompile from './decompile.js';
 import { BuiltinPreludes } from './builtins.js';
 import toc from './2c.js';
 
-
 globalThis.decompile = decompile;
-
-const rgb = (r, g, b, x) => `\x1b[38;2;${r};${g};${b}m${x}\u001b[0m`;
-const underline = x => `\u001b[4m${x}\u001b[0m`;
-const bold = x => `\u001b[1m${x}\u001b[0m`;
-
-const areaColors = {
-  codegen: [ 20, 80, 250 ],
-  opt: [ 250, 20, 80 ],
-  sections: [ 20, 250, 80 ],
-  alloc: [ 250, 250, 20 ],
-  '2c': [ 20, 250, 250 ]
-};
-
-globalThis.log = (area, ...args) => console.log(`\u001b[90m[\u001b[0m${rgb(...areaColors[area], area)}\u001b[90m]\u001b[0m`, ...args);
 
 const logFuncs = (funcs, globals, exceptions) => {
   console.log('\n' + underline(bold('funcs')));
 
+  const startIndex = funcs.sort((a, b) => a.index - b.index)[0].index;
   for (const f of funcs) {
-    console.log(`${underline(f.name)} (${f.index})`);
+    console.log(`${underline(f.name)} (${f.index - startIndex})`);
 
     console.log(`params: ${f.params.map((_, i) => Object.keys(f.locals)[Object.values(f.locals).indexOf(Object.values(f.locals).find(x => x.idx === i))]).join(', ')}`);
     console.log(`returns: ${f.returns.length > 0 ? true : false}`);
@@ -65,7 +52,7 @@ export default (code, flags) => {
   if (process.argv.includes('-funcs')) logFuncs(funcs, globals, exceptions);
 
   const t2 = performance.now();
-  opt(funcs, globals);
+  opt(funcs, globals, pages);
   if (flags.includes('info')) console.log(`3. optimized code in ${(performance.now() - t2).toFixed(2)}ms`);
 
   if (process.argv.includes('-opt-funcs')) logFuncs(funcs, globals, exceptions);

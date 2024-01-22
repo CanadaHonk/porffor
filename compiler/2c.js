@@ -1,6 +1,7 @@
 import { read_ieee754_binary64, read_signedLEB128 } from './encoding.js';
 import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
+import { log } from "./log.js";
 
 const CValtype = {
   i8: 'char',
@@ -45,20 +46,31 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
   }, {});
   const invGlobals = inv(globals, x => x.idx);
 
+  const sanitize = str => str.replace(/[^0-9a-zA-Z_]/g, _ => String.fromCharCode(97 + _.charCodeAt(0) % 32));
+
+  for (const x in invGlobals) {
+    invGlobals[x] = sanitize(invGlobals[x]);
+  }
+
   const includes = new Map(), unixIncludes = new Map(), winIncludes = new Map();
-  let out = '';
+
+  // TODO: make type i16
+  let out = `struct ReturnValue {
+  ${CValtype.f64} value;
+  ${CValtype.i32} type;
+};\n\n`;
 
   for (const x in globals) {
     const g = globals[x];
 
-    out += `${CValtype[g.type]} ${x} = ${g.init ?? 0}`;
+    out += `${CValtype[g.type]} ${sanitize(x)} = ${g.init ?? 0}`;
     out += ';\n';
   }
 
-  for (const [ x, p ] of pages) {
-    out += `${CValtype[p.type]} ${x.replace(': ', '_').replace(/[^0-9a-zA-Z_]/g, '')}[100]`;
-    out += ';\n';
-  }
+  // for (const [ x, p ] of pages) {
+    // out += `${CValtype[p.type]} ${x.replace(': ', '_').replace(/[^0-9a-zA-Z_]/g, '')}[100]`;
+    // out += ';\n';
+  // }
 
   if (out) out += '\n';
 
@@ -100,19 +112,21 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
     depth = 1;
 
     const invLocals = inv(f.locals, x => x.idx);
-    if (f.returns.length > 1) todo('funcs returning >1 value unsupported');
+    // if (f.returns.length > 1) todo('funcs returning >1 value unsupported');
 
-    const sanitize = str => str.replace(/[^0-9a-zA-Z_]/g, _ => String.fromCharCode(97 + _.charCodeAt(0) % 32));
+    for (const x in invLocals) {
+      invLocals[x] = sanitize(invLocals[x]);
+    }
 
-    const returns = f.returns.length === 1;
+    const returns = f.returns.length > 0;
 
     const shouldInline = f.internal;
-    out += `${f.name === 'main' ? 'int' : CValtype[f.returns[0]]} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
+    out += `${f.name === 'main' ? 'int' : (f.internal ? 'double' : 'struct ReturnValue')} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
 
     const localKeys = Object.keys(f.locals).sort((a, b) => f.locals[a].idx - f.locals[b].idx).slice(f.params.length).sort((a, b) => f.locals[a].idx - f.locals[b].idx);
     for (const x of localKeys) {
       const l = f.locals[x];
-      line(`${CValtype[l.type]} ${x} = 0`);
+      line(`${CValtype[l.type]} ${sanitize(x)} = 0`);
     }
 
     if (localKeys.length !== 0) out += '\n';
@@ -202,7 +216,8 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
           break;
 
         case Opcodes.return:
-          line(`return${returns ? ` ${removeBrackets(vals.pop())}` : ''}`);
+          // line(`return${returns ? ` ${removeBrackets(vals.pop())}` : ''}`);
+          line(`return${returns ? ` (struct ReturnValue){ ${removeBrackets(vals.pop())}, ${removeBrackets(vals.pop())} }` : ''}`);
           break;
 
         case Opcodes.if:
@@ -304,7 +319,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
                 break;
 
               default:
-                log('2c', `unimplemented import: ${importFunc.name}`);
+                log.warning('2c', `unimplemented import: ${importFunc.name}`);
                 break;
             }
 
@@ -314,13 +329,21 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           let args = [];
           for (let j = 0; j < func.params.length; j++) args.unshift(removeBrackets(vals.pop()));
 
-          if (func.returns.length === 1) vals.push(`${sanitize(func.name)}(${args.join(', ')})`)
-            else line(`${sanitize(func.name)}(${args.join(', ')})`);
+          if (func.returns.length > 0) {
+            if (func.internal) {
+              vals.push(`${sanitize(func.name)}(${args.join(', ')})`);
+            } else {
+              line(`const struct ReturnValue _ = ${sanitize(func.name)}(${args.join(', ')})`);
+              vals.push(`_.value`);
+              vals.push(`_.type`);
+            }
+          } else line(`${sanitize(func.name)}(${args.join(', ')})`);
 
           break;
 
         case Opcodes.drop:
-          line(vals.pop());
+          // line(vals.pop());
+          vals.pop();
           break;
 
         case Opcodes.br:
@@ -330,7 +353,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           break;
 
         default:
-          log('2c', `unimplemented op: ${invOpcodes[i[0]]}`);
+          log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]}`);
           // todo(`unimplemented op: ${invOpcodes[i[0]]}`);
       }
 
