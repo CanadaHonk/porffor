@@ -82,6 +82,8 @@ export default (code, flags) => {
     } else {
       console.log(c);
     }
+
+    if (process.version) process.exit();
   }
 
   if (target === 'native') {
@@ -96,6 +98,8 @@ export default (code, flags) => {
 
     // obvious command escape is obvious
     execSync(args.join(' '), { stdio: 'inherit' });
+
+    if (process.version) process.exit();
   }
 
   return out;

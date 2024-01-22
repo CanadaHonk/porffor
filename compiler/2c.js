@@ -35,7 +35,10 @@ const todo = msg => {
   throw new TodoError(`todo: ${msg}`);
 };
 
-const removeBrackets = str => str.startsWith('(') && str.endsWith(')') ? str.slice(1, -1) : str;
+const removeBrackets = str => {
+  if (str.startsWith('(long)(unsigned long)')) return '(long)(unsigned long)(' + removeBrackets(str.slice(22, -1)) + ')';
+  return str.startsWith('(') && str.endsWith(')') ? str.slice(1, -1) : str;
+};
 
 export default ({ funcs, globals, tags, exceptions, pages }) => {
   const invOperatorOpcode = Object.values(operatorOpcode).reduce((acc, x) => {
