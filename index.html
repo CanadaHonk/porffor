@@ -133,7 +133,16 @@
       transition: .5s color;
     }
 
-    a:after {
+    a:not([href]) {
+      cursor: pointer;
+      color: var(--accent);
+    }
+
+    a:not([href]):hover {
+      color: var(--accent-light);
+    }
+
+    a[href]::after {
       content: '';
       display: block;
       margin: auto;
@@ -148,12 +157,12 @@
       color: var(--header-primary);
     }
 
-    a:hover:after {
+    a[href]:hover::after {
       width: 100%;
       background: var(--accent-light);
     }
 
-    a:active:after {
+    a:active::after {
       width: 100%;
       background: var(--accent);
     }
@@ -942,6 +951,11 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
     addOptions(examples_dropdown, Object.keys(examples), defaultExample);
 
+    if (location.hash) {
+      code = atob(location.hash.slice(1));
+      examples_dropdown.selectedIndex = -1;
+    }
+
     // addOptions(valtype_dropdown, [ 'i32', 'i64', 'f64' ], 'f64');
     addOptions(opt_dropdown, [ 0, 1, 2, 3 ], 1);
     addOptions(parser_dropdown, ['acorn', 'meriyah', 'hermes-parser', '@babel/parser'], 'acorn');
@@ -992,6 +1006,8 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
     const comp = async () => {
       setProcess();
+      if (code !== examples[examples_dropdown.value]) location.hash = '#' + btoa(code);
+
       jsSize.textContent = `${new Blob([code]).size} bytes`;
 
       let cache = '';
