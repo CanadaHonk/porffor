@@ -45,9 +45,9 @@ let prev = '';
 const run = async (source, _context, _filename, callback, run = true) => {
   // hack: print "secret" before latest code ran to only enable printing for new code
 
-  let toRun = prev + `;\nprint(-0x1337);\n` + source.trim();
+  let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source.trim();
 
-  let shouldPrint = false;
+  let shouldPrint = !prev;
   const { exports, wasm, pages } = await compile(toRun, [], {}, str => {
     if (shouldPrint) process.stdout.write(str);
     if (str === '-4919') shouldPrint = true;
