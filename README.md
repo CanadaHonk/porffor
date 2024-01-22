@@ -1,5 +1,5 @@
 # Porffor &nbsp;<sup><sub>/ˈpɔrfɔr/ &nbsp;*(poor-for)*</sup></sub>
-A from-scratch experimental *AOT* optimizing JS -> Wasm/C engine/compiler/runtime in JS. Not serious/intended for (real) use. (this is a straight forward, honest readme)<br>
+A from-scratch experimental **AOT** optimizing JS -> Wasm/C engine/compiler/runtime in JS. Not serious/intended for (real) use. (this is a straight forward, honest readme)<br>
 Age: ~6 months (very on and off)
 
 ## Design
