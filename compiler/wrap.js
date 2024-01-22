@@ -25,7 +25,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   const times = [];
 
   const t1 = performance.now();
-  const { wasm, funcs, globals, tags, exceptions, pages } = compile(source, flags);
+  const { wasm, funcs, globals, tags, exceptions, pages, c } = compile(source, flags);
 
   if (source.includes('export function')) flags.push('module');
 
@@ -126,8 +126,8 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   }
 
   if (flags.includes('decomp')) {
-    return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, globals, exceptions)) };
+    return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, globals, exceptions)), c };
   }
 
-  return { exports, wasm, times, pages };
+  return { exports, wasm, times, pages, c };
 };

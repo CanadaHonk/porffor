@@ -1,13 +1,13 @@
 <head>
-  <title>porffor</title>
+  <title>Porffor</title>
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
 
-  <meta itemprop="name" content="porffor">
-  <meta property="og:title" content="porffor">
-  <meta itemprop="description" content="a basic experimental wip AOT optimizing JS -> Wasm compiler in JS">
-  <meta property="og:description" content="a basic experimental wip AOT optimizing JS -> Wasm compiler in JS">
+  <meta itemprop="name" content="Porffor">
+  <meta property="og:title" content="Porffor">
+  <meta itemprop="description" content="A from-scratch experimental AOT JS -> Wasm engine in JS">
+  <meta property="og:description" content="A from-scratch experimental AOT JS -> Wasm engine in JS">
   <meta property="og:type" content="website">
 
   <link rel="icon" type="image/png" href="logo.png">
@@ -575,7 +575,7 @@
       background: var(--background-secondary);
       font-family: var(--font-mono);
 
-      width: calc(100% - 180px - 240px);
+      width: calc(100% - 800px);
       margin: 0;
 
       color: var(--text-normal);
@@ -605,7 +605,7 @@
       font-family: var(--font-normal);
     }
 
-    #valtype_dropdown, #opt_dropdown {
+    #valtype_dropdown, #opt_dropdown, #parser_dropdown, #target_dropdown {
       width: fit-content;
       padding: 4px;
       height: 29px;
@@ -625,7 +625,6 @@
       display: grid;
       grid-template-columns: 400px 1fr;
       gap: 24px;
-      margin: 48px 0;
 
       width: 100%;
       /* height: 80vh; */
@@ -683,6 +682,7 @@
       vertical-align: middle;
       border-radius: 4px;
       margin-right: 8px;
+      margin-bottom: 6px;
     }
 
     #graph {
@@ -744,8 +744,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 24px 64px;
-
-      margin-bottom: 64px;
+      margin: 64px 0;
     }
 
     #benches h2 {
@@ -787,12 +786,16 @@
       background: var(--accent-light) !important;
       color: var(--text-normal) !important;
     }
+
+    span[title] {
+      text-decoration: underline 1px dotted var(--text-muted);
+    }
   </style>
 </head>
 
 <body>
   <header>
-    <h1><img width="32" src="logo.png">porffor</h1>
+    <h1><img width="32" src="logo.png">Porffor</h1>
 
     <div>
       <a href="https://github.com/CanadaHonk/porffor">GitHub</a>
@@ -800,24 +803,22 @@
   </header>
 
   <article>
-    <h1 class="tagline">a basic experimental wip AOT optimizing JS -> Wasm compiler in JS</h1>
+    <h1 class="tagline">A from-scratch experimental AOT JS -> Wasm engine in JS</h1>
     <!-- <h2 class="subtag">about as insane as it sounds</h2> -->
 
-    <p>porffor is a very unique js engine, due a very different approach. it is seriously limited, but what it can do, it does pretty well. made from scratch except parser. began ~2 months ago.</p>
-    <!-- <ul>
-      <li>100% aot compiled</li>
-      <li>everything is a number</li>
-      <li>no constant runtime/preluded code</li>
-    </ul> -->
+    <p>Porffor is a unique JS engine, compiling given JS code to a Wasm binary. It is seriously limited, but what it can do, it does pretty well. Made from scratch except parser.</p>
 
     <select id="examples_dropdown"></select>
-    valtype <select id="valtype_dropdown"></select>
-    opt <select id="opt_dropdown"></select>
-    <input type="text" placeholder="extra compiler args" id="args">
+    <!-- Valtype <select id="valtype_dropdown"></select> -->
+    <span title="Optimization level">-O</span> <select id="opt_dropdown"></select>
+    <span title="JS parser to use">Parser</span> <select id="parser_dropdown"></select>
+    <span title="Experimental!">Target</span> <select id="target_dropdown"></select>
+    <input type="text" placeholder="Extra arguments" id="args">
     <div id="split"></div>
     <div id="output"></div>
     <div id="status"></div>
 
+    <h2>Test262</h2>
     <div id="test262">
       <div id="commit_log"></div>
       <div id="graph"></div>
@@ -825,15 +826,15 @@
 
     <div id="benches">
       <div id="bench_0">
-        <h2>sum 1 million random numbers</h2>
+        <h2>Sum 1 million random numbers</h2>
       </div>
 
       <div id="bench_1">
-        <h2>count prime numbers 1-10000</h2>
+        <h2>Count prime numbers 1-10000</h2>
       </div>
 
       <div id="bench_2">
-        <h2>factorial of 100</h2>
+        <h2>Factorial of 100</h2>
       </div>
     </div>
   </article>
@@ -941,8 +942,10 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
     addOptions(examples_dropdown, Object.keys(examples), defaultExample);
 
-    addOptions(valtype_dropdown, [ 'i32', 'i64', 'f64' ], 'f64');
+    // addOptions(valtype_dropdown, [ 'i32', 'i64', 'f64' ], 'f64');
     addOptions(opt_dropdown, [ 0, 1, 2, 3 ], 1);
+    addOptions(parser_dropdown, ['acorn', 'meriyah', 'hermes-parser', '@babel/parser'], 'acorn');
+    addOptions(target_dropdown, ['wasm', 'c'], 'wasm');
 
     examples_dropdown.oninput = () => {
       code = examples[examples_dropdown.value];
@@ -950,7 +953,14 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       comp();
     };
 
-    valtype_dropdown.oninput = opt_dropdown.oninput = () => comp();
+    // valtype_dropdown.oninput = opt_dropdown.oninput = parser_dropdown.oninput = target_dropdown.oninput = () => comp();
+    opt_dropdown.oninput = target_dropdown.oninput = () => comp();
+
+    parser_dropdown.oninput = async () => {
+      setProcess();
+      await globalThis._porf_loadParser();
+      comp();
+    };
 
     window.editor = monaco.editor.create(monacoContainer, {
       value: code,
@@ -970,13 +980,18 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       };
     };
 
+    globalThis.process = { argv: [] };
     const compile = (await import('../compiler/wrap.js')).default;
 
-    const comp = async () => {
+    const setProcess = () => {
       globalThis.process = {
-        argv: ['', '', ...args.value.split(' '), `-valtype=${valtype_dropdown.value}`, `-O${opt_dropdown.value}`]
+        // argv: ['', '', ...args.value.split(' '), `-valtype=${valtype_dropdown.value}`, `-O${opt_dropdown.value}`, `-parser=${parser_dropdown.value}`, `-target=${target_dropdown.value}`]
+        argv: ['', '', ...args.value.split(' '), `-O${opt_dropdown.value}`, `-parser=${parser_dropdown.value}`, `-target=${target_dropdown.value}`]
       };
+    };
 
+    const comp = async () => {
+      setProcess();
       jsSize.textContent = `${new Blob([code]).size} bytes`;
 
       let cache = '';
@@ -991,19 +1006,24 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
       output.textContent = '';
       wasmView.innerHTML = '';
-      status.textContent = 'compiling...';
+      status.textContent = 'Compiling...';
 
-      let wasm, exports, times, decomps;
+      let wasm, exports, times, decomps, c;
       try {
-        0, { wasm, exports, times, decomps } = await compile(code, [ 'module', 'decomp' ], {}, print);
+        0, { wasm, exports, times, decomps, c } = await compile(code, [ 'module', 'decomp' ], {}, print);
       } catch (e) {
         console.error(e);
         status.textContent = `${e.constructor.name}: ${e.message}`;
         return;
       }
 
-      wasmView.innerHTML = `<div id="wasm-size">${wasm.byteLength} bytes</div>` + decomps.join('\n').replaceAll('\x1B[0m', '</span>').replace(/\x1B\[([0-9]{2})m/g, (_, esc) => `<span class="ansi-${esc}">`);
-      status.textContent = `compiled in ${times[0].toFixed(2)}ms`;
+      if (target_dropdown.value === 'c') {
+        wasmView.textContent = c.trim();
+      } else {
+        wasmView.innerHTML = `<div id="wasm-size">${wasm.byteLength} bytes</div>` + decomps.join('\n').replaceAll('\x1B[0m', '</span>').replace(/\x1B\[([0-9]{2})m/g, (_, esc) => `<span class="ansi-${esc}">`);
+      }
+
+      status.textContent = `Compiled in ${times[0].toFixed(2)}ms`;
 
       await new Promise(res => setTimeout(res, 10));
 
@@ -1019,15 +1039,15 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       print('\n');
 
       const execTime = performance.now() - t2;
-      status.textContent += `. executed in ${execTime.toFixed(2)}ms`;
+      status.textContent += `. Executed in ${execTime.toFixed(2)}ms`;
 
-      const t3 = performance.now();
-      try {
-        eval(code);
-      } catch {}
+      // const t3 = performance.now();
+      // try {
+        // eval(code);
+      // } catch {}
 
-      const evalTime = performance.now() - t3;
-      status.textContent += `. eval took ${evalTime.toFixed(2)}ms (${(evalTime / execTime).toFixed(1)}x)`;
+      // const evalTime = performance.now() - t3;
+      // status.textContent += `. Eval took ${evalTime.toFixed(2)}ms (${(evalTime / execTime).toFixed(1)}x)`;
 
       output.textContent = cache;
     };
@@ -1242,14 +1262,13 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         const func = funcs[i];
         const max = maxes[i];
 
-        bench(i, 'your browser', () => {
+        bench(i, 'Your browser', () => {
           func(max);
         });
 
-        globalThis.process = { argv: [] };
         const compiled = (await compile('export ' + func.toString())).exports[func.name];
 
-        bench(i, 'porffor', () => {
+        bench(i, 'Porffor', () => {
           compiled(max);
         });
 

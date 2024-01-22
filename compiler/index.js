@@ -28,8 +28,8 @@ const logFuncs = (funcs, globals, exceptions) => {
 
 const getArg = name => process.argv.find(x => x.startsWith(`-${name}=`))?.slice(name.length + 2);
 
-const writeFileSync = (typeof process !== 'undefined' ? (await import('node:fs')).writeFileSync : undefined);
-const execSync = (typeof process !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
+const writeFileSync = (typeof process?.version !== 'undefined' ? (await import('node:fs')).writeFileSync : undefined);
+const execSync = (typeof process?.version !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
 
 export default (code, flags) => {
   globalThis.optLog = process.argv.includes('-opt-log');
@@ -75,14 +75,13 @@ export default (code, flags) => {
 
   if (target === 'c') {
     const c = toc(out);
+    out.c = c;
 
     if (outFile) {
       writeFileSync(outFile, c);
     } else {
       console.log(c);
     }
-
-    process.exit();
   }
 
   if (target === 'native') {
@@ -97,8 +96,6 @@ export default (code, flags) => {
 
     // obvious command escape is obvious
     execSync(args.join(' '), { stdio: 'inherit' });
-
-    process.exit();
   }
 
   return out;
