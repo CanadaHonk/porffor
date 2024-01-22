@@ -124,7 +124,7 @@ export default ({ funcs, globals, tags, exceptions, pages }) => {
     const returns = f.returns.length > 0;
 
     const shouldInline = f.internal;
-    out += `${f.name === 'main' ? 'int' : (f.internal ? 'double' : 'struct ReturnValue')} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
+    out += `${f.name === 'main' ? 'int' : (f.internal ? (returns ? 'double' : 'void') : 'struct ReturnValue')} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
 
     const localKeys = Object.keys(f.locals).sort((a, b) => f.locals[a].idx - f.locals[b].idx).slice(f.params.length).sort((a, b) => f.locals[a].idx - f.locals[b].idx);
     for (const x of localKeys) {
