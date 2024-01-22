@@ -131,6 +131,14 @@ No particular order and no guarentees, just what could happen soon™
   - Smarter inline selection (snapshots?)
   - Remove const ifs (`if (true)`, etc)
   - Use type(script) information to remove unneeded typechecker code
+- Cool proposals
+  - [Optional Chaining Assignment](https://github.com/tc39/proposal-optional-chaining-assignment)
+  - [Modulus and Additional Integer Math](https://github.com/tc39/proposal-integer-and-modulus-math)
+  - [Array Equality](https://github.com/tc39/proposal-array-equality)
+  - [Declarations in Conditionals](https://github.com/tc39/proposal-Declarations-in-Conditionals)
+  - [Seeded Pseudo-Random Numbers](https://github.com/tc39/proposal-seeded-random)
+  - [`do` expressions](https://github.com/tc39/proposal-do-expressions)
+  - [String Trim Characters](https://github.com/Kingwl/proposal-string-trim-characters)
 
 ## Performance
 *For the things it supports most of the time*, Porffor is blazingly fast compared to most interpreters, and common engines running without JIT. For those with JIT, it is not that much slower like a traditional interpreter would be; mostly the same or a bit faster/slower depending on what.
