@@ -367,6 +367,11 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
       line(`return ${vals.pop()}`);
     }
 
+    if (f.name === 'main') {
+      out += '\n';
+      line(`return 0`);
+    }
+
     out += '}\n\n';
   }
 
