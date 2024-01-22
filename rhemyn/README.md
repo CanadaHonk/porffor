@@ -1,11 +1,11 @@
-# rhemyn
-a basic experimental wip regex engine/aot wasm compiler in js. regex engine for porffor. uses own regex parser, no dependencies (excluding porffor internals). <br>
-age: ~1 day
+# Rhemyn
+A basic experimental WIP regex engine/AOT Wasm compiler in JS. Regex engine for Porffor! Uses own regex parser, no dependencies (excluding porffor internals). <br>
+Age: ~1 day (of work)
 
-made for use with porffor but could possibly be adapted, implementation/library notes:
-- exposes functions for each regex "operation" (eg test, match)
-- given a regex pattern string (eg `a+`), it returns a "function" object
-- wasm function returned expects an i32 pointer to a utf-16 string (can add utf-8 option later if someone else actually wants to use this)
+Made for use with Porffor but could possibly be adapted, implementation/library notes:
+- Exposes functions for each regex "operation" (eg test, match)
+- Given a regex pattern string (eg `a+`), it returns a "function" object
+- Wasm function returned expects an i32 pointer to a UTF-16 string (can add UTF-8 option later if someone else actually wants to use this)
 
 ## syntax
 🟢 supported 🟡 partial 🟠 parsed only 🔴 unsupported
