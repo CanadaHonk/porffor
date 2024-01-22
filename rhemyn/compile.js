@@ -21,7 +21,7 @@ const generate = (node, negated = false, get = true, func = 'test') => {
       out = [
         // set length local
         [ Opcodes.local_get, BasePointer ],
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(0) ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         [ Opcodes.local_set, Length ],
 
         // set iter pointer local as base + sizeof i32 initially
