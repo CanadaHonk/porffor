@@ -1759,11 +1759,12 @@ const extractTypeAnnotation = decl => {
     elementType = extractTypeAnnotation(a.elementType).type;
   }
 
+  const typeName = type;
   type = typeAnnoToPorfType(type);
 
   // if (decl.name) console.log(decl.name, { type, elementType });
 
-  return { type, elementType };
+  return { type, typeName, elementType };
 };
 
 const generateVar = (scope, decl) => {
