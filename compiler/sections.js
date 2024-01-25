@@ -150,7 +150,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
 
       if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
 
-      return encodeVector([ ...encodeVector(localDecl), ...x.wasm.flat().filter(x => x <= 0xff), Opcodes.end ]);
+      return encodeVector([ ...encodeVector(localDecl), ...x.wasm.flat().filter(x => x != null && x <= 0xff), Opcodes.end ]);
     }))
   );
 
