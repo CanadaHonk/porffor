@@ -118,7 +118,7 @@ No particular order and no guarentees, just what could happen soon™
 - Objects
   - Basic object expressions (eg `{}`, `{ a: 0 }`)
 - Wasm
-  - *Basic* Wasm engine (interpreter) in js
+  - *Basic* Wasm engine (interpreter) in JS
 - More math operators (`**`, etc)
 - `do { ... } while (...)`
 - Rewrite `console.log` to work with strings/arrays
@@ -188,7 +188,7 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
   - `wasmSpec.js`: "enums"/info from wasm spec
   - `wrap.js`: wrapper for compiler which instantiates and produces nice exports
 
-- `runner`: contains utils for running js with the compiler
+- `runner`: contains utils for running JS with the compiler
   - `index.js`: the main file, you probably want to use this
   - `info.js`: runs with extra info printed
   - `repl.js`: basic repl (uses `node:repl`)
@@ -241,20 +241,20 @@ You can also use Deno (`deno run -A ...` instead of `node ...`), or Bun (`bun ..
 - `-compile-hints` to enable V8 compilation hints (experimental + doesn't seem to do much?)
 
 ## VSCode extension
-There is a vscode extension in `porffor-for-vscode` which tweaks js syntax highlighting to be nicer with porffor features (eg highlighting wasm inside of inline asm).
+There is a vscode extension in `porffor-for-vscode` which tweaks JS syntax highlighting to be nicer with porffor features (eg highlighting wasm inside of inline asm).
 
 ## Isn't this the same as AssemblyScript/other Wasm langs?
 No. they are not alike at all internally and have very different goals/ideals:
 - Porffor is made as a generic JS engine, not for Wasm stuff specifically
-- Porffor takes in JS, not a different language or typescript
-- Porffor is made in pure JS and compiles itself, not using Binaryen/etc
+- Porffor primarily consumes JS
+- Porffor is written in pure JS and compiles itself, not using Binaryen/etc
 - (Also I didn't know it existed when I started this, lol)
 
 ## FAQ
 
 ### 1. Why the name?
 `purple` in Welsh is `porffor`. Why purple?
-- No other js engine is purple colored
+- No other JS engine is purple colored
 - Purple is pretty cool
 - Purple apparently represents "ambition", which is.. one word to describe this project
 - The hard to speak name is also the noise your brain makes in reaction to this idea!
