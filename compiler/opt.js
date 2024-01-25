@@ -103,6 +103,8 @@ export default (funcs, globals, pages) => {
   for (const f of funcs) {
     const wasm = f.wasm;
 
+    const lastType = f.locals['#last_type'];
+
     let runs = 2; // how many by default? add arg?
     while (runs > 0) {
       runs--;
@@ -221,6 +223,7 @@ export default (funcs, globals, pages) => {
           }
 
           if (checks === 0) {
+            // todo: review indexes below
             wasm.splice(j - 1, 2, [ Opcodes.drop ]); // remove typeswitch start
             wasm.splice(i - 1, 1); // remove this inst
 
@@ -229,6 +232,13 @@ export default (funcs, globals, pages) => {
             if (i > 0) i--;
             continue;
           }
+        }
+
+        // remove setting last type if it is never gotten
+        if (!f.gotLastType && inst[0] === Opcodes.local_set && inst[1] === lastType.idx) {
+          // replace this inst with drop
+          wasm.splice(i, 1, [ Opcodes.drop ]); // remove this and last inst
+          if (i > 0) i--;
         }
 
         if (i < 1) continue;
