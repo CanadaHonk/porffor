@@ -1793,6 +1793,11 @@ const generateVar = (scope, decl) => {
     }
 
     let idx = allocVar(scope, name, global);
+
+    if (typedInput && x.id.typeAnnotation) {
+      addVarMetadata(scope, name, global, extractTypeAnnotation(x.id));
+    }
+
     if (x.init) {
       out = out.concat(generate(scope, x.init, global, name));
 
@@ -1802,10 +1807,6 @@ const generateVar = (scope, decl) => {
 
     // hack: this follows spec properly but is mostly unneeded 😅
     // out.push(...setType(scope, name, x.init ? getNodeType(scope, x.init) : TYPES.undefined));
-
-    if (typedInput && x.id.typeAnnotation) {
-      addVarMetadata(scope, name, global, extractTypeAnnotation(x.id));
-    }
   }
 
   return out;
