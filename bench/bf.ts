@@ -1,14 +1,15 @@
 // const printChar = i => process.stdout.write(String.fromCharCode(i || 0));
+type i32 = number;
 
-const interpret = str => {
-  let ptr = 0;
-  let memory = new Array(8000);
+const interpret = (str: string) => {
+  let ptr: i32 = 0;
+  let memory: i32[] = new Array(8000);
   memory.fill(0);
 
-  let starts = [];
+  let starts: i32[] = [];
 
   for (let i = 0; i < str.length; i++) {
-    const c = str.charCodeAt(i);
+    const c: i32 = str.charCodeAt(i);
 
     if (c == 62) ptr++;
     if (c == 60) ptr--;
@@ -21,9 +22,9 @@ const interpret = str => {
     if (c == 91) {
       starts.push(i);
       if (!memory[ptr]) {
-        let depth = 1;
+        let depth: i32 = 1;
         while (depth != 0) {
-          const c2 = str.charCodeAt(++i);
+          const c2: i32 = str.charCodeAt(++i);
           if (c2 == 91) depth++;
           if (c2 == 93) depth--;
         }

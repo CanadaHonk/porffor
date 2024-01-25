@@ -1,6 +1,7 @@
-function randoms(max) {
-  let sum = 0;
-  for (let i = 0; i < max; i++) {
+type i32 = number;
+function randoms(max: i32) {
+  let sum: i32 = 0;
+  for (let i: i32 = 0; i < max; i++) {
     sum += Math.random();
   }
 
