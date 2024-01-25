@@ -1,4 +1,5 @@
 import { log } from "./log.js";
+// import { parse } from 'acorn';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -6,16 +7,9 @@ if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
   globalThis.process = { argv: ['', '', ...Deno.args], stdout: { write: str => Deno.writeAllSync(Deno.stdout, textEncoder.encode(str)) } };
 }
 
-// import { parse } from 'acorn';
-
-let parser, parse;
-
-const loadParser = async () => {
-  parser = process.argv.find(x => x.startsWith('-parser='))?.split('=')?.[1] ?? 'acorn';
-  0, { parse } = (await import((globalThis.document ? 'https://esm.sh/' : '') + parser));
-};
-globalThis._porf_loadParser = loadParser;
-await loadParser();
+// should we try to support types (while parsing)
+const types = process.argv.includes('-parse-types');
+globalThis.typedInput = types && process.argv.includes('-opt-types');
 
 // todo: review which to use by default
 // supported parsers:
@@ -24,8 +18,13 @@ await loadParser();
 // - hermes-parser
 // - @babel/parser
 
-// should we try to support types (while parsing)
-const types = process.argv.includes('-types');
+let parser, parse;
+const loadParser = async (fallbackParser = 'acorn', forceParser) => {
+  parser = forceParser ?? process.argv.find(x => x.startsWith('-parser='))?.split('=')?.[1] ?? fallbackParser;
+  0, { parse } = (await import((globalThis.document ? 'https://esm.sh/' : '') + parser));
+};
+globalThis._porf_loadParser = loadParser;
+await loadParser(types ? '@babel/parser' : undefined);
 
 if (types && !['@babel/parser', 'hermes-parser'].includes(parser)) log.warning('parser', `passed -types with a parser (${parser}) which does not support`);
 
