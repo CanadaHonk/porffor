@@ -1,5 +1,5 @@
 # Porffor &nbsp;<sup><sub>/ˈpɔrfɔr/ &nbsp;*(poor-for)*</sup></sub>
-A from-scratch experimental **AOT** optimizing JS -> Wasm/C engine/compiler/runtime in JS. Not serious/intended for (real) use. (this is a straight forward, honest readme)<br>
+A from-scratch experimental **AOT** optimizing JS/TS -> Wasm/C engine/compiler/runtime in JS. Not serious/intended for (real) use. (this is a straight forward, honest readme)<br>
 Age: ~6 months (very on and off)
 
 ## Design
@@ -220,11 +220,14 @@ You can also use Deno (`deno run -A ...` instead of `node ...`), or Bun (`bun ..
 - `-target=native` only:
   - `-compiler=clang` to set compiler binary (path/name) to use to compile
   - `-cO=O3` to set compiler opt argument
+- `-parser=acorn|@babel/parser|meriyah|hermes-parser` (default: `acorn`) to set which parser to use
+- `-parse-types` to enable parsing type annotations/typescript. if `-parser` is unset, changes default to `@babel/parser`. does not type check
+- `-opt-types` to perform optimizations using type annotations as compiler hints. does not type check
 - `-valtype=i32|i64|f64` (default: `f64`) to set valtype
 - `-O0` to disable opt
 - `-O1` (default) to enable basic opt (simplify insts, treeshake wasm imports)
-- `-O2` to enable advanced opt (inlining)
-- `-O3` to enable advanceder opt (precompute const math)
+- `-O2` to enable advanced opt (inlining). unstable
+- `-O3` to enable advanceder opt (precompute const math). unstable
 - `-no-run` to not run wasm output, just compile
 - `-opt-log` to log some opts
 - `-code-log` to log some codegen (you probably want `-funcs`)
