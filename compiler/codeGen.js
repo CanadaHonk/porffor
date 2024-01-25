@@ -2580,7 +2580,7 @@ export const generateMember = (scope, decl, _global, _name) => {
 
   // // todo: we should only do this for strings but we don't know at compile-time :(
   // hack: this is naughty and will break things!
-  let newOut = number(0, Valtype.f64), newPointer = -1;
+  let newOut = number(0, valtypeBinary), newPointer = -1;
   if (pages.hasString) {
     0, [ newOut, newPointer ] = makeArray(scope, {
       rawElements: new Array(1)
