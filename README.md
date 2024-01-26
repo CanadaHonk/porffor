@@ -131,6 +131,9 @@ No particular order and no guarentees, just what could happen soon™
   - Smarter inline selection (snapshots?)
   - Remove const ifs (`if (true)`, etc)
   - Use type(script) information to remove unneeded typechecker code
+- Runtime
+  - WASI target
+  - Run precompiled Wasm file if given
 - Cool proposals
   - [Optional Chaining Assignment](https://github.com/tc39/proposal-optional-chaining-assignment)
   - [Modulus and Additional Integer Math](https://github.com/tc39/proposal-integer-and-modulus-math)
@@ -165,10 +168,12 @@ Mostly for reducing size. I do not really care about compiler perf/time as long 
 - Remove unneeded blocks (no `br`s inside)
 - Remove unused imports
 - Use data segments for initing arrays/strings
+- (Likely more not documented yet, todo)
 
 ### Wasm module
 - Type cache/index (no repeated types)
 - No main func if empty (and other exports)
+- No tags if unused/optimized out
 
 ## Test262
 Porffor can run Test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). It currently passes >10% (see latest commit desc for latest and details). Use `node test262` to test, it will also show a difference of overall results between the last commit and current results.
