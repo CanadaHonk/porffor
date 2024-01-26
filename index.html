@@ -994,15 +994,15 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       };
     };
 
-    globalThis.process = { argv: [] };
-    const compile = (await import('../compiler/wrap.js')).default;
-
     const setProcess = () => {
       globalThis.process = {
         // argv: ['', '', ...args.value.split(' '), `-valtype=${valtype_dropdown.value}`, `-O${opt_dropdown.value}`, `-parser=${parser_dropdown.value}`, `-target=${target_dropdown.value}`]
         argv: ['', '', ...args.value.split(' '), `-O${opt_dropdown.value}`, `-parser=${parser_dropdown.value}`, `-target=${target_dropdown.value}`]
       };
     };
+
+    setProcess();
+    const compile = (await import('../compiler/wrap.js')).default;
 
     const comp = async () => {
       setProcess();
