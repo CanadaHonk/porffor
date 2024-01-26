@@ -11,7 +11,7 @@ const performWasmOp = (op, a, b) => {
   }
 };
 
-export default (funcs, globals, pages) => {
+export default (funcs, globals, pages, tags) => {
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
   if (optLevel === 0) return;
 
@@ -99,6 +99,8 @@ export default (funcs, globals, pages) => {
 
   if (process.argv.includes('-opt-inline-only')) return;
 
+  const tagUse = tags.reduce((acc, x) => { acc[x.idx] = 0; return acc; }, {});
+
   // wasm transform pass
   for (const f of funcs) {
     const wasm = f.wasm;
@@ -126,6 +128,8 @@ export default (funcs, globals, pages) => {
 
         if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
         if (inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) setCount[inst[1]]++;
+
+        if (inst[0] === Opcodes.throw) tagUse[inst[1]]++;
 
         if (inst[0] === Opcodes.block) {
           // remove unneeded blocks (no brs inside)
@@ -538,6 +542,13 @@ export default (funcs, globals, pages) => {
       }
 
       if (optLog) log('opt', `final use counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${useCount[f.locals[x].idx]}`).join(', ')}`);
+    }
+  }
+
+  for (const x in tagUse) {
+    if (tagUse[x] === 0) {
+      const el = tags.find(y => y.idx === x);
+      tags.splice(tags.indexOf(el), 1);
     }
   }
 
