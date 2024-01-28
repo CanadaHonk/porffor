@@ -1,5 +1,5 @@
 import { Blocktype, Opcodes, Valtype, PageSize, ValtypeSize } from "./wasmSpec.js";
-import { ieee754_binary64, signedLEB128, unsignedLEB128 } from "./encoding.js";
+import { ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector } from "./encoding.js";
 import { operatorOpcode } from "./expression.js";
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from "./builtins.js";
 import { PrototypeFuncs } from "./prototype.js";
@@ -1665,14 +1665,100 @@ const knownType = (scope, type) => {
   return null;
 };
 
+const brTable = (input, bc, returns) => {
+  const out = [];
+  const keys = Object.keys(bc);
+  const count = keys.length;
+
+  if (count === 1) {
+    // return [
+    //   ...input,
+    //   ...bc[keys[0]]
+    // ];
+    return bc[keys[0]];
+  }
+
+  if (count === 2) {
+    // just use if else
+    const other = keys.find(x => x !== 'default');
+    return [
+      ...input,
+      ...number(other, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.if, returns ],
+      ...bc[other],
+      [ Opcodes.else ],
+      ...bc.default,
+      [ Opcodes.end ]
+    ];
+  }
+
+  for (let i = 0; i < count; i++) {
+    if (i === 0) out.push([ Opcodes.block, returns, 'br table start' ]);
+      else out.push([ Opcodes.block, Blocktype.void ]);
+  }
+
+  const nums = keys.filter(x => +x);
+  const offset = Math.min(...nums);
+  const max = Math.max(...nums);
+
+  const table = [];
+  let br = 1;
+
+  for (let i = offset; i <= max; i++) {
+    // if branch for this num, go to that block
+    if (bc[i]) {
+      table.push(br);
+      br++;
+      continue;
+    }
+
+    // else default
+    table.push(0);
+  }
+
+  out.push(
+    [ Opcodes.block, Blocktype.void ],
+    ...input,
+    ...(offset > 0 ? [
+      ...number(offset, Valtype.i32),
+      [ Opcodes.i32_sub ]
+    ] : []),
+    [ Opcodes.br_table, ...encodeVector(table), 0 ]
+  );
+
+  // if you can guess why we sort the wrong way and then reverse
+  // (instead of just sorting the correct way)
+  // dm me and if you are correct and the first person
+  // I will somehow shout you out or something
+  const orderedBc = keys.sort((a, b) => b - a).reverse();
+
+  br = count - 1;
+  for (const x of orderedBc) {
+    out.push(
+      [ Opcodes.end ],
+      ...bc[x],
+      ...(br === 0 ? [] : [ [ Opcodes.br, br ] ])
+    );
+    br--;
+  }
+
+  return [
+    ...out,
+    [ Opcodes.end, 'br table end' ]
+  ];
+};
+
 const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
   const known = knownType(scope, type);
   if (known != null) {
     return bc[known] ?? bc.default;
   }
 
-  const tmp = localTmp(scope, '#typeswitch_tmp', Valtype.i32);
+  if (process.argv.includes('-typeswitch-use-brtable'))
+    return brTable(type, bc, returns);
 
+  const tmp = localTmp(scope, '#typeswitch_tmp', Valtype.i32);
   const out = [
     ...type,
     [ Opcodes.local_set, tmp ],

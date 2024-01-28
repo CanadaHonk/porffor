@@ -147,7 +147,7 @@ export default (funcs, globals, pages, tags) => {
               depth--;
               if (depth <= 0) break;
             }
-            if (op === Opcodes.br || op === Opcodes.br_if) {
+            if (op === Opcodes.br || op === Opcodes.br_if || op === Opcodes.br_table) {
               hasBranch = true;
               break;
             }

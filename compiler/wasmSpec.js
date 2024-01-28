@@ -32,8 +32,6 @@ export const Opcodes = {
   throw: 0x08,
   rethrow: 0x09,
 
-  return: 0x0F,
-
   call: 0x10,
   call_indirect: 0x11,
   return_call: 0x12,
@@ -42,7 +40,10 @@ export const Opcodes = {
   end: 0x0b,
   br: 0x0c,
   br_if: 0x0d,
+  br_table: 0x0e,
+  return: 0x0f,
   call: 0x10,
+
   drop: 0x1a,
 
   local_get: 0x20,
