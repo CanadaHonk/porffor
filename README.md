@@ -130,7 +130,7 @@ No particular order and no guarentees, just what could happen soon™
   - Rewrite local indexes per func for smallest local header and remove unused idxs
   - Smarter inline selection (snapshots?)
   - Remove const ifs (`if (true)`, etc)
-  - Use type(script) information to remove unneeded typechecker code
+  - Experiment with byte strings?
 - Runtime
   - WASI target
   - Run precompiled Wasm file if given
@@ -142,6 +142,9 @@ No particular order and no guarentees, just what could happen soon™
   - [Seeded Pseudo-Random Numbers](https://github.com/tc39/proposal-seeded-random)
   - [`do` expressions](https://github.com/tc39/proposal-do-expressions)
   - [String Trim Characters](https://github.com/Kingwl/proposal-string-trim-characters)
+- Posts
+  - Type annotations for performance
+  - Inlining investigation
 
 ## Performance
 *For the things it supports most of the time*, Porffor is blazingly fast compared to most interpreters, and common engines running without JIT. For those with JIT, it is not that much slower like a traditional interpreter would be; mostly the same or a bit faster/slower depending on what.
