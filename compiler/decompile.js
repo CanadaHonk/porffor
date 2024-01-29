@@ -15,7 +15,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
   if (name) out += `${makeSignature(params, returns)} ;; $${name} (${ind})\n`;
 
   const justLocals = Object.values(locals).sort((a, b) => a.idx - b.idx).slice(params.length);
-  if (justLocals.length > 0) out += `  local ${justLocals.map(x => invValtype[x.type]).join(' ')}\n`;
+  if (name && justLocals.length > 0) out += `  local ${justLocals.map(x => invValtype[x.type]).join(' ')}\n`;
 
   let i = -1, lastInst;
   let byte = 0;
@@ -32,7 +32,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       inst = [ [ inst[0], inst[1] ], ...inst.slice(2) ];
     }
 
-    if (inst[0] === Opcodes.end || inst[0] === Opcodes.else || inst[0] === Opcodes.catch_all) depth--;
+    if (depth > 0 && (inst[0] === Opcodes.end || inst[0] === Opcodes.else || inst[0] === Opcodes.catch_all)) depth--;
 
     out += ' '.repeat(Math.max(0, depth * 2));
 
@@ -119,7 +119,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 export const highlightAsm = asm => asm
   .replace(/(local|global|memory)\.[^\s]*/g, _ => `\x1B[31m${_}\x1B[0m`)
   .replace(/(i(8|16|32|64)x[0-9]+|v128)(\.[^\s]*)?/g, _ => `\x1B[34m${_}\x1B[0m`)
-  .replace(/[^m](i32|i64|f32|f64|drop)(\.[^\s]*)?/g, _ => `${_[0]}\x1B[36m${_.slice(1)}\x1B[0m`)
+  .replace(/(i32|i64|f32|f64|drop)(\.[^\s]*)?/g, _ => `\x1B[36m${_}\x1B[0m`)
   .replace(/(return_call|call|br_if|br|return|rethrow|throw)/g, _ => `\x1B[35m${_}\x1B[0m`)
   .replace(/(block|loop|if|end|else|try|catch_all|catch|delegate)/g, _ => `\x1B[95m${_}\x1B[0m`)
   .replace(/unreachable/g, _ => `\x1B[91m${_}\x1B[0m`)
