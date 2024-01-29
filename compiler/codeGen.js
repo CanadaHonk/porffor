@@ -1591,7 +1591,9 @@ const generateCall = (scope, decl, _global, _name) => {
   const func = funcs.find(x => x.index === idx);
 
   const userFunc = (funcIndex[name] && !importedFuncs[name] && !builtinFuncs[name] && !internalConstrs[name]) || idx === -1;
-  const paramCount = func && (userFunc ? func.params.length / 2 : func.params.length);
+  const typedParams = userFunc || builtinFuncs[name]?.typedParams;
+  const typedReturn = userFunc || builtinFuncs[name]?.typedReturn;
+  const paramCount = func && (typedParams ? func.params.length / 2 : func.params.length);
 
   let args = decl.arguments;
   if (func && args.length < paramCount) {
@@ -1609,12 +1611,12 @@ const generateCall = (scope, decl, _global, _name) => {
   let out = [];
   for (const arg of args) {
     out = out.concat(generate(scope, arg));
-    if (userFunc) out = out.concat(getNodeType(scope, arg));
+    if (typedParams) out = out.concat(getNodeType(scope, arg));
   }
 
   out.push([ Opcodes.call, idx ]);
 
-  if (!userFunc) {
+  if (!typedReturn) {
     // let type;
     // if (builtinFuncs[name]) type = TYPES[builtinFuncs[name].returnType ?? 'number'];
     // if (internalConstrs[name]) type = internalConstrs[name].type;
