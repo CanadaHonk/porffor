@@ -68,7 +68,12 @@ const generate = (scope, decl, global = false, name = undefined) => {
 
     case 'ArrowFunctionExpression':
     case 'FunctionDeclaration':
-      generateFunc(scope, decl);
+      const func = generateFunc(scope, decl);
+
+      if (decl.type.endsWith('Expression')) {
+        return number(func.index);
+      }
+
       return [];
 
     case 'BlockStatement':
