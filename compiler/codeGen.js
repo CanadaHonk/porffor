@@ -947,6 +947,18 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     locals[nameParam(i)] = { idx: i, type: allLocals[i] };
   }
 
+  if (typeof wasm === 'function') {
+    const scope = {
+      name,
+      params,
+      locals,
+      returns,
+      localInd: allLocals.length,
+    };
+
+    wasm = wasm(scope, { TYPES, typeSwitch, makeArray });
+  }
+
   let baseGlobalIdx, i = 0;
   for (const type of globalTypes) {
     if (baseGlobalIdx === undefined) baseGlobalIdx = globalInd;
