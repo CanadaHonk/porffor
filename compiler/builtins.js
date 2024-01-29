@@ -1,4 +1,4 @@
-import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
+import { Blocktype, Opcodes, Valtype, ValtypeSize } from "./wasmSpec.js";
 import { number, i32x4 } from "./embedding.js";
 
 export const importedFuncs = [
@@ -28,6 +28,21 @@ for (let i = 0; i < importedFuncs.length; i++) {
 }
 
 const char = c => number(c.charCodeAt(0));
+
+const printStaticStr = str => {
+  const out = [];
+
+  for (let i = 0; i < str.length; i++) {
+    out.push(
+      // ...number(str.charCodeAt(i)),
+      ...number(str.charCodeAt(i), Valtype.i32),
+      Opcodes.i32_from_u,
+      [ Opcodes.call, importedFuncs.printChar ]
+    );
+  }
+
+  return out;
+};
 
 // todo: somehow diff between these (undefined != null) while remaining falsey in wasm as a number value
 export const UNDEFINED = 0;
@@ -187,12 +202,125 @@ export const BuiltinFuncs = function() {
 
 
   this.__console_log = {
-    params: [ valtypeBinary ],
-    locals: [],
+    params: [ valtypeBinary, Valtype.i32 ],
+    typedParams: true,
+    locals: [ Valtype.i32, Valtype.i32 ],
     returns: [],
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.call, importedFuncs.print ],
+    wasm: (scope, { TYPES, typeSwitch }) => [
+      ...typeSwitch(scope, [ [ Opcodes.local_get, 1 ] ], {
+        [TYPES.number]: [
+          [ Opcodes.local_get, 0 ],
+          [ Opcodes.call, importedFuncs.print ],
+        ],
+        [TYPES.boolean]: [
+          [ Opcodes.local_get, 0 ],
+          Opcodes.i32_to_u,
+          [ Opcodes.if, Blocktype.void ],
+          ...printStaticStr('true'),
+          [ Opcodes.else ],
+          ...printStaticStr('false'),
+          [ Opcodes.end ]
+        ],
+        [TYPES.string]: [
+          // simply print a string :))
+          // cache input pointer as i32
+          [ Opcodes.local_get, 0 ],
+          Opcodes.i32_to_u,
+          [ Opcodes.local_tee, 2 ],
+
+          // make end pointer
+          [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+          ...number(ValtypeSize.i16, Valtype.i32),
+          [ Opcodes.i32_mul ],
+
+          [ Opcodes.local_get, 2 ],
+          [ Opcodes.i32_add ],
+          [ Opcodes.local_set, 3 ],
+
+          [ Opcodes.loop, Blocktype.void ],
+
+          // print current char
+          [ Opcodes.local_get, 2 ],
+          [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
+          Opcodes.i32_from_u,
+          [ Opcodes.call, importedFuncs.printChar ],
+
+          // increment pointer by sizeof i16
+          [ Opcodes.local_get, 2 ],
+          ...number(ValtypeSize.i16, Valtype.i32),
+          [ Opcodes.i32_add ],
+          [ Opcodes.local_tee, 2 ],
+
+          // if pointer != end pointer, loop
+          [ Opcodes.local_get, 3 ],
+          [ Opcodes.i32_ne ],
+          [ Opcodes.br_if, 0 ],
+
+          [ Opcodes.end ]
+        ],
+        [TYPES._array]: [
+          ...printStaticStr('[ '),
+
+          // cache input pointer as i32
+          [ Opcodes.local_get, 0 ],
+          Opcodes.i32_to_u,
+          [ Opcodes.local_tee, 2 ],
+
+          // make end pointer
+          [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+          ...number(ValtypeSize[valtype], Valtype.i32),
+          [ Opcodes.i32_mul ],
+
+          [ Opcodes.local_get, 2 ],
+          [ Opcodes.i32_add ],
+          [ Opcodes.local_set, 3 ],
+
+          [ Opcodes.loop, Blocktype.void ],
+
+          // print current char
+          [ Opcodes.local_get, 2 ],
+          [ Opcodes.load, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
+          [ Opcodes.call, importedFuncs.print ],
+
+          // increment pointer by sizeof valtype
+          [ Opcodes.local_get, 2 ],
+          ...number(ValtypeSize[valtype], Valtype.i32),
+          [ Opcodes.i32_add ],
+          [ Opcodes.local_tee, 2 ],
+
+          // if pointer != end pointer, print separator and loop
+          [ Opcodes.local_get, 3 ],
+          [ Opcodes.i32_ne ],
+          [ Opcodes.if, Blocktype.void ],
+          ...printStaticStr(', '),
+          [ Opcodes.br, 1 ],
+          [ Opcodes.end ],
+
+          [ Opcodes.end ],
+
+          ...printStaticStr(' ]'),
+        ],
+        [TYPES.undefined]: [
+          ...printStaticStr('undefined')
+        ],
+        [TYPES.function]: [
+          ...printStaticStr('function () {}')
+        ],
+        [TYPES.object]: [
+          [ Opcodes.local_get, 0 ],
+          Opcodes.i32_to_u,
+          [ Opcodes.if, Blocktype.void ],
+          ...printStaticStr('{}'),
+          [ Opcodes.else ],
+          ...printStaticStr('null'),
+          [ Opcodes.end ]
+        ],
+        default: [
+          [ Opcodes.local_get, 0 ],
+          [ Opcodes.call, importedFuncs.print ],
+        ]
+      }, Blocktype.void),
+
       ...char('\n'),
       [ Opcodes.call, importedFuncs.printChar ]
     ]
