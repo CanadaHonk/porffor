@@ -1,5 +1,6 @@
 import compile from './index.js';
 import decompile from './decompile.js';
+import { encodeVector, encodeLocal } from './encoding.js';
 // import fs from 'node:fs';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
@@ -35,14 +36,95 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   if (flags.includes('info')) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
 
   const t2 = performance.now();
-  const { instance } = await WebAssembly.instantiate(wasm, {
-    '': {
-      p: valtype === 'i64' ? i => print(Number(i).toString()) : i => print(i.toString()),
-      c: valtype === 'i64' ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
-      t: _ => performance.now(),
-      ...customImports
+
+  let instance;
+  try {
+    0, { instance } = await WebAssembly.instantiate(wasm, {
+      '': {
+        p: valtype === 'i64' ? i => print(Number(i).toString()) : i => print(i.toString()),
+        c: valtype === 'i64' ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
+        t: _ => performance.now(),
+        ...customImports
+      }
+    });
+  } catch (e) {
+    const funcInd = parseInt(e.message.match(/function #([0-9]+) /)[1]);
+    const blobOffset = parseInt(e.message.split('@')[1]);
+
+    // convert blob offset -> function wasm offset.
+    // this is not good code and is somewhat duplicated
+    // I just want it to work for debugging, I don't care about perf/yes
+
+    const func = funcs.find(x => x.index === funcInd);
+    const locals = Object.values(func.locals).sort((a, b) => a.idx - b.idx).slice(func.params.length).sort((a, b) => a.idx - b.idx);
+
+    let localDecl = [], typeCount = 0, lastType;
+    for (let i = 0; i < locals.length; i++) {
+      const local = locals[i];
+      if (i !== 0 && local.type !== lastType) {
+        localDecl.push(encodeLocal(typeCount, lastType));
+        typeCount = 0;
+      }
+
+      typeCount++;
+      lastType = local.type;
     }
-  });
+
+    if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
+
+    const toFind = encodeVector(localDecl).concat(func.wasm.flat().filter(x => x != null && x <= 0xff).slice(0, 40));
+
+    let i = 0;
+    for (; i < wasm.length; i++) {
+      let mismatch = false;
+      for (let j = 0; j < toFind.length; j++) {
+        if (wasm[i + j] !== toFind[j]) {
+          mismatch = true;
+          break;
+        }
+      }
+
+      if (!mismatch) break;
+    }
+
+    if (i === wasm.length) throw e;
+
+    const offset = (blobOffset - i) + encodeVector(localDecl).length;
+
+    let cumLen = 0;
+    i = 0;
+    for (; i < func.wasm.length; i++) {
+      cumLen += func.wasm[i].filter(x => x != null && x <= 0xff).length;
+      if (cumLen === offset) break;
+    }
+
+    if (cumLen !== offset) throw e;
+
+    i -= 1;
+
+    console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
+
+    console.log('\x1B[4m' + func.name + '\x1B[0m');
+
+    const surrounding = 6;
+
+    const decomp = decompile(func.wasm.slice(i - surrounding, i + surrounding + 1), '', 0, func.locals, func.params, func.returns, funcs, globals, exceptions).slice(0, -1).split('\n');
+
+    const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
+    let longest = 0;
+    for (let j = 0; j < decomp.length; j++) {
+      longest = Math.max(longest, noAnsi(decomp[j]).length);
+    }
+
+    const middle = Math.floor(decomp.length / 2);
+    decomp[middle] = `\x1B[47m\x1B[30m${noAnsi(decomp[middle])}${'\u00a0'.repeat(longest - noAnsi(decomp[middle]).length)}\x1B[0m`;
+
+    console.log('\x1B[90m...\x1B[0m');
+    console.log(decomp.join('\n'));
+    console.log('\x1B[90m...\x1B[0m\n');
+
+    throw e;
+  }
 
   times.push(performance.now() - t2);
   if (flags.includes('info')) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
