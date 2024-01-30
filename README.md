@@ -209,7 +209,10 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
 - `test262`: test262 runner and utils
 
 ## Usecases
-Basically none (other than giving people headaches). Potential ideas to come?
+Basically none right now (other than giving people headaches). Potential ideas:
+- Safety. As Porffor is written in JS, a memory-safe language\*, and compiles JS to Wasm, a fully sandboxed environment\*, it is quite safe. (\* These rely on the underlying implementations being secure. You could also run Wasm, or even Porffor itself, with an interpreter instead of a JIT for bonus security points too.)
+- Compiling JS to native binaries. This is still very early, [`2c`](#2c) is not that good yet :(
+- More in future probably?
 
 ## Usage
 Basically nothing will work :). See files in `test` for examples.
