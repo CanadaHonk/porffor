@@ -215,7 +215,7 @@ Basically none right now (other than giving people headaches). Potential ideas:
 - More in future probably?
 
 ## Usage
-Basically nothing will work :). See files in `test` for examples.
+Basically nothing will work :). See files in `test` and `bench` for examples.
 
 1. Clone repo
 2. `npm install`
