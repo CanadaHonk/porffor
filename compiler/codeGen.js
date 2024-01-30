@@ -1261,16 +1261,7 @@ const generateLiteral = (scope, decl, global, name) => {
       return number(decl.value ? 1 : 0);
 
     case 'string':
-      const str = decl.value;
-      const rawElements = new Array(str.length);
-      let j = 0;
-      for (let i = 0; i < str.length; i++) {
-        rawElements[i] = str.charCodeAt(i);
-      }
-
-      return makeArray(scope, {
-        rawElements
-      }, global, name, false, 'i16')[0];
+      return makeString(scope, decl.value, global, name);
 
     default:
       return todo(`cannot generate literal of type ${typeof decl.value}`);
