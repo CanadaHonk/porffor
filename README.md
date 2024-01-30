@@ -143,8 +143,8 @@ No particular order and no guarentees, just what could happen soon™
   - [`do` expressions](https://github.com/tc39/proposal-do-expressions)
   - [String Trim Characters](https://github.com/Kingwl/proposal-string-trim-characters)
 - Posts
-  - Type annotations for performance
   - Inlining investigation
+- Self hosted testing?
 
 ## Performance
 *For the things it supports most of the time*, Porffor is blazingly fast compared to most interpreters, and common engines running without JIT. For those with JIT, it is not that much slower like a traditional interpreter would be; mostly the same or a bit faster/slower depending on what.
