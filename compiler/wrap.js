@@ -49,6 +49,9 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
       }
     });
   } catch (e) {
+    // only backtrace for runner, not test262/etc
+    if (!process.argv[1].includes('/runner')) throw e;
+
     const funcInd = parseInt(e.message.match(/function #([0-9]+) /)[1]);
     const blobOffset = parseInt(e.message.split('@')[1]);
 
