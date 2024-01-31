@@ -473,6 +473,7 @@ export const PrototypeFuncs = function() {
   this[TYPES.string].at.returnType = TYPES.string;
   this[TYPES.string].charAt.returnType = TYPES.string;
   this[TYPES.string].charCodeAt.local = Valtype.i32;
+  this[TYPES.string].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 
   this[TYPES.string].isWellFormed.local = Valtype.i32;
   this[TYPES.string].isWellFormed.local2 = Valtype.i32;
@@ -614,6 +615,7 @@ export const PrototypeFuncs = function() {
     this[TYPES._bytestring].at.returnType = TYPES._bytestring;
     this[TYPES._bytestring].charAt.returnType = TYPES._bytestring;
     this[TYPES._bytestring].charCodeAt.local = Valtype.i32;
+    this[TYPES._bytestring].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 
     this[TYPES._bytestring].isWellFormed.local = Valtype.i32;
     this[TYPES._bytestring].isWellFormed.local2 = Valtype.i32;

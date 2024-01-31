@@ -1511,9 +1511,16 @@ const generateCall = (scope, decl, _global, _name) => {
       // use local for cached i32 length as commonly used
       const lengthLocal = localTmp(scope, '__proto_length_cache', Valtype.i32);
       const pointerLocal = localTmp(scope, '__proto_pointer_cache', Valtype.i32);
-      const getPointer = [ [ Opcodes.local_get, pointerLocal ] ];
 
       // TODO: long-term, prototypes should be their individual separate funcs
+
+      const rawPointer = [
+        ...generate(scope, target),
+        Opcodes.i32_to_u
+      ];
+
+      const usePointerCache = !Object.values(protoCands).every(x => x.noPointerCache === true);
+      const getPointer = usePointerCache ? [ [ Opcodes.local_get, pointerLocal ] ] : rawPointer;
 
       let lengthI32CacheUsed = false;
       const protoBC = {};
@@ -1561,10 +1568,10 @@ const generateCall = (scope, decl, _global, _name) => {
       }
 
       return [
-        ...generate(scope, target),
-
-        Opcodes.i32_to_u,
-        [ Opcodes.local_set, pointerLocal ],
+        ...(usePointerCache ? [
+          ...rawPointer,
+          [ Opcodes.local_set, pointerLocal ],
+        ] : []),
 
         ...(!lengthI32CacheUsed ? [] : [
           ...RTArrayUtil.getLengthI32(getPointer),
