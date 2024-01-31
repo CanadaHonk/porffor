@@ -1,4 +1,4 @@
-// "0\n1\n1\n1\n"
+// "false\ntrue\ntrue\ntrue\n"
 
 console.log(Boolean(0));
 console.log(Boolean(1));

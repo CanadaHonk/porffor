@@ -1,4 +1,4 @@
-// "1\n1\n1\n1\n1\n0\n0\n"
+// "true\ntrue\ntrue\ntrue\ntrue\nfalse\nfalse\n"
 
 console.log(Number.isSafeInteger(0));
 console.log(Number.isSafeInteger(1));
