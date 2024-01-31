@@ -192,6 +192,7 @@ export default (funcs, globals, pages, tags) => {
           let missing = false;
           if (type === 'Array') missing = !pages.hasArray;
           if (type === 'String') missing = !pages.hasString;
+          if (type === 'ByteString') missing = !pages.hasByteString;
 
           if (missing) {
             let j = i, depth = 0;

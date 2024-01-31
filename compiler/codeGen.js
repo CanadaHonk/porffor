@@ -1260,7 +1260,9 @@ const getNodeType = (scope, node) => {
       // hack: if something.length, number type
       if (node.property.name === 'length') return TYPES.number;
 
-      // we cannot guess
+      if (scope.locals['#last_type']) return [ getLastType(scope) ];
+
+      // presume
       return TYPES.number;
     }
 
@@ -2384,13 +2386,14 @@ const generateForOf = (scope, decl) => {
   // // todo: we should only do this for strings but we don't know at compile-time :(
   // hack: this is naughty and will break things!
   let newOut = number(0, Valtype.f64), newPointer = -1;
-  if (pages.hasString) {
+  if (pages.hasAnyString) {
     0, [ newOut, newPointer ] = makeArray(scope, {
       rawElements: new Array(1)
     }, isGlobal, leftName, true, 'i16');
   }
 
   // set type for local
+  // todo: optimize away counter and use end pointer
   out.push(...typeSwitch(scope, getNodeType(scope, decl.right), {
     [TYPES._array]: [
       ...setType(scope, leftName, TYPES.number),
@@ -2576,6 +2579,8 @@ const allocPage = (reason, type) => {
 
   if (reason.startsWith('array:')) pages.hasArray = true;
   if (reason.startsWith('string:')) pages.hasString = true;
+  if (reason.startsWith('bytestring:')) pages.hasByteString = true;
+  if (reason.includes('string:')) pages.hasAnyString = true;
 
   const ind = pages.size;
   pages.set(reason, { ind, type });
@@ -2753,10 +2758,13 @@ export const generateMember = (scope, decl, _global, _name) => {
     ];
   }
 
+  const object = generate(scope, decl.object);
+  const property = generate(scope, decl.property);
+
   // // todo: we should only do this for strings but we don't know at compile-time :(
   // hack: this is naughty and will break things!
   let newOut = number(0, valtypeBinary), newPointer = -1;
-  if (pages.hasString) {
+  if (pages.hasAnyString) {
     0, [ newOut, newPointer ] = makeArray(scope, {
       rawElements: new Array(1)
     }, _global, _name, true, 'i16');
@@ -2765,7 +2773,7 @@ export const generateMember = (scope, decl, _global, _name) => {
   return typeSwitch(scope, getNodeType(scope, decl.object), {
     [TYPES._array]: [
       // get index as valtype
-      ...generate(scope, decl.property),
+      ...property,
 
       // convert to i32 and turn into byte offset by * valtypeSize (4 for i32, 8 for i64/f64)
       Opcodes.i32_to_u,
@@ -2773,7 +2781,7 @@ export const generateMember = (scope, decl, _global, _name) => {
       [ Opcodes.i32_mul ],
 
       ...(aotPointer ? [] : [
-        ...generate(scope, decl.object),
+        ...object,
         Opcodes.i32_to_u,
         [ Opcodes.i32_add ]
       ]),
@@ -2792,14 +2800,14 @@ export const generateMember = (scope, decl, _global, _name) => {
 
       ...number(0, Valtype.i32), // base 0 for store later
 
-      ...generate(scope, decl.property),
-
+      ...property,
       Opcodes.i32_to_u,
+
       ...number(ValtypeSize.i16, Valtype.i32),
       [ Opcodes.i32_mul ],
 
       ...(aotPointer ? [] : [
-        ...generate(scope, decl.object),
+        ...object,
         Opcodes.i32_to_u,
         [ Opcodes.i32_add ]
       ]),
@@ -2823,11 +2831,11 @@ export const generateMember = (scope, decl, _global, _name) => {
 
       ...number(0, Valtype.i32), // base 0 for store later
 
-      ...generate(scope, decl.property),
+      ...property,
       Opcodes.i32_to_u,
 
       ...(aotPointer ? [] : [
-        ...generate(scope, decl.object),
+        ...object,
         Opcodes.i32_to_u,
         [ Opcodes.i32_add ]
       ]),
