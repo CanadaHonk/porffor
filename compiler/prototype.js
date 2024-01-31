@@ -72,7 +72,7 @@ export const PrototypeFuncs = function() {
     ],
 
     // todo: only for 1 argument
-    push: (pointer, length, wNewMember) => [
+    push: (pointer, length, wNewMember, _1, _2, _3, unusedValue) => [
       // get memory offset of array at last index (length)
       ...length.getCachedI32(),
       ...number(ValtypeSize[valtype], Valtype.i32),
@@ -93,22 +93,28 @@ export const PrototypeFuncs = function() {
         ...number(1, Valtype.i32),
         [ Opcodes.i32_add ],
 
-        ...length.setCachedI32(),
-        ...length.getCachedI32(),
+        ...(unusedValue() ? [] : [
+          ...length.setCachedI32(),
+          ...length.getCachedI32(),
+        ])
       ]),
 
-      ...length.getCachedI32(),
-      Opcodes.i32_from_u
+      ...(unusedValue() ? [] : [
+        ...length.getCachedI32(),
+        Opcodes.i32_from_u
+      ])
 
       // ...length.get()
     ],
 
-    pop: (pointer, length) => [
+    pop: (pointer, length, _1, _2, _3, _4, unusedValue) => [
       // if length == 0, noop
       ...length.getCachedI32(),
       [ Opcodes.i32_eqz ],
       [ Opcodes.if, Blocktype.void ],
-      ...number(UNDEFINED),
+      ...(unusedValue() ? [] : [
+        ...number(UNDEFINED),
+      ]),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
@@ -120,19 +126,23 @@ export const PrototypeFuncs = function() {
         ...number(1, Valtype.i32),
         [ Opcodes.i32_sub ],
 
-        ...length.setCachedI32(),
-        ...length.getCachedI32(),
+        ...(unusedValue() ? [] : [
+          ...length.setCachedI32(),
+          ...length.getCachedI32(),
+        ])
       ]),
 
       // load last element
-      ...length.getCachedI32(),
-      ...number(ValtypeSize[valtype], Valtype.i32),
-      [ Opcodes.i32_mul ],
+      ...(unusedValue() ? [] : [
+        ...length.getCachedI32(),
+        ...number(ValtypeSize[valtype], Valtype.i32),
+        [ Opcodes.i32_mul ],
 
-      ...pointer,
-      [ Opcodes.i32_add ],
+        ...pointer,
+        [ Opcodes.i32_add ],
 
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(ValtypeSize.i32) ]
+        [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(ValtypeSize.i32) ]
+      ])
     ],
 
     shift: (pointer, length) => [

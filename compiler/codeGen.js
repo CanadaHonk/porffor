@@ -55,7 +55,7 @@ const todo = msg => {
 };
 
 const isFuncType = type => type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
-const generate = (scope, decl, global = false, name = undefined) => {
+const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   switch (decl.type) {
     case 'BinaryExpression':
       return generateBinaryExp(scope, decl, global, name);
@@ -86,7 +86,7 @@ const generate = (scope, decl, global = false, name = undefined) => {
       return generateExp(scope, decl);
 
     case 'CallExpression':
-      return generateCall(scope, decl, global, name);
+      return generateCall(scope, decl, global, name, valueUnused);
 
     case 'NewExpression':
       return generateNew(scope, decl, global, name);
@@ -1334,7 +1334,7 @@ const disposeLeftover = wasm => {
 const generateExp = (scope, decl) => {
   const expression = decl.expression;
 
-  const out = generate(scope, expression);
+  const out = generate(scope, expression, undefined, undefined, true);
   disposeLeftover(out);
 
   return out;
@@ -1392,7 +1392,7 @@ const RTArrayUtil = {
   ]
 };
 
-const generateCall = (scope, decl, _global, _name) => {
+const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   /* const callee = decl.callee;
   const args = decl.arguments;
 
@@ -1522,6 +1522,7 @@ const generateCall = (scope, decl, _global, _name) => {
       const usePointerCache = !Object.values(protoCands).every(x => x.noPointerCache === true);
       const getPointer = usePointerCache ? [ [ Opcodes.local_get, pointerLocal ] ] : rawPointer;
 
+      let allOptUnused = true;
       let lengthI32CacheUsed = false;
       const protoBC = {};
       for (const x in protoCands) {
@@ -1541,6 +1542,7 @@ const generateCall = (scope, decl, _global, _name) => {
         const protoLocal = protoFunc.local ? localTmp(scope, `__${protoName}_tmp`, protoFunc.local) : -1;
         const protoLocal2 = protoFunc.local2 ? localTmp(scope, `__${protoName}_tmp2`, protoFunc.local2) : -1;
 
+        let optUnused = false;
         const protoOut = protoFunc(getPointer, {
           getCachedI32: () => {
             lengthI32CacheUsed = true;
@@ -1555,10 +1557,15 @@ const generateCall = (scope, decl, _global, _name) => {
           return makeArray(scope, {
             rawElements: new Array(length)
           }, _global, _name, true, itemType);
+        }, () => {
+          optUnused = true;
+          return unusedValue;
         });
 
+        if (!optUnused) allOptUnused = false;
+
         protoBC[x] = [
-          [ Opcodes.block, valtypeBinary ],
+          [ Opcodes.block, unusedValue && optUnused ? Blocktype.void : valtypeBinary ],
           ...protoOut,
 
           ...number(protoFunc.returnType ?? TYPES.number, Valtype.i32),
@@ -1566,6 +1573,8 @@ const generateCall = (scope, decl, _global, _name) => {
           [ Opcodes.end ]
         ];
       }
+
+      // todo: if some cands use optUnused and some don't, we will probably crash
 
       return [
         ...(usePointerCache ? [
@@ -1583,7 +1592,7 @@ const generateCall = (scope, decl, _global, _name) => {
 
           // TODO: error better
           default: internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
-        }, valtypeBinary),
+        }, allOptUnused && unusedValue ? Blocktype.void : valtypeBinary),
       ];
     }
   }
