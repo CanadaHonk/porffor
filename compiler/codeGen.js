@@ -2816,6 +2816,34 @@ export const generateMember = (scope, decl, _global, _name) => {
       ...number(TYPES.string, Valtype.i32),
       setLastType(scope)
     ],
+    [TYPES._bytestring]: [
+      // setup new/out array
+      ...newOut,
+      [ Opcodes.drop ],
+
+      ...number(0, Valtype.i32), // base 0 for store later
+
+      ...generate(scope, decl.property),
+      Opcodes.i32_to_u,
+
+      ...(aotPointer ? [] : [
+        ...generate(scope, decl.object),
+        Opcodes.i32_to_u,
+        [ Opcodes.i32_add ]
+      ]),
+
+      // load current string ind {arg}
+      [ Opcodes.i32_load8_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
+
+      // store to new string ind 0
+      [ Opcodes.i32_store8, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+
+      // return new string (page)
+      ...number(newPointer),
+
+      ...number(TYPES._bytestring, Valtype.i32),
+      setLastType(scope)
+    ],
 
     default: [ [ Opcodes.unreachable ] ]
   });
