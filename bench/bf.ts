@@ -1,7 +1,8 @@
 // const printChar = i => process.stdout.write(String.fromCharCode(i || 0));
 type i32 = number;
+type bytestring = string;
 
-const interpret = (str: string) => {
+const interpret = (str: bytestring) => {
   let ptr: i32 = 0;
   let memory: i32[] = new Array(8000);
   memory.fill(0);
