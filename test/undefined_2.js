@@ -1,4 +1,8 @@
+// "0123"
+// todo: it should be below but we broke it
+// see: "hack: this follows spec properly but is mostly unneeded"
 // "01234"
+
 let a;
 let b = undefined;
 let c = null;
