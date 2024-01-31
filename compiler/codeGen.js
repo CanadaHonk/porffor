@@ -2933,10 +2933,8 @@ const generateFunc = (scope, decl) => {
   const func = {
     name,
     params: Object.values(innerScope.locals).slice(0, params.length * 2).map(x => x.type),
-    returns: innerScope.returns,
-    locals: innerScope.locals,
-    throws: innerScope.throws,
-    index: currentFuncIndex++
+    index: currentFuncIndex++,
+    ...innerScope
   };
   funcIndex[name] = func.index;
 
