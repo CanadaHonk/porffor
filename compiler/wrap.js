@@ -19,7 +19,8 @@ const TYPES = {
 
   // internal
   [internalTypeBase]: '_array',
-  [internalTypeBase + 1]: '_regexp'
+  [internalTypeBase + 1]: '_regexp',
+  [internalTypeBase + 2]: '_bytestring'
 };
 
 export default async (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {
@@ -175,6 +176,13 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
             const length = new Int32Array(memory.buffer, pointer, 1);
 
             return Array.from(new Uint16Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
+          }
+
+          case '_bytestring': {
+            const pointer = ret;
+            const length = new Int32Array(memory.buffer, pointer, 1);
+
+            return Array.from(new Uint8Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
           }
 
           case 'function': {

@@ -685,6 +685,15 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
         [ Opcodes.i32_eqz ], */
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ],
+      [TYPES._bytestring]: [ // duplicate of string
+        [ Opcodes.local_get, tmp ],
+        ...(intIn ? [] : [ Opcodes.i32_to_u ]),
+
+        // get length
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+
+        ...(intOut ? [] : [ Opcodes.i32_from_u ])
+      ],
       default: def
     }, intOut ? Valtype.i32 : valtypeBinary)
   ];
@@ -702,6 +711,17 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
         ...number(0, intOut ? Valtype.i32 : valtypeBinary)
       ],
       [TYPES.string]: [
+        [ Opcodes.local_get, tmp ],
+        ...(intIn ? [] : [ Opcodes.i32_to_u ]),
+
+        // get length
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+
+        // if length == 0
+        [ Opcodes.i32_eqz ],
+        ...(intOut ? [] : [ Opcodes.i32_from_u ])
+      ],
+      [TYPES._bytestring]: [ // duplicate of string
         [ Opcodes.local_get, tmp ],
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
@@ -1044,7 +1064,8 @@ const TYPES = {
 
   // these are not "typeof" types but tracked internally
   _array: 0x10,
-  _regexp: 0x11
+  _regexp: 0x11,
+  _bytestring: 0x12
 };
 
 const TYPE_NAMES = {
@@ -1058,7 +1079,8 @@ const TYPE_NAMES = {
   [TYPES.bigint]: 'BigInt',
 
   [TYPES._array]: 'Array',
-  [TYPES._regexp]: 'RegExp'
+  [TYPES._regexp]: 'RegExp',
+  [TYPES._bytestring]: 'ByteString'
 };
 
 const getType = (scope, _name) => {
@@ -1110,6 +1132,8 @@ const getNodeType = (scope, node) => {
   const inner = () => {
     if (node.type === 'Literal') {
       if (node.regex) return TYPES._regexp;
+
+      if (typeof node.value === 'string' && byteStringable(node.value)) return TYPES._bytestring;
 
       return TYPES[typeof node.value];
     }
@@ -1218,7 +1242,7 @@ const getNodeType = (scope, node) => {
       if (node.operator === '!') return TYPES.boolean;
       if (node.operator === 'void') return TYPES.undefined;
       if (node.operator === 'delete') return TYPES.boolean;
-      if (node.operator === 'typeof') return TYPES.string;
+      if (node.operator === 'typeof') return process.argv.includes('-bytestring') ? TYPES._bytestring : TYPES.string;
 
       return TYPES.number;
     }
@@ -1282,9 +1306,9 @@ const countLeftover = wasm => {
 
     if (depth === 0)
       if ([Opcodes.throw,Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
-        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x0a)) {}
+        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.i32_load8_u, Opcodes.i32_load8_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x0a)) {}
         else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const].includes(inst[0])) count++;
-        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.i32_store16].includes(inst[0])) count -= 2;
+        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.i32_store16, Opcodes.i32_store8].includes(inst[0])) count -= 2;
         else if (Opcodes.memory_copy[0] === inst[0] && Opcodes.memory_copy[1] === inst[1]) count -= 3;
         else if (inst[0] === Opcodes.return) count = 0;
         else if (inst[0] === Opcodes.call) {
@@ -1760,6 +1784,8 @@ const brTable = (input, bc, returns) => {
 };
 
 const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
+  if (!process.argv.includes('-bytestring')) delete bc[TYPES._bytestring];
+
   const known = knownType(scope, type);
   if (known != null) {
     return bc[known] ?? bc.default;
@@ -2149,6 +2175,8 @@ const generateUnary = (scope, decl) => {
         [TYPES.string]: makeString(scope, 'string', false, '#typeof_result'),
         [TYPES.undefined]: makeString(scope, 'undefined', false, '#typeof_result'),
         [TYPES.function]: makeString(scope, 'function', false, '#typeof_result'),
+
+        [TYPES._bytestring]: makeString(scope, 'string', false, '#typeof_result'),
 
         // object and internal types
         default: makeString(scope, 'object', false, '#typeof_result'),
@@ -2556,7 +2584,8 @@ const StoreOps = {
   f64: Opcodes.f64_store,
 
   // expects i32 input!
-  i16: Opcodes.i32_store16
+  i8: Opcodes.i32_store8,
+  i16: Opcodes.i32_store16,
 };
 
 let data = [];
@@ -2575,6 +2604,15 @@ const compileBytes = (val, itemType, signed = true) => {
   }
 };
 
+const getAllocType = itemType => {
+  switch (itemType) {
+    case 'i8': return 'bytestring';
+    case 'i16': return 'string';
+
+    default: return 'array';
+  }
+};
+
 const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype) => {
   const out = [];
 
@@ -2584,7 +2622,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
     // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
     const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
-    arrays.set(name, allocPage(`${itemType === 'i16' ? 'string' : 'array'}: ${uniqueName}`, itemType) * pageSize);
+    arrays.set(name, allocPage(`${getAllocType(itemType)}: ${uniqueName}`, itemType) * pageSize);
   }
 
   const pointer = arrays.get(name);
@@ -2630,7 +2668,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     out.push(
       ...number(0, Valtype.i32),
       ...(useRawElements ? number(elements[i], Valtype[valtype]) : generate(scope, elements[i])),
-      [ storeOp, Math.log2(ValtypeSize[itemType]) - 1, ...unsignedLEB128(pointer + ValtypeSize.i32 + i * ValtypeSize[itemType]) ]
+      [ storeOp, (Math.log2(ValtypeSize[itemType]) || 1) - 1, ...unsignedLEB128(pointer + ValtypeSize.i32 + i * ValtypeSize[itemType]) ]
     );
   }
 
@@ -2640,15 +2678,29 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   return [ out, pointer ];
 };
 
+const byteStringable = str => {
+  if (!process.argv.includes('-bytestring')) return false;
+
+  for (let i = 0; i < str.length; i++) {
+    if (str.charCodeAt(i) > 0xFF) return false;
+  }
+
+  return true;
+};
+
 const makeString = (scope, str, global = false, name = '$undeclared') => {
   const rawElements = new Array(str.length);
+  let byteStringable = process.argv.includes('-bytestring');
   for (let i = 0; i < str.length; i++) {
-    rawElements[i] = str.charCodeAt(i);
+    const c = str.charCodeAt(i);
+    rawElements[i] = c;
+
+    if (byteStringable && c > 0xFF) byteStringable = false;
   }
 
   return makeArray(scope, {
     rawElements
-  }, global, name, false, 'i16')[0];
+  }, global, name, false, byteStringable ? 'i8' : 'i16')[0];
 };
 
 let arrays = new Map();

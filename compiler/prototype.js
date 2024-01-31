@@ -16,7 +16,8 @@ const TYPES = {
 
   // these are not "typeof" types but tracked internally
   _array: 0x10,
-  _regexp: 0x11
+  _regexp: 0x11,
+  _bytestring: 0x12
 };
 
 // todo: turn these into built-ins once arrays and these become less hacky
@@ -476,4 +477,146 @@ export const PrototypeFuncs = function() {
   this[TYPES.string].isWellFormed.local = Valtype.i32;
   this[TYPES.string].isWellFormed.local2 = Valtype.i32;
   this[TYPES.string].isWellFormed.returnType = TYPES.boolean;
+
+  if (process.argv.includes('-bytestring')) {
+    this[TYPES._bytestring] = {
+      at: (pointer, length, wIndex, iTmp, _, arrayShell) => {
+        const [ newOut, newPointer ] = arrayShell(1, 'i16');
+
+        return [
+          // setup new/out array
+          ...newOut,
+          [ Opcodes.drop ],
+
+          ...number(0, Valtype.i32), // base 0 for store later
+
+          ...wIndex,
+          Opcodes.i32_to_u,
+          [ Opcodes.local_tee, iTmp ],
+
+          // if index < 0: access index + array length
+          ...number(0, Valtype.i32),
+          [ Opcodes.i32_lt_s ],
+          [ Opcodes.if, Blocktype.void ],
+          [ Opcodes.local_get, iTmp ],
+          ...length.getCachedI32(),
+          [ Opcodes.i32_add ],
+          [ Opcodes.local_set, iTmp ],
+          [ Opcodes.end ],
+
+          // if still < 0 or >= length: return undefined
+          [ Opcodes.local_get, iTmp ],
+          ...number(0, Valtype.i32),
+          [ Opcodes.i32_lt_s ],
+
+          [ Opcodes.local_get, iTmp ],
+          ...length.getCachedI32(),
+          [ Opcodes.i32_ge_s ],
+          [ Opcodes.i32_or ],
+
+          [ Opcodes.if, Blocktype.void ],
+          ...number(UNDEFINED),
+          [ Opcodes.br, 1 ],
+          [ Opcodes.end ],
+
+          [ Opcodes.local_get, iTmp ],
+
+          ...pointer,
+          [ Opcodes.i32_add ],
+
+          // load current string ind {arg}
+          [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+
+          // store to new string ind 0
+          [ Opcodes.i32_store8, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+
+          // return new string (pointer)
+          ...number(newPointer)
+        ];
+      },
+
+      // todo: out of bounds properly
+      charAt: (pointer, length, wIndex, _1, _2, arrayShell) => {
+        const [ newOut, newPointer ] = arrayShell(1, 'i16');
+
+        return [
+          // setup new/out array
+          ...newOut,
+          [ Opcodes.drop ],
+
+          ...number(0, Valtype.i32), // base 0 for store later
+
+          ...wIndex,
+
+          Opcodes.i32_to,
+
+          ...pointer,
+          [ Opcodes.i32_add ],
+
+          // load current string ind {arg}
+          [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+
+          // store to new string ind 0
+          [ Opcodes.i32_store8, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+
+          // return new string (page)
+          ...number(newPointer)
+        ];
+      },
+
+      charCodeAt: (pointer, length, wIndex, iTmp) => {
+        return [
+          ...wIndex,
+          Opcodes.i32_to,
+
+          ...(zeroChecks.charcodeat ? [] : [
+            [ Opcodes.local_set, iTmp ],
+
+            // index < 0
+            ...(noUnlikelyChecks ? [] : [
+              [ Opcodes.local_get, iTmp ],
+              ...number(0, Valtype.i32),
+              [ Opcodes.i32_lt_s ],
+            ]),
+
+            // index >= length
+            [ Opcodes.local_get, iTmp ],
+            ...length.getCachedI32(),
+            [ Opcodes.i32_ge_s ],
+
+            ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
+            [ Opcodes.if, Blocktype.void ],
+            ...number(NaN),
+            [ Opcodes.br, 1 ],
+            [ Opcodes.end ],
+
+            [ Opcodes.local_get, iTmp ],
+          ]),
+
+          ...pointer,
+          [ Opcodes.i32_add ],
+
+          // load current string ind {arg}
+          [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+          Opcodes.i32_from_u
+        ];
+      },
+
+      isWellFormed: () => {
+        return [
+          // we know it must be true as it is a bytestring lol
+          ...number(1)
+        ]
+      }
+    };
+
+    this[TYPES._bytestring].at.local = Valtype.i32;
+    this[TYPES._bytestring].at.returnType = TYPES._bytestring;
+    this[TYPES._bytestring].charAt.returnType = TYPES._bytestring;
+    this[TYPES._bytestring].charCodeAt.local = Valtype.i32;
+
+    this[TYPES._bytestring].isWellFormed.local = Valtype.i32;
+    this[TYPES._bytestring].isWellFormed.local2 = Valtype.i32;
+    this[TYPES._bytestring].isWellFormed.returnType = TYPES.boolean;
+  }
 };

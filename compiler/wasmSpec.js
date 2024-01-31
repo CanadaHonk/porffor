@@ -57,9 +57,12 @@ export const Opcodes = {
   i64_load: 0x29,
   f64_load: 0x2b,
 
+  i32_load8_s: 0x2c,
+  i32_load8_u: 0x2d,
   i32_load16_s: 0x2e,
   i32_load16_u: 0x2f,
 
+  i32_store8: 0x3a,
   i32_store16: 0x3b,
 
   i32_store: 0x36,
