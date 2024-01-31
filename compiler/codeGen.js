@@ -1148,6 +1148,15 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'CallExpression' || node.type === 'NewExpression') {
       const name = node.callee.name;
+      if (!name) {
+        // iife
+        if (scope.locals['#last_type']) return [ getLastType(scope) ];
+
+        // presume
+        // todo: warn here?
+        return TYPES.number;
+      }
+
       const func = funcs.find(x => x.name === name);
 
       if (func) {
