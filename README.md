@@ -121,7 +121,6 @@ No particular order and no guarentees, just what could happen soon™
   - *Basic* Wasm engine (interpreter) in JS
 - More math operators (`**`, etc)
 - `do { ... } while (...)`
-- Rewrite `console.log` to work with strings/arrays
 - Exceptions
   - Rewrite to use actual strings (optional?)
   - `try { } finally { }`
@@ -130,7 +129,6 @@ No particular order and no guarentees, just what could happen soon™
   - Rewrite local indexes per func for smallest local header and remove unused idxs
   - Smarter inline selection (snapshots?)
   - Remove const ifs (`if (true)`, etc)
-  - Experiment with byte strings?
 - Runtime
   - WASI target
   - Run precompiled Wasm file if given
