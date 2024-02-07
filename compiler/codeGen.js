@@ -1175,7 +1175,7 @@ const getNodeType = (scope, node) => {
         const spl = name.slice(2).split('_');
 
         const func = spl[spl.length - 1];
-        const protoFuncs = Object.values(prototypeFuncs).filter(x => x[func] != null);
+        const protoFuncs = Object.keys(prototypeFuncs).filter(x => x != TYPES._bytestring && prototypeFuncs[x][func] != null);
         if (protoFuncs.length === 1) return protoFuncs[0].returnType ?? TYPES.number;
       }
 
