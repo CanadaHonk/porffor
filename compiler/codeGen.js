@@ -1260,6 +1260,10 @@ const getNodeType = (scope, node) => {
       // hack: if something.length, number type
       if (node.property.name === 'length') return TYPES.number;
 
+      // ts hack
+      if (scope.locals[node.object.name]?.metadata?.type === TYPES.string) return TYPES.string;
+      if (scope.locals[node.object.name]?.metadata?.type === TYPES._array) return TYPES.number;
+
       if (scope.locals['#last_type']) return [ getLastType(scope) ];
 
       // presume
