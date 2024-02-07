@@ -1911,6 +1911,8 @@ const extractTypeAnnotation = decl => {
   const typeName = type;
   type = typeAnnoToPorfType(type);
 
+  if (type === TYPES._bytestring && !process.argv.includes('-bytestring')) type = TYPES.string;
+
   // if (decl.name) console.log(decl.name, { type, elementType });
 
   return { type, typeName, elementType };
