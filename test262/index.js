@@ -59,10 +59,10 @@ const hacks = [
   },
 
   // int valtypes only: replace assert._isSameValue check with simple check
-  x => {
-    if (valtype[0] !== 'i') return x;
-    return x.replace(`assert._isSameValue = function (a, b) {`, `assert._isSameValue = function (a, b) { return a == b;`);
-  },
+  // x => {
+  //   if (valtype[0] !== 'i') return x;
+  //   return x.replace(`assert._isSameValue = function (a, b) {`, `assert._isSameValue = function (a, b) { return a == b;`);
+  // },
 
   // replace old tests' custom checks with standard assert
   x => {
@@ -129,7 +129,7 @@ const run = async ({ file, contents, attrs }) => {
 
   try {
     // only timeout some due to big perf impact
-    if (['test\\language\\statements\\for\\scope-body-lex-boundary.js', 'test\\language\\statements\\while\\S12.6.2_A1.js'].includes(file)) timeout(exports.main, 2000);
+    if (['test\\language\\statements\\for\\scope-body-lex-boundary.js', 'test\\language\\statements\\while\\S12.6.2_A1.js', 'test\\language\\statements\\continue\\shadowing-loop-variable-in-same-scope-as-continue.js'].includes(file)) timeout(exports.main, 2000);
       else exports.main();
   } catch (e) {
     return [ 1, e ];
@@ -277,7 +277,7 @@ if (resultOnly) {
 
 console.log('\n');
 
-const nextMinorPercent = (Math.floor(percent * 10) / 10) + 0.1;
+const nextMinorPercent = parseFloat(((Math.floor(percent * 10) / 10) + 0.1).toFixed(1));
 const nextMajorPercent = Math.floor(percent) + 1;
 
 const togo = next => `${Math.floor((total * next / 100) - passes)} to go until ${next}%`;
