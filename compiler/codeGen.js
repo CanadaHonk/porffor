@@ -1932,6 +1932,8 @@ const generateVar = (scope, decl) => {
   for (const x of decl.declarations) {
     const name = mapName(x.id.name);
 
+    if (!name) return todo('destructuring is not supported yet');
+
     if (x.init && isFuncType(x.init.type)) {
       // hack for let a = function () { ... }
       x.init.id = { name };
@@ -2069,6 +2071,8 @@ const generateAssign = (scope, decl) => {
       [ Opcodes.local_get, newValueTmp ]
     ];
   }
+
+  if (!name) return todo('destructuring is not supported yet');
 
   const [ local, isGlobal ] = lookupName(scope, name);
 
