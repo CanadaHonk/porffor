@@ -33,7 +33,7 @@ const excludeNegative = process.argv.includes('-exclude-negative');
 
 const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
-let lastCommitResults = execSync(`git log -40 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1')).split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
+let lastCommitResults = execSync(`git log -80 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1')).split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
 if (lastCommitResults.length === 8) lastCommitResults = [ ...lastCommitResults.slice(0, 7), 0, lastCommitResults[7] ];
 
 const resultOnly = process.env.RESULT_ONLY;
@@ -62,12 +62,6 @@ const hacks = [
   x => {
     if (valtype[0] !== 'i') return x;
     return x.replace(`assert._isSameValue = function (a, b) {`, `assert._isSameValue = function (a, b) { return a == b;`);
-  },
-
-  // remove messages from asserts (assert, assert.sameValue, assert.notSameValue)
-  x => {
-    return x
-      .replace(/((assert)(\.sameValue|\.notSameValue)?\(.*?, .*?), .*\);/g, (_, excludingLastArg) => excludingLastArg + ')');
   },
 
   // replace old tests' custom checks with standard assert
@@ -211,7 +205,7 @@ for await (const test of tests) {
   if (!resultOnly) process.stdout.write(`\r${' '.repeat(200)}\r`);
   if (!resultOnly) console.log(`\u001b[90m${Math.floor((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
 
-  if (logErrors && !pass && result) console.log(result.stack);
+  if (logErrors && !pass && result) console.log(result.stack ?? result);
   // if (!pass && stage === 0 && result.constructor.name === 'CompileError') console.log(file, test.contents.split('---*/').pop(), result.stack, '\n');
 
   let y = dirs;
