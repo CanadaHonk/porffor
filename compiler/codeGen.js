@@ -2315,8 +2315,10 @@ const generateFor = (scope, decl) => {
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('for');
 
-  out.push(...generate(scope, decl.test));
-  out.push(Opcodes.i32_to, [ Opcodes.if, Blocktype.void ]);
+  if (decl.test) out.push(...generate(scope, decl.test), Opcodes.i32_to);
+    else out.push(...number(1, Valtype.i32));
+
+  out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
   out.push([ Opcodes.block, Blocktype.void ]);
@@ -2324,8 +2326,7 @@ const generateFor = (scope, decl) => {
   out.push(...generate(scope, decl.body));
   out.push([ Opcodes.end ]);
 
-  out.push(...generate(scope, decl.update));
-  depth.pop();
+  if (decl.update) out.push(...generate(scope, decl.update));
 
   out.push([ Opcodes.br, 1 ]);
   out.push([ Opcodes.end ], [ Opcodes.end ]);
