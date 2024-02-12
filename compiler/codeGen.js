@@ -2875,10 +2875,13 @@ const objectHack = node => {
     // if object is not identifier or another member exp, give up
     if (node.object.type !== 'Identifier' && node.object.type !== 'MemberExpression') return node;
 
-    if (!objectName) objectName = objectHack(node.object).name.slice(2);
+    if (!objectName) objectName = objectHack(node.object)?.name?.slice?.(2);
 
     // if .length, give up (hack within a hack!)
     if (node.property.name === 'length') return node;
+
+    // no object name, give up
+    if (!objectName) return node;
 
     const name = '__' + objectName + '_' + node.property.name;
     if (codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
