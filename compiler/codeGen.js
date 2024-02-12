@@ -2523,7 +2523,7 @@ const generateThrow = (scope, decl) => {
   // hack: throw new X("...") -> throw "..."
   if (!message && (decl.argument.type === 'NewExpression' || decl.argument.type === 'CallExpression')) {
     constructor = decl.argument.callee.name;
-    message = decl.argument.arguments[0].value;
+    message = decl.argument.arguments[0]?.value ?? '';
   }
 
   if (tags.length === 0) tags.push({
