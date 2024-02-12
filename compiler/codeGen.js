@@ -1516,8 +1516,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   if (protoName) {
     const protoCands = Object.keys(prototypeFuncs).reduce((acc, x) => {
-      const f = prototypeFuncs[x][protoName];
-      if (f) acc[x] = f;
+      if (Object.hasOwn(prototypeFuncs[x], protoName)) acc[x] = prototypeFuncs[x][protoName];
       return acc;
     }, {});
 
