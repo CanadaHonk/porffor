@@ -1473,8 +1473,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   // literal.func()
   if (!name && decl.callee.type === 'MemberExpression') {
     // megahack for /regex/.func()
-    if (decl.callee.object.regex) {
-      const funcName = decl.callee.property.name;
+    const funcName = decl.callee.property.name;
+    if (decl.callee.object.regex && Object.hasOwn(Rhemyn, funcName)) {
       const func = Rhemyn[funcName](decl.callee.object.regex.pattern, currentFuncIndex++);
 
       funcIndex[func.name] = func.index;
