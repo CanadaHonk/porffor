@@ -1286,8 +1286,8 @@ const getNodeType = (scope, node) => {
 const generateLiteral = (scope, decl, global, name) => {
   if (decl.value === null) return number(NULL);
 
+  // hack: just return 1 for regex literals
   if (decl.regex) {
-    scope.regex[name] = decl.regex;
     return number(1);
   }
 
