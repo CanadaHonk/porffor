@@ -121,6 +121,7 @@ No particular order and no guarentees, just what could happen soon™
   - *Basic* Wasm engine (interpreter) in JS
 - More math operators (`**`, etc)
 - `do { ... } while (...)`
+- Typed export inputs (array)
 - Exceptions
   - Rewrite to use actual strings (optional?)
   - `try { } finally { }`
@@ -129,6 +130,7 @@ No particular order and no guarentees, just what could happen soon™
   - Rewrite local indexes per func for smallest local header and remove unused idxs
   - Smarter inline selection (snapshots?)
   - Remove const ifs (`if (true)`, etc)
+  - Memory alignment
 - Runtime
   - WASI target
   - Run precompiled Wasm file if given
@@ -145,7 +147,7 @@ No particular order and no guarentees, just what could happen soon™
 - Self hosted testing?
 
 ## Performance
-*For the things it supports most of the time*, Porffor is blazingly fast compared to most interpreters, and common engines running without JIT. For those with JIT, it is not that much slower like a traditional interpreter would be; mostly the same or a bit faster/slower depending on what.
+*For the things it supports most of the time*, Porffor is *blazingly fast* compared to most interpreters, and common engines running without JIT. For those with JIT, it is usually slower by default, but can catch up with compiler arguments and typed input.
 
 ![Screenshot of comparison chart](https://github.com/CanadaHonk/porffor/assets/19228318/76c75264-cc68-4be1-8891-c06dc389d97a)
 
