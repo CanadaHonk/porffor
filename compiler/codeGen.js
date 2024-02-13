@@ -2387,7 +2387,13 @@ const generateForOf = (scope, decl) => {
   // setup local for left
   generate(scope, decl.left);
 
-  const leftName = decl.left.declarations[0].id.name;
+  let leftName = decl.left.declarations?.[0]?.id?.name;
+  if (!leftName && decl.left.name) {
+    leftName = decl.left.name;
+
+    generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
+  }
+
   const [ local, isGlobal ] = lookupName(scope, leftName);
 
   depth.push('block');
