@@ -129,7 +129,7 @@ const run = async ({ file, contents, attrs }) => {
 
   try {
     // only timeout some due to big perf impact
-    if (['test\\language\\statements\\for\\scope-body-lex-boundary.js', 'test\\language\\statements\\while\\S12.6.2_A1.js', 'test\\language\\statements\\continue\\shadowing-loop-variable-in-same-scope-as-continue.js'].includes(file)) timeout(exports.main, 2000);
+    if (['test\\language\\statements\\for\\scope-body-lex-boundary.js', 'test\\language\\statements\\while\\S12.6.2_A1.js', 'test\\language\\statements\\continue\\shadowing-loop-variable-in-same-scope-as-continue.js'].includes(file)) timeout(exports.main, 1000);
       else exports.main();
   } catch (e) {
     return [ 1, e ];
@@ -163,7 +163,8 @@ for await (const test of tests) {
   const file = test.file.replaceAll('\\', '/').slice(5);
 
   total++;
-  if (!resultOnly) process.stdout.write(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m ${file} \u001b[90m${test.scenario}\u001b[0m`);
+  // if (!resultOnly) process.stdout.write(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m ${file} \u001b[90m${test.scenario}\u001b[0m`);
+  if (!resultOnly) process.stdout.write(`\u001b[90m${((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m ${file}`);
 
   // todo: parse vs runtime expected
   const expected = test.attrs.negative ? true : false;
@@ -203,7 +204,8 @@ for await (const test of tests) {
   if (pass) passFiles.push(file);
 
   if (!resultOnly) process.stdout.write(`\r${' '.repeat(200)}\r`);
-  if (!resultOnly) console.log(`\u001b[90m${Math.floor((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
+  // if (!resultOnly) console.log(`\u001b[90m${Math.floor((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
+  if (!resultOnly) console.log(`\u001b[90m${Math.floor((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
 
   if (logErrors && !pass && result) console.log(result.stack ?? result);
   // if (!pass && stage === 0 && result.constructor.name === 'CompileError') console.log(file, test.contents.split('---*/').pop(), result.stack, '\n');
