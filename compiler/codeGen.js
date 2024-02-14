@@ -274,25 +274,25 @@ const generateIdent = (scope, decl) => {
     const name = mapName(rawName);
     let local = scope.locals[rawName];
 
-    if (builtinVars[name]) {
+    if (Object.hasOwn(builtinVars, name)) {
       if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${unhackName(name)} with integer valtype`);
       return builtinVars[name];
     }
 
-    if (builtinFuncs[name] || internalConstrs[name]) {
+    if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(internalConstrs, name)) {
       // todo: return an actual something
       return number(1);
     }
 
-    if (local === undefined) {
+    if (local?.idx === undefined) {
       // no local var with name
-      if (importedFuncs.hasOwnProperty(name)) return number(importedFuncs[name]);
-      if (funcIndex[name] !== undefined) return number(funcIndex[name]);
+      if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name]);
+      if (Object.hasOwn(funcIndex, name)) return number(funcIndex[name]);
 
-      if (globals[name] !== undefined) return [ [ Opcodes.global_get, globals[name].idx ] ];
+      if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
     }
 
-    if (local === undefined && rawName.startsWith('__')) {
+    if (local?.idx === undefined && rawName.startsWith('__')) {
       // return undefined if unknown key in already known var
       let parent = rawName.slice(2).split('_').slice(0, -1).join('_');
       if (parent.includes('_')) parent = '__' + parent;
@@ -301,7 +301,7 @@ const generateIdent = (scope, decl) => {
       if (!parentLookup[1]) return number(UNDEFINED);
     }
 
-    if (local === undefined) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
+    if (local?.idx === undefined) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
     return [ [ Opcodes.local_get, local.idx ] ];
   };
