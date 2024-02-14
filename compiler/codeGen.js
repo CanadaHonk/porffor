@@ -2869,7 +2869,7 @@ export const generateMember = (scope, decl, _global, _name) => {
       setLastType(scope)
     ],
 
-    default: [ [ Opcodes.unreachable ] ]
+    default: internalThrow(scope, 'TypeError', 'Member expression is not supported for non-string non-array yet')
   });
 };
 
