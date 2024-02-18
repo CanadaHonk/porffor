@@ -160,7 +160,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
     case 'TaggedTemplateExpression': {
       const funcs = {
-        asm: str => {
+        __Porffor_asm: str => {
           let out = [];
 
           for (const line of str.split('\n')) {
@@ -196,19 +196,19 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
           return out;
         },
 
-        __internal_print_type: str => {
-          const type = getType(scope, str) - TYPES.number;
+        __Porffor_bs: str => [
+          ...makeString(scope, str, undefined, undefined, true),
 
-          return [
-            ...number(type),
-            [ Opcodes.call, importedFuncs.print ],
+          ...number(TYPES._bytestring, Valtype.i32),
+          setLastType(scope)
+        ],
+        __Porffor_s: str => [
+          ...makeString(scope, str, undefined, undefined, false),
 
-            // newline
-            ...number(10),
-            [ Opcodes.call, importedFuncs.printChar ]
-          ];
-        }
-      }
+          ...number(TYPES.string, Valtype.i32),
+          setLastType(scope)
+        ],
+      };
 
       const name = decl.tag.name;
       // hack for inline asm
