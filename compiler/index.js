@@ -93,8 +93,11 @@ export default (code, flags) => {
   }
 
   if (target === 'native') {
-    const compiler = getArg('compiler') ?? 'clang';
+    let compiler = getArg('compiler') ?? 'clang';
     const cO = getArg('cO') ?? 'Ofast';
+
+    if (compiler === 'zig') compiler = [ 'zig', 'cc' ];
+      else compiler = [ compiler ];
 
     const tmpfile = 'tmp.c';
     const args = [ compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO, '-march=native' ];
