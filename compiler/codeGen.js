@@ -925,7 +925,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       [ Opcodes.i32_or ],
       [ Opcodes.if, Blocktype.void ],
       ...number(0, Valtype.i32),
-      [ Opcodes.br, 1 ],
+      [ Opcodes.br, 2 ],
       [ Opcodes.end ],
 
       ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ]),
