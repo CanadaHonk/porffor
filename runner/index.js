@@ -15,9 +15,22 @@ if (process.argv.includes('-compile-hints')) {
   // --experimental-wasm-return-call (on by default)
 }
 
-const file = process.argv.slice(2).find(x => x[0] !== '-');
+let file = process.argv.slice(2).find(x => x[0] !== '-');
+if (['run', 'wasm', 'native', 'c'].includes(file)) {
+  if (['wasm', 'native', 'c'].includes(file)) {
+    process.argv.push(`-target=${file}`);
+  }
+
+  file = process.argv.slice(process.argv.indexOf(file) + 1).find(x => x[0] !== '-');
+
+  const nonOptOutFile = process.argv.slice(process.argv.indexOf(file) + 1).find(x => x[0] !== '-');
+  if (nonOptOutFile) {
+    process.argv.push(`-o=${nonOptOutFile}`);
+  }
+}
+
 if (!file) {
-  if (process.argv.includes('-v')) {
+  if (process.argv.includes('-v') || process.argv.includes('--version')) {
     // just print version
     console.log((await import('./version.js')).default);
     process.exit(0);
