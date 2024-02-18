@@ -2636,15 +2636,14 @@ const StoreOps = {
 
 let data = [];
 
-const compileBytes = (val, itemType, signed = true) => {
+const compileBytes = (val, itemType) => {
   // todo: this is a mess and needs confirming / ????
   switch (itemType) {
     case 'i8': return [ val % 256 ];
-    case 'i16': return [ val % 256, Math.floor(val / 256) ];
-
-    case 'i32':
-    case 'i64':
-      return enforceFourBytes(signedLEB128(val));
+    case 'i16': return [ val % 256, (val / 256 | 0) % 256 ];
+    case 'i16': return [ val % 256, (val / 256 | 0) % 256 ];
+    case 'i32': return [...new Uint8Array(new Int32Array([ val ]).buffer)];
+    // todo: i64
 
     case 'f64': return ieee754_binary64(val);
   }
