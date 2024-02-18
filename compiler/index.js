@@ -73,6 +73,12 @@ export default (code, flags) => {
   const target = getArg('target') ?? getArg('t') ?? 'wasm';
   const outFile = getArg('o');
 
+  if (target === 'wasm' && outFile) {
+    writeFileSync(outFile, Buffer.from(sections));
+
+    if (process.version) process.exit();
+  }
+
   if (target === 'c') {
     const c = toc(out);
     out.c = c;
