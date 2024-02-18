@@ -2734,7 +2734,7 @@ const byteStringable = str => {
   return true;
 };
 
-const makeString = (scope, str, global = false, name = '$undeclared') => {
+const makeString = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
   const rawElements = new Array(str.length);
   let byteStringable = process.argv.includes('-bytestring');
   for (let i = 0; i < str.length; i++) {
@@ -2743,6 +2743,8 @@ const makeString = (scope, str, global = false, name = '$undeclared') => {
 
     if (byteStringable && c > 0xFF) byteStringable = false;
   }
+
+  if (byteStringable && forceBytestring === false) byteStringable = false;
 
   return makeArray(scope, {
     rawElements
