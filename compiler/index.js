@@ -68,7 +68,7 @@ export default (code, flags) => {
     console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n') + '\n');
   }
 
-  const out = { wasm: sections, funcs, globals, tags, exceptions, pages };
+  const out = { wasm: sections, funcs, globals, tags, exceptions, pages, data };
 
   const target = getArg('target') ?? getArg('t') ?? 'wasm';
   const outFile = getArg('o');
