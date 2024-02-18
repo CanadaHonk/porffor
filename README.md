@@ -10,6 +10,65 @@ Porffor is a very unique JS engine, due many wildly different approaches. It is 
 
 Porffor is primarily built from scratch, the only thing that is not is the parser (using [Acorn](https://github.com/acornjs/acorn)). Binaryen/etc is not used, we make final wasm binaries ourself. You could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript. Not based on any particular spec version, focusing on function/working over spec compliance.
 
+## Usage
+Expect nothing to work! Only very limited JS is currently supported. See files in `bench` for examples.
+
+### Setup
+1. Clone this repo
+2. `npm install` - for parser(s)
+
+### Running a file
+The repos comes with easy alias files for Unix and Windows, which you can use like so:
+- Unix: `./porf path/to/script.js`
+- Windows: `.\porf path/to/script.js`
+
+Please note that further examples below will just use `./porf`, you need to use `.\porf` on Windows. You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A`) or Bun (`bun ...`), or just use it yourself (eg `node runner/index.js ...`, `bun runner/index.js ...`). Node and Bun should work great, Deno support is WIP.
+
+### Trying a REPL
+**`./porf`**. Just run it with no script file argument.
+
+### Compiling to native binaries
+> [!WARNING]
+> Compiling to native binaries uses [2c](#2c), Porffor's own Wasm -> C compiler, which is experimental.
+
+**`./porf native path/to/script.js out(.exe)`**. You can specify the compiler with `-compiler=clang/zig/gcc`, and which opt level to use with `-cO=O3` (`Ofast` by default). Output binaries are also stripped by default.
+
+### Compiling to C
+> [!WARNING]
+> Compiling to C uses [2c](#2c), Porffor's own Wasm -> C compiler, which is experimental.
+
+**`./porf c path/to/script.js (out.c)`**. When not including an output file, it will be printed to stdout instead.
+
+### Compiling to a Wasm binary
+**`./porf compile path/to/script.js out.wasm`**. Currently it does not use an import standard like WASI, so it is mostly unusable.
+
+### Options
+- `-target=wasm|c|native` (default: `wasm`) to set target output (native compiles c output to binary, see args below)
+- `-target=c|native` only:
+  - `-o=out.c|out.exe|out` to set file to output c or binary
+- `-target=native` only:
+  - `-compiler=clang` to set compiler binary (path/name) to use to compile
+  - `-cO=O3` to set compiler opt argument
+- `-parser=acorn|@babel/parser|meriyah|hermes-parser` (default: `acorn`) to set which parser to use
+- `-parse-types` to enable parsing type annotations/typescript. if `-parser` is unset, changes default to `@babel/parser`. does not type check
+- `-opt-types` to perform optimizations using type annotations as compiler hints. does not type check
+- `-valtype=i32|i64|f64` (default: `f64`) to set valtype
+- `-O0` to disable opt
+- `-O1` (default) to enable basic opt (simplify insts, treeshake wasm imports)
+- `-O2` to enable advanced opt (inlining). unstable
+- `-O3` to enable advanceder opt (precompute const math). unstable
+- `-no-run` to not run wasm output, just compile
+- `-opt-log` to log some opts
+- `-code-log` to log some codegen (you probably want `-funcs`)
+- `-regex-log` to log some regex
+- `-funcs` to log funcs
+- `-ast-log` to log AST
+- `-opt-funcs` to log funcs after opt
+- `-sections` to log sections as hex
+- `-opt-no-inline` to not inline any funcs
+- `-tail-call` to enable tail calls (experimental + not widely implemented)
+- `-compile-hints` to enable V8 compilation hints (experimental + doesn't seem to do much?)
+
 ## Limitations
 - No full object support yet
 - Little built-ins/prototype
@@ -147,9 +206,7 @@ No particular order and no guarentees, just what could happen soon™
 - Self hosted testing?
 
 ## Performance
-*For the things it supports most of the time*, Porffor is *blazingly fast* compared to most interpreters, and common engines running without JIT. For those with JIT, it is usually slower by default, but can catch up with compiler arguments and typed input.
-
-![Screenshot of comparison chart](https://github.com/CanadaHonk/porffor/assets/19228318/76c75264-cc68-4be1-8891-c06dc389d97a)
+*For the features it supports most of the time*, Porffor is *blazingly fast* compared to most interpreters and common engines running without JIT. For those with JIT, it is usually slower by default, but can catch up with compiler arguments and typed input, even more so when compiling to native binaries.
 
 ## Optimizations
 Mostly for reducing size. I do not really care about compiler perf/time as long as it is reasonable. We do not use/rely on external opt tools (`wasm-opt`, etc), instead doing optimization inside the compiler itself creating even smaller code sizes than `wasm-opt` itself can produce as we have more internal information.
@@ -213,65 +270,6 @@ Basically none right now (other than giving people headaches). Potential ideas:
 - Safety. As Porffor is written in JS, a memory-safe language\*, and compiles JS to Wasm, a fully sandboxed environment\*, it is quite safe. (\* These rely on the underlying implementations being secure. You could also run Wasm, or even Porffor itself, with an interpreter instead of a JIT for bonus security points too.)
 - Compiling JS to native binaries. This is still very early!
 - More in future probably?
-
-## Usage
-Basically nothing will work :). See files in `test` and `bench` for examples.
-
-### Setup
-1. Clone this repo
-2. `npm install` - for parser(s)
-
-### Running a file
-The repos comes with easy alias files for Unix and Windows, which you can use like so:
-- Unix: `./porf path/to/script.js`
-- Windows: `.\porf path/to/script.js`
-
-Please note that further examples below will just use `./porf`, you need to use `.\porf` on Windows. You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A`) or Bun (`bun ...`), or just use it yourself (eg `node runner/index.js ...`, `bun runner/index.js ...`). Node and Bun should work great, Deno support is WIP.
-
-### Trying a REPL
-**`./porf`**. Just run it with no script file argument.
-
-### Compiling to native binaries
-> [!WARNING]
-> Compiling to native binaries uses [2c](#2c), Porffor's own Wasm->C compiler, which is experimental.
-
-**`./porf native path/to/script.js out(.exe)`**. You can specify the compiler with `-compiler=clang/zig/gcc`, and which opt level to use with `-cO=O3` (`Ofast` by default). Output binaries are also stripped by default.
-
-### Compiling to C
-> [!WARNING]
-> Compiling to C uses [2c](#2c), Porffor's own Wasm->C compiler, which is experimental.
-
-**`./porf c path/to/script.js (out.c)`**. When not including an output file, it will be printed to stdout instead.
-
-### Compiling to a Wasm binary
-**`./porf compile path/to/script.js out.wasm`**. Currently it does not use an import standard like WASI, so it is mostly unusable.
-
-### Options
-- `-target=wasm|c|native` (default: `wasm`) to set target output (native compiles c output to binary, see args below)
-- `-target=c|native` only:
-  - `-o=out.c|out.exe|out` to set file to output c or binary
-- `-target=native` only:
-  - `-compiler=clang` to set compiler binary (path/name) to use to compile
-  - `-cO=O3` to set compiler opt argument
-- `-parser=acorn|@babel/parser|meriyah|hermes-parser` (default: `acorn`) to set which parser to use
-- `-parse-types` to enable parsing type annotations/typescript. if `-parser` is unset, changes default to `@babel/parser`. does not type check
-- `-opt-types` to perform optimizations using type annotations as compiler hints. does not type check
-- `-valtype=i32|i64|f64` (default: `f64`) to set valtype
-- `-O0` to disable opt
-- `-O1` (default) to enable basic opt (simplify insts, treeshake wasm imports)
-- `-O2` to enable advanced opt (inlining). unstable
-- `-O3` to enable advanceder opt (precompute const math). unstable
-- `-no-run` to not run wasm output, just compile
-- `-opt-log` to log some opts
-- `-code-log` to log some codegen (you probably want `-funcs`)
-- `-regex-log` to log some regex
-- `-funcs` to log funcs
-- `-ast-log` to log AST
-- `-opt-funcs` to log funcs after opt
-- `-sections` to log sections as hex
-- `-opt-no-inline` to not inline any funcs
-- `-tail-call` to enable tail calls (experimental + not widely implemented)
-- `-compile-hints` to enable V8 compilation hints (experimental + doesn't seem to do much?)
 
 ## VSCode extension
 There is a vscode extension in `porffor-for-vscode` which tweaks JS syntax highlighting to be nicer with porffor features (eg highlighting wasm inside of inline asm).
