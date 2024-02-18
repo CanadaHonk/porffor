@@ -211,18 +211,40 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
 ## Usecases
 Basically none right now (other than giving people headaches). Potential ideas:
 - Safety. As Porffor is written in JS, a memory-safe language\*, and compiles JS to Wasm, a fully sandboxed environment\*, it is quite safe. (\* These rely on the underlying implementations being secure. You could also run Wasm, or even Porffor itself, with an interpreter instead of a JIT for bonus security points too.)
-- Compiling JS to native binaries. This is still very early, [`2c`](#2c) is not that good yet :(
+- Compiling JS to native binaries. This is still very early!
 - More in future probably?
 
 ## Usage
 Basically nothing will work :). See files in `test` and `bench` for examples.
 
-1. Clone repo
-2. `npm install`
-3. `node test` to run tests (some will fail)
-4. `node runner path/to/code.js` to run a file (or `node runner` to use wip repl)
+### Setup
+1. Clone this repo
+2. `npm install` - for parser(s)
 
-You can also use Deno (`deno run -A ...` instead of `node ...`), or Bun (`bun ...` instead of `node ...`).
+### Running a file
+The repos comes with easy alias files for Unix and Windows, which you can use like so:
+- Unix: `./porf path/to/script.js`
+- Windows: `.\porf path/to/script.js`
+
+Please note that further examples below will just use `./porf`, you need to use `.\porf` on Windows. You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A`) or Bun (`bun ...`), or just use it yourself (eg `node runner/index.js ...`, `bun runner/index.js ...`). Node and Bun should work great, Deno support is WIP.
+
+### Trying a REPL
+**`./porf`**. Just run it with no script file argument.
+
+### Compiling to native binaries
+> [!WARNING]
+> Compiling to native binaries uses [2c](#2c), Porffor's own Wasm->C compiler, which is experimental.
+
+**`./porf native path/to/script.js out(.exe)`**. You can specify the compiler with `-compiler=clang/zig/gcc`, and which opt level to use with `-cO=O3` (`Ofast` by default). Output binaries are also stripped by default.
+
+### Compiling to C
+> [!WARNING]
+> Compiling to C uses [2c](#2c), Porffor's own Wasm->C compiler, which is experimental.
+
+**`./porf c path/to/script.js (out.c)`**. When not including an output file, it will be printed to stdout instead.
+
+### Compiling to a Wasm binary
+**`./porf compile path/to/script.js out.wasm`**. Currently it does not use an import standard like WASI, so it is mostly unusable.
 
 ### Options
 - `-target=wasm|c|native` (default: `wasm`) to set target output (native compiles c output to binary, see args below)
