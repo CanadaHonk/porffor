@@ -699,6 +699,49 @@ export const BuiltinFuncs = function() {
   };
 
 
+  this.__Porffor_type = {
+    params: [ valtypeBinary, Valtype.i32 ],
+    typedParams: true,
+    locals: [ Valtype.i32, Valtype.i32 ],
+    returns: [ valtypeBinary ],
+    returnType: process.argv.includes('-bytestring') ? '_bytestring' : 'string',
+    wasm: (scope, { TYPE_NAMES, typeSwitch, makeString }) => {
+      const bc = {};
+      for (const x in TYPE_NAMES) {
+        bc[x] = makeString(scope, TYPE_NAMES[x], false, '#Porffor_type_result');
+      }
+
+      return typeSwitch(scope, [ [ Opcodes.local_get, 1 ] ], bc);
+    }
+  };
+
+  const localIsOneOf = (getter, arr, valtype = valtypeBinary) => {
+    const out = [];
+
+    for (let i = 0; i < arr.length; i++) {
+      out.push(...getter, ...number(arr[i], valtype), valtype === Valtype.f64 ? [ Opcodes.f64_eq ] : [ Opcodes.i32_eq ]);
+      if (i !== 0) out.push([ Opcodes.i32_or ]);
+    }
+
+    return out;
+  };
+
+  this.__Porffor_pointer = {
+    params: [ valtypeBinary, Valtype.i32 ],
+    typedParams: true,
+    locals: [ Valtype.i32, Valtype.i32 ],
+    returns: [ valtypeBinary ],
+    wasm: (scope, { TYPES }) => [
+      ...localIsOneOf([ [ Opcodes.local_get, 1 ] ], [ TYPES.string, TYPES._array, TYPES._bytestring ], Valtype.i32),
+      [ Opcodes.if, valtypeBinary ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.else ],
+      ...number(NaN),
+      [ Opcodes.end ]
+    ]
+  };
+
+
   this.__SIMD_i32x4_load = {
     params: [ Valtype.i32 ],
     locals: [],

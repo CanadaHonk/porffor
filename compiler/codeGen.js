@@ -981,7 +981,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
       localInd: allLocals.length,
     };
 
-    wasm = wasm(scope, { TYPES, typeSwitch, makeArray });
+    wasm = wasm(scope, { TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString });
   }
 
   let baseGlobalIdx, i = 0;
