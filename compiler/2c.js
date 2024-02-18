@@ -17,12 +17,12 @@ const CValtype = {
   undefined: 'void'
 };
 
-const alwaysPreface = `typedef unsigned char i8;
-typedef unsigned short i16;
-typedef long i32;
-typedef unsigned long u32;
-typedef long long i64;
-typedef unsigned long long u64;
+const alwaysPreface = `typedef uint8_t i8;
+typedef uint16_t i16;
+typedef int32_t i32;
+typedef uint32_t u32;
+typedef int64_t i64;
+typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 
@@ -31,8 +31,7 @@ f64 NAN = 0e+0/0e+0;
 struct ReturnValue {
   ${CValtype.f64} value;
   ${CValtype.i32} type;
-};
-\n`;
+};\n\n`;
 
 // todo: is memcpy/etc safe with host endianness?
 
@@ -148,7 +147,8 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
   const includes = new Map(), unixIncludes = new Map(), winIncludes = new Map();
   const prepend = new Map(), prependMain = new Map();
 
-  // presume all <i32 work is unsigned
+  includes.set('stdint.h', true);
+
   let out = ``;
 
   for (const x in globals) {
@@ -164,7 +164,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
   }
 
   if (data.length > 0) {
-    prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n'));
+    prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n'));
   }
 
   // for (const [ x, p ] of pages) {
@@ -624,7 +624,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
   const makeIncludes = includes => [...includes.keys()].map(x => `#include <${x}>\n`).join('');
 
-  out = alwaysPreface + platformSpecific(makeIncludes(winIncludes), makeIncludes(unixIncludes), false) + '\n' + makeIncludes(includes) + '\n' + [...prepend.values()].join('\n') + '\n\n' + out;
+  out = platformSpecific(makeIncludes(winIncludes), makeIncludes(unixIncludes), false) + '\n' + makeIncludes(includes) + '\n' + alwaysPreface + [...prepend.values()].join('\n') + '\n\n' + out;
 
   return out.trim();
 };
