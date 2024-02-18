@@ -14,7 +14,7 @@ Porffor is primarily built from scratch, the only thing that is not is the parse
 Expect nothing to work! Only very limited JS is currently supported. See files in `bench` for examples.
 
 ### Setup
-1. Clone this repo
+1. Clone this repo (`git clone https://github.com/CanadaHonk/porffor.git`)
 2. `npm install` - for parser(s)
 
 ### Running a file
