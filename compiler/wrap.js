@@ -191,7 +191,8 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
           case 'function': {
             // wasm func index, including all imports
             const func = funcs.find(x => (x.originalIndex ?? x.index) === ret);
-            if (!func) return ret;
+            // if (!func) return ret;
+            if (!func) return function () {};
 
             // make fake empty func for repl/etc
             return {[func.name]() {}}[func.name];
