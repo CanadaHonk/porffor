@@ -4,7 +4,6 @@ import codeGen from './codeGen.js';
 import opt from './opt.js';
 import produceSections from './sections.js';
 import decompile from './decompile.js';
-import { BuiltinPreludes } from './builtins.js';
 import toc from './2c.js';
 
 globalThis.decompile = decompile;
@@ -36,10 +35,6 @@ export default (code, flags) => {
   globalThis.codeLog = process.argv.includes('-code-log');
   globalThis.allocLog = process.argv.includes('-alloc-log');
   globalThis.regexLog = process.argv.includes('-regex-log');
-
-  for (const x in BuiltinPreludes) {
-    if (code.indexOf(x + '(') !== -1) code = BuiltinPreludes[x] + code;
-  }
 
   const t0 = performance.now();
   const program = parse(code, flags);
