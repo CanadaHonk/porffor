@@ -786,11 +786,14 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     return performLogicOp(scope, op, left, right, leftType, rightType);
   }
 
+  const knownLeft = knownType(scope, leftType);
+  const knownRight = knownType(scope, rightType);
+
   const eqOp = ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(op);
   const strictOp = op === '===' || op === '!==';
 
   const startOut = [], endOut = [];
-  const finalise = out => startOut.concat(out, endOut);
+  const finalize = out => startOut.concat(out, endOut);
 
   // if strict (in)equal check types match
   if (strictOp) {
@@ -835,31 +838,32 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   // todo: if equality op and an operand is undefined, return false
   // todo: niche null hell with 0
 
-  // if (leftType === TYPES.string || rightType === TYPES.string) {
-  //   if (op === '+') {
-  //     // string concat (a + b)
-  //     return finalise(concatStrings(scope, left, right, _global, _name, assign));
-  //   }
+  // todo: this should be dynamic but for now only static
+  if (knownLeft === TYPES.string || knownRight === TYPES.string) {
+    if (op === '+') {
+      // string concat (a + b)
+      return concatStrings(scope, left, right, _global, _name, assign);
+    }
 
-  //   // not an equality op, NaN
-  //   if (!eqOp) return finalise(number(NaN));
+    // not an equality op, NaN
+    if (!eqOp) return number(NaN);
 
-  //   // else leave bool ops
-  //   // todo: convert string to number if string and number/bool
-  //   // todo: string (>|>=|<|<=) string
+    // else leave bool ops
+    // todo: convert string to number if string and number/bool
+    // todo: string (>|>=|<|<=) string
 
-  //   // string comparison
-  //   if (op === '===' || op === '==') {
-  //     return finalise(compareStrings(scope, left, right));
-  //   }
+    // string comparison
+    if (op === '===' || op === '==') {
+      return compareStrings(scope, left, right);
+    }
 
-  //   if (op === '!==' || op === '!=') {
-  //     return finalise([
-  //       ...compareStrings(scope, left, right),
-  //       [ Opcodes.i32_eqz ]
-  //     ]);
-  //   }
-  // }
+    if (op === '!==' || op === '!=') {
+      return [
+        ...compareStrings(scope, left, right),
+        [ Opcodes.i32_eqz ]
+      ];
+    }
+  }
 
   let ops = operatorOpcode[valtype][op];
 
@@ -869,7 +873,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     includeBuiltin(scope, builtinName);
     const idx = funcIndex[builtinName];
 
-    return finalise([
+    return finalize([
       ...left,
       ...right,
       [ Opcodes.call, idx ]
@@ -884,9 +888,6 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   let tmpLeft, tmpRight;
   // if equal op, check if strings for compareStrings
   if (op === '===' || op === '==' || op === '!==' || op === '!=') (() => {
-    const knownLeft = knownType(scope, leftType);
-    const knownRight = knownType(scope, rightType);
-
     // todo: intelligent partial skip later
     // if neither known are string, stop this madness
     if ((knownLeft != null && knownLeft !== TYPES.string) && (knownRight != null && knownRight !== TYPES.string)) {
@@ -944,7 +945,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     // }
   })();
 
-  return finalise([
+  return finalize([
     ...left,
     ...(tmpLeft != null ? stringOnly([ [ Opcodes.local_tee, tmpLeft ] ]) : []),
     ...right,
@@ -1231,6 +1232,14 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'BinaryExpression') {
       if (['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(node.operator)) return TYPES.boolean;
+      if (node.operator !== '+') return TYPES.number;
+
+      const knownLeft = knownType(scope, getNodeType(scope, node.left));
+      const knownRight = knownType(scope, getNodeType(scope, node.right));
+
+      // todo: this should be dynamic but for now only static
+      if (knownLeft === TYPES.string || knownRight === TYPES.string) return TYPES.string;
+
       return TYPES.number;
 
       // todo: string concat types
