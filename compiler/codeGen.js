@@ -2561,6 +2561,9 @@ const generateThrow = (scope, decl) => {
   let exceptId = exceptions.push({ constructor, message }) - 1;
   let tagIdx = tags[0].idx;
 
+  scope.exceptions ??= [];
+  scope.exceptions.push(exceptId);
+
   // todo: write a description of how this works lol
 
   return [
