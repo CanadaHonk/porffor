@@ -2702,10 +2702,13 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
       bytes.push(...compileBytes(elements[i], itemType));
     }
 
-    data.push({
+    const ind = data.push({
       offset: pointer,
       bytes
-    });
+    }) - 1;
+
+    scope.data ??= [];
+    scope.data.push(ind);
 
     // local value as pointer
     out.push(...number(pointer));
