@@ -1667,7 +1667,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   const userFunc = (funcIndex[name] && !importedFuncs[name] && !builtinFuncs[name] && !internalConstrs[name]) || idx === -1;
   const typedParams = userFunc || builtinFuncs[name]?.typedParams;
-  const typedReturn = userFunc || builtinFuncs[name]?.typedReturn;
+  const typedReturns = userFunc || builtinFuncs[name]?.typedReturns;
   const paramCount = func && (typedParams ? func.params.length / 2 : func.params.length);
 
   let args = decl.arguments;
@@ -1691,7 +1691,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   out.push([ Opcodes.call, idx ]);
 
-  if (!typedReturn) {
+  if (!typedReturns) {
     // let type;
     // if (builtinFuncs[name]) type = TYPES[builtinFuncs[name].returnType ?? 'number'];
     // if (internalConstrs[name]) type = internalConstrs[name].type;
