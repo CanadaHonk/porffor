@@ -1087,7 +1087,10 @@ const TYPE_NAMES = {
 const getType = (scope, _name) => {
   const name = mapName(_name);
 
+  if (typedInput && scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
   if (scope.locals[name]) return [ [ Opcodes.local_get, scope.locals[name + '#type'].idx ] ];
+
+  if (typedInput && globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
   if (globals[name]) return [ [ Opcodes.global_get, globals[name + '#type'].idx ] ];
 
   let type = TYPES.undefined;
@@ -1871,8 +1874,10 @@ const allocVar = (scope, name, global = false) => {
   let idx = global ? globalInd++ : scope.localInd++;
   target[name] = { idx, type: valtypeBinary };
 
-  let typeIdx = global ? globalInd++ : scope.localInd++;
-  target[name + '#type'] = { idx: typeIdx, type: Valtype.i32 };
+  if (type) {
+    let typeIdx = global ? globalInd++ : scope.localInd++;
+    target[name + '#type'] = { idx: typeIdx, type: Valtype.i32 };
+  }
 
   return idx;
 };
@@ -1950,7 +1955,7 @@ const generateVar = (scope, decl) => {
       continue; // always ignore
     }
 
-    let idx = allocVar(scope, name, global);
+    let idx = allocVar(scope, name, global, !x.id.typeAnnotation);
 
     if (typedInput && x.id.typeAnnotation) {
       addVarMetadata(scope, name, global, extractTypeAnnotation(x.id));
