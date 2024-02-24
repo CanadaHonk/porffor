@@ -1869,7 +1869,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
   return out;
 };
 
-const allocVar = (scope, name, global = false) => {
+const allocVar = (scope, name, global = false, type = true) => {
   const target = global ? globals : scope.locals;
 
   // already declared
