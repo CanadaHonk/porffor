@@ -214,7 +214,16 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       // hack for inline asm
       if (!funcs[name]) return todo('tagged template expressions not implemented');
 
-      const str = decl.quasi.quasis[0].value.raw;
+      const { quasis, expressions } = decl.quasi;
+      let str = quasis[0].value.raw;
+
+      for (let i = 0; i < expressions.length; i++) {
+        const e = expressions[i];
+        str += lookupName(scope, e.name)[0];
+
+        str += quasis[i + 1].value.raw;
+      }
+
       return funcs[name](str);
     }
 
