@@ -47,7 +47,7 @@ export default (code, flags) => {
   if (process.argv.includes('-funcs')) logFuncs(funcs, globals, exceptions);
 
   const t2 = performance.now();
-  opt(funcs, globals, pages, tags);
+  opt(funcs, globals, pages, tags, exceptions);
   if (flags.includes('info')) console.log(`3. optimized code in ${(performance.now() - t2).toFixed(2)}ms`);
 
   if (process.argv.includes('-opt-funcs')) logFuncs(funcs, globals, exceptions);
