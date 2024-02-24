@@ -219,8 +219,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     }
 
     default:
-      if (decl.type.startsWith('TS')) {
-        // ignore typescript nodes
+      // ignore typescript nodes
+      if (decl.type.startsWith('TS') ||
+          decl.type === 'ImportDeclaration' && decl.importKind === 'type') {
         return [];
       }
 
