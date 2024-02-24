@@ -95,7 +95,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
   // https://github.com/WebAssembly/design/issues/1473#issuecomment-1431274746
   const chSection = !compileHints ? [] : customSection(
     'compilationHints',
-    // for now just do everything as optimise eager
+    // for now just do everything as optimize eager
     encodeVector(funcs.map(_ => chHint(0x02, 0x02, 0x02)))
   );
 

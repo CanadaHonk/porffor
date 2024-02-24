@@ -342,8 +342,8 @@ export const PrototypeFuncs = function() {
         ...number(0, Valtype.i32), // base 0 for store later
 
         ...wIndex,
-
         Opcodes.i32_to,
+
         ...number(ValtypeSize.i16, Valtype.i32),
         [ Opcodes.i32_mul ],
 
@@ -558,7 +558,6 @@ export const PrototypeFuncs = function() {
           ...number(0, Valtype.i32), // base 0 for store later
 
           ...wIndex,
-
           Opcodes.i32_to,
 
           ...pointer,
