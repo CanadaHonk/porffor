@@ -179,7 +179,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
             }
 
             if (asm[0] === 'memory') {
-              allocPage('asm instrinsic');
+              allocPage(scope, 'asm instrinsic');
               // todo: add to store/load offset insts
               continue;
             }
@@ -2605,7 +2605,7 @@ const generateAssignPat = (scope, decl) => {
 };
 
 let pages = new Map();
-const allocPage = (reason, type) => {
+const allocPage = (scope, reason, type) => {
   if (pages.has(reason)) return pages.get(reason).ind;
 
   if (reason.startsWith('array:')) pages.hasArray = true;
@@ -2616,11 +2616,15 @@ const allocPage = (reason, type) => {
   const ind = pages.size;
   pages.set(reason, { ind, type });
 
+  scope.pages ??= new Map();
+  scope.pages.set(reason, { ind, type });
+
   if (allocLog) log('alloc', `allocated new page of memory (${ind}) | ${reason} (type: ${type})`);
 
   return ind;
 };
 
+// todo: add scope.pages
 const freePage = reason => {
   const { ind } = pages.get(reason);
   pages.delete(reason);
@@ -2682,7 +2686,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
     // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
     const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
-    arrays.set(name, allocPage(`${getAllocType(itemType)}: ${uniqueName}`, itemType) * pageSize);
+    arrays.set(name, allocPage(scope, `${getAllocType(itemType)}: ${uniqueName}`, itemType) * pageSize);
   }
 
   const pointer = arrays.get(name);
