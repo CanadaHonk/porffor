@@ -160,7 +160,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
     case 'TaggedTemplateExpression': {
       const funcs = {
-        __Porffor_asm: str => {
+        __Porffor_wasm: str => {
           let out = [];
 
           for (const line of str.split('\n')) {
