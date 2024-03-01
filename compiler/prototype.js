@@ -492,7 +492,7 @@ export const PrototypeFuncs = function() {
   if (process.argv.includes('-bytestring')) {
     this[TYPES._bytestring] = {
       at: (pointer, length, wIndex, iTmp, _, arrayShell) => {
-        const [ newOut, newPointer ] = arrayShell(1, 'i16');
+        const [ newOut, newPointer ] = arrayShell(1, 'i8');
 
         return [
           // setup new/out array
@@ -548,7 +548,7 @@ export const PrototypeFuncs = function() {
 
       // todo: out of bounds properly
       charAt: (pointer, length, wIndex, _1, _2, arrayShell) => {
-        const [ newOut, newPointer ] = arrayShell(1, 'i16');
+        const [ newOut, newPointer ] = arrayShell(1, 'i8');
 
         return [
           // setup new/out array
