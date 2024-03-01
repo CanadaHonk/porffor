@@ -2,6 +2,7 @@ import { Blocktype, Opcodes, Valtype, PageSize, ValtypeSize } from '../compiler/
 import { number } from '../compiler/embedding.js';
 import { signedLEB128, unsignedLEB128 } from '../compiler/encoding.js';
 import parse from './parse.js';
+import Prefs from '../compiler/prefs.js';
 
 // local indexes
 const BasePointer = 0; // base string pointer
@@ -80,7 +81,7 @@ const generate = (node, negated = false, get = true, func = 'test') => {
         })[func], Valtype.i32)
       ];
 
-      if (globalThis.regexLog) {
+      if (Prefs.regexLog) {
         const underline = x => `\u001b[4m\u001b[1m${x}\u001b[0m`;
         console.log(`\n${underline('ast')}`);
         console.log(node);

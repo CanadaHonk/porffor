@@ -2,6 +2,7 @@ import { Opcodes, Blocktype, Valtype, ValtypeSize, PageSize } from "./wasmSpec.j
 import { number } from "./embedding.js";
 import { unsignedLEB128 } from "./encoding.js";
 import { UNDEFINED } from "./builtins.js";
+import Prefs from './prefs.js';
 
 // todo: do not duplicate this
 const TYPES = {
@@ -23,9 +24,10 @@ const TYPES = {
 // todo: turn these into built-ins once arrays and these become less hacky
 
 export const PrototypeFuncs = function() {
-  const noUnlikelyChecks = process.argv.includes('-funsafe-no-unlikely-proto-checks');
-  let zeroChecks = process.argv.find(x => x.startsWith('-funsafe-zero-proto-checks='));
-  if (zeroChecks) zeroChecks = zeroChecks.split('=')[1].split(',').reduce((acc, x) => { acc[x.toLowerCase()] = true; return acc; }, {});
+  const noUnlikelyChecks = Prefs.funsafeNoUnlikelyProtoChecks;
+
+  let zeroChecks;
+  if (Prefs.zeroChecks) zeroChecks = Prefs.zeroChecks.split('=')[1].split(',').reduce((acc, x) => { acc[x.toLowerCase()] = true; return acc; }, {});
     else zeroChecks = {};
 
   this[TYPES._array] = {
@@ -489,7 +491,7 @@ export const PrototypeFuncs = function() {
   this[TYPES.string].isWellFormed.local2 = Valtype.i32;
   this[TYPES.string].isWellFormed.returnType = TYPES.boolean;
 
-  if (process.argv.includes('-bytestring')) {
+  if (Prefs.bytestring) {
     this[TYPES._bytestring] = {
       at: (pointer, length, wIndex, iTmp, _, arrayShell) => {
         const [ newOut, newPointer ] = arrayShell(1, 'i8');

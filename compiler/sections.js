@@ -3,6 +3,7 @@ import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128 }
 import { number } from './embedding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from "./log.js";
+import Prefs from './prefs.js';
 
 const createSection = (type, data) => [
   type,
@@ -26,12 +27,12 @@ export default (funcs, globals, tags, pages, data, flags) => {
 
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
 
-  const compileHints = process.argv.includes('-compile-hints');
+  const compileHints = Prefs.compileHints;
   if (compileHints) log.warning('sections', 'compile hints is V8 only w/ experimental arg! (you used -compile-hints)');
 
   const getType = (params, returns) => {
     const hash = `${params.join(',')}_${returns.join(',')}`;
-    if (optLog) log('sections', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
+    if (Prefs.optLog) log('sections', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
     if (optLevel >= 1 && typeCache[hash] !== undefined) return typeCache[hash];
 
     const type = [ FuncType, ...encodeVector(params), ...encodeVector(returns) ];
@@ -79,7 +80,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
   }
   globalThis.importFuncs = importFuncs;
 
-  if (optLog) log('sections', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
+  if (Prefs.optLog) log('sections', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
@@ -106,7 +107,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
 
   const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, x.index ]);
 
-  if (process.argv.includes('-always-memory') && pages.size === 0) pages.set('-always-memory', 0);
+  if (Prefs.alwaysMemory && pages.size === 0) pages.set('-always-memory', 0);
   if (optLevel === 0) pages.set('O0 precaution', 0);
 
   const usesMemory = pages.size > 0;
@@ -169,7 +170,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
     unsignedLEB128(data.length)
   );
 
-  if (process.argv.includes('-sections')) console.log({
+  if (Prefs.sections) console.log({
     typeSection: typeSection.map(x => x.toString(16)),
     importSection: importSection.map(x => x.toString(16)),
     funcSection: funcSection.map(x => x.toString(16)),

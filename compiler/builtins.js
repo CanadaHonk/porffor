@@ -1,5 +1,6 @@
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from "./wasmSpec.js";
 import { number, i32x4 } from "./embedding.js";
+import Prefs from './prefs.js';
 
 export const importedFuncs = [
   {
@@ -704,7 +705,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [ valtypeBinary ],
-    returnType: process.argv.includes('-bytestring') ? '_bytestring' : 'string',
+    returnType: Prefs.bytestring ? '_bytestring' : 'string',
     wasm: (scope, { TYPE_NAMES, typeSwitch, makeString }) => {
       const bc = {};
       for (const x in TYPE_NAMES) {

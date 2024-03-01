@@ -2,6 +2,7 @@ import { Opcodes, Valtype } from "./wasmSpec.js";
 import { number } from "./embedding.js";
 import { read_signedLEB128, read_ieee754_binary64 } from "./encoding.js";
 import { log } from "./log.js";
+import Prefs from './prefs.js';
 
 const performWasmOp = (op, a, b) => {
   switch (op) {
@@ -15,17 +16,17 @@ export default (funcs, globals, pages, tags, exceptions) => {
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
   if (optLevel === 0) return;
 
-  const tailCall = process.argv.includes('-tail-call');
+  const tailCall = Prefs.tailCall;
   if (tailCall) log.warning('opt', 'tail call proposal is not widely implemented! (you used -tail-call)');
 
-  if (optLevel >= 2 && !process.argv.includes('-opt-no-inline')) {
+  if (optLevel >= 2 && !Prefs.optNoInline) {
     // inline pass (very WIP)
     // get candidates for inlining
     // todo: pick smart in future (if func is used <N times? or?)
     const callsSelf = f => f.wasm.some(x => x[0] === Opcodes.call && x[1] === f.index);
     const suitableReturns = wasm => wasm.reduce((acc, x) => acc + (x[0] === Opcodes.return), 0) <= 1;
     const candidates = funcs.filter(x => x.name !== 'main' && Object.keys(x.locals).length === x.params.length && (x.returns.length === 0 || suitableReturns(x.wasm)) && !callsSelf(x) && !x.throws).reverse();
-    if (optLog) {
+    if (Prefs.optLog) {
       log('opt', `found inline candidates: ${candidates.map(x => x.name).join(', ')} (${candidates.length}/${funcs.length - 1})`);
 
       let reasons = {};
@@ -53,7 +54,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
         for (let i = 0; i < tWasm.length; i++) {
           const inst = tWasm[i];
           if (inst[0] === Opcodes.call && inst[1] === c.index) {
-            if (optLog) log('opt', `inlining call for ${c.name} (in ${t.name})`);
+            if (Prefs.optLog) log('opt', `inlining call for ${c.name} (in ${t.name})`);
             tWasm.splice(i, 1); // remove this call
 
             // add params as locals and set in reverse order
@@ -80,7 +81,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
             // adjust local operands to go to correct param index
             for (const inst of iWasm) {
               if ((inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set) && inst[1] < c.params.length) {
-                if (optLog) log('opt', `replacing local operand in inlined wasm (${inst[1]} -> ${paramIdx[inst[1]]})`);
+                if (Prefs.optLog) log('opt', `replacing local operand in inlined wasm (${inst[1]} -> ${paramIdx[inst[1]]})`);
                 inst[1] = paramIdx[inst[1]];
               }
             }
@@ -97,7 +98,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
     }
   }
 
-  if (process.argv.includes('-opt-inline-only')) return;
+  if (Prefs.optInlineOnly) return;
 
   const tagUse = tags.reduce((acc, x) => { acc[x.idx] = 0; return acc; }, {});
   const exceptionUse = exceptions.reduce((acc, _, i) => { acc[i] = 0; return acc; }, {});
@@ -166,7 +167,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
             wasm.splice(j - 1, 1); // remove end of this block
 
-            if (optLog) log('opt', `removed unneeded block in for loop`);
+            if (Prefs.optLog) log('opt', `removed unneeded block in for loop`);
           }
         }
 
@@ -215,7 +216,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
             i -= 4;
             inst = wasm[i];
 
-            if (optLog) log('opt', `removed unneeded typeswitch check`);
+            if (Prefs.optLog) log('opt', `removed unneeded typeswitch check`);
           }
         }
 
@@ -238,7 +239,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
             wasm.splice(j - 1, 2, [ Opcodes.drop ]); // remove typeswitch start
             wasm.splice(i - 1, 1); // remove this inst
 
-            if (optLog) log('opt', 'removed unneeded entire typeswitch');
+            if (Prefs.optLog) log('opt', 'removed unneeded entire typeswitch');
 
             if (i > 0) i--;
             continue;
@@ -267,7 +268,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           getCount[inst[1]]--;
           i--;
-          // if (optLog) log('opt', `consolidated set, get -> tee`);
+          // if (Prefs.optLog) log('opt', `consolidated set, get -> tee`);
           continue;
         }
 
@@ -335,7 +336,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i - 1, 2); // remove this inst and last
           i -= 2;
-          // if (optLog) log('opt', `removed redundant i32 -> i64 -> i32 conversion ops`);
+          // if (Prefs.optLog) log('opt', `removed redundant i32 -> i64 -> i32 conversion ops`);
           continue;
         }
 
@@ -348,7 +349,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i - 1, 2); // remove this inst and last
           i -= 2;
-          // if (optLog) log('opt', `removed redundant i32 -> f64 -> i32 conversion ops`);
+          // if (Prefs.optLog) log('opt', `removed redundant i32 -> f64 -> i32 conversion ops`);
           continue;
         }
 
@@ -363,7 +364,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i, 1); // remove this inst
           i--;
-          if (optLog) log('opt', `converted const -> i32 convert into i32 const`);
+          if (Prefs.optLog) log('opt', `converted const -> i32 convert into i32 const`);
           continue;
         }
 
@@ -378,7 +379,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i, 1); // remove this inst
           i--;
-          if (optLog) log('opt', `converted i32 const -> convert into const`);
+          if (Prefs.optLog) log('opt', `converted i32 const -> convert into const`);
           continue;
         }
 
@@ -393,7 +394,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i, 1); // remove this inst (return)
           i--;
-          if (optLog) log('opt', `tail called return, call`);
+          if (Prefs.optLog) log('opt', `tail called return, call`);
           continue;
         }
 
@@ -406,7 +407,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i, 1); // remove this inst (return)
           i--;
-          // if (optLog) log('opt', `removed redundant return at end`);
+          // if (Prefs.optLog) log('opt', `removed redundant return at end`);
           continue;
         }
 
@@ -436,7 +437,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // <nothing>
 
           wasm.splice(i - 2, 3); // remove this, last, 2nd last insts
-          if (optLog) log('opt', `removed redundant inline param local handling`);
+          if (Prefs.optLog) log('opt', `removed redundant inline param local handling`);
           i -= 3;
           continue;
         }
@@ -444,12 +445,12 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
       if (optLevel < 2) continue;
 
-      if (optLog) log('opt', `get counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${getCount[f.locals[x].idx]}`).join(', ')}`);
+      if (Prefs.optLog) log('opt', `get counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${getCount[f.locals[x].idx]}`).join(', ')}`);
 
       // remove unneeded var: remove pass
       // locals only got once. we don't need to worry about sets/else as these are only candidates and we will check for matching set + get insts in wasm
       let unneededCandidates = Object.keys(getCount).filter(x => getCount[x] === 0 || (getCount[x] === 1 && setCount[x] === 0)).map(x => parseInt(x));
-      if (optLog) log('opt', `found unneeded locals candidates: ${unneededCandidates.join(', ')} (${unneededCandidates.length}/${Object.keys(getCount).length})`);
+      if (Prefs.optLog) log('opt', `found unneeded locals candidates: ${unneededCandidates.join(', ')} (${unneededCandidates.length}/${Object.keys(getCount).length})`);
 
       // note: disabled for now due to instability
       if (unneededCandidates.length > 0 && false) for (let i = 0; i < wasm.length; i++) {
@@ -467,7 +468,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           wasm.splice(i - 1, 2); // remove insts
           i -= 2;
           delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
-          if (optLog) log('opt', `removed redundant local (get set ${inst[1]})`);
+          if (Prefs.optLog) log('opt', `removed redundant local (get set ${inst[1]})`);
         }
 
         if (inst[0] === Opcodes.local_tee && unneededCandidates.includes(inst[1])) {
@@ -495,7 +496,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           unneededCandidates.splice(unneededCandidates.indexOf(inst[1]), 1);
           unneededCandidates = unneededCandidates.map(x => x > removedIdx ? (x - 1) : x);
 
-          if (optLog) log('opt', `removed redundant local ${localName} (tee ${inst[1]})`);
+          if (Prefs.optLog) log('opt', `removed redundant local ${localName} (tee ${inst[1]})`);
         }
       }
 
@@ -531,7 +532,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           let b = lastInst[1];
 
           const val = performWasmOp(inst[0], a, b);
-          if (optLog) log('opt', `inlined math op (${a} ${inst[0].toString(16)} ${b} -> ${val})`);
+          if (Prefs.optLog) log('opt', `inlined math op (${a} ${inst[0].toString(16)} ${b} -> ${val})`);
 
           wasm.splice(i - 2, 3, ...number(val)); // remove consts, math op and add new const
           i -= 2;
@@ -543,12 +544,12 @@ export default (funcs, globals, pages, tags, exceptions) => {
       for (const x in useCount) {
         if (useCount[x] === 0) {
           const name = Object.keys(f.locals)[localIdxs.indexOf(parseInt(x))];
-          if (optLog) log('opt', `removed internal local ${x} (${name})`);
+          if (Prefs.optLog) log('opt', `removed internal local ${x} (${name})`);
           delete f.locals[name];
         }
       }
 
-      if (optLog) log('opt', `final use counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${useCount[f.locals[x].idx]}`).join(', ')}`);
+      if (Prefs.optLog) log('opt', `final use counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${useCount[f.locals[x].idx]}`).join(', ')}`);
     }
   }
 

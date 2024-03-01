@@ -5,6 +5,7 @@ import opt from './opt.js';
 import produceSections from './sections.js';
 import decompile from './decompile.js';
 import toc from './2c.js';
+import Prefs from './prefs.js';
 
 globalThis.decompile = decompile;
 
@@ -25,17 +26,10 @@ const logFuncs = (funcs, globals, exceptions) => {
   console.log();
 };
 
-const getArg = name => process.argv.find(x => x.startsWith(`-${name}=`))?.slice(name.length + 2);
-
 const writeFileSync = (typeof process?.version !== 'undefined' ? (await import('node:fs')).writeFileSync : undefined);
 const execSync = (typeof process?.version !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
 
 export default (code, flags) => {
-  globalThis.optLog = process.argv.includes('-opt-log');
-  globalThis.codeLog = process.argv.includes('-code-log');
-  globalThis.allocLog = process.argv.includes('-alloc-log');
-  globalThis.regexLog = process.argv.includes('-regex-log');
-
   const t0 = performance.now();
   const program = parse(code, flags);
   if (flags.includes('info')) console.log(`1. parsed in ${(performance.now() - t0).toFixed(2)}ms`);
@@ -44,19 +38,19 @@ export default (code, flags) => {
   const { funcs, globals, tags, exceptions, pages, data } = codeGen(program);
   if (flags.includes('info')) console.log(`2. generated code in ${(performance.now() - t1).toFixed(2)}ms`);
 
-  if (process.argv.includes('-funcs')) logFuncs(funcs, globals, exceptions);
+  if (Prefs.funcs) logFuncs(funcs, globals, exceptions);
 
   const t2 = performance.now();
   opt(funcs, globals, pages, tags, exceptions);
   if (flags.includes('info')) console.log(`3. optimized code in ${(performance.now() - t2).toFixed(2)}ms`);
 
-  if (process.argv.includes('-opt-funcs')) logFuncs(funcs, globals, exceptions);
+  if (Prefs.optFuncs) logFuncs(funcs, globals, exceptions);
 
   const t3 = performance.now();
   const sections = produceSections(funcs, globals, tags, pages, data, flags);
   if (flags.includes('info')) console.log(`4. produced sections in ${(performance.now() - t3).toFixed(2)}ms`);
 
-  if (allocLog) {
+  if (Prefs.allocLog) {
     const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
     const bytes = wasmPages * 65536;
     log('alloc', `\x1B[1mallocated ${bytes / 1024}KiB\x1B[0m for ${pages.size} things using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}`);
@@ -65,8 +59,8 @@ export default (code, flags) => {
 
   const out = { wasm: sections, funcs, globals, tags, exceptions, pages, data };
 
-  const target = getArg('target') ?? getArg('t') ?? 'wasm';
-  const outFile = getArg('o');
+  const target = Prefs.target ?? 'wasm';
+  const outFile = Prefs.o;
 
   if (target === 'wasm' && outFile) {
     writeFileSync(outFile, Buffer.from(sections));
@@ -88,8 +82,8 @@ export default (code, flags) => {
   }
 
   if (target === 'native') {
-    let compiler = getArg('compiler') ?? 'clang';
-    const cO = getArg('cO') ?? 'Ofast';
+    let compiler = Prefs.compiler ?? 'clang';
+    const cO = Prefs._cO ?? 'Ofast';
 
     if (compiler === 'zig') compiler = [ 'zig', 'cc' ];
       else compiler = [ compiler ];

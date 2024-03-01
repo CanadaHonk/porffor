@@ -1,4 +1,6 @@
 import { log } from "./log.js";
+import Prefs from './prefs.js';
+
 // import { parse } from 'acorn';
 
 // deno compat
@@ -8,8 +10,8 @@ if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
 }
 
 // should we try to support types (while parsing)
-const types = process.argv.includes('-parse-types');
-globalThis.typedInput = types && process.argv.includes('-opt-types');
+const types = Prefs.parseTypes;
+globalThis.typedInput = types && Prefs.optTypes;
 
 // todo: review which to use by default
 // supported parsers:

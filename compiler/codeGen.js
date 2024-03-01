@@ -7,6 +7,7 @@ import { number, i32x4, enforceOneByte, enforceTwoBytes, enforceFourBytes, enfor
 import { log } from "./log.js";
 import parse from "./parse.js";
 import * as Rhemyn from "../rhemyn/compile.js";
+import Prefs from './prefs.js';
 
 let globals = {};
 let globalInd = 0;
@@ -418,9 +419,6 @@ const concatStrings = (scope, left, right, global, name, assign) => {
   const rightPointer = localTmp(scope, 'concat_right_pointer', Valtype.i32);
   const rightLength = localTmp(scope, 'concat_right_length', Valtype.i32);
   const leftLength = localTmp(scope, 'concat_left_length', Valtype.i32);
-
-  const aotWFA = process.argv.includes('-aot-well-formed-string-approximation');
-  if (aotWFA) addVarMeta(name, { wellFormed: undefined });
 
   if (assign) {
     const pointer = arrays.get(name ?? '$undeclared');
@@ -1273,7 +1271,7 @@ const getNodeType = (scope, node) => {
       if (node.operator === '!') return TYPES.boolean;
       if (node.operator === 'void') return TYPES.undefined;
       if (node.operator === 'delete') return TYPES.boolean;
-      if (node.operator === 'typeof') return process.argv.includes('-bytestring') ? TYPES._bytestring : TYPES.string;
+      if (node.operator === 'typeof') return Prefs.bytestring ? TYPES._bytestring : TYPES.string;
 
       return TYPES.number;
     }
@@ -1836,14 +1834,14 @@ const brTable = (input, bc, returns) => {
 };
 
 const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
-  if (!process.argv.includes('-bytestring')) delete bc[TYPES._bytestring];
+  if (!Prefs.bytestring) delete bc[TYPES._bytestring];
 
   const known = knownType(scope, type);
   if (known != null) {
     return bc[known] ?? bc.default;
   }
 
-  if (process.argv.includes('-typeswitch-use-brtable'))
+  if (Prefs.typeswitchUseBrtable)
     return brTable(type, bc, returns);
 
   const tmp = localTmp(scope, '#typeswitch_tmp', Valtype.i32);
@@ -1938,7 +1936,7 @@ const extractTypeAnnotation = decl => {
   const typeName = type;
   type = typeAnnoToPorfType(type);
 
-  if (type === TYPES._bytestring && !process.argv.includes('-bytestring')) type = TYPES.string;
+  if (type === TYPES._bytestring && !Prefs.bytestring) type = TYPES.string;
 
   // if (decl.name) console.log(decl.name, { type, elementType });
 
@@ -2631,7 +2629,7 @@ const allocPage = (scope, reason, type) => {
   scope.pages ??= new Map();
   scope.pages.set(reason, { ind, type });
 
-  if (allocLog) log('alloc', `allocated new page of memory (${ind}) | ${reason} (type: ${type})`);
+  if (Prefs.allocLog) log('alloc', `allocated new page of memory (${ind}) | ${reason} (type: ${type})`);
 
   return ind;
 };
@@ -2641,7 +2639,7 @@ const freePage = reason => {
   const { ind } = pages.get(reason);
   pages.delete(reason);
 
-  if (allocLog) log('alloc', `freed page of memory (${ind}) | ${reason}`);
+  if (Prefs.allocLog) log('alloc', `freed page of memory (${ind}) | ${reason}`);
 
   return ind;
 };
@@ -2758,7 +2756,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 };
 
 const byteStringable = str => {
-  if (!process.argv.includes('-bytestring')) return false;
+  if (!Prefs.bytestring) return false;
 
   for (let i = 0; i < str.length; i++) {
     if (str.charCodeAt(i) > 0xFF) return false;
@@ -2769,7 +2767,7 @@ const byteStringable = str => {
 
 const makeString = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
   const rawElements = new Array(str.length);
-  let byteStringable = process.argv.includes('-bytestring');
+  let byteStringable = Prefs.bytestring;
   for (let i = 0; i < str.length; i++) {
     const c = str.charCodeAt(i);
     rawElements[i] = c;
@@ -2930,7 +2928,7 @@ const objectHack = node => {
     if (!objectName) return node;
 
     const name = '__' + objectName + '_' + node.property.name;
-    if (codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
+    if (Prefs.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
 
     return {
       type: 'Identifier',
@@ -3147,7 +3145,7 @@ export default program => {
     body: program.body
   };
 
-  if (process.argv.includes('-ast-log')) console.log(program.body.body);
+  if (Prefs.astLog) console.log(program.body.body);
 
   generateFunc(scope, program);
 
