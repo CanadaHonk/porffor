@@ -272,7 +272,7 @@ Basically none right now (other than giving people headaches). Potential ideas:
 - More in future probably?
 
 ## VSCode extension
-There is a vscode extension in `porffor-for-vscode` which tweaks JS syntax highlighting to be nicer with porffor features (eg highlighting wasm inside of inline asm).
+There is a vscode extension in `vscode-ext` which tweaks JS syntax highlighting to be nicer with porffor features (eg highlighting wasm inside of inline asm).
 
 ## Isn't this the same as AssemblyScript/other Wasm langs?
 No. they are not alike at all internally and have very different goals/ideals:
