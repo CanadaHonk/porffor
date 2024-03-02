@@ -657,11 +657,12 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
     ...(!intIn && intOut ? [ Opcodes.i32_to_u ] : [])
   ];
 
-  const tmp = localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
+  const useTmp = knownType(scope, type) == null;
+  const tmp = !useTmp && localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
   const def = [
     // if value != 0
-    [ Opcodes.local_get, tmp ],
+    ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
 
     // ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
     ...(!intOut || (intIn && intOut) ? [] : [ Opcodes.i32_to_u ]),
@@ -673,7 +674,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
 
   return [
     ...wasm,
-    [ Opcodes.local_set, tmp ],
+    ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, {
       // [TYPES.number]: def,
@@ -682,7 +683,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
         ...number(1, intOut ? Valtype.i32 : valtypeBinary)
       ],
       [TYPES.string]: [
-        [ Opcodes.local_get, tmp ],
+        ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
         // get length
@@ -694,7 +695,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ],
       [TYPES._bytestring]: [ // duplicate of string
-        [ Opcodes.local_get, tmp ],
+      ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
         // get length
@@ -708,10 +709,12 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
 };
 
 const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
-  const tmp = localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
+  const useTmp = knownType(scope, type) == null;
+  const tmp = !useTmp && localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
+
   return [
     ...wasm,
-    [ Opcodes.local_set, tmp ],
+    ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, {
       [TYPES._array]: [
@@ -719,7 +722,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
         ...number(0, intOut ? Valtype.i32 : valtypeBinary)
       ],
       [TYPES.string]: [
-        [ Opcodes.local_get, tmp ],
+        ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
         // get length
@@ -730,7 +733,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ],
       [TYPES._bytestring]: [ // duplicate of string
-        [ Opcodes.local_get, tmp ],
+        ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
         // get length
@@ -742,7 +745,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
       ],
       default: [
         // if value == 0
-        [ Opcodes.local_get, tmp ],
+        ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
 
         ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
@@ -752,10 +755,12 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
 };
 
 const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
-  const tmp = localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
+  const useTmp = knownType(scope, type) == null;
+  const tmp = !useTmp && localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
+
   return [
     ...wasm,
-    [ Opcodes.local_set, tmp ],
+    ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, {
       [TYPES.undefined]: [
@@ -764,7 +769,7 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
       ],
       [TYPES.object]: [
         // object, null if == 0
-        [ Opcodes.local_get, tmp ],
+        ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
 
         ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
