@@ -2712,7 +2712,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   const valtype = itemTypeToValtype[itemType];
   const length = elements.length;
 
-  if (firstAssign && useRawElements) {
+  if (firstAssign && useRawElements && !Prefs.noData) {
     // if length is 0 memory/data will just be 0000... anyway
     if (length !== 0) {
       let bytes = compileBytes(length, 'i32');
