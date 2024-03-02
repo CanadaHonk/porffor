@@ -2708,21 +2708,24 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   const length = elements.length;
 
   if (firstAssign && useRawElements) {
-    let bytes = compileBytes(length, 'i32');
+    // if length is 0 memory/data will just be 0000... anyway
+    if (length !== 0) {
+      let bytes = compileBytes(length, 'i32');
 
-    if (!initEmpty) for (let i = 0; i < length; i++) {
-      if (elements[i] == null) continue;
+      if (!initEmpty) for (let i = 0; i < length; i++) {
+        if (elements[i] == null) continue;
 
-      bytes.push(...compileBytes(elements[i], itemType));
+        bytes.push(...compileBytes(elements[i], itemType));
+      }
+
+      const ind = data.push({
+        offset: pointer,
+        bytes
+      }) - 1;
+
+      scope.data ??= [];
+      scope.data.push(ind);
     }
-
-    const ind = data.push({
-      offset: pointer,
-      bytes
-    }) - 1;
-
-    scope.data ??= [];
-    scope.data.push(ind);
 
     // local value as pointer
     out.push(...number(pointer));
