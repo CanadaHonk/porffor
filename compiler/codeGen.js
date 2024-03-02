@@ -169,8 +169,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
             if (asm[0] === '') continue; // blank
 
             if (asm[0] === 'local') {
-              const [ name, idx, type ] = asm.slice(1);
-              scope.locals[name] = { idx: parseInt(idx), type: Valtype[type] };
+              const [ name, type ] = asm.slice(1);
+              scope.locals[name] = { idx: scope.localInd++, type: Valtype[type] };
               continue;
             }
 
@@ -189,7 +189,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
             if (!inst) throw new Error(`inline asm: inst ${asm[0]} not found`);
 
             if (!Array.isArray(inst)) inst = [ inst ];
-            const immediates = asm.slice(1).map(x => parseInt(x));
+            const immediates = asm.slice(1).map(x => parseInt(x) || scope.locals[x]?.idx);
 
             out.push([ ...inst, ...immediates ]);
           }
