@@ -220,8 +220,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
       for (let i = 0; i < expressions.length; i++) {
         const e = expressions[i];
-        str += lookupName(scope, e.name)[0];
-
+        str += lookupName(scope, e.name)[0].idx;
         str += quasis[i + 1].value.raw;
       }
 
