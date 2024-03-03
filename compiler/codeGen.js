@@ -189,7 +189,11 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
             if (!inst) throw new Error(`inline asm: inst ${asm[0]} not found`);
 
             if (!Array.isArray(inst)) inst = [ inst ];
-            const immediates = asm.slice(1).map(x => parseInt(x) || scope.locals[x]?.idx);
+            const immediates = asm.slice(1).map(x => {
+              const int = parseInt(x);
+              if (Number.isNaN(int)) return scope.locals[x]?.idx;
+              return int;
+            });
 
             out.push([ ...inst, ...immediates ]);
           }
