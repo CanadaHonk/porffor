@@ -661,7 +661,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
   ];
 
   const useTmp = knownType(scope, type) == null;
-  const tmp = !useTmp && localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
+  const tmp = useTmp && localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
   const def = [
     // if value != 0
@@ -713,7 +713,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
 
 const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
   const useTmp = knownType(scope, type) == null;
-  const tmp = !useTmp && localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
+  const tmp = useTmp && localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
   return [
     ...wasm,
@@ -759,7 +759,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
 
 const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
   const useTmp = knownType(scope, type) == null;
-  const tmp = !useTmp && localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
+  const tmp = useTmp && localTmp(scope, `$logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
   return [
     ...wasm,
