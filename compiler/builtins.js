@@ -767,7 +767,7 @@ export const BuiltinFuncs = function() {
     return out;
   };
 
-  this.__Porffor_pointer = {
+  this.__Porffor_ptr = {
     params: [ valtypeBinary, Valtype.i32 ],
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
