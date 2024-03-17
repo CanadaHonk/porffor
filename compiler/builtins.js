@@ -1,6 +1,7 @@
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from "./wasmSpec.js";
 import { number, i32x4 } from "./embedding.js";
 import Prefs from './prefs.js';
+import * as GeneratedBuiltins from './generated_builtins.js';
 
 export const importedFuncs = [
   {
@@ -807,4 +808,9 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+
+  const generated = new GeneratedBuiltins.BuiltinFuncs();
+  for (const x in generated) {
+    this[x] = generated[x];
+  }
 };

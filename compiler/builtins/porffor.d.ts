@@ -1,0 +1,23 @@
+export type i32 = number;
+export type i64 = number;
+export type bytestring = string;
+
+type PorfforGlobal = {
+  wasm: {
+    (...args: any[]): void;
+    i32: {
+      load8_u: (pointer: i32, align: i32, offset: i32) => i32;
+      store8: (pointer: i32, value: i32, align: i32, offset: i32) => i32;
+    }
+  }
+  ptr: (obj: any) => i32;
+
+  i32: {
+    ptr: (obj: any) => i32;
+    ptrUnsafe: (obj: any) => i32;
+  }
+};
+
+declare global {
+  const Porffor: PorfforGlobal;
+}
