@@ -1699,8 +1699,14 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (func && func.throws) scope.throws = true;
 
   let out = [];
-  for (const arg of args) {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
     out = out.concat(generate(scope, arg));
+
+    if (builtinFuncs[name] && builtinFuncs[name].params[i] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
+      out.push(Opcodes.i32_to);
+    }
+
     if (typedParams) out = out.concat(getNodeType(scope, arg));
   }
 
@@ -1717,6 +1723,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     //   [ Opcodes.local_set, localTmp(scope, '#last_type', Valtype.i32) ]
     // );
   } else out.push(setLastType(scope));
+
+  if (builtinFuncs[name] && builtinFuncs[name].returns[0] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
+    out.push(Opcodes.i32_from);
+  }
 
   return out;
 };
