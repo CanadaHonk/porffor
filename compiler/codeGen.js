@@ -1198,7 +1198,7 @@ const getNodeType = (scope, node) => {
         if (func.returnType) return func.returnType;
       }
 
-      if (builtinFuncs[name]) return TYPES[builtinFuncs[name].returnType ?? 'number'];
+      if (builtinFuncs[name] && !builtinFuncs[name].typedReturns) return TYPES[builtinFuncs[name].returnType ?? 'number'];
       if (internalConstrs[name]) return internalConstrs[name].type;
 
       // check if this is a prototype function
