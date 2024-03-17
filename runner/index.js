@@ -3,6 +3,8 @@
 import compile from '../compiler/wrap.js';
 import fs from 'node:fs';
 
+const start = performance.now();
+
 if (process.argv.includes('-compile-hints')) {
   const v8 = await import('node:v8');
   v8.setFlagsFromString(`--experimental-wasm-compilation-hints`);
@@ -72,3 +74,5 @@ try {
   if (cache) process.stdout.write(cache);
   console.error(process.argv.includes('-i') ? e : `${e.constructor.name}: ${e.message}`);
 }
+
+if (process.argv.includes('-t')) console.log(`\n\ntotal time: ${(performance.now() - start).toFixed(2)}ms`);
