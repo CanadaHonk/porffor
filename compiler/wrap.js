@@ -1,6 +1,8 @@
 import compile from './index.js';
 import decompile from './decompile.js';
 import { encodeVector, encodeLocal } from './encoding.js';
+import Prefs from './prefs.js';
+import { log } from './log.js';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
@@ -39,7 +41,13 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
   let instance;
   try {
-    0, { instance } = await WebAssembly.instantiate(wasm, {
+    let wasmEngine = WebAssembly;
+    if (Prefs.asur) {
+      log.warning('wrap', 'using our !experimental! asur wasm engine instead of host to run');
+      wasmEngine = await import('../asur/index.js');
+    }
+
+    0, { instance } = await wasmEngine.instantiate(wasm, {
       '': {
         p: valtype === 'i64' ? i => print(Number(i).toString()) : i => print(i.toString()),
         c: valtype === 'i64' ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
