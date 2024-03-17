@@ -290,7 +290,10 @@ const generateIdent = (scope, decl) => {
 
     if (Object.hasOwn(builtinVars, name)) {
       if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${unhackName(name)} with integer valtype`);
-      return builtinVars[name];
+
+      let wasm = builtinVars[name];
+      if (typeof wasm === 'function') wasm = asmFuncToAsm(wasm, { name });
+      return wasm;
     }
 
     if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(internalConstrs, name)) {
@@ -977,7 +980,22 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
   return out;
 };
 
-const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, localNames = [], globalNames = [] }) => {
+const asmFuncToAsm = (func, { name = '#unknown_asm_func', params = [], locals = [], returns = [], localInd = 0 }) => {
+  return func({ name, params, locals, returns, localInd }, {
+    TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage,
+    builtin: name => {
+      let idx = funcIndex[name] ?? importedFuncs[name];
+      if (idx === undefined && builtinFuncs[name]) {
+        includeBuiltin(null, name);
+        idx = funcIndex[name];
+      }
+
+      return idx;
+    }
+  });
+};
+
+const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, localNames = [], globalNames = [], data: _data = [] }) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
@@ -989,17 +1007,13 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     locals[nameParam(i)] = { idx: i, type: allLocals[i] };
   }
 
-  if (typeof wasm === 'function') {
-    const scope = {
-      name,
-      params,
-      locals,
-      returns,
-      localInd: allLocals.length,
-    };
-
-    wasm = wasm(scope, { TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString });
+  for (const x of _data) {
+    const copy = { ...x };
+    copy.offset += pages.size * pageSize;
+    data.push(copy);
   }
+
+  if (typeof wasm === 'function') wasm = asmFuncToAsm(wasm, { name, params, locals, returns, localInd: allLocals.length });
 
   let baseGlobalIdx, i = 0;
   for (const type of globalTypes) {
