@@ -16,7 +16,13 @@ if (process.argv.includes('-compile-hints')) {
 }
 
 let file = process.argv.slice(2).find(x => x[0] !== '-');
-if (['run', 'wasm', 'native', 'c'].includes(file)) {
+if (['run', 'wasm', 'native', 'c', 'profile'].includes(file)) {
+  if (file === 'profile') {
+    process.argv.splice(process.argv.indexOf(file), 1);
+    await import('./profiler.js');
+    await new Promise(() => {});
+  }
+
   if (['wasm', 'native', 'c'].includes(file)) {
     process.argv.push(`-target=${file}`);
   }
