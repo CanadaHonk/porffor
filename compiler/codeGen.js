@@ -1213,6 +1213,11 @@ const getNodeType = (scope, node) => {
         if (protoFuncs.length === 1) return protoFuncs[0].returnType ?? TYPES.number;
       }
 
+      if (name.startsWith('__Porffor_wasm_')) {
+        // todo: return undefined for non-returning ops
+        return TYPES.number;
+      }
+
       if (scope.locals['#last_type']) return [ getLastType(scope) ];
 
       // presume
@@ -1685,6 +1690,32 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (idx === undefined && name === scope.name) {
     // hack: calling self, func generator will fix later
     idx = -1;
+  }
+
+  if (idx === undefined && name.startsWith('__Porffor_wasm_')) {
+    const wasmOps = {
+      // pointer, align, offset
+      i32_load8_u: { imms: 2, args: 1 },
+      // pointer, value, align, offset
+      i32_store8: { imms: 2, args: 2 },
+    };
+
+    const opName = name.slice('__Porffor_wasm_'.length);
+
+    if (wasmOps[opName]) {
+      const op = wasmOps[opName];
+
+      const argOut = [];
+      for (let i = 0; i < op.args; i++) argOut.push(...generate(scope, decl.arguments[i]));
+
+      // literals only
+      const imms = decl.arguments.slice(op.args).map(x => x.value);
+
+      return [
+        ...argOut,
+        [ Opcodes[opName], ...imms ]
+      ];
+    }
   }
 
   if (idx === undefined) {
