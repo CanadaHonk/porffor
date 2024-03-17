@@ -8,6 +8,7 @@ const obj = new Proxy({}, {
       // fooBar -> foo-bar
       const name = p[0] === '_' ? p : p.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
       if (process.argv.includes('-' + name)) return true;
+      if (process.argv.includes('-no-' + name)) return false;
 
       const valArg = process.argv.find(x => x.startsWith(`-${name}=`));
       if (valArg) return valArg.slice(name.length + 2);
