@@ -32,17 +32,16 @@ export const Opcodes = {
   throw: 0x08,
   rethrow: 0x09,
 
-  call: 0x10,
-  call_indirect: 0x11,
-  return_call: 0x12,
-  return_call_indirect: 0x13,
-
   end: 0x0b,
   br: 0x0c,
   br_if: 0x0d,
   br_table: 0x0e,
   return: 0x0f,
+
   call: 0x10,
+  call_indirect: 0x11,
+  return_call: 0x12,
+  return_call_indirect: 0x13,
 
   drop: 0x1a,
 
@@ -62,12 +61,20 @@ export const Opcodes = {
   i32_load16_s: 0x2e,
   i32_load16_u: 0x2f,
 
-  i32_store8: 0x3a,
-  i32_store16: 0x3b,
+  i64_load8_s: 0x30,
+  i64_load8_u: 0x31,
+  i64_load16_s: 0x32,
+  i64_load16_u: 0x33,
 
   i32_store: 0x36,
   i64_store: 0x37,
   f64_store: 0x39,
+
+  i32_store8: 0x3a,
+  i32_store16: 0x3b,
+
+  i64_store8: 0x3c,
+  i64_store16: 0x3d,
 
   memory_grow: 0x40,
 
