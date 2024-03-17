@@ -1,3 +1,5 @@
+const onByDefault = [ 'bytestring' ];
+
 const cache = {};
 const obj = new Proxy({}, {
   get(_, p) {
@@ -13,6 +15,7 @@ const obj = new Proxy({}, {
       const valArg = process.argv.find(x => x.startsWith(`-${name}=`));
       if (valArg) return valArg.slice(name.length + 2);
 
+      if (onByDefault.includes(p)) return true;
       return undefined;
     })();
   }
