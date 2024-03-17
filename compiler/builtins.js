@@ -22,12 +22,12 @@ export const importedFuncs = [
     params: 0,
     returns: 1
   },
-  globalThis.profiler ? {
+  {
     name: 'profile',
     import: 'z',
     params: 1,
     returns: 0
-  } : null
+  }
 ].filter(x => x);
 
 for (let i = 0; i < importedFuncs.length; i++) {
