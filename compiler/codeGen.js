@@ -2161,9 +2161,7 @@ const generateAssign = (scope, decl) => {
       ], getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
       [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
 
-      getLastType(scope),
-      // hack: type is idx+1
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx + 1 ],
+      ...setType(scope, name, getLastType(scope))
     ];
   }
 
@@ -2174,9 +2172,7 @@ const generateAssign = (scope, decl) => {
 
     // todo: string concat types
 
-    // hack: type is idx+1
-    ...number(TYPES.number, Valtype.i32),
-    [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx + 1 ],
+    ...setType(scope, name, TYPES.number)
   ];
 };
 
