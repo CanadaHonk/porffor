@@ -3053,6 +3053,8 @@ const generateFunc = (scope, decl) => {
   };
   funcIndex[name] = func.index;
 
+  if (name === 'main') func.gotLastType = true;
+
   // quick hack fixes
   for (const inst of wasm) {
     if (inst[0] === Opcodes.call && inst[1] === -1) {
