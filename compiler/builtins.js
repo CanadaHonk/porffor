@@ -265,6 +265,40 @@ export const BuiltinFuncs = function() {
 
           [ Opcodes.end ]
         ],
+        [TYPES._bytestring]: [
+          // simply print a (byte)string :))
+          // cache input pointer as i32
+          [ Opcodes.local_get, 0 ],
+          Opcodes.i32_to_u,
+          [ Opcodes.local_tee, 2 ],
+
+          // make end pointer
+          [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+          [ Opcodes.local_get, 2 ],
+          [ Opcodes.i32_add ],
+          [ Opcodes.local_set, 3 ],
+
+          [ Opcodes.loop, Blocktype.void ],
+
+          // print current char
+          [ Opcodes.local_get, 2 ],
+          [ Opcodes.i32_load8_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
+          Opcodes.i32_from_u,
+          [ Opcodes.call, importedFuncs.printChar ],
+
+          // increment pointer
+          [ Opcodes.local_get, 2 ],
+          [ Opcodes.i32_const, 1 ],
+          [ Opcodes.i32_add ],
+          [ Opcodes.local_tee, 2 ],
+
+          // if pointer != end pointer, loop
+          [ Opcodes.local_get, 3 ],
+          [ Opcodes.i32_ne ],
+          [ Opcodes.br_if, 0 ],
+
+          [ Opcodes.end ]
+        ],
         [TYPES._array]: [
           ...printStaticStr('[ '),
 
