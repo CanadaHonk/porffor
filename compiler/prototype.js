@@ -385,7 +385,7 @@ export const PrototypeFuncs = function() {
 
           ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
           [ Opcodes.if, Blocktype.void ],
-          ...number(NaN),
+          ...number(valtype === 'i32' ? -1 : NaN),
           [ Opcodes.br, 1 ],
           [ Opcodes.end ],
 
@@ -598,7 +598,7 @@ export const PrototypeFuncs = function() {
 
             ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
             [ Opcodes.if, Blocktype.void ],
-            ...number(NaN),
+            ...number(valtype === 'i32' ? -1 : NaN),
             [ Opcodes.br, 1 ],
             [ Opcodes.end ],
 
