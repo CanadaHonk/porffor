@@ -77,10 +77,15 @@ Please note that further examples below will just use `./porf`, you need to use 
 - Literal callees only in calls (eg `print()` works, `a = print; a()` does not)
 - No `eval()` etc (since it is AOT)
 
-## Rhemyn
+## Sub-engines
+
+### Asur
+Asur is Porffor's own Wasm engine; it is an intentionally simple interpreter written in JS. It is very WIP. See [its readme](asur/README.md) for more details.
+
+### Rhemyn
 Rhemyn is Porffor's own regex engine; it compiles literal regex to Wasm bytecode AOT (remind you of anything?). It is quite basic and WIP. See [its readme](rhemyn/README.md) for more details.
 
-## 2c
+### 2c
 2c is Porffor's own Wasm -> C compiler, using generated Wasm bytecode and internal info to generate specific and efficient/fast C code. Little boilerplate/preluded code or required external files, just for CLI binaries (not like wasm2c very much).
 
 ## Supported
