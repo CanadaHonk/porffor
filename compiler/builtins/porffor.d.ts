@@ -15,6 +15,9 @@ type PorfforGlobal = {
   i32: {
     ptr: (obj: any) => i32;
     ptrUnsafe: (obj: any) => i32;
+
+    random: () => i32;
+    randomByte: () => i32;
   }
 };
 
