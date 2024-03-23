@@ -105,7 +105,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return generateUnary(scope, decl);
 
     case 'UpdateExpression':
-      return generateUpdate(scope, decl);
+      return generateUpdate(scope, decl, global, name, valueUnused);
 
     case 'IfStatement':
       return generateIf(scope, decl);
@@ -2055,7 +2055,8 @@ const generateVar = (scope, decl) => {
   return out;
 };
 
-const generateAssign = (scope, decl) => {
+// todo: optimize this func for valueUnused
+const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
 
   if (type === 'ObjectPattern') {
@@ -2305,7 +2306,7 @@ const generateUnary = (scope, decl) => {
   }
 };
 
-const generateUpdate = (scope, decl) => {
+const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
   const { name } = decl.argument;
 
   const [ local, isGlobal ] = lookupName(scope, name);
@@ -2318,7 +2319,7 @@ const generateUpdate = (scope, decl) => {
   const out = [];
 
   out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
-  if (!decl.prefix) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
+  if (!decl.prefix && !valueUnused) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
 
   switch (decl.operator) {
     case '++':
@@ -2331,7 +2332,7 @@ const generateUpdate = (scope, decl) => {
   }
 
   out.push([ isGlobal ? Opcodes.global_set : Opcodes.local_set, idx ]);
-  if (decl.prefix) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
+  if (decl.prefix && !valueUnused) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
 
   return out;
 };
@@ -2394,7 +2395,7 @@ const generateFor = (scope, decl) => {
   const out = [];
 
   if (decl.init) {
-    out.push(...generate(scope, decl.init));
+    out.push(...generate(scope, decl.init, false, undefined, true));
     disposeLeftover(out);
   }
 
@@ -2412,7 +2413,7 @@ const generateFor = (scope, decl) => {
   out.push(...generate(scope, decl.body));
   out.push([ Opcodes.end ]);
 
-  if (decl.update) out.push(...generate(scope, decl.update));
+  if (decl.update) out.push(...generate(scope, decl.update, false, undefined, true));
 
   out.push([ Opcodes.br, 1 ]);
   out.push([ Opcodes.end ], [ Opcodes.end ]);
