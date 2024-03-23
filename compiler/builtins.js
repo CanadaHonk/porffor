@@ -182,25 +182,6 @@ export const BuiltinFuncs = function() {
     ]
   };
 
-  // todo: return false for NaN
-  this.Boolean = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: 'boolean',
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      ...(valtype === 'f64' ? [
-        ...number(0),
-        [ Opcodes.f64_ne ]
-      ] : [
-        ...Opcodes.eqz,
-        [ Opcodes.i32_eqz ]
-      ]),
-      Opcodes.i32_from
-    ]
-  };
-
   // just return given (default 0) for (new) Object() as we somewhat supports object just not constructor
   this.Object = {
     params: [ valtypeBinary ],
@@ -569,60 +550,313 @@ export const BuiltinFuncs = function() {
 
   // this is an implementation of xorshift128+ (in wasm bytecode)
   // fun fact: v8, SM, JSC also use this (you will need this fun fact to maintain your sanity reading this code)
-  const prngSeed0 = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), prngSeed1 = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+  // const prngSeed0 = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), prngSeed1 = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+  const prngSeed0 = (Math.random() * (2 ** 30)) | 0, prngSeed1 = (Math.random() * (2 ** 30)) | 0;
+
+  const prng = ({
+    'lcg32_glibc': {
+      globals: [ Valtype.i32 ],
+      locals: [],
+      returns: Valtype.i32,
+      wasm: [
+        // seed = (MULTIPLIER * seed + INCREMENT) % MODULUS
+        // MULTIPLIER * state0
+        [ Opcodes.global_get, 0 ],
+        ...number(1103515245, Valtype.i32),
+        [ Opcodes.i32_mul ],
+
+        // + INCREMENT
+        ...number(12345, Valtype.i32),
+        [ Opcodes.i32_add ],
+
+        // % MODULUS
+        ...number(2 ** 31, Valtype.i32),
+        [ Opcodes.i32_rem_s ],
+
+        // state0 =
+        [ Opcodes.global_set, 0 ],
+
+        // state0
+        [ Opcodes.global_get, 0 ],
+      ],
+    },
+    'lcg32_minstd': {
+      globals: [ Valtype.i32 ],
+      locals: [],
+      returns: Valtype.i32,
+      wasm: [
+        // seed = (MULTIPLIER * seed + INCREMENT) % MODULUS
+        // MULTIPLIER * state0
+        [ Opcodes.global_get, 0 ],
+        ...number(48271, Valtype.i32),
+        [ Opcodes.i32_mul ],
+
+        // % MODULUS
+        ...number((2 ** 31) - 1, Valtype.i32),
+        [ Opcodes.i32_rem_s ],
+
+        // state0 =
+        [ Opcodes.global_set, 0 ],
+
+        // state0
+        [ Opcodes.global_get, 0 ],
+      ],
+    },
+    'lcg64_musl': 0, // todo
+
+    'xorshift32+': {
+      globals: [ Valtype.i32 ],
+      locals: [ Valtype.i32 ],
+      returns: Valtype.i32,
+      wasm: [
+        // setup: s1 = state0
+        [ Opcodes.global_get, 0 ], // state0
+        [ Opcodes.local_tee, 0 ], // s1
+
+        // s1 ^= s1 << 13
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.i32_const, 13 ],
+        [ Opcodes.i32_shl ], // <<
+        [ Opcodes.i32_xor ], // ^
+        [ Opcodes.local_tee, 0 ], // s1
+
+        // s1 ^= s1 >> 17
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.i32_const, 17 ],
+        [ Opcodes.i32_shr_s ], // >>
+        [ Opcodes.i32_xor ], // ^
+        [ Opcodes.local_tee, 0 ], // s1
+
+        // s1 ^= s1 << 5
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.i32_const, 5 ],
+        [ Opcodes.i32_shl ], // <<
+        [ Opcodes.i32_xor ], // ^
+        [ Opcodes.local_tee, 0 ], // s1
+
+        // state0 = s1
+        [ Opcodes.global_set, 0 ],
+
+        // s1
+        [ Opcodes.local_get, 0 ],
+      ],
+    },
+
+    'xorshift64+': {
+      globals: [ Valtype.i64 ],
+      locals: [ Valtype.i64 ],
+      returns: Valtype.i64,
+      wasm: [
+        // setup: s1 = state0
+        [ Opcodes.global_get, 0 ], // state0
+        [ Opcodes.local_tee, 0 ], // s1
+
+        // s1 ^= s1 >> 12
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.i64_const, 12 ],
+        [ Opcodes.i64_shr_s ], // >>
+        [ Opcodes.i64_xor ], // ^
+        [ Opcodes.local_tee, 0 ], // s1
+
+        // s1 ^= s1 << 25
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.i64_const, 25 ],
+        [ Opcodes.i64_shl ], // <<
+        [ Opcodes.i64_xor ], // ^
+        [ Opcodes.local_tee, 0 ], // s1
+
+        // s1 ^= s1 >> 27
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.i64_const, 27 ],
+        [ Opcodes.i64_shr_s ], // >>
+        [ Opcodes.i64_xor ], // ^
+        [ Opcodes.local_tee, 0 ], // s1
+
+        // state0 = s1
+        [ Opcodes.global_set, 0 ],
+
+        // // s1 * 0x2545F4914F6CDD1D
+        // [ Opcodes.local_get, 0 ],
+        // [ Opcodes.i64_const, 0x9d, 0xba, 0xb3, 0xfb, 0x94, 0x92, 0xfd, 0xa2, 0x25 ],
+        // [ Opcodes.i64_mul ]
+
+        // s1
+        [ Opcodes.local_get, 0 ],
+      ],
+    },
+
+    'xorshift128+': {
+      globals: [ Valtype.i64, Valtype.i64 ],
+      locals: [ Valtype.i64, Valtype.i64 ],
+      returns: Valtype.i64,
+      wasm: [
+        // setup: s1 = state0, s0 = state1, state0 = s0
+        [ Opcodes.global_get, 0 ], // state0
+        [ Opcodes.local_tee, 0 ], // s1
+        [ Opcodes.global_get, 1 ], // state1
+        [ Opcodes.local_tee, 1, ], // s0
+        [ Opcodes.global_set, 0 ], // state0
+
+        // s1 ^= s1 << 23
+        // [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.i64_const, 23 ],
+        [ Opcodes.i64_shl ], // <<
+        [ Opcodes.i64_xor ], // ^
+        [ Opcodes.local_set, 0 ], // s1
+
+        // state1 = s1 ^ s0 ^ (s1 >> 17) ^ (s0 >> 26)
+        // s1 ^ s0
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.local_get, 1 ], // s0
+        [ Opcodes.i64_xor ], // ^
+
+        // ^ (s1 >> 17)
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.i64_const, 17 ],
+        [ Opcodes.i64_shr_u ], // >>
+        [ Opcodes.i64_xor ], // ^
+
+        // ^ (s0 >> 26)
+        [ Opcodes.local_get, 1 ], // s0
+        [ Opcodes.i64_const, 26 ],
+        [ Opcodes.i64_shr_u ], // >>
+        [ Opcodes.i64_xor ], // ^
+
+        // state1 =
+        [ Opcodes.global_set, 1 ],
+
+        // state1 + s0
+        [ Opcodes.global_get, 1 ], // state1
+        [ Opcodes.local_get, 1 ], // s0
+        [ Opcodes.i64_add ]
+      ]
+    },
+
+    'xoroshiro128+': {
+      globals: [ Valtype.i64, Valtype.i64 ],
+      locals: [ Valtype.i64, Valtype.i64, Valtype.i64 ],
+      returns: Valtype.i64,
+      wasm: [
+        // setup: s1 = state1, s0 = state0
+        [ Opcodes.global_get, 1 ], // state0
+        [ Opcodes.local_tee, 0 ], // s1
+        [ Opcodes.global_get, 0 ], // state1
+        [ Opcodes.local_tee, 1, ], // s0
+
+        // result = s0 + s1
+        [ Opcodes.i64_add ],
+        [ Opcodes.local_set, 2 ], // result
+
+        // s1 ^= s0
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.local_get, 1 ], // s0
+        [ Opcodes.i64_xor ],
+        [ Opcodes.local_set, 0 ], // s1
+
+        // state0 = rotl(s0, 24) ^ s1 ^ (s1 << 16)
+
+        // rotl(s0, 24) ^ s1
+        [ Opcodes.local_get, 1 ], // s0
+        ...number(24, Valtype.i64),
+        [ Opcodes.i64_rotl ],
+        [ Opcodes.local_get, 0 ], // s1
+        [ Opcodes.i64_xor ],
+
+        // ^ (s1 << 16)
+        [ Opcodes.local_get, 0 ], // s1
+        ...number(16, Valtype.i64),
+        [ Opcodes.i64_shl ],
+        [ Opcodes.i64_xor ],
+
+        // state0 =
+        [ Opcodes.global_set, 0 ], // state0
+
+        // state1 = rotl(s1, 37)
+        [ Opcodes.local_get, 0 ], // s1
+        ...number(37, Valtype.i64),
+        [ Opcodes.i64_rotl ],
+        [ Opcodes.global_set, 1 ], // state1
+
+        // result
+        [ Opcodes.local_get, 2 ],
+      ]
+    },
+
+    'xoshiro128+': {
+      globals: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32 ],
+      locals: [ Valtype.i32, Valtype.i32 ],
+      returns: Valtype.i32,
+      wasm: [
+        // result = state0 + state3
+        [ Opcodes.global_get, 0 ], // state0
+        [ Opcodes.global_get, 3 ], // state0
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_set, 0 ], // result
+
+        // t = state1 << 9
+        [ Opcodes.global_get, 1 ], // state1
+        ...number(9, Valtype.i32),
+        [ Opcodes.i32_shl ],
+        [ Opcodes.local_set, 1 ], // t
+
+        // state2 ^= state0
+        [ Opcodes.global_get, 2 ], // state2
+        [ Opcodes.global_get, 0 ], // state0
+        [ Opcodes.i32_xor ],
+        [ Opcodes.global_set, 2 ], // state2
+
+        // state3 ^= state1
+        [ Opcodes.global_get, 3 ], // state3
+        [ Opcodes.global_get, 1 ], // state1
+        [ Opcodes.i32_xor ],
+        [ Opcodes.global_set, 3 ], // state3
+
+        // state1 ^= state2
+        [ Opcodes.global_get, 1 ], // state1
+        [ Opcodes.global_get, 2 ], // state2
+        [ Opcodes.i32_xor ],
+        [ Opcodes.global_set, 1 ], // state1
+
+        // state0 ^= state3
+        [ Opcodes.global_get, 0 ], // state2
+        [ Opcodes.global_get, 3 ], // state0
+        [ Opcodes.i32_xor ],
+        [ Opcodes.global_set, 0 ], // state2
+
+        // state2 ^= t
+        [ Opcodes.global_get, 2 ], // state2
+        [ Opcodes.local_get, 1 ], // t
+        [ Opcodes.i32_xor ],
+        [ Opcodes.global_set, 2 ], // state2
+
+        // state3 = rotl(state3, 11)
+        [ Opcodes.global_get, 3 ], // state3
+        ...number(11, Valtype.i32),
+        [ Opcodes.i32_rotl ],
+        [ Opcodes.global_set, 3 ], // state3
+
+        // result
+        [ Opcodes.local_get, 0 ],
+      ]
+    }
+  })[Prefs.prng ?? 'xorshift128+'];
+
+  if (!prng) throw new Error(`unknown prng algo: ${Prefs.prng}`);
 
   this.__Math_random = {
     floatOnly: true,
     params: [],
-    locals: [ Valtype.i64, Valtype.i64 ],
+    locals: prng.locals,
     localNames: [ 's1', 's0' ],
-    globals: [ Valtype.i64, Valtype.i64 ],
+    globals: prng.globals,
     globalNames: [ 'state0', 'state1' ],
     globalInits: [ prngSeed0, prngSeed1 ],
     returns: [ Valtype.f64 ],
     wasm: [
-      // setup: s1 = state0, s0 = state1, state0 = s0
-      [ Opcodes.global_get, 0 ], // state0
-      [ Opcodes.local_tee, 0 ], // s1
-      [ Opcodes.global_get, 1 ], // state1
-      [ Opcodes.local_tee, 1, ], // s0
-      [ Opcodes.global_set, 0 ], // state0
-
-      // s1 ^= s1 << 23
-      // [ Opcodes.local_get, 0 ], // s1
-      [ Opcodes.local_get, 0 ], // s1
-      [ Opcodes.i64_const, 23 ],
-      [ Opcodes.i64_shl ], // <<
-      [ Opcodes.i64_xor ], // ^
-      [ Opcodes.local_set, 0 ], // s1
-
-      // state1 = s1 ^ s0 ^ (s1 >> 17) ^ (s0 >> 26)
-      // s1 ^ s0
-      [ Opcodes.local_get, 0 ], // s1
-      [ Opcodes.local_get, 1 ], // s0
-      [ Opcodes.i64_xor ], // ^
-
-      // ^ (s1 >> 17)
-      [ Opcodes.local_get, 0 ], // s1
-      [ Opcodes.i64_const, 17 ],
-      [ Opcodes.i64_shr_u ], // >>
-      [ Opcodes.i64_xor ], // ^
-
-      // ^ (s0 >> 26)
-      [ Opcodes.local_get, 1 ], // s0
-      [ Opcodes.i64_const, 26 ],
-      [ Opcodes.i64_shr_u ], // >>
-      [ Opcodes.i64_xor ], // ^
-
-      // state1 =
-      [ Opcodes.global_set, 1 ],
+      ...prng.wasm,
 
       // you thought it was over? now we need the result as a f64 between 0-1 :)
-
-      // state1 + s0
-      [ Opcodes.global_get, 1 ], // state1
-      [ Opcodes.local_get, 1 ], // s0
-      [ Opcodes.i64_add ],
 
       // should we >> 12 here?
       // it feels like it but it breaks values
@@ -638,15 +872,72 @@ export const BuiltinFuncs = function() {
       // ...number(1),
       // [ Opcodes.f64_sub ],
 
-      ...number((1 << 53) - 1, Valtype.i64),
-      [ Opcodes.i64_and ],
+      ...(prng.returns === Valtype.i64 ? [
+        ...number((1 << 53) - 1, Valtype.i64),
+        [ Opcodes.i64_and ],
 
-      // double(mantissa)
-      [ Opcodes.f64_convert_i64_u ],
+        // double(mantissa)
+        [ Opcodes.f64_convert_i64_u ],
 
-      // / (1 << 53)
-      ...number(1 << 53),
-      [ Opcodes.f64_div ]
+        // / (1 << 53)
+        ...number(1 << 53),
+        [ Opcodes.f64_div ]
+      ] : [
+        ...number((1 << 21) - 1, Valtype.i32),
+        [ Opcodes.i32_and ],
+
+        // double(mantissa)
+        [ Opcodes.f64_convert_i32_u ],
+
+        // / (1 << 21)
+        ...number(1 << 21),
+        [ Opcodes.f64_div ]
+      ])
+    ]
+  };
+
+  this.__Porffor_i32_random = {
+    params: [],
+    locals: prng.locals,
+    localNames: [ 's1', 's0' ],
+    globals: prng.globals,
+    globalNames: [ 'state0', 'state1' ],
+    globalInits: [ prngSeed0, prngSeed1 ],
+    returns: [ Valtype.i32 ],
+    wasm: [
+      ...prng.wasm,
+
+      ...(prng.returns === Valtype.i64 ? [
+        // the lowest bits of the output generated by xorshift128+ have low quality
+        ...number(56, Valtype.i64),
+        [ Opcodes.i64_shr_u ],
+
+        [ Opcodes.i32_wrap_i64 ],
+      ] : []),
+    ]
+  };
+
+  this.__Porffor_i32_randomByte = {
+    params: [],
+    locals: prng.locals,
+    localNames: [ 's1', 's0' ],
+    globals: prng.globals,
+    globalNames: [ 'state0', 'state1' ],
+    globalInits: [ prngSeed0, prngSeed1 ],
+    returns: [ Valtype.i32 ],
+    wasm: [
+      ...prng.wasm,
+
+      ...(prng.returns === Valtype.i64 ? [
+        // the lowest bits of the output generated by xorshift128+ have low quality
+        ...number(56, Valtype.i64),
+        [ Opcodes.i64_shr_u ],
+
+        [ Opcodes.i32_wrap_i64 ],
+      ] : []),
+
+      ...number(0xff, Valtype.i32),
+      [ Opcodes.i32_and ],
     ]
   };
 
@@ -792,7 +1083,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [ Valtype.i32 ],
-    wasm: (scope, { TYPES }) => [
+    wasm: (_scope, { TYPES }) => [
       ...localIsOneOf([ [ Opcodes.local_get, 1 ] ], [ TYPES.string, TYPES._array, TYPES._bytestring ], Valtype.i32),
       [ Opcodes.if, Valtype.i32 ],
       [ Opcodes.local_get, 0 ],
