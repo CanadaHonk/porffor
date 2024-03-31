@@ -59,8 +59,10 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
     // only backtrace for runner, not test262/etc
     if (!process.argv[1].includes('/runner')) throw e;
 
-    const funcInd = parseInt(e.message.match(/function #([0-9]+) /)[1]);
-    const blobOffset = parseInt(e.message.split('@')[1]);
+    const funcInd = parseInt(e.message.match(/function #([0-9]+) /)?.[1]);
+    const blobOffset = parseInt(e.message.split('@')?.[1]);
+
+    if (!funcInd) throw e;
 
     // convert blob offset -> function wasm offset.
     // this is not good code and is somewhat duplicated
