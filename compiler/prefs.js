@@ -1,6 +1,6 @@
 const onByDefault = [ 'bytestring' ];
 
-const cache = {};
+let cache = {};
 const obj = new Proxy({}, {
   get(_, p) {
     // intentionally misses with undefined values cached
