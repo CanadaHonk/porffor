@@ -202,22 +202,22 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         },
 
         __Porffor_bs: str => [
-          ...makeString(scope, str, undefined, undefined, true),
+          ...makeString(scope, str, global, name, true),
 
           ...number(TYPES._bytestring, Valtype.i32),
           setLastType(scope)
         ],
         __Porffor_s: str => [
-          ...makeString(scope, str, undefined, undefined, false),
+          ...makeString(scope, str, global, name, false),
 
           ...number(TYPES.string, Valtype.i32),
           setLastType(scope)
         ],
       };
 
-      const name = decl.tag.name;
+      const func = decl.tag.name;
       // hack for inline asm
-      if (!funcs[name]) return todo('tagged template expressions not implemented');
+      if (!funcs[func]) return todo('tagged template expressions not implemented');
 
       const { quasis, expressions } = decl.quasi;
       let str = quasis[0].value.raw;
@@ -228,7 +228,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         str += quasis[i + 1].value.raw;
       }
 
-      return funcs[name](str);
+      return funcs[func](str);
     }
 
     default:
