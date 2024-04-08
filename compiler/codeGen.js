@@ -2578,7 +2578,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ]
     ],
     [TYPES._bytestring]: [
-      ...setType(scope, leftName, TYPES._bytestring),
+      ...setType(scope, leftName, TYPES.string),
 
       [ Opcodes.loop, Blocktype.void ],
 
@@ -2595,7 +2595,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
 
       // store to new string ind 0
-      [ Opcodes.i32_store8, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+      [ Opcodes.i32_store16, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
 
       // return new string (page)
       ...number(newPointer),
