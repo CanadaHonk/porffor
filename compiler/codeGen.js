@@ -2577,6 +2577,56 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ],
       [ Opcodes.end ]
     ],
+    [TYPES._bytestring]: [
+      ...setType(scope, leftName, TYPES._bytestring),
+
+      [ Opcodes.loop, Blocktype.void ],
+
+      // setup new/out array
+      ...newOut,
+      [ Opcodes.drop ],
+
+      ...number(0, Valtype.i32), // base 0 for store after
+
+      // load current string ind {arg}
+      [ Opcodes.local_get, pointer ],
+      [ Opcodes.local_get, counter ],
+      [ Opcodes.i32_add ],
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+
+      // store to new string ind 0
+      [ Opcodes.i32_store8, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+
+      // return new string (page)
+      ...number(newPointer),
+
+      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+
+      [ Opcodes.block, Blocktype.void ],
+      [ Opcodes.block, Blocktype.void ],
+      ...generate(scope, decl.body),
+      [ Opcodes.end ],
+
+      // increment iter pointer
+      // [ Opcodes.local_get, pointer ],
+      // ...number(1, Valtype.i32),
+      // [ Opcodes.i32_add ],
+      // [ Opcodes.local_set, pointer ],
+
+      // increment counter by 1
+      [ Opcodes.local_get, counter ],
+      ...number(1, Valtype.i32),
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_tee, counter ],
+
+      // loop if counter != length
+      [ Opcodes.local_get, length ],
+      [ Opcodes.i32_ne ],
+      [ Opcodes.br_if, 1 ],
+
+      [ Opcodes.end ],
+      [ Opcodes.end ]
+    ],
     default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
   }, Blocktype.void));
 
