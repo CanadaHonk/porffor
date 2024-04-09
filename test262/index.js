@@ -100,6 +100,9 @@ function timeout(function_, timeout) {
 const trackPages = process.argv.includes('-pages');
 const trackErrors = process.argv.includes('-errors');
 
+let timeoutFiles = ['test/language/statements/for/scope-body-lex-boundary.js', 'test/language/statements/while/S12.6.2_A1.js', 'test/language/statements/continue/shadowing-loop-variable-in-same-scope-as-continue.js'];
+if (process.platform === 'win32') timeoutFiles = timeoutFiles.map(x => x.replaceAll('/', '\\'));
+
 const run = async ({ file, contents, attrs }) => {
   const singleContents = contents.split('---*/').pop();
 
@@ -129,7 +132,7 @@ const run = async ({ file, contents, attrs }) => {
 
   try {
     // only timeout some due to big perf impact
-    if (['test\\language\\statements\\for\\scope-body-lex-boundary.js', 'test\\language\\statements\\while\\S12.6.2_A1.js', 'test\\language\\statements\\continue\\shadowing-loop-variable-in-same-scope-as-continue.js'].includes(file)) timeout(exports.main, 1000);
+    if (timeoutFiles.includes(file)) timeout(exports.main, 1000);
       else exports.main();
   } catch (e) {
     return [ 1, e ];
