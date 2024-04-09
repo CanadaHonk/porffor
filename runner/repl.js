@@ -10,8 +10,18 @@ globalThis.valtype = 'f64';
 const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
 if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
 
-console.log(`welcome to porffor rev ${rev.slice(0, 7)}`);
-console.log(`info: using opt ${process.argv.find(x => x.startsWith('-O')) ?? '-O1'} and valtype ${valtype}`);
+let host = globalThis?.navigator?.userAgent;
+if (!host) {
+  // presume old node
+  host = `Node/${process.versions.node}`;
+}
+
+if (host.startsWith('Node')) host = '\x1B[92m' + host;
+if (host.startsWith('Deno')) host = '\x1B[97m' + host;
+if (host.startsWith('Bun')) host = '\x1B[93m' + host;
+
+console.log(`Welcome to \x1B[1m\x1B[35mPorffor\x1B[0m \x1B[90m(${rev.slice(0, 7)})\x1B[0m running on \x1B[1m${host.replace('/', ' \x1B[0m\x1B[90m(')})\x1B[0m`);
+console.log(`\x1B[90musing opt ${process.argv.find(x => x.startsWith('-O')) ?? '-O1'}, parser ${parser}, valtype ${valtype}\x1B[0m`);
 console.log();
 
 let lastMemory, lastPages;
