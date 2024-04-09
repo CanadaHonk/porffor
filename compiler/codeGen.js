@@ -550,7 +550,7 @@ const concatStrings = (scope, left, right, global, name, assign) => {
   ];
 };
 
-const compareStrings = (scope, left, right) => {
+const compareStrings = (scope, left, right, bytestrings = false) => {
   // todo: this should be rewritten into a func
   // todo: convert left and right to strings if not
   // todo: optimize by looking up names in arrays and using that if exists?
@@ -559,7 +559,6 @@ const compareStrings = (scope, left, right) => {
   const leftPointer = localTmp(scope, 'compare_left_pointer', Valtype.i32);
   const leftLength = localTmp(scope, 'compare_left_length', Valtype.i32);
   const rightPointer = localTmp(scope, 'compare_right_pointer', Valtype.i32);
-  const rightLength = localTmp(scope, 'compare_right_length', Valtype.i32);
 
   const index = localTmp(scope, 'compare_index', Valtype.i32);
   const indexEnd = localTmp(scope, 'compare_index_end', Valtype.i32);
@@ -587,7 +586,6 @@ const compareStrings = (scope, left, right) => {
 
     [ Opcodes.local_get, rightPointer ],
     [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
-    [ Opcodes.local_tee, rightLength ],
 
     // fast path: check leftLength != rightLength
     [ Opcodes.i32_ne ],
@@ -602,11 +600,13 @@ const compareStrings = (scope, left, right) => {
     ...number(0, Valtype.i32),
     [ Opcodes.local_set, index ],
 
-    // setup index end as length * sizeof i16 (2)
+    // setup index end as length * sizeof valtype (1 for bytestring, 2 for string)
     // we do this instead of having to do mul/div each iter for perf™
     [ Opcodes.local_get, leftLength ],
-    ...number(ValtypeSize.i16, Valtype.i32),
-    [ Opcodes.i32_mul ],
+    ...(bytestrings ? [] : [
+      ...number(ValtypeSize.i16, Valtype.i32),
+      [ Opcodes.i32_mul ],
+    ]),
     [ Opcodes.local_set, indexEnd ],
 
     // iterate over each char and check if eq
@@ -616,13 +616,17 @@ const compareStrings = (scope, left, right) => {
     [ Opcodes.local_get, index ],
     [ Opcodes.local_get, leftPointer ],
     [ Opcodes.i32_add ],
-    [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+    bytestrings ?
+      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ] :
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
     // fetch right
     [ Opcodes.local_get, index ],
     [ Opcodes.local_get, rightPointer ],
     [ Opcodes.i32_add ],
-    [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+    bytestrings ?
+      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ] :
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
     // not equal, "return" false
     [ Opcodes.i32_ne ],
@@ -631,13 +635,13 @@ const compareStrings = (scope, left, right) => {
     [ Opcodes.br, 2 ],
     [ Opcodes.end ],
 
-    // index += sizeof i16 (2)
+    // index += sizeof valtype (1 for bytestring, 2 for string)
     [ Opcodes.local_get, index ],
-    ...number(ValtypeSize.i16, Valtype.i32),
+    ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
     [ Opcodes.i32_add ],
     [ Opcodes.local_tee, index ],
 
-    // if index != index end (length * sizeof 16), loop
+    // if index != index end (length * sizeof valtype), loop
     [ Opcodes.local_get, indexEnd ],
     [ Opcodes.i32_ne ],
     [ Opcodes.br_if, 0 ],
