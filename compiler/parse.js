@@ -20,7 +20,8 @@ globalThis.typedInput = types && Prefs.optTypes;
 // - hermes-parser
 // - @babel/parser
 
-let parser, parse;
+globalThis.parser = '';
+let parse;
 const loadParser = async (fallbackParser = 'acorn', forceParser) => {
   parser = forceParser ?? process.argv.find(x => x.startsWith('-parser='))?.split('=')?.[1] ?? fallbackParser;
   0, { parse } = (await import((globalThis.document ? 'https://esm.sh/' : '') + parser));
