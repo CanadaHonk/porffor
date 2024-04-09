@@ -100,8 +100,9 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
   if (Prefs.optInlineOnly) return;
 
-  const tagUse = tags.reduce((acc, x) => { acc[x.idx] = 0; return acc; }, {});
-  const exceptionUse = exceptions.reduce((acc, _, i) => { acc[i] = 0; return acc; }, {});
+  // todo: this breaks exceptions after due to indexes not being adjusted
+  // const tagUse = tags.reduce((acc, x) => { acc[x.idx] = 0; return acc; }, {});
+  // const exceptionUse = exceptions.reduce((acc, _, i) => { acc[i] = 0; return acc; }, {});
 
   // wasm transform pass
   for (const f of funcs) {
@@ -131,12 +132,12 @@ export default (funcs, globals, pages, tags, exceptions) => {
         if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
         if (inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) setCount[inst[1]]++;
 
-        if (inst[0] === Opcodes.throw) {
-          tagUse[inst[1]]++;
+        // if (inst[0] === Opcodes.throw) {
+        //   tagUse[inst[1]]++;
 
-          const exceptId = read_signedLEB128(wasm[i - 1].slice(1));
-          exceptionUse[exceptId]++;
-        }
+        //   const exceptId = read_signedLEB128(wasm[i - 1].slice(1));
+        //   exceptionUse[exceptId]++;
+        // }
 
         if (inst[0] === Opcodes.block) {
           // remove unneeded blocks (no brs inside)
@@ -553,18 +554,18 @@ export default (funcs, globals, pages, tags, exceptions) => {
     }
   }
 
-  for (const x in tagUse) {
-    if (tagUse[x] === 0) {
-      const el = tags.find(y => y.idx === x);
-      tags.splice(tags.indexOf(el), 1);
-    }
-  }
+  // for (const x in tagUse) {
+  //   if (tagUse[x] === 0) {
+  //     const el = tags.find(y => y.idx === x);
+  //     tags.splice(tags.indexOf(el), 1);
+  //   }
+  // }
 
-  for (const x of Object.keys(exceptionUse).sort((a, b) => b - a)) {
-    if (exceptionUse[x] === 0) {
-      exceptions.splice(+x, 1);
-    }
-  }
+  // for (const x of Object.keys(exceptionUse).sort((a, b) => b - a)) {
+  //   if (exceptionUse[x] === 0) {
+  //     exceptions.splice(+x, 1);
+  //   }
+  // }
 
   // return funcs;
 };
