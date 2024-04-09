@@ -66,13 +66,21 @@ const print = str => {
 };
 
 try {
-  const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
+  if (process.argv.includes('-b')) {
+    const { wasm, exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
 
-  if (!process.argv.includes('-no-run')) exports.main();
-  if (cache) process.stdout.write(cache);
+    if (!process.argv.includes('-no-run')) exports.main();
+
+    console.log(`\n\nwasm size: ${wasm.byteLength} bytes`);
+  } else {
+    const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
+
+    if (!process.argv.includes('-no-run')) exports.main();
+  }
+  // if (cache) process.stdout.write(cache);
 } catch (e) {
-  if (cache) process.stdout.write(cache);
+  // if (cache) process.stdout.write(cache);
   console.error(process.argv.includes('-i') ? e : `${e.constructor.name}: ${e.message}`);
 }
 
-if (process.argv.includes('-t')) console.log(`\n\ntotal time: ${(performance.now() - start).toFixed(2)}ms`);
+if (process.argv.includes('-t')) console.log(`${process.argv.includes('-b') ? '' : '\n\n'}total time: ${(performance.now() - start).toFixed(2)}ms`);
