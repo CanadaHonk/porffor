@@ -8,8 +8,12 @@ function isPrime(number) {
   return true;
 }
 
+const t = performance.now();
+
 let counter = 0;
 while (counter <= 10000) {
   if (isPrime(counter)) console.log(counter);
   counter++;
 }
+
+console.log(performance.now() - t);
