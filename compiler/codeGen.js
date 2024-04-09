@@ -1273,6 +1273,7 @@ const getNodeType = (scope, node) => {
 
       // todo: this should be dynamic but for now only static
       if (knownLeft === TYPES.string || knownRight === TYPES.string) return TYPES.string;
+      if (knownLeft === TYPES._bytestring || knownRight === TYPES._bytestring) return TYPES._bytestring;
 
       return TYPES.number;
 
@@ -1309,6 +1310,7 @@ const getNodeType = (scope, node) => {
 
       // ts hack
       if (scope.locals[node.object.name]?.metadata?.type === TYPES.string) return TYPES.string;
+      if (scope.locals[node.object.name]?.metadata?.type === TYPES._bytestring) return TYPES._bytestring;
       if (scope.locals[node.object.name]?.metadata?.type === TYPES._array) return TYPES.number;
 
       if (scope.locals['#last_type']) return [ getLastType(scope) ];
