@@ -181,8 +181,9 @@ No particular order and no guarentees, just what could happen soon™
   - Destructuring
 - Objects
   - Basic object expressions (eg `{}`, `{ a: 0 }`)
-- Wasm
-  - *Basic* Wasm engine (interpreter) in JS
+- Asur
+  - Support memory
+  - Support exceptions
 - More math operators (`**`, etc)
 - `do { ... } while (...)`
 - Typed export inputs (array)
@@ -208,6 +209,9 @@ No particular order and no guarentees, just what could happen soon™
   - [String Trim Characters](https://github.com/Kingwl/proposal-string-trim-characters)
 - Posts
   - Inlining investigation
+  - JS -> Native
+  - Precompiled TS built-ins
+  - Asur
 - Self hosted testing?
 
 ## Performance
