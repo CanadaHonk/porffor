@@ -2488,6 +2488,7 @@ const generateForOf = (scope, decl) => {
   // hack: this is naughty and will break things!
   let newOut = number(0, Valtype.f64), newPointer = -1;
   if (pages.hasAnyString) {
+    // todo: we use i16 even for bytestrings which should not make a bad thing happen, just be confusing for debugging?
     0, [ newOut, newPointer ] = makeArray(scope, {
       rawElements: new Array(1)
     }, isGlobal, leftName, true, 'i16');
@@ -2580,7 +2581,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ]
     ],
     [TYPES._bytestring]: [
-      ...setType(scope, leftName, TYPES.string),
+      ...setType(scope, leftName, TYPES._bytestring),
 
       [ Opcodes.loop, Blocktype.void ],
 
@@ -2597,7 +2598,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
 
       // store to new string ind 0
-      [ Opcodes.i32_store16, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+      [ Opcodes.i32_store8, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
 
       // return new string (page)
       ...number(newPointer),
