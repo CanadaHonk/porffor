@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import fs from 'fs';
 
 import Test262Stream from 'test262-stream';
-import compile from '../compiler/wrap.js';
+import compile from '../compiler/index.js';
 
 const veryStart = performance.now();
 
@@ -33,55 +33,10 @@ const excludeNegative = process.argv.includes('-exclude-negative');
 
 const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
-let lastCommitResults = execSync(`git log -80 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1')).split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
+let lastCommitResults = execSync(`git log -200 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1')).split('|').map(x => parseFloat(x.slice(3).split(':').pop().trim().replace('%', '')));
 if (lastCommitResults.length === 8) lastCommitResults = [ ...lastCommitResults.slice(0, 7), 0, lastCommitResults[7] ];
 
 const resultOnly = process.env.RESULT_ONLY;
-
-const hacks = [
-  // remove error constructor checks
-  x => {
-    const str = `if (err.constructor !== Test262Error) {`;
-    const ind = x.indexOf(str);
-    if (ind === -1) return x;
-
-    const nextEnd = x.indexOf('}', ind + str.length);
-
-    return x.replace(x.slice(ind, nextEnd + 1), '');
-  },
-
-  // random error detail checks
-  x => {
-    return x
-      .replace(/assert\.notSameValue\(err\.message\.indexOf\('.*?'\), -1\);/g, '')
-      .replace(/if \(\(e instanceof (.*)Error\) !== true\) \{[\w\W]*?\}/g, '')
-      .replace(/assert\.sameValue\(\s*e instanceof RangeError,\s*true,[\w\W]+?\);/g, '');
-  },
-
-  // int valtypes only: replace assert._isSameValue check with simple check
-  // x => {
-  //   if (valtype[0] !== 'i') return x;
-  //   return x.replace(`assert._isSameValue = function (a, b) {`, `assert._isSameValue = function (a, b) { return a == b;`);
-  // },
-
-  // replace old tests' custom checks with standard assert
-  x => {
-    return x
-      .replace(/if \(([^ ]+) !== ([^ ]+)\) \{ *\n *throw new Test262Error\(['"](.*)\. Actual:.*\); *\n\} *\n/g, (_, one, two) => `assert.sameValue(${one}, ${two});\n`);
-  },
-
-  // remove actual string concats from some error messages
-  x => {
-    return x
-      .replace(/\. Actual: ' \+ .*\);/g, _ => `');`);
-  },
-
-  // replace some (avoid false pos) assert.throws with inline try
-  x => {
-    return x
-      .replace(/assert\.throws\(ReferenceError, function\(\) {([\w\W]+?)}\);/g, (_, body) => `let _thrown = false;\ntry {${body}\n_thrown = true;\n} catch {}\nif (_thrown) throw new Test262Error('Expected a ReferenceError to be thrown but no exception was at all');\n`);
-  }
-];
 
 import vm from 'node:vm';
 
@@ -97,44 +52,77 @@ function timeout(function_, timeout) {
   return context.returnValue;
 }
 
-const trackPages = process.argv.includes('-pages');
 const trackErrors = process.argv.includes('-errors');
 
 let timeoutFiles = ['test/language/statements/for/scope-body-lex-boundary.js', 'test/language/statements/while/S12.6.2_A1.js', 'test/language/statements/continue/shadowing-loop-variable-in-same-scope-as-continue.js'];
 if (process.platform === 'win32') timeoutFiles = timeoutFiles.map(x => x.replaceAll('/', '\\'));
 
-const run = async ({ file, contents, attrs }) => {
-  const singleContents = contents.split('---*/').pop();
+// const run = async ({ file, contents, attrs }) => {
+const run = ({ file, contents, attrs }) => {
+  // const singleContents = contents.split('---*/').pop();
+  const singleContents = contents.slice(contents.lastIndexOf('---*/') + 5);
 
-  const prelude = attrs.includes.map(x => preludes[x]).join('\n');
+  // const prelude = attrs.includes.map(x => preludes[x]).join('\n');
+  const prelude = attrs.includes.reduce((acc, x) => acc + preludes[x] + '\n', '');
   let toRun = attrs.flags.raw ? contents : (prelude + singleContents);
 
-  for (const hack of hacks) {
-    toRun = hack(toRun);
+  // remove error constructor checks
+  const str = `if (err.constructor !== Test262Error) {`;
+  const ind = toRun.indexOf(str);
+  if (ind !== -1) {
+    const nextEnd = toRun.indexOf('}', ind + str.length);
+    toRun = toRun.replace(toRun.slice(ind, nextEnd + 1), '');
   }
 
-  const flags = [];
-  if (attrs.flags.module) flags.push('module');
+  toRun = toRun
+    // random error detail checks
+    .replace(/assert\.notSameValue\(err\.message\.indexOf\('.*?'\), -1\);/g, '')
+    .replace(/if \(\(e instanceof (.*)Error\) !== true\) \{[\w\W]*?\}/g, '')
+    .replace(/assert\.sameValue\(\s*e instanceof RangeError,\s*true,[\w\W]+?\);/g, '')
+    // replace old tests' custom checks with standard assert
+    .replace(/if \(([^ ]+) !== ([^ ]+)\) \{ *\n *throw new Test262Error\(['"](.*)\. Actual:.*\); *\n\} *\n/g, (_, one, two) => `assert.sameValue(${one}, ${two});\n`)
+    // remove actual string concats from some error messages
+    .replace(/\. Actual: ' \+ .*\);/g, _ => `');`)
+    // replace some (avoid false pos) assert.throws with inline try
+    .replace(/assert\.throws\(ReferenceError, function\(\) {([\w\W]+?)}\);/g, (_, body) => `let _thrown = false;\ntry {${body}\n_thrown = true;\n} catch {}\nif (_thrown) throw new Test262Error('Expected a ReferenceError to be thrown but no exception was at all');\n`);
 
   // fs.writeFileSync('r.js', toRun);
 
-  let exports, pages;
+  let exports, exceptions;
   try {
-    0, { exports, pages } = await compile(toRun, flags);
+    const out = compile(toRun, attrs.flags.module ? [ 'module' ] : []);
+
+    exceptions = out.exceptions;
+
+    const module = new WebAssembly.Module(out.wasm);
+    exports = (new WebAssembly.Instance(module, {
+      '': {
+        p: () => {},
+        c: () => {},
+        t: () => performance.now(),
+        z: () => {},
+      }
+    })).exports;
   } catch (e) {
     return [ 0, e ];
   }
 
-  if (trackPages) {
-    if (!pagesUsed.has(pages.size)) pagesUsed.set(pages.size, []);
-    pagesUsed.set(pages.size, pagesUsed.get(pages.size).concat(file.replaceAll('\\', '/').slice(5)));
-  }
-
   try {
     // only timeout some due to big perf impact
-    if (timeoutFiles.includes(file)) timeout(exports.main, 1000);
-      else exports.main();
+    if (timeoutFiles.includes(file)) timeout(exports.m, 500);
+      else exports.m();
   } catch (e) {
+    if (e.is && e.is(exports['0'])) {
+      const exceptId = e.getArg(exports['0'], 0);
+      const exception = exceptions[exceptId];
+
+      const constructorName = exception.constructor;
+      if (!constructorName) return [ 1, exception.message ];
+
+      const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
+      return [ 1, new constructor(exception.message) ];
+    }
+
     return [ 1, e ];
   }
 
@@ -162,7 +150,7 @@ const wasmErrorFiles = [];
 const compileErrorFiles = [];
 let dirs = new Map(), features = new Map(), errors = new Map(), pagesUsed = new Map();
 let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0, todos = 0;
-for await (const test of tests) {
+for (const test of tests) {
   const file = test.file.replaceAll('\\', '/').slice(5);
 
   total++;
@@ -173,7 +161,7 @@ for await (const test of tests) {
   const expected = test.attrs.negative ? true : false;
   const expectedType = test.attrs.negative?.type;
 
-  const [ stage, result ] = await run(test);
+  const [ stage, result ] = run(test);
   const errored = stage !== 2;
 
   let pass = errored === expected;
@@ -208,33 +196,54 @@ for await (const test of tests) {
 
   if (!resultOnly) process.stdout.write(`\r${' '.repeat(200)}\r`);
   // if (!resultOnly) console.log(`\u001b[90m${Math.floor((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m \u001b[90m${test.scenario}\u001b[0m`);
-  if (!resultOnly) console.log(`\u001b[90m${Math.floor((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
+  if (!resultOnly) process.stdout.write(`\u001b[90m${Math.floor((total / tests.length) * 100).toFixed(0).padStart(3, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m\n`);
 
   if (logErrors && !pass && result) console.log(result.stack ?? result);
   // if (!pass && stage === 0 && result.constructor.name === 'CompileError') console.log(file, test.contents.split('---*/').pop(), result.stack, '\n');
 
-  let y = dirs;
-  for (const x of file.split('/')) {
-    if (!y.has(x)) y.set(x, new Map());
-    y = y.get(x);
+  const dir = file.slice(0, file.indexOf('/'));
+  if (!dirs.has(dir)) dirs.set(dir, {});
+  const o = dirs.get(dir);
 
-    y.total = (y.total ?? 0) + 1;
+  o.total = (o.total ?? 0) + 1;
 
-    let k = pass ? 'pass' : 'unknown';
-    if (!pass && result && result.message && result.message.startsWith('todo:')) k = 'todo';
-    else if (!pass && stage === 0) {
-      if (result.constructor.name === 'CompileError') k = 'wasmError';
-        else k = 'compileError';
-    }
-    else if (!pass && stage === 1) {
-      if (result.constructor.name === 'Test262Error') k = 'fail';
-        else if (result.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') k = 'timeout';
-        else k = 'runtimeError';
-    }
-    else if (!pass && stage === 2) k = 'fail';
-
-    y[k] = (y[k] ?? 0) + 1;
+  let k = pass ? 'pass' : 'unknown';
+  if (!pass && result && result.message && result.message.startsWith('todo:')) k = 'todo';
+  else if (!pass && stage === 0) {
+    if (result.constructor.name === 'CompileError') k = 'wasmError';
+      else k = 'compileError';
   }
+  else if (!pass && stage === 1) {
+    if (result.constructor.name === 'Test262Error') k = 'fail';
+      else if (result.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') k = 'timeout';
+      else k = 'runtimeError';
+  }
+  else if (!pass && stage === 2) k = 'fail';
+
+  o[k] = (o[k] ?? 0) + 1;
+
+  // let y = dirs;
+  // for (const x of file.split('/')) {
+  //   if (!y.has(x)) y.set(x, new Map());
+  //   y = y.get(x);
+
+  //   y.total = (y.total ?? 0) + 1;
+
+  //   let k = pass ? 'pass' : 'unknown';
+  //   if (!pass && result && result.message && result.message.startsWith('todo:')) k = 'todo';
+  //   else if (!pass && stage === 0) {
+  //     if (result.constructor.name === 'CompileError') k = 'wasmError';
+  //       else k = 'compileError';
+  //   }
+  //   else if (!pass && stage === 1) {
+  //     if (result.constructor.name === 'Test262Error') k = 'fail';
+  //       else if (result.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') k = 'timeout';
+  //       else k = 'runtimeError';
+  //   }
+  //   else if (!pass && stage === 2) k = 'fail';
+
+  //   y[k] = (y[k] ?? 0) + 1;
+  // }
 
   // break;
 }
