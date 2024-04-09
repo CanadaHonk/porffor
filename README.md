@@ -172,48 +172,6 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Intrinsic functions (see below)
 - Inlining wasm via ``asm`...``\` "macro"
 
-## Todo
-No particular order and no guarentees, just what could happen soon™
-
-- Arrays
-  - More of `Array` prototype
-  - Arrays/strings inside arrays
-  - Destructuring
-- Objects
-  - Basic object expressions (eg `{}`, `{ a: 0 }`)
-- Asur
-  - Support memory
-  - Support exceptions
-- More math operators (`**`, etc)
-- `do { ... } while (...)`
-- Typed export inputs (array)
-- Exceptions
-  - Rewrite to use actual strings (optional?)
-  - `try { } finally { }`
-  - Rethrowing inside catch
-- Optimizations
-  - Rewrite local indexes per func for smallest local header and remove unused idxs
-  - Smarter inline selection (snapshots?)
-  - Remove const ifs (`if (true)`, etc)
-  - Memory alignment
-- Runtime
-  - WASI target
-  - Run precompiled Wasm file if given
-- Cool proposals
-  - [Optional Chaining Assignment](https://github.com/tc39/proposal-optional-chaining-assignment)
-  - [Modulus and Additional Integer Math](https://github.com/tc39/proposal-integer-and-modulus-math)
-  - [Array Equality](https://github.com/tc39/proposal-array-equality)
-  - [Declarations in Conditionals](https://github.com/tc39/proposal-Declarations-in-Conditionals)
-  - [Seeded Pseudo-Random Numbers](https://github.com/tc39/proposal-seeded-random)
-  - [`do` expressions](https://github.com/tc39/proposal-do-expressions)
-  - [String Trim Characters](https://github.com/Kingwl/proposal-string-trim-characters)
-- Posts
-  - Inlining investigation
-  - JS -> Native
-  - Precompiled TS built-ins
-  - Asur
-- Self hosted testing?
-
 ## Performance
 *For the features it supports most of the time*, Porffor is *blazingly fast* compared to most interpreters and common engines running without JIT. For those with JIT, it is usually slower by default, but can catch up with compiler arguments and typed input, even more so when compiling to native binaries.
 
@@ -279,6 +237,50 @@ Basically none right now (other than giving people headaches). Potential ideas:
 - Safety. As Porffor is written in JS, a memory-safe language\*, and compiles JS to Wasm, a fully sandboxed environment\*, it is quite safe. (\* These rely on the underlying implementations being secure. You could also run Wasm, or even Porffor itself, with an interpreter instead of a JIT for bonus security points too.)
 - Compiling JS to native binaries. This is still very early!
 - More in future probably?
+
+## Todo
+No particular order and no guarentees, just what could happen soon™
+
+- Arrays
+  - More of `Array` prototype
+  - Arrays/strings inside arrays
+  - Destructuring
+- Objects
+  - Basic object expressions (eg `{}`, `{ a: 0 }`)
+- Asur
+  - Support memory
+  - Support exceptions
+- More math operators (`**`, etc)
+- `do { ... } while (...)`
+- Typed export inputs (array)
+- Exceptions
+  - Rewrite to use actual strings (optional?)
+  - `try { } finally { }`
+  - Rethrowing inside catch
+- Optimizations
+  - Rewrite local indexes per func for smallest local header and remove unused idxs
+  - Smarter inline selection (snapshots?)
+  - Remove const ifs (`if (true)`, etc)
+  - Memory alignment
+- Runtime
+  - WASI target
+  - Run precompiled Wasm file if given
+- Docs
+  - Update codebase readme section
+- Cool proposals
+  - [Optional Chaining Assignment](https://github.com/tc39/proposal-optional-chaining-assignment)
+  - [Modulus and Additional Integer Math](https://github.com/tc39/proposal-integer-and-modulus-math)
+  - [Array Equality](https://github.com/tc39/proposal-array-equality)
+  - [Declarations in Conditionals](https://github.com/tc39/proposal-Declarations-in-Conditionals)
+  - [Seeded Pseudo-Random Numbers](https://github.com/tc39/proposal-seeded-random)
+  - [`do` expressions](https://github.com/tc39/proposal-do-expressions)
+  - [String Trim Characters](https://github.com/Kingwl/proposal-string-trim-characters)
+- Posts
+  - Inlining investigation
+  - JS -> Native
+  - Precompiled TS built-ins
+  - Asur
+- Self hosted testing?
 
 ## VSCode extension
 There is a vscode extension in `vscode-ext` which tweaks JS syntax highlighting to be nicer with porffor features (eg highlighting wasm inside of inline asm).
