@@ -35,7 +35,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   // (await import('node:fs')).writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
-  if (flags.includes('info')) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
+  if (Prefs.profileCompiler) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
 
   const t2 = performance.now();
 
@@ -140,7 +140,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   }
 
   times.push(performance.now() - t2);
-  if (flags.includes('info')) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
+  if (Prefs.profileCompiler) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
 
   const exports = {};
 
