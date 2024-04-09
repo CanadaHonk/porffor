@@ -1096,18 +1096,18 @@ const byg = Byg({
 
   // add to start of run()
   str = str.replace('const run = (bc, locals = []) => {', `const run = (bc, locals = []) => {
-callStack.push(bc.porfFunc.name);
-let lastDebugLocals = null;
+if (bc.porfFunc) callStack.push(bc.porfFunc.name);
+let lastDebugLocals = null, lastDebugGlobals = null;
 `);
 
   // add to start of returns
-  str = str.replaceAll('return stack;', `callStack.pop();
+  str = str.replaceAll('return stack;', `if (bc.porfFunc) callStack.pop();
 return stack;`);
 
   // add to vm loop
   str = str.replace('const op = parent.body[parent.pc++];', `const op = parent.body[parent.pc++];
 if (op && op.breakpoint) paused = true;
-if (paused && op) {
+if (bc.porfFunc && paused && op) {
   stepIn = false; stepOut = false;
 
   const currentFunc = bc.codeIdx;
@@ -1136,12 +1136,21 @@ if (paused && op) {
     localsChanged = locals.map((x, i) => x !== lastDebugLocals[i]);
   }
 
+  let globalsChanged = new Array(globals.length);
+  if (lastDebugGlobals) {
+    globalsChanged = globals.map((x, i) => x.value !== lastDebugGlobals[i]);
+  }
+
   const longestLocal = Math.max(0, ...Object.values(bc.porfFunc.invLocals).map((x, i) => \`\${x} (\${i})\`.length));
   const localsWidth = longestLocal + 2 + 8 + 1;
 
+  const longestGlobal = Math.max(0, ...globals.map((x, i) => \`\${x.porfGlobalName} (\${i})\`.length));
+  const globalsWidth = longestGlobal + 2 + 8 + 1;
+
+  const width = Math.max(localsWidth, globalsWidth);
+
   // const longestStack = Math.max(5, ...stack.map(x => (+x).toString().length));
   // const stackWidth = longestStack + 2;
-  const stackWidth = localsWidth;
 
   switch (byg(
     paused,
@@ -1149,31 +1158,50 @@ if (paused && op) {
     '\x1b[1masur\x1b[22m: ' + callStack.join(' -> ') + (parents.length > 1 ? \` | \${parents.slice(1).map(x => invOpcodes[x.opcode]).join(' -> ')}\` : ''),
     [
       {
-        x: termWidth - 1 - stackWidth - 6,
-        y: () => termHeight - Math.max(1, locals.length) - 1 - 4 - 3 - Math.max(1, stack.length),
-        width: stackWidth,
+        x: termWidth - 1 - width - 6,
+        y: () => termHeight - Math.max(1, locals.length) - 1 - 4 - 3 - Math.max(1, stack.length) - (globals.length > 0 ? (globals.length + 4) : 0),
+        width,
         height: Math.max(1, stack.length),
         title: 'stack',
         content: stack.map((x, i) => {
           const str = (+x).toString();
-          return \`\\x1b[93m\${' '.repeat((stackWidth - str.length) / 2 | 0)}\${str}\`;
+          return \`\\x1b[93m\${' '.repeat((width - str.length) / 2 | 0)}\${str}\`;
         })
       },
       {
-        x: termWidth - 1 - localsWidth - 6,
+        x: termWidth - 1 - width - 6,
         // x: termWidth / 3 | 0,
-        y: () => termHeight - Math.max(1, locals.length) - 1 - 4,
+        y: () => termHeight - Math.max(1, locals.length) - 1 - 4 - (globals.length > 0 ? (globals.length + 4) : 0),
         // y: ({ currentLinePos }) => currentLinePos + locals.length + 4 > termHeight ? currentLinePos - locals.length - 2 : currentLinePos + 1,
-        width: localsWidth,
+        width,
         height: Math.max(1, locals.length),
         title: 'locals',
         content: locals.map((x, i) => {
           const changed = localsChanged[i];
           const valueLen = changed ? \`\${lastDebugLocals[i]} -> \${x}\`.length : x.toString().length;
           if (changed) x = \`\\x1b[30m\${lastDebugLocals[i]}\\x1b[90m -> \\x1b[31m\${x}\`;
-          return \`\${changed ? '\\x1b[107m\\x1b[30m' : '\\x1b[100m\\x1b[37m\\x1b[1m'}\${bc.porfFunc.invLocals[i]}\${changed ? '\\x1b[90m' : '\\x1b[22m'} (\${i}) \${' '.repeat((longestLocal - \`\${bc.porfFunc.invLocals[i]} (\${i})\`.length) + 2 + (8 - valueLen))}\${changed ? '' : '\\x1b[93m'}\${x}\`;
+          return \`\${changed ? '\\x1b[107m\\x1b[30m' : '\\x1b[100m\\x1b[37m\\x1b[1m'}\${bc.porfFunc.invLocals[i]}\${changed ? '\\x1b[90m' : '\\x1b[22m'} (\${i}) \${' '.repeat((width - 2 - 8 - 1 - \`\${bc.porfFunc.invLocals[i]} (\${i})\`.length) + 2 + (8 - valueLen))}\${changed ? '' : '\\x1b[93m'}\${x}\`;
         })
-      }
+      },
+      ...(globals.length > 0 ? [{
+        x: termWidth - 1 - width - 6,
+        // x: termWidth / 3 | 0,
+        y: () => termHeight - globals.length - 1 - 4,
+        width,
+        height: globals.length,
+        title: 'globals',
+        content: globals.map((x, i) => {
+          if (x.value == null) {
+            x.value = run(x.bc, [], false)[0];
+          }
+
+          const changed = globalsChanged[i];
+          const valueLen = changed ? \`\${lastDebugGlobals[i]} -> \${x.value}\`.length : x.value.toString().length;
+          let display = x.value;
+          if (changed) display = \`\\x1b[30m\${lastDebugGlobals[i]}\\x1b[90m -> \\x1b[31m\${x.value}\`;
+          return \`\${changed ? '\\x1b[107m\\x1b[30m' : '\\x1b[100m\\x1b[37m\\x1b[1m'}\${x.porfGlobalName}\${changed ? '\\x1b[90m' : '\\x1b[22m'} (\${i}) \${' '.repeat((width - 2 - 8 - 1 - \`\${x.porfGlobalName} (\${i})\`.length) + 2 + (8 - valueLen))}\${changed ? '' : '\\x1b[93m'}\${display}\`;
+        })
+      }] : [])
     ]
   )) {
     case 'resume': {
@@ -1199,6 +1227,7 @@ if (paused && op) {
   }
 
   lastDebugLocals = locals.slice();
+  lastDebugGlobals = globals.map(x => x.value).slice();
 }`);
 
   str = str.replace('const outStack = run(callBC, locals);', `
