@@ -18,15 +18,25 @@ if (process.argv.includes('-compile-hints')) {
 }
 
 let file = process.argv.slice(2).find(x => x[0] !== '-');
-if (['run', 'wasm', 'native', 'c', 'profile'].includes(file)) {
+if (['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(file)) {
   if (file === 'profile') {
     process.argv.splice(process.argv.indexOf(file), 1);
     await import('./profiler.js');
-    await new Promise(() => {});
+    await new Promise(() => {}); // do nothing for the rest of this file
   }
 
   if (['wasm', 'native', 'c'].includes(file)) {
     process.argv.push(`-target=${file}`);
+  }
+
+  if (file === 'debug-wasm') {
+    process.argv.push('-asur', '-wasm-debug');
+  }
+
+  if (file === 'debug') {
+    process.argv.splice(process.argv.indexOf(file), 1);
+    await import('./debug.js');
+    await new Promise(() => {}); // do nothing for the rest of this file
   }
 
   file = process.argv.slice(process.argv.indexOf(file) + 1).find(x => x[0] !== '-');
@@ -46,9 +56,7 @@ if (!file) {
 
   // run repl if no file given
   await import('./repl.js');
-
-  // do nothing for the rest of this file
-  await new Promise(() => {});
+  await new Promise(() => {}); // do nothing for the rest of this file
 }
 
 const source = fs.readFileSync(file, 'utf8');
