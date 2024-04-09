@@ -3036,7 +3036,10 @@ const objectHack = node => {
     if (!objectName) objectName = objectHack(node.object)?.name?.slice?.(2);
 
     // if .length, give up (hack within a hack!)
-    if (node.property.name === 'length') return node;
+    if (node.property.name === 'length') {
+      node.object = objectHack(node.object);
+      return node;
+    }
 
     // no object name, give up
     if (!objectName) return node;
