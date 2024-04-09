@@ -1,2 +1,4 @@
 #!/bin/sh
 node runner/index.js "$@"
+# deno run -A runner/index.js "$@"
+# bun runner/index.js "$@"
