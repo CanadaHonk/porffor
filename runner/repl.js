@@ -31,16 +31,27 @@ const memoryToString = mem => {
   const pages = lastPages.length;
   const wasmPages = mem.buffer.byteLength / PageSize;
 
-  out += `\x1B[1mallocated ${mem.buffer.byteLength / 1024}KB\x1B[0m for ${pages} thing${pages === 1 ? '' : 's'} using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}\n`;
+  out += `\x1B[1mallocated ${mem.buffer.byteLength / 1024}KB\x1B[0m for ${pages} thing${pages === 1 ? '' : 's'} using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}\n\n`;
 
   const buf = new Uint8Array(mem.buffer);
 
-  for (let i = 0; i < pages; i++) {
-    out += `\x1B[36m${lastPages[i]}\x1B[2m | \x1B[0m`;
+  let longestType = 0, longestName = 0;
+  for (const x of lastPages) {
+    const [ type, name ] = x.split(': ');
+    if (type.length > longestType) longestType = type.length;
+    if (name.length > longestName) longestName = name.length;
+  }
 
-    for (let j = 0; j < 50; j++) {
+  out += `\x1B[0m\x1B[1m  name${' '.repeat(longestName - 4)} \x1B[0m\x1B[90m│\x1B[0m\x1B[1m type${' '.repeat(longestType - 4)} \x1B[0m\x1B[90m│\x1B[0m\x1B[1m memory\x1B[0m\n`; // ─
+  for (let i = 0; i < pages; i++) {
+    const [ type, name ] = lastPages[i].split(': ');
+    // out += `\x1B[36m${lastPages[i].replace(':', '\x1B[90m:\x1B[34m')}\x1B[90m${' '.repeat(longestName - lastPages[i].length)} | \x1B[0m`;
+    out += `  \x1B[34m${name}${' '.repeat(longestName - name.length)} \x1B[90m│\x1B[0m \x1B[36m${type}${' '.repeat(longestType - type.length)} \x1B[90m│\x1B[0m `;
+
+    for (let j = 0; j < 40; j++) {
       const val = buf[i * pageSize + j];
-      if (val === 0) out += '\x1B[2m';
+      // if (val === 0) out += '\x1B[2m';
+      if (val === 0) out += '\x1B[90m';
       out += val.toString(16).padStart(2, '0');
       if (val === 0) out += '\x1B[0m';
       out += ' ';
