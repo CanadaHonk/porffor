@@ -30,6 +30,8 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   const t1 = performance.now();
   const { wasm, funcs, globals, tags, exceptions, pages, c } = compile(source, flags);
 
+  globalThis.porfDebugInfo = { funcs, globals };
+
   if (source.includes('export function')) flags.push('module');
 
   // (await import('node:fs')).writeFileSync('out.wasm', Buffer.from(wasm));
