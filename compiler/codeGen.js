@@ -3007,10 +3007,10 @@ export const generateMember = (scope, decl, _global, _name) => {
       ]),
 
       // load current string ind {arg}
-      [ Opcodes.i32_load8_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
 
       // store to new string ind 0
-      [ Opcodes.i32_store8, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+      [ Opcodes.i32_store8, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
 
       // return new string (page)
       ...number(newPointer),
