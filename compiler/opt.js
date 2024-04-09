@@ -172,14 +172,14 @@ export default (funcs, globals, pages, tags, exceptions) => {
           }
         }
 
-        if (inst[inst.length - 1] === 'string_only' && !pages.hasString) {
+        if (inst[inst.length - 1] === 'string_only' && !pages.hasAnyString) {
           // remove this inst
           wasm.splice(i, 1);
           if (i > 0) i--;
           inst = wasm[i];
         }
 
-        if (inst[inst.length - 1] === 'string_only|start' && !pages.hasString) {
+        if (inst[inst.length - 1] === 'string_only|start' && !pages.hasAnyString) {
           let j = i;
           for (; j < wasm.length; j++) {
             const op = wasm[j];
