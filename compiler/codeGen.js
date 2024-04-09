@@ -887,6 +887,34 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     }
   }
 
+  if (knownLeft === TYPES._bytestring || knownRight === TYPES._bytestring) {
+    if (op === '+') {
+      // string concat (a + b)
+      // todo: concat for bytestring
+      return todo('concat for static bytestrings');
+      // return concatStrings(scope, left, right, _global, _name, assign);
+    }
+
+    // not an equality op, NaN
+    if (!eqOp) return number(NaN);
+
+    // else leave bool ops
+    // todo: convert string to number if string and number/bool
+    // todo: string (>|>=|<|<=) string
+
+    // string comparison
+    if (op === '===' || op === '==') {
+      return compareStrings(scope, left, right, true);
+    }
+
+    if (op === '!==' || op === '!=') {
+      return [
+        ...compareStrings(scope, left, right, true),
+        [ Opcodes.i32_eqz ]
+      ];
+    }
+  }
+
   let ops = operatorOpcode[valtype][op];
 
   // some complex ops are implemented as builtin funcs
@@ -909,16 +937,55 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
 
   let tmpLeft, tmpRight;
   // if equal op, check if strings for compareStrings
-  if (op === '===' || op === '==' || op === '!==' || op === '!=') (() => {
-    // todo: intelligent partial skip later
-    // if neither known are string, stop this madness
-    if ((knownLeft != null && knownLeft !== TYPES.string) && (knownRight != null && knownRight !== TYPES.string)) {
-      return;
-    }
+  // todo: intelligent partial skip later
+  // if neither known are string, stop this madness
+  // we already do known checks earlier, so don't need to recheck
 
+  if ((op === '===' || op === '==' || op === '!==' || op === '!=') && (knownLeft == null && knownRight == null)) {
     tmpLeft = localTmp(scope, '__tmpop_left');
     tmpRight = localTmp(scope, '__tmpop_right');
 
+    // returns false for one string, one not - but more ops/slower
+    // ops.unshift(...stringOnly([
+    //   // if left is string
+    //   ...leftType,
+    //   ...number(TYPES.string, Valtype.i32),
+    //   [ Opcodes.i32_eq ],
+
+    //   // if right is string
+    //   ...rightType,
+    //   ...number(TYPES.string, Valtype.i32),
+    //   [ Opcodes.i32_eq ],
+
+    //   // if either are true
+    //   [ Opcodes.i32_or ],
+    //   [ Opcodes.if, Blocktype.void ],
+
+    //   // todo: convert non-strings to strings, for now fail immediately if one is not
+    //   // if left is not string
+    //   ...leftType,
+    //   ...number(TYPES.string, Valtype.i32),
+    //   [ Opcodes.i32_ne ],
+
+    //   // if right is not string
+    //   ...rightType,
+    //   ...number(TYPES.string, Valtype.i32),
+    //   [ Opcodes.i32_ne ],
+
+    //   // if either are true
+    //   [ Opcodes.i32_or ],
+    //   [ Opcodes.if, Blocktype.void ],
+    //   ...number(0, Valtype.i32),
+    //   [ Opcodes.br, 2 ],
+    //   [ Opcodes.end ],
+
+    //   ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ]),
+    //   ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
+    //   [ Opcodes.br, 1 ],
+    //   [ Opcodes.end ],
+    // ]));
+
+    // does not handle one string, one not (such cases go past)
     ops.unshift(...stringOnly([
       // if left is string
       ...leftType,
@@ -930,30 +997,28 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       ...number(TYPES.string, Valtype.i32),
       [ Opcodes.i32_eq ],
 
-      // if either are true
-      [ Opcodes.i32_or ],
+      // if both are true
+      [ Opcodes.i32_and ],
       [ Opcodes.if, Blocktype.void ],
-
-      // todo: convert non-strings to strings, for now fail immediately if one is not
-      // if left is not string
-      ...leftType,
-      ...number(TYPES.string, Valtype.i32),
-      [ Opcodes.i32_ne ],
-
-      // if right is not string
-      ...rightType,
-      ...number(TYPES.string, Valtype.i32),
-      [ Opcodes.i32_ne ],
-
-      // if either are true
-      [ Opcodes.i32_or ],
-      [ Opcodes.if, Blocktype.void ],
-      ...number(0, Valtype.i32),
-      [ Opcodes.br, 2 ],
+      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ]),
+      ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
+      [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
-      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ]),
-      // ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ]),
+      // if left is bytestring
+      ...leftType,
+      ...number(TYPES._bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+
+      // if right is bytestring
+      ...rightType,
+      ...number(TYPES._bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+
+      // if both are true
+      [ Opcodes.i32_and ],
+      [ Opcodes.if, Blocktype.void ],
+      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], true),
       ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
@@ -965,7 +1030,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       // endOut.push(stringOnly([ Opcodes.end ]));
       endOut.unshift(stringOnly([ Opcodes.end ]));
     // }
-  })();
+  }
 
   return finalize([
     ...left,
