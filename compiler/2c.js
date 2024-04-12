@@ -114,7 +114,7 @@ const todo = msg => {
     }
   }
 
-  throw new TodoError(`todo: ${msg}`);
+  throw new TodoError(msg);
 };
 
 const removeBrackets = str => {
