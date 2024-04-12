@@ -2983,7 +2983,17 @@ export const generateMember = (scope, decl, _global, _name) => {
 
   // hack: .length
   if (decl.property.name === 'length') {
-    // if (![TYPES._array, TYPES.string].includes(type)) return number(UNDEFINED);
+    const func = funcs.find(x => x.name === name);
+    if (func) {
+      const userFunc = funcIndex[name] && !importedFuncs[name] && !builtinFuncs[name] && !internalConstrs[name];
+      const typedParams = userFunc || builtinFuncs[name]?.typedParams;
+      return number(typedParams ? func.params.length / 2 : func.params.length);
+    }
+
+    if (builtinFuncs[name]) return number(builtinFuncs[name].typedParams ? (builtinFuncs[name].params.length / 2) : builtinFuncs[name].params.length);
+    if (importedFuncs[name]) return number(importedFuncs[name].params);
+    // todo: internalConstrs
+
     return [
       ...(aotPointer ? number(0, Valtype.i32) : [
         ...generate(scope, decl.object),
