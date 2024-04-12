@@ -24,35 +24,37 @@ const debug = str => {
   const logChar = n => {
     code.push(...number(n));
 
-    code.push(Opcodes.call);
-    code.push(...unsignedLEB128(0));
+    code.push([ Opcodes.call, 0 ]);
   };
 
   for (let i = 0; i < str.length; i++) {
     logChar(str.charCodeAt(i));
   }
 
-  logChar('\n'.charCodeAt(0));
+  logChar(10); // new line
 
   return code;
 };
 
-const todo = msg => {
-  class TodoError extends Error {
-    constructor(message) {
-      super(message);
-      this.name = 'TodoError';
-    }
+class TodoError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'TodoError';
   }
+}
+const todo = (scope, msg) => {
+  switch (Prefs.todoTime ?? 'runtime') {
+    case 'compile':
+      throw new TodoError(msg);
 
-  throw new TodoError(`todo: ${msg}`);
+    case 'runtime':
+      return internalThrow(scope, 'TodoError', msg);
 
-  const code = [];
-
-  code.push(...debug(`todo! ` + msg));
-  code.push(Opcodes.unreachable);
-
-  return code;
+      // return [
+      //   ...debug(`todo! ${msg}`),
+      //   [ Opcodes.unreachable ]
+      // ];
+  }
 };
 
 const isFuncType = type => type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
@@ -217,7 +219,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
       const func = decl.tag.name;
       // hack for inline asm
-      if (!funcs[func]) return todo('tagged template expressions not implemented');
+      if (!funcs[func]) return todo(scope, 'tagged template expressions not implemented');
 
       const { quasis, expressions } = decl.quasi;
       let str = quasis[0].value.raw;
@@ -238,7 +240,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         return [];
       }
 
-      return todo(`no generation for ${decl.type}!`);
+      return todo(scope, `no generation for ${decl.type}!`);
   }
 };
 
@@ -361,7 +363,7 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
     '??': nullish
   };
 
-  if (!checks[op]) return todo(`logic operator ${op} not implemented yet`);
+  if (!checks[op]) return todo(scope, `logic operator ${op} not implemented yet`);
 
   // generic structure for {a} OP {b}
   // -->
@@ -891,7 +893,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     if (op === '+') {
       // string concat (a + b)
       // todo: concat for bytestring
-      return todo('concat for static bytestrings');
+      return todo(scope, 'concat for static bytestrings');
       // return concatStrings(scope, left, right, _global, _name, assign);
     }
 
@@ -930,7 +932,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     ]);
   }
 
-  if (!ops) return todo(`operator ${op} not implemented yet`); // throw new Error(`unknown operator ${op}`);
+  if (!ops) return todo(scope, `operator ${op} not implemented yet`); // throw new Error(`unknown operator ${op}`);
 
   if (!Array.isArray(ops)) ops = [ ops ];
   ops = [ ops ];
@@ -1421,7 +1423,7 @@ const generateLiteral = (scope, decl, global, name) => {
       return makeString(scope, decl.value, global, name);
 
     default:
-      return todo(`cannot generate literal of type ${typeof decl.value}`);
+      return todo(scope, `cannot generate literal of type ${typeof decl.value}`);
   }
 };
 
@@ -1730,7 +1732,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   // TODO: only allows callee as literal
-  if (!name) return todo(`only literal callees (got ${decl.callee.type})`);
+  if (!name) return todo(scope, `only literal callees (got ${decl.callee.type})`);
 
   let idx = funcIndex[name] ?? importedFuncs[name];
   if (idx === undefined && builtinFuncs[name]) {
@@ -1851,7 +1853,7 @@ const generateNew = (scope, decl, _global, _name) => {
   // hack: basically treat this as a normal call for builtins for now
   const name = mapName(decl.callee.name);
   if (internalConstrs[name] && !internalConstrs[name].notConstr) return internalConstrs[name].generate(scope, decl, _global, _name);
-  if (!builtinFuncs[name]) return todo(`new statement is not supported yet`); // return todo(`new statement is not supported yet (new ${unhackName(name)})`);
+  if (!builtinFuncs[name]) return todo(scope, `new statement is not supported yet`); // return todo(scope, `new statement is not supported yet (new ${unhackName(name)})`);
 
   return generateCall(scope, decl, _global, _name);
 };
@@ -2089,7 +2091,7 @@ const generateVar = (scope, decl) => {
   for (const x of decl.declarations) {
     const name = mapName(x.id.name);
 
-    if (!name) return todo('destructuring is not supported yet');
+    if (!name) return todo(scope, 'destructuring is not supported yet');
 
     if (x.init && isFuncType(x.init.type)) {
       // hack for let a = function () { ... }
@@ -2230,7 +2232,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     ];
   }
 
-  if (!name) return todo('destructuring is not supported yet');
+  if (!name) return todo(scope, 'destructuring is not supported yet');
 
   const [ local, isGlobal ] = lookupName(scope, name);
 
@@ -2373,7 +2375,7 @@ const generateUnary = (scope, decl) => {
       });
 
     default:
-      return todo(`unary operator ${decl.operator} not implemented yet`);
+      return todo(scope, `unary operator ${decl.operator} not implemented yet`);
   }
 };
 
@@ -2383,7 +2385,7 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
   const [ local, isGlobal ] = lookupName(scope, name);
 
   if (local === undefined) {
-    return todo(`update expression with undefined variable`);
+    return todo(scope, `update expression with undefined variable`);
   }
 
   const idx = local.idx;
@@ -2763,7 +2765,7 @@ const generateThrow = (scope, decl) => {
 };
 
 const generateTry = (scope, decl) => {
-  if (decl.finalizer) return todo('try finally not implemented yet');
+  if (decl.finalizer) return todo(scope, 'try finally not implemented yet');
 
   const out = [];
 
@@ -2794,7 +2796,7 @@ const generateAssignPat = (scope, decl) => {
   // TODO
   // if identifier declared, use that
   // else, use default (right)
-  return todo('assignment pattern (optional arg)');
+  return todo(scope, 'assignment pattern (optional arg)');
 };
 
 let pages = new Map();
@@ -3136,8 +3138,8 @@ const objectHack = node => {
 };
 
 const generateFunc = (scope, decl) => {
-  if (decl.async) return todo('async functions are not supported');
-  if (decl.generator) return todo('generator functions are not supported');
+  if (decl.async) return todo(scope, 'async functions are not supported');
+  if (decl.generator) return todo(scope, 'generator functions are not supported');
 
   const name = decl.id ? decl.id.name : `anonymous_${randId()}`;
   const params = decl.params ?? [];
