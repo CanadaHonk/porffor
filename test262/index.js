@@ -175,7 +175,7 @@ for (const test of tests) {
 
   if (pass) passes++;
 
-  if (!pass && result && result.message && result.message.startsWith('todo:')) todos++;
+  if (!pass && result && result.message && result.name === 'TodoError') todos++;
   else if (!pass && stage === 0) {
     if (result.constructor.name === 'CompileError') {
       wasmErrors++;
@@ -208,7 +208,7 @@ for (const test of tests) {
   o.total = (o.total ?? 0) + 1;
 
   let k = pass ? 'pass' : 'unknown';
-  if (!pass && result && result.message && result.message.startsWith('todo:')) k = 'todo';
+  if (!pass && result && result.message && result.name === 'TodoError') k = 'todo';
   else if (!pass && stage === 0) {
     if (result.constructor.name === 'CompileError') k = 'wasmError';
       else k = 'compileError';
