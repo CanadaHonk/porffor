@@ -4,7 +4,7 @@ export type bytestring = string;
 
 type PorfforGlobal = {
   wasm: {
-    (...args: any[]): void;
+    (...args: any[]): unknown;
     i32: {
       load8_u: (pointer: i32, align: i32, offset: i32) => i32;
       store8: (pointer: i32, value: i32, align: i32, offset: i32) => i32;
@@ -19,6 +19,10 @@ type PorfforGlobal = {
     random: () => i32;
     randomByte: () => i32;
   }
+
+  type: (x: any) => bytestring;
+  rawType: (x: any) => i32;
+  TYPES: Record<string, i32>;
 };
 
 declare global {
