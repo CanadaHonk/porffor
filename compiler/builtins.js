@@ -129,6 +129,10 @@ export const BuiltinVars = function(TYPES) {
   // wintercg(tm)
   this.__navigator_userAgent = (scope, { makeString }) => makeString(scope, `Porffor/0.2.0`, false, '__navigator_userAgent');
   this.__navigator_userAgent.type = Prefs.bytestring ? TYPES._bytestring : TYPES.string;
+
+  for (const x in TYPES) {
+    this['__Porffor_TYPES_' + x] = number(TYPES[x]);
+  }
 };
 
 export const BuiltinFuncs = function(TYPES) {
