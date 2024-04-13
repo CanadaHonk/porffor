@@ -1056,6 +1056,17 @@ export const BuiltinFuncs = function(TYPES) {
     }
   };
 
+  this.__Porffor_rawType = {
+    params: [ valtypeBinary, Valtype.i32 ],
+    typedParams: true,
+    locals: [],
+    returns: [ valtypeBinary ],
+    wasm: [
+      [ Opcodes.local_get, 1 ],
+      Opcodes.i32_from_u
+    ]
+  };
+
   const localIsOneOf = (getter, arr, valtype = valtypeBinary) => {
     const out = [];
 
