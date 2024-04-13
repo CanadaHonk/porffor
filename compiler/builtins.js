@@ -56,12 +56,12 @@ const printStaticStr = str => {
 export const UNDEFINED = 0;
 export const NULL = 0;
 
-export const BuiltinVars = function() {
+export const BuiltinVars = function(TYPES) {
   this.undefined = number(UNDEFINED);
-  this.undefined.type = 'undefined';
+  this.undefined.type = TYPES.undefined;
 
   this.null = number(NULL);
-  this.null.type = 'object';
+  this.null.type = TYPES.object;
 
   this.NaN = number(NaN);
   this.NaN.floatOnly = true;
@@ -128,10 +128,10 @@ export const BuiltinVars = function() {
 
   // wintercg(tm)
   this.__navigator_userAgent = (scope, { makeString }) => makeString(scope, `Porffor/0.2.0`, false, '__navigator_userAgent');
-  this.__navigator_userAgent.type = Prefs.bytestring ? '_bytestring' : 'string';
+  this.__navigator_userAgent.type = Prefs.bytestring ? TYPES._bytestring : TYPES.string;
 };
 
-export const BuiltinFuncs = function() {
+export const BuiltinFuncs = function(TYPES) {
   this['f64_%'] = {
     params: [ valtypeBinary, valtypeBinary ],
     locals: [],
@@ -187,7 +187,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
-    returnType: 'object',
+    returnType: TYPES.object,
     wasm: [
       [ Opcodes.local_get, 0 ]
     ]
@@ -199,7 +199,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [],
-    wasm: (scope, { TYPES, typeSwitch }) => [
+    wasm: (scope, { typeSwitch }) => [
       ...typeSwitch(scope, [ [ Opcodes.local_get, 1 ] ], {
         [TYPES.number]: [
           [ Opcodes.local_get, 0 ],
@@ -361,7 +361,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
-    returnType: 'boolean',
+    returnType: TYPES.boolean,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
@@ -376,7 +376,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [ valtypeBinary ],
     returns: [ valtypeBinary ],
-    returnType: 'boolean',
+    returnType: TYPES.boolean,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
@@ -395,7 +395,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
-    returnType: 'boolean',
+    returnType: TYPES.boolean,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
@@ -410,7 +410,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
-    returnType: 'boolean',
+    returnType: TYPES.boolean,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
@@ -1016,7 +1016,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
-    returnType: 'boolean',
+    returnType: TYPES.boolean,
     wasm: [
       [ Opcodes.local_get, 0 ],
       ...number(0),
@@ -1041,7 +1041,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [ valtypeBinary ],
-    returnType: Prefs.bytestring ? '_bytestring' : 'string',
+    returnType: Prefs.bytestring ? TYPES._bytestring : TYPES.string,
     wasm: (scope, { TYPE_NAMES, typeSwitch, makeString }) => {
       const bc = {};
       for (const x in TYPE_NAMES) {
@@ -1068,7 +1068,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [ valtypeBinary ],
-    wasm: (scope, { TYPES }) => [
+    wasm: [
       ...localIsOneOf([ [ Opcodes.local_get, 1 ] ], [ TYPES.string, TYPES._array, TYPES._bytestring ], Valtype.i32),
       [ Opcodes.if, valtypeBinary ],
       [ Opcodes.local_get, 0 ],
@@ -1083,7 +1083,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [ Valtype.i32 ],
-    wasm: (_scope, { TYPES }) => [
+    wasm: [
       ...localIsOneOf([ [ Opcodes.local_get, 1 ] ], [ TYPES.string, TYPES._array, TYPES._bytestring ], Valtype.i32),
       [ Opcodes.if, Valtype.i32 ],
       [ Opcodes.local_get, 0 ],

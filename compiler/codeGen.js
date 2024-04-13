@@ -1195,7 +1195,7 @@ const getType = (scope, _name) => {
   if (globals[name]) return [ [ Opcodes.global_get, globals[name + '#type'].idx ] ];
 
   let type = TYPES.undefined;
-  if (builtinVars[name]) type = TYPES[builtinVars[name].type ?? 'number'];
+  if (builtinVars[name]) type = builtinVars[name].type ?? TYPES.number;
   if (builtinFuncs[name] !== undefined || importedFuncs[name] !== undefined || funcIndex[name] !== undefined || internalConstrs[name] !== undefined) type = TYPES.function;
 
   if (name.startsWith('__Array_prototype_') && prototypeFuncs[TYPES._array][name.slice(18)] ||
@@ -1270,7 +1270,7 @@ const getNodeType = (scope, node) => {
         if (func.returnType) return func.returnType;
       }
 
-      if (builtinFuncs[name] && !builtinFuncs[name].typedReturns) return TYPES[builtinFuncs[name].returnType ?? 'number'];
+      if (builtinFuncs[name] && !builtinFuncs[name].typedReturns) return builtinFuncs[name].returnType ?? TYPES.number;
       if (internalConstrs[name]) return internalConstrs[name].type;
 
       // check if this is a prototype function
@@ -3329,8 +3329,8 @@ export default program => {
 
   Opcodes.lt = [ Opcodes.i32_lt_s, Opcodes.i64_lt_s, Opcodes.f64_lt ][valtypeInd];
 
-  builtinFuncs = new BuiltinFuncs();
-  builtinVars = new BuiltinVars();
+  builtinFuncs = new BuiltinFuncs(TYPES);
+  builtinVars = new BuiltinVars(TYPES);
   prototypeFuncs = new PrototypeFuncs();
 
   program.id = { name: 'main' };
