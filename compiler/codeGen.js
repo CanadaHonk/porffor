@@ -1222,6 +1222,7 @@ const setType = (scope, _name, type) => {
   ];
 
   // throw new Error('could not find var');
+  return [];
 };
 
 const getLastType = scope => {
