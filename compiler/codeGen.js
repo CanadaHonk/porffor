@@ -42,13 +42,13 @@ class TodoError extends Error {
     this.name = 'TodoError';
   }
 }
-const todo = (scope, msg) => {
+const todo = (scope, msg, expectsValue = undefined) => {
   switch (Prefs.todoTime ?? 'runtime') {
     case 'compile':
       throw new TodoError(msg);
 
     case 'runtime':
-      return internalThrow(scope, 'TodoError', msg);
+      return internalThrow(scope, 'TodoError', msg, expectsValue);
 
       // return [
       //   ...debug(`todo! ${msg}`),
@@ -219,7 +219,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
       const func = decl.tag.name;
       // hack for inline asm
-      if (!funcs[func]) return todo(scope, 'tagged template expressions not implemented');
+      if (!funcs[func]) return todo(scope, 'tagged template expressions not implemented', true);
 
       const { quasis, expressions } = decl.quasi;
       let str = quasis[0].value.raw;
@@ -268,7 +268,7 @@ const lookupName = (scope, _name) => {
   return [ undefined, undefined ];
 };
 
-const internalThrow = (scope, constructor, message, expectsValue = false) => [
+const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysValueInternalThrows) => [
   ...generateThrow(scope, {
     argument: {
       type: 'NewExpression',
@@ -363,7 +363,7 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
     '??': nullish
   };
 
-  if (!checks[op]) return todo(scope, `logic operator ${op} not implemented yet`);
+  if (!checks[op]) return todo(scope, `logic operator ${op} not implemented yet`, true);
 
   // generic structure for {a} OP {b}
   // -->
@@ -893,7 +893,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     if (op === '+') {
       // string concat (a + b)
       // todo: concat for bytestring
-      return todo(scope, 'concat for static bytestrings');
+      return todo(scope, 'concat for static bytestrings', true);
       // return concatStrings(scope, left, right, _global, _name, assign);
     }
 
@@ -932,7 +932,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     ]);
   }
 
-  if (!ops) return todo(scope, `operator ${op} not implemented yet`); // throw new Error(`unknown operator ${op}`);
+  if (!ops) return todo(scope, `operator ${op} not implemented yet`, true);
 
   if (!Array.isArray(ops)) ops = [ ops ];
   ops = [ ops ];
@@ -1423,7 +1423,7 @@ const generateLiteral = (scope, decl, global, name) => {
       return makeString(scope, decl.value, global, name);
 
     default:
-      return todo(scope, `cannot generate literal of type ${typeof decl.value}`);
+      return todo(scope, `cannot generate literal of type ${typeof decl.value}`, true);
   }
 };
 
@@ -1792,8 +1792,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (idx === undefined) {
-    if (scope.locals[name] !== undefined || globals[name] !== undefined || builtinVars[name] !== undefined) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`);
-    return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
+    if (scope.locals[name] !== undefined || globals[name] !== undefined || builtinVars[name] !== undefined) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
+    return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
   }
 
   const func = funcs.find(x => x.index === idx);
@@ -2232,7 +2232,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     ];
   }
 
-  if (!name) return todo(scope, 'destructuring is not supported yet');
+  if (!name) return todo(scope, 'destructuring is not supported yet', true);
 
   const [ local, isGlobal ] = lookupName(scope, name);
 
@@ -2375,7 +2375,7 @@ const generateUnary = (scope, decl) => {
       });
 
     default:
-      return todo(scope, `unary operator ${decl.operator} not implemented yet`);
+      return todo(scope, `unary operator ${decl.operator} not implemented yet`, true);
   }
 };
 
@@ -2385,7 +2385,7 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
   const [ local, isGlobal ] = lookupName(scope, name);
 
   if (local === undefined) {
-    return todo(scope, `update expression with undefined variable`);
+    return todo(scope, `update expression with undefined variable`, true);
   }
 
   const idx = local.idx;
@@ -3100,7 +3100,7 @@ export const generateMember = (scope, decl, _global, _name) => {
       setLastType(scope)
     ],
 
-    default: internalThrow(scope, 'TypeError', 'Member expression is not supported for non-string non-array yet')
+    default: internalThrow(scope, 'TypeError', 'Member expression is not supported for non-string non-array yet', true)
   });
 };
 
@@ -3244,7 +3244,7 @@ const internalConstrs = {
 
       // todo: check in wasm instead of here
       const literalValue = arg.value ?? 0;
-      if (literalValue < 0 || !Number.isFinite(literalValue) || literalValue > 4294967295) return internalThrow(scope, 'RangeThrow', 'Invalid array length');
+      if (literalValue < 0 || !Number.isFinite(literalValue) || literalValue > 4294967295) return internalThrow(scope, 'RangeThrow', 'Invalid array length', true);
 
       return [
         ...number(0, Valtype.i32),
