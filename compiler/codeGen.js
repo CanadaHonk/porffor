@@ -226,7 +226,12 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
       for (let i = 0; i < expressions.length; i++) {
         const e = expressions[i];
-        str += lookupName(scope, e.name)[0].idx;
+        if (!e.name) {
+          if (e.type === 'BinaryExpression' && e.operator === '+' && e.left.type === 'Identifier' && e.right.type === 'Literal') {
+            str += lookupName(scope, e.left.name)[0].idx + e.right.value;
+          } else todo(scope, 'unsupported expression in intrinsic');
+        } else str += lookupName(scope, e.name)[0].idx;
+
         str += quasis[i + 1].value.raw;
       }
 
