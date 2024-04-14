@@ -3336,7 +3336,7 @@ export default program => {
 
   builtinFuncs = new BuiltinFuncs(TYPES);
   builtinVars = new BuiltinVars(TYPES);
-  prototypeFuncs = new PrototypeFuncs();
+  prototypeFuncs = new PrototypeFuncs(TYPES);
 
   program.id = { name: 'main' };
 

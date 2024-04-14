@@ -4,26 +4,9 @@ import { unsignedLEB128 } from "./encoding.js";
 import { UNDEFINED } from "./builtins.js";
 import Prefs from './prefs.js';
 
-// todo: do not duplicate this
-const TYPES = {
-  number: 0x00,
-  boolean: 0x01,
-  string: 0x02,
-  undefined: 0x03,
-  object: 0x04,
-  function: 0x05,
-  symbol: 0x06,
-  bigint: 0x07,
-
-  // these are not "typeof" types but tracked internally
-  _array: 0x10,
-  _regexp: 0x11,
-  _bytestring: 0x12
-};
-
 // todo: turn these into built-ins once arrays and these become less hacky
 
-export const PrototypeFuncs = function() {
+export const PrototypeFuncs = function(TYPES) {
   const noUnlikelyChecks = Prefs.funsafeNoUnlikelyProtoChecks;
 
   let zeroChecks;
