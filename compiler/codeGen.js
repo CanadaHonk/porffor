@@ -143,7 +143,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return generateTry(scope, decl);
 
     case 'DebuggerStatement':
-      // todo: add fancy terminal debugger?
+      // todo: hook into terminal debugger
       return [];
 
     case 'ArrayExpression':
@@ -1653,7 +1653,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       return acc;
     }, {});
 
-    // no prototype function candidates, ignore
     if (Object.keys(protoCands).length > 0) {
       // use local for cached i32 length as commonly used
       const lengthLocal = localTmp(scope, '__proto_length_cache', Valtype.i32);
