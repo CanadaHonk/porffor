@@ -150,20 +150,24 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - `for...of` (arrays and strings)
 - Array member setting (`arr[0] = 2`, `arr[0] += 2`, etc)
 - Array constructor (`Array(5)`, `new Array(1, 2, 3)`)
+- Labelled statements (`foo: while (...)`)
 
 ### Built-ins
 
 - `NaN` and `Infinity` (f64 only)
 - `isNaN()` and `isFinite()` (f64 only)
 - Most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`, `isInteger`, `isSafeInteger`) (some f64 only)
-- Some `Math` funcs (`Math.sqrt`, `Math.abs`, `Math.floor`, `Math.sign`, `Math.round`, `Math.trunc`, `Math.clz32`, `Math.fround`, `Math.random`) (f64 only)
+- Some `Math` funcs (`sqrt`, `abs`, `floor`, `sign`, `round`, `trunc`, `clz32`, `fround`, `random`) (f64 only)
 - Basic `globalThis` support
 - Basic `Boolean` and `Number`
 - Basic `eval` for literals
 - `Math.random()` using self-made xorshift128+ PRNG
 - Some of `performance` (`now()`)
 - Some of `Array.prototype` (`at`, `push`, `pop`, `shift`, `fill`)
+- Some of `Array` (`of`, `isArray`)
 - Some of `String.prototype` (`at`, `charAt`, `charCodeAt`)
+- Some of `crypto` (`randomUUID`)
+- `escape`
 
 ### Custom
 
@@ -267,6 +271,8 @@ No particular order and no guarentees, just what could happen soon™
   - Run precompiled Wasm file if given
 - Docs
   - Update codebase readme section
+- REPL
+  - Basic polyfill of `node:repl` for non-Node runtimes to work
 - Cool proposals
   - [Optional Chaining Assignment](https://github.com/tc39/proposal-optional-chaining-assignment)
   - [Modulus and Additional Integer Math](https://github.com/tc39/proposal-integer-and-modulus-math)
@@ -280,6 +286,7 @@ No particular order and no guarentees, just what could happen soon™
   - JS -> Native
   - Precompiled TS built-ins
   - Asur
+  - `escape()` optimization
 - Self hosted testing?
 
 ## VSCode extension
