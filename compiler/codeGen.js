@@ -339,18 +339,18 @@ const generateReturn = (scope, decl) => {
     return [
       ...number(UNDEFINED), // "undefined" if func returns
       ...(scope.returnType != null ? [] : [
-        ...number(TYPES.undefined, Valtype.i32), // type undefined
-        [ Opcodes.return ]
-      ])
+        ...number(TYPES.undefined, Valtype.i32) // type undefined
+      ]),
+      [ Opcodes.return ]
     ];
   }
 
   return [
     ...generate(scope, decl.argument),
     ...(scope.returnType != null ? [] : [
-      ...getNodeType(scope, decl.argument),
-      [ Opcodes.return ]
-    ])
+      ...getNodeType(scope, decl.argument)
+    ]),
+    [ Opcodes.return ]
   ];
 };
 
