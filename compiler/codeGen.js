@@ -2749,9 +2749,16 @@ const generateBreak = (scope, decl) => {
 };
 
 const generateContinue = (scope, decl) => {
-  const nearestLoop = depth.length - getNearestLoop();
+  const nearestLoop = getNearestLoop();
+  const type = depth[nearestLoop];
+  const offset = ({
+    for: 3,
+    while: 1,
+    forof: 3
+  })[type];
+
   return [
-    [ Opcodes.br, ...signedLEB128(nearestLoop - 3) ]
+    [ Opcodes.br, ...signedLEB128(depth.length - nearestLoop - offset) ]
   ];
 };
 
