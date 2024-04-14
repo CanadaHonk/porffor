@@ -1778,9 +1778,20 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (idx === undefined && name.startsWith('__Porffor_wasm_')) {
     const wasmOps = {
       // pointer, align, offset
+      i32_load: { imms: 2, args: 1 },
+      // pointer, value, align, offset
+      i32_store: { imms: 2, args: 2 },
+      // pointer, align, offset
       i32_load8_u: { imms: 2, args: 1 },
       // pointer, value, align, offset
       i32_store8: { imms: 2, args: 2 },
+      // pointer, align, offset
+      i32_load16_u: { imms: 2, args: 1 },
+      // pointer, value, align, offset
+      i32_store16: { imms: 2, args: 2 },
+
+      // a, b
+      i32_or: { imms: 0, args: 2 },
     };
 
     const opName = name.slice('__Porffor_wasm_'.length);
