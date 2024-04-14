@@ -119,7 +119,7 @@ ${funcs.map(x => `  this.${x.name} = {
     localNames: ${JSON.stringify(Object.keys(x.locals))},
 ${x.data && x.data.length > 0 ? `    data: ${JSON.stringify(x.data)},` : ''}
 ${x.exceptions && x.exceptions.length > 0 ? `    exceptions: ${JSON.stringify(x.exceptions)},` : ''}
-  };`.replaceAll('\n\n', '\n')).join('\n')}
+  };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n')).join('\n')}
 };`;
 };
 
