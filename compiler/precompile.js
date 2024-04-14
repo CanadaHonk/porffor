@@ -114,7 +114,7 @@ ${funcs.map(x => `  this.${x.name} = {
     params: ${JSON.stringify(x.params)},
     typedParams: true,
     returns: ${JSON.stringify(x.returns)},
-    typedReturns: true,
+    ${x.returnType != null ? `returnType: ${JSON.stringify(x.returnType)}` : 'typedReturns: true'},
     locals: ${JSON.stringify(Object.values(x.locals).slice(x.params.length).map(x => x.type))},
     localNames: ${JSON.stringify(Object.keys(x.locals))},
 ${x.data && x.data.length > 0 ? `    data: ${JSON.stringify(x.data)},` : ''}
