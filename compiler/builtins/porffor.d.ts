@@ -6,8 +6,14 @@ type PorfforGlobal = {
   wasm: {
     (...args: any[]): unknown;
     i32: {
+      or: (a: i32, b: i32) => i32;
+
+      load: (pointer: i32, align: i32, offset: i32) => i32;
+      store: (pointer: i32, value: i32, align: i32, offset: i32) => i32;
       load8_u: (pointer: i32, align: i32, offset: i32) => i32;
       store8: (pointer: i32, value: i32, align: i32, offset: i32) => i32;
+      load16_u: (pointer: i32, align: i32, offset: i32) => i32;
+      store16: (pointer: i32, value: i32, align: i32, offset: i32) => i32;
     }
   }
   ptr: (obj: any) => i32;
@@ -27,4 +33,8 @@ type PorfforGlobal = {
 
 declare global {
   const Porffor: PorfforGlobal;
+
+  type i32 = number;
+  type i64 = number;
+  type bytestring = string;
 }

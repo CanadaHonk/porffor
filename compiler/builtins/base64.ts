@@ -1,7 +1,5 @@
 // @porf -funsafe-no-unlikely-proto-checks -valtype=i32
 
-import type { i32, bytestring } from './porffor.d.ts';
-
 // while (len >= 8) {
 //   Porffor.wasm`
 // local tmp i64
