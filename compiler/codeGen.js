@@ -3295,7 +3295,43 @@ const internalConstrs = {
     },
     type: TYPES._array,
     notConstr: true
-  }
+  },
+
+  __Porffor_fastOr: {
+    generate: (scope, decl) => {
+      const out = [];
+
+      for (let i = 0; i < decl.arguments.length; i++) {
+        out.push(
+          ...generate(scope, decl.arguments[i]),
+          Opcodes.i32_to_u,
+          ...(i > 0 ? [ [ Opcodes.i32_or ] ] : [])
+        );
+      }
+
+      return out;
+    },
+    type: TYPES.boolean,
+    notConstr: true
+  },
+
+  __Porffor_fastAnd: {
+    generate: (scope, decl) => {
+      const out = [];
+
+      for (let i = 0; i < decl.arguments.length; i++) {
+        out.push(
+          ...generate(scope, decl.arguments[i]),
+          Opcodes.i32_to_u,
+          ...(i > 0 ? [ [ Opcodes.i32_and ] ] : [])
+        );
+      }
+
+      return out;
+    },
+    type: TYPES.boolean,
+    notConstr: true
+  },
 };
 
 // const _ = Array.prototype.push;
