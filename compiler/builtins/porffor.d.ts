@@ -4,7 +4,7 @@ export type bytestring = string;
 
 type PorfforGlobal = {
   wasm: {
-    (...args: any[]): unknown;
+    (...args: any[]): any;
     i32: {
       or: (a: i32, b: i32) => i32;
 
@@ -29,6 +29,9 @@ type PorfforGlobal = {
   type: (x: any) => bytestring;
   rawType: (x: any) => i32;
   TYPES: Record<string, i32>;
+
+  fastOr: (...args: any) => boolean;
+  fastAnd: (...args: any) => boolean;
 };
 
 declare global {
