@@ -2054,6 +2054,7 @@ const addVarMetadata = (scope, name, global = false, metadata = {}) => {
 };
 
 const typeAnnoToPorfType = x => {
+  if (!x) return null;
   if (TYPES[x]) return TYPES[x];
   if (TYPES['_' + x]) return TYPES['_' + x];
 
@@ -2070,7 +2071,7 @@ const extractTypeAnnotation = decl => {
   let a = decl;
   while (a.typeAnnotation) a = a.typeAnnotation;
 
-  let type, elementType;
+  let type = null, elementType = null;
   if (a.typeName) {
     type = a.typeName.name;
   } else if (a.type.endsWith('Keyword')) {
