@@ -63,7 +63,7 @@ const run = ({ file, contents, attrs }) => {
   const singleContents = contents.slice(contents.lastIndexOf('---*/') + 5);
 
   // const prelude = attrs.includes.map(x => preludes[x]).join('\n');
-  const prelude = attrs.includes.reduce((acc, x) => acc + preludes[x] + '\n', '');
+  const prelude = attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? '') + '\n', '');
   let toRun = attrs.flags.raw ? contents : (prelude + singleContents);
 
   // remove error constructor checks
