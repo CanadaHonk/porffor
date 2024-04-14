@@ -40,15 +40,13 @@ export const __crypto_randomUUID = (): bytestring => {
   // bytes[0..4]-
   let endPtr: i32 = i + 8;
   while (i < endPtr) {
-    const byte = Porffor.wasm.i32.load8_u(j++, 0, 4);
+    const byte: i32 = Porffor.wasm.i32.load8_u(j++, 0, 4);
 
-    let lower = byte & 0xf;
-    if (lower < 10) lower = 48 + lower;
-      else lower = 97 + (lower - 10);
+    let lower: i32 = (byte & 0x0f) + 48;
+    if (lower > 57) lower += 39;
 
-    let upper = byte >> 4;
-    if (upper < 10) upper = 48 + upper;
-      else upper = 97 + (upper - 10);
+    let upper: i32 = (byte >> 4) + 48;
+    if (upper > 57) upper += 39;
 
     Porffor.wasm.i32.store8(i++, upper, 0, 4);
     Porffor.wasm.i32.store8(i++, lower, 0, 4);
@@ -58,15 +56,13 @@ export const __crypto_randomUUID = (): bytestring => {
   // bytes[4..6]-
   endPtr = i + 4;
   while (i < endPtr) {
-    const byte = Porffor.wasm.i32.load8_u(j++, 0, 4);
+    const byte: i32 = Porffor.wasm.i32.load8_u(j++, 0, 4);
 
-    let lower = byte & 0xf;
-    if (lower < 10) lower = 48 + lower;
-      else lower = 97 + (lower - 10);
+    let lower: i32 = (byte & 0x0f) + 48;
+    if (lower > 57) lower += 39;
 
-    let upper = byte >> 4;
-    if (upper < 10) upper = 48 + upper;
-      else upper = 97 + (upper - 10);
+    let upper: i32 = (byte >> 4) + 48;
+    if (upper > 57) upper += 39;
 
     Porffor.wasm.i32.store8(i++, upper, 0, 4);
     Porffor.wasm.i32.store8(i++, lower, 0, 4);
@@ -76,15 +72,13 @@ export const __crypto_randomUUID = (): bytestring => {
   // bytes[6..8]-
   endPtr = i + 4;
   while (i < endPtr) {
-    const byte = Porffor.wasm.i32.load8_u(j++, 0, 4);
+    const byte: i32 = Porffor.wasm.i32.load8_u(j++, 0, 4);
 
-    let lower = byte & 0xf;
-    if (lower < 10) lower = 48 + lower;
-      else lower = 97 + (lower - 10);
+    let lower: i32 = (byte & 0x0f) + 48;
+    if (lower > 57) lower += 39;
 
-    let upper = byte >> 4;
-    if (upper < 10) upper = 48 + upper;
-      else upper = 97 + (upper - 10);
+    let upper: i32 = (byte >> 4) + 48;
+    if (upper > 57) upper += 39;
 
     Porffor.wasm.i32.store8(i++, upper, 0, 4);
     Porffor.wasm.i32.store8(i++, lower, 0, 4);
@@ -94,15 +88,13 @@ export const __crypto_randomUUID = (): bytestring => {
   // bytes[8..10]-
   endPtr = i + 4;
   while (i < endPtr) {
-    const byte = Porffor.wasm.i32.load8_u(j++, 0, 4);
+    const byte: i32 = Porffor.wasm.i32.load8_u(j++, 0, 4);
 
-    let lower = byte & 0xf;
-    if (lower < 10) lower = 48 + lower;
-      else lower = 97 + (lower - 10);
+    let lower: i32 = (byte & 0x0f) + 48;
+    if (lower > 57) lower += 39;
 
-    let upper = byte >> 4;
-    if (upper < 10) upper = 48 + upper;
-      else upper = 97 + (upper - 10);
+    let upper: i32 = (byte >> 4) + 48;
+    if (upper > 57) upper += 39;
 
     Porffor.wasm.i32.store8(i++, upper, 0, 4);
     Porffor.wasm.i32.store8(i++, lower, 0, 4);
@@ -112,15 +104,13 @@ export const __crypto_randomUUID = (): bytestring => {
   // bytes[10..15]
   endPtr = i + 12;
   while (i < endPtr) {
-    const byte = Porffor.wasm.i32.load8_u(j++, 0, 4);
+    const byte: i32 = Porffor.wasm.i32.load8_u(j++, 0, 4);
 
-    let lower = byte & 0xf;
-    if (lower < 10) lower = 48 + lower;
-      else lower = 97 + (lower - 10);
+    let lower: i32 = (byte & 0x0f) + 48;
+    if (lower > 57) lower += 39;
 
-    let upper = byte >> 4;
-    if (upper < 10) upper = 48 + upper;
-      else upper = 97 + (upper - 10);
+    let upper: i32 = (byte >> 4) + 48;
+    if (upper > 57) upper += 39;
 
     Porffor.wasm.i32.store8(i++, upper, 0, 4);
     Porffor.wasm.i32.store8(i++, lower, 0, 4);
