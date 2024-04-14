@@ -127,6 +127,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'ContinueStatement':
       return generateContinue(scope, decl);
 
+    case 'LabeledStatement':
+      return generateLabel(scope, decl);
+
     case 'EmptyStatement':
       return generateEmpty(scope, decl);
 
@@ -2742,15 +2745,23 @@ const getNearestLoop = () => {
 };
 
 const generateBreak = (scope, decl) => {
-  const nearestLoop = depth.length - getNearestLoop();
+  const target = decl.label ? scope.labels.get(decl.label.name) : getNearestLoop();
+  const type = depth[target];
+  const offset = ({
+    for: 2,
+    while: 2,
+    forof: 2,
+    if: 1
+  })[type];
+
   return [
-    [ Opcodes.br, ...signedLEB128(nearestLoop - 2) ]
+    [ Opcodes.br, ...signedLEB128(depth.length - target - offset) ]
   ];
 };
 
 const generateContinue = (scope, decl) => {
-  const nearestLoop = getNearestLoop();
-  const type = depth[nearestLoop];
+  const target = decl.label ? scope.labels.get(decl.label.name) : getNearestLoop();
+  const type = depth[target];
   const offset = ({
     for: 3,
     while: 1,
@@ -2758,8 +2769,17 @@ const generateContinue = (scope, decl) => {
   })[type];
 
   return [
-    [ Opcodes.br, ...signedLEB128(depth.length - nearestLoop - offset) ]
+    [ Opcodes.br, ...signedLEB128(depth.length - target - offset) ]
   ];
+};
+
+const generateLabel = (scope, decl) => {
+  scope.labels ??= new Map();
+
+  const name = decl.label.name;
+  scope.labels.set(name, depth.length);
+
+  return generate(scope, decl.body);
 };
 
 const generateThrow = (scope, decl) => {
