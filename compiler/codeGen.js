@@ -338,15 +338,19 @@ const generateReturn = (scope, decl) => {
     // just bare "return"
     return [
       ...number(UNDEFINED), // "undefined" if func returns
-      ...number(TYPES.undefined, Valtype.i32), // type undefined
-      [ Opcodes.return ]
+      ...(scope.returnType != null ? [] : [
+        ...number(TYPES.undefined, Valtype.i32), // type undefined
+        [ Opcodes.return ]
+      ])
     ];
   }
 
   return [
     ...generate(scope, decl.argument),
-    ...getNodeType(scope, decl.argument),
-    [ Opcodes.return ]
+    ...(scope.returnType != null ? [] : [
+      ...getNodeType(scope, decl.argument),
+      [ Opcodes.return ]
+    ])
   ];
 };
 
@@ -1806,7 +1810,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   const userFunc = (funcIndex[name] && !importedFuncs[name] && !builtinFuncs[name] && !internalConstrs[name]) || idx === -1;
   const typedParams = userFunc || builtinFuncs[name]?.typedParams;
-  const typedReturns = userFunc || builtinFuncs[name]?.typedReturns;
+  const typedReturns = (func ? func.returnType == null : userFunc) || builtinFuncs[name]?.typedReturns;
   const paramCount = func && (typedParams ? func.params.length / 2 : func.params.length);
 
   let args = decl.arguments;
@@ -3170,6 +3174,11 @@ const generateFunc = (scope, decl) => {
     throws: false,
     name
   };
+
+  if (typedInput && decl.returnType) {
+    innerScope.returnType = extractTypeAnnotation(decl.returnType).type;
+    innerScope.returns = [ valtypeBinary ];
+  }
 
   for (let i = 0; i < params.length; i++) {
     allocVar(innerScope, params[i].name, false);
