@@ -1113,7 +1113,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     params,
     locals,
     returns,
-    returnType: TYPES[returnType ?? 'number'],
+    returnType: returnType ?? TYPES.number,
     wasm,
     internal: true,
     index: currentFuncIndex++
