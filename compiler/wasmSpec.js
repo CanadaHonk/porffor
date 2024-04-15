@@ -1,4 +1,13 @@
-import { enumify } from "../util/enum.js";
+const enumify = (...args) => {
+  const obj = {};
+
+  for (let i = 0; i < args.length; i++) {
+    obj[i] = args[i];
+    obj[args[i]] = i;
+  }
+
+  return obj;
+};
 
 export const Section = enumify('custom', 'type', 'import', 'func', 'table', 'memory', 'global', 'export', 'start', 'element', 'code', 'data', 'data_count', 'tag');
 export const ExportDesc = enumify('func', 'table', 'mem', 'global', 'tag');
