@@ -248,15 +248,27 @@ for (const test of tests) {
   // break;
 }
 
+const todoTime = process.argv.find(x => x.startsWith('-todo-time='))?.split('=')[1] ?? 'runtime';
+
 const table = (overall, ...arr) => {
   let out = '';
   for (let i = 0; i < arr.length; i++) {
-    let icon = [ '🧪', '🤠', '❌', '💀', '🧩', '💥', '⏰', '📝' ][i];
+    let icon = [ '🧪', '🤠', '❌', '💀', '🏗️', '💥', '⏰', '📝' ][i];
+    // let color = resultOnly ? '' : ['', '\u001b[42m', '\u001b[43m', '\u001b[101m', '\u001b[41m', '\u001b[41m', '\u001b[101m', todoTime === 'runtime' ? '\u001b[101m' : '\u001b[41m'][i];
+    let color = resultOnly ? '' : ('\u001b[1m' + ['', '\u001b[32m', '\u001b[33m', '\u001b[91m', '\u001b[31m', '\u001b[31m', '\u001b[91m', todoTime === 'runtime' ? '\u001b[91m' : '\u001b[31m'][i]);
+
     let change = arr[i] - lastCommitResults[i + 1];
-    let str = `${icon} ${arr[i]}${overall && change !== 0 ? ` (${change > 0 ? '+' : ''}${change})` : ''}`;
+    let str = `${color}${icon} ${arr[i]}${resultOnly ? '' : '\u001b[0m'}${overall && change !== 0 ? ` (${change > 0 ? '+' : ''}${change})` : ''}`;
 
     if (i !== arr.length - 1) str += resultOnly ? ' | ' : '\u001b[90m | \u001b[0m';
     out += str;
+  }
+
+  if (todoTime === 'runtime') {
+    // move todo and timeout to after runtime errors
+    const spl = out.split(resultOnly ? ' | ' : '\u001b[90m | \u001b[0m');
+    spl.splice(4, 0, spl.pop(), spl.pop());
+    out = spl.join(resultOnly ? ' | ' : '\u001b[90m | \u001b[0m');
   }
 
   console.log(out);
@@ -297,7 +309,7 @@ const nextMajorPercent = Math.floor(percent) + 1;
 const togo = next => `${Math.floor((total * next / 100) - passes)} to go until ${next}%`;
 
 console.log(`\u001b[1m${whatTests}: ${passes}/${total} passed - ${percent}%${whatTests === 'test' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
-bar(140, total, passes, fails, runtimeErrors, compileErrors + todos + wasmErrors + timeouts, 0);
+bar(140, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0);
 process.stdout.write('  ');
 table(whatTests === 'test', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
 
@@ -307,7 +319,7 @@ if (whatTests === 'test') {
   for (const dir of dirs.keys()) {
     const results = dirs.get(dir);
     process.stdout.write(' '.repeat(6) + dir + ' '.repeat(14 - dir.length));
-    bar(120, results.total, results.pass ?? 0, results.fail ?? 0, (results.runtimeError ?? 0) + (results.timeout ?? 0), (results.compileError ?? 0) + (results.todo ?? 0) + (results.wasmError ?? 0), 0);
+    bar(120, results.total, results.pass ?? 0, results.fail ?? 0, (results.runtimeError ?? 0) + (todoTime === 'runtime' ? (results.todo ?? 0) : 0) + (results.timeout ?? 0), (results.compileError ?? 0) + (todoTime === 'compile' ? (results.todo ?? 0) : 0) + (results.wasmError ?? 0), 0);
     process.stdout.write(' '.repeat(6) + ' '.repeat(14 + 2));
     table(false, results.total, results.pass ?? 0, results.fail ?? 0, results.runtimeError ?? 0, results.wasmError ?? 0, results.compileError ?? 0, results.timeout ?? 0, results.todo ?? 0);
     console.log();
@@ -318,7 +330,7 @@ if (whatTests === 'test') {
 
         const results2 = results.get(dir2);
         process.stdout.write(' '.repeat(8) + dir2 + ' '.repeat(30 - dir2.length));
-        bar(80, results2.total, results2.pass ?? 0, results2.fail ?? 0, results2.runtimeError ?? 0, (results2.compileError ?? 0) + (results2.todo ?? 0) + (results2.wasmError ?? 0) + (results2.timeout ?? 0), 0);
+        bar(80, results2.total, results2.pass ?? 0, results2.fail ?? 0, (results2.runtimeError ?? 0) + (todoTime === 'runtime' ? (results2.todo ?? 0) : 0) + (results2.timeout ?? 0), (results2.compileError ?? 0) + (todoTime === 'compile' ? (results2.todo ?? 0) : 0) + (results2.wasmError ?? 0), 0);
         process.stdout.write(' '.repeat(8) + ' '.repeat(30 + 2));
         table(false, results2.total, results2.pass ?? 0, results2.fail ?? 0, results2.runtimeError ?? 0, results2.wasmError ?? 0, results2.compileError ?? 0, results2.timeout ?? 0, results2.todo ?? 0);
       }
@@ -326,11 +338,11 @@ if (whatTests === 'test') {
     }
   }
 
-  if (lastResults.compileErrors) console.log(`\n\n\u001b[4mnew compile errors\u001b[0m\n${compileErrorFiles.filter(x => !lastResults.compileErrors.includes(x)).join('\n')}\n\n`);
-  if (lastResults.wasmErrors) console.log(`\u001b[4mnew wasm errors\u001b[0m\n${wasmErrorFiles.filter(x => !lastResults.wasmErrors.includes(x)).join('\n')}\n\n`);
+  // if (lastResults.compileErrors) console.log(`\n\n\u001b[4mnew compile errors\u001b[0m\n${compileErrorFiles.filter(x => !lastResults.compileErrors.includes(x)).join('\n')}\n\n`);
+  // if (lastResults.wasmErrors) console.log(`\u001b[4mnew wasm errors\u001b[0m\n${wasmErrorFiles.filter(x => !lastResults.wasmErrors.includes(x)).join('\n')}\n\n`);
 
-  if (lastResults.passes) console.log(`\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastResults.passes.includes(x)).join('\n')}\n\n`);
-  if (lastResults.passes) console.log(`\u001b[4mnew fails\u001b[0m\n${lastResults.passes.filter(x => !passFiles.includes(x)).join('\n')}`);
+  // if (lastResults.passes) console.log(`\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastResults.passes.includes(x)).join('\n')}\n\n`);
+  // if (lastResults.passes) console.log(`\u001b[4mnew fails\u001b[0m\n${lastResults.passes.filter(x => !passFiles.includes(x)).join('\n')}`);
 
   fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, total }));
 }
