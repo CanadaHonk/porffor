@@ -1559,7 +1559,18 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (name === 'eval' && decl.arguments[0].type === 'Literal') {
     // literal eval hack
     const code = decl.arguments[0].value;
-    const parsed = parse(code, []);
+
+    let parsed;
+    try {
+      parsed = parse(code, []);
+    } catch (e) {
+      if (e.name === 'SyntaxError') {
+        // throw syntax errors of evals at runtime instead
+        return internalThrow(scope, 'SyntaxError', e.message, true);
+      }
+
+      throw e;
+    }
 
     const out = generate(scope, {
       type: 'BlockStatement',
