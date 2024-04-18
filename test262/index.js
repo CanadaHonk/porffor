@@ -265,7 +265,7 @@ const table = (overall, ...arr) => {
     out += str;
   }
 
-  if (todoTime === 'runtime') {
+  if (todoTime === 'runtime' && !resultOnly) {
     // move todo and timeout to after runtime errors
     const spl = out.split(resultOnly ? ' | ' : '\u001b[90m | \u001b[0m');
     spl.splice(4, 0, spl.pop(), spl.pop());
