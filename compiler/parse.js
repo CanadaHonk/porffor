@@ -32,26 +32,31 @@ await loadParser(types ? '@babel/parser' : undefined);
 if (types && !['@babel/parser', 'hermes-parser'].includes(parser)) log.warning('parser', `passed -types with a parser (${parser}) which does not support`);
 
 export default (input, flags) => {
-  const ast = parse(input, {
-    // acorn
-    ecmaVersion: 'latest',
+  try {
+    const ast = parse(input, {
+      // acorn
+      ecmaVersion: 'latest',
 
-    // meriyah
-    next: true,
-    module: flags.includes('module'),
-    webcompat: true,
+      // meriyah
+      next: true,
+      module: flags.includes('module'),
+      webcompat: true,
 
-    // babel
-    plugins: types ? ['estree', 'typescript'] : ['estree'],
+      // babel
+      plugins: types ? ['estree', 'typescript'] : ['estree'],
 
-    // multiple
-    sourceType: flags.includes('module') ? 'module' : 'script',
-    ranges: false,
-    tokens: false,
-    comments: false,
-  });
+      // multiple
+      sourceType: flags.includes('module') ? 'module' : 'script',
+      ranges: false,
+      tokens: false,
+      comments: false,
+    });
 
-  if (ast.type === 'File') return ast.program;
+    if (ast.type === 'File') return ast.program;
 
-  return ast;
+    return ast;
+  } catch (e) {
+    // normalize error class thrown by 3rd party parsers
+    throw new SyntaxError(e.message, { cause: e });
+  }
 };
