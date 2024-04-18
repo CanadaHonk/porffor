@@ -220,7 +220,7 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
   - `index.js`: doing all the compiler steps, takes code in, wasm out
   - `opt.js`: self-made wasm bytecode optimizer
   - `parse.js`: parser simply wrapping acorn
-  - `sections.js`: assembles wasm ops and metadata into a wasm module/file
+  - `assemble.js`: assembles wasm ops and metadata into a wasm module/file
   - `wasmSpec.js`: "enums"/info from wasm spec
   - `wrap.js`: wrapper for compiler which instantiates and produces nice exports
 

@@ -2,7 +2,7 @@ import { underline, bold, log } from './log.js';
 import parse from './parse.js';
 import codeGen from './codeGen.js';
 import opt from './opt.js';
-import produceSections from './sections.js';
+import assemble from './assemble.js';
 import decompile from './decompile.js';
 import toc from './2c.js';
 import Prefs from './prefs.js';
@@ -42,13 +42,13 @@ export default (code, flags) => {
 
   const t2 = performance.now();
   opt(funcs, globals, pages, tags, exceptions);
-  if (Prefs.profileCompiler) console.log(`3. optimized code in ${(performance.now() - t2).toFixed(2)}ms`);
+  if (Prefs.profileCompiler) console.log(`3. optimized in ${(performance.now() - t2).toFixed(2)}ms`);
 
   if (Prefs.optFuncs) logFuncs(funcs, globals, exceptions);
 
   const t3 = performance.now();
-  const sections = produceSections(funcs, globals, tags, pages, data, flags);
-  if (Prefs.profileCompiler) console.log(`4. produced sections in ${(performance.now() - t3).toFixed(2)}ms`);
+  const wasm = assemble(funcs, globals, tags, pages, data, flags);
+  if (Prefs.profileCompiler) console.log(`4. assembled in ${(performance.now() - t3).toFixed(2)}ms`);
 
   if (Prefs.allocLog) {
     const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
@@ -57,13 +57,13 @@ export default (code, flags) => {
     console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n') + '\n');
   }
 
-  const out = { wasm: sections, funcs, globals, tags, exceptions, pages, data };
+  const out = { wasm, funcs, globals, tags, exceptions, pages, data };
 
   const target = Prefs.target ?? 'wasm';
   const outFile = Prefs.o;
 
   if (target === 'wasm' && outFile) {
-    writeFileSync(outFile, Buffer.from(sections));
+    writeFileSync(outFile, Buffer.from(wasm));
 
     if (process.version) process.exit();
   }

@@ -5,7 +5,7 @@ export const bold = x => `\u001b[1m${x}\u001b[0m`;
 const areaColors = {
   codegen: [ 20, 80, 250 ],
   opt: [ 250, 20, 80 ],
-  sections: [ 20, 250, 80 ],
+  assemble: [ 20, 250, 80 ],
   alloc: [ 250, 250, 20 ],
   parse: [ 240, 240, 240 ],
   '2c': [ 20, 250, 250 ],

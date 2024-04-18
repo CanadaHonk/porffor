@@ -28,11 +28,11 @@ export default (funcs, globals, tags, pages, data, flags) => {
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
 
   const compileHints = Prefs.compileHints;
-  if (compileHints) log.warning('sections', 'compile hints is V8 only w/ experimental arg! (you used -compile-hints)');
+  if (compileHints) log.warning('assemble', 'compile hints is V8 only w/ experimental arg! (you used -compile-hints)');
 
   const getType = (params, returns) => {
     const hash = `${params.join(',')}_${returns.join(',')}`;
-    if (Prefs.optLog) log('sections', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
+    if (Prefs.optLog) log('assemble', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
     if (optLevel >= 1 && typeCache[hash] !== undefined) return typeCache[hash];
 
     const type = [ FuncType, ...encodeVector(params), ...encodeVector(returns) ];
@@ -80,7 +80,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
   }
   globalThis.importFuncs = importFuncs;
 
-  if (Prefs.optLog) log('sections', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
+  if (Prefs.optLog) log('assemble', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
