@@ -29,7 +29,7 @@ const loadParser = async (fallbackParser = 'acorn', forceParser) => {
 globalThis._porf_loadParser = loadParser;
 await loadParser(types ? '@babel/parser' : undefined);
 
-if (types && !['@babel/parser', 'hermes-parser'].includes(parser)) log.warning('parser', `passed -types with a parser (${parser}) which does not support`);
+if (types && !['@babel/parser', 'hermes-parser'].includes(parser)) log.warning('parser', `passed -parse-types with a parser (${parser}) which does not support`);
 
 export default (input, flags) => {
   try {
