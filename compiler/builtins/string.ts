@@ -14,7 +14,7 @@ export const ___bytestring_prototype_toUpperCase = (_this: bytestring) => {
   let i: i32 = Porffor.wasm`local.get ${_this}`,
       j: i32 = Porffor.wasm`local.get ${out}`;
 
-  const endPtr = i + len;
+  const endPtr: i32 = i + len;
   while (i < endPtr) {
     let chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
 
@@ -40,7 +40,7 @@ export const ___bytestring_prototype_toLowerCase = (_this: bytestring) => {
   let i: i32 = Porffor.wasm`local.get ${_this}`,
       j: i32 = Porffor.wasm`local.get ${out}`;
 
-  const endPtr = i + len;
+  const endPtr: i32 = i + len;
   while (i < endPtr) {
     let chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
 
