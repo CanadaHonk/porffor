@@ -1658,6 +1658,25 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   // }
 
   if (protoName) {
+    const protoBC = {};
+
+    const builtinProtoCands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + protoName));
+
+    if (!decl._protoInternalCall && builtinProtoCands.length > 0) {
+      for (const x of builtinProtoCands) {
+        const type = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
+        if (type == null) continue;
+
+        protoBC[type] = generateCall(scope, {
+          callee: {
+            name: x
+          },
+          arguments: [ target ],
+          _protoInternalCall: true
+        });
+      }
+    }
+
     const protoCands = Object.keys(prototypeFuncs).reduce((acc, x) => {
       if (Object.hasOwn(prototypeFuncs[x], protoName)) acc[x] = prototypeFuncs[x][protoName];
       return acc;
@@ -1680,7 +1699,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       let allOptUnused = true;
       let lengthI32CacheUsed = false;
-      const protoBC = {};
       for (const x in protoCands) {
         const protoFunc = protoCands[x];
         if (protoFunc.noArgRetLength && decl.arguments.length === 0) {
@@ -1750,6 +1768,15 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           default: internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
         }, allOptUnused && unusedValue ? Blocktype.void : valtypeBinary),
       ];
+    }
+
+    if (Object.keys(protoBC).length > 0) {
+      return typeSwitch(scope, getNodeType(scope, target), {
+        ...protoBC,
+
+        // TODO: error better
+        default: internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
+      }, valtypeBinary);
     }
   }
 
