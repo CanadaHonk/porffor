@@ -430,7 +430,7 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   ];
 };
 
-const concatStrings = (scope, left, right, global, name, assign) => {
+const concatStrings = (scope, left, right, global, name, assign = false, bytestrings = false) => {
   // todo: this should be rewritten into a built-in/func: String.prototype.concat
   // todo: convert left and right to strings if not
   // todo: optimize by looking up names in arrays and using that if exists?
@@ -466,11 +466,11 @@ const concatStrings = (scope, left, right, global, name, assign) => {
       [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ],
 
       // copy right
-      // dst = out pointer + length size + current length * i16 size
+      // dst = out pointer + length size + current length * sizeof valtype
       ...number(pointer + ValtypeSize.i32, Valtype.i32),
 
       [ Opcodes.local_get, leftLength ],
-      ...number(ValtypeSize.i16, Valtype.i32),
+      ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
       [ Opcodes.i32_mul ],
       [ Opcodes.i32_add ],
 
@@ -479,9 +479,9 @@ const concatStrings = (scope, left, right, global, name, assign) => {
       ...number(ValtypeSize.i32, Valtype.i32),
       [ Opcodes.i32_add ],
 
-      // size = right length * i16 size
+      // size = right length * sizeof valtype
       [ Opcodes.local_get, rightLength ],
-      ...number(ValtypeSize.i16, Valtype.i32),
+      ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
       [ Opcodes.i32_mul ],
 
       [ ...Opcodes.memory_copy, 0x00, 0x00 ],
@@ -539,11 +539,11 @@ const concatStrings = (scope, left, right, global, name, assign) => {
     [ ...Opcodes.memory_copy, 0x00, 0x00 ],
 
     // copy right
-    // dst = out pointer + length size + left length * i16 size
+    // dst = out pointer + length size + left length * sizeof valtype
     ...number(pointer + ValtypeSize.i32, Valtype.i32),
 
     [ Opcodes.local_get, leftLength ],
-    ...number(ValtypeSize.i16, Valtype.i32),
+    ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
     [ Opcodes.i32_mul ],
     [ Opcodes.i32_add ],
 
@@ -552,9 +552,9 @@ const concatStrings = (scope, left, right, global, name, assign) => {
     ...number(ValtypeSize.i32, Valtype.i32),
     [ Opcodes.i32_add ],
 
-    // size = right length * i16 size
+    // size = right length * sizeof valtype
     [ Opcodes.local_get, rightLength ],
-    ...number(ValtypeSize.i16, Valtype.i32),
+    ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
     [ Opcodes.i32_mul ],
 
     [ ...Opcodes.memory_copy, 0x00, 0x00 ],
@@ -874,11 +874,11 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   // todo: if equality op and an operand is undefined, return false
   // todo: niche null hell with 0
 
-  // todo: this should be dynamic but for now only static
   if (knownLeft === TYPES.string || knownRight === TYPES.string) {
     if (op === '+') {
+      // todo: this should be dynamic too but for now only static
       // string concat (a + b)
-      return concatStrings(scope, left, right, _global, _name, assign);
+      return concatStrings(scope, left, right, _global, _name, assign, false);
     }
 
     // not an equality op, NaN
@@ -903,10 +903,9 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
 
   if (knownLeft === TYPES._bytestring || knownRight === TYPES._bytestring) {
     if (op === '+') {
+      // todo: this should be dynamic too but for now only static
       // string concat (a + b)
-      // todo: concat for bytestring
-      return todo(scope, 'concat for static bytestrings', true);
-      // return concatStrings(scope, left, right, _global, _name, assign);
+      return concatStrings(scope, left, right, _global, _name, assign, true);
     }
 
     // not an equality op, NaN
