@@ -70,15 +70,14 @@ export const ___bytestring_prototype_toLowerCase = (_this: bytestring) => {
 export const __String_prototype_startsWith = (_this: string, searchString: string, position: number) => {
   // todo/perf: investigate whether for counter vs while ++s are faster
 
-  const thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
 
   // todo: handle non-integer and non-finite position
-  let i: i32 = 0;
-  i += position * 2;
+  thisPtr += position * 2;
 
   const searchLen: i32 = searchString.length * 2;
-  for (; i < searchLen; i += 2) {
+  for (let i: i32 = 0; i < searchLen; i += 2) {
     let chr: i32 = Porffor.wasm.i32.load16_u(thisPtr + i, 0, 4);
     let expected: i32 = Porffor.wasm.i32.load16_u(searchPtr + i, 0, 4);
 
@@ -95,15 +94,14 @@ export const ___bytestring_prototype_startsWith = (_this: bytestring, searchStri
 
   // todo/perf: investigate whether for counter vs while ++s are faster
 
-  const thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
 
   // todo: handle non-integer and non-finite position
-  let i: i32 = 0;
-  i += position;
+  thisPtr += position;
 
   const searchLen: i32 = searchString.length;
-  for (; i < searchLen; i++) {
+  for (let i: i32 = 0; i < searchLen; i++) {
     let chr: i32 = Porffor.wasm.i32.load8_u(thisPtr + i, 0, 4);
     let expected: i32 = Porffor.wasm.i32.load8_u(searchPtr + i, 0, 4);
 
