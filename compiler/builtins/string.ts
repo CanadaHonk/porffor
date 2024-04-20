@@ -114,7 +114,7 @@ export const ___bytestring_prototype_startsWith = (_this: bytestring, searchStri
 };
 
 
-export const ___String_prototype_endsWith = (_this: bytestring, searchString: bytestring, endPosition: number) => {
+export const __String_prototype_endsWith = (_this: bytestring, searchString: bytestring, endPosition: number) => {
   let i: i32 = Porffor.wasm`local.get ${_this}`,
       j: i32 = Porffor.wasm`local.get ${searchString}`;
 
