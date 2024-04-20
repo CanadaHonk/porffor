@@ -1671,7 +1671,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           callee: {
             name: x
           },
-          arguments: [ target ],
+          arguments: [ target, ...decl.arguments ],
           _protoInternalCall: true
         });
       }
