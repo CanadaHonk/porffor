@@ -441,7 +441,7 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
   const leftLength = localTmp(scope, 'concat_left_length', Valtype.i32);
 
   if (assign) {
-    const pointer = arrays.get(name ?? '$undeclared');
+    const pointer = scope.arrays?.get(name ?? '$undeclared');
 
     return [
       // setup right
@@ -2208,7 +2208,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   // hack: .length setter
   if (decl.left.type === 'MemberExpression' && decl.left.property.name === 'length') {
     const name = decl.left.object.name;
-    const pointer = arrays.get(name);
+    const pointer = scope.arrays?.get(name);
 
     const aotPointer = pointer != null;
 
@@ -2235,7 +2235,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   // arr[i]
   if (decl.left.type === 'MemberExpression' && decl.left.computed) {
     const name = decl.left.object.name;
-    const pointer = arrays.get(name);
+    const pointer = scope.arrays?.get(name);
 
     const aotPointer = pointer != null;
 
@@ -2960,16 +2960,19 @@ const getAllocType = itemType => {
 const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype) => {
   const out = [];
 
+  scope.arrays ??= new Map();
+
   let firstAssign = false;
-  if (!arrays.has(name) || name === '$undeclared') {
+  if (!scope.arrays.has(name) || name === '$undeclared') {
     firstAssign = true;
 
     // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
     const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
-    arrays.set(name, allocPage(scope, `${getAllocType(itemType)}: ${uniqueName}`, itemType) * pageSize);
+
+    scope.arrays.set(name, allocPage(scope, `${getAllocType(itemType)}: ${uniqueName}`, itemType) * pageSize);
   }
 
-  const pointer = arrays.get(name);
+  const pointer = scope.arrays.get(name);
 
   const useRawElements = !!decl.rawElements;
   const elements = useRawElements ? decl.rawElements : decl.elements;
@@ -3055,14 +3058,13 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
   }, global, name, false, byteStringable ? 'i8' : 'i16')[0];
 };
 
-let arrays = new Map();
 const generateArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false) => {
   return makeArray(scope, decl, global, name, initEmpty, valtype)[0];
 };
 
 export const generateMember = (scope, decl, _global, _name) => {
   const name = decl.object.name;
-  const pointer = arrays.get(name);
+  const pointer = scope.arrays?.get(name);
 
   const aotPointer = pointer != null;
 
@@ -3422,7 +3424,6 @@ export default program => {
   funcs = [];
   funcIndex = {};
   depth = [];
-  arrays = new Map();
   pages = new Map();
   data = [];
   currentFuncIndex = importedFuncs.length;
