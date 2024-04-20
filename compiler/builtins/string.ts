@@ -1,5 +1,18 @@
 // @porf -funsafe-no-unlikely-proto-checks -valtype=i32
 
+export const __String_fromCharCode = (code: i32) => {
+  // todo: support >1 arg
+  if (code < 256) {
+    let out: bytestring = '.';
+    Porffor.wasm.i32.store8(out, code, 0, 4);
+    return out;
+  }
+
+  let out: string = '.';
+  Porffor.wasm.i32.store16(out, code, 0, 4);
+  return out;
+};
+
 export const __String_prototype_toUpperCase = (_this: string) => {
   // todo
   throw new TodoError('String.prototype.toUpperCase (non-bytestring)');
