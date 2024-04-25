@@ -140,6 +140,26 @@ for await (const test of _tests) {
 
 if (!resultOnly) console.log();
 
+const profile = process.argv.includes('-profile');
+const log = console.log;
+if (profile) {
+  process.argv.push('-profile-compiler');
+
+  const log = console.log;
+  console.log = msg => {
+    if (msg[1] === '.' || msg[2] === ' ') {
+      profileStats[msg[0]] += Number(msg.split(' ').pop().slice(0, -2));
+    }
+  };
+}
+
+const profileStats = {
+  1: 0, // parse
+  2: 0, // codegen
+  3: 0, // opt
+  4: 0, // assemble
+};
+
 const logErrors = process.argv.includes('-log-errors');
 const subdirs = process.argv.includes('-subdirs');
 
@@ -247,6 +267,8 @@ for (const test of tests) {
 
   // break;
 }
+
+console.log = log;
 
 const todoTime = process.argv.find(x => x.startsWith('-todo-time='))?.split('=')[1] ?? 'runtime';
 
@@ -367,5 +389,14 @@ if (trackErrors) {
 
   for (const x of Object.keys(errorsByClass).sort((a, b) => errorsByClass[b].length - errorsByClass[a].length)) {
     console.log(`${errorsByClass[x].length.toString().padStart(4, ' ')} ${x}`);
+  }
+}
+
+if (profile) {
+  console.log('\n\x1b[4mtime spent on compiler stages\x1b[0m');
+
+  let n = 1;
+  for (const x of [ 'parse', 'codegen', 'opt', 'assemble' ]) {
+    console.log(`${x}: ${(profileStats[n++] / 1000).toFixed(2)}s`);
   }
 }
