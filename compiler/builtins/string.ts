@@ -368,3 +368,82 @@ export const ___bytestring_prototype_lastIndexOf = (_this: bytestring, searchStr
 
   return -1;
 };
+
+
+export const ___String_prototype_includes = (_this: bytestring, searchString: bytestring, position: number) => {
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+  const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
+
+  const searchLenX2: i32 = searchString.length * 2;
+
+  // todo/perf: make position oob handling optional (via pref or fast variant?)
+  const len: i32 = _this.length;
+  if (position > 0) {
+    if (position > len) position = len;
+      else position |= 0;
+  } else position = 0;
+
+  const thisPtrEnd: i32 = thisPtr + (len * 2) - searchLenX2;
+
+  thisPtr += position * 2;
+
+  while (thisPtr <= thisPtrEnd) {
+    let match: boolean = true;
+    for (let i: i32 = 0; i < searchLenX2; i += 2) {
+      let chr: i32 = Porffor.wasm.i32.load16_u(thisPtr + i, 0, 4);
+      let expected: i32 = Porffor.wasm.i32.load16_u(searchPtr + i, 0, 4);
+
+      if (chr != expected) {
+        match = false;
+        break;
+      }
+    }
+
+    if (match) return true;
+
+    thisPtr += 2;
+  }
+
+  return false;
+};
+
+export const ___bytestring_prototype_includes = (_this: bytestring, searchString: bytestring, position: number) => {
+  // if searching non-bytestring, bytestring will not start with it
+  // todo: change this to just check if = string and ToString others
+  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES._bytestring) return -1;
+
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+  const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
+
+  const searchLen: i32 = searchString.length;
+
+  // todo/perf: make position oob handling optional (via pref or fast variant?)
+  const len: i32 = _this.length;
+  if (position > 0) {
+    if (position > len) position = len;
+      else position |= 0;
+  } else position = 0;
+
+  const thisPtrEnd: i32 = thisPtr + len - searchLen;
+
+  thisPtr += position;
+
+  while (thisPtr <= thisPtrEnd) {
+    let match: boolean = true;
+    for (let i: i32 = 0; i < searchLen; i++) {
+      let chr: i32 = Porffor.wasm.i32.load8_u(thisPtr + i, 0, 4);
+      let expected: i32 = Porffor.wasm.i32.load8_u(searchPtr + i, 0, 4);
+
+      if (chr != expected) {
+        match = false;
+        break;
+      }
+    }
+
+    if (match) return true;
+
+    thisPtr++;
+  }
+
+  return false;
+};
