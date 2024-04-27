@@ -8,7 +8,7 @@
     "precompile": "node ./compiler/precompile.js"
   },
   "dependencies": {
-    "acorn": "^8.9.0"
+    "acorn": "^8.11.3"
   },
   "optionalDependencies": {
     "@babel/parser": "^7.24.4",
