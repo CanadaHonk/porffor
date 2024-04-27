@@ -69,11 +69,18 @@ export const ___bytestring_prototype_toLowerCase = (_this: bytestring) => {
 
 export const __String_prototype_startsWith = (_this: string, searchString: string, position: number) => {
   // todo/perf: investigate whether for counter vs while ++s are faster
+  // todo: handle when searchString is bytestring
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
 
-  // todo: handle non-integer and non-finite position
+  // todo/perf: make position oob handling optional (via pref or fast variant?)
+  const len: i32 = _this.length;
+  if (position > 0) {
+    if (position > len) position = len;
+      else position |= 0;
+  } else position = 0;
+
   thisPtr += position * 2;
 
   const searchLen: i32 = searchString.length * 2;
@@ -97,7 +104,13 @@ export const ___bytestring_prototype_startsWith = (_this: bytestring, searchStri
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
 
-  // todo: handle non-integer and non-finite position
+  // todo/perf: make position oob handling optional (via pref or fast variant?)
+  const len: i32 = _this.length;
+  if (position > 0) {
+    if (position > len) position = len;
+      else position |= 0;
+  } else position = 0;
+
   thisPtr += position;
 
   const searchLen: i32 = searchString.length;
@@ -118,7 +131,22 @@ export const __String_prototype_endsWith = (_this: bytestring, searchString: byt
 
   const searchLen: i32 = searchString.length;
 
-  i += ((endPosition ?? _this.length) - searchLen) * 2;
+  // todo/perf: make position oob handling optional (via pref or fast variant?)
+  const len: i32 = _this.length;
+
+  // endPosition ??= len;
+  if (Porffor.wasm`local.get ${endPosition+1}` == Porffor.TYPES.undefined) endPosition = len;
+
+  if (endPosition > 0) {
+    if (endPosition > len) endPosition = len;
+      else endPosition |= 0;
+  } else endPosition = 0;
+
+  endPosition -= searchLen;
+
+  if (endPosition < 0) return false;
+
+  i += endPosition * 2;
 
   const endPtr: i32 = j + searchLen * 2;
   while (j < endPtr) {
@@ -144,7 +172,22 @@ export const ___bytestring_prototype_endsWith = (_this: bytestring, searchString
 
   const searchLen: i32 = searchString.length;
 
-  i += (endPosition ?? _this.length) - searchLen;
+  // todo/perf: make position oob handling optional (via pref or fast variant?)
+  const len: i32 = _this.length;
+
+  // endPosition ??= len;
+  if (Porffor.wasm`local.get ${endPosition+1}` == Porffor.TYPES.undefined) endPosition = len;
+
+  if (endPosition > 0) {
+    if (endPosition > len) endPosition = len;
+      else endPosition |= 0;
+  } else endPosition = 0;
+
+  endPosition -= searchLen;
+
+  if (endPosition < 0) return false;
+
+  i += endPosition;
 
   const endPtr: i32 = j + searchLen;
   while (j < endPtr) {
