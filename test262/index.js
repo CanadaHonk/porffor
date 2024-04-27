@@ -84,8 +84,7 @@ const run = ({ file, contents, attrs }) => {
     // remove actual string concats from some error messages
     .replace(/\. Actual: ' \+ .*\);/g, _ => `');`)
     // replace some (avoid false pos) assert.throws with inline try
-    .replace(/assert\.throws\(ReferenceError, function\(\) {([\w\W]+?)}\);/g, (_, body) => `let _thrown = false;\ntry {${body}\n_thrown = true;\n} catch {}\nif (_thrown) throw new Test262Error('Expected a ReferenceError to be thrown but no exception was at all');\n`);
-    // .replace(/assert\.throws\(ReferenceError, function\(\) {([\w\W]+?)}\);/g, (_, body) => `{ let _thrown = false;\ntry {${body}\n_thrown = true;\n} catch {}\nif (_thrown) throw new Test262Error('Expected a ReferenceError to be thrown but no exception was at all'); }\n`);
+    .replace(/assert\.throws\(ReferenceError, function\(\) {([\w\W]+?)}\);/g, (_, body) => `{ let _thrown = false;\ntry {${body}\n_thrown = true;\n} catch {}\nif (_thrown) throw new Test262Error('Expected a ReferenceError to be thrown but no exception was at all'); }\n`);
 
   // fs.writeFileSync('r.js', toRun);
 
