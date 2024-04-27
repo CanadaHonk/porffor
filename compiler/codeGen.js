@@ -157,10 +157,16 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       const funcsBefore = funcs.length;
       generate(scope, decl.declaration);
 
-      if (funcsBefore === funcs.length) throw new Error('no new func added in export');
+      if (funcsBefore !== funcs.length) {
+        // new func added
+        const newFunc = funcs[funcs.length - 1];
+        newFunc.export = true;
+      }
 
-      const newFunc = funcs[funcs.length - 1];
-      newFunc.export = true;
+      // if (funcsBefore === funcs.length) throw new Error('no new func added in export');
+
+      // const newFunc = funcs[funcs.length - 1];
+      // newFunc.export = true;
 
       return [];
 
