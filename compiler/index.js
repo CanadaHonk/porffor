@@ -1,6 +1,6 @@
 import { underline, bold, log } from './log.js';
 import parse from './parse.js';
-import codeGen from './codeGen.js';
+import codegen from './codegen.js';
 import opt from './opt.js';
 import assemble from './assemble.js';
 import decompile from './decompile.js';
@@ -35,7 +35,7 @@ export default (code, flags) => {
   if (Prefs.profileCompiler) console.log(`1. parsed in ${(performance.now() - t0).toFixed(2)}ms`);
 
   const t1 = performance.now();
-  const { funcs, globals, tags, exceptions, pages, data } = codeGen(program);
+  const { funcs, globals, tags, exceptions, pages, data } = codegen(program);
   if (Prefs.profileCompiler) console.log(`2. generated code in ${(performance.now() - t1).toFixed(2)}ms`);
 
   if (Prefs.funcs) logFuncs(funcs, globals, exceptions);

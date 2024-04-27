@@ -212,7 +212,7 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
 ## Codebase
 - `compiler`: contains the compiler itself
   - `builtins.js`: all built-ins of the engine (spec, custom. vars, funcs)
-  - `codeGen.js`: code (wasm) generation, ast -> wasm. The bulk of the effort
+  - `codegen.js`: code (wasm) generation, ast -> wasm. The bulk of the effort
   - `decompile.js`: basic wasm decompiler for debug info
   - `embedding.js`: utils for embedding consts
   - `encoding.js`: utils for encoding things as bytes as wasm expects

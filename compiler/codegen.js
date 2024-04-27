@@ -1205,6 +1205,8 @@ const TYPE_NAMES = {
 const getType = (scope, _name) => {
   const name = mapName(_name);
 
+  // if (scope.locals[name] && !scope.locals[name + '#type']) console.log(name);
+
   if (typedInput && scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
   if (scope.locals[name]) return [ [ Opcodes.local_get, scope.locals[name + '#type'].idx ] ];
 
@@ -2616,6 +2618,8 @@ const generateForOf = (scope, decl) => {
 
     generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
   }
+
+  // if (!leftName) console.log(decl.left?.declarations?.[0]?.id ?? decl.left);
 
   const [ local, isGlobal ] = lookupName(scope, leftName);
 
