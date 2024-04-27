@@ -80,14 +80,14 @@
 
 export const btoa = (input: bytestring): bytestring => {
   const keyStr: bytestring = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-  const keyStrPtr: i32 = Porffor.i32.ptrUnsafe(keyStr);
+  const keyStrPtr: i32 = Porffor.wasm`local.get ${keyStr}`;
 
   let len: i32 = input.length;
   let output: bytestring = '';
   output.length = 4 * (len / 3 + !!(len % 3));
 
-  let i: i32 = Porffor.i32.ptrUnsafe(input),
-      j: i32 = Porffor.i32.ptrUnsafe(output);
+  let i: i32 = Porffor.wasm`local.get ${input}`,
+      j: i32 = Porffor.wasm`local.get ${output}`;
 
   const endPtr = i + len;
   while (i < endPtr) {

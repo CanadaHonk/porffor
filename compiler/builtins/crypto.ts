@@ -3,12 +3,12 @@
 export const __crypto_randomUUID = (): bytestring => {
   let bytes: bytestring = '................';
 
-  let bytesPtr: i32 = Porffor.i32.ptrUnsafe(bytes);
+  const bytesPtr: i32 = Porffor.wasm`local.get ${bytes}`;
 
   let a: i32 = bytesPtr;
   let aEndPtr: i32 = a + 16;
   while (a < aEndPtr) {
-    Porffor.wasm.i32.store8(a++, Porffor.i32.randomByte(), 0, 4);
+    Porffor.wasm.i32.store8(a++, Porffor.randomByte(), 0, 4);
   }
 
   // bytes[6] = (bytes[6] & 0b00001111) | 0b01000000
@@ -29,7 +29,7 @@ export const __crypto_randomUUID = (): bytestring => {
 
   let output: bytestring = '------------------------------------';
 
-  let i: i32 = Porffor.i32.ptrUnsafe(output);
+  let i: i32 = Porffor.wasm`local.get ${output}`;
   let j: i32 = bytesPtr;
 
   // bytes[0..4]-bytes[4..6]-bytes[6..8]-bytes[8..10]-bytes[10..15]
