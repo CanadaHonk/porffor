@@ -1555,9 +1555,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     name = func.name;
   }
 
-  if (name === 'eval' && decl.arguments[0].type === 'Literal') {
+  if (name === 'eval' && decl.arguments[0]?.type === 'Literal') {
     // literal eval hack
-    const code = decl.arguments[0].value;
+    const code = decl.arguments[0]?.value ?? '';
 
     let parsed;
     try {
