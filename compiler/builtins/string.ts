@@ -214,7 +214,7 @@ export const ___String_prototype_indexOf = (_this: bytestring, searchString: byt
       else position |= 0;
   } else position = 0;
 
-  const thisPtrEnd = thisPtr + (len * 2) - searchLenX2;
+  const thisPtrEnd: i32 = thisPtr + (len * 2) - searchLenX2;
 
   thisPtr += position * 2;
 
@@ -255,7 +255,7 @@ export const ___bytestring_prototype_indexOf = (_this: bytestring, searchString:
       else position |= 0;
   } else position = 0;
 
-  const thisPtrEnd = thisPtr + len - searchLen;
+  const thisPtrEnd: i32 = thisPtr + len - searchLen;
 
   thisPtr += position;
 
