@@ -2218,7 +2218,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const name = decl.left.object.name;
     const pointer = scope.arrays?.get(name);
 
-    const aotPointer = pointer != null;
+    const aotPointer = Prefs.aotPointerOpt && pointer != null;
 
     const newValueTmp = localTmp(scope, '__length_setter_tmp');
 
@@ -2245,7 +2245,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const name = decl.left.object.name;
     const pointer = scope.arrays?.get(name);
 
-    const aotPointer = pointer != null;
+    const aotPointer = Prefs.aotPointerOpt && pointer != null;
 
     const newValueTmp = localTmp(scope, '__member_setter_val_tmp');
     const pointerTmp = op === '=' ? -1 : localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
@@ -3076,7 +3076,7 @@ export const generateMember = (scope, decl, _global, _name) => {
   const name = decl.object.name;
   const pointer = scope.arrays?.get(name);
 
-  const aotPointer = pointer != null;
+  const aotPointer = Prefs.aotPointerOpt && pointer != null;
 
   // hack: .length
   if (decl.property.name === 'length') {

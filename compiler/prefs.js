@@ -1,4 +1,4 @@
-const onByDefault = [ 'bytestring' ];
+const onByDefault = [ 'bytestring', 'aotPointerOpt' ];
 
 let cache = {};
 const obj = new Proxy({}, {
