@@ -68,6 +68,8 @@ export const ___bytestring_prototype_toLowerCase = (_this: bytestring) => {
 
 
 export const __String_prototype_startsWith = (_this: string, searchString: string, position: number) => {
+  // todo: handle bytestring searchString
+
   // todo/perf: investigate whether for counter vs while ++s are faster
   // todo: handle when searchString is bytestring
 
@@ -125,7 +127,9 @@ export const ___bytestring_prototype_startsWith = (_this: bytestring, searchStri
 };
 
 
-export const __String_prototype_endsWith = (_this: bytestring, searchString: bytestring, endPosition: number) => {
+export const __String_prototype_endsWith = (_this: string, searchString: string, endPosition: number) => {
+  // todo: handle bytestring searchString
+
   let i: i32 = Porffor.wasm`local.get ${_this}`,
       j: i32 = Porffor.wasm`local.get ${searchString}`;
 
@@ -201,7 +205,9 @@ export const ___bytestring_prototype_endsWith = (_this: bytestring, searchString
 };
 
 
-export const ___String_prototype_indexOf = (_this: bytestring, searchString: bytestring, position: number) => {
+export const ___String_prototype_indexOf = (_this: string, searchString: string, position: number) => {
+  // todo: handle bytestring searchString
+
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
 
@@ -280,7 +286,9 @@ export const ___bytestring_prototype_indexOf = (_this: bytestring, searchString:
 };
 
 
-export const ___String_prototype_lastIndexOf = (_this: bytestring, searchString: bytestring, position: number) => {
+export const ___String_prototype_lastIndexOf = (_this: string, searchString: string, position: number) => {
+  // todo: handle bytestring searchString
+
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
 
@@ -370,7 +378,9 @@ export const ___bytestring_prototype_lastIndexOf = (_this: bytestring, searchStr
 };
 
 
-export const ___String_prototype_includes = (_this: bytestring, searchString: bytestring, position: number) => {
+export const ___String_prototype_includes = (_this: string, searchString: string, position: number) => {
+  // todo: handle bytestring searchString
+
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
 
