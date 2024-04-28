@@ -31,8 +31,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
   const source = fs.readFileSync(file, 'utf8');
   const first = source.slice(0, source.indexOf('\n'));
 
-  let args = ['-bytestring', '-todo-time=compile'];
-  if (file.endsWith('.ts')) args.push('-parse-types', '-opt-types');
+  let args = ['-bytestring', '-todo-time=compile', '-no-aot-pointer-opt', '-parse-types', '-opt-types'];
   if (first.startsWith('// @porf')) {
     args = args.concat(first.slice('// @porf '.length).split(' '));
   }
