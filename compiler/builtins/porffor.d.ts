@@ -17,10 +17,6 @@ type PorfforGlobal = {
     }
   }
 
-  ecma262: {
-    ToIntegerOrInfinity(arg: any): i32
-  }
-
   // randomInt(): i32;
   randomByte(): i32;
 
