@@ -28,8 +28,13 @@ const TYPES = {
 const argv = process.argv.slice();
 
 const compile = async (file, [ _funcs, _globals ]) => {
-  const source = fs.readFileSync(file, 'utf8');
-  const first = source.slice(0, source.indexOf('\n'));
+  let source = fs.readFileSync(file, 'utf8');
+  let first = source.slice(0, source.indexOf('\n'));
+
+  if (first.startsWith('export default')) {
+    source = (await import(file)).default();
+    first = source.slice(0, source.indexOf('\n'));
+  }
 
   let args = ['-bytestring', '-todo-time=compile', '-no-aot-pointer-opt', '-parse-types', '-opt-types'];
   if (first.startsWith('// @porf')) {
