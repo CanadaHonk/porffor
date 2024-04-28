@@ -2984,7 +2984,8 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
     const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
 
-    scope.arrays.set(name, allocPage(scope, `${getAllocType(itemType)}: ${uniqueName}`, itemType) * pageSize);
+    if (Prefs.scopedPageNames) scope.arrays.set(name, allocPage(scope, `${scope.name} | ${getAllocType(itemType)}: ${uniqueName}`, itemType) * pageSize);
+      else scope.arrays.set(name, allocPage(scope, `${getAllocType(itemType)}: ${uniqueName}`, itemType) * pageSize);
   }
 
   const pointer = scope.arrays.get(name);
