@@ -51,7 +51,12 @@ const compile = async (file, [ _funcs, _globals ]) => {
 
   const exports = funcs.filter(x => x.export);
   for (const x of exports) {
-    if (x.data) x.data = x.data.map(x => data[x]);
+    if (x.data) {
+      x.data = x.data.map(x => data[x]);
+      for (const y in x.data) {
+        x.data[y].offset -= x.data[0].offset;
+      }
+    }
     if (x.exceptions) x.exceptions = x.exceptions.map(x => {
       const obj = exceptions[x];
       if (obj) obj.exceptId = x;
