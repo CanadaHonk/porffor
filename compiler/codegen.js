@@ -1410,6 +1410,11 @@ const getNodeType = (scope, node) => {
       return TYPES.number;
     }
 
+    if (node.type === 'TaggedTemplateExpression') {
+      // hack
+      if (node.tag.name.startsWith('__Porffor_')) return TYPES.number;
+    }
+
     if (scope.locals['#last_type']) return [ getLastType(scope) ];
 
     // presume
