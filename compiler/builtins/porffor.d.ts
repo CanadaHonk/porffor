@@ -35,7 +35,3 @@ declare global {
   type i64 = number;
   type bytestring = string;
 }
-
-interface Math {
-
-}
