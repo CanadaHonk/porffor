@@ -26,6 +26,9 @@ type PorfforGlobal = {
 
   fastOr(...args: any): boolean;
   fastAnd(...args: any): boolean;
+
+  s(...args: any): string;
+  bs(...args: any): bytestring;
 };
 
 declare global {
