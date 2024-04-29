@@ -26,7 +26,7 @@ const logFuncs = (funcs, globals, exceptions) => {
   console.log();
 };
 
-const writeFileSync = (typeof process?.version !== 'undefined' ? (await import('node:fs')).writeFileSync : undefined);
+const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 const execSync = (typeof process?.version !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
 
 export default (code, flags) => {
@@ -63,7 +63,7 @@ export default (code, flags) => {
   const outFile = Prefs.o;
 
   if (target === 'wasm' && outFile) {
-    writeFileSync(outFile, Buffer.from(wasm));
+    fs.writeFileSync(outFile, Buffer.from(wasm));
 
     if (process.version) process.exit();
   }
@@ -73,7 +73,7 @@ export default (code, flags) => {
     out.c = c;
 
     if (outFile) {
-      writeFileSync(outFile, c);
+      fs.writeFileSync(outFile, c);
     } else {
       console.log(c);
     }
@@ -88,16 +88,18 @@ export default (code, flags) => {
     if (compiler === 'zig') compiler = [ 'zig', 'cc' ];
       else compiler = [ compiler ];
 
-    const tmpfile = 'tmp.c';
+    const tmpfile = 'porffor_tmp.c';
     // const args = [ compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO, '-march=native', '-s', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections', '-Wl', '-fno-ident', '-fno-exceptions', '-ffast-math' ];
     // const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO, '-march=native', '-s', '-ffast-math', '-fno-exceptions', '-target', 'x86_64-linux' ];
     const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO, '-march=native', '-s', '-ffast-math', '-fno-exceptions' ];
 
     const c = toc(out);
-    writeFileSync(tmpfile, c);
+    fs.writeFileSync(tmpfile, c);
 
     // obvious command escape is obvious
     execSync(args.join(' '), { stdio: 'inherit' });
+
+    fs.unlinkSync(tmpfile);
 
     if (process.version) process.exit();
   }
