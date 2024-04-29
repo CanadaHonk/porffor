@@ -709,3 +709,75 @@ export const ___bytestring_prototype_substring = (_this: bytestring, start: numb
 
   return out;
 };
+
+
+export const __String_prototype_substr = (_this: string, start: number, length: number) => {
+  const len: i32 = _this.length;
+
+  start |= 0;
+
+  if (start < 0) {
+    start = len + start;
+    if (start < 0) start = 0;
+  }
+
+  if (Porffor.wasm`local.get ${length+1}` == Porffor.TYPES.undefined) length = len - start;
+
+  length |= 0;
+
+  if (start + length > len) length = len - start;
+
+  let out: string = Porffor.s``;
+
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+
+  thisPtr += start * 2;
+
+  const thisPtrEnd: i32 = thisPtr + length * 2;
+
+  while (thisPtr < thisPtrEnd) {
+    Porffor.wasm.i32.store16(outPtr, Porffor.wasm.i32.load16_u(thisPtr, 0, 4), 0, 4);
+
+    thisPtr += 2;
+    outPtr += 2;
+  }
+
+  out.length = length;
+
+  return out;
+};
+
+export const ___bytestring_prototype_substr = (_this: string, start: number, length: number) => {
+  const len: i32 = _this.length;
+
+  start |= 0;
+
+  if (start < 0) {
+    start = len + start;
+    if (start < 0) start = 0;
+  }
+
+  if (Porffor.wasm`local.get ${length+1}` == Porffor.TYPES.undefined) length = len - start;
+
+  length |= 0;
+
+  if (start + length > len) length = len - start;
+
+  let out: bytestring = Porffor.bs``;
+
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+
+  thisPtr += start;
+
+  const thisPtrEnd: i32 = thisPtr + length;
+
+  while (thisPtr < thisPtrEnd) {
+    Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(thisPtr++, 0, 4), 0, 4);
+  }
+
+  out.length = length;
+
+  return out;
+};
