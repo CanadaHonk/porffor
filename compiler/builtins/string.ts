@@ -635,3 +635,77 @@ export const ___bytestring_prototype_padEnd = (_this: bytestring, targetLength: 
 
   return out;
 };
+
+
+export const __String_prototype_substring = (_this: string, start: number, end: number) => {
+  const len: i32 = _this.length;
+  if (Porffor.wasm`local.get ${end+1}` == Porffor.TYPES.undefined) end = len;
+    else if (start > end) {
+      const tmp: i32 = end;
+      end = start;
+      start = tmp;
+    }
+
+  start |= 0;
+  end |= 0;
+
+  if (start < 0) start = 0;
+  if (start > len) start = len;
+  if (end < 0) end = 0;
+  if (end > len) end = len;
+
+  let out: bytestring = Porffor.s``;
+
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+
+  const thisPtrEnd: i32 = thisPtr + end * 2;
+
+  thisPtr += start * 2;
+
+  while (thisPtr < thisPtrEnd) {
+    Porffor.wasm.i32.store16(outPtr, Porffor.wasm.i32.load16_u(thisPtr, 0, 4), 0, 4);
+
+    thisPtr += 2;
+    outPtr += 2;
+  }
+
+  out.length = end - start;
+
+  return out;
+};
+
+export const ___bytestring_prototype_substring = (_this: bytestring, start: number, end: number) => {
+  const len: i32 = _this.length;
+  if (Porffor.wasm`local.get ${end+1}` == Porffor.TYPES.undefined) end = len;
+    else if (start > end) {
+      const tmp: i32 = end;
+      end = start;
+      start = tmp;
+    }
+
+  start |= 0;
+  end |= 0;
+
+  if (start < 0) start = 0;
+  if (start > len) start = len;
+  if (end < 0) end = 0;
+  if (end > len) end = len;
+
+  let out: bytestring = Porffor.bs``;
+
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+
+  const thisPtrEnd: i32 = thisPtr + end;
+
+  thisPtr += start;
+
+  while (thisPtr < thisPtrEnd) {
+    Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(thisPtr++, 0, 4), 0, 4);
+  }
+
+  out.length = end - start;
+
+  return out;
+};
