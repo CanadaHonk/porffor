@@ -654,7 +654,7 @@ export const __String_prototype_substring = (_this: string, start: number, end: 
   if (end < 0) end = 0;
   if (end > len) end = len;
 
-  let out: bytestring = Porffor.s``;
+  let out: string = Porffor.s``;
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
