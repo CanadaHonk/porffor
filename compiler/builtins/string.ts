@@ -468,6 +468,8 @@ export const __String_prototype_padStart = (_this: string, targetLength: number,
 
   const len: i32 = _this.length;
 
+  targetLength |= 0;
+
   const todo: i32 = targetLength - len;
   if (todo > 0) {
     if (Porffor.wasm`local.get ${padString+1}` == Porffor.TYPES.undefined) {
@@ -475,6 +477,8 @@ export const __String_prototype_padStart = (_this: string, targetLength: number,
         Porffor.wasm.i32.store16(outPtr, 32, 0, 4);
         outPtr += 2;
       }
+
+      out.length = targetLength;
     } else {
       const padStringLen: i32 = padString.length;
       if (padStringLen > 0) {
@@ -483,20 +487,19 @@ export const __String_prototype_padStart = (_this: string, targetLength: number,
           Porffor.wasm.i32.store16(outPtr, padString.charCodeAt(i % padStringLen), 0, 4);
           outPtr += 2;
         }
-      }
+        out.length = targetLength;
+      } else out.length = len;
     }
-  }
+  } else out.length = len;
 
   const thisPtrEnd: i32 = thisPtr + len * 2;
 
-  while (thisPtr <= thisPtrEnd) {
+  while (thisPtr < thisPtrEnd) {
     Porffor.wasm.i32.store16(outPtr, Porffor.wasm.i32.load16_u(thisPtr, 0, 4), 0, 4);
 
     thisPtr += 2;
     outPtr += 2;
   }
-
-  out.length = len > targetLength ? len : targetLength;
 
   return out;
 };
@@ -512,31 +515,34 @@ export const ___bytestring_prototype_padStart = (_this: bytestring, targetLength
 
   const len: i32 = _this.length;
 
+  targetLength |= 0;
+
   const todo: i32 = targetLength - len;
-  let padStringLen: i32 = 1;
   if (todo > 0) {
     if (Porffor.wasm`local.get ${padString+1}` == Porffor.TYPES.undefined) {
       for (let i: i32 = 0; i < todo; i++) {
         Porffor.wasm.i32.store8(outPtr++, 32, 0, 4);
       }
+
+      out.length = targetLength;
     } else {
-      padStringLen = padString.length;
+      const padStringLen: i32 = padString.length;
       if (padStringLen > 0) {
         for (let i: i32 = 0; i < todo; i++) {
           Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(padStringPtr + (i % padStringLen), 0, 4), 0, 4);
           // Porffor.wasm.i32.store8(outPtr++, padString.charCodeAt(i % padStringLen), 0, 4);
         }
-      }
+
+        out.length = targetLength;
+      } else out.length = len;
     }
-  }
+  } else out.length = len;
 
   const thisPtrEnd: i32 = thisPtr + len;
 
-  while (thisPtr <= thisPtrEnd) {
+  while (thisPtr < thisPtrEnd) {
     Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(thisPtr++, 0, 4), 0, 4);
   }
-
-  out.length = Porffor.fastOr(padStringLen < 1, len > targetLength) ? len : targetLength;
 
   return out;
 };
