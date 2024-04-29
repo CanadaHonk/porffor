@@ -31,7 +31,7 @@ export const ___bytestring_prototype_toUpperCase = (_this: bytestring) => {
   while (i < endPtr) {
     let chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
 
-    if (chr >= 97 && chr <= 122) chr -= 32;
+    if (chr >= 97) if (chr <= 122) chr -= 32;
 
     Porffor.wasm.i32.store8(j++, chr, 0, 4);
   }
@@ -58,7 +58,7 @@ export const ___bytestring_prototype_toLowerCase = (_this: bytestring) => {
   while (i < endPtr) {
     let chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
 
-    if (chr >= 65 && chr <= 90) chr += 32;
+    if (chr >= 65) if (chr <= 90) chr += 32;
 
     Porffor.wasm.i32.store8(j++, chr, 0, 4);
   }
