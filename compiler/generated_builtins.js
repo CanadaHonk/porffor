@@ -269,14 +269,13 @@ export const BuiltinFuncs = function() {
     data: [{"offset":0,"bytes":[1,0,0,0,46]}],
   };
   this.__String_prototype_toUpperCase = {
-    wasm: (scope, { allocPage, builtin }) => [[65,[0]],[8,0],[65,0],[65,3],[15]],
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,2],...number(allocPage(scope, '__String_prototype_toUpperCase | string: out', 'i16') * pageSize, 127),[34,3],[32,2],[54,0,0],[32,0],[33,5],[32,3],[33,6],[32,5],[32,2],[65,2],[108],[106],[33,7],[3,64],[32,5],[32,7],[72],[4,64],[32,5],[47,0,4],[33,8],[32,5],[65,2],[106],[33,5],[32,8],[65,225,0],[78],[4,64],[32,8],[65,250,0],[76],[4,64],[32,8],[65,32],[107],[33,8],[11],[11],[32,6],[32,8],[59,0,4],[32,6],[65,2],[106],[33,6],[12,1],[11],[11],[32,3],[65,2],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
     typedReturns: true,
-    locals: [],
-    localNames: ["_this","_this#type"],
-    exceptions: [{"constructor":"TodoError","message":"String.prototype.toUpperCase (non-bytestring)","exceptId":0}],
+    locals: [127,127,127,127,127,127,127],
+    localNames: ["_this","_this#type","len","out","#last_type","i","j","endPtr","chr"],
   };
   this.___bytestring_prototype_toUpperCase = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,2],...number(allocPage(scope, '___bytestring_prototype_toUpperCase | bytestring: out', 'i8') * pageSize, 127),[34,3],[32,2],[54,0,0],[32,0],[33,4],[32,3],[33,5],[32,4],[32,2],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[34,7],[65,225,0],[78],[4,64],[32,7],[65,250,0],[76],[4,64],[32,7],[65,32],[107],[33,7],[11],[11],[32,5],[32,5],[65,1],[106],[33,5],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,18],[15]],
@@ -288,14 +287,13 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","len","out","i","j","endPtr","chr"],
   };
   this.__String_prototype_toLowerCase = {
-    wasm: (scope, { allocPage, builtin }) => [[65,[1]],[8,0],[65,0],[65,3],[15]],
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,2],...number(allocPage(scope, '__String_prototype_toLowerCase | string: out', 'i16') * pageSize, 127),[34,3],[32,2],[54,0,0],[32,0],[33,5],[32,3],[33,6],[32,5],[32,2],[65,2],[108],[106],[33,7],[3,64],[32,5],[32,7],[72],[4,64],[32,5],[47,0,4],[33,8],[32,5],[65,2],[106],[33,5],[32,8],[65,193,0],[78],[4,64],[32,8],[65,218,0],[76],[4,64],[32,8],[65,32],[106],[33,8],[11],[11],[32,6],[32,8],[59,0,4],[32,6],[65,2],[106],[33,6],[12,1],[11],[11],[32,3],[65,2],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
     typedReturns: true,
-    locals: [],
-    localNames: ["_this","_this#type"],
-    exceptions: [{"constructor":"TodoError","message":"String.prototype.toLowerCase (non-bytestring)","exceptId":1}],
+    locals: [127,127,127,127,127,127,127],
+    localNames: ["_this","_this#type","len","out","#last_type","i","j","endPtr","chr"],
   };
   this.___bytestring_prototype_toLowerCase = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,2],...number(allocPage(scope, '___bytestring_prototype_toLowerCase | bytestring: out', 'i8') * pageSize, 127),[34,3],[32,2],[54,0,0],[32,0],[33,4],[32,3],[33,5],[32,4],[32,2],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[34,7],[65,193,0],[78],[4,64],[32,7],[65,218,0],[76],[4,64],[32,7],[65,32],[106],[33,7],[11],[11],[32,5],[32,5],[65,1],[106],[33,5],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,18],[15]],
@@ -404,7 +402,7 @@ export const BuiltinFuncs = function() {
     typedReturns: true,
     locals: [127,127,127,127,127,127,127,127,127,127,127,127,127],
     localNames: ["_this","_this#type","targetLength","targetLength#type","padString","padString#type","out","#last_type","outPtr","thisPtr","len","todo","i","__length_setter_tmp","padStringLen","__proto_length_cache","__proto_pointer_cache","__charCodeAt_tmp","thisPtrEnd"],
-    exceptions: [{"constructor":"TypeError","message":"'charCodeAt' proto func tried to be called on a type without an impl","exceptId":2}],
+    exceptions: [{"constructor":"TypeError","message":"'charCodeAt' proto func tried to be called on a type without an impl","exceptId":0}],
   };
   this.___bytestring_prototype_padStart = {
     wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, '___bytestring_prototype_padStart | bytestring: out', 'i8') * pageSize, 127),[34,6],[33,8],[32,0],[33,9],[32,4],[33,10],[32,0],[40,1,0],[33,11],[32,2],[65,0],[114],[34,2],[65,0],[33,3],[26],[32,2],[32,11],[107],[34,12],[65,0],[74],[4,64],[32,5],[65,3],[70],[4,64],[65,0],[33,13],[3,64],[32,13],[32,12],[72],[4,64],[32,8],[32,8],[65,1],[106],[33,8],[65,32],[58,0,4],[32,13],[65,1],[106],[33,13],[12,1],[11],[11],[32,6],[32,2],[34,14],[54,1,0],[5],[32,4],[40,1,0],[34,15],[65,0],[74],[4,64],[65,0],[33,13],[3,64],[32,13],[32,12],[72],[4,64],[32,8],[32,8],[65,1],[106],[33,8],[32,10],[32,13],[32,15],[111],[106],[45,0,4],[58,0,4],[32,13],[65,1],[106],[33,13],[12,1],[11],[11],[32,6],[32,2],[34,14],[54,1,0],[5],[32,6],[32,11],[34,14],[54,1,0],[11],[11],[5],[32,6],[32,11],[34,14],[54,1,0],[11],[32,9],[32,11],[106],[33,16],[3,64],[32,9],[32,16],[72],[4,64],[32,8],[32,8],[65,1],[106],[33,8],[32,9],[32,9],[65,1],[106],[33,9],[45,0,4],[58,0,4],[12,1],[11],[11],[32,6],[65,18],[15]],
@@ -423,7 +421,7 @@ export const BuiltinFuncs = function() {
     typedReturns: true,
     locals: [127,127,127,127,127,127,127,127,127,127,127,127,127],
     localNames: ["_this","_this#type","targetLength","targetLength#type","padString","padString#type","out","#last_type","outPtr","thisPtr","len","thisPtrEnd","todo","i","__length_setter_tmp","padStringLen","__proto_length_cache","__proto_pointer_cache","__charCodeAt_tmp"],
-    exceptions: [{"constructor":"TypeError","message":"'charCodeAt' proto func tried to be called on a type without an impl","exceptId":3}],
+    exceptions: [{"constructor":"TypeError","message":"'charCodeAt' proto func tried to be called on a type without an impl","exceptId":1}],
   };
   this.___bytestring_prototype_padEnd = {
     wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, '___bytestring_prototype_padEnd | bytestring: out', 'i8') * pageSize, 127),[34,6],[33,8],[32,0],[33,9],[32,4],[33,10],[32,0],[40,1,0],[33,11],[32,9],[32,11],[106],[33,12],[3,64],[32,9],[32,12],[72],[4,64],[32,8],[32,8],[65,1],[106],[33,8],[32,9],[32,9],[65,1],[106],[33,9],[45,0,4],[58,0,4],[12,1],[11],[11],[32,2],[65,0],[114],[34,2],[65,0],[33,3],[26],[32,2],[32,11],[107],[34,13],[65,0],[74],[4,64],[32,5],[65,3],[70],[4,64],[65,0],[33,14],[3,64],[32,14],[32,13],[72],[4,64],[32,8],[32,8],[65,1],[106],[33,8],[65,32],[58,0,4],[32,14],[65,1],[106],[33,14],[12,1],[11],[11],[32,6],[32,2],[34,15],[54,1,0],[5],[32,4],[40,1,0],[34,16],[65,0],[74],[4,64],[65,0],[33,14],[3,64],[32,14],[32,13],[72],[4,64],[32,8],[32,8],[65,1],[106],[33,8],[32,10],[32,14],[32,16],[111],[106],[45,0,4],[58,0,4],[32,14],[65,1],[106],[33,14],[12,1],[11],[11],[32,6],[32,2],[34,15],[54,1,0],[5],[32,6],[32,11],[34,15],[54,1,0],[11],[11],[5],[32,6],[32,11],[34,15],[54,1,0],[11],[32,6],[65,18],[15]],

@@ -14,8 +14,27 @@ export const __String_fromCharCode = (code: i32) => {
 };
 
 export const __String_prototype_toUpperCase = (_this: string) => {
-  // todo
-  throw new TodoError('String.prototype.toUpperCase (non-bytestring)');
+  // todo: unicode not just ascii
+  const len: i32 = _this.length;
+
+  let out: string = Porffor.s``;
+  Porffor.wasm.i32.store(out, len, 0, 0);
+
+  let i: i32 = Porffor.wasm`local.get ${_this}`,
+      j: i32 = Porffor.wasm`local.get ${out}`;
+
+  const endPtr: i32 = i + len * 2;
+  while (i < endPtr) {
+    let chr: i32 = Porffor.wasm.i32.load16_u(i, 0, 4);
+    i += 2;
+
+    if (chr >= 97) if (chr <= 122) chr -= 32;
+
+    Porffor.wasm.i32.store16(j, chr, 0, 4);
+    j += 2;
+  }
+
+  return out;
 };
 
 export const ___bytestring_prototype_toUpperCase = (_this: bytestring) => {
@@ -41,8 +60,27 @@ export const ___bytestring_prototype_toUpperCase = (_this: bytestring) => {
 
 
 export const __String_prototype_toLowerCase = (_this: string) => {
-  // todo
-  throw new TodoError('String.prototype.toLowerCase (non-bytestring)');
+  // todo: unicode not just ascii
+  const len: i32 = _this.length;
+
+  let out: string = Porffor.s``;
+  Porffor.wasm.i32.store(out, len, 0, 0);
+
+  let i: i32 = Porffor.wasm`local.get ${_this}`,
+      j: i32 = Porffor.wasm`local.get ${out}`;
+
+  const endPtr: i32 = i + len * 2;
+  while (i < endPtr) {
+    let chr: i32 = Porffor.wasm.i32.load16_u(i, 0, 4);
+    i += 2;
+
+    if (chr >= 65) if (chr <= 90) chr += 32;
+
+    Porffor.wasm.i32.store16(j, chr, 0, 4);
+    j += 2;
+  }
+
+  return out;
 };
 
 export const ___bytestring_prototype_toLowerCase = (_this: bytestring) => {
