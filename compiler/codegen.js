@@ -1624,6 +1624,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
     target = { ...decl.callee };
     target.name = spl.slice(0, -1).join('_');
+
+    // failed to lookup name, abort
+    if (!lookupName(scope, target.name)[0]) protoName = null;
   }
 
   // literal.func()
