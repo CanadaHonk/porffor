@@ -861,3 +861,157 @@ export const ___bytestring_prototype_slice = (_this: bytestring, start: number, 
 
   return out;
 };
+
+
+export const __String_prototype_trimStart = (_this: string) => {
+  let out: string = Porffor.s``;
+
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+
+  const len: i32 = _this.length;
+
+  const thisPtrEnd: i32 = thisPtr + len * 2;
+
+  let n: i32 = 0, start: boolean = true;
+  while (thisPtr < thisPtrEnd) {
+    const chr: i32 = Porffor.wasm.i32.load16_u(thisPtr, 0, 4);
+    thisPtr += 2;
+
+    if (start) {
+      // todo: not spec compliant, needs more unicode chars
+      if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
+        n++;
+        continue;
+      }
+
+      start = false;
+    }
+
+    Porffor.wasm.i32.store16(outPtr, chr, 0, 4);
+    outPtr += 2;
+  }
+
+  out.length = len - n;
+
+  return out;
+};
+
+export const ___bytestring_prototype_trimStart = (_this: bytestring) => {
+  let out: bytestring = Porffor.bs``;
+
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+
+  const len: i32 = _this.length;
+
+  const thisPtrEnd: i32 = thisPtr + len;
+
+  let n: i32 = 0, start: boolean = true;
+  while (thisPtr < thisPtrEnd) {
+    const chr: i32 = Porffor.wasm.i32.load8_u(thisPtr++, 0, 4);
+
+    if (start) {
+      // todo: not spec compliant, needs more unicode chars
+      if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
+        n++;
+        continue;
+      }
+
+      start = false;
+    }
+
+    Porffor.wasm.i32.store8(outPtr++, chr, 0, 4);
+  }
+
+  out.length = len - n;
+
+  return out;
+};
+
+
+export const __String_prototype_trimEnd = (_this: string) => {
+  let out: string = Porffor.s``;
+
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+
+  const len: i32 = _this.length;
+
+  const thisPtrStart: i32 = thisPtr;
+
+  thisPtr += len * 2;
+  outPtr += len * 2;
+
+  let n: i32 = 0, start: boolean = true;
+  while (thisPtr > thisPtrStart) {
+    thisPtr -= 2;
+    const chr: i32 = Porffor.wasm.i32.load16_u(thisPtr, 0, 4);
+
+    outPtr -= 2;
+
+    if (start) {
+      // todo: not spec compliant, needs more unicode chars
+      if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
+        n++;
+        continue;
+      }
+
+      start = false;
+    }
+
+    Porffor.wasm.i32.store16(outPtr, chr, 0, 4);
+  }
+
+  out.length = len - n;
+
+  return out;
+};
+
+export const ___bytestring_prototype_trimEnd = (_this: bytestring) => {
+  let out: bytestring = Porffor.bs``;
+
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+
+  const len: i32 = _this.length;
+
+  const thisPtrStart: i32 = thisPtr;
+
+  thisPtr += len;
+  outPtr += len;
+
+  let n: i32 = 0, start: boolean = true;
+  while (thisPtr > thisPtrStart) {
+    const chr: i32 = Porffor.wasm.i32.load8_u(--thisPtr, 0, 4);
+
+    outPtr--;
+
+    if (start) {
+      // todo: not spec compliant, needs more unicode chars
+      if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
+        n++;
+        continue;
+      }
+
+      start = false;
+    }
+
+    Porffor.wasm.i32.store8(outPtr, chr, 0, 4);
+  }
+
+  out.length = len - n;
+
+  return out;
+};
+
+
+export const __String_prototype_trim = (_this: string) => {
+  // todo/perf: optimize and not just reuse
+  return __String_prototype_trimStart(__String_prototype_trimEnd(_this));
+};
+
+export const ___bytestring_prototype_trim = (_this: bytestring) => {
+  // todo/perf: optimize and not just reuse
+  return ___bytestring_prototype_trimStart(___bytestring_prototype_trimEnd(_this));
+};
