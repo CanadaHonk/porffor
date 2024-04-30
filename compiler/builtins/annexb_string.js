@@ -56,7 +56,7 @@ ${[...a1].map((x, i) => `  Porffor.wasm.i32.store8(outPtr, ${x.charCodeAt(0)}, 0
 
   return out;
 };
-  `;
+`;
 
   annexB_noArgs('big', 'big');
   annexB_noArgs('blink', 'blink');

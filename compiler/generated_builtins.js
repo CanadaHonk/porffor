@@ -182,6 +182,43 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","out","#last_type","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp"],
     data: [{"offset":0,"bytes":[5,0,0,0,60,115,117,112,62]}],
   };
+  this.__String_prototype_trimLeft = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,2],[16, builtin('__String_prototype_trimStart')],[34,2],[15]],
+    params: [127,127],
+    typedParams: true,
+    returns: [127,127],
+    typedReturns: true,
+    locals: [127],
+    localNames: ["_this","_this#type","#last_type"],
+  };
+  this.___bytestring_prototype_trimLeft = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,2],[16, builtin('___bytestring_prototype_trimStart')],[34,2],[15]],
+    params: [127,127],
+    typedParams: true,
+    returns: [127,127],
+    typedReturns: true,
+    locals: [127],
+    localNames: ["_this","_this#type","#last_type"],
+  };
+  this.__String_prototype_trimRight = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,2],[16, builtin('__String_prototype_trimEnd')],[34,2],[15]],
+    params: [127,127],
+    typedParams: true,
+    returns: [127,127],
+    typedReturns: true,
+    locals: [127],
+    localNames: ["_this","_this#type","#last_type"],
+  };
+  this.___bytestring_prototype_trimEnd = {
+    wasm: (scope, { allocPage, builtin }) => [[65,[0]],[8,0],[65,0],[65,0],[15]],
+    params: [127,127],
+    typedParams: true,
+    returns: [127,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
+    exceptions: [{"constructor":"ReferenceError","message":".bytestring.prototype.trimRight is not defined","exceptId":0}],
+  };
   this.__Array_isArray = {
     wasm: (scope, { allocPage, builtin }) => [[32,1],[65,16],[70],[15]],
     params: [127,127],
