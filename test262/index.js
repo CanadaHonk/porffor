@@ -90,6 +90,8 @@ const run = ({ file, contents, attrs }) => {
 
   // fs.writeFileSync('r.js', toRun);
 
+  currentTest = file;
+
   let exports, exceptions;
   try {
     const out = compile(toRun, attrs.flags.module ? [ 'module' ] : []);
@@ -145,17 +147,24 @@ if (!resultOnly) console.log();
 
 const profile = process.argv.includes('-profile');
 const log = console.log;
+let currentTest;
 if (profile) {
   process.argv.push('-profile-compiler');
 
   const log = console.log;
   console.log = msg => {
     if (msg[1] === '.' || msg[2] === ' ') {
-      profileStats[msg[0]] += Number(msg.split(' ').pop().slice(0, -2));
+      const n = Number(msg.split(' ').pop().slice(0, -2));
+      profileStats[msg[0]] += n;
+
+      perTestProfile[currentTest] ??= [ 0, 0, 0, 0, 0 ];
+      perTestProfile[currentTest][0] += n;
+      perTestProfile[currentTest][msg[0]] = n;
     }
   };
 }
 
+const perTestProfile = {};
 const profileStats = {
   1: 0, // parse
   2: 0, // codegen
@@ -400,6 +409,18 @@ if (trackErrors) {
 }
 
 if (profile) {
+  const longestTests = Object.keys(perTestProfile).sort((a, b) => perTestProfile[b][0] - perTestProfile[a][0])
+    .slice(0, 40);
+
+  const longestTestName = Math.max(...longestTests.map(x => x.length)) + 4;
+
+  console.log('\n\x1b[4mlongest individual tests\x1b[0m');
+
+  for (const x of longestTests) {
+    const profile = perTestProfile[x].map(x => x.toFixed(2) + 'ms');
+    console.log(`${x.replace('test/', '')}${' '.repeat(longestTestName - x.length)} \x1B[90m│\x1B[0m \x1B[1m${profile[0]} total\x1B[0m (parse: ${profile[1]}, codegen: ${profile[2]}, opt: ${profile[3]}, assemble: ${profile[4]})`);
+  }
+
   console.log('\n\x1b[4mtime spent on compiler stages\x1b[0m');
 
   let n = 1;
