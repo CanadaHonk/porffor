@@ -1,5 +1,6 @@
 export type i32 = number;
 export type i64 = number;
+export type f64 = number;
 export type bytestring = string;
 
 type PorfforGlobal = {
@@ -36,5 +37,6 @@ declare global {
 
   type i32 = number;
   type i64 = number;
+  type f64 = number;
   type bytestring = string;
 }
