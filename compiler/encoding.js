@@ -156,5 +156,52 @@ export const read_unsignedLEB128 = _input => {
 };
 
 // ieee 754 binary64
+// const ieee754Cache = {};
+// export const ieee754_binary64 = value => {
+//   if (ieee754Cache[value]) return ieee754Cache[value];
+//   return ieee754Cache[value] = [...new Uint8Array(new Float64Array([ value ]).buffer)];
+// };
 export const ieee754_binary64 = value => [...new Uint8Array(new Float64Array([ value ]).buffer)];
 export const read_ieee754_binary64 = buffer => new Float64Array(new Uint8Array(buffer).buffer)[0];
+
+
+// into funcs append to a given existing buffer instead of creating our own for perf
+export const signedLEB128_into = (n, buffer) => {
+  n |= 0;
+
+  // just input for small numbers (for perf as common)
+  if (n >= 0 && n <= 63) return buffer.push(n);
+  if (n >= -64 && n <= 0) return buffer.push(128 + n);
+
+  while (true) {
+    let byte = n & 0x7f;
+    n >>= 7;
+
+    if ((n === 0 && (byte & 0x40) === 0) || (n === -1 && (byte & 0x40) !== 0)) {
+      buffer.push(byte);
+      break;
+    } else {
+      byte |= 0x80;
+    }
+
+    buffer.push(byte);
+  }
+};
+
+export const unsignedLEB128_into = (n, buffer) => {
+  n |= 0;
+
+  // just input for small numbers (for perf as common)
+  if (n >= 0 && n <= 127) return buffer.push(n);
+
+  do {
+    let byte = n & 0x7f;
+    n >>>= 7;
+    if (n !== 0) {
+      byte |= 0x80;
+    }
+    buffer.push(byte);
+  } while (n !== 0);
+};
+
+export const ieee754_binary64_into = (value, buffer) => buffer.push(...new Uint8Array(new Float64Array([ value ]).buffer));
