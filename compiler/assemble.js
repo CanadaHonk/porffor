@@ -1,5 +1,5 @@
 import { Valtype, FuncType, Empty, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize } from './wasmSpec.js';
-import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128 } from './encoding.js';
+import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, ieee754_binary64 } from './encoding.js';
 import { number } from './embedding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from "./log.js";
@@ -100,10 +100,51 @@ export default (funcs, globals, tags, pages, data, flags) => {
     encodeVector(funcs.map(_ => chHint(0x02, 0x02, 0x02)))
   );
 
-  const globalSection = Object.keys(globals).length === 0 ? [] : createSection(
-    Section.global,
-    encodeVector(Object.keys(globals).map(x => [ globals[x].type, 0x01, ...number(globals[x].init ?? 0, globals[x].type).flat(), Opcodes.end ]))
-  );
+  // const t0 = performance.now();
+
+  // const globalsKeys = Object.keys(globals);
+  // const globalSection = globalsKeys.length === 0 ? [] : createSection(
+  //   Section.global,
+  //   encodeVector(Object.keys(globals).map(x => [ globals[x].type, 0x01, ...number(globals[x].init ?? 0, globals[x].type).flat(), Opcodes.end ]))
+  //   // unsignedLEB128(globalsKeys.length).concat(...globalsKeys.map(x => [ globals[x].type, 0x01, ...number(globals[x].init ?? 0, globals[x].type)[0], Opcodes.end ]))
+  //   // unsignedLEB128(globalsKeys.length).concat(globalsKeys.flatMap(x => [ globals[x].type, 0x01, ...number(globals[x].init ?? 0, globals[x].type)[0], Opcodes.end ]))
+  // );
+
+  const globalsValues = Object.values(globals);
+
+  let globalSection = [];
+  if (globalsValues.length > 0) {
+    let data = unsignedLEB128(globalsValues.length);
+    for (let i = 0; i < globalsValues.length; i++) {
+      const global = globalsValues[i];
+      // data.push(global.type, 0x01, ...number(global.init ?? 0, global.type)[0], Opcodes.end);
+
+      switch (global.type) {
+        case Valtype.i32:
+          data.push(Valtype.i32, 0x01, Opcodes.i32_const, ...signedLEB128(global.init ?? 0), Opcodes.end);
+          break;
+
+        case Valtype.i64:
+          data.push(Valtype.i64, 0x01, Opcodes.i64_const, ...signedLEB128(global.init ?? 0), Opcodes.end);
+          break;
+
+        case Valtype.f64:
+          data.push(Valtype.f64, 0x01, Opcodes.f64_const, ...ieee754_binary64(global.init ?? 0), Opcodes.end);
+          break;
+      }
+    }
+
+    globalSection = [ Section.global, ...unsignedLEB128(data.length) ].concat(data);
+  }
+
+  // if (Prefs.profileCompiler) {
+  //   const log = console.log;
+  //   console.log = function () {
+  //     log.apply(this, arguments);
+  //     console.log = log;
+  //     console.log(`  a. assembled global section in ${(performance.now() - t0).toFixed(2)}ms\n`);
+  //   };
+  // }
 
   const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, x.index ]);
 
