@@ -100,6 +100,7 @@ const run = ({ file, contents, attrs }) => {
         p: () => {},
         c: () => {},
         t: () => performance.now(),
+        y: () => {},
         z: () => {},
       }
     })).exports;

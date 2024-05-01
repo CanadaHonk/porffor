@@ -14,13 +14,13 @@ let funcs = {}, funcId = 0;
 source = source.replace(/^\s*(function|const)\s*([a-zA-Z0-9]+)(\s*=\s*)?\([^)]*\)\s*(=>)?\s*\{$/gm, (x, _, n) => {
   const id = funcId++;
   funcs[funcId] = n;
-  return `${x}profile(${100000 + id})`;
+  return `${x}profile2(Porffor.wasm.i32.const(${id}))`;
 });
 
 const lines = source.split('\n');
 for (let i = 0; i < lines.length; i++) {
   // lines[line] = lines[line].replace(/^[^\n}]*;$/, _ => `profile(${line});${_}`);
-  if (lines[i].trim().replace('}', '') !== '') lines[i] = `profile(${i});` + lines[i];
+  if (lines[i].trim().replace('}', '') !== '') lines[i] = `profile1(Porffor.wasm.i32.const(${i}));` + lines[i];
 }
 source = lines.join('\n');
 
@@ -48,20 +48,7 @@ let output = '';
 
 try {
   const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
-    z: n => {
-      if (n >= 100000) {
-        // start of call
-        callStack.push(funcs[n - 100000]);
-
-        callStarts.push(lastLine);
-
-        _paused = paused;
-        if (!stepIn) paused = false;
-          else paused = true;
-
-        return;
-      }
-
+    y: n => {
       if (callStarts[callStarts.length - 1] === n - 1) {
         // end of call
 
@@ -116,6 +103,16 @@ try {
           }
         }
       }
+    },
+    z: n => {
+      // start of call
+      callStack.push(funcs[n]);
+
+      callStarts.push(lastLine);
+
+      _paused = paused;
+      if (!stepIn) paused = false;
+        else paused = true;
     }
   }, s => output += s);
 

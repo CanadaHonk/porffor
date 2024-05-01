@@ -84,7 +84,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
-    encodeVector(importFuncs.map(x => [ 0, ...encodeString(x.import), ExportDesc.func, getType(new Array(x.params).fill(valtypeBinary), new Array(x.returns).fill(valtypeBinary)) ]))
+    encodeVector(importFuncs.map(x => [ 0, ...encodeString(x.import), ExportDesc.func, getType(new Array(x.params).fill(x.name.startsWith('profile') ? Valtype.i32 : valtypeBinary), new Array(x.returns).fill(valtypeBinary)) ]))
   );
 
   const funcSection = createSection(

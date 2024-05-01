@@ -23,12 +23,18 @@ export const importedFuncs = [
     returns: 1
   },
   {
-    name: 'profile',
+    name: 'profile1',
+    import: 'y',
+    params: 1,
+    returns: 0
+  },
+  {
+    name: 'profile2',
     import: 'z',
     params: 1,
     returns: 0
   }
-].filter(x => x);
+];
 
 for (let i = 0; i < importedFuncs.length; i++) {
   const f = importedFuncs[i];

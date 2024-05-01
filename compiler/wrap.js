@@ -54,6 +54,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
         p: valtype === 'i64' ? i => print(Number(i).toString()) : i => print(i.toString()),
         c: valtype === 'i64' ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
         t: () => performance.now(),
+        y: () => {},
         z: () => {},
         ...customImports
       }

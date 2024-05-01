@@ -1845,6 +1845,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       // pointer, value, align, offset
       i32_store16: { imms: 2, args: 2 },
 
+      // value
+      i32_const: { imms: 1, args: 0 },
+
       // a, b
       i32_or: { imms: 0, args: 2 },
     };
