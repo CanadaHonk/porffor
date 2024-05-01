@@ -2188,9 +2188,10 @@ const generateVar = (scope, decl) => {
       continue; // always ignore
     }
 
-    let idx = allocVar(scope, name, global, !x.id.typeAnnotation);
+    const typed = typedInput && x.id.typeAnnotation;
+    let idx = allocVar(scope, name, global, !typed);
 
-    if (typedInput && x.id.typeAnnotation) {
+    if (typed) {
       addVarMetadata(scope, name, global, extractTypeAnnotation(x.id));
     }
 
