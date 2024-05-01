@@ -110,7 +110,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
     const lastType = f.locals['#last_type'];
 
-    let runs = 2; // how many by default? add arg?
+    let runs = (+Prefs.optWasmRuns) || 2; // todo: how many by default?
     while (runs > 0) {
       runs--;
 
