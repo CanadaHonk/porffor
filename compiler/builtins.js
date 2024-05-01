@@ -1073,19 +1073,5 @@ export const BuiltinFuncs = function(TYPES) {
     ]
   };
 
-  const localIsOneOf = (getter, arr, valtype = valtypeBinary) => {
-    const out = [];
-
-    for (let i = 0; i < arr.length; i++) {
-      out.push(...getter, ...number(arr[i], valtype), valtype === Valtype.f64 ? [ Opcodes.f64_eq ] : [ Opcodes.i32_eq ]);
-      if (i !== 0) out.push([ Opcodes.i32_or ]);
-    }
-
-    return out;
-  };
-
-  const generated = new GeneratedBuiltins.BuiltinFuncs();
-  for (const x in generated) {
-    this[x] = generated[x];
-  }
+  GeneratedBuiltins.BuiltinFuncs.call(this);
 };
