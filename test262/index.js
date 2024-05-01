@@ -53,6 +53,7 @@ function timeout(function_, timeout) {
 }
 
 const trackErrors = process.argv.includes('-errors');
+const onlyTrackCompilerErrors = process.argv.includes('-compiler-errors-only');
 
 let timeoutFiles = ['test/language/statements/for/scope-body-lex-boundary.js', 'test/language/statements/while/S12.6.2_A1.js', 'test/language/statements/continue/shadowing-loop-variable-in-same-scope-as-continue.js'];
 if (process.platform === 'win32') timeoutFiles = timeoutFiles.map(x => x.replaceAll('/', '\\'));
@@ -190,9 +191,13 @@ for (const test of tests) {
   if (pass && expected) pass = result.constructor.name === expectedType;
 
   if (trackErrors && errored && result && result.message) {
-    const errorStr = `${result.constructor.name}: ${result.message}`;
-    if (!errors.has(errorStr)) errors.set(errorStr, []);
-    errors.set(errorStr, errors.get(errorStr).concat(file));
+    if (!onlyTrackCompilerErrors || (!pass && stage === 0 && result.name !== 'TodoError' && result.constructor.name !== 'CompileError' && result.constructor.name !== 'SyntaxError')) {
+      let errorStr = `${result.constructor.name}: ${result.message}`;
+      errorStr += `${' '.repeat(160 - errorStr.length)}${result.stack.split('\n')[1]}`;
+
+      if (!errors.has(errorStr)) errors.set(errorStr, []);
+      errors.set(errorStr, errors.get(errorStr).concat(file));
+    }
   }
 
   if (pass) passes++;
