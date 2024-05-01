@@ -3498,7 +3498,7 @@ export default program => {
     body: program.body
   };
 
-  if (Prefs.astLog) console.log(program.body.body);
+  if (Prefs.astLog) console.log(JSON.stringify(program.body.body, null, 2));
 
   generateFunc(scope, program);
 
