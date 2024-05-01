@@ -1906,7 +1906,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     const arg = args[i];
     out = out.concat(generate(scope, arg));
 
-    if (builtinFuncs[name] && builtinFuncs[name].params[i] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
+    if (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
       out.push(Opcodes.i32_to);
     }
 
