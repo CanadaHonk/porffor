@@ -3420,6 +3420,15 @@ const internalConstrs = {
     type: TYPES.boolean,
     notConstr: true
   },
+
+  Boolean: {
+    generate: (scope, decl) => {
+      // todo: boolean object when used as constructor
+      const arg = decl.arguments[0] ?? DEFAULT_VALUE;
+      return truthy(scope, generate(scope, arg), getNodeType(scope, arg));
+    },
+    type: TYPES.boolean
+  }
 };
 
 // const _ = Array.prototype.push;
