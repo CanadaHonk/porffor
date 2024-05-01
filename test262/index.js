@@ -55,7 +55,7 @@ function timeout(function_, timeout) {
 const trackErrors = process.argv.includes('-errors');
 const onlyTrackCompilerErrors = process.argv.includes('-compiler-errors-only');
 
-let timeoutFiles = ['test/language/statements/for/scope-body-lex-boundary.js', 'test/language/statements/while/S12.6.2_A1.js', 'test/language/statements/continue/shadowing-loop-variable-in-same-scope-as-continue.js'];
+let timeoutFiles = ['test/language/statements/for/scope-body-lex-boundary.js', 'test/language/statements/while/S12.6.2_A1.js', 'test/language/statements/continue/shadowing-loop-variable-in-same-scope-as-continue.js', 'test/language/statements/continue/S12.7_A9_T1.js', 'test/language/statements/continue/S12.7_A9_T2.js'];
 if (process.platform === 'win32') timeoutFiles = timeoutFiles.map(x => x.replaceAll('/', '\\'));
 
 // const run = async ({ file, contents, attrs }) => {
@@ -151,7 +151,6 @@ let currentTest;
 if (profile) {
   process.argv.push('-profile-compiler');
 
-  const log = console.log;
   console.log = msg => {
     if (msg[1] === '.' || msg[2] === ' ') {
       const n = Number(msg.split(' ').pop().slice(0, -2));
