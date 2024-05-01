@@ -1858,14 +1858,18 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const op = wasmOps[opName];
 
       const argOut = [];
-      for (let i = 0; i < op.args; i++) argOut.push(...generate(scope, decl.arguments[i]));
+      for (let i = 0; i < op.args; i++) argOut.push(
+        ...generate(scope, decl.arguments[i]),
+        Opcodes.i32_to
+      );
 
       // literals only
       const imms = decl.arguments.slice(op.args).map(x => x.value);
 
       return [
         ...argOut,
-        [ Opcodes[opName], ...imms ]
+        [ Opcodes[opName], ...imms ],
+        Opcodes.i32_from
       ];
     }
   }
