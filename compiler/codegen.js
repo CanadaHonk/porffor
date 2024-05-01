@@ -372,7 +372,8 @@ const localTmp = (scope, name, type = valtypeBinary) => {
   return idx;
 };
 
-const isIntOp = op => op && (op[0] >= 0xb7 && op[0] <= 0xba);
+const isIntOp = op => op && ((op[0] >= 0x45 && op[0] <= 0x4f) || (op[0] >= 0x67 && op[0] <= 0x78) || op[0] === 0x41);
+const isFloatToIntOp = op => op && (op[0] >= 0xb7 && op[0] <= 0xba);
 
 const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   const checks = {
@@ -389,8 +390,8 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
 
   // if we can, use int tmp and convert at the end to help prevent unneeded conversions
   // (like if we are in an if condition - very common)
-  const leftIsInt = isIntOp(left[left.length - 1]);
-  const rightIsInt = isIntOp(right[right.length - 1]);
+  const leftIsInt = isFloatToIntOp(left[left.length - 1]);
+  const rightIsInt = isFloatToIntOp(right[right.length - 1]);
 
   const canInt = leftIsInt && rightIsInt;
 
@@ -682,10 +683,11 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
 };
 
 const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
-  if (isIntOp(wasm[wasm.length - 1])) return [
+  if (isFloatToIntOp(wasm[wasm.length - 1])) return [
     ...wasm,
     ...(!intIn && intOut ? [ Opcodes.i32_to_u ] : [])
   ];
+  // if (isIntOp(wasm[wasm.length - 1])) return [ ...wasm ];
 
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
