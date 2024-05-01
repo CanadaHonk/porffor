@@ -2130,6 +2130,7 @@ const typeAnnoToPorfType = x => {
   switch (x) {
     case 'i32':
     case 'i64':
+    case 'f64':
       return TYPES.number;
   }
 
