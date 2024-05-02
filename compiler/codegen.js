@@ -3113,7 +3113,7 @@ export const generateMember = (scope, decl, _global, _name) => {
 
     if (builtinFuncs[name]) return number(builtinFuncs[name].typedParams ? (builtinFuncs[name].params.length / 2) : builtinFuncs[name].params.length);
     if (importedFuncs[name]) return number(importedFuncs[name].params);
-    // todo: internalConstrs
+    if (internalConstrs[name]) return number(internalConstrs[name].length ?? 0);
 
     return [
       ...(aotPointer ? number(0, Valtype.i32) : [
@@ -3381,7 +3381,8 @@ const internalConstrs = {
         ...number(pointer)
       ];
     },
-    type: TYPES._array
+    type: TYPES._array,
+    length: 1
   },
 
   __Array_of: {
@@ -3393,7 +3394,8 @@ const internalConstrs = {
       }, global, name);
     },
     type: TYPES._array,
-    notConstr: true
+    notConstr: true,
+    length: 0
   },
 
   __Porffor_fastOr: {
@@ -3438,7 +3440,8 @@ const internalConstrs = {
       const arg = decl.arguments[0] ?? DEFAULT_VALUE;
       return truthy(scope, generate(scope, arg), getNodeType(scope, arg));
     },
-    type: TYPES.boolean
+    type: TYPES.boolean,
+    length: 1
   },
 
   __Math_max: {
@@ -3457,7 +3460,8 @@ const internalConstrs = {
       return out;
     },
     type: TYPES.number,
-    notConstr: true
+    notConstr: true,
+    length: 2
   },
 
   __Math_min: {
@@ -3476,7 +3480,8 @@ const internalConstrs = {
       return out;
     },
     type: TYPES.number,
-    notConstr: true
+    notConstr: true,
+    length: 2
   }
 };
 
