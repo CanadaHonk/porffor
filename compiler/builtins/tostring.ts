@@ -16,10 +16,10 @@ export const __Boolean_prototype_toString = (_this: boolean) => {
 
 // // };
 
-// export const __Object_prototype_toString = (_this: object) => {
-//   let out: bytestring = '[object Object]';
-//   return out;
-// };
+export const __Object_prototype_toString = (_this: object) => {
+  let out: bytestring = '[object Object]';
+  return out;
+};
 
 // export const __Function_prototype_toString = (_this: Function) => {
 //   // todo: actually use source

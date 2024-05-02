@@ -558,4 +558,23 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","out"],
   };
+  this.__Object_prototype_toString = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, '__Object_prototype_toString | bytestring: out', 'i8') * pageSize, 124),[34,2],[65,18],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","out"],
+    data: [{"offset":0,"bytes":[15,0,0,0,91,111,98,106,101,99,116,32,79,98,106,101,99,116,93]}],
+  };
+  this.main = {
+    wasm: (scope, { allocPage, builtin }) => [],
+    params: [],
+    typedParams: true,
+    returns: [],
+    typedReturns: true,
+    locals: [],
+    localNames: [],
+  };
 };
