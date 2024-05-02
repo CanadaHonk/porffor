@@ -1910,6 +1910,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       out.push(Opcodes.i32_to);
     }
 
+    if (importedFuncs[name] && name.startsWith('profile')) {
+      out.push(Opcodes.i32_to);
+    }
+
     if (typedParams) out = out.concat(getNodeType(scope, arg));
   }
 
