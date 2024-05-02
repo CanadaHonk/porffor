@@ -21,11 +21,11 @@ export const __Object_prototype_toString = (_this: object) => {
   return out;
 };
 
-// export const __Function_prototype_toString = (_this: Function) => {
-//   // todo: actually use source
-//   let out: bytestring = 'function () {}';
-//   return out;
-// };
+export const __Function_prototype_toString = (_this: Function) => {
+  // todo: actually use source
+  let out: bytestring = 'function () {}';
+  return out;
+};
 
 
 // // export const ___array_prototype_toString = (_this: any[]) => {
