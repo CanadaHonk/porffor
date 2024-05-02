@@ -3237,6 +3237,7 @@ const objectHack = node => {
 
     // if object is not identifier or another member exp, give up
     if (node.object.type !== 'Identifier' && node.object.type !== 'MemberExpression') return node;
+    if (objectName && ['undefined', 'null', 'NaN', 'Infinity'].includes(objectName)) return node;
 
     if (!objectName) objectName = objectHack(node.object)?.name?.slice?.(2);
 
