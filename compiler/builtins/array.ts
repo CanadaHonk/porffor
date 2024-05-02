@@ -71,3 +71,17 @@ export const ___array_prototype_lastIndexOf = (_this: any[], searchElement: any,
 
   return -1;
 };
+
+export const ___array_prototype_includes = (_this: any[], searchElement: any, position: number) => {
+  const len: i32 = _this.length;
+  if (position > 0) {
+    if (position > len) position = len;
+      else position |= 0;
+  } else position = 0;
+
+  for (let i: i32 = position; i < len; i++) {
+    if (_this[i] == searchElement) return true;
+  }
+
+  return false;
+};
