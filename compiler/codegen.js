@@ -1835,23 +1835,23 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (idx === undefined && name.startsWith('__Porffor_wasm_')) {
     const wasmOps = {
       // pointer, align, offset
-      i32_load: { imms: 2, args: 1 },
+      i32_load: { imms: 2, args: 1, returns: 1 },
       // pointer, value, align, offset
-      i32_store: { imms: 2, args: 2 },
+      i32_store: { imms: 2, args: 2, returns: 0 },
       // pointer, align, offset
-      i32_load8_u: { imms: 2, args: 1 },
+      i32_load8_u: { imms: 2, args: 1, returns: 1 },
       // pointer, value, align, offset
-      i32_store8: { imms: 2, args: 2 },
+      i32_store8: { imms: 2, args: 2, returns: 0 },
       // pointer, align, offset
-      i32_load16_u: { imms: 2, args: 1 },
+      i32_load16_u: { imms: 2, args: 1, returns: 1 },
       // pointer, value, align, offset
-      i32_store16: { imms: 2, args: 2 },
+      i32_store16: { imms: 2, args: 2, returns: 0 },
 
       // value
-      i32_const: { imms: 1, args: 0 },
+      i32_const: { imms: 1, args: 0, returns: 1 },
 
       // a, b
-      i32_or: { imms: 0, args: 2 },
+      i32_or: { imms: 0, args: 2, returns: 1 },
     };
 
     const opName = name.slice('__Porffor_wasm_'.length);
@@ -1871,7 +1871,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       return [
         ...argOut,
         [ Opcodes[opName], ...imms ],
-        Opcodes.i32_from
+        ...(new Array(op.returns).fill(Opcodes.i32_from))
       ];
     }
   }
