@@ -92,7 +92,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
         if (!pageName || allocated.has(pageName)) continue;
         allocated.add(pageName);
 
-        y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type);
+        y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type, valtypeBinary);
         // y.push(x.pages.get(pageName));
       }
     }
@@ -119,7 +119,7 @@ import { number } from './embedding.js';
 
 export const BuiltinFuncs = function() {
 ${funcs.map(x => `  this.${x.name} = {
-    wasm: (scope, { allocPage, builtin }) => ${JSON.stringify(x.wasm.filter(x => x.length && x[0] != null)).replace(/\["alloc","(.*?)","(.*?)"\]/g, (_, reason, type) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtypeBinary})`).replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`)},
+    wasm: (scope, { allocPage, builtin }) => ${JSON.stringify(x.wasm.filter(x => x.length && x[0] != null)).replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtype})`).replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`)},
     params: ${JSON.stringify(x.params)},
     typedParams: true,
     returns: ${JSON.stringify(x.returns)},
