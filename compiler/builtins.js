@@ -1074,5 +1074,24 @@ export const BuiltinFuncs = function(TYPES) {
     ]
   };
 
+  this.__Porffor_clone = {
+    params: [ valtypeBinary, valtypeBinary ],
+    locals: [],
+    returns: [],
+    wasm: [
+      // dst
+      [ Opcodes.local_get, 1 ],
+      Opcodes.i32_to_u,
+
+      // src
+      [ Opcodes.local_get, 0 ],
+      Opcodes.i32_to_u,
+
+      // size = pageSize
+      ...number(pageSize, Valtype.i32),
+      [ ...Opcodes.memory_copy, 0x00, 0x00 ],
+    ]
+  };
+
   GeneratedBuiltins.BuiltinFuncs.call(this);
 };

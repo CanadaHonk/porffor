@@ -3524,6 +3524,10 @@ export default program => {
 
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
 
+  globalThis.pageSize = PageSize;
+  const pageSizeOpt = process.argv.find(x => x.startsWith('-page-size='));
+  if (pageSizeOpt) pageSize = parseInt(pageSizeOpt.split('=')[1]) * 1024;
+
   // set generic opcodes for current valtype
   Opcodes.const = [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const ][valtypeInd];
   Opcodes.eq = [ Opcodes.i32_eq, Opcodes.i64_eq, Opcodes.f64_eq ][valtypeInd];
@@ -3547,10 +3551,6 @@ export default program => {
   prototypeFuncs = new PrototypeFuncs(TYPES);
 
   program.id = { name: 'main' };
-
-  globalThis.pageSize = PageSize;
-  const pageSizeOpt = process.argv.find(x => x.startsWith('-page-size='));
-  if (pageSizeOpt) pageSize = parseInt(pageSizeOpt.split('=')[1]) * 1024;
 
   const scope = {
     locals: {},
