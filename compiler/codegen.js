@@ -3435,6 +3435,44 @@ const internalConstrs = {
       return truthy(scope, generate(scope, arg), getNodeType(scope, arg));
     },
     type: TYPES.boolean
+  },
+
+  __Math_max: {
+    generate: (scope, decl) => {
+      const out = [
+        ...number(-Infinity)
+      ];
+
+      for (let i = 0; i < decl.arguments.length; i++) {
+        out.push(
+          ...generate(scope, decl.arguments[i]),
+          [ Opcodes.f64_max ]
+        );
+      }
+
+      return out;
+    },
+    type: TYPES.number,
+    notConstr: true
+  },
+
+  __Math_min: {
+    generate: (scope, decl) => {
+      const out = [
+        ...number(Infinity)
+      ];
+
+      for (let i = 0; i < decl.arguments.length; i++) {
+        out.push(
+          ...generate(scope, decl.arguments[i]),
+          [ Opcodes.f64_min ]
+        );
+      }
+
+      return out;
+    },
+    type: TYPES.number,
+    notConstr: true
   }
 };
 
