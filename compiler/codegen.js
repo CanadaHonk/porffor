@@ -215,14 +215,18 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         __Porffor_bs: str => [
           ...makeString(scope, str, global, name, true),
 
-          ...number(TYPES._bytestring, Valtype.i32),
-          setLastType(scope)
+          ...(name ? setType(scope, name, TYPES._bytestring) : [
+            ...number(TYPES._bytestring, Valtype.i32),
+            ...setLastType(scope)
+          ])
         ],
         __Porffor_s: str => [
           ...makeString(scope, str, global, name, false),
 
-          ...number(TYPES.string, Valtype.i32),
-          setLastType(scope)
+          ...(name ? setType(scope, name, TYPES.string) : [
+            ...number(TYPES.string, Valtype.i32),
+            ...setLastType(scope)
+          ])
         ],
       };
 
