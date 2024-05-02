@@ -8,7 +8,7 @@ export const __String_fromCharCode = (code: i32) => {
     return out;
   }
 
-  let out: string = '.';
+  let out: string = Porffor.s`.`;
   Porffor.wasm.i32.store16(out, code, 0, 4);
   return out;
 };

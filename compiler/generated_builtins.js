@@ -268,7 +268,7 @@ export const BuiltinFuncs = function() {
     localNames: ["input","input#type","radix","radix#type","logictmpi","#last_type","nMax","n","inputPtr","len","i","negative","endPtr","startChr","second","chr"],
   };
   this.__String_fromCharCode = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,128,2],[72],[4,64],...number(allocPage(scope, '__String_fromCharCode | bytestring: out', 'i8') * pageSize, 127),[34,2],[32,0],[58,0,4],[32,2],[65,18],[15],[11],[65,0],[65,1],[54,1,0],[65,0],[65,46],[58,0,4],[65,0],[34,2],[32,0],[59,0,4],[32,2],[65,2],[15]],
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,128,2],[72],[4,64],...number(allocPage(scope, '__String_fromCharCode | bytestring: out', 'i8') * pageSize, 127),[34,2],[32,0],[58,0,4],[32,2],[65,18],[15],[11],[65,0],[65,1],[54,1,0],[65,0],[65,46],[59,0,4],[65,0],[34,2],[32,0],[59,0,4],[32,2],[65,2],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
