@@ -558,6 +558,24 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","out"],
   };
+  this.__String_prototype_toString = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, '__String_prototype_toString | string: out', 'i16') * pageSize, 124),[33,2],[32,0],[32,2],[16, builtin('__Porffor_clone')],[32,2],[65,2],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124,127],
+    localNames: ["_this","_this#type","out","#last_type"],
+  };
+  this.___bytestring_prototype_toString = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, '___bytestring_prototype_toString | bytestring: out', 'i8') * pageSize, 124),[33,2],[32,0],[32,2],[16, builtin('__Porffor_clone')],[32,2],[65,18],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124,127],
+    localNames: ["_this","_this#type","out","#last_type"],
+  };
   this.__Object_prototype_toString = {
     wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, '__Object_prototype_toString | bytestring: out', 'i8') * pageSize, 124),[34,2],[65,18],[15]],
     params: [124,127],

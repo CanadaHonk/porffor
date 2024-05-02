@@ -8,9 +8,17 @@ export const __Boolean_prototype_toString = (_this: boolean) => {
   return out;
 };
 
-// // export const __String_prototype_toString = (_this: string) => {
-// //   return _this.slice();
-// // };
+export const __String_prototype_toString = (_this: string) => {
+  let out: string = Porffor.s``;
+  Porffor.clone(_this, out);
+  return out;
+};
+
+export const ___bytestring_prototype_toString = (_this: bytestring) => {
+  let out: bytestring = Porffor.bs``;
+  Porffor.clone(_this, out);
+  return out;
+};
 
 // // export const __undefined_prototype_toString = (_this: number) => {
 
@@ -34,8 +42,4 @@ export const __Function_prototype_toString = (_this: Function) => {
 
 // // export const ___regexp_prototype_toString = (_this: number) => {
 
-// // };
-
-// // export const ___bytestring_prototype_toString = (_this: bytestring) => {
-// //   return _this.slice();
 // // };
