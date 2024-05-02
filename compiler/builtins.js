@@ -199,7 +199,8 @@ export const BuiltinFuncs = function(TYPES) {
     returns: [ valtypeBinary ],
     returnType: TYPES.object,
     wasm: [
-      [ Opcodes.local_get, 0 ]
+      // [ Opcodes.local_get, 0 ]
+      ...number(1)
     ]
   };
 
