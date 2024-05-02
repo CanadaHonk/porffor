@@ -3579,7 +3579,11 @@ export default program => {
   }
 
   if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
-    main.returns = [];
+    if (lastInst[0] === Opcodes.local_set && lastInst[1] === main.locals['#last_type'].idx) {
+      main.wasm.splice(main.wasm.length - 1, 1);
+    } else {
+      main.returns = [];
+    }
   }
 
   if (lastInst[0] === Opcodes.call) {
