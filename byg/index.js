@@ -144,7 +144,7 @@ export default ({ lines, pause, breakpoint }) => {
         box(x.x, y, x.width, height, x.title, x.content);
       }
 
-      text += ` | rss: ${(process.memoryUsage.rss() / 1024 / 1024).toFixed(2)}mb`;
+      // text += ` | rss: ${(process.memoryUsage.rss() / 1024 / 1024).toFixed(2)}mb`;
 
       process.stdout.write(`\x1b[${termHeight};1H\x1b[105m\x1b[37m${text}${' '.repeat(termWidth - plainControlInfo.length - noAnsi(text).length - 1)}${controlInfo} \x1b[0m`);
     };
