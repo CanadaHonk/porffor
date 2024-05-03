@@ -3,6 +3,7 @@
 // radix: number|any for rawType check
 export const __Number_prototype_toString = (_this: number, radix: number|any) => {
   // todo: use exponential notation if >=1e21 (?)
+  // todo: negative sign
 
   if (Porffor.rawType(radix) != Porffor.TYPES.number) {
     // todo: string to number
@@ -24,23 +25,70 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     return out;
   }
 
-  let i: i32 = Math.abs(_this | 0);
+  let i: f64 = Math.abs(Math.trunc(_this));
 
   if (i == 0) {
     out = '0';
-  } else {
-    let digits: bytestring = ''; // byte "array"
+    return out;
+  }
 
-    let l: i32 = 0;
-    for (; i > 0; l++) {
-      Porffor.wasm.i32.store8(Porffor.wasm`local.get ${digits}` + l, i % radix, 0, 4);
+  let digits: bytestring = ''; // byte "array"
 
-      i = (i / radix) | 0;
+  let l: i32 = 0;
+  for (; i > 0; l++) {
+    Porffor.wasm.i32.store8(Porffor.wasm`local.get ${digits}` + l, i % radix, 0, 4);
+
+    i = Math.trunc(i / radix);
+  }
+
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+  let digitsPtr: i32 = Porffor.wasm`local.get ${digits}` + l;
+  let endPtr: i32 = outPtr + l;
+  while (outPtr < endPtr) {
+    let digit: i32 = Porffor.wasm.i32.load8_u(--digitsPtr, 0, 4);
+
+    if (digit < 10) digit += 48; // 0-9
+      else digit += 87; // a-z
+
+    Porffor.wasm.i32.store8(outPtr++, digit, 0, 4);
+  }
+
+  let decimal: f64 = Math.abs(_this - Math.trunc(_this));
+  if (decimal > 0) {
+    decimal += 1;
+
+    let decimalDigits: i32 = 16 - l;
+    for (let j: i32 = 0; j < decimalDigits; j++) {
+      decimal *= radix;
     }
 
-    let outPtr: i32 = Porffor.wasm`local.get ${out}`;
-    let digitsPtr: i32 = Porffor.wasm`local.get ${digits}` + l;
-    const endPtr: i32 = outPtr + l;
+    decimal = Math.round(decimal);
+
+    let decimalL: i32 = 0;
+    let trailing: boolean = true;
+    while (decimal > 1) {
+      let digit: f64 = decimal % radix;
+      decimal = Math.trunc(decimal / radix);
+
+      if (trailing) {
+        if (digit == 0) { // skip trailing 0s
+          continue;
+        }
+        trailing = false;
+      }
+
+      Porffor.wasm.i32.store8(Porffor.wasm`local.get ${digits}` + decimalL, digit, 0, 4);
+      decimalL++;
+    }
+
+    Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + l, 46, 0, 4); // .
+
+    outPtr = Porffor.wasm`local.get ${out}` + l + 1;
+    digitsPtr = Porffor.wasm`local.get ${digits}` + decimalL;
+
+    l += decimalL + 1;
+
+    endPtr = outPtr + l;
     while (outPtr < endPtr) {
       let digit: i32 = Porffor.wasm.i32.load8_u(--digitsPtr, 0, 4);
 
@@ -49,11 +97,9 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
 
       Porffor.wasm.i32.store8(outPtr++, digit, 0, 4);
     }
-
-    out.length = l;
   }
 
-  // todo: decimal part
+  out.length = l;
 
   return out;
 };
