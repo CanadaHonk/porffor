@@ -133,7 +133,7 @@ export const PrototypeFuncs = function(TYPES) {
     shift: (pointer, length) => [
       // if length == 0, noop
       ...length.getCachedI32(),
-      Opcodes.i32_eqz,
+      [ Opcodes.i32_eqz ],
       [ Opcodes.if, Blocktype.void ],
       ...number(UNDEFINED),
       [ Opcodes.br, 1 ],
