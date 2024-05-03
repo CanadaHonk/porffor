@@ -243,7 +243,7 @@ export const ___bytestring_prototype_endsWith = (_this: bytestring, searchString
 };
 
 
-export const ___String_prototype_indexOf = (_this: string, searchString: string, position: number) => {
+export const __String_prototype_indexOf = (_this: string, searchString: string, position: number) => {
   // todo: handle bytestring searchString
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -324,7 +324,7 @@ export const ___bytestring_prototype_indexOf = (_this: bytestring, searchString:
 };
 
 
-export const ___String_prototype_lastIndexOf = (_this: string, searchString: string, position: number) => {
+export const __String_prototype_lastIndexOf = (_this: string, searchString: string, position: number) => {
   // todo: handle bytestring searchString
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -416,7 +416,7 @@ export const ___bytestring_prototype_lastIndexOf = (_this: bytestring, searchStr
 };
 
 
-export const ___String_prototype_includes = (_this: string, searchString: string, position: number) => {
+export const __String_prototype_includes = (_this: string, searchString: string, position: number) => {
   // todo: handle bytestring searchString
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
