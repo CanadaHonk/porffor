@@ -188,7 +188,8 @@ const generateRange = (node, negated, get) => {
 };
 
 const generateGroup = (node, negated, get) => {
-
+  // todo
+  return [];
 };
 
 export const test = (regex, index = 0, name = 'regex_test_' + regex) => outputFunc(generate(parse(regex), false, true, 'test'), name, index);
