@@ -85,3 +85,28 @@ export const ___array_prototype_includes = (_this: any[], searchElement: any, po
 
   return false;
 };
+
+export const ___array_prototype_with = (_this: any[], index: number, value: any) => {
+  const len: i32 = _this.length;
+  if (index < 0) {
+    index = len + index;
+    if (index < 0) {
+      // todo: throw RangeError: Invalid index
+      return null;
+    }
+  }
+
+  if (index > len) {
+    // todo: throw RangeError: Invalid index
+    return null;
+  }
+
+  // todo: allocator is bad here?
+  let out: any[] = [];
+
+  Porffor.clone(_this, out);
+
+  out[index] = value;
+
+  return out;
+};
