@@ -3240,32 +3240,36 @@ const objectHack = node => {
   if (!node) return node;
 
   if (node.type === 'MemberExpression') {
-    if (node.computed || node.optional) return node;
+    const out = (() => {
+      if (node.computed || node.optional) return;
 
-    let objectName = node.object.name;
+      let objectName = node.object.name;
 
-    // if object is not identifier or another member exp, give up
-    if (node.object.type !== 'Identifier' && node.object.type !== 'MemberExpression') return node;
-    if (objectName && ['undefined', 'null', 'NaN', 'Infinity'].includes(objectName)) return node;
+      // if object is not identifier or another member exp, give up
+      if (node.object.type !== 'Identifier' && node.object.type !== 'MemberExpression') return;
+      if (objectName && ['undefined', 'null', 'NaN', 'Infinity'].includes(objectName)) return;
 
-    if (!objectName) objectName = objectHack(node.object)?.name?.slice?.(2);
+      if (!objectName) objectName = objectHack(node.object)?.name?.slice?.(2);
 
-    // if .length, give up (hack within a hack!)
-    if (node.property.name === 'length') {
-      node.object = objectHack(node.object);
-      return node;
-    }
+      // if .length, give up (hack within a hack!)
+      if (node.property.name === 'length') {
+        node.object = objectHack(node.object);
+        return;
+      }
 
-    // no object name, give up
-    if (!objectName) return node;
+      // no object name, give up
+      if (!objectName) return;
 
-    const name = '__' + objectName + '_' + node.property.name;
-    if (Prefs.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
+      const name = '__' + objectName + '_' + node.property.name;
+      if (Prefs.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
 
-    return {
-      type: 'Identifier',
-      name
-    };
+      return {
+        type: 'Identifier',
+        name
+      };
+    })();
+
+    if (out) return out;
   }
 
   for (const x in node) {
