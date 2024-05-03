@@ -3,7 +3,6 @@
 // radix: number|any for rawType check
 export const __Number_prototype_toString = (_this: number, radix: number|any) => {
   // todo: use exponential notation if >=1e21 (?)
-  // todo: negative sign
 
   if (Porffor.rawType(radix) != Porffor.TYPES.number) {
     // todo: string to number
@@ -11,6 +10,7 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
   }
 
   let out: bytestring = '';
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   if (radix < 2 || radix > 36) {
     // todo: throw RangeError: toString() radix argument must be between 2 and 36
@@ -25,7 +25,13 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     return out;
   }
 
-  let i: f64 = Math.abs(Math.trunc(_this));
+  // if negative value
+  if (_this < 0) {
+    _this = -_this; // turn value positive for later use
+    Porffor.wasm.i32.store8(outPtr++, 45, 0, 4); // prepend -
+  }
+
+  let i: f64 = Math.trunc(_this);
 
   if (i == 0) {
     out = '0';
@@ -41,7 +47,6 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     i = Math.trunc(i / radix);
   }
 
-  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let digitsPtr: i32 = Porffor.wasm`local.get ${digits}` + l;
   let endPtr: i32 = outPtr + l;
   while (outPtr < endPtr) {
@@ -53,7 +58,7 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     Porffor.wasm.i32.store8(outPtr++, digit, 0, 4);
   }
 
-  let decimal: f64 = Math.abs(_this - Math.trunc(_this));
+  let decimal: f64 = _this - Math.trunc(_this);
   if (decimal > 0) {
     decimal += 1;
 
@@ -81,14 +86,10 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
       decimalL++;
     }
 
-    Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + l, 46, 0, 4); // .
-
-    outPtr = Porffor.wasm`local.get ${out}` + l + 1;
+    Porffor.wasm.i32.store8(outPtr++, 46, 0, 4); // .
     digitsPtr = Porffor.wasm`local.get ${digits}` + decimalL;
 
-    l += decimalL + 1;
-
-    endPtr = outPtr + l;
+    endPtr = outPtr + decimalL;
     while (outPtr < endPtr) {
       let digit: i32 = Porffor.wasm.i32.load8_u(--digitsPtr, 0, 4);
 
@@ -99,7 +100,8 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     }
   }
 
-  out.length = l;
+  // out.length = l;
+  out.length = outPtr - Porffor.wasm`local.get ${out}`;
 
   return out;
 };
