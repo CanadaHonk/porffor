@@ -110,3 +110,36 @@ export const ___array_prototype_with = (_this: any[], index: number, value: any)
 
   return out;
 };
+
+export const ___array_prototype_reverse = (_this: any[]) => {
+  const len: i32 = _this.length;
+
+  let start: i32 = 0;
+  let end: i32 = len - 1;
+
+  while (start < end) {
+    const tmp: i32 = _this[start];
+    _this[start++] = _this[end];
+    _this[end--] = tmp;
+  }
+
+  return _this;
+};
+
+// todo: this has memory/allocation bugs so crashes :(
+// export const ___array_prototype_toReversed = (_this: any[]) => {
+//   const len: i32 = _this.length;
+
+//   let start: i32 = 0;
+//   let end: i32 = len - 1;
+
+//   let out: any[] = [];
+//   out.length = len;
+
+//   while (start < end) {
+//     out[start] = _this[end];
+//     out[end--] = _this[start++];
+//   }
+
+//   return out;
+// };
