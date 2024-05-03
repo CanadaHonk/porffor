@@ -100,7 +100,6 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     }
   }
 
-  // out.length = l;
   out.length = outPtr - Porffor.wasm`local.get ${out}`;
 
   return out;

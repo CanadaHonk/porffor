@@ -1,5 +1,7 @@
 // @porf -funsafe-no-unlikely-proto-checks
 
+// radix: number|any for rawType check
+// export const parseInt = (input: string|bytestring, radix: number|any): f64 => {
 export const parseInt = (input: string|bytestring, radix: number): f64 => {
   // todo/perf: optimize this instead of doing a naive algo (https://kholdstare.github.io/technical/2020/05/26/faster-integer-parsing.html)
   // todo/perf: use i32s here once that becomes not annoying
