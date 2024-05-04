@@ -58,6 +58,8 @@ const onlyTrackCompilerErrors = process.argv.includes('-compiler-errors-only');
 let timeoutFiles = ['test/language/statements/for/scope-body-lex-boundary.js', 'test/language/statements/while/S12.6.2_A1.js', 'test/language/statements/continue/shadowing-loop-variable-in-same-scope-as-continue.js', 'test/language/statements/continue/S12.7_A9_T1.js', 'test/language/statements/continue/S12.7_A9_T2.js'];
 if (process.platform === 'win32') timeoutFiles = timeoutFiles.map(x => x.replaceAll('/', '\\'));
 
+const debugAsserts = process.argv.includes('-debug-asserts');
+
 // const run = async ({ file, contents, attrs }) => {
 const run = ({ file, contents, attrs }) => {
   // const singleContents = contents.split('---*/').pop();
@@ -88,9 +90,18 @@ const run = ({ file, contents, attrs }) => {
     // .replace(/assert\.throws\(ReferenceError, function\(\) {([\w\W]+?)}\);/g, (_, body) => `{ let _thrown = false;\ntry {${body}\n_thrown = true;\n} catch {}\nif (_thrown) throw new Test262Error('Expected a ReferenceError to be thrown but no exception was at all'); }\n`);
     .replace(/assert\.throws\(.*?Error, function\(\) {([\w\W]+?)}\);/g, (_, body) => `{ let _thrown = false;\ntry {${body}\n_thrown = true;\n} catch {}\nif (_thrown) throw new Test262Error('Expected an Error to be thrown but no exception was at all'); }\n`);
 
+  if (debugAsserts) toRun = toRun
+    .replace('function assert(mustBeTrue) {', 'function assert(mustBeTrue, msg) {')
+    .replaceAll('function (actual, expected) {', 'function (actual, expected, msg) {')
+    .replace('function (actual, unexpected) {', 'function (actual, unexpected, msg) {')
+    .replaceAll('throw new Test262Error', 'console.log(msg); throw new Test262Error');
+
   // fs.writeFileSync('r.js', toRun);
 
   currentTest = file;
+
+  let log = '';
+  const shouldLog = debugAsserts;
 
   let exports, exceptions;
   try {
@@ -101,8 +112,8 @@ const run = ({ file, contents, attrs }) => {
     const module = new WebAssembly.Module(out.wasm);
     exports = (new WebAssembly.Instance(module, {
       '': {
-        p: () => {},
-        c: () => {},
+        p: shouldLog ? i => { log += i.toString(); } : () => {},
+        c: shouldLog ? i => { log += String.fromCharCode(i); } : () => {},
         t: () => performance.now(),
         y: () => {},
         z: () => {},
@@ -121,11 +132,15 @@ const run = ({ file, contents, attrs }) => {
       const exceptId = e.getArg(exports['0'], 0);
       const exception = exceptions[exceptId];
 
+      let message = exception.message;
+      if (debugAsserts) message += ' | ' + log.slice(0, -1);
+
       const constructorName = exception.constructor;
-      if (!constructorName) return [ 1, exception.message ];
+      if (!constructorName) return [ 1, message ];
 
       const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
-      return [ 1, new constructor(exception.message) ];
+
+      return [ 1, new constructor(message) ];
     }
 
     return [ 1, e ];
