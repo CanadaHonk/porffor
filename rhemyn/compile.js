@@ -160,7 +160,7 @@ const generateSet = (node, negated, get) => {
     ];
   }
 
-  out = out.concat(new Array(node.body.length - 1).fill(negated ? [ Opcodes.i32_or ] : [ Opcodes.i32_and ]));
+  if (node.body.length > 0) out = out.concat(new Array(node.body.length - 1).fill(negated ? [ Opcodes.i32_or ] : [ Opcodes.i32_and ]));
 
   return [
     ...out,
