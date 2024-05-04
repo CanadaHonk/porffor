@@ -239,10 +239,13 @@ export default str => {
         }
 
         if (QuantifierKeys.includes(c)) {
-          node.body.at(-1).quantifier = Quantifiers[c];
+          const last = node.body.at(-1);
+          if (!last) continue; // ignore, maybe lookahead
+
+          last.quantifier = Quantifiers[c];
 
           // lazy modifier
-          if (peek(false) === '?') node.body.at(-1).lazy = true;
+          if (peek(false) === '?') last.lazy = true;
 
           continue;
         }
