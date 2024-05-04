@@ -2656,6 +2656,7 @@ const generateForOf = (scope, decl) => {
   // if (!leftName) console.log(decl.left?.declarations?.[0]?.id ?? decl.left);
 
   const [ local, isGlobal ] = lookupName(scope, leftName);
+  if (!local) return todo(scope, 'for of failed to get left local (probably destructure)');
 
   depth.push('block');
   depth.push('block');
