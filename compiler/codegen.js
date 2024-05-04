@@ -1942,7 +1942,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     // );
   } else out.push(...setLastType(scope));
 
-  if (builtinFuncs[name] && builtinFuncs[name].returns[0] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
+  if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
     out.push(Opcodes.i32_from);
   }
 
