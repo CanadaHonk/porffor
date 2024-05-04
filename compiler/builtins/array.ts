@@ -126,20 +126,20 @@ export const ___array_prototype_reverse = (_this: any[]) => {
   return _this;
 };
 
-// todo: this has memory/allocation bugs so crashes :(
-// export const ___array_prototype_toReversed = (_this: any[]) => {
-//   const len: i32 = _this.length;
+// todo: this has memory/allocation bugs so sometimes crashes :(
+export const ___array_prototype_toReversed = (_this: any[]) => {
+  const len: i32 = _this.length;
 
-//   let start: i32 = 0;
-//   let end: i32 = len - 1;
+  let start: i32 = 0;
+  let end: i32 = len - 1;
 
-//   let out: any[] = [];
-//   out.length = len;
+  let out: any[] = [];
+  out.length = len;
 
-//   while (start < end) {
-//     out[start] = _this[end];
-//     out[end--] = _this[start++];
-//   }
+  while (start < end) {
+    out[start] = _this[end];
+    out[end--] = _this[start++];
+  }
 
-//   return out;
-// };
+  return out;
+};
