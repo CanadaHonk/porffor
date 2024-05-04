@@ -56,10 +56,6 @@ function compareArray(a, b) {
   // megahack: all arrays from now on will be >0 pointer
   const _hack = '';
 
-  // hack: enforce type inference of being arrays
-  a ??= [];
-  b ??= [];
-
   if (b.length !== a.length) {
     return false;
   }
@@ -73,7 +69,7 @@ function compareArray(a, b) {
   return true;
 }
 
-assert.compareArray = function(actual, expected) {
+assert.compareArray = function (actual, expected) {
   if (compareArray(actual, expected)) return;
 
   throw new Test262Error('assert.compareArray failed');
