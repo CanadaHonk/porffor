@@ -2098,8 +2098,6 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
     [ Opcodes.block, returns ]
   ];
 
-  // todo: use br_table?
-
   for (const x in bc) {
     if (x === 'default') continue;
 
@@ -2476,10 +2474,23 @@ const generateUnary = (scope, decl) => {
     }
 
     case 'typeof': {
-      const out = generate(scope, decl.argument);
+      let overrideType, toGenerate = true;
+
+      if (decl.argument.type === 'Identifier') {
+        const out = generateIdent(scope, decl.argument);
+
+        // if ReferenceError (undeclared var), ignore and return undefined
+        if (out[1]) {
+          // does not exist (2 ops from throw)
+          overrideType = number(TYPES.undefined, Valtype.i32);
+          toGenerate = false;
+        }
+      }
+
+      const out = toGenerate ? generate(scope, decl.argument) : [];
       disposeLeftover(out);
 
-      out.push(...typeSwitch(scope, getNodeType(scope, decl.argument), {
+      out.push(...typeSwitch(scope, overrideType ?? getNodeType(scope, decl.argument), {
         [TYPES.number]: makeString(scope, 'number', false, '#typeof_result'),
         [TYPES.boolean]: makeString(scope, 'boolean', false, '#typeof_result'),
         [TYPES.string]: makeString(scope, 'string', false, '#typeof_result'),
