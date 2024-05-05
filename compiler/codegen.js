@@ -2440,7 +2440,7 @@ const generateUnary = (scope, decl) => {
       return out;
     }
 
-    case 'delete':
+    case 'delete': {
       let toReturn = true, toGenerate = true;
 
       if (decl.argument.type === 'Identifier') {
@@ -2462,9 +2462,13 @@ const generateUnary = (scope, decl) => {
 
       out.push(...number(toReturn ? 1 : 0));
       return out;
+    }
 
-    case 'typeof':
-      return typeSwitch(scope, getNodeType(scope, decl.argument), {
+    case 'typeof': {
+      const out = generate(scope, decl.argument);
+      disposeLeftover(out);
+
+      out.push(...typeSwitch(scope, getNodeType(scope, decl.argument), {
         [TYPES.number]: makeString(scope, 'number', false, '#typeof_result'),
         [TYPES.boolean]: makeString(scope, 'boolean', false, '#typeof_result'),
         [TYPES.string]: makeString(scope, 'string', false, '#typeof_result'),
@@ -2475,7 +2479,10 @@ const generateUnary = (scope, decl) => {
 
         // object and internal types
         default: makeString(scope, 'object', false, '#typeof_result'),
-      });
+      }));
+
+      return out;
+    }
 
     default:
       return todo(scope, `unary operator ${decl.operator} not implemented yet`, true);
