@@ -313,7 +313,7 @@ const generateIdent = (scope, decl) => {
 
       let wasm = builtinVars[name];
       if (typeof wasm === 'function') wasm = asmFuncToAsm(wasm, { name });
-      return wasm;
+      return wasm.slice();
     }
 
     if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(internalConstrs, name)) {
