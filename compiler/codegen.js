@@ -2879,9 +2879,10 @@ const generateForOf = (scope, decl) => {
   return out;
 };
 
+// find the nearest loop in depth map by type
 const getNearestLoop = () => {
   for (let i = depth.length - 1; i >= 0; i--) {
-    if (depth[i] === 'while' || depth[i] === 'dowhile' || depth[i] === 'for' || depth[i] === 'forof') return i;
+    if (['while', 'dowhile', 'for', 'forof'].includes(depth[i])) return i;
   }
 
   return -1;
@@ -2890,12 +2891,17 @@ const getNearestLoop = () => {
 const generateBreak = (scope, decl) => {
   const target = decl.label ? scope.labels.get(decl.label.name) : getNearestLoop();
   const type = depth[target];
+
+  // different loop types have different branch offsets
+  // as they have different wasm block/loop/if structures
+  // we need to use the right offset by type to branch to the one we want
+  // for a break: exit the loop without executing anything else inside it
   const offset = ({
-    for: 2,
-    while: 2,
-    forof: 2,
-    if: 1,
-    dowhile: 2
+    for: 2, // loop > if (wanted branch) > block (we are here)
+    while: 2, // loop > if (wanted branch) (we are here)
+    dowhile: 2, // loop > block (wanted branch) > block (we are here)
+    forof: 2, // loop > block (wanted branch) > block (we are here)
+    if: 1, // break inside if, branch 0 to skip the rest of the if
   })[type];
 
   return [
@@ -2906,11 +2912,16 @@ const generateBreak = (scope, decl) => {
 const generateContinue = (scope, decl) => {
   const target = decl.label ? scope.labels.get(decl.label.name) : getNearestLoop();
   const type = depth[target];
+
+  // different loop types have different branch offsets
+  // as they have different wasm block/loop/if structures
+  // we need to use the right offset by type to branch to the one we want
+  // for a continue: do test for the loop, and then loop depending on that success
   const offset = ({
-    for: 3,
-    while: 1,
-    forof: 3,
-    dowhile: 3
+    for: 3, // loop (wanted branch) > if > block (we are here)
+    while: 1, // loop (wanted branch) > if (we are here)
+    forof: 3, // loop > block > block (wanted branch) (we are here)
+    dowhile: 3 // loop > block > block (wanted branch) (we are here)
   })[type];
 
   return [
