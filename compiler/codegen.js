@@ -321,6 +321,11 @@ const generateIdent = (scope, decl) => {
       return number(1);
     }
 
+    if (isExistingProtoFunc(name)) {
+      // todo: return an actual something
+      return number(1);
+    }
+
     if (local?.idx === undefined) {
       // no local var with name
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name]);
@@ -1208,6 +1213,13 @@ const TYPE_NAMES = {
   [TYPES._bytestring]: 'ByteString'
 };
 
+const isExistingProtoFunc = name => {
+  if (name.startsWith('__Array_prototype')) return !!prototypeFuncs[TYPES._array][name.slice(18)];
+  if (name.startsWith('__String_prototype_')) return !!prototypeFuncs[TYPES.string][name.slice(19)];
+
+  return false;
+};
+
 const getType = (scope, _name) => {
   const name = mapName(_name);
 
@@ -1223,8 +1235,7 @@ const getType = (scope, _name) => {
   if (builtinVars[name]) type = builtinVars[name].type ?? TYPES.number;
   if (builtinFuncs[name] !== undefined || importedFuncs[name] !== undefined || funcIndex[name] !== undefined || internalConstrs[name] !== undefined) type = TYPES.function;
 
-  if (name.startsWith('__Array_prototype_') && prototypeFuncs[TYPES._array][name.slice(18)] ||
-    name.startsWith('__String_prototype_') && prototypeFuncs[TYPES.string][name.slice(19)]) type = TYPES.function;
+  if (isExistingProtoFunc(name)) type = TYPES.function;
 
   return number(type, Valtype.i32);
 };
