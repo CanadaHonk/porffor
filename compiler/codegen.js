@@ -2901,7 +2901,7 @@ const generateBreak = (scope, decl) => {
     while: 2, // loop > if (wanted branch) (we are here)
     dowhile: 2, // loop > block (wanted branch) > block (we are here)
     forof: 2, // loop > block (wanted branch) > block (we are here)
-    if: 1, // break inside if, branch 0 to skip the rest of the if
+    if: 1 // break inside if, branch 0 to skip the rest of the if
   })[type];
 
   return [
@@ -2920,8 +2920,8 @@ const generateContinue = (scope, decl) => {
   const offset = ({
     for: 3, // loop (wanted branch) > if > block (we are here)
     while: 1, // loop (wanted branch) > if (we are here)
-    forof: 3, // loop > block > block (wanted branch) (we are here)
-    dowhile: 3 // loop > block > block (wanted branch) (we are here)
+    dowhile: 3, // loop > block > block (wanted branch) (we are here)
+    forof: 3 // loop > block > block (wanted branch) (we are here)
   })[type];
 
   return [
