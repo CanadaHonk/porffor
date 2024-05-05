@@ -118,6 +118,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'WhileStatement':
       return generateWhile(scope, decl);
 
+    case 'DoWhileStatement':
+      return generateDoWhile(scope, decl);
+
     case 'ForOfStatement':
       return generateForOf(scope, decl);
 
@@ -2646,6 +2649,36 @@ const generateWhile = (scope, decl) => {
   return out;
 };
 
+const generateDoWhile = (scope, decl) => {
+  const out = [];
+
+  out.push([ Opcodes.loop, Blocktype.void ]);
+  depth.push('dowhile');
+
+  // block for break (includes all)
+  out.push([ Opcodes.block, Blocktype.void ]);
+  depth.push('block');
+
+  // block for continue
+  // includes body but not test+loop so we can exit body at anytime
+  // and still test+loop after
+  out.push([ Opcodes.block, Blocktype.void ]);
+  depth.push('block');
+
+  out.push(...generate(scope, decl.body));
+
+  out.push([ Opcodes.end ]);
+  depth.pop();
+
+  out.push(...generate(scope, decl.test), Opcodes.i32_to);
+  out.push([ Opcodes.br_if, 1 ]);
+
+  out.push([ Opcodes.end ], [ Opcodes.end ]);
+  depth.pop(); depth.pop();
+
+  return out;
+};
+
 const generateForOf = (scope, decl) => {
   const out = [];
 
@@ -2848,7 +2881,7 @@ const generateForOf = (scope, decl) => {
 
 const getNearestLoop = () => {
   for (let i = depth.length - 1; i >= 0; i--) {
-    if (depth[i] === 'while' || depth[i] === 'for' || depth[i] === 'forof') return i;
+    if (depth[i] === 'while' || depth[i] === 'dowhile' || depth[i] === 'for' || depth[i] === 'forof') return i;
   }
 
   return -1;
@@ -2861,7 +2894,8 @@ const generateBreak = (scope, decl) => {
     for: 2,
     while: 2,
     forof: 2,
-    if: 1
+    if: 1,
+    dowhile: 2
   })[type];
 
   return [
@@ -2875,7 +2909,8 @@ const generateContinue = (scope, decl) => {
   const offset = ({
     for: 3,
     while: 1,
-    forof: 3
+    forof: 3,
+    dowhile: 3
   })[type];
 
   return [
