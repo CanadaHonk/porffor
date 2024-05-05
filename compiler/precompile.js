@@ -1,26 +1,11 @@
 import { Opcodes } from './wasmSpec.js';
+import { TYPES } from './types.js';
 
 import fs from 'node:fs';
 import { join } from 'node:path';
 
 import { fileURLToPath } from 'node:url';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-
-const TYPES = {
-  number: 0x00,
-  boolean: 0x01,
-  string: 0x02,
-  undefined: 0x03,
-  object: 0x04,
-  function: 0x05,
-  symbol: 0x06,
-  bigint: 0x07,
-
-  // these are not "typeof" types but tracked internally
-  _array: 0x10,
-  _regexp: 0x11,
-  _bytestring: 0x12
-};
 
 // import porfParse from './parse.js';
 // import porfCodegen from './codeGen.js';

@@ -3,26 +3,9 @@ import decompile from './decompile.js';
 import { encodeVector, encodeLocal } from './encoding.js';
 import Prefs from './prefs.js';
 import { log } from './log.js';
+import { TYPES } from './types.js';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
-
-const typeBase = 0x00;
-const internalTypeBase = 0x10;
-const TYPES = {
-  [typeBase]: 'number',
-  [typeBase + 1]: 'boolean',
-  [typeBase + 2]: 'string',
-  [typeBase + 3]: 'undefined',
-  [typeBase + 4]: 'object',
-  [typeBase + 5]: 'function',
-  [typeBase + 6]: 'symbol',
-  [typeBase + 7]: 'bigint',
-
-  // internal
-  [internalTypeBase]: '_array',
-  [internalTypeBase + 1]: '_regexp',
-  [internalTypeBase + 2]: '_bytestring'
-};
 
 export default async (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {
   const times = [];
@@ -172,12 +155,29 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
         // if (ret >= typeBase && ret <= typeBase + 8) return ret > (typeBase + 7) ? 'object' : TYPES[ret];
 
-        switch (TYPES[type]) {
-          case 'boolean': return Boolean(ret);
-          case 'undefined': return undefined;
-          case 'object': return ret === 0 ? null : {};
+        switch (type) {
+          case TYPES.boolean: return Boolean(ret);
+          case TYPES.undefined: return undefined;
+          case TYPES.object: return ret === 0 ? null : {};
 
-          case '_array': {
+          case TYPES.string: {
+            const pointer = ret;
+            const length = new Int32Array(memory.buffer, pointer, 1);
+
+            return Array.from(new Uint16Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
+          }
+
+          case TYPES.function: {
+            // wasm func index, including all imports
+            const func = funcs.find(x => (x.originalIndex ?? x.index) === ret);
+            // if (!func) return ret;
+            if (!func) return function () {};
+
+            // make fake empty func for repl/etc
+            return {[func.name]() {}}[func.name];
+          }
+
+          case TYPES._array: {
             const pointer = ret;
             const length = new Int32Array(memory.buffer, pointer, 1);
 
@@ -187,28 +187,11 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
             return Array.from(new Float64Array(buf));
           }
 
-          case 'string': {
-            const pointer = ret;
-            const length = new Int32Array(memory.buffer, pointer, 1);
-
-            return Array.from(new Uint16Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
-          }
-
-          case '_bytestring': {
+          case TYPES._bytestring: {
             const pointer = ret;
             const length = new Int32Array(memory.buffer, pointer, 1);
 
             return Array.from(new Uint8Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
-          }
-
-          case 'function': {
-            // wasm func index, including all imports
-            const func = funcs.find(x => (x.originalIndex ?? x.index) === ret);
-            // if (!func) return ret;
-            if (!func) return function () {};
-
-            // make fake empty func for repl/etc
-            return {[func.name]() {}}[func.name];
           }
 
           default: return ret;

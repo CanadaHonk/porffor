@@ -2,6 +2,7 @@ import { Blocktype, Opcodes, Valtype, ValtypeSize } from "./wasmSpec.js";
 import { number, i32x4 } from "./embedding.js";
 import Prefs from './prefs.js';
 import * as GeneratedBuiltins from './generated_builtins.js';
+import { TYPES } from './types.js';
 
 export const importedFuncs = [
   {
@@ -62,7 +63,7 @@ const printStaticStr = str => {
 export const UNDEFINED = 0;
 export const NULL = 0;
 
-export const BuiltinVars = function(TYPES) {
+export const BuiltinVars = function() {
   this.undefined = number(UNDEFINED);
   this.undefined.type = TYPES.undefined;
 
@@ -141,7 +142,7 @@ export const BuiltinVars = function(TYPES) {
   }
 };
 
-export const BuiltinFuncs = function(TYPES) {
+export const BuiltinFuncs = function() {
   this['f64_%'] = {
     params: [ valtypeBinary, valtypeBinary ],
     locals: [],

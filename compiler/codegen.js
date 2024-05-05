@@ -8,6 +8,7 @@ import { log } from "./log.js";
 import parse from "./parse.js";
 import * as Rhemyn from "../rhemyn/compile.js";
 import Prefs from './prefs.js';
+import { TYPES, TYPE_NAMES } from './types.js';
 
 let globals = {};
 let globalInd = 0;
@@ -1162,6 +1163,7 @@ const generateLogicExp = (scope, decl) => {
   return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
 };
 
+// potential future ideas for nan boxing (unused):
 // T = JS type, V = value/pointer
 // 0bTTT
 // qNAN: 0 11111111111 1000000000000000000000000000000000000000000000000001
@@ -1184,37 +1186,6 @@ const generateLogicExp = (scope, decl) => {
 // 3: js type
 // 4: internal type
 // 5: pointer
-
-const TYPES = {
-  number: 0x00,
-  boolean: 0x01,
-  string: 0x02,
-  undefined: 0x03,
-  object: 0x04,
-  function: 0x05,
-  symbol: 0x06,
-  bigint: 0x07,
-
-  // these are not "typeof" types but tracked internally
-  _array: 0x10,
-  _regexp: 0x11,
-  _bytestring: 0x12
-};
-
-const TYPE_NAMES = {
-  [TYPES.number]: 'Number',
-  [TYPES.boolean]: 'Boolean',
-  [TYPES.string]: 'String',
-  [TYPES.undefined]: 'undefined',
-  [TYPES.object]: 'Object',
-  [TYPES.function]: 'Function',
-  [TYPES.symbol]: 'Symbol',
-  [TYPES.bigint]: 'BigInt',
-
-  [TYPES._array]: 'Array',
-  [TYPES._regexp]: 'RegExp',
-  [TYPES._bytestring]: 'ByteString'
-};
 
 const isExistingProtoFunc = name => {
   if (name.startsWith('__Array_prototype')) return !!prototypeFuncs[TYPES._array][name.slice(18)];
@@ -3637,9 +3608,9 @@ export default program => {
 
   Opcodes.lt = [ Opcodes.i32_lt_s, Opcodes.i64_lt_s, Opcodes.f64_lt ][valtypeInd];
 
-  builtinFuncs = new BuiltinFuncs(TYPES);
-  builtinVars = new BuiltinVars(TYPES);
-  prototypeFuncs = new PrototypeFuncs(TYPES);
+  builtinFuncs = new BuiltinFuncs();
+  builtinVars = new BuiltinVars();
+  prototypeFuncs = new PrototypeFuncs();
 
   program.id = { name: 'main' };
 

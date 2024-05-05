@@ -3,10 +3,11 @@ import { number } from "./embedding.js";
 import { unsignedLEB128 } from "./encoding.js";
 import { UNDEFINED } from "./builtins.js";
 import Prefs from './prefs.js';
+import { TYPES } from './types.js';
 
 // todo: turn these into built-ins once arrays and these become less hacky
 
-export const PrototypeFuncs = function(TYPES) {
+export const PrototypeFuncs = function() {
   const noUnlikelyChecks = Prefs.funsafeNoUnlikelyProtoChecks;
 
   let zeroChecks;
