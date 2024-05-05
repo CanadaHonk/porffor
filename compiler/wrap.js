@@ -194,6 +194,11 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
             return Array.from(new Uint8Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
           }
 
+          case TYPES._date: {
+            // todo
+            throw new Error('todo! deserialize date');
+          }
+
           default: return ret;
         }
       } catch (e) {

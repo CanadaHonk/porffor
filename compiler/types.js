@@ -28,6 +28,10 @@ const registerInternalType = name => {
   TYPE_NAMES[n] = name;
 };
 
+// note: when adding a new internal type, please also add a deserializer to wrap.js
+// (it is okay to add a throw todo deserializer for wips)
+
 registerInternalType('Array');
 registerInternalType('RegExp');
 registerInternalType('ByteString');
+registerInternalType('Date');
