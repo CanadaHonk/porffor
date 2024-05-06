@@ -1,7 +1,21 @@
 import compile from '../compiler/wrap.js';
 import rev from './version.js';
 
-import repl from 'node:repl';
+// import repl from 'node:repl';
+// import repl from '../../node-repl-polyfill/index.js';
+
+let repl;
+try {
+  // try importing node:repl
+  repl = await import('node:repl');
+
+  // check it is not just a mock with REPLServer prototype
+  if (repl.REPLServer.prototype.defineCommand == null)
+    throw 'mock node:repl detected';
+} catch {
+  // it failed, import the polyfill
+  repl = (await import('node-repl-polyfill')).default;
+}
 
 // process.argv.push('-O0'); // disable opts
 

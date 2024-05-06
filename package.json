@@ -8,7 +8,8 @@
     "precompile": "node ./compiler/precompile.js"
   },
   "dependencies": {
-    "acorn": "^8.11.3"
+    "acorn": "^8.11.3",
+    "node-repl-polyfill": "^0.1.1"
   },
   "optionalDependencies": {
     "@babel/parser": "^7.24.4",
