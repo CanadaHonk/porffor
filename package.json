@@ -19,7 +19,7 @@
   "bin": {
     "porf": "./runner/index.js"
   },
-  "main": "./runner/index.js",
+  "main": "./compiler/wrap.js",
   "type": "module",
   "repository": {
     "type": "git",
