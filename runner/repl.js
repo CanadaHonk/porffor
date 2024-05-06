@@ -11,10 +11,8 @@ const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
 if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
 
 let host = globalThis?.navigator?.userAgent;
-if (!host) {
-  // presume old node
-  host = `Node/${process.versions.node}`;
-}
+if (typeof process !== 'undefined' && process.argv0 === 'node') host = 'Node/' + process.versions.node;
+host ??= 'Unknown';
 
 if (host.startsWith('Node')) host = '\x1B[92m' + host;
 if (host.startsWith('Deno')) host = '\x1B[97m' + host;
