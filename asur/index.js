@@ -985,7 +985,7 @@ const stringifyOp = ({ types, funcs, codes, imports, globals }, op, porfFunc = o
     if (!porfFunc.invLocals) porfFunc.invLocals = inv(porfFunc.locals, x => x.idx);
 
     if (op.func != null) {
-      str += ` \x1b[90m${op.func >= imports.length ? `${noHighlight(codes[op.func - imports.length].bc.porfFunc.name)}` : `${({ p: 'print', c: 'printChar', t: 'time', y: 'profile1', z: 'profile2' })[imports[op.func].name]}`}`;
+      str += ` \x1b[90m${op.func >= imports.length ? `${noHighlight(codes[op.func - imports.length].bc.porfFunc.name)}` : `${({ p: 'print', c: 'printChar', t: 'time', u: 'timeOrigin', y: 'profile1', z: 'profile2' })[imports[op.func].name]}`}`;
       const type = types[op.func >= imports.length ? funcs[op.func - imports.length] : imports[op.func].typeIdx];
       str += ` (${type.params.map(x => noHighlight(invValtype[x])).join(', ')}) -> (${type.returns.map(x => noHighlight(invValtype[x])).join(', ')})`;
       str += '\x1b[0m';

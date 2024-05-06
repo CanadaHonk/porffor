@@ -24,6 +24,12 @@ export const importedFuncs = [
     returns: 1
   },
   {
+    name: 'timeOrigin',
+    import: 'u',
+    params: 0,
+    returns: 1
+  },
+  {
     name: 'profile1',
     import: 'y',
     params: 1,
@@ -140,6 +146,10 @@ export const BuiltinVars = function() {
   for (const x in TYPES) {
     this['__Porffor_TYPES_' + x] = number(TYPES[x]);
   }
+
+  this.__performance_timeOrigin = [
+    [ Opcodes.call, importedFuncs.timeOrigin ]
+  ];
 };
 
 export const BuiltinFuncs = function() {
