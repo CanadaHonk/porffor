@@ -1273,6 +1273,18 @@ const getNodeType = (scope, node) => {
         return TYPES.number;
       }
 
+      if (node.type === 'NewExpression' && builtinFuncs[name + '$constructor']) {
+        if (builtinFuncs[name + '$constructor'].typedReturns) {
+          if (scope.locals['#last_type']) return getLastType(scope);
+
+          // presume
+          // todo: warn here?
+          return TYPES.number;
+        }
+
+        return builtinFuncs[name + '$constructor'].returnType ?? TYPES.number;
+      }
+
       const func = funcs.find(x => x.name === name);
 
       if (func) {
@@ -1944,7 +1956,20 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 const generateNew = (scope, decl, _global, _name) => {
   // hack: basically treat this as a normal call for builtins for now
   const name = mapName(decl.callee.name);
+
   if (internalConstrs[name] && !internalConstrs[name].notConstr) return internalConstrs[name].generate(scope, decl, _global, _name);
+
+  if (builtinFuncs[name + '$constructor']) {
+    // custom ...$constructor override builtin func
+    return generateCall(scope, {
+      ...decl,
+      callee: {
+        type: 'Identifier',
+        name: name + '$constructor'
+      }
+    }, _global, _name);
+  }
+
   if (!builtinFuncs[name]) return todo(scope, `new statement is not supported yet`); // return todo(scope, `new statement is not supported yet (new ${unhackName(name)})`);
 
   return generateCall(scope, decl, _global, _name);
