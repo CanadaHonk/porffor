@@ -94,7 +94,7 @@ const run = ({ file, contents, attrs }) => {
     .replace('function assert(mustBeTrue) {', 'function assert(mustBeTrue, msg) {')
     .replaceAll('function (actual, expected) {', 'function (actual, expected, msg) {')
     .replace('function (actual, unexpected) {', 'function (actual, unexpected, msg) {')
-    .replaceAll('throw new Test262Error', 'console.log(msg); throw new Test262Error');
+    .replaceAll('throw new Test262Error', 'console.log(msg); console.log(expected); console.log(actual); throw new Test262Error');
 
   // fs.writeFileSync('r.js', toRun);
 
@@ -133,7 +133,10 @@ const run = ({ file, contents, attrs }) => {
       const exception = exceptions[exceptId];
 
       let message = exception.message;
-      if (debugAsserts) message += ' | ' + log.slice(0, -1);
+      if (debugAsserts && log) {
+        const [ msg, expected, actual ] = log.split('\n');
+        message += `: ${msg} | expected: ${expected} | actual: ${actual}`;
+      }
 
       const constructorName = exception.constructor;
       if (!constructorName) return [ 1, message ];
