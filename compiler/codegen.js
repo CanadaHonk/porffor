@@ -1466,10 +1466,17 @@ const countLeftover = wasm => {
         else if (inst[0] === Opcodes.return) count = 0;
         else if (inst[0] === Opcodes.call) {
           let func = funcs.find(x => x.index === inst[1]);
-          if (func) {
-            count -= func.params.length;
-          } else count--;
-          if (func) count += func.returns.length;
+          if (inst[1] === -1) {
+            // todo: count for calling self
+          } else if (!func && inst[1] < importedFuncs.length) {
+            count -= importedFuncs[inst[1]].params;
+            count += importedFuncs[inst[1]].returns;
+          } else {
+            if (func) {
+              count -= func.params.length;
+            } else count--;
+            if (func) count += func.returns.length;
+          }
         } else count--;
 
     // console.log(count, decompile([ inst ]).slice(0, -1));
