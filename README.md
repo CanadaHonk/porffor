@@ -255,7 +255,6 @@ No particular order and no guarentees, just what could happen soon™
   - Support memory
   - Support exceptions
 - More math operators (`**`, etc)
-- `do { ... } while (...)`
 - Typed export inputs (array)
 - Exceptions
   - Rewrite to use actual strings (optional?)
@@ -266,6 +265,7 @@ No particular order and no guarentees, just what could happen soon™
   - Smarter inline selection (snapshots?)
   - Remove const ifs (`if (true)`, etc)
   - Memory alignment
+  - Add general pref for always using "fast" (non-short circuiting) or/and
 - Runtime
   - WASI target
   - Run precompiled Wasm file if given
