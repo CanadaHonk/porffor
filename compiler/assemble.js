@@ -45,7 +45,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
 
   let importFuncs = [];
 
-  if (optLevel < 1) {
+  if (optLevel < 1 || !Prefs.treeshakeWasmImports) {
     importFuncs = importedFuncs;
   } else {
     let imports = new Map();
