@@ -115,6 +115,7 @@ const run = ({ file, contents, attrs }) => {
         p: shouldLog ? i => { log += i.toString(); } : () => {},
         c: shouldLog ? i => { log += String.fromCharCode(i); } : () => {},
         t: () => performance.now(),
+        u: () => performance.timeOrigin,
         y: () => {},
         z: () => {},
       }
