@@ -3505,6 +3505,8 @@ const internalConstrs = {
         );
       }
 
+      out.push(Opcodes.i32_from_u);
+
       return out;
     },
     type: TYPES.boolean,
@@ -3522,6 +3524,8 @@ const internalConstrs = {
           ...(i > 0 ? [ [ Opcodes.i32_and ] ] : [])
         );
       }
+
+      out.push(Opcodes.i32_from_u);
 
       return out;
     },
