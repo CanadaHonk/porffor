@@ -196,8 +196,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
           }
 
           case TYPES._date: {
-            // todo
-            throw new Error('todo! deserialize date');
+            return new Date(ret);
           }
 
           default: return ret;
