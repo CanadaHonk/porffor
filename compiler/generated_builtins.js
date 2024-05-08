@@ -363,7 +363,7 @@ export const BuiltinFuncs = function() {
     localNames: ["y","y#type"],
   };
   this.__ecma262_YearFromTime = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[68,0,0,200,157,195,99,29,66],[163],[16, builtin('__Math_floor')],[34,2],[65,0],[16, builtin('__ecma262_TimeFromYear')],[34,3],[32,0],[100],[4,64],[32,2],[68,0,0,0,0,0,0,240,63],[161],[15],[11],[32,3],[32,2],[65,0],[16, builtin('__ecma262_DaysInYear')],[68,0,0,0,0,112,153,148,65],[162],[160],[32,0],[101],[4,64],[32,2],[68,0,0,0,0,0,0,240,63],[160],[15],[11],[32,2],[15]],
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[68,0,0,0,127,195,99,29,66],[163],[16, builtin('__Math_floor')],[68,0,0,0,0,0,200,158,64],[160],[34,2],[65,0],[16, builtin('__ecma262_TimeFromYear')],[34,3],[32,0],[100],[4,64],[32,2],[68,0,0,0,0,0,0,240,63],[161],[15],[11],[32,3],[32,2],[65,0],[16, builtin('__ecma262_DaysInYear')],[68,0,0,0,0,112,153,148,65],[162],[160],[32,0],[101],[4,64],[32,2],[68,0,0,0,0,0,0,240,63],[160],[15],[11],[32,2],[15]],
     params: [124,127],
     typedParams: true,
     returns: [124],
@@ -586,6 +586,168 @@ export const BuiltinFuncs = function() {
     returnType: 0,
     locals: [124,124,124,124,124,124,124,124],
     localNames: ["year","year#type","month","month#type","date","date#type","hours","hours#type","minutes","minutes#type","seconds","seconds#type","ms","ms#type","y","m","dt","h","min","s","milli","yr"],
+  };
+  this.___date_prototype_getDate = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_DateFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getDay = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_WeekDay')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getFullYear = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_YearFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getHours = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_HourFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getMilliseconds = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_msFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getMinutes = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_MinFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getMonth = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_MonthFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getSeconds = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_SecFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getTime = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
+  };
+  this.___date_prototype_getTimezoneOffset = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[161],[68,0,0,0,0,0,76,237,64],[163],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getUTCDate = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_DateFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getUTCDay = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_WeekDay')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getUTCFullYear = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_YearFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getUTCHours = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_HourFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getUTCMilliseconds = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_msFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getUTCMinutes = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_MinFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getUTCMonth = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_MonthFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
+  };
+  this.___date_prototype_getUTCSeconds = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_SecFromTime')],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124],
+    localNames: ["_this","_this#type","t"],
   };
   this.escape = {
     wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'escape | bytestring: lut', 'i8') * pageSize, 127),[33,2],[32,0],[40,1,0],[34,3],[33,4],[32,0],[33,5],[32,1],[65,18],[70],[4,64],[32,5],[32,3],[106],[33,6],[3,64],[32,5],[32,6],[72],[4,64],[32,5],[32,5],[65,1],[106],[33,5],[45,0,4],[34,7],[65,128,1],[72],[4,64],[32,2],[32,7],[106],[45,0,4],[4,64],[12,3],[11],[11],[32,4],[65,2],[106],[33,4],[12,1],[11],[11],[32,4],[32,3],[70],[4,64],[32,0],[15],[11],...number(allocPage(scope, 'escape | bytestring: output', 'i8') * pageSize, 127),[34,8],[32,4],[34,9],[54,1,0],[32,0],[33,5],[32,8],[33,10],[3,64],[32,5],[32,6],[72],[4,64],[32,5],[32,5],[65,1],[106],[33,5],[45,0,4],[34,7],[65,128,1],[72],[4,64],[32,2],[32,7],[106],[45,0,4],[4,64],[32,10],[32,10],[65,1],[106],[33,10],[32,7],[58,0,4],[12,3],[11],[11],[32,10],[32,10],[65,1],[106],[33,10],[65,37],[58,0,4],[32,7],[65,15],[113],[65,48],[106],[34,11],[65,57],[74],[4,64],[32,11],[65,7],[106],[33,11],[11],[32,7],[65,4],[117],[65,48],[106],[34,12],[65,57],[74],[4,64],[32,12],[65,7],[106],[33,12],[11],[32,10],[32,10],[65,1],[106],[33,10],[32,12],[58,0,4],[32,10],[32,10],[65,1],[106],[33,10],[32,11],[58,0,4],[12,1],[11],[11],[32,8],[15],[11],[32,5],[32,3],[65,2],[108],[106],[33,6],[3,64],[32,5],[32,6],[72],[4,64],[32,5],[47,0,4],[33,7],[32,5],[65,2],[106],[33,5],[32,7],[65,128,1],[72],[4,64],[32,2],[32,7],[106],[45,0,4],[4,64],[12,3],[11],[11],[32,7],[65,128,2],[72],[4,64],[32,4],[65,2],[106],[33,4],[5],[32,4],[65,5],[106],[33,4],[11],[12,1],[11],[11],[32,4],[32,3],[70],[4,64],[32,0],[15],[11],[65,0],[65,0],[54,1,128,128,4],[65,128,128,4],[34,8],[32,4],[34,9],[54,1,0],[32,0],[33,5],[32,8],[33,10],[3,64],[32,5],[32,6],[72],[4,64],[32,5],[47,0,4],[33,7],[32,5],[65,2],[106],[33,5],[32,7],[65,128,1],[72],[4,64],[32,2],[32,7],[106],[45,0,4],[4,64],[32,10],[32,10],[65,1],[106],[33,10],[32,7],[58,0,4],[12,3],[11],[11],[32,7],[65,128,2],[72],[4,64],[32,10],[32,10],[65,1],[106],[33,10],[65,37],[58,0,4],[32,7],[65,15],[113],[65,48],[106],[34,11],[65,57],[74],[4,64],[32,11],[65,7],[106],[33,11],[11],[32,7],[65,4],[117],[65,48],[106],[34,12],[65,57],[74],[4,64],[32,12],[65,7],[106],[33,12],[11],[32,10],[32,10],[65,1],[106],[33,10],[32,12],[58,0,4],[32,10],[32,10],[65,1],[106],[33,10],[32,11],[58,0,4],[5],[32,10],[65,165,234,1],[59,0,4],[32,10],[65,2],[106],[33,10],[32,7],[65,12],[117],[65,15],[113],[65,48],[106],[34,13],[65,57],[74],[4,64],[32,13],[65,7],[106],[33,13],[11],[32,10],[32,10],[65,1],[106],[33,10],[32,13],[58,0,4],[32,7],[65,8],[117],[65,15],[113],[65,48],[106],[34,13],[65,57],[74],[4,64],[32,13],[65,7],[106],[33,13],[11],[32,10],[32,10],[65,1],[106],[33,10],[32,13],[58,0,4],[32,7],[65,4],[117],[65,15],[113],[65,48],[106],[34,13],[65,57],[74],[4,64],[32,13],[65,7],[106],[33,13],[11],[32,10],[32,10],[65,1],[106],[33,10],[32,13],[58,0,4],[32,7],[65,15],[113],[65,48],[106],[34,13],[65,57],[74],[4,64],[32,13],[65,7],[106],[33,13],[11],[32,10],[32,10],[65,1],[106],[33,10],[32,13],[58,0,4],[11],[12,1],[11],[11],[32,8],[15]],

@@ -565,3 +565,267 @@ export const __Date_UTC = (year: unknown, month: unknown, date: unknown, hours: 
 
 // 21.4.4 Properties of the Date Prototype Object
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-properties-of-the-date-prototype-object
+
+// 21.4.4.2 Date.prototype.getDate ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getdate
+export const ___date_prototype_getDate = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return DateFromTime(LocalTime(t)).
+  return __ecma262_DateFromTime(__ecma262_LocalTime(t));
+};
+
+// 21.4.4.3 Date.prototype.getDay ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getday
+export const ___date_prototype_getDay = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return WeekDay(LocalTime(t)).
+  return __ecma262_WeekDay(__ecma262_LocalTime(t));
+};
+
+// 21.4.4.4 Date.prototype.getFullYear ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getfullyear
+export const ___date_prototype_getFullYear = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return YearFromTime(LocalTime(t)).
+  return __ecma262_YearFromTime(__ecma262_LocalTime(t));
+};
+
+// 21.4.4.5 Date.prototype.getHours ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.gethours
+export const ___date_prototype_getHours = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return HourFromTime(LocalTime(t)).
+  return __ecma262_HourFromTime(__ecma262_LocalTime(t));
+};
+
+// 21.4.4.6 Date.prototype.getMilliseconds ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getmilliseconds
+export const ___date_prototype_getMilliseconds = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return msFromTime(LocalTime(t)).
+  return __ecma262_msFromTime(__ecma262_LocalTime(t));
+};
+
+// 21.4.4.7 Date.prototype.getMinutes ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getminutes
+export const ___date_prototype_getMinutes = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return MinFromTime(LocalTime(t)).
+  return __ecma262_MinFromTime(__ecma262_LocalTime(t));
+};
+
+// 21.4.4.8 Date.prototype.getMonth ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getmonth
+export const ___date_prototype_getMonth = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return MonthFromTime(LocalTime(t)).
+  return __ecma262_MonthFromTime(__ecma262_LocalTime(t));
+};
+
+// 21.4.4.9 Date.prototype.getSeconds ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getseconds
+export const ___date_prototype_getSeconds = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return SecFromTime(LocalTime(t)).
+  return __ecma262_SecFromTime(__ecma262_LocalTime(t));
+};
+
+// 21.4.4.10 Date.prototype.getTime ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.gettime
+export const ___date_prototype_getTime = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Return dateObject.[[DateValue]].
+  return __Porffor_date_read(_this);
+};
+
+// 21.4.4.11 Date.prototype.getTimezoneOffset ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.gettimezoneoffset
+export const ___date_prototype_getTimezoneOffset = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return (t - LocalTime(t)) / msPerMinute.
+  return (t - __ecma262_LocalTime(t)) / 60000;
+};
+
+// 21.4.4.12 Date.prototype.getUTCDate ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcdate
+export const ___date_prototype_getUTCDate = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return DateFromTime(t).
+  return __ecma262_DateFromTime(t);
+};
+
+// 21.4.4.13 Date.prototype.getUTCDay ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcday
+export const ___date_prototype_getUTCDay = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return WeekDay(t).
+  return __ecma262_WeekDay(t);
+};
+
+// 21.4.4.14 Date.prototype.getUTCFullYear ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcfullyear
+export const ___date_prototype_getUTCFullYear = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return YearFromTime(t).
+  return __ecma262_YearFromTime(t);
+};
+
+// 21.4.4.15 Date.prototype.getUTCHours ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutchours
+export const ___date_prototype_getUTCHours = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return HourFromTime(t).
+  return __ecma262_HourFromTime(t);
+};
+
+// 21.4.4.16 Date.prototype.getUTCMilliseconds ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcmilliseconds
+export const ___date_prototype_getUTCMilliseconds = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return msFromTime(t).
+  return __ecma262_msFromTime(t);
+};
+
+// 21.4.4.17 Date.prototype.getUTCMinutes ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcminutes
+export const ___date_prototype_getUTCMinutes = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return MinFromTime(t).
+  return __ecma262_MinFromTime(t);
+};
+
+// 21.4.4.18 Date.prototype.getUTCMonth ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcmonth
+export const ___date_prototype_getUTCMonth = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return MonthFromTime(t).
+  return __ecma262_MonthFromTime(t);
+};
+
+// 21.4.4.19 Date.prototype.getUTCSeconds ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcseconds
+export const ___date_prototype_getUTCSeconds = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let t be dateObject.[[DateValue]].
+  const t: number = __Porffor_date_read(_this);
+
+  // 4. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 5. Return SecFromTime(t).
+  return __ecma262_SecFromTime(t);
+};
