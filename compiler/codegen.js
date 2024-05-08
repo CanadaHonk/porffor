@@ -1845,28 +1845,28 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (idx === undefined && name.startsWith('__Porffor_wasm_')) {
     const wasmOps = {
       // pointer, align, offset
-      i32_load: { imms: 2, args: 1, returns: 1 },
+      i32_load: { imms: 2, args: [ true ], returns: 1 },
       // pointer, value, align, offset
-      i32_store: { imms: 2, args: 2, returns: 0 },
+      i32_store: { imms: 2, args: [ true, true ], returns: 0 },
       // pointer, align, offset
-      i32_load8_u: { imms: 2, args: 1, returns: 1 },
+      i32_load8_u: { imms: 2, args: [ true ], returns: 1 },
       // pointer, value, align, offset
-      i32_store8: { imms: 2, args: 2, returns: 0 },
+      i32_store8: { imms: 2, args: [ true, true ], returns: 0 },
       // pointer, align, offset
-      i32_load16_u: { imms: 2, args: 1, returns: 1 },
+      i32_load16_u: { imms: 2, args: [ true ], returns: 1 },
       // pointer, value, align, offset
-      i32_store16: { imms: 2, args: 2, returns: 0 },
+      i32_store16: { imms: 2, args: [ true, true ], returns: 0 },
 
       // pointer, align, offset
-      f64_load: { imms: 2, args: 1, returns: 1 },
+      f64_load: { imms: 2, args: [ true ], returns: 0 }, // 0 due to not i32
       // pointer, value, align, offset
-      f64_store: { imms: 2, args: 2, returns: 0 },
+      f64_store: { imms: 2, args: [ true, false ], returns: 0 },
 
       // value
-      i32_const: { imms: 1, args: 0, returns: 1 },
+      i32_const: { imms: 1, args: [], returns: 1 },
 
       // a, b
-      i32_or: { imms: 0, args: 2, returns: 1 },
+      i32_or: { imms: 0, args: [ true, true ], returns: 1 },
     };
 
     const opName = name.slice('__Porffor_wasm_'.length);
@@ -1875,13 +1875,13 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const op = wasmOps[opName];
 
       const argOut = [];
-      for (let i = 0; i < op.args; i++) argOut.push(
+      for (let i = 0; i < op.args.length; i++) argOut.push(
         ...generate(scope, decl.arguments[i]),
-        Opcodes.i32_to
+        ...(op.args[i] ? [ Opcodes.i32_to ] : [])
       );
 
       // literals only
-      const imms = decl.arguments.slice(op.args).map(x => x.value);
+      const imms = decl.arguments.slice(op.args.length).map(x => x.value);
 
       return [
         ...argOut,
