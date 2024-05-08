@@ -38,7 +38,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
 
   const allocated = new Set();
 
-  const exports = funcs.filter(x => x.export);
+  const exports = funcs.filter(x => x.export && x.name !== 'main');
   for (const x of exports) {
     if (x.data) {
       x.data = x.data.map(x => data[x]);
