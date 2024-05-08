@@ -210,7 +210,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
               return int;
             });
 
-            out.push([ ...inst, ...immediates ]);
+            out.push([ ...inst, ...immediates.flatMap(x => signedLEB128(x)) ]);
           }
 
           return out;
