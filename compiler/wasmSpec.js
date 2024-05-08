@@ -85,6 +85,7 @@ export const Opcodes = {
   i64_store8: 0x3c,
   i64_store16: 0x3d,
 
+  memory_size: 0x3f,
   memory_grow: 0x40,
 
   i32_const: 0x41,
