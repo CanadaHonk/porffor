@@ -236,7 +236,7 @@ export const __ecma262_UTC = (t: number): number => {
 
 // todo: move this somewhere generic?
 // 7.1.5 ToIntegerOrInfinity (argument) | https://tc39.es/ecma262/multipage/abstract-operations.html#sec-tointegerorinfinity
-export const __ecma262_ToIntegerOrInfinity = (argument: unknown) => {
+export const __ecma262_ToIntegerOrInfinity = (argument: unknown): number => {
   // 1. Let number be ? ToNumber(argument).
   const number: number = Number(argument);
 
@@ -252,7 +252,7 @@ export const __ecma262_ToIntegerOrInfinity = (argument: unknown) => {
 };
 
 // 21.4.1.27 MakeTime (hour, min, sec, ms) | https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-maketime
-export const __ecma262_MakeTime = (hour: number, min: number, sec: number, ms: number) => {
+export const __ecma262_MakeTime = (hour: number, min: number, sec: number, ms: number): number => {
   // 1. If hour is not finite, min is not finite, sec is not finite, or ms is not finite, return NaN.
   if (Porffor.fastOr(!Number.isFinite(hour), !Number.isFinite(min), !Number.isFinite(sec), !Number.isFinite(ms))) return NaN;
 
@@ -355,8 +355,37 @@ export const Date = (): bytestring => {
   // 1. If NewTarget is undefined, then
   //   a. Let now be the time value (UTC) identifying the current time.
   //   b. Return ToDateString(now).
-  return Date$constructor().toString();
+  // return Date$constructor().toString();
+  return '';
 };
+
+// dark wasm magic for a basic allocator, sorry.
+export const __Porffor_date_allocate = (): Date => {
+  const hack: bytestring = '';
+
+  if (hack.length == 0) {
+    hack.length = Porffor.wasm`i32.const 1
+memory.grow 0
+drop
+memory.size 0
+i32.const 1
+i32.sub
+i32.const 65536
+i32.mul
+i32.from_u`;
+  }
+
+  const ptr: number = hack.length;
+  hack.length = ptr + 8;
+
+  return ptr;
+};
+
+export const __Porffor_date_read = (ptr: Date): number => Porffor.wasm.f64.load(ptr, 0, 0);
+export const __Porffor_date_write = (ptr: Date, val: number) => {
+  Porffor.wasm.f64.store(ptr, val, 0, 0);
+};
+
 
 export const Date$constructor = (v0: unknown, v1: unknown, v2: unknown, v3: unknown, v4: unknown, v5: unknown, v6: unknown): Date => {
   // todo: passing undefined to params should not act like no arg was passed
@@ -372,16 +401,14 @@ export const Date$constructor = (v0: unknown, v1: unknown, v2: unknown, v3: unkn
     (Porffor.rawType(v5) != Porffor.TYPES.undefined) +
     (Porffor.rawType(v6) != Porffor.TYPES.undefined);
 
-  // here we return directly instead of setting dv
+  let dv: number = 0;
 
   // 3. If numberOfArgs = 0, then
   if (numberOfArgs == 0) {
     // a. Let dv be the time value (UTC) identifying the current time.
-    return __Date_now();
-  }
-
-  // 4. Else if numberOfArgs = 1, the n
-  if (numberOfArgs == 1) {
+    dv = __Date_now();
+  } else if (numberOfArgs == 1) {
+    // 4. Else if numberOfArgs = 1, the n
     // a. Let value be values[0].
     const value: any = v0;
 
@@ -392,7 +419,7 @@ export const Date$constructor = (v0: unknown, v1: unknown, v2: unknown, v3: unkn
     // b. If value is an Object and value has a [[DateValue]] internal slot, then
     if (valueType == Porffor.TYPES._date) {
       // i. Let tv be value.[[DateValue]].
-      tv = value;
+      tv = __Porffor_date_read(value);
     } else {
       // c. Else,
       // ii. If v is a String, then
@@ -409,46 +436,55 @@ export const Date$constructor = (v0: unknown, v1: unknown, v2: unknown, v3: unkn
     }
 
     // d. Let dv be TimeClip(tv).
-    return __ecma262_TimeClip(tv);
+    dv = __ecma262_TimeClip(tv);
+  } else {
+    // 5. Else,
+    // a. Assert: numberOfArgs ≥ 2.
+
+    // b. Let y be ? ToNumber(values[0]).
+    const y: number = Number(v0);
+
+    // c. Let m be ? ToNumber(values[1]).
+    const m: number = Number(v1);
+
+    // d. If numberOfArgs > 2, let dt be ? ToNumber(values[2]); else let dt be 1𝔽.
+    let dt: number = 1;
+    if (numberOfArgs > 2) dt = Number(v2);
+
+    // e. If numberOfArgs > 3, let h be ? ToNumber(values[3]); else let h be +0𝔽.
+    let h: number = 0;
+    if (numberOfArgs > 3) h = Number(v3);
+
+    // f. If numberOfArgs > 4, let min be ? ToNumber(values[4]); else let min be +0𝔽.
+    let min: number = 0;
+    if (numberOfArgs > 4) min = Number(v4);
+
+    // g. If numberOfArgs > 5, let s be ? ToNumber(values[5]); else let s be +0𝔽.
+    let s: number = 0;
+    if (numberOfArgs > 5) s = Number(v5);
+
+    // h. If numberOfArgs > 6, let milli be ? ToNumber(values[6]); else let milli be +0𝔽.
+    let milli: number = 0;
+    if (numberOfArgs > 6) milli = Number(v6);
+
+    // i. Let yr be MakeFullYear(y).
+    const yr: number = __ecma262_MakeFullYear(y);
+
+    // j. Let finalDate be MakeDate(MakeDay(yr, m, dt), MakeTime(h, min, s, milli)).
+    const finalDate: number = __ecma262_MakeDate(__ecma262_MakeDay(yr, m, dt), __ecma262_MakeTime(h, min, s, milli));
+
+    // k. Let dv be TimeClip(UTC(finalDate)).
+    dv = __ecma262_TimeClip(__ecma262_UTC(finalDate));
   }
 
-  // 5. Else,
-  // a. Assert: numberOfArgs ≥ 2.
+  // 6. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Date.prototype%", « [[DateValue]] »).
+  const O: Date = __Porffor_date_allocate();
 
-  // b. Let y be ? ToNumber(values[0]).
-  const y: number = Number(v0);
+  // 7. Set O.[[DateValue]] to dv.
+  __Porffor_date_write(O, dv);
 
-  // c. Let m be ? ToNumber(values[1]).
-  const m: number = Number(v1);
-
-  // d. If numberOfArgs > 2, let dt be ? ToNumber(values[2]); else let dt be 1𝔽.
-  let dt: number = 1;
-  if (numberOfArgs > 2) dt = Number(v2);
-
-  // e. If numberOfArgs > 3, let h be ? ToNumber(values[3]); else let h be +0𝔽.
-  let h: number = 0;
-  if (numberOfArgs > 3) h = Number(v3);
-
-  // f. If numberOfArgs > 4, let min be ? ToNumber(values[4]); else let min be +0𝔽.
-  let min: number = 0;
-  if (numberOfArgs > 4) min = Number(v4);
-
-  // g. If numberOfArgs > 5, let s be ? ToNumber(values[5]); else let s be +0𝔽.
-  let s: number = 0;
-  if (numberOfArgs > 5) s = Number(v5);
-
-  // h. If numberOfArgs > 6, let milli be ? ToNumber(values[6]); else let milli be +0𝔽.
-  let milli: number = 0;
-  if (numberOfArgs > 6) milli = Number(v6);
-
-  // i. Let yr be MakeFullYear(y).
-  const yr: number = __ecma262_MakeFullYear(y);
-
-  // j. Let finalDate be MakeDate(MakeDay(yr, m, dt), MakeTime(h, min, s, milli)).
-  const finalDate: number = __ecma262_MakeDate(__ecma262_MakeDay(yr, m, dt), __ecma262_MakeTime(h, min, s, milli));
-
-  // k. Let dv be TimeClip(UTC(finalDate)).
-  return __ecma262_TimeClip(__ecma262_UTC(finalDate));
+  // 8. Return O.
+  return O;
 };
 
 

@@ -163,7 +163,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
           case TYPES.string: {
             const pointer = ret;
-            const length = new Int32Array(memory.buffer, pointer, 1);
+            const length = (new Int32Array(memory.buffer, pointer, 1))[0];
 
             return Array.from(new Uint16Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
           }
@@ -180,7 +180,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
           case TYPES._array: {
             const pointer = ret;
-            const length = new Int32Array(memory.buffer, pointer, 1);
+            const length = (new Int32Array(memory.buffer, pointer, 1))[0];
 
             // have to slice because of memory alignment
             const buf = memory.buffer.slice(pointer + 4, pointer + 4 + 8 * length);
@@ -190,13 +190,16 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
           case TYPES._bytestring: {
             const pointer = ret;
-            const length = new Int32Array(memory.buffer, pointer, 1);
+            const length = (new Int32Array(memory.buffer, pointer, 1))[0];
 
             return Array.from(new Uint8Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
           }
 
           case TYPES._date: {
-            return new Date(ret);
+            const pointer = ret;
+            const value = (new Float64Array(memory.buffer, pointer, 1))[0];
+
+            return new Date(value);
           }
 
           default: return ret;
