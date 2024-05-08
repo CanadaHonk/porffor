@@ -216,7 +216,7 @@ export const BuiltinFuncs = function() {
   };
 
 
-  this.__console_log = {
+  this.__Porffor_print = {
     params: [ valtypeBinary, Valtype.i32 ],
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
@@ -368,10 +368,7 @@ export const BuiltinFuncs = function() {
           [ Opcodes.local_get, 0 ],
           [ Opcodes.call, importedFuncs.print ],
         ]
-      }, Blocktype.void),
-
-      ...char('\n'),
-      [ Opcodes.call, importedFuncs.printChar ]
+      }, Blocktype.void)
     ]
   };
 

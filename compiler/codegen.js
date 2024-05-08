@@ -1697,6 +1697,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
         protoBC[type] = generateCall(scope, {
           callee: {
+            type: 'Identifier',
             name: x
           },
           arguments: [ target, ...decl.arguments ],
@@ -3581,6 +3582,39 @@ const internalConstrs = {
     type: TYPES.number,
     notConstr: true,
     length: 2
+  },
+
+  __console_log: {
+    generate: (scope, decl) => {
+      const out = [];
+
+      for (let i = 0; i < decl.arguments.length; i++) {
+        out.push(
+          ...generateCall(scope, {
+            callee: {
+              type: 'Identifier',
+              name: '__Porffor_print'
+            },
+            arguments: [ decl.arguments[i] ]
+          }),
+
+          // print space
+          ...number(32),
+          [ Opcodes.call, importedFuncs.printChar ]
+        );
+      }
+
+      // print newline
+      out.push(
+        ...number(10),
+        [ Opcodes.call, importedFuncs.printChar ]
+      );
+
+      return out;
+    },
+    type: TYPES.undefined,
+    notConstr: true,
+    length: 0
   }
 };
 
