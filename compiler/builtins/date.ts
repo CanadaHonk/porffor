@@ -63,10 +63,10 @@ export const __ecma262_TimeFromYear = (y: number): number => 86400000 * __ecma26
 export const __ecma262_YearFromTime = (t: number): number => {
   // 1. Return the largest integral Number y (closest to +∞) such that TimeFromYear(y) ≤ t.
 
-  // guess year with floor(t / (365.2425 * msPerDay)) + 1970)
-  const y: number = Math.floor(t / 31556953970);
+  // guess year with floor(t / (365.2425 * msPerDay)) + 1970
+  const y: number = Math.floor(t / 31556952000) + 1970;
 
-  // get timestamp from guessed year
+  // get timestamp for guessed year
   const t2: number = __ecma262_TimeFromYear(y);
 
   // if timestamp is higher, we guessed too high
