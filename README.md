@@ -23,7 +23,7 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 **`porf path/to/script.js`**
 
 ### Compiling to Wasm
-**`porf compile path/to/script.js out.wasm`**. Currently it does not use an import standard like WASI, so it is mostly unusable on its own.
+**`porf wasm path/to/script.js out.wasm`**. Currently it does not use an import standard like WASI, so it is mostly unusable on its own.
 
 ### Compiling to native binaries
 > [!WARNING]
