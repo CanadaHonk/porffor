@@ -14,33 +14,47 @@ Porffor is primarily built from scratch, the only thing that is not is the parse
 Expect nothing to work! Only very limited JS is currently supported. See files in `bench` for examples.
 
 ### Setup
-1. Clone this repo (`git clone https://github.com/CanadaHonk/porffor.git`)
-2. `npm install` - for parser(s)
-
-### Running a file
-The repos comes with easy alias files for Unix and Windows, which you can use like so:
-- Unix: `./porf path/to/script.js`
-- Windows: `.\porf path/to/script.js`
-
-Please note that further examples below will just use `./porf`, you need to use `.\porf` on Windows. You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A`) or Bun (`bun ...`), or just use it yourself (eg `node runner/index.js ...`, `bun runner/index.js ...`). Node and Bun should work great, Deno support is WIP.
+**`npm install -g porffor`**. It's that easy (hopefully) :)
 
 ### Trying a REPL
-**`./porf`**. Just run it with no script file argument.
+**`porf`**. Just run it with no script file argument.
+
+### Running a JS file
+**`porf path/to/script.js`**
+
+### Compiling to Wasm
+**`porf compile path/to/script.js out.wasm`**. Currently it does not use an import standard like WASI, so it is mostly unusable on its own.
 
 ### Compiling to native binaries
 > [!WARNING]
 > Compiling to native binaries uses [2c](#2c), Porffor's own Wasm -> C compiler, which is experimental.
 
-**`./porf native path/to/script.js out(.exe)`**. You can specify the compiler with `-compiler=clang/zig/gcc`, and which opt level to use with `-cO=O3` (`Ofast` by default). Output binaries are also stripped by default.
+**`porf native path/to/script.js out(.exe)`**. You can specify the compiler with `-compiler=clang/zig/gcc`, and which opt level to use with `-cO=O3` (`Ofast` by default). Output binaries are also stripped by default.
 
 ### Compiling to C
 > [!WARNING]
 > Compiling to C uses [2c](#2c), Porffor's own Wasm -> C compiler, which is experimental.
 
-**`./porf c path/to/script.js (out.c)`**. When not including an output file, it will be printed to stdout instead.
+**`porf c path/to/script.js (out.c)`**. When not including an output file, it will be printed to stdout instead.
 
-### Compiling to a Wasm binary
-**`./porf compile path/to/script.js out.wasm`**. Currently it does not use an import standard like WASI, so it is mostly unusable.
+### Profiling a JS file
+> [!WARNING]
+> Very experimental WIP feature!
+
+**`porf profile path/to/script.js`**
+
+### Debugging a JS file
+> [!WARNING]
+> Very experimental WIP feature!
+
+**`porf debug path/to/script.js`**
+
+### Profiling the generated Wasm of a JS file
+> [!WARNING]
+> Very experimental WIP feature!
+
+**`porf debug-wasm path/to/script.js`**
+
 
 ### Options
 - `-target=wasm|c|native` (default: `wasm`) to set target output (native compiles c output to binary, see args below)
@@ -68,6 +82,13 @@ Please note that further examples below will just use `./porf`, you need to use 
 - `-opt-no-inline` to not inline any funcs
 - `-tail-call` to enable tail calls (experimental + not widely implemented)
 - `-compile-hints` to enable V8 compilation hints (experimental + doesn't seem to do much?)
+
+### Running in the repo
+The repo comes with easy alias files for Unix and Windows, which you can use like so:
+- Unix: `./porf path/to/script.js`
+- Windows: `.\porf path/to/script.js`
+
+Please note that further examples below will just use `./porf`, you need to use `.\porf` on Windows. You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A`) or Bun (`bun ...`), or just use it yourself (eg `node runner/index.js ...`, `bun runner/index.js ...`). Node and Bun should work great, Deno support is WIP.
 
 ## Limitations
 - No full object support yet
