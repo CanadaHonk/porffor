@@ -17,6 +17,31 @@ if (process.argv.includes('-compile-hints')) {
   // --experimental-wasm-return-call (on by default)
 }
 
+if (process.argv.includes('--help')) {
+  // description + version
+  console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript engine/runtime/compiler. \x1B[90m(${(await import('./version.js')).default})\x1B[0m`);
+
+  // basic usage
+  console.log(`Usage: \x1B[1mporf [command] path/to/script.js [...prefs] [...args]\x1B[0m`);
+
+  // commands
+  console.log(`\n\u001b[4mCommands\x1B[0m`);
+  for (const [ cmd, [ color, desc ] ] of Object.entries({
+    run: [ 34, 'Run a JS file' ],
+    wasm: [ 34, 'Compile a JS file to a Wasm binary\n' ],
+    native: [ 31, 'Compile a JS file to a native binary' ],
+    c: [ 31, 'Compile a JS file to C source code\n' ],
+    profile: [ 33, 'Profile a JS file' ],
+    debug: [ 33, 'Debug a JS file' ],
+    'debug-wasm': [ 33, 'Debug the compiled Wasm of a JS file' ]
+  })) {
+    console.log(`  \x1B[1m\x1B[${color}m${cmd}\x1B[0m${' '.repeat(20 - cmd.length - (desc.startsWith('🧪') ? 3 : 0))}${desc}`);
+  }
+
+  console.log();
+  process.exit(0);
+}
+
 let file = process.argv.slice(2).find(x => x[0] !== '-');
 if (['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(file)) {
   if (file === 'profile') {
