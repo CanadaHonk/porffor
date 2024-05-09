@@ -1,4 +1,4 @@
-const onByDefault = [ 'bytestring', 'aotPointerOpt' ];
+const onByDefault = [ 'bytestring', 'aotPointerOpt', 'treeshakeWasmImports' ];
 
 let cache = {};
 const obj = new Proxy({}, {
