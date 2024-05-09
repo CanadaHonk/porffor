@@ -151,23 +151,28 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Array member setting (`arr[0] = 2`, `arr[0] += 2`, etc)
 - Array constructor (`Array(5)`, `new Array(1, 2, 3)`)
 - Labelled statements (`foo: while (...)`)
+- `do...while` loops
 
 ### Built-ins
 
-- `NaN` and `Infinity` (f64 only)
-- `isNaN()` and `isFinite()` (f64 only)
-- Most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`, `isInteger`, `isSafeInteger`) (some f64 only)
-- Some `Math` funcs (`sqrt`, `abs`, `floor`, `sign`, `round`, `trunc`, `clz32`, `fround`, `random`) (f64 only)
+- `NaN` and `Infinity`
+- `isNaN()` and `isFinite()`
+- Most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`, `isInteger`, `isSafeInteger`)
+- Some `Math` funcs (`sqrt`, `abs`, `floor`, `sign`, `round`, `trunc`, `clz32`, `fround`, `random`)
 - Basic `globalThis` support
 - Basic `Boolean` and `Number`
 - Basic `eval` for literals
 - `Math.random()` using self-made xorshift128+ PRNG
-- Some of `performance` (`now()`)
-- Some of `Array.prototype` (`at`, `push`, `pop`, `shift`, `fill`)
+- Some of `performance` (`now()`, `timeOrigin`)
+- Some of `Array.prototype` (`at`, `push`, `pop`, `shift`, `fill`, `slice`, `indexOf`, `lastIndexOf`, `includes`, `with`, `reverse`, `toReversed`)
 - Some of `Array` (`of`, `isArray`)
-- Some of `String.prototype` (`at`, `charAt`, `charCodeAt`)
+- Most of `String.prototype` (`at`, `charAt`, `charCodeAt`, `toUpperCase`, `toLowerCase`, `startsWith`, `endsWith`, `indexOf`, `lastIndexOf`, `includes`, `padStart`, `padEnd`, `substring`, `substr`, `slice`, `trimStart`, `trimEnd`, `trim`, `toString`, `big`, `blink`, `bold`, `fixed`, `italics`, `small`, `strike`, `sub`, `sup`,  `trimLeft`, `trimRight`, )
 - Some of `crypto` (`randomUUID`)
 - `escape`
+- `btoa`
+- Most of `Number.prototype` (`toString`, `toFixed`, `toExponential`)
+- `parseInt`
+- Spec-compliant `Date`
 
 ### Custom
 
@@ -271,8 +276,6 @@ No particular order and no guarentees, just what could happen soon™
   - Run precompiled Wasm file if given
 - Docs
   - Update codebase readme section
-- REPL
-  - Basic polyfill of `node:repl` for non-Node runtimes to work
 - Cool proposals
   - [Optional Chaining Assignment](https://github.com/tc39/proposal-optional-chaining-assignment)
   - [Modulus and Additional Integer Math](https://github.com/tc39/proposal-integer-and-modulus-math)
@@ -291,6 +294,15 @@ No particular order and no guarentees, just what could happen soon™
 
 ## VSCode extension
 There is a vscode extension in `vscode-ext` which tweaks JS syntax highlighting to be nicer with porffor features (eg highlighting wasm inside of inline asm).
+
+## Wasm proposals used
+Porffor intentionally does not use Wasm proposals which are not commonly implemented yet (eg GC) so it can be used in as many places as possible.
+
+- Multi-value **(required)**
+- Non-trapping float-to-int conversions **(required)**
+- Bulk memory operations (required, but uncommonly used)
+- Exception handling (optional, for errors)
+- Tail calls (opt-in, off by default)
 
 ## Isn't this the same as AssemblyScript/other Wasm langs?
 No. they are not alike at all internally and have very different goals/ideals:
