@@ -1,8 +1,8 @@
-import { Blocktype, Opcodes, Valtype, PageSize, ValtypeSize } from '../compiler/wasmSpec.js';
+import { Blocktype, Opcodes, Valtype, ValtypeSize } from '../compiler/wasmSpec.js';
 import { number } from '../compiler/embedding.js';
-import { signedLEB128, unsignedLEB128 } from '../compiler/encoding.js';
 import parse from './parse.js';
 import Prefs from '../compiler/prefs.js';
+import { TYPES } from '../compiler/types.js';
 
 // local indexes
 const BasePointer = 0; // base string pointer
@@ -14,7 +14,7 @@ const Length = 5;
 const Tmp = 6;
 
 let exprLastGet = false;
-const generate = (node, negated = false, get = true, func = 'test') => {
+const generate = (node, negated = false, get = true, stringSize = 2, func = 'test') => {
   let out = [];
   switch (node.type) {
     case 'Expression':
@@ -42,7 +42,7 @@ const generate = (node, negated = false, get = true, func = 'test') => {
         // generate checks
         ...node.body.flatMap((x, i) => {
           exprLastGet = x.type !== 'Group' && i === (node.body.length - 1);
-          return generate(x, negated);
+          return generate(x, negated, true, stringSize, func);
         }),
 
         // reached end without branching out, successful match
@@ -56,9 +56,9 @@ const generate = (node, negated = false, get = true, func = 'test') => {
 
         [ Opcodes.end ],
 
-        // increment iter pointer by sizeof i16
+        // increment iter pointer by string size
         [ Opcodes.local_get, IterPointer ],
-        ...number(ValtypeSize.i16, Valtype.i32),
+        ...number(stringSize, Valtype.i32),
         [ Opcodes.i32_add ],
         [ Opcodes.local_set, IterPointer ],
 
@@ -91,34 +91,34 @@ const generate = (node, negated = false, get = true, func = 'test') => {
       break;
 
     case 'Character':
-      out = generateChar(node, node.negated ^ negated, get);
+      out = generateChar(node, node.negated ^ negated, get, stringSize);
       break;
 
     case 'Set':
-      out = generateSet(node, node.negated, get);
+      out = generateSet(node, node.negated, get, stringSize);
       break;
 
     case 'Group':
-      out = generateGroup(node, negated, get);
+      out = generateGroup(node, negated, get, stringSize);
       break;
 
     case 'Range':
-      out = generateRange(node, negated, get);
+      out = generateRange(node, negated, get, stringSize);
       break;
   }
 
   return out;
 };
 
-const getNextChar = () => [
+const getNextChar = (stringSize) => [
   // get char from pointer
   [ Opcodes.local_get, Pointer ],
-  [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(0) ],
+  [ stringSize == 2 ? Opcodes.i32_load16_u : Opcodes.i32_load8_u, 0, 0 ],
 
   ...(exprLastGet ? [] : [
-    // pointer += sizeof i16
+    // pointer += string size
     [ Opcodes.local_get, Pointer ],
-    ...number(ValtypeSize.i16, Valtype.i32),
+    ...number(stringSize, Valtype.i32),
     [ Opcodes.i32_add ],
     [ Opcodes.local_set, Pointer ]
   ])
@@ -134,21 +134,21 @@ const checkFailure = () => [
   [ Opcodes.br_if, 0 ]
 ];
 
-const generateChar = (node, negated, get) => {
+const generateChar = (node, negated, get, stringSize) => {
   return [
-    ...(get ? getNextChar() : []),
+    ...(get ? getNextChar(stringSize) : []),
     ...number(node.char.charCodeAt(0), Valtype.i32),
     negated ? [ Opcodes.i32_eq ] : [ Opcodes.i32_ne ],
     ...(get ? checkFailure(): [])
   ];
 };
 
-const generateSet = (node, negated, get) => {
+const generateSet = (node, negated, get, stringSize) => {
   // for a single char we do not need a tmp, it is like just
   const singleChar = node.body.length === 1 && node.body[0].type === 'Character';
 
   let out = [
-    ...(get ? getNextChar() : []),
+    ...(get ? getNextChar(stringSize) : []),
     ...(singleChar ? [] : [ [ Opcodes.local_set, Tmp ] ]),
   ];
 
@@ -156,7 +156,7 @@ const generateSet = (node, negated, get) => {
     out = [
       ...out,
       ...(singleChar ? [] : [ [ Opcodes.local_get, Tmp ] ]),
-      ...generate(x, negated, false)
+      ...generate(x, negated, false, stringSize)
     ];
   }
 
@@ -168,9 +168,9 @@ const generateSet = (node, negated, get) => {
   ];
 };
 
-const generateRange = (node, negated, get) => {
+const generateRange = (node, negated, get, stringSize) => {
   return [
-    ...(get ? getNextChar() : []),
+    ...(get ? getNextChar(stringSize) : []),
     ...(get ? [ [ Opcodes.local_tee, Tmp ] ] : []),
 
     ...number(node.from.charCodeAt(0), Valtype.i32),
@@ -192,8 +192,25 @@ const generateGroup = (node, negated, get) => {
   return [];
 };
 
-export const test = (regex, index = 0, name = 'regex_test_' + regex) => outputFunc(generate(parse(regex), false, true, 'test'), name, index);
-export const search = (regex, index = 0, name = 'regex_search_' + regex) => outputFunc(generate(parse(regex), false, true, 'search'), name, index);
+const wrapFunc = (regex, func, name, index) => {
+  const parsed = parse(regex);
+
+  return outputFunc([
+    [ Opcodes.local_get, 1 ],
+    ...number(TYPES.string, Valtype.i32),
+    [ Opcodes.i32_eq ],
+    [ Opcodes.if, Valtype.i32 ],
+    // string
+    ...generate(parsed, false, true, 2, func),
+    [ Opcodes.else ],
+    // bytestring
+    ...generate(parsed, false, true, 1, func),
+    [ Opcodes.end ]
+  ], name, index);
+};
+
+export const test = (regex, index = 0, name = 'regex_test_' + regex) => wrapFunc(regex, 'test', name, index);
+export const search = (regex, index = 0, name = 'regex_search_' + regex) => wrapFunc(regex, 'search', name, index);
 
 const outputFunc = (wasm, name, index) => ({
   name,
@@ -201,9 +218,9 @@ const outputFunc = (wasm, name, index) => ({
   wasm,
 
   export: true,
-  params: [ Valtype.i32 ],
+  params: [ Valtype.i32, Valtype.i32 ],
   returns: [ Valtype.i32 ],
-  returnType: 1, // boolean - todo: do not hardcode this
+  returnType: TYPES.boolean,
   locals: {
     basePointer: { idx: 0, type: Valtype.i32 },
     iterPointer: { idx: 1, type: Valtype.i32 },

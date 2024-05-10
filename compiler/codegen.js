@@ -1660,9 +1660,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       return [
         // make string arg
         ...generate(scope, decl.arguments[0]),
+        Opcodes.i32_to_u,
+        ...getNodeType(scope, decl.arguments[0]),
 
         // call regex func
-        Opcodes.i32_to_u,
         [ Opcodes.call, idx ],
         Opcodes.i32_from_u,
 
