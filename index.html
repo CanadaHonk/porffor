@@ -997,7 +997,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
     const setProcess = () => {
       globalThis.process = {
         // argv: ['', '', ...args.value.split(' '), `-valtype=${valtype_dropdown.value}`, `-O${opt_dropdown.value}`, `-parser=${parser_dropdown.value}`, `-target=${target_dropdown.value}`]
-        argv: ['', '', ...args.value.split(' '), `-O${opt_dropdown.value}`, `-parser=${parser_dropdown.value}`, `-target=${target_dropdown.value}`]
+        argv: ['', '', ...args.value.split(' '), `-O${opt_dropdown.value}`, `--parser=${parser_dropdown.value}`, `--target=${target_dropdown.value}`]
       };
     };
 

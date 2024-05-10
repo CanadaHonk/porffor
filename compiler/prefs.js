@@ -9,11 +9,12 @@ const obj = new Proxy({}, {
     return cache[p] = (() => {
       // fooBar -> foo-bar
       const name = p[0] === '_' ? p : p.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
-      if (process.argv.includes('-' + name)) return true;
-      if (process.argv.includes('-no-' + name)) return false;
+      const prefix = name.length === 1 ? '-' : '--';
+      if (process.argv.includes(prefix + name)) return true;
+      if (process.argv.includes(prefix + 'no-' + name)) return false;
 
-      const valArg = process.argv.find(x => x.startsWith(`-${name}=`));
-      if (valArg) return valArg.slice(name.length + 2);
+      const valArg = process.argv.find(x => x.startsWith(`${prefix}${name}=`));
+      if (valArg) return valArg.slice(name.length + 1 + prefix.length);
 
       if (onByDefault.includes(p)) return true;
       return undefined;

@@ -3649,7 +3649,7 @@ export default program => {
 
   globalThis.valtype = 'f64';
 
-  const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
+  const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
   if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
 
   globalThis.valtypeBinary = Valtype[valtype];
@@ -3657,7 +3657,7 @@ export default program => {
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
 
   globalThis.pageSize = PageSize;
-  const pageSizeOpt = process.argv.find(x => x.startsWith('-page-size='));
+  const pageSizeOpt = process.argv.find(x => x.startsWith('--page-size='));
   if (pageSizeOpt) pageSize = parseInt(pageSizeOpt.split('=')[1]) * 1024;
 
   // set generic opcodes for current valtype

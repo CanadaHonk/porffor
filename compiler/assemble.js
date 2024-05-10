@@ -154,7 +154,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
 
   const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, x.index ]);
 
-  if (Prefs.alwaysMemory && pages.size === 0) pages.set('-always-memory', 0);
+  if (Prefs.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
   if (optLevel === 0) pages.set('O0 precaution', 0);
 
   const usesMemory = pages.size > 0;

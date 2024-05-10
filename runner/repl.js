@@ -21,7 +21,7 @@ try {
 
 globalThis.valtype = 'f64';
 
-const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
+const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
 if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
 
 let host = globalThis?.navigator?.userAgent;
@@ -116,7 +116,7 @@ replServer.defineCommand('asm', {
     this.clearBufferedCommand();
 
     try {
-      process.argv.push('-opt-funcs');
+      process.argv.push('--opt-funcs');
       await run('', null, null, () => {}, false);
       process.argv.pop();
     } catch { }

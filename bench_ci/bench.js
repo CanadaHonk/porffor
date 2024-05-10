@@ -21,7 +21,7 @@ for (let i = 0; i < funcs.length; i++) {
   });
 
   try {
-    process.argv.push('-valtype=i32');
+    process.argv.push('--valtype=i32');
     if (['factorial'].includes(func.name)) throw 'overflow';
     const compiledI32 = (await compile('export ' + func.toString())).exports[func.name];
 

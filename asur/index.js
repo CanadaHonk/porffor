@@ -1244,7 +1244,7 @@ paused = _paused;`);
 });
 
 export const instantiate = async (binary, importImpls) => {
-  const _vm = process?.argv?.includes('-wasm-debug') ? await wasmDebugVm() : vm;
+  const _vm = process?.argv?.includes('--wasm-debug') ? await wasmDebugVm() : vm;
 
   const parsed = parse(binary);
   const exports = {};

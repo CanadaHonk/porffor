@@ -18,7 +18,7 @@ const perform = async (file, args) => {
   console.log(label, ' '.repeat(40 - label.length), `${size}b`);
 };
 
-const argsValtypes = [ '-valtype=i32', '-valtype=i64', '-valtype=f64' ];
+const argsValtypes = [ '--valtype=i32', '--valtype=i64', '--valtype=f64' ];
 const argsOptlevels = [ '-O0', '-O1', '-O2', '-O3' ];
 
 for (const file of [ 'bench/prime_basic.js', 'bench/fib_iter.js', 'test/math_1.js', 'test/math_3.js', 'test/while_1.js', 'test/for_2.js', 'test/unary_3.js', 'test/updateexp_1.js', 'test/eq_3.js', 'test/empty.js' ]) {

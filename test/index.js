@@ -66,7 +66,7 @@ const perform = async (test, args) => {
   return pass;
 };
 
-const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
+const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
 const optOpt = process.argv.find(x => x.startsWith('-O'));
 
 const t0 = performance.now();
@@ -74,7 +74,7 @@ const t0 = performance.now();
 // const argsValtypes = [ '-valtype=i32', '-valtype=i64', '-valtype=f64' ];
 // const argsOptlevels = [ '-O0', '-O1', '-O2', '-O3' ];
 
-const argsValtypes = [ '-valtype=f64' ];
+const argsValtypes = [ '--valtype=f64' ];
 const argsOptlevels = [ '-O1' ];
 
 let total = 0, passes = 0;

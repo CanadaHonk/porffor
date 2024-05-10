@@ -11,7 +11,7 @@ const Quantifiers = {
 const QuantifierKeys = Object.keys(Quantifiers);
 
 const getArg = (name, def) => {
-  const arg = (typeof process !== 'undefined' ? process.argv : Deno.args).find(x => x.startsWith(`-${name}=`));
+  const arg = (typeof process !== 'undefined' ? process.argv : Deno.args).find(x => x.startsWith(`--${name}=`));
   if (arg) return arg.split('=')[0];
 
   return def;

@@ -29,7 +29,7 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 > [!WARNING]
 > Compiling to native binaries uses [2c](#2c), Porffor's own Wasm -> C compiler, which is experimental.
 
-**`porf native path/to/script.js out(.exe)`**. You can specify the compiler with `-compiler=clang/zig/gcc`, and which opt level to use with `-cO=O3` (`Ofast` by default). Output binaries are also stripped by default.
+**`porf native path/to/script.js out(.exe)`**. You can specify the compiler with `--compiler=clang/zig/gcc`, and which opt level to use with `--cO=O3` (`Ofast` by default). Output binaries are also stripped by default.
 
 ### Compiling to C
 > [!WARNING]
@@ -57,31 +57,25 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 
 
 ### Options
-- `-target=wasm|c|native` (default: `wasm`) to set target output (native compiles c output to binary, see args below)
-- `-target=c|native` only:
-  - `-o=out.c|out.exe|out` to set file to output c or binary
-- `-target=native` only:
-  - `-compiler=clang` to set compiler binary (path/name) to use to compile
-  - `-cO=O3` to set compiler opt argument
-- `-parser=acorn|@babel/parser|meriyah|hermes-parser` (default: `acorn`) to set which parser to use
-- `-parse-types` to enable parsing type annotations/typescript. if `-parser` is unset, changes default to `@babel/parser`. does not type check
-- `-opt-types` to perform optimizations using type annotations as compiler hints. does not type check
-- `-valtype=i32|i64|f64` (default: `f64`) to set valtype
+- `--parser=acorn|@babel/parser|meriyah|hermes-parser` (default: `acorn`) to set which parser to use
+- `--parse-types` to enable parsing type annotations/typescript. if `-parser` is unset, changes default to `@babel/parser`. does not type check
+- `--opt-types` to perform optimizations using type annotations as compiler hints. does not type check
+- `--valtype=i32|i64|f64` (default: `f64`) to set valtype
 - `-O0` to disable opt
 - `-O1` (default) to enable basic opt (simplify insts, treeshake wasm imports)
 - `-O2` to enable advanced opt (inlining). unstable
 - `-O3` to enable advanceder opt (precompute const math). unstable
-- `-no-run` to not run wasm output, just compile
-- `-opt-log` to log some opts
-- `-code-log` to log some codegen (you probably want `-funcs`)
-- `-regex-log` to log some regex
-- `-funcs` to log funcs
-- `-ast-log` to log AST
-- `-opt-funcs` to log funcs after opt
-- `-sections` to log sections as hex
-- `-opt-no-inline` to not inline any funcs
-- `-tail-call` to enable tail calls (experimental + not widely implemented)
-- `-compile-hints` to enable V8 compilation hints (experimental + doesn't seem to do much?)
+- `--no-run` to not run wasm output, just compile
+- `--opt-log` to log some opts
+- `--code-log` to log some codegen (you probably want `-funcs`)
+- `--regex-log` to log some regex
+- `--funcs` to log funcs
+- `--ast-log` to log AST
+- `--opt-funcs` to log funcs after opt
+- `--sections` to log sections as hex
+- `--opt-no-inline` to not inline any funcs
+- `--tail-call` to enable tail calls (experimental + not widely implemented)
+- `--compile-hints` to enable V8 compilation hints (experimental + doesn't seem to do much?)
 
 ### Running in the repo
 The repo comes with easy alias files for Unix and Windows, which you can use like so:

@@ -15,7 +15,7 @@ const _tests = new Test262Stream(test262Path, {
   paths: [ whatTests ]
 });
 
-if (process.argv.includes('-open')) execSync(`code ${test262Path}/${whatTests}`);
+if (process.argv.includes('--open')) execSync(`code ${test262Path}/${whatTests}`);
 
 const preludes = fs.readFileSync('test262/prelude.js', 'utf8').split('///').reduce((acc, x) => {
   const [ k, ...content ] = x.split('\n');
@@ -26,10 +26,10 @@ const allPrelude = Object.values(preludes).join('\n');
 
 let valtype = 'f64';
 
-const valtypeOpt = process.argv.find(x => x.startsWith('-valtype='));
+const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
 if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
 
-const excludeNegative = process.argv.includes('-exclude-negative');
+const excludeNegative = process.argv.includes('--exclude-negative');
 
 const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
@@ -52,13 +52,13 @@ function timeout(function_, timeout) {
   return context.returnValue;
 }
 
-const trackErrors = process.argv.includes('-errors');
-const onlyTrackCompilerErrors = process.argv.includes('-compiler-errors-only');
+const trackErrors = process.argv.includes('--errors');
+const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
 
 let timeoutFiles = ['test/language/statements/for/scope-body-lex-boundary.js', 'test/language/statements/while/S12.6.2_A1.js', 'test/language/statements/continue/shadowing-loop-variable-in-same-scope-as-continue.js', 'test/language/statements/continue/S12.7_A9_T1.js', 'test/language/statements/continue/S12.7_A9_T2.js'];
 if (process.platform === 'win32') timeoutFiles = timeoutFiles.map(x => x.replaceAll('/', '\\'));
 
-const debugAsserts = process.argv.includes('-debug-asserts');
+const debugAsserts = process.argv.includes('--debug-asserts');
 
 // const run = async ({ file, contents, attrs }) => {
 const run = ({ file, contents, attrs }) => {
@@ -164,11 +164,11 @@ for await (const test of _tests) {
 
 if (!resultOnly) console.log();
 
-const profile = process.argv.includes('-profile');
+const profile = process.argv.includes('--profile');
 const log = console.log;
 let currentTest;
 if (profile) {
-  process.argv.push('-profile-compiler');
+  process.argv.push('--profile-compiler');
 
   console.log = msg => {
     if (msg[1] === '.' || msg[2] === ' ') {
@@ -190,8 +190,8 @@ const profileStats = {
   4: 0, // assemble
 };
 
-const logErrors = process.argv.includes('-log-errors');
-const subdirs = process.argv.includes('-subdirs');
+const logErrors = process.argv.includes('--log-errors');
+const subdirs = process.argv.includes('--subdirs');
 
 const start = performance.now();
 
@@ -304,7 +304,7 @@ for (const test of tests) {
 
 console.log = log;
 
-const todoTime = process.argv.find(x => x.startsWith('-todo-time='))?.split('=')[1] ?? 'runtime';
+const todoTime = process.argv.find(x => x.startsWith('--todo-time='))?.split('=')[1] ?? 'runtime';
 
 const table = (overall, ...arr) => {
   let out = '';
