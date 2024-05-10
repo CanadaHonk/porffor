@@ -217,8 +217,8 @@ for (const test of tests) {
   let pass = errored === expected;
   if (pass && expected) pass = result.constructor.name === expectedType;
 
-  if (trackErrors && errored && result && result.message) {
-    if (!onlyTrackCompilerErrors || (!pass && stage === 0 && result.name !== 'TodoError' && result.constructor.name !== 'CompileError' && result.constructor.name !== 'SyntaxError')) {
+  if (!pass && trackErrors && errored && result && result.message) {
+    if (!onlyTrackCompilerErrors || (stage === 0 && result.name !== 'TodoError' && result.constructor.name !== 'CompileError' && result.constructor.name !== 'SyntaxError')) {
       let errorStr = `${result.constructor.name}: ${result.message}`;
       errorStr += `${' '.repeat(160 - errorStr.length)}${result.stack.split('\n')[1]}`;
 
