@@ -20,8 +20,7 @@ const getArg = (name, def) => {
 // full is spec-compliant but slower. not needed most of the time. (evil)
 const DotChars = () => ({
   full: [ '\n', '\r', '\u2028', '\u2029' ],
-  simple: [ '\n', '\r' ],
-  fast: [ '\n' ]
+  fast: [ '\n', '\r' ]
 })[getArg('regex-dot', 'fast')];
 
 const WordChars = () => ({
@@ -31,8 +30,8 @@ const WordChars = () => ({
 
 const WhitespaceChars = () => ({
   full: [ ' ', '\t', '\n', '\r', '\u2028', '\u2029' ],
-  simple: [ ' ', '\t', '\n', '\r' ]
-})[getArg('regex-ws', 'simple')];
+  fast: [ ' ', '\t', '\n', '\r' ]
+})[getArg('regex-ws', 'fast')];
 
 const _Metachars = () => ({
   unescaped: {
