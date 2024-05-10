@@ -205,7 +205,7 @@ Mostly for reducing size. I do not really care about compiler perf/time as long 
 ### Traditional opts
 - Inlining functions (WIP, limited)
 - Inline const math ops
-- Tail calls (behind flag `-tail-call`)
+- Tail calls (behind flag `--tail-call`)
 
 ### Wasm transforms
 - `local.set`, `local.get` -> `local.tee`
