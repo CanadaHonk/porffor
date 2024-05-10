@@ -203,7 +203,7 @@ const outputFunc = (wasm, name, index) => ({
   export: true,
   params: [ Valtype.i32 ],
   returns: [ Valtype.i32 ],
-  returnType: 0xffffffffffff1, // boolean - todo: do not hardcode this
+  returnType: 1, // boolean - todo: do not hardcode this
   locals: {
     basePointer: { idx: 0, type: Valtype.i32 },
     iterPointer: { idx: 1, type: Valtype.i32 },

@@ -1646,18 +1646,24 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     // megahack for /regex/.func()
     const funcName = decl.callee.property.name;
     if (decl.callee.object.regex && Object.hasOwn(Rhemyn, funcName)) {
-      const func = Rhemyn[funcName](decl.callee.object.regex.pattern, currentFuncIndex++);
+      const regex = decl.callee.object.regex.pattern;
+      const rhemynName = `regex_${funcName}_${regex}`;
 
-      funcIndex[func.name] = func.index;
-      funcs.push(func);
+      if (!funcIndex[rhemynName]) {
+        const func = Rhemyn[funcName](regex, currentFuncIndex++, rhemynName);
 
+        funcIndex[func.name] = func.index;
+        funcs.push(func);
+      }
+
+      const idx = funcIndex[rhemynName];
       return [
         // make string arg
         ...generate(scope, decl.arguments[0]),
 
         // call regex func
         Opcodes.i32_to_u,
-        [ Opcodes.call, func.index ],
+        [ Opcodes.call, idx ],
         Opcodes.i32_from_u,
 
         ...number(TYPES.boolean, Valtype.i32),
