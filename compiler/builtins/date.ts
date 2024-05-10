@@ -1103,7 +1103,6 @@ export const ___date_prototype_setSeconds = (_this: Date, sec: any, ms: any) => 
 
 // 21.4.4.27 Date.prototype.setTime (time)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.settime
-
 export const ___date_prototype_setTime = (_this: Date, time: any) => {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
