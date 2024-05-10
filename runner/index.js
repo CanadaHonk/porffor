@@ -38,19 +38,21 @@ if (process.argv.includes('--help')) {
     console.log(`  \x1B[1m\x1B[${color}m${cmd}\x1B[0m${' '.repeat(20 - cmd.length - (desc.startsWith('🧪') ? 3 : 0))}${desc}`);
   }
 
-    // options
-    console.log(`\n\u001b[4mCommands\x1B[0m`);
-    for (const [ cmd, [ color, desc ] ] of Object.entries({
-      run: [ 34, 'Run a JS file' ],
-      wasm: [ 34, 'Compile a JS file to a Wasm binary\n' ],
-      c: [ 31, 'Compile a JS file to C source code' ],
-      native: [ 31, 'Compile a JS file to a native binary\n' ],
-      profile: [ 33, 'Profile a JS file' ],
-      debug: [ 33, 'Debug a JS file' ],
-      'debug-wasm': [ 33, 'Debug the compiled Wasm of a JS file' ]
-    })) {
-      console.log(`  \x1B[1m\x1B[${color}m${cmd}\x1B[0m${' '.repeat(20 - cmd.length - (desc.startsWith('🧪') ? 3 : 0))}${desc}`);
-    }
+  // console.log();
+
+  // // options
+  // console.log(`\n\u001b[4mCommands\x1B[0m`);
+  // for (const [ cmd, [ color, desc ] ] of Object.entries({
+  //   run: [ 34, 'Run a JS file' ],
+  //   wasm: [ 34, 'Compile a JS file to a Wasm binary\n' ],
+  //   c: [ 31, 'Compile a JS file to C source code' ],
+  //   native: [ 31, 'Compile a JS file to a native binary\n' ],
+  //   profile: [ 33, 'Profile a JS file' ],
+  //   debug: [ 33, 'Debug a JS file' ],
+  //   'debug-wasm': [ 33, 'Debug the compiled Wasm of a JS file' ]
+  // })) {
+  //   console.log(`  \x1B[1m\x1B[${color}m${cmd}\x1B[0m${' '.repeat(20 - cmd.length - (desc.startsWith('🧪') ? 3 : 0))}${desc}`);
+  // }
 
   console.log();
   process.exit(0);
