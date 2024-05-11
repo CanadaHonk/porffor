@@ -822,13 +822,13 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","time","time#type","t","v","#last_type"],
   };
   this.___date_prototype_setUTCDate = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,4],[32,2],[16, builtin('Number')],[33,5],[32,4],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,4],[65,0],[16, builtin('__ecma262_YearFromTime')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_MonthFromTime')],[65,0],[32,5],[65,0],[16, builtin('__ecma262_MakeDay')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_TimeWithinDay')],[65,0],[16, builtin('__ecma262_MakeDate')],[33,6],[65,0],[33,7],[32,6],[32,7],[16, builtin('__ecma262_TimeClip')],[33,8],[32,0],[65,19],[32,8],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,8],[65,0],[15]],
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,4],[32,2],[16, builtin('Number')],[33,5],[32,4],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,4],[65,0],[16, builtin('__ecma262_YearFromTime')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_MonthFromTime')],[65,0],[32,5],[65,0],[16, builtin('__ecma262_MakeDay')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_TimeWithinDay')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,6],[65,0],[16, builtin('__ecma262_TimeClip')],[33,7],[32,0],[65,19],[32,7],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,7],[65,0],[15]],
     params: [124,127,124,127],
     typedParams: true,
     returns: [124,127],
     typedReturns: true,
-    locals: [124,124,124,127,124,127],
-    localNames: ["_this","_this#type","date","date#type","t","dt","newDate","newDate#type","v","#last_type"],
+    locals: [124,124,124,124,127],
+    localNames: ["_this","_this#type","date","date#type","t","dt","newDate","v","#last_type"],
   };
   this.___date_prototype_setUTCFullYear = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,8],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,0,0],[33,8],[11],[32,2],[16, builtin('Number')],[33,9],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[97],[4,64],[32,8],[65,0],[16, builtin('__ecma262_MonthFromTime')],[33,10],[5],[32,4],[16, builtin('Number')],[33,10],[11],[32,6],[32,7],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[97],[4,64],[32,8],[65,0],[16, builtin('__ecma262_DateFromTime')],[33,11],[5],[32,6],[16, builtin('Number')],[33,11],[11],[32,9],[65,0],[32,10],[65,0],[32,11],[65,0],[16, builtin('__ecma262_MakeDay')],[65,0],[32,8],[65,0],[16, builtin('__ecma262_TimeWithinDay')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,12],[65,0],[16, builtin('__ecma262_TimeClip')],[33,13],[32,0],[65,19],[32,13],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,13],[65,0],[15]],

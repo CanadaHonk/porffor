@@ -1134,7 +1134,7 @@ export const ___date_prototype_setUTCDate = (_this: Date, date: any) => {
   if (Number.isNaN(t)) return NaN;
 
   // 6. Let newDate be MakeDate(MakeDay(YearFromTime(t), MonthFromTime(t), dt), TimeWithinDay(t)).
-  const newDate = __ecma262_MakeDate(__ecma262_MakeDay(__ecma262_YearFromTime(t), __ecma262_MonthFromTime(t), dt), __ecma262_TimeWithinDay(t));
+  const newDate: number = __ecma262_MakeDate(__ecma262_MakeDay(__ecma262_YearFromTime(t), __ecma262_MonthFromTime(t), dt), __ecma262_TimeWithinDay(t));
 
   // 7. Let v be TimeClip(newDate).
   const v: number = __ecma262_TimeClip(newDate);
