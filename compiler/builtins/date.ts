@@ -1368,3 +1368,133 @@ export const ___date_prototype_setUTCSeconds = (_this: Date, sec: any, ms: any) 
   // 11. Return v.
   return v;
 };
+
+
+// 21.4.1.32 Date Time String Format
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date-time-string-format
+// The format is as follows: YYYY-MM-DDTHH:mm:ss.sssZ
+// YYYY 	is the year in the proleptic Gregorian calendar as four decimal digits from 0000 to 9999, or as an expanded year of "+" or "-" followed by six decimal digits.
+// - 	"-" (hyphen) appears literally twice in the string.
+// MM 	is the month of the year as two decimal digits from 01 (January) to 12 (December).
+// DD 	is the day of the month as two decimal digits from 01 to 31.
+// T 	"T" appears literally in the string, to indicate the beginning of the time element.
+// HH 	is the number of complete hours that have passed since midnight as two decimal digits from 00 to 24.
+// : 	":" (colon) appears literally twice in the string.
+// mm 	is the number of complete minutes since the start of the hour as two decimal digits from 00 to 59.
+// ss 	is the number of complete seconds since the start of the minute as two decimal digits from 00 to 59.
+// . 	"." (dot) appears literally in the string.
+// sss 	is the number of complete milliseconds since the start of the second as three decimal digits.
+// Z 	is the UTC offset representation specified as "Z" (for UTC with no offset) or as either "+" or "-" followed by a time expression HH:mm (a subset of the time zone offset string format for indicating local time ahead of or behind UTC, respectively)
+
+// fast appending single character
+export const __Porffor_bytestring_appendChar = (str: bytestring, char: i32): i32 => {
+  const len: i32 = str.length;
+  Porffor.wasm.i32.store8(Porffor.wasm`local.get ${str}` + len, char, 0, 4);
+  str.length = len + 1;
+  return 1;
+};
+
+// fast appending padded number
+export const __Porffor_bytestring_appendPadNum = (str: bytestring, num: number, len: number): i32 => {
+  let numStr: bytestring = num.toString();
+
+  let strPtr: i32 = Porffor.wasm`local.get ${str}` + str.length;
+
+  let numStrLen: i32 = numStr.length;
+  const strPtrEnd: i32 = strPtr + (len - numStrLen);
+  while (strPtr < strPtrEnd) {
+    Porffor.wasm.i32.store8(strPtr++, 48, 0, 4);
+  }
+
+  let numPtr: i32 = Porffor.wasm`local.get ${numStr}`;
+  const numPtrEnd: i32 = numPtr + numStrLen;
+  while (numPtr < numPtrEnd) {
+    Porffor.wasm.i32.store8(strPtr++, Porffor.wasm.i32.load8_u(numPtr++, 0, 4), 0, 4);
+  }
+
+  str.length = strPtr - Porffor.wasm`local.get ${str}`;
+
+  return 1;
+};
+
+// Timestamp to DTSF
+export const __ecma262_ToUTCDTSF = (t: number) => {
+  const year: number = __ecma262_YearFromTime(t);
+
+  let out: bytestring = '';
+  out.length = 0;
+
+  if (year < 0 || year >= 10000) {
+    // extended year format
+    // sign
+    __Porffor_bytestring_appendChar(out, year > 0 ? 43 : 45);
+
+    // 6 digit year
+    // out += year.toString().padStart(6, zeroPadStr);
+    __Porffor_bytestring_appendPadNum(out, year, 6);
+  } else {
+    // 4 digit year
+    // out += year.toString().padStart(4, zeroPadStr);
+    __Porffor_bytestring_appendPadNum(out, year, 4);
+  }
+  __Porffor_bytestring_appendChar(out, 45); // -
+
+  // 2 digit month (01-12)
+  const month: number = __ecma262_MonthFromTime(t) + 1;
+  // out += month.toString().padStart(2, zeroPadStr);
+  __Porffor_bytestring_appendPadNum(out, month, 2);
+  __Porffor_bytestring_appendChar(out, 45); // -
+
+  // 2 digit day of the month
+  const date: number = __ecma262_DateFromTime(t);
+  // out += date.toString().padStart(2, zeroPadStr);
+  __Porffor_bytestring_appendPadNum(out, date, 2);
+  __Porffor_bytestring_appendChar(out, 84); // T
+
+  // 2 digit hour
+  const hour: number = __ecma262_HourFromTime(t);
+  // out += hour.toString().padStart(2, zeroPadStr);
+  __Porffor_bytestring_appendPadNum(out, hour, 2);
+  __Porffor_bytestring_appendChar(out, 58); // :
+
+  // 2 digit minute
+  const min: number = __ecma262_MinFromTime(t);
+  // out += min.toString().padStart(2, zeroPadStr);
+  __Porffor_bytestring_appendPadNum(out, min, 2);
+  __Porffor_bytestring_appendChar(out, 58); // :
+
+  // 2 digit second
+  const sec: number = __ecma262_SecFromTime(t);
+  // out += sec.toString().padStart(2, zeroPadStr);
+  __Porffor_bytestring_appendPadNum(out, sec, 2);
+  __Porffor_bytestring_appendChar(out, 46); // .
+
+  // 3 digit millisecond
+  const ms: number = __ecma262_msFromTime(t);
+  // out += ms.toString().padStart(3, zeroPadStr);
+  __Porffor_bytestring_appendPadNum(out, ms, 3);
+  __Porffor_bytestring_appendChar(out, 90); // Z
+
+  return out;
+};
+
+export const ___date_prototype_toISOString = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let tv be dateObject.[[DateValue]].
+  const tv: number = __Porffor_date_read(_this);
+
+  // 4. If tv is NaN, throw a RangeError exception.
+  if (Number.isNaN(tv)) {
+    // todo throw
+    return;
+  }
+
+  // 5. Assert: tv is an integral Number.
+
+  // 6. If tv corresponds with a year that cannot be represented in the Date Time String Format, throw a RangeError exception.
+  // todo
+
+  // 7. Return a String representation of tv in the Date Time String Format on the UTC time scale, including all format elements and the UTC offset representation "Z".
+  return __ecma262_ToUTCDTSF(tv);
+};
