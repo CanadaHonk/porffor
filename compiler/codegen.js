@@ -1827,20 +1827,20 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     idx = funcIndex[name];
 
     // infer arguments types from builtins params
-    const func = funcs.find(x => x.name === name);
-    for (let i = 0; i < decl.arguments.length; i++) {
-      const arg = decl.arguments[i];
-      if (!arg.name) continue;
+    // const func = funcs.find(x => x.name === name);
+    // for (let i = 0; i < decl.arguments.length; i++) {
+    //   const arg = decl.arguments[i];
+    //   if (!arg.name) continue;
 
-      const local = scope.locals[arg.name];
-      if (!local) continue;
+    //   const local = scope.locals[arg.name];
+    //   if (!local) continue;
 
-      local.type = func.params[i];
-      if (local.type === Valtype.v128) {
-        // specify vec subtype inferred from last vec type in function name
-        local.vecType = name.split('_').reverse().find(x => x.includes('x'));
-      }
-    }
+    //   local.type = func.params[i];
+    //   if (local.type === Valtype.v128) {
+    //     // specify vec subtype inferred from last vec type in function name
+    //     local.vecType = name.split('_').reverse().find(x => x.includes('x'));
+    //   }
+    // }
   }
 
   if (idx === undefined && internalConstrs[name]) return internalConstrs[name].generate(scope, decl, _global, _name);
