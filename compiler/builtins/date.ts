@@ -1478,6 +1478,8 @@ export const __ecma262_ToUTCDTSF = (t: number) => {
   return out;
 };
 
+// 21.4.4.36 Date.prototype.toISOString ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.toisostring
 export const ___date_prototype_toISOString = (_this: Date) => {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
@@ -1497,4 +1499,19 @@ export const ___date_prototype_toISOString = (_this: Date) => {
 
   // 7. Return a String representation of tv in the Date Time String Format on the UTC time scale, including all format elements and the UTC offset representation "Z".
   return __ecma262_ToUTCDTSF(tv);
+};
+
+// 21.4.4.37 Date.prototype.toJSON (key)
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tojson
+export const ___date_prototype_toJSON = (_this: Date, key: any) => {
+  // 1. Let O be ? ToObject(this value).
+  // 2. Let tv be ? ToPrimitive(O, number).
+  // todo: use generic Number() once it supports Date
+  const tv: number = __Porffor_date_read(_this);
+
+  // 3. If tv is a Number and tv is not finite, return null.
+  if (!Number.isFinite(tv)) return null;
+
+  // 4. Return ? Invoke(O, "toISOString").
+  return ___date_prototype_toISOString(_this);
 };
