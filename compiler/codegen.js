@@ -2270,6 +2270,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     return [];
   }
 
+  const op = decl.operator.slice(0, -1) || '=';
+
   // hack: .length setter
   if (decl.left.type === 'MemberExpression' && decl.left.property.name === 'length') {
     const name = decl.left.object.name;
@@ -2278,14 +2280,20 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const aotPointer = Prefs.aotPointerOpt && pointer != null;
 
     const newValueTmp = localTmp(scope, '__length_setter_tmp');
+    const pointerTmp = op === '=' ? null : localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
     return [
       ...(aotPointer ? number(0, Valtype.i32) : [
         ...generate(scope, decl.left.object),
         Opcodes.i32_to_u
       ]),
+      ...(!pointerTmp ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-      ...generate(scope, decl.right),
+      ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+        [ Opcodes.local_get, pointerTmp ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+        Opcodes.i32_from_u
+      ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right))),
       [ Opcodes.local_tee, newValueTmp ],
 
       Opcodes.i32_to_u,
@@ -2294,8 +2302,6 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       [ Opcodes.local_get, newValueTmp ]
     ];
   }
-
-  const op = decl.operator.slice(0, -1) || '=';
 
   // arr[i]
   if (decl.left.type === 'MemberExpression' && decl.left.computed) {
