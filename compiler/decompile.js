@@ -110,7 +110,6 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
     out += '\n';
     lastInst = inst;
-    i++;
   }
 
   return highlightAsm(out);
