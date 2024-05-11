@@ -1,4 +1,4 @@
-// @porf -funsafe-no-unlikely-proto-checks -valtype=i32
+// @porf --funsafe-no-unlikely-proto-checks --valtype=i32
 
 // while (len >= 8) {
 //   Porffor.wasm`

@@ -1,4 +1,4 @@
-// // @porf -funsafe-no-unlikely-proto-checks -valtype=i32
+// // @porf --funsafe-no-unlikely-proto-checks --valtype=i32
 
 export const __Boolean_prototype_toString = (_this: boolean) => {
   let out: bytestring = '';

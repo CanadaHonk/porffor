@@ -1,4 +1,4 @@
-// @porf -funsafe-no-unlikely-proto-checks -valtype=i32
+// @porf --funsafe-no-unlikely-proto-checks --valtype=i32
 
 export const __crypto_randomUUID = (): bytestring => {
   let bytes: bytestring = '................';

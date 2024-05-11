@@ -1,5 +1,5 @@
 export default () => {
-  let out = `// @porf -funsafe-no-unlikely-proto-checks -valtype=i32
+  let out = `// @porf --funsafe-no-unlikely-proto-checks --valtype=i32
 `;
 
   const annexB_noArgs = (a0, a1) => out += `

@@ -1,4 +1,4 @@
-// @porf -funsafe-no-unlikely-proto-checks -valtype=i32
+// @porf --funsafe-no-unlikely-proto-checks --valtype=i32
 
 // todo: trimLeft, trimRight
 export const __String_prototype_trimLeft = (_this: string) => {

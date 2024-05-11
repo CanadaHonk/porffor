@@ -1,4 +1,4 @@
-// @porf -funsafe-no-unlikely-proto-checks -valtype=i32
+// @porf --funsafe-no-unlikely-proto-checks --valtype=i32
 
 export const escape = (input: string|bytestring): bytestring => {
   // we have no byte array yet so use bytestring with 0x00 and 0x01 via escape characters
