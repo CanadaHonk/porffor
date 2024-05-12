@@ -59,6 +59,10 @@ const todo = (scope, msg, expectsValue = undefined) => {
 };
 
 const isFuncType = type => type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
+const hasFuncWithName = name => {
+  const func = funcs.find(x => x.name === name);
+  return !!(func || builtinFuncs[name] || importedFuncs[name] || internalConstrs[name])
+};
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   switch (decl.type) {
     case 'BinaryExpression':
@@ -1398,6 +1402,15 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type === 'MemberExpression') {
+      // hack: if something.name, string type
+      if (node.property.name === 'name') {
+        if (hasFuncWithName(node.object.name)) {
+          return TYPES.bytestring;
+        } else {
+          return TYPES.undefined;
+        }
+      }
+
       // hack: if something.length, number type
       if (node.property.name === 'length') return TYPES.number;
 
@@ -3228,6 +3241,15 @@ export const generateMember = (scope, decl, _global, _name) => {
 
   const aotPointer = Prefs.aotPointerOpt && pointer != null;
 
+  // hack: .name
+  if (decl.property.name === 'name') {
+    if (hasFuncWithName(name)) {
+      return makeString(scope, name, _global, _name, true);
+    } else {
+      return generate(scope, DEFAULT_VALUE);
+    }
+  }
+
   // hack: .length
   if (decl.property.name === 'length') {
     const func = funcs.find(x => x.name === name);
@@ -3368,8 +3390,8 @@ const objectHack = node => {
 
       if (!objectName) objectName = objectHack(node.object)?.name?.slice?.(2);
 
-      // if .length, give up (hack within a hack!)
-      if (node.property.name === 'length') {
+      // if .name or .length, give up (hack within a hack!)
+      if (['name', 'length'].includes(node.property.name)) {
         node.object = objectHack(node.object);
         return;
       }
