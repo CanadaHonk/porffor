@@ -471,7 +471,7 @@ export const BuiltinFuncs = function() {
     localNames: ["t","t#type"],
   };
   this.__ecma262_ToIntegerOrInfinity = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[16, builtin('Number')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,0,0],[15],[11],[32,2],[16, builtin('__Math_trunc')],[15]],
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[16, builtin('Number')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,0,0],[15],[11],[32,2],[16, builtin('__Number_isFinite')],[68,0,0,0,0,0,0,0,0],[97],[4,64],[32,2],[15],[11],[32,2],[16, builtin('__Math_trunc')],[34,2],[68,0,0,0,0,0,0,0,0],[97],[4,64],[68,0,0,0,0,0,0,0,0],[15],[11],[32,2],[15]],
     params: [124,127],
     typedParams: true,
     returns: [124],

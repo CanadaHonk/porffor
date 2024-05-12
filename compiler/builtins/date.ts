@@ -259,17 +259,21 @@ export const __ecma262_UTC = (t: number): number => {
 // https://tc39.es/ecma262/multipage/abstract-operations.html#sec-tointegerorinfinity
 export const __ecma262_ToIntegerOrInfinity = (argument: unknown): number => {
   // 1. Let number be ? ToNumber(argument).
-  const number: number = Number(argument);
+  let number: number = Number(argument);
 
   // 2. If number is one of NaN, +0𝔽, or -0𝔽, return 0.
   if (Number.isNaN(number)) return 0;
 
   // 3. If number is +∞𝔽, return +∞.
   // 4. If number is -∞𝔽, return -∞.
-  // if (!Number.isFinite(number)) return number;
+  if (!Number.isFinite(number)) return number;
 
   // 5. Return truncate(ℝ(number)).
-  return Math.trunc(number);
+  number = Math.trunc(number);
+
+  // return 0 for -0
+  if (number == 0) return 0;
+  return number;
 };
 
 // 21.4.1.27 MakeTime (hour, min, sec, ms)
