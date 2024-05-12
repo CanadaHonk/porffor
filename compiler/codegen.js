@@ -201,7 +201,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
             }
 
             let inst = Opcodes[asm[0].replace('.', '_')];
-            if (!inst) throw new Error(`inline asm: inst ${asm[0]} not found`);
+            if (inst == null) throw new Error(`inline asm: inst ${asm[0]} not found`);
 
             if (!Array.isArray(inst)) inst = [ inst ];
             const immediates = asm.slice(1).map(x => {
