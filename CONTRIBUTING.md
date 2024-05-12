@@ -4,6 +4,8 @@ Hello! Thanks for your potential interest in contributing to Porffor :)
 
 This document hopes to help you understand Porffor-specific TS, specifically for writing built-ins (inside `compiler/builtins/` eg `btoa`, `String.prototype.trim`, ...). This guide isn't really meant for modifying the compiler itself yet (eg `compiler/codegen.js`), as built-ins are ~easier to implement and more useful at the moment.
 
+I mostly presume decent JS knowledge, with some basic TS too but nothing complicated. Knowing low-level stuff generally (pointers, etc) and/or Wasm (bytecode) is also a plus but hopefully not required.
+
 <br>
 
 ## Types
