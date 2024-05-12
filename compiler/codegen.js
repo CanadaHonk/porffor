@@ -460,7 +460,7 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
   const rightLength = localTmp(scope, 'concat_right_length', Valtype.i32);
   const leftLength = localTmp(scope, 'concat_left_length', Valtype.i32);
 
-  if (assign) {
+  if (assign && Prefs.aotPointerOpt) {
     const pointer = scope.arrays?.get(name ?? '$undeclared');
 
     return [
@@ -2212,6 +2212,7 @@ const generateVar = (scope, decl) => {
 
   // global variable if in top scope (main) and var ..., or if wanted
   const global = topLevel || decl._bare; // decl.kind === 'var';
+  const target = global ? globals : scope.locals;
 
   for (const x of decl.declarations) {
     const name = mapName(x.id.name);
@@ -2233,6 +2234,10 @@ const generateVar = (scope, decl) => {
       continue; // always ignore
     }
 
+    // // generate init before allocating var
+    // let generated;
+    // if (x.init) generated = generate(scope, x.init, global, name);
+
     const typed = typedInput && x.id.typeAnnotation;
     let idx = allocVar(scope, name, global, !(typed && extractTypeAnnotation(x.id).type != null));
 
@@ -2241,9 +2246,17 @@ const generateVar = (scope, decl) => {
     }
 
     if (x.init) {
-      out = out.concat(generate(scope, x.init, global, name));
-
-      out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
+      const generated = generate(scope, x.init, global, name);
+      if (scope.arrays?.get(name) != null) {
+        // hack to set local as pointer before
+        out.push(...number(scope.arrays.get(name)), [ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
+        if (generated.at(-1) == Opcodes.i32_from_u) generated.pop();
+        generated.pop();
+        out = out.concat(generated);
+      } else {
+        out = out.concat(generated);
+        out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
+      }
       out.push(...setType(scope, name, getNodeType(scope, x.init)));
     }
 
@@ -3112,6 +3125,8 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
   const pointer = scope.arrays.get(name);
 
+  const local = global ? globals[name] : scope.locals[name];
+
   const useRawElements = !!decl.rawElements;
   const elements = useRawElements ? decl.rawElements : decl.elements;
 
@@ -3144,11 +3159,22 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     return [ out, pointer ];
   }
 
+  const pointerTmp = local != null ? localTmp(scope, '#makearray_pointer_tmp', Valtype.i32) : null;
+  if (pointerTmp != null) {
+    out.push(
+      [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+      Opcodes.i32_to_u,
+      [ Opcodes.local_set, pointerTmp ]
+    );
+  }
+
+  const pointerWasm = pointerTmp != null ? [ [ Opcodes.local_get, pointerTmp ] ] : number(pointer, Valtype.i32);
+
   // store length as 0th array
   out.push(
-    ...number(0, Valtype.i32),
+    ...pointerWasm,
     ...number(length, Valtype.i32),
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
   );
 
   const storeOp = StoreOps[itemType];
@@ -3157,14 +3183,14 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     if (elements[i] == null) continue;
 
     out.push(
-      ...number(0, Valtype.i32),
+      ...pointerWasm,
       ...(useRawElements ? number(elements[i], Valtype[valtype]) : generate(scope, elements[i])),
-      [ storeOp, (Math.log2(ValtypeSize[itemType]) || 1) - 1, ...unsignedLEB128(pointer + ValtypeSize.i32 + i * ValtypeSize[itemType]) ]
+      [ storeOp, (Math.log2(ValtypeSize[itemType]) || 1) - 1, ...unsignedLEB128(ValtypeSize.i32 + i * ValtypeSize[itemType]) ]
     );
   }
 
   // local value as pointer
-  out.push(...number(pointer));
+  out.push(...pointerWasm, Opcodes.i32_from_u);
 
   return [ out, pointer ];
 };
