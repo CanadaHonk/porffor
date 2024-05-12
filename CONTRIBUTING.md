@@ -17,6 +17,13 @@ Please read this entire document before beginning as there are important things 
 1. Clone the repo and enter the repo (`git clone https://github.com/CanadaHonk/porffor.git`)
 2. `npm install`
 
+The repo comes with easy alias scripts for Unix and Windows, which you can use like so:
+- Unix: `./porf path/to/script.js`
+- Windows: `.\porf path/to/script.js`
+
+You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A ...`) or Bun (`bun ...`), or just use it yourself (eg `node runner/index.js ...`, `bun runner/index.js ...`). Node, Deno, Bun should work.
+
+
 ### Precompile
 
 **If you update any file inside `compiler/builtins` you will need to do this for it to update inside Porffor otherwise your changes will have no effect.** Run `node compiler/precompile.js` to precompile. It may error during this, if so, you might have an error in your code or there could be a compiler error with Porffor (feel free to ask for help as soon as you encounter any errors with it).

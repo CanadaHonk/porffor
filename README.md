@@ -77,13 +77,6 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 - `--tail-call` to enable tail calls (experimental + not widely implemented)
 - `--compile-hints` to enable V8 compilation hints (experimental + doesn't seem to do much?)
 
-### Running in the repo
-The repo comes with easy alias files for Unix and Windows, which you can use like so:
-- Unix: `./porf path/to/script.js`
-- Windows: `.\porf path/to/script.js`
-
-Please note that further examples below will just use `./porf`, you need to use `.\porf` on Windows. You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A`) or Bun (`bun ...`), or just use it yourself (eg `node runner/index.js ...`, `bun runner/index.js ...`). Node and Bun should work great, Deno support is WIP.
-
 ## Limitations
 - No full object support yet
 - Little built-ins/prototype
