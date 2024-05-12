@@ -1386,6 +1386,22 @@ export const ___date_prototype_setUTCSeconds = (_this: Date, sec: any, ms: any) 
 // sss 	is the number of complete milliseconds since the start of the second as three decimal digits.
 // Z 	is the UTC offset representation specified as "Z" (for UTC with no offset) or as either "+" or "-" followed by a time expression HH:mm (a subset of the time zone offset string format for indicating local time ahead of or behind UTC, respectively)
 
+// fast appending string
+export const __Porffor_bytestring_appendStr = (str: bytestring, appendage: bytestring): i32 => {
+  const strLen: i32 = str.length;
+  const appendageLen: i32 = appendage.length;
+  let strPtr: i32 = Porffor.wasm`local.get ${str}` + strLen;
+  let appendagePtr: i32 = Porffor.wasm`local.get ${appendage}`;
+  let endPtr: i32 = appendagePtr + appendageLen;
+
+  while (appendagePtr < endPtr) {
+    Porffor.wasm.i32.store8(strPtr++, Porffor.wasm.i32.load8_u(appendagePtr++, 0, 4), 0, 4);
+  }
+
+  str.length = strLen + appendageLen;
+  return 1;
+};
+
 // fast appending single character
 export const __Porffor_bytestring_appendChar = (str: bytestring, char: i32): i32 => {
   const len: i32 = str.length;
@@ -1396,7 +1412,7 @@ export const __Porffor_bytestring_appendChar = (str: bytestring, char: i32): i32
 
 // fast appending padded number
 export const __Porffor_bytestring_appendPadNum = (str: bytestring, num: number, len: number): i32 => {
-  let numStr: bytestring = num.toString();
+  let numStr: bytestring = Number.prototype.toFixed(num, 0);
 
   let strPtr: i32 = Porffor.wasm`local.get ${str}` + str.length;
 
@@ -1417,8 +1433,8 @@ export const __Porffor_bytestring_appendPadNum = (str: bytestring, num: number, 
   return 1;
 };
 
-// Timestamp to DTSF
-export const __ecma262_ToUTCDTSF = (t: number) => {
+// Timestamp to UTC DTSF
+export const __ecma262_ToUTCDTSF = (t: number): bytestring => {
   const year: number = __ecma262_YearFromTime(t);
 
   let out: bytestring = '';
@@ -1430,49 +1446,35 @@ export const __ecma262_ToUTCDTSF = (t: number) => {
     __Porffor_bytestring_appendChar(out, year > 0 ? 43 : 45);
 
     // 6 digit year
-    // out += year.toString().padStart(6, zeroPadStr);
     __Porffor_bytestring_appendPadNum(out, year, 6);
   } else {
     // 4 digit year
-    // out += year.toString().padStart(4, zeroPadStr);
     __Porffor_bytestring_appendPadNum(out, year, 4);
   }
   __Porffor_bytestring_appendChar(out, 45); // -
 
   // 2 digit month (01-12)
-  const month: number = __ecma262_MonthFromTime(t) + 1;
-  // out += month.toString().padStart(2, zeroPadStr);
-  __Porffor_bytestring_appendPadNum(out, month, 2);
+  __Porffor_bytestring_appendPadNum(out, __ecma262_MonthFromTime(t) + 1, 2);
   __Porffor_bytestring_appendChar(out, 45); // -
 
   // 2 digit day of the month
-  const date: number = __ecma262_DateFromTime(t);
-  // out += date.toString().padStart(2, zeroPadStr);
-  __Porffor_bytestring_appendPadNum(out, date, 2);
+  __Porffor_bytestring_appendPadNum(out, __ecma262_DateFromTime(t), 2);
   __Porffor_bytestring_appendChar(out, 84); // T
 
   // 2 digit hour
-  const hour: number = __ecma262_HourFromTime(t);
-  // out += hour.toString().padStart(2, zeroPadStr);
-  __Porffor_bytestring_appendPadNum(out, hour, 2);
+  __Porffor_bytestring_appendPadNum(out, __ecma262_HourFromTime(t), 2);
   __Porffor_bytestring_appendChar(out, 58); // :
 
   // 2 digit minute
-  const min: number = __ecma262_MinFromTime(t);
-  // out += min.toString().padStart(2, zeroPadStr);
-  __Porffor_bytestring_appendPadNum(out, min, 2);
+  __Porffor_bytestring_appendPadNum(out, __ecma262_MinFromTime(t), 2);
   __Porffor_bytestring_appendChar(out, 58); // :
 
   // 2 digit second
-  const sec: number = __ecma262_SecFromTime(t);
-  // out += sec.toString().padStart(2, zeroPadStr);
-  __Porffor_bytestring_appendPadNum(out, sec, 2);
+  __Porffor_bytestring_appendPadNum(out, __ecma262_SecFromTime(t), 2);
   __Porffor_bytestring_appendChar(out, 46); // .
 
   // 3 digit millisecond
-  const ms: number = __ecma262_msFromTime(t);
-  // out += ms.toString().padStart(3, zeroPadStr);
-  __Porffor_bytestring_appendPadNum(out, ms, 3);
+  __Porffor_bytestring_appendPadNum(out, __ecma262_msFromTime(t), 3);
   __Porffor_bytestring_appendChar(out, 90); // Z
 
   return out;
@@ -1514,4 +1516,316 @@ export const ___date_prototype_toJSON = (_this: Date, key: any) => {
 
   // 4. Return ? Invoke(O, "toISOString").
   return ___date_prototype_toISOString(_this);
+};
+
+
+// 21.4.4.41.1 TimeString (tv)
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-timestring
+export const __ecma262_TimeString = (tv: number): bytestring => {
+  // we do not follow spec exactly by using number vars and appending at the end
+
+  // 1. Let hour be ToZeroPaddedDecimalString(ℝ(HourFromTime(tv)), 2).
+  const hour: number = __ecma262_HourFromTime(tv);
+
+  // 2. Let minute be ToZeroPaddedDecimalString(ℝ(MinFromTime(tv)), 2).
+  const minute: number = __ecma262_MinFromTime(tv);
+
+  // 3. Let second be ToZeroPaddedDecimalString(ℝ(SecFromTime(tv)), 2).
+  const second: number = __ecma262_SecFromTime(tv);
+
+  // 4. Return the string-concatenation of hour, ":", minute, ":", second, the code unit 0x0020 (SPACE), and "GMT".
+  let out: bytestring = '';
+  out.length = 0;
+
+  __Porffor_bytestring_appendPadNum(out, hour, 2);
+  __Porffor_bytestring_appendChar(out, 58); // ':'
+
+  __Porffor_bytestring_appendPadNum(out, minute, 2);
+  __Porffor_bytestring_appendChar(out, 58); // ':'
+
+  __Porffor_bytestring_appendPadNum(out, second, 2);
+
+  __Porffor_bytestring_appendChar(out, 32); // ' '
+  __Porffor_bytestring_appendChar(out, 71); // 'G'
+  __Porffor_bytestring_appendChar(out, 77); // 'M'
+  __Porffor_bytestring_appendChar(out, 84); // 'T'
+
+  return out;
+};
+
+export const __ecma262_WeekDayName = (tv: number): bytestring => {
+  // Name of the entry in Table 62 with the Number WeekDay(tv).
+  // Table 62: Names of days of the week
+  // Number 	Name
+  // +0𝔽 "Sun"
+  // 1𝔽 	"Mon"
+  // 2𝔽 	"Tue"
+  // 3𝔽 	"Wed"
+  // 4𝔽 	"Thu"
+  // 5𝔽 	"Fri"
+  // 6𝔽 	"Sat"
+
+  const weekday: number = __ecma262_WeekDay(tv);
+
+  const lut: bytestring = 'SunMonTueWedThuFriSat';
+
+  let out: bytestring = '';
+  out.length = 3;
+
+  let outPtr: number = Porffor.wasm`local.get ${out}`;
+  let lutPtr: number = Porffor.wasm`local.get ${lut}` + (weekday * 3);
+
+  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
+  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
+  Porffor.wasm.i32.store8(outPtr, Porffor.wasm.i32.load8_u(lutPtr, 0, 4), 0, 4);
+
+  return out;
+};
+
+export const __ecma262_MonthName = (tv: number): bytestring => {
+  // Name of the entry in Table 63 with the Number MonthFromTime(tv).
+  // Table 63: Names of months of the year
+  // Number 	Name
+  // +0𝔽 "Jan"
+  // 1𝔽 	"Feb"
+  // 2𝔽 	"Mar"
+  // 3𝔽 	"Apr"
+  // 4𝔽 	"May"
+  // 5𝔽 	"Jun"
+  // 6𝔽 	"Jul"
+  // 7𝔽 	"Aug"
+  // 8𝔽 	"Sep"
+  // 9𝔽  "Oct"
+  // 10𝔽 "Nov"
+  // 11𝔽 "Dec"
+
+  const month: number = __ecma262_MonthFromTime(tv);
+
+  const lut: bytestring = 'JanFebMarAprMayJunJulAugSepOctNovDec';
+
+  let out: bytestring = '';
+  out.length = 3;
+
+  let outPtr: number = Porffor.wasm`local.get ${out}`;
+  let lutPtr: number = Porffor.wasm`local.get ${lut}` + (month * 3);
+
+  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
+  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
+  Porffor.wasm.i32.store8(outPtr, Porffor.wasm.i32.load8_u(lutPtr, 0, 4), 0, 4);
+
+  return out;
+};
+
+// 21.4.4.41.2 DateString (tv)
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-datestring
+export const __ecma262_DateString = (tv: number): bytestring => {
+  // we do not follow spec exactly by using number vars and appending at the end
+
+  // 1. Let weekday be the Name of the entry in Table 62 with the Number WeekDay(tv).
+  const weekday: bytestring = __ecma262_WeekDayName(tv);
+
+  // 2. Let month be the Name of the entry in Table 63 with the Number MonthFromTime(tv).
+  const month: bytestring = __ecma262_MonthName(tv);
+
+  // 3. Let day be ToZeroPaddedDecimalString(ℝ(DateFromTime(tv)), 2).
+  const day: number = __ecma262_DateFromTime(tv);
+
+  // 4. Let yv be YearFromTime(tv).
+  const yv: number = __ecma262_YearFromTime(tv);
+
+  // 5. If yv is +0𝔽 or yv > +0𝔽, let yearSign be the empty String; otherwise, let yearSign be "-".
+  // 6. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
+  // 7. Return the string-concatenation of weekday, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), yearSign, and paddedYear.
+  let out: bytestring = '';
+  out.length = 0;
+
+  // weekday
+  __Porffor_bytestring_appendStr(out, weekday);
+  __Porffor_bytestring_appendChar(out, 32); // ' '
+
+  // month
+  __Porffor_bytestring_appendStr(out, month);
+  __Porffor_bytestring_appendChar(out, 32); // ' '
+
+  // day
+  __Porffor_bytestring_appendPadNum(out, day, 2);
+  __Porffor_bytestring_appendChar(out, 32); // ' '
+
+  // year
+  if (yv < 0) __Porffor_bytestring_appendChar(out, 45); // sign
+  __Porffor_bytestring_appendPadNum(out, yv, 4);
+
+  return out;
+};
+
+// 21.4.4.41.3 TimeZoneString (tv)
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-timezonestring
+export const __ecma262_TimeZoneString = (tv: number) => {
+  // todo: time zone support
+  let out: bytestring = '+0000 (UTC)';
+  return out;
+};
+
+// 21.4.4.41.4 ToDateString (tv)
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-todatestring
+export const __ecma262_ToDateString = (tv: number) => {
+  let out: bytestring = '';
+  out.length = 0;
+
+  // 1. If tv is NaN, return "Invalid Date".
+  if (Number.isNaN(tv)) {
+    out = 'Invalid Date';
+    return out;
+  }
+
+  // 2. Let t be LocalTime(tv).
+  const t: number = __ecma262_LocalTime(tv);
+
+  // 3. Return the string-concatenation of DateString(t), the code unit 0x0020 (SPACE), TimeString(t), and TimeZoneString(tv).
+  __Porffor_bytestring_appendStr(out, __ecma262_DateString(t));
+  __Porffor_bytestring_appendChar(out, 32);
+
+  __Porffor_bytestring_appendStr(out, __ecma262_TimeString(t));
+
+  __Porffor_bytestring_appendStr(out, __ecma262_TimeZoneString(tv));
+
+  return out;
+};
+
+// 21.4.4.41 Date.prototype.toString ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tostring
+export const ___date_prototype_toString = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let tv be dateObject.[[DateValue]].
+  const tv: number = __Porffor_date_read(_this);
+
+  // 4. Return ToDateString(tv).
+  return __ecma262_ToDateString(tv);
+};
+
+// 21.4.4.42 Date.prototype.toTimeString ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.totimestring
+export const ___date_prototype_toTimeString = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let tv be dateObject.[[DateValue]].
+  const tv: number = __Porffor_date_read(_this);
+
+  // 4. If tv is NaN, return "Invalid Date".
+  let out: bytestring = '';
+  out.length = 0;
+
+  if (Number.isNaN(tv)) {
+    out = 'Invalid Date';
+    return out;
+  }
+
+  // 5. Let t be LocalTime(tv).
+  const t: number = __ecma262_LocalTime(tv);
+
+  // 6. Return the string-concatenation of TimeString(t) and TimeZoneString(tv).
+  __Porffor_bytestring_appendStr(out, __ecma262_TimeString(t));
+  __Porffor_bytestring_appendStr(out, __ecma262_TimeZoneString(tv));
+
+  return out;
+};
+
+
+// 21.4.4.35 Date.prototype.toDateString ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.todatestring
+export const ___date_prototype_toDateString = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let tv be dateObject.[[DateValue]].
+  const tv: number = __Porffor_date_read(_this);
+
+  // 4. If tv is NaN, return "Invalid Date".
+  let out: bytestring = '';
+  out.length = 0;
+
+  if (Number.isNaN(tv)) {
+    out = 'Invalid Date';
+    return out;
+  }
+
+  // 5. Let t be LocalTime(tv).
+  const t: number = __ecma262_LocalTime(tv);
+
+  // 6. Return DateString(t).
+  out = __ecma262_DateString(t);
+  return out;
+};
+
+// 21.4.4.43 Date.prototype.toUTCString ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.toutcstring
+export const ___date_prototype_toUTCString = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Let tv be dateObject.[[DateValue]].
+  const tv: number = __Porffor_date_read(_this);
+
+  // 4. If tv is NaN, return "Invalid Date".
+  let out: bytestring = '';
+  out.length = 0;
+
+  if (Number.isNaN(tv)) {
+    out = 'Invalid Date';
+    return out;
+  }
+
+  // 5. Let weekday be the Name of the entry in Table 62 with the Number WeekDay(tv).
+  const weekday: bytestring = __ecma262_WeekDayName(tv);
+
+  // 6. Let month be the Name of the entry in Table 63 with the Number MonthFromTime(tv).
+  const month: bytestring = __ecma262_MonthName(tv);
+
+  // 7. Let day be ToZeroPaddedDecimalString(ℝ(DateFromTime(tv)), 2).
+  const day: number = __ecma262_DateFromTime(tv);
+
+  // 8. Let yv be YearFromTime(tv).
+  const yv: number = __ecma262_YearFromTime(tv);
+
+  // 9. If yv is +0𝔽 or yv > +0𝔽, let yearSign be the empty String; otherwise, let yearSign be "-".
+  // 10. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
+  // 11. Return the string-concatenation of weekday, ",", the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), yearSign, paddedYear, the code unit 0x0020 (SPACE), and TimeString(tv).
+  // weekday
+  __Porffor_bytestring_appendStr(out, weekday);
+  __Porffor_bytestring_appendChar(out, 44); // ','
+  __Porffor_bytestring_appendChar(out, 32); // ' '
+
+  // day
+  __Porffor_bytestring_appendPadNum(out, day, 2);
+  __Porffor_bytestring_appendChar(out, 32); // ' '
+
+  // month
+  __Porffor_bytestring_appendStr(out, month);
+  __Porffor_bytestring_appendChar(out, 32); // ' '
+
+  // year
+  if (yv < 0) __Porffor_bytestring_appendChar(out, 45); // sign
+  __Porffor_bytestring_appendPadNum(out, yv, 4);
+
+  __Porffor_bytestring_appendChar(out, 32); // ' '
+  __Porffor_bytestring_appendStr(out, __ecma262_TimeString(tv));
+
+  return out;
+};
+
+// 21.4.4.38 Date.prototype.toLocaleDateString ([ reserved1 [, reserved2 ]])
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tolocaledatestring
+export const ___date_prototype_toLocaleDateString = (_this: Date, reserved1: any, reserved2: any) => {
+  return ___date_prototype_toDateString(_this);
+};
+
+// 21.4.4.39 Date.prototype.toLocaleString ([ reserved1 [, reserved2 ]])
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tolocalestring
+export const ___date_prototype_toLocaleString = (_this: Date, reserved1: any, reserved2: any) => {
+  return ___date_prototype_toString(_this);
+};
+
+// 21.4.4.40 Date.prototype.toLocaleTimeString ([ reserved1 [, reserved2 ]])
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tolocaletimestring
+export const ___date_prototype_toLocaleTimeString = (_this: Date, reserved1: any, reserved2: any) => {
+  return ___date_prototype_toTimeString(_this);
 };
