@@ -178,7 +178,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
             return {[func.name]() {}}[func.name];
           }
 
-          case TYPES._array: {
+          case TYPES.array: {
             const pointer = ret;
             const length = (new Int32Array(memory.buffer, pointer, 1))[0];
 
@@ -188,14 +188,14 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
             return Array.from(new Float64Array(buf));
           }
 
-          case TYPES._bytestring: {
+          case TYPES.bytestring: {
             const pointer = ret;
             const length = (new Int32Array(memory.buffer, pointer, 1))[0];
 
             return Array.from(new Uint8Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
           }
 
-          case TYPES._date: {
+          case TYPES.date: {
             const pointer = ret;
             const value = (new Float64Array(memory.buffer, pointer, 1))[0];
 

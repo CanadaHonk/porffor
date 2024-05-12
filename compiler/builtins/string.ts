@@ -37,7 +37,7 @@ export const __String_prototype_toUpperCase = (_this: string) => {
   return out;
 };
 
-export const ___bytestring_prototype_toUpperCase = (_this: bytestring) => {
+export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
   const len: i32 = _this.length;
 
   let out: bytestring = '';
@@ -83,7 +83,7 @@ export const __String_prototype_toLowerCase = (_this: string) => {
   return out;
 };
 
-export const ___bytestring_prototype_toLowerCase = (_this: bytestring) => {
+export const __ByteString_prototype_toLowerCase = (_this: bytestring) => {
   const len: i32 = _this.length;
 
   let out: bytestring = '';
@@ -134,10 +134,10 @@ export const __String_prototype_startsWith = (_this: string, searchString: strin
   return true;
 };
 
-export const ___bytestring_prototype_startsWith = (_this: bytestring, searchString: bytestring, position: number) => {
+export const __ByteString_prototype_startsWith = (_this: bytestring, searchString: bytestring, position: number) => {
   // if searching non-bytestring, bytestring will not start with it
   // todo: change this to just check if = string and ToString others
-  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES._bytestring) return false;
+  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES.bytestring) return false;
 
   // todo/perf: investigate whether for counter vs while ++s are faster
 
@@ -204,10 +204,10 @@ export const __String_prototype_endsWith = (_this: string, searchString: string,
   return true;
 };
 
-export const ___bytestring_prototype_endsWith = (_this: bytestring, searchString: bytestring, endPosition: number) => {
+export const __ByteString_prototype_endsWith = (_this: bytestring, searchString: bytestring, endPosition: number) => {
   // if searching non-bytestring, bytestring will not start with it
   // todo: change this to just check if = string and ToString others
-  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES._bytestring) return false;
+  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES.bytestring) return false;
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
       j: i32 = Porffor.wasm`local.get ${searchString}`;
@@ -282,10 +282,10 @@ export const __String_prototype_indexOf = (_this: string, searchString: string, 
   return -1;
 };
 
-export const ___bytestring_prototype_indexOf = (_this: bytestring, searchString: bytestring, position: number) => {
+export const __ByteString_prototype_indexOf = (_this: bytestring, searchString: bytestring, position: number) => {
   // if searching non-bytestring, bytestring will not start with it
   // todo: change this to just check if = string and ToString others
-  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES._bytestring) return -1;
+  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES.bytestring) return -1;
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
@@ -369,10 +369,10 @@ export const __String_prototype_lastIndexOf = (_this: string, searchString: stri
   return -1;
 };
 
-export const ___bytestring_prototype_lastIndexOf = (_this: bytestring, searchString: bytestring, position: number) => {
+export const __ByteString_prototype_lastIndexOf = (_this: bytestring, searchString: bytestring, position: number) => {
   // if searching non-bytestring, bytestring will not start with it
   // todo: change this to just check if = string and ToString others
-  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES._bytestring) return -1;
+  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES.bytestring) return -1;
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
@@ -455,10 +455,10 @@ export const __String_prototype_includes = (_this: string, searchString: string,
   return false;
 };
 
-export const ___bytestring_prototype_includes = (_this: bytestring, searchString: bytestring, position: number) => {
+export const __ByteString_prototype_includes = (_this: bytestring, searchString: bytestring, position: number) => {
   // if searching non-bytestring, bytestring will not start with it
   // todo: change this to just check if = string and ToString others
-  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES._bytestring) return -1;
+  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES.bytestring) return -1;
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
@@ -542,7 +542,7 @@ export const __String_prototype_padStart = (_this: string, targetLength: number,
   return out;
 };
 
-export const ___bytestring_prototype_padStart = (_this: bytestring, targetLength: number, padString: bytestring) => {
+export const __ByteString_prototype_padStart = (_this: bytestring, targetLength: number, padString: bytestring) => {
   // todo: handle padString being non-bytestring
 
   let out: bytestring = Porffor.bs``;
@@ -631,7 +631,7 @@ export const __String_prototype_padEnd = (_this: string, targetLength: number, p
   return out;
 };
 
-export const ___bytestring_prototype_padEnd = (_this: bytestring, targetLength: number, padString: bytestring) => {
+export const __ByteString_prototype_padEnd = (_this: bytestring, targetLength: number, padString: bytestring) => {
   // todo: handle padString being non-bytestring
 
   let out: bytestring = Porffor.bs``;
@@ -713,7 +713,7 @@ export const __String_prototype_substring = (_this: string, start: number, end: 
   return out;
 };
 
-export const ___bytestring_prototype_substring = (_this: bytestring, start: number, end: number) => {
+export const __ByteString_prototype_substring = (_this: bytestring, start: number, end: number) => {
   const len: i32 = _this.length;
   if (Porffor.wasm`local.get ${end+1}` == Porffor.TYPES.undefined) end = len;
     else if (start > end) {
@@ -786,7 +786,7 @@ export const __String_prototype_substr = (_this: string, start: number, length: 
   return out;
 };
 
-export const ___bytestring_prototype_substr = (_this: string, start: number, length: number) => {
+export const __ByteString_prototype_substr = (_this: string, start: number, length: number) => {
   const len: i32 = _this.length;
 
   start |= 0;
@@ -862,7 +862,7 @@ export const __String_prototype_slice = (_this: string, start: number, end: numb
   return out;
 };
 
-export const ___bytestring_prototype_slice = (_this: bytestring, start: number, end: number) => {
+export const __ByteString_prototype_slice = (_this: bytestring, start: number, end: number) => {
   const len: i32 = _this.length;
   if (Porffor.wasm`local.get ${end+1}` == Porffor.TYPES.undefined) end = len;
 
@@ -935,7 +935,7 @@ export const __String_prototype_trimStart = (_this: string) => {
   return out;
 };
 
-export const ___bytestring_prototype_trimStart = (_this: bytestring) => {
+export const __ByteString_prototype_trimStart = (_this: bytestring) => {
   let out: bytestring = Porffor.bs``;
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
@@ -1006,7 +1006,7 @@ export const __String_prototype_trimEnd = (_this: string) => {
   return out;
 };
 
-export const ___bytestring_prototype_trimEnd = (_this: bytestring) => {
+export const __ByteString_prototype_trimEnd = (_this: bytestring) => {
   let out: bytestring = Porffor.bs``;
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
@@ -1049,7 +1049,7 @@ export const __String_prototype_trim = (_this: string) => {
   return __String_prototype_trimStart(__String_prototype_trimEnd(_this));
 };
 
-export const ___bytestring_prototype_trim = (_this: bytestring) => {
+export const __ByteString_prototype_trim = (_this: bytestring) => {
   // todo/perf: optimize and not just reuse
-  return ___bytestring_prototype_trimStart(___bytestring_prototype_trimEnd(_this));
+  return __ByteString_prototype_trimStart(__ByteString_prototype_trimEnd(_this));
 };

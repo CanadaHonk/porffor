@@ -70,7 +70,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
       if (y[0] === Opcodes.const && (n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
         const l = locals[n[1]];
         if (!l) continue;
-        if (![TYPES.string, TYPES._array, TYPES._bytestring].includes(l.metadata?.type)) continue;
+        if (![TYPES.string, TYPES.array, TYPES.bytestring].includes(l.metadata?.type)) continue;
         if (!x.pages) continue;
 
         const pageName = [...x.pages.keys()].find(z => z.endsWith(l.name));
@@ -93,8 +93,13 @@ const precompile = async () => {
   let funcs = [], globals = [];
   for (const file of fs.readdirSync(dir)) {
     if (file.endsWith('.d.ts')) continue;
+    console.log(file);
+
     await compile(join(dir, file), [ funcs, globals ]);
   }
+
+  // const a = funcs.find(x => x.name === '__ecma262_ToUTCDTSF');
+  // console.log(Object.values(a.locals).slice(a.params.length));
 
   // ${x.pages && x.pages.size > 0 ? `    pages: ${JSON.stringify(Object.fromEntries(x.pages.entries()))},` : ''}
   // ${x.used && x.used.length > 0 ? `    used: ${JSON.stringify(x.used)},` : ''}

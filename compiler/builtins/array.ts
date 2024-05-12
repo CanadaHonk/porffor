@@ -1,10 +1,10 @@
 // @porf --funsafe-no-unlikely-proto-checks
 
 export const __Array_isArray = (x: unknown): boolean =>
-  // Porffor.wasm`local.get ${x+1}` == Porffor.TYPES._array;
-  Porffor.rawType(x) == Porffor.TYPES._array;
+  // Porffor.wasm`local.get ${x+1}` == Porffor.TYPES.array;
+  Porffor.rawType(x) == Porffor.TYPES.array;
 
-export const ___array_prototype_slice = (_this: any[], start: number, end: number) => {
+export const __Array_prototype_slice = (_this: any[], start: number, end: number) => {
   const len: i32 = _this.length;
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
 
@@ -44,7 +44,7 @@ export const ___array_prototype_slice = (_this: any[], start: number, end: numbe
   return out;
 };
 
-export const ___array_prototype_indexOf = (_this: any[], searchElement: any, position: number) => {
+export const __Array_prototype_indexOf = (_this: any[], searchElement: any, position: number) => {
   const len: i32 = _this.length;
   if (position > 0) {
     if (position > len) position = len;
@@ -58,7 +58,7 @@ export const ___array_prototype_indexOf = (_this: any[], searchElement: any, pos
   return -1;
 };
 
-export const ___array_prototype_lastIndexOf = (_this: any[], searchElement: any, position: number) => {
+export const __Array_prototype_lastIndexOf = (_this: any[], searchElement: any, position: number) => {
   const len: i32 = _this.length;
   if (position > 0) {
     if (position > len) position = len;
@@ -72,7 +72,7 @@ export const ___array_prototype_lastIndexOf = (_this: any[], searchElement: any,
   return -1;
 };
 
-export const ___array_prototype_includes = (_this: any[], searchElement: any, position: number) => {
+export const __Array_prototype_includes = (_this: any[], searchElement: any, position: number) => {
   const len: i32 = _this.length;
   if (position > 0) {
     if (position > len) position = len;
@@ -86,7 +86,7 @@ export const ___array_prototype_includes = (_this: any[], searchElement: any, po
   return false;
 };
 
-export const ___array_prototype_with = (_this: any[], index: number, value: any) => {
+export const __Array_prototype_with = (_this: any[], index: number, value: any) => {
   const len: i32 = _this.length;
   if (index < 0) {
     index = len + index;
@@ -111,7 +111,7 @@ export const ___array_prototype_with = (_this: any[], index: number, value: any)
   return out;
 };
 
-export const ___array_prototype_reverse = (_this: any[]) => {
+export const __Array_prototype_reverse = (_this: any[]) => {
   const len: i32 = _this.length;
 
   let start: i32 = 0;
@@ -127,7 +127,7 @@ export const ___array_prototype_reverse = (_this: any[]) => {
 };
 
 // todo: this has memory/allocation bugs so sometimes crashes :(
-export const ___array_prototype_toReversed = (_this: any[]) => {
+export const __Array_prototype_toReversed = (_this: any[]) => {
   const len: i32 = _this.length;
 
   let start: i32 = 0;

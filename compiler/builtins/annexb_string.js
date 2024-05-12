@@ -31,7 +31,7 @@ ${[...a1].map((x, i) => `  Porffor.wasm.i32.store16(outPtr, ${x.charCodeAt(0)}, 
 
   return out;
 };
-export const ___bytestring_prototype_${a0} = (_this: bytestring) => {
+export const __ByteString_prototype_${a0} = (_this: bytestring) => {
   let out: bytestring = Porffor.bs\`<${a1}>\`;
 
   let outPtr: i32 = Porffor.wasm\`local.get \${out}\` + ${2 + a1.length};

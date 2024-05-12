@@ -12,8 +12,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp"],
     data: [{"offset":0,"bytes":[5,0,0,0,60,0,98,0,105,0,103,0,62,0]}],
   };
-  this.___bytestring_prototype_big = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_big/out', 'i8') * pageSize, 127),[34,2],[65,5],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,226,0],[58,0,6],[32,3],[65,233,0],[58,0,7],[32,3],[65,231,0],[58,0,8],[32,3],[65,62],[58,0,9],[32,2],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_big = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_big/out', 'i8') * pageSize, 127),[34,2],[65,5],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,226,0],[58,0,6],[32,3],[65,233,0],[58,0,7],[32,3],[65,231,0],[58,0,8],[32,3],[65,62],[58,0,9],[32,2],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -32,8 +32,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp"],
     data: [{"offset":0,"bytes":[7,0,0,0,60,0,98,0,108,0,105,0,110,0,107,0,62,0]}],
   };
-  this.___bytestring_prototype_blink = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_blink/out', 'i8') * pageSize, 127),[34,2],[65,7],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,226,0],[58,0,6],[32,3],[65,236,0],[58,0,7],[32,3],[65,233,0],[58,0,8],[32,3],[65,238,0],[58,0,9],[32,3],[65,235,0],[58,0,10],[32,3],[65,62],[58,0,11],[32,2],[32,5],[65,15],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_blink = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_blink/out', 'i8') * pageSize, 127),[34,2],[65,7],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,226,0],[58,0,6],[32,3],[65,236,0],[58,0,7],[32,3],[65,233,0],[58,0,8],[32,3],[65,238,0],[58,0,9],[32,3],[65,235,0],[58,0,10],[32,3],[65,62],[58,0,11],[32,2],[32,5],[65,15],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -52,8 +52,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp"],
     data: [{"offset":0,"bytes":[3,0,0,0,60,0,98,0,62,0]}],
   };
-  this.___bytestring_prototype_bold = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_bold/out', 'i8') * pageSize, 127),[34,2],[65,3],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,226,0],[58,0,6],[32,3],[65,62],[58,0,7],[32,2],[32,5],[65,7],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_bold = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_bold/out', 'i8') * pageSize, 127),[34,2],[65,3],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,226,0],[58,0,6],[32,3],[65,62],[58,0,7],[32,2],[32,5],[65,7],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -72,8 +72,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp"],
     data: [{"offset":0,"bytes":[4,0,0,0,60,0,116,0,116,0,62,0]}],
   };
-  this.___bytestring_prototype_fixed = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_fixed/out', 'i8') * pageSize, 127),[34,2],[65,4],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,244,0],[58,0,6],[32,3],[65,244,0],[58,0,7],[32,3],[65,62],[58,0,8],[32,2],[32,5],[65,9],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_fixed = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_fixed/out', 'i8') * pageSize, 127),[34,2],[65,4],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,244,0],[58,0,6],[32,3],[65,244,0],[58,0,7],[32,3],[65,62],[58,0,8],[32,2],[32,5],[65,9],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -92,8 +92,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp"],
     data: [{"offset":0,"bytes":[3,0,0,0,60,0,105,0,62,0]}],
   };
-  this.___bytestring_prototype_italics = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_italics/out', 'i8') * pageSize, 127),[34,2],[65,3],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,233,0],[58,0,6],[32,3],[65,62],[58,0,7],[32,2],[32,5],[65,7],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_italics = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_italics/out', 'i8') * pageSize, 127),[34,2],[65,3],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,233,0],[58,0,6],[32,3],[65,62],[58,0,7],[32,2],[32,5],[65,7],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -112,8 +112,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp"],
     data: [{"offset":0,"bytes":[7,0,0,0,60,0,115,0,109,0,97,0,108,0,108,0,62,0]}],
   };
-  this.___bytestring_prototype_small = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_small/out', 'i8') * pageSize, 127),[34,2],[65,7],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,237,0],[58,0,7],[32,3],[65,225,0],[58,0,8],[32,3],[65,236,0],[58,0,9],[32,3],[65,236,0],[58,0,10],[32,3],[65,62],[58,0,11],[32,2],[32,5],[65,15],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_small = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_small/out', 'i8') * pageSize, 127),[34,2],[65,7],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,237,0],[58,0,7],[32,3],[65,225,0],[58,0,8],[32,3],[65,236,0],[58,0,9],[32,3],[65,236,0],[58,0,10],[32,3],[65,62],[58,0,11],[32,2],[32,5],[65,15],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -132,8 +132,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp"],
     data: [{"offset":0,"bytes":[8,0,0,0,60,0,115,0,116,0,114,0,105,0,107,0,101,0,62,0]}],
   };
-  this.___bytestring_prototype_strike = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_strike/out', 'i8') * pageSize, 127),[34,2],[65,8],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,244,0],[58,0,7],[32,3],[65,242,0],[58,0,8],[32,3],[65,233,0],[58,0,9],[32,3],[65,235,0],[58,0,10],[32,3],[65,229,0],[58,0,11],[32,3],[65,62],[58,0,12],[32,2],[32,5],[65,17],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_strike = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_strike/out', 'i8') * pageSize, 127),[34,2],[65,8],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,244,0],[58,0,7],[32,3],[65,242,0],[58,0,8],[32,3],[65,233,0],[58,0,9],[32,3],[65,235,0],[58,0,10],[32,3],[65,229,0],[58,0,11],[32,3],[65,62],[58,0,12],[32,2],[32,5],[65,17],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -152,8 +152,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp"],
     data: [{"offset":0,"bytes":[5,0,0,0,60,0,115,0,117,0,98,0,62,0]}],
   };
-  this.___bytestring_prototype_sub = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_sub/out', 'i8') * pageSize, 127),[34,2],[65,5],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,245,0],[58,0,7],[32,3],[65,226,0],[58,0,8],[32,3],[65,62],[58,0,9],[32,2],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_sub = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_sub/out', 'i8') * pageSize, 127),[34,2],[65,5],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,245,0],[58,0,7],[32,3],[65,226,0],[58,0,8],[32,3],[65,62],[58,0,9],[32,2],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -172,8 +172,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp"],
     data: [{"offset":0,"bytes":[5,0,0,0,60,0,115,0,117,0,112,0,62,0]}],
   };
-  this.___bytestring_prototype_sup = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_sup/out', 'i8') * pageSize, 127),[34,2],[65,5],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,245,0],[58,0,7],[32,3],[65,240,0],[58,0,8],[32,3],[65,62],[58,0,9],[32,2],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_sup = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_sup/out', 'i8') * pageSize, 127),[34,2],[65,5],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,245,0],[58,0,7],[32,3],[65,240,0],[58,0,8],[32,3],[65,62],[58,0,9],[32,2],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -191,8 +191,8 @@ export const BuiltinFuncs = function() {
     locals: [127],
     localNames: ["_this","_this#type","#last_type"],
   };
-  this.___bytestring_prototype_trimLeft = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,2],[16, builtin('___bytestring_prototype_trimStart')],[34,2],[15]],
+  this.__ByteString_prototype_trimLeft = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,2],[16, builtin('__ByteString_prototype_trimStart')],[34,2],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -209,7 +209,7 @@ export const BuiltinFuncs = function() {
     locals: [127],
     localNames: ["_this","_this#type","#last_type"],
   };
-  this.___bytestring_prototype_trimEnd = {
+  this.__ByteString_prototype_trimEnd = {
     wasm: (scope, { allocPage, builtin }) => [[65,[0]],[8,0],[65,0],[65,0],[15]],
     params: [127,127],
     typedParams: true,
@@ -217,7 +217,7 @@ export const BuiltinFuncs = function() {
     typedReturns: true,
     locals: [],
     localNames: ["_this","_this#type"],
-    exceptions: [{"constructor":"ReferenceError","message":".bytestring.prototype.trimRight is not defined","exceptId":0}],
+    exceptions: [{"constructor":"ReferenceError","message":"ByteString.prototype.trimRight is not defined","exceptId":0}],
   };
   this.__Array_isArray = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[32,1],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,48,64],[97],[184],[15]],
@@ -228,8 +228,8 @@ export const BuiltinFuncs = function() {
     locals: [],
     localNames: ["x","x#type"],
   };
-  this.___array_prototype_slice = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[252,3],[40,1,0],[184],[33,6],[32,4],[65,0],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[97],[4,64],[32,6],[33,4],[11],[32,2],[68,0,0,0,0,0,0,0,0],[16, builtin('f64_|')],[33,2],[32,4],[68,0,0,0,0,0,0,0,0],[16, builtin('f64_|')],[33,4],[32,2],[68,0,0,0,0,0,0,0,0],[99],[4,64],[32,6],[32,2],[160],[34,2],[68,0,0,0,0,0,0,0,0],[99],[4,64],[68,0,0,0,0,0,0,0,0],[33,2],[11],[11],[32,2],[32,6],[100],[4,64],[32,6],[33,2],[11],[32,4],[68,0,0,0,0,0,0,0,0],[99],[4,64],[32,6],[32,4],[160],[34,4],[68,0,0,0,0,0,0,0,0],[99],[4,64],[68,0,0,0,0,0,0,0,0],[33,4],[11],[11],[32,4],[32,6],[100],[4,64],[32,6],[33,4],[11],...number(allocPage(scope, 'array: ___array_prototype_slice/out', 'f64') * pageSize, 124),[34,7],[252,3],[34,8],[65,0],[54,1,0],[32,2],[32,4],[100],[4,64],[32,7],[65,16],[15],[11],[32,7],[33,9],[32,0],[34,10],[32,4],[68,0,0,0,0,0,0,32,64],[162],[160],[33,11],[32,10],[32,2],[68,0,0,0,0,0,0,32,64],[162],[160],[33,10],[3,64],[32,10],[32,11],[99],[4,64],[32,9],[252,2],[32,10],[252,2],[43,0,4],[57,0,4],[32,10],[68,0,0,0,0,0,0,32,64],[160],[33,10],[32,9],[68,0,0,0,0,0,0,32,64],[160],[33,9],[12,1],[11],[11],[32,7],[252,3],[32,4],[32,2],[161],[34,12],[252,3],[54,1,0],[32,7],[65,16],[15]],
+  this.__Array_prototype_slice = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[252,3],[40,1,0],[184],[33,6],[32,4],[65,0],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[97],[4,64],[32,6],[33,4],[11],[32,2],[68,0,0,0,0,0,0,0,0],[16, builtin('f64_|')],[33,2],[32,4],[68,0,0,0,0,0,0,0,0],[16, builtin('f64_|')],[33,4],[32,2],[68,0,0,0,0,0,0,0,0],[99],[4,64],[32,6],[32,2],[160],[34,2],[68,0,0,0,0,0,0,0,0],[99],[4,64],[68,0,0,0,0,0,0,0,0],[33,2],[11],[11],[32,2],[32,6],[100],[4,64],[32,6],[33,2],[11],[32,4],[68,0,0,0,0,0,0,0,0],[99],[4,64],[32,6],[32,4],[160],[34,4],[68,0,0,0,0,0,0,0,0],[99],[4,64],[68,0,0,0,0,0,0,0,0],[33,4],[11],[11],[32,4],[32,6],[100],[4,64],[32,6],[33,4],[11],...number(allocPage(scope, 'array: __Array_prototype_slice/out', 'f64') * pageSize, 124),[34,7],[252,3],[34,8],[65,0],[54,1,0],[32,2],[32,4],[100],[4,64],[32,7],[65,16],[15],[11],[32,7],[33,9],[32,0],[34,10],[32,4],[68,0,0,0,0,0,0,32,64],[162],[160],[33,11],[32,10],[32,2],[68,0,0,0,0,0,0,32,64],[162],[160],[33,10],[3,64],[32,10],[32,11],[99],[4,64],[32,9],[252,2],[32,10],[252,2],[43,0,4],[57,0,4],[32,10],[68,0,0,0,0,0,0,32,64],[160],[33,10],[32,9],[68,0,0,0,0,0,0,32,64],[160],[33,9],[12,1],[11],[11],[32,7],[252,3],[32,4],[32,2],[161],[34,12],[252,3],[54,1,0],[32,7],[65,16],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
     returns: [124,127],
@@ -237,7 +237,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,127,124,124,124,124],
     localNames: ["_this","_this#type","start","start#type","end","end#type","len","out","#makearray_pointer_tmp","outPtr","thisPtr","thisPtrEnd","__length_setter_tmp"],
   };
-  this.___array_prototype_indexOf = {
+  this.__Array_prototype_indexOf = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[252,3],[40,1,0],[184],[33,6],[32,4],[68,0,0,0,0,0,0,0,0],[100],[4,64],[32,4],[32,6],[100],[4,64],[32,6],[33,4],[5],[32,4],[68,0,0,0,0,0,0,0,0],[16, builtin('f64_|')],[33,4],[11],[5],[68,0,0,0,0,0,0,0,0],[33,4],[11],[32,4],[33,7],[3,64],[32,7],[32,6],[99],[4,64],[32,7],[252,3],[65,8],[108],[32,0],[252,3],[106],[43,2,4],[32,2],[97],[4,64],[32,7],[65,0],[15],[11],[32,7],[68,0,0,0,0,0,0,240,63],[160],[33,7],[12,1],[11],[11],[68,0,0,0,0,0,0,240,191],[65,0],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
@@ -247,7 +247,7 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","searchElement","searchElement#type","position","position#type","len","i","#last_type"],
     exceptions: [{"constructor":"TypeError","message":"Member expression is not supported for non-string non-array yet","exceptId":0}],
   };
-  this.___array_prototype_lastIndexOf = {
+  this.__Array_prototype_lastIndexOf = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[252,3],[40,1,0],[184],[33,6],[32,4],[68,0,0,0,0,0,0,0,0],[100],[4,64],[32,4],[32,6],[100],[4,64],[32,6],[33,4],[5],[32,4],[68,0,0,0,0,0,0,0,0],[16, builtin('f64_|')],[33,4],[11],[5],[68,0,0,0,0,0,0,0,0],[33,4],[11],[32,6],[68,0,0,0,0,0,0,240,63],[161],[33,7],[3,64],[32,7],[32,4],[102],[4,64],[32,7],[252,3],[65,8],[108],[32,0],[252,3],[106],[43,2,4],[32,2],[97],[4,64],[32,7],[65,0],[15],[11],[32,7],[68,0,0,0,0,0,0,240,63],[161],[33,7],[12,1],[11],[11],[68,0,0,0,0,0,0,240,191],[65,0],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
@@ -257,7 +257,7 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","searchElement","searchElement#type","position","position#type","len","i","#last_type"],
     exceptions: [{"constructor":"TypeError","message":"Member expression is not supported for non-string non-array yet","exceptId":1}],
   };
-  this.___array_prototype_includes = {
+  this.__Array_prototype_includes = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[252,3],[40,1,0],[184],[33,6],[32,4],[68,0,0,0,0,0,0,0,0],[100],[4,64],[32,4],[32,6],[100],[4,64],[32,6],[33,4],[5],[32,4],[68,0,0,0,0,0,0,0,0],[16, builtin('f64_|')],[33,4],[11],[5],[68,0,0,0,0,0,0,0,0],[33,4],[11],[32,4],[33,7],[3,64],[32,7],[32,6],[99],[4,64],[32,7],[252,3],[65,8],[108],[32,0],[252,3],[106],[43,2,4],[32,2],[97],[4,64],[68,0,0,0,0,0,0,240,63],[65,1],[15],[11],[32,7],[68,0,0,0,0,0,0,240,63],[160],[33,7],[12,1],[11],[11],[68,0,0,0,0,0,0,0,0],[65,1],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
@@ -267,8 +267,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","searchElement","searchElement#type","position","position#type","len","i","#last_type"],
     exceptions: [{"constructor":"TypeError","message":"Member expression is not supported for non-string non-array yet","exceptId":2}],
   };
-  this.___array_prototype_with = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[252,3],[40,1,0],[184],[33,6],[32,2],[68,0,0,0,0,0,0,0,0],[99],[4,64],[32,6],[32,2],[160],[34,2],[68,0,0,0,0,0,0,0,0],[99],[4,64],[68,0,0,0,0,0,0,0,0],[65,4],[15],[11],[11],[32,2],[32,6],[100],[4,64],[68,0,0,0,0,0,0,0,0],[65,4],[15],[11],...number(allocPage(scope, 'array: ___array_prototype_with/out', 'f64') * pageSize, 124),[34,7],[252,3],[34,8],[65,0],[54,1,0],[32,0],[32,7],[16, builtin('__Porffor_clone')],[32,7],[252,3],[32,2],[252,3],[65,8],[108],[106],[32,4],[34,9],[57,2,4],[32,7],[65,16],[15]],
+  this.__Array_prototype_with = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[252,3],[40,1,0],[184],[33,6],[32,2],[68,0,0,0,0,0,0,0,0],[99],[4,64],[32,6],[32,2],[160],[34,2],[68,0,0,0,0,0,0,0,0],[99],[4,64],[68,0,0,0,0,0,0,0,0],[65,4],[15],[11],[11],[32,2],[32,6],[100],[4,64],[68,0,0,0,0,0,0,0,0],[65,4],[15],[11],...number(allocPage(scope, 'array: __Array_prototype_with/out', 'f64') * pageSize, 124),[34,7],[252,3],[34,8],[65,0],[54,1,0],[32,0],[32,7],[16, builtin('__Porffor_clone')],[32,7],[252,3],[32,2],[252,3],[65,8],[108],[106],[32,4],[34,9],[57,2,4],[32,7],[65,16],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
     returns: [124,127],
@@ -277,7 +277,7 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","index","index#type","value","value#type","len","out","#makearray_pointer_tmp","__member_setter_val_tmp"],
     exceptions: [{"constructor":"TypeError","message":"Cannot assign member with non-array","exceptId":3}],
   };
-  this.___array_prototype_reverse = {
+  this.__Array_prototype_reverse = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[252,3],[40,1,0],[184],[33,2],[68,0,0,0,0,0,0,0,0],[33,3],[32,2],[68,0,0,0,0,0,0,240,63],[161],[33,4],[3,64],[32,3],[32,4],[99],[4,64],[32,3],[252,3],[65,8],[108],[32,0],[252,3],[106],[43,2,4],[33,5],[32,0],[252,3],[32,3],[32,3],[68,0,0,0,0,0,0,240,63],[160],[33,3],[252,3],[65,8],[108],[106],[32,4],[252,3],[65,8],[108],[32,0],[252,3],[106],[43,2,4],[34,7],[57,2,4],[32,0],[252,3],[32,4],[32,4],[68,0,0,0,0,0,0,240,63],[161],[33,4],[252,3],[65,8],[108],[106],[32,5],[34,7],[57,2,4],[12,1],[11],[11],[32,0],[65,16],[15]],
     params: [124,127],
     typedParams: true,
@@ -287,8 +287,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","len","start","end","tmp","#last_type","__member_setter_val_tmp"],
     exceptions: [{"constructor":"TypeError","message":"Member expression is not supported for non-string non-array yet","exceptId":4},{"constructor":"TypeError","message":"Member expression is not supported for non-string non-array yet","exceptId":5},{"constructor":"TypeError","message":"Cannot assign member with non-array","exceptId":6},{"constructor":"TypeError","message":"Cannot assign member with non-array","exceptId":7}],
   };
-  this.___array_prototype_toReversed = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[252,3],[40,1,0],[184],[33,2],[68,0,0,0,0,0,0,0,0],[33,3],[32,2],[68,0,0,0,0,0,0,240,63],[161],[33,4],...number(allocPage(scope, 'array: ___array_prototype_toReversed/out', 'f64') * pageSize, 124),[34,5],[252,3],[34,6],[65,0],[54,1,0],[32,5],[252,3],[32,2],[34,7],[252,3],[54,1,0],[3,64],[32,3],[32,4],[99],[4,64],[32,5],[252,3],[32,3],[252,3],[65,8],[108],[106],[32,4],[252,3],[65,8],[108],[32,0],[252,3],[106],[43,2,4],[34,8],[57,2,4],[32,5],[252,3],[32,4],[32,4],[68,0,0,0,0,0,0,240,63],[161],[33,4],[252,3],[65,8],[108],[106],[32,3],[32,3],[68,0,0,0,0,0,0,240,63],[160],[33,3],[252,3],[65,8],[108],[32,0],[252,3],[106],[43,2,4],[34,8],[57,2,4],[12,1],[11],[11],[32,5],[65,16],[15]],
+  this.__Array_prototype_toReversed = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[252,3],[40,1,0],[184],[33,2],[68,0,0,0,0,0,0,0,0],[33,3],[32,2],[68,0,0,0,0,0,0,240,63],[161],[33,4],...number(allocPage(scope, 'array: __Array_prototype_toReversed/out', 'f64') * pageSize, 124),[34,5],[252,3],[34,6],[65,0],[54,1,0],[32,5],[252,3],[32,2],[34,7],[252,3],[54,1,0],[3,64],[32,3],[32,4],[99],[4,64],[32,5],[252,3],[32,3],[252,3],[65,8],[108],[106],[32,4],[252,3],[65,8],[108],[32,0],[252,3],[106],[43,2,4],[34,8],[57,2,4],[32,5],[252,3],[32,4],[32,4],[68,0,0,0,0,0,0,240,63],[161],[33,4],[252,3],[65,8],[108],[106],[32,3],[32,3],[68,0,0,0,0,0,0,240,63],[160],[33,3],[252,3],[65,8],[108],[32,0],[252,3],[106],[43,2,4],[34,8],[57,2,4],[12,1],[11],[11],[32,5],[65,16],[15]],
     params: [124,127],
     typedParams: true,
     returns: [124,127],
@@ -634,7 +634,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,127,124,124,124,124,124,124,124,124,124,124,124,124,127],
     localNames: ["v0","v0#type","v1","v1#type","v2","v2#type","v3","v3#type","v4","v4#type","v5","v5#type","v6","v6#type","numberOfArgs","dv","value","value#type","valueType","tv","y","m","dt","h","min","s","milli","yr","finalDate","O","#last_type"],
   };
-  this.___date_prototype_getDate = {
+  this.__Date_prototype_getDate = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_DateFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -643,7 +643,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getDay = {
+  this.__Date_prototype_getDay = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_WeekDay')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -652,7 +652,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getFullYear = {
+  this.__Date_prototype_getFullYear = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_YearFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -661,7 +661,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getHours = {
+  this.__Date_prototype_getHours = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_HourFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -670,7 +670,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getMilliseconds = {
+  this.__Date_prototype_getMilliseconds = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_msFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -679,7 +679,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getMinutes = {
+  this.__Date_prototype_getMinutes = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_MinFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -688,7 +688,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getMonth = {
+  this.__Date_prototype_getMonth = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_MonthFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -697,7 +697,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getSeconds = {
+  this.__Date_prototype_getSeconds = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[65,0],[16, builtin('__ecma262_SecFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -706,7 +706,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getTime = {
+  this.__Date_prototype_getTime = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -715,7 +715,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     localNames: ["_this","_this#type"],
   };
-  this.___date_prototype_getTimezoneOffset = {
+  this.__Date_prototype_getTimezoneOffset = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[161],[68,0,0,0,0,0,76,237,64],[163],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -724,7 +724,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getUTCDate = {
+  this.__Date_prototype_getUTCDate = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_DateFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -733,7 +733,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getUTCDay = {
+  this.__Date_prototype_getUTCDay = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_WeekDay')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -742,7 +742,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getUTCFullYear = {
+  this.__Date_prototype_getUTCFullYear = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_YearFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -751,7 +751,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getUTCHours = {
+  this.__Date_prototype_getUTCHours = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_HourFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -760,7 +760,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getUTCMilliseconds = {
+  this.__Date_prototype_getUTCMilliseconds = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_msFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -769,7 +769,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getUTCMinutes = {
+  this.__Date_prototype_getUTCMinutes = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_MinFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -778,7 +778,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getUTCMonth = {
+  this.__Date_prototype_getUTCMonth = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_MonthFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -787,7 +787,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_getUTCSeconds = {
+  this.__Date_prototype_getUTCSeconds = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_SecFromTime')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -796,7 +796,7 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","t"],
   };
-  this.___date_prototype_setDate = {
+  this.__Date_prototype_setDate = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,4],[32,2],[16, builtin('Number')],[33,5],[32,4],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,4],[65,0],[16, builtin('__ecma262_LocalTime')],[34,4],[65,0],[16, builtin('__ecma262_YearFromTime')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_MonthFromTime')],[65,0],[32,5],[65,0],[16, builtin('__ecma262_MakeDay')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_TimeWithinDay')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,6],[65,0],[16, builtin('__ecma262_UTC')],[65,0],[16, builtin('__ecma262_TimeClip')],[33,7],[32,0],[65,19],[32,7],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,7],[65,0],[15]],
     params: [124,127,124,127],
     typedParams: true,
@@ -805,7 +805,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,127],
     localNames: ["_this","_this#type","date","date#type","t","dt","newDate","u","#last_type"],
   };
-  this.___date_prototype_setFullYear = {
+  this.__Date_prototype_setFullYear = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,8],[32,2],[16, builtin('Number')],[33,9],[32,8],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,0,0],[33,8],[5],[32,8],[65,0],[16, builtin('__ecma262_LocalTime')],[33,8],[11],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[97],[4,64],[32,8],[65,0],[16, builtin('__ecma262_MonthFromTime')],[33,10],[5],[32,4],[16, builtin('Number')],[33,10],[11],[32,6],[32,7],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[97],[4,64],[32,8],[65,0],[16, builtin('__ecma262_DateFromTime')],[33,11],[5],[32,6],[16, builtin('Number')],[33,11],[11],[32,9],[65,0],[32,10],[65,0],[32,11],[65,0],[16, builtin('__ecma262_MakeDay')],[65,0],[32,8],[65,0],[16, builtin('__ecma262_TimeWithinDay')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,12],[65,0],[16, builtin('__ecma262_UTC')],[65,0],[16, builtin('__ecma262_TimeClip')],[33,13],[32,0],[65,19],[32,13],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,13],[65,0],[15]],
     params: [124,127,124,127,124,127,124,127],
     typedParams: true,
@@ -814,7 +814,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,124,124,127],
     localNames: ["_this","_this#type","year","year#type","month","month#type","date","date#type","t","y","m","dt","newDate","u","#last_type"],
   };
-  this.___date_prototype_setHours = {
+  this.__Date_prototype_setHours = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,10],[32,2],[16, builtin('Number')],[33,11],[32,10],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,10],[65,0],[16, builtin('__ecma262_LocalTime')],[33,10],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,4],[16, builtin('Number')],[33,12],[5],[32,10],[65,0],[16, builtin('__ecma262_MinFromTime')],[33,12],[11],[32,6],[32,7],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,6],[16, builtin('Number')],[33,13],[5],[32,10],[65,0],[16, builtin('__ecma262_SecFromTime')],[33,13],[11],[32,8],[32,9],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,8],[16, builtin('Number')],[33,14],[5],[32,10],[65,0],[16, builtin('__ecma262_msFromTime')],[33,14],[11],[32,10],[65,0],[16, builtin('__ecma262_Day')],[65,0],[32,11],[65,0],[32,12],[65,0],[32,13],[65,0],[32,14],[65,0],[16, builtin('__ecma262_MakeTime')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,15],[65,0],[16, builtin('__ecma262_UTC')],[65,0],[16, builtin('__ecma262_TimeClip')],[33,16],[32,0],[65,19],[32,16],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,16],[65,0],[15]],
     params: [124,127,124,127,124,127,124,127,124,127],
     typedParams: true,
@@ -823,7 +823,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,124,124,124,127],
     localNames: ["_this","_this#type","hour","hour#type","min","min#type","sec","sec#type","ms","ms#type","t","h","m","s","milli","date","u","#last_type"],
   };
-  this.___date_prototype_setMilliseconds = {
+  this.__Date_prototype_setMilliseconds = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,4],[32,2],[16, builtin('Number')],[33,5],[32,4],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,4],[65,0],[16, builtin('__ecma262_LocalTime')],[34,4],[65,0],[16, builtin('__ecma262_HourFromTime')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_MinFromTime')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_SecFromTime')],[65,0],[32,5],[65,0],[16, builtin('__ecma262_MakeTime')],[33,6],[32,4],[65,0],[16, builtin('__ecma262_Day')],[65,0],[32,6],[65,0],[16, builtin('__ecma262_MakeDate')],[65,0],[16, builtin('__ecma262_UTC')],[65,0],[16, builtin('__ecma262_TimeClip')],[33,7],[32,0],[65,19],[32,7],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,7],[65,0],[15]],
     params: [124,127,124,127],
     typedParams: true,
@@ -832,7 +832,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,127],
     localNames: ["_this","_this#type","ms","ms#type","t","milli","time","u","#last_type"],
   };
-  this.___date_prototype_setMinutes = {
+  this.__Date_prototype_setMinutes = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,8],[32,2],[16, builtin('Number')],[33,9],[32,8],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,8],[65,0],[16, builtin('__ecma262_LocalTime')],[33,8],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,4],[16, builtin('Number')],[33,10],[5],[32,8],[65,0],[16, builtin('__ecma262_SecFromTime')],[33,10],[11],[32,6],[32,7],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,6],[16, builtin('Number')],[33,11],[5],[32,8],[65,0],[16, builtin('__ecma262_msFromTime')],[33,11],[11],[32,8],[65,0],[16, builtin('__ecma262_Day')],[65,0],[32,8],[65,0],[16, builtin('__ecma262_HourFromTime')],[65,0],[32,9],[65,0],[32,10],[65,0],[32,11],[65,0],[16, builtin('__ecma262_MakeTime')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,12],[65,0],[16, builtin('__ecma262_UTC')],[65,0],[16, builtin('__ecma262_TimeClip')],[33,13],[32,0],[65,19],[32,13],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,13],[65,0],[15]],
     params: [124,127,124,127,124,127,124,127],
     typedParams: true,
@@ -841,7 +841,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,124,124,127],
     localNames: ["_this","_this#type","min","min#type","sec","sec#type","ms","ms#type","t","m","s","milli","date","u","#last_type"],
   };
-  this.___date_prototype_setMonth = {
+  this.__Date_prototype_setMonth = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,6],[32,2],[16, builtin('Number')],[33,7],[32,6],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,6],[65,0],[16, builtin('__ecma262_LocalTime')],[33,6],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,4],[16, builtin('Number')],[33,8],[5],[32,6],[65,0],[16, builtin('__ecma262_DateFromTime')],[33,8],[11],[32,6],[65,0],[16, builtin('__ecma262_YearFromTime')],[65,0],[32,7],[65,0],[32,8],[65,0],[16, builtin('__ecma262_MakeDay')],[65,0],[32,6],[65,0],[16, builtin('__ecma262_TimeWithinDay')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,9],[65,0],[16, builtin('__ecma262_UTC')],[65,0],[16, builtin('__ecma262_TimeClip')],[33,10],[32,0],[65,19],[32,10],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,10],[65,0],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
@@ -850,7 +850,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,124,127],
     localNames: ["_this","_this#type","month","month#type","date","date#type","t","m","dt","newDate","u","#last_type"],
   };
-  this.___date_prototype_setSeconds = {
+  this.__Date_prototype_setSeconds = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,6],[32,2],[16, builtin('Number')],[33,7],[32,6],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,6],[65,0],[16, builtin('__ecma262_LocalTime')],[33,6],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,4],[16, builtin('Number')],[33,8],[5],[32,6],[65,0],[16, builtin('__ecma262_msFromTime')],[33,8],[11],[32,6],[65,0],[16, builtin('__ecma262_Day')],[65,0],[32,6],[65,0],[16, builtin('__ecma262_HourFromTime')],[65,0],[32,6],[65,0],[16, builtin('__ecma262_MinFromTime')],[65,0],[32,7],[65,0],[32,8],[65,0],[16, builtin('__ecma262_MakeTime')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,9],[65,0],[16, builtin('__ecma262_UTC')],[65,0],[16, builtin('__ecma262_TimeClip')],[33,10],[32,0],[65,19],[32,10],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,10],[65,0],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
@@ -859,7 +859,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,124,127],
     localNames: ["_this","_this#type","sec","sec#type","ms","ms#type","t","s","milli","date","u","#last_type"],
   };
-  this.___date_prototype_setTime = {
+  this.__Date_prototype_setTime = {
     wasm: (scope, { allocPage, builtin }) => [[32,2],[16, builtin('Number')],[34,4],[65,0],[16, builtin('__ecma262_TimeClip')],[33,5],[32,0],[65,19],[32,5],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,5],[65,0],[15]],
     params: [124,127,124,127],
     typedParams: true,
@@ -868,7 +868,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,127],
     localNames: ["_this","_this#type","time","time#type","t","v","#last_type"],
   };
-  this.___date_prototype_setUTCDate = {
+  this.__Date_prototype_setUTCDate = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,4],[32,2],[16, builtin('Number')],[33,5],[32,4],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,4],[65,0],[16, builtin('__ecma262_YearFromTime')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_MonthFromTime')],[65,0],[32,5],[65,0],[16, builtin('__ecma262_MakeDay')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_TimeWithinDay')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,6],[65,0],[16, builtin('__ecma262_TimeClip')],[33,7],[32,0],[65,19],[32,7],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,7],[65,0],[15]],
     params: [124,127,124,127],
     typedParams: true,
@@ -877,7 +877,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,127],
     localNames: ["_this","_this#type","date","date#type","t","dt","newDate","v","#last_type"],
   };
-  this.___date_prototype_setUTCFullYear = {
+  this.__Date_prototype_setUTCFullYear = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,8],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,0,0],[33,8],[11],[32,2],[16, builtin('Number')],[33,9],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[97],[4,64],[32,8],[65,0],[16, builtin('__ecma262_MonthFromTime')],[33,10],[5],[32,4],[16, builtin('Number')],[33,10],[11],[32,6],[32,7],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[97],[4,64],[32,8],[65,0],[16, builtin('__ecma262_DateFromTime')],[33,11],[5],[32,6],[16, builtin('Number')],[33,11],[11],[32,9],[65,0],[32,10],[65,0],[32,11],[65,0],[16, builtin('__ecma262_MakeDay')],[65,0],[32,8],[65,0],[16, builtin('__ecma262_TimeWithinDay')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,12],[65,0],[16, builtin('__ecma262_TimeClip')],[33,13],[32,0],[65,19],[32,13],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,13],[65,0],[15]],
     params: [124,127,124,127,124,127,124,127],
     typedParams: true,
@@ -886,7 +886,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,124,124,127],
     localNames: ["_this","_this#type","year","year#type","month","month#type","date","date#type","t","y","m","dt","newDate","v","#last_type"],
   };
-  this.___date_prototype_setUTCHours = {
+  this.__Date_prototype_setUTCHours = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,10],[32,2],[16, builtin('Number')],[33,11],[32,10],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,4],[16, builtin('Number')],[33,12],[5],[32,10],[65,0],[16, builtin('__ecma262_MinFromTime')],[33,12],[11],[32,6],[32,7],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,6],[16, builtin('Number')],[33,13],[5],[32,10],[65,0],[16, builtin('__ecma262_SecFromTime')],[33,13],[11],[32,8],[32,9],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,8],[16, builtin('Number')],[33,14],[5],[32,10],[65,0],[16, builtin('__ecma262_msFromTime')],[33,14],[11],[32,10],[65,0],[16, builtin('__ecma262_Day')],[65,0],[32,11],[65,0],[32,12],[65,0],[32,13],[65,0],[32,14],[65,0],[16, builtin('__ecma262_MakeTime')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,15],[65,0],[16, builtin('__ecma262_TimeClip')],[33,16],[32,0],[65,19],[32,16],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,16],[65,0],[15]],
     params: [124,127,124,127,124,127,124,127,124,127],
     typedParams: true,
@@ -895,7 +895,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,124,124,124,127],
     localNames: ["_this","_this#type","hour","hour#type","min","min#type","sec","sec#type","ms","ms#type","t","h","m","s","milli","date","v","#last_type"],
   };
-  this.___date_prototype_setUTCMilliseconds = {
+  this.__Date_prototype_setUTCMilliseconds = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,4],[32,2],[16, builtin('Number')],[33,5],[32,4],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,4],[65,0],[16, builtin('__ecma262_HourFromTime')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_MinFromTime')],[65,0],[32,4],[65,0],[16, builtin('__ecma262_SecFromTime')],[65,0],[32,5],[65,0],[16, builtin('__ecma262_MakeTime')],[33,6],[32,4],[65,0],[16, builtin('__ecma262_Day')],[65,0],[32,6],[65,0],[16, builtin('__ecma262_MakeDate')],[65,0],[16, builtin('__ecma262_TimeClip')],[33,7],[32,0],[65,19],[32,7],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,7],[65,0],[15]],
     params: [124,127,124,127],
     typedParams: true,
@@ -904,7 +904,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,127],
     localNames: ["_this","_this#type","ms","ms#type","t","milli","time","v","#last_type"],
   };
-  this.___date_prototype_setUTCMinutes = {
+  this.__Date_prototype_setUTCMinutes = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,8],[32,2],[16, builtin('Number')],[33,9],[32,8],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,4],[16, builtin('Number')],[33,10],[5],[32,8],[65,0],[16, builtin('__ecma262_SecFromTime')],[33,10],[11],[32,6],[32,7],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,6],[16, builtin('Number')],[33,11],[5],[32,8],[65,0],[16, builtin('__ecma262_msFromTime')],[33,11],[11],[32,8],[65,0],[16, builtin('__ecma262_Day')],[65,0],[32,8],[65,0],[16, builtin('__ecma262_HourFromTime')],[65,0],[32,9],[65,0],[32,10],[65,0],[32,11],[65,0],[16, builtin('__ecma262_MakeTime')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,12],[65,0],[16, builtin('__ecma262_TimeClip')],[33,13],[32,0],[65,19],[32,13],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,13],[65,0],[15]],
     params: [124,127,124,127,124,127,124,127],
     typedParams: true,
@@ -913,7 +913,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,124,124,127],
     localNames: ["_this","_this#type","min","min#type","sec","sec#type","ms","ms#type","t","m","s","milli","date","v","#last_type"],
   };
-  this.___date_prototype_setUTCMonth = {
+  this.__Date_prototype_setUTCMonth = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,6],[32,2],[16, builtin('Number')],[33,7],[32,6],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,4],[16, builtin('Number')],[33,8],[5],[32,6],[65,0],[16, builtin('__ecma262_DateFromTime')],[33,8],[11],[32,6],[65,0],[16, builtin('__ecma262_YearFromTime')],[65,0],[32,7],[65,0],[32,8],[65,0],[16, builtin('__ecma262_MakeDay')],[65,0],[32,6],[65,0],[16, builtin('__ecma262_TimeWithinDay')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,9],[65,0],[16, builtin('__ecma262_TimeClip')],[33,10],[32,0],[65,19],[32,10],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,10],[65,0],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
@@ -922,7 +922,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,124,127],
     localNames: ["_this","_this#type","month","month#type","date","date#type","t","m","dt","newDate","v","#last_type"],
   };
-  this.___date_prototype_setUTCSeconds = {
+  this.__Date_prototype_setUTCSeconds = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,6],[32,2],[16, builtin('Number')],[33,7],[32,6],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,248,127],[65,0],[15],[11],[32,4],[32,5],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[98],[4,64],[32,4],[16, builtin('Number')],[33,8],[5],[32,6],[65,0],[16, builtin('__ecma262_msFromTime')],[33,8],[11],[32,6],[65,0],[16, builtin('__ecma262_Day')],[65,0],[32,6],[65,0],[16, builtin('__ecma262_HourFromTime')],[65,0],[32,6],[65,0],[16, builtin('__ecma262_MinFromTime')],[65,0],[32,7],[65,0],[32,8],[65,0],[16, builtin('__ecma262_MakeTime')],[65,0],[16, builtin('__ecma262_MakeDate')],[34,9],[65,0],[16, builtin('__ecma262_TimeClip')],[33,10],[32,0],[65,19],[32,10],[65,0],[16, builtin('__Porffor_date_write')],[26],[26],[32,10],[65,0],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
@@ -967,7 +967,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,127],
     localNames: ["t","t#type","year","out","__length_setter_tmp","#last_type"],
   };
-  this.___date_prototype_toISOString = {
+  this.__Date_prototype_toISOString = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,0,0],[65,3],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_ToUTCDTSF')],[65,18],[15]],
     params: [124,127],
     typedParams: true,
@@ -976,8 +976,8 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","tv"],
   };
-  this.___date_prototype_toJSON = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,4],[16, builtin('__Number_isFinite')],[68,0,0,0,0,0,0,0,0],[97],[4,64],[68,0,0,0,0,0,0,0,0],[65,4],[15],[11],[32,0],[65,19],[16, builtin('___date_prototype_toISOString')],[34,5],[15]],
+  this.__Date_prototype_toJSON = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,4],[16, builtin('__Number_isFinite')],[68,0,0,0,0,0,0,0,0],[97],[4,64],[68,0,0,0,0,0,0,0,0],[65,4],[15],[11],[32,0],[65,19],[16, builtin('__Date_prototype_toISOString')],[34,5],[15]],
     params: [124,127,124,127],
     typedParams: true,
     returns: [124,127],
@@ -1022,7 +1022,7 @@ export const BuiltinFuncs = function() {
     locals: [124,124,127,124,127],
     localNames: ["tv","tv#type","out","__length_setter_tmp","#makearray_pointer_tmp","t","#last_type"],
   };
-  this.___date_prototype_toString = {
+  this.__Date_prototype_toString = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[34,2],[65,0],[16, builtin('__ecma262_ToDateString')],[34,3],[15]],
     params: [124,127],
     typedParams: true,
@@ -1031,8 +1031,8 @@ export const BuiltinFuncs = function() {
     locals: [124,127],
     localNames: ["_this","_this#type","tv","#last_type"],
   };
-  this.___date_prototype_toTimeString = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,2],...number(allocPage(scope, 'bytestring: ___date_prototype_toTimeString/out', 'i8') * pageSize, 124),[34,3],[252,3],[68,0,0,0,0,0,0,0,0],[34,4],[252,3],[54,1,0],[32,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[32,3],[252,3],[34,5],[65,12],[54,1,0],[32,5],[65,201,0],[58,0,4],[32,5],[65,238,0],[58,0,5],[32,5],[65,246,0],[58,0,6],[32,5],[65,225,0],[58,0,7],[32,5],[65,236,0],[58,0,8],[32,5],[65,233,0],[58,0,9],[32,5],[65,228,0],[58,0,10],[32,5],[65,32],[58,0,11],[32,5],[65,196,0],[58,0,12],[32,5],[65,225,0],[58,0,13],[32,5],[65,244,0],[58,0,14],[32,5],[65,229,0],[58,0,15],[32,5],[184],[34,3],[65,18],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[33,6],[32,3],[65,18],[32,6],[65,0],[16, builtin('__ecma262_TimeString')],[65,18],[16, builtin('__Porffor_bytestring_appendStr')],[26],[32,3],[65,18],[32,2],[65,0],[16, builtin('__ecma262_TimeZoneString')],[34,7],[16, builtin('__Porffor_bytestring_appendStr')],[26],[32,3],[65,18],[15]],
+  this.__Date_prototype_toTimeString = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,2],...number(allocPage(scope, 'bytestring: __Date_prototype_toTimeString/out', 'i8') * pageSize, 124),[34,3],[252,3],[68,0,0,0,0,0,0,0,0],[34,4],[252,3],[54,1,0],[32,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[32,3],[252,3],[34,5],[65,12],[54,1,0],[32,5],[65,201,0],[58,0,4],[32,5],[65,238,0],[58,0,5],[32,5],[65,246,0],[58,0,6],[32,5],[65,225,0],[58,0,7],[32,5],[65,236,0],[58,0,8],[32,5],[65,233,0],[58,0,9],[32,5],[65,228,0],[58,0,10],[32,5],[65,32],[58,0,11],[32,5],[65,196,0],[58,0,12],[32,5],[65,225,0],[58,0,13],[32,5],[65,244,0],[58,0,14],[32,5],[65,229,0],[58,0,15],[32,5],[184],[34,3],[65,18],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[33,6],[32,3],[65,18],[32,6],[65,0],[16, builtin('__ecma262_TimeString')],[65,18],[16, builtin('__Porffor_bytestring_appendStr')],[26],[32,3],[65,18],[32,2],[65,0],[16, builtin('__ecma262_TimeZoneString')],[34,7],[16, builtin('__Porffor_bytestring_appendStr')],[26],[32,3],[65,18],[15]],
     params: [124,127],
     typedParams: true,
     returns: [124,127],
@@ -1040,8 +1040,8 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,127,124,127],
     localNames: ["_this","_this#type","tv","out","__length_setter_tmp","#makearray_pointer_tmp","t","#last_type"],
   };
-  this.___date_prototype_toDateString = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,2],...number(allocPage(scope, 'bytestring: ___date_prototype_toDateString/out', 'i8') * pageSize, 124),[34,3],[252,3],[68,0,0,0,0,0,0,0,0],[34,4],[252,3],[54,1,0],[32,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[32,3],[252,3],[34,5],[65,12],[54,1,0],[32,5],[65,201,0],[58,0,4],[32,5],[65,238,0],[58,0,5],[32,5],[65,246,0],[58,0,6],[32,5],[65,225,0],[58,0,7],[32,5],[65,236,0],[58,0,8],[32,5],[65,233,0],[58,0,9],[32,5],[65,228,0],[58,0,10],[32,5],[65,32],[58,0,11],[32,5],[65,196,0],[58,0,12],[32,5],[65,225,0],[58,0,13],[32,5],[65,244,0],[58,0,14],[32,5],[65,229,0],[58,0,15],[32,5],[184],[34,3],[65,18],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[34,6],[65,0],[16, builtin('__ecma262_DateString')],[34,3],[65,18],[15]],
+  this.__Date_prototype_toDateString = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,2],...number(allocPage(scope, 'bytestring: __Date_prototype_toDateString/out', 'i8') * pageSize, 124),[34,3],[252,3],[68,0,0,0,0,0,0,0,0],[34,4],[252,3],[54,1,0],[32,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[32,3],[252,3],[34,5],[65,12],[54,1,0],[32,5],[65,201,0],[58,0,4],[32,5],[65,238,0],[58,0,5],[32,5],[65,246,0],[58,0,6],[32,5],[65,225,0],[58,0,7],[32,5],[65,236,0],[58,0,8],[32,5],[65,233,0],[58,0,9],[32,5],[65,228,0],[58,0,10],[32,5],[65,32],[58,0,11],[32,5],[65,196,0],[58,0,12],[32,5],[65,225,0],[58,0,13],[32,5],[65,244,0],[58,0,14],[32,5],[65,229,0],[58,0,15],[32,5],[184],[34,3],[65,18],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_LocalTime')],[34,6],[65,0],[16, builtin('__ecma262_DateString')],[34,3],[65,18],[15]],
     params: [124,127],
     typedParams: true,
     returns: [124,127],
@@ -1049,8 +1049,8 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,127,124],
     localNames: ["_this","_this#type","tv","out","__length_setter_tmp","#makearray_pointer_tmp","t"],
   };
-  this.___date_prototype_toUTCString = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,2],...number(allocPage(scope, 'bytestring: ___date_prototype_toUTCString/out', 'i8') * pageSize, 124),[34,3],[252,3],[68,0,0,0,0,0,0,0,0],[34,4],[252,3],[54,1,0],[32,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[32,3],[252,3],[34,5],[65,12],[54,1,0],[32,5],[65,201,0],[58,0,4],[32,5],[65,238,0],[58,0,5],[32,5],[65,246,0],[58,0,6],[32,5],[65,225,0],[58,0,7],[32,5],[65,236,0],[58,0,8],[32,5],[65,233,0],[58,0,9],[32,5],[65,228,0],[58,0,10],[32,5],[65,32],[58,0,11],[32,5],[65,196,0],[58,0,12],[32,5],[65,225,0],[58,0,13],[32,5],[65,244,0],[58,0,14],[32,5],[65,229,0],[58,0,15],[32,5],[184],[34,3],[65,18],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_WeekDayName')],[33,6],[32,2],[65,0],[16, builtin('__ecma262_MonthName')],[33,7],[32,2],[65,0],[16, builtin('__ecma262_DateFromTime')],[33,8],[32,2],[65,0],[16, builtin('__ecma262_YearFromTime')],[33,9],[32,3],[65,18],[32,6],[65,18],[16, builtin('__Porffor_bytestring_appendStr')],[26],[32,3],[65,18],[68,0,0,0,0,0,0,70,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[32,3],[65,18],[68,0,0,0,0,0,0,64,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[32,3],[65,18],[32,8],[65,0],[68,0,0,0,0,0,0,0,64],[65,0],[16, builtin('__Porffor_bytestring_appendPadNum')],[26],[32,3],[65,18],[68,0,0,0,0,0,0,64,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[32,3],[65,18],[32,7],[65,18],[16, builtin('__Porffor_bytestring_appendStr')],[26],[32,3],[65,18],[68,0,0,0,0,0,0,64,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[32,9],[68,0,0,0,0,0,0,0,0],[99],[4,64],[32,3],[65,18],[68,0,0,0,0,0,128,70,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[11],[32,3],[65,18],[32,9],[65,0],[68,0,0,0,0,0,0,16,64],[65,0],[16, builtin('__Porffor_bytestring_appendPadNum')],[26],[32,3],[65,18],[68,0,0,0,0,0,0,64,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[32,3],[65,18],[32,2],[65,0],[16, builtin('__ecma262_TimeString')],[65,18],[16, builtin('__Porffor_bytestring_appendStr')],[26],[32,3],[65,18],[15]],
+  this.__Date_prototype_toUTCString = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[33,2],...number(allocPage(scope, 'bytestring: __Date_prototype_toUTCString/out', 'i8') * pageSize, 124),[34,3],[252,3],[68,0,0,0,0,0,0,0,0],[34,4],[252,3],[54,1,0],[32,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[32,3],[252,3],[34,5],[65,12],[54,1,0],[32,5],[65,201,0],[58,0,4],[32,5],[65,238,0],[58,0,5],[32,5],[65,246,0],[58,0,6],[32,5],[65,225,0],[58,0,7],[32,5],[65,236,0],[58,0,8],[32,5],[65,233,0],[58,0,9],[32,5],[65,228,0],[58,0,10],[32,5],[65,32],[58,0,11],[32,5],[65,196,0],[58,0,12],[32,5],[65,225,0],[58,0,13],[32,5],[65,244,0],[58,0,14],[32,5],[65,229,0],[58,0,15],[32,5],[184],[34,3],[65,18],[15],[11],[32,2],[65,0],[16, builtin('__ecma262_WeekDayName')],[33,6],[32,2],[65,0],[16, builtin('__ecma262_MonthName')],[33,7],[32,2],[65,0],[16, builtin('__ecma262_DateFromTime')],[33,8],[32,2],[65,0],[16, builtin('__ecma262_YearFromTime')],[33,9],[32,3],[65,18],[32,6],[65,18],[16, builtin('__Porffor_bytestring_appendStr')],[26],[32,3],[65,18],[68,0,0,0,0,0,0,70,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[32,3],[65,18],[68,0,0,0,0,0,0,64,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[32,3],[65,18],[32,8],[65,0],[68,0,0,0,0,0,0,0,64],[65,0],[16, builtin('__Porffor_bytestring_appendPadNum')],[26],[32,3],[65,18],[68,0,0,0,0,0,0,64,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[32,3],[65,18],[32,7],[65,18],[16, builtin('__Porffor_bytestring_appendStr')],[26],[32,3],[65,18],[68,0,0,0,0,0,0,64,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[32,9],[68,0,0,0,0,0,0,0,0],[99],[4,64],[32,3],[65,18],[68,0,0,0,0,0,128,70,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[11],[32,3],[65,18],[32,9],[65,0],[68,0,0,0,0,0,0,16,64],[65,0],[16, builtin('__Porffor_bytestring_appendPadNum')],[26],[32,3],[65,18],[68,0,0,0,0,0,0,64,64],[65,0],[16, builtin('__Porffor_bytestring_appendChar')],[26],[32,3],[65,18],[32,2],[65,0],[16, builtin('__ecma262_TimeString')],[65,18],[16, builtin('__Porffor_bytestring_appendStr')],[26],[32,3],[65,18],[15]],
     params: [124,127],
     typedParams: true,
     returns: [124,127],
@@ -1058,8 +1058,8 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,127,124,124,124,124],
     localNames: ["_this","_this#type","tv","out","__length_setter_tmp","#makearray_pointer_tmp","weekday","month","day","yv"],
   };
-  this.___date_prototype_toLocaleDateString = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('___date_prototype_toDateString')],[34,6],[15]],
+  this.__Date_prototype_toLocaleDateString = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Date_prototype_toDateString')],[34,6],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
     returns: [124,127],
@@ -1067,8 +1067,8 @@ export const BuiltinFuncs = function() {
     locals: [127],
     localNames: ["_this","_this#type","reserved1","reserved1#type","reserved2","reserved2#type","#last_type"],
   };
-  this.___date_prototype_toLocaleString = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('___date_prototype_toString')],[34,6],[15]],
+  this.__Date_prototype_toLocaleString = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Date_prototype_toString')],[34,6],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
     returns: [124,127],
@@ -1076,8 +1076,8 @@ export const BuiltinFuncs = function() {
     locals: [127],
     localNames: ["_this","_this#type","reserved1","reserved1#type","reserved2","reserved2#type","#last_type"],
   };
-  this.___date_prototype_toLocaleTimeString = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('___date_prototype_toTimeString')],[34,6],[15]],
+  this.__Date_prototype_toLocaleTimeString = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Date_prototype_toTimeString')],[34,6],[15]],
     params: [124,127,124,127,124,127],
     typedParams: true,
     returns: [124,127],
@@ -1085,7 +1085,7 @@ export const BuiltinFuncs = function() {
     locals: [127],
     localNames: ["_this","_this#type","reserved1","reserved1#type","reserved2","reserved2#type","#last_type"],
   };
-  this.___date_prototype_valueOf = {
+  this.__Date_prototype_valueOf = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,19],[16, builtin('__Porffor_date_read')],[65,0],[15]],
     params: [124,127],
     typedParams: true,
@@ -1168,8 +1168,8 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127],
     localNames: ["_this","_this#type","len","out","i","j","endPtr","chr"],
   };
-  this.___bytestring_prototype_toUpperCase = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,2],...number(allocPage(scope, 'bytestring: ___bytestring_prototype_toUpperCase/out', 'i8') * pageSize, 127),[34,3],[32,2],[54,0,0],[32,0],[33,4],[32,3],[33,5],[32,4],[32,2],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[34,7],[65,225,0],[78],[4,64],[32,7],[65,250,0],[76],[4,64],[32,7],[65,32],[107],[33,7],[11],[11],[32,5],[32,5],[65,1],[106],[33,5],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,18],[15]],
+  this.__ByteString_prototype_toUpperCase = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,2],...number(allocPage(scope, 'bytestring: __ByteString_prototype_toUpperCase/out', 'i8') * pageSize, 127),[34,3],[32,2],[54,0,0],[32,0],[33,4],[32,3],[33,5],[32,4],[32,2],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[34,7],[65,225,0],[78],[4,64],[32,7],[65,250,0],[76],[4,64],[32,7],[65,32],[107],[33,7],[11],[11],[32,5],[32,5],[65,1],[106],[33,5],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -1186,8 +1186,8 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127],
     localNames: ["_this","_this#type","len","out","i","j","endPtr","chr"],
   };
-  this.___bytestring_prototype_toLowerCase = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,2],...number(allocPage(scope, 'bytestring: ___bytestring_prototype_toLowerCase/out', 'i8') * pageSize, 127),[34,3],[32,2],[54,0,0],[32,0],[33,4],[32,3],[33,5],[32,4],[32,2],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[34,7],[65,193,0],[78],[4,64],[32,7],[65,218,0],[76],[4,64],[32,7],[65,32],[106],[33,7],[11],[11],[32,5],[32,5],[65,1],[106],[33,5],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,18],[15]],
+  this.__ByteString_prototype_toLowerCase = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,2],...number(allocPage(scope, 'bytestring: __ByteString_prototype_toLowerCase/out', 'i8') * pageSize, 127),[34,3],[32,2],[54,0,0],[32,0],[33,4],[32,3],[33,5],[32,4],[32,2],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[34,7],[65,193,0],[78],[4,64],[32,7],[65,218,0],[76],[4,64],[32,7],[65,32],[106],[33,7],[11],[11],[32,5],[32,5],[65,1],[106],[33,5],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -1204,7 +1204,7 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127],
     localNames: ["_this","_this#type","searchString","searchString#type","position","position#type","thisPtr","searchPtr","len","searchLen","i","chr","expected"],
   };
-  this.___bytestring_prototype_startsWith = {
+  this.__ByteString_prototype_startsWith = {
     wasm: (scope, { allocPage, builtin }) => [[32,3],[65,18],[71],[4,64],[65,0],[65,1],[15],[11],[32,0],[33,6],[32,2],[33,7],[32,0],[40,1,0],[33,8],[32,4],[65,0],[74],[4,64],[32,4],[32,8],[74],[4,64],[32,8],[33,4],[5],[32,4],[65,0],[114],[33,4],[11],[5],[65,0],[33,4],[11],[32,6],[32,4],[106],[33,6],[32,2],[40,1,0],[33,9],[65,0],[33,10],[3,64],[32,10],[32,9],[72],[4,64],[32,6],[32,10],[106],[45,0,4],[33,11],[32,7],[32,10],[106],[45,0,4],[33,12],[32,11],[32,12],[71],[4,64],[65,0],[65,1],[15],[11],[32,10],[65,1],[106],[33,10],[12,1],[11],[11],[65,1],[65,1],[15]],
     params: [127,127,127,127,127,127],
     typedParams: true,
@@ -1222,7 +1222,7 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127],
     localNames: ["_this","_this#type","searchString","searchString#type","endPosition","endPosition#type","i","j","searchLen","len","endPtr","chr","expected"],
   };
-  this.___bytestring_prototype_endsWith = {
+  this.__ByteString_prototype_endsWith = {
     wasm: (scope, { allocPage, builtin }) => [[32,3],[65,18],[71],[4,64],[65,0],[65,1],[15],[11],[32,0],[33,6],[32,2],[33,7],[32,2],[40,1,0],[33,8],[32,0],[40,1,0],[33,9],[32,5],[65,3],[70],[4,64],[32,9],[33,4],[11],[32,4],[65,0],[74],[4,64],[32,4],[32,9],[74],[4,64],[32,9],[33,4],[5],[32,4],[65,0],[114],[33,4],[11],[5],[65,0],[33,4],[11],[32,4],[32,8],[107],[34,4],[65,0],[72],[4,64],[65,0],[65,1],[15],[11],[32,6],[32,4],[106],[33,6],[32,7],[32,8],[106],[33,10],[3,64],[32,7],[32,10],[72],[4,64],[32,6],[32,6],[65,1],[106],[33,6],[45,0,4],[33,11],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[33,12],[32,11],[32,12],[71],[4,64],[65,0],[65,1],[15],[11],[12,1],[11],[11],[65,1],[65,1],[15]],
     params: [127,127,127,127,127,127],
     typedParams: true,
@@ -1240,7 +1240,7 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127,127,127],
     localNames: ["_this","_this#type","searchString","searchString#type","position","position#type","thisPtr","searchPtr","searchLenX2","len","thisPtrEnd","match","i","chr","expected"],
   };
-  this.___bytestring_prototype_indexOf = {
+  this.__ByteString_prototype_indexOf = {
     wasm: (scope, { allocPage, builtin }) => [[32,3],[65,18],[71],[4,64],[65,127],[65,0],[15],[11],[32,0],[33,6],[32,2],[33,7],[32,2],[40,1,0],[33,8],[32,0],[40,1,0],[33,9],[32,4],[65,0],[74],[4,64],[32,4],[32,9],[74],[4,64],[32,9],[33,4],[5],[32,4],[65,0],[114],[33,4],[11],[5],[65,0],[33,4],[11],[32,6],[32,9],[106],[32,8],[107],[33,10],[32,6],[32,4],[106],[33,6],[3,64],[32,6],[32,10],[76],[4,64],[65,1],[33,11],[65,0],[33,12],[3,64],[32,12],[32,8],[72],[4,64],[2,64],[32,6],[32,12],[106],[45,0,4],[33,13],[32,7],[32,12],[106],[45,0,4],[33,14],[32,13],[32,14],[71],[4,64],[65,0],[33,11],[12,2],[11],[11],[32,12],[65,1],[106],[33,12],[12,1],[11],[11],[32,11],[4,64],[32,6],[32,0],[107],[65,0],[15],[11],[32,6],[65,1],[106],[33,6],[12,1],[11],[11],[65,127],[65,0],[15]],
     params: [127,127,127,127,127,127],
     typedParams: true,
@@ -1258,7 +1258,7 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127,127,127,127,127],
     localNames: ["_this","_this#type","searchString","searchString#type","position","position#type","thisPtr","searchPtr","searchLen","searchLenX2","len","max","thisPtrStart","match","i","chr","expected"],
   };
-  this.___bytestring_prototype_lastIndexOf = {
+  this.__ByteString_prototype_lastIndexOf = {
     wasm: (scope, { allocPage, builtin }) => [[32,3],[65,18],[71],[4,64],[65,127],[65,0],[15],[11],[32,0],[33,6],[32,2],[33,7],[32,2],[40,1,0],[33,8],[32,0],[40,1,0],[33,9],[32,5],[65,3],[70],[4,64],[32,9],[32,8],[107],[33,4],[11],[32,4],[65,0],[74],[4,64],[32,9],[32,8],[107],[33,10],[32,4],[32,10],[74],[4,64],[32,10],[33,4],[5],[32,4],[65,0],[114],[33,4],[11],[5],[65,0],[33,4],[11],[32,6],[33,11],[32,6],[32,4],[106],[33,6],[3,64],[32,6],[32,11],[78],[4,64],[65,1],[33,12],[65,0],[33,13],[3,64],[32,13],[32,8],[72],[4,64],[2,64],[32,6],[32,13],[106],[45,0,4],[33,14],[32,7],[32,13],[106],[45,0,4],[33,15],[32,14],[32,15],[71],[4,64],[65,0],[33,12],[12,2],[11],[11],[32,13],[65,1],[106],[33,13],[12,1],[11],[11],[32,12],[4,64],[32,6],[32,0],[107],[65,0],[15],[11],[32,6],[65,1],[107],[33,6],[12,1],[11],[11],[65,127],[65,0],[15]],
     params: [127,127,127,127,127,127],
     typedParams: true,
@@ -1276,7 +1276,7 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127,127,127],
     localNames: ["_this","_this#type","searchString","searchString#type","position","position#type","thisPtr","searchPtr","searchLenX2","len","thisPtrEnd","match","i","chr","expected"],
   };
-  this.___bytestring_prototype_includes = {
+  this.__ByteString_prototype_includes = {
     wasm: (scope, { allocPage, builtin }) => [[32,3],[65,18],[71],[4,64],[65,127],[65,0],[15],[11],[32,0],[33,6],[32,2],[33,7],[32,2],[40,1,0],[33,8],[32,0],[40,1,0],[33,9],[32,4],[65,0],[74],[4,64],[32,4],[32,9],[74],[4,64],[32,9],[33,4],[5],[32,4],[65,0],[114],[33,4],[11],[5],[65,0],[33,4],[11],[32,6],[32,9],[106],[32,8],[107],[33,10],[32,6],[32,4],[106],[33,6],[3,64],[32,6],[32,10],[76],[4,64],[65,1],[33,11],[65,0],[33,12],[3,64],[32,12],[32,8],[72],[4,64],[2,64],[32,6],[32,12],[106],[45,0,4],[33,13],[32,7],[32,12],[106],[45,0,4],[33,14],[32,13],[32,14],[71],[4,64],[65,0],[33,11],[12,2],[11],[11],[32,12],[65,1],[106],[33,12],[12,1],[11],[11],[32,11],[4,64],[65,1],[65,1],[15],[11],[32,6],[65,1],[106],[33,6],[12,1],[11],[11],[65,0],[65,1],[15]],
     params: [127,127,127,127,127,127],
     typedParams: true,
@@ -1295,8 +1295,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","targetLength","targetLength#type","padString","padString#type","out","outPtr","thisPtr","len","todo","i","__length_setter_tmp","padStringLen","__proto_length_cache","__proto_pointer_cache","__charCodeAt_tmp","#last_type","thisPtrEnd"],
     exceptions: [{"constructor":"TypeError","message":"'charCodeAt' proto func tried to be called on a type without an impl","exceptId":0}],
   };
-  this.___bytestring_prototype_padStart = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_padStart/out', 'i8') * pageSize, 127),[34,6],[33,7],[32,0],[33,8],[32,4],[33,9],[32,0],[40,1,0],[33,10],[32,2],[65,0],[114],[34,2],[32,10],[107],[34,11],[65,0],[74],[4,64],[32,5],[65,3],[70],[4,64],[65,0],[33,12],[3,64],[32,12],[32,11],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[65,32],[58,0,4],[32,12],[65,1],[106],[33,12],[12,1],[11],[11],[32,6],[32,2],[34,13],[54,1,0],[5],[32,4],[40,1,0],[34,14],[65,0],[74],[4,64],[65,0],[33,12],[3,64],[32,12],[32,11],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[32,9],[32,12],[32,14],[111],[106],[45,0,4],[58,0,4],[32,12],[65,1],[106],[33,12],[12,1],[11],[11],[32,6],[32,2],[34,13],[54,1,0],[5],[32,6],[32,10],[34,13],[54,1,0],[11],[11],[5],[32,6],[32,10],[34,13],[54,1,0],[11],[32,8],[32,10],[106],[33,15],[3,64],[32,8],[32,15],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[32,8],[32,8],[65,1],[106],[33,8],[45,0,4],[58,0,4],[12,1],[11],[11],[32,6],[65,18],[15]],
+  this.__ByteString_prototype_padStart = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_padStart/out', 'i8') * pageSize, 127),[34,6],[33,7],[32,0],[33,8],[32,4],[33,9],[32,0],[40,1,0],[33,10],[32,2],[65,0],[114],[34,2],[32,10],[107],[34,11],[65,0],[74],[4,64],[32,5],[65,3],[70],[4,64],[65,0],[33,12],[3,64],[32,12],[32,11],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[65,32],[58,0,4],[32,12],[65,1],[106],[33,12],[12,1],[11],[11],[32,6],[32,2],[34,13],[54,1,0],[5],[32,4],[40,1,0],[34,14],[65,0],[74],[4,64],[65,0],[33,12],[3,64],[32,12],[32,11],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[32,9],[32,12],[32,14],[111],[106],[45,0,4],[58,0,4],[32,12],[65,1],[106],[33,12],[12,1],[11],[11],[32,6],[32,2],[34,13],[54,1,0],[5],[32,6],[32,10],[34,13],[54,1,0],[11],[11],[5],[32,6],[32,10],[34,13],[54,1,0],[11],[32,8],[32,10],[106],[33,15],[3,64],[32,8],[32,15],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[32,8],[32,8],[65,1],[106],[33,8],[45,0,4],[58,0,4],[12,1],[11],[11],[32,6],[65,18],[15]],
     params: [127,127,127,127,127,127],
     typedParams: true,
     returns: [127,127],
@@ -1314,8 +1314,8 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","targetLength","targetLength#type","padString","padString#type","out","outPtr","thisPtr","len","thisPtrEnd","todo","i","__length_setter_tmp","padStringLen","__proto_length_cache","__proto_pointer_cache","__charCodeAt_tmp","#last_type"],
     exceptions: [{"constructor":"TypeError","message":"'charCodeAt' proto func tried to be called on a type without an impl","exceptId":1}],
   };
-  this.___bytestring_prototype_padEnd = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_padEnd/out', 'i8') * pageSize, 127),[34,6],[33,7],[32,0],[33,8],[32,4],[33,9],[32,0],[40,1,0],[33,10],[32,8],[32,10],[106],[33,11],[3,64],[32,8],[32,11],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[32,8],[32,8],[65,1],[106],[33,8],[45,0,4],[58,0,4],[12,1],[11],[11],[32,2],[65,0],[114],[34,2],[32,10],[107],[34,12],[65,0],[74],[4,64],[32,5],[65,3],[70],[4,64],[65,0],[33,13],[3,64],[32,13],[32,12],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[65,32],[58,0,4],[32,13],[65,1],[106],[33,13],[12,1],[11],[11],[32,6],[32,2],[34,14],[54,1,0],[5],[32,4],[40,1,0],[34,15],[65,0],[74],[4,64],[65,0],[33,13],[3,64],[32,13],[32,12],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[32,9],[32,13],[32,15],[111],[106],[45,0,4],[58,0,4],[32,13],[65,1],[106],[33,13],[12,1],[11],[11],[32,6],[32,2],[34,14],[54,1,0],[5],[32,6],[32,10],[34,14],[54,1,0],[11],[11],[5],[32,6],[32,10],[34,14],[54,1,0],[11],[32,6],[65,18],[15]],
+  this.__ByteString_prototype_padEnd = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_padEnd/out', 'i8') * pageSize, 127),[34,6],[33,7],[32,0],[33,8],[32,4],[33,9],[32,0],[40,1,0],[33,10],[32,8],[32,10],[106],[33,11],[3,64],[32,8],[32,11],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[32,8],[32,8],[65,1],[106],[33,8],[45,0,4],[58,0,4],[12,1],[11],[11],[32,2],[65,0],[114],[34,2],[32,10],[107],[34,12],[65,0],[74],[4,64],[32,5],[65,3],[70],[4,64],[65,0],[33,13],[3,64],[32,13],[32,12],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[65,32],[58,0,4],[32,13],[65,1],[106],[33,13],[12,1],[11],[11],[32,6],[32,2],[34,14],[54,1,0],[5],[32,4],[40,1,0],[34,15],[65,0],[74],[4,64],[65,0],[33,13],[3,64],[32,13],[32,12],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[32,9],[32,13],[32,15],[111],[106],[45,0,4],[58,0,4],[32,13],[65,1],[106],[33,13],[12,1],[11],[11],[32,6],[32,2],[34,14],[54,1,0],[5],[32,6],[32,10],[34,14],[54,1,0],[11],[11],[5],[32,6],[32,10],[34,14],[54,1,0],[11],[32,6],[65,18],[15]],
     params: [127,127,127,127,127,127],
     typedParams: true,
     returns: [127,127],
@@ -1332,8 +1332,8 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127],
     localNames: ["_this","_this#type","start","start#type","end","end#type","len","tmp","out","outPtr","thisPtr","thisPtrEnd","__length_setter_tmp"],
   };
-  this.___bytestring_prototype_substring = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,6],[32,5],[65,3],[70],[4,64],[32,6],[33,4],[5],[32,2],[32,4],[74],[4,64],[32,4],[33,7],[32,2],[33,4],[32,7],[33,2],[11],[11],[32,2],[65,0],[114],[33,2],[32,4],[65,0],[114],[33,4],[32,2],[65,0],[72],[4,64],[65,0],[33,2],[11],[32,2],[32,6],[74],[4,64],[32,6],[33,2],[11],[32,4],[65,0],[72],[4,64],[65,0],[33,4],[11],[32,4],[32,6],[74],[4,64],[32,6],[33,4],[11],...number(allocPage(scope, 'bytestring: ___bytestring_prototype_substring/out', 'i8') * pageSize, 127),[34,8],[33,9],[32,0],[34,10],[32,4],[106],[33,11],[32,10],[32,2],[106],[33,10],[3,64],[32,10],[32,11],[72],[4,64],[32,9],[32,9],[65,1],[106],[33,9],[32,10],[32,10],[65,1],[106],[33,10],[45,0,4],[58,0,4],[12,1],[11],[11],[32,8],[32,4],[32,2],[107],[34,12],[54,1,0],[32,8],[65,18],[15]],
+  this.__ByteString_prototype_substring = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,6],[32,5],[65,3],[70],[4,64],[32,6],[33,4],[5],[32,2],[32,4],[74],[4,64],[32,4],[33,7],[32,2],[33,4],[32,7],[33,2],[11],[11],[32,2],[65,0],[114],[33,2],[32,4],[65,0],[114],[33,4],[32,2],[65,0],[72],[4,64],[65,0],[33,2],[11],[32,2],[32,6],[74],[4,64],[32,6],[33,2],[11],[32,4],[65,0],[72],[4,64],[65,0],[33,4],[11],[32,4],[32,6],[74],[4,64],[32,6],[33,4],[11],...number(allocPage(scope, 'bytestring: __ByteString_prototype_substring/out', 'i8') * pageSize, 127),[34,8],[33,9],[32,0],[34,10],[32,4],[106],[33,11],[32,10],[32,2],[106],[33,10],[3,64],[32,10],[32,11],[72],[4,64],[32,9],[32,9],[65,1],[106],[33,9],[32,10],[32,10],[65,1],[106],[33,10],[45,0,4],[58,0,4],[12,1],[11],[11],[32,8],[32,4],[32,2],[107],[34,12],[54,1,0],[32,8],[65,18],[15]],
     params: [127,127,127,127,127,127],
     typedParams: true,
     returns: [127,127],
@@ -1350,8 +1350,8 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127],
     localNames: ["_this","_this#type","start","start#type","length","length#type","len","out","outPtr","thisPtr","thisPtrEnd","__length_setter_tmp"],
   };
-  this.___bytestring_prototype_substr = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,6],[32,2],[65,0],[114],[34,2],[65,0],[72],[4,64],[32,6],[32,2],[106],[34,2],[65,0],[72],[4,64],[65,0],[33,2],[11],[11],[32,5],[65,3],[70],[4,64],[32,6],[32,2],[107],[33,4],[11],[32,4],[65,0],[114],[33,4],[32,2],[32,4],[106],[32,6],[74],[4,64],[32,6],[32,2],[107],[33,4],[11],...number(allocPage(scope, 'bytestring: ___bytestring_prototype_substr/out', 'i8') * pageSize, 127),[34,7],[33,8],[32,0],[34,9],[32,2],[106],[34,9],[32,4],[106],[33,10],[3,64],[32,9],[32,10],[72],[4,64],[32,8],[32,8],[65,1],[106],[33,8],[32,9],[32,9],[65,1],[106],[33,9],[45,0,4],[58,0,4],[12,1],[11],[11],[32,7],[32,4],[34,11],[54,1,0],[32,7],[65,18],[15]],
+  this.__ByteString_prototype_substr = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,6],[32,2],[65,0],[114],[34,2],[65,0],[72],[4,64],[32,6],[32,2],[106],[34,2],[65,0],[72],[4,64],[65,0],[33,2],[11],[11],[32,5],[65,3],[70],[4,64],[32,6],[32,2],[107],[33,4],[11],[32,4],[65,0],[114],[33,4],[32,2],[32,4],[106],[32,6],[74],[4,64],[32,6],[32,2],[107],[33,4],[11],...number(allocPage(scope, 'bytestring: __ByteString_prototype_substr/out', 'i8') * pageSize, 127),[34,7],[33,8],[32,0],[34,9],[32,2],[106],[34,9],[32,4],[106],[33,10],[3,64],[32,9],[32,10],[72],[4,64],[32,8],[32,8],[65,1],[106],[33,8],[32,9],[32,9],[65,1],[106],[33,9],[45,0,4],[58,0,4],[12,1],[11],[11],[32,7],[32,4],[34,11],[54,1,0],[32,7],[65,18],[15]],
     params: [127,127,127,127,127,127],
     typedParams: true,
     returns: [127,127],
@@ -1368,8 +1368,8 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127],
     localNames: ["_this","_this#type","start","start#type","end","end#type","len","out","outPtr","thisPtr","thisPtrEnd","__length_setter_tmp"],
   };
-  this.___bytestring_prototype_slice = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,6],[32,5],[65,3],[70],[4,64],[32,6],[33,4],[11],[32,2],[65,0],[114],[33,2],[32,4],[65,0],[114],[33,4],[32,2],[65,0],[72],[4,64],[32,6],[32,2],[106],[34,2],[65,0],[72],[4,64],[65,0],[33,2],[11],[11],[32,2],[32,6],[74],[4,64],[32,6],[33,2],[11],[32,4],[65,0],[72],[4,64],[32,6],[32,4],[106],[34,4],[65,0],[72],[4,64],[65,0],[33,4],[11],[11],[32,4],[32,6],[74],[4,64],[32,6],[33,4],[11],...number(allocPage(scope, 'bytestring: ___bytestring_prototype_slice/out', 'i8') * pageSize, 127),[33,7],[32,2],[32,4],[74],[4,64],[32,7],[65,18],[15],[11],[32,7],[33,8],[32,0],[34,9],[32,4],[106],[33,10],[32,9],[32,2],[106],[33,9],[3,64],[32,9],[32,10],[72],[4,64],[32,8],[32,8],[65,1],[106],[33,8],[32,9],[32,9],[65,1],[106],[33,9],[45,0,4],[58,0,4],[12,1],[11],[11],[32,7],[32,4],[32,2],[107],[34,11],[54,1,0],[32,7],[65,18],[15]],
+  this.__ByteString_prototype_slice = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[40,1,0],[33,6],[32,5],[65,3],[70],[4,64],[32,6],[33,4],[11],[32,2],[65,0],[114],[33,2],[32,4],[65,0],[114],[33,4],[32,2],[65,0],[72],[4,64],[32,6],[32,2],[106],[34,2],[65,0],[72],[4,64],[65,0],[33,2],[11],[11],[32,2],[32,6],[74],[4,64],[32,6],[33,2],[11],[32,4],[65,0],[72],[4,64],[32,6],[32,4],[106],[34,4],[65,0],[72],[4,64],[65,0],[33,4],[11],[11],[32,4],[32,6],[74],[4,64],[32,6],[33,4],[11],...number(allocPage(scope, 'bytestring: __ByteString_prototype_slice/out', 'i8') * pageSize, 127),[33,7],[32,2],[32,4],[74],[4,64],[32,7],[65,18],[15],[11],[32,7],[33,8],[32,0],[34,9],[32,4],[106],[33,10],[32,9],[32,2],[106],[33,9],[3,64],[32,9],[32,10],[72],[4,64],[32,8],[32,8],[65,1],[106],[33,8],[32,9],[32,9],[65,1],[106],[33,9],[45,0,4],[58,0,4],[12,1],[11],[11],[32,7],[32,4],[32,2],[107],[34,11],[54,1,0],[32,7],[65,18],[15]],
     params: [127,127,127,127,127,127],
     typedParams: true,
     returns: [127,127],
@@ -1386,8 +1386,8 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127,127,127],
     localNames: ["_this","_this#type","out","outPtr","thisPtr","len","thisPtrEnd","n","start","chr","__length_setter_tmp"],
   };
-  this.___bytestring_prototype_trimStart = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_trimStart/out', 'i8') * pageSize, 127),[34,2],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[65,0],[33,7],[65,1],[33,8],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,9],[32,8],[4,64],[32,9],[65,9],[70],[32,9],[65,11],[70],[114],[32,9],[65,12],[70],[114],[32,9],[65,32],[70],[114],[32,9],[65,160,1],[70],[114],[32,9],[65,255,253,3],[70],[114],[32,9],[65,10],[70],[114],[32,9],[65,13],[70],[114],[32,9],[65,168,192,0],[70],[114],[32,9],[65,169,192,0],[70],[114],[4,64],[32,7],[65,1],[106],[33,7],[12,3],[11],[65,0],[33,8],[11],[32,3],[32,3],[65,1],[106],[33,3],[32,9],[58,0,4],[12,1],[11],[11],[32,2],[32,5],[32,7],[107],[34,10],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_trimStart = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_trimStart/out', 'i8') * pageSize, 127),[34,2],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[65,0],[33,7],[65,1],[33,8],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,9],[32,8],[4,64],[32,9],[65,9],[70],[32,9],[65,11],[70],[114],[32,9],[65,12],[70],[114],[32,9],[65,32],[70],[114],[32,9],[65,160,1],[70],[114],[32,9],[65,255,253,3],[70],[114],[32,9],[65,10],[70],[114],[32,9],[65,13],[70],[114],[32,9],[65,168,192,0],[70],[114],[32,9],[65,169,192,0],[70],[114],[4,64],[32,7],[65,1],[106],[33,7],[12,3],[11],[65,0],[33,8],[11],[32,3],[32,3],[65,1],[106],[33,3],[32,9],[58,0,4],[12,1],[11],[11],[32,2],[32,5],[32,7],[107],[34,10],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -1404,8 +1404,8 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127,127,127],
     localNames: ["_this","_this#type","out","outPtr","thisPtr","len","thisPtrStart","n","start","chr","__length_setter_tmp"],
   };
-  this.___bytestring_prototype_trimEnd = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_trimEnd/out', 'i8') * pageSize, 127),[34,2],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[33,6],[32,4],[32,5],[106],[33,4],[32,3],[32,5],[106],[33,3],[65,0],[33,7],[65,1],[33,8],[3,64],[32,4],[32,6],[74],[4,64],[32,4],[65,1],[107],[34,4],[45,0,4],[33,9],[32,3],[65,1],[107],[33,3],[32,8],[4,64],[32,9],[65,9],[70],[32,9],[65,11],[70],[114],[32,9],[65,12],[70],[114],[32,9],[65,32],[70],[114],[32,9],[65,160,1],[70],[114],[32,9],[65,255,253,3],[70],[114],[32,9],[65,10],[70],[114],[32,9],[65,13],[70],[114],[32,9],[65,168,192,0],[70],[114],[32,9],[65,169,192,0],[70],[114],[4,64],[32,7],[65,1],[106],[33,7],[12,3],[11],[65,0],[33,8],[11],[32,3],[32,9],[58,0,4],[12,1],[11],[11],[32,2],[32,5],[32,7],[107],[34,10],[54,1,0],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_trimEnd = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_trimEnd/out', 'i8') * pageSize, 127),[34,2],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[33,6],[32,4],[32,5],[106],[33,4],[32,3],[32,5],[106],[33,3],[65,0],[33,7],[65,1],[33,8],[3,64],[32,4],[32,6],[74],[4,64],[32,4],[65,1],[107],[34,4],[45,0,4],[33,9],[32,3],[65,1],[107],[33,3],[32,8],[4,64],[32,9],[65,9],[70],[32,9],[65,11],[70],[114],[32,9],[65,12],[70],[114],[32,9],[65,32],[70],[114],[32,9],[65,160,1],[70],[114],[32,9],[65,255,253,3],[70],[114],[32,9],[65,10],[70],[114],[32,9],[65,13],[70],[114],[32,9],[65,168,192,0],[70],[114],[32,9],[65,169,192,0],[70],[114],[4,64],[32,7],[65,1],[106],[33,7],[12,3],[11],[65,0],[33,8],[11],[32,3],[32,9],[58,0,4],[12,1],[11],[11],[32,2],[32,5],[32,7],[107],[34,10],[54,1,0],[32,2],[65,18],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -1422,8 +1422,8 @@ export const BuiltinFuncs = function() {
     locals: [127],
     localNames: ["_this","_this#type","#last_type"],
   };
-  this.___bytestring_prototype_trim = {
-    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,18],[16, builtin('___bytestring_prototype_trimEnd')],[34,2],[16, builtin('___bytestring_prototype_trimStart')],[34,2],[15]],
+  this.__ByteString_prototype_trim = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,18],[16, builtin('__ByteString_prototype_trimEnd')],[34,2],[16, builtin('__ByteString_prototype_trimStart')],[34,2],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -1449,8 +1449,8 @@ export const BuiltinFuncs = function() {
     locals: [124],
     localNames: ["_this","_this#type","out"],
   };
-  this.___bytestring_prototype_toString = {
-    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: ___bytestring_prototype_toString/out', 'i8') * pageSize, 124),[33,2],[32,0],[32,2],[16, builtin('__Porffor_clone')],[32,2],[65,18],[15]],
+  this.__ByteString_prototype_toString = {
+    wasm: (scope, { allocPage, builtin }) => [...number(allocPage(scope, 'bytestring: __ByteString_prototype_toString/out', 'i8') * pageSize, 124),[33,2],[32,0],[32,2],[16, builtin('__Porffor_clone')],[32,2],[65,18],[15]],
     params: [124,127],
     typedParams: true,
     returns: [124,127],

@@ -14,7 +14,7 @@ export const PrototypeFuncs = function() {
   if (Prefs.zeroChecks) zeroChecks = Prefs.zeroChecks.split('=')[1].split(',').reduce((acc, x) => { acc[x.toLowerCase()] = true; return acc; }, {});
     else zeroChecks = {};
 
-  this[TYPES._array] = {
+  this[TYPES.array] = {
     // lX = local accessor of X ({ get, set }), iX = local index of X, wX = wasm ops of X
     at: (pointer, length, wIndex, iTmp) => [
       ...wIndex,
@@ -253,10 +253,10 @@ export const PrototypeFuncs = function() {
     ]
   };
 
-  this[TYPES._array].at.local = Valtype.i32;
-  this[TYPES._array].push.noArgRetLength = true;
-  this[TYPES._array].fill.local = valtypeBinary;
-  this[TYPES._array].fill.returnType = TYPES._array;
+  this[TYPES.array].at.local = Valtype.i32;
+  this[TYPES.array].push.noArgRetLength = true;
+  this[TYPES.array].fill.local = valtypeBinary;
+  this[TYPES.array].fill.returnType = TYPES.array;
 
   this[TYPES.string] = {
     at: (pointer, length, wIndex, iTmp, _, arrayShell) => {
@@ -476,7 +476,7 @@ export const PrototypeFuncs = function() {
   this[TYPES.string].isWellFormed.returnType = TYPES.boolean;
 
   if (Prefs.bytestring) {
-    this[TYPES._bytestring] = {
+    this[TYPES.bytestring] = {
       at: (pointer, length, wIndex, iTmp, _, arrayShell) => {
         const [ newOut, newPointer ] = arrayShell(1, 'i8');
 
@@ -606,14 +606,14 @@ export const PrototypeFuncs = function() {
       }
     };
 
-    this[TYPES._bytestring].at.local = Valtype.i32;
-    this[TYPES._bytestring].at.returnType = TYPES._bytestring;
-    this[TYPES._bytestring].charAt.returnType = TYPES._bytestring;
-    this[TYPES._bytestring].charCodeAt.local = Valtype.i32;
-    this[TYPES._bytestring].charCodeAt.noPointerCache = zeroChecks.charcodeat;
+    this[TYPES.bytestring].at.local = Valtype.i32;
+    this[TYPES.bytestring].at.returnType = TYPES.bytestring;
+    this[TYPES.bytestring].charAt.returnType = TYPES.bytestring;
+    this[TYPES.bytestring].charCodeAt.local = Valtype.i32;
+    this[TYPES.bytestring].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 
-    this[TYPES._bytestring].isWellFormed.local = Valtype.i32;
-    this[TYPES._bytestring].isWellFormed.local2 = Valtype.i32;
-    this[TYPES._bytestring].isWellFormed.returnType = TYPES.boolean;
+    this[TYPES.bytestring].isWellFormed.local = Valtype.i32;
+    this[TYPES.bytestring].isWellFormed.local2 = Valtype.i32;
+    this[TYPES.bytestring].isWellFormed.returnType = TYPES.boolean;
   }
 };

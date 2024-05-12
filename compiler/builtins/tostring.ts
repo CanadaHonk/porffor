@@ -14,7 +14,7 @@ export const __String_prototype_toString = (_this: string) => {
   return out;
 };
 
-export const ___bytestring_prototype_toString = (_this: bytestring) => {
+export const __ByteString_prototype_toString = (_this: bytestring) => {
   let out: bytestring = Porffor.bs``;
   Porffor.clone(_this, out);
   return out;
@@ -36,10 +36,10 @@ export const __Function_prototype_toString = (_this: Function) => {
 };
 
 
-// // export const ___array_prototype_toString = (_this: any[]) => {
+// // export const __Array_prototype_toString = (_this: any[]) => {
 // //   return _this.join();
 // // };
 
-// // export const ___regexp_prototype_toString = (_this: number) => {
+// // export const __RegExp_prototype_toString = (_this: number) => {
 
 // // };

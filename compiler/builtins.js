@@ -141,7 +141,7 @@ export const BuiltinVars = function() {
 
   // wintercg(tm)
   this.__navigator_userAgent = (scope, { makeString }) => makeString(scope, `Porffor/0.2.0`, false, '__navigator_userAgent');
-  this.__navigator_userAgent.type = Prefs.bytestring ? TYPES._bytestring : TYPES.string;
+  this.__navigator_userAgent.type = Prefs.bytestring ? TYPES.bytestring : TYPES.string;
 
   for (const x in TYPES) {
     this['__Porffor_TYPES_' + x] = number(TYPES[x]);
@@ -273,7 +273,7 @@ export const BuiltinFuncs = function() {
 
           [ Opcodes.end ]
         ],
-        [TYPES._bytestring]: [
+        [TYPES.bytestring]: [
           // simply print a (byte)string :))
           // cache input pointer as i32
           [ Opcodes.local_get, 0 ],
@@ -307,7 +307,7 @@ export const BuiltinFuncs = function() {
 
           [ Opcodes.end ]
         ],
-        [TYPES._array]: [
+        [TYPES.array]: [
           ...printStaticStr('[ '),
 
           // cache input pointer as i32
@@ -1039,7 +1039,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [ valtypeBinary ],
-    returnType: Prefs.bytestring ? TYPES._bytestring : TYPES.string,
+    returnType: Prefs.bytestring ? TYPES.bytestring : TYPES.string,
     wasm: (scope, { TYPE_NAMES, typeSwitch, makeString }) => {
       const bc = {};
       for (const x in TYPE_NAMES) {

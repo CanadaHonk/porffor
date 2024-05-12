@@ -17,7 +17,7 @@ export const parseInt = (input: string|bytestring, radix: number): f64 => {
   let nMax: f64 = 58;
   if (radix < 10) nMax = 48 + radix;
 
-  // if (Porffor.rawType(input) == Porffor.TYPES._bytestring) input = ___bytestring_prototype_trimStart(input);
+  // if (Porffor.rawType(input) == Porffor.TYPES.bytestring) input = __ByteString_prototype_trimStart(input);
   //   else input = __String_prototype_trimStart(input);
 
   let n: f64 = NaN;
@@ -28,7 +28,7 @@ export const parseInt = (input: string|bytestring, radix: number): f64 => {
 
   let negative: boolean = false;
 
-  if (Porffor.rawType(input) == Porffor.TYPES._bytestring) {
+  if (Porffor.rawType(input) == Porffor.TYPES.bytestring) {
     const endPtr: f64 = i + len;
 
     // check start of string

@@ -219,8 +219,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         __Porffor_bs: str => [
           ...makeString(scope, str, global, name, true),
 
-          ...(name ? setType(scope, name, TYPES._bytestring) : [
-            ...number(TYPES._bytestring, Valtype.i32),
+          ...(name ? setType(scope, name, TYPES.bytestring) : [
+            ...number(TYPES.bytestring, Valtype.i32),
             ...setLastType(scope)
           ])
         ],
@@ -723,7 +723,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
 
     ...typeSwitch(scope, type, {
       // [TYPES.number]: def,
-      [TYPES._array]: [
+      [TYPES.array]: [
         // arrays are always truthy
         ...number(1, intOut ? Valtype.i32 : valtypeBinary)
       ],
@@ -739,7 +739,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
         [ Opcodes.i32_eqz ], */
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ],
-      [TYPES._bytestring]: [ // duplicate of string
+      [TYPES.bytestring]: [ // duplicate of string
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
@@ -762,7 +762,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, {
-      [TYPES._array]: [
+      [TYPES.array]: [
         // arrays are always truthy
         ...number(0, intOut ? Valtype.i32 : valtypeBinary)
       ],
@@ -777,7 +777,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
         [ Opcodes.i32_eqz ],
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ],
-      [TYPES._bytestring]: [ // duplicate of string
+      [TYPES.bytestring]: [ // duplicate of string
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
@@ -922,7 +922,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     }
   }
 
-  if (knownLeft === TYPES._bytestring || knownRight === TYPES._bytestring) {
+  if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) {
     if (op === '+') {
       // todo: this should be dynamic too but for now only static
       // string concat (a + b)
@@ -1041,12 +1041,12 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
 
       // if left is bytestring
       ...leftType,
-      ...number(TYPES._bytestring, Valtype.i32),
+      ...number(TYPES.bytestring, Valtype.i32),
       [ Opcodes.i32_eq ],
 
       // if right is bytestring
       ...rightType,
-      ...number(TYPES._bytestring, Valtype.i32),
+      ...number(TYPES.bytestring, Valtype.i32),
       [ Opcodes.i32_eq ],
 
       // if both are true
@@ -1188,7 +1188,7 @@ const generateLogicExp = (scope, decl) => {
 // 5: pointer
 
 const isExistingProtoFunc = name => {
-  if (name.startsWith('__Array_prototype')) return !!prototypeFuncs[TYPES._array][name.slice(18)];
+  if (name.startsWith('__Array_prototype')) return !!prototypeFuncs[TYPES.array][name.slice(18)];
   if (name.startsWith('__String_prototype_')) return !!prototypeFuncs[TYPES.string][name.slice(19)];
 
   return false;
@@ -1247,9 +1247,9 @@ const setLastType = scope => {
 const getNodeType = (scope, node) => {
   const inner = () => {
     if (node.type === 'Literal') {
-      if (node.regex) return TYPES._regexp;
+      if (node.regex) return TYPES.regexp;
 
-      if (typeof node.value === 'string' && byteStringable(node.value)) return TYPES._bytestring;
+      if (typeof node.value === 'string' && byteStringable(node.value)) return TYPES.bytestring;
 
       return TYPES[typeof node.value];
     }
@@ -1303,7 +1303,7 @@ const getNodeType = (scope, node) => {
         const spl = name.slice(2).split('_');
 
         const func = spl[spl.length - 1];
-        const protoFuncs = Object.keys(prototypeFuncs).filter(x => x != TYPES._bytestring && prototypeFuncs[x][func] != null);
+        const protoFuncs = Object.keys(prototypeFuncs).filter(x => x != TYPES.bytestring && prototypeFuncs[x][func] != null);
         if (protoFuncs.length === 1) return protoFuncs[0].returnType ?? TYPES.number;
       }
 
@@ -1355,7 +1355,7 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type === 'ArrayExpression') {
-      return TYPES._array;
+      return TYPES.array;
     }
 
     if (node.type === 'BinaryExpression') {
@@ -1367,7 +1367,7 @@ const getNodeType = (scope, node) => {
 
       // todo: this should be dynamic but for now only static
       if (knownLeft === TYPES.string || knownRight === TYPES.string) return TYPES.string;
-      if (knownLeft === TYPES._bytestring || knownRight === TYPES._bytestring) return TYPES._bytestring;
+      if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) return TYPES.bytestring;
 
       return TYPES.number;
 
@@ -1393,7 +1393,7 @@ const getNodeType = (scope, node) => {
       if (node.operator === '!') return TYPES.boolean;
       if (node.operator === 'void') return TYPES.undefined;
       if (node.operator === 'delete') return TYPES.boolean;
-      if (node.operator === 'typeof') return Prefs.bytestring ? TYPES._bytestring : TYPES.string;
+      if (node.operator === 'typeof') return Prefs.bytestring ? TYPES.bytestring : TYPES.string;
 
       return TYPES.number;
     }
@@ -1404,8 +1404,8 @@ const getNodeType = (scope, node) => {
 
       // ts hack
       if (scope.locals[node.object.name]?.metadata?.type === TYPES.string) return TYPES.string;
-      if (scope.locals[node.object.name]?.metadata?.type === TYPES._bytestring) return TYPES._bytestring;
-      if (scope.locals[node.object.name]?.metadata?.type === TYPES._array) return TYPES.number;
+      if (scope.locals[node.object.name]?.metadata?.type === TYPES.bytestring) return TYPES.bytestring;
+      if (scope.locals[node.object.name]?.metadata?.type === TYPES.array) return TYPES.number;
 
       if (scope.locals['#last_type']) return getLastType(scope);
 
@@ -2092,7 +2092,7 @@ const brTable = (input, bc, returns) => {
 };
 
 const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
-  if (!Prefs.bytestring) delete bc[TYPES._bytestring];
+  if (!Prefs.bytestring) delete bc[TYPES.bytestring];
 
   const known = knownType(scope, type);
   if (known != null) {
@@ -2195,7 +2195,7 @@ const extractTypeAnnotation = decl => {
   const typeName = type;
   type = typeAnnoToPorfType(type);
 
-  if (type === TYPES._bytestring && !Prefs.bytestring) type = TYPES.string;
+  if (type === TYPES.bytestring && !Prefs.bytestring) type = TYPES.string;
 
   // if (decl.name) console.log(decl.name, { type, elementType });
 
@@ -2325,7 +2325,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     return [
       ...typeSwitch(scope, getNodeType(scope, decl.left.object), {
-        [TYPES._array]: [
+        [TYPES.array]: [
           ...(aotPointer ? [] : [
             ...generate(scope, decl.left.object),
             Opcodes.i32_to_u
@@ -2527,7 +2527,7 @@ const generateUnary = (scope, decl) => {
         [TYPES.undefined]: makeString(scope, 'undefined', false, '#typeof_result'),
         [TYPES.function]: makeString(scope, 'function', false, '#typeof_result'),
 
-        [TYPES._bytestring]: makeString(scope, 'string', false, '#typeof_result'),
+        [TYPES.bytestring]: makeString(scope, 'string', false, '#typeof_result'),
 
         // object and internal types
         default: makeString(scope, 'object', false, '#typeof_result'),
@@ -2763,7 +2763,7 @@ const generateForOf = (scope, decl) => {
   // set type for local
   // todo: optimize away counter and use end pointer
   out.push(...typeSwitch(scope, getNodeType(scope, decl.right), {
-    [TYPES._array]: [
+    [TYPES.array]: [
       ...setType(scope, leftName, TYPES.number),
 
       [ Opcodes.loop, Blocktype.void ],
@@ -2846,8 +2846,8 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ],
       [ Opcodes.end ]
     ],
-    [TYPES._bytestring]: [
-      ...setType(scope, leftName, TYPES._bytestring),
+    [TYPES.bytestring]: [
+      ...setType(scope, leftName, TYPES.bytestring),
 
       [ Opcodes.loop, Blocktype.void ],
 
@@ -3266,7 +3266,7 @@ export const generateMember = (scope, decl, _global, _name) => {
   }
 
   return typeSwitch(scope, getNodeType(scope, decl.object), {
-    [TYPES._array]: [
+    [TYPES.array]: [
       // get index as valtype
       ...property,
 
@@ -3319,7 +3319,7 @@ export const generateMember = (scope, decl, _global, _name) => {
       ...number(TYPES.string, Valtype.i32),
       ...setLastType(scope)
     ],
-    [TYPES._bytestring]: [
+    [TYPES.bytestring]: [
       // setup new/out array
       ...newOut,
       [ Opcodes.drop ],
@@ -3344,7 +3344,7 @@ export const generateMember = (scope, decl, _global, _name) => {
       // return new string (page)
       ...number(newPointer),
 
-      ...number(TYPES._bytestring, Valtype.i32),
+      ...number(TYPES.bytestring, Valtype.i32),
       ...setLastType(scope)
     ],
 
@@ -3513,7 +3513,7 @@ const internalConstrs = {
         ...number(pointer)
       ];
     },
-    type: TYPES._array,
+    type: TYPES.array,
     length: 1
   },
 
@@ -3525,7 +3525,7 @@ const internalConstrs = {
         elements: decl.arguments
       }, global, name);
     },
-    type: TYPES._array,
+    type: TYPES.array,
     notConstr: true,
     length: 0
   },

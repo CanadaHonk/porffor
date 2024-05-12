@@ -11,7 +11,7 @@ export const escape = (input: string|bytestring): bytestring => {
 
   let i: i32 = Porffor.wasm`local.get ${input}`;
 
-  if (Porffor.wasm`local.get ${input+1}` == Porffor.TYPES._bytestring) {
+  if (Porffor.wasm`local.get ${input+1}` == Porffor.TYPES.bytestring) {
     const endPtr: i32 = i + len;
     while (i < endPtr) {
       const chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);

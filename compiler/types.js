@@ -24,7 +24,7 @@ export const INTERNAL_TYPE_BASE = 0x10;
 let internalTypeIndex = INTERNAL_TYPE_BASE;
 const registerInternalType = name => {
   const n = internalTypeIndex++;
-  TYPES['_' + name.toLowerCase()] = n;
+  TYPES[name.toLowerCase()] = n;
   TYPE_NAMES[n] = name;
 };
 

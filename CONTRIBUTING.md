@@ -36,7 +36,7 @@ Porffor has usual JS types (or at least the ones it supports), but also internal
 
 ### ByteString
 
-The most important and widely used internal type is ByteString (also called `bytestring` or `_bytestring` in code). Regular strings in Porffor are UTF-16 encoded, so each character uses 2 bytes. ByteStrings are special strings which are used when the characters in a string only use ASCII/LATIN-1 characters, so the lower byte of the UTF-16 characters are unused. Instead of wasting memory with all the unused memory, ByteStrings instead use 1 byte per character. This halves memory usage of such strings and also makes operating on them faster. The downside is that many Porffor built-ins have to be written twice, slightly different, for both `String` and `ByteString` types.
+The most important and widely used internal type is ByteString. Regular strings in Porffor are UTF-16 encoded, so each character uses 2 bytes. ByteStrings are special strings which are used when the characters in a string only use ASCII/LATIN-1 characters, so the lower byte of the UTF-16 characters are unused. Instead of wasting memory with all the unused memory, ByteStrings instead use 1 byte per character. This halves memory usage of such strings and also makes operating on them faster. The downside is that many Porffor built-ins have to be written twice, slightly different, for both `String` and `ByteString` types.
 
 ### i32
 
@@ -107,7 +107,7 @@ Stores the length `length` at pointer `pointer`, setting the length of an object
 Here is the code for `ByteString.prototype.toUpperCase()`:
 
 ```ts
-export const ___bytestring_prototype_toUpperCase = (_this: bytestring) => {
+export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
   const len: i32 = _this.length;
 
   let out: bytestring = '';
@@ -132,12 +132,11 @@ export const ___bytestring_prototype_toUpperCase = (_this: bytestring) => {
 Now let's go through it section by section:
 
 ```ts
-export const ___bytestring_prototype_toUpperCase = (_this: bytestring) => {
+export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
 ```
 
 Here we define a built-in for Porffor. Notably:
 - We do not use `a.b.c`, instead we use `__a_b_c`
-- The ByteString type is actually `_bytestring`, as internal types have an extra `_` at the beginning (this is due to be fixed/simplified soon(tm))
 - We use a `_this` argument, as `this` does not exist in Porffor yet
 - We use an arrow function
 
