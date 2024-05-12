@@ -4,6 +4,7 @@ Hello! Thanks for your potential interest in contributing to Porffor :)
 
 This document hopes to help you understand Porffor-specific TS, specifically for writing built-ins (inside `compiler/builtins/` eg `btoa`, `String.prototype.trim`, ...). This guide isn't really meant for modifying the compiler itself yet (eg `compiler/codegen.js`), as built-ins are ~easier to implement and more useful at the moment.
 
+<br>
 
 ## Types
 
@@ -17,6 +18,7 @@ The most important and widely used internal type is ByteString (also called `byt
 
 This is complicated internally but essentially, only use it for pointers.
 
+<br>
 
 ## Pointers
 
@@ -73,6 +75,8 @@ Porffor.wasm.i32.store(pointer, length, 0, 0)
 ```
 
 Stores the length `length` at pointer `pointer`, setting the length of an object. This is mostly unneeded today as you can just do `obj.length = length`. [^2]
+
+<br>
 
 ## Example
 
@@ -165,6 +169,8 @@ If the character code is >= 97 (`a`) and <= 122 (`z`), decrease it by 32, making
 ```
 
 Store the character code into the `out` pointer variable, and increment it.
+
+<br>
 
 ## Formatting/linting
 
