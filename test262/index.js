@@ -132,6 +132,7 @@ const run = ({ file, contents, attrs }) => {
     if (e.is && e.is(exports['0'])) {
       const exceptId = e.getArg(exports['0'], 0);
       const exception = exceptions[exceptId];
+      if (!exception) return [ 1, new Error() ];
 
       let message = exception.message;
       if (debugAsserts && log) {
