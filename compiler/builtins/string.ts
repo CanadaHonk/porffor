@@ -1054,6 +1054,18 @@ export const __ByteString_prototype_trim = (_this: bytestring) => {
   return __ByteString_prototype_trimStart(__ByteString_prototype_trimEnd(_this));
 };
 
+// 22.1.3.29 String.prototype.toString ()
+// https://tc39.es/ecma262/#sec-string.prototype.tostring
+export const __String_prototype_toString = (_this: string) => {
+  // 1. Return ? ThisStringValue(this value).
+  return _this;
+};
+
+export const __ByteString_prototype_toString = (_this: bytestring) => {
+  // 1. Return ? ThisStringValue(this value).
+  return _this;
+};
+
 
 // 22.1.3.35 String.prototype.valueOf ()
 // https://tc39.es/ecma262/#sec-string.prototype.valueof
@@ -1062,8 +1074,6 @@ export const __String_prototype_valueOf = (_this: string) => {
   return _this;
 };
 
-// 22.1.3.35 String.prototype.valueOf ()
-// https://tc39.es/ecma262/#sec-string.prototype.valueof
 export const __ByteString_prototype_valueOf = (_this: bytestring) => {
   // 1. Return ? ThisStringValue(this value).
   return _this;

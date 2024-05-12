@@ -1,17 +1,5 @@
 // // @porf --funsafe-no-unlikely-proto-checks --valtype=i32
 
-export const __String_prototype_toString = (_this: string) => {
-  let out: string = Porffor.s``;
-  Porffor.clone(_this, out);
-  return out;
-};
-
-export const __ByteString_prototype_toString = (_this: bytestring) => {
-  let out: bytestring = Porffor.bs``;
-  Porffor.clone(_this, out);
-  return out;
-};
-
 // // export const __undefined_prototype_toString = (_this: number) => {
 
 // // };
