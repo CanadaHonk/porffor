@@ -525,3 +525,10 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
 
   return out;
 };
+
+// 21.1.3.7 Number.prototype.valueOf ()
+// https://tc39.es/ecma262/#sec-number.prototype.valueof
+export const __Number_prototype_valueOf = (_this: number) => {
+  // 1. Return ? ThisNumberValue(this value).
+  return _this;
+};
