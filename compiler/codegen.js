@@ -1872,9 +1872,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       // value
       i32_const: { imms: 1, args: [], returns: 1 },
-
-      // a, b
-      i32_or: { imms: 0, args: [ true, true ], returns: 1 },
     };
 
     const opName = name.slice('__Porffor_wasm_'.length);
