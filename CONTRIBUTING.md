@@ -139,6 +139,7 @@ Here we define a built-in for Porffor. Notably:
 - We do not use `a.b.c`, instead we use `__a_b_c`
 - We use a `_this` argument, as `this` does not exist in Porffor yet
 - We use an arrow function
+- We do not set a return type as prototype methods cannot use them currently or errors can happen.
 
 ---
 
@@ -201,6 +202,7 @@ Store the character code into the `out` pointer variable, and increment it.
 - You might spot `Porffor.fastOr`/`Porffor.fastAnd`, these are non-short circuiting versions of `||`/`&&`, taking any number of conditions as arguments. You shouldn't don't need to use or worry about these.
 - **There are ~no objects, you cannot use them/literals.**
 - Attempt to avoid string/array-heavy code and use more variables instead if possible, easier on memory and CPU/perf.
+- Do not set a return type for prototype methods, it can cause errors/unexpected results.
 
 <br>
 
