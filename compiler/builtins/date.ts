@@ -380,6 +380,343 @@ export const __ecma262_TimeClip = (time: number): number => {
 };
 
 
+// 21.4.3.1 Date.now ()
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.now
+// This function returns the time value designating the UTC date and time of the occurrence of the call to it.
+export const __Date_now = (): number => Math.trunc(performance.timeOrigin + performance.now());
+
+// 21.4.3.4 Date.UTC (year [, month [, date [, hours [, minutes [, seconds [, ms ]]]]]])
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.utc
+export const __Date_UTC = (year: unknown, month: unknown, date: unknown, hours: unknown, minutes: unknown, seconds: unknown, ms: unknown): number => {
+  // todo: passing undefined to params should not act like no arg was passed
+
+  // 1. Let y be ? ToNumber(year).
+  const y: number = Number(year);
+
+  // 2. If month is present, let m be ? ToNumber(month); else let m be +0𝔽.
+  let m: number = 0;
+  if (Porffor.rawType(month) != Porffor.TYPES.undefined) m = Number(month);
+
+  // 3. If date is present, let dt be ? ToNumber(date); else let dt be 1𝔽.
+  let dt: number = 1;
+  if (Porffor.rawType(date) != Porffor.TYPES.undefined) dt = Number(date);
+
+  // 4. If hours is present, let h be ? ToNumber(hours); else let h be +0𝔽.
+  let h: number = 0;
+  if (Porffor.rawType(hours) != Porffor.TYPES.undefined) h = Number(hours);
+
+  // 5. If minutes is present, let min be ? ToNumber(minutes); else let min be +0𝔽.
+  let min: number = 0;
+  if (Porffor.rawType(minutes) != Porffor.TYPES.undefined) min = Number(minutes);
+
+  // 6. If seconds is present, let s be ? ToNumber(seconds); else let s be +0𝔽.
+  let s: number = 0;
+  if (Porffor.rawType(seconds) != Porffor.TYPES.undefined) s = Number(seconds);
+
+  // 7. If ms is present, let milli be ? ToNumber(ms); else let milli be +0𝔽.
+  let milli: number = 0;
+  if (Porffor.rawType(ms) != Porffor.TYPES.undefined) h = Number(ms);
+
+  // 8. Let yr be MakeFullYear(y).
+  const yr: number = __ecma262_MakeFullYear(y);
+
+  // 9. Return TimeClip(MakeDate(MakeDay(yr, m, dt), MakeTime(h, min, s, milli))).
+  return __ecma262_TimeClip(__ecma262_MakeDate(__ecma262_MakeDay(yr, m, dt), __ecma262_MakeTime(h, min, s, milli)));
+};
+
+
+export const __ecma262_WeekDayName = (tv: number): bytestring => {
+  // Name of the entry in Table 62 with the Number WeekDay(tv).
+  // Table 62: Names of days of the week
+  // Number 	Name
+  // +0𝔽 "Sun"
+  // 1𝔽 	"Mon"
+  // 2𝔽 	"Tue"
+  // 3𝔽 	"Wed"
+  // 4𝔽 	"Thu"
+  // 5𝔽 	"Fri"
+  // 6𝔽 	"Sat"
+
+  const weekday: number = __ecma262_WeekDay(tv);
+
+  const lut: bytestring = 'SunMonTueWedThuFriSat';
+
+  let out: bytestring = '';
+  out.length = 3;
+
+  let outPtr: number = Porffor.wasm`local.get ${out}`;
+  let lutPtr: number = Porffor.wasm`local.get ${lut}` + (weekday * 3);
+
+  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
+  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
+  Porffor.wasm.i32.store8(outPtr, Porffor.wasm.i32.load8_u(lutPtr, 0, 4), 0, 4);
+
+  return out;
+};
+
+export const __ecma262_MonthName = (tv: number): bytestring => {
+  // Name of the entry in Table 63 with the Number MonthFromTime(tv).
+  // Table 63: Names of months of the year
+  // Number 	Name
+  // +0𝔽 "Jan"
+  // 1𝔽 	"Feb"
+  // 2𝔽 	"Mar"
+  // 3𝔽 	"Apr"
+  // 4𝔽 	"May"
+  // 5𝔽 	"Jun"
+  // 6𝔽 	"Jul"
+  // 7𝔽 	"Aug"
+  // 8𝔽 	"Sep"
+  // 9𝔽  "Oct"
+  // 10𝔽 "Nov"
+  // 11𝔽 "Dec"
+
+  const month: number = __ecma262_MonthFromTime(tv);
+
+  const lut: bytestring = 'JanFebMarAprMayJunJulAugSepOctNovDec';
+
+  let out: bytestring = '';
+  out.length = 3;
+
+  let outPtr: number = Porffor.wasm`local.get ${out}`;
+  let lutPtr: number = Porffor.wasm`local.get ${lut}` + (month * 3);
+
+  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
+  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
+  Porffor.wasm.i32.store8(outPtr, Porffor.wasm.i32.load8_u(lutPtr, 0, 4), 0, 4);
+
+  return out;
+};
+
+export const __ecma262_ParseMonthName = (ptr: number): number => {
+  const a: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 4);
+
+  if (a == 74) { // J
+    const b: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 5);
+
+    if (b == 97) return 0; // a - Jan
+    if (b == 117) { // u
+      const c: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 6);
+      if (c == 110) return 5; // n - Jun
+      if (c == 108) return 6; // l - Jul
+    }
+  }
+
+  if (a == 77) { // M
+    const b: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 5);
+    if (b == 97) { // a
+      const c: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 6);
+      if (c == 114) return 2; // r - Mar
+      if (c == 121) return 4; // y - May
+    }
+  }
+
+  if (a == 65) { // A
+    const b: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 5);
+    if (b == 112) return 3; // p - Apr
+    if (b == 117) return 7; // u - Aug
+  }
+
+  if (a == 70) return 1; // F - Feb
+  if (a == 83) return 8; // S - Sep
+  if (a == 79) return 9; // O - Oct
+  if (a == 78) return 10; // N - Nov
+  if (a == 68) return 11; // D - Dec
+
+  return -1;
+};
+
+
+// DTSF parser
+export const __ecma262_ParseDTSF = (string: bytestring): number => {
+  // formats we need to support:
+  // > new Date().toISOString()
+  // '2024-05-12T02:44:01.529Z'
+
+  let y: number = 0;
+  let m: number = 0;
+  let dt: number = 1;
+  let h: number = 0;
+  let min: number = 0;
+  let s: number = 0;
+  let milli: number = 0;
+  let tzHour: number = 0;
+  let tzMin: number = 0;
+
+  let n: number = 0;
+  let nInd: number = 0;
+  let z: boolean = false;
+
+  const len: i32 = string.length;
+  const endPtr: i32 = Porffor.wasm`local.get ${string}` + len;
+  let ptr: i32 = Porffor.wasm`local.get ${string}`;
+
+  while (ptr < endPtr) {
+    const chr: i32 = Porffor.wasm.i32.load8_u(ptr++, 0, 4);
+    if (Porffor.fastAnd(chr >= 48, chr <= 57)) { // 0-9
+      n *= 10;
+      n += chr - 48;
+      continue;
+    }
+
+    if (chr == 45) { // -
+      if (Porffor.fastOr(ptr == Porffor.wasm`local.get ${string}`, nInd == 7)) n *= -1;
+    }
+
+    if (n > 0) {
+      if (nInd == 0) y = n;
+        else if (nInd == 1) m = n - 1;
+        else if (nInd == 2) dt = n;
+        else if (nInd == 3) h = n;
+        else if (nInd == 4) min = n;
+        else if (nInd == 5) s = n;
+        else if (nInd == 6) milli = n;
+        else if (nInd == 7) tzHour = n;
+        else if (nInd == 8) tzMin = n;
+
+      n = 0;
+      nInd++;
+    }
+
+    if (chr == 90) { // Z
+      if (ptr == len) z = true;
+    }
+  }
+
+  h += tzHour;
+  min += tzMin;
+
+  return __ecma262_TimeClip(__ecma262_MakeDate(__ecma262_MakeDay(y, m, dt), __ecma262_MakeTime(h, min, s, milli)));
+
+  // we do not support local time yet so useless check
+  // let t: number = __ecma262_TimeClip(__ecma262_MakeDate(__ecma262_MakeDay(y, m, dt), __ecma262_MakeTime(h, min, s, milli)));
+
+  // "When the time zone offset is absent, date-only forms are interpreted as a UTC time
+  // and date-time forms are interpreted as local time.
+  // This is due to a historical spec error that was not consistent with ISO 8601
+  // but could not be changed due to web compatibility." :))
+  // if (Porffor.fastAnd(
+  //   nInd > 3, // not date-only
+  //   z == false, // not utc (ending with Z)
+  //   nInd < 8, // no time zone offset
+  // )) {
+  //   t = __ecma262_UTC(t);
+  // }
+
+  // return t;
+};
+
+// RFC 7231 or Date.prototype.toString() parser
+export const __ecma262_ParseRFC7231OrToString = (string: bytestring): number => {
+  // formats we need to support:
+  // > new Date().toUTCString()
+  // 'Sun, 12 May 2024 02:44:10 GMT'
+  // > new Date().toString()
+  // 'Sun May 12 2024 02:44:13 GMT+0000 (UTC)'
+
+  // skip week day
+  let ptr: i32 = Porffor.wasm`local.get ${string}` + 4;
+
+  // skip potential ' '
+  if (Porffor.wasm.i32.load8_u(ptr, 0, 4) == 32) ptr++;
+
+  let dt: number = 0;
+  let m: number = -1;
+
+  // check if date now via numerical
+  let chr: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 4);
+  if (Porffor.fastAnd(chr >= 48, chr <= 57)) { // 0-9
+    // date, month name
+    while (true) { // use >0 check instead of !=' ' to handle malformed
+      chr = Porffor.wasm.i32.load8_u(ptr++, 0, 4);
+      if (chr < 48) break;
+
+      dt *= 10;
+      dt += chr - 48;
+    }
+
+    m = __ecma262_ParseMonthName(ptr);
+    ptr += 3;
+  } else {
+    // month name, date
+    m = __ecma262_ParseMonthName(ptr);
+    ptr += 4;
+
+    while (true) { // use >0 check instead of !=' ' to handle malformed
+      chr = Porffor.wasm.i32.load8_u(ptr++, 0, 4);
+      if (chr < 48) break;
+
+      dt *= 10;
+      dt += chr - 48;
+    }
+  }
+
+  // check we parsed month and date correctly
+  if (Porffor.fastOr(m == -1, dt == 0, dt > 31)) {
+    return NaN;
+  }
+
+  let y: number = 0;
+  let h: number = 0;
+  let min: number = 0;
+  let s: number = 0;
+  let tz: number = 0;
+
+  let n: number = 0;
+  let nInd: number = 0;
+
+  const len: i32 = string.length;
+  const endPtr: i32 = Porffor.wasm`local.get ${string}` + len;
+
+  while (ptr < endPtr) {
+    const chr: i32 = Porffor.wasm.i32.load8_u(ptr++, 0, 4);
+    if (Porffor.fastAnd(chr >= 48, chr <= 57)) { // 0-9
+      n *= 10;
+      n += chr - 48;
+      continue;
+    }
+
+    if (chr == 45) { // -
+      if (nInd == 4) n *= -1;
+    }
+
+    if (n > 0) {
+      if (nInd == 0) y = n;
+        else if (nInd == 1) h = n;
+        else if (nInd == 2) min = n;
+        else if (nInd == 3) s = n;
+        else if (nInd == 4) tz = n;
+
+      n = 0;
+      nInd++;
+    }
+  }
+
+  return __ecma262_TimeClip(__ecma262_MakeDate(__ecma262_MakeDay(y, m, dt), __ecma262_MakeTime(h, min, s, 0)));
+};
+
+// 21.4.3.2 Date.parse (string)
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.parse
+export const __Date_parse = (string: bytestring): number => {
+  // formats we need to support:
+  // > new Date().toISOString()
+  // '2024-05-12T02:44:01.529Z'
+  // > new Date().toUTCString()
+  // 'Sun, 12 May 2024 02:44:10 GMT'
+  // > new Date().toString()
+  // 'Sun May 12 2024 02:44:13 GMT+0000 (UTC)'
+
+  // if first char is numerical, use DTSF parser
+  const chr: i32 = Porffor.wasm.i32.load8_u(string, 0, 4);;
+  if (Porffor.fastAnd(chr >= 48, chr <= 57)) { // 0-9
+    return __ecma262_ParseDTSF(string);
+  }
+
+  // else, use RFC 7231 or Date.prototype.toString() parser
+  return __ecma262_ParseRFC7231OrToString(string);
+};
+
+
 // dark wasm magic for a basic allocator, sorry.
 export const __Porffor_date_allocate = (): Date => {
   const hack: bytestring = '';
@@ -407,7 +744,8 @@ export const __Porffor_date_write = (ptr: Date, val: number) => {
   Porffor.wasm.f64.store(ptr, val, 0, 0);
 };
 
-
+// 21.4.2.1 Date (...values)
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date
 export const Date$constructor = (v0: unknown, v1: unknown, v2: unknown, v3: unknown, v4: unknown, v5: unknown, v6: unknown): Date => {
   // todo: passing undefined to params should not act like no arg was passed
 
@@ -448,7 +786,7 @@ export const Date$constructor = (v0: unknown, v1: unknown, v2: unknown, v3: unkn
         // 1. Assert: The next step never returns an abrupt completion because v is a String.
 
         // 2. Let tv be the result of parsing v as a date, in exactly the same manner as for the parse method (21.4.3.2).
-        // todo
+        tv = __Date_parse(value);
       } else {
         // iii. Else,
         // 1. Let tv be ? ToNumber(v).
@@ -508,54 +846,6 @@ export const Date$constructor = (v0: unknown, v1: unknown, v2: unknown, v3: unkn
   return O;
 };
 
-
-// 21.4.3.1 Date.now ()
-// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.now
-// This function returns the time value designating the UTC date and time of the occurrence of the call to it.
-export const __Date_now = (): number => Math.trunc(performance.timeOrigin + performance.now());
-
-// 21.4.3.2 Date.parse (string)
-// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.parse
-// todo
-
-// 21.4.3.4 Date.UTC (year [, month [, date [, hours [, minutes [, seconds [, ms ]]]]]])
-// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.utc
-export const __Date_UTC = (year: unknown, month: unknown, date: unknown, hours: unknown, minutes: unknown, seconds: unknown, ms: unknown): number => {
-  // todo: passing undefined to params should not act like no arg was passed
-
-  // 1. Let y be ? ToNumber(year).
-  const y: number = Number(year);
-
-  // 2. If month is present, let m be ? ToNumber(month); else let m be +0𝔽.
-  let m: number = 0;
-  if (Porffor.rawType(month) != Porffor.TYPES.undefined) m = Number(month);
-
-  // 3. If date is present, let dt be ? ToNumber(date); else let dt be 1𝔽.
-  let dt: number = 1;
-  if (Porffor.rawType(date) != Porffor.TYPES.undefined) dt = Number(date);
-
-  // 4. If hours is present, let h be ? ToNumber(hours); else let h be +0𝔽.
-  let h: number = 0;
-  if (Porffor.rawType(hours) != Porffor.TYPES.undefined) h = Number(hours);
-
-  // 5. If minutes is present, let min be ? ToNumber(minutes); else let min be +0𝔽.
-  let min: number = 0;
-  if (Porffor.rawType(minutes) != Porffor.TYPES.undefined) min = Number(minutes);
-
-  // 6. If seconds is present, let s be ? ToNumber(seconds); else let s be +0𝔽.
-  let s: number = 0;
-  if (Porffor.rawType(seconds) != Porffor.TYPES.undefined) s = Number(seconds);
-
-  // 7. If ms is present, let milli be ? ToNumber(ms); else let milli be +0𝔽.
-  let milli: number = 0;
-  if (Porffor.rawType(ms) != Porffor.TYPES.undefined) h = Number(ms);
-
-  // 8. Let yr be MakeFullYear(y).
-  const yr: number = __ecma262_MakeFullYear(y);
-
-  // 9. Return TimeClip(MakeDate(MakeDay(yr, m, dt), MakeTime(h, min, s, milli))).
-  return __ecma262_TimeClip(__ecma262_MakeDate(__ecma262_MakeDay(yr, m, dt), __ecma262_MakeTime(h, min, s, milli)));
-};
 
 // 21.4.4 Properties of the Date Prototype Object
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-properties-of-the-date-prototype-object
@@ -1543,69 +1833,6 @@ export const __ecma262_TimeString = (tv: number): bytestring => {
   __Porffor_bytestring_appendChar(out, 71); // 'G'
   __Porffor_bytestring_appendChar(out, 77); // 'M'
   __Porffor_bytestring_appendChar(out, 84); // 'T'
-
-  return out;
-};
-
-export const __ecma262_WeekDayName = (tv: number): bytestring => {
-  // Name of the entry in Table 62 with the Number WeekDay(tv).
-  // Table 62: Names of days of the week
-  // Number 	Name
-  // +0𝔽 "Sun"
-  // 1𝔽 	"Mon"
-  // 2𝔽 	"Tue"
-  // 3𝔽 	"Wed"
-  // 4𝔽 	"Thu"
-  // 5𝔽 	"Fri"
-  // 6𝔽 	"Sat"
-
-  const weekday: number = __ecma262_WeekDay(tv);
-
-  const lut: bytestring = 'SunMonTueWedThuFriSat';
-
-  let out: bytestring = '';
-  out.length = 3;
-
-  let outPtr: number = Porffor.wasm`local.get ${out}`;
-  let lutPtr: number = Porffor.wasm`local.get ${lut}` + (weekday * 3);
-
-  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
-  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
-  Porffor.wasm.i32.store8(outPtr, Porffor.wasm.i32.load8_u(lutPtr, 0, 4), 0, 4);
-
-  return out;
-};
-
-export const __ecma262_MonthName = (tv: number): bytestring => {
-  // Name of the entry in Table 63 with the Number MonthFromTime(tv).
-  // Table 63: Names of months of the year
-  // Number 	Name
-  // +0𝔽 "Jan"
-  // 1𝔽 	"Feb"
-  // 2𝔽 	"Mar"
-  // 3𝔽 	"Apr"
-  // 4𝔽 	"May"
-  // 5𝔽 	"Jun"
-  // 6𝔽 	"Jul"
-  // 7𝔽 	"Aug"
-  // 8𝔽 	"Sep"
-  // 9𝔽  "Oct"
-  // 10𝔽 "Nov"
-  // 11𝔽 "Dec"
-
-  const month: number = __ecma262_MonthFromTime(tv);
-
-  const lut: bytestring = 'JanFebMarAprMayJunJulAugSepOctNovDec';
-
-  let out: bytestring = '';
-  out.length = 3;
-
-  let outPtr: number = Porffor.wasm`local.get ${out}`;
-  let lutPtr: number = Porffor.wasm`local.get ${lut}` + (month * 3);
-
-  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
-  Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(lutPtr++, 0, 4), 0, 4);
-  Porffor.wasm.i32.store8(outPtr, Porffor.wasm.i32.load8_u(lutPtr, 0, 4), 0, 4);
 
   return out;
 };
