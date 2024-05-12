@@ -1177,7 +1177,6 @@ const generateLogicExp = (scope, decl) => {
 // js type: 4 bits
 // internal type: ? bits
 // pointer: 32 bits
-
 // generic
 // 1              23   4             5
 // 0 11111111111 11TTTTIIII??????????PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
@@ -3653,23 +3652,6 @@ const internalConstrs = {
     length: 0
   }
 };
-
-// const _ = Array.prototype.push;
-// Array.prototype.push = function (a) {
-//   const check = arr => {
-//     for (const x of arr) {
-//       if (x === undefined) {
-//         console.trace(arr);
-//         process.exit();
-//       }
-//       if (Array.isArray(x)) check(x);
-//     }
-//   };
-//   if (Array.isArray(a) && !new Error().stack.includes('node:')) check(a);
-//   // if (Array.isArray(a)) check(a);
-
-//   return _.apply(this, arguments);
-// };
 
 export default program => {
   globals = {};
