@@ -1053,3 +1053,18 @@ export const __ByteString_prototype_trim = (_this: bytestring) => {
   // todo/perf: optimize and not just reuse
   return __ByteString_prototype_trimStart(__ByteString_prototype_trimEnd(_this));
 };
+
+
+// 22.1.3.35 String.prototype.valueOf ()
+// https://tc39.es/ecma262/#sec-string.prototype.valueof
+export const __String_prototype_valueOf = (_this: string) => {
+  // 1. Return ? ThisStringValue(this value).
+  return _this;
+};
+
+// 22.1.3.35 String.prototype.valueOf ()
+// https://tc39.es/ecma262/#sec-string.prototype.valueof
+export const __ByteString_prototype_valueOf = (_this: bytestring) => {
+  // 1. Return ? ThisStringValue(this value).
+  return _this;
+};
