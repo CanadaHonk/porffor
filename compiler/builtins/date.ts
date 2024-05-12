@@ -1829,3 +1829,12 @@ export const ___date_prototype_toLocaleString = (_this: Date, reserved1: any, re
 export const ___date_prototype_toLocaleTimeString = (_this: Date, reserved1: any, reserved2: any) => {
   return ___date_prototype_toTimeString(_this);
 };
+
+
+// 21.4.4.44 Date.prototype.valueOf ()
+export const ___date_prototype_valueOf = (_this: Date) => {
+  // 1. Let dateObject be the this value.
+  // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // 3. Return dateObject.[[DateValue]].
+  return __Porffor_date_read(_this);
+};
