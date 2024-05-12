@@ -359,7 +359,7 @@ export const __ecma262_MakeFullYear = (year: number): number => {
   const truncated: number = __ecma262_ToIntegerOrInfinity(year);
 
   // 3. If truncated is in the inclusive interval from 0 to 99, return 1900𝔽 + 𝔽(truncated).
-  if (truncated >= 0 && truncated <= 99) return 1900 + truncated;
+  if (Porffor.fastAnd(truncated >= 0, truncated <= 99)) return 1900 + truncated;
 
   // 4. Return 𝔽(truncated).
   return truncated;
@@ -560,7 +560,7 @@ export const __ecma262_ParseDTSF = (string: bytestring): number => {
     }
 
     if (chr == 45) { // -
-      if (Porffor.fastOr(ptr == Porffor.wasm`local.get ${string}`, nInd == 7)) n *= -1;
+      if (Porffor.fastOr(ptr == Porffor.wasm`local.get ${string}`, nInd == 7)) n = -n;
     }
 
     if (n > 0) {
@@ -677,7 +677,7 @@ export const __ecma262_ParseRFC7231OrToString = (string: bytestring): number => 
     }
 
     if (chr == 45) { // -
-      if (nInd == 4) n *= -1;
+      if (nInd == 4) n = -n;
     }
 
     if (n > 0) {
@@ -782,7 +782,7 @@ export const Date$constructor = (v0: unknown, v1: unknown, v2: unknown, v3: unkn
     } else {
       // c. Else,
       // ii. If v is a String, then
-      if (valueType == Porffor.TYPES.string || valueType == Porffor.TYPES._bytestring) {
+      if (Porffor.fastOr(valueType == Porffor.TYPES.string, valueType == Porffor.TYPES._bytestring)) {
         // 1. Assert: The next step never returns an abrupt completion because v is a String.
 
         // 2. Let tv be the result of parsing v as a date, in exactly the same manner as for the parse method (21.4.3.2).
@@ -1724,7 +1724,7 @@ export const __ecma262_ToUTCDTSF = (t: number): bytestring => {
   let out: bytestring = '';
   out.length = 0;
 
-  if (year < 0 || year >= 10000) {
+  if (Porffor.fastOr(year < 0, year >= 10000)) {
     // extended year format
     // sign
     __Porffor_bytestring_appendChar(out, year > 0 ? 43 : 45);
