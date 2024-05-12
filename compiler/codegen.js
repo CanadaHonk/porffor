@@ -61,7 +61,7 @@ const todo = (scope, msg, expectsValue = undefined) => {
 const isFuncType = type => type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
 const hasFuncWithName = name => {
   const func = funcs.find(x => x.name === name);
-  return !!(func || builtinFuncs[name] || importedFuncs[name] || internalConstrs[name])
+  return !!(func || builtinFuncs[name] || importedFuncs[name] || internalConstrs[name]);
 };
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   switch (decl.type) {
@@ -3244,7 +3244,12 @@ export const generateMember = (scope, decl, _global, _name) => {
   // hack: .name
   if (decl.property.name === 'name') {
     if (hasFuncWithName(name)) {
-      return makeString(scope, name, _global, _name, true);
+      let nameProp = name;
+
+      // eg: __String_prototype_toLowerCase -> toLowerCase
+      if (nameProp.startsWith('__')) nameProp = nameProp.split('_').pop();
+
+      return makeString(scope, nameProp, _global, _name, true);
     } else {
       return generate(scope, DEFAULT_VALUE);
     }
