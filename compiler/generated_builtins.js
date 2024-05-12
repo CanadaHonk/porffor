@@ -1158,6 +1158,15 @@ export const BuiltinFuncs = function() {
     locals: [124,124,127,127,127,124,124,124,124,124,124,124,124,124,124,124],
     localNames: ["_this","_this#type","fractionDigits","fractionDigits#type","out","outPtr","#makearray_pointer_tmp","logictmpi","#last_type","i","digits","l","e","digitsPtr","endPtr","j","intPart","digit","dotPlace","__length_setter_tmp"],
   };
+  this.__Number_prototype_valueOf = {
+    wasm: (scope, { allocPage, builtin }) => [[32,0],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
+  };
   this.__String_fromCharCode = {
     wasm: (scope, { allocPage, builtin }) => [[32,0],[65,128,2],[72],[4,64],...number(allocPage(scope, 'bytestring: __String_fromCharCode/out', 'i8') * pageSize, 127),[34,2],[32,0],[58,0,4],[32,2],[65,18],[15],[11],[65,0],[34,2],[34,3],[65,1],[54,1,0],[32,3],[65,46],[59,0,4],[32,2],[32,0],[59,0,4],[32,2],[65,2],[15]],
     params: [127,127],
