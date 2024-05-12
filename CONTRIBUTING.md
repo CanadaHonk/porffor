@@ -18,7 +18,7 @@ The most important and widely used internal type is ByteString (also called `byt
 
 ### i32
 
-This is complicated internally but essentially, only use it for pointers.
+This is complicated internally but essentially, only use it for pointers. (This is not signed or unsigned, instead it is the Wasm valtype `i32` so the signage is ~instruction dependant).
 
 <br>
 
