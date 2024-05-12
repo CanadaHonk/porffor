@@ -3259,6 +3259,16 @@ export const generateMember = (scope, decl, _global, _name) => {
       return number(typedParams ? func.params.length / 2 : func.params.length);
     }
 
+    if (builtinFuncs[name + '$constructor']) {
+      const regularFunc = builtinFuncs[name];
+      const regularParams = regularFunc.typedParams ? (regularFunc.params.length / 2) : regularFunc.params.length;
+
+      const constructorFunc = builtinFuncs[name + '$constructor'];
+      const constructorParams = constructorFunc.typedParams ? (constructorFunc.params.length / 2) : constructorFunc.params.length;
+
+      return number(Math.max(regularParams, constructorParams));
+    }
+
     if (builtinFuncs[name]) return number(builtinFuncs[name].typedParams ? (builtinFuncs[name].params.length / 2) : builtinFuncs[name].params.length);
     if (importedFuncs[name]) return number(importedFuncs[name].params);
     if (internalConstrs[name]) return number(internalConstrs[name].length ?? 0);
