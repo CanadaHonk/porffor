@@ -9,3 +9,4 @@ package-lock.json
 .repl_history
 
 /test262/test262
+/test262/results.json
