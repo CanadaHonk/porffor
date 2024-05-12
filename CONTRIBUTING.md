@@ -8,6 +8,19 @@ I mostly presume decent JS knowledge, with some basic TS too but nothing complic
 
 If you have any questions you can ask in [the Porffor Discord](https://discord.gg/6crs9Znx9R), please feel free to ask anything if you get stuck :)
 
+Please read this entire document before beginning as there are important things throughout.
+
+<br>
+
+## Setup
+
+1. Clone the repo and enter the repo (`git clone https://github.com/CanadaHonk/porffor.git`)
+2. `npm install`
+
+### Precompile
+
+**If you update any file inside `compiler/builtins` you will need to do this for it to update inside Porffor otherwise your changes will have no effect.** Run `node compiler/precompile.js` to precompile. It may error during this, if so, you might have an error in your code or there could be a compiler error with Porffor (feel free to ask for help as soon as you encounter any errors with it).
+
 <br>
 
 ## Types
@@ -179,6 +192,47 @@ Store the character code into the `out` pointer variable, and increment it.
 ## Formatting/linting
 
 There is 0 setup for this (right now). You can try looking through the other built-ins files but do not worry about it a lot, I honestly do not mind going through and cleaning up after a PR as long as the code itself is good :^)
+
+<br>
+
+## Commit (message) style
+
+You should ideally have one commit per notable change (using amend/force push). Commit messages should be like `${file}: ${description}`. Don't be afraid to use long titles if needed, but try and be short if possible. Bonus points for detail in commit description. ~~Gold star for jokes in description too.~~
+
+Examples:
+```
+builtins/date: impl toJSON
+builtins/date: fix ToIntegerOrInfinity returning -0
+codegen: fix inline wasm for unreachable
+builtins/array: wip toReversed
+builtins/tostring_number: impl radix
+```
+
+<br>
+
+## Test262
+
+Make sure you have Test262 cloned already **inside of `test262/`** (`git clone https://github.com/tc39/test262.git test262/test262`).
+
+Run `node test262` to run all the tests and get an output of total overall test results. The main thing you want to pay attention to is the emoji summary (lol):
+```
+🧪 50005 | 🤠 7007 (-89) | ❌ 1914 (-32) | 💀 13904 (-61) | 📝 23477 (-120) | ⏰ 2 | 🏗 2073 (+302) | 💥 1628
+```
+
+To break this down:
+🧪 total 🤠 pass ❌ fail 💀 runtime error 📝 todo (error) 🏗️ wasm compile error 💥 compile error
+
+The diff compared to the last commit (with test262 data) is shown in brackets. Basically, you can passes 🤠 up, and errors down.
+
+It will also log new passes/fails. Be careful as sometimes the overall passes can increase, but other files have also regressed into failures which you might miss.
+
+### Debugging tips
+
+- Use `node test262 path/to/tests` to run specific test262 dirs/files (eg `node test262 built-ins/Date`).
+- Use `--log-errors` to log the errors of individual tests.
+- Use `--debug-asserts` to log expected/actual of assertion failures (experimental).
+
+<br>
 
 [^1]: The `0, 4` args are necessary for the Wasm instruction, but you don't need to worry about them (`0` alignment, `4` byte offset for length).
 
