@@ -551,7 +551,7 @@ export const __ecma262_ParseDTSF = (string: bytestring): number => {
   const endPtr: i32 = Porffor.wasm`local.get ${string}` + len;
   let ptr: i32 = Porffor.wasm`local.get ${string}`;
 
-  while (ptr < endPtr) {
+  while (ptr <= endPtr) { // <= to include extra null byte to set last n
     const chr: i32 = Porffor.wasm.i32.load8_u(ptr++, 0, 4);
     if (Porffor.fastAnd(chr >= 48, chr <= 57)) { // 0-9
       n *= 10;
@@ -668,7 +668,7 @@ export const __ecma262_ParseRFC7231OrToString = (string: bytestring): number => 
   const len: i32 = string.length;
   const endPtr: i32 = Porffor.wasm`local.get ${string}` + len;
 
-  while (ptr < endPtr) {
+  while (ptr <= endPtr) { // <= to include extra null byte to set last n
     const chr: i32 = Porffor.wasm.i32.load8_u(ptr++, 0, 4);
     if (Porffor.fastAnd(chr >= 48, chr <= 57)) { // 0-9
       n *= 10;
