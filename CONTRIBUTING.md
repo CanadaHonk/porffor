@@ -143,7 +143,7 @@ Here we define a built-in for Porffor. Notably:
   Porffor.wasm.i32.store(out, len, 0, 0);
 ```
 
-This sets up the `out` variable we are going to write to for the output of this function. We set the length in advance to be the same as `_this`, as `foo.length == foo.toLowerCase().length`, because we will later be manually writing to it using Wasm instrinsics, which will not update the length themselves.
+This sets up the `out` variable we are going to write to for the output of this function. We set the length in advance to be the same as `_this`, as `foo.length == foo.toLowerCase().length`, because we will later be manually writing to it using Wasm intrinsics, which will not update the length themselves.
 
 ---
 
