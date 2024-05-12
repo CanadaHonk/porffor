@@ -6,4 +6,6 @@
 node_modules
 package-lock.json
 
+.repl_history
+
 /test262/test262
