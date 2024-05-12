@@ -380,16 +380,6 @@ export const __ecma262_TimeClip = (time: number): number => {
 };
 
 
-// 21.4.2.1 Date (...values)
-// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date
-export const Date = (): bytestring => {
-  // 1. If NewTarget is undefined, then
-  //   a. Let now be the time value (UTC) identifying the current time.
-  //   b. Return ToDateString(now).
-  // return Date$constructor().toString();
-  return '';
-};
-
 // dark wasm magic for a basic allocator, sorry.
 export const __Porffor_date_allocate = (): Date => {
   const hack: bytestring = '';
@@ -1841,4 +1831,14 @@ export const ___date_prototype_valueOf = (_this: Date) => {
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Return dateObject.[[DateValue]].
   return __Porffor_date_read(_this);
+};
+
+
+// 21.4.2.1 Date (...values)
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date
+export const Date = (): bytestring => {
+  // 1. If NewTarget is undefined, then
+  //   a. Let now be the time value (UTC) identifying the current time.
+  //   b. Return ToDateString(now).
+  return __ecma262_ToDateString(__Date_now());
 };
