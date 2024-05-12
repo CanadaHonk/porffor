@@ -229,7 +229,7 @@ builtins/tostring_number: impl radix
 
 ## Test262
 
-Make sure you have Test262 cloned already **inside of `test262/`** (`git clone https://github.com/tc39/test262.git test262/test262`).
+Make sure you have Test262 cloned already **inside of `test262/`** (`git clone https://github.com/tc39/test262.git test262/test262`) and run `npm install` inside `test262/` too.
 
 Run `node test262` to run all the tests and get an output of total overall test results. The main thing you want to pay attention to is the emoji summary (lol):
 ```
