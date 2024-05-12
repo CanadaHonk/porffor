@@ -2051,15 +2051,14 @@ export const __Date_prototype_toLocaleTimeString = (_this: Date, reserved1: any,
   return __Date_prototype_toTimeString(_this);
 };
 
-
 // 21.4.4.44 Date.prototype.valueOf ()
+// https://tc39.es/ecma262/#sec-date.prototype.valueof
 export const __Date_prototype_valueOf = (_this: Date) => {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Return dateObject.[[DateValue]].
   return __Porffor_date_read(_this);
 };
-
 
 // 21.4.2.1 Date (...values)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date
