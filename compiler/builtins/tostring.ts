@@ -1,13 +1,5 @@
 // // @porf --funsafe-no-unlikely-proto-checks --valtype=i32
 
-export const __Boolean_prototype_toString = (_this: boolean) => {
-  let out: bytestring = '';
-  if (_this) out = 'true';
-    else out = 'false';
-
-  return out;
-};
-
 export const __String_prototype_toString = (_this: string) => {
   let out: string = Porffor.s``;
   Porffor.clone(_this, out);
