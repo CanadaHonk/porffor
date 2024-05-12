@@ -193,6 +193,8 @@ Store the character code into the `out` pointer variable, and increment it.
 
 - For declaring variables, you must use explicit type annotations currently (eg `let a: number = 1`, not `let a = 1`)
 - You might spot `Porffor.fastOr`/`Porffor.fastAnd`, these are non-short circuiting versions of `||`/`&&`, taking any number of conditions as arguments. You shouldn't don't need to use or worry about these.
+- **There are ~no objects, you cannot use them/literals.**
+- Attempt to avoid string/array-heavy code and use more variables instead if possible, easier on memory and CPU/perf.
 
 <br>
 
