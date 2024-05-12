@@ -189,6 +189,13 @@ Store the character code into the `out` pointer variable, and increment it.
 
 <br>
 
+## Porffor-specific TS notes
+
+- For declaring variables, you must use explicit type annotations currently (eg `let a: number = 1`, not `let a = 1`)
+- You might spot `Porffor.fastOr`/`Porffor.fastAnd`, these are non-short circuiting versions of `||`/`&&`, taking any number of conditions as arguments. You shouldn't don't need to use or worry about these.
+
+<br>
+
 ## Formatting/linting
 
 There is 0 setup for this (right now). You can try looking through the other built-ins files but do not worry about it a lot, I honestly do not mind going through and cleaning up after a PR as long as the code itself is good :^)
