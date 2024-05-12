@@ -143,3 +143,7 @@ export const __Array_prototype_toReversed = (_this: any[]) => {
 
   return out;
 };
+
+export const __Array_prototype_valueOf = (_this: any[]) => {
+  return _this;
+};
