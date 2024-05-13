@@ -2178,7 +2178,6 @@ const addVarMetadata = (scope, name, global = false, metadata = {}) => {
 const typeAnnoToPorfType = x => {
   if (!x) return null;
   if (TYPES[x.toLowerCase()] != null) return TYPES[x.toLowerCase()];
-  if (TYPES['_' + x.toLowerCase()] != null) return TYPES['_' + x.toLowerCase()];
 
   switch (x) {
     case 'i32':
