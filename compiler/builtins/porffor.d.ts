@@ -36,10 +36,10 @@ type PorfforGlobal = {
     symbol: i32;
     bigint: i32;
 
-    _array: i32;
-    _regexp: i32;
-    _bytestring: i32;
-    _date: i32;
+    array: i32;
+    regexp: i32;
+    bytestring: i32;
+    date: i32;
   }
 
   fastOr(...args: any): boolean;
