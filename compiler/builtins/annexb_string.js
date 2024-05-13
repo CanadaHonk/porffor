@@ -2,7 +2,7 @@ export default () => {
   let out = `// @porf --funsafe-no-unlikely-proto-checks --valtype=i32
 `;
 
-  const annexB_noArgs = (a0, a1) => out += `
+  const noArgs = (a0, a1) => out += `
 export const __String_prototype_${a0} = (_this: string) => {
   let out: string = Porffor.s\`<${a1}>\`;
 
@@ -58,15 +58,15 @@ ${[...a1].map((x, i) => `  Porffor.wasm.i32.store8(outPtr, ${x.charCodeAt(0)}, 0
 };
 `;
 
-  annexB_noArgs('big', 'big');
-  annexB_noArgs('blink', 'blink');
-  annexB_noArgs('bold', 'b');
-  annexB_noArgs('fixed', 'tt');
-  annexB_noArgs('italics', 'i');
-  annexB_noArgs('small', 'small');
-  annexB_noArgs('strike', 'strike');
-  annexB_noArgs('sub', 'sub');
-  annexB_noArgs('sup', 'sup');
+  noArgs('big', 'big');
+  noArgs('blink', 'blink');
+  noArgs('bold', 'b');
+  noArgs('fixed', 'tt');
+  noArgs('italics', 'i');
+  noArgs('small', 'small');
+  noArgs('strike', 'strike');
+  noArgs('sub', 'sub');
+  noArgs('sup', 'sup');
 
   return out;
 };
