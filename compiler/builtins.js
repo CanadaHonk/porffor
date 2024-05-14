@@ -1,8 +1,8 @@
-import { Blocktype, Opcodes, Valtype, ValtypeSize } from "./wasmSpec.js";
-import { number, i32x4 } from "./embedding.js";
-import Prefs from './prefs.js';
 import * as GeneratedBuiltins from './generated_builtins.js';
+import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
+import { number } from './embedding.js';
 import { TYPES } from './types.js';
+import Prefs from './prefs.js';
 
 export const importedFuncs = [
   {
@@ -47,8 +47,6 @@ for (let i = 0; i < importedFuncs.length; i++) {
   const f = importedFuncs[i];
   importedFuncs[f.name] = i;
 }
-
-const char = c => number(c.charCodeAt(0));
 
 const printStaticStr = str => {
   const out = [];
@@ -569,7 +567,6 @@ export const BuiltinFuncs = function() {
 
   // this is an implementation of xorshift128+ (in wasm bytecode)
   // fun fact: v8, SM, JSC also use this (you will need this fun fact to maintain your sanity reading this code)
-  // const prngSeed0 = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), prngSeed1 = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
   const prngSeed0 = (Math.random() * (2 ** 30)) | 0, prngSeed1 = (Math.random() * (2 ** 30)) | 0;
 
   const prng = ({

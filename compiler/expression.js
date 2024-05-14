@@ -1,4 +1,4 @@
-import { Opcodes } from "./wasmSpec.js";
+import { Opcodes } from './wasmSpec.js';
 
 export const operatorOpcode = {
   i32: {

@@ -112,7 +112,7 @@ export const __Set_prototype_delete = (_this: Set, value: any) => {
   // check if already in set
   for (let i: number = 0; i < size; i++) {
     if (__Porffor_set_read(_this, i) === value) {
-      // found, remove
+      // found, delete
       // decrement size by 1
       Porffor.wasm.i32.store(_this, size - 1, 0, 0);
 
@@ -148,8 +148,7 @@ i32.sub
 i32.const 9
 i32.mul
 
-memory.copy 0 0
-`;
+memory.copy 0 0`;
 
       return true;
     }
@@ -161,7 +160,7 @@ memory.copy 0 0
 
 export const __Set_prototype_clear = (_this: Set) => {
   // just set size to 0
-  // do not need to remove as will not be accessed anymore,
+  // do not need to delete any as will not be accessed anymore,
   // and will be overwritten with new add
   Porffor.wasm.i32.store(_this, 0, 0, 0);
 };

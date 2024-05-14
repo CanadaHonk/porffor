@@ -1,5 +1,5 @@
-import { Opcodes, Valtype } from "./wasmSpec.js";
-import { signedLEB128, ieee754_binary64 } from "./encoding.js";
+import { Opcodes, Valtype } from './wasmSpec.js';
+import { signedLEB128, ieee754_binary64 } from './encoding.js';
 
 export const number = (n, valtype = valtypeBinary) => {
   switch (valtype) {

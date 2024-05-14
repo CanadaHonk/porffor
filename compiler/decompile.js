@@ -1,5 +1,5 @@
-import { Blocktype, Opcodes, Valtype } from "./wasmSpec.js";
-import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from "./encoding.js";
+import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
+import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
 
 const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[keyMap(obj[x])] = x; return acc; }, {});
 const invOpcodes = inv(Opcodes);

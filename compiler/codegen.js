@@ -1,14 +1,14 @@
-import { Blocktype, Opcodes, Valtype, PageSize, ValtypeSize } from "./wasmSpec.js";
-import { ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector } from "./encoding.js";
-import { operatorOpcode } from "./expression.js";
-import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from "./builtins.js";
-import { PrototypeFuncs } from "./prototype.js";
-import { number, i32x4, enforceOneByte, enforceTwoBytes, enforceFourBytes, enforceEightBytes } from "./embedding.js";
-import { log } from "./log.js";
-import parse from "./parse.js";
-import * as Rhemyn from "../rhemyn/compile.js";
-import Prefs from './prefs.js';
+import { Blocktype, Opcodes, Valtype, PageSize, ValtypeSize } from './wasmSpec.js';
+import { ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector } from './encoding.js';
+import { operatorOpcode } from './expression.js';
+import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
+import { PrototypeFuncs } from './prototype.js';
+import { number } from './embedding.js';
 import { TYPES, TYPE_NAMES } from './types.js';
+import * as Rhemyn from '../rhemyn/compile.js';
+import parse from './parse.js';
+import { log } from './log.js';
+import Prefs from './prefs.js';
 
 let globals = {};
 let globalInd = 0;
@@ -18,24 +18,6 @@ let exceptions = [];
 let funcIndex = {};
 let currentFuncIndex = importedFuncs.length;
 let builtinFuncs = {}, builtinVars = {}, prototypeFuncs = {};
-
-const debug = str => {
-  const code = [];
-
-  const logChar = n => {
-    code.push(...number(n));
-
-    code.push([ Opcodes.call, 0 ]);
-  };
-
-  for (let i = 0; i < str.length; i++) {
-    logChar(str.charCodeAt(i));
-  }
-
-  logChar(10); // new line
-
-  return code;
-};
 
 class TodoError extends Error {
   constructor(message) {
@@ -853,31 +835,6 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
 
   // if strict (in)equal check types match
   if (strictOp) {
-    // startOut.push(
-    //   ...leftType,
-    //   ...rightType,
-    //   [ Opcodes.i32_eq ]
-    // );
-
-    // endOut.push(
-    //   [ Opcodes.i32_and ]
-    // );
-
-    // startOut.push(
-    //   [ Opcodes.block, Valtype.i32 ],
-    //   ...leftType,
-    //   ...rightType,
-    //   [ Opcodes.i32_ne ],
-    //   [ Opcodes.if, Blocktype.void ],
-    //   ...number(op === '===' ? 0 : 1, Valtype.i32),
-    //   [ Opcodes.br, 1 ],
-    //   [ Opcodes.end ]
-    // );
-
-    // endOut.push(
-    //   [ Opcodes.end ]
-    // );
-
     endOut.push(
       ...leftType,
       ...rightType,
@@ -1569,15 +1526,6 @@ const RTArrayUtil = {
 };
 
 const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
-  /* const callee = decl.callee;
-  const args = decl.arguments;
-
-  return [
-    ...generate(args),
-    ...generate(callee),
-    Opcodes.call_indirect,
-  ]; */
-
   let name = mapName(decl.callee.name);
   if (isFuncType(decl.callee.type)) { // iife
     const func = generateFunc(scope, decl.callee);
@@ -1751,8 +1699,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           continue;
         }
 
-        // const protoLocal = protoFunc.local ? localTmp(scope, `__${TYPE_NAMES[x]}_${protoName}_tmp`, protoFunc.local) : -1;
-        // const protoLocal2 = protoFunc.local2 ? localTmp(scope, `__${TYPE_NAMES[x]}_${protoName}_tmp2`, protoFunc.local2) : -1;
         const protoLocal = protoFunc.local ? localTmp(scope, `__${protoName}_tmp`, protoFunc.local) : -1;
         const protoLocal2 = protoFunc.local2 ? localTmp(scope, `__${protoName}_tmp2`, protoFunc.local2) : -1;
 
@@ -3007,13 +2953,6 @@ const generateTry = (scope, decl) => {
 
 const generateEmpty = (scope, decl) => {
   return [];
-};
-
-const generateAssignPat = (scope, decl) => {
-  // TODO
-  // if identifier declared, use that
-  // else, use default (right)
-  return todo(scope, 'assignment pattern (optional arg)');
 };
 
 let pages = new Map();

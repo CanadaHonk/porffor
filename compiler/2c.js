@@ -1,7 +1,7 @@
 import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
 import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
-import { log } from "./log.js";
+import { log } from './log.js';
 
 const CValtype = {
   i8: 'i8',
@@ -106,17 +106,6 @@ for (const x in CValtype) {
   if (Valtype[x]) CValtype[Valtype[x]] = CValtype[x];
 }
 
-const todo = msg => {
-  class TodoError extends Error {
-    constructor(message) {
-      super(message);
-      this.name = 'TodoError';
-    }
-  }
-
-  throw new TodoError(msg);
-};
-
 const removeBrackets = str => {
   // return str;
   // if (str.startsWith(`(${CValtype.i32})(${CValtype.u32})`)) return `(${CValtype.i32})(${CValtype.u32})(` + removeBrackets(str.slice(22, -1)) + ')';
@@ -167,11 +156,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n'));
   }
 
-  // for (const [ x, p ] of pages) {
-    // out += `${CValtype[p.type]} ${x.replace(': ', '_').replace(/[^0-9a-zA-Z_]/g, '')}[100]`;
-    // out += ';\n';
-  // }
-
   if (out) out += '\n';
 
   let depth = 1;
@@ -213,9 +197,9 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   for (const f of funcs) {
     depth = 1;
+    brDepth = 0;
 
     const invLocals = inv(f.locals, x => x.idx);
-    // if (f.returns.length > 1) todo('funcs returning >1 value unsupported');
 
     for (const x in invLocals) {
       invLocals[x] = sanitize(invLocals[x]);
@@ -247,12 +231,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     const brs = [];
     let lastCond = false;
 
-    // let brDepth = 0;
-
     const blockStart = (i, loop) => {
-      // reset "stack"
-      // vals = [];
-
       rets.push(i[1]);
 
       const br = brId++;
@@ -267,25 +246,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
       if (i[1] !== Blocktype.void) line(`${CValtype[i[1]]} _r${br}`);
 
       brDepth++;
-    };
-
-    const highlight = i => {
-      const surrounding = 6;
-
-      const decomp = decompile(f.wasm.slice(i - surrounding, i + surrounding + 1), '', 0, f.locals, f.params, f.returns, funcs, globals, exceptions).slice(0, -1).split('\n');
-
-      const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
-      let longest = 0;
-      for (let j = 0; j < decomp.length; j++) {
-        longest = Math.max(longest, noAnsi(decomp[j]).length);
-      }
-
-      const middle = Math.floor(decomp.length / 2);
-      decomp[middle] = `\x1B[47m\x1B[30m${noAnsi(decomp[middle])}${'\u00a0'.repeat(longest - noAnsi(decomp[middle]).length)}\x1B[0m`;
-
-      console.log('\x1B[90m...\x1B[0m');
-      console.log(decomp.join('\n'));
-      console.log('\x1B[90m...\x1B[0m\n');
     };
 
     for (let _ = 0; _ < f.wasm.length; _++) {
@@ -415,8 +375,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
           const br = brs.at(-1);
           const ret = rets.at(-1);
           if (ret && ret !== Blocktype.void) {
-            // console.log(vals, ret);
-            // console.log(decompile(f.wasm.slice(_ - 5, _ + 1)));
             if (vals.length > 0) line(`_r${br} = ${removeBrackets(vals.pop())}`);
             // vals.push(`_r${br}`);
           }
@@ -425,8 +383,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
           line(`} else {`, false);
           depth++;
 
-          // reset "stack"
-          // vals = [];
           break;
         }
 
@@ -441,8 +397,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
           const br = brs.pop();
           const ret = rets.pop();
           if (ret && ret !== Blocktype.void) {
-            // console.log(vals, ret);
-            // console.log(decompile(f.wasm.slice(_ - 5, _ + 1)));
             if (vals.length > 0) line(`_r${br} = ${removeBrackets(vals.pop())}`);
             vals.push(`_r${br}`);
           }
@@ -541,18 +495,14 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
         case Opcodes.br: {
           const ret = rets[brDepth - i[1] - 1];
-          // console.log(rets, brDepth, i[1], brDepth - i[1] - 1, ret, vals);
           if (ret !== Blocktype.void) line(`_r${brs[brDepth - i[1] - 1]} = ${removeBrackets(vals.pop())}`);
           line(`goto j${brs[brDepth - i[1] - 1]}`);
 
-          // // reset "stack"
-          // vals = [];
           break;
         }
 
         case Opcodes.br_if: {
           const ret = rets[brDepth - i[1] - 1];
-          // console.log(rets, brDepth, i[1], brDepth - i[1] - 1, ret, vals);
 
           let cond = removeBrackets(vals.pop());
           if (!lastCond) {
@@ -602,7 +552,6 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           }
 
           log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]}`);
-          // todo(`unimplemented op: ${invOpcodes[i[0]]}`);
       }
 
       lastCond = false;

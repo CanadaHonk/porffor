@@ -1,7 +1,5 @@
-import { log } from "./log.js";
+import { log } from './log.js';
 import Prefs from './prefs.js';
-
-// import { parse } from 'acorn';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {

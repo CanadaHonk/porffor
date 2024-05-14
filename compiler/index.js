@@ -89,8 +89,6 @@ export default (code, flags) => {
       else compiler = [ compiler ];
 
     const tmpfile = 'porffor_tmp.c';
-    // const args = [ compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO, '-march=native', '-s', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections', '-Wl', '-fno-ident', '-fno-exceptions', '-ffast-math' ];
-    // const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO, '-march=native', '-s', '-ffast-math', '-fno-exceptions', '-target', 'x86_64-linux' ];
     const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO, '-march=native', '-s', '-ffast-math', '-fno-exceptions' ];
 
     const c = toc(out);

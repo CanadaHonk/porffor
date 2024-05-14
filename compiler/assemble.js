@@ -1,8 +1,7 @@
-import { Valtype, FuncType, Empty, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize } from './wasmSpec.js';
-import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, ieee754_binary64, unsignedLEB128_into, signedLEB128_into, ieee754_binary64_into } from './encoding.js';
-// import { number } from './embedding.js';
+import { Valtype, FuncType, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize } from './wasmSpec.js';
+import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64_into } from './encoding.js';
 import { importedFuncs } from './builtins.js';
-import { log } from "./log.js";
+import { log } from './log.js';
 import Prefs from './prefs.js';
 
 const createSection = (type, data) => [
@@ -102,7 +101,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
 
   // const t0 = performance.now();
 
-  // specially optimized assembly for globals as this version is much (>5x) faster than traditional createSection(...)
+  // specially optimized assembly for globals as this version is much (>5x) faster than traditional createSection()
   const globalsValues = Object.values(globals);
 
   let globalSection = [];

@@ -1,9 +1,9 @@
 import compile from './index.js';
 import decompile from './decompile.js';
 import { encodeVector, encodeLocal } from './encoding.js';
-import Prefs from './prefs.js';
-import { log } from './log.js';
 import { TYPES } from './types.js';
+import { log } from './log.js';
+import Prefs from './prefs.js';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 

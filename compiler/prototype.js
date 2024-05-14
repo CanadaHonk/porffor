@@ -1,9 +1,9 @@
-import { Opcodes, Blocktype, Valtype, ValtypeSize, PageSize } from "./wasmSpec.js";
-import { number } from "./embedding.js";
-import { unsignedLEB128 } from "./encoding.js";
-import { UNDEFINED } from "./builtins.js";
-import Prefs from './prefs.js';
+import { Opcodes, Blocktype, Valtype, ValtypeSize } from './wasmSpec.js';
+import { number } from './embedding.js';
+import { unsignedLEB128 } from './encoding.js';
+import { UNDEFINED } from './builtins.js';
 import { TYPES } from './types.js';
+import Prefs from './prefs.js';
 
 // todo: turn these into built-ins once arrays and these become less hacky
 

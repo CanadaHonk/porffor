@@ -7,21 +7,7 @@ export const codifyString = str => {
   return out;
 };
 
-// export const encodeString = str => [
-//   str.length,
-//   ...codifyString(str)
-// ];
 export const encodeString = str => unsignedLEB128(str.length).concat(codifyString(str));
-
-// export const encodeVector = data => [
-//   ...unsignedLEB128(data.length),
-//   ...data.flat()
-// ];
-// export const encodeVector = data => {
-//   const out = data.flat();
-//   out.unshift.apply(out, unsignedLEB128(data.length));
-//   return out;
-// };
 export const encodeVector = data => unsignedLEB128(data.length).concat(data.flat());
 
 export const encodeLocal = (count, type) => [
