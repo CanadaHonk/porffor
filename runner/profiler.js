@@ -3,22 +3,12 @@
 import compile from '../compiler/wrap.js';
 import fs from 'node:fs';
 
-import Prefs from '../compiler/prefs.js';
-
-// const fast = Prefs.profiler === 'fast';
-const fast = !Prefs.experimentalProfiler;
-
 const file = process.argv.slice(2).find(x => x[0] !== '-');
 let source = fs.readFileSync(file, 'utf8');
 
 let profileId = 0;
-// source = fast ? source.replace(/^[^\n}]*;$/mg, _ => `profile(${profileId++});${_}profile(${profileId++});`) : source.replace(/^[^\n}]*;$/mg, _ => `profile(${profileId++});profile(${profileId++});${_}profile(${profileId++});`);
-// source = fast ? source.replace(/^[^\n}]*;$/mg, _ => `profile(Porffor.wasm.i32.const(${profileId++}));${_}profile(Porffor.wasm.i32.const(${profileId++}));`) : source.replace(/^[^\n}]*;$/mg, _ => `profile(${profileId++});profile(${profileId++});${_}profile(${profileId++});`);
-source = fast ? source.replace(/^[^\n}]*;$/mg, _ => `profile1(Porffor.wasm.i32.const(${profileId}));${_}profile2(Porffor.wasm.i32.const(${profileId++}));`) : source.replace(/^[^\n}]*;$/mg, _ => `profile(${profileId++});profile(${profileId++});${_}profile(${profileId++});`);
+source = source.replace(/^[^\n}]*;$/mg, _ => `profile1(Porffor.wasm.i32.const(${profileId}));${_}profile2(Porffor.wasm.i32.const(${profileId++}));`)
 
-// console.log(source);
-
-// let tmp = new Array(profileId).fill(0);
 let tmp = new Array(profileId).fill(0);
 let times = new Array(profileId).fill(0);
 let samples = 0;
@@ -31,31 +21,19 @@ let last = 0;
 
 try {
   const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
-    y: fast ? n => {
+    y: n => {
       tmp[n] = performance.now();
-    } : n => { /* todo */ },
-    z: fast ? n => {
-      times[n] += performance.now() - tmp[n];
-    } : n => { /* todo */ }
-    // z: fast ? n => {
-    //   if (n % 2) {
-    //     tmp[n] += performance.now() - tmp[n - 1];
-    //   } else {
-    //     tmp[n] = performance.now();
-    //   }
-    // } : n => {
-    //   if (n % 3 === 2) {
-    //     tmp[n] += (performance.now() - tmp[n - 1]) - (tmp[n - 1] - tmp[n - 2]);
-    //     samples++;
+    },
+    z: n => {
+      const t = performance.now();
+      times[n] += t - tmp[n];
 
-    //     if (performance.now() > last) {
-    //       process.stdout.write(`\r${spinner[spin++ % 4]} running: collected ${samples} samples...`);
-    //       last = performance.now() + 100;
-    //     }
-    //   } else {
-    //     tmp[n] = performance.now();
-    //   }
-    // }
+      samples++;
+      if (t > last) {
+        process.stdout.write(`\r${spinner[spin++ % 4]} running: collected ${samples} samples...`);
+        last = t + 100;
+      }
+    }
   });
 
   const start = performance.now();
@@ -64,14 +42,11 @@ try {
 
   const total = performance.now() - start;
 
-  console.log(`\n${fast ? '' : `samples: ${samples}\n`}total: ${total}ms\n\n` + source.split('\n').map(x => {
+  console.log(`\ntotal: ${total}ms\nsamples: ${samples}\n\n\n` + source.split('\n').map(x => {
     let time = 0;
     if (x.startsWith('profile')) {
-      // const id = parseInt(x.slice(8, x.indexOf(')')));
-      // const id = parseInt(x.slice(31, x.indexOf(')') + 1));
       const id = parseInt(x.slice(32, x.indexOf(')')));
-      // time = fast ? tmp[id + 1] : tmp[id + 2];
-      time = fast ? times[id] : tmp[id + 2];
+      time = times[id]
     }
 
     let color = [ 0, 0, 0 ];
@@ -85,8 +60,6 @@ try {
 
     const ansiColor = `2;${color[0]};${color[1]};${color[2]}m`;
 
-    // const line = x.replace(/profile\([0-9]+\);/g, '');
-    // const line = x.replace(/profile\(Porffor.wasm.i32.const\([0-9]+\)\);/g, '');
     const line = x.replace(/profile[0-9]\(Porffor.wasm.i32.const\([0-9]+\)\);/g, '');
 
     if (percents) return `\x1b[48;${ansiColor}\x1b[97m${time ? ((time * 100).toFixed(0).padStart(4, ' ') + '%') : '     '}\x1b[0m\x1b[38;${ansiColor}▌\x1b[0m ${line}`;
