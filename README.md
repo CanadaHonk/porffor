@@ -191,7 +191,7 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 
 ## Versioning
 Porffor uses a unique versioning system, here's an example: `0.14.0+15cb49f07`. Let's break it down:
-1. `0` - major, always `0` as Porffor is not ready yet lol
+1. `0` - major, always `0` as Porffor is not ready yet
 2. `14` - minor, total Test262 pass percentage (floored to nearest int)
 3. `0` - micro, always `0` as unused
 4. `15cb49f07` - commit hash
