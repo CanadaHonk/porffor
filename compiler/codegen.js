@@ -171,11 +171,6 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         newFunc.export = true;
       }
 
-      // if (funcsBefore === funcs.length) throw new Error('no new func added in export');
-
-      // const newFunc = funcs[funcs.length - 1];
-      // newFunc.export = true;
-
       return [];
 
     case 'TaggedTemplateExpression': {
@@ -1248,7 +1243,7 @@ const setLastType = scope => {
 };
 
 const getNodeType = (scope, node) => {
-  const inner = () => {
+  const ret = (() => {
     if (node.type === 'Literal') {
       if (node.regex) return TYPES.regexp;
 
@@ -1291,7 +1286,6 @@ const getNodeType = (scope, node) => {
       const func = funcs.find(x => x.name === name);
 
       if (func) {
-        // console.log(scope, func, func.returnType);
         if (func.returnType) return func.returnType;
       }
 
@@ -1435,10 +1429,8 @@ const getNodeType = (scope, node) => {
     // presume
     // todo: warn here?
     return TYPES.number;
-  };
+  })();
 
-  const ret = inner();
-  // console.trace(node, ret);
   if (typeof ret === 'number') return number(ret, Valtype.i32);
   return ret;
 };
@@ -1837,22 +1829,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
     includeBuiltin(scope, name);
     idx = funcIndex[name];
-
-    // infer arguments types from builtins params
-    // const func = funcs.find(x => x.name === name);
-    // for (let i = 0; i < decl.arguments.length; i++) {
-    //   const arg = decl.arguments[i];
-    //   if (!arg.name) continue;
-
-    //   const local = scope.locals[arg.name];
-    //   if (!local) continue;
-
-    //   local.type = func.params[i];
-    //   if (local.type === Valtype.v128) {
-    //     // specify vec subtype inferred from last vec type in function name
-    //     local.vecType = name.split('_').reverse().find(x => x.includes('x'));
-    //   }
-    // }
   }
 
   if (idx === undefined && internalConstrs[name]) return internalConstrs[name].generate(scope, decl, _global, _name);
@@ -2218,9 +2194,8 @@ const generateVar = (scope, decl) => {
 
   const topLevel = scope.name === 'main';
 
-  // global variable if in top scope (main) and var ..., or if wanted
-  const global = topLevel || decl._bare; // decl.kind === 'var';
-  const target = global ? globals : scope.locals;
+  // global variable if in top scope (main) or if internally wanted
+  const global = topLevel || decl._bare;
 
   for (const x of decl.declarations) {
     const name = mapName(x.id.name);
@@ -2234,7 +2209,6 @@ const generateVar = (scope, decl) => {
       continue;
     }
 
-    // console.log(name);
     if (topLevel && builtinVars[name]) {
       // cannot redeclare
       if (decl.kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
