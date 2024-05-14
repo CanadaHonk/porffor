@@ -58,10 +58,11 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
     case 'ArrowFunctionExpression':
     case 'FunctionDeclaration':
+    case 'FunctionExpression':
       const func = generateFunc(scope, decl);
 
       if (decl.type.endsWith('Expression')) {
-        return number(func.index);
+        return number(func.index - importedFuncs.length);
       }
 
       return [];
@@ -313,10 +314,10 @@ const generateIdent = (scope, decl) => {
 
     if (local?.idx === undefined) {
       // no local var with name
-      if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name]);
-      if (Object.hasOwn(funcIndex, name)) return number(funcIndex[name]);
-
       if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
+
+      if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
+      if (Object.hasOwn(funcIndex, name)) return number(funcIndex[name] - importedFuncs.length);
     }
 
     if (local?.idx === undefined && rawName.startsWith('__')) {
@@ -1860,11 +1861,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     const arg = args[i];
     out = out.concat(generate(scope, arg));
 
-    if (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
-      out.push(Opcodes.i32_to);
-    }
-
-    if (importedFuncs[name] && name.startsWith('profile')) {
+    if (valtypeBinary !== Valtype.i32 && (
+      (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32) ||
+      (importedFuncs[name] && name.startsWith('profile'))
+    )) {
       out.push(Opcodes.i32_to);
     }
 
@@ -2174,6 +2174,22 @@ const generateVar = (scope, decl) => {
     }
 
     if (x.init) {
+      // if (isFuncType(x.init.type)) {
+      //   // let a = function () { ... }
+      //   x.init.id = { name };
+
+      //   const func = generateFunc(scope, x.init);
+
+      //   out.push(
+      //     ...number(func.index - importedFuncs.length),
+      //     [ global ? Opcodes.global_set : Opcodes.local_set, idx ],
+
+      //     ...setType(scope, name, TYPES.function)
+      //   );
+
+      //   continue;
+      // }
+
       const generated = generate(scope, x.init, global, name);
       if (scope.arrays?.get(name) != null) {
         // hack to set local as pointer before
@@ -2185,6 +2201,7 @@ const generateVar = (scope, decl) => {
         out = out.concat(generated);
         out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
       }
+
       out.push(...setType(scope, name, getNodeType(scope, x.init)));
     }
 
@@ -2198,6 +2215,7 @@ const generateVar = (scope, decl) => {
 // todo: optimize this func for valueUnused
 const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
+  const [ local, isGlobal ] = lookupName(scope, name);
 
   if (type === 'ObjectPattern') {
     // hack: ignore object parts of `var a = {} = 2`
@@ -2207,8 +2225,18 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   if (isFuncType(decl.right.type)) {
     // hack for a = function () { ... }
     decl.right.id = { name };
-    generateFunc(scope, decl.right);
-    return [];
+
+    const func = generateFunc(scope, decl.right);
+
+    return [
+      ...number(func.index - importedFuncs.length),
+      ...(local != null ? [
+        [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+        [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+
+        ...setType(scope, name, TYPES.function)
+      ] : [])
+    ];
   }
 
   const op = decl.operator.slice(0, -1) || '=';
@@ -2306,8 +2334,6 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   }
 
   if (!name) return todo(scope, 'destructuring is not supported yet', true);
-
-  const [ local, isGlobal ] = lookupName(scope, name);
 
   if (local === undefined) {
     // todo: this should be a sloppy mode only thing

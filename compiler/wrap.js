@@ -1,6 +1,7 @@
+import { encodeVector, encodeLocal } from './encoding.js';
+import { importedFuncs } from './builtins.js';
 import compile from './index.js';
 import decompile from './decompile.js';
-import { encodeVector, encodeLocal } from './encoding.js';
 import { TYPES } from './types.js';
 import { log } from './log.js';
 import Prefs from './prefs.js';
@@ -14,9 +15,13 @@ const porfToJSValue = (memory, funcs, value, type) => {
     case TYPES.object: return value === 0 ? null : {};
 
     case TYPES.function: {
-      // wasm func index, including all imports
-      const func = funcs.find(x => (x.originalIndex ?? x.index) === value);
-      // if (!func) return value;
+      let func;
+      if (value < 0) {
+        func = importedFuncs[value + importedFuncs.length];
+      } else {
+        func = funcs.find(x => ((x.originalIndex ?? x.index) - importedFuncs.length) === value);
+      }
+
       if (!func) return function () {};
 
       // make fake empty func for repl/etc
@@ -216,7 +221,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
         if (ret == null) return undefined;
 
-        return porfToJSValue(memory, funcs, ret[0], ret[1])
+        return porfToJSValue(memory, funcs, ret[0], ret[1]);
       } catch (e) {
         if (e.is && e.is(exceptTag)) {
           const exceptId = e.getArg(exceptTag, 0);
