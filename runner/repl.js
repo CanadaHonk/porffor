@@ -1,9 +1,6 @@
 import compile from '../compiler/wrap.js';
 import rev from './version.js';
 
-// import repl from 'node:repl';
-// import repl from '../../node-repl-polyfill/index.js';
-
 let repl;
 try {
   // try importing node:repl
@@ -16,8 +13,6 @@ try {
   // it failed, import the polyfill
   repl = (await import('node-repl-polyfill')).default;
 }
-
-// process.argv.push('-O0'); // disable opts
 
 globalThis.valtype = 'f64';
 
@@ -81,11 +76,10 @@ const run = async (source, _context, _filename, callback, run = true) => {
   let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source.trim();
 
   let shouldPrint = !prev;
-  const { exports, wasm, pages } = await compile(toRun, [], {}, str => {
+  const { exports, pages } = await compile(toRun, [], {}, str => {
     if (shouldPrint) process.stdout.write(str);
     if (str === '-4919') shouldPrint = true;
   });
-  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   if (run && exports.$) {
     lastMemory = exports.$;

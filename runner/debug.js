@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
 import compile from '../compiler/wrap.js';
-import fs from 'node:fs';
-
 import Byg from '../byg/index.js';
+import fs from 'node:fs';
 
 const file = process.argv.slice(2).find(x => x[0] !== '-');
 let source = fs.readFileSync(file, 'utf8');
@@ -19,7 +18,6 @@ source = source.replace(/^\s*(function|const)\s*([a-zA-Z0-9]+)(\s*=\s*)?\([^)]*\
 
 const lines = source.split('\n');
 for (let i = 0; i < lines.length; i++) {
-  // lines[line] = lines[line].replace(/^[^\n}]*;$/, _ => `profile(${line});${_}`);
   if (lines[i].trim().replace('}', '') !== '') lines[i] = `profile1(Porffor.wasm.i32.const(${i}));` + lines[i];
 }
 source = lines.join('\n');
@@ -34,8 +32,6 @@ const byg = Byg({
     breakpoints[line] = breakpoint;
   }
 });
-
-// console.log(source);
 
 let stepIn = false, stepOut = false;
 const callStack = [];
@@ -72,7 +68,6 @@ try {
           [
             {
               x: termWidth - 1 - 40 - 6,
-              // y: () => termHeight - 20 - 1 - 4,
               y: () => 4,
               width: 40,
               height: 20,

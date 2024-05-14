@@ -1,5 +1,4 @@
 import { execSync } from 'node:child_process';
-import { pathToFileURL } from 'node:url';
 import fs from 'node:fs';
 
 const [ commitsAgo, file ] = process.argv.slice(2);
