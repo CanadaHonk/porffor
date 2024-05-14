@@ -91,14 +91,12 @@ export const __Array_prototype_with = (_this: any[], index: number, value: any) 
   if (index < 0) {
     index = len + index;
     if (index < 0) {
-      // todo: throw RangeError: Invalid index
-      return null;
+      throw new RangeError('Invalid index');
     }
   }
 
   if (index > len) {
-    // todo: throw RangeError: Invalid index
-    return null;
+    throw new RangeError('Invalid index');
   }
 
   // todo: allocator is bad here?

@@ -1774,8 +1774,7 @@ export const __Date_prototype_toISOString = (_this: Date) => {
 
   // 4. If tv is NaN, throw a RangeError exception.
   if (Number.isNaN(tv)) {
-    // todo throw
-    return;
+    throw new RangeError('Invalid time value');
   }
 
   // 5. Assert: tv is an integral Number.
