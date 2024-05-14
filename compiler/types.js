@@ -35,3 +35,4 @@ registerInternalType('Array');
 registerInternalType('RegExp');
 registerInternalType('ByteString');
 registerInternalType('Date');
+registerInternalType('Set');

@@ -7,6 +7,70 @@ import { TYPES } from './types.js';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
+const porfToJSValue = (memory, funcs, value, type) => {
+  switch (type) {
+    case TYPES.boolean: return Boolean(value);
+    case TYPES.undefined: return undefined;
+    case TYPES.object: return value === 0 ? null : {};
+
+    case TYPES.function: {
+      // wasm func index, including all imports
+      const func = funcs.find(x => (x.originalIndex ?? x.index) === value);
+      // if (!func) return value;
+      if (!func) return function () {};
+
+      // make fake empty func for repl/etc
+      return {[func.name]() {}}[func.name];
+    }
+
+    case TYPES.string: {
+      const length = (new Int32Array(memory.buffer, value, 1))[0];
+      return Array.from(new Uint16Array(memory.buffer, value + 4, length)).map(x => String.fromCharCode(x)).join('');
+    }
+
+    case TYPES.bytestring: {
+      const length = (new Int32Array(memory.buffer, value, 1))[0];
+      return Array.from(new Uint8Array(memory.buffer, value + 4, length)).map(x => String.fromCharCode(x)).join('');
+    }
+
+    case TYPES.array: {
+      const length = (new Int32Array(memory.buffer, value, 1))[0];
+
+      // have to slice because of memory alignment (?)
+      const buf = memory.buffer.slice(value + 4, value + 4 + 8 * length);
+      return Array.from(new Float64Array(buf, 0, length));
+    }
+
+    case TYPES.date: {
+      const t = (new Float64Array(memory.buffer, value, 1))[0];
+      return new Date(t);
+    }
+
+    case TYPES.set: {
+      const size = (new Int32Array(memory.buffer, value, 1))[0];
+
+      const out = new Set();
+      for (let i = 0; i < size; i++) {
+        const offset = value + 4 + (i * 9);
+
+        // have to slice because of memory alignment (?)
+        const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
+        const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
+
+        // console.log(`reading value at index ${i}...`)
+        // console.log('  memory:', Array.from(new Uint8Array(memory.buffer, offset, 9)).map(x => x.toString(16).padStart(2, '0')).join(' '));
+        // console.log('  read:', { value: v, type: t }, '\n');
+
+        out.add(porfToJSValue(memory, funcs, v, t));
+      }
+
+      return out;
+    }
+
+    default: return value;
+  }
+};
+
 export default async (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {
   const times = [];
 
@@ -148,62 +212,11 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
     exports[func.name] = function() {
       try {
-        const _ret = exp.apply(this, arguments);
+        const ret = exp.apply(this, arguments);
 
-        if (_ret == null) return undefined;
+        if (ret == null) return undefined;
 
-        const [ ret, type ] = _ret;
-
-        // if (ret >= typeBase && ret <= typeBase + 8) return ret > (typeBase + 7) ? 'object' : TYPES[ret];
-
-        switch (type) {
-          case TYPES.boolean: return Boolean(ret);
-          case TYPES.undefined: return undefined;
-          case TYPES.object: return ret === 0 ? null : {};
-
-          case TYPES.string: {
-            const pointer = ret;
-            const length = (new Int32Array(memory.buffer, pointer, 1))[0];
-
-            return Array.from(new Uint16Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
-          }
-
-          case TYPES.function: {
-            // wasm func index, including all imports
-            const func = funcs.find(x => (x.originalIndex ?? x.index) === ret);
-            // if (!func) return ret;
-            if (!func) return function () {};
-
-            // make fake empty func for repl/etc
-            return {[func.name]() {}}[func.name];
-          }
-
-          case TYPES.array: {
-            const pointer = ret;
-            const length = (new Int32Array(memory.buffer, pointer, 1))[0];
-
-            // have to slice because of memory alignment
-            const buf = memory.buffer.slice(pointer + 4, pointer + 4 + 8 * length);
-
-            return Array.from(new Float64Array(buf));
-          }
-
-          case TYPES.bytestring: {
-            const pointer = ret;
-            const length = (new Int32Array(memory.buffer, pointer, 1))[0];
-
-            return Array.from(new Uint8Array(memory.buffer, pointer + 4, length)).map(x => String.fromCharCode(x)).join('');
-          }
-
-          case TYPES.date: {
-            const pointer = ret;
-            const value = (new Float64Array(memory.buffer, pointer, 1))[0];
-
-            return new Date(value);
-          }
-
-          default: return ret;
-        }
+        return porfToJSValue(memory, funcs, ret[0], ret[1])
       } catch (e) {
         if (e.is && e.is(exceptTag)) {
           const exceptId = e.getArg(exceptTag, 0);

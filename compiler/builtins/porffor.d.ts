@@ -40,6 +40,7 @@ type PorfforGlobal = {
     regexp: i32;
     bytestring: i32;
     date: i32;
+    set: i32;
   }
 
   fastOr(...args: any): boolean;
