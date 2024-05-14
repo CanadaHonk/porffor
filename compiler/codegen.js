@@ -3454,8 +3454,11 @@ const generateFunc = (scope, decl) => {
   };
 
   if (typedInput && decl.returnType) {
-    innerScope.returnType = extractTypeAnnotation(decl.returnType).type;
-    innerScope.returns = [ valtypeBinary ];
+    const { type } = extractTypeAnnotation(decl.returnType);
+    if (type != null) {
+      innerScope.returnType = type;
+      innerScope.returns = [ valtypeBinary ];
+    }
   }
 
   for (let i = 0; i < params.length; i++) {
