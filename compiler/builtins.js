@@ -138,7 +138,7 @@ export const BuiltinVars = function() {
   this.Math = number(1);
 
   // wintercg(tm)
-  this.__navigator_userAgent = (scope, { makeString }) => makeString(scope, `Porffor/0.2.0`, false, '__navigator_userAgent');
+  this.__navigator_userAgent = (scope, { makeString }) => makeString(scope, `Porffor/0.14.0`, false, '__navigator_userAgent');
   this.__navigator_userAgent.type = Prefs.bytestring ? TYPES.bytestring : TYPES.string;
 
   for (const x in TYPES) {

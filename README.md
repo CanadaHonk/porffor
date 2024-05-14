@@ -13,7 +13,7 @@ Porffor is primarily built from scratch, the only thing that is not is the parse
 ## Usage
 Expect nothing to work! Only very limited JS is currently supported. See files in `bench` for examples.
 
-### Setup
+### Install
 **`npm install -g porffor`**. It's that easy (hopefully) :)
 
 ### Trying a REPL
@@ -189,6 +189,13 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Intrinsic functions (see below)
 - Inlining wasm via ``asm`...``\` "macro"
 
+## Versioning
+Porffor uses a unique versioning system, here's an example: `0.14.0-15cb49f07`. Let's break it down:
+1. `0` - major, always `0` as Porffor is not ready yet lol
+2. `14` - minor, total Test262 pass percentage (floored to nearest int)
+3. `0` - micro, always `0` as unused
+4. `15cb49f07` - commit hash
+
 ## Performance
 *For the features it supports most of the time*, Porffor is *blazingly fast* compared to most interpreters and common engines running without JIT. For those with JIT, it is usually slower by default, but can catch up with compiler arguments and typed input, even more so when compiling to native binaries.
 
@@ -220,7 +227,7 @@ Mostly for reducing size. I do not really care about compiler perf/time as long 
 - No tags if unused/optimized out
 
 ## Test262
-Porffor can run Test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). It currently passes >10% (see latest commit desc for latest and details). Use `node test262` to test, it will also show a difference of overall results between the last commit and current results.
+Porffor can run Test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). It currently passes >14% (see latest commit desc for latest and details). Use `node test262` to test, it will also show a difference of overall results between the last commit and current results.
 
 ## Codebase
 - `compiler`: contains the compiler itself
