@@ -115,8 +115,10 @@ const precompile = async () => {
 import { number } from './embedding.js';
 
 export const BuiltinFuncs = function() {
-${funcs.map(x => `  this.${x.name} = {
-    wasm: (scope, { allocPage, builtin, internalThrow }) => ${JSON.stringify(x.wasm.filter(x => x.length && x[0] != null)).replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtype})`).replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`).replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`)},
+${funcs.map(x => {
+  const wasm = JSON.stringify(x.wasm.filter(x => x.length && x[0] != null)).replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtype})`).replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`).replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`);
+  return `  this.${x.name} = {
+    wasm: (scope, {${wasm.includes('allocPage(') ? 'allocPage,' : ''}${wasm.includes('builtin(') ? 'builtin,' : ''}${wasm.includes('internalThrow(') ? 'internalThrow,' : ''}}) => ${wasm},
     params: ${JSON.stringify(x.params)},
     typedParams: true,
     returns: ${JSON.stringify(x.returns)},
@@ -124,7 +126,8 @@ ${funcs.map(x => `  this.${x.name} = {
     locals: ${JSON.stringify(Object.values(x.locals).slice(x.params.length).map(x => x.type))},
     localNames: ${JSON.stringify(Object.keys(x.locals))},
 ${x.data && x.data.length > 0 ? `    data: ${JSON.stringify(x.data)}` : ''}
-  };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n')).join('\n')}
+  };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n')
+}).join('\n')}
 };`;
 };
 
