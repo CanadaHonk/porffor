@@ -7,18 +7,18 @@ type PorfforGlobal = {
   wasm: {
     (...args: any[]): any;
     i32: {
-      load(pointer: i32, align: i32, offset: i32): i32;
-      store(pointer: i32, value: i32, align: i32, offset: i32): i32;
-      load8_u(pointer: i32, align: i32, offset: i32): i32;
-      store8(pointer: i32, value: i32, align: i32, offset: i32): i32;
-      load16_u(pointer: i32, align: i32, offset: i32): i32;
-      store16(pointer: i32, value: i32, align: i32, offset: i32): i32;
+      load(pointer: any, align: i32, offset: i32): i32;
+      store(pointer: any, value: i32, align: i32, offset: i32): i32;
+      load8_u(pointer: any, align: i32, offset: i32): i32;
+      store8(pointer: any, value: i32, align: i32, offset: i32): i32;
+      load16_u(pointer: any, align: i32, offset: i32): i32;
+      store16(pointer: any, value: i32, align: i32, offset: i32): i32;
       const(value: i32): i32;
     }
 
     f64: {
-      load(pointer: i32, align: i32, offset: i32): i32;
-      store(pointer: i32, value: f64, align: i32, offset: i32): f64;
+      load(pointer: any, align: i32, offset: i32): i32;
+      store(pointer: any, value: f64, align: i32, offset: i32): f64;
     }
   }
 
