@@ -1,5 +1,3 @@
-// @porf --funsafe-no-unlikely-proto-checks
-
 // 20.3.3.2 Boolean.prototype.toString ()
 // https://tc39.es/ecma262/#sec-boolean.prototype.tostring
 export const __Boolean_prototype_toString = (_this: boolean) => {

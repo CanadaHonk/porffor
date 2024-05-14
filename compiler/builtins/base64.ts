@@ -1,4 +1,4 @@
-// @porf --funsafe-no-unlikely-proto-checks --valtype=i32
+// @porf --valtype=i32
 
 export const btoa = (input: bytestring): bytestring => {
   const keyStr: bytestring = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';

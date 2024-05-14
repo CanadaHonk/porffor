@@ -1,5 +1,3 @@
-// @porf --funsafe-no-unlikely-proto-checks
-
 // 21.4.1.3 Day (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-day
 // 1. Return 𝔽(floor(ℝ(t / msPerDay))).

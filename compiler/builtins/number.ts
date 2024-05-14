@@ -1,5 +1,3 @@
-// @porf --funsafe-no-unlikely-proto-checks
-
 // radix: number|any for rawType check
 export const __Number_prototype_toString = (_this: number, radix: number|any) => {
   let out: bytestring = '';

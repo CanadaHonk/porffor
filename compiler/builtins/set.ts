@@ -1,5 +1,3 @@
-// @porf --funsafe-no-unlikely-proto-checks
-
 // dark wasm magic for dealing with memory, sorry.
 export const __Porffor_allocate = (): number => {
   Porffor.wasm`i32.const 1

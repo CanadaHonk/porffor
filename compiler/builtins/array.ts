@@ -1,5 +1,3 @@
-// @porf --funsafe-no-unlikely-proto-checks
-
 export const __Array_isArray = (x: unknown): boolean =>
   // Porffor.wasm`local.get ${x+1}` == Porffor.TYPES.array;
   Porffor.rawType(x) == Porffor.TYPES.array;
