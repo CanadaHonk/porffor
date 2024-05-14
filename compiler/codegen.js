@@ -3500,7 +3500,7 @@ const generateFunc = (scope, decl) => {
   if (name !== 'main' && wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
     wasm.push(
       ...number(0),
-      ...number(TYPES.undefined, Valtype.i32),
+      ...(innerScope.returnType != null ? [] : number(TYPES.undefined, Valtype.i32)),
       [ Opcodes.return ]
     );
   }
