@@ -21,6 +21,11 @@ export const Valtype = {
   v128: 0x7b
 };
 
+export const Reftype = {
+  funcref: 0x70,
+  externref: 0x6f
+};
+
 export const Blocktype = {
   void: 0x40,
 };

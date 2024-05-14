@@ -1,4 +1,4 @@
-import { Valtype, FuncType, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize } from './wasmSpec.js';
+import { Valtype, FuncType, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize, Reftype } from './wasmSpec.js';
 import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64_into } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from './log.js';
@@ -91,12 +91,18 @@ export default (funcs, globals, tags, pages, data, flags) => {
     encodeVector(funcs.map(x => getType(x.params, x.returns))) // type indexes
   );
 
-  // compilation hints section - unspecd, v8 only
-  // https://github.com/WebAssembly/design/issues/1473#issuecomment-1431274746
-  const chSection = !compileHints ? [] : customSection(
-    'compilationHints',
-    // for now just do everything as optimize eager
-    encodeVector(funcs.map(_ => chHint(0x02, 0x02, 0x02)))
+  const tableSection = !funcs.table ? [] : createSection(
+    Section.table,
+    encodeVector([ [ Reftype.funcref, 0x00, funcs.length ] ])
+  );
+
+  const elementSection = !funcs.table ? [] : createSection(
+    Section.element,
+    encodeVector([ [
+      0x00,
+      Opcodes.i32_const, 0, Opcodes.end,
+      encodeVector(funcs.map(x => x.index))
+    ] ])
   );
 
   // const t0 = performance.now();
@@ -226,6 +232,14 @@ export default (funcs, globals, tags, pages, data, flags) => {
     dataSection: dataSection.map(x => x.toString(16)),
   });
 
+  // compilation hints section - unspecd, v8 only
+  // https://github.com/WebAssembly/design/issues/1473#issuecomment-1431274746
+  const chSection = !compileHints ? [] : customSection(
+    'compilationHints',
+    // for now just do everything as optimize eager
+    encodeVector(funcs.map(_ => chHint(0x02, 0x02, 0x02)))
+  );
+
   return Uint8Array.from([
     ...Magic,
     ...ModuleVersion,
@@ -233,10 +247,12 @@ export default (funcs, globals, tags, pages, data, flags) => {
     ...importSection,
     ...funcSection,
     ...chSection,
+    ...tableSection,
     ...memorySection,
     ...tagSection,
     ...globalSection,
     ...exportSection,
+    ...elementSection,
     ...dataCountSection,
     ...codeSection,
     ...dataSection
