@@ -116,7 +116,7 @@ import { number } from './embedding.js';
 
 export const BuiltinFuncs = function() {
 ${funcs.map(x => `  this.${x.name} = {
-    wasm: (scope, { allocPage, builtin, internalThrow }) => ${JSON.stringify(x.wasm.filter(x => x.length && x[0] != null)).replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtype})`).replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`).replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', '${message}')`)},
+    wasm: (scope, { allocPage, builtin, internalThrow }) => ${JSON.stringify(x.wasm.filter(x => x.length && x[0] != null)).replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtype})`).replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`).replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`)},
     params: ${JSON.stringify(x.params)},
     typedParams: true,
     returns: ${JSON.stringify(x.returns)},
