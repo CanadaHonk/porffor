@@ -2,7 +2,6 @@ import fs from 'node:fs';
 
 const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
 const printLine = (line, number, breakpoint = false, current = false, selected = false) => {
-  // console.log(`\x1b[${breakpoint ? (selected ? '106' : '46') : (selected ? '47' : '100')}m\x1b[${selected ? '30' : '97'}m${number.toFixed(0).padStart(4, ' ')}\x1b[${breakpoint ? (selected ? '96' : '36') : (selected ? '37' : '90')}m\x1b[${current ? '47' : '40'}m▌ \x1b[${current ? '47' : '40'}m\x1b[${current ? '30' : '37'}m${current ? noAnsi(line) : line}\x1b[0K`);
   console.log(`\x1b[${breakpoint ? (selected ? '43' : '103') : (selected ? '47' : '100')}m\x1b[${selected || breakpoint ? '30' : '97'}m${number.toFixed(0).padStart(4, ' ')}\x1b[${breakpoint ? (selected ? '33' : '93') : (selected ? '37' : '90')}m\x1b[${current ? '47' : '40'}m▌ \x1b[${current ? '47' : '40'}m\x1b[${current ? '30' : '37'}m${current ? noAnsi(line) : line}\x1b[0K`);
 };
 
@@ -13,13 +12,10 @@ const box = (x, y, width, height, title = '', content = [], color = ['90', '100'
 
     // top
     process.stdout.write(`\x1b[48m\x1b[${y + 1};${x + 1}H\x1b[${color[0]}m` + '▄'.repeat(width));
-
     // bottom
     process.stdout.write(`\x1b[${y + height + 1};${x + 1}H▝` + '▀'.repeat(width - 1) + '▘');
-
     // left
     process.stdout.write(`\x1b[${y + 1};${x + 1}H▗` + '\x1b[1B\x1b[1D▐'.repeat(height - 1));
-
     // right
     process.stdout.write(`\x1b[${y + 1};${x + width + 1}H▖` + '\x1b[1B\x1b[1D▌'.repeat(height - 1));
 
@@ -33,8 +29,6 @@ const box = (x, y, width, height, title = '', content = [], color = ['90', '100'
   process.stdout.write(`\x1b[${y + 1};${x + 1}H\x1b[${color[1]}m` + ' '.repeat(width) + (`\x1b[1B\x1b[${width}D` + ' '.repeat(width)).repeat(Math.max(0, height - 1)));
 
   // title
-  // if (title) process.stdout.write(`\x1b[${y + 1};${x + ((width - title.length) / 2 | 0) + 1}H\x1b[${color[1]}m\x1b[${color[2]}m\x1b[1m${title}\x1b[22m`);
-  // if (title) process.stdout.write(`\x1b[${y};${x}H\x1b[${color[3]}▗\x1b[${color[4]}m\x1b[${color[2]}m\x1b[1m${' '.repeat((width - title.length) / 2 | 0)}${title}${' '.repeat(width - (((width - title.length) / 2 | 0)) - title.length)}\x1b[0m\x1b[${color[4]}m▖`);
   if (title) process.stdout.write(`\x1b[${y};${x}H\x1b[0m\x1b[${color[3]}m▐\x1b[${color[4]}m\x1b[${color[2]}m\x1b[1m${' '.repeat((width - title.length) / 2 | 0)}${title}${' '.repeat(width - (((width - title.length) / 2 | 0)) - title.length)}\x1b[0m\x1b[${color[3]}m▌`);
 
   // content
@@ -66,8 +60,6 @@ export default ({ lines, pause, breakpoint }) => {
       process.exit();
     }
 
-    // process.stdout.write(s);
-
     if (!paused) pause();
   });
 
@@ -83,7 +75,6 @@ export default ({ lines, pause, breakpoint }) => {
 
   process.on('exit', () => {
     process.stdout.write('\x1b[0m');
-    // console.clear();
   });
 
   console.clear();
@@ -130,18 +121,9 @@ export default ({ lines, pause, breakpoint }) => {
 
       for (const x of boxes) {
         const y = x.y({ currentLinePos });
-        const height = x.height;
         if (y < 0 || y >= termHeight) continue;
 
-        // crop box if > termHeight
-        // if (y + height >= termHeight) {
-        //   const excess = y + height - termHeight;
-        //   height -= excess;
-
-        //   content = content.slice(0, height - 2);
-        // }
-
-        box(x.x, y, x.width, height, x.title, x.content);
+        box(x.x, y, x.width, x.height, x.title, x.content);
       }
 
       // text += ` | rss: ${(process.memoryUsage.rss() / 1024 / 1024).toFixed(2)}mb`;
@@ -179,7 +161,8 @@ export default ({ lines, pause, breakpoint }) => {
         }
 
         case 'b': {
-          if (!lastSpecial) { // b pressed normally
+          if (!lastSpecial) {
+            // b pressed normally
             breakpoints[currentLine + scrollOffset] = !breakpoints[currentLine + scrollOffset];
             draw();
 
@@ -188,7 +171,6 @@ export default ({ lines, pause, breakpoint }) => {
           }
 
           // arrow down
-          // if (screenOffset + termHeight <= lines.length) scrollOffset++;
           if (scrollOffset < lines.length - currentLine - 1) scrollOffset++;
           draw();
           break;
@@ -198,7 +180,6 @@ export default ({ lines, pause, breakpoint }) => {
           if (!lastSpecial) break;
 
           // arrow up
-          // if (screenOffset > 0) scrollOffset--;
           if (scrollOffset > -currentLine) scrollOffset--;
           draw();
 
@@ -209,7 +190,6 @@ export default ({ lines, pause, breakpoint }) => {
           if (!lastSpecial) break;
 
           // page up
-          // scrollOffset -= Math.min(screenOffset, termHeight - 1);
           scrollOffset -= Math.min(scrollOffset + currentLine, termHeight - 1);
           draw();
           break;
@@ -219,7 +199,6 @@ export default ({ lines, pause, breakpoint }) => {
           if (!lastSpecial) break;
 
           // page down
-          // scrollOffset += Math.min((lines.length + 1) - (screenOffset + termHeight), termHeight - 1);
           scrollOffset += Math.min(lines.length - (scrollOffset + currentLine) - 1, termHeight - 1);
           draw();
           break;
