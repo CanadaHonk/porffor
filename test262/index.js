@@ -22,14 +22,6 @@ const preludes = fs.readFileSync('test262/prelude.js', 'utf8').split('///').redu
   acc[k.trim()] = content.join('\n').trim();
   return acc;
 }, {});
-const allPrelude = Object.values(preludes).join('\n');
-
-let valtype = 'f64';
-
-const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
-if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
-
-const excludeNegative = process.argv.includes('--exclude-negative');
 
 const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
@@ -60,12 +52,9 @@ if (process.platform === 'win32') timeoutFiles = timeoutFiles.map(x => x.replace
 
 const debugAsserts = process.argv.includes('--debug-asserts');
 
-// const run = async ({ file, contents, attrs }) => {
 const run = ({ file, contents, attrs }) => {
-  // const singleContents = contents.split('---*/').pop();
   const singleContents = contents.slice(contents.lastIndexOf('---*/') + 5);
 
-  // const prelude = attrs.includes.map(x => preludes[x]).join('\n');
   const prelude = attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? '') + '\n', '');
   let toRun = attrs.flags.raw ? contents : (prelude + singleContents);
 
@@ -159,7 +148,6 @@ if (!resultOnly) console.log('reading tests... (may take ~30s)');
 const tests = [];
 for await (const test of _tests) {
   if (test.scenario === 'strict mode') continue;
-  // if (excludeNegative && test.attrs.negative) continue;
   tests.push(test);
 }
 
