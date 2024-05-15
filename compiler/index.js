@@ -12,14 +12,7 @@ globalThis.decompile = decompile;
 const logFuncs = (funcs, globals, exceptions) => {
   console.log('\n' + underline(bold('funcs')));
 
-  const startIndex = funcs.sort((a, b) => a.index - b.index)[0].index;
   for (const f of funcs) {
-    console.log(`${underline(f.name)} (${f.index - startIndex})`);
-
-    console.log(`params: ${f.params.map((_, i) => Object.keys(f.locals)[Object.values(f.locals).indexOf(Object.values(f.locals).find(x => x.idx === i))]).join(', ')}`);
-    console.log(`returns: ${f.returns.length > 0 ? true : false}`);
-    console.log(`locals: ${Object.keys(f.locals).sort((a, b) => f.locals[a].idx - f.locals[b].idx).map(x => `${x} (${f.locals[x].idx})`).join(', ')}`);
-    console.log();
     console.log(decompile(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
   }
 
@@ -44,11 +37,13 @@ export default (code, flags) => {
   opt(funcs, globals, pages, tags, exceptions);
   if (Prefs.profileCompiler) console.log(`3. optimized in ${(performance.now() - t2).toFixed(2)}ms`);
 
-  if (Prefs.optFuncs) logFuncs(funcs, globals, exceptions);
+  // if (Prefs.optFuncs) logFuncs(funcs, globals, exceptions);
 
   const t3 = performance.now();
   const wasm = assemble(funcs, globals, tags, pages, data, flags);
   if (Prefs.profileCompiler) console.log(`4. assembled in ${(performance.now() - t3).toFixed(2)}ms`);
+
+  if (Prefs.optFuncs) logFuncs(funcs, globals, exceptions);
 
   if (Prefs.allocLog) {
     const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
