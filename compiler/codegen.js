@@ -1949,6 +1949,11 @@ const generateNew = (scope, decl, _global, _name) => {
     }, _global, _name);
   }
 
+  if (
+    (builtinFuncs[name] && !builtinFuncs[name].constr) ||
+    (internalConstrs[name] && builtinFuncs[name].notConstr)
+  ) return internalThrow(scope, 'TypeError', `${name} is not a constructor`);
+
   if (!builtinFuncs[name]) return todo(scope, `new statement is not supported yet`); // return todo(scope, `new statement is not supported yet (new ${unhackName(name)})`);
 
   return generateCall(scope, decl, _global, _name);

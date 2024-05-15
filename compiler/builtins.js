@@ -198,7 +198,8 @@ export const BuiltinFuncs = function() {
     returns: [ valtypeBinary ],
     wasm: [
       [ Opcodes.local_get, 0 ]
-    ]
+    ],
+    constr: true
   };
 
   // just return given (default 0) for (new) Object() as we somewhat supports object just not constructor
@@ -210,7 +211,8 @@ export const BuiltinFuncs = function() {
     wasm: [
       // [ Opcodes.local_get, 0 ]
       ...number(1)
-    ]
+    ],
+    constr: true
   };
 
 
