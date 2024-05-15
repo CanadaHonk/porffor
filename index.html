@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <head>
   <title>Porffor</title>
 
@@ -638,6 +639,8 @@
       width: 100%;
       /* height: 80vh; */
       height: 600px;
+
+      margin-bottom: 60px;
     }
 
     #commit_log {
@@ -687,113 +690,26 @@
       float: right;
     }
 
+    #graph {
+      max-width: 100%;
+      height: 100%;
+      color: var(--accent);
+
+      border-radius: 8px;
+      background: var(--background-secondary);
+    }
+
+    #graph text {
+      stroke: var(--text-muted);
+      font-size: 22px;
+      text-rendering: optimizeLegibility;
+    }
+
     header img {
       vertical-align: middle;
       border-radius: 4px;
       margin-right: 8px;
       margin-bottom: 6px;
-    }
-
-    #graph {
-      /* background: var(--background-secondary);
-
-      border-radius: 8px;
-      padding: 8px; */
-    }
-
-    #graph > div {
-      display: inline-flex;
-      flex-direction: column;
-      height: 100%;
-      vertical-align: top;
-    }
-
-    #graph > div > :first-child {
-      height: calc(100% - 20px);
-
-      display: flex;
-      flex-direction: column;
-    }
-
-    #graph > div > :last-child {
-      height: 20px;
-      font-size: 12px;
-      font-family: var(--font-header);
-      padding: 2px;
-
-      border-top: 1px solid #606468;
-      background: #000408;
-    }
-
-    .graph-0 {
-      background: #13a10e;
-    }
-    .graph-1 {
-      background: #c19c00;
-    }
-    .graph-2 {
-      background: #e74856;
-    }
-    .graph-3 {
-      background: #792027;
-    }
-    .graph-4 {
-      background: #c50f1f;
-    }
-    .graph-5 {
-      background: #cccccc;
-    }
-    .graph-6 {
-      background: #dd5719;
-    }
-
-    #benches {
-      width: 100%;
-
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px 64px;
-      margin: 64px 0;
-    }
-
-    #benches h2 {
-      font-size: 22px;
-      margin-top: 0;
-      margin-bottom: 12px;
-    }
-
-    #benches code {
-      font-size: 1em;
-    }
-
-    #benches > div > div {
-      display: flex;
-      margin-bottom: 6px;
-    }
-
-    #benches > div > div > :first-child {
-      font-size: 18px;
-      color: var(--text-normal);
-      flex-basis: 140px;
-      flex-shrink: 0;
-    }
-
-    #benches > div > div > :last-child {
-      padding: 0 4px;
-      background: var(--background-secondary);
-
-      color: var(--text-muted);
-      font-size: 16px;
-
-      height: 22px;
-      line-height: 22px;
-
-      border-radius: 6px;
-    }
-
-    #benches .porffor {
-      background: var(--accent-light) !important;
-      color: var(--text-normal) !important;
     }
 
     span[title] {
@@ -830,30 +746,11 @@
     <h2>Test262</h2>
     <div id="test262">
       <div id="commit_log"></div>
-      <div id="graph"></div>
-    </div>
-
-    <div id="benches">
-      <div id="bench_0">
-        <h2>Sum 1 million random numbers</h2>
-      </div>
-
-      <div id="bench_1">
-        <h2>Count prime numbers 1-10000</h2>
-      </div>
-
-      <div id="bench_2">
-        <h2>Factorial of 100</h2>
-      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" id="graph"></svg>
     </div>
   </article>
 
   <script> (async () => {
-    if (window.crossOriginIsolated === false) {
-      console.log('not cross-origin isolated, registering service worker for later');
-      const worker = await navigator.serviceWorker.register('./sw.js');
-    }
-
     const loadScript = async x => {
       const el = document.createElement('script');
       el.src = x;
@@ -1039,7 +936,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         wasmView.innerHTML = `<div id="wasm-size">${wasm.byteLength} bytes</div>` + decomps.join('\n').replaceAll('\x1B[0m', '</span>').replace(/\x1B\[([0-9]{2})m/g, (_, esc) => `<span class="ansi-${esc}">`);
       }
 
-      status.textContent = `Compiled in ${times[0].toFixed(2)}ms`;
+      status.textContent = `Compiled in ${times[0].toFixed(0)}ms`;
 
       await new Promise(res => setTimeout(res, 10));
 
@@ -1055,15 +952,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       print('\n');
 
       const execTime = performance.now() - t2;
-      status.textContent += `. Executed in ${execTime.toFixed(2)}ms`;
-
-      // const t3 = performance.now();
-      // try {
-        // eval(code);
-      // } catch {}
-
-      // const evalTime = performance.now() - t3;
-      // status.textContent += `. Eval took ${evalTime.toFixed(2)}ms (${(evalTime / execTime).toFixed(1)}x)`;
+      status.textContent += `. Executed in ${execTime.toFixed(0)}ms`;
 
       output.textContent = cache;
     };
@@ -1080,253 +969,140 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
     comp();
 
     const niceDate = x => {
-      let hours = x.getHours();
-      let ind = 'am';
-      if (hours >= 12) {
-        hours = hours % 12;
-        if (hours === 0) hours = 12;
-        ind = 'pm';
-      }
-
-      return `${x.toLocaleString('default', { month: 'long' })} ${x.getDate()}, ${x.getFullYear()}`;
+      return x.toLocaleString('default', {
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric'
+      });
+      // return `${x.toLocaleString('default', { month: 'long' })} ${x.getDate()}, ${x.getFullYear()}`;
       // return `${hours}:${x.getMinutes().toString().padStart(2, '0')} ${ind} · ${x.toLocaleString('default', { month: 'long' })} ${x.getDate()}, ${x.getFullYear()}`;
     };
 
-    const getCommits = async pages => {
-      let out = [];
-      for (let i = 1; i <= pages; i++) {
-        out.push(...(await (await fetch('https://api.github.com/repos/canadahonk/porffor/commits?per_page=100&page=' + i)).json()));
-      }
+    (async () => {
+      const getCommits = async page => await (await fetch('https://api.github.com/repos/canadahonk/porffor/commits?per_page=100&page=' + page)).json();
+      let commits = await getCommits(1);
 
-      return out;
-    };
-    let commits = await getCommits(3);
+      const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+(\.[0-9]+)?)%/)?.[1]);
+      const getCommitDetails = x => x.commit.message.trim().split('\n').pop().split(' | ').slice(1).map(x => x.split(' ')[1]);
 
-    const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+(\.[0-9]+)?)%/)?.[1]);
-    const getCommitDetails = x => x.commit.message.trim().split('\n').pop().split(' | ').slice(1).map(x => x.split(' ')[1]);
-
-    let graphData = {};
-    for (let i = 0; i < commits.length; i++) {
-      const x = commits[i];
-      const msg = x.commit.message.trim().split('\n');
-      const el = document.createElement('div');
-
-      const textEl = document.createElement('div');
-      textEl.textContent = msg[0].slice(0, 42) + (msg[0].length > 42 ? '...' : '');
-
-      const when = new Date(x.commit.committer.date);
-      const whenEl = document.createElement('div');
-      whenEl.textContent = niceDate(when);
-
-      const percent = getCommitPercent(x);
-      if (isNaN(percent)) continue;
-
-      let prevPercent = NaN;
-      for (let j = i + 1; j < commits.length; j++) {
-        prevPercent = getCommitPercent(commits[j]);
-        if (!isNaN(prevPercent)) break;
-      }
-
-      let change = 0;
-      if (!isNaN(prevPercent)) change = percent - prevPercent;
-      if (change === 0) continue;
-
-      const percentEl = document.createElement('div');
-      percentEl.innerHTML = `${percent.toFixed(2)}%${change !== 0 ? `<span>(${change > 0 ? '+' : ''}${change.toFixed(2)})</span>` : ''}`;
-
-      // textEl.append(percentEl);
-      percentEl.append(whenEl);
-
-      el.append(textEl, percentEl);
-      commit_log.append(el);
-
-      let details = getCommitDetails(x);
-      if (!details || details.length === 0) continue;
-
-      // add 0 timeouts if not included
-      if (details.length === 7) details = [ ...details.slice(0, 6), 0, details[6] ];
-
-      const key = `${when.getDate().toString().padStart(2, '0')}/${(when.getMonth() + 1).toString().padStart(2, '0')}`;
-      if (graphData[key]) continue;
-      graphData[key] = details;
-    }
-
-    let last = [];
-    for (let i = 8; i <= 31; i++) {
-      const key = `${i.toString().padStart(2, '0')}/07`;
-      if (!graphData[key]) graphData[key] = last;
-        else last = graphData[key];
-    }
-
-    for (let i = 1; i <= 31; i++) {
-      const key = `${i.toString().padStart(2, '0')}/08`;
-      if (!graphData[key]) graphData[key] = last;
-        else last = graphData[key];
-    }
-
-    for (let i = 1; i <= (new Date()).getDate(); i++) {
-      const key = `${i.toString().padStart(2, '0')}/09`;
-      if (!graphData[key]) graphData[key] = last;
-        else last = graphData[key];
-    }
-
-    const _graphData = graphData;
-    graphData = {};
-
-    // daily to weekly
-    for (let j = 7; j <= 9; j++) {
-      for (let i = 1; i <= 31; i += 7) {
-        let data;
-        for (let x = 0; x < 7; x++) {
-          const key = `${(i + x).toString().padStart(2, '0')}/${j.toString().padStart(2, '0')}`;
-          if (_graphData[key]) data = _graphData[key];
-        }
-
-        const key = `${i.toString().padStart(2, '0')}/${j.toString().padStart(2, '0')}`;
-        if (data) graphData[key] = data;
-      }
-    }
-
-    const dateVal = x => parseInt(x.slice(3, 5) + x.slice(0, 2));
-
-    for (const x of Object.keys(graphData).sort((a, b) => dateVal(a) - dateVal(b))) {
-      const details = graphData[x];
-      const [ total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos ] = details;
-
-      const containerEl = document.createElement('div');
-      const barEl = document.createElement('div');
-
-      let i = 0;
-      for (const y of details.slice(1)) {
+      for (let i = 0; i < commits.length; i++) {
+        const x = commits[i];
+        const msg = x.commit.message.trim().split('\n');
         const el = document.createElement('div');
-        el.style.height = `${(y / total) * 100}%`;
-        el.className = `graph-${i}`;
 
-        el.title = (['Pass', 'Fail', 'Runtime error', 'Wasm error', 'Compile error', 'Timeout', 'Todo'])[i] + `: ${y} (${((y / total) * 100).toFixed(2)}%)`;
+        const textEl = document.createElement('div');
+        textEl.textContent = msg[0].slice(0, 42) + (msg[0].length > 42 ? '...' : '');
 
-        barEl.appendChild(el);
+        const when = new Date(x.commit.committer.date);
+        const whenEl = document.createElement('div');
+        whenEl.textContent = niceDate(when);
 
-        i++;
-      }
+        const percent = getCommitPercent(x);
+        if (isNaN(percent)) continue;
 
-      const keyEl = document.createElement('div');
-      keyEl.textContent = x;
-
-      containerEl.append(barEl, keyEl);
-
-      graph.appendChild(containerEl);
-    }
-
-    const benches = async () => {
-      const SAMPLES = 10;
-      const results = {};
-
-      const avg = arr => arr.reduce((acc, x) => acc + x, 0) / arr.length;
-
-      const bench = (which, what, run) => {
-        let times = [];
-
-        for (let i = 0; i < SAMPLES; i++) {
-          const t = performance.now();
-          run();
-          times.push(performance.now() - t);
+        let prevPercent = NaN;
+        for (let j = i + 1; j < commits.length; j++) {
+          prevPercent = getCommitPercent(commits[j]);
+          if (!isNaN(prevPercent)) break;
         }
 
-        if (!results[which]) results[which] = {};
-        results[which][what] = avg(times);
-      };
+        let change = 0;
+        if (!isNaN(prevPercent)) change = percent - prevPercent;
+        if (change === 0) continue;
 
-      function randoms(max) {
-        let sum = 0;
-        for (let i = 0; i < max; i++) {
-          sum += Math.random();
-        }
+        const percentEl = document.createElement('div');
+        percentEl.innerHTML = `${percent.toFixed(2)}%${change !== 0 ? `<span>(${change > 0 ? '+' : ''}${change.toFixed(2)})</span>` : ''}`;
 
-        return sum;
+        // textEl.append(percentEl);
+        percentEl.append(whenEl);
+
+        el.append(textEl, percentEl);
+        commit_log.append(el);
+      }
+    })();
+
+    const hist = await (await fetch('https://test262.fyi/data/history.json')).json();
+    const histKeys = Object.keys(hist);
+    const oldest = new Date(histKeys[0]);
+    const newest = new Date(histKeys.at(-1));
+    const dateRange = newest - oldest;
+
+    const makeGraph = () => {
+      const availableWidth = Math.min(window.innerWidth, 2000) - 400 - 24;
+      const availableHeight = 600;
+      const aspectRatio = availableWidth / availableHeight;
+
+      const width = 1000 * aspectRatio;
+      const height = 1000;
+
+      const leftAxisWidth = 80;
+      const padding = 20;
+
+      const upperBound = 20; // 100
+      const lowerBound = 10; // 0
+
+      graph.setAttribute('viewBox', `0 0 ${width + leftAxisWidth + padding*2} ${height + padding*2}`);
+      graph.innerHTML = '';
+
+      // left axis line
+      const leftAxisLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      leftAxisLine.setAttribute('x1', padding + leftAxisWidth);
+      leftAxisLine.setAttribute('x2', padding + leftAxisWidth);
+      leftAxisLine.setAttribute('y1', padding);
+      leftAxisLine.setAttribute('y2', height + padding);
+      leftAxisLine.setAttribute('stroke', '#000408');
+      graph.appendChild(leftAxisLine);
+
+      const gridlinesEvery = 1; // 5
+      for (let i = lowerBound; i <= upperBound; i += gridlinesEvery) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', (leftAxisWidth + padding).toFixed());
+        line.setAttribute('x2', (width + leftAxisWidth + padding).toFixed());
+
+        const y = (padding + (1 - ((i - lowerBound) / (upperBound - lowerBound))) * height).toFixed();
+        line.setAttribute('y1', y);
+        line.setAttribute('y2', y);
+        line.setAttribute('stroke', '#000408');
+        graph.appendChild(line);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', padding + leftAxisWidth - 16);
+        text.setAttribute('y', +y + ((i - lowerBound) / (upperBound - lowerBound)) * 10);
+        text.setAttribute('text-anchor', 'end');
+
+        text.textContent = `${i}%`;
+        graph.appendChild(text);
       }
 
-      function countPrimes(max) {
-        function isPrime(number) {
-          if (number < 2) return false;
 
-          for (let i = 2; i < number; i++) {
-            if (number % i == 0) return false;
-          }
+      const points = [];
+      for (const d in hist) {
+        const percent = (hist[d].porffor / hist[d].total);
+        if (Number.isNaN(percent)) continue;
 
-          return true;
-        }
+        const when = (Date.parse(d) - oldest) / dateRange;
 
-        let counter = 0, primes = 0;
-        while (counter <= max) {
-          if (isPrime(counter)) primes++;
-          counter++;
-        }
+        const x = (padding + leftAxisWidth + when * width).toFixed();
+        const y = (padding + (1 - ((percent * 100 - lowerBound) / (upperBound - lowerBound))) * height).toFixed();
+        points.push(`${x},${y}`);
 
-        return primes;
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x);
+        circle.setAttribute('cy', y);
+        circle.setAttribute('r', 2.5);
+        circle.setAttribute('fill', 'var(--accent-light)');
+        graph.appendChild(circle);
       }
 
-      function factorial(n) {
-        if (n === 0) return 1;
-
-        return n * factorial(n - 1);
-      }
-
-      const maxes = [ 1000000, 10000, 100 ];
-      const funcs = [ randoms, countPrimes, factorial ];
-
-      for (let i = 0; i < funcs.length; i++) {
-        const func = funcs[i];
-        const max = maxes[i];
-
-        bench(i, 'Your browser', () => {
-          func(max);
-        });
-
-        const compiled = (await compile('export ' + func.toString())).exports[func.name];
-
-        bench(i, 'Porffor', () => {
-          compiled(max);
-        });
-
-        /* try {
-          process.argv.push('-valtype=i32');
-          if (['factorial'].includes(func.name)) throw 'overflow';
-          const compiledI32 = (await compile('export ' + func.toString())).exports[func.name];
-
-          bench(i, 'porffor (i32)', () => {
-            compiledI32(max);
-          });
-        } catch {
-          // ignore as some things are unsupported in i32 mode
-        } finally {
-          process.argv.pop();
-        } */
-      }
-
-      for (let i = 0; i < funcs.length; i++) {
-        const maxTime = Math.max(...Object.values(results[i])) * 1.1;
-
-        const parentEl = document.getElementById(`bench_${i}`);
-
-        const keys = Object.keys(results[i]).sort((a, b) => results[i][a] - results[i][b]);
-        for (const x of keys) {
-          const result = results[i][x];
-          const el = document.createElement('div');
-
-          const labelEl = document.createElement('div');
-          labelEl.textContent = x;
-
-          const barEl = document.createElement('div');
-          barEl.textContent = result.toFixed(2) + 'ms';
-          barEl.style.width = `calc((100% - 140px) * ${(result / maxTime)})`;
-          barEl.className = x;
-
-          el.append(labelEl, barEl);
-          parentEl.append(el);
-        }
-      }
+      const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      polyline.setAttribute('fill', 'none');
+      polyline.setAttribute('stroke', 'currentColor');
+      polyline.setAttribute('stroke-width', 3);
+      polyline.setAttribute('points', points.join(' '));
+      graph.appendChild(polyline);
     };
-
-    setTimeout(benches, 3000);
+    makeGraph();
+    window.addEventListener('resize', makeGraph);
   })();</script>
 </body>
