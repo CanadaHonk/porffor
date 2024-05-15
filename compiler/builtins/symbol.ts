@@ -1,4 +1,4 @@
-export const __Porffor_symbol_descStore = (op: boolean, value: bytestring): any => {
+export const __Porffor_symbol_descStore = (op: boolean, value: any): any => {
   const ptr: bytestring = '';
 
   if (op) { // write
@@ -20,7 +20,8 @@ export const Symbol = (description: any): Symbol => {
 
 // todo: this should be a getter somehow not a method
 export const __Symbol_prototype_description = (_this: Symbol) => {
-  const description: bytestring = __Porffor_symbol_descStore(false, _this - 1);
+  const description: bytestring = __Porffor_symbol_descStore(false,
+    Porffor.wasm`local.get ${_this}` - 1);
   return description;
 };
 
@@ -36,7 +37,8 @@ export const __Symbol_prototype_toString = (_this: Symbol) => {
   Porffor.wasm.i32.store8(out, 108, 0, 9);
   Porffor.wasm.i32.store8(out, 40, 0, 10);
 
-  const description: bytestring = __Porffor_symbol_descStore(false, _this - 1);
+  const description: bytestring = __Porffor_symbol_descStore(false,
+    Porffor.wasm`local.get ${_this}` - 1);
 
   const descLen: i32 = description.length;
   let outPtr: i32 = Porffor.wasm`local.get ${out}` + 7;
