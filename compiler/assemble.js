@@ -65,6 +65,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
     importFuncs = [...imports.values()];
 
     // fix call indexes for non-imports
+    // also fix call_indirect types
     const delta = importedFuncs.length - importFuncs.length;
     for (const f of funcs) {
       f.originalIndex = f.index;
@@ -73,6 +74,16 @@ export default (funcs, globals, tags, pages, data, flags) => {
       for (const inst of f.wasm) {
         if ((inst[0] === Opcodes.call || inst[0] === Opcodes.return_call) && inst[1] >= importedFuncs.length) {
           inst[1] -= delta;
+        }
+
+        if (inst[0] === Opcodes.call_indirect) {
+          const params = [];
+          for (let i = 0; i < inst[1]; i++) {
+            params.push(valtypeBinary, Valtype.i32);
+          }
+
+          const returns = [ valtypeBinary, Valtype.i32 ];
+          inst[1] = getType(params, returns);
         }
       }
     }

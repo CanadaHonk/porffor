@@ -351,9 +351,7 @@ const generateReturn = (scope, decl) => {
 
   return [
     ...generate(scope, decl.argument),
-    ...(scope.returnType != null ? [] : [
-      ...getNodeType(scope, decl.argument)
-    ]),
+    ...(scope.returnType != null ? [] : getNodeType(scope, decl.argument)),
     [ Opcodes.return ]
   ];
 };
@@ -1451,6 +1449,10 @@ const countLeftover = wasm => {
             } else count--;
             if (func) count += func.returns.length;
           }
+        } else if (inst[0] === Opcodes.call_indirect) {
+          count--; // funcidx
+          count -= inst[1] * 2; // params * 2 (typed)
+          count += 2; // fixed return (value, type)
         } else count--;
 
     // console.log(count, decompile([ inst ]).slice(0, -1));
@@ -1832,7 +1834,45 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (idx === undefined) {
-    if (scope.locals[name] !== undefined || globals[name] !== undefined || builtinVars[name] !== undefined) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
+    if (scope.locals[name] !== undefined || globals[name] !== undefined || builtinVars[name] !== undefined) {
+      const [ local, global ] = lookupName(scope, name);
+      if (!Prefs.indirectCalls || local == null) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
+
+      // todo: only works when:
+      //   1. arg count matches arg count of function
+      //   2. function uses typedParams and typedReturns
+
+      funcs.table = true;
+
+      let args = decl.arguments;
+      let argWasm = [];
+
+      for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        argWasm = argWasm.concat(generate(scope, arg));
+
+        if (valtypeBinary !== Valtype.i32 && (
+          (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32) ||
+          (importedFuncs[name] && name.startsWith('profile'))
+        )) {
+          argWasm.push(Opcodes.i32_to);
+        }
+
+        argWasm = argWasm.concat(getNodeType(scope, arg));
+      }
+
+      return typeSwitch(scope, getNodeType(scope, decl.callee), {
+        [TYPES.function]: [
+          ...argWasm,
+          [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+          Opcodes.i32_to_u,
+          [ Opcodes.call_indirect, args.length, 0 ],
+          ...setLastType(scope)
+        ],
+        default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
+      });
+    }
+
     return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
   }
 
@@ -3394,7 +3434,7 @@ const generateFunc = (scope, decl) => {
 
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
-    if (type != null) {
+    if (type != null && !Prefs.indirectCalls) {
       innerScope.returnType = type;
       innerScope.returns = [ valtypeBinary ];
     }
