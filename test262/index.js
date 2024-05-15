@@ -31,18 +31,10 @@ if (lastCommitResults.length === 8) lastCommitResults = [ ...lastCommitResults.s
 const resultOnly = process.env.RESULT_ONLY;
 
 import vm from 'node:vm';
-
-function timeout(function_, timeout) {
-	const script = new vm.Script('returnValue = function_()');
-
-  const context = {
-    function_
-  };
-
-  script.runInNewContext(context, { timeout });
-
-  return context.returnValue;
-}
+const timeout = ($func, timeout) => {
+  const script = new vm.Script('$func()');
+  return script.runInNewContext({ $func }, { timeout });
+};
 
 const trackErrors = process.argv.includes('--errors');
 const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
