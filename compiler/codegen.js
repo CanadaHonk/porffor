@@ -3612,8 +3612,10 @@ const internalConstrs = {
           }),
 
           // print space
-          ...number(32),
-          [ Opcodes.call, importedFuncs.printChar ]
+          ...(i !== decl.arguments.length - 1 ? [
+            ...number(32),
+            [ Opcodes.call, importedFuncs.printChar ]
+          ] : [])
         );
       }
 
@@ -3622,6 +3624,8 @@ const internalConstrs = {
         ...number(10),
         [ Opcodes.call, importedFuncs.printChar ]
       );
+
+      out.push(...number(UNDEFINED));
 
       return out;
     },
