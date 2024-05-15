@@ -646,7 +646,7 @@
 
       width: 100%;
       /* height: 80vh; */
-      height: 600px;
+      height: 800px;
 
       margin-bottom: 60px;
     }
@@ -718,10 +718,37 @@
       cursor: default;
     }
 
+    #graph_legend {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+
+      display: flex;
+      overflow: hidden;
+
+      color: var(--text-normal);
+      padding: 8px;
+      font-size: 18px;
+
+      gap: 40px;
+    }
+
+    #graph_legend div::before {
+      content: "";
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--color);
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+
     #graph_time {
       position: absolute;
-      right: 12px;
+      right: 16px;
       top: 16px;
+      color: var(--text-muted);
 
       border-radius: 16px;
       background: #000408;
@@ -731,13 +758,14 @@
     }
 
     #graph_time div {
-      font-size: 16px;
-      padding: 6px 12px;
+      font-size: 18px;
+      padding: 8px 12px;
       cursor: pointer;
     }
 
     #graph_time div.active {
       background: var(--accent);
+      color: var(--text-normal);
     }
 
     #graph_time div:not(:last-child) {
@@ -759,8 +787,8 @@
 
     #graph svg {
       width: 100%;
-      height: 100%;
-      color: rgb(85, 255, 85);
+      height: calc(100% - 60px);
+      margin-top: 60px;
     }
 
     #graph text {
@@ -812,10 +840,11 @@
     <div id="test262">
       <div id="commit_log"></div>
       <div id="graph">
+        <div id="graph_legend"></div>
         <div id="graph_time">
-          <div class="active" id="graph_time_3">3 months</div>
+          <div id="graph_time_3">3 months</div>
           <div id="graph_time_6">6 months</div>
-          <div id="graph_time_all">all-time</div>
+          <div class="active" id="graph_time_all">all-time</div>
         </div>
         <svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" id="svg"></svg>
       </div>
@@ -1076,6 +1105,22 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       commit_log.append(el);
     }
 
+    const colors = {
+      pass: '#57f287',
+      fail: '#fee75c',
+      runtimeError: '#ed4245',
+      compileError: '#6f0b0c'
+    };
+
+    for (const x in colors) {
+      const name = x.replace(/[a-z][A-Z]/, _ => `${_[0]} ${_[1].toLowerCase()}`);
+      const el = document.createElement('div');
+      el.textContent = name;
+      el.style = `--color: ${colors[x]}`;
+
+      graph_legend.appendChild(el);
+    }
+
     const makeGraph = () => {
       const timeFrame = [graph_time_3, graph_time_6, graph_time_all].find(x => x.className === 'active').textContent;
 
@@ -1083,6 +1128,11 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       if (timeFrame.endsWith('months')) {
         cutoff = new Date();
         cutoff.setMonth(cutoff.getMonth() - parseInt(timeFrame[0]));
+      } else {
+        const oldest = new Date(history.at(-1).time);
+        const now = new Date();
+        const months = now.getMonth() - oldest.getMonth() + (12 * (now.getFullYear() - oldest.getFullYear())) + 1;
+        graph_time_all.textContent = `all-time (${months} months)`;
       }
 
       if (cutoff) for (let i = 0; i < history.length; i++) {
@@ -1100,7 +1150,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const dateRange = newest - oldest;
 
       const availableWidth = Math.min(window.innerWidth, 2000) - 400 - 24;
-      const availableHeight = 600;
+      const availableHeight = 800;
       const aspectRatio = availableWidth / availableHeight;
 
       const width = 1000 * aspectRatio;
@@ -1149,32 +1199,52 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         svg.appendChild(text);
       }
 
-      const points = [];
-      for (let i = 0; i < cutoff; i++) {
-        let [ percent, total, pass, fail, runtimeError, wasmError, compileError, timeout, todo ] = history[i].results;
-        percent /= 100;
-
-        const when = (history[i].time - oldest) / dateRange;
-
-        const x = (padding + leftAxisWidth + when * width).toFixed();
-        // const y = (padding + (1 - ((percent * 100 - lowerBound) / (upperBound - lowerBound))) * height).toFixed();
-        const y = (padding + (1 - percent) * height).toFixed();
-        points.push(`${x},${y}`);
-
+      const addCircle = (x, y, color) => {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', x);
         circle.setAttribute('cy', y);
         circle.setAttribute('r', 3);
-        circle.setAttribute('fill', 'currentColor');
+        circle.setAttribute('fill', color);
         svg.appendChild(circle);
+      };
+
+      const points = {
+        pass: [],
+        fail: [],
+        runtimeError: [],
+        compileError: []
+      };
+
+      for (let i = 0; i < cutoff; i++) {
+        const [ percent, total, pass, fail, runtimeError, wasmError, compileError, timeout, todo ] = history[i].results;
+
+        const when = (history[i].time - oldest) / dateRange;
+        const x = (padding + leftAxisWidth + when * width).toFixed();
+
+        const run = (n, type) => {
+          const y = (padding + (1 - (n / total)) * height).toFixed();
+          points[type].push(`${x},${y}`);
+          addCircle(x, y, colors[type]);
+        };
+
+        run(pass, 'pass');
+        run(fail, 'fail');
+        run(runtimeError + todo + timeout, 'runtimeError');
+        run(compileError + wasmError, 'compileError')
       }
 
-      const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-      polyline.setAttribute('fill', 'none');
-      polyline.setAttribute('stroke', 'currentColor');
-      polyline.setAttribute('stroke-width', 3);
-      polyline.setAttribute('points', points.join(' '));
-      svg.appendChild(polyline);
+      const addLine = (points, color) => {
+        const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        polyline.setAttribute('fill', 'none');
+        polyline.setAttribute('stroke', color);
+        polyline.setAttribute('stroke-width', 3);
+        polyline.setAttribute('points', points.join(' '));
+        svg.appendChild(polyline);
+      };
+
+      for (const x in points) {
+        addLine(points[x], colors[x]);
+      }
     };
     makeGraph();
     window.addEventListener('resize', makeGraph);
