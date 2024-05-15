@@ -85,6 +85,14 @@
       margin-bottom: 8px;
     }
 
+    h2 > span {
+      color: var(--text-muted);
+      font-family: var(--font-normal);
+      font-weight: normal;
+      font-size: 18px;
+      margin-left: 60px;
+    }
+
     header {
       width: 100%;
       height: fit-content;
@@ -736,16 +744,16 @@
       border-right: 2px solid #101418;
     }
 
-    #graph span a {
+    a.simple {
       color: inherit;
       font-weight: inherit;
     }
 
-    #graph span a:hover {
+    a.simple:hover {
       text-decoration: underline;
     }
 
-    #graph span a::after {
+    a.simple::after {
       display: none;
     }
 
@@ -800,11 +808,11 @@
     <div id="output"></div>
     <div id="status"></div>
 
-    <h2>Test262</h2>
+    <h2>Test262 <span><a class="simple" href="https://github.com/tc39/test262">Test262</a> is the official ECMAScript conformance test suite. Porffor is ran against it each commit to track conformance progress!</span></h2>
     <div id="test262">
       <div id="commit_log"></div>
       <div id="graph">
-        <span>data from <a href="https://test262.fyi">test262.fyi</a></span>
+        <span>data from <a class="simple" href="https://test262.fyi">test262.fyi</a></span>
         <div id="graph_time">
           <div class="active" id="graph_time_3">3 months</div>
           <div id="graph_time_6">6 months</div>
