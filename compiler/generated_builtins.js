@@ -1622,4 +1622,49 @@ export const BuiltinFuncs = function() {
     locals: [],
     localNames: ["_this","_this#type"],
   };
+  this.__Porffor_symbol_descStore = {
+    wasm: (scope, {allocPage,builtin,}) => [...number(allocPage(scope, 'bytestring: __Porffor_symbol_descStore/ptr', 'i8') * pageSize, 124),[33,4],[32,0],[252,3],[4,64],[32,4],[252,2],[40,0,0],[183],[33,5],[32,4],[252,2],[32,5],[68,0,0,0,0,0,0,240,63],[160],[252,2],[54,0,0],[32,4],[65,18],[32,5],[65,0],[32,2],[65,18],[16, builtin('__Porffor_set_write')],[26],[32,5],[65,0],[15],[5],[32,4],[65,18],[32,2],[65,18],[16, builtin('__Porffor_set_read')],[34,6],[15],[11],[68,0,0,0,0,0,0,0,0],[65,3],[15]],
+    params: [124,127,124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124,124,127],
+    localNames: ["op","op#type","value","value#type","ptr","size","#last_type"],
+  };
+  this.Symbol = {
+    wasm: (scope, {builtin,}) => [[68,0,0,0,0,0,0,240,63],[65,1],[32,0],[32,1],[16, builtin('__Porffor_symbol_descStore')],[33,2],[68,0,0,0,0,0,0,240,63],[160],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124],
+    returnType: 6,
+    locals: [127],
+    localNames: ["description","description#type","#last_type"],
+  };
+  this.__Symbol_prototype_description = {
+    wasm: (scope, {builtin,}) => [[68,0,0,0,0,0,0,0,0],[65,1],[32,0],[68,0,0,0,0,0,0,240,63],[161],[65,0],[16, builtin('__Porffor_symbol_descStore')],[33,3],[34,2],[65,18],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124,127],
+    localNames: ["_this","_this#type","description","#last_type"],
+  };
+  this.__Symbol_prototype_toString = {
+    wasm: (scope, {allocPage,builtin,}) => [...number(allocPage(scope, 'bytestring: __Symbol_prototype_toString/out', 'i8') * pageSize, 124),[34,2],[252,2],[65,211,0],[58,0,4],[32,2],[252,2],[65,249,0],[58,0,5],[32,2],[252,2],[65,237,0],[58,0,6],[32,2],[252,2],[65,226,0],[58,0,7],[32,2],[252,2],[65,239,0],[58,0,8],[32,2],[252,2],[65,236,0],[58,0,9],[32,2],[252,2],[65,40],[58,0,10],[68,0,0,0,0,0,0,0,0],[65,1],[32,0],[68,0,0,0,0,0,0,240,63],[161],[65,0],[16, builtin('__Porffor_symbol_descStore')],[33,4],[34,3],[252,3],[40,1,0],[184],[33,5],[32,2],[68,0,0,0,0,0,0,28,64],[160],[33,6],[32,3],[34,7],[32,5],[160],[33,8],[3,64],[32,7],[32,8],[99],[4,64],[32,6],[32,6],[68,0,0,0,0,0,0,240,63],[160],[33,6],[252,2],[32,7],[32,7],[68,0,0,0,0,0,0,240,63],[160],[33,7],[252,2],[45,0,4],[58,0,4],[12,1],[11],[11],[32,2],[32,5],[160],[252,2],[65,41],[58,0,11],[32,2],[252,3],[68,0,0,0,0,0,0,32,64],[32,5],[160],[34,9],[252,3],[54,1,0],[32,2],[65,18],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [124,124,127,124,124,124,124,124],
+    localNames: ["_this","_this#type","out","description","#last_type","descLen","outPtr","descPtr","descPtrEnd","__length_setter_tmp"],
+  };
+  this.__Symbol_prototype_valueOf = {
+    wasm: (scope, {}) => [[32,0],[65,6],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
+  };
 };

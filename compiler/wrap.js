@@ -8,7 +8,7 @@ import Prefs from './prefs.js';
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
-const porfToJSValue = (memory, funcs, value, type) => {
+const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
   switch (type) {
     case TYPES.boolean: return Boolean(value);
     case TYPES.undefined: return undefined;
@@ -66,10 +66,22 @@ const porfToJSValue = (memory, funcs, value, type) => {
         // console.log('  memory:', Array.from(new Uint8Array(memory.buffer, offset, 9)).map(x => x.toString(16).padStart(2, '0')).join(' '));
         // console.log('  read:', { value: v, type: t }, '\n');
 
-        out.add(porfToJSValue(memory, funcs, v, t));
+        out.add(porfToJSValue({ memory, funcs, pages }, v, t));
       }
 
       return out;
+    }
+
+    case TYPES.symbol: {
+      const descStore = pages.get('bytestring: __Porffor_symbol_descStore/ptr').ind * pageSize;
+      const offset = descStore + 4 + ((value - 1) * 9);
+
+      const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
+      const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
+
+      const desc = porfToJSValue({ memory, funcs, pages }, v, t);
+
+      return Symbol(desc);
     }
 
     default: return value;
@@ -218,10 +230,11 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
     exports[func.name] = function() {
       try {
         const ret = exp.apply(this, arguments);
-
         if (ret == null) return undefined;
 
-        return porfToJSValue(memory, funcs, ret[0], ret[1]);
+        if (Prefs.rawValue) return { value: ret[0], type: ret[1] };
+
+        return porfToJSValue({ memory, funcs, pages }, ret[0], ret[1]);
       } catch (e) {
         if (e.is && e.is(exceptTag)) {
           const exceptId = e.getArg(exceptTag, 0);
