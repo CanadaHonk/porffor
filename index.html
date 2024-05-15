@@ -812,7 +812,6 @@
     <div id="test262">
       <div id="commit_log"></div>
       <div id="graph">
-        <span>data from <a class="simple" href="https://test262.fyi">test262.fyi</a></span>
         <div id="graph_time">
           <div class="active" id="graph_time_3">3 months</div>
           <div id="graph_time_6">6 months</div>
@@ -1047,58 +1046,37 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         hour: 'numeric',
         minute: 'numeric'
       });
-      // return `${x.toLocaleString('default', { month: 'long' })} ${x.getDate()}, ${x.getFullYear()}`;
-      // return `${hours}:${x.getMinutes().toString().padStart(2, '0')} ${ind} · ${x.toLocaleString('default', { month: 'long' })} ${x.getDate()}, ${x.getFullYear()}`;
     };
 
-    (async () => {
-      const getCommits = async page => await (await fetch('https://api.github.com/repos/canadahonk/porffor/commits?per_page=100&page=' + page)).json();
-      let commits = await getCommits(1);
+    const history = await (await fetch('/test262/history.json')).json();
 
-      const getCommitPercent = x => parseFloat(x.commit.message.trim().split('\n').pop().match(/([0-9]+(\.[0-9]+)?)%/)?.[1]);
-      const getCommitDetails = x => x.commit.message.trim().split('\n').pop().split(' | ').slice(1).map(x => x.split(' ')[1]);
+    for (let i = 0; i < 100; i++) {
+      const x = history[i];
+      const el = document.createElement('div');
 
-      for (let i = 0; i < commits.length; i++) {
-        const x = commits[i];
-        const msg = x.commit.message.trim().split('\n');
-        const el = document.createElement('div');
+      const textEl = document.createElement('div');
+      textEl.textContent = x.title.slice(0, 42) + (x.title.length > 42 ? '...' : '');
 
-        const textEl = document.createElement('div');
-        textEl.textContent = msg[0].slice(0, 42) + (msg[0].length > 42 ? '...' : '');
+      const when = new Date(x.time);
+      const whenEl = document.createElement('div');
+      whenEl.textContent = niceDate(when);
 
-        const when = new Date(x.commit.committer.date);
-        const whenEl = document.createElement('div');
-        whenEl.textContent = niceDate(when);
+      const percent = x.results[0];
+      const prevPercent = history[i + 1].results[0];
 
-        const percent = getCommitPercent(x);
-        if (isNaN(percent)) continue;
+      const change = percent - prevPercent;
+      if (change === 0) continue;
 
-        let prevPercent = NaN;
-        for (let j = i + 1; j < commits.length; j++) {
-          prevPercent = getCommitPercent(commits[j]);
-          if (!isNaN(prevPercent)) break;
-        }
+      const percentEl = document.createElement('div');
+      percentEl.innerHTML = `${percent.toFixed(2)}%${change !== 0 ? `<span>(${change > 0 ? '+' : ''}${change.toFixed(2)})</span>` : ''}`;
 
-        let change = 0;
-        if (!isNaN(prevPercent)) change = percent - prevPercent;
-        if (change === 0) continue;
+      percentEl.append(whenEl);
 
-        const percentEl = document.createElement('div');
-        percentEl.innerHTML = `${percent.toFixed(2)}%${change !== 0 ? `<span>(${change > 0 ? '+' : ''}${change.toFixed(2)})</span>` : ''}`;
-
-        // textEl.append(percentEl);
-        percentEl.append(whenEl);
-
-        el.append(textEl, percentEl);
-        commit_log.append(el);
-      }
-    })();
-
-    const _hist = await (await fetch('https://test262.fyi/data/history.json')).json();
+      el.append(textEl, percentEl);
+      commit_log.append(el);
+    }
 
     const makeGraph = () => {
-      let hist = { ..._hist };
-
       const timeFrame = [graph_time_3, graph_time_6, graph_time_all].find(x => x.className === 'active').textContent;
 
       let cutoff;
@@ -1107,14 +1085,18 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         cutoff.setMonth(cutoff.getMonth() - parseInt(timeFrame[0]));
       }
 
-      if (cutoff) for (const k in hist) {
-        const d = new Date(k);
-        if (d < cutoff) delete hist[k];
+      if (cutoff) for (let i = 0; i < history.length; i++) {
+        const d = new Date(history[i].time);
+        if (d < cutoff) {
+          cutoff = i;
+          break;
+        }
       }
 
-      const histKeys = Object.keys(hist);
-      const oldest = new Date(histKeys[0]);
-      const newest = new Date(histKeys.at(-1));
+      cutoff ??= history.length;
+
+      const oldest = history[cutoff - 1].time;
+      const newest = history[0].time;
       const dateRange = newest - oldest;
 
       const availableWidth = Math.min(window.innerWidth, 2000) - 400 - 24;
@@ -1127,8 +1109,8 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const leftAxisWidth = 80;
       const padding = 20;
 
-      const upperBound = 20; // 100
-      const lowerBound = 10; // 0
+      // const upperBound = 20; // 100
+      // const lowerBound = 10; // 0
 
       svg.setAttribute('viewBox', `0 0 ${width + leftAxisWidth + padding*2} ${height + padding*2}`);
       svg.innerHTML = '';
@@ -1142,13 +1124,16 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       leftAxisLine.setAttribute('stroke', '#000408');
       svg.appendChild(leftAxisLine);
 
-      const gridlinesEvery = 1; // 5
-      for (let i = lowerBound; i <= upperBound; i += gridlinesEvery) {
+      // const gridlinesEvery = 1;
+      const gridlinesEvery = 5;
+      // for (let i = lowerBound; i <= upperBound; i += gridlinesEvery) {
+      for (let i = 0; i <= 100; i += gridlinesEvery) {
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         line.setAttribute('x1', (leftAxisWidth + padding).toFixed());
         line.setAttribute('x2', (width + leftAxisWidth + padding).toFixed());
 
-        const y = (padding + (1 - ((i - lowerBound) / (upperBound - lowerBound))) * height).toFixed();
+        // const y = (padding + (1 - ((i - lowerBound) / (upperBound - lowerBound))) * height).toFixed();
+        const y = (padding + (1 - (i / 100)) * height).toFixed();
         line.setAttribute('y1', y);
         line.setAttribute('y2', y);
         line.setAttribute('stroke', '#000408');
@@ -1156,7 +1141,8 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', padding + leftAxisWidth - 16);
-        text.setAttribute('y', +y + ((i - lowerBound) / (upperBound - lowerBound)) * 10);
+        // text.setAttribute('y', +y + ((i - lowerBound) / (upperBound - lowerBound)) * 10);
+        text.setAttribute('y', +y + (i / 100) * 10);
         text.setAttribute('text-anchor', 'end');
 
         text.textContent = `${i}%`;
@@ -1164,14 +1150,15 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       }
 
       const points = [];
-      for (const d in hist) {
-        const percent = (hist[d].porffor / hist[d].total);
-        if (Number.isNaN(percent)) continue;
+      for (let i = 0; i < cutoff; i++) {
+        let [ percent, total, pass, fail, runtimeError, wasmError, compileError, timeout, todo ] = history[i].results;
+        percent /= 100;
 
-        const when = (Date.parse(d) - oldest) / dateRange;
+        const when = (history[i].time - oldest) / dateRange;
 
         const x = (padding + leftAxisWidth + when * width).toFixed();
-        const y = (padding + (1 - ((percent * 100 - lowerBound) / (upperBound - lowerBound))) * height).toFixed();
+        // const y = (padding + (1 - ((percent * 100 - lowerBound) / (upperBound - lowerBound))) * height).toFixed();
+        const y = (padding + (1 - percent) * height).toFixed();
         points.push(`${x},${y}`);
 
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
