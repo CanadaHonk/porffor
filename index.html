@@ -693,13 +693,70 @@
     #graph {
       max-width: 100%;
       height: 100%;
-      color: var(--accent);
+      color: var(--text-muted);
 
       border-radius: 8px;
       background: var(--background-secondary);
+      position: relative;
+    }
+
+    #graph span {
+      position: absolute;
+      right: 12px;
+      top: 50px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+      cursor: default;
+    }
+
+    #graph_time {
+      position: absolute;
+      right: 12px;
+      top: 16px;
+
+      border-radius: 16px;
+      background: #000408;
+
+      display: flex;
+      overflow: hidden;
+    }
+
+    #graph_time div {
+      font-size: 16px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+
+    #graph_time div.active {
+      background: var(--accent-dark);
+    }
+
+    #graph_time div:not(:last-child) {
+      border-right: 2px solid #101418;
+    }
+
+    #graph span a {
+      color: inherit;
+      font-weight: inherit;
+    }
+
+    #graph span a:hover {
+      text-decoration: underline;
+    }
+
+    #graph span a::after {
+      display: none;
+    }
+
+    #graph svg {
+      width: 100%;
+      height: 100%;
+      color: var(--accent);
     }
 
     #graph text {
+      cursor: default;
       stroke: var(--text-muted);
       font-size: 22px;
       text-rendering: optimizeLegibility;
@@ -746,7 +803,15 @@
     <h2>Test262</h2>
     <div id="test262">
       <div id="commit_log"></div>
-      <svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" id="graph"></svg>
+      <div id="graph">
+        <span>data from <a href="https://test262.fyi">test262.fyi</a></span>
+        <div id="graph_time">
+          <div class="active" id="graph_time_3">3 months</div>
+          <div id="graph_time_6">6 months</div>
+          <div id="graph_time_all">all-time</div>
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" id="svg"></svg>
+      </div>
     </div>
   </article>
 
@@ -893,7 +958,6 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
     const setProcess = () => {
       globalThis.process = {
-        // argv: ['', '', ...args.value.split(' '), `-valtype=${valtype_dropdown.value}`, `-O${opt_dropdown.value}`, `-parser=${parser_dropdown.value}`, `-target=${target_dropdown.value}`]
         argv: ['', '', ...args.value.split(' '), `-O${opt_dropdown.value}`, `--parser=${parser_dropdown.value}`, `--target=${target_dropdown.value}`]
       };
     };
@@ -1022,13 +1086,29 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       }
     })();
 
-    const hist = await (await fetch('https://test262.fyi/data/history.json')).json();
-    const histKeys = Object.keys(hist);
-    const oldest = new Date(histKeys[0]);
-    const newest = new Date(histKeys.at(-1));
-    const dateRange = newest - oldest;
+    const _hist = await (await fetch('https://test262.fyi/data/history.json')).json();
 
     const makeGraph = () => {
+      let hist = { ..._hist };
+
+      const timeFrame = [graph_time_3, graph_time_6, graph_time_all].find(x => x.className === 'active').textContent;
+
+      let cutoff;
+      if (timeFrame.endsWith('months')) {
+        cutoff = new Date();
+        cutoff.setMonth(cutoff.getMonth() - parseInt(timeFrame[0]));
+      }
+
+      if (cutoff) for (const k in hist) {
+        const d = new Date(k);
+        if (d < cutoff) delete hist[k];
+      }
+
+      const histKeys = Object.keys(hist);
+      const oldest = new Date(histKeys[0]);
+      const newest = new Date(histKeys.at(-1));
+      const dateRange = newest - oldest;
+
       const availableWidth = Math.min(window.innerWidth, 2000) - 400 - 24;
       const availableHeight = 600;
       const aspectRatio = availableWidth / availableHeight;
@@ -1042,8 +1122,8 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const upperBound = 20; // 100
       const lowerBound = 10; // 0
 
-      graph.setAttribute('viewBox', `0 0 ${width + leftAxisWidth + padding*2} ${height + padding*2}`);
-      graph.innerHTML = '';
+      svg.setAttribute('viewBox', `0 0 ${width + leftAxisWidth + padding*2} ${height + padding*2}`);
+      svg.innerHTML = '';
 
       // left axis line
       const leftAxisLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1052,7 +1132,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       leftAxisLine.setAttribute('y1', padding);
       leftAxisLine.setAttribute('y2', height + padding);
       leftAxisLine.setAttribute('stroke', '#000408');
-      graph.appendChild(leftAxisLine);
+      svg.appendChild(leftAxisLine);
 
       const gridlinesEvery = 1; // 5
       for (let i = lowerBound; i <= upperBound; i += gridlinesEvery) {
@@ -1064,7 +1144,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         line.setAttribute('y1', y);
         line.setAttribute('y2', y);
         line.setAttribute('stroke', '#000408');
-        graph.appendChild(line);
+        svg.appendChild(line);
 
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', padding + leftAxisWidth - 16);
@@ -1072,9 +1152,8 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         text.setAttribute('text-anchor', 'end');
 
         text.textContent = `${i}%`;
-        graph.appendChild(text);
+        svg.appendChild(text);
       }
-
 
       const points = [];
       for (const d in hist) {
@@ -1090,9 +1169,9 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', x);
         circle.setAttribute('cy', y);
-        circle.setAttribute('r', 2.5);
+        circle.setAttribute('r', 3);
         circle.setAttribute('fill', 'var(--accent-light)');
-        graph.appendChild(circle);
+        svg.appendChild(circle);
       }
 
       const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
@@ -1100,9 +1179,27 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       polyline.setAttribute('stroke', 'currentColor');
       polyline.setAttribute('stroke-width', 3);
       polyline.setAttribute('points', points.join(' '));
-      graph.appendChild(polyline);
+      svg.appendChild(polyline);
     };
     makeGraph();
     window.addEventListener('resize', makeGraph);
+
+    graph_time_3.onclick = () => {
+      [graph_time_6, graph_time_all].forEach(x => x.className = '');
+      graph_time_3.className = 'active';
+      makeGraph();
+    };
+
+    graph_time_6.onclick = () => {
+      [graph_time_3, graph_time_all].forEach(x => x.className = '');
+      graph_time_6.className = 'active';
+      makeGraph();
+    };
+
+    graph_time_all.onclick = () => {
+      [graph_time_3, graph_time_6].forEach(x => x.className = '');
+      graph_time_all.className = 'active';
+      makeGraph();
+    };
   })();</script>
 </body>
