@@ -8,12 +8,20 @@ for (let i = 0; i < log.length; i++) {
   const x = log[i];
   if (!x.startsWith('test262: 1')) continue;
 
-  let [ commit, timestamp ] = log[i + 1].split(' ');
+  let title;
+  let j = i;
+  while (!title) {
+    const y = log[--j];
+    if (!y.includes(': ')) continue;
+    title = y;
+  }
+
+  let [ hash, timestamp ] = log[i + 1].split(' ');
 
   let results = x.split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
   if (results.length === 8) results = [ ...results.slice(0, 7), 0, results[7] ];
 
-  out.unshift({ results, time: parseInt(timestamp) * 1000, commit });
+  out.unshift({ results, time: parseInt(timestamp) * 1000, hash, title });
 }
 
 fs.writeFileSync('test262/history.json', JSON.stringify(out));
