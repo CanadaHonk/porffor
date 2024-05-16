@@ -1467,7 +1467,7 @@ const disposeLeftover = wasm => {
 const generateExp = (scope, decl) => {
   const expression = decl.expression;
 
-  const out = generate(scope, expression, undefined, undefined, true);
+  const out = generate(scope, expression, undefined, undefined, Prefs.optUnused);
   disposeLeftover(out);
 
   return out;

@@ -4,6 +4,8 @@ import version from './version.js';
 
 import util from 'node:util';
 
+process.argv.push('--no-opt-unused');
+
 let repl;
 try {
   // try importing node:repl
