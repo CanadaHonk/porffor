@@ -66,10 +66,7 @@ const run = ({ file, contents, attrs }) => {
     // replace old tests' custom checks with standard assert
     .replace(/if \(([^ ]+) !== ([^ ]+)\) \{ *\n *throw new Test262Error\(['"](.*)\. Actual:.*\); *\n\} *\n/g, (_, one, two) => `assert.sameValue(${one}, ${two});\n`)
     // remove actual string concats from some error messages
-    .replace(/\. Actual: ' \+ .*\);/g, _ => `');`)
-    // replace some (avoid false pos) assert.throws with inline try
-    // .replace(/assert\.throws\(ReferenceError, function\(\) {([\w\W]+?)}\);/g, (_, body) => `{ let _thrown = false;\ntry {${body}\n_thrown = true;\n} catch {}\nif (_thrown) throw new Test262Error('Expected a ReferenceError to be thrown but no exception was at all'); }\n`);
-    .replace(/assert\.throws\(.*?Error, function\(\) {([\w\W]+?)}\);/g, (_, body) => `{ let _thrown = false;\ntry {${body}\n_thrown = true;\n} catch {}\nif (_thrown) throw new Test262Error('Expected an Error to be thrown but no exception was at all'); }\n`);
+    .replace(/\. Actual: ' \+ .*\);/g, _ => `');`);
 
   if (debugAsserts) toRun = toRun
     .replace('function assert(mustBeTrue) {', 'function assert(mustBeTrue, msg) {')
