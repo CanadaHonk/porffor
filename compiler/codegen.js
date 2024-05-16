@@ -1044,7 +1044,7 @@ const asmFuncToAsm = (func, { name = '#unknown_asm_func', params = [], locals = 
   });
 };
 
-const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, localNames = [], globalNames = [], data: _data = [] }) => {
+const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, localNames = [], globalNames = [], data: _data = [], callsSelf = false }) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
@@ -1091,6 +1091,12 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     internal: true,
     index: currentFuncIndex++
   };
+
+  if (callsSelf) for (const inst of wasm) {
+    if (inst[0] === Opcodes.call && inst[1] === -1) {
+      inst[1] = func.index;
+    }
+  }
 
   funcs.push(func);
   funcIndex[name] = func.index;
