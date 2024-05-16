@@ -25,7 +25,7 @@ if (process.argv.includes('--help')) {
   console.log(`Usage: \x1B[1mporf [command] path/to/script.js [...prefs] [...args]\x1B[0m`);
 
   // commands
-  console.log(`\n\u001b[4mCommands\x1B[0m`);
+  console.log(`\n\x1B[1mCommands:\x1B[0m`);
   for (const [ cmd, [ color, desc ] ] of Object.entries({
     run: [ 34, 'Run a JS file' ],
     wasm: [ 34, 'Compile a JS file to a Wasm binary\n' ],
