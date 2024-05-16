@@ -140,6 +140,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'ArrayExpression':
       return generateArray(scope, decl, global, name);
 
+    case 'ObjectExpression':
+      return generateObject(scope, decl, global, name);
+
     case 'MemberExpression':
       return generateMember(scope, decl, global, name);
 
@@ -3219,7 +3222,18 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
   return makeArray(scope, decl, global, name, initEmpty, valtype)[0];
 };
 
-export const generateMember = (scope, decl, _global, _name) => {
+const generateObject = (scope, decl, global = false, name = '$undeclared') => {
+  if (decl.properties.length > 0) return todo(scope, 'objects are not supported yet', true);
+
+  return [
+    ...number(1),
+
+    ...number(TYPES.object, Valtype.i32),
+    ...setLastType(scope)
+  ];
+};
+
+const generateMember = (scope, decl, _global, _name) => {
   const name = decl.object.name;
   const pointer = scope.arrays?.get(name);
 
