@@ -56,14 +56,13 @@ i32.store8 0 12`;
 };
 
 
-// todo: this should be a getter somehow not a method
-export const __Set_prototype_size = (_this: Set) => {
+export const __Set_prototype_size$get = (_this: Set) => {
   return Porffor.wasm.i32.load(_this, 0, 0);
 };
 
 export const __Set_prototype_values = (_this: Set) => {
   // todo: this should return an iterator not array
-  const size: number = __Set_prototype_size(_this);
+  const size: number = Porffor.wasm.i32.load(_this, 0, 0);
 
   const out: any[] = __Porffor_allocate();
   for (let i: number = 0; i < size; i++) {
@@ -79,7 +78,7 @@ export const __Set_prototype_keys = (_this: Set) => {
 };
 
 export const __Set_prototype_has = (_this: Set, value: any) => {
-  const size: number = __Set_prototype_size(_this);
+  const size: number = Porffor.wasm.i32.load(_this, 0, 0);
 
   for (let i: number = 0; i < size; i++) {
     if (__Porffor_set_read(_this, i) === value) return true;
@@ -89,7 +88,7 @@ export const __Set_prototype_has = (_this: Set, value: any) => {
 };
 
 export const __Set_prototype_add = (_this: Set, value: any) => {
-  const size: number = __Set_prototype_size(_this);
+  const size: number = Porffor.wasm.i32.load(_this, 0, 0);
 
   // check if already in set
   for (let i: number = 0; i < size; i++) {
@@ -107,7 +106,7 @@ export const __Set_prototype_add = (_this: Set, value: any) => {
 };
 
 export const __Set_prototype_delete = (_this: Set, value: any) => {
-  const size: number = __Set_prototype_size(_this);
+  const size: number = Porffor.wasm.i32.load(_this, 0, 0);
 
   // check if already in set
   for (let i: number = 0; i < size; i++) {

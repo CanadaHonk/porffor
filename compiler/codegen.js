@@ -1344,10 +1344,27 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type === 'MemberExpression') {
-      // ts hack
-      if (scope.locals[node.object.name]?.metadata?.type === TYPES.string) return TYPES.string;
-      if (scope.locals[node.object.name]?.metadata?.type === TYPES.bytestring) return TYPES.bytestring;
-      if (scope.locals[node.object.name]?.metadata?.type === TYPES.array) return TYPES.number;
+      const name = node.property.name;
+
+      if (name === 'length') {
+        if (hasFuncWithName(node.object.name)) return TYPES.number;
+        if (Prefs.fastLength) return TYPES.number;
+      }
+
+
+      const objectKnownType = knownType(scope, getNodeType(scope, node.object));
+      if (objectKnownType != null) {
+        if (name === 'length') {
+          if ([ TYPES.string, TYPES.bytestring, TYPES.array ].includes(objectKnownType)) return TYPES.number;
+            else return TYPES.undefined;
+        }
+
+        if (node.computed) {
+          if (objectKnownType === TYPES.string) return TYPES.string;
+          if (objectKnownType === TYPES.bytestring) return TYPES.bytestring;
+          if (objectKnownType === TYPES.array) return TYPES.number;
+        }
+      }
 
       if (scope.locals['#last_type']) return getLastType(scope);
 
@@ -1870,6 +1887,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     const arg = args[i];
     out = out.concat(generate(scope, arg));
 
+    // todo: this should be used instead of the too many args thing above (by removing that)
     if (i >= paramCount) {
       // over param count of func, drop arg
       out.push([ Opcodes.drop ]);
@@ -1954,8 +1972,11 @@ const knownType = (scope, type) => {
     const idx = type[0][1];
 
     // type idx = var idx + 1
-    const v = Object.values(scope.locals).find(x => x.idx === idx - 1);
-    if (v.metadata?.type != null) return v.metadata.type;
+    const name = Object.values(scope.locals).find(x => x.idx === idx)?.name;
+    if (name) {
+      const local = scope.locals[name];
+      if (local.metadata?.type != null) return v.metadata.type;
+    }
   }
 
   return null;
@@ -2113,7 +2134,7 @@ const allocVar = (scope, name, global = false, type = true) => {
 
   if (type) {
     let typeIdx = global ? globalInd++ : scope.localInd++;
-    target[name + '#type'] = { idx: typeIdx, type: Valtype.i32 };
+    target[name + '#type'] = { idx: typeIdx, type: Valtype.i32, name };
   }
 
   return idx;
@@ -3257,6 +3278,35 @@ const generateMember = (scope, decl, _global, _name) => {
     if (importedFuncs[name]) return withType(scope, number(importedFuncs[name].params), TYPES.number);
     if (internalConstrs[name]) return withType(scope, number(internalConstrs[name].length ?? 0), TYPES.number);
 
+    if (Prefs.fastLength) {
+      // presume valid length object
+      return [
+        ...(aotPointer ? number(0, Valtype.i32) : [
+          ...generate(scope, decl.object),
+          Opcodes.i32_to_u
+        ]),
+
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(aotPointer ? pointer : 0) ],
+        Opcodes.i32_from_u
+      ];
+    }
+
+    const type = getNodeType(scope, decl.object);
+    const known = knownType(scope, type);
+    if (known != null) {
+      if ([ TYPES.string, TYPES.bytestring, TYPES.array ].includes(known)) return [
+        ...(aotPointer ? number(0, Valtype.i32) : [
+          ...generate(scope, decl.object),
+          Opcodes.i32_to_u
+        ]),
+
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(aotPointer ? pointer : 0) ],
+        Opcodes.i32_from_u
+      ];
+
+      return number(0);
+    }
+
     return [
       ...typeIsOneOf(getNodeType(scope, decl.object), [ TYPES.string, TYPES.bytestring, TYPES.array ]),
       [ Opcodes.if, valtypeBinary ],
@@ -3265,7 +3315,7 @@ const generateMember = (scope, decl, _global, _name) => {
           Opcodes.i32_to_u
         ]),
 
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128((aotPointer ? pointer : 0)) ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(aotPointer ? pointer : 0) ],
         Opcodes.i32_from_u,
 
         ...setLastType(scope, TYPES.number),
@@ -3274,6 +3324,33 @@ const generateMember = (scope, decl, _global, _name) => {
         ...setLastType(scope, TYPES.undefined),
       [ Opcodes.end ]
     ];
+  }
+
+  // todo: generate this array procedurally during builtinFuncs creation
+  if (['size', 'description'].includes(decl.property.name)) {
+    const bc = {};
+    const cands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + decl.property.name + '$get'));
+
+    if (cands.length > 0) {
+      for (const x of cands) {
+        const type = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
+        if (type == null) continue;
+
+        bc[type] = generateCall(scope, {
+          callee: {
+            type: 'Identifier',
+            name: x
+          },
+          arguments: [ decl.object ],
+          _protoInternalCall: true
+        });
+      }
+    }
+
+    return typeSwitch(scope, getNodeType(scope, decl.object), {
+      ...bc,
+      default: withType(scope, number(0), TYPES.undefined)
+    }, valtypeBinary);
   }
 
   const object = generate(scope, decl.object);
@@ -3387,7 +3464,7 @@ const objectHack = node => {
       if (!objectName) objectName = objectHack(node.object)?.name?.slice?.(2);
 
       // if .name or .length, give up (hack within a hack!)
-      if (['name', 'length'].includes(node.property.name)) {
+      if (['name', 'length', 'size', 'description'].includes(node.property.name)) {
         node.object = objectHack(node.object);
         return;
       }
