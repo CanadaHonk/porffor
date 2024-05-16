@@ -216,6 +216,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   if (Prefs.profileCompiler) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
 
   const exports = {};
+  const rawValues = process.argv.includes('-i');
 
   const exceptTag = instance.exports['0'], memory = instance.exports['$'];
   for (const x in instance.exports) {
@@ -236,7 +237,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
         const ret = exp.apply(this, arguments);
         if (ret == null) return undefined;
 
-        if (Prefs.rawValue) return { value: ret[0], type: ret[1] };
+        if (rawValues) return { value: ret[0], type: ret[1], js: porfToJSValue({ memory, funcs, pages }, ret[0], ret[1]) };
 
         return porfToJSValue({ memory, funcs, pages }, ret[0], ret[1]);
       } catch (e) {

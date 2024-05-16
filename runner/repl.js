@@ -1,5 +1,8 @@
+import { TYPE_NAMES } from '../compiler/types.js';
 import compile from '../compiler/wrap.js';
 import version from './version.js';
+
+import util from 'node:util';
 
 let repl;
 try {
@@ -86,10 +89,21 @@ const run = async (source, _context, _filename, callback, run = true) => {
     lastPages = [...pages.keys()];
   }
 
-  const ret = run ? exports.main() : undefined;
-  callback(null, ret);
+  let ret = run ? exports.main() : undefined;
+  let value, type;
+  if (ret?.type != null) {
+    value = ret.value;
+    type = ret.type;
+    ret = ret.js;
+  }
+
+  console.log(util.inspect(ret, false, 2, true), (value != null ? `\x1B[34m\x1B[3m(value: ${value}, type: ${TYPE_NAMES[type]})\x1B[0m` : ''));
+
+  // callback(null, ret);
 
   prev = prev + ';\n' + source.trim();
+
+  callback();
 };
 
 const replServer = repl.start({ prompt: '> ', eval: run });
