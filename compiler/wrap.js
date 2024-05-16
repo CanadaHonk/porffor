@@ -41,9 +41,22 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     case TYPES.array: {
       const length = (new Int32Array(memory.buffer, value, 1))[0];
 
-      // have to slice because of memory alignment (?)
-      const buf = memory.buffer.slice(value + 4, value + 4 + 8 * length);
-      return Array.from(new Float64Array(buf, 0, length));
+      const out = [];
+      for (let i = 0; i < length; i++) {
+        const offset = value + 4 + (i * 9);
+
+        // have to slice because of memory alignment (?)
+        const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
+        const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
+
+        // console.log(`reading value at index ${i}...`)
+        // console.log('  memory:', Array.from(new Uint8Array(memory.buffer, offset, 9)).map(x => x.toString(16).padStart(2, '0')).join(' '));
+        // console.log('  read:', { value: v, type: t }, '\n');
+
+        out.push(porfToJSValue({ memory, funcs, pages }, v, t));
+      }
+
+      return out;
     }
 
     case TYPES.date: {

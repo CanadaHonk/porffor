@@ -27,14 +27,16 @@ export const __Array_prototype_slice = (_this: any[], start: number, end: number
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
 
-  const thisPtrEnd: i32 = thisPtr + end * 8;
+  const thisPtrEnd: i32 = thisPtr + end * 9;
 
-  thisPtr += start * 8;
+  thisPtr += start * 9;
 
   while (thisPtr < thisPtrEnd) {
     Porffor.wasm.f64.store(outPtr, Porffor.wasm.f64.load(thisPtr, 0, 4), 0, 4);
-    thisPtr += 8;
-    outPtr += 8;
+    Porffor.wasm.i32.store8(outPtr + 8, Porffor.wasm.i32.load8_u(thisPtr + 8, 0, 4), 0, 4);
+
+    thisPtr += 9;
+    outPtr += 9;
   }
 
   out.length = end - start;

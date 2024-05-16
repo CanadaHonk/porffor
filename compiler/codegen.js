@@ -444,11 +444,11 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
       ...number(0, Valtype.i32), // base 0 for store later
 
       ...number(pointer, Valtype.i32),
-      [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+      [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
       [ Opcodes.local_tee, leftLength ],
 
       [ Opcodes.local_get, rightPointer ],
-      [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+      [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
       [ Opcodes.local_tee, rightLength ],
 
       [ Opcodes.i32_add ],
@@ -504,11 +504,11 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
     ...number(0, Valtype.i32), // base 0 for store later
 
     [ Opcodes.local_get, leftPointer ],
-    [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
     [ Opcodes.local_tee, leftLength ],
 
     [ Opcodes.local_get, rightPointer ],
-    [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
     [ Opcodes.local_tee, rightLength ],
 
     [ Opcodes.i32_add ],
@@ -586,11 +586,11 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
 
     // get lengths
     [ Opcodes.local_get, leftPointer ],
-    [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
     [ Opcodes.local_tee, leftLength ],
 
     [ Opcodes.local_get, rightPointer ],
-    [ Opcodes.i32_load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(0) ],
+    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
 
     // fast path: check leftLength != rightLength
     [ Opcodes.i32_ne ],
@@ -1255,7 +1255,17 @@ const getNodeType = (scope, node) => {
 
         const func = spl[spl.length - 1];
         const protoFuncs = Object.keys(prototypeFuncs).filter(x => x != TYPES.bytestring && prototypeFuncs[x][func] != null);
-        if (protoFuncs.length === 1) return protoFuncs[0].returnType ?? TYPES.number;
+        if (protoFuncs.length === 1) {
+          if (protoFuncs[0].returnType) return protoFuncs[0].returnType;
+        }
+
+        if (protoFuncs.length > 0) {
+          if (scope.locals['#last_type']) return getLastType(scope);
+
+          // presume
+          // todo: warn here?
+          return TYPES.number;
+        }
       }
 
       if (name.startsWith('__Porffor_wasm_')) {
@@ -1710,7 +1720,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           getI32: () => RTArrayUtil.getLengthI32(getPointer),
           set: value => RTArrayUtil.setLength(getPointer, value),
           setI32: value => RTArrayUtil.setLengthI32(getPointer, value)
-        }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, protoLocal2, (length, itemType) => {
+        }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, protoLocal2, (length, itemType) => {
           return makeArray(scope, {
             rawElements: new Array(length)
           }, _global, _name, true, itemType);
@@ -1724,7 +1734,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         protoBC[x] = [
           [ Opcodes.block, unusedValue && optUnused ? Blocktype.void : valtypeBinary ],
           ...protoOut,
-          ...setLastType(scope, protoFunc.returnType ?? TYPES.number),
+          ...(unusedValue && optUnused ? [] : (protoFunc.returnType != null ? setLastType(scope, protoFunc.returnType) : setLastType(scope))),
           [ Opcodes.end ]
         ];
       }
@@ -2353,18 +2363,21 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           Opcodes.i32_to_u,
 
           // turn into byte offset by * valtypeSize (4 for i32, 8 for i64/f64)
-          ...number(ValtypeSize[valtype], Valtype.i32),
+          ...number(ValtypeSize[valtype] + 1, Valtype.i32),
           [ Opcodes.i32_mul ],
           ...(aotPointer ? [] : [ [ Opcodes.i32_add ] ]),
           ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
           ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
             [ Opcodes.local_get, pointerTmp ],
-            [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
-          ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.load, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
+          ], generate(scope, decl.right), [
+            [ Opcodes.local_get, pointerTmp ],
+            [ Opcodes.i32_load8_u, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32 + ValtypeSize[valtype]) ]
+          ], getNodeType(scope, decl.right), false, name, true)),
           [ Opcodes.local_tee, newValueTmp ],
 
-          [ Opcodes.store, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
+          [ Opcodes.store, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
         ],
 
         default: internalThrow(scope, 'TypeError', `Cannot assign member with non-array`)
@@ -2775,12 +2788,15 @@ const generateForOf = (scope, decl) => {
   // todo: optimize away counter and use end pointer
   out.push(...typeSwitch(scope, getNodeType(scope, decl.right), {
     [TYPES.array]: [
-      ...setType(scope, leftName, TYPES.number),
-
       [ Opcodes.loop, Blocktype.void ],
 
       [ Opcodes.local_get, pointer ],
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+
+      ...setType(scope, leftName, [
+        [ Opcodes.local_get, pointer ],
+        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
+      ]),
 
       [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
 
@@ -2789,9 +2805,9 @@ const generateForOf = (scope, decl) => {
       ...generate(scope, decl.body),
       [ Opcodes.end ],
 
-      // increment iter pointer by valtype size
+      // increment iter pointer by valtype size + 1
       [ Opcodes.local_get, pointer ],
-      ...number(ValtypeSize[valtype], Valtype.i32),
+      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
       [ Opcodes.i32_add ],
       [ Opcodes.local_set, pointer ],
 
@@ -3108,7 +3124,7 @@ const getAllocType = itemType => {
   }
 };
 
-const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype) => {
+const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype, typed = false) => {
   const out = [];
 
   scope.arrays ??= new Map();
@@ -3171,7 +3187,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
   const pointerWasm = pointerTmp != null ? [ [ Opcodes.local_get, pointerTmp ] ] : number(pointer, Valtype.i32);
 
-  // store length as 0th array
+  // store length
   out.push(
     ...pointerWasm,
     ...number(length, Valtype.i32),
@@ -3179,14 +3195,20 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   );
 
   const storeOp = StoreOps[itemType];
-
+  const sizePerEl = ValtypeSize[itemType] + (typed ? 1 : 0);
   if (!initEmpty) for (let i = 0; i < length; i++) {
     if (elements[i] == null) continue;
 
+    const offset = ValtypeSize.i32 + i * sizePerEl;
     out.push(
       ...pointerWasm,
       ...(useRawElements ? number(elements[i], Valtype[valtype]) : generate(scope, elements[i])),
-      [ storeOp, (Math.log2(ValtypeSize[itemType]) || 1) - 1, ...unsignedLEB128(ValtypeSize.i32 + i * ValtypeSize[itemType]) ]
+      [ storeOp, 0, ...unsignedLEB128(offset) ],
+      ...(!typed ? [] : [ // typed presumes !useRawElements
+        ...pointerWasm,
+        ...getNodeType(scope, elements[i]),
+        [ Opcodes.i32_store8, 0, ...unsignedLEB128(offset + ValtypeSize[itemType]) ]
+      ])
     );
   }
 
@@ -3194,6 +3216,65 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   out.push(...pointerWasm, Opcodes.i32_from_u);
 
   return [ out, pointer ];
+};
+
+const storeArray = (scope, array, index, element, aotPointer = null) => {
+  if (!Array.isArray(element)) element = generate(scope, element);
+  if (typeof index === 'number') index = number(index);
+
+  const offset = localTmp(scope, '#storeArray_offset', Valtype.i32);
+
+  return [
+    // calculate offset
+    ...index,
+    Opcodes.i32_to_u,
+    ...number(ValtypeSize[valtype] + 1, Valtype.i32),
+    [ Opcodes.i32_mul ],
+    ...(aotPointer ? [] : [
+      ...array,
+      Opcodes.i32_to_u,
+      [ Opcodes.i32_add ],
+    ]),
+    [ Opcodes.local_set, offset ],
+
+    // store value
+    [ Opcodes.local_get, offset ],
+    ...generate(scope, element),
+    [ Opcodes.store, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
+
+    // store type
+    [ Opcodes.local_get, offset ],
+    ...getNodeType(scope, element),
+    [ Opcodes.i32_store8, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32 + ValtypeSize[valtype]) ]
+  ];
+};
+
+const loadArray = (scope, array, index, aotPointer = null) => {
+  if (typeof index === 'number') index = number(index);
+
+  const offset = localTmp(scope, '#loadArray_offset', Valtype.i32);
+
+  return [
+    // calculate offset
+    ...index,
+    Opcodes.i32_to_u,
+    ...number(ValtypeSize[valtype] + 1, Valtype.i32),
+    [ Opcodes.i32_mul ],
+    ...(aotPointer ? [] : [
+      ...array,
+      Opcodes.i32_to_u,
+      [ Opcodes.i32_add ],
+    ]),
+    [ Opcodes.local_set, offset ],
+
+    // load value
+    [ Opcodes.local_get, offset ],
+    [ Opcodes.load, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
+
+    // load type
+    [ Opcodes.local_get, offset ],
+    [ Opcodes.i32_load8_u, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32 + ValtypeSize[valtype]) ]
+  ];
 };
 
 const byteStringable = str => {
@@ -3224,7 +3305,7 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
 };
 
 const generateArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false) => {
-  return makeArray(scope, decl, global, name, initEmpty, valtype)[0];
+  return makeArray(scope, decl, global, name, initEmpty, valtype, true)[0];
 };
 
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
@@ -3245,7 +3326,7 @@ const generateMember = (scope, decl, _global, _name) => {
   const name = decl.object.name;
   const pointer = scope.arrays?.get(name);
 
-  const aotPointer = Prefs.aotPointerOpt && pointer != null;
+  const aotPointer = Prefs.aotPointerOpt && pointer;
 
   // hack: .name
   if (decl.property.name === 'name') {
@@ -3373,23 +3454,8 @@ const generateMember = (scope, decl, _global, _name) => {
 
   return typeSwitch(scope, getNodeType(scope, decl.object), {
     [TYPES.array]: [
-      // get index as valtype
-      ...property,
-
-      // convert to i32 and turn into byte offset by * valtypeSize (4 for i32, 8 for i64/f64)
-      Opcodes.i32_to_u,
-      ...number(ValtypeSize[valtype], Valtype.i32),
-      [ Opcodes.i32_mul ],
-
-      ...(aotPointer ? [] : [
-        ...object,
-        Opcodes.i32_to_u,
-        [ Opcodes.i32_add ]
-      ]),
-
-      // read from memory
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
-      ...setLastType(scope, TYPES.number)
+      ...loadArray(scope, object, property, aotPointer),
+      ...setLastType(scope)
     ],
 
     [TYPES.string]: [

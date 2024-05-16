@@ -221,6 +221,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [],
+    callsSelf: true,
     wasm: (scope, { typeSwitch }) => [
       ...typeSwitch(scope, [ [ Opcodes.local_get, 1 ] ], {
         [TYPES.number]: [
@@ -317,7 +318,7 @@ export const BuiltinFuncs = function() {
 
           // make end pointer
           [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-          ...number(ValtypeSize[valtype], Valtype.i32),
+          ...number(ValtypeSize[valtype] + 1, Valtype.i32),
           [ Opcodes.i32_mul ],
 
           [ Opcodes.local_get, 2 ],
@@ -328,12 +329,16 @@ export const BuiltinFuncs = function() {
 
           // print current char
           [ Opcodes.local_get, 2 ],
-          [ Opcodes.load, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
-          [ Opcodes.call, importedFuncs.print ],
+          [ Opcodes.load, 0, ValtypeSize.i32 ],
+
+          [ Opcodes.local_get, 2 ],
+          [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
+
+          [ Opcodes.call, -1 ],
 
           // increment pointer by sizeof valtype
           [ Opcodes.local_get, 2 ],
-          ...number(ValtypeSize[valtype], Valtype.i32),
+          ...number(ValtypeSize[valtype] + 1, Valtype.i32),
           [ Opcodes.i32_add ],
           [ Opcodes.local_tee, 2 ],
 

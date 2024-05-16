@@ -16,7 +16,7 @@ export const PrototypeFuncs = function() {
 
   this[TYPES.array] = {
     // lX = local accessor of X ({ get, set }), iX = local index of X, wX = wasm ops of X
-    at: (pointer, length, wIndex, iTmp) => [
+    at: (pointer, length, wIndex, wType, iTmp) => [
       ...wIndex,
       Opcodes.i32_to,
       [ Opcodes.local_tee, iTmp ],
@@ -47,31 +47,39 @@ export const PrototypeFuncs = function() {
       [ Opcodes.end ],
 
       [ Opcodes.local_get, iTmp ],
-      ...number(ValtypeSize[valtype], Valtype.i32),
+      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
       [ Opcodes.i32_mul ],
-
       ...pointer,
       [ Opcodes.i32_add ],
+      [ Opcodes.local_set, iTmp ],
 
       // read from memory
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(ValtypeSize.i32) ]
+      [ Opcodes.local_get, iTmp ],
+      [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+
+      [ Opcodes.local_get, iTmp ],
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ]
     ],
 
     // todo: only for 1 argument
-    push: (pointer, length, wNewMember, _1, _2, _3, unusedValue) => [
+    push: (pointer, length, wNewMember, wType, iTmp, _2, _3, unusedValue) => [
       // get memory offset of array at last index (length)
       ...length.getCachedI32(),
-      ...number(ValtypeSize[valtype], Valtype.i32),
+      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
       [ Opcodes.i32_mul ],
-
       ...pointer,
       [ Opcodes.i32_add ],
+      [ Opcodes.local_set, iTmp ],
 
-      // generated wasm for new member
+      // store value
+      [ Opcodes.local_get, iTmp ],
       ...wNewMember,
+      [ Opcodes.store, 0, ...unsignedLEB128(ValtypeSize.i32) ],
 
-      // store in memory
-      [ Opcodes.store, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+      // store type
+      [ Opcodes.local_get, iTmp ],
+      ...wType,
+      [ Opcodes.i32_store8, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
 
       // bump array length by 1 and return it
       ...length.setI32([
@@ -93,7 +101,7 @@ export const PrototypeFuncs = function() {
       // ...length.get()
     ],
 
-    pop: (pointer, length, _1, _2, _3, _4, unusedValue) => [
+    pop: (pointer, length, _1, _2, iTmp, _3, _4, unusedValue) => [
       // if length == 0, noop
       ...length.getCachedI32(),
       [ Opcodes.i32_eqz ],
@@ -121,13 +129,18 @@ export const PrototypeFuncs = function() {
       // load last element
       ...(unusedValue() ? [] : [
         ...length.getCachedI32(),
-        ...number(ValtypeSize[valtype], Valtype.i32),
+        ...number(ValtypeSize[valtype] + 1, Valtype.i32),
         [ Opcodes.i32_mul ],
 
         ...pointer,
         [ Opcodes.i32_add ],
+        [ Opcodes.local_set, iTmp ],
 
-        [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(ValtypeSize.i32) ]
+        [ Opcodes.local_get, iTmp ],
+        [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+
+        [ Opcodes.local_get, iTmp ],
+        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ]
       ])
     ],
 
@@ -153,8 +166,12 @@ export const PrototypeFuncs = function() {
       ]),
 
       // load first element
+      // todo/perf: unusedValue opt
       ...pointer,
-      [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+
+      ...pointer,
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
 
       // offset page by -1 ind
       // ...number(pointer + ValtypeSize.i32, Valtype.i32), // dst = base array index + length size
@@ -170,13 +187,13 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_add ],
 
       // src = base array index + length size + an index
-      ...number(ValtypeSize.i32 + ValtypeSize[valtype], Valtype.i32),
+      ...number(ValtypeSize.i32 + ValtypeSize[valtype] + 1, Valtype.i32),
       ...pointer,
       [ Opcodes.i32_add ],
 
       // size = new length * sizeof element
       ...length.getCachedI32(),
-      ...number(ValtypeSize[valtype], Valtype.i32),
+      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
       [ Opcodes.i32_mul ],
       [ ...Opcodes.memory_copy, 0x00, 0x00 ]
 
@@ -194,7 +211,7 @@ export const PrototypeFuncs = function() {
       // ]),
     ],
 
-    fill: (pointer, length, wElement, iTmp) => [
+    fill: (pointer, length, wElement, wType, iTmp, iTmp2) => [
       ...wElement,
       [ Opcodes.local_set, iTmp ],
 
@@ -206,7 +223,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_sub ],
 
       // * sizeof value
-      ...number(ValtypeSize[valtype], Valtype.i32),
+      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
       [ Opcodes.i32_mul ],
 
       ...length.setCachedI32(),
@@ -224,17 +241,25 @@ export const PrototypeFuncs = function() {
 
       [ Opcodes.loop, Blocktype.void ],
 
-      // set element using pointer
+      // calculate offset
       ...length.getCachedI32(),
       ...pointer,
       [ Opcodes.i32_add ],
+      [ Opcodes.local_set, iTmp2 ],
 
+      // store value
+      [ Opcodes.local_get, iTmp2 ],
       [ Opcodes.local_get, iTmp ],
-      [ Opcodes.store, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128( ValtypeSize.i32) ],
+      [ Opcodes.store, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+
+      // store type
+      [ Opcodes.local_get, iTmp2 ],
+      ...wType,
+      [ Opcodes.i32_store8, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
 
       // pointer - sizeof value
       ...length.getCachedI32(),
-      ...number(ValtypeSize[valtype], Valtype.i32),
+      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
       [ Opcodes.i32_sub ],
 
       ...length.setCachedI32(),
@@ -254,12 +279,16 @@ export const PrototypeFuncs = function() {
   };
 
   this[TYPES.array].at.local = Valtype.i32;
+  this[TYPES.array].push.returnType = TYPES.number;
   this[TYPES.array].push.noArgRetLength = true;
+  this[TYPES.array].push.local = Valtype.i32;
+  this[TYPES.array].pop.local = Valtype.i32;
   this[TYPES.array].fill.local = valtypeBinary;
+  this[TYPES.array].fill.local2 = Valtype.i32;
   this[TYPES.array].fill.returnType = TYPES.array;
 
   this[TYPES.string] = {
-    at: (pointer, length, wIndex, iTmp, _, arrayShell) => {
+    at: (pointer, length, wIndex, wType, iTmp, _, arrayShell) => {
       const [ newOut, newPointer ] = arrayShell(1, 'i16');
 
       return [
@@ -317,7 +346,7 @@ export const PrototypeFuncs = function() {
     },
 
     // todo: out of bounds properly
-    charAt: (pointer, length, wIndex, _1, _2, arrayShell) => {
+    charAt: (pointer, length, wIndex, wType, _1, _2, arrayShell) => {
       const [ newOut, newPointer ] = arrayShell(1, 'i16');
 
       return [
@@ -347,127 +376,124 @@ export const PrototypeFuncs = function() {
       ];
     },
 
-    charCodeAt: (pointer, length, wIndex, iTmp) => {
-      return [
-        ...wIndex,
-        Opcodes.i32_to,
+    charCodeAt: (pointer, length, wIndex, wType, iTmp) => [
+      ...wIndex,
+      Opcodes.i32_to,
 
-        ...(zeroChecks.charcodeat ? [] : [
-          [ Opcodes.local_set, iTmp ],
+      ...(zeroChecks.charcodeat ? [] : [
+        [ Opcodes.local_set, iTmp ],
 
-          // index < 0
-          ...(noUnlikelyChecks ? [] : [
-            [ Opcodes.local_get, iTmp ],
-            ...number(0, Valtype.i32),
-            [ Opcodes.i32_lt_s ],
-          ]),
-
-          // index >= length
+        // index < 0
+        ...(noUnlikelyChecks ? [] : [
           [ Opcodes.local_get, iTmp ],
-          ...length.getCachedI32(),
-          [ Opcodes.i32_ge_s ],
-
-          ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
-          [ Opcodes.if, Blocktype.void ],
-          ...number(valtype === 'i32' ? -1 : NaN),
-          [ Opcodes.br, 1 ],
-          [ Opcodes.end ],
-
-          [ Opcodes.local_get, iTmp ],
+          ...number(0, Valtype.i32),
+          [ Opcodes.i32_lt_s ],
         ]),
 
-        ...number(ValtypeSize.i16, Valtype.i32),
-        [ Opcodes.i32_mul ],
-
-        ...pointer,
-        [ Opcodes.i32_add ],
-
-        // load current string ind {arg}
-        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
-        Opcodes.i32_from_u
-      ];
-    },
-
-    isWellFormed: (pointer, length, wIndex, iTmp, iTmp2) => {
-      return [
-        // note: we cannot presume it begins as 0 in case it was used previously
-        ...pointer,
-        [ Opcodes.local_set, iTmp ],
-
-        // use cached length as end pointer
+        // index >= length
+        [ Opcodes.local_get, iTmp ],
         ...length.getCachedI32(),
-        ...number(ValtypeSize.i16, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        ...pointer,
-        [ Opcodes.i32_add ],
-        ...length.setCachedI32(),
-
-        [ Opcodes.loop, Blocktype.void ],
-
-        [ Opcodes.block, Blocktype.void ],
-
-        [ Opcodes.local_get, iTmp ],
-        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
-        [ Opcodes.local_set, iTmp2 ],
-
-        // if not surrogate, continue
-        [ Opcodes.local_get, iTmp2 ],
-        ...number(0xF800, Valtype.i32),
-        [ Opcodes.i32_and ],
-        ...number(0xD800, Valtype.i32),
-        [ Opcodes.i32_ne ],
-        [ Opcodes.br_if, 0 ],
-
-        // if not leading surrogate, return false
-        [ Opcodes.local_get, iTmp2 ],
-        ...number(0xDC00, Valtype.i32),
         [ Opcodes.i32_ge_s ],
+
+        ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
         [ Opcodes.if, Blocktype.void ],
-        ...number(0),
-        [ Opcodes.br, 3 ],
+        ...number(valtype === 'i32' ? -1 : NaN),
+        [ Opcodes.br, 1 ],
         [ Opcodes.end ],
 
-        // if not followed by trailing surrogate, return false
         [ Opcodes.local_get, iTmp ],
-        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize.i16) ],
-        ...number(0xFC00, Valtype.i32),
-        [ Opcodes.i32_and ],
-        ...number(0xDC00, Valtype.i32),
-        [ Opcodes.i32_ne ],
-        [ Opcodes.if, Blocktype.void ],
-        ...number(0),
-        [ Opcodes.br, 3 ],
-        [ Opcodes.end ],
+      ]),
 
-        // bump index again since gone through two valid chars
-        [ Opcodes.local_get, iTmp ],
-        ...number(ValtypeSize.i16, Valtype.i32),
-        [ Opcodes.i32_add ],
-        [ Opcodes.local_set, iTmp ],
+      ...number(ValtypeSize.i16, Valtype.i32),
+      [ Opcodes.i32_mul ],
 
-        [ Opcodes.end ],
+      ...pointer,
+      [ Opcodes.i32_add ],
 
-        // bump pointer and loop if not at the end
-        [ Opcodes.local_get, iTmp ],
-        ...number(ValtypeSize.i16, Valtype.i32),
-        [ Opcodes.i32_add ],
-        [ Opcodes.local_tee, iTmp ],
+      // load current string ind {arg}
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+      Opcodes.i32_from_u
+    ],
 
-        ...length.getCachedI32(), // end pointer
-        [ Opcodes.i32_ne ],
-        [ Opcodes.br_if, 0 ],
+    isWellFormed: (pointer, length, _1, _2, iTmp, iTmp2) => [
+      // note: we cannot presume it begins as 0 in case it was used previously
+      ...pointer,
+      [ Opcodes.local_set, iTmp ],
 
-        [ Opcodes.end ],
+      // use cached length as end pointer
+      ...length.getCachedI32(),
+      ...number(ValtypeSize.i16, Valtype.i32),
+      [ Opcodes.i32_mul ],
+      ...pointer,
+      [ Opcodes.i32_add ],
+      ...length.setCachedI32(),
 
-        // return true
-        ...number(1)
-      ]
-    }
+      [ Opcodes.loop, Blocktype.void ],
+
+      [ Opcodes.block, Blocktype.void ],
+
+      [ Opcodes.local_get, iTmp ],
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.local_set, iTmp2 ],
+
+      // if not surrogate, continue
+      [ Opcodes.local_get, iTmp2 ],
+      ...number(0xF800, Valtype.i32),
+      [ Opcodes.i32_and ],
+      ...number(0xD800, Valtype.i32),
+      [ Opcodes.i32_ne ],
+      [ Opcodes.br_if, 0 ],
+
+      // if not leading surrogate, return false
+      [ Opcodes.local_get, iTmp2 ],
+      ...number(0xDC00, Valtype.i32),
+      [ Opcodes.i32_ge_s ],
+      [ Opcodes.if, Blocktype.void ],
+      ...number(0),
+      [ Opcodes.br, 3 ],
+      [ Opcodes.end ],
+
+      // if not followed by trailing surrogate, return false
+      [ Opcodes.local_get, iTmp ],
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize.i16) ],
+      ...number(0xFC00, Valtype.i32),
+      [ Opcodes.i32_and ],
+      ...number(0xDC00, Valtype.i32),
+      [ Opcodes.i32_ne ],
+      [ Opcodes.if, Blocktype.void ],
+      ...number(0),
+      [ Opcodes.br, 3 ],
+      [ Opcodes.end ],
+
+      // bump index again since gone through two valid chars
+      [ Opcodes.local_get, iTmp ],
+      ...number(ValtypeSize.i16, Valtype.i32),
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_set, iTmp ],
+
+      [ Opcodes.end ],
+
+      // bump pointer and loop if not at the end
+      [ Opcodes.local_get, iTmp ],
+      ...number(ValtypeSize.i16, Valtype.i32),
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_tee, iTmp ],
+
+      ...length.getCachedI32(), // end pointer
+      [ Opcodes.i32_ne ],
+      [ Opcodes.br_if, 0 ],
+
+      [ Opcodes.end ],
+
+      // return true
+      ...number(1)
+    ]
   };
 
   this[TYPES.string].at.local = Valtype.i32;
   this[TYPES.string].at.returnType = TYPES.string;
   this[TYPES.string].charAt.returnType = TYPES.string;
+  this[TYPES.string].charCodeAt.returnType = TYPES.number;
   this[TYPES.string].charCodeAt.local = Valtype.i32;
   this[TYPES.string].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 
@@ -477,7 +503,7 @@ export const PrototypeFuncs = function() {
 
   if (Prefs.bytestring) {
     this[TYPES.bytestring] = {
-      at: (pointer, length, wIndex, iTmp, _, arrayShell) => {
+      at: (pointer, length, wIndex, wType, iTmp, _, arrayShell) => {
         const [ newOut, newPointer ] = arrayShell(1, 'i8');
 
         return [
@@ -533,7 +559,7 @@ export const PrototypeFuncs = function() {
       },
 
       // todo: out of bounds properly
-      charAt: (pointer, length, wIndex, _1, _2, arrayShell) => {
+      charAt: (pointer, length, wIndex, wType, _1, _2, arrayShell) => {
         const [ newOut, newPointer ] = arrayShell(1, 'i8');
 
         return [
@@ -560,55 +586,52 @@ export const PrototypeFuncs = function() {
         ];
       },
 
-      charCodeAt: (pointer, length, wIndex, iTmp) => {
-        return [
-          ...wIndex,
-          Opcodes.i32_to,
+      charCodeAt: (pointer, length, wIndex, wType, iTmp) => [
+        ...wIndex,
+        Opcodes.i32_to,
 
-          ...(zeroChecks.charcodeat ? [] : [
-            [ Opcodes.local_set, iTmp ],
+        ...(zeroChecks.charcodeat ? [] : [
+          [ Opcodes.local_set, iTmp ],
 
-            // index < 0
-            ...(noUnlikelyChecks ? [] : [
-              [ Opcodes.local_get, iTmp ],
-              ...number(0, Valtype.i32),
-              [ Opcodes.i32_lt_s ],
-            ]),
-
-            // index >= length
+          // index < 0
+          ...(noUnlikelyChecks ? [] : [
             [ Opcodes.local_get, iTmp ],
-            ...length.getCachedI32(),
-            [ Opcodes.i32_ge_s ],
-
-            ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
-            [ Opcodes.if, Blocktype.void ],
-            ...number(valtype === 'i32' ? -1 : NaN),
-            [ Opcodes.br, 1 ],
-            [ Opcodes.end ],
-
-            [ Opcodes.local_get, iTmp ],
+            ...number(0, Valtype.i32),
+            [ Opcodes.i32_lt_s ],
           ]),
 
-          ...pointer,
-          [ Opcodes.i32_add ],
+          // index >= length
+          [ Opcodes.local_get, iTmp ],
+          ...length.getCachedI32(),
+          [ Opcodes.i32_ge_s ],
 
-          // load current string ind {arg}
-          [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
-          Opcodes.i32_from_u
-        ];
-      },
+          ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
+          [ Opcodes.if, Blocktype.void ],
+          ...number(valtype === 'i32' ? -1 : NaN),
+          [ Opcodes.br, 1 ],
+          [ Opcodes.end ],
 
-      isWellFormed: () => {
-        return [
-          // we know it must be true as it is a bytestring lol
-          ...number(1)
-        ]
-      }
+          [ Opcodes.local_get, iTmp ],
+        ]),
+
+        ...pointer,
+        [ Opcodes.i32_add ],
+
+        // load current string ind {arg}
+        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+        Opcodes.i32_from_u
+      ],
+
+      isWellFormed: () => [
+        // we know it must be true as it is a bytestring lol
+        ...number(1)
+      ]
     };
 
     this[TYPES.bytestring].at.local = Valtype.i32;
     this[TYPES.bytestring].at.returnType = TYPES.bytestring;
     this[TYPES.bytestring].charAt.returnType = TYPES.bytestring;
+    this[TYPES.bytestring].charCodeAt.returnType = TYPES.number;
     this[TYPES.bytestring].charCodeAt.local = Valtype.i32;
     this[TYPES.bytestring].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 
