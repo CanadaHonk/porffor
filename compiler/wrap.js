@@ -103,6 +103,83 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   times.push(performance.now() - t1);
   if (Prefs.profileCompiler) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
 
+  const backtrace = (funcInd, blobOffset) => {
+    if (funcInd == null || blobOffset == null) return false;
+
+    // convert blob offset -> function wasm offset.
+    // this is not good code and is somewhat duplicated
+    // I just want it to work for debugging, I don't care about perf/yes
+    const func = funcs.find(x => x.index === funcInd);
+    const locals = Object.values(func.locals).sort((a, b) => a.idx - b.idx).slice(func.params.length).sort((a, b) => a.idx - b.idx);
+
+    let localDecl = [], typeCount = 0, lastType;
+    for (let i = 0; i < locals.length; i++) {
+      const local = locals[i];
+      if (i !== 0 && local.type !== lastType) {
+        localDecl.push(encodeLocal(typeCount, lastType));
+        typeCount = 0;
+      }
+
+      typeCount++;
+      lastType = local.type;
+    }
+
+    if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
+
+    const toFind = encodeVector(localDecl).concat(func.wasm.flat().filter(x => x != null && x <= 0xff).slice(0, 60));
+
+    let i = 0;
+    for (; i < wasm.length; i++) {
+      let mismatch = false;
+      for (let j = 0; j < toFind.length; j++) {
+        if (wasm[i + j] !== toFind[j]) {
+          mismatch = true;
+          break;
+        }
+      }
+
+      if (!mismatch) break;
+    }
+
+    if (i === wasm.length) return false;
+
+    const offset = (blobOffset - i) + encodeVector(localDecl).length;
+
+    let cumLen = 0;
+    i = 0;
+    for (; i < func.wasm.length; i++) {
+      cumLen += func.wasm[i].filter(x => x != null && x <= 0xff).length;
+      if (cumLen === offset) break;
+    }
+
+    if (cumLen !== offset) return false;
+
+    i -= 1;
+
+    console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
+
+    console.log('\x1B[4m' + func.name + '\x1B[0m');
+
+    const surrounding = 6;
+
+    const decomp = decompile(func.wasm.slice(i - surrounding, i + surrounding + 1), '', 0, func.locals, func.params, func.returns, funcs, globals, exceptions).slice(0, -1).split('\n');
+
+    const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
+    let longest = 0;
+    for (let j = 0; j < decomp.length; j++) {
+      longest = Math.max(longest, noAnsi(decomp[j]).length);
+    }
+
+    const middle = Math.floor(decomp.length / 2);
+    decomp[middle] = `\x1B[47m\x1B[30m${noAnsi(decomp[middle])}${'\u00a0'.repeat(longest - noAnsi(decomp[middle]).length)}\x1B[0m`;
+
+    console.log('\x1B[90m...\x1B[0m');
+    console.log(decomp.join('\n'));
+    console.log('\x1B[90m...\x1B[0m\n');
+
+    return true;
+  };
+
   const t2 = performance.now();
 
   let instance;
@@ -131,80 +208,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
     const funcInd = parseInt(e.message.match(/function #([0-9]+) /)?.[1]);
     const blobOffset = parseInt(e.message.split('@')?.[1]);
 
-    if (!funcInd) throw e;
-
-    // convert blob offset -> function wasm offset.
-    // this is not good code and is somewhat duplicated
-    // I just want it to work for debugging, I don't care about perf/yes
-
-    const func = funcs.find(x => x.index === funcInd);
-    const locals = Object.values(func.locals).sort((a, b) => a.idx - b.idx).slice(func.params.length).sort((a, b) => a.idx - b.idx);
-
-    let localDecl = [], typeCount = 0, lastType;
-    for (let i = 0; i < locals.length; i++) {
-      const local = locals[i];
-      if (i !== 0 && local.type !== lastType) {
-        localDecl.push(encodeLocal(typeCount, lastType));
-        typeCount = 0;
-      }
-
-      typeCount++;
-      lastType = local.type;
-    }
-
-    if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
-
-    const toFind = encodeVector(localDecl).concat(func.wasm.flat().filter(x => x != null && x <= 0xff).slice(0, 40));
-
-    let i = 0;
-    for (; i < wasm.length; i++) {
-      let mismatch = false;
-      for (let j = 0; j < toFind.length; j++) {
-        if (wasm[i + j] !== toFind[j]) {
-          mismatch = true;
-          break;
-        }
-      }
-
-      if (!mismatch) break;
-    }
-
-    if (i === wasm.length) throw e;
-
-    const offset = (blobOffset - i) + encodeVector(localDecl).length;
-
-    let cumLen = 0;
-    i = 0;
-    for (; i < func.wasm.length; i++) {
-      cumLen += func.wasm[i].filter(x => x != null && x <= 0xff).length;
-      if (cumLen === offset) break;
-    }
-
-    if (cumLen !== offset) throw e;
-
-    i -= 1;
-
-    console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
-
-    console.log('\x1B[4m' + func.name + '\x1B[0m');
-
-    const surrounding = 6;
-
-    const decomp = decompile(func.wasm.slice(i - surrounding, i + surrounding + 1), '', 0, func.locals, func.params, func.returns, funcs, globals, exceptions).slice(0, -1).split('\n');
-
-    const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
-    let longest = 0;
-    for (let j = 0; j < decomp.length; j++) {
-      longest = Math.max(longest, noAnsi(decomp[j]).length);
-    }
-
-    const middle = Math.floor(decomp.length / 2);
-    decomp[middle] = `\x1B[47m\x1B[30m${noAnsi(decomp[middle])}${'\u00a0'.repeat(longest - noAnsi(decomp[middle]).length)}\x1B[0m`;
-
-    console.log('\x1B[90m...\x1B[0m');
-    console.log(decomp.join('\n'));
-    console.log('\x1B[90m...\x1B[0m\n');
-
+    backtrace(funcInd, blobOffset);
     throw e;
   }
 
@@ -247,6 +251,17 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
           const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
           throw new constructor(exception.message);
+        }
+
+        if (e instanceof WebAssembly.RuntimeError) {
+          // only backtrace for runner, not test262/etc
+          if (!process.argv[1].includes('/runner')) throw e;
+
+          const match = e.stack.match(/wasm-function\[([0-9]+)\]:([0-9a-z]+)/) ?? [];
+          const funcInd = parseInt(match[1]);
+          const blobOffset = parseInt(match[2]);
+
+          backtrace(funcInd, blobOffset);
         }
 
         throw e;
