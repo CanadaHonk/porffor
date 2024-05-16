@@ -203,19 +203,11 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
         __Porffor_bs: str => [
           ...makeString(scope, str, global, name, true),
-
-          ...(name ? setType(scope, name, TYPES.bytestring) : [
-            ...number(TYPES.bytestring, Valtype.i32),
-            ...setLastType(scope)
-          ])
+          ...(name ? setType(scope, name, TYPES.bytestring) : setLastType(scope, TYPES.bytestring))
         ],
         __Porffor_s: str => [
           ...makeString(scope, str, global, name, false),
-
-          ...(name ? setType(scope, name, TYPES.string) : [
-            ...number(TYPES.string, Valtype.i32),
-            ...setLastType(scope)
-          ])
+          ...(name ? setType(scope, name, TYPES.string) : setLastType(scope, TYPES.string))
         ],
       };
 
@@ -403,13 +395,11 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
       [ Opcodes.if, Valtype.i32 ],
       ...right,
       // note type
-      ...rightType,
-      ...setLastType(scope),
+      ...setLastType(scope, rightType),
       [ Opcodes.else ],
       [ Opcodes.local_get, localTmp(scope, 'logictmpi', Valtype.i32) ],
       // note type
-      ...leftType,
-      ...setLastType(scope),
+      ...setLastType(scope, leftType),
       [ Opcodes.end ],
       Opcodes.i32_from
     ];
@@ -422,13 +412,11 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
     [ Opcodes.if, valtypeBinary ],
     ...right,
     // note type
-    ...rightType,
-    ...setLastType(scope),
+    ...setLastType(scope, rightType),
     [ Opcodes.else ],
     [ Opcodes.local_get, localTmp(scope, 'logictmp') ],
     // note type
-    ...leftType,
-    ...setLastType(scope),
+    ...setLastType(scope, leftType),
     [ Opcodes.end ]
   ];
 };
@@ -1197,9 +1185,10 @@ const getLastType = scope => {
   return [ [ Opcodes.local_get, localTmp(scope, '#last_type', Valtype.i32) ] ];
 };
 
-const setLastType = scope => {
-  return [ [ Opcodes.local_set, localTmp(scope, '#last_type', Valtype.i32) ] ];
-};
+const setLastType = (scope, type = []) => [
+  ...(typeof type === 'number' ? number(type, Valtype.i32) : type),
+  [ Opcodes.local_set, localTmp(scope, '#last_type', Valtype.i32) ]
+];
 
 const getNodeType = (scope, node) => {
   const ret = (() => {
@@ -1355,18 +1344,6 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type === 'MemberExpression') {
-      // hack: if something.name, string type
-      if (node.property.name === 'name') {
-        if (hasFuncWithName(node.object.name)) {
-          return TYPES.bytestring;
-        } else {
-          return TYPES.undefined;
-        }
-      }
-
-      // hack: if something.length, number type
-      if (node.property.name === 'length') return TYPES.number;
-
       // ts hack
       if (scope.locals[node.object.name]?.metadata?.type === TYPES.string) return TYPES.string;
       if (scope.locals[node.object.name]?.metadata?.type === TYPES.bytestring) return TYPES.bytestring;
@@ -1564,16 +1541,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       out.splice(out.length - 1, 1);
 
       const finalStatement = parsed.body[parsed.body.length - 1];
-      out.push(
-        ...getNodeType(scope, finalStatement),
-        ...setLastType(scope)
-      );
+      out.push(...setLastType(scope, getNodeType(scope, finalStatement)));
     } else if (countLeftover(out) === 0) {
       out.push(...number(UNDEFINED));
-      out.push(
-        ...number(TYPES.undefined, Valtype.i32),
-        ...setLastType(scope)
-      );
+      out.push(...setLastType(scope, TYPES.undefined));
     }
 
     // if (lastInst && lastInst[0] === Opcodes.drop) {
@@ -1625,8 +1596,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         [ Opcodes.call, idx ],
         Opcodes.i32_from_u,
 
-        ...number(TYPES.boolean, Valtype.i32),
-        ...setLastType(scope)
+        ...setLastType(scope, TYPES.boolean)
       ];
     }
 
@@ -1698,9 +1668,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         if (protoFunc.noArgRetLength && decl.arguments.length === 0) {
           protoBC[x] = [
             ...RTArrayUtil.getLength(getPointer),
-
-            ...number(TYPES.number, Valtype.i32),
-            ...setLastType(scope)
+            ...setLastType(scope, TYPES.number)
           ];
           continue;
         }
@@ -1733,9 +1701,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         protoBC[x] = [
           [ Opcodes.block, unusedValue && optUnused ? Blocktype.void : valtypeBinary ],
           ...protoOut,
-
-          ...number(protoFunc.returnType ?? TYPES.number, Valtype.i32),
-          ...setLastType(scope),
+          ...setLastType(scope, protoFunc.returnType ?? TYPES.number),
           [ Opcodes.end ]
         ];
       }
@@ -1903,6 +1869,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     out = out.concat(generate(scope, arg));
+
+    if (i >= paramCount) {
+      // over param count of func, drop arg
+      out.push([ Opcodes.drop ]);
+      continue;
+    }
 
     if (valtypeBinary !== Valtype.i32 && (
       (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32) ||
@@ -2110,6 +2082,17 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
     else if (returns !== Blocktype.void) out.push(...number(0, returns));
 
   out.push([ Opcodes.end, 'TYPESWITCH_end' ]);
+
+  return out;
+};
+
+const typeIsOneOf = (type, types, valtype = Valtype.i32) => {
+  const out = [];
+
+  for (let i = 0; i < types.length; i++) {
+    out.push(...type, ...number(types[i], valtype), valtype === Valtype.f64 ? [ Opcodes.f64_eq ] : [ Opcodes.i32_eq ]);
+    if (i !== 0) out.push([ Opcodes.i32_or ]);
+  }
 
   return out;
 };
@@ -2608,21 +2591,16 @@ const generateConditional = (scope, decl) => {
   out.push([ Opcodes.if, valtypeBinary ]);
   depth.push('if');
 
-  out.push(...generate(scope, decl.consequent));
-
-  // note type
   out.push(
-    ...getNodeType(scope, decl.consequent),
-    ...setLastType(scope)
+    ...generate(scope, decl.consequent),
+    ...setLastType(scope, getNodeType(scope, decl.consequent))
   );
 
   out.push([ Opcodes.else ]);
-  out.push(...generate(scope, decl.alternate));
 
-  // note type
   out.push(
-    ...getNodeType(scope, decl.alternate),
-    ...setLastType(scope)
+    ...generate(scope, decl.alternate),
+    ...setLastType(scope, getNodeType(scope, decl.alternate))
   );
 
   out.push([ Opcodes.end ]);
@@ -3227,11 +3205,14 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
 
   return [
     ...number(1),
-
-    ...number(TYPES.object, Valtype.i32),
-    ...setLastType(scope)
+    ...setLastType(scope, TYPES.object)
   ];
 };
+
+const withType = (scope, wasm, type) => [
+  ...wasm,
+  ...setLastType(scope, type)
+];
 
 const generateMember = (scope, decl, _global, _name) => {
   const name = decl.object.name;
@@ -3247,9 +3228,9 @@ const generateMember = (scope, decl, _global, _name) => {
       // eg: __String_prototype_toLowerCase -> toLowerCase
       if (nameProp.startsWith('__')) nameProp = nameProp.split('_').pop();
 
-      return makeString(scope, nameProp, _global, _name, true);
+      return withType(scope, makeString(scope, nameProp, _global, _name, true), TYPES.bytestring);
     } else {
-      return generate(scope, DEFAULT_VALUE);
+      return withType(scope, number(0), TYPES.undefined);
     }
   }
 
@@ -3259,7 +3240,7 @@ const generateMember = (scope, decl, _global, _name) => {
     if (func) {
       const userFunc = funcIndex[name] && !importedFuncs[name] && !builtinFuncs[name] && !internalConstrs[name];
       const typedParams = userFunc || builtinFuncs[name]?.typedParams;
-      return number(typedParams ? func.params.length / 2 : func.params.length);
+      return withType(scope, number(typedParams ? func.params.length / 2 : func.params.length), TYPES.number);
     }
 
     if (builtinFuncs[name + '$constructor']) {
@@ -3269,21 +3250,29 @@ const generateMember = (scope, decl, _global, _name) => {
       const constructorFunc = builtinFuncs[name + '$constructor'];
       const constructorParams = constructorFunc.typedParams ? (constructorFunc.params.length / 2) : constructorFunc.params.length;
 
-      return number(Math.max(regularParams, constructorParams));
+      return withType(scope, number(Math.max(regularParams, constructorParams)), TYPES.number);
     }
 
-    if (builtinFuncs[name]) return number(builtinFuncs[name].typedParams ? (builtinFuncs[name].params.length / 2) : builtinFuncs[name].params.length);
-    if (importedFuncs[name]) return number(importedFuncs[name].params);
-    if (internalConstrs[name]) return number(internalConstrs[name].length ?? 0);
+    if (builtinFuncs[name]) return withType(scope, number(builtinFuncs[name].typedParams ? (builtinFuncs[name].params.length / 2) : builtinFuncs[name].params.length), TYPES.number);
+    if (importedFuncs[name]) return withType(scope, number(importedFuncs[name].params), TYPES.number);
+    if (internalConstrs[name]) return withType(scope, number(internalConstrs[name].length ?? 0), TYPES.number);
 
     return [
-      ...(aotPointer ? number(0, Valtype.i32) : [
-        ...generate(scope, decl.object),
-        Opcodes.i32_to_u
-      ]),
+      ...typeIsOneOf(getNodeType(scope, decl.object), [ TYPES.string, TYPES.bytestring, TYPES.array ]),
+      [ Opcodes.if, valtypeBinary ],
+        ...(aotPointer ? number(0, Valtype.i32) : [
+          ...generate(scope, decl.object),
+          Opcodes.i32_to_u
+        ]),
 
-      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128((aotPointer ? pointer : 0)) ],
-      Opcodes.i32_from_u
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128((aotPointer ? pointer : 0)) ],
+        Opcodes.i32_from_u,
+
+        ...setLastType(scope, TYPES.number),
+      [ Opcodes.else ],
+        ...number(0),
+        ...setLastType(scope, TYPES.undefined),
+      [ Opcodes.end ]
     ];
   }
 
@@ -3317,9 +3306,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
       // read from memory
       [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
-
-      ...number(TYPES.number, Valtype.i32),
-      ...setLastType(scope)
+      ...setLastType(scope, TYPES.number)
     ],
 
     [TYPES.string]: [
@@ -3349,9 +3336,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
       // return new string (page)
       ...number(newPointer),
-
-      ...number(TYPES.string, Valtype.i32),
-      ...setLastType(scope)
+      ...setLastType(scope, TYPES.string)
     ],
     [TYPES.bytestring]: [
       // setup new/out array
@@ -3377,9 +3362,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
       // return new string (page)
       ...number(newPointer),
-
-      ...number(TYPES.bytestring, Valtype.i32),
-      ...setLastType(scope)
+      ...setLastType(scope, TYPES.bytestring)
     ],
 
     default: internalThrow(scope, 'TypeError', 'Member expression is not supported for non-string non-array yet', true)
