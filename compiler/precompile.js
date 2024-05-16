@@ -18,7 +18,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
     first = source.slice(0, source.indexOf('\n'));
   }
 
-  let args = ['--bytestring', '--todo-time=compile', '--no-aot-pointer-opt', '--no-indirect-calls', '--no-treeshake-wasm-imports', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--parse-types', '--opt-types'];
+  let args = ['--bytestring', '--todo-time=compile', '--no-indirect-calls', '--no-treeshake-wasm-imports', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--parse-types', '--opt-types'];
   if (first.startsWith('// @porf')) {
     args = args.concat(first.slice('// @porf '.length).split(' '));
   }
