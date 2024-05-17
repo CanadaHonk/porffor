@@ -231,7 +231,11 @@ builtins/tostring_number: impl radix
 
 Make sure you have Test262 cloned already **inside of `test262/`** (`git clone https://github.com/tc39/test262.git test262/test262`) and run `npm install` inside `test262/` too.
 
-Run `node test262` to run all the tests and get an output of total overall test results. The main thing you want to pay attention to is the emoji summary (lol):
+Run `node test262` to run all the tests and get an output of total overall test results.
+
+Warning: this will consume 1-6GB of memory and ~90% of all CPU cores while running (depending on thread count), it should take 15-120s depending on machine. You can specify how many threads with `--threads=N`, it will use the number of CPU threads by default.
+
+The main thing you want to pay attention to is the emoji summary (lol):
 ```
 🧪 50005 | 🤠 7007 (-89) | ❌ 1914 (-32) | 💀 13904 (-61) | 📝 23477 (-120) | ⏰ 2 | 🏗 2073 (+302) | 💥 1628
 ```
