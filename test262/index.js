@@ -127,13 +127,6 @@ if (isMainThread) {
       total++;
       const pass = result === 0;
 
-      if (!resultOnly) {
-        const percent = ((total / tests.length) * 100) | 0;
-        // process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% | \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
-        if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
-        lastPercent = percent;
-      }
-
       if (pass) {
         passes++;
         if (!resultOnly) passFiles.push(file);
@@ -153,12 +146,19 @@ if (isMainThread) {
         runtimeErrors++;
       }
 
-      const dir = file.slice(0, file.indexOf('/'));
-      if (!dirs.has(dir)) dirs.set(dir, [0, 0, 0, 0, 0, 0, 0, 0]);
+      if (!resultOnly) {
+        const percent = ((total / tests.length) * 100) | 0;
+        // process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% | \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
+        if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
+        lastPercent = percent;
 
-      const o = dirs.get(dir);
-      o[0] += 1;
-      o[result + 1] += 1;
+        const dir = file.slice(0, file.indexOf('/'));
+        if (!dirs.has(dir)) dirs.set(dir, [0, 0, 0, 0, 0, 0, 0, 0]);
+
+        const o = dirs.get(dir);
+        o[0] += 1;
+        o[result + 1] += 1;
+      }
 
       if (total === totalTests) resolve();
     });
