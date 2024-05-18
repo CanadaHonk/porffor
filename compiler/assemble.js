@@ -116,6 +116,20 @@ export default (funcs, globals, tags, pages, data, flags) => {
     ] ])
   );
 
+  if (pages.has('func argc lut')) {
+    // generate func argc lut data
+    const bytes = [];
+    for (let i = 0; i < funcs.length; i++) {
+      const argc = Math.floor(funcs[i].params.length / 2);
+      bytes.push(argc % 256, (argc / 256 | 0) % 256);
+    }
+
+    data.push({
+      offset: pages.get('func argc lut').ind * pageSize,
+      bytes
+    });
+  }
+
   // const t0 = performance.now();
 
   // specially optimized assembly for globals as this version is much (>5x) faster than traditional createSection()

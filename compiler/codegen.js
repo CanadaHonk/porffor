@@ -681,6 +681,25 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
     ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
 
     // ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
+    // [ Opcodes.i32_eqz ],
+
+    // ...(intIn ? [
+    //   ...number(0, Valtype.i32),
+    //   [ Opcodes.i32_gt_s ]
+    // ] : [
+    //   ...number(0),
+    //   [ Opcodes.f64_gt ]
+    // ]),
+
+    // ...(intOut ? [] : [ Opcodes.i32_from ]),
+
+    // ...(intIn ? [] : [ Opcodes.i32_to ]),
+    // [ Opcodes.if, intOut ? Valtype.i32 : valtypeBinary ],
+    // ...number(1, intOut ? Valtype.i32 : valtypeBinary),
+    // [ Opcodes.else ],
+    // ...number(0, intOut ? Valtype.i32 : valtypeBinary),
+    // [ Opcodes.end ],
+
     ...(!intOut || (intIn && intOut) ? [] : [ Opcodes.i32_to_u ]),
 
     /* Opcodes.eqz,
@@ -1044,7 +1063,7 @@ const asmFuncToAsm = (func, { name = '#unknown_asm_func', params = [], locals = 
   });
 };
 
-const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, localNames = [], globalNames = [], data: _data = [], callsSelf = false }) => {
+const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, localNames = [], globalNames = [], data: _data = [], table = false, callsSelf = false }) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
@@ -1098,8 +1117,17 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     }
   }
 
+  if (table) for (const inst of wasm) {
+    if (inst[0] === Opcodes.i32_load16_u && inst.at(-1) === 'read_argc') {
+      inst.splice(2, 99);
+      inst.push(...unsignedLEB128(allocPage({}, 'func argc lut') * pageSize));
+    }
+  }
+
   funcs.push(func);
   funcIndex[name] = func.index;
+
+  if (table) funcs.table = true;
 
   return func;
 };
@@ -1840,36 +1868,128 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const [ local, global ] = lookupName(scope, name);
       if (!Prefs.indirectCalls || local == null) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
 
-      // todo: only works when:
-      //   1. arg count matches arg count of function
-      //   2. function uses typedParams and typedReturns
+      // todo: only works when function uses typedParams and typedReturns
+
+      const indirectMode = Prefs.indirectCallMode ?? 'vararg';
+      // options: vararg, strict
+      // - strict: simpler, smaller size usage, no func argc lut needed.
+      //   ONLY works when arg count of call == arg count of function being called
+      // - vararg: large size usage, cursed.
+      //   works when arg count of call != arg count of function being called*
+      //   * most of the time, some edgecases
 
       funcs.table = true;
+      scope.table = true;
 
       let args = decl.arguments;
-      let argWasm = [];
+      let out = [];
+
+      let locals = [];
+
+      if (indirectMode === 'vararg') {
+        const minArgc = Prefs.indirectCallMinArgc ?? 3;
+
+        if (args.length < minArgc) {
+          args = args.concat(new Array(minArgc - args.length).fill(DEFAULT_VALUE));
+        }
+      }
 
       for (let i = 0; i < args.length; i++) {
         const arg = args[i];
-        argWasm = argWasm.concat(generate(scope, arg));
+        out = out.concat(generate(scope, arg));
 
         if (valtypeBinary !== Valtype.i32 && (
           (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32) ||
           (importedFuncs[name] && name.startsWith('profile'))
         )) {
-          argWasm.push(Opcodes.i32_to);
+          out.push(Opcodes.i32_to);
         }
 
-        argWasm = argWasm.concat(getNodeType(scope, arg));
+        out = out.concat(getNodeType(scope, arg));
+
+        if (indirectMode === 'vararg') {
+          const typeLocal = localTmp(scope, `#indirect_arg${i}_type`, Valtype.i32);
+          const valLocal = localTmp(scope, `#indirect_arg${i}_val`);
+
+          locals.push([valLocal, typeLocal]);
+
+          out.push(
+            [ Opcodes.local_set, typeLocal ],
+            [ Opcodes.local_set, valLocal ]
+          );
+        }
       }
+
+      if (indirectMode === 'strict') {
+        return typeSwitch(scope, getNodeType(scope, decl.callee), {
+          [TYPES.function]: [
+            ...argWasm,
+            [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+            Opcodes.i32_to_u,
+            [ Opcodes.call_indirect, args.length, 0 ],
+            ...setLastType(scope)
+          ],
+          default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
+        });
+      }
+
+      // hi, I will now explain how vararg mode works:
+      // wasm's indirect_call instruction requires you know the func type at compile-time
+      // since we have varargs (variable argument count), we do not know it.
+      // we could just store args in memory and not use wasm func args,
+      // but that is slow (probably) and breaks js exports.
+      // instead, we generate every* possibility of argc and use different indirect_call
+      // ops for each one, with type depending on argc for that branch.
+      // then we load the argc for the wanted function from a memory lut,
+      // and call the branch with the matching argc we require.
+      // sorry, yes it is very cursed (and size inefficient), but indirect calls
+      // are kind of rare anyway (mostly callbacks) so I am not concerned atm.
+      // *for argc 0-3, in future (todo:) the max number should be
+      // dynamically changed to the max argc of any func in the js file.
+
+      const funcLocal = localTmp(scope, `#indirect_func`, Valtype.i32);
+
+      const gen = argc => {
+        const out = [];
+        for (let i = 0; i < argc; i++) {
+          out.push(
+            [ Opcodes.local_get, locals[i][0] ],
+            [ Opcodes.local_get, locals[i][1] ]
+          );
+        }
+
+        out.push(
+          [ Opcodes.local_get, funcLocal ],
+          [ Opcodes.call_indirect, argc, 0 ],
+          ...setLastType(scope)
+        )
+
+        return out;
+      };
+
+      const tableBc = {};
+      for (let i = 0; i <= args.length; i++) {
+        tableBc[i] = gen(i);
+      }
+
+      // todo/perf: check if we should use br_table here or just generate our own big if..elses
 
       return typeSwitch(scope, getNodeType(scope, decl.callee), {
         [TYPES.function]: [
-          ...argWasm,
+          ...out,
+
           [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
           Opcodes.i32_to_u,
-          [ Opcodes.call_indirect, args.length, 0 ],
-          ...setLastType(scope)
+          [ Opcodes.local_set, funcLocal ],
+
+          ...brTable([
+            // get argc of func we are calling
+            [ Opcodes.local_get, funcLocal ],
+            ...number(ValtypeSize.i16, Valtype.i32),
+            [ Opcodes.i32_mul ],
+
+            [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func argc lut') * pageSize), 'read_argc' ]
+          ], tableBc, valtypeBinary)
         ],
         default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
       });
@@ -2027,16 +2147,17 @@ const brTable = (input, bc, returns) => {
   }
 
   for (let i = 0; i < count; i++) {
-    if (i === 0) out.push([ Opcodes.block, returns, 'br table start' ]);
+    // if (i === 0) out.push([ Opcodes.block, returns, 'br table start' ]);
+    if (i === 0) out.push([ Opcodes.block, returns ]);
       else out.push([ Opcodes.block, Blocktype.void ]);
   }
 
-  const nums = keys.filter(x => +x);
+  const nums = keys.filter(x => +x >= 0);
   const offset = Math.min(...nums);
   const max = Math.max(...nums);
 
   const table = [];
-  let br = 1;
+  let br = 0;
 
   for (let i = offset; i <= max; i++) {
     // if branch for this num, go to that block
@@ -2076,10 +2197,9 @@ const brTable = (input, bc, returns) => {
     br--;
   }
 
-  return [
-    ...out,
-    [ Opcodes.end, 'br table end' ]
-  ];
+  out.push([ Opcodes.end ]);
+
+  return out;
 };
 
 const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
@@ -3586,7 +3706,8 @@ const generateFunc = (scope, decl) => {
 
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
-    if (type != null && !Prefs.indirectCalls) {
+    // if (type != null && !Prefs.indirectCalls) {
+    if (type != null) {
       innerScope.returnType = type;
       innerScope.returns = [ valtypeBinary ];
     }
