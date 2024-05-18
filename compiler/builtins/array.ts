@@ -188,3 +188,13 @@ export const __Array_prototype_find = (_this: any[], callbackFn: any) => {
     if (callbackFn(el, i++, _this)) return el;
   }
 };
+
+export const __Array_prototype_every = (_this: any[], callbackFn: any) => {
+  const len: i32 = _this.length;
+  let i: i32 = 0;
+  while (i < len) {
+    if (!callbackFn(_this[i], i++, _this)) return false;
+  }
+
+  return true;
+};
