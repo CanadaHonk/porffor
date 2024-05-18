@@ -146,10 +146,24 @@ export const __Array_prototype_valueOf = (_this: any[]) => {
   return _this;
 };
 
+
 export const __Array_prototype_forEach = (_this: any[], callbackFn: Function) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
     callbackFn(_this[i], i++, _this);
   }
+};
+
+export const __Array_prototype_filter = (_this: any[], callbackFn: Function) => {
+  const out: any[] = [];
+
+  const len: i32 = _this.length;
+  let i: i32 = 0;
+  while (i < len) {
+    const el: any = _this[i];
+    if (callbackFn(el, i++, _this)) out.push(el);
+  }
+
+  return out;
 };
