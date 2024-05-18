@@ -179,3 +179,12 @@ export const __Array_prototype_map = (_this: any[], callbackFn: any) => {
 
   return out;
 };
+
+export const __Array_prototype_find = (_this: any[], callbackFn: any) => {
+  const len: i32 = _this.length;
+  let i: i32 = 0;
+  while (i < len) {
+    const el: any = _this[i];
+    if (callbackFn(el, i++, _this)) return el;
+  }
+};
