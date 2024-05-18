@@ -167,3 +167,15 @@ export const __Array_prototype_filter = (_this: any[], callbackFn: Function) => 
 
   return out;
 };
+
+export const __Array_prototype_map = (_this: any[], callbackFn: Function) => {
+  const out: any[] = [];
+
+  const len: i32 = _this.length;
+  let i: i32 = 0;
+  while (i < len) {
+    out.push(callbackFn(_this[i], i++, _this));
+  }
+
+  return out;
+};
