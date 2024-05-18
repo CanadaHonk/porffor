@@ -3144,14 +3144,18 @@ const generateThrow = (scope, decl) => {
 };
 
 const generateTry = (scope, decl) => {
-  if (decl.finalizer) return todo(scope, 'try finally not implemented yet');
+  // todo: handle control-flow pre-exit for finally
+  // "Immediately before a control-flow statement (return, throw, break, continue) is executed in the try block or catch block."
 
   const out = [];
+
+  const finalizer = decl.finalizer ? generate(scope, decl.finalizer) : [];
 
   out.push([ Opcodes.try, Blocktype.void ]);
   depth.push('try');
 
   out.push(...generate(scope, decl.block));
+  out.push(...finalizer);
 
   if (decl.handler) {
     depth.pop();
@@ -3159,6 +3163,7 @@ const generateTry = (scope, decl) => {
 
     out.push([ Opcodes.catch_all ]);
     out.push(...generate(scope, decl.handler.body));
+    out.push(...finalizer);
   }
 
   out.push([ Opcodes.end ]);
