@@ -145,3 +145,11 @@ export const __Array_prototype_toReversed = (_this: any[]) => {
 export const __Array_prototype_valueOf = (_this: any[]) => {
   return _this;
 };
+
+export const __Array_prototype_forEach = (_this: any[], callbackFn: Function) => {
+  const len: i32 = _this.length;
+  let i: i32 = 0;
+  while (i < len) {
+    callbackFn(_this[i], i++, _this);
+  }
+};
