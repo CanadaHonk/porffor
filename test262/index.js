@@ -320,16 +320,13 @@ if (isMainThread) {
   const { tests, preludes } = workerData;
 
   const timeout = ($func, timeout) => {
-    if (globalThis.Bun || globalThis.Deno) throw { code: 'ERR_SCRIPT_EXECUTION_TIMEOUT' };
+    // if (globalThis.Bun || globalThis.Deno) throw { code: 'ERR_SCRIPT_EXECUTION_TIMEOUT' };
 
     const script = new vm.Script('$func()');
     return script.runInNewContext({ $func }, { timeout });
   };
 
   const logErrors = process.argv.includes('--log-errors');
-
-  let timeoutFiles = ['test/language/statements/continue/shadowing-loop-variable-in-same-scope-as-continue.js'];
-  if (process.platform === 'win32') timeoutFiles = timeoutFiles.map(x => x.replaceAll('/', '\\'));
 
   const debugAsserts = process.argv.includes('--debug-asserts');
 
@@ -396,8 +393,9 @@ if (isMainThread) {
 
     try {
       // only timeout some due to big perf impact
-      if (timeoutFiles.includes(file)) timeout(exports.m, 500);
+      if (file.includes('while') || file.includes('for') || file.includes('continue') || file.includes('break')) timeout(exports.m, 500);
         else exports.m();
+      // timeout(exports.m, 500);
     } catch (e) {
       if (e.is && e.is(exports['0'])) {
         const exceptId = e.getArg(exports['0'], 0);
