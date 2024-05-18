@@ -147,7 +147,7 @@ export const __Array_prototype_valueOf = (_this: any[]) => {
 };
 
 
-export const __Array_prototype_forEach = (_this: any[], callbackFn: Function) => {
+export const __Array_prototype_forEach = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
@@ -155,7 +155,7 @@ export const __Array_prototype_forEach = (_this: any[], callbackFn: Function) =>
   }
 };
 
-export const __Array_prototype_filter = (_this: any[], callbackFn: Function) => {
+export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
   const out: any[] = [];
 
   const len: i32 = _this.length;
@@ -168,7 +168,7 @@ export const __Array_prototype_filter = (_this: any[], callbackFn: Function) => 
   return out;
 };
 
-export const __Array_prototype_map = (_this: any[], callbackFn: Function) => {
+export const __Array_prototype_map = (_this: any[], callbackFn: any) => {
   const out: any[] = [];
 
   const len: i32 = _this.length;
