@@ -189,6 +189,14 @@ export const __Array_prototype_find = (_this: any[], callbackFn: any) => {
   }
 };
 
+export const __Array_prototype_findLast = (_this: any[], callbackFn: any) => {
+  let i: i32 = _this.length;
+  while (i > 0) {
+    const el: any = _this[--i];
+    if (callbackFn(el, i, _this)) return el;
+  }
+};
+
 export const __Array_prototype_every = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
