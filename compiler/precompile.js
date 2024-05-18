@@ -18,7 +18,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
     first = source.slice(0, source.indexOf('\n'));
   }
 
-  let args = ['--bytestring', '--todo-time=compile', '--no-indirect-calls', '--no-treeshake-wasm-imports', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--fast-length', '--parse-types', '--opt-types'];
+  let args = ['--bytestring', '--todo-time=compile', '--no-treeshake-wasm-imports', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--fast-length', '--parse-types', '--opt-types'];
   if (first.startsWith('// @porf')) {
     args = args.concat(first.slice('// @porf '.length).split(' '));
   }
@@ -111,8 +111,9 @@ ${funcs.map(x => {
     ${x.returnType != null ? `returnType: ${JSON.stringify(x.returnType)}` : 'typedReturns: true'},
     locals: ${JSON.stringify(Object.values(x.locals).slice(x.params.length).map(x => x.type))},
     localNames: ${JSON.stringify(Object.keys(x.locals))},
-${x.data && x.data.length > 0 ? `    data: ${JSON.stringify(x.data)}` : ''}
-  };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n')
+${x.data && x.data.length > 0 ? `    data: ${JSON.stringify(x.data)},` : ''}
+${x.table ? `    table: true` : ''}
+  };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');
 }).join('\n')}
 };`;
 };
