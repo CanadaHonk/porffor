@@ -197,6 +197,21 @@ export const __Array_prototype_findLast = (_this: any[], callbackFn: any) => {
   }
 };
 
+export const __Array_prototype_findIndex = (_this: any[], callbackFn: any) => {
+  const len: i32 = _this.length;
+  let i: i32 = 0;
+  while (i < len) {
+    if (callbackFn(_this[i], i++, _this)) return i;
+  }
+};
+
+export const __Array_prototype_findLastIndex = (_this: any[], callbackFn: any) => {
+  let i: i32 = _this.length;
+  while (i > 0) {
+    if (callbackFn(_this[--i], i, _this)) return i;
+  }
+};
+
 export const __Array_prototype_every = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
