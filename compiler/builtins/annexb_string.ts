@@ -1,4 +1,5 @@
 // @porf --valtype=i32
+import type {} from './porffor.d.ts';
 
 export const __String_prototype_trimLeft = (_this: string) => {
   return __String_prototype_trimStart(_this);

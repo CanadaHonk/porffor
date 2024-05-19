@@ -1,3 +1,5 @@
+import type {} from './porffor.d.ts';
+
 export const __Array_isArray = (x: unknown): boolean =>
   // Porffor.wasm`local.get ${x+1}` == Porffor.TYPES.array;
   Porffor.rawType(x) == Porffor.TYPES.array;

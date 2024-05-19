@@ -1,4 +1,5 @@
 // @porf --valtype=i32
+import type {} from './porffor.d.ts';
 
 export const __String_fromCharCode = (code: i32) => {
   // todo: support >1 arg

@@ -1,4 +1,5 @@
 // @porf --valtype=i32
+import type {} from './porffor.d.ts';
 
 export const btoa = (input: bytestring): bytestring => {
   const keyStr: bytestring = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';

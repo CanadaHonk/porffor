@@ -1,3 +1,5 @@
+import type {} from './porffor.d.ts';
+
 // radix: number|any for rawType check
 // export const parseInt = (input: string|bytestring, radix: number|any): f64 => {
 export const parseInt = (input: string|bytestring, radix: number): f64 => {

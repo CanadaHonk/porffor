@@ -1,3 +1,5 @@
+import type {} from './porffor.d.ts';
+
 // todo: use any and Number(x) in all these later
 // todo: specify the rest of this file later
 // todo/perf: make i32 variants later
@@ -17,7 +19,7 @@ export const __Math_exp = (x: number): number => {
   const k: number = Math.floor(x / Math.LN2);
   const r: number = x - k * Math.LN2;
 
-  // Horner's method
+  // Taylor series via Horner's method
   let term: number = r;
   let sum: number = 1 + r;
   let i: number = 2;

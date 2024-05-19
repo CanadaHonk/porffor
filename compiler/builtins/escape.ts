@@ -1,4 +1,5 @@
 // @porf --valtype=i32
+import type {} from './porffor.d.ts';
 
 export const escape = (input: string|bytestring): bytestring => {
   // we have no byte array yet so use bytestring with 0x00 and 0x01 via escape characters

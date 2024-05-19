@@ -1,3 +1,5 @@
+import type {} from './porffor.d.ts';
+
 export const __Porffor_symbol_descStore = (op: boolean, value: any): any => {
   const ptr: bytestring = '';
 

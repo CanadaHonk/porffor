@@ -1,4 +1,5 @@
 // @porf --valtype=i32
+import type {} from './porffor.d.ts';
 
 export const __crypto_randomUUID = (): bytestring => {
   let bytes: bytestring = '................';

@@ -1,3 +1,5 @@
+import type {} from './porffor.d.ts';
+
 // radix: number|any for rawType check
 export const __Number_prototype_toString = (_this: number, radix: number|any) => {
   let out: bytestring = '';

@@ -1,3 +1,5 @@
+import type {} from './porffor.d.ts';
+
 // dark wasm magic for dealing with memory, sorry.
 export const __Porffor_allocate = (): number => {
   Porffor.wasm`i32.const 1
