@@ -60,8 +60,10 @@ if (process.argv.includes('--help')) {
 
 let file = process.argv.slice(2).find(x => x[0] !== '-');
 if (['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(file)) {
+  // remove this arg
+  process.argv.splice(process.argv.indexOf(file), 1);
+
   if (file === 'profile') {
-    process.argv.splice(process.argv.indexOf(file), 1);
     await import('./profiler.js');
     await new Promise(() => {}); // do nothing for the rest of this file
   }
@@ -75,12 +77,11 @@ if (['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(fi
   }
 
   if (file === 'debug') {
-    process.argv.splice(process.argv.indexOf(file), 1);
     await import('./debug.js');
     await new Promise(() => {}); // do nothing for the rest of this file
   }
 
-  file = process.argv.slice(process.argv.indexOf(file) + 1).find(x => x[0] !== '-');
+  file = process.argv.slice(2).find(x => x[0] !== '-');
 
   const nonOptOutFile = process.argv.slice(process.argv.indexOf(file) + 1).find(x => x[0] !== '-');
   if (nonOptOutFile) {
