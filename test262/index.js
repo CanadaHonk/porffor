@@ -367,7 +367,7 @@ if (isMainThread) {
       .replace('function assert(mustBeTrue) {', 'function assert(mustBeTrue, msg) {')
       .replaceAll('function (actual, expected) {', 'function (actual, expected, msg) {')
       .replace('function (actual, unexpected) {', 'function (actual, unexpected, msg) {')
-      .replaceAll('throw new Test262Error', 'console.log(msg); console.log(expected); console.log(actual); throw new Test262Error');
+      .replaceAll('throw new Test262Error', 'if (typeof msg != "undefined") { console.log(msg); console.log(expected) console.log(actual); } throw new Test262Error');
 
     // fs.writeFileSync('r.js', toRun);
 
