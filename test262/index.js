@@ -81,7 +81,8 @@ if (isMainThread) {
 
   const trackErrors = process.argv.includes('--errors');
   const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
-
+  const logErrors = process.argv.includes('--log-errors');
+  const debugAsserts = process.argv.includes('--debug-asserts');
   const subdirs = process.argv.includes('--subdirs');
 
   const start = performance.now();
@@ -98,7 +99,8 @@ if (isMainThread) {
     return acc;
   }, {});
 
-  const threads = process.argv.find(x => x.startsWith('--threads='))?.split('=')?.[1] || os.cpus().length;
+  let threads = process.argv.find(x => x.startsWith('--threads='))?.split('=')?.[1] || os.cpus().length;
+  if (logErrors) threads = 1;
 
   const waits = [];
   const testsPerWorker = Math.ceil(tests.length / threads);
@@ -116,7 +118,8 @@ if (isMainThread) {
     const worker = new Worker(__filename, {
       workerData: {
         tests: workerTests,
-        preludes
+        preludes,
+        logErrors, debugAsserts
       }
     });
 
@@ -142,11 +145,12 @@ if (isMainThread) {
         fails++;
       } else if (result === 5) {
         timeouts++;
+        // console.log('\n' + file);
       } else {
         runtimeErrors++;
       }
 
-      if (!resultOnly) {
+      if (!resultOnly && !logErrors) {
         const percent = ((total / tests.length) * 100) | 0;
         // process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% | \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
         if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
@@ -317,7 +321,7 @@ if (isMainThread) {
     }
   }
 } else {
-  const { tests, preludes } = workerData;
+  const { tests, preludes, logErrors, debugAsserts } = workerData;
 
   const timeout = ($func, timeout) => {
     // if (globalThis.Bun || globalThis.Deno) throw { code: 'ERR_SCRIPT_EXECUTION_TIMEOUT' };
@@ -325,10 +329,6 @@ if (isMainThread) {
     const script = new vm.Script('$func()');
     return script.runInNewContext({ $func }, { timeout });
   };
-
-  const logErrors = process.argv.includes('--log-errors');
-
-  const debugAsserts = process.argv.includes('--debug-asserts');
 
   const run = (file, contents, attrs) => {
     let toRun;
@@ -393,7 +393,7 @@ if (isMainThread) {
 
     try {
       // only timeout some due to big perf impact
-      if (file.includes('while') || file.includes('for') || file.includes('continue') || file.includes('break')) timeout(exports.m, 500);
+      if (file.includes('while/') || file.includes('for/') || file.includes('continue/') || file.includes('break/') || file.includes('pow/')) timeout(exports.m, 500);
         else exports.m();
       // timeout(exports.m, 500);
     } catch (e) {
@@ -450,8 +450,6 @@ if (isMainThread) {
         else if (stage === 2) out = 4;
     }
 
-    if (logErrors && !pass && error) console.log(error.stack ?? error);
-
     // if (!onlyTrackCompilerErrors || (stage === 0 && result.name !== 'TodoError' && result.constructor.name !== 'CompileError' && result.constructor.name !== 'SyntaxError')) {
     //   let errorStr = `${result.constructor.name}: ${result.message}`;
     //   errorStr += `${' '.repeat(160 - errorStr.length)}${result.stack.split('\n')[1]}`;
@@ -461,5 +459,6 @@ if (isMainThread) {
     // }
 
     parentPort.postMessage([ i, out ]);
+    if (logErrors && !pass && error) console.log(test.file.replaceAll('\\', '/').slice(5) + '\n' + (error.stack ?? error));
   }
 }
