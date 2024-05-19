@@ -648,9 +648,9 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
     [ Opcodes.i32_add ],
     [ Opcodes.local_tee, index ],
 
-    // if index != index end (length * sizeof valtype), loop
+    // if index < index end (length * sizeof valtype), loop
     [ Opcodes.local_get, indexEnd ],
-    [ Opcodes.i32_ne ],
+    [ Opcodes.i32_lt_s ],
     [ Opcodes.br_if, 0 ],
     [ Opcodes.end ],
 
@@ -1001,7 +1001,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       // if both are true
       [ Opcodes.i32_and ],
       [ Opcodes.if, Blocktype.void ],
-      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ]),
+      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], false),
       ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
