@@ -24,8 +24,9 @@ const run = async source => {
   return [ out, assertFailed, times, wasm ];
 };
 
+const argv = process.argv.slice();
 const perform = async (test, args) => {
-  process.argv = process.argv.slice(0, 2).concat(args);
+  process.argv = argv.concat(args);
   const content = fs.readFileSync('test/' + test, 'utf8');
   const spl = content.split('\n');
   const expect = JSON.parse(spl[0].slice(2)).replaceAll('\\n', '\n');
