@@ -119,6 +119,9 @@ const removeBrackets = str => {
 };
 
 export default ({ funcs, globals, tags, data, exceptions, pages }) => {
+  // fix declaring order for c
+  funcs.reverse();
+
   const invOperatorOpcode = Object.values(operatorOpcode).reduce((acc, x) => {
     for (const k in x) {
       acc[x[k]] = k;
