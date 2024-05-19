@@ -40,11 +40,11 @@ const todo = (scope, msg, expectsValue = undefined) => {
   }
 };
 
-const isFuncType = type => type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
-const hasFuncWithName = name => {
-  const func = funcs.find(x => x.name === name);
-  return !!(func || builtinFuncs[name] || importedFuncs[name] || internalConstrs[name]);
-};
+const isFuncType = type =>
+  type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
+const hasFuncWithName = name =>
+  funcIndex[name] != null || builtinFuncs[name] != null || importedFuncs[name] != null || internalConstrs[name] != null;
+
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   switch (decl.type) {
     case 'BinaryExpression':
@@ -1048,14 +1048,14 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
   return out;
 };
 
-const asmFuncToAsm = (func, { name = '#unknown_asm_func', params = [], locals = [], returns = [], localInd = 0 }) => {
-  return func({ name, params, locals, returns, localInd }, {
+const asmFuncToAsm = (func, scope) => {
+  return func(scope, {
     TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow,
-    builtin: name => {
-      let idx = funcIndex[name] ?? importedFuncs[name];
-      if (idx === undefined && builtinFuncs[name]) {
-        includeBuiltin(null, name);
-        idx = funcIndex[name];
+    builtin: n => {
+      let idx = funcIndex[n] ?? importedFuncs[n];
+      if (idx == null && builtinFuncs[n]) {
+        includeBuiltin(null, n);
+        idx = funcIndex[n];
       }
 
       return idx;
@@ -1063,7 +1063,7 @@ const asmFuncToAsm = (func, { name = '#unknown_asm_func', params = [], locals = 
   });
 };
 
-const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, localNames = [], globalNames = [], data: _data = [], table = false, callsSelf = false }) => {
+const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, localNames = [], globalNames = [], data: _data = [], table = false }) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
@@ -1081,7 +1081,22 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     data.push(copy);
   }
 
-  if (typeof wasm === 'function') wasm = asmFuncToAsm(wasm, { name, params, locals, returns, localInd: allLocals.length });
+  const func = {
+    name,
+    params,
+    locals,
+    localInd: allLocals.length,
+    returns,
+    returnType: returnType ?? TYPES.number,
+    internal: true,
+    index: currentFuncIndex++,
+    table
+  };
+
+  funcs.push(func);
+  funcIndex[name] = func.index;
+
+  if (typeof wasm === 'function') wasm = asmFuncToAsm(wasm, func);
 
   let baseGlobalIdx, i = 0;
   for (const type of globalTypes) {
@@ -1100,23 +1115,6 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     }
   }
 
-  const func = {
-    name,
-    params,
-    locals,
-    returns,
-    returnType: returnType ?? TYPES.number,
-    wasm,
-    internal: true,
-    index: currentFuncIndex++
-  };
-
-  if (callsSelf) for (const inst of wasm) {
-    if (inst[0] === Opcodes.call && inst[1] === -1) {
-      inst[1] = func.index;
-    }
-  }
-
   if (table) for (const inst of wasm) {
     if (inst[0] === Opcodes.i32_load16_u && inst.at(-1) === 'read_argc') {
       inst.splice(2, 99);
@@ -1124,10 +1122,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     }
   }
 
-  funcs.push(func);
-  funcIndex[name] = func.index;
-
-  if (table) funcs.table = true;
+  func.wasm = wasm;
 
   return func;
 };
@@ -1479,16 +1474,11 @@ const countLeftover = wasm => {
         else if (inst[0] === Opcodes.return) count = 0;
         else if (inst[0] === Opcodes.call) {
           let func = funcs.find(x => x.index === inst[1]);
-          if (inst[1] === -1) {
-            // todo: count for calling self
-          } else if (!func && inst[1] < importedFuncs.length) {
-            count -= importedFuncs[inst[1]].params;
-            count += importedFuncs[inst[1]].returns;
+          if (inst[1] < importedFuncs.length) {
+            func = importedFuncs[inst[1]];
+            count = count - func.params + func.returns;
           } else {
-            if (func) {
-              count -= func.params.length;
-            } else count--;
-            if (func) count += func.returns.length;
+            count = count - func.params.length + func.returns.length;
           }
         } else if (inst[0] === Opcodes.call_indirect) {
           count--; // funcidx
@@ -1641,6 +1631,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       if (!funcIndex[rhemynName]) {
         const func = Rhemyn[funcName](regex, currentFuncIndex++, rhemynName);
+        func.internal = true;
 
         funcIndex[func.name] = func.index;
         funcs.push(func);
@@ -1811,11 +1802,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (idx === undefined && internalConstrs[name]) return internalConstrs[name].generate(scope, decl, _global, _name);
-
-  if (idx === undefined && name === scope.name) {
-    // hack: calling self, func generator will fix later
-    idx = -1;
-  }
 
   if (idx === undefined && name.startsWith('__Porffor_wasm_')) {
     const wasmOps = {
@@ -1998,11 +1984,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
   }
 
-  const func = funcs.find(x => x.index === idx);
-
-  const userFunc = (funcIndex[name] && !importedFuncs[name] && !builtinFuncs[name] && !internalConstrs[name]) || idx === -1;
+  const func = funcs[idx - importedFuncs.length]; // idx === scope.index ? scope : funcs.find(x => x.index === idx);
+  const userFunc = func && !func.internal;
   const typedParams = userFunc || builtinFuncs[name]?.typedParams;
-  const typedReturns = (func ? func.returnType == null : userFunc) || builtinFuncs[name]?.typedReturns;
+  const typedReturns = (func && func.returnType == null) || builtinFuncs[name]?.typedReturns;
   const paramCount = func && (typedParams ? func.params.length / 2 : func.params.length);
 
   let args = decl.arguments;
@@ -3471,8 +3456,7 @@ const generateMember = (scope, decl, _global, _name) => {
   if (decl.property.name === 'length') {
     const func = funcs.find(x => x.name === name);
     if (func) {
-      const userFunc = funcIndex[name] && !importedFuncs[name] && !builtinFuncs[name] && !internalConstrs[name];
-      const typedParams = userFunc || builtinFuncs[name]?.typedParams;
+      const typedParams = !func.internal || builtinFuncs[name]?.typedParams;
       return withType(scope, number(typedParams ? func.params.length / 2 : func.params.length), TYPES.number);
     }
 
@@ -3698,33 +3682,38 @@ const generateFunc = (scope, decl) => {
   const name = decl.id ? decl.id.name : `anonymous_${randId()}`;
   const params = decl.params ?? [];
 
-  // const innerScope = { ...scope };
   // TODO: share scope/locals between !!!
-  const innerScope = {
+  const func = {
     locals: {},
     localInd: 0,
     // value, type
     returns: [ valtypeBinary, Valtype.i32 ],
     throws: false,
-    name
+    name,
+    index: currentFuncIndex++
   };
 
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
     // if (type != null && !Prefs.indirectCalls) {
     if (type != null) {
-      innerScope.returnType = type;
-      innerScope.returns = [ valtypeBinary ];
+      func.returnType = type;
+      func.returns = [ valtypeBinary ];
     }
   }
 
   for (let i = 0; i < params.length; i++) {
-    allocVar(innerScope, params[i].name, false);
+    const name = params[i].name;
+    // if (name == null) return todo('non-identifier args are not supported');
+
+    allocVar(func, name, false);
 
     if (typedInput && params[i].typeAnnotation) {
-      addVarMetadata(innerScope, params[i].name, false, extractTypeAnnotation(params[i]));
+      addVarMetadata(func, name, false, extractTypeAnnotation(params[i]));
     }
   }
+
+  func.params = Object.values(func.locals).map(x => x.type);
 
   let body = objectHack(decl.body);
   if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
@@ -3735,36 +3724,22 @@ const generateFunc = (scope, decl) => {
     };
   }
 
-  const wasm = generate(innerScope, body);
-  const func = {
-    name,
-    params: Object.values(innerScope.locals).slice(0, params.length * 2).map(x => x.type),
-    index: currentFuncIndex++,
-    ...innerScope
-  };
   funcIndex[name] = func.index;
+  funcs.push(func);
+
+  const wasm = generate(func, body);
+  func.wasm = wasm;
 
   if (name === 'main') func.gotLastType = true;
-
-  // quick hack fixes
-  for (const inst of wasm) {
-    if (inst[0] === Opcodes.call && inst[1] === -1) {
-      inst[1] = func.index;
-    }
-  }
 
   // add end return if not found
   if (name !== 'main' && wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
     wasm.push(
       ...number(0),
-      ...(innerScope.returnType != null ? [] : number(TYPES.undefined, Valtype.i32)),
+      ...(func.returnType != null ? [] : number(TYPES.undefined, Valtype.i32)),
       [ Opcodes.return ]
     );
   }
-
-  func.wasm = wasm;
-
-  funcs.push(func);
 
   return func;
 };
@@ -4014,9 +3989,8 @@ export default program => {
 
   if (Prefs.astLog) console.log(JSON.stringify(program.body.body, null, 2));
 
-  generateFunc(scope, program);
+  const main = generateFunc(scope, program);
 
-  const main = funcs[funcs.length - 1];
   main.export = true;
   main.returns = [ valtypeBinary, Valtype.i32 ];
 
@@ -4043,7 +4017,7 @@ export default program => {
   }
 
   // if blank main func and other exports, remove it
-  if (main.wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(funcs.length - 1, 1);
+  if (main.wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(main.index - importedFuncs.length, 1);
 
   return { funcs, globals, tags, exceptions, pages, data };
 };

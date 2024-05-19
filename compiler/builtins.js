@@ -221,8 +221,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [],
-    callsSelf: true,
-    wasm: (scope, { typeSwitch }) => [
+    wasm: (scope, { typeSwitch, builtin }) => [
       ...typeSwitch(scope, [ [ Opcodes.local_get, 1 ] ], {
         [TYPES.number]: [
           [ Opcodes.local_get, 0 ],
@@ -327,14 +326,14 @@ export const BuiltinFuncs = function() {
 
           [ Opcodes.loop, Blocktype.void ],
 
-          // print current char
+          // print current array element
           [ Opcodes.local_get, 2 ],
           [ Opcodes.load, 0, ValtypeSize.i32 ],
 
           [ Opcodes.local_get, 2 ],
           [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
 
-          [ Opcodes.call, -1 ],
+          [ Opcodes.call, builtin('__Porffor_print') ],
 
           // increment pointer by sizeof valtype
           [ Opcodes.local_get, 2 ],
