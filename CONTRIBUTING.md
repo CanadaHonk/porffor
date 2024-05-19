@@ -198,11 +198,13 @@ Store the character code into the `out` pointer variable, and increment it.
 
 ## Porffor-specific TS notes
 
-- For declaring variables, you must use explicit type annotations currently (eg `let a: number = 1`, not `let a = 1`)
+- For declaring variables, you must use explicit type annotations currently (eg `let a: number = 1`, not `let a = 1`).
 - You might spot `Porffor.fastOr`/`Porffor.fastAnd`, these are non-short circuiting versions of `||`/`&&`, taking any number of conditions as arguments. You shouldn't don't need to use or worry about these.
-- **There are ~no objects, you cannot use them/literals.**
+- **There are ~no objects, you cannot use them.**
 - Attempt to avoid string/array-heavy code and use more variables instead if possible, easier on memory and CPU/perf.
 - Do not set a return type for prototype methods, it can cause errors/unexpected results.
+- You cannot use other functions in the file not exported, or variables not inside the current function.
+- `if (...)` uses a fast truthy implementation which is not spec-compliant as most conditions should be strictly checked. To use spec-compliant behavior, use `if (Boolean(...))`.
 
 <br>
 
