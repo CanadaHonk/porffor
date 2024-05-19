@@ -147,14 +147,16 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return generateMember(scope, decl, global, name);
 
     case 'ExportNamedDeclaration':
-      // hack to flag new func for export
-      const funcsBefore = funcs.length;
+      const funcsBefore = funcs.map(x => x.name);
       generate(scope, decl.declaration);
 
-      if (funcsBefore !== funcs.length) {
-        // new func added
-        const newFunc = funcs[funcs.length - 1];
-        newFunc.export = true;
+      // set new funcs as exported
+      if (funcsBefore.length !== funcs.length) {
+        const newFuncs = funcs.filter(x => !funcsBefore.includes(x.name)).filter(x => !x.internal);
+
+        for (const x of newFuncs) {
+          x.export = true;
+        }
       }
 
       return [];
