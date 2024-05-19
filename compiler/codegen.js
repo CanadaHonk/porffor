@@ -363,7 +363,7 @@ const localTmp = (scope, name, type = valtypeBinary) => {
 };
 
 const isIntOp = op => op && ((op[0] >= 0x45 && op[0] <= 0x4f) || (op[0] >= 0x67 && op[0] <= 0x78) || op[0] === 0x41);
-const isFloatToIntOp = op => op && (op[0] >= 0xb7 && op[0] <= 0xba);
+const isIntToFloatOp = op => op && (op[0] >= 0xb7 && op[0] <= 0xba);
 
 const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   const checks = {
@@ -380,10 +380,10 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
 
   // if we can, use int tmp and convert at the end to help prevent unneeded conversions
   // (like if we are in an if condition - very common)
-  const leftIsInt = isFloatToIntOp(left[left.length - 1]);
-  const rightIsInt = isFloatToIntOp(right[right.length - 1]);
+  const leftWasInt = isIntToFloatOp(left[left.length - 1]);
+  const rightWasInt = isIntToFloatOp(right[right.length - 1]);
 
-  const canInt = leftIsInt && rightIsInt;
+  const canInt = leftWasInt && rightWasInt;
 
   if (canInt) {
     // remove int -> float conversions from left and right
@@ -668,8 +668,8 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
   ];
 };
 
-const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
-  if (isFloatToIntOp(wasm[wasm.length - 1])) return [
+const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode = undefined) => {
+  if (isIntToFloatOp(wasm[wasm.length - 1])) return [
     ...wasm,
     ...(!intIn && intOut ? [ Opcodes.i32_to_u ] : [])
   ];
@@ -678,47 +678,38 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false) => {
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
-  const def = [
-    // if value != 0
-    ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
+  const def = (truthyMode => {
+    if (truthyMode === 'full') return [
+      // if value != 0 or NaN
+      ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
+      ...(intIn ? [ ] : [ Opcodes.i32_to ]),
 
-    // ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
-    // [ Opcodes.i32_eqz ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.i32_eqz ],
 
-    // ...(intIn ? [
-    //   ...number(0, Valtype.i32),
-    //   [ Opcodes.i32_gt_s ]
-    // ] : [
-    //   ...number(0),
-    //   [ Opcodes.f64_gt ]
-    // ]),
+      ...(intOut ? [] : [ Opcodes.i32_from ]),
+    ];
 
-    // ...(intOut ? [] : [ Opcodes.i32_from ]),
+    if (truthyMode === 'no_negative') return [
+      // if value != 0 or NaN, non-binary output. negative numbers not truthy :/
+      ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
+      ...(intIn ? [] : [ Opcodes.i32_to ]),
+      ...(intOut ? [] : [ Opcodes.i32_from ])
+    ];
 
-    // ...(intIn ? [] : [ Opcodes.i32_to ]),
-    // [ Opcodes.if, intOut ? Valtype.i32 : valtypeBinary ],
-    // ...number(1, intOut ? Valtype.i32 : valtypeBinary),
-    // [ Opcodes.else ],
-    // ...number(0, intOut ? Valtype.i32 : valtypeBinary),
-    // [ Opcodes.end ],
-
-    ...(!intOut || (intIn && intOut) ? [] : [ Opcodes.i32_to_u ]),
-
-    /* Opcodes.eqz,
-    [ Opcodes.i32_eqz ],
-    Opcodes.i32_from */
-  ];
+    if (truthyMode === 'no_nan_negative') return [
+      // simpler and faster but makes NaN truthy and negative numbers not truthy,
+      // plus non-binary output
+      ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
+      ...(!intOut || (intIn && intOut) ? [] : [ Opcodes.i32_to_u ])
+    ];
+  })(forceTruthyMode ?? Prefs.truthy ?? 'full');
 
   return [
     ...wasm,
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, {
-      // [TYPES.number]: def,
-      [TYPES.array]: [
-        // arrays are always truthy
-        ...number(1, intOut ? Valtype.i32 : valtypeBinary)
-      ],
       [TYPES.string]: [
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
@@ -754,10 +745,6 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, {
-      [TYPES.array]: [
-        // arrays are always truthy
-        ...number(0, intOut ? Valtype.i32 : valtypeBinary)
-      ],
       [TYPES.string]: [
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
@@ -2592,6 +2579,7 @@ const generateUnary = (scope, decl) => {
       ];
 
     case '!':
+      // todo/perf: optimize !!
       // !=
       return falsy(scope, generate(scope, decl.argument), getNodeType(scope, decl.argument), false, false);
 
@@ -3248,8 +3236,13 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
     const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
 
-    if (Prefs.scopedPageNames) scope.arrays.set(name, allocPage(scope, `${getAllocType(itemType)}: ${scope.name}/${uniqueName}`, itemType) * pageSize);
-      else scope.arrays.set(name, allocPage(scope, `${getAllocType(itemType)}: ${uniqueName}`, itemType) * pageSize);
+    let page;
+    if (Prefs.scopedPageNames) page = allocPage(scope, `${getAllocType(itemType)}: ${scope.name}/${uniqueName}`, itemType);
+      else page = allocPage(scope, `${getAllocType(itemType)}: ${uniqueName}`, itemType);
+
+    // hack: use 1 for page 0 pointer for fast truthiness
+    const ptr = page === 0 ? 1 : (page * pageSize);
+    scope.arrays.set(name, ptr);
   }
 
   const pointer = scope.arrays.get(name);
@@ -3846,7 +3839,7 @@ const internalConstrs = {
     generate: (scope, decl) => {
       // todo: boolean object when used as constructor
       const arg = decl.arguments[0] ?? DEFAULT_VALUE;
-      return truthy(scope, generate(scope, arg), getNodeType(scope, arg));
+      return truthy(scope, generate(scope, arg), getNodeType(scope, arg), false, false, 'full');
     },
     type: TYPES.boolean,
     length: 1
