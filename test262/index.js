@@ -79,6 +79,9 @@ if (isMainThread) {
     4: 0, // assemble
   };
 
+  const allTests = whatTests === 'test';
+  if (!resultOnly && !allTests) console.log();
+
   const trackErrors = process.argv.includes('--errors');
   const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
   const logErrors = process.argv.includes('--log-errors');
@@ -152,9 +155,12 @@ if (isMainThread) {
 
       if (!resultOnly && !logErrors) {
         const percent = ((total / tests.length) * 100) | 0;
-        // process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% | \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
-        if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
-        lastPercent = percent;
+        if (allTests) {
+          if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
+          lastPercent = percent;
+        } else {
+          process.stdout.write(`\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m\n`);
+        }
 
         const dir = file.slice(0, file.indexOf('/'));
         if (!dirs.has(dir)) dirs.set(dir, [0, 0, 0, 0, 0, 0, 0, 0]);
