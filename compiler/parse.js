@@ -7,7 +7,7 @@ if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
   globalThis.process = { argv: ['', '', ...Deno.args], stdout: { write: str => Deno.writeAllSync(Deno.stdout, textEncoder.encode(str)) } };
 }
 
-const file = process.argv.slice(2).find(x => x[0] !== '-');
+const file = process.argv.slice(2).find(x => x[0] !== '-' && !['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(x));
 
 // should we try to support types (while parsing)
 const types = Prefs.parseTypes || file?.endsWith('.ts');
