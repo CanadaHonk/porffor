@@ -20,7 +20,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
 
   let args = ['--bytestring', '--todo-time=compile', '--truthy=no_nan_negative', '--no-treeshake-wasm-imports', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--fast-length', '--parse-types', '--opt-types'];
   if (first.startsWith('// @porf')) {
-    args = args.concat(first.slice('// @porf '.length).split(' '));
+    args = first.slice('// @porf '.length).split(' ').concat(args);
   }
   process.argv = argv.concat(args);
 
