@@ -159,6 +159,11 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n'));
   }
 
+  if (importFuncs.find(x => x.name === '__Porffor_readArgv')) {
+    prepend.set('argv', `int _argc; char** _argv;`);
+    prependMain.set('argv', `_argc = argc; _argv = argv;`);
+  }
+
   if (out) out += '\n';
 
   let depth = 1;
@@ -210,8 +215,9 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
     const returns = f.returns.length > 0;
 
-    const shouldInline = f.internal;
-    out += `${f.name === 'main' ? 'int' : (f.internal ? (returns ? CValtype.f64 : 'void') : 'struct ReturnValue')} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
+    const shouldInline = false; // f.internal;
+    if (f.name === 'main') out += `int main(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
+      else out += `${f.internal ? (returns ? CValtype.f64 : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
 
     if (f.name === 'main') {
       out += [...prependMain.values()].join('\n');
@@ -460,6 +466,60 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
                 unixIncludes.set('time.h', true);
                 winIncludes.set('windows.h', true);
+                break;
+
+              case '__Porffor_readArgv':
+                includes.set('stdlib.h', true);
+
+                prepend.set('__Porffor_readArgv',
+`void __Porffor_readArgv(u32 index, u32 outPtr) {
+  if (index >= _argc) {
+    printf("expected %d arguments\\n", index);
+    exit(1);
+  }
+
+  char* arg = _argv[index];
+
+  u32 read = 0;
+  char* out = _memory + outPtr + 4;
+  char ch;
+  while ((ch = *(arg++)) != 0) {
+    out[read++] = ch;
+  }
+
+  memcpy(_memory + outPtr, &read, sizeof(read));
+}`);
+
+                line(`__Porffor_readArgv((u32)(${vals.at(-2)}), (u32)(${vals.pop()}))`);
+                vals.pop();
+                break;
+
+              case '__Porffor_readFile':
+                includes.set('stdio.h', true);
+                includes.set('stdlib.h', true);
+
+                prepend.set('__Porffor_readFile',
+`void __Porffor_readFile(u32 pathPtr, u32 outPtr) {
+  char* path = _memory + pathPtr + 4;
+  FILE* fp = fopen(path, "r");
+  if (fp == NULL) {
+    printf("failed to open file: %s\\n", path);
+    exit(1);
+  }
+
+  u32 read = 0;
+  char* out = _memory + outPtr + 4;
+  char ch;
+  while ((ch = fgetc(fp)) != EOF) {
+    out[read++] = ch;
+  }
+
+  fclose(fp);
+
+  memcpy(_memory + outPtr, &read, sizeof(read));
+}`);
+                line(`__Porffor_readFile((u32)(${vals.at(-2)}), (u32)(${vals.pop()}))`);
+                vals.pop();
                 break;
 
               default:

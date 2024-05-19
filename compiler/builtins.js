@@ -40,6 +40,18 @@ export const importedFuncs = [
     import: 'z',
     params: 1,
     returns: 0
+  },
+  {
+    name: '__Porffor_readArgv',
+    import: 'w',
+    params: 2,
+    returns: 0
+  },
+  {
+    name: '__Porffor_readFile',
+    import: 'q',
+    params: 2,
+    returns: 0
   }
 ];
 
