@@ -1,4 +1,5 @@
 // todo: use any and Number(x) in all these later
+// todo: specify the rest of this file later
 // todo/perf: make i32 variants later
 // todo/perf: add a compiler pref for accuracy vs perf (epsilion?)
 
@@ -6,6 +7,11 @@ export const __Math_exp = (x: number): number => {
   if (!Number.isFinite(x)) {
     if (x == -Infinity) return 0;
     return x;
+  }
+
+  if (x < 0) {
+    // exp(-x) = 1 / exp(+x)
+    return 1 / Math.exp(-x);
   }
 
   const k: number = Math.floor(x / Math.LN2);
@@ -88,8 +94,114 @@ export const __Math_log10 = (x: number): number => {
   return Math.log(x) / Math.LN10;
 };
 
-// todo: hangs with Math.pow(1e-15, NaN)
-export const __Math_pow = (base: number, exponent: number): number => Math.exp(exponent * Math.log(base));
+// 21.3.2.26 Math.pow (base, exponent)
+// https://tc39.es/ecma262/#sec-math.pow
+export const __Math_pow = (base: number, exponent: number): number => {
+  // 1. Set base to ? ToNumber(base).
+  // 2. Set exponent to ? ToNumber(exponent).
+  // todo
+
+  // 3. Return Number::exponentiate(base, exponent).
+
+  // Number::exponentiate (base, exponent)
+  // https://tc39.es/ecma262/#sec-numeric-types-number-exponentiate
+  // 1. If exponent is NaN, return NaN.
+  if (Number.isNaN(exponent)) return NaN;
+
+  // 2. If exponent is either +0𝔽 or -0𝔽, return 1𝔽.
+  if (exponent == 0) return 1;
+
+  if (!Number.isFinite(base)) {
+    // 3. If base is NaN, return NaN.
+    if (Number.isNaN(base)) return base;
+
+    // 4. If base is +∞𝔽, then
+    if (base == Infinity) {
+      // a. If exponent > +0𝔽, return +∞𝔽. Otherwise, return +0𝔽.
+      if (exponent > 0) return base;
+      return 0;
+    }
+
+    // 5. If base is -∞𝔽, then
+    const isOdd = exponent % 2 == 1;
+
+    // a. If exponent > +0𝔽, then
+    if (exponent > 0) {
+      // i. If exponent is an odd integral Number, return -∞𝔽. Otherwise, return +∞𝔽.
+      if (isOdd) return -Infinity;
+      return Infinity;
+    }
+
+    // b. Else,
+    // i. If exponent is an odd integral Number, return -0𝔽. Otherwise, return +0𝔽.
+    if (isOdd) return -0;
+    return 0;
+  }
+
+  if (base == 0) {
+    // 6. If base is +0𝔽, then
+    if (1 / base == Infinity) {
+      // a. If exponent > +0𝔽, return +0𝔽. Otherwise, return +∞𝔽.
+      if (exponent > 0) return 0;
+      return Infinity;
+    }
+
+    // 7. If base is -0𝔽, then
+    const isOdd = exponent % 2 == 1;
+
+    // a. If exponent > +0𝔽, then
+    if (exponent > 0) {
+      // i. If exponent is an odd integral Number, return -0𝔽. Otherwise, return +0𝔽.
+      if (isOdd) return -0;
+      return 0;
+    }
+
+    // b. Else,
+    // i. If exponent is an odd integral Number, return -∞𝔽. Otherwise, return +∞𝔽.
+    if (isOdd) return -Infinity;
+    return Infinity;
+  }
+
+  // 8. Assert: base is finite and is neither +0𝔽 nor -0𝔽.
+  // todo
+
+  // 9. If exponent is +∞𝔽, then
+  if (exponent == Infinity) {
+    const abs = Math.abs(base);
+
+    // a. If abs(ℝ(base)) > 1, return +∞𝔽.
+    if (abs > 1) return Infinity;
+
+    // b. If abs(ℝ(base)) = 1, return NaN.
+    if (abs == 1) return NaN;
+
+    // c. If abs(ℝ(base)) < 1, return +0𝔽.
+    return 0;
+  }
+
+  // 10. If exponent is -∞𝔽, then
+  if (exponent == -Infinity) {
+    const abs = Math.abs(base);
+
+    // a. If abs(ℝ(base)) > 1, return +0𝔽.
+    if (abs > 1) return 0;
+
+    // b. If abs(ℝ(base)) = 1, return NaN.
+    if (abs == 1) return NaN;
+
+    // c. If abs(ℝ(base)) < 1, return +∞𝔽.
+    return Infinity;
+  }
+
+  // 11. Assert: exponent is finite and is neither +0𝔽 nor -0𝔽.
+  // todo
+
+  // 12. If base < -0𝔽 and exponent is not an integral Number, return NaN.
+  if (base < 0) if (!Number.isInteger(exponent)) return NaN;
+
+  // 13. Return an implementation-approximated Number value representing the result of raising ℝ(base) to the ℝ(exponent) power.
+  return Math.exp(exponent * Math.log(base));
+};
 
 
 export const __Math_expm1 = (x: number): number => {
@@ -158,6 +270,7 @@ export const __Math_sqrt = (y: number): number => {
 
 export const __Math_cbrt = (y: number): number => {
   if (y == 0) return 0; // cbrt(0) = 0
+  if (!Number.isFinite(y)) return y;
 
   // Babylonian method
   let x = Math.abs(y);
@@ -234,8 +347,14 @@ export const __Math_atanh = (x: number): number => {
 
 
 export const __Math_asin = (x: number): number => {
-  if (x <= -1) return -Math.PI / 2;
-  if (x >= 1) return Math.PI / 2;
+  if (x <= -1) {
+    if (x == -1) return -Math.PI / 2;
+    return NaN;
+  }
+  if (x >= 1) {
+    if (x == 1) return Math.PI / 2;
+    return NaN;
+  }
 
   // Taylor series
   let sum: number = x;
@@ -251,7 +370,7 @@ export const __Math_asin = (x: number): number => {
   return sum;
 };
 
-export const __Math_acos = (x: number): number => Math.PI / 2 - Math.asin(x);
+export const __Math_acos = (x: number): number => Math.asin(x) - Math.PI / 2;
 
 export const __Math_atan = (x: number): number => {
   if (x == Infinity) return Math.PI / 2
