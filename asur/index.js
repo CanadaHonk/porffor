@@ -1155,7 +1155,7 @@ if (bc.porfFunc && paused && op) {
   switch (byg(
     paused,
     funcLines[currentFunc] + currentLine,
-    '\x1b[1masur\x1b[22m: ' + callStack.join(' -> ') + (parents.length > 1 ? \` | \${parents.slice(1).map(x => invOpcodes[x.opcode]).join(' -> ')}\` : ''),
+    '\x1b[1masur debugger\x1b[22m: ' + callStack.join(' -> ') + (parents.length > 1 ? \` | \${parents.slice(1).map(x => invOpcodes[x.opcode]).join(' -> ')}\` : ''),
     [
       {
         x: termWidth - 1 - width - 6,
