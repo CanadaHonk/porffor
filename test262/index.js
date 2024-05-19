@@ -231,7 +231,7 @@ if (isMainThread) {
   const percentChange = parseFloat((percent - lastCommitResults[0]).toFixed(2));
 
   if (resultOnly) {
-    process.stdout.write(`test262: ${percent}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange})` : ''} | `);
+    process.stdout.write(`test262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | `);
     table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
     process.exit();
   }
@@ -243,7 +243,7 @@ if (isMainThread) {
 
   const togo = next => `${Math.floor((total * next / 100) - passes)} to go until ${next}%`;
 
-  console.log(`\u001b[1m${whatTests}: ${passes}/${total} passed - ${percent}%${whatTests === 'test' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
+  console.log(`\u001b[1m${whatTests}: ${passes}/${total} passed - ${percent.toFixed(2)}%${whatTests === 'test' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
   bar(140, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0);
   process.stdout.write('  ');
   table(whatTests === 'test', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
