@@ -13,38 +13,12 @@ function assert(mustBeTrue) {
 }
 
 assert.throws = function (expectedErrorConstructor, func) {
-  // if (typeof func !== "function") {
-  //   throw new Test262Error('assert.throws requires two arguments: the error constructor ' +
-  //     'and a function to run');
-  // }
-
-  // if (message === undefined) {
-  //   message = '';
-  // } else {
-  //   message += ' ';
-  // }
-
   try {
     func();
   } catch {
-    // if (typeof thrown !== 'object' || thrown === null) {
-    //   message += 'Thrown value was not an object!';
-    //   throw new Test262Error(message);
-    // } else if (thrown.constructor !== expectedErrorConstructor) {
-    //   expectedName = expectedErrorConstructor.name;
-    //   actualName = thrown.constructor.name;
-    //   if (expectedName === actualName) {
-    //     message += 'Expected a ' + expectedName + ' but got a different error constructor with the same name';
-    //   } else {
-    //     message += 'Expected a ' + expectedName + ' but got a ' + actualName;
-    //   }
-    //   throw new Test262Error(message);
-    // }
     return;
   }
 
-  // message += 'Expected a ' + expectedErrorConstructor.name + ' to be thrown but no exception was thrown at all';
-  // throw new Test262Error(message);
   throw new Test262Error('assert.throws failed');
 };
 
@@ -56,8 +30,6 @@ assert._isSameValue = function (a, b) {
 
   // Handle NaN vs. NaN
   return a !== a && b !== b;
-
-  // return a === b;
 };
 
 assert.sameValue = function (actual, expected) {
