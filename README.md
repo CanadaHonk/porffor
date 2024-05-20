@@ -14,7 +14,7 @@ Porffor is primarily built from scratch, the only thing that is not is the parse
 Expect nothing to work! Only very limited JS is currently supported. See files in `bench` for examples.
 
 ### Install
-**`npm install -g porffor`**. It's that easy (hopefully) :)
+**`npm install -g porffor@latest`**. It's that easy (hopefully) :)
 
 ### Trying a REPL
 **`porf`**. Just run it with no script file argument.
