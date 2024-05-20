@@ -45,13 +45,13 @@ export const importedFuncs = [
     name: '__Porffor_readArgv',
     import: 'w',
     params: 2,
-    returns: 0
+    returns: 1
   },
   {
     name: '__Porffor_readFile',
     import: 'q',
     params: 2,
-    returns: 0
+    returns: 1
   }
 ];
 

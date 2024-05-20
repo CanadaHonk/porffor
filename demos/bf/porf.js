@@ -43,8 +43,13 @@ const interpret = str => {
 };
 
 let file = '';
-Porffor.readArgv(1, file);
-
-let contents = '';
-Porffor.readFile(file, contents);
-interpret(contents);
+if (Porffor.readArgv(1, file) == -1) {
+  console.log('please specify a brainf file to interpret');
+} else {
+  let contents = '';
+  if (Porffor.readFile(file, contents) == -1) {
+    console.log('error reading file:', file);
+  } else {
+    interpret(contents);
+  }
+}

@@ -156,7 +156,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
   }
 
   if (data.length > 0) {
-    prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n'));
+    prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
   }
 
   if (importFuncs.find(x => x.name === '__Porffor_readArgv')) {
@@ -168,10 +168,10 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   let depth = 1;
   let brDepth = 0;
-  const line = (str, semi = true) => out += `${' '.repeat(depth * 2 + brDepth * 2)}${str}${semi ? ';' : ''}\n`;
+  const line = (str, semi = true) => out += `${' '.repeat((depth + brDepth) * 2)}${str}${semi ? ';' : ''}\n`;
   const lines = lines => {
     for (const x of lines) {
-      out += `${' '.repeat(depth * 2)}${x}\n`;
+      out += `${' '.repeat((depth + brDepth) * 2)}${x}\n`;
     }
   };
 
@@ -222,7 +222,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
       else out += `${f.internal ? (returns ? CValtype.f64 : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
 
     if (f.name === 'main') {
-      out += [...prependMain.values()].join('\n');
+      out += '  ' + [...prependMain.values()].join('\n  ');
       if (prependMain.size > 0) out += '\n\n';
     }
 
@@ -439,7 +439,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
                 includes.set('stdio.h', true);
                 break;
               case 'printChar':
-                line(`printf("%c", (int)(${vals.pop()}))`);
+                line(`putchar((int)(${vals.pop()}))`);
                 includes.set('stdio.h', true);
                 break;
 
@@ -470,14 +470,11 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
                 winIncludes.set('windows.h', true);
                 break;
 
-              case '__Porffor_readArgv':
-                includes.set('stdlib.h', true);
-
+              case '__Porffor_readArgv': {
                 prepend.set('__Porffor_readArgv',
-`void __Porffor_readArgv(u32 index, u32 outPtr) {
+`i32 __Porffor_readArgv(u32 index, u32 outPtr) {
   if (index >= _argc) {
-    printf("expected %d arguments\\n", index);
-    exit(1);
+    return -1;
   }
 
   char* arg = _argv[index];
@@ -490,23 +487,24 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
   }
 
   memcpy(_memory + outPtr, &read, sizeof(read));
+  return read;
 }`);
 
-                line(`__Porffor_readArgv((u32)(${vals.at(-2)}), (u32)(${vals.pop()}))`);
-                vals.pop();
+                const outPtr = vals.pop();
+                const index = vals.pop();
+                vals.push(`(f64)__Porffor_readArgv((u32)(${index}), (u32)(${outPtr}))`);
                 break;
+              }
 
-              case '__Porffor_readFile':
+              case '__Porffor_readFile': {
                 includes.set('stdio.h', true);
-                includes.set('stdlib.h', true);
 
                 prepend.set('__Porffor_readFile',
-`void __Porffor_readFile(u32 pathPtr, u32 outPtr) {
+`i32 __Porffor_readFile(u32 pathPtr, u32 outPtr) {
   char* path = _memory + pathPtr + 4;
   FILE* fp = fopen(path, "r");
   if (fp == NULL) {
-    printf("failed to open file: %s\\n", path);
-    exit(1);
+    return -1;
   }
 
   u32 read = 0;
@@ -519,10 +517,13 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
   fclose(fp);
 
   memcpy(_memory + outPtr, &read, sizeof(read));
+  return read;
 }`);
-                line(`__Porffor_readFile((u32)(${vals.at(-2)}), (u32)(${vals.pop()}))`);
-                vals.pop();
+                const outPtr = vals.pop();
+                const pathPtr = vals.pop();
+                vals.push(`(f64)__Porffor_readFile((u32)(${pathPtr}), (u32)(${outPtr}))`);
                 break;
+              }
 
               default:
                 log.warning('2c', `unimplemented import: ${importFunc.name}`);
@@ -539,9 +540,10 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             if (func.internal) {
               vals.push(`${sanitize(func.name)}(${args.join(', ')})`);
             } else {
-              line(`const struct ReturnValue _${retTmpId++} = ${sanitize(func.name)}(${args.join(', ')})`);
-              vals.push(`_.value`);
-              vals.push(`_.type`);
+              const id = retTmpId++;
+              line(`const struct ReturnValue _${id} = ${sanitize(func.name)}(${args.join(', ')})`);
+              vals.push(`_${id}.value`);
+              vals.push(`_${id}.type`);
             }
           } else line(`${sanitize(func.name)}(${args.join(', ')})`);
 

@@ -56,6 +56,9 @@ type PorfforGlobal = {
 
   s(...args: any): string;
   bs(...args: any): bytestring;
+
+  readArgv(index: i32, out: bytestring): i32;
+  readFile(path: bytestring, out: bytestring): i32;
 };
 
 declare global {
