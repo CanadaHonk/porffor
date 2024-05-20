@@ -2582,7 +2582,7 @@ const generateUnary = (scope, decl) => {
 
     case '!':
       const arg = decl.argument;
-      if (arg.type === "UnaryExpression" && arg.operator === "!") {
+      if (arg.type === 'UnaryExpression' && arg.operator === '!') {
         // !!x -> is x truthy
         return truthy(scope, generate(scope, arg.argument), getNodeType(scope, arg.argument), false, false);
       }
