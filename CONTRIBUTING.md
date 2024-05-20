@@ -98,7 +98,7 @@ Loads the character code at the pointer `pointer` **for a String**.[^1]
 Porffor.wasm.i32.store(pointer, length, 0, 0)
 ```
 
-Stores the length `length` at pointer `pointer`, setting the length of an object. This is mostly unneeded today as you can just do `obj.length = length`. [^2]
+Stores the length `length` at pointer `pointer`, setting the length of an object. This is mostly unneeded today as you can just do `obj.length = length`. (The `0, 4` args are necessary for the Wasm instruction, but you don't need to worry about them (`0` alignment, `0` byte offset).
 
 <br>
 
@@ -258,5 +258,3 @@ It will also log new passes/fails. Be careful as sometimes the overall passes ca
 <br>
 
 [^1]: The `0, 4` args are necessary for the Wasm instruction, but you don't need to worry about them (`0` alignment, `4` byte offset for length).
-
-[^2]: The `0, 4` args are necessary for the Wasm instruction, but you don't need to worry about them (`0` alignment, `0` byte offset).
