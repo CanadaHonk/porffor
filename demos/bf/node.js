@@ -1,5 +1,6 @@
 import process from 'node:process';
 import fs from 'node:fs';
+
 const printChar = i => process.stdout.write(String.fromCharCode(i));
 
 const interpret = str => {
@@ -46,11 +47,6 @@ const interpret = str => {
   }
 };
 
-// const t = performance.now();
-
 let file = process.argv[2];
 let contents = fs.readFileSync(file, 'utf8');
 interpret(contents);
-
-// printChar(10);
-// console.log(performance.now() - t);

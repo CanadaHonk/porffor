@@ -1,5 +1,3 @@
-// const printChar = i => process.stdout.write(String.fromCharCode(i || 0));
-
 const interpret = str => {
   let ptr = 0;
   let memory = new Array(8000);
@@ -44,14 +42,9 @@ const interpret = str => {
   }
 };
 
-// const t = performance.now();
-
 let file = '';
 Porffor.readArgv(1, file);
 
 let contents = '';
 Porffor.readFile(file, contents);
 interpret(contents);
-
-// printChar(10);
-// console.log(performance.now() - t);

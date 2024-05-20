@@ -1,4 +1,3 @@
-// const printChar = i => process.stdout.write(String.fromCharCode(i || 0));
 type i32 = number;
 type bytestring = string;
 
@@ -46,14 +45,9 @@ const interpret = (str: bytestring) => {
   }
 };
 
-// const t: number = performance.now();
-
 let file: bytestring = '';
 Porffor.readArgv(1, file);
 
 let contents: bytestring = '';
 Porffor.readFile(file, contents);
 interpret(contents);
-
-// printChar(10);
-// console.log(performance.now() - t);
