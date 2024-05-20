@@ -207,6 +207,8 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     depth = 1;
     brDepth = 0;
 
+    let retTmpId = 0;
+
     const invLocals = inv(f.locals, x => x.idx);
 
     for (const x in invLocals) {
@@ -537,7 +539,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             if (func.internal) {
               vals.push(`${sanitize(func.name)}(${args.join(', ')})`);
             } else {
-              line(`const struct ReturnValue _ = ${sanitize(func.name)}(${args.join(', ')})`);
+              line(`const struct ReturnValue _${retTmpId++} = ${sanitize(func.name)}(${args.join(', ')})`);
               vals.push(`_.value`);
               vals.push(`_.type`);
             }
