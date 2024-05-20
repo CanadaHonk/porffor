@@ -22,6 +22,14 @@ type PorfforGlobal = {
     }
   }
 
+  allocate(): any;
+  set: {
+    read(_this: any, index: number): i32;
+    write(_this: any, index: number, value: any): boolean;
+  }
+
+  print(x: any): i32;
+
   randomByte(): i32;
 
   type(x: any): bytestring;
