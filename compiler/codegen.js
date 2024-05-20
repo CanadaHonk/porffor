@@ -2579,7 +2579,11 @@ const generateUnary = (scope, decl) => {
       ];
 
     case '!':
-      // todo/perf: optimize !!
+      const arg = decl.argument;
+      if (arg.type === "UnaryExpression" && arg.operator === "!") {
+        // !!x -> is x truthy
+        return truthy(scope, generate(scope, arg.argument), getNodeType(scope, arg.argument), false, false);
+      }
       // !=
       return falsy(scope, generate(scope, decl.argument), getNodeType(scope, decl.argument), false, false);
 
