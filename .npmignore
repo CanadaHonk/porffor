@@ -1,21 +1,15 @@
 /.github
-/.repl_history
-
-*.wasm
-*.csv
-
+/vscode-ext
 /bench
 /demos
 /test262
 /test
 
-sw.js
 logo.png
 index.html
 CNAME
 publish.js
 
-*.txt
-*.exe
-
-/vscode-ext
+/.repl_history
+*.wasm
+*.csv
