@@ -187,7 +187,10 @@ export const Set$constructor = (iterable: any): Set => {
   return out;
 };
 
-export const __Set_prototype_union = (_this: Set, other: Set) => {
+export const __Set_prototype_union = (_this: Set, other: any) => {
+  if (Porffor.rawType(other) != Porffor.TYPES.set) {
+    throw new TypeError("Set.union requires 'Set'");
+  }
   const out: Set = new Set(_this);
   for (const x of other) {
     out.add(x);
