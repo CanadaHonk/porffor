@@ -1738,13 +1738,13 @@ export const BuiltinFuncs = function() {
     localNames: ["iterable","iterable#type","out","type","forof_base_pointer","forof_length","forof_counter","x","x#type","#last_type","#typeswitch_tmp"],
   };
   this.__Set_prototype_union = {
-    wasm: (scope, {builtin,}) => [[32,0],[65,20],[16, builtin('Set$constructor')],[33,4],[32,2],[252,3],[33,5],[65,0],[33,7],[32,5],[40,1,0],[33,6],[3,64],[32,5],[43,0,4],[32,5],[45,0,12],[33,9],[33,8],[2,64],[32,4],[65,20],[32,8],[32,9],[16, builtin('__Set_prototype_add')],[26],[26],[32,5],[65,9],[106],[33,5],[32,7],[65,1],[106],[34,7],[32,6],[71],[13,1],[11],[11],[32,4],[65,20],[15]],
+    wasm: (scope, {builtin,internalThrow,}) => [[32,2],[32,3],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,52,64],[98],[4,64],...internalThrow(scope, 'TypeError', `Set.union requires 'Set'`),[11],[32,0],[65,20],[16, builtin('Set$constructor')],[33,4],[32,2],[252,3],[33,5],[65,0],[33,7],[32,5],[40,1,0],[33,6],[32,3],[33,11],[2,64],[32,11],[65,2],[70],[4,64,"TYPESWITCH|String"],[65,2],[33,9],[3,64],[65,0],[32,5],[47,0,4],[59,0,3],[68,0,0,0,0,0,0,240,191],[33,8],[2,64],[32,4],[65,20],[32,8],[32,9],[16, builtin('__Set_prototype_add')],[26],[26],[32,5],[65,2],[106],[33,5],[32,7],[65,1],[106],[34,7],[32,6],[71],[13,1],[11],[11],[12,1],[11],[32,11],[65,16],[70],[4,64,"TYPESWITCH|Array"],[3,64],[32,5],[43,0,4],[32,5],[45,0,12],[33,9],[33,8],[2,64],[32,4],[65,20],[32,8],[32,9],[16, builtin('__Set_prototype_add')],[26],[26],[32,5],[65,9],[106],[33,5],[32,7],[65,1],[106],[34,7],[32,6],[71],[13,1],[11],[11],[12,1],[11],[32,11],[65,18],[70],[4,64,"TYPESWITCH|ByteString"],[65,18],[33,9],[3,64],[65,0],[32,5],[32,7],[106],[45,0,4],[58,0,3],[68,0,0,0,0,0,0,240,191],[33,8],[2,64],[32,4],[65,20],[32,8],[32,9],[16, builtin('__Set_prototype_add')],[26],[26],[32,7],[65,1],[106],[34,7],[32,6],[71],[13,1],[11],[11],[12,1],[11],[32,11],[65,20],[70],[4,64,"TYPESWITCH|Set"],[3,64],[32,5],[43,0,4],[32,5],[45,0,12],[33,9],[33,8],[2,64],[32,4],[65,20],[32,8],[32,9],[16, builtin('__Set_prototype_add')],[26],[26],[32,5],[65,9],[106],[33,5],[32,7],[65,1],[106],[34,7],[32,6],[71],[13,1],[11],[11],[12,1],[11],...internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`),[11,"TYPESWITCH_end"],[32,4],[65,20],[15]],
     params: [124,127,124,127],
     typedParams: true,
     returns: [124,127],
     typedReturns: true,
-    locals: [124,127,127,127,124,127,127],
-    localNames: ["_this","_this#type","other","other#type","out","forof_base_pointer","forof_length","forof_counter","x","x#type","#last_type"],
+    locals: [124,127,127,127,124,127,127,127],
+    localNames: ["_this","_this#type","other","other#type","out","forof_base_pointer","forof_length","forof_counter","x","x#type","#last_type","#typeswitch_tmp"],
   };
   this.__String_fromCharCode = {
     wasm: (scope, {allocPage,}) => [[32,0],[65,128,2],[72],[4,64],...number(allocPage(scope, 'bytestring: __String_fromCharCode/out', 'i8') * pageSize, 127),[34,2],[32,0],[58,0,4],[32,2],[65,18],[15],[11],[65,1],[34,2],[34,3],[65,1],[54,1,0],[32,3],[65,46],[59,0,4],[32,2],[32,0],[59,0,4],[32,2],[65,2],[15]],
