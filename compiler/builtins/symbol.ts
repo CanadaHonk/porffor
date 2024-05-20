@@ -20,7 +20,6 @@ export const Symbol = (description: any): Symbol => {
   return __Porffor_symbol_descStore(true, description) + 1;
 };
 
-// todo: this should be a getter somehow not a method
 export const __Symbol_prototype_description$get = (_this: Symbol) => {
   const description: bytestring = __Porffor_symbol_descStore(false,
     Porffor.wasm`local.get ${_this}` - 1);
