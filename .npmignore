@@ -5,7 +5,7 @@
 *.csv
 
 /bench
-/bench_jit
+/demos
 /test262
 /test
 
