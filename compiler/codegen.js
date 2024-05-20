@@ -675,6 +675,8 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
   ];
   // if (isIntOp(wasm[wasm.length - 1])) return [ ...wasm ];
 
+  // todo/perf: use knownType and custom bytecode here instead of typeSwitch
+
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
