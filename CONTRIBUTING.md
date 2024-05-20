@@ -247,7 +247,7 @@ The main thing you want to pay attention to is the emoji summary (lol):
 To break this down:
 🧪 total 🤠 pass ❌ fail 💀 runtime error 📝 todo (error) ⏰ timeout 🏗️ wasm compile error 💥 compile error
 
-The diff compared to the last commit (with test262 data) is shown in brackets. Basically, you can passes 🤠 up, and errors 💀📝🏗💥 down. It is fine if some errors change balance/etc, as long as they are not new failures.
+The diff compared to the last commit (with test262 data) is shown in brackets. Basically, you want passes 🤠 up, and errors 💀📝🏗💥 down. It is fine if some errors change balance/etc, as long as they are not new failures.
 
 It will also log new passes/fails. Be careful as sometimes the overall passes can increase, but other files have also regressed into failures which you might miss. Also keep in mind some tests may have been false positives before, but we can investigate the diff together :)
 
