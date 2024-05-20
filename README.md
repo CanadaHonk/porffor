@@ -266,8 +266,6 @@ Basically none right now (other than giving people headaches). Potential ideas:
 No particular order and no guarentees, just what could happen soon™
 
 - Arrays
-  - More of `Array` prototype
-  - Arrays/strings inside arrays
   - Destructuring
 - Objects
   - Basic object expressions (eg `{}`, `{ a: 0 }`)
@@ -315,16 +313,10 @@ Porffor intentionally does not use Wasm proposals which are not commonly impleme
 
 - Multi-value **(required)**
 - Non-trapping float-to-int conversions **(required)**
-- Bulk memory operations (required, but uncommonly used)
-- Exception handling (optional, for errors)
+- Bulk memory operations (optional, can get away without sometimes)
+- Exception handling (optional, only for errors)
 - Tail calls (opt-in, off by default)
 
-## Isn't this the same as AssemblyScript/other Wasm langs?
-No. they are not alike at all internally and have very different goals/ideals:
-- Porffor is made as a generic JS engine, not for Wasm stuff specifically
-- Porffor primarily consumes JS
-- Porffor is written in pure JS and compiles itself, not using Binaryen/etc
-- (Also I didn't know it existed when I started this, lol)
 
 ## FAQ
 
@@ -338,5 +330,9 @@ No. they are not alike at all internally and have very different goals/ideals:
 ### 2. Why at all?
 Yes!
 
-### 3. But what about spec compliance?
-Lol, no. (sorry.)
+## 3. Isn't this the same as AssemblyScript/other Wasm langs?
+No. they are not alike at all internally and have very different goals/ideals:
+- Porffor is made as a generic JS engine, not for Wasm stuff specifically
+- Porffor primarily consumes JS
+- Porffor is written in pure JS and compiles itself, not using Binaryen/etc
+- (Also I didn't know it existed when I started this, lol)
