@@ -29,8 +29,8 @@ typedef double f64;
 f64 NAN = 0e+0/0e+0;
 
 struct ReturnValue {
-  ${CValtype.f64} value;
-  ${CValtype.i32} type;
+  f64 value;
+  i32 type;
 };\n\n`;
 
 // todo: is memcpy/etc safe with host endianness?
@@ -41,60 +41,60 @@ const CMemFuncs = {
   [Opcodes.i32_store]: {
     c: `memcpy(_memory + offset + pointer, &value, sizeof(value));`,
     args: ['pointer', 'value'],
-    argTypes: [CValtype.i32, CValtype.i32],
+    argTypes: ['i32', 'i32'],
     returns: false
   },
   [Opcodes.i32_store16]: {
     c: `memcpy(_memory + offset + pointer, &value, sizeof(value));`,
     args: ['pointer', 'value'],
-    argTypes: [CValtype.i32, CValtype.i16],
+    argTypes: ['i32', 'i16'],
     returns: false
   },
   [Opcodes.i32_store8]: {
     c: `memcpy(_memory + offset + pointer, &value, sizeof(value));`,
     args: ['pointer', 'value'],
-    argTypes: [CValtype.i32, CValtype.i8],
+    argTypes: ['i32', 'i8'],
     returns: false
   },
 
   [Opcodes.i32_load]: {
-    c: `${CValtype.i32} out;
+    c: `i32 out;
 memcpy(&out, _memory + offset + pointer, sizeof(out));
 return out;`,
     args: ['pointer'],
-    argTypes: [CValtype.i32],
-    returns: CValtype.i32
+    argTypes: ['i32'],
+    returns: 'i32'
   },
   [Opcodes.i32_load16_u]: {
-    c: `${CValtype.i16} out;
+    c: `i16 out;
 memcpy(&out, _memory + offset + pointer, sizeof(out));
 return out;`,
     args: ['pointer'],
-    argTypes: [CValtype.i32],
-    returns: CValtype.i32
+    argTypes: ['i32'],
+    returns: 'i32'
   },
   [Opcodes.i32_load8_u]: {
-    c: `${CValtype.i8} out;
+    c: `i8 out;
 memcpy(&out, _memory + offset + pointer, sizeof(out));
 return out;`,
     args: ['pointer'],
-    argTypes: [CValtype.i32],
-    returns: CValtype.i32
+    argTypes: ['i32'],
+    returns: 'i32'
   },
 
   [Opcodes.f64_store]: {
     c: `memcpy(_memory + offset + pointer, &value, sizeof(value));`,
     args: ['pointer', 'value'],
-    argTypes: [CValtype.i32, CValtype.f64],
+    argTypes: ['i32', 'f64'],
     returns: false
   },
   [Opcodes.f64_load]: {
-    c: `${CValtype.f64} out;
+    c: `f64 out;
 memcpy(&out, _memory + offset + pointer, sizeof(out));
 return out;`,
     args: ['pointer'],
-    argTypes: [CValtype.i32],
-    returns: CValtype.f64
+    argTypes: ['i32'],
+    returns: 'f64'
   },
 };
 
@@ -108,7 +108,7 @@ for (const x in CValtype) {
 
 const removeBrackets = str => {
   // return str;
-  // if (str.startsWith(`(${CValtype.i32})(${CValtype.u32})`)) return `(${CValtype.i32})(${CValtype.u32})(` + removeBrackets(str.slice(22, -1)) + ')';
+  // if (str.startsWith('(i32)(u32)')) return '(i32)(u32)(' + removeBrackets(str.slice(22, -1)) + ')';
 
   for (const x in CValtype) {
     const p = `(${x})`;
@@ -219,7 +219,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
     const shouldInline = false; // f.internal;
     if (f.name === 'main') out += `int main(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
-      else out += `${f.internal ? (returns ? CValtype.f64 : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
+      else out += `${f.internal ? (returns ? 'f64' : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
 
     if (f.name === 'main') {
       out += '  ' + [...prependMain.values()].join('\n  ');
@@ -283,12 +283,12 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
         switch (i[1]) {
           // i32_trunc_sat_f64_s
           case 0x02:
-            vals.push(`(${CValtype.i32})(${vals.pop()})`);
+            vals.push(`(i32)(${vals.pop()})`);
             break;
 
           // i32_trunc_sat_f64_u
           case 0x03:
-            vals.push(`(${CValtype.u32})(${vals.pop()})`);
+            vals.push(`(u32)(${vals.pop()})`);
             break;
         }
 
@@ -337,7 +337,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
         case Opcodes.f64_trunc:
           // vals.push(`trunc(${vals.pop()})`);
-          vals.push(`(${CValtype.i32})(${removeBrackets(vals.pop())})`); // this is ~10x faster with clang??
+          vals.push(`(i32)(${removeBrackets(vals.pop())})`); // this is ~10x faster with clang??
           break;
 
         case Opcodes.f64_convert_i32_u:
@@ -345,7 +345,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
         case Opcodes.f64_convert_i64_u:
         case Opcodes.f64_convert_i64_s:
           // int to f64
-          vals.push(`(${CValtype.f64})(${removeBrackets(vals.pop())})`);
+          vals.push(`(f64)(${removeBrackets(vals.pop())})`);
           break;
 
         case Opcodes.i32_eqz:
@@ -353,7 +353,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
             vals.push(`!(${removeBrackets(vals.pop())})`);
           } else {
             let cond = '(' + removeBrackets(vals.pop());
-            if (cond.startsWith(`(${CValtype.i32})`)) cond = `${cond.slice(`(${CValtype.i32})`.length)}) == 0e+0`;
+            if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} == 0e+0`;
               else cond += ') == 0';
             vals.push(cond);
           }
@@ -368,7 +368,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
         case Opcodes.if: {
           let cond = removeBrackets(vals.pop());
           if (!lastCond) {
-            if (cond.startsWith(`(${CValtype.i32})`)) cond = `(${cond.slice(`(${CValtype.i32})`.length)}) != 0e+0`;
+            if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} != 0e+0`;
               else cond = `(${cond}) != 0`;
           }
 
@@ -434,7 +434,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
             const importFunc = importFuncs[i[1]];
             switch (importFunc.name) {
               case 'print':
-                // line(`printf("%f\\n", ${vals.pop()})`);
                 line(`printf("${valtype === 'f64' ? '%g' : '%i'}\\n", ${vals.pop()})`);
                 includes.set('stdio.h', true);
                 break;
@@ -445,17 +444,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
               case 'time':
                 line(`double _time_out`);
-                /* platformSpecific(
-`FILETIME _time_filetime;
-GetSystemTimeAsFileTime(&_time_filetime);
-
-ULARGE_INTEGER _time_ularge;
-_time_ularge.LowPart = _time_filetime.dwLowDateTime;
-_time_ularge.HighPart = _time_filetime.dwHighDateTime;
-_time_out = (_time_ularge.QuadPart - 116444736000000000i64) / 10000.;`,
-`struct timespec _time;
-clock_gettime(CLOCK_MONOTONIC, &_time);
-_time_out = _time.tv_nsec / 1000000.;`); */
                 platformSpecific(
 `LARGE_INTEGER _time_freq, _time_t;
 QueryPerformanceFrequency(&_time_freq);
@@ -573,7 +561,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
           let cond = removeBrackets(vals.pop());
           if (!lastCond) {
-            if (cond.startsWith(`(${CValtype.i32})`)) cond = `(${cond.slice(`(${CValtype.i32})`.length)}) != 0e+0`;
+            if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} != 0e+0`;
               else cond = `(${cond}) != 0`;
           }
 
@@ -603,8 +591,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             const name = invOpcodes[i[0]];
             const func = CMemFuncs[i[0]];
             if (!prepend.has(name)) {
-              prepend.set(name, `${func.returns || 'void'} ${name}(${CValtype.i32} align, ${CValtype.i32} offset, ${func.args.map((x, i) => `${func.argTypes[i]} ${x}`).join(', ')}) {\n  ${func.c.replaceAll('\n', '\n  ')}\n}\n`);
-              // generate func c and prepend
+              prepend.set(name, `${func.returns || 'void'} ${name}(i32 align, i32 offset, ${func.args.map((x, i) => `${func.argTypes[i]} ${x}`).join(', ')}) {\n  ${func.c.replaceAll('\n', '\n  ')}\n}\n`);
             }
 
             const immediates = [ i[1], read_unsignedLEB128(i.slice(2)) ];
@@ -639,7 +626,6 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
   depth = 0;
 
   const makeIncludes = includes => [...includes.keys()].map(x => `#include <${x}>\n`).join('');
-
   out = platformSpecific(makeIncludes(winIncludes), makeIncludes(unixIncludes), false) + '\n' + makeIncludes(includes) + '\n' + alwaysPreface + [...prepend.values()].join('\n') + '\n\n' + out;
 
   return out.trim();
