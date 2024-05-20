@@ -10,7 +10,7 @@ if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
 const file = process.argv.slice(2).find(x => x[0] !== '-' && !['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(x));
 
 // should we try to support types (while parsing)
-const types = Prefs.parseTypes || file?.endsWith('.ts');
+const types = Prefs.parseTypes || Prefs.t || file?.endsWith('.ts');
 globalThis.typedInput = types && Prefs.optTypes;
 
 // todo: review which to use by default
