@@ -3022,6 +3022,44 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ],
       [ Opcodes.end ]
     ],
+    [TYPES.set]: [
+      [ Opcodes.loop, Blocktype.void ],
+
+      [ Opcodes.local_get, pointer ],
+      [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+
+      ...setType(scope, leftName, [
+        [ Opcodes.local_get, pointer ],
+        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
+      ]),
+
+      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+
+      [ Opcodes.block, Blocktype.void ],
+      [ Opcodes.block, Blocktype.void ],
+      ...generate(scope, decl.body),
+      [ Opcodes.end ],
+
+      // increment iter pointer by valtype size + 1
+      [ Opcodes.local_get, pointer ],
+      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_set, pointer ],
+
+      // increment counter by 1
+      [ Opcodes.local_get, counter ],
+      ...number(1, Valtype.i32),
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_tee, counter ],
+
+      // loop if counter != length
+      [ Opcodes.local_get, length ],
+      [ Opcodes.i32_ne ],
+      [ Opcodes.br_if, 1 ],
+
+      [ Opcodes.end ],
+      [ Opcodes.end ]
+    ],
     default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
   }, Blocktype.void));
 
