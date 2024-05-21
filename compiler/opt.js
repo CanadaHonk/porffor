@@ -108,7 +108,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
   for (const f of funcs) {
     const wasm = f.wasm;
 
-    const lastType = f.locals['#last_type'];
+    const lastType = f.locals['#last_type']?.idx;
 
     let runs = (+Prefs.optWasmRuns) || 2; // todo: how many by default?
     while (runs > 0) {
@@ -248,7 +248,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
         }
 
         // remove setting last type if it is never gotten
-        if (!f.gotLastType && inst[0] === Opcodes.local_set && inst[1] === lastType?.idx) {
+        if (!f.gotLastType && inst[0] === Opcodes.local_set && inst[1] === lastType) {
           // replace this inst with drop
           wasm.splice(i, 1, [ Opcodes.drop ]); // remove this and last inst
           if (i > 0) i--;
