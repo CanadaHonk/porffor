@@ -2563,7 +2563,7 @@ const generateUnary = (scope, decl) => {
       // * -1
 
       if (decl.prefix && decl.argument.type === 'Literal' && typeof decl.argument.value === 'number') {
-        // if -<N>, just return that
+        // if -n, just return that as a const
         return number(-1 * decl.argument.value);
       }
 
@@ -2575,14 +2575,14 @@ const generateUnary = (scope, decl) => {
     case '!':
       const arg = decl.argument;
       if (arg.type === 'UnaryExpression' && arg.operator === '!') {
-        // !!x -> is x truthy
+        // opt: !!x -> is x truthy
         return truthy(scope, generate(scope, arg.argument), getNodeType(scope, arg.argument), false, false);
       }
+
       // !=
-      return falsy(scope, generate(scope, decl.argument), getNodeType(scope, decl.argument), false, false);
+      return falsy(scope, generate(scope, arg), getNodeType(scope, arg), false, false);
 
     case '~':
-      // todo: does not handle Infinity properly (should convert to 0) (but opt const converting saves us sometimes)
       return [
         ...generate(scope, decl.argument),
         Opcodes.i32_to,
