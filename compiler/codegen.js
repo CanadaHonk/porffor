@@ -1807,7 +1807,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       f64_store: { imms: 2, args: [ true, false ], returns: 0 },
 
       // value
-      i32_const: { imms: 1, args: [], returns: 1 },
+      i32_const: { imms: 1, args: [], returns: 0 },
     };
 
     const opName = name.slice('__Porffor_wasm_'.length);
@@ -1999,8 +1999,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
 
     if (valtypeBinary !== Valtype.i32 && (
-      (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32) ||
-      (importedFuncs[name] && name.startsWith('profile'))
+      (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32)
+      // (importedFuncs[name] && name.startsWith('profile'))
     )) {
       out.push(Opcodes.i32_to);
     }
