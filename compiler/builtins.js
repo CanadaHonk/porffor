@@ -167,6 +167,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary, valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [ // x - truncf(x / y) * y
       [ Opcodes.local_get, 0 ], // x
 
@@ -189,6 +190,7 @@ export const BuiltinFuncs = function() {
       params: [ valtypeBinary, valtypeBinary ],
       locals: [],
       returns: [ valtypeBinary ],
+      returnType: TYPES.number,
       wasm: [
         [ Opcodes.local_get, 0 ],
         Opcodes.i32_to,
@@ -208,6 +210,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ]
     ],
@@ -469,6 +472,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_sqrt ]
@@ -480,6 +484,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_abs ]
@@ -491,6 +496,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       ...number(1),
       [ Opcodes.local_get, 0 ],
@@ -503,6 +509,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_floor ]
@@ -514,6 +521,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_ceil ]
@@ -525,6 +533,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_nearest ]
@@ -536,6 +545,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_trunc ]
@@ -547,6 +557,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       Opcodes.i32_trunc_sat_f64_u,
@@ -560,6 +571,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f32_demote_f64 ],
@@ -573,6 +585,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary, valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       Opcodes.i32_trunc_sat_f64_s,
@@ -887,6 +900,7 @@ export const BuiltinFuncs = function() {
     globalNames: [ 'state0', 'state1' ],
     globalInits: [ prngSeed0, prngSeed1 ],
     returns: [ Valtype.f64 ],
+    returnType: TYPES.number,
     wasm: [
       ...prng.wasm,
 
@@ -938,6 +952,7 @@ export const BuiltinFuncs = function() {
     globalNames: [ 'state0', 'state1' ],
     globalInits: [ prngSeed0, prngSeed1 ],
     returns: [ Valtype.i32 ],
+    returnType: TYPES.number,
     wasm: [
       ...prng.wasm,
 
@@ -959,6 +974,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       ...number(Math.PI / 180),
@@ -971,6 +987,7 @@ export const BuiltinFuncs = function() {
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       ...number(180 / Math.PI),
@@ -984,6 +1001,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     localNames: [ 'x', 'lower', 'upper' ],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 1 ],
@@ -999,9 +1017,9 @@ export const BuiltinFuncs = function() {
     locals: [],
     localNames: [ 'x', 'inLow', 'inHigh', 'outLow', 'outHigh' ],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       // (x − inLow) * (outHigh − outLow) / (inHigh - inLow) + outLow
-
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 1 ],
       [ Opcodes.f64_sub ],
@@ -1043,6 +1061,7 @@ export const BuiltinFuncs = function() {
     params: [],
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.call, importedFuncs.time ]
     ]
@@ -1070,6 +1089,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [],
     returns: [ valtypeBinary ],
+    returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 1 ],
       Opcodes.i32_from_u

@@ -1078,7 +1078,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     locals,
     localInd: allLocals.length,
     returns,
-    returnType: returnType ?? TYPES.number,
+    returnType,
     internal: true,
     index: currentFuncIndex++,
     table
@@ -1254,7 +1254,7 @@ const getNodeType = (scope, node) => {
       const func = funcs.find(x => x.name === name);
 
       if (func) {
-        if (func.returnType) return func.returnType;
+        if (func.returnType != null) return func.returnType;
       }
 
       if (builtinFuncs[name] && !builtinFuncs[name].typedReturns) return builtinFuncs[name].returnType ?? TYPES.number;
@@ -1270,15 +1270,7 @@ const getNodeType = (scope, node) => {
         const func = spl[spl.length - 1];
         const protoFuncs = Object.keys(prototypeFuncs).filter(x => x != TYPES.bytestring && prototypeFuncs[x][func] != null);
         if (protoFuncs.length === 1) {
-          if (protoFuncs[0].returnType) return protoFuncs[0].returnType;
-        }
-
-        if (protoFuncs.length > 0) {
-          if (scope.locals['#last_type']) return getLastType(scope);
-
-          // presume
-          // todo: warn here?
-          return TYPES.number;
+          if (protoFuncs[0].returnType != null) return protoFuncs[0].returnType;
         }
       }
 
@@ -1978,7 +1970,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   const func = funcs[idx - importedFuncs.length]; // idx === scope.index ? scope : funcs.find(x => x.index === idx);
   const userFunc = func && !func.internal;
   const typedParams = userFunc || builtinFuncs[name]?.typedParams;
-  const typedReturns = (func && func.returnType == null) || builtinFuncs[name]?.typedReturns;
+  const typedReturns = (userFunc && func.returnType == null) || builtinFuncs[name]?.typedReturns;
   const paramCount = func && (typedParams ? func.params.length / 2 : func.params.length);
 
   let args = decl.arguments;
