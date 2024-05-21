@@ -6,7 +6,24 @@ import { TYPES } from './types.js';
 import { log } from './log.js';
 import Prefs from './prefs.js';
 
+const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
+
 const bold = x => `\u001b[1m${x}\u001b[0m`;
+
+const readByteStr = (memory, ptr) => {
+  const length = (new Int32Array(memory.buffer, ptr, 1))[0];
+  return Array.from(new Uint8Array(memory.buffer, ptr + 4, length)).map(x => String.fromCharCode(x)).join('');
+};
+
+const writeByteStr = (memory, ptr, str) => {
+  const length = str.length;
+  (new Int32Array(memory.buffer, ptr, 1))[0] = length;
+
+  const arr = new Uint8Array(memory.buffer, ptr + 4, length);
+  for (let i = 0; i < length; i++) {
+    arr[i] = str.charCodeAt(i);
+  }
+};
 
 const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
   switch (type) {
@@ -111,7 +128,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
   if (source.includes('export function')) flags.push('module');
 
-  // (await import('node:fs')).writeFileSync('out.wasm', Buffer.from(wasm));
+  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
   if (Prefs.profileCompiler) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
@@ -211,6 +228,18 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
         u: () => performance.timeOrigin,
         y: () => {},
         z: () => {},
+        w: (ind, outPtr) => { // readArgv
+          const args = process.argv.slice(2).filter(x => !x.startsWith('-'));
+          const str = args[ind];
+          if (!str) return -1;
+
+          writeByteStr(memory, outPtr, str);
+        },
+        q: (pathPtr, outPtr) => { // readFile
+          const path = readByteStr(memory, pathPtr);
+          const contents = fs.readFileSync(path, 'utf8');
+          writeByteStr(memory, outPtr, contents);
+        },
         ...customImports
       }
     });
