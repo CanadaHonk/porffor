@@ -1,4 +1,4 @@
-// havoc: wasm rewrite library (it wreaks havoc upon wasm bytecode)
+// havoc: wasm rewrite library (it wreaks havoc upon wasm bytecode hence "havoc")
 import { Opcodes, Valtype } from './wasmSpec.js';
 
 export const localsToConsts = (func, targets, consts, { localKeys }) => {
