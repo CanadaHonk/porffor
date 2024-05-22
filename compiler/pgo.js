@@ -11,7 +11,7 @@ export const setup = () => {
 
   // enable these prefs by default for pgo
   Prefs.typeswitchUniqueTmp = Prefs.typeswitchUniqueTmp === false ? false : true;
-  Prefs.cyclone = Prefs.cyclone === false ? false : true;;
+  Prefs.cyclone = Prefs.cyclone === false ? false : true;
 };
 
 export const run = obj => {
@@ -131,16 +131,18 @@ export const run = obj => {
     func.localValues = localValues;
 
     let counts = new Array(10).fill(0);
-    const consistents = localData[i].map(x => {
-      if (x.length === 0 || !x.every((y, i) => i < 1 ? true : y === x[i - 1])) return false;
+    const consistents = localData[i].map((x, j) => {
+      if (j < func.params.length) return false; // param
+      if (x.length === 0 || !x.every((y, i) => i < 1 ? true : y === x[i - 1])) return false; // not consistent
 
       counts[0]++;
       return x[0];
     });
 
     const integerOnlyF64s = localData[i].map((x, j) => {
+      if (j < func.params.length) return false; // param
       if (localValues[j].type === Valtype.i32) return false; // already i32
-      if (x.length === 0 || !x.every(y => Number.isInteger(y))) return false;
+      if (x.length === 0 || !x.every(y => Number.isInteger(y))) return false; // not all integer values
 
       counts[1]++;
       return true;
@@ -151,14 +153,14 @@ export const run = obj => {
 
     log += `  ${func.name}: identified ${counts[0]}/${total} locals as consistent${Prefs.verbosePgo ? ':' : ''}\n`;
     if (Prefs.verbosePgo) {
-      for (let j = 0; j < localData[i].length; j++) {
+      for (let j = func.params.length; j < localData[i].length; j++) {
         log += `    ${consistents[j] !== false ? '\u001b[92m' : '\u001b[91m'}${localKeys[j]}\u001b[0m: ${new Set(localData[i][j]).size} unique values set\n`;
       }
     }
 
     log += `  ${func.name}: identified ${counts[1]}/${localValues.reduce((acc, x) => acc + (x.type === Valtype.f64 ? 1 : 0), 0)} f64 locals as integer usage only${Prefs.verbosePgo ? ':' : ''}\n`;
     if (Prefs.verbosePgo) {
-      for (let j = 0; j < localData[i].length; j++) {
+      for (let j = func.params.length; j < localData[i].length; j++) {
         if (localValues[j].type !== Valtype.f64) continue;
         log += `    ${integerOnlyF64s[j] ? '\u001b[92m' : '\u001b[91m'}${localKeys[j]}\u001b[0m\n`;
       }
@@ -178,7 +180,6 @@ export const run = obj => {
     for (let i = 0; i < x.integerOnlyF64s.length; i++) {
       const c = x.integerOnlyF64s[i];
       if (c === false) continue;
-      if (i < x.params.length) continue;
 
       targets.push(i);
     }
@@ -191,7 +192,6 @@ export const run = obj => {
     for (let i = 0; i < x.consistents.length; i++) {
       const c = x.consistents[i];
       if (c === false) continue;
-      if (i < x.params.length) continue;
 
       targets.push(i);
 
