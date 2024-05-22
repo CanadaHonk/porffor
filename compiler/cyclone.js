@@ -1,4 +1,4 @@
-// cyclone: wasm partial constant evaluator
+// cyclone: wasm partial constant evaluator (it is fast and dangerous hence "cyclone")
 import { signedLEB128, ieee754_binary64, read_ieee754_binary64, read_signedLEB128 } from './encoding.js';
 import { Opcodes, Valtype } from './wasmSpec.js';
 
