@@ -128,7 +128,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
 
   if (source.includes?.('export ')) flags.push('module');
 
-  fs.writeFileSync('out.wasm', Buffer.from(wasm));
+  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
   if (Prefs.profileCompiler) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
