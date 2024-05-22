@@ -1,10 +1,13 @@
 import { underline, bold, log } from './log.js';
+import { Valtype, PageSize } from './wasmSpec.js';
 import parse from './parse.js';
 import codegen from './codegen.js';
 import opt from './opt.js';
 import assemble from './assemble.js';
 import decompile from './decompile.js';
 import toc from './2c.js';
+import * as pgo from './pgo.js';
+import cyclone from './cyclone.js';
 import Prefs from './prefs.js';
 
 globalThis.decompile = decompile;
@@ -13,6 +16,7 @@ const logFuncs = (funcs, globals, exceptions) => {
   console.log('\n' + underline(bold('funcs')));
 
   for (const f of funcs) {
+    if (f.internal) continue;
     console.log(decompile(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
   }
 
@@ -23,6 +27,21 @@ const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) 
 const execSync = (typeof process?.version !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
 
 export default (code, flags) => {
+  const target = Prefs.target ?? 'wasm';
+
+  globalThis.valtype = 'f64';
+  const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
+  if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
+  globalThis.valtypeBinary = Valtype[valtype];
+
+  globalThis.pageSize = PageSize;
+  const pageSizeOpt = process.argv.find(x => x.startsWith('--page-size='));
+  if (pageSizeOpt) pageSize = parseInt(pageSizeOpt.split('=')[1]) * 1024;
+
+  // enable pgo by default for c/native
+  if (target !== 'wasm') Prefs.pgo = Prefs.pgo === false ? false : true;
+  if (Prefs.pgo) pgo.setup();
+
   const t0 = performance.now();
   const program = parse(code, flags);
   if (Prefs.profileCompiler) console.log(`1. parsed in ${(performance.now() - t0).toFixed(2)}ms`);
@@ -35,9 +54,49 @@ export default (code, flags) => {
 
   const t2 = performance.now();
   opt(funcs, globals, pages, tags, exceptions);
-  if (Prefs.profileCompiler) console.log(`3. optimized in ${(performance.now() - t2).toFixed(2)}ms`);
 
-  // if (Prefs.optFuncs) logFuncs(funcs, globals, exceptions);
+  if (Prefs.pgo) {
+    if (Prefs.pgoLog) {
+      const oldSize = assemble(funcs, globals, tags, pages, data, flags, true).byteLength;
+      const t = performance.now();
+
+      pgo.run({ funcs, globals, tags, exceptions, pages, data });
+      opt(funcs, globals, pages, tags, exceptions);
+
+      console.log(`PGO total time: ${(performance.now() - t).toFixed(2)}ms`);
+
+      const newSize = assemble(funcs, globals, tags, pages, data, flags, true).byteLength;
+      console.log(`PGO size diff: ${oldSize - newSize} bytes (${oldSize} -> ${newSize})\n`);
+    } else {
+      pgo.run({ funcs, globals, tags, exceptions, pages, data });
+      opt(funcs, globals, pages, tags, exceptions);
+    }
+  }
+
+  if (Prefs.cyclone) {
+    if (Prefs.cycloneLog) {
+      const oldSize = assemble(funcs, globals, tags, pages, data, flags, true).byteLength;
+      const t = performance.now();
+
+      for (const x of funcs) {
+        const preOps = x.wasm.length;
+        cyclone(x.wasm);
+
+        console.log(`${x.name}: ${preOps} -> ${x.wasm.length} ops`);
+      }
+
+      console.log(`cyclone total time: ${(performance.now() - t).toFixed(2)}ms`);
+
+      const newSize = assemble(funcs, globals, tags, pages, data, flags, true).byteLength;
+      console.log(`cyclone size diff: ${oldSize - newSize} bytes (${oldSize} -> ${newSize})\n`);
+    } else {
+      for (const x of funcs) {
+        cyclone(x.wasm);
+      }
+    }
+  }
+
+  if (Prefs.profileCompiler) console.log(`3. optimized in ${(performance.now() - t2).toFixed(2)}ms`);
 
   const t3 = performance.now();
   const wasm = assemble(funcs, globals, tags, pages, data, flags);
@@ -54,7 +113,6 @@ export default (code, flags) => {
 
   const out = { wasm, funcs, globals, tags, exceptions, pages, data };
 
-  const target = Prefs.target ?? 'wasm';
   const outFile = Prefs.o;
 
   if (target === 'wasm' && outFile) {

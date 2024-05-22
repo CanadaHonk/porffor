@@ -44,7 +44,14 @@ const interpret = str => {
 
 let file = '';
 if (Porffor.readArgv(1, file) == -1) {
-  console.log('please specify a brainf file to interpret');
+  console.log('usage: [brainf file to interpret]\n');
+
+  const code = '>++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<+++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------------.>>.+++.------.--------.>+.>+.';
+  // const code = '++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.';
+  console.log('here is a (rigorous) hello world for example:');
+  console.log(code);
+
+  interpret(code);
 } else {
   let contents = '';
   if (Porffor.readFile(file, contents) == -1) {

@@ -354,7 +354,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           continue;
         }
 
-        if (lastInst[0] === Opcodes.const && (inst === Opcodes.i32_to || inst === Opcodes.i32_to_u)) {
+        if (lastInst[0] === Opcodes.const && inst[0] === Opcodes.i32_to[0] && (inst[1] === Opcodes.i32_to[1] || inst[1] === Opcodes.i32_to_u[1])) {
           // change const and immediate i32 convert to i32 const
           // f64.const 0
           // i32.trunc_sat_f64_s || i32.trunc_sat_f64_u
@@ -503,42 +503,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
       const useCount = {};
       for (const x in f.locals) useCount[f.locals[x].idx] = 0;
-
-      // final pass
-      depth = [];
-      for (let i = 0; i < wasm.length; i++) {
-        let inst = wasm[i];
-        if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) useCount[inst[1]]++;
-
-        if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth.push(inst[0]);
-        if (inst[0] === Opcodes.end) depth.pop();
-
-        if (i < 2) continue;
-        const lastInst = wasm[i - 1];
-        const lastLastInst = wasm[i - 2];
-
-        // todo: add more math ops
-        if (optLevel >= 3 && (inst[0] === Opcodes.add || inst[0] === Opcodes.sub || inst[0] === Opcodes.mul) && lastLastInst[0] === Opcodes.const && lastInst[0] === Opcodes.const) {
-          // inline const math ops
-          // i32.const a
-          // i32.const b
-          // i32.add
-          // -->
-          // i32.const a + b
-
-          // does not work with leb encoded
-          if (lastInst.length > 2 || lastLastInst.length > 2) continue;
-
-          let a = lastLastInst[1];
-          let b = lastInst[1];
-
-          const val = performWasmOp(inst[0], a, b);
-          if (Prefs.optLog) log('opt', `inlined math op (${a} ${inst[0].toString(16)} ${b} -> ${val})`);
-
-          wasm.splice(i - 2, 3, ...number(val)); // remove consts, math op and add new const
-          i -= 2;
-        }
-      }
 
       const localIdxs = Object.values(f.locals).map(x => x.idx);
       // remove unused locals (cleanup)

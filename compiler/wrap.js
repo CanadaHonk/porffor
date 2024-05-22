@@ -10,12 +10,12 @@ const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) 
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
-const readByteStr = (memory, ptr) => {
+export const readByteStr = (memory, ptr) => {
   const length = (new Int32Array(memory.buffer, ptr, 1))[0];
   return Array.from(new Uint8Array(memory.buffer, ptr + 4, length)).map(x => String.fromCharCode(x)).join('');
 };
 
-const writeByteStr = (memory, ptr, str) => {
+export const writeByteStr = (memory, ptr, str) => {
   const length = str.length;
   (new Int32Array(memory.buffer, ptr, 1))[0] = length;
 
@@ -118,28 +118,31 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
   }
 };
 
-export default async (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {
+export default (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {
   const times = [];
 
   const t1 = performance.now();
-  const { wasm, funcs, globals, tags, exceptions, pages, c } = compile(source, flags);
+  const { wasm, funcs, globals, tags, exceptions, pages, c } = typeof source === 'object' ? source : compile(source, flags);
 
   globalThis.porfDebugInfo = { funcs, globals };
 
-  if (source.includes('export function')) flags.push('module');
+  if (source.includes?.('export ')) flags.push('module');
 
-  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
+  fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
   if (Prefs.profileCompiler) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
 
   const backtrace = (funcInd, blobOffset) => {
-    if (funcInd == null || blobOffset == null) return false;
+    if (funcInd == null || blobOffset == null ||
+        Number.isNaN(funcInd) || Number.isNaN(blobOffset)) return false;
 
     // convert blob offset -> function wasm offset.
     // this is not good code and is somewhat duplicated
     // I just want it to work for debugging, I don't care about perf/yes
     const func = funcs.find(x => x.index === funcInd);
+    if (!func) return false;
+
     const locals = Object.values(func.locals).sort((a, b) => a.idx - b.idx).slice(func.params.length).sort((a, b) => a.idx - b.idx);
 
     let localDecl = [], typeCount = 0, lastType;
@@ -214,13 +217,15 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
 
   let instance;
   try {
-    let wasmEngine = WebAssembly;
-    if (Prefs.asur) {
-      log.warning('wrap', 'using our !experimental! asur wasm engine instead of host to run');
-      wasmEngine = await import('../asur/index.js');
-    }
+    // let wasmEngine = WebAssembly;
+    // if (Prefs.asur) {
+    //   log.warning('wrap', 'using our !experimental! asur wasm engine instead of host to run');
+    //   wasmEngine = await import('../asur/index.js');
+    // }
 
-    0, { instance } = await wasmEngine.instantiate(wasm, {
+    // 0, { instance } = await wasmEngine.instantiate(wasm, {
+    const module = new WebAssembly.Module(wasm);
+    instance = new WebAssembly.Instance(module, {
       '': {
         p: valtype === 'i64' ? i => print(Number(i).toString()) : i => print(i.toString()),
         c: valtype === 'i64' ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
@@ -234,11 +239,17 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
           if (!str) return -1;
 
           writeByteStr(memory, outPtr, str);
+          return str.length;
         },
         q: (pathPtr, outPtr) => { // readFile
-          const path = readByteStr(memory, pathPtr);
-          const contents = fs.readFileSync(path, 'utf8');
-          writeByteStr(memory, outPtr, contents);
+          try {
+            const path = readByteStr(memory, pathPtr);
+            const contents = fs.readFileSync(path, 'utf8');
+            writeByteStr(memory, outPtr, contents);
+            return contents.length;
+          } catch {
+            return -1;
+          }
         },
         ...customImports
       }
@@ -246,6 +257,7 @@ export default async (source, flags = [ 'module' ], customImports = {}, print = 
   } catch (e) {
     // only backtrace for runner, not test262/etc
     if (!process.argv[1].includes('/runner')) throw e;
+    if (!(e instanceof WebAssembly.CompileError)) throw e;
 
     const funcInd = parseInt(e.message.match(/function #([0-9]+) /)?.[1]);
     const blobOffset = parseInt(e.message.split('@')?.[1]);

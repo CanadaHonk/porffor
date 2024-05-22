@@ -2181,7 +2181,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
   if (Prefs.typeswitchUseBrtable)
     return brTable(type, bc, returns);
 
-  const tmp = localTmp(scope, '#typeswitch_tmp', Valtype.i32);
+  const tmp = localTmp(scope, '#typeswitch_tmp' + (Prefs.typeswitchUniqueTmp ? randId() : ''), Valtype.i32);
   const out = [
     ...type,
     [ Opcodes.local_set, tmp ],
@@ -3502,7 +3502,7 @@ const generateMember = (scope, decl, _global, _name) => {
     }
 
     if (builtinFuncs[name]) return withType(scope, number(builtinFuncs[name].typedParams ? (builtinFuncs[name].params.length / 2) : builtinFuncs[name].params.length), TYPES.number);
-    if (importedFuncs[name]) return withType(scope, number(importedFuncs[name].params), TYPES.number);
+    if (importedFuncs[name]) return withType(scope, number(importedFuncs[name].params.length ?? importedFuncs[name].params), TYPES.number);
     if (internalConstrs[name]) return withType(scope, number(internalConstrs[name].length ?? 0), TYPES.number);
 
     if (Prefs.fastLength) {
@@ -3971,18 +3971,7 @@ export default program => {
   data = [];
   currentFuncIndex = importedFuncs.length;
 
-  globalThis.valtype = 'f64';
-
-  const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
-  if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
-
-  globalThis.valtypeBinary = Valtype[valtype];
-
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
-
-  globalThis.pageSize = PageSize;
-  const pageSizeOpt = process.argv.find(x => x.startsWith('--page-size='));
-  if (pageSizeOpt) pageSize = parseInt(pageSizeOpt.split('=')[1]) * 1024;
 
   // set generic opcodes for current valtype
   Opcodes.const = [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const ][valtypeInd];

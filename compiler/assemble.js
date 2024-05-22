@@ -21,7 +21,7 @@ const chHint = (topTier, baselineTier, strategy) => {
   return (strategy | (baselineTier << 2) | (topTier << 4));
 };
 
-export default (funcs, globals, tags, pages, data, flags) => {
+export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) => {
   const types = [], typeCache = {};
 
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
@@ -44,7 +44,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
 
   let importFuncs = [];
 
-  if (optLevel < 1 || !Prefs.treeshakeWasmImports) {
+  if (optLevel < 1 || !Prefs.treeshakeWasmImports || noTreeshake) {
     importFuncs = importedFuncs;
   } else {
     let imports = new Map();
@@ -94,7 +94,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
-    encodeVector(importFuncs.map(x => [ 0, ...encodeString(x.import), ExportDesc.func, getType(new Array(x.params).fill(x.name.startsWith('profile') ? Valtype.i32 : valtypeBinary), new Array(x.returns).fill(valtypeBinary)) ]))
+    encodeVector(importFuncs.map(x => [ 0, ...encodeString(x.import), ExportDesc.func, getType(typeof x.params === 'object' ? x.params : new Array(x.params).fill(valtypeBinary), new Array(x.returns).fill(valtypeBinary)) ]))
   );
 
   const funcSection = createSection(
@@ -116,7 +116,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
     ] ])
   );
 
-  if (pages.has('func argc lut')) {
+  if (pages.has('func argc lut') && !data.addedFuncArgcLut) {
     // generate func argc lut data
     const bytes = [];
     for (let i = 0; i < funcs.length; i++) {
@@ -128,6 +128,7 @@ export default (funcs, globals, tags, pages, data, flags) => {
       offset: pages.get('func argc lut').ind * pageSize,
       bytes
     });
+    data.addedFuncArgcLut = true;
   }
 
   // const t0 = performance.now();

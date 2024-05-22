@@ -32,13 +32,13 @@ export const importedFuncs = [
   {
     name: 'profile1',
     import: 'y',
-    params: 1,
+    params: [ Valtype.i32 ],
     returns: 0
   },
   {
     name: 'profile2',
     import: 'z',
-    params: 1,
+    params: [ Valtype.i32 ],
     returns: 0
   },
   {

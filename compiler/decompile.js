@@ -4,6 +4,8 @@ import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from '.
 const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[keyMap(obj[x])] = x; return acc; }, {});
 const invOpcodes = inv(Opcodes);
 const invValtype = inv(Valtype);
+globalThis.invOpcodes = invOpcodes;
+globalThis.invValtype = invValtype;
 
 export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = [], funcs = [], globals = {}, exceptions = []) => {
   const invLocals = inv(locals, x => x.idx);
@@ -91,7 +93,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       if (callFunc) out += ` ;; $${callFunc.name} ${makeSignature(callFunc.params, callFunc.returns)}`;
       if (globalThis.importFuncs && inst[1] < importFuncs.length) {
         const importFunc = importFuncs[inst[1]];
-        out += ` ;; import ${importFunc.name} ${makeSignature(new Array(importFunc.params).fill(valtypeBinary), new Array(importFunc.returns).fill(valtypeBinary),)}`;
+        out += ` ;; import ${importFunc.name} ${makeSignature(typeof importFunc.params === 'object' ? importFunc.params : new Array(importFunc.params).fill(valtypeBinary), new Array(importFunc.returns).fill(valtypeBinary),)}`;
       }
     }
 

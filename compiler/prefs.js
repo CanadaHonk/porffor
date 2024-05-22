@@ -23,9 +23,14 @@ const obj = new Proxy({}, {
     // do not cache in web demo as args are changed live
     if (!globalThis.document) cache[p] = ret;
     return ret;
+  },
+
+  set(_, p, v) {
+    cache[p] = v;
+    return true;
   }
 });
 
-obj.uncache = () => cache = {};
+export const uncache = () => cache = {};
 
 export default obj;
