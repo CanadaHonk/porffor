@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-
-import compile from '../compiler/wrap.js';
 import fs from 'node:fs';
 
 const start = performance.now();
@@ -59,9 +57,14 @@ if (process.argv.includes('--help')) {
 }
 
 let file = process.argv.slice(2).find(x => x[0] !== '-');
-if (['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(file)) {
+if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(file)) {
   // remove this arg
   process.argv.splice(process.argv.indexOf(file), 1);
+
+  if (file === 'precompile') {
+    await import('../compiler/precompile.js');
+    await new Promise(() => {}); // do nothing for the rest of this file
+  }
 
   if (file === 'profile') {
     await import('./profile.js');
@@ -104,6 +107,8 @@ if (!file) {
 }
 
 const source = fs.readFileSync(file, 'utf8');
+
+const compile = (await import('../compiler/wrap.js')).default;
 
 let cache = '';
 const print = str => {

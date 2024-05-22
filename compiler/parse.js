@@ -43,7 +43,7 @@ export default (input, flags) => {
       webcompat: true,
 
       // babel
-      plugins: types ? ['estree', 'typescript'] : ['estree'],
+      plugins: types || flags.includes('typed') ? ['estree', 'typescript'] : ['estree'],
 
       // multiple
       sourceType: flags.includes('module') ? 'module' : 'script',

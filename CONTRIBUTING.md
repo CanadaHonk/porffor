@@ -26,7 +26,7 @@ You can also swap out `node` in the alias to use another runtime like Deno (`den
 
 ### Precompile
 
-**If you update any file inside `compiler/builtins` you will need to do this for it to update inside Porffor otherwise your changes will have no effect.** Run `node compiler/precompile.js` to precompile. It may error during this, if so, you might have an error in your code or there could be a compiler error with Porffor (feel free to ask for help as soon as you encounter any errors with it).
+**If you update any file inside `compiler/builtins` you will need to do this for it to update inside Porffor otherwise your changes will have no effect.** Run `./porf precompile` to precompile. It may error during this, if so, you might have an error in your code or there could be a compiler error with Porffor (feel free to ask for help as soon as you encounter any errors with it).
 
 <br>
 

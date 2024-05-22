@@ -4,9 +4,7 @@
   "version": "0.16.0",
   "author": "CanadaHonk",
   "license": "MIT",
-  "scripts": {
-    "precompile": "node ./compiler/precompile.js"
-  },
+  "scripts": {},
   "dependencies": {
     "acorn": "^8.11.3",
     "node-repl-polyfill": "^0.1.1"

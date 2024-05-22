@@ -26,7 +26,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
 
   const porfCompile = (await import(`./index.js?_=${Date.now()}`)).default;
 
-  let { funcs, globals, data, exceptions } = porfCompile(source, ['module']);
+  let { funcs, globals, data, exceptions } = porfCompile(source, ['module', 'typed']);
 
   const allocated = new Set();
 
@@ -87,6 +87,8 @@ const compile = async (file, [ _funcs, _globals ]) => {
 };
 
 const precompile = async () => {
+  if (globalThis._porf_loadParser) await globalThis._porf_loadParser('@babel/parser');
+
   const dir = join(__dirname, 'builtins');
 
   let funcs = [], globals = [];
