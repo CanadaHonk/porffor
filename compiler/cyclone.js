@@ -246,7 +246,7 @@ export default wasm => {
         const [ b, a ] = pop2();
         const v = bool(a === b);
 
-        replaceVal(v, Valtype.f64);
+        replaceVal(v, Valtype.i32);
         push(v);
         break;
       }
@@ -255,7 +255,7 @@ export default wasm => {
         const [ b, a ] = pop2();
         const v = bool(a !== b);
 
-        replaceVal(v, Valtype.f64);
+        replaceVal(v, Valtype.i32);
         push(v);
         break;
       }
@@ -264,7 +264,7 @@ export default wasm => {
         const [ b, a ] = pop2();
         const v = bool(a < b);
 
-        replaceVal(v, Valtype.f64);
+        replaceVal(v, Valtype.i32);
         push(v);
         break;
       }
@@ -273,7 +273,7 @@ export default wasm => {
         const [ b, a ] = pop2();
         const v = bool(a <= b);
 
-        replaceVal(v, Valtype.f64);
+        replaceVal(v, Valtype.i32);
         push(v);
         break;
       }
@@ -282,7 +282,7 @@ export default wasm => {
         const [ b, a ] = pop2();
         const v = bool(a > b);
 
-        replaceVal(v, Valtype.f64);
+        replaceVal(v, Valtype.i32);
         push(v);
         break;
       }
@@ -291,7 +291,7 @@ export default wasm => {
         const [ b, a ] = pop2();
         const v = bool(a >= b);
 
-        replaceVal(v, Valtype.f64);
+        replaceVal(v, Valtype.i32);
         push(v);
         break;
       }
@@ -404,7 +404,7 @@ export default wasm => {
       case Opcodes.f64_max: {
         if (stack.length < 2) { empty(); break; };
         const [ b, a ] = pop2();
-        const v = a + b;
+        const v = Math.max(a, b);
 
         replaceVal(v, Valtype.f64);
         push(v);
@@ -467,9 +467,9 @@ export default wasm => {
     // i32.const 1
     // i32.add
     // local.set 7 ;; $i (i32)
-    if (
-      (opcode >= 0xa0 && opcode <= 0xa3) || // main f64 math op
-      (opcode >= 0x61 && opcode <= 0x66) // main f64 eq op
+    if (i >= 2 &&
+      ((opcode >= 0xa0 && opcode <= 0xa3) || // main f64 math op
+      (opcode >= 0x61 && opcode <= 0x66)) // main f64 eq op
     ) {
       const o2 = wasm[i - 1][0];
       if (o2 === Opcodes.f64_const) { // f64.const
@@ -500,7 +500,7 @@ export default wasm => {
       }
     }
 
-    if ((opcode === 0xfc02 || opcode === 0xfc03) && i > 3) { // i32.trunc_sat_f64_s/u
+    if ((opcode === 0xfc02 || opcode === 0xfc03) && i >= 3) { // i32.trunc_sat_f64_s/u
       const o2 = wasm[i - 1][0];
       if (
         (o2 >= 0xa0 && o2 <= 0xa3) || // main f64 math op
