@@ -3270,7 +3270,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     firstAssign = true;
 
     // todo: can we just have 1 undeclared array? probably not? but this is not really memory efficient
-    const uniqueName = name === '$undeclared' ? name + Math.random().toString().slice(2) : name;
+    const uniqueName = name === '$undeclared' ? name + randId() : name;
 
     let page;
     if (Prefs.scopedPageNames) page = allocPage(scope, `${getAllocType(itemType)}: ${scope.name}/${uniqueName}`, itemType);
@@ -3658,7 +3658,7 @@ const generateMember = (scope, decl, _global, _name) => {
   });
 };
 
-const randId = () => Math.random().toString(16).slice(0, -4);
+const randId = () => Math.random().toString(16).slice(1, -2).padEnd(12, '0');
 
 const objectHack = node => {
   if (!node) return node;
@@ -3710,7 +3710,7 @@ const generateFunc = (scope, decl) => {
   if (decl.async) return todo(scope, 'async functions are not supported');
   if (decl.generator) return todo(scope, 'generator functions are not supported');
 
-  const name = decl.id ? decl.id.name : `anonymous_${randId()}`;
+  const name = decl.id ? decl.id.name : `anonymous${randId()}`;
   const params = decl.params ?? [];
 
   // TODO: share scope/locals between !!!
