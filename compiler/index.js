@@ -27,7 +27,10 @@ const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) 
 const execSync = (typeof process?.version !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
 
 export default (code, flags) => {
-  const target = Prefs.target ?? 'wasm';
+  let target = Prefs.target ?? 'wasm';
+  if (Prefs.native) target = 'native';
+
+  let outFile = Prefs.o;
 
   globalThis.valtype = 'f64';
   const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
@@ -113,8 +116,6 @@ export default (code, flags) => {
 
   const out = { wasm, funcs, globals, tags, exceptions, pages, data };
 
-  const outFile = Prefs.o;
-
   if (target === 'wasm' && outFile) {
     fs.writeFileSync(outFile, Buffer.from(wasm));
 
@@ -135,6 +136,8 @@ export default (code, flags) => {
   }
 
   if (target === 'native') {
+    outFile ??= Prefs.native ? './porffor_tmp' : file.split('/').at(-1).split('.').at(0, -1).join('.');
+
     let compiler = Prefs.compiler ?? 'clang';
     const cO = Prefs._cO ?? 'Ofast';
 
@@ -153,7 +156,16 @@ export default (code, flags) => {
 
     fs.unlinkSync(tmpfile);
 
-    if (process.version) process.exit();
+    if (process.version) {
+      if (Prefs.native) {
+        const runArgs = process.argv.slice(2).filter(x => !x.startsWith('-'));
+        process.on('beforeExit', () => { fs.unlinkSync(outFile); });
+
+        execSync([ outFile, ...runArgs.slice(1) ].join(' '), { stdio: 'inherit' });
+      }
+
+      process.exit();
+    }
   }
 
   return out;

@@ -89,6 +89,8 @@ if (['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(fi
   }
 }
 
+globalThis.file = file;
+
 if (!file) {
   if (process.argv.includes('-v') || process.argv.includes('--version')) {
     // just print version
