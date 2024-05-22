@@ -87,9 +87,10 @@ export const run = obj => {
         localData[activeFunc][i].push(n);
       },
       w: (ind, outPtr) => { // readArgv
-        const args = process.argv.slice(process.argv.indexOf('--pgo')).filter(x => !x.startsWith('-'));
+        const pgoInd = process.argv.indexOf('--pgo');
+        const args = process.argv.slice(pgoInd).filter(x => !x.startsWith('-'));
         const str = args[ind - 1];
-        if (!str) {
+        if (pgoInd === -1 || !str) {
           if (Prefs.pgoLog) console.log('\nPGO warning: script was expecting arguments, please specify args to use for PGO after --pgo arg');
           return -1;
         }
