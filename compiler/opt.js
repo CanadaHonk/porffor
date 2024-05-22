@@ -172,14 +172,14 @@ export default (funcs, globals, pages, tags, exceptions) => {
           }
         }
 
-        if (inst[inst.length - 1] === 'string_only' && !pages.hasAnyString && !Prefs.noRmUnusedTypes) {
+        if (inst[inst.length - 1] === 'string_only' && !pages.hasAnyString && Prefs.rmUnusedTypes) {
           // remove this inst
           wasm.splice(i, 1);
           if (i > 0) i--;
           inst = wasm[i];
         }
 
-        if (inst[inst.length - 1] === 'string_only|start' && !pages.hasAnyString&& !Prefs.noRmUnusedTypes) {
+        if (inst[inst.length - 1] === 'string_only|start' && !pages.hasAnyString && Prefs.rmUnusedTypes) {
           let j = i;
           for (; j < wasm.length; j++) {
             const op = wasm[j];
@@ -193,7 +193,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           inst = wasm[i];
         }
 
-        if (inst[0] === Opcodes.if && typeof inst[2] === 'string' && !Prefs.noRmUnusedTypes) {
+        if (inst[0] === Opcodes.if && typeof inst[2] === 'string' && Prefs.rmUnusedTypes) {
           // remove unneeded typeswitch checks
 
           const type = inst[2].split('|')[1];
