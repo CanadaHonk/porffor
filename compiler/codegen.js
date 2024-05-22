@@ -2115,7 +2115,6 @@ const brTable = (input, bc, returns) => {
   }
 
   for (let i = 0; i < count; i++) {
-    // if (i === 0) out.push([ Opcodes.block, returns, 'br table start' ]);
     if (i === 0) out.push([ Opcodes.block, returns ]);
       else out.push([ Opcodes.block, Blocktype.void ]);
   }
@@ -2149,10 +2148,8 @@ const brTable = (input, bc, returns) => {
     [ Opcodes.br_table, ...encodeVector(table), 0 ]
   );
 
-  // if you can guess why we sort the wrong way and then reverse
-  // (instead of just sorting the correct way)
-  // dm me and if you are correct and the first person
-  // I will somehow shout you out or something
+  // sort the wrong way and then reverse
+  // so strings ('default') are at the start before any numbers
   const orderedBc = keys.sort((a, b) => b - a).reverse();
 
   br = count - 1;
@@ -2178,7 +2175,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
     return bc[known] ?? bc.default;
   }
 
-  if (Prefs.typeswitchUseBrtable)
+  if (Prefs.typeswitchBrtable)
     return brTable(type, bc, returns);
 
   const tmp = localTmp(scope, '#typeswitch_tmp' + (Prefs.typeswitchUniqueTmp ? randId() : ''), Valtype.i32);
