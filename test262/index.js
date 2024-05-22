@@ -79,9 +79,6 @@ if (isMainThread) {
     4: 0, // assemble
   };
 
-  const allTests = whatTests === 'test';
-  if (!resultOnly && !allTests) console.log();
-
   const trackErrors = process.argv.includes('--errors');
   const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
   const logErrors = process.argv.includes('--log-errors');
@@ -102,8 +99,11 @@ if (isMainThread) {
     return acc;
   }, {});
 
-  let threads = process.argv.find(x => x.startsWith('--threads='))?.split('=')?.[1] || os.cpus().length;
+  let threads = parseInt(process.argv.find(x => x.startsWith('--threads='))?.split('=')?.[1] || os.cpus().length);
   if (logErrors) threads = 1;
+
+  const allTests = whatTests === 'test' && threads > 1;
+  if (!resultOnly && !allTests) console.log();
 
   const waits = [];
   const testsPerWorker = Math.ceil(tests.length / threads);
@@ -159,7 +159,12 @@ if (isMainThread) {
           if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
           lastPercent = percent;
         } else {
-          process.stdout.write(`\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m\n`);
+          process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m\n`);
+
+          if (threads === 1 && workerTests[i + 1]) {
+            const nextFile = workerTests[i + 1].file.replaceAll('\\', '/').slice(5);
+            process.stdout.write(`\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% | ${nextFile}\u001b[0m`);
+          }
         }
 
         const dir = file.slice(0, file.indexOf('/'));
