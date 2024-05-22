@@ -122,7 +122,7 @@ if (isMainThread) {
       workerData: {
         tests: workerTests,
         preludes,
-        logErrors, debugAsserts
+        argv: process.argv
       }
     });
 
@@ -327,7 +327,14 @@ if (isMainThread) {
     }
   }
 } else {
-  const { tests, preludes, logErrors, debugAsserts } = workerData;
+  const { tests, preludes, argv } = workerData;
+
+  process.argv = argv;
+  const trackErrors = process.argv.includes('--errors');
+  const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
+  const logErrors = process.argv.includes('--log-errors');
+  const debugAsserts = process.argv.includes('--debug-asserts');
+  const subdirs = process.argv.includes('--subdirs');
 
   const timeout = ($func, timeout) => {
     // if (globalThis.Bun || globalThis.Deno) throw { code: 'ERR_SCRIPT_EXECUTION_TIMEOUT' };
@@ -367,7 +374,7 @@ if (isMainThread) {
       .replace('function assert(mustBeTrue) {', 'function assert(mustBeTrue, msg) {')
       .replaceAll('function (actual, expected) {', 'function (actual, expected, msg) {')
       .replace('function (actual, unexpected) {', 'function (actual, unexpected, msg) {')
-      .replaceAll('throw new Test262Error', 'if (typeof msg != "undefined") { console.log(msg); console.log(expected) console.log(actual); } throw new Test262Error');
+      .replaceAll('throw new Test262Error', 'if (typeof msg != "undefined") { console.log(msg); console.log(expected); console.log(actual); } throw new Test262Error');
 
     // fs.writeFileSync('r.js', toRun);
 
@@ -464,7 +471,14 @@ if (isMainThread) {
     //   errors.set(errorStr, errors.get(errorStr).concat(file));
     // }
 
+    if (logErrors) {
+      process.stdout.write(`\u001b[${pass ? '92' : '91'}m${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m\n`);
+      if (!pass && error) console.log(error.stack ?? error);
+
+      setTimeout(() => { parentPort.postMessage([ i, out ]); }, 10);
+      continue;
+    }
+
     parentPort.postMessage([ i, out ]);
-    if (logErrors && !pass && error) console.log(test.file.replaceAll('\\', '/').slice(5) + '\n' + (error.stack ?? error));
   }
 }
