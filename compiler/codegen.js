@@ -1,4 +1,4 @@
-import { Blocktype, Opcodes, Valtype, PageSize, ValtypeSize } from './wasmSpec.js';
+import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
 import { ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector } from './encoding.js';
 import { operatorOpcode } from './expression.js';
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
@@ -178,12 +178,6 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
             if (asm[0] === 'returns') {
               scope.returns = asm.slice(1).map(x => Valtype[x]);
-              continue;
-            }
-
-            if (asm[0] === 'memory') {
-              allocPage(scope, 'asm instrinsic');
-              // todo: add to store/load offset insts
               continue;
             }
 
@@ -432,57 +426,6 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
   const rightPointer = localTmp(scope, 'concat_right_pointer', Valtype.i32);
   const rightLength = localTmp(scope, 'concat_right_length', Valtype.i32);
   const leftLength = localTmp(scope, 'concat_left_length', Valtype.i32);
-
-  if (assign && Prefs.aotPointerOpt) {
-    const pointer = scope.arrays?.get(name ?? '$undeclared');
-
-    return [
-      // setup right
-      ...right,
-      Opcodes.i32_to_u,
-      [ Opcodes.local_set, rightPointer ],
-
-      // calculate length
-      ...number(0, Valtype.i32), // base 0 for store later
-
-      ...number(pointer, Valtype.i32),
-      [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
-      [ Opcodes.local_tee, leftLength ],
-
-      [ Opcodes.local_get, rightPointer ],
-      [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
-      [ Opcodes.local_tee, rightLength ],
-
-      [ Opcodes.i32_add ],
-
-      // store length
-      [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ],
-
-      // copy right
-      // dst = out pointer + length size + current length * sizeof valtype
-      ...number(pointer + ValtypeSize.i32, Valtype.i32),
-
-      [ Opcodes.local_get, leftLength ],
-      ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
-      [ Opcodes.i32_mul ],
-      [ Opcodes.i32_add ],
-
-      // src = right pointer + length size
-      [ Opcodes.local_get, rightPointer ],
-      ...number(ValtypeSize.i32, Valtype.i32),
-      [ Opcodes.i32_add ],
-
-      // size = right length * sizeof valtype
-      [ Opcodes.local_get, rightLength ],
-      ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
-      [ Opcodes.i32_mul ],
-
-      [ ...Opcodes.memory_copy, 0x00, 0x00 ],
-
-      // return new string (page)
-      ...number(pointer)
-    ];
-  }
 
   const leftPointer = localTmp(scope, 'concat_left_pointer', Valtype.i32);
 
@@ -2396,19 +2339,12 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   // hack: .length setter
   if (decl.left.type === 'MemberExpression' && decl.left.property.name === 'length') {
-    const name = decl.left.object.name;
-    const pointer = scope.arrays?.get(name);
-
-    const aotPointer = Prefs.aotPointerOpt && pointer != null;
-
     const newValueTmp = localTmp(scope, '__length_setter_tmp');
     const pointerTmp = op === '=' ? null : localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
     return [
-      ...(aotPointer ? number(0, Valtype.i32) : [
-        ...generate(scope, decl.left.object),
-        Opcodes.i32_to_u
-      ]),
+      ...generate(scope, decl.left.object),
+      Opcodes.i32_to_u,
       ...(!pointerTmp ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
       ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
@@ -2419,7 +2355,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       [ Opcodes.local_tee, newValueTmp ],
 
       Opcodes.i32_to_u,
-      [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(aotPointer ? pointer : 0) ],
+      [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ],
 
       [ Opcodes.local_get, newValueTmp ]
     ];
@@ -2427,21 +2363,14 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   // arr[i]
   if (decl.left.type === 'MemberExpression' && decl.left.computed) {
-    const name = decl.left.object.name;
-    const pointer = scope.arrays?.get(name);
-
-    const aotPointer = Prefs.aotPointerOpt && pointer != null;
-
     const newValueTmp = localTmp(scope, '__member_setter_val_tmp');
     const pointerTmp = op === '=' ? -1 : localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
     return [
       ...typeSwitch(scope, getNodeType(scope, decl.left.object), {
         [TYPES.array]: [
-          ...(aotPointer ? [] : [
-            ...generate(scope, decl.left.object),
-            Opcodes.i32_to_u
-          ]),
+          ...generate(scope, decl.left.object),
+          Opcodes.i32_to_u,
 
           // get index as valtype
           ...generate(scope, decl.left.property),
@@ -2450,39 +2379,22 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           // turn into byte offset by * valtypeSize (4 for i32, 8 for i64/f64)
           ...number(ValtypeSize[valtype] + 1, Valtype.i32),
           [ Opcodes.i32_mul ],
-          ...(aotPointer ? [] : [ [ Opcodes.i32_add ] ]),
+          [ Opcodes.i32_add ],
           ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
           ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
             [ Opcodes.local_get, pointerTmp ],
-            [ Opcodes.load, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
+            [ Opcodes.load, 0, ValtypeSize.i32 ]
           ], generate(scope, decl.right), [
             [ Opcodes.local_get, pointerTmp ],
-            [ Opcodes.i32_load8_u, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32 + ValtypeSize[valtype]) ]
+            [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
           ], getNodeType(scope, decl.right), false, name, true)),
           [ Opcodes.local_tee, newValueTmp ],
 
-          [ Opcodes.store, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
+          [ Opcodes.store, 0, ValtypeSize.i32 ]
         ],
 
         default: internalThrow(scope, 'TypeError', `Cannot assign member with non-array`)
-
-        // [TYPES.string]: [
-        //   // turn into byte offset by * sizeof i16
-        //   ...number(ValtypeSize.i16, Valtype.i32),
-        //   [ Opcodes.i32_mul ],
-        //   ...(aotPointer ? [] : [ [ Opcodes.i32_add ] ]),
-        //   ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-        //   ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-        //     [ Opcodes.local_get, pointerTmp ],
-        //     [ Opcodes.load, Math.log2(ValtypeSize[valtype]) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
-        //   ], generate(scope, decl.right), number(TYPES.string, Valtype.i32), getNodeType(scope, decl.right))),
-        //   [ Opcodes.local_tee, newValueTmp ],
-
-        //   Opcodes.i32_to_u,
-        //   [ StoreOps.i16, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ]
-        // ]
       }, Blocktype.void),
 
       [ Opcodes.local_get, newValueTmp ]
@@ -3204,16 +3116,6 @@ const allocPage = (scope, reason, type) => {
   return ind;
 };
 
-// todo: add scope.pages
-const freePage = reason => {
-  const { ind } = pages.get(reason);
-  pages.delete(reason);
-
-  if (Prefs.allocLog) log('alloc', `freed page of memory (${ind}) | ${reason}`);
-
-  return ind;
-};
-
 const itemTypeToValtype = {
   i32: 'i32',
   i64: 'i64',
@@ -3288,7 +3190,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   const valtype = itemTypeToValtype[itemType];
   const length = elements.length;
 
-  if (firstAssign && useRawElements && !Prefs.noData) {
+  if (Prefs.data && firstAssign && useRawElements) {
     // if length is 0 memory/data will just be 0000... anyway
     if (length !== 0) {
       let bytes = compileBytes(length, 'i32');
@@ -3356,7 +3258,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   return [ out, pointer ];
 };
 
-const storeArray = (scope, array, index, element, aotPointer = null) => {
+const storeArray = (scope, array, index, element) => {
   if (!Array.isArray(element)) element = generate(scope, element);
   if (typeof index === 'number') index = number(index);
 
@@ -3368,26 +3270,25 @@ const storeArray = (scope, array, index, element, aotPointer = null) => {
     Opcodes.i32_to_u,
     ...number(ValtypeSize[valtype] + 1, Valtype.i32),
     [ Opcodes.i32_mul ],
-    ...(aotPointer ? [] : [
-      ...array,
-      Opcodes.i32_to_u,
-      [ Opcodes.i32_add ],
-    ]),
+
+    ...array,
+    Opcodes.i32_to_u,
+    [ Opcodes.i32_add ],
     [ Opcodes.local_set, offset ],
 
     // store value
     [ Opcodes.local_get, offset ],
     ...generate(scope, element),
-    [ Opcodes.store, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
+    [ Opcodes.store, 0, ValtypeSize.i32 ],
 
     // store type
     [ Opcodes.local_get, offset ],
     ...getNodeType(scope, element),
-    [ Opcodes.i32_store8, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32 + ValtypeSize[valtype]) ]
+    [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
   ];
 };
 
-const loadArray = (scope, array, index, aotPointer = null) => {
+const loadArray = (scope, array, index) => {
   if (typeof index === 'number') index = number(index);
 
   const offset = localTmp(scope, '#loadArray_offset', Valtype.i32);
@@ -3398,20 +3299,19 @@ const loadArray = (scope, array, index, aotPointer = null) => {
     Opcodes.i32_to_u,
     ...number(ValtypeSize[valtype] + 1, Valtype.i32),
     [ Opcodes.i32_mul ],
-    ...(aotPointer ? [] : [
-      ...array,
-      Opcodes.i32_to_u,
-      [ Opcodes.i32_add ],
-    ]),
+
+    ...array,
+    Opcodes.i32_to_u,
+    [ Opcodes.i32_add ],
     [ Opcodes.local_set, offset ],
 
     // load value
     [ Opcodes.local_get, offset ],
-    [ Opcodes.load, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
+    [ Opcodes.load, 0, ValtypeSize.i32 ],
 
     // load type
     [ Opcodes.local_get, offset ],
-    [ Opcodes.i32_load8_u, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32 + ValtypeSize[valtype]) ]
+    [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
   ];
 };
 
@@ -3462,9 +3362,6 @@ const withType = (scope, wasm, type) => [
 
 const generateMember = (scope, decl, _global, _name) => {
   const name = decl.object.name;
-  const pointer = scope.arrays?.get(name);
-
-  const aotPointer = Prefs.aotPointerOpt && pointer;
 
   // hack: .name
   if (decl.property.name === 'name') {
@@ -3505,12 +3402,10 @@ const generateMember = (scope, decl, _global, _name) => {
     if (Prefs.fastLength) {
       // presume valid length object
       return [
-        ...(aotPointer ? number(0, Valtype.i32) : [
-          ...generate(scope, decl.object),
-          Opcodes.i32_to_u
-        ]),
+        ...generate(scope, decl.object),
+        Opcodes.i32_to_u,
 
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(aotPointer ? pointer : 0) ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         Opcodes.i32_from_u
       ];
     }
@@ -3519,12 +3414,10 @@ const generateMember = (scope, decl, _global, _name) => {
     const known = knownType(scope, type);
     if (known != null) {
       if ([ TYPES.string, TYPES.bytestring, TYPES.array ].includes(known)) return [
-        ...(aotPointer ? number(0, Valtype.i32) : [
-          ...generate(scope, decl.object),
-          Opcodes.i32_to_u
-        ]),
+        ...generate(scope, decl.object),
+        Opcodes.i32_to_u,
 
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(aotPointer ? pointer : 0) ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         Opcodes.i32_from_u
       ];
 
@@ -3534,12 +3427,10 @@ const generateMember = (scope, decl, _global, _name) => {
     return [
       ...typeIsOneOf(getNodeType(scope, decl.object), [ TYPES.string, TYPES.bytestring, TYPES.array ]),
       [ Opcodes.if, valtypeBinary ],
-        ...(aotPointer ? number(0, Valtype.i32) : [
-          ...generate(scope, decl.object),
-          Opcodes.i32_to_u
-        ]),
+        ...generate(scope, decl.object),
+        Opcodes.i32_to_u,
 
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(aotPointer ? pointer : 0) ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         Opcodes.i32_from_u,
 
         ...setLastType(scope, TYPES.number),
@@ -3591,7 +3482,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
   return typeSwitch(scope, getNodeType(scope, decl.object), {
     [TYPES.array]: [
-      ...loadArray(scope, object, property, aotPointer),
+      ...loadArray(scope, object, property),
       ...setLastType(scope)
     ],
 
@@ -3608,14 +3499,12 @@ const generateMember = (scope, decl, _global, _name) => {
       ...number(ValtypeSize.i16, Valtype.i32),
       [ Opcodes.i32_mul ],
 
-      ...(aotPointer ? [] : [
-        ...object,
-        Opcodes.i32_to_u,
-        [ Opcodes.i32_add ]
-      ]),
+      ...object,
+      Opcodes.i32_to_u,
+      [ Opcodes.i32_add ],
 
       // load current string ind {arg}
-      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
       // store to new string ind 0
       [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
@@ -3634,14 +3523,12 @@ const generateMember = (scope, decl, _global, _name) => {
       ...property,
       Opcodes.i32_to_u,
 
-      ...(aotPointer ? [] : [
-        ...object,
-        Opcodes.i32_to_u,
-        [ Opcodes.i32_add ]
-      ]),
+      ...object,
+      Opcodes.i32_to_u,
+      [ Opcodes.i32_add ],
 
       // load current string ind {arg}
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128((aotPointer ? pointer : 0) + ValtypeSize.i32) ],
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
 
       // store to new string ind 0
       [ Opcodes.i32_store8, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],

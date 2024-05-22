@@ -1,4 +1,4 @@
-const onByDefault = [ 'bytestring', 'treeshakeWasmImports', 'alwaysMemory', 'indirectCalls', 'optUnused' ];
+const onByDefault = [ 'bytestring', 'treeshakeWasmImports', 'alwaysMemory', 'indirectCalls', 'optUnused', 'data', 'rmUnusedTypes' ];
 
 let cache = {};
 const obj = new Proxy({}, {
