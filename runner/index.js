@@ -64,7 +64,12 @@ if (['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(fi
   process.argv.splice(process.argv.indexOf(file), 1);
 
   if (file === 'profile') {
-    await import('./profiler.js');
+    await import('./profile.js');
+    await new Promise(() => {}); // do nothing for the rest of this file
+  }
+
+  if (file === 'debug') {
+    await import('./debug.js');
     await new Promise(() => {}); // do nothing for the rest of this file
   }
 
@@ -74,11 +79,6 @@ if (['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(fi
 
   if (file === 'debug-wasm') {
     process.argv.push('--asur', '--wasm-debug');
-  }
-
-  if (file === 'debug') {
-    await import('./debug.js');
-    await new Promise(() => {}); // do nothing for the rest of this file
   }
 
   file = process.argv.slice(2).find(x => x[0] !== '-');
@@ -115,17 +115,20 @@ const print = str => {
   process.stdout.write(str);
 };
 
+let runStart;
 try {
   if (process.argv.includes('-b')) {
     const { wasm, exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
 
+    runStart = performance.now();
     if (!process.argv.includes('--no-run')) exports.main();
 
     console.log(`\n\nwasm size: ${wasm.byteLength} bytes`);
   } else {
     const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
 
-    if (!process.argv.includes('-no-run')) exports.main();
+    runStart = performance.now();
+    if (!process.argv.includes('--no-run')) exports.main();
   }
   // if (cache) process.stdout.write(cache);
 } catch (e) {
@@ -133,4 +136,4 @@ try {
   console.error(process.argv.includes('-i') ? e : `${e.constructor.name}: ${e.message}`);
 }
 
-if (process.argv.includes('-t')) console.log(`${process.argv.includes('-b') ? '' : '\n\n'}total time: ${(performance.now() - start).toFixed(2)}ms`);
+if (process.argv.includes('-t')) console.log(`${process.argv.includes('-b') ? '' : '\n\n'}total time: ${(performance.now() - start).toFixed(2)}ms\nexecution time: ${(performance.now() - runStart).toFixed(2)}ms`);
