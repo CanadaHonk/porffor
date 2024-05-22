@@ -158,10 +158,23 @@ export default (code, flags) => {
 
     if (process.version) {
       if (Prefs.native) {
-        const runArgs = process.argv.slice(2).filter(x => !x.startsWith('-'));
-        process.on('beforeExit', () => { fs.unlinkSync(outFile); });
+        const cleanup = () => {
+          try {
+            fs.unlinkSync(outFile);
+          } catch {}
+        };
 
-        execSync([ outFile, ...runArgs.slice(1) ].join(' '), { stdio: 'inherit' });
+        process.on('exit', cleanup);
+        process.on('beforeExit', cleanup);
+        process.on('SIGINT', () => {
+          cleanup();
+          process.exit();
+        });
+
+        const runArgs = process.argv.slice(2).filter(x => !x.startsWith('-'));
+        try {
+          execSync([ outFile, ...runArgs.slice(1) ].join(' '), { stdio: 'inherit' });
+        } catch {}
       }
 
       process.exit();
