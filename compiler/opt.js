@@ -125,6 +125,8 @@ export default (funcs, globals, pages, tags, exceptions) => {
       // main pass
       for (let i = 0; i < wasm.length; i++) {
         let inst = wasm[i];
+        inst = [ ...inst ];
+        wasm[i] = inst;
 
         if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth.push(inst[0]);
         if (inst[0] === Opcodes.end) depth.pop();
@@ -221,7 +223,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           }
         }
 
-        if (inst[0] === Opcodes.end && inst[1] === 'TYPESWITCH_end') {
+        if (inst[0] === Opcodes.end && inst[1] === 'TYPESWITCH_end' && Prefs.rmUnusedTypes) {
           // remove unneeded entire typeswitch
 
           let j = i - 1, depth = -1, checks = 0;
@@ -369,7 +371,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           continue;
         }
 
-        if (lastInst[0] === Opcodes.i32_const && (inst === Opcodes.i32_from || inst === Opcodes.i32_from_u)) {
+        if (lastInst[0] === Opcodes.i32_const && (inst[0] === Opcodes.i32_from[0] || inst[0] === Opcodes.i32_from_u[0])) {
           // change i32 const and immediate convert to const (opposite way of previous)
           // i32.const 0
           // f64.convert_i32_s || f64.convert_i32_u

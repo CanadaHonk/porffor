@@ -411,7 +411,7 @@ if (isMainThread) {
 
     try {
       // only timeout some due to big perf impact
-      if (file.includes('while/') || file.includes('for/') || file.includes('continue/') || file.includes('break/') || file.includes('pow/')) timeout(exports.m, 500);
+      if (file.includes('while/') || file.includes('for/') || file.includes('continue/') || file.includes('break/') || file.includes('pow/') || file.endsWith('NumberFormat/constructor-unit.js')) timeout(exports.m, 500);
         else exports.m();
       // timeout(exports.m, 500);
     } catch (e) {

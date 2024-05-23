@@ -38,11 +38,14 @@ const compile = async (file, [ _funcs, _globals ]) => {
         x.data[y].offset -= x.data[0].offset;
       }
     }
-    if (x.exceptions) x.exceptions = x.exceptions.map(x => {
-      const obj = exceptions[x];
-      if (obj) obj.exceptId = x;
-      return obj;
-    }).filter(x => x);
+
+    if (x.exceptions) {
+      x.exceptions = x.exceptions.map(x => {
+        const obj = exceptions[x];
+        if (obj) obj.exceptId = x;
+        return obj;
+      }).filter(x => x);
+    }
 
     const locals = Object.keys(x.locals).reduce((acc, y) => {
       acc[x.locals[y].idx] = { ...x.locals[y], name: y };

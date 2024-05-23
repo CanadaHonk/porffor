@@ -1,6 +1,5 @@
 import { Opcodes, Blocktype, Valtype, ValtypeSize } from './wasmSpec.js';
 import { number } from './embedding.js';
-import { unsignedLEB128 } from './encoding.js';
 import { UNDEFINED } from './builtins.js';
 import { TYPES } from './types.js';
 import Prefs from './prefs.js';
@@ -55,10 +54,10 @@ export const PrototypeFuncs = function() {
 
       // read from memory
       [ Opcodes.local_get, iTmp ],
-      [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.load, 0, ValtypeSize.i32 ],
 
       [ Opcodes.local_get, iTmp ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ]
+      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
     ],
 
     // todo: only for 1 argument
@@ -74,12 +73,12 @@ export const PrototypeFuncs = function() {
       // store value
       [ Opcodes.local_get, iTmp ],
       ...wNewMember,
-      [ Opcodes.store, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.store, 0, ValtypeSize.i32 ],
 
       // store type
       [ Opcodes.local_get, iTmp ],
       ...wType,
-      [ Opcodes.i32_store8, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
+      [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
 
       // bump array length by 1 and return it
       ...length.setI32([
@@ -137,10 +136,10 @@ export const PrototypeFuncs = function() {
         [ Opcodes.local_set, iTmp ],
 
         [ Opcodes.local_get, iTmp ],
-        [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+        [ Opcodes.load, 0, ValtypeSize.i32 ],
 
         [ Opcodes.local_get, iTmp ],
-        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ]
+        [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
       ])
     ],
 
@@ -168,10 +167,10 @@ export const PrototypeFuncs = function() {
       // load first element
       // todo/perf: unusedValue opt
       ...pointer,
-      [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.load, 0, ValtypeSize.i32 ],
 
       ...pointer,
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
+      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
 
       // offset page by -1 ind
       // ...number(pointer + ValtypeSize.i32, Valtype.i32), // dst = base array index + length size
@@ -250,12 +249,12 @@ export const PrototypeFuncs = function() {
       // store value
       [ Opcodes.local_get, iTmp2 ],
       [ Opcodes.local_get, iTmp ],
-      [ Opcodes.store, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.store, 0, ValtypeSize.i32 ],
 
       // store type
       [ Opcodes.local_get, iTmp2 ],
       ...wType,
-      [ Opcodes.i32_store8, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
+      [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
 
       // pointer - sizeof value
       ...length.getCachedI32(),
@@ -292,11 +291,8 @@ export const PrototypeFuncs = function() {
       const [ newOut, newPointer ] = arrayShell(1, 'i16');
 
       return [
-        // setup new/out array
+        // setup new/out array and use pointer for store
         ...newOut,
-        [ Opcodes.drop ],
-
-        ...number(0, Valtype.i32), // base 0 for store later
 
         ...wIndex,
         Opcodes.i32_to_u,
@@ -335,13 +331,14 @@ export const PrototypeFuncs = function() {
         [ Opcodes.i32_add ],
 
         // load current string ind {arg}
-        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
         // store to new string ind 0
-        [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+        [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
         // return new string (pointer)
-        ...number(newPointer)
+        ...newPointer,
+        Opcodes.i32_from_u
       ];
     },
 
@@ -350,11 +347,8 @@ export const PrototypeFuncs = function() {
       const [ newOut, newPointer ] = arrayShell(1, 'i16');
 
       return [
-        // setup new/out array
+        // setup new/out array and use as pointer for store
         ...newOut,
-        [ Opcodes.drop ],
-
-        ...number(0, Valtype.i32), // base 0 for store later
 
         ...wIndex,
         Opcodes.i32_to,
@@ -366,13 +360,14 @@ export const PrototypeFuncs = function() {
         [ Opcodes.i32_add ],
 
         // load current string ind {arg}
-        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
         // store to new string ind 0
-        [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+        [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
         // return new string (page)
-        ...number(newPointer)
+        ...newPointer,
+        Opcodes.i32_from_u
       ];
     },
 
@@ -411,7 +406,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_add ],
 
       // load current string ind {arg}
-      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
       Opcodes.i32_from_u
     ],
 
@@ -433,7 +428,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.block, Blocktype.void ],
 
       [ Opcodes.local_get, iTmp ],
-      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
       [ Opcodes.local_set, iTmp2 ],
 
       // if not surrogate, continue
@@ -455,7 +450,7 @@ export const PrototypeFuncs = function() {
 
       // if not followed by trailing surrogate, return false
       [ Opcodes.local_get, iTmp ],
-      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize.i16) ],
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 + ValtypeSize.i16 ],
       ...number(0xFC00, Valtype.i32),
       [ Opcodes.i32_and ],
       ...number(0xDC00, Valtype.i32),
@@ -507,11 +502,8 @@ export const PrototypeFuncs = function() {
         const [ newOut, newPointer ] = arrayShell(1, 'i8');
 
         return [
-          // setup new/out array
+          // setup new/out array and use pointer for store later
           ...newOut,
-          [ Opcodes.drop ],
-
-          ...number(0, Valtype.i32), // base 0 for store later
 
           ...wIndex,
           Opcodes.i32_to_u,
@@ -548,13 +540,14 @@ export const PrototypeFuncs = function() {
           [ Opcodes.i32_add ],
 
           // load current string ind {arg}
-          [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+          [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
 
           // store to new string ind 0
-          [ Opcodes.i32_store8, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+          [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
 
           // return new string (pointer)
-          ...number(newPointer)
+          ...newPointer,
+          Opcodes.i32_from_u
         ];
       },
 
@@ -563,11 +556,8 @@ export const PrototypeFuncs = function() {
         const [ newOut, newPointer ] = arrayShell(1, 'i8');
 
         return [
-          // setup new/out array
+          // setup new/out array and use pointer for later
           ...newOut,
-          [ Opcodes.drop ],
-
-          ...number(0, Valtype.i32), // base 0 for store later
 
           ...wIndex,
           Opcodes.i32_to,
@@ -576,13 +566,14 @@ export const PrototypeFuncs = function() {
           [ Opcodes.i32_add ],
 
           // load current string ind {arg}
-          [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+          [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
 
           // store to new string ind 0
-          [ Opcodes.i32_store8, 0, ...unsignedLEB128(newPointer + ValtypeSize.i32) ],
+          [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
 
           // return new string (page)
-          ...number(newPointer)
+          ...newPointer,
+          Opcodes.i32_from_u
         ];
       },
 
@@ -618,7 +609,7 @@ export const PrototypeFuncs = function() {
         [ Opcodes.i32_add ],
 
         // load current string ind {arg}
-        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+        [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
         Opcodes.i32_from_u
       ],
 

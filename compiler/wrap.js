@@ -11,13 +11,13 @@ const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
 export const readByteStr = (memory, ptr) => {
-  const length = (new Int32Array(memory.buffer, ptr, 1))[0];
+  const length = (new Int32Array(memory.buffer.slice(ptr, ptr + 4), 0, 1))[0];
   return Array.from(new Uint8Array(memory.buffer, ptr + 4, length)).map(x => String.fromCharCode(x)).join('');
 };
 
 export const writeByteStr = (memory, ptr, str) => {
   const length = str.length;
-  (new Int32Array(memory.buffer, ptr, 1))[0] = length;
+  (new Int32Array(memory.buffer.slice(ptr, ptr + 4), 0, 1))[0] = length;
 
   const arr = new Uint8Array(memory.buffer, ptr + 4, length);
   for (let i = 0; i < length; i++) {
@@ -46,17 +46,17 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     }
 
     case TYPES.string: {
-      const length = (new Int32Array(memory.buffer, value, 1))[0];
+      const length = (new Int32Array(memory.buffer.slice(value, value + 4), 0, 1))[0];
       return Array.from(new Uint16Array(memory.buffer, value + 4, length)).map(x => String.fromCharCode(x)).join('');
     }
 
     case TYPES.bytestring: {
-      const length = (new Int32Array(memory.buffer, value, 1))[0];
+      const length = (new Int32Array(memory.buffer.slice(value, value + 4), 0, 1))[0];
       return Array.from(new Uint8Array(memory.buffer, value + 4, length)).map(x => String.fromCharCode(x)).join('');
     }
 
     case TYPES.array: {
-      const length = (new Int32Array(memory.buffer, value, 1))[0];
+      const length = (new Int32Array(memory.buffer.slice(value, value + 4), 0, 1))[0];
 
       const out = [];
       for (let i = 0; i < length; i++) {
@@ -77,12 +77,12 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     }
 
     case TYPES.date: {
-      const t = (new Float64Array(memory.buffer, value, 1))[0];
+      const t = (new Float64Array(memory.buffer.slice(value, value + 8), 0, 1))[0];
       return new Date(t);
     }
 
     case TYPES.set: {
-      const size = (new Int32Array(memory.buffer, value, 1))[0];
+      const size = (new Int32Array(memory.buffer.slice(value, value + 4), 0, 1))[0];
 
       const out = new Set();
       for (let i = 0; i < size; i++) {
@@ -102,17 +102,17 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
       return out;
     }
 
-    case TYPES.symbol: {
-      const descStore = pages.get('bytestring: __Porffor_symbol_descStore/ptr').ind * pageSize;
-      const offset = descStore + 4 + ((value - 1) * 9);
+    // case TYPES.symbol: {
+    //   const descStore = pages.get('bytestring: __Porffor_symbol_descStore/ptr').ind * pageSize;
+    //   const offset = descStore + 4 + ((value - 1) * 9);
 
-      const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
-      const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
+    //   const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
+    //   const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
 
-      const desc = porfToJSValue({ memory, funcs, pages }, v, t);
+    //   const desc = porfToJSValue({ memory, funcs, pages }, v, t);
 
-      return Symbol(desc);
-    }
+    //   return Symbol(desc);
+    // }
 
     default: return value;
   }
