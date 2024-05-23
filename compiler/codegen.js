@@ -3156,6 +3156,31 @@ const compileBytes = (val, itemType) => {
   }
 };
 
+const makeData = (scope, elements, offset = null, itemType, initEmpty) => {
+  const length = elements.length;
+
+  // if length is 0 memory/data will just be 0000... anyway
+  if (length === 0) return false;
+
+  let bytes = compileBytes(length, 'i32');
+
+  if (!initEmpty) for (let i = 0; i < length; i++) {
+    if (elements[i] == null) continue;
+
+    bytes.push(...compileBytes(elements[i], itemType));
+  }
+
+  const obj = { bytes };
+  if (offset != null) obj.offset = offset;
+
+  const idx = data.push(obj) - 1;
+
+  scope.data ??= [];
+  scope.data.push(idx);
+
+  return { idx, size: bytes.length };
+};
+
 const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype, intOut = false, typed = false) => {
   if (itemType !== 'i16' && itemType !== 'i8') {
     pages.hasArray = true;
@@ -3194,24 +3219,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     if (firstAssign) scope.arrays.set(uniqueName, rawPtr);
 
     if (Prefs.data && firstAssign && useRawElements) {
-      // if length is 0 memory/data will just be 0000... anyway
-      if (length !== 0) {
-        let bytes = compileBytes(length, 'i32');
-
-        if (!initEmpty) for (let i = 0; i < length; i++) {
-          if (elements[i] == null) continue;
-
-          bytes.push(...compileBytes(elements[i], itemType));
-        }
-
-        const ind = data.push({
-          offset: rawPtr,
-          bytes
-        }) - 1;
-
-        scope.data ??= [];
-        scope.data.push(ind);
-      }
+      makeData(scope, elements, rawPtr, itemType, initEmpty);
 
       // local value as pointer
       return [ number(rawPtr, intOut ? Valtype.i32 : valtypeBinary), pointer ];

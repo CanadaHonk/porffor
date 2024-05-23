@@ -240,7 +240,13 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
   const dataSection = data.length === 0 ? [] : createSection(
     Section.data,
-    encodeVector(data.map(x => [ 0x00, Opcodes.i32_const, ...signedLEB128(x.offset), Opcodes.end, ...encodeVector(x.bytes) ]))
+    encodeVector(data.map(x => {
+      // type: active
+      if (x.offset != null) return [ 0x00, Opcodes.i32_const, ...signedLEB128(x.offset), Opcodes.end, ...encodeVector(x.bytes) ];
+
+      // type: passive
+      return [ 0x01, ...encodeVector(x.bytes) ];
+    }))
   );
 
   const dataCountSection = data.length === 0 ? [] : createSection(

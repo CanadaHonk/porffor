@@ -35,7 +35,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
     if (x.data) {
       x.data = x.data.map(x => data[x]);
       for (const y in x.data) {
-        x.data[y].offset -= x.data[0].offset;
+        if (x.data[y].offset != null) x.data[y].offset -= x.data[0].offset;
       }
     }
 
