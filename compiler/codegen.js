@@ -431,7 +431,7 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
   const leftPointer = localTmp(scope, 'concat_left_pointer', Valtype.i32);
 
   // alloc/assign array
-  const [ , pointer ] = makeArray(scope, {
+  const [ out, pointer ] = makeArray(scope, {
     rawElements: new Array(0)
   }, global, name, true, 'i16', true);
 
@@ -447,7 +447,7 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
     [ Opcodes.local_set, rightPointer ],
 
     // calculate length
-    ...pointer, // base 0 for store later
+    ...out,
 
     [ Opcodes.local_get, leftPointer ],
     [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
@@ -3702,9 +3702,9 @@ const internalConstrs = {
 
       // new Array(n)
 
-      const [ , pointer ] = makeArray(scope, {
+      const [ out, pointer ] = makeArray(scope, {
         rawElements: new Array(0)
-      }, global, name, true);
+      }, global, name, true, undefined, true);
 
       const arg = decl.arguments[0] ?? DEFAULT_VALUE;
 
@@ -3713,7 +3713,7 @@ const internalConstrs = {
       if (literalValue < 0 || !Number.isFinite(literalValue) || literalValue > 4294967295) return internalThrow(scope, 'RangeThrow', 'Invalid array length', true);
 
       return [
-        ...pointer,
+        ...out,
         ...generate(scope, arg, global, name),
         Opcodes.i32_to_u,
         [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ],
