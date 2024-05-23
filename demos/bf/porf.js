@@ -47,8 +47,7 @@ if (Porffor.readArgv(1, file) == -1) {
   console.log('usage: [brainf file to interpret]\n');
 
   const code = '>++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<+++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------------.>>.+++.------.--------.>+.>+.';
-  // const code = '++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.';
-  console.log('here is a (rigorous) hello world for example:');
+  console.log('here is a hello world for example:');
   console.log(code);
 
   interpret(code);

@@ -47,7 +47,13 @@ const interpret = (str: bytestring) => {
 
 let file: bytestring = '';
 if (Porffor.readArgv(1, file) == -1) {
-  console.log('please specify a brainf file to interpret');
+  console.log('usage: [brainf file to interpret]\n');
+
+  const code: bytestring = '>++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<+++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------------.>>.+++.------.--------.>+.>+.';
+  console.log('here is a hello world for example:');
+  console.log(code);
+
+  interpret(code);
 } else {
   let contents: bytestring = '';
   if (Porffor.readFile(file, contents) == -1) {

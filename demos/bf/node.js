@@ -48,5 +48,21 @@ const interpret = str => {
 };
 
 let file = process.argv[2];
-let contents = fs.readFileSync(file, 'utf8');
-interpret(contents);
+if (!file) {
+  console.log('usage: [brainf file to interpret]\n');
+
+  const code = '>++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<+++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------------.>>.+++.------.--------.>+.>+.';
+  console.log('here is a hello world for example:');
+  console.log(code);
+
+  interpret(code);
+} else {
+  let contents;
+  try {
+    contents = fs.readFileSync(file, 'utf8');
+  } catch {
+    console.log('error reading file:', file);
+  }
+
+  interpret(contents);
+}
