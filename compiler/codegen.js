@@ -1017,7 +1017,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
 
   for (const x of _data) {
     const copy = { ...x };
-    copy.offset += pages.size * pageSize;
+    if (copy.offset != null) copy.offset += pages.size * pageSize;
     data.push(copy);
   }
 
@@ -1403,10 +1403,10 @@ const countLeftover = wasm => {
 
     if (depth === 0)
       if ([Opcodes.throw, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
-        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.i32_load8_u, Opcodes.i32_load8_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x0a)) {}
+        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.i32_load8_u, Opcodes.i32_load8_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x04)) {}
         else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const, Opcodes.memory_size].includes(inst[0])) count++;
         else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.i32_store16, Opcodes.i32_store8].includes(inst[0])) count -= 2;
-        else if (Opcodes.memory_copy[0] === inst[0] && Opcodes.memory_copy[1] === inst[1]) count -= 3;
+        else if (inst[0] === Opcodes.memory_copy[0] && (inst[1] === Opcodes.memory_copy[1] || inst[1] === Opcodes.memory_init[1])) count -= 3;
         else if (inst[0] === Opcodes.return) count = 0;
         else if (inst[0] === Opcodes.call) {
           let func = funcs.find(x => x.index === inst[1]);
@@ -3204,13 +3204,35 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
   let pointer = allocated;
   if (allocator.constructor.name !== 'StaticAllocator') {
-    const tmp = localTmp(scope, '#makearray_pointer' + uniqueName, Valtype.i32);
+    // const tmp = localTmp(scope, '#makearray_pointer' + uniqueName, Valtype.i32);
+    const tmp = localTmp(scope, '#makearray_pointer' + name, Valtype.i32);
     out.push(
       ...allocated,
       [ Opcodes.local_set, tmp ]
     );
 
     pointer = [ [ Opcodes.local_get, tmp ] ];
+
+    if (Prefs.data && useRawElements) {
+      const data = makeData(scope, elements, null, itemType, initEmpty);
+      if (data) {
+        // init data
+        out.push(
+          ...pointer,
+          ...number(0, Valtype.i32),
+          ...number(data.size, Valtype.i32),
+          [ ...Opcodes.memory_init, ...unsignedLEB128(data.idx), 0 ]
+        );
+      }
+
+      // return pointer in out
+      out.push(
+        ...pointer,
+        ...(!intOut ? [ Opcodes.i32_from_u ] : [])
+      );
+
+      return [ out, pointer ];
+    }
   } else {
     const rawPtr = read_signedLEB128(pointer[0].slice(1));
 

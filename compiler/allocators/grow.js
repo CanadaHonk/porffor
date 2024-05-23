@@ -5,7 +5,6 @@ import Prefs from '../prefs.js';
 export default class GrowAllocator {
   constructor() {
     Prefs.rmUnusedTypes = false;
-    Prefs.data = false;
   }
 
   alloc() {

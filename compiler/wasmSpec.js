@@ -191,6 +191,8 @@ export const Opcodes = {
   i32_trunc_sat_f64_s: [ 0xfc, 0x02 ],
   i32_trunc_sat_f64_u: [ 0xfc, 0x03 ],
 
+  memory_init: [ 0xfc, 0x08 ],
+  data_drop: [ 0xfc, 0x09 ],
   memory_copy: [ 0xfc, 0x0a ],
 
   // simd insts are 0xFD simdop: varuint32
@@ -209,8 +211,6 @@ export const Opcodes = {
   i32x4_add: [ 0xfd, 0xae, 0x01 ],
   i32x4_sub: [ 0xfd, 0xb1, 0x01 ],
   i32x4_mul: [ 0xfd, 0xb5, 0x01 ],
-
-  i32x4_dot_i16x8_s: [ 0xfd, 0xba, 0x01 ],
 };
 
 export const FuncType = 0x60;
