@@ -186,6 +186,11 @@ export default (code, flags) => {
         } catch {}
       }
 
+      if (!Prefs.native && globalThis.file) {
+        const total = performance.now();
+        console.log(`\u001b[90m[${total.toFixed(2)}ms]\u001b[0m \u001b[92mcompiled ${globalThis.file} -> ${outFile}\u001b[0m`);
+      }
+
       process.exit();
     }
   }
