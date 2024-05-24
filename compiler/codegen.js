@@ -3117,8 +3117,6 @@ const allocPage = (scope, reason, type) => {
   scope.pages ??= new Map();
   scope.pages.set(reason, { ind, type });
 
-  if (Prefs.allocLog) log('alloc', `allocated new page of memory (${ind}) | ${reason} (type: ${type})`);
-
   return ind;
 };
 

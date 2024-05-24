@@ -109,7 +109,7 @@ export default (code, flags) => {
 
   if (Prefs.optFuncs) logFuncs(funcs, globals, exceptions);
 
-  if (Prefs.allocLog) {
+  if (Prefs.compileAllocLog) {
     const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
     const bytes = wasmPages * 65536;
     log('alloc', `\x1B[1mallocated ${bytes / 1024}KiB\x1B[0m for ${pages.size} things using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}`);
