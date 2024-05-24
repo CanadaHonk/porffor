@@ -722,10 +722,9 @@ export const __Porffor_date_allocate = (): Date => {
   const hack: bytestring = '';
 
   if (hack.length == 0) {
-    hack.length = Porffor.wasm`memory.size 0
+    hack.length = Porffor.wasm`
 i32.const 1
 memory.grow 0
-drop
 i32.const 65536
 i32.mul
 i32.from_u`;
