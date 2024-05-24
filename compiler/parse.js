@@ -1,12 +1,6 @@
 import { log } from './log.js';
 import Prefs from './prefs.js';
 
-// deno compat
-if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
-  const textEncoder = new TextEncoder();
-  globalThis.process = { argv: ['', '', ...Deno.args], stdout: { write: str => Deno.writeAllSync(Deno.stdout, textEncoder.encode(str)) } };
-}
-
 const file = process.argv.slice(2).find(x => x[0] !== '-' && !['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(x));
 
 // should we try to support types (while parsing)

@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 
+// deno compat
+if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
+  globalThis.process = await import('node:process');
+}
+
 const start = performance.now();
 
 if (process.argv.includes('--compile-hints')) {
