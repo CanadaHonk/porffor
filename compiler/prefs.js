@@ -3,8 +3,7 @@ const onByDefault = [ 'bytestring', 'treeshakeWasmImports', 'alwaysMemory', 'ind
 let cache = {};
 const obj = new Proxy({}, {
   get(_, p) {
-    // intentionally misses with undefined values cached
-    if (cache[p]) return cache[p];
+    if (cache[p] != null) return cache[p];
 
     const ret = (() => {
       // fooBar -> foo-bar
