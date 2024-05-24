@@ -9,7 +9,7 @@ import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
 import { log } from './log.js';
 import Prefs from './prefs.js';
-import Allocator from './allocators/index.js';
+import makeAllocator from './allocators.js';
 
 let globals = {};
 let tags = [];
@@ -3198,7 +3198,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   const valtype = itemTypeToValtype[itemType];
   const length = elements.length;
 
-  const allocated = allocator.alloc({ scope, pages, globals }, uniqueName, { itemType });
+  const allocated = allocator.alloc({ scope, pages, globals, asmFunc, funcIndex }, uniqueName, { itemType });
 
   let pointer = allocated;
   if (allocator.constructor.name !== 'StaticAllocator') {
@@ -3923,7 +3923,7 @@ export default program => {
   builtinFuncs = new BuiltinFuncs();
   builtinVars = new BuiltinVars();
   prototypeFuncs = new PrototypeFuncs();
-  allocator = Allocator(Prefs.allocator ?? 'static');
+  allocator = makeAllocator(Prefs.allocator ?? 'static');
 
   program.id = { name: 'main' };
 
