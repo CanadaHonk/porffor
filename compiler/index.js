@@ -45,6 +45,8 @@ export default (code, flags) => {
   if (target !== 'wasm') Prefs.pgo = Prefs.pgo === false ? false : true;
   if (Prefs.pgo) pgo.setup();
 
+  if (Prefs.profileCompiler) console.log(`0. began compilation (host runtime startup) in ${performance.now().toFixed(2)}ms`);
+
   const t0 = performance.now();
   const program = parse(code, flags);
   if (Prefs.profileCompiler) console.log(`1. parsed in ${(performance.now() - t0).toFixed(2)}ms`);
@@ -148,13 +150,20 @@ export default (code, flags) => {
     const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
     if (!Prefs.compiler) args.push('-flto=thin', '-march=native', '-s', '-ffast-math', '-fno-exceptions', '-fno-ident', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections', '-Wl,--gc-sections');
 
+    const t4 = performance.now();
     const c = toc(out);
+    if (Prefs.profileCompiler) console.log(`5. compiled to c in ${(performance.now() - t4).toFixed(2)}ms`);
+
+    const t5 = performance.now();
+
     fs.writeFileSync(tmpfile, c);
 
     // obvious command escape is obvious
     execSync(args.join(' '), { stdio: 'inherit' });
 
     fs.unlinkSync(tmpfile);
+
+    if (Prefs.profileCompiler) console.log(`6. compiled to native (using ${compiler}) in ${(performance.now() - t5).toFixed(2)}ms`);
 
     if (process.version) {
       if (Prefs.native) {
