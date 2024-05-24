@@ -3174,6 +3174,21 @@ const makeData = (scope, elements, offset = null, itemType, initEmpty) => {
   return { idx, size: bytes.length };
 };
 
+const printStaticStr = str => {
+  const out = [];
+
+  for (let i = 0; i < str.length; i++) {
+    out.push(
+      // ...number(str.charCodeAt(i)),
+      ...number(str.charCodeAt(i), Valtype.i32),
+      Opcodes.i32_from_u,
+      [ Opcodes.call, importedFuncs.printChar ]
+    );
+  }
+
+  return out;
+};
+
 const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype, intOut = false, typed = false) => {
   if (itemType !== 'i16' && itemType !== 'i8') {
     pages.hasArray = true;
@@ -3202,6 +3217,17 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     out.push(
       ...allocated,
       [ Opcodes.local_set, tmp ]
+    );
+
+    if (Prefs.runtimeAllocLog) out.push(
+      ...printStaticStr(`${name}: `),
+
+      [ Opcodes.local_get, tmp ],
+      Opcodes.i32_from_u,
+      [ Opcodes.call, 0 ],
+
+      ...number(10),
+      [ Opcodes.call, 1 ]
     );
 
     pointer = [ [ Opcodes.local_get, tmp ] ];
