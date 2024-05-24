@@ -78,6 +78,9 @@ export const run = obj => {
   try {
     obj.wasm = assemble(obj.funcs, obj.globals, obj.tags, obj.pages, obj.data, obj.flags, true);
 
+    Prefs._profileCompiler = Prefs.profileCompiler;
+    Prefs.profileCompiler = false;
+
     const { exports } = wrap(obj, [], {
       y: n => {
         activeFunc = n;
@@ -104,6 +107,8 @@ export const run = obj => {
   } catch (e) {
     throw e;
   }
+
+  Prefs.profileCompiler = Prefs._profileCompiler;
 
   for (const x of funcs) {
     const wasmFunc = wasmFuncs.find(y => y.name === x.name);
