@@ -33,11 +33,6 @@ const todo = (scope, msg, expectsValue = undefined) => {
 
     case 'runtime':
       return internalThrow(scope, 'TodoError', msg, expectsValue);
-
-      // return [
-      //   ...debug(`todo! ${msg}`),
-      //   [ Opcodes.unreachable ]
-      // ];
   }
 };
 
@@ -1003,7 +998,7 @@ const asmFuncToAsm = (func, scope) => {
   });
 };
 
-const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits, returns, returnType, localNames = [], globalNames = [], data: _data = [], table = false }) => {
+const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits = [], returns, returnType, localNames = [], globalNames = [], data: _data = [], table = false }) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
