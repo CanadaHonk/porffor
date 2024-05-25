@@ -82,7 +82,6 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 - Little built-ins/prototype
 - No async/promise/await
 - No variables between scopes (except args and globals)
-- Literal callees only in calls (eg `print()` works, `a = print; a()` does not)
 - No `eval()` etc (since it is AOT)
 
 ## Sub-engines
@@ -112,7 +111,7 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 
 - Number literals
 - Declaring functions
-- Calling functions *literal callees only*
+- Calling functions
 - `return`
 - `let`/`const`/`var` basic declarations
 - Some basic integer operators (`+-/*%`)
