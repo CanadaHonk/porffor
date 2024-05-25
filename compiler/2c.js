@@ -2,6 +2,7 @@ import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from '.
 import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
 import { log } from './log.js';
+import Prefs from './prefs.js';
 
 const CValtype = {
   i8: 'i8',
@@ -33,11 +34,11 @@ struct ReturnValue {
   i32 type;
 };\n\n`;
 
-// todo: is memcpy/etc safe with host endianness?
+// todo: review whether 2cMemcpy should be default or not
 
 // all:
 // immediates: ['align', 'offset']
-const CMemFuncs = {
+const CMemFuncs = Prefs['2cMemcpy'] ? {
   [Opcodes.i32_store]: {
     c: `memcpy(_memory + offset + pointer, &value, sizeof(value));`,
     args: ['pointer', 'value'],
@@ -92,6 +93,57 @@ return out;`,
     c: `f64 out;
 memcpy(&out, _memory + offset + pointer, sizeof(out));
 return out;`,
+    args: ['pointer'],
+    argTypes: ['i32'],
+    returns: 'f64'
+  },
+} : {
+  [Opcodes.i32_store]: {
+    c: `*((i32*)(_memory + offset + pointer)) = value;`,
+    args: ['pointer', 'value'],
+    argTypes: ['i32', 'i32'],
+    returns: false
+  },
+  [Opcodes.i32_store16]: {
+    c: `*((i16*)(_memory + offset + pointer)) = value;`,
+    args: ['pointer', 'value'],
+    argTypes: ['i32', 'i16'],
+    returns: false
+  },
+  [Opcodes.i32_store8]: {
+    c: `*((i8*)(_memory + offset + pointer)) = value;`,
+    args: ['pointer', 'value'],
+    argTypes: ['i32', 'i8'],
+    returns: false
+  },
+
+  [Opcodes.i32_load]: {
+    c: `return *((i32*)(_memory + offset + pointer));`,
+    args: ['pointer'],
+    argTypes: ['i32'],
+    returns: 'i32'
+  },
+  [Opcodes.i32_load16_u]: {
+    c: `return *((u16*)(_memory + offset + pointer));`,
+    args: ['pointer'],
+    argTypes: ['i32'],
+    returns: 'i32'
+  },
+  [Opcodes.i32_load8_u]: {
+    c: `return *((i8*)(_memory + offset + pointer));`,
+    args: ['pointer'],
+    argTypes: ['i32'],
+    returns: 'i32'
+  },
+
+  [Opcodes.f64_store]: {
+    c: `*((f64*)(_memory + offset + pointer)) = value;`,
+    args: ['pointer', 'value'],
+    argTypes: ['i32', 'f64'],
+    returns: false
+  },
+  [Opcodes.f64_load]: {
+    c: `return *((f64*)(_memory + offset + pointer));`,
     args: ['pointer'],
     argTypes: ['i32'],
     returns: 'f64'
@@ -152,11 +204,16 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   if (pages.size > 0) {
     prepend.set('_memory', `char _memory[${pages.size * pageSize}];\n`);
-    includes.set('string.h', true);
+    if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
 
   if (data.length > 0) {
-    prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
+    if (Prefs['2cMemcpy']) {
+      prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
+      includes.set('string.h', true);
+    } else {
+      prependMain.set('_data', data.map(x => x.bytes.reduce((acc, y, i) => acc + `_memory[${x.offset + i}]=(i8)${y};`, '')).join('\n  '));
+    }
   }
 
   if (importFuncs.find(x => x.name === '__Porffor_readArgv')) {
@@ -474,7 +531,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
     out[read++] = ch;
   }
 
-  memcpy(_memory + outPtr, &read, sizeof(read));
+  *((i32*)(_memory + outPtr)) = (i32)read;
   return read;
 }`);
 
@@ -504,7 +561,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
   fclose(fp);
 
-  memcpy(_memory + outPtr, &read, sizeof(read));
+  *((i32*)(_memory + outPtr)) = (i32)read;
   return read;
 }`);
                 const outPtr = vals.pop();
