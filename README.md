@@ -29,7 +29,7 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 > [!WARNING]
 > Compiling to native binaries uses [2c](#2c), Porffor's own Wasm -> C compiler, which is experimental.
 
-**`porf native path/to/script.js out(.exe)`**. You can specify the compiler with `--compiler=clang/zig/gcc`, and which opt level to use with `--cO=O3` (`Ofast` by default). Output binaries are also stripped by default.
+**`porf native path/to/script.js out(.exe)`**. You can specify the compiler with `--compiler=clang/gcc/zig` (`clang` by default), and which optimization level to use with `--cO=Ofast/O3/O2/O1/O0` (`Ofast` by default). Output binaries are also stripped by default.
 
 ### Compiling to C
 > [!WARNING]
