@@ -2092,6 +2092,24 @@ export const BuiltinFuncs = function() {
     locals: [],
     localNames: ["_this","_this#type"],
   };
+  this.String = {
+    wasm: (scope, {builtin,}) => [[32,0],[32,1],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,24,64],[97],[4,64],[32,0],[32,1],[16, builtin('__Symbol_prototype_toString')],[26],[15],[11],[32,0],[32,1],[16, builtin('__ecma262_ToString')],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124],
+    returnType: 18,
+    locals: [127],
+    localNames: ["value","value#type","#last_type"],
+  };
+  this.String$constructor = {
+    wasm: (scope, {builtin,}) => [[32,0],[32,1],[16, builtin('__ecma262_ToString')],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124],
+    returnType: 18,
+    locals: [],
+    localNames: ["value","value#type"],
+  };
   this.__Porffor_symbol_descStore = {
     wasm: (scope, {allocPage,builtin,}) => [...number(allocPage(scope, 'bytestring: __Porffor_symbol_descStore/ptr', 'i8') * pageSize, 124),[33,4],[32,0],[252,3],[4,64],[32,4],[252,2],[40,0,0],[183],[33,5],[32,4],[252,2],[32,5],[68,0,0,0,0,0,0,240,63],[160],[252,2],[54,0,0],[32,4],[65,18],[32,5],[65,0],[32,2],[32,3],[16, builtin('__Porffor_set_write')],[26],[32,5],[65,0],[15],[5],[32,4],[65,18],[32,2],[32,3],[16, builtin('__Porffor_set_read')],[34,6],[15],[11],[68,0,0,0,0,0,0,0,0],[65,3],[15]],
     params: [124,127,124,127],
