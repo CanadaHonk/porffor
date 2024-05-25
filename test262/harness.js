@@ -89,6 +89,22 @@ assert.compareArray = function (actual, expected) {
   throw new Test262Error('assert.compareArray failed');
 };
 
+/// isConstructor.js
+function isConstructor(f) {
+  if (typeof f !== "function") {
+    throw new Test262Error("isConstructor invoked with a non-function value");
+  }
+
+  try {
+    // todo: we do not support indirect new calls yet, so this will always fail lol
+    new f();
+  } catch (e) {
+    return false;
+  }
+
+  return true;
+}
+
 /// tcoHelper.js
 var $MAX_ITERATIONS = 100000;
 
