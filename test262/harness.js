@@ -109,6 +109,16 @@ function isConstructor(f) {
   return true;
 }
 
+/// assertRelativeDateMs.js
+function assertRelativeDateMs(date, expectedMs) {
+  var actualMs = date.valueOf();
+  var localOffset = date.getTimezoneOffset() * 60000;
+
+  if (actualMs - localOffset !== expectedMs) {
+    throw new Test262Error('assertRelativeDateMs failed');
+  }
+}
+
 /// tcoHelper.js
 var $MAX_ITERATIONS = 100000;
 
