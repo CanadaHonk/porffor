@@ -250,7 +250,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
         }
 
         // remove setting last type if it is never gotten
-        if (!f.gotLastType && inst[0] === Opcodes.local_set && inst[1] === lastType) {
+        if (!f.internal && !f.gotLastType && inst[0] === Opcodes.local_set && inst[1] === lastType) {
           // replace this inst with drop
           wasm.splice(i, 1, [ Opcodes.drop ]); // remove this and last inst
           if (i > 0) i--;
