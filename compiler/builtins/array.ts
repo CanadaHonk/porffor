@@ -54,7 +54,7 @@ export const __Array_prototype_indexOf = (_this: any[], searchElement: any, posi
   } else position = 0;
 
   for (let i: i32 = position; i < len; i++) {
-    if (_this[i] == searchElement) return i;
+    if (_this[i] === searchElement) return i;
   }
 
   return -1;
@@ -68,7 +68,7 @@ export const __Array_prototype_lastIndexOf = (_this: any[], searchElement: any, 
   } else position = 0;
 
   for (let i: i32 = len - 1; i >= position; i--) {
-    if (_this[i] == searchElement) return i;
+    if (_this[i] === searchElement) return i;
   }
 
   return -1;
@@ -82,7 +82,7 @@ export const __Array_prototype_includes = (_this: any[], searchElement: any, pos
   } else position = 0;
 
   for (let i: i32 = position; i < len; i++) {
-    if (_this[i] == searchElement) return true;
+    if (_this[i] === searchElement) return true;
   }
 
   return false;
