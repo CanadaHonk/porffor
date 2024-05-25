@@ -428,7 +428,7 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
   // alloc/assign array
   const [ out, pointer ] = makeArray(scope, {
     rawElements: new Array(0)
-  }, global, name, true, 'i16', true);
+  }, assign ? false : global, assign ? undefined : name, true, 'i16', true);
 
   return [
     // setup left
