@@ -28,6 +28,13 @@ type PorfforGlobal = {
     write(_this: any, index: number, value: any): boolean;
   }
 
+  bytestring: {
+    // defined in date.ts
+    appendStr(str: bytestring, appendage: bytestring): i32;
+    appendChar(str: bytestring, char: i32): i32;
+    appendPadNum(str: bytestring, num: number, len: number): i32;
+  }
+
   print(x: any): i32;
 
   randomByte(): i32;
