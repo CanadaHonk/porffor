@@ -1934,11 +1934,16 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       continue;
     }
 
-    if (valtypeBinary !== Valtype.i32 && (
+    if (valtypeBinary !== Valtype.i32 &&
       (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32)
-      // (importedFuncs[name] && name.startsWith('profile'))
-    )) {
+    ) {
       out.push(Opcodes.i32_to);
+    }
+
+    if (valtypeBinary === Valtype.i32 &&
+      (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.f64)
+    ) {
+      out.push(Opcodes.f64_convert_i32_s);
     }
 
     if (typedParams) out = out.concat(getNodeType(scope, arg));
@@ -1960,6 +1965,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
     out.push(Opcodes.i32_from);
+  }
+
+  if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32) {
+    out.push(Opcodes.i32_trunc_sat_f64_s);
   }
 
   return out;
