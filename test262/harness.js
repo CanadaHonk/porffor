@@ -1,6 +1,10 @@
 /// sta.js
 function Test262Error() {}
 
+Test262Error.thrower = function (message) {
+  throw new Test262Error(message);
+};
+
 function $DONOTEVALUATE() {
   throw 'Test262: This statement should not be evaluated.';
 }
@@ -98,7 +102,7 @@ function isConstructor(f) {
   try {
     // todo: we do not support indirect new calls yet, so this will always fail lol
     new f();
-  } catch (e) {
+  } catch {
     return false;
   }
 
