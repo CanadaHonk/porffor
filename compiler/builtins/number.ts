@@ -6,11 +6,9 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) out = 'NaN';
-      else if (_this == Infinity) out = 'Infinity';
-      else out = '-Infinity';
-
-    return out;
+    if (Number.isNaN(_this)) return out = 'NaN';
+    if (_this == Infinity) return out = 'Infinity';
+    return out = '-Infinity';
   }
 
   if (Porffor.rawType(radix) != Porffor.TYPES.number) {
@@ -24,8 +22,7 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
   }
 
   if (_this == 0) {
-    out = '0';
-    return out;
+    return out = '0';
   }
 
   // if negative value
@@ -99,7 +96,6 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
       }
 
       out.length = outPtr - Porffor.wasm`local.get ${out}`;
-
       return out;
     }
 
@@ -235,7 +231,6 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
   }
 
   out.length = outPtr - Porffor.wasm`local.get ${out}`;
-
   return out;
 };
 
@@ -244,11 +239,9 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) out = 'NaN';
-      else if (_this == Infinity) out = 'Infinity';
-      else out = '-Infinity';
-
-    return out;
+    if (Number.isNaN(_this)) return out = 'NaN';
+    if (_this == Infinity) return out = 'Infinity';
+    return out = '-Infinity';
   }
 
   fractionDigits |= 0;
@@ -324,7 +317,6 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
   }
 
   out.length = outPtr - Porffor.wasm`local.get ${out}`;
-
   return out;
 };
 
@@ -334,11 +326,9 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) out = 'NaN';
-      else if (_this == Infinity) out = 'Infinity';
-      else out = '-Infinity';
-
-    return out;
+    if (Number.isNaN(_this)) return out = 'NaN';
+    if (_this == Infinity) return out = 'Infinity';
+    return out = '-Infinity';
   }
 
   if (Porffor.rawType(fractionDigits) != Porffor.TYPES.number) {
@@ -519,7 +509,6 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
   }
 
   out.length = outPtr - Porffor.wasm`local.get ${out}`;
-
   return out;
 };
 
