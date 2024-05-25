@@ -958,12 +958,9 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       [ Opcodes.end ],
     ]));
 
-    // if not already in block, add a block
-    // if (endOut.length === 0) {
-      startOut.push(stringOnly([ Opcodes.block, Valtype.i32 ]));
-      // endOut.push(stringOnly([ Opcodes.end ]));
-      endOut.unshift(stringOnly([ Opcodes.end ]));
-    // }
+    // add a surrounding block
+    startOut.push(stringOnly([ Opcodes.block, Valtype.i32 ]));
+    endOut.unshift(stringOnly([ Opcodes.end ]));
   }
 
   return finalize([
@@ -1285,23 +1282,6 @@ const getNodeType = (scope, node) => {
       if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) return TYPES.bytestring;
 
       return TYPES.number;
-
-      // todo: string concat types
-      // if (node.operator !== '+') return TYPES.number;
-      //   else return [
-      //     // if left is string
-      //     ...getNodeType(scope, node.left),
-      //     ...number(TYPES.string, Valtype.i32),
-      //     [ Opcodes.i32_eq ],
-
-      //     // if right is string
-      //     ...getNodeType(scope, node.right),
-      //     ...number(TYPES.string, Valtype.i32),
-      //     [ Opcodes.i32_eq ],
-
-      //     // if either are true
-      //     [ Opcodes.i32_or ],
-      //   ];
     }
 
     if (node.type === 'UnaryExpression') {
