@@ -224,3 +224,15 @@ export const __Array_prototype_every = (_this: any[], callbackFn: any) => {
 
   return true;
 };
+
+export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialValue: any) => {
+  let acc: any = initialValue ?? _this[0];
+
+  const len: i32 = _this.length;
+  let i: i32 = 0;
+  while (i < len) {
+    acc = callbackFn(acc, _this[i], i++, _this);
+  }
+
+  return acc;
+};
