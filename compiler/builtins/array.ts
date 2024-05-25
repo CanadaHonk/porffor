@@ -171,9 +171,11 @@ export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
 };
 
 export const __Array_prototype_map = (_this: any[], callbackFn: any) => {
-  let i: i32 = 0;
   const len: i32 = _this.length;
-  const out: any[] = new Array(len);
+  const out: any[] = [];
+  out.length = len;
+
+  let i: i32 = 0;
   while (i < len) {
     out[i] = callbackFn(_this[i], i++, _this);
   }
