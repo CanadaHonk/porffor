@@ -5,7 +5,7 @@ import { log } from './log.js';
 import Prefs from './prefs.js';
 
 const CValtype = {
-  i8: 'i8',
+  i8: 'u8',
   i16: 'i16',
   i32: 'i32',
   u32: 'u32',
@@ -18,7 +18,7 @@ const CValtype = {
   undefined: 'void'
 };
 
-const alwaysPreface = `typedef uint8_t i8;
+const alwaysPreface = `typedef uint8_t u8;
 typedef uint16_t i16;
 typedef int32_t i32;
 typedef uint32_t u32;
@@ -54,7 +54,7 @@ const CMemFuncs = Prefs['2cMemcpy'] ? {
   [Opcodes.i32_store8]: {
     c: `memcpy(_memory + offset + pointer, &value, sizeof(value));`,
     args: ['pointer', 'value'],
-    argTypes: ['i32', 'i8'],
+    argTypes: ['i32', 'u8'],
     returns: false
   },
 
@@ -75,7 +75,7 @@ return out;`,
     returns: 'i32'
   },
   [Opcodes.i32_load8_u]: {
-    c: `i8 out;
+    c: `u8 out;
 memcpy(&out, _memory + offset + pointer, sizeof(out));
 return out;`,
     args: ['pointer'],
@@ -111,9 +111,9 @@ return out;`,
     returns: false
   },
   [Opcodes.i32_store8]: {
-    c: `*((i8*)(_memory + offset + pointer)) = value;`,
+    c: `*((u8*)(_memory + offset + pointer)) = value;`,
     args: ['pointer', 'value'],
-    argTypes: ['i32', 'i8'],
+    argTypes: ['i32', 'u8'],
     returns: false
   },
 
@@ -130,7 +130,7 @@ return out;`,
     returns: 'i32'
   },
   [Opcodes.i32_load8_u]: {
-    c: `return *((i8*)(_memory + offset + pointer));`,
+    c: `return *((u8*)(_memory + offset + pointer));`,
     args: ['pointer'],
     argTypes: ['i32'],
     returns: 'i32'
@@ -212,7 +212,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
       prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
       includes.set('string.h', true);
     } else {
-      prependMain.set('_data', data.map(x => x.bytes.reduce((acc, y, i) => acc + `_memory[${x.offset + i}]=(i8)${y};`, '')).join('\n  '));
+      prependMain.set('_data', data.map(x => x.bytes.reduce((acc, y, i) => acc + `_memory[${x.offset + i}]=(u8)${y};`, '')).join('\n  '));
     }
   }
 
