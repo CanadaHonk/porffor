@@ -237,6 +237,20 @@ export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialV
   return acc;
 };
 
+export const __Array_prototype_toString = (_this: any[]) => {
+  let out: bytestring = '';
+  out.length = 0;
+
+  const len: i32 = _this.length;
+  let i: i32 = 0;
+  while (i < len) {
+    Porffor.bytestring.appendStr(out, _this[i].toString());
+    if (++i < len) Porffor.bytestring.appendChar(out, 44);
+  }
+
+  return out;
+};
+
 export const __Array_prototype_join = (_this: any[], _separator: any) => {
   // todo: this is bytestring only!
   // todo/perf: optimize single char separators
