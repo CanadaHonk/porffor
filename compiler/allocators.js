@@ -1,4 +1,4 @@
-import { Blocktype, Opcodes, PageSize, Valtype } from './wasmSpec.js';
+import { Opcodes, PageSize, Valtype } from './wasmSpec.js';
 import { number } from './embedding.js';
 import Prefs from './prefs.js';
 
@@ -76,13 +76,12 @@ export class ChunkAllocator {
   constructor(chunkSize) {
     Prefs.rmUnusedTypes = false;
 
-    // todo: what should be the default
-    // 16: 1MiB chunks
     // 64KiB * chunk size each growth
+    // 16: 1MiB chunks
     this.chunkSize = chunkSize ?? Prefs.chunkAllocatorSize ?? 16;
   }
 
-  alloc({ asmFunc, funcIndex, globals }) {
+  alloc({ asmFunc, funcIndex }) {
     const func = funcIndex['#chunkallocator_alloc'] ?? asmFunc('#chunkallocator_alloc', {
       wasm: [
         [ Opcodes.global_get, 0 ],
