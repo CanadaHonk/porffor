@@ -238,14 +238,24 @@ export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialV
 };
 
 export const __Array_prototype_toString = (_this: any[]) => {
+  // todo: this is bytestring only!
+
   let out: bytestring = '';
   out.length = 0;
 
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
-    Porffor.bytestring.appendStr(out, _this[i].toString());
-    if (++i < len) Porffor.bytestring.appendChar(out, 44);
+    if (i > 0) Porffor.bytestring.appendChar(out, 44);
+
+    const element: any = _this[i++];
+    const type: i32 = Porffor.rawType(element);
+    if (element != 0 || Porffor.fastAnd(
+      type != Porffor.TYPES.undefined, // undefined
+      type != Porffor.TYPES.object // null
+    )) {
+      Porffor.bytestring.appendStr(out, ecma262.ToString(element));
+    }
   }
 
   return out;
@@ -258,7 +268,7 @@ export const __Array_prototype_join = (_this: any[], _separator: any) => {
 
   let separator: bytestring = ',';
   if (Porffor.rawType(_separator) != Porffor.TYPES.undefined)
-    separator = _separator.toString();
+    separator = ecma262.ToString(_separator);
 
   let out: bytestring = '';
   out.length = 0;
@@ -266,8 +276,16 @@ export const __Array_prototype_join = (_this: any[], _separator: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
-    Porffor.bytestring.appendStr(out, _this[i].toString());
-    if (++i < len) Porffor.bytestring.appendStr(out, separator);
+    if (i > 0) Porffor.bytestring.appendStr(out, separator);
+
+    const element: any = _this[i++];
+    const type: i32 = Porffor.rawType(element);
+    if (element != 0 || Porffor.fastAnd(
+      type != Porffor.TYPES.undefined, // undefined
+      type != Porffor.TYPES.object // null
+    )) {
+      Porffor.bytestring.appendStr(out, ecma262.ToString(element));
+    }
   }
 
   return out;
