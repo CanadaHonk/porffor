@@ -119,6 +119,25 @@ function assertRelativeDateMs(date, expectedMs) {
   }
 }
 
+/// decimalToHexString.js
+function decimalToHexString(n) {
+  // todo: this func is broke as dynamic string concat is not impl'd
+
+  var hex = "0123456789ABCDEF";
+  n >>>= 0;
+  var s = "";
+  while (n) {
+    s = hex[n & 0xf] + s;
+    n >>>= 4;
+  }
+  return s.padStart(4, '0');
+}
+
+function decimalToPercentHexString(n) {
+  var hex = "0123456789ABCDEF";
+  return "%" + hex[(n >> 4) & 0xf] + hex[n & 0xf];
+}
+
 /// tcoHelper.js
 var $MAX_ITERATIONS = 100000;
 
