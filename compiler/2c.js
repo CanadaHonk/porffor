@@ -419,7 +419,10 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
         case Opcodes.return:
           // line(`return${returns ? ` ${removeBrackets(vals.pop())}` : ''}`);
-          line(`return${returns ? ` (struct ReturnValue){ ${removeBrackets(vals.pop())}, ${removeBrackets(vals.pop())} }` : ''}`);
+          const b = vals.pop();
+          const a = vals.pop();
+          line(`return${returns ? ` (struct ReturnValue){ ${removeBrackets(a)}, ${removeBrackets(b)} }` : ''}`);
+          // line(`return${returns ? ` (struct ReturnValue){ ${removeBrackets(vals.pop())}, ${removeBrackets(vals.pop())} }` : ''}`);
           break;
 
         case Opcodes.if: {
