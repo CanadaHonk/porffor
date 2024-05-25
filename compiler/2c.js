@@ -6,7 +6,7 @@ import Prefs from './prefs.js';
 
 const CValtype = {
   i8: 'u8',
-  i16: 'i16',
+  i16: 'u16',
   i32: 'i32',
   u32: 'u32',
   i64: 'i64',
@@ -19,7 +19,7 @@ const CValtype = {
 };
 
 const alwaysPreface = `typedef uint8_t u8;
-typedef uint16_t i16;
+typedef uint16_t u16;
 typedef int32_t i32;
 typedef uint32_t u32;
 typedef int64_t i64;
@@ -48,7 +48,7 @@ const CMemFuncs = Prefs['2cMemcpy'] ? {
   [Opcodes.i32_store16]: {
     c: `memcpy(_memory + offset + pointer, &value, sizeof(value));`,
     args: ['pointer', 'value'],
-    argTypes: ['i32', 'i16'],
+    argTypes: ['i32', 'u16'],
     returns: false
   },
   [Opcodes.i32_store8]: {
@@ -67,7 +67,7 @@ return out;`,
     returns: 'i32'
   },
   [Opcodes.i32_load16_u]: {
-    c: `i16 out;
+    c: `u16 out;
 memcpy(&out, _memory + offset + pointer, sizeof(out));
 return out;`,
     args: ['pointer'],
@@ -105,9 +105,9 @@ return out;`,
     returns: false
   },
   [Opcodes.i32_store16]: {
-    c: `*((i16*)(_memory + offset + pointer)) = value;`,
+    c: `*((u16*)(_memory + offset + pointer)) = value;`,
     args: ['pointer', 'value'],
-    argTypes: ['i32', 'i16'],
+    argTypes: ['i32', 'u16'],
     returns: false
   },
   [Opcodes.i32_store8]: {
