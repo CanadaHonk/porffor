@@ -3521,7 +3521,7 @@ const generateMember = (scope, decl, _global, _name) => {
   // // todo: we should only do this for strings but we don't know at compile-time :(
   // hack: this is naughty and will break things!
   let newOut = number(0, Valtype.i32), newPointer = number(0, Valtype.i32);
-  if (pages.hasAnyString) {
+  if (pages.hasAnyString && knownType(scope, getNodeType(scope, decl.object)) !== TYPES.array) {
     // todo: we use i16 even for bytestrings which should not make a bad thing happen, just be confusing for debugging?
     0, [ newOut, newPointer ] = makeArray(scope, {
       rawElements: new Array(0)
