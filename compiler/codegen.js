@@ -1263,7 +1263,15 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type === 'AssignmentExpression') {
-      return getNodeType(scope, node.right);
+      const op = node.operator.slice(0, -1) || '=';
+      if (op === '=') return getNodeType(scope, node.right);
+
+      return getNodeType(scope, {
+        type: ['||', '&&', '??'].includes(op) ? 'LogicalExpression' : 'BinaryExpression',
+        left: node.left,
+        right: node.right,
+        operator: op
+      });
     }
 
     if (node.type === 'ArrayExpression') {
@@ -2427,9 +2435,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
     [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
 
-    // todo: string concat types
-
-    ...setType(scope, name, TYPES.number)
+    ...setType(scope, name, getNodeType(scope, decl))
   ];
 };
 
