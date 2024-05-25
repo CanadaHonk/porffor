@@ -1941,7 +1941,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     if (valtypeBinary === Valtype.i32 &&
       (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.f64)
     ) {
-      out.push(Opcodes.f64_convert_i32_s);
+      out.push([ Opcodes.f64_convert_i32_s ]);
     }
 
     if (typedParams) out = out.concat(getNodeType(scope, arg));
