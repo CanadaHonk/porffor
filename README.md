@@ -49,7 +49,7 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 
 **`porf debug path/to/script.js`**
 
-### Profiling the generated Wasm of a JS file
+### Debugging the compiled Wasm of a JS file
 > [!WARNING]
 > Very experimental WIP feature!
 
