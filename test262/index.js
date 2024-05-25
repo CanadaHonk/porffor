@@ -93,7 +93,7 @@ if (isMainThread) {
   let dirs = new Map(), features = new Map(), errors = new Map(), pagesUsed = new Map();
   let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0, todos = 0;
 
-  const preludes = fs.readFileSync('test262/prelude.js', 'utf8').split('///').reduce((acc, x) => {
+  const preludes = fs.readFileSync('test262/harness.js', 'utf8').split('///').reduce((acc, x) => {
     const [ k, ...content ] = x.split('\n');
     acc[k.trim()] = content.join('\n').trim();
     return acc;
