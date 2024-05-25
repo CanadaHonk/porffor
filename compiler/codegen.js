@@ -1309,7 +1309,6 @@ const getNodeType = (scope, node) => {
         if (Prefs.fastLength) return TYPES.number;
       }
 
-
       const objectKnownType = knownType(scope, getNodeType(scope, node.object));
       if (objectKnownType != null) {
         if (name === 'length') {
@@ -1320,7 +1319,6 @@ const getNodeType = (scope, node) => {
         if (node.computed) {
           if (objectKnownType === TYPES.string) return TYPES.string;
           if (objectKnownType === TYPES.bytestring) return TYPES.bytestring;
-          if (objectKnownType === TYPES.array) return TYPES.number;
         }
       }
 
