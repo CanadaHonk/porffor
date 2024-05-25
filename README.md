@@ -29,7 +29,7 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 > [!WARNING]
 > Compiling to native binaries uses [2c](#2c), Porffor's own Wasm -> C compiler, which is experimental.
 
-**`porf native path/to/script.js out(.exe)`**. You can specify the compiler with `--compiler=clang/gcc/zig` (`clang` by default), and which optimization level to use with `--cO=Ofast/O3/O2/O1/O0` (`Ofast` by default). Output binaries are also stripped by default.
+**`porf native path/to/script.js out(.exe)`**. You can specify the compiler with `--compiler=clang|gcc|zig` (`clang` by default), and which optimization level to use with `--cO=Ofast|O3|O2|O1|O0` (`Ofast` by default). Output binaries are also stripped by default.
 
 ### Compiling to C
 > [!WARNING]
@@ -63,19 +63,8 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 - `--valtype=i32|i64|f64` (default: `f64`) to set valtype
 - `-O0` to disable opt
 - `-O1` (default) to enable basic opt (simplify insts, treeshake wasm imports)
-- `-O2` to enable advanced opt (inlining). unstable
-- `-O3` to enable advanceder opt (precompute const math). unstable
-- `--no-run` to not run wasm output, just compile
-- `--opt-log` to log some opts
-- `--code-log` to log some codegen (you probably want `-funcs`)
-- `--regex-log` to log some regex
-- `--funcs` to log funcs
-- `--ast-log` to log AST
-- `--opt-funcs` to log funcs after opt
-- `--sections` to log sections as hex
-- `--opt-no-inline` to not inline any funcs
-- `--tail-call` to enable tail calls (experimental + not widely implemented)
-- `--compile-hints` to enable V8 compilation hints (experimental + doesn't seem to do much?)
+- `-O2` to enable advanced opt (inlining). unstable!
+- `-O3` to enable advanceder opt (precompute const math). unstable!
 
 ## Limitations
 - No full object support yet
