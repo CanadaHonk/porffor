@@ -184,6 +184,20 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  this['f64_**'] = this['i32_**'] = {
+    params: [ valtypeBinary, valtypeBinary ],
+    locals: [],
+    returns: [ valtypeBinary ],
+    returnType: TYPES.number,
+    wasm: (scope, { builtin }) => [
+      [ Opcodes.local_get, 0 ],
+      ...number(TYPES.number, Valtype.i32),
+      [ Opcodes.local_get, 1 ],
+      ...number(TYPES.number, Valtype.i32),
+      [ Opcodes.call, builtin('__Math_pow') ]
+    ]
+  };
+
   // add bitwise ops by converting operands to i32 first
   for (const [ char, op ] of [ ['&', Opcodes.i32_and], ['|', Opcodes.i32_or], ['^', Opcodes.i32_xor], ['<<', Opcodes.i32_shl], ['>>', Opcodes.i32_shr_s], ['>>>', Opcodes.i32_shr_u] ]) {
     this[`f64_${char}`] = {
