@@ -264,10 +264,12 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
     argument: {
       type: 'NewExpression',
       callee: {
+        type: 'Identifier',
         name: constructor
       },
       arguments: [
         {
+          type: 'Literal',
           value: message
         }
       ]
@@ -3029,32 +3031,46 @@ const generateLabel = (scope, decl) => {
 const generateThrow = (scope, decl) => {
   scope.throws = true;
 
-  let message = decl.argument.value, constructor = null;
+  const exceptionMode = Prefs.exceptionMode ?? 'lut';
+  if (exceptionMode === 'lut') {
+    let message = decl.argument.value, constructor = null;
 
-  // hack: throw new X("...") -> throw "..."
-  if (!message && (decl.argument.type === 'NewExpression' || decl.argument.type === 'CallExpression')) {
-    constructor = decl.argument.callee.name;
-    message = decl.argument.arguments[0]?.value ?? '';
+    // support `throw (new)? Error(...)`
+    if (!message && (decl.argument.type === 'NewExpression' || decl.argument.type === 'CallExpression')) {
+      constructor = decl.argument.callee.name;
+      message = decl.argument.arguments[0]?.value ?? '';
+    }
+
+    if (tags.length === 0) tags.push({
+      params: [ Valtype.i32 ],
+      results: [],
+      idx: tags.length
+    });
+
+    let exceptId = exceptions.push({ constructor, message }) - 1;
+
+    scope.exceptions ??= [];
+    scope.exceptions.push(exceptId);
+
+    return [
+      [ Opcodes.i32_const, signedLEB128(exceptId) ],
+      [ Opcodes.throw, tags[0].idx ]
+    ];
   }
 
-  if (tags.length === 0) tags.push({
-    params: [ Valtype.i32 ],
-    results: [],
-    idx: tags.length
-  });
+  if (exceptionMode === 'stack') {
+    if (tags.length === 0) tags.push({
+      params: [ valtypeBinary, Valtype.i32 ],
+      results: [],
+      idx: tags.length
+    });
 
-  let exceptId = exceptions.push({ constructor, message }) - 1;
-  let tagIdx = tags[0].idx;
-
-  scope.exceptions ??= [];
-  scope.exceptions.push(exceptId);
-
-  // todo: write a description of how this works lol
-
-  return [
-    [ Opcodes.i32_const, signedLEB128(exceptId) ],
-    [ Opcodes.throw, tagIdx ]
-  ];
+    return [
+      ...generate(scope, decl.argument),
+      ...getNodeType(scope, decl.argument),
+      [ Opcodes.throw, tags[0].idx ]
+    ];
+  }
 };
 
 const generateTry = (scope, decl) => {
