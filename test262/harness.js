@@ -163,3 +163,80 @@ var NaNs = [
   Infinity/Infinity,
   -(0/0)
 ];
+
+/// testTypedArray.js
+var floatArrayConstructors = [
+  Float64Array,
+  Float32Array
+];
+
+var nonClampedIntArrayConstructors = [
+  Int32Array,
+  Int16Array,
+  Int8Array,
+  Uint32Array,
+  Uint16Array,
+  Uint8Array
+];
+
+var intArrayConstructors = [
+  Int32Array,
+  Int16Array,
+  Int8Array,
+  Uint32Array,
+  Uint16Array,
+  Uint8Array,
+  Uint8ClampedArray
+];
+
+var typedArrayConstructors = [
+  Float64Array,
+  Float32Array,
+  Int32Array,
+  Int16Array,
+  Int8Array,
+  Uint32Array,
+  Uint16Array,
+  Uint8Array,
+  Uint8ClampedArray
+];
+
+function testWithTypedArrayConstructors(f, selected) {
+  var constructors = selected || typedArrayConstructors;
+  for (var i = 0; i < constructors.length; ++i) {
+    f(constructors[i]);
+  }
+}
+
+var nonAtomicsFriendlyTypedArrayConstructors = [
+  Float64Array,
+  Float32Array,
+  Uint8ClampedArray
+];
+
+function testWithNonAtomicsFriendlyTypedArrayConstructors(f) {
+  testWithTypedArrayConstructors(f, nonAtomicsFriendlyTypedArrayConstructors);
+}
+
+function testWithAtomicsFriendlyTypedArrayConstructors(f) {
+  testWithTypedArrayConstructors(f, [
+    Int32Array,
+    Int16Array,
+    Int8Array,
+    Uint32Array,
+    Uint16Array,
+    Uint8Array,
+  ]);
+}
+
+function isFloatTypedArrayConstructor(arg) {
+  return floatArrayConstructors.indexOf(arg) !== -1;
+}
+
+function floatTypedArrayConstructorPrecision(FA) {
+  if (FA === Float32Array) {
+    return "single";
+  } else if (FA === Float64Array) {
+    return "double";
+  }
+}
