@@ -291,12 +291,13 @@ const generateIdent = (scope, decl) => {
       return wasm.slice();
     }
 
-    if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(internalConstrs, name)) {
-      // todo: return an actual something
-      return number(1);
-    }
+    // todo: enable this by default in future
+    // if (!Object.hasOwn(funcIndex, name) && Object.hasOwn(builtinFuncs, name)) {
+    //   includeBuiltin(scope, name);
+    //   return number(funcIndex[name] - importedFuncs.length);
+    // }
 
-    if (isExistingProtoFunc(name)) {
+    if (isExistingProtoFunc(name) || Object.hasOwn(internalConstrs, name) || Object.hasOwn(builtinFuncs, name)) {
       // todo: return an actual something
       return number(1);
     }
