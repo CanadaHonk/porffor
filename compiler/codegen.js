@@ -1826,7 +1826,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       if (indirectMode === 'strict') {
         return typeSwitch(scope, getNodeType(scope, decl.callee), {
           [TYPES.function]: [
-            ...argWasm,
+            ...out,
             [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
             Opcodes.i32_to_u,
             [ Opcodes.call_indirect, args.length, 0 ],
