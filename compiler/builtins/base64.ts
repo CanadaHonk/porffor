@@ -7,12 +7,11 @@ export const btoa = (input: bytestring): bytestring => {
 
   let len: i32 = input.length;
   let output: bytestring = '';
-  output.length = 4 * (len / 3 + !!(len % 3));
 
   let i: i32 = Porffor.wasm`local.get ${input}`,
       j: i32 = Porffor.wasm`local.get ${output}`;
 
-  // todo/perf: add some per 6 char variant using bitwise magic
+  // todo/perf: add some per 6 char variant using bitwise magic?
 
   const endPtr = i + len;
   while (i < endPtr) {
@@ -38,40 +37,43 @@ export const btoa = (input: bytestring): bytestring => {
     Porffor.wasm.i32.store8(j++, Porffor.wasm.i32.load8_u(keyStrPtr + enc4, 0, 4), 0, 4);
   }
 
+  output.length = j - Porffor.wasm`local.get ${output}`;
   return output;
 };
 
 // todo: impl atob by converting below to "porf ts"
-/* var atob = function (input) {
-  const keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+export const atob = (input: bytestring): bytestring => {
+  // todo: handle non-base64 chars properly
+  const lut: bytestring = '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@>@@@?456789:;<=@@@@@@@\x00\x01\x02\x03\x04\x05\x06\x07\b\t\n\x0B\f\r\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19@@@@@@\x1A\x1B\x1C\x1D\x1E\x1F !"#$%&\'()*+,-./0123';
+  const lutPtr: i32 = Porffor.wasm`local.get ${lut}`;
 
-  let output = "";
-  let chr1, chr2, chr3;
-  let enc1, enc2, enc3, enc4;
-  let i = 0;
+  let output: bytestring = '';
 
-  while (i < input.length) {
-    enc1 = keyStr.indexOf(input.charAt(i++));
-    enc2 = keyStr.indexOf(input.charAt(i++));
-    enc3 = keyStr.indexOf(input.charAt(i++));
-    enc4 = keyStr.indexOf(input.charAt(i++));
+  let i: i32 = Porffor.wasm`local.get ${input}`,
+      j: i32 = Porffor.wasm`local.get ${output}`;
 
-    chr1 = (enc1 << 2) | (enc2 >> 4);
-    chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-    chr3 = ((enc3 & 3) << 6) | enc4;
+  const endPtr = i + input.length;
+  while (i < endPtr) {
+    const enc1: i32 = Porffor.wasm.i32.load8_u(lutPtr + Porffor.wasm.i32.load8_u(i++, 0, 4), 0, 4);
+    const enc2: i32 = i < endPtr ? Porffor.wasm.i32.load8_u(lutPtr + Porffor.wasm.i32.load8_u(i++, 0, 4), 0, 4) : -1;
+    const enc3: i32 = i < endPtr ? Porffor.wasm.i32.load8_u(lutPtr + Porffor.wasm.i32.load8_u(i++, 0, 4), 0, 4) : -1;
+    const enc4: i32 = i < endPtr ? Porffor.wasm.i32.load8_u(lutPtr + Porffor.wasm.i32.load8_u(i++, 0, 4), 0, 4) : -1;
 
-    // output += String.fromCharCode(chr1);
-    Porffor.bytestring.appendCharCode(output, chr1);
+    const chr1: i32 = (enc1 << 2) | (enc2 == -1 ? 0 : (enc2 >> 4));
+    const chr2: i32 = ((enc2 & 15) << 4) | (enc3 == -1 ? 0 : (enc3 >> 2));
+    const chr3: i32 = ((enc3 & 3) << 6) | (enc4 == -1 ? 0 : enc4);
+
+    Porffor.wasm.i32.store8(j++, chr1, 0, 4);
 
     if (enc3 != 64) {
-      // output += String.fromCharCode(chr2);
-      Porffor.bytestring.appendCharCode(output, chr2);
+      Porffor.wasm.i32.store8(j++, chr2, 0, 4);
     }
+
     if (enc4 != 64) {
-      // output += String.fromCharCode(chr3);
-      Porffor.bytestring.appendCharCode(output, chr3);
+      Porffor.wasm.i32.store8(j++, chr3, 0, 4);
     }
   }
 
+  output.length = j - Porffor.wasm`local.get ${output}`;
   return output;
-}; */
+};
