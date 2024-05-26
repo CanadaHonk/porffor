@@ -145,7 +145,9 @@ try {
   // if (cache) process.stdout.write(cache);
 } catch (e) {
   // if (cache) process.stdout.write(cache);
-  console.error(process.argv.includes('-i') ? e : `${e.constructor.name}: ${e.message}`);
+  let out = e;
+  if (!process.argv.includes('-i') && e.__proto__.message != null) out = `${e.constructor.name}${e.message != null ? `: ${e.message}` : ''}`;
+  console.error(out);
 }
 
 if (process.argv.includes('-t')) console.log(`${process.argv.includes('-b') ? '' : '\n\n'}total time: ${(performance.now() - start).toFixed(2)}ms\nexecution time: ${(performance.now() - runStart).toFixed(2)}ms`);
