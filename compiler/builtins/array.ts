@@ -247,6 +247,18 @@ export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialV
   return acc;
 };
 
+export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, initialValue: any) => {
+  const len: i32 = _this.length;
+  let acc: any = initialValue ?? _this[len - 1];
+
+  let i: i32 = len;
+  while (i > 0) {
+    acc = callbackFn(acc, _this[i], --i, _this);
+  }
+
+  return acc;
+};
+
 export const __Array_prototype_toString = (_this: any[]) => {
   // todo: this is bytestring only!
 
