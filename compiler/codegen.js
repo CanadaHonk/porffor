@@ -4,7 +4,7 @@ import { operatorOpcode } from './expression.js';
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
 import { PrototypeFuncs } from './prototype.js';
 import { number } from './embedding.js';
-import { TYPES, TYPE_NAMES } from './types.js';
+import { TYPES, TYPE_FLAGS, TYPE_NAMES, typeHasFlag } from './types.js';
 import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
 import { log } from './log.js';
@@ -1345,7 +1345,7 @@ const getNodeType = (scope, node) => {
       const objectKnownType = knownType(scope, getNodeType(scope, node.object));
       if (objectKnownType != null) {
         if (name === 'length') {
-          if ([ TYPES.string, TYPES.bytestring, TYPES.array ].includes(objectKnownType)) return TYPES.number;
+          if (typeHasFlag(objectKnownType, TYPE_FLAGS.length)) return TYPES.number;
             else return TYPES.undefined;
         }
 
@@ -2057,7 +2057,7 @@ const unhackName = name => {
 
 const knownType = (scope, type) => {
   if (type.length === 1 && type[0][0] === Opcodes.i32_const) {
-    return type[0][1];
+    return read_signedLEB128(type[0].slice(1));
   }
 
   if (typedInput && type.length === 1 && type[0][0] === Opcodes.local_get) {
@@ -2416,9 +2416,159 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
           ], getNodeType(scope, decl.right), false, name, true)),
           [ Opcodes.local_tee, newValueTmp ],
-
           [ Opcodes.store, 0, ValtypeSize.i32 ]
         ],
+
+        ...wrapBC({
+          [TYPES.uint8array]: [
+            [ Opcodes.i32_add ],
+            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.i32_load8_u, 0, 4 ],
+              Opcodes.i32_from_u
+            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_tee, newValueTmp ],
+
+            Opcodes.i32_to_u,
+            [ Opcodes.i32_store8, 0, 4 ]
+          ],
+          [TYPES.uint8clampedarray]: [
+            [ Opcodes.i32_add ],
+            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.i32_load8_u, 0, 4 ],
+              Opcodes.i32_from_u
+            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_tee, newValueTmp ],
+
+            ...number(0),
+            [ Opcodes.f64_max ],
+            ...number(255),
+            [ Opcodes.f64_min ],
+            Opcodes.i32_to_u,
+            [ Opcodes.i32_store8, 0, 4 ]
+          ],
+          [TYPES.int8array]: [
+            [ Opcodes.i32_add ],
+            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.i32_load8_s, 0, 4 ],
+              Opcodes.i32_from
+            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_tee, newValueTmp ],
+
+            Opcodes.i32_to,
+            [ Opcodes.i32_store8, 0, 4 ]
+          ],
+          [TYPES.uint16array]: [
+            ...number(2, Valtype.i32),
+            [ Opcodes.i32_mul ],
+            [ Opcodes.i32_add ],
+            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.i32_load16_u, 0, 4 ],
+              Opcodes.i32_from_u
+            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_tee, newValueTmp ],
+
+            Opcodes.i32_to_u,
+            [ Opcodes.i32_store16, 0, 4 ]
+          ],
+          [TYPES.int16array]: [
+            ...number(2, Valtype.i32),
+            [ Opcodes.i32_mul ],
+            [ Opcodes.i32_add ],
+            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.i32_load16_s, 0, 4 ],
+              Opcodes.i32_from
+            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_tee, newValueTmp ],
+
+            Opcodes.i32_to,
+            [ Opcodes.i32_store16, 0, 4 ]
+          ],
+          [TYPES.uint32array]: [
+            ...number(4, Valtype.i32),
+            [ Opcodes.i32_mul ],
+            [ Opcodes.i32_add ],
+            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.i32_load, 0, 4 ],
+              Opcodes.i32_from_u
+            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_tee, newValueTmp ],
+
+            Opcodes.i32_to_u,
+            [ Opcodes.i32_store, 0, 4 ]
+          ],
+          [TYPES.int32array]: [
+            ...number(4, Valtype.i32),
+            [ Opcodes.i32_mul ],
+            [ Opcodes.i32_add ],
+            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.i32_load, 0, 4 ],
+              Opcodes.i32_from
+            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_tee, newValueTmp ],
+
+            Opcodes.i32_to,
+            [ Opcodes.i32_store, 0, 4 ]
+          ],
+          [TYPES.float32array]: [
+            ...number(4, Valtype.i32),
+            [ Opcodes.i32_mul ],
+            [ Opcodes.i32_add ],
+            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.f32_load, 0, 4 ],
+              [ Opcodes.f64_promote_f32 ]
+            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_tee, newValueTmp ],
+
+            [ Opcodes.f32_demote_f64 ],
+            [ Opcodes.f32_store, 0, 4 ]
+          ],
+          [TYPES.float64array]: [
+            ...number(8, Valtype.i32),
+            [ Opcodes.i32_mul ],
+            [ Opcodes.i32_add ],
+            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.f64_load, 0, 4 ]
+            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_tee, newValueTmp ],
+
+            [ Opcodes.f64_store, 0, 4 ]
+          ],
+        }, {
+          prelude: [
+            ...generate(scope, decl.left.object),
+            Opcodes.i32_to_u,
+            ...generate(scope, decl.left.property),
+            Opcodes.i32_to_u,
+          ],
+          postlude: setLastType(scope, TYPES.number)
+        }),
 
         default: internalThrow(scope, 'TypeError', `Cannot assign member with non-array`)
       }, Blocktype.void),
@@ -2997,6 +3147,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ],
       [ Opcodes.end ]
     ],
+    // todo: typed arrays
     default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
   }, Blocktype.void));
 
@@ -3085,13 +3236,14 @@ const generateThrow = (scope, decl) => {
       idx: tags.length
     });
 
-    let exceptId = exceptions.push({ constructor, message }) - 1;
+    let exceptId = exceptions.findIndex(x => x.constructor === constructor && x.message === message);
+    if (exceptId === -1) exceptId = exceptions.push({ constructor, message }) - 1;
 
     scope.exceptions ??= [];
     scope.exceptions.push(exceptId);
 
     return [
-      [ Opcodes.i32_const, signedLEB128(exceptId) ],
+      ...number(exceptId, Valtype.i32),
       [ Opcodes.throw, tags[0].idx ]
     ];
   }
@@ -3158,7 +3310,7 @@ const generateThrow = (scope, decl) => {
     scope.exceptions.push(exceptId);
 
     return [
-      [ Opcodes.i32_const, signedLEB128(exceptId) ],
+      ...number(exceptId, Valtype.i32),
       ...generate(scope, message),
       ...getNodeType(scope, message),
       [ Opcodes.throw, tags[0].idx ]
@@ -3516,6 +3668,19 @@ const withType = (scope, wasm, type) => [
   ...setLastType(scope, type)
 ];
 
+const wrapBC = (bc, { prelude = [], postlude = [] } = {}) => {
+  const out = {};
+  for (const x in bc) {
+    out[x] = [
+      ...prelude,
+      ...bc[x],
+      ...postlude
+    ];
+  }
+
+  return out;
+};
+
 const generateMember = (scope, decl, _global, _name) => {
   const name = decl.object.name;
 
@@ -3569,7 +3734,7 @@ const generateMember = (scope, decl, _global, _name) => {
     const type = getNodeType(scope, decl.object);
     const known = knownType(scope, type);
     if (known != null) {
-      if ([ TYPES.string, TYPES.bytestring, TYPES.array ].includes(known)) return [
+      if (typeHasFlag(known, TYPE_FLAGS.length)) return [
         ...generate(scope, decl.object),
         Opcodes.i32_to_u,
 
@@ -3581,7 +3746,9 @@ const generateMember = (scope, decl, _global, _name) => {
     }
 
     return [
-      ...typeIsOneOf(getNodeType(scope, decl.object), [ TYPES.string, TYPES.bytestring, TYPES.array ]),
+      ...getNodeType(scope, decl.object),
+      ...number(TYPE_FLAGS.length, Valtype.i32),
+      [ Opcodes.i32_and ],
       [ Opcodes.if, valtypeBinary ],
         ...generate(scope, decl.object),
         Opcodes.i32_to_u,
@@ -3630,7 +3797,9 @@ const generateMember = (scope, decl, _global, _name) => {
   // // todo: we should only do this for strings but we don't know at compile-time :(
   // hack: this is naughty and will break things!
   let newOut = number(0, Valtype.i32), newPointer = number(0, Valtype.i32);
-  if (pages.hasAnyString && knownType(scope, getNodeType(scope, decl.object)) !== TYPES.array) {
+
+  const known = knownType(scope, getNodeType(scope, decl.object));
+  if ((known === TYPES.string || known === TYPES.bytestring) || (pages.hasAnyString && known == null)) {
     // todo: we use i16 even for bytestrings which should not make a bad thing happen, just be confusing for debugging?
     0, [ newOut, newPointer ] = makeArray(scope, {
       rawElements: new Array(0)
@@ -3703,6 +3872,82 @@ const generateMember = (scope, decl, _global, _name) => {
       Opcodes.i32_from_u,
       ...setLastType(scope, TYPES.bytestring)
     ],
+
+    ...wrapBC({
+      [TYPES.uint8array]: [
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load8_u, 0, 4 ],
+        Opcodes.i32_from_u
+      ],
+      [TYPES.uint8clampedarray]: [
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load8_u, 0, 4 ],
+        Opcodes.i32_from_u
+      ],
+      [TYPES.int8array]: [
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load8_s, 0, 4 ],
+        Opcodes.i32_from
+      ],
+      [TYPES.uint16array]: [
+        ...number(2, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load16_u, 0, 4 ],
+        Opcodes.i32_from_u
+      ],
+      [TYPES.int16array]: [
+        ...number(2, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load16_s, 0, 4 ],
+        Opcodes.i32_from
+      ],
+      [TYPES.uint32array]: [
+        ...number(4, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load, 0, 4 ],
+        Opcodes.i32_from_u
+      ],
+      [TYPES.int32array]: [
+        ...number(4, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load, 0, 4 ],
+        Opcodes.i32_from
+      ],
+      [TYPES.float32array]: [
+        ...number(4, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.f32_load, 0, 4 ],
+        [ Opcodes.f64_promote_f32 ]
+      ],
+      [TYPES.float64array]: [
+        ...number(8, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.f64_load, 0, 4 ]
+      ],
+    }, {
+      prelude: [
+        ...object,
+        Opcodes.i32_to_u,
+        ...property,
+        Opcodes.i32_to_u
+      ],
+      postlude: setLastType(scope, TYPES.number)
+    }),
 
     default: internalThrow(scope, 'TypeError', 'Member expression is not supported for non-string non-array yet', true)
   });

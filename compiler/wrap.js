@@ -2,7 +2,7 @@ import { encodeVector, encodeLocal } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import compile from './index.js';
 import decompile from './decompile.js';
-import { TYPES } from './types.js';
+import { TYPES, TYPE_NAMES } from './types.js';
 import { log } from './log.js';
 import Prefs from './prefs.js';
 
@@ -113,6 +113,19 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
 
       const desc = porfToJSValue({ memory, funcs, pages }, v, t);
       return Symbol(desc);
+    }
+
+    case TYPES.uint8array:
+    case TYPES.int8array:
+    case TYPES.uint8clampedarray:
+    case TYPES.uint16array:
+    case TYPES.int16array:
+    case TYPES.uint32array:
+    case TYPES.int32array:
+    case TYPES.float32array:
+    case TYPES.float64array: {
+      const length = (new Int32Array(memory.buffer, value, 1))[0];
+      return new globalThis[TYPE_NAMES[type]](memory.buffer, value + 4, length);
     }
 
     default: return value;
