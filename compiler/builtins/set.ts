@@ -170,15 +170,8 @@ export const Set = () => {
 export const Set$constructor = (iterable: any): Set => {
   const out: Set = __Porffor_allocate();
 
-  const type: number = Porffor.rawType(iterable);
-  if (Porffor.fastOr(
-    type == Porffor.TYPES.array,
-    type == Porffor.TYPES.string, type == Porffor.TYPES.bytestring,
-    type == Porffor.TYPES.set
-  )) {
-    for (const x of iterable) {
-      __Set_prototype_add(out, x);
-    }
+  if (Porffor.rawType(iterable) != Porffor.TYPES.undefined) for (const x of iterable) {
+    __Set_prototype_add(out, x);
   }
 
   return out;
