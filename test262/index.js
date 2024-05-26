@@ -371,9 +371,9 @@ if (isMainThread) {
       .replace(/if \(\(e instanceof (.*)Error\) !== true\) \{[\w\W]*?\}/g, '')
       .replace(/assert\.sameValue\(\s*e instanceof RangeError,\s*true,[\w\W]+?\);/g, '')
       // replace old tests' custom checks with standard assert
-      .replace(/if \(([^ ]+) !== ([^ ]+)\) \{ *\n *throw new Test262Error\(['"](.*)\. Actual:.*\); *\n\} *\n/g, (_, one, two) => `assert.sameValue(${one}, ${two});\n`)
+      // .replace(/if \(([^ ]+) !== ([^ ]+)\) \{ *\n *throw new Test262Error\(['"](.*)\. Actual:.*\); *\n\} *\n/g, (_, one, two) => `assert.sameValue(${one}, ${two});\n`)
       // remove actual string concats from some error messages
-      .replace(/\. Actual: ' \+ .*\);/g, _ => `');`);
+      // .replace(/\. Actual: ' \+ .*\);/g, _ => `');`);
 
     if (debugAsserts) toRun = toRun
       .replace('function assert(mustBeTrue) {', 'function assert(mustBeTrue, msg) {')
