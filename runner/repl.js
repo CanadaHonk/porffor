@@ -40,10 +40,9 @@ let lastMemory, lastPages;
 const PageSize = 65536;
 const memoryToString = mem => {
   let out = '';
-  const pages = lastPages.length;
   const wasmPages = mem.buffer.byteLength / PageSize;
 
-  out += `\x1B[1mallocated ${mem.buffer.byteLength / 1024}KB\x1B[0m for ${pages} thing${pages === 1 ? '' : 's'} using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}\n\n`;
+  out += `\x1B[1mallocated ${mem.buffer.byteLength / 1024}KiB\x1B[0m (using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'})\n\n`;
 
   const buf = new Uint8Array(mem.buffer);
 
@@ -55,10 +54,16 @@ const memoryToString = mem => {
   }
 
   out += `\x1B[0m\x1B[1m  name${' '.repeat(longestName - 4)} \x1B[0m\x1B[90m│\x1B[0m\x1B[1m type${' '.repeat(longestType - 4)} \x1B[0m\x1B[90m│\x1B[0m\x1B[1m memory\x1B[0m\n`; // ─
-  for (let i = 0; i < pages; i++) {
-    const [ type, name ] = lastPages[i].split(': ');
-    // out += `\x1B[36m${lastPages[i].replace(':', '\x1B[90m:\x1B[34m')}\x1B[90m${' '.repeat(longestName - lastPages[i].length)} | \x1B[0m`;
-    out += `  \x1B[34m${name}${' '.repeat(longestName - name.length)} \x1B[90m│\x1B[0m \x1B[36m${type}${' '.repeat(longestType - type.length)} \x1B[90m│\x1B[0m `;
+  for (let i = 0; i < wasmPages; i++) {
+    if (lastPages[i]) {
+      const [ type, name ] = lastPages[i].split(': ');
+      // out += `\x1B[36m${lastPages[i].replace(':', '\x1B[90m:\x1B[34m')}\x1B[90m${' '.repeat(longestName - lastPages[i].length)} | \x1B[0m`;
+      out += `  \x1B[34m${name}${' '.repeat(longestName - name.length)} \x1B[90m│\x1B[0m \x1B[36m${type}${' '.repeat(longestType - type.length)} \x1B[90m│\x1B[0m `;
+    } else {
+      const type = '???';
+      const name = '???';
+      out += `  \x1B[34m${name}${' '.repeat(longestName - name.length)} \x1B[90m│\x1B[0m \x1B[36m${type}${' '.repeat(longestType - type.length)} \x1B[90m│\x1B[0m `;
+    }
 
     for (let j = 0; j < 40; j++) {
       const val = buf[i * pageSize + j];
