@@ -3788,7 +3788,7 @@ const internalConstrs = {
 
       // todo: check in wasm instead of here
       const literalValue = arg.value ?? 0;
-      if (literalValue < 0 || !Number.isFinite(literalValue) || literalValue > 4294967295) return internalThrow(scope, 'RangeThrow', 'Invalid array length', true);
+      if (literalValue < 0 || !Number.isFinite(literalValue) || literalValue > 4294967295) return internalThrow(scope, 'RangeError', 'Invalid array length', true);
 
       return [
         ...out,
