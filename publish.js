@@ -4,9 +4,8 @@ import fs from 'node:fs';
 const rev = fs.readFileSync('.git/refs/heads/main', 'utf8').trim().slice(0, 9);
 
 const packageJson = fs.readFileSync('package.json', 'utf8');
-fs.writeFileSync('package.json', packageJson.replace('"0.16.0"', `"0.16.0-${rev}"`));
-
-console.log(rev, packageJson);
+const version = JSON.parse(packageJson).version;
+fs.writeFileSync('package.json', packageJson.replace(`"${version}"`, `"${version}-${rev}"`));
 
 execSync(`npm publish`, { stdio: 'inherit' });
 
