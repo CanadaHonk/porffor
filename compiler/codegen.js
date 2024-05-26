@@ -72,6 +72,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'ExpressionStatement':
       return generateExp(scope, decl);
 
+    case 'SequenceExpression':
+      return generateSequence(scope, decl);
+
     case 'CallExpression':
       return generateCall(scope, decl, global, name, valueUnused);
 
@@ -1450,6 +1453,18 @@ const generateExp = (scope, decl) => {
 
   const out = generate(scope, expression, undefined, undefined, Prefs.optUnused);
   disposeLeftover(out);
+
+  return out;
+};
+
+const generateSequence = (scope, decl) => {
+  let out = [];
+
+  const exprs = decl.expressions;
+  for (let i = 0; i < exprs.length; i++) {
+    if (i > 0) disposeLeftover(out);
+    out.push(...generate(scope, exprs[i]));
+  }
 
   return out;
 };
