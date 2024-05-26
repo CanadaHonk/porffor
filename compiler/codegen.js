@@ -2344,11 +2344,6 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
   const [ local, isGlobal ] = lookupName(scope, name);
 
-  if (type === 'ObjectPattern') {
-    // hack: ignore object parts of `var a = {} = 2`
-    return generate(scope, decl.right);
-  }
-
   if (isFuncType(decl.right.type)) {
     // hack for a = function () { ... }
     decl.right.id = { name };
