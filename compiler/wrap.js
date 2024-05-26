@@ -317,6 +317,38 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
 
             throw porfToJSValue({ memory, funcs, pages }, value, type);
           }
+
+          if (exceptionMode === 'stackest') {
+            const constructorIdx = e.getArg(exceptTag, 0);
+            const constructorName = constructorIdx == -1 ? null : funcs.find(x => ((x.originalIndex ?? x.index) - importedFuncs.length) === constructorIdx)?.name;
+
+            const value = e.getArg(exceptTag, 1);
+            const type = e.getArg(exceptTag, 2);
+            const message = porfToJSValue({ memory, funcs, pages }, value, type);
+
+            // no constructor, just throw message
+            if (!constructorName) throw message;
+
+            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
+            throw new constructor(message);
+          }
+
+          if (exceptionMode === 'partial') {
+            const exceptId = e.getArg(exceptTag, 0);
+            const exception = exceptions[exceptId];
+
+            const constructorName = exception.constructor;
+
+            const value = e.getArg(exceptTag, 1);
+            const type = e.getArg(exceptTag, 2);
+            const message = porfToJSValue({ memory, funcs, pages }, value, type);
+
+            // no constructor, just throw message
+            if (!constructorName) throw message;
+
+            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
+            throw new constructor(message);
+          }
         }
 
         if (e instanceof WebAssembly.RuntimeError) {
