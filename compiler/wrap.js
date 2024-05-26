@@ -297,16 +297,26 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         return porfToJSValue({ memory, funcs, pages }, ret[0], ret[1]);
       } catch (e) {
         if (e.is && e.is(exceptTag)) {
-          const exceptId = e.getArg(exceptTag, 0);
-          const exception = exceptions[exceptId];
+          const exceptionMode = Prefs.exceptionMode ?? 'lut';
+          if (exceptionMode === 'lut') {
+            const exceptId = e.getArg(exceptTag, 0);
+            const exception = exceptions[exceptId];
 
-          const constructorName = exception.constructor;
+            const constructorName = exception.constructor;
 
-          // no constructor, just throw message
-          if (!constructorName) throw exception.message;
+            // no constructor, just throw message
+            if (!constructorName) throw exception.message;
 
-          const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
-          throw new constructor(exception.message);
+            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
+            throw new constructor(exception.message);
+          }
+
+          if (exceptionMode === 'stack') {
+            const value = e.getArg(exceptTag, 0);
+            const type = e.getArg(exceptTag, 1);
+
+            throw porfToJSValue({ memory, funcs, pages }, value, type);
+          }
         }
 
         if (e instanceof WebAssembly.RuntimeError) {
