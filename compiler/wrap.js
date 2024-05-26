@@ -127,7 +127,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
 
   globalThis.porfDebugInfo = { funcs, globals };
 
-  if (source.includes?.('export ')) flags.push('module');
+  if (process.argv[1].includes('/runner') && source.includes?.('export ')) flags.push('module');
 
   // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 

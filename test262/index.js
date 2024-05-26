@@ -6,7 +6,7 @@ import os from 'node:os';
 import process from 'node:process';
 
 import Test262Stream from 'test262-stream';
-import compile from '../compiler/index.js';
+import compile from '../compiler/wrap.js';
 
 import { join } from 'node:path';
 const __dirname = import.meta.dirname;
@@ -390,21 +390,13 @@ if (isMainThread) {
 
     let exports, exceptions;
     try {
-      const out = compile(toRun, attrs.flags.module ? [ 'module' ] : []);
+      const out = compile(toRun, attrs.flags.module ? [ 'module' ] : [], {
+        p: shouldLog ? i => { log += i.toString(); } : () => {},
+        c: shouldLog ? i => { log += String.fromCharCode(i); } : () => {},
+      });
 
       exceptions = out.exceptions;
-
-      const module = new WebAssembly.Module(out.wasm);
-      exports = (new WebAssembly.Instance(module, {
-        '': {
-          p: shouldLog ? i => { log += i.toString(); } : () => {},
-          c: shouldLog ? i => { log += String.fromCharCode(i); } : () => {},
-          t: () => performance.now(),
-          u: () => performance.timeOrigin,
-          y: () => {},
-          z: () => {},
-        }
-      })).exports;
+      exports = out.exports;
     } catch (e) {
       return [ 0, e ];
     }
@@ -415,28 +407,10 @@ if (isMainThread) {
         file.includes('while/') || file.includes('for/') || file.includes('continue/') || file.includes('break/') ||
         file.includes('pow/') || file.includes('generator/') ||
         file.endsWith('NumberFormat/constructor-unit.js')
-      ) timeout(exports.m, 500);
-        else exports.m();
+      ) timeout(exports.main, 500);
+        else exports.main();
       // timeout(exports.m, 500);
     } catch (e) {
-      if (e.is && e.is(exports['0'])) {
-        const exceptId = e.getArg(exports['0'], 0);
-        const exception = exceptions[exceptId];
-        if (!exception) return [ 1, null ];
-
-        let message = exception.message;
-        if (debugAsserts && log) {
-          const [ msg, expected, actual ] = log.split('\n');
-          message += `: ${msg} | expected: ${expected} | actual: ${actual}`;
-        }
-
-        const constructorName = exception.constructor;
-        if (!constructorName) return [ 1, message ];
-
-        const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
-        return [ 1, new constructor(message) ];
-      }
-
       return [ 1, e ];
     }
 
