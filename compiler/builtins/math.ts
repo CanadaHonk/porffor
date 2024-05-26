@@ -16,7 +16,7 @@ export const __Math_exp = (x: number): number => {
     return 1 / Math.exp(-x);
   }
 
-  const k: number = Math.floor(x / Math.LN2);
+  let k: number = Math.floor(x / Math.LN2);
   const r: number = x - k * Math.LN2;
 
   // Taylor series via Horner's method
@@ -30,7 +30,11 @@ export const __Math_exp = (x: number): number => {
     i++;
   }
 
-  return sum * (1 << k);
+  while (k-- > 0) {
+    sum *= 2;
+  }
+
+  return sum;
 };
 
 export const __Math_log2 = (y: number): number => {
