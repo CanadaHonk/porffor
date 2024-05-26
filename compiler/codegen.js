@@ -3665,6 +3665,9 @@ const generateFunc = (scope, decl) => {
     index: currentFuncIndex++
   };
 
+  funcIndex[name] = func.index;
+  funcs.push(func);
+
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
     // if (type != null && !Prefs.indirectCalls) {
@@ -3674,12 +3677,26 @@ const generateFunc = (scope, decl) => {
     }
   }
 
+  const defaultValues = {};
   for (let i = 0; i < params.length; i++) {
-    const name = params[i].name;
+    let name;
+    const x = params[i];
+    switch (x.type) {
+      case 'Identifier': {
+        name = x.name;
+        break;
+      }
+
+      case 'AssignmentPattern': {
+        name = x.left.name;
+        defaultValues[name] = x.right;
+        break;
+      }
+    }
+
     // if (name == null) return todo('non-identifier args are not supported');
 
     allocVar(func, name, false);
-
     if (typedInput && params[i].typeAnnotation) {
       addVarMetadata(func, name, false, extractTypeAnnotation(params[i]));
     }
@@ -3696,11 +3713,22 @@ const generateFunc = (scope, decl) => {
     };
   }
 
-  funcIndex[name] = func.index;
-  funcs.push(func);
+  const prelude = [];
+  for (const x in defaultValues) {
+    prelude.push(
+      ...getType(func, x),
+      ...number(TYPES.undefined, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.if, Blocktype.void ],
+        ...generate(func, defaultValues[x], false, x),
+        [ Opcodes.local_set, func.locals[x].idx ],
 
-  const wasm = generate(func, body);
-  func.wasm = wasm;
+        ...setType(func, x, getNodeType(scope, defaultValues[x])),
+      [ Opcodes.end ]
+    );
+  }
+
+  const wasm = func.wasm = prelude.concat(generate(func, body));
 
   if (name === 'main') func.gotLastType = true;
 
