@@ -273,10 +273,11 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     }
 
     const returns = f.returns.length > 0;
+    const typedReturns = f.returnType == null;
 
     const shouldInline = false; // f.internal;
     if (f.name === 'main') out += `int main(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
-      else out += `${f.internal ? (returns ? 'f64' : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
+      else out += `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
 
     if (f.name === 'main') {
       out += '  ' + [...prependMain.values()].join('\n  ');
@@ -418,11 +419,14 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
           continue;
 
         case Opcodes.return:
-          // line(`return${returns ? ` ${removeBrackets(vals.pop())}` : ''}`);
-          const b = vals.pop();
-          const a = vals.pop();
+          if (!typedReturns) {
+            line(`return${returns ? ` ${removeBrackets(vals.pop())}` : ''}`);
+            break;
+          }
+
+          const b = returns ? vals.pop() : -1;
+          const a = returns ? vals.pop() : -1;
           line(`return${returns ? ` (struct ReturnValue){ ${removeBrackets(a)}, ${removeBrackets(b)} }` : ''}`);
-          // line(`return${returns ? ` (struct ReturnValue){ ${removeBrackets(vals.pop())}, ${removeBrackets(vals.pop())} }` : ''}`);
           break;
 
         case Opcodes.if: {
@@ -590,7 +594,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           for (let j = 0; j < func.params.length; j++) args.unshift(removeBrackets(vals.pop()));
 
           if (func.returns.length > 0) {
-            if (func.internal) {
+            if (func.returnType != null) {
               vals.push(`${sanitize(func.name)}(${args.join(', ')})`);
             } else {
               const id = retTmpId++;
