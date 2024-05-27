@@ -20,7 +20,7 @@ let spin = 0;
 let last = 0;
 
 try {
-  const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
+  const { exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
     y: n => {
       tmp[n] = performance.now();
     },

@@ -137,7 +137,7 @@ try {
 
     console.log(`\n\nwasm size: ${wasm.byteLength} bytes`);
   } else {
-    const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
+    const { exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
 
     runStart = performance.now();
     if (!process.argv.includes('--no-run')) exports.main();

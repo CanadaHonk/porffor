@@ -6,11 +6,11 @@ const textEncoder = new TextEncoder();
 if (typeof process === 'undefined') globalThis.process = { argv: ['', '', ...Deno.args], stdout: { write: str => Deno.writeAllSync(Deno.stdout, textEncoder.encode(str)) } };
 
 let totalOutput = 0;
-const run = async source => {
+const run = source => {
   let out = '', assertFailed = false;
   const print = str => out += str;
 
-  const { exports, wasm, times } = await compile(source, [ 'module' ], {
+  const { exports, wasm, times } = compile(source, [ 'module' ], {
     p: i => print(Number(i).toString()),
     c: i => print(String.fromCharCode(Number(i)))
   });
@@ -25,7 +25,7 @@ const run = async source => {
 };
 
 const argv = process.argv.slice();
-const perform = async (test, args) => {
+const perform = (test, args) => {
   process.argv = argv.concat(args);
   const content = fs.readFileSync('test/' + test, 'utf8');
   const spl = content.split('\n');
@@ -39,7 +39,7 @@ const perform = async (test, args) => {
   const t1 = performance.now();
   let out, assertFailed, times, wasm;
   try {
-    0, [ out, assertFailed, times, wasm ] = await run(code);
+    0, [ out, assertFailed, times, wasm ] = run(code);
   } catch (e) {
     out = e.message ? `${e.constructor.name}: ${e.message}` : e;
     if (expect !== out) {
@@ -87,7 +87,7 @@ for (const test of fs.readdirSync('test')) {
     if (test.startsWith('float_') && !x.endsWith('f64')) continue;
 
     for (const y of argsOptlevels) {
-      if ((!valtypeOpt || valtypeOpt === x) && (!optOpt || optOpt === y)) await perform(test, [ x, y ]);
+      if ((!valtypeOpt || valtypeOpt === x) && (!optOpt || optOpt === y)) perform(test, [ x, y ]);
     }
   }
 }

@@ -80,13 +80,13 @@ const memoryToString = mem => {
 };
 
 let prev = '';
-const run = async (source, _context, _filename, callback, run = true) => {
+const run = (source, _context, _filename, callback, run = true) => {
   // hack: print "secret" before latest code ran to only enable printing for new code
 
   let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source.trim();
 
   let shouldPrint = !prev;
-  const { exports, pages } = await compile(toRun, [], {}, str => {
+  const { exports, pages } = compile(toRun, [], {}, str => {
     if (shouldPrint) process.stdout.write(str);
     if (str === '-4919') shouldPrint = true;
   });
@@ -127,12 +127,12 @@ replServer.defineCommand('memory', {
 });
 replServer.defineCommand('asm', {
   help: 'Log Wasm decompiled bytecode',
-  async action() {
+  action() {
     this.clearBufferedCommand();
 
     try {
       process.argv.push('--opt-funcs');
-      await run('', null, null, () => {}, false);
+      run('', null, null, () => {}, false);
       process.argv.pop();
     } catch { }
 
@@ -141,7 +141,7 @@ replServer.defineCommand('asm', {
 });
 replServer.defineCommand('js', {
   help: 'Log JS being actually ran',
-  async action() {
+  action() {
     this.clearBufferedCommand();
     console.log(prev);
     this.displayPrompt();

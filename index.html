@@ -1021,7 +1021,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
       let wasm, exports, times, decomps, c;
       try {
-        0, { wasm, exports, times, decomps, c } = await compile(code, [ 'module', 'decomp' ], {}, print);
+        0, { wasm, exports, times, decomps, c } = compile(code, [ 'module', 'decomp' ], {}, print);
       } catch (e) {
         console.error(e);
         status.textContent = `${e.constructor.name}: ${e.message}`;
