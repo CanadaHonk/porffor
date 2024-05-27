@@ -619,11 +619,14 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
 };
 
 const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode = undefined) => {
-  // if (isIntToFloatOp(wasm[wasm.length - 1])) return [
-  //   ...wasm,
-  //   ...(!intIn && intOut ? [ Opcodes.i32_to_u ] : [])
-  // ];
-  // if (isIntOp(wasm[wasm.length - 1])) return [ ...wasm ];
+  if (isIntToFloatOp(wasm[wasm.length - 1])) return [
+    ...wasm,
+    ...(!intIn && intOut ? [ Opcodes.i32_to_u ] : [])
+  ];
+  if (isIntOp(wasm[wasm.length - 1])) return [
+    ...wasm,
+    ...(intOut ? [] : [ Opcodes.i32_from ]),
+  ];
 
   // todo/perf: use knownType and custom bytecode here instead of typeSwitch
 
