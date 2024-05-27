@@ -253,7 +253,7 @@ export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, ini
 
   let i: i32 = len;
   while (i > 0) {
-    acc = callbackFn(acc, _this[i], --i, _this);
+    acc = callbackFn(acc, _this[--i], i, _this);
   }
 
   return acc;
