@@ -91,7 +91,9 @@ export const run = obj => {
       },
       w: (ind, outPtr) => { // readArgv
         const pgoInd = process.argv.indexOf('--pgo');
-        const args = process.argv.slice(pgoInd).filter(x => !x.startsWith('-'));
+        let args = process.argv.slice(pgoInd);
+        args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
+
         const str = args[ind - 1];
         if (pgoInd === -1 || !str) {
           if (Prefs.pgoLog) console.log('\nPGO warning: script was expecting arguments, please specify args to use for PGO after --pgo arg');
@@ -100,6 +102,9 @@ export const run = obj => {
 
         writeByteStr(exports.$, outPtr, str);
         return str.length;
+      },
+      q: (pathPtr, outPtr) => {
+        return -1;
       }
     }, () => {});
 
