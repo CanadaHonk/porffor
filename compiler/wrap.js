@@ -248,8 +248,10 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         y: () => {},
         z: () => {},
         w: (ind, outPtr) => { // readArgv
-          const args = process.argv.slice(2).filter(x => !x.startsWith('-'));
-          const str = args[ind];
+          let args = process.argv.slice(2);
+          args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
+
+          const str = args[ind - 1];
           if (!str) return -1;
 
           writeByteStr(memory, outPtr, str);
