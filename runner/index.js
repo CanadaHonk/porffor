@@ -130,7 +130,7 @@ const print = str => {
 let runStart;
 try {
   if (process.argv.includes('-b')) {
-    const { wasm, exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
+    const { wasm, exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
 
     runStart = performance.now();
     if (!process.argv.includes('--no-run')) exports.main();
