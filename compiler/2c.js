@@ -549,10 +549,15 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
                 prepend.set('__Porffor_readFile',
 `i32 __Porffor_readFile(u32 pathPtr, u32 outPtr) {
-  char* path = _memory + pathPtr + 4;
-  FILE* fp = fopen(path, "r");
-  if (fp == NULL) {
-    return -1;
+  FILE* fp;
+  if (pathPtr == 0) {
+    fp = stdin;
+  } else {
+    char* path = _memory + pathPtr + 4;
+    fp = fopen(path, "r");
+    if (fp == NULL) {
+      return -1;
+    }
   }
 
   u32 read = 0;

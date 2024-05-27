@@ -259,7 +259,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         },
         q: (pathPtr, outPtr) => { // readFile
           try {
-            const path = readByteStr(memory, pathPtr);
+            const path = pathPtr === 0 ? 0 : readByteStr(memory, pathPtr);
             const contents = fs.readFileSync(path, 'utf8');
             writeByteStr(memory, outPtr, contents);
             return contents.length;
