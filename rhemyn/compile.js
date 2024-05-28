@@ -6,7 +6,6 @@ import { TYPES } from '../compiler/types.js';
 
 // local indexes
 const BasePointer = 0; // base string pointer
-const IterPointer = 1; // this iteration base pointer
 const Counter = 2; // what char we are running on
 const Pointer = 3; // next char pointer
 const Length = 4;
@@ -23,17 +22,13 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         [ Opcodes.local_set, Length ],
 
-        // set iter pointer local as base + sizeof i32 initially
+        // pointer = base + sizeof i32
         [ Opcodes.local_get, BasePointer ],
         ...number(ValtypeSize.i32, Valtype.i32),
         [ Opcodes.i32_add ],
-        [ Opcodes.local_set, IterPointer ],
+        [ Opcodes.local_set, Pointer ],
 
         [ Opcodes.loop, Blocktype.void ],
-          // reset pointer as iter pointer
-          [ Opcodes.local_get, IterPointer ],
-          [ Opcodes.local_set, Pointer ],
-
           [ Opcodes.block, Blocktype.void ],
             // generate checks
             ...node.body.flatMap(x => generate(x, negated, true, stringSize, func)),
@@ -47,12 +42,6 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
             })[func],
             [ Opcodes.return ],
           [ Opcodes.end ],
-
-          // increment iter pointer by string size
-          [ Opcodes.local_get, IterPointer ],
-          ...number(stringSize, Valtype.i32),
-          [ Opcodes.i32_add ],
-          [ Opcodes.local_set, IterPointer ],
 
           // increment counter by 1, check if eq length, if not loop
           [ Opcodes.local_get, Counter ],
@@ -268,7 +257,7 @@ const wrapFunc = (regex, func, name, index) => {
   const parsed = parse(regex);
 
   return outputFunc([
-    [ Opcodes.local_get, IterPointer ],
+    [ Opcodes.local_get, 1 ],
     ...number(TYPES.string, Valtype.i32),
     [ Opcodes.i32_eq ],
     [ Opcodes.if, Valtype.i32 ],
@@ -295,7 +284,7 @@ const outputFunc = (wasm, name, index) => ({
   returnType: TYPES.boolean,
   locals: {
     basePointer: { idx: 0, type: Valtype.i32 },
-    iterPointer: { idx: 1, type: Valtype.i32 },
+    inputType: { idx: 1, type: Valtype.i32 },
     counter: { idx: 2, type: Valtype.i32 },
     pointer: { idx: 3, type: Valtype.i32 },
     length: { idx: 4, type: Valtype.i32 },
