@@ -1653,7 +1653,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
         // call regex func
         [ Opcodes.call, idx ],
-        Opcodes.i32_from_u,
+        Opcodes.i32_from,
 
         ...setLastType(scope, Rhemyn.types[protoName])
       ];
