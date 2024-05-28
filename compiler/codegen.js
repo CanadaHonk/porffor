@@ -2956,7 +2956,9 @@ const generateForOf = (scope, decl) => {
   // // todo: we should only do this for strings but we don't know at compile-time :(
   // hack: this is naughty and will break things!
   let newOut = number(0, Valtype.i32), newPointer = number(0, Valtype.i32);
-  if (pages.hasAnyString) {
+
+  const known = knownType(scope, getNodeType(scope, decl.right));
+  if ((known === TYPES.string || known === TYPES.bytestring) || (pages.hasAnyString && known == null)) {
     // todo: we use i16 even for bytestrings which should not make a bad thing happen, just be confusing for debugging?
     0, [ newOut, newPointer ] = makeArray(scope, {
       rawElements: new Array(0)
@@ -3004,6 +3006,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ],
       [ Opcodes.end ]
     ],
+
     [TYPES.string]: [
       ...setType(scope, leftName, TYPES.string),
 
@@ -3112,6 +3115,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ],
       [ Opcodes.end ]
     ],
+
     [TYPES.set]: [
       [ Opcodes.loop, Blocktype.void ],
 
@@ -3150,7 +3154,106 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ],
       [ Opcodes.end ]
     ],
-    // todo: typed arrays
+
+    ...wrapBC({
+      [TYPES.uint8array]: [
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load8_u, 0, 4 ],
+        Opcodes.i32_from_u
+      ],
+      [TYPES.uint8clampedarray]: [
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load8_u, 0, 4 ],
+        Opcodes.i32_from_u
+      ],
+      [TYPES.int8array]: [
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load8_s, 0, 4 ],
+        Opcodes.i32_from
+      ],
+      [TYPES.uint16array]: [
+        ...number(2, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load16_u, 0, 4 ],
+        Opcodes.i32_from_u
+      ],
+      [TYPES.int16array]: [
+        ...number(2, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load16_s, 0, 4 ],
+        Opcodes.i32_from
+      ],
+      [TYPES.uint32array]: [
+        ...number(4, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load, 0, 4 ],
+        Opcodes.i32_from_u
+      ],
+      [TYPES.int32array]: [
+        ...number(4, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.i32_load, 0, 4 ],
+        Opcodes.i32_from
+      ],
+      [TYPES.float32array]: [
+        ...number(4, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.f32_load, 0, 4 ],
+        [ Opcodes.f64_promote_f32 ]
+      ],
+      [TYPES.float64array]: [
+        ...number(8, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+
+        [ Opcodes.f64_load, 0, 4 ]
+      ],
+    }, {
+      prelude: [
+        ...setType(scope, leftName, TYPES.number),
+
+        [ Opcodes.loop, Blocktype.void ],
+
+        [ Opcodes.local_get, pointer ],
+        [ Opcodes.local_get, counter ]
+      ],
+      postlude: [
+        [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+
+        [ Opcodes.block, Blocktype.void ],
+        [ Opcodes.block, Blocktype.void ],
+        ...generate(scope, decl.body),
+        [ Opcodes.end ],
+
+        // increment counter by 1
+        [ Opcodes.local_get, counter ],
+        ...number(1, Valtype.i32),
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_tee, counter ],
+
+        // loop if counter != length
+        [ Opcodes.local_get, length ],
+        [ Opcodes.i32_ne ],
+        [ Opcodes.br_if, 1 ],
+
+        [ Opcodes.end ],
+        [ Opcodes.end ]
+      ]
+    }),
+
     default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
   }, Blocktype.void));
 
