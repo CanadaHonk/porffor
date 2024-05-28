@@ -1592,7 +1592,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     const funcName = decl.callee.property.name;
     if (decl.callee.object.regex && ['test'].includes(funcName)) {
       const regex = decl.callee.object.regex.pattern;
-      const rhemynName = `regex_${funcName}_${regex}`;
+      const rhemynName = `regex_${funcName}_${sanitize(regex)}`;
 
       if (!funcIndex[rhemynName]) {
         const func = Rhemyn[funcName](regex, currentFuncIndex++, rhemynName);
@@ -1625,7 +1625,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (protoName) {
     if (['search'].includes(protoName)) {
       const regex = decl.arguments[0].regex.pattern;
-      const rhemynName = `regex_${protoName}_${regex}`;
+      const rhemynName = `regex_${protoName}_${sanitize(regex)}`;
 
       if (!funcIndex[rhemynName]) {
         const func = Rhemyn[protoName](regex, currentFuncIndex++, rhemynName);
@@ -2063,6 +2063,16 @@ const DEFAULT_VALUE = {
   type: 'Identifier',
   name: 'undefined'
 };
+
+const codeToSanitizedStr = code => {
+  let out = '';
+  while (code > 0) {
+    out += String.fromCharCode(97 + code % 26);
+    code -= 26;
+  }
+  return out;
+};
+const sanitize = str => str.replace(/[^0-9a-zA-Z_]/g, _ => codeToSanitizedStr(_.charCodeAt(0)));
 
 const unhackName = name => {
   if (name.startsWith('__')) return name.slice(2).replaceAll('_', '.');
