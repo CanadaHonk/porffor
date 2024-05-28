@@ -1624,7 +1624,16 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   if (protoName) {
     if (['search'].includes(protoName)) {
-      const regex = decl.arguments[0].regex.pattern;
+      const regex = decl.arguments[0]?.regex?.pattern;
+      if (!regex) return [
+        // no/bad regex arg, return -1/0 for now
+        ...generate(scope, target),
+        [ Opcodes.drop ],
+
+        ...number(Rhemyn.types[protoName] === TYPES.number ? -1 : 0),
+        ...setLastType(scope, Rhemyn.types[protoName])
+      ];
+
       const rhemynName = `regex_${protoName}_${sanitize(regex)}`;
 
       if (!funcIndex[rhemynName]) {
