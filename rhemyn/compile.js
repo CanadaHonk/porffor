@@ -267,21 +267,26 @@ const wrapFunc = (regex, func, name, index) => {
     // bytestring
     ...generate(parsed, false, true, 1, func),
     [ Opcodes.end ]
-  ], name, index);
+  ], name, index, types[func]);
 };
 
 export const test = (regex, index = 0, name = 'regex_test_' + regex) => wrapFunc(regex, 'test', name, index);
 export const search = (regex, index = 0, name = 'regex_search_' + regex) => wrapFunc(regex, 'search', name, index);
 
-const outputFunc = (wasm, name, index) => ({
+export const types = {
+  test: TYPES.boolean,
+  search: TYPES.number
+};
+
+const outputFunc = (wasm, name, index, returnType) => ({
   name,
   index,
   wasm,
+  returnType,
 
   export: true,
   params: [ Valtype.i32, Valtype.i32 ],
   returns: [ Valtype.i32 ],
-  returnType: TYPES.boolean,
   locals: {
     basePointer: { idx: 0, type: Valtype.i32 },
     inputType: { idx: 1, type: Valtype.i32 },
