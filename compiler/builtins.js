@@ -160,6 +160,17 @@ export const BuiltinVars = function() {
   this.__performance_timeOrigin = [
     [ Opcodes.call, importedFuncs.timeOrigin ]
   ];
+
+
+  this.__Uint8Array_BYTES_PER_ELEMENT = number(1);
+  this.__Int8Array_BYTES_PER_ELEMENT = number(1);
+  this.__Uint8ClampedArray_BYTES_PER_ELEMENT = number(1);
+  this.__Uint16Array_BYTES_PER_ELEMENT = number(2);
+  this.__Int16Array_BYTES_PER_ELEMENT = number(2);
+  this.__Uint32Array_BYTES_PER_ELEMENT = number(4);
+  this.__Int32Array_BYTES_PER_ELEMENT = number(4);
+  this.__Float32Array_BYTES_PER_ELEMENT = number(4);
+  this.__Float64Array_BYTES_PER_ELEMENT = number(8);
 };
 
 export const BuiltinFuncs = function() {
