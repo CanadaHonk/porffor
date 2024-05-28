@@ -195,8 +195,9 @@ const wrapQuantifier = (node, method, get, stringSize) => {
 }
 
 const generateChar = (node, negated, get, stringSize) => {
+  const hasQuantifier = !!node.quantifier
   const out = [
-    ...(get ? getNextChar(stringSize, true) : []),
+    ...(get ? getNextChar(stringSize, hasQuantifier) : []),
     ...number(node.char.charCodeAt(0), Valtype.i32),
     negated ? [ Opcodes.i32_eq ] : [ Opcodes.i32_ne ],
   ]
