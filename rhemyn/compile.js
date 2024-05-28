@@ -12,6 +12,7 @@ const Counter = 3; // what char we are running on
 const Pointer = 4; // next char BYTE pointer
 const Length = 5;
 const Tmp = 6;
+const QuantifierTmp = 7; // the temporary variable used for quanitifers
 
 let exprLastGet = false;
 const generate = (node, negated = false, get = true, stringSize = 2, func = 'test') => {
@@ -32,46 +33,44 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
         [ Opcodes.local_set, IterPointer ],
 
         [ Opcodes.loop, Blocktype.void ],
+          // reset pointer as iter pointer
+          [ Opcodes.local_get, IterPointer ],
+          [ Opcodes.local_set, Pointer ],
 
-        // reset pointer as iter pointer
-        [ Opcodes.local_get, IterPointer ],
-        [ Opcodes.local_set, Pointer ],
+          [ Opcodes.block, Blocktype.void ],
 
-        [ Opcodes.block, Blocktype.void ],
+            // generate checks
+            ...node.body.flatMap((x, i) => {
+              exprLastGet = x.type !== 'Group' && i === (node.body.length - 1);
+              return generate(x, negated, true, stringSize, func);
+            }),
 
-        // generate checks
-        ...node.body.flatMap((x, i) => {
-          exprLastGet = x.type !== 'Group' && i === (node.body.length - 1);
-          return generate(x, negated, true, stringSize, func);
-        }),
+            // reached end without branching out, successful match
+            ...({
+              test: number(1, Valtype.i32),
+              search: [
+                [ Opcodes.local_get, Counter ]
+              ]
+            })[func],
+            [ Opcodes.return ],
+          [ Opcodes.end ],
 
-        // reached end without branching out, successful match
-        ...({
-          test: number(1, Valtype.i32),
-          search: [
-            [ Opcodes.local_get, Counter ]
-          ]
-        })[func],
-        [ Opcodes.return ],
+          // increment iter pointer by string size
+          [ Opcodes.local_get, IterPointer ],
+          ...number(stringSize, Valtype.i32),
+          [ Opcodes.i32_add ],
+          [ Opcodes.local_set, IterPointer ],
 
-        [ Opcodes.end ],
+          // increment counter by 1, check if eq length, if not loop
+          [ Opcodes.local_get, Counter ],
+          ...number(1, Valtype.i32),
+          [ Opcodes.i32_add ],
+          [ Opcodes.local_tee, Counter ],
 
-        // increment iter pointer by string size
-        [ Opcodes.local_get, IterPointer ],
-        ...number(stringSize, Valtype.i32),
-        [ Opcodes.i32_add ],
-        [ Opcodes.local_set, IterPointer ],
+          [ Opcodes.local_get, Length ],
+          [ Opcodes.i32_ne ],
 
-        // increment counter by 1, check if eq length, if not loop
-        [ Opcodes.local_get, Counter ],
-        ...number(1, Valtype.i32),
-        [ Opcodes.i32_add ],
-        [ Opcodes.local_tee, Counter ],
-
-        [ Opcodes.local_get, Length ],
-        [ Opcodes.i32_ne ],
-
-        [ Opcodes.br_if, 0 ],
+          [ Opcodes.br_if, 0 ],
         [ Opcodes.end ],
 
         // no match, return 0
@@ -110,12 +109,12 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
   return out;
 };
 
-const getNextChar = (stringSize) => [
+const getNextChar = (stringSize, peek = false) => [
   // get char from pointer
   [ Opcodes.local_get, Pointer ],
   [ stringSize == 2 ? Opcodes.i32_load16_u : Opcodes.i32_load8_u, 0, 0 ],
 
-  ...(exprLastGet ? [] : [
+  ...((exprLastGet && !peek) ? [] : [
     // pointer += string size
     [ Opcodes.local_get, Pointer ],
     ...number(stringSize, Valtype.i32),
@@ -134,11 +133,80 @@ const checkFailure = () => [
   [ Opcodes.br_if, 0 ]
 ];
 
-const generateChar = (node, negated, get, stringSize) => {
+const wrapQuantifier = (node, method, get, stringSize) => {
+  const [min, max] = node.quantifier;
   return [
-    ...(get ? getNextChar(stringSize) : []),
+    // initalize our temp value (number of matched characters)
+    ...number(0, Valtype.i32),
+    [Opcodes.local_set, QuantifierTmp],
+
+    // start loop
+    [Opcodes.loop, Blocktype.void],
+      [ Opcodes.block, Blocktype.void ],
+        // if counter + tmp == length, break 
+        [ Opcodes.local_get, Counter ],
+        [ Opcodes.local_get, QuantifierTmp ],
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_get, Length ],
+        [ Opcodes.i32_eq ],
+        [ Opcodes.br_if, 0 ], 
+
+        // if doesn't match, break
+        ...method,
+        [Opcodes.br_if, 0 ],
+        ...(get ? [
+          // pointer += stringSize
+          [ Opcodes.local_get, Pointer ],
+          ...number(stringSize, Valtype.i32),
+          [ Opcodes.i32_add ],
+          [ Opcodes.local_set, Pointer ]
+        ] : []),
+
+        // if maximum was reached, break 
+        ...(max ? [
+          [ Opcodes.local_get, QuantifierTmp ],
+          ...number(max, Valtype.i32),
+          [ Opcodes.i32_eq ],
+          [ Opcodes.br_if, 0 ]
+        ] : []),
+
+        [ Opcodes.local_get, QuantifierTmp ],
+        ...number(1, Valtype.i32),
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_set, QuantifierTmp ],
+        [ Opcodes.br, 1 ],
+      [ Opcodes.end ],
+    [ Opcodes.end ],
+
+    // if less than minimum, fail
+    [Opcodes.local_get, QuantifierTmp],
+    ...number(min, Valtype.i32),
+    [Opcodes.i32_lt_s],
+    ...(get ? checkFailure(): []),
+
+    // counter += tmp - 1
+    [ Opcodes.local_get, QuantifierTmp ],
+    ...number(1, Valtype.i32),
+    [ Opcodes.i32_sub ],
+    [ Opcodes.local_get, Counter ],
+    [ Opcodes.i32_add ],
+    [ Opcodes.local_set, Counter ]
+  ]
+}
+
+const generateChar = (node, negated, get, stringSize) => {
+  const out = [
+    ...(get ? getNextChar(stringSize, true) : []),
     ...number(node.char.charCodeAt(0), Valtype.i32),
     negated ? [ Opcodes.i32_eq ] : [ Opcodes.i32_ne ],
+  ]
+  
+  if (node.quantifier) {
+    return wrapQuantifier(node, out, get, stringSize);
+  }
+
+  return [
+    ...out,
     ...(get ? checkFailure(): [])
   ];
 };
@@ -146,21 +214,31 @@ const generateChar = (node, negated, get, stringSize) => {
 const generateSet = (node, negated, get, stringSize) => {
   // for a single char we do not need a tmp, it is like just
   const singleChar = node.body.length === 1 && node.body[0].type === 'Character';
+  if (singleChar) return generateChar(node.body[0], negated, get, stringSize)
 
-  let out = [
-    ...(get ? getNextChar(stringSize) : []),
-    ...(singleChar ? [] : [ [ Opcodes.local_set, Tmp ] ]),
+  const hasQuantifier = !!node.quantifier
+
+  const out = [
+    ...(get ? getNextChar(stringSize, hasQuantifier) : []),
+    [ Opcodes.local_set, Tmp ],
   ];
 
   for (const x of node.body) {
-    out = [
-      ...out,
-      ...(singleChar ? [] : [ [ Opcodes.local_get, Tmp ] ]),
+    out.push(
+      [ Opcodes.local_get, Tmp ],
       ...generate(x, negated, false, stringSize)
-    ];
+    )
   }
 
-  if (node.body.length > 0) out = out.concat(new Array(node.body.length - 1).fill(negated ? [ Opcodes.i32_or ] : [ Opcodes.i32_and ]));
+  if (node.body.length > 0) {
+    for (let i = 0; i < node.body.length - 1; i++) {
+      out.push(negated ? [ Opcodes.i32_or ] : [ Opcodes.i32_and ])
+    }
+  };
+
+  if (hasQuantifier) {
+    return wrapQuantifier(node, out, get, stringSize);
+  }
 
   return [
     ...out,
@@ -196,7 +274,7 @@ const wrapFunc = (regex, func, name, index) => {
   const parsed = parse(regex);
 
   return outputFunc([
-    [ Opcodes.local_get, 1 ],
+    [ Opcodes.local_get, IterPointer ],
     ...number(TYPES.string, Valtype.i32),
     [ Opcodes.i32_eq ],
     [ Opcodes.if, Valtype.i32 ],
@@ -229,5 +307,6 @@ const outputFunc = (wasm, name, index) => ({
     pointer: { idx: 4, type: Valtype.i32 },
     length: { idx: 5, type: Valtype.i32 },
     tmp: { idx: 6, type: Valtype.i32 },
+    quantifierTmp: { idx: 7, type: Valtype.i32 },
   }
 });
