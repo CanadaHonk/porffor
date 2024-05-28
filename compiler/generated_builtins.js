@@ -2213,6 +2213,15 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,127,127,127,124,127,124,127,127,124],
     localNames: ["arg","arg#type","out","len","type","i","forof_base_pointer","forof_length","forof_counter","x","x#type","__member_setter_val_tmp","#last_type","#typeswitch_tmp","__length_setter_tmp"],
   };
+  this.__Uint8Array_prototype_byteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,240,63],[162],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
+  };
   this.Int8Array = {
     wasm: (scope, {internalThrow,}) => [...internalThrow(scope, 'TypeError', `Constructor Int8Array requires 'new'`),[68,0,0,0,0,0,0,0,0],[65,3],[15]],
     params: [],
@@ -2230,6 +2239,15 @@ export const BuiltinFuncs = function() {
     returnType: 86,
     locals: [124,124,124,124,127,127,127,124,127,124,127,127,124],
     localNames: ["arg","arg#type","out","len","type","i","forof_base_pointer","forof_length","forof_counter","x","x#type","__member_setter_val_tmp","#last_type","#typeswitch_tmp","__length_setter_tmp"],
+  };
+  this.__Int8Array_prototype_byteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,240,63],[162],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
   };
   this.Uint8ClampedArray = {
     wasm: (scope, {internalThrow,}) => [...internalThrow(scope, 'TypeError', `Constructor Uint8ClampedArray requires 'new'`),[68,0,0,0,0,0,0,0,0],[65,3],[15]],
@@ -2249,6 +2267,15 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,127,127,127,124,127,124,127,127,124],
     localNames: ["arg","arg#type","out","len","type","i","forof_base_pointer","forof_length","forof_counter","x","x#type","__member_setter_val_tmp","#last_type","#typeswitch_tmp","__length_setter_tmp"],
   };
+  this.__Uint8ClampedArray_prototype_byteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,240,63],[162],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
+  };
   this.Uint16Array = {
     wasm: (scope, {internalThrow,}) => [...internalThrow(scope, 'TypeError', `Constructor Uint16Array requires 'new'`),[68,0,0,0,0,0,0,0,0],[65,3],[15]],
     params: [],
@@ -2266,6 +2293,15 @@ export const BuiltinFuncs = function() {
     returnType: 88,
     locals: [124,124,124,124,127,127,127,124,127,124,127,127,124],
     localNames: ["arg","arg#type","out","len","type","i","forof_base_pointer","forof_length","forof_counter","x","x#type","__member_setter_val_tmp","#last_type","#typeswitch_tmp","__length_setter_tmp"],
+  };
+  this.__Uint16Array_prototype_byteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,0,64],[162],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
   };
   this.Int16Array = {
     wasm: (scope, {internalThrow,}) => [...internalThrow(scope, 'TypeError', `Constructor Int16Array requires 'new'`),[68,0,0,0,0,0,0,0,0],[65,3],[15]],
@@ -2285,6 +2321,15 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,127,127,127,124,127,124,127,127,124],
     localNames: ["arg","arg#type","out","len","type","i","forof_base_pointer","forof_length","forof_counter","x","x#type","__member_setter_val_tmp","#last_type","#typeswitch_tmp","__length_setter_tmp"],
   };
+  this.__Int16Array_prototype_byteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,0,64],[162],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
+  };
   this.Uint32Array = {
     wasm: (scope, {internalThrow,}) => [...internalThrow(scope, 'TypeError', `Constructor Uint32Array requires 'new'`),[68,0,0,0,0,0,0,0,0],[65,3],[15]],
     params: [],
@@ -2302,6 +2347,15 @@ export const BuiltinFuncs = function() {
     returnType: 90,
     locals: [124,124,124,124,127,127,127,124,127,124,127,127,124],
     localNames: ["arg","arg#type","out","len","type","i","forof_base_pointer","forof_length","forof_counter","x","x#type","__member_setter_val_tmp","#last_type","#typeswitch_tmp","__length_setter_tmp"],
+  };
+  this.__Uint32Array_prototype_byteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,16,64],[162],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
   };
   this.Int32Array = {
     wasm: (scope, {internalThrow,}) => [...internalThrow(scope, 'TypeError', `Constructor Int32Array requires 'new'`),[68,0,0,0,0,0,0,0,0],[65,3],[15]],
@@ -2321,6 +2375,15 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,127,127,127,124,127,124,127,127,124],
     localNames: ["arg","arg#type","out","len","type","i","forof_base_pointer","forof_length","forof_counter","x","x#type","__member_setter_val_tmp","#last_type","#typeswitch_tmp","__length_setter_tmp"],
   };
+  this.__Int32Array_prototype_byteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,16,64],[162],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
+  };
   this.Float32Array = {
     wasm: (scope, {internalThrow,}) => [...internalThrow(scope, 'TypeError', `Constructor Float32Array requires 'new'`),[68,0,0,0,0,0,0,0,0],[65,3],[15]],
     params: [],
@@ -2339,6 +2402,15 @@ export const BuiltinFuncs = function() {
     locals: [124,124,124,124,127,127,127,124,127,124,127,127,124],
     localNames: ["arg","arg#type","out","len","type","i","forof_base_pointer","forof_length","forof_counter","x","x#type","__member_setter_val_tmp","#last_type","#typeswitch_tmp","__length_setter_tmp"],
   };
+  this.__Float32Array_prototype_byteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,16,64],[162],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
+  };
   this.Float64Array = {
     wasm: (scope, {internalThrow,}) => [...internalThrow(scope, 'TypeError', `Constructor Float64Array requires 'new'`),[68,0,0,0,0,0,0,0,0],[65,3],[15]],
     params: [],
@@ -2356,6 +2428,15 @@ export const BuiltinFuncs = function() {
     returnType: 93,
     locals: [124,124,124,124,127,127,127,124,127,124,127,127,124],
     localNames: ["arg","arg#type","out","len","type","i","forof_base_pointer","forof_length","forof_counter","x","x#type","__member_setter_val_tmp","#last_type","#typeswitch_tmp","__length_setter_tmp"],
+  };
+  this.__Float64Array_prototype_byteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,32,64],[162],[65,0],[15]],
+    params: [124,127],
+    typedParams: true,
+    returns: [124,127],
+    typedReturns: true,
+    locals: [],
+    localNames: ["_this","_this#type"],
   };
   this.__ecma262_ToIntegerOrInfinity = {
     wasm: (scope, {builtin,}) => [[32,0],[16, builtin('Number')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,0,0],[15],[11],[32,2],[16, builtin('__Number_isFinite')],[68,0,0,0,0,0,0,0,0],[97],[4,64],[32,2],[15],[11],[32,2],[16, builtin('__Math_trunc')],[34,2],[68,0,0,0,0,0,0,0,0],[97],[4,64],[68,0,0,0,0,0,0,0,0],[15],[11],[32,2],[15]],

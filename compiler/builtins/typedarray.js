@@ -26,7 +26,12 @@ export const ${name}$constructor = (arg: any): ${name} => {
 
   out.length = len;
   return out;
-};`;
+};
+
+export const __${name}_prototype_byteLength$get = (_this: ${name}) => {
+  return _this.length * ${name}.BYTES_PER_ELEMENT;
+};
+`;
 
   constr('Uint8Array');
   constr('Int8Array');
