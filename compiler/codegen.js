@@ -1590,7 +1590,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (!name && decl.callee.type === 'MemberExpression') {
     // megahack for /regex/.func()
     const funcName = decl.callee.property.name;
-    if (decl.callee.object.regex && Object.hasOwn(Rhemyn, funcName)) {
+    if (decl.callee.object.regex && ['test'].includes(funcName)) {
       const regex = decl.callee.object.regex.pattern;
       const rhemynName = `regex_${funcName}_${regex}`;
 
@@ -1613,7 +1613,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         [ Opcodes.call, idx ],
         Opcodes.i32_from_u,
 
-        ...setLastType(scope, TYPES.boolean)
+        ...setLastType(scope, Rhemyn.types[funcName])
       ];
     }
 
@@ -1622,24 +1622,35 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     target = decl.callee.object;
   }
 
-  // if (protoName && baseType === TYPES.string && Rhemyn[protoName]) {
-  //   const func = Rhemyn[protoName](decl.arguments[0].regex.pattern, currentFuncIndex++);
-
-  //   funcIndex[func.name] = func.index;
-  //   funcs.push(func);
-
-  //   return [
-  //     generate(scope, decl.callee.object)
-
-  //     // call regex func
-  //     [ Opcodes.call, func.index ],
-  //     Opcodes.i32_from_u
-  //   ];
-  // }
-
   if (protoName) {
-    const protoBC = {};
+    if (['search'].includes(protoName)) {
+      const regex = decl.arguments[0].regex.pattern;
+      const rhemynName = `regex_${protoName}_${regex}`;
 
+      if (!funcIndex[rhemynName]) {
+        const func = Rhemyn[protoName](regex, currentFuncIndex++, rhemynName);
+        func.internal = true;
+
+        funcIndex[func.name] = func.index;
+        funcs.push(func);
+      }
+
+      const idx = funcIndex[rhemynName];
+      return [
+        // make string arg
+        ...generate(scope, target),
+        Opcodes.i32_to_u,
+        ...getNodeType(scope, target),
+
+        // call regex func
+        [ Opcodes.call, idx ],
+        Opcodes.i32_from_u,
+
+        ...setLastType(scope, Rhemyn.types[protoName])
+      ];
+    }
+
+    const protoBC = {};
     const builtinProtoCands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + protoName));
 
     if (!decl._protoInternalCall && builtinProtoCands.length > 0) {
