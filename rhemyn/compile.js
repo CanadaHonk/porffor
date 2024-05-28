@@ -7,12 +7,11 @@ import { TYPES } from '../compiler/types.js';
 // local indexes
 const BasePointer = 0; // base string pointer
 const IterPointer = 1; // this iteration base pointer
-const EndPointer = 2; // pointer for the end
-const Counter = 3; // what char we are running on
-const Pointer = 4; // next char BYTE pointer
-const Length = 5;
-const Tmp = 6;
-const QuantifierTmp = 7; // the temporary variable used for quanitifers
+const Counter = 2; // what char we are running on
+const Pointer = 3; // next char pointer
+const Length = 4;
+const Tmp = 5;
+const QuantifierTmp = 6; // the temporary variable used for quanitifers
 
 const generate = (node, negated = false, get = true, stringSize = 2, func = 'test') => {
   let out = [];
@@ -67,7 +66,7 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
           [ Opcodes.br_if, 0 ],
         [ Opcodes.end ],
 
-        // no match, return 0
+        // no match
         ...number(({
           test: 0,
           search: -1
@@ -297,11 +296,10 @@ const outputFunc = (wasm, name, index) => ({
   locals: {
     basePointer: { idx: 0, type: Valtype.i32 },
     iterPointer: { idx: 1, type: Valtype.i32 },
-    endPointer: { idx: 2, type: Valtype.i32 },
-    counter: { idx: 3, type: Valtype.i32 },
-    pointer: { idx: 4, type: Valtype.i32 },
-    length: { idx: 5, type: Valtype.i32 },
-    tmp: { idx: 6, type: Valtype.i32 },
-    quantifierTmp: { idx: 7, type: Valtype.i32 },
+    counter: { idx: 2, type: Valtype.i32 },
+    pointer: { idx: 3, type: Valtype.i32 },
+    length: { idx: 4, type: Valtype.i32 },
+    tmp: { idx: 5, type: Valtype.i32 },
+    quantifierTmp: { idx: 6, type: Valtype.i32 },
   }
 });
