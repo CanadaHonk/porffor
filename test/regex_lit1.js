@@ -1,3 +1,4 @@
 // "10"
 print(/a/.test("a"))
-print(/a/.test(""))
+print(/a/.test("b"))
+// print(/a/.test(""))
