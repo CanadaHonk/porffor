@@ -24,13 +24,16 @@ Made for use with Porffor but could possibly be adapted, implementation/library 
   - 🟢 digit, not digit (eg `\d\D`)
   - 🟢 word, not word (eg `\w\W`)
   - 🟢 whitespace, not whitespace (eg `\s\S`)
-- 🟠 quantifiers
-  - 🟠 star (eg `a*`)
-  - 🟠 plus (eg `a+`)
-  - 🟠 optional (eg `a?`)
+- 🟡 quantifiers
+  - 🟡 star (eg `a*`)
+  - 🟡 plus (eg `a+`)
+  - 🟡 optional (eg `a?`)
   - 🟠 lazy modifier (eg `a*?`)
   - 🔴 n repetitions (eg `a{4}`)
   - 🔴 n-m repetitions (eg `a{2,4}`)
+- 🟠 groups
+  - 🟠 capturing groups (`(a)`)
+  - 🔴 non-capturing groups (`(?:a)`)
 - 🔴 assertions
   - 🔴 beginning (eg `^a`)
   - 🔴 end (eg `a$`)
