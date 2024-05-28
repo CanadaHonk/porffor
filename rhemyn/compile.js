@@ -14,12 +14,10 @@ const Length = 5;
 const Tmp = 6;
 const QuantifierTmp = 7; // the temporary variable used for quanitifers
 
-let exprLastGet = false;
 const generate = (node, negated = false, get = true, stringSize = 2, func = 'test') => {
   let out = [];
   switch (node.type) {
     case 'Expression':
-      exprLastGet = false;
       out = [
         // set length local
         [ Opcodes.local_get, BasePointer ],
@@ -38,12 +36,8 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
           [ Opcodes.local_set, Pointer ],
 
           [ Opcodes.block, Blocktype.void ],
-
             // generate checks
-            ...node.body.flatMap((x, i) => {
-              exprLastGet = x.type !== 'Group' && i === (node.body.length - 1);
-              return generate(x, negated, true, stringSize, func);
-            }),
+            ...node.body.flatMap(x => generate(x, negated, true, stringSize, func)),
 
             // reached end without branching out, successful match
             ...({
@@ -114,7 +108,7 @@ const getNextChar = (stringSize, peek = false) => [
   [ Opcodes.local_get, Pointer ],
   [ stringSize == 2 ? Opcodes.i32_load16_u : Opcodes.i32_load8_u, 0, 0 ],
 
-  ...((exprLastGet && !peek) ? [] : [
+  ...(peek ? [] : [
     // pointer += string size
     [ Opcodes.local_get, Pointer ],
     ...number(stringSize, Valtype.i32),
@@ -134,7 +128,7 @@ const checkFailure = () => [
 ];
 
 const wrapQuantifier = (node, method, get, stringSize) => {
-  const [min, max] = node.quantifier;
+  const [ min, max ] = node.quantifier;
   return [
     // initalize our temp value (number of matched characters)
     ...number(0, Valtype.i32),
@@ -143,13 +137,13 @@ const wrapQuantifier = (node, method, get, stringSize) => {
     // start loop
     [Opcodes.loop, Blocktype.void],
       [ Opcodes.block, Blocktype.void ],
-        // if counter + tmp == length, break 
+        // if counter + tmp == length, break
         [ Opcodes.local_get, Counter ],
         [ Opcodes.local_get, QuantifierTmp ],
         [ Opcodes.i32_add ],
         [ Opcodes.local_get, Length ],
         [ Opcodes.i32_eq ],
-        [ Opcodes.br_if, 0 ], 
+        [ Opcodes.br_if, 0 ],
 
         // if doesn't match, break
         ...method,
@@ -162,7 +156,7 @@ const wrapQuantifier = (node, method, get, stringSize) => {
           [ Opcodes.local_set, Pointer ]
         ] : []),
 
-        // if maximum was reached, break 
+        // if maximum was reached, break
         ...(max ? [
           [ Opcodes.local_get, QuantifierTmp ],
           ...number(max, Valtype.i32),
@@ -191,17 +185,17 @@ const wrapQuantifier = (node, method, get, stringSize) => {
     [ Opcodes.local_get, Counter ],
     [ Opcodes.i32_add ],
     [ Opcodes.local_set, Counter ]
-  ]
+  ];
 }
 
 const generateChar = (node, negated, get, stringSize) => {
-  const hasQuantifier = !!node.quantifier
+  const hasQuantifier = !!node.quantifier;
   const out = [
     ...(get ? getNextChar(stringSize, hasQuantifier) : []),
     ...number(node.char.charCodeAt(0), Valtype.i32),
     negated ? [ Opcodes.i32_eq ] : [ Opcodes.i32_ne ],
-  ]
-  
+  ];
+
   if (node.quantifier) {
     return wrapQuantifier(node, out, get, stringSize);
   }
@@ -217,7 +211,7 @@ const generateSet = (node, negated, get, stringSize) => {
   const singleChar = node.body.length === 1 && node.body[0].type === 'Character';
   if (singleChar) return generateChar(node.body[0], negated, get, stringSize)
 
-  const hasQuantifier = !!node.quantifier
+  const hasQuantifier = !!node.quantifier;
 
   const out = [
     ...(get ? getNextChar(stringSize, hasQuantifier) : []),
@@ -228,7 +222,7 @@ const generateSet = (node, negated, get, stringSize) => {
     out.push(
       [ Opcodes.local_get, Tmp ],
       ...generate(x, negated, false, stringSize)
-    )
+    );
   }
 
   if (node.body.length > 0) {
