@@ -81,6 +81,7 @@ const argsOptlevels = [ '-O1' ];
 let total = 0, passes = 0;
 for (const test of fs.readdirSync('test')) {
   if (test === 'index.js') continue;
+  if (test.endsWith('.disabled.js')) continue;
 
   for (const x of argsValtypes) {
     if (test.startsWith('int_') && x.endsWith('f64')) continue;
