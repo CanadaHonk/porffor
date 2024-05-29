@@ -1065,7 +1065,10 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
   funcs.push(func);
   funcIndex[name] = func.index;
 
-  if (typeof wasm === 'function') wasm = asmFuncToAsm(wasm, func);
+  if (typeof wasm === 'function') {
+    if (globalThis.precompile) wasm = [];
+      else wasm = asmFuncToAsm(wasm, func);
+  }
 
   let baseGlobalIdx, i = 0;
   for (const type of globalTypes) {
