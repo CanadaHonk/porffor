@@ -2365,6 +2365,35 @@ const generateVar = (scope, decl) => {
           case undefined:
             i++;
             continue;
+          case 'AssignmentPattern':
+            decls.push({
+              type: 'VariableDeclarator',
+              id: { type: 'Identifier', name: e.left.name },
+              init: {
+                type: "LogicalExpression",
+                operator: "??",
+                left: {
+                  type: 'MemberExpression',
+                  object: { type: 'Identifier', name: tmpName },
+                  property: { type: 'Literal', value: i }
+                },
+                right: e.right
+              }
+            });
+            i++;
+            continue;
+          case 'ArrayPattern':
+            decls.push({
+              type: 'VariableDeclarator',
+              id: e,
+              init: {
+                type: 'MemberExpression',
+                object: { type: 'Identifier', name: tmpName },
+                property: { type: 'Literal', value: i }
+              }
+            });
+            i++;
+            continue;
           case 'ObjectPattern':
             return todo(scope, 'object destructuring is not supported yet')
         }
