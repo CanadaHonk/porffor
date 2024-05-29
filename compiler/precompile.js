@@ -6,6 +6,8 @@ import { join } from 'node:path';
 
 import { fileURLToPath } from 'node:url';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
+globalThis.precompileCompilerPath = __dirname;
+globalThis.precompile = true;
 
 const argv = process.argv.slice();
 
@@ -14,7 +16,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
   let first = source.slice(0, source.indexOf('\n'));
 
   if (first.startsWith('export default')) {
-    source = (await import(file)).default();
+    source = await (await import(file)).default();
     first = source.slice(0, source.indexOf('\n'));
   }
 
