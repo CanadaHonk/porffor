@@ -20,7 +20,7 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
       let queue = [...node.body];
       let n = queue.shift()
       do {
-        if (n.type == "group") {
+        if (n.type === "Group") {
           queue.push(...node.body)
         }
         if (!n.quantifier || n.quantifier[0] > 0) {
