@@ -4,6 +4,7 @@ export const __Array_isArray = (x: unknown): boolean =>
   // Porffor.wasm`local.get ${x+1}` == Porffor.TYPES.array;
   Porffor.rawType(x) == Porffor.TYPES.array;
 
+
 export const __Array_prototype_slice = (_this: any[], start: number, end: number) => {
   const len: i32 = _this.length;
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
@@ -22,7 +23,7 @@ export const __Array_prototype_slice = (_this: any[], start: number, end: number
   }
   if (end > len) end = len;
 
-  let out: any[] = [];
+  let out: any[] = Porffor.allocate();
 
   if (start > end) return out;
 
@@ -42,10 +43,10 @@ export const __Array_prototype_slice = (_this: any[], start: number, end: number
   }
 
   out.length = end - start;
-
   return out;
 };
 
+// @porf-typed-array
 export const __Array_prototype_indexOf = (_this: any[], searchElement: any, position: number) => {
   const len: i32 = _this.length;
   if (position > 0) {
@@ -60,6 +61,7 @@ export const __Array_prototype_indexOf = (_this: any[], searchElement: any, posi
   return -1;
 };
 
+// @porf-typed-array
 export const __Array_prototype_lastIndexOf = (_this: any[], searchElement: any, position: number) => {
   const len: i32 = _this.length;
   if (position > 0) {
@@ -74,6 +76,7 @@ export const __Array_prototype_lastIndexOf = (_this: any[], searchElement: any, 
   return -1;
 };
 
+// @porf-typed-array
 export const __Array_prototype_includes = (_this: any[], searchElement: any, position: number) => {
   const len: i32 = _this.length;
   if (position > 0) {
@@ -88,6 +91,7 @@ export const __Array_prototype_includes = (_this: any[], searchElement: any, pos
   return false;
 };
 
+// @porf-typed-array
 export const __Array_prototype_with = (_this: any[], index: number, value: any) => {
   const len: i32 = _this.length;
   if (index < 0) {
@@ -101,8 +105,7 @@ export const __Array_prototype_with = (_this: any[], index: number, value: any) 
     throw new RangeError('Invalid index');
   }
 
-  // todo: allocator is bad here?
-  let out: any[] = [];
+  let out: any[] = Porffor.allocate();
 
   Porffor.clone(_this, out);
 
@@ -111,6 +114,7 @@ export const __Array_prototype_with = (_this: any[], index: number, value: any) 
   return out;
 };
 
+// @porf-typed-array
 export const __Array_prototype_reverse = (_this: any[]) => {
   const len: i32 = _this.length;
 
@@ -126,14 +130,14 @@ export const __Array_prototype_reverse = (_this: any[]) => {
   return _this;
 };
 
-// todo: this has memory/allocation bugs so sometimes crashes :(
+// @porf-typed-array
 export const __Array_prototype_toReversed = (_this: any[]) => {
   const len: i32 = _this.length;
 
   let start: i32 = 0;
   let end: i32 = len - 1;
 
-  let out: any[] = [];
+  let out: any[] = Porffor.allocate();
   out.length = len;
 
   while (start < end) {
@@ -144,11 +148,13 @@ export const __Array_prototype_toReversed = (_this: any[]) => {
   return out;
 };
 
+// @porf-typed-array
 export const __Array_prototype_valueOf = (_this: any[]) => {
   return _this;
 };
 
 
+// @porf-typed-array
 export const __Array_prototype_forEach = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
@@ -157,22 +163,26 @@ export const __Array_prototype_forEach = (_this: any[], callbackFn: any) => {
   }
 };
 
+// @porf-typed-array
 export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
-  const out: any[] = [];
+  const out: any[] = Porffor.allocate();
 
   const len: i32 = _this.length;
   let i: i32 = 0;
+  let j: i32 = 0;
   while (i < len) {
     const el: any = _this[i];
-    if (Boolean(callbackFn(el, i++, _this))) out.push(el);
+    if (Boolean(callbackFn(el, i++, _this))) out[j++] = el;
   }
 
+  out.length = j;
   return out;
 };
 
+// @porf-typed-array
 export const __Array_prototype_map = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
-  const out: any[] = [];
+  const out: any[] = Porffor.allocate();
   out.length = len;
 
   let i: i32 = 0;
@@ -183,6 +193,7 @@ export const __Array_prototype_map = (_this: any[], callbackFn: any) => {
   return out;
 };
 
+// @porf-typed-array
 export const __Array_prototype_find = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
@@ -192,6 +203,7 @@ export const __Array_prototype_find = (_this: any[], callbackFn: any) => {
   }
 };
 
+// @porf-typed-array
 export const __Array_prototype_findLast = (_this: any[], callbackFn: any) => {
   let i: i32 = _this.length;
   while (i > 0) {
@@ -200,6 +212,7 @@ export const __Array_prototype_findLast = (_this: any[], callbackFn: any) => {
   }
 };
 
+// @porf-typed-array
 export const __Array_prototype_findIndex = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
@@ -208,6 +221,7 @@ export const __Array_prototype_findIndex = (_this: any[], callbackFn: any) => {
   }
 };
 
+// @porf-typed-array
 export const __Array_prototype_findLastIndex = (_this: any[], callbackFn: any) => {
   let i: i32 = _this.length;
   while (i > 0) {
@@ -215,6 +229,7 @@ export const __Array_prototype_findLastIndex = (_this: any[], callbackFn: any) =
   }
 };
 
+// @porf-typed-array
 export const __Array_prototype_every = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
@@ -225,6 +240,7 @@ export const __Array_prototype_every = (_this: any[], callbackFn: any) => {
   return true;
 };
 
+// @porf-typed-array
 export const __Array_prototype_some = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
@@ -235,6 +251,7 @@ export const __Array_prototype_some = (_this: any[], callbackFn: any) => {
   return false;
 };
 
+// @porf-typed-array
 export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialValue: any) => {
   let acc: any = initialValue ?? _this[0];
 
@@ -247,6 +264,7 @@ export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialV
   return acc;
 };
 
+// @porf-typed-array
 export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, initialValue: any) => {
   const len: i32 = _this.length;
   let acc: any = initialValue ?? _this[len - 1];
@@ -259,6 +277,7 @@ export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, ini
   return acc;
 };
 
+// @porf-typed-array
 export const __Array_prototype_toString = (_this: any[]) => {
   // todo: this is bytestring only!
 
@@ -283,6 +302,7 @@ export const __Array_prototype_toString = (_this: any[]) => {
   return out;
 };
 
+// @porf-typed-array
 export const __Array_prototype_join = (_this: any[], _separator: any) => {
   // todo: this is bytestring only!
   // todo/perf: optimize single char separators

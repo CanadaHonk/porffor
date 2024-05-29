@@ -1,5 +1,8 @@
-export default () => {
+export default async () => {
   let out = '';
+
+  const arrayCode = (await import('node:fs')).readFileSync(globalThis.precompileCompilerPath + '/builtins/array.ts', 'utf8');
+  const typedArrayFuncs = [...arrayCode.matchAll(/\/\/ @porf-typed-array[\s\S]+?^};$/gm)].map(x => x[0]);
 
   const constr = name => out += `export const ${name} = () => {
   throw new TypeError("Constructor ${name} requires 'new'");
@@ -31,6 +34,8 @@ export const ${name}$constructor = (arg: any): ${name} => {
 export const __${name}_prototype_byteLength$get = (_this: ${name}) => {
   return _this.length * ${name}.BYTES_PER_ELEMENT;
 };
+
+${typedArrayFuncs.reduce((acc, x) => acc + x.replace('// @porf-typed-array\n', '').replaceAll('Array', name).replaceAll('any[]', name) + '\n\n', '')}
 `;
 
   constr('Uint8Array');
