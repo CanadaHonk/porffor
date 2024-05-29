@@ -35,6 +35,18 @@ export const __${name}_prototype_byteLength$get = (_this: ${name}) => {
   return _this.length * ${name}.BYTES_PER_ELEMENT;
 };
 
+export const __${name}_prototype_at = (_this: ${name}, index: number) => {
+  const len: i32 = _this.length;
+  index |= 0;
+  if (index < 0) {
+    index = len + index;
+    if (index < 0) return undefined;
+  }
+  if (index >= len) return undefined;
+
+  return _this[index];
+};
+
 export const __${name}_prototype_slice = (_this: ${name}, start: number, end: number) => {
   const len: i32 = _this.length;
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
