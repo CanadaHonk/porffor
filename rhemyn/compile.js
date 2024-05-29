@@ -13,16 +13,15 @@ const Tmp = 5;
 const QuantifierTmp = 6; // the temporary variable used for quanitifers
 
 const doesSucceedZero = (node) => {
-  let res = true;
-  let queue = [...node.body];
-  let n = queue.shift()
-  if (n.type === "Group") {
-    res &&= doesSucceedZero(node)
+  for (const n of node.body) {
+    if (n.type === "Group") {
+      if (!doesSucceedZero(node)) return false;
+    }
+    if (!n.quantifier || n.quantifier[0] > 0) {
+      return false;
+    }
   }
-  if (!n.quantifier || n.quantifier[0] > 0) {
-    res = false;
-  }
-  return res;
+  return true;
 }
 
 const generate = (node, negated = false, get = true, stringSize = 2, func = 'test') => {
