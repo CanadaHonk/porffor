@@ -12,21 +12,24 @@ const Length = 4;
 const Tmp = 5;
 const QuantifierTmp = 6; // the temporary variable used for quanitifers
 
+const doesSucceedZero = (node) => {
+  let res = true;
+  let queue = [...node.body];
+  let n = queue.shift()
+  if (n.type === "Group") {
+    res &&= doesSucceedZero(node)
+  }
+  if (!n.quantifier || n.quantifier[0] > 0) {
+    res = false;
+  }
+  return res;
+}
+
 const generate = (node, negated = false, get = true, stringSize = 2, func = 'test') => {
   let out = [];
   switch (node.type) {
     case 'Expression':
-      let succceedsZero = true;
-      let queue = [...node.body];
-      let n = queue.shift()
-      do {
-        if (n.type === "Group") {
-          queue.push(...node.body)
-        }
-        if (!n.quantifier || n.quantifier[0] > 0) {
-          succceedsZero = false;
-        }
-      } while (n = queue.shift());
+      let succeedsZero = doesSucceedZero(node);
 
       out = [
         // set length local
@@ -37,7 +40,7 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
         ...number(0, Valtype.i32),
         [ Opcodes.i32_eq ],
         [ Opcodes.if, Blocktype.void ],
-          ...number(succceedsZero ? 1 : 0, Valtype.i32),
+          ...number(succeedsZero ? 1 : 0, Valtype.i32),
           [ Opcodes.return ],
         [ Opcodes.end ],
 
