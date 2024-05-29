@@ -35,6 +35,38 @@ export const __${name}_prototype_byteLength$get = (_this: ${name}) => {
   return _this.length * ${name}.BYTES_PER_ELEMENT;
 };
 
+export const __${name}_prototype_slice = (_this: ${name}, start: number, end: number) => {
+  const len: i32 = _this.length;
+  if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
+
+  start |= 0;
+  end |= 0;
+
+  if (start < 0) {
+    start = len + start;
+    if (start < 0) start = 0;
+  }
+  if (start > len) start = len;
+  if (end < 0) {
+    end = len + end;
+    if (end < 0) end = 0;
+  }
+  if (end > len) end = len;
+
+  let out: ${name} = Porffor.allocate();
+
+  if (start > end) return out;
+
+  let i: i32 = start;
+  let j: i32 = 0;
+  while (i < end) {
+    out[j++] = _this[i++];
+  }
+
+  out.length = end - start;
+  return out;
+};
+
 ${typedArrayFuncs.reduce((acc, x) => acc + x.replace('// @porf-typed-array\n', '').replaceAll('Array', name).replaceAll('any[]', name) + '\n\n', '')}
 `;
 
