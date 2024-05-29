@@ -51,7 +51,7 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
           [ Opcodes.i32_add ],
           [ Opcodes.local_tee, Counter ],
 
-		  [ Opcodes.i32_gt_s ],
+          [ Opcodes.i32_gt_s ],
 
           [ Opcodes.br_if, 0 ],
         [ Opcodes.end ],
@@ -123,17 +123,17 @@ const wrapQuantifier = (node, method, get, stringSize) => {
     ...number(0, Valtype.i32),
     [Opcodes.local_set, QuantifierTmp],
 
-	// if len - counter == 0, if min == 0, succeed, else fail
-	[ Opcodes.local_get, Length ],
-	[ Opcodes.local_get, Counter ],
-	[ Opcodes.i32_sub ],
-	...number(0, Valtype.i32),
-	[ Opcodes.i32_eq ],
-	...(min == 0 ? [
-		[ Opcodes.if, Blocktype.void ],
-	] : [
-		[ Opcodes.br_if, 0 ], 
-	]),
+    // if len - counter == 0, if min == 0, succeed, else fail
+    [ Opcodes.local_get, Length ],
+    [ Opcodes.local_get, Counter ],
+    [ Opcodes.i32_sub ],
+    ...number(0, Valtype.i32),
+    [ Opcodes.i32_eq ],
+    ...(min == 0 ? [
+      [ Opcodes.if, Blocktype.void ],
+    ] : [
+      [ Opcodes.br_if, 0 ],
+    ]),
 
     // start loop
     [Opcodes.loop, Blocktype.void],
@@ -179,7 +179,7 @@ const wrapQuantifier = (node, method, get, stringSize) => {
     [Opcodes.i32_lt_s],
     ...(get ? checkFailure(): []),
 
-	...(min == 0 ? [ [ Opcodes.end ] ] : []),
+    ...(min == 0 ? [ [ Opcodes.end ] ] : []),
 
     // counter += tmp
     // [ Opcodes.local_get, QuantifierTmp ],
@@ -203,16 +203,16 @@ const generateChar = (node, negated, get, stringSize) => {
   }
 
   return [
-	// if len - counter <= 0, break
-	[ Opcodes.local_get, Length ],
-	[ Opcodes.local_get, Counter ],
-	[ Opcodes.i32_sub ],
-	...number(0, Valtype.i32),
-	[ Opcodes.i32_gt_s ],
-	...number(1, Valtype.i32),
-	[ Opcodes.i32_xor ],
-	
-	[ Opcodes.br_if, 0 ], 
+    // if len - counter <= 0, break
+    [ Opcodes.local_get, Length ],
+    [ Opcodes.local_get, Counter ],
+    [ Opcodes.i32_sub ],
+    ...number(0, Valtype.i32),
+    [ Opcodes.i32_gt_s ],
+    ...number(1, Valtype.i32),
+    [ Opcodes.i32_xor ],
+
+    [ Opcodes.br_if, 0 ],
 
     ...out,
     ...(get ? checkFailure(): []),
@@ -250,16 +250,16 @@ const generateSet = (node, negated, get, stringSize) => {
 
   return [
     // if len - counter <= 0, break
-	[ Opcodes.local_get, Length ],
-	[ Opcodes.local_get, Counter ],
-	[ Opcodes.i32_sub ],
-	...number(0, Valtype.i32),
-	[ Opcodes.i32_gt_s ],
-	...number(1, Valtype.i32),
-	[ Opcodes.i32_xor ],
-	[ Opcodes.br_if, 0 ], 
+    [ Opcodes.local_get, Length ],
+    [ Opcodes.local_get, Counter ],
+    [ Opcodes.i32_sub ],
+    ...number(0, Valtype.i32),
+    [ Opcodes.i32_gt_s ],
+    ...number(1, Valtype.i32),
+    [ Opcodes.i32_xor ],
+    [ Opcodes.br_if, 0 ],
 
-	...out,
+    ...out,
     ...checkFailure(),
   ];
 };
