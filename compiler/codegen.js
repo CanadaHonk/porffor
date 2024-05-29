@@ -1026,6 +1026,7 @@ const asmFuncToAsm = (func, scope) => {
         idx = funcIndex[n];
       }
 
+      if (idx == null) throw new Error(`builtin('${n}') failed to find a func (inside ${scope.name})`);
       return idx;
     }
   });
