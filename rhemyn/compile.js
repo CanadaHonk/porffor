@@ -208,9 +208,7 @@ const generateChar = (node, negated, get, stringSize) => {
     [ Opcodes.local_get, Counter ],
     [ Opcodes.i32_sub ],
     ...number(0, Valtype.i32),
-    [ Opcodes.i32_gt_s ],
-    ...number(1, Valtype.i32),
-    [ Opcodes.i32_xor ],
+    [ Opcodes.i32_le_s ],
 
     [ Opcodes.br_if, 0 ],
 
@@ -254,9 +252,7 @@ const generateSet = (node, negated, get, stringSize) => {
     [ Opcodes.local_get, Counter ],
     [ Opcodes.i32_sub ],
     ...number(0, Valtype.i32),
-    [ Opcodes.i32_gt_s ],
-    ...number(1, Valtype.i32),
-    [ Opcodes.i32_xor ],
+    [ Opcodes.i32_le_s ],
     [ Opcodes.br_if, 0 ],
 
     ...out,
