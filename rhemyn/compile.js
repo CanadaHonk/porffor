@@ -92,6 +92,17 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
   return out;
 };
 
+const boundsCheck = () => [
+  // if len - counter <= 0, break
+  [ Opcodes.local_get, Length ],
+  [ Opcodes.local_get, Counter ],
+  [ Opcodes.i32_sub ],
+  ...number(0, Valtype.i32),
+  [ Opcodes.i32_le_s ],
+
+  [ Opcodes.br_if, 0 ],
+]
+
 const getNextChar = (stringSize, peek = false) => [
   // get char from pointer
   [ Opcodes.local_get, Pointer ],
@@ -203,14 +214,7 @@ const generateChar = (node, negated, get, stringSize) => {
   }
 
   return [
-    // if len - counter <= 0, break
-    [ Opcodes.local_get, Length ],
-    [ Opcodes.local_get, Counter ],
-    [ Opcodes.i32_sub ],
-    ...number(0, Valtype.i32),
-    [ Opcodes.i32_le_s ],
-
-    [ Opcodes.br_if, 0 ],
+    ...boundsCheck(),
 
     ...out,
     ...(get ? checkFailure(): []),
@@ -247,14 +251,7 @@ const generateSet = (node, negated, get, stringSize) => {
   }
 
   return [
-    // if len - counter <= 0, break
-    [ Opcodes.local_get, Length ],
-    [ Opcodes.local_get, Counter ],
-    [ Opcodes.i32_sub ],
-    ...number(0, Valtype.i32),
-    [ Opcodes.i32_le_s ],
-    [ Opcodes.br_if, 0 ],
-
+    ...boundsCheck(),
     ...out,
     ...checkFailure(),
   ];
