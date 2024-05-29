@@ -2370,7 +2370,7 @@ const generateVar = (scope, decl) => {
         }
       }
 
-      return [
+      out = out.concat([
         ...generateVar(scope, {
           type: 'VariableDeclaration',
           declarations: [{
@@ -2385,7 +2385,8 @@ const generateVar = (scope, decl) => {
           declarations: decls,
           kind: decl.kind
         })
-      ]
+      ]);
+      continue;
     }
 
     if (x.id.type == 'ObjectPattern') {
