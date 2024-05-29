@@ -2322,65 +2322,73 @@ const generateVar = (scope, decl) => {
   const global = topLevel || decl._bare;
 
   for (const x of decl.declarations) {
-    if (x.id.type == "ArrayPattern") {
+    if (x.id.type === 'ArrayPattern') {
       const decls = [];
-      const tmpName = "array_" + randId();
+      const tmpName = '#destructure_' + randId();
       let i = 0;
       for (const e of x.id.elements) {
-        if (e.type == "RestElement") {
-          decls.push({
-            type: "VariableDeclarator",
-            id: { type: "Identifier", name: e.argument.name },
+        switch (e?.type) {
+          case 'RestElement':
+            decls.push({
+            type: 'VariableDeclarator',
+            id: { type: 'Identifier', name: e.argument.name },
             init: {
-              type: "CallExpression",
+              type: 'CallExpression',
               callee: {
-                type: 'Identifier',
-                name: '__Array_prototype_slice'
+              type: 'Identifier',
+              name: '__Array_prototype_slice'
               },
               arguments: [
-                { type: "Identifier", name: tmpName },
-                { type: "Literal", value: i },
+                { type: 'Identifier', name: tmpName },
+                { type: 'Literal', value: i },
                 {
-                  type: "MemberExpression",
-                  object: { type: "Identifier", name: tmpName, },
-                  property: { type: "Identifier", name: "length", }
+                  type: 'MemberExpression',
+                  object: { type: 'Identifier', name: tmpName, },
+                  property: { type: 'Identifier', name: 'length', }
                 }
               ]
             }
-          });
-          break;
+            });
+            break;
+          case 'Identifier':
+            decls.push({
+              type: 'VariableDeclarator',
+              id: e,
+              init: {
+                type: 'MemberExpression',
+                object: { type: 'Identifier', name: tmpName },
+                property: { type: 'Literal', value: i }
+              }
+            });
+            i++;
+            continue;
+          case undefined:
+            i++;
+            continue;
+          case 'ObjectPattern':
+            return todo(scope, 'object destructuring is not supported yet')
         }
-        decls.push({
-          type: "VariableDeclarator",
-          id: { type: "Identifier", name: e.name },
-          init: {
-            type: "MemberExpression",
-            object: { type: "Identifier", name: tmpName, },
-            property: { type: "Literal", value: i }
-          }
-        });
-        i++;
       }
 
       return [
         ...generateVar(scope, {
-          type: "VariableDeclaration",
+          type: 'VariableDeclaration',
           declarations: [{
-            type: "VariableDeclarator",
-            id: { type: "Identifier", name: tmpName, },
+            type: 'VariableDeclarator',
+            id: { type: 'Identifier', name: tmpName },
             init: x.init
           }],
           kind: decl.kind
         }),
         ...generateVar(scope, {
-          type: "VariableDeclaration",
+          type: 'VariableDeclaration',
           declarations: decls,
           kind: decl.kind
         })
       ]
     }
 
-    if (x.id.type == "ObjectPattern") {
+    if (x.id.type == 'ObjectPattern') {
       return todo(scope, 'object destructuring is not supported yet')
     }
 
