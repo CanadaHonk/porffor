@@ -148,27 +148,29 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Array constructor (`Array(5)`, `new Array(1, 2, 3)`)
 - Labelled statements (`foo: while (...)`)
 - `do...while` loops
+- Optional parameters (`(foo = 'bar') => { ... }`)
 
 ### Built-ins
 
 - `NaN` and `Infinity`
 - `isNaN()` and `isFinite()`
 - Most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`, `isInteger`, `isSafeInteger`)
-- Some `Math` funcs (`sqrt`, `abs`, `floor`, `sign`, `round`, `trunc`, `clz32`, `fround`, `random`)
+- Most `Math` funcs (`sqrt`, `abs`, `floor`, `sign`, `round`, `trunc`, `clz32`, `fround`, `random`, `exp`, `log`, `log2`, `log10`, `pow`, `expm1`, `log1p`, `sqrt`, `cbrt`, `hypot`, `sin`, `cos`, `tan`, `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `asin`, `acos`, `atan`, `atan2`)
 - Basic `globalThis` support
 - Basic `Boolean` and `Number`
 - Basic `eval` for literals
 - `Math.random()` using self-made xorshift128+ PRNG
 - Some of `performance` (`now()`, `timeOrigin`)
-- Some of `Array.prototype` (`at`, `push`, `pop`, `shift`, `fill`, `slice`, `indexOf`, `lastIndexOf`, `includes`, `with`, `reverse`, `toReversed`)
-- Some of `Array` (`of`, `isArray`)
-- Most of `String.prototype` (`at`, `charAt`, `charCodeAt`, `toUpperCase`, `toLowerCase`, `startsWith`, `endsWith`, `indexOf`, `lastIndexOf`, `includes`, `padStart`, `padEnd`, `substring`, `substr`, `slice`, `trimStart`, `trimEnd`, `trim`, `toString`, `big`, `blink`, `bold`, `fixed`, `italics`, `small`, `strike`, `sub`, `sup`,  `trimLeft`, `trimRight`, )
+- Most of `Array.prototype` (`at`, `push`, `pop`, `shift`, `fill`, `slice`, `indexOf`, `lastIndexOf`, `includes`, `with`, `reverse`, `toReversed`, `forEach`, `filter`, `map`, `find`, `findLast`, `findIndex`, `findLastIndex`, `every`, `some`, `reduce`, `reduceRight`, `join`, `toString`)
+- Most of `Array` (`of`, `isArray`)
+- Most of `String.prototype` (`at`, `charAt`, `charCodeAt`, `toUpperCase`, `toLowerCase`, `startsWith`, `endsWith`, `indexOf`, `lastIndexOf`, `includes`, `padStart`, `padEnd`, `substring`, `substr`, `slice`, `trimStart`, `trimEnd`, `trim`, `toString`, `big`, `blink`, `bold`, `fixed`, `italics`, `small`, `strike`, `sub`, `sup`,  `trimLeft`, `trimRight`, `trim`)
 - Some of `crypto` (`randomUUID`)
 - `escape`
 - `btoa`
 - Most of `Number.prototype` (`toString`, `toFixed`, `toExponential`)
 - `parseInt`
 - Spec-compliant `Date`
+- WIP typed arrays (`Uint8Array`, `Int32Array`, etc)
 
 ### Custom
 
