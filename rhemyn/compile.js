@@ -16,11 +16,30 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
   let out = [];
   switch (node.type) {
     case 'Expression':
+      let succceedsZero = true;
+      let queue = [...node.body];
+      let n = queue.shift()
+      do {
+        if (n.type == "group") {
+          queue.push(...node.body)
+        }
+        if (!n.quantifier || n.quantifier[0] > 0) {
+          succceedsZero = false;
+        }
+      } while (n = queue.shift());
+
       out = [
         // set length local
         [ Opcodes.local_get, BasePointer ],
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-        [ Opcodes.local_set, Length ],
+        [ Opcodes.local_tee, Length ],
+
+        ...number(0, Valtype.i32),
+        [ Opcodes.i32_eq ],
+        [ Opcodes.if, Blocktype.void ],
+          ...number(succceedsZero ? 1 : 0, Valtype.i32),
+          [ Opcodes.return ],
+        [ Opcodes.end ],
 
         // pointer = base + sizeof i32
         [ Opcodes.local_get, BasePointer ],
@@ -91,17 +110,6 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
 
   return out;
 };
-
-const boundsCheck = () => [
-  // if len - counter <= 0, break
-  [ Opcodes.local_get, Length ],
-  [ Opcodes.local_get, Counter ],
-  [ Opcodes.i32_sub ],
-  ...number(0, Valtype.i32),
-  [ Opcodes.i32_le_s ],
-
-  [ Opcodes.br_if, 0 ],
-]
 
 const getNextChar = (stringSize, peek = false) => [
   // get char from pointer
@@ -207,8 +215,6 @@ const generateChar = (node, negated, get, stringSize) => {
   }
 
   return [
-    ...boundsCheck(),
-
     ...out,
     ...(get ? checkFailure(): []),
   ];
@@ -244,7 +250,6 @@ const generateSet = (node, negated, get, stringSize) => {
   }
 
   return [
-    ...boundsCheck(),
     ...out,
     ...checkFailure(),
   ];
