@@ -191,13 +191,6 @@ const wrapQuantifier = (node, method, get, stringSize) => {
     ...(get ? checkFailure(): []),
 
     ...(min == 0 ? [ [ Opcodes.end ] ] : []),
-
-    // counter += tmp
-    // [ Opcodes.local_get, QuantifierTmp ],
-    // [ Opcodes.local_get, Counter ],
-    // [ Opcodes.i32_add ],
-    // [ Opcodes.local_set, Counter ],
-
   ];
 }
 
