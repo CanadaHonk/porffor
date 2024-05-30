@@ -105,7 +105,6 @@ if (isMainThread) {
   const allTests = whatTests === 'test' && threads > 1;
   if (!resultOnly && !allTests) console.log();
 
-  const waits = [];
   const testsPerWorker = Math.ceil(tests.length / threads);
   let lastPercent = -1;
 
