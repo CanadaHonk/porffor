@@ -2102,6 +2102,11 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     })
   }
 
+  if (func && args.length > paramCount) {
+    // too many args, slice extras off
+    args = args.slice(0, paramCount);
+  }
+
   if (func && func.throws) scope.throws = true;
 
   for (let i = 0; i < args.length; i++) {
