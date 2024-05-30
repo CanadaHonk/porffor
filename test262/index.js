@@ -411,6 +411,11 @@ if (isMainThread) {
         else exports.main();
       // timeout(exports.m, 500);
     } catch (e) {
+      if (e.name === 'Test262Error' && debugAsserts && log) {
+        const [ msg, expected, actual ] = log.split('\n');
+        e.message += `: ${msg} | expected: ${expected} | actual: ${actual}`;
+      }
+
       return [ 1, e ];
     }
 
