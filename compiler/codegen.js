@@ -2405,33 +2405,43 @@ const generateVar = (scope, decl) => {
   for (const x of decl.declarations) {
     if (x.id.type === 'ArrayPattern') {
       const decls = [];
-      const tmpName = '#destructure_' + randId();
+      const tmpName = '#destructure' + randId();
+
       let i = 0;
-      for (const e of x.id.elements) {
+      const elements = [...x.id.elements];
+      for (const e of elements) {
         switch (e?.type) {
-          case 'RestElement':
-            decls.push({
-              type: 'VariableDeclarator',
-              id: { type: 'Identifier', name: e.argument.name },
-              init: {
-                type: 'CallExpression',
-                callee: {
-                type: 'Identifier',
-                name: '__Array_prototype_slice'
-                },
-                arguments: [
-                  { type: 'Identifier', name: tmpName },
-                  { type: 'Literal', value: i },
-                  {
-                    type: 'MemberExpression',
-                    object: { type: 'Identifier', name: tmpName, },
-                    property: { type: 'Identifier', name: 'length', }
-                  }
-                ]
-              }
-            });
-            break;
-          case 'Identifier':
+          case 'RestElement': { // let [ ...foo ] = []
+            if (e.argument.type === 'ArrayPattern') {
+              // let [ ...[a, b, c] ] = []
+              elements.push(...e.argument.elements);
+            } else {
+              decls.push({
+                type: 'VariableDeclarator',
+                id: { type: 'Identifier', name: e.argument.name },
+                init: {
+                  type: 'CallExpression',
+                  callee: {
+                    type: 'Identifier',
+                    name: '__Array_prototype_slice'
+                  },
+                  arguments: [
+                    { type: 'Identifier', name: tmpName },
+                    { type: 'Literal', value: i },
+                    {
+                      type: 'MemberExpression',
+                      object: { type: 'Identifier', name: tmpName, },
+                      property: { type: 'Identifier', name: 'length', }
+                    }
+                  ]
+                }
+              });
+            }
+
+            continue; // skip i++
+          }
+
+          case 'Identifier': { // let [ foo ] = []
             decls.push({
               type: 'VariableDeclarator',
               id: e,
@@ -2441,18 +2451,17 @@ const generateVar = (scope, decl) => {
                 property: { type: 'Literal', value: i }
               }
             });
-            i++;
-            continue;
-          case undefined:
-            i++;
-            continue;
-          case 'AssignmentPattern':
+
+            break;
+          }
+
+          case 'AssignmentPattern': { // let [ foo = defaultValue ] = []
             decls.push({
               type: 'VariableDeclarator',
               id: e.left,
               init: {
-                type: "LogicalExpression",
-                operator: "??",
+                type: 'LogicalExpression',
+                operator: '??',
                 left: {
                   type: 'MemberExpression',
                   object: { type: 'Identifier', name: tmpName },
@@ -2461,9 +2470,11 @@ const generateVar = (scope, decl) => {
                 right: e.right
               }
             });
-            i++;
-            continue;
-          case 'ArrayPattern':
+
+            break;
+          }
+
+          case 'ArrayPattern': { // let [ [ foo, bar ] ] = []
             decls.push({
               type: 'VariableDeclarator',
               id: e,
@@ -2473,11 +2484,15 @@ const generateVar = (scope, decl) => {
                 property: { type: 'Literal', value: i }
               }
             });
-            i++;
-            continue;
+
+            break;
+          }
+
           case 'ObjectPattern':
             return todo(scope, 'object destructuring is not supported yet')
         }
+
+        i++;
       }
 
       out = out.concat([
@@ -2496,14 +2511,12 @@ const generateVar = (scope, decl) => {
           kind: decl.kind
         })
       ]);
+
       continue;
     }
 
-    if (x.id.type == 'ObjectPattern') {
-      return todo(scope, 'object destructuring is not supported yet')
-    }
-
     const name = mapName(x.id.name);
+    if (!name) return todo(scope, 'object destructuring is not supported yet')
 
     if (x.init && isFuncType(x.init.type)) {
       // hack for let a = function () { ... }
@@ -2538,7 +2551,9 @@ const generateVar = (scope, decl) => {
         // hack to set local as pointer before
         out.push(...number(scope.arrays.get(name)), [ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
         if (generated.at(-1) == Opcodes.i32_from_u) generated.pop();
-        generated.pop();
+        // generated.pop();
+        generated.push([ Opcodes.drop ]);
+
         out = out.concat(generated);
       } else {
         out = out.concat(generated);
