@@ -2086,12 +2086,20 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   let args = decl.arguments;
   if (func && args.length < paramCount) {
     // too little args, push undefineds
-    args = args.concat(new Array(paramCount - args.length).fill(DEFAULT_VALUE));
+    if (func.hasRestArgument) {
+      args = args.concat(new Array(paramCount - 1 - args.length).fill(DEFAULT_VALUE));
+    } else {
+      args = args.concat(new Array(paramCount - args.length).fill(DEFAULT_VALUE));
+    }
   }
 
-  if (func && args.length > paramCount) {
-    // too many args, slice extras off
-    args = args.slice(0, paramCount);
+  if (func && func.hasRestArgument) {
+    const restArgs = args.slice(paramCount - 1);
+    args = args.slice(0, paramCount - 1);
+    args.push({
+      type: 'ArrayExpression',
+      elements: restArgs
+    })
   }
 
   if (func && func.throws) scope.throws = true;
@@ -4345,7 +4353,8 @@ const generateFunc = (scope, decl) => {
     returns: [ valtypeBinary, Valtype.i32 ],
     throws: false,
     name,
-    index: currentFuncIndex++
+    index: currentFuncIndex++,
+    hasRestArgument: false
   };
 
   funcIndex[name] = func.index;
@@ -4374,6 +4383,11 @@ const generateFunc = (scope, decl) => {
         name = x.left.name;
         defaultValues[name] = x.right;
         break;
+      }
+
+      case 'RestElement': {
+        name = x.argument.name;
+        func.hasRestArgument = true;
       }
     }
 
