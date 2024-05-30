@@ -2330,24 +2330,24 @@ const generateVar = (scope, decl) => {
         switch (e?.type) {
           case 'RestElement':
             decls.push({
-            type: 'VariableDeclarator',
-            id: { type: 'Identifier', name: e.argument.name },
-            init: {
-              type: 'CallExpression',
-              callee: {
-              type: 'Identifier',
-              name: '__Array_prototype_slice'
-              },
-              arguments: [
-                { type: 'Identifier', name: tmpName },
-                { type: 'Literal', value: i },
-                {
-                  type: 'MemberExpression',
-                  object: { type: 'Identifier', name: tmpName, },
-                  property: { type: 'Identifier', name: 'length', }
-                }
-              ]
-            }
+              type: 'VariableDeclarator',
+              id: { type: 'Identifier', name: e.argument.name },
+              init: {
+                type: 'CallExpression',
+                callee: {
+                type: 'Identifier',
+                name: '__Array_prototype_slice'
+                },
+                arguments: [
+                  { type: 'Identifier', name: tmpName },
+                  { type: 'Literal', value: i },
+                  {
+                    type: 'MemberExpression',
+                    object: { type: 'Identifier', name: tmpName, },
+                    property: { type: 'Identifier', name: 'length', }
+                  }
+                ]
+              }
             });
             break;
           case 'Identifier':
