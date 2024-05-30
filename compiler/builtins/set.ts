@@ -8,6 +8,7 @@ memory.grow 0
 i32.const 65536
 i32.mul
 i32.from_u
+i32.const 0
 return`;
 };
 
@@ -163,11 +164,9 @@ export const __Set_prototype_clear = (_this: Set) => {
   Porffor.wasm.i32.store(_this, 0, 0, 0);
 };
 
-export const Set = () => {
-  throw new TypeError("Constructor Set requires 'new'");
-};
+export const Set = function (iterable: any): any {
+  if (!new.target) throw new TypeError("Constructor Set requires 'new'");
 
-export const Set$constructor = (iterable: any): Set => {
   const out: Set = __Porffor_allocate();
 
   if (Porffor.rawType(iterable) != Porffor.TYPES.undefined) for (const x of iterable) {
@@ -182,7 +181,7 @@ export const __Set_prototype_union = (_this: Set, other: any) => {
     throw new TypeError("Set.prototype.union\'s \'other\' argument must be a Set");
   }
 
-  const out: Set = Set$constructor(_this);
+  const out: Set = new Set(_this);
   for (const x of other) {
     out.add(x);
   }

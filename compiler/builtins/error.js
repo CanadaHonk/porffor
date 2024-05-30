@@ -1,11 +1,8 @@
 export default () => {
   let out = '';
 
-  const error = name => out += `export const ${name} = (message: bytestring) => {
-  return {};
-};
-
-export const ${name}$constructor = (message: bytestring) => {
+  const error = name => out += `export const ${name} = function (message: bytestring) {
+  new.target;
   return {};
 };`;
 

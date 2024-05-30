@@ -1,4 +1,5 @@
 // general widely used ecma262/spec functions
+import type {} from './porffor.d.ts';
 
 // 7.1.5 ToIntegerOrInfinity (argument)
 // https://tc39.es/ecma262/#sec-tointegerorinfinity

@@ -161,7 +161,6 @@ export const BuiltinVars = function() {
     [ Opcodes.call, importedFuncs.timeOrigin ]
   ];
 
-
   this.__Uint8Array_BYTES_PER_ELEMENT = number(1);
   this.__Int8Array_BYTES_PER_ELEMENT = number(1);
   this.__Uint8ClampedArray_BYTES_PER_ELEMENT = number(1);
@@ -205,7 +204,8 @@ export const BuiltinFuncs = function() {
       ...number(TYPES.number, Valtype.i32),
       [ Opcodes.local_get, 1 ],
       ...number(TYPES.number, Valtype.i32),
-      [ Opcodes.call, builtin('__Math_pow') ]
+      [ Opcodes.call, builtin('__Math_pow') ],
+      [ Opcodes.drop ],
     ]
   };
 

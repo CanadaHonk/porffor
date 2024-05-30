@@ -17,7 +17,8 @@ export const __Porffor_symbol_descStore = (op: boolean, value: any): any => {
 
 export const Symbol = (description: any): Symbol => {
   // 1-based so always truthy as numeric value
-  return __Porffor_symbol_descStore(true, description) + 1;
+  const ptr: Symbol = __Porffor_symbol_descStore(true, description) + 1;
+  return ptr;
 };
 
 export const __Symbol_prototype_description$get = (_this: Symbol) => {

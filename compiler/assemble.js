@@ -82,7 +82,17 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
             params.push(valtypeBinary, Valtype.i32);
           }
 
-          const returns = [ valtypeBinary, Valtype.i32 ];
+          if (inst.at(-1) === 'constr') {
+            inst.pop();
+            params.unshift(Valtype.i32);
+          }
+
+          let returns = [ valtypeBinary, Valtype.i32 ];
+          if (inst.at(-1) === 'no_type_return') {
+            inst.pop();
+            returns = [ valtypeBinary ];
+          }
+
           inst[1] = getType(params, returns);
         }
       }
@@ -116,16 +126,21 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     ] ])
   );
 
-  if (pages.has('func argc lut') && !data.addedFuncArgcLut) {
-    // generate func argc lut data
+  if (pages.has('func lut') && !data.addedFuncArgcLut) {
+    // generate func lut data
     const bytes = [];
     for (let i = 0; i < funcs.length; i++) {
       const argc = Math.floor(funcs[i].params.length / 2);
       bytes.push(argc % 256, (argc / 256 | 0) % 256);
+
+      let flags = 0b00000000; // 8 flag bits
+      if (funcs[i].returnType != null) flags |= 0b1;
+      if (funcs[i].constr) flags |= 0b10;
+      bytes.push(flags);
     }
 
     data.push({
-      offset: pages.get('func argc lut').ind * pageSize,
+      offset: pages.get('func lut').ind * pageSize,
       bytes
     });
     data.addedFuncArgcLut = true;

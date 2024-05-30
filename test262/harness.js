@@ -100,7 +100,6 @@ function isConstructor(f) {
   }
 
   try {
-    // todo: we do not support indirect new calls yet, so this will always fail lol
     new f();
   } catch {
     return false;

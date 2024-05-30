@@ -119,7 +119,7 @@ ${funcs.map(x => {
     locals: ${JSON.stringify(Object.values(x.locals).slice(x.params.length).map(x => x.type))},
     localNames: ${JSON.stringify(Object.keys(x.locals))},
 ${x.data && x.data.length > 0 ? `    data: ${JSON.stringify(x.data)},` : ''}
-${x.table ? `    table: true` : ''}
+${x.table ? `    table: true,` : ''}${x.constr ? `    constr: true,` : ''}
   };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');
 }).join('\n')}
 };`;

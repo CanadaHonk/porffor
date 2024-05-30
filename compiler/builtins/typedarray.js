@@ -4,11 +4,9 @@ export default async () => {
   const arrayCode = (await import('node:fs')).readFileSync(globalThis.precompileCompilerPath + '/builtins/array.ts', 'utf8');
   const typedArrayFuncs = [...arrayCode.matchAll(/\/\/ @porf-typed-array[\s\S]+?^};$/gm)].map(x => x[0]);
 
-  const constr = name => out += `export const ${name} = () => {
-  throw new TypeError("Constructor ${name} requires 'new'");
-};
+  const constr = name => out += `export const ${name} = function (arg: any): ${name} {
+  if (!new.target) throw new TypeError("Constructor ${name} requires 'new'");
 
-export const ${name}$constructor = (arg: any): ${name} => {
   const out: ${name} = Porffor.allocate();
   let len: i32 = 0;
 
