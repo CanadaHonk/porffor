@@ -2507,8 +2507,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   // arr[i]
   if (decl.left.type === 'MemberExpression' && decl.left.computed) {
-    const newValueTmp = localTmp(scope, '__member_setter_val_tmp');
-    const pointerTmp = op === '=' ? -1 : localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
+    const newValueTmp = localTmp(scope, '#member_setter_val_tmp');
+    const pointerTmp = localTmp(scope, '#member_setter_ptr_tmp', Valtype.i32);
 
     return [
       ...typeSwitch(scope, getNodeType(scope, decl.left.object), {
@@ -2520,11 +2520,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ...generate(scope, decl.left.property),
           Opcodes.i32_to_u,
 
-          // turn into byte offset by * valtypeSize (4 for i32, 8 for i64/f64)
+          // turn into byte offset by * valtypeSize + 1
           ...number(ValtypeSize[valtype] + 1, Valtype.i32),
           [ Opcodes.i32_mul ],
           [ Opcodes.i32_add ],
-          ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+          [ Opcodes.local_tee, pointerTmp ],
 
           ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
             [ Opcodes.local_get, pointerTmp ],
@@ -2534,7 +2534,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
           ], getNodeType(scope, decl.right), false, name, true)),
           [ Opcodes.local_tee, newValueTmp ],
-          [ Opcodes.store, 0, ValtypeSize.i32 ]
+          [ Opcodes.store, 0, ValtypeSize.i32 ],
+
+          [ Opcodes.local_get, pointerTmp ],
+          ...getNodeType(scope, decl),
+          [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
         ],
 
         ...wrapBC({
