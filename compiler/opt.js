@@ -203,6 +203,9 @@ export default (funcs, globals, pages, tags, exceptions) => {
           if (type === 'Array') missing = !pages.hasArray;
           if (type === 'String') missing = !pages.hasString;
           if (type === 'ByteString') missing = !pages.hasByteString;
+          if (['Set', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array'].includes(type)) {
+            missing = funcs.find(x => x.name === type) == null;
+          }
 
           if (missing) {
             let j = i, depth = 0;
