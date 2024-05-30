@@ -2084,16 +2084,15 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
 
   let args = decl.arguments;
-  if (func && args.length < paramCount) {
+  if (func && !func.hasRestArgument && args.length < paramCount) {
     // too little args, push undefineds
-    if (func.hasRestArgument) {
-      args = args.concat(new Array(paramCount - 1 - args.length).fill(DEFAULT_VALUE));
-    } else {
-      args = args.concat(new Array(paramCount - args.length).fill(DEFAULT_VALUE));
-    }
+    args = args.concat(new Array(paramCount - args.length).fill(DEFAULT_VALUE));
   }
 
   if (func && func.hasRestArgument) {
+    if (args.length < paramCount) {
+      args = args.concat(new Array(paramCount - 1 - args.length).fill(DEFAULT_VALUE));
+    } 
     const restArgs = args.slice(paramCount - 1);
     args = args.slice(0, paramCount - 1);
     args.push({
