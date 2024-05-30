@@ -2368,7 +2368,7 @@ const generateVar = (scope, decl) => {
           case 'AssignmentPattern':
             decls.push({
               type: 'VariableDeclarator',
-              id: { type: 'Identifier', name: e.left.name },
+              id: e.left,
               init: {
                 type: "LogicalExpression",
                 operator: "??",
