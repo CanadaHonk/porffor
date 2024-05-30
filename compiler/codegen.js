@@ -4399,10 +4399,11 @@ const generateFunc = (scope, decl) => {
         defaultValues[name] = x.right;
         break;
       }
-
+      
       case 'RestElement': {
         name = x.argument.name;
         func.hasRestArgument = true;
+        break;
       }
     }
 
