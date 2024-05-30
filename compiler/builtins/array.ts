@@ -47,6 +47,34 @@ export const __Array_prototype_slice = (_this: any[], start: number, end: number
 };
 
 // @porf-typed-array
+export const __Array_prototype_fill = (_this: any[], value: any, start: any, end: any) => {
+  const len: i32 = _this.length;
+
+  if (Porffor.rawType(start) == Porffor.TYPES.undefined) start = 0;
+  if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
+
+  start |= 0;
+  end |= 0;
+
+  if (start < 0) {
+    start = len + start;
+    if (start < 0) start = 0;
+  }
+  if (start > len) start = len;
+  if (end < 0) {
+    end = len + end;
+    if (end < 0) end = 0;
+  }
+  if (end > len) end = len;
+
+  for (let i: i32 = start; i < end; i++) {
+    _this[i] = value;
+  }
+
+  return _this;
+};
+
+// @porf-typed-array
 export const __Array_prototype_indexOf = (_this: any[], searchElement: any, position: number) => {
   const len: i32 = _this.length;
   if (position > 0) {

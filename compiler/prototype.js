@@ -208,72 +208,6 @@ export const PrototypeFuncs = function() {
       //   ...number(1, Valtype.i32),
       //   [ Opcodes.i32_sub ]
       // ]),
-    ],
-
-    fill: (pointer, length, wElement, wType, iTmp, iTmp2) => [
-      ...wElement,
-      [ Opcodes.local_set, iTmp ],
-
-      // use cached length i32 as pointer
-      ...length.getCachedI32(),
-
-      // length - 1 for indexes
-      ...number(1, Valtype.i32),
-      [ Opcodes.i32_sub ],
-
-      // * sizeof value
-      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
-      [ Opcodes.i32_mul ],
-
-      ...length.setCachedI32(),
-
-      ...(noUnlikelyChecks ? [] : [
-        ...length.getCachedI32(),
-        ...number(0, Valtype.i32),
-        [ Opcodes.i32_lt_s ],
-        [ Opcodes.if, Blocktype.void ],
-        ...pointer,
-        Opcodes.i32_from_u,
-        [ Opcodes.br, 1 ],
-        [ Opcodes.end ]
-      ]),
-
-      [ Opcodes.loop, Blocktype.void ],
-
-      // calculate offset
-      ...length.getCachedI32(),
-      ...pointer,
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_set, iTmp2 ],
-
-      // store value
-      [ Opcodes.local_get, iTmp2 ],
-      [ Opcodes.local_get, iTmp ],
-      [ Opcodes.store, 0, ValtypeSize.i32 ],
-
-      // store type
-      [ Opcodes.local_get, iTmp2 ],
-      ...wType,
-      [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
-
-      // pointer - sizeof value
-      ...length.getCachedI32(),
-      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
-      [ Opcodes.i32_sub ],
-
-      ...length.setCachedI32(),
-
-      // if pointer >= 0, loop
-      ...length.getCachedI32(),
-      ...number(0, Valtype.i32),
-      [ Opcodes.i32_ge_s ],
-      [ Opcodes.br_if, 0 ],
-
-      [ Opcodes.end ],
-
-      // return this array
-      ...pointer,
-      Opcodes.i32_from_u,
     ]
   };
 
@@ -282,9 +216,6 @@ export const PrototypeFuncs = function() {
   this[TYPES.array].push.noArgRetLength = true;
   this[TYPES.array].push.local = Valtype.i32;
   this[TYPES.array].pop.local = Valtype.i32;
-  this[TYPES.array].fill.local = valtypeBinary;
-  this[TYPES.array].fill.local2 = Valtype.i32;
-  this[TYPES.array].fill.returnType = TYPES.array;
 
   this[TYPES.string] = {
     at: (pointer, length, wIndex, wType, iTmp, _, arrayShell) => {
