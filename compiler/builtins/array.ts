@@ -306,6 +306,51 @@ export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, ini
 };
 
 // @porf-typed-array
+export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
+  // todo: default callbackFn
+
+  // insertion sort, i guess
+  const len: i32 = _this.length;
+  for (let i: i32 = 0; i < len; i++) {
+    const x: any = _this[i];
+    let j: i32 = i;
+    while (j > 0) {
+      const y: any = _this[j - 1];
+
+      // 23.1.3.30.2 CompareArrayElements (x, y, comparefn)
+      // https://tc39.es/ecma262/#sec-comparearrayelements
+      const xt: i32 = Porffor.rawType(x);
+      const yt: i32 = Porffor.rawType(y);
+      let v: number;
+
+      // 1. If x and y are both undefined, return +0𝔽.
+      if (xt == Porffor.TYPES.undefined && yt == Porffor.TYPES.undefined) v = 0;
+        // 2. If x is undefined, return 1𝔽.
+        else if (xt == Porffor.TYPES.undefined) v = 1;
+        // 3. If y is undefined, return -1𝔽.
+        else if (yt == Porffor.TYPES.undefined) v = -1;
+        else {
+          // 4. If comparefn is not undefined, then
+          // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
+          v = callbackFn(x, y);
+
+          // b. If v is NaN, return +0𝔽.
+          // if (Number.isNaN(v)) v = 0;
+
+          // c. Return v.
+        }
+
+      if (v >= 0) break;
+      _this[j--] = y;
+    }
+
+    _this[j] = x;
+  }
+
+  return _this;
+};
+
+// @porf-typed-array
 export const __Array_prototype_toString = (_this: any[]) => {
   // todo: this is bytestring only!
 
