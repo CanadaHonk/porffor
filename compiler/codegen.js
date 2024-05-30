@@ -2083,7 +2083,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   } else if (decl._new)
     return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
 
-  let args = decl.arguments;
+  let args = [...decl.arguments];
   if (func && !func.hasRestArgument && args.length < paramCount) {
     // too little args, push undefineds
     args = args.concat(new Array(paramCount - args.length).fill(DEFAULT_VALUE));
