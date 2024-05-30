@@ -4368,8 +4368,7 @@ const generateFunc = (scope, decl) => {
     returns: [ valtypeBinary, Valtype.i32 ],
     throws: false,
     name,
-    index: currentFuncIndex++,
-    hasRestArgument: false
+    index: currentFuncIndex++
   };
 
   funcIndex[name] = func.index;
