@@ -175,7 +175,6 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 ### Custom
 
 - Supports i32, i64, and f64 for valtypes
-- Start of a SIMD api (docs needed)
 - Intrinsic functions (see below)
 - Inlining wasm via ``asm`...``\` "macro"
 
