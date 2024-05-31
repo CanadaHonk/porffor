@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+globalThis.version = '0.17.3+3d806f394';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -22,7 +23,7 @@ if (process.argv.includes('--compile-hints')) {
 
 if (process.argv.includes('--help')) {
   // description + version
-  console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript engine/runtime/compiler. \x1B[90m(${(await import('./version.js')).default})\x1B[0m`);
+  console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript engine/runtime/compiler. \x1B[90m(${globalThis.version})\x1B[0m`);
 
   // basic usage
   console.log(`Usage: \x1B[1mporf [command] path/to/script.js [...prefs] [...args]\x1B[0m`);
@@ -102,7 +103,7 @@ globalThis.file = file;
 if (!file) {
   if (process.argv.includes('-v') || process.argv.includes('--version')) {
     // just print version
-    console.log((await import('./version.js')).default);
+    console.log(globalThis.version);
     process.exit(0);
   }
 

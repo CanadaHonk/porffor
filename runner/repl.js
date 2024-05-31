@@ -1,6 +1,5 @@
 import { TYPE_NAMES } from '../compiler/types.js';
 import compile from '../compiler/wrap.js';
-import version from './version.js';
 
 import util from 'node:util';
 
@@ -32,7 +31,7 @@ if (host.startsWith('Node')) host = '\x1B[92m' + host;
 if (host.startsWith('Deno')) host = '\x1B[97m' + host;
 if (host.startsWith('Bun')) host = '\x1B[93m' + host;
 
-console.log(`Welcome to \x1B[1m\x1B[35mPorffor\x1B[0m \x1B[90m(${version})\x1B[0m running on \x1B[1m${host.replace('/', ' \x1B[0m\x1B[90m(')})\x1B[0m`);
+console.log(`Welcome to \x1B[1m\x1B[35mPorffor\x1B[0m \x1B[90m(${globalThis.version})\x1B[0m running on \x1B[1m${host.replace('/', ' \x1B[0m\x1B[90m(')})\x1B[0m`);
 console.log(`\x1B[90musing opt ${process.argv.find(x => x.startsWith('-O')) ?? '-O1'}, parser ${parser}, valtype ${valtype}\x1B[0m`);
 console.log();
 
