@@ -16,6 +16,8 @@ fs.writeFileSync('package.json', packageJson.replace(`"${packageVersion}"`, `"${
 fs.writeFileSync('runner/index.js', fs.readFileSync('runner/index.js', 'utf8')
   .replace(/globalThis\.version = '.*?';/, `globalThis.version = '${version}';`));
 
+execSync(`git add package.json runner/index.js`, { stdio: 'inherit' });
+
 // execSync(`git commit -m "version: ${version}"`, { stdio: 'inherit' });
 execSync(`git commit --amend -C HEAD --no-verify`, { stdio: 'inherit' });
 
