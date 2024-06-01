@@ -200,11 +200,11 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         },
 
         __Porffor_bs: str => [
-          ...makeString(scope, str, global, name, true),
+          ...makeStringBuffer(scope, str, global, name, true),
           ...(name ? setType(scope, name, TYPES.bytestring) : setLastType(scope, TYPES.bytestring))
         ],
         __Porffor_s: str => [
-          ...makeString(scope, str, global, name, false),
+          ...makeStringBuffer(scope, str, global, name, false),
           ...(name ? setType(scope, name, TYPES.string) : setLastType(scope, TYPES.string))
         ],
       };
@@ -3812,10 +3812,6 @@ const printStaticStr = str => {
 const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype, intOut = false, typed = false) => {
   if (itemType !== 'i16' && itemType !== 'i8') {
     pages.hasArray = true;
-  } else {
-    pages.hasAnyString = true;
-    if (itemType === 'i8') pages.hasByteString = true;
-      else pages.hasString = true;
   }
 
   const out = [];
@@ -3999,7 +3995,7 @@ const byteStringable = str => {
   return true;
 };
 
-const makeString = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
+const makeStringBuffer = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
   const rawElements = new Array(str.length);
   let byteStringable = Prefs.bytestring;
   for (let i = 0; i < str.length; i++) {
@@ -4014,6 +4010,140 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
   return makeArray(scope, {
     rawElements
   }, global, name, false, byteStringable ? 'i8' : 'i16')[0];
+}
+
+const makeString = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
+  const [ptr, initialized] = allocator.allocString(pages, str);
+  const isBytestring = byteStringable(str);
+  const type = isBytestring ? TYPES.bytestring : TYPES.string;
+  if (initialized) return [
+    ...ptr, 
+    Opcodes.i32_from_u, 
+    ...(name ? setType(scope, name, type) : setLastType(scope, type))
+  ];
+  const out = [];
+  let pointer = [ ptr ];
+
+  if (allocator.constructor.name !== 'StaticAllocator') {
+    const tmp = localTmp(scope, '#makearray_pointer' + name, Valtype.i32);
+    out.push(
+      ...allocated,
+      [ Opcodes.local_set, tmp ]
+    );
+
+    if (Prefs.runtimeAllocLog) out.push(
+      ...printStaticStr(`${name}: `),
+
+      [ Opcodes.local_get, tmp ],
+      Opcodes.i32_from_u,
+      [ Opcodes.call, 0 ],
+
+      ...number(10),
+      [ Opcodes.call, 1 ]
+    );
+
+    pointer = [ [ Opcodes.local_get, tmp ] ];
+  } else {
+    const uniqueName = name === '$undeclared' ? name + randId() : name;
+    const rawPtr = read_signedLEB128(pointer[0].slice(1));
+
+    scope.strings ??= new Map();
+    const firstAssign = !scope.strings.has(uniqueName);
+    if (firstAssign) scope.strings.set(uniqueName, rawPtr);
+
+    const local = global ? globals[name] : scope.locals[name];
+    const pointerTmp = local != null ? localTmp(scope, '#makearray_pointer_tmp', Valtype.i32) : null;
+    if (pointerTmp != null) {
+      out.push(
+        [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+        Opcodes.i32_to_u,
+        [ Opcodes.local_set, pointerTmp ]
+      );
+
+      pointer = [ [ Opcodes.local_get, pointerTmp ] ];
+    }
+  }
+
+
+  // store length
+  out.push(
+    ...ptr,
+    ...number(str.length, Valtype.i32),
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
+  );
+  if (isBytestring) {
+    for (let i = 0; i < str.length; i += 4) {
+      const c0 = str.charCodeAt(i + 0);
+      const c1 = str.charCodeAt(i + 1);
+      const c2 = str.charCodeAt(i + 2);
+      const c3 = str.charCodeAt(i + 3);
+      if (!Number.isNaN(c3)) {
+        let code = (c3 << 24) + (c2 << 16) + (c1 << 8) + c0;
+        out.push(
+          ...ptr,
+          ...number(code, Valtype.i32),
+          [ Opcodes.i32_store, 0, 4 + i ]
+        )
+        continue;
+      }
+      if (!Number.isNaN(c2)) {
+        let code = (c1 << 8) + c0;
+        out.push(
+          ...ptr,
+          ...number(code, Valtype.i32),
+          [ Opcodes.i32_store16, 0, 4 + i ],
+          ...ptr,
+          ...number(c2, Valtype.i32),
+          [ Opcodes.i32_store8, 0, 4 + i + 2 ],
+        )
+        continue;
+      }
+      if (!Number.isNaN(c1)) {
+        let code = (c1 << 8) + c0;
+        out.push(
+          ...ptr,
+          ...number(code, Valtype.i32),
+          [ Opcodes.i32_store16, 0, 4 + i ],
+        )
+        continue;
+      }
+      if (!Number.isNaN(c0)) {
+        out.push(
+          ...ptr,
+          ...number(c0, Valtype.i32),
+          [ Opcodes.i32_store8, 0, 4 + i ],
+        )
+        continue;
+      }
+    }
+  } else {
+    for (let i = 0; i < str.length; i += 2) {
+      const c0 = str.charCodeAt(i + 0);
+      const c1 = str.charCodeAt(i + 1);
+      if (Number.isNaN(c1)) {
+        let code = (c0 << 16);
+        out.push(
+          ...ptr,
+          ...number(code, Valtype.i32),
+          [ Opcodes.i32_store16, 0, i ],
+        );
+        continue;
+      }
+      let code = (c0 << 16) + c1;
+      out.push(
+        ...ptr,
+        ...number(code, Valtype.i32),
+        [ Opcodes.i32_store, 0, i ],
+      );
+    }
+  }
+          
+  out.push(
+    ...ptr,
+    Opcodes.i32_from_u
+  );
+
+  return out;
 };
 
 const generateArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false) => {
@@ -4102,7 +4232,7 @@ const generateMember = (scope, decl, _global, _name) => {
     }
 
     return [
-      ...getNodeType(scope, decl.object),
+      ...type,
       ...number(TYPE_FLAGS.length, Valtype.i32),
       [ Opcodes.i32_and ],
       [ Opcodes.if, valtypeBinary ],

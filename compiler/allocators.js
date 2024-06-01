@@ -36,6 +36,7 @@ export class StaticAllocator {
 
   alloc({ scope, pages }, name, { itemType }) {
     const reason = `${this.allocType(itemType)}: ${Prefs.scopedPageNames ? (scope.name + '/') : ''}${name}`;
+    if (Prefs.allocLog) console.log(reason)
 
     if (pages.has(reason)) return number(this.ptr(pages.get(reason).ind), Valtype.i32);
 
@@ -51,6 +52,40 @@ export class StaticAllocator {
     scope.pages.set(reason, { ind, type: itemType });
 
     return number(this.ptr(ind), Valtype.i32);
+  }
+
+  allocString(pages, str) {
+    if (Prefs.allocLog) console.log("const string: "+ str)
+    // TODO: this does not work if byteSize > a page
+    let page = { ind: -1, strs: [], strIndex: new Map(), byteSize: 0 }
+    if (pages.has("strings")) {
+      page = pages.get("strings");
+      const index = page.strIndex.get(str);
+      if (index) {
+        return [number(page.strs[index].ptr, Valtype.i32), true];
+      }
+    } else {
+      const ind = pages.size;
+      page.ind = ind;
+      pages.set("string", page);
+    }
+    let size = Prefs.bytestring ? 1 : 2;
+    for (let i = 0; i < str.length; i++) {
+      if (str.charCodeAt(i) > 0xFF) {
+        size = 2;
+        break;
+      }
+    }
+    pages.hasAnyString = true;
+    if (size == 1) pages.hasByteString = true;
+    else pages.hasString = true;
+
+    let ptr = this.ptr(page.ind) + page.byteSize;
+    page.byteSize += 4 + str.length * size; // u32 + u16[len] (or u8)
+    const index = page.strs.push({ str, ptr, size }) - 1;
+    page.strIndex.set(str, index);
+
+    return [number(ptr, Valtype.i32), false];
   }
 }
 
