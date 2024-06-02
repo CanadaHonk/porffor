@@ -89,6 +89,7 @@ export default (code, flags) => {
 
         console.log(`${x.name}: ${preOps} -> ${x.wasm.length} ops`);
       }
+      opt(funcs, globals, pages, tags, exceptions);
 
       console.log(`cyclone total time: ${(performance.now() - t).toFixed(2)}ms`);
 
