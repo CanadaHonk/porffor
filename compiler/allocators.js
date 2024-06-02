@@ -55,19 +55,19 @@ export class StaticAllocator {
   }
 
   allocString(pages, str) {
-    if (Prefs.allocLog) console.log("const string: "+ str)
     // TODO: this does not work if byteSize > a page
     let page = { ind: -1, strs: [], strIndex: new Map(), byteSize: 0 }
     if (pages.has("strings")) {
       page = pages.get("strings");
       const index = page.strIndex.get(str);
       if (index) {
-        return [number(page.strs[index].ptr, Valtype.i32), true];
+        if (Prefs.allocLog) console.log("cstr/ref: "+ str)
+        return [page.strs[index].ptr, true];
       }
     } else {
       const ind = pages.size;
       page.ind = ind;
-      pages.set("string", page);
+      pages.set("strings", page);
     }
     let size = Prefs.bytestring ? 1 : 2;
     for (let i = 0; i < str.length; i++) {
@@ -85,7 +85,8 @@ export class StaticAllocator {
     const index = page.strs.push({ str, ptr, size }) - 1;
     page.strIndex.set(str, index);
 
-    return [number(ptr, Valtype.i32), false];
+    if (Prefs.allocLog) console.log("cstr/init: "+ str)
+    return [ptr, false];
   }
 }
 
