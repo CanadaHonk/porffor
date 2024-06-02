@@ -66,6 +66,42 @@ export default wasm => {
     };
 
     switch (opcode) {
+      case Opcodes.if: {
+        if (stack.length < 1) { empty(); break; }
+        const cond = bool(pop());
+
+        // find else split and end
+        let j = i + 1;
+        let depth = 0, elseStart = 0;
+        for (; j < wasm.length; j++) {
+          const op = wasm[j][0];
+          if (op === Opcodes.if || op === Opcodes.block || op === Opcodes.loop || op === Opcodes.try) depth++;
+          if (op === Opcodes.else && depth === 0) elseStart = j;
+          if (op === Opcodes.end) {
+            depth--;
+            if (depth < 0) break;
+          }
+          if (op === Opcodes.br || op === Opcodes.br_if) wasm[j][1] -= 1;
+        }
+
+        if (cond) {
+          // remove else if it exists, or just remove end
+          if (elseStart) wasm.splice(elseStart, j - elseStart + 1);
+            else wasm.splice(j, 1);
+        } else {
+          // remove truthy conseq and keep else if it exists, or just remove entire thing
+          if (elseStart) {
+            wasm.splice(j, 1); // remove end
+            wasm.splice(i + 1, elseStart - i + 1); // remove truthy conseq
+          } else wasm.splice(i + 1, j - i + 0); // no else, remove entire if
+        }
+
+        // remove this if op
+        wasm.splice(i, 1);
+
+        break;
+      }
+
       case Opcodes.i32_const: {
         const n = read_signedLEB128(op.slice(1));
         push(n);
