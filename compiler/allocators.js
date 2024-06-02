@@ -54,21 +54,10 @@ export class StaticAllocator {
     return number(this.ptr(ind), Valtype.i32);
   }
 
+  stringPageIndex = 0;
+
   allocString(pages, str) {
-    // TODO: this does not work if byteSize > a page
     let page = { ind: -1, strs: [], strIndex: new Map(), byteSize: 0 }
-    if (pages.has("strings")) {
-      page = pages.get("strings");
-      const index = page.strIndex.get(str);
-      if (index) {
-        if (Prefs.allocLog) console.log("cstr/ref: "+ str)
-        return [page.strs[index].ptr, true];
-      }
-    } else {
-      const ind = pages.size;
-      page.ind = ind;
-      pages.set("strings", page);
-    }
     let size = Prefs.bytestring ? 1 : 2;
     for (let i = 0; i < str.length; i++) {
       if (str.charCodeAt(i) > 0xFF) {
@@ -79,6 +68,27 @@ export class StaticAllocator {
     pages.hasAnyString = true;
     if (size == 1) pages.hasByteString = true;
     else pages.hasString = true;
+    
+    for (let i = 0; i < this.stringPageIndex; i++) {
+      if (pages.has(`strings${i}`)) {
+        const p = pages.get(`strings${i}`);
+        const index = p.strIndex.get(str);
+        if (index) {
+          if (Prefs.allocLog) console.log("cstr/ref: "+ str)
+          return [p.strs[index].ptr, true];
+        }
+        if ((p.byteSize + (4 + str.length * size)) >= pageSize) {
+          page = p;
+          break;
+        }
+      }
+    }
+    if (page.ind == -1) {
+      const ind = pages.size;
+      page.ind = ind;
+      pages.set(`strings${this.stringPageIndex}`, page);
+      this.stringPageIndex++;
+    }
 
     let ptr = this.ptr(page.ind) + page.byteSize;
     page.byteSize += 4 + str.length * size; // u32 + u16[len] (or u8)
