@@ -4077,21 +4077,21 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
       const c1 = str.charCodeAt(i + 1);
       const c2 = str.charCodeAt(i + 2);
       const c3 = str.charCodeAt(i + 3);
-      const c4 = str.charCodeAt(i + 4);
-      const c5 = str.charCodeAt(i + 5);
-      const c6 = str.charCodeAt(i + 6);
-      const c7 = str.charCodeAt(i + 7);
-      if (!Number.isNaN(c7)) {
-        // note: in some cases we can actually write 8 bytes at once, however this doesn't generalize nearly as well as i32 due to missing instructions
-        let code = (c7 << 52) + (c6 << 48) + (c5 << 40) + (c4 << 32) + (c3 << 24) + (c2 << 16) + (c1 << 8) + c0;
-        out.push(
-          ...number(ptr + i, Valtype.i32),
-          ...number(code, Valtype.i64),
-          [ Opcodes.i64_store, 0, 4 ]
-        );
-        i += 4;
-        continue;
-      }
+      // const c4 = str.charCodeAt(i + 4);
+      // const c5 = str.charCodeAt(i + 5);
+      // const c6 = str.charCodeAt(i + 6);
+      // const c7 = str.charCodeAt(i + 7);
+      // if (!Number.isNaN(c7)) {
+      //   // note: in some cases we can actually write 8 bytes at once, however this doesn't generalize nearly as well as i32 due to missing instructions
+      //   let code = (c7 << 52) + (c6 << 48) + (c5 << 40) + (c4 << 32) + (c3 << 24) + (c2 << 16) + (c1 << 8) + c0;
+      //   out.push(
+      //     ...number(ptr + i, Valtype.i32),
+      //     ...number(code, Valtype.i64),
+      //     [ Opcodes.i64_store, 0, 4 ]
+      //   );
+      //   i += 4;
+      //   continue;
+      // }
 
       if (!Number.isNaN(c3)) {
         let code = (c3 << 24) + (c2 << 16) + (c1 << 8) + c0;
