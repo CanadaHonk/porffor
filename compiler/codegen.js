@@ -4017,12 +4017,12 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
   const isBytestring = byteStringable(str);
   const type = isBytestring ? TYPES.bytestring : TYPES.string;
   if (initialized) return [
-    ...ptr, 
+    ...number(ptr, Valtype.i32), 
     Opcodes.i32_from_u, 
     ...(name ? setType(scope, name, type) : setLastType(scope, type))
   ];
   const out = [];
-  let pointer = [ ptr ];
+  let pointer = [ number(ptr, Valtype.i32) ];
 
   if (allocator.constructor.name !== 'StaticAllocator') {
     const tmp = localTmp(scope, '#makearray_pointer' + name, Valtype.i32);
@@ -4067,7 +4067,7 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
 
   // store length
   out.push(
-    ...ptr,
+    ...number(ptr, Valtype.i32),
     ...number(str.length, Valtype.i32),
     [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
   );
@@ -4077,41 +4077,57 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
       const c1 = str.charCodeAt(i + 1);
       const c2 = str.charCodeAt(i + 2);
       const c3 = str.charCodeAt(i + 3);
+      const c4 = str.charCodeAt(i + 4);
+      const c5 = str.charCodeAt(i + 5);
+      const c6 = str.charCodeAt(i + 6);
+      const c7 = str.charCodeAt(i + 7);
+      if (!Number.isNaN(c7)) {
+        // note: in some cases we can actually write 8 bytes at once, however this doesn't generalize nearly as well as i32 due to missing instructions
+        let code = (c7 << 52) + (c6 << 48) + (c5 << 40) + (c4 << 32) + (c3 << 24) + (c2 << 16) + (c1 << 8) + c0;
+        out.push(
+          ...number(ptr + i, Valtype.i32),
+          ...number(code, Valtype.i64),
+          [ Opcodes.i64_store, 0, 4 ]
+        );
+        i += 4;
+        continue;
+      }
+
       if (!Number.isNaN(c3)) {
         let code = (c3 << 24) + (c2 << 16) + (c1 << 8) + c0;
         out.push(
-          ...ptr,
+          ...number(ptr + i, Valtype.i32),
           ...number(code, Valtype.i32),
-          [ Opcodes.i32_store, 0, 4 + i ]
+          [ Opcodes.i32_store, 0, 4 ]
         )
         continue;
       }
       if (!Number.isNaN(c2)) {
         let code = (c1 << 8) + c0;
         out.push(
-          ...ptr,
+          ...number(ptr + i, Valtype.i32),
           ...number(code, Valtype.i32),
-          [ Opcodes.i32_store16, 0, 4 + i ],
-          ...ptr,
+          [ Opcodes.i32_store16, 0, 4 ],
+          ...number(ptr + i + 2, Valtype.i32),
           ...number(c2, Valtype.i32),
-          [ Opcodes.i32_store8, 0, 4 + i + 2 ],
+          [ Opcodes.i32_store8, 0, 4 ],
         )
         continue;
       }
       if (!Number.isNaN(c1)) {
         let code = (c1 << 8) + c0;
         out.push(
-          ...ptr,
+          ...number(ptr + i, Valtype.i32),
           ...number(code, Valtype.i32),
-          [ Opcodes.i32_store16, 0, 4 + i ],
+          [ Opcodes.i32_store16, 0, 4 ],
         )
         continue;
       }
       if (!Number.isNaN(c0)) {
         out.push(
-          ...ptr,
+          ...number(ptr + i, Valtype.i32),
           ...number(c0, Valtype.i32),
-          [ Opcodes.i32_store8, 0, 4 + i ],
+          [ Opcodes.i32_store8, 0, 4 ],
         )
         continue;
       }
@@ -4123,23 +4139,23 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
       if (Number.isNaN(c1)) {
         let code = (c0 << 16);
         out.push(
-          ...ptr,
+          ...number(ptr + i, Valtype.i32),
           ...number(code, Valtype.i32),
-          [ Opcodes.i32_store16, 0, i ],
+          [ Opcodes.i32_store16, 0, 4 ],
         );
         continue;
       }
       let code = (c0 << 16) + c1;
       out.push(
-        ...ptr,
+        ...number(ptr + i, Valtype.i32),
         ...number(code, Valtype.i32),
-        [ Opcodes.i32_store, 0, i ],
+        [ Opcodes.i32_store, 0, 4 ],
       );
     }
   }
           
   out.push(
-    ...ptr,
+    ...number(ptr, Valtype.i32),
     Opcodes.i32_from_u
   );
 
