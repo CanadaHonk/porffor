@@ -26,7 +26,6 @@ export const __ecma262_ToIntegerOrInfinity = (argument: unknown): number => {
 // 7.1.17 ToString (argument)
 // https://tc39.es/ecma262/#sec-tostring
 export const __ecma262_ToString = (argument: unknown) => {
-  let out: bytestring = Porffor.bs``;
   const type: i32 = Porffor.rawType(argument);
 
   // 1. If argument is a String, return argument.
@@ -38,19 +37,19 @@ export const __ecma262_ToString = (argument: unknown) => {
   if (type == Porffor.TYPES.symbol) throw new TypeError('Cannot convert a Symbol value to a string');
 
   // 3. If argument is undefined, return "undefined".
-  if (type == Porffor.TYPES.undefined) return out = 'undefined';
+  if (type == Porffor.TYPES.undefined) return 'undefined';
 
   // 4. If argument is null, return "null".
   if (Porffor.fastAnd(
     type == Porffor.TYPES.object,
-    argument == 0)) return out = 'null';
+    argument == 0)) return 'null';
 
   if (type == Porffor.TYPES.boolean) {
     // 5. If argument is true, return "true".
-    if (argument == true) return out = 'true';
+    if (argument == true) return 'true';
 
     // 6. If argument is false, return "false".
-    return out = 'false';
+    return 'false';
   }
 
   // 7. If argument is a Number, return Number::toString(argument, 10).
