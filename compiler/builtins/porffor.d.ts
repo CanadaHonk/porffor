@@ -58,6 +58,8 @@ type PorfforGlobal = {
     set: i32;
   }
 
+  clone(source: any, destination: any): void;
+
   fastOr(...args: any): boolean;
   fastAnd(...args: any): boolean;
 
