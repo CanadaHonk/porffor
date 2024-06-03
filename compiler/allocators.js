@@ -74,10 +74,10 @@ export class StaticAllocator {
         const p = pages.get(`strings${i}`);
         const index = p.strIndex.get(str);
         if (index) {
-          if (Prefs.allocLog) console.log("cstr/ref: "+ str)
+          if (Prefs.allocLog) console.log('cstr/ref: '+ str)
           return [p.strs[index].ptr, true];
         }
-        if ((p.byteSize + (4 + str.length * size)) >= pageSize) {
+        if ((p.byteSize + (4 + str.length * size)) < pageSize) {
           page = p;
           break;
         }
@@ -89,13 +89,13 @@ export class StaticAllocator {
       pages.set(`strings${this.stringPageIndex}`, page);
       this.stringPageIndex++;
     }
-
+    
     let ptr = this.ptr(page.ind) + page.byteSize;
     page.byteSize += 4 + str.length * size; // u32 + u16[len] (or u8)
     const index = page.strs.push({ str, ptr, size }) - 1;
     page.strIndex.set(str, index);
-
-    if (Prefs.allocLog) console.log("cstr/init: "+ str)
+    
+    if (Prefs.allocLog) console.log('cstr/init: '+ str)
     return [ptr, false];
   }
 }
