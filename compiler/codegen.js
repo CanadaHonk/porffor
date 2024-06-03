@@ -1806,6 +1806,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       // value
       i32_const: { imms: 1, args: [], returns: 0 },
+
+      memory_copy: { imms: 0, args: [true, true, true], returns: 0 }
     };
 
     const opName = name.slice('__Porffor_wasm_'.length);
@@ -1821,6 +1823,13 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       // literals only
       const imms = decl.arguments.slice(op.args.length).map(x => x.value);
+
+      if (opName == 'memory_copy') {
+        return [
+          ...argOut,
+          [ ...Opcodes[opName], 0x00, 0x00 ] 
+        ]
+      }
 
       return [
         ...argOut,
