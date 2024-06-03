@@ -1035,7 +1035,7 @@ const asmFuncToAsm = (func, scope) => {
   });
 };
 
-const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits = [], returns, returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false }) => {
+const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits = [], returns, returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false }) => {
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
@@ -1121,6 +1121,8 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
       }
     }
   }
+
+  if (hasRestArgument) func.hasRestArgument = true;
 
   func.wasm = wasm;
 
@@ -2092,7 +2094,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (func && func.hasRestArgument) {
     if (args.length < paramCount) {
       args = args.concat(new Array(paramCount - 1 - args.length).fill(DEFAULT_VALUE));
-    } 
+    }
     const restArgs = args.slice(paramCount - 1);
     args = args.slice(0, paramCount - 1);
     args.push({
@@ -4402,7 +4404,7 @@ const generateFunc = (scope, decl) => {
         defaultValues[name] = x.right;
         break;
       }
-      
+
       case 'RestElement': {
         name = x.argument.name;
         func.hasRestArgument = true;
