@@ -354,7 +354,7 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
 export const __Array_prototype_toString = (_this: any[]) => {
   // todo: this is bytestring only!
 
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 0;
 
   const len: i32 = _this.length;
@@ -385,7 +385,7 @@ export const __Array_prototype_join = (_this: any[], _separator: any) => {
   if (Porffor.rawType(_separator) != Porffor.TYPES.undefined)
     separator = ecma262.ToString(_separator);
 
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 0;
 
   const len: i32 = _this.length;

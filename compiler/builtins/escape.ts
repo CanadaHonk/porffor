@@ -28,7 +28,7 @@ export const escape = (input: string|bytestring): bytestring => {
 
     if (outLength == len) return input;
 
-    let output: bytestring = '';
+    let output: bytestring = Porffor.bs``;
     output.length = outLength;
 
     i = Porffor.wasm`local.get ${input}`;
@@ -81,7 +81,7 @@ export const escape = (input: string|bytestring): bytestring => {
 
   if (outLength == len) return input;
 
-  let output: bytestring = '';
+  let output: bytestring = Porffor.bs``;
   output.length = outLength;
 
   i = Porffor.wasm`local.get ${input}`;

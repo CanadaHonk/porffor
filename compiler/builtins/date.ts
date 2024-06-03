@@ -418,7 +418,7 @@ export const __ecma262_WeekDayName = (tv: number): bytestring => {
 
   const lut: bytestring = 'SunMonTueWedThuFriSat';
 
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 3;
 
   let outPtr: number = Porffor.wasm`local.get ${out}`;
@@ -452,7 +452,7 @@ export const __ecma262_MonthName = (tv: number): bytestring => {
 
   const lut: bytestring = 'JanFebMarAprMayJunJulAugSepOctNovDec';
 
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 3;
 
   let outPtr: number = Porffor.wasm`local.get ${out}`;
@@ -633,14 +633,14 @@ export const __ecma262_ParseRFC7231OrToString = (string: bytestring): number => 
     return NaN;
   }
 
-  let y: number = 0;
-  let h: number = 0;
-  let min: number = 0;
-  let s: number = 0;
-  let tz: number = 0;
+  let y: f64 = 0;
+  let h: f64 = 0;
+  let min: f64 = 0;
+  let s: f64 = 0;
+  let tz: f64 = 0;
 
-  let n: number = 0;
-  let nInd: number = 0;
+  let n: f64 = 0;
+  let nInd: f64 = 0;
 
   const len: i32 = string.length;
   const endPtr: i32 = Porffor.wasm`local.get ${string}` + len;
@@ -694,21 +694,8 @@ export const __Date_parse = (string: bytestring): number => {
 };
 
 
-// dark wasm magic for a basic allocator, sorry.
 export const __Porffor_date_allocate = (): Date => {
-  const hack: bytestring = '';
-
-  if (hack.length == 0) {
-    hack.length = Porffor.wasm`
-i32.const 1
-memory.grow 0
-i32.const 65536
-i32.mul
-i32.from_u`;
-  }
-
-  const ptr: number = hack.length;
-  hack.length = ptr + 8;
+  const ptr: i32 = Porffor.allocate();
 
   return ptr;
 };
@@ -1593,7 +1580,7 @@ export const __Porffor_bytestring_appendPadNum = (str: bytestring, num: number, 
 export const __ecma262_ToUTCDTSF = (t: number): bytestring => {
   const year: number = __ecma262_YearFromTime(t);
 
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 0;
 
   if (Porffor.fastOr(year < 0, year >= 10000)) {
@@ -1689,7 +1676,7 @@ export const __ecma262_TimeString = (tv: number): bytestring => {
   const second: number = __ecma262_SecFromTime(tv);
 
   // 4. Return the string-concatenation of hour, ":", minute, ":", second, the code unit 0x0020 (SPACE), and "GMT".
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 0;
 
   __Porffor_bytestring_appendPadNum(out, hour, 2);
@@ -1728,7 +1715,7 @@ export const __ecma262_DateString = (tv: number): bytestring => {
   // 5. If yv is +0𝔽 or yv > +0𝔽, let yearSign be the empty String; otherwise, let yearSign be "-".
   // 6. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
   // 7. Return the string-concatenation of weekday, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), yearSign, and paddedYear.
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 0;
 
   // weekday
@@ -1761,7 +1748,7 @@ export const __ecma262_TimeZoneString = (tv: number) => {
 // 21.4.4.41.4 ToDateString (tv)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-todatestring
 export const __ecma262_ToDateString = (tv: number) => {
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 0;
 
   // 1. If tv is NaN, return "Invalid Date".
@@ -1804,7 +1791,7 @@ export const __Date_prototype_toTimeString = (_this: Date) => {
   const tv: number = __Porffor_date_read(_this);
 
   // 4. If tv is NaN, return "Invalid Date".
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 0;
 
   if (Number.isNaN(tv)) {
@@ -1832,7 +1819,7 @@ export const __Date_prototype_toDateString = (_this: Date) => {
   const tv: number = __Porffor_date_read(_this);
 
   // 4. If tv is NaN, return "Invalid Date".
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 0;
 
   if (Number.isNaN(tv)) {
@@ -1857,7 +1844,7 @@ export const __Date_prototype_toUTCString = (_this: Date) => {
   const tv: number = __Porffor_date_read(_this);
 
   // 4. If tv is NaN, return "Invalid Date".
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   out.length = 0;
 
   if (Number.isNaN(tv)) {

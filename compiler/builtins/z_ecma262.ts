@@ -26,7 +26,7 @@ export const __ecma262_ToIntegerOrInfinity = (argument: unknown): number => {
 // 7.1.17 ToString (argument)
 // https://tc39.es/ecma262/#sec-tostring
 export const __ecma262_ToString = (argument: unknown): bytestring => {
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   const type: i32 = Porffor.rawType(argument);
 
   // 1. If argument is a String, return argument.

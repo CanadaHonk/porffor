@@ -41,7 +41,7 @@ export const __String_prototype_toUpperCase = (_this: string) => {
 export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
   const len: i32 = _this.length;
 
-  let out: bytestring = '';
+  let out: bytestring  = Porffor.bs``;
   Porffor.wasm.i32.store(out, len, 0, 0);
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
@@ -87,7 +87,7 @@ export const __String_prototype_toLowerCase = (_this: string) => {
 export const __ByteString_prototype_toLowerCase = (_this: bytestring) => {
   const len: i32 = _this.length;
 
-  let out: bytestring = '';
+  let out: bytestring = Porffor.bs``;
   Porffor.wasm.i32.store(out, len, 0, 0);
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
