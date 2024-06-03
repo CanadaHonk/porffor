@@ -175,6 +175,30 @@ export const __Array_prototype_copyWithin = (_this: any[], target: number, start
 };
 
 // @porf-typed-array
+export const __Array_prototype_concat = (_this: any[], ...vals: any[]) => {
+  // todo/perf: rewrite to use memory.copy (via some Porffor.array.append thing?)
+  let out: any[] = Porffor.allocate();
+  Porffor.clone(_this, out);
+
+  let len: i32 = _this.length;
+
+  for (const x of vals) {
+    if (Porffor.rawType(x) & 0b01000000) { // value is iterable
+      // todo: for..of is broken here because ??
+      const l: i32 = x.length;
+      for (let i: i32 = 0; i < l; i++) {
+        out[len++] = x[i];
+      }
+    } else {
+      out[len++] = x;
+    }
+  }
+
+  out.length = len;
+  return out;
+};
+
+// @porf-typed-array
 export const __Array_prototype_reverse = (_this: any[]) => {
   const len: i32 = _this.length;
 
