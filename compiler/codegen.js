@@ -422,92 +422,49 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   ];
 };
 
-const concatStrings = (scope, left, right, global, name, assign = false, bytestrings = false) => {
-  // todo: this should be rewritten into a built-in/func: String.prototype.concat
-  // todo: convert left and right to strings if not
+const concatStrings = (scope, left, right, leftType, rightType, global, name, assign = false, bytestrings = false) => {
   // todo: optimize by looking up names in arrays and using that if exists?
   // todo: optimize this if using literals/known lengths?
+  // hack: we shouldn't have to drop the type here, other code should handle it
 
-  const rightPointer = localTmp(scope, 'concat_right_pointer', Valtype.i32);
-  const rightLength = localTmp(scope, 'concat_right_length', Valtype.i32);
-  const leftLength = localTmp(scope, 'concat_left_length', Valtype.i32);
+  const func = includeBuiltin(scope, bytestrings ? '__ByteString_prototype_concat' : '__String_prototype_concat');
+  const type = bytestrings ? TYPES.bytestring : TYPES.string;
 
-  const leftPointer = localTmp(scope, 'concat_left_pointer', Valtype.i32);
+  const knownLeft = knownType(scope, leftType);
+  const knownRight = knownType(scope, rightType);
 
-  // alloc/assign array
-  const [ out, pointer ] = makeArray(scope, {
-    rawElements: new Array(0)
-  }, assign ? false : global, assign ? undefined : name, true, 'i16', true);
+  if (knownLeft == type) {
+    return [
+      ...left,
+      ...number(type, Valtype.i32),
+      ...right,
+      ...rightType,
+      [ Opcodes.call, func.index ],
+      [ Opcodes.drop ]
+    ]
+  }
 
+  if (knownRight == type) {
+    // todo: this probably messes up side effects
+    return [
+      ...right,
+      ...number(type, Valtype.i32),
+      ...left,
+      ...leftType,
+      [ Opcodes.call, func.index ],
+      [ Opcodes.drop ]
+    ]
+  }
+
+  // todo: convert both strings
   return [
-    // setup left
     ...left,
-    Opcodes.i32_to_u,
-    [ Opcodes.local_set, leftPointer ],
-
-    // setup right
+    ...leftType,
     ...right,
-    Opcodes.i32_to_u,
-    [ Opcodes.local_set, rightPointer ],
-
-    // calculate length
-    ...out,
-
-    [ Opcodes.local_get, leftPointer ],
-    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
-    [ Opcodes.local_tee, leftLength ],
-
-    [ Opcodes.local_get, rightPointer ],
-    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
-    [ Opcodes.local_tee, rightLength ],
-
-    [ Opcodes.i32_add ],
-
-    // store length
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ],
-
-    // copy left
-    // dst = out pointer + length size
-    ...pointer,
-    ...number(ValtypeSize.i32, Valtype.i32),
-    [ Opcodes.i32_add ],
-
-    // src = left pointer + length size
-    [ Opcodes.local_get, leftPointer ],
-    ...number(ValtypeSize.i32, Valtype.i32),
-    [ Opcodes.i32_add ],
-
-    // size = PageSize - length size. we do not need to calculate length as init value
-    ...number(pageSize - ValtypeSize.i32, Valtype.i32),
-    [ ...Opcodes.memory_copy, 0x00, 0x00 ],
-
-    // copy right
-    // dst = out pointer + length size + left length * sizeof valtype
-    ...pointer,
-    ...number(ValtypeSize.i32, Valtype.i32),
-    [ Opcodes.i32_add ],
-
-    [ Opcodes.local_get, leftLength ],
-    ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
-    [ Opcodes.i32_mul ],
-    [ Opcodes.i32_add ],
-
-    // src = right pointer + length size
-    [ Opcodes.local_get, rightPointer ],
-    ...number(ValtypeSize.i32, Valtype.i32),
-    [ Opcodes.i32_add ],
-
-    // size = right length * sizeof valtype
-    [ Opcodes.local_get, rightLength ],
-    ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
-    [ Opcodes.i32_mul ],
-
-    [ ...Opcodes.memory_copy, 0x00, 0x00 ],
-
-    // return new string (page)
-    ...pointer,
-    Opcodes.i32_from_u
-  ];
+    ...rightType,
+    [ Opcodes.call, func.index ],
+    [ Opcodes.drop ]
+  ]
 };
 
 const compareStrings = (scope, left, right, bytestrings = false) => {
@@ -811,7 +768,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     if (op === '+') {
       // todo: this should be dynamic too but for now only static
       // string concat (a + b)
-      return concatStrings(scope, left, right, _global, _name, assign, false);
+      return concatStrings(scope, left, right, leftType, rightType, _global, _name, assign, false);
     }
 
     // not an equality op, NaN
@@ -838,7 +795,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     if (op === '+') {
       // todo: this should be dynamic too but for now only static
       // string concat (a + b)
-      return concatStrings(scope, left, right, _global, _name, assign, true);
+      return concatStrings(scope, left, right, leftType, rightType, _global, _name, assign, true);
     }
 
     // not an equality op, NaN

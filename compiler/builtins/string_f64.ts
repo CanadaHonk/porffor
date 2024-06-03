@@ -7,11 +7,14 @@ export const String = function (value: any): bytestring {
   return __ecma262_ToString(value);
 };
 
-export const __String_prototype_concat = (_this: string, arg: string) => {
+export const __String_prototype_concat = (_this: string, arg: any) => {
   // todo: convert left and right to strings if not
   // todo: optimize by looking up names in arrays and using that if exists?
   // todo: optimize this if using literals/known lengths?
   let out: string = Porffor.s``;
+  // todo: currently toString doesn't support non bytestrings properly, so this line goes unused
+  // let other: bytestring = __ecma262_ToString(arg);
+
   Porffor.wasm`
   local leftLength i32
   local leftPtr i32
@@ -82,11 +85,12 @@ export const __String_prototype_concat = (_this: string, arg: string) => {
   return out;
 };
 
-export const __ByteString_prototype_concat = (_this: bytestring, arg: bytestring) => {
+export const __ByteString_prototype_concat = (_this: bytestring, arg: any) => {
   // todo: convert left and right to strings if not
   // todo: optimize by looking up names in arrays and using that if exists?
   // todo: optimize this if using literals/known lengths?
   let out: bytestring = Porffor.bs``;
+  let other: bytestring = __ecma262_ToString(arg);
   Porffor.wasm`
   local leftLength i32
   local leftPtr i32
@@ -98,7 +102,7 @@ export const __ByteString_prototype_concat = (_this: bytestring, arg: bytestring
   i32.to_u
   local.set leftPtr
   
-  local.get ${arg}
+  local.get ${other}
   i32.to_u
   local.set rightPtr
 
