@@ -4,12 +4,12 @@ import type {} from './porffor.d.ts';
 export const __String_fromCharCode = (code: i32) => {
   // todo: support >1 arg
   if (code < 256) {
-    let out: bytestring = '.';
+    let out: bytestring = Porffor.allocate();
     Porffor.wasm.i32.store8(out, code, 0, 4);
     return out;
   }
 
-  let out: string = Porffor.s`.`;
+  let out: string = Porffor.allocate();
   Porffor.wasm.i32.store16(out, code, 0, 4);
   return out;
 };
@@ -18,7 +18,7 @@ export const __String_prototype_toUpperCase = (_this: string) => {
   // todo: unicode not just ascii
   const len: i32 = _this.length;
 
-  let out: string = Porffor.s``;
+  let out: string = Porffor.allocate();
   Porffor.wasm.i32.store(out, len, 0, 0);
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
@@ -41,7 +41,7 @@ export const __String_prototype_toUpperCase = (_this: string) => {
 export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
   const len: i32 = _this.length;
 
-  let out: bytestring  = Porffor.bs``;
+  let out: bytestring  = Porffor.allocate();
   Porffor.wasm.i32.store(out, len, 0, 0);
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
@@ -64,7 +64,7 @@ export const __String_prototype_toLowerCase = (_this: string) => {
   // todo: unicode not just ascii
   const len: i32 = _this.length;
 
-  let out: string = Porffor.s``;
+  let out: string = Porffor.allocate();
   Porffor.wasm.i32.store(out, len, 0, 0);
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
@@ -87,7 +87,7 @@ export const __String_prototype_toLowerCase = (_this: string) => {
 export const __ByteString_prototype_toLowerCase = (_this: bytestring) => {
   const len: i32 = _this.length;
 
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   Porffor.wasm.i32.store(out, len, 0, 0);
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
@@ -499,7 +499,7 @@ export const __ByteString_prototype_includes = (_this: bytestring, searchString:
 
 
 export const __String_prototype_padStart = (_this: string, targetLength: number, padString: string) => {
-  let out: string = Porffor.s``;
+  let out: string = Porffor.allocate();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -546,7 +546,7 @@ export const __String_prototype_padStart = (_this: string, targetLength: number,
 export const __ByteString_prototype_padStart = (_this: bytestring, targetLength: number, padString: bytestring) => {
   // todo: handle padString being non-bytestring
 
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -588,7 +588,7 @@ export const __ByteString_prototype_padStart = (_this: bytestring, targetLength:
 
 
 export const __String_prototype_padEnd = (_this: string, targetLength: number, padString: string) => {
-  let out: string = Porffor.s``;
+  let out: string = Porffor.allocate();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -635,7 +635,7 @@ export const __String_prototype_padEnd = (_this: string, targetLength: number, p
 export const __ByteString_prototype_padEnd = (_this: bytestring, targetLength: number, padString: bytestring) => {
   // todo: handle padString being non-bytestring
 
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -693,7 +693,7 @@ export const __String_prototype_substring = (_this: string, start: number, end: 
   if (end < 0) end = 0;
   if (end > len) end = len;
 
-  let out: string = Porffor.s``;
+  let out: string = Porffor.allocate();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -731,7 +731,7 @@ export const __ByteString_prototype_substring = (_this: bytestring, start: numbe
   if (end < 0) end = 0;
   if (end > len) end = len;
 
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -766,7 +766,7 @@ export const __String_prototype_substr = (_this: string, start: number, length: 
 
   if (start + length > len) length = len - start;
 
-  let out: string = Porffor.s``;
+  let out: string = Porffor.allocate();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -803,7 +803,7 @@ export const __ByteString_prototype_substr = (_this: string, start: number, leng
 
   if (start + length > len) length = len - start;
 
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -840,7 +840,7 @@ export const __String_prototype_slice = (_this: string, start: number, end: numb
   }
   if (end > len) end = len;
 
-  let out: string = Porffor.s``;
+  let out: string = Porffor.allocate();
 
   if (start > end) return out;
 
@@ -881,7 +881,7 @@ export const __ByteString_prototype_slice = (_this: bytestring, start: number, e
   }
   if (end > len) end = len;
 
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
 
   if (start > end) return out;
 
@@ -903,7 +903,7 @@ export const __ByteString_prototype_slice = (_this: bytestring, start: number, e
 
 
 export const __String_prototype_trimStart = (_this: string) => {
-  let out: string = Porffor.s``;
+  let out: string = Porffor.allocate();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -937,7 +937,7 @@ export const __String_prototype_trimStart = (_this: string) => {
 };
 
 export const __ByteString_prototype_trimStart = (_this: bytestring) => {
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;

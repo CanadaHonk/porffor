@@ -418,7 +418,7 @@ export const __ecma262_WeekDayName = (tv: number): bytestring => {
 
   const lut: bytestring = 'SunMonTueWedThuFriSat';
 
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   out.length = 3;
 
   let outPtr: number = Porffor.wasm`local.get ${out}`;
@@ -452,7 +452,7 @@ export const __ecma262_MonthName = (tv: number): bytestring => {
 
   const lut: bytestring = 'JanFebMarAprMayJunJulAugSepOctNovDec';
 
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   out.length = 3;
 
   let outPtr: number = Porffor.wasm`local.get ${out}`;
@@ -691,13 +691,6 @@ export const __Date_parse = (string: bytestring): number => {
 
   // else, use RFC 7231 or Date.prototype.toString() parser
   return __ecma262_ParseRFC7231OrToString(string);
-};
-
-
-export const __Porffor_date_allocate = (): Date => {
-  const ptr: i32 = Porffor.allocate();
-
-  return ptr;
 };
 
 export const __Porffor_date_read = (ptr: Date): number => Porffor.wasm.f64.load(ptr, 0, 0);
@@ -1533,7 +1526,7 @@ export const __Date_prototype_setUTCSeconds = (_this: Date, sec: any, ms: any) =
 export const __ecma262_ToUTCDTSF = (t: number): bytestring => {
   const year: number = __ecma262_YearFromTime(t);
 
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   out.length = 0;
 
   if (Porffor.fastOr(year < 0, year >= 10000)) {
@@ -1629,7 +1622,7 @@ export const __ecma262_TimeString = (tv: number): bytestring => {
   const second: number = __ecma262_SecFromTime(tv);
 
   // 4. Return the string-concatenation of hour, ":", minute, ":", second, the code unit 0x0020 (SPACE), and "GMT".
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   out.length = 0;
 
   __Porffor_bytestring_appendPadNum(out, hour, 2);
@@ -1668,7 +1661,7 @@ export const __ecma262_DateString = (tv: number): bytestring => {
   // 5. If yv is +0𝔽 or yv > +0𝔽, let yearSign be the empty String; otherwise, let yearSign be "-".
   // 6. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
   // 7. Return the string-concatenation of weekday, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), yearSign, and paddedYear.
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   out.length = 0;
 
   // weekday
@@ -1701,7 +1694,7 @@ export const __ecma262_TimeZoneString = (tv: number) => {
 // 21.4.4.41.4 ToDateString (tv)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-todatestring
 export const __ecma262_ToDateString = (tv: number) => {
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   out.length = 0;
 
   // 1. If tv is NaN, return "Invalid Date".
@@ -1744,7 +1737,7 @@ export const __Date_prototype_toTimeString = (_this: Date) => {
   const tv: number = __Porffor_date_read(_this);
 
   // 4. If tv is NaN, return "Invalid Date".
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   out.length = 0;
 
   if (Number.isNaN(tv)) {
@@ -1772,7 +1765,7 @@ export const __Date_prototype_toDateString = (_this: Date) => {
   const tv: number = __Porffor_date_read(_this);
 
   // 4. If tv is NaN, return "Invalid Date".
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   out.length = 0;
 
   if (Number.isNaN(tv)) {
@@ -1797,7 +1790,7 @@ export const __Date_prototype_toUTCString = (_this: Date) => {
   const tv: number = __Porffor_date_read(_this);
 
   // 4. If tv is NaN, return "Invalid Date".
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   out.length = 0;
 
   if (Number.isNaN(tv)) {
@@ -1970,7 +1963,7 @@ export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown
   }
 
   // 6. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Date.prototype%", « [[DateValue]] »).
-  const O: Date = __Porffor_date_allocate();
+  const O: Date = Porffor.allocate();
 
   // 7. Set O.[[DateValue]] to dv.
   __Porffor_date_write(O, dv);

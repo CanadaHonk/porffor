@@ -11,7 +11,7 @@ export const __String_prototype_concat = (_this: string, arg: any) => {
   // todo: convert left and right to strings if not
   // todo: optimize by looking up names in arrays and using that if exists?
   // todo: optimize this if using literals/known lengths?
-  let out: string = Porffor.s``;
+  let out: string = Porffor.allocate();
   // todo: currently toString doesn't support non bytestrings properly, so this line goes unused
   // let other: bytestring = __ecma262_ToString(arg);
 
@@ -21,6 +21,9 @@ export const __String_prototype_concat = (_this: string, arg: any) => {
 
   const leftLength: i32 = _this.length;
   const rightLength: i32 = arg.length;
+
+  if (leftLength == 0) return arg;
+  if (rightLength == 0) return _this;
 
   out.length = leftLength + rightLength;
 
@@ -33,7 +36,7 @@ export const __String_prototype_concat = (_this: string, arg: any) => {
 export const __ByteString_prototype_concat = (_this: bytestring, arg: any) => {
   // todo: optimize by looking up names in arrays and using that if exists?
   // todo: optimize this if using literals/known lengths?
-  let out: bytestring = Porffor.bs``;
+  let out: bytestring = Porffor.allocate();
   const other: bytestring = __ecma262_ToString(arg);
 
   const leftPtr: number = Porffor.wasm`local.get ${_this}`
@@ -42,6 +45,9 @@ export const __ByteString_prototype_concat = (_this: bytestring, arg: any) => {
 
   const leftLength: i32 = _this.length;
   const rightLength: i32 = other.length;
+
+  if (leftLength == 0) return other;
+  if (rightLength == 0) return _this;
 
   out.length = leftLength + rightLength;
 
