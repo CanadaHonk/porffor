@@ -20,6 +20,10 @@ type PorfforGlobal = {
       load(pointer: any, align: i32, offset: i32): i32;
       store(pointer: any, value: f64, align: i32, offset: i32): f64;
     }
+
+    memory: {
+      copy(dest: any, source: any, bytes: i32)
+    }
   }
 
   allocate(): any;
