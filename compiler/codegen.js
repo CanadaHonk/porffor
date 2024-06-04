@@ -4037,6 +4037,8 @@ const makeStringBuffer = (scope, str, global = false, name = '$undeclared', forc
   }, global, name, false, byteStringable ? 'i8' : 'i16')[0];
 }
 
+const stringInit = [];
+
 const makeString = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
   const [ptr, initialized] = allocator.allocString(pages, str);
   const isBytestring = byteStringable(str);
@@ -4091,7 +4093,7 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
 
 
   // store length
-  out.push(
+  stringInit.push(
     ...number(ptr, Valtype.i32),
     ...number(str.length, Valtype.i32),
     [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
@@ -4120,7 +4122,7 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
 
       if (!Number.isNaN(c3)) {
         let code = (c3 << 24) + (c2 << 16) + (c1 << 8) + c0;
-        out.push(
+        stringInit.push(
           ...number(ptr + i, Valtype.i32),
           ...number(code, Valtype.i32),
           [ Opcodes.i32_store, 0, 4 ]
@@ -4129,7 +4131,7 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
       }
       if (!Number.isNaN(c2)) {
         let code = (c1 << 8) + c0;
-        out.push(
+        stringInit.push(
           ...number(ptr + i, Valtype.i32),
           ...number(code, Valtype.i32),
           [ Opcodes.i32_store16, 0, 4 ],
@@ -4141,7 +4143,7 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
       }
       if (!Number.isNaN(c1)) {
         let code = (c1 << 8) + c0;
-        out.push(
+        stringInit.push(
           ...number(ptr + i, Valtype.i32),
           ...number(code, Valtype.i32),
           [ Opcodes.i32_store16, 0, 4 ],
@@ -4149,7 +4151,7 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
         continue;
       }
       if (!Number.isNaN(c0)) {
-        out.push(
+        stringInit.push(
           ...number(ptr + i, Valtype.i32),
           ...number(c0, Valtype.i32),
           [ Opcodes.i32_store8, 0, 4 ],
@@ -4163,7 +4165,7 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
       const c1 = str.charCodeAt(i + 1);
       if (Number.isNaN(c1)) {
         let code = (c0 << 16);
-        out.push(
+        stringInit.push(
           ...number(ptr + i, Valtype.i32),
           ...number(code, Valtype.i32),
           [ Opcodes.i32_store16, 0, 4 ],
@@ -4171,7 +4173,7 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
         continue;
       }
       let code = (c0 << 16) + c1;
-      out.push(
+      stringInit.push(
         ...number(ptr + i, Valtype.i32),
         ...number(code, Valtype.i32),
         [ Opcodes.i32_store, 0, 4 ],
@@ -4871,6 +4873,10 @@ export default program => {
 
   main.export = true;
   main.returns = [ valtypeBinary, Valtype.i32 ];
+
+  if (stringInit.length > 0) {
+    main.wasm.unshift(...stringInit);
+  }
 
   const lastInst = main.wasm[main.wasm.length - 1] ?? [ Opcodes.end ];
   if (lastInst[0] === Opcodes.drop) {
