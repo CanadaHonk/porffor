@@ -177,6 +177,5 @@ export const __Set_prototype_union = (_this: Set, other: any) => {
 };
 
 export const __Set_prototype_toString = (_this: Set) => {
-  const out: bytestring = '[object Set]';
-  return out;
+  return '[object Set]';
 };

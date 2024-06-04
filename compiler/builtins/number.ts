@@ -322,14 +322,14 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
 
 // fractionDigits: number|any for rawType check
 export const __Number_prototype_toExponential = (_this: number, fractionDigits: number|any) => {
+  if (!Number.isFinite(_this)) {
+    if (Number.isNaN(_this)) return 'NaN';
+    if (_this == Infinity) return 'Infinity';
+    return '-Infinity';
+  }
+
   let out = Porffor.allocatePage<bytestring>();
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
-
-  if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) return out = 'NaN';
-    if (_this == Infinity) return out = 'Infinity';
-    return out = '-Infinity';
-  }
 
   if (Porffor.rawType(fractionDigits) != Porffor.TYPES.number) {
     // todo: string to number
