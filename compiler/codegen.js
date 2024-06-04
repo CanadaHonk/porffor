@@ -579,21 +579,24 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
 };
 
 const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode = undefined) => {
-  if (isIntToFloatOp(wasm[wasm.length - 1])) return [
-    ...wasm,
-    ...(!intIn && intOut ? [ Opcodes.i32_to_u ] : [])
-  ];
-  if (isIntOp(wasm[wasm.length - 1])) return [
-    ...wasm,
-    ...(intOut ? [] : [ Opcodes.i32_from ]),
-  ];
+  const truthyMode = forceTruthyMode ?? Prefs.truthy ?? 'full';
+  if (truthyMode != 'full') {
+    if (isIntToFloatOp(wasm[wasm.length - 1])) return [
+      ...wasm,
+      ...(!intIn && intOut ? [ Opcodes.i32_to_u ] : [])
+    ];
+    if (isIntOp(wasm[wasm.length - 1])) return [
+      ...wasm,
+      ...(intOut ? [] : [ Opcodes.i32_from ]),
+    ];
+  }
 
   // todo/perf: use knownType and custom bytecode here instead of typeSwitch
 
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
-  const def = (truthyMode => {
+  const def = (() => {
     if (truthyMode === 'full') return [
       // if value != 0 or NaN
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
@@ -618,7 +621,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
       ...(!intOut || (intIn && intOut) ? [] : [ Opcodes.i32_to_u ])
     ];
-  })(forceTruthyMode ?? Prefs.truthy ?? 'full');
+  })();
 
   return [
     ...wasm,
@@ -1129,15 +1132,15 @@ const getType = (scope, _name) => {
   const name = mapName(_name);
 
   // if (scope.locals[name] && !scope.locals[name + '#type']) console.log(name);
+  if (builtinVars[name]) return number(builtinVars[name].type ?? TYPES.number, Valtype.i32);
 
-  if (typedInput && scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
+  if (Prefs.jsTypes && scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
   if (scope.locals[name]) return [ [ Opcodes.local_get, scope.locals[name + '#type'].idx ] ];
 
-  if (typedInput && globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
+  if (Prefs.jsTypes && globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
   if (globals[name]) return [ [ Opcodes.global_get, globals[name + '#type'].idx ] ];
 
   let type = TYPES.undefined;
-  if (builtinVars[name]) type = builtinVars[name].type ?? TYPES.number;
   if (builtinFuncs[name] !== undefined || importedFuncs[name] !== undefined || funcIndex[name] !== undefined || internalConstrs[name] !== undefined) type = TYPES.function;
 
   if (isExistingProtoFunc(name)) type = TYPES.function;
@@ -2166,7 +2169,7 @@ const knownType = (scope, type) => {
     return read_signedLEB128(type[0].slice(1));
   }
 
-  if (typedInput && type.length === 1 && type[0][0] === Opcodes.local_get) {
+  if (Prefs.jsTypes && type.length === 1 && type[0][0] === Opcodes.local_get) {
     const idx = type[0][1];
 
     // type idx = var idx + 1
@@ -2341,6 +2344,15 @@ const addVarMetadata = (scope, name, global = false, metadata = {}) => {
   target[name].metadata ??= {};
   for (const x in metadata) {
     if (metadata[x] != null) target[name].metadata[x] = metadata[x];
+  }
+};
+
+const removeVarMetadata = (scope, name, global = false, metadata = {}) => {
+  const target = global ? globals : scope.locals;
+
+  target[name].metadata ??= {};
+  for (const x in metadata) {
+    target[name].metadata[x] = null;
   }
 };
 
@@ -2548,7 +2560,16 @@ const generateVar = (scope, decl) => {
         out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
       }
 
-      out.push(...setType(scope, name, getNodeType(scope, x.init)));
+      const type = getNodeType(scope, x.init);
+      out.push(...setType(scope, name, type));
+      if (Prefs.jsTypes) {
+        // note: this might seem weird at first glance, as the type might later change, 
+        //       but we take care in removing it if we don't know what it is after an assignment
+        const known = knownType(scope, type);
+        if (known != null) {
+          addVarMetadata(scope, name, global, { type: known });
+        }
+      }
     }
 
     // hack: this follows spec properly but is mostly unneeded 😅
@@ -2821,16 +2842,30 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   }
 
   if (op === '=') {
+    const type = getNodeType(scope, decl.right)
+    if (Prefs.jsTypes) {
+      const known = knownType(scope, type)
+      if (known != null) {
+        addVarMetadata(scope, name, isGlobal, { type: known });
+      } else  if (!typedInput) {
+        // if we are reading a typescript file, we trust the program to always use the correct type 
+        removeVarMetadata(scope, name, isGlobal, { type: true });
+      }
+    }
+
     return [
       ...generate(scope, decl.right, isGlobal, name),
       [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
       [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
 
-      ...setType(scope, name, getNodeType(scope, decl.right))
+      ...setType(scope, name, type)
     ];
   }
 
   if (op === '||' || op === '&&' || op === '??') {
+    if (Prefs.jsTypes && op != '??') {
+      addVarMetadata(scope, name, isGlobal, { type: TYPES.boolean });
+    }
     // todo: is this needed?
     // for logical assignment ops, it is not left @= right ~= left = left @ right
     // instead, left @ (left = right)
@@ -2850,12 +2885,23 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     ];
   }
 
+  const finalType = getNodeType(scope, decl);
+  if (Prefs.jsTypes) {
+    const known = knownType(scope, finalType);
+    if (known != null) {
+      addVarMetadata(scope, name, isGlobal, { type: known });
+    } else if (!typedInput) {
+      // if we are reading a typescript file, we trust the program to always use the correct type 
+      removeVarMetadata(scope, name, isGlobal, { type: true });
+    }
+  }
+
   return [
     ...performOp(scope, op, [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
     [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
     [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
 
-    ...setType(scope, name, getNodeType(scope, decl))
+    ...setType(scope, name, finalType)
   ];
 };
 
@@ -3982,7 +4028,10 @@ const makeStringBuffer = (scope, str, global = false, name = '$undeclared', forc
   }
 
   if (byteStringable && forceBytestring === false) byteStringable = false;
-
+  
+  pages.hasAnyString = true;
+  if (byteStringable) pages.hasByteString = true;
+    else pages.hasString = true;
   return makeArray(scope, {
     rawElements
   }, global, name, false, byteStringable ? 'i8' : 'i16')[0];
@@ -4503,7 +4552,6 @@ const generateFunc = (scope, decl) => {
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
     if (type != null && !Prefs.indirectCalls) {
-    // if (type != null) {
       func.returnType = type;
       func.returns = [ valtypeBinary ];
     }
