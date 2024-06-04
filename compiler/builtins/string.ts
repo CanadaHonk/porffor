@@ -423,6 +423,7 @@ export const __ByteString_prototype_lastIndexOf = (_this: bytestring, searchStri
 
 export const __String_prototype_includes = (_this: string, searchString: string, position: number) => {
   // todo: handle bytestring searchString
+  // todo: searchstring = searchstring.toString()
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
@@ -460,15 +461,14 @@ export const __String_prototype_includes = (_this: string, searchString: string,
   return false;
 };
 
-export const __ByteString_prototype_includes = (_this: bytestring, searchString: bytestring, position: number) => {
+export const __ByteString_prototype_includes = (_this: bytestring, searchString: any, position: number) => {
   // if searching non-bytestring, bytestring will not start with it
-  // todo: change this to just check if = string and ToString others
-  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES.bytestring) return -1;
+  const searchStr: bytestring = __ecma262_ToString(searchString);
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-  const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
+  const searchPtr: i32 = Porffor.wasm`local.get ${searchStr}`;
 
-  const searchLen: i32 = searchString.length;
+  const searchLen: i32 = searchStr.length;
 
   // todo/perf: make position oob handling optional (via pref or fast variant?)
   const len: i32 = _this.length;
