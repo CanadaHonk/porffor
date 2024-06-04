@@ -26,14 +26,16 @@ type PorfforGlobal = {
     }
   }
 
-  allocate(): any;
+  allocatePage<T>(): T;
+  allocateBytes<T>(bytes: i32): T;
+
   set: {
     read(_this: any, index: number): i32;
     write(_this: any, index: number, value: any): boolean;
   }
 
   bytestring: {
-    // defined in date.ts
+    // defined in porffor.ts
     appendStr(str: bytestring, appendage: bytestring): i32;
     appendChar(str: bytestring, char: i32): i32;
     appendPadNum(str: bytestring, num: number, len: number): i32;

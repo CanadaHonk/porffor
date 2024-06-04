@@ -45,7 +45,7 @@ const interpret = (str: bytestring) => {
   }
 };
 
-let file: bytestring = Porffor.allocate();
+let file = Porffor.allocatePage<bytestring>();
 if (Porffor.readArgv(1, file) == -1) {
   console.log('usage: [brainf file to interpret]\n');
 
@@ -55,7 +55,7 @@ if (Porffor.readArgv(1, file) == -1) {
 
   interpret(code);
 } else {
-  let contents: bytestring = Porffor.allocate();
+  let contents = Porffor.allocatePage<bytestring>();
   if (Porffor.readFile(file, contents) == -1) {
     console.log('error reading file:', file);
   } else {

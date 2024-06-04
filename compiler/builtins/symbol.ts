@@ -1,7 +1,7 @@
 import type {} from './porffor.d.ts';
 
 export const __Porffor_symbol_descStore = (op: boolean, value: any): any => {
-  const ptr: bytestring = Porffor.allocate();
+  const ptr = Porffor.allocatePage<bytestring>();
 
   if (op) { // write
     const size: number = Porffor.wasm.i32.load(ptr, 0, 0);
@@ -28,7 +28,7 @@ export const __Symbol_prototype_description$get = (_this: Symbol) => {
 };
 
 export const __Symbol_prototype_toString = (_this: Symbol) => {
-  let out: bytestring = Porffor.allocate();
+  let out = Porffor.allocatePage<bytestring>();
 
   // Symbol(
   Porffor.wasm.i32.store8(out, 83, 0, 4);

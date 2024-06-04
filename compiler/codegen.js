@@ -1210,6 +1210,16 @@ const getNodeType = (scope, node) => {
         if (func.returnType != null) return func.returnType;
       }
 
+      if (name.startsWith('__Porffor_allocate')) {
+        let caster = node.typeParameters?.params?.[0];
+        if (caster) {
+          caster = extractTypeAnnotation(caster);
+          if (caster == null) throw new SyntaxError('Allocation type does not exist');
+          return caster.type;
+        }
+        throw new SyntaxError('Allocation missing type argument');
+      }
+
       if (builtinFuncs[name] && !builtinFuncs[name].typedReturns) return builtinFuncs[name].returnType ?? TYPES.number;
       if (internalConstrs[name]) return internalConstrs[name].type;
 

@@ -1,5 +1,5 @@
 // dark wasm magic for dealing with memory, sorry.
-export const __Porffor_allocate = (): number => {
+export const __Porffor_allocatePage = (): number => {
   Porffor.wasm`
 i32.const 1
 memory.grow 0
@@ -10,6 +10,19 @@ i32.const 0
 return`;
 };
 
+export const __Porffor_bytestring_spliceString = (str: bytestring, offset: number, appendage: bytestring) => {
+  const appendageLen: i32 = appendage.length;
+  const strPtr: i32 = Porffor.wasm`local.get ${str}`;
+  const appendagePtr: i32 = Porffor.wasm`local.get ${appendage}`;
+  Porffor.wasm.memory.copy(strPtr + 4 + offset, appendagePtr + 4, appendageLen);
+};
+
+export const __Porffor_string_spliceString = (str: string, offset: number, appendage: string) => {
+  const appendageLen: i32 = appendage.length;
+  const strPtr: i32 = Porffor.wasm`local.get ${str}`;
+  const appendagePtr: i32 = Porffor.wasm`local.get ${appendage}`;
+  Porffor.wasm.memory.copy(strPtr + 4 + offset * 2, appendagePtr + 4, appendageLen * 2);
+};
 
 // fast appending string
 export const __Porffor_bytestring_appendStr = (str: bytestring, appendage: bytestring): i32 => {

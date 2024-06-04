@@ -7,7 +7,7 @@ export default async () => {
   const constr = name => out += `export const ${name} = function (arg: any): ${name} {
   if (!new.target) throw new TypeError("Constructor ${name} requires 'new'");
 
-  const out: ${name} = Porffor.allocate();
+  const out = Porffor.allocatePage<${name}>();
   let len: i32 = 0;
 
   const type: i32 = Porffor.rawType(arg);
@@ -63,7 +63,7 @@ export const __${name}_prototype_slice = (_this: ${name}, start: number, end: nu
   }
   if (end > len) end = len;
 
-  let out: ${name} = Porffor.allocate();
+  let out = Porffor.allocatePage<${name}>();
 
   if (start > end) return out;
 
