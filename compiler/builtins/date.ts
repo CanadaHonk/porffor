@@ -1532,39 +1532,39 @@ export const __ecma262_ToUTCDTSF = (t: number): bytestring => {
   if (Porffor.fastOr(year < 0, year >= 10000)) {
     // extended year format
     // sign
-    __Porffor_bytestring_appendChar(out, year > 0 ? 43 : 45);
+    Porffor.bytestring.appendChar(out, year > 0 ? 43 : 45);
 
     // 6 digit year
-    __Porffor_bytestring_appendPadNum(out, year, 6);
+    Porffor.bytestring.appendPadNum(out, year, 6);
   } else {
     // 4 digit year
-    __Porffor_bytestring_appendPadNum(out, year, 4);
+    Porffor.bytestring.appendPadNum(out, year, 4);
   }
-  __Porffor_bytestring_appendChar(out, 45); // -
+  Porffor.bytestring.appendChar(out, 45); // -
 
   // 2 digit month (01-12)
-  __Porffor_bytestring_appendPadNum(out, __ecma262_MonthFromTime(t) + 1, 2);
-  __Porffor_bytestring_appendChar(out, 45); // -
+  Porffor.bytestring.appendPadNum(out, __ecma262_MonthFromTime(t) + 1, 2);
+  Porffor.bytestring.appendChar(out, 45); // -
 
   // 2 digit day of the month
-  __Porffor_bytestring_appendPadNum(out, __ecma262_DateFromTime(t), 2);
-  __Porffor_bytestring_appendChar(out, 84); // T
+  Porffor.bytestring.appendPadNum(out, __ecma262_DateFromTime(t), 2);
+  Porffor.bytestring.appendChar(out, 84); // T
 
   // 2 digit hour
-  __Porffor_bytestring_appendPadNum(out, __ecma262_HourFromTime(t), 2);
-  __Porffor_bytestring_appendChar(out, 58); // :
+  Porffor.bytestring.appendPadNum(out, __ecma262_HourFromTime(t), 2);
+  Porffor.bytestring.appendChar(out, 58); // :
 
   // 2 digit minute
-  __Porffor_bytestring_appendPadNum(out, __ecma262_MinFromTime(t), 2);
-  __Porffor_bytestring_appendChar(out, 58); // :
+  Porffor.bytestring.appendPadNum(out, __ecma262_MinFromTime(t), 2);
+  Porffor.bytestring.appendChar(out, 58); // :
 
   // 2 digit second
-  __Porffor_bytestring_appendPadNum(out, __ecma262_SecFromTime(t), 2);
-  __Porffor_bytestring_appendChar(out, 46); // .
+  Porffor.bytestring.appendPadNum(out, __ecma262_SecFromTime(t), 2);
+  Porffor.bytestring.appendChar(out, 46); // .
 
   // 3 digit millisecond
-  __Porffor_bytestring_appendPadNum(out, __ecma262_msFromTime(t), 3);
-  __Porffor_bytestring_appendChar(out, 90); // Z
+  Porffor.bytestring.appendPadNum(out, __ecma262_msFromTime(t), 3);
+  Porffor.bytestring.appendChar(out, 90); // Z
 
   return out;
 };
@@ -1625,18 +1625,18 @@ export const __ecma262_TimeString = (tv: number): bytestring => {
   let out = Porffor.allocatePage<bytestring>();
   out.length = 0;
 
-  __Porffor_bytestring_appendPadNum(out, hour, 2);
-  __Porffor_bytestring_appendChar(out, 58); // ':'
+  Porffor.bytestring.appendPadNum(out, hour, 2);
+  Porffor.bytestring.appendChar(out, 58); // ':'
 
-  __Porffor_bytestring_appendPadNum(out, minute, 2);
-  __Porffor_bytestring_appendChar(out, 58); // ':'
+  Porffor.bytestring.appendPadNum(out, minute, 2);
+  Porffor.bytestring.appendChar(out, 58); // ':'
 
-  __Porffor_bytestring_appendPadNum(out, second, 2);
+  Porffor.bytestring.appendPadNum(out, second, 2);
 
-  __Porffor_bytestring_appendChar(out, 32); // ' '
-  __Porffor_bytestring_appendChar(out, 71); // 'G'
-  __Porffor_bytestring_appendChar(out, 77); // 'M'
-  __Porffor_bytestring_appendChar(out, 84); // 'T'
+  Porffor.bytestring.appendChar(out, 32); // ' '
+  Porffor.bytestring.appendChar(out, 71); // 'G'
+  Porffor.bytestring.appendChar(out, 77); // 'M'
+  Porffor.bytestring.appendChar(out, 84); // 'T'
 
   return out;
 };
@@ -1665,20 +1665,20 @@ export const __ecma262_DateString = (tv: number): bytestring => {
   out.length = 0;
 
   // weekday
-  __Porffor_bytestring_appendStr(out, weekday);
-  __Porffor_bytestring_appendChar(out, 32); // ' '
+  Porffor.bytestring.appendStr(out, weekday);
+  Porffor.bytestring.appendChar(out, 32); // ' '
 
   // month
-  __Porffor_bytestring_appendStr(out, month);
-  __Porffor_bytestring_appendChar(out, 32); // ' '
+  Porffor.bytestring.appendStr(out, month);
+  Porffor.bytestring.appendChar(out, 32); // ' '
 
   // day
-  __Porffor_bytestring_appendPadNum(out, day, 2);
-  __Porffor_bytestring_appendChar(out, 32); // ' '
+  Porffor.bytestring.appendPadNum(out, day, 2);
+  Porffor.bytestring.appendChar(out, 32); // ' '
 
   // year
-  if (yv < 0) __Porffor_bytestring_appendChar(out, 45); // sign
-  __Porffor_bytestring_appendPadNum(out, yv, 4);
+  if (yv < 0) Porffor.bytestring.appendChar(out, 45); // sign
+  Porffor.bytestring.appendPadNum(out, yv, 4);
 
   return out;
 };
@@ -1706,12 +1706,12 @@ export const __ecma262_ToDateString = (tv: number) => {
   const t: number = __ecma262_LocalTime(tv);
 
   // 3. Return the string-concatenation of DateString(t), the code unit 0x0020 (SPACE), TimeString(t), and TimeZoneString(tv).
-  __Porffor_bytestring_appendStr(out, __ecma262_DateString(t));
-  __Porffor_bytestring_appendChar(out, 32);
+  Porffor.bytestring.appendStr(out, __ecma262_DateString(t));
+  Porffor.bytestring.appendChar(out, 32);
 
-  __Porffor_bytestring_appendStr(out, __ecma262_TimeString(t));
+  Porffor.bytestring.appendStr(out, __ecma262_TimeString(t));
 
-  __Porffor_bytestring_appendStr(out, __ecma262_TimeZoneString(tv));
+  Porffor.bytestring.appendStr(out, __ecma262_TimeZoneString(tv));
 
   return out;
 };
@@ -1749,8 +1749,8 @@ export const __Date_prototype_toTimeString = (_this: Date) => {
   const t: number = __ecma262_LocalTime(tv);
 
   // 6. Return the string-concatenation of TimeString(t) and TimeZoneString(tv).
-  __Porffor_bytestring_appendStr(out, __ecma262_TimeString(t));
-  __Porffor_bytestring_appendStr(out, __ecma262_TimeZoneString(tv));
+  Porffor.bytestring.appendStr(out, __ecma262_TimeString(t));
+  Porffor.bytestring.appendStr(out, __ecma262_TimeZoneString(tv));
 
   return out;
 };
@@ -1814,24 +1814,24 @@ export const __Date_prototype_toUTCString = (_this: Date) => {
   // 10. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
   // 11. Return the string-concatenation of weekday, ",", the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), yearSign, paddedYear, the code unit 0x0020 (SPACE), and TimeString(tv).
   // weekday
-  __Porffor_bytestring_appendStr(out, weekday);
-  __Porffor_bytestring_appendChar(out, 44); // ','
-  __Porffor_bytestring_appendChar(out, 32); // ' '
+  Porffor.bytestring.appendStr(out, weekday);
+  Porffor.bytestring.appendChar(out, 44); // ','
+  Porffor.bytestring.appendChar(out, 32); // ' '
 
   // day
-  __Porffor_bytestring_appendPadNum(out, day, 2);
-  __Porffor_bytestring_appendChar(out, 32); // ' '
+  Porffor.bytestring.appendPadNum(out, day, 2);
+  Porffor.bytestring.appendChar(out, 32); // ' '
 
   // month
-  __Porffor_bytestring_appendStr(out, month);
-  __Porffor_bytestring_appendChar(out, 32); // ' '
+  Porffor.bytestring.appendStr(out, month);
+  Porffor.bytestring.appendChar(out, 32); // ' '
 
   // year
-  if (yv < 0) __Porffor_bytestring_appendChar(out, 45); // sign
-  __Porffor_bytestring_appendPadNum(out, yv, 4);
+  if (yv < 0) Porffor.bytestring.appendChar(out, 45); // sign
+  Porffor.bytestring.appendPadNum(out, yv, 4);
 
-  __Porffor_bytestring_appendChar(out, 32); // ' '
-  __Porffor_bytestring_appendStr(out, __ecma262_TimeString(tv));
+  Porffor.bytestring.appendChar(out, 32); // ' '
+  Porffor.bytestring.appendStr(out, __ecma262_TimeString(tv));
 
   return out;
 };
