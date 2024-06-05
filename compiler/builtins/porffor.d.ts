@@ -35,10 +35,16 @@ type PorfforGlobal = {
   }
 
   bytestring: {
-    // defined in porffor.ts
+    // defined in utils.ts
     appendStr(str: bytestring, appendage: bytestring): i32;
     appendChar(str: bytestring, char: i32): i32;
     appendPadNum(str: bytestring, num: number, len: number): i32;
+    spliceString(str: bytestring, offset: number, appendage: bytestring);
+  }
+
+  string: {
+    // defined in utils.ts
+    spliceString(str: string, offset: number, appendage: string);
   }
 
   print(x: any): i32;
@@ -72,10 +78,17 @@ type PorfforGlobal = {
 
   readArgv(index: i32, out: bytestring): i32;
   readFile(path: bytestring, out: bytestring): i32;
+
+  cast<T>(arg: any): T;
 };
 
 declare global {
   const Porffor: PorfforGlobal;
+
+  const ecma262: {
+    ToIntegerOrInfinity(argument: unknown): number;
+    ToString(argument: unknown): bytestring;
+  }
 
   type i32 = number;
   type i64 = number;

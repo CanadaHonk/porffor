@@ -1865,7 +1865,7 @@ export const __Date_prototype_valueOf = (_this: Date) => {
 
 // 21.4.2.1 Date (...values)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date
-export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown, v4: unknown, v5: unknown, v6: unknown): bytestring|Date {
+export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown, v4: unknown, v5: unknown, v6: unknown) {
   // 1. If NewTarget is undefined, then
   if (!new.target) {
     // a. Let now be the time value (UTC) identifying the current time.

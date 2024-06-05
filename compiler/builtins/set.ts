@@ -152,7 +152,7 @@ export const __Set_prototype_clear = (_this: Set) => {
   Porffor.wasm.i32.store(_this, 0, 0, 0);
 };
 
-export const Set = function (iterable: any): any {
+export const Set = function (iterable: any): Set {
   if (!new.target) throw new TypeError("Constructor Set requires 'new'");
 
   const out = Porffor.allocatePage<Set>();
