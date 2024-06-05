@@ -428,35 +428,7 @@ const concatStrings = (scope, left, right, leftType, rightType, global, name, as
   // hack: we shouldn't have to drop the type here, other code should handle it
 
   const func = includeBuiltin(scope, bytestrings ? '__ByteString_prototype_concat' : '__String_prototype_concat');
-  const type = bytestrings ? TYPES.bytestring : TYPES.string;
 
-  const knownLeft = knownType(scope, leftType);
-  const knownRight = knownType(scope, rightType);
-
-  if (knownLeft == type) {
-    return [
-      ...left,
-      ...number(type, Valtype.i32),
-      ...right,
-      ...rightType,
-      [ Opcodes.call, func.index ],
-      [ Opcodes.drop ]
-    ]
-  }
-
-  if (knownRight == type) {
-    // todo: this probably messes up side effects
-    return [
-      ...right,
-      ...number(type, Valtype.i32),
-      ...left,
-      ...leftType,
-      [ Opcodes.call, func.index ],
-      [ Opcodes.drop ]
-    ]
-  }
-
-  // todo: convert both strings
   return [
     ...left,
     ...leftType,
