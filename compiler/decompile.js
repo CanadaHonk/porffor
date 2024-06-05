@@ -70,7 +70,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
     } else if (inst[0] === Opcodes.i32_load || inst[0] === Opcodes.i64_load || inst[0] === Opcodes.f64_load || inst[0] === Opcodes.i32_store || inst[0] === Opcodes.i64_store || inst[0] === Opcodes.f64_store || inst[0] === Opcodes.i32_store16 || inst[0] === Opcodes.i32_load16_u) {
       out += ` ${inst[1]} ${read_unsignedLEB128(inst.slice(2))}`;
     } else for (const operand of inst.slice(1)) {
-      if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) {
+      if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.try) {
         if (operand === Blocktype.void) continue;
         out += ` ${invValtype[operand]}`;
       } else {
@@ -80,7 +80,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
     if (comments.length > 0) out += ` ;; ${comments.join(' ')}`;
 
-    if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else) {
+    if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else || inst[0] === Opcodes.try || inst[0] === Opcodes.catch_all) {
       out += ` ;; label @${depth}`;
     }
 

@@ -143,6 +143,62 @@ export const __Array_prototype_with = (_this: any[], index: number, value: any) 
 };
 
 // @porf-typed-array
+export const __Array_prototype_copyWithin = (_this: any[], target: number, start: number, end: any) => {
+  const len: i32 = _this.length;
+  if (target < 0) {
+    target = len + target;
+    if (target < 0) target = 0;
+  }
+  if (target > len) target = len;
+
+  if (start < 0) {
+    start = len + start;
+    if (start < 0) start = 0;
+  }
+  if (start > len) start = len;
+
+  if (Porffor.rawType(end) == Porffor.TYPES.undefined) {
+    end = len;
+  } else {
+    if (end < 0) {
+      end = len + end;
+      if (end < 0) end = 0;
+    }
+    if (end > len) end = len;
+  }
+
+  while (start < end) {
+    _this[target++] = _this[start++];
+  }
+
+  return _this;
+};
+
+// @porf-typed-array
+export const __Array_prototype_concat = (_this: any[], ...vals: any[]) => {
+  // todo/perf: rewrite to use memory.copy (via some Porffor.array.append thing?)
+  let out: any[] = Porffor.allocate();
+  Porffor.clone(_this, out);
+
+  let len: i32 = _this.length;
+
+  for (const x of vals) {
+    if (Porffor.rawType(x) & 0b01000000) { // value is iterable
+      // todo: for..of is broken here because ??
+      const l: i32 = x.length;
+      for (let i: i32 = 0; i < l; i++) {
+        out[len++] = x[i];
+      }
+    } else {
+      out[len++] = x;
+    }
+  }
+
+  out.length = len;
+  return out;
+};
+
+// @porf-typed-array
 export const __Array_prototype_reverse = (_this: any[]) => {
   const len: i32 = _this.length;
 

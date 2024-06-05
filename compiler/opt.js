@@ -114,8 +114,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
     while (runs > 0) {
       runs--;
 
-      let depth = [];
-
       let getCount = {}, setCount = {};
       for (const x in f.locals) {
         getCount[f.locals[x].idx] = 0;
@@ -127,9 +125,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
         let inst = wasm[i];
         inst = [ ...inst ];
         wasm[i] = inst;
-
-        if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block) depth.push(inst[0]);
-        if (inst[0] === Opcodes.end) depth.pop();
 
         if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
         if (inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) setCount[inst[1]]++;

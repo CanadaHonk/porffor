@@ -171,9 +171,6 @@ const removeBrackets = str => {
 };
 
 export default ({ funcs, globals, tags, data, exceptions, pages }) => {
-  // fix declaring order for c
-  funcs.reverse();
-
   const invOperatorOpcode = Object.values(operatorOpcode).reduce((acc, x) => {
     for (const k in x) {
       acc[x[k]] = k;
@@ -201,7 +198,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   includes.set('stdint.h', true);
 
-  let out = ``;
+  globalThis.out = ``;
 
   for (const x in globals) {
     const g = globals[x];
@@ -231,15 +228,12 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   if (out) out += '\n';
 
-  let depth = 1;
-  let brDepth = 0;
-  const line = (str, semi = true) => out += `${' '.repeat((depth + brDepth) * 2)}${str}${semi ? ';' : ''}\n`;
+  const line = (str, semi = true) => out += `${str}${semi ? ';' : ''}\n`;
   const lines = lines => {
     for (const x of lines) {
-      out += `${' '.repeat((depth + brDepth) * 2)}${x}\n`;
+      out += x + '\n';
     }
   };
-
   const platformSpecific = (win, unix, add = true) => {
     let tmp = '';
 
@@ -268,11 +262,46 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   let brId = 0;
 
-  for (const f of funcs) {
-    depth = 1;
-    brDepth = 0;
+  const cified = new Set();
+  const cify = f => {
+    let out = '';
+
+    let depth = 1;
+    let brDepth = 0;
+    const line = (str, semi = true) => out += `${' '.repeat((depth + brDepth) * 2)}${str}${semi ? ';' : ''}\n`;
+    const lines = lines => {
+      for (const x of lines) {
+        out += `${' '.repeat((depth + brDepth) * 2)}${x}\n`;
+      }
+    };
+    const platformSpecific = (win, unix, add = true) => {
+      let tmp = '';
+
+      if (win) {
+        if (add) out += '#ifdef _WIN32\n';
+          else tmp += '#ifdef _WIN32\n';
+
+        if (add) lines(win.split('\n'));
+          else tmp += win + (win.endsWith('\n') ? '' : '\n');
+      }
+
+      if (unix) {
+        if (add) out += (win ? '#else' : '#ifndef _WIN32') + '\n';
+          else tmp += (win ? '#else' : '#ifndef _WIN32') + '\n';
+
+        if (add) lines(unix.split('\n'));
+          else tmp += unix + (unix.endsWith('\n') ? '' : '\n');
+      }
+
+      if (win || unix)
+        if (add) out += '#endif\n';
+          else tmp += '#endif\n';
+
+      return tmp;
+    };
 
     let retTmpId = 0;
+    let tmpId = 0;
 
     const invLocals = inv(f.locals, x => x.idx);
 
@@ -598,6 +627,11 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             break;
           }
 
+          if (!cified.has(func.name) && func.name !== f.name) {
+            cify(func);
+            cified.add(func.name);
+          }
+
           let args = [];
           for (let j = 0; j < func.params.length; j++) args.unshift(removeBrackets(vals.pop()));
 
@@ -663,6 +697,53 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           break;
         }
 
+        case Opcodes.f64_abs: {
+          break;
+        }
+        case Opcodes.f64_neg: {
+          break;
+        }
+
+        case Opcodes.f64_ceil: {
+          break;
+        }
+        case Opcodes.f64_floor: {
+          break;
+        }
+        case Opcodes.f64_trunc: {
+          break;
+        }
+        case Opcodes.f64_nearest: {
+          break;
+        }
+
+        case Opcodes.f64_sqrt: {
+          break;
+        }
+        case Opcodes.f64_min: {
+          const b = vals.pop();
+          const a = vals.pop();
+
+          const id = tmpId++;
+          line(`const f64 _tmp${id}a = ${a}`);
+          line(`const f64 _tmp${id}b = ${b}`);
+          vals.push(`(_tmp${id}a > _tmp${id}b ? _tmp${id}b : _tmp${id}a)`);
+          break;
+        }
+        case Opcodes.f64_max: {
+          const b = vals.pop();
+          const a = vals.pop();
+
+          const id = tmpId++;
+          line(`const f64 _tmp${id}a = ${a}`);
+          line(`const f64 _tmp${id}b = ${b}`);
+          vals.push(`(_tmp${id}a > _tmp${id}b ? _tmp${id}a : _tmp${id}b)`);
+          break;
+        }
+        case Opcodes.f64_copysign: {
+          break;
+        }
+
         default:
           if (CMemFuncs[i[0]]) {
             const name = invOpcodes[i[0]];
@@ -698,9 +779,11 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
     }
 
     out += '}\n\n';
-  }
 
-  depth = 0;
+    globalThis.out = globalThis.out + out;
+  };
+
+  cify(funcs.find(x => x.name === 'main'));
 
   const makeIncludes = includes => [...includes.keys()].map(x => `#include <${x}>\n`).join('');
   out = platformSpecific(makeIncludes(winIncludes), makeIncludes(unixIncludes), false) + '\n' + makeIncludes(includes) + '\n' + alwaysPreface + [...prepend.values()].join('\n') + '\n\n' + out;
