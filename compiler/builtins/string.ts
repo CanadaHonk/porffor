@@ -830,6 +830,7 @@ export const __String_prototype_slice = (_this: string, start: number, end: numb
   if (end > len) end = len;
 
   if (start > end) return '';
+  if (start == end) return '';
   
   const outLen: i32 = end - start;
   let out = Porffor.allocateBytes<string>(4 + outLen * 2);
@@ -861,6 +862,7 @@ export const __ByteString_prototype_slice = (_this: bytestring, start: number, e
   if (end > len) end = len;
 
   if (start > end) return '';
+  if (start == end) return '';
   
   const outLen: i32 = end - start;
   let out = Porffor.allocateBytes<bytestring>(4 + outLen);
@@ -876,7 +878,6 @@ export const __ByteString_prototype_slice = (_this: bytestring, start: number, e
 
 
 export const __String_prototype_trimStart = (_this: string) => {
-  
   let len: i32 = _this.length;
   
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -884,8 +885,8 @@ export const __String_prototype_trimStart = (_this: string) => {
   
   while (thisPtr < thisPtrEnd) {
     const chr: i32 = Porffor.wasm.i32.load16_u(thisPtr, 0, 4);
-    thisPtr += 2;
     if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
+      thisPtr += 2;
       len--;
       continue;
     }
@@ -909,8 +910,8 @@ export const __ByteString_prototype_trimStart = (_this: bytestring) => {
   
   while (thisPtr < thisPtrEnd) {
     const chr: i32 = Porffor.wasm.i32.load8_u(thisPtr, 0, 4);
-    thisPtr ++;
     if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
+      thisPtr ++;
       len--;
       continue;
     }
@@ -928,59 +929,129 @@ export const __ByteString_prototype_trimStart = (_this: bytestring) => {
 
 export const __String_prototype_trimEnd = (_this: string) => {
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-
-  const len: i32 = _this.length;
-
   const thisPtrStart: i32 = thisPtr;
+  
+  let len: i32 = _this.length;
+  thisPtr += (len * 2) - 2;
 
-  thisPtr += len * 2;
-
-  let end: i32 = len;
   while (thisPtr > thisPtrStart) {
     const chr: i32 = Porffor.wasm.i32.load16_u(thisPtr, 0, 4);
-    thisPtr -= 2;
     if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
-      end--;
+      thisPtr -= 2;
+      len--;
       continue;
     }
     break;
   }
 
-  return __String_prototype_slice(_this, 0, end);
+  let out = Porffor.allocateBytes<bytestring>(4 + len * 2);
+  out.length = len;
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+
+  Porffor.wasm.memory.copy(outPtr + 4, thisPtrStart + 4, len * 2);
+  return out;
 };
 
 export const __ByteString_prototype_trimEnd = (_this: bytestring) => {
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-
-  const len: i32 = _this.length;
-
   const thisPtrStart: i32 = thisPtr;
+  
+  let len: i32 = _this.length;
+  thisPtr += len - 1;
 
-  thisPtr += len;
-
-  let end: i32 = len;
   while (thisPtr > thisPtrStart) {
     const chr: i32 = Porffor.wasm.i32.load8_u(thisPtr, 0, 4);
-    thisPtr -= 1;
     if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
-      end--;
+      thisPtr -= 1;
+      len--;
       continue;
     }
     break;
   }
 
-  return __ByteString_prototype_slice(_this, 0, end);
+  let out = Porffor.allocateBytes<bytestring>(4 + len);
+  out.length = len;
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+
+  Porffor.wasm.memory.copy(outPtr + 4, thisPtrStart + 4, len);
+  return out;
 };
 
 
 export const __String_prototype_trim = (_this: string) => {
-  // todo/perf: optimize and not just reuse
-  return __String_prototype_trimStart(__String_prototype_trimEnd(_this));
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+  
+  let len: i32 = _this.length;
+  
+  const thisPtrEnd: i32 = thisPtr + len * 2;
+  
+  while (thisPtr < thisPtrEnd) {
+    const chr: i32 = Porffor.wasm.i32.load16_u(thisPtr, 0, 4);
+    if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
+      thisPtr ++;
+      len--;
+      continue;
+    }
+    break;
+  }
+  
+  const thisPtrStart: i32 = thisPtr;
+  thisPtr += len * 2 - 2;
+
+  while (thisPtr > thisPtrStart) {
+    const chr: i32 = Porffor.wasm.i32.load16_u(thisPtr, 0, 4);
+    if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
+      thisPtr -= 2;
+      len--;
+      continue;
+    }
+    break;
+  }
+
+  let out = Porffor.allocateBytes<bytestring>(4 + len * 2);
+  out.length = len;
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+
+  Porffor.wasm.memory.copy(outPtr + 4, thisPtrStart + 4, len * 2);
+  return out;
 };
 
 export const __ByteString_prototype_trim = (_this: bytestring) => {
-  // todo/perf: optimize and not just reuse
-  return __ByteString_prototype_trimStart(__ByteString_prototype_trimEnd(_this));
+  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+  
+  let len: i32 = _this.length;
+  
+  const thisPtrEnd: i32 = thisPtr + len;
+  
+  while (thisPtr < thisPtrEnd) {
+    const chr: i32 = Porffor.wasm.i32.load8_u(thisPtr, 0, 4);
+    if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
+      thisPtr ++;
+      len--;
+      continue;
+    }
+    break;
+  }
+  
+  const thisPtrStart: i32 = thisPtr;
+  thisPtr += len - 1;
+
+  while (thisPtr > thisPtrStart) {
+    const chr: i32 = Porffor.wasm.i32.load8_u(thisPtr, 0, 4);
+    if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
+      thisPtr -= 1;
+      len--;
+      continue;
+    }
+    break;
+  }
+
+  let out = Porffor.allocateBytes<bytestring>(4 + len);
+  out.length = len;
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
+
+  Porffor.wasm.memory.copy(outPtr + 4, thisPtrStart + 4, len);
+  return out;
 };
 
 // 22.1.3.29 String.prototype.toString ()
