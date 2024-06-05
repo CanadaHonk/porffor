@@ -254,25 +254,18 @@ Basically none right now (other than giving people headaches). Potential ideas:
 ## Todo
 No particular order and no guarentees, just what could happen soon™
 
-- Arrays
-  - Destructuring
 - Objects
   - Basic object expressions (eg `{}`, `{ a: 0 }`)
 - Asur
   - Support memory
   - Support exceptions
-- More math operators (`**`, etc)
-- Typed export inputs (array)
 - Exceptions
-  - Rewrite to use actual strings (optional?)
   - `try { } finally { }`
   - Rethrowing inside catch
 - Optimizations
   - Rewrite local indexes per func for smallest local header and remove unused idxs
   - Smarter inline selection (snapshots?)
-  - Remove const ifs (`if (true)`, etc)
   - Memory alignment
-  - Add general pref for always using "fast" (non-short circuiting) or/and
 - Runtime
   - WASI target
   - Run precompiled Wasm file if given
@@ -292,6 +285,7 @@ No particular order and no guarentees, just what could happen soon™
   - Precompiled TS built-ins
   - Asur
   - `escape()` optimization
+  - PGO
 - Self hosted testing?
 
 ## VSCode extension
