@@ -10,6 +10,7 @@ i32.const 0
 return`;
 };
 
+// todo: this should be an inline function whenever we support that
 export const __Porffor_bytestring_spliceString = (str: bytestring, offset: number, appendage: bytestring) => {
   const appendageLen: i32 = appendage.length;
   const strPtr: i32 = Porffor.wasm`local.get ${str}`;
@@ -27,16 +28,8 @@ export const __Porffor_string_spliceString = (str: string, offset: number, appen
 // fast appending string
 export const __Porffor_bytestring_appendStr = (str: bytestring, appendage: bytestring): i32 => {
   const strLen: i32 = str.length;
-  const appendageLen: i32 = appendage.length;
-  let strPtr: i32 = Porffor.wasm`local.get ${str}` + strLen;
-  let appendagePtr: i32 = Porffor.wasm`local.get ${appendage}`;
-  let endPtr: i32 = appendagePtr + appendageLen;
-
-  while (appendagePtr < endPtr) {
-    Porffor.wasm.i32.store8(strPtr++, Porffor.wasm.i32.load8_u(appendagePtr++, 0, 4), 0, 4);
-  }
-
-  str.length = strLen + appendageLen;
+  __Porffor_bytestring_spliceString(str, strLen, appendage);
+  str.length = strLen + appendage.length;
   return 1;
 };
 
