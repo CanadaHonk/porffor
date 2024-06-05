@@ -4037,67 +4037,10 @@ const makeStringBuffer = (scope, str, global = false, name = '$undeclared', forc
   }, global, name, false, byteStringable ? 'i8' : 'i16')[0];
 }
 
-const stringInit = [];
+let stringInit = [];
 
-const makeString = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
-  const [ptr, initialized] = allocator.allocString(pages, str);
-  const isBytestring = byteStringable(str);
-  const type = isBytestring ? TYPES.bytestring : TYPES.string;
-  if (initialized) return [
-    ...number(ptr, Valtype.i32), 
-    Opcodes.i32_from_u, 
-    ...(name ? setType(scope, name, type) : setLastType(scope, type))
-  ];
+const getStringBytes = (str, isBytestring) => {
   const out = [];
-  let pointer = [ number(ptr, Valtype.i32) ];
-
-  if (allocator.constructor.name !== 'StaticAllocator') {
-    const tmp = localTmp(scope, '#makearray_pointer' + name, Valtype.i32);
-    out.push(
-      ...allocated,
-      [ Opcodes.local_set, tmp ]
-    );
-
-    if (Prefs.runtimeAllocLog) out.push(
-      ...printStaticStr(`${name}: `),
-
-      [ Opcodes.local_get, tmp ],
-      Opcodes.i32_from_u,
-      [ Opcodes.call, 0 ],
-
-      ...number(10),
-      [ Opcodes.call, 1 ]
-    );
-
-    pointer = [ [ Opcodes.local_get, tmp ] ];
-  } else {
-    const uniqueName = name === '$undeclared' ? name + randId() : name;
-    const rawPtr = read_signedLEB128(pointer[0].slice(1));
-
-    scope.strings ??= new Map();
-    const firstAssign = !scope.strings.has(uniqueName);
-    if (firstAssign) scope.strings.set(uniqueName, rawPtr);
-
-    const local = global ? globals[name] : scope.locals[name];
-    const pointerTmp = local != null ? localTmp(scope, '#makearray_pointer_tmp', Valtype.i32) : null;
-    if (pointerTmp != null) {
-      out.push(
-        [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
-        Opcodes.i32_to_u,
-        [ Opcodes.local_set, pointerTmp ]
-      );
-
-      pointer = [ [ Opcodes.local_get, pointerTmp ] ];
-    }
-  }
-
-
-  // store length
-  stringInit.push(
-    ...number(ptr, Valtype.i32),
-    ...number(str.length, Valtype.i32),
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
-  );
   if (isBytestring) {
     for (let i = 0; i < str.length; i += 4) {
       const c0 = str.charCodeAt(i + 0);
@@ -4121,41 +4064,23 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
       // }
 
       if (!Number.isNaN(c3)) {
-        let code = (c3 << 24) + (c2 << 16) + (c1 << 8) + c0;
-        stringInit.push(
-          ...number(ptr + i, Valtype.i32),
-          ...number(code, Valtype.i32),
-          [ Opcodes.i32_store, 0, 4 ]
-        )
+        const code = (c3 << 24) + (c2 << 16) + (c1 << 8) + c0;
+        out.push({ offset: i, size: 4, data: code });
         continue;
       }
       if (!Number.isNaN(c2)) {
-        let code = (c1 << 8) + c0;
-        stringInit.push(
-          ...number(ptr + i, Valtype.i32),
-          ...number(code, Valtype.i32),
-          [ Opcodes.i32_store16, 0, 4 ],
-          ...number(ptr + i + 2, Valtype.i32),
-          ...number(c2, Valtype.i32),
-          [ Opcodes.i32_store8, 0, 4 ],
-        )
+        const code = (c1 << 8) + c0;
+        out.push({ offset: i, size: 2, data: code });
+        out.push({ offset: i + 2, size: 1, data: c2 });
         continue;
       }
       if (!Number.isNaN(c1)) {
-        let code = (c1 << 8) + c0;
-        stringInit.push(
-          ...number(ptr + i, Valtype.i32),
-          ...number(code, Valtype.i32),
-          [ Opcodes.i32_store16, 0, 4 ],
-        )
+        const code = (c1 << 8) + c0;
+        out.push({ offset: i, size: 2, data: code });
         continue;
       }
       if (!Number.isNaN(c0)) {
-        stringInit.push(
-          ...number(ptr + i, Valtype.i32),
-          ...number(c0, Valtype.i32),
-          [ Opcodes.i32_store8, 0, 4 ],
-        )
+        out.push({ offset: i, size: 1, data: c0 });
         continue;
       }
     }
@@ -4165,26 +4090,52 @@ const makeString = (scope, str, global = false, name = '$undeclared', forceBytes
       const c1 = str.charCodeAt(i + 1);
       if (Number.isNaN(c1)) {
         let code = (c0 << 16);
-        stringInit.push(
-          ...number(ptr + i, Valtype.i32),
-          ...number(code, Valtype.i32),
-          [ Opcodes.i32_store16, 0, 4 ],
-        );
+        out.push({ offset: i, size: 2, data: code });
         continue;
       }
       let code = (c0 << 16) + c1;
-      stringInit.push(
-        ...number(ptr + i, Valtype.i32),
-        ...number(code, Valtype.i32),
-        [ Opcodes.i32_store, 0, 4 ],
-      );
+      out.push({ offset: i, size: 4, data: code });
     }
   }
-          
-  out.push(
-    ...number(ptr, Valtype.i32),
-    Opcodes.i32_from_u
-  );
+  return out;
+}
+
+const makeString = (scope, str, global = false, name = '$undeclared', val = valtypeBinary) => {
+  const isBytestring = byteStringable(str);
+  const [ptr, initialized] = allocator.allocString(pages, str, isBytestring);
+  // const type = isBytestring ? TYPES.bytestring : TYPES.string;
+  const out = [];
+
+  if (globalThis.precompile) {
+    out.push(
+      [ "stringref", str, name, val ],
+    )
+  } else {
+    if (!initialized) {
+      // store length
+      stringInit.push(
+        ...number(ptr, Valtype.i32),
+        ...number(str.length, Valtype.i32),
+        [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
+      );
+      const bytes = getStringBytes(str, isBytestring);
+      for (const chunk of bytes) {
+        stringInit.push(
+          ...number(ptr + chunk.offset, Valtype.i32),
+          ...number(chunk.data, Valtype.i32),
+        )
+        switch (chunk.size) {
+          case 1: stringInit.push([ Opcodes.i32_store8, 0, 4 ]); break;
+          case 2: stringInit.push([ Opcodes.i32_store16, 0, 4 ]); break;
+          case 4: stringInit.push([ Opcodes.i32_store, 0, 4 ]); break;
+        }
+      }
+    }
+    out.push(
+      ...number(ptr, val),
+      // ...(name ? setType(scope, name, type) : setLastType(scope, type))
+    );
+  }
 
   return out;
 };
@@ -4829,6 +4780,7 @@ export default program => {
   pages = new Map();
   data = [];
   currentFuncIndex = importedFuncs.length;
+  stringInit = [];
 
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
 
@@ -4875,7 +4827,14 @@ export default program => {
   main.returns = [ valtypeBinary, Valtype.i32 ];
 
   if (stringInit.length > 0) {
-    main.wasm.unshift(...stringInit);
+    const strInitFunc = asmFunc("#string_init", {
+      wasm: stringInit,
+      params: [],
+      locals: [],
+      returns: [],
+    })
+
+    main.wasm.unshift([ Opcodes.call, strInitFunc.index ]);
   }
 
   const lastInst = main.wasm[main.wasm.length - 1] ?? [ Opcodes.end ];

@@ -56,15 +56,9 @@ export class StaticAllocator {
 
   stringPageIndex = 0;
 
-  allocString(pages, str) {
+  allocString(pages, str, isBytestring) {
     let page = { ind: -1, strs: [], strIndex: new Map(), byteSize: 0 }
-    let size = Prefs.bytestring ? 1 : 2;
-    for (let i = 0; i < str.length; i++) {
-      if (str.charCodeAt(i) > 0xFF) {
-        size = 2;
-        break;
-      }
-    }
+    let size = isBytestring ? 1 : 2;
     pages.hasAnyString = true;
     if (size == 1) pages.hasByteString = true;
     else pages.hasString = true;
