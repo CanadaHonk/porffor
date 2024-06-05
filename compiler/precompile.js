@@ -128,6 +128,7 @@ ${funcs.map(x => {
     ${x.returnType != null ? `returnType: ${JSON.stringify(x.returnType)}` : 'typedReturns: true'},
     locals: ${JSON.stringify(Object.values(x.locals).slice(x.params.length).map(x => x.type))},
     localNames: ${JSON.stringify(Object.keys(x.locals))},
+${x.jsReturnType != null && x.jsReturnType != -1 ? `    jsReturnType: ${x.jsReturnType},` : ''}
 ${x.data && x.data.length > 0 ? `    data: ${JSON.stringify(x.data)},` : ''}
 ${x.table ? `    table: true,` : ''}${x.constr ? `    constr: true,` : ''}
   };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');

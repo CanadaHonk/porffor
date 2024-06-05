@@ -335,6 +335,12 @@ const generateIdent = (scope, decl) => {
 
 const generateReturn = (scope, decl) => {
   if (decl.argument === null) {
+    if (Prefs.jsTypes) {
+      scope.jsReturnType ??= TYPES.undefined;
+      if (scope.jsReturnType != TYPES.undefined) {
+        scope.jsReturnType = -1;
+      } 
+    }
     // just bare "return"
     return [
       ...number(UNDEFINED), // "undefined" if func returns
@@ -345,9 +351,19 @@ const generateReturn = (scope, decl) => {
     ];
   }
 
+  const typeIns = getNodeType(scope, decl.argument);
+  if (Prefs.jsTypes) {
+    const type = knownType(scope, typeIns)
+    if (!type) scope.jsReturnType = -1;
+    scope.jsReturnType ??= type;
+    if (type != scope.jsReturnType) {
+      scope.jsReturnType = -1;
+    }
+  }
+
   return [
     ...generate(scope, decl.argument),
-    ...(scope.returnType != null ? [] : getNodeType(scope, decl.argument)),
+    ...(scope.returnType != null ? [] : typeIns),
     [ Opcodes.return ]
   ];
 };
@@ -1177,12 +1193,14 @@ const getNodeType = (scope, node) => {
 
         // presume
         // todo: warn here?
+        if (Prefs.warnAssumedType) console.warn(`Dynamic call assumed to be number`);
         return TYPES.number;
       }
 
       const func = funcs.find(x => x.name === name);
       if (func) {
         if (func.returnType != null) return func.returnType;
+        if (func.jsReturnType && func.jsReturnType != -1) return func.jsReturnType;
       }
 
       if (name.startsWith('__Porffor_allocate')) {
@@ -1195,20 +1213,39 @@ const getNodeType = (scope, node) => {
         throw new SyntaxError('Allocation missing type argument');
       }
 
-      if (builtinFuncs[name] && !builtinFuncs[name].typedReturns) return builtinFuncs[name].returnType ?? TYPES.number;
+      if (builtinFuncs[name]) {
+        const func = builtinFuncs[name];
+        if (!builtinFuncs[name].typedReturns) {
+          if (func.returnType != null) return func.returnType
+          return TYPES.number;
+        }
+        if (func.jsReturnType && func.jsReturnType != -1) return func.jsReturnType;
+      }
       if (internalConstrs[name]) return internalConstrs[name].type;
+      if (complexReturnTypes[name]) return complexReturnTypes[name](node);
 
       // check if this is a prototype function
-      // if so and there is only one impl (eg charCodeAt)
-      // use that return type as that is the only possibility
-      // (if non-matching type it would error out)
+      // check if all type's impls have the same return type, if so return that type
       if (name.startsWith('__')) {
         const spl = name.slice(2).split('_');
 
         const func = spl[spl.length - 1];
         const protoFuncs = Object.keys(prototypeFuncs).filter(x => x != TYPES.bytestring && prototypeFuncs[x][func] != null);
-        if (protoFuncs.length === 1) {
-          if (protoFuncs[0].returnType != null) return protoFuncs[0].returnType;
+        if (protoFuncs.length > 0) {
+          let type1 = protoFuncs[0].returnType;
+          let type2 = protoFuncs[0].jsReturnType;
+          for (const f of protoFuncs) {
+            if (type1 != f.returnType) {
+              type1 = null;
+            }
+            if (type1 != f.jsReturnType) {
+              type1 = null;
+            }
+
+            if (type1 == null && type2 == null) break;
+          }
+          if (type1) return type1;
+          if (type2) return type2;
         }
       }
 
@@ -1221,6 +1258,7 @@ const getNodeType = (scope, node) => {
 
       // presume
       // todo: warn here?
+      if (Prefs.warnAssumedType) console.warn(`Call to ${name} assumed to be number`);
       return TYPES.number;
 
       // let protoFunc;
@@ -1318,6 +1356,7 @@ const getNodeType = (scope, node) => {
       if (scope.locals['#last_type']) return getLastType(scope);
 
       // presume
+      if (Prefs.warnAssumedType) console.warn(`Member access to field .${name} assumed to be number`);
       return TYPES.number;
     }
 
@@ -1330,6 +1369,7 @@ const getNodeType = (scope, node) => {
 
     // presume
     // todo: warn here?
+    if (Prefs.warnAssumedType) console.warn(`Ast node of type ${node.type} assumed to be number`);
     return TYPES.number;
   })();
 
@@ -2022,7 +2062,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   const func = funcs[idx - importedFuncs.length]; // idx === scope.index ? scope : funcs.find(x => x.index === idx);
   const userFunc = func && !func.internal;
   const typedParams = userFunc || builtinFuncs[name]?.typedParams;
-  const typedReturns = (userFunc && func.returnType == null) || builtinFuncs[name]?.typedReturns;
+  const typedReturns = userFunc ? func.returnType == null : builtinFuncs[name]?.typedReturns;
   let paramCount = func && (typedParams ? Math.floor(func.params.length / 2) : func.params.length);
 
   let paramOffset = 0;
@@ -2534,7 +2574,7 @@ const generateVar = (scope, decl) => {
 
       const type = getNodeType(scope, x.init);
       out.push(...setType(scope, name, type));
-      if (Prefs.jsTypes) {
+      if (Prefs.jsTypes && !typed) {
         // note: this might seem weird at first glance, as the type might later change, 
         //       but we take care in removing it if we don't know what it is after an assignment
         const known = knownType(scope, type);
@@ -4474,13 +4514,6 @@ const generateFunc = (scope, decl) => {
   funcIndex[name] = func.index;
   funcs.push(func);
 
-  if (typedInput && decl.returnType) {
-    const { type } = extractTypeAnnotation(decl.returnType);
-    if (type != null && !Prefs.indirectCalls) {
-      func.returnType = type;
-      func.returns = [ valtypeBinary ];
-    }
-  }
 
   const defaultValues = {};
   for (let i = 0; i < params.length; i++) {
@@ -4541,6 +4574,17 @@ const generateFunc = (scope, decl) => {
 
   const wasm = func.wasm = prelude.concat(generate(func, body));
 
+  if (typedInput && decl.returnType) {
+    const { type } = extractTypeAnnotation(decl.returnType);
+    if (type != null && !Prefs.indirectCalls) {
+      func.returnType = type;
+      func.returns = [ valtypeBinary ];
+    }
+    if (Prefs.jsTypes) {
+      func.jsReturnType = type;
+    }
+  }
+
   if (name === 'main') func.gotLastType = true;
 
   // add end return if not found
@@ -4550,6 +4594,7 @@ const generateFunc = (scope, decl) => {
       ...(func.returnType != null ? [] : number(TYPES.undefined, Valtype.i32)),
       [ Opcodes.return ]
     );
+    func.jsReturnType = TYPES.undefined;
   }
 
   return func;
@@ -4739,6 +4784,10 @@ const internalConstrs = {
     length: 0
   }
 };
+
+const complexReturnTypes = {
+  Date: (node) => node.type == "NewExpression" || node._new ? TYPES.date : TYPES.bytestring
+}
 
 export default program => {
   globals = {
