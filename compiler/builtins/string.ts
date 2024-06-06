@@ -3,6 +3,8 @@ import type {} from './porffor.d.ts';
 
 export const __String_fromCharCode = (code: i32) => {
   // todo: support >1 arg
+  code |= 0;
+
   if (code < 256) {
     let out = Porffor.allocateBytes<bytestring>(5);
     out.length = 1;
