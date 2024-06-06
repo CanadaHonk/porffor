@@ -57,3 +57,40 @@ export const __ByteString_prototype_concat = (_this: bytestring, arg: any) => {
   return out;
 };
 
+export const __Porffor_string_compare = (left: string, right: string): boolean => {
+  const leftPtr: i32 = Porffor.wasm`local.get ${left}`
+  const rightPtr: i32 = Porffor.wasm`local.get ${right}`
+  
+  if (leftPtr == rightPtr) return true;
+
+  const leftLen: i32 = left.length;
+  if (leftLen != right.length) return false;
+
+  for (let i: i32 = 0; i < leftLen; i++) {
+    if (Porffor.wasm.i32.load16_u(leftPtr + i, 0, 4) != Porffor.wasm.i32.load16_u(rightPtr + i, 0, 4)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export const __Porffor_bytestring_compare = (lhs: any, rhs: any): boolean => {
+  const left: bytestring = ecma262.ToString(lhs);
+  const right: bytestring = ecma262.ToString(rhs);
+
+  // note: performance improvement idea: read
+  const leftPtr: i32 = Porffor.wasm`local.get ${left}`
+  const rightPtr: i32 = Porffor.wasm`local.get ${right}`
+  
+  if (leftPtr == rightPtr) return true;
+
+  const leftLen: i32 = left.length;
+  if (leftLen != right.length) return false;
+
+  for (let i: i32 = 0; i < leftLen; i++) {
+    if (Porffor.wasm.i32.load8_u(leftPtr + i, 0, 4) != Porffor.wasm.i32.load8_u(rightPtr + i, 0, 4)) {
+      return false;
+    }
+  }
+  return true;
+}

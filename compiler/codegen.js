@@ -455,115 +455,22 @@ const concatStrings = (scope, left, right, leftType, rightType, global, name, as
   ]
 };
 
-const compareStrings = (scope, left, right, bytestrings = false) => {
-  // todo: this should be rewritten into a func
+const compareStrings = (scope, left, right, leftType, rightType, bytestrings = false) => {
   // todo: convert left and right to strings if not
   // todo: optimize by looking up names in arrays and using that if exists?
   // todo: optimize this if using literals/known lengths?
-
-  const leftPointer = localTmp(scope, 'compare_left_pointer', Valtype.i32);
-  const leftLength = localTmp(scope, 'compare_left_length', Valtype.i32);
-  const rightPointer = localTmp(scope, 'compare_right_pointer', Valtype.i32);
-
-  const index = localTmp(scope, 'compare_index', Valtype.i32);
-  const indexEnd = localTmp(scope, 'compare_index_end', Valtype.i32);
+  // hack: we shouldn't have to drop the type here, other code should handle it 
+  const func = includeBuiltin(scope, bytestrings ? '__Porffor_bytestring_compare' : '__Porffor_string_compare');
 
   return [
-    // setup left
     ...left,
-    Opcodes.i32_to_u,
-    [ Opcodes.local_tee, leftPointer ],
-
-    // setup right
+    ...leftType,
     ...right,
-    Opcodes.i32_to_u,
-    [ Opcodes.local_tee, rightPointer ],
-
-    // fast path: check leftPointer == rightPointer
-    // use if (block) for everything after to "return" a value early
-    [ Opcodes.i32_ne ],
-    [ Opcodes.if, Valtype.i32 ],
-
-    // get lengths
-    [ Opcodes.local_get, leftPointer ],
-    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
-    [ Opcodes.local_tee, leftLength ],
-
-    [ Opcodes.local_get, rightPointer ],
-    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
-
-    // fast path: check leftLength != rightLength
-    [ Opcodes.i32_ne ],
-    [ Opcodes.if, Blocktype.void ],
-    ...number(0, Valtype.i32),
-    [ Opcodes.br, 1 ],
-    [ Opcodes.end ],
-
-    // no fast path for length = 0 as it would probably be slower for most of the time?
-
-    // tmp could have already been used
-    ...number(0, Valtype.i32),
-    [ Opcodes.local_set, index ],
-
-    // setup index end as length * sizeof valtype (1 for bytestring, 2 for string)
-    // we do this instead of having to do mul/div each iter for perf™
-    [ Opcodes.local_get, leftLength ],
-    ...(bytestrings ? [] : [
-      ...number(ValtypeSize.i16, Valtype.i32),
-      [ Opcodes.i32_mul ],
-    ]),
-    [ Opcodes.local_set, indexEnd ],
-
-    // iterate over each char and check if eq
-    [ Opcodes.loop, Blocktype.void ],
-
-    // fetch left
-    [ Opcodes.local_get, index ],
-    [ Opcodes.local_get, leftPointer ],
-    [ Opcodes.i32_add ],
-    bytestrings ?
-      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ] :
-      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
-
-    // fetch right
-    [ Opcodes.local_get, index ],
-    [ Opcodes.local_get, rightPointer ],
-    [ Opcodes.i32_add ],
-    bytestrings ?
-      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ] :
-      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
-
-    // not equal, "return" false
-    [ Opcodes.i32_ne ],
-    [ Opcodes.if, Blocktype.void ],
-    ...number(0, Valtype.i32),
-    [ Opcodes.br, 2 ],
-    [ Opcodes.end ],
-
-    // index += sizeof valtype (1 for bytestring, 2 for string)
-    [ Opcodes.local_get, index ],
-    ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
-    [ Opcodes.i32_add ],
-    [ Opcodes.local_tee, index ],
-
-    // if index < index end (length * sizeof valtype), loop
-    [ Opcodes.local_get, indexEnd ],
-    [ Opcodes.i32_lt_s ],
-    [ Opcodes.br_if, 0 ],
-    [ Opcodes.end ],
-
-    // no failed checks, so true!
-    ...number(1, Valtype.i32),
-
-    // pointers match, so true
-    [ Opcodes.else ],
-    ...number(1, Valtype.i32),
-    [ Opcodes.end ],
-
-    // convert i32 result to valtype
-    // do not do as automatically added by binary exp gen for equality ops
-    // Opcodes.i32_from_u
-  ];
+    ...rightType,
+    [ Opcodes.call, func.index ],
+    [ Opcodes.drop ],
+    Opcodes.i32_trunc_sat_f64_s
+  ]
 };
 
 const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode = undefined) => {
@@ -766,17 +673,16 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     if (!eqOp) return number(NaN);
 
     // else leave bool ops
-    // todo: convert string to number if string and number/bool
     // todo: string (>|>=|<|<=) string
 
     // string comparison
     if (op === '===' || op === '==') {
-      return compareStrings(scope, left, right);
+      return compareStrings(scope, left, right, leftType, rightType);
     }
 
     if (op === '!==' || op === '!=') {
       return [
-        ...compareStrings(scope, left, right),
+        ...compareStrings(scope, left, right, leftType, rightType),
         [ Opcodes.i32_eqz ]
       ];
     }
@@ -793,17 +699,16 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     if (!eqOp) return number(NaN);
 
     // else leave bool ops
-    // todo: convert string to number if string and number/bool
     // todo: string (>|>=|<|<=) string
 
     // string comparison
     if (op === '===' || op === '==') {
-      return compareStrings(scope, left, right, true);
+      return compareStrings(scope, left, right, leftType, rightType, true);
     }
 
     if (op === '!==' || op === '!=') {
       return [
-        ...compareStrings(scope, left, right, true),
+        ...compareStrings(scope, left, right, leftType, rightType, true),
         [ Opcodes.i32_eqz ]
       ];
     }
@@ -891,10 +796,10 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       ...number(TYPES.string, Valtype.i32),
       [ Opcodes.i32_eq ],
 
-      // if both are true
-      [ Opcodes.i32_and ],
+      // if either are true
+      [ Opcodes.i32_or ],
       [ Opcodes.if, Blocktype.void ],
-      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], false),
+      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType, false),
       ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
@@ -909,10 +814,10 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       ...number(TYPES.bytestring, Valtype.i32),
       [ Opcodes.i32_eq ],
 
-      // if both are true
-      [ Opcodes.i32_and ],
+      // if either are true
+      [ Opcodes.i32_or ],
       [ Opcodes.if, Blocktype.void ],
-      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], true),
+      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType, true),
       ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
