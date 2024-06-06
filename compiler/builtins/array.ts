@@ -177,7 +177,7 @@ export const __Array_prototype_copyWithin = (_this: any[], target: number, start
 // @porf-typed-array
 export const __Array_prototype_concat = (_this: any[], ...vals: any[]) => {
   // todo/perf: rewrite to use memory.copy (via some Porffor.array.append thing?)
-  let out: any[] = Porffor.allocate();
+  let out = Porffor.allocatePage<any[]>();
   Porffor.clone(_this, out);
 
   let len: i32 = _this.length;
