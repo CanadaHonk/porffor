@@ -1145,8 +1145,8 @@ const getNodeType = (scope, node) => {
             if (type1 != f.returnType) {
               type1 = null;
             }
-            if (type1 != f.jsReturnType) {
-              type1 = null;
+            if (type2 != f.jsReturnType) {
+              type2 = null;
             }
 
             if (type1 == null && type2 == null) break;
@@ -2035,15 +2035,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   out.push([ Opcodes.call, idx ]);
 
   if (!typedReturns) {
-    // let type;
-    // if (builtinFuncs[name]) type = TYPES[builtinFuncs[name].returnType ?? 'number'];
-    // if (internalConstrs[name]) type = internalConstrs[name].type;
-    // if (importedFuncs[name] && importedFuncs[]) type =
-
-    // if (type) out.push(
-    //   ...number(type, Valtype.i32),
-    //   [ Opcodes.local_set, localTmp(scope, '#last_type', Valtype.i32) ]
-    // );
+    // let type = getNodeType(scope, decl);
+    // if (type) {
+    //   out.push(...setLastType(scope, type))
+    // }
   } else out.push(...setLastType(scope));
 
   if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
