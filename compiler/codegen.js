@@ -199,14 +199,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
           return out;
         },
 
-        __Porffor_bs: str => [
-          ...makeString(scope, str, global, name, true),
-          ...(name ? setType(scope, name, TYPES.bytestring) : setLastType(scope, TYPES.bytestring))
-        ],
-        __Porffor_s: str => [
-          ...makeString(scope, str, global, name, false),
-          ...(name ? setType(scope, name, TYPES.string) : setLastType(scope, TYPES.string))
-        ],
+        __Porffor_bs: str => makeString(scope, str, global, name, true),
+        __Porffor_s: str => makeString(scope, str, global, name, false)
       };
 
       const func = decl.tag.name;
@@ -1383,7 +1377,11 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'TaggedTemplateExpression') {
       // hack
-      if (node.tag.name.startsWith('__Porffor_')) return TYPES.number;
+      switch (node.tag.name) {
+        case '__Porffor_wasm': return TYPES.number;
+        case '__Porffor_bs': return TYPES.bytestring;
+        case '__Porffor_s': return TYPES.string;
+      }
     }
 
     if (scope.locals['#last_type']) return getLastType(scope);
