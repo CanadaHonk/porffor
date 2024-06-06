@@ -66,8 +66,8 @@ export class StaticAllocator {
     for (let i = 0; i < this.stringPageIndex; i++) {
       if (pages.has(`strings${i}`)) {
         const p = pages.get(`strings${i}`);
-        const index = p.strIndex.get(str);
-        if (index) {
+        if (p.strIndex.has(str)) {
+          const index = p.strIndex.get(str);
           if (Prefs.allocLog) console.log('cstr/ref: '+ str)
           return [p.strs[index].ptr, true];
         }
