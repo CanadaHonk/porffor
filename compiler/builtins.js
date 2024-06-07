@@ -1177,7 +1177,7 @@ export const BuiltinFuncs = function() {
         [ Opcodes.global_get, 0 ],
         [ Opcodes.local_get, 0 ],
         [ Opcodes.i32_add ],
-        [ Opcodes.global_set, 0 ]
+        [ Opcodes.global_set, 0 ],
       [ Opcodes.end ],
 
       // return currentPtr
