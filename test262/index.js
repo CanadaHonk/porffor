@@ -84,6 +84,7 @@ if (isMainThread) {
   const logErrors = process.argv.includes('--log-errors');
   const debugAsserts = process.argv.includes('--debug-asserts');
   const subdirs = process.argv.includes('--subdirs');
+  const dontWriteResults = process.argv.includes('--dont-write-results');
 
   const start = performance.now();
 
@@ -285,7 +286,7 @@ if (isMainThread) {
     if (lastResults.passes) console.log(`\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastResults.passes.includes(x)).join('\n')}\n\n`);
     if (lastResults.passes) console.log(`\u001b[4mnew fails\u001b[0m\n${lastResults.passes.filter(x => !passFiles.includes(x)).join('\n')}`);
 
-    fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, total }));
+    if (!dontWriteResults) fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, total }));
   }
 
   console.log(`\u001b[90mtook ${((performance.now() - start) / 1000).toFixed(1)}s to run (${((performance.now() - veryStart) / 1000).toFixed(1)}s total)\u001b[0m`);
