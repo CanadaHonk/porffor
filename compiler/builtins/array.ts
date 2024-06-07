@@ -388,9 +388,12 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
         else {
           // 4. If comparefn is not undefined, then
           // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
+          // perf: unneeded as we just check >= 0
+          // v = Number(callbackFn(x, y));
           v = callbackFn(x, y);
 
           // b. If v is NaN, return +0𝔽.
+          // perf: unneeded as we just check >= 0
           // if (Number.isNaN(v)) v = 0;
 
           // c. Return v.
