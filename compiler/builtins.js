@@ -1140,5 +1140,50 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  this.__Porffor_allocateBytes = {
+    params: [ Valtype.i32 ],
+    locals: [],
+    globals: [ Valtype.i32, Valtype.i32 ],
+    globalNames: [ 'currentPtr', 'bytesWritten' ],
+    globalInits: [ 0, pageSize ], // init to pageSize so we always allocate on first call
+    returns: [ Valtype.i32 ],
+    returnType: TYPES.number,
+    wasm: [
+      // bytesWritten += bytesToAllocate
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.global_get, 1 ],
+      [ Opcodes.i32_add ],
+      [ Opcodes.global_set, 1 ],
+
+      // if bytesWritten >= pageSize:
+      [ Opcodes.global_get, 1 ],
+      ...number(pageSize, Valtype.i32),
+      [ Opcodes.i32_ge_s ],
+      [ Opcodes.if, Valtype.i32 ],
+        // bytesWritten = 0
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.global_set, 1 ],
+
+        // grow memory by 1 page
+        ...number(1, Valtype.i32),
+        [ Opcodes.memory_grow, 0x00 ],
+
+        // currentPtr = old page count * pageSize
+        ...number(pageSize, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.global_set, 0 ],
+      [ Opcodes.else ],
+        // else, currentPtr += bytesToAllocate
+        [ Opcodes.global_get, 0 ],
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.i32_add ],
+        [ Opcodes.global_set, 0 ]
+      [ Opcodes.end ],
+
+      // return currentPtr
+      [ Opcodes.global_get, 0 ]
+    ]
+  };
+
   GeneratedBuiltins.BuiltinFuncs.call(this);
 };
