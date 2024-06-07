@@ -1140,5 +1140,55 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+
+  this.__Porffor_allocateBytes = {
+    params: [ Valtype.i32 ],
+    locals: [],
+    globals: [ Valtype.i32, Valtype.i32 ],
+    globalNames: [ 'currentPtr', 'bytesWritten' ],
+    globalInits: [ 0, pageSize ],
+    returns: [ Valtype.i32 ],
+    wasm: [
+      // if bytesWritten + bytesToAllocate would be greater than pageSize,
+      [ Opcodes.global_get, 1 ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.i32_add ],
+      ...number(pageSize, Valtype.i32),
+      [ Opcodes.i32_ge_s ],
+      [ Opcodes.if, Blocktype.void ],
+        // reset our bytes written
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.global_set, 1 ],
+        
+        // get a new page
+        ...number(1, Valtype.i32),
+        [ Opcodes.memory_grow, 0x00 ],
+        ...number(pageSize, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        // set currentPtr 
+        [ Opcodes.global_set, 0 ],
+        [ Opcodes.global_get, 0 ],
+        [ Opcodes.return ],
+      [ Opcodes.end ],
+      // else,
+
+      // increment our bytes written
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.global_get, 1 ],
+      [ Opcodes.i32_add ],
+      [ Opcodes.global_set, 1 ],
+
+      // increment currentPtr
+      [ Opcodes.global_get, 0 ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.i32_add ],
+      [ Opcodes.global_set, 0 ],
+      [ Opcodes.global_get, 0 ],
+      
+      // return currentPtr
+      [ Opcodes.return ]
+    ]
+  }
+
   GeneratedBuiltins.BuiltinFuncs.call(this);
 };

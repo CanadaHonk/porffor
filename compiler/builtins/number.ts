@@ -2,7 +2,7 @@ import type {} from './porffor.d.ts';
 
 // radix: number|any for rawType check
 export const __Number_prototype_toString = (_this: number, radix: number|any) => {
-  let out: bytestring = '';
+  let out = Porffor.allocatePage<bytestring>();
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   if (!Number.isFinite(_this)) {
@@ -33,7 +33,7 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
 
   let i: f64 = Math.trunc(_this);
 
-  let digits: bytestring = ''; // byte "array"
+  let digits = Porffor.allocatePage<bytestring>(); // byte "array"
 
   let l: i32 = 0;
   if (radix == 10) {
@@ -235,7 +235,7 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
 };
 
 export const __Number_prototype_toFixed = (_this: number, fractionDigits: number) => {
-  let out: bytestring = '';
+  let out = Porffor.allocatePage<bytestring>();
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   if (!Number.isFinite(_this)) {
@@ -257,7 +257,7 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
 
   let i: f64 = Math.trunc(_this);
 
-  let digits: bytestring = ''; // byte "array"
+  let digits = Porffor.allocatePage<bytestring>(); // byte "array"
 
   let l: i32 = 0;
 
@@ -322,14 +322,14 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
 
 // fractionDigits: number|any for rawType check
 export const __Number_prototype_toExponential = (_this: number, fractionDigits: number|any) => {
-  let out: bytestring = '';
-  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
-
   if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) return out = 'NaN';
-    if (_this == Infinity) return out = 'Infinity';
-    return out = '-Infinity';
+    if (Number.isNaN(_this)) return 'NaN';
+    if (_this == Infinity) return 'Infinity';
+    return '-Infinity';
   }
+
+  let out = Porffor.allocatePage<bytestring>();
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   if (Porffor.rawType(fractionDigits) != Porffor.TYPES.number) {
     // todo: string to number
@@ -349,7 +349,7 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
 
   let i: f64 = _this;
 
-  let digits: bytestring = ''; // byte "array"
+  let digits = Porffor.allocatePage<bytestring>(); // byte "array"
 
   let l: i32 = 0;
   let e: i32 = 0;

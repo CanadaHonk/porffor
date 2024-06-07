@@ -23,7 +23,7 @@ export const __Array_prototype_slice = (_this: any[], start: number, end: number
   }
   if (end > len) end = len;
 
-  let out: any[] = Porffor.allocate();
+  let out = Porffor.allocatePage<any[]>();
 
   if (start > end) return out;
 
@@ -133,7 +133,7 @@ export const __Array_prototype_with = (_this: any[], index: number, value: any) 
     throw new RangeError('Invalid index');
   }
 
-  let out: any[] = Porffor.allocate();
+  let out = Porffor.allocatePage<any[]>();
 
   Porffor.clone(_this, out);
 
@@ -177,7 +177,7 @@ export const __Array_prototype_copyWithin = (_this: any[], target: number, start
 // @porf-typed-array
 export const __Array_prototype_concat = (_this: any[], ...vals: any[]) => {
   // todo/perf: rewrite to use memory.copy (via some Porffor.array.append thing?)
-  let out: any[] = Porffor.allocate();
+  let out = Porffor.allocatePage<any[]>();
   Porffor.clone(_this, out);
 
   let len: i32 = _this.length;
@@ -221,7 +221,7 @@ export const __Array_prototype_toReversed = (_this: any[]) => {
   let start: i32 = 0;
   let end: i32 = len - 1;
 
-  let out: any[] = Porffor.allocate();
+  let out = Porffor.allocatePage<any[]>();
   out.length = len;
 
   while (start < end) {
@@ -249,7 +249,7 @@ export const __Array_prototype_forEach = (_this: any[], callbackFn: any) => {
 
 // @porf-typed-array
 export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
-  const out: any[] = Porffor.allocate();
+  const out = Porffor.allocatePage<any[]>();
 
   const len: i32 = _this.length;
   let i: i32 = 0;
@@ -266,7 +266,7 @@ export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
 // @porf-typed-array
 export const __Array_prototype_map = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
-  const out: any[] = Porffor.allocate();
+  const out = Porffor.allocatePage<any[]>();
   out.length = len;
 
   let i: i32 = 0;
@@ -388,10 +388,10 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
         else {
           // 4. If comparefn is not undefined, then
           // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
-          v = callbackFn(x, y);
+          v = Number(callbackFn(x, y));
 
           // b. If v is NaN, return +0𝔽.
-          // if (Number.isNaN(v)) v = 0;
+          if (Number.isNaN(v)) v = 0;
 
           // c. Return v.
         }
@@ -410,7 +410,7 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
 export const __Array_prototype_toString = (_this: any[]) => {
   // todo: this is bytestring only!
 
-  let out: bytestring = '';
+  let out = Porffor.allocatePage<bytestring>();
   out.length = 0;
 
   const len: i32 = _this.length;
@@ -441,7 +441,7 @@ export const __Array_prototype_join = (_this: any[], _separator: any) => {
   if (Porffor.rawType(_separator) != Porffor.TYPES.undefined)
     separator = ecma262.ToString(_separator);
 
-  let out: bytestring = '';
+  let out = Porffor.allocatePage<bytestring>();
   out.length = 0;
 
   const len: i32 = _this.length;

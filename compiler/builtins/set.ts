@@ -1,17 +1,5 @@
 import type {} from './porffor.d.ts';
 
-// dark wasm magic for dealing with memory, sorry.
-export const __Porffor_allocate = (): number => {
-  Porffor.wasm`
-i32.const 1
-memory.grow 0
-i32.const 65536
-i32.mul
-i32.from_u
-i32.const 0
-return`;
-};
-
 export const __Porffor_set_read = (_this: Set, index: number): any => {
   Porffor.wasm`
 local offset i32
@@ -64,7 +52,7 @@ export const __Set_prototype_values = (_this: Set) => {
   // todo: this should return an iterator not array
   const size: number = Porffor.wasm.i32.load(_this, 0, 0);
 
-  const out: any[] = __Porffor_allocate();
+  const out = Porffor.allocatePage<any[]>();
   for (let i: number = 0; i < size; i++) {
     const val: any = __Porffor_set_read(_this, i);
     out.push(val);
@@ -164,10 +152,10 @@ export const __Set_prototype_clear = (_this: Set) => {
   Porffor.wasm.i32.store(_this, 0, 0, 0);
 };
 
-export const Set = function (iterable: any): any {
+export const Set = function (iterable: any): Set {
   if (!new.target) throw new TypeError("Constructor Set requires 'new'");
 
-  const out: Set = __Porffor_allocate();
+  const out = Porffor.allocatePage<Set>();
 
   if (Porffor.rawType(iterable) != Porffor.TYPES.undefined) for (const x of iterable) {
     __Set_prototype_add(out, x);
@@ -189,6 +177,5 @@ export const __Set_prototype_union = (_this: Set, other: any) => {
 };
 
 export const __Set_prototype_toString = (_this: Set) => {
-  const out: bytestring = '[object Set]';
-  return out;
+  return '[object Set]';
 };

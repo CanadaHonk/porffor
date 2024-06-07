@@ -4,56 +4,23 @@ export default () => {
 
   const noArgs = (a0, a1) => out += `
 export const __String_prototype_${a0} = (_this: string) => {
-  let out: string = Porffor.s\`<${a1}>\`;
-
-  let outPtr: i32 = Porffor.wasm\`local.get \${out}\` + ${(2 + a1.length) * 2};
-
-  let thisPtr: i32 = Porffor.wasm\`local.get \${_this}\`;
-  let thisLen: i32 = _this.length;
-  let endPtr: i32 = thisPtr + thisLen * 2;
-
-  while (thisPtr < endPtr) {
-    let chr: i32 = Porffor.wasm.i32.load16_u(thisPtr, 0, 4);
-    Porffor.wasm.i32.store16(outPtr, chr, 0, 4);
-
-    thisPtr += 2;
-    outPtr += 2;
-  }
-
-  Porffor.wasm.i32.store16(outPtr, 60, 0, 4); // <
-  Porffor.wasm.i32.store16(outPtr, 47, 0, 6); // /
-
-${[...a1].map((x, i) => `  Porffor.wasm.i32.store16(outPtr, ${x.charCodeAt(0)}, 0, ${8 + i * 2}); // ${x}`).join('\n')}
-
-  Porffor.wasm.i32.store16(outPtr, 62, 0, ${8 + a1.length * 2}); // >
-
-  out.length = thisLen + ${a1.length * 2 + 2 + 3};
-
+  const thisLen: i32 = _this.length;
+  const outLen: i32 = ${5 + 2*a1.length} + thisLen; // '<${a1}>'.length + '</${a1}>'.length + _this.length
+  let out = Porffor.allocateBytes<string>(4 + outLen*2);
+  __Porffor_string_spliceString(out, 0, '<${a1}>');
+  __Porffor_string_spliceString(out, ${(2 + a1.length) * 2}, _this); // '<${a1}>'.length
+  __Porffor_string_spliceString(out, ${(2 + a1.length) * 2} + thisLen*2, '</${a1}>');  // '<${a1}>'.length + _this.length
+  out.length = outLen; 
   return out;
 };
 export const __ByteString_prototype_${a0} = (_this: bytestring) => {
-  let out: bytestring = Porffor.bs\`<${a1}>\`;
-
-  let outPtr: i32 = Porffor.wasm\`local.get \${out}\` + ${2 + a1.length};
-
-  let thisPtr: i32 = Porffor.wasm\`local.get \${_this}\`;
-  let thisLen: i32 = _this.length;
-  let endPtr: i32 = thisPtr + thisLen;
-
-  while (thisPtr < endPtr) {
-    let chr: i32 = Porffor.wasm.i32.load8_u(thisPtr++, 0, 4);
-    Porffor.wasm.i32.store8(outPtr++, chr, 0, 4);
-  }
-
-  Porffor.wasm.i32.store8(outPtr, 60, 0, 4); // <
-  Porffor.wasm.i32.store8(outPtr, 47, 0, 5); // /
-
-${[...a1].map((x, i) => `  Porffor.wasm.i32.store8(outPtr, ${x.charCodeAt(0)}, 0, ${6 + i}); // ${x}`).join('\n')}
-
-  Porffor.wasm.i32.store8(outPtr, 62, 0, ${6 + a1.length}); // >
-
-  out.length = thisLen + ${a1.length * 2 + 2 + 3};
-
+  const thisLen: i32 = _this.length;
+  const outLen: i32 = ${5 + 2*a1.length} + thisLen;
+  let out = Porffor.allocateBytes<bytestring>(4 + outLen); // '<${a1}>'.length + '</${a1}>'.length + _this.length
+  __Porffor_bytestring_spliceString(out, 0, '<${a1}>');
+  __Porffor_bytestring_spliceString(out, ${2 + a1.length}, _this); // '<${a1}>'.length
+  __Porffor_bytestring_spliceString(out, ${2 + a1.length} + thisLen, '</${a1}>');  // '<${a1}>'.length + _this.length
+  out.length = outLen; 
   return out;
 };
 `;
