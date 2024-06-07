@@ -151,15 +151,12 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
     console.log('\x1B[4m' + func.name + '\x1B[0m');
     
-    const surrounding = Prefs.debugSurrounding ?? 5;
+    const surrounding = Prefs.backtraceSurrounding ?? 5;
     let min = middleIndex - surrounding;
     let max = middleIndex + surrounding + 1;
-    if (Prefs.debugVerbose) {
+    if (Prefs.backtraceEntireFunc || middleIndex == -1) {
       min = 0;
       max = func.wasm.length;
-    } else if (middleIndex == -1) {
-      min = 0;
-      max = surrounding * 2;
     }
     
     const decomp = decompile(func.wasm.slice(min, max), '', 0, func.locals, func.params, func.returns, funcs, globals, exceptions).slice(0, -1).split('\n');
