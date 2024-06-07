@@ -4684,6 +4684,18 @@ const internalConstrs = {
     type: TYPES.undefined,
     notConstr: true,
     length: 0
+  },
+
+  __Porffor_allocateNamedPage: {
+    generate: (scope, decl) => {
+      if (decl.arguments[0].type != "Literal") throw new SyntaxError("Cannot dynamically allocate named pages");
+      const ptr = allocPage(scope, decl.arguments[0].value) * pageSize;
+
+      return number(ptr);
+    },
+    type: TYPES.number,
+    notConstr: true,
+    length: 1
   }
 };
 

@@ -28,6 +28,7 @@ type PorfforGlobal = {
 
   allocatePage<T>(): T;
   allocateBytes<T>(bytes: i32): T;
+  allocateNamedPage<T>(key: string): T;
 
   set: {
     read(_this: any, index: number): i32;
