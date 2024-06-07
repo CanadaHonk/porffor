@@ -23,6 +23,8 @@ type PorfforGlobal = {
   }
 
   allocate(): any;
+  allocateBytes(bytes: i32): any;
+
   set: {
     read(_this: any, index: number): i32;
     write(_this: any, index: number, value: any): boolean;
