@@ -1160,7 +1160,7 @@ export const BuiltinFuncs = function() {
       ...number(pageSize, Valtype.i32),
       [ Opcodes.i32_ge_s ],
       [ Opcodes.if, Blocktype.void ],
-        // bytesWritten = 0
+        // bytesWritten = bytesToAllocate
         [ Opcodes.local_get, 0 ],
         [ Opcodes.global_set, 1 ],
 
