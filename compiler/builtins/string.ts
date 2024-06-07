@@ -990,7 +990,7 @@ export const __String_prototype_trim = (_this: string) => {
   while (thisPtr < thisPtrEnd) {
     const chr: i32 = Porffor.wasm.i32.load16_u(thisPtr, 0, 4);
     if (Porffor.fastOr(chr == 0x0009, chr == 0x000b, chr == 0x000c, chr == 0x0020, chr == 0x00a0, chr == 0xfeff, chr == 0x000a, chr == 0x000d, chr == 0x2028, chr == 0x2029)) {
-      thisPtr ++;
+      thisPtr += 2;
       len--;
       continue;
     }
