@@ -14,7 +14,7 @@ export const __Porffor_symbol_create = (value: any): any => {
 
 export const __Porffor_symbol_readDesc = (sym: any): bytestring => {
   const ptr: number = Porffor.allocateNamedPage<any>("symbol");
-  const desc: bytestring = Porffor.wasm.i32.load(ptr + sym * 4, 0, 4);
+  const desc: bytestring = Porffor.wasm.i32.load(ptr + sym * 4, 0, 0);
   return desc;
 }
 
