@@ -198,15 +198,6 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
           return out;
         },
-
-        __Porffor_bs: str => [
-          ...makeStringBuffer(scope, str, global, name, true),
-          ...(name ? setType(scope, name, TYPES.bytestring) : setLastType(scope, TYPES.bytestring))
-        ],
-        __Porffor_s: str => [
-          ...makeStringBuffer(scope, str, global, name, false),
-          ...(name ? setType(scope, name, TYPES.string) : setLastType(scope, TYPES.string))
-        ],
       };
 
       const func = decl.tag.name;
@@ -3930,26 +3921,6 @@ const byteStringable = str => {
 
   return true;
 };
-
-const makeStringBuffer = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
-  const rawElements = new Array(str.length);
-  let byteStringable = Prefs.bytestring;
-  for (let i = 0; i < str.length; i++) {
-    const c = str.charCodeAt(i);
-    rawElements[i] = c;
-
-    if (byteStringable && c > 0xFF) byteStringable = false;
-  }
-
-  if (byteStringable && forceBytestring === false) byteStringable = false;
-  
-  pages.hasAnyString = true;
-  if (byteStringable) pages.hasByteString = true;
-    else pages.hasString = true;
-  return makeArray(scope, {
-    rawElements
-  }, global, name, false, byteStringable ? 'i8' : 'i16')[0];
-}
 
 let stringInit = [];
 
