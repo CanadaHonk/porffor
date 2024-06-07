@@ -192,7 +192,7 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","#last_type"],
   };
   this.__ByteString_prototype_trimLeft = {
-    wasm: (scope, {builtin,}) => [[32,0],[65,194,0],[16, builtin('__ByteString_prototype_trimStart')],[34,2],[15]],
+    wasm: (scope, {builtin,}) => [[32,0],[65,210,0],[16, builtin('__ByteString_prototype_trimStart')],[34,2],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
@@ -210,7 +210,7 @@ export const BuiltinFuncs = function() {
     localNames: ["_this","_this#type","#last_type"],
   };
   this.__ByteString_prototype_trimRight = {
-    wasm: (scope, {builtin,}) => [[32,0],[65,194,0],[16, builtin('__ByteString_prototype_trimEnd')],[34,2],[15]],
+    wasm: (scope, {builtin,}) => [[32,0],[65,210,0],[16, builtin('__ByteString_prototype_trimEnd')],[34,2],[15]],
     params: [127,127],
     typedParams: true,
     returns: [127,127],
