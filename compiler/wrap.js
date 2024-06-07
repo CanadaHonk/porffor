@@ -150,7 +150,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
     console.log('\x1B[4m' + func.name + '\x1B[0m');
-    
+
     const surrounding = Prefs.backtraceSurrounding ?? 5;
     let min = middleIndex - surrounding;
     let max = middleIndex + surrounding + 1;
@@ -158,7 +158,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
       min = 0;
       max = func.wasm.length;
     }
-    
+
     const decomp = decompile(func.wasm.slice(min, max), '', 0, func.locals, func.params, func.returns, funcs, globals, exceptions).slice(0, -1).split('\n');
 
     const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
@@ -166,15 +166,15 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     for (let j = 0; j < decomp.length; j++) {
       longest = Math.max(longest, noAnsi(decomp[j]).length);
     }
-    
+
     if (middleIndex != -1) {
       const middle = Math.floor(decomp.length / 2);
       decomp[middle] = `\x1B[47m\x1B[30m${noAnsi(decomp[middle])}${'\u00a0'.repeat(longest - noAnsi(decomp[middle]).length)}\x1B[0m`;
     }
-    
+
     if (min != 0) console.log('\x1B[90m...\x1B[0m');
     console.log(decomp.join('\n'));
-    if (max >= func.wasm.length) console.log('\x1B[90m...\x1B[0m\n');
+    if (max > func.wasm.length) console.log('\x1B[90m...\x1B[0m\n');
   }
 
   const backtrace = (funcInd, blobOffset) => {
