@@ -4004,11 +4004,11 @@ const getStringBytes = (str, isBytestring) => {
       const c1 = str.charCodeAt(i + 1);
       if (Number.isNaN(c1)) {
         let code = (c0 << 16);
-        out.push({ offset: i, size: 2, data: code });
+        out.push({ offset: i * 2, size: 2, data: code });
         continue;
       }
-      let code = (c0 << 16) + c1;
-      out.push({ offset: i, size: 4, data: code });
+      let code = (c1 << 16) + c0;
+      out.push({ offset: i * 2, size: 4, data: code });
     }
   }
   return out;
