@@ -1,11 +1,10 @@
 import type {} from './porffor.d.ts';
 
 // todo: support non-bytestring properly
-export const String = function (value: any) {
-  const str: bytestring = ecma262.ToString(value);
-  // todo: support constructor/string objects properly
-  if (new.target) return str;
-  return str;
+// todo: support constructor/string objects properly
+export const String = function (value: any): bytestring {
+  if (!new.target && Porffor.rawType(value) == Porffor.TYPES.symbol) return Symbol.prototype.toString(value);
+  return ecma262.ToString(value);
 };
 
 export const __String_prototype_concat = (_this: string, arg: any) => {
