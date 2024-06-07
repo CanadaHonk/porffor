@@ -222,7 +222,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     }
 
     if (i === wasm.length) {
-      printDecomp(-1, func, funcs, globals, exceptions)
+      printDecomp(-1, func, funcs, globals, exceptions);
       return false;
     }
 
@@ -236,13 +236,13 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     }
 
     if (cumLen !== offset)  {
-      printDecomp(-1, func, funcs, globals, exceptions)
+      printDecomp(-1, func, funcs, globals, exceptions);
       return false;
     }
 
     i -= 1;
 
-    printDecomp(i, func, funcs, globals, exceptions)
+    printDecomp(i, func, funcs, globals, exceptions);
 
     return true;
   };
