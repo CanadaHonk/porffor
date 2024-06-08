@@ -4076,11 +4076,15 @@ const generateMember = (scope, decl, _global, _name) => {
     if (importedFuncs[name]) return withType(scope, number(importedFuncs[name].params.length ?? importedFuncs[name].params), TYPES.number);
     if (internalConstrs[name]) return withType(scope, number(internalConstrs[name].length ?? 0), TYPES.number);
 
+    const out = [
+      ...generate(scope, decl.object),
+      Opcodes.i32_to_u,
+    ];
+
     if (Prefs.fastLength) {
       // presume valid length object
       return [
-        ...generate(scope, decl.object),
-        Opcodes.i32_to_u,
+        ...out,
 
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         Opcodes.i32_from_u
@@ -4091,8 +4095,7 @@ const generateMember = (scope, decl, _global, _name) => {
     const known = knownType(scope, type);
     if (known != null) {
       if (typeHasFlag(known, TYPE_FLAGS.length)) return [
-        ...generate(scope, decl.object),
-        Opcodes.i32_to_u,
+        ...out,
 
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         Opcodes.i32_from_u
@@ -4102,13 +4105,14 @@ const generateMember = (scope, decl, _global, _name) => {
     }
 
     return [
+      ...out,
+      [ Opcodes.local_set, localTmp(scope, '#length_tmp', Valtype.i32) ],
+
       ...getNodeType(scope, decl.object),
       ...number(TYPE_FLAGS.length, Valtype.i32),
       [ Opcodes.i32_and ],
       [ Opcodes.if, valtypeBinary ],
-        ...generate(scope, decl.object),
-        Opcodes.i32_to_u,
-
+        [ Opcodes.local_get, localTmp(scope, '#length_tmp', Valtype.i32) ],
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         Opcodes.i32_from_u,
 
