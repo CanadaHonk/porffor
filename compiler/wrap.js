@@ -288,8 +288,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
       }
     });
   } catch (e) {
-    // only backtrace for runner, not test262/etc
-    if (!process.argv[1].includes('/runner')) throw e;
+    if (!process.argv.includes('-i')) throw e;
     if (!(e instanceof WebAssembly.CompileError)) throw e;
 
     const funcInd = parseInt(e.message.match(/function #([0-9]+) /)?.[1]);
@@ -384,8 +383,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         }
 
         if (e instanceof WebAssembly.RuntimeError) {
-          // only backtrace for runner, not test262/etc
-          if (!process.argv[1].includes('/runner')) throw e;
+          if (!process.argv.includes('-i')) throw e;
 
           const match = e.stack.match(/wasm-function\[([0-9]+)\]:([0-9a-z]+)/) ?? [];
           const funcInd = parseInt(match[1]);
