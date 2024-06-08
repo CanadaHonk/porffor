@@ -127,8 +127,15 @@ if (isMainThread) {
       }
     });
 
+    // let timeout;
     worker.on('message', ([ i, result ]) => {
       const file = workerTests[i].file.replaceAll('\\', '/').slice(5);
+
+      // if (timeout) clearTimeout(timeout);
+      // if (i < workerTests.length - 1) timeout = setTimeout(() => {
+      //   console.log(`\n! got stuck on ${workerTests[i + 1].file.replaceAll('\\', '/').slice(5)}\n`);
+      //   process.exit();
+      // }, 5000);
 
       // result: pass, todo, wasmError, compileError, fail, timeout, runtimeError
       total++;
@@ -407,11 +414,12 @@ if (isMainThread) {
       // only timeout some due to big perf impact
       if (
         file.includes('while/') || file.includes('for/') || file.includes('continue/') || file.includes('break/') ||
-        file.includes('pow/') || file.includes('generator/') ||
+        file.includes('pow/') || file.includes('exponentiation/') || file.includes('generator/') ||
+        file.includes('encodeURI/') || file.includes('parseInt/') ||
         file.endsWith('NumberFormat/constructor-unit.js')
       ) timeout(exports.main, 500);
         else exports.main();
-      // timeout(exports.m, 500);
+      // timeout(exports.main, 1000);
     } catch (e) {
       if (e.name === 'Test262Error' && debugAsserts && log) {
         const [ msg, expected, actual ] = log.split('\n');

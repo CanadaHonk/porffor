@@ -120,8 +120,6 @@ function assertRelativeDateMs(date, expectedMs) {
 
 /// decimalToHexString.js
 function decimalToHexString(n) {
-  // todo: this func is broke as dynamic string concat is not impl'd
-
   var hex = "0123456789ABCDEF";
   n >>>= 0;
   var s = "";

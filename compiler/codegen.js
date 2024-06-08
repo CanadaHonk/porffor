@@ -416,7 +416,7 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   ];
 };
 
-const concatStrings = (scope, left, right, global, name, assign = false, bytestrings = false) => {
+const concatStrings = (scope, left, right, leftType, rightType, allBytestrings = false, skipTypeCheck = false) => {
   // todo: this should be rewritten into a built-in/func: String.prototype.concat
   // todo: convert left and right to strings if not
   // todo: optimize by looking up names in arrays and using that if exists?
@@ -429,30 +429,42 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
   const leftPointer = localTmp(scope, 'concat_left_pointer', Valtype.i32);
 
   // alloc/assign array
-  const [ out, pointer ] = makeArray(scope, {
-    rawElements: new Array(0)
-  }, assign ? false : global, assign ? undefined : name, true, 'i16', true);
+  const out = localTmp(scope, 'concat_out_pointer', Valtype.i32);
 
+  if (!skipTypeCheck && !allBytestrings) includeBuiltin(scope, '__Porffor_bytestringToString');
+  includeBuiltin(scope, '__Porffor_print');
   return [
-    // setup left
-    ...left,
-    Opcodes.i32_to_u,
-    [ Opcodes.local_set, leftPointer ],
+    // setup pointers
+    ...(left.length === 0 ? [
+      Opcodes.i32_to_u,
+      [ Opcodes.local_set, rightPointer ],
 
-    // setup right
-    ...right,
-    Opcodes.i32_to_u,
-    [ Opcodes.local_set, rightPointer ],
+      Opcodes.i32_to_u,
+      [ Opcodes.local_set, leftPointer ],
+    ] : [
+      ...left,
+      Opcodes.i32_to_u,
+      [ Opcodes.local_set, leftPointer ],
+
+      ...right,
+      Opcodes.i32_to_u,
+      [ Opcodes.local_set, rightPointer ],
+    ]),
+
+    // setup out
+    [ Opcodes.i32_const, 1 ],
+    [ Opcodes.memory_grow, 0 ],
+    [ Opcodes.i32_const, ...signedLEB128(65536) ],
+    [ Opcodes.i32_mul ],
+    [ Opcodes.local_tee, out ],
 
     // calculate length
-    ...out,
-
     [ Opcodes.local_get, leftPointer ],
-    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
+    [ Opcodes.i32_load, 0, 0 ],
     [ Opcodes.local_tee, leftLength ],
 
     [ Opcodes.local_get, rightPointer ],
-    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
+    [ Opcodes.i32_load, 0, 0 ],
     [ Opcodes.local_tee, rightLength ],
 
     [ Opcodes.i32_add ],
@@ -460,9 +472,31 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
     // store length
     [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ],
 
+    ...(skipTypeCheck || allBytestrings ? [] : [
+      ...leftType,
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.if, Blocktype.void ],
+      [ Opcodes.local_get, leftPointer ],
+      [ Opcodes.local_get, leftLength ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
+      [ Opcodes.local_set, leftPointer ],
+      [ Opcodes.end ],
+
+      ...rightType,
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.if, Blocktype.void ],
+      [ Opcodes.local_get, rightPointer ],
+      [ Opcodes.local_get, rightLength ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
+      [ Opcodes.local_set, rightPointer ],
+      [ Opcodes.end ]
+    ]),
+
     // copy left
     // dst = out pointer + length size
-    ...pointer,
+    [ Opcodes.local_get, out ],
     ...number(ValtypeSize.i32, Valtype.i32),
     [ Opcodes.i32_add ],
 
@@ -477,12 +511,12 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
 
     // copy right
     // dst = out pointer + length size + left length * sizeof valtype
-    ...pointer,
+    [ Opcodes.local_get, out ],
     ...number(ValtypeSize.i32, Valtype.i32),
     [ Opcodes.i32_add ],
 
     [ Opcodes.local_get, leftLength ],
-    ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
+    ...number(allBytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
     [ Opcodes.i32_mul ],
     [ Opcodes.i32_add ],
 
@@ -493,18 +527,20 @@ const concatStrings = (scope, left, right, global, name, assign = false, bytestr
 
     // size = right length * sizeof valtype
     [ Opcodes.local_get, rightLength ],
-    ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
+    ...number(allBytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
     [ Opcodes.i32_mul ],
 
     [ ...Opcodes.memory_copy, 0x00, 0x00 ],
 
+    ...setLastType(scope, allBytestrings ? TYPES.bytestring : TYPES.string),
+
     // return new string (page)
-    ...pointer,
+    [ Opcodes.local_get, out ],
     Opcodes.i32_from_u
   ];
 };
 
-const compareStrings = (scope, left, right, bytestrings = false) => {
+const compareStrings = (scope, left, right, leftType, rightType, allBytestrings = false, skipTypeCheck = false) => {
   // todo: this should be rewritten into a func
   // todo: convert left and right to strings if not
   // todo: optimize by looking up names in arrays and using that if exists?
@@ -517,16 +553,28 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
   const index = localTmp(scope, 'compare_index', Valtype.i32);
   const indexEnd = localTmp(scope, 'compare_index_end', Valtype.i32);
 
+  if (!skipTypeCheck && !allBytestrings) includeBuiltin(scope, '__Porffor_bytestringToString');
+  includeBuiltin(scope, '__Porffor_print');
   return [
-    // setup left
-    ...left,
-    Opcodes.i32_to_u,
-    [ Opcodes.local_tee, leftPointer ],
+    // setup pointers
+    ...(left.length === 0 ? [
+      Opcodes.i32_to_u,
+      [ Opcodes.local_set, rightPointer ],
 
-    // setup right
-    ...right,
-    Opcodes.i32_to_u,
-    [ Opcodes.local_tee, rightPointer ],
+      Opcodes.i32_to_u,
+      [ Opcodes.local_set, leftPointer ],
+
+      [ Opcodes.local_get, leftPointer ],
+      [ Opcodes.local_get, rightPointer ],
+    ] : [
+      ...left,
+      Opcodes.i32_to_u,
+      [ Opcodes.local_tee, leftPointer ],
+
+      ...right,
+      Opcodes.i32_to_u,
+      [ Opcodes.local_tee, rightPointer ],
+    ]),
 
     // fast path: check leftPointer == rightPointer
     // use if (block) for everything after to "return" a value early
@@ -535,11 +583,34 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
 
     // get lengths
     [ Opcodes.local_get, leftPointer ],
-    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
+    [ Opcodes.i32_load, 0, 0 ],
     [ Opcodes.local_tee, leftLength ],
 
     [ Opcodes.local_get, rightPointer ],
-    [ Opcodes.i32_load, 0, ...unsignedLEB128(0) ],
+    [ Opcodes.i32_load, 0, 0 ],
+
+    ...(skipTypeCheck || allBytestrings ? [] : [
+      ...leftType,
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.if, Blocktype.void ],
+      [ Opcodes.local_get, leftPointer ],
+      [ Opcodes.local_get, leftLength ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
+      [ Opcodes.local_set, leftPointer ],
+      [ Opcodes.end ],
+
+      ...rightType,
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.if, Blocktype.void ],
+      [ Opcodes.local_get, rightPointer ],
+      [ Opcodes.local_get, rightPointer ],
+      [ Opcodes.i32_load, 0, 0 ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
+      [ Opcodes.local_set, rightPointer ],
+      [ Opcodes.end ]
+    ]),
 
     // fast path: check leftLength != rightLength
     [ Opcodes.i32_ne ],
@@ -557,7 +628,7 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
     // setup index end as length * sizeof valtype (1 for bytestring, 2 for string)
     // we do this instead of having to do mul/div each iter for perf™
     [ Opcodes.local_get, leftLength ],
-    ...(bytestrings ? [] : [
+    ...(allBytestrings ? [] : [
       ...number(ValtypeSize.i16, Valtype.i32),
       [ Opcodes.i32_mul ],
     ]),
@@ -570,7 +641,7 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
     [ Opcodes.local_get, index ],
     [ Opcodes.local_get, leftPointer ],
     [ Opcodes.i32_add ],
-    bytestrings ?
+    allBytestrings ?
       [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ] :
       [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
@@ -578,7 +649,7 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
     [ Opcodes.local_get, index ],
     [ Opcodes.local_get, rightPointer ],
     [ Opcodes.i32_add ],
-    bytestrings ?
+    allBytestrings ?
       [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ] :
       [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
@@ -591,7 +662,7 @@ const compareStrings = (scope, left, right, bytestrings = false) => {
 
     // index += sizeof valtype (1 for bytestring, 2 for string)
     [ Opcodes.local_get, index ],
-    ...number(bytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
+    ...number(allBytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
     [ Opcodes.i32_add ],
     [ Opcodes.local_tee, index ],
 
@@ -787,7 +858,11 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   if (strictOp) {
     endOut.push(
       ...leftType,
+      ...number(TYPE_FLAGS.parity, Valtype.i32),
+      [ Opcodes.i32_or ],
       ...rightType,
+      ...number(TYPE_FLAGS.parity, Valtype.i32),
+      [ Opcodes.i32_or ],
       ...(op === '===' ? [
         [ Opcodes.i32_eq ],
         [ Opcodes.i32_and ]
@@ -803,9 +878,12 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
 
   if (knownLeft === TYPES.string || knownRight === TYPES.string) {
     if (op === '+') {
-      // todo: this should be dynamic too but for now only static
       // string concat (a + b)
-      return concatStrings(scope, left, right, _global, _name, assign, false);
+      return [
+        ...left,
+        ...right,
+        ...concatStrings(scope, [], [], leftType, rightType, false, knownLeft === TYPES.string && knownRight === TYPES.string)
+      ];
     }
 
     // not an equality op, NaN
@@ -816,23 +894,24 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     // todo: string (>|>=|<|<=) string
 
     // string comparison
-    if (op === '===' || op === '==') {
-      return compareStrings(scope, left, right);
-    }
-
-    if (op === '!==' || op === '!=') {
+    if (op === '===' || op === '==' || op === '!==' || op === '!=') {
       return [
-        ...compareStrings(scope, left, right),
-        [ Opcodes.i32_eqz ]
+        ...left,
+        ...right,
+        ...compareStrings(scope, [], [], leftType, rightType, false, knownLeft === TYPES.string && knownRight === TYPES.string),
+        ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : [])
       ];
     }
   }
 
   if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) {
     if (op === '+') {
-      // todo: this should be dynamic too but for now only static
       // string concat (a + b)
-      return concatStrings(scope, left, right, _global, _name, assign, true);
+      return [
+        ...left,
+        ...right,
+        ...concatStrings(scope, [], [], leftType, rightType, knownLeft === TYPES.bytestring && knownRight === TYPES.bytestring)
+      ];
     }
 
     // not an equality op, NaN
@@ -843,14 +922,12 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     // todo: string (>|>=|<|<=) string
 
     // string comparison
-    if (op === '===' || op === '==') {
-      return compareStrings(scope, left, right, true);
-    }
-
-    if (op === '!==' || op === '!=') {
+    if (op === '===' || op === '==' || op === '!==' || op === '!=') {
       return [
-        ...compareStrings(scope, left, right, true),
-        [ Opcodes.i32_eqz ]
+        ...left,
+        ...right,
+        ...compareStrings(scope, [], [], leftType, rightType, knownLeft === TYPES.bytestring && knownRight === TYPES.bytestring),
+        ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : [])
       ];
     }
   }
@@ -881,70 +958,11 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   // if neither known are string, stop this madness
   // we already do known checks earlier, so don't need to recheck
 
-  if ((op === '===' || op === '==' || op === '!==' || op === '!=') && (knownLeft == null && knownRight == null)) {
+  if (op === '+' && (knownLeft == null && knownRight == null)) {
     tmpLeft = localTmp(scope, '__tmpop_left');
     tmpRight = localTmp(scope, '__tmpop_right');
 
-    // returns false for one string, one not - but more ops/slower
-    // ops.unshift(...stringOnly([
-    //   // if left is string
-    //   ...leftType,
-    //   ...number(TYPES.string, Valtype.i32),
-    //   [ Opcodes.i32_eq ],
-
-    //   // if right is string
-    //   ...rightType,
-    //   ...number(TYPES.string, Valtype.i32),
-    //   [ Opcodes.i32_eq ],
-
-    //   // if either are true
-    //   [ Opcodes.i32_or ],
-    //   [ Opcodes.if, Blocktype.void ],
-
-    //   // todo: convert non-strings to strings, for now fail immediately if one is not
-    //   // if left is not string
-    //   ...leftType,
-    //   ...number(TYPES.string, Valtype.i32),
-    //   [ Opcodes.i32_ne ],
-
-    //   // if right is not string
-    //   ...rightType,
-    //   ...number(TYPES.string, Valtype.i32),
-    //   [ Opcodes.i32_ne ],
-
-    //   // if either are true
-    //   [ Opcodes.i32_or ],
-    //   [ Opcodes.if, Blocktype.void ],
-    //   ...number(0, Valtype.i32),
-    //   [ Opcodes.br, 2 ],
-    //   [ Opcodes.end ],
-
-    //   ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ]),
-    //   ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
-    //   [ Opcodes.br, 1 ],
-    //   [ Opcodes.end ],
-    // ]));
-
-    // does not handle one string, one not (such cases go past)
     ops.unshift(...stringOnly([
-      // if left is string
-      ...leftType,
-      ...number(TYPES.string, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      // if right is string
-      ...rightType,
-      ...number(TYPES.string, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      // if both are true
-      [ Opcodes.i32_and ],
-      [ Opcodes.if, Blocktype.void ],
-      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], false),
-      ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
-      [ Opcodes.br, 1 ],
-      [ Opcodes.end ],
-
       // if left is bytestring
       ...leftType,
       ...number(TYPES.bytestring, Valtype.i32),
@@ -958,10 +976,88 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       // if both are true
       [ Opcodes.i32_and ],
       [ Opcodes.if, Blocktype.void ],
-      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], true),
+      ...concatStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType, true),
       ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
+
+      // if left is string or bytestring
+      ...leftType,
+      ...number(TYPE_FLAGS.parity, Valtype.i32),
+      [ Opcodes.i32_or ],
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+
+      // if right is string or bytestring
+      ...rightType,
+      ...number(TYPE_FLAGS.parity, Valtype.i32),
+      [ Opcodes.i32_or ],
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+
+      // if either
+      [ Opcodes.i32_or ],
+      [ Opcodes.if, Blocktype.void ],
+      ...concatStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType),
+      [ Opcodes.br, 1 ],
+      [ Opcodes.end ],
+
+      ...setLastType(scope, TYPES.number)
+    ]));
+
+    // add a surrounding block
+    startOut.push(stringOnly([ Opcodes.block, Valtype.f64 ]));
+    endOut.unshift(stringOnly([ Opcodes.end ]));
+  }
+
+  if ((op === '===' || op === '==' || op === '!==' || op === '!=') && (knownLeft == null && knownRight == null)) {
+    tmpLeft = localTmp(scope, '__tmpop_left');
+    tmpRight = localTmp(scope, '__tmpop_right');
+
+    ops.unshift(...stringOnly([
+      // if left is bytestring
+      ...leftType,
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+
+      // if right is bytestring
+      ...rightType,
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+
+      // if both are true
+      [ Opcodes.i32_and ],
+      [ Opcodes.if, Blocktype.void ],
+      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType, true),
+      ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
+      [ Opcodes.br, 1 ],
+      [ Opcodes.end ],
+
+      // if left is string or bytestring
+      ...leftType,
+      ...number(TYPES.string, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      ...leftType,
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.i32_or ],
+
+      // if right is string or bytestring
+      ...rightType,
+      ...number(TYPES.string, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      ...rightType,
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.i32_or ],
+
+      // if either
+      [ Opcodes.i32_or ],
+      [ Opcodes.if, Blocktype.void ],
+      ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType),
+      ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
+      [ Opcodes.br, 1 ],
+      [ Opcodes.end ]
     ]));
 
     // add a surrounding block
@@ -1329,13 +1425,20 @@ const getNodeType = (scope, node) => {
       if (['==', '===', '!=', '!==', '>', '>=', '<', '<=', 'instanceof'].includes(node.operator)) return TYPES.boolean;
       if (node.operator !== '+') return TYPES.number;
 
-      const knownLeft = knownType(scope, getNodeType(scope, node.left));
-      const knownRight = knownType(scope, getNodeType(scope, node.right));
+      const leftType = getNodeType(scope, node.left);
+      const rightType = getNodeType(scope, node.right);
+      const knownLeft = knownType(scope, leftType);
+      const knownRight = knownType(scope, rightType);
 
-      // todo: this should be dynamic but for now only static
       if (knownLeft === TYPES.string || knownRight === TYPES.string) return TYPES.string;
-      if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) return TYPES.bytestring;
+      if (knownLeft === TYPES.bytestring && knownRight === TYPES.bytestring) return TYPES.bytestring;
+      if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) return TYPES.string;
 
+      if (knownLeft != null || knownRight != null) return TYPES.number;
+
+      if (scope.locals['#last_type']) return getLastType(scope);
+
+      // presume
       return TYPES.number;
     }
 
