@@ -1,7 +1,7 @@
 import * as GeneratedBuiltins from './generated_builtins.js';
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
 import { number } from './embedding.js';
-import { TYPES } from './types.js';
+import { TYPES, TYPE_NAMES } from './types.js';
 import Prefs from './prefs.js';
 
 export const importedFuncs = [
@@ -1099,7 +1099,7 @@ export const BuiltinFuncs = function() {
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [ valtypeBinary ],
     returnType: Prefs.bytestring ? TYPES.bytestring : TYPES.string,
-    wasm: (scope, { TYPE_NAMES, typeSwitch, makeString }) => {
+    wasm: (scope, { typeSwitch, makeString }) => {
       const bc = {};
       for (const x in TYPE_NAMES) {
         bc[x] = makeString(scope, TYPE_NAMES[x], false, '#Porffor_type_result');
