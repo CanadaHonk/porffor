@@ -9,6 +9,16 @@ export const TYPES = {
   bigint: 0x07
 };
 
+// flags
+export const TYPE_FLAGS = {
+  // iterable:  0b10000000,
+  parity:    0b10000000,
+  length:    0b01000000,
+};
+
+// TYPES.string |= TYPE_FLAGS.iterable;
+TYPES.string |= TYPE_FLAGS.length;
+
 export const TYPE_NAMES = {
   [TYPES.number]: 'Number',
   [TYPES.boolean]: 'Boolean',
@@ -20,23 +30,14 @@ export const TYPE_NAMES = {
   [TYPES.bigint]: 'BigInt'
 };
 
-// flags
-export const TYPE_FLAGS = {
-  // iterable:  0b10000000,
-  length:    0b01000000,
-};
-
-// TYPES.string |= TYPE_FLAGS.iterable;
-TYPES.string |= TYPE_FLAGS.length;
-
 export const typeHasFlag = (type, flag) => (type & flag) !== 0;
 
 export const INTERNAL_TYPE_BASE = 0x10;
 let internalTypeIndex = INTERNAL_TYPE_BASE;
-const registerInternalType = (name, flags = []) => {
-  let n = internalTypeIndex++;
+const registerInternalType = (name, flags = [], overrideType = undefined) => {
+  let n = overrideType ?? internalTypeIndex++;
 
-  for (const x of flags) {
+  if (!overrideType) for (const x of flags) {
     if (TYPE_FLAGS[x]) n |= TYPE_FLAGS[x];
   }
 
@@ -49,7 +50,7 @@ const registerInternalType = (name, flags = []) => {
 
 registerInternalType('Array', ['iterable', 'length']);
 registerInternalType('RegExp');
-registerInternalType('ByteString', ['iterable', 'length']);
+registerInternalType('ByteString', ['iterable', 'length'], TYPES.string | TYPE_FLAGS.parity);
 registerInternalType('Date');
 registerInternalType('Set', ['iterable']);
 
