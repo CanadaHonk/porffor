@@ -23,7 +23,8 @@ if (isMainThread) {
   if (whatTests.endsWith('/')) whatTests = whatTests.slice(0, -1);
 
   const _tests = new Test262Stream(test262Path, {
-    paths: [ whatTests ]
+    paths: [ whatTests ],
+    omitRuntime: true
   });
 
   if (process.argv.includes('--open')) execSync(`code ${test262Path}/${whatTests}`);
@@ -107,7 +108,6 @@ if (isMainThread) {
   const allTests = whatTests === 'test' && threads > 1;
   if (!resultOnly && !allTests) console.log();
 
-  const testsPerWorker = Math.ceil(tests.length / threads);
   let lastPercent = -1;
 
   let resolve;
@@ -117,25 +117,24 @@ if (isMainThread) {
 
   const totalTests = tests.length;
 
-  for (let i = 0; i < threads; i++) {
-    const workerTests = tests.slice(i * testsPerWorker, (i + 1) * testsPerWorker);
+  let queueBuf = new SharedArrayBuffer(4);
+  let queue = new Uint32Array(queueBuf);
+  const workerData = {
+    argv: process.argv,
+    preludes,
+    tests,
+    queue
+  };
+  for (let w = 0; w < threads; w++) {
     const worker = new Worker(__filename, {
-      workerData: {
-        tests: workerTests,
-        preludes,
-        argv: process.argv
-      }
+      workerData
     });
 
-    // let timeout;
-    worker.on('message', ([ i, result ]) => {
-      const file = workerTests[i].file.replaceAll('\\', '/').slice(5);
+    worker.on('message', int => {
+      const result = int & 0b1111;
+      const i = int >> 4;
 
-      // if (timeout) clearTimeout(timeout);
-      // if (i < workerTests.length - 1) timeout = setTimeout(() => {
-      //   console.log(`\n! got stuck on ${workerTests[i + 1].file.replaceAll('\\', '/').slice(5)}\n`);
-      //   process.exit();
-      // }, 5000);
+      const file = tests[i].file.replaceAll('\\', '/').slice(5);
 
       // result: pass, todo, wasmError, compileError, fail, timeout, runtimeError
       total++;
@@ -169,8 +168,8 @@ if (isMainThread) {
         } else {
           process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m\n`);
 
-          if (threads === 1 && workerTests[i + 1]) {
-            const nextFile = workerTests[i + 1].file.replaceAll('\\', '/').slice(5);
+          if (threads === 1 && tests[i + 1]) {
+            const nextFile = tests[i + 1].file.replaceAll('\\', '/').slice(5);
             process.stdout.write(`\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% | ${nextFile}\u001b[0m`);
           }
         }
@@ -186,11 +185,9 @@ if (isMainThread) {
       if (total === totalTests) resolve();
     });
 
-    // waits.push(promise);
-    // waits.push(new Promise(res => worker.on('exit', res)));
+    // if (!resultOnly) process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90mspawned ${w + 1}/${threads} threads...`);
   }
 
-  // await Promise.all(waits);
   await promise;
 
   console.log = log;
@@ -341,7 +338,7 @@ if (isMainThread) {
     }
   }
 } else {
-  const { tests, preludes, argv } = workerData;
+  const { queue, tests, preludes, argv } = workerData;
 
   process.argv = argv;
   const trackErrors = process.argv.includes('--errors');
@@ -357,24 +354,30 @@ if (isMainThread) {
     return script.runInNewContext({ $func }, { timeout });
   };
 
-  const run = (file, contents, attrs) => {
-    let toRun;
-    if (attrs.flags.raw) {
-      toRun = contents;
-    } else {
-      const singleContents = contents.slice(contents.lastIndexOf('---*/') + 5);
-      const prelude = attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? '') + '\n', '');
-      toRun = prelude + singleContents;
+  const totalTests = tests.length;
+  const alwaysPrelude = preludes['assert.js'] + '\n' + preludes['sta.js'] + '\n';
+  while (true) {
+    const i = Atomics.add(queue, 0, 1);
+    if (i >= totalTests) break;
+
+    const test = tests[i];
+
+    let error, stage;
+    let file = test.file, contents = test.contents, attrs = test.attrs;
+
+    if (!attrs.flags.raw) {
+      const prelude = attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? '') + '\n', '') + alwaysPrelude;
+      contents = prelude + contents;
     }
 
     // remove error constructor checks
-    const ind = toRun.indexOf('if (err.constructor !== Test262Error) {');
+    const ind = contents.indexOf('if (err.constructor !== Test262Error) {');
     if (ind !== -1) {
-      const nextEnd = toRun.indexOf('}', ind + 39);
-      toRun = toRun.replace(toRun.slice(ind, nextEnd + 1), '');
+      const nextEnd = contents.indexOf('}', ind + 39);
+      contents = contents.replace(contents.slice(ind, nextEnd + 1), '');
     }
 
-    toRun = toRun
+    contents = contents
       // random error detail checks
       .replace(/assert\.notSameValue\(err\.message\.indexOf\('.*?'\), -1\);/g, '')
       .replace(/if \(\(e instanceof (.*)Error\) !== true\) \{[\w\W]*?\}/g, '')
@@ -384,13 +387,13 @@ if (isMainThread) {
       // remove actual string concats from some error messages
       // .replace(/\. Actual: ' \+ .*\);/g, _ => `');`);
 
-    if (debugAsserts) toRun = toRun
+    if (debugAsserts) contents = contents
       .replace('function assert(mustBeTrue) {', 'function assert(mustBeTrue, msg) {')
       .replaceAll('function (actual, expected) {', 'function (actual, expected, msg) {')
       .replace('function (actual, unexpected) {', 'function (actual, unexpected, msg) {')
       .replaceAll('throw new Test262Error', 'if (typeof msg != "undefined") { console.log(msg); console.log(expected); console.log(actual); } throw new Test262Error');
 
-    // fs.writeFileSync('r.js', toRun);
+    // fs.writeFileSync('r.js', contents);
 
     // currentTest = file;
 
@@ -399,7 +402,7 @@ if (isMainThread) {
 
     let exports, exceptions;
     try {
-      const out = compile(toRun, attrs.flags.module ? [ 'module' ] : [], {
+      const out = compile(contents, attrs.flags.module ? [ 'module' ] : [], {
         p: shouldLog ? i => { log += i.toString(); } : () => {},
         c: shouldLog ? i => { log += String.fromCharCode(i); } : () => {},
       });
@@ -407,10 +410,11 @@ if (isMainThread) {
       exceptions = out.exceptions;
       exports = out.exports;
     } catch (e) {
-      return [ 0, e ];
+      stage = 0;
+      error = e;
     }
 
-    try {
+    if (!error) try {
       // only timeout some due to big perf impact
       if (
         file.includes('while/') || file.includes('for/') || file.includes('continue/') || file.includes('break/') ||
@@ -420,22 +424,18 @@ if (isMainThread) {
       ) timeout(exports.main, 500);
         else exports.main();
       // timeout(exports.main, 1000);
+
+      stage = 2;
     } catch (e) {
       if (e.name === 'Test262Error' && debugAsserts && log) {
         const [ msg, expected, actual ] = log.split('\n');
         e.message += `: ${msg} | expected: ${expected} | actual: ${actual}`;
       }
 
-      return [ 1, e ];
+      stage = 1;
+      error = e;
     }
 
-    return [ 2 ];
-  };
-
-  for (let i = 0; i < tests.length; i++) {
-    const test = tests[i];
-
-    const [ stage, error ] = run(test.file, test.contents, test.attrs);
     const errorName = error?.name;
 
     let pass = stage === 2;
@@ -469,14 +469,15 @@ if (isMainThread) {
     //   errors.set(errorStr, errors.get(errorStr).concat(file));
     // }
 
+    out += (i << 4);
+
     if (logErrors) {
       process.stdout.write(`\u001b[${pass ? '92' : '91'}m${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m\n`);
       if (!pass && error) console.log(error.stack ?? error);
 
-      setTimeout(() => { parentPort.postMessage([ i, out ]); }, 10);
-      continue;
+      setTimeout(() => { parentPort.postMessage(out); }, 10);
+    } else {
+      parentPort.postMessage(out);
     }
-
-    parentPort.postMessage([ i, out ]);
   }
 }
