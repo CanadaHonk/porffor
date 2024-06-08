@@ -4443,7 +4443,7 @@ const generateFunc = (scope, decl) => {
         ...generate(func, defaultValues[x], false, x),
         [ Opcodes.local_set, func.locals[x].idx ],
 
-        ...setType(func, x, getNodeType(scope, defaultValues[x])),
+        ...setType(func, x, getNodeType(func, defaultValues[x])),
       [ Opcodes.end ]
     );
   }
