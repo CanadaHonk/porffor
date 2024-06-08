@@ -2,7 +2,7 @@ import type {} from './porffor.d.ts';
 
 // radix: number|any for rawType check
 export const __Number_prototype_toString = (_this: number, radix: number|any) => {
-  let out: bytestring = '';
+  let out: bytestring = Porffor.allocate();
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   if (!Number.isFinite(_this)) {
@@ -235,7 +235,7 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
 };
 
 export const __Number_prototype_toFixed = (_this: number, fractionDigits: number) => {
-  let out: bytestring = '';
+  let out: bytestring = Porffor.allocate();
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   if (!Number.isFinite(_this)) {
@@ -322,7 +322,7 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
 
 // fractionDigits: number|any for rawType check
 export const __Number_prototype_toExponential = (_this: number, fractionDigits: number|any) => {
-  let out: bytestring = '';
+  let out: bytestring = Porffor.allocate();
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   if (!Number.isFinite(_this)) {

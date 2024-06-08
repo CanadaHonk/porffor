@@ -28,7 +28,7 @@ export const __Symbol_prototype_description$get = (_this: Symbol) => {
 };
 
 export const __Symbol_prototype_toString = (_this: Symbol) => {
-  let out: bytestring = '';
+  let out: bytestring = Porffor.allocate();
 
   // Symbol(
   Porffor.wasm.i32.store8(out, 83, 0, 4);

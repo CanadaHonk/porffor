@@ -5,7 +5,7 @@ import type {} from './porffor.d.ts';
 export const __Boolean_prototype_toString = (_this: boolean) => {
   // 1. Let b be ? ThisBooleanValue(this value).
   // 2. If b is true, return "true"; else return "false".
-  let out: bytestring = '';
+  let out: bytestring = Porffor.allocate();
   if (_this) out = 'true';
     else out = 'false';
 
