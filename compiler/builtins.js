@@ -1185,5 +1185,62 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  this.__Porffor_bytestringToString = {
+    params: [ Valtype.i32, Valtype.i32 ],
+    locals: [ Valtype.i32, Valtype.i32 ],
+    localNames: [ 'src', 'len', '#bytestring_to_string_counter', '#bytestring_to_string_dst' ],
+    returns: [ Valtype.i32 ],
+    returnType: TYPES.string,
+    wasm: [
+      // dst = grow memory by 1 page
+      [ Opcodes.i32_const, 1 ],
+      [ Opcodes.memory_grow, 0 ],
+      ...number(65536, Valtype.i32),
+      [ Opcodes.i32_mul ],
+      [ Opcodes.local_tee, 3 ],
+
+      // dst.length = len
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.i32_store, 0, 0 ],
+
+      // counter = 0
+      [ Opcodes.i32_const, 0 ],
+      [ Opcodes.local_set, 2 ],
+
+      [ Opcodes.loop, Blocktype.void ],
+
+      // base for store later
+      [ Opcodes.local_get, 2 ],
+      [ Opcodes.i32_const, 2 ],
+      [ Opcodes.i32_mul ],
+      [ Opcodes.local_get, 3 ],
+      [ Opcodes.i32_add ],
+
+      // load char from src
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 2 ],
+      [ Opcodes.i32_add ],
+      [ Opcodes.i32_load8_u, 0, 4 ],
+
+      // store char to dst
+      [ Opcodes.i32_store16, 0, 4 ],
+
+      // counter++
+      [ Opcodes.local_get, 2 ],
+      [ Opcodes.i32_const, 1 ],
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_tee, 2 ],
+
+      // loop if counter < len
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.i32_lt_s ],
+      [ Opcodes.br_if, 0 ],
+      [ Opcodes.end ],
+
+      // return dst
+      [ Opcodes.local_get, 3 ]
+    ]
+  };
+
   GeneratedBuiltins.BuiltinFuncs.call(this);
 };
