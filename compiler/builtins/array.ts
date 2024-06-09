@@ -83,10 +83,8 @@ export const __Array_prototype_splice = (_this: any[], start: number, deleteCoun
   _this.length = len - deleteCount + itemsLen;
 
   // remove deleted values via memory.copy shifting values in mem
-  Porffor.wasm`;; setup
+  Porffor.wasm`;; ptr = ptr(_this) + 4 + (start * 9)
 local #splice_ptr i32
-
-;; ptr = ptr(_this) + 4 + (start * 9)
 local.get ${_this}
 i32.to_u
 i32.const 4
