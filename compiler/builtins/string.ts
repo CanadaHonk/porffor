@@ -1,19 +1,6 @@
 // @porf --valtype=i32
 import type {} from './porffor.d.ts';
 
-export const __String_fromCharCode = (code: i32) => {
-  // todo: support >1 arg
-  if (code < 256) {
-    let out: bytestring = '.';
-    Porffor.wasm.i32.store8(out, code, 0, 4);
-    return out;
-  }
-
-  let out: string = Porffor.s`.`;
-  Porffor.wasm.i32.store16(out, code, 0, 4);
-  return out;
-};
-
 export const __String_prototype_toUpperCase = (_this: string) => {
   // todo: unicode not just ascii
   const len: i32 = _this.length;
