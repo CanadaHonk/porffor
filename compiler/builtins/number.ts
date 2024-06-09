@@ -320,6 +320,8 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
   return out;
 };
 
+export const __Number_prototype_toLocaleString = (_this: number) => __Number_prototype_toString(_this, 10);
+
 // fractionDigits: number|any for rawType check
 export const __Number_prototype_toExponential = (_this: number, fractionDigits: number|any) => {
   let out: bytestring = Porffor.allocate();

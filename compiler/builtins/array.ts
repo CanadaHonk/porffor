@@ -532,6 +532,9 @@ export const __Array_prototype_toString = (_this: any[]) => {
 };
 
 // @porf-typed-array
+export const __Array_prototype_toLocaleString = (_this: any[]) => __Array_prototype_toString(_this);
+
+// @porf-typed-array
 export const __Array_prototype_join = (_this: any[], _separator: any) => {
   // todo: this is bytestring only!
   // todo/perf: optimize single char separators

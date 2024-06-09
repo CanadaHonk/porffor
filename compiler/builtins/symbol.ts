@@ -58,6 +58,8 @@ export const __Symbol_prototype_toString = (_this: Symbol) => {
   return out;
 };
 
+export const __Symbol_prototype_toLocaleString = (_this: Symbol) => __Symbol_prototype_toString(_this);
+
 export const __Symbol_prototype_valueOf = (_this: Symbol) => {
   return _this;
 };

@@ -192,3 +192,5 @@ export const __Set_prototype_toString = (_this: Set) => {
   const out: bytestring = '[object Set]';
   return out;
 };
+
+export const __Set_prototype_toLocaleString = (_this: Set) => __Set_prototype_toString(_this);
