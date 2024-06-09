@@ -28,7 +28,7 @@ export const __crypto_randomUUID = (): bytestring => {
     12 // 4 + 8
   );
 
-  let output: bytestring = '------------------------------------';
+  let output: bytestring = Porffor.allocate();
 
   let i: i32 = Porffor.wasm`local.get ${output}`;
   let j: i32 = bytesPtr;
