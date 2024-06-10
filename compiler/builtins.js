@@ -52,6 +52,12 @@ export const importedFuncs = [
     import: 'q',
     params: 2,
     returns: 1
+  },
+  {
+    name: 'debugger',
+    import: 'b',
+    params: 0,
+    returns: 0,
   }
 ];
 

@@ -137,7 +137,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
     case 'DebuggerStatement':
       // todo: hook into terminal debugger
-      return [];
+      return [[ Opcodes.call, importedFuncs.debugger ]];
 
     case 'ArrayExpression':
       return generateArray(scope, decl, global, name);
