@@ -1159,7 +1159,7 @@ export const BuiltinFuncs = function() {
       [ Opcodes.global_get, 1 ],
       ...number(pageSize, Valtype.i32),
       [ Opcodes.i32_ge_s ],
-      [ Opcodes.if, Blocktype.void ],
+      [ Opcodes.if, Valtype.i32 ],
         // bytesWritten = bytesToAllocate
         [ Opcodes.local_get, 0 ],
         [ Opcodes.global_set, 1 ],
@@ -1168,20 +1168,27 @@ export const BuiltinFuncs = function() {
         ...number(1, Valtype.i32),
         [ Opcodes.memory_grow, 0x00 ],
 
-        // currentPtr = old page count * pageSize
+        // currentPtr = old page count * pageSize + bytesToAllocate
         ...number(pageSize, Valtype.i32),
         [ Opcodes.i32_mul ],
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.i32_add ],
         [ Opcodes.global_set, 0 ],
+
+        // return currentPtr - bytesToAllocate
+        [ Opcodes.global_get, 0 ],
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.i32_sub ],
       [ Opcodes.else ],
         // else, currentPtr += bytesToAllocate
         [ Opcodes.global_get, 0 ],
         [ Opcodes.local_get, 0 ],
         [ Opcodes.i32_add ],
         [ Opcodes.global_set, 0 ],
-      [ Opcodes.end ],
 
-      // return currentPtr
-      [ Opcodes.global_get, 0 ]
+        // return currentPtr
+        [ Opcodes.global_get, 0 ],
+      [ Opcodes.end ]
     ]
   };
 
