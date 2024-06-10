@@ -2916,6 +2916,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           prelude: [
             ...generate(scope, decl.left.object),
             Opcodes.i32_to_u,
+            [ Opcodes.i32_load, 0, 4 ],
+
             ...generate(scope, decl.left.property),
             Opcodes.i32_to_u,
           ],
@@ -3577,6 +3579,7 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.loop, Blocktype.void ],
 
         [ Opcodes.local_get, pointer ],
+        [ Opcodes.i32_load, 0, 4 ],
         [ Opcodes.local_get, counter ]
       ],
       postlude: [
@@ -4230,7 +4233,7 @@ const generateMember = (scope, decl, _global, _name) => {
   }
 
   // todo: generate this array procedurally during builtinFuncs creation
-  if (['size', 'description', 'byteLength'].includes(decl.property.name)) {
+  if (['size', 'description', 'byteLength', 'buffer'].includes(decl.property.name)) {
     const bc = {};
     const cands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + decl.property.name + '$get'));
 
@@ -4408,6 +4411,8 @@ const generateMember = (scope, decl, _global, _name) => {
       prelude: [
         ...object,
         Opcodes.i32_to_u,
+        [ Opcodes.i32_load, 0, 4 ],
+
         ...property,
         Opcodes.i32_to_u
       ],
@@ -4436,7 +4441,7 @@ const objectHack = node => {
       if (!objectName) objectName = objectHack(node.object)?.name?.slice?.(2);
 
       // if .name or .length, give up (hack within a hack!)
-      if (['name', 'length', 'size', 'description', 'byteLength'].includes(node.property.name)) {
+      if (['name', 'length', 'size', 'description', 'byteLength', 'buffer'].includes(node.property.name)) {
         node.object = objectHack(node.object);
         return;
       }

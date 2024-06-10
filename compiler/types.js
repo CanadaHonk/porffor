@@ -54,6 +54,7 @@ registerInternalType('ByteString', ['iterable', 'length'], TYPES.string | TYPE_F
 registerInternalType('Date');
 registerInternalType('Set', ['iterable']);
 
+registerInternalType('ArrayBuffer');
 registerInternalType('Uint8Array', ['iterable', 'length']);
 registerInternalType('Int8Array', ['iterable', 'length']);
 registerInternalType('Uint8ClampedArray', ['iterable', 'length']);

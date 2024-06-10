@@ -115,6 +115,11 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
       return Symbol(desc);
     }
 
+    case TYPES.arraybuffer: {
+      const length = (new Int32Array(memory.buffer.slice(value, value + 4), 0, 1))[0];
+      return memory.buffer.slice(value + 4, value + 4 + length);
+    }
+
     case TYPES.uint8array:
     case TYPES.int8array:
     case TYPES.uint8clampedarray:
@@ -124,8 +129,8 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     case TYPES.int32array:
     case TYPES.float32array:
     case TYPES.float64array: {
-      const length = (new Int32Array(memory.buffer, value, 1))[0];
-      return new globalThis[TYPE_NAMES[type]](memory.buffer, value + 4, length);
+      const [ length, ptr ] = (new Int32Array(memory.buffer.slice(value, value + 8), 0, 2));
+      return new globalThis[TYPE_NAMES[type]](memory.buffer, ptr + 4, length);
     }
 
     default: return value;
