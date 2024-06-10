@@ -36,7 +36,7 @@ export const __Array_prototype_slice = (_this: any[], start: number, end: number
 
   while (thisPtr < thisPtrEnd) {
     Porffor.wasm.f64.store(outPtr, Porffor.wasm.f64.load(thisPtr, 0, 4), 0, 4);
-    Porffor.wasm.i32.store8(outPtr + 8, Porffor.wasm.i32.load8_u(thisPtr + 8, 0, 4), 0, 4);
+    Porffor.wasm.i32.store8(outPtr, Porffor.wasm.i32.load8_u(thisPtr, 0, 12), 0, 12);
 
     thisPtr += 9;
     outPtr += 9;
@@ -72,7 +72,7 @@ export const __Array_prototype_splice = (_this: any[], start: number, deleteCoun
 
   while (thisPtr < thisPtrEnd) {
     Porffor.wasm.f64.store(outPtr, Porffor.wasm.f64.load(thisPtr, 0, 4), 0, 4);
-    Porffor.wasm.i32.store8(outPtr + 8, Porffor.wasm.i32.load8_u(thisPtr + 8, 0, 4), 0, 4);
+    Porffor.wasm.i32.store8(outPtr, Porffor.wasm.i32.load8_u(thisPtr, 0, 12), 0, 12);
 
     thisPtr += 9;
     outPtr += 9;
@@ -133,7 +133,7 @@ memory.copy 0 0`;
 
     while (thisPtr < thisPtrEnd) {
       Porffor.wasm.f64.store(thisPtr, Porffor.wasm.f64.load(itemsPtr, 0, 4), 0, 4);
-      Porffor.wasm.i32.store8(thisPtr + 8, Porffor.wasm.i32.load8_u(itemsPtr + 8, 0, 4), 0, 4);
+      Porffor.wasm.i32.store8(thisPtr, Porffor.wasm.i32.load8_u(itemsPtr, 0, 12), 0, 12);
 
       thisPtr += 9;
       itemsPtr += 9;
