@@ -1138,9 +1138,11 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
   }
 
   for (const x of _data) {
-    const copy = { ...x };
-    if (copy.offset != null) copy.offset += pages.size * pageSize;
-    data.push(copy);
+    let offset = x[0];
+    if (offset != null) offset += pages.size * pageSize;
+
+    const bytes = x[1];
+    data.push({ offset, bytes });
   }
 
   const func = {
