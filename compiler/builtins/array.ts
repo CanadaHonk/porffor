@@ -311,29 +311,6 @@ export const __Array_prototype_reverse = (_this: any[]) => {
   return _this;
 };
 
-// @porf-typed-array
-export const __Array_prototype_toReversed = (_this: any[]) => {
-  const len: i32 = _this.length;
-
-  let start: i32 = 0;
-  let end: i32 = len - 1;
-
-  let out: any[] = Porffor.allocate();
-  out.length = len;
-
-  while (start < end) {
-    out[start] = _this[end];
-    out[end--] = _this[start++];
-  }
-
-  return out;
-};
-
-// @porf-typed-array
-export const __Array_prototype_valueOf = (_this: any[]) => {
-  return _this;
-};
-
 
 // @porf-typed-array
 export const __Array_prototype_forEach = (_this: any[], callbackFn: any) => {
@@ -564,3 +541,38 @@ export const __Array_prototype_join = (_this: any[], _separator: any) => {
 
   return out;
 };
+
+// @porf-typed-array
+export const __Array_prototype_valueOf = (_this: any[]) => {
+  return _this;
+};
+
+// @porf-typed-array
+export const __Array_prototype_toReversed = (_this: any[]) => {
+  const len: i32 = _this.length;
+
+  let start: i32 = 0;
+  let end: i32 = len - 1;
+
+  let out: any[] = Porffor.allocate();
+  out.length = len;
+
+  while (start < end) {
+    out[start] = _this[end];
+    out[end--] = _this[start++];
+  }
+
+  return out;
+};
+
+// @porf-typed-array
+export const __Array_prototype_toSorted = (_this: any[], callbackFn: any) => {
+  // todo/perf: could be rewritten to be its own instead of cloning and using normal sort()
+
+  let out: any[] = Porffor.allocate();
+  Porffor.clone(_this, out);
+
+  return __Array_prototype_sort(out, callbackFn);
+};
+
+// todo: toSpliced
