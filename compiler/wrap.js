@@ -289,6 +289,9 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
             return -1;
           }
         },
+        b: () => {
+          debugger;
+        },
         ...customImports
       }
     });
