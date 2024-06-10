@@ -341,6 +341,25 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [124,127], localNames: ["_this","_this#type","callbackFn","callbackFn#type","out","#last_type"],
   };
+  this.__ArrayBuffer_isView = {
+    wasm: (scope, {builtin}) => [[32,1],[33,3],[2,124],[32,3],[65,213,0],[70],[4,64,"TYPESWITCH|Uint8Array"],[32,0],[32,1],[16, builtin('__Uint8Array_prototype_buffer$get')],[33,2],[12,1],[11],[32,3],[65,214,0],[70],[4,64,"TYPESWITCH|Int8Array"],[32,0],[32,1],[16, builtin('__Int8Array_prototype_buffer$get')],[33,2],[12,1],[11],[32,3],[65,215,0],[70],[4,64,"TYPESWITCH|Uint8ClampedArray"],[32,0],[32,1],[16, builtin('__Uint8ClampedArray_prototype_buffer$get')],[33,2],[12,1],[11],[32,3],[65,216,0],[70],[4,64,"TYPESWITCH|Uint16Array"],[32,0],[32,1],[16, builtin('__Uint16Array_prototype_buffer$get')],[33,2],[12,1],[11],[32,3],[65,217,0],[70],[4,64,"TYPESWITCH|Int16Array"],[32,0],[32,1],[16, builtin('__Int16Array_prototype_buffer$get')],[33,2],[12,1],[11],[32,3],[65,218,0],[70],[4,64,"TYPESWITCH|Uint32Array"],[32,0],[32,1],[16, builtin('__Uint32Array_prototype_buffer$get')],[33,2],[12,1],[11],[32,3],[65,219,0],[70],[4,64,"TYPESWITCH|Int32Array"],[32,0],[32,1],[16, builtin('__Int32Array_prototype_buffer$get')],[33,2],[12,1],[11],[32,3],[65,220,0],[70],[4,64,"TYPESWITCH|Float32Array"],[32,0],[32,1],[16, builtin('__Float32Array_prototype_buffer$get')],[33,2],[12,1],[11],[32,3],[65,221,0],[70],[4,64,"TYPESWITCH|Float64Array"],[32,0],[32,1],[16, builtin('__Float64Array_prototype_buffer$get')],[33,2],[12,1],[11],[68,0,0,0,0,0,0,0,0],[65,3],[33,2],[11,"TYPESWITCH_end"],[33,4],[32,2],[33,3],[2,127],[32,3],[65,194,0],[70],[4,64,"TYPESWITCH|String"],[32,4],[252,3],[40,1,0],[12,1],[11],[32,3],[65,194,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,4],[252,3],[40,1,0],[12,1],[11],[32,4],[252,3],[11,"TYPESWITCH_end"],[4,64],[68,0,0,0,0,0,0,240,63],[65,1],[15],[11],[68,0,0,0,0,0,0,0,0],[65,1],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127,127,124], localNames: ["value","value#type","#last_type","#typeswitch_tmp","#logicinner_tmp"],
+  };
+  this.ArrayBuffer = {
+    wasm: (scope, {builtin,internalThrow}) => [[32,-1],[184],[65,1],[33,2],[33,3],[32,2],[33,4],[2,124],[32,4],[65,194,0],[70],[4,64,"TYPESWITCH|String"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,4],[65,194,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,3],[68,0,0,0,0,0,0,0,0],[97],[184],[11,"TYPESWITCH_end"],[252,3],[4,64],...internalThrow(scope, 'TypeError', `Constructor ArrayBuffer requires 'new'`),[11],[32,0],[68,0,0,0,0,0,0,0,0],[99],[4,64],...internalThrow(scope, 'RangeError', `Invalid ArrayBuffer length (negative)`),[11],[32,0],[68,0,0,0,0,0,0,32,66],[100],[4,64],...internalThrow(scope, 'RangeError', `Invalid ArrayBuffer length (>32GiB)`),[11],[32,0],[68,0,0,0,0,0,0,0,0],[16, builtin('f64_|')],[34,0],[68,0,0,0,0,0,0,16,64],[160],[252,2],[16, builtin('__Porffor_allocateBytes')],[183],[34,5],[252,2],[32,0],[252,2],[54,0,0],[32,5],[65,20],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127,124,127,124], localNames: ["length","length#type","#last_type","#logicinner_tmp","#typeswitch_tmp","out"],
+    constr: 1,
+  };
+  this.__ArrayBuffer_prototype_byteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,2],[40,0,0],[183],[65,0],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [], localNames: ["_this","_this#type"],
+  };
   this.btoa = {
     wasm: (scope, {allocPage,builtin}) => [...number(allocPage(scope, 'bytestring: btoa/keyStr', 'i8') * pageSize, 127),[34,2],[33,3],[32,0],[40,1,0],[33,4],[16, builtin('__Porffor_allocate')],[33,6],[252,2],[33,5],[32,0],[33,7],[32,5],[33,8],[32,7],[32,4],[106],[33,9],[65,0],[33,10],[3,64],[32,7],[32,9],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[33,11],[32,7],[32,9],[72],[4,127],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[65,0],[33,6],[5],[65,127],[65,0],[33,6],[11],[33,12],[32,7],[32,9],[72],[4,127],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[65,0],[33,6],[5],[65,127],[65,0],[33,6],[11],[33,13],[32,11],[65,2],[117],[33,14],[32,11],[65,3],[113],[65,4],[116],[32,12],[65,127],[70],[4,127],[65,0],[65,0],[33,6],[5],[32,12],[65,4],[117],[65,0],[33,6],[11],[114],[33,15],[32,12],[65,15],[113],[65,2],[116],[32,13],[65,127],[70],[4,127],[65,0],[65,0],[33,6],[5],[32,13],[65,6],[117],[65,0],[33,6],[11],[114],[33,16],[32,13],[65,63],[113],[33,17],[32,12],[65,127],[70],[4,64],[65,192,0],[33,16],[65,192,0],[33,17],[5],[32,13],[65,127],[70],[4,64],[65,192,0],[33,17],[11],[11],[32,8],[32,8],[65,1],[106],[33,8],[32,3],[32,14],[106],[45,0,4],[58,0,4],[32,8],[32,8],[65,1],[106],[33,8],[32,3],[32,15],[106],[45,0,4],[58,0,4],[32,8],[32,8],[65,1],[106],[33,8],[32,3],[32,16],[106],[45,0,4],[58,0,4],[32,8],[32,8],[65,1],[106],[33,8],[32,3],[32,17],[106],[45,0,4],[58,0,4],[12,1],[11],[11],[32,5],[32,8],[32,5],[107],[34,18],[54,1,0],[32,5],[65,194,1],[15]],
     params: [127,127], typedParams: 1,
@@ -3320,19 +3339,6 @@ export const BuiltinFuncs = function() {
     params: [124,127,124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
     locals: [124,127], localNames: ["_this","_this#type","callbackFn","callbackFn#type","out","#last_type"],
-  };
-  this.ArrayBuffer = {
-    wasm: (scope, {builtin,internalThrow}) => [[32,-1],[184],[65,1],[33,2],[33,3],[32,2],[33,4],[2,124],[32,4],[65,194,0],[70],[4,64,"TYPESWITCH|String"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,4],[65,194,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,3],[68,0,0,0,0,0,0,0,0],[97],[184],[11,"TYPESWITCH_end"],[252,3],[4,64],...internalThrow(scope, 'TypeError', `Constructor ArrayBuffer requires 'new'`),[11],[32,0],[68,0,0,0,0,0,0,0,0],[99],[4,64],...internalThrow(scope, 'RangeError', `Invalid ArrayBuffer length (negative)`),[11],[32,0],[68,0,0,0,0,0,0,32,66],[100],[4,64],...internalThrow(scope, 'RangeError', `Invalid ArrayBuffer length (>32GiB)`),[11],[32,0],[68,0,0,0,0,0,0,0,0],[16, builtin('f64_|')],[34,0],[68,0,0,0,0,0,0,16,64],[160],[252,2],[16, builtin('__Porffor_allocateBytes')],[183],[34,5],[252,2],[32,0],[252,2],[54,0,0],[32,5],[65,20],[15]],
-    params: [124,127], typedParams: 1,
-    returns: [124,127], typedReturns: 1,
-    locals: [127,124,127,124], localNames: ["length","length#type","#last_type","#logicinner_tmp","#typeswitch_tmp","out"],
-    constr: 1,
-  };
-  this.__ArrayBuffer_prototype_byteLength$get = {
-    wasm: (scope, {}) => [[32,0],[252,2],[40,0,0],[183],[65,0],[15]],
-    params: [124,127], typedParams: 1,
-    returns: [124,127], typedReturns: 1,
-    locals: [], localNames: ["_this","_this#type"],
   };
   this.__ecma262_ToIntegerOrInfinity = {
     wasm: (scope, {builtin}) => [[65,0],[32,0],[16, builtin('Number')],[34,2],[16, builtin('__Number_isNaN')],[252,3],[4,64],[68,0,0,0,0,0,0,0,0],[65,0],[15],[11],[32,2],[16, builtin('__Number_isFinite')],[68,0,0,0,0,0,0,0,0],[97],[4,64],[32,2],[65,0],[15],[11],[32,2],[16, builtin('__Math_trunc')],[34,2],[68,0,0,0,0,0,0,0,0],[97],[4,64],[68,0,0,0,0,0,0,0,0],[65,0],[15],[11],[32,2],[65,0],[15]],

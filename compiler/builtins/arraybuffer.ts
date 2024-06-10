@@ -1,5 +1,10 @@
 import type {} from './porffor.d.ts';
 
+export const __ArrayBuffer_isView = function (value: any): boolean {
+  if (value.buffer) return true;
+  return false;
+};
+
 export const ArrayBuffer = function (length: number): ArrayBuffer {
   if (!new.target) throw new TypeError("Constructor ArrayBuffer requires 'new'");
 
