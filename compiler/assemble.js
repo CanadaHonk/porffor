@@ -21,6 +21,36 @@ const chHint = (topTier, baselineTier, strategy) => {
   return (strategy | (baselineTier << 2) | (topTier << 4));
 };
 
+const encodeNames = (funcs) => {
+  const encodeSection = (id, section) => [
+    id,
+    ...unsignedLEB128(section.length),
+    ...section
+  ];
+
+  const moduleSection = encodeString('js'); // TODO: filename?
+  const functionsSection = encodeVector(
+    funcs.map((x) => unsignedLEB128(x.index).concat(encodeString(x.name))),
+  );
+  const localsSection = encodeVector(
+    funcs.map((x) =>
+      unsignedLEB128(x.index).concat(
+        encodeVector(
+          Object.entries(x.locals).map(([name, local]) =>
+            unsignedLEB128(local.idx).concat(encodeString(name)),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  return [
+    ...encodeSection(0, moduleSection),
+    ...encodeSection(1, functionsSection),
+    ...encodeSection(2, localsSection),
+  ];
+}
+
 export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) => {
   const types = [], typeCache = {};
 
@@ -111,6 +141,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     Section.func,
     encodeVector(funcs.map(x => getType(x.params, x.returns))) // type indexes
   );
+
+  const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
 
   const tableSection = !funcs.table ? [] : createSection(
     Section.table,
@@ -302,6 +334,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     ...elementSection,
     ...dataCountSection,
     ...codeSection,
-    ...dataSection
+    ...dataSection,
+    ...nameSection
   ]);
 };
