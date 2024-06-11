@@ -58,7 +58,8 @@ export default async () => {
     if (Porffor.fastOr(
       type == Porffor.TYPES.array,
       type == Porffor.TYPES.string, type == Porffor.TYPES.bytestring,
-      type == Porffor.TYPES.set
+      type == Porffor.TYPES.set,
+      Porffor.fastAnd(type >= Porffor.TYPES.uint8array, type <= Porffor.TYPES.float64array)
     )) {
       let i: i32 = 0;
       for (const x of arg) {
@@ -76,6 +77,41 @@ export default async () => {
   if (len > 4294967295) throw new RangeError('Invalid ArrayBuffer length (over 32 bit address space)');
 
   Porffor.wasm.i32.store(outPtr, len, 0, 0);
+  return out;
+};
+
+export const __${name}_from = (arg: any, mapFn: any): any[] => {
+  const arr: any[] = Porffor.allocate();
+  let len: i32 = 0;
+
+  const type = Porffor.rawType(arg);
+  if (Porffor.fastOr(
+    type == Porffor.TYPES.array,
+    type == Porffor.TYPES.string, type == Porffor.TYPES.bytestring,
+    type == Porffor.TYPES.set,
+    Porffor.fastAnd(type >= Porffor.TYPES.uint8array, type <= Porffor.TYPES.float64array)
+  )) {
+    const hasMapFn = Porffor.rawType(mapFn) != Porffor.TYPES.undefined;
+
+    let i: i32 = 0;
+    if (hasMapFn) {
+      if (Porffor.rawType(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
+
+      for (const x of arg) {
+        arr[i] = mapFn(x, i);
+        i++;
+      }
+    } else {
+      for (const x of arg) {
+        arr[i++] = x;
+      }
+    }
+    len = i;
+  }
+
+  arr.length = len;
+
+  const out: ${name} = new ${name}(arr);
   return out;
 };
 
