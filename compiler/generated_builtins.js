@@ -388,13 +388,19 @@ export const BuiltinFuncs = function() {
     wasm: (scope, {builtin,internalThrow}) => [[32,0],[65,20],[16, builtin('__ArrayBuffer_prototype_detached$get')],[33,4],[33,5],[32,4],[33,6],[2,127],[32,6],[65,194,0],[70],[4,64,"TYPESWITCH|String"],[32,5],[252,3],[40,1,0],[12,1],[11],[32,6],[65,194,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,5],[252,3],[40,1,0],[12,1],[11],[32,5],[252,3],[11,"TYPESWITCH_end"],[4,64],...internalThrow(scope, 'TypeError', `Called ArrayBuffer.prototype.transfer on a detached ArrayBuffer`),[11],[32,0],[252,2],[40,0,0],[183],[33,7],[32,2],[32,3],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,8,64],[97],[4,64],[32,7],[34,2],[65,0],[33,3],[26],[11],[65,1],[32,2],[32,3],[16, builtin('ArrayBuffer')],[33,4],[34,8],[252,2],[32,2],[252,2],[54,0,0],[32,8],[252,3],[65,4],[106],[32,0],[252,3],[65,4],[106],[32,2],[32,7],[164],[252,3],[252,10,0,0],[32,0],[252,2],[65,127],[54,0,0],[32,8],[65,20],[15]],
     params: [124,127,124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124,127,124,124], localNames: ["_this","_this#type","newByteLength","newByteLength#type","#last_type","#logicinner_tmp","#typeswitch_tmp","len","out"],
+    locals: [127,124,127,124,124], localNames: ["_this","_this#type","newLength","newLength#type","#last_type","#logicinner_tmp","#typeswitch_tmp","len","out"],
   };
   this.__ArrayBuffer_prototype_transferToFixedLength = {
     wasm: (scope, {builtin}) => [[32,0],[65,20],[32,2],[32,3],[16, builtin('__ArrayBuffer_prototype_transfer')],[34,4],[15]],
     params: [124,127,124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127], localNames: ["_this","_this#type","newByteLength","newByteLength#type","#last_type"],
+    locals: [127], localNames: ["_this","_this#type","newLength","newLength#type","#last_type"],
+  };
+  this.__ArrayBuffer_prototype_resize = {
+    wasm: (scope, {internalThrow}) => [...internalThrow(scope, 'TypeError', `Called ArrayBuffer.prototype.resize on a non-resizable ArrayBuffer`),[68,0,0,0,0,0,0,0,0],[65,3],[15]],
+    params: [124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [], localNames: ["_this","_this#type","newLength","newLength#type"],
   };
   this.btoa = {
     wasm: (scope, {allocPage,builtin}) => [...number(allocPage(scope, 'bytestring: btoa/keyStr', 'i8') * pageSize, 127),[34,2],[33,3],[32,0],[40,1,0],[33,4],[16, builtin('__Porffor_allocate')],[33,6],[252,2],[33,5],[32,0],[33,7],[32,5],[33,8],[32,7],[32,4],[106],[33,9],[65,0],[33,10],[3,64],[32,7],[32,9],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[33,11],[32,7],[32,9],[72],[4,127],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[65,0],[33,6],[5],[65,127],[65,0],[33,6],[11],[33,12],[32,7],[32,9],[72],[4,127],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[65,0],[33,6],[5],[65,127],[65,0],[33,6],[11],[33,13],[32,11],[65,2],[117],[33,14],[32,11],[65,3],[113],[65,4],[116],[32,12],[65,127],[70],[4,127],[65,0],[65,0],[33,6],[5],[32,12],[65,4],[117],[65,0],[33,6],[11],[114],[33,15],[32,12],[65,15],[113],[65,2],[116],[32,13],[65,127],[70],[4,127],[65,0],[65,0],[33,6],[5],[32,13],[65,6],[117],[65,0],[33,6],[11],[114],[33,16],[32,13],[65,63],[113],[33,17],[32,12],[65,127],[70],[4,64],[65,192,0],[33,16],[65,192,0],[33,17],[5],[32,13],[65,127],[70],[4,64],[65,192,0],[33,17],[11],[11],[32,8],[32,8],[65,1],[106],[33,8],[32,3],[32,14],[106],[45,0,4],[58,0,4],[32,8],[32,8],[65,1],[106],[33,8],[32,3],[32,15],[106],[45,0,4],[58,0,4],[32,8],[32,8],[65,1],[106],[33,8],[32,3],[32,16],[106],[45,0,4],[58,0,4],[32,8],[32,8],[65,1],[106],[33,8],[32,3],[32,17],[106],[45,0,4],[58,0,4],[12,1],[11],[11],[32,5],[32,8],[32,5],[107],[34,18],[54,1,0],[32,5],[65,194,1],[15]],

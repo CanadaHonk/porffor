@@ -108,15 +108,15 @@ memory.copy 0 0`;
 };
 
 
-export const __ArrayBuffer_prototype_transfer = (_this: ArrayBuffer, newByteLength: any) => {
+export const __ArrayBuffer_prototype_transfer = (_this: ArrayBuffer, newLength: any) => {
   if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.transfer on a detached ArrayBuffer');
 
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
-  if (Porffor.rawType(newByteLength) == Porffor.TYPES.undefined) newByteLength = len;
+  if (Porffor.rawType(newLength) == Porffor.TYPES.undefined) newLength = len;
 
   // make new arraybuffer
-  const out: ArrayBuffer = new ArrayBuffer(newByteLength);
-  Porffor.wasm.i32.store(out, newByteLength, 0, 0);
+  const out: ArrayBuffer = new ArrayBuffer(newLength);
+  Porffor.wasm.i32.store(out, newLength, 0, 0);
 
   // copy data to it
   Porffor.wasm`
@@ -132,8 +132,8 @@ i32.to_u
 i32.const 4
 i32.add
 
-;; size = min(newByteLength, len)
-local.get ${newByteLength}
+;; size = min(newLength, len)
+local.get ${newLength}
 local.get ${len}
 f64.min
 i32.to_u
@@ -146,4 +146,9 @@ memory.copy 0 0`;
   return out;
 };
 
-export const __ArrayBuffer_prototype_transferToFixedLength = (_this: ArrayBuffer, newByteLength: any) => __ArrayBuffer_prototype_transfer(_this, newByteLength);
+export const __ArrayBuffer_prototype_transferToFixedLength = (_this: ArrayBuffer, newLength: any) => __ArrayBuffer_prototype_transfer(_this, newLength);
+
+export const __ArrayBuffer_prototype_resize = (_this: ArrayBuffer, newLength: any) => {
+  // todo: resizable not implemented yet so just always fail
+  throw new TypeError('Called ArrayBuffer.prototype.resize on a non-resizable ArrayBuffer');
+};
