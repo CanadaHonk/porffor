@@ -23,6 +23,10 @@ export const __ArrayBuffer_prototype_byteLength$get = (_this: ArrayBuffer) => {
   return Porffor.wasm.i32.load(_this, 0, 0);
 };
 
+export const __ArrayBuffer_prototype_maxByteLength$get = (_this: ArrayBuffer) => {
+  return Porffor.wasm.i32.load(_this, 0, 0);
+};
+
 export const __ArrayBuffer_prototype_detached$get = (_this: ArrayBuffer) => {
   return false;
 };

@@ -360,6 +360,12 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [], localNames: ["_this","_this#type"],
   };
+  this.__ArrayBuffer_prototype_maxByteLength$get = {
+    wasm: (scope, {}) => [[32,0],[252,2],[40,0,0],[183],[65,0],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [], localNames: ["_this","_this#type"],
+  };
   this.__ArrayBuffer_prototype_detached$get = {
     wasm: (scope, {}) => [[68,0,0,0,0,0,0,0,0],[65,1],[15]],
     params: [124,127], typedParams: 1,
