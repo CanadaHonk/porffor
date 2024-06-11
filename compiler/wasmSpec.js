@@ -38,6 +38,7 @@ export const Opcodes = {
   loop: 0x03,
   if: 0x04,
   else: 0x05,
+  select: 0x1b,
 
   try: 0x06,
   catch: 0x07,

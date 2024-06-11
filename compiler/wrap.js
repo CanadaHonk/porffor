@@ -130,6 +130,12 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     case TYPES.float32array:
     case TYPES.float64array: {
       const [ length, ptr ] = (new Int32Array(memory.buffer.slice(value, value + 8), 0, 2));
+      if (length === 4294967295) {
+        // fake detached
+        const buf = new ArrayBuffer(0);
+        if (buf.detached != null) buf.transfer();
+        return buf;
+      }
       return new globalThis[TYPE_NAMES[type]](memory.buffer, ptr + 4, length);
     }
 

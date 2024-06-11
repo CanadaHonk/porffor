@@ -56,7 +56,7 @@ export default async () => {
   }
 
   if (len < 0) throw new RangeError('Invalid TypedArray length (negative)');
-  if (len > 34359738368) throw new RangeError('Invalid TypedArray length (>32GiB)');
+  if (len > 4294967295) throw new RangeError('Invalid ArrayBuffer length (over 32 bit address space)');
 
   Porffor.wasm.i32.store(outPtr, len, 0, 0);
   return out;
