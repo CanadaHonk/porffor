@@ -57,6 +57,8 @@ export const __ArrayBuffer_prototype_resizable$get = (_this: ArrayBuffer) => {
 };
 
 export const __ArrayBuffer_prototype_slice = (_this: ArrayBuffer, start: number, end: any) => {
+  if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.slice on a detached ArrayBuffer');
+
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
 
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
@@ -107,8 +109,9 @@ memory.copy 0 0`;
 };
 
 export const __ArrayBuffer_prototype_transfer = (_this: ArrayBuffer, newByteLength: any) => {
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.transfer on a detached ArrayBuffer');
 
+  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.rawType(newByteLength) == Porffor.TYPES.undefined) newByteLength = len;
 
   // make new arraybuffer

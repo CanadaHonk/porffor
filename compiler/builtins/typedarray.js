@@ -22,6 +22,8 @@ export default async () => {
   if (type == Porffor.TYPES.arraybuffer) {
     bufferPtr = Porffor.wasm\`local.get \${arg}\`;
 
+    if (arg.detached) throw new TypeError('Constructed ${name} with a detached ArrayBuffer');
+
     let offset: i32 = 0;
     if (Porffor.rawType(byteOffset) != Porffor.TYPES.undefined) offset = Math.trunc(byteOffset);
     Porffor.wasm.i32.store(outPtr, offset, 0, 8);
