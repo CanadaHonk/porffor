@@ -60,7 +60,6 @@ export const __ArrayBuffer_prototype_slice = (_this: ArrayBuffer, start: number,
   if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.slice on a detached ArrayBuffer');
 
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
-
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
 
   start |= 0;
@@ -108,6 +107,7 @@ memory.copy 0 0`;
   return out;
 };
 
+
 export const __ArrayBuffer_prototype_transfer = (_this: ArrayBuffer, newByteLength: any) => {
   if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.transfer on a detached ArrayBuffer');
 
@@ -145,3 +145,5 @@ memory.copy 0 0`;
 
   return out;
 };
+
+export const __ArrayBuffer_prototype_transferToFixedLength = (_this: ArrayBuffer, newByteLength: any) => __ArrayBuffer_prototype_transfer(_this, newByteLength);
