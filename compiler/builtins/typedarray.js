@@ -80,7 +80,9 @@ export default async () => {
   return out;
 };
 
-export const __${name}_from = (arg: any, mapFn: any): any[] => {
+export const __${name}_of = (...items: any[]): ${name} => new ${name}(items);
+
+export const __${name}_from = (arg: any, mapFn: any): ${name} => {
   const arr: any[] = Porffor.allocate();
   let len: i32 = 0;
 
@@ -111,8 +113,7 @@ export const __${name}_from = (arg: any, mapFn: any): any[] => {
 
   arr.length = len;
 
-  const out: ${name} = new ${name}(arr);
-  return out;
+  return new ${name}(arr);
 };
 
 export const __${name}_prototype_buffer$get = (_this: ${name}) => {
@@ -158,7 +159,7 @@ export const __${name}_prototype_slice = (_this: ${name}, start: number, end: nu
   }
   if (end > len) end = len;
 
-  let out: ${name} = Porffor.allocate();
+  const out: ${name} = Porffor.allocate();
 
   if (start > end) return out;
 
