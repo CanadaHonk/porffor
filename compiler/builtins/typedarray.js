@@ -6,12 +6,13 @@ export default async () => {
 
   // TypedArrays are stored like this in memory:
   // length (i32)
-  // bufferPtr (i32)
+  // bufferPtr (i32) - buffer + byteOffset
+  // byteOffset (i32) - only used for getter
 
   const constr = name => out += `export const ${name} = function (arg: any, byteOffset: any, length: any): ${name} {
   if (!new.target) throw new TypeError("Constructor ${name} requires 'new'");
 
-  const out: ${name} = Porffor.allocateBytes(8);
+  const out: ${name} = Porffor.allocateBytes(12);
   const outPtr: i32 = Porffor.wasm\`local.get \${out}\`;
 
   let len: i32 = 0;
@@ -23,6 +24,7 @@ export default async () => {
 
     let offset: i32 = 0;
     if (Porffor.rawType(byteOffset) != Porffor.TYPES.undefined) offset = Math.trunc(byteOffset);
+    Porffor.wasm.i32.store(outPtr, offset, 0, 8);
 
     Porffor.wasm.i32.store(outPtr, bufferPtr + offset, 0, 4);
 
@@ -67,6 +69,10 @@ export const __${name}_prototype_buffer$get = (_this: ${name}) => {
 
 export const __${name}_prototype_byteLength$get = (_this: ${name}) => {
   return _this.length * ${name}.BYTES_PER_ELEMENT;
+};
+
+export const __${name}_prototype_byteOffset$get = (_this: ${name}) => {
+  return Porffor.wasm.i32.load(_this, 0, 8);
 };
 
 export const __${name}_prototype_at = (_this: ${name}, index: number) => {
