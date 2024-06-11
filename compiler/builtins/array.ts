@@ -1,9 +1,40 @@
 import type {} from './porffor.d.ts';
 
 export const __Array_isArray = (x: unknown): boolean =>
-  // Porffor.wasm`local.get ${x+1}` == Porffor.TYPES.array;
   Porffor.rawType(x) == Porffor.TYPES.array;
 
+export const __Array_from = (arg: any, mapFn: any): any[] => {
+  let out: any[] = Porffor.allocate();
+  let len: i32 = 0;
+
+  const type = Porffor.rawType(arg);
+  if (Porffor.fastOr(
+    type == Porffor.TYPES.array,
+    type == Porffor.TYPES.string, type == Porffor.TYPES.bytestring,
+    type == Porffor.TYPES.set,
+    Porffor.fastAnd(type >= Porffor.TYPES.uint8array, type <= Porffor.TYPES.float64array)
+  )) {
+    const hasMapFn = Porffor.rawType(mapFn) != Porffor.TYPES.undefined;
+
+    let i: i32 = 0;
+    if (hasMapFn) {
+      if (Porffor.rawType(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
+
+      for (const x of arg) {
+        out[i] = mapFn(x, i);
+        i++;
+      }
+    } else {
+      for (const x of arg) {
+        out[i++] = x;
+      }
+    }
+    len = i;
+  }
+
+  out.length = len;
+  return out;
+};
 
 export const __Array_prototype_slice = (_this: any[], start: number, end: number) => {
   const len: i32 = _this.length;

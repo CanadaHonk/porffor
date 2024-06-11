@@ -58,6 +58,8 @@ type PorfforGlobal = {
     bytestring: i32;
     date: i32;
     set: i32;
+
+    [key: string]: i32;
   }
 
   clone(source: any, destination: any): void;
