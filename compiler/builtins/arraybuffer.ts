@@ -23,6 +23,14 @@ export const __ArrayBuffer_prototype_byteLength$get = (_this: ArrayBuffer) => {
   return Porffor.wasm.i32.load(_this, 0, 0);
 };
 
+export const __ArrayBuffer_prototype_detached$get = (_this: ArrayBuffer) => {
+  return false;
+};
+
+export const __ArrayBuffer_prototype_resizable$get = (_this: ArrayBuffer) => {
+  return false;
+};
+
 export const __ArrayBuffer_prototype_slice = (_this: ArrayBuffer, start: number, end: any) => {
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
 
