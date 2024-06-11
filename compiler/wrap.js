@@ -127,6 +127,13 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
       return memory.buffer.slice(value + 4, value + 4 + length);
     }
 
+    case TYPES.sharedarraybuffer: {
+      const length = (new Uint32Array(memory.buffer.slice(value, value + 4), 0, 1))[0];
+      const buf = memory.buffer.slice(value + 4, value + 4 + length);
+      buf.shared = true;
+      return buf;
+    }
+
     case TYPES.uint8array:
     case TYPES.int8array:
     case TYPES.uint8clampedarray:

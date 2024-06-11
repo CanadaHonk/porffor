@@ -55,6 +55,7 @@ registerInternalType('Date');
 registerInternalType('Set', ['iterable']);
 
 registerInternalType('ArrayBuffer');
+registerInternalType('SharedArrayBuffer');
 registerInternalType('Uint8Array', ['iterable', 'length']);
 registerInternalType('Int8Array', ['iterable', 'length']);
 registerInternalType('Uint8ClampedArray', ['iterable', 'length']);
