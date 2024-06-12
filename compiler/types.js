@@ -66,3 +66,5 @@ registerInternalType('Uint32Array', ['iterable', 'length']);
 registerInternalType('Int32Array', ['iterable', 'length']);
 registerInternalType('Float32Array', ['iterable', 'length']);
 registerInternalType('Float64Array', ['iterable', 'length']);
+
+registerInternalType('WeakRef');

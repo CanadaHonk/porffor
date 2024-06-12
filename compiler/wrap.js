@@ -155,6 +155,13 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
       return new globalThis[TYPE_NAMES[type]](memory.buffer, ptr + 4, length);
     }
 
+    case TYPES.weakref: {
+      const v = (new Float64Array(memory.buffer.slice(value, value + 8), 0, 1))[0];
+      const t = (new Uint8Array(memory.buffer, value + 8, 1))[0];
+
+      return new WeakRef(porfToJSValue({ memory, funcs, pages }, v, t));
+    }
+
     default: return value;
   }
 };
