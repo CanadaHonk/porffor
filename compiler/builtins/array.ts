@@ -606,7 +606,90 @@ export const __Array_prototype_toSorted = (_this: any[], callbackFn: any) => {
   return __Array_prototype_sort(out, callbackFn);
 };
 
-// todo: toSpliced
+export const __Array_prototype_toSpliced = (_this: any[], start: number, deleteCount: any, ...items: any[]) => {
+  let out: any[] = Porffor.allocate();
+  Porffor.clone(_this, out);
+
+  const len: i32 = _this.length;
+
+  start |= 0;
+  if (start < 0) {
+    start = len + start;
+    if (start < 0) start = 0;
+  }
+  if (start > len) start = len;
+
+  if (Porffor.rawType(deleteCount) == Porffor.TYPES.undefined) deleteCount = len - start;
+  deleteCount |= 0;
+
+  if (deleteCount < 0) deleteCount = 0;
+  if (deleteCount > len - start) deleteCount = len - start;
+
+  // update this length
+  const itemsLen: i32 = items.length;
+  out.length = len - deleteCount + itemsLen;
+
+  // remove deleted values via memory.copy shifting values in mem
+  Porffor.wasm`;; ptr = ptr(_this) + 4 + (start * 9)
+local #splice_ptr i32
+local.get ${out}
+i32.to_u
+i32.const 4
+i32.add
+local.get ${start}
+i32.to_u
+i32.const 9
+i32.mul
+i32.add
+local.set #splice_ptr
+
+;; dst = ptr + itemsLen * 9
+local.get #splice_ptr
+local.get ${itemsLen}
+i32.to_u
+i32.const 9
+i32.mul
+i32.add
+
+;; src = ptr + deleteCount * 9
+local.get #splice_ptr
+local.get ${deleteCount}
+i32.to_u
+i32.const 9
+i32.mul
+i32.add
+
+;; size = (len - start - deleteCount) * 9
+local.get ${len}
+i32.to_u
+local.get ${start}
+i32.to_u
+local.get ${deleteCount}
+i32.to_u
+i32.sub
+i32.sub
+i32.const 9
+i32.mul
+
+memory.copy 0 0`;
+
+  if (itemsLen > 0) {
+    let itemsPtr: i32 = Porffor.wasm`local.get ${items}`;
+    let outPtr: i32 = Porffor.wasm`local.get ${out}` + start * 9;
+    let outPtrEnd: i32 = outPtr + itemsLen * 9;
+
+    while (outPtr < outPtrEnd) {
+      Porffor.wasm.f64.store(outPtr, Porffor.wasm.f64.load(itemsPtr, 0, 4), 0, 4);
+      Porffor.wasm.i32.store8(outPtr, Porffor.wasm.i32.load8_u(itemsPtr, 0, 12), 0, 12);
+
+      outPtr += 9;
+      itemsPtr += 9;
+    }
+  }
+
+  return out;
+};
+
 
 export const __Array_prototype_flat = (_this: any[], depth: any) => {
   if (Porffor.rawType(depth) == Porffor.TYPES.undefined) depth = 1;
