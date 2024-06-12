@@ -20,7 +20,7 @@ function assert(mustBeTrue) {
 
 assert.throws = function (expectedErrorConstructor, func) {
   if (typeof func !== 'function') {
-    throw new Test262Error('isConstructor invoked with a non-function value');
+    throw new Test262Error('assert.throws invoked with a non-function value');
   }
 
   try {
