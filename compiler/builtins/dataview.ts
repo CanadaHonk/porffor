@@ -84,9 +84,178 @@ i32.to_u
 i32.add
 local.get ${value}
 i32.to_u
+i32.store8 0 4`;
+
+  return undefined;
+};
+
+export const __DataView_prototype_getInt8 = (_this: DataView, byteOffset: number) => {
+  const n: i32 = __DataView_prototype_getUint8(_this, byteOffset);
+  return n & 0x80 ? n ^ -0x100 : n;
+};
+
+export const __DataView_prototype_setInt8 = (_this: DataView, byteOffset: number, value: number) => {
+  return __DataView_prototype_setUint8(_this, byteOffset, value < 0 ? value | 0x100 : value);
+};
+
+
+export const __DataView_prototype_getUint16 = (_this: DataView, byteOffset: number, littleEndian: any) => {
+  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  if (Porffor.fastOr(byteOffset < 0, byteOffset + 1 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
+
+  let byte1: i32 = 0, byte2: i32 = 0;
+  Porffor.wasm`local ptr i32
+local.get ${_this}
+i32.to_u
+i32.load 0 4
+local.get ${byteOffset}
+i32.to_u
+i32.add
+local.set ptr
+
+local.get ptr
+i32.load8_u 0 4
+i32.from_u
+local.set ${byte1}
+local.get ptr
+i32.load8_u 0 5
+i32.from_u
+local.set ${byte2}`;
+
+  if (Boolean(littleEndian)) return byte1 | (byte2 << 8);
+  return (byte1 << 8) | byte2;
+};
+
+export const __DataView_prototype_setUint16 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
+  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  if (Porffor.fastOr(byteOffset < 0, byteOffset + 1 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
+
+  let byte1: i32 = 0, byte2: i32 = 0;
+  if (littleEndian) {
+    byte1 = value & 0xff;
+    byte2 = (value >>> 8) & 0xff;
+  } else {
+    byte1 = (value >>> 8) & 0xff;
+    byte2 = value & 0xff;
+  }
+
+  Porffor.wasm`local ptr i32
+local.get ${_this}
+i32.to_u
+i32.load 0 4
+local.get ${byteOffset}
+i32.to_u
+i32.add
+local.set ptr
+
+local.get ptr
+local.get ${byte1}
+i32.to_u
 i32.store8 0 4
-i32.const 0
-i32.from
-i32.const 3
-return`;
+local.get ptr
+local.get ${byte2}
+i32.to_u
+i32.store8 0 5`;
+
+  return undefined;
+};
+
+export const __DataView_prototype_getInt16 = (_this: DataView, byteOffset: number, littleEndian: any) => {
+  const n: i32 = __DataView_prototype_getUint16(_this, byteOffset, littleEndian);
+  return n & 0x8000 ? n ^ -0x10000 : n;
+};
+
+export const __DataView_prototype_setInt16 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
+  return __DataView_prototype_setUint16(_this, byteOffset, value < 0 ? value | 0x10000 : value, littleEndian);
+};
+
+
+export const __DataView_prototype_getUint32 = (_this: DataView, byteOffset: number, littleEndian: any) => {
+  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  if (Porffor.fastOr(byteOffset < 0, byteOffset + 3 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
+
+  let byte1: i32 = 0, byte2: i32 = 0, byte3: i32 = 0, byte4: i32 = 0;
+  Porffor.wasm`local ptr i32
+local.get ${_this}
+i32.to_u
+i32.load 0 4
+local.get ${byteOffset}
+i32.to_u
+i32.add
+local.set ptr
+
+local.get ptr
+i32.load8_u 0 4
+i32.from_u
+local.set ${byte1}
+local.get ptr
+i32.load8_u 0 5
+i32.from_u
+local.set ${byte2}
+local.get ptr
+i32.load8_u 0 6
+i32.from_u
+local.set ${byte3}
+local.get ptr
+i32.load8_u 0 7
+i32.from_u
+local.set ${byte4}`;
+
+  if (Boolean(littleEndian)) return byte1 | (byte2 << 8) | (byte3 << 16) | (byte4 << 24);
+  return (byte1 << 24) | (byte2 << 16) | (byte3 << 8) | byte4;
+};
+
+export const __DataView_prototype_setUint32 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
+  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  if (Porffor.fastOr(byteOffset < 0, byteOffset + 3 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
+
+  let byte1: i32 = 0, byte2: i32 = 0, byte3: i32 = 0, byte4: i32 = 0;
+  if (littleEndian) {
+    byte1 = value & 0xff;
+    byte2 = (value >>> 8) & 0xff;
+    byte3 = (value >>> 16) & 0xff;
+    byte4 = (value >>> 24) & 0xff;
+  } else {
+    byte1 = (value >>> 24) & 0xff;
+    byte2 = (value >>> 16) & 0xff;
+    byte3 = (value >>> 8) & 0xff;
+    byte4 = value & 0xff;
+  }
+
+  Porffor.wasm`local ptr i32
+local.get ${_this}
+i32.to_u
+i32.load 0 4
+local.get ${byteOffset}
+i32.to_u
+i32.add
+local.set ptr
+
+local.get ptr
+local.get ${byte1}
+i32.to_u
+i32.store8 0 4
+local.get ptr
+local.get ${byte2}
+i32.to_u
+i32.store8 0 5
+local.get ptr
+local.get ${byte3}
+i32.to_u
+i32.store8 0 6
+local.get ptr
+local.get ${byte4}
+i32.to_u
+i32.store8 0 7`;
+
+  return undefined;
+};
+
+export const __DataView_prototype_getInt32 = (_this: DataView, byteOffset: number, littleEndian: any) => {
+  const n: i32 = __DataView_prototype_getUint32(_this, byteOffset, littleEndian);
+  return n & 0x80000000 ? n ^ -0x100000000 : n;
+};
+
+export const __DataView_prototype_setInt32 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
+  return __DataView_prototype_setUint32(_this, byteOffset, value < 0 ? value | 0x100000000 : value, littleEndian);
 };

@@ -524,6 +524,66 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [124], localNames: ["_this","_this#type","byteOffset","byteOffset#type","value","value#type","len"],
   };
+  this.__DataView_prototype_getInt8 = {
+    wasm: (scope, {builtin}) => [[32,0],[65,22],[32,2],[65,0],[16, builtin('__DataView_prototype_getUint8')],[33,5],[34,4],[68,0,0,0,0,0,0,96,64],[16, builtin('f64_&')],[252,3],[4,124],[32,4],[68,0,0,0,0,0,0,112,192],[16, builtin('f64_^')],[65,0],[33,5],[5],[32,4],[65,0],[33,5],[11],[32,5],[15]],
+    params: [124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","n","#last_type"],
+  };
+  this.__DataView_prototype_setInt8 = {
+    wasm: (scope, {builtin}) => [[32,0],[65,22],[32,2],[65,0],[32,4],[68,0,0,0,0,0,0,0,0],[99],[4,124],[32,4],[68,0,0,0,0,0,0,112,64],[16, builtin('f64_|')],[65,0],[33,6],[5],[32,4],[65,0],[33,6],[11],[32,6],[16, builtin('__DataView_prototype_setUint8')],[34,6],[15]],
+    params: [124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","value","value#type","#last_type"],
+  };
+  this.__DataView_prototype_getUint16 = {
+    wasm: (scope, {builtin,internalThrow}) => [[32,0],[252,2],[40,0,0],[183],[33,6],[32,2],[68,0,0,0,0,0,0,0,0],[99],[32,2],[68,0,0,0,0,0,0,240,63],[160],[32,6],[102],[114],[4,64],...internalThrow(scope, 'RangeError', `Byte offset is out of bounds of the DataView`),[11],[68,0,0,0,0,0,0,0,0],[33,7],[68,0,0,0,0,0,0,0,0],[33,8],[32,0],[252,3],[40,0,4],[32,2],[252,3],[106],[34,9],[45,0,4],[184],[33,7],[32,9],[45,0,5],[184],[33,8],[32,4],[33,10],[32,5],[33,11],[2,124],[32,11],[65,194,0],[70],[4,64,"TYPESWITCH|String"],[32,10],[252,3],[40,1,0],[184],[12,1],[11],[32,11],[65,194,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,10],[252,3],[40,1,0],[184],[12,1],[11],[32,10],[252,2],[69],[69],[183],[11,"TYPESWITCH_end"],[252,3],[4,64],[32,7],[32,8],[68,0,0,0,0,0,0,32,64],[16, builtin('f64_<<')],[16, builtin('f64_|')],[65,0],[15],[11],[32,7],[68,0,0,0,0,0,0,32,64],[16, builtin('f64_<<')],[32,8],[16, builtin('f64_|')],[65,0],[15]],
+    params: [124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,124,124,127,124,127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","littleEndian","littleEndian#type","len","byte1","byte2","ptr","#logicinner_tmp","#typeswitch_tmp"],
+  };
+  this.__DataView_prototype_setUint16 = {
+    wasm: (scope, {builtin,internalThrow}) => [[32,0],[252,2],[40,0,0],[183],[33,8],[32,2],[68,0,0,0,0,0,0,0,0],[99],[32,2],[68,0,0,0,0,0,0,240,63],[160],[32,8],[102],[114],[4,64],...internalThrow(scope, 'RangeError', `Byte offset is out of bounds of the DataView`),[11],[68,0,0,0,0,0,0,0,0],[33,9],[68,0,0,0,0,0,0,0,0],[33,10],[32,6],[33,11],[32,7],[33,12],[2,127],[32,12],[65,194,0],[70],[4,64,"TYPESWITCH|String"],[32,11],[252,3],[40,1,0],[12,1],[11],[32,12],[65,194,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,11],[252,3],[40,1,0],[12,1],[11],[32,11],[252,3],[11,"TYPESWITCH_end"],[4,64],[32,4],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,9],[32,4],[68,0,0,0,0,0,0,32,64],[16, builtin('f64_>>>')],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,10],[5],[32,4],[68,0,0,0,0,0,0,32,64],[16, builtin('f64_>>>')],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,9],[32,4],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,10],[11],[32,0],[252,3],[40,0,4],[32,2],[252,3],[106],[34,13],[32,9],[252,3],[58,0,4],[32,13],[32,10],[252,3],[58,0,5],[68,0,0,0,0,0,0,0,0],[65,3],[15]],
+    params: [124,127,124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,124,124,124,127,127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","value","value#type","littleEndian","littleEndian#type","len","byte1","byte2","#logicinner_tmp","#typeswitch_tmp","ptr"],
+  };
+  this.__DataView_prototype_getInt16 = {
+    wasm: (scope, {builtin}) => [[32,0],[65,22],[32,2],[65,0],[32,4],[32,5],[16, builtin('__DataView_prototype_getUint16')],[33,7],[34,6],[68,0,0,0,0,0,0,224,64],[16, builtin('f64_&')],[252,3],[4,124],[32,6],[68,0,0,0,0,0,0,240,192],[16, builtin('f64_^')],[65,0],[33,7],[5],[32,6],[65,0],[33,7],[11],[32,7],[15]],
+    params: [124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","littleEndian","littleEndian#type","n","#last_type"],
+  };
+  this.__DataView_prototype_setInt16 = {
+    wasm: (scope, {builtin}) => [[32,0],[65,22],[32,2],[65,0],[32,4],[68,0,0,0,0,0,0,0,0],[99],[4,124],[32,4],[68,0,0,0,0,0,0,240,64],[16, builtin('f64_|')],[65,0],[33,8],[5],[32,4],[65,0],[33,8],[11],[32,8],[32,6],[32,7],[16, builtin('__DataView_prototype_setUint16')],[34,8],[15]],
+    params: [124,127,124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","value","value#type","littleEndian","littleEndian#type","#last_type"],
+  };
+  this.__DataView_prototype_getUint32 = {
+    wasm: (scope, {builtin,internalThrow}) => [[32,0],[252,2],[40,0,0],[183],[33,6],[32,2],[68,0,0,0,0,0,0,0,0],[99],[32,2],[68,0,0,0,0,0,0,8,64],[160],[32,6],[102],[114],[4,64],...internalThrow(scope, 'RangeError', `Byte offset is out of bounds of the DataView`),[11],[68,0,0,0,0,0,0,0,0],[33,7],[68,0,0,0,0,0,0,0,0],[33,8],[68,0,0,0,0,0,0,0,0],[33,9],[68,0,0,0,0,0,0,0,0],[33,10],[32,0],[252,3],[40,0,4],[32,2],[252,3],[106],[34,11],[45,0,4],[184],[33,7],[32,11],[45,0,5],[184],[33,8],[32,11],[45,0,6],[184],[33,9],[32,11],[45,0,7],[184],[33,10],[32,4],[33,12],[32,5],[33,13],[2,124],[32,13],[65,194,0],[70],[4,64,"TYPESWITCH|String"],[32,12],[252,3],[40,1,0],[184],[12,1],[11],[32,13],[65,194,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,12],[252,3],[40,1,0],[184],[12,1],[11],[32,12],[252,2],[69],[69],[183],[11,"TYPESWITCH_end"],[252,3],[4,64],[32,7],[32,8],[68,0,0,0,0,0,0,32,64],[16, builtin('f64_<<')],[16, builtin('f64_|')],[32,9],[68,0,0,0,0,0,0,48,64],[16, builtin('f64_<<')],[16, builtin('f64_|')],[32,10],[68,0,0,0,0,0,0,56,64],[16, builtin('f64_<<')],[16, builtin('f64_|')],[65,0],[15],[11],[32,7],[68,0,0,0,0,0,0,56,64],[16, builtin('f64_<<')],[32,8],[68,0,0,0,0,0,0,48,64],[16, builtin('f64_<<')],[16, builtin('f64_|')],[32,9],[68,0,0,0,0,0,0,32,64],[16, builtin('f64_<<')],[16, builtin('f64_|')],[32,10],[16, builtin('f64_|')],[65,0],[15]],
+    params: [124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,124,124,124,124,127,124,127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","littleEndian","littleEndian#type","len","byte1","byte2","byte3","byte4","ptr","#logicinner_tmp","#typeswitch_tmp"],
+  };
+  this.__DataView_prototype_setUint32 = {
+    wasm: (scope, {builtin,internalThrow}) => [[32,0],[252,2],[40,0,0],[183],[33,8],[32,2],[68,0,0,0,0,0,0,0,0],[99],[32,2],[68,0,0,0,0,0,0,8,64],[160],[32,8],[102],[114],[4,64],...internalThrow(scope, 'RangeError', `Byte offset is out of bounds of the DataView`),[11],[68,0,0,0,0,0,0,0,0],[33,9],[68,0,0,0,0,0,0,0,0],[33,10],[68,0,0,0,0,0,0,0,0],[33,11],[68,0,0,0,0,0,0,0,0],[33,12],[32,6],[33,13],[32,7],[33,14],[2,127],[32,14],[65,194,0],[70],[4,64,"TYPESWITCH|String"],[32,13],[252,3],[40,1,0],[12,1],[11],[32,14],[65,194,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,13],[252,3],[40,1,0],[12,1],[11],[32,13],[252,3],[11,"TYPESWITCH_end"],[4,64],[32,4],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,9],[32,4],[68,0,0,0,0,0,0,32,64],[16, builtin('f64_>>>')],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,10],[32,4],[68,0,0,0,0,0,0,48,64],[16, builtin('f64_>>>')],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,11],[32,4],[68,0,0,0,0,0,0,56,64],[16, builtin('f64_>>>')],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,12],[5],[32,4],[68,0,0,0,0,0,0,56,64],[16, builtin('f64_>>>')],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,9],[32,4],[68,0,0,0,0,0,0,48,64],[16, builtin('f64_>>>')],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,10],[32,4],[68,0,0,0,0,0,0,32,64],[16, builtin('f64_>>>')],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,11],[32,4],[68,0,0,0,0,0,224,111,64],[16, builtin('f64_&')],[33,12],[11],[32,0],[252,3],[40,0,4],[32,2],[252,3],[106],[34,15],[32,9],[252,3],[58,0,4],[32,15],[32,10],[252,3],[58,0,5],[32,15],[32,11],[252,3],[58,0,6],[32,15],[32,12],[252,3],[58,0,7],[68,0,0,0,0,0,0,0,0],[65,3],[15]],
+    params: [124,127,124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,124,124,124,124,124,127,127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","value","value#type","littleEndian","littleEndian#type","len","byte1","byte2","byte3","byte4","#logicinner_tmp","#typeswitch_tmp","ptr"],
+  };
+  this.__DataView_prototype_getInt32 = {
+    wasm: (scope, {builtin}) => [[32,0],[65,22],[32,2],[65,0],[32,4],[32,5],[16, builtin('__DataView_prototype_getUint32')],[33,7],[34,6],[68,0,0,0,0,0,0,224,65],[16, builtin('f64_&')],[252,3],[4,124],[32,6],[68,0,0,0,0,0,0,240,193],[16, builtin('f64_^')],[65,0],[33,7],[5],[32,6],[65,0],[33,7],[11],[32,7],[15]],
+    params: [124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","littleEndian","littleEndian#type","n","#last_type"],
+  };
+  this.__DataView_prototype_setInt32 = {
+    wasm: (scope, {builtin}) => [[32,0],[65,22],[32,2],[65,0],[32,4],[68,0,0,0,0,0,0,0,0],[99],[4,124],[32,4],[68,0,0,0,0,0,0,240,65],[16, builtin('f64_|')],[65,0],[33,8],[5],[32,4],[65,0],[33,8],[11],[32,8],[32,6],[32,7],[16, builtin('__DataView_prototype_setUint32')],[34,8],[15]],
+    params: [124,127,124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","value","value#type","littleEndian","littleEndian#type","#last_type"],
+  };
   this.__ecma262_Day = {
     wasm: (scope, {builtin}) => [[32,0],[68,0,0,0,0,112,153,148,65],[163],[16, builtin('__Math_floor')],[65,0],[15]],
     params: [124,127], typedParams: 1,
