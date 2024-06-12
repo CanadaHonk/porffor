@@ -30,3 +30,10 @@ i32.to_u
 i32.load8_u 0 8
 return`;
 };
+
+export const __WeakRef_prototype_toString = (_this: WeakRef) => {
+  const out: bytestring = '[object WeakRef]';
+  return out;
+};
+
+export const __WeakRef_prototype_toLocaleString = (_this: WeakRef) => __WeakRef_prototype_toString(_this);
