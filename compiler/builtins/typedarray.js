@@ -19,37 +19,26 @@ export default async () => {
   let bufferPtr: i32;
 
   const type: i32 = Porffor.rawType(arg);
-  if (type == Porffor.TYPES.arraybuffer) {
+  if (Porffor.fastOr(
+    type == Porffor.TYPES.arraybuffer,
+    type == Porffor.TYPES.sharedarraybuffer
+  )) {
     bufferPtr = Porffor.wasm\`local.get \${arg}\`;
 
     if (arg.detached) throw new TypeError('Constructed ${name} with a detached ArrayBuffer');
 
     let offset: i32 = 0;
     if (Porffor.rawType(byteOffset) != Porffor.TYPES.undefined) offset = Math.trunc(byteOffset);
-    Porffor.wasm.i32.store(outPtr, offset, 0, 8);
+    if (offset < 0) throw new RangeError('Invalid DataView byte offset (negative)');
 
+    Porffor.wasm.i32.store(outPtr, offset, 0, 8);
     Porffor.wasm.i32.store(outPtr, bufferPtr + offset, 0, 4);
 
     if (Porffor.rawType(length) == Porffor.TYPES.undefined) {
       const bufferLen: i32 = Porffor.wasm.i32.load(bufferPtr, 0, 0);
       len = (bufferLen - byteOffset) / ${name}.BYTES_PER_ELEMENT;
 
-      if (!Number.isInteger(len)) throw new RangeError('byte length of ${name} should be divisible by BYTES_PER_ELEMENT');
-    } else len = Math.trunc(length);
-  } else if (type == Porffor.TYPES.sharedarraybuffer) {
-    bufferPtr = Porffor.wasm\`local.get \${arg}\`;
-
-    let offset: i32 = 0;
-    if (Porffor.rawType(byteOffset) != Porffor.TYPES.undefined) offset = Math.trunc(byteOffset);
-    Porffor.wasm.i32.store(outPtr, offset, 0, 8);
-
-    Porffor.wasm.i32.store(outPtr, bufferPtr + offset, 0, 4);
-
-    if (Porffor.rawType(length) == Porffor.TYPES.undefined) {
-      const bufferLen: i32 = Porffor.wasm.i32.load(bufferPtr, 0, 0);
-      len = (bufferLen - byteOffset) / ${name}.BYTES_PER_ELEMENT;
-
-      if (!Number.isInteger(len)) throw new RangeError('byte length of ${name} should be divisible by BYTES_PER_ELEMENT');
+      if (!Number.isInteger(len)) throw new RangeError('Byte length of ${name} should be divisible by BYTES_PER_ELEMENT');
     } else len = Math.trunc(length);
   } else {
     bufferPtr = Porffor.allocate();
