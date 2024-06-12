@@ -3738,10 +3738,10 @@ export const BuiltinFuncs = function() {
     locals: [124,127], localNames: ["_this","_this#type","callbackFn","callbackFn#type","out","#last_type"],
   };
   this.WeakRef = {
-    wasm: (scope, {builtin,internalThrow}) => [[32,-1],[184],[65,1],[33,2],[33,3],[32,2],[33,4],[2,124],[32,4],[65,194,0],[70],[4,64,"TYPESWITCH|String"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,4],[65,194,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,3],[68,0,0,0,0,0,0,0,0],[97],[184],[11,"TYPESWITCH_end"],[252,3],[4,64],...internalThrow(scope, 'TypeError', `Constructor WeakRef requires 'new'`),[11],[65,9],[16, builtin('__Porffor_allocateBytes')],[183],[34,5],[252,3],[32,0],[57,0,0],[32,5],[252,3],[32,1],[58,0,8],[32,5],[65,32],[15]],
+    wasm: (scope, {builtin,internalThrow}) => [[32,-1],[184],[65,1],[33,2],[33,3],[32,2],[33,4],[2,124],[32,4],[65,194,0],[70],[4,64,"TYPESWITCH|String"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,4],[65,194,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,3],[68,0,0,0,0,0,0,0,0],[97],[184],[11,"TYPESWITCH_end"],[252,3],[4,64],...internalThrow(scope, 'TypeError', `Constructor WeakRef requires 'new'`),[11],[32,0],[32,1],[16, builtin('__Porffor_rawType')],[34,5],[68,0,0,0,0,0,0,16,64],[99],[4,64],...internalThrow(scope, 'TypeError', `Target for WeakRef needs to be an object or symbol`),[11],[65,9],[16, builtin('__Porffor_allocateBytes')],[183],[34,6],[252,3],[32,0],[57,0,0],[32,6],[252,3],[32,1],[58,0,8],[32,6],[65,32],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124,127,124], localNames: ["target","target#type","#last_type","#logicinner_tmp","#typeswitch_tmp","out"],
+    locals: [127,124,127,124,124], localNames: ["target","target#type","#last_type","#logicinner_tmp","#typeswitch_tmp","targetType","out"],
     constr: 1,
   };
   this.__WeakRef_prototype_deref = {
