@@ -162,6 +162,21 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
       return new WeakRef(porfToJSValue({ memory, funcs, pages }, v, t));
     }
 
+    case TYPES.weakset: {
+      const size = (new Uint32Array(memory.buffer, value, 1))[0];
+
+      const out = new WeakSet();
+      for (let i = 0; i < size; i++) {
+        const offset = value + 4 + (i * 9);
+        const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
+        const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
+
+        out.add(porfToJSValue({ memory, funcs, pages }, v, t));
+      }
+
+      return out;
+    }
+
     default: return value;
   }
 };

@@ -68,3 +68,4 @@ registerInternalType('Float32Array', ['iterable', 'length']);
 registerInternalType('Float64Array', ['iterable', 'length']);
 
 registerInternalType('WeakRef');
+registerInternalType('WeakSet');
