@@ -117,7 +117,7 @@ export const __${name}_from = (arg: any, mapFn: any): ${name} => {
 };
 
 export const __${name}_prototype_buffer$get = (_this: ${name}) => {
-  const out: ArrayBuffer = Porffor.wasm.i32.load(_this, 0, 4);
+  const out: ArrayBuffer = Porffor.wasm.i32.load(_this, 0, 4) - Porffor.wasm.i32.load(_this, 0, 8);
   return out;
 };
 
