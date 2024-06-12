@@ -382,6 +382,22 @@ export const __Array_prototype_map = (_this: any[], callbackFn: any) => {
   return out;
 };
 
+export const __Array_prototype_flatMap = (_this: any[], callbackFn: any) => {
+  const len: i32 = _this.length;
+  const out: any[] = Porffor.allocate();
+
+  let i: i32 = 0, j: i32 = 0;
+  while (i < len) {
+    let x: any = callbackFn(_this[i], i++, _this);
+    if (Porffor.rawType(x) == Porffor.TYPES.array) {
+      for (const y of x) out[j++] = y;
+    } else out[j++] = x;
+  }
+
+  out.length = j;
+  return out;
+};
+
 // @porf-typed-array
 export const __Array_prototype_find = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
