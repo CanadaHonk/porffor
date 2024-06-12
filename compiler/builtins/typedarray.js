@@ -111,7 +111,7 @@ export const __${name}_prototype_buffer$get = (_this: ${name}) => {
 };
 
 export const __${name}_prototype_byteLength$get = (_this: ${name}) => {
-  return _this.length * ${name}.BYTES_PER_ELEMENT;
+  return Porffor.wasm.i32.load(_this, 0, 0) * ${name}.BYTES_PER_ELEMENT;
 };
 
 export const __${name}_prototype_byteOffset$get = (_this: ${name}) => {

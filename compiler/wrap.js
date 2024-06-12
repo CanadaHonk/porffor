@@ -134,6 +134,14 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
       return buf;
     }
 
+    case TYPES.dataview: {
+      const [ length, ptr, byteOffset ] = (new Uint32Array(memory.buffer.slice(value, value + 12), 0, 3));
+      const bufferPtr = ptr - byteOffset;
+      const bufferLen = (new Uint32Array(memory.buffer.slice(bufferPtr, bufferPtr + 4), 0, 1))[0];
+      const buffer = memory.buffer.slice(bufferPtr + 4, bufferPtr + 4 + bufferLen);
+      return new DataView(buffer, byteOffset, length);
+    }
+
     case TYPES.uint8array:
     case TYPES.int8array:
     case TYPES.uint8clampedarray:
