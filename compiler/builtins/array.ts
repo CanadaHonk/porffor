@@ -47,6 +47,46 @@ export const __Array_prototype_push = (_this: any[], ...items: any[]) => {
   return _this.length = len + itemsLen;
 };
 
+export const __Array_prototype_unshift = (_this: any[], ...items: any[]) => {
+  let len: i32 = _this.length;
+  const itemsLen: i32 = items.length;
+
+  // use memory.copy to move existing elements right
+  Porffor.wasm`;; ptr = ptr(_this) + 4
+local #splice_ptr i32
+local.get ${_this}
+i32.to_u
+i32.const 4
+i32.add
+local.set #splice_ptr
+
+;; dst = ptr + itemsLen * 9
+local.get #splice_ptr
+local.get ${itemsLen}
+i32.to_u
+i32.const 9
+i32.mul
+i32.add
+
+;; src = ptr
+local.get #splice_ptr
+
+;; size = len * 9
+local.get ${len}
+i32.to_u
+i32.const 9
+i32.mul
+
+memory.copy 0 0`;
+
+  // write to now empty elements
+  for (let i: i32 = 0; i < itemsLen; i++) {
+    _this[i] = items[i];
+  }
+
+  return _this.length = len + itemsLen;
+};
+
 export const __Array_prototype_slice = (_this: any[], start: number, end: number) => {
   const len: i32 = _this.length;
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
