@@ -60,46 +60,6 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
     ],
 
-    // todo: only for 1 argument
-    push: (pointer, length, wNewMember, wType, iTmp, _2, _3, unusedValue) => [
-      // get memory offset of array at last index (length)
-      ...length.getCachedI32(),
-      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
-      [ Opcodes.i32_mul ],
-      ...pointer,
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_set, iTmp ],
-
-      // store value
-      [ Opcodes.local_get, iTmp ],
-      ...wNewMember,
-      [ Opcodes.store, 0, ValtypeSize.i32 ],
-
-      // store type
-      [ Opcodes.local_get, iTmp ],
-      ...wType,
-      [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
-
-      // bump array length by 1 and return it
-      ...length.setI32([
-        ...length.getCachedI32(),
-        ...number(1, Valtype.i32),
-        [ Opcodes.i32_add ],
-
-        ...(unusedValue() ? [] : [
-          ...length.setCachedI32(),
-          ...length.getCachedI32(),
-        ])
-      ]),
-
-      ...(unusedValue() ? [] : [
-        ...length.getCachedI32(),
-        Opcodes.i32_from_u
-      ])
-
-      // ...length.get()
-    ],
-
     pop: (pointer, length, _1, _2, iTmp, _3, _4, unusedValue) => [
       // if length == 0, noop
       ...length.getCachedI32(),
@@ -212,9 +172,6 @@ export const PrototypeFuncs = function() {
   };
 
   this[TYPES.array].at.local = Valtype.i32;
-  this[TYPES.array].push.returnType = TYPES.number;
-  this[TYPES.array].push.noArgRetLength = true;
-  this[TYPES.array].push.local = Valtype.i32;
   this[TYPES.array].pop.local = Valtype.i32;
 
   this[TYPES.string] = {

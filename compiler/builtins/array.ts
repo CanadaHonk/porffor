@@ -36,6 +36,17 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
   return out;
 };
 
+export const __Array_prototype_push = (_this: any[], ...items: any[]) => {
+  let len: i32 = _this.length;
+  const itemsLen: i32 = items.length;
+
+  for (let i: i32 = 0; i < itemsLen; i++) {
+    _this[i + len] = items[i];
+  }
+
+  return _this.length = len + itemsLen;
+};
+
 export const __Array_prototype_slice = (_this: any[], start: number, end: number) => {
   const len: i32 = _this.length;
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
