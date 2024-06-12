@@ -607,3 +607,27 @@ export const __Array_prototype_toSorted = (_this: any[], callbackFn: any) => {
 };
 
 // todo: toSpliced
+
+export const __Array_prototype_flat = (_this: any[], depth: any) => {
+  if (Porffor.rawType(depth) == Porffor.TYPES.undefined) depth = 1;
+
+  let out: any[] = Porffor.allocate();
+  if (depth <= 0) {
+    Porffor.clone(_this, out);
+    return out;
+  }
+
+  const len: i32 = _this.length;
+  let i: i32 = 0, j: i32 = 0;
+  while (i < len) {
+    let x: any = _this[i++];
+    if (Porffor.rawType(x) == Porffor.TYPES.array) {
+      if (depth > 1) x = __Array_prototype_flat(x, depth - 1);
+      for (const y of x) out[j++] = y;
+    } else out[j++] = x;
+  }
+
+  out.length = j;
+
+  return out;
+};
