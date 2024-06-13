@@ -263,7 +263,7 @@ export const BuiltinFuncs = function() {
 
 
   this.__Porffor_print = {
-    params: [ valtypeBinary, Valtype.i32 ],
+    params: [ Valtype.f64, Valtype.i32 ],
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [],
