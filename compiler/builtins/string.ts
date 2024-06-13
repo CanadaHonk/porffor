@@ -96,6 +96,38 @@ export const __ByteString_prototype_toLocaleUpperCase = (_this: bytestring) => _
 export const __String_prototype_toLocaleLowerCase = (_this: string) => __String_prototype_toUpperCase(_this);
 export const __ByteString_prototype_toLocaleLowerCase = (_this: bytestring) => __ByteString_prototype_toLowerCase(_this);
 
+export const __String_prototype_codePointAt = (_this: string, index: number) => {
+  const len: i32 = _this.length;
+
+  index |= 0;
+  if (Porffor.fastOr(index < 0, index >= len)) return undefined;
+
+  index *= 2;
+  const c1: i32 = Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + index, 0, 4);
+  if (Porffor.fastAnd(c1 >= 0xD800, c1 <= 0xDBFF)) {
+    // 1st char is leading surrogate, handle 2nd char
+    // check oob
+    if (index + 1 >= len) return c1;
+
+    const c2: i32 = Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + index + 2, 0, 4);
+    if (Porffor.fastAnd(c2 >= 0xDC00, c2 <= 0xDFFF)) {
+      // 2nd char is trailing surrogate, return code point
+      return (c1 << 10) + c2 - 56613888;
+    }
+  }
+
+  return c1;
+};
+
+export const __ByteString_prototype_codePointAt = (_this: bytestring, index: number) => {
+  const len: i32 = _this.length;
+
+  index |= 0;
+  if (Porffor.fastOr(index < 0, index >= len)) return undefined;
+
+  // bytestrings cannot have surrogates, so just do charCodeAt
+  return Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4);
+};
 
 export const __String_prototype_startsWith = (_this: string, searchString: string, position: number) => {
   // todo: handle bytestring searchString
