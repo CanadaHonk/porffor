@@ -177,15 +177,78 @@ export const Set = function (iterable: any): any {
 };
 
 export const __Set_prototype_union = (_this: Set, other: any) => {
-  if (Porffor.rawType(other) != Porffor.TYPES.set) {
-    throw new TypeError("Set.prototype.union\'s \'other\' argument must be a Set");
-  }
+  if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
 
   const out: Set = new Set(_this);
   for (const x of other) {
     out.add(x);
   }
+
   return out;
+};
+
+export const __Set_prototype_intersection = (_this: Set, other: any) => {
+  if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
+
+  const out: Set = new Set(_this);
+  for (const x of other) {
+    out.add(x);
+  }
+
+  return out;
+};
+
+export const __Set_prototype_difference = (_this: Set, other: any) => {
+  if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
+
+  const out: Set = new Set(_this);
+  for (const x of other) {
+    out.delete(x);
+  }
+
+  return out;
+};
+
+export const __Set_prototype_symmetricDifference = (_this: Set, other: any) => {
+  if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
+
+  const out: Set = new Set(_this);
+  for (const x of other) {
+    if (_this.has(x)) out.delete(x);
+      else out.add(x);
+  }
+
+  return out;
+};
+
+export const __Set_prototype_isSubsetOf = (_this: Set, other: any) => {
+  if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
+
+  for (const x of _this) {
+    if (!other.has(x)) return false;
+  }
+
+  return true;
+};
+
+export const __Set_prototype_isSupersetOf = (_this: Set, other: any) => {
+  if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
+
+  for (const x of other) {
+    if (!_this.has(x)) return false;
+  }
+
+  return true;
+};
+
+export const __Set_prototype_isDisjointFrom = (_this: Set, other: any) => {
+  if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
+
+  for (const x of _this) {
+    if (other.has(x)) return false;
+  }
+
+  return true;
 };
 
 export const __Set_prototype_toString = (_this: Set) => {
