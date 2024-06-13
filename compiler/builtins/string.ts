@@ -1495,6 +1495,48 @@ export const __ByteString_prototype_localeCompare = (_this: bytestring, compareS
 };
 
 
+export const __String_prototype_toWellFormed = (_this: string) => {
+  let out: string = Porffor.allocate();
+  Porffor.clone(_this, out);
+
+  let ptr: i32 = Porffor.wasm`local.get ${out}`;
+  const endPtr: i32 = ptr + out.length * 2;
+  while (ptr < endPtr) {
+    const c1: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 4);
+
+    if (Porffor.fastAnd(c1 >= 0xDC00, c1 <= 0xDFFF)) {
+      // lone trailing surrogate, bad
+      Porffor.wasm.i32.store16(ptr, 0xFFFD, 0, 4);
+    }
+
+    if (Porffor.fastAnd(c1 >= 0xD800, c1 <= 0xDBFF)) {
+      // leading surrogate, peek if next is trailing
+      const c2: i32 = ptr + 2 < endPtr ? Porffor.wasm.i32.load16_u(ptr + 2, 0, 4) : 0;
+
+      if (Porffor.fastAnd(c2 >= 0xDC00, c2 <= 0xDFFF)) {
+        // next is trailing surrogate, skip it too
+        ptr += 2;
+      } else {
+        // lone leading surrogate, bad
+        Porffor.wasm.i32.store16(ptr, 0xFFFD, 0, 4);
+      }
+    }
+
+    ptr += 2;
+  }
+
+  return out;
+};
+
+export const __ByteString_prototype_toWellFormed = (_this: bytestring) => {
+  // bytestrings cannot have surrogates, so just copy
+  let out: bytestring = Porffor.allocate();
+  Porffor.clone(_this, out);
+
+  return out;
+};
+
+
 // 22.1.3.29 String.prototype.toString ()
 // https://tc39.es/ecma262/#sec-string.prototype.tostring
 export const __String_prototype_toString = (_this: string) => {
