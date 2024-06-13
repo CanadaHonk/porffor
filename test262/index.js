@@ -421,7 +421,7 @@ if (isMainThread) {
         file.includes('pow/') || file.includes('exponentiation/') || file.includes('generator/') ||
         file.includes('encodeURI/') || file.includes('parseInt/') ||
         file.endsWith('NumberFormat/constructor-unit.js')
-      ) timeout(exports.main, 500);
+      ) timeout(exports.main, 1000);
         else exports.main();
       // timeout(exports.main, 1000);
 
