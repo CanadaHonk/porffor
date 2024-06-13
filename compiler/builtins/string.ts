@@ -1452,6 +1452,49 @@ i32.store8 0 12`;
 };
 
 
+export const __String_prototype_localeCompare = (_this: string, compareString: any) => {
+  compareString = ecma262.ToString(compareString);
+
+  const thisLen: i32 = _this.length;
+  const compareLen: i32 = compareString.length;
+  const maxLen: i32 = thisLen > compareLen ? thisLen : compareLen;
+
+  for (let i: i32 = 0; i < maxLen; i++) {
+    const a: i32 = _this.charCodeAt(i);
+    const b: i32 = compareString.charCodeAt(i);
+
+    if (a > b) return 1;
+    if (b > a) return -1;
+  }
+
+  if (thisLen > compareLen) return 1;
+  if (compareLen > thisLen) return -1;
+
+  return 0;
+};
+
+export const __ByteString_prototype_localeCompare = (_this: bytestring, compareString: any) => {
+  compareString = ecma262.ToString(compareString);
+
+  const thisLen: i32 = _this.length;
+  const compareLen: i32 = compareString.length;
+  const maxLen: i32 = thisLen > compareLen ? thisLen : compareLen;
+
+  for (let i: i32 = 0; i < maxLen; i++) {
+    const a: i32 = _this.charCodeAt(i);
+    const b: i32 = compareString.charCodeAt(i);
+
+    if (a > b) return 1;
+    if (b > a) return -1;
+  }
+
+  if (thisLen > compareLen) return 1;
+  if (compareLen > thisLen) return -1;
+
+  return 0;
+};
+
+
 // 22.1.3.29 String.prototype.toString ()
 // https://tc39.es/ecma262/#sec-string.prototype.tostring
 export const __String_prototype_toString = (_this: string) => {
