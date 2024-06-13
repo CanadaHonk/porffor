@@ -1128,17 +1128,15 @@ export const BuiltinFuncs = function() {
   };
 
   this.__Porffor_clone = {
-    params: [ valtypeBinary, valtypeBinary ],
+    params: [ Valtype.i32, Valtype.i32 ],
     locals: [],
     returns: [],
     wasm: [
       // dst
       [ Opcodes.local_get, 1 ],
-      Opcodes.i32_to_u,
 
       // src
       [ Opcodes.local_get, 0 ],
-      Opcodes.i32_to_u,
 
       // size = pageSize
       ...number(pageSize, Valtype.i32),
