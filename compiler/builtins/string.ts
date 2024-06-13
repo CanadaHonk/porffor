@@ -1177,6 +1177,245 @@ memory.copy 0 0`;
 };
 
 
+export const __String_prototype_split = (_this: string, separator: any, limit: any) => {
+  let out: any[] = Porffor.allocate(), outLen: i32 = 0;
+  const sType: i32 = Porffor.TYPES.string;
+
+  if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
+  limit |= 0;
+  if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
+
+  let tmp: string = Porffor.allocate(), tmpLen: i32 = 0;
+  const thisLen: i32 = _this.length * 2, sepLen: i32 = separator.length;
+  if (sepLen == 1) {
+    // fast path: single char separator
+    const sepChar: i32 = separator.charCodeAt(0);
+    for (let i: i32 = 0; i < thisLen; i += 2) {
+      const x: i32 = Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
+
+      if (x == sepChar) {
+        if (outLen >= limit) {
+          out.length = outLen;
+          return out;
+        }
+
+        tmp.length = tmpLen;
+        Porffor.wasm`
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${tmp}
+f64.convert_i32_u
+f64.store 0 4
+
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${sType}
+i32.store8 0 12`;
+        outLen++;
+
+        tmp = Porffor.allocate();
+        tmpLen = 0;
+        continue;
+      }
+
+      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${tmp}` + tmpLen * 2, x, 0, 4);
+      tmpLen++;
+    }
+  } else {
+    let sepInd: i32 = 0;
+    for (let i: i32 = 0; i < thisLen; i += 2) {
+      const x: i32 = Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
+
+      if (x == separator.charCodeAt(sepInd)) {
+        if (++sepInd == sepLen) {
+          if (outLen >= limit) {
+            out.length = outLen;
+            return out;
+          }
+
+          tmp.length = tmpLen - (sepLen - 1);
+          Porffor.wasm`
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${tmp}
+f64.convert_i32_u
+f64.store 0 4
+
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${sType}
+i32.store8 0 12`;
+          outLen++;
+
+          tmp = Porffor.allocate();
+          tmpLen = 0;
+          continue;
+        }
+      } else sepInd = 0;
+
+      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${tmp}` + tmpLen, x, 0, 4);
+      tmpLen++;
+    }
+  }
+
+  if (tmpLen > 0 && outLen < limit) {
+    tmp.length = tmpLen;
+    Porffor.wasm`
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${tmp}
+f64.convert_i32_u
+f64.store 0 4
+
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${sType}
+i32.store8 0 12`;
+    outLen++;
+  }
+
+  out.length = outLen;
+  return out;
+};
+
+export const __ByteString_prototype_split = (_this: bytestring, separator: any, limit: any) => {
+  let out: any[] = Porffor.allocate(), outLen: i32 = 0;
+  const bsType: i32 = Porffor.TYPES.bytestring;
+
+  if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
+  limit |= 0;
+  if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
+
+  let tmp: bytestring = Porffor.allocate(), tmpLen: i32 = 0;
+  const thisLen: i32 = _this.length, sepLen: i32 = separator.length;
+  if (sepLen == 1) {
+    // fast path: single char separator
+    const sepChar: i32 = separator.charCodeAt(0);
+    for (let i: i32 = 0; i < thisLen; i++) {
+      const x: i32 = Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
+
+      if (x == sepChar) {
+        if (outLen >= limit) {
+          out.length = outLen;
+          return out;
+        }
+
+        tmp.length = tmpLen;
+        Porffor.wasm`
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${tmp}
+f64.convert_i32_u
+f64.store 0 4
+
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${bsType}
+i32.store8 0 12`;
+        outLen++;
+
+        tmp = Porffor.allocate();
+        tmpLen = 0;
+        continue;
+      }
+
+      Porffor.wasm.i32.store8(Porffor.wasm`local.get ${tmp}` + tmpLen, x, 0, 4);
+      tmpLen++;
+    }
+  } else {
+    let sepInd: i32 = 0;
+    for (let i: i32 = 0; i < thisLen; i++) {
+      const x: i32 = Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
+
+      if (x == separator.charCodeAt(sepInd)) {
+        if (++sepInd == sepLen) {
+          if (outLen >= limit) {
+            out.length = outLen;
+            return out;
+          }
+
+          tmp.length = tmpLen - (sepLen - 1);
+          Porffor.wasm`
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${tmp}
+f64.convert_i32_u
+f64.store 0 4
+
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${bsType}
+i32.store8 0 12`;
+          outLen++;
+
+          tmp = Porffor.allocate();
+          tmpLen = 0;
+          continue;
+        }
+      } else sepInd = 0;
+
+      Porffor.wasm.i32.store8(Porffor.wasm`local.get ${tmp}` + tmpLen, x, 0, 4);
+      tmpLen++;
+    }
+  }
+
+  if (tmpLen > 0 && outLen < limit) {
+    tmp.length = tmpLen;
+    Porffor.wasm`
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${tmp}
+f64.convert_i32_u
+f64.store 0 4
+
+local.get ${out}
+local.get ${outLen}
+i32.const 9
+i32.mul
+i32.add
+local.get ${bsType}
+i32.store8 0 12`;
+    outLen++;
+  }
+
+  out.length = outLen;
+  return out;
+};
+
+
 // 22.1.3.29 String.prototype.toString ()
 // https://tc39.es/ecma262/#sec-string.prototype.tostring
 export const __String_prototype_toString = (_this: string) => {
