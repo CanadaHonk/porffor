@@ -1506,6 +1506,30 @@ export const BuiltinFuncs = function() {
     returns: [127,127], typedReturns: 1,
     locals: [127,127,127,127,127,127,127], localNames: ["_this","_this#type","len","out","#last_type","i","j","endPtr","chr"],
   };
+  this.__String_prototype_toLocaleUpperCase = {
+    wasm: (scope, {builtin}) => [[32,0],[65,194,0],[16, builtin('__String_prototype_toUpperCase')],[34,2],[15]],
+    params: [127,127], typedParams: 1,
+    returns: [127,127], typedReturns: 1,
+    locals: [127], localNames: ["_this","_this#type","#last_type"],
+  };
+  this.__ByteString_prototype_toLocaleUpperCase = {
+    wasm: (scope, {builtin}) => [[32,0],[65,194,1],[16, builtin('__ByteString_prototype_toLowerCase')],[34,2],[15]],
+    params: [127,127], typedParams: 1,
+    returns: [127,127], typedReturns: 1,
+    locals: [127], localNames: ["_this","_this#type","#last_type"],
+  };
+  this.__String_prototype_toLocaleLowerCase = {
+    wasm: (scope, {builtin}) => [[32,0],[65,194,0],[16, builtin('__String_prototype_toUpperCase')],[34,2],[15]],
+    params: [127,127], typedParams: 1,
+    returns: [127,127], typedReturns: 1,
+    locals: [127], localNames: ["_this","_this#type","#last_type"],
+  };
+  this.__ByteString_prototype_toLocaleLowerCase = {
+    wasm: (scope, {builtin}) => [[32,0],[65,194,1],[16, builtin('__ByteString_prototype_toLowerCase')],[34,2],[15]],
+    params: [127,127], typedParams: 1,
+    returns: [127,127], typedReturns: 1,
+    locals: [127], localNames: ["_this","_this#type","#last_type"],
+  };
   this.__String_prototype_startsWith = {
     wasm: (scope, {}) => [[32,0],[33,6],[32,2],[33,7],[32,0],[40,1,0],[33,8],[32,4],[65,0],[74],[4,64],[32,4],[32,8],[74],[4,64],[32,8],[33,4],[5],[32,4],[65,0],[114],[33,4],[11],[5],[65,0],[33,4],[11],[32,6],[32,4],[65,2],[108],[106],[33,6],[32,2],[40,1,0],[65,2],[108],[33,9],[65,0],[33,10],[3,64],[32,10],[32,9],[72],[4,64],[32,6],[32,10],[106],[47,0,4],[33,11],[32,7],[32,10],[106],[47,0,4],[33,12],[32,11],[32,12],[71],[4,64],[65,0],[65,1],[15],[11],[32,10],[65,2],[106],[34,10],[12,1],[11],[11],[65,1],[65,1],[15]],
     params: [127,127,127,127,127,127], typedParams: 1,

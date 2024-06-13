@@ -46,7 +46,6 @@ export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
   return out;
 };
 
-
 export const __String_prototype_toLowerCase = (_this: string) => {
   // todo: unicode not just ascii
   const len: i32 = _this.length;
@@ -91,6 +90,11 @@ export const __ByteString_prototype_toLowerCase = (_this: bytestring) => {
 
   return out;
 };
+
+export const __String_prototype_toLocaleUpperCase = (_this: string) => __String_prototype_toUpperCase(_this);
+export const __ByteString_prototype_toLocaleUpperCase = (_this: bytestring) => __ByteString_prototype_toLowerCase(_this);
+export const __String_prototype_toLocaleLowerCase = (_this: string) => __String_prototype_toUpperCase(_this);
+export const __ByteString_prototype_toLocaleLowerCase = (_this: bytestring) => __ByteString_prototype_toLowerCase(_this);
 
 
 export const __String_prototype_startsWith = (_this: string, searchString: string, position: number) => {
