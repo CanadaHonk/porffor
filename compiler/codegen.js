@@ -189,7 +189,14 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
             if (!Array.isArray(inst)) inst = [ inst ];
             const immediates = asm.slice(1).map(x => {
               const int = parseInt(x);
-              if (Number.isNaN(int)) return scope.locals[x]?.idx ?? globals[x].idx;
+              if (Number.isNaN(int)) {
+                if (builtinFuncs[x]) {
+                  if (funcIndex[x] == null) includeBuiltin(scope, x);
+                  return funcIndex[x];
+                }
+
+                return scope.locals[x]?.idx ?? globals[x].idx;
+              }
               return int;
             });
 
