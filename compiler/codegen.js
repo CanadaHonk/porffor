@@ -4737,7 +4737,7 @@ const internalConstrs = {
 
           // print space
           ...(i !== decl.arguments.length - 1 ? [
-            ...number(32, Valtype.f64),
+            ...number(32, globalThis.precompile ? Valtype.f64 : valtypeBinary),
             [ Opcodes.call, importedFuncs.printChar ]
           ] : [])
         );
@@ -4745,7 +4745,7 @@ const internalConstrs = {
 
       // print newline
       out.push(
-        ...number(10, Valtype.f64),
+        ...number(10, globalThis.precompile ? Valtype.f64 : valtypeBinary),
         [ Opcodes.call, importedFuncs.printChar ]
       );
 
