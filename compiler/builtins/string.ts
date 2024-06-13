@@ -1110,6 +1110,72 @@ local.set ${x}`;
   return out;
 };
 
+export const __String_prototype_repeat = (_this: string, count: number) => {
+  let out: string = Porffor.allocate();
+
+  count |= 0;
+  if (count < 0) throw new RangeError('Invalid count value');
+
+  const thisLen: i32 = _this.length * 2;
+  for (let i: i32 = 0; i < count; i++) {
+    Porffor.wasm`
+;; dst = out + 4 + i * thisLen
+local.get ${out}
+i32.const 4
+i32.add
+local.get ${i}
+local.get ${thisLen}
+i32.mul
+i32.add
+
+;; src = this + 4
+local.get ${_this}
+i32.const 4
+i32.add
+
+;; size = thisLen
+local.get ${thisLen}
+
+memory.copy 0 0`;
+  }
+
+  Porffor.wasm.i32.store(out, thisLen * count, 0, 0);
+  return out;
+};
+
+export const __ByteString_prototype_repeat = (_this: string, count: number) => {
+  let out: bytestring = Porffor.allocate();
+
+  count |= 0;
+  if (count < 0) throw new RangeError('Invalid count value');
+
+  const thisLen: i32 = _this.length;
+  for (let i: i32 = 0; i < count; i++) {
+    Porffor.wasm`
+;; dst = out + 4 + i * thisLen
+local.get ${out}
+i32.const 4
+i32.add
+local.get ${i}
+local.get ${thisLen}
+i32.mul
+i32.add
+
+;; src = this + 4
+local.get ${_this}
+i32.const 4
+i32.add
+
+;; size = thisLen
+local.get ${thisLen}
+
+memory.copy 0 0`;
+  }
+
+  Porffor.wasm.i32.store(out, thisLen * count, 0, 0);
+  return out;
+};
+
 
 // 22.1.3.29 String.prototype.toString ()
 // https://tc39.es/ecma262/#sec-string.prototype.tostring

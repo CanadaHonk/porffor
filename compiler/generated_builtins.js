@@ -1676,6 +1676,18 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127,127,127,127,127], localNames: ["_this","_this#type","vals","vals#type","out","#last_type","concat_right_pointer","concat_right_length","concat_left_length","concat_left_pointer","concat_out_pointer","valsLen","i","x","x#type"],
     hasRestArgument: 1,
   };
+  this.__String_prototype_repeat = {
+    wasm: (scope, {builtin,internalThrow}) => [[16, builtin('__Porffor_allocate')],[33,5],[252,2],[33,4],[32,2],[65,0],[114],[34,2],[65,0],[72],[4,64],...internalThrow(scope, 'RangeError', `Invalid count value`),[11],[32,0],[40,1,0],[65,2],[108],[33,6],[65,0],[33,7],[3,64],[32,7],[32,2],[72],[4,64],[32,4],[65,4],[106],[32,7],[32,6],[108],[106],[32,0],[65,4],[106],[32,6],[252,10,0,0],[32,7],[65,1],[106],[33,7],[12,1],[11],[11],[32,4],[32,6],[32,2],[108],[54,0,0],[32,4],[65,194,0],[15]],
+    params: [127,127,127,127], typedParams: 1,
+    returns: [127,127], typedReturns: 1,
+    locals: [127,127,127,127], localNames: ["_this","_this#type","count","count#type","out","#last_type","thisLen","i"],
+  };
+  this.__ByteString_prototype_repeat = {
+    wasm: (scope, {builtin,internalThrow}) => [[16, builtin('__Porffor_allocate')],[33,5],[252,2],[33,4],[32,2],[65,0],[114],[34,2],[65,0],[72],[4,64],...internalThrow(scope, 'RangeError', `Invalid count value`),[11],[32,0],[40,1,0],[33,6],[65,0],[33,7],[3,64],[32,7],[32,2],[72],[4,64],[32,4],[65,4],[106],[32,7],[32,6],[108],[106],[32,0],[65,4],[106],[32,6],[252,10,0,0],[32,7],[65,1],[106],[33,7],[12,1],[11],[11],[32,4],[32,6],[32,2],[108],[54,0,0],[32,4],[65,194,1],[15]],
+    params: [127,127,127,127], typedParams: 1,
+    returns: [127,127], typedReturns: 1,
+    locals: [127,127,127,127], localNames: ["_this","_this#type","count","count#type","out","#last_type","thisLen","i"],
+  };
   this.__String_prototype_toString = {
     wasm: (scope, {}) => [[32,0],[65,194,0],[15]],
     params: [127,127], typedParams: 1,
