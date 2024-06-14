@@ -55,6 +55,15 @@ i32.store8 0 12`;
   return true;
 };
 
+export const __Porffor_set_indexOf = (_this: Set, value: any): i32 => {
+  const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  for (let i: i32 = 0; i < size; i++) {
+    if (Porffor.set.read(_this, i) === value) return i;
+  }
+
+  return -1;
+};
+
 
 export const __Set_prototype_size$get = (_this: Set) => {
   return Porffor.wasm.i32.load(_this, 0, 0);
@@ -164,7 +173,7 @@ export const __Set_prototype_clear = (_this: Set) => {
   Porffor.wasm.i32.store(_this, 0, 0, 0);
 };
 
-export const Set = function (iterable: any): any {
+export const Set = function (iterable: any): Set {
   if (!new.target) throw new TypeError("Constructor Set requires 'new'");
 
   const out: Set = __Porffor_allocate();

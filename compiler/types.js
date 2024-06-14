@@ -46,13 +46,14 @@ const registerInternalType = (name, flags = [], overrideType = undefined) => {
 };
 
 // note: when adding a new internal type, please also add a deserializer to wrap.js
-// (it is okay to add a throw todo deserializer for wips)
+registerInternalType('ByteString', ['iterable', 'length'], TYPES.string | TYPE_FLAGS.parity);
 
 registerInternalType('Array', ['iterable', 'length']);
 registerInternalType('RegExp');
-registerInternalType('ByteString', ['iterable', 'length'], TYPES.string | TYPE_FLAGS.parity);
 registerInternalType('Date');
+
 registerInternalType('Set', ['iterable']);
+registerInternalType('Map');
 
 registerInternalType('ArrayBuffer');
 registerInternalType('SharedArrayBuffer');

@@ -28,6 +28,7 @@ type PorfforGlobal = {
   set: {
     read(_this: any, index: number): i32;
     write(_this: any, index: number, value: any): boolean;
+    indexOf(_this: any, value: any): i32;
   }
 
   bytestring: {

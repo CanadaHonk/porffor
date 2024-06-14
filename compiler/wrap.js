@@ -102,6 +102,28 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
       return out;
     }
 
+    case TYPES.map: {
+      const [ keysPtr, valsPtr ] = (new Uint32Array(memory.buffer, value, 2));
+      const size = (new Uint32Array(memory.buffer, keysPtr, 1))[0];
+
+      const out = new Map();
+      for (let i = 0; i < size; i++) {
+        const offset = 4 + (i * 9);
+
+        const kValue = (new Float64Array(memory.buffer.slice(keysPtr + offset, keysPtr + offset + 8), 0, 1))[0];
+        const kType = (new Uint8Array(memory.buffer, keysPtr + offset + 8, 1))[0];
+        const k = porfToJSValue({ memory, funcs, pages }, kValue, kType);
+
+        const vValue = (new Float64Array(memory.buffer.slice(valsPtr + offset, valsPtr + offset + 8), 0, 1))[0];
+        const vType = (new Uint8Array(memory.buffer, valsPtr + offset + 8, 1))[0];
+        const v = porfToJSValue({ memory, funcs, pages }, vValue, vType);
+
+        out.set(k, v);
+      }
+
+      return out;
+    }
+
     case TYPES.symbol: {
       const descStore = pages.get('bytestring: __Porffor_symbol_descStore/ptr').ind * pageSize;
       if (!descStore) return Symbol();
