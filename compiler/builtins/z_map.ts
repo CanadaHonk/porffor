@@ -1,19 +1,5 @@
 import type {} from './porffor.d.ts';
 
-export const Map = function (iterable: any): Map {
-  if (!new.target) throw new TypeError("Constructor Map requires 'new'");
-
-  const out: Map = Porffor.allocateBytes(8);
-
-  const keys: Set = Porffor.allocate();
-  Porffor.wasm.i32.store(out, keys, 0, 0);
-
-  const vals: any[] = Porffor.allocate();
-  Porffor.wasm.i32.store(out, vals, 0, 4);
-
-  return out;
-};
-
 export const __Map_prototype_size$get = (_this: Map) => {
   return Porffor.wasm.i32.load(Porffor.wasm.i32.load(_this, 0, 0), 0, 0);
 };
@@ -83,6 +69,27 @@ export const __Map_prototype_forEach = (_this: Map, callbackFn: any) => {
   while (i < size) {
     callbackFn(vals[i], Porffor.set.read(keys, i++), _this);
   }
+};
+
+export const Map = function (iterable: any): Map {
+  if (!new.target) throw new TypeError("Constructor Map requires 'new'");
+
+  const out: Map = Porffor.allocateBytes(8);
+
+  const keys: Set = Porffor.allocate();
+  Porffor.wasm.i32.store(out, keys, 0, 0);
+
+  const vals: any[] = Porffor.allocate();
+  Porffor.wasm.i32.store(out, vals, 0, 4);
+
+  if (Porffor.fastAnd(
+    Porffor.rawType(iterable) != Porffor.TYPES.undefined,
+    iterable !== null
+  )) for (const x of iterable) {
+    __Map_prototype_set(out, x[0], x[1]);
+  }
+
+  return out;
 };
 
 export const __Map_prototype_keys = (_this: Map) => {
