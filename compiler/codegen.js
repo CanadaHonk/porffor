@@ -111,6 +111,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'ForOfStatement':
       return generateForOf(scope, decl);
 
+    case 'SwitchStatement':
+      return generateSwitch(scope, decl);
+
     case 'BreakStatement':
       return generateBreak(scope, decl);
 
@@ -3623,10 +3626,63 @@ const generateForOf = (scope, decl) => {
   return out;
 };
 
+const generateSwitch = (scope, decl) => {
+  const tmp = localTmp(scope, '#switch_disc');
+  const out = [
+    ...generate(scope, decl.discriminant),
+    [ Opcodes.local_set, tmp ],
+
+    [ Opcodes.block, Blocktype.void ]
+  ];
+
+  depth.push('switch');
+
+  const cases = decl.cases.slice();
+  const defaultCase = cases.findIndex(x => x.test == null);
+  if (defaultCase != -1) {
+    // move default case to last
+    cases.push(cases.splice(defaultCase, 1)[0]);
+  }
+
+  for (let i = 0; i < cases.length; i++) {
+    out.push([ Opcodes.block, Blocktype.void ]);
+    depth.push('block');
+  }
+
+  for (let i = 0; i < cases.length; i++) {
+    const x = cases[i];
+    if (x.test) {
+      out.push(
+        [ Opcodes.local_get, tmp ],
+        ...generate(scope, x.test),
+        [ Opcodes.eq ],
+        [ Opcodes.br_if, i ]
+      );
+    } else {
+      out.push(
+        [ Opcodes.br, i ]
+      );
+    }
+  }
+
+  for (let i = 0; i < cases.length; i++) {
+    depth.pop();
+    out.push(
+      [ Opcodes.end ],
+      ...generateCode(scope, { body: cases[i].consequent })
+    );
+  }
+
+  out.push([ Opcodes.end ]);
+  depth.pop();
+
+  return out;
+};
+
 // find the nearest loop in depth map by type
 const getNearestLoop = () => {
   for (let i = depth.length - 1; i >= 0; i--) {
-    if (['while', 'dowhile', 'for', 'forof'].includes(depth[i])) return i;
+    if (['while', 'dowhile', 'for', 'forof', 'switch'].includes(depth[i])) return i;
   }
 
   return -1;
@@ -3645,7 +3701,8 @@ const generateBreak = (scope, decl) => {
     while: 2, // loop > if (wanted branch) (we are here)
     dowhile: 2, // loop > block (wanted branch) > block (we are here)
     forof: 2, // loop > block (wanted branch) > block (we are here)
-    if: 1 // break inside if, branch 0 to skip the rest of the if
+    if: 1, // break inside if, branch 0 to skip the rest of the if
+    switch: 1
   })[type];
 
   return [
