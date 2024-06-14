@@ -1,3 +1,5 @@
+import type {} from './porffor.d.ts';
+
 export const Map = function (iterable: any): Map {
   if (!new.target) throw new TypeError("Constructor Map requires 'new'");
 
