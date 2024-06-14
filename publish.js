@@ -7,7 +7,7 @@ const packageJson = fs.readFileSync('package.json', 'utf8');
 const packageVersion = JSON.parse(packageJson).version;
 
 const majorminor = packageVersion.split('.').slice(0, 2).join('.');
-const patch = parseInt(packageVersion.split('.')[2].split(/[^0-9]/)[0]) + 1;
+const patch = parseInt(packageVersion.split('.')[2].split(/[^0-9\-]/)[0]) + 1;
 
 const version = `${majorminor}.${patch}+${rev}`;
 
