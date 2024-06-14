@@ -82,3 +82,25 @@ export const __Map_prototype_forEach = (_this: Map, callbackFn: any) => {
     callbackFn(vals[i], Porffor.set.read(keys, i++), _this);
   }
 };
+
+export const __Map_prototype_keys = (_this: Map) => {
+  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
+  const out: any[] = Porffor.allocate();
+
+  for (const x of keys) {
+    out.push(x);
+  }
+
+  return out;
+};
+
+export const __Map_prototype_values = (_this: Map) => {
+  const vals: Set = Porffor.wasm.i32.load(_this, 0, 4);
+  const out: any[] = Porffor.allocate();
+
+  for (const x of vals) {
+    out.push(x);
+  }
+
+  return out;
+};
