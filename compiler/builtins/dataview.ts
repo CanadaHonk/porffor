@@ -103,59 +103,45 @@ export const __DataView_prototype_getUint16 = (_this: DataView, byteOffset: numb
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 1 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
-  let byte1: i32 = 0, byte2: i32 = 0;
-  Porffor.wasm`local ptr i32
+  let int: i32 = 0;
+  Porffor.wasm`
 local.get ${_this}
 i32.to_u
 i32.load 0 4
 local.get ${byteOffset}
 i32.to_u
 i32.add
-local.set ptr
 
-local.get ptr
-i32.load8_u 0 4
+i32.load16_u 0 4
 i32.from_u
-local.set ${byte1}
-local.get ptr
-i32.load8_u 0 5
-i32.from_u
-local.set ${byte2}`;
+local.set ${int}`;
 
-  if (Boolean(littleEndian)) return byte1 | (byte2 << 8);
-  return (byte1 << 8) | byte2;
+  if (Boolean(littleEndian)) return int;
+  return (int >>> 8) | ((int & 0xFF) << 8);
 };
 
 export const __DataView_prototype_setUint16 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 1 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
-  let byte1: i32 = 0, byte2: i32 = 0;
-  if (littleEndian) {
-    byte1 = value & 0xff;
-    byte2 = (value >>> 8) & 0xff;
+  let int: i32 = 0;
+  if (Boolean(littleEndian)) {
+    int = value;
   } else {
-    byte1 = (value >>> 8) & 0xff;
-    byte2 = value & 0xff;
+    int = (value >>> 8) | ((value & 0xFF) << 8);
   }
 
-  Porffor.wasm`local ptr i32
+  Porffor.wasm`
 local.get ${_this}
 i32.to_u
 i32.load 0 4
 local.get ${byteOffset}
 i32.to_u
 i32.add
-local.set ptr
 
-local.get ptr
-local.get ${byte1}
+local.get ${int}
 i32.to_u
-i32.store8 0 4
-local.get ptr
-local.get ${byte2}
-i32.to_u
-i32.store8 0 5`;
+i32.store16 0 4`;
 
   return undefined;
 };
@@ -174,79 +160,51 @@ export const __DataView_prototype_getUint32 = (_this: DataView, byteOffset: numb
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 3 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
-  let byte1: i32 = 0, byte2: i32 = 0, byte3: i32 = 0, byte4: i32 = 0;
-  Porffor.wasm`local ptr i32
+  let int: i32 = 0;
+  Porffor.wasm`
 local.get ${_this}
 i32.to_u
 i32.load 0 4
 local.get ${byteOffset}
 i32.to_u
 i32.add
-local.set ptr
 
-local.get ptr
-i32.load8_u 0 4
+i32.load 0 4
 i32.from_u
-local.set ${byte1}
-local.get ptr
-i32.load8_u 0 5
-i32.from_u
-local.set ${byte2}
-local.get ptr
-i32.load8_u 0 6
-i32.from_u
-local.set ${byte3}
-local.get ptr
-i32.load8_u 0 7
-i32.from_u
-local.set ${byte4}`;
+local.set ${int}`;
 
-  if (Boolean(littleEndian)) return byte1 | (byte2 << 8) | (byte3 << 16) | (byte4 << 24);
-  return (byte1 << 24) | (byte2 << 16) | (byte3 << 8) | byte4;
+  if (Boolean(littleEndian)) return int;
+  return (int >>> 24) |
+    ((int >>> 8) & 0x0000ff00) |
+    ((int << 8) & 0x00ff0000) |
+    (int << 24);
 };
 
 export const __DataView_prototype_setUint32 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 3 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
-  let byte1: i32 = 0, byte2: i32 = 0, byte3: i32 = 0, byte4: i32 = 0;
-  if (littleEndian) {
-    byte1 = value & 0xff;
-    byte2 = (value >>> 8) & 0xff;
-    byte3 = (value >>> 16) & 0xff;
-    byte4 = (value >>> 24) & 0xff;
+  let int: i32 = 0;
+  if (Boolean(littleEndian)) {
+    int = value;
   } else {
-    byte1 = (value >>> 24) & 0xff;
-    byte2 = (value >>> 16) & 0xff;
-    byte3 = (value >>> 8) & 0xff;
-    byte4 = value & 0xff;
+    int = (value >>> 24) |
+      ((value >>> 8) & 0x0000FF00) |
+      ((value << 8) & 0x00FF0000) |
+      (value << 24);
   }
 
-  Porffor.wasm`local ptr i32
+  Porffor.wasm`
 local.get ${_this}
 i32.to_u
 i32.load 0 4
 local.get ${byteOffset}
 i32.to_u
 i32.add
-local.set ptr
 
-local.get ptr
-local.get ${byte1}
+local.get ${int}
 i32.to_u
-i32.store8 0 4
-local.get ptr
-local.get ${byte2}
-i32.to_u
-i32.store8 0 5
-local.get ptr
-local.get ${byte3}
-i32.to_u
-i32.store8 0 6
-local.get ptr
-local.get ${byte4}
-i32.to_u
-i32.store8 0 7`;
+i32.store 0 4`;
 
   return undefined;
 };
