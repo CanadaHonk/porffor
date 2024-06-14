@@ -142,12 +142,20 @@ export const read_unsignedLEB128 = _input => {
 };
 
 // ieee 754 binary64
-// const ieee754Cache = {};
-// export const ieee754_binary64 = value => {
-//   if (ieee754Cache[value]) return ieee754Cache[value];
-//   return ieee754Cache[value] = [...new Uint8Array(new Float64Array([ value ]).buffer)];
-// };
-export const ieee754_binary64 = value => [...new Uint8Array(new Float64Array([ value ]).buffer)];
+const ieee754Buffer = new Float64Array(1);
+const ieee754Cache = {};
+export const ieee754_binary64 = value => {
+  if (value === 0) {
+    if (1 / value === -Infinity) return [ 0, 0, 0, 0, 0, 0, 0, 128 ]; // -0
+    return [ 0, 0, 0, 0, 0, 0, 0, 0 ]; // +0
+  }
+
+  if (ieee754Cache[value]) return ieee754Cache[value].slice();
+
+  ieee754Buffer[0] = value;
+  return ieee754Cache[value] = [...new Uint8Array(ieee754Buffer.buffer)];
+};
+
 export const read_ieee754_binary64 = buffer => new Float64Array(new Uint8Array(buffer).buffer)[0];
 
 
