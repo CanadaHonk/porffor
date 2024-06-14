@@ -674,6 +674,18 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","value","value#type","littleEndian","littleEndian#type","#last_type"],
   };
+  this.__DataView_prototype_getFloat32 = {
+    wasm: (scope, {builtin}) => [[32,0],[65,22],[32,2],[65,0],[32,4],[32,5],[16, builtin('__DataView_prototype_getUint32')],[33,7],[34,6],[252,3],[190],[187],[65,0],[15]],
+    params: [124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","littleEndian","littleEndian#type","int","#last_type"],
+  };
+  this.__DataView_prototype_setFloat32 = {
+    wasm: (scope, {builtin}) => [[68,0,0,0,0,0,0,0,0],[33,8],[32,4],[182],[188],[184],[33,8],[32,0],[65,22],[32,2],[65,0],[32,8],[65,0],[32,6],[32,7],[16, builtin('__DataView_prototype_setUint32')],[34,9],[15]],
+    params: [124,127,124,127,124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,127], localNames: ["_this","_this#type","byteOffset","byteOffset#type","value","value#type","littleEndian","littleEndian#type","int","#last_type"],
+  };
   this.__ecma262_Day = {
     wasm: (scope, {builtin}) => [[32,0],[68,0,0,0,0,112,153,148,65],[163],[16, builtin('__Math_floor')],[65,0],[15]],
     params: [124,127], typedParams: 1,

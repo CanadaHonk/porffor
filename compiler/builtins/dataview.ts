@@ -217,3 +217,25 @@ export const __DataView_prototype_getInt32 = (_this: DataView, byteOffset: numbe
 export const __DataView_prototype_setInt32 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
   return __DataView_prototype_setUint32(_this, byteOffset, value < 0 ? value | 0x100000000 : value, littleEndian);
 };
+
+export const __DataView_prototype_getFloat32 = (_this: DataView, byteOffset: number, littleEndian: any) => {
+  const int: i32 = __DataView_prototype_getUint32(_this, byteOffset, littleEndian);
+  Porffor.wasm`
+local.get ${int}
+i32.to_u
+f32.reinterpret_i32
+f64.promote_f32
+i32.const 0
+return`;
+};
+
+export const __DataView_prototype_setFloat32 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
+  let int: i32 = 0;
+  Porffor.wasm`
+local.get ${value}
+f32.demote_f64
+i32.reinterpret_f32
+i32.from_u
+local.set ${int}`;
+  return __DataView_prototype_setUint32(_this, byteOffset, int, littleEndian);
+};
