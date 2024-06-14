@@ -173,6 +173,12 @@ export const __Set_prototype_clear = (_this: Set) => {
   Porffor.wasm.i32.store(_this, 0, 0, 0);
 };
 
+export const __Set_prototype_forEach = (_this: Set, callbackFn: any) => {
+  for (const x of _this) {
+    callbackFn(x, x, _this);
+  }
+};
+
 export const Set = function (iterable: any): Set {
   if (!new.target) throw new TypeError("Constructor Set requires 'new'");
 
