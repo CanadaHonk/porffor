@@ -162,19 +162,21 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
 
     case TYPES.weakmap:
     case TYPES.map: {
-      const [ keysPtr, valsPtr ] = (new Uint32Array(memory.buffer, value, 2));
-      const size = (new Uint32Array(memory.buffer, keysPtr, 1))[0];
+      const entriesPtr = (new Uint32Array(memory.buffer, value + 32, 1))[0];
+      const entriesCapacity = new Uint32Array(memory.buffer, value + 20, 2);
 
-      const out = type === TYPES.weakmap ? new WeakMap() : new Map();
-      for (let i = 0; i < size; i++) {
-        const offset = 4 + (i * 9);
+      const endPtr = entriesPtr + 18 * ((entriesCapacity[1] << 32) + entriesCapacity[0]);
 
-        const kValue = (new Float64Array(memory.buffer.slice(keysPtr + offset, keysPtr + offset + 8), 0, 1))[0];
-        const kType = (new Uint8Array(memory.buffer, keysPtr + offset + 8, 1))[0];
+      const out = new Map();
+      for (let e = entriesPtr; e < endPtr; e += 18) {
+        const kValue = (new Float64Array(memory.buffer.slice(e, e + 8), 0, 1))[0];
+        const kType = (new Uint8Array(memory.buffer, e + 8, 1))[0];
+        if (kType === 0) continue;
         const k = porfToJSValue({ memory, funcs, pages }, kValue, kType);
 
-        const vValue = (new Float64Array(memory.buffer.slice(valsPtr + offset, valsPtr + offset + 8), 0, 1))[0];
-        const vType = (new Uint8Array(memory.buffer, valsPtr + offset + 8, 1))[0];
+
+        const vValue = (new Float64Array(memory.buffer.slice(e + 9, e + 17), 0, 1))[0];
+        const vType = (new Uint8Array(memory.buffer, e + 17, 1))[0];
         const v = porfToJSValue({ memory, funcs, pages }, vValue, vType);
 
         out.set(k, v);
