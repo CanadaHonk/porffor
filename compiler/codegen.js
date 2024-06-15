@@ -1945,25 +1945,30 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (idx === undefined && !decl._new && name.startsWith('__Porffor_wasm_')) {
     const wasmOps = {
       // pointer, align, offset
-      i32_load: { imms: 2, args: [ true ], returns: 1 },
+      i32_load: { imms: 2, args: [ Valtype.i32 ], returns: Valtype.i32 },
       // pointer, value, align, offset
-      i32_store: { imms: 2, args: [ true, true ], returns: 0 },
+      i32_store: { imms: 2, args: [ Valtype.i32, Valtype.i32 ] },
       // pointer, align, offset
-      i32_load8_u: { imms: 2, args: [ true ], returns: 1 },
+      i32_load8_u: { imms: 2, args: [ Valtype.i32 ], returns: Valtype.i32 },
       // pointer, value, align, offset
-      i32_store8: { imms: 2, args: [ true, true ], returns: 0 },
+      i32_store8: { imms: 2, args: [ Valtype.i32, Valtype.i32 ] },
       // pointer, align, offset
-      i32_load16_u: { imms: 2, args: [ true ], returns: 1 },
+      i32_load16_u: { imms: 2, args: [ Valtype.i32 ], returns: Valtype.i32 },
       // pointer, value, align, offset
-      i32_store16: { imms: 2, args: [ true, true ], returns: 0 },
+      i32_store16: { imms: 2, args: [ Valtype.i32, Valtype.i32 ] },
 
       // pointer, align, offset
-      f64_load: { imms: 2, args: [ true ], returns: 0 }, // 0 due to not i32
+      f64_load: { imms: 2, args: [ Valtype.i32 ], returns: Valtype.f64 },
       // pointer, value, align, offset
-      f64_store: { imms: 2, args: [ true, false ], returns: 0 },
+      f64_store: { imms: 2, args: [ Valtype.i32, Valtype.f64 ] },
+
+      // pointer, align, offset
+      i64_load: { imms: 2, args: [ Valtype.i32 ], returns: Valtype.i64 },
+      // pointer, value, align, offset
+      i64_store: { imms: 2, args: [ Valtype.i32, Valtype.i64 ] },
 
       // value
-      i32_const: { imms: 1, args: [], returns: 0 },
+      i32_const: { imms: 1, args: [], returns: Valtype.i32 },
     };
 
     const opName = name.slice('__Porffor_wasm_'.length);
@@ -1972,19 +1977,36 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const op = wasmOps[opName];
 
       const argOut = [];
-      for (let i = 0; i < op.args.length; i++) argOut.push(
-        ...generate(scope, decl.arguments[i]),
-        ...(op.args[i] ? [ Opcodes.i32_to ] : [])
-      );
+      for (let i = 0; i < op.args.length; i++) {
+        argOut.push(
+          ...generate(scope, decl.arguments[i]),
+        )
+        const type = op.args[i];
+        if (type == valtype) continue;
+        switch (type) {
+          case Valtype.i32: argOut.push(Opcodes.i32_to); break;
+          case Valtype.f64: argOut.push(Opcodes.f64_to); break;
+          case Valtype.i64: argOut.push(Opcodes.i64_to); break;
+        }
+      }
 
       // literals only
       const imms = decl.arguments.slice(op.args.length).map(x => x.value);
 
-      return [
+      const out = [
         ...argOut,
         [ Opcodes[opName], ...imms ],
-        ...(new Array(op.returns).fill(Opcodes.i32_from))
-      ];
+      ]
+
+      if (op.returns == valtype) return out;
+      switch (op.returns) {
+        case Valtype.i32: out.push(Opcodes.i32_from); break;
+        case Valtype.f64: out.push(Opcodes.f64_from); break;
+        case Valtype.i64: out.push(Opcodes.i64_from); break;
+        default: break; // ignore undefined returns
+      }
+
+      return out;
     }
   }
 
@@ -4850,6 +4872,16 @@ export default program => {
   Opcodes.i32_to_u = [ [], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_u ][valtypeInd];
   Opcodes.i32_from = [ [], [ Opcodes.i64_extend_i32_s ], [ Opcodes.f64_convert_i32_s ] ][valtypeInd];
   Opcodes.i32_from_u = [ [], [ Opcodes.i64_extend_i32_u ], [ Opcodes.f64_convert_i32_u ] ][valtypeInd];
+
+  Opcodes.f64_to = [ [ Opcodes.f64_convert_i32_s ], [ Opcodes.f64_convert_i64_s ], [] ][valtypeInd];
+  Opcodes.f64_to_u = [ [ Opcodes.f64_convert_i32_u ], [ Opcodes.f64_convert_i64_u ], [] ][valtypeInd];
+  Opcodes.f64_from = [ Opcodes.i32_trunc_sat_f64_s, Opcodes.i64_trunc_sat_f64_s, [] ][valtypeInd];
+  Opcodes.f64_from_u = [ Opcodes.i32_trunc_sat_f64_u, Opcodes.i64_trunc_sat_f64_u, [] ][valtypeInd];
+
+  Opcodes.i64_to = [ [ Opcodes.i64_extend_i32_s ], [], Opcodes.i64_trunc_sat_f64_s ][valtypeInd];
+  Opcodes.i64_to_u = [ [ Opcodes.i64_extend_i32_u ], [], Opcodes.i64_trunc_sat_f64_u ][valtypeInd];
+  Opcodes.i64_from = [ [ Opcodes.i32_wrap_i64 ], [], [ Opcodes.f64_convert_i64_s ] ][valtypeInd];
+  Opcodes.i64_from_u = [ [ Opcodes.i32_wrap_i64 ], [], [ Opcodes.f64_convert_i64_u ] ][valtypeInd];
 
   Opcodes.load = [ Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load ][valtypeInd];
   Opcodes.store = [ Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store ][valtypeInd];
