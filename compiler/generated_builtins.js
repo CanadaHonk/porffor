@@ -3998,7 +3998,7 @@ export const BuiltinFuncs = function() {
     locals: [], localNames: ["_this","_this#type"],
   };
   this.__Map_prototype_has = {
-    wasm: (scope, {builtin}) => [[32,0],[252,2],[40,0,0],[183],[33,4],[32,2],[32,3],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('__Set_prototype_has')],[34,5],[15]],
+    wasm: (scope, {builtin}) => [[32,0],[252,2],[40,0,0],[183],[34,4],[65,19],[32,2],[32,3],[16, builtin('__Set_prototype_has')],[34,5],[15]],
     params: [124,127,124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
     locals: [124,127], localNames: ["_this","_this#type","key","key#type","keys","#last_type"],

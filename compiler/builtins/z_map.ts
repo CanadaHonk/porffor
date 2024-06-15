@@ -6,7 +6,7 @@ export const __Map_prototype_size$get = (_this: Map) => {
 
 export const __Map_prototype_has = (_this: Map, key: any) => {
   const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-  return __Set_prototype_has(key);
+  return __Set_prototype_has(keys, key);
 };
 
 export const __Map_prototype_get = (_this: Map, key: any) => {
