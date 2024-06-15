@@ -70,3 +70,4 @@ registerInternalType('Float64Array', ['iterable', 'length']);
 
 registerInternalType('WeakRef');
 registerInternalType('WeakSet');
+registerInternalType('WeakMap');
