@@ -13,10 +13,13 @@ export const __Map_prototype_get = (_this: Map, key: any) => {
   const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
 
-  const keyIdx: i32 = Porffor.set.indexOf(keys, key);
-  if (keyIdx == -1) return undefined;
+  const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
 
-  return vals[keyIdx];
+  for (let i: i32 = 0; i < size; i++) {
+    if (Porffor.set.read(keys, i) === key) return vals[i];
+  }
+
+  return undefined;
 };
 
 export const __Map_prototype_set = (_this: Map, key: any, value: any) => {
@@ -25,30 +28,42 @@ export const __Map_prototype_set = (_this: Map, key: any, value: any) => {
 
   const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
 
-  let keyIdx: i32 = Porffor.set.indexOf(keys, key);
-  if (keyIdx == -1) {
-    // add key if non-existent
-    keyIdx = size;
-    __Set_prototype_add(keys, key);
+  for (let i: i32 = 0; i < size; i++) {
+    if (Porffor.set.read(keys, i) === key) {
+      vals[i] = value;
+      return _this;
+    }
   }
 
-  vals[keyIdx] = value;
+  // add key if non-existent
+  // increment size by 1
+  Porffor.wasm.i32.store(keys, size + 1, 0, 0);
+
+  // write new key at end
+  __Porffor_set_write(keys, size, key);
+
+  // write new value at end
+  vals[size] = value;
 
   return _this;
 };
 
 export const __Map_prototype_delete = (_this: Map, key: any) => {
   const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-
-  const keyIdx = Porffor.set.indexOf(keys, key);
-  if (keyIdx == -1) return false;
-
-  __Set_prototype_delete(keys, key);
-
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
-  __Array_prototype_splice(vals, keyIdx, 1);
 
-  return true;
+  const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
+
+  for (let i: i32 = 0; i < size; i++) {
+    if (Porffor.set.read(keys, i) === key) {
+      __Set_prototype_delete(keys, key);
+      __Array_prototype_splice(vals, i, 1);
+
+      return true;
+    }
+  }
+
+  return false;
 };
 
 export const __Map_prototype_clear = (_this: Map) => {
