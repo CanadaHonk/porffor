@@ -46,7 +46,7 @@ export const __Map_prototype_delete = (_this: Map, key: any) => {
   __Set_prototype_delete(keys, key);
 
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
-  __Array_prototype_splice(keyIdx, 1);
+  __Array_prototype_splice(vals, keyIdx, 1);
 
   return true;
 };
