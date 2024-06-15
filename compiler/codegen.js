@@ -186,6 +186,15 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
               continue;
             }
 
+            if (asm[0] === 'loop' || asm[0] === 'if') {
+              if (asm[1] === 'void' ) {
+                out.push([ Opcodes[asm[0]], Blocktype.void ]);
+              } else {
+                out.push([ Opcodes[asm[0]], Valtype[asm[1]] ]);
+              }
+              continue;
+            }
+
             let inst = Opcodes[asm[0].replace('.', '_')];
             if (inst == null) throw new Error(`inline asm: inst ${asm[0]} not found`);
 
