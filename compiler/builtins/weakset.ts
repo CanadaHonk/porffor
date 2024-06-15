@@ -12,7 +12,7 @@ export const __WeakSet_prototype_add = (_this: WeakSet, value: any) => {
 export const __WeakSet_prototype_delete = (_this: WeakSet, value: any) => __Set_prototype_delete(_this, value);
 
 export const WeakSet = function (iterable: any): WeakSet {
-  if (!new.target) throw new TypeError("Constructor Set requires 'new'");
+  if (!new.target) throw new TypeError("Constructor WeakSet requires 'new'");
 
   const out: WeakSet = __Porffor_allocate();
 
