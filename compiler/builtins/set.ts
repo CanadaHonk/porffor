@@ -8,7 +8,7 @@ memory.grow 0
 i32.const 65536
 i32.mul
 i32.from_u
-i32.const 0
+i32.const 1
 return`;
 };
 

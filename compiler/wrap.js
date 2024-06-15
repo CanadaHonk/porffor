@@ -27,8 +27,11 @@ export const writeByteStr = (memory, ptr, str) => {
 
 const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
   switch (type) {
+    case TYPES.empty:
+    case TYPES.undefined:
+      return undefined;
+
     case TYPES.boolean: return Boolean(value);
-    case TYPES.undefined: return undefined;
     case TYPES.object: return value === 0 ? null : {};
 
     case TYPES.function: {

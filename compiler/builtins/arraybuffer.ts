@@ -32,7 +32,7 @@ i32.const 0
 i32.ge_s
 select
 i32.from_u
-i32.const 0
+i32.const 1
 return`;
 };
 
@@ -49,7 +49,7 @@ i32.const 0
 i32.ge_s
 select
 i32.from_u
-i32.const 0
+i32.const 1
 return`;
 };
 
@@ -61,7 +61,7 @@ i32.load 0 0
 i32.const 4294967295
 i32.eq
 i32.from_u
-i32.const 1
+i32.const 2
 return`;
 };
 
