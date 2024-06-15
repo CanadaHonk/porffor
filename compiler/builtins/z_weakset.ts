@@ -16,7 +16,10 @@ export const WeakSet = function (iterable: any): WeakSet {
 
   const out: WeakSet = __Porffor_allocate();
 
-  if (Porffor.rawType(iterable) != Porffor.TYPES.undefined) for (const x of iterable) {
+  if (Porffor.fastAnd(
+    Porffor.rawType(iterable) != Porffor.TYPES.undefined,
+    iterable !== null
+  )) for (const x of iterable) {
     __WeakSet_prototype_add(out, x);
   }
 
