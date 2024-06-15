@@ -67,7 +67,7 @@ i32.to_u
 i32.add
 i32.load8_u 0 4
 i32.from_u
-i32.const 0
+i32.const 1
 return`;
 };
 
@@ -225,7 +225,7 @@ local.get ${int}
 i32.to_u
 f32.reinterpret_i32
 f64.promote_f32
-i32.const 0
+i32.const 1
 return`;
 };
 

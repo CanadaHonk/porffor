@@ -3126,8 +3126,8 @@ const generateUnary = (scope, decl) => {
         [TYPES.undefined]: makeString(scope, 'undefined', false, '#typeof_result'),
         [TYPES.function]: makeString(scope, 'function', false, '#typeof_result'),
         [TYPES.symbol]: makeString(scope, 'symbol', false, '#typeof_result'),
-
         [TYPES.bytestring]: makeString(scope, 'string', false, '#typeof_result'),
+        [TYPES.empty]: makeString(scope, 'undefined', false, '#typeof_result'),
 
         // object and internal types
         default: makeString(scope, 'object', false, '#typeof_result'),

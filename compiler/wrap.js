@@ -27,8 +27,11 @@ export const writeByteStr = (memory, ptr, str) => {
 
 const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
   switch (type) {
+    case TYPES.empty:
+    case TYPES.undefined:
+      return undefined;
+
     case TYPES.boolean: return Boolean(value);
-    case TYPES.undefined: return undefined;
     case TYPES.object: return value === 0 ? null : {};
 
     case TYPES.function: {
@@ -79,49 +82,6 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     case TYPES.date: {
       const t = (new Float64Array(memory.buffer, value, 1))[0];
       return new Date(t);
-    }
-
-    case TYPES.set: {
-      const size = (new Uint32Array(memory.buffer, value, 1))[0];
-
-      const out = new Set();
-      for (let i = 0; i < size; i++) {
-        const offset = value + 4 + (i * 9);
-
-        // have to slice because of memory alignment (?)
-        const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
-        const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
-
-        // console.log(`reading value at index ${i}...`)
-        // console.log('  memory:', Array.from(new Uint8Array(memory.buffer, offset, 9)).map(x => x.toString(16).padStart(2, '0')).join(' '));
-        // console.log('  read:', { value: v, type: t }, '\n');
-
-        out.add(porfToJSValue({ memory, funcs, pages }, v, t));
-      }
-
-      return out;
-    }
-
-    case TYPES.map: {
-      const [ keysPtr, valsPtr ] = (new Uint32Array(memory.buffer, value, 2));
-      const size = (new Uint32Array(memory.buffer, keysPtr, 1))[0];
-
-      const out = new Map();
-      for (let i = 0; i < size; i++) {
-        const offset = 4 + (i * 9);
-
-        const kValue = (new Float64Array(memory.buffer.slice(keysPtr + offset, keysPtr + offset + 8), 0, 1))[0];
-        const kType = (new Uint8Array(memory.buffer, keysPtr + offset + 8, 1))[0];
-        const k = porfToJSValue({ memory, funcs, pages }, kValue, kType);
-
-        const vValue = (new Float64Array(memory.buffer.slice(valsPtr + offset, valsPtr + offset + 8), 0, 1))[0];
-        const vType = (new Uint8Array(memory.buffer, valsPtr + offset + 8, 1))[0];
-        const v = porfToJSValue({ memory, funcs, pages }, vValue, vType);
-
-        out.set(k, v);
-      }
-
-      return out;
     }
 
     case TYPES.symbol: {
@@ -184,16 +144,40 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
       return new WeakRef(porfToJSValue({ memory, funcs, pages }, v, t));
     }
 
-    case TYPES.weakset: {
+    case TYPES.weakset:
+    case TYPES.set: {
       const size = (new Uint32Array(memory.buffer, value, 1))[0];
 
-      const out = new WeakSet();
+      const out = type === TYPES.weakset ? new WeakSet() : new Set();
       for (let i = 0; i < size; i++) {
         const offset = value + 4 + (i * 9);
         const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
         const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
 
         out.add(porfToJSValue({ memory, funcs, pages }, v, t));
+      }
+
+      return out;
+    }
+
+    case TYPES.weakmap:
+    case TYPES.map: {
+      const [ keysPtr, valsPtr ] = (new Uint32Array(memory.buffer, value, 2));
+      const size = (new Uint32Array(memory.buffer, keysPtr, 1))[0];
+
+      const out = type === TYPES.weakmap ? new WeakMap() : new Map();
+      for (let i = 0; i < size; i++) {
+        const offset = 4 + (i * 9);
+
+        const kValue = (new Float64Array(memory.buffer.slice(keysPtr + offset, keysPtr + offset + 8), 0, 1))[0];
+        const kType = (new Uint8Array(memory.buffer, keysPtr + offset + 8, 1))[0];
+        const k = porfToJSValue({ memory, funcs, pages }, kValue, kType);
+
+        const vValue = (new Float64Array(memory.buffer.slice(valsPtr + offset, valsPtr + offset + 8), 0, 1))[0];
+        const vType = (new Uint8Array(memory.buffer, valsPtr + offset + 8, 1))[0];
+        const v = porfToJSValue({ memory, funcs, pages }, vValue, vType);
+
+        out.set(k, v);
       }
 
       return out;
