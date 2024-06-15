@@ -104,6 +104,8 @@ export const Opcodes = {
   i32_eq: 0x46,
   i32_ne: 0x47,
 
+  i32_lt_u: 0x49,
+
   i32_lt_s: 0x48,
   i32_le_s: 0x4c,
   i32_gt_s: 0x4a,
@@ -193,9 +195,13 @@ export const Opcodes = {
   i64_reinterpret_f64: 0xbd,
   f32_reinterpret_i32: 0xbe,
   f64_reinterpret_i64: 0xbf,
+  i64_reinterpret_f64: 0xbd,
 
   i32_trunc_sat_f64_s: [ 0xfc, 0x02 ],
   i32_trunc_sat_f64_u: [ 0xfc, 0x03 ],
+
+  i64_trunc_sat_f64_s: [ 0xfc, 0x06 ],
+  i64_trunc_sat_f64_u: [ 0xfc, 0x07 ],
 
   memory_init: [ 0xfc, 0x08 ],
   data_drop: [ 0xfc, 0x09 ],
