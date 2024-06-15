@@ -1253,5 +1253,130 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  this.__ecma262_SameValueZero = {
+    params: [ Valtype.f64, Valtype.i32, Valtype.f64, Valtype.i32 ],
+    locals: [],
+    localNames: [ 'x', 'xType', 'y', 'yType' ],
+    returns: [ Valtype.i32 ],
+    returnType: TYPES.boolean,
+    wasm: (scope, { compareStrings }) => [
+      // 1. If Type(x) is not Type(y), return false.
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.local_get, 3 ],
+      [ Opcodes.i32_ne ],
+      [ Opcodes.if, Blocktype.void ],
+        ...number(0, Valtype.i32),
+        [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      // 2. If x is a Number, then
+      [ Opcodes.local_get, 1 ],
+      ...number(TYPES.number, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.if, Blocktype.void ],
+        // 1. If x is NaN and y is NaN, return true.
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.f64_ne ],
+
+        [ Opcodes.local_get, 2 ],
+        [ Opcodes.local_get, 2 ],
+        [ Opcodes.f64_ne ],
+
+        [ Opcodes.i32_and ],
+        [ Opcodes.if, Blocktype.void ],
+          ...number(1, Valtype.i32),
+          [ Opcodes.return ],
+        [ Opcodes.end ],
+
+        // 2. If x is +0𝔽 and y is -0𝔽, return true.
+        // 3. If x is -0𝔽 and y is +0𝔽, return true.
+        // 4. If x is y, return true.
+
+        // note: IEEE 754 equal does not differentiate between signed zeros, so this is okay
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.local_get, 2 ],
+        [ Opcodes.f64_eq ],
+        [ Opcodes.if, Blocktype.void ],
+          ...number(1, Valtype.i32),
+          [ Opcodes.return ],
+        [ Opcodes.end ],
+
+        // 5. Return false.
+        ...number(0, Valtype.i32),
+        [ Opcodes.return ],
+      [ Opcodes.end],
+
+      // 3. Return SameValueNonNumber(x, y).
+      // 1. Assert: Type(x) is Type(y).
+      // 2. If x is either null or undefined, return true.
+      [ Opcodes.local_get, 0 ],
+      ...number(0, Valtype.f64),
+      [ Opcodes.f64_eq ],
+
+      [ Opcodes.local_get, 1 ],
+      ...number(TYPES.object, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.local_get, 1 ],
+      ...number(TYPES.undefined, Valtype.i32),
+      [ Opcodes.i32_eq ],
+
+      [ Opcodes.i32_or ],
+      [ Opcodes.i32_and ],
+      [ Opcodes.if, Blocktype.void ],
+        ...number(1, Valtype.i32),
+        [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      // 3. If x is a BigInt, then
+      //  a. Return BigInt::equal(x, y).
+      // todo: we currently don't have bigints
+
+      // 4. If x is a String, then
+      //  a. If x and y have the same length and the same code units in the same positions, return true; otherwise, return false
+      [ Opcodes.local_get, 1 ],
+      ...number(TYPES.string, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.local_get, 1 ],
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+
+      [ Opcodes.i32_or ],
+      [ Opcodes.if, Blocktype.void ],
+        ...compareStrings(scope, [[ Opcodes.local_get, 0 ]], [[ Opcodes.local_get, 2 ]], [[ Opcodes.local_get, 1 ]], [[ Opcodes.local_get, 3 ]]),
+        [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      // 5. If x is a Boolean, then
+      //  a. If x and y are both true or both false, return true; otherwise, return false.
+      [ Opcodes.local_get, 1 ],
+      ...number(TYPES.boolean, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.if, Blocktype.void ],
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.local_get, 2 ],
+        [ Opcodes.f64_eq ],
+        [ Opcodes.if, Blocktype.void ],
+          ...number(1, Valtype.i32),
+          [ Opcodes.return ],
+        [ Opcodes.end ],
+        ...number(0, Valtype.i32),
+        [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      // 7. If x is y, return true; otherwise, return false.
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 2 ],
+      [ Opcodes.f64_eq ],
+      [ Opcodes.if, Blocktype.void ],
+        ...number(1, Valtype.i32),
+        [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      ...number(0, Valtype.i32),
+      [ Opcodes.return ]
+    ]
+  }
+
   GeneratedBuiltins.BuiltinFuncs.call(this);
 };
