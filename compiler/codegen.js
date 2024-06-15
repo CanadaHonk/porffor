@@ -1121,7 +1121,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
 
 const asmFuncToAsm = (func, scope) => {
   return func(scope, {
-    TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow,
+    TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow, compareStrings,
     builtin: n => {
       let idx = funcIndex[n] ?? importedFuncs[n];
       if (idx == null && builtinFuncs[n]) {
