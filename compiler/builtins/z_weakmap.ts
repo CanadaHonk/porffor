@@ -14,7 +14,7 @@ export const __WeakMap_prototype_delete = (_this: WeakMap, key: any) => __Map_pr
 export const WeakMap = function (iterable: any): WeakMap {
   if (!new.target) throw new TypeError("Constructor WeakMap requires 'new'");
 
-  const out: WeakMap = new Map()
+  const out: WeakMap = new Map(iterable)
 
   return out;
 };

@@ -1,7 +1,7 @@
 import * as GeneratedBuiltins from './generated_builtins.js';
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
 import { number } from './embedding.js';
-import { TYPES, TYPE_NAMES } from './types.js';
+import { TYPES, TYPE_NAMES, TYPE_FLAGS } from './types.js';
 import Prefs from './prefs.js';
 
 export const importedFuncs = [
@@ -1262,7 +1262,11 @@ export const BuiltinFuncs = function() {
     wasm: (scope, { compareStrings }) => [
       // 1. If Type(x) is not Type(y), return false.
       [ Opcodes.local_get, 1 ],
+      ...number(TYPE_FLAGS.parity, Valtype.i32),
+      [ Opcodes.i32_or ],
       [ Opcodes.local_get, 3 ],
+      ...number(TYPE_FLAGS.parity, Valtype.i32),
+      [ Opcodes.i32_or ],
       [ Opcodes.i32_ne ],
       [ Opcodes.if, Blocktype.void ],
         ...number(0, Valtype.i32),
@@ -1335,12 +1339,23 @@ export const BuiltinFuncs = function() {
       // 4. If x is a String, then
       //  a. If x and y have the same length and the same code units in the same positions, return true; otherwise, return false
       [ Opcodes.local_get, 1 ],
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.local_get, 3 ],
+      ...number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.i32_and ],
+      [ Opcodes.if, Blocktype.void ],
+        ...compareStrings(scope, [[ Opcodes.local_get, 0 ]], [[ Opcodes.local_get, 2 ]], [[ Opcodes.local_get, 1 ]], [[ Opcodes.local_get, 3 ]], true),
+        [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      [ Opcodes.local_get, 1 ],
       ...number(TYPES.string, Valtype.i32),
       [ Opcodes.i32_eq ],
       [ Opcodes.local_get, 1 ],
       ...number(TYPES.bytestring, Valtype.i32),
       [ Opcodes.i32_eq ],
-
       [ Opcodes.i32_or ],
       [ Opcodes.if, Blocktype.void ],
         ...compareStrings(scope, [[ Opcodes.local_get, 0 ]], [[ Opcodes.local_get, 2 ]], [[ Opcodes.local_get, 1 ]], [[ Opcodes.local_get, 3 ]]),

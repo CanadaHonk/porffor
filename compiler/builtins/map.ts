@@ -11,6 +11,7 @@ import type {} from './porffor.d.ts';
 //   i8 keyType; // +8
 //   f64 value; // +9
 //   i8 valType; // +17
+//   i32 chain; // +18
 // }
 
 // struct Map {
@@ -163,24 +164,32 @@ export const __Porffor_fnv_1a = (value: any): i64 => {
   const type: i32 = Porffor.rawType(value);
 
   if (type == Porffor.TYPES.bytestring) {
+    Porffor.wasm`
+    i32.const 1
+    local.set ${value+1}` // cast value to number
     let hash: i64 = offsetBasis;
-    let str: bytestring = value;
-    hash = __Porffor_fnv_1a_i32(str.length, hash);
-    for (let i = 0; i < str.length; i += 4) {
-      hash = __Porffor_fnv_1a_i8(Porffor.wasm.i32.load8_u(str + i, 0, 4), hash);
+    let strLen: i32 = Porffor.wasm.i32.load(value, 0, 0);
+    hash = __Porffor_fnv_1a_i32(strLen, hash);
+    strLen *= 2;
+    for (let i = 0; i < strLen; i += 2) {
+      // still i16 as bytestrings and strings should hash to the same value, if they have the same contents
+      hash = __Porffor_fnv_1a_i16(Porffor.wasm.i32.load8_u(value + i, 0, 4), hash);
     }
     return hash;
   } else if (type == Porffor.TYPES.string) {
+    Porffor.wasm`
+    i32.const 1
+    local.set ${value+1}` // cast value to number
     let hash: i64 = offsetBasis;
-    let str: bytestring = value;
-    hash = __Porffor_fnv_1a_i32(str.length, hash);
-    for (let i = 0; i < str.length; i += 4) {
-      hash = __Porffor_fnv_1a_i16(Porffor.wasm.i32.load8_u(str + i, 0, 4), hash);
+    let strLen: i32 = Porffor.wasm.i32.load(value, 0, 0);
+    hash = __Porffor_fnv_1a_i32(strLen, hash);
+    strLen *= 2;
+    for (let i = 0; i < strLen; i += 2) {
+      hash = __Porffor_fnv_1a_i16(Porffor.wasm.i32.load16_u(value + i, 0, 4), hash);
     }
     return hash;
   }
 
-  // everything else is hashed by value
   let hash: i64 = __Porffor_fnv_1a_i32(value, offsetBasis);
   hash = __Porffor_fnv_1a_i8(type, hash);
   return hash;
@@ -188,11 +197,10 @@ export const __Porffor_fnv_1a = (value: any): i64 => {
 
 export const __Porffor_map_lookup = (_this: Map, key: any, hash: i64): i32 => {
   Porffor.wasm`
-  local entry i32
   local mask i64
-  local endPtr i32
   local thisPtr i32
   local tablePtr i32
+  local entry i32
 
   ;; setup this ptr
   local.get ${_this}
@@ -209,16 +217,6 @@ export const __Porffor_map_lookup = (_this: Map, key: any, hash: i64): i32 => {
   i32.load 0 28
   local.set tablePtr
 
-  ;; setup endptr
-  ;; mask + 1 = size of table
-  local.get mask
-  i32.wrap_i64
-  i32.const 1
-  i32.add
-  local.get tablePtr
-  i32.add
-  local.set endPtr
-
   ;; tablePtr + (hash & mask) * sizeof(i32)
   local.get ${hash}
   i64.reinterpret_f64
@@ -229,64 +227,65 @@ export const __Porffor_map_lookup = (_this: Map, key: any, hash: i64): i32 => {
   i32.mul
   local.get tablePtr
   i32.add
-
-  ;; load the first entry
-  i32.load 0 0
   local.set entry
 
   loop void
-    ;; entry.key
     local.get entry
-    f64.load 0 0
-    ;; entry.keyType
-    local.get entry
-    i32.load8_u 0 8
-    local.get ${key}
-    local.get ${key+1}
-
-    call __ecma262_SameValueZero
+    i32.load 0 0
+    local.tee entry
+    ;; entry != 0
+    i32.const 0
+    i32.ne
     if void
-      ;; return entry as a number (0x01 is TYPES.number)
+      ;; entry.key
+      local.get entry
+      f64.load 0 0
+      ;; entry.keyType
+      local.get entry
+      i32.load8_u 0 8
+
+      local.get ${key}
+      local.get ${key+1}
+
+      call __ecma262_SameValueZero
+      if void
       local.get entry
       i32.from_u
       i32.const 1
       return
-    end
+      end
 
-    ;; entry += sizeof(i32)
-    i32.const 4
-    local.get entry
-    i32.add
-    local.tee entry
+      ;; entry = entry.chain
+      local.get entry
+      i32.load 0 18
+      local.get entry
 
-    ;; e < endPtr
-    local.get endPtr
-    i32.lt_u
-    if void
       br 1
     end
-  end
-
-  ;; return 0 as a number (0x01 is TYPES.number)
-  i32.const 0
-  i32.from_u
-  i32.const 1
-  return`
+  end`
+  return 0;
 };
 
 export const __Porffor_map_rehash = (_this: Map, newTableMask: i64) => {
   const newCapacity: i64 = (newTableMask + 1) * (8/3);
   const entriesPtr: i32 = Porffor.wasm.i32.load(_this, 0, 32);
   const newTablePtr: i32 = Porffor.allocateBytes(4 * (newTableMask + 1)) // sizeof(i32) * (new_table_mask + 1);
-  let newEntriesPtr: i32 = Porffor.allocateBytes(18 * newCapacity) // sizeof(Entry) * new_capacity;
+  let newEntriesPtr: i32 = Porffor.allocateBytes(24 * newCapacity) // sizeof(Entry) * new_capacity;
 
-  const endPtr: i32 = entriesPtr + 18 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
-  for (let entry = Porffor.wasm.i32.load(entriesPtr, 0, 0); entry < endPtr; entry += 18) { // sizeof(Entry)
+  const endPtr: i32 = entriesPtr + 24 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
+  for (let entry = entriesPtr; entry < endPtr; entry += 24) { // sizeof(Entry)
     const key: f64 = Porffor.wasm.f64.load(entry, 0, 0);
     const keyType: i32 = Porffor.wasm.i32.load8_u(entry, 0, 8);
     if (keyType != Porffor.TYPES.empty) {
       const hash: i64 = __Porffor_fnv_1a(key);
+
+      Porffor.wasm.f64.store(newEntriesPtr, key, 0, 0); // entry.key
+      Porffor.wasm.i32.store8(newEntriesPtr, keyType, 0, 8); // entry.keyType
+      Porffor.wasm.f64.store(newEntriesPtr, Porffor.wasm.f64.load(entry, 0, 9), 0, 9); // entry.value
+      Porffor.wasm.i32.store8(newEntriesPtr, Porffor.wasm.i32.load8_u(entry, 0, 17), 0, 17); // entry.valueType
+
       Porffor.wasm`
+      local index i32
       ;; hash & newTableMask
       local.get ${hash}
       i64.reinterpret_f64
@@ -297,23 +296,33 @@ export const __Porffor_map_rehash = (_this: Map, newTableMask: i64) => {
       i32.wrap_i64
       i32.const 4
       i32.mul
+      local.tee index
       local.get ${newTablePtr}
       i32.to_u
       i32.add
       local.get ${entry}
       i32.to_u
-      i32.store 0 0`;
+      i32.store 0 0
+      ;; set entry.chain
+      local.get ${newEntriesPtr}
+      i32.to_u
+      local.get index
+      i32.store 0 18`;
 
-      Porffor.wasm.f64.store(newEntriesPtr, key, 0, 0); // entry.key
-      Porffor.wasm.i32.store8(newEntriesPtr, keyType, 0, 8); // entry.keyType
-      Porffor.wasm.f64.store(newEntriesPtr, Porffor.wasm.f64.load(entry, 0, 9), 0, 9); // entry.value
-      Porffor.wasm.i32.store8(newEntriesPtr, Porffor.wasm.i32.load8_u(entry, 0, 17), 0, 17); // entry.valueType
-      newEntriesPtr += 18; // sizeof(Entry)
+      newEntriesPtr += 24; // sizeof(Entry)
     }
   }
 
   // todo: discard the perviously used memory, requires gc
   Porffor.wasm.i64.store(_this, newTableMask, 0, 4); // table_mask
+  Porffor.wasm`
+  local.get ${_this}
+  i32_to_u
+  local.get ${_this}
+  i32_to_u
+  i32.load 0 0
+  i64.extend_i32_u
+  i64.store 0 12` // entries_length = live_count
   Porffor.wasm.i64.store(_this, newCapacity, 0, 20); // entries_capacity
   Porffor.wasm.i32.store(_this, newTablePtr, 0, 28); // table
   Porffor.wasm.i32.store(_this, entriesPtr, 0, 32); // entries
@@ -361,15 +370,16 @@ export const __Map_prototype_set = (_this: Map, key: any, value: any) => {
 
 
     Porffor.wasm.i32.store(_this, Porffor.wasm.i32.load(_this, 0, 0) + 1, 0, 0); // live_count++;
-    entry = entries + 18 * entries_length; // entry = entries + sizeof(Entry) * entries_length;
+    entry = entries + 24 * entries_length; // entry = entries + sizeof(Entry) * entries_length;
     Porffor.wasm.i32.store(_this, entries_length + 1, 0, 12); // entries_length++
 
     Porffor.wasm.f64.store(entry, key, 0, 0); // entry.key
-    Porffor.wasm.i32.store(entry, Porffor.rawType(key), 0, 8); // entry.keyType
+    Porffor.wasm.i32.store8(entry, Porffor.rawType(key), 0, 8); // entry.keyType
     Porffor.wasm.f64.store(entry, value, 0, 9); // entry.value
-    Porffor.wasm.i32.store(entry, Porffor.rawType(value), 0, 17); // entry.valueType
+    Porffor.wasm.i32.store8(entry, Porffor.rawType(value), 0, 17); // entry.valueType
 
     Porffor.wasm`
+    local index i32
     ;; get table ptr
     local.get ${_this}
     i32.to_u
@@ -384,10 +394,16 @@ export const __Map_prototype_set = (_this: Map, key: any, value: any) => {
     i32.const 4
     i32.mul
     i32.add
+    local.tee index
     ;; table[...] = entry
     local.get ${entry}
     i32.to_u
-    i32.store 0 0`
+    i32.store 0 0
+    ;; set entry.chain
+    local.get ${entry}
+    i32.to_u
+    local.get index
+    i32.store 0 18`
   }
 
   return _this;
@@ -429,7 +445,7 @@ export const __Map_prototype_clear = (_this: Map) => {
 
   const tablePtr: i32 = Porffor.allocateBytes(4 * 4) // sizeof(i32) * buckets;
   Porffor.wasm.i32.store(_this, tablePtr, 0, 28); // table
-  const entriesPtr: i32 = Porffor.allocateBytes(18 * entries_capacity) // sizeof(Entry) * entries_capacity;
+  const entriesPtr: i32 = Porffor.allocateBytes(24 * entries_capacity) // sizeof(Entry) * entries_capacity;
   Porffor.wasm.i32.store(_this, entriesPtr, 0, 32); // entries
 
   return;
@@ -455,8 +471,8 @@ export const Map = function (iterable: any): Map {
 export const __Map_prototype_forEach = (_this: Map, callbackFn: any) => {
   const entriesPtr: i32 = Porffor.wasm.i32.load(_this, 0, 32);
 
-  const endPtr: i32 = entriesPtr + 18 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
-  for (let e = entriesPtr; e < endPtr; e += 18) { // sizeof(Entry)
+  const endPtr: i32 = entriesPtr + 24 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
+  for (let e = entriesPtr; e < endPtr; e += 24) { // sizeof(Entry)
     let key: any = undefined;
     let value: any = undefined;
     Porffor.wasm`
@@ -506,8 +522,8 @@ export const __Map_prototype_values = (_this: Map) => {
   i32.add
   local.set elePtr`;
 
-  const endPtr: i32 = entriesPtr + 18 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
-  for (let e = entriesPtr; e < endPtr; e += 18) { // sizeof(Entry)
+  const endPtr: i32 = entriesPtr + 24 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
+  for (let e = entriesPtr; e < endPtr; e += 24) { // sizeof(Entry)
     Porffor.wasm`
     local value f64
     local valType i32
@@ -571,8 +587,8 @@ export const __Map_prototype_keys = (_this: Map) => {
   i32.add
   local.set elePtr`;
 
-  const endPtr: i32 = entriesPtr + 18 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
-  for (let e = entriesPtr; e < endPtr; e += 18) { // sizeof(Entry)
+  const endPtr: i32 = entriesPtr + 24 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
+  for (let e = entriesPtr; e < endPtr; e += 24) { // sizeof(Entry)
     Porffor.wasm`
     local key f64
     local keyType i32

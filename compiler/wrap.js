@@ -165,10 +165,10 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
       const entriesPtr = (new Uint32Array(memory.buffer, value + 32, 1))[0];
       const entriesCapacity = new Uint32Array(memory.buffer, value + 20, 2);
 
-      const endPtr = entriesPtr + 18 * ((entriesCapacity[1] << 32) + entriesCapacity[0]);
+      const endPtr = entriesPtr + 24 * ((entriesCapacity[1] << 32) + entriesCapacity[0]); // entriesPtr + sizeof(Entry) * entriesCapacity
 
       const out = new Map();
-      for (let e = entriesPtr; e < endPtr; e += 18) {
+      for (let e = entriesPtr; e < endPtr; e += 24) {
         const kValue = (new Float64Array(memory.buffer.slice(e, e + 8), 0, 1))[0];
         const kType = (new Uint8Array(memory.buffer, e + 8, 1))[0];
         if (kType === 0) continue;

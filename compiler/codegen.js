@@ -186,8 +186,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
               continue;
             }
 
-            if (asm[0] === 'loop' || asm[0] === 'if') {
-              if (asm[1] === 'void' ) {
+            if (asm[0] === 'loop' || asm[0] === 'if' || asm[0] == 'block') {
+              if (asm[1] === 'void') {
                 out.push([ Opcodes[asm[0]], Blocktype.void ]);
               } else {
                 out.push([ Opcodes[asm[0]], Valtype[asm[1]] ]);
