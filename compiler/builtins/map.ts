@@ -416,8 +416,6 @@ export const __Map_prototype_delete = (_this: Map, key: any): boolean => {
   Porffor.wasm.i32.store(_this, new_size, 0, 0); // live_count--;
   Porffor.wasm.f64.store(entry, 0, 0, 0); // entry.key = 0;
   Porffor.wasm.i32.store8(entry, 0, 0, 8); // entry.keyType = 0;
-  Porffor.wasm.f64.store(entry, 0, 0, 9); // entry.value = 0;
-  Porffor.wasm.i32.store8(entry, 0, 0, 17); // entry.valType = 0;
   const table_mask: i64 = Porffor.wasm.i64.load(_this, 0, 4);
   const entries_length: i64 = Porffor.wasm.i64.load(_this, 0, 12);
 
@@ -436,6 +434,22 @@ export const __Map_prototype_size$get = (_this: Map) => {
 };
 
 export const __Map_prototype_clear = (_this: Map) => {
+  const entriesPtr: i32 = Porffor.wasm.i32.load(_this, 0, 32);
+
+  const endPtr: i32 = entriesPtr + 24 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
+  for (let e = entriesPtr; e < endPtr; e += 24) { // sizeof(Entry)
+    // entry.keyType = TYPES.empty
+    Porffor.wasm.i32.store8(e, Porffor.TYPES.empty, 0, 8);
+  };
+
+  return;
+};
+
+export const Map = function (iterable: any): Map {
+  if (!new.target) throw new TypeError("Constructor Map requires 'new' ");
+
+  const _this: Map = Porffor.allocateBytes(36); // sizeof(Map)
+
   // todo: discard the perviously used memory, requires gc
   Porffor.wasm.i32.store(_this, 0, 0, 0); // live_count
   Porffor.wasm.i64.store(_this, 3, 0, 4); // table_mask
@@ -447,16 +461,6 @@ export const __Map_prototype_clear = (_this: Map) => {
   Porffor.wasm.i32.store(_this, tablePtr, 0, 28); // table
   const entriesPtr: i32 = Porffor.allocateBytes(24 * entries_capacity) // sizeof(Entry) * entries_capacity;
   Porffor.wasm.i32.store(_this, entriesPtr, 0, 32); // entries
-
-  return;
-};
-
-export const Map = function (iterable: any): Map {
-  if (!new.target) throw new TypeError("Constructor Map requires 'new' ");
-
-  const _this: Map = Porffor.allocateBytes(36); // sizeof(Map)
-
-  __Map_prototype_clear(_this);
 
   if (Porffor.fastAnd(
     Porffor.rawType(iterable) != Porffor.TYPES.undefined,
@@ -525,18 +529,6 @@ export const __Map_prototype_values = (_this: Map) => {
   const endPtr: i32 = entriesPtr + 24 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
   for (let e = entriesPtr; e < endPtr; e += 24) { // sizeof(Entry)
     Porffor.wasm`
-    local value f64
-    local valType i32
-    ;; get entry.value and write it
-    local.get ${e}
-    i32.to_u
-    f64.load 0 9
-    local.set value
-    ;; get entry.valType and write it
-    local.get ${e}
-    i32.to_u
-    i32.load8_u 0 17
-    local.set valType
     ;; get entry.keyType
     local.get ${e}
     i32.to_u
@@ -545,11 +537,17 @@ export const __Map_prototype_values = (_this: Map) => {
     i32.const 0
     i32.ne
     if void
+      ;; get entry.value and write it
       local.get elePtr
-      local.get value
+      local.get ${e}
+      i32.to_u
+      f64.load 0 9
       f64.store 0 0
+      ;; get entry.valType and write it
       local.get elePtr
-      local.get valType
+      local.get ${e}
+      i32.to_u
+      i32.load8_u 0 17
       i32.store8 0 8
       ;; increment length
       local.get len
@@ -590,13 +588,7 @@ export const __Map_prototype_keys = (_this: Map) => {
   const endPtr: i32 = entriesPtr + 24 * Porffor.wasm.i64.load(_this, 0, 20); // entriesPtr + sizeof(Entry) * entries_capacity
   for (let e = entriesPtr; e < endPtr; e += 24) { // sizeof(Entry)
     Porffor.wasm`
-    local key f64
     local keyType i32
-    ;; get entry.key and write it
-    local.get ${e}
-    i32.to_u
-    f64.load 0 0
-    local.set key
     ;; get entry.keyType and write it
     local.get ${e}
     i32.to_u
@@ -606,8 +598,11 @@ export const __Map_prototype_keys = (_this: Map) => {
     i32.const 0
     i32.ne
     if void
+      ;; get entry.key and write it
       local.get elePtr
-      local.get key
+      local.get ${e}
+      i32.to_u
+      f64.load 0 0
       f64.store 0 0
       local.get elePtr
       local.get keyType
