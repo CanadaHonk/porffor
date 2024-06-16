@@ -416,14 +416,14 @@ if (isMainThread) {
 
     if (!error) try {
       // only timeout some due to big perf impact
-      if (
-        file.includes('while/') || file.includes('for/') || file.includes('continue/') || file.includes('break/') ||
-        file.includes('pow/') || file.includes('exponentiation/') || file.includes('generator/') ||
-        file.includes('encodeURI/') || file.includes('parseInt/') ||
-        file.endsWith('NumberFormat/constructor-unit.js')
-      ) timeout(exports.main, 1000);
-        else exports.main();
-      // timeout(exports.main, 1000);
+      // if (
+      //   file.includes('while/') || file.includes('for/') || file.includes('continue/') || file.includes('break/') ||
+      //   file.includes('pow/') || file.includes('exponentiation/') || file.includes('generator/') ||
+      //   file.includes('encodeURI/') || file.includes('parseInt/') ||
+      //   file.endsWith('NumberFormat/constructor-unit.js')
+      // ) timeout(exports.main, 1000);
+      //   else exports.main();
+      timeout(exports.main, 500);
 
       stage = 2;
     } catch (e) {

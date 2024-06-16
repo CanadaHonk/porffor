@@ -10,16 +10,26 @@ const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) 
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 
+const checkOOB = (memory, ptr) => ptr >= memory.buffer.byteLength;
+
+let dv;
+const read = (ta, memory, ptr, length) => {
+  if (ta === Uint8Array) return new Uint8Array(memory.buffer, ptr, length);
+  return new ta(memory.buffer.slice(ptr, ptr + length * ta.BYTES_PER_ELEMENT), 0, length);
+};
+
 export const readByteStr = (memory, ptr) => {
-  const length = (new Uint32Array(memory.buffer, ptr, 1))[0];
-  return Array.from(new Uint8Array(memory.buffer, ptr + 4, length)).map(x => String.fromCharCode(x)).join('');
+  const length = read(Uint32Array, memory, ptr, 1)[0];
+  return Array.from(read(Uint8Array, memory, ptr + 4, length)).map(x => String.fromCharCode(x)).join('');
 };
 
 export const writeByteStr = (memory, ptr, str) => {
   const length = str.length;
-  (new Uint32Array(memory.buffer, ptr, 1))[0] = length;
 
-  const arr = new Uint8Array(memory.buffer, ptr + 4, length);
+  if (dv.memory !== memory) dv = new DataView(memory.buffer);
+  dv.setUint32(ptr, length, true);
+
+  const arr = read(Uint8Array, memory, ptr + 4, length);
   for (let i = 0; i < length; i++) {
     arr[i] = str.charCodeAt(i);
   }
@@ -32,7 +42,31 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
       return undefined;
 
     case TYPES.boolean: return Boolean(value);
-    case TYPES.object: return value === 0 ? null : {};
+    case TYPES.object: {
+      if (value === 0 || checkOOB(memory, value)) return null;
+
+      const [ keysPtr, valsPtr ] = read(Uint32Array, memory, value, 2);
+      if (checkOOB(memory, keysPtr) || checkOOB(memory, valsPtr)) return null;
+
+      const size = read(Uint32Array, memory, keysPtr, 1);
+
+      const out = {};
+      for (let i = 0; i < size; i++) {
+        const offset = 4 + (i * 9);
+
+        const kValue = read(Float64Array, memory, keysPtr + offset, 1)[0];
+        const kType = read(Uint8Array, memory, keysPtr + offset + 8, 1)[0];
+        const k = porfToJSValue({ memory, funcs, pages }, kValue, kType);
+
+        const vValue = read(Float64Array, memory, valsPtr + offset, 1)[0];
+        const vType = read(Uint8Array, memory, valsPtr + offset + 8, 1)[0];
+        const v = porfToJSValue({ memory, funcs, pages }, vValue, vType);
+
+        out[k] = v;
+      }
+
+      return out;
+    }
 
     case TYPES.function: {
       let func;
@@ -49,29 +83,24 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     }
 
     case TYPES.string: {
-      const length = (new Uint32Array(memory.buffer, value, 1))[0];
-      return Array.from(new Uint16Array(memory.buffer, value + 4, length)).map(x => String.fromCharCode(x)).join('');
+      const length = read(Uint32Array, memory, value, 1)[0];
+      return Array.from(read(Uint16Array, memory, value + 4, length)).map(x => String.fromCharCode(x)).join('');
     }
 
     case TYPES.bytestring: {
-      const length = (new Uint32Array(memory.buffer, value, 1))[0];
-      return Array.from(new Uint8Array(memory.buffer, value + 4, length)).map(x => String.fromCharCode(x)).join('');
+      const length = read(Uint32Array, memory, value, 1)[0];
+      return Array.from(read(Uint8Array, memory, value + 4, length)).map(x => String.fromCharCode(x)).join('');
     }
 
     case TYPES.array: {
-      const length = (new Uint32Array(memory.buffer, value, 1))[0];
+      const length = read(Uint32Array, memory, value, 1)[0];
 
       const out = [];
       for (let i = 0; i < length; i++) {
         const offset = value + 4 + (i * 9);
 
-        // have to slice because of memory alignment (?)
-        const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
-        const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
-
-        // console.log(`reading value at index ${i}...`)
-        // console.log('  memory:', Array.from(new Uint8Array(memory.buffer, offset, 9)).map(x => x.toString(16).padStart(2, '0')).join(' '));
-        // console.log('  read:', { value: v, type: t }, '\n');
+        const v = read(Float64Array, memory, offset, 1)[0];
+        const t = read(Uint8Array, memory, offset + 8, 1)[0];
 
         out.push(porfToJSValue({ memory, funcs, pages }, v, t));
       }
@@ -80,7 +109,7 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     }
 
     case TYPES.date: {
-      const t = (new Float64Array(memory.buffer, value, 1))[0];
+      const t = read(Float64Array, memory, value, 1)[0];
       return new Date(t);
     }
 
@@ -90,15 +119,15 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
 
       const offset = descStore + 4 + ((value - 1) * 9);
 
-      const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
-      const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
+      const v = read(Float64Array, memory, offset, 1)[0];
+      const t = read(Uint8Array, memory, offset + 8, 1)[0];
 
       const desc = porfToJSValue({ memory, funcs, pages }, v, t);
       return Symbol(desc);
     }
 
     case TYPES.arraybuffer: {
-      const length = (new Uint32Array(memory.buffer.slice(value, value + 4), 0, 1))[0];
+      const length = read(Uint32Array, memory, value, 1)[0];
       if (length === 4294967295) {
         // mock detached
         const buf = new ArrayBuffer(0);
@@ -110,16 +139,16 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     }
 
     case TYPES.sharedarraybuffer: {
-      const length = (new Uint32Array(memory.buffer.slice(value, value + 4), 0, 1))[0];
+      const length = read(Uint32Array, memory, value, 1)[0];
       const buf = memory.buffer.slice(value + 4, value + 4 + length);
       buf.shared = true;
       return buf;
     }
 
     case TYPES.dataview: {
-      const [ length, ptr, byteOffset ] = (new Uint32Array(memory.buffer.slice(value, value + 12), 0, 3));
+      const [ length, ptr, byteOffset ] = read(Uint32Array, memory, value, 3);
       const bufferPtr = ptr - byteOffset;
-      const bufferLen = (new Uint32Array(memory.buffer.slice(bufferPtr, bufferPtr + 4), 0, 1))[0];
+      const bufferLen = read(Uint32Array, memory, bufferPtr, 1)[0];
       const buffer = memory.buffer.slice(bufferPtr + 4, bufferPtr + 4 + bufferLen);
       return new DataView(buffer, byteOffset, length);
     }
@@ -133,26 +162,26 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     case TYPES.int32array:
     case TYPES.float32array:
     case TYPES.float64array: {
-      const [ length, ptr ] = (new Uint32Array(memory.buffer.slice(value, value + 8), 0, 2));
-      return new globalThis[TYPE_NAMES[type]](memory.buffer, ptr + 4, length);
+      const [ length, ptr ] = read(Uint32Array, memory, value, 2);
+      return read(globalThis[TYPE_NAMES[type]], memory, ptr + 4, length);
     }
 
     case TYPES.weakref: {
-      const v = (new Float64Array(memory.buffer.slice(value, value + 8), 0, 1))[0];
-      const t = (new Uint8Array(memory.buffer, value + 8, 1))[0];
+      const v = read(Float64Array, memory, value, 1)[0];
+      const t = read(Uint8Array, memory, value + 8, 1)[0];
 
       return new WeakRef(porfToJSValue({ memory, funcs, pages }, v, t));
     }
 
     case TYPES.weakset:
     case TYPES.set: {
-      const size = (new Uint32Array(memory.buffer, value, 1))[0];
+      const size = read(Uint32Array, memory, value, 1)[0];
 
       const out = type === TYPES.weakset ? new WeakSet() : new Set();
       for (let i = 0; i < size; i++) {
         const offset = value + 4 + (i * 9);
-        const v = (new Float64Array(memory.buffer.slice(offset, offset + 8), 0, 1))[0];
-        const t = (new Uint8Array(memory.buffer, offset + 8, 1))[0];
+        const v = read(Float64Array, memory, offset, 1)[0];
+        const t = read(Uint8Array, memory, offset + 8, 1)[0];
 
         out.add(porfToJSValue({ memory, funcs, pages }, v, t));
       }
@@ -162,19 +191,19 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
 
     case TYPES.weakmap:
     case TYPES.map: {
-      const [ keysPtr, valsPtr ] = (new Uint32Array(memory.buffer, value, 2));
-      const size = (new Uint32Array(memory.buffer, keysPtr, 1))[0];
+      const [ keysPtr, valsPtr ] = read(Uint32Array, memory, value, 2);
+      const size = read(Uint32Array, memory, keysPtr, 1)[0];
 
       const out = type === TYPES.weakmap ? new WeakMap() : new Map();
       for (let i = 0; i < size; i++) {
         const offset = 4 + (i * 9);
 
-        const kValue = (new Float64Array(memory.buffer.slice(keysPtr + offset, keysPtr + offset + 8), 0, 1))[0];
-        const kType = (new Uint8Array(memory.buffer, keysPtr + offset + 8, 1))[0];
+        const kValue = read(Float64Array, memory, keysPtr + offset, 1)[0];
+        const kType = read(Uint8Array, memory, keysPtr + offset + 8, 1)[0];
         const k = porfToJSValue({ memory, funcs, pages }, kValue, kType);
 
-        const vValue = (new Float64Array(memory.buffer.slice(valsPtr + offset, valsPtr + offset + 8), 0, 1))[0];
-        const vType = (new Uint8Array(memory.buffer, valsPtr + offset + 8, 1))[0];
+        const vValue = read(Float64Array, memory, valsPtr + offset, 1)[0];
+        const vType = read(Uint8Array, memory, valsPtr + offset + 8, 1)[0];
         const v = porfToJSValue({ memory, funcs, pages }, vValue, vType);
 
         out.set(k, v);

@@ -82,7 +82,10 @@ let prev = '';
 const run = (source, _context, _filename, callback, run = true) => {
   // hack: print "secret" before latest code ran to only enable printing for new code
 
-  let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source.trim();
+  source = source.trim();
+  if (source.startsWith('{') && source.endsWith('}')) source = '(' + source + ')';
+
+  let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source;
 
   let shouldPrint = !prev;
   const { exports, pages } = compile(toRun, [], {}, str => {

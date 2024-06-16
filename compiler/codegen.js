@@ -1341,6 +1341,10 @@ const getNodeType = (scope, node) => {
       return getType(scope, node.name);
     }
 
+    if (node.type === 'ObjectExpression') {
+      return TYPES.object;
+    }
+
     if (node.type === 'CallExpression' || node.type === 'NewExpression') {
       const name = node.callee.name;
       if (!name) {
@@ -1926,7 +1930,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   // TODO: only allows callee as identifier
-  if (!name) return todo(scope, `only identifier callees (got ${decl.callee.type})`);
+  // if (!name) return todo(scope, `only identifier callees (got ${decl.callee.type})`);
 
   let idx = funcIndex[name] ?? importedFuncs[name];
   if (idx === undefined && builtinFuncs[name]) {
@@ -1942,7 +1946,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     return internalConstrs[name].generate(scope, decl, _global, _name);
   }
 
-  if (idx === undefined && !decl._new && name.startsWith('__Porffor_wasm_')) {
+  if (idx === undefined && !decl._new && name && name.startsWith('__Porffor_wasm_')) {
     const wasmOps = {
       // pointer, align, offset
       i32_load: { imms: 2, args: [ true ], returns: 1 },
@@ -1989,162 +1993,171 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (idx === undefined) {
-    if (scope.locals[name] !== undefined || globals[name] !== undefined || builtinVars[name] !== undefined) {
-      const [ local, global ] = lookupName(scope, name);
-      if (!Prefs.indirectCalls || local == null) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
+    if (!Prefs.indirectCalls) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
 
-      // todo: only works when function uses typedParams and typedReturns
+    // todo: only works when function uses typedParams and typedReturns
 
-      const indirectMode = Prefs.indirectCallMode ?? 'vararg';
-      // options: vararg, strict
-      // - strict: simpler, smaller size usage, no func lut needed.
-      //   ONLY works when arg count of call == arg count of function being called
-      // - vararg: large size usage, cursed.
-      //   works when arg count of call != arg count of function being called*
-      //   * most of the time, some edgecases
+    const indirectMode = Prefs.indirectCallMode ?? 'vararg';
+    // options: vararg, strict
+    // - strict: simpler, smaller size usage, no func lut needed.
+    //   ONLY works when arg count of call == arg count of function being called
+    // - vararg: large size usage, cursed.
+    //   works when arg count of call != arg count of function being called*
+    //   * most of the time, some edgecases
 
-      funcs.table = true;
-      scope.table = true;
+    funcs.table = true;
+    scope.table = true;
 
-      let args = decl.arguments;
-      let locals = [];
+    let args = decl.arguments;
+    let locals = [];
+
+    if (indirectMode === 'vararg') {
+      const minArgc = Prefs.indirectCallMinArgc ?? 3;
+
+      if (args.length < minArgc) {
+        args = args.concat(new Array(minArgc - args.length).fill(DEFAULT_VALUE));
+      }
+    }
+
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i];
+      out = out.concat(generate(scope, arg));
+
+      if (valtypeBinary !== Valtype.i32 && (
+        (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32) ||
+        (importedFuncs[name] && name.startsWith('profile'))
+      )) {
+        out.push(Opcodes.i32_to);
+      }
+
+      out = out.concat(getNodeType(scope, arg));
 
       if (indirectMode === 'vararg') {
-        const minArgc = Prefs.indirectCallMinArgc ?? 3;
+        const typeLocal = localTmp(scope, `#indirect_arg${i}_type`, Valtype.i32);
+        const valLocal = localTmp(scope, `#indirect_arg${i}_val`);
 
-        if (args.length < minArgc) {
-          args = args.concat(new Array(minArgc - args.length).fill(DEFAULT_VALUE));
-        }
+        locals.push([valLocal, typeLocal]);
+
+        out.push(
+          [ Opcodes.local_set, typeLocal ],
+          [ Opcodes.local_set, valLocal ]
+        );
       }
+    }
 
-      for (let i = 0; i < args.length; i++) {
-        const arg = args[i];
-        out = out.concat(generate(scope, arg));
+    if (indirectMode === 'strict') {
+      return [
+        ...generate(scope, decl.callee),
+        [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
 
-        if (valtypeBinary !== Valtype.i32 && (
-          (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32) ||
-          (importedFuncs[name] && name.startsWith('profile'))
-        )) {
-          out.push(Opcodes.i32_to);
-        }
-
-        out = out.concat(getNodeType(scope, arg));
-
-        if (indirectMode === 'vararg') {
-          const typeLocal = localTmp(scope, `#indirect_arg${i}_type`, Valtype.i32);
-          const valLocal = localTmp(scope, `#indirect_arg${i}_val`);
-
-          locals.push([valLocal, typeLocal]);
-
-          out.push(
-            [ Opcodes.local_set, typeLocal ],
-            [ Opcodes.local_set, valLocal ]
-          );
-        }
-      }
-
-      if (indirectMode === 'strict') {
-        return typeSwitch(scope, getNodeType(scope, decl.callee), {
+        ...typeSwitch(scope, getNodeType(scope, decl.callee), {
           [TYPES.function]: [
             ...out,
-            [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+
+            [ Opcodes.local_get, localTmp(scope, '#indirect_callee') ],
+            ...generate(scope, decl.callee),
             Opcodes.i32_to_u,
             [ Opcodes.call_indirect, args.length, 0 ],
             ...setLastType(scope)
           ],
           default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
-        });
-      }
+        })
+      ];
+    }
 
-      // hi, I will now explain how vararg mode works:
-      // wasm's indirect_call instruction requires you know the func type at compile-time
-      // since we have varargs (variable argument count), we do not know it.
-      // we could just store args in memory and not use wasm func args,
-      // but that is slow (probably) and breaks js exports.
-      // instead, we generate every* possibility of argc and use different indirect_call
-      // ops for each one, with type depending on argc for that branch.
-      // then we load the argc for the wanted function from a memory lut,
-      // and call the branch with the matching argc we require.
-      // sorry, yes it is very cursed (and size inefficient), but indirect calls
-      // are kind of rare anyway (mostly callbacks) so I am not concerned atm.
-      // *for argc 0-3, in future (todo:) the max number should be
-      // dynamically changed to the max argc of any func in the js file.
+    // hi, I will now explain how vararg mode works:
+    // wasm's indirect_call instruction requires you know the func type at compile-time
+    // since we have varargs (variable argument count), we do not know it.
+    // we could just store args in memory and not use wasm func args,
+    // but that is slow (probably) and breaks js exports.
+    // instead, we generate every* possibility of argc and use different indirect_call
+    // ops for each one, with type depending on argc for that branch.
+    // then we load the argc for the wanted function from a memory lut,
+    // and call the branch with the matching argc we require.
+    // sorry, yes it is very cursed (and size inefficient), but indirect calls
+    // are kind of rare anyway (mostly callbacks) so I am not concerned atm.
+    // *for argc 0-3, in future (todo:) the max number should be
+    // dynamically changed to the max argc of any func in the js file.
 
-      const funcLocal = localTmp(scope, '#indirect_func', Valtype.i32);
-      const flags = localTmp(scope, '#indirect_flags', Valtype.i32);
+    const funcLocal = localTmp(scope, '#indirect_func', Valtype.i32);
+    const flags = localTmp(scope, '#indirect_flags', Valtype.i32);
 
-      const gen = argc => {
-        const argsOut = [];
-        for (let i = 0; i < argc; i++) {
-          argsOut.push(
-            [ Opcodes.local_get, locals[i][0] ],
-            [ Opcodes.local_get, locals[i][1] ]
-          );
-        }
-
-        const checkFlag = (flag, pass, fail) => [
-          [ Opcodes.local_get, flags ],
-          ...number(flag, Valtype.i32),
-          [ Opcodes.i32_and ],
-          [ Opcodes.if, valtypeBinary ],
-          ...pass,
-          [ Opcodes.else ],
-          ...fail,
-          [ Opcodes.end ]
-        ];
-
-        // pain.
-        // return checkFlag(0b10, [ // constr
-        //   [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-        //   ...argsOut,
-        //   [ Opcodes.local_get, funcLocal ],
-        //   [ Opcodes.call_indirect, argc, 0, 'constr' ],
-        //   ...setLastType(scope),
-        // ], [
-        //   ...argsOut,
-        //   [ Opcodes.local_get, funcLocal ],
-        //   [ Opcodes.call_indirect, argc, 0 ],
-        //   ...setLastType(scope),
-        // ]);
-
-        return checkFlag(0b1, // no type return
-          checkFlag(0b10, [ // no type return & constr
-            [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'constr' ],
-          ], [
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc, 0, 'no_type_return' ]
-          ]),
-          checkFlag(0b10, [ // type return & constr
-            [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc, 0, 'constr' ],
-            ...setLastType(scope),
-          ], [
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc, 0 ],
-            ...setLastType(scope),
-          ]),
+    const gen = argc => {
+      const argsOut = [];
+      for (let i = 0; i < argc; i++) {
+        argsOut.push(
+          [ Opcodes.local_get, locals[i][0] ],
+          [ Opcodes.local_get, locals[i][1] ]
         );
-      };
-
-      const tableBc = {};
-      for (let i = 0; i <= args.length; i++) {
-        tableBc[i] = gen(i);
       }
 
-      // todo/perf: check if we should use br_table here or just generate our own big if..elses
+      const checkFlag = (flag, pass, fail) => [
+        [ Opcodes.local_get, flags ],
+        ...number(flag, Valtype.i32),
+        [ Opcodes.i32_and ],
+        [ Opcodes.if, valtypeBinary ],
+        ...pass,
+        [ Opcodes.else ],
+        ...fail,
+        [ Opcodes.end ]
+      ];
 
-      return typeSwitch(scope, getNodeType(scope, decl.callee), {
+      // pain.
+      // return checkFlag(0b10, [ // constr
+      //   [ Opcodes.i32_const, decl._new ? 1 : 0 ],
+      //   ...argsOut,
+      //   [ Opcodes.local_get, funcLocal ],
+      //   [ Opcodes.call_indirect, argc, 0, 'constr' ],
+      //   ...setLastType(scope),
+      // ], [
+      //   ...argsOut,
+      //   [ Opcodes.local_get, funcLocal ],
+      //   [ Opcodes.call_indirect, argc, 0 ],
+      //   ...setLastType(scope),
+      // ]);
+
+      return checkFlag(0b1, // no type return
+        checkFlag(0b10, [ // no type return & constr
+          [ Opcodes.i32_const, decl._new ? 1 : 0 ],
+          ...argsOut,
+          [ Opcodes.local_get, funcLocal ],
+          [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'constr' ],
+        ], [
+          ...argsOut,
+          [ Opcodes.local_get, funcLocal ],
+          [ Opcodes.call_indirect, argc, 0, 'no_type_return' ]
+        ]),
+        checkFlag(0b10, [ // type return & constr
+          [ Opcodes.i32_const, decl._new ? 1 : 0 ],
+          ...argsOut,
+          [ Opcodes.local_get, funcLocal ],
+          [ Opcodes.call_indirect, argc, 0, 'constr' ],
+          ...setLastType(scope),
+        ], [
+          ...argsOut,
+          [ Opcodes.local_get, funcLocal ],
+          [ Opcodes.call_indirect, argc, 0 ],
+          ...setLastType(scope),
+        ]),
+      );
+    };
+
+    const tableBc = {};
+    for (let i = 0; i <= args.length; i++) {
+      tableBc[i] = gen(i);
+    }
+
+    // todo/perf: check if we should use br_table here or just generate our own big if..elses
+
+    return [
+      ...generate(scope, decl.callee),
+      [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
+
+      ...typeSwitch(scope, getNodeType(scope, decl.callee), {
         [TYPES.function]: [
           ...out,
 
-          [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+          [ Opcodes.local_get, localTmp(scope, '#indirect_callee') ],
           Opcodes.i32_to_u,
           [ Opcodes.local_set, funcLocal ],
 
@@ -2177,10 +2190,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           ], tableBc, valtypeBinary)
         ],
         default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
-      });
-    }
-
-    return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
+      })
+    ];
   }
 
   const func = funcs[idx - importedFuncs.length]; // idx === scope.index ? scope : funcs.find(x => x.index === idx);
@@ -2296,6 +2307,8 @@ const codeToSanitizedStr = code => {
 const sanitize = str => str.replace(/[^0-9a-zA-Z_]/g, _ => codeToSanitizedStr(_.charCodeAt(0)));
 
 const unhackName = name => {
+  if (!name) return name;
+
   if (name.startsWith('__')) return name.slice(2).replaceAll('_', '.');
   return name;
 };
@@ -2702,22 +2715,22 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
   const [ local, isGlobal ] = lookupName(scope, name);
 
-  if (isFuncType(decl.right.type)) {
-    // hack for a = function () { ... }
-    decl.right.id = { name };
+  // if (isFuncType(decl.right.type)) {
+  //   // hack for a = function () { ... }
+  //   decl.right.id = { name };
 
-    const func = generateFunc(scope, decl.right);
+  //   const func = generateFunc(scope, decl.right);
 
-    return [
-      ...number(func.index - importedFuncs.length),
-      ...(local != null ? [
-        [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
-        [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+  //   return [
+  //     ...number(func.index - importedFuncs.length),
+  //     ...(local != null ? [
+  //       [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+  //       [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
 
-        ...setType(scope, name, TYPES.function)
-      ] : [])
-    ];
-  }
+  //       ...setType(scope, name, TYPES.function)
+  //     ] : [])
+  //   ];
+  // }
 
   const op = decl.operator.slice(0, -1) || '=';
 
@@ -2746,18 +2759,27 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   }
 
   // arr[i]
-  if (decl.left.type === 'MemberExpression' && decl.left.computed) {
+  if (decl.left.type === 'MemberExpression') {
     const newValueTmp = localTmp(scope, '#member_setter_val_tmp');
     const pointerTmp = localTmp(scope, '#member_setter_ptr_tmp', Valtype.i32);
+
+    const object = decl.left.object;
+    const property = decl.left.computed ? decl.left.property : {
+      type: 'Literal',
+      value: decl.left.property.name
+    };
+
+    includeBuiltin(scope, '__Map_prototype_get');
+    includeBuiltin(scope, '__Map_prototype_set');
 
     return [
       ...typeSwitch(scope, getNodeType(scope, decl.left.object), {
         [TYPES.array]: [
-          ...generate(scope, decl.left.object),
+          ...generate(scope, object),
           Opcodes.i32_to_u,
 
           // get index as valtype
-          ...generate(scope, decl.left.property),
+          ...generate(scope, property),
           Opcodes.i32_to_u,
 
           // turn into byte offset by * valtypeSize + 1
@@ -2779,6 +2801,34 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           [ Opcodes.local_get, pointerTmp ],
           ...getNodeType(scope, decl),
           [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
+        ],
+
+        [TYPES.object]: [
+          ...generate(scope, object),
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object') ] ]),
+          ...getNodeType(scope, object),
+
+          ...generate(scope, property),
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_property') ] ]),
+          ...getNodeType(scope, property),
+
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, localTmp(scope, '#objset_object') ],
+            ...getNodeType(scope, object),
+
+            [ Opcodes.local_get, localTmp(scope, '#objset_property') ],
+            ...getNodeType(scope, property),
+
+            [ Opcodes.call, funcIndex.__Map_prototype_get ],
+            ...setLastType(scope)
+          ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
+          [ Opcodes.local_tee, newValueTmp ],
+          ...getNodeType(scope, decl),
+
+          [ Opcodes.call, funcIndex.__Map_prototype_set ],
+          [ Opcodes.drop ],
+
+          ...setLastType(scope, getNodeType(scope, decl)),
         ],
 
         ...wrapBC({
@@ -2924,11 +2974,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ],
         }, {
           prelude: [
-            ...generate(scope, decl.left.object),
+            ...generate(scope, object),
             Opcodes.i32_to_u,
             [ Opcodes.i32_load, 0, 4 ],
 
-            ...generate(scope, decl.left.property),
+            ...generate(scope, property),
             Opcodes.i32_to_u,
           ],
           postlude: setLastType(scope, TYPES.number)
@@ -2957,7 +3007,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // set global and return (eg a = 2)
     return [
       ...generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name }, init: decl.right } ] }),
-      [ Opcodes.global_get, globals[name].idx ]
+      ...generate(scope, decl.left)
     ];
   }
 
@@ -4193,12 +4243,50 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
 };
 
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
-  if (decl.properties.length > 0) return todo(scope, 'objects are not supported yet', true);
+  if (!funcIndex.Map) includeBuiltin(scope, 'Map');
+  if (!funcIndex.__Map_prototype_set) includeBuiltin(scope, '__Map_prototype_set');
 
-  return [
-    ...number(1),
-    ...setLastType(scope, TYPES.object)
+  // todo: optimize const objects
+  const tmp = localTmp(scope, `#objectexpr${randId()}`);
+  const out = [
+    ...generateCall(scope, {
+      callee: {
+        type: 'Identifier',
+        name: 'Map'
+      },
+      arguments: [],
+      _new: true
+    }),
+    [ Opcodes.local_tee, tmp ]
   ];
+
+  for (const x of decl.properties) {
+    const { method, shorthand, computed, kind, key, value } = x;
+    if (method || shorthand || kind !== 'init' || key.type !== 'Identifier') return todo(scope, 'complex objects are not supported yet', true);
+
+    const k = computed ? key : {
+      type: 'Literal',
+      value: key.name
+    };
+
+    out.push(
+      [ Opcodes.local_get, tmp ],
+      ...number(TYPES.map, Valtype.i32),
+
+      ...generate(scope, k),
+      ...getNodeType(scope, k),
+
+      ...generate(scope, value),
+      ...getNodeType(scope, value),
+
+      [ Opcodes.call, funcIndex.__Map_prototype_set ],
+
+      [ Opcodes.drop ],
+      [ Opcodes.drop ]
+    );
+  }
+
+  return out;
 };
 
 const withType = (scope, wasm, type) => [
@@ -4323,14 +4411,19 @@ const generateMember = (scope, decl, _global, _name) => {
     }, valtypeBinary);
   }
 
-  const object = generate(scope, decl.object);
-  const property = generate(scope, decl.property);
+  const object = decl.object;
+  const objectWasm = generate(scope, object);
+  const property = decl.computed ? decl.property : {
+    type: 'Literal',
+    value: decl.property.name
+  };
+  const propertyWasm = generate(scope, property);
 
   // // todo: we should only do this for strings but we don't know at compile-time :(
   // hack: this is naughty and will break things!
   let newOut = number(0, Valtype.i32), newPointer = number(0, Valtype.i32);
 
-  const known = knownType(scope, getNodeType(scope, decl.object));
+  const known = knownType(scope, getNodeType(scope, object));
   if ((known === TYPES.string || known === TYPES.bytestring) || (pages.hasAnyString && known == null)) {
     // todo: we use i16 even for bytestrings which should not make a bad thing happen, just be confusing for debugging?
     0, [ newOut, newPointer ] = makeArray(scope, {
@@ -4338,11 +4431,14 @@ const generateMember = (scope, decl, _global, _name) => {
     }, _global, _name, true, 'i16', true);
   }
 
-  return typeSwitch(scope, getNodeType(scope, decl.object), {
+  includeBuiltin(scope, '__Map_prototype_get');
+
+  return typeSwitch(scope, getNodeType(scope, object), {
     [TYPES.array]: [
-      ...loadArray(scope, object, property),
+      ...loadArray(scope, objectWasm, propertyWasm),
       ...setLastType(scope)
     ],
+
     [TYPES.string]: [
       // setup new/out array
       ...newOut,
@@ -4354,13 +4450,13 @@ const generateMember = (scope, decl, _global, _name) => {
       // use as pointer for store later
       ...newPointer,
 
-      ...property,
+      ...propertyWasm,
       Opcodes.i32_to_u,
 
       ...number(ValtypeSize.i16, Valtype.i32),
       [ Opcodes.i32_mul ],
 
-      ...object,
+      ...objectWasm,
       Opcodes.i32_to_u,
       [ Opcodes.i32_add ],
 
@@ -4375,6 +4471,7 @@ const generateMember = (scope, decl, _global, _name) => {
       Opcodes.i32_from_u,
       ...setLastType(scope, TYPES.string)
     ],
+
     [TYPES.bytestring]: [
       // setup new/out array
       ...newOut,
@@ -4386,10 +4483,10 @@ const generateMember = (scope, decl, _global, _name) => {
       // use as pointer for store later
       ...newPointer,
 
-      ...property,
+      ...propertyWasm,
       Opcodes.i32_to_u,
 
-      ...object,
+      ...objectWasm,
       Opcodes.i32_to_u,
       [ Opcodes.i32_add ],
 
@@ -4403,6 +4500,17 @@ const generateMember = (scope, decl, _global, _name) => {
       ...newPointer,
       Opcodes.i32_from_u,
       ...setLastType(scope, TYPES.bytestring)
+    ],
+
+    [TYPES.object]: [
+      ...objectWasm,
+      ...getNodeType(scope, object),
+
+      ...propertyWasm,
+      ...getNodeType(scope, property),
+
+      [ Opcodes.call, funcIndex.__Map_prototype_get ],
+      ...setLastType(scope)
     ],
 
     ...wrapBC({
@@ -4473,22 +4581,23 @@ const generateMember = (scope, decl, _global, _name) => {
       ],
     }, {
       prelude: [
-        ...object,
+        ...objectWasm,
         Opcodes.i32_to_u,
         [ Opcodes.i32_load, 0, 4 ],
 
-        ...property,
+        ...propertyWasm,
         Opcodes.i32_to_u
       ],
       postlude: setLastType(scope, TYPES.number)
     }),
 
-    default: internalThrow(scope, 'TypeError', 'Member expression is not supported for non-string non-array yet', true)
+    default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
   });
 };
 
 const randId = () => Math.random().toString(16).slice(1, -2).padEnd(12, '0');
 
+let objectHackers = [];
 const objectHack = node => {
   if (!node) return node;
 
@@ -4503,15 +4612,9 @@ const objectHack = node => {
       if (objectName && ['undefined', 'null', 'NaN', 'Infinity'].includes(objectName)) return;
 
       if (!objectName) objectName = objectHack(node.object)?.name?.slice?.(2);
-
-      // if .name or .length, give up (hack within a hack!)
-      if (['name', 'length', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength'].includes(node.property.name)) {
-        node.object = objectHack(node.object);
+      if (!objectName || (!objectHackers.includes(objectName) && !objectHackers.some(x => objectName.startsWith(`${x}_`)))) {
         return;
       }
-
-      // no object name, give up
-      if (!objectName) return;
 
       const name = '__' + objectName + '_' + node.property.name;
       if (Prefs.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
@@ -4860,6 +4963,9 @@ export default program => {
   builtinVars = new BuiltinVars();
   prototypeFuncs = new PrototypeFuncs();
   allocator = makeAllocator(Prefs.allocator ?? 'static');
+
+  const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
+  objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
 
   program.id = { name: 'main' };
 
