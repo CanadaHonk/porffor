@@ -12,7 +12,7 @@ for (let i = 0; i < log.length; i++) {
   let j = i;
   while (!title) {
     const y = log[--j];
-    if (!y.includes(': ')) continue;
+    if (!y.includes(': ') || y.includes('also: ')) continue;
     title = y;
   }
 
