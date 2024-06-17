@@ -12,7 +12,7 @@ import { join } from 'node:path';
 const __dirname = import.meta.dirname;
 const __filename = join(__dirname, 'index.js');
 
-const resultOnly = process.env.RESULT_ONLY;
+let resultOnly = process.env.RESULT_ONLY;
 
 if (isMainThread) {
   const veryStart = performance.now();
@@ -337,6 +337,10 @@ if (isMainThread) {
       console.log(`${x}: ${(profileStats[n++] / 1000).toFixed(2)}s`);
     }
   }
+
+  resultOnly = true;
+  process.stdout.write(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | `);
+  table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
 } else {
   const { queue, tests, preludes, argv } = workerData;
 
