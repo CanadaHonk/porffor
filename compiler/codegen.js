@@ -1231,12 +1231,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
   return func;
 };
 
-const includeBuiltin = (scope, builtin) => {
-  const code = builtinFuncs[builtin];
-  if (code.wasm) return asmFunc(builtin, code);
-
-  return code.body.map(x => generate(scope, x));
-};
+const includeBuiltin = (scope, builtin) => asmFunc(builtin, builtinFuncs[builtin]);
 
 const generateLogicExp = (scope, decl) => {
   return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
@@ -4243,8 +4238,8 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
 };
 
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
-  if (!funcIndex.Map) includeBuiltin(scope, 'Map');
-  if (!funcIndex.__Map_prototype_set) includeBuiltin(scope, '__Map_prototype_set');
+  includeBuiltin(scope, 'Map');
+  includeBuiltin(scope, '__Map_prototype_set');
 
   // todo: optimize const objects
   const tmp = localTmp(scope, `#objectexpr${randId()}`);
