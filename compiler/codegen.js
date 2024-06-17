@@ -4884,6 +4884,16 @@ const internalConstrs = {
     type: TYPES.number,
     notConstr: true,
     length: 2
+  },
+
+  printStatic: {
+    generate: (scope, decl) => {
+      const str = decl.arguments[0].value;
+      return printStaticStr(str);
+    },
+    type: TYPES.undefined,
+    notConstr: true,
+    length: 2
   }
 };
 

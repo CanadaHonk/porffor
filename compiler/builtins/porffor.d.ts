@@ -85,6 +85,7 @@ declare global {
 
   const print: (arg: any) => void;
   const printChar: (char: number) => void;
+  const printStatic: (str: string) => void;
 
   type i32 = number;
   type i64 = number;

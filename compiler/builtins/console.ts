@@ -24,16 +24,9 @@ export const __Porffor_print = (arg: any) => {
       return;
     case Porffor.TYPES.boolean:
       if (arg) {
-        printChar(116); // t
-        printChar(114); // r
-        printChar(117); // u
-        printChar(101); // e
+        printStatic('true');
       } else {
-        printChar(102); // f
-        printChar(97);  // a
-        printChar(108); // l
-        printChar(115); // s
-        printChar(101); // e
+        printStatic('false');
       }
       return;
     case Porffor.TYPES.bytestring:
@@ -43,41 +36,25 @@ export const __Porffor_print = (arg: any) => {
       __Porffor_printString(arg);
       return;
     case Porffor.TYPES.array:
-      printChar(91); // [
-      printChar(32); // space
+      printStatic('[ ')
       const arrLen: i32 = arg.length;
       for (let i: i32 = 0; i < arrLen; i++) {
-        __Porffor_printString(arg[i]);
-        if (i != arrLen) {
-          printChar(44); // comma
-          printChar(32); // space
-        }
+        __Porffor_print(arg[i]);
+        if (i != arrLen) printStatic(', ')
       }
-      printChar(32); // space
-      printChar(91); // ]
+      printStatic(' ]')
       return;
     case Porffor.TYPES.empty:
     case Porffor.TYPES.undefined:
-      printChar(117); // u
-      printChar(110); // n
-      printChar(100); // d
-      printChar(101); // e
-      printChar(102); // f
-      printChar(105); // i
-      printChar(110); // n
-      printChar(101); // e
-      printChar(100); // d
+      printStatic('undefined')
       return;
     case Porffor.TYPES.object:
       if (arg) {
         // todo: print keys and vals
-        printChar(123); // {
+        printStatic('[Object]')
         printChar(125); // }
       } else {
-        printChar(110); // n
-        printChar(117); // u
-        printChar(108); // l
-        printChar(108); // l
+        printStatic('null')
       }
       return;
     default:
@@ -87,67 +64,64 @@ export const __Porffor_print = (arg: any) => {
 }
 
 export const __console_clear = () => {
-  const clear: bytestring = '\x1b[1;1H\x1b[J';
-  __Porffor_printBytestring(clear);
+  printStatic('\x1b[1;1H\x1b[J');
 }
 
 export const __console_log = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
     __Porffor_print(args[i]);
-    if (i != argLen) printChar(32); // space
+    if (i != argLen) printStatic(' ');
   }
-  printChar(10); // newline
+  printStatic('\n');
 }
 
 export const __console_debug = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
     __Porffor_print(args[i]);
-    if (i != argLen) printChar(32); // space
+    if (i != argLen) printStatic(' '); // space
   }
-  printChar(10); // newline
+  printStatic('\n'); // newline
 }
 
 export const __console_info = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
     __Porffor_print(args[i]);
-    if (i != argLen) printChar(32); // space
+    if (i != argLen) printStatic(' '); // space
   }
-  printChar(10); // newline
+  printStatic('\n'); // newline
 }
 
 export const __console_warn = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
     __Porffor_print(args[i]);
-    if (i != argLen) printChar(32); // space
+    if (i != argLen) printStatic(' '); // space
   }
-  printChar(10); // newline
+  printStatic('\n'); // newline
 }
 
 export const __console_error = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
     __Porffor_print(args[i]);
-    if (i != argLen) printChar(32); // space
+    if (i != argLen) printStatic(' '); // space
   }
-  printChar(10); // newline
+  printStatic('\n'); // newline
 }
 
 export const __console_assert = (assertion: any, ...args: any[]) => {
   if (assertion) return;
-  const str: bytestring = 'Assertion failed';
-  __Porffor_printBytestring(str);
+  printStatic('Assertion failed');
   if (args.length != 0) {
-    printChar(58); // :
-    printChar(32); // space
+    printStatic(': ');
   }
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
     __Porffor_print(args[i]);
-    if (i != argLen) printChar(32); // space
+    if (i != argLen) printStatic(' '); // space
   }
-  printChar(10); // newline
+  printStatic('\n'); // newline
 }
