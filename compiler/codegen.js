@@ -4884,43 +4884,6 @@ const internalConstrs = {
     type: TYPES.number,
     notConstr: true,
     length: 2
-  },
-
-  __console_log: {
-    generate: (scope, decl) => {
-      const out = [];
-
-      for (let i = 0; i < decl.arguments.length; i++) {
-        out.push(
-          ...generateCall(scope, {
-            callee: {
-              type: 'Identifier',
-              name: '__Porffor_print'
-            },
-            arguments: [ decl.arguments[i] ]
-          }),
-
-          // print space
-          ...(i !== decl.arguments.length - 1 ? [
-            ...number(32, globalThis.precompile ? Valtype.f64 : valtypeBinary),
-            [ Opcodes.call, importedFuncs.printChar ]
-          ] : [])
-        );
-      }
-
-      // print newline
-      out.push(
-        ...number(10, globalThis.precompile ? Valtype.f64 : valtypeBinary),
-        [ Opcodes.call, importedFuncs.printChar ]
-      );
-
-      out.push(...number(UNDEFINED));
-
-      return out;
-    },
-    type: TYPES.undefined,
-    notConstr: true,
-    length: 0
   }
 };
 
