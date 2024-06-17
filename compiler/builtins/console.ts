@@ -1,10 +1,5 @@
 import type {} from './porffor.d.ts';
 
-export const __console_clear = () => {
-  const clear: bytestring = '\x1b[1;1H\x1b[J';
-  Porffor.print(clear);
-};
-
 export const __Porffor_printBytestring = (arg: bytestring) => {
   let argPtr: i32 = Porffor.wasm`local.get ${arg}`;
   const numPtrEnd: i32 = argPtr + arg.length;
@@ -90,6 +85,12 @@ export const __Porffor_print = (arg: any) => {
       return
   }
 }
+
+export const __console_clear = () => {
+  const clear: bytestring = '\x1b[1;1H\x1b[J';
+  __Porffor_printBytestring(clear);
+}
+
 export const __console_log = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
