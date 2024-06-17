@@ -442,7 +442,6 @@ const concatStrings = (scope, left, right, leftType, rightType, allBytestrings =
   const out = localTmp(scope, 'concat_out_pointer', Valtype.i32);
 
   if (!skipTypeCheck && !allBytestrings) includeBuiltin(scope, '__Porffor_bytestringToString');
-  includeBuiltin(scope, '__Porffor_print');
   return [
     // setup pointers
     ...(left.length === 0 ? [
@@ -564,7 +563,6 @@ const compareStrings = (scope, left, right, leftType, rightType, allBytestrings 
   const indexEnd = localTmp(scope, 'compare_index_end', Valtype.i32);
 
   if (!skipTypeCheck && !allBytestrings) includeBuiltin(scope, '__Porffor_bytestringToString');
-  includeBuiltin(scope, '__Porffor_print');
   return [
     // setup pointers
     ...(left.length === 0 ? [
