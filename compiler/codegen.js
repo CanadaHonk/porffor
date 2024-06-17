@@ -4257,7 +4257,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
 
   for (const x of decl.properties) {
     const { method, shorthand, computed, kind, key, value } = x;
-    if (method || shorthand || kind !== 'init' || key.type !== 'Identifier') return todo(scope, 'complex objects are not supported yet', true);
+    if (method || shorthand || kind !== 'init') return todo(scope, 'complex objects are not supported yet', true);
 
     const k = computed ? key : {
       type: 'Literal',
