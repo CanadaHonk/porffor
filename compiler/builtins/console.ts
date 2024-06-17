@@ -99,3 +99,19 @@ export const __console_log = (...args: any[]) => {
   }
   printChar(10); // newline
 }
+
+export const __console_assert = (assertion: any, ...args: any[]) => {
+  if (assertion) return;
+  const str: bytestring = 'Assertion failed';
+  __Porffor_printBytestring(str);
+  if (args.length != 0) {
+    printChar(58); // :
+    printChar(32); // space
+  }
+  const argLen: i32 = args.length - 1;
+  for (let i = 0; i <= argLen; i++) {
+    __Porffor_print(args[i]);
+    if (i != argLen) printChar(32); // space
+  }
+  printChar(10); // newline
+}
