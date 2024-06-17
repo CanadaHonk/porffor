@@ -85,7 +85,13 @@
       margin-bottom: 8px;
     }
 
-    h2 > span {
+    h2 > :first-child {
+      color: #57F287;
+      font-size: 0.9em;
+      margin-left: 0.2rem;
+    }
+
+    h2 > :last-child {
       color: var(--text-muted);
       font-family: var(--font-normal);
       font-weight: normal;
@@ -834,7 +840,7 @@
     <div id="output"></div>
     <div id="status"></div>
 
-    <h2>Test262 <span><a class="simple" href="https://github.com/tc39/test262">Test262</a> is the official ECMAScript conformance test suite. Porffor is ran against it each commit to track conformance progress!</span></h2>
+    <h2>Test262 <span id="test262_percent"></span> <span><a class="simple" href="https://github.com/tc39/test262">Test262</a> is the official ECMAScript conformance test suite. Porffor is ran against it each commit to track conformance progress!</span></h2>
     <div id="test262">
       <div id="commit_log"></div>
       <div id="graph">
@@ -1076,6 +1082,8 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
     };
 
     const history = await (await fetch('/test262/history.json')).json();
+
+    test262_percent.textContent = history[0].results[0] + '%';
 
     for (let i = 0; i < 100; i++) {
       const x = history[i];
