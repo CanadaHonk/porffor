@@ -100,6 +100,42 @@ export const __console_log = (...args: any[]) => {
   printChar(10); // newline
 }
 
+export const __console_debug = (...args: any[]) => {
+  const argLen: i32 = args.length - 1;
+  for (let i = 0; i <= argLen; i++) {
+    __Porffor_print(args[i]);
+    if (i != argLen) printChar(32); // space
+  }
+  printChar(10); // newline
+}
+
+export const __console_info = (...args: any[]) => {
+  const argLen: i32 = args.length - 1;
+  for (let i = 0; i <= argLen; i++) {
+    __Porffor_print(args[i]);
+    if (i != argLen) printChar(32); // space
+  }
+  printChar(10); // newline
+}
+
+export const __console_warn = (...args: any[]) => {
+  const argLen: i32 = args.length - 1;
+  for (let i = 0; i <= argLen; i++) {
+    __Porffor_print(args[i]);
+    if (i != argLen) printChar(32); // space
+  }
+  printChar(10); // newline
+}
+
+export const __console_error = (...args: any[]) => {
+  const argLen: i32 = args.length - 1;
+  for (let i = 0; i <= argLen; i++) {
+    __Porffor_print(args[i]);
+    if (i != argLen) printChar(32); // space
+  }
+  printChar(10); // newline
+}
+
 export const __console_assert = (assertion: any, ...args: any[]) => {
   if (assertion) return;
   const str: bytestring = 'Assertion failed';

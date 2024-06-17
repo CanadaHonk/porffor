@@ -595,6 +595,34 @@ export const BuiltinFuncs = function() {
     locals: [124,124,127,127,127], localNames: ["args","args#type","argLen","i","i#type","#loadArray_offset","#last_type"],
     hasRestArgument: 1,
   };
+  this.__console_debug = {
+    wasm: (scope, {builtin}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,240,63],[161],[33,2],[68,0,0,0,0,0,0,0,0],[33,3],[65,1],[33,4],[3,64],[32,3],[32,2],[101],[4,64],[32,3],[252,3],[65,9],[108],[32,0],[252,3],[106],[34,5],[43,0,4],[32,5],[45,0,12],[34,6],[16, builtin('__Porffor_print')],[33,6],[26],[32,3],[32,2],[98],[4,64],[68,0,0,0,0,0,0,64,64],[16,1],[11],[32,3],[68,0,0,0,0,0,0,240,63],[160],[33,3],[12,1],[11],[11],[68,0,0,0,0,0,0,36,64],[16,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,124,127,127,127], localNames: ["args","args#type","argLen","i","i#type","#loadArray_offset","#last_type"],
+    hasRestArgument: 1,
+  };
+  this.__console_info = {
+    wasm: (scope, {builtin}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,240,63],[161],[33,2],[68,0,0,0,0,0,0,0,0],[33,3],[65,1],[33,4],[3,64],[32,3],[32,2],[101],[4,64],[32,3],[252,3],[65,9],[108],[32,0],[252,3],[106],[34,5],[43,0,4],[32,5],[45,0,12],[34,6],[16, builtin('__Porffor_print')],[33,6],[26],[32,3],[32,2],[98],[4,64],[68,0,0,0,0,0,0,64,64],[16,1],[11],[32,3],[68,0,0,0,0,0,0,240,63],[160],[33,3],[12,1],[11],[11],[68,0,0,0,0,0,0,36,64],[16,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,124,127,127,127], localNames: ["args","args#type","argLen","i","i#type","#loadArray_offset","#last_type"],
+    hasRestArgument: 1,
+  };
+  this.__console_warn = {
+    wasm: (scope, {builtin}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,240,63],[161],[33,2],[68,0,0,0,0,0,0,0,0],[33,3],[65,1],[33,4],[3,64],[32,3],[32,2],[101],[4,64],[32,3],[252,3],[65,9],[108],[32,0],[252,3],[106],[34,5],[43,0,4],[32,5],[45,0,12],[34,6],[16, builtin('__Porffor_print')],[33,6],[26],[32,3],[32,2],[98],[4,64],[68,0,0,0,0,0,0,64,64],[16,1],[11],[32,3],[68,0,0,0,0,0,0,240,63],[160],[33,3],[12,1],[11],[11],[68,0,0,0,0,0,0,36,64],[16,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,124,127,127,127], localNames: ["args","args#type","argLen","i","i#type","#loadArray_offset","#last_type"],
+    hasRestArgument: 1,
+  };
+  this.__console_error = {
+    wasm: (scope, {builtin}) => [[32,0],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,240,63],[161],[33,2],[68,0,0,0,0,0,0,0,0],[33,3],[65,1],[33,4],[3,64],[32,3],[32,2],[101],[4,64],[32,3],[252,3],[65,9],[108],[32,0],[252,3],[106],[34,5],[43,0,4],[32,5],[45,0,12],[34,6],[16, builtin('__Porffor_print')],[33,6],[26],[32,3],[32,2],[98],[4,64],[68,0,0,0,0,0,0,64,64],[16,1],[11],[32,3],[68,0,0,0,0,0,0,240,63],[160],[33,3],[12,1],[11],[11],[68,0,0,0,0,0,0,36,64],[16,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,124,127,127,127], localNames: ["args","args#type","argLen","i","i#type","#loadArray_offset","#last_type"],
+    hasRestArgument: 1,
+  };
   this.__console_assert = {
     wasm: (scope, {allocPage,builtin}) => [[32,0],[33,4],[32,1],[33,5],[2,127],[32,5],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,4],[252,3],[40,1,0],[12,1],[11],[32,5],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,4],[252,3],[40,1,0],[12,1],[11],[32,4],[252,3],[11,"TYPESWITCH_end"],[4,64],[68,0,0,0,0,0,0,0,0],[65,128,1],[15],[11],...number(allocPage(scope, 'bytestring: __console_assert/str', 'i8') * pageSize, 124),[34,6],[65,195,1],[16, builtin('__Porffor_printBytestring')],[33,7],[26],[32,2],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,0,0],[98],[4,64],[68,0,0,0,0,0,0,77,64],[16,1],[68,0,0,0,0,0,0,64,64],[16,1],[11],[32,2],[252,3],[40,1,0],[184],[68,0,0,0,0,0,0,240,63],[161],[33,8],[68,0,0,0,0,0,0,0,0],[33,9],[65,1],[33,10],[3,64],[32,9],[32,8],[101],[4,64],[32,9],[252,3],[65,9],[108],[32,2],[252,3],[106],[34,11],[43,0,4],[32,11],[45,0,12],[34,7],[16, builtin('__Porffor_print')],[33,7],[26],[32,9],[32,8],[98],[4,64],[68,0,0,0,0,0,0,64,64],[16,1],[11],[32,9],[68,0,0,0,0,0,0,240,63],[160],[33,9],[12,1],[11],[11],[68,0,0,0,0,0,0,36,64],[16,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
     params: [124,127,124,127], typedParams: 1,
@@ -1235,56 +1263,56 @@ export const BuiltinFuncs = function() {
     wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.e735e245592"],
+    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.5702ccf47e0"],
     constr: 1,
   };
   this.AggregateError = {
     wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.4423d80a313"],
+    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.371874cd234"],
     constr: 1,
   };
   this.TypeError = {
     wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.d0312ce64e8"],
+    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.3783acaf324"],
     constr: 1,
   };
   this.ReferenceError = {
     wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.80827629219"],
+    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.f3db65e6817"],
     constr: 1,
   };
   this.SyntaxError = {
     wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.520a5e05725"],
+    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.bd8888f3a04"],
     constr: 1,
   };
   this.RangeError = {
     wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.375f71cbae6"],
+    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.8b6e418a7b1"],
     constr: 1,
   };
   this.EvalError = {
     wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.ffeaf5357fd"],
+    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.2ef9b8303ed"],
     constr: 1,
   };
   this.URIError = {
     wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.d8b5002001c"],
+    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.1e846376279"],
     constr: 1,
   };
   this.escape = {
