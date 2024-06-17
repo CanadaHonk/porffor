@@ -17,17 +17,21 @@ export const __Porffor_printString = (arg: string) => {
   }
 }
 
-export const __Porffor_print = (arg: any) => {
+export const __Porffor_print = (arg: any, colors: boolean = true) => {
   switch (Porffor.rawType(arg)) {
     case Porffor.TYPES.number:
+      if (colors) printStatic('\x1b[33m'); // yellow
       print(arg);
+      if (colors) printStatic('\x1b[m'); // yellow end
       return;
     case Porffor.TYPES.boolean:
+      if (colors) printStatic('\x1b[33m'); // yellow
       if (arg) {
         printStatic('true');
       } else {
         printStatic('false');
       }
+      if (colors) printStatic('\x1b[m'); // yellow end
       return;
     case Porffor.TYPES.bytestring:
       __Porffor_printBytestring(arg);
@@ -46,15 +50,19 @@ export const __Porffor_print = (arg: any) => {
       return;
     case Porffor.TYPES.empty:
     case Porffor.TYPES.undefined:
+      if (colors) printStatic('\x1b[2m'); // dim
       printStatic('undefined')
+      if (colors) printStatic('\x1b[0m'); // dim end
       return;
     case Porffor.TYPES.object:
       if (arg) {
-        // todo: print keys and vals
+        if (colors) printStatic('\x1b[34m'); // blue
         printStatic('[Object]')
-        printChar(125); // }
+        if (colors) printStatic('\x1b[m'); // blue end
       } else {
+        if (colors) printStatic('\x1b[1m'); // bold
         printStatic('null')
+        if (colors) printStatic('\x1b[m'); // bold end
       }
       return;
     default:
