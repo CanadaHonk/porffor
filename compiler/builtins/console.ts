@@ -480,3 +480,25 @@ export const __console_dir = (obj: any, options: any) => {
 }
 
 export const __console_dirxml = (obj: any) => __console_dir(obj);
+
+const countMap = new Map();
+
+export const __console_count = (label: bytestring) => {
+  if (!label) label = 'default';
+  let val = countMap.get(label) ?? 1;
+  countMap.set(label, val);
+  __Porffor_printTabs();
+  __Porffor_printBytestring(label);
+  printStatic(': ');
+  print(val);
+}
+
+export const __console_countReset = (label: bytestring) => {
+  if (!label) label = 'default';
+  countMap.set(label, 0);
+  __Porffor_printTabs();
+  __Porffor_printBytestring(label);
+  printStatic(': ');
+  print(0);
+}
+
