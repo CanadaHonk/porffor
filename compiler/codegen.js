@@ -1342,7 +1342,7 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'CallExpression' || node.type === 'NewExpression') {
       const name = node.callee.name;
-      if (!name) {
+      if (name == null) {
         // iife
         if (scope.locals['#last_type']) return getLastType(scope);
 
@@ -1356,8 +1356,8 @@ const getNodeType = (scope, node) => {
         if (func.returnType != null) return func.returnType;
       }
 
-      if (builtinFuncs[name] && !builtinFuncs[name].typedReturns) return builtinFuncs[name].returnType ?? TYPES.number;
-      if (internalConstrs[name]) return internalConstrs[name].type;
+      if (Object.hasOwn(builtinFuncs, name) && !builtinFuncs[name].typedReturns) return builtinFuncs[name].returnType ?? TYPES.number;
+      if (Object.hasOwn(internalConstrs, name)) return internalConstrs[name].type;
 
       // check if this is a prototype function
       // if so and there is only one impl (eg charCodeAt)
