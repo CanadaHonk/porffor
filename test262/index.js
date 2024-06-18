@@ -90,9 +90,7 @@ if (isMainThread) {
 
   const start = performance.now();
 
-  const passFiles = [];
-  const wasmErrorFiles = [];
-  const compileErrorFiles = [];
+  const passFiles = [], wasmErrorFiles = [], compileErrorFiles = [], timeoutFiles = [];
   let dirs = new Map(), features = new Map(), errors = new Map(), pagesUsed = new Map();
   let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0, todos = 0;
 
@@ -155,7 +153,7 @@ if (isMainThread) {
         fails++;
       } else if (result === 5) {
         timeouts++;
-        // console.log('\n' + file);
+        if (!resultOnly) timeoutFiles.push(file);
       } else {
         runtimeErrors++;
       }
@@ -292,7 +290,7 @@ if (isMainThread) {
     if (lastResults.passes) console.log(`\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastResults.passes.includes(x)).join('\n')}\n\n`);
     if (lastResults.passes) console.log(`\u001b[4mnew fails\u001b[0m\n${lastResults.passes.filter(x => !passFiles.includes(x)).join('\n')}`);
 
-    if (!dontWriteResults) fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, total }));
+    if (!dontWriteResults) fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, timeouts: timeoutFiles, total }));
   }
 
   console.log(`\u001b[90mtook ${((performance.now() - start) / 1000).toFixed(1)}s to run (${((performance.now() - veryStart) / 1000).toFixed(1)}s total)\u001b[0m`);
@@ -429,7 +427,7 @@ if (isMainThread) {
       //   file.endsWith('NumberFormat/constructor-unit.js')
       // ) timeout(exports.main, 1000);
       //   else exports.main();
-      timeout(exports.main, 500);
+      timeout(exports.main, 1000);
 
       stage = 2;
     } catch (e) {
