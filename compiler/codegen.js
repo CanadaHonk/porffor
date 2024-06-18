@@ -1273,14 +1273,14 @@ const getType = (scope, _name) => {
   // if (scope.locals[name] && !scope.locals[name + '#type']) console.log(name);
 
   if (typedInput && scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
-  if (scope.locals[name]) return [ [ Opcodes.local_get, scope.locals[name + '#type'].idx ] ];
+  if (Object.hasOwn(scope.locals, name)) return [ [ Opcodes.local_get, scope.locals[name + '#type'].idx ] ];
 
   if (typedInput && globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
-  if (globals[name]) return [ [ Opcodes.global_get, globals[name + '#type'].idx ] ];
+  if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name + '#type'].idx ] ];
 
   let type = TYPES.undefined;
-  if (builtinVars[name]) type = builtinVars[name].type ?? TYPES.number;
-  if (builtinFuncs[name] !== undefined || importedFuncs[name] !== undefined || funcIndex[name] !== undefined || internalConstrs[name] !== undefined) type = TYPES.function;
+  if (Object.hasOwn(builtinVars, name)) type = builtinVars[name].type ?? TYPES.number;
+  if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) || Object.hasOwn(funcIndex, name) || Object.hasOwn(internalConstrs, name)) type = TYPES.function;
 
   if (isExistingProtoFunc(name)) type = TYPES.function;
 
