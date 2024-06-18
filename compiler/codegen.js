@@ -39,7 +39,7 @@ const todo = (scope, msg, expectsValue = undefined) => {
 const isFuncType = type =>
   type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
 const hasFuncWithName = name =>
-  funcIndex[name] != null || builtinFuncs[name] != null || importedFuncs[name] != null || internalConstrs[name] != null;
+  Object.hasOwn(funcIndex, name) != null || Object.hasOwn(builtinFuncs, name) != null || Object.hasOwn(importedFuncs, name) != null || Object.hasOwn(internalConstrs, name) != null;
 
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   switch (decl.type) {
