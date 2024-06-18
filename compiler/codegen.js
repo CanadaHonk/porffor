@@ -4327,9 +4327,9 @@ const generateMember = (scope, decl, _global, _name) => {
       return withType(scope, number(typedParams ? Math.floor(func.params.length / 2) : (func.constr ? (func.params.length - 1) : func.params.length)), TYPES.number);
     }
 
-    if (builtinFuncs[name]) return withType(scope, number(builtinFuncs[name].typedParams ? Math.floor(builtinFuncs[name].params.length / 2) : (builtinFuncs[name].constr ? (builtinFuncs[name].params.length - 1) : builtinFuncs[name].params.length)), TYPES.number);
-    if (importedFuncs[name]) return withType(scope, number(importedFuncs[name].params.length ?? importedFuncs[name].params), TYPES.number);
-    if (internalConstrs[name]) return withType(scope, number(internalConstrs[name].length ?? 0), TYPES.number);
+    if (Object.hasOwn(builtinFuncs, name)) return withType(scope, number(builtinFuncs[name].typedParams ? Math.floor(builtinFuncs[name].params.length / 2) : (builtinFuncs[name].constr ? (builtinFuncs[name].params.length - 1) : builtinFuncs[name].params.length)), TYPES.number);
+    if (Object.hasOwn(importedFuncs, name)) return withType(scope, number(importedFuncs[name].params.length ?? importedFuncs[name].params), TYPES.number);
+    if (Object.hasOwn(internalConstrs, name)) return withType(scope, number(internalConstrs[name].length ?? 0), TYPES.number);
 
     const out = [
       ...generate(scope, decl.object),
