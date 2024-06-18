@@ -207,7 +207,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
 
     const strParams = func.params.map(v => invValtype[v]);
     const strReturns = func.returns.map(v => invValtype[v]);
-    console.log(`\x1B[4m ${func.name} (${strParams.join(',')}) -> (${strReturns.join(',')}) \x1B[0m`);
+    console.log(`\x1B[4m${func.name} (${strParams.join(',')}) -> (${strReturns.join(',')})\x1B[0m`);
 
     const surrounding = Prefs.backtraceSurrounding ?? 5;
     let min = middleIndex - surrounding;
