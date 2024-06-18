@@ -1927,120 +1927,219 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   // TODO: only allows callee as identifier
   // if (!name) return todo(scope, `only identifier callees (got ${decl.callee.type})`);
 
-  let idx = funcIndex[name] ?? importedFuncs[name];
-  if (idx === undefined && builtinFuncs[name]) {
-    if (builtinFuncs[name].floatOnly && valtype !== 'f64') throw new Error(`Cannot use built-in ${unhackName(name)} with integer valtype`);
-    if (decl._new && !builtinFuncs[name].constr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
+  let idx;
+  if (Object.hasOwn(funcIndex, name)) idx = funcIndex[name];
+    else if (Object.hasOwn(importedFuncs, name)) idx = importedFuncs[name];
+    else if (Object.hasOwn(builtinFuncs, name)) {
+      if (builtinFuncs[name].floatOnly && valtype !== 'f64') throw new Error(`Cannot use built-in ${unhackName(name)} with integer valtype`);
+      if (decl._new && !builtinFuncs[name].constr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
 
-    includeBuiltin(scope, name);
-    idx = funcIndex[name];
-  }
+      includeBuiltin(scope, name);
+      idx = funcIndex[name];
+    } else if (Object.hasOwn(internalConstrs, name)) {
+      if (decl._new && internalConstrs[name].notConstr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
+      return internalConstrs[name].generate(scope, decl, _global, _name);
+    } else if (!decl._new && name && name.startsWith('__Porffor_wasm_')) {
+      const wasmOps = {
+        // pointer, align, offset
+        i32_load: { imms: 2, args: [ true ], returns: 1 },
+        // pointer, value, align, offset
+        i32_store: { imms: 2, args: [ true, true ], returns: 0 },
+        // pointer, align, offset
+        i32_load8_u: { imms: 2, args: [ true ], returns: 1 },
+        // pointer, value, align, offset
+        i32_store8: { imms: 2, args: [ true, true ], returns: 0 },
+        // pointer, align, offset
+        i32_load16_u: { imms: 2, args: [ true ], returns: 1 },
+        // pointer, value, align, offset
+        i32_store16: { imms: 2, args: [ true, true ], returns: 0 },
 
-  if (idx === undefined && internalConstrs[name]) {
-    if (decl._new && internalConstrs[name].notConstr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
-    return internalConstrs[name].generate(scope, decl, _global, _name);
-  }
+        // pointer, align, offset
+        f64_load: { imms: 2, args: [ true ], returns: 0 }, // 0 due to not i32
+        // pointer, value, align, offset
+        f64_store: { imms: 2, args: [ true, false ], returns: 0 },
 
-  if (idx === undefined && !decl._new && name && name.startsWith('__Porffor_wasm_')) {
-    const wasmOps = {
-      // pointer, align, offset
-      i32_load: { imms: 2, args: [ true ], returns: 1 },
-      // pointer, value, align, offset
-      i32_store: { imms: 2, args: [ true, true ], returns: 0 },
-      // pointer, align, offset
-      i32_load8_u: { imms: 2, args: [ true ], returns: 1 },
-      // pointer, value, align, offset
-      i32_store8: { imms: 2, args: [ true, true ], returns: 0 },
-      // pointer, align, offset
-      i32_load16_u: { imms: 2, args: [ true ], returns: 1 },
-      // pointer, value, align, offset
-      i32_store16: { imms: 2, args: [ true, true ], returns: 0 },
+        // value
+        i32_const: { imms: 1, args: [], returns: 0 },
+      };
 
-      // pointer, align, offset
-      f64_load: { imms: 2, args: [ true ], returns: 0 }, // 0 due to not i32
-      // pointer, value, align, offset
-      f64_store: { imms: 2, args: [ true, false ], returns: 0 },
+      const opName = name.slice('__Porffor_wasm_'.length);
 
-      // value
-      i32_const: { imms: 1, args: [], returns: 0 },
-    };
+      if (wasmOps[opName]) {
+        const op = wasmOps[opName];
 
-    const opName = name.slice('__Porffor_wasm_'.length);
+        const argOut = [];
+        for (let i = 0; i < op.args.length; i++) argOut.push(
+          ...generate(scope, decl.arguments[i]),
+          ...(op.args[i] ? [ Opcodes.i32_to ] : [])
+        );
 
-    if (wasmOps[opName]) {
-      const op = wasmOps[opName];
+        // literals only
+        const imms = decl.arguments.slice(op.args.length).map(x => x.value);
 
-      const argOut = [];
-      for (let i = 0; i < op.args.length; i++) argOut.push(
-        ...generate(scope, decl.arguments[i]),
-        ...(op.args[i] ? [ Opcodes.i32_to ] : [])
-      );
-
-      // literals only
-      const imms = decl.arguments.slice(op.args.length).map(x => x.value);
-
-      return [
-        ...argOut,
-        [ Opcodes[opName], ...imms ],
-        ...(new Array(op.returns).fill(Opcodes.i32_from))
-      ];
-    }
-  }
-
-  if (idx === undefined) {
-    if (!Prefs.indirectCalls) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
-
-    // todo: only works when function uses typedParams and typedReturns
-
-    const indirectMode = Prefs.indirectCallMode ?? 'vararg';
-    // options: vararg, strict
-    // - strict: simpler, smaller size usage, no func lut needed.
-    //   ONLY works when arg count of call == arg count of function being called
-    // - vararg: large size usage, cursed.
-    //   works when arg count of call != arg count of function being called*
-    //   * most of the time, some edgecases
-
-    funcs.table = true;
-    scope.table = true;
-
-    let args = decl.arguments;
-    let locals = [];
-
-    if (indirectMode === 'vararg') {
-      const minArgc = Prefs.indirectCallMinArgc ?? 3;
-
-      if (args.length < minArgc) {
-        args = args.concat(new Array(minArgc - args.length).fill(DEFAULT_VALUE));
+        return [
+          ...argOut,
+          [ Opcodes[opName], ...imms ],
+          ...(new Array(op.returns).fill(Opcodes.i32_from))
+        ];
       }
-    }
+    } else {
+      if (!Prefs.indirectCalls) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
 
-    for (let i = 0; i < args.length; i++) {
-      const arg = args[i];
-      out = out.concat(generate(scope, arg));
+      // todo: only works when function uses typedParams and typedReturns
 
-      if (valtypeBinary !== Valtype.i32 && (
-        (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32) ||
-        (importedFuncs[name] && name.startsWith('profile'))
-      )) {
-        out.push(Opcodes.i32_to);
-      }
+      const indirectMode = Prefs.indirectCallMode ?? 'vararg';
+      // options: vararg, strict
+      // - strict: simpler, smaller size usage, no func lut needed.
+      //   ONLY works when arg count of call == arg count of function being called
+      // - vararg: large size usage, cursed.
+      //   works when arg count of call != arg count of function being called*
+      //   * most of the time, some edgecases
 
-      out = out.concat(getNodeType(scope, arg));
+      funcs.table = true;
+      scope.table = true;
+
+      let args = decl.arguments;
+      let locals = [];
 
       if (indirectMode === 'vararg') {
-        const typeLocal = localTmp(scope, `#indirect_arg${i}_type`, Valtype.i32);
-        const valLocal = localTmp(scope, `#indirect_arg${i}_val`);
+        const minArgc = Prefs.indirectCallMinArgc ?? 3;
 
-        locals.push([valLocal, typeLocal]);
-
-        out.push(
-          [ Opcodes.local_set, typeLocal ],
-          [ Opcodes.local_set, valLocal ]
-        );
+        if (args.length < minArgc) {
+          args = args.concat(new Array(minArgc - args.length).fill(DEFAULT_VALUE));
+        }
       }
-    }
 
-    if (indirectMode === 'strict') {
+      for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        out = out.concat(generate(scope, arg));
+
+        if (valtypeBinary !== Valtype.i32 && (
+          (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32) ||
+          (importedFuncs[name] && name.startsWith('profile'))
+        )) {
+          out.push(Opcodes.i32_to);
+        }
+
+        out = out.concat(getNodeType(scope, arg));
+
+        if (indirectMode === 'vararg') {
+          const typeLocal = localTmp(scope, `#indirect_arg${i}_type`, Valtype.i32);
+          const valLocal = localTmp(scope, `#indirect_arg${i}_val`);
+
+          locals.push([valLocal, typeLocal]);
+
+          out.push(
+            [ Opcodes.local_set, typeLocal ],
+            [ Opcodes.local_set, valLocal ]
+          );
+        }
+      }
+
+      if (indirectMode === 'strict') {
+        return [
+          ...generate(scope, decl.callee),
+          [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
+
+          ...typeSwitch(scope, getNodeType(scope, decl.callee), {
+            [TYPES.function]: [
+              ...out,
+
+              [ Opcodes.local_get, localTmp(scope, '#indirect_callee') ],
+              ...generate(scope, decl.callee),
+              Opcodes.i32_to_u,
+              [ Opcodes.call_indirect, args.length, 0 ],
+              ...setLastType(scope)
+            ],
+            default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
+          })
+        ];
+      }
+
+      // hi, I will now explain how vararg mode works:
+      // wasm's indirect_call instruction requires you know the func type at compile-time
+      // since we have varargs (variable argument count), we do not know it.
+      // we could just store args in memory and not use wasm func args,
+      // but that is slow (probably) and breaks js exports.
+      // instead, we generate every* possibility of argc and use different indirect_call
+      // ops for each one, with type depending on argc for that branch.
+      // then we load the argc for the wanted function from a memory lut,
+      // and call the branch with the matching argc we require.
+      // sorry, yes it is very cursed (and size inefficient), but indirect calls
+      // are kind of rare anyway (mostly callbacks) so I am not concerned atm.
+      // *for argc 0-3, in future (todo:) the max number should be
+      // dynamically changed to the max argc of any func in the js file.
+
+      const funcLocal = localTmp(scope, '#indirect_func', Valtype.i32);
+      const flags = localTmp(scope, '#indirect_flags', Valtype.i32);
+
+      const gen = argc => {
+        const argsOut = [];
+        for (let i = 0; i < argc; i++) {
+          argsOut.push(
+            [ Opcodes.local_get, locals[i][0] ],
+            [ Opcodes.local_get, locals[i][1] ]
+          );
+        }
+
+        const checkFlag = (flag, pass, fail) => [
+          [ Opcodes.local_get, flags ],
+          ...number(flag, Valtype.i32),
+          [ Opcodes.i32_and ],
+          [ Opcodes.if, valtypeBinary ],
+          ...pass,
+          [ Opcodes.else ],
+          ...fail,
+          [ Opcodes.end ]
+        ];
+
+        // pain.
+        // return checkFlag(0b10, [ // constr
+        //   [ Opcodes.i32_const, decl._new ? 1 : 0 ],
+        //   ...argsOut,
+        //   [ Opcodes.local_get, funcLocal ],
+        //   [ Opcodes.call_indirect, argc, 0, 'constr' ],
+        //   ...setLastType(scope),
+        // ], [
+        //   ...argsOut,
+        //   [ Opcodes.local_get, funcLocal ],
+        //   [ Opcodes.call_indirect, argc, 0 ],
+        //   ...setLastType(scope),
+        // ]);
+
+        return checkFlag(0b1, // no type return
+          checkFlag(0b10, [ // no type return & constr
+            [ Opcodes.i32_const, decl._new ? 1 : 0 ],
+            ...argsOut,
+            [ Opcodes.local_get, funcLocal ],
+            [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'constr' ],
+          ], [
+            ...argsOut,
+            [ Opcodes.local_get, funcLocal ],
+            [ Opcodes.call_indirect, argc, 0, 'no_type_return' ]
+          ]),
+          checkFlag(0b10, [ // type return & constr
+            [ Opcodes.i32_const, decl._new ? 1 : 0 ],
+            ...argsOut,
+            [ Opcodes.local_get, funcLocal ],
+            [ Opcodes.call_indirect, argc, 0, 'constr' ],
+            ...setLastType(scope),
+          ], [
+            ...argsOut,
+            [ Opcodes.local_get, funcLocal ],
+            [ Opcodes.call_indirect, argc, 0 ],
+            ...setLastType(scope),
+          ]),
+        );
+      };
+
+      const tableBc = {};
+      for (let i = 0; i <= args.length; i++) {
+        tableBc[i] = gen(i);
+      }
+
+      // todo/perf: check if we should use br_table here or just generate our own big if..elses
+
       return [
         ...generate(scope, decl.callee),
         [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
@@ -2050,144 +2149,41 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             ...out,
 
             [ Opcodes.local_get, localTmp(scope, '#indirect_callee') ],
-            ...generate(scope, decl.callee),
             Opcodes.i32_to_u,
-            [ Opcodes.call_indirect, args.length, 0 ],
-            ...setLastType(scope)
+            [ Opcodes.local_set, funcLocal ],
+
+            // get if func we are calling is a constructor or not
+            [ Opcodes.local_get, funcLocal ],
+            ...number(3, Valtype.i32),
+            [ Opcodes.i32_mul ],
+            ...number(2, Valtype.i32),
+            [ Opcodes.i32_add ],
+            [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ],
+            [ Opcodes.local_set, flags ],
+
+            // check if non-constructor was called with new, if so throw
+            [ Opcodes.local_get, flags ],
+            ...number(0b10, Valtype.i32),
+            [ Opcodes.i32_and ],
+            [ Opcodes.i32_eqz ],
+            [ Opcodes.i32_const, decl._new ? 1 : 0 ],
+            [ Opcodes.i32_and ],
+            [ Opcodes.if, Blocktype.void ],
+              ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`),
+            [ Opcodes.end ],
+
+            ...brTable([
+              // get argc of func we are calling
+              [ Opcodes.local_get, funcLocal ],
+              ...number(3, Valtype.i32),
+              [ Opcodes.i32_mul ],
+              [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ]
+            ], tableBc, valtypeBinary)
           ],
           default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
         })
       ];
     }
-
-    // hi, I will now explain how vararg mode works:
-    // wasm's indirect_call instruction requires you know the func type at compile-time
-    // since we have varargs (variable argument count), we do not know it.
-    // we could just store args in memory and not use wasm func args,
-    // but that is slow (probably) and breaks js exports.
-    // instead, we generate every* possibility of argc and use different indirect_call
-    // ops for each one, with type depending on argc for that branch.
-    // then we load the argc for the wanted function from a memory lut,
-    // and call the branch with the matching argc we require.
-    // sorry, yes it is very cursed (and size inefficient), but indirect calls
-    // are kind of rare anyway (mostly callbacks) so I am not concerned atm.
-    // *for argc 0-3, in future (todo:) the max number should be
-    // dynamically changed to the max argc of any func in the js file.
-
-    const funcLocal = localTmp(scope, '#indirect_func', Valtype.i32);
-    const flags = localTmp(scope, '#indirect_flags', Valtype.i32);
-
-    const gen = argc => {
-      const argsOut = [];
-      for (let i = 0; i < argc; i++) {
-        argsOut.push(
-          [ Opcodes.local_get, locals[i][0] ],
-          [ Opcodes.local_get, locals[i][1] ]
-        );
-      }
-
-      const checkFlag = (flag, pass, fail) => [
-        [ Opcodes.local_get, flags ],
-        ...number(flag, Valtype.i32),
-        [ Opcodes.i32_and ],
-        [ Opcodes.if, valtypeBinary ],
-        ...pass,
-        [ Opcodes.else ],
-        ...fail,
-        [ Opcodes.end ]
-      ];
-
-      // pain.
-      // return checkFlag(0b10, [ // constr
-      //   [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-      //   ...argsOut,
-      //   [ Opcodes.local_get, funcLocal ],
-      //   [ Opcodes.call_indirect, argc, 0, 'constr' ],
-      //   ...setLastType(scope),
-      // ], [
-      //   ...argsOut,
-      //   [ Opcodes.local_get, funcLocal ],
-      //   [ Opcodes.call_indirect, argc, 0 ],
-      //   ...setLastType(scope),
-      // ]);
-
-      return checkFlag(0b1, // no type return
-        checkFlag(0b10, [ // no type return & constr
-          [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-          ...argsOut,
-          [ Opcodes.local_get, funcLocal ],
-          [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'constr' ],
-        ], [
-          ...argsOut,
-          [ Opcodes.local_get, funcLocal ],
-          [ Opcodes.call_indirect, argc, 0, 'no_type_return' ]
-        ]),
-        checkFlag(0b10, [ // type return & constr
-          [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-          ...argsOut,
-          [ Opcodes.local_get, funcLocal ],
-          [ Opcodes.call_indirect, argc, 0, 'constr' ],
-          ...setLastType(scope),
-        ], [
-          ...argsOut,
-          [ Opcodes.local_get, funcLocal ],
-          [ Opcodes.call_indirect, argc, 0 ],
-          ...setLastType(scope),
-        ]),
-      );
-    };
-
-    const tableBc = {};
-    for (let i = 0; i <= args.length; i++) {
-      tableBc[i] = gen(i);
-    }
-
-    // todo/perf: check if we should use br_table here or just generate our own big if..elses
-
-    return [
-      ...generate(scope, decl.callee),
-      [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
-
-      ...typeSwitch(scope, getNodeType(scope, decl.callee), {
-        [TYPES.function]: [
-          ...out,
-
-          [ Opcodes.local_get, localTmp(scope, '#indirect_callee') ],
-          Opcodes.i32_to_u,
-          [ Opcodes.local_set, funcLocal ],
-
-          // get if func we are calling is a constructor or not
-          [ Opcodes.local_get, funcLocal ],
-          ...number(3, Valtype.i32),
-          [ Opcodes.i32_mul ],
-          ...number(2, Valtype.i32),
-          [ Opcodes.i32_add ],
-          [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ],
-          [ Opcodes.local_set, flags ],
-
-          // check if non-constructor was called with new, if so throw
-          [ Opcodes.local_get, flags ],
-          ...number(0b10, Valtype.i32),
-          [ Opcodes.i32_and ],
-          [ Opcodes.i32_eqz ],
-          [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-          [ Opcodes.i32_and ],
-          [ Opcodes.if, Blocktype.void ],
-            ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`),
-          [ Opcodes.end ],
-
-          ...brTable([
-            // get argc of func we are calling
-            [ Opcodes.local_get, funcLocal ],
-            ...number(3, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ]
-          ], tableBc, valtypeBinary)
-        ],
-        default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
-      })
-    ];
-  }
 
   const func = funcs[idx - importedFuncs.length]; // idx === scope.index ? scope : funcs.find(x => x.index === idx);
   const userFunc = func && !func.internal;
