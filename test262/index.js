@@ -338,9 +338,11 @@ if (isMainThread) {
     }
   }
 
-  resultOnly = true;
-  process.stdout.write(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | `);
-  table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
+  if (allTests) {
+    resultOnly = true;
+    process.stdout.write(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | `);
+    table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
+  }
 } else {
   const { queue, tests, preludes, argv } = workerData;
 
