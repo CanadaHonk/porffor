@@ -4895,7 +4895,7 @@ const internalConstrs = {
     },
     type: TYPES.undefined,
     notConstr: true,
-    length: 2
+    length: 1
   }
 };
 
