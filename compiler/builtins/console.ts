@@ -133,3 +133,60 @@ export const __console_assert = (assertion: any, ...args: any[]) => {
   }
   printStatic('\n'); // newline
 }
+
+export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showHidden: boolean) => {
+  if (Porffor.rawType(obj) != Porffor.TYPES.object || depth == 0) {
+    if (Porffor.rawType(obj) == Porffor.TYPES.bytestring) {
+      if (colors) printStatic("\x1b[32m");; // green
+      printStatic("'");
+      __Porffor_printBytestring(obj);
+      printStatic("'");
+      if (colors) printStatic("\x1b[m"); // green end
+    } else if (Porffor.rawType(obj) == Porffor.TYPES.string) {
+      if (colors) printStatic("\x1b[32m"); // green
+      printStatic("'");
+      __Porffor_printString(obj);
+      printStatic("'");
+      if (colors) printStatic("\x1b[m"); // green end
+    }
+    __Porffor_print(obj);
+    return;
+  }
+  const keys = __Map_prototype_keys(obj);
+
+  printStatic('{ ');
+  const keysLen = keys.length - 1;
+  for (let i = 0; i <= keysLen; i++) {
+    const key = keys[i];
+    const value = __Map_prototype_get(obj, key);
+    if (Porffor.rawType(i) == Porffor.TYPES.bytestring) {
+      __Porffor_printBytestring(key);
+      } else {
+      __Porffor_printString(key);
+    }
+    printStatic(': ');
+
+    __Porffor_dirObject(value, colors, depth - 1, showHidden);
+
+    if (i != keysLen) printStatic(','); // comma
+  }
+  printStatic(' }');
+}
+
+export const __console_dir = (obj: any, options: any) => {
+  let colors: boolean = true;
+  let depth: i32 = 2;
+  // todo: we currently have no concept of enumerable or nonenumerable properties, so this does nothing
+  let showHidden: boolean = false;
+
+  if (options) {
+    colors = options.colors;
+    depth = options.depth;
+    showHidden = options.showHidden;
+  }
+
+  __Porffor_dirObject(obj, colors, depth, showHidden);
+  printStatic('\n');
+}
+
+export const __console_dirxml = (obj: any) => __console_dir(obj);
