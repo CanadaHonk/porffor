@@ -297,7 +297,7 @@ const generateIdent = (scope, decl) => {
       if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${unhackName(name)} with integer valtype`);
 
       let wasm = builtinVars[name];
-      if (typeof wasm === 'function') wasm = asmFuncToAsm(wasm, { name });
+      if (typeof wasm === 'function') wasm = asmFuncToAsm({ name }, wasm);
       return wasm.slice();
     }
 
@@ -1119,7 +1119,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
   return out;
 };
 
-const asmFuncToAsm = (func, scope) => {
+const asmFuncToAsm = (scope, func) => {
   return func(scope, {
     TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow,
     builtin: n => {
@@ -1131,6 +1131,39 @@ const asmFuncToAsm = (func, scope) => {
 
       if (idx == null) throw new Error(`builtin('${n}') failed to find a func (inside ${scope.name})`);
       return idx;
+    },
+    glbl: (opcode, name, type) => {
+      if (!globals[name]) {
+        const idx = globals['#ind']++;
+        globals[name] = { idx, type };
+
+        const tmpIdx = globals['#ind']++;
+        globals[name + '#glbl_inited'] = { idx: tmpIdx, type: Valtype.i32 };
+
+        if (scope.globalInits[name]) return [
+          [ Opcodes.global_get, tmpIdx ],
+          [ Opcodes.i32_eqz ],
+          [ Opcodes.if, Blocktype.void ],
+          ...asmFuncToAsm(scope, scope.globalInits[name]),
+          ...number(1, Valtype.i32),
+          [ Opcodes.global_set, tmpIdx ],
+          [ Opcodes.end ],
+
+          [ opcode, globals[name].idx ]
+        ];
+      }
+
+      return [
+        [ opcode, globals[name].idx ]
+      ];
+    },
+    loc: (name, type) => {
+      if (!scope.locals[name]) {
+        const idx = scope.localInd++;
+        scope.locals[name] = { idx, type };
+      }
+
+      return scope.locals[name].idx;
     }
   });
 };
@@ -1165,7 +1198,8 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
     internal: true,
     index: currentFuncIndex++,
     table,
-    constr
+    constr,
+    globalInits
   };
 
   funcs.push(func);
@@ -1173,7 +1207,7 @@ const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes 
 
   if (typeof wasm === 'function') {
     if (globalThis.precompile) wasm = [];
-      else wasm = asmFuncToAsm(wasm, func);
+      else wasm = asmFuncToAsm(func, wasm);
   }
 
   let baseGlobalIdx, i = 0;
@@ -2681,21 +2715,23 @@ const generateVar = (scope, decl) => {
     if (x.init) {
       const alreadyArray = scope.arrays?.get(name) != null;
 
-      const generated = generate(scope, x.init, global, name);
+      const newOut = generate(scope, x.init, global, name);
       if (!alreadyArray && scope.arrays?.get(name) != null) {
         // hack to set local as pointer before
-        out.push(...number(scope.arrays.get(name)), [ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
-        if (generated.at(-1) == Opcodes.i32_from_u) generated.pop();
-        // generated.pop();
-        generated.push([ Opcodes.drop ]);
-
-        out = out.concat(generated);
+        newOut.unshift(...number(scope.arrays.get(name)), [ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
+        if (newOut.at(-1) == Opcodes.i32_from_u) newOut.pop();
+        newOut.push([ Opcodes.drop ]);
       } else {
-        out = out.concat(generated);
-        out.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
+        newOut.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
       }
 
-      out.push(...setType(scope, name, getNodeType(scope, x.init)));
+      newOut.push(...setType(scope, name, getNodeType(scope, x.init)));
+      out = out.concat(newOut);
+
+      if (globalThis.precompile && global) {
+        scope.globalInits ??= {};
+        scope.globalInits[name] = newOut;
+      }
     }
 
     // hack: this follows spec properly but is mostly unneeded 😅

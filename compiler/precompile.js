@@ -11,7 +11,7 @@ globalThis.precompile = true;
 
 const argv = process.argv.slice();
 
-const compile = async (file, [ _funcs, _globals ]) => {
+const compile = async (file, _funcs) => {
   let source = fs.readFileSync(file, 'utf8');
   let first = source.slice(0, source.indexOf('\n'));
 
@@ -32,6 +32,7 @@ const compile = async (file, [ _funcs, _globals ]) => {
 
   const allocated = new Set();
 
+  const main = funcs.find(x => x.name === 'main');
   const exports = funcs.filter(x => x.export && x.name !== 'main');
   for (const x of exports) {
     if (x.data) {
@@ -54,41 +55,65 @@ const compile = async (file, [ _funcs, _globals ]) => {
       return acc;
     }, {});
 
-    for (let i = 0; i < x.wasm.length; i++) {
-      const y = x.wasm[i];
-      const n = x.wasm[i + 1];
-      if (y[0] === Opcodes.call) {
-        const f = funcs.find(x => x.index === y[1]);
-        if (!f) continue;
+    const rewriteWasm = (x, wasm, rewriteLocals = false) => {
+      for (let i = 0; i < wasm.length; i++) {
+        const y = wasm[i];
+        const n = wasm[i + 1];
+        if (y[0] === Opcodes.call) {
+          const f = funcs.find(x => x.index === y[1]);
+          if (!f) continue;
 
-        y[1] = f.name;
+          y[1] = f.name;
+        }
+
+        if (y[0] === Opcodes.global_get || y[0] === Opcodes.global_set) {
+          const global = Object.values(globals).findIndex(x => x.idx === y[1]);
+          const name = Object.keys(globals)[global];
+          const type = globals[name].type;
+          y.splice(0, 10, 'global', y[0], name, type);
+
+          if (!x.globalInits) {
+            x.globalInits = { ...main.globalInits };
+            for (const z in x.globalInits) {
+              rewriteWasm(main, x.globalInits[z], true);
+            }
+          }
+        }
+
+        if (rewriteLocals && (y[0] === Opcodes.local_get || y[0] === Opcodes.local_set || y[0] === Opcodes.local_tee)) {
+          const local = Object.values(x.locals).findIndex(x => x.idx === y[1]);
+          const name = Object.keys(x.locals)[local];
+          const type = x.locals[name].type;
+          y.splice(1, 10, 'local', name, type);
+        }
+
+        if (y[0] === Opcodes.const && (n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
+          const l = locals[n[1]];
+          if (!l) continue;
+          if (![TYPES.string, TYPES.array, TYPES.bytestring].includes(l.metadata?.type)) continue;
+          if (!x.pages) continue;
+
+          const pageName = [...x.pages.keys()].find(z => z.endsWith(l.name));
+          if (!pageName || allocated.has(pageName)) continue;
+          allocated.add(pageName);
+
+          y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type, valtypeBinary);
+        }
+
+        if (y[0] === Opcodes.i32_const && n[0] === Opcodes.throw) {
+          const id = y[1];
+          y.splice(0, 10, 'throw', exceptions[id].constructor, exceptions[id].message);
+
+          // remove throw inst
+          wasm.splice(i + 1, 1);
+        }
       }
+    };
 
-      if (y[0] === Opcodes.const && (n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
-        const l = locals[n[1]];
-        if (!l) continue;
-        if (![TYPES.string, TYPES.array, TYPES.bytestring].includes(l.metadata?.type)) continue;
-        if (!x.pages) continue;
-
-        const pageName = [...x.pages.keys()].find(z => z.endsWith(l.name));
-        if (!pageName || allocated.has(pageName)) continue;
-        allocated.add(pageName);
-
-        y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type, valtypeBinary);
-      }
-
-      if (y[0] === Opcodes.i32_const && n[0] === Opcodes.throw) {
-        const id = y[1];
-        y.splice(0, 10, 'throw', exceptions[id].constructor, exceptions[id].message);
-
-        // remove throw inst
-        x.wasm.splice(i + 1, 1);
-      }
-    }
+    rewriteWasm(x, x.wasm);
   }
 
   _funcs.push(...exports);
-  _globals.push(...Object.values(globals));
 };
 
 const precompile = async () => {
@@ -96,14 +121,14 @@ const precompile = async () => {
 
   const dir = join(__dirname, 'builtins');
 
-  let funcs = [], globals = [];
+  let funcs = [];
   for (const file of fs.readdirSync(dir)) {
     if (file.endsWith('.d.ts')) continue;
 
     console.log(`${' '.repeat(12)}${file}`);
 
     const t = performance.now();
-    await compile(join(dir, file), [ funcs, globals ]);
+    await compile(join(dir, file), funcs);
 
     console.log(`\u001b[A${' '.repeat(100)}\r\u001b[90m${`[${(performance.now() - t).toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92m${file}\u001b[0m`);
   }
@@ -113,13 +138,23 @@ import { number } from './embedding.js';
 
 export const BuiltinFuncs = function() {
 ${funcs.map(x => {
-  const wasm = JSON.stringify(x.wasm.filter(x => x.length && x[0] != null)).replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtype})`).replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`).replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`);
+  const rewriteWasm = wasm => {
+    const str = JSON.stringify(wasm.filter(x => x.length && x[0] != null))
+      .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtype})`)
+      .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode}, '${name}', ${valtype})`)
+      .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}', ${valtype})]`)
+      .replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`)
+      .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`);
+
+    return `(scope, {${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}`.slice(0, -1)}}) => ` + str;
+  };
+
   return `  this.${x.name} = {
-    wasm: (scope, {${`${wasm.includes('allocPage(') ? 'allocPage,' : ''}${wasm.includes('builtin(') ? 'builtin,' : ''}${wasm.includes('internalThrow(') ? 'internalThrow,' : ''}`.slice(0, -1)}}) => ${wasm},
+    wasm: ${rewriteWasm(x.wasm)},
     params: ${JSON.stringify(x.params)}, typedParams: 1,
     returns: ${JSON.stringify(x.returns)}, ${x.returnType != null ? `returnType: ${JSON.stringify(x.returnType)}` : 'typedReturns: 1'},
     locals: ${JSON.stringify(Object.values(x.locals).slice(x.params.length).map(x => x.type))}, localNames: ${JSON.stringify(Object.keys(x.locals))},
-${x.data && x.data.length > 0 ? `    data: [${x.data.map(x => `[${x.offset ?? 'null'},[${x.bytes.join(',')}]]`).join(',')}],` : ''}
+${x.globalInits ? `    globalInits: {${Object.keys(x.globalInits).map(y => `${y}: ${rewriteWasm(x.globalInits[y])}`).join(',')}},\n` : ''}${x.data && x.data.length > 0 ? `    data: [${x.data.map(x => `[${x.offset ?? 'null'},[${x.bytes.join(',')}]]`).join(',')}],` : ''}
 ${x.table ? `    table: 1,` : ''}${x.constr ? `    constr: 1,` : ''}${x.hasRestArgument ? `    hasRestArgument: 1,` : ''}
   };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');
 }).join('\n')}
