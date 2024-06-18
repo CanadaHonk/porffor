@@ -502,3 +502,31 @@ export const __console_countReset = (label: bytestring) => {
   print(0);
 }
 
+const timeMap = new Map();
+
+export const __console_time = (label: bytestring) => {
+  if (!label) label = 'default';
+  timeMap.set(label, performance.now());
+}
+
+export const __console_timeLog = (label: bytestring) => {
+  if (!label) label = 'default';
+  __Porffor_printTabs();
+  const val = timeMap.get(label);
+  if (!val) {
+    printStatic("Timer '");
+    __Porffor_printBytestring(label);
+    printStatic("' does not exist");
+    return;
+  }
+  __Porffor_printBytestring(label);
+  printStatic(': ');
+  print(performance.now() - val);
+  printStatic(' ms');
+}
+
+export const __console_timeEnd = (label: bytestring) => {
+  __console_timeLog(label);
+  printStatic(' - timer ended');
+  timeMap.delete(label);
+}
