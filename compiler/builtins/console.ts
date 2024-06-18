@@ -332,8 +332,17 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
   }
 }
 
+let tabLevel = 0;
+
+export const __Porffor_printTabs = () => {
+  for (let i = 0; i < tabLevel; i++) {
+    printStatic('\t');
+  }
+}
+
 export const __console_clear = () => {
   printStatic('\x1b[1;1H\x1b[J');
+  tabLevel = 0;
 }
 
 export const __Porffor_consolePrint = (arg: any) => {
@@ -349,9 +358,23 @@ export const __Porffor_consolePrint = (arg: any) => {
   }
 }
 
+export const __console_group = (label: bytestring) => {
+  if (Porffor.rawType(label) != Porffor.TYPES.undefined) __Porffor_consolePrint(label);
+  tabLevel++;
+}
+
+export const __console_groupCollapsed = (label: bytestring) => __console_group(label);
+
+export const __console_groupEnd = (label: bytestring) => {
+  if (Porffor.rawType(label) != Porffor.TYPES.undefined) __Porffor_consolePrint(label);
+  tabLevel--;
+  if (tabLevel < 0) tabLevel = 0;
+}
+
 export const __console_log = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
+    __Porffor_printTabs();
     __Porffor_consolePrint(args[i]);
     if (i != argLen) printStatic(' ');
   }
@@ -361,6 +384,7 @@ export const __console_log = (...args: any[]) => {
 export const __console_debug = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
+    __Porffor_printTabs();
     __Porffor_consolePrint(args[i]);
     if (i != argLen) printStatic(' ');
   }
@@ -370,6 +394,7 @@ export const __console_debug = (...args: any[]) => {
 export const __console_info = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
+    __Porffor_printTabs();
     __Porffor_consolePrint(args[i]);
     if (i != argLen) printStatic(' ');
   }
@@ -379,6 +404,7 @@ export const __console_info = (...args: any[]) => {
 export const __console_warn = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
+    __Porffor_printTabs();
     __Porffor_consolePrint(args[i]);
     if (i != argLen) printStatic(' '); // space
   }
@@ -388,6 +414,7 @@ export const __console_warn = (...args: any[]) => {
 export const __console_error = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
+    __Porffor_printTabs();
     __Porffor_consolePrint(args[i]);
     if (i != argLen) printStatic(' ');
   }
@@ -396,6 +423,7 @@ export const __console_error = (...args: any[]) => {
 
 export const __console_assert = (assertion: any, ...args: any[]) => {
   if (assertion) return;
+  __Porffor_printTabs();
   printStatic('Assertion failed');
   if (args.length != 0) {
     printStatic(': ');
@@ -446,6 +474,7 @@ export const __console_dir = (obj: any, options: any) => {
     showHidden = options.showHidden;
   }
 
+  __Porffor_printTabs();
   __Porffor_dirObject(obj, colors, depth, showHidden);
   printStatic('\n');
 }
