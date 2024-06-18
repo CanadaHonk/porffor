@@ -381,7 +381,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     if (!process.argv.includes('-i')) throw e;
     if (!(e instanceof WebAssembly.CompileError)) throw e;
 
-    const funcInd = parseInt(e.message.match(/function #([0-9]+) /)?.[1]);
+    const funcInd = parseInt(e.message.match(/function #([0-9]+)/)?.[1]);
     const blobOffset = parseInt(e.message.split('@')?.[1]);
 
     backtrace(funcInd, blobOffset);
