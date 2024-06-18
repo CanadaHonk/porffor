@@ -260,11 +260,8 @@ const mapName = x => {
 const lookupName = (scope, _name) => {
   const name = mapName(_name);
 
-  let local = scope.locals[name];
-  if (local) return [ local, false ];
-
-  let global = globals[name];
-  if (global) return [ global, true ];
+  if (Object.hasOwn(scope.locals, name)) return [ scope.locals[name], false ];
+  if (Object.hasOwn(globals, name)) return [ globals[name], true ];
 
   return [ undefined, undefined ];
 };
@@ -1293,13 +1290,13 @@ const setType = (scope, _name, type) => {
   const out = typeof type === 'number' ? number(type, Valtype.i32) : type;
 
   if (typedInput && scope.locals[name]?.metadata?.type != null) return [];
-  if (scope.locals[name]) return [
+  if (Object.hasOwn(scope.locals, name)) return [
     ...out,
     [ Opcodes.local_set, scope.locals[name + '#type'].idx ]
   ];
 
   if (typedInput && globals[name]?.metadata?.type != null) return [];
-  if (globals[name]) return [
+  if (Object.hasOwn(globals, name)) return [
     ...out,
     [ Opcodes.global_set, globals[name + '#type'].idx ]
   ];
@@ -2460,7 +2457,7 @@ const allocVar = (scope, name, global = false, type = true) => {
   const target = global ? globals : scope.locals;
 
   // already declared
-  if (target[name]) {
+  if (Object.hasOwn(target, name)) {
     // parser should catch this but sanity check anyway
     // if (decl.kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
 
@@ -2656,7 +2653,7 @@ const generateVar = (scope, decl) => {
       continue;
     }
 
-    if (topLevel && builtinVars[name]) {
+    if (topLevel && Object.hasOwn(builtinVars, name)) {
       // cannot redeclare
       if (decl.kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
 
@@ -2990,7 +2987,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // only allow = for this
     if (op !== '=') return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
 
-    if (builtinVars[name]) {
+    if (Object.hasOwn(builtinVars, name)) {
       // just return rhs (eg `NaN = 2`)
       return generate(scope, decl.right);
     }
