@@ -4602,6 +4602,8 @@ const objectHack = node => {
   if (node.type === 'MemberExpression') {
     const out = (() => {
       if (node.computed || node.optional) return;
+      // hack: block these properties as they can be accessed on functions
+      if (node.property.name == "length" || node.property.name == "name") return;
 
       let objectName = node.object.name;
 
