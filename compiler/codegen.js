@@ -75,6 +75,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'SequenceExpression':
       return generateSequence(scope, decl);
 
+    case 'ChainExpression':
+      return generateChain(scope, decl);
+
     case 'CallExpression':
       return generateCall(scope, decl, global, name, valueUnused);
 
@@ -1598,6 +1601,10 @@ const generateSequence = (scope, decl) => {
   return out;
 };
 
+const generateChain = (scope, decl) => {
+  return generate(scope, decl.expression);
+};
+
 const CTArrayUtil = {
   getLengthI32: pointer => [
     ...number(0, Valtype.i32),
@@ -3038,6 +3045,15 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   ];
 };
 
+const ifIdentifierErrors = (scope, decl) => {
+  if (decl.type === 'Identifier') {
+    const out = generateIdent(scope, decl);
+    if (out[1]) return true;
+  }
+
+  return false;
+};
+
 const generateUnary = (scope, decl) => {
   switch (decl.operator) {
     case '+':
@@ -3111,16 +3127,9 @@ const generateUnary = (scope, decl) => {
 
     case 'typeof': {
       let overrideType, toGenerate = true;
-
-      if (decl.argument.type === 'Identifier') {
-        const out = generateIdent(scope, decl.argument);
-
-        // if ReferenceError (undeclared var), ignore and return undefined
-        if (out[1]) {
-          // does not exist (2 ops from throw)
-          overrideType = number(TYPES.undefined, Valtype.i32);
-          toGenerate = false;
-        }
+      if (ifIdentifierErrors(scope, decl.argument)) {
+        overrideType = number(TYPES.undefined, Valtype.i32);
+        toGenerate = false;
       }
 
       const out = toGenerate ? generate(scope, decl.argument) : [];
@@ -4314,6 +4323,8 @@ const generateMember = (scope, decl, _global, _name) => {
 
   // hack: .length
   if (decl.property.name === 'length') {
+    // todo: support optional
+
     const func = funcs.find(x => x.name === name);
     if (func) {
       const typedParams = !func.internal || builtinFuncs[name]?.typedParams;
@@ -4374,6 +4385,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
   // todo: generate this array procedurally during builtinFuncs creation
   if (['size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength'].includes(decl.property.name)) {
+    // todo: support optional
     const bc = {};
     const cands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + decl.property.name + '$get'));
 
@@ -4400,12 +4412,13 @@ const generateMember = (scope, decl, _global, _name) => {
   }
 
   const object = decl.object;
-  const objectWasm = generate(scope, object);
   const property = decl.computed ? decl.property : {
     type: 'Literal',
     value: decl.property.name
   };
-  const propertyWasm = generate(scope, property);
+
+  const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];
+  const propertyWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_prop') ] ];
 
   // // todo: we should only do this for strings but we don't know at compile-time :(
   // hack: this is naughty and will break things!
@@ -4421,7 +4434,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
   includeBuiltin(scope, '__Map_prototype_get');
 
-  return typeSwitch(scope, getNodeType(scope, object), {
+  const out = typeSwitch(scope, getNodeType(scope, object), {
     [TYPES.array]: [
       ...loadArray(scope, objectWasm, propertyWasm),
       ...setLastType(scope)
@@ -4581,6 +4594,38 @@ const generateMember = (scope, decl, _global, _name) => {
 
     default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
   });
+
+  if (decl.optional) {
+    out.unshift(
+      [ Opcodes.block, valtypeBinary ],
+      ...generate(scope, object),
+      [ Opcodes.local_tee, localTmp(scope, '#member_obj') ],
+
+      ...nullish(scope, [], getNodeType(scope, object), false, true),
+      [ Opcodes.if, Blocktype.void ],
+      ...setLastType(scope, TYPES.undefined),
+      ...number(0),
+      [ Opcodes.br, 1 ],
+      [ Opcodes.end ],
+
+      ...generate(scope, property),
+      [ Opcodes.local_set, localTmp(scope, '#member_prop') ]
+    );
+
+    out.push(
+      [ Opcodes.end ]
+    );
+  } else {
+    out.unshift(
+      ...generate(scope, object),
+      [ Opcodes.local_set, localTmp(scope, '#member_obj') ],
+
+      ...generate(scope, property),
+      [ Opcodes.local_set, localTmp(scope, '#member_prop') ]
+    );
+  }
+
+  return out;
 };
 
 const randId = () => Math.random().toString(16).slice(1, -2).padEnd(12, '0');
