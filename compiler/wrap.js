@@ -114,9 +114,10 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     }
 
     case TYPES.symbol: {
-      const descStore = pages.get('bytestring: __Porffor_symbol_descStore/ptr').ind * pageSize;
-      if (!descStore) return Symbol();
+      const page = pages.get('bytestring: __Porffor_symbol_descStore/ptr');
+      if (!page) return Symbol();
 
+      const descStore = page.ind * pageSize;
       const offset = descStore + 4 + ((value - 1) * 9);
 
       const v = read(Float64Array, memory, offset, 1)[0];
