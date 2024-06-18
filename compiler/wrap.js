@@ -242,7 +242,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     const surrounding = Prefs.backtraceSurrounding ?? 5;
     let min = middleIndex - surrounding;
     let max = middleIndex + surrounding + 1;
-    if (Prefs.backtraceEntireFunc || middleIndex == -1) {
+    if (Prefs.backtraceFunc || middleIndex == -1) {
       min = 0;
       max = func.wasm.length;
     }
