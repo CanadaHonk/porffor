@@ -4830,10 +4830,9 @@ const internalConstrs = {
       }, global, name);
 
       // new Array(n)
-
       const [ out, pointer ] = makeArray(scope, {
         rawElements: new Array(0)
-      }, global, name, true, undefined, true);
+      }, global, name, true, undefined, true, true);
 
       const arg = decl.arguments[0] ?? DEFAULT_VALUE;
 
