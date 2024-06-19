@@ -1154,9 +1154,7 @@ const asmFuncToAsm = (scope, func) => {
           ...asmFuncToAsm(scope, scope.globalInits[name]),
           ...number(1, Valtype.i32),
           [ Opcodes.global_set, globals[globalName + '#glbl_inited'].idx ],
-          [ Opcodes.end ],
-
-          [ opcode, globals[globalName].idx ]
+          [ Opcodes.end ]
         );
       }
 
