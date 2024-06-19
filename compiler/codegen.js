@@ -1614,8 +1614,7 @@ const countLeftover = wasm => {
 };
 
 const disposeLeftover = wasm => {
-  let leftover = countLeftover(wasm);
-
+  const leftover = countLeftover(wasm);
   for (let i = 0; i < leftover; i++) wasm.push([ Opcodes.drop ]);
 };
 
@@ -2569,6 +2568,38 @@ const extractTypeAnnotation = decl => {
   return { type, typeName, elementType };
 };
 
+const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType = undefined) => {
+  const local = isGlobal ? globals[name] : scope.locals[name];
+  const out = Array.isArray(decl) ? decl : generate(scope, decl, isGlobal, name);
+
+  // if (name === 'descString') console.log(decompile(out, undefined, undefined, scope.locals));
+
+  // optimize away last type usage
+  // todo: detect last type then i32 conversion op
+  const lastOp = out.at(-1);
+  if (lastOp[0] === Opcodes.local_set && lastOp[1] === scope.locals['#last_type']?.idx) {
+    out.pop();
+
+    const setOut = setType(scope, name, []);
+    out.push(
+      // drop if setType is empty
+      ...(setOut.length === 0 ? [ [ Opcodes.drop ] ] : setOut),
+
+      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      ...(tee ? [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ] : [])
+    );
+  } else {
+    out.push(
+      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      ...(tee ? [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ] : []),
+
+      ...setType(scope, name, overrideType ?? getNodeType(scope, decl))
+    );
+  }
+
+  return out;
+};
+
 const generateVar = (scope, decl) => {
   let out = [];
 
@@ -2721,17 +2752,19 @@ const generateVar = (scope, decl) => {
     if (x.init) {
       const alreadyArray = scope.arrays?.get(name) != null;
 
-      const newOut = generate(scope, x.init, global, name);
+      let newOut = generate(scope, x.init, global, name);
       if (!alreadyArray && scope.arrays?.get(name) != null) {
         // hack to set local as pointer before
         newOut.unshift(...number(scope.arrays.get(name)), [ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
         if (newOut.at(-1) == Opcodes.i32_from_u) newOut.pop();
-        newOut.push([ Opcodes.drop ]);
+        newOut.push(
+          [ Opcodes.drop ],
+          ...setType(scope, name, getNodeType(scope, x.init))
+        );
       } else {
-        newOut.push([ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
+        newOut = setLocalWithType(scope, name, global, newOut, false, getNodeType(scope, x.init));
       }
 
-      newOut.push(...setType(scope, name, getNodeType(scope, x.init)));
       out = out.concat(newOut);
 
       if (globalThis.precompile && global) {
@@ -3049,13 +3082,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   }
 
   if (op === '=') {
-    return [
-      ...generate(scope, decl.right, isGlobal, name),
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
-      [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
-
-      ...setType(scope, name, getNodeType(scope, decl.right))
-    ];
+    return setLocalWithType(scope, name, isGlobal, decl.right, true);
   }
 
   if (op === '||' || op === '&&' || op === '??') {
@@ -3078,13 +3105,12 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     ];
   }
 
-  return [
-    ...performOp(scope, op, [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
-    [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
-    [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
-
-    ...setType(scope, name, getNodeType(scope, decl))
-  ];
+  return setLocalWithType(
+    scope, name, isGlobal,
+    performOp(scope, op, [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
+    true,
+    getNodeType(scope, decl)
+  );
 };
 
 const ifIdentifierErrors = (scope, decl) => {
