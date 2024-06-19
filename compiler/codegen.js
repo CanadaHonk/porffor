@@ -2576,8 +2576,6 @@ const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType
   const local = isGlobal ? globals[name] : scope.locals[name];
   const out = Array.isArray(decl) ? decl : generate(scope, decl, isGlobal, name);
 
-  // if (name === 'descString') console.log(decompile(out, undefined, undefined, scope.locals));
-
   // optimize away last type usage
   // todo: detect last type then i32 conversion op
   const lastOp = out.at(-1);
