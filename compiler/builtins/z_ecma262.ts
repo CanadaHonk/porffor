@@ -38,7 +38,9 @@ export const __ecma262_ToString = (argument: unknown): bytestring => {
   if (type == Porffor.TYPES.symbol) throw new TypeError('Cannot convert a Symbol value to a string');
 
   // 3. If argument is undefined, return "undefined".
-  if (type == Porffor.TYPES.undefined) return out = 'undefined';
+  if (Porffor.fastOr(
+    type == Porffor.TYPES.undefined,
+    type == Porffor.TYPES.empty)) return out = 'undefined';
 
   // 4. If argument is null, return "null".
   if (Porffor.fastAnd(
