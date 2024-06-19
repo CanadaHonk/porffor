@@ -1199,59 +1199,59 @@ export const BuiltinFuncs = function() {
     constr: 1,
   };
   this.Error = {
-    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
+    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,0],[68,0,0,0,0,0,0,0,0],[16, builtin('Object')],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.4f2edb37542"],
+    locals: [127], localNames: ["message","message#type","#last_type"],
     constr: 1,
   };
   this.AggregateError = {
-    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
+    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,0],[68,0,0,0,0,0,0,0,0],[16, builtin('Object')],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.9b187f0c85e"],
+    locals: [127], localNames: ["message","message#type","#last_type"],
     constr: 1,
   };
   this.TypeError = {
-    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
+    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,0],[68,0,0,0,0,0,0,0,0],[16, builtin('Object')],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.de5fa414d2d"],
+    locals: [127], localNames: ["message","message#type","#last_type"],
     constr: 1,
   };
   this.ReferenceError = {
-    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
+    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,0],[68,0,0,0,0,0,0,0,0],[16, builtin('Object')],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.e9bab759fa9"],
+    locals: [127], localNames: ["message","message#type","#last_type"],
     constr: 1,
   };
   this.SyntaxError = {
-    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
+    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,0],[68,0,0,0,0,0,0,0,0],[16, builtin('Object')],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.db7d5bd930a"],
+    locals: [127], localNames: ["message","message#type","#last_type"],
     constr: 1,
   };
   this.RangeError = {
-    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
+    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,0],[68,0,0,0,0,0,0,0,0],[16, builtin('Object')],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.1cc9b65c1c8"],
+    locals: [127], localNames: ["message","message#type","#last_type"],
     constr: 1,
   };
   this.EvalError = {
-    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
+    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,0],[68,0,0,0,0,0,0,0,0],[16, builtin('Object')],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.eff57e5083e"],
+    locals: [127], localNames: ["message","message#type","#last_type"],
     constr: 1,
   };
   this.URIError = {
-    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[26],[34,3],[65,5],[15]],
+    wasm: (scope, {builtin}) => [[32,-1],[184],[26],[65,0],[68,0,0,0,0,0,0,0,0],[16, builtin('Object')],[65,5],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127,124], localNames: ["message","message#type","#last_type","#objectexpr.256087acb80"],
+    locals: [127], localNames: ["message","message#type","#last_type"],
     constr: 1,
   };
   this.escape = {

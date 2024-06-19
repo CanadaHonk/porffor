@@ -3,7 +3,7 @@ export default () => {
 
   const error = name => out += `export const ${name} = function (message: bytestring) {
   new.target;
-  return {};
+  return Object();
 };`;
 
   error('Error');
