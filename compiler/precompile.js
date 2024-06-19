@@ -32,6 +32,11 @@ const compile = async (file, _funcs) => {
 
   const allocated = new Set();
 
+  const invGlobals = Object.keys(globals).reduce((acc, y) => {
+    acc[globals[y].idx] = { ...globals[y], name: y };
+    return acc;
+  }, {});
+
   const main = funcs.find(x => x.name === 'main');
   const exports = funcs.filter(x => x.export && x.name !== 'main');
   for (const x of exports) {
@@ -67,10 +72,8 @@ const compile = async (file, _funcs) => {
         }
 
         if (y[0] === Opcodes.global_get || y[0] === Opcodes.global_set) {
-          const global = Object.values(globals).findIndex(x => x.idx === y[1]);
-          const name = Object.keys(globals)[global];
-          const type = globals[name].type;
-          y.splice(0, 10, 'global', y[0], name, type);
+          const global = invGlobals[y[1]];
+          y.splice(0, 10, 'global', y[0], global.name, global.type);
 
           if (!x.globalInits) {
             if (!main.rewrittenGlobalInits) {
@@ -86,10 +89,8 @@ const compile = async (file, _funcs) => {
         }
 
         if (rewriteLocals && (y[0] === Opcodes.local_get || y[0] === Opcodes.local_set || y[0] === Opcodes.local_tee)) {
-          const local = Object.values(x.locals).findIndex(x => x.idx === y[1]);
-          const name = Object.keys(x.locals)[local];
-          const type = x.locals[name].type;
-          y.splice(1, 10, 'local', name, type);
+          const local = locals[y[1]];
+          y.splice(1, 10, 'local', local.name, local.type);
         }
 
         if (y[0] === Opcodes.const && (n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
@@ -104,6 +105,20 @@ const compile = async (file, _funcs) => {
 
           y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type, valtypeBinary);
         }
+
+        if (y[0] === Opcodes.const && n[0] === Opcodes.global_set) {
+          const l = invGlobals[n[1]];
+          if (!l) continue;
+          if (![TYPES.string, TYPES.array, TYPES.bytestring].includes(l.metadata?.type)) continue;
+          if (!x.pages) continue;
+
+          const pageName = [...x.pages.keys()].find(z => z.endsWith(l.name));
+          if (!pageName || allocated.has(pageName)) continue;
+          allocated.add(pageName);
+
+          y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type, valtypeBinary);
+        }
+
 
         if (y[0] === Opcodes.i32_const && n[0] === Opcodes.throw) {
           const id = y[1];
