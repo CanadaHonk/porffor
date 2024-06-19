@@ -35,7 +35,9 @@ export class StaticAllocator {
   }
 
   alloc({ scope, pages }, name, { itemType }) {
-    const reason = `${this.allocType(itemType)}: ${Prefs.scopedPageNames ? (scope.name + '/') : ''}${name}`;
+    let scopeName = scope.name;
+    if (globalThis.precompile && scopeName === 'main') scopeName = globalThis.precompile;
+    const reason = `${this.allocType(itemType)}: ${Prefs.scopedPageNames ? (scopeName + '/') : ''}${name}`;
 
     if (pages.has(reason)) return number(this.ptr(pages.get(reason).ind), Valtype.i32);
 

@@ -132,6 +132,8 @@ const precompile = async () => {
 
     console.log(`${' '.repeat(12)}${file}`);
 
+    globalThis.precompile = file;
+
     const t = performance.now();
     await compile(join(dir, file), funcs);
 
