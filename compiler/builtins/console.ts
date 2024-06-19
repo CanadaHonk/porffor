@@ -62,15 +62,17 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       return;
 
     case Porffor.TYPES.array:
-      printStatic('[ ');
-
       const arrLen: i32 = arg.length - 1;
-      for (let i: i32 = 0; i <= arrLen; i++) {
-        __Porffor_print(arg[i], colors);
-        if (i != arrLen) printStatic(', ');
+      if (arrLen == -1) {
+        printStatic('[]');
+      } else {
+        printStatic('[ ');
+        for (let i: i32 = 0; i <= arrLen; i++) {
+          __Porffor_print(arg[i], colors);
+          if (i != arrLen) printStatic(', ');
+        }
+        printStatic(' ]');
       }
-
-      printStatic(' ]');
       return;
 
     case Porffor.TYPES.empty:
