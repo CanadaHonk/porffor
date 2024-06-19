@@ -12,7 +12,7 @@ import { join } from 'node:path';
 const __dirname = import.meta.dirname;
 const __filename = join(__dirname, 'index.js');
 
-const resultOnly = process.env.RESULT_ONLY;
+let resultOnly = process.env.RESULT_ONLY;
 
 if (isMainThread) {
   const veryStart = performance.now();
@@ -31,7 +31,7 @@ if (isMainThread) {
 
   const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
-  let lastCommitResults = execSync(`git log -200 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1')).split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
+  let lastCommitResults = execSync(`git log -200 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1') || x.startsWith('test262: 2')).split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
   if (lastCommitResults.length === 8) lastCommitResults = [ ...lastCommitResults.slice(0, 7), 0, lastCommitResults[7] ];
 
   if (!resultOnly) process.stdout.write('\u001b[90mreading tests...\u001b[0m');
@@ -90,9 +90,7 @@ if (isMainThread) {
 
   const start = performance.now();
 
-  const passFiles = [];
-  const wasmErrorFiles = [];
-  const compileErrorFiles = [];
+  const passFiles = [], wasmErrorFiles = [], compileErrorFiles = [], timeoutFiles = [];
   let dirs = new Map(), features = new Map(), errors = new Map(), pagesUsed = new Map();
   let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0, todos = 0;
 
@@ -155,7 +153,7 @@ if (isMainThread) {
         fails++;
       } else if (result === 5) {
         timeouts++;
-        // console.log('\n' + file);
+        if (!resultOnly) timeoutFiles.push(file);
       } else {
         runtimeErrors++;
       }
@@ -292,7 +290,7 @@ if (isMainThread) {
     if (lastResults.passes) console.log(`\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastResults.passes.includes(x)).join('\n')}\n\n`);
     if (lastResults.passes) console.log(`\u001b[4mnew fails\u001b[0m\n${lastResults.passes.filter(x => !passFiles.includes(x)).join('\n')}`);
 
-    if (!dontWriteResults) fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, total }));
+    if (!dontWriteResults) fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, timeouts: timeoutFiles, total }));
   }
 
   console.log(`\u001b[90mtook ${((performance.now() - start) / 1000).toFixed(1)}s to run (${((performance.now() - veryStart) / 1000).toFixed(1)}s total)\u001b[0m`);
@@ -336,6 +334,12 @@ if (isMainThread) {
     for (const x of [ 'parse', 'codegen', 'opt', 'assemble' ]) {
       console.log(`${x}: ${(profileStats[n++] / 1000).toFixed(2)}s`);
     }
+  }
+
+  if (allTests) {
+    resultOnly = true;
+    process.stdout.write(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | `);
+    table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
   }
 } else {
   const { queue, tests, preludes, argv } = workerData;
@@ -423,7 +427,7 @@ if (isMainThread) {
       //   file.endsWith('NumberFormat/constructor-unit.js')
       // ) timeout(exports.main, 1000);
       //   else exports.main();
-      timeout(exports.main, 500);
+      timeout(exports.main, 1000);
 
       stage = 2;
     } catch (e) {

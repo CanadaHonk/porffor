@@ -114,9 +114,10 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     }
 
     case TYPES.symbol: {
-      const descStore = pages.get('bytestring: __Porffor_symbol_descStore/ptr').ind * pageSize;
-      if (!descStore) return Symbol();
+      const page = pages.get('bytestring: __Porffor_symbol_descStore/ptr');
+      if (!page) return Symbol();
 
+      const descStore = page.ind * pageSize;
       const offset = descStore + 4 + ((value - 1) * 9);
 
       const v = read(Float64Array, memory, offset, 1)[0];
@@ -233,12 +234,15 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
 
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
-    console.log('\x1B[4m' + func.name + '\x1B[0m');
+
+    const strParams = func.params.map(v => invValtype[v]);
+    const strReturns = func.returns.map(v => invValtype[v]);
+    console.log(`\x1B[1m${func.name}\x1B[0m \x1B[90m(${strParams.join(', ')}) -> (${strReturns.join(', ')})\x1B[0m`);
 
     const surrounding = Prefs.backtraceSurrounding ?? 5;
     let min = middleIndex - surrounding;
     let max = middleIndex + surrounding + 1;
-    if (Prefs.backtraceEntireFunc || middleIndex == -1) {
+    if (Prefs.backtraceFunc || middleIndex == -1) {
       min = 0;
       max = func.wasm.length;
     }
@@ -378,7 +382,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     if (!process.argv.includes('-i')) throw e;
     if (!(e instanceof WebAssembly.CompileError)) throw e;
 
-    const funcInd = parseInt(e.message.match(/function #([0-9]+) /)?.[1]);
+    const funcInd = parseInt(e.message.match(/function #([0-9]+)/)?.[1]);
     const blobOffset = parseInt(e.message.split('@')?.[1]);
 
     backtrace(funcInd, blobOffset);

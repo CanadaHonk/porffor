@@ -63,3 +63,13 @@ export const __Symbol_prototype_toLocaleString = (_this: Symbol) => __Symbol_pro
 export const __Symbol_prototype_valueOf = (_this: Symbol) => {
   return _this;
 };
+
+const forStore = new Map();
+export const __Symbol_for = (key: any): Symbol => {
+  if (forStore.has(key)) return forStore.get(key);
+
+  const out: Symbol = Symbol(key);
+  forStore.set(key, out);
+
+  return out;
+};
