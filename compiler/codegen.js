@@ -488,7 +488,7 @@ const concatStrings = (scope, left, right, leftType, rightType, allBytestrings =
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, leftPointer ],
       [ Opcodes.local_get, leftLength ],
-      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
+      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
       [ Opcodes.local_set, leftPointer ],
       [ Opcodes.end ],
 
@@ -498,7 +498,7 @@ const concatStrings = (scope, left, right, leftType, rightType, allBytestrings =
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, rightPointer ],
       [ Opcodes.local_get, rightLength ],
-      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
+      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
       [ Opcodes.local_set, rightPointer ],
       [ Opcodes.end ]
     ]),
@@ -604,7 +604,7 @@ const compareStrings = (scope, left, right, leftType, rightType, allBytestrings 
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, leftPointer ],
       [ Opcodes.local_get, leftLength ],
-      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
+      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
       [ Opcodes.local_set, leftPointer ],
       [ Opcodes.end ],
 
@@ -615,7 +615,7 @@ const compareStrings = (scope, left, right, leftType, rightType, allBytestrings 
       [ Opcodes.local_get, rightPointer ],
       [ Opcodes.local_get, rightPointer ],
       [ Opcodes.i32_load, 0, 0 ],
-      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
+      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
       [ Opcodes.local_set, rightPointer ],
       [ Opcodes.end ]
     ]),
@@ -951,7 +951,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     return finalize([
       ...left,
       ...right,
-      [ Opcodes.call, idx ]
+      [ Opcodes.call, ...unsignedLEB128(idx) ]
     ]);
   }
 
@@ -1128,7 +1128,7 @@ const asmFuncToAsm = (scope, func) => {
       }
 
       if (idx == null) throw new Error(`builtin('${n}') failed to find a func (inside ${scope.name})`);
-      return idx;
+      return unsignedLEB128(idx);
     },
     glbl: (opcode, name, type) => {
       const globalName = '#porf#' + name; // avoid potential name clashing with user js
@@ -1783,7 +1783,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ...getNodeType(scope, decl.arguments[0]),
 
         // call regex func
-        [ Opcodes.call, idx ],
+        [ Opcodes.call, ...unsignedLEB128(idx) ],
         Opcodes.i32_from_u,
 
         ...setLastType(scope, Rhemyn.types[funcName])
@@ -1826,7 +1826,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ...getNodeType(scope, target),
 
         // call regex func
-        [ Opcodes.call, idx ],
+        [ Opcodes.call, ...unsignedLEB128(idx) ],
         Opcodes.i32_from,
 
         ...setLastType(scope, Rhemyn.types[protoName])
@@ -2296,7 +2296,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     if (typedParams) out = out.concat(getNodeType(scope, arg));
   }
 
-  out.push([ Opcodes.call, idx ]);
+  out.push([ Opcodes.call, ...unsignedLEB128(idx) ]);
 
   if (!typedReturns) {
     // let type;
@@ -2889,13 +2889,13 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             [ Opcodes.local_get, localTmp(scope, '#objset_property') ],
             ...getNodeType(scope, property),
 
-            [ Opcodes.call, funcIndex.__Map_prototype_get ],
+            [ Opcodes.call, ...unsignedLEB128(funcIndex.__Map_prototype_get) ],
             ...setLastType(scope)
           ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
           [ Opcodes.local_tee, newValueTmp ],
           ...getNodeType(scope, decl),
 
-          [ Opcodes.call, funcIndex.__Map_prototype_set ],
+          [ Opcodes.call, ...unsignedLEB128(funcIndex.__Map_prototype_set) ],
           [ Opcodes.drop ],
 
           ...setLastType(scope, getNodeType(scope, decl)),
@@ -4347,7 +4347,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
       ...generate(scope, value),
       ...getNodeType(scope, value),
 
-      [ Opcodes.call, funcIndex.__Map_prototype_set ],
+      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Map_prototype_set) ],
 
       [ Opcodes.drop ],
       [ Opcodes.drop ]
@@ -4581,7 +4581,7 @@ const generateMember = (scope, decl, _global, _name) => {
       ...propertyWasm,
       ...getNodeType(scope, property),
 
-      [ Opcodes.call, funcIndex.__Map_prototype_get ],
+      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Map_prototype_get) ],
       ...setLastType(scope)
     ],
 

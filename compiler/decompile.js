@@ -89,10 +89,11 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
     }
 
     if (inst[0] === Opcodes.call || inst[0] === Opcodes.return_call) {
-      const callFunc = funcs.find(x => x.index === inst[1]);
+      const idx = read_unsignedLEB128(inst.slice(1));
+      const callFunc = funcs.find(x => x.index === idx);
       if (callFunc) out += ` ;; $${callFunc.name} ${makeSignature(callFunc.params, callFunc.returns)}`;
-      if (globalThis.importFuncs && inst[1] < importFuncs.length) {
-        const importFunc = importFuncs[inst[1]];
+      if (globalThis.importFuncs && idx < importFuncs.length) {
+        const importFunc = importFuncs[idx];
         out += ` ;; import ${importFunc.name} ${makeSignature(typeof importFunc.params === 'object' ? importFunc.params : new Array(importFunc.params).fill(valtypeBinary), new Array(importFunc.returns).fill(valtypeBinary),)}`;
       }
     }
