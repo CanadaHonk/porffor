@@ -4133,16 +4133,19 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     const firstAssign = !scope.arrays.has(uniqueName);
     if (firstAssign) scope.arrays.set(uniqueName, rawPtr);
 
-    if (Prefs.data && firstAssign && useRawElements) {
+    const local = global ? globals[name] : scope.locals[name];
+    if (
+      Prefs.data && firstAssign && useRawElements &&
+      (!globalThis.precompile || !global)
+    ) {
       makeData(scope, elements, rawPtr, itemType, initEmpty);
 
       // local value as pointer
       return [ number(rawPtr, intOut ? Valtype.i32 : valtypeBinary), pointer ];
     }
 
-    const local = global ? globals[name] : scope.locals[name];
-    const pointerTmp = local != null ? localTmp(scope, '#makearray_pointer_tmp', Valtype.i32) : null;
-    if (pointerTmp != null) {
+    if (local != null) {
+      const pointerTmp = localTmp(scope, '#makearray_pointer_tmp', Valtype.i32);
       out.push(
         [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
         Opcodes.i32_to_u,
