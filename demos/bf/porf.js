@@ -44,17 +44,18 @@ const interpret = str => {
 
 let file = '';
 if (Porffor.readArgv(1, file) == -1) {
-  console.log('usage: [brainf file to interpret]\n');
+  printStatic('usage: [brainf file to interpret]\n\n');
 
   const code = '>++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<+++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------------.>>.+++.------.--------.>+.>+.';
-  console.log('here is a hello world for example:');
-  console.log(code);
+  printStatic('here is a hello world for example:\n');
+  Porffor.printString(code);
+  printStatic('\n');
 
   interpret(code);
 } else {
   let contents = '';
   if (Porffor.readFile(file, contents) == -1) {
-    console.log('error reading file:', file);
+    printStatic('error reading file');
   } else {
     interpret(contents);
   }
