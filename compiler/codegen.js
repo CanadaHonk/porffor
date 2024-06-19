@@ -1501,6 +1501,10 @@ const getNodeType = (scope, node) => {
       return TYPES.number;
     }
 
+    if (node.type === 'UpdateExpression') {
+      return TYPES.number;
+    }
+
     if (node.type === 'MemberExpression') {
       const name = node.property.name;
 
