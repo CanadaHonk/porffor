@@ -137,5 +137,16 @@ ${[...s1].map((x, i) => `  Porffor.wasm.i32.store16(outPtr, ${x.charCodeAt(0)}, 
   arg('anchor', 'a', 'name');
   arg('link', 'a', 'href');
 
+  const prototypeAlias = (regular, annex) => `export const __String_prototype_${annex} = (_this: string) => {
+  return __String_prototype_${regular}(_this);
+};
+export const __ByteString_prototype_${annex} = (_this: bytestring) => {
+  return __ByteString_prototype_${regular}(_this);
+};
+`;
+
+  prototypeAlias('trimStart', 'trimLeft');
+  prototypeAlias('trimEnd', 'trimRight');
+
   return out;
 };
