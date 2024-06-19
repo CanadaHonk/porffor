@@ -603,7 +603,7 @@ export const BuiltinFuncs = function() {
     locals: [124,127], localNames: ["arg","arg#type","#switch_disc","#last_type"],
   };
   this.__console_group = {
-    wasm: (scope, {glbl,builtin}) => [[32,0],[65,195,1],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,96,64],[98],[4,64],[32,0],[65,195,1],[16, builtin('__Porffor_consolePrint')],[26],[26],[11],...glbl(35, 'tabLevel', 124),[68,0,0,0,0,0,0,240,63],[160],...glbl(36, 'tabLevel', 124),[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
+    wasm: (scope, {glbl,builtin}) => [[32,0],[65,195,1],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,96,64],[98],[4,64],[16, builtin('__Porffor_consoleIndent')],[26],[26],[32,0],[65,195,1],[16, builtin('__Porffor_consolePrint')],[26],[26],[11],...glbl(35, 'tabLevel', 124),[68,0,0,0,0,0,0,240,63],[160],...glbl(36, 'tabLevel', 124),[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
     locals: [127], localNames: ["label","label#type","#last_type"],
@@ -616,10 +616,10 @@ export const BuiltinFuncs = function() {
     locals: [127], localNames: ["label","label#type","#last_type"],
   };
   this.__console_groupEnd = {
-    wasm: (scope, {glbl,builtin}) => [[32,0],[65,195,1],[16, builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,96,64],[98],[4,64],[32,0],[65,195,1],[16, builtin('__Porffor_consolePrint')],[26],[26],[11],...glbl(35, 'tabLevel', 124),[68,0,0,0,0,0,0,240,63],[161],...glbl(36, 'tabLevel', 124),...glbl(35, 'tabLevel', 124),[68,0,0,0,0,0,0,0,0],[99],[4,64],[68,0,0,0,0,0,0,0,0],...glbl(36, 'tabLevel', 124),...glbl(35, 'tabLevel', 124),[65,1],...glbl(36, 'tabLevel#type', 127),[26],[11],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
-    params: [124,127], typedParams: 1,
+    wasm: (scope, {glbl}) => [...glbl(35, 'tabLevel', 124),[68,0,0,0,0,0,0,240,63],[161],...glbl(36, 'tabLevel', 124),...glbl(35, 'tabLevel', 124),[68,0,0,0,0,0,0,0,0],[99],[4,64],[68,0,0,0,0,0,0,0,0],...glbl(36, 'tabLevel', 124),...glbl(35, 'tabLevel', 124),[65,1],...glbl(36, 'tabLevel#type', 127),[26],[11],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
+    params: [], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127], localNames: ["label","label#type","#last_type"],
+    locals: [], localNames: [],
     globalInits: {tabLevel: (scope, {glbl}) => [[68,0,0,0,0,0,0,0,0],...glbl(36, 'tabLevel', 124),[65,1],...glbl(36, 'tabLevel#type', 127)],countMap: (scope, {glbl,loc,builtin}) => [[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[33,loc('#last_type', 127)],...glbl(36, 'countMap', 124),[32,loc('#last_type', 127)],...glbl(36, 'countMap#type', 127)],timeMap: (scope, {glbl,loc,builtin}) => [[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, builtin('Map')],[33,loc('#last_type', 127)],...glbl(36, 'timeMap', 124),[32,loc('#last_type', 127)],...glbl(36, 'timeMap#type', 127)]},
   };
   this.__console_log = {
