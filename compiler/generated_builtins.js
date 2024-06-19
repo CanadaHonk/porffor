@@ -4060,6 +4060,19 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [124,124,127,127,127,127,124,127,124,127,127], localNames: ["_this","_this#type","vals","out","#last_type","forof_base_pointer","forof_length","forof_counter","x","x#type","#proto_target","#proto_target#type","#typeswitch_tmp"],
   };
+  this.__Map_prototype_toString = {
+    wasm: (scope, {allocPage}) => [...number(allocPage(scope, 'bytestring: __Map_prototype_toString/str', 'i8') * pageSize, 124),[34,2],[65,195,1],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124], localNames: ["_this","_this#type","str"],
+    data: [[0,[12,0,0,0,91,111,98,106,101,99,116,32,77,97,112,93]]],
+  };
+  this.__Map_prototype_toLocaleString = {
+    wasm: (scope, {builtin}) => [[32,0],[65,20],[16, builtin('__Map_prototype_toString')],[34,2],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127], localNames: ["_this","_this#type","#last_type"],
+  };
   this.__WeakMap_prototype_has = {
     wasm: (scope, {builtin}) => [[32,0],[65,35],[32,2],[32,3],[16, builtin('__Map_prototype_has')],[34,4],[15]],
     params: [124,127,124,127], typedParams: 1,
