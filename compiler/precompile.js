@@ -73,10 +73,15 @@ const compile = async (file, _funcs) => {
           y.splice(0, 10, 'global', y[0], name, type);
 
           if (!x.globalInits) {
-            x.globalInits = { ...main.globalInits };
-            for (const z in x.globalInits) {
-              rewriteWasm(main, x.globalInits[z], true);
+            if (!main.rewrittenGlobalInits) {
+              for (const z in main.globalInits) {
+                rewriteWasm(main, main.globalInits[z], true);
+              }
+
+              main.rewrittenGlobalInits = true;
             }
+
+            x.globalInits = main.globalInits;
           }
         }
 
