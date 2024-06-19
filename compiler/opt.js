@@ -426,22 +426,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
           i--;
           continue;
         }
-
-        if (i < 2) continue;
-        const lastLastInst = wasm[i - 2];
-
-        if (lastLastInst[1] === inst[1] && inst[0] === Opcodes.local_get && lastInst[0] === Opcodes.local_tee && lastLastInst[0] === Opcodes.local_set) {
-          // local.set x
-          // local.tee y
-          // local.get x
-          // -->
-          // <nothing>
-
-          wasm.splice(i - 2, 3); // remove this, last, 2nd last insts
-          if (Prefs.optLog) log('opt', `removed redundant inline param local handling`);
-          i -= 3;
-          continue;
-        }
       }
 
       if (optLevel < 2) continue;
