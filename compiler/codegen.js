@@ -2246,12 +2246,13 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     if (args.length < paramCount) {
       args = args.concat(new Array(paramCount - 1 - args.length).fill(DEFAULT_VALUE));
     }
+
     const restArgs = args.slice(paramCount - 1);
     args = args.slice(0, paramCount - 1);
     args.push({
       type: 'ArrayExpression',
       elements: restArgs
-    })
+    });
   }
 
   if (func && args.length > paramCount) {
