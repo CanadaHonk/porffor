@@ -1,6 +1,9 @@
 import { Opcodes } from './wasmSpec.js';
 import { TYPES } from './types.js';
 
+import process from 'node:process';
+globalThis.process = process;
+
 import fs from 'node:fs';
 import { join } from 'node:path';
 
