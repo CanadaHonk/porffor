@@ -628,8 +628,8 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           }
 
           if (!cified.has(func.name) && func.name !== f.name) {
-            cify(func);
             cified.add(func.name);
+            cify(func);
           }
 
           let args = [];
