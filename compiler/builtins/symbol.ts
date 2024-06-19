@@ -1,30 +1,33 @@
 import type {} from './porffor.d.ts';
 
-export const __Porffor_symbol_descStore = (op: boolean, value: any): any => {
-  const ptr: bytestring = '';
+const descStore: any[] = new Array(0);
 
-  if (op) { // write
-    const size: number = Porffor.wasm.i32.load(ptr, 0, 0);
-    Porffor.wasm.i32.store(ptr, size + 1, 0, 0)
-
-    // reuse set internals to store description
-    Porffor.set.write(ptr, size, value);
-    return size;
-  } else { // read
-    return Porffor.set.read(ptr, value);
-  }
-};
-
+// 20.4.1.1 Symbol ([ description ])
+// https://tc39.es/ecma262/#sec-symbol-description
 export const Symbol = (description: any): Symbol => {
+  // 1. If NewTarget is not undefined, throw a TypeError exception.
+  // This is an arrow function so happens implicitly
+
+  // 2. If description is undefined, let descString be undefined.
+  let descString: any = undefined;
+
+  // 3. Else, let descString be ? ToString(description).
+  if (Porffor.rawType(description) != Porffor.TYPES.undefined) {
+    descString = ecma262.ToString(description);
+  }
+
+  // 4. Return a new Symbol whose [[Description]] is descString.
+  let len: i32 = descStore.length;
+  descStore[len] = descString;
+  descStore.length = ++len;
+
   // 1-based so always truthy as numeric value
-  const ptr: Symbol = __Porffor_symbol_descStore(true, description) + 1;
-  return ptr;
+  const sym: Symbol = len;
+  return sym;
 };
 
 export const __Symbol_prototype_description$get = (_this: Symbol) => {
-  const description: bytestring =
-    __Porffor_symbol_descStore(false, Porffor.wasm`local.get ${_this}` - 1);
-  return description;
+  return descStore[Porffor.wasm`local.get ${_this}` - 1];
 };
 
 export const __Symbol_prototype_toString = (_this: Symbol) => {
@@ -39,15 +42,20 @@ export const __Symbol_prototype_toString = (_this: Symbol) => {
   Porffor.wasm.i32.store8(out, 108, 0, 9);
   Porffor.wasm.i32.store8(out, 40, 0, 10);
 
-  const description: bytestring =
-    __Porffor_symbol_descStore(false, Porffor.wasm`local.get ${_this}` - 1);
+  const description: any = descStore[Porffor.wasm`local.get ${_this}` - 1];
+  let descLen: i32 = 0;
+  if (description !== undefined) {
+    descLen = description.length;
 
-  const descLen: i32 = description.length;
-  let outPtr: i32 = Porffor.wasm`local.get ${out}` + 7;
-  let descPtr: i32 = Porffor.wasm`local.get ${description}`;
-  const descPtrEnd: i32 = descPtr + descLen;
-  while (descPtr < descPtrEnd) {
-    Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(descPtr++, 0, 4), 0, 4);
+    print(descLen);
+
+    // todo: support regular string
+    let outPtr: i32 = Porffor.wasm`local.get ${out}` + 7;
+    let descPtr: i32 = Porffor.wasm`local.get ${description}`;
+    const descPtrEnd: i32 = descPtr + descLen;
+    while (descPtr < descPtrEnd) {
+      Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(descPtr++, 0, 4), 0, 4);
+    }
   }
 
   // )
@@ -64,7 +72,7 @@ export const __Symbol_prototype_valueOf = (_this: Symbol) => {
   return _this;
 };
 
-const forStore = new Map();
+const forStore: Map = new Map();
 export const __Symbol_for = (key: any): Symbol => {
   if (forStore.has(key)) return forStore.get(key);
 

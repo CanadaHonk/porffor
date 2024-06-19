@@ -114,7 +114,7 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     }
 
     case TYPES.symbol: {
-      const page = pages.get('bytestring: __Porffor_symbol_descStore/ptr');
+      const page = pages.get('array: symbol.ts/descStore');
       if (!page) return Symbol();
 
       const descStore = page.ind * pageSize;
