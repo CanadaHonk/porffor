@@ -78,6 +78,15 @@ type PorfforGlobal = {
 declare global {
   const Porffor: PorfforGlobal;
 
+  const ecma262: {
+    ToIntegerOrInfinity(argument: unknown): number;
+    ToString(argument: unknown): bytestring;
+  }
+
+  const print: (arg: any) => void;
+  const printChar: (char: number) => void;
+  const printStatic: (str: string) => void;
+
   type i32 = number;
   type i64 = number;
   type f64 = number;
