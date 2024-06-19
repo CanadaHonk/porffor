@@ -1131,29 +1131,36 @@ const asmFuncToAsm = (scope, func) => {
       return idx;
     },
     glbl: (opcode, name, type) => {
-      if (!globals[name]) {
+      const globalName = '#porf#' + name; // avoid potential name clashing with user js
+      if (!globals[globalName]) {
         const idx = globals['#ind']++;
-        globals[name] = { idx, type };
+        globals[globalName] = { idx, type };
 
         const tmpIdx = globals['#ind']++;
-        globals[name + '#glbl_inited'] = { idx: tmpIdx, type: Valtype.i32 };
+        globals[globalName + '#glbl_inited'] = { idx: tmpIdx, type: Valtype.i32 };
+      }
 
-        if (scope.globalInits[name]) return [
-          [ Opcodes.global_get, tmpIdx ],
+      const out = [
+        [ opcode, globals[globalName].idx ]
+      ];
+
+      scope.initedGlobals ??= new Set();
+      if (!scope.initedGlobals.has(name)) {
+        scope.initedGlobals.add(name);
+        if (scope.globalInits[name]) out.unshift(
+          [ Opcodes.global_get, globals[globalName + '#glbl_inited'].idx ],
           [ Opcodes.i32_eqz ],
           [ Opcodes.if, Blocktype.void ],
           ...asmFuncToAsm(scope, scope.globalInits[name]),
           ...number(1, Valtype.i32),
-          [ Opcodes.global_set, tmpIdx ],
+          [ Opcodes.global_set, globals[globalName + '#glbl_inited'].idx ],
           [ Opcodes.end ],
 
-          [ opcode, globals[name].idx ]
-        ];
+          [ opcode, globals[globalName].idx ]
+        );
       }
 
-      return [
-        [ opcode, globals[name].idx ]
-      ];
+      return out;
     },
     loc: (name, type) => {
       if (!scope.locals[name]) {
