@@ -55,12 +55,12 @@ const compile = async (file, _funcs) => {
       }).filter(x => x);
     }
 
-    const locals = Object.keys(x.locals).reduce((acc, y) => {
-      acc[x.locals[y].idx] = { ...x.locals[y], name: y };
-      return acc;
-    }, {});
-
     const rewriteWasm = (x, wasm, rewriteLocals = false) => {
+      const locals = Object.keys(x.locals).reduce((acc, y) => {
+        acc[x.locals[y].idx] = { ...x.locals[y], name: y };
+        return acc;
+      }, {});
+
       for (let i = 0; i < wasm.length; i++) {
         const y = wasm[i];
         const n = wasm[i + 1];
@@ -88,7 +88,7 @@ const compile = async (file, _funcs) => {
           }
         }
 
-        if (rewriteLocals && (y[0] === Opcodes.local_get || y[0] === Opcodes.local_set || y[0] === Opcodes.local_tee)) {
+        if (rewriteLocals && typeof y[1] === 'number' && (y[0] === Opcodes.local_get || y[0] === Opcodes.local_set || y[0] === Opcodes.local_tee)) {
           const local = locals[y[1]];
           y.splice(1, 10, 'local', local.name, local.type);
         }
