@@ -3060,7 +3060,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       ...performOp(scope, op, [
         [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
       ], [
-        ...generate(scope, decl.right),
+        ...generate(scope, decl.right, isGlobal, name),
         [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
         [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
       ], getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
