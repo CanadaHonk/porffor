@@ -12,11 +12,13 @@ for (let i = 0; i < log.length; i++) {
   let j = i;
   while (!title) {
     const y = log[--j];
-    if (!y.includes(': ') || y.includes('also: ')) continue;
+    if (!y.includes(': ') || y.includes('also: ') || y.includes('Co-Authored-By')) continue;
     title = y;
   }
 
-  let [ hash, timestamp ] = log[i + 1].split(' ');
+  j = i + 1;
+  if (log[j].includes('Co-Authored-By')) j++;
+  let [ hash, timestamp ] = log[j].split(' ');
 
   let results = x.split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
   if (results.length === 8) results = [ ...results.slice(0, 7), 0, results[7] ];
