@@ -341,16 +341,17 @@ export const __Porffor_consolePrint = (arg: any) => {
 };
 
 export const __console_group = (label: bytestring) => {
-  if (Porffor.rawType(label) != Porffor.TYPES.undefined) __Porffor_consolePrint(label);
+  if (Porffor.rawType(label) != Porffor.TYPES.undefined) {
+    __Porffor_consoleIndent();
+    __Porffor_consolePrint(label);
+  }
 
   tabLevel++;
 };
 
 export const __console_groupCollapsed = (label: bytestring) => __console_group(label);
 
-export const __console_groupEnd = (label: bytestring) => {
-  if (Porffor.rawType(label) != Porffor.TYPES.undefined) __Porffor_consolePrint(label);
-
+export const __console_groupEnd = () => {
   tabLevel--;
   if (tabLevel < 0) tabLevel = 0;
 };
