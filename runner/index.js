@@ -147,7 +147,7 @@ try {
 } catch (e) {
   // if (cache) process.stdout.write(cache);
   let out = e;
-  if (!process.argv.includes('-i') && Object.getPrototypeOf(e).message != null) out = `${e.constructor.name}${e.message != null ? `: ${e.message}` : ''}`;
+  if (!process.argv.includes('-d') && Object.getPrototypeOf(e).message != null) out = `${e.constructor.name}${e.message != null ? `: ${e.message}` : ''}`;
   console.error(out);
 }
 

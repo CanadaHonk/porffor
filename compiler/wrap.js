@@ -379,7 +379,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
       }
     });
   } catch (e) {
-    if (!process.argv.includes('-i')) throw e;
+    if (!Prefs.d) throw e;
     if (!(e instanceof WebAssembly.CompileError)) throw e;
 
     const funcInd = parseInt(e.message.match(/function #([0-9]+)/)?.[1]);
@@ -393,7 +393,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   if (Prefs.profileCompiler) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
 
   const exports = {};
-  const rawValues = process.argv.includes('-i');
+  const rawValues = Prefs.d;
 
   const exceptTag = instance.exports['0'], memory = instance.exports['$'];
   for (const x in instance.exports) {
@@ -474,7 +474,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         }
 
         if (e instanceof WebAssembly.RuntimeError) {
-          if (!process.argv.includes('-i')) throw e;
+          if (!Prefs.d) throw e;
 
           const match = e.stack.match(/wasm-function\[([0-9]+)\]:([0-9a-z]+)/) ?? [];
           const funcInd = parseInt(match[1]);
