@@ -40,7 +40,7 @@ export const __Map_prototype_set = (_this: Map, key: any, value: any) => {
   Porffor.wasm.i32.store(keys, size + 1, 0, 0);
 
   // write new key at end
-  __Porffor_set_write(keys, size, key);
+  Porffor.set.write(keys, size, key);
 
   // write new value at end
   vals[size] = value;
