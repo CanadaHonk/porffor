@@ -697,29 +697,6 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           break;
         }
 
-        case Opcodes.f64_abs: {
-          break;
-        }
-        case Opcodes.f64_neg: {
-          break;
-        }
-
-        case Opcodes.f64_ceil: {
-          break;
-        }
-        case Opcodes.f64_floor: {
-          break;
-        }
-        case Opcodes.f64_trunc: {
-          break;
-        }
-        case Opcodes.f64_nearest: {
-          break;
-        }
-
-        case Opcodes.f64_sqrt: {
-          break;
-        }
         case Opcodes.f64_min: {
           const b = vals.pop();
           const a = vals.pop();
@@ -740,9 +717,34 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           vals.push(`(_tmp${id}a > _tmp${id}b ? _tmp${id}a : _tmp${id}b)`);
           break;
         }
-        case Opcodes.f64_copysign: {
-          break;
-        }
+
+        // case Opcodes.f64_abs: {
+        //   break;
+        // }
+        // case Opcodes.f64_neg: {
+        //   break;
+        // }
+
+        // case Opcodes.f64_ceil: {
+        //   break;
+        // }
+        // case Opcodes.f64_floor: {
+        //   break;
+        // }
+        // case Opcodes.f64_trunc: {
+        //   break;
+        // }
+        // case Opcodes.f64_nearest: {
+        //   break;
+        // }
+
+        // case Opcodes.f64_sqrt: {
+        //   break;
+        // }
+
+        // case Opcodes.f64_copysign: {
+        //   break;
+        // }
 
         default:
           if (CMemFuncs[i[0]]) {
