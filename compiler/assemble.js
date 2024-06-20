@@ -146,7 +146,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
   const tableSection = !funcs.table ? [] : createSection(
     Section.table,
-    encodeVector([ [ Reftype.funcref, 0x00, funcs.length ] ])
+    encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(funcs.length) ] ])
   );
 
   const elementSection = !funcs.table ? [] : createSection(
