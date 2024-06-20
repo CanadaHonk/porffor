@@ -694,6 +694,15 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           break;
         }
 
+        case Opcodes.select: {
+          const cond = vals.pop();
+          const b = vals.pop();
+          const a = vals.pop();
+
+          vals.push(`(${cond} ? ${a} : ${b})`);
+          break;
+        }
+
         case Opcodes.throw: {
           const id = vals.pop();
 
