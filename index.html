@@ -1011,14 +1011,11 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
       jsSize.textContent = `${new Blob([code]).size} bytes`;
 
+      const ansi = x => x.replaceAll('\x1B[0m', '</span>').replace(/\x1B\[([0-9]{2})m/g, (_, esc) => `<span class="ansi-${esc}">`);
+
       let cache = '';
       const print = str => {
         cache += str;
-
-        if (str === '\n') {
-          // output.textContent += cache;
-          // cache = '';
-        }
       };
 
       output.textContent = '';
@@ -1037,7 +1034,7 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       if (target_dropdown.value === 'c') {
         wasmView.textContent = c.trim();
       } else {
-        wasmView.innerHTML = `<div id="wasm-size">${wasm.byteLength} bytes</div>` + decomps.join('\n').replaceAll('\x1B[0m', '</span>').replace(/\x1B\[([0-9]{2})m/g, (_, esc) => `<span class="ansi-${esc}">`);
+        wasmView.innerHTML = `<div id="wasm-size">${wasm.byteLength} bytes</div>` + ansi(decomps.join('\n'));
       }
 
       status.textContent = `Compiled in ${times[0].toFixed(0)}ms`;
@@ -1058,7 +1055,8 @@ console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const execTime = performance.now() - t2;
       status.textContent += `. Executed in ${execTime.toFixed(0)}ms`;
 
-      output.textContent = cache;
+      // xss :)
+      output.innerHTML = ansi(cache);
     };
 
     const compDebounce = debounce(comp, 500);
