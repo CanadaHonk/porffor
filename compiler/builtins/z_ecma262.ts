@@ -63,3 +63,19 @@ export const __ecma262_ToString = (argument: unknown): bytestring => {
   // 12. Return ? ToString(primValue).
   return argument.toString();
 };
+
+// 7.1.19 ToPropertyKey (argument)
+// https://tc39.es/ecma262/#sec-topropertykey
+export const __ecma262_ToPropertyKey = (argument: any): any => {
+  // 1. Let key be ? ToPrimitive(argument, string).
+  const key: any = argument;
+
+  // 2. If key is a Symbol, then
+  if (Porffor.rawType(key) == Porffor.TYPES.symbol) {
+    // a. Return key.
+    return key;
+  }
+
+  // 3. Return ! ToString(key).
+  return __ecma262_ToString(key);
+};
