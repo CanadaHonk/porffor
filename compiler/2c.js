@@ -731,12 +731,16 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           break;
         }
 
-        // case Opcodes.f64_abs: {
-        //   break;
-        // }
-        // case Opcodes.f64_neg: {
-        //   break;
-        // }
+        case Opcodes.f64_abs: {
+          const id = tmpId++;
+          line(`const f64 _tmp${id} = ${vals.pop()}`);
+          vals.push(`(_tmp${id} < 0 ? -_tmp${id} : _tmp${id})`);
+          break;
+        }
+        case Opcodes.f64_neg: {
+          vals.push(`(-${vals.pop()})`);
+          break;
+        }
 
         // case Opcodes.f64_ceil: {
         //   break;
