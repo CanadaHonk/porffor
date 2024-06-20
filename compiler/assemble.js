@@ -154,7 +154,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     encodeVector([ [
       0x00,
       Opcodes.i32_const, 0, Opcodes.end,
-      ...encodeVector(funcs.map(x => x.index))
+      ...encodeVector(funcs.map(x => unsignedLEB128(x.index)))
     ] ])
   );
 
