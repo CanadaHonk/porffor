@@ -323,9 +323,25 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     let tmpId = 0;
 
     const invLocals = inv(f.locals, x => x.idx);
+    const invLocalTypes = {};
     for (const x in invLocals) {
+      invLocalTypes[x] = CValtype[f.locals[invLocals[x]].type];
       invLocals[x] = sanitize(invLocals[x]);
     }
+
+    let localTmpId = 0;
+    const localGet = idx => {
+      if (Prefs['2cDirectLocalGet']) {
+        // this just does local.get via the variable name
+        // nice but does not get the value at this moment
+        // so breaks some wasm principles :(
+        vals.push(`${invLocals[i[1]]}`);
+      } else {
+        const id = localTmpId++;
+        line(`const ${invLocalTypes[idx]} _get${id} = ${invLocals[idx]}`);
+        vals.push(`_get${id}`);
+      }
+    };
 
     const returns = f.returns.length > 0;
     const typedReturns = f.returnType == null;
@@ -421,19 +437,22 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
           break;
         }
 
-        case Opcodes.local_get:
-          vals.push(`${invLocals[i[1]]}`);
+        case Opcodes.local_get: {
+          localGet(i[1]);
           break;
+        }
 
         case Opcodes.local_set:
           line(`${invLocals[i[1]]} = ${removeBrackets(vals.pop())}`);
           break;
 
-        case Opcodes.local_tee:
+        case Opcodes.local_tee: {
           line(`${invLocals[i[1]]} = ${removeBrackets(vals.pop())}`);
-          vals.push(`${invLocals[i[1]]}`);
+          localGet(i[1]);
+
           // vals.push(`((${invLocals[i[1]]} = ${vals.pop()}))`);
           break;
+        }
 
         case Opcodes.global_get:
           vals.push(`${invGlobals[i[1]]}`);
@@ -756,6 +775,8 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           break;
         case Opcodes.f64_trunc:
           // vals.push(`trunc(${vals.pop()})`);
+          // includes.set('math.h', true);
+
           vals.push(`(i32)(${removeBrackets(vals.pop())})`); // this is ~10x faster with clang??
           break;
         case Opcodes.f64_nearest:
