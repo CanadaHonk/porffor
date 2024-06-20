@@ -231,6 +231,20 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     prependMain.set('argv', `_argc = argc; _argv = argv;`);
   }
 
+  prepend.set('func decls', funcs.filter(x => x.name !== 'main').map(f => {
+    const returns = f.returns.length > 0;
+    const typedReturns = f.returnType == null;
+
+    const invLocals = inv(f.locals, x => x.idx);
+    for (const x in invLocals) {
+      invLocals[x] = sanitize(invLocals[x]);
+    }
+
+    const shouldInline = false;
+
+    return `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')});`;
+  }).join('\n'));
+
   if (out) out += '\n';
 
   const line = (str, semi = true) => out += `${str}${semi ? ';' : ''}\n`;
@@ -309,7 +323,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     let tmpId = 0;
 
     const invLocals = inv(f.locals, x => x.idx);
-
     for (const x in invLocals) {
       invLocals[x] = sanitize(invLocals[x]);
     }
