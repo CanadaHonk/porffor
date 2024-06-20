@@ -85,3 +85,7 @@ export const __Object_prototype_toString = (_this: object) => {
 };
 
 export const __Object_prototype_toLocaleString = (_this: object) => __Object_prototype_toLocaleString(_this);
+
+export const __Object_prototype_valueOf = (_this: object) => {
+  return _this;
+};

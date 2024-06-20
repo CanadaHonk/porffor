@@ -1630,6 +1630,12 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [127], localNames: ["_this","_this#type","#last_type"],
   };
+  this.__Object_prototype_valueOf = {
+    wasm: (scope, {}) => [[32,0],[65,5],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [], localNames: ["_this","_this#type"],
+  };
   this.__Porffor_allocate = {
     wasm: (scope, {}) => [[65,1],[64,0],[65,128,128,4],[108],[184],[65,1],[15]],
     params: [], typedParams: 1,
