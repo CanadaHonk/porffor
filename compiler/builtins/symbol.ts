@@ -42,12 +42,10 @@ export const __Symbol_prototype_toString = (_this: Symbol) => {
   Porffor.wasm.i32.store8(out, 108, 0, 9);
   Porffor.wasm.i32.store8(out, 40, 0, 10);
 
-  const description: any = descStore[Porffor.wasm`local.get ${_this}` - 1];
+  const description: any = _this.description;
   let descLen: i32 = 0;
   if (description !== undefined) {
     descLen = description.length;
-
-    print(descLen);
 
     // todo: support regular string
     let outPtr: i32 = Porffor.wasm`local.get ${out}` + 7;
@@ -80,4 +78,16 @@ export const __Symbol_for = (key: any): Symbol => {
   forStore.set(key, out);
 
   return out;
+};
+
+export const __Symbol_keyFor = (arg: any): any => {
+  if (Porffor.rawType(arg) != Porffor.TYPES.symbol) throw new TypeError('Symbol.keyFor argument should be a Symbol');
+
+  const sym: Symbol = arg;
+  const desc: any = sym.description;
+
+  const stored: Symbol = forStore.get(desc);
+  if (sym == stored) return desc;
+
+  return undefined;
 };
