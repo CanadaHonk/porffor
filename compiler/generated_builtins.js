@@ -1599,6 +1599,12 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [127], localNames: ["input","input#type","radix","radix#type","#last_type"],
   };
+  this.__Object_keys = {
+    wasm: (scope, {builtin}) => [[16, ...builtin('__Porffor_allocate')],[26],[33,2],[32,0],[32,1],[16, ...builtin('__Porffor_rawType')],[34,4],[68,0,0,0,0,0,0,20,64],[97],[4,64],[32,0],[252,2],[40,0,0],[183],[34,5],[252,3],[33,6],[65,0],[33,8],[32,6],[40,1,0],[33,7],[3,64],[32,6],[43,0,4],[32,6],[45,0,12],[33,10],[33,9],[2,64],[32,2],[65,208,0],[32,9],[32,10],[16, ...builtin('__Porffor_fastPush')],[33,3],[26],[32,6],[65,9],[106],[33,6],[32,8],[65,1],[106],[34,8],[32,7],[71],[13,1],[11],[11],[5],[32,4],[68,0,0,0,0,0,0,84,64],[97],[32,4],[68,0,0,0,0,0,96,104,64],[97],[114],[32,4],[68,0,0,0,0,0,192,80,64],[97],[114],[4,64],[32,0],[252,3],[40,1,0],[184],[33,11],[68,0,0,0,0,0,0,0,0],[33,12],[3,64],[32,12],[32,11],[99],[4,64],[32,2],[65,208,0],[32,12],[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, ...builtin('__Number_prototype_toString')],[34,3],[16, ...builtin('__Porffor_fastPush')],[33,3],[26],[32,12],[68,0,0,0,0,0,0,240,63],[160],[33,12],[12,1],[11],[11],[11],[11],[32,2],[65,208,0],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,127,124,124,127,127,127,124,127,124,124], localNames: ["obj","obj#type","out","#last_type","t","keys","forof_base_pointer","forof_length","forof_counter","x","x#type","len","i"],
+  };
   this.__Object_prototype_toString = {
     wasm: (scope, {allocPage}) => [...number(allocPage(scope, 'bytestring: __Object_prototype_toString/out', 'i8') * pageSize, 124),[34,2],[65,195,1],[15]],
     params: [124,127], typedParams: 1,
