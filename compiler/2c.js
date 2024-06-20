@@ -28,6 +28,7 @@ typedef float f32;
 typedef double f64;
 
 const f64 NaN = 0e+0/0e+0;
+const f64 Infinity = 1e+0/0e+0;
 
 struct ReturnValue {
   f64 value;
