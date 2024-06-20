@@ -790,7 +790,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             break;
           }
 
-          log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]}`);
+          log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]} \x1b[90m(${f.name})`);
       }
 
       lastCond = false;
