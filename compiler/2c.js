@@ -443,11 +443,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
           line(`${invGlobals[i[1]]} = ${removeBrackets(vals.pop())}`);
           break;
 
-        case Opcodes.f64_trunc:
-          // vals.push(`trunc(${vals.pop()})`);
-          vals.push(`(i32)(${removeBrackets(vals.pop())})`); // this is ~10x faster with clang??
-          break;
-
         case Opcodes.f64_convert_i32_u:
         case Opcodes.f64_convert_i32_s:
         case Opcodes.f64_convert_i64_u:
@@ -742,18 +737,22 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           break;
         }
 
-        // case Opcodes.f64_ceil: {
-        //   break;
-        // }
-        // case Opcodes.f64_floor: {
-        //   break;
-        // }
-        // case Opcodes.f64_trunc: {
-        //   break;
-        // }
-        // case Opcodes.f64_nearest: {
-        //   break;
-        // }
+        case Opcodes.f64_ceil:
+          vals.push(`ceil(${vals.pop()})`);
+          includes.set('math.h', true);
+          break;
+        case Opcodes.f64_floor:
+          vals.push(`floor(${vals.pop()})`);
+          includes.set('math.h', true);
+          break;
+        case Opcodes.f64_trunc:
+          // vals.push(`trunc(${vals.pop()})`);
+          vals.push(`(i32)(${removeBrackets(vals.pop())})`); // this is ~10x faster with clang??
+          break;
+        case Opcodes.f64_nearest:
+          vals.push(`round(${vals.pop()})`);
+          includes.set('math.h', true);
+          break;
 
         // case Opcodes.f64_sqrt: {
         //   break;
