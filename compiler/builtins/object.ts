@@ -56,6 +56,29 @@ export const __Object_values = (obj: any): any[] => {
   return out;
 };
 
+export const __Object_entries = (obj: any): any[] => {
+  const out: any[] = Porffor.allocate();
+
+  const keys: any[] = __Object_keys(obj);
+  const vals: any[] = __Object_values(obj);
+
+  const size: i32 = keys.length;
+  out.length = size;
+
+  for (let i: i32 = 0; i < size; i++) {
+    // what is memory efficiency anyway?
+    const entry: any[] = Porffor.allocate();
+
+    entry.length = 2;
+    entry[0] = keys[i];
+    entry[1] = vals[i];
+
+    out[i] = entry;
+  }
+
+  return out;
+};
+
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';
   return out;
