@@ -6,8 +6,11 @@ export const __Object_keys = (obj: any): any[] => {
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     const keys: Set = Porffor.wasm.i32.load(obj, 0, 0);
-    for (const x of keys) {
-      Porffor.fastPush(out, x);
+    const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
+    out.length = size;
+
+    for (let i: i32 = 0; i < size; i++) {
+      out[i] = Porffor.set.read(keys, i);
     }
   } else if (Porffor.fastOr(
     t == Porffor.TYPES.array,
@@ -15,8 +18,10 @@ export const __Object_keys = (obj: any): any[] => {
     t == Porffor.TYPES.string
   )) {
     const len: i32 = obj.length;
+    out.length = len;
+
     for (let i: i32 = 0; i < len; i++) {
-      Porffor.fastPush(out, __Number_prototype_toString(i));
+      out[i] = __Number_prototype_toString(i);
     }
   }
 
@@ -30,16 +35,21 @@ export const __Object_values = (obj: any): any[] => {
   if (t == Porffor.TYPES.object) {
     const size: i32 = Porffor.wasm.i32.load(Porffor.wasm.i32.load(obj, 0, 0), 0, 0);
     const vals: any[] = Porffor.wasm.i32.load(obj, 0, 4);
+
+    out.length = size;
     for (let i: i32 = 0; i < size; i++) {
-      Porffor.fastPush(out, vals[i]);
+      out[i] = vals[i];
     }
   } else if (Porffor.fastOr(
     t == Porffor.TYPES.array,
     t == Porffor.TYPES.bytestring,
     t == Porffor.TYPES.string
   )) {
-    for (const x of obj) {
-      Porffor.fastPush(out, x);
+    const len: i32 = obj.length;
+    out.length = len;
+
+    for (let i: i32 = 0; i < len; i++) {
+      out[i] = obj[i];
     }
   }
 
