@@ -27,7 +27,7 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 
-f64 NAN = 0e+0/0e+0;
+const f64 NaN = 0e+0/0e+0;
 
 struct ReturnValue {
   f64 value;
@@ -394,17 +394,12 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
       switch (i[0]) {
         case Opcodes.i32_const:
         case Opcodes.i64_const:
-          // vals.push(read_signedLEB128(i.slice(1)).toString());
-          vals.push(new String(read_signedLEB128(i.slice(1)).toString()));
-          vals.at(-1).offset = _;
+          vals.push(read_signedLEB128(i.slice(1)).toString());
           break;
 
         case Opcodes.f64_const: {
-          // const val = read_ieee754_binary64(i.slice(1)).toExponential();
-          const val = new String(read_ieee754_binary64(i.slice(1)).toExponential());
-          // vals.push(val == 'NaN' ? 'NAN' : val);
-          vals.push(val == 'NaN' ? new String('NAN') : val);
-          vals.at(-1).offset = _;
+          const val = read_ieee754_binary64(i.slice(1)).toExponential();
+          vals.push(val);
           break;
         }
 
