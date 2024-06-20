@@ -29,6 +29,63 @@ export const __Porffor_printHexDigit = (arg: number) => {
   }
 };
 
+export const __Porffor_numberLog = (arg: number) => {
+  print(arg);
+  printStatic('\n');
+};
+
+export const __Porffor_miniLog = (arg: any) => {
+  switch (Porffor.rawType(arg)) {
+    case Porffor.TYPES.number:
+      print(arg);
+      break;
+
+    case Porffor.TYPES.boolean:
+      if (arg) {
+        printStatic('true');
+      } else {
+        printStatic('false');
+      }
+      break;
+
+    case Porffor.TYPES.bytestring:
+    case Porffor.TYPES.string:
+      printStatic("'");
+      __Porffor_printString(arg);
+      printStatic("'");
+      break;
+
+    case Porffor.TYPES.array:
+      const arrLen: i32 = arg.length - 1;
+      if (arrLen == -1) {
+        printStatic('[]');
+      } else {
+        printStatic('[ ');
+        for (let i: i32 = 0; i <= arrLen; i++) {
+          __Porffor_miniPrint(arg[i]);
+          if (i != arrLen) printStatic(', ');
+        }
+        printStatic(' ]');
+      }
+      break;
+
+    case Porffor.TYPES.empty:
+    case Porffor.TYPES.undefined:
+      printStatic('undefined');
+      break;
+
+    case Porffor.TYPES.object:
+      if (arg) {
+        printStatic('[Object]');
+      } else {
+        printStatic('null');
+      }
+      break;
+  }
+
+  printStatic('\n');
+};
+
 export const __Porffor_print = (arg: any, colors: boolean = true) => {
   // todo: Symbol.toStringTag could reduce duplication here
 
@@ -309,12 +366,12 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       printStatic('WeakRef {}');
       return;
 
-    case Porffor.TYPES.regexp:
-      // todo: we currently have no way of getting the source text, so this falls back
+    // case Porffor.TYPES.regexp:
+    //   // todo: we currently have no way of getting the source text, so this falls back
 
-    default:
-      __Porffor_printString(arg.toString());
-      return;
+    // default:
+    //   __Porffor_printString(arg.toString());
+    //   return;
   }
 };
 
