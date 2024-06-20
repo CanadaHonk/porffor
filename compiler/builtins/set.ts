@@ -76,7 +76,7 @@ export const __Set_prototype_values = (_this: Set) => {
   const out: any[] = __Porffor_allocate();
   for (let i: number = 0; i < size; i++) {
     const val: any = __Porffor_set_read(_this, i);
-    out.push(val);
+    Porffor.fastPush(out, val);
   }
 
   return out;
