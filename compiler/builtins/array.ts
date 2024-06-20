@@ -36,6 +36,13 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
   return out;
 };
 
+export const __Porffor_fastPush = (_this: any[], el: any) => {
+  let len: i32 = _this.length;
+  _this[len] = el;
+  _this.length = ++len;
+  return len;
+};
+
 export const __Array_prototype_push = (_this: any[], ...items: any[]) => {
   let len: i32 = _this.length;
   const itemsLen: i32 = items.length;

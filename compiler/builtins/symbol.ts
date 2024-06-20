@@ -17,12 +17,7 @@ export const Symbol = (description: any): Symbol => {
   }
 
   // 4. Return a new Symbol whose [[Description]] is descString.
-  let len: i32 = descStore.length;
-  descStore[len] = descString;
-  descStore.length = ++len;
-
-  // 1-based so always truthy as numeric value
-  const sym: Symbol = len;
+  const sym: Symbol = Porffor.fastPush(descStore, descString);
   return sym;
 };
 
