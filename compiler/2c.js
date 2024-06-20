@@ -188,7 +188,11 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     }
     return out;
   };
-  const sanitize = str => str.replace(/[^0-9a-zA-Z_]/g, _ => codeToSanitizedStr(_.charCodeAt(0)));
+  const sanitize = str => {
+    if (str === 'char') return '_' + str;
+
+    return str.replace(/[^0-9a-zA-Z_]/g, _ => codeToSanitizedStr(_.charCodeAt(0)));
+  };
 
   for (const x in invGlobals) {
     invGlobals[x] = sanitize(invGlobals[x]);
