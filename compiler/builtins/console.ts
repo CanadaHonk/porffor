@@ -37,7 +37,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
     case Porffor.TYPES.number:
       if (colors) printStatic('\x1b[33m'); // yellow
       print(arg);
-      if (colors) printStatic('\x1b[m');
+      if (colors) printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.boolean:
@@ -47,7 +47,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       } else {
         printStatic('false');
       }
-      if (colors) printStatic('\x1b[m');
+      if (colors) printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.bytestring:
@@ -58,7 +58,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       __Porffor_printString(arg);
 
       printStatic("'");
-      if (colors) printStatic('\x1b[m');
+      if (colors) printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.array:
@@ -91,7 +91,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
         printStatic('null');
       }
 
-      if (colors) printStatic('\x1b[m');
+      if (colors) printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.function:
@@ -104,13 +104,13 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
     case Porffor.TYPES.date:
       if (colors) printStatic('\x1b[35m'); // purple
       __Porffor_printString(__Date_prototype_toISOString(arg));
-      if (colors) printStatic('\x1b[m');
+      if (colors) printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.symbol:
       if (colors) printStatic('\x1b[32m'); // green
       __Porffor_printString(__Symbol_prototype_toString(arg));
-      if (colors) printStatic('\x1b[m');
+      if (colors) printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.uint8array: {
@@ -230,7 +230,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
 
       if (colors) printStatic('\x1b[34m'); // blue
       printStatic('  [Uint8Contents]');
-      if (colors) printStatic('\x1b[m');
+      if (colors) printStatic('\x1b[0m');
       printStatic('): <');
 
       const buffer = new Uint8Array(arg);
@@ -245,7 +245,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       printStatic('>,\n  byteLength: ');
       if (colors) printStatic('\x1b[33m'); // yellow
       print(arg.byteLength);
-      if (colors) printStatic('\x1b[m');
+      if (colors) printStatic('\x1b[0m');
       printStatic('\n}');
       return;
     }
