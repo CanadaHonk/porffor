@@ -899,31 +899,31 @@
 
 let counter = 0;
 while (counter <= 10000) {
-  if (isPrime(counter)) console.log(counter);
+  if (isPrime(counter)) Porffor.numberLog(counter);
   counter++;
 }`,
 'Fibonacci': `let a = 0, b = 1;
-console.log(a); console.log(b);
+Porffor.numberLog(a); Porffor.numberLog(b);
 
 for (let i = 2; i <= 45; i++) {
   let t = b + a;
   a = b;
   b = t;
 
-  console.log(t);
+  Porffor.numberLog(t);
 }`,
 'Factorial': `const factorial = n => n === 0 ? 1 : (n * factorial(n - 1));
-console.log(factorial(10));`,
+Porffor.numberLog(factorial(10));`,
 'Sum of Digits': `let n = 654, sum = 0;
 while (n > 0) {
   sum += n % 10;
   n /= 10;
 }
 
-console.log(sum);`,
+Porffor.numberLog(sum);`,
 'Exception': `throw new Error('Hello, world!')`,
 'Array Reading': `let arr = [ 2, 4, 8, 16 ];
-for (let i = 0; i < arr.length; i++) console.log(arr[i]);`,
+for (let i = 0; i < arr.length; i++) Porffor.numberLog(arr[i]);`,
 'Array Prototype': `let arr = [ 1, 2, 3 ];
 arr.push(4); // 4
 arr.shift(); // 1
@@ -931,12 +931,12 @@ arr.pop(); // 4
 
 arr.at(0); // 2
 arr.at(-1); // 3`,
-'Math Proposals': `console.log(Math.signbit(1)) // false
-console.log(Math.signbit(-1)) // true
-console.log(Math.radians(180)) // 3.141592...
-console.log(Math.RAD_PER_DEG) // 0.017453...
-console.log(Math.clamp(12, 0, 10)) // 10
-console.log(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
+'Math Proposals': `Porffor.numberLog(Math.signbit(1)) // false
+Porffor.numberLog(Math.signbit(-1)) // true
+Porffor.numberLog(Math.radians(180)) // 3.141592...
+Porffor.numberLog(Math.RAD_PER_DEG) // 0.017453...
+Porffor.numberLog(Math.clamp(12, 0, 10)) // 10
+Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
     };
     const defaultExample = 'Prime Numbers';
     let code = examples[defaultExample];
