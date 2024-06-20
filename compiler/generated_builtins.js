@@ -4212,16 +4212,16 @@ export const BuiltinFuncs = function() {
     constr: 1,
   };
   this.__Map_prototype_keys = {
-    wasm: (scope, {builtin,internalThrow}) => [[32,0],[252,2],[40,0,0],[183],[33,2],[16, ...builtin('__Porffor_allocate')],[26],[33,3],[32,2],[252,3],[33,5],[65,0],[33,7],[32,5],[40,1,0],[33,6],[3,64],[32,5],[43,0,4],[32,5],[45,0,12],[33,9],[33,8],[2,64],[2,64],[32,3],[33,10],[65,208,0],[34,11],[33,12],[2,124],[32,12],[65,208,0],[70],[4,64,"TYPESWITCH|Array"],[32,10],[32,11],[65,128,128,20],[65,1],[54,1,0],[65,128,128,20],[32,8],[57,0,4],[65,128,128,20],[32,9],[58,0,12],[68,0,0,0,0,0,0,20,65],[65,208,0],[16, ...builtin('__Array_prototype_push')],[33,4],[12,1],[11],...internalThrow(scope, 'TypeError', `'push' proto func tried to be called on a type without an impl`),[11,"TYPESWITCH_end"],[26],[11],[32,5],[65,9],[106],[33,5],[32,7],[65,1],[106],[34,7],[32,6],[71],[13,1],[11],[11],[32,3],[65,208,0],[15]],
+    wasm: (scope, {builtin}) => [[32,0],[252,2],[40,0,0],[183],[33,2],[16, ...builtin('__Porffor_allocate')],[26],[33,3],[32,2],[252,3],[33,5],[65,0],[33,7],[32,5],[40,1,0],[33,6],[3,64],[32,5],[43,0,4],[32,5],[45,0,12],[33,9],[33,8],[2,64],[32,3],[65,208,0],[32,8],[32,9],[16, ...builtin('__Porffor_fastPush')],[33,4],[26],[32,5],[65,9],[106],[33,5],[32,7],[65,1],[106],[34,7],[32,6],[71],[13,1],[11],[11],[32,3],[65,208,0],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [124,124,127,127,127,127,124,127,124,127,127], localNames: ["_this","_this#type","keys","out","#last_type","forof_base_pointer","forof_length","forof_counter","x","x#type","#proto_target","#proto_target#type","#typeswitch_tmp"],
+    locals: [124,124,127,127,127,127,124,127], localNames: ["_this","_this#type","keys","out","#last_type","forof_base_pointer","forof_length","forof_counter","x","x#type"],
   };
   this.__Map_prototype_values = {
-    wasm: (scope, {builtin,internalThrow}) => [[32,0],[252,2],[40,0,4],[183],[33,2],[16, ...builtin('__Porffor_allocate')],[26],[33,3],[32,2],[252,3],[33,5],[65,0],[33,7],[32,5],[40,1,0],[33,6],[3,64],[32,5],[43,0,4],[32,5],[45,0,12],[33,9],[33,8],[2,64],[2,64],[32,3],[33,10],[65,208,0],[34,11],[33,12],[2,124],[32,12],[65,208,0],[70],[4,64,"TYPESWITCH|Array"],[32,10],[32,11],[65,128,128,28],[65,1],[54,1,0],[65,128,128,28],[32,8],[57,0,4],[65,128,128,28],[32,9],[58,0,12],[68,0,0,0,0,0,0,28,65],[65,208,0],[16, ...builtin('__Array_prototype_push')],[33,4],[12,1],[11],...internalThrow(scope, 'TypeError', `'push' proto func tried to be called on a type without an impl`),[11,"TYPESWITCH_end"],[26],[11],[32,5],[65,9],[106],[33,5],[32,7],[65,1],[106],[34,7],[32,6],[71],[13,1],[11],[11],[32,3],[65,208,0],[15]],
+    wasm: (scope, {builtin}) => [[32,0],[252,2],[40,0,0],[40,0,0],[183],[33,2],[32,0],[252,2],[40,0,4],[183],[33,3],[16, ...builtin('__Porffor_allocate')],[26],[33,4],[68,0,0,0,0,0,0,0,0],[33,6],[3,64],[32,6],[32,2],[99],[4,64],[32,4],[65,208,0],[32,3],[33,7],[32,6],[34,8],[252,3],[65,9],[108],[32,7],[252,3],[106],[34,9],[43,0,4],[32,9],[45,0,12],[34,5],[16, ...builtin('__Porffor_fastPush')],[33,5],[26],[32,6],[68,0,0,0,0,0,0,240,63],[160],[33,6],[12,1],[11],[11],[32,4],[65,208,0],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [124,124,127,127,127,127,124,127,124,127,127], localNames: ["_this","_this#type","vals","out","#last_type","forof_base_pointer","forof_length","forof_counter","x","x#type","#proto_target","#proto_target#type","#typeswitch_tmp"],
+    locals: [124,124,124,127,124,124,124,127], localNames: ["_this","_this#type","size","vals","out","#last_type","i","#member_obj","#member_prop","#loadArray_offset"],
   };
   this.__Map_prototype_toString = {
     wasm: (scope, {allocPage}) => [...number(allocPage(scope, 'bytestring: __Map_prototype_toString/str', 'i8') * pageSize, 124),[34,2],[65,195,1],[15]],

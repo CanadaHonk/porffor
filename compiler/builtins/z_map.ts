@@ -112,18 +112,19 @@ export const __Map_prototype_keys = (_this: Map) => {
   const out: any[] = Porffor.allocate();
 
   for (const x of keys) {
-    out.push(x);
+    Porffor.fastPush(out, x);
   }
 
   return out;
 };
 
 export const __Map_prototype_values = (_this: Map) => {
+  const size: i32 = Porffor.wasm.i32.load(Porffor.wasm.i32.load(_this, 0, 0), 0, 0);
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
   const out: any[] = Porffor.allocate();
 
-  for (const x of vals) {
-    out.push(x);
+  for (let i: i32 = 0; i < size; i++) {
+    Porffor.fastPush(out, vals[i]);
   }
 
   return out;
