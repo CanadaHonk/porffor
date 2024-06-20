@@ -4,14 +4,6 @@ import { read_signedLEB128, read_ieee754_binary64 } from './encoding.js';
 import { log } from './log.js';
 import Prefs from './prefs.js';
 
-const performWasmOp = (op, a, b) => {
-  switch (op) {
-    case Opcodes.add: return a + b;
-    case Opcodes.sub: return a - b;
-    case Opcodes.mul: return a * b;
-  }
-};
-
 export default (funcs, globals, pages, tags, exceptions) => {
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
   if (optLevel === 0) return;
@@ -114,20 +106,11 @@ export default (funcs, globals, pages, tags, exceptions) => {
     while (runs > 0) {
       runs--;
 
-      let getCount = {}, setCount = {};
-      for (const x in f.locals) {
-        getCount[f.locals[x].idx] = 0;
-        setCount[f.locals[x].idx] = 0;
-      }
-
       // main pass
       for (let i = 0; i < wasm.length; i++) {
         let inst = wasm[i];
         inst = [ ...inst ];
         wasm[i] = inst;
-
-        if (inst[0] === Opcodes.local_get) getCount[inst[1]]++;
-        if (inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) setCount[inst[1]]++;
 
         // if (inst[0] === Opcodes.throw) {
         //   tagUse[inst[1]]++;
@@ -267,7 +250,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
           lastInst[0] = Opcodes.local_tee; // replace last inst opcode (set -> tee)
           wasm.splice(i, 1); // remove this inst (get)
 
-          getCount[inst[1]]--;
           i--;
           // if (Prefs.optLog) log('opt', `consolidated set, get -> tee`);
           continue;
@@ -280,8 +262,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // -->
           //
 
-          getCount[lastInst[1]]--;
-
           wasm.splice(i - 1, 2); // remove this inst and last
           i -= 2;
           continue;
@@ -293,8 +273,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // drop
           // -->
           // local.set 0
-
-          getCount[lastInst[1]]--;
 
           lastInst[0] = Opcodes.local_set; // change last op
 
@@ -427,78 +405,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
           continue;
         }
       }
-
-      if (optLevel < 2) continue;
-
-      if (Prefs.optLog) log('opt', `get counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${getCount[f.locals[x].idx]}`).join(', ')}`);
-
-      // remove unneeded var: remove pass
-      // locals only got once. we don't need to worry about sets/else as these are only candidates and we will check for matching set + get insts in wasm
-      let unneededCandidates = Object.keys(getCount).filter(x => getCount[x] === 0 || (getCount[x] === 1 && setCount[x] === 0)).map(x => parseInt(x));
-      if (Prefs.optLog) log('opt', `found unneeded locals candidates: ${unneededCandidates.join(', ')} (${unneededCandidates.length}/${Object.keys(getCount).length})`);
-
-      // note: disabled for now due to instability
-      if (unneededCandidates.length > 0 && false) for (let i = 0; i < wasm.length; i++) {
-        if (i < 1) continue;
-
-        const inst = wasm[i];
-        const lastInst = wasm[i - 1];
-
-        if (lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_set && inst[0] === Opcodes.local_get && unneededCandidates.includes(inst[1])) {
-          // local.set N
-          // local.get N
-          // -->
-          // <nothing>
-
-          wasm.splice(i - 1, 2); // remove insts
-          i -= 2;
-          delete f.locals[Object.keys(f.locals)[inst[1]]]; // remove from locals
-          if (Prefs.optLog) log('opt', `removed redundant local (get set ${inst[1]})`);
-        }
-
-        if (inst[0] === Opcodes.local_tee && unneededCandidates.includes(inst[1])) {
-          // local.tee N
-          // -->
-          // <nothing>
-
-          wasm.splice(i, 1); // remove inst
-          i--;
-
-          const localName = Object.keys(f.locals)[inst[1]];
-          const removedIdx = f.locals[localName].idx;
-          delete f.locals[localName]; // remove from locals
-
-          // fix locals index for locals after
-          for (const x in f.locals) {
-            const local = f.locals[x];
-            if (local.idx > removedIdx) local.idx--;
-          }
-
-          for (const inst of wasm) {
-            if ((inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) && inst[1] > removedIdx) inst[1]--;
-          }
-
-          unneededCandidates.splice(unneededCandidates.indexOf(inst[1]), 1);
-          unneededCandidates = unneededCandidates.map(x => x > removedIdx ? (x - 1) : x);
-
-          if (Prefs.optLog) log('opt', `removed redundant local ${localName} (tee ${inst[1]})`);
-        }
-      }
-
-      const useCount = {};
-      for (const x in f.locals) useCount[f.locals[x].idx] = 0;
-
-      const localIdxs = Object.values(f.locals).map(x => x.idx);
-      // remove unused locals (cleanup)
-      for (const x in useCount) {
-        if (useCount[x] === 0) {
-          const name = Object.keys(f.locals)[localIdxs.indexOf(parseInt(x))];
-          if (Prefs.optLog) log('opt', `removed internal local ${x} (${name})`);
-          delete f.locals[name];
-        }
-      }
-
-      if (Prefs.optLog) log('opt', `final use counts: ${Object.keys(f.locals).map(x => `${x} (${f.locals[x].idx}): ${useCount[f.locals[x].idx]}`).join(', ')}`);
     }
   }
 
