@@ -1,4 +1,5 @@
 import { Opcodes } from './wasmSpec.js';
+import { read_unsignedLEB128 } from './encoding.js';
 import { TYPES } from './types.js';
 
 import process from 'node:process';
@@ -68,10 +69,11 @@ const compile = async (file, _funcs) => {
         const y = wasm[i];
         const n = wasm[i + 1];
         if (y[0] === Opcodes.call) {
-          const f = funcs.find(x => x.index === y[1]);
+          const idx = read_unsignedLEB128(y.slice(1));
+          const f = funcs.find(x => x.index === idx);
           if (!f) continue;
 
-          y[1] = f.name;
+          y.splice(1, 10, f.name);
         }
 
         if (y[0] === Opcodes.global_get || y[0] === Opcodes.global_set) {
