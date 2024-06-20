@@ -197,6 +197,12 @@ export const BuiltinFuncs = function() {
     locals: [124,127,124,124,127,124,127,124,124,127,127,127,127,124,127,124,127,127,124,127,124,127,124,127,127,124,124], localNames: ["arg","arg#type","mapFn","mapFn#type","out","#last_type","len","type","type#type","hasMapFn","hasMapFn#type","i","#logicinner_tmp","#typeswitch_tmp","forof_base_pointer","forof_length","forof_counter","x","x#type","#member_setter_val_tmp","#member_setter_ptr_tmp","#indirect_arg0_type","#indirect_arg0_val","#indirect_arg1_type","#indirect_arg1_val","#indirect_arg2_type","#indirect_arg2_val","#indirect_func","#indirect_flags","#indirect_callee","__length_setter_tmp"],
     table: 1,
   };
+  this.__Porffor_fastPush = {
+    wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[33,4],[32,0],[252,3],[32,4],[252,3],[65,9],[108],[106],[34,6],[32,2],[34,5],[57,0,4],[32,6],[32,3],[58,0,12],[32,0],[252,3],[32,4],[68,0,0,0,0,0,0,240,63],[160],[34,4],[34,8],[252,3],[54,1,0],[32,4],[65,1],[15]],
+    params: [124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,124,127,127,124], localNames: ["_this","_this#type","el","el#type","len","#member_setter_val_tmp","#member_setter_ptr_tmp","#last_type","__length_setter_tmp"],
+  };
   this.__Array_prototype_push = {
     wasm: (scope, {}) => [[32,0],[252,3],[40,1,0],[184],[33,4],[32,2],[252,3],[40,1,0],[184],[33,5],[68,0,0,0,0,0,0,0,0],[33,6],[3,64],[32,6],[32,5],[99],[4,64],[32,0],[252,3],[32,6],[32,4],[160],[252,3],[65,9],[108],[106],[34,8],[32,2],[33,9],[32,6],[34,10],[252,3],[65,9],[108],[32,9],[252,3],[106],[34,11],[43,0,4],[32,11],[45,0,12],[33,12],[34,7],[57,0,4],[32,8],[32,12],[58,0,12],[32,6],[68,0,0,0,0,0,0,240,63],[160],[33,6],[12,1],[11],[11],[32,0],[252,3],[32,4],[32,5],[160],[34,13],[252,3],[54,1,0],[32,13],[65,1],[15]],
     params: [124,127,124,127], typedParams: 1,
@@ -2070,10 +2076,10 @@ export const BuiltinFuncs = function() {
     hasRestArgument: 1,
   };
   this.Symbol = {
-    wasm: (scope, {glbl,builtin}) => [[68,0,0,0,0,0,0,0,0],[33,2],[65,128,1],[33,3],[32,0],[32,1],[16, ...builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,96,64],[98],[4,64],[32,0],[32,1],[16, ...builtin('__ecma262_ToString')],[33,3],[33,2],[11],...glbl(35, 'descStore', 124),[252,3],[40,1,0],[184],[33,5],...glbl(35, 'descStore', 124),[252,3],[32,5],[252,3],[65,9],[108],[106],[34,7],[32,2],[34,6],[57,0,4],[32,7],[32,3],[58,0,12],...glbl(35, 'descStore', 124),[252,3],[32,5],[68,0,0,0,0,0,0,240,63],[160],[34,5],[34,8],[252,3],[54,1,0],[32,5],[34,9],[65,7],[15]],
+    wasm: (scope, {glbl,builtin}) => [[68,0,0,0,0,0,0,0,0],[33,2],[65,128,1],[33,3],[32,0],[32,1],[16, ...builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,96,64],[98],[4,64],[32,0],[32,1],[16, ...builtin('__ecma262_ToString')],[33,3],[33,2],[11],...glbl(35, 'descStore', 124),[65,208,0],[32,2],[32,3],[16, ...builtin('__Porffor_fastPush')],[26],[34,5],[65,7],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [124,127,127,124,124,127,124,124], localNames: ["description","description#type","descString","descString#type","#last_type","len","#member_setter_val_tmp","#member_setter_ptr_tmp","__length_setter_tmp","sym"],
+    locals: [124,127,127,124], localNames: ["description","description#type","descString","descString#type","#last_type","sym"],
     globalInits: {descStore: (scope, {allocPage,glbl,loc}) => [...number(allocPage(scope, 'array: symbol.ts/descStore', 'f64') * pageSize, 124),...glbl(36, 'descStore', 124),...glbl(35, 'descStore', 124),[252,3],[33,loc('#makearray_pointer_tmp', 127)],[32,loc('#makearray_pointer_tmp', 127)],[65,0],[54,1,0],[32,loc('#makearray_pointer_tmp', 127)],[68,0,0,0,0,0,0,0,0],[252,3],[54,1,0],[32,loc('#makearray_pointer_tmp', 127)],[26]],forStore: (scope, {glbl,builtin}) => [[65,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, ...builtin('Map')],[26],...glbl(36, 'forStore', 124)]},
   };
   this.__Symbol_prototype_description$get = {
@@ -4142,6 +4148,12 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [124,127,124,127,124,127,127], localNames: ["argument","argument#type","out","#last_type","type","#makearray_pointer_tmp","#proto_target","#proto_target#type","#typeswitch_tmp"],
     data: [[0,[9,0,0,0,117,110,100,101,102,105,110,101,100]]],
+  };
+  this.__ecma262_ToPropertyKey = {
+    wasm: (scope, {builtin}) => [[32,0],[33,2],[32,1],[33,3],[32,2],[32,3],[16, ...builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,28,64],[97],[4,64],[32,2],[32,3],[15],[11],[32,2],[32,3],[16, ...builtin('__ecma262_ToString')],[34,4],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,127,127], localNames: ["argument","argument#type","key","key#type","#last_type"],
   };
   this.__Map_prototype_size$get = {
     wasm: (scope, {}) => [[32,0],[252,2],[40,0,0],[40,0,0],[183],[65,1],[15]],

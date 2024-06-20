@@ -1563,7 +1563,6 @@ const generateLiteral = (scope, decl, global, name) => {
       return number(decl.value);
 
     case 'boolean':
-      // hack: bool as int (1/0)
       return number(decl.value ? 1 : 0);
 
     case 'string':
@@ -2839,9 +2838,6 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       value: decl.left.property.name
     };
 
-    includeBuiltin(scope, '__Map_prototype_get');
-    includeBuiltin(scope, '__Map_prototype_set');
-
     return [
       ...typeSwitch(scope, getNodeType(scope, decl.left.object), {
         [TYPES.array]: [
@@ -2879,23 +2875,26 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ...getNodeType(scope, object),
 
           ...generate(scope, property),
-          ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_property') ] ]),
           ...getNodeType(scope, property),
+          ...toPropertyKey(scope),
+          ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_property') ] ]),
+          ...(op === '=' ? [] : [ [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
 
           ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
             [ Opcodes.local_get, localTmp(scope, '#objset_object') ],
             ...getNodeType(scope, object),
 
             [ Opcodes.local_get, localTmp(scope, '#objset_property') ],
-            ...getNodeType(scope, property),
+            [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
 
-            [ Opcodes.call, ...unsignedLEB128(funcIndex.__Map_prototype_get) ],
+            [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Map_prototype_get').index) ],
             ...setLastType(scope)
           ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
           [ Opcodes.local_tee, newValueTmp ],
           ...getNodeType(scope, decl),
 
-          [ Opcodes.call, ...unsignedLEB128(funcIndex.__Map_prototype_set) ],
+          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Map_prototype_set').index) ],
           [ Opcodes.drop ],
 
           ...setLastType(scope, getNodeType(scope, decl)),
@@ -4310,9 +4309,12 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
   return makeArray(scope, decl, global, name, initEmpty, valtype, false, true)[0];
 };
 
+const toPropertyKey = scope => Prefs.fastObject ? [] : [
+  [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__ecma262_ToPropertyKey').index) ]
+];
+
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
   includeBuiltin(scope, 'Map');
-  includeBuiltin(scope, '__Map_prototype_set');
 
   // todo: optimize const objects
   const tmp = localTmp(scope, `#objectexpr${randId()}`);
@@ -4332,7 +4334,8 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
     const { method, shorthand, computed, kind, key, value } = x;
     if (kind !== 'init') return todo(scope, 'complex objects are not supported yet', true);
 
-    const k = computed ? key : {
+    let k = key;
+    if (!computed && key.type !== 'Literal') k = {
       type: 'Literal',
       value: key.name
     };
@@ -4343,11 +4346,12 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
 
       ...generate(scope, k),
       ...getNodeType(scope, k),
+      ...toPropertyKey(scope),
 
       ...generate(scope, value),
       ...getNodeType(scope, value),
 
-      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Map_prototype_set) ],
+      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Map_prototype_set').index) ],
 
       [ Opcodes.drop ],
       [ Opcodes.drop ]
@@ -4503,8 +4507,6 @@ const generateMember = (scope, decl, _global, _name) => {
     }, _global, _name, true, 'i16', true);
   }
 
-  includeBuiltin(scope, '__Map_prototype_get');
-
   const out = typeSwitch(scope, getNodeType(scope, object), {
     [TYPES.array]: [
       ...loadArray(scope, objectWasm, propertyWasm),
@@ -4580,8 +4582,9 @@ const generateMember = (scope, decl, _global, _name) => {
 
       ...propertyWasm,
       ...getNodeType(scope, property),
+      ...toPropertyKey(scope),
 
-      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Map_prototype_get) ],
+      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Map_prototype_get').index) ],
       ...setLastType(scope)
     ],
 
