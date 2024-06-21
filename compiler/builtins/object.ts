@@ -1,6 +1,8 @@
 import type {} from './porffor.d.ts';
 
 export const __Object_keys = (obj: any): any[] => {
+  if (obj == null) throw new TypeError('Argument is nullish, expected object');
+
   const out: any[] = Porffor.allocate();
 
   const t: i32 = Porffor.rawType(obj);
@@ -29,6 +31,8 @@ export const __Object_keys = (obj: any): any[] => {
 };
 
 export const __Object_values = (obj: any): any[] => {
+  if (obj == null) throw new TypeError('Argument is nullish, expected object');
+
   const out: any[] = Porffor.allocate();
 
   const t: i32 = Porffor.rawType(obj);
