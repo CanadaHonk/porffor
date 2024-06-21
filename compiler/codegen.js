@@ -713,7 +713,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
     if (truthyMode === 'full') return [
       // if value != 0 or NaN
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
-      ...(intIn ? [ ] : [ Opcodes.i32_to ]),
+      ...(intIn ? [] : [ Opcodes.i32_to ]),
 
       [ Opcodes.i32_eqz ],
       [ Opcodes.i32_eqz ],
@@ -820,6 +820,7 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
     ...typeSwitch(scope, type, {
       [TYPES.undefined]: [
         // undefined
+        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
         ...number(1, intOut ? Valtype.i32 : valtypeBinary)
       ],
       [TYPES.object]: [
@@ -831,6 +832,7 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
       ],
       default: [
         // not
+        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
         ...number(0, intOut ? Valtype.i32 : valtypeBinary)
       ]
     }, intOut ? Valtype.i32 : valtypeBinary)
