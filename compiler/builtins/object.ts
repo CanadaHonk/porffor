@@ -79,6 +79,13 @@ export const __Object_entries = (obj: any): any[] => {
   return out;
 };
 
+export const __Object_prototype_hasOwnProperty = (_this: object, prop: any) => {
+  const p: any = ecma262.ToPropertyKey(prop);
+
+  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
+  return __Set_prototype_has(keys, p);
+};
+
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';
   return out;

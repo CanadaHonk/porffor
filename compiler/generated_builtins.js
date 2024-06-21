@@ -1617,6 +1617,12 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [124,127,124,124,124,124,124,124,124,127,124,124,127], localNames: ["obj","obj#type","out","#last_type","keys","vals","size","__length_setter_tmp","i","entry","#member_setter_val_tmp","#member_setter_ptr_tmp","#member_obj","#member_prop","#loadArray_offset"],
   };
+  this.__Object_prototype_hasOwnProperty = {
+    wasm: (scope, {builtin}) => [[32,2],[32,3],[16, ...builtin('__ecma262_ToPropertyKey')],[33,5],[33,4],[32,0],[252,2],[40,0,0],[183],[34,7],[65,19],[32,4],[32,5],[16, ...builtin('__Set_prototype_has')],[34,6],[15]],
+    params: [124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,127,127,124], localNames: ["_this","_this#type","prop","prop#type","p","p#type","#last_type","keys"],
+  };
   this.__Object_prototype_toString = {
     wasm: (scope, {allocPage}) => [...number(allocPage(scope, 'bytestring: __Object_prototype_toString/out', 'i8') * pageSize, 124),[34,2],[65,195,1],[15]],
     params: [124,127], typedParams: 1,
