@@ -4,10 +4,10 @@ export const TYPES = {
   boolean: 0x02,
   string: 0x03,
   undefined: 0x04,
-  object: 0x05,
-  function: 0x06,
-  symbol: 0x07,
-  bigint: 0x08
+  bigint: 0x05,
+  symbol: 0x06,
+  function: 0x07,
+  object: 0x08,
 };
 
 // flags
