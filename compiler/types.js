@@ -1,26 +1,20 @@
-export const TYPES = {
-  empty: 0x00,
-  number: 0x01,
-  boolean: 0x02,
-  string: 0x03,
-  undefined: 0x04,
-  bigint: 0x05,
-  symbol: 0x06,
-  function: 0x07,
-  object: 0x08,
-};
-
-// flags
 export const TYPE_FLAGS = {
-  // iterable:  0b10000000,
   parity:    0b10000000,
   length:    0b01000000,
 };
 
-// TYPES.string |= TYPE_FLAGS.iterable;
-TYPES.string |= TYPE_FLAGS.length;
+export const TYPES = {
+  empty: 0x00,
+  number: 0x01,
+  boolean: 0x02,
+  string: 0x03 | TYPE_FLAGS.length,
+  bigint: 0x04,
+  symbol: 0x05,
+  function: 0x06,
+  object: 0x07,
 
-TYPES.undefined = TYPES.empty | TYPE_FLAGS.parity;
+  undefined: 0x00 | TYPE_FLAGS.parity,
+};
 
 export const TYPE_NAMES = {
   [TYPES.empty]: 'empty',

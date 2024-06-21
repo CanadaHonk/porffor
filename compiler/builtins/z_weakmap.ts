@@ -3,7 +3,7 @@ import type {} from './porffor.d.ts';
 export const __WeakMap_prototype_has = (_this: WeakMap, key: any) => __Map_prototype_has(_this, key);
 
 export const __WeakMap_prototype_set = (_this: WeakMap, key: any, value: any) => {
-  if (Porffor.rawType(key) < 0x06) throw new TypeError('Value in WeakSet needs to be an object or symbol');
+  if (Porffor.rawType(key) < 0x05) throw new TypeError('Value in WeakSet needs to be an object or symbol');
 
   __Map_prototype_set(_this, key, value);
   return _this;

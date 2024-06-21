@@ -3,7 +3,7 @@ import type {} from './porffor.d.ts';
 export const __WeakSet_prototype_has = (_this: WeakSet, value: any) => __Set_prototype_has(_this, value);
 
 export const __WeakSet_prototype_add = (_this: WeakSet, value: any) => {
-  if (Porffor.rawType(value) < 0x06) throw new TypeError('Value in WeakSet needs to be an object or symbol');
+  if (Porffor.rawType(value) < 0x05) throw new TypeError('Value in WeakSet needs to be an object or symbol');
 
   __Set_prototype_add(_this, value);
   return _this;
