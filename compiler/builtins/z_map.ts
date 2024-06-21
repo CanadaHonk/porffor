@@ -98,6 +98,7 @@ export const Map = function (iterable: any): Map {
   Porffor.wasm.i32.store(out, vals, 0, 4);
 
   if (iterable != null) for (const x of iterable) {
+    if (Porffor.rawType(x) < 0x06) throw new TypeError('Iterator contains non-object');
     __Map_prototype_set(out, x[0], x[1]);
   }
 
