@@ -3430,16 +3430,22 @@ const generateForOf = (scope, decl) => {
     // get length
     [ Opcodes.local_get, pointer ],
     [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-    [ Opcodes.local_set, length ]
+    [ Opcodes.local_tee, length ],
+
+    [ Opcodes.if, Blocktype.void ]
   );
 
+  depth.push('if');
   depth.push('forof');
+  depth.push('block');
+  depth.push('block');
 
   // setup local for left
   generate(scope, decl.left);
 
   let leftName = decl.left.declarations?.[0]?.id?.name;
   if (!leftName && decl.left.name) {
+    // todo: should be sloppy mode only
     leftName = decl.left.name;
 
     generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
@@ -3449,9 +3455,6 @@ const generateForOf = (scope, decl) => {
 
   const [ local, isGlobal ] = lookupName(scope, leftName);
   if (!local) return todo(scope, 'for of failed to get left local (probably destructure)');
-
-  depth.push('block');
-  depth.push('block');
 
   // // todo: we should only do this for strings but we don't know at compile-time :(
   // hack: this is naughty and will break things!
@@ -3594,12 +3597,6 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.block, Blocktype.void ],
       ...generate(scope, decl.body),
       [ Opcodes.end ],
-
-      // increment iter pointer
-      // [ Opcodes.local_get, pointer ],
-      // ...number(1, Valtype.i32),
-      // [ Opcodes.i32_add ],
-      // [ Opcodes.local_set, pointer ],
 
       // increment counter by 1
       [ Opcodes.local_get, counter ],
@@ -3757,6 +3754,8 @@ const generateForOf = (scope, decl) => {
 
     default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
   }, Blocktype.void));
+
+  out.push([ Opcodes.end ]); // end if
 
   depth.pop();
   depth.pop();
