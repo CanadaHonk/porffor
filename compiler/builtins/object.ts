@@ -103,6 +103,23 @@ export const __Object_hasOwn = (obj: any, prop: any) => {
 };
 
 
+export const __Object_assign = (target: any, ...sources: any[]) => {
+  if (target == null) throw new TypeError('Argument is nullish, expected object');
+
+  for (const x of sources) {
+    const keys: any[] = __Object_keys(x);
+    const vals: any[] = __Object_values(x);
+
+    const len: i32 = keys.length;
+    for (let i: i32 = 0; i < len; i++) {
+      target[keys[i]] = vals[i];
+    }
+  }
+
+  return target;
+};
+
+
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';
   return out;
