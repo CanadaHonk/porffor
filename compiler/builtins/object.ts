@@ -79,6 +79,7 @@ export const __Object_entries = (obj: any): any[] => {
   return out;
 };
 
+
 export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
   const p: any = ecma262.ToPropertyKey(prop);
 
@@ -91,6 +92,12 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
   const keys: any[] = __Object_keys(_this);
   return __Array_prototype_includes(keys, p);
 };
+
+export const __Object_hasOwn = (obj: any, prop: any) => {
+  // todo: not spec compliant lol
+  return __Object_prototype_hasOwnProperty(obj, prop);
+};
+
 
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';

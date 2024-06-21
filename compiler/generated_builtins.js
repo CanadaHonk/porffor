@@ -1618,10 +1618,16 @@ export const BuiltinFuncs = function() {
     locals: [124,127,124,124,124,124,124,124,124,127,124,124,127], localNames: ["obj","obj#type","out","#last_type","keys","vals","size","__length_setter_tmp","i","entry","#member_setter_val_tmp","#member_setter_ptr_tmp","#member_obj","#member_prop","#loadArray_offset"],
   };
   this.__Object_prototype_hasOwnProperty = {
-    wasm: (scope, {builtin}) => [[32,2],[32,3],[16, ...builtin('__ecma262_ToPropertyKey')],[33,5],[33,4],[32,0],[252,2],[40,0,0],[183],[34,7],[65,19],[32,4],[32,5],[16, ...builtin('__Set_prototype_has')],[34,6],[15]],
+    wasm: (scope, {builtin}) => [[32,2],[32,3],[16, ...builtin('__ecma262_ToPropertyKey')],[33,5],[33,4],[32,0],[32,1],[16, ...builtin('__Porffor_rawType')],[34,7],[68,0,0,0,0,0,0,20,64],[97],[4,64],[32,0],[252,2],[40,0,0],[183],[34,8],[65,19],[32,4],[32,5],[16, ...builtin('__Set_prototype_has')],[34,6],[15],[11],[32,0],[32,1],[16, ...builtin('__Object_keys')],[26],[34,8],[65,208,0],[32,4],[32,5],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, ...builtin('__Array_prototype_includes')],[34,6],[15]],
     params: [124,127,124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [124,127,127,124], localNames: ["_this","_this#type","prop","prop#type","p","p#type","#last_type","keys"],
+    locals: [124,127,127,124,124], localNames: ["_this","_this#type","prop","prop#type","p","p#type","#last_type","t","keys"],
+  };
+  this.__Object_hasOwn = {
+    wasm: (scope, {builtin}) => [[32,0],[32,1],[32,2],[32,3],[16, ...builtin('__Object_prototype_hasOwnProperty')],[34,4],[15]],
+    params: [124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127], localNames: ["obj","obj#type","prop","prop#type","#last_type"],
   };
   this.__Object_prototype_toString = {
     wasm: (scope, {allocPage}) => [...number(allocPage(scope, 'bytestring: __Object_prototype_toString/out', 'i8') * pageSize, 124),[34,2],[65,195,1],[15]],
