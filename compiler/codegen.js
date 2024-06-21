@@ -1084,6 +1084,13 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   ]);
 };
 
+const knownNullish = decl => {
+  if (decl.type === 'Literal' && decl.value === null) return true;
+  if (decl.type === 'Identifier' && decl.name === 'undefined') return true;
+
+  return false;
+};
+
 const generateBinaryExp = (scope, decl, _global, _name) => {
   if (decl.operator === 'instanceof') {
     // very hacky basic instanceof
@@ -1112,8 +1119,24 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
     return out;
   }
 
-  const out = performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right), _global, _name);
+  // opt: == null|undefined -> nullish
+  if (decl.operator === '==' || decl.operator === '!=') {
+    if (knownNullish(decl.right)) {
+      const out = nullish(scope, generate(scope, decl.left), getNodeType(scope, decl.left), false, true);
+      if (decl.operator === '!=') out.push([ Opcodes.i32_eqz ]);
+      out.push(Opcodes.i32_from_u);
+      return out;
+    }
 
+    if (knownNullish(decl.left)) {
+      const out = nullish(scope, generate(scope, decl.right), getNodeType(scope, decl.right), false, true);
+      if (decl.operator === '!=') out.push([ Opcodes.i32_eqz ]);
+      out.push(Opcodes.i32_from_u);
+      return out;
+    }
+  }
+
+  const out = performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right), _global, _name);
   if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from_u);
 
   return out;
