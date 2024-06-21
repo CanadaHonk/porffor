@@ -79,11 +79,17 @@ export const __Object_entries = (obj: any): any[] => {
   return out;
 };
 
-export const __Object_prototype_hasOwnProperty = (_this: object, prop: any) => {
+export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-  return __Set_prototype_has(keys, p);
+  const t: i32 = Porffor.rawType(_this);
+  if (t == Porffor.TYPES.object) {
+    const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
+    return __Set_prototype_has(keys, p);
+  }
+
+  const keys: any[] = __Object_keys(_this);
+  return __Array_prototype_includes(keys, p);
 };
 
 export const __Object_prototype_toString = (_this: object) => {
