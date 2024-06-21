@@ -83,6 +83,17 @@ export const __Object_entries = (obj: any): any[] => {
   return out;
 };
 
+export const __Object_fromEntries = (iterable: any): object => {
+  const out: object = {};
+
+  for (const x of iterable) {
+    if (Porffor.rawType(x) < 0x06) throw new TypeError('Iterator contains non-object');
+    out[ecma262.ToPropertyKey(x[0])] = x[1];
+  }
+
+  return out;
+};
+
 
 export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
   const p: any = ecma262.ToPropertyKey(prop);
