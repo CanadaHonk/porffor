@@ -22,10 +22,7 @@ export const WeakMap = function (iterable: any): WeakMap {
   const vals: any[] = Porffor.allocate();
   Porffor.wasm.i32.store(out, vals, 0, 4);
 
-  if (Porffor.fastAnd(
-    Porffor.rawType(iterable) != Porffor.TYPES.undefined,
-    iterable !== null
-  )) for (const x of iterable) {
+  if (iterable != null) for (const x of iterable) {
     __WeakMap_prototype_set(out, x[0], x[1]);
   }
 

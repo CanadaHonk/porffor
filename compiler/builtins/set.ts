@@ -184,10 +184,7 @@ export const Set = function (iterable: any): Set {
 
   const out: Set = __Porffor_allocate();
 
-  if (Porffor.fastAnd(
-    Porffor.rawType(iterable) != Porffor.TYPES.undefined,
-    iterable !== null
-  )) for (const x of iterable) {
+  if (iterable != null) for (const x of iterable) {
     __Set_prototype_add(out, x);
   }
 

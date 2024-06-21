@@ -97,10 +97,7 @@ export const Map = function (iterable: any): Map {
   const vals: any[] = Porffor.allocate();
   Porffor.wasm.i32.store(out, vals, 0, 4);
 
-  if (Porffor.fastAnd(
-    Porffor.rawType(iterable) != Porffor.TYPES.undefined,
-    iterable !== null
-  )) for (const x of iterable) {
+  if (iterable != null) for (const x of iterable) {
     __Map_prototype_set(out, x[0], x[1]);
   }
 
