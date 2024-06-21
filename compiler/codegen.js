@@ -1332,7 +1332,7 @@ const isExistingProtoFunc = name => {
 const getType = (scope, _name) => {
   const name = mapName(_name);
 
-  // if (scope.locals[name] && !scope.locals[name + '#type']) console.log(name);
+  if (Object.hasOwn(builtinVars, name)) return number(builtinVars[name].type ?? TYPES.number, Valtype.i32);
 
   if (typedInput && scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
   if (Object.hasOwn(scope.locals, name)) return [ [ Opcodes.local_get, scope.locals[name + '#type'].idx ] ];
@@ -1340,13 +1340,13 @@ const getType = (scope, _name) => {
   if (typedInput && globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
   if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name + '#type'].idx ] ];
 
-  let type = TYPES.undefined;
-  if (Object.hasOwn(builtinVars, name)) type = builtinVars[name].type ?? TYPES.number;
-  if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) || Object.hasOwn(funcIndex, name) || Object.hasOwn(internalConstrs, name)) type = TYPES.function;
+  if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) ||
+      Object.hasOwn(funcIndex, name) || Object.hasOwn(internalConstrs, name))
+        return number(TYPES.function, Valtype.i32);
 
-  if (isExistingProtoFunc(name)) type = TYPES.function;
+  if (isExistingProtoFunc(name)) return number(TYPES.function, Valtype.i32);
 
-  return number(type, Valtype.i32);
+  return number(TYPES.undefined, Valtype.i32);
 };
 
 const setType = (scope, _name, type) => {
