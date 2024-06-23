@@ -427,7 +427,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
-      Opcodes.i32_trunc_sat_f64_u,
+      Opcodes.i32_to_u,
       [ Opcodes.i32_clz ],
       Opcodes.i32_from
     ]
@@ -455,9 +455,9 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
-      Opcodes.i32_trunc_sat_f64_s,
+      Opcodes.i32_to,
       [ Opcodes.local_get, 1 ],
-      Opcodes.i32_trunc_sat_f64_s,
+      Opcodes.i32_to,
       [ Opcodes.i32_mul ],
       Opcodes.i32_from
     ]
