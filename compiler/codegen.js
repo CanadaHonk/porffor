@@ -41,16 +41,23 @@ const isFuncType = type =>
 const hasFuncWithName = name =>
   Object.hasOwn(funcIndex, name) != null || Object.hasOwn(builtinFuncs, name) != null || Object.hasOwn(importedFuncs, name) != null || Object.hasOwn(internalConstrs, name) != null;
 
+const astCache = new WeakMap();
+const cacheAst = (decl, wasm) => {
+  astCache.set(decl, wasm);
+  return wasm;
+};
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
+  if (astCache.has(decl)) return astCache.get(decl);
+
   switch (decl.type) {
     case 'BinaryExpression':
-      return generateBinaryExp(scope, decl, global, name);
+      return cacheAst(decl, generateBinaryExp(scope, decl, global, name));
 
     case 'LogicalExpression':
-      return generateLogicExp(scope, decl);
+      return cacheAst(decl, generateLogicExp(scope, decl));
 
     case 'Identifier':
-      return generateIdent(scope, decl);
+      return cacheAst(decl, generateIdent(scope, decl));
 
     case 'ArrowFunctionExpression':
     case 'FunctionDeclaration':
@@ -58,101 +65,100 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       const func = generateFunc(scope, decl);
 
       if (decl.type.endsWith('Expression')) {
-        return number(func.index - importedFuncs.length);
+        return cacheAst(decl, number(func.index - importedFuncs.length));
       }
 
-      return [];
+      return cacheAst(decl, []);
 
     case 'BlockStatement':
-      return generateCode(scope, decl);
+      return cacheAst(decl, generateCode(scope, decl));
 
     case 'ReturnStatement':
-      return generateReturn(scope, decl);
+      return cacheAst(decl, generateReturn(scope, decl))
 
     case 'ExpressionStatement':
-      return generateExp(scope, decl);
+      return cacheAst(decl, generateExp(scope, decl))
 
     case 'SequenceExpression':
-      return generateSequence(scope, decl);
+      return cacheAst(decl, generateSequence(scope, decl))
 
     case 'ChainExpression':
-      return generateChain(scope, decl);
+      return cacheAst(decl, generateChain(scope, decl))
 
     case 'CallExpression':
-      return generateCall(scope, decl, global, name, valueUnused);
+      return cacheAst(decl, generateCall(scope, decl, global, name, valueUnused))
 
     case 'NewExpression':
-      return generateNew(scope, decl, global, name);
+      return cacheAst(decl, generateNew(scope, decl, global, name))
 
     case 'Literal':
-      return generateLiteral(scope, decl, global, name);
+      return cacheAst(decl, generateLiteral(scope, decl, global, name))
 
     case 'VariableDeclaration':
-      return generateVar(scope, decl);
+      return cacheAst(decl, generateVar(scope, decl))
 
     case 'AssignmentExpression':
-      return generateAssign(scope, decl);
+      return cacheAst(decl, generateAssign(scope, decl))
 
     case 'UnaryExpression':
-      return generateUnary(scope, decl);
+      return cacheAst(decl, generateUnary(scope, decl))
 
     case 'UpdateExpression':
-      return generateUpdate(scope, decl, global, name, valueUnused);
+      return cacheAst(decl, generateUpdate(scope, decl, global, name, valueUnused))
 
     case 'IfStatement':
-      return generateIf(scope, decl);
+      return cacheAst(decl, generateIf(scope, decl))
 
     case 'ForStatement':
-      return generateFor(scope, decl);
+      return cacheAst(decl, generateFor(scope, decl))
 
     case 'WhileStatement':
-      return generateWhile(scope, decl);
+      return cacheAst(decl, generateWhile(scope, decl))
 
     case 'DoWhileStatement':
-      return generateDoWhile(scope, decl);
+      return cacheAst(decl, generateDoWhile(scope, decl))
 
     case 'ForOfStatement':
-      return generateForOf(scope, decl);
+      return cacheAst(decl, generateForOf(scope, decl))
 
     case 'SwitchStatement':
-      return generateSwitch(scope, decl);
+      return cacheAst(decl, generateSwitch(scope, decl))
 
     case 'BreakStatement':
-      return generateBreak(scope, decl);
+      return cacheAst(decl, generateBreak(scope, decl))
 
     case 'ContinueStatement':
-      return generateContinue(scope, decl);
+      return cacheAst(decl, generateContinue(scope, decl))
 
     case 'LabeledStatement':
-      return generateLabel(scope, decl);
+      return cacheAst(decl, generateLabel(scope, decl))
 
     case 'EmptyStatement':
-      return generateEmpty(scope, decl);
+      return cacheAst(decl, generateEmpty(scope, decl))
 
     case 'MetaProperty':
-      return generateMeta(scope, decl);
+      return cacheAst(decl, generateMeta(scope, decl))
 
     case 'ConditionalExpression':
-      return generateConditional(scope, decl);
+      return cacheAst(decl, generateConditional(scope, decl))
 
     case 'ThrowStatement':
-      return generateThrow(scope, decl);
+      return cacheAst(decl, generateThrow(scope, decl))
 
     case 'TryStatement':
-      return generateTry(scope, decl);
+      return cacheAst(decl, generateTry(scope, decl))
 
     case 'DebuggerStatement':
-      // todo: hook into terminal debugger
-      return [[ Opcodes.call, importedFuncs.debugger ]];
+      return cacheAst(decl, [[ Opcodes.call, importedFuncs.debugger ]])
 
     case 'ArrayExpression':
-      return generateArray(scope, decl, global, name);
+      return cacheAst(decl, generateArray(scope, decl, global, name))
 
     case 'ObjectExpression':
-      return generateObject(scope, decl, global, name);
+      return cacheAst(decl, generateObject(scope, decl, global, name))
 
     case 'MemberExpression':
-      return generateMember(scope, decl, global, name);
+      return cacheAst(decl, generateMember(scope, decl, global, name))
 
     case 'ExportNamedDeclaration':
       const funcsBefore = funcs.map(x => x.name);
@@ -167,7 +173,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         }
       }
 
-      return [];
+      return cacheAst(decl, [])
 
     case 'TaggedTemplateExpression': {
       const funcs = {
@@ -218,7 +224,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
       const func = decl.tag.name;
       // hack for inline asm
-      if (!funcs[func]) return todo(scope, 'tagged template expressions not implemented', true);
+      if (!funcs[func]) return cacheAst(decl, todo(scope, 'tagged template expressions not implemented', true))
 
       const { quasis, expressions } = decl.quasi;
       let str = quasis[0].value.raw;
@@ -234,17 +240,17 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         str += quasis[i + 1].value.raw;
       }
 
-      return funcs[func](str);
+      return cacheAst(decl, funcs[func](str))
     }
 
     default:
       // ignore typescript nodes
       if (decl.type.startsWith('TS') ||
           decl.type === 'ImportDeclaration' && decl.importKind === 'type') {
-        return [];
+        return cacheAst(decl, [])
       }
 
-      return todo(scope, `no generation for ${decl.type}!`);
+      return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`))
   }
 };
 
