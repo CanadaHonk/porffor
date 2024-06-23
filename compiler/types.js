@@ -1,3 +1,5 @@
+import Prefs from './prefs.js';
+
 export const TYPE_FLAGS = {
   parity:    0b10000000,
   length:    0b01000000,
@@ -69,3 +71,22 @@ registerInternalType('Float64Array', ['iterable', 'length']);
 registerInternalType('WeakRef');
 registerInternalType('WeakSet');
 registerInternalType('WeakMap');
+
+if (Prefs.largestTypes) {
+  const typeKeys = Object.keys(TYPES);
+  const typeVals = Object.values(TYPES);
+
+  const largestType = (vals, keys) => {
+    const val = Math.max(...vals);
+    const key = keys[vals.indexOf(val)];
+    return [ val, key ];
+  };
+
+  const unflag = val => val & 0b00111111;
+
+  const logType = (label, val, key) => console.log(`${label}    ${key} - ${val} (0x${val.toString(16)}, 0b${val.toString(2).padStart(8, '0')})`);
+
+  logType(`largest type:         `, ...largestType(typeVals.map(unflag), typeKeys));
+  logType(`largest type w/ flags:`, ...largestType(typeVals, typeKeys));
+  console.log();
+}
