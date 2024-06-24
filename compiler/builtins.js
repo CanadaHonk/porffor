@@ -248,19 +248,6 @@ export const BuiltinFuncs = function() {
     constr: true
   };
 
-  // just return given (default 0) for (new) Object() as we somewhat supports object just not constructor
-  this.Object = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.object,
-    wasm: [
-      // [ Opcodes.local_get, 0 ]
-      ...number(1)
-    ],
-    constr: true
-  };
-
   this.isNaN = {
     floatOnly: true,
     params: [ valtypeBinary ],
@@ -977,6 +964,19 @@ export const BuiltinFuncs = function() {
       // size = pageSize
       ...number(pageSize, Valtype.i32),
       [ ...Opcodes.memory_copy, 0x00, 0x00 ],
+    ]
+  };
+
+  this.__Porffor_allocate = {
+    params: [],
+    locals: [],
+    returns: [ Valtype.i32 ],
+    returnType: TYPES.number,
+    wasm: [
+      ...number(1, Valtype.i32),
+      [ Opcodes.memory_grow, 0 ],
+      ...number(65536, Valtype.i32),
+      [ Opcodes.i32_mul ]
     ]
   };
 

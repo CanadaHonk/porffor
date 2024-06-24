@@ -1,4 +1,4 @@
-import { Opcodes } from './wasmSpec.js';
+import { Opcodes, Valtype } from './wasmSpec.js';
 import { read_unsignedLEB128 } from './encoding.js';
 import { TYPES } from './types.js';
 
@@ -41,6 +41,15 @@ const compile = async (file, _funcs) => {
     return acc;
   }, {});
 
+  const returnOverrides = {
+    __Porffor_object_get: [ Valtype.f64, Valtype.i32 ],
+    __Porffor_object_set: [ Valtype.f64, Valtype.i32 ]
+  };
+
+  const paramOverrides = {
+    __Porffor_object_set: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
+  };
+
   const main = funcs.find(x => x.name === 'main');
   const exports = funcs.filter(x => x.export && x.name !== 'main');
   for (const x of exports) {
@@ -58,6 +67,9 @@ const compile = async (file, _funcs) => {
         return obj;
       }).filter(x => x);
     }
+
+    if (returnOverrides[x.name]) x.returns = returnOverrides[x.name];
+    if (paramOverrides[x.name]) x.params = paramOverrides[x.name];
 
     const rewriteWasm = (x, wasm, rewriteLocals = false) => {
       const locals = Object.keys(x.locals).reduce((acc, y) => {

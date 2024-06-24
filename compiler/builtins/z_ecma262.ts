@@ -26,7 +26,6 @@ export const __ecma262_ToIntegerOrInfinity = (argument: unknown): number => {
 // 7.1.17 ToString (argument)
 // https://tc39.es/ecma262/#sec-tostring
 export const __ecma262_ToString = (argument: unknown): bytestring => {
-  let out: bytestring = Porffor.allocate();
   const type: i32 = Porffor.rawType(argument);
 
   // 1. If argument is a String, return argument.
@@ -36,6 +35,8 @@ export const __ecma262_ToString = (argument: unknown): bytestring => {
 
   // 2. If argument is a Symbol, throw a TypeError exception.
   if (type == Porffor.TYPES.symbol) throw new TypeError('Cannot convert a Symbol value to a string');
+
+  let out: bytestring = Porffor.allocate();
 
   // 3. If argument is undefined, return "undefined".
   if (Porffor.fastOr(
@@ -68,14 +69,14 @@ export const __ecma262_ToString = (argument: unknown): bytestring => {
 // https://tc39.es/ecma262/#sec-topropertykey
 export const __ecma262_ToPropertyKey = (argument: any): any => {
   // 1. Let key be ? ToPrimitive(argument, string).
-  const key: any = argument;
+  // argument = key
 
   // 2. If key is a Symbol, then
-  if (Porffor.rawType(key) == Porffor.TYPES.symbol) {
+  if (Porffor.rawType(argument) == Porffor.TYPES.symbol) {
     // a. Return key.
-    return key;
+    return argument;
   }
 
   // 3. Return ! ToString(key).
-  return __ecma262_ToString(key);
+  return __ecma262_ToString(argument);
 };

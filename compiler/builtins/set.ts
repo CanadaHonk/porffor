@@ -1,17 +1,6 @@
 import type {} from './porffor.d.ts';
 
 // dark wasm magic for dealing with memory, sorry.
-export const __Porffor_allocate = (): number => {
-  Porffor.wasm`
-i32.const 1
-memory.grow 0
-i32.const 65536
-i32.mul
-i32.from_u
-i32.const 1
-return`;
-};
-
 export const __Porffor_set_read = (_this: Set, index: number): any => {
   Porffor.wasm`
 local offset i32

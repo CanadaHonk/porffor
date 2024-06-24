@@ -62,7 +62,7 @@ export const __Porffor_miniLog = (arg: any) => {
       } else {
         printStatic('[ ');
         for (let i: i32 = 0; i <= arrLen; i++) {
-          __Porffor_miniPrint(arg[i]);
+          __Porffor_miniLog(arg[i]);
           if (i != arrLen) printStatic(', ');
         }
         printStatic(' ]');

@@ -45,23 +45,37 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
     case TYPES.object: {
       if (value === 0 || checkOOB(memory, value)) return null;
 
-      const [ keysPtr, valsPtr ] = read(Uint32Array, memory, value, 2);
-      if (checkOOB(memory, keysPtr) || checkOOB(memory, valsPtr)) return null;
-
-      const size = read(Uint32Array, memory, keysPtr, 1);
+      const size = read(Uint32Array, memory, value, 1)[0];
 
       const out = {};
       for (let i = 0; i < size; i++) {
-        const offset = 4 + (i * 9);
+        const offset = 4 + (i * 14);
 
-        const kValue = read(Float64Array, memory, keysPtr + offset, 1)[0];
-        const kType = read(Uint8Array, memory, keysPtr + offset + 8, 1)[0];
+        const kRaw = read(Uint32Array, memory, value + offset, 1)[0];
+        const kType = kRaw >>> 31 ? TYPES.string : TYPES.bytestring;
+        const kValue = kRaw & 0x7fffffff;
         const k = porfToJSValue({ memory, funcs, pages }, kValue, kType);
 
-        const vValue = read(Float64Array, memory, valsPtr + offset, 1)[0];
-        const vType = read(Uint8Array, memory, valsPtr + offset + 8, 1)[0];
+        const tail = read(Uint16Array, memory, value + offset + 12, 1)[0];
+
+        const vValue = read(Float64Array, memory, value + offset + 4, 1)[0];
+        const vType = tail >>> 8;
         const v = porfToJSValue({ memory, funcs, pages }, vValue, vType);
 
+        const flags = tail & 0xff;
+
+        if (Prefs.d) {
+          console.log(`\x1b[4m\x1b[1m${k}\x1b[0m \x1B[90m(${TYPE_NAMES[kType]})\x1B[0m
+  value: \x1B[92m${v}\x1B[0m \x1B[90m(${TYPE_NAMES[vType]})\x1B[0m
+  flags: 0b\x1B[93m${flags.toString(2)}\x1B[0m\x1B[90m
+    accessor: ${!!(flags & 0b0001)}
+    configurable: ${!!(flags & 0b0010)}
+    enumerable: ${!!(flags & 0b0100)}
+    writable: ${!!(flags & 0b1000)}
+\x1B[0m`);
+        }
+
+        // todo: use object.defineproperty
         out[k] = v;
       }
 

@@ -1,5 +1,19 @@
 import type {} from './porffor.d.ts';
 
+export const Object = function (value: any): object {
+  new.target; // trick compiler into allowing as constructor
+
+  if (value == null) {
+    // if nullish, return new empty object
+    const obj: object = Porffor.allocate();
+    return obj;
+  }
+
+  // todo: turn primitive args into objects
+  // return input
+  return value;
+};
+
 export const __Object_keys = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
 
@@ -7,13 +21,46 @@ export const __Object_keys = (obj: any): any[] => {
 
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
-    const keys: Set = Porffor.wasm.i32.load(obj, 0, 0);
-    const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
-    out.length = size;
+    const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
+    let len: i32 = size;
 
-    for (let i: i32 = 0; i < size; i++) {
-      out[i] = Porffor.set.read(keys, i);
+    let ptr: i32 = Porffor.wasm`local.get ${obj}` + 4;
+    const endPtr: i32 = ptr + size * 14;
+
+    let i: i32 = 0;
+    for (; ptr < endPtr; ptr += 14) {
+      // todo: check enumerable flag
+
+      let key: any;
+      Porffor.wasm`local raw i32
+local.get ${ptr}
+i32.to_u
+i32.load 0 0
+local.set raw
+
+local.get raw
+i32.const 31
+i32.shr_u
+if 127
+  i32.const 67
+  local.set ${key+1}
+
+  local.get raw
+  i32.const 2147483647
+  i32.and
+else
+  i32.const 195
+  local.set ${key+1}
+
+  local.get raw
+end
+i32.from_u
+local.set ${key}`;
+
+      out[i++] = key;
     }
+
+    out.length = len;
   } else if (Porffor.fastOr(
     t == Porffor.TYPES.array,
     t == Porffor.TYPES.bytestring,
@@ -37,13 +84,33 @@ export const __Object_values = (obj: any): any[] => {
 
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
-    const size: i32 = Porffor.wasm.i32.load(Porffor.wasm.i32.load(obj, 0, 0), 0, 0);
-    const vals: any[] = Porffor.wasm.i32.load(obj, 0, 4);
+    const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
+    let len: i32 = size;
 
-    out.length = size;
-    for (let i: i32 = 0; i < size; i++) {
-      out[i] = vals[i];
+    let ptr: i32 = Porffor.wasm`local.get ${obj}` + 4;
+    const endPtr: i32 = ptr + size * 14;
+
+    let i: i32 = 0;
+    for (; ptr < endPtr; ptr += 14) {
+      // todo: check enumerable flag
+
+      let val: any;
+      Porffor.wasm`local ptr32 i32
+local.get ${ptr}
+i32.to_u
+local.tee ptr32
+
+f64.load 0 4
+local.set ${val}
+
+local.get ptr32
+i32.load8_u 0 13
+local.set ${val+1}`;
+
+      out[i++] = val;
     }
+
+    out.length = len;
   } else if (Porffor.fastOr(
     t == Porffor.TYPES.array,
     t == Porffor.TYPES.bytestring,
@@ -100,8 +167,7 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
 
   const t: i32 = Porffor.rawType(_this);
   if (t == Porffor.TYPES.object) {
-    const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-    return __Set_prototype_has(keys, p);
+    return __Porffor_object_lookup(_this, prop) != -1;
   }
 
   const keys: any[] = __Object_keys(_this);

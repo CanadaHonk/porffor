@@ -197,8 +197,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
             let inst = Opcodes[asm[0].replace('.', '_')];
             if (inst == null) throw new Error(`inline asm: inst ${asm[0]} not found`);
-
             if (!Array.isArray(inst)) inst = [ inst ];
+
             const immediates = asm.slice(1).map(x => {
               const int = parseInt(x);
               if (Number.isNaN(int)) {
@@ -212,7 +212,11 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
               return int;
             });
 
-            out.push([ ...inst, ...immediates.flatMap(x => signedLEB128(x)) ]);
+            const encodeFunc = ({
+              [Opcodes.f64_const]: ieee754_binary64,
+              [Opcodes.if]: unsignedLEB128
+            })[inst[0]] ?? signedLEB128;
+            out.push([ ...inst, ...immediates.flatMap(x => encodeFunc(x)) ]);
           }
 
           return out;
@@ -1202,7 +1206,12 @@ const asmFuncToAsm = (scope, func) => {
   });
 };
 
-const asmFunc = (name, { wasm, params, locals: localTypes, globals: globalTypes = [], globalInits = [], returns, returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false }) => {
+const asmFunc = (name, { wasm, params = [], locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false } = {}) => {
+  if (wasm == null) { // called with no builtin
+    log.warning('codegen', `${name} has no built-in!`);
+    wasm = [];
+  }
+
   const existing = funcs.find(x => x.name === name);
   if (existing) return existing;
 
@@ -2869,226 +2878,231 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       value: decl.left.property.name
     };
 
-    return [
-      ...typeSwitch(scope, getNodeType(scope, decl.left.object), {
-        [TYPES.array]: [
-          ...generate(scope, object),
-          Opcodes.i32_to_u,
+    // todo: review last type usage here
 
-          // get index as valtype
-          ...generate(scope, property),
-          Opcodes.i32_to_u,
+    return typeSwitch(scope, getNodeType(scope, decl.left.object), {
+      [TYPES.array]: [
+        ...generate(scope, object),
+        Opcodes.i32_to_u,
 
-          // turn into byte offset by * valtypeSize + 1
-          ...number(ValtypeSize[valtype] + 1, Valtype.i32),
-          [ Opcodes.i32_mul ],
-          [ Opcodes.i32_add ],
-          [ Opcodes.local_tee, pointerTmp ],
+        // get index as valtype
+        ...generate(scope, property),
+        Opcodes.i32_to_u,
 
-          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-            [ Opcodes.local_get, pointerTmp ],
-            [ Opcodes.load, 0, ValtypeSize.i32 ]
-          ], generate(scope, decl.right), [
-            [ Opcodes.local_get, pointerTmp ],
-            [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
-          ], getNodeType(scope, decl.right), false, name, true)),
-          [ Opcodes.local_tee, newValueTmp ],
-          [ Opcodes.store, 0, ValtypeSize.i32 ],
+        // turn into byte offset by * valtypeSize + 1
+        ...number(ValtypeSize[valtype] + 1, Valtype.i32),
+        [ Opcodes.i32_mul ],
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_tee, pointerTmp ],
 
+        ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
           [ Opcodes.local_get, pointerTmp ],
-          ...getNodeType(scope, decl),
-          [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
-        ],
+          [ Opcodes.load, 0, ValtypeSize.i32 ]
+        ], generate(scope, decl.right), [
+          [ Opcodes.local_get, pointerTmp ],
+          [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
+        ], getNodeType(scope, decl.right), false, name, true)),
+        [ Opcodes.local_tee, newValueTmp ],
+        [ Opcodes.store, 0, ValtypeSize.i32 ],
 
-        [TYPES.object]: [
-          ...generate(scope, object),
-          ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object') ] ]),
+        [ Opcodes.local_get, pointerTmp ],
+        ...getNodeType(scope, decl),
+        [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
+
+        [ Opcodes.local_get, newValueTmp ]
+      ],
+
+      [TYPES.object]: [
+        ...generate(scope, object),
+        Opcodes.i32_to_u,
+        ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
+        ...getNodeType(scope, object),
+
+        ...generate(scope, property),
+        ...getNodeType(scope, property),
+        ...toPropertyKey(scope, op === '='),
+        ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
+        ...(op === '=' ? [] : [
+          Opcodes.i32_to_u,
+          [ Opcodes.local_tee, localTmp(scope, '#objset_property', Valtype.i32) ]
+        ]),
+        ...(op === '=' ? [] : [ [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
+
+        ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+          [ Opcodes.local_get, localTmp(scope, '#objset_object', Valtype.i32) ],
           ...getNodeType(scope, object),
 
-          ...generate(scope, property),
-          ...getNodeType(scope, property),
-          ...toPropertyKey(scope),
-          ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
-          ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_property') ] ]),
-          ...(op === '=' ? [] : [ [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
+          [ Opcodes.local_get, localTmp(scope, '#objset_property', Valtype.i32) ],
+          [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
+
+          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_get').index) ],
+          ...setLastType(scope)
+        ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
+        ...getNodeType(scope, decl),
+
+        [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_set').index) ],
+        [ Opcodes.drop ],
+        // ...setLastType(scope, getNodeType(scope, decl)),
+      ],
+
+      ...wrapBC({
+        [TYPES.uint8array]: [
+          [ Opcodes.i32_add ],
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
           ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-            [ Opcodes.local_get, localTmp(scope, '#objset_object') ],
-            ...getNodeType(scope, object),
-
-            [ Opcodes.local_get, localTmp(scope, '#objset_property') ],
-            [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
-
-            [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Map_prototype_get').index) ],
-            ...setLastType(scope)
-          ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_get, pointerTmp ],
+            [ Opcodes.i32_load8_u, 0, 4 ],
+            Opcodes.i32_from_u
+          ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
           [ Opcodes.local_tee, newValueTmp ],
-          ...getNodeType(scope, decl),
 
-          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Map_prototype_set').index) ],
-          [ Opcodes.drop ],
-
-          ...setLastType(scope, getNodeType(scope, decl)),
+          Opcodes.i32_to_u,
+          [ Opcodes.i32_store8, 0, 4 ]
         ],
+        [TYPES.uint8clampedarray]: [
+          [ Opcodes.i32_add ],
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-        ...wrapBC({
-          [TYPES.uint8array]: [
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, pointerTmp ],
+            [ Opcodes.i32_load8_u, 0, 4 ],
+            Opcodes.i32_from_u
+          ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+          [ Opcodes.local_tee, newValueTmp ],
 
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load8_u, 0, 4 ],
-              Opcodes.i32_from_u
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
+          ...number(0),
+          [ Opcodes.f64_max ],
+          ...number(255),
+          [ Opcodes.f64_min ],
+          Opcodes.i32_to_u,
+          [ Opcodes.i32_store8, 0, 4 ]
+        ],
+        [TYPES.int8array]: [
+          [ Opcodes.i32_add ],
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-            Opcodes.i32_to_u,
-            [ Opcodes.i32_store8, 0, 4 ]
-          ],
-          [TYPES.uint8clampedarray]: [
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, pointerTmp ],
+            [ Opcodes.i32_load8_s, 0, 4 ],
+            Opcodes.i32_from
+          ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+          [ Opcodes.local_tee, newValueTmp ],
 
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load8_u, 0, 4 ],
-              Opcodes.i32_from_u
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
+          Opcodes.i32_to,
+          [ Opcodes.i32_store8, 0, 4 ]
+        ],
+        [TYPES.uint16array]: [
+          ...number(2, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-            ...number(0),
-            [ Opcodes.f64_max ],
-            ...number(255),
-            [ Opcodes.f64_min ],
-            Opcodes.i32_to_u,
-            [ Opcodes.i32_store8, 0, 4 ]
-          ],
-          [TYPES.int8array]: [
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, pointerTmp ],
+            [ Opcodes.i32_load16_u, 0, 4 ],
+            Opcodes.i32_from_u
+          ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+          [ Opcodes.local_tee, newValueTmp ],
 
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load8_s, 0, 4 ],
-              Opcodes.i32_from
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
+          Opcodes.i32_to_u,
+          [ Opcodes.i32_store16, 0, 4 ]
+        ],
+        [TYPES.int16array]: [
+          ...number(2, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-            Opcodes.i32_to,
-            [ Opcodes.i32_store8, 0, 4 ]
-          ],
-          [TYPES.uint16array]: [
-            ...number(2, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, pointerTmp ],
+            [ Opcodes.i32_load16_s, 0, 4 ],
+            Opcodes.i32_from
+          ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+          [ Opcodes.local_tee, newValueTmp ],
 
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load16_u, 0, 4 ],
-              Opcodes.i32_from_u
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
+          Opcodes.i32_to,
+          [ Opcodes.i32_store16, 0, 4 ]
+        ],
+        [TYPES.uint32array]: [
+          ...number(4, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-            Opcodes.i32_to_u,
-            [ Opcodes.i32_store16, 0, 4 ]
-          ],
-          [TYPES.int16array]: [
-            ...number(2, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load16_s, 0, 4 ],
-              Opcodes.i32_from
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            Opcodes.i32_to,
-            [ Opcodes.i32_store16, 0, 4 ]
-          ],
-          [TYPES.uint32array]: [
-            ...number(4, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load, 0, 4 ],
-              Opcodes.i32_from_u
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            Opcodes.i32_to_u,
-            [ Opcodes.i32_store, 0, 4 ]
-          ],
-          [TYPES.int32array]: [
-            ...number(4, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load, 0, 4 ],
-              Opcodes.i32_from
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            Opcodes.i32_to,
-            [ Opcodes.i32_store, 0, 4 ]
-          ],
-          [TYPES.float32array]: [
-            ...number(4, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.f32_load, 0, 4 ],
-              [ Opcodes.f64_promote_f32 ]
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            [ Opcodes.f32_demote_f64 ],
-            [ Opcodes.f32_store, 0, 4 ]
-          ],
-          [TYPES.float64array]: [
-            ...number(8, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.f64_load, 0, 4 ]
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            [ Opcodes.f64_store, 0, 4 ]
-          ],
-        }, {
-          prelude: [
-            ...generate(scope, object),
-            Opcodes.i32_to_u,
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, pointerTmp ],
             [ Opcodes.i32_load, 0, 4 ],
+            Opcodes.i32_from_u
+          ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+          [ Opcodes.local_tee, newValueTmp ],
 
-            ...generate(scope, property),
-            Opcodes.i32_to_u,
-          ],
-          postlude: setLastType(scope, TYPES.number)
-        }),
+          Opcodes.i32_to_u,
+          [ Opcodes.i32_store, 0, 4 ]
+        ],
+        [TYPES.int32array]: [
+          ...number(4, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-        default: internalThrow(scope, 'TypeError', `Cannot assign member with non-array`)
-      }, Blocktype.void),
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, pointerTmp ],
+            [ Opcodes.i32_load, 0, 4 ],
+            Opcodes.i32_from
+          ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+          [ Opcodes.local_tee, newValueTmp ],
 
-      [ Opcodes.local_get, newValueTmp ]
-    ];
+          Opcodes.i32_to,
+          [ Opcodes.i32_store, 0, 4 ]
+        ],
+        [TYPES.float32array]: [
+          ...number(4, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, pointerTmp ],
+            [ Opcodes.f32_load, 0, 4 ],
+            [ Opcodes.f64_promote_f32 ]
+          ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+          [ Opcodes.local_tee, newValueTmp ],
+
+          [ Opcodes.f32_demote_f64 ],
+          [ Opcodes.f32_store, 0, 4 ]
+        ],
+        [TYPES.float64array]: [
+          ...number(8, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, pointerTmp ],
+            [ Opcodes.f64_load, 0, 4 ]
+          ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+          [ Opcodes.local_tee, newValueTmp ],
+
+          [ Opcodes.f64_store, 0, 4 ]
+        ],
+      }, {
+        prelude: [
+          ...generate(scope, object),
+          Opcodes.i32_to_u,
+          [ Opcodes.i32_load, 0, 4 ],
+
+          ...generate(scope, property),
+          Opcodes.i32_to_u,
+        ],
+        postlude: [
+          // setLastType(scope, TYPES.number)
+          [ Opcodes.local_get, newValueTmp ]
+        ]
+      }),
+
+      default: internalThrow(scope, 'TypeError', `Cannot assign member with non-array`)
+    }, valtypeBinary);
   }
 
   if (!name) return todo(scope, 'destructuring is not supported yet', true);
@@ -4339,54 +4353,54 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
   return makeArray(scope, decl, global, name, initEmpty, valtype, false, true)[0];
 };
 
-const toPropertyKey = scope => Prefs.fastObject ? [] : [
-  [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__ecma262_ToPropertyKey').index) ]
+const toPropertyKey = (scope, i32Conv = false) => [
+  [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__ecma262_ToPropertyKey').index) ],
+  ...(i32Conv ? [
+    [ Opcodes.local_set, localTmp(scope, '#swap', Valtype.i32) ],
+    Opcodes.i32_to_u,
+    [ Opcodes.local_get, localTmp(scope, '#swap', Valtype.i32) ]
+  ] : [])
 ];
 
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
-  includeBuiltin(scope, 'Map');
-
-  // todo: optimize const objects
-  const tmp = localTmp(scope, `#objectexpr${randId()}`);
   const out = [
-    ...generateCall(scope, {
-      callee: {
-        type: 'Identifier',
-        name: 'Map'
-      },
-      arguments: [],
-      _new: true
-    }),
-    [ Opcodes.local_tee, tmp ]
+    [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ]
   ];
 
-  for (const x of decl.properties) {
-    const { method, shorthand, computed, kind, key, value } = x;
-    if (kind !== 'init') return todo(scope, 'complex objects are not supported yet', true);
+  if (decl.properties.length > 0) {
+    const tmp = localTmp(scope, `#objectexpr${randId()}`, Valtype.i32);
+    out.push([ Opcodes.local_tee, tmp ]);
 
-    let k = key;
-    if (!computed && key.type !== 'Literal') k = {
-      type: 'Literal',
-      value: key.name
-    };
+    for (const x of decl.properties) {
+      const { method, shorthand, computed, kind, key, value } = x;
+      if (kind !== 'init') return todo(scope, 'complex objects are not supported yet', true);
 
-    out.push(
-      [ Opcodes.local_get, tmp ],
-      ...number(TYPES.map, Valtype.i32),
+      let k = key;
+      if (!computed && key.type !== 'Literal') k = {
+        type: 'Literal',
+        value: key.name
+      };
 
-      ...generate(scope, k),
-      ...getNodeType(scope, k),
-      ...toPropertyKey(scope),
+      out.push(
+        [ Opcodes.local_get, tmp ],
+        ...number(TYPES.object, Valtype.i32),
 
-      ...generate(scope, value),
-      ...getNodeType(scope, value),
+        ...generate(scope, k),
+        ...getNodeType(scope, k),
+        ...toPropertyKey(scope, true),
 
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Map_prototype_set').index) ],
+        ...generate(scope, value),
+        ...getNodeType(scope, value),
 
-      [ Opcodes.drop ],
-      [ Opcodes.drop ]
-    );
+        [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_set').index) ],
+
+        [ Opcodes.drop ],
+        [ Opcodes.drop ]
+      );
+    }
   }
+
+  out.push(Opcodes.i32_from_u);
 
   return out;
 };
@@ -4608,13 +4622,14 @@ const generateMember = (scope, decl, _global, _name) => {
 
     [TYPES.object]: [
       ...objectWasm,
+      Opcodes.i32_to_u,
       ...getNodeType(scope, object),
 
       ...propertyWasm,
       ...getNodeType(scope, property),
-      ...toPropertyKey(scope),
+      ...toPropertyKey(scope, true),
 
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Map_prototype_get').index) ],
+      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_get').index) ],
       ...setLastType(scope)
     ],
 
