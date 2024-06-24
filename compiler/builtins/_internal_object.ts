@@ -129,3 +129,7 @@ export const __Porffor_object_set = (_this: object, key: any, value: any): any =
 
   return value;
 };
+
+export const __Porffor_object_isEnumerable = (ptr: i32): boolean => {
+  return Porffor.wasm.i32.load8_u(ptr, 0, 12) & 0b0100;
+};

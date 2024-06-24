@@ -21,15 +21,12 @@ export const __Object_keys = (obj: any): any[] => {
 
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
-    const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
-    let len: i32 = size;
-
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 4;
-    const endPtr: i32 = ptr + size * 14;
+    const endPtr: i32 = ptr + Porffor.wasm.i32.load(obj, 0, 0) * 14;
 
     let i: i32 = 0;
     for (; ptr < endPtr; ptr += 14) {
-      // todo: check enumerable flag
+      if (!Porffor.object.isEnumerable(ptr)) continue;
 
       let key: any;
       Porffor.wasm`local raw i32
@@ -60,7 +57,7 @@ local.set ${key}`;
       out[i++] = key;
     }
 
-    out.length = len;
+    out.length = i;
   } else if (Porffor.fastOr(
     t == Porffor.TYPES.array,
     t == Porffor.TYPES.bytestring,
@@ -84,15 +81,12 @@ export const __Object_values = (obj: any): any[] => {
 
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
-    const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
-    let len: i32 = size;
-
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 4;
-    const endPtr: i32 = ptr + size * 14;
+    const endPtr: i32 = ptr + Porffor.wasm.i32.load(obj, 0, 0) * 14;
 
     let i: i32 = 0;
     for (; ptr < endPtr; ptr += 14) {
-      // todo: check enumerable flag
+      if (!Porffor.object.isEnumerable(ptr)) continue;
 
       let val: any;
       Porffor.wasm`local ptr32 i32
@@ -110,7 +104,7 @@ local.set ${val+1}`;
       out[i++] = val;
     }
 
-    out.length = len;
+    out.length = i;
   } else if (Porffor.fastOr(
     t == Porffor.TYPES.array,
     t == Porffor.TYPES.bytestring,
@@ -167,7 +161,7 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
 
   const t: i32 = Porffor.rawType(_this);
   if (t == Porffor.TYPES.object) {
-    return __Porffor_object_lookup(_this, prop) != -1;
+    return Porffor.object.lookup(_this, prop) != -1;
   }
 
   const keys: any[] = __Object_keys(_this);
