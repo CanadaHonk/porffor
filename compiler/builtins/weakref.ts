@@ -3,7 +3,7 @@ import type {} from './porffor.d.ts';
 export const WeakRef = function (target: any): WeakRef {
   if (!new.target) throw new TypeError("Constructor WeakRef requires 'new'");
 
-  if (Porffor.rawType(target) < 0x05) throw new TypeError('Target for WeakRef needs to be an object or symbol');
+  if (!Porffor.object.isObjectOrSymbol(target)) throw new TypeError('Target for WeakRef needs to be an object or symbol');
 
   const out: WeakRef = Porffor.allocateBytes(9);
 

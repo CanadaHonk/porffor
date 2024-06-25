@@ -3,7 +3,7 @@ import type {} from './porffor.d.ts';
 export const __WeakMap_prototype_has = (_this: WeakMap, key: any) => __Map_prototype_has(_this, key);
 
 export const __WeakMap_prototype_set = (_this: WeakMap, key: any, value: any) => {
-  if (Porffor.rawType(key) < 0x05) throw new TypeError('Value in WeakSet needs to be an object or symbol');
+  if (!Porffor.object.isObjectOrSymbol(key)) throw new TypeError('Value in WeakSet needs to be an object or symbol');
 
   __Map_prototype_set(_this, key, value);
   return _this;
@@ -23,7 +23,7 @@ export const WeakMap = function (iterable: any): WeakMap {
   Porffor.wasm.i32.store(out, vals, 0, 4);
 
   if (iterable != null) for (const x of iterable) {
-    if (Porffor.rawType(x) < 0x06) throw new TypeError('Iterator contains non-object');
+    if (!Porffor.object.isObject(x)) throw new TypeError('Iterator contains non-object');
     __WeakMap_prototype_set(out, x[0], x[1]);
   }
 

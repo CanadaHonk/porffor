@@ -148,7 +148,7 @@ export const __Object_fromEntries = (iterable: any): object => {
   const out: object = {};
 
   for (const x of iterable) {
-    if (Porffor.rawType(x) < 0x06) throw new TypeError('Iterator contains non-object');
+    if (!Porffor.object.isObject(x)) throw new TypeError('Iterator contains non-object');
     out[ecma262.ToPropertyKey(x[0])] = x[1];
   }
 
@@ -191,7 +191,7 @@ export const __Object_assign = (target: any, ...sources: any[]) => {
 };
 
 export const __Object_defineProperty = (target: any, prop: any, descriptor: any) => {
-  if (Porffor.rawType(target) < 0x06) throw new TypeError('Target is a non-object');
+  if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
 
   // if (Porffor.rawType(descriptor) < 0x06) {
   if (Porffor.rawType(descriptor) != Porffor.TYPES.object) {
