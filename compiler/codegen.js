@@ -2918,7 +2918,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
         ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
         ...getNodeType(scope, object),
 
-        ...generate(scope, property),
+        ...generate(scope, property, false, '#member_prop'),
         ...getNodeType(scope, property),
         ...toPropertyKey(scope, op === '='),
         ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
@@ -4212,6 +4212,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     const local = global ? globals[name] : scope.locals[name];
     if (
       Prefs.data && firstAssign && useRawElements &&
+      name !== '#member_prop' &&
       (!globalThis.precompile || !global)
     ) {
       makeData(scope, elements, rawPtr, itemType, initEmpty);
@@ -4727,7 +4728,7 @@ const generateMember = (scope, decl, _global, _name) => {
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
-      ...generate(scope, property),
+      ...generate(scope, property, false, '#member_prop'),
       [ Opcodes.local_set, localTmp(scope, '#member_prop') ]
     );
 
@@ -4739,7 +4740,7 @@ const generateMember = (scope, decl, _global, _name) => {
       ...generate(scope, object),
       [ Opcodes.local_set, localTmp(scope, '#member_obj') ],
 
-      ...generate(scope, property),
+      ...generate(scope, property, false, '#member_prop'),
       [ Opcodes.local_set, localTmp(scope, '#member_prop') ]
     );
   }
