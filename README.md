@@ -1,6 +1,7 @@
 # Porffor &nbsp;<sup><sub>/ˈpɔrfɔr/ &nbsp;*(poor-for)*</sup></sub>
-A from-scratch experimental **AOT** optimizing JS/TS -> Wasm/C engine/compiler/runtime in JS. Not serious/intended for (real) use. (this is a straight forward, honest readme)<br>
-Age: ~6 months (very on and off)
+A from-scratch experimental **AOT** optimizing JS/TS -> Wasm/C engine/compiler/runtime in JS. Not serious/intended for (real) use.<br>
+
+<img src="https://github.com/CanadaHonk/porffor/assets/19228318/de8ad753-8ce3-4dcd-838e-f4d49452f8f8" alt="Screenshot of terminal showing Porffor running and compiling a hello world" width="60%">
 
 ## Design
 Porffor is a very unique JS engine, due many wildly different approaches. It is seriously limited, but what it can do, it does pretty well. Key differences:
@@ -8,7 +9,7 @@ Porffor is a very unique JS engine, due many wildly different approaches. It is 
 - No constant runtime/preluded code
 - Least Wasm imports possible (only I/O)
 
-Porffor is primarily built from scratch, the only thing that is not is the parser (using [Acorn](https://github.com/acornjs/acorn)). Binaryen/etc is not used, we make final wasm binaries ourself. You could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript. Not based on any particular spec version, focusing on function/working over spec compliance.
+Porffor is primarily built from scratch, the only thing that is not is the parser (using [Acorn](https://github.com/acornjs/acorn)). Binaryen/etc is not used, we make final wasm binaries ourself. You could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript. Not based on any particular spec version.
 
 ## Usage
 Expect nothing to work! Only very limited JS is currently supported. See files in `bench` for examples.
@@ -217,6 +218,8 @@ Mostly for reducing size. I do not really care about compiler perf/time as long 
 
 ## Test262
 Porffor can run Test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). It currently passes >14% (see latest commit desc for latest and details). Use `node test262` to test, it will also show a difference of overall results between the last commit and current results.
+
+![image](https://github.com/CanadaHonk/porffor/assets/19228318/5320da7d-e945-4d16-857b-499f3a6c1180)
 
 ## Codebase
 - `compiler`: contains the compiler itself
