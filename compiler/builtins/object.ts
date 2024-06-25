@@ -211,8 +211,12 @@ export const __Object_defineProperty = (target: any, prop: any, descriptor: any)
 
   let accessor: boolean = false;
 
-  if (get || set) {
-    if (value || writable) {
+  // todo: should check if has attributes not if undefined
+  if (get !== undefined || set !== undefined) {
+    if (get !== undefined && Porffor.rawType(get) != Porffor.TYPES.function) throw new TypeError('Getter must be a function');
+    if (set !== undefined && Porffor.rawType(set) != Porffor.TYPES.function) throw new TypeError('Setter must be a function');
+
+    if (value !== undefined || writable !== undefined) {
       throw new TypeError('Descriptor cannot define both accessor and data descriptor attributes');
     }
 
