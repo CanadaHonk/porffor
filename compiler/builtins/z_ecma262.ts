@@ -22,10 +22,9 @@ export const __ecma262_ToIntegerOrInfinity = (argument: unknown): number => {
   return number;
 };
 
-// todo: support non-bytestring properly
 // 7.1.17 ToString (argument)
 // https://tc39.es/ecma262/#sec-tostring
-export const __ecma262_ToString = (argument: unknown): bytestring => {
+export const __ecma262_ToString = (argument: unknown): any => {
   const type: i32 = Porffor.rawType(argument);
 
   // 1. If argument is a String, return argument.
