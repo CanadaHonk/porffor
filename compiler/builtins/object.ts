@@ -261,6 +261,25 @@ export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) =
 };
 
 
+export const __Object_is = (x: any, y: any): boolean => {
+  if (x === y) {
+    if (x == 0) {
+      // check +0 vs -0
+      return 1 / x == 1 / y;
+    }
+
+    return true;
+  }
+
+  // check NaN
+  if (Porffor.rawType(x) == Porffor.TYPES.number && Number.isNaN(x)) {
+    return Number.isNaN(y);
+  }
+
+  return false;
+};
+
+
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';
   return out;
