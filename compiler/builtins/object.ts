@@ -192,11 +192,7 @@ export const __Object_assign = (target: any, ...sources: any[]) => {
 
 export const __Object_defineProperty = (target: any, prop: any, descriptor: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
-
-  // if (Porffor.rawType(descriptor) < 0x06) {
-  if (Porffor.rawType(descriptor) != Porffor.TYPES.object) {
-    throw new TypeError('Descriptor is a non-object');
-  }
+  if (!Porffor.object.isObject(descriptor)) throw new TypeError('Descriptor is a non-object');
 
   const p: any = ecma262.ToPropertyKey(prop);
 
