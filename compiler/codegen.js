@@ -121,6 +121,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'ForOfStatement':
       return cacheAst(decl, generateForOf(scope, decl));
 
+    case 'ForInStatement':
+      return cacheAst(decl, generateForIn(scope, decl));
+
     case 'SwitchStatement':
       return cacheAst(decl, generateSwitch(scope, decl));
 
@@ -3471,8 +3474,6 @@ const generateForOf = (scope, decl) => {
     generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
   }
 
-  // if (!leftName) console.log(decl.left?.declarations?.[0]?.id ?? decl.left);
-
   const [ local, isGlobal ] = lookupName(scope, leftName);
   if (!local) return todo(scope, 'for of failed to get left local (probably destructure)');
 
@@ -3784,6 +3785,120 @@ const generateForOf = (scope, decl) => {
   return out;
 };
 
+const generateForIn = (scope, decl) => {
+  const out = [];
+
+  // todo: for in inside for in might fuck up?
+  const pointer = localTmp(scope, '#forin_base_pointer', Valtype.i32);
+  const length = localTmp(scope, '#forin_length', Valtype.i32);
+  const counter = localTmp(scope, '#forin_counter', Valtype.i32);
+
+  out.push(
+    // set pointer as right
+    ...generate(scope, decl.right),
+    Opcodes.i32_to_u,
+    [ Opcodes.local_set, pointer ],
+
+    // set counter as 0 (could be already used)
+    ...number(0, Valtype.i32),
+    [ Opcodes.local_set, counter ],
+
+    // get length
+    [ Opcodes.local_get, pointer ],
+    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+    [ Opcodes.local_tee, length ],
+
+    [ Opcodes.if, Blocktype.void ]
+  );
+
+  depth.push('if');
+  depth.push('forin');
+  depth.push('block');
+  depth.push('block');
+
+  // setup local for left
+  generate(scope, decl.left);
+
+  let leftName = decl.left.declarations?.[0]?.id?.name;
+  if (!leftName && decl.left.name) {
+    // todo: should be sloppy mode only
+    leftName = decl.left.name;
+
+    generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
+  }
+
+  const [ local, isGlobal ] = lookupName(scope, leftName);
+  if (!local) return todo(scope, 'for of failed to get left local (probably destructure)');
+
+  // set type for local
+  // todo: optimize away counter and use end pointer
+  out.push(...typeSwitch(scope, getNodeType(scope, decl.right), {
+    [TYPES.object]: [
+      [ Opcodes.loop, Blocktype.void ],
+
+      [ Opcodes.local_get, pointer ],
+      [ Opcodes.i32_load, 0, 4 ],
+      [ Opcodes.local_tee, localTmp(scope, '#forin_tmp', Valtype.i32) ],
+
+      ...setType(scope, leftName, [
+        [ Opcodes.i32_const, 31 ],
+        [ Opcodes.i32_shr_u ],
+        [ Opcodes.if, Valtype.i32 ],
+          // unset MSB in tmp
+          [ Opcodes.local_get, localTmp(scope, '#forin_tmp', Valtype.i32) ],
+          ...number(0x7fffffff, Valtype.i32),
+          [ Opcodes.i32_and ],
+          [ Opcodes.local_set, localTmp(scope, '#forin_tmp', Valtype.i32) ],
+
+          [ Opcodes.i32_const, ...unsignedLEB128(TYPES.string) ],
+        [ Opcodes.else ],
+          [ Opcodes.i32_const, ...unsignedLEB128(TYPES.bytestring) ],
+        [ Opcodes.end ]
+      ]),
+
+      [ Opcodes.local_get, localTmp(scope, '#forin_tmp', Valtype.i32) ],
+      Opcodes.i32_from_u,
+      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+
+      [ Opcodes.block, Blocktype.void ],
+      [ Opcodes.block, Blocktype.void ],
+      ...generate(scope, decl.body),
+      [ Opcodes.end ],
+
+      // increment iter pointer by 14
+      [ Opcodes.local_get, pointer ],
+      ...number(14, Valtype.i32),
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_set, pointer ],
+
+      // increment counter by 1
+      [ Opcodes.local_get, counter ],
+      ...number(1, Valtype.i32),
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_tee, counter ],
+
+      // loop if counter != length
+      [ Opcodes.local_get, length ],
+      [ Opcodes.i32_ne ],
+      [ Opcodes.br_if, 1 ],
+
+      [ Opcodes.end ],
+      [ Opcodes.end ]
+    ],
+
+    // todo: use Object.keys as fallback
+    default: internalThrow(scope, 'TypeError', `Tried for..in on unsupported type`)
+  }, Blocktype.void));
+
+  out.push([ Opcodes.end ]); // end if
+
+  depth.pop();
+  depth.pop();
+  depth.pop();
+
+  return out;
+};
+
 const generateSwitch = (scope, decl) => {
   const tmp = localTmp(scope, '#switch_disc');
   const out = [
@@ -3840,7 +3955,7 @@ const generateSwitch = (scope, decl) => {
 // find the nearest loop in depth map by type
 const getNearestLoop = () => {
   for (let i = depth.length - 1; i >= 0; i--) {
-    if (['while', 'dowhile', 'for', 'forof', 'switch'].includes(depth[i])) return i;
+    if (['while', 'dowhile', 'for', 'forof', 'forin', 'switch'].includes(depth[i])) return i;
   }
 
   return -1;
@@ -3859,6 +3974,7 @@ const generateBreak = (scope, decl) => {
     while: 2, // loop > if (wanted branch) (we are here)
     dowhile: 2, // loop > block (wanted branch) > block (we are here)
     forof: 2, // loop > block (wanted branch) > block (we are here)
+    forin: 2, // loop > block (wanted branch) > block (we are here)
     if: 1, // break inside if, branch 0 to skip the rest of the if
     switch: 1
   })[type];
@@ -3880,7 +3996,8 @@ const generateContinue = (scope, decl) => {
     for: 3, // loop (wanted branch) > if > block (we are here)
     while: 1, // loop (wanted branch) > if (we are here)
     dowhile: 3, // loop > block > block (wanted branch) (we are here)
-    forof: 3 // loop > block > block (wanted branch) (we are here)
+    forof: 3, // loop > block > block (wanted branch) (we are here)
+    forin: 3 // loop > block > block (wanted branch) (we are here)
   })[type];
 
   return [
