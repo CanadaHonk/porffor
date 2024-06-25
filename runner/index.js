@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.21.1+340e8d4dd';
+globalThis.version = '0.21.2+856c111a5';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
