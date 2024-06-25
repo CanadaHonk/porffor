@@ -113,7 +113,7 @@ const compile = async (file, _funcs) => {
         if (y[0] === Opcodes.const && (n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
           const l = locals[n[1]];
           if (!l) continue;
-          if (![TYPES.string, TYPES.array, TYPES.bytestring].includes(l.metadata?.type)) continue;
+          if (!['#member_prop'].includes(l.name) && ![TYPES.string, TYPES.array, TYPES.bytestring].includes(l.metadata?.type)) continue;
           if (!x.pages) continue;
 
           const pageName = [...x.pages.keys()].find(z => z.endsWith(l.name));
