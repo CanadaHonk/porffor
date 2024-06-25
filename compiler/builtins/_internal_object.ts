@@ -130,6 +130,91 @@ export const __Porffor_object_set = (_this: object, key: any, value: any): any =
   return value;
 };
 
+export const __Porffor_object_define = (_this: object, key: any, value: any, flags: any): any => {
+  let entryPtr: i32 = __Porffor_object_lookup(_this, key);
+  if (entryPtr == -1) {
+    // add new entry
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+    Porffor.wasm.i32.store(_this, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${_this}` + 4 + size * 14;
+
+    // encode key type, set MSB if regular string
+    let keyEnc: i32 = Porffor.wasm`local.get ${key}`;
+    if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.string) keyEnc |= 0x80000000;
+
+    // write key value and type (MSB)
+    Porffor.wasm.i32.store(entryPtr, keyEnc, 0, 0);
+  } else {
+    // existing entry, check and maybe modify it
+    const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
+
+    if ((tail & 0b0010) == 0) {
+      // not already configurable, check to see if we can redefine
+      if ((tail & 0b1111) != flags) {
+        // flags have changed, perform checks
+        let err: boolean = false;
+
+        // descriptor type (accessor/data) and/or flags (other than writable) have changed
+        if ((tail & 0b0111) != flags) err = true;
+          else if (!(tail & 0b0001) && !(tail & 0b1000)) {
+          // data descriptor and already non-writable only checks
+          // trying to change writable false -> true
+          if (flags & 0b1000) {
+            err = true;
+          } else {
+            // if already non-writable, check value isn't being changed
+            Porffor.wasm`
+local.get ${entryPtr}
+f64.load 0 4
+local.get ${value}
+f64.ne
+
+local.get ${entryPtr}
+i32.load8_u 0 13
+local.get ${value+1}
+i32.ne
+i32.or
+local.set ${err}`;
+          }
+        }
+
+        if (err) throw new TypeError('Cannot redefine property');
+      }
+    }
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, value, 0, 4);
+
+  // write new tail (value type + flags)
+  Porffor.wasm.i32.store16(entryPtr,
+    flags + (Porffor.wasm`local.get ${value+1}` << 8),
+    0, 12);
+};
+
 export const __Porffor_object_isEnumerable = (ptr: i32): boolean => {
   return Porffor.wasm.i32.load8_u(ptr, 0, 12) & 0b0100;
+};
+
+export const __Porffor_object_isObject = (arg: any): boolean => {
+  const t: i32 = Porffor.wasm`local.get ${arg+1}`;
+  return Porffor.fastAnd(
+    arg != 0, // null
+    t > 0x05,
+    t != Porffor.TYPES.undefined,
+    t != Porffor.TYPES.bytestring
+  );
+};
+
+export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
+  const t: i32 = Porffor.wasm`local.get ${arg+1}`;
+  return Porffor.fastAnd(
+    arg != 0, // null
+    t > 0x04,
+    t != Porffor.TYPES.undefined,
+    t != Porffor.TYPES.bytestring
+  );
 };

@@ -161,7 +161,7 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
 
   const t: i32 = Porffor.rawType(_this);
   if (t == Porffor.TYPES.object) {
-    return Porffor.object.lookup(_this, prop) != -1;
+    return Porffor.object.lookup(_this, p) != -1;
   }
 
   const keys: any[] = __Object_keys(_this);
@@ -187,6 +187,49 @@ export const __Object_assign = (target: any, ...sources: any[]) => {
     }
   }
 
+  return target;
+};
+
+export const __Object_defineProperty = (target: any, prop: any, descriptor: any) => {
+  if (Porffor.rawType(target) < 0x06) throw new TypeError('Target is a non-object');
+
+  // if (Porffor.rawType(descriptor) < 0x06) {
+  if (Porffor.rawType(descriptor) != Porffor.TYPES.object) {
+    throw new TypeError('Descriptor is a non-object');
+  }
+
+  const p: any = ecma262.ToPropertyKey(prop);
+
+  const desc: object = descriptor;
+
+  // base keys
+  const configurable: any = desc.configurable; // defaults to false/undefined
+  const enumerable: any = desc.enumerable; // defaults to false/undefined
+
+  // data descriptor keys
+  const value: any = desc.value;
+  const writable: any = desc.writable;
+
+  const get: any = desc.get;
+  const set: any = desc.set;
+
+  let accessor: boolean = false;
+
+  if (get || set) {
+    if (value || writable) {
+      throw new TypeError('Descriptor cannot define both accessor and data descriptor attributes');
+    }
+
+    accessor = true;
+  }
+
+  let flags: i32 = 0b0000;
+  if (accessor) flags |= 0b0001;
+  if (configurable) flags |= 0b0010;
+  if (enumerable) flags |= 0b0100;
+  if (writable) flags |= 0b1000;
+
+  Porffor.object.define(target, p, value, flags);
   return target;
 };
 
