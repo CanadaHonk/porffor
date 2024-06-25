@@ -196,7 +196,8 @@ local.set ${err}`;
 };
 
 export const __Porffor_object_isEnumerable = (ptr: i32): boolean => {
-  return Porffor.wasm.i32.load8_u(ptr, 0, 12) & 0b0100;
+  const out: boolean = Porffor.wasm.i32.load8_u(ptr, 0, 12) & 0b0100;
+  return out;
 };
 
 export const __Porffor_object_isObject = (arg: any): boolean => {

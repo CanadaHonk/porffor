@@ -234,6 +234,22 @@ export const __Object_defineProperty = (target: any, prop: any, descriptor: any)
 };
 
 
+export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) => {
+  const p: any = ecma262.ToPropertyKey(prop);
+
+  const t: i32 = Porffor.rawType(_this);
+  if (t == Porffor.TYPES.object) {
+    const entryPtr: i32 = Porffor.object.lookup(_this, p);
+    if (entryPtr == -1) return false;
+
+    return Porffor.object.isEnumerable(entryPtr);
+  }
+
+  const keys: any[] = __Object_keys(_this);
+  return __Array_prototype_includes(keys, p);
+};
+
+
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';
   return out;

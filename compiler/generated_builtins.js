@@ -27,19 +27,19 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127,127,127], localNames: ["_this","_this#type","key","key#type","value","value#type","flags","flags#type","entryPtr","#last_type","size","keyEnc","tail","err","logictmp","#logicinner_tmp","#typeswitch_tmp"],
   };
   this.__Porffor_object_isEnumerable = {
-    wasm: (scope, {}) => [[32,0],[45,0,12],[65,4],[113],[65,1],[15]],
+    wasm: (scope, {}) => [[32,0],[45,0,12],[65,4],[113],[34,2],[65,2],[15]],
     params: [127,127], typedParams: 1,
     returns: [127,127], typedReturns: 1,
-    locals: [], localNames: ["ptr","ptr#type"],
+    locals: [127], localNames: ["ptr","ptr#type","out"],
   };
   this.__Porffor_object_isObject = {
-    wasm: (scope, {}) => [[32,1],[33,2],[32,0],[65,0],[71],[32,2],[65,5],[74],[113],[32,2],[65,128,1],[71],[113],[32,2],[65,195,1],[71],[113],[65,2],[15]],
+    wasm: (scope, {}) => [[32,1],[33,2],[32,0],[65,0],[71],[32,2],[65,5],[74],[113],[32,2],[65,128,1],[71],[113],[32,2],[65,195,0],[71],[113],[32,2],[65,195,1],[71],[113],[65,2],[15]],
     params: [127,127], typedParams: 1,
     returns: [127,127], typedReturns: 1,
     locals: [127], localNames: ["arg","arg#type","t"],
   };
   this.__Porffor_object_isObjectOrSymbol = {
-    wasm: (scope, {}) => [[32,1],[33,2],[32,0],[65,0],[71],[32,2],[65,4],[74],[113],[32,2],[65,128,1],[71],[113],[32,2],[65,195,1],[71],[113],[65,2],[15]],
+    wasm: (scope, {}) => [[32,1],[33,2],[32,0],[65,0],[71],[32,2],[65,4],[74],[113],[32,2],[65,128,1],[71],[113],[32,2],[65,195,0],[71],[113],[32,2],[65,195,1],[71],[113],[65,2],[15]],
     params: [127,127], typedParams: 1,
     returns: [127,127], typedReturns: 1,
     locals: [127], localNames: ["arg","arg#type","t"],
@@ -1694,6 +1694,12 @@ export const BuiltinFuncs = function() {
     params: [124,127,124,127,124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
     locals: [127,124,127,124,127,124,124,127,124,124,127,127,127,124,127,124,127,124,127,124,127,124,127,124,124,124], localNames: ["target","target#type","prop","prop#type","descriptor","descriptor#type","#last_type","#logicinner_tmp","#typeswitch_tmp","p","p#type","desc","configurable","configurable#type","#member_obj","#member_prop","#loadArray_offset","#swap","#makearray_pointer_tmp","enumerable","enumerable#type","value","value#type","writable","writable#type","get","get#type","set","set#type","accessor","logictmp","flags"],
+  };
+  this.__Object_prototype_propertyIsEnumerable = {
+    wasm: (scope, {builtin}) => [[32,2],[32,3],[16, ...builtin('__ecma262_ToPropertyKey')],[33,5],[33,4],[32,0],[32,1],[16, ...builtin('__Porffor_rawType')],[34,7],[68,0,0,0,0,0,0,28,64],[97],[4,64],[32,0],[252,2],[32,1],[32,4],[252,2],[32,5],[16, ...builtin('__Porffor_object_lookup')],[33,6],[183],[34,8],[68,0,0,0,0,0,0,240,191],[97],[4,64],[68,0,0,0,0,0,0,0,0],[65,2],[15],[11],[32,8],[252,2],[65,1],[16, ...builtin('__Porffor_object_isEnumerable')],[33,6],[183],[32,6],[15],[11],[32,0],[32,1],[16, ...builtin('__Object_keys')],[26],[34,9],[65,208,0],[32,4],[32,5],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, ...builtin('__Array_prototype_includes')],[34,6],[15]],
+    params: [124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [124,127,127,124,124,124], localNames: ["_this","_this#type","prop","prop#type","p","p#type","#last_type","t","entryPtr","keys"],
   };
   this.__Object_prototype_toString = {
     wasm: (scope, {allocPage}) => [...number(allocPage(scope, 'bytestring: __Object_prototype_toString/out', 'i8') * pageSize, 124),[34,2],[65,195,1],[15]],
