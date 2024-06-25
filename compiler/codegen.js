@@ -74,91 +74,91 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateCode(scope, decl));
 
     case 'ReturnStatement':
-      return cacheAst(decl, generateReturn(scope, decl))
+      return cacheAst(decl, generateReturn(scope, decl));
 
     case 'ExpressionStatement':
-      return cacheAst(decl, generateExp(scope, decl))
+      return cacheAst(decl, generateExp(scope, decl));
 
     case 'SequenceExpression':
-      return cacheAst(decl, generateSequence(scope, decl))
+      return cacheAst(decl, generateSequence(scope, decl));
 
     case 'ChainExpression':
-      return cacheAst(decl, generateChain(scope, decl))
+      return cacheAst(decl, generateChain(scope, decl));
 
     case 'CallExpression':
-      return cacheAst(decl, generateCall(scope, decl, global, name, valueUnused))
+      return cacheAst(decl, generateCall(scope, decl, global, name, valueUnused));
 
     case 'NewExpression':
-      return cacheAst(decl, generateNew(scope, decl, global, name))
+      return cacheAst(decl, generateNew(scope, decl, global, name));
 
     case 'Literal':
-      return cacheAst(decl, generateLiteral(scope, decl, global, name))
+      return cacheAst(decl, generateLiteral(scope, decl, global, name));
 
     case 'VariableDeclaration':
-      return cacheAst(decl, generateVar(scope, decl))
+      return cacheAst(decl, generateVar(scope, decl));
 
     case 'AssignmentExpression':
-      return cacheAst(decl, generateAssign(scope, decl))
+      return cacheAst(decl, generateAssign(scope, decl));
 
     case 'UnaryExpression':
-      return cacheAst(decl, generateUnary(scope, decl))
+      return cacheAst(decl, generateUnary(scope, decl));
 
     case 'UpdateExpression':
-      return cacheAst(decl, generateUpdate(scope, decl, global, name, valueUnused))
+      return cacheAst(decl, generateUpdate(scope, decl, global, name, valueUnused));
 
     case 'IfStatement':
-      return cacheAst(decl, generateIf(scope, decl))
+      return cacheAst(decl, generateIf(scope, decl));
 
     case 'ForStatement':
-      return cacheAst(decl, generateFor(scope, decl))
+      return cacheAst(decl, generateFor(scope, decl));
 
     case 'WhileStatement':
-      return cacheAst(decl, generateWhile(scope, decl))
+      return cacheAst(decl, generateWhile(scope, decl));
 
     case 'DoWhileStatement':
-      return cacheAst(decl, generateDoWhile(scope, decl))
+      return cacheAst(decl, generateDoWhile(scope, decl));
 
     case 'ForOfStatement':
-      return cacheAst(decl, generateForOf(scope, decl))
+      return cacheAst(decl, generateForOf(scope, decl));
 
     case 'SwitchStatement':
-      return cacheAst(decl, generateSwitch(scope, decl))
+      return cacheAst(decl, generateSwitch(scope, decl));
 
     case 'BreakStatement':
-      return cacheAst(decl, generateBreak(scope, decl))
+      return cacheAst(decl, generateBreak(scope, decl));
 
     case 'ContinueStatement':
-      return cacheAst(decl, generateContinue(scope, decl))
+      return cacheAst(decl, generateContinue(scope, decl));
 
     case 'LabeledStatement':
-      return cacheAst(decl, generateLabel(scope, decl))
+      return cacheAst(decl, generateLabel(scope, decl));
 
     case 'EmptyStatement':
-      return cacheAst(decl, generateEmpty(scope, decl))
+      return cacheAst(decl, generateEmpty(scope, decl));
 
     case 'MetaProperty':
-      return cacheAst(decl, generateMeta(scope, decl))
+      return cacheAst(decl, generateMeta(scope, decl));
 
     case 'ConditionalExpression':
-      return cacheAst(decl, generateConditional(scope, decl))
+      return cacheAst(decl, generateConditional(scope, decl));
 
     case 'ThrowStatement':
-      return cacheAst(decl, generateThrow(scope, decl))
+      return cacheAst(decl, generateThrow(scope, decl));
 
     case 'TryStatement':
-      return cacheAst(decl, generateTry(scope, decl))
+      return cacheAst(decl, generateTry(scope, decl));
 
     case 'DebuggerStatement':
-      return cacheAst(decl, [[ Opcodes.call, importedFuncs.debugger ]])
+      return cacheAst(decl, [[ Opcodes.call, importedFuncs.debugger ]]);
 
     case 'ArrayExpression':
-      return cacheAst(decl, generateArray(scope, decl, global, name))
+      return cacheAst(decl, generateArray(scope, decl, global, name));
 
     case 'ObjectExpression':
-      return cacheAst(decl, generateObject(scope, decl, global, name))
+      return cacheAst(decl, generateObject(scope, decl, global, name));
 
     case 'MemberExpression':
-      return cacheAst(decl, generateMember(scope, decl, global, name))
+      return cacheAst(decl, generateMember(scope, decl, global, name));
 
     case 'ExportNamedDeclaration':
       const funcsBefore = funcs.map(x => x.name);
@@ -173,7 +173,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         }
       }
 
-      return cacheAst(decl, [])
+      return cacheAst(decl, []);
 
     case 'TaggedTemplateExpression': {
       const funcs = {
@@ -228,7 +228,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
       const func = decl.tag.name;
       // hack for inline asm
-      if (!funcs[func]) return cacheAst(decl, todo(scope, 'tagged template expressions not implemented', true))
+      if (!funcs[func]) return cacheAst(decl, todo(scope, 'tagged template expressions not implemented', true));
 
       const { quasis, expressions } = decl.quasi;
       let str = quasis[0].value.raw;
@@ -244,17 +244,17 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         str += quasis[i + 1].value.raw;
       }
 
-      return cacheAst(decl, funcs[func](str))
+      return cacheAst(decl, funcs[func](str));
     }
 
     default:
       // ignore typescript nodes
       if (decl.type.startsWith('TS') ||
           decl.type === 'ImportDeclaration' && decl.importKind === 'type') {
-        return cacheAst(decl, [])
+        return cacheAst(decl, []);
       }
 
-      return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`))
+      return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`));
   }
 };
 
