@@ -233,6 +233,17 @@ export const __Object_defineProperty = (target: any, prop: any, descriptor: any)
   return target;
 };
 
+export const __Object_defineProperties = (target: any, props: any) => {
+  if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  if (!Porffor.object.isObjectOrSymbol(props)) throw new TypeError('Props needs to be an object or symbol');
+
+  for (const x in props) {
+    __Object_defineProperty(target, x, props[x]);
+  }
+
+  return target;
+};
+
 
 export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) => {
   const p: any = ecma262.ToPropertyKey(prop);
