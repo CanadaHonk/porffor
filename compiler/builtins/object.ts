@@ -279,6 +279,20 @@ export const __Object_is = (x: any, y: any): boolean => {
   return false;
 };
 
+export const __Object_create = (proto: any, props: any) => {
+  if (!Porffor.object.isObject(proto)) {
+    if (proto !== null) throw new TypeError('Prototype should be an object or null');
+  }
+
+  const out: object = {};
+
+  // todo: set prototype when supported
+
+  if (props !== undefined) __Object_defineProperties(out, props);
+
+  return out;
+};
+
 
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';

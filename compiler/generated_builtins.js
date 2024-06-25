@@ -1713,6 +1713,12 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [124,124,127,127,127,127,127,124,127,124,127], localNames: ["x","x#type","y","y#type","__tmpop_left","__tmpop_right","compare_left_pointer","compare_left_length","compare_right_pointer","compare_index","compare_index_end","logictmp","#last_type","#logicinner_tmp","#typeswitch_tmp"],
   };
+  this.__Object_create = {
+    wasm: (scope, {builtin,internalThrow}) => [[32,0],[252,2],[32,1],[16, ...builtin('__Porffor_object_isObject')],[33,4],[183],[33,5],[32,4],[33,6],[2,124],[32,6],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,5],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,6],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,5],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,5],[68,0,0,0,0,0,0,0,0],[97],[184],[11,"TYPESWITCH_end"],[252,3],[4,64],[32,0],[68,0,0,0,0,0,0,0,0],[98],[32,1],[65,128,1],[114],[65,7],[65,128,1],[114],[71],[114],[4,64],...internalThrow(scope, 'TypeError', `Prototype should be an object or null`),[11],[11],[16, ...builtin('__Porffor_allocate')],[184],[33,7],[32,2],[68,0,0,0,0,0,0,0,0],[98],[32,3],[65,128,1],[114],[65,128,1],[65,128,1],[114],[71],[114],[4,64],[32,7],[65,7],[32,2],[32,3],[16, ...builtin('__Object_defineProperties')],[33,4],[26],[11],[32,7],[65,7],[15]],
+    params: [124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127,124,127,124], localNames: ["proto","proto#type","props","props#type","#last_type","#logicinner_tmp","#typeswitch_tmp","out"],
+  };
   this.__Object_prototype_toString = {
     wasm: (scope, {allocPage}) => [...number(allocPage(scope, 'bytestring: __Object_prototype_toString/out', 'i8') * pageSize, 124),[34,2],[65,195,1],[15]],
     params: [124,127], typedParams: 1,
