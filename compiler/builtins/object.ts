@@ -390,6 +390,41 @@ export const __Object_isSealed = (obj: any): any => {
 };
 
 
+export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
+  if (!Porffor.object.isObjectOrSymbol(obj)) throw new TypeError('Object should be an object or symbol');
+
+  const p: any = ecma262.ToPropertyKey(prop);
+  const entryPtr: i32 = Porffor.object.lookup(obj, p);
+  if (entryPtr == -1) return undefined;
+
+  const out: object = {};
+
+  const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
+  out.configurable = Boolean(tail & 0b0010);
+  out.enumerable = Boolean(tail & 0b0100);
+
+  if (tail & 0b0001) {
+    // accessor descriptor
+
+    return out;
+  }
+
+  // data descriptor
+  const value: any = Porffor.wasm.f64.load(entryPtr, 0, 4);
+  Porffor.wasm`
+local.get ${tail}
+i32.to_u
+i32.const 8
+i32.shr_u
+local.set ${value+1}`;
+
+  out.writable = Boolean(tail & 0b1000);
+  out.value = value;
+
+  return out;
+};
+
+
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';
   return out;
