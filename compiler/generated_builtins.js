@@ -1767,6 +1767,18 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [127,124,127], localNames: ["obj","obj#type","#last_type","#logicinner_tmp","#typeswitch_tmp"],
   };
+  this.__Object_seal = {
+    wasm: (scope, {builtin}) => [[32,0],[32,1],[16, ...builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,28,64],[98],[4,64],[32,0],[32,1],[15],[11],[32,0],[252,2],[32,1],[16, ...builtin('__Porffor_object_preventExtensions')],[26],[183],[26],[32,0],[252,2],[32,1],[65,0],[65,1],[65,13],[65,1],[16, ...builtin('__Porffor_object_overrideAllFlags')],[26],[183],[26],[32,0],[32,1],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127], localNames: ["obj","obj#type","#last_type"],
+  };
+  this.__Object_isSealed = {
+    wasm: (scope, {builtin}) => [[32,0],[252,2],[32,1],[16, ...builtin('__Porffor_object_isObject')],[33,2],[183],[33,3],[32,2],[33,4],[2,124],[32,4],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,4],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,3],[68,0,0,0,0,0,0,0,0],[97],[184],[11,"TYPESWITCH_end"],[252,3],[4,64],[68,0,0,0,0,0,0,240,63],[65,2],[15],[11],[32,0],[32,1],[16, ...builtin('__Porffor_rawType')],[68,0,0,0,0,0,0,28,64],[98],[4,64],[68,0,0,0,0,0,0,0,0],[65,2],[15],[11],[32,0],[252,2],[32,1],[16, ...builtin('__Porffor_object_isInextensible')],[33,2],[183],[33,3],[32,2],[33,4],[2,124],[32,4],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,4],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,3],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,3],[68,0,0,0,0,0,0,0,0],[97],[184],[11,"TYPESWITCH_end"],[252,3],[4,64],[68,0,0,0,0,0,0,0,0],[65,2],[15],[11],[32,0],[252,2],[32,1],[65,2],[65,1],[65,2],[65,1],[65,0],[65,1],[65,0],[65,1],[16, ...builtin('__Porffor_object_checkAllFlags')],[33,2],[183],[32,2],[15]],
+    params: [124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127,124,127], localNames: ["obj","obj#type","#last_type","#logicinner_tmp","#typeswitch_tmp"],
+  };
   this.__Object_prototype_toString = {
     wasm: (scope, {allocPage}) => [...number(allocPage(scope, 'bytestring: __Object_prototype_toString/out', 'i8') * pageSize, 124),[34,2],[65,195,1],[15]],
     params: [124,127], typedParams: 1,
