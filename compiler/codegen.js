@@ -3837,7 +3837,7 @@ const generateForIn = (scope, decl) => {
       [ Opcodes.loop, Blocktype.void ],
 
       [ Opcodes.local_get, pointer ],
-      [ Opcodes.i32_load, 0, 4 ],
+      [ Opcodes.i32_load, 0, 5 ],
       [ Opcodes.local_tee, localTmp(scope, '#forin_tmp', Valtype.i32) ],
 
       ...setType(scope, leftName, [

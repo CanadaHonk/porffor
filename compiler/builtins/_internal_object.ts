@@ -1,8 +1,10 @@
 // @porf --valtype=i32
 import type {} from './porffor.d.ts';
 
+// todo: padding for memory alignment?
 // memory layout:
-//  size (i32, 4)
+//  size (u32, 4)
+//  root flags (u32, 1)
 // per entry (14):
 //  key - value, type MSB encoded (u32, 4)
 //  value - value (f64, 8)
@@ -16,7 +18,7 @@ import type {} from './porffor.d.ts';
 export const __Porffor_object_lookup = (_this: object, target: any): i32 => {
   const targetType: i32 = Porffor.wasm`local.get ${target+1}`;
 
-  let ptr: i32 = Porffor.wasm`local.get ${_this}` + 4;
+  let ptr: i32 = Porffor.wasm`local.get ${_this}` + 5;
 
   const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   const endPtr: i32 = ptr + size * 14;
@@ -87,7 +89,7 @@ export const __Porffor_object_set = (_this: object, key: any, value: any): any =
     Porffor.wasm.i32.store(_this, size + 1, 0, 0);
 
     // entryPtr = current end of object
-    entryPtr = Porffor.wasm`local.get ${_this}` + 4 + size * 14;
+    entryPtr = Porffor.wasm`local.get ${_this}` + 5 + size * 14;
 
     // encode key type, set MSB if regular string
     let keyEnc: i32 = Porffor.wasm`local.get ${key}`;
@@ -139,7 +141,7 @@ export const __Porffor_object_define = (_this: object, key: any, value: any, fla
     Porffor.wasm.i32.store(_this, size + 1, 0, 0);
 
     // entryPtr = current end of object
-    entryPtr = Porffor.wasm`local.get ${_this}` + 4 + size * 14;
+    entryPtr = Porffor.wasm`local.get ${_this}` + 5 + size * 14;
 
     // encode key type, set MSB if regular string
     let keyEnc: i32 = Porffor.wasm`local.get ${key}`;

@@ -21,7 +21,7 @@ export const __Object_keys = (obj: any): any[] => {
 
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
-    let ptr: i32 = Porffor.wasm`local.get ${obj}` + 4;
+    let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
     const endPtr: i32 = ptr + Porffor.wasm.i32.load(obj, 0, 0) * 14;
 
     let i: i32 = 0;
@@ -81,7 +81,7 @@ export const __Object_values = (obj: any): any[] => {
 
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
-    let ptr: i32 = Porffor.wasm`local.get ${obj}` + 4;
+    let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
     const endPtr: i32 = ptr + Porffor.wasm.i32.load(obj, 0, 0) * 14;
 
     let i: i32 = 0;
@@ -178,6 +178,7 @@ export const __Object_assign = (target: any, ...sources: any[]) => {
   if (target == null) throw new TypeError('Argument is nullish, expected object');
 
   for (const x of sources) {
+    // todo: switch to for..in once it supports non-pure-object
     const keys: any[] = __Object_keys(x);
     const vals: any[] = __Object_values(x);
 

@@ -49,7 +49,7 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
 
       const out = {};
       for (let i = 0; i < size; i++) {
-        const offset = 4 + (i * 14);
+        const offset = 5 + (i * 14);
 
         const kRaw = read(Uint32Array, memory, value + offset, 1)[0];
         const kType = kRaw >>> 31 ? TYPES.string : TYPES.bytestring;
