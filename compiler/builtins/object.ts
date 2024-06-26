@@ -393,11 +393,17 @@ export const __Object_isSealed = (obj: any): any => {
 export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
   if (!Porffor.object.isObjectOrSymbol(obj)) throw new TypeError('Object should be an object or symbol');
 
+  const out: object = {};
+
+  // todo: support non-pure-objects
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    return undefined;
+  }
+
   const p: any = ecma262.ToPropertyKey(prop);
   const entryPtr: i32 = Porffor.object.lookup(obj, p);
   if (entryPtr == -1) return undefined;
 
-  const out: object = {};
 
   const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
   out.configurable = Boolean(tail & 0b0010);
