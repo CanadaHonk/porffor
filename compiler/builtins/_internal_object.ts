@@ -28,6 +28,41 @@ export const __Porffor_object_isInextensible = (ptr: object): boolean => {
 };
 
 
+export const __Porffor_object_overrideAllFlags = (_this: object, overrideOr: i32, overrideAnd: i32) => {
+  let ptr: i32 = Porffor.wasm`local.get ${_this}` + 5;
+
+  const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  const endPtr: i32 = ptr + size * 14;
+
+  for (; ptr < endPtr; ptr += 14) {
+    let flags: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 12);
+    flags = (flags | overrideOr) & overrideAnd;
+    Porffor.wasm.i32.store8(ptr, flags, 0, 12);
+  }
+};
+
+export const __Porffor_object_checkAllFlags = (_this: object, dataAnd: i32, accessorAnd: i32, dataExpected: i32, accessorExpected: i32): boolean => {
+  let ptr: i32 = Porffor.wasm`local.get ${_this}` + 5;
+
+  const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  const endPtr: i32 = ptr + size * 14;
+
+  for (; ptr < endPtr; ptr += 14) {
+    const flags: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 12);
+    if (flags & 0b0001) {
+      // accessor
+      if ((flags & accessorAnd) != accessorExpected) return false;
+    } else {
+      // data
+      if ((flags & dataAnd) != dataExpected) return false;
+    }
+
+  }
+
+  return true;
+};
+
+
 export const __Porffor_object_lookup = (_this: object, target: any): i32 => {
   const targetType: i32 = Porffor.wasm`local.get ${target+1}`;
 

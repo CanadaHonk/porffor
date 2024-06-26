@@ -301,7 +301,7 @@ export const __Object_preventExtensions = (obj: any): any => {
     return obj;
   }
 
-  __Porffor_object_preventExtensions(obj);
+  Porffor.object.preventExtensions(obj);
 
   return obj;
 };
@@ -316,8 +316,44 @@ export const __Object_isExtensible = (obj: any): any => {
     return true;
   }
 
-  return !__Porffor_object_isInextensible(obj);
+  return !Porffor.object.isInextensible(obj);
 };
+
+
+export const __Object_freeze = (obj: any): any => {
+  // todo: support non-pure-objects
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    return obj;
+  }
+
+  // make inextensible
+  Porffor.object.preventExtensions(obj);
+
+  // make all properties non-configurable and non-writable (if data descriptor)
+  Porffor.object.overrideAllFlags(obj, 0b0000, 0b0101);
+
+  return obj;
+};
+
+export const __Object_isFrozen = (obj: any): any => {
+  if (!Porffor.object.isObject(obj)) {
+    return true;
+  }
+
+  // todo: support non-pure-objects
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    return false;
+  }
+
+  // check obj is inextensible
+  if (!Porffor.object.isInextensible(obj)) {
+    return false;
+  }
+
+  // check all properties are non-configurable and non-writable (if data descriptor)
+  return Porffor.object.checkAllFlags(obj, 0b1010, 0b0010, 0, 0);
+};
+
 
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';
