@@ -4,16 +4,29 @@ import type {} from './porffor.d.ts';
 // todo: padding for memory alignment?
 // memory layout:
 //  size (u32, 4)
-//  root flags (u32, 1)
+//  root flags (u32, 1):
+//   inextensible - 0b0001
 // per entry (14):
 //  key - value, type MSB encoded (u32, 4)
 //  value - value (f64, 8)
 //  value - type + obj flag (u16, 2)
-// flags:
-//  accessor - 0b0001
-//  configurable - 0b0010
-//  enumerable - 0b0100
-//  writable - 0b1000
+//  flags:
+//   accessor - 0b0001
+//   configurable - 0b0010
+//   enumerable - 0b0100
+//   writable - 0b1000
+
+export const __Porffor_object_preventExtensions = (ptr: object) => {
+  let rootFlags: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 4);
+  rootFlags |= 0b0001;
+  Porffor.wasm.i32.store8(ptr, rootFlags, 0, 4);
+};
+
+export const __Porffor_object_isInextensible = (ptr: object): boolean => {
+  const out: boolean = Porffor.wasm.i32.load8_u(ptr, 0, 4) & 0b0001;
+  return out;
+};
+
 
 export const __Porffor_object_lookup = (_this: object, target: any): i32 => {
   const targetType: i32 = Porffor.wasm`local.get ${target+1}`;
@@ -84,6 +97,11 @@ export const __Porffor_object_set = (_this: object, key: any, value: any): any =
   let flags: i32;
   if (entryPtr == -1) {
     // add new entry
+    // check if object is inextensible
+    if (__Porffor_object_isInextensible(_this)) {
+      return value;
+    }
+
     // bump size +1
     const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
     Porffor.wasm.i32.store(_this, size + 1, 0, 0);
@@ -136,6 +154,11 @@ export const __Porffor_object_define = (_this: object, key: any, value: any, fla
   let entryPtr: i32 = __Porffor_object_lookup(_this, key);
   if (entryPtr == -1) {
     // add new entry
+    // check if object is inextensible
+    if (__Porffor_object_isInextensible(_this)) {
+      throw new TypeError('Cannot define property, object is inextensible');
+    }
+
     // bump size +1
     const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
     Porffor.wasm.i32.store(_this, size + 1, 0, 0);
@@ -197,10 +220,11 @@ local.set ${err}`;
     0, 12);
 };
 
-export const __Porffor_object_isEnumerable = (ptr: i32): boolean => {
-  const out: boolean = Porffor.wasm.i32.load8_u(ptr, 0, 12) & 0b0100;
+export const __Porffor_object_isEnumerable = (entryPtr: i32): boolean => {
+  const out: boolean = Porffor.wasm.i32.load8_u(entryPtr, 0, 12) & 0b0100;
   return out;
 };
+
 
 export const __Porffor_object_isObject = (arg: any): boolean => {
   const t: i32 = Porffor.wasm`local.get ${arg+1}`;

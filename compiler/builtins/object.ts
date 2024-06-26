@@ -295,6 +295,30 @@ export const __Object_create = (proto: any, props: any) => {
 };
 
 
+export const __Object_preventExtensions = (obj: any): any => {
+  // todo: support non-pure-objects
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    return obj;
+  }
+
+  __Porffor_object_preventExtensions(obj);
+
+  return obj;
+};
+
+export const __Object_isExtensible = (obj: any): any => {
+  if (!Porffor.object.isObject(obj)) {
+    return false;
+  }
+
+  // todo: support non-pure-objects
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    return true;
+  }
+
+  return !__Porffor_object_isInextensible(obj);
+};
+
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';
   return out;
