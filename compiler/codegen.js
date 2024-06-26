@@ -4326,7 +4326,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     const firstAssign = !scope.arrays.has(uniqueName);
     if (firstAssign) scope.arrays.set(uniqueName, rawPtr);
 
-    const local = global ? globals[name] : scope.locals[name];
+    const local = global ? globals[name] : scope.locals?.[name];
     if (
       Prefs.data && firstAssign && useRawElements &&
       name !== '#member_prop' &&
