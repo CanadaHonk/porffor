@@ -310,7 +310,7 @@ const generateIdent = (scope, decl) => {
       if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${unhackName(name)} with integer valtype`);
 
       let wasm = builtinVars[name];
-      if (typeof wasm === 'function') wasm = asmFuncToAsm({ name }, wasm);
+      if (typeof wasm === 'function') wasm = asmFuncToAsm(scope, wasm);
       return wasm.slice();
     }
 
