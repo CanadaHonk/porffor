@@ -502,6 +502,24 @@ local.set ${key}`;
 };
 
 
+export const __Object_groupBy = (items: any, callbackFn: any) => {
+  const out: object = {};
+
+  let i = 0;
+  for (const x of items) {
+    const k: any = callbackFn(x, i++);
+    if (!__Object_hasOwn(out, k)) {
+      const arr: any[] = Porffor.allocate();
+      out[k] = arr;
+    }
+
+    out[k].push(x);
+  }
+
+  return out;
+};
+
+
 export const __Object_prototype_toString = (_this: object) => {
   let out: bytestring = '[object Object]';
   return out;
