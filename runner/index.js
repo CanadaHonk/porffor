@@ -62,6 +62,12 @@ if (process.argv.includes('--help')) {
   process.exit(0);
 }
 
+const done = async () => {
+  // do nothing for the rest of this file
+  await new Promise(res => process.on('beforeExit', res));
+  process.exit();
+};
+
 let file = process.argv.slice(2).find(x => x[0] !== '-');
 if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(file)) {
   // remove this arg
@@ -69,17 +75,17 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm
 
   if (file === 'precompile') {
     await import('../compiler/precompile.js');
-    await new Promise(() => {}); // do nothing for the rest of this file
+    await done();
   }
 
   if (file === 'profile') {
     await import('./profile.js');
-    await new Promise(() => {}); // do nothing for the rest of this file
+    await done();
   }
 
   if (file === 'debug') {
     await import('./debug.js');
-    await new Promise(() => {}); // do nothing for the rest of this file
+    await done();
   }
 
   if (['wasm', 'native', 'c'].includes(file)) {
@@ -109,7 +115,7 @@ if (!file) {
 
   // run repl if no file given
   await import('./repl.js');
-  await new Promise(() => {}); // do nothing for the rest of this file
+  await done();
 }
 
 const source = fs.readFileSync(file, 'utf8');
