@@ -76,22 +76,33 @@ export const __Porffor_object_lookup = (_this: object, target: any): i32 => {
     for (; ptr < endPtr; ptr += 14) {
       const keyRaw: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
       if (keyRaw == 0) break; // ran out of keys
-      if (keyRaw >>> 31) continue; // MSB set, regular string type
+      if (keyRaw >>> 31) continue; // MSB 1 set, not a bytestring
 
       const keyStr: bytestring = keyRaw;
       if (keyStr == targetStr) return ptr;
     }
-  } else {
+  } else if (targetType == Porffor.TYPES.string) {
     const targetStr: string = target;
     for (; ptr < endPtr; ptr += 14) {
       const keyRaw: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
       if (keyRaw == 0) break; // ran out of keys
-      if (keyRaw >>> 31) { // MSB set, regular string type
+      if (keyRaw >>> 30 == 2) { // MSB 1 set and 2 unset, regular string type
         const keyStr: string = keyRaw & 0x7FFFFFFF; // unset MSB
         if (keyStr == targetStr) return ptr;
       }
     }
-  }
+  } else { // symbol
+    const targetSym: symbol = target;
+    for (; ptr < endPtr; ptr += 14) {
+      const keyRaw: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
+      if (keyRaw == 0) break; // ran out of keys
+      if (keyRaw >>> 30 == 3) { // MSB 1 and 2 set, symbol
+          const keySym: symbol = keyRaw & 0x3FFFFFFF; // unset MSB
+          if (keySym == targetSym) return ptr;
+        }
+      }
+    }
+
 
   return -1;
 };
@@ -127,6 +138,19 @@ i32.shr_u
 return`;
 };
 
+export const __Porffor_object_writeKey = (ptr: i32, key: any) => {
+  // encode key type
+  let keyEnc: i32 = Porffor.wasm`local.get ${key}`;
+
+  // set MSB 1 if regular string
+  if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.string) keyEnc |= 0x80000000;
+    // set MSB 1&2 if symbol
+    else if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.symbol) keyEnc |= 0xc0000000;
+
+  // write encoded key to ptr
+  Porffor.wasm.i32.store(ptr, keyEnc, 0, 0);
+};
+
 export const __Porffor_object_set = (_this: object, key: any, value: any): any => {
   let entryPtr: i32 = __Porffor_object_lookup(_this, key);
   let flags: i32;
@@ -144,12 +168,7 @@ export const __Porffor_object_set = (_this: object, key: any, value: any): any =
     // entryPtr = current end of object
     entryPtr = Porffor.wasm`local.get ${_this}` + 5 + size * 14;
 
-    // encode key type, set MSB if regular string
-    let keyEnc: i32 = Porffor.wasm`local.get ${key}`;
-    if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.string) keyEnc |= 0x80000000;
-
-    // write key value and type (MSB)
-    Porffor.wasm.i32.store(entryPtr, keyEnc, 0, 0);
+    __Porffor_object_writeKey(entryPtr, key);
 
     // flags = writable, enumerable, configurable, not accessor
     flags = 0b1110;
@@ -201,12 +220,7 @@ export const __Porffor_object_define = (_this: object, key: any, value: any, fla
     // entryPtr = current end of object
     entryPtr = Porffor.wasm`local.get ${_this}` + 5 + size * 14;
 
-    // encode key type, set MSB if regular string
-    let keyEnc: i32 = Porffor.wasm`local.get ${key}`;
-    if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.string) keyEnc |= 0x80000000;
-
-    // write key value and type (MSB)
-    Porffor.wasm.i32.store(entryPtr, keyEnc, 0, 0);
+    __Porffor_object_writeKey(entryPtr, key);
   } else {
     // existing entry, check and maybe modify it
     const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);

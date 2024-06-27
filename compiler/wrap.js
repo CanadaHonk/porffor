@@ -52,8 +52,17 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
         const offset = 5 + (i * 14);
 
         const kRaw = read(Uint32Array, memory, value + offset, 1)[0];
-        const kType = kRaw >>> 31 ? TYPES.string : TYPES.bytestring;
-        const kValue = kRaw & 0x7fffffff;
+        let kType = TYPES.bytestring;
+        switch (kRaw >>> 30) {
+          case 2:
+            kType = TYPES.string;
+            break;
+
+          case 3:
+            kType = TYPES.symbol;
+            break;
+        }
+        const kValue = kRaw & 0x3fffffff;
         const k = porfToJSValue({ memory, funcs, pages }, kValue, kType);
 
         const tail = read(Uint16Array, memory, value + offset + 12, 1)[0];
