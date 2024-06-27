@@ -50,7 +50,7 @@ if 127
 
   local.get raw
   i32.const 1073741823
-  i32.and
+  i32.and ;; unset 2 MSBs
 else
   i32.const 195
   local.set ${key+1}
@@ -482,7 +482,7 @@ if 127
 
   local.get raw
   i32.const 1073741823
-  i32.and
+  i32.and ;; unset 2 MSBs
 else
   i32.const 195
   local.set ${key+1}
@@ -547,7 +547,7 @@ if 127
 
   local.get raw
   i32.const 1073741823
-  i32.and
+  i32.and ;; unset 2 MSBs
 else
   i32.const 195
   local.set ${key+1}

@@ -1458,6 +1458,7 @@ const getNodeType = (scope, node) => {
 
       // check if this is a prototype function
       // if so and there is only one impl (eg charCodeAt)
+      // or all impls have the same return type
       // use that return type as that is the only possibility
       // (if non-matching type it would error out)
       if (name.startsWith('__')) {
@@ -1465,7 +1466,10 @@ const getNodeType = (scope, node) => {
 
         const func = spl[spl.length - 1];
         const protoFuncs = Object.keys(prototypeFuncs).filter(x => x != TYPES.bytestring && prototypeFuncs[x][func] != null);
-        if (protoFuncs.length === 1) {
+        if (
+          protoFuncs.length === 1 ||
+          (protoFuncs.length > 1 && protoFuncs.every(x => x.returnType === protoFuncs[0].returnType))
+        ) {
           if (protoFuncs[0].returnType != null) return protoFuncs[0].returnType;
         }
       }
