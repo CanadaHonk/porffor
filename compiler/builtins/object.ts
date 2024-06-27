@@ -14,7 +14,8 @@ export const Object = function (value: any): object {
   return value;
 };
 
-export const __Porffor_object_keys = (obj: any, enumerableOnly: boolean): any[] => {
+export const __Object_keys = (obj: any): any[] => {
+  if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
   const t: i32 = Porffor.rawType(obj);
@@ -24,7 +25,7 @@ export const __Porffor_object_keys = (obj: any, enumerableOnly: boolean): any[] 
 
     let i: i32 = 0;
     for (; ptr < endPtr; ptr += 14) {
-      if (enumerableOnly && !Porffor.object.isEnumerable(ptr)) continue;
+      if (!Porffor.object.isEnumerable(ptr)) continue;
 
       let key: any;
       Porffor.wasm`local raw i32
@@ -77,11 +78,6 @@ local.set ${key}`;
   }
 
   return out;
-};
-
-export const __Object_keys = (obj: any): any[] => {
-  if (obj == null) throw new TypeError('Argument is nullish, expected object');
-  return __Porffor_object_keys(obj, true);
 };
 
 export const __Object_values = (obj: any): any[] => {
@@ -455,7 +451,121 @@ export const __Object_getOwnPropertyDescriptors = (obj: any): any => {
 
 export const __Object_getOwnPropertyNames = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
-  return __Porffor_object_keys(obj, false);
+  const out: any[] = Porffor.allocate();
+
+  const t: i32 = Porffor.rawType(obj);
+  if (t == Porffor.TYPES.object) {
+    let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
+    const endPtr: i32 = ptr + Porffor.wasm.i32.load(obj, 0, 0) * 14;
+
+    let i: i32 = 0;
+    for (; ptr < endPtr; ptr += 14) {
+      let key: any;
+      Porffor.wasm`local raw i32
+local msb i32
+local.get ${ptr}
+i32.to_u
+i32.load 0 0
+local.set raw
+
+local.get raw
+i32.const 30
+i32.shr_u
+local.tee msb
+if 127
+  i32.const 5 ;; symbol
+  i32.const 67 ;; string
+  local.get msb
+  i32.const 3
+  i32.eq
+  select
+  local.set ${key+1}
+
+  local.get raw
+  i32.const 1073741823
+  i32.and
+else
+  i32.const 195
+  local.set ${key+1}
+
+  local.get raw
+end
+i32.from_u
+local.set ${key}`;
+
+      if (Porffor.rawType(key) == Porffor.TYPES.symbol) continue;
+      out[i++] = key;
+    }
+
+    out.length = i;
+  } else if (Porffor.fastOr(
+    t == Porffor.TYPES.array,
+    t == Porffor.TYPES.bytestring,
+    t == Porffor.TYPES.string
+  )) {
+    const len: i32 = obj.length;
+    out.length = len;
+
+    for (let i: i32 = 0; i < len; i++) {
+      out[i] = __Number_prototype_toString(i);
+    }
+  }
+
+  return out;
+};
+
+export const __Object_getOwnPropertySymbols = (obj: any): any[] => {
+  if (obj == null) throw new TypeError('Argument is nullish, expected object');
+  const out: any[] = Porffor.allocate();
+
+  const t: i32 = Porffor.rawType(obj);
+  if (t == Porffor.TYPES.object) {
+    let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
+    const endPtr: i32 = ptr + Porffor.wasm.i32.load(obj, 0, 0) * 14;
+
+    let i: i32 = 0;
+    for (; ptr < endPtr; ptr += 14) {
+      let key: any;
+      Porffor.wasm`local raw i32
+local msb i32
+local.get ${ptr}
+i32.to_u
+i32.load 0 0
+local.set raw
+
+local.get raw
+i32.const 30
+i32.shr_u
+local.tee msb
+if 127
+  i32.const 5 ;; symbol
+  i32.const 67 ;; string
+  local.get msb
+  i32.const 3
+  i32.eq
+  select
+  local.set ${key+1}
+
+  local.get raw
+  i32.const 1073741823
+  i32.and
+else
+  i32.const 195
+  local.set ${key+1}
+
+  local.get raw
+end
+i32.from_u
+local.set ${key}`;
+
+      if (Porffor.rawType(key) != Porffor.TYPES.symbol) continue;
+      out[i++] = key;
+    }
+
+    out.length = i;
+  }
+
+  return out;
 };
 
 
