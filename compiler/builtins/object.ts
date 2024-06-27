@@ -175,7 +175,6 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
 };
 
 export const __Object_hasOwn = (obj: any, prop: any) => {
-  // todo: not spec compliant lol
   return __Object_prototype_hasOwnProperty(obj, prop);
 };
 

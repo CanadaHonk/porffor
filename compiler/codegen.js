@@ -1132,6 +1132,23 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
     return out;
   }
 
+  if (decl.operator === 'in') {
+    // hack: a in b -> Object.hasOwn(b, a)
+    // todo: not spec compliant, in should check prototype chain too (once we have it)
+
+    return generate(scope, {
+      type: 'CallExpression',
+      callee: {
+        type: 'Identifier',
+        name: '__Object_hasOwn'
+      },
+      arguments: [
+        decl.right,
+        decl.left
+      ]
+    });
+  }
+
   // opt: == null|undefined -> nullish
   if (decl.operator === '==' || decl.operator === '!=') {
     if (knownNullish(decl.right)) {
@@ -1513,7 +1530,7 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type === 'BinaryExpression') {
-      if (['==', '===', '!=', '!==', '>', '>=', '<', '<=', 'instanceof'].includes(node.operator)) return TYPES.boolean;
+      if (['==', '===', '!=', '!==', '>', '>=', '<', '<=', 'instanceof', 'in'].includes(node.operator)) return TYPES.boolean;
       if (node.operator !== '+') return TYPES.number;
 
       const leftType = getNodeType(scope, node.left);
