@@ -184,8 +184,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
           let out = [];
 
           for (const line of str.split('\n')) {
-            const asm = line.trim().split(';;')[0].split(' ');
-            if (asm[0] === '') continue; // blank
+            const asm = line.trim().split(';;')[0].split(' ').filter(x => x);
+            if (!asm[0]) continue; // blank
 
             if (asm[0] === 'local') {
               const [ name, type ] = asm.slice(1);
