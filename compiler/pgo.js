@@ -163,8 +163,24 @@ export const run = obj => {
       return true;
     });
 
+    const domains = localData[i].map((x, j) => {
+      if (j < func.params.length) return false; // param
+      if (consistents[j] !== false) return false; // already consistent
+      if (x.length < 2) return false; // <2 samples
+
+      let min = Infinity, max = -Infinity;
+      for (const y of x) {
+        if (y < min) min = y;
+        if (y > max) max = y;
+      }
+
+      counts[2]++;
+      return [ min, max ];
+    });
+
     func.consistents = consistents;
     func.integerOnlyF64s = integerOnlyF64s;
+    func.domains = domains;
 
     log += `  ${func.name}: identified ${counts[0]}/${total} locals as consistent${Prefs.verbosePgo ? ':' : ''}\n`;
     if (Prefs.verbosePgo) {
@@ -178,6 +194,14 @@ export const run = obj => {
       for (let j = func.params.length; j < localData[i].length; j++) {
         if (localValues[j].type !== Valtype.f64) continue;
         log += `    ${integerOnlyF64s[j] ? '\u001b[92m' : '\u001b[91m'}${localKeys[j]}\u001b[0m\n`;
+      }
+    }
+
+    log += `  ${func.name}: identified ${counts[2]}/${total} local non-consistent domains${Prefs.verbosePgo ? ':' : ''}\n`;
+    if (Prefs.verbosePgo) {
+      for (let j = func.params.length; j < localData[i].length; j++) {
+        if (domains[j] === false) continue;
+        log += `    ${domains[j] !== false ? '\u001b[92m' : '\u001b[91m'}${localKeys[j]}\u001b[0m: ${domains[j] !== false ? `${domains[j][0]} ≤ x ≤ ${domains[j][1]}` : ''}\n`;
       }
 
       log += '\n';
