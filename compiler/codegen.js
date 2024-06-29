@@ -4654,20 +4654,29 @@ const generateMember = (scope, decl, _global, _name) => {
       return number(0);
     }
 
+    const useTmp = !Prefs.lengthNoTmp;
+    const tmp = useTmp && localTmp(scope, '#length_tmp', Valtype.i32);
     return [
-      ...out,
-      [ Opcodes.local_set, localTmp(scope, '#length_tmp', Valtype.i32) ],
+      ...(useTmp ? [
+        ...out,
+        [ Opcodes.local_set, tmp ],
+      ] : []),
 
       ...getNodeType(scope, decl.object),
       ...number(TYPE_FLAGS.length, Valtype.i32),
       [ Opcodes.i32_and ],
       [ Opcodes.if, valtypeBinary ],
-        [ Opcodes.local_get, localTmp(scope, '#length_tmp', Valtype.i32) ],
+        ...(useTmp ? [ [ Opcodes.local_get, tmp ] ] : out),
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         Opcodes.i32_from_u,
 
         ...setLastType(scope, TYPES.number),
       [ Opcodes.else ],
+        ...(useTmp ? [] : [
+          ...out,
+          [ Opcodes.drop ]
+        ]),
+
         ...number(0),
         ...setLastType(scope, TYPES.undefined),
       [ Opcodes.end ]
