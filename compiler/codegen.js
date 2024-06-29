@@ -2837,9 +2837,6 @@ const generateVar = (scope, decl) => {
         scope.globalInits[name] = newOut;
       }
     }
-
-    // hack: this follows spec properly but is mostly unneeded 😅
-    // out.push(...setType(scope, name, x.init ? getNodeType(scope, x.init) : TYPES.undefined));
   }
 
   return out;
