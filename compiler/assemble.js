@@ -276,6 +276,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
       if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
 
+      // todo: move const, call transforms here too?
+
       const wasm = [];
       for (let i = 0; i < x.wasm.length; i++) {
         let o = x.wasm[i];
