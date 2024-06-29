@@ -39,7 +39,7 @@ const todo = (scope, msg, expectsValue = undefined) => {
 const isFuncType = type =>
   type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
 const hasFuncWithName = name =>
-  Object.hasOwn(funcIndex, name) != null || Object.hasOwn(builtinFuncs, name) != null || Object.hasOwn(importedFuncs, name) != null || Object.hasOwn(internalConstrs, name) != null;
+  Object.hasOwn(funcIndex, name) || Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) || Object.hasOwn(internalConstrs, name);
 
 const astCache = new WeakMap();
 const cacheAst = (decl, wasm) => {
