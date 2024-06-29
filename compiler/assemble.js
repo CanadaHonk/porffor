@@ -276,7 +276,24 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
       if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
 
-      return encodeVector([ ...encodeVector(localDecl), ...x.wasm.flat().filter(x => x != null && x <= 0xff), Opcodes.end ]);
+      const wasm = [];
+      for (let i = 0; i < x.wasm.length; i++) {
+        let o = x.wasm[i];
+
+        if (
+          (o[0] === Opcodes.local_get || o[0] === Opcodes.local_set || o[0] === Opcodes.local_tee || o[0] === Opcodes.global_get || o[0] === Opcodes.global_set) &&
+          o[1] > 127
+        ) {
+          const n = o[1];
+          o = [...o];
+          o.pop();
+          unsignedLEB128_into(n, o);
+        }
+
+        wasm.push(...o);
+      }
+
+      return encodeVector([ ...encodeVector(localDecl), ...wasm.flat().filter(x => x != null && x <= 0xff), Opcodes.end ]);
     }))
   );
 
