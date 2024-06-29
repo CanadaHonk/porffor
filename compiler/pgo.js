@@ -10,8 +10,13 @@ export const setup = () => {
   importedFuncs[importedFuncs.profile2].params = [ Valtype.i32, valtypeBinary ];
 
   // enable these prefs by default for pgo
-  Prefs.typeswitchUniqueTmp = Prefs.typeswitchUniqueTmp === false ? false : true;
-  Prefs.cyclone = Prefs.cyclone === false ? false : true;
+  for (const x of [
+    'typeswitchUniqueTmp', // use unique tmps for typeswitches
+    'lengthNoTmp', // use duplicated inline code instead of tmp for .length
+    'cyclone', // enable cyclone pre-evaler
+  ]) {
+    Prefs[x] = Prefs[x] === false ? false : true;
+  }
 };
 
 export const run = obj => {
