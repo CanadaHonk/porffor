@@ -164,6 +164,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateMember(scope, decl, global, name));
 
     case 'ExportNamedDeclaration':
+      if (!decl.declaration) return todo(scope, 'unsupported export declaration');
+
       const funcsBefore = funcs.map(x => x.name);
       generate(scope, decl.declaration);
 
