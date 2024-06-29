@@ -2843,6 +2843,15 @@ const generateVar = (scope, decl) => {
   return out;
 };
 
+const getMemberProperty = decl => {
+  if (decl.computed) return decl.property;
+
+  return {
+    type: 'Literal',
+    value: decl.property.name
+  };
+};
+
 // todo: optimize this func for valueUnused
 const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
@@ -2897,10 +2906,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const pointerTmp = localTmp(scope, '#member_setter_ptr_tmp', Valtype.i32);
 
     const object = decl.left.object;
-    const property = decl.left.computed ? decl.left.property : {
-      type: 'Literal',
-      value: decl.left.property.name
-    };
+    const property = getMemberProperty(decl.left);
 
     // todo/perf: use i32 object (and prop?) locals
     const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];
@@ -3249,6 +3255,25 @@ const generateUnary = (scope, decl) => {
     }
 
     case 'delete': {
+      if (decl.argument.type === 'MemberExpression') {
+        const object = decl.argument.object;
+        const property = getMemberProperty(decl.argument);
+
+        return [
+          ...generate(scope, object),
+          Opcodes.i32_to_u,
+          ...getNodeType(scope, object),
+
+          ...generate(scope, property),
+          ...getNodeType(scope, property),
+          ...toPropertyKey(scope, true),
+
+          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_delete').index) ],
+          [ Opcodes.drop ],
+          Opcodes.i32_from_u
+        ];
+      }
+
       let toReturn = true, toGenerate = true;
 
       if (decl.argument.type === 'Identifier') {
@@ -3256,6 +3281,7 @@ const generateUnary = (scope, decl) => {
 
         // if ReferenceError (undeclared var), ignore and return true. otherwise false
         if (!out[1]) {
+          // todo: throw in strict mode
           // exists
           toReturn = false;
         } else {
@@ -4712,10 +4738,7 @@ const generateMember = (scope, decl, _global, _name) => {
   }
 
   const object = decl.object;
-  const property = decl.computed ? decl.property : {
-    type: 'Literal',
-    value: decl.property.name
-  };
+  const property = getMemberProperty(decl);
 
   // todo/perf: use i32 object (and prop?) locals
   const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];

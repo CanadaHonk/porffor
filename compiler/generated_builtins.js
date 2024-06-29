@@ -56,6 +56,12 @@ export const BuiltinFuncs = function() {
     returns: [127,127], typedReturns: 1,
     locals: [127,127,127,127,127,127,127,127], localNames: ["_this","_this#type","key","key#type","value","value#type","flags","flags#type","entryPtr","#last_type","#logicinner_tmp","#typeswitch_tmp","size","tail","err","logictmp"],
   };
+  this.__Porffor_object_delete = {
+    wasm: (scope, {builtin}) => [[32,0],[65,7],[32,2],[32,3],[16, ...builtin('__Porffor_object_lookup')],[26],[34,4],[65,127],[70],[4,64],[65,1],[65,2],[15],[11],[32,4],[47,0,12],[34,6],[65,2],[113],[69],[4,64],[65,0],[65,2],[15],[11],[32,4],[32,0],[107],[65,14],[109],[33,7],[32,0],[40,0,0],[33,8],[32,0],[32,8],[65,1],[107],[34,8],[54,0,0],[32,8],[32,7],[74],[4,64],[32,4],[32,4],[65,14],[106],[32,8],[32,7],[107],[65,14],[108],[252,10,0,0],[11],[65,1],[65,2],[15]],
+    params: [127,127,127,127], typedParams: 1,
+    returns: [127,127], typedReturns: 1,
+    locals: [127,127,127,127,127], localNames: ["_this","_this#type","key","key#type","entryPtr","#last_type","tail","ind","size"],
+  };
   this.__Porffor_object_isEnumerable = {
     wasm: (scope, {}) => [[32,0],[45,0,12],[65,4],[113],[34,2],[65,2],[15]],
     params: [127,127], typedParams: 1,

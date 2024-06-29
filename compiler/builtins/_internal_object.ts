@@ -269,6 +269,51 @@ local.set ${err}`;
     0, 12);
 };
 
+export const __Porffor_object_delete = (_this: object, key: any): boolean => {
+  const entryPtr: i32 = __Porffor_object_lookup(_this, key);
+  if (entryPtr == -1) {
+    // not found, stop
+    return true;
+  }
+
+  const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
+  if (!(tail & 0b0010)) {
+    // not configurable
+    // todo: throw in strict mode
+    return false;
+  }
+
+  const ind: i32 = (entryPtr - Porffor.wasm`local.get ${_this}`) / 14;
+
+  // decrement size
+  let size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  Porffor.wasm.i32.store(_this, --size, 0, 0);
+
+  if (size > ind) {
+    // offset all elements after by -1 ind
+    Porffor.wasm`
+;; dst = entryPtr
+local.get ${entryPtr}
+
+;; src = entryPtr + 14 (+ 1 entry)
+local.get ${entryPtr}
+i32.const 14
+i32.add
+
+;; size = (size - ind) * 14
+local.get ${size}
+local.get ${ind}
+i32.sub
+i32.const 14
+i32.mul
+
+memory.copy 0 0`;
+  }
+
+  return true;
+};
+
+
 export const __Porffor_object_isEnumerable = (entryPtr: i32): boolean => {
   const out: boolean = Porffor.wasm.i32.load8_u(entryPtr, 0, 12) & 0b0100;
   return out;
