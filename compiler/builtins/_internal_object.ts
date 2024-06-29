@@ -325,7 +325,6 @@ export const __Porffor_object_isObject = (arg: any): boolean => {
   return Porffor.fastAnd(
     arg != 0, // null
     t > 0x05,
-    t != Porffor.TYPES.undefined,
     t != Porffor.TYPES.string,
     t != Porffor.TYPES.bytestring,
   );
@@ -336,7 +335,6 @@ export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
   return Porffor.fastAnd(
     arg != 0, // null
     t > 0x04,
-    t != Porffor.TYPES.undefined,
     t != Porffor.TYPES.string,
     t != Porffor.TYPES.bytestring,
   );
