@@ -184,7 +184,7 @@ export const run = obj => {
     }
   }
 
-  time(2, 'processed PGO data' + log);
+  time(2, 'processed PGO data\n' + log);
   time(3, 'optimizing using PGO data...');
 
   log = '';
@@ -221,5 +221,5 @@ export const run = obj => {
     if (targets.length > 0) Havoc.localsToConsts(wasmFunc, targets, consts, { localKeys: x.localKeys });
   }
 
-  time(3, 'optimized using PGO data' + log);
+  time(3, 'optimized using PGO data\n' + log);
 };
