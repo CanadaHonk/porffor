@@ -1841,6 +1841,12 @@ export const BuiltinFuncs = function() {
     returns: [124,127], typedReturns: 1,
     locals: [127,124,127,124,127,124,124,124,124,124,124,127,127], localNames: ["target","target#type","property","property#type","#last_type","#logicinner_tmp","#typeswitch_tmp","p","p#type","t","keys","idx","vals","#member_obj","#member_prop","#loadArray_offset","#swap"],
   };
+  this.__Reflect_has = {
+    wasm: (scope, {builtin,internalThrow}) => [[32,0],[252,2],[32,1],[16, ...builtin('__Porffor_object_isObject')],[33,4],[183],[33,5],[32,4],[33,6],[2,124],[32,6],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,5],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,6],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,5],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,5],[68,0,0,0,0,0,0,0,0],[97],[184],[11,"TYPESWITCH_end"],[252,3],[4,64],...internalThrow(scope, 'TypeError', `Target is a non-object`),[11],[32,2],[32,3],[16, ...builtin('__ecma262_ToPropertyKey')],[33,8],[33,7],[32,0],[32,1],[16, ...builtin('__Porffor_rawType')],[34,9],[68,0,0,0,0,0,0,28,64],[97],[4,64],[32,0],[252,2],[32,1],[32,7],[252,2],[32,8],[16, ...builtin('__Porffor_object_lookup')],[33,4],[183],[68,0,0,0,0,0,0,240,191],[98],[184],[65,2],[15],[11],[32,0],[32,1],[16, ...builtin('__Object_keys')],[26],[34,10],[65,208,0],[32,7],[32,8],[68,0,0,0,0,0,0,0,0],[65,128,1],[16, ...builtin('__Array_prototype_includes')],[34,4],[15]],
+    params: [124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127,124,127,124,127,124,124], localNames: ["target","target#type","property","property#type","#last_type","#logicinner_tmp","#typeswitch_tmp","p","p#type","t","keys"],
+  };
   this.__Porffor_set_read = {
     wasm: (scope, {}) => [[32,2],[252,3],[65,9],[108],[32,0],[252,3],[106],[34,4],[43,0,4],[32,4],[45,0,12],[15]],
     params: [124,127,124,127], typedParams: 1,
