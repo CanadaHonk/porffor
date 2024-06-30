@@ -4739,6 +4739,10 @@ const generateMember = (scope, decl, _global, _name) => {
   const object = decl.object;
   const property = getMemberProperty(decl);
 
+  // generate now (it gets cached)
+  generate(scope, object);
+  generate(scope, property, false, '#member_prop');
+
   // todo/perf: use i32 object (and prop?) locals
   const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];
   const propertyWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_prop') ] ];
