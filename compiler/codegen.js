@@ -2919,7 +2919,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       [ Opcodes.local_set, localTmp(scope, '#member_prop_assign') ],
 
       // todo: review last type usage here
-      ...typeSwitch(scope, getNodeType(scope, decl.left.object), {
+      ...typeSwitch(scope, getNodeType(scope, object), {
         [TYPES.array]: [
           ...objectWasm,
           Opcodes.i32_to_u,
@@ -4261,10 +4261,8 @@ const StoreOps = {
 let data = [];
 
 const compileBytes = (val, itemType) => {
-  // todo: this is a mess and needs confirming / ????
   switch (itemType) {
     case 'i8': return [ val % 256 ];
-    case 'i16': return [ val % 256, (val / 256 | 0) % 256 ];
     case 'i16': return [ val % 256, (val / 256 | 0) % 256 ];
     case 'i32': return [...new Uint8Array(new Int32Array([ val ]).buffer)];
     // todo: i64
@@ -4741,23 +4739,10 @@ const generateMember = (scope, decl, _global, _name) => {
 
   // generate now (it gets cached)
   generate(scope, object);
-  generate(scope, property, false, '#member_prop');
 
   // todo/perf: use i32 object (and prop?) locals
   const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];
   const propertyWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_prop') ] ];
-
-  // // todo: we should only do this for strings but we don't know at compile-time :(
-  // hack: this is naughty and will break things!
-  let newOut = number(0, Valtype.i32), newPointer = number(0, Valtype.i32);
-
-  const known = knownType(scope, getNodeType(scope, object));
-  if ((known === TYPES.string || known === TYPES.bytestring) || (pages.hasAnyString && known == null)) {
-    // todo: we use i16 even for bytestrings which should not make a bad thing happen, just be confusing for debugging?
-    0, [ newOut, newPointer ] = makeArray(scope, {
-      rawElements: new Array(0)
-    }, _global, _name, true, 'i16', true);
-  }
 
   const out = typeSwitch(scope, getNodeType(scope, object), {
     [TYPES.array]: [
@@ -4766,15 +4751,16 @@ const generateMember = (scope, decl, _global, _name) => {
     ],
 
     [TYPES.string]: [
-      // setup new/out array
-      ...newOut,
+      // allocate out string
+      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
       // set length to 1
       ...number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
       // use as pointer for store later
-      ...newPointer,
+      [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
       ...propertyWasm,
       Opcodes.i32_to_u,
@@ -4793,21 +4779,22 @@ const generateMember = (scope, decl, _global, _name) => {
       [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
       // return new string (page)
-      ...newPointer,
+      [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
       Opcodes.i32_from_u,
       ...setLastType(scope, TYPES.string)
     ],
 
     [TYPES.bytestring]: [
-      // setup new/out array
-      ...newOut,
+      // allocate out string
+      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
       // set length to 1
       ...number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
       // use as pointer for store later
-      ...newPointer,
+      [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
       ...propertyWasm,
       Opcodes.i32_to_u,
@@ -4823,7 +4810,7 @@ const generateMember = (scope, decl, _global, _name) => {
       [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
 
       // return new string (page)
-      ...newPointer,
+      [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
       Opcodes.i32_from_u,
       ...setLastType(scope, TYPES.bytestring)
     ],
