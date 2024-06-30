@@ -62,8 +62,7 @@ export const __Porffor_object_checkAllFlags = (_this: object, dataAnd: i32, acce
   return true;
 };
 
-
-export const __Porffor_object_packAccessor = (get: i32, set: i32): f64 => {
+export const __Porffor_object_packAccessor = (get: any, set: any): f64 => {
   // pack i32s get & set into a single f64 (i64)
   Porffor.wasm`
 local.get ${set}
@@ -81,11 +80,23 @@ return`;
 
 export const __Porffor_object_accessorGet = (entryPtr: i32): Function => {
   const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 4);
+
+  // no get accessor, return undefined
+  if (Porffor.wasm`local.get ${out}` == 0) {
+    return undefined;
+  }
+
   return out;
 };
 
 export const __Porffor_object_accessorSet = (entryPtr: i32): Function => {
   const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 8);
+
+  // no set accessor, return undefined
+  if (Porffor.wasm`local.get ${out}` == 0) {
+    return undefined;
+  }
+
   return out;
 };
 
@@ -148,6 +159,15 @@ return`;
   if (tail & 0b0001) {
     // accessor descriptor
     const get: Function = __Porffor_object_accessorGet(entryPtr);
+
+    // no get accessor, return undefined
+    if (Porffor.wasm`local.get ${get}` == 0) {
+      Porffor.wasm`
+f64.const 0
+i32.const 128
+return`;
+    }
+
     Porffor.wasm`
 local.get ${get}
 call_indirect 0 0
@@ -205,7 +225,13 @@ export const __Porffor_object_set = (_this: object, key: any, value: any): any =
     if (tail & 0b0001) {
       // accessor descriptor
       const set: Function = __Porffor_object_accessorSet(entryPtr);
-    Porffor.wasm`
+
+      // no get accessor, return early
+      if (Porffor.wasm`local.get ${set}` == 0) {
+        return value;
+      }
+
+      Porffor.wasm`
 local.get ${value}
 local.get ${value+1}
 local.get ${set}

@@ -33,13 +33,13 @@ export const BuiltinFuncs = function() {
     locals: [], localNames: ["get","get#type","set","set#type"],
   };
   this.__Porffor_object_accessorGet = {
-    wasm: (scope, {}) => [[32,0],[40,0,4],[34,2],[65,6],[15]],
+    wasm: (scope, {}) => [[32,0],[40,0,4],[34,2],[69],[4,64],[65,0],[65,128,1],[15],[11],[32,2],[65,6],[15]],
     params: [127,127], typedParams: 1,
     returns: [127,127], typedReturns: 1,
     locals: [127], localNames: ["entryPtr","entryPtr#type","out"],
   };
   this.__Porffor_object_accessorSet = {
-    wasm: (scope, {}) => [[32,0],[40,0,8],[34,2],[65,6],[15]],
+    wasm: (scope, {}) => [[32,0],[40,0,8],[34,2],[69],[4,64],[65,0],[65,128,1],[15],[11],[32,2],[65,6],[15]],
     params: [127,127], typedParams: 1,
     returns: [127,127], typedReturns: 1,
     locals: [127], localNames: ["entryPtr","entryPtr#type","out"],
@@ -51,7 +51,7 @@ export const BuiltinFuncs = function() {
     locals: [127,127,127,127,127,127,127,127,127,127,127,127,127,127], localNames: ["_this","_this#type","target","target#type","targetType","ptr","size","endPtr","targetStr","keyRaw","keyStr","compare_left_pointer","compare_left_length","compare_right_pointer","compare_index","compare_index_end","targetSym","keySym"],
   };
   this.__Porffor_object_get = {
-    wasm: (scope, {builtin}) => [[32,0],[65,7],[32,2],[32,3],[16, ...builtin('__Porffor_object_lookup')],[26],[34,4],[65,127],[70],[4,64],[68,0,0,0,0,0,0,0,0],[65,128,1],[15],[11],[32,4],[47,0,12],[34,6],[65,1],[113],[4,64],[32,4],[65,1],[16, ...builtin('__Porffor_object_accessorGet')],[26],[34,7],[17,0,0],[15],[11],[32,4],[43,0,4],[32,6],[65,8],[118],[15]],
+    wasm: (scope, {builtin}) => [[32,0],[65,7],[32,2],[32,3],[16, ...builtin('__Porffor_object_lookup')],[26],[34,4],[65,127],[70],[4,64],[68,0,0,0,0,0,0,0,0],[65,128,1],[15],[11],[32,4],[47,0,12],[34,6],[65,1],[113],[4,64],[32,4],[65,1],[16, ...builtin('__Porffor_object_accessorGet')],[26],[34,7],[69],[4,64],[68,0,0,0,0,0,0,0,0],[65,128,1],[15],[11],[32,7],[17,0,0],[15],[11],[32,4],[43,0,4],[32,6],[65,8],[118],[15]],
     params: [127,127,127,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
     locals: [127,127,127,127], localNames: ["_this","_this#type","key","key#type","entryPtr","#last_type","tail","get"],
@@ -63,7 +63,7 @@ export const BuiltinFuncs = function() {
     locals: [127], localNames: ["ptr","ptr#type","key","key#type","keyEnc"],
   };
   this.__Porffor_object_set = {
-    wasm: (scope, {builtin}) => [[32,0],[65,7],[32,2],[32,3],[16, ...builtin('__Porffor_object_lookup')],[26],[34,6],[65,127],[70],[4,64],[32,0],[65,7],[16, ...builtin('__Porffor_object_isInextensible')],[33,7],[33,9],[32,7],[33,10],[2,127],[32,10],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,9],[40,1,0],[12,1],[11],[32,10],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,9],[40,1,0],[12,1],[11],[32,9],[11,"TYPESWITCH_end"],[4,64],[32,4],[32,5],[15],[11],[32,0],[40,0,0],[33,11],[32,0],[32,11],[65,1],[106],[54,0,0],[32,0],[65,5],[106],[32,11],[65,14],[108],[106],[34,6],[65,1],[32,2],[32,3],[16, ...builtin('__Porffor_object_writeKey')],[33,7],[26],[65,14],[33,8],[5],[32,6],[47,0,12],[34,12],[65,1],[113],[4,64],[32,6],[65,1],[16, ...builtin('__Porffor_object_accessorSet')],[26],[33,13],[32,4],[32,5],[32,13],[17,1,0],[26],[26],[32,4],[32,5],[15],[11],[32,12],[65,8],[113],[69],[4,64],[32,4],[32,5],[15],[11],[32,12],[65,255,1],[113],[33,8],[11],[32,6],[32,4],[57,0,4],[32,6],[32,8],[32,5],[65,8],[116],[106],[59,0,12],[32,4],[32,5],[15]],
+    wasm: (scope, {builtin}) => [[32,0],[65,7],[32,2],[32,3],[16, ...builtin('__Porffor_object_lookup')],[26],[34,6],[65,127],[70],[4,64],[32,0],[65,7],[16, ...builtin('__Porffor_object_isInextensible')],[33,7],[33,9],[32,7],[33,10],[2,127],[32,10],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,9],[40,1,0],[12,1],[11],[32,10],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,9],[40,1,0],[12,1],[11],[32,9],[11,"TYPESWITCH_end"],[4,64],[32,4],[32,5],[15],[11],[32,0],[40,0,0],[33,11],[32,0],[32,11],[65,1],[106],[54,0,0],[32,0],[65,5],[106],[32,11],[65,14],[108],[106],[34,6],[65,1],[32,2],[32,3],[16, ...builtin('__Porffor_object_writeKey')],[33,7],[26],[65,14],[33,8],[5],[32,6],[47,0,12],[34,12],[65,1],[113],[4,64],[32,6],[65,1],[16, ...builtin('__Porffor_object_accessorSet')],[26],[34,13],[69],[4,64],[32,4],[32,5],[15],[11],[32,4],[32,5],[32,13],[17,1,0],[26],[26],[32,4],[32,5],[15],[11],[32,12],[65,8],[113],[69],[4,64],[32,4],[32,5],[15],[11],[32,12],[65,255,1],[113],[33,8],[11],[32,6],[32,4],[57,0,4],[32,6],[32,8],[32,5],[65,8],[116],[106],[59,0,12],[32,4],[32,5],[15]],
     params: [127,127,127,127,124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
     locals: [127,127,127,127,127,127,127,127], localNames: ["_this","_this#type","key","key#type","value","value#type","entryPtr","#last_type","flags","#logicinner_tmp","#typeswitch_tmp","size","tail","set"],
