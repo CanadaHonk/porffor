@@ -1,4 +1,5 @@
 import * as PrecompiledBuiltins from './builtins_precompiled.js';
+import ObjectBuiltins from './builtins_objects.js';
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { TYPES, TYPE_NAMES } from './types.js';
@@ -81,11 +82,10 @@ const printStaticStr = str => {
   return out;
 };
 
-// todo: somehow diff between these (undefined != null) while remaining falsey in wasm as a number value
 export const UNDEFINED = 0;
 export const NULL = 0;
 
-export const BuiltinVars = function() {
+export const BuiltinVars = function(ctx) {
   this.undefined = number(UNDEFINED);
   this.undefined.type = TYPES.undefined;
 
@@ -114,7 +114,6 @@ export const BuiltinVars = function() {
 
       this.__Number_MAX_SAFE_INTEGER = this.__Number_MAX_VALUE;
       this.__Number_MIN_SAFE_INTEGER = this.__Number_MIN_VALUE;
-
       break;
 
     case 'i64':
@@ -124,7 +123,6 @@ export const BuiltinVars = function() {
 
       this.__Number_MAX_SAFE_INTEGER = this.__Number_MAX_VALUE;
       this.__Number_MIN_SAFE_INTEGER = this.__Number_MIN_VALUE;
-
       break;
 
     case 'f64':
@@ -135,20 +133,6 @@ export const BuiltinVars = function() {
       this.__Number_MIN_SAFE_INTEGER = number(-9007199254740991);
 
       this.__Number_EPSILON = number(2.220446049250313e-16);
-
-      this.__Math_E = number(Math.E);
-      this.__Math_LN10 = number(Math.LN10);
-      this.__Math_LN2 = number(Math.LN2);
-      this.__Math_LOG10E = number(Math.LOG10E);
-      this.__Math_LOG2E = number(Math.LOG2E);
-      this.__Math_PI = number(Math.PI);
-      this.__Math_SQRT1_2 = number(Math.SQRT1_2);
-      this.__Math_SQRT2 = number(Math.SQRT2);
-
-      // https://github.com/rwaldron/proposal-math-extensions/issues/10
-      this.__Math_RAD_PER_DEG = number(Math.PI / 180);
-      this.__Math_DEG_PER_RAD = number(180 / Math.PI);
-
       break;
   }
 
@@ -173,6 +157,8 @@ export const BuiltinVars = function() {
   this.__Int32Array_BYTES_PER_ELEMENT = number(4);
   this.__Float32Array_BYTES_PER_ELEMENT = number(4);
   this.__Float64Array_BYTES_PER_ELEMENT = number(8);
+
+  ObjectBuiltins.call(this, ctx);
 };
 
 export const BuiltinFuncs = function() {

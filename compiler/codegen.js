@@ -316,7 +316,6 @@ const generateIdent = (scope, decl) => {
       return wasm.slice();
     }
 
-    // todo: enable this by default in future
     if (!Object.hasOwn(funcIndex, name) && Object.hasOwn(builtinFuncs, name)) {
       includeBuiltin(scope, name);
       return number(funcIndex[name] - importedFuncs.length);
@@ -1177,6 +1176,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
 const asmFuncToAsm = (scope, func) => {
   return func(scope, {
     TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow,
+    getNodeType, generateIdent,
     builtin: n => {
       let idx = funcIndex[n] ?? importedFuncs[n];
       if (idx == null && builtinFuncs[n]) {
@@ -5291,7 +5291,7 @@ export default program => {
   Opcodes.lt = [ Opcodes.i32_lt_s, Opcodes.i64_lt_s, Opcodes.f64_lt ][valtypeInd];
 
   builtinFuncs = new BuiltinFuncs();
-  builtinVars = new BuiltinVars();
+  builtinVars = new BuiltinVars({ builtinFuncs });
   prototypeFuncs = new PrototypeFuncs();
   allocator = makeAllocator(Prefs.allocator ?? 'static');
 
