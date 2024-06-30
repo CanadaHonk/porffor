@@ -212,4 +212,4 @@ ${x.table ? `    table: 1,` : ''}${x.constr ? `    constr: 1,` : ''}${x.hasRestA
 };`;
 };
 
-fs.writeFileSync(join(__dirname, 'generated_builtins.js'), await precompile());
+fs.writeFileSync(join(__dirname, 'builtins_precompiled.js'), await precompile());

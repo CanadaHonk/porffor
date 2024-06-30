@@ -1,4 +1,4 @@
-import * as GeneratedBuiltins from './generated_builtins.js';
+import * as PrecompiledBuiltins from './builtins_precompiled.js';
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { TYPES, TYPE_NAMES } from './types.js';
@@ -151,9 +151,6 @@ export const BuiltinVars = function() {
 
       break;
   }
-
-  // stubs just so that parent objects exist
-  this.Math = number(1);
 
   // wintercg(tm)
   this.__navigator_userAgent = (scope, { makeString }) => makeString(scope, `Porffor/${globalThis.version}`, false, '__navigator_userAgent');
@@ -1089,5 +1086,5 @@ export const BuiltinFuncs = function() {
     ]
   };
 
-  GeneratedBuiltins.BuiltinFuncs.call(this);
+  PrecompiledBuiltins.BuiltinFuncs.call(this);
 };
