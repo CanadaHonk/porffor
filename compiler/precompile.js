@@ -43,7 +43,8 @@ const compile = async (file, _funcs) => {
 
   const returnOverrides = {
     __Porffor_object_get: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_set: [ Valtype.f64, Valtype.i32 ]
+    __Porffor_object_set: [ Valtype.f64, Valtype.i32 ],
+    __Porffor_object_packAccessor: [ Valtype.f64, Valtype.i32 ]
   };
 
   const paramOverrides = {

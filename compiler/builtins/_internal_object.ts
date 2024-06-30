@@ -63,6 +63,33 @@ export const __Porffor_object_checkAllFlags = (_this: object, dataAnd: i32, acce
 };
 
 
+export const __Porffor_object_packAccessor = (get: i32, set: i32): f64 => {
+  // pack i32s get & set into a single f64 (i64)
+  Porffor.wasm`
+local.get ${set}
+i64.extend_i32_u
+i64.const 32
+i64.shl
+local.get ${get}
+i64.extend_i32_u
+i64.or
+
+f64.reinterpret_i64
+i32.const 1
+return`;
+};
+
+export const __Porffor_object_accessorGet = (entryPtr: i32): Function => {
+  const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 4);
+  return out;
+};
+
+export const __Porffor_object_accessorSet = (entryPtr: i32): Function => {
+  const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 8);
+  return out;
+};
+
+
 export const __Porffor_object_lookup = (_this: object, target: any): i32 => {
   const targetType: i32 = Porffor.wasm`local.get ${target+1}`;
 
@@ -120,11 +147,10 @@ return`;
 
   if (tail & 0b0001) {
     // accessor descriptor
-    // todo
-
+    const get: Function = __Porffor_object_accessorGet(entryPtr);
     Porffor.wasm`
-f64.const 0
-i32.const 128
+local.get ${get}
+call_indirect 0 0
 return`;
   }
 
@@ -178,7 +204,12 @@ export const __Porffor_object_set = (_this: object, key: any, value: any): any =
 
     if (tail & 0b0001) {
       // accessor descriptor
-      // todo
+      const set: Function = __Porffor_object_accessorSet(entryPtr);
+    Porffor.wasm`
+local.get ${value}
+local.get ${value+1}
+local.get ${set}
+call_indirect 1 0`;
 
       return value;
     }

@@ -73,12 +73,19 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
 
         const flags = tail & 0xff;
 
+        let get, set;
+        if (flags & 0b0001) {
+          0, [ get, set ] = read(Uint32Array, memory, value + offset + 4, 2);
+        }
+
         if (Prefs.d) {
           const readMem = (ptr, size) => [...read(Uint8Array, memory, ptr, size)].map(x => x.toString(16).padStart(2, '0')).join(' ');
 
           console.log(`\x1b[4m\x1b[1m${k}\x1b[0m \x1B[90m(${TYPE_NAMES[kType]}) | ${kValue} (${readMem(value + offset, 4)})\x1B[0m
   value: \x1B[92m${v}\x1B[0m \x1B[90m(${TYPE_NAMES[vType]}) | ${vValue} (${readMem(value + offset + 4, 8)})\x1B[0m
-  flags: 0b\x1B[93m${flags.toString(2).padStart(4, '0')}\x1B[0m\x1B[90m ${readMem(value + offset + 12, 2)}
+${flags & 0b0001 ? `    get func idx: ${get}
+    set func idx: ${set}
+` : ''}  flags: 0b\x1B[93m${flags.toString(2).padStart(4, '0')}\x1B[0m\x1B[90m ${readMem(value + offset + 12, 2)}
     accessor: ${!!(flags & 0b0001)}
     configurable: ${!!(flags & 0b0010)}
     enumerable: ${!!(flags & 0b0100)}

@@ -227,6 +227,7 @@ export const __Object_defineProperty = (target: any, prop: any, descriptor: any)
     }
 
     accessor = true;
+    value = Porffor.object.packAccessor(get, set);
   }
 
   let flags: i32 = 0b0000;
@@ -412,7 +413,8 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
   out.enumerable = Boolean(tail & 0b0100);
 
   if (tail & 0b0001) {
-    // accessor descriptor
+    out.get = Porffor.object.accessorGet(entryPtr);
+    out.set = Porffor.object.accessorSet(entryPtr);
 
     return out;
   }

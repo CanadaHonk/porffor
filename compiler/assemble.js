@@ -107,6 +107,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
         }
 
         if (inst[0] === Opcodes.call_indirect) {
+          if (!funcs.table) funcs.table = true;
+
           const params = [];
           for (let i = 0; i < inst[1]; i++) {
             params.push(valtypeBinary, Valtype.i32);
