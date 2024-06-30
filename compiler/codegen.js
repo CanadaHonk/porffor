@@ -3140,7 +3140,16 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ]
         }),
 
-        default: internalThrow(scope, 'TypeError', `Cannot assign member with non-array`)
+        // default: internalThrow(scope, 'TypeError', `Cannot assign member with this type`)
+        default: [
+          ...objectWasm,
+          [ Opcodes.drop ],
+
+          ...propertyWasm,
+          [ Opcodes.drop ],
+
+          ...generate(scope, decl.right)
+        ]
       }, valtypeBinary)
     ];
   }
@@ -4896,7 +4905,11 @@ const generateMember = (scope, decl, _global, _name) => {
       postlude: setLastType(scope, TYPES.number)
     }),
 
-    default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
+    // default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
+    default: [
+      ...number(0),
+      ...setLastType(scope, TYPES.undefined)
+    ]
   });
 
   if (decl.optional) {
