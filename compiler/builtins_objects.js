@@ -164,10 +164,10 @@ export default function({ builtinFuncs }, Prefs) {
   if (Prefs.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(this))) {
     if (!x.startsWith('__')) continue;
 
-    const name = x.split('_').slice(2, -1).join('_');
+    const name = x.split('_').slice(2, -1).join('_').replaceAll('_', '.');
 
     let t = globalThis;
-    for (const x of name.split('_')) {
+    for (const x of name.split('.')) {
       t = t[x];
       if (!t) break;
     }
