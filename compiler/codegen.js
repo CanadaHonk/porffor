@@ -3534,18 +3534,6 @@ const generateForOf = (scope, decl) => {
   const [ local, isGlobal ] = lookupName(scope, leftName);
   if (!local) return todo(scope, 'for of failed to get left local (probably destructure)');
 
-  // // todo: we should only do this for strings but we don't know at compile-time :(
-  // hack: this is naughty and will break things!
-  let newOut = number(0, Valtype.i32), newPointer = number(0, Valtype.i32);
-
-  const known = knownType(scope, getNodeType(scope, decl.right));
-  if ((known === TYPES.string || known === TYPES.bytestring) || (pages.hasAnyString && known == null)) {
-    // todo: we use i16 even for bytestrings which should not make a bad thing happen, just be confusing for debugging?
-    0, [ newOut, newPointer ] = makeArray(scope, {
-      rawElements: new Array(0)
-    }, isGlobal, leftName, true, 'i16', true);
-  }
-
   // set type for local
   // todo: optimize away counter and use end pointer
   out.push(...typeSwitch(scope, getNodeType(scope, decl.right), {
@@ -3591,8 +3579,9 @@ const generateForOf = (scope, decl) => {
     [TYPES.string]: [
       ...setType(scope, leftName, TYPES.string),
 
-      // setup new/out array
-      ...newOut,
+      // allocate out string
+      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
       ...number(1, Valtype.i32),
@@ -3601,7 +3590,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.loop, Blocktype.void ],
 
       // use as pointer for store later
-      ...newPointer,
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // load current string ind {arg}
       [ Opcodes.local_get, pointer ],
@@ -3611,7 +3600,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
       // return new string (page)
-      ...newPointer,
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
       Opcodes.i32_from_u,
 
       [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
@@ -3644,8 +3633,9 @@ const generateForOf = (scope, decl) => {
     [TYPES.bytestring]: [
       ...setType(scope, leftName, TYPES.bytestring),
 
-      // setup new/out array
-      ...newOut,
+      // allocate out string
+      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
       ...number(1, Valtype.i32),
@@ -3654,7 +3644,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.loop, Blocktype.void ],
 
       // use as pointer for store later
-      ...newPointer,
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // load current string ind {arg}
       [ Opcodes.local_get, pointer ],
@@ -3666,7 +3656,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
 
       // return new string (page)
-      ...newPointer,
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
       Opcodes.i32_from_u,
 
       [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
