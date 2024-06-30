@@ -295,7 +295,7 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
       arguments: [
         {
           type: 'Literal',
-          value: message
+          value: Prefs.d ? `${message} (in ${scope.name})` : message
         }
       ]
     }
