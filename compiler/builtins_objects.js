@@ -2,8 +2,11 @@ import { Opcodes, PageSize, Valtype } from './wasmSpec.js';
 import { TYPES } from './types.js';
 import { number } from './embedding.js';
 
-export default function({ builtinFuncs }) {
+export default function({ builtinFuncs }, Prefs) {
+  const done = new Set();
   const object = (name, props) => {
+    done.add(name);
+
     let cached;
     this[name] = (scope, { allocPage, makeString, generateIdent, getNodeType, builtin }) => {
       if (cached) {
@@ -61,13 +64,20 @@ export default function({ builtinFuncs }) {
 
       if (d.value) {
         const k = '__' + name + '_' + x;
+
         if (typeof d.value === 'number') {
           this[k] = number(d.value);
           this[k].type = TYPES.number;
-        } else {
-          // todo
-          throw new Error('unsupported value type');
+          continue;
         }
+
+        if (typeof d.value === 'string') {
+          this[k] = (scope, { makeString }) => makeString(scope, d.value, false, k);
+          this[k].type = TYPES.bytestring;
+          continue;
+        }
+
+        throw new Error(`unsupported value type (${typeof d.value})`);
       }
     }
   };
@@ -138,4 +148,34 @@ export default function({ builtinFuncs }) {
 
   //   EPSILON: 2.220446049250313e-16
   // });
+
+
+  // technically not spec compliant as it should be a navigator class but bleh
+  object('navigator', {
+    ...props({
+      writable: false,
+      enumerable: true,
+      configurable: false
+    }, {
+      userAgent: `Porffor/${globalThis.version}`
+    })
+  });
+
+  if (Prefs.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(this))) {
+    if (!x.startsWith('__')) continue;
+
+    const name = x.split('_').slice(2, -1).join('_');
+
+    let t = globalThis;
+    for (const x of name.split('_')) {
+      t = t[x];
+      if (!t) break;
+    }
+    if (!t) continue;
+
+    if (!done.has(name)) {
+      console.log(name);
+      done.add(name);
+    }
+  }
 };

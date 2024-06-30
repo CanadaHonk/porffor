@@ -81,7 +81,7 @@ return`;
 export const __Porffor_object_accessorGet = (entryPtr: i32): Function => {
   const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 4);
 
-  // no get accessor, return undefined
+  // no getter, return undefined
   if (Porffor.wasm`local.get ${out}` == 0) {
     return undefined;
   }
@@ -92,7 +92,7 @@ export const __Porffor_object_accessorGet = (entryPtr: i32): Function => {
 export const __Porffor_object_accessorSet = (entryPtr: i32): Function => {
   const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 8);
 
-  // no set accessor, return undefined
+  // no setter, return undefined
   if (Porffor.wasm`local.get ${out}` == 0) {
     return undefined;
   }
@@ -160,7 +160,7 @@ return`;
     // accessor descriptor
     const get: Function = __Porffor_object_accessorGet(entryPtr);
 
-    // no get accessor, return undefined
+    // no getter, return undefined
     if (Porffor.wasm`local.get ${get}` == 0) {
       Porffor.wasm`
 f64.const 0
@@ -226,8 +226,9 @@ export const __Porffor_object_set = (_this: object, key: any, value: any): any =
       // accessor descriptor
       const set: Function = __Porffor_object_accessorSet(entryPtr);
 
-      // no get accessor, return early
+      // no setter, return early
       if (Porffor.wasm`local.get ${set}` == 0) {
+        // todo: throw in strict mode?
         return value;
       }
 

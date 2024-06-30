@@ -136,10 +136,6 @@ export const BuiltinVars = function(ctx) {
       break;
   }
 
-  // wintercg(tm)
-  this.__navigator_userAgent = (scope, { makeString }) => makeString(scope, `Porffor/${globalThis.version}`, false, '__navigator_userAgent');
-  this.__navigator_userAgent.type = Prefs.bytestring ? TYPES.bytestring : TYPES.string;
-
   for (const x in TYPES) {
     this['__Porffor_TYPES_' + x] = number(TYPES[x]);
   }
@@ -158,7 +154,7 @@ export const BuiltinVars = function(ctx) {
   this.__Float32Array_BYTES_PER_ELEMENT = number(4);
   this.__Float64Array_BYTES_PER_ELEMENT = number(8);
 
-  ObjectBuiltins.call(this, ctx);
+  ObjectBuiltins.call(this, ctx, Prefs);
 };
 
 export const BuiltinFuncs = function() {
