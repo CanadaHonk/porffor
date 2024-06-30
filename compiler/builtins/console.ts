@@ -141,8 +141,23 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
 
     case Porffor.TYPES.object:
       if (arg) {
-        if (colors) printStatic('\x1b[34m'); // blue
-        printStatic('[Object]');
+        printStatic('{\n');
+
+        const keys = Object.keys(arg);
+        const len = keys.length - 1;
+        for (let i: i32 = 0; i <= len; i++) {
+          const x = keys[i];
+
+          printStatic('  ');
+          __Porffor_printString(x);
+
+          printStatic(': ');
+          __Porffor_print(arg[x]);
+
+          if (i != len) printStatic(',\n');
+        }
+
+        printStatic('\n}');
       } else {
         if (colors) printStatic('\x1b[1m'); // bold
         printStatic('null');
