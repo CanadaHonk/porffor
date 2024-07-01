@@ -81,6 +81,7 @@ declare global {
   const ecma262: {
     ToIntegerOrInfinity(argument: unknown): number;
     ToString(argument: unknown): bytestring;
+    ToNumber(argument: unknown): number;
     ToPropertyKey(argument: unknown): any;
   }
 

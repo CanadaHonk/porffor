@@ -1,11 +1,61 @@
 // general widely used ecma262/spec functions
 import type {} from './porffor.d.ts';
 
+// 7.1.4.1.1 StringToNumber (str)
+// https://tc39.es/ecma262/#sec-stringtonumber
+export const __ecma262_StringToNumber = (str: unknown): number => {
+  // nah.
+  return NaN;
+};
+
+// 7.1.4 ToNumber (argument)
+// https://tc39.es/ecma262/#sec-tonumber
+export const __ecma262_ToNumber = (argument: unknown): number => {
+  const t: i32 = Porffor.rawType(argument);
+
+  // If argument is a Number, return argument.
+  if (t == Porffor.TYPES.number) return argument;
+
+  // 2. If argument is either a Symbol or a BigInt, throw a TypeError exception.
+  if (Porffor.fastOr(
+    t == Porffor.TYPES.symbol,
+    t == Porffor.TYPES.bigint)) throw new TypeError('Cannot convert Symbol or BigInt to a number');
+
+  // 3. If argument is undefined, return NaN.
+  if (Porffor.fastOr(
+    t == Porffor.TYPES.undefined,
+    t == Porffor.TYPES.empty)) return NaN;
+
+  // 4. If argument is either null or false, return +0𝔽.
+  if (Porffor.fastOr(
+    argument === null,
+    argument === false
+  )) return 0;
+
+  // 5. If argument is true, return 1𝔽.
+  if (argument === true) return 1;
+
+  // 6. If argument is a String, return StringToNumber(argument).
+  if (Porffor.fastOr(
+    t == Porffor.TYPES.string,
+    t == Porffor.TYPES.bytestring)) return __ecma262_StringToNumber(argument);
+
+  // 7. Assert: argument is an Object.
+  // 8. Let primValue be ? ToPrimitive(argument, number).
+  // 9. Assert: primValue is not an Object.
+  // 10. Return ? ToNumber(primValue).
+
+  // // todo: I doubt this is spec-compliant
+  // return __ecma262_ToNumber(argument.valueOf());
+
+  return NaN;
+};
+
 // 7.1.5 ToIntegerOrInfinity (argument)
 // https://tc39.es/ecma262/#sec-tointegerorinfinity
 export const __ecma262_ToIntegerOrInfinity = (argument: unknown): number => {
   // 1. Let number be ? ToNumber(argument).
-  let number: number = Number(argument);
+  let number: number = __ecma262_ToNumber(argument);
 
   // 2. If number is one of NaN, +0𝔽, or -0𝔽, return 0.
   if (Number.isNaN(number)) return 0;
