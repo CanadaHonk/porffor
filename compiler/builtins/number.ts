@@ -522,9 +522,11 @@ export const __Number_prototype_valueOf = (_this: number) => {
 };
 
 
-export const parseInt = (input: string|bytestring, radix: any): f64 => {
+export const parseInt = (input: any, radix: any): f64 => {
   // todo/perf: optimize this instead of doing a naive algo (https://kholdstare.github.io/technical/2020/05/26/faster-integer-parsing.html)
   // todo/perf: use i32s here once that becomes not annoying
+
+  input = ecma262.ToString(input);
 
   radix = ecma262.ToIntegerOrInfinity(radix);
   if (radix == 0) radix = 10;
