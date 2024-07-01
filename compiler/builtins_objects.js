@@ -164,7 +164,7 @@ export default function({ builtinFuncs }, Prefs) {
   // });
 
 
-  // technically not spec compliant as it should be a navigator class but bleh
+  // these technically not spec compliant as it should be classes or non-enumerable but eh
   object('navigator', {
     ...props({
       writable: false,
@@ -175,20 +175,34 @@ export default function({ builtinFuncs }, Prefs) {
     })
   });
 
+  for (const x of [
+    'console',
+    'crypto',
+    'performance',
+  ]) {
+    object(x, {
+      ...props({
+        writable: true,
+        enumerable: true,
+        configurable: true
+      }, autoFuncKeys(x).slice(0, 12))
+    });
+  }
+
   if (Prefs.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(this))) {
     if (!x.startsWith('__')) continue;
 
-    const name = x.split('_').slice(2, -1).join('_').replaceAll('_', '.');
+    const name = x.split('_').slice(2, -1).join('_');
 
     let t = globalThis;
-    for (const x of name.split('.')) {
+    for (const x of name.split('_')) {
       t = t[x];
       if (!t) break;
     }
     if (!t) continue;
 
-    if (!done.has(name)) {
-      console.log(name, !!builtinFuncs[name]);
+    if (!done.has(name) && !done.has('__' + name)) {
+      console.log(name.replaceAll('_', '.'), !!builtinFuncs[name]);
       done.add(name);
     }
   }
