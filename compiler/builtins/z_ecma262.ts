@@ -13,7 +13,7 @@ export const __ecma262_StringToNumber = (str: unknown): number => {
 export const __ecma262_ToNumber = (argument: unknown): number => {
   const t: i32 = Porffor.rawType(argument);
 
-  // If argument is a Number, return argument.
+  // 1. If argument is a Number, return argument.
   if (t == Porffor.TYPES.number) return argument;
 
   // 2. If argument is either a Symbol or a BigInt, throw a TypeError exception.
@@ -49,6 +49,20 @@ export const __ecma262_ToNumber = (argument: unknown): number => {
   // return __ecma262_ToNumber(argument.valueOf());
 
   return NaN;
+};
+
+
+// 7.1.3 ToNumeric (value)
+// https://tc39.es/ecma262/#sec-tonumeric
+export const __ecma262_ToNumeric = (value: unknown): number => {
+  // 1. Let primValue be ? ToPrimitive(value, number).
+  // we do not have ToPrimitive
+
+  // 2. If primValue is a BigInt, return primValue.
+  // todo: do this when we have bigints
+
+  // 3. Return ? ToNumber(primValue).
+  return __ecma262_ToNumber(value);
 };
 
 // 7.1.5 ToIntegerOrInfinity (argument)

@@ -215,19 +215,6 @@ export const BuiltinFuncs = function() {
     };
   }
 
-
-  // just echo given for now, for type constructors
-  this.Number = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: [
-      [ Opcodes.local_get, 0 ]
-    ],
-    constr: true
-  };
-
   this.isNaN = {
     floatOnly: true,
     params: [ valtypeBinary ],

@@ -1,5 +1,12 @@
 import type {} from './porffor.d.ts';
 
+export const Number = function (argument: any): any {
+  // todo: actually do prim objects
+  new.target; // trick compiler into allowing as constructor
+
+  return ecma262.ToNumeric(argument);
+};
+
 // radix: number|any for rawType check
 export const __Number_prototype_toString = (_this: number, radix: number|any) => {
   let out: bytestring = Porffor.allocate();

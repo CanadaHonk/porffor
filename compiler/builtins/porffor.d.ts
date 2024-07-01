@@ -82,6 +82,7 @@ declare global {
     ToIntegerOrInfinity(argument: unknown): number;
     ToString(argument: unknown): bytestring;
     ToNumber(argument: unknown): number;
+    ToNumeric(argument: unknown): number;
     ToPropertyKey(argument: unknown): any;
   }
 
