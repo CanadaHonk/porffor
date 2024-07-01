@@ -72,8 +72,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     return typeCache[hash] = idx;
   };
 
-  let importFuncs = [];
-
+  let importFuncs = [], importDelta = 0;
   if (optLevel < 1 || !Prefs.treeshakeWasmImports || noTreeshake) {
     importFuncs = importedFuncs;
   } else {
@@ -92,45 +91,45 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       }
     }
 
-    importFuncs = [...imports.values()];
+    importFuncs = globalThis.importFuncs = [...imports.values()];
+    importDelta = importedFuncs.length - importFuncs.length;
+  }
 
-    // fix call indexes for non-imports
-    // also fix call_indirect types
-    const delta = importedFuncs.length - importFuncs.length;
-    for (const f of funcs) {
-      f.originalIndex = f.index;
-      f.index -= delta;
+  // fix call indexes for non-imports
+  // also fix call_indirect types
+  for (const f of funcs) {
+    f.originalIndex = f.index;
+    f.index -= importDelta;
 
-      for (const inst of f.wasm) {
-        if ((inst[0] === Opcodes.call || inst[0] === Opcodes.return_call) && inst[1] >= importedFuncs.length) {
-          inst[1] -= delta;
+    for (const inst of f.wasm) {
+      if ((inst[0] === Opcodes.call || inst[0] === Opcodes.return_call) && inst[1] >= importedFuncs.length) {
+        inst[1] -= importDelta;
+      }
+
+      if (inst[0] === Opcodes.call_indirect) {
+        if (!funcs.table) funcs.table = true;
+
+        const params = [];
+        for (let i = 0; i < inst[1]; i++) {
+          params.push(valtypeBinary, Valtype.i32);
         }
 
-        if (inst[0] === Opcodes.call_indirect) {
-          if (!funcs.table) funcs.table = true;
-
-          const params = [];
-          for (let i = 0; i < inst[1]; i++) {
-            params.push(valtypeBinary, Valtype.i32);
-          }
-
-          if (inst.at(-1) === 'constr') {
-            inst.pop();
-            params.unshift(Valtype.i32);
-          }
-
-          let returns = [ valtypeBinary, Valtype.i32 ];
-          if (inst.at(-1) === 'no_type_return') {
-            inst.pop();
-            returns = [ valtypeBinary ];
-          }
-
-          inst[1] = getType(params, returns);
+        if (inst.at(-1) === 'constr') {
+          inst.pop();
+          params.unshift(Valtype.i32);
         }
+
+        let returns = [ valtypeBinary, Valtype.i32 ];
+        if (inst.at(-1) === 'no_type_return') {
+          inst.pop();
+          returns = [ valtypeBinary ];
+        }
+
+        inst[1] = getType(params, returns);
       }
     }
   }
-  globalThis.importFuncs = importFuncs;
+
 
   if (Prefs.optLog) log('assemble', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 
@@ -160,7 +159,13 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     ] ])
   );
 
-  if (pages.has('func lut') && !data.addedFuncArgcLut) {
+  if (pages.has('func lut')) {
+    const offset = pages.get('func lut').ind * pageSize;
+    if (data.addedFuncArgcLut) {
+      // remove existing data
+      data = data.filter(x => x.offset !== offset);
+    }
+
     // generate func lut data
     const bytes = [];
     for (let i = 0; i < funcs.length; i++) {
@@ -192,7 +197,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     }
 
     data.push({
-      offset: pages.get('func lut').ind * pageSize,
+      offset,
       bytes
     });
     data.addedFuncArgcLut = true;
