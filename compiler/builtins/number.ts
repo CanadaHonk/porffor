@@ -533,8 +533,7 @@ export const parseInt = (input: any, radix: any): f64 => {
   // todo/perf: optimize this instead of doing a naive algo (https://kholdstare.github.io/technical/2020/05/26/faster-integer-parsing.html)
   // todo/perf: use i32s here once that becomes not annoying
 
-  input = ecma262.ToString(input);
-  input = input.trim();
+  input = ecma262.ToString(input).trim();
 
   let defaultRadix: boolean = false;
   radix = ecma262.ToIntegerOrInfinity(radix);
@@ -658,3 +657,49 @@ export const parseInt = (input: any, radix: any): f64 => {
 };
 
 export const __Number_parseInt = (input: any, radix: any): f64 => parseInt(input, radix);
+
+export const parseFloat = (input: any): f64 => {
+  // todo: handle exponents
+  input = ecma262.ToString(input).trim();
+
+  let n: f64 = NaN;
+  let dec: i32 = 0;
+  let negative: boolean = false;
+
+  let i = 0;
+  const start: i32 = input.charCodeAt(0);
+
+  // +, ignore
+  if (start == 43) {
+    i++;
+  }
+
+  // -, negative
+  if (start == 45) {
+    i++;
+    negative = true;
+  }
+
+  const len: i32 = input.length;
+  while (i < len) {
+    const chr: i32 = input.charCodeAt(i++);
+
+    if (chr >= 48 && chr <= 57) { // 0-9
+      if (Number.isNaN(n)) n = 0;
+      if (dec) {
+        dec *= 10;
+        n += (chr - 48) / dec;
+      } else n = (n * 10) + chr - 48;
+    } else if (chr == 46) { // .
+      if (dec) break;
+      dec = 1;
+    } else {
+      break;
+    }
+  }
+
+  if (negative) return -n;
+  return n;
+};
+
+export const __Number_parseFloat = (input: any): f64 => parseFloat(input);
