@@ -208,61 +208,6 @@ export const __Object_assign = (target: any, ...sources: any[]) => {
   return target;
 };
 
-export const __Object_defineProperty = (target: any, prop: any, descriptor: any) => {
-  if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
-  if (!Porffor.object.isObject(descriptor)) throw new TypeError('Descriptor is a non-object');
-
-  const p: any = ecma262.ToPropertyKey(prop);
-
-  const desc: object = descriptor;
-
-  // base keys
-  const configurable: any = desc.configurable; // defaults to false/undefined
-  const enumerable: any = desc.enumerable; // defaults to false/undefined
-
-  // data descriptor keys
-  const value: any = desc.value;
-  const writable: any = desc.writable;
-
-  const get: any = desc.get;
-  const set: any = desc.set;
-
-  let accessor: boolean = false;
-
-  // todo: should check if has attributes not if undefined
-  if (get !== undefined || set !== undefined) {
-    if (get !== undefined && Porffor.rawType(get) != Porffor.TYPES.function) throw new TypeError('Getter must be a function');
-    if (set !== undefined && Porffor.rawType(set) != Porffor.TYPES.function) throw new TypeError('Setter must be a function');
-
-    if (value !== undefined || writable !== undefined) {
-      throw new TypeError('Descriptor cannot define both accessor and data descriptor attributes');
-    }
-
-    accessor = true;
-    value = Porffor.object.packAccessor(get, set);
-  }
-
-  let flags: i32 = 0b0000;
-  if (accessor) flags |= 0b0001;
-  if (configurable) flags |= 0b0010;
-  if (enumerable) flags |= 0b0100;
-  if (writable) flags |= 0b1000;
-
-  Porffor.object.define(target, p, value, flags);
-  return target;
-};
-
-export const __Object_defineProperties = (target: any, props: any) => {
-  if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
-  if (!Porffor.object.isObjectOrSymbol(props)) throw new TypeError('Props needs to be an object or symbol');
-
-  for (const x in props) {
-    __Object_defineProperty(target, x, props[x]);
-  }
-
-  return target;
-};
-
 
 export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) => {
   const p: any = ecma262.ToPropertyKey(prop);
@@ -296,20 +241,6 @@ export const __Object_is = (x: any, y: any): boolean => {
   }
 
   return false;
-};
-
-export const __Object_create = (proto: any, props: any) => {
-  if (!Porffor.object.isObject(proto)) {
-    if (proto !== null) throw new TypeError('Prototype should be an object or null');
-  }
-
-  const out: object = {};
-
-  // todo: set prototype when supported
-
-  if (props !== undefined) __Object_defineProperties(out, props);
-
-  return out;
 };
 
 
@@ -594,6 +525,93 @@ local.set ${key}`;
 
     out.length = i;
   }
+
+  return out;
+};
+
+
+export const __Object_defineProperty = (target: any, prop: any, descriptor: any) => {
+  if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  if (!Porffor.object.isObject(descriptor)) throw new TypeError('Descriptor is a non-object');
+
+  const p: any = ecma262.ToPropertyKey(prop);
+
+  const desc: object = descriptor;
+
+  // base keys
+  let configurable: any = desc.configurable;
+  let enumerable: any = desc.enumerable;
+
+  // data descriptor keys
+  let value: any = desc.value;
+  let writable: any = desc.writable;
+
+  let get: any = desc.get;
+  let set: any = desc.set;
+
+  let accessor: boolean = false;
+
+  // todo: should check if has attributes not if undefined
+  if (get !== undefined || set !== undefined) {
+    if (get !== undefined && Porffor.rawType(get) != Porffor.TYPES.function) throw new TypeError('Getter must be a function');
+    if (set !== undefined && Porffor.rawType(set) != Porffor.TYPES.function) throw new TypeError('Setter must be a function');
+
+    if (value !== undefined || writable !== undefined) {
+      throw new TypeError('Descriptor cannot define both accessor and data descriptor attributes');
+    }
+
+    accessor = true;
+  }
+
+  const existingDesc: any = __Object_getOwnPropertyDescriptor(target, prop);
+  if (existingDesc) {
+    configurable ??= existingDesc.configurable;
+    enumerable ??= existingDesc.enumerable;
+
+    if (accessor) {
+      get ??= existingDesc.get;
+      set ??= existingDesc.set;
+    } else {
+      value ??= existingDesc.value;
+      writable ??= existingDesc.value;
+    }
+  }
+
+  let flags: i32 = 0b0000;
+  if (accessor) flags |= 0b0001;
+  if (configurable) flags |= 0b0010;
+  if (enumerable) flags |= 0b0100;
+  if (writable) flags |= 0b1000;
+
+  if (accessor) {
+    value = Porffor.object.packAccessor(get, set);
+  }
+
+  Porffor.object.define(target, p, value, flags);
+  return target;
+};
+
+export const __Object_defineProperties = (target: any, props: any) => {
+  if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  if (!Porffor.object.isObjectOrSymbol(props)) throw new TypeError('Props needs to be an object or symbol');
+
+  for (const x in props) {
+    __Object_defineProperty(target, x, props[x]);
+  }
+
+  return target;
+};
+
+export const __Object_create = (proto: any, props: any) => {
+  if (!Porffor.object.isObject(proto)) {
+    if (proto !== null) throw new TypeError('Prototype should be an object or null');
+  }
+
+  const out: object = {};
+
+  // todo: set prototype when supported
+
+  if (props !== undefined) __Object_defineProperties(out, props);
 
   return out;
 };
