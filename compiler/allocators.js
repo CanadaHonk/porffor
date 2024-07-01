@@ -52,7 +52,8 @@ export class StaticAllocator {
     scope.pages ??= new Map();
     scope.pages.set(reason, { ind, type: itemType });
 
-    return number(this.ptr(ind), Valtype.i32);
+    const ptr = this.lastPtr = this.ptr(ind);
+    return number(ptr, Valtype.i32);
   }
 }
 

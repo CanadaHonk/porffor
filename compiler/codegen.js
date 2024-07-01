@@ -4378,7 +4378,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
       return [ out, pointer ];
     }
   } else {
-    const rawPtr = read_signedLEB128(pointer[0].slice(1));
+    const rawPtr = allocator.lastPtr;
 
     scope.arrays ??= new Map();
     const firstAssign = !scope.arrays.has(uniqueName);
