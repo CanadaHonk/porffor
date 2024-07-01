@@ -136,6 +136,17 @@ export default function({ builtinFuncs }, Prefs) {
 
   object('Reflect', autoFuncs('Reflect'));
 
+  // automatically generate objects for prototypes
+  for (const x of builtinFuncKeys.reduce((acc, x) => {
+    const ind = x.indexOf('_prototype_');
+    if (ind === -1) return acc;
+
+    acc.add(x.slice(0, ind + 10));
+    return acc;
+  }, new Set())) {
+    object(x, autoFuncs(x));
+  }
+
 
   // todo: support when existing func
   // object('Number', {
