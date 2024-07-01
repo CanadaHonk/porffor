@@ -1135,7 +1135,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       } else {
         const oldest = new Date(history.at(-1).time);
         const now = new Date();
-        const months = now.getMonth() - oldest.getMonth() + (12 * (now.getFullYear() - oldest.getFullYear())) + 1;
+        const months = now.getMonth() - oldest.getMonth() + (12 * (now.getFullYear() - oldest.getFullYear()));
         graph_time_all.textContent = `all-time (${months} months)`;
       }
 
