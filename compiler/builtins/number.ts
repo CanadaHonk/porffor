@@ -528,8 +528,12 @@ export const parseInt = (input: any, radix: any): f64 => {
 
   input = ecma262.ToString(input);
 
+  let defaultRadix: boolean = false;
   radix = ecma262.ToIntegerOrInfinity(radix);
-  if (radix == 0) radix = 10;
+  if (radix == 0) {
+    defaultRadix = true;
+    radix = 10;
+  }
   if (radix < 2 || radix > 36) return NaN;
 
   let nMax: f64 = 58;
@@ -559,7 +563,7 @@ export const parseInt = (input: any, radix: any): f64 => {
     }
 
     // 0, potential start of hex
-    if (startChr == 48) {
+    if ((defaultRadix || radix == 16) && startChr == 48) {
       const second: f64 = Porffor.wasm.i32.load8_u(i + 1, 0, 4);
       // 0x or 0X
       if (second == 120 || second == 88) {
@@ -615,7 +619,7 @@ export const parseInt = (input: any, radix: any): f64 => {
   }
 
   // 0, potential start of hex
-  if (startChr == 48) {
+  if ((defaultRadix || radix == 16) && startChr == 48) {
     const second: f64 = Porffor.wasm.i32.load16_u(i + 2, 0, 4);
     // 0x or 0X
     if (second == 120 || second == 88) {
