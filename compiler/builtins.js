@@ -4,6 +4,7 @@ import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { TYPES, TYPE_NAMES } from './types.js';
 import Prefs from './prefs.js';
+import { unsignedLEB128 } from './encoding.js';
 
 export const importedFuncs = [
   {
@@ -1066,6 +1067,35 @@ export const BuiltinFuncs = function() {
       // return dst
       [ Opcodes.local_get, 3 ]
     ]
+  };
+
+  this.__Porffor_funcLut_length = {
+    params: [ Valtype.i32 ],
+    returns: [ Valtype.i32 ],
+    returnType: TYPES.number,
+    wasm: (scope, { allocPage }) => [
+      [ Opcodes.local_get, 0 ],
+      ...number(128, Valtype.i32),
+      [ Opcodes.i32_mul ],
+      [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize) ]
+    ],
+    table: true
+  };
+
+  this.__Porffor_funcLut_name = {
+    params: [ Valtype.i32 ],
+    returns: [ Valtype.i32 ],
+    returnType: TYPES.bytestring,
+    wasm: (scope, { allocPage }) => [
+      [ Opcodes.local_get, 0 ],
+      ...number(128, Valtype.i32),
+      [ Opcodes.i32_mul ],
+      ...number(3, Valtype.i32),
+      [ Opcodes.i32_add ],
+      ...number(allocPage(scope, 'func lut') * pageSize, Valtype.i32),
+      [ Opcodes.i32_add ]
+    ],
+    table: true
   };
 
   PrecompiledBuiltins.BuiltinFuncs.call(this);

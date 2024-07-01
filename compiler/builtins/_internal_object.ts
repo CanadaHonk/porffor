@@ -145,7 +145,37 @@ export const __Porffor_object_lookup = (_this: object, target: any): i32 => {
   return -1;
 };
 
-export const __Porffor_object_get = (_this: object, key: any): any => {
+export const __Porffor_object_get = (_this: any, key: any): any => {
+  if (Porffor.wasm`local.get ${_this+1}` == Porffor.TYPES.function) {
+    let tmp: bytestring = '';
+    tmp = 'name';
+    if (key == tmp) {
+      const o: bytestring = __Porffor_funcLut_name(_this);
+      const t: i32 = Porffor.TYPES.bytestring;
+      Porffor.wasm`
+local.get ${o}
+f64.convert_i32_u
+local.get ${t}
+return`;
+    }
+
+    tmp = 'length';
+    if (key == tmp) {
+      const o: i32 = __Porffor_funcLut_length(_this);
+      Porffor.wasm`
+local.get ${o}
+f64.convert_i32_u
+i32.const 1
+return`;
+    }
+
+    // undefined
+    Porffor.wasm`
+f64.const 0
+i32.const 128
+return`;
+  }
+
   const entryPtr: i32 = __Porffor_object_lookup(_this, key);
   if (entryPtr == -1) {
     Porffor.wasm`

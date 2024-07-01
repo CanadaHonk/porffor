@@ -170,6 +170,18 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
     return Porffor.object.lookup(_this, p) != -1;
   }
 
+  if (t == Porffor.TYPES.function) {
+    let tmp: bytestring = '';
+
+    tmp = 'name';
+    if (p == tmp) return true;
+
+    tmp = 'length';
+    if (p == tmp) return true;
+
+    return false;
+  }
+
   const keys: any[] = __Object_keys(_this);
   return __Array_prototype_includes(keys, p);
 };
@@ -397,12 +409,29 @@ export const __Object_isSealed = (obj: any): any => {
 
 
 export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
+  const p: any = ecma262.ToPropertyKey(prop);
+
+  const objType: i32 = Porffor.rawType(obj);
+  if (objType == Porffor.TYPES.function) {
+    // hack: function .name and .length
+    const out: object = {};
+
+    out.writable = false;
+    out.enumerable = false;
+    out.configurable = true;
+
+    const v = obj[p];
+    if (v != null) {
+      out.value = v;
+      return out;
+    }
+  }
+
   // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+  if (objType != Porffor.TYPES.object) {
     return undefined;
   }
 
-  const p: any = ecma262.ToPropertyKey(prop);
   const entryPtr: i32 = Porffor.object.lookup(obj, p);
   if (entryPtr == -1) return undefined;
 

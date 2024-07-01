@@ -318,10 +318,9 @@ const generateIdent = (scope, decl) => {
 
     if (!Object.hasOwn(funcIndex, name) && Object.hasOwn(builtinFuncs, name)) {
       includeBuiltin(scope, name);
-      return number(funcIndex[name] - importedFuncs.length);
     }
 
-    if (isExistingProtoFunc(name) || Object.hasOwn(internalConstrs, name) || Object.hasOwn(builtinFuncs, name)) {
+    if (isExistingProtoFunc(name) || Object.hasOwn(internalConstrs, name)) {
       // todo: return an actual something
       return number(1);
     }
@@ -1228,7 +1227,7 @@ const asmFuncToAsm = (scope, func) => {
   });
 };
 
-const asmFunc = (name, { wasm, params = [], locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false } = {}) => {
+const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false } = {}) => {
   if (wasm == null) { // called with no builtin
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
@@ -1256,6 +1255,7 @@ const asmFunc = (name, { wasm, params = [], locals: localTypes = [], globals: gl
   const func = {
     name,
     params,
+    typedParams,
     locals,
     localInd: allLocals.length,
     returns,
@@ -2263,7 +2263,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
             // get if func we are calling is a constructor or not
             [ Opcodes.local_get, funcLocal ],
-            ...number(3, Valtype.i32),
+            ...number(128, Valtype.i32),
             [ Opcodes.i32_mul ],
             ...number(2, Valtype.i32),
             [ Opcodes.i32_add ],
@@ -2284,7 +2284,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             ...brTable([
               // get argc of func we are calling
               [ Opcodes.local_get, funcLocal ],
-              ...number(3, Valtype.i32),
+              ...number(128, Valtype.i32),
               [ Opcodes.i32_mul ],
               [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ]
             ], tableBc, valtypeBinary)
@@ -2296,7 +2296,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   const func = funcs[idx - importedFuncs.length]; // idx === scope.index ? scope : funcs.find(x => x.index === idx);
   const userFunc = func && !func.internal;
-  const typedParams = userFunc || builtinFuncs[name]?.typedParams;
+  const typedParams = userFunc || func?.typedParams;
   const typedReturns = (userFunc && func.returnType == null) || builtinFuncs[name]?.typedReturns;
   let paramCount = func && (typedParams ? Math.floor(func.params.length / 2) : func.params.length);
 
@@ -2791,9 +2791,11 @@ const generateVar = (scope, decl) => {
 
     if (x.init && isFuncType(x.init.type)) {
       // hack for let a = function () { ... }
-      x.init.id = { name };
-      generateFunc(scope, x.init);
-      continue;
+      if (!x.init.id) {
+        x.init.id = { name };
+        generateFunc(scope, x.init);
+        continue;
+      }
     }
 
     if (topLevel && Object.hasOwn(builtinVars, name)) {
@@ -4621,17 +4623,13 @@ const generateMember = (scope, decl, _global, _name) => {
   const name = decl.object.name;
 
   // hack: .name
-  if (decl.property.name === 'name') {
-    if (hasFuncWithName(name)) {
-      let nameProp = name;
+  if (decl.property.name === 'name' && hasFuncWithName(name)) {
+    let nameProp = name;
 
-      // eg: __String_prototype_toLowerCase -> toLowerCase
-      if (nameProp.startsWith('__')) nameProp = nameProp.split('_').pop();
+    // eg: __String_prototype_toLowerCase -> toLowerCase
+    if (nameProp.startsWith('__')) nameProp = nameProp.split('_').pop();
 
-      return withType(scope, makeString(scope, nameProp, _global, _name, true), TYPES.bytestring);
-    } else {
-      return withType(scope, number(0), TYPES.undefined);
-    }
+    return withType(scope, makeString(scope, nameProp, _global, _name, true), TYPES.bytestring);
   }
 
   // hack: .length
@@ -4640,7 +4638,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
     const func = funcs.find(x => x.name === name);
     if (func) {
-      const typedParams = !func.internal || builtinFuncs[name]?.typedParams;
+      const typedParams = !func.internal || func.typedParams;
       return withType(scope, number(typedParams ? Math.floor(func.params.length / 2) : (func.constr ? (func.params.length - 1) : func.params.length)), TYPES.number);
     }
 
@@ -4665,7 +4663,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
     const type = getNodeType(scope, decl.object);
     const known = knownType(scope, type);
-    if (known != null) {
+    if (known != null && known != TYPES.function) {
       if (typeHasFlag(known, TYPE_FLAGS.length)) return [
         ...out,
 
@@ -4676,28 +4674,32 @@ const generateMember = (scope, decl, _global, _name) => {
       return number(0);
     }
 
-    const useTmp = !Prefs.lengthNoTmp;
-    const tmp = useTmp && localTmp(scope, '#length_tmp', Valtype.i32);
+    const tmp = localTmp(scope, '#length_tmp', Valtype.i32);
     return [
-      ...(useTmp ? [
-        ...out,
-        [ Opcodes.local_set, tmp ],
-      ] : []),
+      ...out,
+      [ Opcodes.local_set, tmp ],
 
       ...getNodeType(scope, decl.object),
       ...number(TYPE_FLAGS.length, Valtype.i32),
       [ Opcodes.i32_and ],
       [ Opcodes.if, valtypeBinary ],
-        ...(useTmp ? [ [ Opcodes.local_get, tmp ] ] : out),
+        [ Opcodes.local_get, tmp ],
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         Opcodes.i32_from_u,
 
         ...setLastType(scope, TYPES.number),
       [ Opcodes.else ],
-        ...(useTmp ? [] : [
-          ...out,
-          [ Opcodes.drop ]
-        ]),
+        ...getNodeType(scope, decl.object),
+        ...number(TYPES.function, Valtype.i32),
+        [ Opcodes.i32_eq ],
+        [ Opcodes.if, Blocktype.void ],
+          [ Opcodes.local_get, tmp ],
+          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_funcLut_length').index) ],
+          Opcodes.i32_from_u,
+
+          ...setLastType(scope, TYPES.number),
+          [ Opcodes.br, 1 ],
+        [ Opcodes.end ],
 
         ...number(0),
         ...setLastType(scope, TYPES.undefined),
@@ -4815,6 +4817,19 @@ const generateMember = (scope, decl, _global, _name) => {
     ],
 
     [TYPES.object]: [
+      ...objectWasm,
+      Opcodes.i32_to_u,
+      ...getNodeType(scope, object),
+
+      ...propertyWasm,
+      ...getNodeType(scope, property),
+      ...toPropertyKey(scope, true),
+
+      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_get').index) ],
+      ...setLastType(scope)
+    ],
+
+    [TYPES.function]: [
       ...objectWasm,
       Opcodes.i32_to_u,
       ...getNodeType(scope, object),

@@ -164,13 +164,31 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     // generate func lut data
     const bytes = [];
     for (let i = 0; i < funcs.length; i++) {
-      const argc = Math.floor(funcs[i].params.length / 2);
+      const func = funcs[i];
+      let name = func.name;
+
+      const typedParams = !func.internal || func.typedParams;
+      let argc = Math.floor(typedParams ? func.params.length / 2 : func.params.length);
+
+      // hack: argc-- for prototype methods to remove _this hack from count
+      if (name.includes('_prototype_')) argc--;
+
       bytes.push(argc % 256, (argc / 256 | 0) % 256);
 
       let flags = 0b00000000; // 8 flag bits
-      if (funcs[i].returnType != null) flags |= 0b1;
-      if (funcs[i].constr) flags |= 0b10;
+      if (func.returnType != null) flags |= 0b1;
+      if (func.constr) flags |= 0b10;
       bytes.push(flags);
+
+      // eg: __String_prototype_toLowerCase -> toLowerCase
+      if (name.startsWith('__')) name = name.split('_').pop();
+
+      bytes.push(...new Uint8Array(new Int32Array([ name.length ]).buffer));
+
+      for (let i = 0; i < (128 - 3 - 4); i++) {
+        const c = name.charCodeAt(i);
+        bytes.push((c || 0) % 256);
+      }
     }
 
     data.push({
