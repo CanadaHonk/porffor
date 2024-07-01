@@ -116,8 +116,12 @@ ${flags & 0b0001 ? `    get func idx: ${get}
 
       if (!func) return function () {};
 
+      let name = func.name;
+      // eg: __String_prototype_toLowerCase -> toLowerCase
+      if (name.startsWith('__')) name = name.split('_').pop();
+
       // make fake empty func for repl/etc
-      return {[func.name]() {}}[func.name];
+      return {[name]() {}}[name];
     }
 
     case TYPES.string: {
