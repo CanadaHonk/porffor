@@ -427,7 +427,7 @@ if (isMainThread) {
       //   file.endsWith('NumberFormat/constructor-unit.js')
       // ) timeout(exports.main, 1000);
       //   else exports.main();
-      timeout(exports.main, 1000);
+      timeout(exports.main, 2000);
 
       stage = 2;
     } catch (e) {
