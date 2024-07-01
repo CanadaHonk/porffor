@@ -104,8 +104,11 @@ export default (code, flags) => {
 
   if (Prefs.profileCompiler) console.log(`3. optimized in ${(performance.now() - t2).toFixed(2)}ms`);
 
+  const out = { funcs, globals, tags, exceptions, pages, data };
+  if (globalThis.precompile) return out;
+
   const t3 = performance.now();
-  const wasm = assemble(funcs, globals, tags, pages, data, flags);
+  const wasm = out.wasm = assemble(funcs, globals, tags, pages, data, flags);
   if (Prefs.profileCompiler) console.log(`4. assembled in ${(performance.now() - t3).toFixed(2)}ms`);
 
   if (Prefs.optFuncs) logFuncs(funcs, globals, exceptions);
@@ -116,8 +119,6 @@ export default (code, flags) => {
     log('alloc', `\x1B[1mallocated ${bytes / 1024}KiB\x1B[0m for ${pages.size} things using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}`);
     console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n') + '\n');
   }
-
-  const out = { wasm, funcs, globals, tags, exceptions, pages, data };
 
   if (target === 'wasm' && outFile) {
     fs.writeFileSync(outFile, Buffer.from(wasm));
