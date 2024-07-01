@@ -589,12 +589,10 @@ export const parseInt = (input: any, radix: any): f64 => {
           n *= radix;
           n += chr - 55;
         } else {
-          if (negative) return -n;
-          return n;
+          break;
         }
       } else {
-        if (negative) return -n;
-        return n;
+        break;
       }
     }
 
@@ -648,12 +646,10 @@ export const parseInt = (input: any, radix: any): f64 => {
         n *= radix;
         n += chr - 55;
       } else {
-        if (negative) return -n;
-        return n;
+        break;
       }
     } else {
-      if (negative) return -n;
-      return n;
+      break;
     }
   }
 
