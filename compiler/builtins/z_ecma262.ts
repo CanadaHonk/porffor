@@ -1,13 +1,6 @@
 // general widely used ecma262/spec functions
 import type {} from './porffor.d.ts';
 
-// 7.1.4.1.1 StringToNumber (str)
-// https://tc39.es/ecma262/#sec-stringtonumber
-export const __ecma262_StringToNumber = (str: unknown): number => {
-  // nah.
-  return NaN;
-};
-
 // 7.1.4 ToNumber (argument)
 // https://tc39.es/ecma262/#sec-tonumber
 export const __ecma262_ToNumber = (argument: unknown): number => {
