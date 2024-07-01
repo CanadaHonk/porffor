@@ -534,6 +534,7 @@ export const parseInt = (input: any, radix: any): f64 => {
   // todo/perf: use i32s here once that becomes not annoying
 
   input = ecma262.ToString(input);
+  input = input.trim();
 
   let defaultRadix: boolean = false;
   radix = ecma262.ToIntegerOrInfinity(radix);
