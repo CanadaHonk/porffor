@@ -4386,14 +4386,34 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
     const local = global ? globals[name] : scope.locals?.[name];
     if (
-      Prefs.data && firstAssign && useRawElements &&
+      Prefs.data && useRawElements &&
       name !== '#member_prop' && name !== '#member_prop_assign' &&
       (!globalThis.precompile || !global)
     ) {
-      makeData(scope, elements, rawPtr, itemType, initEmpty);
+      if (Prefs.activeData && firstAssign) {
+        makeData(scope, elements, rawPtr, itemType, initEmpty);
 
-      // local value as pointer
-      return [ number(rawPtr, intOut ? Valtype.i32 : valtypeBinary), pointer ];
+        // local value as pointer
+        return [ number(rawPtr, intOut ? Valtype.i32 : valtypeBinary), pointer ];
+      }
+
+      if (Prefs.passiveData) {
+        const data = makeData(scope, elements, null, itemType, initEmpty);
+        if (data) {
+          // init data
+          out.push(
+            ...pointer,
+            ...number(0, Valtype.i32),
+            ...number(data.size, Valtype.i32),
+            [ ...Opcodes.memory_init, ...unsignedLEB128(data.idx), 0 ]
+          );
+        }
+
+        // return pointer in out
+        out.push(...number(rawPtr, intOut ? Valtype.i32 : valtypeBinary));
+
+        return [ out, pointer ];
+      }
     }
 
     if (local != null) {

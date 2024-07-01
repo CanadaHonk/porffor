@@ -41,8 +41,12 @@ export default (code, flags) => {
   const pageSizeOpt = process.argv.find(x => x.startsWith('--page-size='));
   if (pageSizeOpt) pageSize = parseInt(pageSizeOpt.split('=')[1]) * 1024;
 
-  // enable pgo by default for c/native
-  if (target !== 'wasm') Prefs.pgo = Prefs.pgo === false ? false : true;
+  // change some prefs by default for c/native
+  if (target !== 'wasm') {
+    Prefs.pgo = Prefs.pgo === false ? false : true;
+    Prefs.passiveData = false;
+  }
+
   if (Prefs.pgo) pgo.setup();
 
   if (Prefs.profileCompiler) console.log(`0. began compilation (host runtime startup) in ${performance.now().toFixed(2)}ms`);
