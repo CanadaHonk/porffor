@@ -675,6 +675,12 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
           break;
 
+        case Opcodes.call_indirect:
+          // stub, todo
+          vals.pop();
+          vals.push('0', '0');
+          break;
+
         case Opcodes.drop:
           // line(vals.pop());
           vals.pop();
