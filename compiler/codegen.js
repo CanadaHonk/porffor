@@ -3142,6 +3142,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ]
         }),
 
+        [TYPES.undefined]: internalThrow(scope, 'TypeError', 'Cannot set property of undefined', true),
+
         // default: internalThrow(scope, 'TypeError', `Cannot assign member with this type`)
         default: [
           ...objectWasm,
@@ -4919,6 +4921,8 @@ const generateMember = (scope, decl, _global, _name) => {
       ],
       postlude: setLastType(scope, TYPES.number)
     }),
+
+    [TYPES.undefined]: internalThrow(scope, 'TypeError', 'Cannot read property of undefined', true),
 
     // default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
     default: [
