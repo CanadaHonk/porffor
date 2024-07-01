@@ -104,7 +104,12 @@ export default function({ builtinFuncs }, Prefs) {
   };
 
   const builtinFuncKeys = Object.keys(builtinFuncs);
-  const autoFuncs = name => builtinFuncKeys.filter(x => x.startsWith('__' + name + '_')).map(x => x.slice(name.length + 3));
+  const autoFuncKeys = name => builtinFuncKeys.filter(x => x.startsWith('__' + name + '_')).map(x => x.slice(name.length + 3));
+  const autoFuncs = name => props({
+    writable: true,
+    enumerable: false,
+    configurable: true
+  }, autoFuncKeys(name));
 
   object('Math', {
     ...props({
@@ -126,12 +131,10 @@ export default function({ builtinFuncs }, Prefs) {
       DEG_PER_RAD: 180 / Math.PI
     }),
 
-    ...props({
-      writable: true,
-      enumerable: false,
-      configurable: true
-    }, autoFuncs('Math'))
+    ...autoFuncs('Math')
   });
+
+  object('Reflect', autoFuncs('Reflect'));
 
 
   // todo: support when existing func
@@ -174,7 +177,7 @@ export default function({ builtinFuncs }, Prefs) {
     if (!t) continue;
 
     if (!done.has(name)) {
-      console.log(name);
+      console.log(name, !!builtinFuncs[name]);
       done.add(name);
     }
   }
