@@ -209,13 +209,15 @@ ${funcs.map(x => {
     return `(scope, {${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}`.slice(0, -1)}}) => ` + str;
   };
 
+  const locals = Object.entries(x.locals).sort((a,b) => a[1].idx - b[1].idx)
+
   return `  this.${x.name} = {
     wasm: ${rewriteWasm(x.wasm)},
     params: ${JSON.stringify(x.params)}, typedParams: 1,
     returns: ${JSON.stringify(x.returns)}, ${x.returnType != null ? `returnType: ${JSON.stringify(x.returnType)}` : 'typedReturns: 1'},
-    locals: ${JSON.stringify(Object.values(x.locals).slice(x.params.length).map(x => x.type))}, localNames: ${JSON.stringify(Object.keys(x.locals))},
+    locals: ${JSON.stringify(locals.slice(x.params.length).map(x => x[1].type))}, localNames: ${JSON.stringify(locals.map(x => x[0]))},
 ${x.globalInits ? `    globalInits: {${Object.keys(x.globalInits).map(y => `${y}: ${rewriteWasm(x.globalInits[y])}`).join(',')}},\n` : ''}${x.data && x.data.length > 0 ? `    data: [${x.data.map(x => `[${x.offset ?? 'null'},[${x.bytes.join(',')}]]`).join(',')}],` : ''}
-${x.table ? `    table: 1,` : ''}${x.constr ? `    constr: 1,` : ''}${x.hasRestArgument ? `    hasRestArgument: 1,` : ''}
+${x.table ? `    table: 1,` : ''}${x.constr ? `    constr: 1,` : ''}${x.usesThis ? `    usesThis: 1,` : ''}${x.newTarget ? `    newTarget: 1,` : ''}${x.argc !== undefined ? `    argc: ${x.argc},` : ''}${x.hasRestArgument ? `    hasRestArgument: 1,` : ''}
   };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');
 }).join('\n')}
 };`;

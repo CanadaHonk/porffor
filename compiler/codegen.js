@@ -91,6 +91,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'NewExpression':
       return cacheAst(decl, generateNew(scope, decl, global, name));
 
+    case 'ThisExpression':
+      return cacheAst(decl, generateThis(scope, decl, global, name));
+
     case 'Literal':
       return cacheAst(decl, generateLiteral(scope, decl, global, name));
 
@@ -1227,7 +1230,7 @@ const asmFuncToAsm = (scope, func) => {
   });
 };
 
-const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false } = {}) => {
+const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, newTarget = false, usesThis = false, hasRestArgument = false } = {}) => {
   if (wasm == null) { // called with no builtin
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
@@ -1264,6 +1267,8 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     index: currentFuncIndex++,
     table,
     constr,
+    newTarget,
+    usesThis,
     globalInits
   };
 
@@ -1301,26 +1306,6 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     }
 
     funcs.table = true;
-  }
-
-  if (constr) {
-    func.params = [...func.params];
-    func.params.unshift(Valtype.i32);
-
-    // move all locals +1 idx (sigh)
-    func.localInd++;
-    const locals = func.locals;
-    for (const x in locals) {
-      locals[x].idx++;
-    }
-
-    locals['#newtarget'] = { idx: 0, type: Valtype.i32 };
-
-    for (const inst of wasm) {
-      if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) {
-        inst[1]++;
-      }
-    }
   }
 
   if (hasRestArgument) func.hasRestArgument = true;
@@ -1605,6 +1590,22 @@ const getNodeType = (scope, node) => {
       }
     }
 
+    if (node.type == 'ThisExpression') {
+      if (!scope.constr) return getType(scope, "globalThis");
+      return [ [ Opcodes.local_get, '#this#type' ] ];
+    }
+
+    if (node.type == 'MetaProperty') {
+      switch (`${node.meta.name}.${node.property.name}`) {
+        case 'new.target': {
+          return [ [ Opcodes.local_get, '#newtarget#type' ] ];
+        }
+
+        default:
+          return todo(scope, `meta property object ${node.meta.name} is not supported yet`, true);
+      }
+    }
+
     if (scope.locals['#last_type']) return getLastType(scope);
 
     // presume
@@ -1761,6 +1762,42 @@ const RTArrayUtil = {
     [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
   ]
 };
+
+const createNewTarget = (scope, decl, idx) => {
+  if (decl._new) {
+    return [
+      ...number(idx),
+      ...number(TYPES.function, Valtype.i32)
+    ];
+  }
+
+  return [
+    ...number(UNDEFINED),
+    ...number(TYPES.undefined, Valtype.i32)
+  ];
+}
+
+const createThisArg = (scope, decl, getFunc, knownThis = undefined) => {
+  if (knownThis) {
+    // todo: check complience
+    return knownThis
+  }
+
+  if (decl._new) {
+    // todo: created object should have .prototype = func.prototype
+    // todo: created object should have .constructor = func
+    return [
+      // create an empty object
+      ...generateObject(scope, { properties: [] }),
+      ...number(TYPES.object, Valtype.i32)
+    ];
+  } else {
+    return [
+      ...generate(scope, { type: "Identifier", name: "globalThis" }),
+      ...getType(scope, "globalThis")
+    ];
+  }
+}
 
 const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   let name = mapName(decl.callee.name);
@@ -2182,6 +2219,26 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const funcLocal = localTmp(scope, '#indirect_func', Valtype.i32);
       const flags = localTmp(scope, '#indirect_flags', Valtype.i32);
 
+      let knownThis = undefined;
+      let getCalleeObj = undefined;
+      let initCalleeObj = undefined;
+
+      // hack: this should be more thorough, Function.bind, etc.
+      if (decl.callee.type == "MemberExpression") {
+        const callee = localTmp(scope, '#indirect_callee_obj', Valtype.f64);
+        initCalleeObj = [
+          ...generate(scope, decl.callee.object),
+          [ Opcodes.local_set, callee ]
+        ];
+        getCalleeObj = [
+          [ Opcodes.local_get, callee ]
+        ];
+        knownThis = [
+          [ Opcodes.local_get, callee ],
+          ...getNodeType(scope, decl.callee.object)
+        ];
+      }
+
       const gen = argc => {
         const argsOut = [];
         for (let i = 0; i < argc; i++) {
@@ -2202,43 +2259,74 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           [ Opcodes.end ]
         ];
 
-        // pain.
-        // return checkFlag(0b10, [ // constr
-        //   [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-        //   ...argsOut,
-        //   [ Opcodes.local_get, funcLocal ],
-        //   [ Opcodes.call_indirect, argc, 0, 'constr' ],
-        //   ...setLastType(scope),
-        // ], [
-        //   ...argsOut,
-        //   [ Opcodes.local_get, funcLocal ],
-        //   [ Opcodes.call_indirect, argc, 0 ],
-        //   ...setLastType(scope),
-        // ]);
-
-        return checkFlag(0b1, // no type return
-          checkFlag(0b10, [ // no type return & constr
-            [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'constr' ],
-          ], [
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc, 0, 'no_type_return' ]
-          ]),
-          checkFlag(0b10, [ // type return & constr
-            [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc, 0, 'constr' ],
-            ...setLastType(scope),
-          ], [
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc, 0 ],
-            ...setLastType(scope),
-          ]),
+        // todo: i'm sure this could be made better somehow, probably only with #96?
+        return checkFlag(0b1,
+          // no type return
+          checkFlag(0b1000,
+            // no type return & this
+            checkFlag(0b100, [
+              // no type return & this & new.target
+              ...createNewTarget(scope, decl),
+              ...createThisArg(scope, decl, [], knownThis),
+              ...argsOut,
+              [ Opcodes.local_get, funcLocal ],
+              [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'new_target', 'this' ],
+            ], [
+              // no type return & this
+              ...createThisArg(scope, decl),
+              ...argsOut,
+              [ Opcodes.local_get, funcLocal ],
+              [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'this' ]
+            ]),
+            // no type return
+            checkFlag(0b100, [
+              // no type return & new.target
+              ...createNewTarget(scope, decl),
+              ...argsOut,
+              [ Opcodes.local_get, funcLocal ],
+              [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'new_target' ],
+            ], [
+              // no type return
+              ...argsOut,
+              [ Opcodes.local_get, funcLocal ],
+              [ Opcodes.call_indirect, argc, 0, 'no_type_return' ]
+            ]),
+          ),
+          // type return
+          checkFlag(0b1000,
+            // type return & this
+            checkFlag(0b100, [
+              // type return & this & new.target
+              ...createNewTarget(scope, decl),
+              ...createThisArg(scope, decl, [], knownThis),
+              ...argsOut,
+              [ Opcodes.local_get, funcLocal ],
+              [ Opcodes.call_indirect, argc, 0, 'new_target', 'this' ],
+              ...setLastType(scope),
+            ], [
+              // type return & this
+              ...createThisArg(scope, decl),
+              ...argsOut,
+              [ Opcodes.local_get, funcLocal ],
+              [ Opcodes.call_indirect, argc, 0, 'this' ],
+              ...setLastType(scope),
+            ]),
+            // type return
+            checkFlag(0b100, [
+              // type return & new.target
+              ...createNewTarget(scope, decl),
+              ...argsOut,
+              [ Opcodes.local_get, funcLocal ],
+              [ Opcodes.call_indirect, argc, 0, 'new_target' ],
+              ...setLastType(scope),
+            ], [
+              // type return
+              ...argsOut,
+              [ Opcodes.local_get, funcLocal ],
+              [ Opcodes.call_indirect, argc, 0 ],
+              ...setLastType(scope),
+            ]),
+          )
         );
       };
 
@@ -2250,7 +2338,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       // todo/perf: check if we should use br_table here or just generate our own big if..elses
 
       return [
-        ...generate(scope, decl.callee),
+        ...(getCalleeObj ? [
+          ...initCalleeObj,
+          ...generateMember(scope, decl.callee, false, undefined, getCalleeObj)
+        ]: generate(scope, decl.callee)),
         [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
 
         ...typeSwitch(scope, getNodeType(scope, decl.callee), {
@@ -2298,16 +2389,22 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   const userFunc = func && !func.internal;
   const typedParams = userFunc || func?.typedParams;
   const typedReturns = (userFunc && func.returnType == null) || builtinFuncs[name]?.typedReturns;
-  let paramCount = func && (typedParams ? Math.floor(func.params.length / 2) : func.params.length);
+  let paramCount = countParams(func, name);
 
   let paramOffset = 0;
-  if (func && func.constr) {
-    // new.target arg
-    if (func.internal) paramOffset = 1;
-    if (!typedParams) paramCount--;
-    out.push([ Opcodes.i32_const, decl._new ? 1 : 0 ]);
-  } else if (decl._new)
+  if (decl._new && func && !func.constr) {
     return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
+  }
+
+  if (func && func.newTarget) {
+    paramOffset += 2;
+    out.push(...createNewTarget(scope, decl, idx - importedFuncs.length));
+  }
+
+  if (func && func.usesThis) {
+    out.push(...createThisArg(scope, decl, func));
+    paramOffset += 2;
+  }
 
   let args = [...decl.arguments];
   if (func && !func.hasRestArgument && args.length < paramCount) {
@@ -2390,6 +2487,23 @@ const generateNew = (scope, decl, _global, _name) => generateCall(scope, {
   ...decl,
   _new: true
 }, _global, _name);
+
+const generateThis = (scope, decl, _global, _name) => {
+  if (!scope.constr) {
+    // this in a non-constructor context is a reference to globalThis
+    return [
+      ...generate(scope, { type: "Identifier", name: "globalThis" }),
+      ...setLastType(scope, getType(scope, "globalThis"))
+    ];
+  }
+
+  scope.usesThis = true;
+
+  return [
+    [ Opcodes.local_get, '#this' ],
+    ...setLastType(scope, [ [ Opcodes.local_get, '#this#type' ] ])
+  ];
+}
 
 // bad hack for undefined and null working without additional logic
 const DEFAULT_VALUE = {
@@ -4209,18 +4323,17 @@ const generateEmpty = (scope, decl) => {
 };
 
 const generateMeta = (scope, decl) => {
-  if (decl.meta.name !== 'new') return todo(scope, `meta property object ${decl.meta.name} is not supported yet`, true);
-
   switch (`${decl.meta.name}.${decl.property.name}`) {
     case 'new.target': {
-      scope.constr = true;
+      scope.newTarget = true;
 
       return [
-        [ Opcodes.local_get, -1 ],
-        Opcodes.i32_from_u,
-        ...setLastType(scope, TYPES.boolean)
+        [ Opcodes.local_get, '#newtarget' ],
       ];
     }
+
+    default:
+      return todo(scope, `meta property object ${decl.meta.name} is not supported yet`, true);
   }
 };
 
@@ -4641,7 +4754,26 @@ const wrapBC = (bc, { prelude = [], postlude = [] } = {}) => {
   return out;
 };
 
-const generateMember = (scope, decl, _global, _name) => {
+const countParams = (func, name = undefined) => {
+  if (!func) {
+    if (Object.hasOwn(importedFuncs, name)) {
+      // reverse lookup then normal lookup
+      func = importedFuncs[importedFuncs[name]];
+      if (func) return func.params?.length ?? func.params;
+    }
+    return;
+  }
+  if (func.argc) return func.argc;
+
+  let params = func.params.length;
+  if (func.newTarget) params -= 2;
+  if (func.usesThis) params -= 2;
+  if (!func.internal || builtinFuncs[func.name]?.typedParams) params = Math.floor(params / 2);
+
+  return params;
+}
+
+const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) => {
   const name = decl.object.name;
 
   // hack: .name
@@ -4659,12 +4791,9 @@ const generateMember = (scope, decl, _global, _name) => {
     // todo: support optional
 
     const func = funcs.find(x => x.name === name);
-    if (func) {
-      const typedParams = !func.internal || func.typedParams;
-      return withType(scope, number(typedParams ? Math.floor(func.params.length / 2) : (func.constr ? (func.params.length - 1) : func.params.length)), TYPES.number);
-    }
+    if (func) return withType(scope, number(countParams(func)), TYPES.number);
 
-    if (Object.hasOwn(builtinFuncs, name)) return withType(scope, number(builtinFuncs[name].typedParams ? Math.floor(builtinFuncs[name].params.length / 2) : (builtinFuncs[name].constr ? (builtinFuncs[name].params.length - 1) : builtinFuncs[name].params.length)), TYPES.number);
+    if (Object.hasOwn(builtinFuncs, name)) return withType(scope, number(countParams(builtinFuncs[name])), TYPES.number);
     if (Object.hasOwn(importedFuncs, name)) return withType(scope, number(importedFuncs[name].params.length ?? importedFuncs[name].params), TYPES.number);
     if (Object.hasOwn(internalConstrs, name)) return withType(scope, number(internalConstrs[name].length ?? 0), TYPES.number);
 
@@ -4954,7 +5083,7 @@ const generateMember = (scope, decl, _global, _name) => {
   if (decl.optional) {
     out.unshift(
       [ Opcodes.block, valtypeBinary ],
-      ...generate(scope, object),
+      ...(_objectWasm ? _objectWasm : generate(scope, object)),
       [ Opcodes.local_tee, localTmp(scope, '#member_obj') ],
 
       ...nullish(scope, [], getNodeType(scope, object), false, true),
@@ -4973,7 +5102,7 @@ const generateMember = (scope, decl, _global, _name) => {
     );
   } else {
     out.unshift(
-      ...generate(scope, object),
+      ...(_objectWasm ? _objectWasm : generate(scope, object)),
       [ Opcodes.local_set, localTmp(scope, '#member_obj') ],
 
       ...generate(scope, property, false, '#member_prop'),
@@ -5045,7 +5174,8 @@ const generateFunc = (scope, decl) => {
     returns: [ valtypeBinary, Valtype.i32 ],
     throws: false,
     name,
-    index: currentFuncIndex++
+    index: currentFuncIndex++,
+    constr: decl.type && decl.type != 'ArrowFunctionExpression' && decl.type != 'Program'
   };
 
   funcIndex[name] = func.index;
@@ -5093,6 +5223,13 @@ const generateFunc = (scope, decl) => {
 
   func.params = Object.values(func.locals).map(x => x.type);
 
+  func.argc = countParams(func, name);
+
+  if (func.constr) {
+    func.newTarget = true;
+    func.usesThis = true;
+  }
+
   let body = objectHack(decl.body);
   if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
     // hack: () => 0 -> () => return 0
@@ -5123,11 +5260,68 @@ const generateFunc = (scope, decl) => {
 
   // add end return if not found
   if (name !== 'main' && wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
+    if (func.constr) {
+      // todo: this should also check on every return of a primitive in order to return this
+
+      // if function can be called with new, we need to make sure it is correct
+      wasm.push(
+        ...truthy(func, [ [ Opcodes.local_get, '#newtarget' ] ], [ [ Opcodes.local_get, '#newtarget#type' ] ], false, true),
+        [ Opcodes.if, Blocktype.void ],
+          [ Opcodes.local_get, '#this' ],
+          ...(func.returnType != null ? [] : [ [ Opcodes.local_get, '#this#type' ] ]),
+          [ Opcodes.return ],
+        [ Opcodes.end ]
+      );
+    }
     wasm.push(
-      ...number(0),
+      ...number(UNDEFINED),
       ...(func.returnType != null ? [] : number(TYPES.undefined, Valtype.i32)),
       [ Opcodes.return ]
     );
+  }
+
+  if (func.newTarget || func.usesThis) {
+    const locals = func.locals;
+    let idxOffset = 0;
+    func.params = [...func.params];
+    if (func.usesThis) {
+      func.params.unshift(valtypeBinary, Valtype.i32);
+      idxOffset += 2
+    }
+    if (func.newTarget) {
+      // todo: if --boolean-new-target, we likely don't have to add the type arg
+      func.params.unshift(valtypeBinary, Valtype.i32);
+      idxOffset += 2;
+    }
+
+    // move all local indexes by idxOffset
+    func.localInd += idxOffset;
+    for (const x in locals) {
+      locals[x].idx += idxOffset;
+    }
+
+    let indexes = idxOffset;
+    // note: make sure to add these in reverse order of location
+    if (func.usesThis) {
+      locals['#this#type'] = { idx: --indexes, type: Valtype.i32 };
+      locals['#this'] = { idx: --indexes, type: valtypeBinary };
+    }
+    if (func.newTarget) {
+      locals['#newtarget#type'] = { idx: --indexes, type: Valtype.i32 };
+      locals['#newtarget'] = { idx: --indexes, type: valtypeBinary };
+    }
+
+    for (let i = 0; i < wasm.length; i++) {
+      // note: these needs to be copied, even though they realistically shouldn't
+      const inst = wasm[i];
+      if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) {
+        if (typeof inst[1] == 'string') {
+          wasm[i] = [ inst[0], locals[inst[1]].idx ];
+          } else {
+          wasm[i] = [ inst[0], inst[1] + idxOffset ];
+        }
+      }
+    }
   }
 
   return func;

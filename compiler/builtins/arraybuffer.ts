@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-export const __ArrayBuffer_isView = function (value: any): boolean {
+export const __ArrayBuffer_isView = (value: any): boolean => {
   if (value.buffer) return true;
   return false;
 };
