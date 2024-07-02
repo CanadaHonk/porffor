@@ -189,6 +189,8 @@ export default function({ builtinFuncs }, Prefs) {
     });
   }
 
+  object('globalThis', {})
+
   if (Prefs.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(this))) {
     if (!x.startsWith('__')) continue;
 

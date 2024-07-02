@@ -114,9 +114,14 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
           params.push(valtypeBinary, Valtype.i32);
         }
 
-        if (inst.at(-1) === 'constr') {
+        if (inst.at(-1) === 'this') {
           inst.pop();
-          params.unshift(Valtype.i32);
+          params.unshift(valtypeBinary, Valtype.i32);
+        }
+
+        if (inst.at(-1) === 'new_target') {
+          inst.pop();
+          params.unshift(valtypeBinary, Valtype.i32);
         }
 
         let returns = [ valtypeBinary, Valtype.i32 ];
@@ -172,8 +177,10 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       const func = funcs[i];
       let name = func.name;
 
-      const typedParams = !func.internal || func.typedParams;
-      let argc = Math.floor(typedParams ? func.params.length / 2 : func.params.length);
+      let argc = func.params.length;
+      if (func.newTarget) argc -= 2;
+      if (func.usesThis) argc -= 2;
+      if (!func.internal || func.typedParams) argc = Math.floor(argc / 2);
 
       // hack: argc-- for prototype methods to remove _this hack from count
       if (name.includes('_prototype_')) argc--;
@@ -183,6 +190,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       let flags = 0b00000000; // 8 flag bits
       if (func.returnType != null) flags |= 0b1;
       if (func.constr) flags |= 0b10;
+      if (func.newTarget) flags |= 0b100;
+      if (func.usesThis) flags |= 0b1000;
       bytes.push(flags);
 
       // eg: __String_prototype_toLowerCase -> toLowerCase
