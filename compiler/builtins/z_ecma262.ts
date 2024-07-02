@@ -79,6 +79,21 @@ export const __ecma262_ToIntegerOrInfinity = (argument: unknown): number => {
   return number;
 };
 
+// 7.1.22 ToIndex (value)
+export const __ecma262_ToIndex = (value: unknown): number => {
+  // 1. Let integer be ? ToIntegerOrInfinity(value).
+  const integer: number = __ecma262_ToIntegerOrInfinity(value);
+
+  // 2. If integer is not in the inclusive interval from 0 to 2**53 - 1, throw a RangeError exception.
+  if (Porffor.fastOr(
+    integer < 0,
+    integer > 9007199254740991
+  )) throw new RangeError('Invalid index');
+
+  // 3. Return integer.
+  return integer;
+};
+
 // 7.1.17 ToString (argument)
 // https://tc39.es/ecma262/#sec-tostring
 export const __ecma262_ToString = (argument: unknown): any => {
