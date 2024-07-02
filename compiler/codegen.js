@@ -1591,7 +1591,7 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type == 'ThisExpression') {
-      if (!scope.constr) return getType(scope, "globalThis");
+      if (!scope.constr) return getType(scope, 'globalThis');
       return [ [ Opcodes.local_get, '#this#type' ] ];
     }
 
@@ -1793,8 +1793,8 @@ const createThisArg = (scope, decl, getFunc, knownThis = undefined) => {
     ];
   } else {
     return [
-      ...generate(scope, { type: "Identifier", name: "globalThis" }),
-      ...getType(scope, "globalThis")
+      ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
+      ...getType(scope, 'globalThis')
     ];
   }
 }
@@ -2224,7 +2224,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       let initCalleeObj = undefined;
 
       // hack: this should be more thorough, Function.bind, etc.
-      if (decl.callee.type == "MemberExpression") {
+      if (decl.callee.type == 'MemberExpression') {
         const callee = localTmp(scope, '#indirect_callee_obj', Valtype.f64);
         initCalleeObj = [
           ...generate(scope, decl.callee.object),
@@ -2492,8 +2492,8 @@ const generateThis = (scope, decl, _global, _name) => {
   if (!scope.constr) {
     // this in a non-constructor context is a reference to globalThis
     return [
-      ...generate(scope, { type: "Identifier", name: "globalThis" }),
-      ...setLastType(scope, getType(scope, "globalThis"))
+      ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
+      ...setLastType(scope, getType(scope, 'globalThis'))
     ];
   }
 
@@ -5124,7 +5124,7 @@ const objectHack = node => {
       if (node.computed || node.optional) return;
 
       // hack: block these properties as they can be accessed on functions
-      if (node.property.name == "length" || node.property.name == "name") return;
+      if (node.property.name == 'length' || node.property.name == 'name') return;
 
       let objectName = node.object.name;
 
