@@ -635,13 +635,34 @@ export const __Object_groupBy = (items: any, callbackFn: any) => {
 };
 
 
-export const __Object_prototype_toString = (_this: object) => {
-  let out: bytestring = '[object Object]';
-  return out;
+export const __Object_prototype_toString = (_this: any) => {
+  let out: bytestring = Porffor.allocate();
+
+  // 1. If the this value is undefined, return "[object Undefined]".
+  if (_this === undefined) return out = '[object Undefined]';
+
+  // 2. If the this value is null, return "[object Null]".
+  if (_this === null) return out = '[object Null]';
+
+  // todo: toStringTag support
+
+  const t: i32 = Porffor.rawType(_this);
+  if (t == Porffor.TYPES.array) return out = '[object Array]';
+  if (t == Porffor.TYPES.function) return out = '[object Function]';
+  if (t == Porffor.TYPES.boolean) return out = '[object Boolean]';
+  if (t == Porffor.TYPES.number) return out = '[object Number]';
+  if (Porffor.fastOr(
+    t == Porffor.TYPES.string,
+    t == Porffor.TYPES.bytestring)) return out = '[object String]';
+  if (t == Porffor.TYPES.date) return out = '[object Date]';
+  if (t == Porffor.TYPES.regexp) return out = '[object RegExp]';
+
+  return out = '[object Object]';
 };
 
-export const __Object_prototype_toLocaleString = (_this: object) => __Object_prototype_toLocaleString(_this);
+export const __Object_prototype_toLocaleString = (_this: any) => __Object_prototype_toLocaleString(_this);
 
-export const __Object_prototype_valueOf = (_this: object) => {
+export const __Object_prototype_valueOf = (_this: any) => {
+  // todo: ToObject
   return _this;
 };

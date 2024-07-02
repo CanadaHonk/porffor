@@ -5,16 +5,18 @@ export const __ArrayBuffer_isView = (value: any): boolean => {
   return false;
 };
 
-export const ArrayBuffer = function (length: number): ArrayBuffer {
+export const ArrayBuffer = function (length: any): ArrayBuffer {
+  // 1. If NewTarget is undefined, throw a TypeError exception.
   if (!new.target) throw new TypeError("Constructor ArrayBuffer requires 'new'");
 
-  if (length < 0) throw new RangeError('Invalid ArrayBuffer length (negative)');
-  if (length > 4294967295) throw new RangeError('Invalid ArrayBuffer length (over 32 bit address space)');
+  // 2. Let byteLength be ? ToIndex(length).
+  const byteLength: number = ecma262.ToIndex(length);
 
-  length |= 0;
+  if (byteLength < 0) throw new RangeError('Invalid ArrayBuffer length (negative)');
+  if (byteLength > 4294967295) throw new RangeError('Invalid ArrayBuffer length (over 32 bit address space)');
 
-  const out: ArrayBuffer = Porffor.allocateBytes(length + 4);
-  Porffor.wasm.i32.store(out, length, 0, 0);
+  const out: ArrayBuffer = Porffor.allocateBytes(byteLength + 4);
+  Porffor.wasm.i32.store(out, byteLength, 0, 0);
 
   return out;
 };

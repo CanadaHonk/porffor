@@ -94,12 +94,12 @@ memory.copy 0 0`;
   return _this.length = len + itemsLen;
 };
 
-export const __Array_prototype_slice = (_this: any[], start: number, end: number) => {
+export const __Array_prototype_slice = (_this: any[], _start: any, _end: any) => {
   const len: i32 = _this.length;
-  if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
+  if (Porffor.rawType(_end) == Porffor.TYPES.undefined) _end = len;
 
-  start |= 0;
-  end |= 0;
+  let start: i32 = ecma262.ToIntegerOrInfinity(_start);
+  let end: i32 = ecma262.ToIntegerOrInfinity(_end);
 
   if (start < 0) {
     start = len + start;
@@ -135,18 +135,18 @@ export const __Array_prototype_slice = (_this: any[], start: number, end: number
   return out;
 };
 
-export const __Array_prototype_splice = (_this: any[], start: number, deleteCount: any, ...items: any[]) => {
+export const __Array_prototype_splice = (_this: any[], _start: any, _deleteCount: any, ...items: any[]) => {
   const len: i32 = _this.length;
 
-  start |= 0;
+  let start: i32 = ecma262.ToIntegerOrInfinity(_start);
   if (start < 0) {
     start = len + start;
     if (start < 0) start = 0;
   }
   if (start > len) start = len;
 
-  if (Porffor.rawType(deleteCount) == Porffor.TYPES.undefined) deleteCount = len - start;
-  deleteCount |= 0;
+  if (Porffor.rawType(_deleteCount) == Porffor.TYPES.undefined) _deleteCount = len - start;
+  let deleteCount: i32 = ecma262.ToIntegerOrInfinity(_deleteCount);
 
   if (deleteCount < 0) deleteCount = 0;
   if (deleteCount > len - start) deleteCount = len - start;
@@ -233,14 +233,14 @@ memory.copy 0 0`;
 };
 
 // @porf-typed-array
-export const __Array_prototype_fill = (_this: any[], value: any, start: any, end: any) => {
+export const __Array_prototype_fill = (_this: any[], value: any, _start: any, _end: any) => {
   const len: i32 = _this.length;
 
-  if (Porffor.rawType(start) == Porffor.TYPES.undefined) start = 0;
-  if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
+  if (Porffor.rawType(_start) == Porffor.TYPES.undefined) _start = 0;
+  if (Porffor.rawType(_end) == Porffor.TYPES.undefined) _end = len;
 
-  start |= 0;
-  end |= 0;
+  let start: i32 = ecma262.ToIntegerOrInfinity(_start);
+  let end: i32 = ecma262.ToIntegerOrInfinity(_end);
 
   if (start < 0) {
     start = len + start;
@@ -261,12 +261,15 @@ export const __Array_prototype_fill = (_this: any[], value: any, start: any, end
 };
 
 // @porf-typed-array
-export const __Array_prototype_indexOf = (_this: any[], searchElement: any, position: number) => {
+export const __Array_prototype_indexOf = (_this: any[], searchElement: any, _position: any) => {
   const len: i32 = _this.length;
-  if (position > 0) {
+  let position: i32 = ecma262.ToIntegerOrInfinity(_position);
+  if (position >= 0) {
     if (position > len) position = len;
-      else position |= 0;
-  } else position = 0;
+  } else {
+    position = len + position;
+    if (position < 0) position = 0;
+  }
 
   for (let i: i32 = position; i < len; i++) {
     if (_this[i] === searchElement) return i;
@@ -276,12 +279,15 @@ export const __Array_prototype_indexOf = (_this: any[], searchElement: any, posi
 };
 
 // @porf-typed-array
-export const __Array_prototype_lastIndexOf = (_this: any[], searchElement: any, position: number) => {
+export const __Array_prototype_lastIndexOf = (_this: any[], searchElement: any, _position: any) => {
   const len: i32 = _this.length;
-  if (position > 0) {
+  let position: i32 = ecma262.ToIntegerOrInfinity(_position);
+  if (position >= 0) {
     if (position > len) position = len;
-      else position |= 0;
-  } else position = 0;
+  } else {
+    position = len + position;
+    if (position < 0) position = 0;
+  }
 
   for (let i: i32 = len - 1; i >= position; i--) {
     if (_this[i] === searchElement) return i;
@@ -291,12 +297,15 @@ export const __Array_prototype_lastIndexOf = (_this: any[], searchElement: any, 
 };
 
 // @porf-typed-array
-export const __Array_prototype_includes = (_this: any[], searchElement: any, position: number) => {
+export const __Array_prototype_includes = (_this: any[], searchElement: any, _position: any) => {
   const len: i32 = _this.length;
-  if (position > 0) {
+  let position: i32 = ecma262.ToIntegerOrInfinity(_position);
+  if (position >= 0) {
     if (position > len) position = len;
-      else position |= 0;
-  } else position = 0;
+  } else {
+    position = len + position;
+    if (position < 0) position = 0;
+  }
 
   for (let i: i32 = position; i < len; i++) {
     if (_this[i] === searchElement) return true;
@@ -306,8 +315,10 @@ export const __Array_prototype_includes = (_this: any[], searchElement: any, pos
 };
 
 // @porf-typed-array
-export const __Array_prototype_with = (_this: any[], index: number, value: any) => {
+export const __Array_prototype_with = (_this: any[], _index: any, value: any) => {
   const len: i32 = _this.length;
+
+  let index: i32 = ecma262.ToIntegerOrInfinity(_index);
   if (index < 0) {
     index = len + index;
     if (index < 0) {
@@ -329,23 +340,28 @@ export const __Array_prototype_with = (_this: any[], index: number, value: any) 
 };
 
 // @porf-typed-array
-export const __Array_prototype_copyWithin = (_this: any[], target: number, start: number, end: any) => {
+export const __Array_prototype_copyWithin = (_this: any[], _target: any, _start: any, _end: any) => {
   const len: i32 = _this.length;
+
+  let target: i32 = ecma262.ToIntegerOrInfinity(_target);
   if (target < 0) {
     target = len + target;
     if (target < 0) target = 0;
   }
   if (target > len) target = len;
 
+  let start: i32 = ecma262.ToIntegerOrInfinity(_start);
   if (start < 0) {
     start = len + start;
     if (start < 0) start = 0;
   }
   if (start > len) start = len;
 
-  if (Porffor.rawType(end) == Porffor.TYPES.undefined) {
+  let end: i32;
+  if (Porffor.rawType(_end) == Porffor.TYPES.undefined) {
     end = len;
   } else {
+    end = ecma262.ToIntegerOrInfinity(_end);
     if (end < 0) {
       end = len + end;
       if (end < 0) end = 0;
@@ -680,21 +696,21 @@ export const __Array_prototype_toSorted = (_this: any[], callbackFn: any) => {
   return __Array_prototype_sort(out, callbackFn);
 };
 
-export const __Array_prototype_toSpliced = (_this: any[], start: number, deleteCount: any, ...items: any[]) => {
+export const __Array_prototype_toSpliced = (_this: any[], _start: any, _deleteCount: any, ...items: any[]) => {
   let out: any[] = Porffor.allocate();
   Porffor.clone(_this, out);
 
   const len: i32 = _this.length;
 
-  start |= 0;
+  let start: i32 = ecma262.ToIntegerOrInfinity(_start);
   if (start < 0) {
     start = len + start;
     if (start < 0) start = 0;
   }
   if (start > len) start = len;
 
-  if (Porffor.rawType(deleteCount) == Porffor.TYPES.undefined) deleteCount = len - start;
-  deleteCount |= 0;
+  if (Porffor.rawType(_deleteCount) == Porffor.TYPES.undefined) _deleteCount = len - start;
+  let deleteCount: i32 = ecma262.ToIntegerOrInfinity(_deleteCount);
 
   if (deleteCount < 0) deleteCount = 0;
   if (deleteCount > len - start) deleteCount = len - start;
@@ -765,8 +781,9 @@ memory.copy 0 0`;
 };
 
 
-export const __Array_prototype_flat = (_this: any[], depth: any) => {
-  if (Porffor.rawType(depth) == Porffor.TYPES.undefined) depth = 1;
+export const __Array_prototype_flat = (_this: any[], _depth: any) => {
+  if (Porffor.rawType(_depth) == Porffor.TYPES.undefined) _depth = 1;
+  let depth: i32 = ecma262.ToIntegerOrInfinity(_depth);
 
   let out: any[] = Porffor.allocate();
   if (depth <= 0) {
