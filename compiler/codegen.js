@@ -2015,7 +2015,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           getI32: () => RTArrayUtil.getLengthI32(getPointer),
           set: value => RTArrayUtil.setLength(getPointer, value),
           setI32: value => RTArrayUtil.setLengthI32(getPointer, value)
-        }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE), getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE), protoLocal, protoLocal2, (length, itemType) => {
+        }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()), getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()), protoLocal, protoLocal2, (length, itemType) => {
           return makeArray(scope, {
             rawElements: new Array(length)
           }, _global, _name, true, itemType, true);
@@ -2152,7 +2152,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         const minArgc = Prefs.indirectCallMinArgc ?? 3;
 
         if (args.length < minArgc) {
-          args = args.concat(new Array(minArgc - args.length).fill(DEFAULT_VALUE));
+          args = args.concat(new Array(minArgc - args.length).fill(DEFAULT_VALUE()));
         }
       }
 
@@ -2409,12 +2409,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   let args = [...decl.arguments];
   if (func && !func.hasRestArgument && args.length < paramCount) {
     // too little args, push undefineds
-    args = args.concat(new Array(paramCount - args.length).fill(DEFAULT_VALUE));
+    args = args.concat(new Array(paramCount - args.length).fill(DEFAULT_VALUE()));
   }
 
   if (func && func.hasRestArgument) {
     if (args.length < paramCount) {
-      args = args.concat(new Array(paramCount - 1 - args.length).fill(DEFAULT_VALUE));
+      args = args.concat(new Array(paramCount - 1 - args.length).fill(DEFAULT_VALUE()));
     }
 
     const restArgs = args.slice(paramCount - 1);
@@ -2506,10 +2506,10 @@ const generateThis = (scope, decl, _global, _name) => {
 }
 
 // bad hack for undefined and null working without additional logic
-const DEFAULT_VALUE = {
+const DEFAULT_VALUE = () => ({
   type: 'Identifier',
   name: 'undefined'
-};
+});
 
 const codeToSanitizedStr = code => {
   let out = '';
@@ -4242,7 +4242,7 @@ const generateThrow = (scope, decl) => {
       message = decl.argument.arguments[0];
     }
 
-    message ??= DEFAULT_VALUE;
+    message ??= DEFAULT_VALUE();
 
     if (tags.length === 0) tags.push({
       params: [ valtypeBinary, valtypeBinary, Valtype.i32 ],
@@ -4267,7 +4267,7 @@ const generateThrow = (scope, decl) => {
       message = decl.argument.arguments[0];
     }
 
-    message ??= DEFAULT_VALUE;
+    message ??= DEFAULT_VALUE();
 
     if (tags.length === 0) tags.push({
       params: [ Valtype.i32, valtypeBinary, Valtype.i32 ],
@@ -5349,7 +5349,7 @@ const internalConstrs = {
         rawElements: new Array(0)
       }, global, name, true, undefined, true, true);
 
-      const arg = decl.arguments[0] ?? DEFAULT_VALUE;
+      const arg = decl.arguments[0] ?? DEFAULT_VALUE();
 
       // todo: check in wasm instead of here
       const literalValue = arg.value ?? 0;
@@ -5425,7 +5425,7 @@ const internalConstrs = {
   Boolean: {
     generate: (scope, decl) => {
       // todo: boolean object when used as constructor
-      const arg = decl.arguments[0] ?? DEFAULT_VALUE;
+      const arg = decl.arguments[0] ?? DEFAULT_VALUE();
       return truthy(scope, generate(scope, arg), getNodeType(scope, arg), false, false, 'full');
     },
     type: TYPES.boolean,
