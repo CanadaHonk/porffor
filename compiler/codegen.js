@@ -1779,8 +1779,8 @@ const createNewTarget = (scope, decl, idx) => {
 
 const createThisArg = (scope, decl, getFunc, knownThis = undefined) => {
   if (knownThis) {
-    // todo: check complience
-    return knownThis
+    // todo: check compliance
+    return knownThis;
   }
 
   if (decl._new) {
@@ -2397,8 +2397,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (func && func.newTarget) {
-    paramOffset += 2;
     out.push(...createNewTarget(scope, decl, idx - importedFuncs.length));
+    paramOffset += 2;
   }
 
   if (func && func.usesThis) {
@@ -5286,10 +5286,9 @@ const generateFunc = (scope, decl) => {
     func.params = [...func.params];
     if (func.usesThis) {
       func.params.unshift(valtypeBinary, Valtype.i32);
-      idxOffset += 2
+      idxOffset += 2;
     }
     if (func.newTarget) {
-      // todo: if --boolean-new-target, we likely don't have to add the type arg
       func.params.unshift(valtypeBinary, Valtype.i32);
       idxOffset += 2;
     }
