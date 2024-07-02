@@ -2259,20 +2259,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           [ Opcodes.end ]
         ];
 
-        // pain.
-        // return checkFlag(0b10, [ // new.target
-        //   [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-        //   ...argsOut,
-        //   [ Opcodes.local_get, funcLocal ],
-        //   [ Opcodes.call_indirect, argc, 0, 'new_target' ],
-        //   ...setLastType(scope),
-        // ], [
-        //   ...argsOut,
-        //   [ Opcodes.local_get, funcLocal ],
-        //   [ Opcodes.call_indirect, argc, 0 ],
-        //   ...setLastType(scope),
-        // ]);
-
         // todo: i'm sure this could be made better somehow, probably only with #96?
         return checkFlag(0b1,
           // no type return
@@ -2409,11 +2395,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (decl._new && func && !func.constr) {
     return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
   }
-
-  // note: this shouldn't be needed? most parsers should check this
-  // if (!func.constr && func.newTarget) {
-  //   throw new SyntaxError("Meta-property 'new.target' is only allowed in the body of a function declaration, function expression, or constructor.")
-  // }
 
   if (func && func.newTarget) {
     paramOffset += 2;
