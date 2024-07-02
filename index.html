@@ -179,7 +179,7 @@
     }
 
     p {
-      font-size: 24px;
+      font-size: max(min(4vw, 24px), 18px);
       font-weight: 500;
       color: var(--text-muted);
 
@@ -193,6 +193,47 @@
       gap: 60px;
 
       margin-top: 40px;
+    }
+
+    @media (max-width: 1100px) {
+      .cards {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 500px) {
+      ul {
+        padding: 0 2ch;
+      }
+
+      #test262 > #graph {
+        display: none !important;
+      }
+
+      .bars + h2, select, select + span, input, #split, #output, #status {
+        display: none !important;
+      }
+
+      h2 span {
+        font-size: 0.5em;
+      }
+
+      article {
+        padding: 10px 30px;
+      }
+
+      header {
+        padding: 6px 12px;
+      }
+
+      header > h1 {
+        font-size: 24px;
+      }
+
+      header > div {
+        gap: 10px;
+        margin-left: 10px;
+      }
     }
 
     .columns {
@@ -470,7 +511,7 @@
     }
 
     .tagline {
-      font-size: 44px;
+      font-size: max(min(6vw, 44px), 24px);
     }
 
     .subtag {
