@@ -516,17 +516,17 @@ export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showH
 
   printStatic('{ ');
 
-  const keys = __Map_prototype_keys(obj);
+  const keys = __Object_keys(obj);
   const keysLen = keys.length - 1;
   for (let i = 0; i <= keysLen; i++) {
     const key = keys[i];
     __Porffor_consolePrint(key);
     printStatic(': ');
 
-    const value = __Map_prototype_get(obj, key);
+    const value = __Porffor_object_get(obj, key);
     __Porffor_dirObject(value, colors, depth - 1, showHidden);
 
-    if (i != keysLen) printStatic(',');
+    if (i != keysLen) printStatic(', ');
   }
 
   printStatic(' }');
