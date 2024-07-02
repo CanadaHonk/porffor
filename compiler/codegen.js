@@ -2270,13 +2270,13 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               ...createThisArg(scope, decl, [], knownThis),
               ...argsOut,
               [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'new_target', 'this' ],
+              [ Opcodes.call_indirect, argc + 2, 0, 'no_type_return' ],
             ], [
               // no type return & this
               ...createThisArg(scope, decl),
               ...argsOut,
               [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'this' ]
+              [ Opcodes.call_indirect, argc + 1, 0, 'no_type_return' ]
             ]),
             // no type return
             checkFlag(0b100, [
@@ -2284,7 +2284,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               ...createNewTarget(scope, decl),
               ...argsOut,
               [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc, 0, 'no_type_return', 'new_target' ],
+              [ Opcodes.call_indirect, argc + 1, 0, 'no_type_return' ],
             ], [
               // no type return
               ...argsOut,
@@ -2301,14 +2301,14 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               ...createThisArg(scope, decl, [], knownThis),
               ...argsOut,
               [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc, 0, 'new_target', 'this' ],
+              [ Opcodes.call_indirect, argc + 2, 0 ],
               ...setLastType(scope),
             ], [
               // type return & this
               ...createThisArg(scope, decl),
               ...argsOut,
               [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc, 0, 'this' ],
+              [ Opcodes.call_indirect, argc + 1, 0 ],
               ...setLastType(scope),
             ]),
             // type return
@@ -2317,7 +2317,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               ...createNewTarget(scope, decl),
               ...argsOut,
               [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc, 0, 'new_target' ],
+              [ Opcodes.call_indirect, argc + 1, 0 ],
               ...setLastType(scope),
             ], [
               // type return

@@ -114,16 +114,6 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
           params.push(valtypeBinary, Valtype.i32);
         }
 
-        if (inst.at(-1) === 'this') {
-          inst.pop();
-          params.unshift(valtypeBinary, Valtype.i32);
-        }
-
-        if (inst.at(-1) === 'new_target') {
-          inst.pop();
-          params.unshift(valtypeBinary, Valtype.i32);
-        }
-
         let returns = [ valtypeBinary, Valtype.i32 ];
         if (inst.at(-1) === 'no_type_return') {
           inst.pop();
