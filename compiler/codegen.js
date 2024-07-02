@@ -1598,7 +1598,6 @@ const getNodeType = (scope, node) => {
     if (node.type == 'MetaProperty') {
       switch (`${node.meta.name}.${node.property.name}`) {
         case 'new.target': {
-          if (Prefs.booleanNewTarget) return TYPES.boolean;
           return [ [ Opcodes.local_get, '#newtarget#type' ] ];
         }
 
@@ -1765,13 +1764,6 @@ const RTArrayUtil = {
 };
 
 const createNewTarget = (scope, decl, idx) => {
-  if (Prefs.booleanNewTarget) {
-    return [
-      ...number(decl._new ? 1 : 0),
-      ...number(TYPES.boolean, Valtype.i32)
-    ];
-  }
-
   if (decl._new) {
     return [
       ...number(idx),
