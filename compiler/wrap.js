@@ -26,7 +26,7 @@ export const readByteStr = (memory, ptr) => {
 export const writeByteStr = (memory, ptr, str) => {
   const length = str.length;
 
-  if (dv.memory !== memory) dv = new DataView(memory.buffer);
+  if (dv?.memory !== memory) dv = new DataView(memory.buffer);
   dv.setUint32(ptr, length, true);
 
   const arr = read(Uint8Array, memory, ptr + 4, length);
