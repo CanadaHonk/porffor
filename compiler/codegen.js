@@ -354,22 +354,34 @@ const generateIdent = (scope, decl) => {
 };
 
 const generateReturn = (scope, decl) => {
-  if (decl.argument === null) {
-    // just bare "return"
-    return [
-      ...number(UNDEFINED), // "undefined" if func returns
-      ...(scope.returnType != null ? [] : [
-        ...number(TYPES.undefined, Valtype.i32) // type undefined
-      ]),
-      [ Opcodes.return ]
-    ];
+  const arg = decl.argument ?? DEFAULT_VALUE();
+
+  const out = [];
+  if (
+    scope.constr && // only do this in constructors
+    scope.newTarget && scope.usesThis && // sanity check
+    !globalThis.precompile // skip in precompiled built-ins, we should not require this and handle it ourselves
+  ) {
+    // ignore return value and return this if being constructed
+    out.push(
+      // ...truthy(scope, [ [ Opcodes.local_get, '#newtarget' ] ], [ [ Opcodes.local_get, '#newtarget#type' ] ], false, true),
+      [ Opcodes.local_get, '#newtarget' ],
+      Opcodes.i32_to_u,
+      [ Opcodes.if, Blocktype.void ],
+        [ Opcodes.local_get, '#this' ],
+        ...(scope.returnType != null ? [] : [ [ Opcodes.local_get, '#this#type' ] ]),
+        [ Opcodes.return ],
+      [ Opcodes.end ]
+    );
   }
 
-  return [
-    ...generate(scope, decl.argument),
-    ...(scope.returnType != null ? [] : getNodeType(scope, decl.argument)),
+  out.push(
+    ...generate(scope, arg),
+    ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
     [ Opcodes.return ]
-  ];
+  );
+
+  return out;
 };
 
 const localTmp = (scope, name, type = valtypeBinary) => {
@@ -5175,7 +5187,7 @@ const generateFunc = (scope, decl) => {
     throws: false,
     name,
     index: currentFuncIndex++,
-    constr: decl.type && decl.type != 'ArrowFunctionExpression' && decl.type != 'Program'
+    constr: decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program'
   };
 
   funcIndex[name] = func.index;
@@ -5260,24 +5272,7 @@ const generateFunc = (scope, decl) => {
 
   // add end return if not found
   if (name !== 'main' && wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
-    if (func.constr) {
-      // todo: this should also check on every return of a primitive in order to return this
-
-      // if function can be called with new, we need to make sure it is correct
-      wasm.push(
-        ...truthy(func, [ [ Opcodes.local_get, '#newtarget' ] ], [ [ Opcodes.local_get, '#newtarget#type' ] ], false, true),
-        [ Opcodes.if, Blocktype.void ],
-          [ Opcodes.local_get, '#this' ],
-          ...(func.returnType != null ? [] : [ [ Opcodes.local_get, '#this#type' ] ]),
-          [ Opcodes.return ],
-        [ Opcodes.end ]
-      );
-    }
-    wasm.push(
-      ...number(UNDEFINED),
-      ...(func.returnType != null ? [] : number(TYPES.undefined, Valtype.i32)),
-      [ Opcodes.return ]
-    );
+    wasm.push(...generateReturn(func, {}));
   }
 
   if (func.newTarget || func.usesThis) {
@@ -5316,7 +5311,7 @@ const generateFunc = (scope, decl) => {
       if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) {
         if (typeof inst[1] == 'string') {
           wasm[i] = [ inst[0], locals[inst[1]].idx ];
-          } else {
+        } else {
           wasm[i] = [ inst[0], inst[1] + idxOffset ];
         }
       }
