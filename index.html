@@ -13,24 +13,11 @@
 
   <link rel="icon" type="image/png" href="logo.png">
 
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+
   <style>
-    @font-face {
-      font-family: Whitney;
-      font-style: normal;
-      font-weight: 400;
-      src: url(https://capybara.openasar.dev/whitney.woff2) format("woff2")
-    }
-
-    @font-face {
-      font-family: Ginto;
-      font-style: normal;
-      font-weight: 500;
-      src: url(https://capybara.openasar.dev/ginto.woff2) format("woff2")
-    }
-
     :root {
-      --font-normal: Whitney, "Helvetica Neue", Helvetica, Arial, sans-serif;
-      --font-header: Ginto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-family: Inter, sans-serif;
       --font-mono: Consolas, "Andale Mono WT", "Andale Mono", "Lucida Console", "Lucida Sans Typewriter", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation Mono", "Nimbus Mono L", Monaco, "Courier New", Courier, monospace;
 
       --header-primary: #ffffff;
@@ -51,6 +38,12 @@
       --background-header: 0, 4, 8;
     }
 
+    @supports (font-variation-settings: normal) {
+      :root {
+        font-family: Inter var, sans-serif;
+      }
+    }
+
     html, body {
       margin: 0;
       padding: 0;
@@ -65,8 +58,7 @@
     }
 
     h1 {
-      font-weight: 500;
-      font-family: var(--font-header);
+      font-weight: 800;
       font-size: 32px;
 
       color: var(--header-primary);
@@ -75,8 +67,7 @@
     }
 
     h2 {
-      font-weight: 500;
-      font-family: var(--font-header);
+      font-weight: 700;
       font-size: 28px;
 
       color: var(--header-primary);
@@ -93,7 +84,6 @@
 
     h2 > :last-child {
       color: var(--text-muted);
-      font-family: var(--font-normal);
       font-weight: normal;
       font-size: 18px;
       margin-left: 60px;
@@ -141,8 +131,7 @@
       color: var(--text-normal);
       text-decoration: none;
 
-      font-weight: 500;
-      font-family: var(--font-header);
+      font-weight: 700;
       font-size: 24px;
 
       transition: .5s color;
@@ -189,12 +178,9 @@
       margin: auto;
     }
 
-    .tagline {
-    }
-
     p {
-      font-size: 18px;
-      font-family: var(--font-normal);
+      font-size: 22px;
+      font-weight: 500;
       color: var(--text-muted);
 
       margin-bottom: 20px;
@@ -204,10 +190,9 @@
     .cards {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 80px;
+      gap: 60px;
 
-      margin-top: 12px;
-      margin-bottom: 60px;
+      margin-top: 40px;
     }
 
     .columns {
@@ -216,8 +201,8 @@
 
     .cards > div {
       background: var(--background-secondary);
-      box-shadow: 0 8px 16px rgb(0 0 0 / 24%);
-      padding: 16px;
+      box-shadow: 0 6px 12px rgb(0 0 0 / 24%);
+      padding: 20px;
 
       display: flex;
 
@@ -226,19 +211,8 @@
       flex-direction: column;
     }
 
-    .cards > div svg {
-      width: 32px;
-      height: 32px;
-    }
-
-    .cards > div svg.stroke path {
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 6px;
-    }
-
     .cards > div > h1 {
-      font-family: var(--font-header);
+      font-weight: 700;
       color: var(--header-primary);
 
       display: flex;
@@ -248,17 +222,30 @@
     }
 
     .cards > div > p {
-      font-family: var(--font-normal);
       color: var(--text-normal);
-      font-size: 22px;
+      font-weight: 500;
+      font-size: 20px;
 
       margin-top: 12px;
       margin-bottom: 10px;
     }
 
+    .cards > div > ul {
+      color: var(--text-normal);
+      font-weight: 500;
+      font-size: 20px;
+
+      margin-top: 10px;
+      margin-bottom: 0px;
+    }
+
+    .cards li {
+      margin-bottom: 10px;
+    }
+
     .cards > span {
       color: var(--text-muted);
-      font-family: var(--font-header);
+      font-weight: 500;
       font-size: 28px;
 
       display: flex;
@@ -266,60 +253,61 @@
       justify-content: center;
     }
 
-    .stats {
+    .bars {
+      margin-top: 60px;
+      margin-bottom: 100px;
+
       display: flex;
       flex-direction: column;
-      align-self: center;
-    }
+      gap: 12px;
 
-    .stats > h2 {
-      margin: 0;
-      color: var(--text-normal);
-      font-weight: 400;
-
-      display: flex;
+      width: 100%;
       align-items: center;
     }
 
-    .stats > h2:not(:last-child) {
-      margin-bottom: 40px;
+    .bars > p {
+      font-size: 0.9em;
+      font-weight: 400;
     }
 
-    .stats span {
-      font-weight: 600;
-      color: var(--accent-light);
-    }
-
-    .stats svg {
-      width: 32px;
-      height: 32px;
-      margin-right: 12px;
-    }
-
-    header .stats svg {
-      width: 24px;
-      height: 24px;
-      margin-right: 8px;
-    }
-
-    .stats [id^="stat_"] {
-      margin: 0 8px;
-    }
-
-    /* .stats::before {
-      content: '';
+    .bars > div {
+      display: flex;
+      align-items: center;
       width: 80%;
-      height: 2px;
-      background: var(--background-secondary);
-      margin: auto;
-
-      position: relative;
-      top: -4vw;
     }
 
-    article > :nth-last-child(2) {
-      margin-bottom: 4vw;
-    } */
+    .bars > div > :first-child {
+      color: var(--header-primary);
+      font-weight: 500;
+      font-size: 18px;
+      text-align: right;
+
+      width: 6ch;
+      margin-right: 20px;
+    }
+
+    .bars > div > div {
+      background: var(--background-secondary);
+      width: calc((var(--time) / 75) * 100%);
+      height: 1.2rem;
+    }
+
+    @keyframes fill {
+      0% { width: 0%; }
+      100% { width: 100%; }
+    }
+
+    .bars > div > div > div {
+      background: var(--color);
+      height: 100%;
+      animation: calc(var(--time) * 0.1s) linear fill;
+    }
+
+    .bars > div > :last-child {
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-left: 8px;
+    }
 
     a {
       color: var(--accent-light);
@@ -354,7 +342,6 @@
     table {
       background: #202428;
       color: var(--header-primary);
-      font-family: var(--font-header);
 
       border-collapse: collapse;
       table-layout: fixed;
@@ -452,16 +439,12 @@
 
     ul, ol {
       margin-top: 0px;
-      margin-bottom: 16px;
-
-      color: var(--text-muted);
-      font-family: var(--font-normal);
-      font-size: 20px;
+      margin-bottom: 0px;
     }
 
     code {
       font-family: var(--font-mono);
-      font-size: 80%;
+      font-size: 0.9em;
       color: var(--text-muted);
     }
 
@@ -487,7 +470,7 @@
     }
 
     .tagline {
-      font-size: 32px;
+      font-size: 40px;
     }
 
     .subtag {
@@ -616,7 +599,6 @@
       display: inline-block;
 
       color: var(--text-normal);
-      font-family: var(--font-normal);
       font-size: 16px;
       background: var(--background-secondary);
       border: none;
@@ -626,7 +608,6 @@
 
     article {
       color: var(--text-muted);
-      font-family: var(--font-normal);
     }
 
     #valtype_dropdown, #opt_dropdown, #parser_dropdown, #target_dropdown {
@@ -636,7 +617,6 @@
       display: inline-block;
 
       color: var(--text-normal);
-      font-family: var(--font-normal);
       font-size: 14px;
       background: var(--background-secondary);
       border: none;
@@ -676,13 +656,11 @@
 
     #commit_log > div > :first-child {
       font-size: 18px;
-      font-weight: 500;
       color: var(--text-normal);
     }
 
     #commit_log > div > :last-child {
       font-size: 18px;
-      font-weight: 500;
 
       color: #57F287;
 
@@ -827,12 +805,64 @@
   </header>
 
   <article>
-    <h1 class="tagline">A from-scratch experimental ahead-of-time JS engine, written in JS</h1>
-    <p>Porffor is a unique JS engine/compiler/runtime, compiling given JS code to Wasm ahead-of-time. It can also compile to native binaries, and more. It is seriously limited, but what it can do, it does pretty well. Written from scratch except parser.</p>
+    <h1 class="tagline">A from-scratch experimental ahead-of-time JS engine</h1>
+    <p>Porffor is a unique JS engine/compiler/runtime, compiling JS code to WebAssembly or native ahead-of-time.</p>
 
+    <section class="cards">
+      <div>
+        <h1>Wasm compilation</h1>
+        <p>Porffor's WebAssembly output is much faster and smaller compared to existing JS -> Wasm projects. This is because Porffor compiles JS AOT instead of bundling an interpreter.</p>
+        <ul>
+          <li>Wasm size: <b>32x smaller</b> than Javy (~1.3MB -> ~40KB)</li>
+          <li>Wasm perf: <b>18x faster</b> than Javy (~70m -> ~4m)</li>
+        </ul>
+      </div>
+
+      <div>
+        <h1>Native compilation</h1>
+        <p>Due to compiling JS ahead-of-time, Porffor can compile to real native binaries without just packaging a runtime like existing solutions. This leads to:</p>
+        <ul>
+          <li>Binary sizes <b>over 1000x smaller</b> (~90MB -> &lt;50KB)</li>
+          <li>Memory usage <b>over 40x less</b> (~50MB -> ~1MB)</li>
+          <li>Performance <b>1.5-3x faster</b></li>
+        </ul>
+      </div>
+
+      <div>
+        <h1>Plus...</h1>
+        <p><b>Porffor is safe</b> as it compiles to Wasm (and then native). It is also written in a memory safe language (JS).</p>
+        <p><b>Porffor is written from the ground-up</b> with AOT in mind instead of being based on any existing JS engine. The only dependency is a JS parser.</p>
+      </div>
+    </section>
+
+    <section class="bars">
+      <div>
+        <span>Porffor</span>
+        <div style="--time: 22; --color: var(--accent-light)"><div></div></div>
+        <span>22s</span>
+      </div>
+
+      <div>
+        <span>Bun</span>
+        <div style="--time: 43; --color: #fbf0df"><div></div></div>
+        <span>43s</span>
+      </div>
+
+      <div>
+        <span>Node</span>
+        <div style="--time: 67; --color: #68bc4a"><div></div></div>
+        <span>67s</span>
+      </div>
+
+      <p>
+        Execution time for a benchmark (running a BF interpreter running <code>mandelbrot.bf</code>). Porffor ran using native compilation.
+      </p>
+    </section>
+
+    <h2>Playground <span>You can try Porffor here online or locally with <code>npm i -g porffor@latest && porf</code></span></h2>
     <select id="examples_dropdown"></select>
     <!-- Valtype <select id="valtype_dropdown"></select> -->
-    <span title="Optimization level">-O</span> <select id="opt_dropdown"></select>
+    <!-- <span title="Optimization level">-O</span> <select id="opt_dropdown"></select> -->
     <span title="JS parser to use">Parser</span> <select id="parser_dropdown"></select>
     <span title="Experimental!">Target</span> <select id="target_dropdown"></select>
     <input type="text" placeholder="Extra arguments" id="args">
@@ -959,7 +989,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
     }
 
     // addOptions(valtype_dropdown, [ 'i32', 'i64', 'f64' ], 'f64');
-    addOptions(opt_dropdown, [ 0, 1, 2, 3 ], 1);
+    // addOptions(opt_dropdown, [ 0, 1, 2, 3 ], 1);
     addOptions(parser_dropdown, ['acorn', 'meriyah', 'hermes-parser', '@babel/parser'], 'acorn');
     addOptions(target_dropdown, ['wasm', 'c'], 'wasm');
 
@@ -970,7 +1000,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
     };
 
     // valtype_dropdown.oninput = opt_dropdown.oninput = parser_dropdown.oninput = target_dropdown.oninput = () => comp();
-    opt_dropdown.oninput = target_dropdown.oninput = () => comp();
+    // opt_dropdown.oninput = target_dropdown.oninput = () => comp();
 
     parser_dropdown.oninput = async () => {
       setProcess();
@@ -998,7 +1028,8 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
     const setProcess = () => {
       globalThis.process = {
-        argv: ['', '', ...args.value.split(' '), `-O${opt_dropdown.value}`, `--parser=${parser_dropdown.value}`, `--target=${target_dropdown.value}`]
+        // argv: ['', '', ...args.value.split(' '), `-O${opt_dropdown.value}`, `--parser=${parser_dropdown.value}`, `--target=${target_dropdown.value}`]
+        argv: ['', '', ...args.value.split(' '), `--parser=${parser_dropdown.value}`, `--target=${target_dropdown.value}`]
       };
     };
 
