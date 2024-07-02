@@ -108,10 +108,10 @@ export default (code, flags) => {
 
   if (Prefs.profileCompiler) console.log(`3. optimized in ${(performance.now() - t2).toFixed(2)}ms`);
 
-  const out = { funcs, globals, tags, exceptions, pages, data };
+  const t3 = performance.now();
+  const out = { funcs, globals, tags, exceptions, pages, data, times: [ t0, t1, t2, t3 ] };
   if (globalThis.precompile) return out;
 
-  const t3 = performance.now();
   const wasm = out.wasm = assemble(funcs, globals, tags, pages, data, flags);
   if (Prefs.profileCompiler) console.log(`4. assembled in ${(performance.now() - t3).toFixed(2)}ms`);
 
