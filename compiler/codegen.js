@@ -1772,10 +1772,10 @@ const RTArrayUtil = {
   ]
 };
 
-const createNewTarget = (scope, decl, idx) => {
+const createNewTarget = (scope, decl, idx = 0) => {
   if (decl._new) {
     return [
-      ...number(idx),
+      ...(typeof idx === 'number' ? number(idx) : idx),
       ...number(TYPES.function, Valtype.i32)
     ];
   }
@@ -1786,7 +1786,7 @@ const createNewTarget = (scope, decl, idx) => {
   ];
 };
 
-const createThisArg = (scope, decl, getFunc, knownThis = undefined) => {
+const createThisArg = (scope, decl, knownThis = undefined) => {
   if (knownThis) {
     // todo: check compliance
     return knownThis;
@@ -2248,6 +2248,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ];
       }
 
+      const newTargetWasm = decl._newTargetWasm ?? createNewTarget(scope, decl, [
+        [ Opcodes.local_get, funcLocal ],
+        Opcodes.i32_from_u
+      ]);
+      const thisWasm = decl._thisWasm ?? createThisArg(scope, decl, knownThis);
+
       const gen = argc => {
         const argsOut = [];
         for (let i = 0; i < argc; i++) {
@@ -2273,8 +2279,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           // no type return
           checkFlag(0b10, [
             // no type return & constr
-            ...createNewTarget(scope, decl),
-            ...createThisArg(scope, decl, [], knownThis),
+            ...newTargetWasm,
+            ...thisWasm,
             ...argsOut,
             [ Opcodes.local_get, funcLocal ],
             [ Opcodes.call_indirect, argc + 2, 0, 'no_type_return' ],
@@ -2288,8 +2294,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           // type return
           checkFlag(0b10, [
             // type return & constr
-            ...createNewTarget(scope, decl),
-            ...createThisArg(scope, decl, [], knownThis),
+            ...newTargetWasm,
+            ...thisWasm,
             ...argsOut,
             [ Opcodes.local_get, funcLocal ],
             [ Opcodes.call_indirect, argc + 2, 0 ],
@@ -2371,8 +2377,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (func && func.constr) {
-    out.push(...createNewTarget(scope, decl, idx - importedFuncs.length));
-    out.push(...createThisArg(scope, decl, func));
+    out.push(...(decl._newTargetWasm ?? createNewTarget(scope, decl, idx - importedFuncs.length)));
+    out.push(...(decl._thisWasm ?? createThisArg(scope, decl)));
     paramOffset += 4;
   }
 
