@@ -205,6 +205,12 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
             let inst = Opcodes[asm[0].replace('.', '_')];
             if (inst == null) throw new Error(`inline asm: inst ${asm[0]} not found`);
+
+            if ((inst === Opcodes.local_get || inst === Opcodes.local_set || inst === Opcodes.local_tee) && asm[1] === "this") {
+              out.push([ inst, '#this' ]);
+              continue;
+            }
+
             if (!Array.isArray(inst)) inst = [ inst ];
 
             const immediates = asm.slice(1).map(x => {
@@ -246,7 +252,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         if (!e.name) {
           if (e.type === 'BinaryExpression' && e.operator === '+' && e.left.type === 'Identifier' && e.right.type === 'Literal') {
             str += lookupName(scope, e.left.name)[0].idx + e.right.value;
-          } else todo(scope, 'unsupported expression in intrinsic');
+          } else if (e.type == 'ThisExpression') {
+            str += 'this';
+          } else todo(scope, 'unsupported expression in intrinsic')
         } else str += lookupName(scope, e.name)[0].idx;
 
         str += quasis[i + 1].value.raw;
