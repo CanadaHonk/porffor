@@ -1962,6 +1962,17 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       ];
     }
 
+    if (protoName == "call" && globalThis.precompile) {
+      // hack: .call for functions, only allowed in precompile right now as this is so hacky
+      return generateCall(scope, {
+        callee: target,
+        arguments: [
+          ...decl.arguments
+        ],
+        _call: true
+      })
+    }
+
     const protoBC = {};
     const builtinProtoCands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + protoName));
 
@@ -1991,7 +2002,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
             ...decl.arguments
           ],
-          _protoInternalCall: true
+          _protoInternalCall: true,
+          _call: true
         });
       }
     }
@@ -2397,8 +2409,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (func && func.constr) {
     out.push(...(decl._newTargetWasm ?? createNewTarget(scope, decl, idx - importedFuncs.length, func.params[0])));
     paramOffset += 2;
-    out.push(...(decl._thisWasm ?? createThisArg(scope, decl, undefined, func.params[0])));
-    paramOffset += 2;
+    if (!decl._call) {
+      out.push(...(decl._thisWasm ?? createThisArg(scope, decl, undefined, func.params[0])));
+      paramOffset += 2;
+    } else {
+      paramCount++;
+    }
   }
 
   let args = [...decl.arguments];
