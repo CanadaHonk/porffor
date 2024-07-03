@@ -1,17 +1,17 @@
 import type {} from './porffor.d.ts';
 
-export const __Map_prototype_size$get = (_this: Map) => {
-  return Porffor.wasm.i32.load(Porffor.wasm.i32.load(_this, 0, 0), 0, 0);
+export function __Map_prototype_size$get() {
+  return Porffor.wasm.i32.load(Porffor.wasm.i32.load(this, 0, 0), 0, 0);
 };
 
-export const __Map_prototype_has = (_this: Map, key: any) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-  return __Set_prototype_has(keys, key);
+export function __Map_prototype_has(key: any) {
+  const keys: Set = Porffor.wasm.i32.load(this, 0, 0);
+  return __Set_prototype_has.call(keys, key);
 };
 
-export const __Map_prototype_get = (_this: Map, key: any) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-  const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
+export function __Map_prototype_get(key: any) {
+  const keys: Set = Porffor.wasm.i32.load(this, 0, 0);
+  const vals: any[] = Porffor.wasm.i32.load(this, 0, 4);
 
   const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
 
@@ -22,16 +22,16 @@ export const __Map_prototype_get = (_this: Map, key: any) => {
   return undefined;
 };
 
-export const __Map_prototype_set = (_this: Map, key: any, value: any) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-  const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
+export function __Map_prototype_set(value: any) {
+  const keys: Set = Porffor.wasm.i32.load(this, 0, 0);
+  const vals: any[] = Porffor.wasm.i32.load(this, 0, 4);
 
   const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
 
   for (let i: i32 = 0; i < size; i++) {
     if (Porffor.set.read(keys, i) === key) {
       vals[i] = value;
-      return _this;
+      return this;
     }
   }
 
@@ -45,19 +45,19 @@ export const __Map_prototype_set = (_this: Map, key: any, value: any) => {
   // write new value at end
   vals[size] = value;
 
-  return _this;
+  return this;
 };
 
-export const __Map_prototype_delete = (_this: Map, key: any) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-  const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
+export function __Map_prototype_delete(key: any) {
+  const keys: Set = Porffor.wasm.i32.load(this, 0, 0);
+  const vals: any[] = Porffor.wasm.i32.load(this, 0, 4);
 
   const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
 
   for (let i: i32 = 0; i < size; i++) {
     if (Porffor.set.read(keys, i) === key) {
-      __Set_prototype_delete(keys, key);
-      __Array_prototype_splice(vals, i, 1);
+      __Set_prototype_delete.call(keys, key);
+      __Array_prototype_splice.call(vals, i, 1);
 
       return true;
     }
@@ -66,23 +66,23 @@ export const __Map_prototype_delete = (_this: Map, key: any) => {
   return false;
 };
 
-export const __Map_prototype_clear = (_this: Map) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-  __Set_prototype_clear(keys);
+export function __Map_prototype_clear() {
+  const keys: Set = Porffor.wasm.i32.load(this, 0, 0);
+  __Set_prototype_clear.call(keys);
 
-  const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
+  const vals: any[] = Porffor.wasm.i32.load(this, 0, 4);
   vals.length = 0;
 };
 
-export const __Map_prototype_forEach = (_this: Map, callbackFn: any) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-  const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
+export function __Map_prototype_forEach(callbackFn: any) {
+  const keys: Set = Porffor.wasm.i32.load(this, 0, 0);
+  const vals: any[] = Porffor.wasm.i32.load(this, 0, 4);
 
   const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
 
   let i: i32 = 0;
   while (i < size) {
-    callbackFn(vals[i], Porffor.set.read(keys, i++), _this);
+    callbackFn(vals[i], Porffor.set.read(keys, i++), this);
   }
 };
 
@@ -99,14 +99,14 @@ export const Map = function (iterable: any): Map {
 
   if (iterable != null) for (const x of iterable) {
     if (!Porffor.object.isObject(x)) throw new TypeError('Iterator contains non-object');
-    __Map_prototype_set(out, x[0], x[1]);
+    __Map_prototype_set.call(out, x[0], x[1]);
   }
 
   return out;
 };
 
-export const __Map_prototype_keys = (_this: Map) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
+export function __Map_prototype_keys() {
+  const keys: Set = Porffor.wasm.i32.load(this, 0, 0);
   const out: any[] = Porffor.allocate();
 
   for (const x of keys) {
@@ -116,9 +116,9 @@ export const __Map_prototype_keys = (_this: Map) => {
   return out;
 };
 
-export const __Map_prototype_values = (_this: Map) => {
-  const size: i32 = Porffor.wasm.i32.load(Porffor.wasm.i32.load(_this, 0, 0), 0, 0);
-  const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
+export function __Map_prototype_values() {
+  const size: i32 = Porffor.wasm.i32.load(Porffor.wasm.i32.load(this, 0, 0), 0, 0);
+  const vals: any[] = Porffor.wasm.i32.load(this, 0, 4);
   const out: any[] = Porffor.allocate();
 
   for (let i: i32 = 0; i < size; i++) {
@@ -128,9 +128,11 @@ export const __Map_prototype_values = (_this: Map) => {
   return out;
 };
 
-export const __Map_prototype_toString = (_this: Map) => {
+export function __Map_prototype_toString() {
   const str: bytestring = '[object Map]';
   return str;
 }
 
-export const __Map_prototype_toLocaleString = (_this: Map) => __Map_prototype_toString(_this);
+export function __Map_prototype_toLocaleString() {
+  return __Map_prototype_toString.call(this);
+}

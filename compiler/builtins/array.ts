@@ -43,25 +43,25 @@ export const __Porffor_fastPush = (_this: any[], el: any) => {
   return len;
 };
 
-export const __Array_prototype_push = (_this: any[], ...items: any[]) => {
-  let len: i32 = _this.length;
+export function __Array_prototype_push(...items: any[]) {
+  let len: i32 = this.length;
   const itemsLen: i32 = items.length;
 
   for (let i: i32 = 0; i < itemsLen; i++) {
-    _this[i + len] = items[i];
+    this[i + len] = items[i];
   }
 
-  return _this.length = len + itemsLen;
+  return this.length = len + itemsLen;
 };
 
-export const __Array_prototype_unshift = (_this: any[], ...items: any[]) => {
-  let len: i32 = _this.length;
+export function __Array_prototype_unshift(...items: any[]) {
+  let len: i32 = this.length;
   const itemsLen: i32 = items.length;
 
   // use memory.copy to move existing elements right
-  Porffor.wasm`;; ptr = ptr(_this) + 4
+  Porffor.wasm`;; ptr = ptr(this) + 4
 local #splice_ptr i32
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.const 4
 i32.add
@@ -88,14 +88,14 @@ memory.copy 0 0`;
 
   // write to now empty elements
   for (let i: i32 = 0; i < itemsLen; i++) {
-    _this[i] = items[i];
+    this[i] = items[i];
   }
 
-  return _this.length = len + itemsLen;
+  return this.length = len + itemsLen;
 };
 
-export const __Array_prototype_slice = (_this: any[], _start: any, _end: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_slice(_start: any, _end: any) {
+  const len: i32 = this.length;
   if (Porffor.rawType(_end) == Porffor.TYPES.undefined) _end = len;
 
   let start: i32 = ecma262.ToIntegerOrInfinity(_start);
@@ -117,7 +117,7 @@ export const __Array_prototype_slice = (_this: any[], _start: any, _end: any) =>
   if (start > end) return out;
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
-  let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
+  let thisPtr: i32 = Porffor.wasm`local.get ${this}`;
 
   const thisPtrEnd: i32 = thisPtr + end * 9;
 
@@ -135,8 +135,8 @@ export const __Array_prototype_slice = (_this: any[], _start: any, _end: any) =>
   return out;
 };
 
-export const __Array_prototype_splice = (_this: any[], _start: any, _deleteCount: any, ...items: any[]) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_splice(_start: any, _deleteCount: any, ...items: any[]) {
+  const len: i32 = this.length;
 
   let start: i32 = ecma262.ToIntegerOrInfinity(_start);
   if (start < 0) {
@@ -156,7 +156,7 @@ export const __Array_prototype_splice = (_this: any[], _start: any, _deleteCount
   out.length = deleteCount;
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
-  let thisPtr: i32 = Porffor.wasm`local.get ${_this}` + start * 9;
+  let thisPtr: i32 = Porffor.wasm`local.get ${this}` + start * 9;
   let thisPtrEnd: i32 = thisPtr + deleteCount * 9;
 
   while (thisPtr < thisPtrEnd) {
@@ -169,12 +169,12 @@ export const __Array_prototype_splice = (_this: any[], _start: any, _deleteCount
 
   // update this length
   const itemsLen: i32 = items.length;
-  _this.length = len - deleteCount + itemsLen;
+  this.length = len - deleteCount + itemsLen;
 
   // remove deleted values via memory.copy shifting values in mem
-  Porffor.wasm`;; ptr = ptr(_this) + 4 + (start * 9)
+  Porffor.wasm`;; ptr = ptr(this) + 4 + (start * 9)
 local #splice_ptr i32
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.const 4
 i32.add
@@ -217,7 +217,7 @@ memory.copy 0 0`;
 
   if (itemsLen > 0) {
     let itemsPtr: i32 = Porffor.wasm`local.get ${items}`;
-    thisPtr = Porffor.wasm`local.get ${_this}` + start * 9;
+    thisPtr = Porffor.wasm`local.get ${this}` + start * 9;
     thisPtrEnd = thisPtr + itemsLen * 9;
 
     while (thisPtr < thisPtrEnd) {
@@ -233,8 +233,8 @@ memory.copy 0 0`;
 };
 
 // @porf-typed-array
-export const __Array_prototype_fill = (_this: any[], value: any, _start: any, _end: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_fill(value: any, _start: any, _end: any) {
+  const len: i32 = this.length;
 
   if (Porffor.rawType(_start) == Porffor.TYPES.undefined) _start = 0;
   if (Porffor.rawType(_end) == Porffor.TYPES.undefined) _end = len;
@@ -254,15 +254,15 @@ export const __Array_prototype_fill = (_this: any[], value: any, _start: any, _e
   if (end > len) end = len;
 
   for (let i: i32 = start; i < end; i++) {
-    _this[i] = value;
+    this[i] = value;
   }
 
-  return _this;
+  return this;
 };
 
 // @porf-typed-array
-export const __Array_prototype_indexOf = (_this: any[], searchElement: any, _position: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_indexOf(searchElement: any, _position: any) {
+  const len: i32 = this.length;
   let position: i32 = ecma262.ToIntegerOrInfinity(_position);
   if (position >= 0) {
     if (position > len) position = len;
@@ -272,15 +272,15 @@ export const __Array_prototype_indexOf = (_this: any[], searchElement: any, _pos
   }
 
   for (let i: i32 = position; i < len; i++) {
-    if (_this[i] === searchElement) return i;
+    if (this[i] === searchElement) return i;
   }
 
   return -1;
 };
 
 // @porf-typed-array
-export const __Array_prototype_lastIndexOf = (_this: any[], searchElement: any, _position: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_lastIndexOf(searchElement: any, _position: any) {
+  const len: i32 = this.length;
   let position: i32 = ecma262.ToIntegerOrInfinity(_position);
   if (position >= 0) {
     if (position > len) position = len;
@@ -290,15 +290,15 @@ export const __Array_prototype_lastIndexOf = (_this: any[], searchElement: any, 
   }
 
   for (let i: i32 = len - 1; i >= position; i--) {
-    if (_this[i] === searchElement) return i;
+    if (this[i] === searchElement) return i;
   }
 
   return -1;
 };
 
 // @porf-typed-array
-export const __Array_prototype_includes = (_this: any[], searchElement: any, _position: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_includes(searchElement: any, _position: any) {
+  const len: i32 = this.length;
   let position: i32 = ecma262.ToIntegerOrInfinity(_position);
   if (position >= 0) {
     if (position > len) position = len;
@@ -308,15 +308,15 @@ export const __Array_prototype_includes = (_this: any[], searchElement: any, _po
   }
 
   for (let i: i32 = position; i < len; i++) {
-    if (_this[i] === searchElement) return true;
+    if (this[i] === searchElement) return true;
   }
 
   return false;
 };
 
 // @porf-typed-array
-export const __Array_prototype_with = (_this: any[], _index: any, value: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_with(_index: any, value: any) {
+  const len: i32 = this.length;
 
   let index: i32 = ecma262.ToIntegerOrInfinity(_index);
   if (index < 0) {
@@ -332,7 +332,7 @@ export const __Array_prototype_with = (_this: any[], _index: any, value: any) =>
 
   let out: any[] = Porffor.allocate();
 
-  Porffor.clone(_this, out);
+  Porffor.clone(this, out);
 
   out[index] = value;
 
@@ -340,8 +340,8 @@ export const __Array_prototype_with = (_this: any[], _index: any, value: any) =>
 };
 
 // @porf-typed-array
-export const __Array_prototype_copyWithin = (_this: any[], _target: any, _start: any, _end: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_copyWithin(_target: any, _start: any, _end: any) {
+  const len: i32 = this.length;
 
   let target: i32 = ecma262.ToIntegerOrInfinity(_target);
   if (target < 0) {
@@ -370,19 +370,19 @@ export const __Array_prototype_copyWithin = (_this: any[], _target: any, _start:
   }
 
   while (start < end) {
-    _this[target++] = _this[start++];
+    this[target++] = this[start++];
   }
 
-  return _this;
+  return this;
 };
 
 // @porf-typed-array
-export const __Array_prototype_concat = (_this: any[], ...vals: any[]) => {
+export function __Array_prototype_concat(...vals: any[]) {
   // todo/perf: rewrite to use memory.copy (via some Porffor.array.append thing?)
   let out: any[] = Porffor.allocate();
-  Porffor.clone(_this, out);
+  Porffor.clone(this, out);
 
-  let len: i32 = _this.length;
+  let len: i32 = this.length;
 
   for (const x of vals) {
     if (Porffor.rawType(x) & 0b01000000) { // value is iterable
@@ -401,41 +401,41 @@ export const __Array_prototype_concat = (_this: any[], ...vals: any[]) => {
 };
 
 // @porf-typed-array
-export const __Array_prototype_reverse = (_this: any[]) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_reverse() {
+  const len: i32 = this.length;
 
   let start: i32 = 0;
   let end: i32 = len - 1;
 
   while (start < end) {
-    const tmp: i32 = _this[start];
-    _this[start++] = _this[end];
-    _this[end--] = tmp;
+    const tmp: i32 = this[start];
+    this[start++] = this[end];
+    this[end--] = tmp;
   }
 
-  return _this;
+  return this;
 };
 
 
 // @porf-typed-array
-export const __Array_prototype_forEach = (_this: any[], callbackFn: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_forEach(callbackFn: any) {
+  const len: i32 = this.length;
   let i: i32 = 0;
   while (i < len) {
-    callbackFn(_this[i], i++, _this);
+    callbackFn(this[i], i++, this);
   }
 };
 
 // @porf-typed-array
-export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
+export function __Array_prototype_filter(callbackFn: any) {
   const out: any[] = Porffor.allocate();
 
-  const len: i32 = _this.length;
+  const len: i32 = this.length;
   let i: i32 = 0;
   let j: i32 = 0;
   while (i < len) {
-    const el: any = _this[i];
-    if (Boolean(callbackFn(el, i++, _this))) out[j++] = el;
+    const el: any = this[i];
+    if (Boolean(callbackFn(el, i++, this))) out[j++] = el;
   }
 
   out.length = j;
@@ -443,26 +443,26 @@ export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
 };
 
 // @porf-typed-array
-export const __Array_prototype_map = (_this: any[], callbackFn: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_map(callbackFn: any) {
+  const len: i32 = this.length;
   const out: any[] = Porffor.allocate();
   out.length = len;
 
   let i: i32 = 0;
   while (i < len) {
-    out[i] = callbackFn(_this[i], i++, _this);
+    out[i] = callbackFn(this[i], i++, this);
   }
 
   return out;
 };
 
-export const __Array_prototype_flatMap = (_this: any[], callbackFn: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_flatMap(callbackFn: any) {
+  const len: i32 = this.length;
   const out: any[] = Porffor.allocate();
 
   let i: i32 = 0, j: i32 = 0;
   while (i < len) {
-    let x: any = callbackFn(_this[i], i++, _this);
+    let x: any = callbackFn(this[i], i++, this);
     if (Porffor.rawType(x) == Porffor.TYPES.array) {
       for (const y of x) out[j++] = y;
     } else out[j++] = x;
@@ -473,100 +473,100 @@ export const __Array_prototype_flatMap = (_this: any[], callbackFn: any) => {
 };
 
 // @porf-typed-array
-export const __Array_prototype_find = (_this: any[], callbackFn: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_find(callbackFn: any) {
+  const len: i32 = this.length;
   let i: i32 = 0;
   while (i < len) {
-    const el: any = _this[i];
-    if (Boolean(callbackFn(el, i++, _this))) return el;
+    const el: any = this[i];
+    if (Boolean(callbackFn(el, i++, this))) return el;
   }
 };
 
 // @porf-typed-array
-export const __Array_prototype_findLast = (_this: any[], callbackFn: any) => {
-  let i: i32 = _this.length;
+export function __Array_prototype_findLast(callbackFn: any) {
+  let i: i32 = this.length;
   while (i > 0) {
-    const el: any = _this[--i];
-    if (Boolean(callbackFn(el, i, _this))) return el;
+    const el: any = this[--i];
+    if (Boolean(callbackFn(el, i, this))) return el;
   }
 };
 
 // @porf-typed-array
-export const __Array_prototype_findIndex = (_this: any[], callbackFn: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_findIndex(callbackFn: any) {
+  const len: i32 = this.length;
   let i: i32 = 0;
   while (i < len) {
-    if (Boolean(callbackFn(_this[i], i++, _this))) return i;
+    if (Boolean(callbackFn(this[i], i++, this))) return i;
   }
 };
 
 // @porf-typed-array
-export const __Array_prototype_findLastIndex = (_this: any[], callbackFn: any) => {
-  let i: i32 = _this.length;
+export function __Array_prototype_findLastIndex(callbackFn: any) {
+  let i: i32 = this.length;
   while (i > 0) {
-    if (Boolean(callbackFn(_this[--i], i, _this))) return i;
+    if (Boolean(callbackFn(this[--i], i, this))) return i;
   }
 };
 
 // @porf-typed-array
-export const __Array_prototype_every = (_this: any[], callbackFn: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_every(callbackFn: any) {
+  const len: i32 = this.length;
   let i: i32 = 0;
   while (i < len) {
-    if (!Boolean(callbackFn(_this[i], i++, _this))) return false;
+    if (!Boolean(callbackFn(this[i], i++, this))) return false;
   }
 
   return true;
 };
 
 // @porf-typed-array
-export const __Array_prototype_some = (_this: any[], callbackFn: any) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_some(callbackFn: any) {
+  const len: i32 = this.length;
   let i: i32 = 0;
   while (i < len) {
-    if (Boolean(callbackFn(_this[i], i++, _this))) return true;
+    if (Boolean(callbackFn(this[i], i++, this))) return true;
   }
 
   return false;
 };
 
 // @porf-typed-array
-export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialValue: any) => {
-  let acc: any = initialValue ?? _this[0];
+export function __Array_prototype_reduce(callbackFn: any, initialValue: any) {
+  let acc: any = initialValue ?? this[0];
 
-  const len: i32 = _this.length;
+  const len: i32 = this.length;
   let i: i32 = 0;
   while (i < len) {
-    acc = callbackFn(acc, _this[i], i++, _this);
+    acc = callbackFn(acc, this[i], i++, this);
   }
 
   return acc;
 };
 
 // @porf-typed-array
-export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, initialValue: any) => {
-  const len: i32 = _this.length;
-  let acc: any = initialValue ?? _this[len - 1];
+export function __Array_prototype_reduceRight(callbackFn: any, initialValue: any) {
+  const len: i32 = this.length;
+  let acc: any = initialValue ?? this[len - 1];
 
   let i: i32 = len;
   while (i > 0) {
-    acc = callbackFn(acc, _this[--i], i, _this);
+    acc = callbackFn(acc, this[--i], i, this);
   }
 
   return acc;
 };
 
 // @porf-typed-array
-export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
+export function __Array_prototype_sort(callbackFn: any) {
   // todo: default callbackFn
 
   // insertion sort, i guess
-  const len: i32 = _this.length;
+  const len: i32 = this.length;
   for (let i: i32 = 0; i < len; i++) {
-    const x: any = _this[i];
+    const x: any = this[i];
     let j: i32 = i;
     while (j > 0) {
-      const y: any = _this[j - 1];
+      const y: any = this[j - 1];
 
       // 23.1.3.30.2 CompareArrayElements (x, y, comparefn)
       // https://tc39.es/ecma262/#sec-comparearrayelements
@@ -595,28 +595,28 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
         }
 
       if (v >= 0) break;
-      _this[j--] = y;
+      this[j--] = y;
     }
 
-    _this[j] = x;
+    this[j] = x;
   }
 
-  return _this;
+  return this;
 };
 
 // @porf-typed-array
-export const __Array_prototype_toString = (_this: any[]) => {
+export function __Array_prototype_toString() {
   // todo: this is bytestring only!
 
   let out: bytestring = Porffor.allocate();
   out.length = 0;
 
-  const len: i32 = _this.length;
+  const len: i32 = this.length;
   let i: i32 = 0;
   while (i < len) {
     if (i > 0) Porffor.bytestring.appendChar(out, 44);
 
-    const element: any = _this[i++];
+    const element: any = this[i++];
     const type: i32 = Porffor.rawType(element);
     if (element != 0 || Porffor.fastAnd(
       type != Porffor.TYPES.undefined, // undefined
@@ -630,10 +630,12 @@ export const __Array_prototype_toString = (_this: any[]) => {
 };
 
 // @porf-typed-array
-export const __Array_prototype_toLocaleString = (_this: any[]) => __Array_prototype_toString(_this);
+export function __Array_prototype_toLocaleString() {
+  return __Array_prototype_toString.call(this);
+}
 
 // @porf-typed-array
-export const __Array_prototype_join = (_this: any[], _separator: any) => {
+export function __Array_prototype_join(_separator: any) {
   // todo: this is bytestring only!
   // todo/perf: optimize single char separators
   // todo/perf: optimize default separator (?)
@@ -645,12 +647,12 @@ export const __Array_prototype_join = (_this: any[], _separator: any) => {
   let out: bytestring = Porffor.allocate();
   out.length = 0;
 
-  const len: i32 = _this.length;
+  const len: i32 = this.length;
   let i: i32 = 0;
   while (i < len) {
     if (i > 0) Porffor.bytestring.appendStr(out, separator);
 
-    const element: any = _this[i++];
+    const element: any = this[i++];
     const type: i32 = Porffor.rawType(element);
     if (element != 0 || Porffor.fastAnd(
       type != Porffor.TYPES.undefined, // undefined
@@ -664,13 +666,13 @@ export const __Array_prototype_join = (_this: any[], _separator: any) => {
 };
 
 // @porf-typed-array
-export const __Array_prototype_valueOf = (_this: any[]) => {
-  return _this;
+export function __Array_prototype_valueOf() {
+  return this;
 };
 
 // @porf-typed-array
-export const __Array_prototype_toReversed = (_this: any[]) => {
-  const len: i32 = _this.length;
+export function __Array_prototype_toReversed() {
+  const len: i32 = this.length;
 
   let start: i32 = 0;
   let end: i32 = len - 1;
@@ -679,28 +681,28 @@ export const __Array_prototype_toReversed = (_this: any[]) => {
   out.length = len;
 
   while (start < end) {
-    out[start] = _this[end];
-    out[end--] = _this[start++];
+    out[start] = this[end];
+    out[end--] = this[start++];
   }
 
   return out;
 };
 
 // @porf-typed-array
-export const __Array_prototype_toSorted = (_this: any[], callbackFn: any) => {
+export function __Array_prototype_toSorted(callbackFn: any) {
   // todo/perf: could be rewritten to be its own instead of cloning and using normal sort()
 
   let out: any[] = Porffor.allocate();
-  Porffor.clone(_this, out);
+  Porffor.clone(this, out);
 
-  return __Array_prototype_sort(out, callbackFn);
+  return __Array_prototype_sort.call(out, callbackFn);
 };
 
-export const __Array_prototype_toSpliced = (_this: any[], _start: any, _deleteCount: any, ...items: any[]) => {
+export function __Array_prototype_toSpliced(_start: any, _deleteCount: any, ...items: any[]) {
   let out: any[] = Porffor.allocate();
-  Porffor.clone(_this, out);
+  Porffor.clone(this, out);
 
-  const len: i32 = _this.length;
+  const len: i32 = this.length;
 
   let start: i32 = ecma262.ToIntegerOrInfinity(_start);
   if (start < 0) {
@@ -720,7 +722,7 @@ export const __Array_prototype_toSpliced = (_this: any[], _start: any, _deleteCo
   out.length = len - deleteCount + itemsLen;
 
   // remove deleted values via memory.copy shifting values in mem
-  Porffor.wasm`;; ptr = ptr(_this) + 4 + (start * 9)
+  Porffor.wasm`;; ptr = ptr(this) + 4 + (start * 9)
 local #splice_ptr i32
 local.get ${out}
 i32.to_u
@@ -781,22 +783,22 @@ memory.copy 0 0`;
 };
 
 
-export const __Array_prototype_flat = (_this: any[], _depth: any) => {
+export function __Array_prototype_flat(_depth: any) {
   if (Porffor.rawType(_depth) == Porffor.TYPES.undefined) _depth = 1;
   let depth: i32 = ecma262.ToIntegerOrInfinity(_depth);
 
   let out: any[] = Porffor.allocate();
   if (depth <= 0) {
-    Porffor.clone(_this, out);
+    Porffor.clone(this, out);
     return out;
   }
 
-  const len: i32 = _this.length;
+  const len: i32 = this.length;
   let i: i32 = 0, j: i32 = 0;
   while (i < len) {
-    let x: any = _this[i++];
+    let x: any = this[i++];
     if (Porffor.rawType(x) == Porffor.TYPES.array) {
-      if (depth > 1) x = __Array_prototype_flat(x, depth - 1);
+      if (depth > 1) x = __Array_prototype_flat.call(x, depth - 1);
       for (const y of x) out[j++] = y;
     } else out[j++] = x;
   }

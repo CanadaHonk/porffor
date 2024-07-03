@@ -21,10 +21,10 @@ export const ArrayBuffer = function (length: any): ArrayBuffer {
   return out;
 };
 
-export const __ArrayBuffer_prototype_byteLength$get = (_this: ArrayBuffer) => {
+export function __ArrayBuffer_prototype_byteLength$get() {
   Porffor.wasm`
 local read i32
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.load 0 0
 local.tee read
@@ -38,10 +38,10 @@ i32.const 1
 return`;
 };
 
-export const __ArrayBuffer_prototype_maxByteLength$get = (_this: ArrayBuffer) => {
+export function __ArrayBuffer_prototype_maxByteLength$get() {
   Porffor.wasm`
 local read i32
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.load 0 0
 local.tee read
@@ -55,9 +55,9 @@ i32.const 1
 return`;
 };
 
-export const __ArrayBuffer_prototype_detached$get = (_this: ArrayBuffer) => {
+export function __ArrayBuffer_prototype_detached$get() {
   Porffor.wasm`
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.load 0 0
 i32.const 4294967295
@@ -67,14 +67,14 @@ i32.const 2
 return`;
 };
 
-export const __ArrayBuffer_prototype_resizable$get = (_this: ArrayBuffer) => {
+export function __ArrayBuffer_prototype_resizable$get() {
   return false;
 };
 
-export const __ArrayBuffer_prototype_slice = (_this: ArrayBuffer, start: number, end: any) => {
-  if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.slice on a detached ArrayBuffer');
+export function __ArrayBuffer_prototype_slice(start: number, end: any) {
+  if (this.detached) throw new TypeError('Called ArrayBuffer.prototype.slice on a detached ArrayBuffer');
 
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
 
   start |= 0;
@@ -102,7 +102,7 @@ i32.const 4
 i32.add
 
 ;; src = this + 4 + start
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.const 4
 i32.add
@@ -123,10 +123,10 @@ memory.copy 0 0`;
 };
 
 
-export const __ArrayBuffer_prototype_transfer = (_this: ArrayBuffer, newLength: any) => {
-  if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.transfer on a detached ArrayBuffer');
+export function __ArrayBuffer_prototype_transfer(newLength: any) {
+  if (this.detached) throw new TypeError('Called ArrayBuffer.prototype.transfer on a detached ArrayBuffer');
 
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.rawType(newLength) == Porffor.TYPES.undefined) newLength = len;
 
   // make new arraybuffer
@@ -142,7 +142,7 @@ i32.const 4
 i32.add
 
 ;; src = this + 4
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.const 4
 i32.add
@@ -156,14 +156,16 @@ i32.to_u
 memory.copy 0 0`;
 
   // mark as detached by setting length = "-1"
-  Porffor.wasm.i32.store(_this, 4294967295, 0, 0);
+  Porffor.wasm.i32.store(this, 4294967295, 0, 0);
 
   return out;
 };
 
-export const __ArrayBuffer_prototype_transferToFixedLength = (_this: ArrayBuffer, newLength: any) => __ArrayBuffer_prototype_transfer(_this, newLength);
+export function __ArrayBuffer_prototype_transferToFixedLength(newLength: any) {
+  return __ArrayBuffer_prototype_transfer.call(this, newLength);
+};
 
-export const __ArrayBuffer_prototype_resize = (_this: ArrayBuffer, newLength: any) => {
+export function __ArrayBuffer_prototype_resize(newLength: any) {
   // todo: resizable not implemented yet so just always fail
   throw new TypeError('Called ArrayBuffer.prototype.resize on a non-resizable ArrayBuffer');
 };
@@ -183,21 +185,21 @@ export const SharedArrayBuffer = function (length: number): SharedArrayBuffer {
   return out;
 };
 
-export const __SharedArrayBuffer_prototype_byteLength$get = (_this: SharedArrayBuffer) => {
-  return Porffor.wasm.i32.load(_this, 0, 0);
+export function __SharedArrayBuffer_prototype_byteLength$get() {
+  return Porffor.wasm.i32.load(this, 0, 0);
 };
 
-export const __SharedArrayBuffer_prototype_maxByteLength$get = (_this: SharedArrayBuffer) => {
-  return Porffor.wasm.i32.load(_this, 0, 0);
+export function __SharedArrayBuffer_prototype_maxByteLength$get() {
+  return Porffor.wasm.i32.load(this, 0, 0);
 };
 
-export const __SharedArrayBuffer_prototype_growable$get = (_this: SharedArrayBuffer) => {
+export function __SharedArrayBuffer_prototype_growable$get() {
   return false;
 };
 
 
-export const __SharedArrayBuffer_prototype_slice = (_this: SharedArrayBuffer, start: number, end: any) => {
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+export function __SharedArrayBuffer_prototype_slice(start: number, end: any) {
+  const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
 
   start |= 0;
@@ -225,7 +227,7 @@ i32.const 4
 i32.add
 
 ;; src = this + 4 + start
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.const 4
 i32.add
@@ -245,7 +247,7 @@ memory.copy 0 0`;
   return out;
 };
 
-export const __SharedArrayBuffer_prototype_grow = (_this: SharedArrayBuffer, newLength: any) => {
+export function __SharedArrayBuffer_prototype_grow(newLength: any) {
   // todo: growable not implemented yet so just always fail
   throw new TypeError('Called SharedArrayBuffer.prototype.grow on a non-growable SharedArrayBuffer');
 };

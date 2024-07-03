@@ -3,12 +3,12 @@ export default () => {
 `;
 
   const noArgs = (a0, a1) => out += `
-export const __String_prototype_${a0} = (_this: string) => {
+export function __String_prototype_${a0}() {
   let out: string = Porffor.s\`<${a1}>\`;
 
   let outPtr: i32 = Porffor.wasm\`local.get \${out}\` + ${(2 + a1.length) * 2};
-  let thisPtr: i32 = Porffor.wasm\`local.get \${_this}\`;
-  let thisLen: i32 = _this.length;
+  let thisPtr: i32 = Porffor.wasm\`local.get \${this}\`;
+  let thisLen: i32 = this.length;
   let endPtr: i32 = thisPtr + thisLen * 2;
 
   while (thisPtr < endPtr) {
@@ -30,12 +30,12 @@ ${[...a1].map((x, i) => `  Porffor.wasm.i32.store16(outPtr, ${x.charCodeAt(0)}, 
 
   return out;
 };
-export const __ByteString_prototype_${a0} = (_this: bytestring) => {
+export function __ByteString_prototype_${a0}() {
   let out: bytestring = Porffor.bs\`<${a1}>\`;
 
   let outPtr: i32 = Porffor.wasm\`local.get \${out}\` + ${2 + a1.length};
-  let thisPtr: i32 = Porffor.wasm\`local.get \${_this}\`;
-  let thisLen: i32 = _this.length;
+  let thisPtr: i32 = Porffor.wasm\`local.get \${this}\`;
+  let thisLen: i32 = this.length;
   let endPtr: i32 = thisPtr + thisLen;
 
   while (thisPtr < endPtr) {
@@ -67,7 +67,7 @@ ${[...a1].map((x, i) => `  Porffor.wasm.i32.store8(outPtr, ${x.charCodeAt(0)}, 0
   noArgs('sup', 'sup');
 
   const arg = (name, s1, s2) => out += `
-export const __String_prototype_${name} = (_this: string, arg: any) => {
+export function __String_prototype_${name}(arg: any) {
   let out: string = Porffor.s\`${`<${s1} ${s2}="`}\`;
   out += arg;
 
@@ -76,8 +76,8 @@ export const __String_prototype_${name} = (_this: string, arg: any) => {
   Porffor.wasm.i32.store16(outPtr, 34, 0, 0); // "
   Porffor.wasm.i32.store16(outPtr, 62, 0, 2); // >
 
-  let thisPtr: i32 = Porffor.wasm\`local.get \${_this}\`;
-  let thisLen: i32 = _this.length;
+  let thisPtr: i32 = Porffor.wasm\`local.get \${this}\`;
+  let thisLen: i32 = this.length;
   let endPtr: i32 = thisPtr + thisLen * 2;
 
   while (thisPtr < endPtr) {
@@ -99,7 +99,7 @@ ${[...s1].map((x, i) => `  Porffor.wasm.i32.store16(outPtr, ${x.charCodeAt(0)}, 
 
   return out;
 };
-export const __ByteString_prototype_${name} = (_this: bytestring, arg: any) => {
+export function __ByteString_prototype_${name}(arg: any) {
   let out: string = Porffor.s\`${`<${s1} ${s2}="`}\`;
   out += arg;
 
@@ -108,8 +108,8 @@ export const __ByteString_prototype_${name} = (_this: bytestring, arg: any) => {
   Porffor.wasm.i32.store16(outPtr, 34, 0, 0); // "
   Porffor.wasm.i32.store16(outPtr, 62, 0, 2); // >
 
-  let thisPtr: i32 = Porffor.wasm\`local.get \${_this}\`;
-  let thisLen: i32 = _this.length;
+  let thisPtr: i32 = Porffor.wasm\`local.get \${this}\`;
+  let thisLen: i32 = this.length;
   let endPtr: i32 = thisPtr + thisLen;
 
   while (thisPtr < endPtr) {
@@ -137,11 +137,11 @@ ${[...s1].map((x, i) => `  Porffor.wasm.i32.store16(outPtr, ${x.charCodeAt(0)}, 
   arg('anchor', 'a', 'name');
   arg('link', 'a', 'href');
 
-  const prototypeAlias = (regular, annex) => `export const __String_prototype_${annex} = (_this: string) => {
-  return __String_prototype_${regular}(_this);
+  const prototypeAlias = (regular, annex) => `export function __String_prototype_${annex}() {
+  return __String_prototype_${regular}.call(this);
 };
-export const __ByteString_prototype_${annex} = (_this: bytestring) => {
-  return __ByteString_prototype_${regular}(_this);
+export function __ByteString_prototype_${annex}() {
+  return __ByteString_prototype_${regular}.call(this);
 };
 `;
 

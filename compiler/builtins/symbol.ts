@@ -21,11 +21,11 @@ export const Symbol = (description: any): Symbol => {
   return sym;
 };
 
-export const __Symbol_prototype_description$get = (_this: Symbol) => {
-  return descStore[Porffor.wasm`local.get ${_this}` - 1];
+export function __Symbol_prototype_description$get() {
+  return descStore[Porffor.wasm`local.get ${this}` - 1];
 };
 
-export const __Symbol_prototype_toString = (_this: Symbol) => {
+export function __Symbol_prototype_toString() {
   let out: bytestring = Porffor.allocate();
 
   // Symbol(
@@ -37,7 +37,7 @@ export const __Symbol_prototype_toString = (_this: Symbol) => {
   Porffor.wasm.i32.store8(out, 108, 0, 9);
   Porffor.wasm.i32.store8(out, 40, 0, 10);
 
-  const description: any = _this.description;
+  const description: any = this.description;
   let descLen: i32 = 0;
   if (description !== undefined) {
     descLen = description.length;
@@ -59,10 +59,12 @@ export const __Symbol_prototype_toString = (_this: Symbol) => {
   return out;
 };
 
-export const __Symbol_prototype_toLocaleString = (_this: Symbol) => __Symbol_prototype_toString(_this);
+export function __Symbol_prototype_toLocaleString() {
+  return __Symbol_prototype_toString.call(this);
+}
 
-export const __Symbol_prototype_valueOf = (_this: Symbol) => {
-  return _this;
+export function __Symbol_prototype_valueOf() {
+  return this;
 };
 
 const forStore: Map = new Map();

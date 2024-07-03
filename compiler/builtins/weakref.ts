@@ -20,20 +20,22 @@ i32.store8 0 8`;
   return out;
 };
 
-export const __WeakRef_prototype_deref = (_this: WeakRef) => {
-  Porffor.wasm`local.get ${_this}
+export function __WeakRef_prototype_deref() {
+  Porffor.wasm`local.get ${this}
 i32.to_u
 f64.load 0 0
 
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.load8_u 0 8
 return`;
 };
 
-export const __WeakRef_prototype_toString = (_this: WeakRef) => {
+export function __WeakRef_prototype_toString() {
   const out: bytestring = '[object WeakRef]';
   return out;
 };
 
-export const __WeakRef_prototype_toLocaleString = (_this: WeakRef) => __WeakRef_prototype_toString(_this);
+export function __WeakRef_prototype_toLocaleString() {
+  return __WeakRef_prototype_toString.call(this);
+}

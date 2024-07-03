@@ -105,20 +105,20 @@ export const __${name}_from = (arg: any, mapFn: any): ${name} => {
   return new ${name}(arr);
 };
 
-export const __${name}_prototype_buffer$get = (_this: ${name}) => {
+export function __${name}_prototype_buffer$get() {
   const out: ArrayBuffer = Porffor.wasm.i32.load(_this, 0, 4) - Porffor.wasm.i32.load(_this, 0, 8);
   return out;
 };
 
-export const __${name}_prototype_byteLength$get = (_this: ${name}) => {
+export function __${name}_prototype_byteLength$get() {
   return Porffor.wasm.i32.load(_this, 0, 0) * ${name}.BYTES_PER_ELEMENT;
 };
 
-export const __${name}_prototype_byteOffset$get = (_this: ${name}) => {
+export function __${name}_prototype_byteOffset$get() {
   return Porffor.wasm.i32.load(_this, 0, 8);
 };
 
-export const __${name}_prototype_at = (_this: ${name}, index: number) => {
+export function __${name}_prototype_at(index: number) {
   const len: i32 = _this.length;
   index |= 0;
   if (index < 0) {
@@ -130,7 +130,7 @@ export const __${name}_prototype_at = (_this: ${name}, index: number) => {
   return _this[index];
 };
 
-export const __${name}_prototype_slice = (_this: ${name}, start: number, end: number) => {
+export function __${name}_prototype_slice(start: number, end: number) {
   const len: i32 = _this.length;
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
 

@@ -1,15 +1,19 @@
 import type {} from './porffor.d.ts';
 
-export const __WeakMap_prototype_has = (_this: WeakMap, key: any) => __Map_prototype_has(_this, key);
+export function __WeakMap_prototype_has(key: any) {
+  return __Map_prototype_has.call(this, key)
+}
 
-export const __WeakMap_prototype_set = (_this: WeakMap, key: any, value: any) => {
+export function __WeakMap_prototype_set(key: any, value: any) {
   if (!Porffor.object.isObjectOrSymbol(key)) throw new TypeError('Value in WeakSet needs to be an object or symbol');
 
-  __Map_prototype_set(_this, key, value);
+  __Map_prototype_set.call(this, key, value);
   return _this;
 };
 
-export const __WeakMap_prototype_delete = (_this: WeakMap, key: any) => __Map_prototype_delete(_this, key);
+export function __WeakMap_prototype_delete(_this: WeakMap, key: any) {
+  return __Map_prototype_delete.call(this, key)
+};
 
 export const WeakMap = function (iterable: any): WeakMap {
   if (!new.target) throw new TypeError("Constructor WeakMap requires 'new'");
@@ -24,15 +28,17 @@ export const WeakMap = function (iterable: any): WeakMap {
 
   if (iterable != null) for (const x of iterable) {
     if (!Porffor.object.isObject(x)) throw new TypeError('Iterator contains non-object');
-    __WeakMap_prototype_set(out, x[0], x[1]);
+    __WeakMap_prototype_set.call(out, x[0], x[1]);
   }
 
   return out;
 };
 
-export const __WeakMap_prototype_toString = (_this: WeakMap) => {
+export function __WeakMap_prototype_toString() {
   const out: bytestring = '[object WeakMap]';
   return out;
 };
 
-export const __WeakMap_prototype_toLocaleString = (_this: WeakMap) => __WeakMap_prototype_toString(_this);
+export function __WeakMap_prototype_toLocaleString() {
+  return __WeakMap_prototype_toString.call(this);
+};

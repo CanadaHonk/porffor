@@ -54,64 +54,64 @@ export const __Porffor_set_indexOf = (_this: Set, value: any): i32 => {
 };
 
 
-export const __Set_prototype_size$get = (_this: Set) => {
-  return Porffor.wasm.i32.load(_this, 0, 0);
+export function __Set_prototype_size$get() {
+  return Porffor.wasm.i32.load(this, 0, 0);
 };
 
-export const __Set_prototype_values = (_this: Set) => {
+export function __Set_prototype_values() {
   // todo: this should return an iterator not array
-  const size: number = Porffor.wasm.i32.load(_this, 0, 0);
+  const size: number = Porffor.wasm.i32.load(this, 0, 0);
 
   const out: any[] = __Porffor_allocate();
   for (let i: number = 0; i < size; i++) {
-    const val: any = __Porffor_set_read(_this, i);
+    const val: any = __Porffor_set_read(this, i);
     Porffor.fastPush(out, val);
   }
 
   return out;
 };
 
-export const __Set_prototype_keys = (_this: Set) => {
-  return __Set_prototype_values(_this);
+export function __Set_prototype_keys() {
+  return __Set_prototype_values.call(this);
 };
 
-export const __Set_prototype_has = (_this: Set, value: any) => {
-  const size: number = Porffor.wasm.i32.load(_this, 0, 0);
+export function __Set_prototype_has(value: any) {
+  const size: number = Porffor.wasm.i32.load(this, 0, 0);
 
   for (let i: number = 0; i < size; i++) {
-    if (__Porffor_set_read(_this, i) === value) return true;
+    if (__Porffor_set_read(this, i) === value) return true;
   }
 
   return false;
 };
 
-export const __Set_prototype_add = (_this: Set, value: any) => {
-  const size: number = Porffor.wasm.i32.load(_this, 0, 0);
+export function __Set_prototype_add(value: any) {
+  const size: number = Porffor.wasm.i32.load(this, 0, 0);
 
   // check if already in set
   for (let i: number = 0; i < size; i++) {
-    if (__Porffor_set_read(_this, i) === value) return _this;
+    if (__Porffor_set_read(this, i) === value) return this;
   }
 
   // not, add it
   // increment size by 1
-  Porffor.wasm.i32.store(_this, size + 1, 0, 0);
+  Porffor.wasm.i32.store(this, size + 1, 0, 0);
 
   // write new value at end
-  __Porffor_set_write(_this, size, value);
+  __Porffor_set_write(this, size, value);
 
-  return _this;
+  return this;
 };
 
-export const __Set_prototype_delete = (_this: Set, value: any) => {
-  const size: number = Porffor.wasm.i32.load(_this, 0, 0);
+export function __Set_prototype_delete(value: any) {
+  const size: number = Porffor.wasm.i32.load(this, 0, 0);
 
   // check if already in set
   for (let i: number = 0; i < size; i++) {
-    if (__Porffor_set_read(_this, i) === value) {
+    if (__Porffor_set_read(this, i) === value) {
       // found, delete
       // decrement size by 1
-      Porffor.wasm.i32.store(_this, size - 1, 0, 0);
+      Porffor.wasm.i32.store(this, size - 1, 0, 0);
 
       // offset all elements after by -1 ind
       Porffor.wasm`
@@ -120,7 +120,7 @@ local.get ${i}
 i32.to_u
 i32.const 9
 i32.mul
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.add
 i32.const 4
@@ -155,16 +155,16 @@ memory.copy 0 0`;
   return false;
 };
 
-export const __Set_prototype_clear = (_this: Set) => {
+export function __Set_prototype_clear() {
   // just set size to 0
   // do not need to delete any as will not be accessed anymore,
   // and will be overwritten with new add
-  Porffor.wasm.i32.store(_this, 0, 0, 0);
+  Porffor.wasm.i32.store(this, 0, 0, 0);
 };
 
-export const __Set_prototype_forEach = (_this: Set, callbackFn: any) => {
-  for (const x of _this) {
-    callbackFn(x, x, _this);
+export function __Set_prototype_forEach(callbackFn: any) {
+  for (const x of this) {
+    callbackFn(x, x, this);
   }
 };
 
@@ -174,16 +174,16 @@ export const Set = function (iterable: any): Set {
   const out: Set = __Porffor_allocate();
 
   if (iterable != null) for (const x of iterable) {
-    __Set_prototype_add(out, x);
+    __Set_prototype_add.call(out, x);
   }
 
   return out;
 };
 
-export const __Set_prototype_union = (_this: Set, other: any) => {
+export function __Set_prototype_union(other: any) {
   if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
 
-  const out: Set = new Set(_this);
+  const out: Set = new Set(this);
   for (const x of other) {
     out.add(x);
   }
@@ -191,10 +191,10 @@ export const __Set_prototype_union = (_this: Set, other: any) => {
   return out;
 };
 
-export const __Set_prototype_intersection = (_this: Set, other: any) => {
+export function __Set_prototype_intersection(other: any) {
   if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
 
-  const out: Set = new Set(_this);
+  const out: Set = new Set(this);
   for (const x of other) {
     out.add(x);
   }
@@ -202,10 +202,10 @@ export const __Set_prototype_intersection = (_this: Set, other: any) => {
   return out;
 };
 
-export const __Set_prototype_difference = (_this: Set, other: any) => {
+export function __Set_prototype_difference(other: any) {
   if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
 
-  const out: Set = new Set(_this);
+  const out: Set = new Set(this);
   for (const x of other) {
     out.delete(x);
   }
@@ -213,51 +213,53 @@ export const __Set_prototype_difference = (_this: Set, other: any) => {
   return out;
 };
 
-export const __Set_prototype_symmetricDifference = (_this: Set, other: any) => {
+export function __Set_prototype_symmetricDifference(other: any) {
   if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
 
-  const out: Set = new Set(_this);
+  const out: Set = new Set(this);
   for (const x of other) {
-    if (_this.has(x)) out.delete(x);
+    if (this.has(x)) out.delete(x);
       else out.add(x);
   }
 
   return out;
 };
 
-export const __Set_prototype_isSubsetOf = (_this: Set, other: any) => {
+export function __Set_prototype_isSubsetOf(other: any) {
   if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
 
-  for (const x of _this) {
+  for (const x of this) {
     if (!other.has(x)) return false;
   }
 
   return true;
 };
 
-export const __Set_prototype_isSupersetOf = (_this: Set, other: any) => {
+export function __Set_prototype_isSupersetOf(other: any) {
   if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
 
   for (const x of other) {
-    if (!_this.has(x)) return false;
+    if (!this.has(x)) return false;
   }
 
   return true;
 };
 
-export const __Set_prototype_isDisjointFrom = (_this: Set, other: any) => {
+export function __Set_prototype_isDisjointFrom(other: any) {
   if (Porffor.rawType(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
 
-  for (const x of _this) {
+  for (const x of this) {
     if (other.has(x)) return false;
   }
 
   return true;
 };
 
-export const __Set_prototype_toString = (_this: Set) => {
+export function __Set_prototype_toString() {
   const out: bytestring = '[object Set]';
   return out;
 };
 
-export const __Set_prototype_toLocaleString = (_this: Set) => __Set_prototype_toString(_this);
+export function __Set_prototype_toLocaleString() {
+  return __Set_prototype_toString.call(this);
+}

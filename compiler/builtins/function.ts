@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-export const __Function_prototype_toString = (_this: Function) => {
+export function __Function_prototype_toString() {
   // todo: actually use source
   let out: bytestring = 'function () {}';
   return out;

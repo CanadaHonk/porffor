@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-export const DataView = function (arg: any, byteOffset: any, length: any): DataView {
+export function DataView(arg: any, byteOffset: any, length: any): DataView {
   if (!new.target) throw new TypeError("Constructor DataView requires 'new'");
 
   const out: DataView = Porffor.allocateBytes(12);
@@ -40,26 +40,26 @@ export const DataView = function (arg: any, byteOffset: any, length: any): DataV
   return out;
 };
 
-export const __DataView_prototype_buffer$get = (_this: DataView) => {
-  const out: ArrayBuffer = Porffor.wasm.i32.load(_this, 0, 4) - Porffor.wasm.i32.load(_this, 0, 8);
+export function __DataView_prototype_buffer$get() {
+  const out: ArrayBuffer = Porffor.wasm.i32.load(this, 0, 4) - Porffor.wasm.i32.load(this, 0, 8);
   return out;
 };
 
-export const __DataView_prototype_byteLength$get = (_this: DataView) => {
-  return Porffor.wasm.i32.load(_this, 0, 0);
+export function __DataView_prototype_byteLength$get() {
+  return Porffor.wasm.i32.load(this, 0, 0);
 };
 
-export const __DataView_prototype_byteOffset$get = (_this: DataView) => {
-  return Porffor.wasm.i32.load(_this, 0, 8);
+export function __DataView_prototype_byteOffset$get() {
+  return Porffor.wasm.i32.load(this, 0, 8);
 };
 
 
-export const __DataView_prototype_getUint8 = (_this: DataView, byteOffset: number) => {
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+export function __DataView_prototype_getUint8(byteOffset: number) {
+  const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
   Porffor.wasm`
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.load 0 4
 local.get ${byteOffset}
@@ -71,12 +71,12 @@ i32.const 1
 return`;
 };
 
-export const __DataView_prototype_setUint8 = (_this: DataView, byteOffset: number, value: number) => {
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+export function __DataView_prototype_setUint8(byteOffset: number, value: number) {
+  const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
   Porffor.wasm`
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.load 0 4
 local.get ${byteOffset}
@@ -89,23 +89,23 @@ i32.store8 0 4`;
   return undefined;
 };
 
-export const __DataView_prototype_getInt8 = (_this: DataView, byteOffset: number) => {
-  const n: i32 = __DataView_prototype_getUint8(_this, byteOffset);
+export function __DataView_prototype_getInt8(byteOffset: number) {
+  const n: i32 = __DataView_prototype_getUint8.call(this, byteOffset);
   return n & 0x80 ? n ^ -0x100 : n;
 };
 
-export const __DataView_prototype_setInt8 = (_this: DataView, byteOffset: number, value: number) => {
-  return __DataView_prototype_setUint8(_this, byteOffset, value < 0 ? value | 0x100 : value);
+export function __DataView_prototype_setInt8(byteOffset: number, value: number) {
+  return __DataView_prototype_setUint8.call(this, byteOffset, value < 0 ? value | 0x100 : value);
 };
 
 
-export const __DataView_prototype_getUint16 = (_this: DataView, byteOffset: number, littleEndian: any) => {
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+export function __DataView_prototype_getUint16(byteOffset: number, littleEndian: any) {
+  const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 1 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
   let int: i32 = 0;
   Porffor.wasm`
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.load 0 4
 local.get ${byteOffset}
@@ -120,8 +120,8 @@ local.set ${int}`;
   return (int >>> 8) | ((int & 0xFF) << 8);
 };
 
-export const __DataView_prototype_setUint16 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+export function __DataView_prototype_setUint16(byteOffset: number, value: number, littleEndian: any) {
+  const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 1 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
   let int: i32 = 0;
@@ -132,7 +132,7 @@ export const __DataView_prototype_setUint16 = (_this: DataView, byteOffset: numb
   }
 
   Porffor.wasm`
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.load 0 4
 local.get ${byteOffset}
@@ -146,23 +146,23 @@ i32.store16 0 4`;
   return undefined;
 };
 
-export const __DataView_prototype_getInt16 = (_this: DataView, byteOffset: number, littleEndian: any) => {
-  const n: i32 = __DataView_prototype_getUint16(_this, byteOffset, littleEndian);
+export function __DataView_prototype_getInt16(byteOffset: number, littleEndian: any) {
+  const n: i32 = __DataView_prototype_getUint16.call(this, byteOffset, littleEndian);
   return n & 0x8000 ? n ^ -0x10000 : n;
 };
 
-export const __DataView_prototype_setInt16 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
-  return __DataView_prototype_setUint16(_this, byteOffset, value < 0 ? value | 0x10000 : value, littleEndian);
+export function __DataView_prototype_setInt16(byteOffset: number, value: number, littleEndian: any) {
+  return __DataView_prototype_setUint16.call(this, byteOffset, value < 0 ? value | 0x10000 : value, littleEndian);
 };
 
 
-export const __DataView_prototype_getUint32 = (_this: DataView, byteOffset: number, littleEndian: any) => {
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+export function __DataView_prototype_getUint32(byteOffset: number, littleEndian: any) {
+  const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 3 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
   let int: i32 = 0;
   Porffor.wasm`
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.load 0 4
 local.get ${byteOffset}
@@ -180,8 +180,8 @@ local.set ${int}`;
     (int << 24);
 };
 
-export const __DataView_prototype_setUint32 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+export function __DataView_prototype_setUint32(byteOffset: number, value: number, littleEndian: any) {
+  const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 3 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
   let int: i32 = 0;
@@ -195,7 +195,7 @@ export const __DataView_prototype_setUint32 = (_this: DataView, byteOffset: numb
   }
 
   Porffor.wasm`
-local.get ${_this}
+local.get ${this}
 i32.to_u
 i32.load 0 4
 local.get ${byteOffset}
@@ -209,17 +209,17 @@ i32.store 0 4`;
   return undefined;
 };
 
-export const __DataView_prototype_getInt32 = (_this: DataView, byteOffset: number, littleEndian: any) => {
-  const n: i32 = __DataView_prototype_getUint32(_this, byteOffset, littleEndian);
+export function __DataView_prototype_getInt32(byteOffset: number, littleEndian: any) {
+  const n: i32 = __DataView_prototype_getUint32.call(this, byteOffset, littleEndian);
   return n & 0x80000000 ? n ^ -0x100000000 : n;
 };
 
-export const __DataView_prototype_setInt32 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
-  return __DataView_prototype_setUint32(_this, byteOffset, value < 0 ? value | 0x100000000 : value, littleEndian);
+export function __DataView_prototype_setInt32(byteOffset: number, value: number, littleEndian: any) {
+  return __DataView_prototype_setUint32.call(this, byteOffset, value < 0 ? value | 0x100000000 : value, littleEndian);
 };
 
-export const __DataView_prototype_getFloat32 = (_this: DataView, byteOffset: number, littleEndian: any) => {
-  const int: i32 = __DataView_prototype_getUint32(_this, byteOffset, littleEndian);
+export function __DataView_prototype_getFloat32(byteOffset: number, littleEndian: any) {
+  const int: i32 = __DataView_prototype_getUint32.call(this, byteOffset, littleEndian);
   Porffor.wasm`
 local.get ${int}
 i32.to_u
@@ -229,7 +229,7 @@ i32.const 1
 return`;
 };
 
-export const __DataView_prototype_setFloat32 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
+export function __DataView_prototype_setFloat32(byteOffset: number, value: number, littleEndian: any) {
   let int: i32 = 0;
   Porffor.wasm`
 local.get ${value}
@@ -237,5 +237,5 @@ f32.demote_f64
 i32.reinterpret_f32
 i32.from_u
 local.set ${int}`;
-  return __DataView_prototype_setUint32(_this, byteOffset, int, littleEndian);
+  return __DataView_prototype_setUint32.call(this, byteOffset, int, littleEndian);
 };

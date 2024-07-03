@@ -8,13 +8,13 @@ export const Number = function (argument: any): any {
 };
 
 // radix: number|any for rawType check
-export const __Number_prototype_toString = (_this: number, radix: number|any) => {
+export function __Number_prototype_toString(radix: number|any) {
   let out: bytestring = Porffor.allocate();
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
-  if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) return out = 'NaN';
-    if (_this == Infinity) return out = 'Infinity';
+  if (!Number.isFinite(this)) {
+    if (Number.isNaN(this)) return out = 'NaN';
+    if (this == Infinity) return out = 'Infinity';
     return out = '-Infinity';
   }
 
@@ -28,17 +28,20 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     throw new RangeError('toString() radix argument must be between 2 and 36');
   }
 
-  if (_this == 0) {
+  if (this == 0) {
     return out = '0';
   }
 
   // if negative value
-  if (_this < 0) {
-    _this = -_this; // turn value positive for later use
+  if (this < 0) {
+    Porffor.wasm`
+    local.get ${this}
+    f64.neg
+    local.set ${this}`; // turn value positive for later use
     Porffor.wasm.i32.store8(outPtr++, 45, 0, 4); // prepend -
   }
 
-  let i: f64 = Math.trunc(_this);
+  let i: f64 = Math.trunc(this);
 
   let digits: bytestring = ''; // byte "array"
 
@@ -106,9 +109,9 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
       return out;
     }
 
-    if (_this < 1e-6) {
+    if (this < 1e-6) {
       // small exponential
-      let decimal: f64 = _this;
+      let decimal: f64 = this;
 
       let e: i32 = 1;
       while (true) {
@@ -193,7 +196,7 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     Porffor.wasm.i32.store8(outPtr++, digit, 0, 4);
   }
 
-  let decimal: f64 = _this - Math.trunc(_this);
+  let decimal: f64 = this - Math.trunc(this);
   if (decimal > 0) {
     Porffor.wasm.i32.store8(outPtr++, 46, 0, 4); // .
 
@@ -241,13 +244,13 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
   return out;
 };
 
-export const __Number_prototype_toFixed = (_this: number, fractionDigits: number) => {
+export function __Number_prototype_toFixed(fractionDigits: number) {
   let out: bytestring = Porffor.allocate();
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
-  if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) return out = 'NaN';
-    if (_this == Infinity) return out = 'Infinity';
+  if (!Number.isFinite(this)) {
+    if (Number.isNaN(this)) return out = 'NaN';
+    if (this == Infinity) return out = 'Infinity';
     return out = '-Infinity';
   }
 
@@ -257,12 +260,15 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
   }
 
   // if negative value
-  if (_this < 0) {
-    _this = -_this; // turn value positive for later use
+  if (this < 0) {
+    Porffor.wasm`
+    local.get ${this}
+    f64.neg
+    local.set ${this}`; // turn value positive for later use
     Porffor.wasm.i32.store8(outPtr++, 45, 0, 4); // prepend -
   }
 
-  let i: f64 = Math.trunc(_this);
+  let i: f64 = Math.trunc(this);
 
   let digits: bytestring = ''; // byte "array"
 
@@ -289,7 +295,7 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
     Porffor.wasm.i32.store8(outPtr++, digit, 0, 4);
   }
 
-  let decimal: f64 = _this - Math.trunc(_this);
+  let decimal: f64 = this - Math.trunc(this);
   if (fractionDigits > 0) {
     Porffor.wasm.i32.store8(outPtr++, 46, 0, 4); // .
 
@@ -327,16 +333,18 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
   return out;
 };
 
-export const __Number_prototype_toLocaleString = (_this: number) => __Number_prototype_toString(_this, 10);
+export function __Number_prototype_toLocaleString (this: number) {
+  return __Number_prototype_toString.call(this, 10)
+};
 
 // fractionDigits: number|any for rawType check
-export const __Number_prototype_toExponential = (_this: number, fractionDigits: number|any) => {
+export function __Number_prototype_toExponential(fractionDigits: number|any) {
   let out: bytestring = Porffor.allocate();
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
-  if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) return out = 'NaN';
-    if (_this == Infinity) return out = 'Infinity';
+  if (!Number.isFinite(this)) {
+    if (Number.isNaN(this)) return out = 'NaN';
+    if (this == Infinity) return out = 'Infinity';
     return out = '-Infinity';
   }
 
@@ -351,12 +359,15 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
   }
 
   // if negative value
-  if (_this < 0) {
-    _this = -_this; // turn value positive for later use
+  if (this < 0) {
+    Porffor.wasm`
+    local.get ${this}
+    f64.neg
+    local.set ${this}`; // turn value positive for later use
     Porffor.wasm.i32.store8(outPtr++, 45, 0, 4); // prepend -
   }
 
-  let i: f64 = _this;
+  let i: f64 = this;
 
   let digits: bytestring = ''; // byte "array"
 
@@ -364,7 +375,7 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
   let e: i32 = 0;
   let digitsPtr: i32;
   let endPtr: i32;
-  if (_this == 0) {
+  if (this == 0) {
     Porffor.wasm.i32.store8(outPtr++, 48, 0, 4); // 0
 
     if (fractionDigits > 0) {
@@ -376,7 +387,7 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
 
     Porffor.wasm.i32.store8(outPtr++, 101, 0, 4); // e
     Porffor.wasm.i32.store8(outPtr++, 43, 0, 4); // +
-  } else if (_this < 1) {
+  } else if (this < 1) {
     // small exponential
     if (Porffor.rawType(fractionDigits) != Porffor.TYPES.number) {
       e = 1;
@@ -445,7 +456,7 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
         } else e++;
       }
     } else {
-      // i = _this;
+      // i = this;
       // if (e >= fractionDigits) {
       //   for (let j: i32 = 0; j < e - fractionDigits; j++) {
       //     i /= 10;
@@ -523,9 +534,9 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
 
 // 21.1.3.7 Number.prototype.valueOf ()
 // https://tc39.es/ecma262/#sec-number.prototype.valueof
-export const __Number_prototype_valueOf = (_this: number) => {
+export function __Number_prototype_valueOf() {
   // 1. Return ? ThisNumberValue(this value).
-  return _this;
+  return this;
 };
 
 

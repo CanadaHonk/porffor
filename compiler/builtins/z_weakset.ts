@@ -1,15 +1,19 @@
 import type {} from './porffor.d.ts';
 
-export const __WeakSet_prototype_has = (_this: WeakSet, value: any) => __Set_prototype_has(_this, value);
+export function __WeakSet_prototype_has() {
+  return __Set_prototype_has(this, value);
+}
 
-export const __WeakSet_prototype_add = (_this: WeakSet, value: any) => {
+export function __WeakSet_prototype_add(value: any) {
   if (!Porffor.object.isObjectOrSymbol(value)) throw new TypeError('Value in WeakSet needs to be an object or symbol');
 
-  __Set_prototype_add(_this, value);
-  return _this;
+  __Set_prototype_add.call(this, value);
+  return this;
 };
 
-export const __WeakSet_prototype_delete = (_this: WeakSet, value: any) => __Set_prototype_delete(_this, value);
+export function __WeakSet_prototype_delete() {
+  return __Set_prototype_delete.call(this, value);
+}
 
 export const WeakSet = function (iterable: any): WeakSet {
   if (!new.target) throw new TypeError("Constructor WeakSet requires 'new'");
@@ -17,15 +21,17 @@ export const WeakSet = function (iterable: any): WeakSet {
   const out: WeakSet = __Porffor_allocate();
 
   if (iterable != null) for (const x of iterable) {
-    __WeakSet_prototype_add(out, x);
+    __WeakSet_prototype_add.call(out, x);
   }
 
   return out;
 };
 
-export const __WeakSet_prototype_toString = (_this: WeakSet) => {
+export function __WeakSet_prototype_toString() {
   const out: bytestring = '[object WeakSet]';
   return out;
 };
 
-export const __WeakSet_prototype_toLocaleString = (_this: WeakSet) => __WeakSet_prototype_toString(_this);
+export function __WeakSet_prototype_toLocaleString() {
+  return __WeakSet_prototype_toString.call(this);
+}

@@ -73,7 +73,7 @@ local.set ${key}`;
     out.length = len;
 
     for (let i: i32 = 0; i < len; i++) {
-      out[i] = __Number_prototype_toString(i);
+      out[i] = __Number_prototype_toString.call(i);
     }
   }
 
@@ -162,12 +162,12 @@ export const __Object_fromEntries = (iterable: any): object => {
 };
 
 
-export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
+export function __Object_prototype_hasOwnProperty(prop: any) {
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const t: i32 = Porffor.rawType(_this);
+  const t: i32 = Porffor.rawType(this);
   if (t == Porffor.TYPES.object) {
-    return Porffor.object.lookup(_this, p) != -1;
+    return Porffor.object.lookup(this, p) != -1;
   }
 
   if (t == Porffor.TYPES.function) {
@@ -182,12 +182,12 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
     return false;
   }
 
-  const keys: any[] = __Object_keys(_this);
-  return __Array_prototype_includes(keys, p);
+  const keys: any[] = __Object_keys(this);
+  return __Array_prototype_includes.call(keys, p);
 };
 
 export const __Object_hasOwn = (obj: any, prop: any) => {
-  return __Object_prototype_hasOwnProperty(obj, prop);
+  return __Object_prototype_hasOwnProperty.call(obj, prop);
 };
 
 
@@ -209,19 +209,19 @@ export const __Object_assign = (target: any, ...sources: any[]) => {
 };
 
 
-export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) => {
+export function __Object_prototype_propertyIsEnumerable(prop: any) {
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const t: i32 = Porffor.rawType(_this);
+  const t: i32 = Porffor.rawType(this);
   if (t == Porffor.TYPES.object) {
-    const entryPtr: i32 = Porffor.object.lookup(_this, p);
+    const entryPtr: i32 = Porffor.object.lookup(this, p);
     if (entryPtr == -1) return false;
 
     return Porffor.object.isEnumerable(entryPtr);
   }
 
-  const keys: any[] = __Object_keys(_this);
-  return __Array_prototype_includes(keys, p);
+  const keys: any[] = __Object_keys(this);
+  return __Array_prototype_includes.call(keys, p);
 };
 
 
@@ -468,7 +468,7 @@ local.set ${key}`;
     out.length = len;
 
     for (let i: i32 = 0; i < len; i++) {
-      out[i] = __Number_prototype_toString(i);
+      out[i] = __Number_prototype_toString.call(i);
     }
   }
 
@@ -635,18 +635,18 @@ export const __Object_groupBy = (items: any, callbackFn: any) => {
 };
 
 
-export const __Object_prototype_toString = (_this: any) => {
+export function __Object_prototype_toString() {
   let out: bytestring = Porffor.allocate();
 
   // 1. If the this value is undefined, return "[object Undefined]".
-  if (_this === undefined) return out = '[object Undefined]';
+  if (this === undefined) return out = '[object Undefined]';
 
   // 2. If the this value is null, return "[object Null]".
-  if (_this === null) return out = '[object Null]';
+  if (this === null) return out = '[object Null]';
 
   // todo: toStringTag support
 
-  const t: i32 = Porffor.rawType(_this);
+  const t: i32 = Porffor.rawType(this);
   if (t == Porffor.TYPES.array) return out = '[object Array]';
   if (t == Porffor.TYPES.function) return out = '[object Function]';
   if (t == Porffor.TYPES.boolean) return out = '[object Boolean]';
@@ -660,9 +660,11 @@ export const __Object_prototype_toString = (_this: any) => {
   return out = '[object Object]';
 };
 
-export const __Object_prototype_toLocaleString = (_this: any) => __Object_prototype_toLocaleString(_this);
+export function __Object_prototype_toLocaleString() {
+  return __Object_prototype_toLocaleString.call(this);
+}
 
-export const __Object_prototype_valueOf = (_this: any) => {
+export function __Object_prototype_valueOf() {
   // todo: ToObject
-  return _this;
+  return this;
 };

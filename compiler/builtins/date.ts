@@ -705,11 +705,11 @@ export const __Porffor_date_write = (ptr: Date, val: number) => {
 
 // 21.4.4.2 Date.prototype.getDate ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getdate
-export const __Date_prototype_getDate = (_this: Date) => {
+export function __Date_prototype_getDate() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -720,11 +720,11 @@ export const __Date_prototype_getDate = (_this: Date) => {
 
 // 21.4.4.3 Date.prototype.getDay ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getday
-export const __Date_prototype_getDay = (_this: Date) => {
+export function __Date_prototype_getDay() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -735,11 +735,11 @@ export const __Date_prototype_getDay = (_this: Date) => {
 
 // 21.4.4.4 Date.prototype.getFullYear ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getfullyear
-export const __Date_prototype_getFullYear = (_this: Date) => {
+export function __Date_prototype_getFullYear() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -750,11 +750,11 @@ export const __Date_prototype_getFullYear = (_this: Date) => {
 
 // 21.4.4.5 Date.prototype.getHours ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.gethours
-export const __Date_prototype_getHours = (_this: Date) => {
+export function __Date_prototype_getHours() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -765,11 +765,11 @@ export const __Date_prototype_getHours = (_this: Date) => {
 
 // 21.4.4.6 Date.prototype.getMilliseconds ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getmilliseconds
-export const __Date_prototype_getMilliseconds = (_this: Date) => {
+export function __Date_prototype_getMilliseconds() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -780,11 +780,11 @@ export const __Date_prototype_getMilliseconds = (_this: Date) => {
 
 // 21.4.4.7 Date.prototype.getMinutes ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getminutes
-export const __Date_prototype_getMinutes = (_this: Date) => {
+export function __Date_prototype_getMinutes() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -795,11 +795,11 @@ export const __Date_prototype_getMinutes = (_this: Date) => {
 
 // 21.4.4.8 Date.prototype.getMonth ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getmonth
-export const __Date_prototype_getMonth = (_this: Date) => {
+export function __Date_prototype_getMonth() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -810,11 +810,11 @@ export const __Date_prototype_getMonth = (_this: Date) => {
 
 // 21.4.4.9 Date.prototype.getSeconds ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getseconds
-export const __Date_prototype_getSeconds = (_this: Date) => {
+export function __Date_prototype_getSeconds() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -825,20 +825,20 @@ export const __Date_prototype_getSeconds = (_this: Date) => {
 
 // 21.4.4.10 Date.prototype.getTime ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.gettime
-export const __Date_prototype_getTime = (_this: Date) => {
+export function __Date_prototype_getTime() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Return dateObject.[[DateValue]].
-  return __Porffor_date_read(_this);
+  return __Porffor_date_read(this);
 };
 
 // 21.4.4.11 Date.prototype.getTimezoneOffset ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.gettimezoneoffset
-export const __Date_prototype_getTimezoneOffset = (_this: Date) => {
+export function __Date_prototype_getTimezoneOffset() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -849,11 +849,11 @@ export const __Date_prototype_getTimezoneOffset = (_this: Date) => {
 
 // 21.4.4.12 Date.prototype.getUTCDate ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcdate
-export const __Date_prototype_getUTCDate = (_this: Date) => {
+export function __Date_prototype_getUTCDate() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -864,11 +864,11 @@ export const __Date_prototype_getUTCDate = (_this: Date) => {
 
 // 21.4.4.13 Date.prototype.getUTCDay ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcday
-export const __Date_prototype_getUTCDay = (_this: Date) => {
+export function __Date_prototype_getUTCDay() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -879,11 +879,11 @@ export const __Date_prototype_getUTCDay = (_this: Date) => {
 
 // 21.4.4.14 Date.prototype.getUTCFullYear ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcfullyear
-export const __Date_prototype_getUTCFullYear = (_this: Date) => {
+export function __Date_prototype_getUTCFullYear() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -894,11 +894,11 @@ export const __Date_prototype_getUTCFullYear = (_this: Date) => {
 
 // 21.4.4.15 Date.prototype.getUTCHours ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutchours
-export const __Date_prototype_getUTCHours = (_this: Date) => {
+export function __Date_prototype_getUTCHours() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -909,11 +909,11 @@ export const __Date_prototype_getUTCHours = (_this: Date) => {
 
 // 21.4.4.16 Date.prototype.getUTCMilliseconds ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcmilliseconds
-export const __Date_prototype_getUTCMilliseconds = (_this: Date) => {
+export function __Date_prototype_getUTCMilliseconds() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -924,11 +924,11 @@ export const __Date_prototype_getUTCMilliseconds = (_this: Date) => {
 
 // 21.4.4.17 Date.prototype.getUTCMinutes ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcminutes
-export const __Date_prototype_getUTCMinutes = (_this: Date) => {
+export function __Date_prototype_getUTCMinutes() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -939,11 +939,11 @@ export const __Date_prototype_getUTCMinutes = (_this: Date) => {
 
 // 21.4.4.18 Date.prototype.getUTCMonth ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcmonth
-export const __Date_prototype_getUTCMonth = (_this: Date) => {
+export function __Date_prototype_getUTCMonth() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -954,11 +954,11 @@ export const __Date_prototype_getUTCMonth = (_this: Date) => {
 
 // 21.4.4.19 Date.prototype.getUTCSeconds ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.getutcseconds
-export const __Date_prototype_getUTCSeconds = (_this: Date) => {
+export function __Date_prototype_getUTCSeconds() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
@@ -970,11 +970,11 @@ export const __Date_prototype_getUTCSeconds = (_this: Date) => {
 
 // 21.4.4.20 Date.prototype.setDate (date)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setdate
-export const __Date_prototype_setDate = (_this: Date, date: any) => {
+export function __Date_prototype_setDate(date: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. Let dt be ? ToNumber(date).
   const dt: number = ecma262.ToNumber(date);
@@ -992,7 +992,7 @@ export const __Date_prototype_setDate = (_this: Date, date: any) => {
   const u: number = __ecma262_TimeClip(__ecma262_UTC(newDate));
 
   // 9. Set dateObject.[[DateValue]] to u.
-  __Porffor_date_write(_this, u);
+  __Porffor_date_write(this, u);
 
   // 10. Return u.
   return u;
@@ -1000,11 +1000,11 @@ export const __Date_prototype_setDate = (_this: Date, date: any) => {
 
 // 21.4.4.21 Date.prototype.setFullYear (year [, month [, date ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setfullyear
-export const __Date_prototype_setFullYear = (_this: Date, year: any, month: any, date: any) => {
+export function __Date_prototype_setFullYear(year: any, month: any, date: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. Let y be ? ToNumber(year).
   const y: number = ecma262.ToNumber(year);
@@ -1030,7 +1030,7 @@ export const __Date_prototype_setFullYear = (_this: Date, year: any, month: any,
   const u: number = __ecma262_TimeClip(__ecma262_UTC(newDate));
 
   // 10. Set dateObject.[[DateValue]] to u.
-  __Porffor_date_write(_this, u);
+  __Porffor_date_write(this, u);
 
   // 11. Return u.
   return u;
@@ -1038,11 +1038,11 @@ export const __Date_prototype_setFullYear = (_this: Date, year: any, month: any,
 
 // 21.4.4.22 Date.prototype.setHours (hour [, min [, sec [, ms ]]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.sethours
-export const __Date_prototype_setHours = (_this: Date, hour: any, min: any, sec: any, ms: any) => {
+export function __Date_prototype_setHours(hour: any, min: any, sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. Let h be ? ToNumber(hour).
   const h: number = ecma262.ToNumber(hour);
@@ -1080,7 +1080,7 @@ export const __Date_prototype_setHours = (_this: Date, hour: any, min: any, sec:
   const u: number = __ecma262_TimeClip(__ecma262_UTC(date));
 
   // 15. Set dateObject.[[DateValue]] to u.
-  __Porffor_date_write(_this, u);
+  __Porffor_date_write(this, u);
 
   // 16. Return u.
   return u;
@@ -1088,11 +1088,11 @@ export const __Date_prototype_setHours = (_this: Date, hour: any, min: any, sec:
 
 // 21.4.4.23 Date.prototype.setMilliseconds (ms)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setmilliseconds
-export const __Date_prototype_setMilliseconds = (_this: Date, ms: any) => {
+export function __Date_prototype_setMilliseconds(ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // ignore old-style spec setting arg instead of having let
   // 4. Set ms to ? ToNumber(ms).
@@ -1111,7 +1111,7 @@ export const __Date_prototype_setMilliseconds = (_this: Date, ms: any) => {
   const u: number = __ecma262_TimeClip(__ecma262_UTC(__ecma262_MakeDate(__ecma262_Day(t), time)));
 
   // 9. Set dateObject.[[DateValue]] to u.
-  __Porffor_date_write(_this, u);
+  __Porffor_date_write(this, u);
 
   // 10. Return u.
   return u;
@@ -1119,11 +1119,11 @@ export const __Date_prototype_setMilliseconds = (_this: Date, ms: any) => {
 
 // 21.4.4.24 Date.prototype.setMinutes (min [, sec [, ms ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setminutes
-export const __Date_prototype_setMinutes = (_this: Date, min: any, sec: any, ms: any) => {
+export function __Date_prototype_setMinutes(min: any, sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. Let m be ? ToNumber(min).
   const m: number = ecma262.ToNumber(min);
@@ -1155,7 +1155,7 @@ export const __Date_prototype_setMinutes = (_this: Date, min: any, sec: any, ms:
   const u: number = __ecma262_TimeClip(__ecma262_UTC(date));
 
   // 13. Set dateObject.[[DateValue]] to u.
-  __Porffor_date_write(_this, u);
+  __Porffor_date_write(this, u);
 
   // 14. Return u.
   return u;
@@ -1163,11 +1163,11 @@ export const __Date_prototype_setMinutes = (_this: Date, min: any, sec: any, ms:
 
 // 21.4.4.25 Date.prototype.setMonth (month [, date ])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setmonth
-export const __Date_prototype_setMonth = (_this: Date, month: any, date: any) => {
+export function __Date_prototype_setMonth(month: any, date: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. Let m be ? ToNumber(month).
   const m: number = ecma262.ToNumber(month);
@@ -1193,7 +1193,7 @@ export const __Date_prototype_setMonth = (_this: Date, month: any, date: any) =>
   const u: number = __ecma262_TimeClip(__ecma262_UTC(newDate));
 
   // 11. Set dateObject.[[DateValue]] to u.
-  __Porffor_date_write(_this, u);
+  __Porffor_date_write(this, u);
 
   // 12. Return u.
   return u;
@@ -1201,11 +1201,11 @@ export const __Date_prototype_setMonth = (_this: Date, month: any, date: any) =>
 
 // 21.4.4.26 Date.prototype.setSeconds (sec [, ms ])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setseconds
-export const __Date_prototype_setSeconds = (_this: Date, sec: any, ms: any) => {
+export function __Date_prototype_setSeconds(sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. Let s be ? ToNumber(sec).
   const s: number = ecma262.ToNumber(sec);
@@ -1231,7 +1231,7 @@ export const __Date_prototype_setSeconds = (_this: Date, sec: any, ms: any) => {
   const u: number = __ecma262_TimeClip(__ecma262_UTC(date));
 
   // 11. Set dateObject.[[DateValue]] to u.
-  __Porffor_date_write(_this, u);
+  __Porffor_date_write(this, u);
 
   // 12. Return u.
   return u;
@@ -1240,7 +1240,7 @@ export const __Date_prototype_setSeconds = (_this: Date, sec: any, ms: any) => {
 
 // 21.4.4.27 Date.prototype.setTime (time)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.settime
-export const __Date_prototype_setTime = (_this: Date, time: any) => {
+export function __Date_prototype_setTime(time: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be ? ToNumber(time).
@@ -1250,7 +1250,7 @@ export const __Date_prototype_setTime = (_this: Date, time: any) => {
   const v: number = __ecma262_TimeClip(t);
 
   // 5. Set dateObject.[[DateValue]] to v
-  __Porffor_date_write(_this, v);
+  __Porffor_date_write(this, v);
 
   // 6. Return v.
   return v;
@@ -1258,11 +1258,11 @@ export const __Date_prototype_setTime = (_this: Date, time: any) => {
 
 // 21.4.4.28 Date.prototype.setUTCDate (date)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutcdate
-export const __Date_prototype_setUTCDate = (_this: Date, date: any) => {
+export function __Date_prototype_setUTCDate(date: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  const t: number = __Porffor_date_read(_this);
+  const t: number = __Porffor_date_read(this);
 
   // 4. Let dt be ? ToNumber(date).
   const dt: number = ecma262.ToNumber(date);
@@ -1277,7 +1277,7 @@ export const __Date_prototype_setUTCDate = (_this: Date, date: any) => {
   const v: number = __ecma262_TimeClip(newDate);
 
   // 8. Set dateObject.[[DateValue]] to v.
-  __Porffor_date_write(_this, v);
+  __Porffor_date_write(this, v);
 
   // 9. Return v.
   return v;
@@ -1285,11 +1285,11 @@ export const __Date_prototype_setUTCDate = (_this: Date, date: any) => {
 
 // 21.4.4.29 Date.prototype.setUTCFullYear (year [, month [, date ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutcfullyear
-export const __Date_prototype_setUTCFullYear = (_this: Date, year: any, month: any, date: any) => {
+export function __Date_prototype_setUTCFullYear(year: any, month: any, date: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. If t is NaN, set t to +0𝔽.
   if (Number.isNaN(t)) t = 0;
@@ -1314,7 +1314,7 @@ export const __Date_prototype_setUTCFullYear = (_this: Date, year: any, month: a
   const v: number = __ecma262_TimeClip(newDate);
 
   // 10. Set dateObject.[[DateValue]] to v.
-  __Porffor_date_write(_this, v);
+  __Porffor_date_write(this, v);
 
   // 11. Return v.
   return v;
@@ -1322,11 +1322,11 @@ export const __Date_prototype_setUTCFullYear = (_this: Date, year: any, month: a
 
 // 21.4.4.30 Date.prototype.setUTCHours (hour [, min [, sec [, ms ]]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutchours
-export const __Date_prototype_setUTCHours = (_this: Date, hour: any, min: any, sec: any, ms: any) => {
+export function __Date_prototype_setUTCHours(hour: any, min: any, sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. Let h be ? ToNumber(hour).
   const h: number = ecma262.ToNumber(hour);
@@ -1361,7 +1361,7 @@ export const __Date_prototype_setUTCHours = (_this: Date, hour: any, min: any, s
   const v: number = __ecma262_TimeClip(date);
 
   // 14. Set dateObject.[[DateValue]] to v.
-  __Porffor_date_write(_this, v);
+  __Porffor_date_write(this, v);
 
   // 15. Return v.
   return v;
@@ -1369,11 +1369,11 @@ export const __Date_prototype_setUTCHours = (_this: Date, hour: any, min: any, s
 
 // 21.4.4.31 Date.prototype.setUTCMilliseconds (ms)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutcmilliseconds
-export const __Date_prototype_setUTCMilliseconds = (_this: Date, ms: any) => {
+export function __Date_prototype_setUTCMilliseconds(ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // ignore old-style spec setting arg instead of having let
   // 4. Set ms to ? ToNumber(ms).
@@ -1389,7 +1389,7 @@ export const __Date_prototype_setUTCMilliseconds = (_this: Date, ms: any) => {
   const v: number = __ecma262_TimeClip(__ecma262_MakeDate(__ecma262_Day(t), time));
 
   // 8. Set dateObject.[[DateValue]] to v.
-  __Porffor_date_write(_this, v);
+  __Porffor_date_write(this, v);
 
   // 10. Return v.
   return v;
@@ -1397,11 +1397,11 @@ export const __Date_prototype_setUTCMilliseconds = (_this: Date, ms: any) => {
 
 // 21.4.4.32 Date.prototype.setUTCMinutes (min [, sec [, ms ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutcminutes
-export const __Date_prototype_setUTCMinutes = (_this: Date, min: any, sec: any, ms: any) => {
+export function __Date_prototype_setUTCMinutes(min: any, sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. Let m be ? ToNumber(min).
   const m: number = ecma262.ToNumber(min);
@@ -1430,7 +1430,7 @@ export const __Date_prototype_setUTCMinutes = (_this: Date, min: any, sec: any, 
   const v: number = __ecma262_TimeClip(date);
 
   // 12. Set dateObject.[[DateValue]] to v.
-  __Porffor_date_write(_this, v);
+  __Porffor_date_write(this, v);
 
   // 13. Return v.
   return v;
@@ -1438,11 +1438,11 @@ export const __Date_prototype_setUTCMinutes = (_this: Date, min: any, sec: any, 
 
 // 21.4.4.33 Date.prototype.setUTCMonth (month [, date ])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutcmonth
-export const __Date_prototype_setUTCMonth = (_this: Date, month: any, date: any) => {
+export function __Date_prototype_setUTCMonth(month: any, date: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. Let m be ? ToNumber(month).
   const m: number = ecma262.ToNumber(month);
@@ -1465,7 +1465,7 @@ export const __Date_prototype_setUTCMonth = (_this: Date, month: any, date: any)
   const v: number = __ecma262_TimeClip(newDate);
 
   // 10. Set dateObject.[[DateValue]] to v.
-  __Porffor_date_write(_this, v);
+  __Porffor_date_write(this, v);
 
   // 11. Return v.
   return v;
@@ -1473,11 +1473,11 @@ export const __Date_prototype_setUTCMonth = (_this: Date, month: any, date: any)
 
 // 21.4.4.34 Date.prototype.setUTCSeconds (sec [, ms ])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutcseconds
-export const __Date_prototype_setUTCSeconds = (_this: Date, sec: any, ms: any) => {
+export function __Date_prototype_setUTCSeconds(sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
-  let t: number = __Porffor_date_read(_this);
+  let t: number = __Porffor_date_read(this);
 
   // 4. Let s be ? ToNumber(sec).
   const s: number = ecma262.ToNumber(sec);
@@ -1500,7 +1500,7 @@ export const __Date_prototype_setUTCSeconds = (_this: Date, sec: any, ms: any) =
   const v: number = __ecma262_TimeClip(date);
 
   // 10. Set dateObject.[[DateValue]] to v.
-  __Porffor_date_write(_this, v);
+  __Porffor_date_write(this, v);
 
   // 11. Return v.
   return v;
@@ -1619,11 +1619,11 @@ export const __ecma262_ToUTCDTSF = (t: number): bytestring => {
 
 // 21.4.4.36 Date.prototype.toISOString ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.toisostring
-export const __Date_prototype_toISOString = (_this: Date) => {
+export function __Date_prototype_toISOString() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let tv be dateObject.[[DateValue]].
-  const tv: number = __Porffor_date_read(_this);
+  const tv: number = __Porffor_date_read(this);
 
   // 4. If tv is NaN, throw a RangeError exception.
   if (Number.isNaN(tv)) {
@@ -1641,17 +1641,17 @@ export const __Date_prototype_toISOString = (_this: Date) => {
 
 // 21.4.4.37 Date.prototype.toJSON (key)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tojson
-export const __Date_prototype_toJSON = (_this: Date, key: any) => {
+export function __Date_prototype_toJSON(key: any) {
   // 1. Let O be ? ToObject(this value).
   // 2. Let tv be ? ToPrimitive(O, number).
   // todo: use generic ecma262.ToNumber() once it supports Date
-  const tv: number = __Porffor_date_read(_this);
+  const tv: number = __Porffor_date_read(this);
 
   // 3. If tv is a Number and tv is not finite, return null.
   if (!Number.isFinite(tv)) return null;
 
   // 4. Return ? Invoke(O, "toISOString").
-  return __Date_prototype_toISOString(_this);
+  return __Date_prototype_toISOString(this);
 };
 
 
@@ -1766,11 +1766,11 @@ export const __ecma262_ToDateString = (tv: number) => {
 
 // 21.4.4.41 Date.prototype.toString ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tostring
-export const __Date_prototype_toString = (_this: Date) => {
+export function __Date_prototype_toString() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let tv be dateObject.[[DateValue]].
-  const tv: number = __Porffor_date_read(_this);
+  const tv: number = __Porffor_date_read(this);
 
   // 4. Return ToDateString(tv).
   return __ecma262_ToDateString(tv);
@@ -1778,11 +1778,11 @@ export const __Date_prototype_toString = (_this: Date) => {
 
 // 21.4.4.42 Date.prototype.toTimeString ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.totimestring
-export const __Date_prototype_toTimeString = (_this: Date) => {
+export function __Date_prototype_toTimeString() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let tv be dateObject.[[DateValue]].
-  const tv: number = __Porffor_date_read(_this);
+  const tv: number = __Porffor_date_read(this);
 
   // 4. If tv is NaN, return "Invalid Date".
   let out: bytestring = Porffor.allocateBytes(27);
@@ -1806,11 +1806,11 @@ export const __Date_prototype_toTimeString = (_this: Date) => {
 
 // 21.4.4.35 Date.prototype.toDateString ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.todatestring
-export const __Date_prototype_toDateString = (_this: Date) => {
+export function __Date_prototype_toDateString() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let tv be dateObject.[[DateValue]].
-  const tv: number = __Porffor_date_read(_this);
+  const tv: number = __Porffor_date_read(this);
 
   // 4. If tv is NaN, return "Invalid Date".
   let out: bytestring = Porffor.allocateBytes(20);
@@ -1831,11 +1831,11 @@ export const __Date_prototype_toDateString = (_this: Date) => {
 
 // 21.4.4.43 Date.prototype.toUTCString ()
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.toutcstring
-export const __Date_prototype_toUTCString = (_this: Date) => {
+export function __Date_prototype_toUTCString() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let tv be dateObject.[[DateValue]].
-  const tv: number = __Porffor_date_read(_this);
+  const tv: number = __Porffor_date_read(this);
 
   // 4. If tv is NaN, return "Invalid Date".
   let out: bytestring = Porffor.allocateBytes(34);
@@ -1886,29 +1886,29 @@ export const __Date_prototype_toUTCString = (_this: Date) => {
 
 // 21.4.4.38 Date.prototype.toLocaleDateString ([ reserved1 [, reserved2 ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tolocaledatestring
-export const __Date_prototype_toLocaleDateString = (_this: Date, reserved1: any, reserved2: any) => {
-  return __Date_prototype_toDateString(_this);
+export function __Date_prototype_toLocaleDateString(reserved1: any, reserved2: any) {
+  return __Date_prototype_toDateString(this);
 };
 
 // 21.4.4.39 Date.prototype.toLocaleString ([ reserved1 [, reserved2 ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tolocalestring
-export const __Date_prototype_toLocaleString = (_this: Date, reserved1: any, reserved2: any) => {
-  return __Date_prototype_toString(_this);
+export function __Date_prototype_toLocaleString(reserved1: any, reserved2: any) {
+  return __Date_prototype_toString(this);
 };
 
 // 21.4.4.40 Date.prototype.toLocaleTimeString ([ reserved1 [, reserved2 ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tolocaletimestring
-export const __Date_prototype_toLocaleTimeString = (_this: Date, reserved1: any, reserved2: any) => {
-  return __Date_prototype_toTimeString(_this);
+export function __Date_prototype_toLocaleTimeString(reserved1: any, reserved2: any) {
+  return __Date_prototype_toTimeString(this);
 };
 
 // 21.4.4.44 Date.prototype.valueOf ()
 // https://tc39.es/ecma262/#sec-date.prototype.valueof
-export const __Date_prototype_valueOf = (_this: Date) => {
+export function __Date_prototype_valueOf() {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Return dateObject.[[DateValue]].
-  return __Porffor_date_read(_this);
+  return __Porffor_date_read(this);
 };
 
 // 21.4.2.1 Date (...values)

@@ -175,13 +175,13 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
 
     case Porffor.TYPES.date:
       if (colors) printStatic('\x1b[35m'); // purple
-      __Porffor_printString(__Date_prototype_toISOString(arg));
+      __Porffor_printString(__Date_prototype_toISOString.call(arg));
       if (colors) printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.symbol:
       if (colors) printStatic('\x1b[32m'); // green
-      __Porffor_printString(__Symbol_prototype_toString(arg));
+      __Porffor_printString(__Symbol_prototype_toString.call(arg));
       if (colors) printStatic('\x1b[0m');
       return;
 
@@ -340,7 +340,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
         else printStatic('Map');
       printStatic('(');
 
-      const map = __Map_prototype_keys(arg);
+      const map = __Map_prototype_keys.call(arg);
       const mapLen: i32 = map.length - 1;
       print(mapLen + 1);
       printStatic(') { ');
@@ -349,7 +349,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
         const key = map[i];
         __Porffor_print(key);
         printStatic(' => ');
-        __Porffor_print(__Map_prototype_get(arg, key), colors);
+        __Porffor_print(__Map_prototype_get.call(arg, key), colors);
         if (i != mapLen) printStatic(', ');
       }
 
@@ -363,7 +363,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
         else printStatic('Set');
       printStatic('(');
 
-      const set = __Set_prototype_values(arg);
+      const set = __Set_prototype_values.call(arg);
       const setLen: i32 = set.length - 1;
       print(setLen + 1);
       printStatic(') { ');
@@ -516,7 +516,7 @@ export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showH
 
   printStatic('{ ');
 
-  const keys = __Object_keys(obj);
+  const keys = __Object_keys.call(obj);
   const keysLen = keys.length - 1;
   for (let i = 0; i <= keysLen; i++) {
     const key = keys[i];

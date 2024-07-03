@@ -107,7 +107,7 @@ Stores the length `length` at pointer `pointer`, setting the length of an object
 Here is the code for `ByteString.prototype.toUpperCase()`:
 
 ```ts
-export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
+export function __ByteString_prototype_toUpperCase() {
   const len: i32 = _this.length;
 
   let out: bytestring = '';
@@ -132,7 +132,7 @@ export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
 Now let's go through it section by section:
 
 ```ts
-export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
+export function __ByteString_prototype_toUpperCase() {
 ```
 
 Here we define a built-in for Porffor. Notably:

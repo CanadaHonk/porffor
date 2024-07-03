@@ -124,7 +124,7 @@ local.set ${key}`;
     out.length = len;
 
     for (let i: i32 = 0; i < len; i++) {
-      out[i] = __Number_prototype_toString(i);
+      out[i] = __Number_prototype_toString.call(i);
     }
   }
 
