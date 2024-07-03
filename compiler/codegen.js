@@ -1772,21 +1772,37 @@ const RTArrayUtil = {
   ]
 };
 
-const createNewTarget = (scope, decl, idx = 0) => {
+const createNewTarget = (scope, decl, idx = 0, valtype = valtypeBinary) => {
+  let convert = []
+  if (valtypeBinary !== Valtype.i32 && valtype === Valtype.i32) {
+    convert.push(Opcodes.i32_to);
+  } else if (valtypeBinary === Valtype.i32 && valtype === Valtype.f64) {
+    convert.push([ Opcodes.f64_convert_i32_s ]);
+  }
+
   if (decl._new) {
     return [
       ...(typeof idx === 'number' ? number(idx) : idx),
+      ...convert,
       ...number(TYPES.function, Valtype.i32)
     ];
   }
 
   return [
     ...number(UNDEFINED),
+    ...convert,
     ...number(TYPES.undefined, Valtype.i32)
   ];
 };
 
-const createThisArg = (scope, decl, knownThis = undefined) => {
+const createThisArg = (scope, decl, knownThis = undefined, valtype = valtypeBinary) => {
+  let convert = []
+  if (valtypeBinary !== Valtype.i32 && valtype === Valtype.i32) {
+    convert.push(Opcodes.i32_to);
+  } else if (valtypeBinary === Valtype.i32 && valtype === Valtype.f64) {
+    convert.push([ Opcodes.f64_convert_i32_s ]);
+  }
+
   if (knownThis) {
     // todo: check compliance
     return knownThis;
@@ -1798,11 +1814,13 @@ const createThisArg = (scope, decl, knownThis = undefined) => {
     return [
       // create an empty object
       ...generateObject(scope, { properties: [] }),
+      ...convert,
       ...number(TYPES.object, Valtype.i32)
     ];
   } else {
     return [
       ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
+      ...convert,
       ...getType(scope, 'globalThis')
     ];
   }
@@ -2377,9 +2395,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (func && func.constr) {
-    out.push(...(decl._newTargetWasm ?? createNewTarget(scope, decl, idx - importedFuncs.length)));
-    out.push(...(decl._thisWasm ?? createThisArg(scope, decl)));
-    paramOffset += 4;
+    out.push(...(decl._newTargetWasm ?? createNewTarget(scope, decl, idx - importedFuncs.length, func.params[0])));
+    paramOffset += 2;
+    out.push(...(decl._thisWasm ?? createThisArg(scope, decl, undefined, func.params[0])));
+    paramOffset += 2;
   }
 
   let args = [...decl.arguments];

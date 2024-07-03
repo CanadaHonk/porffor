@@ -171,9 +171,6 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       if (func.constr) argc -= 4;
       if (!func.internal || func.typedParams) argc = Math.floor(argc / 2);
 
-      // hack: argc-- for prototype methods to remove _this hack from count
-      if (name.includes('_prototype_')) argc--;
-
       bytes.push(argc % 256, (argc / 256 | 0) % 256);
 
       let flags = 0b00000000; // 8 flag bits
