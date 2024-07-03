@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.25.1+b0893a7c3';
+globalThis.version = '0.25.2+bd0735a02';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -26,18 +26,20 @@ if (process.argv.includes('--help')) {
   console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript engine/runtime/compiler. \x1B[90m(${globalThis.version})\x1B[0m`);
 
   // basic usage
-  console.log(`Usage: \x1B[1mporf [command] path/to/script.js [...prefs] [...args]\x1B[0m`);
+  console.log(`Usage: \x1B[1mporf [command] [...prefs] path/to/script.js [...args]\x1B[0m`);
 
   // commands
   console.log(`\n\x1B[1mCommands:\x1B[0m`);
   for (const [ cmd, [ color, desc ] ] of Object.entries({
     run: [ 34, 'Run a JS file' ],
     wasm: [ 34, 'Compile a JS file to a Wasm binary\n' ],
+
     c: [ 31, 'Compile a JS file to C source code' ],
     native: [ 31, 'Compile a JS file to a native binary\n' ],
+
     profile: [ 33, 'Profile a JS file' ],
     debug: [ 33, 'Debug a JS file' ],
-    'debug-wasm': [ 33, 'Debug the compiled Wasm of a JS file' ]
+    'debug-wasm': [ 33, 'Debug the compiled Wasm of a JS file' ],
   })) {
     console.log(`  \x1B[1m\x1B[${color}m${cmd}\x1B[0m${' '.repeat(20 - cmd.length - (desc.startsWith('🧪') ? 3 : 0))}${desc}`);
   }

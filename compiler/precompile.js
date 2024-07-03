@@ -204,9 +204,10 @@ ${funcs.map(x => {
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode}, '${name}', ${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}', ${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16, ...builtin('${name}')]`)
-      .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`);
+      .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`)
+      .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(scope, { name: '${objName}' })`);
 
-    return `(scope, {${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}`.slice(0, -1)}}) => ` + str;
+    return `(scope, {${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}`.slice(0, -1)}}) => ` + str;
   };
 
   const locals = Object.entries(x.locals).sort((a,b) => a[1].idx - b[1].idx)

@@ -1,4 +1,4 @@
-import { Opcodes, PageSize, Valtype } from './wasmSpec.js';
+import { Blocktype, Opcodes, PageSize, Valtype } from './wasmSpec.js';
 import { TYPES } from './types.js';
 import { number } from './embedding.js';
 
@@ -6,64 +6,92 @@ export default function({ builtinFuncs }, Prefs) {
   const done = new Set();
   const object = (name, props) => {
     done.add(name);
+    const prefix = name === 'globalThis' ? '' : `__${name}_`;
 
-    let cached;
-    this[name] = (scope, { allocPage, makeString, generateIdent, getNodeType, builtin }) => {
-      if (cached) {
-        return number(cached);
-      }
+    builtinFuncs['#get_' + name] = {
+      params: [],
+      locals: [],
+      globals: [ Valtype.i32 ],
+      globalNames: [ '#getptr_' + name ],
+      returns: [ Valtype.i32 ],
+      returnType: TYPES.object,
+      wasm: (scope, { allocPage, makeString, generate, getNodeType, builtin }) => {
+        if (globalThis.precompile) return [ [ 'get object', name ] ];
 
-      // todo: precompute bytes here instead of calling real funcs if we really care about perf later
+        // todo/perf: precompute bytes here instead of calling real funcs if we really care about perf later
 
-      const page = allocPage(scope, `builtin object: ${name}`);
-      const ptr = page === 0 ? 4 : page * PageSize;
-      cached = ptr;
+        const page = allocPage(scope, `builtin object: ${name}`);
+        const ptr = page === 0 ? 4 : page * PageSize;
 
-      const out = [];
+        const out = [
+          // check if already made/cached
+          [ Opcodes.global_get, 0 ],
+          [ Opcodes.if, Blocktype.void ],
+            [ Opcodes.global_get, 0 ],
+            [ Opcodes.return ],
+          [ Opcodes.end ],
 
-      for (const x in props) {
-        const value = {
-          type: 'Identifier',
-          name: '__' + name + '_' + x
-        };
+          // set cache & ptr for use
+          ...number(ptr, Valtype.i32),
+          [ Opcodes.global_set, 0 ],
+        ];
 
-        let flags = 0b0000;
+        for (const x in props) {
+          let value = {
+            type: 'Identifier',
+            name: prefix + x
+          };
 
-        const d = props[x];
-        if (d.configurable) flags |= 0b0010;
-        if (d.enumerable) flags |= 0b0100;
-        if (d.writable) flags |= 0b1000;
+          let flags = 0b0000;
+
+          const d = props[x];
+          if (d.configurable) flags |= 0b0010;
+          if (d.enumerable) flags |= 0b0100;
+          if (d.writable) flags |= 0b1000;
+
+          // hack: do not generate objects inside of objects as it causes issues atm
+          if (this[prefix + x]?.type === TYPES.object) value = { type: 'ObjectExpression', properties: [] };
+
+          out.push(
+            [ Opcodes.global_get, 0 ],
+            ...number(TYPES.object, Valtype.i32),
+
+            ...makeString(scope, x, false, `#builtin_object_${name}_${x}`),
+            Opcodes.i32_to_u,
+            ...number(TYPES.bytestring, Valtype.i32),
+
+            ...generate(scope, value),
+            ...getNodeType(scope, value),
+
+            ...number(flags, Valtype.i32),
+            ...number(TYPES.number, Valtype.i32),
+
+            [ Opcodes.call, ...builtin('__Porffor_object_define') ],
+            [ Opcodes.drop ],
+            [ Opcodes.drop ]
+          );
+        }
 
         out.push(
-          ...number(ptr, Valtype.i32),
-          ...number(TYPES.object, Valtype.i32),
-
-          ...makeString(scope, x, false, `#builtin_object_${name}_${x}`),
-          Opcodes.i32_to_u,
-          ...number(TYPES.bytestring, Valtype.i32),
-
-          ...generateIdent(scope, value),
-          ...getNodeType(scope, value),
-
-          ...number(flags, Valtype.i32),
-          ...number(TYPES.number, Valtype.i32),
-
-          [ Opcodes.call, ...builtin('__Porffor_object_define') ],
-          [ Opcodes.drop ],
-          [ Opcodes.drop ]
+          // return ptr
+          [ Opcodes.global_get, 0 ]
         );
+        return out;
       }
-
-      out.push(...number(ptr));
-      return out;
     };
+
+
+    this[name] = (scope, { builtin }) => [
+      [ Opcodes.call, ...builtin('#get_' + name) ],
+      Opcodes.i32_from_u
+    ];
     this[name].type = TYPES.object;
 
     for (const x in props) {
       const d = props[x];
 
       if (d.value) {
-        const k = '__' + name + '_' + x;
+        const k = prefix + x;
 
         if (typeof d.value === 'number') {
           this[k] = number(d.value);
@@ -189,7 +217,42 @@ export default function({ builtinFuncs }, Prefs) {
     });
   }
 
-  object('globalThis', {})
+  const enumerableGlobals = [ 'atob', 'btoa', 'performance', 'crypto', 'navigator' ];
+  object('globalThis', {
+    // 19.1 Value Properties of the Global Object
+    // https://tc39.es/ecma262/#sec-value-properties-of-the-global-object
+    // 19.1.1 globalThis
+    globalThis: {
+      writable: true,
+      enumerable: false,
+      configurable: true
+    },
+
+    // 19.1.2 Infinity
+    // 19.1.3 NaN
+    // 19.1.4 undefined
+    ...props({
+      writable: false,
+      enumerable: false,
+      configurable: false
+    }, [ 'Infinity', 'NaN', 'undefined' ]),
+
+    // 19.2 Function Properties of the Global Object
+    // https://tc39.es/ecma262/#sec-function-properties-of-the-global-object
+    // 19.3 Constructor Properties of the Global Object
+    // https://tc39.es/ecma262/#sec-constructor-properties-of-the-global-object
+    ...props({
+      writable: true,
+      enumerable: false,
+      configurable: true
+    }, builtinFuncKeys.filter(x => !x.startsWith('__') && !enumerableGlobals.includes(x) && !x.startsWith('f64') && !x.startsWith('i32'))),
+
+    ...props({
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }, enumerableGlobals)
+  });
 
   if (Prefs.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(this))) {
     if (!x.startsWith('__')) continue;

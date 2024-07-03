@@ -1197,7 +1197,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
 const asmFuncToAsm = (scope, func) => {
   return func(scope, {
     TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow,
-    getNodeType, generateIdent,
+    getNodeType, generate, generateIdent,
     builtin: n => {
       let idx = funcIndex[n] ?? importedFuncs[n];
       if (idx == null && builtinFuncs[n]) {
@@ -4012,7 +4012,7 @@ const generateForIn = (scope, decl) => {
   depth.push('if');
   depth.push('forin');
   depth.push('block');
-  depth.push('block');
+  depth.push('if');
 
   // setup local for left
   generate(scope, decl.left);
@@ -4034,6 +4034,7 @@ const generateForIn = (scope, decl) => {
     [TYPES.object]: [
       [ Opcodes.loop, Blocktype.void ],
 
+      // read key
       [ Opcodes.local_get, pointer ],
       [ Opcodes.i32_load, 0, 5 ],
       [ Opcodes.local_tee, localTmp(scope, '#forin_tmp', Valtype.i32) ],
@@ -4059,11 +4060,18 @@ const generateForIn = (scope, decl) => {
       [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
 
       [ Opcodes.block, Blocktype.void ],
-      [ Opcodes.block, Blocktype.void ],
+
+      // todo/perf: do not read key for non-enumerables
+      // only run body if entry is enumerable
+      [ Opcodes.local_get, pointer ],
+      [ Opcodes.i32_load8_u, 0, 17 ],
+      [ Opcodes.i32_const, 0b0100 ],
+      [ Opcodes.i32_and ],
+      [ Opcodes.if, Blocktype.void ],
       ...generate(scope, decl.body),
       [ Opcodes.end ],
 
-      // increment iter pointer by 14
+      // increment pointer by 14
       [ Opcodes.local_get, pointer ],
       ...number(14, Valtype.i32),
       [ Opcodes.i32_add ],
@@ -4172,7 +4180,7 @@ const generateBreak = (scope, decl) => {
     while: 2, // loop > if (wanted branch) (we are here)
     dowhile: 2, // loop > block (wanted branch) > block (we are here)
     forof: 2, // loop > block (wanted branch) > block (we are here)
-    forin: 2, // loop > block (wanted branch) > block (we are here)
+    forin: 2, // loop > block (wanted branch) > if (we are here)
     if: 1, // break inside if, branch 0 to skip the rest of the if
     switch: 1
   })[type];
@@ -4195,7 +4203,7 @@ const generateContinue = (scope, decl) => {
     while: 1, // loop (wanted branch) > if (we are here)
     dowhile: 3, // loop > block > block (wanted branch) (we are here)
     forof: 3, // loop > block > block (wanted branch) (we are here)
-    forin: 3 // loop > block > block (wanted branch) (we are here)
+    forin: 3 // loop > block > if (wanted branch) (we are here)
   })[type];
 
   return [

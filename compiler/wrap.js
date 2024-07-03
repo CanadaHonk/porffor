@@ -69,7 +69,10 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
 
         const vValue = read(Float64Array, memory, value + offset + 4, 1)[0];
         const vType = tail >>> 8;
-        const v = porfToJSValue({ memory, funcs, pages }, vValue, vType);
+
+        // do not recursive call forever for direct circular
+        const v = vValue === value && vType === type ? out :
+          porfToJSValue({ memory, funcs, pages }, vValue, vType);
 
         const flags = tail & 0xff;
 
