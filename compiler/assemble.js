@@ -176,6 +176,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       let flags = 0b00000000; // 8 flag bits
       if (func.returnType != null) flags |= 0b01;
       if (func.constr) flags |= 0b10;
+      if (func.noNew) flags |= 0b100;
       bytes.push(flags);
 
       // eg: __String_prototype_toLowerCase -> toLowerCase

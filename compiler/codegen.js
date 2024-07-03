@@ -1249,7 +1249,7 @@ const asmFuncToAsm = (scope, func) => {
   });
 };
 
-const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false } = {}) => {
+const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, noNew = false, hasRestArgument = false } = {}) => {
   if (wasm == null) { // called with no builtin
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
@@ -1286,6 +1286,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     index: currentFuncIndex++,
     table,
     constr,
+    noNew,
     globalInits
   };
 
@@ -2381,9 +2382,15 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
             // check if non-constructor was called with new, if so throw
             [ Opcodes.local_get, flags ],
-            ...number(0b10, Valtype.i32),
+            ...number(0b10, Valtype.i32), // constr
             [ Opcodes.i32_and ],
             [ Opcodes.i32_eqz ],
+            [ Opcodes.local_get, flags ],
+            ...number(0b100, Valtype.i32), // noNew
+            [ Opcodes.i32_and ],
+            ...number(0, Valtype.i32),
+            [ Opcodes.i32_ne ],
+            [ Opcodes.i32_and ],
             [ Opcodes.i32_const, decl._new ? 1 : 0 ],
             [ Opcodes.i32_and ],
             [ Opcodes.if, Blocktype.void ],
@@ -2410,7 +2417,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   let paramCount = countParams(func, name);
 
   let paramOffset = 0;
-  if (decl._new && func && !func.constr) {
+  if (decl._new && func && ((!func.constr) || (func.constr && func.noNew))) {
     return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
   }
 
@@ -4342,6 +4349,7 @@ const generateEmpty = (scope, decl) => {
 const generateMeta = (scope, decl) => {
   switch (`${decl.meta.name}.${decl.property.name}`) {
     case 'new.target': {
+      scope.noNew = false;
       return [
         [ Opcodes.local_get, '#newtarget' ],
       ];
@@ -5189,7 +5197,8 @@ const generateFunc = (scope, decl) => {
     throws: false,
     name,
     index: currentFuncIndex++,
-    constr: decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program'
+    constr: decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program',
+    noNew: globalThis.precompile
   };
 
   funcIndex[name] = func.index;
@@ -5546,7 +5555,7 @@ export default program => {
   delete globals['#ind'];
 
   // if blank main func and other exports, remove it
-  if (main.wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(main.index - importedFuncs.length, 1);
+  if (!globalThis.precompile && main.wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(main.index - importedFuncs.length, 1);
 
   return { funcs, globals, tags, exceptions, pages, data };
 };
