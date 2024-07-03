@@ -288,7 +288,9 @@ function verifyProperty(obj, name, desc, options) {
   var originalDesc = Object.getOwnPropertyDescriptor(obj, name);
 
   if (desc === undefined) {
-    assert.sameValue(originalDesc, undefined, 'verifyProperty');
+    if (originalDesc !== undefined) {
+      throw new Test262Error('verifyProperty: expected undefined descriptor');
+    }
 
     return true;
   }
