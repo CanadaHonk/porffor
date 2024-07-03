@@ -198,10 +198,24 @@ i32.const 128
 return`;
     }
 
-    Porffor.wasm`
+    const funcFlags: i32 = Porffor.funcLut.flags(get);
+    if (funcFlags & 0b10) {
+      // constructor func, add new.target, this args
+      Porffor.wasm`
+f64.const 0
+i32.const 0
+local.get ${_this}
+f64.convert_i32_u
+local.get ${_this+1}
+local.get ${get}
+call_indirect 2 0
+return`;
+    } else {
+      Porffor.wasm`
 local.get ${get}
 call_indirect 0 0
 return`;
+    }
   }
 
   // data descriptor
@@ -262,11 +276,26 @@ export const __Porffor_object_set = (_this: object, key: any, value: any): any =
         return value;
       }
 
+      const funcFlags: i32 = Porffor.funcLut.flags(set);
+    if (funcFlags & 0b10) {
+      // constructor func, add new.target, this args
+      Porffor.wasm`
+f64.const 0
+i32.const 0
+local.get ${_this}
+f64.convert_i32_u
+i32.const 7
+local.get ${value}
+local.get ${value+1}
+local.get ${set}
+call_indirect 3 0`;
+    } else {
       Porffor.wasm`
 local.get ${value}
 local.get ${value+1}
 local.get ${set}
 call_indirect 1 0`;
+    }
 
       return value;
     }

@@ -359,7 +359,6 @@ const generateReturn = (scope, decl) => {
   const out = [];
   if (
     scope.constr && // only do this in constructors
-    scope.newTarget && scope.usesThis && // sanity check
     !globalThis.precompile // skip in precompiled built-ins, we should not require this and handle it ourselves
   ) {
     // ignore return value and return this if being constructed
@@ -1242,7 +1241,7 @@ const asmFuncToAsm = (scope, func) => {
   });
 };
 
-const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, newTarget = false, usesThis = false, hasRestArgument = false } = {}) => {
+const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false } = {}) => {
   if (wasm == null) { // called with no builtin
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
@@ -1279,8 +1278,6 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     index: currentFuncIndex++,
     table,
     constr,
-    newTarget,
-    usesThis,
     globalInits
   };
 
@@ -1787,7 +1784,7 @@ const createNewTarget = (scope, decl, idx) => {
     ...number(UNDEFINED),
     ...number(TYPES.undefined, Valtype.i32)
   ];
-}
+};
 
 const createThisArg = (scope, decl, getFunc, knownThis = undefined) => {
   if (knownThis) {
@@ -2274,71 +2271,36 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         // todo: i'm sure this could be made better somehow, probably only with #96?
         return checkFlag(0b1,
           // no type return
-          checkFlag(0b1000,
-            // no type return & this
-            checkFlag(0b100, [
-              // no type return & this & new.target
-              ...createNewTarget(scope, decl),
-              ...createThisArg(scope, decl, [], knownThis),
-              ...argsOut,
-              [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc + 2, 0, 'no_type_return' ],
-            ], [
-              // no type return & this
-              ...createThisArg(scope, decl),
-              ...argsOut,
-              [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc + 1, 0, 'no_type_return' ]
-            ]),
-            // no type return
-            checkFlag(0b100, [
-              // no type return & new.target
-              ...createNewTarget(scope, decl),
-              ...argsOut,
-              [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc + 1, 0, 'no_type_return' ],
-            ], [
-              // no type return
-              ...argsOut,
-              [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc, 0, 'no_type_return' ]
-            ]),
-          ),
+          checkFlag(0b10, [
+            // no type return & constr
+            ...createNewTarget(scope, decl),
+            ...createThisArg(scope, decl, [], knownThis),
+            ...argsOut,
+            [ Opcodes.local_get, funcLocal ],
+            [ Opcodes.call_indirect, argc + 2, 0, 'no_type_return' ],
+          ], [
+            // no type return & not constr
+            ...argsOut,
+            [ Opcodes.local_get, funcLocal ],
+            [ Opcodes.call_indirect, argc, 0, 'no_type_return' ]
+          ]),
+
           // type return
-          checkFlag(0b1000,
-            // type return & this
-            checkFlag(0b100, [
-              // type return & this & new.target
-              ...createNewTarget(scope, decl),
-              ...createThisArg(scope, decl, [], knownThis),
-              ...argsOut,
-              [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc + 2, 0 ],
-              ...setLastType(scope),
-            ], [
-              // type return & this
-              ...createThisArg(scope, decl),
-              ...argsOut,
-              [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc + 1, 0 ],
-              ...setLastType(scope),
-            ]),
+          checkFlag(0b10, [
+            // type return & constr
+            ...createNewTarget(scope, decl),
+            ...createThisArg(scope, decl, [], knownThis),
+            ...argsOut,
+            [ Opcodes.local_get, funcLocal ],
+            [ Opcodes.call_indirect, argc + 2, 0 ],
+            ...setLastType(scope),
+          ], [
             // type return
-            checkFlag(0b100, [
-              // type return & new.target
-              ...createNewTarget(scope, decl),
-              ...argsOut,
-              [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc + 1, 0 ],
-              ...setLastType(scope),
-            ], [
-              // type return
-              ...argsOut,
-              [ Opcodes.local_get, funcLocal ],
-              [ Opcodes.call_indirect, argc, 0 ],
-              ...setLastType(scope),
-            ]),
-          )
+            ...argsOut,
+            [ Opcodes.local_get, funcLocal ],
+            [ Opcodes.call_indirect, argc, 0 ],
+            ...setLastType(scope),
+          ])
         );
       };
 
@@ -2408,14 +2370,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
   }
 
-  if (func && func.newTarget) {
+  if (func && func.constr) {
     out.push(...createNewTarget(scope, decl, idx - importedFuncs.length));
-    paramOffset += 2;
-  }
-
-  if (func && func.usesThis) {
     out.push(...createThisArg(scope, decl, func));
-    paramOffset += 2;
+    paramOffset += 4;
   }
 
   let args = [...decl.arguments];
@@ -2509,13 +2467,11 @@ const generateThis = (scope, decl, _global, _name) => {
     ];
   }
 
-  scope.usesThis = true;
-
   return [
     [ Opcodes.local_get, '#this' ],
     ...setLastType(scope, [ [ Opcodes.local_get, '#this#type' ] ])
   ];
-}
+};
 
 // bad hack for undefined and null working without additional logic
 const DEFAULT_VALUE = () => ({
@@ -4337,8 +4293,6 @@ const generateEmpty = (scope, decl) => {
 const generateMeta = (scope, decl) => {
   switch (`${decl.meta.name}.${decl.property.name}`) {
     case 'new.target': {
-      scope.newTarget = true;
-
       return [
         [ Opcodes.local_get, '#newtarget' ],
       ];
@@ -4778,12 +4732,11 @@ const countParams = (func, name = undefined) => {
   if (func.argc) return func.argc;
 
   let params = func.params.length;
-  if (func.newTarget) params -= 2;
-  if (func.usesThis) params -= 2;
+  if (func.constr) params -= 4;
   if (!func.internal || builtinFuncs[func.name]?.typedParams) params = Math.floor(params / 2);
 
-  return params;
-}
+  return func.argc = params;
+};
 
 const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) => {
   const name = decl.object.name;
@@ -5235,13 +5188,6 @@ const generateFunc = (scope, decl) => {
 
   func.params = Object.values(func.locals).map(x => x.type);
 
-  func.argc = countParams(func, name);
-
-  if (func.constr) {
-    func.newTarget = true;
-    func.usesThis = true;
-  }
-
   let body = objectHack(decl.body);
   if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
     // hack: () => 0 -> () => return 0
@@ -5275,18 +5221,10 @@ const generateFunc = (scope, decl) => {
     wasm.push(...generateReturn(func, {}));
   }
 
-  if (func.newTarget || func.usesThis) {
+  if (func.constr) {
     const locals = func.locals;
-    let idxOffset = 0;
-    func.params = [...func.params];
-    if (func.usesThis) {
-      func.params.unshift(valtypeBinary, Valtype.i32);
-      idxOffset += 2;
-    }
-    if (func.newTarget) {
-      func.params.unshift(valtypeBinary, Valtype.i32);
-      idxOffset += 2;
-    }
+    let idxOffset = 4;
+    func.params = [ valtypeBinary, Valtype.i32, valtypeBinary, Valtype.i32, ...func.params ];
 
     // move all local indexes by idxOffset
     func.localInd += idxOffset;
@@ -5295,15 +5233,11 @@ const generateFunc = (scope, decl) => {
     }
 
     let indexes = idxOffset;
-    // note: make sure to add these in reverse order of location
-    if (func.usesThis) {
-      locals['#this#type'] = { idx: --indexes, type: Valtype.i32 };
-      locals['#this'] = { idx: --indexes, type: valtypeBinary };
-    }
-    if (func.newTarget) {
-      locals['#newtarget#type'] = { idx: --indexes, type: Valtype.i32 };
-      locals['#newtarget'] = { idx: --indexes, type: valtypeBinary };
-    }
+
+    locals['#this#type'] = { idx: --indexes, type: Valtype.i32 };
+    locals['#this'] = { idx: --indexes, type: valtypeBinary };
+    locals['#newtarget#type'] = { idx: --indexes, type: Valtype.i32 };
+    locals['#newtarget'] = { idx: --indexes, type: valtypeBinary };
 
     for (let i = 0; i < wasm.length; i++) {
       // note: these needs to be copied, even though they realistically shouldn't

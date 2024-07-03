@@ -168,8 +168,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       let name = func.name;
 
       let argc = func.params.length;
-      if (func.newTarget) argc -= 2;
-      if (func.usesThis) argc -= 2;
+      if (func.constr) argc -= 4;
       if (!func.internal || func.typedParams) argc = Math.floor(argc / 2);
 
       // hack: argc-- for prototype methods to remove _this hack from count
@@ -178,10 +177,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       bytes.push(argc % 256, (argc / 256 | 0) % 256);
 
       let flags = 0b00000000; // 8 flag bits
-      if (func.returnType != null) flags |= 0b1;
+      if (func.returnType != null) flags |= 0b01;
       if (func.constr) flags |= 0b10;
-      if (func.newTarget) flags |= 0b100;
-      if (func.usesThis) flags |= 0b1000;
       bytes.push(flags);
 
       // eg: __String_prototype_toLowerCase -> toLowerCase

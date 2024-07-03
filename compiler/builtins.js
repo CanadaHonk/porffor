@@ -1056,6 +1056,21 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  this.__Porffor_funcLut_flags = {
+    params: [ Valtype.i32 ],
+    returns: [ Valtype.i32 ],
+    returnType: TYPES.number,
+    wasm: (scope, { allocPage }) => [
+      [ Opcodes.local_get, 0 ],
+      ...number(128, Valtype.i32),
+      [ Opcodes.i32_mul ],
+      ...number(2, Valtype.i32),
+      [ Opcodes.i32_add ],
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize) ]
+    ],
+    table: true
+  };
+
   this.__Porffor_funcLut_length = {
     params: [ Valtype.i32 ],
     returns: [ Valtype.i32 ],
