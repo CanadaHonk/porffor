@@ -15,10 +15,10 @@ export default function({ builtinFuncs }, Prefs) {
       globalNames: [ '#getptr_' + name ],
       returns: [ Valtype.i32 ],
       returnType: TYPES.object,
-      wasm: (scope, { allocPage, makeString, generateIdent, getNodeType, builtin }) => {
+      wasm: (scope, { allocPage, makeString, generate, getNodeType, builtin }) => {
         if (globalThis.precompile) return [ [ 'get object', name ] ];
 
-        // todo: precompute bytes here instead of calling real funcs if we really care about perf later
+        // todo/perf: precompute bytes here instead of calling real funcs if we really care about perf later
 
         const page = allocPage(scope, `builtin object: ${name}`);
         const ptr = page === 0 ? 4 : page * PageSize;
@@ -37,7 +37,7 @@ export default function({ builtinFuncs }, Prefs) {
         ];
 
         for (const x in props) {
-          const value = {
+          let value = {
             type: 'Identifier',
             name: prefix + x
           };
@@ -49,6 +49,9 @@ export default function({ builtinFuncs }, Prefs) {
           if (d.enumerable) flags |= 0b0100;
           if (d.writable) flags |= 0b1000;
 
+          // hack: do not generate objects inside of objects as it causes issues atm
+          if (this[prefix + x]?.type === TYPES.object) value = { type: 'ObjectExpression', properties: [] };
+
           out.push(
             [ Opcodes.global_get, 0 ],
             ...number(TYPES.object, Valtype.i32),
@@ -57,7 +60,7 @@ export default function({ builtinFuncs }, Prefs) {
             Opcodes.i32_to_u,
             ...number(TYPES.bytestring, Valtype.i32),
 
-            ...generateIdent(scope, value),
+            ...generate(scope, value),
             ...getNodeType(scope, value),
 
             ...number(flags, Valtype.i32),
@@ -214,7 +217,42 @@ export default function({ builtinFuncs }, Prefs) {
     });
   }
 
-  object('globalThis', {})
+  const enumerableGlobals = [ 'atob', 'btoa', 'performance', 'crypto', 'navigator' ];
+  object('globalThis', {
+    // 19.1 Value Properties of the Global Object
+    // https://tc39.es/ecma262/#sec-value-properties-of-the-global-object
+    // 19.1.1 globalThis
+    globalThis: {
+      writable: true,
+      enumerable: false,
+      configurable: true
+    },
+
+    // 19.1.2 Infinity
+    // 19.1.3 NaN
+    // 19.1.4 undefined
+    ...props({
+      writable: false,
+      enumerable: false,
+      configurable: false
+    }, [ 'Infinity', 'NaN', 'undefined' ]),
+
+    // 19.2 Function Properties of the Global Object
+    // https://tc39.es/ecma262/#sec-function-properties-of-the-global-object
+    // 19.3 Constructor Properties of the Global Object
+    // https://tc39.es/ecma262/#sec-constructor-properties-of-the-global-object
+    ...props({
+      writable: true,
+      enumerable: false,
+      configurable: true
+    }, builtinFuncKeys.filter(x => !x.startsWith('__') && !enumerableGlobals.includes(x) && !x.startsWith('f64') && !x.startsWith('i32'))),
+
+    ...props({
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }, enumerableGlobals)
+  });
 
   if (Prefs.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(this))) {
     if (!x.startsWith('__')) continue;
