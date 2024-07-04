@@ -4915,7 +4915,8 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
             name: x
           },
           arguments: [ decl.object ],
-          _protoInternalCall: true
+          _protoInternalCall: true,
+          _call: true
         });
       }
     }
