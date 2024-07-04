@@ -1818,6 +1818,7 @@ const createThisArg = (scope, decl, knownThis = undefined, valtype = valtypeBina
   }
 
   if (decl._new) {
+    // todo/perf: if func is a builtin, there's no need to generate an object as all of them should handle that
     // todo: created object should have .prototype = func.prototype
     // todo: created object should have .constructor = func
     return [
@@ -1972,7 +1973,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
 
     if (protoName == "call" && globalThis.precompile) {
-      // hack: .call for functions, only allowed in precompile right now as this is so hacky
+      // hack: .call for functions, only allowed in precompile right now as this breaks any other prototype func named call
       return generateCall(scope, {
         callee: target,
         arguments: [
