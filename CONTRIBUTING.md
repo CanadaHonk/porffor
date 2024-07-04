@@ -209,7 +209,7 @@ Store the character code into the `out` pointer variable, and increment it.
 <br>
 
 ### Porffor.wasm
-This is a macro that is essentially equivalent to c's `asm` macro. It allows you to write inline wasm bytecode in a similar format to [WAT](https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format).
+This is a macro that is essentially equivalent to C's `asm` macro. It allows you to write inline Wasm bytecode in a similar format to [WAT](https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format).
 
 Let's look at an example to better illustrate how the format works.
 
