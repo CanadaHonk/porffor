@@ -68,8 +68,8 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 - `-O3` to enable advanceder opt (precompute const math). unstable!
 
 ## Limitations
-- No full object support yet
 - Little built-ins/prototype
+- No object prototypes yet
 - No async/promise/await
 - No variables between scopes (except args and globals)
 - No `eval()` etc (since it is AOT)
@@ -103,7 +103,7 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Declaring functions
 - Calling functions
 - `return`
-- `let`/`const`/`var` basic declarations
+- Basic declarations (`let`/`const`/`var`)
 - Some basic integer operators (`+-/*%`)
 - Some basic integer bitwise operators (`&|`)
 - Equality operators (`==`, `!=`, etc)
@@ -111,18 +111,18 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Some unary operators (`!`, `+`, `-`)
 - Logical operators (`&&`, `||`)
 - Declaring multiple variables in one (`let a, b = 0`)
+- Array destructuring (`let [a, ...b] = foo`)
 - Global variables (`var`/none in top scope)
-- Functions returning 1 number
-- Bool literals as ints (not real type)
+- Booleans
 - `if` and `if ... else`
 - Anonymous functions
 - Setting functions using vars (`const foo = function() { ... }`)
 - Arrow functions
-- `undefined`/`null` as ints (hack)
+- `undefined`/`null`
 - Update expressions (`a++`, `++b`, `c--`, etc)
 - `for` loops (`for (let i = 0; i < N; i++)`, etc)
-- *Basic* objects (hack)
-- `console.log` (hack)
+- Basic objects (no prototypes)
+- `console.log`
 - `while` loops
 - `break` and `continue`
 - Named export funcs
@@ -131,7 +131,7 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Conditional/ternary operator (`cond ? a : b`)
 - Recursive functions
 - Bare returns (`return`)
-- `throw` (literals only)
+- `throw` (literals only, hack for `new Error`)
 - Basic `try { ... } catch { ... }` (no error given)
 - Calling functions with non-matching arguments (eg `f(a, b); f(0); f(1, 2, 3);`)
 - `typeof`
@@ -145,11 +145,15 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - String comparison (eg `'a' == 'a'`, `'a' != 'b'`)
 - Nullish coalescing operator (`??`)
 - `for...of` (arrays and strings)
+- `for...in`
 - Array member setting (`arr[0] = 2`, `arr[0] += 2`, etc)
 - Array constructor (`Array(5)`, `new Array(1, 2, 3)`)
 - Labelled statements (`foo: while (...)`)
 - `do...while` loops
 - Optional parameters (`(foo = 'bar') => { ... }`)
+- Rest parameters (`(...foo) => { ... }`)
+- `this`
+- Constructors (`new Foo`)
 
 ### Built-ins
 
@@ -223,16 +227,27 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
 
 ## Codebase
 - `compiler`: contains the compiler itself
-  - `builtins.js`: all built-ins of the engine (spec, custom. vars, funcs)
+  - `2c.js`: porffor's custom wasm-to-c engine
+  - `allocators.js`: static and dynamic allocators to power various language features
+  - `assemble.js`: assembles wasm ops and metadata into a wasm module/file
+  - `builtins.js`: all manually written built-ins of the engine (spec, custom. vars, funcs)
+  - `builtins_object.js`: all the various built-in objects (think `String`, `globalThis`, etc.)
+  - `builtins_precompiled.js`: dynamically generated builtins from the `builtins/` folder
   - `codegen.js`: code (wasm) generation, ast -> wasm. The bulk of the effort
+  - `cyclone.js`: wasm partial constant evaluator (it is fast and dangerous hence "cyclone")
   - `decompile.js`: basic wasm decompiler for debug info
   - `embedding.js`: utils for embedding consts
   - `encoding.js`: utils for encoding things as bytes as wasm expects
   - `expression.js`: mapping most operators to an opcode (advanced are as built-ins eg `f64_%`)
+  - `havoc.js`: wasm rewrite library (it wreaks havoc upon wasm bytecode hence "havoc")
   - `index.js`: doing all the compiler steps, takes code in, wasm out
   - `opt.js`: self-made wasm bytecode optimizer
   - `parse.js`: parser simply wrapping acorn
-  - `assemble.js`: assembles wasm ops and metadata into a wasm module/file
+  - `pgo.js`: a profile guided optimizer
+  - `precompile.js`: the tool to generate `builtins_precompied.js`
+  - `prefs.js`: a utility to read command line arguments
+  - `prototype.js`: some builtin prototype functions
+  - `types.js`: definitions for each of the builtin types
   - `wasmSpec.js`: "enums"/info from wasm spec
   - `wrap.js`: wrapper for compiler which instantiates and produces nice exports
 
@@ -249,16 +264,16 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
 - `test262`: test262 runner and utils
 
 ## Usecases
-Basically none right now (other than giving people headaches). Potential ideas:
+Currently, Porffor is seriously limited in features and functionality, however it has some key benefits:
 - Safety. As Porffor is written in JS, a memory-safe language\*, and compiles JS to Wasm, a fully sandboxed environment\*, it is quite safe. (\* These rely on the underlying implementations being secure. You could also run Wasm, or even Porffor itself, with an interpreter instead of a JIT for bonus security points too.)
 - Compiling JS to native binaries. This is still very early!
+- Inline ASM for when you want to beat the compiler in performance, or just want fine grained functionality.
+- SIMD operations
 - More in future probably?
 
 ## Todo
 No particular order and no guarentees, just what could happen soon™
 
-- Objects
-  - Basic object expressions (eg `{}`, `{ a: 0 }`)
 - Asur
   - Support memory
   - Support exceptions
@@ -272,8 +287,6 @@ No particular order and no guarentees, just what could happen soon™
 - Runtime
   - WASI target
   - Run precompiled Wasm file if given
-- Docs
-  - Update codebase readme section
 - Cool proposals
   - [Optional Chaining Assignment](https://github.com/tc39/proposal-optional-chaining-assignment)
   - [Modulus and Additional Integer Math](https://github.com/tc39/proposal-integer-and-modulus-math)
@@ -302,7 +315,6 @@ Porffor intentionally does not use Wasm proposals which are not commonly impleme
 - Bulk memory operations (optional, can get away without sometimes)
 - Exception handling (optional, only for errors)
 - Tail calls (opt-in, off by default)
-
 
 ## FAQ
 
