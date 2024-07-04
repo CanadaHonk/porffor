@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-export const Number = function (argument: any): any {
+export function Number(argument: any): any {
   // todo: actually do prim objects
   new.target; // trick compiler into allowing as constructor
 
@@ -333,7 +333,7 @@ export function __Number_prototype_toFixed(fractionDigits: number) {
   return out;
 };
 
-export function __Number_prototype_toLocaleString (this: number) {
+export function __Number_prototype_toLocaleString() {
   return __Number_prototype_toString.call(this, 10)
 };
 

@@ -22,7 +22,7 @@ export function __Map_prototype_get(key: any) {
   return undefined;
 };
 
-export function __Map_prototype_set(value: any) {
+export function __Map_prototype_set(key: any, value: any) {
   const keys: Set = Porffor.wasm.i32.load(this, 0, 0);
   const vals: any[] = Porffor.wasm.i32.load(this, 0, 4);
 
@@ -86,7 +86,7 @@ export function __Map_prototype_forEach(callbackFn: any) {
   }
 };
 
-export const Map = function (iterable: any): Map {
+export function Map(iterable: any): Map {
   if (!new.target) throw new TypeError("Constructor Map requires 'new'");
 
   const out: Map = Porffor.allocateBytes(8);

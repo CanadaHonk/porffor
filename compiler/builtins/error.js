@@ -1,7 +1,7 @@
 export default () => {
   let out = '';
 
-  const error = name => out += `export const ${name} = function (message: bytestring) {
+  const error = name => out += `export function ${name}(message: bytestring) {
   new.target; // trick compiler into allowing as constructor
   return {};
 };`;

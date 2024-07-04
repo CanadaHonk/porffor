@@ -5,7 +5,7 @@ export const __ArrayBuffer_isView = (value: any): boolean => {
   return false;
 };
 
-export const ArrayBuffer = function (length: any): ArrayBuffer {
+export function ArrayBuffer(length: any): ArrayBuffer {
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (!new.target) throw new TypeError("Constructor ArrayBuffer requires 'new'");
 
@@ -171,7 +171,7 @@ export function __ArrayBuffer_prototype_resize(newLength: any) {
 };
 
 
-export const SharedArrayBuffer = function (length: number): SharedArrayBuffer {
+export function SharedArrayBuffer(length: number): SharedArrayBuffer {
   if (!new.target) throw new TypeError("Constructor SharedArrayBuffer requires 'new'");
 
   if (length < 0) throw new RangeError('Invalid SharedArrayBuffer length (negative)');

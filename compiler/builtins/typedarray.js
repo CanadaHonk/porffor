@@ -106,20 +106,20 @@ export const __${name}_from = (arg: any, mapFn: any): ${name} => {
 };
 
 export function __${name}_prototype_buffer$get() {
-  const out: ArrayBuffer = Porffor.wasm.i32.load(_this, 0, 4) - Porffor.wasm.i32.load(_this, 0, 8);
+  const out: ArrayBuffer = Porffor.wasm.i32.load(this, 0, 4) - Porffor.wasm.i32.load(this, 0, 8);
   return out;
 };
 
 export function __${name}_prototype_byteLength$get() {
-  return Porffor.wasm.i32.load(_this, 0, 0) * ${name}.BYTES_PER_ELEMENT;
+  return Porffor.wasm.i32.load(this, 0, 0) * ${name}.BYTES_PER_ELEMENT;
 };
 
 export function __${name}_prototype_byteOffset$get() {
-  return Porffor.wasm.i32.load(_this, 0, 8);
+  return Porffor.wasm.i32.load(this, 0, 8);
 };
 
 export function __${name}_prototype_at(index: number) {
-  const len: i32 = _this.length;
+  const len: i32 = this.length;
   index |= 0;
   if (index < 0) {
     index = len + index;
@@ -127,11 +127,11 @@ export function __${name}_prototype_at(index: number) {
   }
   if (index >= len) return undefined;
 
-  return _this[index];
+  return this[index];
 };
 
 export function __${name}_prototype_slice(start: number, end: number) {
-  const len: i32 = _this.length;
+  const len: i32 = this.length;
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
 
   start |= 0;
@@ -155,7 +155,7 @@ export function __${name}_prototype_slice(start: number, end: number) {
   let i: i32 = start;
   let j: i32 = 0;
   while (i < end) {
-    out[j++] = _this[i++];
+    out[j++] = this[i++];
   }
 
   out.length = end - start;

@@ -8,14 +8,14 @@ export function __WeakMap_prototype_set(key: any, value: any) {
   if (!Porffor.object.isObjectOrSymbol(key)) throw new TypeError('Value in WeakSet needs to be an object or symbol');
 
   __Map_prototype_set.call(this, key, value);
-  return _this;
+  return this;
 };
 
-export function __WeakMap_prototype_delete(_this: WeakMap, key: any) {
+export function __WeakMap_prototype_delete(key: any) {
   return __Map_prototype_delete.call(this, key)
 };
 
-export const WeakMap = function (iterable: any): WeakMap {
+export function WeakMap(iterable: any): WeakMap {
   if (!new.target) throw new TypeError("Constructor WeakMap requires 'new'");
 
   const out: WeakMap = Porffor.allocateBytes(8);

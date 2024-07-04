@@ -1549,7 +1549,7 @@ export const __Porffor_bytestring_appendChar = (str: bytestring, char: i32): i32
 
 // fast appending padded number
 export const __Porffor_bytestring_appendPadNum = (str: bytestring, num: number, len: number): i32 => {
-  let numStr: bytestring = Number.prototype.toFixed(num, 0);
+  let numStr: bytestring = Number.prototype.toFixed.call(num, 0);
 
   let strPtr: i32 = Porffor.wasm`local.get ${str}` + str.length;
 
@@ -1913,7 +1913,7 @@ export function __Date_prototype_valueOf() {
 
 // 21.4.2.1 Date (...values)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date
-export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown, v4: unknown, v5: unknown, v6: unknown): bytestring|Date {
+export function Date(v0: unknown, v1: unknown, v2: unknown, v3: unknown, v4: unknown, v5: unknown, v6: unknown): bytestring|Date {
   // 1. If NewTarget is undefined, then
   if (!new.target) {
     // a. Let now be the time value (UTC) identifying the current time.

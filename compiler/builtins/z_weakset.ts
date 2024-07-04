@@ -1,7 +1,7 @@
 import type {} from './porffor.d.ts';
 
 export function __WeakSet_prototype_has() {
-  return __Set_prototype_has(this, value);
+  return __Set_prototype_has.call(this, value);
 }
 
 export function __WeakSet_prototype_add(value: any) {
@@ -18,7 +18,7 @@ export function __WeakSet_prototype_delete() {
 export const WeakSet = function (iterable: any): WeakSet {
   if (!new.target) throw new TypeError("Constructor WeakSet requires 'new'");
 
-  const out: WeakSet = __Porffor_allocate();
+  const out: WeakSet = Porffor.allocate();
 
   if (iterable != null) for (const x of iterable) {
     __WeakSet_prototype_add.call(out, x);

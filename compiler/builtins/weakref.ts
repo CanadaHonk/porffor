@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-export const WeakRef = function (target: any): WeakRef {
+export function WeakRef(target: any): WeakRef {
   if (!new.target) throw new TypeError("Constructor WeakRef requires 'new'");
 
   if (!Porffor.object.isObjectOrSymbol(target)) throw new TypeError('Target for WeakRef needs to be an object or symbol');

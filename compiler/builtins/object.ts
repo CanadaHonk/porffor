@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-export const Object = function (value: any): object {
+export function Object(value: any): object {
   new.target; // trick compiler into allowing as constructor
 
   if (value == null) {
