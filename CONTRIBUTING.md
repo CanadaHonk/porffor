@@ -251,6 +251,8 @@ export const add_i32 = (a: any, b: any) => {
 }
 ```
 
+---
+
 ```
 local aCasted i32
 local bCasted i32
@@ -269,11 +271,13 @@ This sets the return type of the function, what the stack must look like before 
 > [!WARNING]
 > This is something you have to be incredibly careful with, as Porffor expects most functions to return `(valtype, i32)`. Be incredibly careful when using this.
 
+---
+
 ```
 ;; if both types are number
 ```
 
-This is a comment. `;;` is WASM's `//`.
+This is a comment. `;;` is Wasm's `//`.
 
 ---
 
@@ -287,7 +291,7 @@ i32.eq
 i32.and
 ```
 
-This part is a little more complicated, first you have to understand how WASM represents function parameters and local variables in general. When looking at the decompiled output of something like `let a = 1;`, you'll likely see something like this:
+This part is a little more complicated, first you have to understand how Wasm represents function parameters and local variables in general. When looking at the decompiled output of something like `let a = 1;`, you'll likely see something like this:
 ```
 f64.const 1
 i32.const 1
@@ -311,7 +315,7 @@ if
   local.set bCasted
 ```
 
-Here we start an if block, equivalent to JS's `if (...) {}`, and as the locals' names imply, cast them to `i32`s. There is one strange thing about this section though, if you look at WASM's list of instructions you won't find a `i32.from`. This is because Porffor has custom instructions for converting to and from the valtype. In this case, converting the valtype into an `i32`. There are a few more of these instructions, but in general these instructions come in the format of `type.from` (create `type` from valtype) and `type.to` (create valtype from `type`). You can find a full list at the bottom of `codegen.js`.
+Here we start an if block, equivalent to JS's `if (...) {}`, and as the locals' names imply, cast them to `i32`s. There is one strange thing about this section though, if you look at Wasm's list of instructions you won't find a `i32.from`. This is because Porffor has custom instructions for converting to and from the valtype. In this case, converting the valtype into an `i32`. There are a few more of these instructions, but in general these instructions come in the format of `type.from` (create `type` from valtype) and `type.to` (create valtype from `type`). You can find a full list at the bottom of `codegen.js`.
 
 ---
 
