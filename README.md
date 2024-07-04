@@ -267,8 +267,8 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
 Currently, Porffor is seriously limited in features and functionality, however it has some key benefits:
 - Safety. As Porffor is written in JS, a memory-safe language\*, and compiles JS to Wasm, a fully sandboxed environment\*, it is quite safe. (\* These rely on the underlying implementations being secure. You could also run Wasm, or even Porffor itself, with an interpreter instead of a JIT for bonus security points too.)
 - Compiling JS to native binaries. This is still very early!
-- Inline ASM for when you want to beat the compiler in performance, or just want fine grained functionality.
-- SIMD operations
+- Inline Wasm for when you want to beat the compiler in performance, or just want fine grained functionality.
+- Potential for SIMD operations and other lower level concepts.
 - More in future probably?
 
 ## Todo
