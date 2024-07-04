@@ -2382,15 +2382,25 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
             // check if non-constructor was called with new, if so throw
             [ Opcodes.local_get, flags ],
-            ...number(0b10, Valtype.i32), // constr
+            ...number(0b10, Valtype.i32),
             [ Opcodes.i32_and ],
             [ Opcodes.i32_eqz ],
+            // !constr
+
             [ Opcodes.local_get, flags ],
-            ...number(0b100, Valtype.i32), // noNew
+            ...number(0b10, Valtype.i32),
+            [ Opcodes.i32_and ],
+            ...number(0, Valtype.i32),
+            [ Opcodes.i32_ne ],
+            [ Opcodes.local_get, flags ],
+            ...number(0b100, Valtype.i32),
             [ Opcodes.i32_and ],
             ...number(0, Valtype.i32),
             [ Opcodes.i32_ne ],
             [ Opcodes.i32_and ],
+            // constr && noNew
+
+            [ Opcodes.i32_or ],
             [ Opcodes.i32_const, decl._new ? 1 : 0 ],
             [ Opcodes.i32_and ],
             [ Opcodes.if, Blocktype.void ],
@@ -5206,8 +5216,12 @@ const generateFunc = (scope, decl) => {
     name,
     index: currentFuncIndex++,
     constr: decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program',
-    noNew: globalThis.precompile
+    noNew: false
   };
+
+  if (func.constr && globalThis.precompile) {
+    func.noNew = true;
+  }
 
   funcIndex[name] = func.index;
   funcs.push(func);
