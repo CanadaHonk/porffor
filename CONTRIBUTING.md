@@ -23,7 +23,6 @@ The repo comes with easy alias scripts for Unix and Windows, which you can use l
 
 You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A ...`) or Bun (`bun ...`), or just use it yourself (eg `node runner/index.js ...`, `bun runner/index.js ...`). Node, Deno, Bun should work.
 
-
 ### Precompile
 
 **If you update any file inside `compiler/builtins` you will need to do this for it to update inside Porffor otherwise your changes will have no effect.** Run `./porf precompile` to precompile. It may error during this, if so, you might have an error in your code or there could be a compiler error with Porffor (feel free to ask for help as soon as you encounter any errors with it).
@@ -98,7 +97,7 @@ Loads the character code at the pointer `pointer` **for a String**.[^1]
 Porffor.wasm.i32.store(pointer, length, 0, 0)
 ```
 
-Stores the length `length` at pointer `pointer`, setting the length of an object. This is mostly unneeded today as you can just do `obj.length = length`. (The `0, 4` args are necessary for the Wasm instruction, but you don't need to worry about them (`0` alignment, `0` byte offset).
+Stores the length `length` at pointer `pointer`, setting the length of an object. This is mostly unneeded today as you can just do `obj.length = length`. [^1]
 
 <br>
 
@@ -258,4 +257,9 @@ It will also log new passes/fails. Be careful as sometimes the overall passes ca
 
 <br>
 
-[^1]: The `0, 4` args are necessary for the Wasm instruction, but you don't need to worry about them (`0` alignment, `4` byte offset for length).
+### Resources
+
+- [MDN](https://developer.mozilla.org/en-US/), not only a great resource for learning JS, but also for implementing it, as it has high level descriptions of functionality, as well as links to the relevant portions of the spec that govern the feature.
+- [WebAssembly Opcodes](https://pengowray.github.io/wasm-ops/), this website not only describes what each wasm instruction does but the necessary stack needed, and contains some other useful resources as well.
+
+[^1]: The last two args are necessary for the Wasm instruction, but you don't need to worry about them (the first is alignment, the second is byte offset).
