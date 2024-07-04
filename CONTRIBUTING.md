@@ -208,6 +208,137 @@ Store the character code into the `out` pointer variable, and increment it.
 
 <br>
 
+### Porffor.wasm
+This is a macro that is essentially equivalent to c's `asm` macro. It allows you to write inline wasm bytecode in a similar format to [WAT](https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format).
+
+Let's look at an example to better illustrate how the format works.
+
+```ts
+export const add_i32 = (a: any, b: any) => {
+  Porffor.wasm`
+  local aCasted i32
+  local bCasted i32
+  returns i32 i32
+
+  ;; if both types are number
+  local.get ${a+1}
+  i32.const 1
+  i32.eq
+  local.get ${b+1}
+  i32.const 1
+  i32.eq
+  i32.and
+  if
+    local.get ${a}
+    i32.from
+    local.set aCasted
+
+    local.get ${b}
+    i32.from
+    local.set bCasted
+
+    local.get aCasted
+    local.get bCasted
+    i32.add
+    i32.const 1
+    return
+  end
+
+  ;; return (0, 0) otherwise
+  i32.const 0
+  i32.const 0
+  return`;
+}
+```
+
+```
+local aCasted i32
+local bCasted i32
+```
+
+Here we define two locals, which you can think of as typed variables. Here both of them have the type of `i32`, which was explained above. This type can also be `f64` or `i64`, which are doubles and 64-bit integers respectively.
+
+---
+
+```
+returns i32 i32
+```
+
+This sets the return type of the function, what the stack must look like before a `return` instruction. Normally Porffor functions have the return type `(f64, i32)`, which represents the valtype (usually f64) and an i32 type.
+
+> [!WARNING]
+> This is something you have to be incredibly careful with, as Porffor expects most functions to return `(valtype, i32)`. Be incredibly careful when using this.
+
+```
+;; if both types are number
+```
+
+This is a comment. `;;` is WASM's `//`.
+
+---
+
+```
+local.get ${a+1}
+i32.const 1
+i32.eq
+local.get ${b+1}
+i32.const 1
+i32.eq
+i32.and
+```
+
+This part is a little more complicated, first you have to understand how WASM represents function parameters and local variables in general. When looking at the decompiled output of something like `let a = 1;`, you'll likely see something like this:
+```
+f64.const 1
+i32.const 1
+local.set 1 ;; a#type (i32)
+local.set 0 ;; a
+```
+Here the `i32.const 1` is equivalent to `TYPES.number`, which aligns with what we told Porffor to do, but what's up with the `local.set`s to a number? Well, internally locals are represented with indexes, and in this example `a` was assigned 0, and `a#type` was assigned 1.
+
+That's where `local.get ${a+1}` comes from, it's Porffor's way of saying "get the local variable at index of `a` plus one". In most cases, this is the variable's type. The rest of the snippet is just checking if both of the parameters' types are equal to `TYPES.number`.
+
+---
+
+```
+if
+  local.get ${a}
+  i32.from
+  local.set aCasted
+
+  local.get ${b}
+  i32.from
+  local.set bCasted
+```
+
+Here we start an if block, equivalent to JS's `if (...) {}`, and as the locals' names imply, cast them to `i32`s. There is one strange thing about this section though, if you look at WASM's list of instructions you won't find a `i32.from`. This is because Porffor has custom instructions for converting to and from the valtype. In this case, converting the valtype into an `i32`. There are a few more of these instructions, but in general these instructions come in the format of `type.from` (create `type` from valtype) and `type.to` (create valtype from `type`). You can find a full list at the bottom of `codegen.js`.
+
+---
+
+```
+  local.get aCasted
+  local.get bCasted
+  i32.add
+  i32.const 1
+  return
+end
+```
+
+Here, we get our two casted locals and add them together, returning the result and a `i32` with the value of 1. We then end the if block with the `end` instruction.
+
+---
+
+```
+;; return (0, 0) otherwise
+i32.const 0
+i32.const 0
+return
+```
+
+Finally, we return `(0, 0)` if either type is not a number. This example was very contrived, but should give you a good sense of how to use `Porffor.wasm`.
+
+<br>
+
 ## Formatting/linting
 
 There is 0 setup for this (right now). You can try looking through the other built-ins files but do not worry about it a lot, I honestly do not mind going through and cleaning up after a PR as long as the code itself is good :^)
