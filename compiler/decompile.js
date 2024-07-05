@@ -14,7 +14,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
   const makeSignature = (params, returns, locals) => {
     if (locals) {
       const localNames = inv(locals, x => x.idx);
-      return `(${params.map((x, i) => `${localNames[i]}(${i}): ${invValtype[x]}`).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`
+      return `(${params.map((x, i) => `${localNames[i]}(${i}): ${invValtype[x]}`).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`;
     }
 
     return `(${params.map((x, i) => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`;
@@ -111,7 +111,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       const name = invLocals[inst[1]];
       const type = invValtype[locals[name]?.type];
       if (name) out += ` ;; $${name}${type !== valtype ? ` (${type})` : ''}`;
-      else out += ` ;; unknown local`
+        else out += ` ;; unknown local`
     }
 
     if (inst[0] === Opcodes.global_get || inst[0] === Opcodes.global_set) {
