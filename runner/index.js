@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import util from 'node:util';
 globalThis.version = '0.25.2+bd0735a02';
 
 // deno compat
@@ -119,6 +120,16 @@ if (evalIndex != -1) {
   }
 }
 
+let printIndex = process.argv.indexOf("-p");
+if (printIndex == -1) printIndex = process.argv.indexOf("--print");
+if (printIndex != -1) {
+  process.argv.push('--no-opt-unused');
+  source = process.argv[printIndex + 1];
+  if (source) {
+    process.argv.splice(printIndex, 2); // remove flag and value
+  }
+}
+
 if (!file && !source) {
   if (process.argv.includes('-v') || process.argv.includes('--version')) {
     // just print version
@@ -148,19 +159,20 @@ const print = str => {
 };
 
 let runStart;
+let ret;
 try {
   if (process.argv.includes('-b')) {
     const { wasm, exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
 
     runStart = performance.now();
-    if (!process.argv.includes('--no-run')) exports.main();
+    if (!process.argv.includes('--no-run')) ret = exports.main();
 
     console.log(`\n\nwasm size: ${wasm.byteLength} bytes`);
   } else {
     const { exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
 
     runStart = performance.now();
-    if (!process.argv.includes('--no-run')) exports.main();
+    if (!process.argv.includes('--no-run')) ret = exports.main();
   }
   // if (cache) process.stdout.write(cache);
 } catch (e) {
@@ -171,3 +183,10 @@ try {
 }
 
 if (process.argv.includes('-t')) console.log(`${process.argv.includes('-b') ? '' : '\n\n'}total time: ${(performance.now() - start).toFixed(2)}ms\nexecution time: ${(performance.now() - runStart).toFixed(2)}ms`);
+
+if (printIndex != -1) {
+  if (process.argv.includes('-d') && ret?.type != null) {
+    ret = ret.js;
+  }
+  console.log(util.inspect(ret, false, 2, true));
+}
