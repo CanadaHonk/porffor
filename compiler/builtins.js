@@ -905,7 +905,7 @@ export const BuiltinFuncs = function() {
     }
   };
 
-  this.__Porffor_rawType = {
+  this.__Porffor_dyn_rawType = {
     params: [ valtypeBinary, Valtype.i32 ],
     typedParams: true,
     locals: [],

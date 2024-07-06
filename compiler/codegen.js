@@ -5425,6 +5425,24 @@ const internalConstrs = {
     type: TYPES.undefined,
     notConstr: true,
     length: 1
+  },
+
+  __Porffor_rawType: {
+    generate: (scope, decl) => {
+      const type = getNodeType(scope, decl.arguments[0]);
+      if (type) {
+        return [
+          ...type,
+          Opcodes.i32_from
+        ]
+      }
+      return [
+        [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_dyn_rawType').index) ]
+      ]
+    },
+    type: TYPES.number,
+    notConstr: true,
+    length: 1
   }
 };
 
