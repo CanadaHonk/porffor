@@ -5434,7 +5434,7 @@ const internalConstrs = {
         return [
           ...type,
           Opcodes.i32_from
-        ]
+        ];
       }
       return generate(scope, {
         type: "CallExpression",
