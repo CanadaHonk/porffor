@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import util from 'node:util';
 globalThis.version = '0.25.2+bd0735a02';
 
 // deno compat
@@ -188,5 +187,5 @@ if (printIndex != -1) {
   if (process.argv.includes('-d') && ret?.type != null) {
     ret = ret.js;
   }
-  console.log(util.inspect(ret, false, 2, true));
+  console.log(ret);
 }
