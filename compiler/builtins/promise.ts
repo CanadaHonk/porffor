@@ -99,7 +99,6 @@ export const __Porffor_promise_resolve = (value: any): any => {
   // todo: if value is own promise, reject with typeerror
 
   if (__ecma262_IsPromise(value)) {
-    printStatic('todo res');
     // todo
   } else {
     __ecma262_FulfillPromise(activePromise, value);
@@ -110,7 +109,6 @@ export const __Porffor_promise_resolve = (value: any): any => {
 
 export const __Porffor_promise_reject = (reason: any): any => {
   if (__ecma262_IsPromise(reason)) {
-    printStatic('todo rej');
     // todo
   } else {
     __ecma262_RejectPromise(activePromise, reason);
@@ -175,10 +173,9 @@ export const Promise = function (executor: any): Promise {
 };
 
 
+// 27.2.5.4 Promise.prototype.then (onFulfilled, onRejected)
+// https://tc39.es/ecma262/#sec-promise.prototype.then
 export const __Promise_prototype_then = (_this: any, onFulfilled: any, onRejected: any) => {
-  // 27.2.5.4 Promise.prototype.then (onFulfilled, onRejected)
-  // https://tc39.es/ecma262/#sec-promise.prototype.then
-
   // 1. Let promise be the this value.
   // 2. If IsPromise(promise) is false, throw a TypeError exception.
   if (!__ecma262_IsPromise(_this)) throw new TypeError('Promise.prototype.then called on non-Promise');
@@ -238,6 +235,15 @@ export const __Promise_prototype_then = (_this: any, onFulfilled: any, onRejecte
   const pro: Promise = outPromise;
   return pro;
 };
+
+// 27.2.5.1 Promise.prototype.catch (onRejected)
+// https://tc39.es/ecma262/#sec-promise.prototype.catch
+export const __Promise_prototype_catch = (_this: any, onRejected: any): Promise => {
+  // 1. Let promise be the this value.
+  // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
+  return __Promise_prototype_then(_this, undefined, onRejected);
+};
+
 
 export const __Promise_prototype_toString = (_this: any) => {
   const str: bytestring = '[object Promise]';

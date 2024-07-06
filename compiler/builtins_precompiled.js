@@ -1921,14 +1921,14 @@ export const BuiltinFuncs = function() {
     locals: [], localNames: [],
   };
   this.__Porffor_promise_resolve = {
-    wasm: (scope, {glbl,builtin}) => [[32,0],[32,1],[16, ...builtin('__ecma262_IsPromise')],[33,2],[33,3],[32,2],[33,4],[2,127],[32,4],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,3],[252,3],[40,1,0],[12,1],[11],[32,4],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,3],[252,3],[40,1,0],[12,1],[11],[32,3],[252,3],[11,"TYPESWITCH_end"],[4,64],[68,0,0,0,0,0,0,93,64],[16,1],[68,0,0,0,0,0,192,91,64],[16,1],[68,0,0,0,0,0,0,89,64],[16,1],[68,0,0,0,0,0,192,91,64],[16,1],[68,0,0,0,0,0,0,64,64],[16,1],[68,0,0,0,0,0,128,92,64],[16,1],[68,0,0,0,0,0,64,89,64],[16,1],[68,0,0,0,0,0,192,92,64],[16,1],[5],...glbl(35, 'activePromise', 124),...glbl(35, 'activePromise#type', 127),[32,0],[32,1],[16, ...builtin('__ecma262_FulfillPromise')],[33,2],[26],[11],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
+    wasm: (scope, {glbl,builtin}) => [[32,0],[32,1],[16, ...builtin('__ecma262_IsPromise')],[33,2],[33,3],[32,2],[33,4],[2,127],[32,4],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,3],[252,3],[40,1,0],[12,1],[11],[32,4],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,3],[252,3],[40,1,0],[12,1],[11],[32,3],[252,3],[11,"TYPESWITCH_end"],[4,64],[5],...glbl(35, 'activePromise', 124),...glbl(35, 'activePromise#type', 127),[32,0],[32,1],[16, ...builtin('__ecma262_FulfillPromise')],[33,2],[26],[11],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
     locals: [127,124,127], localNames: ["value","value#type","#last_type","#logicinner_tmp","#typeswitch_tmp"],
     globalInits: {jobQueue: (scope, {allocPage,glbl,loc}) => [...number(allocPage(scope, 'array: promise.ts/jobQueue', 'f64') * pageSize, 124),...glbl(36, 'jobQueue', 124),...glbl(35, 'jobQueue', 124),[252,3],[33,loc('#makearray_pointer_tmp', 127)],[32,loc('#makearray_pointer_tmp', 127)],[65,0],[54,1,0],[32,loc('#makearray_pointer_tmp', 127)],[68,0,0,0,0,0,0,0,0],[252,3],[54,1,0],[32,loc('#makearray_pointer_tmp', 127)],[26]]},
   };
   this.__Porffor_promise_reject = {
-    wasm: (scope, {glbl,builtin}) => [[32,0],[32,1],[16, ...builtin('__ecma262_IsPromise')],[33,2],[33,3],[32,2],[33,4],[2,127],[32,4],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,3],[252,3],[40,1,0],[12,1],[11],[32,4],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,3],[252,3],[40,1,0],[12,1],[11],[32,3],[252,3],[11,"TYPESWITCH_end"],[4,64],[68,0,0,0,0,0,0,93,64],[16,1],[68,0,0,0,0,0,192,91,64],[16,1],[68,0,0,0,0,0,0,89,64],[16,1],[68,0,0,0,0,0,192,91,64],[16,1],[68,0,0,0,0,0,0,64,64],[16,1],[68,0,0,0,0,0,128,92,64],[16,1],[68,0,0,0,0,0,64,89,64],[16,1],[68,0,0,0,0,0,128,90,64],[16,1],[5],...glbl(35, 'activePromise', 124),...glbl(35, 'activePromise#type', 127),[32,0],[32,1],[16, ...builtin('__ecma262_RejectPromise')],[33,2],[26],[11],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
+    wasm: (scope, {glbl,builtin}) => [[32,0],[32,1],[16, ...builtin('__ecma262_IsPromise')],[33,2],[33,3],[32,2],[33,4],[2,127],[32,4],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,3],[252,3],[40,1,0],[12,1],[11],[32,4],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,3],[252,3],[40,1,0],[12,1],[11],[32,3],[252,3],[11,"TYPESWITCH_end"],[4,64],[5],...glbl(35, 'activePromise', 124),...glbl(35, 'activePromise#type', 127),[32,0],[32,1],[16, ...builtin('__ecma262_RejectPromise')],[33,2],[26],[11],[68,0,0,0,0,0,0,0,0],[65,128,1],[15]],
     params: [124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
     locals: [127,124,127], localNames: ["reason","reason#type","#last_type","#logicinner_tmp","#typeswitch_tmp"],
@@ -1961,6 +1961,12 @@ export const BuiltinFuncs = function() {
     params: [124,127,124,127,124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
     locals: [127,124,127,124,124,124,124,127,127,127,124,124,124,127,124,124,124,124,124,127,124,127,124], localNames: ["_this","_this#type","onFulfilled","onFulfilled#type","onRejected","onRejected#type","#last_type","#logicinner_tmp","#typeswitch_tmp","promise","state","#member_obj","#member_prop","#loadArray_offset","#member_allocd","#swap","outPromise","fulfillReaction","#member_setter_val_tmp","#member_setter_ptr_tmp","#member_prop_assign","rejectReaction","fulfillReactions","rejectReactions","value","value#type","reason","reason#type","pro"],
+  };
+  this.__Promise_prototype_catch = {
+    wasm: (scope, {builtin}) => [[32,0],[32,1],[68,0,0,0,0,0,0,0,0],[65,128,1],[32,2],[32,3],[16, ...builtin('__Promise_prototype_then')],[34,4],[15]],
+    params: [124,127,124,127], typedParams: 1,
+    returns: [124,127], typedReturns: 1,
+    locals: [127], localNames: ["_this","_this#type","onRejected","onRejected#type","#last_type"],
   };
   this.__Promise_prototype_toString = {
     wasm: (scope, {allocPage}) => [...number(allocPage(scope, 'bytestring: __Promise_prototype_toString/str', 'i8') * pageSize, 124),[34,2],[65,195,1],[15]],
