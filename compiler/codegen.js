@@ -5436,9 +5436,13 @@ const internalConstrs = {
           Opcodes.i32_from
         ]
       }
-      return [
-        [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_dyn_rawType').index) ]
-      ]
+      return generate(scope, {
+        type: "CallExpression",
+        callee: { type: "Identifier", name: "__Porffor_dyn_rawType" },
+        arguments: [
+          decl.arguments[0]
+        ]
+      });
     },
     type: TYPES.number,
     notConstr: true,
