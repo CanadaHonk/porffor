@@ -189,6 +189,26 @@ export const Promise = function (executor: any): Promise {
   return pro;
 };
 
+export const __Promise_resolve = (value: any): Promise => {
+  const obj: any[] = __Porffor_promise_create();
+
+  activePromise = obj;
+  __Porffor_promise_resolve(value);
+
+  const pro: Promise = obj;
+  return pro;
+};
+
+export const __Promise_reject = (reason: any): Promise => {
+  const obj: any[] = __Porffor_promise_create();
+
+  activePromise = obj;
+  __Porffor_promise_reject(reason);
+
+  const pro: Promise = obj;
+  return pro;
+};
+
 
 // 27.2.5.4 Promise.prototype.then (onFulfilled, onRejected)
 // https://tc39.es/ecma262/#sec-promise.prototype.then
@@ -256,7 +276,6 @@ export const __Promise_prototype_catch = (_this: any, onRejected: any): Promise 
   return __Promise_prototype_then(_this, undefined, onRejected);
 };
 
-
 export const __Promise_prototype_finally = (_this: any, onFinally: any): Promise => {
   // custom impl based on then but also not (sorry)
   if (!__ecma262_IsPromise(_this)) throw new TypeError('Promise.prototype.then called on non-Promise');
@@ -284,6 +303,7 @@ export const __Promise_prototype_finally = (_this: any, onFinally: any): Promise
   const pro: Promise = outPromise;
   return pro;
 };
+
 
 export const __Promise_prototype_toString = (_this: any) => {
   const str: bytestring = '[object Promise]';
