@@ -108,7 +108,18 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm
 
 globalThis.file = file;
 
-if (!file) {
+let source = "";
+
+let evalIndex = process.argv.indexOf("-e");
+if (evalIndex == -1) evalIndex = process.argv.indexOf("--eval");
+if (evalIndex != -1) {
+  source = process.argv[evalIndex + 1];
+  if (source) {
+    process.argv.splice(evalIndex, 2); // remove flag and value
+  }
+}
+
+if (!file && !source) {
   if (process.argv.includes('-v') || process.argv.includes('--version')) {
     // just print version
     console.log(globalThis.version);
@@ -120,7 +131,7 @@ if (!file) {
   await done();
 }
 
-const source = fs.readFileSync(file, 'utf8');
+source ??= fs.readFileSync(file, 'utf8');
 
 const compile = (await import('../compiler/wrap.js')).default;
 
