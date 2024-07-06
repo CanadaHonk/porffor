@@ -845,6 +845,11 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, {
+      [TYPES.empty]: [
+        // empty
+        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+        ...number(1, intOut ? Valtype.i32 : valtypeBinary)
+      ],
       [TYPES.undefined]: [
         // undefined
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
