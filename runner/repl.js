@@ -1,8 +1,6 @@
 import { TYPE_NAMES } from '../compiler/types.js';
 import compile from '../compiler/wrap.js';
 
-import util from 'node:util';
-
 process.argv.push('--no-opt-unused');
 
 let repl;
@@ -106,7 +104,7 @@ const run = (source, _context, _filename, callback, run = true) => {
     ret = ret.js;
   }
 
-  console.log(util.inspect(ret, false, 2, true), (value != null ? `\x1B[34m\x1B[3m(value: ${value}, type: ${TYPE_NAMES[type]})\x1B[0m` : ''));
+  console.log(ret, (value != null ? `\x1B[34m\x1B[3m(value: ${value}, type: ${TYPE_NAMES[type]})\x1B[0m` : ''));
 
   // callback(null, ret);
 
