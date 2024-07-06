@@ -1440,7 +1440,7 @@ const getNodeType = (scope, node) => {
         if (scope.locals['#last_type']) return getLastType(scope);
 
         // presume
-        if (Prefs.warnAssumedType) console.warn(`Dynamic call assumed to be number`);
+        if (Prefs.warnAssumedType) console.warn(`Indirect call assumed to be number`);
         return TYPES.number;
       }
 
@@ -5436,9 +5436,10 @@ const internalConstrs = {
           Opcodes.i32_from
         ];
       }
+
       return generate(scope, {
-        type: "CallExpression",
-        callee: { type: "Identifier", name: "__Porffor_dyn_rawType" },
+        type: 'CallExpression',
+        callee: { type: 'Identifier', name: '__Porffor_dyn_rawType' },
         arguments: [
           decl.arguments[0]
         ]
