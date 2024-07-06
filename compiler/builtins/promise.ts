@@ -139,6 +139,16 @@ export const __Porffor_promise_create = (): any[] => {
   return obj;
 };
 
+export const __Porffor_promise_newReaction = (handler: Function, promise: any[], type: i32): any[] => {
+  // enum ReactionType { then = 0, finally = 1 }
+  const out: any[] = Porffor.allocateBytes(31); // 3 length
+  out[0] = handler;
+  out[1] = promise;
+  out[2] = type;
+
+  return out;
+};
+
 export const __Porffor_promise_runJobs = () => {
   while (true) {
     let x: any = jobQueue.shift();
@@ -147,11 +157,18 @@ export const __Porffor_promise_runJobs = () => {
     const reaction: any[] = x[0];
     const handler: Function = reaction[0];
     const outPromise: any[] = reaction[1];
+    const type: i32 = reaction[2];
 
     const value: any = x[1];
 
     // todo: handle thrown errors in handler?
-    const outValue: any = handler(value);
+    let outValue: any;
+    if (type == 0) { // 0: then reaction
+      outValue = handler(value);
+    } else { // 1: finally reaction
+      handler();
+      outValue = value;
+    }
 
     // todo: should this be resolve or fulfill?
     __ecma262_FulfillPromise(outPromise, outValue);
@@ -191,13 +208,8 @@ export const __Promise_prototype_then = (_this: any, onFulfilled: any, onRejecte
 
   const outPromise: any[] = __Porffor_promise_create();
 
-  const fulfillReaction: any[] = Porffor.allocateBytes(22); // 2 length
-  fulfillReaction[0] = onFulfilled;
-  fulfillReaction[1] = outPromise;
-
-  const rejectReaction: any[] = Porffor.allocateBytes(22); // 2 length
-  rejectReaction[0] = onRejected;
-  rejectReaction[1] = outPromise;
+  const fulfillReaction: any[] = __Porffor_promise_newReaction(onFulfilled, outPromise, 0);
+  const rejectReaction: any[] = __Porffor_promise_newReaction(onRejected, outPromise, 0);
 
   // 9. If promise.[[PromiseState]] is pending, then
   if (state == 0) { // pending
@@ -244,6 +256,34 @@ export const __Promise_prototype_catch = (_this: any, onRejected: any): Promise 
   return __Promise_prototype_then(_this, undefined, onRejected);
 };
 
+
+export const __Promise_prototype_finally = (_this: any, onFinally: any): Promise => {
+  // custom impl based on then but also not (sorry)
+  if (!__ecma262_IsPromise(_this)) throw new TypeError('Promise.prototype.then called on non-Promise');
+
+  if (Porffor.rawType(onFinally) != Porffor.TYPES.function) onFinally = __Porffor_promise_noop;
+
+  const promise: any[] = _this;
+  const state: i32 = promise[1];
+
+  const outPromise: any[] = __Porffor_promise_create();
+
+  const finallyReaction: any[] = __Porffor_promise_newReaction(onFinally, outPromise, 1);
+
+  if (state == 0) { // pending
+    const fulfillReactions: any[] = promise[2];
+    Porffor.fastPush(fulfillReactions, finallyReaction);
+
+    const rejectReactions: any[] = promise[3];
+    Porffor.fastPush(rejectReactions, finallyReaction);
+  } else { // fulfilled or rejected
+    const value: any = promise[0];
+    __ecma262_HostEnqueuePromiseJob(__ecma262_NewPromiseReactionJob(finallyReaction, value));
+  }
+
+  const pro: Promise = outPromise;
+  return pro;
+};
 
 export const __Promise_prototype_toString = (_this: any) => {
   const str: bytestring = '[object Promise]';
