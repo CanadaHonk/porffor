@@ -2362,6 +2362,23 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`),
             [ Opcodes.end ],
 
+            // [ Opcodes.local_get, funcLocal ],
+            // Opcodes.i32_from_u,
+            // [ Opcodes.call, 0 ],
+
+            // ...number(32),
+            // [ Opcodes.call, 1 ],
+
+            // [ Opcodes.local_get, funcLocal ],
+            // ...number(128, Valtype.i32),
+            // [ Opcodes.i32_mul ],
+            // [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ],
+            // Opcodes.i32_from_u,
+            // [ Opcodes.call, 0 ],
+
+            // ...number(10),
+            // [ Opcodes.call, 1 ],
+
             ...brTable([
               // get argc of func we are calling
               [ Opcodes.local_get, funcLocal ],
@@ -5238,11 +5255,53 @@ const generateFunc = (scope, decl) => {
 
   const wasm = func.wasm = prelude.concat(generate(func, body));
 
-  if (name === 'main') func.gotLastType = true;
+  if (name === 'main') {
+    func.gotLastType = true;
 
-  // add end return if not found
-  if (name !== 'main' && wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
-    wasm.push(...generateReturn(func, {}));
+    func.export = true;
+    func.returns = [ valtypeBinary, Valtype.i32 ];
+
+    const lastInst = func.wasm[func.wasm.length - 1] ?? [ Opcodes.end ];
+    if (lastInst[0] === Opcodes.drop) {
+      func.wasm.splice(func.wasm.length - 1, 1);
+
+      const finalStatement = decl.body.body[decl.body.body.length - 1];
+      func.wasm.push(...getNodeType(func, finalStatement));
+    }
+
+    if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
+      if (lastInst[0] === Opcodes.local_set && lastInst[1] === func.locals['#last_type'].idx) {
+        func.wasm.splice(main.wasm.length - 1, 1);
+      } else {
+        func.returns = [];
+      }
+    }
+
+    if (lastInst[0] === Opcodes.call) {
+      const callee = funcs.find(x => x.index === lastInst[1]);
+      if (callee) func.returns = callee.returns.slice();
+        else func.returns = [];
+    }
+
+    // inject promise job runner func at the end of main if used
+    if (Object.hasOwn(funcIndex, 'Promise')) {
+      wasm.push(
+        ...generateCall(func, {
+          callee: {
+            type: 'Identifier',
+            name: '__Porffor_promise_runJobs'
+          },
+          arguments: []
+        }).slice(0, -1), // remove set last type
+        [ Opcodes.drop ],
+        [ Opcodes.drop ]
+      );
+    }
+  } else {
+    // add end return if not found
+    if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
+      wasm.push(...generateReturn(func, {}));
+    }
   }
 
   if (func.constr) {
@@ -5492,31 +5551,6 @@ export default program => {
   if (Prefs.astLog) console.log(JSON.stringify(program.body.body, null, 2));
 
   const main = generateFunc(scope, program);
-
-  main.export = true;
-  main.returns = [ valtypeBinary, Valtype.i32 ];
-
-  const lastInst = main.wasm[main.wasm.length - 1] ?? [ Opcodes.end ];
-  if (lastInst[0] === Opcodes.drop) {
-    main.wasm.splice(main.wasm.length - 1, 1);
-
-    const finalStatement = program.body.body[program.body.body.length - 1];
-    main.wasm.push(...getNodeType(main, finalStatement));
-  }
-
-  if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
-    if (lastInst[0] === Opcodes.local_set && lastInst[1] === main.locals['#last_type'].idx) {
-      main.wasm.splice(main.wasm.length - 1, 1);
-    } else {
-      main.returns = [];
-    }
-  }
-
-  if (lastInst[0] === Opcodes.call) {
-    const func = funcs.find(x => x.index === lastInst[1]);
-    if (func) main.returns = func.returns.slice();
-      else main.returns = [];
-  }
 
   delete globals['#ind'];
 

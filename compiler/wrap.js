@@ -35,7 +35,7 @@ export const writeByteStr = (memory, ptr, str) => {
   }
 };
 
-const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
+const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefined) => {
   switch (type) {
     case TYPES.empty:
     case TYPES.undefined:
@@ -138,7 +138,8 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.array: {
-      const length = read(Uint32Array, memory, value, 1)[0];
+      let length = read(Uint32Array, memory, value, 1)[0];
+      if (override) length = override;
 
       const out = [];
       for (let i = 0; i < length; i++) {
@@ -254,6 +255,30 @@ ${flags & 0b0001 ? `    get func idx: ${get}
 
         out.set(k, v);
       }
+
+      return out;
+    }
+
+    case TYPES.promise: {
+      const [ result, _state, fulfillReactions, rejectReactions ] = porfToJSValue({ memory, funcs, pages }, value, TYPES.array, 4);
+
+      const state = ({
+        0: 'pending',
+        1: 'fulfilled',
+        2: 'rejected'
+      })[_state];
+      const stateColor = ({
+        0: '\x1B[93m',
+        1: '\x1B[32m',
+        2: '\x1B[31m'
+      })[_state];
+
+      const out = { state, result };
+      Object.defineProperty(out, Symbol.for('nodejs.util.inspect.custom'), {
+        value(depth, opts, inspect) {
+          return `${opts.colors ? '\x1B[36m' : ''}Promise${opts.colors ? '\x1B[0m' : ''} (state: ${opts.colors ? stateColor : ''}<${state}>${opts.colors ? '\x1B[0m' : ''}, result: ${inspect(result, opts)})`;
+        }
+      });
 
       return out;
     }

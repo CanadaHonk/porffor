@@ -72,6 +72,8 @@ registerInternalType('WeakRef');
 registerInternalType('WeakSet');
 registerInternalType('WeakMap');
 
+registerInternalType('Promise');
+
 if (Prefs.largestTypes) {
   const typeKeys = Object.keys(TYPES);
   const typeVals = Object.values(TYPES);
