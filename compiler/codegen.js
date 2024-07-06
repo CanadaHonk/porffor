@@ -333,7 +333,10 @@ const generateIdent = (scope, decl) => {
       if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
 
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
-      if (Object.hasOwn(funcIndex, name)) return number(funcIndex[name] - importedFuncs.length);
+      if (Object.hasOwn(funcIndex, name)) {
+        if (globalThis.precompile) return [ [ Opcodes.const, 'funcref', name ] ];
+        return number(funcIndex[name] - importedFuncs.length);
+      }
     }
 
     if (local?.idx === undefined && rawName.startsWith('__')) {
@@ -1195,7 +1198,7 @@ const asmFuncToAsm = (scope, func) => {
   return func(scope, {
     TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow,
     getNodeType, generate, generateIdent,
-    builtin: n => {
+    builtin: (n, float = false, offset = false) => {
       let idx = funcIndex[n] ?? importedFuncs[n];
       if (idx == null && builtinFuncs[n]) {
         includeBuiltin(null, n);
@@ -1203,7 +1206,9 @@ const asmFuncToAsm = (scope, func) => {
       }
 
       if (idx == null) throw new Error(`builtin('${n}') failed to find a func (inside ${scope.name})`);
-      return unsignedLEB128(idx);
+      if (offset) idx -= importedFuncs.length;
+
+      return float ? ieee754_binary64(idx) : unsignedLEB128(idx);
     },
     glbl: (opcode, name, type) => {
       const globalName = '#porf#' + name; // avoid potential name clashing with user js

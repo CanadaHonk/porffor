@@ -204,6 +204,7 @@ ${funcs.map(x => {
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode}, '${name}', ${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}', ${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16, ...builtin('${name}')]`)
+      .replace(/\[68,"funcref","(.*?)"]/g, (_, name, offset) => `[68,...builtin('${name}', true, true)]`)
       .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`)
       .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(scope, { name: '${objName}' })`);
 
