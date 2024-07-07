@@ -5292,7 +5292,7 @@ const generateFunc = (scope, decl) => {
     }
 
     // inject promise job runner func at the end of main if used
-    if (Object.hasOwn(funcIndex, 'Promise')) {
+    if (Object.hasOwn(funcIndex, 'Promise') || funcs.some(x => x.name.includes('_Promise_'))) {
       wasm.push(
         ...generateCall(func, {
           callee: {
