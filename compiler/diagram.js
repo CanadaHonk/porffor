@@ -22,7 +22,7 @@ export const tree = data => {
 };
 
 export const url = code => `https://mermaid.live/view#${btoa(JSON.stringify({
-  mermaid: { theme: 'dark', securityLevel: 'loose', maxEdges: 5000 },
+  mermaid: code.length > 10000 ? { theme: 'dark', securityLevel: 'loose', maxEdges: 5000 } : { theme: 'dark' },
   updateDiagram: true,
   autoSync: true,
   rough: false,
