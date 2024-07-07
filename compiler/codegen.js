@@ -46,6 +46,15 @@ const cacheAst = (decl, wasm) => {
   astCache.set(decl, wasm);
   return wasm;
 };
+
+const funcRef = (idx, name) => {
+  if (globalThis.precompile) return [
+    [ Opcodes.const, 'funcref', name ]
+  ];
+
+  return number(idx - importedFuncs.length);
+};
+
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   if (astCache.has(decl)) return astCache.get(decl);
 
@@ -65,7 +74,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       const func = generateFunc(scope, decl);
 
       if (decl.type.endsWith('Expression')) {
-        return cacheAst(decl, number(func.index - importedFuncs.length));
+        return cacheAst(decl, funcRef(func.index, func.name));
       }
 
       return cacheAst(decl, []);
@@ -334,8 +343,7 @@ const generateIdent = (scope, decl) => {
 
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
       if (Object.hasOwn(funcIndex, name)) {
-        if (globalThis.precompile) return [ [ Opcodes.const, 'funcref', name ] ];
-        return number(funcIndex[name] - importedFuncs.length);
+        return funcRef(funcIndex[name], name);
       }
     }
 
@@ -5119,7 +5127,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   return out;
 };
 
-const randId = () => Math.random().toString(16).slice(1, -2).padEnd(12, '0');
+const randId = () => '_' + Math.random().toString(16).slice(2, -2).padEnd(12, '0');
 
 let objectHackers = [];
 const objectHack = node => {
