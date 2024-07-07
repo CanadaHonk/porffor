@@ -367,6 +367,26 @@ const generateIdent = (scope, decl) => {
 const generateReturn = (scope, decl) => {
   const arg = decl.argument ?? DEFAULT_VALUE();
 
+  if (scope.async) {
+    return [
+      // resolve promise with return value
+      [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
+      ...number(TYPES.promise, Valtype.i32),
+
+      ...generate(scope, arg),
+      ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
+
+      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_promise_resolve').index) ],
+      [ Opcodes.drop ],
+      [ Opcodes.drop ],
+
+      // return promise
+      [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
+      ...number(TYPES.promise, Valtype.i32),
+      [ Opcodes.return ]
+    ];
+  }
+
   const out = [];
   if (
     scope.constr && // only do this in constructors
@@ -5174,7 +5194,6 @@ const objectHack = node => {
 };
 
 const generateFunc = (scope, decl) => {
-  if (decl.async) return todo(scope, 'async functions are not supported');
   if (decl.generator) return todo(scope, 'generator functions are not supported');
 
   const name = decl.id ? decl.id.name : `anonymous${randId()}`;
@@ -5186,10 +5205,13 @@ const generateFunc = (scope, decl) => {
     localInd: 0,
     // value, type
     returns: [ valtypeBinary, Valtype.i32 ],
-    throws: false,
     name,
     index: currentFuncIndex++,
-    constr: decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program'
+    constr:
+      // not arrow function or main
+      (decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program') &&
+      // not async or generator
+      !decl.async && !decl.generator
   };
 
   funcIndex[name] = func.index;
@@ -5261,7 +5283,24 @@ const generateFunc = (scope, decl) => {
     );
   }
 
+  if (decl.async) {
+    // make out promise local
+    allocVar(func, '#async_out_promise', false, false);
+    func.async = true;
+  }
+
   const wasm = func.wasm = prelude.concat(generate(func, body));
+
+  if (decl.async) {
+    // make promise at the start
+    wasm.unshift(
+      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(func, '__Porffor_promise_create').index) ],
+      [ Opcodes.drop ],
+      [ Opcodes.local_set, func.locals['#async_out_promise'].idx ]
+    );
+
+    // todo: wrap in try and reject thrown value once supported
+  }
 
   if (name === 'main') {
     func.gotLastType = true;
@@ -5294,13 +5333,7 @@ const generateFunc = (scope, decl) => {
     // inject promise job runner func at the end of main if used
     if (Object.hasOwn(funcIndex, 'Promise') || funcs.some(x => x.name.includes('_Promise_'))) {
       wasm.push(
-        ...generateCall(func, {
-          callee: {
-            type: 'Identifier',
-            name: '__Porffor_promise_runJobs'
-          },
-          arguments: []
-        }).slice(0, -1), // remove set last type
+        [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_promise_runJobs').index) ],
         [ Opcodes.drop ],
         [ Opcodes.drop ]
       );
