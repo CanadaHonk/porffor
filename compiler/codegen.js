@@ -1229,7 +1229,7 @@ const asmFuncToAsm = (scope, func) => {
     builtin: (n, float = false, offset = false) => {
       let idx = funcIndex[n] ?? importedFuncs[n];
       if (idx == null && builtinFuncs[n]) {
-        includeBuiltin(null, n);
+        includeBuiltin(scope, n);
         idx = funcIndex[n];
       }
 
