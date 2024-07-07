@@ -71,14 +71,14 @@ export const __ArrayBuffer_prototype_resizable$get = (_this: ArrayBuffer) => {
   return false;
 };
 
-export const __ArrayBuffer_prototype_slice = (_this: ArrayBuffer, start: number, end: any) => {
+export const __ArrayBuffer_prototype_slice = (_this: ArrayBuffer, start: any, end: any) => {
   if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.slice on a detached ArrayBuffer');
 
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
 
-  start |= 0;
-  end |= 0;
+  start = ecma262.ToIntegerOrInfinity(start);
+  end = ecma262.ToIntegerOrInfinity(end);
 
   if (start < 0) {
     start = len + start;
@@ -169,16 +169,18 @@ export const __ArrayBuffer_prototype_resize = (_this: ArrayBuffer, newLength: an
 };
 
 
-export const SharedArrayBuffer = function (length: number): SharedArrayBuffer {
+export const SharedArrayBuffer = function (length: any): SharedArrayBuffer {
+  // 1. If NewTarget is undefined, throw a TypeError exception.
   if (!new.target) throw new TypeError("Constructor SharedArrayBuffer requires 'new'");
 
-  if (length < 0) throw new RangeError('Invalid SharedArrayBuffer length (negative)');
-  if (length > 4294967295) throw new RangeError('Invalid SharedArrayBuffer length (over 32 bit address space)');
+  // 2. Let byteLength be ? ToIndex(length).
+  const byteLength: number = ecma262.ToIndex(length);
 
-  length |= 0;
+  if (byteLength < 0) throw new RangeError('Invalid SharedArrayBuffer length (negative)');
+  if (byteLength > 4294967295) throw new RangeError('Invalid SharedArrayBuffer length (over 32 bit address space)');
 
-  const out: SharedArrayBuffer = Porffor.allocateBytes(length + 4);
-  Porffor.wasm.i32.store(out, length, 0, 0);
+  const out: SharedArrayBuffer = Porffor.allocateBytes(byteLength + 4);
+  Porffor.wasm.i32.store(out, byteLength, 0, 0);
 
   return out;
 };
@@ -196,12 +198,12 @@ export const __SharedArrayBuffer_prototype_growable$get = (_this: SharedArrayBuf
 };
 
 
-export const __SharedArrayBuffer_prototype_slice = (_this: SharedArrayBuffer, start: number, end: any) => {
+export const __SharedArrayBuffer_prototype_slice = (_this: SharedArrayBuffer, start: any, end: any) => {
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
 
-  start |= 0;
-  end |= 0;
+  start = ecma262.ToIntegerOrInfinity(start);
+  end = ecma262.ToIntegerOrInfinity(end);
 
   if (start < 0) {
     start = len + start;

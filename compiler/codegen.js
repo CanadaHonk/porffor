@@ -2172,10 +2172,16 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         const op = wasmOps[opName];
 
         const argOut = [];
-        for (let i = 0; i < op.args.length; i++) argOut.push(
-          ...generate(scope, decl.arguments[i]),
-          ...(op.args[i] ? [ Opcodes.i32_to ] : [])
-        );
+        for (let i = 0; i < op.args.length; i++) {
+          if (!op.args[i]) globalThis.noi32F64CallConv = true;
+
+          argOut.push(
+            ...generate(scope, decl.arguments[i]),
+            ...(op.args[i] ? [ Opcodes.i32_to ] : [])
+          );
+
+          globalThis.noi32F64CallConv = false;
+        }
 
         // literals only
         const imms = decl.arguments.slice(op.args.length).map(x => x.value);
@@ -2493,7 +2499,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     if (valtypeBinary === Valtype.i32 &&
       (func && func.params[paramOffset + i * (typedParams ? 2 : 1)] === Valtype.f64)
     ) {
-      out.push([ Opcodes.f64_convert_i32_s ]);
+      out.push(Opcodes.i32_from);
     }
 
     if (typedParams) out = out.concat(getNodeType(scope, arg));
@@ -2517,7 +2523,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     out.push(Opcodes.i32_from);
   }
 
-  if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32) {
+  if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32 && !globalThis.noi32F64CallConv) {
     out.push(Opcodes.i32_trunc_sat_f64_s);
   }
 
@@ -4748,8 +4754,8 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
     out.push([ Opcodes.local_tee, tmp ]);
 
     for (const x of decl.properties) {
-      const { method, shorthand, computed, kind, key, value } = x;
-      if (kind !== 'init') return todo(scope, 'complex objects are not supported yet', true);
+      // method, shorthand are made into useful values by parser for us :)
+      const { computed, kind, key, value } = x;
 
       let k = key;
       if (!computed && key.type !== 'Literal') k = {
@@ -4766,9 +4772,10 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         ...toPropertyKey(scope, true),
 
         ...generate(scope, value),
+        ...(kind !== 'init' ? [ Opcodes.i32_to_u ] : []),
         ...getNodeType(scope, value),
 
-        [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_set').index) ],
+        [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, `__Porffor_object_expr_${kind}`).index) ],
 
         [ Opcodes.drop ],
         [ Opcodes.drop ]

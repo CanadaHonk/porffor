@@ -75,9 +75,10 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
           porfToJSValue({ memory, funcs, pages }, vValue, vType);
 
         const flags = tail & 0xff;
+        const accessor = flags & 0b0001;
 
         let get, set;
-        if (flags & 0b0001) {
+        if (accessor) {
           0, [ get, set ] = read(Uint32Array, memory, value + offset + 4, 2);
         }
 
@@ -99,11 +100,21 @@ ${flags & 0b0001 ? `    get func idx: ${get}
         const configurable = flags & 0b0010;
         const enumerable = flags & 0b0100;
 
-        Object.defineProperty(out, k, {
-          value: v,
-          configurable,
-          enumerable,
-        });
+        if (accessor) {
+          // mock get/set funcs
+          Object.defineProperty(out, k, {
+            get: () => {},
+            set: () => {},
+            configurable,
+            enumerable,
+          });
+        } else {
+          Object.defineProperty(out, k, {
+            value: v,
+            configurable,
+            enumerable,
+          });
+        }
       }
 
       return out;

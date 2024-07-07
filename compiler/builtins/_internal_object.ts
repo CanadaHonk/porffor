@@ -456,3 +456,87 @@ export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
     t != Porffor.TYPES.bytestring,
   );
 };
+
+
+// used for { foo: 5 }
+export const __Porffor_object_expr_init = (_this: object, key: any, value: any): void => {
+  let entryPtr: i32 = __Porffor_object_lookup(_this, key);
+  if (entryPtr == -1) {
+    // add new entry
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+    Porffor.wasm.i32.store(_this, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${_this}` + 5 + size * 14;
+
+    __Porffor_object_writeKey(entryPtr, key);
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, value, 0, 4);
+
+  // write new tail (value type + flags)
+  // flags = writable, enumerable, configurable, not accessor
+  Porffor.wasm.i32.store16(entryPtr,
+    0b1110 + (Porffor.wasm`local.get ${value+1}` << 8),
+    0, 12);
+};
+
+// used for { get foo() {} }
+export const __Porffor_object_expr_get = (_this: object, key: any, get: any): void => {
+  let entryPtr: i32 = __Porffor_object_lookup(_this, key);
+  let set: any = undefined;
+  if (entryPtr == -1) {
+    // add new entry
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+    Porffor.wasm.i32.store(_this, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${_this}` + 5 + size * 14;
+
+    __Porffor_object_writeKey(entryPtr, key);
+  } else {
+    // existing entry, keep set (if exists)
+    set = __Porffor_object_accessorSet(entryPtr);
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, __Porffor_object_packAccessor(get, set), 0, 4);
+
+  // write new tail (value type + flags)
+  // flags = writable, enumerable, configurable, accessor
+  Porffor.wasm.i32.store16(entryPtr,
+    0b1111 + (Porffor.TYPES.number << 8),
+    0, 12);
+};
+
+// used for { set foo(v) {} }
+export const __Porffor_object_expr_set = (_this: object, key: any, set: any): void => {
+  let entryPtr: i32 = __Porffor_object_lookup(_this, key);
+  let get: any = undefined;
+  if (entryPtr == -1) {
+    // add new entry
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+    Porffor.wasm.i32.store(_this, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${_this}` + 5 + size * 14;
+
+    __Porffor_object_writeKey(entryPtr, key);
+  } else {
+    // existing entry, keep set (if exists)
+    get = __Porffor_object_accessorGet(entryPtr);
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, __Porffor_object_packAccessor(get, set), 0, 4);
+
+  // write new tail (value type + flags)
+  // flags = writable, enumerable, configurable, accessor
+  Porffor.wasm.i32.store16(entryPtr,
+    0b1111 + (Porffor.TYPES.number << 8),
+    0, 12);
+};
