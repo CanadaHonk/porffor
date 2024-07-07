@@ -117,14 +117,11 @@ export default (code, flags) => {
 
     const done = new Set();
     for (let i = 0; i < data.length; i++) {
-      // const run = (x, done = new Set()) => {
       const run = x => {
         const out = [ x.name, [] ];
         if (x.includes && !done.has(x.name)) {
           done.add(x.name);
           for (const y of x.includes) {
-            // out[1].push(run(funcsByName[y], new Set(done)));
-            // out[1].push(run(funcsByName[y], done));
             out[1].push(run(funcsByName[y], done));
           }
         }
