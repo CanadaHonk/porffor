@@ -5331,7 +5331,7 @@ const generateFunc = (scope, decl) => {
     }
 
     // inject promise job runner func at the end of main if used
-    if (Object.hasOwn(funcIndex, 'Promise') || funcs.some(x => x.name.includes('_Promise_'))) {
+    if (Object.hasOwn(funcIndex, '__ecma262_HostEnqueuePromiseJob')) {
       wasm.push(
         [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_promise_runJobs').index) ],
         [ Opcodes.drop ],
