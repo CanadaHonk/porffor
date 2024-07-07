@@ -1,4 +1,19 @@
 /// sta.js
+// define our $262 here too
+var $262 = {
+  global: globalThis,
+  gc() { /* noop */ },
+  detachArrayBuffer(buffer) {
+    return Porffor.arraybuffer.detach(buffer);
+  },
+  getGlobal(name) {
+    return globalThis[name];
+  },
+  // todo: setGlobal
+  destroy() { /* noop */ },
+  agent: {}
+};
+
 function Test262Error() {}
 
 Test262Error.thrower = function (message) {
@@ -392,5 +407,37 @@ function verifyNotConfigurable(obj, name) {
 
   if (isConfigurable(obj, name)) {
     throw new Test262Error('propertyHelper verifyNotConfigurable failed');
+  }
+}
+
+/// promiseHelper.js
+function checkSequence(arr) {
+  arr.forEach((x, i) => {
+    if (x !== (i + 1)) {
+      throw new Test262Error('promiseHelper checkSequence failed');
+    }
+  });
+
+  return true;
+}
+// todo: checkSettledPromises
+
+/// detachArrayBuffer.js
+function $DETACHBUFFER(buffer) {
+  $262.detachArrayBuffer(buffer);
+}
+
+/// fnGlobalObject.js
+var __globalObject = globalThis;
+function fnGlobalObject() {
+  return __globalObject;
+}
+
+/// doneprintHandle.js
+function $DONE(error) {
+  if (error) {
+    printStatic('Test262:AsyncTestFailure:Error: unknown');
+  } else {
+    printStatic('Test262:AsyncTestComplete');
   }
 }

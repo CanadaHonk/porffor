@@ -367,9 +367,10 @@ if (isMainThread) {
     const test = tests[i];
 
     let error, stage;
-    let file = test.file, contents = test.contents, attrs = test.attrs;
+    let contents = test.contents, attrs = test.attrs;
 
     if (!attrs.flags.raw) {
+      if (attrs.flags.async) attrs.includes.unshift('doneprintHandle.js');
       const prelude = attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? '') + '\n', '') + alwaysPrelude;
       contents = prelude + contents;
     }
@@ -402,13 +403,12 @@ if (isMainThread) {
     // currentTest = file;
 
     let log = '';
-    const shouldLog = debugAsserts;
 
     let exports, exceptions;
     try {
       const out = compile(contents, attrs.flags.module ? [ 'module' ] : [], {
-        p: shouldLog ? i => { log += i.toString(); } : () => {},
-        c: shouldLog ? i => { log += String.fromCharCode(i); } : () => {},
+        p: i => { log += i.toString() },
+        c: i => { log += String.fromCharCode(i); }
       });
 
       exceptions = out.exceptions;
@@ -429,6 +429,11 @@ if (isMainThread) {
 
       stage = 1;
       error = e;
+    }
+
+    if (log.includes('Test262:AsyncTestFailure')) {
+      stage = 1;
+      error = new Error('Test262 AsyncTestFailure');
     }
 
     const errorName = error?.name;

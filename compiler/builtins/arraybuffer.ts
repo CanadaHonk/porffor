@@ -5,6 +5,11 @@ export const __ArrayBuffer_isView = (value: any): boolean => {
   return false;
 };
 
+export const __Porffor_arraybuffer_detach = (buffer: any): void => {
+  // mark as detached by setting length = "-1"
+  Porffor.wasm.i32.store(buffer, 4294967295, 0, 0);
+};
+
 export const ArrayBuffer = function (length: any): ArrayBuffer {
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (!new.target) throw new TypeError("Constructor ArrayBuffer requires 'new'");
@@ -155,8 +160,7 @@ i32.to_u
 
 memory.copy 0 0`;
 
-  // mark as detached by setting length = "-1"
-  Porffor.wasm.i32.store(_this, 4294967295, 0, 0);
+  __Porffor_arraybuffer_detach(_this);
 
   return out;
 };
