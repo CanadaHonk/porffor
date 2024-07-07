@@ -9,6 +9,7 @@ import toc from './2c.js';
 import * as pgo from './pgo.js';
 import cyclone from './cyclone.js';
 import Prefs from './prefs.js';
+import * as Diagram from './diagram.js';
 
 globalThis.decompile = decompile;
 
@@ -107,6 +108,35 @@ export default (code, flags) => {
   }
 
   if (Prefs.profileCompiler) console.log(`3. optimized in ${(performance.now() - t2).toFixed(2)}ms`);
+
+  if (Prefs.builtinTree) {
+    let data = funcs.filter(x => x.includes);
+    if (typeof Prefs.builtinTree === 'string') data = data.filter(x => x.includes.has(Prefs.builtinTree));
+
+    const funcsByName = funcs.reduce((acc, x) => { acc[x.name] = x; return acc; }, {});
+
+    const done = new Set();
+    for (let i = 0; i < data.length; i++) {
+      // const run = (x, done = new Set()) => {
+      const run = x => {
+        const out = [ x.name, [] ];
+        if (x.includes && !done.has(x.name)) {
+          done.add(x.name);
+          for (const y of x.includes) {
+            // out[1].push(run(funcsByName[y], new Set(done)));
+            // out[1].push(run(funcsByName[y], done));
+            out[1].push(run(funcsByName[y], done));
+          }
+        }
+
+        return out;
+      };
+      data[i] = run(data[i]);
+    }
+
+    const url = Diagram.url(Diagram.tree(data));
+    console.log(`built-in tree: ${url}`);
+  }
 
   const t3 = performance.now();
   const out = { funcs, globals, tags, exceptions, pages, data, times: [ t0, t1, t2, t3 ] };

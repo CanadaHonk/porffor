@@ -23,7 +23,6 @@ The repo comes with easy alias scripts for Unix and Windows, which you can use l
 
 You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A ...`) or Bun (`bun ...`), or just use it yourself (eg `node runner/index.js ...`, `bun runner/index.js ...`). Node, Deno, Bun should work.
 
-
 ### Precompile
 
 **If you update any file inside `compiler/builtins` you will need to do this for it to update inside Porffor otherwise your changes will have no effect.** Run `./porf precompile` to precompile. It may error during this, if so, you might have an error in your code or there could be a compiler error with Porffor (feel free to ask for help as soon as you encounter any errors with it).
@@ -98,7 +97,7 @@ Loads the character code at the pointer `pointer` **for a String**.[^1]
 Porffor.wasm.i32.store(pointer, length, 0, 0)
 ```
 
-Stores the length `length` at pointer `pointer`, setting the length of an object. This is mostly unneeded today as you can just do `obj.length = length`. (The `0, 4` args are necessary for the Wasm instruction, but you don't need to worry about them (`0` alignment, `0` byte offset).
+Stores the length `length` at pointer `pointer`, setting the length of an object. This is mostly unneeded today as you can just do `obj.length = length`. [^1]
 
 <br>
 
@@ -209,6 +208,141 @@ Store the character code into the `out` pointer variable, and increment it.
 
 <br>
 
+### Porffor.wasm
+This is a macro that is essentially equivalent to C's `asm` macro. It allows you to write inline Wasm bytecode in a similar format to [WAT](https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format).
+
+Let's look at an example to better illustrate how the format works.
+
+```ts
+export const add_i32 = (a: any, b: any) => {
+  Porffor.wasm`
+  local aCasted i32
+  local bCasted i32
+  returns i32 i32
+
+  ;; if both types are number
+  local.get ${a+1}
+  i32.const 1
+  i32.eq
+  local.get ${b+1}
+  i32.const 1
+  i32.eq
+  i32.and
+  if
+    local.get ${a}
+    i32.from
+    local.set aCasted
+
+    local.get ${b}
+    i32.from
+    local.set bCasted
+
+    local.get aCasted
+    local.get bCasted
+    i32.add
+    i32.const 1
+    return
+  end
+
+  ;; return (0, 0) otherwise
+  i32.const 0
+  i32.const 0
+  return`;
+}
+```
+
+---
+
+```
+local aCasted i32
+local bCasted i32
+```
+
+Here we define two locals, which you can think of as typed variables. Here both of them have the type of `i32`, which was explained above. This type can also be `f64` or `i64`, which are doubles and 64-bit integers respectively.
+
+---
+
+```
+returns i32 i32
+```
+
+This sets the return type of the function, what the stack must look like before a `return` instruction. Normally Porffor functions have the return type `(f64, i32)`, which represents the valtype (usually f64) and an i32 type.
+
+> [!WARNING]
+> This is something you have to be incredibly careful with, as Porffor expects most functions to return `(valtype, i32)`. Be incredibly careful when using this.
+
+---
+
+```
+;; if both types are number
+```
+
+This is a comment. `;;` is Wasm's `//`.
+
+---
+
+```
+local.get ${a+1}
+i32.const 1
+i32.eq
+local.get ${b+1}
+i32.const 1
+i32.eq
+i32.and
+```
+
+This part is a little more complicated, first you have to understand how Wasm represents function parameters and local variables in general. When looking at the decompiled output of something like `let a = 1;`, you'll likely see something like this:
+```
+f64.const 1
+i32.const 1
+local.set 1 ;; a#type (i32)
+local.set 0 ;; a
+```
+Here the `i32.const 1` is equivalent to `TYPES.number`, which aligns with what we told Porffor to do, but what's up with the `local.set`s to a number? Well, internally locals are represented with indexes, and in this example `a` was assigned 0, and `a#type` was assigned 1.
+
+That's where `local.get ${a+1}` comes from, it's Porffor's way of saying "get the local variable at index of `a` plus one". In most cases, this is the variable's type. The rest of the snippet is just checking if both of the parameters' types are equal to `TYPES.number`.
+
+---
+
+```
+if
+  local.get ${a}
+  i32.from
+  local.set aCasted
+
+  local.get ${b}
+  i32.from
+  local.set bCasted
+```
+
+Here we start an if block, equivalent to JS's `if (...) {}`, and as the locals' names imply, cast them to `i32`s. There is one strange thing about this section though, if you look at Wasm's list of instructions you won't find a `i32.from`. This is because Porffor has custom instructions for converting to and from the valtype. In this case, converting the valtype into an `i32`. There are a few more of these instructions, but in general these instructions come in the format of `type.from` (create `type` from valtype) and `type.to` (create valtype from `type`). You can find a full list at the bottom of `codegen.js`.
+
+---
+
+```
+  local.get aCasted
+  local.get bCasted
+  i32.add
+  i32.const 1
+  return
+end
+```
+
+Here, we get our two casted locals and add them together, returning the result and a `i32` with the value of 1. We then end the if block with the `end` instruction.
+
+---
+
+```
+;; return (0, 0) otherwise
+i32.const 0
+i32.const 0
+return
+```
+
+Finally, we return `(0, 0)` if either type is not a number. This example was very contrived, but should give you a good sense of how to use `Porffor.wasm`.
+
+<br>
+
 ## Formatting/linting
 
 There is 0 setup for this (right now). You can try looking through the other built-ins files but do not worry about it a lot, I honestly do not mind going through and cleaning up after a PR as long as the code itself is good :^)
@@ -258,4 +392,9 @@ It will also log new passes/fails. Be careful as sometimes the overall passes ca
 
 <br>
 
-[^1]: The `0, 4` args are necessary for the Wasm instruction, but you don't need to worry about them (`0` alignment, `4` byte offset for length).
+### Resources
+
+- [MDN](https://developer.mozilla.org/en-US/), not only a great resource for learning JS, but also for implementing it, as it has high level descriptions of functionality, as well as links to the relevant portions of the spec that govern the feature.
+- [WebAssembly Opcodes](https://pengowray.github.io/wasm-ops/), this website not only describes what each wasm instruction does but the necessary stack needed, and contains some other useful resources as well.
+
+[^1]: The last two args are necessary for the Wasm instruction, but you don't need to worry about them (the first is alignment, the second is byte offset).

@@ -11,17 +11,26 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
   const invLocals = inv(locals, x => x.idx);
   const invGlobals = inv(globals, x => x.idx);
 
-  const makeSignature = (params, returns) => `(${params.map(x => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`;
+  const makeSignature = (params, returns, locals) => {
+    if (locals) {
+      const localNames = inv(locals, x => x.idx);
+      return `(${params.map((x, i) => `${localNames[i]}(${i}): ${invValtype[x]}`).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`;
+    }
 
-  let out = '', depth = name ? 1 : 0;
-  if (name) out += `${makeSignature(params, returns)} ;; $${name} (${ind})\n`;
+    return `(${params.map((x, i) => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`;
+  }
+
+  let out = '', depth = 0;
+  if (name) out += `${name}(${ind}) ${makeSignature(params, returns, locals)}\n`;
 
   const justLocals = Object.values(locals).sort((a, b) => a.idx - b.idx).slice(params.length);
-  if (name && justLocals.length > 0) out += `  local ${justLocals.map(x => invValtype[x.type]).join(' ')}\n`;
+  for (const x of justLocals) {
+    out += `;; local ${invLocals[x.idx]}(${x.idx}): ${invValtype[x.type]}\n`
+  }
 
   let i = -1, lastInst;
   let byte = 0;
-  for (let inst of wasm.concat(name ? [ [ Opcodes.end ] ] : [])) {
+  for (let inst of wasm) {
     i++;
     if (inst[0] === null) continue;
 
@@ -102,6 +111,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       const name = invLocals[inst[1]];
       const type = invValtype[locals[name]?.type];
       if (name) out += ` ;; $${name}${type !== valtype ? ` (${type})` : ''}`;
+        else out += ` ;; unknown local`
     }
 
     if (inst[0] === Opcodes.global_get || inst[0] === Opcodes.global_set) {
@@ -130,4 +140,4 @@ export const highlightAsm = asm => asm
   .replace(/(block|loop|if|end|else|try|catch_all|catch|delegate)/g, _ => `\x1B[95m${_}\x1B[0m`)
   .replace(/unreachable/g, _ => `\x1B[91m${_}\x1B[0m`)
   .replace(/ \-?[0-9\.]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
-  .replace(/ ;;.*$/gm, _ => `\x1B[90m${_.replaceAll(/\x1B\[[0-9]+m/g, '')}\x1B[0m`);
+  .replace(/;;.*$/gm, _ => `\x1B[90m${_.replaceAll(/\x1B\[[0-9]+m/g, '')}\x1B[0m`);

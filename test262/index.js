@@ -422,7 +422,7 @@ if (isMainThread) {
       timeout(exports.main, 3000);
       stage = 2;
     } catch (e) {
-      if (e.name === 'Test262Error' && debugAsserts && log) {
+      if (e?.name === 'Test262Error' && debugAsserts && log) {
         const [ msg, expected, actual ] = log.split('\n');
         e.message += `: ${msg} | expected: ${expected} | actual: ${actual}`;
       }
@@ -450,7 +450,7 @@ if (isMainThread) {
         }
         else if (stage === 1) {
           if (errorName === 'Test262Error') out = 4;
-            else if (error.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') out = 5;
+            else if (error?.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') out = 5;
             else out = 6;
         }
         else if (stage === 2) out = 4;
@@ -468,7 +468,7 @@ if (isMainThread) {
 
     if (logErrors) {
       process.stdout.write(`\u001b[${pass ? '92' : '91'}m${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m\n`);
-      if (!pass && error) console.log(error.stack ?? error);
+      if (!pass && error) console.log(error?.stack ?? error);
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {
