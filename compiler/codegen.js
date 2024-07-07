@@ -376,7 +376,7 @@ const generateReturn = (scope, decl) => {
       ...generate(scope, arg),
       ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
 
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_promise_resolve').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_resolve').index ],
       [ Opcodes.drop ],
       [ Opcodes.drop ],
 
@@ -546,7 +546,7 @@ const concatStrings = (scope, left, right, leftType, rightType, allBytestrings =
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, leftPointer ],
       [ Opcodes.local_get, leftLength ],
-      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
       [ Opcodes.local_set, leftPointer ],
       [ Opcodes.end ],
 
@@ -556,7 +556,7 @@ const concatStrings = (scope, left, right, leftType, rightType, allBytestrings =
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, rightPointer ],
       [ Opcodes.local_get, rightLength ],
-      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
       [ Opcodes.local_set, rightPointer ],
       [ Opcodes.end ]
     ]),
@@ -662,7 +662,7 @@ const compareStrings = (scope, left, right, leftType, rightType, allBytestrings 
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, leftPointer ],
       [ Opcodes.local_get, leftLength ],
-      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
       [ Opcodes.local_set, leftPointer ],
       [ Opcodes.end ],
 
@@ -673,7 +673,7 @@ const compareStrings = (scope, left, right, leftType, rightType, allBytestrings 
       [ Opcodes.local_get, rightPointer ],
       [ Opcodes.local_get, rightPointer ],
       [ Opcodes.i32_load, 0, 0 ],
-      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
       [ Opcodes.local_set, rightPointer ],
       [ Opcodes.end ]
     ]),
@@ -1016,7 +1016,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     return finalize([
       ...left,
       ...right,
-      [ Opcodes.call, ...unsignedLEB128(idx) ]
+      [ Opcodes.call, idx ]
     ]);
   }
 
@@ -1239,7 +1239,7 @@ const asmFuncToAsm = (scope, func) => {
       if (idx == null) throw new Error(`builtin('${n}') failed: could not find func (from ${scope.name})`);
       if (offset) idx -= importedFuncs.length;
 
-      return float ? ieee754_binary64(idx) : unsignedLEB128(idx);
+      return float ? ieee754_binary64(idx) : idx;
     },
     glbl: (opcode, name, type) => {
       const globalName = '#porf#' + name; // avoid potential name clashing with user js
@@ -1940,7 +1940,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ...getNodeType(scope, decl.arguments[0]),
 
         // call regex func
-        [ Opcodes.call, ...unsignedLEB128(idx) ],
+        [ Opcodes.call, idx ],
         Opcodes.i32_from_u,
 
         ...setLastType(scope, Rhemyn.types[funcName])
@@ -1983,7 +1983,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ...getNodeType(scope, target),
 
         // call regex func
-        [ Opcodes.call, ...unsignedLEB128(idx) ],
+        [ Opcodes.call, idx ],
         Opcodes.i32_from,
 
         ...setLastType(scope, Rhemyn.types[protoName])
@@ -2503,7 +2503,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     if (typedParams) out = out.concat(getNodeType(scope, arg));
   }
 
-  out.push([ Opcodes.call, ...unsignedLEB128(idx) ]);
+  out.push([ Opcodes.call, idx ]);
 
   if (!typedReturns) {
     // let type;
@@ -3133,12 +3133,12 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             [ Opcodes.local_get, localTmp(scope, '#objset_property', Valtype.i32) ],
             [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
 
-            [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_get').index) ],
+            [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
             ...setLastType(scope)
           ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
           ...getNodeType(scope, decl),
 
-          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_set').index) ],
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_set').index ],
           [ Opcodes.drop ],
           // ...setLastType(scope, getNodeType(scope, decl)),
         ],
@@ -3437,7 +3437,7 @@ const generateUnary = (scope, decl) => {
           ...getNodeType(scope, property),
           ...toPropertyKey(scope, true),
 
-          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_delete').index) ],
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_delete').index ],
           [ Opcodes.drop ],
           Opcodes.i32_from_u
         ];
@@ -3750,7 +3750,7 @@ const generateForOf = (scope, decl) => {
       ...setType(scope, leftName, TYPES.string),
 
       // allocate out string
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
       [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -3804,7 +3804,7 @@ const generateForOf = (scope, decl) => {
       ...setType(scope, leftName, TYPES.bytestring),
 
       // allocate out string
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
       [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -4594,7 +4594,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
       if (name === '#member_prop_assign') {
         out.push(
-          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ]
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ]
         );
         shouldGet = false;
       }
@@ -4734,7 +4734,7 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
 };
 
 const toPropertyKey = (scope, i32Conv = false) => [
-  [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__ecma262_ToPropertyKey').index) ],
+  [ Opcodes.call, includeBuiltin(scope, '__ecma262_ToPropertyKey').index ],
   ...(i32Conv ? [
     [ Opcodes.local_set, localTmp(scope, '#swap', Valtype.i32) ],
     Opcodes.i32_to_u,
@@ -4744,7 +4744,7 @@ const toPropertyKey = (scope, i32Conv = false) => [
 
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
   const out = [
-    [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ]
+    [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ]
   ];
 
   if (decl.properties.length > 0) {
@@ -4773,7 +4773,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         ...(kind !== 'init' ? [ Opcodes.i32_to_u ] : []),
         ...getNodeType(scope, value),
 
-        [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, `__Porffor_object_expr_${kind}`).index) ],
+        [ Opcodes.call, includeBuiltin(scope, `__Porffor_object_expr_${kind}`).index ],
 
         [ Opcodes.drop ],
         [ Opcodes.drop ]
@@ -4894,7 +4894,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
         [ Opcodes.i32_eq ],
         [ Opcodes.if, Blocktype.void ],
           [ Opcodes.local_get, tmp ],
-          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_funcLut_length').index) ],
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_funcLut_length').index ],
           Opcodes.i32_from_u,
 
           ...setLastType(scope, TYPES.number),
@@ -4953,7 +4953,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
     [TYPES.string]: [
       // allocate out string
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
       [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -4987,7 +4987,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
     [TYPES.bytestring]: [
       // allocate out string
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
       [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -5025,7 +5025,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       ...getNodeType(scope, property),
       ...toPropertyKey(scope, true),
 
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_get').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
       ...setLastType(scope)
     ],
 
@@ -5038,7 +5038,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       ...getNodeType(scope, property),
       ...toPropertyKey(scope, true),
 
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_get').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
       ...setLastType(scope)
     ],
 
@@ -5309,7 +5309,7 @@ const generateFunc = (scope, decl) => {
   if (decl.async) {
     // make promise at the start
     wasm.unshift(
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(func, '__Porffor_promise_create').index) ],
+      [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_create').index ],
       [ Opcodes.drop ],
       [ Opcodes.local_set, func.locals['#async_out_promise'].idx ]
     );
@@ -5348,7 +5348,7 @@ const generateFunc = (scope, decl) => {
     // inject promise job runner func at the end of main if used
     if (Object.hasOwn(funcIndex, '__ecma262_HostEnqueuePromiseJob')) {
       wasm.push(
-        [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_promise_runJobs').index) ],
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_runJobs').index ],
         [ Opcodes.drop ],
         [ Opcodes.drop ]
       );

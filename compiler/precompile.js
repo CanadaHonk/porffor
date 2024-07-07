@@ -92,7 +92,7 @@ const compile = async (file, _funcs) => {
         const y = wasm[i];
         const n = wasm[i + 1];
         if (y[0] === Opcodes.call) {
-          const idx = read_unsignedLEB128(y.slice(1));
+          const idx = y[1];
           const f = funcs.find(x => x.index === idx);
           if (!f) continue;
 
@@ -204,8 +204,8 @@ ${funcs.map(x => {
       .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtype})`)
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode}, '${name}', ${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}', ${valtype})]`)
-      .replace(/\[16,"(.*?)"]/g, (_, name) => `[16, ...builtin('${name}')]`)
-      .replace(/\[68,"funcref","(.*?)"]/g, (_, name, offset) => `[68,...builtin('${name}', true, true)]`)
+      .replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`)
+      .replace(/\[68,"funcref","(.*?)"]/g, (_, name, offset) => `[68, ...builtin('${name}', true, true)]`)
       .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`)
       .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(scope, { name: '${objName}' })`);
 
