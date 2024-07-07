@@ -5430,20 +5430,10 @@ const internalConstrs = {
   __Porffor_rawType: {
     generate: (scope, decl) => {
       const type = getNodeType(scope, decl.arguments[0]);
-      if (type) {
-        return [
-          ...type,
-          Opcodes.i32_from
-        ];
-      }
-
-      return generate(scope, {
-        type: 'CallExpression',
-        callee: { type: 'Identifier', name: '__Porffor_dyn_rawType' },
-        arguments: [
-          decl.arguments[0]
-        ]
-      });
+      return [
+        ...type,
+        Opcodes.i32_from
+      ];
     },
     type: TYPES.number,
     notConstr: true,
