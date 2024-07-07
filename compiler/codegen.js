@@ -2170,10 +2170,16 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         const op = wasmOps[opName];
 
         const argOut = [];
-        for (let i = 0; i < op.args.length; i++) argOut.push(
-          ...generate(scope, decl.arguments[i]),
-          ...(op.args[i] ? [ Opcodes.i32_to ] : [])
-        );
+        for (let i = 0; i < op.args.length; i++) {
+          if (!op.args[i]) globalThis.noi32F64CallConv = true;
+
+          argOut.push(
+            ...generate(scope, decl.arguments[i]),
+            ...(op.args[i] ? [ Opcodes.i32_to ] : [])
+          );
+
+          globalThis.noi32F64CallConv = false;
+        }
 
         // literals only
         const imms = decl.arguments.slice(op.args.length).map(x => x.value);
@@ -2491,7 +2497,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     if (valtypeBinary === Valtype.i32 &&
       (func && func.params[paramOffset + i * (typedParams ? 2 : 1)] === Valtype.f64)
     ) {
-      out.push([ Opcodes.f64_convert_i32_s ]);
+      out.push(Opcodes.i32_from);
     }
 
     if (typedParams) out = out.concat(getNodeType(scope, arg));
@@ -2515,7 +2521,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     out.push(Opcodes.i32_from);
   }
 
-  if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32) {
+  if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32 && !globalThis.noi32F64CallConv) {
     out.push(Opcodes.i32_trunc_sat_f64_s);
   }
 
