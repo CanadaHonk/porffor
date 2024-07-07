@@ -1233,7 +1233,10 @@ const asmFuncToAsm = (scope, func) => {
         idx = funcIndex[n];
       }
 
-      if (idx == null) throw new Error(`builtin('${n}') failed to find a func (inside ${scope.name})`);
+      scope.includes ??= new Set();
+      scope.includes.add(n);
+
+      if (idx == null) throw new Error(`builtin('${n}') failed: could not find func (from ${scope.name})`);
       if (offset) idx -= importedFuncs.length;
 
       return float ? ieee754_binary64(idx) : unsignedLEB128(idx);
@@ -1362,7 +1365,12 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   return func;
 };
 
-const includeBuiltin = (scope, builtin) => asmFunc(builtin, builtinFuncs[builtin]);
+const includeBuiltin = (scope, builtin) => {
+  scope.includes ??= new Set();
+  scope.includes.add(builtin);
+
+  return asmFunc(builtin, builtinFuncs[builtin]);
+};
 
 const generateLogicExp = (scope, decl) => {
   return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
