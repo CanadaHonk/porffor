@@ -94,6 +94,7 @@ export const __ecma262_RejectPromise = (promise: any[], reason: any): void => {
 
 export const __Porffor_promise_noop = () => {};
 
+// hack: cannot share scope so use a global
 let activePromise: any;
 export const __Porffor_promise_resolve = (value: any): any => {
   // todo: if value is own promise, reject with typeerror
@@ -139,7 +140,7 @@ export const __Porffor_promise_create = (): any[] => {
   return obj;
 };
 
-export const __Porffor_promise_newReaction = (handler: Function, promise: any[], type: i32): any[] => {
+export const __Porffor_promise_newReaction = (handler: Function, promise: any, type: i32): any[] => {
   // enum ReactionType { then = 0, finally = 1 }
   const out: any[] = Porffor.allocateBytes(31); // 3 length
   out[0] = handler;
@@ -149,6 +150,11 @@ export const __Porffor_promise_newReaction = (handler: Function, promise: any[],
   return out;
 };
 
+export const __Porffor_promise_runNext = (func: Function) => {
+  const reaction = __Porffor_promise_newReaction(func, undefined, 1);
+  __ecma262_HostEnqueuePromiseJob(__ecma262_NewPromiseReactionJob(reaction, undefined));
+};
+
 export const __Porffor_promise_runJobs = () => {
   while (true) {
     let x: any = jobQueue.shift();
@@ -156,7 +162,7 @@ export const __Porffor_promise_runJobs = () => {
 
     const reaction: any[] = x[0];
     const handler: Function = reaction[0];
-    const outPromise: any[] = reaction[1];
+    const outPromise: any = reaction[1];
     const type: i32 = reaction[2];
 
     const value: any = x[1];
@@ -171,12 +177,12 @@ export const __Porffor_promise_runJobs = () => {
     }
 
     // todo: should this be resolve or fulfill?
-    __ecma262_FulfillPromise(outPromise, outValue);
+    if (outPromise) __ecma262_FulfillPromise(outPromise, outValue);
   }
 };
 
 
-export const Promise = function (executor: any): Promise {
+export const Promise = function (executor: any): void {
   if (!new.target) throw new TypeError("Constructor Promise requires 'new'");
   if (Porffor.rawType(executor) != Porffor.TYPES.function) throw new TypeError('Promise executor is not a function');
 
@@ -302,6 +308,102 @@ export const __Promise_prototype_finally = (_this: any, onFinally: any): Promise
 
   const pro: Promise = outPromise;
   return pro;
+};
+
+
+// commentary: its as 🦐shrimple🦐 as this
+// hack: cannot share scope so use a global
+//    ^ multiple Promise.all(-like)s are glitchy because of this
+
+let _allPromises, _allRes, _allRej, _allOut, _allLen;
+export const __Promise_all = (promises: any): Promise => {
+  _allPromises = promises;
+
+  return new Promise((res, rej) => {
+    _allRes = res, _allRej = rej;
+
+    const arr: any[] = Porffor.allocate();
+    _allOut = arr;
+    _allLen = 0;
+
+    for (const x of _allPromises) {
+      _allLen++;
+      if (__ecma262_IsPromise(x)) {
+        x.then(r => {
+          if (Porffor.fastPush(_allOut, r) == _allLen) _allRes(_allOut);
+        }, r => {
+          _allRej(r);
+        });
+      } else {
+        Porffor.fastPush(_allOut, x);
+      }
+    }
+
+    if (_allLen == 0) {
+      // empty iterable: immediately resolve
+      _allRes(_allOut);
+    } else if (_allOut.length == _allLen) {
+      // given only non-promises, resolve next
+      __Porffor_promise_runNext(() => {
+        _allRes(_allOut);
+      });
+    }
+  });
+};
+
+// commentary: i heard you liked hacks, so i added hacks to your hacks
+export const __Promise_allSettled = (promises: any): Promise => {
+  _allPromises = promises;
+
+  return new Promise((res, rej) => {
+    _allRes = res, _allRej = rej;
+
+    const arr: any[] = Porffor.allocate();
+    _allOut = arr;
+    _allLen = 0;
+
+    for (const x of _allPromises) {
+      _allLen++;
+      if (__ecma262_IsPromise(x)) {
+        x.then(r => {
+          // Porffor.print(r);
+          const o = {};
+          let status: bytestring = '';
+          status = 'fulfilled';
+          o.status = status;
+
+          o.value = r;
+          if (Porffor.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
+        }, r => {
+          const o = {};
+          let status: bytestring = '';
+          status = 'rejected';
+          o.status = status;
+
+          o.reason = r;
+          if (Porffor.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
+        });
+      } else {
+        const o = {};
+        let status: bytestring = '';
+        status = 'fulfilled';
+        o.status = status;
+
+        o.value = x;
+        Porffor.fastPush(_allOut, o);
+      }
+    }
+
+    if (_allLen == 0) {
+      // empty iterable: immediately resolve
+      _allRes(_allOut);
+    } else if (_allOut.length == _allLen) {
+      // given only non-promises, resolve next
+      __Porffor_promise_runNext(() => {
+        _allRes(_allOut);
+      });
+    }
+  });
 };
 
 
