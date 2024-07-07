@@ -94,25 +94,23 @@ export const __ecma262_RejectPromise = (promise: any[], reason: any): void => {
 
 export const __Porffor_promise_noop = () => {};
 
-// hack: cannot share scope so use a global
-let activePromise: any;
-export const __Porffor_promise_resolve = (value: any): any => {
+export const __Porffor_promise_resolve = (promise: any, value: any): any => {
   // todo: if value is own promise, reject with typeerror
 
   if (__ecma262_IsPromise(value)) {
     // todo
   } else {
-    __ecma262_FulfillPromise(activePromise, value);
+    __ecma262_FulfillPromise(promise, value);
   }
 
   return undefined;
 };
 
-export const __Porffor_promise_reject = (reason: any): any => {
+export const __Porffor_promise_reject = (promise: any, reason: any): any => {
   if (__ecma262_IsPromise(reason)) {
     // todo
   } else {
-    __ecma262_RejectPromise(activePromise, reason);
+    __ecma262_RejectPromise(promise, reason);
   }
 
   return undefined;
@@ -181,6 +179,10 @@ export const __Porffor_promise_runJobs = () => {
   }
 };
 
+// hack: cannot share scope so use a global
+let activePromise: any;
+export const __Porffor_promise_resolveActive = (value: any) => __Porffor_promise_resolve(activePromise, value);
+export const __Porffor_promise_rejectActive = (reason: any) => __Porffor_promise_reject(activePromise, reason);
 
 export const Promise = function (executor: any): void {
   if (!new.target) throw new TypeError("Constructor Promise requires 'new'");
@@ -189,7 +191,7 @@ export const Promise = function (executor: any): void {
   const obj: any[] = __Porffor_promise_create();
 
   activePromise = obj;
-  executor(__Porffor_promise_resolve, __Porffor_promise_reject);
+  executor(__Porffor_promise_resolveActive, __Porffor_promise_rejectActive);
 
   const pro: Promise = obj;
   return pro;
@@ -198,8 +200,7 @@ export const Promise = function (executor: any): void {
 export const __Promise_resolve = (value: any): Promise => {
   const obj: any[] = __Porffor_promise_create();
 
-  activePromise = obj;
-  __Porffor_promise_resolve(value);
+  __Porffor_promise_resolve(obj, value);
 
   const pro: Promise = obj;
   return pro;
@@ -208,8 +209,7 @@ export const __Promise_resolve = (value: any): Promise => {
 export const __Promise_reject = (reason: any): Promise => {
   const obj: any[] = __Porffor_promise_create();
 
-  activePromise = obj;
-  __Porffor_promise_reject(reason);
+  __Porffor_promise_reject(obj, reason);
 
   const pro: Promise = obj;
   return pro;
