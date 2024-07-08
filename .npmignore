@@ -13,3 +13,5 @@ publish.js
 /.repl_history
 *.wasm
 *.csv
+*.txt
+*.exe
