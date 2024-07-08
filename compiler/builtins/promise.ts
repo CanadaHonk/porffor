@@ -10,7 +10,7 @@ export const __ecma262_NewPromiseReactionJob = (reaction: any[], argument: any):
 
 const jobQueue: any[] = new Array(0);
 export const __ecma262_HostEnqueuePromiseJob = (job: any[]): void => {
-  Porffor.fastPush(jobQueue, job);
+  Porffor.array.fastPush(jobQueue, job);
 };
 
 // 27.2.1.8 TriggerPromiseReactions (reactions, argument)
@@ -241,11 +241,11 @@ export const __Promise_prototype_then = (_this: any, onFulfilled: any, onRejecte
   if (state == 0) { // pending
     // a. Append fulfillReaction to promise.[[PromiseFulfillReactions]].
     const fulfillReactions: any[] = promise[2];
-    Porffor.fastPush(fulfillReactions, fulfillReaction);
+    Porffor.array.fastPush(fulfillReactions, fulfillReaction);
 
     // b. Append rejectReaction to promise.[[PromiseRejectReactions]].
     const rejectReactions: any[] = promise[3];
-    Porffor.fastPush(rejectReactions, rejectReaction);
+    Porffor.array.fastPush(rejectReactions, rejectReaction);
   } else if (state == 1) { // fulfilled
     // 10. Else if promise.[[PromiseState]] is fulfilled, then
     // a. Let value be promise.[[PromiseResult]].
@@ -297,10 +297,10 @@ export const __Promise_prototype_finally = (_this: any, onFinally: any): Promise
 
   if (state == 0) { // pending
     const fulfillReactions: any[] = promise[2];
-    Porffor.fastPush(fulfillReactions, finallyReaction);
+    Porffor.array.fastPush(fulfillReactions, finallyReaction);
 
     const rejectReactions: any[] = promise[3];
-    Porffor.fastPush(rejectReactions, finallyReaction);
+    Porffor.array.fastPush(rejectReactions, finallyReaction);
   } else { // fulfilled or rejected
     const value: any = promise[0];
     __ecma262_HostEnqueuePromiseJob(__ecma262_NewPromiseReactionJob(finallyReaction, value));
@@ -330,12 +330,12 @@ export const __Promise_all = (promises: any): Promise => {
       _allLen++;
       if (__ecma262_IsPromise(x)) {
         x.then(r => {
-          if (Porffor.fastPush(_allOut, r) == _allLen) _allRes(_allOut);
+          if (Porffor.array.fastPush(_allOut, r) == _allLen) _allRes(_allOut);
         }, r => {
           _allRej(r);
         });
       } else {
-        Porffor.fastPush(_allOut, x);
+        Porffor.array.fastPush(_allOut, x);
       }
     }
 
@@ -373,7 +373,7 @@ export const __Promise_allSettled = (promises: any): Promise => {
           o.status = status;
 
           o.value = r;
-          if (Porffor.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
+          if (Porffor.array.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
         }, r => {
           const o = {};
           let status: bytestring = '';
@@ -381,7 +381,7 @@ export const __Promise_allSettled = (promises: any): Promise => {
           o.status = status;
 
           o.reason = r;
-          if (Porffor.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
+          if (Porffor.array.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
         });
       } else {
         const o = {};
@@ -390,7 +390,7 @@ export const __Promise_allSettled = (promises: any): Promise => {
         o.status = status;
 
         o.value = x;
-        Porffor.fastPush(_allOut, o);
+        Porffor.array.fastPush(_allOut, o);
       }
     }
 

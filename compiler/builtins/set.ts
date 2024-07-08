@@ -1,14 +1,14 @@
 import type {} from './porffor.d.ts';
 
 // dark wasm magic for dealing with memory, sorry.
-export const __Porffor_set_read = (_this: Set, index: number): any => {
+export const __Porffor_set_read = (set: Set, index: number): any => {
   Porffor.wasm`
 local offset i32
 local.get ${index}
 i32.to_u
 i32.const 9
 i32.mul
-local.get ${_this}
+local.get ${set}
 i32.to_u
 i32.add
 local.set offset
@@ -21,14 +21,14 @@ i32.load8_u 0 12
 return`;
 };
 
-export const __Porffor_set_write = (_this: Set, index: number, value: any): boolean => {
+export const __Porffor_set_write = (set: Set, index: number, value: any): boolean => {
   Porffor.wasm`
 local offset i32
 local.get ${index}
 i32.to_u
 i32.const 9
 i32.mul
-local.get ${_this}
+local.get ${set}
 i32.to_u
 i32.add
 local.set offset
@@ -44,15 +44,6 @@ i32.store8 0 12`;
   return true;
 };
 
-export const __Porffor_set_indexOf = (_this: Set, value: any): i32 => {
-  const size: i32 = Porffor.wasm.i32.load(_this, 0, 0);
-  for (let i: i32 = 0; i < size; i++) {
-    if (Porffor.set.read(_this, i) === value) return i;
-  }
-
-  return -1;
-};
-
 
 export const __Set_prototype_size$get = (_this: Set) => {
   return Porffor.wasm.i32.load(_this, 0, 0);
@@ -65,7 +56,7 @@ export const __Set_prototype_values = (_this: Set) => {
   const out: any[] = __Porffor_allocate();
   for (let i: number = 0; i < size; i++) {
     const val: any = __Porffor_set_read(_this, i);
-    Porffor.fastPush(out, val);
+    Porffor.array.fastPush(out, val);
   }
 
   return out;

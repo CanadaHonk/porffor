@@ -26,9 +26,16 @@ type PorfforGlobal = {
   allocateBytes(bytes: i32): any;
 
   set: {
-    read(_this: any, index: number): i32;
-    write(_this: any, index: number, value: any): boolean;
-    indexOf(_this: any, value: any): i32;
+    read(ptr: any, index: number): i32;
+    write(ptr: any, index: number, value: any): boolean;
+  }
+
+  array: {
+    fastPush(arr: any[], el: any): i32;
+  }
+
+  arraybuffer: {
+    detach(buffer: any): void;
   }
 
   bytestring: {

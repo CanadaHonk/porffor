@@ -36,10 +36,10 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
   return out;
 };
 
-export const __Porffor_fastPush = (_this: any[], el: any) => {
-  let len: i32 = _this.length;
-  _this[len] = el;
-  _this.length = ++len;
+export const __Porffor_array_fastPush = (arr: any[], el: any): i32 => {
+  let len: i32 = arr.length;
+  arr[len] = el;
+  arr.length = ++len;
   return len;
 };
 
