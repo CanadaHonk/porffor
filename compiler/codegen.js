@@ -2682,7 +2682,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
   if (Prefs.typeswitchBrtable)
     return brTable(type, bc, returns);
 
-  const tmp = localTmp(scope, '#typeswitch_tmp' + (Prefs.typeswitchUniqueTmp ? randId() : ''), Valtype.i32);
+  const tmp = localTmp(scope, '#typeswitch_tmp' + (Prefs.typeswitchUniqueTmp ? uniqId() : ''), Valtype.i32);
   const out = [
     ...type,
     [ Opcodes.local_set, tmp ],
@@ -2833,7 +2833,7 @@ const generateVar = (scope, decl) => {
   for (const x of decl.declarations) {
     if (x.id.type === 'ArrayPattern') {
       const decls = [];
-      const tmpName = '#destructure' + randId();
+      const tmpName = '#destructure' + uniqId();
 
       let i = 0;
       const elements = [...x.id.elements];
@@ -4489,7 +4489,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
   const out = [];
 
-  const uniqueName = name === '$undeclared' ? name + randId() : name;
+  const uniqueName = name === '$undeclared' ? name + uniqId() : name;
 
   const useRawElements = !!decl.rawElements;
   const elements = useRawElements ? decl.rawElements : decl.elements;
@@ -4750,7 +4750,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
   ];
 
   if (decl.properties.length > 0) {
-    const tmp = localTmp(scope, `#objectexpr${randId()}`, Valtype.i32);
+    const tmp = localTmp(scope, `#objectexpr${uniqId()}`, Valtype.i32);
     out.push([ Opcodes.local_tee, tmp ]);
 
     for (const x of decl.properties) {
@@ -5164,7 +5164,8 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   return out;
 };
 
-const randId = () => '_' + Math.random().toString(16).slice(2, -2).padEnd(12, '0');
+globalThis._uniqId = 0;
+const uniqId = () => '_' + globalThis._uniqId++;
 
 let objectHackers = [];
 const objectHack = node => {
@@ -5213,7 +5214,7 @@ const objectHack = node => {
 const generateFunc = (scope, decl) => {
   if (decl.generator) return todo(scope, 'generator functions are not supported');
 
-  const name = decl.id ? decl.id.name : `anonymous${randId()}`;
+  const name = decl.id ? decl.id.name : `anonymous${uniqId()}`;
   const params = decl.params ?? [];
 
   // TODO: share scope/locals between !!!
