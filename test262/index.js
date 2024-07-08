@@ -293,7 +293,18 @@ if (isMainThread) {
     if (!dontWriteResults) fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, timeouts: timeoutFiles, total }));
   }
 
-  console.log(`\u001b[90mtook ${((performance.now() - start) / 1000).toFixed(1)}s to run (${((performance.now() - veryStart) / 1000).toFixed(1)}s total)\u001b[0m`);
+  const timeStr = ms => {
+    let s = ms / 1000;
+    let out = '';
+    if (s > 60) {
+      out += `${Math.floor(s / 60)}m `;
+      s = s % 60;
+    }
+
+    out += `${s | 0}s`;
+    return out;
+  };
+  console.log(`\u001b[90mtook ${timeStr(performance.now() - start)}\u001b[0m`);
 
   if (trackErrors) {
     console.log('\n');
