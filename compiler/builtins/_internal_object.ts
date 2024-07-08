@@ -149,7 +149,7 @@ export const __Porffor_object_get = (obj: any, key: any): any => {
     let tmp: bytestring = '';
     tmp = 'name';
     if (key == tmp) {
-      const o: bytestring = Porffor.funcLut.name(obj);
+      const o: bytestring = __Porffor_funcLut_name(obj);
       const t: i32 = Porffor.TYPES.bytestring;
       Porffor.wasm`
 local.get ${o}
@@ -160,7 +160,7 @@ return`;
 
     tmp = 'length';
     if (key == tmp) {
-      const o: i32 = Porffor.funcLut.length(obj);
+      const o: i32 = __Porffor_funcLut_length(obj);
       Porffor.wasm`
 local.get ${o}
 f64.convert_i32_u
@@ -197,7 +197,7 @@ i32.const 128
 return`;
     }
 
-    const funcFlags: i32 = Porffor.funcLut.flags(get);
+    const funcFlags: i32 = __Porffor_funcLut_flags(get);
     if (funcFlags & 0b10) {
       // constructor func, add new.target, this args
       Porffor.wasm`
@@ -275,7 +275,7 @@ export const __Porffor_object_set = (obj: object, key: any, value: any): any => 
         return value;
       }
 
-      const funcFlags: i32 = Porffor.funcLut.flags(set);
+      const funcFlags: i32 = __Porffor_funcLut_flags(set);
     if (funcFlags & 0b10) {
       // constructor func, add new.target, this args
       Porffor.wasm`
