@@ -3660,6 +3660,8 @@ const generateDoWhile = (scope, decl) => {
 };
 
 const generateForOf = (scope, decl) => {
+  if (decl.await) return todo(scope, 'for await is not supported');
+
   const out = [];
 
   // todo: for of inside for of might fuck up?
