@@ -386,16 +386,9 @@ if (isMainThread) {
       contents = prelude + contents;
     }
 
-    // remove error constructor checks
-    const ind = contents.indexOf('if (err.constructor !== Test262Error) {');
-    if (ind !== -1) {
-      const nextEnd = contents.indexOf('}', ind + 39);
-      contents = contents.replace(contents.slice(ind, nextEnd + 1), '');
-    }
-
     contents = contents
-      // random error detail checks
-      .replace(/assert\.notSameValue\(err\.message\.indexOf\('.*?'\), -1\);/g, '')
+      // error detail checks
+      .replace(/assert\.notSameValue\(er?r?\.message\.indexOf\('.*?'\), -1\);/g, '')
       .replace(/if *\(\(er?r? *instanceof *(.*)Error\) *!==? *true\) *\{[\w\W]*?\}/g, '')
       .replace(/if *\((er?r?|reason)\.constructor *!==? *(.*)Error\) *\{[\w\W]*?\}/g, '')
       .replace(/assert\.sameValue\(\s*e instanceof RangeError,\s*true,[\w\W]+?\);/g, '')
