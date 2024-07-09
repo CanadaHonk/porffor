@@ -2429,6 +2429,14 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ]
             ], tableBc, valtypeBinary)
           ],
+
+          ...(decl.optional ? {
+            [TYPES.undefined]: [
+              ...number(UNDEFINED),
+              ...setLastType(scope, TYPES.undefined)
+            ]
+          } : {}),
+
           default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
         })
       ];
