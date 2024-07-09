@@ -570,14 +570,16 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
 
       // 23.1.3.30.2 CompareArrayElements (x, y, comparefn)
       // https://tc39.es/ecma262/#sec-comparearrayelements
+      const xt: i32 = Porffor.rawType(x);
+      const yt: i32 = Porffor.rawType(y);
       let v: number;
 
       // 1. If x and y are both undefined, return +0𝔽.
-      if (Porffor.rawType(x) == Porffor.TYPES.undefined && Porffor.rawType(y) == Porffor.TYPES.undefined) v = 0;
+      if (xt == Porffor.TYPES.undefined && yt == Porffor.TYPES.undefined) v = 0;
         // 2. If x is undefined, return 1𝔽.
-        else if (Porffor.rawType(x) == Porffor.TYPES.undefined) v = 1;
+        else if (xt == Porffor.TYPES.undefined) v = 1;
         // 3. If y is undefined, return -1𝔽.
-        else if (Porffor.rawType(y) == Porffor.TYPES.undefined) v = -1;
+        else if (yt == Porffor.TYPES.undefined) v = -1;
         else {
           // 4. If comparefn is not undefined, then
           // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).

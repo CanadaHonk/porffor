@@ -9,9 +9,10 @@ export const DataView = function (arg: any, byteOffset: any, length: any): DataV
   let len: i32 = 0;
   let bufferPtr: i32;
 
+  const type: i32 = Porffor.rawType(arg);
   if (Porffor.fastOr(
-    Porffor.rawType(arg) == Porffor.TYPES.arraybuffer,
-    Porffor.rawType(arg) == Porffor.TYPES.sharedarraybuffer
+    type == Porffor.TYPES.arraybuffer,
+    type == Porffor.TYPES.sharedarraybuffer
   )) {
     bufferPtr = Porffor.wasm`local.get ${arg}`;
 

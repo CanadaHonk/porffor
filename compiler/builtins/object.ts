@@ -646,16 +646,16 @@ export const __Object_prototype_toString = (_this: any) => {
 
   // todo: toStringTag support
 
-  if (Porffor.rawType(_this) == Porffor.TYPES.array) return out = '[object Array]';
-  if (Porffor.rawType(_this) == Porffor.TYPES.function) return out = '[object Function]';
-  if (Porffor.rawType(_this) == Porffor.TYPES.boolean) return out = '[object Boolean]';
-  if (Porffor.rawType(_this) == Porffor.TYPES.number) return out = '[object Number]';
+  const t: i32 = Porffor.rawType(_this);
+  if (t == Porffor.TYPES.array) return out = '[object Array]';
+  if (t == Porffor.TYPES.function) return out = '[object Function]';
+  if (t == Porffor.TYPES.boolean) return out = '[object Boolean]';
+  if (t == Porffor.TYPES.number) return out = '[object Number]';
   if (Porffor.fastOr(
-    Porffor.rawType(_this) == Porffor.TYPES.string,
-    Porffor.rawType(_this) == Porffor.TYPES.bytestring
-  )) return out = '[object String]';
-  if (Porffor.rawType(_this) == Porffor.TYPES.date) return out = '[object Date]';
-  if (Porffor.rawType(_this) == Porffor.TYPES.regexp) return out = '[object RegExp]';
+    t == Porffor.TYPES.string,
+    t == Porffor.TYPES.bytestring)) return out = '[object String]';
+  if (t == Porffor.TYPES.date) return out = '[object Date]';
+  if (t == Porffor.TYPES.regexp) return out = '[object RegExp]';
 
   return out = '[object Object]';
 };
