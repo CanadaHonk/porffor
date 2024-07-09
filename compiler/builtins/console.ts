@@ -109,7 +109,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       }
       printStatic(' ]');
     }
-  }
+  };
 
   switch (Porffor.rawType(arg)) {
     case Porffor.TYPES.number:
