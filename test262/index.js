@@ -161,10 +161,10 @@ if (isMainThread) {
       if (!resultOnly && !logErrors) {
         const percent = ((total / tests.length) * 100) | 0;
         if (allTests) {
-          if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m`);
+          if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : '91')}m${file}\u001b[0m`);
           lastPercent = percent;
         } else {
-          process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : '91'}m${file}\u001b[0m\n`);
+          process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : '91')}m${file}\u001b[0m\n`);
 
           if (threads === 1 && tests[i + 1]) {
             const nextFile = tests[i + 1].file.replaceAll('\\', '/').slice(5);
@@ -293,7 +293,18 @@ if (isMainThread) {
     if (!dontWriteResults) fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, timeouts: timeoutFiles, total }));
   }
 
-  console.log(`\u001b[90mtook ${((performance.now() - start) / 1000).toFixed(1)}s to run (${((performance.now() - veryStart) / 1000).toFixed(1)}s total)\u001b[0m`);
+  const timeStr = ms => {
+    let s = ms / 1000;
+    let out = '';
+    if (s > 60) {
+      out += `${Math.floor(s / 60)}m `;
+      s = s % 60;
+    }
+
+    out += `${s | 0}s`;
+    return out;
+  };
+  console.log(`\u001b[90mtook ${timeStr(performance.now() - start)}\u001b[0m`);
 
   if (trackErrors) {
     console.log('\n');
@@ -367,24 +378,19 @@ if (isMainThread) {
     const test = tests[i];
 
     let error, stage;
-    let file = test.file, contents = test.contents, attrs = test.attrs;
+    let contents = test.contents, attrs = test.attrs;
 
     if (!attrs.flags.raw) {
+      if (attrs.flags.async) attrs.includes.unshift('doneprintHandle.js');
       const prelude = attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? '') + '\n', '') + alwaysPrelude;
       contents = prelude + contents;
     }
 
-    // remove error constructor checks
-    const ind = contents.indexOf('if (err.constructor !== Test262Error) {');
-    if (ind !== -1) {
-      const nextEnd = contents.indexOf('}', ind + 39);
-      contents = contents.replace(contents.slice(ind, nextEnd + 1), '');
-    }
-
     contents = contents
-      // random error detail checks
-      .replace(/assert\.notSameValue\(err\.message\.indexOf\('.*?'\), -1\);/g, '')
-      .replace(/if \(\(e instanceof (.*)Error\) !== true\) \{[\w\W]*?\}/g, '')
+      // error detail checks
+      .replace(/assert\.notSameValue\(er?r?\.message\.indexOf\('.*?'\), -1\);/g, '')
+      .replace(/if *\(\(er?r? *instanceof *(.*)Error\) *!==? *true\) *\{[\w\W]*?\}/g, '')
+      .replace(/if *\((er?r?|reason)\.constructor *!==? *(.*)Error\) *\{[\w\W]*?\}/g, '')
       .replace(/assert\.sameValue\(\s*e instanceof RangeError,\s*true,[\w\W]+?\);/g, '')
       // replace old tests' custom checks with standard assert
       // .replace(/if \(([^ ]+) !== ([^ ]+)\) \{ *\n *throw new Test262Error\(['"](.*)\. Actual:.*\); *\n\} *\n/g, (_, one, two) => `assert.sameValue(${one}, ${two});\n`)
@@ -402,13 +408,12 @@ if (isMainThread) {
     // currentTest = file;
 
     let log = '';
-    const shouldLog = debugAsserts;
 
     let exports, exceptions;
     try {
       const out = compile(contents, attrs.flags.module ? [ 'module' ] : [], {
-        p: shouldLog ? i => { log += i.toString(); } : () => {},
-        c: shouldLog ? i => { log += String.fromCharCode(i); } : () => {},
+        p: i => { log += i.toString() },
+        c: i => { log += String.fromCharCode(i); }
       });
 
       exceptions = out.exceptions;
@@ -429,6 +434,11 @@ if (isMainThread) {
 
       stage = 1;
       error = e;
+    }
+
+    if (log.includes('Test262:AsyncTestFailure')) {
+      stage = 1;
+      error = new Error('Test262 AsyncTestFailure');
     }
 
     const errorName = error?.name;

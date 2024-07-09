@@ -66,7 +66,7 @@ export default function({ builtinFuncs }, Prefs) {
             ...number(flags, Valtype.i32),
             ...number(TYPES.number, Valtype.i32),
 
-            [ Opcodes.call, ...builtin('__Porffor_object_define') ],
+            [ Opcodes.call, builtin('__Porffor_object_define') ],
             [ Opcodes.drop ],
             [ Opcodes.drop ]
           );
@@ -82,7 +82,7 @@ export default function({ builtinFuncs }, Prefs) {
 
 
     this[name] = (scope, { builtin }) => [
-      [ Opcodes.call, ...builtin('#get_' + name) ],
+      [ Opcodes.call, builtin('#get_' + name) ],
       Opcodes.i32_from_u
     ];
     this[name].type = TYPES.object;
