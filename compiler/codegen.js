@@ -2846,6 +2846,7 @@ const generateVar = (scope, decl) => {
 
       let i = 0;
       const elements = [...x.id.elements];
+      // todo: if elements.length == 0 and Porffor.rawType(tmpName) is not iterable, throw a typeerror
       for (const e of elements) {
         switch (e?.type) {
           case 'RestElement': { // let [ ...foo ] = []
@@ -2878,21 +2879,6 @@ const generateVar = (scope, decl) => {
             continue; // skip i++
           }
 
-          case 'Identifier': { // let [ foo ] = []
-            decls.push({
-              type: 'VariableDeclarator',
-              id: e,
-              init: {
-                type: 'MemberExpression',
-                object: { type: 'Identifier', name: tmpName },
-                property: { type: 'Literal', value: i },
-                computed: true
-              }
-            });
-
-            break;
-          }
-
           case 'AssignmentPattern': { // let [ foo = defaultValue ] = []
             decls.push({
               type: 'VariableDeclarator',
@@ -2913,7 +2899,9 @@ const generateVar = (scope, decl) => {
             break;
           }
 
-          case 'ArrayPattern': { // let [ [ foo, bar ] ] = []
+          case 'ArrayPattern': // let [ [ foo, bar ] ] = []
+          case 'Identifier': // let [ foo ] = []
+          case 'ObjectPattern': { // let [ { foo } ] = []
             decls.push({
               type: 'VariableDeclarator',
               id: e,
@@ -2927,20 +2915,6 @@ const generateVar = (scope, decl) => {
 
             break;
           }
-
-          case 'ObjectPattern':
-            decls.push({
-              type: 'VariableDeclarator',
-              id: e,
-              init: {
-                type: 'MemberExpression',
-                object: { type: 'Identifier', name: tmpName },
-                property: { type: 'Literal', value: i },
-                computed: true
-              }
-            });
-
-            break;
         }
 
         i++;
@@ -2971,19 +2945,38 @@ const generateVar = (scope, decl) => {
       const tmpName = '#destructure' + uniqId();
 
       const properties = [...x.id.properties];
+      // todo: if properties.length == 0 and Porffor.rawType(tmpName) != object, throw a typeerror
       for (const prop of properties) {
-        if (prop.type == 'Property') {
-          decls.push({
-            type: 'VariableDeclarator',
-            id: prop.value,
-            init: {
-              type: 'MemberExpression',
-              object: { type: 'Identifier', name: tmpName },
-              property: prop.key,
-              computed: prop.computed
-            }
-          });
-        } else {
+        if (prop.type == 'Property') { // let { foo } = {}
+          if (prop.value.type === 'AssignmentPattern') { // let { foo = defaultValue } = {}
+            decls.push({
+              type: 'VariableDeclarator',
+              id: prop.value.left,
+              init: {
+                type: 'LogicalExpression',
+                operator: '??',
+                left: {
+                  type: 'MemberExpression',
+                  object: { type: 'Identifier', name: tmpName },
+                  property: prop.key,
+                  computed: prop.computed
+                },
+                right: prop.value.right
+              }
+            });
+          } else {
+            decls.push({
+              type: 'VariableDeclarator',
+              id: prop.value,
+              init: {
+                type: 'MemberExpression',
+                object: { type: 'Identifier', name: tmpName },
+                property: prop.key,
+                computed: prop.computed
+              }
+            });
+          }
+        } else { // let { ...foo } = {}
           return todo(scope, 'object rest destructuring is not supported yet')
         }
       }
@@ -3009,7 +3002,7 @@ const generateVar = (scope, decl) => {
     }
 
     const name = mapName(x.id.name);
-    if (!name) return todo(scope, 'object destructuring is not supported yet')
+    if (!name) return todo(scope, `variable declarators of type ${x.id.type} are not supported yet`)
 
     if (x.init && isFuncType(x.init.type)) {
       // hack for let a = function () { ... }
