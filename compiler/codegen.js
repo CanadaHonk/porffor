@@ -5220,8 +5220,6 @@ const objectHack = node => {
 };
 
 const generateFunc = (scope, decl) => {
-  if (decl.generator) return todo(scope, 'generator functions are not supported');
-
   const name = decl.id ? decl.id.name : `anonymous${uniqId()}`;
   const params = decl.params ?? [];
 
@@ -5242,6 +5240,19 @@ const generateFunc = (scope, decl) => {
 
   funcIndex[name] = func.index;
   funcs.push(func);
+
+  let errorWasm = null;
+  if (decl.generator) errorWasm = todo(scope, 'generator functions are not supported');
+
+  if (errorWasm) {
+    func.wasm = errorWasm.concat([
+      ...number(UNDEFINED),
+      ...number(TYPES.undefined, Valtype.i32)
+    ]);
+    func.params = [];
+    func.constr = false;
+    return func;
+  }
 
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
