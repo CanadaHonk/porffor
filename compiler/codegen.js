@@ -2686,11 +2686,14 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, allowFallThrough =
     return brTable(type, bc, returns);
   }
 
-  // hack: we need to preserve insertion order for fall through so all objects are converted to entries
+  typeswitchDepth++;
+
   let bcArr = bc;
+  // hack?: we do this so that typeswitchDepth can be properly handled
   if (typeof bcArr === 'function') {
     bcArr = bcArr();
   }
+  // hack: we need to preserve insertion order for fall through so all objects are converted to entries
   if (!Array.isArray(bcArr)) {
     bcArr = Object.entries(bc);
   } else {
@@ -2715,26 +2718,31 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, allowFallThrough =
       while (i < bcArr.length) {
         if (bcArr[i][0] === 'default') continue;
         types.push(bcArr[i][0]);
+        // look for an empty array, essentially acting as an additional type for our typecheck
         const bodyWasm = bcArr[i][1];
-        // note: we currently don't support non-empty fallthrough
         if (bodyWasm.length != 0) {
           wasm = bodyWasm;
           break;
         }
         i++;
       }
+      // if we found any types,
       if (types.length > 0) {
         for (let j = 0; j < types.length; j++) {
+          // create the type tests
           out.push(
             [ Opcodes.local_get, tmp ],
             ...number(types[j], Valtype.i32),
             [ Opcodes.i32_eq ]
           );
+          // for every test but the first, or them together
           if (j != 0) out.push([ Opcodes.i32_or ]);
         }
         out.push(
+          // create the consequent
           [ Opcodes.if, Blocktype.void, `TYPESWITCH|${types.map(t => TYPE_NAMES[t]).join(',')}` ],
             ...wasm,
+            // we don't need an `br 1` here because depth[-1] should be 'switch', and that's the only place this is used right now
           [ Opcodes.end ]
         );
       }
