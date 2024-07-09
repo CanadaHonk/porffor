@@ -97,13 +97,16 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
   // fix call indexes for non-imports
   // also fix call_indirect types
+  // also encode call indexes
   for (const f of funcs) {
     f.originalIndex = f.index;
     f.index -= importDelta;
 
     for (const inst of f.wasm) {
       if ((inst[0] === Opcodes.call || inst[0] === Opcodes.return_call) && inst[1] >= importedFuncs.length) {
-        inst[1] -= importDelta;
+        const idx = inst[1] - importDelta;
+        inst.pop(); // remove idx
+        unsignedLEB128_into(idx, inst); // add unsigned leb128 encoded index to inst
       }
 
       if (inst[0] === Opcodes.call_indirect) {

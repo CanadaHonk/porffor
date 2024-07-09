@@ -46,6 +46,15 @@ const cacheAst = (decl, wasm) => {
   astCache.set(decl, wasm);
   return wasm;
 };
+
+const funcRef = (idx, name) => {
+  if (globalThis.precompile) return [
+    [ Opcodes.const, 'funcref', name ]
+  ];
+
+  return number(idx - importedFuncs.length);
+};
+
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   if (astCache.has(decl)) return astCache.get(decl);
 
@@ -65,7 +74,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       const func = generateFunc(scope, decl);
 
       if (decl.type.endsWith('Expression')) {
-        return cacheAst(decl, number(func.index - importedFuncs.length));
+        return cacheAst(decl, funcRef(func.index, func.name));
       }
 
       return cacheAst(decl, []);
@@ -341,7 +350,9 @@ const generateIdent = (scope, decl) => {
       if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
 
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
-      if (Object.hasOwn(funcIndex, name)) return number(funcIndex[name] - importedFuncs.length);
+      if (Object.hasOwn(funcIndex, name)) {
+        return funcRef(funcIndex[name], name);
+      }
     }
 
     if (local?.idx === undefined && rawName.startsWith('__')) {
@@ -363,6 +374,26 @@ const generateIdent = (scope, decl) => {
 
 const generateReturn = (scope, decl) => {
   const arg = decl.argument ?? DEFAULT_VALUE();
+
+  if (scope.async) {
+    return [
+      // resolve promise with return value
+      [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
+      ...number(TYPES.promise, Valtype.i32),
+
+      ...generate(scope, arg),
+      ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
+
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_resolve').index ],
+      [ Opcodes.drop ],
+      [ Opcodes.drop ],
+
+      // return promise
+      [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
+      ...number(TYPES.promise, Valtype.i32),
+      [ Opcodes.return ]
+    ];
+  }
 
   const out = [];
   if (
@@ -523,7 +554,7 @@ const concatStrings = (scope, left, right, leftType, rightType, allBytestrings =
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, leftPointer ],
       [ Opcodes.local_get, leftLength ],
-      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
       [ Opcodes.local_set, leftPointer ],
       [ Opcodes.end ],
 
@@ -533,7 +564,7 @@ const concatStrings = (scope, left, right, leftType, rightType, allBytestrings =
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, rightPointer ],
       [ Opcodes.local_get, rightLength ],
-      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
       [ Opcodes.local_set, rightPointer ],
       [ Opcodes.end ]
     ]),
@@ -639,7 +670,7 @@ const compareStrings = (scope, left, right, leftType, rightType, allBytestrings 
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, leftPointer ],
       [ Opcodes.local_get, leftLength ],
-      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
       [ Opcodes.local_set, leftPointer ],
       [ Opcodes.end ],
 
@@ -650,7 +681,7 @@ const compareStrings = (scope, left, right, leftType, rightType, allBytestrings 
       [ Opcodes.local_get, rightPointer ],
       [ Opcodes.local_get, rightPointer ],
       [ Opcodes.i32_load, 0, 0 ],
-      [ Opcodes.call, ...unsignedLEB128(funcIndex.__Porffor_bytestringToString) ],
+      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
       [ Opcodes.local_set, rightPointer ],
       [ Opcodes.end ]
     ]),
@@ -853,6 +884,11 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, {
+      [TYPES.empty]: [
+        // empty
+        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+        ...number(1, intOut ? Valtype.i32 : valtypeBinary)
+      ],
       [TYPES.undefined]: [
         // undefined
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
@@ -988,7 +1024,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     return finalize([
       ...left,
       ...right,
-      [ Opcodes.call, ...unsignedLEB128(idx) ]
+      [ Opcodes.call, idx ]
     ]);
   }
 
@@ -1198,15 +1234,20 @@ const asmFuncToAsm = (scope, func) => {
   return func(scope, {
     TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow,
     getNodeType, generate, generateIdent,
-    builtin: n => {
+    builtin: (n, float = false, offset = false) => {
       let idx = funcIndex[n] ?? importedFuncs[n];
       if (idx == null && builtinFuncs[n]) {
-        includeBuiltin(null, n);
+        includeBuiltin(scope, n);
         idx = funcIndex[n];
       }
 
-      if (idx == null) throw new Error(`builtin('${n}') failed to find a func (inside ${scope.name})`);
-      return unsignedLEB128(idx);
+      scope.includes ??= new Set();
+      scope.includes.add(n);
+
+      if (idx == null) throw new Error(`builtin('${n}') failed: could not find func (from ${scope.name})`);
+      if (offset) idx -= importedFuncs.length;
+
+      return float ? ieee754_binary64(idx) : idx;
     },
     glbl: (opcode, name, type) => {
       const globalName = '#porf#' + name; // avoid potential name clashing with user js
@@ -1333,7 +1374,12 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   return func;
 };
 
-const includeBuiltin = (scope, builtin) => asmFunc(builtin, builtinFuncs[builtin]);
+const includeBuiltin = (scope, builtin) => {
+  scope.includes ??= new Set();
+  scope.includes.add(builtin);
+
+  return asmFunc(builtin, builtinFuncs[builtin]);
+};
 
 const generateLogicExp = (scope, decl) => {
   return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
@@ -1922,7 +1968,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ...getNodeType(scope, decl.arguments[0]),
 
         // call regex func
-        [ Opcodes.call, ...unsignedLEB128(idx) ],
+        [ Opcodes.call, idx ],
         Opcodes.i32_from_u,
 
         ...setLastType(scope, Rhemyn.types[funcName])
@@ -1965,7 +2011,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ...getNodeType(scope, target),
 
         // call regex func
-        [ Opcodes.call, ...unsignedLEB128(idx) ],
+        [ Opcodes.call, idx ],
         Opcodes.i32_from,
 
         ...setLastType(scope, Rhemyn.types[protoName])
@@ -2164,10 +2210,16 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         const op = wasmOps[opName];
 
         const argOut = [];
-        for (let i = 0; i < op.args.length; i++) argOut.push(
-          ...generate(scope, decl.arguments[i]),
-          ...(op.args[i] ? [ Opcodes.i32_to ] : [])
-        );
+        for (let i = 0; i < op.args.length; i++) {
+          if (!op.args[i]) globalThis.noi32F64CallConv = true;
+
+          argOut.push(
+            ...generate(scope, decl.arguments[i]),
+            ...(op.args[i] ? [ Opcodes.i32_to ] : [])
+          );
+
+          globalThis.noi32F64CallConv = false;
+        }
 
         // literals only
         const imms = decl.arguments.slice(op.args.length).map(x => x.value);
@@ -2408,6 +2460,23 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`),
             [ Opcodes.end ],
 
+            // [ Opcodes.local_get, funcLocal ],
+            // Opcodes.i32_from_u,
+            // [ Opcodes.call, 0 ],
+
+            // ...number(32),
+            // [ Opcodes.call, 1 ],
+
+            // [ Opcodes.local_get, funcLocal ],
+            // ...number(128, Valtype.i32),
+            // [ Opcodes.i32_mul ],
+            // [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ],
+            // Opcodes.i32_from_u,
+            // [ Opcodes.call, 0 ],
+
+            // ...number(10),
+            // [ Opcodes.call, 1 ],
+
             ...brTable([
               // get argc of func we are calling
               [ Opcodes.local_get, funcLocal ],
@@ -2489,13 +2558,13 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     if (valtypeBinary === Valtype.i32 &&
       (func && func.params[paramOffset + i * (typedParams ? 2 : 1)] === Valtype.f64)
     ) {
-      out.push([ Opcodes.f64_convert_i32_s ]);
+      out.push(Opcodes.i32_from);
     }
 
     if (typedParams) out = out.concat(getNodeType(scope, arg));
   }
 
-  out.push([ Opcodes.call, ...unsignedLEB128(idx) ]);
+  out.push([ Opcodes.call, idx ]);
 
   if (!typedReturns) {
     // let type;
@@ -2513,7 +2582,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     out.push(Opcodes.i32_from);
   }
 
-  if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32) {
+  if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32 && !globalThis.noi32F64CallConv) {
     out.push(Opcodes.i32_trunc_sat_f64_s);
   }
 
@@ -2674,7 +2743,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
   if (Prefs.typeswitchBrtable)
     return brTable(type, bc, returns);
 
-  const tmp = localTmp(scope, '#typeswitch_tmp' + (Prefs.typeswitchUniqueTmp ? randId() : ''), Valtype.i32);
+  const tmp = localTmp(scope, '#typeswitch_tmp' + (Prefs.typeswitchUniqueTmp ? uniqId() : ''), Valtype.i32);
   const out = [
     ...type,
     [ Opcodes.local_set, tmp ],
@@ -2825,7 +2894,7 @@ const generateVar = (scope, decl) => {
   for (const x of decl.declarations) {
     if (x.id.type === 'ArrayPattern') {
       const decls = [];
-      const tmpName = '#destructure' + randId();
+      const tmpName = '#destructure' + uniqId();
 
       let i = 0;
       const elements = [...x.id.elements];
@@ -3125,12 +3194,12 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             [ Opcodes.local_get, localTmp(scope, '#objset_property', Valtype.i32) ],
             [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
 
-            [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_get').index) ],
+            [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
             ...setLastType(scope)
           ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
           ...getNodeType(scope, decl),
 
-          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_set').index) ],
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_set').index ],
           [ Opcodes.drop ],
           // ...setLastType(scope, getNodeType(scope, decl)),
         ],
@@ -3429,7 +3498,7 @@ const generateUnary = (scope, decl) => {
           ...getNodeType(scope, property),
           ...toPropertyKey(scope, true),
 
-          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_delete').index) ],
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_delete').index ],
           [ Opcodes.drop ],
           Opcodes.i32_from_u
         ];
@@ -3652,6 +3721,8 @@ const generateDoWhile = (scope, decl) => {
 };
 
 const generateForOf = (scope, decl) => {
+  if (decl.await) return todo(scope, 'for await is not supported');
+
   const out = [];
 
   // todo: for of inside for of might fuck up?
@@ -3742,7 +3813,7 @@ const generateForOf = (scope, decl) => {
       ...setType(scope, leftName, TYPES.string),
 
       // allocate out string
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
       [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -3796,7 +3867,7 @@ const generateForOf = (scope, decl) => {
       ...setType(scope, leftName, TYPES.bytestring),
 
       // allocate out string
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
       [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -4480,7 +4551,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
   const out = [];
 
-  const uniqueName = name === '$undeclared' ? name + randId() : name;
+  const uniqueName = name === '$undeclared' ? name + uniqId() : name;
 
   const useRawElements = !!decl.rawElements;
   const elements = useRawElements ? decl.rawElements : decl.elements;
@@ -4587,7 +4658,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
       if (name === '#member_prop_assign') {
         out.push(
-          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ]
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ]
         );
         shouldGet = false;
       }
@@ -4727,7 +4798,7 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
 };
 
 const toPropertyKey = (scope, i32Conv = false) => [
-  [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__ecma262_ToPropertyKey').index) ],
+  [ Opcodes.call, includeBuiltin(scope, '__ecma262_ToPropertyKey').index ],
   ...(i32Conv ? [
     [ Opcodes.local_set, localTmp(scope, '#swap', Valtype.i32) ],
     Opcodes.i32_to_u,
@@ -4737,16 +4808,16 @@ const toPropertyKey = (scope, i32Conv = false) => [
 
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
   const out = [
-    [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ]
+    [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ]
   ];
 
   if (decl.properties.length > 0) {
-    const tmp = localTmp(scope, `#objectexpr${randId()}`, Valtype.i32);
+    const tmp = localTmp(scope, `#objectexpr${uniqId()}`, Valtype.i32);
     out.push([ Opcodes.local_tee, tmp ]);
 
     for (const x of decl.properties) {
-      const { method, shorthand, computed, kind, key, value } = x;
-      if (kind !== 'init') return todo(scope, 'complex objects are not supported yet', true);
+      // method, shorthand are made into useful values by parser for us :)
+      const { computed, kind, key, value } = x;
 
       let k = key;
       if (!computed && key.type !== 'Literal') k = {
@@ -4763,9 +4834,10 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         ...toPropertyKey(scope, true),
 
         ...generate(scope, value),
+        ...(kind !== 'init' ? [ Opcodes.i32_to_u ] : []),
         ...getNodeType(scope, value),
 
-        [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_set').index) ],
+        [ Opcodes.call, includeBuiltin(scope, `__Porffor_object_expr_${kind}`).index ],
 
         [ Opcodes.drop ],
         [ Opcodes.drop ]
@@ -4886,7 +4958,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
         [ Opcodes.i32_eq ],
         [ Opcodes.if, Blocktype.void ],
           [ Opcodes.local_get, tmp ],
-          [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_funcLut_length').index) ],
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_funcLut_length').index ],
           Opcodes.i32_from_u,
 
           ...setLastType(scope, TYPES.number),
@@ -4946,7 +5018,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
     [TYPES.string]: [
       // allocate out string
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
       [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -4980,7 +5052,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
     [TYPES.bytestring]: [
       // allocate out string
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_allocate').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
       [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -5018,7 +5090,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       ...getNodeType(scope, property),
       ...toPropertyKey(scope, true),
 
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_get').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
       ...setLastType(scope)
     ],
 
@@ -5031,7 +5103,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       ...getNodeType(scope, property),
       ...toPropertyKey(scope, true),
 
-      [ Opcodes.call, ...unsignedLEB128(includeBuiltin(scope, '__Porffor_object_get').index) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
       ...setLastType(scope)
     ],
 
@@ -5155,7 +5227,8 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   return out;
 };
 
-const randId = () => Math.random().toString(16).slice(1, -2).padEnd(12, '0');
+globalThis._uniqId = 0;
+const uniqId = () => '_' + globalThis._uniqId++;
 
 let objectHackers = [];
 const objectHack = node => {
@@ -5202,10 +5275,9 @@ const objectHack = node => {
 };
 
 const generateFunc = (scope, decl) => {
-  if (decl.async) return todo(scope, 'async functions are not supported');
   if (decl.generator) return todo(scope, 'generator functions are not supported');
 
-  const name = decl.id ? decl.id.name : `anonymous${randId()}`;
+  const name = decl.id ? decl.id.name : `anonymous${uniqId()}`;
   const params = decl.params ?? [];
 
   // TODO: share scope/locals between !!!
@@ -5214,10 +5286,13 @@ const generateFunc = (scope, decl) => {
     localInd: 0,
     // value, type
     returns: [ valtypeBinary, Valtype.i32 ],
-    throws: false,
     name,
     index: currentFuncIndex++,
-    constr: decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program',
+    constr:
+      // not arrow function or main
+      (decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program') &&
+      // not async or generator
+      !decl.async && !decl.generator,
     noNew: false
   };
 
@@ -5294,13 +5369,66 @@ const generateFunc = (scope, decl) => {
     );
   }
 
+  if (decl.async) {
+    // make out promise local
+    allocVar(func, '#async_out_promise', false, false);
+    func.async = true;
+  }
+
   const wasm = func.wasm = prelude.concat(generate(func, body));
 
-  if (name === 'main') func.gotLastType = true;
+  if (decl.async) {
+    // make promise at the start
+    wasm.unshift(
+      [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_create').index ],
+      [ Opcodes.drop ],
+      [ Opcodes.local_set, func.locals['#async_out_promise'].idx ]
+    );
 
-  // add end return if not found
-  if (name !== 'main' && wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
-    wasm.push(...generateReturn(func, {}));
+    // todo: wrap in try and reject thrown value once supported
+  }
+
+  if (name === 'main') {
+    func.gotLastType = true;
+
+    func.export = true;
+    func.returns = [ valtypeBinary, Valtype.i32 ];
+
+    const lastInst = func.wasm[func.wasm.length - 1] ?? [ Opcodes.end ];
+    if (lastInst[0] === Opcodes.drop) {
+      func.wasm.splice(func.wasm.length - 1, 1);
+
+      const finalStatement = decl.body.body[decl.body.body.length - 1];
+      func.wasm.push(...getNodeType(func, finalStatement));
+    }
+
+    if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
+      if (lastInst[0] === Opcodes.local_set && lastInst[1] === func.locals['#last_type'].idx) {
+        func.wasm.splice(main.wasm.length - 1, 1);
+      } else {
+        func.returns = [];
+      }
+    }
+
+    if (lastInst[0] === Opcodes.call) {
+      const callee = funcs.find(x => x.index === lastInst[1]);
+      if (callee) func.returns = callee.returns.slice();
+        else func.returns = [];
+    }
+
+    // inject promise job runner func at the end of main if used
+    if (Object.hasOwn(funcIndex, '__ecma262_HostEnqueuePromiseJob')) {
+      wasm.push(
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_runJobs').index ],
+        [ Opcodes.drop ],
+        [ Opcodes.drop ]
+      );
+    }
+  } else {
+    // add end return if not found
+    if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
+      wasm.push(...generateReturn(func, {}));
+    }
   }
 
   if (func.constr) {
@@ -5550,31 +5678,6 @@ export default program => {
   if (Prefs.astLog) console.log(JSON.stringify(program.body.body, null, 2));
 
   const main = generateFunc(scope, program);
-
-  main.export = true;
-  main.returns = [ valtypeBinary, Valtype.i32 ];
-
-  const lastInst = main.wasm[main.wasm.length - 1] ?? [ Opcodes.end ];
-  if (lastInst[0] === Opcodes.drop) {
-    main.wasm.splice(main.wasm.length - 1, 1);
-
-    const finalStatement = program.body.body[program.body.body.length - 1];
-    main.wasm.push(...getNodeType(main, finalStatement));
-  }
-
-  if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
-    if (lastInst[0] === Opcodes.local_set && lastInst[1] === main.locals['#last_type'].idx) {
-      main.wasm.splice(main.wasm.length - 1, 1);
-    } else {
-      main.returns = [];
-    }
-  }
-
-  if (lastInst[0] === Opcodes.call) {
-    const func = funcs.find(x => x.index === lastInst[1]);
-    if (func) main.returns = func.returns.slice();
-      else main.returns = [];
-  }
 
   delete globals['#ind'];
 

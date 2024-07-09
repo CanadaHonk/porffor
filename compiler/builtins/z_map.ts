@@ -110,7 +110,7 @@ export function __Map_prototype_keys() {
   const out: any[] = Porffor.allocate();
 
   for (const x of keys) {
-    Porffor.fastPush(out, x);
+    Porffor.array.fastPush(out, x);
   }
 
   return out;
@@ -122,7 +122,7 @@ export function __Map_prototype_values() {
   const out: any[] = Porffor.allocate();
 
   for (let i: i32 = 0; i < size; i++) {
-    Porffor.fastPush(out, vals[i]);
+    Porffor.array.fastPush(out, vals[i]);
   }
 
   return out;

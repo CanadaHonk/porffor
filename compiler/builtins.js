@@ -190,7 +190,7 @@ export const BuiltinFuncs = function() {
       ...number(TYPES.number, Valtype.i32),
       [ Opcodes.local_get, 1 ],
       ...number(TYPES.number, Valtype.i32),
-      [ Opcodes.call, ...builtin('__Math_pow') ],
+      [ Opcodes.call, builtin('__Math_pow') ],
       [ Opcodes.drop ],
     ]
   };

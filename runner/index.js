@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.25.2+bd0735a02';
+globalThis.version = '0.27.2+14ef42051';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -108,7 +108,33 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm
 
 globalThis.file = file;
 
-if (!file) {
+let source = '', printOutput = false;
+if (process.argv.length >= 4) {
+  let evalIndex = process.argv.indexOf('-e');
+  if (evalIndex === -1) evalIndex = process.argv.indexOf('--eval');
+  if (evalIndex !== -1) {
+    source = process.argv[evalIndex + 1];
+    if (source) {
+      if (source.startsWith('"') || source.startsWith("'")) source = source.slice(1, -1);
+      process.argv.splice(evalIndex, 2); // remove flag and value
+    }
+  }
+
+  let printIndex = process.argv.indexOf('-p');
+  if (printIndex === -1) printIndex = process.argv.indexOf('--print');
+  if (printIndex !== -1) {
+    process.argv.push('--no-opt-unused');
+    source = process.argv[printIndex + 1];
+    if (source) {
+      if (source.startsWith('"') || source.startsWith("'")) source = source.slice(1, -1);
+      process.argv.splice(printIndex, 2); // remove flag and value
+    }
+
+    printOutput = true;
+  }
+}
+
+if (!file && !source) {
   if (process.argv.includes('-v') || process.argv.includes('--version')) {
     // just print version
     console.log(globalThis.version);
@@ -120,43 +146,32 @@ if (!file) {
   await done();
 }
 
-const source = fs.readFileSync(file, 'utf8');
+source ||= fs.readFileSync(file, 'utf8');
 
 const compile = (await import('../compiler/wrap.js')).default;
 
-let cache = '';
-const print = str => {
-  /* cache += str;
-
-  if (str === '\n') {
-    process.stdout.write(cache);
-    cache = '';
-  } */
-
-  process.stdout.write(str);
-};
-
 let runStart;
+let ret;
 try {
+  const out = compile(source, process.argv.includes('--module') ? [ 'module' ] : []);
+  runStart = performance.now();
+  if (!process.argv.includes('--no-run')) ret = out.exports.main();
+
   if (process.argv.includes('-b')) {
-    const { wasm, exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
-
-    runStart = performance.now();
-    if (!process.argv.includes('--no-run')) exports.main();
-
-    console.log(`\n\nwasm size: ${wasm.byteLength} bytes`);
-  } else {
-    const { exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {}, print);
-
-    runStart = performance.now();
-    if (!process.argv.includes('--no-run')) exports.main();
+    console.log(`\nwasm size: ${out.wasm.byteLength} bytes`);
   }
-  // if (cache) process.stdout.write(cache);
 } catch (e) {
-  // if (cache) process.stdout.write(cache);
   let out = e;
   if (!process.argv.includes('-d') && Object.getPrototypeOf(e).message != null) out = `${e.constructor.name}${e.message != null ? `: ${e.message}` : ''}`;
   console.error(out);
 }
 
-if (process.argv.includes('-t')) console.log(`${process.argv.includes('-b') ? '' : '\n\n'}total time: ${(performance.now() - start).toFixed(2)}ms\nexecution time: ${(performance.now() - runStart).toFixed(2)}ms`);
+if (process.argv.includes('-t')) console.log(`${process.argv.includes('-b') ? '' : '\n'}total time: ${(performance.now() - start).toFixed(2)}ms\nexecution time: ${(performance.now() - runStart).toFixed(2)}ms`);
+
+if (printOutput) {
+  if (process.argv.includes('-d') && ret?.type != null) {
+    ret = ret.js;
+  }
+
+  console.log(ret);
+}

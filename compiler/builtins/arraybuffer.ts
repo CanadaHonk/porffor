@@ -5,6 +5,11 @@ export const __ArrayBuffer_isView = (value: any): boolean => {
   return false;
 };
 
+export const __Porffor_arraybuffer_detach = (buffer: any): void => {
+  // mark as detached by setting length = "-1"
+  Porffor.wasm.i32.store(buffer, 4294967295, 0, 0);
+};
+
 export function ArrayBuffer(length: any): ArrayBuffer {
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (!new.target) throw new TypeError("Constructor ArrayBuffer requires 'new'");
@@ -71,14 +76,14 @@ export function __ArrayBuffer_prototype_resizable$get() {
   return false;
 };
 
-export function __ArrayBuffer_prototype_slice(start: number, end: any) {
+export function __ArrayBuffer_prototype_slice(start: any, end: any) {
   if (this.detached) throw new TypeError('Called ArrayBuffer.prototype.slice on a detached ArrayBuffer');
 
   const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
 
-  start |= 0;
-  end |= 0;
+  start = ecma262.ToIntegerOrInfinity(start);
+  end = ecma262.ToIntegerOrInfinity(end);
 
   if (start < 0) {
     start = len + start;
@@ -155,8 +160,7 @@ i32.to_u
 
 memory.copy 0 0`;
 
-  // mark as detached by setting length = "-1"
-  Porffor.wasm.i32.store(this, 4294967295, 0, 0);
+  __Porffor_arraybuffer_detach(this);
 
   return out;
 };
@@ -172,15 +176,17 @@ export function __ArrayBuffer_prototype_resize(newLength: any) {
 
 
 export function SharedArrayBuffer(length: number): SharedArrayBuffer {
+  // 1. If NewTarget is undefined, throw a TypeError exception.
   if (!new.target) throw new TypeError("Constructor SharedArrayBuffer requires 'new'");
 
-  if (length < 0) throw new RangeError('Invalid SharedArrayBuffer length (negative)');
-  if (length > 4294967295) throw new RangeError('Invalid SharedArrayBuffer length (over 32 bit address space)');
+  // 2. Let byteLength be ? ToIndex(length).
+  const byteLength: number = ecma262.ToIndex(length);
 
-  length |= 0;
+  if (byteLength < 0) throw new RangeError('Invalid SharedArrayBuffer length (negative)');
+  if (byteLength > 4294967295) throw new RangeError('Invalid SharedArrayBuffer length (over 32 bit address space)');
 
-  const out: SharedArrayBuffer = Porffor.allocateBytes(length + 4);
-  Porffor.wasm.i32.store(out, length, 0, 0);
+  const out: SharedArrayBuffer = Porffor.allocateBytes(byteLength + 4);
+  Porffor.wasm.i32.store(out, byteLength, 0, 0);
 
   return out;
 };
@@ -198,12 +204,12 @@ export function __SharedArrayBuffer_prototype_growable$get() {
 };
 
 
-export function __SharedArrayBuffer_prototype_slice(start: number, end: any) {
+export function __SharedArrayBuffer_prototype_slice(start: any, end: any) {
   const len: i32 = Porffor.wasm.i32.load(this, 0, 0);
   if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
 
-  start |= 0;
-  end |= 0;
+  start = ecma262.ToIntegerOrInfinity(start);
+  end = ecma262.ToIntegerOrInfinity(end);
 
   if (start < 0) {
     start = len + start;

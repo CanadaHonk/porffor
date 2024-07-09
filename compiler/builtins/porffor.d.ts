@@ -26,9 +26,53 @@ type PorfforGlobal = {
   allocateBytes(bytes: i32): any;
 
   set: {
-    read(_this: any, index: number): i32;
-    write(_this: any, index: number, value: any): boolean;
-    indexOf(_this: any, value: any): i32;
+    read(ptr: any, index: number): i32;
+    write(ptr: any, index: number, value: any): boolean;
+  }
+
+  array: {
+    fastPush(arr: any[], el: any): i32;
+  }
+
+  arraybuffer: {
+    detach(buffer: any): void;
+  }
+
+  object: {
+    preventExtensions(obj: object): void;
+    isInextensible(obj: object): boolean;
+
+    overrideAllFlags(obj: object, overrideOr: i32, overrideAnd: i32): void;
+    checkAllFlags(obj: object, dataAnd: i32, accessorAnd: i32, dataExpected: i32, accessorExpected: i32): boolean;
+
+    packAccessor(get: any, set: any): f64;
+    accessorGet(entryPtr: i32): Function;
+    accessorSet(entryPtr: i32): Function;
+
+    lookup(obj: object, target: any): i32;
+    get(obj: any, key: any): any;
+
+    writeKey(ptr: i32, key: any): void;
+    set(obj: object, key: any, value: any): any;
+    define(obj: object, key: any, value: any, flags: i32): void;
+    delete(obj: object, key: any): boolean;
+
+    isEnumerable(entryPtr: i32): boolean;
+
+    isObject(arg: any): boolean;
+    isObjectOrSymbol(arg: any): boolean;
+
+    expr: {
+      init(obj: object, key: any, value: any): void;
+      get(obj: object, key: any, value: any): void;
+      set(obj: object, key: any, value: any): void;
+    }
+  }
+
+  funcLut: {
+    flags(func: Function): i32;
+    length(func: Function): i32;
+    name(func: Function): bytestring;
   }
 
   bytestring: {

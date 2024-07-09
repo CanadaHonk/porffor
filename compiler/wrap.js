@@ -35,7 +35,7 @@ export const writeByteStr = (memory, ptr, str) => {
   }
 };
 
-const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
+const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefined) => {
   switch (type) {
     case TYPES.empty:
     case TYPES.undefined:
@@ -75,9 +75,10 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type) => {
           porfToJSValue({ memory, funcs, pages }, vValue, vType);
 
         const flags = tail & 0xff;
+        const accessor = flags & 0b0001;
 
         let get, set;
-        if (flags & 0b0001) {
+        if (accessor) {
           0, [ get, set ] = read(Uint32Array, memory, value + offset + 4, 2);
         }
 
@@ -99,11 +100,21 @@ ${flags & 0b0001 ? `    get func idx: ${get}
         const configurable = flags & 0b0010;
         const enumerable = flags & 0b0100;
 
-        Object.defineProperty(out, k, {
-          value: v,
-          configurable,
-          enumerable,
-        });
+        if (accessor) {
+          // mock get/set funcs
+          Object.defineProperty(out, k, {
+            get: () => {},
+            set: () => {},
+            configurable,
+            enumerable,
+          });
+        } else {
+          Object.defineProperty(out, k, {
+            value: v,
+            configurable,
+            enumerable,
+          });
+        }
       }
 
       return out;
@@ -138,7 +149,8 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.array: {
-      const length = read(Uint32Array, memory, value, 1)[0];
+      let length = read(Uint32Array, memory, value, 1)[0];
+      if (override) length = override;
 
       const out = [];
       for (let i = 0; i < length; i++) {
@@ -258,6 +270,30 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       return out;
     }
 
+    case TYPES.promise: {
+      const [ result, _state, fulfillReactions, rejectReactions ] = porfToJSValue({ memory, funcs, pages }, value, TYPES.array, 4);
+
+      const state = ({
+        0: 'pending',
+        1: 'fulfilled',
+        2: 'rejected'
+      })[_state];
+      const stateColor = ({
+        0: '\x1B[93m',
+        1: '\x1B[32m',
+        2: '\x1B[31m'
+      })[_state];
+
+      const out = { state, result };
+      Object.defineProperty(out, Symbol.for('nodejs.util.inspect.custom'), {
+        value(depth, opts, inspect) {
+          return `${opts.colors ? '\x1B[36m' : ''}Promise${opts.colors ? '\x1B[0m' : ''} (state: ${opts.colors ? stateColor : ''}<${state}>${opts.colors ? '\x1B[0m' : ''}, result: ${inspect(result, opts)})`;
+        }
+      });
+
+      return out;
+    }
+
     default: return value;
   }
 };
@@ -280,10 +316,6 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
 
-    const strParams = func.params.map(v => invValtype[v]);
-    const strReturns = func.returns.map(v => invValtype[v]);
-    console.log(`\x1B[1m${func.name}\x1B[0m \x1B[90m(${strParams.join(', ')}) -> (${strReturns.join(', ')})\x1B[0m`);
-
     const surrounding = Prefs.backtraceSurrounding ?? 5;
     let min = middleIndex - surrounding;
     let max = middleIndex + surrounding + 1;
@@ -292,7 +324,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
       max = func.wasm.length;
     }
 
-    const decomp = decompile(func.wasm.slice(min, max), '', 0, func.locals, func.params, func.returns, funcs, globals, exceptions).slice(0, -1).split('\n');
+    const decomp = decompile(func.wasm.slice(min, max), func.name, 0, func.locals, func.params, func.returns, funcs, globals, exceptions).slice(0, -1).split('\n');
 
     const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
     let longest = 0;
