@@ -2876,7 +2876,8 @@ const generateVar = (scope, decl) => {
               init: {
                 type: 'MemberExpression',
                 object: { type: 'Identifier', name: tmpName },
-                property: { type: 'Literal', value: i }
+                property: { type: 'Literal', value: i },
+                computed: true
               }
             });
 
@@ -2893,7 +2894,8 @@ const generateVar = (scope, decl) => {
                 left: {
                   type: 'MemberExpression',
                   object: { type: 'Identifier', name: tmpName },
-                  property: { type: 'Literal', value: i }
+                  property: { type: 'Literal', value: i },
+                  computed: true
                 },
                 right: e.right
               }
@@ -2909,7 +2911,8 @@ const generateVar = (scope, decl) => {
               init: {
                 type: 'MemberExpression',
                 object: { type: 'Identifier', name: tmpName },
-                property: { type: 'Literal', value: i }
+                property: { type: 'Literal', value: i },
+                computed: true
               }
             });
 
@@ -2917,10 +2920,63 @@ const generateVar = (scope, decl) => {
           }
 
           case 'ObjectPattern':
-            return todo(scope, 'object destructuring is not supported yet')
+            decls.push({
+              type: 'VariableDeclarator',
+              id: e,
+              init: {
+                type: 'MemberExpression',
+                object: { type: 'Identifier', name: tmpName },
+                property: { type: 'Literal', value: i },
+                computed: true
+              }
+            });
+
+            break;
         }
 
         i++;
+      }
+
+      out = out.concat([
+        ...generateVar(scope, {
+          type: 'VariableDeclaration',
+          declarations: [{
+            type: 'VariableDeclarator',
+            id: { type: 'Identifier', name: tmpName },
+            init: x.init
+          }],
+          kind: decl.kind
+        }),
+        ...generateVar(scope, {
+          type: 'VariableDeclaration',
+          declarations: decls,
+          kind: decl.kind
+        })
+      ]);
+
+      continue;
+    }
+
+    if (x.id.type === 'ObjectPattern') {
+      const decls = [];
+      const tmpName = '#destructure' + uniqId();
+
+      const properties = [...x.id.properties];
+      for (const prop of properties) {
+        if (prop.type == 'Property') {
+          decls.push({
+            type: 'VariableDeclarator',
+            id: prop.value,
+            init: {
+              type: 'MemberExpression',
+              object: { type: 'Identifier', name: tmpName },
+              property: prop.key,
+              computed: prop.computed
+            }
+          });
+        } else {
+          return todo(scope, 'object rest destructuring is not supported yet')
+        }
       }
 
       out = out.concat([
