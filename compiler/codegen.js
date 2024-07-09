@@ -5570,6 +5570,16 @@ const internalConstrs = {
     type: TYPES.undefined,
     notConstr: true,
     length: 1
+  },
+
+  __Porffor_rawType: {
+    generate: (scope, decl) => [
+      ...getNodeType(scope, decl.arguments[0]),
+      Opcodes.i32_from_u
+    ],
+    type: TYPES.number,
+    notConstr: true,
+    length: 1
   }
 };
 
