@@ -19,8 +19,6 @@ const hasType = (funcs, pages, type) => {
     case 'WeakSet':
     case 'WeakRef':
     case 'Date':
-    case 'ArrayBuffer':
-    case 'SharedArrayBuffer':
     case 'Uint8Array':
     case 'Int8Array':
     case 'Uint8ClampedArray':
