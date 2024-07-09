@@ -2602,7 +2602,9 @@ const brTable = (input, bc, returns) => {
   return out;
 };
 
-const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
+let typeswitchDepth = 0;
+
+const typeSwitch = (scope, type, bc, returns = valtypeBinary, allowFallThrough = false) => {
   if (!Prefs.bytestring) delete bc[TYPES.bytestring];
 
   const known = knownType(scope, type);
@@ -2610,28 +2612,76 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
     return bc[known] ?? bc.default;
   }
 
-  if (Prefs.typeswitchBrtable)
+  if (Prefs.typeswitchBrtable) {
+    if (allowFallThrough) throw new Error(`Fallthrough is not currently supported with --typeswitch-brtable`)
     return brTable(type, bc, returns);
+  }
 
-  const tmp = localTmp(scope, '#typeswitch_tmp' + (Prefs.typeswitchUniqueTmp ? randId() : ''), Valtype.i32);
+  // hack: we need to preserve insertion order for fall through so all objects are converted to entries
+  let bcArr = bc;
+  if (typeof bcArr === 'function') {
+    bcArr = bcArr();
+  }
+  if (!Array.isArray(bcArr)) {
+    bcArr = Object.entries(bc);
+  } else {
+    bc = Object.fromEntries(bcArr);
+  }
+
+  typeswitchDepth++;
+
+  const tmp = localTmp(scope, `#typeswitch_tmp${typeswitchDepth}`, Valtype.i32);
   const out = [
     ...type,
     [ Opcodes.local_set, tmp ],
     [ Opcodes.block, returns ]
   ];
 
-  for (const x in bc) {
+  for (let i = 0; i < bcArr.length; i++) {
+    const x = bcArr[i][0];
     if (x === 'default') continue;
 
-    // if type == x
-    out.push([ Opcodes.local_get, tmp ]);
-    out.push(...number(x, Valtype.i32));
-    out.push([ Opcodes.i32_eq ]);
-
-    out.push([ Opcodes.if, Blocktype.void, `TYPESWITCH|${TYPE_NAMES[x]}` ]);
-    out.push(...bc[x]);
-    out.push([ Opcodes.br, 1 ]);
-    out.push([ Opcodes.end ]);
+    if (allowFallThrough) {
+      let types = [];
+      let wasm;
+      while (i < bcArr.length) {
+        if (bcArr[i][0] === 'default') continue;
+        types.push(bcArr[i][0]);
+        const bodyWasm = bcArr[i][1];
+        // note: we currently don't support non-empty fallthrough
+        if (bodyWasm.length != 0) {
+          wasm = bodyWasm;
+          break;
+        }
+        i++;
+      }
+      if (types.length > 0) {
+        for (let j = 0; j < types.length; j++) {
+          out.push(
+            [ Opcodes.local_get, tmp ],
+            ...number(types[j], Valtype.i32),
+            [ Opcodes.i32_eq ]
+          );
+          if (j != 0) out.push([ Opcodes.i32_or ]);
+        }
+        out.push(
+          [ Opcodes.if, Blocktype.void, `TYPESWITCH|${types.map(t => TYPE_NAMES[t]).join(',')}` ],
+            ...wasm,
+          [ Opcodes.end ]
+        );
+      }
+    } else {
+      // if type == x
+      out.push(
+        [ Opcodes.local_get, tmp ],
+        ...number(bcArr[i][0], Valtype.i32),
+        [ Opcodes.i32_eq ],
+        [ Opcodes.if, Blocktype.void, `TYPESWITCH|${TYPE_NAMES[x]}` ],
+          ...bcArr[i][1],
+          [ Opcodes.br, 1 ],
+        [ Opcodes.end ]
+      );
+    }
   }
 
   // default
@@ -2639,6 +2689,8 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary) => {
     else if (returns !== Blocktype.void) out.push(...number(0, returns));
 
   out.push([ Opcodes.end, 'TYPESWITCH_end' ]);
+
+  typeswitchDepth--;
 
   return out;
 };
@@ -3464,6 +3516,34 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
 const generateIf = (scope, decl) => {
   const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test), false, true);
 
+  // todo: support ||, not just fastOr
+  let args;
+  if (decl.test.type === 'CallExpression' && decl.test.callee.type === 'Identifier' && decl.test.callee.name === '__Porffor_fastOr') {
+    args = decl.test.arguments;
+  } else {
+    args = [decl.test];
+  }
+  let types = [];
+  let isTypeCheck = true;
+  for (const a of args) {
+    if (
+      a.type === 'BinaryExpression' && (a.operator === '==' || a.operator === '===')
+      && a.type === 'CallExpression' && a.callee.type === 'Identifier' && a.callee.name === '__Porffor_rawType'
+    ) {
+      if (a.right.type == 'Literal') {
+        types.push(TYPE_NAMES[a.right.value]);
+      } else if (a.right.type == 'Identifier' && a.right.name.startsWith('__Porffor_TYPES_')) {
+        types.push(a.right.name.slice('__Porffor_TYPES_'.length));
+      } else {
+        isTypeCheck = false;
+        break;
+      }
+    } else {
+      isTypeCheck = false;
+      break;
+    }
+  }
+
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
@@ -3479,7 +3559,12 @@ const generateIf = (scope, decl) => {
     out.push(...altOut);
   }
 
-  out.push([ Opcodes.end ]);
+  if (isTypeCheck) {
+    out.unshift([ Opcodes.nop, `TYPECHECK|${types.join(',')}` ])
+    out.push([ Opcodes.end, 'TYPECHECK_end' ]);
+  } else {
+    out.push([ Opcodes.end ]);
+  }
   depth.pop();
 
   return out;
@@ -4066,6 +4151,42 @@ const generateSwitch = (scope, decl) => {
 
   depth.push('switch');
 
+  if (
+    decl.discriminant.type === 'CallExpression' && decl.discriminant.callee.type === 'Identifier' && decl.discriminant.callee.name === '__Porffor_rawType'
+  ) {
+    const cases = []
+    let canTypeCheck = true;
+    for (const x of decl.cases) {
+      let type;
+      if (!x.test) {
+        type = 'default';
+      } else if (x.test.type === 'Literal') {
+        type = x.test.value;
+      } else if (x.test.type === 'Identifier' && x.test.name.startsWith('__Porffor_TYPES_')) {
+        type = TYPES[x.test.name.slice('__Porffor_TYPES_'.length)];
+      }
+      if (type !== undefined) {
+        cases.push([type, x.consequent]);
+      } else {
+        canTypeCheck = false;
+        break;
+      }
+    }
+
+    if (canTypeCheck) {
+      const ret = typeSwitch(scope, getNodeType(scope, decl.discriminant.arguments[0]), () => {
+        const ret = [];
+        for (const [type, consequent] of cases) {
+          const o = generateCode(scope, { body: consequent });
+          ret.push([type, o]);
+        }
+        return ret;
+      }, Blocktype.void, true);
+      depth.pop();
+      return ret;
+    }
+  }
+
   const cases = decl.cases.slice();
   const defaultCase = cases.findIndex(x => x.test == null);
   if (defaultCase != -1) {
@@ -4081,6 +4202,7 @@ const generateSwitch = (scope, decl) => {
   for (let i = 0; i < cases.length; i++) {
     const x = cases[i];
     if (x.test) {
+      // todo: this should use same value zero
       out.push(
         [ Opcodes.local_get, tmp ],
         ...generate(scope, x.test),
@@ -5438,6 +5560,7 @@ export default program => {
   pages = new Map();
   data = [];
   currentFuncIndex = importedFuncs.length;
+  typeswitchDepth = 0;
 
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
 

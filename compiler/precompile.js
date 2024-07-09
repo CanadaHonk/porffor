@@ -120,7 +120,9 @@ const compile = async (file, _funcs) => {
           y.splice(1, 10, 'local', local.name, local.type);
         }
 
-        if (y[0] === Opcodes.const && (n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
+        if (!n) continue;
+
+        if (y[0] === Opcodes.const &&(n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
           const l = locals[n[1]];
           if (!l) continue;
           if (!['#member_prop'].includes(l.name) && ![TYPES.string, TYPES.array, TYPES.bytestring].includes(l.metadata?.type)) continue;
