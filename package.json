@@ -1,7 +1,7 @@
 {
   "name": "porffor",
   "description": "a basic experimental wip aot optimizing js -> wasm engine/compiler/runtime in js",
-  "version": "0.27.2+14ef42051",
+  "version": "0.28.0+2cee067f8",
   "author": "CanadaHonk",
   "license": "MIT",
   "scripts": {},
