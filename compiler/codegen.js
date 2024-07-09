@@ -2697,9 +2697,8 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, allowFallThrough =
     bc = Object.fromEntries(bcArr);
   }
 
-  typeswitchDepth++;
 
-  const tmp = localTmp(scope, `#typeswitch_tmp${typeswitchDepth}`, Valtype.i32);
+  const tmp = localTmp(scope, `#typeswitch_tmp${typeswitchDepth}${Prefs.typeswitchUniqueTmp ? uniqId() : ''}`, Valtype.i32);
   const out = [
     ...type,
     [ Opcodes.local_set, tmp ],
