@@ -264,53 +264,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
           }
         }
 
-        if (inst[0] === Opcodes.nop && typeof inst[inst.length - 1] === 'string') {
-          // remove unneeded typecheck
-
-          if (Prefs.rmUnusedTypes && inst[inst.length - 1] != 'TYPECHECK_end') {
-            const types = inst[inst.length - 1].split('|')[1].split(',');
-            let missing = true;
-            for (const type of types) {
-              if (hasType(funcs, pages, type)) {
-                missing = false;
-                break;
-              }
-            }
-
-            if (missing) {
-              let j = i + 1, depth = 0;
-              for (; j < wasm.length; j++) {
-                const instr = wasm[j];
-                if (typeof instr[instr.length - 1] === 'string') {
-                  if (instr[instr.length - 1] === 'TYPECHECK_end') {
-                    if (depth === 0) break;
-                    depth--;
-                  } else {
-                    depth++;
-                  }
-                }
-              }
-
-              wasm.splice(i, 1 + j - i); // remove entire typecheck "block"
-              i--;
-              if (i < 0) i = 0;
-              inst = wasm[i];
-
-              if (Prefs.optLog) log('opt', `removed unneeded typecheck (${types})`);
-            } else {
-              wasm.splice(i, 1); // remove the nop
-              i--;
-              if (i < 0) i = 0;
-              inst = wasm[i];
-            }
-          } else if (!globalThis.precompile) {
-            wasm.splice(i, 1); // remove the nop
-            i--;
-            if (i < 0) i = 0;
-            inst = wasm[i];
-          }
-        }
-
         // remove setting last type if it is never gotten
         if (!f.internal && !f.gotLastType && inst[0] === Opcodes.local_set && inst[1] === lastType) {
           // replace this inst with drop
@@ -458,18 +411,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
           continue;
         }
 
-        if (false && i === wasm.length - 1 && inst[0] === Opcodes.return) {
-          // replace final return, end -> end (wasm has implicit return)
-          // return
-          // end
-          // -->
-          // end
-
-          wasm.splice(i, 1); // remove this inst (return)
-          i--;
-          // if (Prefs.optLog) log('opt', `removed redundant return at end`);
-          continue;
-        }
 
         // remove unneeded before get with update exprs (n++, etc) when value is unused
         if (i < wasm.length - 4 && lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_get && inst[0] === Opcodes.local_get && wasm[i + 1][0] === Opcodes.const && [Opcodes.add, Opcodes.sub].includes(wasm[i + 2][0]) && wasm[i + 3][0] === Opcodes.local_set && wasm[i + 3][1] === inst[1] && (wasm[i + 4][0] === Opcodes.drop || wasm[i + 4][0] === Opcodes.br)) {

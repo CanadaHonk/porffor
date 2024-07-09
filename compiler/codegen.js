@@ -3592,33 +3592,6 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
 const generateIf = (scope, decl) => {
   const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test), false, true);
 
-  // todo: support ||, not just fastOr
-  let args;
-  if (decl.test.type === 'CallExpression' && decl.test.callee.type === 'Identifier' && decl.test.callee.name === '__Porffor_fastOr') {
-    args = decl.test.arguments;
-  } else {
-    args = [decl.test];
-  }
-  let types = [];
-  let isTypeCheck = true;
-  for (const a of args) {
-    if (
-      a.type === 'BinaryExpression' && (a.operator === '==' || a.operator === '===')
-      && a.type === 'CallExpression' && a.callee.type === 'Identifier' && a.callee.name === '__Porffor_rawType'
-    ) {
-      if (a.right.type == 'Literal') {
-        types.push(TYPE_NAMES[a.right.value]);
-      } else if (a.right.type == 'Identifier' && a.right.name.startsWith('__Porffor_TYPES_')) {
-        types.push(a.right.name.slice('__Porffor_TYPES_'.length));
-      } else {
-        isTypeCheck = false;
-        break;
-      }
-    } else {
-      isTypeCheck = false;
-      break;
-    }
-  }
 
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
@@ -3635,12 +3608,7 @@ const generateIf = (scope, decl) => {
     out.push(...altOut);
   }
 
-  if (isTypeCheck) {
-    out.unshift([ Opcodes.nop, `TYPECHECK|${types.join(',')}` ])
-    out.push([ Opcodes.end, 'TYPECHECK_end' ]);
-  } else {
-    out.push([ Opcodes.end ]);
-  }
+  out.push([ Opcodes.end ]);
   depth.pop();
 
   return out;
