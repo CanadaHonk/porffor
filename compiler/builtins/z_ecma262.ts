@@ -97,29 +97,27 @@ export const __ecma262_ToIndex = (value: unknown): number => {
 // 7.1.17 ToString (argument)
 // https://tc39.es/ecma262/#sec-tostring
 export const __ecma262_ToString = (argument: unknown): any => {
-  const type: i32 = Porffor.rawType(argument);
-
   // 1. If argument is a String, return argument.
   if (Porffor.fastOr(
-    type == Porffor.TYPES.string,
-    type == Porffor.TYPES.bytestring)) return argument;
+    Porffor.rawType(argument) == Porffor.TYPES.string,
+    Porffor.rawType(argument) == Porffor.TYPES.bytestring)) return argument;
 
   // 2. If argument is a Symbol, throw a TypeError exception.
-  if (type == Porffor.TYPES.symbol) throw new TypeError('Cannot convert a Symbol value to a string');
+  if (Porffor.rawType(argument) == Porffor.TYPES.symbol) throw new TypeError('Cannot convert a Symbol value to a string');
 
   let out: bytestring = Porffor.allocate();
 
   // 3. If argument is undefined, return "undefined".
   if (Porffor.fastOr(
-    type == Porffor.TYPES.undefined,
-    type == Porffor.TYPES.empty)) return out = 'undefined';
+    Porffor.rawType(argument) == Porffor.TYPES.undefined,
+    Porffor.rawType(argument) == Porffor.TYPES.empty)) return out = 'undefined';
 
   // 4. If argument is null, return "null".
   if (Porffor.fastAnd(
-    type == Porffor.TYPES.object,
+    Porffor.rawType(argument) == Porffor.TYPES.object,
     argument == 0)) return out = 'null';
 
-  if (type == Porffor.TYPES.boolean) {
+  if (Porffor.rawType(argument) == Porffor.TYPES.boolean) {
     // 5. If argument is true, return "true".
     if (argument == true) return out = 'true';
 

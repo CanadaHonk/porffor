@@ -18,10 +18,9 @@ export default async () => {
   let len: i32 = 0;
   let bufferPtr: i32;
 
-  const type: i32 = Porffor.rawType(arg);
   if (Porffor.fastOr(
-    type == Porffor.TYPES.arraybuffer,
-    type == Porffor.TYPES.sharedarraybuffer
+    Porffor.rawType(arg) == Porffor.TYPES.arraybuffer,
+    Porffor.rawType(arg) == Porffor.TYPES.sharedarraybuffer
   )) {
     bufferPtr = Porffor.wasm\`local.get \${arg}\`;
 
@@ -44,6 +43,7 @@ export default async () => {
     bufferPtr = Porffor.allocate();
     Porffor.wasm.i32.store(outPtr, bufferPtr, 0, 4);
 
+    const type: i32 = Porffor.rawType(arg);
     if (Porffor.fastOr(
       type == Porffor.TYPES.array,
       type == Porffor.TYPES.string, type == Porffor.TYPES.bytestring,
@@ -55,7 +55,7 @@ export default async () => {
         out[i++] = x;
       }
       len = i;
-    } else if (type == Porffor.TYPES.number) {
+    } else if (Porffor.rawType(arg) == Porffor.TYPES.number) {
       len = Math.trunc(arg);
     }
 

@@ -1945,18 +1945,16 @@ export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown
     // a. Let value be values[0].
     const value: any = v0;
 
-    const valueType: i32 = Porffor.rawType(v0);
-
     let tv: number = 0;
 
     // b. If value is an Object and value has a [[DateValue]] internal slot, then
-    if (valueType == Porffor.TYPES.date) {
+    if (Porffor.rawType(v0) == Porffor.TYPES.date) {
       // i. Let tv be value.[[DateValue]].
       tv = __Porffor_date_read(value);
     } else {
       // c. Else,
       // ii. If v is a String, then
-      if (Porffor.fastOr(valueType == Porffor.TYPES.string, valueType == Porffor.TYPES.bytestring)) {
+      if (Porffor.fastOr(Porffor.rawType(v0) == Porffor.TYPES.string, Porffor.rawType(v0) == Porffor.TYPES.bytestring)) {
         // 1. Assert: The next step never returns an abrupt completion because v is a String.
 
         // 2. Let tv be the result of parsing v as a date, in exactly the same manner as for the parse method (21.4.3.2).
