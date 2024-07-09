@@ -1486,7 +1486,7 @@ const getNodeType = (scope, node) => {
         if (scope.locals['#last_type']) return getLastType(scope);
 
         // presume
-        // todo: warn here?
+        if (Prefs.warnAssumedType) console.warn(`Indirect call assumed to be number`);
         return TYPES.number;
       }
 
@@ -1524,7 +1524,7 @@ const getNodeType = (scope, node) => {
       if (scope.locals['#last_type']) return getLastType(scope);
 
       // presume
-      // todo: warn here?
+      if (Prefs.warnAssumedType) console.warn(`Call to ${name} assumed to be number`);
       return TYPES.number;
 
       // let protoFunc;
@@ -1633,6 +1633,7 @@ const getNodeType = (scope, node) => {
       if (scope.locals['#last_type']) return getLastType(scope);
 
       // presume
+      if (Prefs.warnAssumedType) console.warn(`Member access to field .${name} assumed to be number`);
       return TYPES.number;
     }
 
@@ -1664,7 +1665,7 @@ const getNodeType = (scope, node) => {
     if (scope.locals['#last_type']) return getLastType(scope);
 
     // presume
-    // todo: warn here?
+    if (Prefs.warnAssumedType) console.warn(`AST node ${node.type} assumed to be number`);
     return TYPES.number;
   })();
 
