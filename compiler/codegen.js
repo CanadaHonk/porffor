@@ -1486,7 +1486,7 @@ const getNodeType = (scope, node) => {
         if (scope.locals['#last_type']) return getLastType(scope);
 
         // presume
-        // todo: warn here?
+        if (Prefs.warnAssumedType) console.warn(`Indirect call assumed to be number`);
         return TYPES.number;
       }
 
@@ -1524,7 +1524,7 @@ const getNodeType = (scope, node) => {
       if (scope.locals['#last_type']) return getLastType(scope);
 
       // presume
-      // todo: warn here?
+      if (Prefs.warnAssumedType) console.warn(`Call to ${name} assumed to be number`);
       return TYPES.number;
 
       // let protoFunc;
@@ -1633,6 +1633,7 @@ const getNodeType = (scope, node) => {
       if (scope.locals['#last_type']) return getLastType(scope);
 
       // presume
+      if (Prefs.warnAssumedType) console.warn(`Member access to field .${name} assumed to be number`);
       return TYPES.number;
     }
 
@@ -1664,7 +1665,7 @@ const getNodeType = (scope, node) => {
     if (scope.locals['#last_type']) return getLastType(scope);
 
     // presume
-    // todo: warn here?
+    if (Prefs.warnAssumedType) console.warn(`AST node ${node.type} assumed to be number`);
     return TYPES.number;
   })();
 
@@ -2429,6 +2430,14 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ]
             ], tableBc, valtypeBinary)
           ],
+
+          ...(decl.optional ? {
+            [TYPES.undefined]: [
+              ...number(UNDEFINED),
+              ...setLastType(scope, TYPES.undefined)
+            ]
+          } : {}),
+
           default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
         })
       ];
@@ -5309,8 +5318,6 @@ const objectHack = node => {
 };
 
 const generateFunc = (scope, decl) => {
-  if (decl.generator) return todo(scope, 'generator functions are not supported');
-
   const name = decl.id ? decl.id.name : `anonymous${uniqId()}`;
   const params = decl.params ?? [];
 
@@ -5331,6 +5338,19 @@ const generateFunc = (scope, decl) => {
 
   funcIndex[name] = func.index;
   funcs.push(func);
+
+  let errorWasm = null;
+  if (decl.generator) errorWasm = todo(scope, 'generator functions are not supported');
+
+  if (errorWasm) {
+    func.wasm = errorWasm.concat([
+      ...number(UNDEFINED),
+      ...number(TYPES.undefined, Valtype.i32)
+    ]);
+    func.params = [];
+    func.constr = false;
+    return func;
+  }
 
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
@@ -5646,6 +5666,16 @@ const internalConstrs = {
       return printStaticStr(str);
     },
     type: TYPES.undefined,
+    notConstr: true,
+    length: 1
+  },
+
+  __Porffor_rawType: {
+    generate: (scope, decl) => [
+      ...getNodeType(scope, decl.arguments[0]),
+      Opcodes.i32_from_u
+    ],
+    type: TYPES.number,
     notConstr: true,
     length: 1
   }

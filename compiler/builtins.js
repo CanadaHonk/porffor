@@ -905,18 +905,6 @@ export const BuiltinFuncs = function() {
     }
   };
 
-  this.__Porffor_rawType = {
-    params: [ valtypeBinary, Valtype.i32 ],
-    typedParams: true,
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: [
-      [ Opcodes.local_get, 1 ],
-      Opcodes.i32_from_u
-    ]
-  };
-
   this.__Porffor_clone = {
     params: [ Valtype.i32, Valtype.i32 ],
     locals: [],
