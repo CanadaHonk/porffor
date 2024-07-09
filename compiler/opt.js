@@ -428,7 +428,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           continue;
         }
 
-        if (lastInst[0] === Opcodes.i32_const && (inst[0] === Opcodes.i32_from[0] || inst[0] === Opcodes.i32_from_u[0])) {
+        if (lastInst[0] === Opcodes.i32_const && (inst[0] === Opcodes.i32_from[0] || inst[0] === Opcodes.i32_from_u[0]) && (typeof lastInst[1] !== 'string')) {
           // change i32 const and immediate convert to const (opposite way of previous)
           // i32.const 0
           // f64.convert_i32_s || f64.convert_i32_u

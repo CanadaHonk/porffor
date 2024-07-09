@@ -17,7 +17,7 @@ export const Symbol = (description: any): Symbol => {
   }
 
   // 4. Return a new Symbol whose [[Description]] is descString.
-  const sym: Symbol = Porffor.fastPush(descStore, descString);
+  const sym: Symbol = Porffor.array.fastPush(descStore, descString);
   return sym;
 };
 
