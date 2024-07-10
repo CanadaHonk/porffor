@@ -1848,12 +1848,33 @@ const createThisArg = (scope, decl, knownThis = undefined) => {
       ...number(TYPES.object, Valtype.i32)
     ];
   } else {
+    const name = mapName(decl.callee?.name);
+    if (name && name.startsWith('__') && name.includes('_prototype_')) {
+      // todo: this should just be same as decl._new
+      // but we do not support prototype, constructor, etc yet
+      // so do `this` as `new Type()` instead
+      const node = {
+        type: 'NewExpression',
+        callee: {
+          type: 'Identifier',
+          name: name.slice(2, name.indexOf('_', 2))
+        },
+        arguments: [],
+        _new: true
+      };
+
+      return [
+        ...generateCall(scope, node),
+        ...getNodeType(scope, node)
+      ];
+    }
+
     return [
       ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
       ...getType(scope, 'globalThis')
     ];
   }
-}
+};
 
 const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   let name = mapName(decl.callee.name);
@@ -2454,13 +2475,19 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
   }
 
+  let args = [...decl.arguments];
+  const internalProtoFunc = func && func.internal && func.name.includes('_prototype_');
+  if (!globalThis.precompile && internalProtoFunc && !decl._protoInternalCall) {
+    // just function called, not as prototype, add this to start
+    args.unshift(decl._thisWasm ?? createThisArg(scope, decl));
+  }
+
   if (func && func.constr) {
     out.push(...(decl._newTargetWasm ?? createNewTarget(scope, decl, idx - importedFuncs.length)));
     out.push(...(decl._thisWasm ?? createThisArg(scope, decl)));
     paramOffset += 4;
   }
 
-  let args = [...decl.arguments];
   if (func && !func.hasRestArgument && args.length < paramCount) {
     // too little args, push undefineds
     args = args.concat(new Array(paramCount - args.length).fill(DEFAULT_VALUE()));
@@ -2488,6 +2515,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+    if (Array.isArray(arg)) {
+      // if wasm, just append it
+      out = out.concat(arg);
+      continue;
+    }
+
     out = out.concat(generate(scope, arg));
 
     // todo: this should be used instead of the too many args thing above (by removing that)
@@ -2929,7 +2962,8 @@ const generateVar = (scope, decl) => {
                       object: { type: 'Identifier', name: tmpName, },
                       property: { type: 'Identifier', name: 'length', }
                     }
-                  ]
+                  ],
+                  _protoInternalCall: true
                 }
               });
             }
@@ -5539,7 +5573,7 @@ const generateFunc = (scope, decl) => {
 
     if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
       if (lastInst[0] === Opcodes.local_set && lastInst[1] === func.locals['#last_type'].idx) {
-        func.wasm.splice(main.wasm.length - 1, 1);
+        func.wasm.splice(func.wasm.length - 1, 1);
       } else {
         func.returns = [];
       }
