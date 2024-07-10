@@ -823,7 +823,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
       lastCond = false;
     }
 
-    if (vals.length === 1 && returns) {
+    if (vals.length === 1 && f.returns.length === 1) {
       line(`return ${vals.pop()}`);
     }
 
