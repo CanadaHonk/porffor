@@ -1,10 +1,32 @@
 import type {} from './porffor.d.ts';
 
-export const Number = function (argument: any): any {
-  // todo: actually do prim objects
-  new.target; // trick compiler into allowing as constructor
+// 21.1.1.1 Number (value)
+// https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-number-constructor-number-value
+export const Number = function (value: any): any {
+  let n: number = 0;
 
-  return ecma262.ToNumeric(argument);
+  // 1. If value is present, then
+  // todo: handle undefined (NaN) and not present (0) args differently
+  if (Porffor.rawType(value) != Porffor.TYPES.undefined) {
+    // a. Let prim be ? ToNumeric(value).
+    // b. If prim is a BigInt, let n be 𝔽(ℝ(prim)).
+    // todo: handle when bigints exist
+    // c. Otherwise, let n be prim.
+    n = ecma262.ToNumeric(value);
+  }
+
+  // 2. Else,
+  // a. Let n be +0𝔽.
+  // n is already 0 (from init value)
+
+  // 3. If NewTarget is undefined, return n.
+  if (!new.target) return n;
+
+  // 4. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Number.prototype%", « [[NumberData]] »).
+  // 5. Set O.[[NumberData]] to n.
+  // 6. Return O.
+  // todo: actual prim objects
+  return n;
 };
 
 // radix: number|any for rawType check

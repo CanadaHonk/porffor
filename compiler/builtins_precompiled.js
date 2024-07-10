@@ -1678,10 +1678,10 @@ export const BuiltinFuncs = function() {
     locals: [124,127,127], localNames: ["y","y#type","x","x#type","ratio","ratio#type","#last_type"],
   };
   this.Number = {
-    wasm: (scope, {builtin}) => [[32,4],[32,5],[16, builtin('__ecma262_ToNumeric')],[34,6],[15]],
+    wasm: (scope, {builtin}) => [[68,0,0,0,0,0,0,0,0],[33,6],[32,5],[184],[68,0,0,0,0,0,0,96,64],[98],[4,64],[32,4],[32,5],[16, builtin('__ecma262_ToNumeric')],[26],[33,6],[11],[32,0],[33,8],[32,1],[33,9],[2,124],[32,9],[65,195,0],[70],[4,64,"TYPESWITCH|String"],[32,8],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,9],[65,195,1],[70],[4,64,"TYPESWITCH|ByteString"],[32,8],[252,3],[40,1,0],[69],[184],[12,1],[11],[32,8],[68,0,0,0,0,0,0,0,0],[97],[184],[11,"TYPESWITCH_end"],[252,3],[4,64],[32,6],[65,1],[15],[11],[32,6],[65,1],[15]],
     params: [124,127,124,127,124,127], typedParams: 1,
     returns: [124,127], typedReturns: 1,
-    locals: [127], localNames: ["#newtarget","#newtarget#type","#this","#this#type","argument","argument#type","#last_type"],
+    locals: [124,127,124,127], localNames: ["#newtarget","#newtarget#type","#this","#this#type","value","value#type","n","#last_type","#logicinner_tmp","#typeswitch_tmp1"],
     constr: 1,
   };
   this.__Number_prototype_toString = {
