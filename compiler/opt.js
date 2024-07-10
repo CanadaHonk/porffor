@@ -4,6 +4,37 @@ import { read_signedLEB128, read_ieee754_binary64 } from './encoding.js';
 import { log } from './log.js';
 import Prefs from './prefs.js';
 
+const hasType = (funcs, pages, type) => {
+  switch (type) {
+    case 'Array':
+      return pages.hasArray;
+    case 'String':
+      return pages.hasString;
+    case 'ByteString':
+      return pages.hasByteString;
+
+    case 'Map':
+    case 'Set':
+    case 'WeakMap':
+    case 'WeakSet':
+    case 'WeakRef':
+    case 'Date':
+    case 'Uint8Array':
+    case 'Int8Array':
+    case 'Uint8ClampedArray':
+    case 'Uint16Array':
+    case 'Int16Array':
+    case 'Uint32Array':
+    case 'Int32Array':
+    case 'Float32Array':
+    case 'Float64Array':
+      return funcs.some(x => x.name === type);
+
+    default:
+      return true;
+  }
+}
+
 export default (funcs, globals, pages, tags, exceptions) => {
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
   if (optLevel === 0) return;
@@ -176,13 +207,13 @@ export default (funcs, globals, pages, tags, exceptions) => {
         if (inst[0] === Opcodes.if && typeof inst[2] === 'string' && Prefs.rmUnusedTypes) {
           // remove unneeded typeswitch checks
 
-          const type = inst[2].split('|')[1];
-          let missing = false;
-          if (type === 'Array') missing = !pages.hasArray;
-          if (type === 'String') missing = !pages.hasString;
-          if (type === 'ByteString') missing = !pages.hasByteString;
-          if (['Set', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array'].includes(type)) {
-            missing = funcs.find(x => x.name === type) == null;
+          const types = inst[2].split('|')[1].split(',');
+          let missing = true;
+          for (const type of types) {
+            if (hasType(funcs, pages, type)) {
+              missing = false;
+              break;
+            }
           }
 
           if (missing) {
@@ -196,11 +227,12 @@ export default (funcs, globals, pages, tags, exceptions) => {
               }
             }
 
-            wasm.splice(i - 3, 4 + j - i); // remove cond and this if
-            i -= 4;
+            const offset = 3 + 4 * (types.length - 1);
+            wasm.splice(i - offset, j - (i - offset) + 1); // remove cond and this if
+            i -= 1 + offset;
             inst = wasm[i];
 
-            if (Prefs.optLog) log('opt', `removed unneeded typeswitch check`);
+            if (Prefs.optLog) log('opt', `removed unneeded typeswitch check (${types})`);
           }
         }
 
