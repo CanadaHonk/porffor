@@ -2896,7 +2896,7 @@ const generateVar = (scope, decl) => {
   const topLevel = scope.name === 'main';
 
   // global variable if in top scope (main) or if internally wanted
-  const global = topLevel || decl._bare;
+  const global = decl._global ?? (topLevel || decl._bare);
 
   for (const x of decl.declarations) {
     if (x.id.type === 'ArrayPattern') {
@@ -2986,7 +2986,8 @@ const generateVar = (scope, decl) => {
             id: { type: 'Identifier', name: tmpName },
             init: x.init
           }],
-          kind: decl.kind
+          kind: decl.kind,
+          _global: false
         }),
 
         // check tmp is iterable
@@ -3021,7 +3022,6 @@ const generateVar = (scope, decl) => {
       const tmpName = '#destructure' + uniqId();
 
       const properties = [...x.id.properties];
-      // todo: if properties.length == 0 and Porffor.rawType(tmpName) != object, throw a typeerror
       for (const prop of properties) {
         if (prop.type == 'Property') { // let { foo } = {}
           if (prop.value.type === 'AssignmentPattern') { // let { foo = defaultValue } = {}
@@ -3065,8 +3065,28 @@ const generateVar = (scope, decl) => {
             id: { type: 'Identifier', name: tmpName },
             init: x.init
           }],
-          kind: decl.kind
+          kind: decl.kind,
+          _global: false
         }),
+
+        // check tmp is valid object
+        // not undefined or empty type
+        ...typeIsOneOf(getType(scope, tmpName), [ TYPES.undefined, TYPES.empty ]),
+
+        // not null
+        ...getType(scope, tmpName),
+        ...number(TYPES.object, Valtype.i32),
+        [ Opcodes.i32_eq ],
+        [ Opcodes.local_get, scope.locals[tmpName].idx ],
+        ...number(0),
+        [ Opcodes.eq ],
+        [ Opcodes.i32_and ],
+
+        [ Opcodes.i32_or ],
+        [ Opcodes.if, Blocktype.void ],
+          ...internalThrow(scope, 'TypeError', 'Cannot object destructure undefined or null'),
+        [ Opcodes.end ],
+
         ...generateVar(scope, {
           type: 'VariableDeclaration',
           declarations: decls,
