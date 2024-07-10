@@ -60,6 +60,8 @@ export const __ecma262_StringToNumber = (str: unknown): number => {
   // trim whitespace
   str = str.trim();
 
+  if (str.length == 0) return 0;
+
   // check 0x, 0o, 0b prefixes
   const first: i32 = str.charCodeAt(0);
   const second: i32 = str.charCodeAt(1);
