@@ -335,10 +335,15 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
         // this just does local.get via the variable name
         // nice but does not get the value at this moment
         // so breaks some wasm principles :(
-        vals.push(`${invLocals[i[1]]}`);
+        vals.push(`${invLocals[idx]}`);
       } else {
         const id = localTmpId++;
-        line(`const ${invLocalTypes[idx]} _get${id} = ${invLocals[idx]}`);
+
+        const line2 = out.indexOf('{\n') + 2;
+        out = out.slice(0, line2) + `  ${invLocalTypes[idx]} _get${id};\n` + out.slice(line2);
+        // line(`const ${invLocalTypes[idx]} _get${id} = ${invLocals[idx]}`);
+
+        line(`_get${id} = ${invLocals[idx]}`);
         vals.push(`_get${id}`);
       }
     };
