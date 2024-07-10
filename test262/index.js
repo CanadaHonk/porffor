@@ -362,11 +362,9 @@ if (isMainThread) {
   const debugAsserts = process.argv.includes('--debug-asserts');
   const subdirs = process.argv.includes('--subdirs');
 
+  const script = new vm.Script('$func()');
   const timeout = ($func, timeout) => {
-    // if (globalThis.Bun || globalThis.Deno) throw { code: 'ERR_SCRIPT_EXECUTION_TIMEOUT' };
-
-    const script = new vm.Script('$func()');
-    return script.runInNewContext({ $func }, { timeout });
+    return script.runInContext({ $func }, { timeout });
   };
 
   const totalTests = tests.length;
