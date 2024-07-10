@@ -2905,7 +2905,6 @@ const generateVar = (scope, decl) => {
 
       let i = 0;
       const elements = [...x.id.elements];
-      // todo: if elements.length == 0 and Porffor.rawType(tmpName) is not iterable, throw a typeerror
       for (const e of elements) {
         switch (e?.type) {
           case 'RestElement': { // let [ ...foo ] = []
@@ -2958,9 +2957,9 @@ const generateVar = (scope, decl) => {
             break;
           }
 
-          case 'ArrayPattern': // let [ [ foo, bar ] ] = []
+          case 'ArrayPattern': // let [ [ foo, bar ] ] = [ [ 2, 4 ] ]
           case 'Identifier': // let [ foo ] = []
-          case 'ObjectPattern': { // let [ { foo } ] = []
+          case 'ObjectPattern': { // let [ { foo } ] = [ { foo: true } ]
             decls.push({
               type: 'VariableDeclarator',
               id: e,
@@ -2989,6 +2988,24 @@ const generateVar = (scope, decl) => {
           }],
           kind: decl.kind
         }),
+
+        // check tmp is iterable
+        // array or string or bytestring
+        ...typeIsOneOf(getType(scope, tmpName), [ TYPES.array, TYPES.string, TYPES.bytestring ]),
+        // typed array
+        ...getType(scope, tmpName),
+        ...number(TYPES.uint8array, Valtype.i32),
+        [ Opcodes.i32_ge_s ],
+        ...getType(scope, tmpName),
+        ...number(TYPES.float64array, Valtype.i32),
+        [ Opcodes.i32_le_s ],
+        [ Opcodes.i32_and ],
+        [ Opcodes.i32_or ],
+        [ Opcodes.i32_eqz ],
+        [ Opcodes.if, Blocktype.void ],
+          ...internalThrow(scope, 'TypeError', 'Cannot array destructure a non-iterable'),
+        [ Opcodes.end ],
+
         ...generateVar(scope, {
           type: 'VariableDeclaration',
           declarations: decls,
