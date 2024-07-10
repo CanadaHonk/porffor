@@ -364,7 +364,7 @@ if (isMainThread) {
 
   const script = new vm.Script('$func()');
   const timeout = ($func, timeout) => {
-    return script.runInContext({ $func }, { timeout });
+    return script.runInNewContext({ $func }, { timeout });
   };
 
   const totalTests = tests.length;
