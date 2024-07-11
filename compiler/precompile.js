@@ -216,7 +216,10 @@ ${funcs.map(x => {
 
   const locals = Object.entries(x.locals).sort((a,b) => a[1].idx - b[1].idx)
 
-  return `  this.${x.name} = {
+  // todo: check for other identifier unsafe characters
+  const name = x.name.includes('#') ? `['${x.name}']` : `.${x.name}`;
+
+  return `  this${name} = {
     wasm: ${rewriteWasm(x.wasm)},
     params: ${JSON.stringify(x.params)}, typedParams: 1,
     returns: ${JSON.stringify(x.returns)}, ${x.returnType != null ? `returnType: ${JSON.stringify(x.returnType)}` : 'typedReturns: 1'},
