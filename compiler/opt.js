@@ -146,7 +146,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
         inst = [ ...inst ];
         wasm[i] = inst;
 
-        // if we're on the last past
+        // if we're on the last pass
         if (runs == 0 && inst[0] == Opcodes.call) {
           called.add(inst[1]);
         }

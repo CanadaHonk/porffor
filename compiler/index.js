@@ -122,6 +122,7 @@ export default (code, flags) => {
         if (x.includes && !done.has(x.name)) {
           done.add(x.name);
           for (const y of x.includes) {
+            if (funcsByName[y] === undefined) continue;
             out[1].push(run(funcsByName[y], done));
           }
         }
