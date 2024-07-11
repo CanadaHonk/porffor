@@ -159,7 +159,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
           __Porffor_printString(x);
 
           printStatic(': ');
-          __Porffor_print(arg[x]);
+          __Porffor_print(Porffor.object.get(arg, x));
 
           if (i != len) printStatic(',\n');
         }
@@ -174,9 +174,8 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       return;
 
     case Porffor.TYPES.function:
-      // todo: this actually doesn't work because we don't have function name information at runtime
       printStatic('[Function ');
-      __Porffor_printString(arg.name);
+      __Porffor_printString(__Porffor_funcLut_name(arg));
       printStatic(']');
       return;
 
@@ -271,11 +270,11 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
     case Porffor.TYPES.dataview:
       printStatic('DataView {\n');
       printStatic('  byteLength: ');
-      __Porffor_print(arg.byteLength, colors);
+      __Porffor_print(__DataView_prototype_byteLength$get(arg), colors);
       printStatic(',\n  byteOffset: ');
-      __Porffor_print(arg.byteOffset, colors);
+      __Porffor_print(__DataView_prototype_byteOffset$get(arg), colors);
       printStatic(',\n  buffer: ');
-      __Porffor_print(arg.buffer, colors);
+      __Porffor_print(__DataView_prototype_buffer$get(arg), colors);
       printStatic('\n}');
       return;
 
@@ -313,7 +312,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       printStatic(') { ');
 
       for (let i: i32 = 0; i <= setLen; i++) {
-        __Porffor_print(set[i], colors);
+        __Porffor_print(Porffor.set.read(set, i), colors);
         if (i != setLen) printStatic(', ');
       }
 
