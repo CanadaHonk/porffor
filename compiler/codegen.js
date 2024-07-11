@@ -2976,16 +2976,12 @@ const generateVar = (scope, decl) => {
               type: 'VariableDeclarator',
               id: e.left,
               init: {
-                type: 'LogicalExpression',
-                operator: '??',
-                left: {
-                  type: 'MemberExpression',
-                  object: { type: 'Identifier', name: tmpName },
-                  property: { type: 'Literal', value: i },
-                  computed: true
-                },
-                right: e.right
-              }
+                type: 'MemberExpression',
+                object: { type: 'Identifier', name: tmpName },
+                property: { type: 'Literal', value: i },
+                computed: true
+              },
+              _default: e.right
             });
 
             break;
@@ -3018,7 +3014,8 @@ const generateVar = (scope, decl) => {
           declarations: [{
             type: 'VariableDeclarator',
             id: { type: 'Identifier', name: tmpName },
-            init: x.init
+            init: x.init,
+            _default: x._default
           }],
           kind: decl.kind,
           _global: false
@@ -3063,16 +3060,12 @@ const generateVar = (scope, decl) => {
               type: 'VariableDeclarator',
               id: prop.value.left,
               init: {
-                type: 'LogicalExpression',
-                operator: '??',
-                left: {
-                  type: 'MemberExpression',
-                  object: { type: 'Identifier', name: tmpName },
-                  property: prop.key,
-                  computed: prop.computed
-                },
-                right: prop.value.right
-              }
+                type: 'MemberExpression',
+                object: { type: 'Identifier', name: tmpName },
+                property: prop.key,
+                computed: prop.computed
+              },
+              _default: prop.value.right
             });
           } else {
             decls.push({
@@ -3097,7 +3090,8 @@ const generateVar = (scope, decl) => {
           declarations: [{
             type: 'VariableDeclarator',
             id: { type: 'Identifier', name: tmpName },
-            init: x.init
+            init: x.init,
+            _default: x._default
           }],
           kind: decl.kind,
           _global: false
@@ -3178,6 +3172,17 @@ const generateVar = (scope, decl) => {
       }
 
       out = out.concat(newOut);
+
+      if (x._default) {
+        out.push(
+          ...typeIsOneOf(getType(scope, name), [ TYPES.undefined, TYPES.empty ]),
+          [ Opcodes.if, Blocktype.void ],
+            ...generate(scope, x._default, global, name),
+            [ global ? Opcodes.global_set : Opcodes.local_set, idx ],
+            ...setType(scope, name, getNodeType(scope, x._default)),
+          [ Opcodes.end ],
+        );
+      }
 
       if (globalThis.precompile && global) {
         scope.globalInits ??= {};
