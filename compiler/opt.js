@@ -451,17 +451,29 @@ export default (funcs, globals, pages, tags, exceptions) => {
   if (Prefs.removeUncalledFuncs) {
     const newIdx = new Map();
     const imports = importedFuncs.length
-    let currentIdx = imports;
-    let funcLen = funcs.length
-    for (let i = 0; i < funcLen; i++) {
-      const f = funcs[i];
+    let runs = (+Prefs.uncalledFuncsRuns) || 1;
+    while (runs > 0) {
+      runs--;
 
-      if (!f.export && !f.likelyIndirect && !called.has(f.index)) {
-        funcs.splice(i, 1);
-        i--;
-        funcLen--;
-      } else {
-        newIdx.set(f.index, currentIdx++);
+      let currentIdx = imports;
+      for (let i = 0; i < funcs.length; i++) {
+        const f = funcs[i];
+
+        if (!f.export && !f.likelyIndirect && !called.has(f.index)) {
+          funcs.splice(i, 1);
+          i--;
+        } else {
+          if (runs == 0) newIdx.set(f.index, currentIdx++);
+        }
+      }
+
+      called.clear()
+      for (const f of funcs) {
+        for (const inst of f.wasm) {
+          if (inst[0] == Opcodes.call) {
+            called.add(inst[1]);
+          }
+        }
       }
     }
 
