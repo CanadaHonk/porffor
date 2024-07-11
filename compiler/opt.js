@@ -4,7 +4,11 @@ import { read_signedLEB128, read_ieee754_binary64 } from './encoding.js';
 import { log } from './log.js';
 import Prefs from './prefs.js';
 
-const hasType = (funcs, pages, type) => {
+const removedTypes = new Set(Prefs.forceRemoveTypes ? Prefs.forceRemoveTypes.split(','): [])
+
+const hasType = (funcs, pages, type, optLevel) => {
+  if (removedTypes.has(type)) return false;
+
   switch (type) {
     case 'Array':
       return pages.hasArray;
