@@ -128,7 +128,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
   // const tagUse = tags.reduce((acc, x) => { acc[x.idx] = 0; return acc; }, {});
   // const exceptionUse = exceptions.reduce((acc, _, i) => { acc[i] = 0; return acc; }, {});
 
-  const called = new Set();
+  const called = new Map();
 
   // wasm transform pass
   for (const f of funcs) {
@@ -148,7 +148,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
         // if we're on the last pass
         if (runs == 0 && inst[0] == Opcodes.call) {
-          called.add(inst[1]);
+          called.set(inst[1], (called.get(inst[1]) ?? 0) + 1);
         }
 
         // if (inst[0] === Opcodes.throw) {
@@ -460,6 +460,15 @@ export default (funcs, globals, pages, tags, exceptions) => {
         const f = funcs[i];
 
         if (!f.export && !f.likelyIndirect && !called.has(f.index)) {
+          for (const inst of f.wasm) {
+            if (inst[0] == Opcodes.call) {
+              const val = called.get(inst[1]) - 1;
+
+              if (val == 0) called.delete(inst[1])
+                else called.set(inst[1], val);
+            }
+          }
+
           funcs.splice(i, 1);
           i--;
         } else {
@@ -467,11 +476,13 @@ export default (funcs, globals, pages, tags, exceptions) => {
         }
       }
 
-      called.clear()
-      for (const f of funcs) {
-        for (const inst of f.wasm) {
-          if (inst[0] == Opcodes.call) {
-            called.add(inst[1]);
+      if (runs != 0) {
+        called.clear()
+        for (const f of funcs) {
+          for (const inst of f.wasm) {
+            if (inst[0] == Opcodes.call) {
+              called.set(inst[1], (called.get(inst[1]) ?? 0) + 1);
+            }
           }
         }
       }
