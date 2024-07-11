@@ -312,7 +312,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       printStatic(') { ');
 
       for (let i: i32 = 0; i <= setLen; i++) {
-        __Porffor_print(Porffor.set.read(set, i), colors);
+        __Porffor_print(set[i], colors);
         if (i != setLen) printStatic(', ');
       }
 
