@@ -4971,6 +4971,8 @@ const toPropertyKey = (scope, i32Conv = false) => [
 ];
 
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
+  pages.hasObject = true;
+
   const out = [
     [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ]
   ];

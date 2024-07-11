@@ -16,6 +16,10 @@ const hasType = (funcs, pages, type, optLevel) => {
       return pages.hasString;
     case 'ByteString':
       return pages.hasByteString;
+    case 'Object':
+      // note: should be relatively safe if you're writing simple js, but if you're doing complex things, no
+      if (optLevel <= 2) return true;
+      return pages.hasObject || funcs.some(x => x.name === type);
 
     case 'Map':
     case 'Set':
@@ -214,7 +218,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           const types = inst[2].split('|')[1].split(',');
           let missing = true;
           for (const type of types) {
-            if (hasType(funcs, pages, type)) {
+            if (hasType(funcs, pages, type, optLevel)) {
               missing = false;
               break;
             }
