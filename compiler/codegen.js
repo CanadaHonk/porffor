@@ -3284,7 +3284,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const op = decl.operator.slice(0, -1) || '=';
 
   // hack: .length setter
-  if (decl.left.type === 'MemberExpression' && decl.left.property.name === 'length') {
+  if (type === 'MemberExpression' && decl.left.property.name === 'length') {
     const newValueTmp = localTmp(scope, '__length_setter_tmp');
     const pointerTmp = op === '=' ? null : localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
@@ -3308,7 +3308,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   }
 
   // arr[i]
-  if (decl.left.type === 'MemberExpression') {
+  if (type === 'MemberExpression') {
     const newValueTmp = localTmp(scope, '#member_setter_val_tmp');
     const pointerTmp = localTmp(scope, '#member_setter_ptr_tmp', Valtype.i32);
 
@@ -3564,13 +3564,21 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     ];
   }
 
-  if (!name) return todo(scope, 'destructuring is not supported yet', true);
-
   if (local === undefined) {
     // todo: this should be a sloppy mode only thing
 
     // only allow = for this
     if (op !== '=') return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
+
+    if (type != 'Identifier') {
+      const tmpName = '#rhs' + uniqId();
+      return [
+        ...generateVarDstr(scope, 'const', tmpName, decl.right, undefined, true),
+        ...generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true),
+        ...generate(scope, { type: 'Identifier', name: tmpName }),
+        ...setLastType(scope, getNodeType(scope, decl.right))
+      ]
+    }
 
     if (Object.hasOwn(builtinVars, name)) {
       // just return rhs (eg `NaN = 2`)
@@ -3579,7 +3587,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     // set global and return (eg a = 2)
     return [
-      ...generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name }, init: decl.right } ] }),
+      ...generateVarDstr(scope, 'var', name, decl.right, undefined, true),
       ...generate(scope, decl.left)
     ];
   }
