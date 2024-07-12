@@ -825,9 +825,37 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
   ];
 };
 
-const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
+const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode = undefined) => {
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
+
+  const def = (truthyMode => {
+    if (truthyMode === 'full') return [
+      // if value == 0 or NaN
+      ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
+      ...(intIn ? [] : [ Opcodes.i32_to ]),
+
+      [ Opcodes.i32_eqz ],
+
+      ...(intOut ? [] : [ Opcodes.i32_from ]),
+    ];
+
+    if (truthyMode === 'no_negative') return [
+      // if value == 0 or NaN, non-binary output. negative numbers not truthy :/
+      ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
+      ...(intIn ? [] : [ Opcodes.i32_to ]),
+      [ Opcodes.i32_eqz ],
+      ...(intOut ? [] : [ Opcodes.i32_from ])
+    ];
+
+    if (truthyMode === 'no_nan_negative') return [
+      // simpler and faster but makes NaN truthy and negative numbers not truthy,
+      // plus non-binary output
+      ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
+      ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
+      ...(intOut ? [] : [ Opcodes.i32_from_u ])
+    ];
+  })(forceTruthyMode ?? Prefs.truthy ?? 'full');
 
   return [
     ...wasm,
@@ -856,13 +884,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false) => {
         [ Opcodes.i32_eqz ],
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ],
-      default: [
-        // if value == 0
-        ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
-
-        ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
-        ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ]
+      default: def
     }, intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
@@ -3647,7 +3669,7 @@ const generateUnary = (scope, decl) => {
       const arg = decl.argument;
       if (arg.type === 'UnaryExpression' && arg.operator === '!') {
         // opt: !!x -> is x truthy
-        return truthy(scope, generate(scope, arg.argument), getNodeType(scope, arg.argument), false, false);
+        return truthy(scope, generate(scope, arg.argument), getNodeType(scope, arg.argument), false, false, 'full');
       }
 
       // !=
