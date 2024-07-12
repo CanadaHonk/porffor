@@ -573,7 +573,7 @@ export const __Object_defineProperty = (target: any, prop: any, descriptor: any)
       set ??= existingDesc.set;
     } else {
       value ??= existingDesc.value;
-      writable ??= existingDesc.value;
+      writable ??= existingDesc.writable;
     }
   }
 
