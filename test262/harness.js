@@ -255,15 +255,12 @@ function floatTypedArrayConstructorPrecision(FA) {
 
 /// propertyHelper.js
 function isConfigurable(obj, name) {
-  try {
-    delete obj[name];
-  } catch {}
-
-  return !Object.hasOwn(obj, name);
+  if (Object.hasOwn(obj, name)) return Object.getOwnPropertyDescriptor(obj, name).configurable;
+  return true;
 }
 
 function isEnumerable(obj, name) {
-  return Object.hasOwn(obj, name) && obj.propertyIsEnumerable(name);
+  return Object.hasOwn(obj, name) && Object.getOwnPropertyDescriptor(obj, name).enumerable;
 }
 
 function isSameValue(a, b) {
@@ -274,6 +271,9 @@ function isSameValue(a, b) {
 }
 
 function isWritable(obj, name, verifyProp, value) {
+  if (Object.hasOwn(obj, name) && Object.getOwnPropertyDescriptor(obj, name).writable != null) return Object.getOwnPropertyDescriptor(obj, name).writable;
+  if (!Object.hasOwn(obj, name) && Object.isExtensible(obj)) return true;
+
   var unlikelyValue = Array.isArray(obj) && name === "length" ?
     Math.pow(2, 32) - 1 :
     "unlikelyValue";
