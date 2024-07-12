@@ -358,7 +358,12 @@ const generateIdent = (scope, decl) => {
 
     if (local?.idx === undefined) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
-    return [ [ Opcodes.local_get, local.idx ] ];
+    return [
+      [ Opcodes.local_get, local.idx ],
+      // todo: no support for i64
+      ...(valtypeBinary === Valtype.f64 && local.type === Valtype.i32 ? [ Opcodes.i32_from_u ] : []),
+      ...(valtypeBinary === Valtype.i32 && local.type === Valtype.f64 ? [ Opcodes.i32_to_u ] : [])
+    ];
   };
 
   return lookup(decl.name);
