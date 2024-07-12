@@ -3943,6 +3943,23 @@ const generateForOf = (scope, decl) => {
     ...number(0, Valtype.i32),
     [ Opcodes.local_set, counter ],
 
+    // check tmp is iterable
+    // array or string or bytestring
+    ...typeIsOneOf(iterType, [ TYPES.array, TYPES.set, TYPES.string, TYPES.bytestring ]),
+    // typed array
+    ...iterType,
+    ...number(TYPES.uint8array, Valtype.i32),
+    [ Opcodes.i32_ge_s ],
+    ...iterType,
+    ...number(TYPES.float64array, Valtype.i32),
+    [ Opcodes.i32_le_s ],
+    [ Opcodes.i32_and ],
+    [ Opcodes.i32_or ],
+    [ Opcodes.i32_eqz ],
+    [ Opcodes.if, Blocktype.void ],
+      ...internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`),
+    [ Opcodes.end ],
+
     // get length
     [ Opcodes.local_get, pointer ],
     [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
@@ -4267,6 +4284,7 @@ const generateForOf = (scope, decl) => {
       ]
     }),
 
+    // note: should be impossible to reach?
     default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
   }, Blocktype.void));
 
@@ -4302,6 +4320,14 @@ const generateForIn = (scope, decl) => {
     // set counter as 0 (could be already used)
     ...number(0, Valtype.i32),
     [ Opcodes.local_set, counter ],
+
+    ...iterType,
+    ...number(TYPES.object, Valtype.i32),
+    [ Opcodes.i32_eq ],
+    [ Opcodes.i32_eqz ],
+    [ Opcodes.if, Blocktype.void ],
+      ...internalThrow(scope, 'TypeError', `Tried for..in on unsupported type`),
+    [ Opcodes.end ],
 
     // get length
     [ Opcodes.local_get, pointer ],
@@ -4394,6 +4420,7 @@ const generateForIn = (scope, decl) => {
     ],
 
     // todo: use Object.keys as fallback
+    // should be unreachable?
     default: internalThrow(scope, 'TypeError', `Tried for..in on unsupported type`)
   }, Blocktype.void));
 
