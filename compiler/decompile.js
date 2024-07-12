@@ -24,7 +24,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
   if (name) out += `${name}(${ind}) ${makeSignature(params, returns, locals)}\n`;
 
   const justLocals = Object.values(locals).sort((a, b) => a.idx - b.idx).slice(params.length);
-  for (const x of justLocals) {
+  if (name) for (const x of justLocals) {
     out += `;; local ${invLocals[x.idx]}(${x.idx}): ${invValtype[x.type]}\n`
   }
 
