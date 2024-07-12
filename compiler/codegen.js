@@ -2192,6 +2192,11 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
 
     if (Object.keys(protoBC).length > 0) {
+      let def = internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`);
+
+      // fallback to object prototype impl as a basic prototype chain hack
+      if (protoBC[TYPES.object]) def = protoBC[TYPES.object];
+
       return [
         ...out,
 
@@ -2199,7 +2204,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           ...protoBC,
 
           // TODO: error better
-          default: internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
+          default: def
         }, valtypeBinary)
       ];
     }
