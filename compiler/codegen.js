@@ -3005,263 +3005,69 @@ const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType
   return out;
 };
 
-const generateVar = (scope, decl) => {
-  let out = [];
-
+const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   const topLevel = scope.name === 'main';
 
-  // global variable if in top scope (main) or if internally wanted
-  const global = decl._global ?? (topLevel || decl._bare);
+  if (typeof pattern === 'string') {
+    pattern = { type: 'Identifier', name: pattern };
+  }
 
-  for (const x of decl.declarations) {
-    if (x.id.type === 'ArrayPattern') {
-      const decls = [];
-      const tmpName = '#destructure' + uniqId();
+  if (pattern.type === 'Identifier') {
+    let out = [];
+    const name = mapName(pattern.name);
 
-      let i = 0;
-      const elements = [...x.id.elements];
-      for (const e of elements) {
-        switch (e?.type) {
-          case 'RestElement': { // let [ ...foo ] = []
-            if (e.argument.type === 'ArrayPattern') {
-              // let [ ...[a, b, c] ] = []
-              elements.push(...e.argument.elements);
-            } else {
-              decls.push({
-                type: 'VariableDeclarator',
-                id: { type: 'Identifier', name: e.argument.name },
-                init: {
-                  type: 'CallExpression',
-                  callee: {
-                    type: 'Identifier',
-                    name: '__Array_prototype_slice'
-                  },
-                  arguments: [
-                    { type: 'Identifier', name: tmpName },
-                    { type: 'Literal', value: i },
-                    {
-                      type: 'MemberExpression',
-                      object: { type: 'Identifier', name: tmpName, },
-                      property: { type: 'Identifier', name: 'length', }
-                    }
-                  ],
-                  _protoInternalCall: true
-                }
-              });
-            }
-
-            continue; // skip i++
-          }
-
-          case 'AssignmentPattern': { // let [ foo = defaultValue ] = []
-            decls.push({
-              type: 'VariableDeclarator',
-              id: e.left,
-              init: {
-                type: 'MemberExpression',
-                object: { type: 'Identifier', name: tmpName },
-                property: { type: 'Literal', value: i },
-                computed: true
-              },
-              _default: e.right
-            });
-
-            break;
-          }
-
-          case 'ArrayPattern': // let [ [ foo, bar ] ] = [ [ 2, 4 ] ]
-          case 'Identifier': // let [ foo ] = []
-          case 'ObjectPattern': { // let [ { foo } ] = [ { foo: true } ]
-            decls.push({
-              type: 'VariableDeclarator',
-              id: e,
-              init: {
-                type: 'MemberExpression',
-                object: { type: 'Identifier', name: tmpName },
-                property: { type: 'Literal', value: i },
-                computed: true
-              }
-            });
-
-            break;
-          }
-        }
-
-        i++;
-      }
-
-      out = out.concat([
-        ...generateVar(scope, {
-          type: 'VariableDeclaration',
-          declarations: [{
-            type: 'VariableDeclarator',
-            id: { type: 'Identifier', name: tmpName },
-            init: x.init,
-            _default: x._default
-          }],
-          kind: decl.kind,
-          _global: false
-        }),
-
-        // check tmp is iterable
-        // array or string or bytestring
-        ...typeIsOneOf(getType(scope, tmpName), [ TYPES.array, TYPES.string, TYPES.bytestring ]),
-        // typed array
-        ...getType(scope, tmpName),
-        ...number(TYPES.uint8array, Valtype.i32),
-        [ Opcodes.i32_ge_s ],
-        ...getType(scope, tmpName),
-        ...number(TYPES.float64array, Valtype.i32),
-        [ Opcodes.i32_le_s ],
-        [ Opcodes.i32_and ],
-        [ Opcodes.i32_or ],
-        [ Opcodes.i32_eqz ],
-        [ Opcodes.if, Blocktype.void ],
-          ...internalThrow(scope, 'TypeError', 'Cannot array destructure a non-iterable'),
-        [ Opcodes.end ],
-
-        ...generateVar(scope, {
-          type: 'VariableDeclaration',
-          declarations: decls,
-          kind: decl.kind
-        })
-      ]);
-
-      continue;
-    }
-
-    if (x.id.type === 'ObjectPattern') {
-      const decls = [];
-      const tmpName = '#destructure' + uniqId();
-
-      const properties = [...x.id.properties];
-      for (const prop of properties) {
-        if (prop.type == 'Property') { // let { foo } = {}
-          if (prop.value.type === 'AssignmentPattern') { // let { foo = defaultValue } = {}
-            decls.push({
-              type: 'VariableDeclarator',
-              id: prop.value.left,
-              init: {
-                type: 'MemberExpression',
-                object: { type: 'Identifier', name: tmpName },
-                property: prop.key,
-                computed: prop.computed
-              },
-              _default: prop.value.right
-            });
-          } else {
-            decls.push({
-              type: 'VariableDeclarator',
-              id: prop.value,
-              init: {
-                type: 'MemberExpression',
-                object: { type: 'Identifier', name: tmpName },
-                property: prop.key,
-                computed: prop.computed
-              }
-            });
-          }
-        } else { // let { ...foo } = {}
-          return todo(scope, 'object rest destructuring is not supported yet')
-        }
-      }
-
-      out = out.concat([
-        ...generateVar(scope, {
-          type: 'VariableDeclaration',
-          declarations: [{
-            type: 'VariableDeclarator',
-            id: { type: 'Identifier', name: tmpName },
-            init: x.init,
-            _default: x._default
-          }],
-          kind: decl.kind,
-          _global: false
-        }),
-
-        // check tmp is valid object
-        // not undefined or empty type
-        ...typeIsOneOf(getType(scope, tmpName), [ TYPES.undefined, TYPES.empty ]),
-
-        // not null
-        ...getType(scope, tmpName),
-        ...number(TYPES.object, Valtype.i32),
-        [ Opcodes.i32_eq ],
-        [ Opcodes.local_get, scope.locals[tmpName].idx ],
-        ...number(0),
-        [ Opcodes.eq ],
-        [ Opcodes.i32_and ],
-
-        [ Opcodes.i32_or ],
-        [ Opcodes.if, Blocktype.void ],
-          ...internalThrow(scope, 'TypeError', 'Cannot object destructure undefined or null'),
-        [ Opcodes.end ],
-
-        ...generateVar(scope, {
-          type: 'VariableDeclaration',
-          declarations: decls,
-          kind: decl.kind
-        })
-      ]);
-
-      continue;
-    }
-
-    const name = mapName(x.id.name);
-    if (!name) return todo(scope, `variable declarators of type ${x.id.type} are not supported yet`)
-
-    if (x.init && isFuncType(x.init.type)) {
+    if (init && isFuncType(init.type)) {
       // hack for let a = function () { ... }
-      if (!x.init.id) {
-        x.init.id = { name };
-        generateFunc(scope, x.init);
-        continue;
+      if (!init.id) {
+        init.id = { name };
+        generateFunc(scope, init);
+        return out;
       }
     }
 
     if (topLevel && Object.hasOwn(builtinVars, name)) {
       // cannot redeclare
-      if (decl.kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
+      if (kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
 
-      continue; // always ignore
+      return out; // always ignore
     }
 
     // // generate init before allocating var
     // let generated;
-    // if (x.init) generated = generate(scope, x.init, global, name);
+    // if (init) generated = generate(scope, init, global, name);
 
-    const typed = typedInput && x.id.typeAnnotation;
-    let idx = allocVar(scope, name, global, !(typed && extractTypeAnnotation(x.id).type != null));
+    const typed = typedInput && pattern.typeAnnotation;
+    let idx = allocVar(scope, name, global, !(typed && extractTypeAnnotation(pattern).type != null));
 
     if (typed) {
-      addVarMetadata(scope, name, global, extractTypeAnnotation(x.id));
+      addVarMetadata(scope, name, global, extractTypeAnnotation(pattern));
     }
 
-    if (x.init) {
+    if (init) {
       const alreadyArray = scope.arrays?.get(name) != null;
 
-      let newOut = generate(scope, x.init, global, name);
+      let newOut = generate(scope, init, global, name);
       if (!alreadyArray && scope.arrays?.get(name) != null) {
         // hack to set local as pointer before
         newOut.unshift(...number(scope.arrays.get(name)), [ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
         if (newOut.at(-1) == Opcodes.i32_from_u) newOut.pop();
         newOut.push(
           [ Opcodes.drop ],
-          ...setType(scope, name, getNodeType(scope, x.init))
+          ...setType(scope, name, getNodeType(scope, init))
         );
       } else {
-        newOut = setLocalWithType(scope, name, global, newOut, false, getNodeType(scope, x.init));
+        newOut = setLocalWithType(scope, name, global, newOut, false, getNodeType(scope, init));
       }
 
       out = out.concat(newOut);
 
-      if (x._default) {
+      if (defaultValue) {
         out.push(
           ...typeIsOneOf(getType(scope, name), [ TYPES.undefined, TYPES.empty ]),
           [ Opcodes.if, Blocktype.void ],
-            ...generate(scope, x._default, global, name),
+            ...generate(scope, defaultValue, global, name),
             [ global ? Opcodes.global_set : Opcodes.local_set, idx ],
-            ...setType(scope, name, getNodeType(scope, x._default)),
+            ...setType(scope, name, getNodeType(scope, defaultValue)),
           [ Opcodes.end ],
         );
       }
@@ -3271,6 +3077,174 @@ const generateVar = (scope, decl) => {
         scope.globalInits[name] = newOut;
       }
     }
+
+    return out;
+  }
+
+  if (pattern.type === 'ArrayPattern') {
+    const decls = [];
+    const tmpName = '#destructure' + uniqId();
+    let out = generateVarDstr(scope, 'const', tmpName, init, defaultValue, false);
+
+    let i = 0;
+    const elements = [...pattern.elements];
+    for (const e of elements) {
+      switch (e?.type) {
+        case 'RestElement': { // let [ ...foo ] = []
+          if (e.argument.type === 'ArrayPattern') {
+            // let [ ...[a, b, c] ] = []
+            elements.push(...e.argument.elements);
+          } else {
+            decls.push(
+              ...generateVarDstr(scope, kind, e.argument.name, {
+                type: 'CallExpression',
+                callee: {
+                  type: 'Identifier',
+                  name: '__Array_prototype_slice'
+                },
+                arguments: [
+                  { type: 'Identifier', name: tmpName },
+                  { type: 'Literal', value: i },
+                  {
+                    type: 'MemberExpression',
+                    object: { type: 'Identifier', name: tmpName, },
+                    property: { type: 'Identifier', name: 'length', }
+                  }
+                ],
+                _protoInternalCall: true
+              }, undefined, global)
+            );
+          }
+
+          continue; // skip i++
+        }
+
+        case 'AssignmentPattern': { // let [ foo = defaultValue ] = []
+          decls.push(
+            ...generateVarDstr(scope, kind, e.left, {
+              type: 'MemberExpression',
+              object: { type: 'Identifier', name: tmpName },
+              property: { type: 'Literal', value: i },
+              computed: true
+            }, e.right, global)
+          );
+
+          break;
+        }
+
+        case 'ArrayPattern': // let [ [ foo, bar ] ] = [ [ 2, 4 ] ]
+        case 'Identifier': // let [ foo ] = []
+        case 'ObjectPattern': { // let [ { foo } ] = [ { foo: true } ]
+          decls.push(
+            ...generateVarDstr(scope, kind, e, {
+              type: 'MemberExpression',
+              object: { type: 'Identifier', name: tmpName },
+              property: { type: 'Literal', value: i },
+              computed: true
+            }, undefined, global)
+          );
+
+          break;
+        }
+      }
+
+      i++;
+    }
+
+    out = out.concat([
+      // check tmp is iterable
+      // array or string or bytestring
+      ...typeIsOneOf(getType(scope, tmpName), [ TYPES.array, TYPES.string, TYPES.bytestring ]),
+      // typed array
+      ...getType(scope, tmpName),
+      ...number(TYPES.uint8array, Valtype.i32),
+      [ Opcodes.i32_ge_s ],
+      ...getType(scope, tmpName),
+      ...number(TYPES.float64array, Valtype.i32),
+      [ Opcodes.i32_le_s ],
+      [ Opcodes.i32_and ],
+      [ Opcodes.i32_or ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, 'TypeError', 'Cannot array destructure a non-iterable'),
+      [ Opcodes.end ],
+
+      ...decls
+    ]);
+
+    return out;
+  }
+
+  if (pattern.type === 'ObjectPattern') {
+    const decls = [];
+    const tmpName = '#destructure' + uniqId();
+    let out = generateVarDstr(scope, 'const', tmpName, init, defaultValue, false);
+
+    const properties = [...pattern.properties];
+    for (const prop of properties) {
+      if (prop.type == 'Property') { // let { foo } = {}
+        if (prop.value.type === 'AssignmentPattern') { // let { foo = defaultValue } = {}
+          decls.push(
+            ...generateVarDstr(scope, kind, prop.value.left, {
+              type: 'MemberExpression',
+              object: { type: 'Identifier', name: tmpName },
+              property: prop.key,
+              computed: prop.computed
+            }, prop.value.right, global)
+          );
+        } else {
+          decls.push(
+            ...generateVarDstr(scope, kind, prop.value, {
+              type: 'MemberExpression',
+              object: { type: 'Identifier', name: tmpName },
+              property: prop.key,
+              computed: prop.computed
+            }, undefined, global)
+          );
+        }
+      } else { // let { ...foo } = {}
+        return todo(scope, 'object rest destructuring is not supported yet')
+      }
+    }
+
+    out = out.concat([
+      // check tmp is valid object
+      // not undefined or empty type
+      ...typeIsOneOf(getType(scope, tmpName), [ TYPES.undefined, TYPES.empty ]),
+
+      // not null
+      ...getType(scope, tmpName),
+      ...number(TYPES.object, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.local_get, scope.locals[tmpName].idx ],
+      ...number(0),
+      [ Opcodes.eq ],
+      [ Opcodes.i32_and ],
+
+      [ Opcodes.i32_or ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, 'TypeError', 'Cannot object destructure undefined or null'),
+      [ Opcodes.end ],
+
+      ...decls
+    ]);
+
+    return out;
+  }
+
+  return todo(scope, `variable declarators of type ${pattern.type} are not supported yet`);
+}
+
+const generateVar = (scope, decl) => {
+  let out = [];
+
+  const topLevel = scope.name === 'main';
+
+  // global variable if in top scope (main) or if internally wanted
+  const global = decl._global ?? (topLevel || decl._bare);
+
+  for (const x of decl.declarations) {
+    out = out.concat(generateVarDstr(scope, decl.kind, x.id, x.init, undefined, global))
   }
 
   return out;
