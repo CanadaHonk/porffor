@@ -4870,14 +4870,8 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
       // hack: handle allocation for #member_prop's here instead of in several places /shrug
       let shouldGet = true;
       if (name === '#member_prop') {
-        if (!scope._allocatedMemberProp) {
-          out.push(
-            ...number(rawPtr),
-            [ global ? Opcodes.global_set : Opcodes.local_set, local.idx ]
-          );
-
-          scope._allocatedMemberProp = true;
-        }
+        out.push(...number(rawPtr, Valtype.i32));
+        shouldGet = false;
       }
 
       if (name === '#member_prop_assign') {
