@@ -102,6 +102,8 @@ export const __Porffor_object_accessorSet = (entryPtr: i32): Function => {
 
 
 export const __Porffor_object_lookup = (obj: object, target: any): i32 => {
+  if (Porffor.wasm`local.get ${obj}` == 0) return -1;
+
   const targetType: i32 = Porffor.wasm`local.get ${target+1}`;
 
   let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -145,6 +147,8 @@ export const __Porffor_object_lookup = (obj: object, target: any): i32 => {
 };
 
 export const __Porffor_object_get = (obj: any, key: any): any => {
+  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot get property of null');
+
   if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.function) {
     let tmp: bytestring = '';
     tmp = 'name';
@@ -241,6 +245,8 @@ export const __Porffor_object_writeKey = (ptr: i32, key: any): void => {
 };
 
 export const __Porffor_object_set = (obj: object, key: any, value: any): any => {
+  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
+
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   let flags: i32;
   if (entryPtr == -1) {
