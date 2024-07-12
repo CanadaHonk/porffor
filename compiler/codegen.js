@@ -3922,10 +3922,16 @@ const generateForOf = (scope, decl) => {
 
   const out = [];
 
-  // todo: for of inside for of might fuck up?
-  const pointer = localTmp(scope, 'forof_base_pointer', Valtype.i32);
-  const length = localTmp(scope, 'forof_length', Valtype.i32);
-  const counter = localTmp(scope, 'forof_counter', Valtype.i32);
+  let count = 0;
+  for (let i = 0; i < depth.length; i++) {
+    if (depth[i] === 'forof') count++;
+  }
+
+  const iterType = getNodeType(scope, decl.right);
+
+  const pointer = localTmp(scope, '#forof_base_pointer' + count, Valtype.i32);
+  const length = localTmp(scope, '#forof_length' + count, Valtype.i32);
+  const counter = localTmp(scope, '#forof_counter' + count, Valtype.i32);
 
   out.push(
     // set pointer as right
@@ -3950,35 +3956,40 @@ const generateForOf = (scope, decl) => {
   depth.push('block');
   depth.push('block');
 
+  const tmpName = '#forof_tmp' + count;
+  const tmp = localTmp(scope, tmpName, valtypeBinary);
+  localTmp(scope, tmpName + "#type", Valtype.i32);
+
   // setup local for left
-  generate(scope, decl.left);
+  let setVar;
 
-  let leftName = decl.left.declarations?.[0]?.id?.name;
-  if (!leftName && decl.left.name) {
+  if (decl.left.type === 'Identifier') {
     // todo: should be sloppy mode only
-    leftName = decl.left.name;
-
-    generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
+    setVar = generateVarDstr(scope, 'var', decl.left.name, { type: 'Identifier', name: tmpName }, undefined, true);
+  } else {
+    // todo: verify this is correct
+    const global = scope.name === 'main' && decl.left.kind === 'var';
+    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
-  const [ local, isGlobal ] = lookupName(scope, leftName);
-  if (!local) return todo(scope, 'for of failed to get left local (probably destructure)');
 
   // set type for local
   // todo: optimize away counter and use end pointer
-  out.push(...typeSwitch(scope, getNodeType(scope, decl.right), {
+  out.push(...typeSwitch(scope, iterType, {
     [TYPES.array]: [
       [ Opcodes.loop, Blocktype.void ],
 
       [ Opcodes.local_get, pointer ],
       [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
 
-      ...setType(scope, leftName, [
+      [ Opcodes.local_set, tmp ],
+
+      ...setType(scope, tmpName, [
         [ Opcodes.local_get, pointer ],
         [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
       ]),
 
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4007,7 +4018,7 @@ const generateForOf = (scope, decl) => {
     ],
 
     [TYPES.string]: [
-      ...setType(scope, leftName, TYPES.string),
+      ...setType(scope, tmpName, TYPES.string),
 
       // allocate out string
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
@@ -4031,9 +4042,10 @@ const generateForOf = (scope, decl) => {
 
       // return new string (page)
       [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
-      Opcodes.i32_from_u,
+	    Opcodes.i32_from_u,
+      [ Opcodes.local_set, tmp ],
 
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+	  ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4061,7 +4073,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ]
     ],
     [TYPES.bytestring]: [
-      ...setType(scope, leftName, TYPES.bytestring),
+      ...setType(scope, tmpName, TYPES.bytestring),
 
       // allocate out string
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
@@ -4088,8 +4100,9 @@ const generateForOf = (scope, decl) => {
       // return new string (page)
       [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
       Opcodes.i32_from_u,
+      [ Opcodes.local_set, tmp ],
 
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4117,12 +4130,14 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.local_get, pointer ],
       [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
 
-      ...setType(scope, leftName, [
+      [ Opcodes.local_set, tmp ],
+
+      ...setType(scope, tmpName, [
         [ Opcodes.local_get, pointer ],
         [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
       ]),
 
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4218,7 +4233,7 @@ const generateForOf = (scope, decl) => {
       ],
     }, {
       prelude: [
-        ...setType(scope, leftName, TYPES.number),
+        ...setType(scope, tmpName, TYPES.number),
 
         [ Opcodes.loop, Blocktype.void ],
 
@@ -4227,7 +4242,9 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.local_get, counter ]
       ],
       postlude: [
-        [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+        [ Opcodes.local_set, tmp ],
+
+        ...setVar,
 
         [ Opcodes.block, Blocktype.void ],
         [ Opcodes.block, Blocktype.void ],
