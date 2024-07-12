@@ -150,16 +150,16 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       if (arg) {
         Porffor.printStatic('{\n');
 
-        const keys = Object.keys(arg);
-        const len = keys.length - 1;
+        const keys: any[] = Object.keys(arg);
+        const len: i32 = keys.length - 1;
         for (let i: i32 = 0; i <= len; i++) {
-          const x = keys[i];
+          const x: any = keys[i];
 
           Porffor.printStatic('  ');
           __Porffor_printString(x);
 
           Porffor.printStatic(': ');
-          __Porffor_print(arg[x]);
+          __Porffor_print(Porffor.object.get(arg, ecma262.ToPropertyKey(x)));
 
           if (i != len) Porffor.printStatic(',\n');
         }
@@ -174,9 +174,8 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       return;
 
     case Porffor.TYPES.function:
-      // todo: this actually doesn't work because we don't have function name information at runtime
       Porffor.printStatic('[Function ');
-      __Porffor_printString(arg.name);
+      __Porffor_printString(__Porffor_funcLut_name(arg));
       Porffor.printStatic(']');
       return;
 
@@ -271,11 +270,11 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
     case Porffor.TYPES.dataview:
       Porffor.printStatic('DataView {\n');
       Porffor.printStatic('  byteLength: ');
-      __Porffor_print(arg.byteLength, colors);
+      __Porffor_print(__DataView_prototype_byteLength$get(arg), colors);
       Porffor.printStatic(',\n  byteOffset: ');
-      __Porffor_print(arg.byteOffset, colors);
+      __Porffor_print(__DataView_prototype_byteOffset$get(arg), colors);
       Porffor.printStatic(',\n  buffer: ');
-      __Porffor_print(arg.buffer, colors);
+      __Porffor_print(__DataView_prototype_buffer$get(arg), colors);
       Porffor.printStatic('\n}');
       return;
 
@@ -285,13 +284,13 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
         else Porffor.printStatic('Map');
       Porffor.printStatic('(');
 
-      const map = __Map_prototype_keys(arg);
+      const map: any[] = __Map_prototype_keys(arg);
       const mapLen: i32 = map.length - 1;
       print(mapLen + 1);
       Porffor.printStatic(') { ');
 
       for (let i: i32 = 0; i < mapLen; i++) {
-        const key = map[i];
+        const key: any = map[i];
         __Porffor_print(key);
         Porffor.printStatic(' => ');
         __Porffor_print(__Map_prototype_get(arg, key), colors);
@@ -307,7 +306,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
         else Porffor.printStatic('Set');
       Porffor.printStatic('(');
 
-      const set = __Set_prototype_values(arg);
+      const set: any[] = __Set_prototype_values(arg);
       const setLen: i32 = set.length - 1;
       print(setLen + 1);
       Porffor.printStatic(') { ');
