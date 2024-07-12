@@ -1,15 +1,22 @@
 import type {} from './porffor.d.ts';
 
-export const __WeakSet_prototype_has = (_this: WeakSet, value: any) => __Set_prototype_has(_this, value);
+export const __WeakSet_prototype_has = (_this: WeakSet, value: any) => {
+  const set: Set = _this;
+  return __Set_prototype_has(set, value);
+};
 
 export const __WeakSet_prototype_add = (_this: WeakSet, value: any) => {
   if (!Porffor.object.isObjectOrSymbol(value)) throw new TypeError('Value in WeakSet needs to be an object or symbol');
 
-  __Set_prototype_add(_this, value);
+  const set: Set = _this;
+  __Set_prototype_add(set, value);
   return _this;
 };
 
-export const __WeakSet_prototype_delete = (_this: WeakSet, value: any) => __Set_prototype_delete(_this, value);
+export const __WeakSet_prototype_delete = (_this: WeakSet, value: any) => {
+  const set: Set = _this;
+  return __Set_prototype_delete(set, value);
+};
 
 export const WeakSet = function (iterable: any): WeakSet {
   if (!new.target) throw new TypeError("Constructor WeakSet requires 'new'");

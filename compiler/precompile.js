@@ -1,5 +1,5 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
-import { read_unsignedLEB128 } from './encoding.js';
+import { read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
 import { TYPES } from './types.js';
 
 import process from 'node:process';
@@ -151,7 +151,7 @@ const compile = async (file, _funcs) => {
 
 
         if (y[0] === Opcodes.i32_const && n[0] === Opcodes.throw) {
-          const id = y[1];
+          const id = read_signedLEB128(y.slice(1));
           y.splice(0, 10, 'throw', exceptions[id].constructor, exceptions[id].message);
 
           // remove throw inst

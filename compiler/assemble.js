@@ -170,16 +170,21 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       const func = funcs[i];
       let name = func.name;
 
+      // real argc
       let argc = func.params.length;
       if (func.constr) argc -= 4;
       if (!func.internal || func.typedParams) argc = Math.floor(argc / 2);
 
       if (name.startsWith('#')) name = '';
 
-      // hack: argc-- for prototype methods to remove _this hack from count
-      if (name.includes('_prototype_')) argc--;
-
       bytes.push(argc % 256, (argc / 256 | 0) % 256);
+
+      // userland exposed .length
+      let length = argc;
+      // remove _this from internal prototype funcs
+      if (func.internal && name.includes('_prototype_')) length--;
+
+      bytes.push(length % 256, (length / 256 | 0) % 256);
 
       let flags = 0b00000000; // 8 flag bits
       if (func.returnType != null) flags |= 0b01;
@@ -191,7 +196,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
       bytes.push(...new Uint8Array(new Int32Array([ name.length ]).buffer));
 
-      for (let i = 0; i < (128 - 3 - 4); i++) {
+      for (let i = 0; i < (128 - 5 - 4); i++) {
         const c = name.charCodeAt(i);
         bytes.push((c || 0) % 256);
       }

@@ -1976,6 +1976,52 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   let out = [];
   if (protoName) {
+    if (protoName === 'call') {
+      const valTmp = localTmp(scope, '#call_val');
+      const typeTmp = localTmp(scope, '#call_type', Valtype.i32);
+
+      return generateCall(scope, {
+        type: 'CallExpression',
+        callee: target,
+        arguments: decl.arguments.slice(1),
+        _thisWasm: [
+          ...generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+          [ Opcodes.local_tee, valTmp ],
+          ...getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+          [ Opcodes.local_tee, typeTmp ],
+
+          // check not undefined or null
+          // todo: technically this should be allowed sometimes but for now, never
+          ...nullish(scope,
+            [ [ Opcodes.local_get, valTmp ] ],
+            [ [ Opcodes.local_get, typeTmp ] ],
+            false, true),
+          [ Opcodes.if, Blocktype.void ],
+          ...internalThrow(scope, 'TypeError', `Cannot use undefined or null as 'this'`),
+          [ Opcodes.end ],
+        ],
+        _thisWasmComponents: {
+          _callValue: [
+            ...generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+            [ Opcodes.local_tee, valTmp ],
+            ...getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+            [ Opcodes.local_set, typeTmp ],
+
+            // check not undefined or null
+            // todo: technically this should be allowed sometimes but for now, never
+            ...nullish(scope,
+              [ [ Opcodes.local_get, valTmp ] ],
+              [ [ Opcodes.local_get, typeTmp ] ],
+              false, true),
+            [ Opcodes.if, Blocktype.void ],
+              ...internalThrow(scope, 'TypeError', `Cannot use undefined or null as 'this'`),
+            [ Opcodes.end ],
+          ],
+          _callType: [ [ Opcodes.local_get, typeTmp ] ]
+        }
+      });
+    }
+
     if (['search'].includes(protoName)) {
       const regex = decl.arguments[0]?.regex?.pattern;
       if (!regex) return [
@@ -2023,6 +2069,15 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ...getNodeType(scope, target),
         [ Opcodes.local_set, localTmp(scope, '#proto_target#type', Valtype.i32) ],
       );
+
+      if (decl._thisWasm) {
+        // after to still generate original target
+        out.push(
+          ...decl._thisWasm,
+          [ Opcodes.local_set, localTmp(scope, '#proto_target#type', Valtype.i32) ],
+          [ Opcodes.local_set, localTmp(scope, '#proto_target') ]
+        );
+      }
 
       for (const x of builtinProtoCands) {
         const type = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
@@ -2137,7 +2192,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       return [
         ...out,
 
-        ...typeSwitch(scope, builtinProtoCands.length > 0 ? [ [ Opcodes.local_get, localTmp(scope, '#proto_target#type', Valtype.i32) ] ] : getNodeType(scope, target), {
+        ...typeSwitch(scope, getNodeType(scope, target), {
           ...protoBC,
 
           // TODO: error better
@@ -2232,7 +2287,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       let locals = [];
 
       if (indirectMode === 'vararg') {
-        const minArgc = Prefs.indirectCallMinArgc ?? 3;
+        const minArgc = Prefs.indirectCallMinArgc ?? 5;
 
         if (args.length < minArgc) {
           args = args.concat(new Array(minArgc - args.length).fill(DEFAULT_VALUE()));
@@ -2242,14 +2297,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       for (let i = 0; i < args.length; i++) {
         const arg = args[i];
         out = out.concat(generate(scope, arg));
-
-        if (valtypeBinary !== Valtype.i32 && (
-          (builtinFuncs[name] && builtinFuncs[name].params[i * (typedParams ? 2 : 1)] === Valtype.i32) ||
-          (importedFuncs[name] && name.startsWith('profile'))
-        )) {
-          out.push(Opcodes.i32_to);
-        }
-
         out = out.concat(getNodeType(scope, arg));
 
         if (indirectMode === 'vararg') {
@@ -2410,7 +2457,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             [ Opcodes.local_get, funcLocal ],
             ...number(128, Valtype.i32),
             [ Opcodes.i32_mul ],
-            ...number(2, Valtype.i32),
+            ...number(4, Valtype.i32),
             [ Opcodes.i32_add ],
             [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ],
             [ Opcodes.local_set, flags ],
@@ -2479,7 +2526,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   const internalProtoFunc = func && func.internal && func.name.includes('_prototype_');
   if (!globalThis.precompile && internalProtoFunc && !decl._protoInternalCall) {
     // just function called, not as prototype, add this to start
-    args.unshift(decl._thisWasm ?? createThisArg(scope, decl));
+    args.unshift(decl._thisWasmComponents ?? decl._thisWasm ?? createThisArg(scope, decl));
   }
 
   if (func && func.constr) {
@@ -2521,7 +2568,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       continue;
     }
 
-    out = out.concat(generate(scope, arg));
+    out = out.concat(arg._callValue ?? generate(scope, arg));
 
     // todo: this should be used instead of the too many args thing above (by removing that)
     if (i >= paramCount) {
@@ -2542,7 +2589,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       out.push(Opcodes.i32_from);
     }
 
-    if (typedParams) out = out.concat(getNodeType(scope, arg));
+    if (typedParams) out = out.concat(arg._callType ?? getNodeType(scope, arg));
   }
 
   out.push([ Opcodes.call, idx ]);
@@ -2976,16 +3023,12 @@ const generateVar = (scope, decl) => {
               type: 'VariableDeclarator',
               id: e.left,
               init: {
-                type: 'LogicalExpression',
-                operator: '??',
-                left: {
-                  type: 'MemberExpression',
-                  object: { type: 'Identifier', name: tmpName },
-                  property: { type: 'Literal', value: i },
-                  computed: true
-                },
-                right: e.right
-              }
+                type: 'MemberExpression',
+                object: { type: 'Identifier', name: tmpName },
+                property: { type: 'Literal', value: i },
+                computed: true
+              },
+              _default: e.right
             });
 
             break;
@@ -3018,7 +3061,8 @@ const generateVar = (scope, decl) => {
           declarations: [{
             type: 'VariableDeclarator',
             id: { type: 'Identifier', name: tmpName },
-            init: x.init
+            init: x.init,
+            _default: x._default
           }],
           kind: decl.kind,
           _global: false
@@ -3063,16 +3107,12 @@ const generateVar = (scope, decl) => {
               type: 'VariableDeclarator',
               id: prop.value.left,
               init: {
-                type: 'LogicalExpression',
-                operator: '??',
-                left: {
-                  type: 'MemberExpression',
-                  object: { type: 'Identifier', name: tmpName },
-                  property: prop.key,
-                  computed: prop.computed
-                },
-                right: prop.value.right
-              }
+                type: 'MemberExpression',
+                object: { type: 'Identifier', name: tmpName },
+                property: prop.key,
+                computed: prop.computed
+              },
+              _default: prop.value.right
             });
           } else {
             decls.push({
@@ -3097,7 +3137,8 @@ const generateVar = (scope, decl) => {
           declarations: [{
             type: 'VariableDeclarator',
             id: { type: 'Identifier', name: tmpName },
-            init: x.init
+            init: x.init,
+            _default: x._default
           }],
           kind: decl.kind,
           _global: false
@@ -3178,6 +3219,17 @@ const generateVar = (scope, decl) => {
       }
 
       out = out.concat(newOut);
+
+      if (x._default) {
+        out.push(
+          ...typeIsOneOf(getType(scope, name), [ TYPES.undefined, TYPES.empty ]),
+          [ Opcodes.if, Blocktype.void ],
+            ...generate(scope, x._default, global, name),
+            [ global ? Opcodes.global_set : Opcodes.local_set, idx ],
+            ...setType(scope, name, getNodeType(scope, x._default)),
+          [ Opcodes.end ],
+        );
+      }
 
       if (globalThis.precompile && global) {
         scope.globalInits ??= {};
@@ -5043,11 +5095,21 @@ const countParams = (func, name = undefined) => {
   }
   if (func.argc) return func.argc;
 
+  name ??= func.name;
   let params = func.params.length;
   if (func.constr) params -= 4;
-  if (!func.internal || builtinFuncs[func.name]?.typedParams) params = Math.floor(params / 2);
+  if (!builtinFuncs[name] || builtinFuncs[name]?.typedParams) params = Math.floor(params / 2);
 
   return func.argc = params;
+};
+
+const countLength = (func, name = undefined) => {
+  name ??= func.name;
+
+  let count = countParams(func, name);
+  if (builtinFuncs[name] && name.includes('_prototype_')) count--;
+
+  return count;
 };
 
 const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) => {
@@ -5068,9 +5130,9 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     // todo: support optional
 
     const func = funcs.find(x => x.name === name);
-    if (func) return withType(scope, number(countParams(func)), TYPES.number);
+    if (func) return withType(scope, number(countLength(func, name)), TYPES.number);
 
-    if (Object.hasOwn(builtinFuncs, name)) return withType(scope, number(countParams(builtinFuncs[name])), TYPES.number);
+    if (Object.hasOwn(builtinFuncs, name)) return withType(scope, number(countLength(builtinFuncs[name], name)), TYPES.number);
     if (Object.hasOwn(importedFuncs, name)) return withType(scope, number(importedFuncs[name].params.length ?? importedFuncs[name].params), TYPES.number);
     if (Object.hasOwn(internalConstrs, name)) return withType(scope, number(internalConstrs[name].length ?? 0), TYPES.number);
 
@@ -5402,7 +5464,7 @@ const objectHack = node => {
       if (node.computed || node.optional) return;
 
       // hack: block these properties as they can be accessed on functions
-      if (node.property.name == 'length' || node.property.name == 'name') return;
+      if (node.property.name == 'length' || node.property.name == 'name' || node.property.name == 'call') return;
 
       let objectName = node.object.name;
 
@@ -5481,6 +5543,7 @@ const generateFunc = (scope, decl) => {
     }
   }
 
+  const prelude = [];
   const defaultValues = {};
   for (let i = 0; i < params.length; i++) {
     let name;
@@ -5508,7 +5571,27 @@ const generateFunc = (scope, decl) => {
 
     allocVar(func, name, false);
     if (typedInput && params[i].typeAnnotation) {
-      addVarMetadata(func, name, false, extractTypeAnnotation(params[i]));
+      const typeAnno = extractTypeAnnotation(params[i]);
+      addVarMetadata(func, name, false, typeAnno);
+
+      // automatically add throws if unexpected this type to builtins
+      if (globalThis.precompile && i === 0 && func.name.includes('_prototype_') && [
+        TYPES.date, TYPES.number, TYPES.promise, TYPES.symbol,
+        TYPES.set, TYPES.map,
+        TYPES.weakref, TYPES.weakset, TYPES.weakmap,
+        TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
+      ].includes(typeAnno.type)) {
+        prelude.push(
+          [ Opcodes.local_get, i * 2 + 1 ],
+          ...number(typeAnno.type, Valtype.i32),
+          [ Opcodes.i32_ne ],
+          [ Opcodes.if, Blocktype.void ],
+            ...internalThrow(func, 'TypeError', `${unhackName(func.name)} expects 'this' to be a ${TYPE_NAMES[typeAnno.type]}`),
+          [ Opcodes.end ]
+        );
+      }
+
+      // todo: if string, try converting to it to one
     }
   }
 
@@ -5523,7 +5606,6 @@ const generateFunc = (scope, decl) => {
     };
   }
 
-  const prelude = [];
   for (const x in defaultValues) {
     prelude.push(
       ...getType(func, x),
