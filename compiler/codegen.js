@@ -5607,6 +5607,7 @@ const generateFunc = (scope, decl) => {
 
   const prelude = [];
   const defaultValues = {};
+  const destructuredArgs = {};
   for (let i = 0; i < params.length; i++) {
     let name;
     const x = params[i];
@@ -5627,9 +5628,12 @@ const generateFunc = (scope, decl) => {
         func.hasRestArgument = true;
         break;
       }
-    }
 
-    // if (name == null) return todo('non-identifier args are not supported');
+      default:
+        name = '#arg_dstr' + i;
+        destructuredArgs[name] = x;
+        break;
+    }
 
     allocVar(func, name, false);
     if (typedInput && params[i].typeAnnotation) {
@@ -5679,6 +5683,12 @@ const generateFunc = (scope, decl) => {
 
         ...setType(func, x, getNodeType(func, defaultValues[x])),
       [ Opcodes.end ]
+    );
+  }
+
+  for (const x in destructuredArgs) {
+    prelude.push(
+      ...generateVarDstr(func, 'var', destructuredArgs[x], { type: 'Identifier', name: x }, undefined, false)
     );
   }
 
