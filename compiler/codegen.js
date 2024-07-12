@@ -5876,7 +5876,7 @@ const internalConstrs = {
     length: 2
   },
 
-  printStatic: {
+  __Porffor_printStatic: {
     generate: (scope, decl) => {
       const str = decl.arguments[0].value;
       return printStaticStr(str);

@@ -436,8 +436,8 @@ function fnGlobalObject() {
 /// doneprintHandle.js
 function $DONE(error) {
   if (error) {
-    printStatic('Test262:AsyncTestFailure:Error: unknown');
+    Porffor.printStatic('Test262:AsyncTestFailure:Error: unknown');
   } else {
-    printStatic('Test262:AsyncTestComplete');
+    Porffor.printStatic('Test262:AsyncTestComplete');
   }
 }
