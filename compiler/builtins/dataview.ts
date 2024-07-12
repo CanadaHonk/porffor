@@ -116,7 +116,7 @@ i32.load16_u 0 4
 i32.from_u
 local.set ${int}`;
 
-  if (Boolean(littleEndian)) return int;
+  if (!!littleEndian) return int;
   return (int >>> 8) | ((int & 0xFF) << 8);
 };
 
@@ -125,7 +125,7 @@ export const __DataView_prototype_setUint16 = (_this: DataView, byteOffset: numb
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 1 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
   let int: i32 = 0;
-  if (Boolean(littleEndian)) {
+  if (!!littleEndian) {
     int = value;
   } else {
     int = (value >>> 8) | ((value & 0xFF) << 8);
@@ -173,7 +173,7 @@ i32.load 0 4
 i32.from_u
 local.set ${int}`;
 
-  if (Boolean(littleEndian)) return int;
+  if (!!littleEndian) return int;
   return (int >>> 24) |
     ((int >>> 8) & 0x0000ff00) |
     ((int << 8) & 0x00ff0000) |
@@ -185,7 +185,7 @@ export const __DataView_prototype_setUint32 = (_this: DataView, byteOffset: numb
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 3 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
   let int: i32 = 0;
-  if (Boolean(littleEndian)) {
+  if (!!littleEndian) {
     int = value;
   } else {
     int = (value >>> 24) |

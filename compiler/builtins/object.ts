@@ -369,8 +369,8 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
   const out: object = {};
 
   const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
-  out.configurable = Boolean(tail & 0b0010);
-  out.enumerable = Boolean(tail & 0b0100);
+  out.configurable = !!(tail & 0b0010);
+  out.enumerable = !!(tail & 0b0100);
 
   if (tail & 0b0001) {
     out.get = Porffor.object.accessorGet(entryPtr);
@@ -388,7 +388,7 @@ i32.const 8
 i32.shr_u
 local.set ${value+1}`;
 
-  out.writable = Boolean(tail & 0b1000);
+  out.writable = !!(tail & 0b1000);
   out.value = value;
 
   return out;

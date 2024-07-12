@@ -202,7 +202,7 @@ Store the character code into the `out` pointer variable, and increment it.
 - Attempt to avoid object/string/array-heavy code and use more variables instead if possible, easier on memory and CPU/perf.
 - Do not set a return type for prototype methods, it can cause errors/unexpected results.
 - You cannot use other functions in the file not exported, or variables not inside the current function.
-- `if (...)` uses a fast truthy implementation which is not spec-compliant as most conditions should be strictly checked. To use spec-compliant behavior, use `if (Boolean(...))`.
+- `if (...)` uses a fast truthy implementation which is not spec-compliant as most conditions should be strictly checked. To use spec-compliant behavior, use `if (!!...)`.
 - For object (string/array/etc) literals, you must use a variable eg `const out: bytestring = 'foobar'; console.log(out);` instead of `console.log('foobar')` due to precompile's allocator constraints.
 - You should generally use non-strict equality ops (`==`/`!=`).
 

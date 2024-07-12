@@ -435,7 +435,7 @@ export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
   let j: i32 = 0;
   while (i < len) {
     const el: any = _this[i];
-    if (Boolean(callbackFn(el, i++, _this))) out[j++] = el;
+    if (!!callbackFn(el, i++, _this)) out[j++] = el;
   }
 
   out.length = j;
@@ -478,7 +478,7 @@ export const __Array_prototype_find = (_this: any[], callbackFn: any) => {
   let i: i32 = 0;
   while (i < len) {
     const el: any = _this[i];
-    if (Boolean(callbackFn(el, i++, _this))) return el;
+    if (!!callbackFn(el, i++, _this)) return el;
   }
 };
 
@@ -487,7 +487,7 @@ export const __Array_prototype_findLast = (_this: any[], callbackFn: any) => {
   let i: i32 = _this.length;
   while (i > 0) {
     const el: any = _this[--i];
-    if (Boolean(callbackFn(el, i, _this))) return el;
+    if (!!callbackFn(el, i, _this)) return el;
   }
 };
 
@@ -496,7 +496,7 @@ export const __Array_prototype_findIndex = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
-    if (Boolean(callbackFn(_this[i], i++, _this))) return i;
+    if (!!callbackFn(_this[i], i++, _this)) return i;
   }
 };
 
@@ -504,7 +504,7 @@ export const __Array_prototype_findIndex = (_this: any[], callbackFn: any) => {
 export const __Array_prototype_findLastIndex = (_this: any[], callbackFn: any) => {
   let i: i32 = _this.length;
   while (i > 0) {
-    if (Boolean(callbackFn(_this[--i], i, _this))) return i;
+    if (!!callbackFn(_this[--i], i, _this)) return i;
   }
 };
 
@@ -513,7 +513,8 @@ export const __Array_prototype_every = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
-    if (!Boolean(callbackFn(_this[i], i++, _this))) return false;
+    if (!!callbackFn(_this[i], i++, _this)) {}
+      else return false;
   }
 
   return true;
@@ -524,7 +525,7 @@ export const __Array_prototype_some = (_this: any[], callbackFn: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
-    if (Boolean(callbackFn(_this[i], i++, _this))) return true;
+    if (!!callbackFn(_this[i], i++, _this)) return true;
   }
 
   return false;
