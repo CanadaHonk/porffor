@@ -5836,16 +5836,6 @@ const internalConstrs = {
     notConstr: true
   },
 
-  Boolean: {
-    generate: (scope, decl) => {
-      // todo: boolean object when used as constructor
-      const arg = decl.arguments[0] ?? DEFAULT_VALUE();
-      return truthy(scope, generate(scope, arg), getNodeType(scope, arg), false, false, 'full');
-    },
-    type: TYPES.boolean,
-    length: 1
-  },
-
   __Math_max: {
     generate: (scope, decl) => {
       const out = [
