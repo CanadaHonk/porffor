@@ -174,7 +174,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       if (func.constr) argc -= 4;
       if (!func.internal || func.typedParams) argc = Math.floor(argc / 2);
 
-      if (name.startsWith('#porf')) name = '';
+      if (name.startsWith('#')) name = '';
 
       // hack: argc-- for prototype methods to remove _this hack from count
       if (name.includes('_prototype_')) argc--;

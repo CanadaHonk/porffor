@@ -5438,7 +5438,7 @@ const objectHack = node => {
 };
 
 const generateFunc = (scope, decl) => {
-  const name = decl.id ? decl.id.name : `#porf#anonymous${uniqId()}`;
+  const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
   const params = decl.params ?? [];
 
   // TODO: share scope/locals between !!!
