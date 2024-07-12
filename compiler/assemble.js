@@ -174,6 +174,9 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       let argc = func.params.length;
       if (func.constr) argc -= 4;
       if (!func.internal || func.typedParams) argc = Math.floor(argc / 2);
+
+      if (name.startsWith('#')) name = '';
+
       bytes.push(argc % 256, (argc / 256 | 0) % 256);
 
       // userland exposed .length
