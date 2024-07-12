@@ -4282,10 +4282,16 @@ const generateForOf = (scope, decl) => {
 const generateForIn = (scope, decl) => {
   const out = [];
 
-  // todo: for in inside for in might fuck up?
-  const pointer = localTmp(scope, '#forin_base_pointer', Valtype.i32);
-  const length = localTmp(scope, '#forin_length', Valtype.i32);
-  const counter = localTmp(scope, '#forin_counter', Valtype.i32);
+  let count = 0;
+  for (let i = 0; i < depth.length; i++) {
+    if (depth[i] === 'forin') count++;
+  }
+
+  const iterType = getNodeType(scope, decl.right);
+
+  const pointer = localTmp(scope, '#forin_base_pointer' + count, Valtype.i32);
+  const length = localTmp(scope, '#forin_length' + count, Valtype.i32);
+  const counter = localTmp(scope, '#forin_counter' + count, Valtype.i32);
 
   out.push(
     // set pointer as right
@@ -4310,40 +4316,41 @@ const generateForIn = (scope, decl) => {
   depth.push('block');
   depth.push('if');
 
-  // setup local for left
-  generate(scope, decl.left);
+  const tmpName = '#forin_tmp' + count;
+  const tmp = localTmp(scope, tmpName, Valtype.i32);
+  localTmp(scope, tmpName + '#type', Valtype.i32);
 
-  let leftName = decl.left.declarations?.[0]?.id?.name;
-  if (!leftName && decl.left.name) {
+  let setVar;
+
+  if (decl.left.type === 'Identifier') {
     // todo: should be sloppy mode only
-    leftName = decl.left.name;
-
-    generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
+    setVar = generateVarDstr(scope, 'var', decl.left.name, { type: 'Identifier', name: tmpName }, undefined, true);
+  } else {
+    // todo: verify this is correct
+    const global = scope.name === 'main' && decl.left.kind === 'var';
+    setVar = generateVarDstr(scope, 'var', decl.left.declarations[0].id, { type: 'Identifier', name: tmpName }, undefined, global);
   }
-
-  const [ local, isGlobal ] = lookupName(scope, leftName);
-  if (!local) return todo(scope, 'for of failed to get left local (probably destructure)');
 
   // set type for local
   // todo: optimize away counter and use end pointer
-  out.push(...typeSwitch(scope, getNodeType(scope, decl.right), {
+  out.push(...typeSwitch(scope, iterType, {
     [TYPES.object]: [
       [ Opcodes.loop, Blocktype.void ],
 
       // read key
       [ Opcodes.local_get, pointer ],
       [ Opcodes.i32_load, 0, 5 ],
-      [ Opcodes.local_tee, localTmp(scope, '#forin_tmp', Valtype.i32) ],
+      [ Opcodes.local_tee, tmp ],
 
-      ...setType(scope, leftName, [
+      ...setType(scope, tmpName, [
         [ Opcodes.i32_const, 31 ],
         [ Opcodes.i32_shr_u ],
         [ Opcodes.if, Valtype.i32 ],
           // unset MSB in tmp
-          [ Opcodes.local_get, localTmp(scope, '#forin_tmp', Valtype.i32) ],
+          [ Opcodes.local_get, tmp ],
           ...number(0x7fffffff, Valtype.i32),
           [ Opcodes.i32_and ],
-          [ Opcodes.local_set, localTmp(scope, '#forin_tmp', Valtype.i32) ],
+          [ Opcodes.local_set, tmp ],
 
           [ Opcodes.i32_const, ...unsignedLEB128(TYPES.string) ],
         [ Opcodes.else ],
@@ -4351,9 +4358,7 @@ const generateForIn = (scope, decl) => {
         [ Opcodes.end ]
       ]),
 
-      [ Opcodes.local_get, localTmp(scope, '#forin_tmp', Valtype.i32) ],
-      Opcodes.i32_from_u,
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
 
