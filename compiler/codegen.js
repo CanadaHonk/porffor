@@ -1767,6 +1767,14 @@ const disposeLeftover = wasm => {
 const generateExp = (scope, decl) => {
   const expression = decl.expression;
 
+  if (decl.directive) {
+    if (decl.directive === 'use strict') {
+      if (scope.noStrict) return internalThrow(scope, 'SyntaxError', 'Illegal "use strict" directive', false);
+      scope.strict = true;
+    }
+    return [];
+  }
+
   const out = generate(scope, expression, undefined, undefined, Prefs.optUnused);
   disposeLeftover(out);
 
@@ -3588,12 +3596,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   if (!name) return todo(scope, 'destructuring is not supported yet', true);
 
   if (local === undefined) {
-    // todo: this should be a sloppy mode only thing
-
-    // only allow = for this
-    if (op !== '=') return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
+    // only allow = for this, or if in strict mode always throw
+    if (op !== '=' || scope.strict) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
 
     if (Object.hasOwn(builtinVars, name)) {
+      if (scope.strict) return internalThrow(scope, 'TypeError', `Cannot assign to non-writable global ${name}`)
       // just return rhs (eg `NaN = 2`)
       return generate(scope, decl.right);
     }
@@ -3968,8 +3975,8 @@ const generateForOf = (scope, decl) => {
 
   let leftName = decl.left.declarations?.[0]?.id?.name;
   if (!leftName && decl.left.name) {
-    // todo: should be sloppy mode only
     leftName = decl.left.name;
+    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${leftName} is not defined`);
 
     generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
   }
@@ -4311,8 +4318,8 @@ const generateForIn = (scope, decl) => {
 
   let leftName = decl.left.declarations?.[0]?.id?.name;
   if (!leftName && decl.left.name) {
-    // todo: should be sloppy mode only
     leftName = decl.left.name;
+    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${leftName} is not defined`);
 
     generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
   }
@@ -5539,7 +5546,8 @@ const generateFunc = (scope, decl) => {
       // not arrow function or main
       (decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program') &&
       // not async or generator
-      !decl.async && !decl.generator
+      !decl.async && !decl.generator,
+    strict: scope.strict
   };
 
   funcIndex[name] = func.index;
@@ -5581,12 +5589,14 @@ const generateFunc = (scope, decl) => {
       case 'AssignmentPattern': {
         name = x.left.name;
         defaultValues[name] = x.right;
+        scope.noStrict = true;
         break;
       }
 
       case 'RestElement': {
         name = x.argument.name;
         func.hasRestArgument = true;
+        scope.noStrict = true;
         break;
       }
     }
