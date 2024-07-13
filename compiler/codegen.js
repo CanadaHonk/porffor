@@ -1767,8 +1767,8 @@ const disposeLeftover = wasm => {
 const generateExp = (scope, decl) => {
   const expression = decl.expression;
 
-  if (decl.directive) {
-    if (decl.directive === 'use strict') {
+  if (expression.type === 'Literal' && typeof expression.value === 'string') {
+    if (expression.value === 'use strict') {
       if (scope.noStrict) return internalThrow(scope, 'SyntaxError', 'Illegal "use strict" directive', false);
       scope.strict = true;
     }
