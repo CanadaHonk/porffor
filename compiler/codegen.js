@@ -358,7 +358,12 @@ const generateIdent = (scope, decl) => {
 
     if (local?.idx === undefined) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
-    return [ [ Opcodes.local_get, local.idx ] ];
+    return [
+      [ Opcodes.local_get, local.idx ],
+      // todo: no support for i64
+      ...(valtypeBinary === Valtype.f64 && local.type === Valtype.i32 ? [ Opcodes.i32_from_u ] : []),
+      ...(valtypeBinary === Valtype.i32 && local.type === Valtype.f64 ? [ Opcodes.i32_to_u ] : [])
+    ];
   };
 
   return lookup(decl.name);
@@ -3000,263 +3005,69 @@ const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType
   return out;
 };
 
-const generateVar = (scope, decl) => {
-  let out = [];
-
+const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   const topLevel = scope.name === 'main';
 
-  // global variable if in top scope (main) or if internally wanted
-  const global = decl._global ?? (topLevel || decl._bare);
+  if (typeof pattern === 'string') {
+    pattern = { type: 'Identifier', name: pattern };
+  }
 
-  for (const x of decl.declarations) {
-    if (x.id.type === 'ArrayPattern') {
-      const decls = [];
-      const tmpName = '#destructure' + uniqId();
+  if (pattern.type === 'Identifier') {
+    let out = [];
+    const name = mapName(pattern.name);
 
-      let i = 0;
-      const elements = [...x.id.elements];
-      for (const e of elements) {
-        switch (e?.type) {
-          case 'RestElement': { // let [ ...foo ] = []
-            if (e.argument.type === 'ArrayPattern') {
-              // let [ ...[a, b, c] ] = []
-              elements.push(...e.argument.elements);
-            } else {
-              decls.push({
-                type: 'VariableDeclarator',
-                id: { type: 'Identifier', name: e.argument.name },
-                init: {
-                  type: 'CallExpression',
-                  callee: {
-                    type: 'Identifier',
-                    name: '__Array_prototype_slice'
-                  },
-                  arguments: [
-                    { type: 'Identifier', name: tmpName },
-                    { type: 'Literal', value: i },
-                    {
-                      type: 'MemberExpression',
-                      object: { type: 'Identifier', name: tmpName, },
-                      property: { type: 'Identifier', name: 'length', }
-                    }
-                  ],
-                  _protoInternalCall: true
-                }
-              });
-            }
-
-            continue; // skip i++
-          }
-
-          case 'AssignmentPattern': { // let [ foo = defaultValue ] = []
-            decls.push({
-              type: 'VariableDeclarator',
-              id: e.left,
-              init: {
-                type: 'MemberExpression',
-                object: { type: 'Identifier', name: tmpName },
-                property: { type: 'Literal', value: i },
-                computed: true
-              },
-              _default: e.right
-            });
-
-            break;
-          }
-
-          case 'ArrayPattern': // let [ [ foo, bar ] ] = [ [ 2, 4 ] ]
-          case 'Identifier': // let [ foo ] = []
-          case 'ObjectPattern': { // let [ { foo } ] = [ { foo: true } ]
-            decls.push({
-              type: 'VariableDeclarator',
-              id: e,
-              init: {
-                type: 'MemberExpression',
-                object: { type: 'Identifier', name: tmpName },
-                property: { type: 'Literal', value: i },
-                computed: true
-              }
-            });
-
-            break;
-          }
-        }
-
-        i++;
-      }
-
-      out = out.concat([
-        ...generateVar(scope, {
-          type: 'VariableDeclaration',
-          declarations: [{
-            type: 'VariableDeclarator',
-            id: { type: 'Identifier', name: tmpName },
-            init: x.init,
-            _default: x._default
-          }],
-          kind: decl.kind,
-          _global: false
-        }),
-
-        // check tmp is iterable
-        // array or string or bytestring
-        ...typeIsOneOf(getType(scope, tmpName), [ TYPES.array, TYPES.string, TYPES.bytestring ]),
-        // typed array
-        ...getType(scope, tmpName),
-        ...number(TYPES.uint8array, Valtype.i32),
-        [ Opcodes.i32_ge_s ],
-        ...getType(scope, tmpName),
-        ...number(TYPES.float64array, Valtype.i32),
-        [ Opcodes.i32_le_s ],
-        [ Opcodes.i32_and ],
-        [ Opcodes.i32_or ],
-        [ Opcodes.i32_eqz ],
-        [ Opcodes.if, Blocktype.void ],
-          ...internalThrow(scope, 'TypeError', 'Cannot array destructure a non-iterable'),
-        [ Opcodes.end ],
-
-        ...generateVar(scope, {
-          type: 'VariableDeclaration',
-          declarations: decls,
-          kind: decl.kind
-        })
-      ]);
-
-      continue;
-    }
-
-    if (x.id.type === 'ObjectPattern') {
-      const decls = [];
-      const tmpName = '#destructure' + uniqId();
-
-      const properties = [...x.id.properties];
-      for (const prop of properties) {
-        if (prop.type == 'Property') { // let { foo } = {}
-          if (prop.value.type === 'AssignmentPattern') { // let { foo = defaultValue } = {}
-            decls.push({
-              type: 'VariableDeclarator',
-              id: prop.value.left,
-              init: {
-                type: 'MemberExpression',
-                object: { type: 'Identifier', name: tmpName },
-                property: prop.key,
-                computed: prop.computed
-              },
-              _default: prop.value.right
-            });
-          } else {
-            decls.push({
-              type: 'VariableDeclarator',
-              id: prop.value,
-              init: {
-                type: 'MemberExpression',
-                object: { type: 'Identifier', name: tmpName },
-                property: prop.key,
-                computed: prop.computed
-              }
-            });
-          }
-        } else { // let { ...foo } = {}
-          return todo(scope, 'object rest destructuring is not supported yet')
-        }
-      }
-
-      out = out.concat([
-        ...generateVar(scope, {
-          type: 'VariableDeclaration',
-          declarations: [{
-            type: 'VariableDeclarator',
-            id: { type: 'Identifier', name: tmpName },
-            init: x.init,
-            _default: x._default
-          }],
-          kind: decl.kind,
-          _global: false
-        }),
-
-        // check tmp is valid object
-        // not undefined or empty type
-        ...typeIsOneOf(getType(scope, tmpName), [ TYPES.undefined, TYPES.empty ]),
-
-        // not null
-        ...getType(scope, tmpName),
-        ...number(TYPES.object, Valtype.i32),
-        [ Opcodes.i32_eq ],
-        [ Opcodes.local_get, scope.locals[tmpName].idx ],
-        ...number(0),
-        [ Opcodes.eq ],
-        [ Opcodes.i32_and ],
-
-        [ Opcodes.i32_or ],
-        [ Opcodes.if, Blocktype.void ],
-          ...internalThrow(scope, 'TypeError', 'Cannot object destructure undefined or null'),
-        [ Opcodes.end ],
-
-        ...generateVar(scope, {
-          type: 'VariableDeclaration',
-          declarations: decls,
-          kind: decl.kind
-        })
-      ]);
-
-      continue;
-    }
-
-    const name = mapName(x.id.name);
-    if (!name) return todo(scope, `variable declarators of type ${x.id.type} are not supported yet`)
-
-    if (x.init && isFuncType(x.init.type)) {
+    if (init && isFuncType(init.type)) {
       // hack for let a = function () { ... }
-      if (!x.init.id) {
-        x.init.id = { name };
-        generateFunc(scope, x.init);
-        continue;
+      if (!init.id) {
+        init.id = { name };
+        generateFunc(scope, init);
+        return out;
       }
     }
 
     if (topLevel && Object.hasOwn(builtinVars, name)) {
       // cannot redeclare
-      if (decl.kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
+      if (kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
 
-      continue; // always ignore
+      return out; // always ignore
     }
 
     // // generate init before allocating var
     // let generated;
-    // if (x.init) generated = generate(scope, x.init, global, name);
+    // if (init) generated = generate(scope, init, global, name);
 
-    const typed = typedInput && x.id.typeAnnotation;
-    let idx = allocVar(scope, name, global, !(typed && extractTypeAnnotation(x.id).type != null));
+    const typed = typedInput && pattern.typeAnnotation;
+    let idx = allocVar(scope, name, global, !(typed && extractTypeAnnotation(pattern).type != null));
 
     if (typed) {
-      addVarMetadata(scope, name, global, extractTypeAnnotation(x.id));
+      addVarMetadata(scope, name, global, extractTypeAnnotation(pattern));
     }
 
-    if (x.init) {
+    if (init) {
       const alreadyArray = scope.arrays?.get(name) != null;
 
-      let newOut = generate(scope, x.init, global, name);
+      let newOut = generate(scope, init, global, name);
       if (!alreadyArray && scope.arrays?.get(name) != null) {
         // hack to set local as pointer before
         newOut.unshift(...number(scope.arrays.get(name)), [ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
         if (newOut.at(-1) == Opcodes.i32_from_u) newOut.pop();
         newOut.push(
           [ Opcodes.drop ],
-          ...setType(scope, name, getNodeType(scope, x.init))
+          ...setType(scope, name, getNodeType(scope, init))
         );
       } else {
-        newOut = setLocalWithType(scope, name, global, newOut, false, getNodeType(scope, x.init));
+        newOut = setLocalWithType(scope, name, global, newOut, false, getNodeType(scope, init));
       }
 
       out = out.concat(newOut);
 
-      if (x._default) {
+      if (defaultValue) {
         out.push(
           ...typeIsOneOf(getType(scope, name), [ TYPES.undefined, TYPES.empty ]),
           [ Opcodes.if, Blocktype.void ],
-            ...generate(scope, x._default, global, name),
+            ...generate(scope, defaultValue, global, name),
             [ global ? Opcodes.global_set : Opcodes.local_set, idx ],
-            ...setType(scope, name, getNodeType(scope, x._default)),
+            ...setType(scope, name, getNodeType(scope, defaultValue)),
           [ Opcodes.end ],
         );
       }
@@ -3266,6 +3077,174 @@ const generateVar = (scope, decl) => {
         scope.globalInits[name] = newOut;
       }
     }
+
+    return out;
+  }
+
+  if (pattern.type === 'ArrayPattern') {
+    const decls = [];
+    const tmpName = '#destructure' + uniqId();
+    let out = generateVarDstr(scope, 'const', tmpName, init, defaultValue, false);
+
+    let i = 0;
+    const elements = [...pattern.elements];
+    for (const e of elements) {
+      switch (e?.type) {
+        case 'RestElement': { // let [ ...foo ] = []
+          if (e.argument.type === 'ArrayPattern') {
+            // let [ ...[a, b, c] ] = []
+            elements.push(...e.argument.elements);
+          } else {
+            decls.push(
+              ...generateVarDstr(scope, kind, e.argument.name, {
+                type: 'CallExpression',
+                callee: {
+                  type: 'Identifier',
+                  name: '__Array_prototype_slice'
+                },
+                arguments: [
+                  { type: 'Identifier', name: tmpName },
+                  { type: 'Literal', value: i },
+                  {
+                    type: 'MemberExpression',
+                    object: { type: 'Identifier', name: tmpName, },
+                    property: { type: 'Identifier', name: 'length', }
+                  }
+                ],
+                _protoInternalCall: true
+              }, undefined, global)
+            );
+          }
+
+          continue; // skip i++
+        }
+
+        case 'AssignmentPattern': { // let [ foo = defaultValue ] = []
+          decls.push(
+            ...generateVarDstr(scope, kind, e.left, {
+              type: 'MemberExpression',
+              object: { type: 'Identifier', name: tmpName },
+              property: { type: 'Literal', value: i },
+              computed: true
+            }, e.right, global)
+          );
+
+          break;
+        }
+
+        case 'ArrayPattern': // let [ [ foo, bar ] ] = [ [ 2, 4 ] ]
+        case 'Identifier': // let [ foo ] = []
+        case 'ObjectPattern': { // let [ { foo } ] = [ { foo: true } ]
+          decls.push(
+            ...generateVarDstr(scope, kind, e, {
+              type: 'MemberExpression',
+              object: { type: 'Identifier', name: tmpName },
+              property: { type: 'Literal', value: i },
+              computed: true
+            }, undefined, global)
+          );
+
+          break;
+        }
+      }
+
+      i++;
+    }
+
+    out = out.concat([
+      // check tmp is iterable
+      // array or string or bytestring
+      ...typeIsOneOf(getType(scope, tmpName), [ TYPES.array, TYPES.string, TYPES.bytestring ]),
+      // typed array
+      ...getType(scope, tmpName),
+      ...number(TYPES.uint8array, Valtype.i32),
+      [ Opcodes.i32_ge_s ],
+      ...getType(scope, tmpName),
+      ...number(TYPES.float64array, Valtype.i32),
+      [ Opcodes.i32_le_s ],
+      [ Opcodes.i32_and ],
+      [ Opcodes.i32_or ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, 'TypeError', 'Cannot array destructure a non-iterable'),
+      [ Opcodes.end ],
+
+      ...decls
+    ]);
+
+    return out;
+  }
+
+  if (pattern.type === 'ObjectPattern') {
+    const decls = [];
+    const tmpName = '#destructure' + uniqId();
+    let out = generateVarDstr(scope, 'const', tmpName, init, defaultValue, false);
+
+    const properties = [...pattern.properties];
+    for (const prop of properties) {
+      if (prop.type == 'Property') { // let { foo } = {}
+        if (prop.value.type === 'AssignmentPattern') { // let { foo = defaultValue } = {}
+          decls.push(
+            ...generateVarDstr(scope, kind, prop.value.left, {
+              type: 'MemberExpression',
+              object: { type: 'Identifier', name: tmpName },
+              property: prop.key,
+              computed: prop.computed
+            }, prop.value.right, global)
+          );
+        } else {
+          decls.push(
+            ...generateVarDstr(scope, kind, prop.value, {
+              type: 'MemberExpression',
+              object: { type: 'Identifier', name: tmpName },
+              property: prop.key,
+              computed: prop.computed
+            }, undefined, global)
+          );
+        }
+      } else { // let { ...foo } = {}
+        return todo(scope, 'object rest destructuring is not supported yet')
+      }
+    }
+
+    out = out.concat([
+      // check tmp is valid object
+      // not undefined or empty type
+      ...typeIsOneOf(getType(scope, tmpName), [ TYPES.undefined, TYPES.empty ]),
+
+      // not null
+      ...getType(scope, tmpName),
+      ...number(TYPES.object, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.local_get, scope.locals[tmpName].idx ],
+      ...number(0),
+      [ Opcodes.eq ],
+      [ Opcodes.i32_and ],
+
+      [ Opcodes.i32_or ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, 'TypeError', 'Cannot object destructure undefined or null'),
+      [ Opcodes.end ],
+
+      ...decls
+    ]);
+
+    return out;
+  }
+
+  return todo(scope, `variable declarators of type ${pattern.type} are not supported yet`);
+}
+
+const generateVar = (scope, decl) => {
+  let out = [];
+
+  const topLevel = scope.name === 'main';
+
+  // global variable if in top scope (main) or if internally wanted
+  const global = decl._global ?? (topLevel || decl._bare);
+
+  for (const x of decl.declarations) {
+    out = out.concat(generateVarDstr(scope, decl.kind, x.id, x.init, undefined, global));
   }
 
   return out;
@@ -3305,7 +3284,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const op = decl.operator.slice(0, -1) || '=';
 
   // hack: .length setter
-  if (decl.left.type === 'MemberExpression' && decl.left.property.name === 'length') {
+  if (type === 'MemberExpression' && decl.left.property.name === 'length') {
     const newValueTmp = localTmp(scope, '__length_setter_tmp');
     const pointerTmp = op === '=' ? null : localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
@@ -3329,7 +3308,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   }
 
   // arr[i]
-  if (decl.left.type === 'MemberExpression') {
+  if (type === 'MemberExpression') {
     const newValueTmp = localTmp(scope, '#member_setter_val_tmp');
     const pointerTmp = localTmp(scope, '#member_setter_ptr_tmp', Valtype.i32);
 
@@ -3585,13 +3564,21 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     ];
   }
 
-  if (!name) return todo(scope, 'destructuring is not supported yet', true);
-
   if (local === undefined) {
     // todo: this should be a sloppy mode only thing
 
     // only allow = for this
     if (op !== '=') return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
+
+    if (type != 'Identifier') {
+      const tmpName = '#rhs' + uniqId();
+      return [
+        ...generateVarDstr(scope, 'const', tmpName, decl.right, undefined, true),
+        ...generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true),
+        ...generate(scope, { type: 'Identifier', name: tmpName }),
+        ...setLastType(scope, getNodeType(scope, decl.right))
+      ];
+    }
 
     if (Object.hasOwn(builtinVars, name)) {
       // just return rhs (eg `NaN = 2`)
@@ -3600,7 +3587,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     // set global and return (eg a = 2)
     return [
-      ...generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name }, init: decl.right } ] }),
+      ...generateVarDstr(scope, 'var', name, decl.right, undefined, true),
       ...generate(scope, decl.left)
     ];
   }
@@ -3935,10 +3922,16 @@ const generateForOf = (scope, decl) => {
 
   const out = [];
 
-  // todo: for of inside for of might fuck up?
-  const pointer = localTmp(scope, 'forof_base_pointer', Valtype.i32);
-  const length = localTmp(scope, 'forof_length', Valtype.i32);
-  const counter = localTmp(scope, 'forof_counter', Valtype.i32);
+  let count = 0;
+  for (let i = 0; i < depth.length; i++) {
+    if (depth[i] === 'forof') count++;
+  }
+
+  const iterType = getNodeType(scope, decl.right);
+
+  const pointer = localTmp(scope, '#forof_base_pointer' + count, Valtype.i32);
+  const length = localTmp(scope, '#forof_length' + count, Valtype.i32);
+  const counter = localTmp(scope, '#forof_counter' + count, Valtype.i32);
 
   out.push(
     // set pointer as right
@@ -3949,6 +3942,23 @@ const generateForOf = (scope, decl) => {
     // set counter as 0 (could be already used)
     ...number(0, Valtype.i32),
     [ Opcodes.local_set, counter ],
+
+    // check tmp is iterable
+    // array or string or bytestring
+    ...typeIsOneOf(iterType, [ TYPES.array, TYPES.set, TYPES.string, TYPES.bytestring ]),
+    // typed array
+    ...iterType,
+    ...number(TYPES.uint8array, Valtype.i32),
+    [ Opcodes.i32_ge_s ],
+    ...iterType,
+    ...number(TYPES.float64array, Valtype.i32),
+    [ Opcodes.i32_le_s ],
+    [ Opcodes.i32_and ],
+    [ Opcodes.i32_or ],
+    [ Opcodes.i32_eqz ],
+    [ Opcodes.if, Blocktype.void ],
+      ...internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`),
+    [ Opcodes.end ],
 
     // get length
     [ Opcodes.local_get, pointer ],
@@ -3963,35 +3973,40 @@ const generateForOf = (scope, decl) => {
   depth.push('block');
   depth.push('block');
 
+  const tmpName = '#forof_tmp' + count;
+  const tmp = localTmp(scope, tmpName, valtypeBinary);
+  localTmp(scope, tmpName + "#type", Valtype.i32);
+
   // setup local for left
-  generate(scope, decl.left);
+  let setVar;
 
-  let leftName = decl.left.declarations?.[0]?.id?.name;
-  if (!leftName && decl.left.name) {
+  if (decl.left.type === 'Identifier') {
     // todo: should be sloppy mode only
-    leftName = decl.left.name;
-
-    generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
+    setVar = generateVarDstr(scope, 'var', decl.left.name, { type: 'Identifier', name: tmpName }, undefined, true);
+  } else {
+    // todo: verify this is correct
+    const global = scope.name === 'main' && decl.left.kind === 'var';
+    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
-  const [ local, isGlobal ] = lookupName(scope, leftName);
-  if (!local) return todo(scope, 'for of failed to get left local (probably destructure)');
 
   // set type for local
   // todo: optimize away counter and use end pointer
-  out.push(...typeSwitch(scope, getNodeType(scope, decl.right), {
+  out.push(...typeSwitch(scope, iterType, {
     [TYPES.array]: [
       [ Opcodes.loop, Blocktype.void ],
 
       [ Opcodes.local_get, pointer ],
       [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
 
-      ...setType(scope, leftName, [
+      [ Opcodes.local_set, tmp ],
+
+      ...setType(scope, tmpName, [
         [ Opcodes.local_get, pointer ],
         [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
       ]),
 
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4020,7 +4035,7 @@ const generateForOf = (scope, decl) => {
     ],
 
     [TYPES.string]: [
-      ...setType(scope, leftName, TYPES.string),
+      ...setType(scope, tmpName, TYPES.string),
 
       // allocate out string
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
@@ -4044,9 +4059,10 @@ const generateForOf = (scope, decl) => {
 
       // return new string (page)
       [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
-      Opcodes.i32_from_u,
+	    Opcodes.i32_from_u,
+      [ Opcodes.local_set, tmp ],
 
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+	  ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4074,7 +4090,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ]
     ],
     [TYPES.bytestring]: [
-      ...setType(scope, leftName, TYPES.bytestring),
+      ...setType(scope, tmpName, TYPES.bytestring),
 
       // allocate out string
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
@@ -4101,8 +4117,9 @@ const generateForOf = (scope, decl) => {
       // return new string (page)
       [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
       Opcodes.i32_from_u,
+      [ Opcodes.local_set, tmp ],
 
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4130,12 +4147,14 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.local_get, pointer ],
       [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
 
-      ...setType(scope, leftName, [
+      [ Opcodes.local_set, tmp ],
+
+      ...setType(scope, tmpName, [
         [ Opcodes.local_get, pointer ],
         [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
       ]),
 
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4231,7 +4250,7 @@ const generateForOf = (scope, decl) => {
       ],
     }, {
       prelude: [
-        ...setType(scope, leftName, TYPES.number),
+        ...setType(scope, tmpName, TYPES.number),
 
         [ Opcodes.loop, Blocktype.void ],
 
@@ -4240,7 +4259,9 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.local_get, counter ]
       ],
       postlude: [
-        [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+        [ Opcodes.local_set, tmp ],
+
+        ...setVar,
 
         [ Opcodes.block, Blocktype.void ],
         [ Opcodes.block, Blocktype.void ],
@@ -4263,6 +4284,7 @@ const generateForOf = (scope, decl) => {
       ]
     }),
 
+    // note: should be impossible to reach?
     default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
   }, Blocktype.void));
 
@@ -4278,10 +4300,16 @@ const generateForOf = (scope, decl) => {
 const generateForIn = (scope, decl) => {
   const out = [];
 
-  // todo: for in inside for in might fuck up?
-  const pointer = localTmp(scope, '#forin_base_pointer', Valtype.i32);
-  const length = localTmp(scope, '#forin_length', Valtype.i32);
-  const counter = localTmp(scope, '#forin_counter', Valtype.i32);
+  let count = 0;
+  for (let i = 0; i < depth.length; i++) {
+    if (depth[i] === 'forin') count++;
+  }
+
+  const iterType = getNodeType(scope, decl.right);
+
+  const pointer = localTmp(scope, '#forin_base_pointer' + count, Valtype.i32);
+  const length = localTmp(scope, '#forin_length' + count, Valtype.i32);
+  const counter = localTmp(scope, '#forin_counter' + count, Valtype.i32);
 
   out.push(
     // set pointer as right
@@ -4292,6 +4320,14 @@ const generateForIn = (scope, decl) => {
     // set counter as 0 (could be already used)
     ...number(0, Valtype.i32),
     [ Opcodes.local_set, counter ],
+
+    ...iterType,
+    ...number(TYPES.object, Valtype.i32),
+    [ Opcodes.i32_eq ],
+    [ Opcodes.i32_eqz ],
+    [ Opcodes.if, Blocktype.void ],
+      ...internalThrow(scope, 'TypeError', `Tried for..in on unsupported type`),
+    [ Opcodes.end ],
 
     // get length
     [ Opcodes.local_get, pointer ],
@@ -4306,40 +4342,41 @@ const generateForIn = (scope, decl) => {
   depth.push('block');
   depth.push('if');
 
-  // setup local for left
-  generate(scope, decl.left);
+  const tmpName = '#forin_tmp' + count;
+  const tmp = localTmp(scope, tmpName, Valtype.i32);
+  localTmp(scope, tmpName + '#type', Valtype.i32);
 
-  let leftName = decl.left.declarations?.[0]?.id?.name;
-  if (!leftName && decl.left.name) {
+  let setVar;
+
+  if (decl.left.type === 'Identifier') {
     // todo: should be sloppy mode only
-    leftName = decl.left.name;
-
-    generateVar(scope, { kind: 'var', _bare: true, declarations: [ { id: { name: leftName } } ] })
+    setVar = generateVarDstr(scope, 'var', decl.left.name, { type: 'Identifier', name: tmpName }, undefined, true);
+  } else {
+    // todo: verify this is correct
+    const global = scope.name === 'main' && decl.left.kind === 'var';
+    setVar = generateVarDstr(scope, 'var', decl.left.declarations[0].id, { type: 'Identifier', name: tmpName }, undefined, global);
   }
-
-  const [ local, isGlobal ] = lookupName(scope, leftName);
-  if (!local) return todo(scope, 'for of failed to get left local (probably destructure)');
 
   // set type for local
   // todo: optimize away counter and use end pointer
-  out.push(...typeSwitch(scope, getNodeType(scope, decl.right), {
+  out.push(...typeSwitch(scope, iterType, {
     [TYPES.object]: [
       [ Opcodes.loop, Blocktype.void ],
 
       // read key
       [ Opcodes.local_get, pointer ],
       [ Opcodes.i32_load, 0, 5 ],
-      [ Opcodes.local_tee, localTmp(scope, '#forin_tmp', Valtype.i32) ],
+      [ Opcodes.local_tee, tmp ],
 
-      ...setType(scope, leftName, [
+      ...setType(scope, tmpName, [
         [ Opcodes.i32_const, 31 ],
         [ Opcodes.i32_shr_u ],
         [ Opcodes.if, Valtype.i32 ],
           // unset MSB in tmp
-          [ Opcodes.local_get, localTmp(scope, '#forin_tmp', Valtype.i32) ],
+          [ Opcodes.local_get, tmp ],
           ...number(0x7fffffff, Valtype.i32),
           [ Opcodes.i32_and ],
-          [ Opcodes.local_set, localTmp(scope, '#forin_tmp', Valtype.i32) ],
+          [ Opcodes.local_set, tmp ],
 
           [ Opcodes.i32_const, ...unsignedLEB128(TYPES.string) ],
         [ Opcodes.else ],
@@ -4347,9 +4384,7 @@ const generateForIn = (scope, decl) => {
         [ Opcodes.end ]
       ]),
 
-      [ Opcodes.local_get, localTmp(scope, '#forin_tmp', Valtype.i32) ],
-      Opcodes.i32_from_u,
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+      ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
 
@@ -4385,6 +4420,7 @@ const generateForIn = (scope, decl) => {
     ],
 
     // todo: use Object.keys as fallback
+    // should be unreachable?
     default: internalThrow(scope, 'TypeError', `Tried for..in on unsupported type`)
   }, Blocktype.void));
 
@@ -4665,6 +4701,8 @@ const generateTry = (scope, decl) => {
   out.push(...finalizer);
 
   if (decl.handler) {
+    // todo: allow catching error values
+    // todo: when we can do that, allow destructuring error values
     depth.pop();
     depth.push('catch');
 
@@ -5569,6 +5607,7 @@ const generateFunc = (scope, decl) => {
 
   const prelude = [];
   const defaultValues = {};
+  const destructuredArgs = {};
   for (let i = 0; i < params.length; i++) {
     let name;
     const x = params[i];
@@ -5589,9 +5628,12 @@ const generateFunc = (scope, decl) => {
         func.hasRestArgument = true;
         break;
       }
-    }
 
-    // if (name == null) return todo('non-identifier args are not supported');
+      default:
+        name = '#arg_dstr' + i;
+        destructuredArgs[name] = x;
+        break;
+    }
 
     allocVar(func, name, false);
     if (typedInput && params[i].typeAnnotation) {
@@ -5641,6 +5683,12 @@ const generateFunc = (scope, decl) => {
 
         ...setType(func, x, getNodeType(func, defaultValues[x])),
       [ Opcodes.end ]
+    );
+  }
+
+  for (const x in destructuredArgs) {
+    prelude.push(
+      ...generateVarDstr(func, 'var', destructuredArgs[x], { type: 'Identifier', name: x }, undefined, false)
     );
   }
 
