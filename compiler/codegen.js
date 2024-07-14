@@ -3202,8 +3202,22 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
             }, undefined, global)
           );
         }
-      } else { // let { ...foo } = {}
-        return todo(scope, 'object rest destructuring is not supported yet')
+      } else if (prop.type === 'RestElement') { // let { ...foo } = {}
+        decls.push(
+          ...generateVarDstr(scope, kind, prop.argument, {
+            type: 'CallExpression',
+            callee: {
+              type: 'Identifier',
+              name: '__Porffor_object_spread'
+            },
+            arguments: [
+              { type: 'ObjectExpression', properties: [] },
+              { type: 'Identifier', name: tmpName }
+            ]
+          }, undefined, global)
+        );
+      } else {
+        return todo(scope, `${prop.type} is not supported in object patterns`);
       }
     }
 
@@ -5082,18 +5096,6 @@ const toPropertyKey = (scope, i32Conv = false) => [
   ] : [])
 ];
 
-const spreadObject = (scope, dst, src) => [
-  ...generateCall(scope, {
-    type: 'CallExpression',
-    callee: {
-      type: 'Identifier',
-      name: '__Porffor_object_spread'
-    },
-    arguments: [ dst, src ]
-  }),
-  [ Opcodes.drop ]
-];
-
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
   const out = [
     [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ]
@@ -5111,10 +5113,20 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
       const { type, argument, computed, kind, key, value } = x;
 
       if (type === 'SpreadElement') {
-        out.push(...spreadObject(scope,
-          { type: 'Identifier', name: tmpName },
-          argument
-        ));
+        out.push(
+          ...generateCall(scope, {
+            type: 'CallExpression',
+            callee: {
+              type: 'Identifier',
+              name: '__Porffor_object_spread'
+            },
+            arguments: [
+              { type: 'Identifier', name: tmpName },
+              argument
+            ]
+          }),
+          [ Opcodes.drop ]
+        );
         continue;
       }
 

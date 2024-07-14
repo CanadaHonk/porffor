@@ -668,7 +668,7 @@ export const __Object_prototype_valueOf = (_this: any) => {
 };
 
 
-export const __Porffor_object_spread = (dst: object, src: any): void => {
+export const __Porffor_object_spread = (dst: object, src: any): object => {
   if (src == null) return;
 
   // todo/perf: optimize this (and assign) for object instead of reading over object 2x
@@ -680,4 +680,6 @@ export const __Porffor_object_spread = (dst: object, src: any): void => {
     // target[keys[i]] = vals[i];
     Porffor.object.expr.init(dst, keys[i], vals[i]);
   }
+
+  return dst;
 };
