@@ -1769,7 +1769,6 @@ const generateExp = (scope, decl) => {
 
   if (expression.type === 'Literal' && typeof expression.value === 'string') {
     if (expression.value === 'use strict') {
-      if (scope.noStrict) return internalThrow(scope, 'SyntaxError', 'Illegal "use strict" directive', false);
       scope.strict = true;
     }
     return [];
@@ -5589,14 +5588,12 @@ const generateFunc = (scope, decl) => {
       case 'AssignmentPattern': {
         name = x.left.name;
         defaultValues[name] = x.right;
-        scope.noStrict = true;
         break;
       }
 
       case 'RestElement': {
         name = x.argument.name;
         func.hasRestArgument = true;
-        scope.noStrict = true;
         break;
       }
     }
