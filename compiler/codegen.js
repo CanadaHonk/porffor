@@ -3244,7 +3244,7 @@ const generateVar = (scope, decl) => {
   const global = decl._global ?? (topLevel || decl._bare);
 
   for (const x of decl.declarations) {
-    out = out.concat(generateVarDstr(scope, decl.kind, x.id, x.init, undefined, global))
+    out = out.concat(generateVarDstr(scope, decl.kind, x.id, x.init, undefined, global));
   }
 
   return out;
@@ -3577,7 +3577,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
         ...generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true),
         ...generate(scope, { type: 'Identifier', name: tmpName }),
         ...setLastType(scope, getNodeType(scope, decl.right))
-      ]
+      ];
     }
 
     if (Object.hasOwn(builtinVars, name)) {
