@@ -1438,10 +1438,10 @@ const getType = (scope, _name) => {
 
   if (Object.hasOwn(builtinVars, name)) return number(builtinVars[name].type ?? TYPES.number, Valtype.i32);
 
-  if (typedInput && scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
+  if (scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
   if (Object.hasOwn(scope.locals, name)) return [ [ Opcodes.local_get, scope.locals[name + '#type'].idx ] ];
 
-  if (typedInput && globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
+  if (globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
   if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name + '#type'].idx ] ];
 
   if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) ||
@@ -1458,13 +1458,13 @@ const setType = (scope, _name, type) => {
 
   const out = typeof type === 'number' ? number(type, Valtype.i32) : type;
 
-  if (typedInput && scope.locals[name]?.metadata?.type != null) return [];
+  if (scope.locals[name]?.metadata?.type != null) return [];
   if (Object.hasOwn(scope.locals, name)) return [
     ...out,
     [ Opcodes.local_set, scope.locals[name + '#type'].idx ]
   ];
 
-  if (typedInput && globals[name]?.metadata?.type != null) return [];
+  if (globals[name]?.metadata?.type != null) return [];
   if (Object.hasOwn(globals, name)) return [
     ...out,
     [ Opcodes.global_set, globals[name + '#type'].idx ]
@@ -5082,18 +5082,41 @@ const toPropertyKey = (scope, i32Conv = false) => [
   ] : [])
 ];
 
+const spreadObject = (scope, dst, src) => [
+  ...generateCall(scope, {
+    type: 'CallExpression',
+    callee: {
+      type: 'Identifier',
+      name: '__Porffor_object_spread'
+    },
+    arguments: [ dst, src ]
+  }),
+  [ Opcodes.drop ]
+];
+
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
   const out = [
     [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ]
   ];
 
   if (decl.properties.length > 0) {
-    const tmp = localTmp(scope, `#objectexpr${uniqId()}`, Valtype.i32);
+    const tmpName = `#objectexpr${uniqId()}`;
+    const tmp = localTmp(scope, tmpName, Valtype.i32);
+    addVarMetadata(scope, tmpName, false, { type: TYPES.object });
+
     out.push([ Opcodes.local_tee, tmp ]);
 
     for (const x of decl.properties) {
       // method, shorthand are made into useful values by parser for us :)
-      const { computed, kind, key, value } = x;
+      const { type, argument, computed, kind, key, value } = x;
+
+      if (type === 'SpreadElement') {
+        out.push(...spreadObject(scope,
+          { type: 'Identifier', name: tmpName },
+          argument
+        ));
+        continue;
+      }
 
       let k = key;
       if (!computed && key.type !== 'Literal') k = {

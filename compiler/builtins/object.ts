@@ -666,3 +666,18 @@ export const __Object_prototype_valueOf = (_this: any) => {
   // todo: ToObject
   return _this;
 };
+
+
+export const __Porffor_object_spread = (dst: object, src: any): void => {
+  if (src == null) return;
+
+  // todo/perf: optimize this (and assign) for object instead of reading over object 2x
+  const keys: any[] = __Object_keys(src);
+  const vals: any[] = __Object_values(src);
+
+  const len: i32 = keys.length;
+  for (let i: i32 = 0; i < len; i++) {
+    // target[keys[i]] = vals[i];
+    Porffor.object.expr.init(dst, keys[i], vals[i]);
+  }
+};
