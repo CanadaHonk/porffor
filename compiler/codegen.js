@@ -3096,7 +3096,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
             elements.push(...e.argument.elements);
           } else {
             decls.push(
-              ...generateVarDstr(scope, kind, e.argument.name, {
+              ...generateVarDstr(scope, kind, e.argument, {
                 type: 'CallExpression',
                 callee: {
                   type: 'Identifier',
@@ -3982,7 +3982,7 @@ const generateForOf = (scope, decl) => {
 
   if (decl.left.type === 'Identifier') {
     // todo: should be sloppy mode only
-    setVar = generateVarDstr(scope, 'var', decl.left.name, { type: 'Identifier', name: tmpName }, undefined, true);
+    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
@@ -4350,7 +4350,7 @@ const generateForIn = (scope, decl) => {
 
   if (decl.left.type === 'Identifier') {
     // todo: should be sloppy mode only
-    setVar = generateVarDstr(scope, 'var', decl.left.name, { type: 'Identifier', name: tmpName }, undefined, true);
+    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
