@@ -4028,8 +4028,7 @@ const generateForOf = (scope, decl) => {
   // setup local for left
   let setVar;
   if (decl.left.type === 'Identifier') {
-    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${leftName} is not defined`);
-    // todo: should be sloppy mode only
+    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
@@ -4396,8 +4395,8 @@ const generateForIn = (scope, decl) => {
 
   let setVar;
   if (decl.left.type === 'Identifier') {
-    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${leftName} is not defined`);
-    setVar = generateVarDstr(scope, 'var', decl.left.name, { type: 'Identifier', name: tmpName }, undefined, true);
+    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
