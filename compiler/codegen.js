@@ -1438,11 +1438,25 @@ const getType = (scope, _name) => {
 
   if (Object.hasOwn(builtinVars, name)) return number(builtinVars[name].type ?? TYPES.number, Valtype.i32);
 
-  if (typedInput && scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
-  if (Object.hasOwn(scope.locals, name)) return [ [ Opcodes.local_get, scope.locals[name + '#type'].idx ] ];
+  if (Object.hasOwn(scope.locals, name)) {
+    if (scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
 
-  if (typedInput && globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
-  if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name + '#type'].idx ] ];
+    const typeLocal = scope.locals[name + '#type'];
+    if (typeLocal) return [ [ Opcodes.local_get, typeLocal.idx ] ];
+
+    // todo: warn here?
+    return number(TYPES.undefined, Valtype.i32);
+  }
+
+  if (Object.hasOwn(globals, name)) {
+    if (globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
+
+    const typeLocal = globals[name + '#type'];
+    if (typeLocal) return [ [ Opcodes.global_get, typeLocal.idx ] ];
+
+    // todo: warn here?
+    return number(TYPES.undefined, Valtype.i32);
+  }
 
   if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) ||
       Object.hasOwn(funcIndex, name) || Object.hasOwn(internalConstrs, name))
@@ -1458,17 +1472,31 @@ const setType = (scope, _name, type) => {
 
   const out = typeof type === 'number' ? number(type, Valtype.i32) : type;
 
-  if (typedInput && scope.locals[name]?.metadata?.type != null) return [];
-  if (Object.hasOwn(scope.locals, name)) return [
-    ...out,
-    [ Opcodes.local_set, scope.locals[name + '#type'].idx ]
-  ];
+  if (Object.hasOwn(scope.locals, name)) {
+    if (scope.locals[name]?.metadata?.type != null) return [];
 
-  if (typedInput && globals[name]?.metadata?.type != null) return [];
-  if (Object.hasOwn(globals, name)) return [
-    ...out,
-    [ Opcodes.global_set, globals[name + '#type'].idx ]
-  ];
+    const typeLocal = scope.locals[name + '#type'];
+    if (typeLocal) return [
+      ...out,
+      [ Opcodes.local_set, typeLocal.idx ]
+    ];
+
+    // todo: warn here?
+    return [];
+  }
+
+  if (Object.hasOwn(globals, name)) {
+    if (globals[name]?.metadata?.type != null) return [];
+
+    const typeLocal = globals[name + '#type'];
+    if (typeLocal) return [
+      ...out,
+      [ Opcodes.global_set, typeLocal.idx ]
+    ];
+
+    // todo: warn here?
+    return [];
+  }
 
   // throw new Error('could not find var');
   return [];
@@ -3103,7 +3131,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
             elements.push(...e.argument.elements);
           } else {
             decls.push(
-              ...generateVarDstr(scope, kind, e.argument.name, {
+              ...generateVarDstr(scope, kind, e.argument, {
                 type: 'CallExpression',
                 callee: {
                   type: 'Identifier',
@@ -3209,8 +3237,22 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
             }, undefined, global)
           );
         }
-      } else { // let { ...foo } = {}
-        return todo(scope, 'object rest destructuring is not supported yet')
+      } else if (prop.type === 'RestElement') { // let { ...foo } = {}
+        decls.push(
+          ...generateVarDstr(scope, kind, prop.argument, {
+            type: 'CallExpression',
+            callee: {
+              type: 'Identifier',
+              name: '__Porffor_object_spread'
+            },
+            arguments: [
+              { type: 'ObjectExpression', properties: [] },
+              { type: 'Identifier', name: tmpName }
+            ]
+          }, undefined, global)
+        );
+      } else {
+        return todo(scope, `${prop.type} is not supported in object patterns`);
       }
     }
 
@@ -3985,11 +4027,10 @@ const generateForOf = (scope, decl) => {
 
   // setup local for left
   let setVar;
-
   if (decl.left.type === 'Identifier') {
     if (scope.strict) return internalThrow(scope, 'ReferenceError', `${leftName} is not defined`);
-
-    setVar = generateVarDstr(scope, 'var', decl.left.name, { type: 'Identifier', name: tmpName }, undefined, true);
+    // todo: should be sloppy mode only
+    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
@@ -4354,14 +4395,13 @@ const generateForIn = (scope, decl) => {
   localTmp(scope, tmpName + '#type', Valtype.i32);
 
   let setVar;
-
   if (decl.left.type === 'Identifier') {
     if (scope.strict) return internalThrow(scope, 'ReferenceError', `${leftName} is not defined`);
     setVar = generateVarDstr(scope, 'var', decl.left.name, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    setVar = generateVarDstr(scope, 'var', decl.left.declarations[0].id, { type: 'Identifier', name: tmpName }, undefined, global);
+    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
   // set type for local
@@ -5097,12 +5137,33 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
   ];
 
   if (decl.properties.length > 0) {
-    const tmp = localTmp(scope, `#objectexpr${uniqId()}`, Valtype.i32);
+    const tmpName = `#objectexpr${uniqId()}`;
+    const tmp = localTmp(scope, tmpName, Valtype.i32);
+    addVarMetadata(scope, tmpName, false, { type: TYPES.object });
+
     out.push([ Opcodes.local_tee, tmp ]);
 
     for (const x of decl.properties) {
       // method, shorthand are made into useful values by parser for us :)
-      const { computed, kind, key, value } = x;
+      const { type, argument, computed, kind, key, value } = x;
+
+      if (type === 'SpreadElement') {
+        out.push(
+          ...generateCall(scope, {
+            type: 'CallExpression',
+            callee: {
+              type: 'Identifier',
+              name: '__Porffor_object_spread'
+            },
+            arguments: [
+              { type: 'Identifier', name: tmpName },
+              argument
+            ]
+          }),
+          [ Opcodes.drop ]
+        );
+        continue;
+      }
 
       let k = key;
       if (!computed && key.type !== 'Literal') k = {
