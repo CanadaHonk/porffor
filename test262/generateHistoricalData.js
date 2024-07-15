@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import fs from 'fs';
 
-const log = execSync(`git log -9999 --pretty="%B%H %ct"`).toString().split('\n');
+const log = execSync(`git log -9999 --pretty="%B%n%H %ct"`).toString().split('\n');
 const out = [];
 
 for (let i = 0; i < log.length; i++) {
