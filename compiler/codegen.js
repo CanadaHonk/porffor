@@ -1800,6 +1800,13 @@ const disposeLeftover = wasm => {
 const generateExp = (scope, decl) => {
   const expression = decl.expression;
 
+  if (expression.type === 'Literal' && typeof expression.value === 'string') {
+    if (expression.value === 'use strict') {
+      scope.strict = true;
+    }
+    return [];
+  }
+
   const out = generate(scope, expression, undefined, undefined, Prefs.optUnused);
   disposeLeftover(out);
 
@@ -3607,10 +3614,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   }
 
   if (local === undefined) {
-    // todo: this should be a sloppy mode only thing
-
-    // only allow = for this
-    if (op !== '=') return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
+    // only allow = for this, or if in strict mode always throw
+    if (op !== '=' || scope.strict) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
 
     if (type != 'Identifier') {
       const tmpName = '#rhs' + uniqId();
@@ -3623,6 +3628,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     }
 
     if (Object.hasOwn(builtinVars, name)) {
+      if (scope.strict) return internalThrow(scope, 'TypeError', `Cannot assign to non-writable global ${name}`)
       // just return rhs (eg `NaN = 2`)
       return generate(scope, decl.right);
     }
@@ -4022,6 +4028,7 @@ const generateForOf = (scope, decl) => {
   // setup local for left
   let setVar;
   if (decl.left.type === 'Identifier') {
+    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${leftName} is not defined`);
     // todo: should be sloppy mode only
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
@@ -4389,8 +4396,8 @@ const generateForIn = (scope, decl) => {
 
   let setVar;
   if (decl.left.type === 'Identifier') {
-    // todo: should be sloppy mode only
-    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${leftName} is not defined`);
+    setVar = generateVarDstr(scope, 'var', decl.left.name, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
@@ -5638,7 +5645,8 @@ const generateFunc = (scope, decl) => {
       // not arrow function or main
       (decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program') &&
       // not async or generator
-      !decl.async && !decl.generator
+      !decl.async && !decl.generator,
+    strict: scope.strict
   };
 
   funcIndex[name] = func.index;
