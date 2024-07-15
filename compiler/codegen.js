@@ -1472,17 +1472,31 @@ const setType = (scope, _name, type) => {
 
   const out = typeof type === 'number' ? number(type, Valtype.i32) : type;
 
-  if (scope.locals[name]?.metadata?.type != null) return [];
-  if (Object.hasOwn(scope.locals, name)) return [
-    ...out,
-    [ Opcodes.local_set, scope.locals[name + '#type'].idx ]
-  ];
+  if (Object.hasOwn(scope.locals, name)) {
+    if (scope.locals[name]?.metadata?.type != null) return [];
 
-  if (globals[name]?.metadata?.type != null) return [];
-  if (Object.hasOwn(globals, name)) return [
-    ...out,
-    [ Opcodes.global_set, globals[name + '#type'].idx ]
-  ];
+    const typeLocal = scope.locals[name + '#type'];
+    if (typeLocal) return [
+      ...out,
+      [ Opcodes.local_set, typeLocal.idx ]
+    ];
+
+    // todo: warn here?
+    return [];
+  }
+
+  if (Object.hasOwn(globals, name)) {
+    if (globals[name]?.metadata?.type != null) return [];
+
+    const typeLocal = globals[name + '#type'];
+    if (typeLocal) return [
+      ...out,
+      [ Opcodes.global_set, typeLocal.idx ]
+    ];
+
+    // todo: warn here?
+    return [];
+  }
 
   // throw new Error('could not find var');
   return [];
