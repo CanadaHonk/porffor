@@ -669,7 +669,7 @@ export const __Object_prototype_valueOf = (_this: any) => {
 
 
 export const __Porffor_object_spread = (dst: object, src: any): object => {
-  if (src == null) return;
+  if (src == null) return dst;
 
   // todo/perf: optimize this (and assign) for object instead of reading over object 2x
   const keys: any[] = __Object_keys(src);
@@ -679,6 +679,26 @@ export const __Porffor_object_spread = (dst: object, src: any): object => {
   for (let i: i32 = 0; i < len; i++) {
     // target[keys[i]] = vals[i];
     Porffor.object.expr.init(dst, keys[i], vals[i]);
+  }
+
+  return dst;
+};
+
+export const __Porffor_object_rest = (dst: object, src: any, ...blocklist: any[]): object => {
+  if (src == null) return dst;
+
+  // todo: use ToPropertyKey on blocklist?
+
+  // todo/perf: optimize this (and assign) for object instead of reading over object 2x
+  const keys: any[] = __Object_keys(src);
+  const vals: any[] = __Object_values(src);
+
+  const len: i32 = keys.length;
+  for (let i: i32 = 0; i < len; i++) {
+    const k: any = keys[i];
+    if (blocklist.includes(k)) continue;
+
+    Porffor.object.expr.init(dst, k, vals[i]);
   }
 
   return dst;

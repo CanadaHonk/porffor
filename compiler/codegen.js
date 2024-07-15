@@ -3216,8 +3216,11 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     let out = generateVarDstr(scope, 'const', tmpName, init, defaultValue, false);
 
     const properties = [...pattern.properties];
+    const usedProps = [];
     for (const prop of properties) {
       if (prop.type == 'Property') { // let { foo } = {}
+        usedProps.push(!prop.computed && prop.key.type !== 'Literal' ? { type: 'Literal', value: prop.key.name } : prop.key);
+
         if (prop.value.type === 'AssignmentPattern') { // let { foo = defaultValue } = {}
           decls.push(
             ...generateVarDstr(scope, kind, prop.value.left, {
@@ -3243,11 +3246,12 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
             type: 'CallExpression',
             callee: {
               type: 'Identifier',
-              name: '__Porffor_object_spread'
+              name: '__Porffor_object_rest'
             },
             arguments: [
               { type: 'ObjectExpression', properties: [] },
-              { type: 'Identifier', name: tmpName }
+              { type: 'Identifier', name: tmpName },
+              ...usedProps
             ]
           }, undefined, global)
         );
