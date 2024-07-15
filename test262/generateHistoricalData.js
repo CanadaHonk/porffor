@@ -17,7 +17,7 @@ for (let i = 0; i < log.length; i++) {
   }
 
   j = i + 1;
-  if (log[j].includes('Co-Authored-By')) j++;
+  while (log[j].length !== 51 || log[j].split(' ').length !== 2) j++;
   let [ hash, timestamp ] = log[j].split(' ');
 
   let results = x.split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
