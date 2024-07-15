@@ -3615,7 +3615,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   if (local === undefined) {
     // only allow = for this, or if in strict mode always throw
-    if (op !== '=' || scope.strict) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
+    if (op !== '=' || scope.strict) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
     if (type != 'Identifier') {
       const tmpName = '#rhs' + uniqId();
@@ -3628,7 +3628,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     }
 
     if (Object.hasOwn(builtinVars, name)) {
-      if (scope.strict) return internalThrow(scope, 'TypeError', `Cannot assign to non-writable global ${name}`)
+      if (scope.strict) return internalThrow(scope, 'TypeError', `Cannot assign to non-writable global ${name}`, true);
+
       // just return rhs (eg `NaN = 2`)
       return generate(scope, decl.right);
     }
@@ -3755,7 +3756,6 @@ const generateUnary = (scope, decl) => {
 
         // if ReferenceError (undeclared var), ignore and return true. otherwise false
         if (!out[1]) {
-          // todo: throw in strict mode
           // exists
           toReturn = false;
         } else {
