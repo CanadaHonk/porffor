@@ -391,7 +391,13 @@ local.set ${err}`;
     0, 12);
 };
 
-export const __Porffor_object_delete = (obj: object, key: any): boolean => {
+export const __Porffor_object_delete = (obj: any, key: any): boolean => {
+  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot delete property of null');
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    // todo: support non-pure objects
+    return true;
+  }
+
   const entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
     // not found, stop

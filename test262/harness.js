@@ -177,6 +177,7 @@ var NaNs = [
 ];
 
 /// testTypedArray.js
+// todo: TypedArray
 var floatArrayConstructors = [
   Float64Array,
   Float32Array
