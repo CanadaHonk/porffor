@@ -424,7 +424,7 @@ function checkSequence(arr) {
 
 /// detachArrayBuffer.js
 function $DETACHBUFFER(buffer) {
-  $262.detachArrayBuffer(buffer);
+  Porffor.arraybuffer.detach(buffer)
 }
 
 /// fnGlobalObject.js
