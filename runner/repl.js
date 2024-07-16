@@ -81,7 +81,7 @@ const memoryToString = mem => {
 let prev = '';
 
 function setLastEvalExp(prev, ret) {
-  const lastEvalExp = `let _ = ${ret != null ? ret : "undefined"};\n`;
+  const lastEvalExp = `let _ = ${JSON.stringify(ret)};\n`;
   if (/let _ = .*;\n/.test(prev)) {
     return prev.replace(/let _ = .*;\n/, lastEvalExp);
   }
@@ -119,7 +119,7 @@ const run = (source, _context, _filename, callback, run = true) => {
 
   // callback(null, ret);
 
-  prev = setLastEvalExp( prev + ';\n' + source.trim(), ret);  
+  prev = setLastEvalExp(prev + ';\n' + source.trim(), ret);  
 
   callback();
 };
