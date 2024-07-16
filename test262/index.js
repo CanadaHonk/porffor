@@ -129,6 +129,15 @@ if (isMainThread) {
     });
 
     worker.on('message', int => {
+      if (typeof int !== 'number') {
+        for (const x in int) {
+          errors.set(x, (errors.get(x) ?? 0) + int[x]);
+        }
+
+        if (total === totalTests) resolve();
+        return;
+      }
+
       const result = int & 0b1111;
       const i = int >> 4;
 
@@ -180,7 +189,7 @@ if (isMainThread) {
         o[result + 1] += 1;
       }
 
-      if (total === totalTests) resolve();
+      if (total === totalTests && !trackErrors) resolve();
     });
 
     // if (!resultOnly) process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90mspawned ${w + 1}/${threads} threads...`);
@@ -309,20 +318,20 @@ if (isMainThread) {
   if (trackErrors) {
     console.log('\n');
 
-    for (const x of [...errors.keys()].sort((a, b) => errors.get(a).length - errors.get(b).length)) {
-      console.log(`${errors.get(x).length.toString().padStart(4, ' ')} ${x}`);
+    for (const x of [...errors.keys()].sort((a, b) => errors.get(a) - errors.get(b))) {
+      console.log(`${errors.get(x).toString().padStart(4, ' ')} ${x}`);
     }
 
     console.log();
 
     const errorsByClass = [...errors.keys()].reduce((acc, x) => {
       const k = x.slice(0, x.indexOf(':'));
-      acc[k] = (acc[k] ?? []).concat(errors.get(x));
+      acc[k] = (acc[k] ?? 0) + errors.get(x);
       return acc;
     }, {});
 
-    for (const x of Object.keys(errorsByClass).sort((a, b) => errorsByClass[b].length - errorsByClass[a].length)) {
-      console.log(`${errorsByClass[x].length.toString().padStart(4, ' ')} ${x}`);
+    for (const x of Object.keys(errorsByClass).sort((a, b) => errorsByClass[b] - errorsByClass[a])) {
+      console.log(`${errorsByClass[x].toString().padStart(4, ' ')} ${x}`);
     }
   }
 
@@ -354,6 +363,7 @@ if (isMainThread) {
   }
 } else {
   const { queue, tests, preludes, argv } = workerData;
+  const errors = {};
 
   process.argv = argv;
   const trackErrors = process.argv.includes('--errors');
@@ -464,13 +474,12 @@ if (isMainThread) {
         else if (stage === 2) out = 4;
     }
 
-    // if (!onlyTrackCompilerErrors || (stage === 0 && result.name !== 'TodoError' && result.constructor.name !== 'CompileError' && result.constructor.name !== 'SyntaxError')) {
-    //   let errorStr = `${result.constructor.name}: ${result.message}`;
-    //   errorStr += `${' '.repeat(160 - errorStr.length)}${result.stack.split('\n')[1]}`;
+    if (trackErrors && error && (!onlyTrackCompilerErrors || (stage === 0 && error.name !== 'TodoError' && error.constructor.name !== 'CompileError' && error.constructor.name !== 'SyntaxError'))) {
+      let errorStr = `${error.constructor.name}: ${error.message}`;
+      // errorStr += `${' '.repeat(160 - errorStr.length)}${error.stack.split('\n')[1]}`;
 
-    //   if (!errors.has(errorStr)) errors.set(errorStr, []);
-    //   errors.set(errorStr, errors.get(errorStr).concat(file));
-    // }
+      errors[errorStr] = (errors[errorStr] ?? 0) + 1;
+    }
 
     out += (i << 4);
 
@@ -483,4 +492,6 @@ if (isMainThread) {
       parentPort.postMessage(out);
     }
   }
+
+  if (trackErrors) parentPort.postMessage(errors);
 }
