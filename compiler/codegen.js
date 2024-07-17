@@ -2724,7 +2724,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     if (valtypeBinary === Valtype.i32 &&
       (func && func.params[paramOffset + i * (typedParams ? 2 : 1)] === Valtype.f64)
     ) {
-      out.push(Opcodes.i32_from);
+      out.push([ Opcodes.f64_convert_i32_u ]);
     }
 
     if (typedParams) out = out.concat(arg._callType ?? getNodeType(scope, arg));
