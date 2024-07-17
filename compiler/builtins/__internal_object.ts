@@ -4,7 +4,10 @@ export const __Porffor_object_getObject = (obj: any): any => {
     const funcI32: i32 = Porffor.wasm`local.get ${obj}`;
     let underlying: object = underlyingFuncObjs.get(funcI32);
     if (underlying == null) {
-      underlying = Porffor.allocate();
+      underlying = {};
+      underlying.prototype = {};
+      underlying.prototype.constructor = obj;
+
       underlyingFuncObjs.set(funcI32, underlying);
     }
 
