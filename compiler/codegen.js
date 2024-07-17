@@ -3513,6 +3513,39 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           // ...setLastType(scope, getNodeType(scope, decl)),
         ],
 
+        [TYPES.function]: [
+          ...objectWasm,
+          Opcodes.i32_to_u,
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
+          ...getNodeType(scope, object),
+
+          ...propertyWasm,
+          ...getNodeType(scope, property),
+          ...toPropertyKey(scope, op === '='),
+          ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
+          ...(op === '=' ? [] : [
+            Opcodes.i32_to_u,
+            [ Opcodes.local_tee, localTmp(scope, '#objset_property', Valtype.i32) ]
+          ]),
+          ...(op === '=' ? [] : [ [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
+
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, localTmp(scope, '#objset_object', Valtype.i32) ],
+            ...getNodeType(scope, object),
+
+            [ Opcodes.local_get, localTmp(scope, '#objset_property', Valtype.i32) ],
+            [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
+
+            [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
+            ...setLastType(scope)
+          ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
+          ...getNodeType(scope, decl),
+
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_set').index ],
+          [ Opcodes.drop ],
+          // ...setLastType(scope, getNodeType(scope, decl)),
+        ],
+
         ...wrapBC({
           [TYPES.uint8array]: [
             [ Opcodes.i32_add ],

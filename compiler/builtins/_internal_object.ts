@@ -16,19 +16,22 @@ import type {} from './porffor.d.ts';
 //   enumerable - 0b0100
 //   writable - 0b1000
 
-export const __Porffor_object_preventExtensions = (obj: object): void => {
+export const __Porffor_object_preventExtensions = (obj: any): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let rootFlags: i32 = Porffor.wasm.i32.load8_u(obj, 0, 4);
   rootFlags |= 0b0001;
   Porffor.wasm.i32.store8(obj, rootFlags, 0, 4);
 };
 
-export const __Porffor_object_isInextensible = (obj: object): boolean => {
+export const __Porffor_object_isInextensible = (obj: any): boolean => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   const out: boolean = Porffor.wasm.i32.load8_u(obj, 0, 4) & 0b0001;
   return out;
 };
 
 
-export const __Porffor_object_overrideAllFlags = (obj: object, overrideOr: i32, overrideAnd: i32): void => {
+export const __Porffor_object_overrideAllFlags = (obj: any, overrideOr: i32, overrideAnd: i32): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
 
   const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
@@ -41,7 +44,8 @@ export const __Porffor_object_overrideAllFlags = (obj: object, overrideOr: i32, 
   }
 };
 
-export const __Porffor_object_checkAllFlags = (obj: object, dataAnd: i32, accessorAnd: i32, dataExpected: i32, accessorExpected: i32): boolean => {
+export const __Porffor_object_checkAllFlags = (obj: any, dataAnd: i32, accessorAnd: i32, dataExpected: i32, accessorExpected: i32): boolean => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
 
   const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
@@ -101,8 +105,9 @@ export const __Porffor_object_accessorSet = (entryPtr: i32): Function => {
 };
 
 
-export const __Porffor_object_lookup = (obj: object, target: any): i32 => {
+export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
   if (Porffor.wasm`local.get ${obj}` == 0) return -1;
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
 
   const targetType: i32 = Porffor.wasm`local.get ${target+1}`;
 
@@ -171,14 +176,9 @@ f64.convert_i32_u
 i32.const 1
 return`;
     }
-
-    // undefined
-    Porffor.wasm`
-f64.const 0
-i32.const 128
-return`;
   }
 
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   const entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
     Porffor.wasm`
@@ -244,9 +244,10 @@ export const __Porffor_object_writeKey = (ptr: i32, key: any): void => {
   Porffor.wasm.i32.store(ptr, keyEnc, 0, 0);
 };
 
-export const __Porffor_object_set = (obj: object, key: any, value: any): any => {
+export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
 
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   let flags: i32;
   if (entryPtr == -1) {
@@ -326,7 +327,8 @@ export const __Porffor_object_set = (obj: object, key: any, value: any): any => 
   return value;
 };
 
-export const __Porffor_object_define = (obj: object, key: any, value: any, flags: i32): void => {
+export const __Porffor_object_define = (obj: any, key: any, value: any, flags: i32): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
     // add new entry
@@ -407,10 +409,9 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
       __Porffor_funcLut_deleteLength(obj);
       return true;
     }
-
-    return true;
   }
 
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   if (Porffor.rawType(obj) != Porffor.TYPES.object) {
     // todo: support non-pure objects
     return true;
