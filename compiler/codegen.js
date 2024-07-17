@@ -3806,6 +3806,8 @@ const generateUnary = (scope, decl) => {
         const object = decl.argument.object;
         const property = getMemberProperty(decl.argument);
 
+        if (property.value === 'length' || property.value === 'name') scope.noFastFuncMembers = true;
+
         return [
           ...generate(scope, object),
           Opcodes.i32_to_u,
@@ -5317,7 +5319,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   const name = decl.object.name;
 
   // hack: .name
-  if (decl.property.name === 'name' && hasFuncWithName(name)) {
+  if (decl.property.name === 'name' && hasFuncWithName(name) && !scope.noFastFuncMembers) {
     let nameProp = name;
 
     // eg: __String_prototype_toLowerCase -> toLowerCase
@@ -5330,12 +5332,14 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   if (decl.property.name === 'length') {
     // todo: support optional
 
-    const func = funcs.find(x => x.name === name);
-    if (func) return withType(scope, number(countLength(func, name)), TYPES.number);
+    if (!scope.noFastFuncMembers) {
+      const func = funcs.find(x => x.name === name);
+      if (func) return withType(scope, number(countLength(func, name)), TYPES.number);
 
-    if (Object.hasOwn(builtinFuncs, name)) return withType(scope, number(countLength(builtinFuncs[name], name)), TYPES.number);
-    if (Object.hasOwn(importedFuncs, name)) return withType(scope, number(importedFuncs[name].params.length ?? importedFuncs[name].params), TYPES.number);
-    if (Object.hasOwn(internalConstrs, name)) return withType(scope, number(internalConstrs[name].length ?? 0), TYPES.number);
+      if (Object.hasOwn(builtinFuncs, name)) return withType(scope, number(countLength(builtinFuncs[name], name)), TYPES.number);
+      if (Object.hasOwn(importedFuncs, name)) return withType(scope, number(importedFuncs[name].params.length ?? importedFuncs[name].params), TYPES.number);
+      if (Object.hasOwn(internalConstrs, name)) return withType(scope, number(internalConstrs[name].length ?? 0), TYPES.number);
+    }
 
     const out = [
       ...generate(scope, decl.object),

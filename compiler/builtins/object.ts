@@ -174,10 +174,10 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
     let tmp: bytestring = '';
 
     tmp = 'name';
-    if (p == tmp) return true;
+    if (p == tmp) return !__Porffor_funcLut_isNameDeleted(_this);
 
     tmp = 'length';
-    if (p == tmp) return true;
+    if (p == tmp) return !__Porffor_funcLut_isLengthDeleted(_this);
 
     return false;
   }

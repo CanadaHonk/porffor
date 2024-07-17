@@ -393,6 +393,24 @@ local.set ${err}`;
 
 export const __Porffor_object_delete = (obj: any, key: any): boolean => {
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot delete property of null');
+
+  if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.function) {
+    let tmp: bytestring = '';
+    tmp = 'name';
+    if (key == tmp) {
+      __Porffor_funcLut_deleteName(obj);
+      return true;
+    }
+
+    tmp = 'length';
+    if (key == tmp) {
+      __Porffor_funcLut_deleteLength(obj);
+      return true;
+    }
+
+    return true;
+  }
+
   if (Porffor.rawType(obj) != Porffor.TYPES.object) {
     // todo: support non-pure objects
     return true;
