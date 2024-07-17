@@ -60,6 +60,7 @@ type PorfforGlobal = {
     isEnumerable(entryPtr: i32): boolean;
 
     isObject(arg: any): boolean;
+    isObjectOrNull(arg: any): boolean;
     isObjectOrSymbol(arg: any): boolean;
 
     expr: {

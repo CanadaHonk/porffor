@@ -603,13 +603,12 @@ export const __Object_defineProperties = (target: any, props: any) => {
 };
 
 export const __Object_create = (proto: any, props: any) => {
-  if (!Porffor.object.isObject(proto)) {
-    if (proto !== null) throw new TypeError('Prototype should be an object or null');
-  }
+  if (!Porffor.object.isObjectOrNull(proto)) throw new TypeError('Prototype should be an object or null');
 
   const out: object = {};
 
-  // todo: set prototype when supported
+  // set prototype
+  out.__proto__ = proto;
 
   if (props !== undefined) __Object_defineProperties(out, props);
 
@@ -632,6 +631,34 @@ export const __Object_groupBy = (items: any, callbackFn: any) => {
   }
 
   return out;
+};
+
+
+export const __Object_getPrototypeOf = (obj: any) => {
+  if (obj == null) throw new TypeError('Object is nullish, expected object');
+
+  // todo: support non-pure-objects
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    return {};
+  }
+
+  return obj.__proto__;
+};
+
+export const __Object_setPrototypeOf = (obj: any, proto: any) => {
+  if (obj == null) throw new TypeError('Object is nullish, expected object');
+  if (!Porffor.object.isObjectOrNull(proto)) throw new TypeError('Prototype should be an object or null');
+
+  // todo: support non-pure-objects
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    return obj;
+  }
+
+  // todo: throw when this fails?
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf#exceptions
+  obj.__proto__ = proto;
+
+  return obj;
 };
 
 

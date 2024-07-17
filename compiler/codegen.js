@@ -1895,6 +1895,77 @@ const createNewTarget = (scope, decl, idx = 0) => {
   ];
 };
 
+const makeObject = (scope, obj) => {
+  const properties = [];
+  for (const x in obj) {
+    properties.push({
+      type: 'Property',
+      method: false,
+      shorthand: false,
+      computed: false,
+      key: {
+        type: 'Identifier',
+        name: x
+      },
+      value: obj[x],
+      kind: 'init'
+    });
+  }
+
+  return generateObject(scope, {
+    type: 'ObjectExpression',
+    properties
+  });
+};
+
+const getObjProp = (obj, prop) => {
+  if (typeof obj === 'string') obj = {
+    type: 'Identifier',
+    name: obj
+  };
+
+  if (typeof prop === 'string') prop = {
+    type: 'Identifier',
+    name: prop
+  };
+
+  return objectHack({
+    type: 'MemberExpression',
+    object: obj,
+    property: prop,
+    computed: false,
+    optional: false
+  });
+};
+
+const setObjProp = (obj, prop, value) => {
+  if (typeof obj === 'string') obj = {
+    type: 'Identifier',
+    name: obj
+  };
+
+  if (typeof prop === 'string') prop = {
+    type: 'Identifier',
+    name: prop
+  };
+
+  return objectHack({
+    type: 'ExpressionStatement',
+    expression: {
+      type: 'AssignmentExpression',
+      operator: '=',
+      left: {
+        type: 'MemberExpression',
+        object: obj,
+        property: prop,
+        computed: false,
+        optional: false
+      },
+      right: value
+    }
+  });
+};
+
 const createThisArg = (scope, decl, knownThis = undefined) => {
   if (knownThis) {
     // todo: check compliance
@@ -1902,11 +1973,8 @@ const createThisArg = (scope, decl, knownThis = undefined) => {
   }
 
   if (decl._new) {
-    // todo: created object should have .prototype = func.prototype
-    // todo: created object should have .constructor = func
     return [
-      // create an empty object
-      ...generateObject(scope, { properties: [] }),
+      ...makeObject(scope, {}),
       ...number(TYPES.object, Valtype.i32)
     ];
   } else {
@@ -3011,7 +3079,7 @@ const extractTypeAnnotation = decl => {
 };
 
 const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType = undefined) => {
-  const local = isGlobal ? globals[name] : scope.locals[name];
+  const local = isGlobal ? globals[name] : (scope.locals[name] ?? { idx: name });
   const out = Array.isArray(decl) ? decl : generate(scope, decl, isGlobal, name);
 
   // optimize away last type usage
@@ -5783,9 +5851,20 @@ const generateFunc = (scope, decl) => {
     // todo: wrap in try and reject thrown value once supported
   }
 
+  if (!globalThis.precompile && func.constr) {
+    wasm.unshift(
+      // if being constructed
+      [ Opcodes.local_get, '#newtarget' ],
+      Opcodes.i32_to_u,
+      [ Opcodes.if, Blocktype.void ],
+        // set prototype of this ;)
+        ...generate(func, setObjProp({ type: 'ThisExpression' }, '__proto__', getObjProp(func.name, 'prototype'))),
+      [ Opcodes.end ]
+    );
+  }
+
   if (name === 'main') {
     func.gotLastType = true;
-
     func.export = true;
     func.returns = [ valtypeBinary, Valtype.i32 ];
 
@@ -5811,7 +5890,7 @@ const generateFunc = (scope, decl) => {
         else func.returns = [];
     }
 
-    // inject promise job runner func at the end of main if used
+    // inject promise job runner func at the end of main if job queue is used
     if (Object.hasOwn(funcIndex, '__ecma262_HostEnqueuePromiseJob')) {
       wasm.push(
         [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_runJobs').index ],

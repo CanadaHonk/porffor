@@ -458,6 +458,15 @@ export const __Porffor_object_isObject = (arg: any): boolean => {
   );
 };
 
+export const __Porffor_object_isObjectOrNull = (arg: any): boolean => {
+  const t: i32 = Porffor.wasm`local.get ${arg+1}`;
+  return Porffor.fastAnd(
+    t > 0x05,
+    t != Porffor.TYPES.string,
+    t != Porffor.TYPES.bytestring,
+  );
+};
+
 export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
   const t: i32 = Porffor.wasm`local.get ${arg+1}`;
   return Porffor.fastAnd(
