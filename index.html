@@ -1081,6 +1081,8 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
     const comp = async () => {
       setProcess();
+      globalThis.argvChanged?.();
+
       if (code !== examples[examples_dropdown.value]) location.hash = '#' + btoa(code);
 
       jsSize.textContent = `${new Blob([code]).size} bytes`;
