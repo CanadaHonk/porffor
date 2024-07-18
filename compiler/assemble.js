@@ -309,7 +309,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
       // todo: move const, call transforms here too?
 
-      const wasm = [];
+      const makeAssembled = Prefs.d;
+      let wasm = [], wasmNonFlat = [];
       for (let i = 0; i < x.wasm.length; i++) {
         let o = x.wasm[i];
 
@@ -323,10 +324,20 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
           unsignedLEB128_into(n, o);
         }
 
-        wasm.push(...o);
+        for (let j = 0; j < o.length; j++) {
+          const x = o[j];
+          if (x == null || !(x <= 0xff)) continue;
+          wasm.push(x);
+        }
+
+        if (makeAssembled) wasmNonFlat.push(o);
       }
 
-      return encodeVector([ ...encodeVector(localDecl), ...wasm.flat().filter(x => x != null && x <= 0xff), Opcodes.end ]);
+      if (makeAssembled) {
+        x.assembled = { localDecl, wasm, wasmNonFlat };
+      }
+
+      return encodeVector([ ...encodeVector(localDecl), ...wasm, Opcodes.end ]);
     }))
   );
 
