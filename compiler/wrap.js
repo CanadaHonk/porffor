@@ -326,7 +326,8 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
       max = func.wasm.length;
     }
 
-    const decomp = decompile(func.wasm.slice(min, max), func.name, 0, func.locals, func.params, func.returns, funcs, globals, exceptions).slice(0, -1).split('\n');
+    const decomp = decompile(func.wasm.slice(min, max), func.name, 0, func.locals, func.params, func.returns, funcs, globals, exceptions)
+      .slice(0, -1).split('\n').filter(x => !x.startsWith('\x1B[90m;;'));
 
     const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
     let longest = 0;
@@ -342,35 +343,18 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     if (min != 0) console.log('\x1B[90m...\x1B[0m');
     console.log(decomp.join('\n'));
     if (max > func.wasm.length) console.log('\x1B[90m...\x1B[0m\n');
-  }
+  };
 
   const backtrace = (funcInd, blobOffset) => {
     if (funcInd == null || blobOffset == null ||
         Number.isNaN(funcInd) || Number.isNaN(blobOffset)) return false;
 
-    // convert blob offset -> function wasm offset.
-    // this is not good code and is somewhat duplicated
-    // I just want it to work for debugging, I don't care about perf/yes
+    // convert blob offset -> function wasm offset
     const func = funcs.find(x => x.index === funcInd);
     if (!func) return false;
 
-    const locals = Object.values(func.locals).sort((a, b) => a.idx - b.idx).slice(func.params.length).sort((a, b) => a.idx - b.idx);
-
-    let localDecl = [], typeCount = 0, lastType;
-    for (let i = 0; i < locals.length; i++) {
-      const local = locals[i];
-      if (i !== 0 && local.type !== lastType) {
-        localDecl.push(encodeLocal(typeCount, lastType));
-        typeCount = 0;
-      }
-
-      typeCount++;
-      lastType = local.type;
-    }
-
-    if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
-
-    const toFind = encodeVector(localDecl).concat(func.wasm.flat().filter(x => x != null && x <= 0xff).slice(0, 60));
+    const { wasm: assembledWasmFlat, wasmNonFlat: assembledWasmOps, localDecl } = func.assembled;
+    const toFind = encodeVector(localDecl).concat(assembledWasmFlat.slice(0, 100));
 
     let i = 0;
     for (; i < wasm.length; i++) {
@@ -390,24 +374,21 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
       return false;
     }
 
-    const offset = (blobOffset - i) + encodeVector(localDecl).length;
+    const offset = (blobOffset - i) - encodeVector(localDecl).length;
 
     let cumLen = 0;
     i = 0;
-    for (; i < func.wasm.length; i++) {
-      cumLen += func.wasm[i].filter(x => x != null && x <= 0xff).length;
+    for (; i < assembledWasmOps.length; i++) {
+      cumLen += assembledWasmOps[i].filter(x => x != null && x <= 0xff).length;
       if (cumLen === offset) break;
     }
 
-    if (cumLen !== offset)  {
+    if (cumLen !== offset) {
       printDecomp(-1, func, funcs, globals, exceptions);
       return false;
     }
 
-    i -= 1;
-
-    printDecomp(i, func, funcs, globals, exceptions);
-
+    printDecomp(i + 1, func, funcs, globals, exceptions);
     return true;
   };
 
