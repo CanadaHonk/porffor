@@ -4,7 +4,7 @@ import compile from './index.js';
 import decompile from './decompile.js';
 import { TYPES, TYPE_NAMES } from './types.js';
 import { log } from './log.js';
-import Prefs from './prefs.js';
+import {} from './prefs.js';
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 

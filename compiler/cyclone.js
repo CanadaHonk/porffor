@@ -1,14 +1,8 @@
 // cyclone: wasm partial constant evaluator (it is fast and dangerous hence "cyclone")
 import { signedLEB128, ieee754_binary64, read_ieee754_binary64, read_signedLEB128 } from './encoding.js';
 import { Opcodes, Valtype } from './wasmSpec.js';
+import { number } from './embedding.js';
 
-const number = (n, valtype = valtypeBinary) => {
-  switch (valtype) {
-    case Valtype.i32: return [ Opcodes.i32_const, ...signedLEB128(n) ];
-    case Valtype.i64: return [ Opcodes.i64_const, ...signedLEB128(n) ];
-    case Valtype.f64: return [ Opcodes.f64_const, ...ieee754_binary64(n) ];
-  }
-};
 
 const f64ToI32Op = {
   [Opcodes.f64_eq]: Opcodes.i32_eq,
@@ -108,7 +102,7 @@ export default wasm => {
         break;
       }
       case Opcodes.f64_const: {
-        const n = read_ieee754_binary64(op.slice(1));
+        const n = op[1];
         push(n);
         break;
       }
@@ -516,7 +510,7 @@ export default wasm => {
           i--;
 
           // convert f64.const -> i32.const
-          const n = read_ieee754_binary64(wasm[i - 1].slice(1));
+          const n = wasm[i - 1][1];
           wasm.splice(i - 1, 1, number(n, Valtype.i32));
 
           // convert math op from f64 to i32
@@ -556,7 +550,7 @@ export default wasm => {
           }
 
           // convert f64.const -> i32.const
-          const n = read_ieee754_binary64(wasm[i - 2].slice(1));
+          const n = wasm[i - 2][1];
           wasm.splice(i - 2, 1, number(n, Valtype.i32));
 
           // convert math op from f64 to i32

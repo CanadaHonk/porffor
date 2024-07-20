@@ -30,6 +30,7 @@ const compile = async (file, _funcs) => {
     args = first.slice('// @porf '.length).split(' ').concat(args);
   }
   process.argv = argv.concat(args);
+  globalThis.argvChanged?.();
 
   const porfCompile = (await import(`./index.js?_=${Date.now()}`)).default;
 
@@ -180,7 +181,6 @@ const precompile = async () => {
     fileCount++;
 
     globalThis.precompile = file;
-
     const t = performance.now();
 
     try {
@@ -202,12 +202,15 @@ import { number } from './embedding.js';
 export const BuiltinFuncs = function() {
 ${funcs.map(x => {
   const rewriteWasm = wasm => {
-    const str = JSON.stringify(wasm.filter(x => x.length && x[0] != null))
+    const str = JSON.stringify(wasm.filter(x => x.length && x[0] != null), (k, v) => {
+        if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
+        return v;
+      })
       .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtype})`)
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode}, '${name}', ${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}', ${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`)
-      .replace(/\[68,"funcref","(.*?)"]/g, (_, name, offset) => `[68, ...builtin('${name}', true, true)]`)
+      .replace(/\[68,"funcref","(.*?)"]/g, (_, name, offset) => `[68, builtin('${name}', true)]`)
       .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`)
       .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(scope, { name: '${objName}' })`);
 

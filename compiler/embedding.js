@@ -5,7 +5,7 @@ export const number = (n, valtype = valtypeBinary) => {
   switch (valtype) {
     case Valtype.i32: return [ [ Opcodes.i32_const, ...signedLEB128(n) ] ];
     case Valtype.i64: return [ [ Opcodes.i64_const, ...signedLEB128(n) ] ];
-    case Valtype.f64: return [ [ Opcodes.f64_const, ...ieee754_binary64(n) ] ];
+    case Valtype.f64: return [ [ Opcodes.f64_const, n ] ];
   }
 };
 

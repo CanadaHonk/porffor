@@ -2,7 +2,7 @@ import { Valtype, FuncType, ExportDesc, Section, Magic, ModuleVersion, Opcodes, 
 import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64_into } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from './log.js';
-import Prefs from './prefs.js';
+import {} from './prefs.js';
 
 const createSection = (type, data) => [
   type,
@@ -314,6 +314,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       for (let i = 0; i < x.wasm.length; i++) {
         let o = x.wasm[i];
 
+        // encode local/global ops as unsigned leb128 from raw number
         if (
           (o[0] === Opcodes.local_get || o[0] === Opcodes.local_set || o[0] === Opcodes.local_tee || o[0] === Opcodes.global_get || o[0] === Opcodes.global_set) &&
           o[1] > 127
@@ -322,6 +323,14 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
           o = [...o];
           o.pop();
           unsignedLEB128_into(n, o);
+        }
+
+        // encode f64.const ops as ieee754 from raw number
+        if (o[0] === Opcodes.f64_const) {
+          const n = o[1];
+          o = [...o];
+          o.pop();
+          ieee754_binary64_into(n, o);
         }
 
         for (let j = 0; j < o.length; j++) {

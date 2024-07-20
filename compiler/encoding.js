@@ -198,4 +198,8 @@ export const unsignedLEB128_into = (n, buffer) => {
   } while (n !== 0);
 };
 
-export const ieee754_binary64_into = (value, buffer) => buffer.push(...new Uint8Array(new Float64Array([ value ]).buffer));
+export const ieee754_binary64_into = (value, buffer) => {
+  const data = new Uint8Array(new Float64Array([ value ]).buffer);
+  for (let i = 0; i < 8; i++) buffer.push(data[i]);
+  // buffer.push(...new Uint8Array(new Float64Array([ value ]).buffer));
+};

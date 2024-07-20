@@ -3,7 +3,7 @@ import ObjectBuiltins from './builtins_objects.js';
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { TYPES, TYPE_NAMES } from './types.js';
-import Prefs from './prefs.js';
+import {} from './prefs.js';
 import { unsignedLEB128 } from './encoding.js';
 
 export const importedFuncs = [

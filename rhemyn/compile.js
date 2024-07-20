@@ -1,7 +1,7 @@
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from '../compiler/wasmSpec.js';
 import { number } from '../compiler/embedding.js';
 import parse from './parse.js';
-import Prefs from '../compiler/prefs.js';
+import {} from '../compiler/prefs.js';
 import { TYPES } from '../compiler/types.js';
 
 // local indexes

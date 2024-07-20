@@ -8,7 +8,7 @@ import { TYPES, TYPE_FLAGS, TYPE_NAMES, typeHasFlag } from './types.js';
 import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
 import { log } from './log.js';
-import Prefs from './prefs.js';
+import {} from './prefs.js';
 import makeAllocator from './allocators.js';
 
 let globals = {};
@@ -230,7 +230,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
             });
 
             const encodeFunc = ({
-              [Opcodes.f64_const]: ieee754_binary64,
+              [Opcodes.f64_const]: x => x,
               [Opcodes.if]: unsignedLEB128
             })[inst[0]] ?? signedLEB128;
             out.push([ ...inst, ...immediates.flatMap(x => encodeFunc(x)) ]);
@@ -1253,7 +1253,7 @@ const asmFuncToAsm = (scope, func) => {
   return func(scope, {
     TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow,
     getNodeType, generate, generateIdent,
-    builtin: (n, float = false, offset = false) => {
+    builtin: (n, offset = false) => {
       let idx = funcIndex[n] ?? importedFuncs[n];
       if (idx == null && builtinFuncs[n]) {
         includeBuiltin(scope, n);
@@ -1266,7 +1266,7 @@ const asmFuncToAsm = (scope, func) => {
       if (idx == null) throw new Error(`builtin('${n}') failed: could not find func (from ${scope.name})`);
       if (offset) idx -= importedFuncs.length;
 
-      return float ? ieee754_binary64(idx) : idx;
+      return idx;
     },
     glbl: (opcode, name, type) => {
       const globalName = '#porf#' + name; // avoid potential name clashing with user js

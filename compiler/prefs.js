@@ -18,10 +18,12 @@ const getPrefs = () => {
       prefs[nameToKey(name)] = value ?? true;
     }
   }
+
+  globalThis.Prefs = prefs;
 };
 getPrefs();
 
-export default prefs;
+// export default prefs;
 
 export const uncache = () => getPrefs();
 globalThis.argvChanged = uncache;
