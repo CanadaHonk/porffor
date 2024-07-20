@@ -81,9 +81,9 @@ const memoryToString = mem => {
 let prev = '';
 
 function setLastEvalExp(prev, ret) {
-  const lastEvalExp = `let _ = ${JSON.stringify(ret)};\n`;
-  if (/let _ = .*;\n/.test(prev)) {
-    return prev.replace(/let _ = .*;\n/, lastEvalExp);
+  const lastEvalExp = `_ = ${JSON.stringify(ret)};\n`;
+  if (/_ = .*;\n/.test(prev)) {
+    return prev.replace(/_ = .*;\n/, lastEvalExp);
   }
   return lastEvalExp + prev;
 }
