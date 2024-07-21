@@ -1804,7 +1804,6 @@ const generateExp = (scope, decl) => {
     if (expression.value === 'use strict') {
       scope.strict = true;
     }
-    return [];
   }
 
   const out = generate(scope, expression, undefined, undefined, Prefs.optUnused);
