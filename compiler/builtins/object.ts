@@ -245,11 +245,6 @@ export const __Object_is = (x: any, y: any): boolean => {
 
 
 export const __Object_preventExtensions = (obj: any): any => {
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return obj;
-  }
-
   Porffor.object.preventExtensions(obj);
 
   return obj;
@@ -260,21 +255,11 @@ export const __Object_isExtensible = (obj: any): any => {
     return false;
   }
 
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return true;
-  }
-
   return !Porffor.object.isInextensible(obj);
 };
 
 
 export const __Object_freeze = (obj: any): any => {
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return obj;
-  }
-
   // make inextensible
   Porffor.object.preventExtensions(obj);
 
@@ -289,11 +274,6 @@ export const __Object_isFrozen = (obj: any): any => {
     return true;
   }
 
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return false;
-  }
-
   // check obj is inextensible
   if (!Porffor.object.isInextensible(obj)) {
     return false;
@@ -305,11 +285,6 @@ export const __Object_isFrozen = (obj: any): any => {
 
 
 export const __Object_seal = (obj: any): any => {
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return obj;
-  }
-
   // make inextensible
   Porffor.object.preventExtensions(obj);
 
@@ -322,11 +297,6 @@ export const __Object_seal = (obj: any): any => {
 export const __Object_isSealed = (obj: any): any => {
   if (!Porffor.object.isObject(obj)) {
     return true;
-  }
-
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return false;
   }
 
   // check obj is inextensible
@@ -345,22 +315,16 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
   const objType: i32 = Porffor.rawType(obj);
   if (objType == Porffor.TYPES.function) {
     // hack: function .name and .length
-    const out: object = {};
-
-    out.writable = false;
-    out.enumerable = false;
-    out.configurable = true;
-
     const v = obj[p];
     if (v != null) {
+      const out: object = {};
+      out.writable = false;
+      out.enumerable = false;
+      out.configurable = true;
+
       out.value = v;
       return out;
     }
-  }
-
-  // todo: support non-pure-objects
-  if (objType != Porffor.TYPES.object) {
-    return undefined;
   }
 
   const entryPtr: i32 = Porffor.object.lookup(obj, p);
@@ -397,9 +361,9 @@ local.set ${value+1}`;
 export const __Object_getOwnPropertyDescriptors = (obj: any): any => {
   const out: object = {};
 
-  // todo: support non-pure-objects
   if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return out;
+    obj = __Porffor_object_getObject(obj);
+    if (Porffor.rawType(obj) != Porffor.TYPES.object) return out;
   }
 
   for (const x in obj) {

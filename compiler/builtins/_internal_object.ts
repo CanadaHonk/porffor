@@ -17,21 +17,33 @@ import type {} from './porffor.d.ts';
 //   writable - 0b1000
 
 export const __Porffor_object_preventExtensions = (obj: any): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_getObject(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
+  }
+
   let rootFlags: i32 = Porffor.wasm.i32.load8_u(obj, 0, 4);
   rootFlags |= 0b0001;
   Porffor.wasm.i32.store8(obj, rootFlags, 0, 4);
 };
 
 export const __Porffor_object_isInextensible = (obj: any): boolean => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_getObject(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return false;
+  }
+
   const out: boolean = Porffor.wasm.i32.load8_u(obj, 0, 4) & 0b0001;
   return out;
 };
 
 
 export const __Porffor_object_overrideAllFlags = (obj: any, overrideOr: i32, overrideAnd: i32): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_getObject(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
+  }
+
   let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
 
   const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
@@ -45,7 +57,11 @@ export const __Porffor_object_overrideAllFlags = (obj: any, overrideOr: i32, ove
 };
 
 export const __Porffor_object_checkAllFlags = (obj: any, dataAnd: i32, accessorAnd: i32, dataExpected: i32, accessorExpected: i32): boolean => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_getObject(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return false;
+  }
+
   let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
 
   const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
@@ -107,7 +123,10 @@ export const __Porffor_object_accessorSet = (entryPtr: i32): Function => {
 
 export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
   if (Porffor.wasm`local.get ${obj}` == 0) return -1;
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_getObject(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return -1;
+  }
 
   const targetType: i32 = Porffor.wasm`local.get ${target+1}`;
 
@@ -247,7 +266,11 @@ export const __Porffor_object_writeKey = (ptr: i32, key: any): void => {
 export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
 
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_getObject(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return value;
+  }
+
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   let flags: i32;
   if (entryPtr == -1) {
@@ -328,7 +351,11 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
 };
 
 export const __Porffor_object_define = (obj: any, key: any, value: any, flags: i32): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_getObject(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
+  }
+
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
     // add new entry
