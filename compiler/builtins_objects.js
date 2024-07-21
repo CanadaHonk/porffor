@@ -90,7 +90,7 @@ export default function({ builtinFuncs }, Prefs) {
     for (const x in props) {
       const d = props[x];
 
-      if (d.value) {
+      if (Object.hasOwn(d, 'value')) {
         const k = prefix + x;
 
         if (typeof d.value === 'number') {
