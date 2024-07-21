@@ -100,7 +100,8 @@ if (isMainThread) {
     return acc;
   }, {});
 
-  let threads = parseInt(process.argv.find(x => x.startsWith('--threads='))?.split('=')?.[1] || os.cpus().length);
+  // hack: limit to 12 for now due to oom and p-core pain
+  let threads = Math.min(12, parseInt(process.argv.find(x => x.startsWith('--threads='))?.split('=')?.[1] || os.cpus().length));
   if (logErrors) threads = 1;
 
   const allTests = whatTests === 'test' && threads > 1;
