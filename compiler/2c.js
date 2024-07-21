@@ -438,7 +438,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
         case Opcodes.f64_const: {
           const val = i[1];
-          vals.push(val);
+          vals.push(val.toString());
           break;
         }
 
