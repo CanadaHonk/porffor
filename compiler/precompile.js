@@ -206,15 +206,15 @@ ${funcs.map(x => {
         if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
         return v;
       })
-      .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(scope, '${reason}', '${type}') * pageSize, ${valtype})`)
-      .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode}, '${name}', ${valtype})`)
-      .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}', ${valtype})]`)
-      .replace(/\[16,"(.*?)"]/g, (_, name) => `[16, builtin('${name}')]`)
-      .replace(/\[68,"funcref","(.*?)"]/g, (_, name, offset) => `[68, builtin('${name}', true)]`)
-      .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(scope, '${constructor}', \`${message}\`)`)
-      .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(scope, { name: '${objName}' })`);
+      .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(_,'${reason}','${type}')*pageSize,${valtype})`)
+      .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode},'${name}',${valtype})`)
+      .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
+      .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)
+      .replace(/\[68,"funcref","(.*?)"]/g, (_, name, offset) => `[68,builtin('${name}',1)]`)
+      .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(_,'${constructor}',\`${message}\`)`)
+      .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`);
 
-    return `(scope, {${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}`.slice(0, -1)}}) => ` + str;
+    return `(_,{${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
   };
 
   const locals = Object.entries(x.locals).sort((a,b) => a[1].idx - b[1].idx)
@@ -222,14 +222,13 @@ ${funcs.map(x => {
   // todo: check for other identifier unsafe characters
   const name = x.name.includes('#') ? `['${x.name}']` : `.${x.name}`;
 
-  return `  this${name} = {
-    wasm: ${rewriteWasm(x.wasm)},
-    params: ${JSON.stringify(x.params)}, typedParams: 1,
-    returns: ${JSON.stringify(x.returns)}, ${x.returnType != null ? `returnType: ${JSON.stringify(x.returnType)}` : 'typedReturns: 1'},
-    locals: ${JSON.stringify(locals.slice(x.params.length).map(x => x[1].type))}, localNames: ${JSON.stringify(locals.map(x => x[0]))},
-${x.globalInits ? `    globalInits: {${Object.keys(x.globalInits).map(y => `${y}: ${rewriteWasm(x.globalInits[y])}`).join(',')}},\n` : ''}${x.data && x.data.length > 0 ? `    data: [${x.data.map(x => `[${x.offset ?? 'null'},[${x.bytes.join(',')}]]`).join(',')}],` : ''}
-${x.table ? `    table: 1,` : ''}${x.constr ? `    constr: 1,` : ''}${x.hasRestArgument ? `    hasRestArgument: 1,` : ''}
-  };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');
+  return `this${name} = {
+wasm:${rewriteWasm(x.wasm)},
+params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.returns)},${x.returnType != null ? `returnType:${JSON.stringify(x.returnType)}` : 'typedReturns:1'},
+locals:${JSON.stringify(locals.slice(x.params.length).map(x => x[1].type))},localNames:${JSON.stringify(locals.map(x => x[0]))},
+${x.globalInits ? `globalInits:{${Object.keys(x.globalInits).map(y => `${y}:${rewriteWasm(x.globalInits[y])}`).join(',')}},` : ''}${x.data && x.data.length > 0 ? `data:[${x.data.map(x => `[${x.offset ?? 'null'},[${x.bytes.join(',')}]]`).join(',')}],` : ''}
+${x.table ? `table:1,` : ''}${x.constr ? `constr:1,` : ''}${x.hasRestArgument ? `hasRestArgument:1,` : ''}
+};`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');
 }).join('\n')}
 };`;
 };
