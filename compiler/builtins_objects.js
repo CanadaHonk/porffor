@@ -8,6 +8,9 @@ export default function({ builtinFuncs }, Prefs) {
     done.add(name);
     const prefix = name === 'globalThis' ? '' : `__${name}_`;
 
+    // already a func
+    const existingFunc = builtinFuncs[name];
+
     builtinFuncs['#get_' + name] = {
       params: [],
       locals: [],
@@ -20,8 +23,13 @@ export default function({ builtinFuncs }, Prefs) {
 
         // todo/perf: precompute bytes here instead of calling real funcs if we really care about perf later
 
-        const page = allocPage(scope, `builtin object: ${name}`);
-        const ptr = page === 0 ? 4 : page * PageSize;
+        let ptr;
+        if (existingFunc) {
+          ptr = 1;
+        } else {
+          const page = allocPage(scope, `builtin object: ${name}`);
+          ptr = page === 0 ? 4 : page * PageSize;
+        }
 
         const out = [
           // check if already made/cached
@@ -54,7 +62,7 @@ export default function({ builtinFuncs }, Prefs) {
 
           out.push(
             [ Opcodes.global_get, 0 ],
-            ...number(TYPES.object, Valtype.i32),
+            ...number(existingFunc ? TYPES.function : TYPES.object, Valtype.i32),
 
             ...makeString(scope, x, false, `#builtin_object_${name}_${x}`),
             Opcodes.i32_to_u,
@@ -80,9 +88,6 @@ export default function({ builtinFuncs }, Prefs) {
       }
     };
 
-
-    // already a func
-    const existingFunc = builtinFuncs[name];
     if (existingFunc) {
       const originalWasm = existingFunc.wasm;
       existingFunc.wasm = (...args) => {
