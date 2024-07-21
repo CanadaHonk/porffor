@@ -1327,12 +1327,8 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     locals[nameParam(i)] = { idx: i, type: allLocals[i] };
   }
 
-  for (const x of _data) {
-    let offset = x[0];
-    if (offset != null) offset += pages.size * pageSize;
-
-    const bytes = x[1];
-    data.push({ offset, bytes });
+  for (const x in _data) {
+    data.push({ page: x, bytes: _data[x] });
   }
 
   const func = {
@@ -4951,7 +4947,7 @@ const compileBytes = (val, itemType) => {
   }
 };
 
-const makeData = (scope, elements, offset = null, itemType, initEmpty) => {
+const makeData = (scope, elements, page = null, itemType, initEmpty) => {
   const length = elements.length;
 
   // if length is 0 memory/data will just be 0000... anyway
@@ -4965,8 +4961,7 @@ const makeData = (scope, elements, offset = null, itemType, initEmpty) => {
     bytes.push(...compileBytes(elements[i], itemType));
   }
 
-  const obj = { bytes };
-  if (offset != null) obj.offset = offset;
+  const obj = { bytes, page };
 
   const idx = data.push(obj) - 1;
 
@@ -5068,7 +5063,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
       (!globalThis.precompile || !global)
     ) {
       if (Prefs.activeData && firstAssign) {
-        makeData(scope, elements, rawPtr, itemType, initEmpty);
+        makeData(scope, elements, allocator.lastName, itemType, initEmpty);
 
         // local value as pointer
         return [ number(rawPtr, intOut ? Valtype.i32 : valtypeBinary), pointer ];

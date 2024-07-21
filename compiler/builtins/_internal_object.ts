@@ -174,9 +174,8 @@ export const __Porffor_object_get = (obj: any, key: any): any => {
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot get property of null');
 
   if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.function) {
-    let tmp: bytestring = '';
-    tmp = 'name';
-    if (key == tmp) {
+    const tmp1: bytestring = 'name';
+    if (key == tmp1) {
       const o: bytestring = __Porffor_funcLut_name(obj);
       const t: i32 = Porffor.TYPES.bytestring;
       Porffor.wasm`
@@ -186,8 +185,8 @@ local.get ${t}
 return`;
     }
 
-    tmp = 'length';
-    if (key == tmp) {
+    const tmp2: bytestring = 'length';
+    if (key == tmp2) {
       const o: i32 = __Porffor_funcLut_length(obj);
       Porffor.wasm`
 local.get ${o}
@@ -424,15 +423,14 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot delete property of null');
 
   if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.function) {
-    let tmp: bytestring = '';
-    tmp = 'name';
-    if (key == tmp) {
+    const tmp1: bytestring = 'name';
+    if (key == tmp1) {
       __Porffor_funcLut_deleteName(obj);
       return true;
     }
 
-    tmp = 'length';
-    if (key == tmp) {
+    const tmp2: bytestring = 'length';
+    if (key == tmp2) {
       __Porffor_funcLut_deleteLength(obj);
       return true;
     }

@@ -171,13 +171,11 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
   }
 
   if (t == Porffor.TYPES.function) {
-    let tmp: bytestring = '';
+    const tmp1: bytestring = 'name';
+    if (p == tmp1) return !__Porffor_funcLut_isNameDeleted(_this);
 
-    tmp = 'name';
-    if (p == tmp) return !__Porffor_funcLut_isNameDeleted(_this);
-
-    tmp = 'length';
-    if (p == tmp) return !__Porffor_funcLut_isLengthDeleted(_this);
+    const tmp2: bytestring = 'length';
+    if (p == tmp2) return !__Porffor_funcLut_isLengthDeleted(_this);
 
     return false;
   }

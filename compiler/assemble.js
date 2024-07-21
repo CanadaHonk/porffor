@@ -203,7 +203,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     }
 
     data.push({
-      offset,
+      page: 'func lut',
       bytes
     });
     data.addedFuncArgcLut = true;
@@ -358,11 +358,18 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   const dataSection = data.length === 0 ? [] : createSection(
     Section.data,
     encodeVector(data.map(x => {
-      // type: active
-      if (x.offset != null) return [ 0x00, Opcodes.i32_const, ...signedLEB128(x.offset), Opcodes.end, ...encodeVector(x.bytes) ];
+      const bytes = encodeVector(x.bytes);
 
-      // type: passive
-      return [ 0x01, ...encodeVector(x.bytes) ];
+      if (x.page != null) {
+        // type: active
+        const offset = pages.get(x.page).ind * pageSize;
+        bytes.unshift(0x00, Opcodes.i32_const, ...signedLEB128(offset), Opcodes.end);
+      } else {
+        // type: passive
+        bytes.unshift(0x01);
+      }
+
+      return bytes;
     }))
   );
 
