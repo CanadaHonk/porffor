@@ -81,11 +81,25 @@ export default function({ builtinFuncs }, Prefs) {
     };
 
 
-    this[name] = (scope, { builtin }) => [
-      [ Opcodes.call, builtin('#get_' + name) ],
-      Opcodes.i32_from_u
-    ];
-    this[name].type = TYPES.object;
+    // already a func
+    const existingFunc = builtinFuncs[name];
+    if (existingFunc) {
+      const originalWasm = existingFunc.wasm;
+      existingFunc.wasm = (...args) => {
+        const { builtin } = args[1];
+        return [
+          [ Opcodes.call, builtin('#get_' + name) ],
+          [ Opcodes.drop ],
+          ...originalWasm(...args)
+        ];
+      };
+    } else {
+      this[name] = (scope, { builtin }) => [
+        [ Opcodes.call, builtin('#get_' + name) ],
+        Opcodes.i32_from_u
+      ];
+      this[name].type = TYPES.object;
+    }
 
     for (const x in props) {
       const d = props[x];
