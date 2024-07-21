@@ -191,19 +191,25 @@ export default function({ builtinFuncs }, Prefs) {
 
 
   // todo: support when existing func
-  // object('Number', {
-  //   NaN: NaN,
-  //   POSITIVE_INFINITY: Infinity,
-  //   NEGATIVE_INFINITY: -Infinity,
+  object('Number', {
+    ...props({
+      writable: false,
+      enumerable: false,
+      configurable: false
+    }, {
+      NaN: NaN,
+      POSITIVE_INFINITY: Infinity,
+      NEGATIVE_INFINITY: -Infinity,
 
-  //   MAX_VALUE: valtype === 'i32' ? 2147483647 : 1.7976931348623157e+308,
-  //   MIN_VALUE: valtype === 'i32' ? -2147483648 : 5e-324,
+      MAX_VALUE: valtype === 'i32' ? 2147483647 : 1.7976931348623157e+308,
+      MIN_VALUE: valtype === 'i32' ? -2147483648 : 5e-324,
 
-  //   MAX_SAFE_INTEGER: valtype === 'i32' ? 2147483647 : 9007199254740991,
-  //   MIN_SAFE_INTEGER: valtype === 'i32' ? -2147483648 : -9007199254740991,
+      MAX_SAFE_INTEGER: valtype === 'i32' ? 2147483647 : 9007199254740991,
+      MIN_SAFE_INTEGER: valtype === 'i32' ? -2147483648 : -9007199254740991,
 
-  //   EPSILON: 2.220446049250313e-16
-  // });
+      EPSILON: 2.220446049250313e-16
+    })
+  });
 
 
   // these technically not spec compliant as it should be classes or non-enumerable but eh

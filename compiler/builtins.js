@@ -99,44 +99,6 @@ export const BuiltinVars = function(ctx) {
   this.Infinity = number(Infinity);
   this.Infinity.floatOnly = true;
 
-  this.__Number_NaN = number(NaN);
-  this.__Number_NaN.floatOnly = true;
-
-  this.__Number_POSITIVE_INFINITY = number(Infinity);
-  this.__Number_POSITIVE_INFINITY.floatOnly = true;
-
-  this.__Number_NEGATIVE_INFINITY = number(-Infinity);
-  this.__Number_NEGATIVE_INFINITY.floatOnly = true;
-
-  switch (valtype) {
-    case 'i32':
-      this.__Number_MAX_VALUE = number(2147483647);
-      this.__Number_MIN_VALUE = number(-2147483648);
-
-      this.__Number_MAX_SAFE_INTEGER = this.__Number_MAX_VALUE;
-      this.__Number_MIN_SAFE_INTEGER = this.__Number_MIN_VALUE;
-      break;
-
-    case 'i64':
-      // todo: we use 32 bit limits here as we cannot encode 64 bit integers yet
-      this.__Number_MAX_VALUE = number(2147483647);
-      this.__Number_MIN_VALUE = number(-2147483648);
-
-      this.__Number_MAX_SAFE_INTEGER = this.__Number_MAX_VALUE;
-      this.__Number_MIN_SAFE_INTEGER = this.__Number_MIN_VALUE;
-      break;
-
-    case 'f64':
-      this.__Number_MAX_VALUE = number(1.7976931348623157e+308);
-      this.__Number_MIN_VALUE = number(5e-324);
-
-      this.__Number_MAX_SAFE_INTEGER = number(9007199254740991);
-      this.__Number_MIN_SAFE_INTEGER = number(-9007199254740991);
-
-      this.__Number_EPSILON = number(2.220446049250313e-16);
-      break;
-  }
-
   for (const x in TYPES) {
     this['__Porffor_TYPES_' + x] = number(TYPES[x]);
   }
