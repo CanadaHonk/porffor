@@ -30,7 +30,7 @@ export class StaticAllocator {
   }
 
   ptr(ind) {
-    if (ind === 0) return 4;
+    if (ind === 0) return 16;
     return ind * PageSize;
   }
 

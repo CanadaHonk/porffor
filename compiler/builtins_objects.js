@@ -28,7 +28,7 @@ export default function({ builtinFuncs }, Prefs) {
           ptr = 1;
         } else {
           const page = allocPage(scope, `builtin object: ${name}`);
-          ptr = page === 0 ? 4 : page * PageSize;
+          ptr = page === 0 ? 16 : page * PageSize;
         }
 
         const out = [
