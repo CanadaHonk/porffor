@@ -462,7 +462,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
       for (let i = 0; i < funcs.length; i++) {
         const f = funcs[i];
 
-        if (!f.export && !f.likelyIndirect && !called.has(f.index)) {
+        if (!f.export && !f.referenced && !called.has(f.index)) {
           for (const inst of f.wasm) {
             if (inst[0] == Opcodes.call) {
               const val = called.get(inst[1]) - 1;

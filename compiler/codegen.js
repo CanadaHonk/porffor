@@ -52,10 +52,10 @@ const funcRef = (idx, name) => {
     [ Opcodes.const, 'funcref', name ]
   ];
 
-  funcs[idx - importedFuncs.length].likelyIndirect = true;
+  funcs[idx - importedFuncs.length].referenced = true;
 
   const out = number(idx - importedFuncs.length);
-  out.at(-1).push('funcref');
+  out[0].push('funcref');
   return out;
 };
 
@@ -347,7 +347,6 @@ const generateIdent = (scope, decl) => {
 
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
       if (Object.hasOwn(funcIndex, name)) {
-
         return funcRef(funcIndex[name], name);
       }
     }
