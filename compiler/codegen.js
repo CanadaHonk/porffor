@@ -398,6 +398,7 @@ const generateReturn = (scope, decl) => {
     !globalThis.precompile // skip in precompiled built-ins, we should not require this and handle it ourselves
   ) {
     // ignore return value and return this if being constructed
+    // todo: only do this when trying to return a primitive?
     out.push(
       // ...truthy(scope, [ [ Opcodes.local_get, '#newtarget' ] ], [ [ Opcodes.local_get, '#newtarget#type' ] ], false, true),
       [ Opcodes.local_get, '#newtarget' ],
@@ -1998,9 +1999,10 @@ const createThisArg = (scope, decl, knownThis = undefined) => {
       ];
     }
 
+    // do not generate globalThis for builtins
     return [
-      ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
-      ...getType(scope, 'globalThis')
+      ...number(NULL),
+      ...number(TYPES.object, Valtype.i32)
     ];
   }
 };
@@ -2338,9 +2340,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       ];
     }
   }
-
-  // TODO: only allows callee as identifier
-  // if (!name) return todo(scope, `only identifier callees (got ${decl.callee.type})`);
 
   let idx;
   if (Object.hasOwn(funcIndex, name)) idx = funcIndex[name];
@@ -2769,6 +2768,22 @@ const generateThis = (scope, decl, _global, _name) => {
   }
 
   return [
+    // default this to globalThis
+    [ Opcodes.local_get, '#this' ],
+    Opcodes.i32_to_u,
+    [ Opcodes.i32_eqz ],
+    [ Opcodes.if, Blocktype.void ],
+      [ Opcodes.local_get, '#this#type' ],
+      ...number(TYPES.object, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.if, Blocktype.void ],
+        ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
+        [ Opcodes.local_set, '#this' ],
+        ...getType(scope, 'globalThis'),
+        [ Opcodes.local_set, '#this#type' ],
+      [ Opcodes.end ],
+    [ Opcodes.end ],
+
     [ Opcodes.local_get, '#this' ],
     ...setLastType(scope, [ [ Opcodes.local_get, '#this#type' ] ])
   ];
