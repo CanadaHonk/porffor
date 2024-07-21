@@ -1218,7 +1218,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
       type: 'CallExpression',
       callee: {
         type: 'Identifier',
-        name: '__Object_hasOwn'
+        name: '__Porffor_object_in'
       },
       arguments: [
         decl.right,

@@ -190,6 +190,24 @@ export const __Object_hasOwn = (obj: any, prop: any) => {
   return __Object_prototype_hasOwnProperty(obj, prop);
 };
 
+export const __Porffor_object_in = (obj: any, prop: any) => {
+  if (__Object_prototype_hasOwnProperty(obj, prop)) {
+    return true;
+  }
+
+  const t: i32 = Porffor.rawType(obj);
+  if (t != Porffor.TYPES.object) {
+    return false;
+  }
+
+  let proto = obj.__proto__;
+  while (true) {
+    if (proto == null) return false;
+    if (__Object_prototype_hasOwnProperty(proto, prop)) return true;
+    proto = proto.__proto__;
+  }
+};
+
 
 export const __Object_assign = (target: any, ...sources: any[]) => {
   if (target == null) throw new TypeError('Argument is nullish, expected object');
