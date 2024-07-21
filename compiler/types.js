@@ -1,4 +1,4 @@
-import Prefs from './prefs.js';
+import {} from './prefs.js';
 
 export const TYPE_FLAGS = {
   parity:    0b10000000,

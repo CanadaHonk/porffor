@@ -2,7 +2,7 @@ import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from '.
 import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
 import { log } from './log.js';
-import Prefs from './prefs.js';
+import {} from './prefs.js';
 
 const CValtype = {
   i8: 'u8',
@@ -437,7 +437,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
           break;
 
         case Opcodes.f64_const: {
-          const val = read_ieee754_binary64(i.slice(1)).toExponential();
+          const val = i[1];
           vals.push(val);
           break;
         }

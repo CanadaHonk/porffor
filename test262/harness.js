@@ -177,6 +177,7 @@ var NaNs = [
 ];
 
 /// testTypedArray.js
+// todo: TypedArray
 var floatArrayConstructors = [
   Float64Array,
   Float32Array
@@ -255,15 +256,12 @@ function floatTypedArrayConstructorPrecision(FA) {
 
 /// propertyHelper.js
 function isConfigurable(obj, name) {
-  try {
-    delete obj[name];
-  } catch {}
-
-  return !Object.hasOwn(obj, name);
+  if (Object.hasOwn(obj, name)) return Object.getOwnPropertyDescriptor(obj, name).configurable;
+  return true;
 }
 
 function isEnumerable(obj, name) {
-  return Object.hasOwn(obj, name) && obj.propertyIsEnumerable(name);
+  return Object.hasOwn(obj, name) && Object.getOwnPropertyDescriptor(obj, name).enumerable;
 }
 
 function isSameValue(a, b) {
@@ -274,6 +272,9 @@ function isSameValue(a, b) {
 }
 
 function isWritable(obj, name, verifyProp, value) {
+  if (Object.hasOwn(obj, name) && Object.getOwnPropertyDescriptor(obj, name).writable != null) return Object.getOwnPropertyDescriptor(obj, name).writable;
+  if (!Object.hasOwn(obj, name) && Object.isExtensible(obj)) return true;
+
   var unlikelyValue = Array.isArray(obj) && name === "length" ?
     Math.pow(2, 32) - 1 :
     "unlikelyValue";
@@ -424,7 +425,7 @@ function checkSequence(arr) {
 
 /// detachArrayBuffer.js
 function $DETACHBUFFER(buffer) {
-  $262.detachArrayBuffer(buffer);
+  Porffor.arraybuffer.detach(buffer)
 }
 
 /// fnGlobalObject.js
@@ -436,8 +437,8 @@ function fnGlobalObject() {
 /// doneprintHandle.js
 function $DONE(error) {
   if (error) {
-    printStatic('Test262:AsyncTestFailure:Error: unknown');
+    Porffor.printStatic('Test262:AsyncTestFailure:Error: unknown');
   } else {
-    printStatic('Test262:AsyncTestComplete');
+    Porffor.printStatic('Test262:AsyncTestComplete');
   }
 }

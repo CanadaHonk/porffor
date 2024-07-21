@@ -184,7 +184,7 @@
       color: var(--text-muted);
 
       margin-bottom: 20px;
-      margin-top: 6px;
+      margin-top: 16px;
     }
 
     .cards {
@@ -512,6 +512,7 @@
 
     .tagline {
       font-size: max(min(6vw, 44px), 24px);
+      margin-top: 8px;
     }
 
     .subtag {
@@ -1080,6 +1081,8 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
     const comp = async () => {
       setProcess();
+      globalThis.argvChanged?.();
+
       if (code !== examples[examples_dropdown.value]) location.hash = '#' + btoa(code);
 
       jsSize.textContent = `${new Blob([code]).size} bytes`;

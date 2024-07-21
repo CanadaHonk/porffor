@@ -1,5 +1,5 @@
 import { log } from './log.js';
-import Prefs from './prefs.js';
+import {} from './prefs.js';
 
 const file = process.argv.slice(2).find(x => x[0] !== '-' && !['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(x));
 

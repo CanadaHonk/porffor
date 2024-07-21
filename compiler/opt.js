@@ -2,10 +2,13 @@ import { Opcodes, Valtype } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { read_signedLEB128, read_ieee754_binary64, read_unsignedLEB128 } from './encoding.js';
 import { log } from './log.js';
-import Prefs from './prefs.js';
+import {} from './prefs.js';
 import { importedFuncs } from './builtins.js';
 
+const forceRemoveTypes = new Set(Prefs.forceRemoveTypes?.split?.(','));
 const hasType = (funcs, pages, type) => {
+  if (forceRemoveTypes.has(type)) return false;
+
   switch (type) {
     case 'Array':
       return pages.hasArray;
@@ -379,7 +382,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // -->
           // i32.const 0
 
-          wasm[i - 1] = number((valtype === 'f64' ? read_ieee754_binary64 : read_signedLEB128)(lastInst.slice(1)), Valtype.i32)[0]; // f64.const -> i32.const
+          wasm[i - 1] = number(valtype === 'f64' ? lastInst[1] : read_signedLEB128(lastInst.slice(1)), Valtype.i32)[0]; // f64.const -> i32.const
 
           wasm.splice(i, 1); // remove this inst
           i--;

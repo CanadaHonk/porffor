@@ -66,6 +66,23 @@ export const __Reflect_preventExtensions = (target: any) => {
   }
 };
 
+export const __Reflect_getPrototypeOf = (target: any) => {
+  if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+
+  return Object.getPrototypeOf(target);
+};
+
+export const __Reflect_setPrototypeOf = (target: any, proto: any) => {
+  if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+
+  try {
+    Object.setPrototypeOf(target, proto);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const __Reflect_ownKeys = (target: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
 

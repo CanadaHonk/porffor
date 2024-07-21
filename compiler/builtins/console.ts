@@ -18,12 +18,12 @@ export const __Porffor_printString = (arg: bytestring|string) => {
 
 export const __Porffor_printHexDigit = (arg: number) => {
   switch (arg) {
-    case 0xf: printStatic('f'); return;
-    case 0xe: printStatic('e'); return;
-    case 0xd: printStatic('d'); return;
-    case 0xc: printStatic('c'); return;
-    case 0xb: printStatic('b'); return;
-    case 0xa: printStatic('a'); return;
+    case 0xf: Porffor.printStatic('f'); return;
+    case 0xe: Porffor.printStatic('e'); return;
+    case 0xd: Porffor.printStatic('d'); return;
+    case 0xc: Porffor.printStatic('c'); return;
+    case 0xb: Porffor.printStatic('b'); return;
+    case 0xa: Porffor.printStatic('a'); return;
 
     default: print(arg);
   }
@@ -31,7 +31,7 @@ export const __Porffor_printHexDigit = (arg: number) => {
 
 export const __Porffor_numberLog = (arg: number) => {
   print(arg);
-  printStatic('\n');
+  Porffor.printStatic('\n');
 };
 
 export const __Porffor_miniLog = (arg: any) => {
@@ -42,48 +42,48 @@ export const __Porffor_miniLog = (arg: any) => {
 
     case Porffor.TYPES.boolean:
       if (arg) {
-        printStatic('true');
+        Porffor.printStatic('true');
       } else {
-        printStatic('false');
+        Porffor.printStatic('false');
       }
       break;
 
     case Porffor.TYPES.bytestring:
     case Porffor.TYPES.string:
-      printStatic("'");
+      Porffor.printStatic("'");
       __Porffor_printString(arg);
-      printStatic("'");
+      Porffor.printStatic("'");
       break;
 
     case Porffor.TYPES.array:
       const arrLen: i32 = arg.length - 1;
       if (arrLen == -1) {
-        printStatic('[]');
+        Porffor.printStatic('[]');
       } else {
-        printStatic('[ ');
+        Porffor.printStatic('[ ');
         for (let i: i32 = 0; i <= arrLen; i++) {
           __Porffor_miniLog(arg[i]);
-          if (i != arrLen) printStatic(', ');
+          if (i != arrLen) Porffor.printStatic(', ');
         }
-        printStatic(' ]');
+        Porffor.printStatic(' ]');
       }
       break;
 
     case Porffor.TYPES.empty:
     case Porffor.TYPES.undefined:
-      printStatic('undefined');
+      Porffor.printStatic('undefined');
       break;
 
     case Porffor.TYPES.object:
       if (arg) {
-        printStatic('[Object]');
+        Porffor.printStatic('[Object]');
       } else {
-        printStatic('null');
+        Porffor.printStatic('null');
       }
       break;
   }
 
-  printStatic('\n');
+  Porffor.printStatic('\n');
 };
 
 export const __Porffor_print = (arg: any, colors: boolean = true) => {
@@ -94,102 +94,101 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
     const arrLen: i32 = arg.length - 1;
 
     if (length) {
-      printStatic('(');
+      Porffor.printStatic('(');
       print(arrLen + 1);
-      printStatic(') ');
+      Porffor.printStatic(') ');
     }
 
     if (arrLen == -1) {
-      printStatic('[]');
+      Porffor.printStatic('[]');
     } else {
-      printStatic('[ ');
+      Porffor.printStatic('[ ');
       for (let i: i32 = 0; i <= arrLen; i++) {
         __Porffor_print(arg[i], colors);
-        if (i != arrLen) printStatic(', ');
+        if (i != arrLen) Porffor.printStatic(', ');
       }
-      printStatic(' ]');
+      Porffor.printStatic(' ]');
     }
   };
 
   switch (Porffor.rawType(arg)) {
     case Porffor.TYPES.number:
-      if (colors) printStatic('\x1b[33m'); // yellow
+      if (colors) Porffor.printStatic('\x1b[33m'); // yellow
       print(arg);
-      if (colors) printStatic('\x1b[0m');
+      if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.boolean:
-      if (colors) printStatic('\x1b[33m'); // yellow
+      if (colors) Porffor.printStatic('\x1b[33m'); // yellow
       if (arg) {
-        printStatic('true');
+        Porffor.printStatic('true');
       } else {
-        printStatic('false');
+        Porffor.printStatic('false');
       }
-      if (colors) printStatic('\x1b[0m');
+      if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.bytestring:
     case Porffor.TYPES.string:
-      if (colors) printStatic('\x1b[32m'); // green
-      printStatic("'");
+      if (colors) Porffor.printStatic('\x1b[32m'); // green
+      Porffor.printStatic("'");
 
       __Porffor_printString(arg);
 
-      printStatic("'");
-      if (colors) printStatic('\x1b[0m');
+      Porffor.printStatic("'");
+      if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.empty:
     case Porffor.TYPES.undefined:
-      if (colors) printStatic('\x1b[2m'); // dim
-      printStatic('undefined');
-      if (colors) printStatic('\x1b[0m');
+      if (colors) Porffor.printStatic('\x1b[2m'); // dim
+      Porffor.printStatic('undefined');
+      if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.object:
       if (arg) {
-        printStatic('{\n');
+        Porffor.printStatic('{\n');
 
-        const keys = Object.keys(arg);
-        const len = keys.length - 1;
+        const keys: any[] = Object.keys(arg);
+        const len: i32 = keys.length - 1;
         for (let i: i32 = 0; i <= len; i++) {
-          const x = keys[i];
+          const x: any = keys[i];
 
-          printStatic('  ');
+          Porffor.printStatic('  ');
           __Porffor_printString(x);
 
-          printStatic(': ');
-          __Porffor_print(arg[x]);
+          Porffor.printStatic(': ');
+          __Porffor_print(Porffor.object.get(arg, ecma262.ToPropertyKey(x)));
 
-          if (i != len) printStatic(',\n');
+          if (i != len) Porffor.printStatic(',\n');
         }
 
-        printStatic('\n}');
+        Porffor.printStatic('\n}');
       } else {
-        if (colors) printStatic('\x1b[1m'); // bold
-        printStatic('null');
+        if (colors) Porffor.printStatic('\x1b[1m'); // bold
+        Porffor.printStatic('null');
       }
 
-      if (colors) printStatic('\x1b[0m');
+      if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.function:
-      // todo: this actually doesn't work because we don't have function name information at runtime
-      printStatic('[Function ');
-      __Porffor_printString(arg.name);
-      printStatic(']');
+      Porffor.printStatic('[Function ');
+      __Porffor_printString(__Porffor_funcLut_name(arg));
+      Porffor.printStatic(']');
       return;
 
     case Porffor.TYPES.date:
-      if (colors) printStatic('\x1b[35m'); // purple
+      if (colors) Porffor.printStatic('\x1b[35m'); // purple
       __Porffor_printString(__Date_prototype_toISOString(arg));
-      if (colors) printStatic('\x1b[0m');
+      if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.symbol:
-      if (colors) printStatic('\x1b[32m'); // green
+      if (colors) Porffor.printStatic('\x1b[32m'); // green
       __Porffor_printString(__Symbol_prototype_toString(arg));
-      if (colors) printStatic('\x1b[0m');
+      if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.array:
@@ -197,60 +196,60 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
       return;
 
     case Porffor.TYPES.uint8array:
-      printStatic('Uint8Array');
+      Porffor.printStatic('Uint8Array');
       __Porffor_printArray(arg, colors, true);
       return;
 
     case Porffor.TYPES.int8array:
-      printStatic('Int8Array');
+      Porffor.printStatic('Int8Array');
       __Porffor_printArray(arg, colors, true);
       return;
 
     case Porffor.TYPES.uint8clampedarray:
-      printStatic('Uint8ClampedArray');
+      Porffor.printStatic('Uint8ClampedArray');
       __Porffor_printArray(arg, colors, true);
       return;
 
     case Porffor.TYPES.uint16array:
-      printStatic('Uint16Array');
+      Porffor.printStatic('Uint16Array');
       __Porffor_printArray(arg, colors, true);
       return;
 
     case Porffor.TYPES.int16array:
-      printStatic('Int16Array');
+      Porffor.printStatic('Int16Array');
       __Porffor_printArray(arg, colors, true);
       return;
 
     case Porffor.TYPES.uint32array:
-      printStatic('Uint32Array');
+      Porffor.printStatic('Uint32Array');
       __Porffor_printArray(arg, colors, true);
       return;
 
     case Porffor.TYPES.int32array:
-      printStatic('Int32Array');
+      Porffor.printStatic('Int32Array');
       __Porffor_printArray(arg, colors, true);
       return;
 
     case Porffor.TYPES.float32array:
-      printStatic('Float32Array');
+      Porffor.printStatic('Float32Array');
       __Porffor_printArray(arg, colors, true);
       return;
 
     case Porffor.TYPES.float64array:
-      printStatic('Float64Array');
+      Porffor.printStatic('Float64Array');
       __Porffor_printArray(arg, colors, true);
       return;
 
     case Porffor.TYPES.sharedarraybuffer:
     case Porffor.TYPES.arraybuffer:
-      if (Porffor.rawType(arg) == Porffor.TYPES.sharedarraybuffer) printStatic('SharedArrayBuffer');
-        else printStatic('ArrayBuffer');
-      printStatic(' {\n');
+      if (Porffor.rawType(arg) == Porffor.TYPES.sharedarraybuffer) Porffor.printStatic('SharedArrayBuffer');
+        else Porffor.printStatic('ArrayBuffer');
+      Porffor.printStatic(' {\n');
 
-      if (colors) printStatic('\x1b[34m'); // blue
-      printStatic('  [Uint8Contents]');
-      if (colors) printStatic('\x1b[0m');
-      printStatic('): <');
+      if (colors) Porffor.printStatic('\x1b[34m'); // blue
+      Porffor.printStatic('  [Uint8Contents]');
+      if (colors) Porffor.printStatic('\x1b[0m');
+      Porffor.printStatic('): <');
 
       const buffer = new Uint8Array(arg);
       const bufferLen = buffer.length - 1;
@@ -258,70 +257,70 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
         const ele = buffer[i];
         __Porffor_printHexDigit((ele & 0xF0) / 16);
         __Porffor_printHexDigit(ele & 0xF);
-        if (i != bufferLen) printStatic(' ');
+        if (i != bufferLen) Porffor.printStatic(' ');
       }
 
-      printStatic('>,\n  byteLength: ');
-      if (colors) printStatic('\x1b[33m'); // yellow
+      Porffor.printStatic('>,\n  byteLength: ');
+      if (colors) Porffor.printStatic('\x1b[33m'); // yellow
       print(arg.byteLength);
-      if (colors) printStatic('\x1b[0m');
-      printStatic('\n}');
+      if (colors) Porffor.printStatic('\x1b[0m');
+      Porffor.printStatic('\n}');
       return;
 
     case Porffor.TYPES.dataview:
-      printStatic('DataView {\n');
-      printStatic('  byteLength: ');
-      __Porffor_print(arg.byteLength, colors);
-      printStatic(',\n  byteOffset: ');
-      __Porffor_print(arg.byteOffset, colors);
-      printStatic(',\n  buffer: ');
-      __Porffor_print(arg.buffer, colors);
-      printStatic('\n}');
+      Porffor.printStatic('DataView {\n');
+      Porffor.printStatic('  byteLength: ');
+      __Porffor_print(__DataView_prototype_byteLength$get(arg), colors);
+      Porffor.printStatic(',\n  byteOffset: ');
+      __Porffor_print(__DataView_prototype_byteOffset$get(arg), colors);
+      Porffor.printStatic(',\n  buffer: ');
+      __Porffor_print(__DataView_prototype_buffer$get(arg), colors);
+      Porffor.printStatic('\n}');
       return;
 
     case Porffor.TYPES.weakmap:
     case Porffor.TYPES.map:
-      if (Porffor.rawType(arg) == Porffor.TYPES.weakmap) printStatic('WeakMap');
-        else printStatic('Map');
-      printStatic('(');
+      if (Porffor.rawType(arg) == Porffor.TYPES.weakmap) Porffor.printStatic('WeakMap');
+        else Porffor.printStatic('Map');
+      Porffor.printStatic('(');
 
-      const map = __Map_prototype_keys(arg);
+      const map: any[] = __Map_prototype_keys(arg);
       const mapLen: i32 = map.length - 1;
       print(mapLen + 1);
-      printStatic(') { ');
+      Porffor.printStatic(') { ');
 
       for (let i: i32 = 0; i < mapLen; i++) {
-        const key = map[i];
+        const key: any = map[i];
         __Porffor_print(key);
-        printStatic(' => ');
+        Porffor.printStatic(' => ');
         __Porffor_print(__Map_prototype_get(arg, key), colors);
-        if (i != mapLen) printStatic(', ');
+        if (i != mapLen) Porffor.printStatic(', ');
       }
 
-      printStatic(' }');
+      Porffor.printStatic(' }');
       return;
 
     case Porffor.TYPES.weakset:
     case Porffor.TYPES.set:
-      if (Porffor.rawType(arg) == Porffor.TYPES.weakset) printStatic('WeakSet');
-        else printStatic('Set');
-      printStatic('(');
+      if (Porffor.rawType(arg) == Porffor.TYPES.weakset) Porffor.printStatic('WeakSet');
+        else Porffor.printStatic('Set');
+      Porffor.printStatic('(');
 
-      const set = __Set_prototype_values(arg);
+      const set: any[] = __Set_prototype_values(arg);
       const setLen: i32 = set.length - 1;
       print(setLen + 1);
-      printStatic(') { ');
+      Porffor.printStatic(') { ');
 
       for (let i: i32 = 0; i <= setLen; i++) {
         __Porffor_print(set[i], colors);
-        if (i != setLen) printStatic(', ');
+        if (i != setLen) Porffor.printStatic(', ');
       }
 
-      printStatic(' }');
+      Porffor.printStatic(' }');
       return;
 
     case Porffor.TYPES.weakref:
-      printStatic('WeakRef {}');
+      Porffor.printStatic('WeakRef {}');
       return;
 
     // case Porffor.TYPES.regexp:
@@ -336,12 +335,12 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
 let tabLevel = 0;
 export const __Porffor_consoleIndent = () => {
   for (let i = 0; i < tabLevel; i++) {
-    printStatic('\t');
+    Porffor.printStatic('\t');
   }
 };
 
 export const __console_clear = () => {
-  printStatic('\x1b[1;1H\x1b[J');
+  Porffor.printStatic('\x1b[1;1H\x1b[J');
   tabLevel = 0;
 };
 
@@ -375,10 +374,10 @@ export const __console_log = (...args: any[]) => {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(args[i]);
 
-    if (i != argLen) printStatic(' ');
+    if (i != argLen) Porffor.printStatic(' ');
   }
 
-  printStatic('\n');
+  Porffor.printStatic('\n');
 };
 
 export const __console_debug = (...args: any[]) => {
@@ -387,10 +386,10 @@ export const __console_debug = (...args: any[]) => {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(args[i]);
 
-    if (i != argLen) printStatic(' ');
+    if (i != argLen) Porffor.printStatic(' ');
   }
 
-  printStatic('\n');
+  Porffor.printStatic('\n');
 };
 
 export const __console_info = (...args: any[]) => {
@@ -399,10 +398,10 @@ export const __console_info = (...args: any[]) => {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(args[i]);
 
-    if (i != argLen) printStatic(' ');
+    if (i != argLen) Porffor.printStatic(' ');
   }
 
-  printStatic('\n');
+  Porffor.printStatic('\n');
 };
 
 export const __console_warn = (...args: any[]) => {
@@ -411,10 +410,10 @@ export const __console_warn = (...args: any[]) => {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(args[i]);
 
-    if (i != argLen) printStatic(' ');
+    if (i != argLen) Porffor.printStatic(' ');
   }
 
-  printStatic('\n');
+  Porffor.printStatic('\n');
 };
 
 export const __console_error = (...args: any[]) => {
@@ -423,28 +422,28 @@ export const __console_error = (...args: any[]) => {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(args[i]);
 
-    if (i != argLen) printStatic(' ');
+    if (i != argLen) Porffor.printStatic(' ');
   }
 
-  printStatic('\n');
+  Porffor.printStatic('\n');
 };
 
 export const __console_assert = (assertion: any, ...args: any[]) => {
   if (assertion) return;
 
   __Porffor_consoleIndent();
-  printStatic('Assertion failed');
+  Porffor.printStatic('Assertion failed');
   if (args.length != 0) {
-    printStatic(': ');
+    Porffor.printStatic(': ');
   }
 
   const argLen: i32 = args.length - 1;
   for (let i = 0; i <= argLen; i++) {
     __Porffor_consolePrint(args[i]);
-    if (i != argLen) printStatic(' ');
+    if (i != argLen) Porffor.printStatic(' ');
   }
 
-  printStatic('\n');
+  Porffor.printStatic('\n');
 };
 
 export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showHidden: boolean) => {
@@ -453,22 +452,22 @@ export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showH
     return;
   }
 
-  printStatic('{ ');
+  Porffor.printStatic('{ ');
 
   const keys = __Object_keys(obj);
   const keysLen = keys.length - 1;
   for (let i = 0; i <= keysLen; i++) {
     const key = keys[i];
     __Porffor_consolePrint(key);
-    printStatic(': ');
+    Porffor.printStatic(': ');
 
     const value = __Porffor_object_get(obj, key);
     __Porffor_dirObject(value, colors, depth - 1, showHidden);
 
-    if (i != keysLen) printStatic(', ');
+    if (i != keysLen) Porffor.printStatic(', ');
   }
 
-  printStatic(' }');
+  Porffor.printStatic(' }');
 };
 
 export const __console_dir = (obj: any, options: any) => {
@@ -486,7 +485,7 @@ export const __console_dir = (obj: any, options: any) => {
 
   __Porffor_consoleIndent();
   __Porffor_dirObject(obj, colors, depth, showHidden);
-  printStatic('\n');
+  Porffor.printStatic('\n');
 };
 
 export const __console_dirxml = (obj: any) => __console_dir(obj);
@@ -499,9 +498,9 @@ export const __console_count = (label: any) => {
 
   __Porffor_consoleIndent();
   __Porffor_consolePrint(label);
-  printStatic(': ');
+  Porffor.printStatic(': ');
   print(val);
-  printStatic('\n');
+  Porffor.printStatic('\n');
 };
 
 export const __console_countReset = (label: any) => {
@@ -516,9 +515,9 @@ export const __console_time = (label: any) => {
 
   // warn if label already exists
   if (timeMap.has(label)) {
-    printStatic("Warning: Timer '");
+    Porffor.printStatic("Warning: Timer '");
     __Porffor_consolePrint(label);
-    printStatic("' already exists for console.time()\n");
+    Porffor.printStatic("' already exists for console.time()\n");
   }
 
   timeMap.set(label, performance.now());
@@ -530,17 +529,17 @@ export const __console_timeLog = (label: any) => {
 
   const val = timeMap.get(label);
   if (!val) {
-    printStatic("Timer '");
+    Porffor.printStatic("Timer '");
     __Porffor_consolePrint(label);
-    printStatic("' does not exist\n");
+    Porffor.printStatic("' does not exist\n");
     return;
   }
 
   __Porffor_consolePrint(label);
-  printStatic(': ');
+  Porffor.printStatic(': ');
 
   print(performance.now() - val);
-  printStatic(' ms\n');
+  Porffor.printStatic(' ms\n');
 };
 
 export const __console_timeEnd = (label: any) => {

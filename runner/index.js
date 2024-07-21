@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.28.9+b6f291238';
+globalThis.version = '0.30.12+4b2d895aa';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -115,7 +115,10 @@ if (process.argv.length >= 4) {
   if (evalIndex !== -1) {
     source = process.argv[evalIndex + 1];
     if (source) {
-      if (source.startsWith('"') || source.startsWith("'")) source = source.slice(1, -1);
+      // todo: this isn't entirely right, because shells should do the quoting for us but works well enough, see below as well
+      if ((source.startsWith('"') || source.startsWith("'")) && (source.endsWith('"') || source.endsWith("'"))) {
+        source = source.slice(1, -1);
+      }
       process.argv.splice(evalIndex, 2); // remove flag and value
     }
   }
@@ -126,7 +129,9 @@ if (process.argv.length >= 4) {
     process.argv.push('--no-opt-unused');
     source = process.argv[printIndex + 1];
     if (source) {
-      if (source.startsWith('"') || source.startsWith("'")) source = source.slice(1, -1);
+      if ((source.startsWith('"') || source.startsWith("'")) && (source.endsWith('"') || source.endsWith("'"))) {
+        source = source.slice(1, -1);
+      }
       process.argv.splice(printIndex, 2); // remove flag and value
     }
 

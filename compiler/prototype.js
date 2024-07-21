@@ -2,7 +2,7 @@ import { Opcodes, Blocktype, Valtype, ValtypeSize } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { UNDEFINED } from './builtins.js';
 import { TYPES } from './types.js';
-import Prefs from './prefs.js';
+import {} from './prefs.js';
 
 // todo: turn these into built-ins once arrays and these become less hacky
 

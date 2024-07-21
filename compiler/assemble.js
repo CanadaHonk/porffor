@@ -2,7 +2,7 @@ import { Valtype, FuncType, ExportDesc, Section, Magic, ModuleVersion, Opcodes, 
 import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64_into } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from './log.js';
-import Prefs from './prefs.js';
+import {} from './prefs.js';
 
 const createSection = (type, data) => [
   type,
@@ -309,10 +309,12 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
       // todo: move const, call transforms here too?
 
-      const wasm = [];
+      const makeAssembled = Prefs.d;
+      let wasm = [], wasmNonFlat = [];
       for (let i = 0; i < x.wasm.length; i++) {
         let o = x.wasm[i];
 
+        // encode local/global ops as unsigned leb128 from raw number
         if (
           (o[0] === Opcodes.local_get || o[0] === Opcodes.local_set || o[0] === Opcodes.local_tee || o[0] === Opcodes.global_get || o[0] === Opcodes.global_set) &&
           o[1] > 127
@@ -323,10 +325,28 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
           unsignedLEB128_into(n, o);
         }
 
-        wasm.push(...o);
+        // encode f64.const ops as ieee754 from raw number
+        if (o[0] === Opcodes.f64_const) {
+          const n = o[1];
+          o = [...o];
+          o.pop();
+          ieee754_binary64_into(n, o);
+        }
+
+        for (let j = 0; j < o.length; j++) {
+          const x = o[j];
+          if (x == null || !(x <= 0xff)) continue;
+          wasm.push(x);
+        }
+
+        if (makeAssembled) wasmNonFlat.push(o);
       }
 
-      return encodeVector([ ...encodeVector(localDecl), ...wasm.flat().filter(x => x != null && x <= 0xff), Opcodes.end ]);
+      if (makeAssembled) {
+        x.assembled = { localDecl, wasm, wasmNonFlat };
+      }
+
+      return encodeVector([ ...encodeVector(localDecl), ...wasm, Opcodes.end ]);
     }))
   );
 

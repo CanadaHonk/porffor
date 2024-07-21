@@ -24,7 +24,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
   if (name) out += `${name}(${ind}) ${makeSignature(params, returns, locals)}\n`;
 
   const justLocals = Object.values(locals).sort((a, b) => a.idx - b.idx).slice(params.length);
-  for (const x of justLocals) {
+  if (name) for (const x of justLocals) {
     out += `;; local ${invLocals[x.idx]}(${x.idx}): ${invValtype[x.type]}\n`
   }
 
@@ -73,7 +73,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
     if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else || inst[0] === Opcodes.try || inst[0] === Opcodes.catch_all) depth++;
 
     if (inst[0] === Opcodes.f64_const) {
-      out += ` ${read_ieee754_binary64(inst.slice(1))}`;
+      out += ` ${inst[1]}`;
     } else if (inst[0] === Opcodes.i32_const || inst[0] === Opcodes.i64_const) {
       out += ` ${read_signedLEB128(inst.slice(1))}`;
     } else if (inst[0] === Opcodes.i32_load || inst[0] === Opcodes.i64_load || inst[0] === Opcodes.f64_load || inst[0] === Opcodes.i32_store || inst[0] === Opcodes.i64_store || inst[0] === Opcodes.f64_store || inst[0] === Opcodes.i32_store16 || inst[0] === Opcodes.i32_load16_u) {

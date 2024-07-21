@@ -1,5 +1,12 @@
 import type {} from './porffor.d.ts';
 
+export const Boolean = function (value: any): boolean {
+  // hack: allow to be called via new but we do not have prim objects yet
+  new.target;
+
+  return !!value;
+};
+
 // 20.3.3.2 Boolean.prototype.toString ()
 // https://tc39.es/ecma262/#sec-boolean.prototype.tostring
 export const __Boolean_prototype_toString = (_this: boolean) => {

@@ -1,12 +1,12 @@
 import { execSync } from 'node:child_process';
 import fs from 'fs';
 
-const log = execSync(`git log -9999 --pretty="%B%H %ct"`).toString().split('\n');
+const log = execSync(`git log -9999 --pretty="%B%n%H %ct"`).toString().split('\n');
 const out = [];
 
 for (let i = 0; i < log.length; i++) {
   const x = log[i];
-  if (!x.startsWith('test262: 1') && !x.startsWith('test262: 2')) continue;
+  if (!x.startsWith('test262: 1') && !x.startsWith('test262: 2') && !x.startsWith('test262: 3')) continue;
 
   let title;
   let j = i;
@@ -17,7 +17,7 @@ for (let i = 0; i < log.length; i++) {
   }
 
   j = i + 1;
-  if (log[j].includes('Co-Authored-By')) j++;
+  while (log[j].length !== 51 || log[j].split(' ').length !== 2) j++;
   let [ hash, timestamp ] = log[j].split(' ');
 
   let results = x.split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));

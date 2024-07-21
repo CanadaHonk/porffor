@@ -60,6 +60,7 @@ type PorfforGlobal = {
     isEnumerable(entryPtr: i32): boolean;
 
     isObject(arg: any): boolean;
+    isObjectOrNull(arg: any): boolean;
     isObjectOrSymbol(arg: any): boolean;
 
     expr: {
@@ -115,6 +116,7 @@ type PorfforGlobal = {
   s(...args: any): string;
   bs(...args: any): bytestring;
 
+  printStatic(str: string): void;
   readArgv(index: i32, out: bytestring): i32;
   readFile(path: bytestring, out: bytestring): i32;
 };
@@ -133,7 +135,6 @@ declare global {
 
   const print: (arg: any) => void;
   const printChar: (char: number) => void;
-  const printStatic: (str: string) => void;
 
   type i32 = number;
   type i64 = number;

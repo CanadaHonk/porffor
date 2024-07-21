@@ -174,10 +174,10 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
     let tmp: bytestring = '';
 
     tmp = 'name';
-    if (p == tmp) return true;
+    if (p == tmp) return !__Porffor_funcLut_isNameDeleted(_this);
 
     tmp = 'length';
-    if (p == tmp) return true;
+    if (p == tmp) return !__Porffor_funcLut_isLengthDeleted(_this);
 
     return false;
   }
@@ -369,8 +369,8 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
   const out: object = {};
 
   const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
-  out.configurable = Boolean(tail & 0b0010);
-  out.enumerable = Boolean(tail & 0b0100);
+  out.configurable = !!(tail & 0b0010);
+  out.enumerable = !!(tail & 0b0100);
 
   if (tail & 0b0001) {
     out.get = Porffor.object.accessorGet(entryPtr);
@@ -388,7 +388,7 @@ i32.const 8
 i32.shr_u
 local.set ${value+1}`;
 
-  out.writable = Boolean(tail & 0b1000);
+  out.writable = !!(tail & 0b1000);
   out.value = value;
 
   return out;
@@ -573,7 +573,7 @@ export const __Object_defineProperty = (target: any, prop: any, descriptor: any)
       set ??= existingDesc.set;
     } else {
       value ??= existingDesc.value;
-      writable ??= existingDesc.value;
+      writable ??= existingDesc.writable;
     }
   }
 
@@ -603,13 +603,12 @@ export const __Object_defineProperties = (target: any, props: any) => {
 };
 
 export const __Object_create = (proto: any, props: any) => {
-  if (!Porffor.object.isObject(proto)) {
-    if (proto !== null) throw new TypeError('Prototype should be an object or null');
-  }
+  if (!Porffor.object.isObjectOrNull(proto)) throw new TypeError('Prototype should be an object or null');
 
   const out: object = {};
 
-  // todo: set prototype when supported
+  // set prototype
+  out.__proto__ = proto;
 
   if (props !== undefined) __Object_defineProperties(out, props);
 
@@ -632,6 +631,34 @@ export const __Object_groupBy = (items: any, callbackFn: any) => {
   }
 
   return out;
+};
+
+
+export const __Object_getPrototypeOf = (obj: any) => {
+  if (obj == null) throw new TypeError('Object is nullish, expected object');
+
+  // todo: support non-pure-objects
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    return {};
+  }
+
+  return obj.__proto__;
+};
+
+export const __Object_setPrototypeOf = (obj: any, proto: any) => {
+  if (obj == null) throw new TypeError('Object is nullish, expected object');
+  if (!Porffor.object.isObjectOrNull(proto)) throw new TypeError('Prototype should be an object or null');
+
+  // todo: support non-pure-objects
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    return obj;
+  }
+
+  // todo: throw when this fails?
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf#exceptions
+  obj.__proto__ = proto;
+
+  return obj;
 };
 
 
@@ -665,4 +692,41 @@ export const __Object_prototype_toLocaleString = (_this: any) => __Object_protot
 export const __Object_prototype_valueOf = (_this: any) => {
   // todo: ToObject
   return _this;
+};
+
+
+export const __Porffor_object_spread = (dst: object, src: any): object => {
+  if (src == null) return dst;
+
+  // todo/perf: optimize this (and assign) for object instead of reading over object 2x
+  const keys: any[] = __Object_keys(src);
+  const vals: any[] = __Object_values(src);
+
+  const len: i32 = keys.length;
+  for (let i: i32 = 0; i < len; i++) {
+    // target[keys[i]] = vals[i];
+    Porffor.object.expr.init(dst, keys[i], vals[i]);
+  }
+
+  return dst;
+};
+
+export const __Porffor_object_rest = (dst: object, src: any, ...blocklist: any[]): object => {
+  if (src == null) return dst;
+
+  // todo: use ToPropertyKey on blocklist?
+
+  // todo/perf: optimize this (and assign) for object instead of reading over object 2x
+  const keys: any[] = __Object_keys(src);
+  const vals: any[] = __Object_values(src);
+
+  const len: i32 = keys.length;
+  for (let i: i32 = 0; i < len; i++) {
+    const k: any = keys[i];
+    if (blocklist.includes(k)) continue;
+
+    Porffor.object.expr.init(dst, k, vals[i]);
+  }
+
+  return dst;
 };
