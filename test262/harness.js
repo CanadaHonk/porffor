@@ -376,36 +376,24 @@ function verifyNotWritable(obj, name, verifyProp, value) {
 }
 
 function verifyEnumerable(obj, name) {
-  if (!Object.getOwnPropertyDescriptor(obj, name).enumerable)
-    throw new Test262Error('propertyHelper verifyEnumerable failed');
-
   if (!isEnumerable(obj, name)) {
     throw new Test262Error('propertyHelper verifyEnumerable failed');
   }
 }
 
 function verifyNotEnumerable(obj, name) {
-  if (Object.getOwnPropertyDescriptor(obj, name).enumerable)
-    throw new Test262Error('propertyHelper verifyNotEnumerable failed');
-
   if (isEnumerable(obj, name)) {
     throw new Test262Error('propertyHelper verifyNotEnumerable failed');
   }
 }
 
 function verifyConfigurable(obj, name) {
-  if (!Object.getOwnPropertyDescriptor(obj, name).configurable)
-    throw new Test262Error('propertyHelper verifyConfigurable failed');
-
   if (!isConfigurable(obj, name)) {
     throw new Test262Error('propertyHelper verifyConfigurable failed');
   }
 }
 
 function verifyNotConfigurable(obj, name) {
-  if (Object.getOwnPropertyDescriptor(obj, name).configurable)
-    throw new Test262Error('propertyHelper verifyNotConfigurable failed');
-
   if (isConfigurable(obj, name)) {
     throw new Test262Error('propertyHelper verifyNotConfigurable failed');
   }
