@@ -197,12 +197,24 @@ return`;
   }
 
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
-  const entryPtr: i32 = __Porffor_object_lookup(obj, key);
+  let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
-    Porffor.wasm`
+    if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.object) {
+      // check prototype chain
+      const protoKey: bytestring = '__proto__';
+      if (key != protoKey) while (true) {
+        obj = __Porffor_object_get(obj, protoKey);
+        if (obj == null) break;
+        if ((entryPtr = __Porffor_object_lookup(obj, key)) != -1) break;
+      }
+    }
+
+    if (entryPtr == -1) {
+      Porffor.wasm`
 f64.const 0
 i32.const 128
 return`;
+    }
   }
 
   const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
