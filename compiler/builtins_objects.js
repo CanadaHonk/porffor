@@ -58,7 +58,7 @@ export default function({ builtinFuncs }, Prefs) {
           if (d.writable) flags |= 0b1000;
 
           // hack: do not generate objects inside of objects as it causes issues atm
-          if (this[prefix + x]?.type === TYPES.object) value = { type: 'ObjectExpression', properties: [] };
+          if (this[prefix + x]?.type === TYPES.object && this[prefix + x] !== this.null) value = { type: 'ObjectExpression', properties: [] };
 
           out.push(
             [ Opcodes.global_get, 0 ],
@@ -121,6 +121,11 @@ export default function({ builtinFuncs }, Prefs) {
         if (typeof d.value === 'string') {
           this[k] = (scope, { makeString }) => makeString(scope, d.value, false, k);
           this[k].type = TYPES.bytestring;
+          continue;
+        }
+
+        if (d.value === null) {
+          this[k] = this.null;
           continue;
         }
 
@@ -191,7 +196,12 @@ export default function({ builtinFuncs }, Prefs) {
     acc.add(x.slice(0, ind + 10));
     return acc;
   }, new Set())) {
-    object(x, autoFuncs(x));
+    const props = autoFuncs(x);
+
+    // special case: Object.prototype.__proto__ = null
+    if (x === '__Object_prototype') Object.defineProperty(props, '__proto__', { value: { value: null }, enumerable: true });
+
+    object(x, props);
   }
 
 

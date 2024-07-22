@@ -5777,7 +5777,9 @@ const objectHack = node => {
       if (node.computed || node.optional) return;
 
       // hack: block these properties as they can be accessed on functions
-      if (node.property.name == 'length' || node.property.name == 'name' || node.property.name == 'call') return;
+      if (node.property.name === 'length' || node.property.name === 'name' || node.property.name === 'call') return;
+
+      if (node.property.name === '__proto__') return;
 
       let objectName = node.object.name;
 

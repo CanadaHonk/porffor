@@ -198,11 +198,13 @@ export const __Porffor_object_in = (obj: any, prop: any) => {
     return false;
   }
 
-  let proto = obj.__proto__;
+  let lastProto = obj;
   while (true) {
-    if (proto == null) return false;
-    if (__Object_prototype_hasOwnProperty(proto, prop)) return true;
-    proto = proto.__proto__;
+    obj = obj.__proto__;
+    if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
+    lastProto = obj;
+
+    if (__Object_prototype_hasOwnProperty(obj, prop)) return true;
   }
 };
 
@@ -616,11 +618,6 @@ export const __Object_groupBy = (items: any, callbackFn: any) => {
 
 export const __Object_getPrototypeOf = (obj: any) => {
   if (obj == null) throw new TypeError('Object is nullish, expected object');
-
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return {};
-  }
 
   return obj.__proto__;
 };

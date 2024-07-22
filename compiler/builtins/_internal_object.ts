@@ -199,13 +199,26 @@ return`;
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
+    const protoKey: bytestring = '__proto__';
+
     if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.object) {
       // check prototype chain
-      const protoKey: bytestring = '__proto__';
-      if (key != protoKey) while (true) {
-        obj = __Porffor_object_get(obj, protoKey);
-        if (obj == null) break;
-        if ((entryPtr = __Porffor_object_lookup(obj, key)) != -1) break;
+      let lastProto = obj;
+      if (key != protoKey) {
+        while (true) {
+          obj = __Porffor_object_get(obj, protoKey);
+          if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
+          lastProto = obj;
+
+          if ((entryPtr = __Porffor_object_lookup(obj, key)) != -1) break;
+        }
+      } else {
+        const i: i32 = __Object_prototype;
+        Porffor.wasm`
+local.get ${i}
+f64.convert_i32_u
+i32.const 7 ;; object type
+return`;
       }
     }
 
