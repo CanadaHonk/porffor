@@ -5500,6 +5500,34 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     if (known == null) extraBC = bc;
   }
 
+  if (decl.property.name === '__proto__') {
+    // todo: support optional
+    const bc = {};
+    const prototypes = Object.keys(builtinVars).filter(x => x.endsWith('_prototype'));
+
+    const known = knownType(scope, getNodeType(scope, decl.object));
+    for (const x of prototypes) {
+      const type = TYPES[x.split('_prototype')[0].slice(2).toLowerCase()];
+      if (type == null) continue;
+
+      // do not __proto__ primitive hack for objects
+      if (type === TYPES.object) continue;
+
+      const ident = {
+        type: 'Identifier',
+        name: x
+      };
+
+      bc[type] = [
+        ...generateIdent(scope, ident),
+        ...setLastType(scope, getNodeType(scope, ident))
+      ];
+      if (type === known) return bc[type];
+    }
+
+    if (known == null) extraBC = bc;
+  }
+
   // todo/perf: use i32 object (and prop?) locals
   const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];
   const propertyWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_prop') ] ];
