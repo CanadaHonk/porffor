@@ -3,10 +3,12 @@ import { TYPES } from './types.js';
 import { number } from './embedding.js';
 
 export default function({ builtinFuncs }, Prefs) {
+  const makePrefix = name => (name.startsWith('__') ? '' : '__') + name + '_';
+
   const done = new Set();
   const object = (name, props) => {
     done.add(name);
-    const prefix = name === 'globalThis' ? '' : `__${name}_`;
+    const prefix = name === 'globalThis' ? '' : makePrefix(name);
 
     // already a func
     const existingFunc = builtinFuncs[name];
@@ -156,7 +158,10 @@ export default function({ builtinFuncs }, Prefs) {
   };
 
   const builtinFuncKeys = Object.keys(builtinFuncs);
-  const autoFuncKeys = name => builtinFuncKeys.filter(x => x.startsWith('__' + name + '_')).map(x => x.slice(name.length + 3));
+  const autoFuncKeys = name => {
+    const prefix = makePrefix(name);
+    return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length));
+  };
   const autoFuncs = name => props({
     writable: true,
     enumerable: false,
@@ -301,7 +306,7 @@ export default function({ builtinFuncs }, Prefs) {
     }
     if (!t) continue;
 
-    if (!done.has(name) && !done.has('__' + name)) {
+    if (!done.has(name)) {
       console.log(name.replaceAll('_', '.'), !!builtinFuncs[name]);
       done.add(name);
     }
