@@ -1511,6 +1511,7 @@ const setLastType = (scope, type = []) => [
 
 const getNodeType = (scope, node) => {
   const ret = (() => {
+    if (node._type) return node._type;
     if (node.type === 'Literal') {
       if (node.regex) return TYPES.regexp;
 
@@ -1671,10 +1672,7 @@ const getNodeType = (scope, node) => {
 
       const objectKnownType = knownType(scope, getNodeType(scope, node.object));
       if (objectKnownType != null) {
-        if (name === 'length') {
-          if (typeHasFlag(objectKnownType, TYPE_FLAGS.length)) return TYPES.number;
-            else return TYPES.undefined;
-        }
+        if (name === 'length' && typeHasFlag(objectKnownType, TYPE_FLAGS.length)) return TYPES.number;
 
         if (node.computed) {
           if (objectKnownType === TYPES.string) return TYPES.string;
@@ -3217,12 +3215,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
                 },
                 arguments: [
                   { type: 'Identifier', name: tmpName },
-                  { type: 'Literal', value: i },
-                  {
-                    type: 'MemberExpression',
-                    object: { type: 'Identifier', name: tmpName, },
-                    property: { type: 'Identifier', name: 'length', }
-                  }
+                  { type: 'Literal', value: i }
                 ],
                 _protoInternalCall: true
               }, undefined, global)
@@ -3415,15 +3408,16 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const op = decl.operator.slice(0, -1) || '=';
 
   // hack: .length setter
-  if (type === 'MemberExpression' && decl.left.property.name === 'length') {
+  if (type === 'MemberExpression' && decl.left.property.name === 'length' && !decl._internalAssign) {
     const newValueTmp = localTmp(scope, '__length_setter_tmp');
-    const pointerTmp = op === '=' ? null : localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
+    const pointerTmp = localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
-    return [
+    const out = [
       ...generate(scope, decl.left.object),
-      Opcodes.i32_to_u,
-      ...(!pointerTmp ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+      Opcodes.i32_to_u
+    ];
 
+    const lengthTypeWasm = [
       ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
         [ Opcodes.local_get, pointerTmp ],
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
@@ -3435,6 +3429,33 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ],
 
       [ Opcodes.local_get, newValueTmp ]
+    ];
+
+    const type = getNodeType(scope, decl.left.object);
+    const known = knownType(scope, type);
+    if (known != null && typeHasFlag(known, TYPE_FLAGS.length)) return [
+      ...out,
+      ...(!pointerTmp ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+      ...lengthTypeWasm
+    ];
+
+    return [
+      ...out,
+      [ Opcodes.local_set, pointerTmp ],
+
+      ...type,
+      ...number(TYPE_FLAGS.length, Valtype.i32),
+      [ Opcodes.i32_and ],
+      [ Opcodes.if, valtypeBinary ],
+        [ Opcodes.local_get, pointerTmp ],
+        ...lengthTypeWasm,
+      [ Opcodes.else ],
+        ...generate(scope, {
+          ...decl,
+          _internalAssign: true
+        }),
+      [ Opcodes.end ]
     ];
   }
 
@@ -5358,6 +5379,7 @@ const countLength = (func, name = undefined) => {
 };
 
 const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) => {
+  let final = [], finalEnd, extraBC = {};
   const name = decl.object.name;
 
   // hack: .name
@@ -5369,6 +5391,12 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
     return withType(scope, makeString(scope, nameProp, _global, _name, true), TYPES.bytestring);
   }
+
+  const object = decl.object;
+  const property = getMemberProperty(decl);
+
+  // generate now so type is gotten correctly later (it gets cached)
+  generate(scope, object);
 
   // hack: .length
   if (decl.property.name === 'length') {
@@ -5384,7 +5412,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     }
 
     const out = [
-      ...generate(scope, decl.object),
+      ...generate(scope, object),
       Opcodes.i32_to_u,
     ];
 
@@ -5398,25 +5426,21 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       ];
     }
 
-    const type = getNodeType(scope, decl.object);
+    const type = getNodeType(scope, object);
     const known = knownType(scope, type);
-    if (known != null && known != TYPES.function) {
-      if (typeHasFlag(known, TYPE_FLAGS.length)) return [
-        ...out,
+    if (known != null && typeHasFlag(known, TYPE_FLAGS.length)) return [
+      ...out,
 
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-        Opcodes.i32_from_u
-      ];
-
-      return number(0);
-    }
+      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+      Opcodes.i32_from_u
+    ];
 
     const tmp = localTmp(scope, '#length_tmp', Valtype.i32);
-    return [
+    final = [
       ...out,
       [ Opcodes.local_set, tmp ],
 
-      ...getNodeType(scope, decl.object),
+      ...getNodeType(scope, object),
       ...number(TYPE_FLAGS.length, Valtype.i32),
       [ Opcodes.i32_and ],
       [ Opcodes.if, valtypeBinary ],
@@ -5426,22 +5450,14 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
         ...setLastType(scope, TYPES.number),
       [ Opcodes.else ],
-        ...getNodeType(scope, decl.object),
-        ...number(TYPES.function, Valtype.i32),
-        [ Opcodes.i32_eq ],
-        [ Opcodes.if, Blocktype.void ],
-          [ Opcodes.local_get, tmp ],
-          [ Opcodes.call, includeBuiltin(scope, '__Porffor_funcLut_length').index ],
-          Opcodes.i32_from_u,
-
-          ...setLastType(scope, TYPES.number),
-          [ Opcodes.br, 1 ],
-        [ Opcodes.end ],
-
-        ...number(0),
-        ...setLastType(scope, TYPES.undefined),
       [ Opcodes.end ]
     ];
+
+    if (known != null) {
+      final = [];
+    } else {
+      finalEnd = final.pop();
+    }
   }
 
   // todo: generate this array procedurally during builtinFuncs creation
@@ -5450,33 +5466,39 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     const bc = {};
     const cands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + decl.property.name + '$get'));
 
+    localTmp(scope, '#member_obj');
+    localTmp(scope, '#member_obj#type', Valtype.i32);
+
+    const known = knownType(scope, getNodeType(scope, object));
     if (cands.length > 0) {
       for (const x of cands) {
         const type = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
         if (type == null) continue;
+
+        if (type === known) return generateCall(scope, {
+          callee: {
+            type: 'Identifier',
+            name: x
+          },
+          arguments: [ object ],
+          _protoInternalCall: true
+        });
 
         bc[type] = generateCall(scope, {
           callee: {
             type: 'Identifier',
             name: x
           },
-          arguments: [ decl.object ],
+          arguments: [
+            { type: 'Identifier', name: '#member_obj' }
+          ],
           _protoInternalCall: true
         });
       }
     }
 
-    return typeSwitch(scope, getNodeType(scope, decl.object), {
-      ...bc,
-      default: withType(scope, number(0), TYPES.undefined)
-    }, valtypeBinary);
+    if (known == null) extraBC = bc;
   }
-
-  const object = decl.object;
-  const property = getMemberProperty(decl);
-
-  // generate now (it gets cached)
-  generate(scope, object);
 
   // todo/perf: use i32 object (and prop?) locals
   const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];
@@ -5663,7 +5685,9 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     default: [
       ...number(0),
       ...setLastType(scope, TYPES.undefined)
-    ]
+    ],
+
+    ...extraBC
   });
 
   if (decl.optional) {
@@ -5671,6 +5695,10 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       [ Opcodes.block, valtypeBinary ],
       ...(_objectWasm ? _objectWasm : generate(scope, object)),
       [ Opcodes.local_tee, localTmp(scope, '#member_obj') ],
+      ...(scope.locals['#member_obj#type'] ? [
+        ...getNodeType(scope, object),
+        [ Opcodes.local_set, localTmp(scope, '#member_obj#type', Valtype.i32) ],
+      ] : []),
 
       ...nullish(scope, [], getNodeType(scope, object), false, true),
       [ Opcodes.if, Blocktype.void ],
@@ -5690,10 +5718,20 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     out.unshift(
       ...(_objectWasm ? _objectWasm : generate(scope, object)),
       [ Opcodes.local_set, localTmp(scope, '#member_obj') ],
+      ...(scope.locals['#member_obj#type'] ? [
+        ...getNodeType(scope, object),
+        [ Opcodes.local_set, localTmp(scope, '#member_obj#type', Valtype.i32) ],
+      ] : []),
 
       ...generate(scope, property, false, '#member_prop'),
       [ Opcodes.local_set, localTmp(scope, '#member_prop') ]
     );
+  }
+
+  if (final.length > 0) {
+    final = final.concat(out);
+    final.push(finalEnd);
+    return final;
   }
 
   return out;
