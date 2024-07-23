@@ -71,15 +71,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
     case 'ArrowFunctionExpression':
     case 'FunctionDeclaration':
-    case 'FunctionExpression': {
-      const func = generateFunc(scope, decl);
-
-      if (decl.type.endsWith('Expression')) {
-        return cacheAst(decl, funcRef(func.index, func.name));
-      }
-
-      return cacheAst(decl, []);
-    }
+    case 'FunctionExpression':
+      return cacheAst(decl, generateFunc(scope, decl)[1]);
 
     case 'BlockStatement':
       return cacheAst(decl, generateCode(scope, decl));
@@ -2008,9 +2001,12 @@ const createThisArg = (scope, decl, knownThis = undefined) => {
 };
 
 const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
+  let out = [];
   let name = mapName(decl.callee.name);
-  if (isFuncType(decl.callee.type)) { // iife
-    const func = generateFunc(scope, decl.callee);
+
+  // opt: virtualize iifes
+  if (isFuncType(decl.callee.type)) {
+    const [ func ] = generateFunc(scope, decl.callee);
     name = func.name;
   }
 
@@ -2108,7 +2104,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     target = decl.callee.object;
   }
 
-  let out = [];
   if (protoName) {
     if (protoName === 'call') {
       const valTmp = localTmp(scope, '#call_val');
@@ -5775,7 +5770,7 @@ const generateClass = (scope, decl) => {
   const expr = decl.type === 'ClassExpression';
   if (decl.superClass) return todo(scope, 'class extends is not supported yet', expr);
 
-  const name = decl.id.name;
+  const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
   if (name == null) return todo(scope, 'unknown name for class', expr);
 
   const body = decl.body.body;
@@ -5794,13 +5789,11 @@ const generateClass = (scope, decl) => {
     }
   };
 
-  const func = generateFunc(scope, {
+  const [ func, out ] = generateFunc(scope, {
     ...constr,
     _onlyConstr: `Class constructor ${name} requires 'new'`,
     type: expr ? 'FunctionExpression' : 'FunctionDeclaration'
   });
-
-  const out = [];
 
   for (const x of body) {
     let { type, key, value, kind, static: _static, computed } = x;
@@ -5851,7 +5844,6 @@ const generateClass = (scope, decl) => {
     );
   }
 
-  if (expr) out.push(funcRef(func.index, func.name));
   return out;
 };
 
@@ -5906,6 +5898,16 @@ const objectHack = node => {
 
 const generateFunc = (scope, decl) => {
   const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
+  if (decl.type.startsWith('Class')) {
+    const out = generateClass(scope, {
+      ...decl,
+      id: { name }
+    });
+
+    const func = funcs.find(x => x.name === name);
+    return [ func, out ];
+  }
+
   const params = decl.params ?? [];
 
   // TODO: share scope/locals between !!!
@@ -5927,6 +5929,8 @@ const generateFunc = (scope, decl) => {
   funcIndex[name] = func.index;
   funcs.push(func);
 
+  const out = decl.type.endsWith('Expression') ? funcRef(func.index, func.name) : [];
+
   let errorWasm = null;
   if (decl.generator) errorWasm = todo(scope, 'generator functions are not supported');
 
@@ -5937,7 +5941,7 @@ const generateFunc = (scope, decl) => {
     ]);
     func.params = [];
     func.constr = false;
-    return func;
+    return [ func, out ];
   }
 
   if (typedInput && decl.returnType) {
@@ -6162,7 +6166,7 @@ const generateFunc = (scope, decl) => {
     }
   }
 
-  return func;
+  return [ func, out ];
 };
 
 const generateCode = (scope, decl) => {
@@ -6378,7 +6382,7 @@ export default program => {
 
   if (Prefs.astLog) console.log(JSON.stringify(program.body.body, null, 2));
 
-  const main = generateFunc(scope, program);
+  const [ main ] = generateFunc(scope, program);
 
   delete globals['#ind'];
 
