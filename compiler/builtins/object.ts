@@ -384,7 +384,8 @@ export const __Object_getOwnPropertyDescriptors = (obj: any): any => {
     if (Porffor.rawType(obj) != Porffor.TYPES.object) return out;
   }
 
-  for (const x in obj) {
+  const keys: any[] = Reflect.ownKeys(obj);
+  for (const x of keys) {
     out[x] = __Object_getOwnPropertyDescriptor(obj, x);
   }
 
