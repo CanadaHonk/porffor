@@ -5803,7 +5803,7 @@ const generateClass = (scope, decl) => {
   const out = [];
 
   for (const x of body) {
-    const { type, key, value, kind, static: _static, computed } = x;
+    let { type, key, value, kind, static: _static, computed } = x;
     if (type !== 'MethodDefinition' && type !== 'PropertyDefinition') return todo(scope, `class body type ${type} is not supported yet`, expr);
 
     if (kind === 'constructor') continue;
@@ -5827,6 +5827,9 @@ const generateClass = (scope, decl) => {
 
     let initKind = 'init';
     if (kind === 'get' || kind === 'set') initKind = kind;
+
+    // default value to undefined
+    value ??= DEFAULT_VALUE();
 
     out.push(
       ...generate(scope, object),
