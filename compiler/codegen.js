@@ -399,12 +399,12 @@ const generateReturn = (scope, decl) => {
     // ignore return value and return this if being constructed
     // todo: only do this when trying to return a primitive?
     out.push(
-      // ...truthy(scope, [ [ Opcodes.local_get, '#newtarget' ] ], [ [ Opcodes.local_get, '#newtarget#type' ] ], false, true),
-      [ Opcodes.local_get, '#newtarget' ],
+      // ...truthy(scope, [ [ Opcodes.local_get, scope.locals['#newtarget'].idx ] ], [ [ Opcodes.local_get, scope.locals['#newtarget#type'].idx ] ], false, true),
+      [ Opcodes.local_get, scope.locals['#newtarget'].idx ],
       Opcodes.i32_to_u,
       [ Opcodes.if, Blocktype.void ],
-        [ Opcodes.local_get, '#this' ],
-        ...(scope.returnType != null ? [] : [ [ Opcodes.local_get, '#this#type' ] ]),
+        [ Opcodes.local_get, scope.locals['#this'].idx ],
+        ...(scope.returnType != null ? [] : [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ]),
         [ Opcodes.return ],
       [ Opcodes.end ]
     );
@@ -1697,13 +1697,13 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'ThisExpression') {
       if (!scope.constr) return getType(scope, 'globalThis');
-      return [ [ Opcodes.local_get, '#this#type' ] ];
+      return [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ];
     }
 
     if (node.type === 'MetaProperty') {
       switch (`${node.meta.name}.${node.property.name}`) {
         case 'new.target': {
-          return [ [ Opcodes.local_get, '#newtarget#type' ] ];
+          return [ [ Opcodes.local_get, scope.locals['#newtarget#type'].idx ] ];
         }
 
         default:
@@ -2764,23 +2764,23 @@ const generateThis = (scope, decl, _global, _name) => {
 
   return [
     // default this to globalThis
-    [ Opcodes.local_get, '#this' ],
+    [ Opcodes.local_get, scope.locals['#this'].idx ],
     Opcodes.i32_to_u,
     [ Opcodes.i32_eqz ],
     [ Opcodes.if, Blocktype.void ],
-      [ Opcodes.local_get, '#this#type' ],
+      [ Opcodes.local_get, scope.locals['#this#type'].idx ],
       ...number(TYPES.object, Valtype.i32),
       [ Opcodes.i32_eq ],
       [ Opcodes.if, Blocktype.void ],
         ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
-        [ Opcodes.local_set, '#this' ],
+        [ Opcodes.local_set, scope.locals['#this'].idx ],
         ...getType(scope, 'globalThis'),
-        [ Opcodes.local_set, '#this#type' ],
+        [ Opcodes.local_set, scope.locals['#this#type'].idx ],
       [ Opcodes.end ],
     [ Opcodes.end ],
 
-    [ Opcodes.local_get, '#this' ],
-    ...setLastType(scope, [ [ Opcodes.local_get, '#this#type' ] ])
+    [ Opcodes.local_get, scope.locals['#this'].idx ],
+    ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
   ];
 };
 
@@ -4908,11 +4908,9 @@ const generateEmpty = (scope, decl) => {
 
 const generateMeta = (scope, decl) => {
   switch (`${decl.meta.name}.${decl.property.name}`) {
-    case 'new.target': {
-      return [
-        [ Opcodes.local_get, '#newtarget' ],
-      ];
-    }
+    case 'new.target': return [
+      [ Opcodes.local_get, scope.locals['#newtarget'].idx ],
+    ];
 
     default:
       return todo(scope, `meta property object ${decl.meta.name} is not supported yet`, true);
@@ -5953,6 +5951,11 @@ const generateFunc = (scope, decl) => {
     }
   }
 
+  if (func.constr) {
+    allocVar(func, '#newtarget', false);
+    allocVar(func, '#this', false);
+  }
+
   const prelude = [];
   const defaultValues = {};
   const destructuredArgs = {};
@@ -5996,7 +5999,7 @@ const generateFunc = (scope, decl) => {
         TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
       ].includes(typeAnno.type)) {
         prelude.push(
-          [ Opcodes.local_get, i * 2 + 1 ],
+          [ Opcodes.local_get, func.locals[name].idx + 1 ],
           ...number(typeAnno.type, Valtype.i32),
           [ Opcodes.i32_ne ],
           [ Opcodes.if, Blocktype.void ],
@@ -6062,7 +6065,7 @@ const generateFunc = (scope, decl) => {
   if (!globalThis.precompile && func.constr) {
     wasm.unshift(
       // if being constructed
-      [ Opcodes.local_get, '#newtarget' ],
+      [ Opcodes.local_get, func.locals['#newtarget'].idx ],
       Opcodes.i32_to_u,
       [ Opcodes.if, Blocktype.void ],
         // set prototype of this ;)
@@ -6074,7 +6077,7 @@ const generateFunc = (scope, decl) => {
   if (decl._onlyConstr) {
     wasm.unshift(
       // error if not being constructed
-      [ Opcodes.local_get, '#newtarget' ],
+      [ Opcodes.local_get, func.locals['#newtarget'].idx ],
       Opcodes.i32_to_u,
       [ Opcodes.i32_eqz ],
       [ Opcodes.if, Blocktype.void ],
@@ -6132,37 +6135,6 @@ const generateFunc = (scope, decl) => {
     // add end return if not found
     if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
       wasm.push(...generateReturn(func, {}));
-    }
-  }
-
-  if (func.constr) {
-    const locals = func.locals;
-    let idxOffset = 4;
-    func.params = [ valtypeBinary, Valtype.i32, valtypeBinary, Valtype.i32, ...func.params ];
-
-    // move all local indexes by idxOffset
-    func.localInd += idxOffset;
-    for (const x in locals) {
-      locals[x].idx += idxOffset;
-    }
-
-    let indexes = idxOffset;
-
-    locals['#this#type'] = { idx: --indexes, type: Valtype.i32 };
-    locals['#this'] = { idx: --indexes, type: valtypeBinary };
-    locals['#newtarget#type'] = { idx: --indexes, type: Valtype.i32 };
-    locals['#newtarget'] = { idx: --indexes, type: valtypeBinary };
-
-    for (let i = 0; i < wasm.length; i++) {
-      // note: these needs to be copied, even though they realistically shouldn't
-      const inst = wasm[i];
-      if (inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) {
-        if (typeof inst[1] == 'string') {
-          wasm[i] = [ inst[0], locals[inst[1]].idx ];
-        } else {
-          wasm[i] = [ inst[0], inst[1] + idxOffset ];
-        }
-      }
     }
   }
 
