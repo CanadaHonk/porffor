@@ -6081,7 +6081,9 @@ const generateFunc = (scope, decl) => {
     func.export = true;
     func.returns = [ valtypeBinary, Valtype.i32 ];
 
-    const finalStatement = decl.body.body[decl.body.body.length - 1];
+    let finalStatement = decl.body.body[decl.body.body.length - 1];
+    if (finalStatement?.type === 'EmptyStatement') finalStatement = decl.body.body[decl.body.body.length - 2];
+
     const lastInst = func.wasm[func.wasm.length - 1] ?? [ Opcodes.end ];
     if (lastInst[0] === Opcodes.drop) {
       if (finalStatement.type.endsWith('Declaration')) {
