@@ -2762,6 +2762,12 @@ const generateThis = (scope, decl, _global, _name) => {
     ];
   }
 
+  // opt: do not check for pure constructors
+  if (scope._onlyConstr) return [
+    [ Opcodes.local_get, scope.locals['#this'].idx ],
+    ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
+  ];
+
   return [
     // default this to globalThis
     [ Opcodes.local_get, scope.locals['#this'].idx ],
@@ -5789,7 +5795,7 @@ const generateClass = (scope, decl) => {
 
   const [ func, out ] = generateFunc(scope, {
     ...constr,
-    _onlyConstr: `Class constructor ${name} requires 'new'`,
+    _onlyConstr: true,
     type: expr ? 'FunctionExpression' : 'FunctionDeclaration'
   });
 
@@ -5799,7 +5805,7 @@ const generateClass = (scope, decl) => {
 
     if (kind === 'constructor') continue;
 
-    const object = _static ? root : {
+    let object = _static ? root : {
       type: 'MemberExpression',
       object: root,
       property: {
@@ -5822,25 +5828,46 @@ const generateClass = (scope, decl) => {
     // default value to undefined
     value ??= DEFAULT_VALUE();
 
-    out.push(
-      ...generate(scope, object),
+    let outArr = out, outOp = 'push', outScope = scope;
+    if (type === 'PropertyDefinition' && !_static) {
+      // define in construction instead
+      outArr = func.wasm;
+      outOp = 'unshift';
+      object = {
+        type: 'ThisExpression'
+      };
+      outScope = func;
+    }
+
+    outArr[outOp](
+      ...generate(outScope, object),
       Opcodes.i32_to_u,
-      ...getNodeType(scope, object),
+      ...getNodeType(outScope, object),
 
-      ...generate(scope, k),
-      ...getNodeType(scope, k),
-      ...toPropertyKey(scope, true),
+      ...generate(outScope, k),
+      ...getNodeType(outScope, k),
+      ...toPropertyKey(outScope, true),
 
-      ...generate(scope, value),
+      ...generate(outScope, value),
       ...(initKind !== 'init' ? [ Opcodes.i32_to_u ] : []),
-      ...getNodeType(scope, value),
+      ...getNodeType(outScope, value),
 
-      [ Opcodes.call, includeBuiltin(scope, `__Porffor_object_expr_${initKind}`).index ],
+      [ Opcodes.call, includeBuiltin(outScope, `__Porffor_object_expr_${initKind}`).index ],
 
       [ Opcodes.drop ],
       [ Opcodes.drop ]
     );
   }
+
+  // error if not being constructed
+  func.wasm.unshift(
+    [ Opcodes.local_get, func.locals['#newtarget'].idx ],
+    Opcodes.i32_to_u,
+    [ Opcodes.i32_eqz ],
+    [ Opcodes.if, Blocktype.void ],
+      ...internalThrow(func, 'TypeError', `Class constructor ${name} requires 'new'`),
+    [ Opcodes.end ]
+  );
 
   return out;
 };
@@ -5921,6 +5948,7 @@ const generateFunc = (scope, decl) => {
       (decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program') &&
       // not async or generator
       !decl.async && !decl.generator,
+    _onlyConstr: decl._onlyConstr,
     strict: scope.strict
   };
 
@@ -6064,25 +6092,16 @@ const generateFunc = (scope, decl) => {
 
   if (!globalThis.precompile && func.constr) {
     wasm.unshift(
-      // if being constructed
-      [ Opcodes.local_get, func.locals['#newtarget'].idx ],
-      Opcodes.i32_to_u,
-      [ Opcodes.if, Blocktype.void ],
+      // opt: do not check for pure constructors
+      ...(func._onlyConstr ? [] : [
+        // if being constructed
+        [ Opcodes.local_get, func.locals['#newtarget'].idx ],
+        Opcodes.i32_to_u,
+        [ Opcodes.if, Blocktype.void ],
+      ]),
         // set prototype of this ;)
         ...generate(func, setObjProp({ type: 'ThisExpression' }, '__proto__', getObjProp(func.name, 'prototype'))),
-      [ Opcodes.end ]
-    );
-  }
-
-  if (decl._onlyConstr) {
-    wasm.unshift(
-      // error if not being constructed
-      [ Opcodes.local_get, func.locals['#newtarget'].idx ],
-      Opcodes.i32_to_u,
-      [ Opcodes.i32_eqz ],
-      [ Opcodes.if, Blocktype.void ],
-        ...internalThrow(func, 'TypeError', decl._onlyConstr),
-      [ Opcodes.end ]
+      ...(func._onlyConstr ? [] : [ [ Opcodes.end ] ])
     );
   }
 
