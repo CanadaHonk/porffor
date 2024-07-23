@@ -37,7 +37,8 @@ const todo = (scope, msg, expectsValue = undefined) => {
 };
 
 const isFuncType = type =>
-  type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression';
+  type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression' ||
+  type === 'ClassDeclaration' || type === 'ClassExpression';
 const hasFuncWithName = name =>
   Object.hasOwn(funcIndex, name) || Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) || Object.hasOwn(internalConstrs, name);
 
@@ -70,7 +71,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
     case 'ArrowFunctionExpression':
     case 'FunctionDeclaration':
-    case 'FunctionExpression':
+    case 'FunctionExpression': {
       const func = generateFunc(scope, decl);
 
       if (decl.type.endsWith('Expression')) {
@@ -78,6 +79,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       }
 
       return cacheAst(decl, []);
+    }
 
     case 'BlockStatement':
       return cacheAst(decl, generateCode(scope, decl));
@@ -174,6 +176,10 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
     case 'MemberExpression':
       return cacheAst(decl, generateMember(scope, decl, global, name));
+
+    case 'ClassExpression':
+    case 'ClassDeclaration':
+      return cacheAst(decl, generateClass(scope, decl));
 
     case 'ExportNamedDeclaration':
       if (!decl.declaration) return todo(scope, 'unsupported export declaration');
@@ -1696,12 +1702,12 @@ const getNodeType = (scope, node) => {
       }
     }
 
-    if (node.type == 'ThisExpression') {
+    if (node.type === 'ThisExpression') {
       if (!scope.constr) return getType(scope, 'globalThis');
       return [ [ Opcodes.local_get, '#this#type' ] ];
     }
 
-    if (node.type == 'MetaProperty') {
+    if (node.type === 'MetaProperty') {
       switch (`${node.meta.name}.${node.property.name}`) {
         case 'new.target': {
           return [ [ Opcodes.local_get, '#newtarget#type' ] ];
@@ -5765,6 +5771,87 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   return out;
 };
 
+const generateClass = (scope, decl) => {
+  const expr = decl.type === 'ClassExpression';
+  if (decl.superClass) return todo(scope, 'class extends is not supported yet', expr);
+
+  const name = decl.id.name;
+  if (name == null) return todo(scope, 'unknown name for class', expr);
+
+  const body = decl.body.body;
+  const root = {
+    type: 'Identifier',
+    name
+  };
+
+  const constr = body.find(x => x.kind === 'constructor')?.value ?? {
+    type: 'FunctionExpression',
+    id: root,
+    params: [],
+    body: {
+      type: 'BlockStatement',
+      body: []
+    }
+  };
+
+  const func = generateFunc(scope, {
+    ...constr,
+    _onlyConstr: `Class constructor ${name} requires 'new'`,
+    type: expr ? 'FunctionExpression' : 'FunctionDeclaration'
+  });
+
+  const out = [];
+
+  for (const x of body) {
+    const { type, key, value, kind, static: _static, computed } = x;
+    if (type !== 'MethodDefinition' && type !== 'PropertyDefinition') return todo(scope, `class body type ${type} is not supported yet`, expr);
+
+    if (kind === 'constructor') continue;
+
+    const object = _static ? root : {
+      type: 'MemberExpression',
+      object: root,
+      property: {
+        type: 'Identifier',
+        name: 'prototype'
+      },
+      computed: false,
+      optional: false
+    };
+
+    let k = key;
+    if (!computed && key.type !== 'Literal') k = {
+      type: 'Literal',
+      value: key.name
+    };
+
+    let initKind = 'init';
+    if (kind === 'get' || kind === 'set') initKind = kind;
+
+    out.push(
+      ...generate(scope, object),
+      Opcodes.i32_to_u,
+      ...getNodeType(scope, object),
+
+      ...generate(scope, k),
+      ...getNodeType(scope, k),
+      ...toPropertyKey(scope, true),
+
+      ...generate(scope, value),
+      ...(initKind !== 'init' ? [ Opcodes.i32_to_u ] : []),
+      ...getNodeType(scope, value),
+
+      [ Opcodes.call, includeBuiltin(scope, `__Porffor_object_expr_${initKind}`).index ],
+
+      [ Opcodes.drop ],
+      [ Opcodes.drop ]
+    );
+  }
+
+  if (expr) out.push(funcRef(func.index, func.name));
+  return out;
+};
+
 globalThis._uniqId = 0;
 const uniqId = () => '_' + globalThis._uniqId++;
 
@@ -5977,17 +6064,37 @@ const generateFunc = (scope, decl) => {
     );
   }
 
+  if (decl._onlyConstr) {
+    wasm.unshift(
+      // error if not being constructed
+      [ Opcodes.local_get, '#newtarget' ],
+      Opcodes.i32_to_u,
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(func, 'TypeError', decl._onlyConstr),
+      [ Opcodes.end ]
+    );
+  }
+
   if (name === 'main') {
     func.gotLastType = true;
     func.export = true;
     func.returns = [ valtypeBinary, Valtype.i32 ];
 
+    const finalStatement = decl.body.body[decl.body.body.length - 1];
     const lastInst = func.wasm[func.wasm.length - 1] ?? [ Opcodes.end ];
     if (lastInst[0] === Opcodes.drop) {
-      func.wasm.splice(func.wasm.length - 1, 1);
-
-      const finalStatement = decl.body.body[decl.body.body.length - 1];
-      func.wasm.push(...getNodeType(func, finalStatement));
+      if (finalStatement.type.endsWith('Declaration')) {
+        // final statement is decl, force undefined
+        disposeLeftover(wasm);
+        func.wasm.push(
+          ...number(UNDEFINED),
+          ...number(TYPES.undefined, Valtype.i32)
+        );
+      } else {
+        func.wasm.splice(func.wasm.length - 1, 1);
+        func.wasm.push(...getNodeType(func, finalStatement));
+      }
     }
 
     if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {

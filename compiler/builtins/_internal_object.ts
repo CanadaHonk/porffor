@@ -548,7 +548,8 @@ export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
 
 
 // used for { foo: 5 }
-export const __Porffor_object_expr_init = (obj: object, key: any, value: any): void => {
+export const __Porffor_object_expr_init = (obj: any, key: any, value: any): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
     // add new entry
@@ -573,7 +574,8 @@ export const __Porffor_object_expr_init = (obj: object, key: any, value: any): v
 };
 
 // used for { get foo() {} }
-export const __Porffor_object_expr_get = (obj: object, key: any, get: any): void => {
+export const __Porffor_object_expr_get = (obj: any, key: any, get: any): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   let set: any = undefined;
   if (entryPtr == -1) {
@@ -602,7 +604,8 @@ export const __Porffor_object_expr_get = (obj: object, key: any, get: any): void
 };
 
 // used for { set foo(v) {} }
-export const __Porffor_object_expr_set = (obj: object, key: any, set: any): void => {
+export const __Porffor_object_expr_set = (obj: any, key: any, set: any): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   let get: any = undefined;
   if (entryPtr == -1) {
