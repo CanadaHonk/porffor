@@ -5772,7 +5772,6 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
 const generateClass = (scope, decl) => {
   const expr = decl.type === 'ClassExpression';
-  if (decl.superClass) return todo(scope, 'class extends is not supported yet', expr);
 
   const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
   if (name == null) return todo(scope, 'unknown name for class', expr);
@@ -5781,6 +5780,16 @@ const generateClass = (scope, decl) => {
   const root = {
     type: 'Identifier',
     name
+  };
+  const proto = {
+    type: 'MemberExpression',
+    object: root,
+    property: {
+      type: 'Identifier',
+      name: 'prototype'
+    },
+    computed: false,
+    optional: false
   };
 
   const constr = body.find(x => x.kind === 'constructor')?.value ?? {
@@ -5799,22 +5808,39 @@ const generateClass = (scope, decl) => {
     type: expr ? 'FunctionExpression' : 'FunctionDeclaration'
   });
 
+  if (decl.superClass) {
+    out.push(
+      ...generateCall(scope, {
+        type: 'CallExpression',
+        callee: {
+          type: 'Identifier',
+          name: '__Porffor_object_assignAll'
+        },
+        arguments: [
+          proto,
+          {
+            type: 'MemberExpression',
+            object: decl.superClass,
+            property: {
+              type: 'Identifier',
+              name: 'prototype'
+            },
+            computed: false,
+            optional: false
+          }
+        ]
+      }),
+      [ Opcodes.drop ]
+    );
+  }
+
   for (const x of body) {
     let { type, key, value, kind, static: _static, computed } = x;
     if (type !== 'MethodDefinition' && type !== 'PropertyDefinition') return todo(scope, `class body type ${type} is not supported yet`, expr);
 
     if (kind === 'constructor') continue;
 
-    let object = _static ? root : {
-      type: 'MemberExpression',
-      object: root,
-      property: {
-        type: 'Identifier',
-        name: 'prototype'
-      },
-      computed: false,
-      optional: false
-    };
+    let object = _static ? root : proto;
 
     let k = key;
     if (!computed && key.type !== 'Literal') k = {
