@@ -18,10 +18,7 @@ try {
   repl = (await import('node-repl-polyfill')).default;
 }
 
-globalThis.valtype = 'f64';
-
-const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
-if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
+globalThis.valtype = Prefs.valtype ?? 'f64';
 
 let host = globalThis?.navigator?.userAgent;
 if (typeof process !== 'undefined' && process.argv0 === 'node') host = 'Node/' + process.versions.node;
