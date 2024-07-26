@@ -5973,14 +5973,16 @@ const generateClass = (scope, decl) => {
     optional: false
   };
 
-  const constr = body.find(x => x.kind === 'constructor')?.value ?? {
-    type: 'FunctionExpression',
+  const constr = {
+    ...(body.find(x => x.kind === 'constructor')?.value ?? {
+      type: 'FunctionExpression',
+      params: [],
+      body: {
+        type: 'BlockStatement',
+        body: []
+      }
+    }),
     id: root,
-    params: [],
-    body: {
-      type: 'BlockStatement',
-      body: []
-    }
   };
 
   const [ func, out ] = generateFunc(scope, {
