@@ -413,3 +413,25 @@ export const __Promise_prototype_toString = (_this: any) => {
 };
 
 export const __Promise_prototype_toLocaleString = (_this: any) => __Promise_prototype_toString(_this);
+
+
+export const __Porffor_promise_await = (value: any) => {
+  if (Porffor.rawType(value) != Porffor.TYPES.promise) return value;
+
+  // hack: peek value instead of awaiting
+  const promise: any[] = value;
+
+  const state: i32 = promise[1];
+
+  // pending
+  if (state == 0) return value;
+
+  const result: any = promise[0];
+
+  // fulfilled
+  if (state == 1) return result;
+
+  // rejected
+  // todo: throw result instead of fixed error here
+  throw Error('Uncaught await promise rejection');
+};
