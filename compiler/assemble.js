@@ -99,32 +99,9 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   // also fix call_indirect types
   // also encode call indexes
   for (const f of funcs) {
-    f.originalIndex = f.index;
-    f.index -= importDelta;
-
-    for (const inst of f.wasm) {
-      if ((inst[0] === Opcodes.call || inst[0] === Opcodes.return_call) && inst[1] >= importedFuncs.length) {
-        const idx = inst[1] - importDelta;
-        inst.pop(); // remove idx
-        unsignedLEB128_into(idx, inst); // add unsigned leb128 encoded index to inst
-      }
-
-      if (inst[0] === Opcodes.call_indirect) {
-        if (!funcs.table) funcs.table = true;
-
-        const params = [];
-        for (let i = 0; i < inst[1]; i++) {
-          params.push(valtypeBinary, Valtype.i32);
-        }
-
-        let returns = [ valtypeBinary, Valtype.i32 ];
-        if (inst.at(-1) === 'no_type_return') {
-          inst.pop();
-          returns = [ valtypeBinary ];
-        }
-
-        inst[1] = getType(params, returns);
-      }
+    if (f.originalIndex == null) {
+      f.originalIndex = f.index;
+      f.index -= importDelta;
     }
   }
 
@@ -331,6 +308,29 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
           o = [...o];
           o.pop();
           ieee754_binary64_into(n, o);
+        }
+
+        if ((o[0] === Opcodes.call || o[0] === Opcodes.return_call) && o[1] >= importedFuncs.length) {
+          const n = o[1] - importDelta;
+          o = [...o];
+          o.pop();
+          unsignedLEB128_into(n, o);
+        }
+
+        if (o[0] === Opcodes.call_indirect) {
+          o = [...o];
+          const params = [];
+          for (let i = 0; i < o[1]; i++) {
+            params.push(valtypeBinary, Valtype.i32);
+          }
+
+          let returns = [ valtypeBinary, Valtype.i32 ];
+          if (o.at(-1) === 'no_type_return') {
+            o.pop();
+            returns = [ valtypeBinary ];
+          }
+
+          o[1] = getType(params, returns);
         }
 
         for (let j = 0; j < o.length; j++) {

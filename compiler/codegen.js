@@ -174,6 +174,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'ClassDeclaration':
       return cacheAst(decl, generateClass(scope, decl));
 
+    case 'AwaitExpression':
+      return cacheAst(decl, generateAwait(scope, decl));
+
     case 'ExportNamedDeclaration':
       if (!decl.declaration) return todo(scope, 'unsupported export declaration');
 
@@ -5929,6 +5932,23 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   }
 
   return out;
+};
+
+const generateAwait = (scope, decl) => {
+  // hack: implement as ~peeking value `await foo` -> `Porffor.promise.await(foo)`
+
+  // todo: warn here if -d?
+
+  return generateCall(scope, {
+    type: 'CallExpression',
+    callee: {
+      type: 'Identifier',
+      name: '__Porffor_promise_await'
+    },
+    arguments: [
+      decl.argument
+    ]
+  });
 };
 
 const generateClass = (scope, decl) => {

@@ -217,12 +217,14 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
 
-  if (data.length > 0) {
+  const activeData = data.filter(x => x.page != null);
+  if (activeData.length > 0) {
+    const dataOffset = x => pages.get(x.page).ind * pageSize;
     if (Prefs['2cMemcpy']) {
-      prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
+      prependMain.set('_data', activeData.map(x => `memcpy(_memory + ${dataOffset(x)}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
       includes.set('string.h', true);
     } else {
-      prependMain.set('_data', data.map(x => x.bytes.reduce((acc, y, i) => acc + `_memory[${x.offset + i}]=(u8)${y};`, '')).join('\n  '));
+      prependMain.set('_data', activeData.map(x => x.bytes.reduce((acc, y, i) => acc + `_memory[${dataOffset(x) + i}]=(u8)${y};`, '')).join('\n  '));
     }
   }
 

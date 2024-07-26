@@ -33,14 +33,10 @@ export default (code, flags) => {
 
   let outFile = Prefs.o;
 
-  globalThis.valtype = 'f64';
-  const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
-  if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
+  globalThis.valtype = Prefs.valtype ?? 'f64';
   globalThis.valtypeBinary = Valtype[valtype];
 
-  globalThis.pageSize = PageSize;
-  const pageSizeOpt = process.argv.find(x => x.startsWith('--page-size='));
-  if (pageSizeOpt) pageSize = parseInt(pageSizeOpt.split('=')[1]) * 1024;
+  globalThis.pageSize = (parseInt(Prefs.valtype) * 1024) || PageSize;
 
   // change some prefs by default for c/native
   if (target !== 'wasm') {
