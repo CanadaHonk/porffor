@@ -315,7 +315,7 @@ const createVar = (scope, kind, name, global, type = true) => {
   }
 
   scope.variables[name] ??= { kind, scope, nonLocal: false };
-  scope.variables[name].initalized = true;
+  scope.variables[name].initialized = true;
   if (!type) {
     scope.variables[name].untyped = true;
   }
@@ -363,7 +363,7 @@ const setVar = (scope, name, wasm, typeWasm, tee = false, initalizing = false) =
       return internalThrow(scope, 'TypeError', `Assignment to constant variable ${name}`)
     }
 
-    if ((variable.kind === 'let' || variable.kind === 'const') && !variable.nonLocal && !variable.initalized) {
+    if ((variable.kind === 'let' || variable.kind === 'const') && !variable.nonLocal && !variable.initialized) {
       // todo: this but for nonLocal access
       return internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`);
     }
@@ -401,7 +401,7 @@ const getVar = (scope, name) => {
       variable.nonLocal = true;
     }
 
-    if ((variable.kind === 'let' || variable.kind === 'const') && !variable.nonLocal && !variable.initalized) {
+    if ((variable.kind === 'let' || variable.kind === 'const') && !variable.nonLocal && !variable.initialized) {
       // todo: this but for nonLocal access
       return internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`);
     }
