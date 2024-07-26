@@ -6122,7 +6122,6 @@ const generateFunc = (scope, decl) => {
 
   const params = decl.params ?? [];
 
-  // TODO: share scope/locals between !!!
   const func = {
     locals: {},
     localInd: 0,
