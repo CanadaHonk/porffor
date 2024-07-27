@@ -1599,6 +1599,16 @@ const getType = (scope, _name) => {
 
   if (isExistingProtoFunc(name)) return number(TYPES.function, Valtype.i32);
 
+  if (name.startsWith('__')) {
+    // return undefined if unknown key in already known var
+    let parent = name.slice(2).split('_').slice(0, -1).join('_');
+    if (parent.includes('_')) parent = '__' + parent;
+
+    const parentLookup = getType(scope, parent);
+    if (parentLookup.at(-1)[0] !== Opcodes.throw)
+      return number(TYPES.undefined, Valtype.i32);
+  }
+
   // fallback in case everything else fails
   return getVarType(scope, name);
 };
