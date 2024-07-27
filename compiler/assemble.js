@@ -21,7 +21,7 @@ const chHint = (topTier, baselineTier, strategy) => {
   return (strategy | (baselineTier << 2) | (topTier << 4));
 };
 
-const encodeNames = (funcs) => {
+const encodeNames = funcs => {
   const encodeSection = (id, section) => [
     id,
     ...unsignedLEB128(section.length),
@@ -30,11 +30,11 @@ const encodeNames = (funcs) => {
 
   const moduleSection = encodeString('js'); // TODO: filename?
   const functionsSection = encodeVector(
-    funcs.map((x) => unsignedLEB128(x.index).concat(encodeString(x.name))),
+    funcs.map(x => unsignedLEB128(x.asmIndex).concat(encodeString(x.name))),
   );
   const localsSection = encodeVector(
-    funcs.map((x) =>
-      unsignedLEB128(x.index).concat(
+    funcs.map(x =>
+      unsignedLEB128(x.asmIndex).concat(
         encodeVector(
           Object.entries(x.locals).map(([name, local]) =>
             unsignedLEB128(local.idx).concat(encodeString(name)),
@@ -99,10 +99,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   // also fix call_indirect types
   // also encode call indexes
   for (const f of funcs) {
-    if (f.originalIndex == null) {
-      f.originalIndex = f.index;
-      f.index -= importDelta;
-    }
+    f.asmIndex = f.index - importDelta;
   }
 
 
@@ -130,7 +127,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     encodeVector([ [
       0x00,
       Opcodes.i32_const, 0, Opcodes.end,
-      ...encodeVector(funcs.map(x => unsignedLEB128(x.index)))
+      ...encodeVector(funcs.map(x => unsignedLEB128(x.asmIndex)))
     ] ])
   );
 
@@ -238,7 +235,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   //   };
   // }
 
-  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, ...unsignedLEB128(x.index) ]);
+  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, ...unsignedLEB128(x.asmIndex) ]);
 
   if (Prefs.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
   if (optLevel === 0) pages.set('O0 precaution', 0);
