@@ -318,7 +318,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
 
-    const surrounding = Prefs.backtraceSurrounding ?? 5;
+    const surrounding = Prefs.backtraceSurrounding ?? 10;
     let min = middleIndex - surrounding;
     let max = middleIndex + surrounding + 1;
     if (Prefs.backtraceFunc || middleIndex == -1) {
