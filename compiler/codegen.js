@@ -4124,21 +4124,36 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
 
     return out;
   } else {
-    const out = generate(scope, {
-      type: 'AssignmentExpression',
-      operator: decl.operator === '++' ? '+=' : '-=',
-      left: decl.argument,
-      right: { type: 'Literal', value: 1 }
-    }, _global, _name, decl.prefix);
+    const out = [];
 
     if (!decl.prefix) {
-      const idx = localTmp(scope, '#update_tmp');
+      const idx = allocVar(scope, '#update_tmp', false);
 
-      out.unshift(
-        ...generate(scope, decl.argument, _global, _name),
-        [ Opcodes.local_set, idx ]
+      out.push(
+        ...setVar(scope, '#update_tmp', generate(scope, decl.argument, _global, _name), getNodeType(scope, decl.argument)),
+        ...generate(scope, {
+          type: 'AssignmentExpression',
+          operator: '=',
+          left: decl.argument,
+          right: {
+            type: 'BinaryExpression',
+            operator: decl.operator === '++' ? '+' : '-',
+            left: { type: 'Identifier', name: '#update_tmp' },
+            right: { type: 'Literal', value: 1 }
+          }
+        }, _global, _name, true),
       );
+      disposeLeftover(out);
       out.push([ Opcodes.local_get, idx ]);
+    } else {
+      out.push(
+        ...generate(scope, {
+          type: 'AssignmentExpression',
+          operator: decl.operator === '++' ? '+=' : '-=',
+          left: decl.argument,
+          right: { type: 'Literal', value: 1 }
+        }, _global, _name)
+      );
     }
 
     return out;
