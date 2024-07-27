@@ -504,7 +504,8 @@ const generateIdent = (scope, decl) => {
         if (parent.includes('_')) parent = '__' + parent;
 
         const parentLookup = lookup(parent);
-        if (!parentLookup[1]) return number(UNDEFINED);
+        if (parentLookup.at(-1)[0] !== Opcodes.throw)
+          return number(UNDEFINED);
       }
     }
 
@@ -3965,7 +3966,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 const ifIdentifierErrors = (scope, decl) => {
   if (decl.type === 'Identifier') {
     const out = generateIdent(scope, decl);
-    if (out.at(-1) === Opcodes.throw) return true;
+    if (out.at(-1)[0] === Opcodes.throw) return true;
   }
 
   return false;
