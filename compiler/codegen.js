@@ -6388,6 +6388,13 @@ const generateFunc = (scope, decl) => {
         [ Opcodes.drop ]
       );
     }
+
+    if (func.returns.length !== 0 && countLeftover(wasm) === 0) {
+      func.wasm.push(
+        ...number(UNDEFINED),
+        ...number(TYPES.undefined, Valtype.i32)
+      );
+    }
   } else {
     // add end return if not found
     if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
