@@ -42,7 +42,7 @@ const memoryToString = mem => {
 
   const buf = new Uint8Array(mem.buffer);
 
-  let longestType = 0, longestName = 0;
+  let longestType = 4, longestName = 4;
   for (const x of lastPages) {
     const [ type, name ] = x.split(': ');
     if (type.length > longestType) longestType = type.length;
