@@ -34,10 +34,5 @@ export const __Porffor_compareStrings = (a: any, b: any): boolean => {
     bt = Porffor.rawType(b);
   }
 
-  // todo: fast path for bs v bs
-  // todo: fast path for s  v s
-  // todo: fast path for bs v s
-  // todo: fast path for s  v bs
-
   return Porffor.strcmp(a, b);
 };
