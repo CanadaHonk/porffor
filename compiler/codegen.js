@@ -323,7 +323,7 @@ const createVar = (scope, kind, name, global, type = true) => {
   }
 
   // var and bare declarations don't respect block statements
-  const target = kind === 'var' ? findTopScope(scope) : scope;
+  const target = kind === 'var' || kind === 'bare' ? findTopScope(scope) : scope;
 
   const variable = target.variables[name] ??= { kind, scope: target, nonLocal: false, name };
   if (variableNames.has(name)) {
@@ -3343,7 +3343,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
     if (topLevel && Object.hasOwn(builtinVars, name)) {
       // cannot redeclare
-      if (kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
+      if (kind !== 'var' && kind !== 'bare') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
 
       return out; // always ignore
     }
@@ -3971,10 +3971,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     if (type != 'Identifier') {
       const tmpName = '#rhs' + uniqId();
+      allocVar(scope, tmpName, false);
       return [
-        ...generateVarDstr(scope, 'const', tmpName, decl.right, undefined, true),
-        ...generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true),
-        ...generate(scope, { type: 'Identifier', name: tmpName }),
+        ...setVar(scope, tmpName, generate(scope, decl.right), _name, true),
+        ...generateVarDstr(scope, 'bare', decl.left, { type: 'Identifier', name: tmpName }, undefined, true),
+        ...getVar(scope, tmpName),
         ...setLastType(scope, getNodeType(scope, decl.right))
       ];
     }
@@ -3988,7 +3989,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     // set global and return (eg a = 2)
     return [
-      ...generateVarDstr(scope, 'var', name, decl.right, undefined, true),
+      ...generateVarDstr(scope, 'bare', name, decl.right, undefined, true),
       ...generate(scope, decl.left)
     ];
   }
@@ -4415,21 +4416,22 @@ const generateForOf = (scope, decl) => {
   const tmpName = '#forof_tmp' + count;
   const tmp = allocVar(scope, tmpName, false);
 
+  const newScope = pushScope(scope);
+
   // setup local for left
-  let setVar;
+  let initVar;
   if (decl.left.type === 'Identifier') {
-    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
-    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    if (scope.strict) return internalThrow(newScope, 'ReferenceError', `${decl.left.name} is not defined`);
+    initVar = generateVarDstr(newScope, 'bare', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
+    initVar = generateVarDstr(newScope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
-
 
   // set type for local
   // todo: optimize away counter and use end pointer
-  out.push(...typeSwitch(scope, iterType, {
+  out.push(...typeSwitch(newScope, iterType, {
     [TYPES.array]: [
       [ Opcodes.loop, Blocktype.void ],
 
@@ -4438,16 +4440,16 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.local_set, tmp ],
 
-      ...setType(scope, tmpName, [
+      ...setType(newScope, tmpName, [
         [ Opcodes.local_get, pointer ],
         [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
       ]),
 
-      ...setVar,
+      ...initVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
+      ...generate(newScope, decl.body),
       [ Opcodes.end ],
 
       // increment iter pointer by valtype size + 1
@@ -4472,11 +4474,11 @@ const generateForOf = (scope, decl) => {
     ],
 
     [TYPES.string]: [
-      ...setType(scope, tmpName, TYPES.string),
+      ...setType(newScope, tmpName, TYPES.string),
 
       // allocate out string
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
-      [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.call, includeBuiltin(newScope, '__Porffor_allocate').index ],
+      [ Opcodes.local_tee, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
       ...number(1, Valtype.i32),
@@ -4485,7 +4487,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.loop, Blocktype.void ],
 
       // use as pointer for store later
-      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
 
       // load current string ind {arg}
       [ Opcodes.local_get, pointer ],
@@ -4495,15 +4497,15 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
       // return new string (page)
-      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
 	    Opcodes.i32_from_u,
       [ Opcodes.local_set, tmp ],
 
-	  ...setVar,
+	    ...initVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
+      ...generate(newScope, decl.body),
       [ Opcodes.end ],
 
       // increment iter pointer by valtype size
@@ -4527,11 +4529,11 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ]
     ],
     [TYPES.bytestring]: [
-      ...setType(scope, tmpName, TYPES.bytestring),
+      ...setType(newScope, tmpName, TYPES.bytestring),
 
       // allocate out string
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
-      [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.call, includeBuiltin(newScope, '__Porffor_allocate').index ],
+      [ Opcodes.local_tee, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
       ...number(1, Valtype.i32),
@@ -4540,7 +4542,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.loop, Blocktype.void ],
 
       // use as pointer for store later
-      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
 
       // load current string ind {arg}
       [ Opcodes.local_get, pointer ],
@@ -4552,15 +4554,15 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
 
       // return new string (page)
-      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
       Opcodes.i32_from_u,
       [ Opcodes.local_set, tmp ],
 
-      ...setVar,
+      ...initVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
+      ...generate(newScope, decl.body),
       [ Opcodes.end ],
 
       // increment counter by 1
@@ -4586,16 +4588,16 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.local_set, tmp ],
 
-      ...setType(scope, tmpName, [
+      ...setType(newScope, tmpName, [
         [ Opcodes.local_get, pointer ],
         [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
       ]),
 
-      ...setVar,
+      ...initVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
+      ...generate(newScope, decl.body),
       [ Opcodes.end ],
 
       // increment iter pointer by valtype size + 1
@@ -4687,7 +4689,7 @@ const generateForOf = (scope, decl) => {
       ],
     }, {
       prelude: [
-        ...setType(scope, tmpName, TYPES.number),
+        ...setType(newScope, tmpName, TYPES.number),
 
         [ Opcodes.loop, Blocktype.void ],
 
@@ -4698,11 +4700,11 @@ const generateForOf = (scope, decl) => {
       postlude: [
         [ Opcodes.local_set, tmp ],
 
-        ...setVar,
+        ...initVar,
 
         [ Opcodes.block, Blocktype.void ],
         [ Opcodes.block, Blocktype.void ],
-        ...generate(scope, decl.body),
+        ...generate(newScope, decl.body),
         [ Opcodes.end ],
 
         // increment counter by 1
@@ -4722,10 +4724,12 @@ const generateForOf = (scope, decl) => {
     }),
 
     // note: should be impossible to reach?
-    default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
+    default: internalThrow(newScope, 'TypeError', `Tried for..of on non-iterable type`)
   }, Blocktype.void));
 
   out.push([ Opcodes.end ]); // end if
+
+  popScope(scope, newScope);
 
   depth.pop();
   depth.pop();
@@ -4783,19 +4787,21 @@ const generateForIn = (scope, decl) => {
   const tmp = localTmp(scope, tmpName, Valtype.i32);
   localTmp(scope, tmpName + '#type', Valtype.i32);
 
-  let setVar;
+  const newScope = pushScope(scope);
+
+  let initVar;
   if (decl.left.type === 'Identifier') {
-    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
-    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    if (scope.strict) return internalThrow(newScope, 'ReferenceError', `${decl.left.name} is not defined`);
+    initVar = generateVarDstr(newScope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
+    initVar = generateVarDstr(newScope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
   // set type for local
   // todo: optimize away counter and use end pointer
-  out.push(...typeSwitch(scope, iterType, {
+  out.push(...typeSwitch(newScope, iterType, {
     [TYPES.object]: [
       [ Opcodes.loop, Blocktype.void ],
 
@@ -4804,7 +4810,7 @@ const generateForIn = (scope, decl) => {
       [ Opcodes.i32_load, 0, 5 ],
       [ Opcodes.local_tee, tmp ],
 
-      ...setType(scope, tmpName, [
+      ...setType(newScope, tmpName, [
         [ Opcodes.i32_const, 31 ],
         [ Opcodes.i32_shr_u ],
         [ Opcodes.if, Valtype.i32 ],
@@ -4820,7 +4826,7 @@ const generateForIn = (scope, decl) => {
         [ Opcodes.end ]
       ]),
 
-      ...setVar,
+      ...initVar,
 
       [ Opcodes.block, Blocktype.void ],
 
@@ -4831,7 +4837,7 @@ const generateForIn = (scope, decl) => {
       [ Opcodes.i32_const, 0b0100 ],
       [ Opcodes.i32_and ],
       [ Opcodes.if, Blocktype.void ],
-      ...generate(scope, decl.body),
+      ...generate(newScope, decl.body),
       [ Opcodes.end ],
 
       // increment pointer by 14
@@ -4857,10 +4863,12 @@ const generateForIn = (scope, decl) => {
 
     // todo: use Object.keys as fallback
     // should be unreachable?
-    default: internalThrow(scope, 'TypeError', `Tried for..in on unsupported type`)
+    default: internalThrow(newScope, 'TypeError', `Tried for..in on unsupported type`)
   }, Blocktype.void));
 
   out.push([ Opcodes.end ]); // end if
+
+  popScope(scope, newScope);
 
   depth.pop();
   depth.pop();
@@ -6782,8 +6790,8 @@ export default program => {
         ];
       }
 
-      if (global && variable.kind === 'var') {
-        // variable is a bare declaration, or is a var declaration at the top level
+      if ((global && variable.kind === 'var') || variable.kind === 'bare') {
+        // variable is a var declaration at the top level, or is a bare declaration
         // todo: there's probably some issues here with empty wasms and typeWasms
 
         if (initOp) throw new Error(`${op} used on a non let or const variable`);
