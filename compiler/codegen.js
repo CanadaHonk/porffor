@@ -319,6 +319,12 @@ const createVar = (scope, kind, name, global, type = true) => {
   if (!type) {
     scope.variables[name].untyped = true;
   }
+const pushScope = (scope) => {
+  return { ...scope, upper: scope, variables: {} };
+}
+
+const popScope = (scope, inner) => {
+  scope.localInd = inner.localInd;
 }
 
 const setVar = (scope, name, wasm, typeWasm, tee = false, initalizing = false) => {
@@ -355,7 +361,8 @@ const setVar = (scope, name, wasm, typeWasm, tee = false, initalizing = false) =
 
   const variable = findVar(scope, name);
   if (variable) {
-    if (variable.scope !== scope) {
+    // check if we are still in the same function
+    if (variable.scope.index !== scope.index) {
       variable.nonLocal = true;
     }
 
@@ -397,7 +404,8 @@ const getVar = (scope, name) => {
 
   const variable = findVar(scope, name);
   if (variable) {
-    if (variable.scope !== scope) {
+    // check if we are still in the same function
+    if (variable.scope.index !== scope.index) {
       variable.nonLocal = true;
     }
 
@@ -435,8 +443,8 @@ const getVarType = (scope, name) => {
     return number(TYPES.undefined, Valtype.i32);
   }
 
-  const variable = findVar(scope, typeName);
-  if (variable && variable.scope !== scope) {
+  const variable = findVar(scope, name);
+  if (variable && variable.scope.index !== scope.index) {
     variable.nonLocal = true;
   }
 
@@ -4868,6 +4876,8 @@ const generateSwitch = (scope, decl) => {
     cases.push(cases.splice(defaultCase, 1)[0]);
   }
 
+  const newScope = pushScope(scope);
+
   for (let i = 0; i < cases.length; i++) {
     out.push([ Opcodes.block, Blocktype.void ]);
     depth.push('block');
@@ -4879,7 +4889,7 @@ const generateSwitch = (scope, decl) => {
       // todo: this should use same value zero
       out.push(
         [ Opcodes.local_get, tmp ],
-        ...generate(scope, x.test),
+        ...generate(newScope, x.test),
         [ Opcodes.eq ],
         [ Opcodes.br_if, i ]
       );
@@ -4894,12 +4904,14 @@ const generateSwitch = (scope, decl) => {
     depth.pop();
     out.push(
       [ Opcodes.end ],
-      ...generateCode(scope, { body: cases[i].consequent })
+      ...generateCode(newScope, { body: cases[i].consequent })
     );
   }
 
   out.push([ Opcodes.end ]);
   depth.pop();
+
+  popScope(scope, newScope);
 
   return out;
 };
@@ -6292,6 +6304,11 @@ const generateFunc = (scope, decl) => {
     };
   }
 
+  if (body.type === 'BlockStatement') {
+    // basically, because we already generate the scope for the function above, we need to mark this so we don't do it again
+    body._funcBody = true;
+  }
+
   for (const x in defaultValues) {
     prelude.push(
       ...getVarType(func, x),
@@ -6408,6 +6425,8 @@ const generateFunc = (scope, decl) => {
 const generateCode = (scope, decl) => {
   let out = [];
 
+  const newScope = decl._funcBody ? scope : pushScope(scope);
+
   const body = decl.body;
   let eager = [];
   for (let i = 0; i < body.length; i++) {
@@ -6459,17 +6478,19 @@ const generateCode = (scope, decl) => {
     }
 
     for (const name of names) {
-      scope.variables[name] = { nonLocal: false, kind: decl.kind, scope };
+      newScope.variables[name] = { nonLocal: false, kind: decl.kind, scope, name };
     }
   }
 
   for (const x of eager) {
-    out = out.concat(generate(scope, x));
+    out = out.concat(generate(newScope, x));
   }
 
   for (const x of body) {
-    out = out.concat(generate(scope, x));
+    out = out.concat(generate(newScope, x));
   }
+
+  popScope(scope, newScope);
 
   return out;
 };
