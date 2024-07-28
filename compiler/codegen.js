@@ -3383,6 +3383,9 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     return out;
   }
 
+  if (pattern.type === 'ArrayPattern' && pattern.elements.length === 0) return [];
+  if (pattern.type === 'ObjectPattern' && pattern.properties.length === 0) return [];
+
   const tmpName = '#destructure' + uniqId();
   const tmpLocal = allocVar(scope, tmpName, false, true);
   let out = [
@@ -3397,7 +3400,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       [ Opcodes.if, Blocktype.void ],
         ...generate(scope, defaultValue, global, tmpName),
         [ Opcodes.local_set, tmpLocal ],
-        ...number(getNodeType(scope, defaultValue), Valtype.i32),
+        ...getNodeType(scope, defaultValue),
         [ Opcodes.local_set, tmpLocal + 1 ],
       [ Opcodes.end ]
     );
