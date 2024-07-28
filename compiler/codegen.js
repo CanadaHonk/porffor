@@ -308,6 +308,12 @@ const findVar = (scope, name) => {
   return undefined;
 }
 
+const findTopScope = (scope) => {
+  do {
+    if (scope.index !== scope.upper?.index) return scope;
+  } while (scope = scope.upper);
+}
+
 let variableNames = new Map();
 
 const createVar = (scope, kind, name, global, type = true) => {
@@ -316,8 +322,10 @@ const createVar = (scope, kind, name, global, type = true) => {
     return [];
   }
 
-  const variable = scope.variables[name] ??= { kind, scope, nonLocal: false, name };
-  if (variableNames.has(variableNames)) {
+  // var and bare declarations don't respect block statements
+  const target = kind === 'var' ? findTopScope(scope) : scope;
+
+  const variable = target.variables[name] ??= { kind, scope: target, nonLocal: false, name };
     if (variableNames.get(name) !== variable) {
       // this just changes the eventual name of the variable, not the current one
       variable.name += uniqId();
