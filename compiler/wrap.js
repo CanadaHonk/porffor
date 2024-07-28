@@ -318,7 +318,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
 
-    const surrounding = Prefs.backtraceSurrounding ?? 5;
+    const surrounding = Prefs.backtraceSurrounding ?? 10;
     let min = middleIndex - surrounding;
     let max = middleIndex + surrounding + 1;
     if (Prefs.backtraceFunc || middleIndex == -1) {
@@ -350,7 +350,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         Number.isNaN(funcInd) || Number.isNaN(blobOffset)) return false;
 
     // convert blob offset -> function wasm offset
-    const func = funcs.find(x => x.index === funcInd);
+    const func = funcs.find(x => x.asmIndex === funcInd);
     if (!func) return false;
 
     const { wasm: assembledWasmFlat, wasmNonFlat: assembledWasmOps, localDecl } = func.assembled;

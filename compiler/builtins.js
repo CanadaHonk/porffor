@@ -1012,7 +1012,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(128, Valtype.i32),
+      ...number(64, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(4, Valtype.i32),
       [ Opcodes.i32_add ],
@@ -1027,7 +1027,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(128, Valtype.i32),
+      ...number(64, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(2, Valtype.i32),
       [ Opcodes.i32_add ],
@@ -1042,7 +1042,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.bytestring,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(128, Valtype.i32),
+      ...number(64, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(5, Valtype.i32),
       [ Opcodes.i32_add ],
@@ -1057,7 +1057,7 @@ export const BuiltinFuncs = function() {
     returns: [],
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(128, Valtype.i32),
+      ...number(64, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(2, Valtype.i32),
       [ Opcodes.i32_add ],
@@ -1076,7 +1076,7 @@ export const BuiltinFuncs = function() {
     returns: [],
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(128, Valtype.i32),
+      ...number(64, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(5, Valtype.i32),
       [ Opcodes.i32_add ],

@@ -199,11 +199,10 @@ return`;
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
-    const protoKey: bytestring = '__proto__';
-
     if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.object) {
       // check prototype chain
-      let lastProto = obj;
+      const protoKey: bytestring = '__proto__';
+      let lastProto: any = obj;
       if (key != protoKey) {
         while (true) {
           obj = __Porffor_object_get(obj, protoKey);

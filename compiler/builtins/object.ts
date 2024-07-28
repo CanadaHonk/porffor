@@ -651,6 +651,12 @@ export const __Object_setPrototypeOf = (obj: any, proto: any) => {
   return obj;
 };
 
+export const __Object_prototype_isPrototypeOf = (_this: any, obj: any) => {
+  if (_this == null) throw new TypeError('This is nullish, expected object');
+
+  return _this == obj.__proto__;
+};
+
 
 export const __Object_prototype_toString = (_this: any) => {
   let out: bytestring = Porffor.allocate();
