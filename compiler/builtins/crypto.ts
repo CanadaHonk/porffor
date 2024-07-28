@@ -119,3 +119,14 @@ export const __crypto_randomUUID = (): bytestring => {
 
   return output;
 };
+
+export const __crypto_getRandomValues = (buffer: Uint8Array): Uint8Array => {
+  let i: i32 = 0;
+  let endPtr: i32 = buffer.length;
+  while (i < endPtr) {
+    buffer[i] = Porffor.randomByte();
+    i++;
+  }
+
+  return buffer;
+};
