@@ -3392,9 +3392,6 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     return out;
   }
 
-  if (pattern.type === 'ArrayPattern' && pattern.elements.length === 0) return [];
-  if (pattern.type === 'ObjectPattern' && pattern.properties.length === 0) return [];
-
   const tmpName = '#destructure' + uniqId();
   const tmpLocal = allocVar(scope, tmpName, false, true);
   let out = [
