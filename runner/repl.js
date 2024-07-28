@@ -85,7 +85,7 @@ const run = (source, _context, _filename, callback, run = true) => {
   let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source;
 
   let shouldPrint = !prev;
-  const { exports, pages } = compile(toRun, [], {}, str => {
+  const { exports, pages } = compile(toRun, process.argv.includes('--module') ? [ 'module' ] : [], {}, str => {
     if (shouldPrint) process.stdout.write(str);
     if (str === '-4919') shouldPrint = true;
   });
