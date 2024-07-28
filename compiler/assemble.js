@@ -355,6 +355,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   const dataSection = data.length === 0 ? [] : createSection(
     Section.data,
     encodeVector(data.map(x => {
+      if (Prefs.d && x.bytes.length > PageSize) log.warning('assemble', `data (${x.page}) has more bytes than Wasm page size! (${x.bytes.length})`);
+
       const bytes = encodeVector(x.bytes);
 
       if (x.page != null) {
