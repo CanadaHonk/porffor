@@ -3973,7 +3973,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       const tmpName = '#rhs' + uniqId();
       allocVar(scope, tmpName, false);
       return [
-        ...setVar(scope, tmpName, generate(scope, decl.right), _name, true),
+        ...setVar(scope, tmpName, generate(scope, decl.right), getNodeType(scope, decl.right), false, true),
         ...generateVarDstr(scope, 'bare', decl.left, { type: 'Identifier', name: tmpName }, undefined, true),
         ...getVar(scope, tmpName),
         ...setLastType(scope, getNodeType(scope, decl.right))
