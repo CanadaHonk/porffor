@@ -4420,13 +4420,13 @@ const generateForOf = (scope, decl) => {
 
   // setup local for left
   let initVar;
-  if (decl.left.type === 'Identifier') {
+  if (decl.left.type !== 'VariableDeclaration') {
     if (scope.strict) return internalThrow(newScope, 'ReferenceError', `${decl.left.name} is not defined`);
     initVar = generateVarDstr(newScope, 'bare', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    initVar = generateVarDstr(newScope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
+    initVar = generateVarDstr(newScope, decl.left.kind, decl.left.declarations[0].id, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
   // set type for local
@@ -6503,7 +6503,7 @@ const generateCode = (scope, decl) => {
     } else if (x.type === 'ForOfStatement' || x.type === 'ForInStatement') {
       decl = x.left;
       if (!decl.declarations) {
-        decl = { declarations: [{ id: decl }] }
+        decl = { declarations: [{ id: decl }], kind: 'bare' }
       }
     } else if (x.type === 'VariableDeclaration') {
       decl = x;
