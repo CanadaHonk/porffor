@@ -281,8 +281,6 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
       if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
 
-      // todo: move const, call transforms here too?
-
       const makeAssembled = Prefs.d;
       let wasm = [], wasmNonFlat = [];
       for (let i = 0; i < x.wasm.length; i++) {
@@ -294,26 +292,25 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
           o[1] > 127
         ) {
           const n = o[1];
-          o = [...o];
-          o.pop();
+          o = [ o[0] ];
           unsignedLEB128_into(n, o);
         }
 
         // encode f64.const ops as ieee754 from raw number
         if (o[0] === Opcodes.f64_const) {
           const n = o[1];
-          o = [...o];
-          o.pop();
+          o = [ o[0] ];
           ieee754_binary64_into(n, o);
         }
 
+        // encode call ops as unsigned leb128 from raw number
         if ((o[0] === Opcodes.call || o[0] === Opcodes.return_call) && o[1] >= importedFuncs.length) {
           const n = o[1] - importDelta;
-          o = [...o];
-          o.pop();
+          o = [ o[0] ];
           unsignedLEB128_into(n, o);
         }
 
+        // encode call indirect ops as types from info
         if (o[0] === Opcodes.call_indirect) {
           o = [...o];
           const params = [];
