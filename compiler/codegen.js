@@ -4114,10 +4114,8 @@ const generateUnary = (scope, decl) => {
       let toReturn = true, toGenerate = true;
 
       if (decl.argument.type === 'Identifier') {
-        const out = generateIdent(scope, decl.argument);
-
         // if ReferenceError (undeclared var), ignore and return true. otherwise false
-        if (!out[1]) {
+        if (ifIdentifierErrors(scope, decl.argument)) {
           // exists
           toReturn = false;
         } else {
