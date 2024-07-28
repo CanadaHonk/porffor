@@ -326,6 +326,7 @@ const createVar = (scope, kind, name, global, type = true) => {
   const target = kind === 'var' ? findTopScope(scope) : scope;
 
   const variable = target.variables[name] ??= { kind, scope: target, nonLocal: false, name };
+  if (variableNames.has(name)) {
     if (variableNames.get(name) !== variable) {
       // this just changes the eventual name of the variable, not the current one
       variable.name += uniqId();
@@ -6323,7 +6324,7 @@ const generateFunc = (scope, decl) => {
         break;
     }
 
-    let idx = allocVar(func, name, false);
+    let idx = allocVar(func, 'arg#' + name, false);
     createVar(func, 'argument', name, false, true);
     prelude.push(
       ...setVar(func, name, [ [ Opcodes.local_get, idx ] ], [ [ Opcodes.local_get, idx + 1 ] ], false, true)
