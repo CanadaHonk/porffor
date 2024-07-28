@@ -361,7 +361,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
       if (x.page != null) {
         // type: active
-        const offset = pages.get(x.page).ind * pageSize;
+        let offset = pages.get(x.page).ind * pageSize;
+        if (offset === 0) offset = 16;
         bytes.unshift(0x00, Opcodes.i32_const, ...signedLEB128(offset), Opcodes.end);
       } else {
         // type: passive
