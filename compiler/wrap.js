@@ -127,7 +127,8 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       if (value < 0) {
         func = importedFuncs[value + importedFuncs.length];
       } else {
-        func = funcs.find(x => ((x.originalIndex ?? x.index) - importedFuncs.length) === value);
+        value += importedFuncs.length;
+        func = funcs.find(x => x.index === value);
       }
 
       if (!func) return function () {};
@@ -502,7 +503,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
 
           if (exceptionMode === 'stackest') {
             const constructorIdx = e.getArg(exceptTag, 0);
-            const constructorName = constructorIdx == -1 ? null : funcs.find(x => ((x.originalIndex ?? x.index) - importedFuncs.length) === constructorIdx)?.name;
+            const constructorName = constructorIdx == -1 ? null : funcs.find(x => (x.index - importedFuncs.length) === constructorIdx)?.name;
 
             const value = e.getArg(exceptTag, 1);
             const type = e.getArg(exceptTag, 2);
