@@ -2443,15 +2443,15 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             [ Opcodes.local_set, flags ],
 
             // check if non-constructor was called with new, if so throw
-            [ Opcodes.local_get, flags ],
-            ...number(0b10, Valtype.i32),
-            [ Opcodes.i32_and ],
-            [ Opcodes.i32_eqz ],
-            [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-            [ Opcodes.i32_and ],
-            [ Opcodes.if, Blocktype.void ],
-              ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`),
-            [ Opcodes.end ],
+            ...(decl._new ? [
+              [ Opcodes.local_get, flags ],
+              ...number(0b10, Valtype.i32),
+              [ Opcodes.i32_and ],
+              [ Opcodes.i32_eqz ],
+              [ Opcodes.if, Blocktype.void ],
+                ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`),
+              [ Opcodes.end ],
+            ] : []),
 
             // [ Opcodes.local_get, funcLocal ],
             // Opcodes.i32_from_u,
