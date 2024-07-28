@@ -170,7 +170,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
       bytes.push(...new Uint8Array(new Int32Array([ name.length ]).buffer));
 
-      for (let i = 0; i < (128 - 5 - 4); i++) {
+      for (let i = 0; i < (64 - 5 - 4); i++) {
         const c = name.charCodeAt(i);
         bytes.push((c || 0) % 256);
       }

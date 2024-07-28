@@ -2435,7 +2435,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
             // get if func we are calling is a constructor or not
             [ Opcodes.local_get, funcLocal ],
-            ...number(128, Valtype.i32),
+            ...number(64, Valtype.i32),
             [ Opcodes.i32_mul ],
             ...number(4, Valtype.i32),
             [ Opcodes.i32_add ],
@@ -2461,7 +2461,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             // [ Opcodes.call, 1 ],
 
             // [ Opcodes.local_get, funcLocal ],
-            // ...number(128, Valtype.i32),
+            // ...number(64, Valtype.i32),
             // [ Opcodes.i32_mul ],
             // [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ],
             // Opcodes.i32_from_u,
@@ -2473,7 +2473,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             ...brTable([
               // get argc of func we are calling
               [ Opcodes.local_get, funcLocal ],
-              ...number(128, Valtype.i32),
+              ...number(64, Valtype.i32),
               [ Opcodes.i32_mul ],
               [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ]
             ], tableBc, valtypeBinary)
