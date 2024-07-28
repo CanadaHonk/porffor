@@ -6313,7 +6313,7 @@ const generateFunc = (scope, decl) => {
     }
 
     let idx = allocVar(func, name, false);
-    createVar(scope, 'let', name, false, true);
+    createVar(func, 'argument', name, false, true);
     prelude.push(
       ...setVar(func, name, [ [ Opcodes.local_get, idx ] ], [ [ Opcodes.local_get, idx + 1 ] ], false, true)
     );
