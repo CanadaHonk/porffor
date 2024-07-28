@@ -6493,7 +6493,7 @@ const generateCode = (scope, decl) => {
   const newScope = decl._funcBody ? scope : pushScope(scope);
 
   const body = decl.body;
-  let eager = [];
+  // let eager = [];
   for (let i = 0; i < body.length; i++) {
     const x = body[i];
     let names = [];
@@ -6509,9 +6509,9 @@ const generateCode = (scope, decl) => {
       decl = x;
     } else if (x.type === 'FunctionDeclaration') {
       decl = { declarations: [{ id: { name: x.id.name } }], kind: 'var' };
-      // todo: this should be correct? check compliance
-      eager.push(body.splice(i, 1)[0]);
-      i--;
+      // todo: this is correct behavior 90% of the time, investigate when this shouldn't happen
+      // eager.push(body.splice(i, 1)[0]);
+      // i--;
     }
     // todo: try..catch
 
@@ -6547,9 +6547,9 @@ const generateCode = (scope, decl) => {
     }
   }
 
-  for (const x of eager) {
-    out = out.concat(generate(newScope, x));
-  }
+  // for (const x of eager) {
+  //   out = out.concat(generate(newScope, x));
+  // }
 
   for (const x of body) {
     out = out.concat(generate(newScope, x));
