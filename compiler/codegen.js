@@ -4098,14 +4098,19 @@ const generateIf = (scope, decl) => {
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
-  const consOut = generate(scope, decl.consequent);
+  const newScope = pushScope(scope);
+  const consOut = generate(newScope, decl.consequent);
+  popScope(scope, newScope);
   disposeLeftover(consOut);
   out.push(...consOut);
 
   if (decl.alternate) {
     out.push([ Opcodes.else ]);
 
-    const altOut = generate(scope, decl.alternate);
+    const newScope = pushScope(scope);
+    const altOut = generate(newScope, decl.alternate);
+    popScope(scope, newScope);
+
     disposeLeftover(altOut);
     out.push(...altOut);
   }
