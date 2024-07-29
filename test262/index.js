@@ -6,7 +6,6 @@ import os from 'node:os';
 import process from 'node:process';
 
 import Test262Stream from 'test262-stream';
-import compile from '../compiler/wrap.js';
 
 import { join } from 'node:path';
 const __dirname = import.meta.dirname;
@@ -372,6 +371,8 @@ if (isMainThread) {
   const logErrors = process.argv.includes('--log-errors');
   const debugAsserts = process.argv.includes('--debug-asserts');
   const subdirs = process.argv.includes('--subdirs');
+
+  const compile = (await import('../compiler/wrap.js')).default;
 
   const script = new vm.Script('$func()');
   const timeout = ($func, timeout) => {
