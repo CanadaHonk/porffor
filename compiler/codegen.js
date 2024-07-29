@@ -3207,10 +3207,19 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     // let generated;
     // if (init) generated = generate(scope, init, global, name);
 
+    const variable = findVar(scope, name);
+
+    if (redeclarable && !init && variable?.index === scope.index) {
+      // i.e. var x = 3; var x
+      return out;
+    }
+
     const typed = typedInput && pattern.typeAnnotation;
-    out.push(
-      ...createVar(scope, kind, name, global, !(typed && extractTypeAnnotation(pattern).type != null))
-    );
+    if (!(redeclarable && variable)) {
+      out.push(
+        ...createVar(scope, kind, name, global, !(typed && extractTypeAnnotation(pattern).type != null))
+      );
+    }
 
     if (typed) {
       addVarMetadata(scope, name, global, extractTypeAnnotation(pattern));
