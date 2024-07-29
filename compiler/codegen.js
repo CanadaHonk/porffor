@@ -1223,7 +1223,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     for (const inst of wasm) {
       if (inst.at(-1) === 'read func lut') {
         inst.splice(2, 99);
-        inst.push(...unsignedLEB128(allocPage({}, 'func lut') * pageSize));
+        inst.push(...unsignedLEB128(allocPage({}, 'func lut')));
       }
     }
 
@@ -2439,7 +2439,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             [ Opcodes.i32_mul ],
             ...number(4, Valtype.i32),
             [ Opcodes.i32_add ],
-            [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ],
+            [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ],
             [ Opcodes.local_set, flags ],
 
             // check if non-constructor was called with new, if so throw
@@ -2463,9 +2463,17 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             // [ Opcodes.local_get, funcLocal ],
             // ...number(64, Valtype.i32),
             // [ Opcodes.i32_mul ],
-            // [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ],
+            // [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ],
             // Opcodes.i32_from_u,
             // [ Opcodes.call, 0 ],
+
+            // [ Opcodes.local_get, funcLocal ],
+            // [ Opcodes.call, includeBuiltin(scope, '__Porffor_funcLut_name').index ],
+            // Opcodes.i32_from_u,
+            // ...number(TYPES.bytestring, Valtype.i32),
+            // [ Opcodes.call, includeBuiltin(scope, '__Porffor_printString').index ],
+            // [ Opcodes.drop ],
+            // [ Opcodes.drop ],
 
             // ...number(10),
             // [ Opcodes.call, 1 ],
@@ -2475,7 +2483,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               [ Opcodes.local_get, funcLocal ],
               ...number(64, Valtype.i32),
               [ Opcodes.i32_mul ],
-              [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ]
+              [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ]
             ], tableBc, valtypeBinary)
           ],
 
@@ -4774,7 +4782,8 @@ const generateMeta = (scope, decl) => {
 
 let pages = new Map();
 const allocPage = (scope, reason, type) => {
-  if (pages.has(reason)) return pages.get(reason).ind;
+  const ptr = i => i === 0 ? 16 : i * pageSize;
+  if (pages.has(reason)) return ptr(pages.get(reason).ind);
 
   if (reason.startsWith('array:')) pages.hasArray = true;
   if (reason.startsWith('string:')) pages.hasString = true;
@@ -4787,7 +4796,7 @@ const allocPage = (scope, reason, type) => {
   scope.pages ??= new Map();
   scope.pages.set(reason, { ind, type });
 
-  return ind;
+  return ptr(ind);
 };
 
 const itemTypeToValtype = {
