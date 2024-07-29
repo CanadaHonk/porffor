@@ -3387,7 +3387,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
               type: 'MemberExpression',
               object: { type: 'Identifier', name: tmpName },
               property: prop.key,
-              computed: prop.computed
+              computed: prop.computed || prop.key.type !== 'Identifier'
             }, undefined, global)
           );
         }
