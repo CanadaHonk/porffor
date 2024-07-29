@@ -353,7 +353,7 @@ const generateIdent = (scope, decl) => {
       if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
 
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
-      if (Object.hasOwn(funcIndex, name)) return funcRef(funcs.find(x => x.name === name));
+      if (Object.hasOwn(funcIndex, name)) return funcRef(funcByName(name));
     }
 
     if (local?.idx === undefined && rawName.startsWith('__')) {
@@ -1129,7 +1129,7 @@ const asmFuncToAsm = (scope, func) => {
         includeBuiltin(scope, name);
       }
 
-      const func = funcs.find(x => x.name === name);
+      const func = funcByName(name);
       return funcRef(func);
     },
     glbl: (opcode, name, type) => {
@@ -1179,7 +1179,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     wasm = [];
   }
 
-  const existing = funcs.find(x => x.name === name);
+  const existing = funcByName(name);
   if (existing) return existing;
 
   const nameParam = i => localNames[i] ?? (i >= params.length ? ['a', 'b', 'c'][i - params.length] : ['x', 'y', 'z'][i]);
@@ -1406,7 +1406,7 @@ const getNodeType = (scope, node) => {
         return TYPES.number;
       }
 
-      const func = funcs.find(x => x.name === name);
+      const func = funcByName(name);
       if (func) {
         if (func.returnType != null) return func.returnType;
       }
@@ -1631,11 +1631,11 @@ const countLeftover = wasm => {
         else if (inst[0] === Opcodes.memory_copy[0] && (inst[1] === Opcodes.memory_copy[1] || inst[1] === Opcodes.memory_init[1])) count -= 3;
         else if (inst[0] === Opcodes.return) count = 0;
         else if (inst[0] === Opcodes.call) {
-          let func = funcs.find(x => x.index === inst[1]);
           if (inst[1] < importedFuncs.length) {
-            func = importedFuncs[inst[1]];
+            const func = importedFuncs[inst[1]];
             count = count - func.params + func.returns;
           } else {
+            const func = funcByIndex(inst[1]);
             count = count - func.params.length + func.returns.length;
           }
         } else if (inst[0] === Opcodes.call_indirect) {
@@ -2514,8 +2514,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       ];
     }
 
-  let func = funcs[idx - importedFuncs.length];
-  if (!func || func.index !== idx) func = funcs.find(x => x.index === idx);
+  const func = funcByIndex(idx);
 
   // generate func
   if (func) func.generate?.();
@@ -5286,7 +5285,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     // todo: support optional
 
     if (!scope.noFastFuncMembers) {
-      const func = funcs.find(x => x.name === name);
+      const func = funcByName(name);
       if (func) return withType(scope, number(countLength(func, name)), TYPES.number);
 
       if (Object.hasOwn(builtinFuncs, name)) return withType(scope, number(countLength(builtinFuncs[name], name)), TYPES.number);
@@ -5847,6 +5846,17 @@ const objectHack = node => {
   return node;
 };
 
+const funcByIndex = idx => {
+  if (idx == null ||
+      idx < importedFuncs.length) return null;
+
+  const func = funcs[idx - importedFuncs.length];
+  if (func && func.index === idx) return func;
+
+  return funcs.find(x => x.index === idx);
+};
+const funcByName = name => funcByIndex(funcIndex[name]);
+
 const generateFunc = (scope, decl, outUnused = false) => {
   const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
   if (decl.type.startsWith('Class')) {
@@ -5855,7 +5865,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
       id: { name }
     });
 
-    const func = funcs.find(x => x.name === name);
+    const func = funcByName(name);
     return [ func, out ];
   }
 
@@ -5978,7 +5988,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
         }
 
         if (lastInst[0] === Opcodes.call) {
-          const callee = funcs.find(x => x.index === lastInst[1]);
+          const callee = funcByIndex(lastInst[1]);
           if (callee) func.returns = callee.returns.slice();
             else func.returns = [];
         }
