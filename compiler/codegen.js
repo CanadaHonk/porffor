@@ -548,7 +548,11 @@ const generateIdent = (scope, decl) => {
 
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
       if (Object.hasOwn(funcIndex, name)) {
-        return funcRef(funcIndex[name], name);
+        const func = funcs[funcIndex[name] - importedFuncs.length];
+        // if func is internal, or this identifier is an internally generated
+        if (func.internal || name[0] === '#') {
+          return funcRef(funcIndex[name], name);
+        }
       }
 
       if (rawName.startsWith('__')) {
@@ -1488,6 +1492,12 @@ const getType = (scope, _name) => {
   if (Object.hasOwn(builtinVars, name)) return number(builtinVars[name].type ?? TYPES.number, Valtype.i32);
 
   const variable = findVar(scope, name);
+
+  // we don't really have to get the variable if it's in the form `const foo = () => {}`
+  if (variable?.kind === 'const' && Object.hasOwn(funcIndex, name)) {
+    return number(TYPES.function, Valtype.i32);
+  }
+
   if (variable) {
     return getVarType(scope, name);
   }
@@ -3169,30 +3179,26 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   if (pattern.type === 'Identifier') {
     let out = [];
     const name = mapName(pattern.name);
+    const redeclarable = kind === 'var' || kind === 'bare';
 
     if (init && isFuncType(init.type)) {
-      // hack for let a = function () { ... }
       if (!init.id) {
         init.id = { name };
-        const func = generateFunc(scope, init)[0];
-        out.push(
-          ...createVar(scope, kind, name, global)
-        );
+        // if this is a const declaration, we can just add it to func index and treat it like a normal function declaration
+        if (kind === 'const') {
+          generateFunc(scope, init);
+          createVar(scope, kind, name, global);
 
-        // we can skip `const`s as this is handled in generateIdent
-        if (kind !== 'const') {
-          out.push(
-            ...setVar(scope, name, funcRef(func.index, func.name), number(TYPES.function, Valtype.i32))
-          );
+          return out;
         }
-
-        return out;
+        // otherwise, we need to tell porffor that this function is not safe to call directly
+        init._forceIndirect = true;
       }
     }
 
     if (topLevel && Object.hasOwn(builtinVars, name)) {
       // cannot redeclare
-      if (kind !== 'var' && kind !== 'bare') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
+      if (!redeclarable) return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
 
       return out; // always ignore
     }
@@ -3844,7 +3850,16 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   }
 
   if (op === '=') {
-    return setVar(scope, name, generate(scope, decl.right), getNodeType(scope, decl.right), !valueUnused);
+    const right = decl.right;
+    if (right && isFuncType(right.type)) {
+      if (!right.id) {
+        // bind name to function
+        right.id = { name };
+        // also, don't add this to the function index
+        right._forceIndirect = true;
+      }
+    }
+    return setVar(scope, name, generate(scope, right, false, name), getNodeType(scope, right), !valueUnused);
   }
 
   if (op === '||' || op === '&&' || op === '??') {
@@ -6104,19 +6119,18 @@ const generateFunc = (scope, decl) => {
     upper: scope
   };
 
-  funcIndex[name] = func.index;
+  if (!decl._forceIndirect) funcIndex[name] = func.index;
   funcs.push(func);
 
-  let out;
-  if (decl.type.endsWith('Expression')) {
-    out = funcRef(func.index, name);
-  } else if (decl.type === 'FunctionDeclaration') {
+  let out = [];
+  if (decl.type === 'FunctionDeclaration' || (decl.type === 'FunctionExpression' && decl.id)) {
     createVar(scope, 'var', name);
-    out = [
+    out.push(
       ...setVar(scope, name, funcRef(func.index, name), number(TYPES.function, Valtype.i32))
-    ];
-  } else {
-    out = [];
+    );
+  }
+  if (decl.type.endsWith('Expression')) {
+    out.push(...funcRef(func.index, name));
   }
 
   let errorWasm = null;
