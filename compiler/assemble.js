@@ -148,8 +148,6 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       if (func.constr) argc -= 4;
       if (!func.internal || func.typedParams) argc = Math.floor(argc / 2);
 
-      if (name.startsWith('#')) name = '';
-
       bytes.push(argc % 256, (argc / 256 | 0) % 256);
 
       // userland exposed .length
@@ -163,6 +161,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       if (func.returnType != null) flags |= 0b01;
       if (func.constr) flags |= 0b10;
       bytes.push(flags);
+
+      if (name.startsWith('#')) name = '';
 
       // eg: __String_prototype_toLowerCase -> toLowerCase
       if (name.startsWith('__')) name = name.split('_').pop();
