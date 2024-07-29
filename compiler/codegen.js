@@ -334,7 +334,7 @@ const createVar = (scope, kind, name, global, type = true) => {
   // var and bare declarations don't respect block statements
   const target = kind === 'var' || kind === 'bare' ? findTopScope(scope) : scope;
 
-  const variable = target.variables[name] ??= { kind, scope: target, nonLocal: false, name };
+  const variable = target.variables[name] ??= { kind, index: target.index, nonLocal: false, name };
   if (variableNames.has(name)) {
     if (variableNames.get(name) !== variable) {
       // this just changes the eventual name of the variable, not the current one
