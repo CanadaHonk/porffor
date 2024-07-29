@@ -16,7 +16,7 @@ var $262 = {
 
 function Test262Error() {}
 
-Test262Error.thrower = function (message) {
+var __Test262Error_thrower = function (message) {
   throw new Test262Error(message);
 };
 
@@ -33,7 +33,7 @@ var assert = mustBeTrue => {
   throw new Test262Error('assert failed');
 };
 
-assert.throws = (expectedErrorConstructor, func) => {
+var __assert_throws = (expectedErrorConstructor, func) => {
   if (typeof func !== 'function') {
     throw new Test262Error('assert.throws invoked with a non-function value');
   }
@@ -47,7 +47,7 @@ assert.throws = (expectedErrorConstructor, func) => {
   throw new Test262Error('assert.throws failed');
 };
 
-assert._isSameValue = (a, b) => {
+var __assert__isSameValue = (a, b) => {
   if (a === b) {
     // Handle +/-0 vs. -/+0
     return a !== 0 || 1 / a === 1 / b;
@@ -57,7 +57,7 @@ assert._isSameValue = (a, b) => {
   return a !== a && b !== b;
 };
 
-assert.sameValue = (actual, expected) => {
+var __assert_sameValue = (actual, expected) => {
   if (assert._isSameValue(actual, expected)) {
     return;
   }
@@ -65,7 +65,7 @@ assert.sameValue = (actual, expected) => {
   throw new Test262Error('assert.sameValue failed');
 };
 
-assert.notSameValue = (actual, unexpected) => {
+var __assert_notSameValue = (actual, unexpected) => {
   if (!assert._isSameValue(actual, unexpected)) {
     return;
   }
@@ -75,7 +75,7 @@ assert.notSameValue = (actual, unexpected) => {
 
 /// compareArray.js
 // hack: this has to be before the actual function decl (which is invalid)
-compareArray.isSameValue = (a, b) => {
+var __compareArray_isSameValue = (a, b) => {
   if (a === 0 && b === 0) return 1 / a === 1 / b;
   if (a !== a && b !== b) return true;
 
