@@ -1016,7 +1016,7 @@ export const BuiltinFuncs = function() {
       [ Opcodes.i32_mul ],
       ...number(4, Valtype.i32),
       [ Opcodes.i32_add ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize) ]
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ]
     ],
     table: true
   };
@@ -1031,7 +1031,7 @@ export const BuiltinFuncs = function() {
       [ Opcodes.i32_mul ],
       ...number(2, Valtype.i32),
       [ Opcodes.i32_add ],
-      [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize) ]
+      [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ]
     ],
     table: true
   };
@@ -1046,7 +1046,7 @@ export const BuiltinFuncs = function() {
       [ Opcodes.i32_mul ],
       ...number(5, Valtype.i32),
       [ Opcodes.i32_add ],
-      ...number(allocPage(scope, 'func lut') * pageSize, Valtype.i32),
+      ...number(allocPage(scope, 'func lut'), Valtype.i32),
       [ Opcodes.i32_add ]
     ],
     table: true
@@ -1062,11 +1062,11 @@ export const BuiltinFuncs = function() {
       ...number(2, Valtype.i32),
       [ Opcodes.i32_add ],
       ...number(0, Valtype.i32),
-      [ Opcodes.i32_store16, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize) ],
+      [ Opcodes.i32_store16, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ],
 
       [ Opcodes.local_get, 0 ],
       ...number(1, Valtype.i32),
-      [ Opcodes.i32_store8, 0, ...unsignedLEB128(allocPage(scope, 'func length deletion table') * pageSize) ]
+      [ Opcodes.i32_store8, 0, ...unsignedLEB128(allocPage(scope, 'func length deletion table')) ]
     ],
     table: true
   };
@@ -1081,11 +1081,11 @@ export const BuiltinFuncs = function() {
       ...number(5, Valtype.i32),
       [ Opcodes.i32_add ],
       ...number(0, Valtype.i32),
-      [ Opcodes.i32_store, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize) ],
+      [ Opcodes.i32_store, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ],
 
       [ Opcodes.local_get, 0 ],
       ...number(1, Valtype.i32),
-      [ Opcodes.i32_store8, 0, ...unsignedLEB128(allocPage(scope, 'func name deletion table') * pageSize) ],
+      [ Opcodes.i32_store8, 0, ...unsignedLEB128(allocPage(scope, 'func name deletion table')) ],
     ],
     table: true
   };
@@ -1096,7 +1096,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.boolean,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func length deletion table') * pageSize) ]
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func length deletion table')) ]
     ],
     table: true
   };
@@ -1107,7 +1107,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.boolean,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func name deletion table') * pageSize) ]
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func name deletion table')) ]
     ],
     table: true
   };
