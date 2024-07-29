@@ -102,7 +102,6 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     f.asmIndex = f.index - importDelta;
   }
 
-
   if (Prefs.optLog) log('assemble', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
@@ -135,7 +134,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     const offset = pages.get('func lut').ind * pageSize;
     if (data.addedFuncArgcLut) {
       // remove existing data
-      data = data.filter(x => x.offset !== offset);
+      data = data.filter(x => x.page !== 'func lut');
     }
 
     // generate func lut data
