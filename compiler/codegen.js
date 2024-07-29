@@ -303,6 +303,15 @@ const findVar = (scope, name) => {
     if (scope.variables && Object.hasOwn(scope.variables, name)) {
       return scope.variables[name];
     }
+
+    if (scope.scopeQueue?.length > 0) {
+      for (let i = scope.scopeQueue.length - 1; i >= 0; i--) {
+        const vars = scope.scopeQueue[i];
+        if (Object.hasOwn(vars, name)) {
+          return vars[name];
+        }
+      }
+    }
   } while (scope = scope.upper);
 
   return undefined;
@@ -347,11 +356,16 @@ const createVar = (scope, kind, name, global, type = true) => {
 }
 
 const pushScope = (scope) => {
-  return { ...scope, upper: scope, variables: {} };
+  scope.scopeQueue ??= [];
+  const vars = scope.variables;
+  scope.scopeQueue.push(vars);
+  scope.variables = {};
+  return scope;
 }
 
-const popScope = (scope, inner) => {
-  scope.localInd = inner.localInd;
+const popScope = (scope) => {
+  const vars = scope.scopeQueue.pop() ?? {};
+  scope.variables = vars;
 }
 
 const setVar = (scope, name, wasm, typeWasm, tee = false, initalizing = false) => {
@@ -391,7 +405,7 @@ const setVar = (scope, name, wasm, typeWasm, tee = false, initalizing = false) =
 
   if (variable) {
     // check if we are still in the same function
-    if (variable.scope.index !== scope.index) {
+    if (variable.index !== scope.index) {
       variable.nonLocal = true;
     }
 
@@ -443,7 +457,7 @@ const getVar = (scope, name) => {
 
   if (variable) {
     // check if we are still in the same function
-    if (variable.scope.index !== scope.index) {
+    if (variable.index !== scope.index) {
       variable.nonLocal = true;
     }
 
@@ -489,7 +503,7 @@ const getVarType = (scope, name) => {
   }
 
   const variable = findVar(scope, name);
-  if (variable && variable.scope.index !== scope.index) {
+  if (variable && variable.index !== scope.index) {
     variable.nonLocal = true;
   }
 
@@ -4107,18 +4121,18 @@ const generateIf = (scope, decl) => {
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
-  const newScope = pushScope(scope);
-  const consOut = generate(newScope, decl.consequent);
-  popScope(scope, newScope);
+  pushScope(scope);
+  const consOut = generate(scope, decl.consequent);
+  popScope(scope);
   disposeLeftover(consOut);
   out.push(...consOut);
 
   if (decl.alternate) {
     out.push([ Opcodes.else ]);
 
-    const newScope = pushScope(scope);
-    const altOut = generate(newScope, decl.alternate);
-    popScope(scope, newScope);
+    pushScope(scope);
+    const altOut = generate(scope, decl.alternate);
+    popScope(scope);
 
     disposeLeftover(altOut);
     out.push(...altOut);
@@ -4294,22 +4308,22 @@ const generateForOf = (scope, decl) => {
   const tmpName = '#forof_tmp' + count;
   const tmp = allocVar(scope, tmpName, false);
 
-  const newScope = pushScope(scope);
+  pushScope(scope);
 
   // setup local for left
   let initVar;
   if (decl.left.type !== 'VariableDeclaration') {
-    if (scope.strict) return internalThrow(newScope, 'ReferenceError', `${decl.left.name} is not defined`);
-    initVar = generateVarDstr(newScope, 'bare', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    initVar = generateVarDstr(scope, 'bare', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    initVar = generateVarDstr(newScope, decl.left.kind, decl.left.declarations[0].id, { type: 'Identifier', name: tmpName }, undefined, global);
+    initVar = generateVarDstr(scope, decl.left.kind, decl.left.declarations[0].id, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
   // set type for local
   // todo: optimize away counter and use end pointer
-  out.push(...typeSwitch(newScope, iterType, {
+  out.push(...typeSwitch(scope, iterType, {
     [TYPES.array]: [
       [ Opcodes.loop, Blocktype.void ],
 
@@ -4318,7 +4332,7 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.local_set, tmp ],
 
-      ...setType(newScope, tmpName, [
+      ...setType(scope, tmpName, [
         [ Opcodes.local_get, pointer ],
         [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
       ]),
@@ -4327,7 +4341,7 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(newScope, decl.body),
+      ...generate(scope, decl.body),
       [ Opcodes.end ],
 
       // increment iter pointer by valtype size + 1
@@ -4352,11 +4366,11 @@ const generateForOf = (scope, decl) => {
     ],
 
     [TYPES.string]: [
-      ...setType(newScope, tmpName, TYPES.string),
+      ...setType(scope, tmpName, TYPES.string),
 
       // allocate out string
-      [ Opcodes.call, includeBuiltin(newScope, '__Porffor_allocate').index ],
-      [ Opcodes.local_tee, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+      [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
       ...number(1, Valtype.i32),
@@ -4365,7 +4379,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.loop, Blocktype.void ],
 
       // use as pointer for store later
-      [ Opcodes.local_get, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // load current string ind {arg}
       [ Opcodes.local_get, pointer ],
@@ -4375,7 +4389,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
       // return new string (page)
-      [ Opcodes.local_get, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 	    Opcodes.i32_from_u,
       [ Opcodes.local_set, tmp ],
 
@@ -4383,7 +4397,7 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(newScope, decl.body),
+      ...generate(scope, decl.body),
       [ Opcodes.end ],
 
       // increment iter pointer by valtype size
@@ -4407,11 +4421,11 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ]
     ],
     [TYPES.bytestring]: [
-      ...setType(newScope, tmpName, TYPES.bytestring),
+      ...setType(scope, tmpName, TYPES.bytestring),
 
       // allocate out string
-      [ Opcodes.call, includeBuiltin(newScope, '__Porffor_allocate').index ],
-      [ Opcodes.local_tee, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+      [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
       ...number(1, Valtype.i32),
@@ -4420,7 +4434,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.loop, Blocktype.void ],
 
       // use as pointer for store later
-      [ Opcodes.local_get, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // load current string ind {arg}
       [ Opcodes.local_get, pointer ],
@@ -4432,7 +4446,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
 
       // return new string (page)
-      [ Opcodes.local_get, localTmp(newScope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
       Opcodes.i32_from_u,
       [ Opcodes.local_set, tmp ],
 
@@ -4440,7 +4454,7 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(newScope, decl.body),
+      ...generate(scope, decl.body),
       [ Opcodes.end ],
 
       // increment counter by 1
@@ -4466,7 +4480,7 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.local_set, tmp ],
 
-      ...setType(newScope, tmpName, [
+      ...setType(scope, tmpName, [
         [ Opcodes.local_get, pointer ],
         [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
       ]),
@@ -4475,7 +4489,7 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(newScope, decl.body),
+      ...generate(scope, decl.body),
       [ Opcodes.end ],
 
       // increment iter pointer by valtype size + 1
@@ -4567,7 +4581,7 @@ const generateForOf = (scope, decl) => {
       ],
     }, {
       prelude: [
-        ...setType(newScope, tmpName, TYPES.number),
+        ...setType(scope, tmpName, TYPES.number),
 
         [ Opcodes.loop, Blocktype.void ],
 
@@ -4582,7 +4596,7 @@ const generateForOf = (scope, decl) => {
 
         [ Opcodes.block, Blocktype.void ],
         [ Opcodes.block, Blocktype.void ],
-        ...generate(newScope, decl.body),
+        ...generate(scope, decl.body),
         [ Opcodes.end ],
 
         // increment counter by 1
@@ -4602,12 +4616,12 @@ const generateForOf = (scope, decl) => {
     }),
 
     // note: should be impossible to reach?
-    default: internalThrow(newScope, 'TypeError', `Tried for..of on non-iterable type`)
+    default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
   }, Blocktype.void));
 
   out.push([ Opcodes.end ]); // end if
 
-  popScope(scope, newScope);
+  popScope(scope);
 
   depth.pop();
   depth.pop();
@@ -4665,21 +4679,21 @@ const generateForIn = (scope, decl) => {
   const tmp = localTmp(scope, tmpName, Valtype.i32);
   localTmp(scope, tmpName + '#type', Valtype.i32);
 
-  const newScope = pushScope(scope);
+  pushScope(scope);
 
   let initVar;
   if (decl.left.type === 'Identifier') {
-    if (scope.strict) return internalThrow(newScope, 'ReferenceError', `${decl.left.name} is not defined`);
-    initVar = generateVarDstr(newScope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    initVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    initVar = generateVarDstr(newScope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
+    initVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
   // set type for local
   // todo: optimize away counter and use end pointer
-  out.push(...typeSwitch(newScope, iterType, {
+  out.push(...typeSwitch(scope, iterType, {
     [TYPES.object]: [
       [ Opcodes.loop, Blocktype.void ],
 
@@ -4688,7 +4702,7 @@ const generateForIn = (scope, decl) => {
       [ Opcodes.i32_load, 0, 5 ],
       [ Opcodes.local_tee, tmp ],
 
-      ...setType(newScope, tmpName, [
+      ...setType(scope, tmpName, [
         [ Opcodes.i32_const, 31 ],
         [ Opcodes.i32_shr_u ],
         [ Opcodes.if, Valtype.i32 ],
@@ -4715,7 +4729,7 @@ const generateForIn = (scope, decl) => {
       [ Opcodes.i32_const, 0b0100 ],
       [ Opcodes.i32_and ],
       [ Opcodes.if, Blocktype.void ],
-      ...generate(newScope, decl.body),
+      ...generate(scope, decl.body),
       [ Opcodes.end ],
 
       // increment pointer by 14
@@ -4741,12 +4755,12 @@ const generateForIn = (scope, decl) => {
 
     // todo: use Object.keys as fallback
     // should be unreachable?
-    default: internalThrow(newScope, 'TypeError', `Tried for..in on unsupported type`)
+    default: internalThrow(scope, 'TypeError', `Tried for..in on unsupported type`)
   }, Blocktype.void));
 
   out.push([ Opcodes.end ]); // end if
 
-  popScope(scope, newScope);
+  popScope(scope);
 
   depth.pop();
   depth.pop();
@@ -4809,7 +4823,7 @@ const generateSwitch = (scope, decl) => {
     cases.push(cases.splice(defaultCase, 1)[0]);
   }
 
-  const newScope = pushScope(scope);
+  pushScope(scope);
 
   for (let i = 0; i < cases.length; i++) {
     out.push([ Opcodes.block, Blocktype.void ]);
@@ -4822,7 +4836,7 @@ const generateSwitch = (scope, decl) => {
       // todo: this should use same value zero
       out.push(
         [ Opcodes.local_get, tmp ],
-        ...generate(newScope, x.test),
+        ...generate(scope, x.test),
         [ Opcodes.eq ],
         [ Opcodes.br_if, i ]
       );
@@ -4837,14 +4851,14 @@ const generateSwitch = (scope, decl) => {
     depth.pop();
     out.push(
       [ Opcodes.end ],
-      ...generateCode(newScope, { body: cases[i].consequent })
+      ...generateCode(scope, { body: cases[i].consequent })
     );
   }
 
   out.push([ Opcodes.end ]);
   depth.pop();
 
-  popScope(scope, newScope);
+  popScope(scope);
 
   return out;
 };
@@ -6371,7 +6385,7 @@ const generateFunc = (scope, decl) => {
 const generateCode = (scope, decl) => {
   let out = [];
 
-  const newScope = decl._funcBody ? scope : pushScope(scope);
+  const blockScope = decl._funcBody ? scope : pushScope(scope);
 
   const body = decl.body;
   // let eager = [];
@@ -6417,6 +6431,9 @@ const generateCode = (scope, decl) => {
               else queue.push({ id: e });
           }
           break;
+        case 'AssignmentPattern':
+          names.push(d.id.left.name);
+          break;
         default:
           names.push(d.id.name);
           break;
@@ -6424,19 +6441,19 @@ const generateCode = (scope, decl) => {
     }
 
     for (const name of names) {
-      newScope.variables[name] = { nonLocal: false, kind: decl.kind, scope, name };
+      blockScope.variables[name] = { nonLocal: false, kind: decl.kind, index: scope.index, name };
     }
   }
 
   // for (const x of eager) {
-  //   out = out.concat(generate(newScope, x));
+  //   out = out.concat(generate(blockScope, x));
   // }
 
   for (const x of body) {
-    out = out.concat(generate(newScope, x));
+    out = out.concat(generate(blockScope, x));
   }
 
-  popScope(scope, newScope);
+  if (!decl._funcBody) popScope(blockScope);
 
   return out;
 };
