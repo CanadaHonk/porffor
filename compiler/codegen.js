@@ -48,12 +48,18 @@ const cacheAst = (decl, wasm) => {
   return wasm;
 };
 
-const funcRef = (idx, name) => {
+const funcRef = func => {
+  // generate func
+  func.generate?.();
+
   if (globalThis.precompile) return [
-    [ Opcodes.const, 'funcref', name ]
+    [ Opcodes.const, 'funcref', func.name ]
   ];
 
-  return number(idx - importedFuncs.length);
+  return [
+    [ Opcodes.const, func.index - importedFuncs.length ]
+    // [ Opcodes.const, func.index - importedFuncs.length, 'funcref' ]
+  ];
 };
 
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
@@ -189,6 +195,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
         for (const x of newFuncs) {
           x.export = true;
+
+          // generate func
+          x.generate?.();
         }
       }
 
@@ -344,9 +353,7 @@ const generateIdent = (scope, decl) => {
       if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
 
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
-      if (Object.hasOwn(funcIndex, name)) {
-        return funcRef(funcIndex[name], name);
-      }
+      if (Object.hasOwn(funcIndex, name)) return funcRef(funcs.find(x => x.name === name));
     }
 
     if (local?.idx === undefined && rawName.startsWith('__')) {
@@ -1117,6 +1124,14 @@ const asmFuncToAsm = (scope, func) => {
 
       return idx;
     },
+    funcRef: name => {
+      if (funcIndex[name] == null && builtinFuncs[name]) {
+        includeBuiltin(scope, name);
+      }
+
+      const func = funcs.find(x => x.name === name);
+      return funcRef(func);
+    },
     glbl: (opcode, name, type) => {
       const globalName = '#porf#' + name; // avoid potential name clashing with user js
       if (!globals[globalName]) {
@@ -1855,7 +1870,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   // opt: virtualize iifes
   if (isFuncType(decl.callee.type)) {
-    const [ func ] = generateFunc(scope, decl.callee);
+    const [ func ] = generateFunc(scope, decl.callee, true);
     name = func.name;
   }
 
@@ -2499,7 +2514,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       ];
     }
 
-  const func = funcs[idx - importedFuncs.length]; // idx === scope.index ? scope : funcs.find(x => x.index === idx);
+  let func = funcs[idx - importedFuncs.length];
+  if (!func || func.index !== idx) func = funcs.find(x => x.index === idx);
+
+  // generate func
+  if (func) func.generate?.();
+
   const userFunc = func && !func.internal;
   const typedParams = userFunc || func?.typedParams;
   const typedReturns = (userFunc && func.returnType == null) || builtinFuncs[name]?.typedReturns;
@@ -2995,7 +3015,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       // hack for let a = function () { ... }
       if (!init.id) {
         init.id = { name };
-        generateFunc(scope, init);
+        generateFunc(scope, init, true);
         return out;
       }
     }
@@ -4782,7 +4802,7 @@ const generateMeta = (scope, decl) => {
 
 let pages = new Map();
 const allocPage = (scope, reason, type) => {
-  const ptr = i => i === 0 ? 16 : i * pageSize;
+  const ptr = i => i === 0 ? 16 : (i * pageSize);
   if (pages.has(reason)) return ptr(pages.get(reason).ind);
 
   if (reason.startsWith('array:')) pages.hasArray = true;
@@ -5685,6 +5705,9 @@ const generateClass = (scope, decl) => {
     type: expr ? 'FunctionExpression' : 'FunctionDeclaration'
   });
 
+  // always generate class constructor funcs
+  func.generate();
+
   if (decl.superClass) {
     out.push(
       ...generateCall(scope, {
@@ -5817,14 +5840,14 @@ const objectHack = node => {
   for (const x in node) {
     if (node[x] != null && typeof node[x] === 'object') {
       if (node[x].type) node[x] = objectHack(node[x]);
-      if (Array.isArray(node[x])) node[x] = node[x].map(y => objectHack(y));
+      if (Array.isArray(node[x])) node[x] = node[x].map(objectHack);
     }
   }
 
   return node;
 };
 
-const generateFunc = (scope, decl) => {
+const generateFunc = (scope, decl, outUnused = false) => {
   const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
   if (decl.type.startsWith('Class')) {
     const out = generateClass(scope, {
@@ -5852,25 +5875,145 @@ const generateFunc = (scope, decl) => {
       // not async or generator
       !decl.async && !decl.generator,
     _onlyConstr: decl._onlyConstr,
-    strict: scope.strict
+    strict: scope.strict,
+
+    generate() {
+      if (func.wasm) return func.wasm;
+
+      // generating, stub _wasm
+      func.wasm = [];
+
+      let body = objectHack(decl.body);
+      if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
+        // hack: () => 0 -> () => return 0
+        body = {
+          type: 'ReturnStatement',
+          argument: decl.body
+        };
+      }
+
+      for (const x in defaultValues) {
+        prelude.push(
+          ...getType(func, x),
+          ...number(TYPES.undefined, Valtype.i32),
+          [ Opcodes.i32_eq ],
+          [ Opcodes.if, Blocktype.void ],
+            ...generate(func, defaultValues[x], false, x),
+            [ Opcodes.local_set, func.locals[x].idx ],
+
+            ...setType(func, x, getNodeType(func, defaultValues[x])),
+          [ Opcodes.end ]
+        );
+      }
+
+      for (const x in destructuredArgs) {
+        prelude.push(
+          ...generateVarDstr(func, 'var', destructuredArgs[x], { type: 'Identifier', name: x }, undefined, false)
+        );
+      }
+
+      if (decl.async) {
+        // make out promise local
+        allocVar(func, '#async_out_promise', false, false);
+        func.async = true;
+      }
+
+      const wasm = prelude.concat(generate(func, body));
+
+      if (decl.async) {
+        // make promise at the start
+        wasm.unshift(
+          [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_create').index ],
+          [ Opcodes.drop ],
+          [ Opcodes.local_set, func.locals['#async_out_promise'].idx ]
+        );
+
+        // todo: wrap in try and reject thrown value once supported
+      }
+
+      if (!globalThis.precompile && func.constr) {
+        wasm.unshift(
+          // opt: do not check for pure constructors
+          ...(func._onlyConstr ? [] : [
+            // if being constructed
+            [ Opcodes.local_get, func.locals['#newtarget'].idx ],
+            Opcodes.i32_to_u,
+            [ Opcodes.if, Blocktype.void ],
+          ]),
+            // set prototype of this ;)
+            ...generate(func, setObjProp({ type: 'ThisExpression' }, '__proto__', getObjProp(func.name, 'prototype'))),
+          ...(func._onlyConstr ? [] : [ [ Opcodes.end ] ])
+        );
+      }
+
+      if (name === 'main') {
+        func.gotLastType = true;
+        func.export = true;
+        func.returns = [ valtypeBinary, Valtype.i32 ];
+
+        let finalStatement = decl.body.body[decl.body.body.length - 1];
+        if (finalStatement?.type === 'EmptyStatement') finalStatement = decl.body.body[decl.body.body.length - 2];
+
+        const lastInst = wasm[wasm.length - 1] ?? [ Opcodes.end ];
+        if (lastInst[0] === Opcodes.drop) {
+          if (finalStatement.type.endsWith('Declaration')) {
+            // final statement is decl, force undefined
+            disposeLeftover(wasm);
+            wasm.push(
+              ...number(UNDEFINED),
+              ...number(TYPES.undefined, Valtype.i32)
+            );
+          } else {
+            wasm.splice(wasm.length - 1, 1);
+            wasm.push(...getNodeType(func, finalStatement));
+          }
+        }
+
+        if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
+          if (lastInst[0] === Opcodes.local_set && lastInst[1] === func.locals['#last_type'].idx) {
+            wasm.splice(wasm.length - 1, 1);
+          } else {
+            func.returns = [];
+          }
+        }
+
+        if (lastInst[0] === Opcodes.call) {
+          const callee = funcs.find(x => x.index === lastInst[1]);
+          if (callee) func.returns = callee.returns.slice();
+            else func.returns = [];
+        }
+
+        // inject promise job runner func at the end of main if job queue is used
+        if (Object.hasOwn(funcIndex, '__ecma262_HostEnqueuePromiseJob')) {
+          wasm.push(
+            [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_runJobs').index ],
+            [ Opcodes.drop ],
+            [ Opcodes.drop ]
+          );
+        }
+      } else {
+        // add end return if not found
+        if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
+          wasm.push(...generateReturn(func, {}));
+        }
+      }
+
+      return func.wasm = wasm;
+    }
   };
 
   funcIndex[name] = func.index;
   funcs.push(func);
 
-  const out = decl.type.endsWith('Expression') ? funcRef(func.index, func.name) : [];
-
   let errorWasm = null;
   if (decl.generator) errorWasm = todo(scope, 'generator functions are not supported');
 
   if (errorWasm) {
+    // func.params = [];
     func.wasm = errorWasm.concat([
       ...number(UNDEFINED),
       ...number(TYPES.undefined, Valtype.i32)
     ]);
-    func.params = [];
-    func.constr = false;
-    return [ func, out ];
   }
 
   if (typedInput && decl.returnType) {
@@ -5945,121 +6088,13 @@ const generateFunc = (scope, decl) => {
 
   func.params = Object.values(func.locals).map(x => x.type);
 
-  let body = objectHack(decl.body);
-  if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
-    // hack: () => 0 -> () => return 0
-    body = {
-      type: 'ReturnStatement',
-      argument: decl.body
-    };
-  }
+  // force generate for main
+  if (name === 'main') func.generate();
 
-  for (const x in defaultValues) {
-    prelude.push(
-      ...getType(func, x),
-      ...number(TYPES.undefined, Valtype.i32),
-      [ Opcodes.i32_eq ],
-      [ Opcodes.if, Blocktype.void ],
-        ...generate(func, defaultValues[x], false, x),
-        [ Opcodes.local_set, func.locals[x].idx ],
+  // force generate all for precompile
+  if (globalThis.precompile) func.generate();
 
-        ...setType(func, x, getNodeType(func, defaultValues[x])),
-      [ Opcodes.end ]
-    );
-  }
-
-  for (const x in destructuredArgs) {
-    prelude.push(
-      ...generateVarDstr(func, 'var', destructuredArgs[x], { type: 'Identifier', name: x }, undefined, false)
-    );
-  }
-
-  if (decl.async) {
-    // make out promise local
-    allocVar(func, '#async_out_promise', false, false);
-    func.async = true;
-  }
-
-  const wasm = func.wasm = prelude.concat(generate(func, body));
-
-  if (decl.async) {
-    // make promise at the start
-    wasm.unshift(
-      [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_create').index ],
-      [ Opcodes.drop ],
-      [ Opcodes.local_set, func.locals['#async_out_promise'].idx ]
-    );
-
-    // todo: wrap in try and reject thrown value once supported
-  }
-
-  if (!globalThis.precompile && func.constr) {
-    wasm.unshift(
-      // opt: do not check for pure constructors
-      ...(func._onlyConstr ? [] : [
-        // if being constructed
-        [ Opcodes.local_get, func.locals['#newtarget'].idx ],
-        Opcodes.i32_to_u,
-        [ Opcodes.if, Blocktype.void ],
-      ]),
-        // set prototype of this ;)
-        ...generate(func, setObjProp({ type: 'ThisExpression' }, '__proto__', getObjProp(func.name, 'prototype'))),
-      ...(func._onlyConstr ? [] : [ [ Opcodes.end ] ])
-    );
-  }
-
-  if (name === 'main') {
-    func.gotLastType = true;
-    func.export = true;
-    func.returns = [ valtypeBinary, Valtype.i32 ];
-
-    let finalStatement = decl.body.body[decl.body.body.length - 1];
-    if (finalStatement?.type === 'EmptyStatement') finalStatement = decl.body.body[decl.body.body.length - 2];
-
-    const lastInst = func.wasm[func.wasm.length - 1] ?? [ Opcodes.end ];
-    if (lastInst[0] === Opcodes.drop) {
-      if (finalStatement.type.endsWith('Declaration')) {
-        // final statement is decl, force undefined
-        disposeLeftover(wasm);
-        func.wasm.push(
-          ...number(UNDEFINED),
-          ...number(TYPES.undefined, Valtype.i32)
-        );
-      } else {
-        func.wasm.splice(func.wasm.length - 1, 1);
-        func.wasm.push(...getNodeType(func, finalStatement));
-      }
-    }
-
-    if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
-      if (lastInst[0] === Opcodes.local_set && lastInst[1] === func.locals['#last_type'].idx) {
-        func.wasm.splice(func.wasm.length - 1, 1);
-      } else {
-        func.returns = [];
-      }
-    }
-
-    if (lastInst[0] === Opcodes.call) {
-      const callee = funcs.find(x => x.index === lastInst[1]);
-      if (callee) func.returns = callee.returns.slice();
-        else func.returns = [];
-    }
-
-    // inject promise job runner func at the end of main if job queue is used
-    if (Object.hasOwn(funcIndex, '__ecma262_HostEnqueuePromiseJob')) {
-      wasm.push(
-        [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_runJobs').index ],
-        [ Opcodes.drop ],
-        [ Opcodes.drop ]
-      );
-    }
-  } else {
-    // add end return if not found
-    if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
-      wasm.push(...generateReturn(func, {}));
-    }
-  }
-
+  const out = decl.type.endsWith('Expression') && !outUnused ? funcRef(func) : [];
   return [ func, out ];
 };
 
@@ -6264,11 +6299,6 @@ export default program => {
 
   program.id = { name: 'main' };
 
-  const scope = {
-    locals: {},
-    localInd: 0
-  };
-
   program.body = {
     type: 'BlockStatement',
     body: program.body
@@ -6276,12 +6306,63 @@ export default program => {
 
   if (Prefs.astLog) console.log(JSON.stringify(program.body.body, null, 2));
 
-  const [ main ] = generateFunc(scope, program);
+  const [ main ] = generateFunc({}, program);
 
   delete globals['#ind'];
 
   // if blank main func and other exports, remove it
   if (main.wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(main.index - importedFuncs.length, 1);
+
+  // make ~empty funcs for never generated funcs
+  // todo: these should just be deleted once able
+  for (let i = 0; i < funcs.length; i++) {
+    const f = funcs[i];
+    if (f.internal || f.wasm) {
+      continue;
+    }
+
+    // make wasm just return 0s for expected returns
+    f.wasm = f.returns.map(x => number(0, x)).flat();
+
+    // alternative: make func empty, may break some indirect calls
+    // f.wasm = [];
+    // f.returns = [];
+    // f.params = [];
+    // f.locals = {};
+  }
+
+  // // remove never generated functions
+  // let indexDelta = 0;
+  // const funcRemap = new Map();
+  // for (let i = 0; i < funcs.length; i++) {
+  //   const f = funcs[i];
+  //   if (f.internal || f.wasm) {
+  //     if (indexDelta) {
+  //       funcRemap.set(f.index, f.index - indexDelta);
+  //       f.index -= indexDelta;
+  //     }
+  //     continue;
+  //   }
+
+  //   funcs.splice(i--, 1);
+  //   indexDelta++;
+  // }
+
+  // // remap call ops
+  // if (indexDelta) for (let i = 0; i < funcs.length; i++) {
+  //   const wasm = funcs[i].wasm;
+  //   for (let j = 0; j < wasm.length; j++) {
+  //     const op = wasm[j];
+  //     if (op[0] === Opcodes.call) {
+  //       let idx = op[1];
+  //       wasm[j] = [ Opcodes.call, funcRemap.get(idx) ?? idx ];
+  //     }
+
+  //     if (op[0] === Opcodes.const && op[2] === 'funcref') {
+  //       wasm[j] = [ Opcodes.const, funcRemap.get(op[1] + importedFuncs.length) - importedFuncs.length ];
+  //     }
+  //   }
+  // }
 
   return { funcs, globals, tags, exceptions, pages, data };
 };

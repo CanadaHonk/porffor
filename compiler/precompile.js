@@ -207,11 +207,11 @@ ${funcs.map(x => {
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode},'${name}',${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)
-      .replace(/\[68,"funcref","(.*?)"]/g, (_, name, offset) => `[68,builtin('${name}',1)]`)
+      .replace(/\[68,"funcref","(.*?)"]/g, (_, name) => `...funcRef('${name}')`)
       .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(_,'${constructor}',\`${message}\`)`)
       .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`);
 
-    return `(_,{${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
+    return `(_,{${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('funcRef(') ? 'funcRef,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
   };
 
   const locals = Object.entries(x.locals).sort((a,b) => a[1].idx - b[1].idx)
