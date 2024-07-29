@@ -2085,7 +2085,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       throw e;
     }
 
-    const out = generate(scope, {
+    // note: this is just how direct eval works apparently? once we support indirect eval it needs to not do this
+    const evalScope = scope._inParameterList ? scope.upper : scope;
+
+    const out = generate(evalScope, {
       type: 'BlockStatement',
       body: parsed.body
     });
@@ -6143,6 +6146,8 @@ const generateFunc = (scope, decl) => {
     allocVar(func, '#this', false);
   }
 
+  func._inParameterList = true;
+
   const prelude = [];
   const defaultValues = {};
   const destructuredArgs = {};
@@ -6236,6 +6241,8 @@ const generateFunc = (scope, decl) => {
       ...generateVarDstr(func, 'var', destructuredArgs[x], { type: 'Identifier', name: x }, undefined, false)
     );
   }
+
+  delete func._inParameterList;
 
   if (decl.async) {
     // make out promise local
