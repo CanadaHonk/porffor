@@ -99,7 +99,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
     if (inst[0] === Opcodes.call || inst[0] === Opcodes.return_call) {
       const idx = inst[1];
-      const callFunc = funcs.find(x => (x.asmIndex ?? x.index) === idx);
+      const callFunc = funcs.find(x => x.index === idx);
       if (callFunc) out += ` ;; $${callFunc.name} ${makeSignature(callFunc.params, callFunc.returns)}`;
       if (globalThis.importFuncs && idx < importFuncs.length) {
         const importFunc = importFuncs[idx];
