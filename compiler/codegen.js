@@ -5764,6 +5764,11 @@ const generateClass = (scope, decl) => {
       outScope = func;
     }
 
+    if (isFuncType(value.type)) value = {
+      ...value,
+      _onlyConstr: true
+    };
+
     outArr[outOp](
       ...generate(outScope, object),
       Opcodes.i32_to_u,
