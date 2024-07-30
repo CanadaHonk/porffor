@@ -2639,7 +2639,7 @@ const generateThis = (scope, decl) => {
   }
 
   // opt: do not check for pure constructors
-  if (scope._onlyConstr || decl._noGlobalThis) return [
+  if (scope._onlyConstr || scope._onlyThisMethod || decl._noGlobalThis) return [
     [ Opcodes.local_get, scope.locals['#this'].idx ],
     ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
   ];
@@ -5789,7 +5789,7 @@ const generateClass = (scope, decl) => {
       value = {
         ...value,
         id,
-        _onlyConstr: true
+        _onlyThisMethod: true
       };
     }
 
@@ -5913,7 +5913,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
       (decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program') &&
       // not async or generator
       !decl.async && !decl.generator,
-    _onlyConstr: decl._onlyConstr,
+    _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict,
 
     generate() {
@@ -5970,7 +5970,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
         // todo: wrap in try and reject thrown value once supported
       }
 
-      if (!globalThis.precompile && func.constr) {
+      if (!globalThis.precompile && func.constr && !func._onlyThisMethod) {
         wasm.unshift(
           // opt: do not check for pure constructors
           ...(func._onlyConstr ? [] : [
