@@ -377,8 +377,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     encodeVector(data.map(x => {
       if (Prefs.d && x.bytes.length > PageSize) log.warning('assemble', `data (${x.page}) has more bytes than Wasm page size! (${x.bytes.length})`);
 
-      const bytes = encodeVector(x.bytes);
-
+      const bytes = unsignedLEB128(x.bytes.length).concat(x.bytes);
       if (x.page != null) {
         // type: active
         let offset = pages.get(x.page).ind * pageSize;
