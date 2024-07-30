@@ -152,6 +152,8 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Rest parameters (`(...foo) => { ... }`)
 - `this`
 - Constructors (`new Foo`)
+- Classes (`class A {}`)
+- Await (`await promise`)
 
 ### Built-ins
 
@@ -174,6 +176,7 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - `parseInt`
 - Spec-compliant `Date`
 - WIP typed arrays (`Uint8Array`, `Int32Array`, etc)
+- Synchronous `Promise`
 
 ### Custom
 
