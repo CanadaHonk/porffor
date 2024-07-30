@@ -418,31 +418,31 @@ const setVar = (scope, name, wasm, typeWasm, tee = false, initalizing = false) =
   }
 
   const variable = findVar(scope, name);
-  const out = [ [ tee ? "var.tee" : "var.set", variable ?? name, wasm, typeWasm ] ];
+  if (!variable) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, tee);
 
-  if (variable) {
-    // check if we are still in the same function
-    if (variable.index !== scope.index) {
-      variable.nonLocal = true;
+  const out = [ [ tee ? "var.tee" : "var.set", variable, wasm, typeWasm ] ];
+
+  // check if we are still in the same function
+  if (variable.index !== scope.index) {
+    variable.nonLocal = true;
+  }
+
+  if (!initalizing && variable.kind === 'const') {
+    return internalThrow(scope, 'TypeError', `Assignment to constant variable ${name}`)
+  }
+
+  if (variable.kind === 'let' || variable.kind === 'const') {
+    if (!variable.nonLocal && !variable.initialized) {
+      return internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`);
     }
 
-    if (!initalizing && variable.kind === 'const') {
-      return internalThrow(scope, 'TypeError', `Assignment to constant variable ${name}`)
-    }
-
-    if (variable.kind === 'let' || variable.kind === 'const') {
-      if (!variable.nonLocal && !variable.initialized) {
-        return internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`);
-      }
-
-      if (variable.nonLocal) out.unshift(
-        [ 'var.initialized', variable ],
-        [ Opcodes.i32_eqz ],
-        [ Opcodes.if, Blocktype.void ],
-          ...internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`),
-        [ Opcodes.end ]
-      );
-    }
+    if (variable.nonLocal) out.unshift(
+      [ 'var.initialized', variable ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`),
+      [ Opcodes.end ]
+    );
   }
 
   return out;
@@ -470,27 +470,27 @@ const getVar = (scope, name) => {
   }
 
   const variable = findVar(scope, name);
-  const out = [ [ "var.get", variable ?? name ] ];
+  if (!variable) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
-  if (variable) {
-    // check if we are still in the same function
-    if (variable.index !== scope.index) {
-      variable.nonLocal = true;
+  const out = [ [ "var.get", variable ] ];
+
+  // check if we are still in the same function
+  if (variable.index !== scope.index) {
+    variable.nonLocal = true;
+  }
+
+  if (variable.kind === 'let' || variable.kind === 'const') {
+    if (!variable.nonLocal && !variable.initialized) {
+      return internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`, true);
     }
 
-    if (variable.kind === 'let' || variable.kind === 'const') {
-      if (!variable.nonLocal && !variable.initialized) {
-        return internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`, true);
-      }
-
-      if (variable.nonLocal) out.unshift(
-        [ 'var.initialized', variable ],
-        [ Opcodes.i32_eqz ],
-        [ Opcodes.if, Blocktype.void ],
-          ...internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`),
-        [ Opcodes.end ]
-      );
-    }
+    if (variable.nonLocal) out.unshift(
+      [ 'var.initialized', variable ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`),
+      [ Opcodes.end ]
+    );
   }
 
   return out;
@@ -520,6 +520,11 @@ const getVarType = (scope, name) => {
   }
 
   const variable = findVar(scope, name);
+  if (!variable) return [
+    ...internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`),
+    ...number(0, Valtype.i32)
+  ];
+
   if (variable && variable.index !== scope.index) {
     variable.nonLocal = true;
   }
@@ -529,7 +534,7 @@ const getVarType = (scope, name) => {
   }
 
   return [
-    [ "var.get_type", variable ?? name ]
+    [ "var.get_type", variable ]
   ];
 };
 
@@ -592,7 +597,7 @@ const generateIdent = (scope, decl) => {
         if (parent.includes('_')) parent = '__' + parent;
 
         const parentLookup = lookup(parent);
-        if (parentLookup.at(-1)[0] !== Opcodes.throw)
+        if (parentLookup.at(-1)[0] !== Opcodes.throw && parentLookup.at(-2)?.[0] !== Opcodes.throw)
           return number(UNDEFINED);
       }
     }
@@ -1563,7 +1568,7 @@ const getType = (scope, _name) => {
     if (parent.includes('_')) parent = '__' + parent;
 
     const parentLookup = getType(scope, parent);
-    if (parentLookup.at(-1)[0] !== Opcodes.throw)
+    if (parentLookup.at(-1)[0] !== Opcodes.throw && parentLookup.at(-2)?.[0] !== Opcodes.throw)
       return number(TYPES.undefined, Valtype.i32);
   }
 
@@ -3976,7 +3981,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 const ifIdentifierErrors = (scope, decl) => {
   if (decl.type === 'Identifier') {
     const out = generateIdent(scope, decl);
-    if (out.at(-1)[0] === Opcodes.throw) return true;
+    // either ends with throw, or has a extra value after it (to preserve the stack's shape)
+    if (out.at(-1)[0] === Opcodes.throw || out.at(-2)?.[0] === Opcodes.throw) return true;
   }
 
   return false;
@@ -7075,16 +7081,8 @@ export default program => {
       for (let i = 0; i < f.wasm.length; i++) {
         const inst = f.wasm[i];
         if (typeof inst[0] === 'string' && inst[0].startsWith('var')) {
-          let variable;
-          let name;
-          if (typeof inst[1] === 'string') {
-            variable = findVar(f, inst[1]);
-            name = variable?.name ?? inst[1];
-          } else {
-            variable = inst[1];
-            name = variable.name;
-          }
-          f.wasm.splice(i, 1, ...handleVarOp(f, name , variable, inst));
+          const variable = inst[1];
+          f.wasm.splice(i, 1, ...handleVarOp(f, variable.name, variable, inst));
           i--;
           continue;
         }
