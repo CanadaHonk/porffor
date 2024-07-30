@@ -3224,6 +3224,13 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     const name = mapName(pattern.name);
     const redeclarable = kind === 'var' || kind === 'bare';
 
+    if (topLevel && Object.hasOwn(builtinVars, name)) {
+      // cannot redeclare
+      if (!redeclarable) return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
+
+      return out; // always ignore
+    }
+
     if (init && isFuncType(init.type)) {
       if (!init.id) {
         init.id = { name };
@@ -3237,13 +3244,6 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
         // otherwise, we need to tell porffor that this function is not safe to call directly
         init._forceIndirect = true;
       }
-    }
-
-    if (topLevel && Object.hasOwn(builtinVars, name)) {
-      // cannot redeclare
-      if (!redeclarable) return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
-
-      return out; // always ignore
     }
 
     // // generate init before allocating var
