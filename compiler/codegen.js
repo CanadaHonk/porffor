@@ -335,11 +335,6 @@ const findTopScope = (scope) => {
 const variableNames = new Map();
 
 const createVar = (scope, kind, name, global, type = true) => {
-  if (globalThis.precompile) {
-    allocVar(scope, name, global, type);
-    return [];
-  }
-
   // var and bare declarations don't respect block statements
   const target = kind === 'var' || kind === 'bare' ? findTopScope(scope) : scope;
 
@@ -363,6 +358,11 @@ const createVar = (scope, kind, name, global, type = true) => {
   variable.initialized = true;
   if (!type) {
     variable.untyped = true;
+  }
+
+  if (globalThis.precompile) {
+    allocVar(scope, name, global, type);
+    return [];
   }
 
   if (kind === 'let' || kind === 'const')
@@ -417,6 +417,8 @@ const setVar = (scope, name, wasm, typeWasm, tee = false, initalizing = false) =
     return out;
   }
 
+  if (globalThis.precompile) throw new Error('Tried to set to a non-local variable during precompile');
+
   const variable = findVar(scope, name);
   if (!variable) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, tee);
 
@@ -469,6 +471,8 @@ const getVar = (scope, name) => {
     ];
   }
 
+  if (globalThis.precompile) throw new Error('Tried to get a non-local variable during precompile');
+
   const variable = findVar(scope, name);
   if (!variable) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
@@ -518,6 +522,8 @@ const getVarType = (scope, name) => {
     if (Prefs.warnAssumedType) console.warn(`Type of global ${name} assumed to be undefined`)
     return number(TYPES.undefined, Valtype.i32);
   }
+
+  if (globalThis.precompile) throw new Error('Tried to get the type of a non-local variable during precompile');
 
   const variable = findVar(scope, name);
   if (!variable) return [
@@ -3187,7 +3193,7 @@ const allocVar = (scope, name, global = false, type = true) => {
 const addVarMetadata = (scope, name, global = false, metadata = {}) => {
   const variable = findVar(scope, name);
   let target = variable;
-  if (!target) {
+  if (!target || globalThis.precompile) {
     target = global ? globals[name] : scope.locals[name];
   }
 
@@ -3300,13 +3306,31 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     }
 
     if (init) {
-      out = out.concat(
-        setVar(scope, name,
-          generate(scope, init, global, name),
-          getNodeType(scope, init),
-          false, true
-        )
-      );
+      const alreadyArray = scope.arrays?.get(name) != null;
+
+      let newOut = generate(scope, init, global, name);
+      if (globalThis.precompile && !alreadyArray && scope.arrays?.get(name) != null) {
+        // todo: this for more than just precompile
+        const idx = (global ? globals : scope.locals)[name].idx;
+        // hack to set local as pointer before
+        newOut.unshift(...number(scope.arrays.get(name)), [ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
+        if (newOut.at(-1) == Opcodes.i32_from_u) newOut.pop();
+        newOut.push(
+          [ Opcodes.drop ],
+          ...setType(scope, name, getNodeType(scope, init))
+        );
+      } else {
+        newOut = out.concat(
+          setVar(scope, name,
+            generate(scope, init, global, name),
+            getNodeType(scope, init),
+            false, true
+          )
+        );
+      }
+
+
+      out = out.concat(newOut);
 
       if (defaultValue) {
         out.push(
@@ -6449,11 +6473,15 @@ const generateFunc = (scope, decl, outUnused = false) => {
         break;
     }
 
-    let idx = allocVar(func, 'arg#' + name, false);
-    createVar(func, 'argument', name, false, true);
-    prelude.push(
-      ...setVar(func, name, [ [ Opcodes.local_get, idx ] ], [ [ Opcodes.local_get, idx + 1 ] ], false, true)
-    );
+    if (!globalThis.precompile) {
+      let idx = allocVar(func, 'arg#' + name, false);
+      createVar(func, 'argument', name, false, true);
+      prelude.push(
+        ...setVar(func, name, [ [ Opcodes.local_get, idx ] ], [ [ Opcodes.local_get, idx + 1 ] ], false, true)
+      );
+    } else {
+      createVar(func, 'argument', name, false, true);
+    }
 
     if (typedInput && params[i].typeAnnotation) {
       const typeAnno = extractTypeAnnotation(params[i]);
@@ -6467,7 +6495,8 @@ const generateFunc = (scope, decl, outUnused = false) => {
         TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
       ].includes(typeAnno.type)) {
         prelude.push(
-          ...getVarType(func, '#this'),
+          // not #this, but _this because precompile
+          [ Opcodes.local_get, func.locals['_this#type'].idx ],
           ...number(typeAnno.type, Valtype.i32),
           [ Opcodes.i32_ne ],
           [ Opcodes.if, Blocktype.void ],
