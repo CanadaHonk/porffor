@@ -130,6 +130,11 @@ if (isMainThread) {
 
     worker.on('message', int => {
       if (typeof int !== 'number') {
+        if (typeof int === 'string') {
+          console.log(int);
+          return;
+        }
+
         for (const x in int) {
           errors.set(x, (errors.get(x) ?? 0) + int[x]);
         }
@@ -378,6 +383,8 @@ if (isMainThread) {
   const timeout = ($func, timeout) => {
     return script.runInNewContext({ $func }, { timeout });
   };
+
+  console.log = (...args) => parentPort.postMessage(args.join(' '));
 
   const totalTests = tests.length;
   const alwaysPrelude = preludes['assert.js'] + '\n' + preludes['sta.js'] + '\n';
