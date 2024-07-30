@@ -1495,6 +1495,41 @@ export const __ByteString_prototype_localeCompare = (_this: bytestring, compareS
 };
 
 
+export const __String_prototype_isWellFormed = (_this: string) => {
+  let ptr: i32 = Porffor.wasm`local.get ${_this}`;
+  const endPtr: i32 = ptr + _this.length * 2;
+  while (ptr < endPtr) {
+    const c1: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 4);
+
+    if (Porffor.fastAnd(c1 >= 0xDC00, c1 <= 0xDFFF)) {
+      // lone trailing surrogate, bad
+      return false;
+    }
+
+    if (Porffor.fastAnd(c1 >= 0xD800, c1 <= 0xDBFF)) {
+      // leading surrogate, peek if next is trailing
+      const c2: i32 = ptr + 2 < endPtr ? Porffor.wasm.i32.load16_u(ptr + 2, 0, 4) : 0;
+
+      if (Porffor.fastAnd(c2 >= 0xDC00, c2 <= 0xDFFF)) {
+        // next is trailing surrogate, skip it too
+        ptr += 2;
+      } else {
+        // lone leading surrogate, bad
+        return false;
+      }
+    }
+
+    ptr += 2;
+  }
+
+  return true;
+};
+
+export const __ByteString_prototype_isWellFormed = (_this: bytestring) => {
+  // bytestrings cannot have surrogates, so always true
+  return true;
+};
+
 export const __String_prototype_toWellFormed = (_this: string) => {
   let out: string = Porffor.allocate();
   Porffor.clone(_this, out);
