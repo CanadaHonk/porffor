@@ -572,6 +572,30 @@ export const __Porffor_object_expr_init = (obj: any, key: any, value: any): void
     0, 12);
 };
 
+export const __Porffor_object_expr_initWithFlags = (obj: any, key: any, value: any, flags: i32): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  let entryPtr: i32 = __Porffor_object_lookup(obj, key);
+  if (entryPtr == -1) {
+    // add new entry
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
+    Porffor.wasm.i32.store(obj, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${obj}` + 5 + size * 14;
+
+    __Porffor_object_writeKey(entryPtr, key);
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, value, 0, 4);
+
+  // write new tail (value type + flags)
+  Porffor.wasm.i32.store16(entryPtr,
+    flags + (Porffor.wasm`local.get ${value+1}` << 8),
+    0, 12);
+};
+
 // used for { get foo() {} }
 export const __Porffor_object_expr_get = (obj: any, key: any, get: any): void => {
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
