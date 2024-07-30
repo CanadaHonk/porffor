@@ -59,6 +59,7 @@ const compile = async (file, _funcs) => {
   const paramOverrides = {
     __Porffor_object_set: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
     __Porffor_object_expr_init: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
+    __Porffor_object_expr_initWithFlags: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
     __Porffor_object_define: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
   };
 
@@ -203,15 +204,15 @@ ${funcs.map(x => {
         if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
         return v;
       })
-      .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(_,'${reason}','${type}')*pageSize,${valtype})`)
+      .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(_,'${reason}','${type}'),${valtype})`)
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode},'${name}',${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)
-      .replace(/\[68,"funcref","(.*?)"]/g, (_, name, offset) => `[68,builtin('${name}',1)]`)
+      .replace(/\[68,"funcref","(.*?)"]/g, (_, name) => `...funcRef('${name}')`)
       .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(_,'${constructor}',\`${message}\`)`)
       .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`);
 
-    return `(_,{${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
+    return `(_,{${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('funcRef(') ? 'funcRef,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
   };
 
   const locals = Object.entries(x.locals).sort((a,b) => a[1].idx - b[1].idx)

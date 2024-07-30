@@ -1746,9 +1746,7 @@ export const __ecma262_ToDateString = (tv: number) => {
   out.length = 0;
 
   // 1. If tv is NaN, return "Invalid Date".
-  if (Number.isNaN(tv)) {
-    return out = 'Invalid Date';
-  }
+  if (Number.isNaN(tv)) return out = 'Invalid Date';
 
   // 2. Let t be LocalTime(tv).
   const t: number = __ecma262_LocalTime(tv);
@@ -1788,10 +1786,7 @@ export const __Date_prototype_toTimeString = (_this: Date) => {
   let out: bytestring = Porffor.allocateBytes(27);
   out.length = 0;
 
-  if (Number.isNaN(tv)) {
-    out = 'Invalid Date';
-    return out;
-  }
+  if (Number.isNaN(tv)) return out = 'Invalid Date';
 
   // 5. Let t be LocalTime(tv).
   const t: number = __ecma262_LocalTime(tv);
@@ -1816,10 +1811,7 @@ export const __Date_prototype_toDateString = (_this: Date) => {
   let out: bytestring = Porffor.allocateBytes(20);
   out.length = 0;
 
-  if (Number.isNaN(tv)) {
-    out = 'Invalid Date';
-    return out;
-  }
+  if (Number.isNaN(tv)) return out = 'Invalid Date';
 
   // 5. Let t be LocalTime(tv).
   const t: number = __ecma262_LocalTime(tv);

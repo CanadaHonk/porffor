@@ -1,5 +1,5 @@
 import { Valtype, FuncType, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize, Reftype } from './wasmSpec.js';
-import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64_into } from './encoding.js';
+import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64, ieee754_binary64_into } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from './log.js';
 import {} from './prefs.js';
@@ -72,6 +72,14 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     return typeCache[hash] = idx;
   };
 
+  let t = performance.now();
+  const time = msg => {
+    if (!Prefs.profileAssemble) return;
+
+    console.log(`${' '.repeat(50)}\r[${(performance.now() - t).toFixed(2)}ms] ${msg}`);
+    t = performance.now();
+  };
+
   let importFuncs = [], importDelta = 0;
   if (optLevel < 1 || !Prefs.treeshakeWasmImports || noTreeshake) {
     importFuncs = importedFuncs;
@@ -81,7 +89,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     // tree shake imports
     for (const f of funcs) {
       for (const inst of f.wasm) {
-        if ((inst[0] === Opcodes.call || inst[0] === Opcodes.return_call) && inst[1] < importedFuncs.length) {
+        if ((inst[0] === Opcodes.call /* || inst[0] === Opcodes.return_call */) && inst[1] < importedFuncs.length) {
           const idx = inst[1];
           const func = importedFuncs[idx];
 
@@ -95,13 +103,11 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     importDelta = importedFuncs.length - importFuncs.length;
   }
 
-  // fix call indexes for non-imports
-  // also fix call_indirect types
-  // also encode call indexes
   for (const f of funcs) {
     f.asmIndex = f.index - importDelta;
   }
 
+  time('treeshake import funcs');
 
   if (Prefs.optLog) log('assemble', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 
@@ -109,11 +115,13 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     Section.import,
     encodeVector(importFuncs.map(x => [ 0, ...encodeString(x.import), ExportDesc.func, getType(typeof x.params === 'object' ? x.params : new Array(x.params).fill(valtypeBinary), new Array(x.returns).fill(valtypeBinary)) ]))
   );
+  time('import section');
 
   const funcSection = createSection(
     Section.func,
     encodeVector(funcs.map(x => getType(x.params, x.returns))) // type indexes
   );
+  time('func section');
 
   const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
 
@@ -121,6 +129,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     Section.table,
     encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(funcs.length) ] ])
   );
+  time('table section');
 
   const elementSection = !funcs.table ? [] : createSection(
     Section.element,
@@ -130,12 +139,13 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       ...encodeVector(funcs.map(x => unsignedLEB128(x.asmIndex)))
     ] ])
   );
+  time('element section');
 
   if (pages.has('func lut')) {
     const offset = pages.get('func lut').ind * pageSize;
     if (data.addedFuncArgcLut) {
       // remove existing data
-      data = data.filter(x => x.offset !== offset);
+      data = data.filter(x => x.page !== 'func lut');
     }
 
     // generate func lut data
@@ -148,8 +158,6 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       let argc = func.params.length;
       if (func.constr) argc -= 4;
       if (!func.internal || func.typedParams) argc = Math.floor(argc / 2);
-
-      if (name.startsWith('#')) name = '';
 
       bytes.push(argc % 256, (argc / 256 | 0) % 256);
 
@@ -164,6 +172,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       if (func.returnType != null) flags |= 0b01;
       if (func.constr) flags |= 0b10;
       bytes.push(flags);
+
+      if (name.startsWith('#')) name = '';
 
       // eg: __String_prototype_toLowerCase -> toLowerCase
       if (name.startsWith('__')) name = name.split('_').pop();
@@ -182,8 +192,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     });
     data.addedFuncArgcLut = true;
   }
-
-  // const t0 = performance.now();
+  time('func lut');
 
   // specially optimized assembly for globals as this version is much (>5x) faster than traditional createSection()
   const globalsValues = Object.values(globals);
@@ -225,17 +234,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     unsignedLEB128_into(data.length, globalSection);
     globalSection = globalSection.concat(data);
   }
-
-  // if (Prefs.profileCompiler) {
-  //   const log = console.log;
-  //   console.log = function () {
-  //     log.apply(this, arguments);
-  //     console.log = log;
-  //     console.log(`  a. assembled global section in ${(performance.now() - t0).toFixed(2)}ms\n`);
-  //   };
-  // }
-
-  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, ...unsignedLEB128(x.asmIndex) ]);
+  time('global section');
 
   if (Prefs.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
   if (optLevel === 0) pages.set('O0 precaution', 0);
@@ -245,9 +244,13 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     Section.memory,
     encodeVector([ [ 0x00, ...unsignedLEB128(Math.ceil((pages.size * pageSize) / PageSize)) ] ])
   );
+  time('memory section');
+
+  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, ...unsignedLEB128(x.asmIndex) ]);
 
   // export memory if used
   if (usesMemory) exports.unshift([ ...encodeString('$'), ExportDesc.mem, 0x00 ]);
+  time('gen exports');
 
   const tagSection = tags.length === 0 ? [] : createSection(
     Section.tag,
@@ -256,16 +259,20 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
   // export first tag if used
   if (tags.length !== 0) exports.unshift([ ...encodeString('0'), ExportDesc.tag, 0x00 ]);
+  time('tag section');
 
   const exportSection = createSection(
     Section.export,
     encodeVector(exports)
   );
+  time('export section');
 
   const codeSection = createSection(
     Section.code,
     encodeVector(funcs.map(x => {
-      const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx).slice(x.params.length).sort((a, b) => a.idx - b.idx);
+      // time(x.name);
+      const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx).slice(x.params.length);
+      // time('  locals gen');
 
       let localDecl = [], typeCount = 0, lastType;
       for (let i = 0; i < locals.length; i++) {
@@ -280,8 +287,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       }
 
       if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
-
-      // todo: move const, call transforms here too?
+      // time('  localDecl gen');
 
       const makeAssembled = Prefs.d;
       let wasm = [], wasmNonFlat = [];
@@ -290,30 +296,33 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
         // encode local/global ops as unsigned leb128 from raw number
         if (
-          (o[0] === Opcodes.local_get || o[0] === Opcodes.local_set || o[0] === Opcodes.local_tee || o[0] === Opcodes.global_get || o[0] === Opcodes.global_set) &&
+          // (o[0] === Opcodes.local_get || o[0] === Opcodes.local_set || o[0] === Opcodes.local_tee || o[0] === Opcodes.global_get || o[0] === Opcodes.global_set) &&
+          (o[0] >= Opcodes.local_get && o[0] <= Opcodes.global_set) &&
           o[1] > 127
         ) {
           const n = o[1];
-          o = [...o];
-          o.pop();
+          o = [ o[0] ];
           unsignedLEB128_into(n, o);
         }
 
         // encode f64.const ops as ieee754 from raw number
         if (o[0] === Opcodes.f64_const) {
           const n = o[1];
-          o = [...o];
-          o.pop();
-          ieee754_binary64_into(n, o);
+          // o = [ o[0] ];
+          // ieee754_binary64_into(n, o);
+          o = ieee754_binary64(n);
+          if (o.length === 8) o.unshift(Opcodes.f64_const);
         }
 
-        if ((o[0] === Opcodes.call || o[0] === Opcodes.return_call) && o[1] >= importedFuncs.length) {
+        // encode call ops as unsigned leb128 from raw number
+        if ((o[0] === Opcodes.call /* || o[0] === Opcodes.return_call */) && o[1] >= importedFuncs.length) {
           const n = o[1] - importDelta;
-          o = [...o];
-          o.pop();
+          // o = [ o[0] ];
+          o = [ Opcodes.call ];
           unsignedLEB128_into(n, o);
         }
 
+        // encode call indirect ops as types from info
         if (o[0] === Opcodes.call_indirect) {
           o = [...o];
           const params = [];
@@ -338,27 +347,35 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
         if (makeAssembled) wasmNonFlat.push(o);
       }
+      // time('  wasm transform');
 
       if (makeAssembled) {
         x.assembled = { localDecl, wasm, wasmNonFlat };
       }
 
-      return encodeVector([ ...encodeVector(localDecl), ...wasm, Opcodes.end ]);
+      let out = unsignedLEB128(localDecl.length)
+        .concat(localDecl.flat(), wasm, Opcodes.end);
+
+      out.unshift(...unsignedLEB128(out.length));
+
+      // time('  finish');
+      return out;
     }))
   );
+  time('code section');
 
   const typeSection = createSection(
     Section.type,
     encodeVector(types)
   );
+  time('type section');
 
   const dataSection = data.length === 0 ? [] : createSection(
     Section.data,
     encodeVector(data.map(x => {
       if (Prefs.d && x.bytes.length > PageSize) log.warning('assemble', `data (${x.page}) has more bytes than Wasm page size! (${x.bytes.length})`);
 
-      const bytes = encodeVector(x.bytes);
-
+      const bytes = unsignedLEB128(x.bytes.length).concat(x.bytes);
       if (x.page != null) {
         // type: active
         let offset = pages.get(x.page).ind * pageSize;
@@ -372,11 +389,13 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       return bytes;
     }))
   );
+  time('data section');
 
   const dataCountSection = data.length === 0 ? [] : createSection(
     Section.data_count,
     unsignedLEB128(data.length)
   );
+  time('datacount section');
 
   if (Prefs.sections) console.log({
     typeSection: typeSection.map(x => x.toString(16)),

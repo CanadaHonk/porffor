@@ -48,12 +48,18 @@ const cacheAst = (decl, wasm) => {
   return wasm;
 };
 
-const funcRef = (idx, name) => {
+const funcRef = func => {
+  // generate func
+  func.generate?.();
+
   if (globalThis.precompile) return [
-    [ Opcodes.const, 'funcref', name ]
+    [ Opcodes.const, 'funcref', func.name ]
   ];
 
-  return number(idx - importedFuncs.length);
+  return [
+    [ Opcodes.const, func.index - importedFuncs.length ]
+    // [ Opcodes.const, func.index - importedFuncs.length, 'funcref' ]
+  ];
 };
 
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
@@ -96,7 +102,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateNew(scope, decl, global, name));
 
     case 'ThisExpression':
-      return cacheAst(decl, generateThis(scope, decl, global, name));
+      return cacheAst(decl, generateThis(scope, decl));
 
     case 'Literal':
       return cacheAst(decl, generateLiteral(scope, decl, global, name));
@@ -189,6 +195,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
         for (const x of newFuncs) {
           x.export = true;
+
+          // generate func
+          x.generate?.();
         }
       }
 
@@ -562,7 +571,7 @@ const generateIdent = (scope, decl) => {
 
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
       if (Object.hasOwn(funcIndex, name)) {
-        const func = funcs[funcIndex[name] - importedFuncs.length];
+        const func = funcByName(name);
         // if func is internal, or this identifier is an internally generated
         if (func.internal || name[0] === '#') {
           return funcRef(funcIndex[name], name);
@@ -1339,6 +1348,14 @@ const asmFuncToAsm = (scope, func) => {
 
       return idx;
     },
+    funcRef: name => {
+      if (funcIndex[name] == null && builtinFuncs[name]) {
+        includeBuiltin(scope, name);
+      }
+
+      const func = funcByName(name);
+      return funcRef(func);
+    },
     glbl: (opcode, name, type) => {
       const globalName = '#porf#' + name; // avoid potential name clashing with user js
       if (!globals[globalName]) {
@@ -1386,7 +1403,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     wasm = [];
   }
 
-  const existing = funcs.find(x => x.name === name);
+  const existing = funcByName(name);
   if (existing) return existing;
 
   const nameParam = i => localNames[i] ?? (i >= params.length ? ['a', 'b', 'c'][i - params.length] : ['x', 'y', 'z'][i]);
@@ -1445,7 +1462,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     for (const inst of wasm) {
       if (inst.at(-1) === 'read func lut') {
         inst.splice(2, 99);
-        inst.push(...unsignedLEB128(allocPage({}, 'func lut') * pageSize));
+        inst.push(...unsignedLEB128(allocPage({}, 'func lut')));
       }
     }
 
@@ -1615,7 +1632,7 @@ const getNodeType = (scope, node) => {
         return TYPES.number;
       }
 
-      const func = funcs.find(x => x.name === name);
+      const func = funcByName(name);
       if (func) {
         if (func.returnType != null) return func.returnType;
       }
@@ -1850,11 +1867,11 @@ const countLeftover = wasm => {
           }
         }
         else if (inst[0] === Opcodes.call) {
-          let func = funcs.find(x => x.index === inst[1]);
           if (inst[1] < importedFuncs.length) {
-            func = importedFuncs[inst[1]];
+            const func = importedFuncs[inst[1]];
             count = count - func.params + func.returns;
           } else {
+            const func = funcByIndex(inst[1]);
             count = count - func.params.length + func.returns.length;
           }
         } else if (inst[0] === Opcodes.call_indirect) {
@@ -2089,7 +2106,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   // opt: virtualize iifes
   if (isFuncType(decl.callee.type)) {
-    const [ func ] = generateFunc(scope, decl.callee);
+    const [ func ] = generateFunc(scope, decl.callee, true);
     name = func.name;
   }
 
@@ -2676,19 +2693,19 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             [ Opcodes.i32_mul ],
             ...number(4, Valtype.i32),
             [ Opcodes.i32_add ],
-            [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ],
+            [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ],
             [ Opcodes.local_set, flags ],
 
             // check if non-constructor was called with new, if so throw
-            [ Opcodes.local_get, flags ],
-            ...number(0b10, Valtype.i32),
-            [ Opcodes.i32_and ],
-            [ Opcodes.i32_eqz ],
-            [ Opcodes.i32_const, decl._new ? 1 : 0 ],
-            [ Opcodes.i32_and ],
-            [ Opcodes.if, Blocktype.void ],
-              ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`),
-            [ Opcodes.end ],
+            ...(decl._new ? [
+              [ Opcodes.local_get, flags ],
+              ...number(0b10, Valtype.i32),
+              [ Opcodes.i32_and ],
+              [ Opcodes.i32_eqz ],
+              [ Opcodes.if, Blocktype.void ],
+                ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`),
+              [ Opcodes.end ],
+            ] : []),
 
             // [ Opcodes.local_get, funcLocal ],
             // Opcodes.i32_from_u,
@@ -2700,9 +2717,17 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             // [ Opcodes.local_get, funcLocal ],
             // ...number(64, Valtype.i32),
             // [ Opcodes.i32_mul ],
-            // [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ],
+            // [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ],
             // Opcodes.i32_from_u,
             // [ Opcodes.call, 0 ],
+
+            // [ Opcodes.local_get, funcLocal ],
+            // [ Opcodes.call, includeBuiltin(scope, '__Porffor_funcLut_name').index ],
+            // Opcodes.i32_from_u,
+            // ...number(TYPES.bytestring, Valtype.i32),
+            // [ Opcodes.call, includeBuiltin(scope, '__Porffor_printString').index ],
+            // [ Opcodes.drop ],
+            // [ Opcodes.drop ],
 
             // ...number(10),
             // [ Opcodes.call, 1 ],
@@ -2712,7 +2737,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               [ Opcodes.local_get, funcLocal ],
               ...number(64, Valtype.i32),
               [ Opcodes.i32_mul ],
-              [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize), 'read func lut' ]
+              [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ]
             ], tableBc, valtypeBinary)
           ],
 
@@ -2728,7 +2753,11 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       ];
     }
 
-  const func = funcs[idx - importedFuncs.length]; // idx === scope.index ? scope : funcs.find(x => x.index === idx);
+  const func = funcByIndex(idx);
+
+  // generate func
+  if (func) func.generate?.();
+
   const userFunc = func && !func.internal;
   const typedParams = userFunc || func?.typedParams;
   const typedReturns = (userFunc && func.returnType == null) || builtinFuncs[name]?.typedReturns;
@@ -2839,7 +2868,7 @@ const generateNew = (scope, decl, _global, _name) => generateCall(scope, {
   _new: true
 }, _global, _name);
 
-const generateThis = (scope, decl, _global, _name) => {
+const generateThis = (scope, decl) => {
   if (!scope.constr) {
     // this in a non-constructor context is a reference to globalThis
     return [
@@ -2849,7 +2878,7 @@ const generateThis = (scope, decl, _global, _name) => {
   }
 
   // opt: do not check for pure constructors
-  if (scope._onlyConstr) return [
+  if (scope._onlyConstr || scope._onlyThisMethod || decl._noGlobalThis) return [
     ...getVar(scope, '#this'),
     ...setLastType(scope, getVarType(scope, '#this'))
   ];
@@ -3200,7 +3229,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
         init.id = { name };
         // if this is a const declaration, we can just add it to func index and treat it like a normal function declaration
         if (kind === 'const') {
-          generateFunc(scope, init);
+          generateFunc(scope, init, true);
           createVar(scope, kind, name, global);
 
           return out;
@@ -5074,7 +5103,8 @@ const generateMeta = (scope, decl) => {
 
 let pages = new Map();
 const allocPage = (scope, reason, type) => {
-  if (pages.has(reason)) return pages.get(reason).ind;
+  const ptr = i => i === 0 ? 16 : (i * pageSize);
+  if (pages.has(reason)) return ptr(pages.get(reason).ind);
 
   if (reason.startsWith('array:')) pages.hasArray = true;
   if (reason.startsWith('string:')) pages.hasString = true;
@@ -5087,7 +5117,7 @@ const allocPage = (scope, reason, type) => {
   scope.pages ??= new Map();
   scope.pages.set(reason, { ind, type });
 
-  return ind;
+  return ptr(ind);
 };
 
 const itemTypeToValtype = {
@@ -5435,7 +5465,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
 
     for (const x of decl.properties) {
       // method, shorthand are made into useful values by parser for us :)
-      const { type, argument, computed, kind, key, value } = x;
+      let { type, argument, computed, kind, key, value } = x;
 
       if (type === 'SpreadElement') {
         out.push(
@@ -5460,6 +5490,18 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         type: 'Literal',
         value: key.name
       };
+
+      if (isFuncType(value.type)) {
+        let id = value.id;
+
+        // todo: support computed names properly
+        if (typeof k.value === 'string') id ??= {
+          type: 'Identifier',
+          name: k.value
+        };
+
+        value = { ...value, id };
+      }
 
       out.push(
         [ Opcodes.local_get, tmp ],
@@ -5557,7 +5599,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     // todo: support optional
 
     if (!scope.noFastFuncMembers) {
-      const func = funcs.find(x => x.name === name);
+      const func = funcByName(name);
       if (func) return withType(scope, number(countLength(func, name)), TYPES.number);
 
       if (Object.hasOwn(builtinFuncs, name)) return withType(scope, number(countLength(builtinFuncs[name], name)), TYPES.number);
@@ -5967,7 +6009,7 @@ const generateClass = (scope, decl) => {
         body: []
       }
     }),
-    id: root,
+    id: root
   };
 
   const [ func, out ] = generateFunc(scope, {
@@ -5975,6 +6017,9 @@ const generateClass = (scope, decl) => {
     _onlyConstr: true,
     type: expr ? 'FunctionExpression' : 'FunctionDeclaration'
   });
+
+  // always generate class constructor funcs
+  func.generate();
 
   if (decl.superClass) {
     out.push(
@@ -6028,9 +6073,26 @@ const generateClass = (scope, decl) => {
       outArr = func.wasm;
       outOp = 'unshift';
       object = {
-        type: 'ThisExpression'
+        type: 'ThisExpression',
+        _noGlobalThis: true
       };
       outScope = func;
+    }
+
+    if (isFuncType(value.type) && type === 'MethodDefinition') {
+      let id = value.id;
+
+      // todo: support computed names properly
+      if (typeof k.value === 'string') id ??= {
+        type: 'Identifier',
+        name: k.value
+      };
+
+      value = {
+        ...value,
+        id,
+        _onlyThisMethod: true
+      };
     }
 
     outArr[outOp](
@@ -6108,14 +6170,25 @@ const objectHack = node => {
   for (const x in node) {
     if (node[x] != null && typeof node[x] === 'object') {
       if (node[x].type) node[x] = objectHack(node[x]);
-      if (Array.isArray(node[x])) node[x] = node[x].map(y => objectHack(y));
+      if (Array.isArray(node[x])) node[x] = node[x].map(objectHack);
     }
   }
 
   return node;
 };
 
-const generateFunc = (scope, decl) => {
+const funcByIndex = idx => {
+  if (idx == null ||
+      idx < importedFuncs.length) return null;
+
+  const func = funcs[idx - importedFuncs.length];
+  if (func && func.index === idx) return func;
+
+  return funcs.find(x => x.index === idx);
+};
+const funcByName = name => funcByIndex(funcIndex[name]);
+
+const generateFunc = (scope, decl, outUnused = false) => {
   const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
   if (decl.type.startsWith('Class')) {
     const out = generateClass(scope, {
@@ -6123,7 +6196,7 @@ const generateFunc = (scope, decl) => {
       id: { name }
     });
 
-    const func = funcs.find(x => x.name === name);
+    const func = funcByName(name);
     return [ func, out ];
   }
 
@@ -6141,37 +6214,161 @@ const generateFunc = (scope, decl) => {
       (decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program') &&
       // not async or generator
       !decl.async && !decl.generator,
-    _onlyConstr: decl._onlyConstr,
+    _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict,
     variables: {},
-    upper: scope
+    upper: scope,
+
+    generate() {
+      if (func.wasm) return func.wasm;
+
+      // generating, stub _wasm
+      func.wasm = [];
+
+      let body = objectHack(decl.body);
+      if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
+        // hack: () => 0 -> () => return 0
+        body = {
+          type: 'ReturnStatement',
+          argument: decl.body
+        };
+      }
+
+      if (body.type === 'BlockStatement') {
+        // basically, because we already generate the scope for the function above, we need to mark this so we don't do it again
+        body._funcBody = true;
+      }
+
+      func._inParameterList = true;
+
+      for (const x in defaultValues) {
+        prelude.push(
+          ...getVarType(func, x),
+          ...number(TYPES.undefined, Valtype.i32),
+          [ Opcodes.i32_eq ],
+          [ Opcodes.if, Blocktype.void ],
+            ...setVar(func, x, generate(func, defaultValues[x], false, x), getNodeType(func, defaultValues[x])),
+          [ Opcodes.end ]
+        );
+      }
+
+      for (const x in destructuredArgs) {
+        prelude.push(
+          ...generateVarDstr(func, 'var', destructuredArgs[x], { type: 'Identifier', name: x }, undefined, false)
+        );
+      }
+
+      delete func._inParameterList;
+
+      if (decl.async) {
+        // make out promise local
+        allocVar(func, '#async_out_promise', false, false);
+        func.async = true;
+      }
+
+      const wasm = prelude.concat(generate(func, body));
+
+      if (decl.async) {
+        // make promise at the start
+        wasm.unshift(
+          [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_create').index ],
+          [ Opcodes.drop ],
+          [ Opcodes.local_set, func.locals['#async_out_promise'].idx ]
+        );
+
+        // todo: wrap in try and reject thrown value once supported
+      }
+
+      if (!globalThis.precompile && func.constr && !func._onlyThisMethod) {
+        wasm.unshift(
+          // opt: do not check for pure constructors
+          ...(func._onlyConstr ? [] : [
+            // if being constructed
+            ...getVar(func, '#newtarget'),
+            Opcodes.i32_to_u,
+            [ Opcodes.if, Blocktype.void ],
+          ]),
+            // set prototype of this ;)
+            ...generate(func, setObjProp({ type: 'ThisExpression', _noGlobalThis: true }, '__proto__', getObjProp(func.name, 'prototype'))),
+          ...(func._onlyConstr ? [] : [ [ Opcodes.end ] ])
+        );
+      }
+
+      if (name === 'main') {
+        func.gotLastType = true;
+        func.export = true;
+        func.returns = [ valtypeBinary, Valtype.i32 ];
+
+        let finalStatement = decl.body.body[decl.body.body.length - 1];
+        if (finalStatement?.type === 'EmptyStatement') finalStatement = decl.body.body[decl.body.body.length - 2];
+
+        const lastInst = wasm[wasm.length - 1] ?? [ Opcodes.end ];
+        if (lastInst[0] === Opcodes.drop) {
+          if (finalStatement.type.endsWith('Declaration')) {
+            // final statement is decl, force undefined
+            disposeLeftover(wasm);
+            wasm.push(
+              ...number(UNDEFINED),
+              ...number(TYPES.undefined, Valtype.i32)
+            );
+          } else {
+            wasm.splice(wasm.length - 1, 1);
+            wasm.push(...getNodeType(func, finalStatement));
+          }
+        }
+
+        if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
+          if (lastInst[0] === Opcodes.local_set && lastInst[1] === func.locals['#last_type'].idx) {
+            wasm.splice(wasm.length - 1, 1);
+          } else {
+            func.returns = [];
+          }
+        }
+
+        if (lastInst[0] === Opcodes.call) {
+          const callee = funcByIndex(lastInst[1]);
+          if (callee) func.returns = callee.returns.slice();
+            else func.returns = [];
+        }
+
+        // inject promise job runner func at the end of main if job queue is used
+        if (Object.hasOwn(funcIndex, '__ecma262_HostEnqueuePromiseJob')) {
+          wasm.push(
+            [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_runJobs').index ],
+            [ Opcodes.drop ],
+            [ Opcodes.drop ]
+          );
+        }
+
+        if (func.returns.length !== 0 && countLeftover(wasm) === 0) {
+            wasm.push(
+              ...number(UNDEFINED),
+              ...number(TYPES.undefined, Valtype.i32)
+            );
+        }
+      } else {
+        // add end return if not found
+        if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
+          wasm.push(...generateReturn(func, {}));
+        }
+      }
+
+      return func.wasm = wasm;
+    }
   };
 
   if (!decl._forceIndirect) funcIndex[name] = func.index;
   funcs.push(func);
 
-  let out = [];
-  if (decl.type === 'FunctionDeclaration' || (decl.type === 'FunctionExpression' && decl.id)) {
-    createVar(scope, 'var', name);
-    out.push(
-      ...setVar(scope, name, funcRef(func.index, name), number(TYPES.function, Valtype.i32))
-    );
-  }
-  if (decl.type.endsWith('Expression')) {
-    out.push(...funcRef(func.index, name));
-  }
-
   let errorWasm = null;
   if (decl.generator) errorWasm = todo(scope, 'generator functions are not supported');
 
   if (errorWasm) {
+    // func.params = [];
     func.wasm = errorWasm.concat([
       ...number(UNDEFINED),
       ...number(TYPES.undefined, Valtype.i32)
     ]);
-    func.params = [];
-    func.constr = false;
-    return [ func, out ];
   }
 
   if (typedInput && decl.returnType) {
@@ -6225,7 +6422,6 @@ const generateFunc = (scope, decl) => {
     prelude.push(
       ...setVar(func, name, [ [ Opcodes.local_get, idx ] ], [ [ Opcodes.local_get, idx + 1 ] ], false, true)
     );
-
     if (typedInput && params[i].typeAnnotation) {
       const typeAnno = extractTypeAnnotation(params[i]);
       addVarMetadata(func, name, false, typeAnno);
@@ -6251,134 +6447,26 @@ const generateFunc = (scope, decl) => {
     }
   }
 
-  func.params = Object.values(func.locals).map(x => x.type);
-
-  let body = objectHack(decl.body);
-  if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
-    // hack: () => 0 -> () => return 0
-    body = {
-      type: 'ReturnStatement',
-      argument: decl.body
-    };
-  }
-
-  if (body.type === 'BlockStatement') {
-    // basically, because we already generate the scope for the function above, we need to mark this so we don't do it again
-    body._funcBody = true;
-  }
-
-  for (const x in defaultValues) {
-    prelude.push(
-      ...getVarType(func, x),
-      ...number(TYPES.undefined, Valtype.i32),
-      [ Opcodes.i32_eq ],
-      [ Opcodes.if, Blocktype.void ],
-        ...setVar(func, x, generate(func, defaultValues[x], false, x), getNodeType(func, defaultValues[x])),
-      [ Opcodes.end ]
-    );
-  }
-
-  for (const x in destructuredArgs) {
-    prelude.push(
-      ...generateVarDstr(func, 'var', destructuredArgs[x], { type: 'Identifier', name: x }, undefined, false)
-    );
-  }
-
   delete func._inParameterList;
 
-  if (decl.async) {
-    // make out promise local
-    allocVar(func, '#async_out_promise', false, false);
-    func.async = true;
-  }
+  func.params = Object.values(func.locals).map(x => x.type);
 
-  const wasm = func.wasm = prelude.concat(generate(func, body));
+  // force generate for main
+  if (name === 'main') func.generate();
 
-  if (decl.async) {
-    // make promise at the start
-    wasm.unshift(
-      [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_create').index ],
-      [ Opcodes.drop ],
-      [ Opcodes.local_set, func.locals['#async_out_promise'].idx ]
-    );
+  // force generate all for precompile
+  if (globalThis.precompile) func.generate();
 
-    // todo: wrap in try and reject thrown value once supported
-  }
-
-  if (!globalThis.precompile && func.constr) {
-    wasm.unshift(
-      // opt: do not check for pure constructors
-      ...(func._onlyConstr ? [] : [
-        // if being constructed
-        ...getVar(func, '#newtarget'),
-        Opcodes.i32_to_u,
-        [ Opcodes.if, Blocktype.void ],
-      ]),
-        // set prototype of this ;)
-        ...generate(func, setObjProp({ type: 'ThisExpression' }, '__proto__', getObjProp(func.name, 'prototype'))),
-      ...(func._onlyConstr ? [] : [ [ Opcodes.end ] ])
+  let out = [];
+  if (decl.type === 'FunctionDeclaration' || (decl.type === 'FunctionExpression' && decl.id)) {
+    createVar(scope, 'var', name);
+    out.push(
+      ...setVar(scope, name, funcRef(func.index, name), number(TYPES.function, Valtype.i32))
     );
   }
-
-  if (name === 'main') {
-    func.gotLastType = true;
-    func.export = true;
-    func.returns = [ valtypeBinary, Valtype.i32 ];
-
-    let finalStatement = decl.body.body[decl.body.body.length - 1];
-    if (finalStatement?.type === 'EmptyStatement') finalStatement = decl.body.body[decl.body.body.length - 2];
-
-    const lastInst = func.wasm[func.wasm.length - 1] ?? [ Opcodes.end ];
-    if (lastInst[0] === Opcodes.drop) {
-      if (finalStatement.type.endsWith('Declaration')) {
-        // final statement is decl, force undefined
-        disposeLeftover(wasm);
-        func.wasm.push(
-          ...number(UNDEFINED),
-          ...number(TYPES.undefined, Valtype.i32)
-        );
-      } else {
-        func.wasm.splice(func.wasm.length - 1, 1);
-        func.wasm.push(...getNodeType(func, finalStatement));
-      }
-    }
-
-    if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
-      if (lastInst[0] === Opcodes.local_set && lastInst[1] === func.locals['#last_type'].idx) {
-        func.wasm.splice(func.wasm.length - 1, 1);
-      } else {
-        func.returns = [];
-      }
-    }
-
-    if (lastInst[0] === Opcodes.call) {
-      const callee = funcs.find(x => x.index === lastInst[1]);
-      if (callee) func.returns = callee.returns.slice();
-        else func.returns = [];
-    }
-
-    // inject promise job runner func at the end of main if job queue is used
-    if (Object.hasOwn(funcIndex, '__ecma262_HostEnqueuePromiseJob')) {
-      wasm.push(
-        [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_runJobs').index ],
-        [ Opcodes.drop ],
-        [ Opcodes.drop ]
-      );
-    }
-
-    if (func.returns.length !== 0 && countLeftover(wasm) === 0) {
-      func.wasm.push(
-        ...number(UNDEFINED),
-        ...number(TYPES.undefined, Valtype.i32)
-      );
-    }
-  } else {
-    // add end return if not found
-    if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
-      wasm.push(...generateReturn(func, {}));
-    }
+  if (decl.type.endsWith('Expression')) {
+    out.push(...funcRef(func.index, name));
   }
-
   return [ func, out ];
 };
 
@@ -6649,11 +6737,6 @@ export default program => {
 
   program.id = { name: 'main' };
 
-  const scope = {
-    locals: {},
-    localInd: 0
-  };
-
   program.body = {
     type: 'BlockStatement',
     body: program.body
@@ -6661,10 +6744,61 @@ export default program => {
 
   if (Prefs.astLog) console.log(JSON.stringify(program.body.body, null, 2));
 
-  const [ main ] = generateFunc(scope, program);
+  const [ main ] = generateFunc({}, program);
 
   // if blank main func and other exports, remove it
   if (main.wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(main.index - importedFuncs.length, 1);
+
+  // make ~empty funcs for never generated funcs
+  // todo: these should just be deleted once able
+  for (let i = 0; i < funcs.length; i++) {
+    const f = funcs[i];
+    if (f.internal || f.wasm) {
+      continue;
+    }
+
+    // make wasm just return 0s for expected returns
+    f.wasm = f.returns.map(x => number(0, x)).flat();
+
+    // alternative: make func empty, may break some indirect calls
+    // f.wasm = [];
+    // f.returns = [];
+    // f.params = [];
+    // f.locals = {};
+  }
+
+  // // remove never generated functions
+  // let indexDelta = 0;
+  // const funcRemap = new Map();
+  // for (let i = 0; i < funcs.length; i++) {
+  //   const f = funcs[i];
+  //   if (f.internal || f.wasm) {
+  //     if (indexDelta) {
+  //       funcRemap.set(f.index, f.index - indexDelta);
+  //       f.index -= indexDelta;
+  //     }
+  //     continue;
+  //   }
+
+  //   funcs.splice(i--, 1);
+  //   indexDelta++;
+  // }
+
+  // // remap call ops
+  // if (indexDelta) for (let i = 0; i < funcs.length; i++) {
+  //   const wasm = funcs[i].wasm;
+  //   for (let j = 0; j < wasm.length; j++) {
+  //     const op = wasm[j];
+  //     if (op[0] === Opcodes.call) {
+  //       let idx = op[1];
+  //       wasm[j] = [ Opcodes.call, funcRemap.get(idx) ?? idx ];
+  //     }
+
+  //     if (op[0] === Opcodes.const && op[2] === 'funcref') {
+  //       wasm[j] = [ Opcodes.const, funcRemap.get(op[1] + importedFuncs.length) - importedFuncs.length ];
+  //     }
+  //   }
+  // }
 
   // handle scoping logic
   if (!globalThis.precompile) {
