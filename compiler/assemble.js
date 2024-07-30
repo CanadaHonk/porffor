@@ -72,6 +72,14 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     return typeCache[hash] = idx;
   };
 
+  let t = performance.now();
+  const time = msg => {
+    if (!Prefs.profileAssemble) return;
+
+    console.log(`${' '.repeat(50)}\r[${(performance.now() - t).toFixed(2)}ms] ${msg}`);
+    t = performance.now();
+  };
+
   let importFuncs = [], importDelta = 0;
   if (optLevel < 1 || !Prefs.treeshakeWasmImports || noTreeshake) {
     importFuncs = importedFuncs;
@@ -102,17 +110,21 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     f.asmIndex = f.index - importDelta;
   }
 
+  time('treeshake import funcs');
+
   if (Prefs.optLog) log('assemble', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
     encodeVector(importFuncs.map(x => [ 0, ...encodeString(x.import), ExportDesc.func, getType(typeof x.params === 'object' ? x.params : new Array(x.params).fill(valtypeBinary), new Array(x.returns).fill(valtypeBinary)) ]))
   );
+  time('import section');
 
   const funcSection = createSection(
     Section.func,
     encodeVector(funcs.map(x => getType(x.params, x.returns))) // type indexes
   );
+  time('func section');
 
   const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
 
@@ -120,6 +132,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     Section.table,
     encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(funcs.length) ] ])
   );
+  time('table section');
 
   const elementSection = !funcs.table ? [] : createSection(
     Section.element,
@@ -129,6 +142,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       ...encodeVector(funcs.map(x => unsignedLEB128(x.asmIndex)))
     ] ])
   );
+  time('element section');
 
   if (pages.has('func lut')) {
     const offset = pages.get('func lut').ind * pageSize;
@@ -181,8 +195,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     });
     data.addedFuncArgcLut = true;
   }
-
-  // const t0 = performance.now();
+  time('func lut');
 
   // specially optimized assembly for globals as this version is much (>5x) faster than traditional createSection()
   const globalsValues = Object.values(globals);
@@ -224,17 +237,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     unsignedLEB128_into(data.length, globalSection);
     globalSection = globalSection.concat(data);
   }
-
-  // if (Prefs.profileCompiler) {
-  //   const log = console.log;
-  //   console.log = function () {
-  //     log.apply(this, arguments);
-  //     console.log = log;
-  //     console.log(`  a. assembled global section in ${(performance.now() - t0).toFixed(2)}ms\n`);
-  //   };
-  // }
-
-  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, ...unsignedLEB128(x.asmIndex) ]);
+  time('global section');
 
   if (Prefs.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
   if (optLevel === 0) pages.set('O0 precaution', 0);
@@ -244,9 +247,13 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     Section.memory,
     encodeVector([ [ 0x00, ...unsignedLEB128(Math.ceil((pages.size * pageSize) / PageSize)) ] ])
   );
+  time('memory section');
+
+  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, ...unsignedLEB128(x.asmIndex) ]);
 
   // export memory if used
   if (usesMemory) exports.unshift([ ...encodeString('$'), ExportDesc.mem, 0x00 ]);
+  time('gen exports');
 
   const tagSection = tags.length === 0 ? [] : createSection(
     Section.tag,
@@ -255,11 +262,13 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
   // export first tag if used
   if (tags.length !== 0) exports.unshift([ ...encodeString('0'), ExportDesc.tag, 0x00 ]);
+  time('tag section');
 
   const exportSection = createSection(
     Section.export,
     encodeVector(exports)
   );
+  time('export section');
 
   const codeSection = createSection(
     Section.code,
@@ -342,11 +351,13 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       return encodeVector([ ...encodeVector(localDecl), ...wasm, Opcodes.end ]);
     }))
   );
+  time('code section');
 
   const typeSection = createSection(
     Section.type,
     encodeVector(types)
   );
+  time('type section');
 
   const dataSection = data.length === 0 ? [] : createSection(
     Section.data,
@@ -368,11 +379,13 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       return bytes;
     }))
   );
+  time('data section');
 
   const dataCountSection = data.length === 0 ? [] : createSection(
     Section.data_count,
     unsignedLEB128(data.length)
   );
+  time('datacount section');
 
   if (Prefs.sections) console.log({
     typeSection: typeSection.map(x => x.toString(16)),
