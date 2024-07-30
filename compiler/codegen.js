@@ -102,7 +102,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateNew(scope, decl, global, name));
 
     case 'ThisExpression':
-      return cacheAst(decl, generateThis(scope, decl, global, name));
+      return cacheAst(decl, generateThis(scope, decl));
 
     case 'Literal':
       return cacheAst(decl, generateLiteral(scope, decl, global, name));
@@ -2629,7 +2629,7 @@ const generateNew = (scope, decl, _global, _name) => generateCall(scope, {
   _new: true
 }, _global, _name);
 
-const generateThis = (scope, decl, _global, _name) => {
+const generateThis = (scope, decl) => {
   if (!scope.constr) {
     // this in a non-constructor context is a reference to globalThis
     return [
@@ -2639,7 +2639,7 @@ const generateThis = (scope, decl, _global, _name) => {
   }
 
   // opt: do not check for pure constructors
-  if (scope._onlyConstr) return [
+  if (scope._onlyConstr || decl._noGlobalThis) return [
     [ Opcodes.local_get, scope.locals['#this'].idx ],
     ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
   ];
@@ -5759,7 +5759,8 @@ const generateClass = (scope, decl) => {
       outArr = func.wasm;
       outOp = 'unshift';
       object = {
-        type: 'ThisExpression'
+        type: 'ThisExpression',
+        _noGlobalThis: true
       };
       outScope = func;
     }
@@ -5956,7 +5957,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
             [ Opcodes.if, Blocktype.void ],
           ]),
             // set prototype of this ;)
-            ...generate(func, setObjProp({ type: 'ThisExpression' }, '__proto__', getObjProp(func.name, 'prototype'))),
+            ...generate(func, setObjProp({ type: 'ThisExpression', _noGlobalThis: true }, '__proto__', getObjProp(func.name, 'prototype'))),
           ...(func._onlyConstr ? [] : [ [ Opcodes.end ] ])
         );
       }
