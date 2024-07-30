@@ -1,18 +1,18 @@
 /// sta.js
 // define our $262 here too
-var $262 = {
-  global: globalThis,
-  gc() { /* noop */ },
-  detachArrayBuffer(buffer) {
-    return Porffor.arraybuffer.detach(buffer);
-  },
-  getGlobal(name) {
-    return globalThis[name];
-  },
-  // todo: setGlobal
-  destroy() { /* noop */ },
-  agent: {}
-};
+// var $262 = {
+//   global: globalThis,
+//   gc() { /* noop */ },
+//   detachArrayBuffer(buffer) {
+//     return Porffor.arraybuffer.detach(buffer);
+//   },
+//   getGlobal(name) {
+//     return globalThis[name];
+//   },
+//   // todo: setGlobal
+//   destroy() { /* noop */ },
+//   agent: {}
+// };
 
 function Test262Error() {}
 
