@@ -1146,8 +1146,9 @@ local.set ${x}`;
   return out;
 };
 
-export const __String_prototype_repeat = (_this: string, count: number) => {
+export const __String_prototype_repeat = (_this: string, cnt: any) => {
   let out: string = Porffor.allocate();
+  const count: number = ecma262.ToIntegerOrInfinity(cnt);
 
   count |= 0;
   if (count < 0) throw new RangeError('Invalid count value');
@@ -1179,8 +1180,9 @@ memory.copy 0 0`;
   return out;
 };
 
-export const __ByteString_prototype_repeat = (_this: string, count: number) => {
+export const __ByteString_prototype_repeat = (_this: string, cnt: any) => {
   let out: bytestring = Porffor.allocate();
+  const count: number = ecma262.ToIntegerOrInfinity(cnt);
 
   count |= 0;
   if (count < 0) throw new RangeError('Invalid count value');
