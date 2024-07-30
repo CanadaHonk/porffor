@@ -154,6 +154,7 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Rest parameters (`(...foo) => { ... }`)
 - `this`
 - Constructors (`new Foo`)
+- Non-local variables (`let foo = 0; function bar() { return foo; }`)
 
 ### Built-ins
 
