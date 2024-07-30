@@ -1,5 +1,5 @@
 # Porffor &nbsp;<sup><sub>/ˈpɔrfɔr/ &nbsp;*(poor-for)*</sup></sub>
-A from-scratch experimental **AOT** optimizing JS/TS -> Wasm/C engine/compiler/runtime in JS. Not serious/intended for (real) use.<br>
+A from-scratch experimental **AOT** optimizing JS/TS -> Wasm/C engine/compiler/runtime in JS. Research project, not yet intended for serious use.<br>
 
 <img src="https://github.com/CanadaHonk/porffor/assets/19228318/de8ad753-8ce3-4dcd-838e-f4d49452f8f8" alt="Screenshot of terminal showing Porffor running and compiling a hello world" width="60%">
 
@@ -67,12 +67,10 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 - `-O2` to enable advanced opt (inlining). unstable!
 - `-O3` to enable advanceder opt (precompute const math). unstable!
 
-## Limitations
-- Little built-ins/prototype
-- No object prototypes yet
-- No async/promise/await
+## Current limitations
+- Limited async support
 - No variables between scopes (except args and globals)
-- No `eval()` etc (since it is AOT)
+- No `eval()`/`Function()` etc (since it is AOT)
 
 ## Sub-engines
 
@@ -154,6 +152,8 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Rest parameters (`(...foo) => { ... }`)
 - `this`
 - Constructors (`new Foo`)
+- Classes (`class A {}`)
+- Await (`await promise`)
 - Non-local variables (`let foo = 0; function bar() { return foo; }`)
 
 ### Built-ins
@@ -177,6 +177,7 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - `parseInt`
 - Spec-compliant `Date`
 - WIP typed arrays (`Uint8Array`, `Int32Array`, etc)
+- Synchronous `Promise`
 
 ### Custom
 
@@ -280,7 +281,6 @@ No particular order and no guarentees, just what could happen soon™
   - Support memory
   - Support exceptions
 - Exceptions
-  - `try { } finally { }`
   - Rethrowing inside catch
 - Optimizations
   - Rewrite local indexes per func for smallest local header and remove unused idxs
@@ -324,8 +324,7 @@ Porffor intentionally does not use Wasm proposals which are not commonly impleme
 `purple` in Welsh is `porffor`. Why purple?
 - No other JS engine is purple colored
 - Purple is pretty cool
-- Purple apparently represents "ambition", which is.. one word to describe this project
-- The hard to speak name is also the noise your brain makes in reaction to this idea!
+- Purple apparently represents "ambition", which is one word to describe this project
 
 ### 2. Why at all?
 Yes!

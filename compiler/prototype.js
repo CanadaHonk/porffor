@@ -296,80 +296,6 @@ export const PrototypeFuncs = function() {
       // load current string ind {arg}
       [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
       Opcodes.i32_from_u
-    ],
-
-    isWellFormed: (pointer, length, _1, _2, iTmp, iTmp2) => [
-      // note: we cannot presume it begins as 0 in case it was used previously
-      ...pointer,
-      [ Opcodes.local_set, iTmp ],
-
-      // use cached length as end pointer
-      ...length.getCachedI32(),
-      ...number(ValtypeSize.i16, Valtype.i32),
-      [ Opcodes.i32_mul ],
-      ...pointer,
-      [ Opcodes.i32_add ],
-      ...length.setCachedI32(),
-
-      [ Opcodes.loop, Blocktype.void ],
-
-      [ Opcodes.block, Blocktype.void ],
-
-      [ Opcodes.local_get, iTmp ],
-      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
-      [ Opcodes.local_set, iTmp2 ],
-
-      // if not surrogate, continue
-      [ Opcodes.local_get, iTmp2 ],
-      ...number(0xF800, Valtype.i32),
-      [ Opcodes.i32_and ],
-      ...number(0xD800, Valtype.i32),
-      [ Opcodes.i32_ne ],
-      [ Opcodes.br_if, 0 ],
-
-      // if not leading surrogate, return false
-      [ Opcodes.local_get, iTmp2 ],
-      ...number(0xDC00, Valtype.i32),
-      [ Opcodes.i32_ge_s ],
-      [ Opcodes.if, Blocktype.void ],
-      ...number(0),
-      [ Opcodes.br, 3 ],
-      [ Opcodes.end ],
-
-      // if not followed by trailing surrogate, return false
-      [ Opcodes.local_get, iTmp ],
-      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 + ValtypeSize.i16 ],
-      ...number(0xFC00, Valtype.i32),
-      [ Opcodes.i32_and ],
-      ...number(0xDC00, Valtype.i32),
-      [ Opcodes.i32_ne ],
-      [ Opcodes.if, Blocktype.void ],
-      ...number(0),
-      [ Opcodes.br, 3 ],
-      [ Opcodes.end ],
-
-      // bump index again since gone through two valid chars
-      [ Opcodes.local_get, iTmp ],
-      ...number(ValtypeSize.i16, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_set, iTmp ],
-
-      [ Opcodes.end ],
-
-      // bump pointer and loop if not at the end
-      [ Opcodes.local_get, iTmp ],
-      ...number(ValtypeSize.i16, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_tee, iTmp ],
-
-      ...length.getCachedI32(), // end pointer
-      [ Opcodes.i32_ne ],
-      [ Opcodes.br_if, 0 ],
-
-      [ Opcodes.end ],
-
-      // return true
-      ...number(1)
     ]
   };
 
@@ -379,10 +305,6 @@ export const PrototypeFuncs = function() {
   this[TYPES.string].charCodeAt.returnType = TYPES.number;
   this[TYPES.string].charCodeAt.local = Valtype.i32;
   this[TYPES.string].charCodeAt.noPointerCache = zeroChecks.charcodeat;
-
-  this[TYPES.string].isWellFormed.local = Valtype.i32;
-  this[TYPES.string].isWellFormed.local2 = Valtype.i32;
-  this[TYPES.string].isWellFormed.returnType = TYPES.boolean;
 
   if (Prefs.bytestring) {
     this[TYPES.bytestring] = {
@@ -499,11 +421,6 @@ export const PrototypeFuncs = function() {
         // load current string ind {arg}
         [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
         Opcodes.i32_from_u
-      ],
-
-      isWellFormed: () => [
-        // we know it must be true as it is a bytestring lol
-        ...number(1)
       ]
     };
 
@@ -513,9 +430,5 @@ export const PrototypeFuncs = function() {
     this[TYPES.bytestring].charCodeAt.returnType = TYPES.number;
     this[TYPES.bytestring].charCodeAt.local = Valtype.i32;
     this[TYPES.bytestring].charCodeAt.noPointerCache = zeroChecks.charcodeat;
-
-    this[TYPES.bytestring].isWellFormed.local = Valtype.i32;
-    this[TYPES.bytestring].isWellFormed.local2 = Valtype.i32;
-    this[TYPES.bytestring].isWellFormed.returnType = TYPES.boolean;
   }
 };
