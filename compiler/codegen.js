@@ -5163,7 +5163,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
 
     for (const x of decl.properties) {
       // method, shorthand are made into useful values by parser for us :)
-      const { type, argument, computed, kind, key, value } = x;
+      let { type, argument, computed, kind, key, value } = x;
 
       if (type === 'SpreadElement') {
         out.push(
@@ -5188,6 +5188,18 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         type: 'Literal',
         value: key.name
       };
+
+      if (isFuncType(value.type)) {
+        let id = value.id;
+
+        // todo: support computed names properly
+        if (typeof k.value === 'string') id ??= {
+          type: 'Identifier',
+          name: k.value
+        };
+
+        value = { ...value, id };
+      }
 
       out.push(
         [ Opcodes.local_get, tmp ],
@@ -5695,7 +5707,7 @@ const generateClass = (scope, decl) => {
         body: []
       }
     }),
-    id: root,
+    id: root
   };
 
   const [ func, out ] = generateFunc(scope, {
@@ -5765,10 +5777,21 @@ const generateClass = (scope, decl) => {
       outScope = func;
     }
 
-    if (isFuncType(value.type)) value = {
-      ...value,
-      _onlyConstr: true
-    };
+    if (isFuncType(value.type) && type === 'MethodDefinition') {
+      let id = value.id;
+
+      // todo: support computed names properly
+      if (typeof k.value === 'string') id ??= {
+        type: 'Identifier',
+        name: k.value
+      };
+
+      value = {
+        ...value,
+        id,
+        _onlyConstr: true
+      };
+    }
 
     outArr[outOp](
       ...generate(outScope, object),
