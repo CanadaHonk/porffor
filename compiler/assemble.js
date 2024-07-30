@@ -103,9 +103,6 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     importDelta = importedFuncs.length - importFuncs.length;
   }
 
-  // fix call indexes for non-imports
-  // also fix call_indirect types
-  // also encode call indexes
   for (const f of funcs) {
     f.asmIndex = f.index - importDelta;
   }
@@ -320,7 +317,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
         // encode call ops as unsigned leb128 from raw number
         if ((o[0] === Opcodes.call /* || o[0] === Opcodes.return_call */) && o[1] >= importedFuncs.length) {
           const n = o[1] - importDelta;
-          o = [ o[0] ];
+          // o = [ o[0] ];
+          o = [ Opcodes.call ];
           unsignedLEB128_into(n, o);
         }
 
