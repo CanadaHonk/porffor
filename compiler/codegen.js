@@ -309,15 +309,15 @@ const lookupName = (scope, _name) => {
 
 const findVar = (scope, name) => {
   do {
-    if (scope.variables && Object.hasOwn(scope.variables, name)) {
-      return scope.variables[name];
+    if (scope.variables && scope.variables.has(name)) {
+      return scope.variables.get(name);
     }
 
     if (scope.scopeQueue?.length > 0) {
       for (let i = scope.scopeQueue.length - 1; i >= 0; i--) {
         const vars = scope.scopeQueue[i];
-        if (Object.hasOwn(vars, name)) {
-          return vars[name];
+        if (vars.has(name)) {
+          return vars.get(name);
         }
       }
     }
@@ -343,7 +343,13 @@ const createVar = (scope, kind, name, global, type = true) => {
   // var and bare declarations don't respect block statements
   const target = kind === 'var' || kind === 'bare' ? findTopScope(scope) : scope;
 
-  const variable = target.variables[name] ??= { kind, index: target.index, nonLocal: false, name };
+  let variable;
+  if (target.variables.has(name)) {
+    variable = target.variables.get(name);
+  } else {
+    variable = { kind, index: target.index, nonLocal: false, name };
+    target.variables.set(name, variable);
+  }
   if (variableNames.has(name)) {
     if (variableNames.get(name) !== variable) {
       // this just changes the eventual name of the variable, not the current one
@@ -351,6 +357,8 @@ const createVar = (scope, kind, name, global, type = true) => {
     }
   }
   variableNames.set(name, variable);
+
+  if (variable.index == undefined) throw new Error('wtf');
 
   variable.initialized = true;
   if (!type) {
@@ -368,12 +376,12 @@ const pushScope = (scope) => {
   scope.scopeQueue ??= [];
   const vars = scope.variables;
   scope.scopeQueue.push(vars);
-  scope.variables = {};
+  scope.variables = new Map();
   return scope;
 }
 
 const popScope = (scope) => {
-  const vars = scope.scopeQueue.pop() ?? {};
+  const vars = scope.scopeQueue.pop() ?? new Map();
   scope.variables = vars;
 }
 
@@ -428,7 +436,7 @@ const setVar = (scope, name, wasm, typeWasm, tee = false, initalizing = false) =
       }
 
       if (variable.nonLocal) out.unshift(
-        [ 'var.initialized', name ],
+        [ 'var.initialized', variable ],
         [ Opcodes.i32_eqz ],
         [ Opcodes.if, Blocktype.void ],
           ...internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`),
@@ -6216,7 +6224,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
       !decl.async && !decl.generator,
     _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict,
-    variables: {},
+    variables: new Map(),
     upper: scope,
 
     generate() {
@@ -6529,7 +6537,14 @@ const generateCode = (scope, decl) => {
     }
 
     for (const name of names) {
-      blockScope.variables[name] = { nonLocal: false, kind: decl.kind, index: scope.index, name };
+      if (!blockScope.variables.has(name)) {
+        blockScope.variables.set(name, {
+          nonLocal: false,
+          kind: decl.kind,
+          index: scope.index,
+          name
+        });
+      }
     }
   }
 
@@ -6706,6 +6721,7 @@ export default program => {
   data = [];
   currentFuncIndex = importedFuncs.length;
   typeswitchDepth = 0;
+  variableNames.clear();
 
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
 
