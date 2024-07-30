@@ -332,7 +332,7 @@ const findTopScope = (scope) => {
   } while (scope = scope.upper);
 }
 
-let variableNames = new Map();
+const variableNames = new Map();
 
 const createVar = (scope, kind, name, global, type = true) => {
   if (globalThis.precompile) {
@@ -580,9 +580,9 @@ const generateIdent = (scope, decl) => {
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
       if (Object.hasOwn(funcIndex, name)) {
         const func = funcByName(name);
-        // if func is internal, or this identifier is an internally generated
+        // if func is internal, or this identifier is internally generated
         if (func.internal || name[0] === '#') {
-          return funcRef(funcIndex[name], name);
+          return funcRef(func);
         }
       }
 
@@ -599,7 +599,12 @@ const generateIdent = (scope, decl) => {
 
     // we don't really have to get the variable if it's in the form `const foo = () => {}`
     if (variable?.kind === 'const' && Object.hasOwn(funcIndex, name)) {
-      return funcRef(funcIndex[name], name);
+      return funcRef(funcByName(name));
+    }
+
+    // hack: let test262 use arrow functions instead of function declarlations
+    if (variable?.kind === 'var' && objectHackers.includes(getObjectName(name) || name)) {
+      return funcRef(funcByName(name));
     }
 
     return [
@@ -1534,6 +1539,11 @@ const getType = (scope, _name) => {
 
   // we don't really have to get the variable if it's in the form `const foo = () => {}`
   if (variable?.kind === 'const' && Object.hasOwn(funcIndex, name)) {
+    return number(TYPES.function, Valtype.i32);
+  }
+
+  // hack: let test262 use arrow functions instead of function declarlations
+  if (variable?.kind === 'var' && objectHackers.includes(getObjectName(name) || name)) {
     return number(TYPES.function, Valtype.i32);
   }
 
@@ -3248,6 +3258,14 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
           createVar(scope, kind, name, global);
 
           return out;
+        } else {
+          // hack: allow test262 to use arrow functions instead of function declarations
+          if (kind === 'var' && (objectHackers.includes(getObjectName(name) || name))) {
+            generateFunc(scope, init, true);
+            createVar(scope, kind, name, global);
+
+            return out;
+          }
         }
         // otherwise, we need to tell porffor that this function is not safe to call directly
         init._forceIndirect = true;
@@ -6430,6 +6448,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
     prelude.push(
       ...setVar(func, name, [ [ Opcodes.local_get, idx ] ], [ [ Opcodes.local_get, idx + 1 ] ], false, true)
     );
+
     if (typedInput && params[i].typeAnnotation) {
       const typeAnno = extractTypeAnnotation(params[i]);
       addVarMetadata(func, name, false, typeAnno);
@@ -6469,11 +6488,11 @@ const generateFunc = (scope, decl, outUnused = false) => {
   if (decl.type === 'FunctionDeclaration' || (decl.type === 'FunctionExpression' && decl.id)) {
     createVar(scope, 'var', name);
     out.push(
-      ...setVar(scope, name, funcRef(func.index, name), number(TYPES.function, Valtype.i32))
+      ...setVar(scope, name, funcRef(func), number(TYPES.function, Valtype.i32))
     );
   }
   if (decl.type.endsWith('Expression')) {
-    out.push(...funcRef(func.index, name));
+    out.push(...funcRef(func));
   }
   return [ func, out ];
 };
@@ -6708,6 +6727,8 @@ const internalConstrs = {
   }
 };
 
+const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
+
 export default program => {
   globals = {
     ['#ind']: 0
@@ -6748,7 +6769,6 @@ export default program => {
   prototypeFuncs = new PrototypeFuncs();
   allocator = makeAllocator(Prefs.allocator ?? 'static');
 
-  const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
   objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
 
   program.id = { name: 'main' };
