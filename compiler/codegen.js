@@ -6497,75 +6497,128 @@ const generateFunc = (scope, decl, outUnused = false) => {
   return [ func, out ];
 };
 
+let declaredNamesCache = new WeakMap();
+
+const liftDeclaredNames = (scope, body, varOnly = false) => {
+  if (body.type === 'BlockStatement') body = body.body;
+  body = Array.isArray(body) ? body : [body];
+
+  // let eager = [];
+  for (let i = 0; i < body.length; i++) {
+    const x = body[i];
+    let names = [];
+    let kind;
+
+    if (declaredNamesCache.has(x)) {
+      const cache = declaredNamesCache.get(x);
+      names = cache.names;
+      kind = cache.kind;
+    } else {
+      let decl;
+      switch (x.type) {
+        case 'ForStatement':
+        case 'ForOfStatement':
+        case 'ForInStatement':
+          liftDeclaredNames(scope, x.body, true);
+          break;
+
+        case 'IfStatement':
+          liftDeclaredNames(scope, x.consequent, true);
+          if (x.alternate) liftDeclaredNames(scope, x.alternate, true);
+          break;
+
+        case 'TryStatement':
+          // try block is mandatory, and the rest are forced to be `BlockStatement`s
+          liftDeclaredNames(scope, x.block.body, true);
+          if (x.handler) liftDeclaredNames(scope, x.handler.body, true);
+          if (x.finalizer) liftDeclaredNames(scope, x.finalizer.body, true);
+          break;
+
+        case 'SwitchStatement':
+          for (const _case of x.cases) {
+            liftDeclaredNames(scope, _case.consequent, true);
+          }
+          break;
+
+        case 'BlockStatement':
+          liftDeclaredNames(scope, x.body, true);
+          break;
+      }
+
+      switch (x.type) {
+        case 'ForStatement':
+          if (x.body.type === 'BlockStatement') liftDeclaredNames(scope, x.body.body, true);
+          if (x.init?.type !== 'VariableDeclaration') continue;
+          decl = x.init;
+          break;
+        case 'ForOfStatement':
+        case 'ForInStatement':
+          decl = x.left;
+          if (!decl.declarations) {
+            decl = { declarations: [{ id: decl }], kind: 'bare' }
+          }
+          break;
+        case 'VariableDeclaration':
+          decl = x;
+          break;
+        case 'FunctionDeclaration':
+          // function declarations count as vars in pretty much every other circumstance except this one
+          if (varOnly) continue;
+          decl = { declarations: [{ id: { name: x.id.name } }], kind: 'var' };
+          // todo: this is correct behavior 90% of the time, investigate when this shouldn't happen
+          // eager.push(body.splice(i, 1)[0]);
+          // i--;
+          break;
+      }
+
+      if (!decl) continue;
+
+      let queue = [...decl.declarations];
+      let d;
+      while (d = queue.shift()) {
+        if (!d) continue;
+        switch (d.id.type) {
+          case 'ObjectPattern':
+            for (const p of d.id.properties) {
+              if (!p) continue; // skip over array elisions
+              if (p.type === 'RestElement') queue.push({ id: p.argument });
+                else queue.push({ id: p.value });
+            }
+            break;
+          case 'ArrayPattern':
+            for (const e of d.id.elements) {
+              if (!e) continue; // skip over array elisions
+              if (e.type === 'RestElement') queue.push({ id: e.argument });
+                else queue.push({ id: e });
+            }
+            break;
+          default:
+            names.push(d.id.name);
+            break;
+        }
+      }
+
+      declaredNamesCache.set(x, { names, kind: decl.kind });
+      kind = decl.kind;
+    }
+
+    for (const name of names) {
+      if (varOnly && !(kind === 'var' || kind === 'bare')) continue;
+      if (!scope.variables.has(name)) {
+        scope.variables.set(name, { nonLocal: false, kind, index: scope.index, name });
+      }
+    }
+  }
+
+}
+
 const generateCode = (scope, decl) => {
   let out = [];
 
   const blockScope = decl._funcBody ? scope : pushScope(scope);
 
   const body = decl.body;
-  // let eager = [];
-  for (let i = 0; i < body.length; i++) {
-    const x = body[i];
-    let names = [];
-    let decl;
-    if (x.type === 'ForStatement' && x.init?.type === 'VariableDeclaration') {
-      decl = x.init;
-    } else if (x.type === 'ForOfStatement' || x.type === 'ForInStatement') {
-      decl = x.left;
-      if (!decl.declarations) {
-        decl = { declarations: [{ id: decl }], kind: 'bare' }
-      }
-    } else if (x.type === 'VariableDeclaration') {
-      decl = x;
-    } else if (x.type === 'FunctionDeclaration') {
-      decl = { declarations: [{ id: { name: x.id.name } }], kind: 'var' };
-      // todo: this is correct behavior 90% of the time, investigate when this shouldn't happen
-      // eager.push(body.splice(i, 1)[0]);
-      // i--;
-    }
-    // todo: try..catch
-
-    if (!decl) continue;
-
-    let queue = [...decl.declarations];
-    let d;
-    while (d = queue.shift()) {
-      if (!d) continue;
-      switch (d.id.type) {
-        case 'ObjectPattern':
-          for (const p of d.id.properties) {
-            if (!p) continue; // skip over array elisions
-            if (p.type === 'RestElement') queue.push({ id: p.argument });
-              else queue.push({ id: p.value });
-          }
-          break;
-        case 'ArrayPattern':
-          for (const e of d.id.elements) {
-            if (!e) continue; // skip over array elisions
-            if (e.type === 'RestElement') queue.push({ id: e.argument });
-              else queue.push({ id: e });
-          }
-          break;
-        case 'AssignmentPattern':
-          names.push(d.id.left.name);
-          break;
-        default:
-          names.push(d.id.name);
-          break;
-      }
-    }
-
-    for (const name of names) {
-      if (!blockScope.variables.has(name)) {
-        blockScope.variables.set(name, {
-          nonLocal: false,
-          kind: decl.kind,
-          index: scope.index,
-          name
-        });
-      }
-    }
-  }
+  liftDeclaredNames(blockScope, body);
 
   // for (const x of eager) {
   //   out = out.concat(generate(blockScope, x));
