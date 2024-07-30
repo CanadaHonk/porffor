@@ -67,12 +67,10 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 - `-O2` to enable advanced opt (inlining). unstable!
 - `-O3` to enable advanceder opt (precompute const math). unstable!
 
-## Limitations
-- Little built-ins/prototype
-- No object prototypes yet
-- No async/promise/await
+## Current limitations
+- Limited async support
 - No variables between scopes (except args and globals)
-- No `eval()` etc (since it is AOT)
+- No `eval()`/`Function()` etc (since it is AOT)
 
 ## Sub-engines
 
