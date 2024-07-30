@@ -1,5 +1,5 @@
 import { Valtype, FuncType, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize, Reftype } from './wasmSpec.js';
-import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64_into } from './encoding.js';
+import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64, ieee754_binary64_into } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from './log.js';
 import {} from './prefs.js';
@@ -89,7 +89,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     // tree shake imports
     for (const f of funcs) {
       for (const inst of f.wasm) {
-        if ((inst[0] === Opcodes.call || inst[0] === Opcodes.return_call) && inst[1] < importedFuncs.length) {
+        if ((inst[0] === Opcodes.call /* || inst[0] === Opcodes.return_call */) && inst[1] < importedFuncs.length) {
           const idx = inst[1];
           const func = importedFuncs[idx];
 
@@ -273,7 +273,9 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   const codeSection = createSection(
     Section.code,
     encodeVector(funcs.map(x => {
-      const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx).slice(x.params.length).sort((a, b) => a.idx - b.idx);
+      // time(x.name);
+      const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx).slice(x.params.length);
+      // time('  locals gen');
 
       let localDecl = [], typeCount = 0, lastType;
       for (let i = 0; i < locals.length; i++) {
@@ -288,6 +290,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       }
 
       if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
+      // time('  localDecl gen');
 
       const makeAssembled = Prefs.d;
       let wasm = [], wasmNonFlat = [];
@@ -296,7 +299,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
         // encode local/global ops as unsigned leb128 from raw number
         if (
-          (o[0] === Opcodes.local_get || o[0] === Opcodes.local_set || o[0] === Opcodes.local_tee || o[0] === Opcodes.global_get || o[0] === Opcodes.global_set) &&
+          // (o[0] === Opcodes.local_get || o[0] === Opcodes.local_set || o[0] === Opcodes.local_tee || o[0] === Opcodes.global_get || o[0] === Opcodes.global_set) &&
+          (o[0] >= Opcodes.local_get && o[0] <= Opcodes.global_set) &&
           o[1] > 127
         ) {
           const n = o[1];
@@ -307,12 +311,14 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
         // encode f64.const ops as ieee754 from raw number
         if (o[0] === Opcodes.f64_const) {
           const n = o[1];
-          o = [ o[0] ];
-          ieee754_binary64_into(n, o);
+          // o = [ o[0] ];
+          // ieee754_binary64_into(n, o);
+          o = ieee754_binary64(n);
+          if (o.length === 8) o.unshift(Opcodes.f64_const);
         }
 
         // encode call ops as unsigned leb128 from raw number
-        if ((o[0] === Opcodes.call || o[0] === Opcodes.return_call) && o[1] >= importedFuncs.length) {
+        if ((o[0] === Opcodes.call /* || o[0] === Opcodes.return_call */) && o[1] >= importedFuncs.length) {
           const n = o[1] - importDelta;
           o = [ o[0] ];
           unsignedLEB128_into(n, o);
@@ -343,12 +349,19 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
         if (makeAssembled) wasmNonFlat.push(o);
       }
+      // time('  wasm transform');
 
       if (makeAssembled) {
         x.assembled = { localDecl, wasm, wasmNonFlat };
       }
 
-      return encodeVector([ ...encodeVector(localDecl), ...wasm, Opcodes.end ]);
+      let out = unsignedLEB128(localDecl.length)
+        .concat(localDecl.flat(), wasm, Opcodes.end);
+
+      out.unshift(...unsignedLEB128(out.length));
+
+      // time('  finish');
+      return out;
     }))
   );
   time('code section');
