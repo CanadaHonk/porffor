@@ -1874,45 +1874,52 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     name = func.name;
   }
 
-  if (!decl._new && name === 'eval' && decl.arguments[0]?.type === 'Literal') {
-    // literal eval hack
-    const code = decl.arguments[0]?.value ?? '';
+  if (name === 'eval') {
+    if (!decl._new && decl.arguments[0]?.type === 'Literal') {
+      // literal eval hack
+      const code = decl.arguments[0]?.value ?? '';
 
-    let parsed;
-    try {
-      parsed = parse(code, []);
-    } catch (e) {
-      if (e.name === 'SyntaxError') {
-        // throw syntax errors of evals at runtime instead
-        return internalThrow(scope, 'SyntaxError', e.message, true);
+      let parsed;
+      try {
+        parsed = parse(code, []);
+      } catch (e) {
+        if (e.name === 'SyntaxError') {
+          // throw syntax errors of evals at runtime instead
+          return internalThrow(scope, 'SyntaxError', e.message, true);
+        }
+
+        throw e;
       }
 
-      throw e;
+      const out = generate(scope, {
+        type: 'BlockStatement',
+        body: parsed.body
+      });
+
+      const lastInst = out[out.length - 1];
+      if (lastInst && lastInst[0] === Opcodes.drop) {
+        out.splice(out.length - 1, 1);
+
+        const finalStatement = parsed.body[parsed.body.length - 1];
+        out.push(...setLastType(scope, getNodeType(scope, finalStatement)));
+      } else if (countLeftover(out) === 0) {
+        out.push(...number(UNDEFINED));
+        out.push(...setLastType(scope, TYPES.undefined));
+      }
+
+      // if (lastInst && lastInst[0] === Opcodes.drop) {
+      //   out.splice(out.length - 1, 1);
+      // } else if (countLeftover(out) === 0) {
+      //   out.push(...number(UNDEFINED));
+      // }
+
+      return out;
+    } else {
+      if (decl._new) return internalThrow(scope, 'TypeError', 'eval is not a constructor');
+      return todo(scope, 'dynamic eval is not currently supported', true);
     }
+  }
 
-    const out = generate(scope, {
-      type: 'BlockStatement',
-      body: parsed.body
-    });
-
-    const lastInst = out[out.length - 1];
-    if (lastInst && lastInst[0] === Opcodes.drop) {
-      out.splice(out.length - 1, 1);
-
-      const finalStatement = parsed.body[parsed.body.length - 1];
-      out.push(...setLastType(scope, getNodeType(scope, finalStatement)));
-    } else if (countLeftover(out) === 0) {
-      out.push(...number(UNDEFINED));
-      out.push(...setLastType(scope, TYPES.undefined));
-    }
-
-    // if (lastInst && lastInst[0] === Opcodes.drop) {
-    //   out.splice(out.length - 1, 1);
-    // } else if (countLeftover(out) === 0) {
-    //   out.push(...number(UNDEFINED));
-    // }
-
-    return out;
   }
 
   let protoName, target;
