@@ -3,7 +3,8 @@ import compile from '../compiler/wrap.js';
 
 import util from 'node:util';
 
-process.argv.push('--no-opt-unused');
+process.argv.push('--no-opt-unused', '--repl');
+globalThis.argvChanged();
 
 let repl;
 try {
