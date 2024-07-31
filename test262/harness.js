@@ -102,7 +102,7 @@ var compareArray = (a, b) => {
   return true;
 };
 
-assert.compareArray = (actual, expected) => {
+var __assert_compareArray = (actual, expected) => {
   if (compareArray(actual, expected)) return;
 
   throw new Test262Error('assert.compareArray failed');
