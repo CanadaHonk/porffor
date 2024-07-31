@@ -131,8 +131,11 @@ export default (funcs, globals, pages, tags, exceptions) => {
   // const exceptionUse = exceptions.reduce((acc, _, i) => { acc[i] = 0; return acc; }, {});
 
   // wasm transform pass
+  let fi = 0;
   for (const f of funcs) {
     const wasm = f.wasm;
+
+    globalThis.progress?.(`${fi++}/${funcs.length}`);
 
     const lastType = f.locals['#last_type']?.idx;
 

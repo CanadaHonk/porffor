@@ -5898,6 +5898,8 @@ const generateFunc = (scope, decl, outUnused = false) => {
     return [ func, out ];
   }
 
+  globalThis.progress?.(null, ' ' + name);
+
   const params = decl.params ?? [];
 
   // TODO: share scope/locals between !!!
