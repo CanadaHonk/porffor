@@ -42,7 +42,7 @@ const progressStart = msg => {
 const progressDone = (msg, start) => {
   clearInterval(progressInterval);
 
-  const timeStr = (performance.now() - start).toFixed(2);
+  const timeStr = (performance.now() - start).toFixed(0);
   console.log(`\r${' '.repeat(50)}\r\u001b[90m${' '.repeat(8 - timeStr.length)}${timeStr}ms\u001b[0m  \u001b[92m${msg}\u001b[0m`);
   progressLines++;
 };
@@ -248,7 +248,7 @@ export default (code, flags) => {
       if (logProgress) {
         const total = performance.now();
         progressClear();
-        console.log(`\u001b[90m[${total.toFixed(2)}ms]\u001b[0m \u001b[92mcompiled ${globalThis.file} -> ${outFile}\u001b[0m`);
+        console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[92mcompiled ${globalThis.file} -> ${outFile}\u001b[0m`);
       }
 
       process.exit();
