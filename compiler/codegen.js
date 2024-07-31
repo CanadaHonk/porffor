@@ -6084,8 +6084,15 @@ const generateFunc = (scope, decl, outUnused = false) => {
       }
 
       case 'AssignmentPattern': {
-        name = x.left.name;
-        defaultValues[name] = x.right;
+        if (x.left.name) {
+          name = x.left.name;
+          defaultValues[name] = x.right;
+        } else {
+          name = '#arg_dstr' + i;
+          destructuredArgs[name] = x.left;
+          defaultValues[name] = x.right;
+        }
+
         break;
       }
 
