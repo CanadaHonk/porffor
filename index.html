@@ -1042,14 +1042,13 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       comp();
     };
 
-    // valtype_dropdown.oninput = opt_dropdown.oninput = parser_dropdown.oninput = target_dropdown.oninput = () => comp();
-    // opt_dropdown.oninput = target_dropdown.oninput = () => comp();
-
     parser_dropdown.oninput = async () => {
       setProcess();
       await globalThis._porf_loadParser();
       comp();
     };
+
+    target_dropdown.oninput = () => comp();
 
     window.editor = monaco.editor.create(monacoContainer, {
       value: code,
@@ -1131,7 +1130,6 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const execTime = performance.now() - t2;
       status.textContent += `. Executed in ${execTime.toFixed(0)}ms`;
 
-      // xss :)
       output.innerHTML = ansi(cache);
     };
 
