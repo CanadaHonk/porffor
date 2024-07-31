@@ -1413,6 +1413,7 @@ const getNodeType = (scope, node) => {
 
       if (Object.hasOwn(builtinFuncs, name) && !builtinFuncs[name].typedReturns) return builtinFuncs[name].returnType ?? TYPES.number;
       if (Object.hasOwn(internalConstrs, name)) return internalConstrs[name].type;
+      if (name === 'Function') return TYPES.function;
 
       // check if this is a prototype function
       // if so and there is only one impl (eg charCodeAt)
