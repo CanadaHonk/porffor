@@ -727,6 +727,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           line(`printf("Uncaught ${exceptions[id].constructor}: ${exceptions[id].message}\\n")`);
           line(`exit(1)`);
 
+          includes.set('stdio.h', true);
           includes.set('stdlib.h', true);
 
           break;
