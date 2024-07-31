@@ -343,6 +343,12 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     if (f.name === 'main') out += `int main(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
       else out += `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
 
+    if (f.name === '__Porffor_promise_runJobs') {
+      out += '}';
+      globalThis.out = globalThis.out + out;
+      return;
+    }
+
     if (f.name === 'main') {
       out += '  ' + [...prependMain.values()].join('\n  ');
       if (prependMain.size > 0) out += '\n\n';
