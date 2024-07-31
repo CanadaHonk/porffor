@@ -5405,7 +5405,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       if (type == null) continue;
 
       // do not __proto__ primitive hack for objects
-      if (type === TYPES.object) continue;
+      if (type === TYPES.object || type === TYPES.function) continue;
 
       const ident = {
         type: 'Identifier',

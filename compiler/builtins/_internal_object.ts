@@ -173,7 +173,8 @@ export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
 export const __Porffor_object_get = (obj: any, key: any): any => {
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot get property of null');
 
-  if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.function) {
+  const trueType: i32 = Porffor.wasm`local.get ${obj+1}`;
+  if (trueType == Porffor.TYPES.function) {
     const tmp1: bytestring = 'name';
     if (key == tmp1) {
       const o: bytestring = __Porffor_funcLut_name(obj);
@@ -196,7 +197,7 @@ return`;
     }
   }
 
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (trueType != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
     if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.object) {
@@ -212,9 +213,10 @@ return`;
           if ((entryPtr = __Porffor_object_lookup(obj, key)) != -1) break;
         }
       } else {
-        const i: i32 = __Object_prototype;
+        let proto: i32 = __Object_prototype;
+        if (trueType == Porffor.TYPES.function) proto = __Function_prototype;
         Porffor.wasm`
-local.get ${i}
+local.get ${proto}
 f64.convert_i32_u
 i32.const 7 ;; object type
 return`;
