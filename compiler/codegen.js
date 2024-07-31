@@ -1920,6 +1920,43 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
   }
 
+  if (name === 'Function') {
+    if (decl.arguments[0]?.type === 'Literal' && (decl.arguments[1] ? decl.arguments[1]?.type === 'Literal' : true)) {
+      // literal eval hack
+
+      let args = '';
+      let code = '';
+      if (decl.arguments.length >= 2) {
+        args = decl.arguments[0]?.value;
+        code = decl.arguments[1]?.value;
+      } else {
+        code = decl.arguments[0]?.value;
+      }
+
+      // hack: use this template to parse the arguments and code, void is used to force this to be an expression
+      const template = `void function (${args}) { ${code} }`;
+
+      let parsed;
+      try {
+        parsed = parse(template, []);
+      } catch (e) {
+        if (e.name === 'SyntaxError') {
+          // throw syntax errors of evals at runtime instead
+          return internalThrow(scope, 'SyntaxError', e.message, true);
+        }
+
+        throw e;
+      }
+
+      // Program > ExpressionStatement > UnaryExpression > FunctionExpression
+      parsed = parsed.body[0].expression.argument;
+
+      const [ func, out ] = generateFunc(scope, parsed);
+
+      return out;
+    } else {
+      return todo(scope, 'dynamic eval is not currently supported', true);
+    }
   }
 
   let protoName, target;
