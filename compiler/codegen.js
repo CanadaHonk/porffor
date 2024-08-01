@@ -353,8 +353,6 @@ const createVar = (scope, kind, name, global, type = true) => {
   }
   variableNames.set(name, variable);
 
-  if (variable.index == undefined) throw new Error('wtf');
-
   variable.initialized = true;
   if (!type) {
     variable.untyped = true;
