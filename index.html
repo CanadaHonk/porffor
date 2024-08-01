@@ -682,7 +682,7 @@
     #commit_log {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 24px;
+      gap: 16px;
 
       overflow-x: auto;
     }
@@ -1162,8 +1162,10 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const x = history[i];
       const el = document.createElement('div');
 
-      const textEl = document.createElement('div');
+      const textEl = document.createElement('a');
       textEl.textContent = x.title.slice(0, 42) + (x.title.length > 42 ? '...' : '');
+      textEl.href = `https://github.com/CanadaHonk/porffor/commit/${x.hash}`;
+      textEl.target = '_blank';
 
       const when = new Date(x.time);
       const whenEl = document.createElement('div');
