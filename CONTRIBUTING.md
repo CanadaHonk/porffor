@@ -366,7 +366,7 @@ builtins/tostring_number: impl radix
 
 ## Test262
 
-For the first time, ensure you run `./test262/setup.sh`.
+For the first time, ensure you run `./test262/setup.sh` (Unix) or `.\test262\setup.cmd` (Windows).
 
 Run `node test262` to run all the tests and get an output of total overall test results.
 
