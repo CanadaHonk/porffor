@@ -1066,9 +1066,6 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
   }
 
   if (decl.operator === 'in') {
-    // hack: a in b -> Object.hasOwn(b, a)
-    // todo: not spec compliant, in should check prototype chain too (once we have it)
-
     return generate(scope, {
       type: 'CallExpression',
       callee: {
@@ -1112,6 +1109,7 @@ const asmFuncToAsm = (scope, func) => {
     builtin: (n, offset = false) => {
       let idx = funcIndex[n] ?? importedFuncs[n];
       if (idx == null && builtinFuncs[n]) {
+        // console.log(scope.name, '->', n);
         includeBuiltin(scope, n);
         idx = funcIndex[n];
       }
@@ -3173,7 +3171,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     const usedProps = [];
     for (const prop of properties) {
       if (prop.type == 'Property') { // let { foo } = {}
-        usedProps.push(!prop.computed && prop.key.type !== 'Literal' ? { type: 'Literal', value: prop.key.name } : prop.key);
+        usedProps.push(getProperty(prop));
 
         if (prop.value.type === 'AssignmentPattern') { // let { foo = defaultValue } = {}
           decls.push(
@@ -3257,13 +3255,22 @@ const generateVar = (scope, decl) => {
   return out;
 };
 
-const getMemberProperty = decl => {
-  if (decl.computed) return decl.property;
+const privateIDName = name => '.#.' + name;
+const privateIdentifierToIdentifier = decl => ({
+  type: 'Identifier',
+  name: privateIDName(decl.name)
+});
 
-  return {
+const getProperty = decl => {
+  const prop = decl.property ?? decl.key;
+  if (decl.computed) return prop;
+
+  if (prop.name) return {
     type: 'Literal',
-    value: decl.property.name
+    value: prop.type === 'PrivateIdentifier' ? privateIDName(prop.name) : prop.name,
   };
+
+  return prop;
 };
 
 // todo: optimize this func for valueUnused
@@ -3348,7 +3355,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const pointerTmp = localTmp(scope, '#member_setter_ptr_tmp', Valtype.i32);
 
     const object = decl.left.object;
-    const property = getMemberProperty(decl.left);
+    const property = getProperty(decl.left);
 
     // todo/perf: use i32 object (and prop?) locals
     const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];
@@ -3751,7 +3758,7 @@ const generateUnary = (scope, decl) => {
     case 'delete': {
       if (decl.argument.type === 'MemberExpression') {
         const object = decl.argument.object;
-        const property = getMemberProperty(decl.argument);
+        const property = getProperty(decl.argument);
 
         if (property.value === 'length' || property.value === 'name') scope.noFastFuncMembers = true;
 
@@ -5183,12 +5190,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         continue;
       }
 
-      let k = key;
-      if (!computed && key.type !== 'Literal') k = {
-        type: 'Literal',
-        value: key.name
-      };
-
+      const k = getProperty(x);
       if (isFuncType(value.type)) {
         let id = value.id;
 
@@ -5287,7 +5289,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   }
 
   const object = decl.object;
-  const property = getMemberProperty(decl);
+  const property = getProperty(decl);
 
   // generate now so type is gotten correctly later (it gets cached)
   generate(scope, object);
@@ -5738,11 +5740,7 @@ const generateClass = (scope, decl) => {
 
     let object = _static ? root : proto;
 
-    let k = key;
-    if (!computed && key.type !== 'Literal') k = {
-      type: 'Literal',
-      value: key.name
-    };
+    const k = getProperty(x);
 
     let initKind = 'init';
     if (kind === 'get' || kind === 'set') initKind = kind;
