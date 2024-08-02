@@ -33,15 +33,11 @@ const encodeNames = funcs => {
     funcs.map(x => unsignedLEB128(x.asmIndex).concat(encodeString(x.name))),
   );
   const localsSection = encodeVector(
-    funcs.map(x =>
-      unsignedLEB128(x.asmIndex).concat(
-        encodeVector(
-          Object.entries(x.locals).map(([name, local]) =>
-            unsignedLEB128(local.idx).concat(encodeString(name)),
-          ),
-        ),
-      ),
-    ),
+    funcs.map(x => unsignedLEB128(x.asmIndex).concat(encodeVector(
+      Object.entries(x.locals).map(([name, local]) =>
+        unsignedLEB128(local.idx).concat(encodeString(name))
+      )
+    )))
   );
 
   return [
@@ -49,7 +45,7 @@ const encodeNames = funcs => {
     ...encodeSection(1, functionsSection),
     ...encodeSection(2, localsSection),
   ];
-}
+};
 
 export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) => {
   const types = [], typeCache = {};
