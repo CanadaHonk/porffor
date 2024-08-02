@@ -6024,8 +6024,8 @@ const generateFunc = (scope, decl, outUnused = false) => {
             else func.returns = [];
         }
 
-        // inject promise job runner func at the end of main if job queue is used
-        if (Object.hasOwn(funcIndex, '__ecma262_HostEnqueuePromiseJob')) {
+        // inject promise job runner func at the end of main if promises are made
+        if (Object.hasOwn(funcIndex, 'Promise') || Object.hasOwn(funcIndex, '__Promise_resolve') || Object.hasOwn(funcIndex, '__Promise_reject')) {
           wasm.push(
             [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_runJobs').index ],
             [ Opcodes.drop ],
