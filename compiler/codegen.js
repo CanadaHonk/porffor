@@ -6358,8 +6358,8 @@ export default program => {
 
   delete globals['#ind'];
 
-  // if blank main func and other exports, remove it
-  if (main.wasm.length === 0 && funcs.reduce((acc, x) => acc + (x.export ? 1 : 0), 0) > 1) funcs.splice(main.index - importedFuncs.length, 1);
+  // if wanted and blank main func and other exports, remove it
+  if (Prefs.rmBlankMain && main.wasm.length === 0 && funcs.some(x => x.export)) funcs.splice(main.index - importedFuncs.length, 1);
 
   // make ~empty funcs for never generated funcs
   // todo: these should just be deleted once able
