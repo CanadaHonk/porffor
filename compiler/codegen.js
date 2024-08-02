@@ -78,7 +78,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'ArrowFunctionExpression':
     case 'FunctionDeclaration':
     case 'FunctionExpression':
-      return cacheAst(decl, generateFunc(scope, decl)[1]);
+      return cacheAst(decl, generateFunc(scope, decl, valueUnused)[1]);
 
     case 'BlockStatement':
       return cacheAst(decl, generateCode(scope, decl));
@@ -612,7 +612,7 @@ const generateIdent = (scope, decl) => {
     }
 
     // hack: let test262 use arrow functions instead of function declarlations
-    if (variable?.kind === 'var' && objectHackers.includes(getObjectName(name) || name)) {
+    if (variable?.kind === 'var' && objectHackers.includes(getObjectName(name) || name) && Object.hasOwn(funcIndex, name)) {
       return funcRef(funcByName(name));
     }
 
@@ -3270,8 +3270,8 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
         } else {
           // hack: allow test262 to use arrow functions instead of function declarations
           if (kind === 'var' && (objectHackers.includes(getObjectName(name) || name))) {
-            generateFunc(scope, init, true);
             createVar(scope, kind, name, global);
+            generateFunc(scope, init, true);
 
             return out;
           }
@@ -6518,21 +6518,23 @@ const generateFunc = (scope, decl, outUnused = false) => {
   if (globalThis.precompile) func.generate();
 
   let out = [];
-  if (decl.type === 'FunctionDeclaration' || (decl.type === 'FunctionExpression' && decl.id)) {
-    createVar(scope, 'var', name);
-    out.push(
-      ...setVar(scope, name, funcRef(func), number(TYPES.function, Valtype.i32))
-    );
-  }
-  if (decl.type.endsWith('Expression')) {
-    out.push(...funcRef(func));
+  if (!outUnused) {
+    if (decl.type === 'FunctionDeclaration' || (decl.type === 'FunctionExpression' && decl.id)) {
+      createVar(scope, 'var', name);
+      out.push(
+        ...setVar(scope, name, funcRef(func), number(TYPES.function, Valtype.i32))
+      );
+    }
+    if (decl.type.endsWith('Expression')) {
+      out.push(...funcRef(func));
+    }
   }
   return [ func, out ];
 };
 
 let declaredNamesCache = new WeakMap();
 
-const liftDeclaredNames = (scope, body, varOnly = false) => {
+const liftDeclaredNames = (scope, body, eager, varOnly = false) => {
   if (body.type === 'BlockStatement') body = body.body;
   body = Array.isArray(body) ? body : [body];
 
@@ -6552,35 +6554,35 @@ const liftDeclaredNames = (scope, body, varOnly = false) => {
         case 'ForStatement':
         case 'ForOfStatement':
         case 'ForInStatement':
-          liftDeclaredNames(scope, x.body, true);
+          liftDeclaredNames(scope, x.body, eager, true);
           break;
 
         case 'IfStatement':
-          liftDeclaredNames(scope, x.consequent, true);
-          if (x.alternate) liftDeclaredNames(scope, x.alternate, true);
+          liftDeclaredNames(scope, x.consequent, eager, true);
+          if (x.alternate) liftDeclaredNames(scope, x.alternate, eager, true);
           break;
 
         case 'TryStatement':
           // try block is mandatory, and the rest are forced to be `BlockStatement`s
-          liftDeclaredNames(scope, x.block.body, true);
-          if (x.handler) liftDeclaredNames(scope, x.handler.body, true);
-          if (x.finalizer) liftDeclaredNames(scope, x.finalizer.body, true);
+          liftDeclaredNames(scope, x.block.body, eager, true);
+          if (x.handler) liftDeclaredNames(scope, x.handler.body, eager, true);
+          if (x.finalizer) liftDeclaredNames(scope, x.finalizer.body, eager, true);
           break;
 
         case 'SwitchStatement':
           for (const _case of x.cases) {
-            liftDeclaredNames(scope, _case.consequent, true);
+            liftDeclaredNames(scope, _case.consequent, eager, true);
           }
           break;
 
         case 'BlockStatement':
-          liftDeclaredNames(scope, x.body, true);
+          liftDeclaredNames(scope, x.body, eager, true);
           break;
       }
 
       switch (x.type) {
         case 'ForStatement':
-          if (x.body.type === 'BlockStatement') liftDeclaredNames(scope, x.body.body, true);
+          if (x.body.type === 'BlockStatement') liftDeclaredNames(scope, x.body.body, eager, true);
           if (x.init?.type !== 'VariableDeclaration') continue;
           decl = x.init;
           break;
@@ -6595,12 +6597,9 @@ const liftDeclaredNames = (scope, body, varOnly = false) => {
           decl = x;
           break;
         case 'FunctionDeclaration':
-          // function declarations count as vars in pretty much every other circumstance except this one
-          if (varOnly) continue;
           decl = { declarations: [{ id: { name: x.id.name } }], kind: 'var' };
-          // todo: this is correct behavior 90% of the time, investigate when this shouldn't happen
-          // eager.push(body.splice(i, 1)[0]);
-          // i--;
+          eager.push(body.splice(i, 1)[0]);
+          i--;
           break;
       }
 
@@ -6651,11 +6650,12 @@ const generateCode = (scope, decl) => {
   const blockScope = decl._funcBody ? scope : pushScope(scope);
 
   const body = decl.body;
-  liftDeclaredNames(blockScope, body);
+  let eager = [];
+  liftDeclaredNames(blockScope, body, eager);
 
-  // for (const x of eager) {
-  //   out = out.concat(generate(blockScope, x));
-  // }
+  for (const x of eager) {
+    out = out.concat(generate(blockScope, x));
+  }
 
   for (const x of body) {
     out = out.concat(generate(blockScope, x));
