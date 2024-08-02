@@ -5404,7 +5404,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       const type = TYPES[x.split('_prototype')[0].slice(2).toLowerCase()];
       if (type == null) continue;
 
-      // do not __proto__ primitive hack for objects
+      // do not __proto__ primitive hack for objects or functions
       if (type === TYPES.object || type === TYPES.function) continue;
 
       const ident = {
@@ -5721,27 +5721,12 @@ const generateClass = (scope, decl) => {
 
   if (decl.superClass) {
     out.push(
-      ...generateCall(scope, {
-        type: 'CallExpression',
-        callee: {
-          type: 'Identifier',
-          name: '__Porffor_object_assignAll'
-        },
-        arguments: [
-          proto,
-          {
-            type: 'MemberExpression',
-            object: decl.superClass,
-            property: {
-              type: 'Identifier',
-              name: 'prototype'
-            },
-            computed: false,
-            optional: false
-          }
-        ]
-      }),
-      [ Opcodes.drop ]
+      // class Foo {}
+      // class Bar extends Foo {}
+      // Bar.__proto__ = Foo
+      // Bar.prototype.__proto__ = Foo.prototype
+      ...generate(scope, setObjProp(root, '__proto__', decl.superClass)),
+      ...generate(scope, setObjProp(getObjProp(root, 'prototype'), '__proto__', getObjProp(decl.superClass, 'prototype')))
     );
   }
 
