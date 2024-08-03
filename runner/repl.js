@@ -61,7 +61,10 @@ const memoryToString = mem => {
       out += `  \x1B[34m${name}${' '.repeat(longestName - name.length)} \x1B[90m│\x1B[0m \x1B[36m${type}${' '.repeat(longestType - type.length)} \x1B[90m│\x1B[0m `;
     }
 
-    for (let j = 0; j < 40; j++) {
+    let j = 0;
+    if (i === 0) j = 16;
+    const end = j + 40;
+    for (; j < end; j++) {
       const val = buf[i * pageSize + j];
       // if (val === 0) out += '\x1B[2m';
       if (val === 0) out += '\x1B[90m';
