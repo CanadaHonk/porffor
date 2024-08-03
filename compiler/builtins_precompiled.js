@@ -136,160 +136,147 @@ params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[124,124,127],localNames:["a","a#type","b","b#type","at","bt","#last_type"],
 };
 this.__String_prototype_big = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'string: __String_prototype_big/out','i16'),127),[34,2],[65,10],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[65,2],[108],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[47,0,4],[33,7],[32,3],[32,7],[59,0,4],[32,4],[65,2],[106],[33,4],[32,3],[65,2],[106],[33,3],[12,1],[11],[11],[32,3],[65,60],[59,0,4],[32,3],[65,47],[59,0,6],[32,3],[65,226,0],[59,0,8],[32,3],[65,233,0],[59,0,10],[32,3],[65,231,0],[59,0,12],[32,3],[65,62],[59,0,14],[32,2],[34,9],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,195,0],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_big/out":[5,0,0,0,60,0,98,0,105,0,103,0,62,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_big/pre','i8'),124),[33,2],...number(allocPage(_,'bytestring: __String_prototype_big/post','i8'),124),[33,3],[32,2],[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,3],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127],localNames:["_this","_this#type","pre","post","#last_type"],
+data:{"bytestring: __String_prototype_big/pre":[5,0,0,0,60,98,105,103,62],"bytestring: __String_prototype_big/post":[6,0,0,0,60,47,98,105,103,62]},
 };
 this.__ByteString_prototype_big = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'bytestring: __ByteString_prototype_big/out','i8'),127),[34,2],[65,5],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,226,0],[58,0,6],[32,3],[65,233,0],[58,0,7],[32,3],[65,231,0],[58,0,8],[32,3],[65,62],[58,0,9],[32,2],[34,9],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,195,1],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"bytestring: __ByteString_prototype_big/out":[5,0,0,0,60,98,105,103,62]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_big')],[34,2],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","#last_type"],
 };
 this.__String_prototype_blink = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'string: __String_prototype_blink/out','i16'),127),[34,2],[65,14],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[65,2],[108],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[47,0,4],[33,7],[32,3],[32,7],[59,0,4],[32,4],[65,2],[106],[33,4],[32,3],[65,2],[106],[33,3],[12,1],[11],[11],[32,3],[65,60],[59,0,4],[32,3],[65,47],[59,0,6],[32,3],[65,226,0],[59,0,8],[32,3],[65,236,0],[59,0,10],[32,3],[65,233,0],[59,0,12],[32,3],[65,238,0],[59,0,14],[32,3],[65,235,0],[59,0,16],[32,3],[65,62],[59,0,18],[32,2],[34,9],[32,5],[65,15],[106],[34,8],[54,1,0],[32,2],[65,195,0],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_blink/out":[7,0,0,0,60,0,98,0,108,0,105,0,110,0,107,0,62,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_blink/pre','i8'),124),[33,2],...number(allocPage(_,'bytestring: __String_prototype_blink/post','i8'),124),[33,3],[32,2],[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,3],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127],localNames:["_this","_this#type","pre","post","#last_type"],
+data:{"bytestring: __String_prototype_blink/pre":[7,0,0,0,60,98,108,105,110,107,62],"bytestring: __String_prototype_blink/post":[8,0,0,0,60,47,98,108,105,110,107,62]},
 };
 this.__ByteString_prototype_blink = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'bytestring: __ByteString_prototype_blink/out','i8'),127),[34,2],[65,7],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,226,0],[58,0,6],[32,3],[65,236,0],[58,0,7],[32,3],[65,233,0],[58,0,8],[32,3],[65,238,0],[58,0,9],[32,3],[65,235,0],[58,0,10],[32,3],[65,62],[58,0,11],[32,2],[34,9],[32,5],[65,15],[106],[34,8],[54,1,0],[32,2],[65,195,1],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"bytestring: __ByteString_prototype_blink/out":[7,0,0,0,60,98,108,105,110,107,62]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_blink')],[34,2],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","#last_type"],
 };
 this.__String_prototype_bold = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'string: __String_prototype_bold/out','i16'),127),[34,2],[65,6],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[65,2],[108],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[47,0,4],[33,7],[32,3],[32,7],[59,0,4],[32,4],[65,2],[106],[33,4],[32,3],[65,2],[106],[33,3],[12,1],[11],[11],[32,3],[65,60],[59,0,4],[32,3],[65,47],[59,0,6],[32,3],[65,226,0],[59,0,8],[32,3],[65,62],[59,0,10],[32,2],[34,9],[32,5],[65,7],[106],[34,8],[54,1,0],[32,2],[65,195,0],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_bold/out":[3,0,0,0,60,0,98,0,62,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_bold/pre','i8'),124),[33,2],...number(allocPage(_,'bytestring: __String_prototype_bold/post','i8'),124),[33,3],[32,2],[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,3],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127],localNames:["_this","_this#type","pre","post","#last_type"],
+data:{"bytestring: __String_prototype_bold/pre":[3,0,0,0,60,98,62],"bytestring: __String_prototype_bold/post":[4,0,0,0,60,47,98,62]},
 };
 this.__ByteString_prototype_bold = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'bytestring: __ByteString_prototype_bold/out','i8'),127),[34,2],[65,3],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,226,0],[58,0,6],[32,3],[65,62],[58,0,7],[32,2],[34,9],[32,5],[65,7],[106],[34,8],[54,1,0],[32,2],[65,195,1],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"bytestring: __ByteString_prototype_bold/out":[3,0,0,0,60,98,62]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_bold')],[34,2],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","#last_type"],
 };
 this.__String_prototype_fixed = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'string: __String_prototype_fixed/out','i16'),127),[34,2],[65,8],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[65,2],[108],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[47,0,4],[33,7],[32,3],[32,7],[59,0,4],[32,4],[65,2],[106],[33,4],[32,3],[65,2],[106],[33,3],[12,1],[11],[11],[32,3],[65,60],[59,0,4],[32,3],[65,47],[59,0,6],[32,3],[65,244,0],[59,0,8],[32,3],[65,244,0],[59,0,10],[32,3],[65,62],[59,0,12],[32,2],[34,9],[32,5],[65,9],[106],[34,8],[54,1,0],[32,2],[65,195,0],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_fixed/out":[4,0,0,0,60,0,116,0,116,0,62,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_fixed/pre','i8'),124),[33,2],...number(allocPage(_,'bytestring: __String_prototype_fixed/post','i8'),124),[33,3],[32,2],[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,3],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127],localNames:["_this","_this#type","pre","post","#last_type"],
+data:{"bytestring: __String_prototype_fixed/pre":[4,0,0,0,60,116,116,62],"bytestring: __String_prototype_fixed/post":[5,0,0,0,60,47,116,116,62]},
 };
 this.__ByteString_prototype_fixed = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'bytestring: __ByteString_prototype_fixed/out','i8'),127),[34,2],[65,4],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,244,0],[58,0,6],[32,3],[65,244,0],[58,0,7],[32,3],[65,62],[58,0,8],[32,2],[34,9],[32,5],[65,9],[106],[34,8],[54,1,0],[32,2],[65,195,1],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"bytestring: __ByteString_prototype_fixed/out":[4,0,0,0,60,116,116,62]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_fixed')],[34,2],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","#last_type"],
 };
 this.__String_prototype_italics = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'string: __String_prototype_italics/out','i16'),127),[34,2],[65,6],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[65,2],[108],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[47,0,4],[33,7],[32,3],[32,7],[59,0,4],[32,4],[65,2],[106],[33,4],[32,3],[65,2],[106],[33,3],[12,1],[11],[11],[32,3],[65,60],[59,0,4],[32,3],[65,47],[59,0,6],[32,3],[65,233,0],[59,0,8],[32,3],[65,62],[59,0,10],[32,2],[34,9],[32,5],[65,7],[106],[34,8],[54,1,0],[32,2],[65,195,0],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_italics/out":[3,0,0,0,60,0,105,0,62,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_italics/pre','i8'),124),[33,2],...number(allocPage(_,'bytestring: __String_prototype_italics/post','i8'),124),[33,3],[32,2],[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,3],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127],localNames:["_this","_this#type","pre","post","#last_type"],
+data:{"bytestring: __String_prototype_italics/pre":[3,0,0,0,60,105,62],"bytestring: __String_prototype_italics/post":[4,0,0,0,60,47,105,62]},
 };
 this.__ByteString_prototype_italics = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'bytestring: __ByteString_prototype_italics/out','i8'),127),[34,2],[65,3],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,233,0],[58,0,6],[32,3],[65,62],[58,0,7],[32,2],[34,9],[32,5],[65,7],[106],[34,8],[54,1,0],[32,2],[65,195,1],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"bytestring: __ByteString_prototype_italics/out":[3,0,0,0,60,105,62]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_italics')],[34,2],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","#last_type"],
 };
 this.__String_prototype_small = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'string: __String_prototype_small/out','i16'),127),[34,2],[65,14],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[65,2],[108],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[47,0,4],[33,7],[32,3],[32,7],[59,0,4],[32,4],[65,2],[106],[33,4],[32,3],[65,2],[106],[33,3],[12,1],[11],[11],[32,3],[65,60],[59,0,4],[32,3],[65,47],[59,0,6],[32,3],[65,243,0],[59,0,8],[32,3],[65,237,0],[59,0,10],[32,3],[65,225,0],[59,0,12],[32,3],[65,236,0],[59,0,14],[32,3],[65,236,0],[59,0,16],[32,3],[65,62],[59,0,18],[32,2],[34,9],[32,5],[65,15],[106],[34,8],[54,1,0],[32,2],[65,195,0],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_small/out":[7,0,0,0,60,0,115,0,109,0,97,0,108,0,108,0,62,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_small/pre','i8'),124),[33,2],...number(allocPage(_,'bytestring: __String_prototype_small/post','i8'),124),[33,3],[32,2],[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,3],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127],localNames:["_this","_this#type","pre","post","#last_type"],
+data:{"bytestring: __String_prototype_small/pre":[7,0,0,0,60,115,109,97,108,108,62],"bytestring: __String_prototype_small/post":[8,0,0,0,60,47,115,109,97,108,108,62]},
 };
 this.__ByteString_prototype_small = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'bytestring: __ByteString_prototype_small/out','i8'),127),[34,2],[65,7],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,237,0],[58,0,7],[32,3],[65,225,0],[58,0,8],[32,3],[65,236,0],[58,0,9],[32,3],[65,236,0],[58,0,10],[32,3],[65,62],[58,0,11],[32,2],[34,9],[32,5],[65,15],[106],[34,8],[54,1,0],[32,2],[65,195,1],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"bytestring: __ByteString_prototype_small/out":[7,0,0,0,60,115,109,97,108,108,62]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_small')],[34,2],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","#last_type"],
 };
 this.__String_prototype_strike = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'string: __String_prototype_strike/out','i16'),127),[34,2],[65,16],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[65,2],[108],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[47,0,4],[33,7],[32,3],[32,7],[59,0,4],[32,4],[65,2],[106],[33,4],[32,3],[65,2],[106],[33,3],[12,1],[11],[11],[32,3],[65,60],[59,0,4],[32,3],[65,47],[59,0,6],[32,3],[65,243,0],[59,0,8],[32,3],[65,244,0],[59,0,10],[32,3],[65,242,0],[59,0,12],[32,3],[65,233,0],[59,0,14],[32,3],[65,235,0],[59,0,16],[32,3],[65,229,0],[59,0,18],[32,3],[65,62],[59,0,20],[32,2],[34,9],[32,5],[65,17],[106],[34,8],[54,1,0],[32,2],[65,195,0],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_strike/out":[8,0,0,0,60,0,115,0,116,0,114,0,105,0,107,0,101,0,62,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_strike/pre','i8'),124),[33,2],...number(allocPage(_,'bytestring: __String_prototype_strike/post','i8'),124),[33,3],[32,2],[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,3],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127],localNames:["_this","_this#type","pre","post","#last_type"],
+data:{"bytestring: __String_prototype_strike/pre":[8,0,0,0,60,115,116,114,105,107,101,62],"bytestring: __String_prototype_strike/post":[9,0,0,0,60,47,115,116,114,105,107,101,62]},
 };
 this.__ByteString_prototype_strike = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'bytestring: __ByteString_prototype_strike/out','i8'),127),[34,2],[65,8],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,244,0],[58,0,7],[32,3],[65,242,0],[58,0,8],[32,3],[65,233,0],[58,0,9],[32,3],[65,235,0],[58,0,10],[32,3],[65,229,0],[58,0,11],[32,3],[65,62],[58,0,12],[32,2],[34,9],[32,5],[65,17],[106],[34,8],[54,1,0],[32,2],[65,195,1],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"bytestring: __ByteString_prototype_strike/out":[8,0,0,0,60,115,116,114,105,107,101,62]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_strike')],[34,2],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","#last_type"],
 };
 this.__String_prototype_sub = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'string: __String_prototype_sub/out','i16'),127),[34,2],[65,10],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[65,2],[108],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[47,0,4],[33,7],[32,3],[32,7],[59,0,4],[32,4],[65,2],[106],[33,4],[32,3],[65,2],[106],[33,3],[12,1],[11],[11],[32,3],[65,60],[59,0,4],[32,3],[65,47],[59,0,6],[32,3],[65,243,0],[59,0,8],[32,3],[65,245,0],[59,0,10],[32,3],[65,226,0],[59,0,12],[32,3],[65,62],[59,0,14],[32,2],[34,9],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,195,0],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_sub/out":[5,0,0,0,60,0,115,0,117,0,98,0,62,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_sub/pre','i8'),124),[33,2],...number(allocPage(_,'bytestring: __String_prototype_sub/post','i8'),124),[33,3],[32,2],[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,3],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127],localNames:["_this","_this#type","pre","post","#last_type"],
+data:{"bytestring: __String_prototype_sub/pre":[5,0,0,0,60,115,117,98,62],"bytestring: __String_prototype_sub/post":[6,0,0,0,60,47,115,117,98,62]},
 };
 this.__ByteString_prototype_sub = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'bytestring: __ByteString_prototype_sub/out','i8'),127),[34,2],[65,5],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,245,0],[58,0,7],[32,3],[65,226,0],[58,0,8],[32,3],[65,62],[58,0,9],[32,2],[34,9],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,195,1],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"bytestring: __ByteString_prototype_sub/out":[5,0,0,0,60,115,117,98,62]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_sub')],[34,2],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","#last_type"],
 };
 this.__String_prototype_sup = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'string: __String_prototype_sup/out','i16'),127),[34,2],[65,10],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[65,2],[108],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[47,0,4],[33,7],[32,3],[32,7],[59,0,4],[32,4],[65,2],[106],[33,4],[32,3],[65,2],[106],[33,3],[12,1],[11],[11],[32,3],[65,60],[59,0,4],[32,3],[65,47],[59,0,6],[32,3],[65,243,0],[59,0,8],[32,3],[65,245,0],[59,0,10],[32,3],[65,240,0],[59,0,12],[32,3],[65,62],[59,0,14],[32,2],[34,9],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,195,0],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_sup/out":[5,0,0,0,60,0,115,0,117,0,112,0,62,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_sup/pre','i8'),124),[33,2],...number(allocPage(_,'bytestring: __String_prototype_sup/post','i8'),124),[33,3],[32,2],[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,3],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127],localNames:["_this","_this#type","pre","post","#last_type"],
+data:{"bytestring: __String_prototype_sup/pre":[5,0,0,0,60,115,117,112,62],"bytestring: __String_prototype_sup/post":[6,0,0,0,60,47,115,117,112,62]},
 };
 this.__ByteString_prototype_sup = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'bytestring: __ByteString_prototype_sup/out','i8'),127),[34,2],[65,5],[106],[33,3],[32,0],[33,4],[32,0],[40,1,0],[33,5],[32,4],[32,5],[106],[33,6],[3,64],[32,4],[32,6],[72],[4,64],[32,4],[32,4],[65,1],[106],[33,4],[45,0,4],[33,7],[32,3],[32,3],[65,1],[106],[33,3],[32,7],[58,0,4],[12,1],[11],[11],[32,3],[65,60],[58,0,4],[32,3],[65,47],[58,0,5],[32,3],[65,243,0],[58,0,6],[32,3],[65,245,0],[58,0,7],[32,3],[65,240,0],[58,0,8],[32,3],[65,62],[58,0,9],[32,2],[34,9],[32,5],[65,11],[106],[34,8],[54,1,0],[32,2],[65,195,1],[15]],
-params:[127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127],localNames:["_this","_this#type","out","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"bytestring: __ByteString_prototype_sup/out":[5,0,0,0,60,115,117,112,62]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_sup')],[34,2],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","#last_type"],
 };
 this.__String_prototype_fontcolor = {
-wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'string: __String_prototype_fontcolor/out','i16'),127),[34,4],[183],[65,195,0],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,5],[252,3],[34,4],[65,30],[106],[32,2],[40,1,0],[65,2],[108],[106],[34,6],[65,34],[59,0,0],[32,6],[65,62],[59,0,2],[32,0],[33,7],[32,0],[40,1,0],[33,8],[32,7],[32,8],[65,2],[108],[106],[33,9],[3,64],[32,7],[32,9],[72],[4,64],[32,7],[47,0,4],[33,10],[32,6],[32,10],[59,0,4],[32,7],[65,2],[106],[33,7],[32,6],[65,2],[106],[33,6],[12,1],[11],[11],[32,6],[65,60],[59,0,4],[32,6],[65,47],[59,0,6],[32,6],[65,230,0],[59,0,8],[32,6],[65,239,0],[59,0,10],[32,6],[65,238,0],[59,0,12],[32,6],[65,244,0],[59,0,14],[32,6],[65,62],[59,0,16],[32,4],[34,12],[32,8],[32,2],[40,1,0],[106],[65,22],[106],[34,11],[54,1,0],[32,4],[65,195,0],[15]],
-params:[127,127,127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127,127],localNames:["_this","_this#type","arg","arg#type","out","#last_type","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_fontcolor/out":[13,0,0,0,60,0,102,0,111,0,110,0,116,0,32,0,99,0,111,0,108,0,111,0,114,0,61,0,34,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_fontcolor/pre1','i8'),124),[33,4],...number(allocPage(_,'bytestring: __String_prototype_fontcolor/pre2','i8'),124),[33,5],...number(allocPage(_,'bytestring: __String_prototype_fontcolor/post','i8'),124),[33,6],[32,4],[65,195,1],[32,2],[32,3],[16,builtin('__Porffor_concatStrings')],[34,7],[32,5],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,7],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,7],[32,6],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,7],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,124,127],localNames:["_this","_this#type","arg","arg#type","pre1","pre2","post","#last_type"],
+data:{"bytestring: __String_prototype_fontcolor/pre1":[13,0,0,0,60,102,111,110,116,32,99,111,108,111,114,61,34],"bytestring: __String_prototype_fontcolor/pre2":[2,0,0,0,34,62],"bytestring: __String_prototype_fontcolor/post":[7,0,0,0,60,47,102,111,110,116,62]},
 };
 this.__ByteString_prototype_fontcolor = {
-wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'string: __ByteString_prototype_fontcolor/out','i16'),127),[34,4],[183],[65,195,0],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,5],[252,3],[34,4],[65,30],[106],[32,2],[40,1,0],[65,2],[108],[106],[34,6],[65,34],[59,0,0],[32,6],[65,62],[59,0,2],[32,0],[33,7],[32,0],[40,1,0],[33,8],[32,7],[32,8],[106],[33,9],[3,64],[32,7],[32,9],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[33,10],[32,6],[32,10],[59,0,4],[32,6],[65,2],[106],[33,6],[12,1],[11],[11],[32,6],[65,60],[59,0,4],[32,6],[65,47],[59,0,6],[32,6],[65,230,0],[59,0,8],[32,6],[65,239,0],[59,0,10],[32,6],[65,238,0],[59,0,12],[32,6],[65,244,0],[59,0,14],[32,6],[65,62],[59,0,16],[32,4],[34,12],[32,8],[32,2],[40,1,0],[106],[65,22],[106],[34,11],[54,1,0],[32,4],[65,195,0],[15]],
-params:[127,127,127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127,127],localNames:["_this","_this#type","arg","arg#type","out","#last_type","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __ByteString_prototype_fontcolor/out":[13,0,0,0,60,0,102,0,111,0,110,0,116,0,32,0,99,0,111,0,108,0,111,0,114,0,61,0,34,0]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[32,2],[32,3],[16,builtin('__String_prototype_fontcolor')],[34,4],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
 };
 this.__String_prototype_fontsize = {
-wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'string: __String_prototype_fontsize/out','i16'),127),[34,4],[183],[65,195,0],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,5],[252,3],[34,4],[65,28],[106],[32,2],[40,1,0],[65,2],[108],[106],[34,6],[65,34],[59,0,0],[32,6],[65,62],[59,0,2],[32,0],[33,7],[32,0],[40,1,0],[33,8],[32,7],[32,8],[65,2],[108],[106],[33,9],[3,64],[32,7],[32,9],[72],[4,64],[32,7],[47,0,4],[33,10],[32,6],[32,10],[59,0,4],[32,7],[65,2],[106],[33,7],[32,6],[65,2],[106],[33,6],[12,1],[11],[11],[32,6],[65,60],[59,0,4],[32,6],[65,47],[59,0,6],[32,6],[65,230,0],[59,0,8],[32,6],[65,239,0],[59,0,10],[32,6],[65,238,0],[59,0,12],[32,6],[65,244,0],[59,0,14],[32,6],[65,62],[59,0,16],[32,4],[34,12],[32,8],[32,2],[40,1,0],[106],[65,21],[106],[34,11],[54,1,0],[32,4],[65,195,0],[15]],
-params:[127,127,127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127,127],localNames:["_this","_this#type","arg","arg#type","out","#last_type","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_fontsize/out":[12,0,0,0,60,0,102,0,111,0,110,0,116,0,32,0,115,0,105,0,122,0,101,0,61,0,34,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_fontsize/pre1','i8'),124),[33,4],...number(allocPage(_,'bytestring: __String_prototype_fontsize/pre2','i8'),124),[33,5],...number(allocPage(_,'bytestring: __String_prototype_fontsize/post','i8'),124),[33,6],[32,4],[65,195,1],[32,2],[32,3],[16,builtin('__Porffor_concatStrings')],[34,7],[32,5],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,7],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,7],[32,6],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,7],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,124,127],localNames:["_this","_this#type","arg","arg#type","pre1","pre2","post","#last_type"],
+data:{"bytestring: __String_prototype_fontsize/pre1":[12,0,0,0,60,102,111,110,116,32,115,105,122,101,61,34],"bytestring: __String_prototype_fontsize/pre2":[2,0,0,0,34,62],"bytestring: __String_prototype_fontsize/post":[7,0,0,0,60,47,102,111,110,116,62]},
 };
 this.__ByteString_prototype_fontsize = {
-wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'string: __ByteString_prototype_fontsize/out','i16'),127),[34,4],[183],[65,195,0],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,5],[252,3],[34,4],[65,28],[106],[32,2],[40,1,0],[65,2],[108],[106],[34,6],[65,34],[59,0,0],[32,6],[65,62],[59,0,2],[32,0],[33,7],[32,0],[40,1,0],[33,8],[32,7],[32,8],[106],[33,9],[3,64],[32,7],[32,9],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[33,10],[32,6],[32,10],[59,0,4],[32,6],[65,2],[106],[33,6],[12,1],[11],[11],[32,6],[65,60],[59,0,4],[32,6],[65,47],[59,0,6],[32,6],[65,230,0],[59,0,8],[32,6],[65,239,0],[59,0,10],[32,6],[65,238,0],[59,0,12],[32,6],[65,244,0],[59,0,14],[32,6],[65,62],[59,0,16],[32,4],[34,12],[32,8],[32,2],[40,1,0],[106],[65,21],[106],[34,11],[54,1,0],[32,4],[65,195,0],[15]],
-params:[127,127,127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127,127],localNames:["_this","_this#type","arg","arg#type","out","#last_type","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __ByteString_prototype_fontsize/out":[12,0,0,0,60,0,102,0,111,0,110,0,116,0,32,0,115,0,105,0,122,0,101,0,61,0,34,0]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[32,2],[32,3],[16,builtin('__String_prototype_fontsize')],[34,4],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
 };
 this.__String_prototype_anchor = {
-wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'string: __String_prototype_anchor/out','i16'),127),[34,4],[183],[65,195,0],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,5],[252,3],[34,4],[65,22],[106],[32,2],[40,1,0],[65,2],[108],[106],[34,6],[65,34],[59,0,0],[32,6],[65,62],[59,0,2],[32,0],[33,7],[32,0],[40,1,0],[33,8],[32,7],[32,8],[65,2],[108],[106],[33,9],[3,64],[32,7],[32,9],[72],[4,64],[32,7],[47,0,4],[33,10],[32,6],[32,10],[59,0,4],[32,7],[65,2],[106],[33,7],[32,6],[65,2],[106],[33,6],[12,1],[11],[11],[32,6],[65,60],[59,0,4],[32,6],[65,47],[59,0,6],[32,6],[65,225,0],[59,0,8],[32,6],[65,62],[59,0,10],[32,4],[34,12],[32,8],[32,2],[40,1,0],[106],[65,15],[106],[34,11],[54,1,0],[32,4],[65,195,0],[15]],
-params:[127,127,127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127,127],localNames:["_this","_this#type","arg","arg#type","out","#last_type","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_anchor/out":[9,0,0,0,60,0,97,0,32,0,110,0,97,0,109,0,101,0,61,0,34,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_anchor/pre1','i8'),124),[33,4],...number(allocPage(_,'bytestring: __String_prototype_anchor/pre2','i8'),124),[33,5],...number(allocPage(_,'bytestring: __String_prototype_anchor/post','i8'),124),[33,6],[32,4],[65,195,1],[32,2],[32,3],[16,builtin('__Porffor_concatStrings')],[34,7],[32,5],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,7],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,7],[32,6],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,7],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,124,127],localNames:["_this","_this#type","arg","arg#type","pre1","pre2","post","#last_type"],
+data:{"bytestring: __String_prototype_anchor/pre1":[9,0,0,0,60,97,32,110,97,109,101,61,34],"bytestring: __String_prototype_anchor/pre2":[2,0,0,0,34,62],"bytestring: __String_prototype_anchor/post":[4,0,0,0,60,47,97,62]},
 };
 this.__ByteString_prototype_anchor = {
-wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'string: __ByteString_prototype_anchor/out','i16'),127),[34,4],[183],[65,195,0],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,5],[252,3],[34,4],[65,22],[106],[32,2],[40,1,0],[65,2],[108],[106],[34,6],[65,34],[59,0,0],[32,6],[65,62],[59,0,2],[32,0],[33,7],[32,0],[40,1,0],[33,8],[32,7],[32,8],[106],[33,9],[3,64],[32,7],[32,9],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[33,10],[32,6],[32,10],[59,0,4],[32,6],[65,2],[106],[33,6],[12,1],[11],[11],[32,6],[65,60],[59,0,4],[32,6],[65,47],[59,0,6],[32,6],[65,225,0],[59,0,8],[32,6],[65,62],[59,0,10],[32,4],[34,12],[32,8],[32,2],[40,1,0],[106],[65,15],[106],[34,11],[54,1,0],[32,4],[65,195,0],[15]],
-params:[127,127,127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127,127],localNames:["_this","_this#type","arg","arg#type","out","#last_type","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __ByteString_prototype_anchor/out":[9,0,0,0,60,0,97,0,32,0,110,0,97,0,109,0,101,0,61,0,34,0]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[32,2],[32,3],[16,builtin('__String_prototype_anchor')],[34,4],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
 };
 this.__String_prototype_link = {
-wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'string: __String_prototype_link/out','i16'),127),[34,4],[183],[65,195,0],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,5],[252,3],[34,4],[65,22],[106],[32,2],[40,1,0],[65,2],[108],[106],[34,6],[65,34],[59,0,0],[32,6],[65,62],[59,0,2],[32,0],[33,7],[32,0],[40,1,0],[33,8],[32,7],[32,8],[65,2],[108],[106],[33,9],[3,64],[32,7],[32,9],[72],[4,64],[32,7],[47,0,4],[33,10],[32,6],[32,10],[59,0,4],[32,7],[65,2],[106],[33,7],[32,6],[65,2],[106],[33,6],[12,1],[11],[11],[32,6],[65,60],[59,0,4],[32,6],[65,47],[59,0,6],[32,6],[65,225,0],[59,0,8],[32,6],[65,62],[59,0,10],[32,4],[34,12],[32,8],[32,2],[40,1,0],[106],[65,15],[106],[34,11],[54,1,0],[32,4],[65,195,0],[15]],
-params:[127,127,127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127,127],localNames:["_this","_this#type","arg","arg#type","out","#last_type","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __String_prototype_link/out":[9,0,0,0,60,0,97,0,32,0,104,0,114,0,101,0,102,0,61,0,34,0]},
+wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'bytestring: __String_prototype_link/pre1','i8'),124),[33,4],...number(allocPage(_,'bytestring: __String_prototype_link/pre2','i8'),124),[33,5],...number(allocPage(_,'bytestring: __String_prototype_link/post','i8'),124),[33,6],[32,4],[65,195,1],[32,2],[32,3],[16,builtin('__Porffor_concatStrings')],[34,7],[32,5],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,7],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,7],[32,6],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,7],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,124,127],localNames:["_this","_this#type","arg","arg#type","pre1","pre2","post","#last_type"],
+data:{"bytestring: __String_prototype_link/pre1":[9,0,0,0,60,97,32,104,114,101,102,61,34],"bytestring: __String_prototype_link/pre2":[2,0,0,0,34,62],"bytestring: __String_prototype_link/post":[4,0,0,0,60,47,97,62]},
 };
 this.__ByteString_prototype_link = {
-wasm:(_,{allocPage,builtin})=>[...number(allocPage(_,'string: __ByteString_prototype_link/out','i16'),127),[34,4],[183],[65,195,0],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,5],[252,3],[34,4],[65,22],[106],[32,2],[40,1,0],[65,2],[108],[106],[34,6],[65,34],[59,0,0],[32,6],[65,62],[59,0,2],[32,0],[33,7],[32,0],[40,1,0],[33,8],[32,7],[32,8],[106],[33,9],[3,64],[32,7],[32,9],[72],[4,64],[32,7],[32,7],[65,1],[106],[33,7],[45,0,4],[33,10],[32,6],[32,10],[59,0,4],[32,6],[65,2],[106],[33,6],[12,1],[11],[11],[32,6],[65,60],[59,0,4],[32,6],[65,47],[59,0,6],[32,6],[65,225,0],[59,0,8],[32,6],[65,62],[59,0,10],[32,4],[34,12],[32,8],[32,2],[40,1,0],[106],[65,15],[106],[34,11],[54,1,0],[32,4],[65,195,0],[15]],
-params:[127,127,127,127],typedParams:1,returns:[127,127],typedReturns:1,
-locals:[127,127,127,127,127,127,127,127,127],localNames:["_this","_this#type","arg","arg#type","out","#last_type","outPtr","thisPtr","thisLen","endPtr","chr","__length_setter_tmp","__member_setter_ptr_tmp"],
-data:{"string: __ByteString_prototype_link/out":[9,0,0,0,60,0,97,0,32,0,104,0,114,0,101,0,102,0,61,0,34,0]},
+wasm:(_,{builtin})=>[[32,0],[32,1],[32,2],[32,3],[16,builtin('__String_prototype_link')],[34,4],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
 };
 this.__Array_isArray = {
 wasm:()=>[[32,1],[184],[68,80],[97],[184],[65,2],[15]],
