@@ -2827,8 +2827,10 @@ const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType
   // todo: detect last type then i32 conversion op
   const lastOp = out.at(-1);
   if (lastOp[0] === Opcodes.local_set && lastOp[1] === scope.locals['#last_type']?.idx) {
-    out.pop();
+    // set last type -> tee last type
+    lastOp[0] = Opcodes.local_tee;
 
+    // still set last type due to side effects or type of decl gotten later
     const setOut = setType(scope, name, []);
     out.push(
       // drop if setType is empty
