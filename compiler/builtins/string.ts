@@ -1079,14 +1079,21 @@ export const __ByteString_prototype_trim = (_this: bytestring) => {
 
 
 export const __String_prototype_concat = (_this: string, ...vals: any[]) => {
-  // todo/perf: rewrite to use memory.copy?
-  let out: string = Porffor.allocate();
-  out += _this;
+  let out = Porffor.allocate();
+  Porffor.clone(_this, out);
+
+  // override type to string
+  Porffor.wasm`
+i32.const 67 ;; string
+local.set ${out+1}`;
 
   const valsLen: i32 = vals.length;
   for (let i: i32 = 0; i < valsLen; i++) {
-    let x: any;
     Porffor.wasm`
+local.get ${out}
+f64.convert_i32_u
+local.get ${out+1}
+
 local.get ${vals}
 local.get ${i}
 i32.const 9
@@ -1101,26 +1108,31 @@ i32.mul
 i32.add
 i32.load8_u 0 12
 
-call __ecma262_ToString
-local.set ${x+1}
+call __Porffor_concatStrings
+local.set ${out+1}
 i32.trunc_sat_f64_u
-local.set ${x}`;
-
-    out += x;
+local.set ${out}`;
   }
 
   return out;
 };
 
 export const __ByteString_prototype_concat = (_this: bytestring, ...vals: any[]) => {
-  // todo/perf: rewrite to use memory.copy?
-  let out: string = Porffor.allocate();
-  out += _this;
+  let out = Porffor.allocate();
+  Porffor.clone(_this, out);
+
+  // override type to bytestring
+  Porffor.wasm`
+i32.const 195 ;; bytestring
+local.set ${out+1}`;
 
   const valsLen: i32 = vals.length;
   for (let i: i32 = 0; i < valsLen; i++) {
-    let x: any;
     Porffor.wasm`
+local.get ${out}
+f64.convert_i32_u
+local.get ${out+1}
+
 local.get ${vals}
 local.get ${i}
 i32.const 9
@@ -1135,12 +1147,10 @@ i32.mul
 i32.add
 i32.load8_u 0 12
 
-call __ecma262_ToString
-local.set ${x+1}
+call __Porffor_concatStrings
+local.set ${out+1}
 i32.trunc_sat_f64_u
-local.set ${x}`;
-
-    out += x;
+local.set ${out}`;
   }
 
   return out;

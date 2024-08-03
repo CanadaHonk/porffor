@@ -499,126 +499,19 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   ];
 };
 
-const concatStrings = (scope, left, right, leftType, rightType, allBytestrings = false, skipTypeCheck = false) => {
-  // todo: this should be rewritten into a built-in/func: String.prototype.concat
-  // todo: convert left and right to strings if not
-  // todo: optimize by looking up names in arrays and using that if exists?
-  // todo: optimize this if using literals/known lengths?
-
-  const rightPointer = localTmp(scope, 'concat_right_pointer', Valtype.i32);
-  const rightLength = localTmp(scope, 'concat_right_length', Valtype.i32);
-  const leftLength = localTmp(scope, 'concat_left_length', Valtype.i32);
-
-  const leftPointer = localTmp(scope, 'concat_left_pointer', Valtype.i32);
-
-  // alloc/assign array
-  const out = localTmp(scope, 'concat_out_pointer', Valtype.i32);
-
-  if (!skipTypeCheck && !allBytestrings) includeBuiltin(scope, '__Porffor_bytestringToString');
+const concatStrings = (scope, left, right, leftType, rightType) => {
   return [
-    // setup pointers
-    ...(left.length === 0 ? [
-      Opcodes.i32_to_u,
-      [ Opcodes.local_set, rightPointer ],
+    ...left,
+    ...(valtypeBinary === Valtype.i32 ? [ [ Opcodes.f64_convert_i32_s ] ] : []),
+    ...leftType,
 
-      Opcodes.i32_to_u,
-      [ Opcodes.local_set, leftPointer ],
-    ] : [
-      ...left,
-      Opcodes.i32_to_u,
-      [ Opcodes.local_set, leftPointer ],
+    ...right,
+    ...(valtypeBinary === Valtype.i32 ? [ [ Opcodes.f64_convert_i32_s ] ] : []),
+    ...rightType,
 
-      ...right,
-      Opcodes.i32_to_u,
-      [ Opcodes.local_set, rightPointer ],
-    ]),
-
-    // setup out
-    [ Opcodes.i32_const, 1 ],
-    [ Opcodes.memory_grow, 0 ],
-    [ Opcodes.i32_const, ...signedLEB128(65536) ],
-    [ Opcodes.i32_mul ],
-    [ Opcodes.local_tee, out ],
-
-    // calculate length
-    [ Opcodes.local_get, leftPointer ],
-    [ Opcodes.i32_load, 0, 0 ],
-    [ Opcodes.local_tee, leftLength ],
-
-    [ Opcodes.local_get, rightPointer ],
-    [ Opcodes.i32_load, 0, 0 ],
-    [ Opcodes.local_tee, rightLength ],
-
-    [ Opcodes.i32_add ],
-
-    // store length
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ],
-
-    ...(skipTypeCheck || allBytestrings ? [] : [
-      ...leftType,
-      ...number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-      [ Opcodes.if, Blocktype.void ],
-      [ Opcodes.local_get, leftPointer ],
-      [ Opcodes.local_get, leftLength ],
-      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
-      [ Opcodes.local_set, leftPointer ],
-      [ Opcodes.end ],
-
-      ...rightType,
-      ...number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-      [ Opcodes.if, Blocktype.void ],
-      [ Opcodes.local_get, rightPointer ],
-      [ Opcodes.local_get, rightLength ],
-      [ Opcodes.call, funcIndex.__Porffor_bytestringToString ],
-      [ Opcodes.local_set, rightPointer ],
-      [ Opcodes.end ]
-    ]),
-
-    // copy left
-    // dst = out pointer + length size
-    [ Opcodes.local_get, out ],
-    ...number(ValtypeSize.i32, Valtype.i32),
-    [ Opcodes.i32_add ],
-
-    // src = left pointer + length size
-    [ Opcodes.local_get, leftPointer ],
-    ...number(ValtypeSize.i32, Valtype.i32),
-    [ Opcodes.i32_add ],
-
-    // size = PageSize - length size. we do not need to calculate length as init value
-    ...number(pageSize - ValtypeSize.i32, Valtype.i32),
-    [ ...Opcodes.memory_copy, 0x00, 0x00 ],
-
-    // copy right
-    // dst = out pointer + length size + left length * sizeof valtype
-    [ Opcodes.local_get, out ],
-    ...number(ValtypeSize.i32, Valtype.i32),
-    [ Opcodes.i32_add ],
-
-    [ Opcodes.local_get, leftLength ],
-    ...number(allBytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
-    [ Opcodes.i32_mul ],
-    [ Opcodes.i32_add ],
-
-    // src = right pointer + length size
-    [ Opcodes.local_get, rightPointer ],
-    ...number(ValtypeSize.i32, Valtype.i32),
-    [ Opcodes.i32_add ],
-
-    // size = right length * sizeof valtype
-    [ Opcodes.local_get, rightLength ],
-    ...number(allBytestrings ? ValtypeSize.i8 : ValtypeSize.i16, Valtype.i32),
-    [ Opcodes.i32_mul ],
-
-    [ ...Opcodes.memory_copy, 0x00, 0x00 ],
-
-    ...setLastType(scope, allBytestrings ? TYPES.bytestring : TYPES.string),
-
-    // return new string (page)
-    [ Opcodes.local_get, out ],
-    Opcodes.i32_from_u
+    [ Opcodes.call, includeBuiltin(scope, '__Porffor_concatStrings').index ],
+    ...setLastType(scope),
+    ...(valtypeBinary === Valtype.i32 ? [ Opcodes.i32_trunc_sat_f64_u ] : []),
   ];
 };
 
@@ -860,22 +753,15 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   // todo: if equality op and an operand is undefined, return false
   // todo: niche null hell with 0
 
-  if (knownLeft === TYPES.string || knownRight === TYPES.string) {
+  if ((knownLeft === TYPES.string || knownRight === TYPES.string) ||
+      (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring)) {
     if (op === '+') {
       // string concat (a + b)
-      return [
-        ...left,
-        ...right,
-        ...concatStrings(scope, [], [], leftType, rightType, false, knownLeft === TYPES.string && knownRight === TYPES.string)
-      ];
+      return concatStrings(scope, left, right, leftType, rightType);
     }
 
     // not an equality op, NaN
     if (!eqOp) return number(NaN);
-
-    // else leave bool ops
-    // todo: convert string to number if string and number/bool
-    // todo: string (>|>=|<|<=) string
 
     // string comparison
     if (op === '===' || op === '==' || op === '!==' || op === '!=') {
@@ -884,32 +770,8 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
         ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : [])
       ];
     }
-  }
 
-  if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) {
-    if (op === '+') {
-      // string concat (a + b)
-      return [
-        ...left,
-        ...right,
-        ...concatStrings(scope, [], [], leftType, rightType, knownLeft === TYPES.bytestring && knownRight === TYPES.bytestring)
-      ];
-    }
-
-    // not an equality op, NaN
-    if (!eqOp) return number(NaN);
-
-    // else leave bool ops
-    // todo: convert string to number if string and number/bool
-    // todo: string (>|>=|<|<=) string
-
-    // string comparison
-    if (op === '===' || op === '==' || op === '!==' || op === '!=') {
-      return [
-        ...compareStrings(scope, left, right, leftType, rightType),
-        ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : [])
-      ];
-    }
+    // todo: proper >|>=|<|<=
   }
 
   let ops = operatorOpcode[valtype][op];
@@ -943,39 +805,19 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     tmpRight = localTmp(scope, '__tmpop_right');
 
     ops.unshift(...stringOnly([
-      // if left is bytestring
-      ...leftType,
-      ...number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      // if right is bytestring
-      ...rightType,
-      ...number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      // if both are true
-      [ Opcodes.i32_and ],
-      [ Opcodes.if, Blocktype.void ],
-      ...concatStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType, true),
-      ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
-      [ Opcodes.br, 1 ],
-      [ Opcodes.end ],
-
-      // if left is string or bytestring
+      // if left or right are string or bytestring
       ...leftType,
       ...number(TYPE_FLAGS.parity, Valtype.i32),
       [ Opcodes.i32_or ],
       ...number(TYPES.bytestring, Valtype.i32),
       [ Opcodes.i32_eq ],
 
-      // if right is string or bytestring
       ...rightType,
       ...number(TYPE_FLAGS.parity, Valtype.i32),
       [ Opcodes.i32_or ],
       ...number(TYPES.bytestring, Valtype.i32),
       [ Opcodes.i32_eq ],
 
-      // if either
       [ Opcodes.i32_or ],
       [ Opcodes.if, Blocktype.void ],
       ...concatStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType),
@@ -1476,6 +1318,7 @@ const getNodeType = (scope, node) => {
     if (node.type === 'AssignmentExpression') {
       const op = node.operator.slice(0, -1) || '=';
       if (op === '=') return getNodeType(scope, node.right);
+      // if (op === '=') return getNodeType(scope, node.left);
 
       return getNodeType(scope, {
         type: ['||', '&&', '??'].includes(op) ? 'LogicalExpression' : 'BinaryExpression',
@@ -1498,11 +1341,14 @@ const getNodeType = (scope, node) => {
       const knownLeft = knownType(scope, leftType);
       const knownRight = knownType(scope, rightType);
 
-      if (knownLeft === TYPES.string || knownRight === TYPES.string) return TYPES.string;
-      if (knownLeft === TYPES.bytestring && knownRight === TYPES.bytestring) return TYPES.bytestring;
-      if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) return TYPES.string;
+      if ((knownLeft != null || knownRight != null) && !(
+        (knownLeft === TYPES.string || knownRight === TYPES.string) ||
+        (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring)
+      )) return TYPES.number;
 
-      if (knownLeft != null || knownRight != null) return TYPES.number;
+      // if (knownLeft === TYPES.string || knownRight === TYPES.string) return TYPES.string;
+      // if (knownLeft === TYPES.bytestring && knownRight === TYPES.bytestring) return TYPES.bytestring;
+      // if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) return TYPES.string;
 
       if (scope.locals['#last_type']) return getLastType(scope);
 
@@ -2232,6 +2078,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
         // value
         i32_const: { imms: 1, args: [], returns: 0 },
+
+        // dst, src, size, _, _
+        memory_copy: { imms: 2, args: [ true, true, true ], returns: 0 }
       };
 
       const opName = name.slice('__Porffor_wasm_'.length);
@@ -2254,9 +2103,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         // literals only
         const imms = decl.arguments.slice(op.args.length).map(x => x.value);
 
+        let opcode = Opcodes[opName];
+        if (!Array.isArray(opcode)) opcode = [ opcode ];
+
         return [
           ...argOut,
-          [ Opcodes[opName], ...imms ],
+          [ ...opcode, ...imms ],
           ...(new Array(op.returns).fill(Opcodes.i32_from))
         ];
       }
