@@ -227,6 +227,8 @@ export default function({ builtinFuncs }, Prefs) {
     ...autoFuncs('Number')
   });
 
+  object('Object', autoFuncs('Object'));
+
 
   // these technically not spec compliant as it should be classes or non-enumerable but eh
   object('navigator', {
