@@ -75,7 +75,7 @@ export default function({ builtinFuncs }, Prefs) {
             ...number(flags, Valtype.i32),
             ...number(TYPES.number, Valtype.i32),
 
-            [ Opcodes.call, builtin('__Porffor_object_define') ],
+            [ Opcodes.call, builtin('__Porffor_object_expr_initWithFlags') ],
             [ Opcodes.drop ],
             [ Opcodes.drop ]
           );
