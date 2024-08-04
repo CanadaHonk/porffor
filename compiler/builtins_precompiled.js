@@ -1659,7 +1659,7 @@ locals:[124,127,124],localNames:["_this","_this#type","out","#makearray_pointer_
 data:{"bytestring: __Object_prototype_toString/out":[18,0,0,0,91,111,98,106,101,99,116,32,85,110,100,101,102,105,110,101,100,93]},
 };
 this.__Object_prototype_toLocaleString = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__Object_prototype_toLocaleString')],[34,2],[15]],
+wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__Object_prototype_toString')],[34,2],[15]],
 params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[127],localNames:["_this","_this#type","#last_type"],
 };

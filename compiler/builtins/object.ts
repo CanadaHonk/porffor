@@ -704,7 +704,7 @@ export const __Object_prototype_toString = (_this: any) => {
   return out = '[object Object]';
 };
 
-export const __Object_prototype_toLocaleString = (_this: any) => __Object_prototype_toLocaleString(_this);
+export const __Object_prototype_toLocaleString = (_this: any) => __Object_prototype_toString(_this);
 
 export const __Object_prototype_valueOf = (_this: any) => {
   // todo: ToObject
