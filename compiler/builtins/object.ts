@@ -644,11 +644,13 @@ export const __Object_setPrototypeOf = (obj: any, proto: any) => {
     return obj;
   }
 
+  const castedObj: object = obj;
+
   // todo: throw when this fails?
   // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf#exceptions
-  obj.__proto__ = proto;
+  castedObj.__proto__ = proto;
 
-  return obj;
+  return castedObj;
 };
 
 export const __Object_prototype_isPrototypeOf = (_this: any, obj: any) => {

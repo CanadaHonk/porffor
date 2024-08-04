@@ -367,13 +367,6 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   // write new value value (lol)
   Porffor.wasm.f64.store(entryPtr, value, 0, 4);
 
-  // note: v8 implements this with an internal accessor iirc? but indirect calls are really slow, so a strcmp
-  const protoKey: bytestring = '__proto__';
-  if (key === protoKey) {
-    // make __proto__ non-enumerable by default
-    flags ^= 0b0100;
-  }
-
   // write new tail (value type + flags)
   Porffor.wasm.i32.store16(entryPtr,
     flags + (Porffor.wasm`local.get ${value+1}` << 8),

@@ -65,8 +65,6 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
         const kValue = kRaw & 0x3fffffff;
         const k = porfToJSValue({ memory, funcs, pages }, kValue, kType);
 
-        if (k === '__proto__') continue;
-
         const tail = read(Uint16Array, memory, value + offset + 12, 1)[0];
 
         const vValue = read(Float64Array, memory, value + offset + 4, 1)[0];

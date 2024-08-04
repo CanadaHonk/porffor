@@ -1821,6 +1821,41 @@ const setObjProp = (obj, prop, value) => {
   });
 };
 
+const setObjPropWithFlags = (scope, obj, prop, value, _flags) => {
+  if (typeof obj === 'string') obj = {
+    type: 'Identifier',
+    name: obj
+  };
+
+  if (typeof prop === 'string') prop = {
+    type: 'Identifier',
+    name: prop
+  };
+
+  let flags = 0b0000;
+  if (_flags.configurable) flags |= 0b0010;
+  if (_flags.enumerable) flags |= 0b0100;
+  if (_flags.writable) flags |= 0b1000;
+
+  obj = objectHack(obj);
+  prop = objectHack(prop);
+  value = objectHack(value);
+
+  return [
+    ...generate(scope, obj),
+    Opcodes.i32_to_u,
+    ...getNodeType(scope, obj),
+    ...generate(scope, prop),
+    Opcodes.i32_to_u,
+    ...getNodeType(scope, prop),
+    ...generate(scope, value),
+    ...getNodeType(scope, value),
+    ...number(flags, Valtype.i32),
+    ...number(TYPES.number, Valtype.i32),
+    [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_define').index ]
+  ];
+};
+
 const createThisArg = (scope, decl, knownThis = undefined) => {
   if (knownThis) {
     // todo: check compliance
@@ -3356,6 +3391,9 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     const object = decl.left.object;
     const property = getProperty(decl.left);
+    const type = getNodeType(scope, object);
+
+    const kType = knownType(scope, type);
 
     // todo/perf: use i32 object (and prop?) locals
     const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];
@@ -3369,7 +3407,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       [ Opcodes.local_set, localTmp(scope, '#member_prop_assign') ],
 
       // todo: review last type usage here
-      ...typeSwitch(scope, getNodeType(scope, object), {
+      ...typeSwitch(scope, type, {
         [TYPES.array]: [
           ...objectWasm,
           Opcodes.i32_to_u,
@@ -3401,11 +3439,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           [ Opcodes.local_get, newValueTmp ]
         ],
 
-        [TYPES.object]: [
+        [TYPES.object]: kType && property.value === '__proto__' ? setObjPropWithFlags(scope, object, property, decl.right, { writable: true, configurable: true }) : [
           ...objectWasm,
           Opcodes.i32_to_u,
           ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
-          ...getNodeType(scope, object),
+          ...type,
 
           ...propertyWasm,
           ...getNodeType(scope, property),
@@ -3419,7 +3457,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
           ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
             [ Opcodes.local_get, localTmp(scope, '#objset_object', Valtype.i32) ],
-            ...getNodeType(scope, object),
+            ...type,
 
             [ Opcodes.local_get, localTmp(scope, '#objset_property', Valtype.i32) ],
             [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
@@ -3434,11 +3472,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           // ...setLastType(scope, getNodeType(scope, decl)),
         ],
 
-        [TYPES.function]: [
+        [TYPES.function]: kType && property.value === '__proto__' ? setObjPropWithFlags(scope, object, property, decl.right, { writable: true, configurable: true }) : [
           ...objectWasm,
           Opcodes.i32_to_u,
           ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
-          ...getNodeType(scope, object),
+          ...type,
 
           ...propertyWasm,
           ...getNodeType(scope, property),
@@ -3452,7 +3490,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
           ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
             [ Opcodes.local_get, localTmp(scope, '#objset_object', Valtype.i32) ],
-            ...getNodeType(scope, object),
+            ...type,
 
             [ Opcodes.local_get, localTmp(scope, '#objset_property', Valtype.i32) ],
             [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
@@ -5727,8 +5765,8 @@ const generateClass = (scope, decl) => {
       // class Bar extends Foo {}
       // Bar.__proto__ = Foo
       // Bar.prototype.__proto__ = Foo.prototype
-      ...generate(scope, setObjProp(root, '__proto__', decl.superClass)),
-      ...generate(scope, setObjProp(getObjProp(root, 'prototype'), '__proto__', getObjProp(decl.superClass, 'prototype')))
+      ...setObjPropWithFlags(scope, root, '__proto__', decl.superClass, { configurable: true, writable: true }),
+      ...setObjPropWithFlags(scope, getObjProp(root, 'prototype'), '__proto__', getObjProp(decl.superClass, 'prototype'), { configurable: true, writable: true })
     );
   }
 
@@ -5965,7 +6003,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
             [ Opcodes.if, Blocktype.void ],
           ]),
             // set prototype of this ;)
-            ...generate(func, setObjProp({ type: 'ThisExpression', _noGlobalThis: true }, '__proto__', getObjProp(func.name, 'prototype'))),
+            ...setObjPropWithFlags(scope, { type: 'ThisExpression', _noGlobalThis: true }, '__proto__', getObjProp(func.name, 'prototype'), { configurable: true, writable: true }),
           ...(func._onlyConstr ? [] : [ [ Opcodes.end ] ])
         );
       }
