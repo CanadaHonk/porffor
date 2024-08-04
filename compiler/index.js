@@ -16,8 +16,9 @@ globalThis.decompile = decompile;
 const logFuncs = (funcs, globals, exceptions) => {
   console.log('\n' + underline(bold('funcs')));
 
+  const wanted = Prefs.f;
   for (const f of funcs) {
-    if (f.internal) continue;
+    if ((wanted && f.name !== wanted) || (!wanted && f.internal)) continue;
     console.log(decompile(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
   }
 
@@ -166,7 +167,7 @@ export default (code, flags) => {
   const wasm = out.wasm = assemble(funcs, globals, tags, pages, data, flags);
   if (logProgress) progressDone('assembled', t3);
 
-  if (Prefs.optFuncs) logFuncs(funcs, globals, exceptions);
+  if (Prefs.optFuncs || Prefs.f) logFuncs(funcs, globals, exceptions);
 
   if (Prefs.compileAllocLog) {
     const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
