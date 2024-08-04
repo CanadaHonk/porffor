@@ -5730,23 +5730,26 @@ const objectHack = node => {
 
   if (node.type === 'MemberExpression') {
     const out = (() => {
+      const abortOut = { ...node, object: objectHack(node.object) };
       if (node.computed || node.optional) return;
 
       // hack: block these properties as they can be accessed on functions
-      if (node.property.name === 'length' || node.property.name === 'name' || node.property.name === 'call') return;
+      if (node.property.name === 'length' || node.property.name === 'name' || node.property.name === 'call') return abortOut;
 
-      if (node.property.name === '__proto__') return;
+      if (node.property.name === '__proto__') return abortOut;
 
       let objectName = node.object.name;
 
       // if object is not identifier or another member exp, give up
-      if (node.object.type !== 'Identifier' && node.object.type !== 'MemberExpression') return;
-      if (objectName && ['undefined', 'null', 'NaN', 'Infinity'].includes(objectName)) return;
+      if (node.object.type !== 'Identifier' && node.object.type !== 'MemberExpression') return abortOut;
+      if (objectName && ['undefined', 'null', 'NaN', 'Infinity'].includes(objectName)) return abortOut;
 
       if (!objectName) objectName = objectHack(node.object)?.name?.slice?.(2);
       if (!objectName || (!objectHackers.includes(objectName) && !objectHackers.some(x => objectName.startsWith(`${x}_`)))) {
-        return;
+        return abortOut;
       }
+
+      if (objectName !== 'Object_prototype' && (node.property.name === 'propertyIsEnumerable' || node.property.name === 'hasOwnProperty' || node.property.name === 'isPrototypeOf')) return abortOut;
 
       const name = '__' + objectName + '_' + node.property.name;
       if (Prefs.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);

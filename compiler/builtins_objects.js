@@ -305,6 +305,7 @@ export default function({ builtinFuncs }, Prefs) {
     if (!t) continue;
 
     if (!done.has(name) && !done.has('__' + name)) {
+      console.log(name, !!builtinFuncs[name]);
       done.add(name);
     }
   }
