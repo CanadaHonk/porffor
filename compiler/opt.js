@@ -134,8 +134,11 @@ export default (funcs, globals, pages, tags, exceptions) => {
   const called = new Map();
 
   // wasm transform pass
+  let fi = 0;
   for (const f of funcs) {
     const wasm = f.wasm;
+
+    globalThis.progress?.(`${fi++}/${funcs.length}`);
 
     const lastType = f.locals['#last_type']?.idx;
 

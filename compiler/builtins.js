@@ -99,44 +99,6 @@ export const BuiltinVars = function(ctx) {
   this.Infinity = number(Infinity);
   this.Infinity.floatOnly = true;
 
-  this.__Number_NaN = number(NaN);
-  this.__Number_NaN.floatOnly = true;
-
-  this.__Number_POSITIVE_INFINITY = number(Infinity);
-  this.__Number_POSITIVE_INFINITY.floatOnly = true;
-
-  this.__Number_NEGATIVE_INFINITY = number(-Infinity);
-  this.__Number_NEGATIVE_INFINITY.floatOnly = true;
-
-  switch (valtype) {
-    case 'i32':
-      this.__Number_MAX_VALUE = number(2147483647);
-      this.__Number_MIN_VALUE = number(-2147483648);
-
-      this.__Number_MAX_SAFE_INTEGER = this.__Number_MAX_VALUE;
-      this.__Number_MIN_SAFE_INTEGER = this.__Number_MIN_VALUE;
-      break;
-
-    case 'i64':
-      // todo: we use 32 bit limits here as we cannot encode 64 bit integers yet
-      this.__Number_MAX_VALUE = number(2147483647);
-      this.__Number_MIN_VALUE = number(-2147483648);
-
-      this.__Number_MAX_SAFE_INTEGER = this.__Number_MAX_VALUE;
-      this.__Number_MIN_SAFE_INTEGER = this.__Number_MIN_VALUE;
-      break;
-
-    case 'f64':
-      this.__Number_MAX_VALUE = number(1.7976931348623157e+308);
-      this.__Number_MIN_VALUE = number(5e-324);
-
-      this.__Number_MAX_SAFE_INTEGER = number(9007199254740991);
-      this.__Number_MIN_SAFE_INTEGER = number(-9007199254740991);
-
-      this.__Number_EPSILON = number(2.220446049250313e-16);
-      break;
-  }
-
   for (const x in TYPES) {
     this['__Porffor_TYPES_' + x] = number(TYPES[x]);
   }
@@ -198,19 +160,19 @@ export const BuiltinFuncs = function() {
   // add bitwise ops by converting operands to i32 first
   for (const [ char, op ] of [ ['&', Opcodes.i32_and], ['|', Opcodes.i32_or], ['^', Opcodes.i32_xor], ['<<', Opcodes.i32_shl], ['>>', Opcodes.i32_shr_s], ['>>>', Opcodes.i32_shr_u] ]) {
     this[`f64_${char}`] = {
-      params: [ valtypeBinary, valtypeBinary ],
+      params: [ Valtype.f64, Valtype.f64 ],
       locals: [],
-      returns: [ valtypeBinary ],
+      returns: [ Valtype.f64 ],
       returnType: TYPES.number,
       wasm: [
         [ Opcodes.local_get, 0 ],
-        Opcodes.i32_to,
+        Opcodes.i32_trunc_sat_f64_s,
 
         [ Opcodes.local_get, 1 ],
-        Opcodes.i32_to,
+        Opcodes.i32_trunc_sat_f64_s,
 
         [ op ],
-        Opcodes.i32_from
+        [ Opcodes.f64_convert_i32_s ]
       ]
     };
   }
@@ -1050,11 +1012,11 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(128, Valtype.i32),
+      ...number(64, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(4, Valtype.i32),
       [ Opcodes.i32_add ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize) ]
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ]
     ],
     table: true
   };
@@ -1065,11 +1027,11 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(128, Valtype.i32),
+      ...number(64, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(2, Valtype.i32),
       [ Opcodes.i32_add ],
-      [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize) ]
+      [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ]
     ],
     table: true
   };
@@ -1080,11 +1042,11 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.bytestring,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(128, Valtype.i32),
+      ...number(64, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(5, Valtype.i32),
       [ Opcodes.i32_add ],
-      ...number(allocPage(scope, 'func lut') * pageSize, Valtype.i32),
+      ...number(allocPage(scope, 'func lut'), Valtype.i32),
       [ Opcodes.i32_add ]
     ],
     table: true
@@ -1095,16 +1057,16 @@ export const BuiltinFuncs = function() {
     returns: [],
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(128, Valtype.i32),
+      ...number(64, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(2, Valtype.i32),
       [ Opcodes.i32_add ],
       ...number(0, Valtype.i32),
-      [ Opcodes.i32_store16, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize) ],
+      [ Opcodes.i32_store16, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ],
 
       [ Opcodes.local_get, 0 ],
       ...number(1, Valtype.i32),
-      [ Opcodes.i32_store8, 0, ...unsignedLEB128(allocPage(scope, 'func length deletion table') * pageSize) ]
+      [ Opcodes.i32_store8, 0, ...unsignedLEB128(allocPage(scope, 'func length deletion table')) ]
     ],
     table: true
   };
@@ -1114,16 +1076,16 @@ export const BuiltinFuncs = function() {
     returns: [],
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(128, Valtype.i32),
+      ...number(64, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(5, Valtype.i32),
       [ Opcodes.i32_add ],
       ...number(0, Valtype.i32),
-      [ Opcodes.i32_store, 0, ...unsignedLEB128(allocPage(scope, 'func lut') * pageSize) ],
+      [ Opcodes.i32_store, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ],
 
       [ Opcodes.local_get, 0 ],
       ...number(1, Valtype.i32),
-      [ Opcodes.i32_store8, 0, ...unsignedLEB128(allocPage(scope, 'func name deletion table') * pageSize) ],
+      [ Opcodes.i32_store8, 0, ...unsignedLEB128(allocPage(scope, 'func name deletion table')) ],
     ],
     table: true
   };
@@ -1134,7 +1096,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.boolean,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func length deletion table') * pageSize) ]
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func length deletion table')) ]
     ],
     table: true
   };
@@ -1145,7 +1107,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.boolean,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func name deletion table') * pageSize) ]
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func name deletion table')) ]
     ],
     table: true
   };

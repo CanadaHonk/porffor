@@ -366,11 +366,11 @@ builtins/tostring_number: impl radix
 
 ## Test262
 
-For the first time, ensure you run `./test262/setup.sh`.
+For the first time, ensure you run `./test262/setup.sh` (Unix) or `.\test262\setup.cmd` (Windows).
 
 Run `node test262` to run all the tests and get an output of total overall test results.
 
-Warning: this will consume 1-6GB of memory and ~90% of all CPU cores while running (depending on thread count), it should take 15-120s depending on machine. You can specify how many threads with `--threads=N`, it will use the number of CPU threads by default.
+Warning: this will consume 1-6GB of memory and ~90% of all CPU cores while running (depending on thread count), it should take 10-30 minutes depending on machine. You can specify how many threads with `--threads=N`, it will use the number of CPU threads by default.
 
 The main thing you want to pay attention to is the emoji summary (lol):
 ```

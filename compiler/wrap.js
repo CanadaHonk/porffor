@@ -127,7 +127,8 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       if (value < 0) {
         func = importedFuncs[value + importedFuncs.length];
       } else {
-        func = funcs.find(x => ((x.originalIndex ?? x.index) - importedFuncs.length) === value);
+        value += importedFuncs.length;
+        func = funcs.find(x => x.index === value);
       }
 
       if (!func) return function () {};
@@ -135,6 +136,9 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       let name = func.name;
       // eg: __String_prototype_toLowerCase -> toLowerCase
       if (name.startsWith('__')) name = name.split('_').pop();
+
+      // anonymous functions
+      if (name.startsWith('#')) name = '';
 
       // make fake empty func for repl/etc
       return {[name]() {}}[name];
@@ -318,7 +322,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
 
-    const surrounding = Prefs.backtraceSurrounding ?? 5;
+    const surrounding = Prefs.backtraceSurrounding ?? 10;
     let min = middleIndex - surrounding;
     let max = middleIndex + surrounding + 1;
     if (Prefs.backtraceFunc || middleIndex == -1) {
@@ -350,7 +354,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         Number.isNaN(funcInd) || Number.isNaN(blobOffset)) return false;
 
     // convert blob offset -> function wasm offset
-    const func = funcs.find(x => x.index === funcInd);
+    const func = funcs.find(x => x.asmIndex === funcInd);
     if (!func) return false;
 
     const { wasm: assembledWasmFlat, wasmNonFlat: assembledWasmOps, localDecl } = func.assembled;
@@ -502,7 +506,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
 
           if (exceptionMode === 'stackest') {
             const constructorIdx = e.getArg(exceptTag, 0);
-            const constructorName = constructorIdx == -1 ? null : funcs.find(x => ((x.originalIndex ?? x.index) - importedFuncs.length) === constructorIdx)?.name;
+            const constructorName = constructorIdx == -1 ? null : funcs.find(x => (x.index - importedFuncs.length) === constructorIdx)?.name;
 
             const value = e.getArg(exceptTag, 1);
             const type = e.getArg(exceptTag, 2);

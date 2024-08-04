@@ -6,7 +6,6 @@ import os from 'node:os';
 import process from 'node:process';
 
 import Test262Stream from 'test262-stream';
-import compile from '../compiler/wrap.js';
 
 import { join } from 'node:path';
 const __dirname = import.meta.dirname;
@@ -27,7 +26,7 @@ if (isMainThread) {
     omitRuntime: true
   });
 
-  if (process.argv.includes('--open')) execSync(`code ${test262Path}/${whatTests}`);
+  if (process.argv.includes('--open')) execSync(`zed ${test262Path}/${whatTests}`);
 
   const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
@@ -100,7 +99,8 @@ if (isMainThread) {
     return acc;
   }, {});
 
-  let threads = parseInt(process.argv.find(x => x.startsWith('--threads='))?.split('=')?.[1] || os.cpus().length);
+  // hack: limit to 12 for now due to oom and p-core pain
+  let threads = Math.min(12, parseInt(process.argv.find(x => x.startsWith('--threads='))?.split('=')?.[1] || os.cpus().length));
   if (logErrors) threads = 1;
 
   const allTests = whatTests === 'test' && threads > 1;
@@ -130,6 +130,11 @@ if (isMainThread) {
 
     worker.on('message', int => {
       if (typeof int !== 'number') {
+        if (typeof int === 'string') {
+          console.log(int);
+          return;
+        }
+
         for (const x in int) {
           errors.set(x, (errors.get(x) ?? 0) + int[x]);
         }
@@ -372,10 +377,14 @@ if (isMainThread) {
   const debugAsserts = process.argv.includes('--debug-asserts');
   const subdirs = process.argv.includes('--subdirs');
 
+  const compile = (await import('../compiler/wrap.js')).default;
+
   const script = new vm.Script('$func()');
   const timeout = ($func, timeout) => {
     return script.runInNewContext({ $func }, { timeout });
   };
+
+  console.log = (...args) => parentPort.postMessage(args.join(' '));
 
   const totalTests = tests.length;
   const alwaysPrelude = preludes['assert.js'] + '\n' + preludes['sta.js'] + '\n';

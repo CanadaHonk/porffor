@@ -1,39 +1,39 @@
 /// sta.js
 // define our $262 here too
-var $262 = {
-  global: globalThis,
-  gc() { /* noop */ },
-  detachArrayBuffer(buffer) {
-    return Porffor.arraybuffer.detach(buffer);
-  },
-  getGlobal(name) {
-    return globalThis[name];
-  },
-  // todo: setGlobal
-  destroy() { /* noop */ },
-  agent: {}
-};
+// var $262 = {
+//   global: globalThis,
+//   gc() { /* noop */ },
+//   detachArrayBuffer(buffer) {
+//     return Porffor.arraybuffer.detach(buffer);
+//   },
+//   getGlobal(name) {
+//     return globalThis[name];
+//   },
+//   // todo: setGlobal
+//   destroy() { /* noop */ },
+//   agent: {}
+// };
 
 function Test262Error() {}
 
-Test262Error.thrower = function (message) {
+var __Test262Error_thrower = function (message) {
   throw new Test262Error(message);
 };
 
-function $DONOTEVALUATE() {
+var $DONOTEVALUATE = () => {
   throw 'Test262: This statement should not be evaluated.';
-}
+};
 
 /// assert.js
-function assert(mustBeTrue) {
+var assert = mustBeTrue => {
   if (mustBeTrue === true) {
     return;
   }
 
   throw new Test262Error('assert failed');
-}
+};
 
-assert.throws = function (expectedErrorConstructor, func) {
+var __assert_throws = (expectedErrorConstructor, func) => {
   if (typeof func !== 'function') {
     throw new Test262Error('assert.throws invoked with a non-function value');
   }
@@ -47,7 +47,7 @@ assert.throws = function (expectedErrorConstructor, func) {
   throw new Test262Error('assert.throws failed');
 };
 
-assert._isSameValue = function (a, b) {
+var __assert__isSameValue = (a, b) => {
   if (a === b) {
     // Handle +/-0 vs. -/+0
     return a !== 0 || 1 / a === 1 / b;
@@ -57,7 +57,7 @@ assert._isSameValue = function (a, b) {
   return a !== a && b !== b;
 };
 
-assert.sameValue = function (actual, expected) {
+var __assert_sameValue = (actual, expected) => {
   if (assert._isSameValue(actual, expected)) {
     return;
   }
@@ -65,7 +65,7 @@ assert.sameValue = function (actual, expected) {
   throw new Test262Error('assert.sameValue failed');
 };
 
-assert.notSameValue = function (actual, unexpected) {
+var __assert_notSameValue = (actual, unexpected) => {
   if (!assert._isSameValue(actual, unexpected)) {
     return;
   }
@@ -75,14 +75,14 @@ assert.notSameValue = function (actual, unexpected) {
 
 /// compareArray.js
 // hack: this has to be before the actual function decl (which is invalid)
-compareArray.isSameValue = function(a, b) {
+var __compareArray_isSameValue = (a, b) => {
   if (a === 0 && b === 0) return 1 / a === 1 / b;
   if (a !== a && b !== b) return true;
 
   return a === b;
 };
 
-function compareArray(a, b) {
+var compareArray = (a, b) => {
   // if either are nullish
   if (a == null || b == null) return false;
 
@@ -100,16 +100,16 @@ function compareArray(a, b) {
   }
 
   return true;
-}
+};
 
-assert.compareArray = function (actual, expected) {
+assert.compareArray = (actual, expected) => {
   if (compareArray(actual, expected)) return;
 
   throw new Test262Error('assert.compareArray failed');
 };
 
 /// isConstructor.js
-function isConstructor(f) {
+var isConstructor = f => {
   if (typeof f !== "function") {
     throw new Test262Error("isConstructor invoked with a non-function value");
   }
@@ -121,7 +121,7 @@ function isConstructor(f) {
   }
 
   return true;
-}
+};
 
 /// assertRelativeDateMs.js
 function assertRelativeDateMs(date, expectedMs) {
@@ -376,36 +376,24 @@ function verifyNotWritable(obj, name, verifyProp, value) {
 }
 
 function verifyEnumerable(obj, name) {
-  if (!Object.getOwnPropertyDescriptor(obj, name).enumerable)
-    throw new Test262Error('propertyHelper verifyEnumerable failed');
-
   if (!isEnumerable(obj, name)) {
     throw new Test262Error('propertyHelper verifyEnumerable failed');
   }
 }
 
 function verifyNotEnumerable(obj, name) {
-  if (Object.getOwnPropertyDescriptor(obj, name).enumerable)
-    throw new Test262Error('propertyHelper verifyNotEnumerable failed');
-
   if (isEnumerable(obj, name)) {
     throw new Test262Error('propertyHelper verifyNotEnumerable failed');
   }
 }
 
 function verifyConfigurable(obj, name) {
-  if (!Object.getOwnPropertyDescriptor(obj, name).configurable)
-    throw new Test262Error('propertyHelper verifyConfigurable failed');
-
   if (!isConfigurable(obj, name)) {
     throw new Test262Error('propertyHelper verifyConfigurable failed');
   }
 }
 
 function verifyNotConfigurable(obj, name) {
-  if (Object.getOwnPropertyDescriptor(obj, name).configurable)
-    throw new Test262Error('propertyHelper verifyNotConfigurable failed');
-
   if (isConfigurable(obj, name)) {
     throw new Test262Error('propertyHelper verifyNotConfigurable failed');
   }

@@ -18,6 +18,7 @@ export const __Object_keys = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
+  obj = __Porffor_object_getObject(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -82,9 +83,9 @@ local.set ${key}`;
 
 export const __Object_values = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
-
   const out: any[] = Porffor.allocate();
 
+  obj = __Porffor_object_getObject(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -171,15 +172,13 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
   }
 
   if (t == Porffor.TYPES.function) {
-    let tmp: bytestring = '';
+    const tmp1: bytestring = 'name';
+    if (p == tmp1) return !__Porffor_funcLut_isNameDeleted(_this);
 
-    tmp = 'name';
-    if (p == tmp) return !__Porffor_funcLut_isNameDeleted(_this);
+    const tmp2: bytestring = 'length';
+    if (p == tmp2) return !__Porffor_funcLut_isLengthDeleted(_this);
 
-    tmp = 'length';
-    if (p == tmp) return !__Porffor_funcLut_isLengthDeleted(_this);
-
-    return false;
+    return Porffor.object.lookup(_this, p) != -1;
   }
 
   const keys: any[] = __Object_keys(_this);
@@ -188,6 +187,45 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
 
 export const __Object_hasOwn = (obj: any, prop: any) => {
   return __Object_prototype_hasOwnProperty(obj, prop);
+};
+
+export const __Porffor_object_in = (obj: any, prop: any) => {
+  if (__Object_prototype_hasOwnProperty(obj, prop)) {
+    return true;
+  }
+
+  let lastProto = obj;
+  while (true) {
+    obj = obj.__proto__;
+    if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
+    lastProto = obj;
+
+    if (__Object_prototype_hasOwnProperty(obj, prop)) return true;
+  }
+
+  return false;
+};
+
+export const __Porffor_object_instanceof = (obj: any, constr: any) => {
+  if (Porffor.rawType(constr) != Porffor.TYPES.function) {
+    throw new TypeError('instanceof right-hand side is not a function');
+  }
+
+  const checkProto: any = constr.prototype;
+  if (!Porffor.object.isObject(checkProto)) {
+    throw new TypeError('instanceof right-hand side has non-object prototype');
+  }
+
+  let lastProto = obj;
+  while (true) {
+    obj = obj.__proto__;
+    if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
+    lastProto = obj;
+
+    if (obj === checkProto) return true;
+  }
+
+  return false;
 };
 
 
@@ -208,12 +246,24 @@ export const __Object_assign = (target: any, ...sources: any[]) => {
   return target;
 };
 
+// Object.assign but also non enumerable properties and 1 source
+export const __Porffor_object_assignAll = (target: any, source: any) => {
+  if (target == null) throw new TypeError('Argument is nullish, expected object');
+
+  const keys: any[] = Reflect.ownKeys(source);
+  for (const x of keys) {
+    target[x] = source[x];
+  }
+
+  return target;
+};
+
 
 export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) => {
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const t: i32 = Porffor.rawType(_this);
-  if (t == Porffor.TYPES.object) {
+  const obj: any = __Porffor_object_getObject(_this);
+  if (Porffor.rawType(obj) == Porffor.TYPES.object) {
     const entryPtr: i32 = Porffor.object.lookup(_this, p);
     if (entryPtr == -1) return false;
 
@@ -245,11 +295,6 @@ export const __Object_is = (x: any, y: any): boolean => {
 
 
 export const __Object_preventExtensions = (obj: any): any => {
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return obj;
-  }
-
   Porffor.object.preventExtensions(obj);
 
   return obj;
@@ -260,21 +305,11 @@ export const __Object_isExtensible = (obj: any): any => {
     return false;
   }
 
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return true;
-  }
-
   return !Porffor.object.isInextensible(obj);
 };
 
 
 export const __Object_freeze = (obj: any): any => {
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return obj;
-  }
-
   // make inextensible
   Porffor.object.preventExtensions(obj);
 
@@ -289,11 +324,6 @@ export const __Object_isFrozen = (obj: any): any => {
     return true;
   }
 
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return false;
-  }
-
   // check obj is inextensible
   if (!Porffor.object.isInextensible(obj)) {
     return false;
@@ -305,11 +335,6 @@ export const __Object_isFrozen = (obj: any): any => {
 
 
 export const __Object_seal = (obj: any): any => {
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return obj;
-  }
-
   // make inextensible
   Porffor.object.preventExtensions(obj);
 
@@ -322,11 +347,6 @@ export const __Object_seal = (obj: any): any => {
 export const __Object_isSealed = (obj: any): any => {
   if (!Porffor.object.isObject(obj)) {
     return true;
-  }
-
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return false;
   }
 
   // check obj is inextensible
@@ -342,29 +362,24 @@ export const __Object_isSealed = (obj: any): any => {
 export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const objType: i32 = Porffor.rawType(obj);
-  if (objType == Porffor.TYPES.function) {
-    // hack: function .name and .length
-    const out: object = {};
+  const entryPtr: i32 = Porffor.object.lookup(obj, p);
+  if (entryPtr == -1) {
+    if (Porffor.rawType(obj) == Porffor.TYPES.function) {
+      // hack: function .name and .length
+      const v = obj[p];
+      if (v != null) {
+        const out: object = {};
+        out.writable = false;
+        out.enumerable = false;
+        out.configurable = true;
 
-    out.writable = false;
-    out.enumerable = false;
-    out.configurable = true;
-
-    const v = obj[p];
-    if (v != null) {
-      out.value = v;
-      return out;
+        out.value = v;
+        return out;
+      }
     }
-  }
 
-  // todo: support non-pure-objects
-  if (objType != Porffor.TYPES.object) {
     return undefined;
   }
-
-  const entryPtr: i32 = Porffor.object.lookup(obj, p);
-  if (entryPtr == -1) return undefined;
 
   const out: object = {};
 
@@ -397,12 +412,13 @@ local.set ${value+1}`;
 export const __Object_getOwnPropertyDescriptors = (obj: any): any => {
   const out: object = {};
 
-  // todo: support non-pure-objects
   if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return out;
+    obj = __Porffor_object_getObject(obj);
+    if (Porffor.rawType(obj) != Porffor.TYPES.object) return out;
   }
 
-  for (const x in obj) {
+  const keys: any[] = Reflect.ownKeys(obj);
+  for (const x of keys) {
     out[x] = __Object_getOwnPropertyDescriptor(obj, x);
   }
 
@@ -637,11 +653,6 @@ export const __Object_groupBy = (items: any, callbackFn: any) => {
 export const __Object_getPrototypeOf = (obj: any) => {
   if (obj == null) throw new TypeError('Object is nullish, expected object');
 
-  // todo: support non-pure-objects
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return {};
-  }
-
   return obj.__proto__;
 };
 
@@ -659,6 +670,12 @@ export const __Object_setPrototypeOf = (obj: any, proto: any) => {
   obj.__proto__ = proto;
 
   return obj;
+};
+
+export const __Object_prototype_isPrototypeOf = (_this: any, obj: any) => {
+  if (_this == null) throw new TypeError('This is nullish, expected object');
+
+  return _this == obj.__proto__;
 };
 
 

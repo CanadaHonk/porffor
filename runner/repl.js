@@ -18,10 +18,7 @@ try {
   repl = (await import('node-repl-polyfill')).default;
 }
 
-globalThis.valtype = 'f64';
-
-const valtypeOpt = process.argv.find(x => x.startsWith('--valtype='));
-if (valtypeOpt) valtype = valtypeOpt.split('=')[1];
+globalThis.valtype = Prefs.valtype ?? 'f64';
 
 let host = globalThis?.navigator?.userAgent;
 if (typeof process !== 'undefined' && process.argv0 === 'node') host = 'Node/' + process.versions.node;
@@ -45,7 +42,7 @@ const memoryToString = mem => {
 
   const buf = new Uint8Array(mem.buffer);
 
-  let longestType = 0, longestName = 0;
+  let longestType = 4, longestName = 4;
   for (const x of lastPages) {
     const [ type, name ] = x.split(': ');
     if (type.length > longestType) longestType = type.length;
@@ -64,7 +61,10 @@ const memoryToString = mem => {
       out += `  \x1B[34m${name}${' '.repeat(longestName - name.length)} \x1B[90m│\x1B[0m \x1B[36m${type}${' '.repeat(longestType - type.length)} \x1B[90m│\x1B[0m `;
     }
 
-    for (let j = 0; j < 40; j++) {
+    let j = 0;
+    if (i === 0) j = 16;
+    const end = j + 40;
+    for (; j < end; j++) {
       const val = buf[i * pageSize + j];
       // if (val === 0) out += '\x1B[2m';
       if (val === 0) out += '\x1B[90m';
@@ -88,7 +88,7 @@ const run = (source, _context, _filename, callback, run = true) => {
   let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source;
 
   let shouldPrint = !prev;
-  const { exports, pages } = compile(toRun, [], {}, str => {
+  const { exports, pages } = compile(toRun, process.argv.includes('--module') ? [ 'module' ] : [], {}, str => {
     if (shouldPrint) process.stdout.write(str);
     if (str === '-4919') shouldPrint = true;
   });

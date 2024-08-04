@@ -3,10 +3,15 @@ import { TYPES } from './types.js';
 import { number } from './embedding.js';
 
 export default function({ builtinFuncs }, Prefs) {
+  const makePrefix = name => (name.startsWith('__') ? '' : '__') + name + '_';
+
   const done = new Set();
   const object = (name, props) => {
     done.add(name);
-    const prefix = name === 'globalThis' ? '' : `__${name}_`;
+    const prefix = name === 'globalThis' ? '' : makePrefix(name);
+
+    // already a func
+    const existingFunc = builtinFuncs[name];
 
     builtinFuncs['#get_' + name] = {
       params: [],
@@ -20,8 +25,12 @@ export default function({ builtinFuncs }, Prefs) {
 
         // todo/perf: precompute bytes here instead of calling real funcs if we really care about perf later
 
-        const page = allocPage(scope, `builtin object: ${name}`);
-        const ptr = page === 0 ? 4 : page * PageSize;
+        let ptr;
+        if (existingFunc) {
+          ptr = builtin(name, true);
+        } else {
+          ptr = allocPage(scope, `builtin object: ${name}`);
+        }
 
         const out = [
           // check if already made/cached
@@ -50,11 +59,11 @@ export default function({ builtinFuncs }, Prefs) {
           if (d.writable) flags |= 0b1000;
 
           // hack: do not generate objects inside of objects as it causes issues atm
-          if (this[prefix + x]?.type === TYPES.object) value = { type: 'ObjectExpression', properties: [] };
+          if (this[prefix + x]?.type === TYPES.object && this[prefix + x] !== this.null) value = { type: 'ObjectExpression', properties: [] };
 
           out.push(
             [ Opcodes.global_get, 0 ],
-            ...number(TYPES.object, Valtype.i32),
+            ...number(existingFunc ? TYPES.function : TYPES.object, Valtype.i32),
 
             ...makeString(scope, x, false, `#builtin_object_${name}_${x}`),
             Opcodes.i32_to_u,
@@ -80,19 +89,26 @@ export default function({ builtinFuncs }, Prefs) {
       }
     };
 
-
-    this[name] = (scope, { builtin }) => [
-      [ Opcodes.call, builtin('#get_' + name) ],
-      Opcodes.i32_from_u
-    ];
-    this[name].type = TYPES.object;
+    if (existingFunc) {
+      this[name] = (scope, { builtin, funcRef }) => [
+        [ Opcodes.call, builtin('#get_' + name) ],
+        [ Opcodes.drop ],
+        ...funcRef(name)
+      ];
+      this[name].type = TYPES.function;
+    } else {
+      this[name] = (scope, { builtin }) => [
+        [ Opcodes.call, builtin('#get_' + name) ],
+        Opcodes.i32_from_u
+      ];
+      this[name].type = TYPES.object;
+    }
 
     for (const x in props) {
       const d = props[x];
+      const k = prefix + x;
 
-      if (d.value) {
-        const k = prefix + x;
-
+      if (Object.hasOwn(d, 'value') && !Object.hasOwn(builtinFuncs, k) && !Object.hasOwn(this, k)) {
         if (typeof d.value === 'number') {
           this[k] = number(d.value);
           this[k].type = TYPES.number;
@@ -102,6 +118,11 @@ export default function({ builtinFuncs }, Prefs) {
         if (typeof d.value === 'string') {
           this[k] = (scope, { makeString }) => makeString(scope, d.value, false, k);
           this[k].type = TYPES.bytestring;
+          continue;
+        }
+
+        if (d.value === null) {
+          this[k] = this.null;
           continue;
         }
 
@@ -132,7 +153,10 @@ export default function({ builtinFuncs }, Prefs) {
   };
 
   const builtinFuncKeys = Object.keys(builtinFuncs);
-  const autoFuncKeys = name => builtinFuncKeys.filter(x => x.startsWith('__' + name + '_')).map(x => x.slice(name.length + 3));
+  const autoFuncKeys = name => {
+    const prefix = makePrefix(name);
+    return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length)).filter(x => !x.startsWith('prototype_'));
+  };
   const autoFuncs = name => props({
     writable: true,
     enumerable: false,
@@ -172,24 +196,38 @@ export default function({ builtinFuncs }, Prefs) {
     acc.add(x.slice(0, ind + 10));
     return acc;
   }, new Set())) {
-    object(x, autoFuncs(x));
+    const props = autoFuncs(x);
+
+    // special case: Object.prototype.__proto__ = null
+    if (x === '__Object_prototype') Object.defineProperty(props, '__proto__', { value: { value: null }, enumerable: true });
+
+    object(x, props);
   }
 
 
-  // todo: support when existing func
-  // object('Number', {
-  //   NaN: NaN,
-  //   POSITIVE_INFINITY: Infinity,
-  //   NEGATIVE_INFINITY: -Infinity,
+  object('Number', {
+    ...props({
+      writable: false,
+      enumerable: false,
+      configurable: false
+    }, {
+      NaN: NaN,
+      POSITIVE_INFINITY: Infinity,
+      NEGATIVE_INFINITY: -Infinity,
 
-  //   MAX_VALUE: valtype === 'i32' ? 2147483647 : 1.7976931348623157e+308,
-  //   MIN_VALUE: valtype === 'i32' ? -2147483648 : 5e-324,
+      MAX_VALUE: valtype === 'i32' ? 2147483647 : 1.7976931348623157e+308,
+      MIN_VALUE: valtype === 'i32' ? -2147483648 : 5e-324,
 
-  //   MAX_SAFE_INTEGER: valtype === 'i32' ? 2147483647 : 9007199254740991,
-  //   MIN_SAFE_INTEGER: valtype === 'i32' ? -2147483648 : -9007199254740991,
+      MAX_SAFE_INTEGER: valtype === 'i32' ? 2147483647 : 9007199254740991,
+      MIN_SAFE_INTEGER: valtype === 'i32' ? -2147483648 : -9007199254740991,
 
-  //   EPSILON: 2.220446049250313e-16
-  // });
+      EPSILON: 2.220446049250313e-16
+    }),
+
+    ...autoFuncs('Number')
+  });
+
+  object('Object', autoFuncs('Object'));
 
 
   // these technically not spec compliant as it should be classes or non-enumerable but eh
@@ -267,7 +305,7 @@ export default function({ builtinFuncs }, Prefs) {
     if (!t) continue;
 
     if (!done.has(name) && !done.has('__' + name)) {
-      console.log(name.replaceAll('_', '.'), !!builtinFuncs[name]);
+      console.log(name, !!builtinFuncs[name]);
       done.add(name);
     }
   }

@@ -53,7 +53,7 @@ export default wasm => {
     const replaceOp = newOp => {
       op.splice(0, op.length, ...newOp);
     };
-    const replaceVal = (val, valtype) => replaceOp(number(val, valtype));
+    const replaceVal = (val, valtype) => replaceOp(number(val, valtype)[0]);
 
     const empty = () => {
       stack = [];
@@ -511,7 +511,7 @@ export default wasm => {
 
           // convert f64.const -> i32.const
           const n = wasm[i - 1][1];
-          wasm.splice(i - 1, 1, number(n, Valtype.i32));
+          wasm.splice(i - 1, 1, number(n, Valtype.i32)[0]);
 
           // convert math op from f64 to i32
           wasm[i][0] = f64ToI32Op[wasm[i][0]];
@@ -551,7 +551,7 @@ export default wasm => {
 
           // convert f64.const -> i32.const
           const n = wasm[i - 2][1];
-          wasm.splice(i - 2, 1, number(n, Valtype.i32));
+          wasm.splice(i - 2, 1, number(n, Valtype.i32)[0]);
 
           // convert math op from f64 to i32
           wasm[i - 1][0] = f64ToI32Op[wasm[i - 1][0]];

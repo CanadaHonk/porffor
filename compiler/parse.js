@@ -17,7 +17,7 @@ globalThis.typedInput = types && Prefs.optTypes;
 globalThis.parser = '';
 let parse;
 const loadParser = async (fallbackParser = 'acorn', forceParser) => {
-  parser = forceParser ?? process.argv.find(x => x.startsWith('--parser='))?.split('=')?.[1] ?? fallbackParser;
+  parser = forceParser ?? Prefs.parser ?? fallbackParser;
   0, { parse } = (await import((globalThis.document || globalThis.Deno ? 'https://esm.sh/' : '') + parser));
 };
 globalThis._porf_loadParser = loadParser;

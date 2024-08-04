@@ -217,12 +217,14 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
 
-  if (data.length > 0) {
+  const activeData = data.filter(x => x.page != null);
+  if (activeData.length > 0) {
+    const dataOffset = x => pages.get(x.page).ind * pageSize;
     if (Prefs['2cMemcpy']) {
-      prependMain.set('_data', data.map(x => `memcpy(_memory + ${x.offset}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
+      prependMain.set('_data', activeData.map(x => `memcpy(_memory + ${dataOffset(x)}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
       includes.set('string.h', true);
     } else {
-      prependMain.set('_data', data.map(x => x.bytes.reduce((acc, y, i) => acc + `_memory[${x.offset + i}]=(u8)${y};`, '')).join('\n  '));
+      prependMain.set('_data', activeData.map(x => x.bytes.reduce((acc, y, i) => acc + `_memory[${dataOffset(x) + i}]=(u8)${y};`, '')).join('\n  '));
     }
   }
 
@@ -230,20 +232,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     prepend.set('argv', `int _argc; char** _argv;`);
     prependMain.set('argv', `_argc = argc; _argv = argv;`);
   }
-
-  prepend.set('func decls', funcs.filter(x => x.name !== 'main').map(f => {
-    const returns = f.returns.length > 0;
-    const typedReturns = f.returnType == null;
-
-    const invLocals = inv(f.locals, x => x.idx);
-    for (const x in invLocals) {
-      invLocals[x] = sanitize(invLocals[x]);
-    }
-
-    const shouldInline = false;
-
-    return `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')});`;
-  }).join('\n'));
 
   if (out) out += '\n';
 
@@ -355,6 +343,12 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     if (f.name === 'main') out += `int main(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
       else out += `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
 
+    if (f.name === '__Porffor_promise_runJobs') {
+      out += '}';
+      globalThis.out = globalThis.out + out;
+      return;
+    }
+
     if (f.name === 'main') {
       out += '  ' + [...prependMain.values()].join('\n  ');
       if (prependMain.size > 0) out += '\n\n';
@@ -438,7 +432,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
         case Opcodes.f64_const: {
           const val = i[1];
-          vals.push(val);
+          vals.push(val.toString());
           break;
         }
 
@@ -739,6 +733,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           line(`printf("Uncaught ${exceptions[id].constructor}: ${exceptions[id].message}\\n")`);
           line(`exit(1)`);
 
+          includes.set('stdio.h', true);
           includes.set('stdlib.h', true);
 
           break;
@@ -822,7 +817,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             break;
           }
 
-          // log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]} \x1b[90m(${f.name})`);
+          if (Prefs.d) log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]} \x1b[90m(${f.name})`);
       }
 
       lastCond = false;
@@ -843,6 +838,20 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
   };
 
   cify(funcs.find(x => x.name === 'main'));
+
+  prepend.set('func decls', funcs.filter(x => x.name !== 'main' && cified.has(x.name)).map(f => {
+    const returns = f.returns.length > 0;
+    const typedReturns = f.returnType == null;
+
+    const invLocals = inv(f.locals, x => x.idx);
+    for (const x in invLocals) {
+      invLocals[x] = sanitize(invLocals[x]);
+    }
+
+    const shouldInline = false;
+
+    return `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')});`;
+  }).join('\n'));
 
   const makeIncludes = includes => [...includes.keys()].map(x => `#include <${x}>\n`).join('');
   out = platformSpecific(makeIncludes(winIncludes), makeIncludes(unixIncludes), false) + '\n' + makeIncludes(includes) + '\n' + alwaysPreface + [...prepend.values()].join('\n') + '\n\n' + out;

@@ -1,7 +1,7 @@
 import type {} from './porffor.d.ts';
 
 export const __ecma262_NewPromiseReactionJob = (reaction: any[], argument: any): any[] => {
-  const job: any[] = Porffor.allocateBytes(22); // 2 length
+  const job: any[] = Porffor.allocateBytes(32);
   job[0] = reaction;
   job[1] = argument;
 
@@ -118,7 +118,7 @@ export const __Porffor_promise_reject = (promise: any, reason: any): any => {
 
 export const __Porffor_promise_create = (): any[] => {
   // Promise [ result, state, fulfillReactions, rejectReactions ]
-  const obj: any[] = Porffor.allocateBytes(40); // 4 length
+  const obj: any[] = Porffor.allocateBytes(64);
 
   // result = undefined
   obj[0] = undefined;
@@ -128,11 +128,11 @@ export const __Porffor_promise_create = (): any[] => {
   obj[1] = 0;
 
   // fulfillReactions = []
-  const fulfillReactions: any[] = Porffor.allocateBytes(256); // max length: 28
+  const fulfillReactions: any[] = Porffor.allocateBytes(512);
   obj[2] = fulfillReactions;
 
   // rejectReactions = []
-  const rejectReactions: any[] = Porffor.allocateBytes(256); // max length: 28
+  const rejectReactions: any[] = Porffor.allocateBytes(512);
   obj[3] = rejectReactions;
 
   return obj;
@@ -140,7 +140,7 @@ export const __Porffor_promise_create = (): any[] => {
 
 export const __Porffor_promise_newReaction = (handler: Function, promise: any, type: i32): any[] => {
   // enum ReactionType { then = 0, finally = 1 }
-  const out: any[] = Porffor.allocateBytes(31); // 3 length
+  const out: any[] = Porffor.allocateBytes(32);
   out[0] = handler;
   out[1] = promise;
   out[2] = type;
@@ -413,3 +413,25 @@ export const __Promise_prototype_toString = (_this: any) => {
 };
 
 export const __Promise_prototype_toLocaleString = (_this: any) => __Promise_prototype_toString(_this);
+
+
+export const __Porffor_promise_await = (value: any) => {
+  if (Porffor.rawType(value) != Porffor.TYPES.promise) return value;
+
+  // hack: peek value instead of awaiting
+  const promise: any[] = value;
+
+  const state: i32 = promise[1];
+
+  // pending
+  if (state == 0) return value;
+
+  const result: any = promise[0];
+
+  // fulfilled
+  if (state == 1) return result;
+
+  // rejected
+  // todo: throw result instead of fixed error here
+  throw Error('Uncaught await promise rejection');
+};

@@ -30,7 +30,7 @@ export class StaticAllocator {
   }
 
   ptr(ind) {
-    if (ind === 0) return 4;
+    if (ind === 0) return 16;
     return ind * PageSize;
   }
 
@@ -39,6 +39,7 @@ export class StaticAllocator {
     if (globalThis.precompile && scopeName === 'main') scopeName = globalThis.precompile;
     const reason = `${this.allocType(itemType)}: ${Prefs.scopedPageNames ? (scopeName + '/') : ''}${name}`;
 
+    this.lastName = reason;
     if (pages.has(reason)) {
       const ptr = this.lastPtr = this.ptr(pages.get(reason).ind);
       return number(ptr, Valtype.i32);

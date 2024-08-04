@@ -1,7 +1,11 @@
 import type {} from './porffor.d.ts';
 
 export const __ArrayBuffer_isView = (value: any): boolean => {
-  if (value.buffer) return true;
+  const t: i32 = Porffor.rawType(value);
+  if (Porffor.fastOr(
+    t == Porffor.TYPES.dataview,
+    Porffor.fastAnd(t >= Porffor.TYPES.uint8array, t <= Porffor.TYPES.float64array)
+  )) return true;
   return false;
 };
 
