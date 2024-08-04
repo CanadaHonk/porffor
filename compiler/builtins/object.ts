@@ -193,8 +193,7 @@ export const __Porffor_object_in = (obj: any, prop: any) => {
     return true;
   }
 
-  const t: i32 = Porffor.rawType(obj);
-  if (t != Porffor.TYPES.object) {
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
     return false;
   }
 
@@ -206,6 +205,31 @@ export const __Porffor_object_in = (obj: any, prop: any) => {
 
     if (__Object_prototype_hasOwnProperty(obj, prop)) return true;
   }
+
+  return false;
+};
+
+export const __Porffor_object_instanceof = (obj: any, constr: any) => {
+  if (Porffor.rawType(constr) != Porffor.TYPES.function) {
+    throw new TypeError('instanceof right-hand side is not a function');
+  }
+
+  const checkProto: any = constr.prototype;
+  if (!Porffor.object.isObject(checkProto)) {
+    throw new TypeError('instanceof right-hand side has non-object prototype');
+  }
+
+  let lastProto = obj;
+  while (true) {
+    obj = obj.__proto__;
+    if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
+    lastProto = obj;
+
+    console.log(obj === Object.prototype);
+    if (obj === checkProto) return true;
+  }
+
+  return false;
 };
 
 

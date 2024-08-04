@@ -884,30 +884,40 @@ const knownNullish = decl => {
 
 const generateBinaryExp = (scope, decl, _global, _name) => {
   if (decl.operator === 'instanceof') {
-    // very hacky basic instanceof
-    // todo: support dynamic right-hand side
-
-    const out = generate(scope, decl.left);
-    disposeLeftover(out);
-
+    // try hacky version for built-ins first
     const rightName = decl.right.name;
-    if (!rightName) return todo(scope, 'instanceof dynamic right-hand side is not supported yet', true);
+    if (rightName) {
+      const checkType = TYPES[rightName.toLowerCase()];
+      if (checkType != null && rightName === TYPE_NAMES[checkType]) {
+        const out = generate(scope, decl.left);
+        disposeLeftover(out);
 
-    const checkType = TYPES[rightName.toLowerCase()];
-    if (checkType == null || rightName !== TYPE_NAMES[checkType] || checkType === TYPES.undefined) return todo(scope, 'instanceof right-hand side type unsupported', true);
+        if ([TYPES.number, TYPES.boolean, TYPES.string].includes(checkType)) {
+          out.push(...number(0));
+        } else {
+          out.push(
+            ...getNodeType(scope, decl.left),
+            ...number(checkType, Valtype.i32),
+            [ Opcodes.i32_eq ],
+            Opcodes.i32_from_u
+          );
+        }
 
-    if ([TYPES.number, TYPES.boolean, TYPES.string, TYPES.symbol, TYPES.object].includes(checkType)) {
-      out.push(...number(0));
-    } else {
-      out.push(
-        ...getNodeType(scope, decl.left),
-        ...number(checkType, Valtype.i32),
-        [ Opcodes.i32_eq ],
-        Opcodes.i32_from_u
-      );
+        return out;
+      }
     }
 
-    return out;
+    return generate(scope, {
+      type: 'CallExpression',
+      callee: {
+        type: 'Identifier',
+        name: '__Porffor_object_instanceof'
+      },
+      arguments: [
+        decl.left,
+        decl.right
+      ]
+    });
   }
 
   if (decl.operator === 'in') {
