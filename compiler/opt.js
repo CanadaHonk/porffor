@@ -504,33 +504,12 @@ export default (funcs, globals, pages, tags, exceptions) => {
         if (inst[0] == Opcodes.call) {
           if (inst[1] < imports) continue;
 
-          if (!newIdx.has(inst[1])) throw new Error('Index has not been remapped')
+          if (!newIdx.has(inst[1])) throw new Error('Index has not been remapped');
           wasm.splice(i, 1, [ Opcodes.call, newIdx.get(inst[1]) ]);
         }
         if (inst.at(-1) == 'funcref') {
-          switch (inst[0]) {
-            case Opcodes.i32_const: {
-              const ins = inst.slice(1, -1);
-              const n = read_signedLEB128(ins) + imports;
-              if (n < imports) continue;
-              wasm.splice(i, 1, number(newIdx.get(n) - imports, Valtype.i32)[0]);
-              break;
-            }
-            case Opcodes.i64_const: {
-              const ins = inst.slice(1, -1);
-              const n = read_signedLEB128(ins) + imports;
-              if (n < imports) continue;
-              wasm.splice(i, 1, number(newIdx.get(n) - imports, Valtype.i64)[0]);
-              break;
-            }
-            case Opcodes.f64_const: {
-              const ins = inst.slice(1, -1);
-              const n = read_ieee754_binary64(ins) + imports;
-              if (n < imports) continue;
-              wasm.splice(i, 1, number(newIdx.get(n) - imports, Valtype.f64)[0]);
-              break;
-            }
-          }
+          const n = inst[1];
+          inst[1] = newIdx.get(n) - imports;
         }
       }
     }
