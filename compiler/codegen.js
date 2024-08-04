@@ -4781,7 +4781,7 @@ const printStaticStr = str => {
     out.push(
       // ...number(str.charCodeAt(i)),
       ...number(str.charCodeAt(i), Valtype.i32),
-      Opcodes.i32_from_u,
+      [ Opcodes.f64_convert_i32_u ],
       [ Opcodes.call, importedFuncs.printChar ]
     );
   }
@@ -4895,13 +4895,14 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
       // hack: handle allocation for #member_prop's here instead of in several places /shrug
       let shouldGet = true;
       if (name === '#member_prop') {
-        out.push(...number(rawPtr, Valtype.i32));
+        out.push(...number(rawPtr));
         shouldGet = false;
       }
 
       if (name === '#member_prop_assign') {
         out.push(
-          [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ]
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+          Opcodes.i32_from_u
         );
         shouldGet = false;
       }
@@ -4911,7 +4912,14 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
         ...(shouldGet ? [
           [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
           Opcodes.i32_to_u
-        ] : []),
+        ] : [
+          // hack: make precompile realise we are allocating
+          ...(globalThis.precompile ? [
+            [ global ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+            [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+          ] : []),
+          Opcodes.i32_to_u
+        ]),
         [ Opcodes.local_set, pointerTmp ]
       );
 
