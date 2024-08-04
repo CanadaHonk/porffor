@@ -225,7 +225,6 @@ export const __Porffor_object_instanceof = (obj: any, constr: any) => {
     if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
     lastProto = obj;
 
-    console.log(obj === Object.prototype);
     if (obj === checkProto) return true;
   }
 
