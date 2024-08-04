@@ -222,7 +222,9 @@ export default function({ builtinFuncs }, Prefs) {
       MIN_SAFE_INTEGER: valtype === 'i32' ? -2147483648 : -9007199254740991,
 
       EPSILON: 2.220446049250313e-16
-    })
+    }),
+
+    ...autoFuncs('Number')
   });
 
 
