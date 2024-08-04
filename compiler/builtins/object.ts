@@ -18,6 +18,7 @@ export const __Object_keys = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
+  obj = __Porffor_object_getObject(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -82,9 +83,9 @@ local.set ${key}`;
 
 export const __Object_values = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
-
   const out: any[] = Porffor.allocate();
 
+  obj = __Porffor_object_getObject(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -177,7 +178,7 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
     const tmp2: bytestring = 'length';
     if (p == tmp2) return !__Porffor_funcLut_isLengthDeleted(_this);
 
-    return false;
+    return Porffor.object.lookup(_this, p) != -1;
   }
 
   const keys: any[] = __Object_keys(_this);
@@ -191,10 +192,6 @@ export const __Object_hasOwn = (obj: any, prop: any) => {
 export const __Porffor_object_in = (obj: any, prop: any) => {
   if (__Object_prototype_hasOwnProperty(obj, prop)) {
     return true;
-  }
-
-  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    return false;
   }
 
   let lastProto = obj;
@@ -265,8 +262,8 @@ export const __Porffor_object_assignAll = (target: any, source: any) => {
 export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) => {
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const t: i32 = Porffor.rawType(_this);
-  if (t == Porffor.TYPES.object) {
+  const obj: any = __Porffor_object_getObject(_this);
+  if (Porffor.rawType(obj) == Porffor.TYPES.object) {
     const entryPtr: i32 = Porffor.object.lookup(_this, p);
     if (entryPtr == -1) return false;
 
@@ -365,23 +362,24 @@ export const __Object_isSealed = (obj: any): any => {
 export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const objType: i32 = Porffor.rawType(obj);
-  if (objType == Porffor.TYPES.function) {
-    // hack: function .name and .length
-    const v = obj[p];
-    if (v != null) {
-      const out: object = {};
-      out.writable = false;
-      out.enumerable = false;
-      out.configurable = true;
-
-      out.value = v;
-      return out;
-    }
-  }
-
   const entryPtr: i32 = Porffor.object.lookup(obj, p);
-  if (entryPtr == -1) return undefined;
+  if (entryPtr == -1) {
+    if (Porffor.rawType(obj) == Porffor.TYPES.function) {
+      // hack: function .name and .length
+      const v = obj[p];
+      if (v != null) {
+        const out: object = {};
+        out.writable = false;
+        out.enumerable = false;
+        out.configurable = true;
+
+        out.value = v;
+        return out;
+      }
+    }
+
+    return undefined;
+  }
 
   const out: object = {};
 
