@@ -3883,17 +3883,20 @@ const generateForOf = (scope, decl) => {
     if (depth[i] === 'forof') count++;
   }
 
-  const iterType = getNodeType(scope, decl.right);
-
   const pointer = localTmp(scope, '#forof_base_pointer' + count, Valtype.i32);
   const length = localTmp(scope, '#forof_length' + count, Valtype.i32);
   const counter = localTmp(scope, '#forof_counter' + count, Valtype.i32);
+
+  const iterType = [ [ Opcodes.local_get, localTmp(scope, '#forof_itertype' + count, Valtype.i32) ] ];
 
   out.push(
     // set pointer as right
     ...generate(scope, decl.right),
     Opcodes.i32_to_u,
     [ Opcodes.local_set, pointer ],
+
+    ...getNodeType(scope, decl.right),
+    [ Opcodes.local_set, localTmp(scope, '#forof_itertype' + count, Valtype.i32) ],
 
     // set counter as 0 (could be already used)
     ...number(0, Valtype.i32),
