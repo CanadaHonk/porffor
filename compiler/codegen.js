@@ -722,8 +722,8 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     return performLogicOp(scope, op, left, right, leftType, rightType);
   }
 
-  const knownLeft = knownType(scope, leftType);
-  const knownRight = knownType(scope, rightType);
+  const knownLeft = knownTypeWithGuess(scope, leftType);
+  const knownRight = knownTypeWithGuess(scope, rightType);
 
   const eqOp = ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(op);
   const strictOp = op === '===' || op === '!==';
@@ -1213,6 +1213,7 @@ const setLastType = (scope, type = []) => [
 ];
 
 const getNodeType = (scope, node) => {
+  let guess = null;
   const ret = (() => {
     if (node._type) return node._type;
     if (node.type === 'Literal') {
@@ -1338,17 +1339,20 @@ const getNodeType = (scope, node) => {
 
       const leftType = getNodeType(scope, node.left);
       const rightType = getNodeType(scope, node.right);
-      const knownLeft = knownType(scope, leftType);
-      const knownRight = knownType(scope, rightType);
+      const knownLeft = knownTypeWithGuess(scope, leftType);
+      const knownRight = knownTypeWithGuess(scope, rightType);
 
       if ((knownLeft != null || knownRight != null) && !(
         (knownLeft === TYPES.string || knownRight === TYPES.string) ||
         (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring)
       )) return TYPES.number;
 
-      // if (knownLeft === TYPES.string || knownRight === TYPES.string) return TYPES.string;
-      // if (knownLeft === TYPES.bytestring && knownRight === TYPES.bytestring) return TYPES.bytestring;
-      // if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) return TYPES.string;
+      if (knownLeft === TYPES.string || knownRight === TYPES.string)
+        return TYPES.string;
+
+      // guess bytestring, could really be bytestring or string
+      if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring)
+        guess = TYPES.bytestring;
 
       if (scope.locals['#last_type']) return getLastType(scope);
 
@@ -1426,8 +1430,10 @@ const getNodeType = (scope, node) => {
     return TYPES.number;
   })();
 
-  if (typeof ret === 'number') return number(ret, Valtype.i32);
-  return ret;
+  const out = typeof ret === 'number' ? number(ret, Valtype.i32) : ret;
+  if (guess != null) out.guess = typeof guess === 'number' ? number(guess, Valtype.i32) : guess;
+
+  return out;
 };
 
 const generateLiteral = (scope, decl, global, name) => {
@@ -2556,6 +2562,13 @@ const knownType = (scope, type) => {
   }
 
   return null;
+};
+const knownTypeWithGuess = (scope, type) => {
+  let known = knownType(scope, type);
+  if (known != null) return known;
+
+  if (type.guess != null) return knownType(scope, type.guess);
+  return known;
 };
 
 const brTable = (input, bc, returns) => {
