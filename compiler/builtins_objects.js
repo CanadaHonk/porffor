@@ -27,7 +27,7 @@ export default function({ builtinFuncs }, Prefs) {
 
         let ptr;
         if (existingFunc) {
-          ptr = 1;
+          ptr = builtin(name, true);
         } else {
           ptr = allocPage(scope, `builtin object: ${name}`);
         }
@@ -90,15 +90,12 @@ export default function({ builtinFuncs }, Prefs) {
     };
 
     if (existingFunc) {
-      const originalWasm = existingFunc.wasm;
-      existingFunc.wasm = (...args) => {
-        const { builtin } = args[1];
-        return [
-          [ Opcodes.call, builtin('#get_' + name) ],
-          [ Opcodes.drop ],
-          ...originalWasm(...args)
-        ];
-      };
+      this[name] = (scope, { builtin, funcRef }) => [
+        [ Opcodes.call, builtin('#get_' + name) ],
+        [ Opcodes.drop ],
+        ...funcRef(name)
+      ];
+      this[name].type = TYPES.function;
     } else {
       this[name] = (scope, { builtin }) => [
         [ Opcodes.call, builtin('#get_' + name) ],
@@ -109,10 +106,9 @@ export default function({ builtinFuncs }, Prefs) {
 
     for (const x in props) {
       const d = props[x];
+      const k = prefix + x;
 
-      if (Object.hasOwn(d, 'value')) {
-        const k = prefix + x;
-
+      if (Object.hasOwn(d, 'value') && !Object.hasOwn(builtinFuncs, k) && !Object.hasOwn(this, k)) {
         if (typeof d.value === 'number') {
           this[k] = number(d.value);
           this[k].type = TYPES.number;
@@ -159,7 +155,7 @@ export default function({ builtinFuncs }, Prefs) {
   const builtinFuncKeys = Object.keys(builtinFuncs);
   const autoFuncKeys = name => {
     const prefix = makePrefix(name);
-    return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length));
+    return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length)).filter(x => !x.startsWith('prototype_'));
   };
   const autoFuncs = name => props({
     writable: true,
@@ -209,7 +205,6 @@ export default function({ builtinFuncs }, Prefs) {
   }
 
 
-  // todo: support when existing func
   object('Number', {
     ...props({
       writable: false,
@@ -305,8 +300,7 @@ export default function({ builtinFuncs }, Prefs) {
     }
     if (!t) continue;
 
-    if (!done.has(name)) {
-      console.log(name.replaceAll('_', '.'), !!builtinFuncs[name]);
+    if (!done.has(name) && !done.has('__' + name)) {
       done.add(name);
     }
   }
