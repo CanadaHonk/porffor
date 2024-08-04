@@ -183,6 +183,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'AwaitExpression':
       return cacheAst(decl, generateAwait(scope, decl));
 
+    case 'TemplateLiteral':
+      return cacheAst(decl, generateTemplate(scope, decl));
+
     case 'ExportNamedDeclaration':
       if (!decl.declaration) return todo(scope, 'unsupported export declaration');
 
@@ -5674,6 +5677,38 @@ const generateClass = (scope, decl) => {
   );
 
   return out;
+};
+
+export const generateTemplate = (scope, decl) => {
+  let current = null;
+  const append = val => {
+    // console.log(val);
+    if (!current) {
+      current = val;
+      return;
+    }
+
+    current = {
+      type: 'BinaryExpression',
+      operator: '+',
+      left: current,
+      right: val
+    };
+  };
+
+  const { expressions, quasis } = decl;
+  for (let i = 0; i < quasis.length; i++) {
+    append({
+      type: 'Literal',
+      value: quasis[i].value.cooked
+    });
+
+    if (i < expressions.length) {
+      append(expressions[i]);
+    }
+  }
+
+  return generate(scope, current);
 };
 
 globalThis._uniqId = 0;
