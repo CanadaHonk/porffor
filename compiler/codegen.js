@@ -4263,8 +4263,6 @@ const generateForIn = (scope, decl) => {
     if (depth[i] === 'forin') count++;
   }
 
-  const iterType = getNodeType(scope, decl.right);
-
   const pointer = localTmp(scope, '#forin_base_pointer' + count, Valtype.i32);
   const length = localTmp(scope, '#forin_length' + count, Valtype.i32);
   const counter = localTmp(scope, '#forin_counter' + count, Valtype.i32);
@@ -4278,14 +4276,6 @@ const generateForIn = (scope, decl) => {
     // set counter as 0 (could be already used)
     ...number(0, Valtype.i32),
     [ Opcodes.local_set, counter ],
-
-    ...iterType,
-    ...number(TYPES.object, Valtype.i32),
-    [ Opcodes.i32_eq ],
-    [ Opcodes.i32_eqz ],
-    [ Opcodes.if, Blocktype.void ],
-      ...internalThrow(scope, 'TypeError', `Tried for..in on unsupported type`),
-    [ Opcodes.end ],
 
     // get length
     [ Opcodes.local_get, pointer ],
@@ -4316,70 +4306,64 @@ const generateForIn = (scope, decl) => {
 
   // set type for local
   // todo: optimize away counter and use end pointer
-  out.push(...typeSwitch(scope, iterType, {
-    [TYPES.object]: [
-      [ Opcodes.loop, Blocktype.void ],
+  out.push(
+    [ Opcodes.loop, Blocktype.void ],
 
-      // read key
-      [ Opcodes.local_get, pointer ],
-      [ Opcodes.i32_load, 0, 5 ],
-      [ Opcodes.local_tee, tmp ],
+    // read key
+    [ Opcodes.local_get, pointer ],
+    [ Opcodes.i32_load, 0, 5 ],
+    [ Opcodes.local_tee, tmp ],
 
-      ...setType(scope, tmpName, [
-        [ Opcodes.i32_const, 31 ],
-        [ Opcodes.i32_shr_u ],
-        [ Opcodes.if, Valtype.i32 ],
-          // unset MSB in tmp
-          [ Opcodes.local_get, tmp ],
-          ...number(0x7fffffff, Valtype.i32),
-          [ Opcodes.i32_and ],
-          [ Opcodes.local_set, tmp ],
+    ...setType(scope, tmpName, [
+      [ Opcodes.i32_const, 31 ],
+      [ Opcodes.i32_shr_u ],
+      [ Opcodes.if, Valtype.i32 ],
+        // unset MSB in tmp
+        [ Opcodes.local_get, tmp ],
+        ...number(0x7fffffff, Valtype.i32),
+        [ Opcodes.i32_and ],
+        [ Opcodes.local_set, tmp ],
 
-          [ Opcodes.i32_const, ...unsignedLEB128(TYPES.string) ],
-        [ Opcodes.else ],
-          [ Opcodes.i32_const, ...unsignedLEB128(TYPES.bytestring) ],
-        [ Opcodes.end ]
-      ]),
-
-      ...setVar,
-
-      [ Opcodes.block, Blocktype.void ],
-
-      // todo/perf: do not read key for non-enumerables
-      // only run body if entry is enumerable
-      [ Opcodes.local_get, pointer ],
-      [ Opcodes.i32_load8_u, 0, 17 ],
-      [ Opcodes.i32_const, 0b0100 ],
-      [ Opcodes.i32_and ],
-      [ Opcodes.if, Blocktype.void ],
-      ...generate(scope, decl.body),
-      [ Opcodes.end ],
-
-      // increment pointer by 14
-      [ Opcodes.local_get, pointer ],
-      ...number(14, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_set, pointer ],
-
-      // increment counter by 1
-      [ Opcodes.local_get, counter ],
-      ...number(1, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_tee, counter ],
-
-      // loop if counter != length
-      [ Opcodes.local_get, length ],
-      [ Opcodes.i32_ne ],
-      [ Opcodes.br_if, 1 ],
-
-      [ Opcodes.end ],
+        [ Opcodes.i32_const, ...unsignedLEB128(TYPES.string) ],
+      [ Opcodes.else ],
+        [ Opcodes.i32_const, ...unsignedLEB128(TYPES.bytestring) ],
       [ Opcodes.end ]
-    ],
+    ]),
 
-    // todo: use Object.keys as fallback
-    // should be unreachable?
-    default: internalThrow(scope, 'TypeError', `Tried for..in on unsupported type`)
-  }, Blocktype.void));
+    ...setVar,
+
+    [ Opcodes.block, Blocktype.void ],
+
+    // todo/perf: do not read key for non-enumerables
+    // only run body if entry is enumerable
+    [ Opcodes.local_get, pointer ],
+    [ Opcodes.i32_load8_u, 0, 17 ],
+    [ Opcodes.i32_const, 0b0100 ],
+    [ Opcodes.i32_and ],
+    [ Opcodes.if, Blocktype.void ],
+    ...generate(scope, decl.body),
+    [ Opcodes.end ],
+
+    // increment pointer by 14
+    [ Opcodes.local_get, pointer ],
+    ...number(14, Valtype.i32),
+    [ Opcodes.i32_add ],
+    [ Opcodes.local_set, pointer ],
+
+    // increment counter by 1
+    [ Opcodes.local_get, counter ],
+    ...number(1, Valtype.i32),
+    [ Opcodes.i32_add ],
+    [ Opcodes.local_tee, counter ],
+
+    // loop if counter != length
+    [ Opcodes.local_get, length ],
+    [ Opcodes.i32_ne ],
+    [ Opcodes.br_if, 1 ],
+
+    [ Opcodes.end ],
+    [ Opcodes.end ]
+  );
 
   out.push([ Opcodes.end ]); // end if
 
@@ -4387,7 +4371,33 @@ const generateForIn = (scope, decl) => {
   depth.pop();
   depth.pop();
 
-  return out;
+  return typeSwitch(scope, getNodeType(scope, decl.right), {
+    // fast path for objects
+    [TYPES.object]: out,
+
+    // wrap for of object.keys
+    default: generate(scope, {
+      type: 'ForOfStatement',
+      left: decl.left,
+      body: decl.body,
+      right: {
+        type: 'CallExpression',
+        callee: {
+          type: 'Identifier',
+          name: '__Object_keys'
+        },
+        arguments: [ {
+          type: 'LogicalExpression',
+          left: decl.right,
+          operator: '??',
+          right: {
+            type: 'Literal',
+            value: 0
+          }
+        } ]
+      }
+    })
+  }, Blocktype.void);
 };
 
 const generateSwitch = (scope, decl) => {
