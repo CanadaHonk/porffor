@@ -16,11 +16,9 @@ export default function({ builtinFuncs }, Prefs) {
     builtinFuncs['#get_' + name] = {
       params: [],
       locals: [],
-      globals: [ Valtype.i32 ],
-      globalNames: [ '#getptr_' + name ],
       returns: [ Valtype.i32 ],
       returnType: TYPES.object,
-      wasm: (scope, { allocPage, makeString, generate, getNodeType, builtin }) => {
+      wasm: (scope, { allocPage, makeString, generate, getNodeType, builtin, glbl }) => {
         if (globalThis.precompile) return [ [ 'get object', name ] ];
 
         // todo/perf: precompute bytes here instead of calling real funcs if we really care about perf later
@@ -32,17 +30,18 @@ export default function({ builtinFuncs }, Prefs) {
           ptr = allocPage(scope, `builtin object: ${name}`);
         }
 
+        const getPtr = glbl(Opcodes.global_get, `getptr_${name}`, Valtype.i32)[0];
         const out = [
           // check if already made/cached
-          [ Opcodes.global_get, 0 ],
+          getPtr,
           [ Opcodes.if, Blocktype.void ],
-            [ Opcodes.global_get, 0 ],
+            getPtr,
             [ Opcodes.return ],
           [ Opcodes.end ],
 
           // set cache & ptr for use
           ...number(ptr, Valtype.i32),
-          [ Opcodes.global_set, 0 ],
+          glbl(Opcodes.global_set, `getptr_${name}`, Valtype.i32)[0]
         ];
 
         for (const x in props) {
@@ -62,7 +61,7 @@ export default function({ builtinFuncs }, Prefs) {
           if (this[prefix + x]?.type === TYPES.object && this[prefix + x] !== this.null) value = { type: 'ObjectExpression', properties: [] };
 
           out.push(
-            [ Opcodes.global_get, 0 ],
+            getPtr,
             ...number(existingFunc ? TYPES.function : TYPES.object, Valtype.i32),
 
             ...makeString(scope, x, false, `#builtin_object_${name}_${x}`),
@@ -81,10 +80,8 @@ export default function({ builtinFuncs }, Prefs) {
           );
         }
 
-        out.push(
-          // return ptr
-          [ Opcodes.global_get, 0 ]
-        );
+        // return ptr
+        out.push(getPtr);
         return out;
       }
     };
