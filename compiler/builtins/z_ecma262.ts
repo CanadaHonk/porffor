@@ -1,6 +1,21 @@
 // general widely used ecma262/spec functions
 import type {} from './porffor.d.ts';
 
+export const __ecma262_ToPrimitive_Number = (input: any): any => {
+  // not spec compliant, sorry
+  // todo: %Symbol.toPrimitive%
+
+  let value: any = input.valueOf?.();
+  if (value == null || Porffor.object.isObjectOrNull(value)) {
+    value = input.toString?.();
+    if (value == null || Porffor.object.isObjectOrNull(value)) {
+      throw new TypeError('Cannot convert an object to primitive');
+    }
+  }
+
+  return value;
+};
+
 // 7.1.4 ToNumber (argument)
 // https://tc39.es/ecma262/#sec-tonumber
 export const __ecma262_ToNumber = (argument: unknown): number => {
@@ -35,11 +50,11 @@ export const __ecma262_ToNumber = (argument: unknown): number => {
 
   // 7. Assert: argument is an Object.
   // 8. Let primValue be ? ToPrimitive(argument, number).
+  const primValue: any = __ecma262_ToPrimitive_Number(argument);
+
   // 9. Assert: primValue is not an Object.
   // 10. Return ? ToNumber(primValue).
-
-  // // todo: I doubt this is spec-compliant
-  // return __ecma262_ToNumber(argument.valueOf());
+  return __ecma262_ToNumber(primValue);
 
   return NaN;
 };
