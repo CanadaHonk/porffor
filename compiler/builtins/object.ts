@@ -680,6 +680,12 @@ export const __Object_prototype_isPrototypeOf = (_this: any, obj: any) => {
 
 
 export const __Object_prototype_toString = (_this: any) => {
+  if (Porffor.rawType(_this) == Porffor.TYPES.object) {
+    const obj: object = _this;
+    const ovr: any = obj.toString;
+    if (ovr != null && ovr !== __Object_prototype_toString) return ovr.call(_this);
+  }
+
   let out: bytestring = Porffor.allocate();
 
   // 1. If the this value is undefined, return "[object Undefined]".
@@ -708,6 +714,12 @@ export const __Object_prototype_toLocaleString = (_this: any) => __Object_protot
 
 export const __Object_prototype_valueOf = (_this: any) => {
   // todo: ToObject
+  if (Porffor.rawType(_this) == Porffor.TYPES.object) {
+    const obj: object = _this;
+    const ovr: any = obj.valueOf;
+    if (ovr != null && ovr !== __Object_prototype_valueOf) return ovr.call(_this);
+  }
+
   return _this;
 };
 
