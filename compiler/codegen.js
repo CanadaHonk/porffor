@@ -5773,6 +5773,8 @@ const objectHack = node => {
       if (objectName !== 'Object_prototype' && (node.property.name === 'propertyIsEnumerable' || node.property.name === 'hasOwnProperty' || node.property.name === 'isPrototypeOf')) return abortOut;
 
       const name = '__' + objectName + '_' + node.property.name;
+      if ((!hasFuncWithName(name) && !Object.hasOwn(builtinVars, name)) && (hasFuncWithName(objectName) || Object.hasOwn(builtinVars, objectName))) return abortOut;
+
       if (Prefs.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
 
       return {
