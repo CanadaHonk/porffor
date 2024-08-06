@@ -49,7 +49,7 @@ if (isMainThread) {
 
   const tests = [];
   for await (const test of _tests) {
-    if (test.scenario === 'strict mode') continue;
+    if (test.scenario === 'strict mode' && !test.attrs.flags.onlyStrict) continue;
     tests.push(test);
   }
 
