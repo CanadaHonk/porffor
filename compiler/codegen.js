@@ -3309,7 +3309,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
           ...getNodeType(scope, decl),
 
-          [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_set').index ],
+          [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
           [ Opcodes.drop ],
           // ...setLastType(scope, getNodeType(scope, decl)),
         ],
@@ -3342,7 +3342,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
           ...getNodeType(scope, decl),
 
-          [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_set').index ],
+          [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
           [ Opcodes.drop ],
           // ...setLastType(scope, getNodeType(scope, decl)),
         ],
@@ -3651,7 +3651,7 @@ const generateUnary = (scope, decl) => {
           ...getNodeType(scope, property),
           ...toPropertyKey(scope, true),
 
-          [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_delete').index ],
+          [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_deleteStrict' : '__Porffor_object_delete').index ],
           [ Opcodes.drop ],
           Opcodes.i32_from_u
         ];

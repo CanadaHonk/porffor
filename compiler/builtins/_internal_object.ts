@@ -326,7 +326,6 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
 
       // no setter, return early
       if (Porffor.wasm`local.get ${set}` == 0) {
-        // todo: throw in strict mode?
         return value;
       }
 
@@ -358,6 +357,92 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
     if (!(tail & 0b1000)) {
       // not writable, return now
       return value;
+    }
+
+    // flags = same flags as before
+    flags = tail & 0xff;
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, value, 0, 4);
+
+  // write new tail (value type + flags)
+  Porffor.wasm.i32.store16(entryPtr,
+    flags + (Porffor.wasm`local.get ${value+1}` << 8),
+    0, 12);
+
+  return value;
+};
+
+export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any => {
+  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
+
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_getObject(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return value;
+  }
+
+  let entryPtr: i32 = __Porffor_object_lookup(obj, key);
+  let flags: i32;
+  if (entryPtr == -1) {
+    // add new entry
+    // check if object is inextensible
+    if (__Porffor_object_isInextensible(obj)) {
+      throw new TypeError('Cannot add property to inextensible object');
+    }
+
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
+    Porffor.wasm.i32.store(obj, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${obj}` + 5 + size * 14;
+
+    __Porffor_object_writeKey(entryPtr, key);
+
+    // flags = writable, enumerable, configurable, not accessor
+    flags = 0b1110;
+  } else {
+    // existing entry, modify it
+    const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
+
+    if (tail & 0b0001) {
+      // accessor descriptor
+      const set: Function = __Porffor_object_accessorSet(entryPtr);
+
+      // no setter, return early
+      if (Porffor.wasm`local.get ${set}` == 0) {
+        throw new TypeError('Cannot set property with no setter of object');
+      }
+
+      const funcFlags: i32 = __Porffor_funcLut_flags(set);
+      if (funcFlags & 0b10) {
+        // constructor func, add new.target, this args
+        Porffor.wasm`
+  f64.const 0
+  i32.const 0
+  local.get ${obj}
+  f64.convert_i32_u
+  i32.const 7
+  local.get ${value}
+  local.get ${value+1}
+  local.get ${set}
+  call_indirect 3 0`;
+      } else {
+        Porffor.wasm`
+  local.get ${value}
+  local.get ${value+1}
+  local.get ${set}
+  call_indirect 1 0`;
+      }
+
+      return value;
+    }
+
+    // data descriptor
+    if (!(tail & 0b1000)) {
+      // not writable, return now
+      throw new TypeError('Cannot modify read-only property of object');
     }
 
     // flags = same flags as before
@@ -477,8 +562,72 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
   const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
   if (!(tail & 0b0010)) {
     // not configurable
-    // todo: throw in strict mode
     return false;
+  }
+
+  const ind: i32 = (entryPtr - Porffor.wasm`local.get ${obj}`) / 14;
+
+  // decrement size
+  let size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
+  Porffor.wasm.i32.store(obj, --size, 0, 0);
+
+  if (size > ind) {
+    // offset all elements after by -1 ind
+    Porffor.wasm`
+;; dst = entryPtr
+local.get ${entryPtr}
+
+;; src = entryPtr + 14 (+ 1 entry)
+local.get ${entryPtr}
+i32.const 14
+i32.add
+
+;; size = (size - ind) * 14
+local.get ${size}
+local.get ${ind}
+i32.sub
+i32.const 14
+i32.mul
+
+memory.copy 0 0`;
+  }
+
+  return true;
+};
+
+export const __Porffor_object_deleteStrict = (obj: any, key: any): boolean => {
+  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot delete property of null');
+
+  if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.function) {
+    const tmp1: bytestring = 'name';
+    if (key == tmp1) {
+      __Porffor_funcLut_deleteName(obj);
+      return true;
+    }
+
+    const tmp2: bytestring = 'length';
+    if (key == tmp2) {
+      __Porffor_funcLut_deleteLength(obj);
+      return true;
+    }
+  }
+
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.rawType(obj) != Porffor.TYPES.object) {
+    // todo: support non-pure objects
+    return true;
+  }
+
+  const entryPtr: i32 = __Porffor_object_lookup(obj, key);
+  if (entryPtr == -1) {
+    // not found, stop
+    return true;
+  }
+
+  const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
+  if (!(tail & 0b0010)) {
+    // not configurable
+    throw new TypeError('Cannot delete non-configurable property of object');
   }
 
   const ind: i32 = (entryPtr - Porffor.wasm`local.get ${obj}`) / 14;
