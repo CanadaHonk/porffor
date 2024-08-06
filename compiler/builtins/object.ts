@@ -595,13 +595,11 @@ export const __Object_defineProperty = (target: any, prop: any, descriptor: any)
 
   let flags: i32 = 0b0000;
   if (accessor) flags |= 0b0001;
-  if (configurable) flags |= 0b0010;
-  if (enumerable) flags |= 0b0100;
-  if (writable) flags |= 0b1000;
+  if (!!configurable) flags |= 0b0010;
+  if (!!enumerable) flags |= 0b0100;
+  if (!!writable) flags |= 0b1000;
 
-  if (accessor) {
-    value = Porffor.object.packAccessor(get, set);
-  }
+  if (accessor) value = Porffor.object.packAccessor(get, set);
 
   Porffor.object.define(target, p, value, flags);
   return target;
