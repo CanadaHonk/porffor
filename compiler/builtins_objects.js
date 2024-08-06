@@ -183,8 +183,6 @@ export default function({ builtinFuncs }, Prefs) {
     ...autoFuncs('Math')
   });
 
-  object('Reflect', autoFuncs('Reflect'));
-
   // automatically generate objects for prototypes
   for (const x of builtinFuncKeys.reduce((acc, x) => {
     const ind = x.indexOf('_prototype_');
@@ -224,7 +222,9 @@ export default function({ builtinFuncs }, Prefs) {
     ...autoFuncs('Number')
   });
 
+  object('Reflect', autoFuncs('Reflect'));
   object('Object', autoFuncs('Object'));
+  object('JSON', autoFuncs('JSON'));
 
 
   // these technically not spec compliant as it should be classes or non-enumerable but eh
