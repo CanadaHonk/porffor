@@ -3141,13 +3141,20 @@ const privateIdentifierToIdentifier = decl => ({
   name: privateIDName(decl.name)
 });
 
-const getProperty = decl => {
+const getProperty = (decl, forceValueStr = false) => {
   const prop = decl.property ?? decl.key;
   if (decl.computed) return prop;
 
-  if (prop.name) return {
+  // identifier -> literal
+  if (prop.name != null) return {
     type: 'Literal',
     value: prop.type === 'PrivateIdentifier' ? privateIDName(prop.name) : prop.name,
+  };
+
+  // force literal values to be string (eg 0 -> '0')
+  if (forceValueStr && prop.value != null) return {
+    ...prop,
+    value: prop.value.toString()
   };
 
   return prop;
@@ -3287,9 +3294,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
           ...getNodeType(scope, object),
 
-          ...propertyWasm,
-          ...getNodeType(scope, property),
-          ...toPropertyKey(scope, op === '='),
+          ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.left.computed, op === '='),
           ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
           ...(op === '=' ? [] : [
             Opcodes.i32_to_u,
@@ -3320,9 +3325,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
           ...getNodeType(scope, object),
 
-          ...propertyWasm,
-          ...getNodeType(scope, property),
-          ...toPropertyKey(scope, op === '='),
+          ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.left.computed, op === '='),
           ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
           ...(op === '=' ? [] : [
             Opcodes.i32_to_u,
@@ -3647,9 +3650,7 @@ const generateUnary = (scope, decl) => {
           Opcodes.i32_to_u,
           ...getNodeType(scope, object),
 
-          ...generate(scope, property),
-          ...getNodeType(scope, property),
-          ...toPropertyKey(scope, true),
+          ...toPropertyKey(scope, generate(scope, property), getNodeType(scope, property), decl.argument.computed, true),
 
           [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_deleteStrict' : '__Porffor_object_delete').index ],
           [ Opcodes.drop ],
@@ -5048,13 +5049,20 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', initEm
   return makeArray(scope, decl, global, name, initEmpty, valtype, false, true)[0];
 };
 
-const toPropertyKey = (scope, i32Conv = false) => [
+// opt: do not call ToPropertyKey for non-computed properties as unneeded
+const toPropertyKey = (scope, wasm, type, computed = false, i32Conv = false) => computed ? [
+  ...wasm,
+  ...type,
   [ Opcodes.call, includeBuiltin(scope, '__ecma262_ToPropertyKey').index ],
   ...(i32Conv ? [
     [ Opcodes.local_set, localTmp(scope, '#swap', Valtype.i32) ],
     Opcodes.i32_to_u,
     [ Opcodes.local_get, localTmp(scope, '#swap', Valtype.i32) ]
   ] : [])
+] : [
+  ...wasm,
+  ...(i32Conv ? [ Opcodes.i32_to_u ] : []),
+  ...type
 ];
 
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
@@ -5091,7 +5099,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         continue;
       }
 
-      const k = getProperty(x);
+      const k = getProperty(x, true);
       if (isFuncType(value.type)) {
         let id = value.id;
 
@@ -5108,9 +5116,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         [ Opcodes.local_get, tmp ],
         ...number(TYPES.object, Valtype.i32),
 
-        ...generate(scope, k),
-        ...getNodeType(scope, k),
-        ...toPropertyKey(scope, true),
+        ...toPropertyKey(scope, generate(scope, k), getNodeType(scope, k), computed, true),
 
         ...generate(scope, value),
         ...(kind !== 'init' ? [ Opcodes.i32_to_u ] : []),
@@ -5405,9 +5411,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       Opcodes.i32_to_u,
       ...getNodeType(scope, object),
 
-      ...propertyWasm,
-      ...getNodeType(scope, property),
-      ...toPropertyKey(scope, true),
+      ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.computed, true),
 
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
       ...setLastType(scope)
@@ -5418,9 +5422,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       Opcodes.i32_to_u,
       ...getNodeType(scope, object),
 
-      ...propertyWasm,
-      ...getNodeType(scope, property),
-      ...toPropertyKey(scope, true),
+      ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.computed, true),
 
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
       ...setLastType(scope)
@@ -5641,7 +5643,7 @@ const generateClass = (scope, decl) => {
 
     let object = _static ? root : proto;
 
-    const k = getProperty(x);
+    const k = getProperty(x, true);
 
     let initKind = 'init';
     if (kind === 'get' || kind === 'set') initKind = kind;
@@ -5682,9 +5684,7 @@ const generateClass = (scope, decl) => {
       Opcodes.i32_to_u,
       ...getNodeType(outScope, object),
 
-      ...generate(outScope, k),
-      ...getNodeType(outScope, k),
-      ...toPropertyKey(outScope, true),
+      ...toPropertyKey(outScope, generate(outScope, k), getNodeType(outScope, k), computed, true),
 
       ...generate(outScope, value),
       ...(initKind !== 'init' ? [ Opcodes.i32_to_u ] : []),
