@@ -5546,7 +5546,7 @@ const generateClass = (scope, decl) => {
     optional: false
   };
 
-  const constr = {
+  const [ func, out ] = generateFunc(scope, {
     ...(body.find(x => x.kind === 'constructor')?.value ?? {
       type: 'FunctionExpression',
       params: [],
@@ -5555,12 +5555,9 @@ const generateClass = (scope, decl) => {
         body: []
       }
     }),
-    id: root
-  };
-
-  const [ func, out ] = generateFunc(scope, {
-    ...constr,
+    id: root,
     _onlyConstr: true,
+    strict: true,
     type: expr ? 'FunctionExpression' : 'FunctionDeclaration'
   });
 
@@ -5618,6 +5615,7 @@ const generateClass = (scope, decl) => {
       value = {
         ...value,
         id,
+        strict: true,
         _onlyThisMethod: true
       };
     }
@@ -5780,7 +5778,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
       // not async or generator
       !decl.async && !decl.generator,
     _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
-    strict: scope.strict,
+    strict: scope.strict || decl.strict,
 
     generate() {
       if (func.wasm) return func.wasm;
