@@ -1,8 +1,9 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { number } from './embedding.js';
-import { read_signedLEB128, read_ieee754_binary64 } from './encoding.js';
+import { read_signedLEB128, read_ieee754_binary64, read_unsignedLEB128 } from './encoding.js';
 import { log } from './log.js';
 import {} from './prefs.js';
+import { importedFuncs } from './builtins.js';
 
 const forceRemoveTypes = new Set(Prefs.forceRemoveTypes?.split?.(','));
 const hasType = (funcs, pages, type) => {
@@ -130,6 +131,8 @@ export default (funcs, globals, pages, tags, exceptions) => {
   // const tagUse = tags.reduce((acc, x) => { acc[x.idx] = 0; return acc; }, {});
   // const exceptionUse = exceptions.reduce((acc, _, i) => { acc[i] = 0; return acc; }, {});
 
+  const called = new Map();
+
   // wasm transform pass
   let fi = 0;
   for (const f of funcs) {
@@ -148,6 +151,11 @@ export default (funcs, globals, pages, tags, exceptions) => {
         let inst = wasm[i];
         inst = [ ...inst ];
         wasm[i] = inst;
+
+        // if we're on the last pass
+        if (runs == 0 && inst[0] == Opcodes.call) {
+          called.set(inst[1], (called.get(inst[1]) ?? 0) + 1);
+        }
 
         // if (inst[0] === Opcodes.throw) {
         //   tagUse[inst[1]]++;
@@ -441,6 +449,67 @@ export default (funcs, globals, pages, tags, exceptions) => {
           wasm.splice(i, 1); // remove this inst (second get)
           i--;
           continue;
+        }
+      }
+    }
+  }
+
+  if (Prefs.removeUncalledFuncs) {
+    const newIdx = new Map();
+    const imports = importedFuncs.length
+    let runs = (+Prefs.uncalledFuncsRuns) || 1;
+    while (runs > 0) {
+      runs--;
+
+      let currentIdx = imports;
+      for (let i = 0; i < funcs.length; i++) {
+        const f = funcs[i];
+
+        if (!f.export && !f.referenced && !called.has(f.index)) {
+          for (const inst of f.wasm) {
+            if (inst[0] == Opcodes.call) {
+              const val = called.get(inst[1]) - 1;
+
+              if (val == 0) called.delete(inst[1])
+                else called.set(inst[1], val);
+            }
+          }
+
+          funcs.splice(i, 1);
+          i--;
+        } else {
+          if (runs == 0) newIdx.set(f.index, currentIdx++);
+        }
+      }
+
+      if (runs != 0) {
+        called.clear()
+        for (const f of funcs) {
+          for (const inst of f.wasm) {
+            if (inst[0] == Opcodes.call) {
+              called.set(inst[1], (called.get(inst[1]) ?? 0) + 1);
+            }
+          }
+        }
+      }
+    }
+
+    for (const f of funcs) {
+      f.originalIndex = f.index;
+      f.index = newIdx.get(f.index);
+
+      const wasm = f.wasm;
+      for (let i = 0; i < wasm.length; i++) {
+        const inst = wasm[i];
+        if (inst[0] == Opcodes.call) {
+          if (inst[1] < imports) continue;
+
+          if (!newIdx.has(inst[1])) throw new Error('Index has not been remapped');
+          wasm.splice(i, 1, [ Opcodes.call, newIdx.get(inst[1]) ]);
+        }
+        if (inst.at(-1) == 'funcref') {
+          const n = inst[1];
+          inst[1] = newIdx.get(n) - imports;
         }
       }
     }

@@ -56,10 +56,12 @@ const funcRef = func => {
     [ Opcodes.const, 'funcref', func.name ]
   ];
 
-  return [
-    [ Opcodes.const, func.index - importedFuncs.length ]
-    // [ Opcodes.const, func.index - importedFuncs.length, 'funcref' ]
+  func.referenced = true;
+
+  const out = [
+    [ Opcodes.const, func.index - importedFuncs.length, 'funcref' ]
   ];
+  return out;
 };
 
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
