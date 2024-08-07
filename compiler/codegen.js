@@ -2676,7 +2676,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, allowFallThrough =
   }
 
   if (Prefs.typeswitchBrtable) {
-    if (allowFallThrough) throw new Error(`Fallthrough is not currently supported with --typeswitch-brtable`)
+    if (allowFallThrough) throw new Error(`Fallthrough is not currently supported with --typeswitch-brtable`);
     return brTable(type, bc, returns);
   }
 
@@ -5606,7 +5606,7 @@ const generateClass = (scope, decl) => {
       outScope = func;
     }
 
-    if (isFuncType(value.type) && type === 'MethodDefinition') {
+    if (isFuncType(value.type)) {
       let id = value.id;
 
       // todo: support computed names properly
