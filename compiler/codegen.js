@@ -3288,68 +3288,6 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           [ Opcodes.local_get, newValueTmp ]
         ],
 
-        [TYPES.object]: [
-          ...objectWasm,
-          Opcodes.i32_to_u,
-          ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
-          ...getNodeType(scope, object),
-
-          ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.left.computed, op === '='),
-          ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
-          ...(op === '=' ? [] : [
-            Opcodes.i32_to_u,
-            [ Opcodes.local_tee, localTmp(scope, '#objset_property', Valtype.i32) ]
-          ]),
-          ...(op === '=' ? [] : [ [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
-
-          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-            [ Opcodes.local_get, localTmp(scope, '#objset_object', Valtype.i32) ],
-            ...getNodeType(scope, object),
-
-            [ Opcodes.local_get, localTmp(scope, '#objset_property', Valtype.i32) ],
-            [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
-
-            [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
-            ...setLastType(scope)
-          ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
-          ...getNodeType(scope, decl),
-
-          [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
-          [ Opcodes.drop ],
-          // ...setLastType(scope, getNodeType(scope, decl)),
-        ],
-
-        [TYPES.function]: [
-          ...objectWasm,
-          Opcodes.i32_to_u,
-          ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
-          ...getNodeType(scope, object),
-
-          ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.left.computed, op === '='),
-          ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
-          ...(op === '=' ? [] : [
-            Opcodes.i32_to_u,
-            [ Opcodes.local_tee, localTmp(scope, '#objset_property', Valtype.i32) ]
-          ]),
-          ...(op === '=' ? [] : [ [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
-
-          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-            [ Opcodes.local_get, localTmp(scope, '#objset_object', Valtype.i32) ],
-            ...getNodeType(scope, object),
-
-            [ Opcodes.local_get, localTmp(scope, '#objset_property', Valtype.i32) ],
-            [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
-
-            [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
-            ...setLastType(scope)
-          ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
-          ...getNodeType(scope, decl),
-
-          [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
-          [ Opcodes.drop ],
-          // ...setLastType(scope, getNodeType(scope, decl)),
-        ],
-
         ...wrapBC({
           [TYPES.uint8array]: [
             [ Opcodes.i32_add ],
@@ -3511,12 +3449,33 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
         // default: internalThrow(scope, 'TypeError', `Cannot assign member with this type`)
         default: [
           ...objectWasm,
-          [ Opcodes.drop ],
+          Opcodes.i32_to_u,
+          ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
+          ...getNodeType(scope, object),
 
-          ...propertyWasm,
-          [ Opcodes.drop ],
+          ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.left.computed, op === '='),
+          ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
+          ...(op === '=' ? [] : [
+            Opcodes.i32_to_u,
+            [ Opcodes.local_tee, localTmp(scope, '#objset_property', Valtype.i32) ]
+          ]),
+          ...(op === '=' ? [] : [ [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
 
-          ...generate(scope, decl.right)
+          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            [ Opcodes.local_get, localTmp(scope, '#objset_object', Valtype.i32) ],
+            ...getNodeType(scope, object),
+
+            [ Opcodes.local_get, localTmp(scope, '#objset_property', Valtype.i32) ],
+            [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
+
+            [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
+            ...setLastType(scope)
+          ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
+          ...getNodeType(scope, decl),
+
+          [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
+          [ Opcodes.drop ],
+          // ...setLastType(scope, getNodeType(scope, decl)),
         ]
       }, valtypeBinary)
     ];
@@ -5406,28 +5365,6 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       ...setLastType(scope, TYPES.bytestring)
     ],
 
-    [TYPES.object]: [
-      ...objectWasm,
-      Opcodes.i32_to_u,
-      ...getNodeType(scope, object),
-
-      ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.computed, true),
-
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
-      ...setLastType(scope)
-    ],
-
-    [TYPES.function]: [
-      ...objectWasm,
-      Opcodes.i32_to_u,
-      ...getNodeType(scope, object),
-
-      ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.computed, true),
-
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
-      ...setLastType(scope)
-    ],
-
     ...wrapBC({
       [TYPES.uint8array]: [
         [ Opcodes.i32_add ],
@@ -5510,8 +5447,14 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
     // default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
     default: [
-      ...number(0),
-      ...setLastType(scope, TYPES.undefined)
+      ...objectWasm,
+      Opcodes.i32_to_u,
+      ...getNodeType(scope, object),
+
+      ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.computed, true),
+
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
+      ...setLastType(scope)
     ],
 
     ...extraBC

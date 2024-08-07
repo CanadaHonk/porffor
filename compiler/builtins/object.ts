@@ -18,7 +18,6 @@ export const __Object_keys = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
-  obj = __Porffor_object_getObject(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -65,16 +64,24 @@ local.set ${key}`;
     }
 
     out.length = i;
-  } else if (Porffor.fastOr(
-    t == Porffor.TYPES.array,
-    t == Porffor.TYPES.bytestring,
-    t == Porffor.TYPES.string
-  )) {
-    const len: i32 = obj.length;
-    out.length = len;
+  } else {
+    if (Porffor.fastOr(
+      t == Porffor.TYPES.array,
+      t == Porffor.TYPES.bytestring,
+      t == Porffor.TYPES.string
+    )) {
+      const len: i32 = obj.length;
+      out.length = len;
 
-    for (let i: i32 = 0; i < len; i++) {
-      out[i] = __Number_prototype_toString(i);
+      for (let i: i32 = 0; i < len; i++) {
+        out[i] = __Number_prototype_toString(i);
+      }
+    }
+
+    obj = __Porffor_object_makeObject(obj);
+    if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+      const objKeys: any[] = __Object_keys(obj);
+      for (const x of objKeys) Porffor.array.fastPush(out, x);
     }
   }
 
@@ -85,7 +92,6 @@ export const __Object_values = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
-  obj = __Porffor_object_getObject(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -112,16 +118,24 @@ local.set ${val+1}`;
     }
 
     out.length = i;
-  } else if (Porffor.fastOr(
-    t == Porffor.TYPES.array,
-    t == Porffor.TYPES.bytestring,
-    t == Porffor.TYPES.string
-  )) {
-    const len: i32 = obj.length;
-    out.length = len;
+  } else {
+    if (Porffor.fastOr(
+      t == Porffor.TYPES.array,
+      t == Porffor.TYPES.bytestring,
+      t == Porffor.TYPES.string
+    )) {
+      const len: i32 = obj.length;
+      out.length = len;
 
-    for (let i: i32 = 0; i < len; i++) {
-      out[i] = obj[i];
+      for (let i: i32 = 0; i < len; i++) {
+        out[i] = obj[i];
+      }
+    }
+
+    obj = __Porffor_object_makeObject(obj);
+    if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+      const objVals: any[] = __Object_values(obj);
+      for (const x of objVals) Porffor.array.fastPush(out, x);
     }
   }
 
@@ -179,6 +193,11 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
     if (p == tmp2) return !__Porffor_funcLut_isLengthDeleted(_this);
 
     return Porffor.object.lookup(_this, p) != -1;
+  }
+
+  const obj: any = __Porffor_object_makeObject(_this);
+  if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+    if (Porffor.object.lookup(obj, p) != -1) return true;
   }
 
   const keys: any[] = __Object_keys(_this);
@@ -262,12 +281,17 @@ export const __Porffor_object_assignAll = (target: any, source: any) => {
 export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) => {
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const obj: any = __Porffor_object_getObject(_this);
-  if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+  if (Porffor.rawType(_this) == Porffor.TYPES.object) {
     const entryPtr: i32 = Porffor.object.lookup(_this, p);
     if (entryPtr == -1) return false;
 
     return Porffor.object.isEnumerable(entryPtr);
+  }
+
+  const obj: any = __Porffor_object_makeObject(_this);
+  if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+    const entryPtr: i32 = Porffor.object.lookup(obj, p);
+    if (entryPtr != -1) return Porffor.object.isEnumerable(entryPtr);
   }
 
   const keys: any[] = __Object_keys(_this);
@@ -413,7 +437,7 @@ export const __Object_getOwnPropertyDescriptors = (obj: any): any => {
   const out: object = {};
 
   if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    obj = __Porffor_object_getObject(obj);
+    obj = __Porffor_object_makeObject(obj);
     if (Porffor.rawType(obj) != Porffor.TYPES.object) return out;
   }
 
@@ -475,16 +499,24 @@ local.set ${key}`;
     }
 
     out.length = i;
-  } else if (Porffor.fastOr(
-    t == Porffor.TYPES.array,
-    t == Porffor.TYPES.bytestring,
-    t == Porffor.TYPES.string
-  )) {
-    const len: i32 = obj.length;
-    out.length = len;
+  } else {
+    if (Porffor.fastOr(
+      t == Porffor.TYPES.array,
+      t == Porffor.TYPES.bytestring,
+      t == Porffor.TYPES.string
+    )) {
+      const len: i32 = obj.length;
+      out.length = len;
 
-    for (let i: i32 = 0; i < len; i++) {
-      out[i] = __Number_prototype_toString(i);
+      for (let i: i32 = 0; i < len; i++) {
+        out[i] = __Number_prototype_toString(i);
+      }
+    }
+
+    obj = __Porffor_object_makeObject(obj);
+    if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+      const objKeys: any[] = __Object_getOwnPropertyNames(obj);
+      for (const x of objKeys) Porffor.array.fastPush(out, x);
     }
   }
 
@@ -495,6 +527,7 @@ export const __Object_getOwnPropertySymbols = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
+  obj = __Porffor_object_makeObject(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
