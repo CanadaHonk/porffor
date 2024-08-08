@@ -104,6 +104,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'ThisExpression':
       return cacheAst(decl, generateThis(scope, decl));
 
+    case 'Super':
+      return cacheAst(decl, generateSuper(scope, decl));
+
     case 'Literal':
       return cacheAst(decl, generateLiteral(scope, decl, global, name));
 
@@ -1602,8 +1605,8 @@ const RTArrayUtil = {
   ]
 };
 
-const createNewTarget = (scope, decl, idx = 0) => {
-  if (decl._new) {
+const createNewTarget = (scope, decl, idx = 0, force = false) => {
+  if (decl._new || force) {
     return [
       ...(typeof idx === 'number' ? number(idx) : idx),
       ...number(TYPES.function, Valtype.i32)
@@ -2270,11 +2273,22 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ];
       }
 
+      let callee = decl.callee, callAsNew = decl._new, overrideThisWasm = decl._thisWasm;
+      if (callee.type === 'Super') {
+        // call super constructor with direct super() call
+        callee = getObjProp(callee, 'constructor');
+        callAsNew = true;
+        overrideThisWasm = [
+          ...generate(scope, { type: 'ThisExpression' }),
+          ...getNodeType(scope, { type: 'ThisExpression' })
+        ];
+      }
+
       const newTargetWasm = decl._newTargetWasm ?? createNewTarget(scope, decl, [
         [ Opcodes.local_get, funcLocal ],
         Opcodes.i32_from_u
-      ]);
-      const thisWasm = decl._thisWasm ?? createThisArg(scope, decl, knownThis);
+      ], callAsNew);
+      const thisWasm = overrideThisWasm ?? createThisArg(scope, decl, knownThis);
 
       const gen = argc => {
         const argsOut = [];
@@ -2342,11 +2356,11 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       return [
         ...(getCalleeObj ? [
           ...initCalleeObj,
-          ...generate(scope, decl.callee, false, undefined, getCalleeObj)
-        ]: generate(scope, decl.callee)),
+          ...generate(scope, callee, false, undefined, getCalleeObj)
+        ]: generate(scope, callee)),
         [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
 
-        ...typeSwitch(scope, getNodeType(scope, decl.callee), {
+        ...typeSwitch(scope, getNodeType(scope, callee), {
           [TYPES.function]: [
             ...out,
 
@@ -2364,7 +2378,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             [ Opcodes.local_set, flags ],
 
             // check if non-constructor was called with new, if so throw
-            ...(decl._new ? [
+            ...(callAsNew ? [
               [ Opcodes.local_get, flags ],
               ...number(0b10, Valtype.i32),
               [ Opcodes.i32_and ],
@@ -2571,6 +2585,9 @@ const generateThis = (scope, decl) => {
     ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
   ];
 };
+
+const generateSuper = (scope, decl) => generate(scope,
+  getObjProp(getObjProp({ type: 'ThisExpression', _noGlobalThis: true }, '__proto__'), '__proto__'));
 
 // bad hack for undefined and null working without additional logic
 const DEFAULT_VALUE = () => ({
