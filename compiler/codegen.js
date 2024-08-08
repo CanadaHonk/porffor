@@ -1693,13 +1693,48 @@ const createThisArg = (scope, decl, knownThis = undefined) => {
     return knownThis;
   }
 
+  const name = mapName(decl.callee?.name);
   if (decl._new) {
-    return [
+    // if precompiling or builtin func, just make empty object
+    if (globalThis.precompile || Object.hasOwn(builtinFuncs, name)) return [
       ...makeObject(scope, {}),
       ...number(TYPES.object, Valtype.i32)
     ];
+
+    // create new object with __proto__ set to callee prototype
+    const tmp = localTmp(scope, '#this_create_tmp');
+    const proto = getObjProp(decl.callee, 'prototype');
+    localTmp(scope, '#member_prop_assign');
+
+    return [
+      ...makeObject(scope, {}),
+      [ Opcodes.local_tee, tmp ],
+      Opcodes.i32_to_u,
+
+      ...number(TYPES.object, Valtype.i32),
+
+      ...generate(scope, {
+        type: 'Literal',
+        value: '__proto__'
+      }, false, '#member_prop_assign'),
+      Opcodes.i32_to_u,
+      ...number(TYPES.bytestring, Valtype.i32),
+
+      ...generate(scope, proto),
+      ...getNodeType(scope, proto),
+
+      // flags: writable
+      ...number(0b1000, Valtype.i32),
+      ...number(TYPES.number, Valtype.i32),
+
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_expr_initWithFlags').index ],
+      [ Opcodes.drop ],
+      [ Opcodes.drop ],
+
+      [ Opcodes.local_get, tmp ],
+      ...number(TYPES.object, Valtype.i32)
+    ];
   } else {
-    const name = mapName(decl.callee?.name);
     if (name && name.startsWith('__') && name.includes('_prototype_')) {
       // todo: this should just be same as decl._new
       // but we do not support prototype, constructor, etc yet
@@ -1734,7 +1769,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   // opt: virtualize iifes
   if (isFuncType(decl.callee.type)) {
-    const [ func ] = generateFunc(scope, decl.callee, true);
+    const [ func ] = generateFunc(scope, decl.callee);
     name = func.name;
   }
 
@@ -2894,7 +2929,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       // hack for let a = function () { ... }
       if (!init.id) {
         init.id = { name };
-        generateFunc(scope, init, true);
+        generateFunc(scope, init);
         return out;
       }
     }
@@ -5752,7 +5787,7 @@ const funcByIndex = idx => {
 };
 const funcByName = name => funcByIndex(funcIndex[name]);
 
-const generateFunc = (scope, decl, outUnused = false) => {
+const generateFunc = (scope, decl) => {
   const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
   if (decl.type.startsWith('Class')) {
     const out = generateClass(scope, {
@@ -5837,21 +5872,6 @@ const generateFunc = (scope, decl, outUnused = false) => {
         );
 
         // todo: wrap in try and reject thrown value once supported
-      }
-
-      if (!globalThis.precompile && func.constr && !func._onlyThisMethod) {
-        wasm.unshift(
-          // opt: do not check for pure constructors
-          ...(func._onlyConstr ? [] : [
-            // if being constructed
-            [ Opcodes.local_get, func.locals['#newtarget'].idx ],
-            Opcodes.i32_to_u,
-            [ Opcodes.if, Blocktype.void ],
-          ]),
-            // set prototype of this ;)
-            ...generate(func, setObjProp({ type: 'ThisExpression', _noGlobalThis: true }, '__proto__', getObjProp(func.name, 'prototype'))),
-          ...(func._onlyConstr ? [] : [ [ Opcodes.end ] ])
-        );
       }
 
       if (name === 'main') {
@@ -6009,7 +6029,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
   // force generate all for precompile
   if (globalThis.precompile) func.generate();
 
-  const out = decl.type.endsWith('Expression') && !outUnused ? funcRef(func) : [];
+  const out = decl.type.endsWith('Expression') ? funcRef(func) : [];
   astCache.set(decl, out);
   return [ func, out ];
 };
