@@ -5624,7 +5624,7 @@ const generateClass = (scope, decl) => {
 
     const k = getProperty(x, true);
 
-    let initKind = 'init';
+    let initKind = type === 'MethodDefinition' ? 'method' : 'value';
     if (kind === 'get' || kind === 'set') initKind = kind;
 
     // default value to undefined
@@ -5667,10 +5667,10 @@ const generateClass = (scope, decl) => {
       ...toPropertyKey(outScope, generate(outScope, k), getNodeType(outScope, k), computed, true),
 
       ...generate(outScope, value),
-      ...(initKind !== 'init' ? [ Opcodes.i32_to_u ] : []),
+      ...(initKind !== 'value' && initKind !== 'method' ? [ Opcodes.i32_to_u ] : []),
       ...getNodeType(outScope, value),
 
-      [ Opcodes.call, includeBuiltin(outScope, `__Porffor_object_expr_${initKind}`).index ],
+      [ Opcodes.call, includeBuiltin(outScope, `__Porffor_object_class_${initKind}`).index ],
 
       [ Opcodes.drop ],
       [ Opcodes.drop ]
