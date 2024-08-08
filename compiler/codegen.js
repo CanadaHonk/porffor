@@ -311,7 +311,8 @@ const lookupName = (scope, _name) => {
 };
 
 const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysValueInternalThrows) => [
-  ...generateThrow(scope, {
+  ...generate(scope, {
+    type: 'ThrowStatement',
     argument: {
       type: 'NewExpression',
       callee: {
@@ -1632,7 +1633,7 @@ const makeObject = (scope, obj) => {
     });
   }
 
-  return generateObject(scope, {
+  return generate(scope, {
     type: 'ObjectExpression',
     properties
   });
@@ -1714,7 +1715,7 @@ const createThisArg = (scope, decl, knownThis = undefined) => {
       };
 
       return [
-        ...generateCall(scope, node),
+        ...generate(scope, node),
         ...getNodeType(scope, node)
       ];
     }
@@ -1836,7 +1837,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const valTmp = localTmp(scope, '#call_val');
       const typeTmp = localTmp(scope, '#call_type', Valtype.i32);
 
-      return generateCall(scope, {
+      return generate(scope, {
         type: 'CallExpression',
         callee: target,
         arguments: decl.arguments.slice(1),
@@ -1939,7 +1940,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         const type = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
         if (type == null) continue;
 
-        protoBC[type] = generateCall(scope, {
+        protoBC[type] = generate(scope, {
+          type: 'CallExpression',
           callee: {
             type: 'Identifier',
             name: x
@@ -2305,7 +2307,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       return [
         ...(getCalleeObj ? [
           ...initCalleeObj,
-          ...generateMember(scope, decl.callee, false, undefined, getCalleeObj)
+          ...generate(scope, decl.callee, false, undefined, getCalleeObj)
         ]: generate(scope, decl.callee)),
         [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
 
@@ -3543,7 +3545,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
 const ifIdentifierErrors = (scope, decl) => {
   if (decl.type === 'Identifier') {
-    const out = generateIdent(scope, decl);
+    const out = generate(scope, decl);
     if (out[1]) return true;
   }
 
@@ -3620,7 +3622,7 @@ const generateUnary = (scope, decl) => {
       let toReturn = true, toGenerate = true;
 
       if (decl.argument.type === 'Identifier') {
-        const out = generateIdent(scope, decl.argument);
+        const out = generate(scope, decl.argument);
 
         // if ReferenceError (undeclared var), ignore and return true. otherwise false
         if (!out[1]) {
@@ -4397,7 +4399,7 @@ const generateSwitch = (scope, decl) => {
       const ret = typeSwitch(scope, getNodeType(scope, decl.discriminant.arguments[0]), () => {
         const ret = [];
         for (const [type, consequent] of cases) {
-          const o = generateCode(scope, { body: consequent });
+          const o = generate(scope, { type: 'BlockStatement', body: consequent });
           ret.push([type, o]);
         }
         return ret;
@@ -4440,7 +4442,7 @@ const generateSwitch = (scope, decl) => {
     depth.pop();
     out.push(
       [ Opcodes.end ],
-      ...generateCode(scope, { body: cases[i].consequent })
+      ...generate(scope, { type: 'BlockStatement', body: cases[i].consequent })
     );
   }
 
@@ -5042,7 +5044,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
 
       if (type === 'SpreadElement') {
         out.push(
-          ...generateCall(scope, {
+          ...generate(scope, {
             type: 'CallExpression',
             callee: {
               type: 'Identifier',
@@ -5237,7 +5239,8 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
         const type = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
         if (type == null) continue;
 
-        if (type === known) return generateCall(scope, {
+        if (type === known) return generate(scope, {
+          type: 'CallExpression',
           callee: {
             type: 'Identifier',
             name: x
@@ -5246,7 +5249,8 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
           _protoInternalCall: true
         });
 
-        bc[type] = generateCall(scope, {
+        bc[type] = generate(scope, {
+          type: 'CallExpression',
           callee: {
             type: 'Identifier',
             name: x
@@ -5281,7 +5285,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       };
 
       bc[type] = [
-        ...generateIdent(scope, ident),
+        ...generate(scope, ident),
         ...setLastType(scope, getNodeType(scope, ident))
       ];
       if (type === known) return bc[type];
@@ -5512,7 +5516,7 @@ const generateAwait = (scope, decl) => {
 
   // todo: warn here if -d?
 
-  return generateCall(scope, {
+  return generate(scope, {
     type: 'CallExpression',
     callee: {
       type: 'Identifier',
@@ -5757,6 +5761,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
     });
 
     const func = funcByName(name);
+    astCache.set(decl, out);
     return [ func, out ];
   }
 
@@ -6005,6 +6010,7 @@ const generateFunc = (scope, decl, outUnused = false) => {
   if (globalThis.precompile) func.generate();
 
   const out = decl.type.endsWith('Expression') && !outUnused ? funcRef(func) : [];
+  astCache.set(decl, out);
   return [ func, out ];
 };
 
