@@ -1,6 +1,6 @@
 import * as PrecompiledBuiltins from './builtins_precompiled.js';
 import ObjectBuiltins from './builtins_objects.js';
-import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
+import { Blocktype, Opcodes, Valtype, ValtypeSize, PageSize, PageSizeBits } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { TYPES, TYPE_NAMES } from './types.js';
 import {} from './prefs.js';
@@ -869,6 +869,25 @@ export const BuiltinFuncs = function() {
     }
   };
 
+  this.__Porffor_copyMemory = {
+    params: [ Valtype.i32, Valtype.i32, Valtype.i32 ],
+    locals: [],
+    returns: [],
+    wasm: [
+      // dst
+      [ Opcodes.local_get, 1 ],
+
+      // src
+      [ Opcodes.local_get, 0 ],
+
+      // size
+      [ Opcodes.local_get, 2 ],
+
+      [ ...Opcodes.memory_copy, 0x00, 0x00 ],
+    ]
+  };
+
+  // Only kept for compatibility
   this.__Porffor_clone = {
     params: [ Valtype.i32, Valtype.i32 ],
     locals: [],
@@ -882,72 +901,87 @@ export const BuiltinFuncs = function() {
 
       // size = pageSize
       ...number(pageSize, Valtype.i32),
+
       [ ...Opcodes.memory_copy, 0x00, 0x00 ],
     ]
   };
-
   this.__Porffor_allocate = {
     params: [],
     locals: [],
     returns: [ Valtype.i32 ],
-    returnType: TYPES.number,
-    wasm: [
-      ...number(1, Valtype.i32),
-      [ Opcodes.memory_grow, 0 ],
-      ...number(65536, Valtype.i32),
-      [ Opcodes.i32_mul ]
+    wasm: (_, { builtin }) => [
+      ...number(pageSize, Valtype.i32),
+      [16,builtin('__Porffor_allocateBytes')]
     ]
   };
 
   this.__Porffor_allocateBytes = {
     params: [ Valtype.i32 ],
-    locals: [],
-    globals: [ Valtype.i32, Valtype.i32 ],
-    globalNames: [ 'currentPtr', 'bytesWritten' ],
-    globalInits: [ 0, pageSize ], // init to pageSize so we always allocate on first call
+    locals: [ Valtype.i32, Valtype.i32, Valtype.i32 ],
+    globals: [ Valtype.i32 ],
+    globalNames: [ 'currentPtr' ],
+    globalInits: [ PageSize ], // init to pageSize so we always allocate on first call
     returns: [ Valtype.i32 ],
     returnType: TYPES.number,
     wasm: [
-      // bytesWritten += bytesToAllocate
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.global_get, 1 ],
+      // This code was written with assistance from LLVM
+      // oldPtr = (currentPtr + 15) & ~15 for alignment
+      [ Opcodes.global_get, 0 ], // currentPtr
+      ...number(15, Valtype.i32),
       [ Opcodes.i32_add ],
-      [ Opcodes.global_set, 1 ],
+      ...number(~15, Valtype.i32),
+      [ Opcodes.i32_and ],
+      [ Opcodes.local_tee, 1 ], // oldPtr
 
-      // if bytesWritten >= pageSize:
-      [ Opcodes.global_get, 1 ],
-      ...number(pageSize, Valtype.i32),
-      [ Opcodes.i32_ge_s ],
-      [ Opcodes.if, Valtype.i32 ],
-        // bytesWritten = bytesToAllocate
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.global_set, 1 ],
+      // currentPtr = newPtr = oldPtr + bytesToAllocate
+      [ Opcodes.local_get, 0 ], // bytesToAllocate
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_tee, 0 ], // newPtr
+      [ Opcodes.global_set, 0 ], // currentPtr
 
-        // grow memory by 1 page
-        ...number(1, Valtype.i32),
-        [ Opcodes.memory_grow, 0x00 ],
-
-        // currentPtr = old page count * pageSize + bytesToAllocate
-        ...number(pageSize, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.local_get, 0 ],
+      [ Opcodes.block, Blocktype.void ],
+        // requiredPages = (newPtr + PageSize - 1) >> PageSizeBits
+        [ Opcodes.local_get, 0 ], // newPtr
+        ...number(PageSize - 1, Valtype.i32),
         [ Opcodes.i32_add ],
-        [ Opcodes.global_set, 0 ],
+        ...number(PageSizeBits, Valtype.i32),
+        [ Opcodes.i32_shr_u ],
+        [ Opcodes.local_tee, 0 ], // requiredPages
 
-        // return currentPtr - bytesToAllocate
-        [ Opcodes.global_get, 0 ],
+        // if requiredPages <= memory.size(0): break
+        [ Opcodes.local_tee, 2 ], // memorySize
+        [ Opcodes.i32_le_u ],
+        [ Opcodes.br_if, 0 ],
+
+        // memory.grow(0, requiredPages - memory.size(0))
         [ Opcodes.local_get, 0 ],
+        [ Opcodes.local_get, 2 ],
         [ Opcodes.i32_sub ],
-      [ Opcodes.else ],
-        // else, currentPtr += bytesToAllocate
-        [ Opcodes.global_get, 0 ],
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.i32_add ],
-        [ Opcodes.global_set, 0 ],
+        [ Opcodes.memory_grow, 0 ],
+        [ Opcodes.drop ],
+      [ Opcodes.end ],
+      [ Opcodes.local_get, 1 ]
+    ]
+  };
 
-        // return currentPtr
-        [ Opcodes.global_get, 0 ],
-      [ Opcodes.end ]
+  // TODO: realloc
+  this.__Porffor_reallocateBytes = this.__Porffor_allocateBytes;
+
+  // TODO: free
+  this.__Porffor_free = {
+    params: [ Valtype.i32 ],
+    returns: [],
+    wasm: []
+  };
+
+  // DO NOT use this within normal code.
+  // This will reset the entire memory and can cause problems to ALL pointer types (strings, arrays, etc.)
+  this.__Porffor_freeEverything = {
+    params: [ Valtype.i32 ],
+    returns: [],
+    wasm: (_, { glbl }) => [
+      ...number(PageSize),
+      ...glbl(Opcodes.global_set, 'currentPtr', Valtype.i32)
     ]
   };
 

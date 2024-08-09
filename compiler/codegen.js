@@ -3197,13 +3197,13 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const lengthTypeWasm = [
       ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
         [ Opcodes.local_get, pointerTmp ],
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), 0 ],
         Opcodes.i32_from_u
       ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right))),
       [ Opcodes.local_tee, newValueTmp ],
 
       Opcodes.i32_to_u,
-      [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ],
+      [ Opcodes.i32_store, Math.log2(ValtypeSize.i32), 0 ],
 
       [ Opcodes.local_get, newValueTmp ]
     ];
@@ -5224,7 +5224,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       return [
         ...out,
 
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), 0 ],
         Opcodes.i32_from_u
       ];
     }
@@ -5234,7 +5234,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     if (known != null && typeHasFlag(known, TYPE_FLAGS.length)) return [
       ...out,
 
-      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), 0 ],
       Opcodes.i32_from_u
     ];
 
@@ -5248,7 +5248,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       [ Opcodes.i32_and ],
       [ Opcodes.if, valtypeBinary ],
         [ Opcodes.local_get, tmp ],
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), 0 ],
         Opcodes.i32_from_u,
 
         ...setLastType(scope, TYPES.number),

@@ -226,6 +226,7 @@ export const Magic = [0x00, 0x61, 0x73, 0x6d];
 export const ModuleVersion = [0x01, 0x00, 0x00, 0x00];
 
 export const PageSize = 65536; // 64KiB (1024 * 8)
+export const PageSizeBits = 16; // used for left shift / right shift optimization
 
 export const ValtypeSize = {
   i32: 4,
