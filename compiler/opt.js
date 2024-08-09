@@ -357,6 +357,32 @@ export default (funcs, globals, pages, tags, exceptions) => {
           continue;
         }
 
+        if (inst[0] === Opcodes.i64_reinterpret_f64 && lastInst[0] === Opcodes.f64_reinterpret_i64) {
+          // remove unneeded i64 -> f64 -> i64
+          // f64.reinterpret_i64
+          // i64.reinterpret_f64
+          // -->
+          // <nothing>
+
+          wasm.splice(i - 1, 2); // remove this inst and last
+          i -= 2;
+          // if (Prefs.optLog) log('opt', `removed redundant i64 -> f64 -> i64 conversion ops`);
+          continue;
+        }
+
+        if (inst[0] === Opcodes.f64_reinterpret_i64 && lastInst[0] === Opcodes.i64_reinterpret_f64) {
+          // remove unneeded f64 -> i64 -> f64
+          // i64.reinterpret_f64
+          // f64.reinterpret_i64
+          // -->
+          // <nothing>
+
+          wasm.splice(i - 1, 2); // remove this inst and last
+          i -= 2;
+          // if (Prefs.optLog) log('opt', `removed redundant f64 -> i64 -> f64 conversion ops`);
+          continue;
+        }
+
         if (inst[0] === Opcodes.i32_trunc_sat_f64_s[0] && (lastInst[0] === Opcodes.f64_convert_i32_u || lastInst[0] === Opcodes.f64_convert_i32_s)) {
           // remove unneeded i32 -> f64 -> i32
           // f64.convert_i32_s || f64.convert_i32_u

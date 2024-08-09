@@ -1467,6 +1467,9 @@ const generateLiteral = (scope, decl, global, name) => {
     case 'string':
       return makeString(scope, decl.value, global, name);
 
+    case 'bigint':
+      return number(new Float64Array(new BigInt64Array([decl.value]).buffer)[0]);
+
     default:
       return todo(scope, `cannot generate literal of type ${typeof decl.value}`, true);
   }
@@ -3700,6 +3703,7 @@ const generateUnary = (scope, decl) => {
         [TYPES.symbol]: makeString(scope, 'symbol', false, '#typeof_result'),
         [TYPES.bytestring]: makeString(scope, 'string', false, '#typeof_result'),
         [TYPES.empty]: makeString(scope, 'undefined', false, '#typeof_result'),
+        [TYPES.bigint]: makeString(scope, 'bigint', false, '#typeof_result'),
 
         // object and internal types
         default: makeString(scope, 'object', false, '#typeof_result'),

@@ -21,7 +21,7 @@ const compile = async (file, _funcs) => {
   let first = source.slice(0, source.indexOf('\n'));
 
   if (first.startsWith('export default')) {
-    source = await (await import(file)).default();
+    source = await (await import("file://" + file)).default();
     first = source.slice(0, source.indexOf('\n'));
   }
 

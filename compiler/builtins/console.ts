@@ -40,6 +40,10 @@ export const __Porffor_miniLog = (arg: any) => {
       print(arg);
       break;
 
+    case Porffor.TYPES.bigint:
+      __Porffor_printString(arg.toString());
+      break;
+
     case Porffor.TYPES.boolean:
       if (arg) {
         Porffor.printStatic('true');
@@ -115,6 +119,12 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
     case Porffor.TYPES.number:
       if (colors) Porffor.printStatic('\x1b[33m'); // yellow
       print(arg);
+      if (colors) Porffor.printStatic('\x1b[0m');
+      return;
+
+    case Porffor.TYPES.bigint:
+      if (colors) Porffor.printStatic('\x1b[33m'); // yellow
+      __Porffor_printString(arg.toString());
       if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
