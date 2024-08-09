@@ -15,44 +15,81 @@ export const __Porffor_strcmp = (a: any, b: any): boolean => {
   if (Porffor.wasm`local.get ${a+1}` == Porffor.TYPES.bytestring) {
     if (Porffor.wasm`local.get ${b+1}` == Porffor.TYPES.bytestring) {
       // bytestring, bytestring
+      // this path is hyper-optimized as it is by far the most common and (perf) important
+
       let ap: i32 = a - 4;
       let bp: i32 = b - 4;
       Porffor.wasm`
-loop 64
-  local.get ${ap}
-  local.get ${al}
-  i32.add
-  i64.load 0 0
+;; load in i64 chunks while length >= 8
+local.get ${al}
+i32.const 8
+i32.ge_s
+if 64
+  loop 64
+    local.get ${ap}
+    local.get ${al}
+    i32.add
+    i64.load 0 0
 
-  local.get ${bp}
-  local.get ${al}
-  i32.add
-  i64.load 0 0
+    local.get ${bp}
+    local.get ${al}
+    i32.add
+    i64.load 0 0
 
-  i64.ne
-  if 64
-    i32.const 0
-    i32.const 2
-    return
+    i64.ne
+    if 64
+      i32.const 0
+      i32.const 2
+      return
+    end
+
+    local.get ${al}
+    i32.const 8
+    i32.sub
+    local.tee ${al}
+    i32.const 8
+    i32.ge_s
+    br_if 0
   end
+end
 
-  local.get ${al}
-  i32.const 8
-  i32.sub
-  local.tee ${al}
-  i32.const 8
-  i32.ge_s
-  br_if 0
+;; load in u16 chunks while length >= 2
+local.get ${al}
+i32.const 2
+i32.ge_s
+if 64
+  loop 64
+    local.get ${ap}
+    local.get ${al}
+    i32.add
+    i32.load16_u 0 6
+
+    local.get ${bp}
+    local.get ${al}
+    i32.add
+    i32.load16_u 0 6
+
+    i32.ne
+    if 64
+      i32.const 0
+      i32.const 2
+      return
+    end
+
+    local.get ${al}
+    i32.const 2
+    i32.sub
+    local.tee ${al}
+    i32.const 2
+    i32.ge_s
+    br_if 0
+  end
 end`;
 
-      for (let i: i32 = 0; i < al; i++) {
-        if (Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${a}` + i, 0, 4) !=
-            Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${b}` + i, 0, 4)) return false;
-      }
-
-      for (let i: i32 = 0; i < al; i++) {
-        if (Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${a}` + i, 0, 4) !=
-            Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${b}` + i, 0, 4)) return false;
+      // check bonus char if exists
+      if (al == 1) {
+        if (Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${a}`, 0, 4) !=
+            Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${b}`, 0, 4)) return false;
       }
       return true;
     } else {

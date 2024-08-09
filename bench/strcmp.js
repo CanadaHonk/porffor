@@ -6,7 +6,9 @@ let b = 'very long bytestring with matching length but mismatching content very 
 
 
 let t = performance.now();
-for (let i = 0; i < 1000; i++) {
+
+for (let i = 0; i < 1000000; i++) {
   a == b;
 }
-Porffor.numberLog(performance.now() - t);
+
+console.log(performance.now() - t);
