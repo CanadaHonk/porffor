@@ -6,8 +6,8 @@ export const __Porffor_strcmp = (a: any, b: any): boolean => {
   // fast path: check if pointers are equal
   if (Porffor.wasm`local.get ${a}` == Porffor.wasm`local.get ${b}`) return true;
 
-  const al: i32 = Porffor.wasm.i32.load(a, 0, 0);
-  const bl: i32 = Porffor.wasm.i32.load(b, 0, 0);
+  let al: i32 = Porffor.wasm.i32.load(a, 0, 0);
+  let bl: i32 = Porffor.wasm.i32.load(b, 0, 0);
 
   // fast path: check if lengths are inequal
   if (al != bl) return false;
@@ -15,6 +15,41 @@ export const __Porffor_strcmp = (a: any, b: any): boolean => {
   if (Porffor.wasm`local.get ${a+1}` == Porffor.TYPES.bytestring) {
     if (Porffor.wasm`local.get ${b+1}` == Porffor.TYPES.bytestring) {
       // bytestring, bytestring
+      let ap: i32 = a - 4;
+      let bp: i32 = b - 4;
+      Porffor.wasm`
+loop 64
+  local.get ${ap}
+  local.get ${al}
+  i32.add
+  i64.load 0 0
+
+  local.get ${bp}
+  local.get ${al}
+  i32.add
+  i64.load 0 0
+
+  i64.ne
+  if 64
+    i32.const 0
+    i32.const 2
+    return
+  end
+
+  local.get ${al}
+  i32.const 8
+  i32.sub
+  local.tee ${al}
+  i32.const 8
+  i32.ge_s
+  br_if 0
+end`;
+
+      for (let i: i32 = 0; i < al; i++) {
+        if (Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${a}` + i, 0, 4) !=
+            Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${b}` + i, 0, 4)) return false;
+      }
+
       for (let i: i32 = 0; i < al; i++) {
         if (Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${a}` + i, 0, 4) !=
             Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${b}` + i, 0, 4)) return false;
@@ -38,6 +73,40 @@ export const __Porffor_strcmp = (a: any, b: any): boolean => {
       return true;
     } else {
       // string, string
+      let ap: i32 = a - 4;
+      let bp: i32 = b - 4;
+      Porffor.wasm`
+loop 64
+  local.get ${ap}
+  local.get ${al}
+  i32.const 2
+  i32.mul
+  i32.add
+  i64.load 0 0
+
+  local.get ${bp}
+  local.get ${al}
+  i32.const 2
+  i32.mul
+  i32.add
+  i64.load 0 0
+
+  i64.ne
+  if 64
+    i32.const 0
+    i32.const 2
+    return
+  end
+
+  local.get ${al}
+  i32.const 4
+  i32.sub
+  local.tee ${al}
+  i32.const 4
+  i32.ge_s
+  br_if 0
+end`;
+
       for (let i: i32 = 0; i < al; i++) {
         if (Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${a}` + i*2, 0, 4) !=
             Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${b}` + i*2, 0, 4)) return false;

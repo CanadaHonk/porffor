@@ -248,7 +248,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
             const encodeFunc = ({
               [Opcodes.f64_const]: x => x,
-              [Opcodes.if]: unsignedLEB128
+              [Opcodes.if]: unsignedLEB128,
+              [Opcodes.loop]: unsignedLEB128
             })[inst[0]] ?? signedLEB128;
             out.push([ ...inst, ...immediates.flatMap(x => encodeFunc(x)) ]);
           }
