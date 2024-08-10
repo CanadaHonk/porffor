@@ -2253,8 +2253,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       let getCalleeObj = undefined;
       let initCalleeObj = undefined;
 
-      // hack: this should be more thorough, Function.bind, etc.
-      if (decl.callee.type == 'MemberExpression') {
+      // hack: this should be more thorough, Function.bind, etc
+      if (decl.callee.type == 'MemberExpression' && !decl._new) {
         const callee = localTmp(scope, '#indirect_callee_obj', Valtype.f64);
         initCalleeObj = [
           ...generate(scope, decl.callee.object),
