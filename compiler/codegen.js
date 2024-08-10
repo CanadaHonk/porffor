@@ -3829,7 +3829,7 @@ const generateFor = (scope, decl) => {
 
   out.push([ Opcodes.br, 1 ]);
   out.push([ Opcodes.end ], [ Opcodes.end ]);
-  depth.pop(); depth.pop();
+  depth.pop(); depth.pop(); depth.pop();
 
   return out;
 };
@@ -4261,6 +4261,7 @@ const generateForOf = (scope, decl) => {
   depth.pop();
   depth.pop();
   depth.pop();
+  depth.pop();
 
   return out;
 };
@@ -4377,6 +4378,7 @@ const generateForIn = (scope, decl) => {
 
   out.push([ Opcodes.end ]); // end if
 
+  depth.pop();
   depth.pop();
   depth.pop();
   depth.pop();
@@ -4528,7 +4530,7 @@ const generateBreak = (scope, decl) => {
   })[type];
 
   return [
-    [ Opcodes.br, ...signedLEB128(depth.length - target - offset) ]
+    [ Opcodes.br, ...unsignedLEB128(depth.length - target - offset) ]
   ];
 };
 
@@ -4549,7 +4551,7 @@ const generateContinue = (scope, decl) => {
   })[type];
 
   return [
-    [ Opcodes.br, ...signedLEB128(depth.length - target - offset) ]
+    [ Opcodes.br, ...unsignedLEB128(depth.length - target - offset) ]
   ];
 };
 
