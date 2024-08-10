@@ -1691,12 +1691,7 @@ const setObjProp = (obj, prop, value) => {
   });
 };
 
-const createThisArg = (scope, decl, knownThis = undefined) => {
-  if (knownThis) {
-    // todo: check compliance
-    return knownThis;
-  }
-
+const createThisArg = (scope, decl) => {
   const name = mapName(decl.callee?.name);
   if (decl._new) {
     // if precompiling or builtin func, just make empty object
@@ -2274,12 +2269,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ];
       }
 
-      let callee = decl.callee, callAsNew = decl._new, overrideThisWasm = decl._thisWasm;
+      let callee = decl.callee, callAsNew = decl._new;
       if (callee.type === 'Super') {
         // call super constructor with direct super() call
         callee = getObjProp(callee, 'constructor');
         callAsNew = true;
-        overrideThisWasm = [
+        knownThis = [
           ...generate(scope, { type: 'ThisExpression' }),
           ...getNodeType(scope, { type: 'ThisExpression' })
         ];
@@ -2289,7 +2284,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         [ Opcodes.local_get, funcLocal ],
         Opcodes.i32_from_u
       ], callAsNew);
-      const thisWasm = overrideThisWasm ?? createThisArg(scope, decl, knownThis);
+      const thisWasm = knownThis ?? createThisArg(scope, decl);
 
       const gen = argc => {
         const argsOut = [];
