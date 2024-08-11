@@ -1382,7 +1382,7 @@ const getNodeType = (scope, node) => {
       if (node.operator === '!') return TYPES.boolean;
       if (node.operator === 'void') return TYPES.undefined;
       if (node.operator === 'delete') return TYPES.boolean;
-      if (node.operator === 'typeof') return Prefs.bytestring ? TYPES.bytestring : TYPES.string;
+      if (node.operator === 'typeof') return TYPES.bytestring;
 
       return TYPES.number;
     }
@@ -2718,8 +2718,6 @@ const brTable = (input, bc, returns) => {
 let typeswitchDepth = 0;
 
 const typeSwitch = (scope, type, bc, returns = valtypeBinary, allowFallThrough = false) => {
-  if (!Prefs.bytestring) delete bc[TYPES.bytestring];
-
   const known = knownType(scope, type);
   if (known != null) {
     return bc[known] ?? bc.default;
@@ -2887,8 +2885,6 @@ const extractTypeAnnotation = decl => {
 
   const typeName = type;
   type = typeAnnoToPorfType(type);
-
-  if (type === TYPES.bytestring && !Prefs.bytestring) type = TYPES.string;
 
   // if (decl.name) console.log(decl.name, { type, elementType });
 
@@ -5030,8 +5026,6 @@ const loadArray = (scope, array, index) => {
 };
 
 const byteStringable = str => {
-  if (!Prefs.bytestring) return false;
-
   for (let i = 0; i < str.length; i++) {
     if (str.charCodeAt(i) > 0xFF) return false;
   }
@@ -5041,7 +5035,7 @@ const byteStringable = str => {
 
 const makeString = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
   const rawElements = new Array(str.length);
-  let byteStringable = Prefs.bytestring;
+  let byteStringable = true;
   for (let i = 0; i < str.length; i++) {
     const c = str.charCodeAt(i);
     rawElements[i] = c;

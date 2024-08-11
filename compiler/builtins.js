@@ -856,7 +856,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [ valtypeBinary ],
-    returnType: Prefs.bytestring ? TYPES.bytestring : TYPES.string,
+    returnType: TYPES.bytestring,
     wasm: (scope, { typeSwitch, makeString }) => {
       const bc = {};
       for (const x in TYPE_NAMES) {
