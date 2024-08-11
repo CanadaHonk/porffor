@@ -196,7 +196,7 @@ export default (code, flags) => {
   }
 
   if (target === 'native') {
-    outFile ??= Prefs.native ? './porffor_tmp' : file.split('/').at(-1).split('.').at(0, -1).join('.');
+    outFile ??= Prefs.native ? './porffor_tmp' : file.split('/').at(-1).split('.')[0];
 
     let compiler = Prefs.compiler ?? 'clang';
     const cO = Prefs._cO ?? 'Ofast';
