@@ -2720,7 +2720,23 @@ let typeswitchDepth = 0;
 const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = false) => {
   const known = knownType(scope, type);
   if (known != null) {
-    return bc[known] ?? bc.default;
+    if (Array.isArray(bc)) {
+      let def;
+      for (const [ type, wasm ] of bc) {
+        if (type === 'default') {
+          def = wasm;
+          continue;
+        }
+
+        if (Array.isArray(type)) {
+          if (type.includes(known)) return wasm;
+        } else if (type === known) return wasm;
+      }
+
+      return def;
+    } else {
+      return bc[known] ?? bc.default;
+    }
   }
 
   if (Prefs.typeswitchBrtable) {
@@ -2728,9 +2744,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     return brTable(type, bc, returns);
   }
 
-  typeswitchDepth++;
-
-  const tmp = localTmp(scope, `#typeswitch_tmp${typeswitchDepth}${Prefs.typeswitchUniqueTmp ? uniqId() : ''}`, Valtype.i32);
+  const tmp = localTmp(scope, `#typeswitch_tmp${++typeswitchDepth}${Prefs.typeswitchUniqueTmp ? uniqId() : ''}`, Valtype.i32);
   const out = [
     ...type,
     [ Opcodes.local_set, tmp ],
@@ -2739,28 +2753,39 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
 
   if (typeof bc === 'function') bc = bc();
 
-  let arr = bc;
-  if (!Array.isArray(arr)) {
-    arr = Object.entries(arr);
+  let def;
+  if (!Array.isArray(bc)) {
+    def = bc.default;
+    bc = Object.entries(bc);
   }
 
-  for (let i = 0; i < arr.length; i++) {
-    let [ types, wasm ] = arr[i];
-    if (!Array.isArray(types)) types = [ types ];
-    if (types[0] === 'default') continue;
+  for (let i = 0; i < bc.length; i++) {
+    let [ type, wasm ] = bc[i];
+    if (type === 'default') {
+      def = wasm;
+      continue;
+    }
 
-    for (let j = 0; j < types.length; j++) {
+    if (Array.isArray(type)) {
+      for (let j = 0; j < type.length; j++) {
+        out.push(
+          [ Opcodes.local_get, tmp ],
+          ...number(type[j], Valtype.i32),
+          [ Opcodes.i32_eq ]
+        );
+
+        if (j > 0) out.push([ Opcodes.i32_or ]);
+      }
+    } else {
       out.push(
         [ Opcodes.local_get, tmp ],
-        ...number(types[j], Valtype.i32),
+        ...number(type, Valtype.i32),
         [ Opcodes.i32_eq ]
       );
-
-      if (j > 0) out.push([ Opcodes.i32_or ]);
     }
 
     out.push(
-      [ Opcodes.if, Blocktype.void, `TYPESWITCH|${types.map(t => TYPE_NAMES[t]).join(',')}` ],
+      [ Opcodes.if, Blocktype.void, `TYPESWITCH|${Array.isArray(type) ? type.map(t => TYPE_NAMES[t]).join(',') : TYPE_NAMES[type]}` ],
         ...wasm,
         ...(fallthrough ? [] : [ [ Opcodes.br, 1 ] ]),
       [ Opcodes.end ]
@@ -2768,7 +2793,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
   }
 
   // default
-  if (bc.default) out.push(...bc.default);
+  if (def) out.push(...def);
     else if (returns !== Blocktype.void) out.push(...number(0, returns));
 
   out.push([ Opcodes.end, 'TYPESWITCH_end' ]);
