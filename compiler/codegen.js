@@ -588,8 +588,8 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
     ...wasm,
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
-    ...typeSwitch(scope, type, {
-      [TYPES.string]: [
+    ...typeSwitch(scope, type, [
+      [ [ TYPES.string, TYPES.bytestring ], [
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
@@ -600,18 +600,9 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
         /* [ Opcodes.i32_eqz ],
         [ Opcodes.i32_eqz ], */
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ],
-      [TYPES.bytestring]: [ // duplicate of string
-      ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
-        ...(intIn ? [] : [ Opcodes.i32_to_u ]),
-
-        // get length
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-
-        ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ],
-      default: def
-    }, intOut ? Valtype.i32 : valtypeBinary)
+      ] ],
+      [ 'default', def ]
+    ], intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
 
@@ -651,8 +642,8 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
     ...wasm,
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
-    ...typeSwitch(scope, type, {
-      [TYPES.string]: [
+    ...typeSwitch(scope, type, [
+      [ [ TYPES.string, TYPES.bytestring ], [
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
@@ -662,20 +653,9 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
         // if length == 0
         [ Opcodes.i32_eqz ],
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ],
-      [TYPES.bytestring]: [ // duplicate of string
-        ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
-        ...(intIn ? [] : [ Opcodes.i32_to_u ]),
-
-        // get length
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-
-        // if length == 0
-        [ Opcodes.i32_eqz ],
-        ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ],
-      default: def
-    }, intOut ? Valtype.i32 : valtypeBinary)
+      ] ],
+      [ 'default', def ]
+    ], intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
 
@@ -687,30 +667,25 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
     ...wasm,
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
-    ...typeSwitch(scope, type, {
-      [TYPES.empty]: [
+    ...typeSwitch(scope, type, [
+      [ [ TYPES.empty, TYPES.undefined ], [
         // empty
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
         ...number(1, intOut ? Valtype.i32 : valtypeBinary)
-      ],
-      [TYPES.undefined]: [
-        // undefined
-        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
-        ...number(1, intOut ? Valtype.i32 : valtypeBinary)
-      ],
-      [TYPES.object]: [
+      ] ],
+      [ TYPES.object, [
         // object, null if == 0
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
 
         ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ],
-      default: [
+      ] ],
+      [ 'default', [
         // not
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
         ...number(0, intOut ? Valtype.i32 : valtypeBinary)
-      ]
-    }, intOut ? Valtype.i32 : valtypeBinary)
+      ] ]
+    ], intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
 
@@ -3686,19 +3661,18 @@ const generateUnary = (scope, decl) => {
       const out = toGenerate ? generate(scope, decl.argument) : [];
       disposeLeftover(out);
 
-      out.push(...typeSwitch(scope, overrideType ?? getNodeType(scope, decl.argument), {
-        [TYPES.number]: makeString(scope, 'number', false, '#typeof_result'),
-        [TYPES.boolean]: makeString(scope, 'boolean', false, '#typeof_result'),
-        [TYPES.string]: makeString(scope, 'string', false, '#typeof_result'),
-        [TYPES.undefined]: makeString(scope, 'undefined', false, '#typeof_result'),
-        [TYPES.function]: makeString(scope, 'function', false, '#typeof_result'),
-        [TYPES.symbol]: makeString(scope, 'symbol', false, '#typeof_result'),
-        [TYPES.bytestring]: makeString(scope, 'string', false, '#typeof_result'),
-        [TYPES.empty]: makeString(scope, 'undefined', false, '#typeof_result'),
+      out.push(...typeSwitch(scope, overrideType ?? getNodeType(scope, decl.argument), [
+        [ TYPES.number, makeString(scope, 'number', false, '#typeof_result') ],
+        [ TYPES.boolean, makeString(scope, 'boolean', false, '#typeof_result') ],
+        [ TYPES.string, makeString(scope, 'string', false, '#typeof_result') ],
+        [ [ TYPES.undefined, TYPES.empty ], makeString(scope, 'undefined', false, '#typeof_result') ],
+        [ TYPES.function, makeString(scope, 'function', false, '#typeof_result') ],
+        [ TYPES.symbol, makeString(scope, 'symbol', false, '#typeof_result') ],
+        [ TYPES.bytestring, makeString(scope, 'string', false, '#typeof_result') ],
 
         // object and internal types
-        default: makeString(scope, 'object', false, '#typeof_result'),
-      }));
+        [ 'default', makeString(scope, 'object', false, '#typeof_result') ],
+      ]));
 
       return out;
     }
@@ -4016,7 +3990,7 @@ const generateForOf = (scope, decl) => {
 	    Opcodes.i32_from_u,
       [ Opcodes.local_set, tmp ],
 
-	  ...setVar,
+  	  ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
