@@ -132,16 +132,24 @@ local.set ${key}`;
     }
 
     out.length = i;
-  } else if (Porffor.fastOr(
-    t == Porffor.TYPES.array,
-    t == Porffor.TYPES.bytestring,
-    t == Porffor.TYPES.string
-  )) {
-    const len: i32 = target.length;
-    out.length = len;
+  } else {
+    if (Porffor.fastOr(
+      t == Porffor.TYPES.array,
+      t == Porffor.TYPES.bytestring,
+      t == Porffor.TYPES.string
+    )) {
+      const len: i32 = obj.length;
+      out.length = len;
 
-    for (let i: i32 = 0; i < len; i++) {
-      out[i] = __Number_prototype_toString(i);
+      for (let i: i32 = 0; i < len; i++) {
+        out[i] = __Number_prototype_toString(i);
+      }
+    }
+
+    target = __Porffor_object_getObject(target);
+    if (Porffor.rawType(target) == Porffor.TYPES.object) {
+      const objKeys: any[] = __Reflect_ownKeys(target);
+      for (const x of objKeys) Porffor.array.fastPush(out, x);
     }
   }
 
