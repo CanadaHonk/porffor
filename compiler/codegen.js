@@ -2964,6 +2964,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
     const typed = typedInput && pattern.typeAnnotation;
     let idx = allocVar(scope, name, global, !(typed && extractTypeAnnotation(pattern).type != null));
+    addVarMetadata(scope, name, global, { kind });
 
     if (typed) {
       addVarMetadata(scope, name, global, extractTypeAnnotation(pattern));
@@ -3562,6 +3563,9 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       ...generate(scope, decl.left)
     ];
   }
+
+  // check not const
+  if (local.metadata?.kind === 'const') return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${name}`, true);
 
   if (op === '=') {
     return setLocalWithType(scope, name, isGlobal, decl.right, true);
