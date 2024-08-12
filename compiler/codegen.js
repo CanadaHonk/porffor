@@ -4726,11 +4726,6 @@ const allocPage = (scope, reason, type) => {
   const ptr = i => i === 0 ? 16 : (i * pageSize);
   if (pages.has(reason)) return ptr(pages.get(reason).ind);
 
-  if (reason.startsWith('array:')) pages.hasArray = true;
-  if (reason.startsWith('string:')) pages.hasString = true;
-  if (reason.startsWith('bytestring:')) pages.hasByteString = true;
-  if (reason.includes('string:')) pages.hasAnyString = true;
-
   const ind = pages.size;
   pages.set(reason, { ind, type });
 
@@ -4812,14 +4807,6 @@ const printStaticStr = str => {
 };
 
 const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype, intOut = false, typed = false) => {
-  if (itemType !== 'i16' && itemType !== 'i8') {
-    pages.hasArray = true;
-  } else {
-    pages.hasAnyString = true;
-    if (itemType === 'i8') pages.hasByteString = true;
-      else pages.hasString = true;
-  }
-
   const out = [];
 
   const uniqueName = name === '$undeclared' ? name + uniqId() : name;
