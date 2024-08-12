@@ -39,7 +39,7 @@ struct ReturnValue {
 
 // all:
 // immediates: ['align', 'offset']
-const CMemFuncs = Prefs['2cMemcpy'] ? {
+const CMemFuncs = Options['2cMemcpy'] ? {
   [Opcodes.i32_store]: {
     c: `memcpy(_memory + offset + pointer, &value, sizeof(value));`,
     args: ['pointer', 'value'],
@@ -214,13 +214,13 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   if (pages.size > 0) {
     prepend.set('_memory', `char _memory[${pages.size * pageSize}];\n`);
-    if (Prefs['2cMemcpy']) includes.set('string.h', true);
+    if (Options['2cMemcpy']) includes.set('string.h', true);
   }
 
   const activeData = data.filter(x => x.page != null);
   if (activeData.length > 0) {
     const dataOffset = x => pages.get(x.page).ind * pageSize;
-    if (Prefs['2cMemcpy']) {
+    if (Options['2cMemcpy']) {
       prependMain.set('_data', activeData.map(x => `memcpy(_memory + ${dataOffset(x)}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
       includes.set('string.h', true);
     } else {
@@ -319,7 +319,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
     let localTmpId = 0;
     const localGet = idx => {
-      if (Prefs['2cDirectLocalGet']) {
+      if (Options['2cDirectLocalGet']) {
         // this just does local.get via the variable name
         // nice but does not get the value at this moment
         // so breaks some wasm principles :(
@@ -817,7 +817,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             break;
           }
 
-          if (Prefs.d) log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]} \x1b[90m(${f.name})`);
+          if (Options.debugInfo) log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]} \x1b[90m(${f.name})`);
       }
 
       lastCond = false;

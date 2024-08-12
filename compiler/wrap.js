@@ -84,7 +84,7 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
           0, [ get, set ] = read(Uint32Array, memory, value + offset + 4, 2);
         }
 
-        if (Prefs.d) {
+        if (Options.debugInfo) {
           const readMem = (ptr, size) => [...read(Uint8Array, memory, ptr, size)].map(x => x.toString(16).padStart(2, '0')).join(' ');
 
           console.log(`\x1b[4m\x1b[1m${k}\x1b[0m \x1B[90m(${TYPE_NAMES[kType]}) | ${kValue} (${readMem(value + offset, 4)})\x1B[0m
@@ -317,15 +317,15 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
-  if (Prefs.profileCompiler) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
+  if (Options.profileCompiler) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
 
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
 
-    const surrounding = Prefs.backtraceSurrounding ?? 10;
+    const surrounding = Options.backtraceSurrounding ?? 10;
     let min = middleIndex - surrounding;
     let max = middleIndex + surrounding + 1;
-    if (Prefs.backtraceFunc || middleIndex == -1) {
+    if (Options.backtraceFunc || middleIndex == -1) {
       min = 0;
       max = func.wasm.length;
     }
@@ -401,7 +401,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   let instance;
   try {
     // let wasmEngine = WebAssembly;
-    // if (Prefs.asur) {
+    // if (Options.asur) {
     //   log.warning('wrap', 'using our !experimental! asur wasm engine instead of host to run');
     //   wasmEngine = await import('../asur/index.js');
     // }
@@ -417,8 +417,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         y: () => {},
         z: () => {},
         w: (ind, outPtr) => { // readArgv
-          let args = process.argv.slice(2);
-          args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
+          let args = Options.additionalArgs;
 
           const str = args[ind - 1];
           if (!str) return -1;
@@ -443,7 +442,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
       }
     });
   } catch (e) {
-    if (!Prefs.d) throw e;
+    if (!Options.debugInfo) throw e;
     if (!(e instanceof WebAssembly.CompileError)) throw e;
 
     const funcInd = parseInt(e.message.match(/function #([0-9]+)/)?.[1]);
@@ -454,10 +453,10 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   }
 
   times.push(performance.now() - t2);
-  if (Prefs.profileCompiler) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
+  if (Options.profileCompiler) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
 
   const exports = {};
-  const rawValues = Prefs.d;
+  const rawValues = Options.debugInfo;
 
   const exceptTag = instance.exports['0'], memory = instance.exports['$'];
   for (const x in instance.exports) {
@@ -483,7 +482,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         return porfToJSValue({ memory, funcs, pages }, ret[0], ret[1]);
       } catch (e) {
         if (e.is && e.is(exceptTag)) {
-          const exceptionMode = Prefs.exceptionMode ?? 'lut';
+          const exceptionMode = Options.exceptionMode ?? 'lut';
           if (exceptionMode === 'lut') {
             const exceptId = e.getArg(exceptTag, 0);
             const exception = exceptions[exceptId];
@@ -538,7 +537,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         }
 
         if (e instanceof WebAssembly.RuntimeError) {
-          if (!Prefs.d) throw e;
+          if (!Options.debugInfo) throw e;
 
           const match = e.stack.match(/wasm-function\[([0-9]+)\]:([0-9a-z]+)/) ?? [];
           const funcInd = parseInt(match[1]);

@@ -1,6 +1,7 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
 import { TYPES } from './types.js';
+import { parseArgs } from './prefs.js';
 
 import process from 'node:process';
 globalThis.process = process;
@@ -13,7 +14,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 globalThis.precompileCompilerPath = __dirname;
 globalThis.precompile = true;
 
-const argv = process.argv.slice();
+const originalOptions = Object.assign({}, Options);
 
 const timing = {};
 const compile = async (file, _funcs) => {
@@ -21,16 +22,28 @@ const compile = async (file, _funcs) => {
   let first = source.slice(0, source.indexOf('\n'));
 
   if (first.startsWith('export default')) {
-    source = await (await import(file)).default();
+    source = await (await import('file://' + file)).default();
     first = source.slice(0, source.indexOf('\n'));
   }
 
-  let args = ['--todo-time=compile', '--truthy=no_nan_negative', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data'];
+  let args = {
+    todoTime: 'compile',
+    truthy: 'no_nan_negative',
+    rmUnusedTypes: false,
+    scopedPageNames: true,
+    funsafeNoUnlikelyProtoChecks: true,
+    fastLength: true,
+    parseTypes: true,
+    optTypes: true,
+    passiveData: false,
+    activeData: true
+  };
+  globalThis.Options = {};
+  Object.assign(Options, originalOptions);
+  Object.assign(Options, args);
   if (first.startsWith('// @porf')) {
-    args = first.slice('// @porf '.length).split(' ').concat(args);
+    parseArgs(first.slice('// @porf '.length).split(' '), true, file);
   }
-  process.argv = argv.concat(args);
-  globalThis.argvChanged?.();
 
   const porfCompile = (await import(`./index.js?_=${Date.now()}`)).default;
 
@@ -178,7 +191,7 @@ const precompile = async () => {
 
   let funcs = [];
   let fileCount = 0;
-  for (const file of fs.readdirSync(dir)) {
+  for (const file of fs.readdirSync(dir).toSorted()) {
     if (file.endsWith('.d.ts')) continue;
     fileCount++;
 

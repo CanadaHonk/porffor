@@ -4,7 +4,7 @@ import { read_signedLEB128, read_ieee754_binary64 } from './encoding.js';
 import { log } from './log.js';
 import {} from './prefs.js';
 
-const forceRemoveTypes = new Set(Prefs.forceRemoveTypes?.split?.(','));
+const forceRemoveTypes = new Set(Options.forceRemoveTypes?.split?.(','));
 const hasType = (funcs, pages, type) => {
   if (forceRemoveTypes.has(type)) return false;
 
@@ -39,20 +39,20 @@ const hasType = (funcs, pages, type) => {
 }
 
 export default (funcs, globals, pages, tags, exceptions) => {
-  const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
+  const optLevel = Options.optLevel;
   if (optLevel === 0) return;
 
-  const tailCall = Prefs.tailCall;
+  const tailCall = Options.tailCall;
   if (tailCall) log.warning('opt', 'tail call proposal is not widely implemented! (you used -tail-call)');
 
-  if (optLevel >= 2 && !Prefs.optNoInline) {
+  if (Options.optInline) {
     // inline pass (very WIP)
     // get candidates for inlining
     // todo: pick smart in future (if func is used <N times? or?)
     const callsSelf = f => f.wasm.some(x => x[0] === Opcodes.call && x[1] === f.index);
     const suitableReturns = wasm => wasm.reduce((acc, x) => acc + (x[0] === Opcodes.return), 0) <= 1;
     const candidates = funcs.filter(x => x.name !== 'main' && Object.keys(x.locals).length === x.params.length && (x.returns.length === 0 || suitableReturns(x.wasm)) && !callsSelf(x) && !x.throws).reverse();
-    if (Prefs.optLog) {
+    if (Options.optLog) {
       log('opt', `found inline candidates: ${candidates.map(x => x.name).join(', ')} (${candidates.length}/${funcs.length - 1})`);
 
       let reasons = {};
@@ -80,7 +80,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
         for (let i = 0; i < tWasm.length; i++) {
           const inst = tWasm[i];
           if (inst[0] === Opcodes.call && inst[1] === c.index) {
-            if (Prefs.optLog) log('opt', `inlining call for ${c.name} (in ${t.name})`);
+            if (Options.optLog) log('opt', `inlining call for ${c.name} (in ${t.name})`);
             tWasm.splice(i, 1); // remove this call
 
             // add params as locals and set in reverse order
@@ -107,7 +107,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
             // adjust local operands to go to correct param index
             for (const inst of iWasm) {
               if ((inst[0] === Opcodes.local_get || inst[0] === Opcodes.local_set) && inst[1] < c.params.length) {
-                if (Prefs.optLog) log('opt', `replacing local operand in inlined wasm (${inst[1]} -> ${paramIdx[inst[1]]})`);
+                if (Options.optLog) log('opt', `replacing local operand in inlined wasm (${inst[1]} -> ${paramIdx[inst[1]]})`);
                 inst[1] = paramIdx[inst[1]];
               }
             }
@@ -124,7 +124,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
     }
   }
 
-  if (Prefs.optInlineOnly) return;
+  if (Options.optInlineOnly) return;
 
   // todo: this breaks exceptions after due to indexes not being adjusted
   // const tagUse = tags.reduce((acc, x) => { acc[x.idx] = 0; return acc; }, {});
@@ -139,7 +139,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
     const lastType = f.locals['#last_type']?.idx;
 
-    let runs = (+Prefs.optWasmRuns) || 2; // todo: how many by default?
+    let runs = (+Options.optWasmRuns) || 2; // todo: how many by default?
     while (runs > 0) {
       runs--;
 
@@ -185,18 +185,18 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
             wasm.splice(j - 1, 1); // remove end of this block
 
-            if (Prefs.optLog) log('opt', `removed unneeded block in for loop`);
+            if (Options.optLog) log('opt', `removed unneeded block in for loop`);
           }
         }
 
-        if (inst[inst.length - 1] === 'string_only' && !pages.hasAnyString && Prefs.rmUnusedTypes) {
+        if (inst[inst.length - 1] === 'string_only' && !pages.hasAnyString && Options.rmUnusedTypes) {
           // remove this inst
           wasm.splice(i, 1);
           if (i > 0) i--;
           inst = wasm[i];
         }
 
-        if (inst[inst.length - 1] === 'string_only|start' && !pages.hasAnyString && Prefs.rmUnusedTypes) {
+        if (inst[inst.length - 1] === 'string_only|start' && !pages.hasAnyString && Options.rmUnusedTypes) {
           let j = i;
           for (; j < wasm.length; j++) {
             const op = wasm[j];
@@ -210,7 +210,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           inst = wasm[i];
         }
 
-        if (inst[0] === Opcodes.if && typeof inst[2] === 'string' && Prefs.rmUnusedTypes) {
+        if (inst[0] === Opcodes.if && typeof inst[2] === 'string' && Options.rmUnusedTypes) {
           // remove unneeded typeswitch checks
 
           const types = inst[2].split('|')[1].split(',');
@@ -238,11 +238,11 @@ export default (funcs, globals, pages, tags, exceptions) => {
             i -= 1 + offset;
             inst = wasm[i];
 
-            if (Prefs.optLog) log('opt', `removed unneeded typeswitch check (${types})`);
+            if (Options.optLog) log('opt', `removed unneeded typeswitch check (${types})`);
           }
         }
 
-        if (inst[0] === Opcodes.end && inst[1] === 'TYPESWITCH_end' && Prefs.rmUnusedTypes) {
+        if (inst[0] === Opcodes.end && inst[1] === 'TYPESWITCH_end' && Options.rmUnusedTypes) {
           // remove unneeded entire typeswitch
 
           let j = i - 1, depth = -1, checks = 0;
@@ -261,7 +261,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
             wasm.splice(j - 1, 2, [ Opcodes.drop ]); // remove typeswitch start
             wasm.splice(i - 1, 1); // remove this inst
 
-            if (Prefs.optLog) log('opt', 'removed unneeded entire typeswitch');
+            if (Options.optLog) log('opt', 'removed unneeded entire typeswitch');
 
             if (i > 0) i--;
             continue;
@@ -289,7 +289,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           wasm.splice(i, 1); // remove this inst (get)
 
           i--;
-          // if (Prefs.optLog) log('opt', `consolidated set, get -> tee`);
+          // if (Options.optLog) log('opt', `consolidated set, get -> tee`);
           continue;
         }
 
@@ -353,7 +353,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i - 1, 2); // remove this inst and last
           i -= 2;
-          // if (Prefs.optLog) log('opt', `removed redundant i32 -> i64 -> i32 conversion ops`);
+          // if (Options.optLog) log('opt', `removed redundant i32 -> i64 -> i32 conversion ops`);
           continue;
         }
 
@@ -366,7 +366,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i - 1, 2); // remove this inst and last
           i -= 2;
-          // if (Prefs.optLog) log('opt', `removed redundant i32 -> f64 -> i32 conversion ops`);
+          // if (Options.optLog) log('opt', `removed redundant i32 -> f64 -> i32 conversion ops`);
           continue;
         }
 
@@ -381,7 +381,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i, 1); // remove this inst
           i--;
-          if (Prefs.optLog) log('opt', `converted const -> i32 convert into i32 const`);
+          if (Options.optLog) log('opt', `converted const -> i32 convert into i32 const`);
           continue;
         }
 
@@ -396,7 +396,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i, 1); // remove this inst
           i--;
-          if (Prefs.optLog) log('opt', `converted i32 const -> convert into const`);
+          if (Options.optLog) log('opt', `converted i32 const -> convert into const`);
           continue;
         }
 
@@ -411,7 +411,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i, 1); // remove this inst (return)
           i--;
-          if (Prefs.optLog) log('opt', `tail called return, call`);
+          if (Options.optLog) log('opt', `tail called return, call`);
           continue;
         }
 
@@ -424,7 +424,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           wasm.splice(i, 1); // remove this inst (return)
           i--;
-          // if (Prefs.optLog) log('opt', `removed redundant return at end`);
+          // if (Options.optLog) log('opt', `removed redundant return at end`);
           continue;
         }
 

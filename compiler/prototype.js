@@ -7,10 +7,10 @@ import {} from './prefs.js';
 // todo: turn these into built-ins once arrays and these become less hacky
 
 export const PrototypeFuncs = function() {
-  const noUnlikelyChecks = Prefs.funsafeNoUnlikelyProtoChecks;
+  const noUnlikelyChecks = Options.funsafeNoUnlikelyProtoChecks;
 
   let zeroChecks;
-  if (Prefs.zeroChecks) zeroChecks = Prefs.zeroChecks.split('=')[1].split(',').reduce((acc, x) => { acc[x.toLowerCase()] = true; return acc; }, {});
+  if (Options.zeroChecks) zeroChecks = Options.zeroChecks.split(',').reduce((acc, x) => { acc[x.toLowerCase()] = true; return acc; }, {});
     else zeroChecks = {};
 
   this[TYPES.array] = {

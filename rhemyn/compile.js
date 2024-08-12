@@ -84,7 +84,7 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
         })[func], Valtype.i32)
       ];
 
-      if (Prefs.regexLog) {
+      if (Options.regexLog) {
         const underline = x => `\u001b[4m\u001b[1m${x}\u001b[0m`;
         console.log(`\n${underline('ast')}`);
         console.log(node);

@@ -117,7 +117,7 @@ export const BuiltinVars = function(ctx) {
   this.__Float32Array_BYTES_PER_ELEMENT = number(4);
   this.__Float64Array_BYTES_PER_ELEMENT = number(8);
 
-  ObjectBuiltins.call(this, ctx, Prefs);
+  ObjectBuiltins.call(this, ctx, Options);
 };
 
 export const BuiltinFuncs = function() {
@@ -670,9 +670,9 @@ export const BuiltinFuncs = function() {
         [ Opcodes.local_get, 0 ],
       ]
     }
-  })[Prefs.prng ?? 'xorshift128+'];
+  })[Options.prng ?? 'xorshift128+'];
 
-  if (!prng) throw new Error(`unknown prng algo: ${Prefs.prng}`);
+  if (!prng) throw new Error(`unknown prng algo: ${Options.prng}`);
 
   this.__Math_random = {
     floatOnly: true,

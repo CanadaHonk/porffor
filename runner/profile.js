@@ -3,8 +3,7 @@
 import compile from '../compiler/wrap.js';
 import fs from 'node:fs';
 
-const file = process.argv.slice(2).find(x => x[0] !== '-');
-let source = fs.readFileSync(file, 'utf8');
+let source = fs.readFileSync(Options.file, 'utf8');
 
 let profileId = 0;
 source = source.replace(/^[^\n}]*;$/mg, _ => `profile1(Porffor.wasm.i32.const(${profileId}));${_}profile2(Porffor.wasm.i32.const(${profileId++}));`)
@@ -13,14 +12,14 @@ let tmp = new Array(profileId).fill(0);
 let times = new Array(profileId).fill(0);
 let samples = 0;
 
-const percents = process.argv.includes('-%');
+const percents = Options.percent;
 
 const spinner = ['-', '\\', '|', '/'];
 let spin = 0;
 let last = 0;
 
 try {
-  const { exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
+  const { exports } = compile(source, Options.module ? [ 'module' ] : [], {
     y: n => {
       tmp[n] = performance.now();
     },

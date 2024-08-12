@@ -16,7 +16,7 @@ globalThis.decompile = decompile;
 const logFuncs = (funcs, globals, exceptions) => {
   console.log('\n' + underline(bold('funcs')));
 
-  const wanted = Prefs.f;
+  const wanted = Options.wantedFunction;
   for (const f of funcs) {
     if ((wanted && f.name !== wanted) || (!wanted && f.internal)) continue;
     console.log(decompile(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
@@ -53,25 +53,18 @@ const progressClear = () => {
 };
 
 export default (code, flags) => {
-  let target = Prefs.target ?? 'wasm';
-  if (Prefs.native) target = 'native';
+  let target = Options.compileTarget ?? 'wasm';
 
-  const logProgress = Prefs.profileCompiler || (target === 'native' && !Prefs.native && globalThis.file);
+  const logProgress = Options.profileCompiler || (target === 'native' && !Options.native && Options.file);
 
-  let outFile = Prefs.o;
+  let outFile = Options.outFile;
 
-  globalThis.valtype = Prefs.valtype ?? 'f64';
+  globalThis.valtype = Options.valtype ?? 'f64';
   globalThis.valtypeBinary = Valtype[valtype];
 
-  globalThis.pageSize = (parseInt(Prefs.valtype) * 1024) || PageSize;
+  globalThis.pageSize = (parseInt(Options.valtype) * 1024) || PageSize;
 
-  // change some prefs by default for c/native
-  if (target !== 'wasm') {
-    Prefs.pgo = Prefs.pgo === false ? false : true;
-    Prefs.passiveData = false;
-  }
-
-  if (Prefs.pgo) pgo.setup();
+  if (Options.pgo) pgo.setup();
 
   if (logProgress) progressStart('parsing...');
   const t0 = performance.now();
@@ -83,14 +76,14 @@ export default (code, flags) => {
   const { funcs, globals, tags, exceptions, pages, data } = codegen(program);
   if (logProgress) progressDone('generated wasm', t1);
 
-  if (Prefs.funcs) logFuncs(funcs, globals, exceptions);
+  if (Options.logFuncs) logFuncs(funcs, globals, exceptions);
 
   if (logProgress) progressStart('optimizing...');
   const t2 = performance.now();
   opt(funcs, globals, pages, tags, exceptions);
 
-  if (Prefs.pgo) {
-    if (Prefs.pgoLog) {
+  if (Options.pgo) {
+    if (Options.pgoLog) {
       const oldSize = assemble(funcs, globals, tags, pages, data, flags, true).byteLength;
       const t = performance.now();
 
@@ -107,8 +100,8 @@ export default (code, flags) => {
     }
   }
 
-  if (Prefs.cyclone) {
-    if (Prefs.cycloneLog) {
+  if (Options.cyclone) {
+    if (Options.cycloneLog) {
       const oldSize = assemble(funcs, globals, tags, pages, data, flags, true).byteLength;
       const t = performance.now();
 
@@ -133,9 +126,10 @@ export default (code, flags) => {
 
   if (logProgress) progressDone('optimized', t2);
 
-  if (Prefs.builtinTree) {
+  if (Options.builtinTree) {
     let data = funcs.filter(x => x.includes);
-    if (typeof Prefs.builtinTree === 'string') data = data.filter(x => x.includes.has(Prefs.builtinTree));
+    console.log(func[0]);
+    if (typeof Options.builtinTree === 'string') data = data.filter(x => x.includes.has(Options.builtinTree));
 
     const funcsByName = funcs.reduce((acc, x) => { acc[x.name] = x; return acc; }, {});
 
@@ -167,9 +161,9 @@ export default (code, flags) => {
   const wasm = out.wasm = assemble(funcs, globals, tags, pages, data, flags);
   if (logProgress) progressDone('assembled', t3);
 
-  if (Prefs.optFuncs || Prefs.f) logFuncs(funcs, globals, exceptions);
+  if (Options.optFuncs || Options.wantedFunction) logFuncs(funcs, globals, exceptions);
 
-  if (Prefs.compileAllocLog) {
+  if (Options.compileAllocLog) {
     const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
     const bytes = wasmPages * 65536;
     log('alloc', `\x1B[1mallocated ${bytes / 1024}KiB\x1B[0m for ${pages.size} things using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}`);
@@ -196,17 +190,17 @@ export default (code, flags) => {
   }
 
   if (target === 'native') {
-    outFile ??= Prefs.native ? './porffor_tmp' : file.split('/').at(-1).split('.')[0];
+    outFile ??= Options.native ? './porffor_tmp' : file.split('/').at(-1).split('.')[0];
 
-    let compiler = Prefs.compiler ?? 'clang';
-    const cO = Prefs._cO ?? 'Ofast';
+    let compiler = Options.compiler ?? 'clang';
+    const cO = Options._cO ?? 'Ofast';
 
     if (compiler === 'zig') compiler = [ 'zig', 'cc' ];
       else compiler = [ compiler ];
 
     const tmpfile = 'porffor_tmp.c';
     const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
-    if (!Prefs.compiler) args.push('-flto=thin', '-march=native', '-s', '-ffast-math', '-fno-exceptions', '-fno-ident', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections');
+    if (!Options.compiler) args.push('-flto=thin', '-march=native', '-s', '-ffast-math', '-fno-exceptions', '-fno-ident', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections');
 
     if (logProgress) progressStart('compiling Wasm to C...');
     const t4 = performance.now();
@@ -226,7 +220,7 @@ export default (code, flags) => {
     if (logProgress) progressStart(`compiled C to native (using ${compiler})`, t5);
 
     if (process.version) {
-      if (Prefs.native) {
+      if (Options.native) {
         const cleanup = () => {
           try {
             fs.unlinkSync(outFile);
@@ -240,7 +234,7 @@ export default (code, flags) => {
           process.exit();
         });
 
-        const runArgs = process.argv.slice(2).filter(x => !x.startsWith('-'));
+        const runArgs = Options.additionalArgs;
         try {
           execSync([ outFile, ...runArgs.slice(1) ].join(' '), { stdio: 'inherit' });
         } catch {}
@@ -249,7 +243,7 @@ export default (code, flags) => {
       if (logProgress) {
         const total = performance.now();
         progressClear();
-        console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[92mcompiled ${globalThis.file} -> ${outFile}\u001b[0m`);
+        console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[92mcompiled ${Options.file} -> ${outFile}\u001b[0m`);
       }
 
       process.exit();

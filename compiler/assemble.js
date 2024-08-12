@@ -50,14 +50,14 @@ const encodeNames = funcs => {
 export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) => {
   const types = [], typeCache = {};
 
-  const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
+  const optLevel = Options.optLevel;
 
-  const compileHints = Prefs.compileHints;
+  const compileHints = Options.compileHints;
   if (compileHints) log.warning('assemble', 'compile hints is V8 only w/ experimental arg! (you used -compile-hints)');
 
   const getType = (params, returns) => {
     const hash = `${params.join(',')}_${returns.join(',')}`;
-    if (Prefs.optLog) log('assemble', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
+    if (Options.optLog) log('assemble', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
     if (optLevel >= 1 && typeCache[hash] !== undefined) return typeCache[hash];
 
     const type = [ FuncType, ...encodeVector(params), ...encodeVector(returns) ];
@@ -70,14 +70,14 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
   let t = performance.now();
   const time = msg => {
-    if (!Prefs.profileAssemble) return;
+    if (!Options.profileAssemble) return;
 
     console.log(`${' '.repeat(50)}\r[${(performance.now() - t).toFixed(2)}ms] ${msg}`);
     t = performance.now();
   };
 
   let importFuncs = [], importDelta = 0;
-  if (optLevel < 1 || !Prefs.treeshakeWasmImports || noTreeshake) {
+  if (optLevel < 1 || !Options.treeshakeWasmImports || noTreeshake) {
     importFuncs = importedFuncs;
   } else {
     let imports = new Map();
@@ -105,7 +105,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
 
   time('treeshake import funcs');
 
-  if (Prefs.optLog) log('assemble', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
+  if (Options.optLog) log('assemble', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
@@ -119,7 +119,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   );
   time('func section');
 
-  const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
+  const nameSection = Options.debugInfo ? customSection('name', encodeNames(funcs)) : [];
 
   const tableSection = !funcs.table ? [] : createSection(
     Section.table,
@@ -232,7 +232,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   }
   time('global section');
 
-  if (Prefs.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
+  if (Options.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
   if (optLevel === 0) pages.set('O0 precaution', 0);
 
   const usesMemory = pages.size > 0;
@@ -285,7 +285,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
       // time('  localDecl gen');
 
-      const makeAssembled = Prefs.d;
+      const makeAssembled = Options.debugInfo;
       let wasm = [], wasmNonFlat = [];
       for (let i = 0; i < x.wasm.length; i++) {
         let o = x.wasm[i];
@@ -369,7 +369,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   const dataSection = data.length === 0 ? [] : createSection(
     Section.data,
     encodeVector(data.map(x => {
-      if (Prefs.d && x.bytes.length > PageSize) log.warning('assemble', `data (${x.page}) has more bytes than Wasm page size! (${x.bytes.length})`);
+      if (Options.debugInfo && x.bytes.length > PageSize) log.warning('assemble', `data (${x.page}) has more bytes than Wasm page size! (${x.bytes.length})`);
 
       const bytes = unsignedLEB128(x.bytes.length).concat(x.bytes);
       if (x.page != null) {
@@ -393,7 +393,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   );
   time('datacount section');
 
-  if (Prefs.sections) console.log({
+  if (Options.sections) console.log({
     typeSection: typeSection.map(x => x.toString(16)),
     importSection: importSection.map(x => x.toString(16)),
     funcSection: funcSection.map(x => x.toString(16)),

@@ -3,7 +3,7 @@ import compile from '../compiler/wrap.js';
 
 import util from 'node:util';
 
-process.argv.push('--no-opt-unused');
+Options.optUnused = false;
 
 let repl;
 try {
@@ -18,18 +18,32 @@ try {
   repl = (await import('node-repl-polyfill')).default;
 }
 
-globalThis.valtype = Prefs.valtype ?? 'f64';
+globalThis.valtype = Options.valtype ?? 'f64';
+
+const color = (txt, colors) => {
+  if (!process?.stdout || !(process.stdout.isTTY ?? true)) {
+    return txt;
+  }
+  if (!Array.isArray(colors)) {
+    colors = [ colors ]; 
+  }
+  return colors.map(x => '\x1B[' + x + 'm').join('') + txt + '\x1B[0m';
+};
 
 let host = globalThis?.navigator?.userAgent;
 if (typeof process !== 'undefined' && process.argv0 === 'node') host = 'Node/' + process.versions.node;
 host ??= 'Unknown';
 
-if (host.startsWith('Node')) host = '\x1B[92m' + host;
-if (host.startsWith('Deno')) host = '\x1B[97m' + host;
-if (host.startsWith('Bun')) host = '\x1B[93m' + host;
+let hostColor = 1;
+if (host.startsWith('Node')) hostColor = [1, 92];
+if (host.startsWith('Deno')) hostColor = [1, 97];
+if (host.startsWith('Bun')) hostColor = [1, 93];
 
-console.log(`Welcome to \x1B[1m\x1B[35mPorffor\x1B[0m \x1B[90m(${globalThis.version})\x1B[0m running on \x1B[1m${host.replace('/', ' \x1B[0m\x1B[90m(')})\x1B[0m`);
-console.log(`\x1B[90musing opt ${process.argv.find(x => x.startsWith('-O')) ?? '-O1'}, parser ${parser}, valtype ${valtype}\x1B[0m`);
+let slashIndex = host.indexOf('/');
+if (slashIndex < 0) slashIndex = host.length;
+
+console.log(`Welcome to ${color('Porffor', [1, 35])} ${color('(' + globalThis.version + ')', 90)} running on ${color(host.substring(0, slashIndex), hostColor)}${slashIndex != host.length ? color(` (${host.substring(slashIndex + 1)})`, 90) : ''}`);
+console.log(color(`using opt -O${Options.optLevel}, parser ${parser}, valtype ${valtype}`, 90));
 console.log();
 
 let lastMemory, lastPages;
@@ -38,7 +52,7 @@ const memoryToString = mem => {
   let out = '';
   const wasmPages = mem.buffer.byteLength / PageSize;
 
-  out += `\x1B[1mallocated ${mem.buffer.byteLength / 1024}KiB\x1B[0m (using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'})\n\n`;
+  out += `${color(`allocated ${mem.buffer.byteLength / 1024}KiB`, 1)} (using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'})\n\n`;
 
   const buf = new Uint8Array(mem.buffer);
 
@@ -49,7 +63,7 @@ const memoryToString = mem => {
     if (name.length > longestName) longestName = name.length;
   }
 
-  out += `\x1B[0m\x1B[1m  name${' '.repeat(longestName - 4)} \x1B[0m\x1B[90m│\x1B[0m\x1B[1m type${' '.repeat(longestType - 4)} \x1B[0m\x1B[90m│\x1B[0m\x1B[1m memory\x1B[0m\n`; // ─
+  out += `${color(`  name${' '.repeat(longestName - 4)} `, 1)}${color('|', 90)}${color(` type${' '.repeat(longestType - 4)} `, 1)}${color('|', 90)}${color(' memory', 1)}\n`; // ─
   for (let i = 0; i < wasmPages; i++) {
     if (lastPages[i]) {
       const [ type, name ] = lastPages[i].split(': ');
@@ -88,7 +102,7 @@ const run = (source, _context, _filename, callback, run = true) => {
   let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source;
 
   let shouldPrint = !prev;
-  const { exports, pages } = compile(toRun, process.argv.includes('--module') ? [ 'module' ] : [], {}, str => {
+  const { exports, pages } = compile(toRun, Options.module ? [ 'module' ] : [], {}, str => {
     if (shouldPrint) process.stdout.write(str);
     if (str === '-4919') shouldPrint = true;
   });
@@ -132,11 +146,11 @@ replServer.defineCommand('asm', {
   action() {
     this.clearBufferedCommand();
 
+    let tempOptFuncs = Options.optFuncs;
     try {
-      process.argv.push('--opt-funcs');
       run('', null, null, () => {}, false);
-      process.argv.pop();
     } catch { }
+    Options.optFuncs = tempOptFuncs;
 
     this.displayPrompt();
   }

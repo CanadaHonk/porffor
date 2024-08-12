@@ -1,11 +1,9 @@
 import { log } from './log.js';
 import {} from './prefs.js';
 
-const file = process.argv.slice(2).find(x => x[0] !== '-' && !['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(x));
-
 // should we try to support types (while parsing)
-const types = Prefs.parseTypes || Prefs.t || file?.endsWith('.ts');
-globalThis.typedInput = types && Prefs.optTypes;
+const types = Options.parseTypes || Options.file?.endsWith('.ts');
+globalThis.typedInput = types && Options.optTypes;
 
 // todo: review which to use by default
 // supported parsers:
@@ -17,7 +15,7 @@ globalThis.typedInput = types && Prefs.optTypes;
 globalThis.parser = '';
 let parse;
 const loadParser = async (fallbackParser = 'acorn', forceParser) => {
-  parser = forceParser ?? Prefs.parser ?? fallbackParser;
+  parser = forceParser ?? Options.parser ?? fallbackParser;
   0, { parse } = (await import((globalThis.document || globalThis.Deno ? 'https://esm.sh/' : '') + parser));
 };
 globalThis._porf_loadParser = loadParser;
