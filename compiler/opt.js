@@ -4,40 +4,6 @@ import { read_signedLEB128, read_ieee754_binary64 } from './encoding.js';
 import { log } from './log.js';
 import {} from './prefs.js';
 
-const forceRemoveTypes = new Set(Prefs.forceRemoveTypes?.split?.(','));
-const hasType = (funcs, pages, type) => {
-  if (forceRemoveTypes.has(type)) return false;
-
-  switch (type) {
-    case 'Array':
-      return pages.hasArray;
-    case 'String':
-      return pages.hasString;
-    case 'ByteString':
-      return pages.hasByteString;
-
-    case 'Map':
-    case 'Set':
-    case 'WeakMap':
-    case 'WeakSet':
-    case 'WeakRef':
-    case 'Date':
-    case 'Uint8Array':
-    case 'Int8Array':
-    case 'Uint8ClampedArray':
-    case 'Uint16Array':
-    case 'Int16Array':
-    case 'Uint32Array':
-    case 'Int32Array':
-    case 'Float32Array':
-    case 'Float64Array':
-      return funcs.some(x => x.name === type);
-
-    default:
-      return true;
-  }
-}
-
 export default (funcs, globals, pages, tags, exceptions) => {
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
   if (optLevel === 0) return;
@@ -208,64 +174,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
 
           if (i > 0) i--;
           inst = wasm[i];
-        }
-
-        if (inst[0] === Opcodes.if && typeof inst[2] === 'string' && Prefs.rmUnusedTypes) {
-          // remove unneeded typeswitch checks
-
-          const types = inst[2].split('|')[1].split(',');
-          let missing = true;
-          for (const type of types) {
-            if (hasType(funcs, pages, type)) {
-              missing = false;
-              break;
-            }
-          }
-
-          if (missing) {
-            let j = i, depth = 0;
-            for (; j < wasm.length; j++) {
-              const op = wasm[j][0];
-              if (op === Opcodes.if || op === Opcodes.block || op === Opcodes.loop || op === Opcodes.try) depth++;
-              if (op === Opcodes.end) {
-                depth--;
-                if (depth <= 0) break;
-              }
-            }
-
-            const offset = 3 + 4 * (types.length - 1);
-            wasm.splice(i - offset, j - (i - offset) + 1); // remove cond and this if
-            i -= 1 + offset;
-            inst = wasm[i];
-
-            if (Prefs.optLog) log('opt', `removed unneeded typeswitch check (${types})`);
-          }
-        }
-
-        if (inst[0] === Opcodes.end && inst[1] === 'TYPESWITCH_end' && Prefs.rmUnusedTypes) {
-          // remove unneeded entire typeswitch
-
-          let j = i - 1, depth = -1, checks = 0;
-          for (; j > 0; j--) {
-            const op = wasm[j][0];
-            if (op === Opcodes.if || op === Opcodes.block || op === Opcodes.loop || op === Opcodes.try) {
-              depth++;
-              if (depth === 0) break;
-            }
-            if (op === Opcodes.end) depth--;
-            if (wasm[j][2]?.startsWith?.('TYPESWITCH')) checks++;
-          }
-
-          if (checks === 0) {
-            // todo: review indexes below
-            wasm.splice(j - 1, 2, [ Opcodes.drop ]); // remove typeswitch start
-            wasm.splice(i - 1, 1); // remove this inst
-
-            if (Prefs.optLog) log('opt', 'removed unneeded entire typeswitch');
-
-            if (i > 0) i--;
-            continue;
-          }
         }
 
         // remove setting last type if it is never gotten

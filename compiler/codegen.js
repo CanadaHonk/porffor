@@ -390,6 +390,8 @@ const generateReturn = (scope, decl) => {
   const arg = decl.argument ?? DEFAULT_VALUE();
 
   if (scope.async) {
+    typeUsed(scope, TYPES.promise);
+
     return [
       // resolve promise with return value
       [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
@@ -589,7 +591,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, [
-      [ [ TYPES.string, TYPES.bytestring ], [
+      [ [ TYPES.string, TYPES.bytestring ], () => [
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
@@ -643,7 +645,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, [
-      [ [ TYPES.string, TYPES.bytestring ], [
+      [ [ TYPES.string, TYPES.bytestring ], () => [
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
@@ -944,7 +946,6 @@ const asmFuncToAsm = (scope, func) => {
     builtin: (n, offset = false) => {
       let idx = funcIndex[n] ?? importedFuncs[n];
       if (idx == null && builtinFuncs[n]) {
-        // console.log(scope.name, '->', n);
         includeBuiltin(scope, n);
         idx = funcIndex[n];
       }
@@ -1002,11 +1003,21 @@ const asmFuncToAsm = (scope, func) => {
       }
 
       return scope.locals[name].idx;
+    },
+    t: (types, wasm) => {
+      if (types.some(x => usedTypes.has(x))) {
+        return wasm();
+      } else {
+        return [ [ null, () => {
+          if (types.some(x => usedTypes.has(x))) return wasm();
+          return [];
+        } ] ];
+      }
     }
   });
 };
 
-const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false } = {}) => {
+const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false, usedTypes = [] } = {}) => {
   if (wasm == null) { // called with no builtin
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
@@ -1079,6 +1090,8 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   }
 
   if (hasRestArgument) func.hasRestArgument = true;
+
+  for (const x of usedTypes) typeUsed(func, x);
 
   func.wasm = wasm;
 
@@ -1161,6 +1174,8 @@ const getType = (scope, _name) => {
 };
 
 const setType = (scope, _name, type) => {
+  typeUsed(scope, knownType(scope, type));
+
   const name = mapName(_name);
 
   const out = typeof type === 'number' ? number(type, Valtype.i32) : type;
@@ -1200,10 +1215,13 @@ const getLastType = scope => {
   return [ [ Opcodes.local_get, localTmp(scope, '#last_type', Valtype.i32) ] ];
 };
 
-const setLastType = (scope, type = []) => [
-  ...(typeof type === 'number' ? number(type, Valtype.i32) : type),
-  [ Opcodes.local_set, localTmp(scope, '#last_type', Valtype.i32) ]
-];
+const setLastType = (scope, type = []) => {
+  typeUsed(scope, knownType(scope, type));
+  return [
+    ...(typeof type === 'number' ? number(type, Valtype.i32) : type),
+    [ Opcodes.local_set, localTmp(scope, '#last_type', Valtype.i32) ]
+  ];
+};
 
 const getNodeType = (scope, node) => {
   let guess = null;
@@ -1426,6 +1444,8 @@ const getNodeType = (scope, node) => {
   const out = typeof ret === 'number' ? number(ret, Valtype.i32) : ret;
   if (guess != null) out.guess = typeof guess === 'number' ? number(guess, Valtype.i32) : guess;
 
+  typeUsed(scope, knownType(scope, out));
+
   return out;
 };
 
@@ -1468,7 +1488,7 @@ const countLeftover = wasm => {
 
     if (depth === 0)
       if ([Opcodes.throw, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
-        else if ([null, Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.f32_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.i32_load8_u, Opcodes.i32_load8_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x04)) {}
+        else if ([Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.f32_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.i32_load8_u, Opcodes.i32_load8_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x04)) {}
         else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const, Opcodes.memory_size].includes(inst[0])) count++;
         else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.f32_store, Opcodes.i32_store16, Opcodes.i32_store8].includes(inst[0])) count -= 2;
         else if (inst[0] === Opcodes.memory_copy[0] && (inst[1] === Opcodes.memory_copy[1] || inst[1] === Opcodes.memory_init[1])) count -= 3;
@@ -1949,7 +1969,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         const type = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
         if (type == null) continue;
 
-        protoBC[type] = generate(scope, {
+        protoBC[type] = () => generate(scope, {
           type: 'CallExpression',
           callee: {
             type: 'Identifier',
@@ -1988,8 +2008,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const usePointerCache = !Object.values(protoCands).every(x => x.noPointerCache === true);
       const getPointer = usePointerCache ? [ [ Opcodes.local_get, pointerLocal ] ] : rawPointer;
 
-      let allOptUnused = true;
-      let lengthI32CacheUsed = false;
+      const useLengthCache = true; // basically every prototype uses it
       for (const x in protoCands) {
         const protoFunc = protoCands[x];
         if (protoFunc.noArgRetLength && decl.arguments.length === 0) {
@@ -2000,40 +2019,41 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           continue;
         }
 
-        const protoLocal = protoFunc.local ? localTmp(scope, `__${protoName}_tmp`, protoFunc.local) : -1;
-        const protoLocal2 = protoFunc.local2 ? localTmp(scope, `__${protoName}_tmp2`, protoFunc.local2) : -1;
+        protoBC[x] = () => {
+          const protoLocal = protoFunc.local ? localTmp(scope, `__${protoName}_tmp`, protoFunc.local) : -1;
+          const protoLocal2 = protoFunc.local2 ? localTmp(scope, `__${protoName}_tmp2`, protoFunc.local2) : -1;
 
-        let optUnused = false;
-        const protoOut = protoFunc(getPointer, {
-          getCachedI32: () => {
-            lengthI32CacheUsed = true;
-            return [ [ Opcodes.local_get, lengthLocal ] ];
+          let optUnused = false;
+          const protoOut = protoFunc(getPointer, {
+            getCachedI32: () => [ [ Opcodes.local_get, lengthLocal ] ],
+            setCachedI32: () => [ [ Opcodes.local_set, lengthLocal ] ],
+            get: () => RTArrayUtil.getLength(getPointer),
+            getI32: () => RTArrayUtil.getLengthI32(getPointer),
+            set: value => RTArrayUtil.setLength(getPointer, value),
+            setI32: value => RTArrayUtil.setLengthI32(getPointer, value)
           },
-          setCachedI32: () => [ [ Opcodes.local_set, lengthLocal ] ],
-          get: () => RTArrayUtil.getLength(getPointer),
-          getI32: () => RTArrayUtil.getLengthI32(getPointer),
-          set: value => RTArrayUtil.setLength(getPointer, value),
-          setI32: value => RTArrayUtil.setLengthI32(getPointer, value)
-        }, generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()), getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()), protoLocal, protoLocal2, (length, itemType) => {
-          return makeArray(scope, {
-            rawElements: new Array(length)
-          }, _global, _name, true, itemType, true);
-        }, () => {
-          optUnused = true;
-          return unusedValue;
-        });
+          generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+          getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+          protoLocal, protoLocal2,
+          (length, itemType) => {
+            return makeArray(scope, {
+              rawElements: new Array(length)
+            }, _global, _name, true, itemType, true);
+          },
+          () => {
+            optUnused = true;
+            return unusedValue;
+          });
 
-        if (!optUnused) allOptUnused = false;
-
-        protoBC[x] = [
-          [ Opcodes.block, unusedValue && optUnused ? Blocktype.void : valtypeBinary ],
-          ...protoOut,
-          ...(unusedValue && optUnused ? [] : (protoFunc.returnType != null ? setLastType(scope, protoFunc.returnType) : setLastType(scope))),
-          [ Opcodes.end ]
-        ];
+          return [
+            [ Opcodes.block, unusedValue ? Blocktype.void : valtypeBinary ],
+              ...protoOut,
+              ...(unusedValue && optUnused ? [] : (protoFunc.returnType != null ? setLastType(scope, protoFunc.returnType) : setLastType(scope))),
+              ...(unusedValue && !optUnused ? [ [ Opcodes.drop ] ] : []),
+            [ Opcodes.end ]
+          ];
+        };
       }
-
-      // todo: if some cands use optUnused and some don't, we will probably crash
 
       return [
         ...(usePointerCache ? [
@@ -2041,22 +2061,22 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           [ Opcodes.local_set, pointerLocal ],
         ] : []),
 
-        ...(!lengthI32CacheUsed ? [] : [
+        ...(useLengthCache ? [
           ...RTArrayUtil.getLengthI32(getPointer),
           [ Opcodes.local_set, lengthLocal ],
-        ]),
+        ] : []),
 
         ...typeSwitch(scope, getNodeType(scope, target), {
           ...protoBC,
 
           // TODO: error better
-          default: internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
-        }, allOptUnused && unusedValue ? Blocktype.void : valtypeBinary),
+          default: internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`, !unusedValue)
+        }, unusedValue ? Blocktype.void : valtypeBinary),
       ];
     }
 
     if (Object.keys(protoBC).length > 0) {
-      let def = internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`);
+      let def = internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`, true);
 
       // fallback to object prototype impl as a basic prototype chain hack
       if (protoBC[TYPES.object]) def = protoBC[TYPES.object];
@@ -2584,6 +2604,8 @@ const unhackName = name => {
 };
 
 const knownType = (scope, type) => {
+  if (typeof type === 'number') return type;
+
   if (type.length === 1 && type[0][0] === Opcodes.i32_const) {
     return read_signedLEB128(type[0].slice(1));
   }
@@ -2692,6 +2714,16 @@ const brTable = (input, bc, returns) => {
 
 let typeswitchDepth = 0;
 
+let usedTypes = new Set();
+const typeUsed = (scope, x) => {
+  if (x == null) return;
+  usedTypes.add(x);
+
+  // console.log(scope.name, TYPE_NAMES[x]);
+
+  scope.usedTypes ??= new Set();
+  scope.usedTypes.add(x);
+};
 const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = false) => {
   const known = knownType(scope, type);
   if (known != null) {
@@ -2704,13 +2736,14 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
         }
 
         if (Array.isArray(type)) {
-          if (type.includes(known)) return wasm;
-        } else if (type === known) return wasm;
+          if (type.includes(known)) return typeof wasm === 'function' ? wasm() : wasm;
+        } else if (type === known) return typeof wasm === 'function' ? wasm() : wasm;
       }
 
-      return def;
+      return typeof def === 'function' ? def() : def;
     } else {
-      return bc[known] ?? bc.default;
+      const wasm = bc[known] ?? bc.default;
+      return typeof wasm === 'function' ? wasm() : wasm;
     }
   }
 
@@ -2720,7 +2753,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
   }
 
   const tmp = localTmp(scope, `#typeswitch_tmp${++typeswitchDepth}${Prefs.typeswitchUniqueTmp ? uniqId() : ''}`, Valtype.i32);
-  const out = [
+  let out = [
     ...type,
     [ Opcodes.local_set, tmp ],
     [ Opcodes.block, returns ]
@@ -2732,46 +2765,67 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
   if (!Array.isArray(bc)) {
     def = bc.default;
     bc = Object.entries(bc);
+
+    // turn keys back into numbers from keys
+    for (const x of bc) {
+      if (x[0] !== 'default') x[0] = +x[0];
+    }
   }
 
   for (let i = 0; i < bc.length; i++) {
-    let [ type, wasm ] = bc[i];
-    if (type === 'default') {
-      def = wasm;
+    let [ types, wasm ] = bc[i];
+    if (types === 'default') {
+      def = typeof wasm === 'function' ? wasm() : wasm;
       continue;
     }
+    if (!Array.isArray(types)) types = [ types ];
 
-    if (Array.isArray(type)) {
-      for (let j = 0; j < type.length; j++) {
+    const add = () => {
+      if (typeof wasm === 'function') wasm = wasm();
+
+      for (let j = 0; j < types.length; j++) {
         out.push(
           [ Opcodes.local_get, tmp ],
-          ...number(type[j], Valtype.i32),
+          ...number(types[j], Valtype.i32),
           [ Opcodes.i32_eq ]
         );
 
         if (j > 0) out.push([ Opcodes.i32_or ]);
       }
-    } else {
-      out.push(
-        [ Opcodes.local_get, tmp ],
-        ...number(type, Valtype.i32),
-        [ Opcodes.i32_eq ]
-      );
-    }
 
-    out.push(
-      [ Opcodes.if, Blocktype.void, `TYPESWITCH|${Array.isArray(type) ? type.map(t => TYPE_NAMES[t]).join(',') : TYPE_NAMES[type]}` ],
-        ...wasm,
-        ...(fallthrough ? [] : [ [ Opcodes.br, 1 ] ]),
-      [ Opcodes.end ]
-    );
+      out.push(
+        [ Opcodes.if, Blocktype.void ],
+          ...wasm,
+          ...(fallthrough ? [] : [ [ Opcodes.br, 1 ] ]),
+        [ Opcodes.end ]
+      );
+    };
+
+    if (globalThis.precompile) {
+      // just magic precompile things™
+      out.push([ null, 'typeswitch case start', types ]);
+      add();
+      out.push([ null, 'typeswitch case end' ]);
+    } else {
+      if (types.some(x => usedTypes.has(x))) {
+        // type already used, just add it now
+        add();
+      } else {
+        // type not used, add callback
+        out.push([ null, () => {
+          out = [];
+          if (types.some(x => usedTypes.has(x))) add();
+          return out;
+        }]);
+      }
+    }
   }
 
   // default
   if (def) out.push(...def);
     else if (returns !== Blocktype.void) out.push(...number(0, returns));
 
-  out.push([ Opcodes.end, 'TYPESWITCH_end' ]);
+  out.push([ Opcodes.end ]);
 
   typeswitchDepth--;
 
@@ -3268,7 +3322,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
       // todo: review last type usage here
       ...typeSwitch(scope, getNodeType(scope, object), {
-        [TYPES.array]: [
+        [TYPES.array]: () => [
           ...objectWasm,
           Opcodes.i32_to_u,
 
@@ -3300,7 +3354,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
         ],
 
         ...wrapBC({
-          [TYPES.uint8array]: [
+          [TYPES.uint8array]: () => [
             [ Opcodes.i32_add ],
             ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
@@ -3314,7 +3368,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             Opcodes.i32_to_u,
             [ Opcodes.i32_store8, 0, 4 ]
           ],
-          [TYPES.uint8clampedarray]: [
+          [TYPES.uint8clampedarray]: () => [
             [ Opcodes.i32_add ],
             ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
@@ -3332,7 +3386,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             Opcodes.i32_to_u,
             [ Opcodes.i32_store8, 0, 4 ]
           ],
-          [TYPES.int8array]: [
+          [TYPES.int8array]: () => [
             [ Opcodes.i32_add ],
             ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
@@ -3346,7 +3400,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             Opcodes.i32_to,
             [ Opcodes.i32_store8, 0, 4 ]
           ],
-          [TYPES.uint16array]: [
+          [TYPES.uint16array]: () => [
             ...number(2, Valtype.i32),
             [ Opcodes.i32_mul ],
             [ Opcodes.i32_add ],
@@ -3362,7 +3416,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             Opcodes.i32_to_u,
             [ Opcodes.i32_store16, 0, 4 ]
           ],
-          [TYPES.int16array]: [
+          [TYPES.int16array]: () => [
             ...number(2, Valtype.i32),
             [ Opcodes.i32_mul ],
             [ Opcodes.i32_add ],
@@ -3378,7 +3432,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             Opcodes.i32_to,
             [ Opcodes.i32_store16, 0, 4 ]
           ],
-          [TYPES.uint32array]: [
+          [TYPES.uint32array]: () => [
             ...number(4, Valtype.i32),
             [ Opcodes.i32_mul ],
             [ Opcodes.i32_add ],
@@ -3394,7 +3448,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             Opcodes.i32_to_u,
             [ Opcodes.i32_store, 0, 4 ]
           ],
-          [TYPES.int32array]: [
+          [TYPES.int32array]: () => [
             ...number(4, Valtype.i32),
             [ Opcodes.i32_mul ],
             [ Opcodes.i32_add ],
@@ -3410,7 +3464,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             Opcodes.i32_to,
             [ Opcodes.i32_store, 0, 4 ]
           ],
-          [TYPES.float32array]: [
+          [TYPES.float32array]: () => [
             ...number(4, Valtype.i32),
             [ Opcodes.i32_mul ],
             [ Opcodes.i32_add ],
@@ -3426,7 +3480,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             [ Opcodes.f32_demote_f64 ],
             [ Opcodes.f32_store, 0, 4 ]
           ],
-          [TYPES.float64array]: [
+          [TYPES.float64array]: () => [
             ...number(8, Valtype.i32),
             [ Opcodes.i32_mul ],
             [ Opcodes.i32_add ],
@@ -3664,11 +3718,10 @@ const generateUnary = (scope, decl) => {
       out.push(...typeSwitch(scope, overrideType ?? getNodeType(scope, decl.argument), [
         [ TYPES.number, makeString(scope, 'number', false, '#typeof_result') ],
         [ TYPES.boolean, makeString(scope, 'boolean', false, '#typeof_result') ],
-        [ TYPES.string, makeString(scope, 'string', false, '#typeof_result') ],
+        [ [ TYPES.string, TYPES.bytestring ], makeString(scope, 'string', false, '#typeof_result') ],
         [ [ TYPES.undefined, TYPES.empty ], makeString(scope, 'undefined', false, '#typeof_result') ],
         [ TYPES.function, makeString(scope, 'function', false, '#typeof_result') ],
         [ TYPES.symbol, makeString(scope, 'symbol', false, '#typeof_result') ],
-        [ TYPES.bytestring, makeString(scope, 'string', false, '#typeof_result') ],
 
         // object and internal types
         [ 'default', makeString(scope, 'object', false, '#typeof_result') ],
@@ -3921,7 +3974,7 @@ const generateForOf = (scope, decl) => {
   // set type for local
   // todo: optimize away counter and use end pointer
   out.push(...typeSwitch(scope, iterType, {
-    [TYPES.array]: [
+    [TYPES.array]: () => [
       [ Opcodes.loop, Blocktype.void ],
 
       [ Opcodes.local_get, pointer ],
@@ -3962,7 +4015,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ]
     ],
 
-    [TYPES.string]: [
+    [TYPES.string]: () => [
       ...setType(scope, tmpName, TYPES.string),
 
       // allocate out string
@@ -4017,7 +4070,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ],
       [ Opcodes.end ]
     ],
-    [TYPES.bytestring]: [
+    [TYPES.bytestring]: () => [
       ...setType(scope, tmpName, TYPES.bytestring),
 
       // allocate out string
@@ -4069,7 +4122,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.end ]
     ],
 
-    [TYPES.set]: [
+    [TYPES.set]: () => [
       [ Opcodes.loop, Blocktype.void ],
 
       [ Opcodes.local_get, pointer ],
@@ -4111,25 +4164,25 @@ const generateForOf = (scope, decl) => {
     ],
 
     ...wrapBC({
-      [TYPES.uint8array]: [
+      [TYPES.uint8array]: () => [
         [ Opcodes.i32_add ],
 
         [ Opcodes.i32_load8_u, 0, 4 ],
         Opcodes.i32_from_u
       ],
-      [TYPES.uint8clampedarray]: [
+      [TYPES.uint8clampedarray]: () => [
         [ Opcodes.i32_add ],
 
         [ Opcodes.i32_load8_u, 0, 4 ],
         Opcodes.i32_from_u
       ],
-      [TYPES.int8array]: [
+      [TYPES.int8array]: () => [
         [ Opcodes.i32_add ],
 
         [ Opcodes.i32_load8_s, 0, 4 ],
         Opcodes.i32_from
       ],
-      [TYPES.uint16array]: [
+      [TYPES.uint16array]: () => [
         ...number(2, Valtype.i32),
         [ Opcodes.i32_mul ],
         [ Opcodes.i32_add ],
@@ -4137,7 +4190,7 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.i32_load16_u, 0, 4 ],
         Opcodes.i32_from_u
       ],
-      [TYPES.int16array]: [
+      [TYPES.int16array]: () => [
         ...number(2, Valtype.i32),
         [ Opcodes.i32_mul ],
         [ Opcodes.i32_add ],
@@ -4145,7 +4198,7 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.i32_load16_s, 0, 4 ],
         Opcodes.i32_from
       ],
-      [TYPES.uint32array]: [
+      [TYPES.uint32array]: () => [
         ...number(4, Valtype.i32),
         [ Opcodes.i32_mul ],
         [ Opcodes.i32_add ],
@@ -4153,7 +4206,7 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.i32_load, 0, 4 ],
         Opcodes.i32_from_u
       ],
-      [TYPES.int32array]: [
+      [TYPES.int32array]: () => [
         ...number(4, Valtype.i32),
         [ Opcodes.i32_mul ],
         [ Opcodes.i32_add ],
@@ -4161,7 +4214,7 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.i32_load, 0, 4 ],
         Opcodes.i32_from
       ],
-      [TYPES.float32array]: [
+      [TYPES.float32array]: () => [
         ...number(4, Valtype.i32),
         [ Opcodes.i32_mul ],
         [ Opcodes.i32_add ],
@@ -4169,7 +4222,7 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.f32_load, 0, 4 ],
         [ Opcodes.f64_promote_f32 ]
       ],
-      [TYPES.float64array]: [
+      [TYPES.float64array]: () => [
         ...number(8, Valtype.i32),
         [ Opcodes.i32_mul ],
         [ Opcodes.i32_add ],
@@ -4348,7 +4401,7 @@ const generateForIn = (scope, decl) => {
     [TYPES.object]: out,
 
     // wrap for of object.keys
-    default: generate(scope, {
+    default: () => generate(scope, {
       type: 'ForOfStatement',
       left: decl.left,
       body: decl.body,
@@ -4414,8 +4467,7 @@ const generateSwitch = (scope, decl) => {
             types.push(type);
 
             if (consequent.length !== 0) {
-              const o = generate(scope, { type: 'BlockStatement', body: consequent });
-              bc.push([ types, o ]);
+              bc.push([ types, () => generate(scope, { type: 'BlockStatement', body: consequent }) ]);
               types = [];
             }
           }
@@ -5121,11 +5173,19 @@ const withType = (scope, wasm, type) => [
 const wrapBC = (bc, { prelude = [], postlude = [] } = {}) => {
   const out = {};
   for (const x in bc) {
-    out[x] = [
-      ...prelude,
-      ...bc[x],
-      ...postlude
-    ];
+    if (typeof bc[x] === 'function') {
+      out[x] = () => [
+        ...prelude,
+        ...bc[x](),
+        ...postlude
+      ];
+    } else {
+      out[x] = [
+        ...prelude,
+        ...bc[x],
+        ...postlude
+      ];
+    }
   }
 
   return out;
@@ -6186,6 +6246,7 @@ export default program => {
   data = [];
   currentFuncIndex = importedFuncs.length;
   typeswitchDepth = 0;
+  usedTypes = new Set([ TYPES.empty, TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
 
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
 
@@ -6226,8 +6287,6 @@ export default program => {
 
   const [ main ] = generateFunc({}, program);
 
-  delete globals['#ind'];
-
   // if wanted and blank main func and other exports, remove it
   if (Prefs.rmBlankMain && main.wasm.length === 0 && funcs.some(x => x.export)) funcs.splice(main.index - importedFuncs.length, 1);
 
@@ -6235,7 +6294,16 @@ export default program => {
   // todo: these should just be deleted once able
   for (let i = 0; i < funcs.length; i++) {
     const f = funcs[i];
-    if (f.internal || f.wasm) {
+    if (f.wasm) {
+      // run callbacks
+      const wasm = f.wasm;
+      for (let j = 0; j < wasm.length; j++) {
+        const i = wasm[j];
+        if (i[0] === null && typeof i[1] === 'function') {
+          wasm.splice(j, 1, ...i[1]());
+        }
+      }
+
       continue;
     }
 
@@ -6281,6 +6349,10 @@ export default program => {
   //     }
   //   }
   // }
+
+  delete globals['#ind'];
+
+  // console.log([...usedTypes].map(x => TYPE_NAMES[x]));
 
   return { funcs, globals, tags, exceptions, pages, data };
 };
