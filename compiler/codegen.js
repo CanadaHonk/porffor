@@ -6274,9 +6274,9 @@ export default program => {
       // run callbacks
       const wasm = f.wasm;
       for (let j = 0; j < wasm.length; j++) {
-        const i = wasm[j];
-        if (i[0] === null && typeof i[1] === 'function') {
-          wasm.splice(j, 1, ...i[1]());
+        const o = wasm[j];
+        if (o[0] === null && typeof o[1] === 'function') {
+          wasm.splice(j--, 1, ...o[1]());
         }
       }
 
