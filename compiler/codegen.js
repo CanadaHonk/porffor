@@ -476,7 +476,9 @@ const getVar = (scope, name) => {
     ];
   }
 
-  if (globalThis.precompile) throw new Error('Tried to get a non-local variable during precompile');
+  if (globalThis.precompile) {
+    return internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`);
+  }
 
   const variable = findVar(scope, name);
   if (!variable) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
@@ -528,7 +530,12 @@ const getVarType = (scope, name) => {
     return number(TYPES.undefined, Valtype.i32);
   }
 
-  if (globalThis.precompile) throw new Error('Tried to get the type of a non-local variable during precompile');
+  if (globalThis.precompile) {
+    return [
+      ...internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`),
+      ...number(0, Valtype.i32)
+    ];
+  }
 
   const variable = findVar(scope, name);
   if (!variable) return [
