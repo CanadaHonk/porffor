@@ -21,7 +21,7 @@ try {
 globalThis.valtype = Options.valtype ?? 'f64';
 
 const color = (txt, colors) => {
-  if (!(process.stdout.isTTY ?? true)) {
+  if (!process?.stdout || !(process.stdout.isTTY ?? true)) {
     return txt;
   }
   if (!Array.isArray(colors)) {
