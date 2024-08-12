@@ -691,17 +691,6 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
   ];
 };
 
-const stringOnly = wasm => {
-  if (!Array.isArray(wasm[0])) return [ ...wasm, 'string_only' ];
-  if (wasm.length === 1) return [ [ ...wasm[0], 'string_only' ] ];
-
-  return [
-    [ ...wasm[0], 'string_only|start' ],
-    ...wasm.slice(1, -1),
-    [ ...wasm[wasm.length - 1], 'string_only|end' ]
-  ];
-}
-
 const performOp = (scope, op, left, right, leftType, rightType, _global = false, _name = '$undeclared', assign = false) => {
   if (op === '||' || op === '&&' || op === '??') {
     return performLogicOp(scope, op, left, right, leftType, rightType);
@@ -789,7 +778,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     tmpLeft = localTmp(scope, '__tmpop_left');
     tmpRight = localTmp(scope, '__tmpop_right');
 
-    ops.unshift(...stringOnly([
+    ops.unshift(
       // if left or right are string or bytestring
       ...leftType,
       ...number(TYPE_FLAGS.parity, Valtype.i32),
@@ -810,18 +799,18 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       [ Opcodes.end ],
 
       ...setLastType(scope, TYPES.number)
-    ]));
+    );
 
     // add a surrounding block
-    startOut.push(stringOnly([ Opcodes.block, Valtype.f64 ]));
-    endOut.unshift(stringOnly([ Opcodes.end ]));
+    startOut.push([ Opcodes.block, Valtype.f64 ]);
+    endOut.unshift([ Opcodes.end ]);
   }
 
   if ((op === '===' || op === '==' || op === '!==' || op === '!=') && (knownLeft == null && knownRight == null)) {
     tmpLeft = localTmp(scope, '__tmpop_left');
     tmpRight = localTmp(scope, '__tmpop_right');
 
-    ops.unshift(...stringOnly([
+    ops.unshift(
       // if left or right are string or bytestring
       ...leftType,
       ...number(TYPE_FLAGS.parity, Valtype.i32),
@@ -841,18 +830,18 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
       ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ]
-    ]));
+    );
 
     // add a surrounding block
-    startOut.push(stringOnly([ Opcodes.block, Valtype.i32 ]));
-    endOut.unshift(stringOnly([ Opcodes.end ]));
+    startOut.push([ Opcodes.block, Valtype.i32 ]);
+    endOut.unshift([ Opcodes.end ]);
   }
 
   return finalize([
     ...left,
-    ...(tmpLeft != null ? stringOnly([ [ Opcodes.local_tee, tmpLeft ] ]) : []),
+    ...(tmpLeft != null ? [ [ Opcodes.local_tee, tmpLeft ] ] : []),
     ...right,
-    ...(tmpRight != null ? stringOnly([ [ Opcodes.local_tee, tmpRight ] ]) : []),
+    ...(tmpRight != null ? [ [ Opcodes.local_tee, tmpRight ] ] : []),
     ...ops
   ]);
 };

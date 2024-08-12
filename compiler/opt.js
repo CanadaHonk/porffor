@@ -155,27 +155,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
           }
         }
 
-        if (inst[inst.length - 1] === 'string_only' && !pages.hasAnyString && Prefs.rmUnusedTypes) {
-          // remove this inst
-          wasm.splice(i, 1);
-          if (i > 0) i--;
-          inst = wasm[i];
-        }
-
-        if (inst[inst.length - 1] === 'string_only|start' && !pages.hasAnyString && Prefs.rmUnusedTypes) {
-          let j = i;
-          for (; j < wasm.length; j++) {
-            const op = wasm[j];
-            if (op[op.length - 1] === 'string_only|end') break;
-          }
-
-          // remove section
-          wasm.splice(i, 1 + j - i);
-
-          if (i > 0) i--;
-          inst = wasm[i];
-        }
-
         // remove setting last type if it is never gotten
         if (!f.internal && !f.gotLastType && inst[0] === Opcodes.local_set && inst[1] === lastType) {
           // replace this inst with drop
