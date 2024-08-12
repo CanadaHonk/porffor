@@ -27,7 +27,6 @@ const compile = async (file, _funcs) => {
   }
 
   let args = {
-    bytestring: true,
     todoTime: 'compile',
     truthy: 'no_nan_negative',
     rmUnusedTypes: false,

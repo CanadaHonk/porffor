@@ -210,13 +210,6 @@ let args = [
     target: 'forceRemoveTypes'
   },
   {
-    arg: 'bytestring',
-    description: 'Use type ByteString for ASCII / Latin-1 strings',
-    invDescription: "Don't use type ByteString, always use UTF-16 strings",
-    target: 'bytestring',
-    default: true
-  },
-  {
     arg: 'treeshake-wasm-imports',
     description: 'TODO',
     target: 'treeshakeWasmImports',

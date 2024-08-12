@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import { parseArgs } from '../compiler/prefs.js';
-globalThis.version = '0.37.2+c66ebc0c6';
+globalThis.version = '0.37.6+834657df0';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {

@@ -588,8 +588,8 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
     ...wasm,
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
-    ...typeSwitch(scope, type, {
-      [TYPES.string]: [
+    ...typeSwitch(scope, type, [
+      [ [ TYPES.string, TYPES.bytestring ], [
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
@@ -600,18 +600,9 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
         /* [ Opcodes.i32_eqz ],
         [ Opcodes.i32_eqz ], */
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ],
-      [TYPES.bytestring]: [ // duplicate of string
-      ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
-        ...(intIn ? [] : [ Opcodes.i32_to_u ]),
-
-        // get length
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-
-        ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ],
-      default: def
-    }, intOut ? Valtype.i32 : valtypeBinary)
+      ] ],
+      [ 'default', def ]
+    ], intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
 
@@ -651,8 +642,8 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
     ...wasm,
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
-    ...typeSwitch(scope, type, {
-      [TYPES.string]: [
+    ...typeSwitch(scope, type, [
+      [ [ TYPES.string, TYPES.bytestring ], [
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
         ...(intIn ? [] : [ Opcodes.i32_to_u ]),
 
@@ -662,20 +653,9 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
         // if length == 0
         [ Opcodes.i32_eqz ],
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ],
-      [TYPES.bytestring]: [ // duplicate of string
-        ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
-        ...(intIn ? [] : [ Opcodes.i32_to_u ]),
-
-        // get length
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-
-        // if length == 0
-        [ Opcodes.i32_eqz ],
-        ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ],
-      default: def
-    }, intOut ? Valtype.i32 : valtypeBinary)
+      ] ],
+      [ 'default', def ]
+    ], intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
 
@@ -687,30 +667,25 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
     ...wasm,
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
-    ...typeSwitch(scope, type, {
-      [TYPES.empty]: [
+    ...typeSwitch(scope, type, [
+      [ [ TYPES.empty, TYPES.undefined ], [
         // empty
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
         ...number(1, intOut ? Valtype.i32 : valtypeBinary)
-      ],
-      [TYPES.undefined]: [
-        // undefined
-        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
-        ...number(1, intOut ? Valtype.i32 : valtypeBinary)
-      ],
-      [TYPES.object]: [
+      ] ],
+      [ TYPES.object, [
         // object, null if == 0
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
 
         ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
-      ],
-      default: [
+      ] ],
+      [ 'default', [
         // not
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
         ...number(0, intOut ? Valtype.i32 : valtypeBinary)
-      ]
-    }, intOut ? Valtype.i32 : valtypeBinary)
+      ] ]
+    ], intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
 
@@ -1382,7 +1357,7 @@ const getNodeType = (scope, node) => {
       if (node.operator === '!') return TYPES.boolean;
       if (node.operator === 'void') return TYPES.undefined;
       if (node.operator === 'delete') return TYPES.boolean;
-      if (node.operator === 'typeof') return Options.bytestring ? TYPES.bytestring : TYPES.string;
+      if (node.operator === 'typeof') return TYPES.bytestring;
 
       return TYPES.number;
     }
@@ -2717,95 +2692,83 @@ const brTable = (input, bc, returns) => {
 
 let typeswitchDepth = 0;
 
-const typeSwitch = (scope, type, bc, returns = valtypeBinary, allowFallThrough = false) => {
-  if (!Options.bytestring) delete bc[TYPES.bytestring];
-
+const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = false) => {
   const known = knownType(scope, type);
   if (known != null) {
-    return bc[known] ?? bc.default;
+    if (Array.isArray(bc)) {
+      let def;
+      for (const [ type, wasm ] of bc) {
+        if (type === 'default') {
+          def = wasm;
+          continue;
+        }
+
+        if (Array.isArray(type)) {
+          if (type.includes(known)) return wasm;
+        } else if (type === known) return wasm;
+      }
+
+      return def;
+    } else {
+      return bc[known] ?? bc.default;
+    }
   }
 
   if (Options.typeswitchBrtable) {
-    if (allowFallThrough) throw new Error(`Fallthrough is not currently supported with --typeswitch-brtable`);
+    if (fallthrough) throw new Error(`Fallthrough is not currently supported with --typeswitch-brtable`);
     return brTable(type, bc, returns);
   }
 
-  typeswitchDepth++;
-
-  let bcArr = bc;
-  // hack?: we do this so that typeswitchDepth can be properly handled
-  if (typeof bcArr === 'function') {
-    bcArr = bcArr();
-  }
-  // hack: we need to preserve insertion order for fall through so all objects are converted to entries
-  if (!Array.isArray(bcArr)) {
-    bcArr = Object.entries(bc);
-  } else {
-    bc = Object.fromEntries(bcArr);
-  }
-
-
-  const tmp = localTmp(scope, `#typeswitch_tmp${typeswitchDepth}${Options.typeswitchUniqueTmp ? uniqId() : ''}`, Valtype.i32);
+  const tmp = localTmp(scope, `#typeswitch_tmp${++typeswitchDepth}${Options.typeswitchUniqueTmp ? uniqId() : ''}`, Valtype.i32);
   const out = [
     ...type,
     [ Opcodes.local_set, tmp ],
     [ Opcodes.block, returns ]
   ];
 
-  for (let i = 0; i < bcArr.length; i++) {
-    const x = bcArr[i][0];
-    if (x === 'default') continue;
+  if (typeof bc === 'function') bc = bc();
 
-    if (allowFallThrough) {
-      let types = [];
-      let wasm;
-      while (i < bcArr.length) {
-        if (bcArr[i][0] === 'default') continue;
-        types.push(bcArr[i][0]);
-        // look for an empty array, essentially acting as an additional type for our typecheck
-        const bodyWasm = bcArr[i][1];
-        if (bodyWasm.length != 0) {
-          wasm = bodyWasm;
-          break;
-        }
-        i++;
-      }
-      // if we found any types,
-      if (types.length > 0) {
-        for (let j = 0; j < types.length; j++) {
-          // create the type tests
-          out.push(
-            [ Opcodes.local_get, tmp ],
-            ...number(types[j], Valtype.i32),
-            [ Opcodes.i32_eq ]
-          );
-          // for every test but the first, or them together
-          if (j != 0) out.push([ Opcodes.i32_or ]);
-        }
+  let def;
+  if (!Array.isArray(bc)) {
+    def = bc.default;
+    bc = Object.entries(bc);
+  }
+
+  for (let i = 0; i < bc.length; i++) {
+    let [ type, wasm ] = bc[i];
+    if (type === 'default') {
+      def = wasm;
+      continue;
+    }
+
+    if (Array.isArray(type)) {
+      for (let j = 0; j < type.length; j++) {
         out.push(
-          // create the consequent
-          [ Opcodes.if, Blocktype.void, `TYPESWITCH|${types.map(t => TYPE_NAMES[t]).join(',')}` ],
-            ...wasm,
-            // we don't need an `br 1` here because depth[-1] should be 'switch', and that's the only place this is used right now
-          [ Opcodes.end ]
+          [ Opcodes.local_get, tmp ],
+          ...number(type[j], Valtype.i32),
+          [ Opcodes.i32_eq ]
         );
+
+        if (j > 0) out.push([ Opcodes.i32_or ]);
       }
     } else {
-      // if type == x
       out.push(
         [ Opcodes.local_get, tmp ],
-        ...number(bcArr[i][0], Valtype.i32),
-        [ Opcodes.i32_eq ],
-        [ Opcodes.if, Blocktype.void, `TYPESWITCH|${TYPE_NAMES[x]}` ],
-          ...bcArr[i][1],
-          [ Opcodes.br, 1 ],
-        [ Opcodes.end ]
+        ...number(type, Valtype.i32),
+        [ Opcodes.i32_eq ]
       );
     }
+
+    out.push(
+      [ Opcodes.if, Blocktype.void, `TYPESWITCH|${Array.isArray(type) ? type.map(t => TYPE_NAMES[t]).join(',') : TYPE_NAMES[type]}` ],
+        ...wasm,
+        ...(fallthrough ? [] : [ [ Opcodes.br, 1 ] ]),
+      [ Opcodes.end ]
+    );
   }
 
   // default
-  if (bc.default) out.push(...bc.default);
+  if (def) out.push(...def);
     else if (returns !== Blocktype.void) out.push(...number(0, returns));
 
   out.push([ Opcodes.end, 'TYPESWITCH_end' ]);
@@ -2887,8 +2850,6 @@ const extractTypeAnnotation = decl => {
 
   const typeName = type;
   type = typeAnnoToPorfType(type);
-
-  if (type === TYPES.bytestring && !Options.bytestring) type = TYPES.string;
 
   // if (decl.name) console.log(decl.name, { type, elementType });
 
@@ -3700,19 +3661,18 @@ const generateUnary = (scope, decl) => {
       const out = toGenerate ? generate(scope, decl.argument) : [];
       disposeLeftover(out);
 
-      out.push(...typeSwitch(scope, overrideType ?? getNodeType(scope, decl.argument), {
-        [TYPES.number]: makeString(scope, 'number', false, '#typeof_result'),
-        [TYPES.boolean]: makeString(scope, 'boolean', false, '#typeof_result'),
-        [TYPES.string]: makeString(scope, 'string', false, '#typeof_result'),
-        [TYPES.undefined]: makeString(scope, 'undefined', false, '#typeof_result'),
-        [TYPES.function]: makeString(scope, 'function', false, '#typeof_result'),
-        [TYPES.symbol]: makeString(scope, 'symbol', false, '#typeof_result'),
-        [TYPES.bytestring]: makeString(scope, 'string', false, '#typeof_result'),
-        [TYPES.empty]: makeString(scope, 'undefined', false, '#typeof_result'),
+      out.push(...typeSwitch(scope, overrideType ?? getNodeType(scope, decl.argument), [
+        [ TYPES.number, makeString(scope, 'number', false, '#typeof_result') ],
+        [ TYPES.boolean, makeString(scope, 'boolean', false, '#typeof_result') ],
+        [ TYPES.string, makeString(scope, 'string', false, '#typeof_result') ],
+        [ [ TYPES.undefined, TYPES.empty ], makeString(scope, 'undefined', false, '#typeof_result') ],
+        [ TYPES.function, makeString(scope, 'function', false, '#typeof_result') ],
+        [ TYPES.symbol, makeString(scope, 'symbol', false, '#typeof_result') ],
+        [ TYPES.bytestring, makeString(scope, 'string', false, '#typeof_result') ],
 
         // object and internal types
-        default: makeString(scope, 'object', false, '#typeof_result'),
-      }));
+        [ 'default', makeString(scope, 'object', false, '#typeof_result') ],
+      ]));
 
       return out;
     }
@@ -4030,7 +3990,7 @@ const generateForOf = (scope, decl) => {
 	    Opcodes.i32_from_u,
       [ Opcodes.local_set, tmp ],
 
-	  ...setVar,
+  	  ...setVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4423,9 +4383,7 @@ const generateSwitch = (scope, decl) => {
 
   depth.push('switch');
 
-  if (
-    decl.discriminant.type === 'CallExpression' && decl.discriminant.callee.type === 'Identifier' && decl.discriminant.callee.name === '__Porffor_rawType'
-  ) {
+  if (decl.discriminant.type === 'CallExpression' && decl.discriminant.callee.type === 'Identifier' && decl.discriminant.callee.name === '__Porffor_rawType') {
     const cases = []
     let canTypeCheck = true;
     for (const x of decl.cases) {
@@ -4437,8 +4395,9 @@ const generateSwitch = (scope, decl) => {
       } else if (x.test.type === 'Identifier' && x.test.name.startsWith('__Porffor_TYPES_')) {
         type = TYPES[x.test.name.slice('__Porffor_TYPES_'.length)];
       }
+
       if (type !== undefined) {
-        cases.push([type, x.consequent]);
+        cases.push([ type, x.consequent ]);
       } else {
         canTypeCheck = false;
         break;
@@ -4446,16 +4405,26 @@ const generateSwitch = (scope, decl) => {
     }
 
     if (canTypeCheck) {
-      const ret = typeSwitch(scope, getNodeType(scope, decl.discriminant.arguments[0]), () => {
-        const ret = [];
-        for (const [type, consequent] of cases) {
-          const o = generate(scope, { type: 'BlockStatement', body: consequent });
-          ret.push([type, o]);
-        }
-        return ret;
-      }, Blocktype.void, true);
+      const out = typeSwitch(scope,
+        getNodeType(scope, decl.discriminant.arguments[0]),
+        () => {
+          const bc = [];
+          let types = [];
+          for (const [ type, consequent ] of cases) {
+            types.push(type);
+
+            if (consequent.length !== 0) {
+              const o = generate(scope, { type: 'BlockStatement', body: consequent });
+              bc.push([ types, o ]);
+              types = [];
+            }
+          }
+
+          return bc;
+        }, Blocktype.void, true);
+
       depth.pop();
-      return ret;
+      return out;
     }
   }
 
@@ -5030,8 +4999,6 @@ const loadArray = (scope, array, index) => {
 };
 
 const byteStringable = str => {
-  if (!Options.bytestring) return false;
-
   for (let i = 0; i < str.length; i++) {
     if (str.charCodeAt(i) > 0xFF) return false;
   }
@@ -5041,7 +5008,7 @@ const byteStringable = str => {
 
 const makeString = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
   const rawElements = new Array(str.length);
-  let byteStringable = Options.bytestring;
+  let byteStringable = true;
   for (let i = 0; i < str.length; i++) {
     const c = str.charCodeAt(i);
     rawElements[i] = c;
