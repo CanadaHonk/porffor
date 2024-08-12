@@ -16,33 +16,32 @@ export default function({ builtinFuncs }, Prefs) {
     builtinFuncs['#get_' + name] = {
       params: [],
       locals: [],
-      globals: [ Valtype.i32 ],
-      globalNames: [ '#getptr_' + name ],
       returns: [ Valtype.i32 ],
       returnType: TYPES.object,
-      wasm: (scope, { allocPage, makeString, generate, getNodeType, builtin }) => {
+      wasm: (scope, { allocPage, makeString, generate, getNodeType, builtin, glbl }) => {
         if (globalThis.precompile) return [ [ 'get object', name ] ];
 
         // todo/perf: precompute bytes here instead of calling real funcs if we really care about perf later
 
         let ptr;
         if (existingFunc) {
-          ptr = 1;
+          ptr = builtin(name, true);
         } else {
           ptr = allocPage(scope, `builtin object: ${name}`);
         }
 
+        const getPtr = glbl(Opcodes.global_get, `getptr_${name}`, Valtype.i32)[0];
         const out = [
           // check if already made/cached
-          [ Opcodes.global_get, 0 ],
+          getPtr,
           [ Opcodes.if, Blocktype.void ],
-            [ Opcodes.global_get, 0 ],
+            getPtr,
             [ Opcodes.return ],
           [ Opcodes.end ],
 
           // set cache & ptr for use
           ...number(ptr, Valtype.i32),
-          [ Opcodes.global_set, 0 ],
+          glbl(Opcodes.global_set, `getptr_${name}`, Valtype.i32)[0]
         ];
 
         for (const x in props) {
@@ -62,7 +61,7 @@ export default function({ builtinFuncs }, Prefs) {
           if (this[prefix + x]?.type === TYPES.object && this[prefix + x] !== this.null) value = { type: 'ObjectExpression', properties: [] };
 
           out.push(
-            [ Opcodes.global_get, 0 ],
+            getPtr,
             ...number(existingFunc ? TYPES.function : TYPES.object, Valtype.i32),
 
             ...makeString(scope, x, false, `#builtin_object_${name}_${x}`),
@@ -75,30 +74,25 @@ export default function({ builtinFuncs }, Prefs) {
             ...number(flags, Valtype.i32),
             ...number(TYPES.number, Valtype.i32),
 
-            [ Opcodes.call, builtin('__Porffor_object_define') ],
+            [ Opcodes.call, builtin('__Porffor_object_expr_initWithFlags') ],
             [ Opcodes.drop ],
             [ Opcodes.drop ]
           );
         }
 
-        out.push(
-          // return ptr
-          [ Opcodes.global_get, 0 ]
-        );
+        // return ptr
+        out.push(getPtr);
         return out;
       }
     };
 
     if (existingFunc) {
-      const originalWasm = existingFunc.wasm;
-      existingFunc.wasm = (...args) => {
-        const { builtin } = args[1];
-        return [
-          [ Opcodes.call, builtin('#get_' + name) ],
-          [ Opcodes.drop ],
-          ...originalWasm(...args)
-        ];
-      };
+      this[name] = (scope, { builtin, funcRef }) => [
+        [ Opcodes.call, builtin('#get_' + name) ],
+        [ Opcodes.drop ],
+        ...funcRef(name)
+      ];
+      this[name].type = TYPES.function;
     } else {
       this[name] = (scope, { builtin }) => [
         [ Opcodes.call, builtin('#get_' + name) ],
@@ -109,10 +103,9 @@ export default function({ builtinFuncs }, Prefs) {
 
     for (const x in props) {
       const d = props[x];
+      const k = prefix + x;
 
-      if (Object.hasOwn(d, 'value')) {
-        const k = prefix + x;
-
+      if (Object.hasOwn(d, 'value') && !Object.hasOwn(builtinFuncs, k) && !Object.hasOwn(this, k)) {
         if (typeof d.value === 'number') {
           this[k] = number(d.value);
           this[k].type = TYPES.number;
@@ -159,7 +152,7 @@ export default function({ builtinFuncs }, Prefs) {
   const builtinFuncKeys = Object.keys(builtinFuncs);
   const autoFuncKeys = name => {
     const prefix = makePrefix(name);
-    return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length));
+    return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length)).filter(x => !x.startsWith('prototype_'));
   };
   const autoFuncs = name => props({
     writable: true,
@@ -190,8 +183,6 @@ export default function({ builtinFuncs }, Prefs) {
     ...autoFuncs('Math')
   });
 
-  object('Reflect', autoFuncs('Reflect'));
-
   // automatically generate objects for prototypes
   for (const x of builtinFuncKeys.reduce((acc, x) => {
     const ind = x.indexOf('_prototype_');
@@ -209,7 +200,6 @@ export default function({ builtinFuncs }, Prefs) {
   }
 
 
-  // todo: support when existing func
   object('Number', {
     ...props({
       writable: false,
@@ -227,8 +217,14 @@ export default function({ builtinFuncs }, Prefs) {
       MIN_SAFE_INTEGER: valtype === 'i32' ? -2147483648 : -9007199254740991,
 
       EPSILON: 2.220446049250313e-16
-    })
+    }),
+
+    ...autoFuncs('Number')
   });
+
+  object('Reflect', autoFuncs('Reflect'));
+  object('Object', autoFuncs('Object'));
+  object('JSON', autoFuncs('JSON'));
 
 
   // these technically not spec compliant as it should be classes or non-enumerable but eh
@@ -305,8 +301,8 @@ export default function({ builtinFuncs }, Prefs) {
     }
     if (!t) continue;
 
-    if (!done.has(name)) {
-      console.log(name.replaceAll('_', '.'), !!builtinFuncs[name]);
+    if (!done.has(name) && !done.has('__' + name)) {
+      console.log(name, !!builtinFuncs[name]);
       done.add(name);
     }
   }

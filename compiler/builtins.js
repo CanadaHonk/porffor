@@ -160,19 +160,19 @@ export const BuiltinFuncs = function() {
   // add bitwise ops by converting operands to i32 first
   for (const [ char, op ] of [ ['&', Opcodes.i32_and], ['|', Opcodes.i32_or], ['^', Opcodes.i32_xor], ['<<', Opcodes.i32_shl], ['>>', Opcodes.i32_shr_s], ['>>>', Opcodes.i32_shr_u] ]) {
     this[`f64_${char}`] = {
-      params: [ valtypeBinary, valtypeBinary ],
+      params: [ Valtype.f64, Valtype.f64 ],
       locals: [],
-      returns: [ valtypeBinary ],
+      returns: [ Valtype.f64 ],
       returnType: TYPES.number,
       wasm: [
         [ Opcodes.local_get, 0 ],
-        Opcodes.i32_to,
+        Opcodes.i32_trunc_sat_f64_s,
 
         [ Opcodes.local_get, 1 ],
-        Opcodes.i32_to,
+        Opcodes.i32_trunc_sat_f64_s,
 
         [ op ],
-        Opcodes.i32_from
+        [ Opcodes.f64_convert_i32_s ]
       ]
     };
   }
@@ -856,7 +856,7 @@ export const BuiltinFuncs = function() {
     typedParams: true,
     locals: [ Valtype.i32, Valtype.i32 ],
     returns: [ valtypeBinary ],
-    returnType: Prefs.bytestring ? TYPES.bytestring : TYPES.string,
+    returnType: TYPES.bytestring,
     wasm: (scope, { typeSwitch, makeString }) => {
       const bc = {};
       for (const x in TYPE_NAMES) {

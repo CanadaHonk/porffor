@@ -49,7 +49,7 @@ if (isMainThread) {
 
   const tests = [];
   for await (const test of _tests) {
-    if (test.scenario === 'strict mode') continue;
+    if (test.scenario === 'strict mode' && !test.attrs.flags.onlyStrict) continue;
     tests.push(test);
   }
 
@@ -426,14 +426,13 @@ if (isMainThread) {
 
     let log = '';
 
-    let exports, exceptions;
+    let exports;
     try {
       const out = compile(contents, attrs.flags.module ? [ 'module' ] : [], {
         p: i => { log += i.toString() },
         c: i => { log += String.fromCharCode(i); }
       });
 
-      exceptions = out.exceptions;
       exports = out.exports;
     } catch (e) {
       stage = 0;

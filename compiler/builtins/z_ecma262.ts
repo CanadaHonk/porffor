@@ -1,6 +1,30 @@
 // general widely used ecma262/spec functions
 import type {} from './porffor.d.ts';
 
+export const __ecma262_ToPrimitive_Number = (input: any): any => {
+  // todo: %Symbol.toPrimitive%
+
+  let value: any = input.valueOf?.();
+  if (value != null && !Porffor.object.isObjectOrNull(value)) return value;
+
+  value = input.toString?.();
+  if (value != null && !Porffor.object.isObjectOrNull(value)) return value;
+
+  throw new TypeError('Cannot convert an object to primitive');
+};
+
+export const __ecma262_ToPrimitive_String = (input: any): any => {
+  // todo: %Symbol.toPrimitive%
+
+  let value: any = input.toString?.();
+  if (value != null && !Porffor.object.isObjectOrNull(value)) return value;
+
+  value = input.valueOf?.();
+  if (value != null && !Porffor.object.isObjectOrNull(value)) return value;
+
+  throw new TypeError('Cannot convert an object to primitive');
+};
+
 // 7.1.4 ToNumber (argument)
 // https://tc39.es/ecma262/#sec-tonumber
 export const __ecma262_ToNumber = (argument: unknown): number => {
@@ -35,13 +59,11 @@ export const __ecma262_ToNumber = (argument: unknown): number => {
 
   // 7. Assert: argument is an Object.
   // 8. Let primValue be ? ToPrimitive(argument, number).
+  const primValue: any = __ecma262_ToPrimitive_Number(argument);
+
   // 9. Assert: primValue is not an Object.
   // 10. Return ? ToNumber(primValue).
-
-  // // todo: I doubt this is spec-compliant
-  // return __ecma262_ToNumber(argument.valueOf());
-
-  return NaN;
+  return __ecma262_ToNumber(primValue);
 };
 
 
@@ -128,26 +150,35 @@ export const __ecma262_ToString = (argument: unknown): any => {
   }
 
   // 7. If argument is a Number, return Number::toString(argument, 10).
+  if (type == Porffor.TYPES.number) return __Number_prototype_toString(argument, 10);
+
   // 8. If argument is a BigInt, return BigInt::toString(argument, 10).
+
   // 9. Assert: argument is an Object.
   // 10. Let primValue be ? ToPrimitive(argument, string).
+  const primValue: any = __ecma262_ToPrimitive_String(argument);
+
   // 11. Assert: primValue is not an Object.
   // 12. Return ? ToString(primValue).
-  return argument.toString();
+  return __ecma262_ToString(primValue);
 };
 
 // 7.1.19 ToPropertyKey (argument)
 // https://tc39.es/ecma262/#sec-topropertykey
 export const __ecma262_ToPropertyKey = (argument: any): any => {
   // 1. Let key be ? ToPrimitive(argument, string).
-  // argument = key
+  let key: any = argument;
+
+  // only run ToPrimitive if pure object for perf
+  if (Porffor.rawType(argument) == Porffor.TYPES.object && Porffor.wasm`local.get ${argument}` != 0)
+    key = __ecma262_ToPrimitive_String(argument);
 
   // 2. If key is a Symbol, then
-  if (Porffor.rawType(argument) == Porffor.TYPES.symbol) {
+  if (Porffor.rawType(key) == Porffor.TYPES.symbol) {
     // a. Return key.
-    return argument;
+    return key;
   }
 
   // 3. Return ! ToString(key).
-  return __ecma262_ToString(argument);
+  return __ecma262_ToString(key);
 };

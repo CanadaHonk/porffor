@@ -137,6 +137,9 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       // eg: __String_prototype_toLowerCase -> toLowerCase
       if (name.startsWith('__')) name = name.split('_').pop();
 
+      // anonymous functions
+      if (name.startsWith('#')) name = '';
+
       // make fake empty func for repl/etc
       return {[name]() {}}[name];
     }

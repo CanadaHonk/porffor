@@ -16,8 +16,9 @@ globalThis.decompile = decompile;
 const logFuncs = (funcs, globals, exceptions) => {
   console.log('\n' + underline(bold('funcs')));
 
+  const wanted = Prefs.f;
   for (const f of funcs) {
-    if (f.internal) continue;
+    if ((wanted && f.name !== wanted) || (!wanted && f.internal)) continue;
     console.log(decompile(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
   }
 
@@ -27,9 +28,35 @@ const logFuncs = (funcs, globals, exceptions) => {
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 const execSync = (typeof process?.version !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
 
+let progressLines = 0, progressInterval;
+let spinner = ['-', '\\', '|', '/'], spin = 0;
+const progressStart = msg => {
+  const log = (extra, after) => {
+    const pre = extra ? `${extra}` : spinner[spin++ % 4];
+    process.stdout.write(`\r\u001b[90m${' '.repeat(10 - pre.length)}${pre}  ${msg}${after ?? ''}\u001b[0m`);
+  };
+  log();
+
+  globalThis.progress = log;
+  progressInterval = setInterval(log, 100);
+};
+const progressDone = (msg, start) => {
+  clearInterval(progressInterval);
+
+  const timeStr = (performance.now() - start).toFixed(0);
+  console.log(`\r${' '.repeat(50)}\r\u001b[90m${' '.repeat(8 - timeStr.length)}${timeStr}ms\u001b[0m  \u001b[92m${msg}\u001b[0m`);
+  progressLines++;
+};
+const progressClear = () => {
+  process.stdout.write(`\u001b[${progressLines}F\u001b[0J`);
+  progressLines = 0;
+};
+
 export default (code, flags) => {
   let target = Prefs.target ?? 'wasm';
   if (Prefs.native) target = 'native';
+
+  const logProgress = Prefs.profileCompiler || (target === 'native' && !Prefs.native && globalThis.file);
 
   let outFile = Prefs.o;
 
@@ -46,18 +73,19 @@ export default (code, flags) => {
 
   if (Prefs.pgo) pgo.setup();
 
-  if (Prefs.profileCompiler) console.log(`0. began compilation (host runtime startup) in ${performance.now().toFixed(2)}ms`);
-
+  if (logProgress) progressStart('parsing...');
   const t0 = performance.now();
   const program = parse(code, flags);
-  if (Prefs.profileCompiler) console.log(`1. parsed in ${(performance.now() - t0).toFixed(2)}ms`);
+  if (logProgress) progressDone('parsed', t0);
 
+  if (logProgress) progressStart('generating wasm...');
   const t1 = performance.now();
   const { funcs, globals, tags, exceptions, pages, data } = codegen(program);
-  if (Prefs.profileCompiler) console.log(`2. generated code in ${(performance.now() - t1).toFixed(2)}ms`);
+  if (logProgress) progressDone('generated wasm', t1);
 
   if (Prefs.funcs) logFuncs(funcs, globals, exceptions);
 
+  if (logProgress) progressStart('optimizing...');
   const t2 = performance.now();
   opt(funcs, globals, pages, tags, exceptions);
 
@@ -103,7 +131,7 @@ export default (code, flags) => {
     }
   }
 
-  if (Prefs.profileCompiler) console.log(`3. optimized in ${(performance.now() - t2).toFixed(2)}ms`);
+  if (logProgress) progressDone('optimized', t2);
 
   if (Prefs.builtinTree) {
     let data = funcs.filter(x => x.includes);
@@ -131,14 +159,15 @@ export default (code, flags) => {
     console.log(`built-in tree: ${url}`);
   }
 
+  if (logProgress) progressStart('assembling...');
   const t3 = performance.now();
   const out = { funcs, globals, tags, exceptions, pages, data, times: [ t0, t1, t2, t3 ] };
   if (globalThis.precompile) return out;
 
   const wasm = out.wasm = assemble(funcs, globals, tags, pages, data, flags);
-  if (Prefs.profileCompiler) console.log(`4. assembled in ${(performance.now() - t3).toFixed(2)}ms`);
+  if (logProgress) progressDone('assembled', t3);
 
-  if (Prefs.optFuncs) logFuncs(funcs, globals, exceptions);
+  if (Prefs.optFuncs || Prefs.f) logFuncs(funcs, globals, exceptions);
 
   if (Prefs.compileAllocLog) {
     const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
@@ -167,7 +196,7 @@ export default (code, flags) => {
   }
 
   if (target === 'native') {
-    outFile ??= Prefs.native ? './porffor_tmp' : file.split('/').at(-1).split('.').at(0, -1).join('.');
+    outFile ??= Prefs.native ? './porffor_tmp' : file.split('/').at(-1).split('.')[0];
 
     let compiler = Prefs.compiler ?? 'clang';
     const cO = Prefs._cO ?? 'Ofast';
@@ -177,12 +206,14 @@ export default (code, flags) => {
 
     const tmpfile = 'porffor_tmp.c';
     const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
-    if (!Prefs.compiler) args.push('-flto=thin', '-march=native', '-s', '-ffast-math', '-fno-exceptions', '-fno-ident', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections', '-Wl,--gc-sections');
+    if (!Prefs.compiler) args.push('-flto=thin', '-march=native', '-s', '-ffast-math', '-fno-exceptions', '-fno-ident', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections');
 
+    if (logProgress) progressStart('compiling Wasm to C...');
     const t4 = performance.now();
     const c = toc(out);
-    if (Prefs.profileCompiler) console.log(`5. compiled to c in ${(performance.now() - t4).toFixed(2)}ms`);
+    if (logProgress) progressDone('compiled Wasm to C', t4);
 
+    if (logProgress) progressStart(`compiling C to native (using ${compiler})...`);
     const t5 = performance.now();
 
     fs.writeFileSync(tmpfile, c);
@@ -192,7 +223,7 @@ export default (code, flags) => {
 
     fs.unlinkSync(tmpfile);
 
-    if (Prefs.profileCompiler) console.log(`6. compiled to native (using ${compiler}) in ${(performance.now() - t5).toFixed(2)}ms`);
+    if (logProgress) progressStart(`compiled C to native (using ${compiler})`, t5);
 
     if (process.version) {
       if (Prefs.native) {
@@ -215,9 +246,10 @@ export default (code, flags) => {
         } catch {}
       }
 
-      if (!Prefs.native && globalThis.file) {
+      if (logProgress) {
         const total = performance.now();
-        console.log(`\u001b[90m[${total.toFixed(2)}ms]\u001b[0m \u001b[92mcompiled ${globalThis.file} -> ${outFile}\u001b[0m`);
+        progressClear();
+        console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[92mcompiled ${globalThis.file} -> ${outFile}\u001b[0m`);
       }
 
       process.exit();

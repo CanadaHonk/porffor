@@ -209,7 +209,7 @@ Mostly for reducing size. I do not really care about compiler perf/time as long 
 - `i64.extend_i32_s`, `i32.wrap_i64` -> ``
 - `f64.convert_i32_u`, `i32.trunc_sat_f64_s` -> ``
 - `return`, `end` -> `end`
-- Change const, convert to const of converted valtype (eg `f64.const`, `i32.trunc_sat_f64_s -> `i32.const`)
+- Change const, convert to const of converted valtype (eg `f64.const`, `i32.trunc_sat_f64_s` -> `i32.const`)
 - Remove some redundant sets/gets
 - Remove unneeded single just used vars
 - Remove unneeded blocks (no `br`s inside)

@@ -64,16 +64,24 @@ local.set ${key}`;
     }
 
     out.length = i;
-  } else if (Porffor.fastOr(
-    t == Porffor.TYPES.array,
-    t == Porffor.TYPES.bytestring,
-    t == Porffor.TYPES.string
-  )) {
-    const len: i32 = obj.length;
-    out.length = len;
+  } else {
+    if (Porffor.fastOr(
+      t == Porffor.TYPES.array,
+      t == Porffor.TYPES.bytestring,
+      t == Porffor.TYPES.string
+    )) {
+      const len: i32 = obj.length;
+      out.length = len;
 
-    for (let i: i32 = 0; i < len; i++) {
-      out[i] = __Number_prototype_toString(i);
+      for (let i: i32 = 0; i < len; i++) {
+        out[i] = __Number_prototype_toString(i);
+      }
+    }
+
+    obj = __Porffor_object_makeObject(obj);
+    if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+      const objKeys: any[] = __Object_keys(obj);
+      for (const x of objKeys) Porffor.array.fastPush(out, x);
     }
   }
 
@@ -82,7 +90,6 @@ local.set ${key}`;
 
 export const __Object_values = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
-
   const out: any[] = Porffor.allocate();
 
   const t: i32 = Porffor.rawType(obj);
@@ -111,16 +118,24 @@ local.set ${val+1}`;
     }
 
     out.length = i;
-  } else if (Porffor.fastOr(
-    t == Porffor.TYPES.array,
-    t == Porffor.TYPES.bytestring,
-    t == Porffor.TYPES.string
-  )) {
-    const len: i32 = obj.length;
-    out.length = len;
+  } else {
+    if (Porffor.fastOr(
+      t == Porffor.TYPES.array,
+      t == Porffor.TYPES.bytestring,
+      t == Porffor.TYPES.string
+    )) {
+      const len: i32 = obj.length;
+      out.length = len;
 
-    for (let i: i32 = 0; i < len; i++) {
-      out[i] = obj[i];
+      for (let i: i32 = 0; i < len; i++) {
+        out[i] = obj[i];
+      }
+    }
+
+    obj = __Porffor_object_makeObject(obj);
+    if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+      const objVals: any[] = __Object_values(obj);
+      for (const x of objVals) Porffor.array.fastPush(out, x);
     }
   }
 
@@ -177,7 +192,12 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
     const tmp2: bytestring = 'length';
     if (p == tmp2) return !__Porffor_funcLut_isLengthDeleted(_this);
 
-    return false;
+    return Porffor.object.lookup(_this, p) != -1;
+  }
+
+  const obj: any = __Porffor_object_makeObject(_this);
+  if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+    if (Porffor.object.lookup(obj, p) != -1) return true;
   }
 
   const keys: any[] = __Object_keys(_this);
@@ -193,11 +213,6 @@ export const __Porffor_object_in = (obj: any, prop: any) => {
     return true;
   }
 
-  const t: i32 = Porffor.rawType(obj);
-  if (t != Porffor.TYPES.object) {
-    return false;
-  }
-
   let lastProto = obj;
   while (true) {
     obj = obj.__proto__;
@@ -206,6 +221,30 @@ export const __Porffor_object_in = (obj: any, prop: any) => {
 
     if (__Object_prototype_hasOwnProperty(obj, prop)) return true;
   }
+
+  return false;
+};
+
+export const __Porffor_object_instanceof = (obj: any, constr: any) => {
+  if (Porffor.rawType(constr) != Porffor.TYPES.function) {
+    throw new TypeError('instanceof right-hand side is not a function');
+  }
+
+  const checkProto: any = constr.prototype;
+  if (!Porffor.object.isObject(checkProto)) {
+    throw new TypeError('instanceof right-hand side has non-object prototype');
+  }
+
+  let lastProto = obj;
+  while (true) {
+    obj = obj.__proto__;
+    if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
+    lastProto = obj;
+
+    if (obj === checkProto) return true;
+  }
+
+  return false;
 };
 
 
@@ -242,12 +281,17 @@ export const __Porffor_object_assignAll = (target: any, source: any) => {
 export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) => {
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const t: i32 = Porffor.rawType(_this);
-  if (t == Porffor.TYPES.object) {
+  if (Porffor.rawType(_this) == Porffor.TYPES.object) {
     const entryPtr: i32 = Porffor.object.lookup(_this, p);
     if (entryPtr == -1) return false;
 
     return Porffor.object.isEnumerable(entryPtr);
+  }
+
+  const obj: any = __Porffor_object_makeObject(_this);
+  if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+    const entryPtr: i32 = Porffor.object.lookup(obj, p);
+    if (entryPtr != -1) return Porffor.object.isEnumerable(entryPtr);
   }
 
   const keys: any[] = __Object_keys(_this);
@@ -342,23 +386,24 @@ export const __Object_isSealed = (obj: any): any => {
 export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const objType: i32 = Porffor.rawType(obj);
-  if (objType == Porffor.TYPES.function) {
-    // hack: function .name and .length
-    const v = obj[p];
-    if (v != null) {
-      const out: object = {};
-      out.writable = false;
-      out.enumerable = false;
-      out.configurable = true;
-
-      out.value = v;
-      return out;
-    }
-  }
-
   const entryPtr: i32 = Porffor.object.lookup(obj, p);
-  if (entryPtr == -1) return undefined;
+  if (entryPtr == -1) {
+    if (Porffor.rawType(obj) == Porffor.TYPES.function) {
+      // hack: function .name and .length
+      const v = obj[p];
+      if (v != null) {
+        const out: object = {};
+        out.writable = false;
+        out.enumerable = false;
+        out.configurable = true;
+
+        out.value = v;
+        return out;
+      }
+    }
+
+    return undefined;
+  }
 
   const out: object = {};
 
@@ -392,7 +437,7 @@ export const __Object_getOwnPropertyDescriptors = (obj: any): any => {
   const out: object = {};
 
   if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    obj = __Porffor_object_getObject(obj);
+    obj = __Porffor_object_makeObject(obj);
     if (Porffor.rawType(obj) != Porffor.TYPES.object) return out;
   }
 
@@ -454,16 +499,24 @@ local.set ${key}`;
     }
 
     out.length = i;
-  } else if (Porffor.fastOr(
-    t == Porffor.TYPES.array,
-    t == Porffor.TYPES.bytestring,
-    t == Porffor.TYPES.string
-  )) {
-    const len: i32 = obj.length;
-    out.length = len;
+  } else {
+    if (Porffor.fastOr(
+      t == Porffor.TYPES.array,
+      t == Porffor.TYPES.bytestring,
+      t == Porffor.TYPES.string
+    )) {
+      const len: i32 = obj.length;
+      out.length = len;
 
-    for (let i: i32 = 0; i < len; i++) {
-      out[i] = __Number_prototype_toString(i);
+      for (let i: i32 = 0; i < len; i++) {
+        out[i] = __Number_prototype_toString(i);
+      }
+    }
+
+    obj = __Porffor_object_makeObject(obj);
+    if (Porffor.rawType(obj) == Porffor.TYPES.object) {
+      const objKeys: any[] = __Object_getOwnPropertyNames(obj);
+      for (const x of objKeys) Porffor.array.fastPush(out, x);
     }
   }
 
@@ -474,6 +527,7 @@ export const __Object_getOwnPropertySymbols = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
+  obj = __Porffor_object_makeObject(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -574,13 +628,11 @@ export const __Object_defineProperty = (target: any, prop: any, descriptor: any)
 
   let flags: i32 = 0b0000;
   if (accessor) flags |= 0b0001;
-  if (configurable) flags |= 0b0010;
-  if (enumerable) flags |= 0b0100;
-  if (writable) flags |= 0b1000;
+  if (!!configurable) flags |= 0b0010;
+  if (!!enumerable) flags |= 0b0100;
+  if (!!writable) flags |= 0b1000;
 
-  if (accessor) {
-    value = Porffor.object.packAccessor(get, set);
-  }
+  if (accessor) value = Porffor.object.packAccessor(get, set);
 
   Porffor.object.define(target, p, value, flags);
   return target;
@@ -659,6 +711,12 @@ export const __Object_prototype_isPrototypeOf = (_this: any, obj: any) => {
 
 
 export const __Object_prototype_toString = (_this: any) => {
+  if (Porffor.rawType(_this) == Porffor.TYPES.object) {
+    const obj: object = _this;
+    const ovr: any = obj.toString;
+    if (ovr != null && ovr !== __Object_prototype_toString) return ovr.call(_this);
+  }
+
   let out: bytestring = Porffor.allocate();
 
   // 1. If the this value is undefined, return "[object Undefined]".
@@ -683,10 +741,16 @@ export const __Object_prototype_toString = (_this: any) => {
   return out = '[object Object]';
 };
 
-export const __Object_prototype_toLocaleString = (_this: any) => __Object_prototype_toLocaleString(_this);
+export const __Object_prototype_toLocaleString = (_this: any) => __Object_prototype_toString(_this);
 
 export const __Object_prototype_valueOf = (_this: any) => {
   // todo: ToObject
+  if (Porffor.rawType(_this) == Porffor.TYPES.object) {
+    const obj: object = _this;
+    const ovr: any = obj.valueOf;
+    if (ovr != null && ovr !== __Object_prototype_valueOf) return ovr.call(_this);
+  }
+
   return _this;
 };
 

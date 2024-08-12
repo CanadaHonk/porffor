@@ -682,7 +682,7 @@
     #commit_log {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 24px;
+      gap: 16px;
 
       overflow-x: auto;
     }
@@ -843,12 +843,13 @@
     <div>
       <a href="https://github.com/CanadaHonk/porffor">GitHub</a>
       <a href="https://discord.gg/wPV3WgDGwg">Discord</a>
+      <a href="https://x.com/CanadaHonk">Devlog</a>
     </div>
   </header>
 
   <article>
     <h1 class="tagline">A from-scratch experimental ahead-of-time JS engine</h1>
-    <p>Porffor is a unique JS engine/compiler/runtime, compiling JS code to WebAssembly or native ahead-of-time.<br>It is seriously limited for now; intended for research, not serious use!</p>
+    <p>Porffor is a unique JS engine/compiler/runtime, compiling JS code to WebAssembly or native ahead-of-time.<br>It is limited for now; intended for research, not serious use!</p>
 
     <section class="cards">
       <div>
@@ -1042,14 +1043,13 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       comp();
     };
 
-    // valtype_dropdown.oninput = opt_dropdown.oninput = parser_dropdown.oninput = target_dropdown.oninput = () => comp();
-    // opt_dropdown.oninput = target_dropdown.oninput = () => comp();
-
     parser_dropdown.oninput = async () => {
       setProcess();
       await globalThis._porf_loadParser();
       comp();
     };
+
+    target_dropdown.oninput = () => comp();
 
     window.editor = monaco.editor.create(monacoContainer, {
       value: code,
@@ -1131,7 +1131,6 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const execTime = performance.now() - t2;
       status.textContent += `. Executed in ${execTime.toFixed(0)}ms`;
 
-      // xss :)
       output.innerHTML = ansi(cache);
     };
 
@@ -1163,8 +1162,10 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const x = history[i];
       const el = document.createElement('div');
 
-      const textEl = document.createElement('div');
+      const textEl = document.createElement('a');
       textEl.textContent = x.title.slice(0, 42) + (x.title.length > 42 ? '...' : '');
+      textEl.href = `https://github.com/CanadaHonk/porffor/commit/${x.hash}`;
+      textEl.target = '_blank';
 
       const when = new Date(x.time);
       const whenEl = document.createElement('div');
