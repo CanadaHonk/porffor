@@ -6409,16 +6409,14 @@ const generateFunc = (scope, decl) => {
   if (globalThis.precompile) func.generate();
 
   const out = decl.type.endsWith('Expression') ? funcRef(func) : [];
-  if (!outUnused) {
-    if (decl.type === 'FunctionDeclaration' || (decl.type === 'FunctionExpression' && decl.id)) {
-      createVar(scope, 'var', name);
-      out.push(
-        ...setVar(scope, name, funcRef(func), number(TYPES.function, Valtype.i32))
-      );
-    }
-    if (decl.type.endsWith('Expression')) {
-      out.push(...funcRef(func));
-    }
+  if (decl.type === 'FunctionDeclaration' || (decl.type === 'FunctionExpression' && decl.id)) {
+    createVar(scope, 'var', name);
+    out.push(
+      ...setVar(scope, name, funcRef(func), number(TYPES.function, Valtype.i32))
+    );
+  }
+  if (decl.type.endsWith('Expression')) {
+    out.push(...funcRef(func));
   }
   astCache.set(decl, out);
   return [ func, out ];
