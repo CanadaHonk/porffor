@@ -2202,7 +2202,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
 
           ...typeSwitch(scope, getNodeType(scope, decl.callee), {
-            [TYPES.function]: [
+            [TYPES.function]: () => [
               ...out,
 
               [ Opcodes.local_get, localTmp(scope, '#indirect_callee') ],
@@ -2341,7 +2341,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
 
         ...typeSwitch(scope, getNodeType(scope, callee), {
-          [TYPES.function]: [
+          [TYPES.function]: () => [
             ...out,
 
             [ Opcodes.local_get, localTmp(scope, '#indirect_callee') ],
@@ -3705,15 +3705,15 @@ const generateUnary = (scope, decl) => {
       disposeLeftover(out);
 
       out.push(...typeSwitch(scope, overrideType ?? getNodeType(scope, decl.argument), [
-        [ TYPES.number, makeString(scope, 'number', false, '#typeof_result') ],
-        [ TYPES.boolean, makeString(scope, 'boolean', false, '#typeof_result') ],
-        [ [ TYPES.string, TYPES.bytestring ], makeString(scope, 'string', false, '#typeof_result') ],
-        [ [ TYPES.undefined, TYPES.empty ], makeString(scope, 'undefined', false, '#typeof_result') ],
-        [ TYPES.function, makeString(scope, 'function', false, '#typeof_result') ],
-        [ TYPES.symbol, makeString(scope, 'symbol', false, '#typeof_result') ],
+        [ TYPES.number, () => makeString(scope, 'number', false, '#typeof_result') ],
+        [ TYPES.boolean, () => makeString(scope, 'boolean', false, '#typeof_result') ],
+        [ [ TYPES.string, TYPES.bytestring ], () => makeString(scope, 'string', false, '#typeof_result') ],
+        [ [ TYPES.undefined, TYPES.empty ], () => makeString(scope, 'undefined', false, '#typeof_result') ],
+        [ TYPES.function, () => makeString(scope, 'function', false, '#typeof_result') ],
+        [ TYPES.symbol, () => makeString(scope, 'symbol', false, '#typeof_result') ],
 
         // object and internal types
-        [ 'default', makeString(scope, 'object', false, '#typeof_result') ],
+        [ 'default', () => makeString(scope, 'object', false, '#typeof_result') ],
       ]));
 
       return out;
@@ -5352,12 +5352,12 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   const propertyWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_prop') ] ];
 
   const out = typeSwitch(scope, getNodeType(scope, object), {
-    [TYPES.array]: [
+    [TYPES.array]: () => [
       ...loadArray(scope, objectWasm, propertyWasm),
       ...setLastType(scope)
     ],
 
-    [TYPES.string]: [
+    [TYPES.string]: () => [
       // allocate out string
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
       [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
@@ -5391,7 +5391,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       ...setLastType(scope, TYPES.string)
     ],
 
-    [TYPES.bytestring]: [
+    [TYPES.bytestring]: () => [
       // allocate out string
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
       [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
@@ -5503,7 +5503,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     [TYPES.undefined]: internalThrow(scope, 'TypeError', 'Cannot read property of undefined', true),
 
     // default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
-    default: [
+    default: () => [
       ...objectWasm,
       Opcodes.i32_to_u,
       ...getNodeType(scope, object),
