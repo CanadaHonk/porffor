@@ -25,7 +25,7 @@ const compile = async (file, _funcs) => {
     first = source.slice(0, source.indexOf('\n'));
   }
 
-  let args = ['--bytestring', '--todo-time=compile', '--truthy=no_nan_negative', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data'];
+  let args = ['--todo-time=compile', '--truthy=no_nan_negative', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data'];
   if (first.startsWith('// @porf')) {
     args = first.slice('// @porf '.length).split(' ').concat(args);
   }
@@ -62,6 +62,8 @@ const compile = async (file, _funcs) => {
     __Porffor_object_setStrict: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
     __Porffor_object_expr_init: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
     __Porffor_object_expr_initWithFlags: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
+    __Porffor_object_class_value: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
+    __Porffor_object_class_method: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
     __Porffor_object_define: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
   };
 
@@ -176,7 +178,7 @@ const precompile = async () => {
 
   let funcs = [];
   let fileCount = 0;
-  for (const file of fs.readdirSync(dir)) {
+  for (const file of fs.readdirSync(dir).toSorted()) {
     if (file.endsWith('.d.ts')) continue;
     fileCount++;
 

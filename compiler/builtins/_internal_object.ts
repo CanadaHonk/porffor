@@ -18,7 +18,7 @@ import type {} from './porffor.d.ts';
 
 export const __Porffor_object_preventExtensions = (obj: any): void => {
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_getObject(obj);
+    obj = __Porffor_object_makeObject(obj);
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
   }
 
@@ -124,7 +124,7 @@ export const __Porffor_object_accessorSet = (entryPtr: i32): Function => {
 export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
   if (Porffor.wasm`local.get ${obj}` == 0) return -1;
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_getObject(obj);
+    obj = __Porffor_object_makeObject(obj);
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return -1;
   }
 
@@ -171,8 +171,6 @@ export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
 };
 
 export const __Porffor_object_get = (obj: any, key: any): any => {
-  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot get property of null');
-
   const trueType: i32 = Porffor.wasm`local.get ${obj+1}`;
   if (trueType == Porffor.TYPES.function) {
     const tmp1: bytestring = 'name';
@@ -197,7 +195,10 @@ return`;
     }
   }
 
-  if (trueType != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (trueType != Porffor.TYPES.object) obj = __Porffor_object_makeObject(obj);
+
+  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot get property of null');
+
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
     if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.object) {
@@ -289,12 +290,12 @@ export const __Porffor_object_writeKey = (ptr: i32, key: any): void => {
 };
 
 export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
-  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
-
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_getObject(obj);
+    obj = __Porffor_object_makeObject(obj);
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return value;
   }
+
+  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
 
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   let flags: i32;
@@ -378,7 +379,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
 
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_getObject(obj);
+    obj = __Porffor_object_makeObject(obj);
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return value;
   }
 
@@ -462,7 +463,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
 
 export const __Porffor_object_define = (obj: any, key: any, value: any, flags: i32): void => {
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_getObject(obj);
+    obj = __Porffor_object_makeObject(obj);
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
   }
 
@@ -699,7 +700,7 @@ export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
 
 // used for { foo: 5 }
 export const __Porffor_object_expr_init = (obj: any, key: any, value: any): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_makeObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
     // add new entry
@@ -724,7 +725,7 @@ export const __Porffor_object_expr_init = (obj: any, key: any, value: any): void
 };
 
 export const __Porffor_object_expr_initWithFlags = (obj: any, key: any, value: any, flags: i32): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_makeObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
     // add new entry
@@ -749,7 +750,7 @@ export const __Porffor_object_expr_initWithFlags = (obj: any, key: any, value: a
 
 // used for { get foo() {} }
 export const __Porffor_object_expr_get = (obj: any, key: any, get: any): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_makeObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   let set: any = undefined;
   if (entryPtr == -1) {
@@ -779,7 +780,7 @@ export const __Porffor_object_expr_get = (obj: any, key: any, get: any): void =>
 
 // used for { set foo(v) {} }
 export const __Porffor_object_expr_set = (obj: any, key: any, set: any): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_getObject(obj);
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_makeObject(obj);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   let get: any = undefined;
   if (entryPtr == -1) {
@@ -804,5 +805,138 @@ export const __Porffor_object_expr_set = (obj: any, key: any, set: any): void =>
   // flags = writable, enumerable, configurable, accessor
   Porffor.wasm.i32.store16(entryPtr,
     0b1111 + (Porffor.TYPES.number << 8),
+    0, 12);
+};
+
+
+// used for { foo: 5 }
+export const __Porffor_object_class_value = (obj: any, key: any, value: any): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_makeObject(obj);
+  let entryPtr: i32 = __Porffor_object_lookup(obj, key);
+  if (entryPtr == -1) {
+    // add new entry
+    // check if object is inextensible
+    if (__Porffor_object_isInextensible(obj)) {
+      throw new TypeError('Cannot define property, object is inextensible');
+    }
+
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
+    Porffor.wasm.i32.store(obj, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${obj}` + 5 + size * 14;
+
+    __Porffor_object_writeKey(entryPtr, key);
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, value, 0, 4);
+
+  // write new tail (value type + flags)
+  // flags = writable, enumerable, configurable, not accessor
+  Porffor.wasm.i32.store16(entryPtr,
+    0b1110 + (Porffor.wasm`local.get ${value+1}` << 8),
+    0, 12);
+};
+
+// used for { foo() {} }
+export const __Porffor_object_class_method = (obj: any, key: any, value: any): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_makeObject(obj);
+  let entryPtr: i32 = __Porffor_object_lookup(obj, key);
+  if (entryPtr == -1) {
+    // add new entry
+    // check if object is inextensible
+    if (__Porffor_object_isInextensible(obj)) {
+      throw new TypeError('Cannot define property, object is inextensible');
+    }
+
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
+    Porffor.wasm.i32.store(obj, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${obj}` + 5 + size * 14;
+
+    __Porffor_object_writeKey(entryPtr, key);
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, value, 0, 4);
+
+  // write new tail (value type + flags)
+  // flags = writable, enumerable, configurable, not accessor
+  Porffor.wasm.i32.store16(entryPtr,
+    0b1010 + (Porffor.wasm`local.get ${value+1}` << 8),
+    0, 12);
+};
+
+// used for { get foo() {} }
+export const __Porffor_object_class_get = (obj: any, key: any, get: any): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_makeObject(obj);
+  let entryPtr: i32 = __Porffor_object_lookup(obj, key);
+  let set: any = undefined;
+  if (entryPtr == -1) {
+    // add new entry
+    // check if object is inextensible
+    if (__Porffor_object_isInextensible(obj)) {
+      throw new TypeError('Cannot define property, object is inextensible');
+    }
+
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
+    Porffor.wasm.i32.store(obj, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${obj}` + 5 + size * 14;
+
+    __Porffor_object_writeKey(entryPtr, key);
+  } else {
+    // existing entry, keep set (if exists)
+    set = __Porffor_object_accessorSet(entryPtr);
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, __Porffor_object_packAccessor(get, set), 0, 4);
+
+  // write new tail (value type + flags)
+  // flags = writable, enumerable, configurable, accessor
+  Porffor.wasm.i32.store16(entryPtr,
+    0b1011 + (Porffor.TYPES.number << 8),
+    0, 12);
+};
+
+// used for { set foo(v) {} }
+export const __Porffor_object_class_set = (obj: any, key: any, set: any): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_makeObject(obj);
+  let entryPtr: i32 = __Porffor_object_lookup(obj, key);
+  let get: any = undefined;
+  if (entryPtr == -1) {
+    // add new entry
+    // check if object is inextensible
+    if (__Porffor_object_isInextensible(obj)) {
+      throw new TypeError('Cannot define property, object is inextensible');
+    }
+
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
+    Porffor.wasm.i32.store(obj, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${obj}` + 5 + size * 14;
+
+    __Porffor_object_writeKey(entryPtr, key);
+  } else {
+    // existing entry, keep set (if exists)
+    get = __Porffor_object_accessorGet(entryPtr);
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, __Porffor_object_packAccessor(get, set), 0, 4);
+
+  // write new tail (value type + flags)
+  // flags = writable, enumerable, configurable, accessor
+  Porffor.wasm.i32.store16(entryPtr,
+    0b1011 + (Porffor.TYPES.number << 8),
     0, 12);
 };

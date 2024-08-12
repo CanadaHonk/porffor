@@ -306,129 +306,127 @@ export const PrototypeFuncs = function() {
   this[TYPES.string].charCodeAt.local = Valtype.i32;
   this[TYPES.string].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 
-  if (Prefs.bytestring) {
-    this[TYPES.bytestring] = {
-      at: (pointer, length, wIndex, wType, iTmp, _, arrayShell) => {
-        const [ newOut, newPointer ] = arrayShell(1, 'i8');
+  this[TYPES.bytestring] = {
+    at: (pointer, length, wIndex, wType, iTmp, _, arrayShell) => {
+      const [ newOut, newPointer ] = arrayShell(1, 'i8');
 
-        return [
-          // setup new/out array and use pointer for store later
-          ...newOut,
+      return [
+        // setup new/out array and use pointer for store later
+        ...newOut,
 
-          ...wIndex,
-          Opcodes.i32_to_u,
-          [ Opcodes.local_tee, iTmp ],
-
-          // if index < 0: access index + array length
-          ...number(0, Valtype.i32),
-          [ Opcodes.i32_lt_s ],
-          [ Opcodes.if, Blocktype.void ],
-          [ Opcodes.local_get, iTmp ],
-          ...length.getCachedI32(),
-          [ Opcodes.i32_add ],
-          [ Opcodes.local_set, iTmp ],
-          [ Opcodes.end ],
-
-          // if still < 0 or >= length: return undefined
-          [ Opcodes.local_get, iTmp ],
-          ...number(0, Valtype.i32),
-          [ Opcodes.i32_lt_s ],
-
-          [ Opcodes.local_get, iTmp ],
-          ...length.getCachedI32(),
-          [ Opcodes.i32_ge_s ],
-          [ Opcodes.i32_or ],
-
-          [ Opcodes.if, Blocktype.void ],
-          ...number(UNDEFINED),
-          [ Opcodes.br, 1 ],
-          [ Opcodes.end ],
-
-          [ Opcodes.local_get, iTmp ],
-
-          ...pointer,
-          [ Opcodes.i32_add ],
-
-          // load current string ind {arg}
-          [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
-
-          // store to new string ind 0
-          [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
-
-          // return new string (pointer)
-          ...newPointer,
-          Opcodes.i32_from_u
-        ];
-      },
-
-      // todo: out of bounds properly
-      charAt: (pointer, length, wIndex, wType, _1, _2, arrayShell) => {
-        const [ newOut, newPointer ] = arrayShell(1, 'i8');
-
-        return [
-          // setup new/out array and use pointer for later
-          ...newOut,
-
-          ...wIndex,
-          Opcodes.i32_to,
-
-          ...pointer,
-          [ Opcodes.i32_add ],
-
-          // load current string ind {arg}
-          [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
-
-          // store to new string ind 0
-          [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
-
-          // return new string (page)
-          ...newPointer,
-          Opcodes.i32_from_u
-        ];
-      },
-
-      charCodeAt: (pointer, length, wIndex, wType, iTmp) => [
         ...wIndex,
-        Opcodes.i32_to,
+        Opcodes.i32_to_u,
+        [ Opcodes.local_tee, iTmp ],
 
-        ...(zeroChecks.charcodeat ? [] : [
-          [ Opcodes.local_set, iTmp ],
+        // if index < 0: access index + array length
+        ...number(0, Valtype.i32),
+        [ Opcodes.i32_lt_s ],
+        [ Opcodes.if, Blocktype.void ],
+        [ Opcodes.local_get, iTmp ],
+        ...length.getCachedI32(),
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_set, iTmp ],
+        [ Opcodes.end ],
 
-          // index < 0
-          ...(noUnlikelyChecks ? [] : [
-            [ Opcodes.local_get, iTmp ],
-            ...number(0, Valtype.i32),
-            [ Opcodes.i32_lt_s ],
-          ]),
+        // if still < 0 or >= length: return undefined
+        [ Opcodes.local_get, iTmp ],
+        ...number(0, Valtype.i32),
+        [ Opcodes.i32_lt_s ],
 
-          // index >= length
-          [ Opcodes.local_get, iTmp ],
-          ...length.getCachedI32(),
-          [ Opcodes.i32_ge_s ],
+        [ Opcodes.local_get, iTmp ],
+        ...length.getCachedI32(),
+        [ Opcodes.i32_ge_s ],
+        [ Opcodes.i32_or ],
 
-          ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
-          [ Opcodes.if, Blocktype.void ],
-          ...number(valtype === 'i32' ? -1 : NaN),
-          [ Opcodes.br, 1 ],
-          [ Opcodes.end ],
+        [ Opcodes.if, Blocktype.void ],
+        ...number(UNDEFINED),
+        [ Opcodes.br, 1 ],
+        [ Opcodes.end ],
 
-          [ Opcodes.local_get, iTmp ],
-        ]),
+        [ Opcodes.local_get, iTmp ],
 
         ...pointer,
         [ Opcodes.i32_add ],
 
         // load current string ind {arg}
         [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
-        Opcodes.i32_from_u
-      ]
-    };
 
-    this[TYPES.bytestring].at.local = Valtype.i32;
-    this[TYPES.bytestring].at.returnType = TYPES.bytestring;
-    this[TYPES.bytestring].charAt.returnType = TYPES.bytestring;
-    this[TYPES.bytestring].charCodeAt.returnType = TYPES.number;
-    this[TYPES.bytestring].charCodeAt.local = Valtype.i32;
-    this[TYPES.bytestring].charCodeAt.noPointerCache = zeroChecks.charcodeat;
-  }
+        // store to new string ind 0
+        [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
+
+        // return new string (pointer)
+        ...newPointer,
+        Opcodes.i32_from_u
+      ];
+    },
+
+    // todo: out of bounds properly
+    charAt: (pointer, length, wIndex, wType, _1, _2, arrayShell) => {
+      const [ newOut, newPointer ] = arrayShell(1, 'i8');
+
+      return [
+        // setup new/out array and use pointer for later
+        ...newOut,
+
+        ...wIndex,
+        Opcodes.i32_to,
+
+        ...pointer,
+        [ Opcodes.i32_add ],
+
+        // load current string ind {arg}
+        [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
+
+        // store to new string ind 0
+        [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
+
+        // return new string (page)
+        ...newPointer,
+        Opcodes.i32_from_u
+      ];
+    },
+
+    charCodeAt: (pointer, length, wIndex, wType, iTmp) => [
+      ...wIndex,
+      Opcodes.i32_to,
+
+      ...(zeroChecks.charcodeat ? [] : [
+        [ Opcodes.local_set, iTmp ],
+
+        // index < 0
+        ...(noUnlikelyChecks ? [] : [
+          [ Opcodes.local_get, iTmp ],
+          ...number(0, Valtype.i32),
+          [ Opcodes.i32_lt_s ],
+        ]),
+
+        // index >= length
+        [ Opcodes.local_get, iTmp ],
+        ...length.getCachedI32(),
+        [ Opcodes.i32_ge_s ],
+
+        ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
+        [ Opcodes.if, Blocktype.void ],
+        ...number(valtype === 'i32' ? -1 : NaN),
+        [ Opcodes.br, 1 ],
+        [ Opcodes.end ],
+
+        [ Opcodes.local_get, iTmp ],
+      ]),
+
+      ...pointer,
+      [ Opcodes.i32_add ],
+
+      // load current string ind {arg}
+      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
+      Opcodes.i32_from_u
+    ]
+  };
+
+  this[TYPES.bytestring].at.local = Valtype.i32;
+  this[TYPES.bytestring].at.returnType = TYPES.bytestring;
+  this[TYPES.bytestring].charAt.returnType = TYPES.bytestring;
+  this[TYPES.bytestring].charCodeAt.returnType = TYPES.number;
+  this[TYPES.bytestring].charCodeAt.local = Valtype.i32;
+  this[TYPES.bytestring].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 };
