@@ -27,7 +27,7 @@ class TodoError extends Error {
   }
 }
 const todo = (scope, msg, expectsValue = undefined) => {
-  switch (Prefs.todoTime ?? 'runtime') {
+  switch (Options.todoTime ?? 'runtime') {
     case 'compile':
       throw new TodoError(msg);
 
@@ -314,7 +314,7 @@ const lookupName = (scope, _name) => {
   return [ undefined, undefined ];
 };
 
-const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysValueInternalThrows) => [
+const internalThrow = (scope, constructor, message, expectsValue = Options.alwaysValueInternalThrows) => [
   ...generate(scope, {
     type: 'ThrowStatement',
     argument: {
@@ -326,7 +326,7 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
       arguments: [
         {
           type: 'Literal',
-          value: Prefs.d ? `${message} (in ${scope.name})` : message
+          value: Options.debugInfo ? `${message} (in ${scope.name})` : message
         }
       ]
     }
@@ -582,7 +582,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
       ...(!intOut || (intIn && intOut) ? [] : [ Opcodes.i32_to_u ])
     ];
-  })(forceTruthyMode ?? Prefs.truthy ?? 'full');
+  })(forceTruthyMode ?? Options.truthy ?? 'full');
 
   return [
     ...wasm,
@@ -645,7 +645,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
       ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
       ...(intOut ? [] : [ Opcodes.i32_from_u ])
     ];
-  })(forceTruthyMode ?? Prefs.truthy ?? 'full');
+  })(forceTruthyMode ?? Options.truthy ?? 'full');
 
   return [
     ...wasm,
@@ -1261,7 +1261,7 @@ const getNodeType = (scope, node) => {
         if (scope.locals['#last_type']) return getLastType(scope);
 
         // presume
-        if (Prefs.warnAssumedType) console.warn(`Indirect call assumed to be number`);
+        if (Options.warnAssumedType) console.warn(`Indirect call assumed to be number`);
         return TYPES.number;
       }
 
@@ -1299,7 +1299,7 @@ const getNodeType = (scope, node) => {
       if (scope.locals['#last_type']) return getLastType(scope);
 
       // presume
-      if (Prefs.warnAssumedType) console.warn(`Call to ${name} assumed to be number`);
+      if (Options.warnAssumedType) console.warn(`Call to ${name} assumed to be number`);
       return TYPES.number;
 
       // let protoFunc;
@@ -1382,7 +1382,7 @@ const getNodeType = (scope, node) => {
       if (node.operator === '!') return TYPES.boolean;
       if (node.operator === 'void') return TYPES.undefined;
       if (node.operator === 'delete') return TYPES.boolean;
-      if (node.operator === 'typeof') return Prefs.bytestring ? TYPES.bytestring : TYPES.string;
+      if (node.operator === 'typeof') return Options.bytestring ? TYPES.bytestring : TYPES.string;
 
       return TYPES.number;
     }
@@ -1396,7 +1396,7 @@ const getNodeType = (scope, node) => {
 
       if (name === 'length') {
         if (hasFuncWithName(node.object.name)) return TYPES.number;
-        if (Prefs.fastLength) return TYPES.number;
+        if (Options.fastLength) return TYPES.number;
       }
 
       const objectKnownType = knownType(scope, getNodeType(scope, node.object));
@@ -1412,7 +1412,7 @@ const getNodeType = (scope, node) => {
       if (scope.locals['#last_type']) return getLastType(scope);
 
       // presume
-      if (Prefs.warnAssumedType) console.warn(`Member access to field .${name} assumed to be number`);
+      if (Options.warnAssumedType) console.warn(`Member access to field .${name} assumed to be number`);
       return TYPES.number;
     }
 
@@ -1444,7 +1444,7 @@ const getNodeType = (scope, node) => {
     if (scope.locals['#last_type']) return getLastType(scope);
 
     // presume
-    if (Prefs.warnAssumedType) console.warn(`AST node ${node.type} assumed to be number`);
+    if (Options.warnAssumedType) console.warn(`AST node ${node.type} assumed to be number`);
     return TYPES.number;
   })();
 
@@ -1532,7 +1532,7 @@ const generateExp = (scope, decl) => {
     }
   }
 
-  const out = generate(scope, expression, undefined, undefined, Prefs.optUnused);
+  const out = generate(scope, expression, undefined, undefined, Options.optUnused);
   disposeLeftover(out);
 
   return out;
@@ -2168,11 +2168,11 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ];
       }
     } else {
-      if (!Prefs.indirectCalls) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
+      if (!Options.indirectCalls) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
 
       // todo: only works when function uses typedParams and typedReturns
 
-      const indirectMode = Prefs.indirectCallMode ?? 'vararg';
+      const indirectMode = Options.indirectCallMode ?? 'vararg';
       // options: vararg, strict
       // - strict: simpler, smaller size usage, no func lut needed.
       //   ONLY works when arg count of call == arg count of function being called
@@ -2187,7 +2187,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       let locals = [];
 
       if (indirectMode === 'vararg') {
-        const minArgc = Prefs.indirectCallMinArgc ?? 5;
+        const minArgc = Options.indirectCallMinArgc ?? 5;
 
         if (args.length < minArgc) {
           args = args.concat(new Array(minArgc - args.length).fill(DEFAULT_VALUE()));
@@ -2718,14 +2718,14 @@ const brTable = (input, bc, returns) => {
 let typeswitchDepth = 0;
 
 const typeSwitch = (scope, type, bc, returns = valtypeBinary, allowFallThrough = false) => {
-  if (!Prefs.bytestring) delete bc[TYPES.bytestring];
+  if (!Options.bytestring) delete bc[TYPES.bytestring];
 
   const known = knownType(scope, type);
   if (known != null) {
     return bc[known] ?? bc.default;
   }
 
-  if (Prefs.typeswitchBrtable) {
+  if (Options.typeswitchBrtable) {
     if (allowFallThrough) throw new Error(`Fallthrough is not currently supported with --typeswitch-brtable`);
     return brTable(type, bc, returns);
   }
@@ -2745,7 +2745,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, allowFallThrough =
   }
 
 
-  const tmp = localTmp(scope, `#typeswitch_tmp${typeswitchDepth}${Prefs.typeswitchUniqueTmp ? uniqId() : ''}`, Valtype.i32);
+  const tmp = localTmp(scope, `#typeswitch_tmp${typeswitchDepth}${Options.typeswitchUniqueTmp ? uniqId() : ''}`, Valtype.i32);
   const out = [
     ...type,
     [ Opcodes.local_set, tmp ],
@@ -2888,7 +2888,7 @@ const extractTypeAnnotation = decl => {
   const typeName = type;
   type = typeAnnoToPorfType(type);
 
-  if (type === TYPES.bytestring && !Prefs.bytestring) type = TYPES.string;
+  if (type === TYPES.bytestring && !Options.bytestring) type = TYPES.string;
 
   // if (decl.name) console.log(decl.name, { type, elementType });
 
@@ -4567,7 +4567,7 @@ const generateLabel = (scope, decl) => {
 const generateThrow = (scope, decl) => {
   scope.throws = true;
 
-  const exceptionMode = Prefs.exceptionMode ?? 'lut';
+  const exceptionMode = Options.exceptionMode ?? 'lut';
   if (exceptionMode === 'lut') {
     let message = decl.argument.value, constructor = null;
 
@@ -4831,7 +4831,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
       [ Opcodes.local_set, tmp ]
     );
 
-    if (Prefs.runtimeAllocLog) out.push(
+    if (Options.runtimeAllocLog) out.push(
       ...printStaticStr(`${name}: `),
 
       [ Opcodes.local_get, tmp ],
@@ -4844,7 +4844,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
     pointer = [ [ Opcodes.local_get, tmp ] ];
 
-    if (Prefs.data && useRawElements) {
+    if (Options.data && useRawElements) {
       const data = makeData(scope, elements, null, itemType, initEmpty);
       if (data) {
         // init data
@@ -4873,18 +4873,18 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
 
     const local = global ? globals[name] : scope.locals?.[name];
     if (
-      Prefs.data && useRawElements &&
+      Options.data && useRawElements &&
       name !== '#member_prop' && name !== '#member_prop_assign' &&
       (!globalThis.precompile || !global)
     ) {
-      if (Prefs.activeData && firstAssign) {
+      if (Options.activeData && firstAssign) {
         makeData(scope, elements, allocator.lastName, itemType, initEmpty);
 
         // local value as pointer
         return [ number(rawPtr, intOut ? Valtype.i32 : valtypeBinary), pointer ];
       }
 
-      if (Prefs.passiveData) {
+      if (Options.passiveData) {
         const data = makeData(scope, elements, null, itemType, initEmpty);
         if (data) {
           // init data
@@ -5030,7 +5030,7 @@ const loadArray = (scope, array, index) => {
 };
 
 const byteStringable = str => {
-  if (!Prefs.bytestring) return false;
+  if (!Options.bytestring) return false;
 
   for (let i = 0; i < str.length; i++) {
     if (str.charCodeAt(i) > 0xFF) return false;
@@ -5041,7 +5041,7 @@ const byteStringable = str => {
 
 const makeString = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
   const rawElements = new Array(str.length);
-  let byteStringable = Prefs.bytestring;
+  let byteStringable = Options.bytestring;
   for (let i = 0; i < str.length; i++) {
     const c = str.charCodeAt(i);
     rawElements[i] = c;
@@ -5230,7 +5230,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       Opcodes.i32_to_u,
     ];
 
-    if (Prefs.fastLength) {
+    if (Options.fastLength) {
       // presume valid length object
       return [
         ...out,
@@ -5770,7 +5770,7 @@ const objectHack = node => {
       const name = '__' + objectName + '_' + node.property.name;
       if ((!hasFuncWithName(name) && !Object.hasOwn(builtinVars, name)) && (hasFuncWithName(objectName) || Object.hasOwn(builtinVars, objectName))) return abortOut;
 
-      if (Prefs.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
+      if (Options.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
 
       return {
         type: 'Identifier',
@@ -5961,7 +5961,7 @@ const generateFunc = (scope, decl) => {
 
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
-    if (type != null && !Prefs.indirectCalls) {
+    if (type != null && !Options.indirectCalls) {
     // if (type != null) {
       func.returnType = type;
       func.returns = [ valtypeBinary ];
@@ -6243,7 +6243,7 @@ export default program => {
   builtinFuncs = new BuiltinFuncs();
   builtinVars = new BuiltinVars({ builtinFuncs });
   prototypeFuncs = new PrototypeFuncs();
-  allocator = makeAllocator(Prefs.allocator ?? 'static');
+  allocator = makeAllocator(Options.allocator ?? 'static');
 
   const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
   objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
@@ -6255,14 +6255,14 @@ export default program => {
     body: program.body
   };
 
-  if (Prefs.astLog) console.log(JSON.stringify(program.body.body, null, 2));
+  if (Options.astLog) console.log(JSON.stringify(program.body.body, null, 2));
 
   const [ main ] = generateFunc({}, program);
 
   delete globals['#ind'];
 
   // if wanted and blank main func and other exports, remove it
-  if (Prefs.rmBlankMain && main.wasm.length === 0 && funcs.some(x => x.export)) funcs.splice(main.index - importedFuncs.length, 1);
+  if (Options.rmBlankMain && main.wasm.length === 0 && funcs.some(x => x.export)) funcs.splice(main.index - importedFuncs.length, 1);
 
   // make ~empty funcs for never generated funcs
   // todo: these should just be deleted once able

@@ -15,7 +15,7 @@ export const setup = () => {
     'lengthNoTmp', // use duplicated inline code instead of tmp for .length
     'cyclone', // enable cyclone pre-evaler
   ]) {
-    Prefs[x] = Prefs[x] === false ? false : true;
+    Options[x] = Options[x] ?? true;
   }
 };
 
@@ -24,7 +24,7 @@ export const run = obj => {
 
   let starts = {};
   const time = (id, msg) => {
-    if (!Prefs.pgoLog) return;
+    if (!Options.pgoLog) return;
 
     if (!starts[id]) {
       process.stdout.write(msg);
@@ -80,11 +80,11 @@ export const run = obj => {
   time(1, `running with PGO logging...`);
 
   let activeFunc = null, abort = false;
+  const profileCompilerTemp = Options.profileCompiler;
   try {
     obj.wasm = assemble(obj.funcs, obj.globals, obj.tags, obj.pages, obj.data, obj.flags, true);
 
-    Prefs._profileCompiler = Prefs.profileCompiler;
-    Prefs.profileCompiler = false;
+    Options.profileCompiler = false;
 
     const { exports } = wrap(obj, [], {
       y: n => {
@@ -95,13 +95,9 @@ export const run = obj => {
         localData[activeFunc][i].push(n);
       },
       w: (ind, outPtr) => { // readArgv
-        const pgoInd = process.argv.indexOf('--pgo');
-        let args = process.argv.slice(pgoInd);
-        args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
-
-        const str = args[ind - 1];
+        const str = Options.additionalArgs[ind - 1];
         if (pgoInd === -1 || !str) {
-          if (Prefs.pgoLog) console.log('\nPGO warning: script was expecting arguments, please specify args to use for PGO after --pgo arg');
+          if (Options.pgoLog) console.log('\nPGO warning: script was expecting arguments, please specify args to use for PGO after --pgo arg');
           return -1;
         }
 
@@ -118,7 +114,7 @@ export const run = obj => {
     throw e;
   }
 
-  Prefs.profileCompiler = Prefs._profileCompiler;
+  Options.profileCompiler = profileCompilerTemp;
 
   for (const x of funcs) {
     const wasmFunc = wasmFuncs.find(y => y.name === x.name);
@@ -182,23 +178,23 @@ export const run = obj => {
     func.integerOnlyF64s = integerOnlyF64s;
     func.domains = domains;
 
-    log += `  ${func.name}: identified ${counts[0]}/${total} locals as consistent${Prefs.verbosePgo ? ':' : ''}\n`;
-    if (Prefs.verbosePgo) {
+    log += `  ${func.name}: identified ${counts[0]}/${total} locals as consistent${Options.verbosePgo ? ':' : ''}\n`;
+    if (Options.verbosePgo) {
       for (let j = func.params.length; j < localData[i].length; j++) {
         log += `    ${consistents[j] !== false ? '\u001b[92m' : '\u001b[91m'}${localKeys[j]}\u001b[0m: ${new Set(localData[i][j]).size} unique values set\n`;
       }
     }
 
-    log += `  ${func.name}: identified ${counts[1]}/${localValues.reduce((acc, x) => acc + (x.type === Valtype.f64 ? 1 : 0), 0)} f64 locals as integer usage only${Prefs.verbosePgo ? ':' : ''}\n`;
-    if (Prefs.verbosePgo) {
+    log += `  ${func.name}: identified ${counts[1]}/${localValues.reduce((acc, x) => acc + (x.type === Valtype.f64 ? 1 : 0), 0)} f64 locals as integer usage only${Options.verbosePgo ? ':' : ''}\n`;
+    if (Options.verbosePgo) {
       for (let j = func.params.length; j < localData[i].length; j++) {
         if (localValues[j].type !== Valtype.f64) continue;
         log += `    ${integerOnlyF64s[j] ? '\u001b[92m' : '\u001b[91m'}${localKeys[j]}\u001b[0m\n`;
       }
     }
 
-    log += `  ${func.name}: identified ${counts[2]}/${total} local non-consistent domains${Prefs.verbosePgo ? ':' : ''}\n`;
-    if (Prefs.verbosePgo) {
+    log += `  ${func.name}: identified ${counts[2]}/${total} local non-consistent domains${Options.verbosePgo ? ':' : ''}\n`;
+    if (Options.verbosePgo) {
       for (let j = func.params.length; j < localData[i].length; j++) {
         if (domains[j] === false) continue;
         log += `    ${domains[j] !== false ? '\u001b[92m' : '\u001b[91m'}${localKeys[j]}\u001b[0m: ${domains[j] !== false ? `${domains[j][0]} ≤ x ≤ ${domains[j][1]}` : ''}\n`;

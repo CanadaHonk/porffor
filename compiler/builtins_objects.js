@@ -2,7 +2,7 @@ import { Blocktype, Opcodes, PageSize, Valtype } from './wasmSpec.js';
 import { TYPES } from './types.js';
 import { number } from './embedding.js';
 
-export default function({ builtinFuncs }, Prefs) {
+export default function({ builtinFuncs }, Options) {
   const makePrefix = name => (name.startsWith('__') ? '' : '__') + name + '_';
 
   const done = new Set();
@@ -289,7 +289,7 @@ export default function({ builtinFuncs }, Prefs) {
     }, enumerableGlobals)
   });
 
-  if (Prefs.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(this))) {
+  if (Options.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(this))) {
     if (!x.startsWith('__')) continue;
 
     const name = x.split('_').slice(2, -1).join('_');

@@ -4,8 +4,7 @@ import compile from '../compiler/wrap.js';
 import Byg from '../byg/index.js';
 import fs from 'node:fs';
 
-const file = process.argv.slice(2).find(x => x[0] !== '-');
-let source = fs.readFileSync(file, 'utf8');
+let source = fs.readFileSync(Options.file, 'utf8');
 
 const originalLines = source.split('\n');
 
@@ -43,7 +42,7 @@ let lastLine;
 let output = '';
 
 try {
-  const { exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
+  const { exports } = compile(source, Options.module ? [ 'module' ] : [], {
     y: n => {
       if (callStarts[callStarts.length - 1] === n - 1) {
         // end of call
@@ -64,7 +63,7 @@ try {
         switch (byg(
           paused,
           n,
-          `\x1b[1mporffor debugger\x1b[22m: ${file}@${n + 1}    ${callStack.join('->')}`,
+          `\x1b[1mporffor debugger\x1b[22m: ${Options.file}@${n + 1}    ${callStack.join('->')}`,
           [
             {
               x: termWidth - 1 - 40 - 6,

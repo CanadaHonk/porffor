@@ -37,7 +37,7 @@ export class StaticAllocator {
   alloc({ scope, pages }, name, { itemType }) {
     let scopeName = scope.name;
     if (globalThis.precompile && scopeName === 'main') scopeName = globalThis.precompile;
-    const reason = `${this.allocType(itemType)}: ${Prefs.scopedPageNames ? (scopeName + '/') : ''}${name}`;
+    const reason = `${this.allocType(itemType)}: ${Options.scopedPageNames ? (scopeName + '/') : ''}${name}`;
 
     this.lastName = reason;
     if (pages.has(reason)) {
@@ -63,7 +63,7 @@ export class StaticAllocator {
 
 export class GrowAllocator {
   constructor() {
-    Prefs.rmUnusedTypes = false;
+    Options.rmUnusedTypes = false;
   }
 
   alloc() {
@@ -81,11 +81,11 @@ export class GrowAllocator {
 
 export class ChunkAllocator {
   constructor(chunkSize) {
-    Prefs.rmUnusedTypes = false;
+    Options.rmUnusedTypes = false;
 
     // 64KiB * chunk size each growth
     // 16: 1MiB chunks
-    this.chunkSize = chunkSize ?? Prefs.chunkAllocatorSize ?? 16;
+    this.chunkSize = chunkSize ?? Options.chunkAllocatorSize ?? 16;
   }
 
   alloc({ asmFunc, funcIndex }) {
