@@ -833,8 +833,10 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.boolean,
     wasm: [
       [ Opcodes.local_get, 0 ],
-      ...number(0),
-      [ Opcodes.f64_le ],
+      [ Opcodes.i64_reinterpret_f64 ],
+      // IEEE representation of -Infinity, prevents -NaN to be counted as negative
+      ...number(-0x10_0000_0000_0000n, Valtype.i64),
+      [ Opcodes.i64_le_s ],
       Opcodes.i32_from
     ]
   };

@@ -42,6 +42,7 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
       return undefined;
 
     case TYPES.boolean: return Boolean(value);
+    case TYPES.bigint: return new BigInt64Array(new Float64Array([value]).buffer)[0];
     case TYPES.object: {
       if (value === 0 || checkOOB(memory, value)) return null;
 

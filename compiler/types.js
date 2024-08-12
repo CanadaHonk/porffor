@@ -74,6 +74,8 @@ registerInternalType('WeakMap');
 
 registerInternalType('Promise');
 
+registerInternalType('BigInt', [], TYPES.bigint);
+
 if (Prefs.largestTypes) {
   const typeKeys = Object.keys(TYPES);
   const typeVals = Object.values(TYPES);
