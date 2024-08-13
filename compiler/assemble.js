@@ -58,7 +58,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   const getType = (params, returns) => {
     const hash = `${params.join(',')}_${returns.join(',')}`;
     if (Prefs.optLog) log('assemble', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
-    if (optLevel >= 1 && typeCache[hash] !== undefined) return typeCache[hash];
+    if (typeCache[hash] !== undefined) return typeCache[hash];
 
     const type = [ FuncType, ...encodeVector(params), ...encodeVector(returns) ];
     const idx = types.length;
