@@ -5191,6 +5191,8 @@ const countParams = (func, name = undefined) => {
 };
 
 const countLength = (func, name = undefined) => {
+  if (func && func.jsLength != null) return func.jsLength;
+
   name ??= func.name;
 
   let count = countParams(func, name);
@@ -5983,12 +5985,14 @@ const generateFunc = (scope, decl) => {
   const prelude = [];
   const defaultValues = {};
   const destructuredArgs = {};
+  let jsLength = 0;
   for (let i = 0; i < params.length; i++) {
     let name;
     const x = params[i];
     switch (x.type) {
       case 'Identifier': {
         name = x.name;
+        jsLength++;
         break;
       }
 
@@ -6014,6 +6018,7 @@ const generateFunc = (scope, decl) => {
       default:
         name = '#arg_dstr' + i;
         destructuredArgs[name] = x;
+        jsLength++;
         break;
     }
 
@@ -6044,6 +6049,7 @@ const generateFunc = (scope, decl) => {
   }
 
   func.params = Object.values(func.locals).map(x => x.type);
+  func.jsLength = jsLength;
 
   // force generate for main
   if (name === 'main') func.generate();

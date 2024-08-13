@@ -158,7 +158,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       bytes.push(argc % 256, (argc / 256 | 0) % 256);
 
       // userland exposed .length
-      let length = argc;
+      let length = func.jsLength ?? argc;
       // remove _this from internal prototype funcs
       if (func.internal && name.includes('_prototype_')) length--;
 
