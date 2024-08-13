@@ -64,8 +64,7 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 - `--valtype=i32|i64|f64` (default: `f64`) to set valtype
 - `-O0` to disable opt
 - `-O1` (default) to enable basic opt (simplify insts, treeshake wasm imports)
-- `-O2` to enable advanced opt (inlining). unstable!
-- `-O3` to enable advanceder opt (precompute const math). unstable!
+- `-O2` to enable advanced opt (partial evaluation). unstable!
 
 ## Current limitations
 - Limited async support
