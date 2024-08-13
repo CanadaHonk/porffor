@@ -473,9 +473,9 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
           if (lastCond) {
             vals.push(`!(${removeBrackets(vals.pop())})`);
           } else {
-            let cond = '(' + removeBrackets(vals.pop());
-            if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} == 0e+0`;
-              else cond += ') == 0';
+            let cond = '((' + removeBrackets(vals.pop());
+            if (cond.startsWith(`((i32)`)) cond = `${cond.slice(5)}) == 0e+0)`;
+              else cond += ') == 0)';
             vals.push(cond);
           }
           lastCond = true;
