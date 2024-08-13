@@ -188,10 +188,10 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     }
     return out;
   };
-  const sanitize = str => {
-    if (str === 'char') return '_' + str;
 
-    return str.replace(/[^0-9a-zA-Z_]/g, _ => codeToSanitizedStr(_.charCodeAt(0)));
+  const sanitize = (str) => {
+    if (str === 'char') return '_' + str;
+    return str.replace(/[^0-9a-zA-Z_]/g, (_) => codeToSanitizedStr(_.charCodeAt(0)));
   };
 
   for (const x in invGlobals) {
@@ -207,9 +207,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   for (const x in globals) {
     const g = globals[x];
-
-    out += `${CValtype[g.type]} ${sanitize(x)} = ${g.init ?? 0}`;
-    out += ';\n';
+    out += `${CValtype[g.type]} ${sanitize(x)} = ${g.init ?? 0};\n`;
   }
 
   if (pages.size > 0) {
