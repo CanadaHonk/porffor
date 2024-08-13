@@ -204,19 +204,21 @@ import { number } from './embedding.js';
 export const BuiltinFuncs = function() {
 ${funcs.map(x => {
   const rewriteWasm = wasm => {
-    const str = JSON.stringify(wasm.filter(x => x.length && x[0] != null), (k, v) => {
-        if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
-        return v;
-      })
+    const str = JSON.stringify(wasm.filter(x => x.length && (x[0] != null || typeof x[1] === 'string')), (k, v) => {
+      if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
+      return v;
+    })
       .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(_,'${reason}','${type}'),${valtype})`)
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode},'${name}',${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)
       .replace(/\[68,"funcref","(.*?)"]/g, (_, name) => `...funcRef('${name}')`)
       .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(_,'${constructor}',\`${message}\`)`)
-      .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`);
+      .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`)
+      .replace(/\[null,"typeswitch case start",\[(.*?)\]\],/g, (_, types) => `...t([${types}],()=>[`)
+      .replaceAll(',[null,"typeswitch case end"]', '])');
 
-    return `(_,{${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('funcRef(') ? 'funcRef,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
+    return `(_,{${str.includes('...t(') ? 't,' : ''}${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('funcRef(') ? 'funcRef,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
   };
 
   const locals = Object.entries(x.locals).sort((a,b) => a[1].idx - b[1].idx)
@@ -224,10 +226,13 @@ ${funcs.map(x => {
   // todo: check for other identifier unsafe characters
   const name = x.name.includes('#') ? `['${x.name}']` : `.${x.name}`;
 
+  const usedTypes = [...(x.usedTypes ?? [])].filter(x => ![ TYPES.empty, TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ].includes(x));
+
   return `this${name} = {
 wasm:${rewriteWasm(x.wasm)},
 params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.returns)},${x.returnType != null ? `returnType:${JSON.stringify(x.returnType)}` : 'typedReturns:1'},
 locals:${JSON.stringify(locals.slice(x.params.length).map(x => x[1].type))},localNames:${JSON.stringify(locals.map(x => x[0]))},
+${usedTypes.length > 0 ? `usedTypes:${JSON.stringify(usedTypes)},` : ''}
 ${x.globalInits ? `globalInits:{${Object.keys(x.globalInits).map(y => `${y}:${rewriteWasm(x.globalInits[y])}`).join(',')}},` : ''}${x.data && Object.keys(x.data).length > 0 ? `data:${JSON.stringify(x.data)},` : ''}
 ${x.table ? `table:1,` : ''}${x.constr ? `constr:1,` : ''}${x.hasRestArgument ? `hasRestArgument:1,` : ''}
 };`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');

@@ -45,11 +45,6 @@ export class StaticAllocator {
       return number(ptr, Valtype.i32);
     }
 
-    if (reason.startsWith('array:')) pages.hasArray = true;
-    if (reason.startsWith('string:')) pages.hasString = true;
-    if (reason.startsWith('bytestring:')) pages.hasByteString = true;
-    if (reason.includes('string:')) pages.hasAnyString = true;
-
     let ind = pages.size;
     pages.set(reason, { ind, type: itemType });
 
