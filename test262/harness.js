@@ -14,7 +14,9 @@
 //   agent: {}
 // };
 
-function Test262Error() {}
+function Test262Error(message) {
+  this.message = message;
+}
 
 var __Test262Error_thrower = function (message) {
   throw new Test262Error(message);
@@ -25,7 +27,7 @@ var $DONOTEVALUATE = () => {
 };
 
 /// assert.js
-var assert = mustBeTrue => {
+var assert = (mustBeTrue) => {
   if (mustBeTrue === true) {
     return;
   }
@@ -40,14 +42,16 @@ var __assert_throws = (expectedErrorConstructor, func) => {
 
   try {
     func();
-  } catch {
-    return;
+  } catch (e) {
+    if (e instanceof expectedErrorConstructor) {
+      return;
+    }
   }
 
   throw new Test262Error('assert.throws failed');
 };
 
-var __assert__isSameValue = (a, b) => {
+var __assert_isSameValue = (a, b) => {
   if (a === b) {
     // Handle +/-0 vs. -/+0
     return a !== 0 || 1 / a === 1 / b;
@@ -58,7 +62,7 @@ var __assert__isSameValue = (a, b) => {
 };
 
 var __assert_sameValue = (actual, expected) => {
-  if (assert._isSameValue(actual, expected)) {
+  if (__assert_isSameValue(actual, expected)) {
     return;
   }
 
@@ -66,7 +70,7 @@ var __assert_sameValue = (actual, expected) => {
 };
 
 var __assert_notSameValue = (actual, unexpected) => {
-  if (!assert._isSameValue(actual, unexpected)) {
+  if (!__assert_isSameValue(actual, unexpected)) {
     return;
   }
 
@@ -83,18 +87,18 @@ var __compareArray_isSameValue = (a, b) => {
 };
 
 var compareArray = (a, b) => {
-  // if either are nullish
+  // If either are nullish
   if (a == null || b == null) return false;
 
   // megahack: all arrays from now on will be >0 pointer
   const _hack = '';
-
+  
   if (b.length !== a.length) {
     return false;
   }
 
   for (var i = 0; i < a.length; i++) {
-    if (!compareArray.isSameValue(b[i], a[i])) {
+    if (!__compareArray_isSameValue(b[i], a[i])) {
       return false;
     }
   }
@@ -109,7 +113,7 @@ var __assert_compareArray = (actual, expected) => {
 };
 
 /// isConstructor.js
-var isConstructor = f => {
+var isConstructor = (f) => {
   if (typeof f !== "function") {
     throw new Test262Error("isConstructor invoked with a non-function value");
   }
@@ -171,9 +175,9 @@ var NaNs = [
   NaN,
   Number.NaN,
   NaN * 0,
-  0/0,
-  Infinity/Infinity,
-  -(0/0)
+  0 / 0,
+  Infinity / Infinity,
+  -(0 / 0)
 ];
 
 /// testTypedArray.js
@@ -252,7 +256,7 @@ function testTypedArrayConversions(byteConversionValues, fn) {
     __ta = TA;
     __taName = TA.name.slice(0, -5);
 
-    return __values.forEach(function(value, index) {
+    __values.forEach(function(value, index) {
       var exp = __expected[__taName][index];
       var initial = 0;
       if (exp === 0) {
@@ -328,7 +332,6 @@ function verifyProperty(obj, name, desc, options) {
     if (originalDesc !== undefined) {
       throw new Test262Error('verifyProperty: expected undefined descriptor');
     }
-
     return true;
   }
 
@@ -346,7 +349,7 @@ function verifyProperty(obj, name, desc, options) {
       throw new Test262Error('enumerable fail');
     }
   }
-
+  
   if (Object.hasOwn(desc, 'writable')) {
     if (desc.writable !== originalDesc.writable ||
         desc.writable !== isWritable(obj, name)) {
@@ -379,7 +382,6 @@ function verifyWritable(obj, name, verifyProp, value) {
     if (!Object.getOwnPropertyDescriptor(obj, name).writable)
       throw new Test262Error('propertyHelper verifyWritable failed');
   }
-
   if (!isWritable(obj, name, verifyProp, value)) {
     throw new Test262Error('propertyHelper verifyWritable failed');
   }
