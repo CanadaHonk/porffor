@@ -1052,9 +1052,9 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
 
   let baseGlobalIdx, i = 0;
   for (const type of globalTypes) {
-    if (baseGlobalIdx === undefined) baseGlobalIdx = globals['#ind'];
+    let obj = globals[globalNames[i] ?? `${name}_global_${i}`] ??= { idx: globals['#ind']++, type, init: globalInits[i] ?? 0 };
 
-    globals[globalNames[i] ?? `${name}_global_${i}`] = { idx: globals['#ind']++, type, init: globalInits[i] ?? 0 };
+    if (baseGlobalIdx === undefined) baseGlobalIdx = obj.idx;
     i++;
   }
 

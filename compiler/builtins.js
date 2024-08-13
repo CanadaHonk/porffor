@@ -911,27 +911,42 @@ export const BuiltinFuncs = function() {
     returns: [ Valtype.i32 ],
     wasm: (_, { builtin }) => [
       ...number(pageSize, Valtype.i32),
-      [16,builtin('__Porffor_allocateBytes')]
+      [ Opcodes.call, builtin('__Porffor_allocateBytes') ]
     ]
   };
 
   this.__Porffor_allocateBytes = {
     params: [ Valtype.i32 ],
     locals: [ Valtype.i32, Valtype.i32, Valtype.i32 ],
-    globals: [ Valtype.i32 ],
-    globalNames: [ 'currentPtr' ],
-    globalInits: [ PageSize ], // init to pageSize so we always allocate on first call
+    globals: [ Valtype.i32, Valtype.i32 ],
+    globalNames: [ '#alloc#currentPtr', '#alloc#heapBeginPtr' ],
+    globalInits: [ 0, 0 ],
     returns: [ Valtype.i32 ],
     returnType: TYPES.number,
     wasm: [
       // This code was written with assistance from LLVM
+      [ Opcodes.global_get, 1 ], // heapBeginPtr
+      [ Opcodes.if, Blocktype.void ],
+        [ Opcodes.memory_size, 0 ],
+        [ Opcodes.local_set, 1 ], // memorySize
+        [ Opcodes.global_get, 0 ], // currentPtr
+        [ Opcodes.local_set, 2 ], // oldPtr
+      [ Opcodes.else ],
+        [ Opcodes.memory_size, 0 ],
+        [ Opcodes.local_tee, 1 ], // memorySize
+        ...number(PageSizeBits, Valtype.i32),
+        [ Opcodes.i32_shl ],
+        [ Opcodes.local_tee, 2 ], // oldPtr
+        [ Opcodes.global_set, 1 ], // heapBeginPtr
+      [ Opcodes.end ],
+
       // oldPtr = (currentPtr + 15) & ~15 for alignment
-      [ Opcodes.global_get, 0 ], // currentPtr
+      [ Opcodes.local_get, 2 ], // currentPtr
       ...number(15, Valtype.i32),
       [ Opcodes.i32_add ],
       ...number(~15, Valtype.i32),
       [ Opcodes.i32_and ],
-      [ Opcodes.local_tee, 1 ], // oldPtr
+      [ Opcodes.local_tee, 2 ], // oldPtr
 
       // currentPtr = newPtr = oldPtr + bytesToAllocate
       [ Opcodes.local_get, 0 ], // bytesToAllocate
@@ -949,18 +964,18 @@ export const BuiltinFuncs = function() {
         [ Opcodes.local_tee, 0 ], // requiredPages
 
         // if requiredPages <= memory.size(0): break
-        [ Opcodes.local_tee, 2 ], // memorySize
+        [ Opcodes.local_get, 1 ], // memorySize
         [ Opcodes.i32_le_u ],
         [ Opcodes.br_if, 0 ],
 
         // memory.grow(0, requiredPages - memory.size(0))
         [ Opcodes.local_get, 0 ],
-        [ Opcodes.local_get, 2 ],
+        [ Opcodes.local_get, 1 ],
         [ Opcodes.i32_sub ],
         [ Opcodes.memory_grow, 0 ],
         [ Opcodes.drop ],
       [ Opcodes.end ],
-      [ Opcodes.local_get, 1 ]
+      [ Opcodes.local_get, 2 ]
     ]
   };
 
@@ -977,11 +992,14 @@ export const BuiltinFuncs = function() {
   // DO NOT use this within normal code.
   // This will reset the entire memory and can cause problems to ALL pointer types (strings, arrays, etc.)
   this.__Porffor_freeEverything = {
-    params: [ Valtype.i32 ],
+    params: [],
+    globals: [ Valtype.i32, Valtype.i32 ],
+    globalNames: [ '#alloc#currentPtr', '#alloc#heapBeginPtr' ],
+    globalInits: [ 0, 0 ],
     returns: [],
     wasm: (_, { glbl }) => [
-      ...number(PageSize),
-      ...glbl(Opcodes.global_set, 'currentPtr', Valtype.i32)
+      [ Opcodes.global_get, 1 ],
+      [ Opcodes.global_set, 0 ]
     ]
   };
 
