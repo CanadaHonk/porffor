@@ -274,7 +274,7 @@ Currently, Porffor is seriously limited in features and functionality, however i
 - More in future probably?
 
 ## Todo
-No particular order and no guarentees, just what could happen soon™
+No particular order and no guarantees, just what could happen soon™
 
 - Asur
   - Support memory
@@ -328,7 +328,7 @@ Porffor intentionally does not use Wasm proposals which are not commonly impleme
 ### 2. Why at all?
 Yes!
 
-## 3. Isn't this the same as AssemblyScript/other Wasm langs?
+### 3. Isn't this the same as AssemblyScript/other Wasm langs?
 No. they are not alike at all internally and have very different goals/ideals:
 - Porffor is made as a generic JS engine, not for Wasm stuff specifically
 - Porffor primarily consumes JS
