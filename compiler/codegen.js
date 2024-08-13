@@ -3862,9 +3862,6 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     ];
   }
 
-  // check not const
-  if (local.metadata?.kind === 'const') return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${name}`, true);
-
   if (op === '=') {
     const right = decl.right;
     if (right && isFuncType(right.type)) {
@@ -6454,7 +6451,7 @@ const generateFunc = (scope, decl) => {
   // force generate all for precompile
   if (globalThis.precompile) func.generate();
 
-  const out = decl.type.endsWith('Expression') ? funcRef(func) : [];
+  const out = [];
   if (decl.type === 'FunctionDeclaration' || (decl.type === 'FunctionExpression' && decl.id)) {
     createVar(scope, 'var', name);
     out.push(
