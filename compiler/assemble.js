@@ -233,7 +233,6 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   time('global section');
 
   if (Prefs.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
-  if (optLevel === 0) pages.set('O0 precaution', 0);
 
   const usesMemory = pages.size > 0;
   const memorySection = !usesMemory ? [] : createSection(
