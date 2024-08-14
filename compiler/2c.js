@@ -213,7 +213,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
   }
 
   if (pages.size > 0) {
-    prepend.set('_memory', `char _memory[${pages.size * pageSize}];\n`);
+    prepend.set('_memory', `static char _memory[${pages.size * pageSize}];\n`);
     if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
 
@@ -224,7 +224,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
       prependMain.set('_data', activeData.map(x => `memcpy(_memory + ${dataOffset(x)}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
       includes.set('string.h', true);
     } else {
-      prependMain.set('_data', activeData.map(x => x.bytes.reduce((acc, y, i) => acc + `_memory[${dataOffset(x) + i}]=(u8)${y};`, '')).join('\n  '));
+      prependMain.set('_data', activeData.map(x => x.bytes.reduce((acc, y, i) => acc + (y === 0 ? '' : `_memory[${dataOffset(x) + i}]=(u8)${y};`), '')).join('\n  '));
     }
   }
 
