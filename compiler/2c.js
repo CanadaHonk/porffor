@@ -208,8 +208,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
   for (const x in globals) {
     const g = globals[x];
 
-    out += `${CValtype[g.type]} ${sanitize(x)} = ${g.init ?? 0}`;
-    out += ';\n';
+    out += `${CValtype[g.type]} ${sanitize(x)} = ${g.init ?? 0};\n`;
   }
 
   if (pages.size > 0) {
@@ -222,7 +221,6 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     const dataOffset = x => pages.get(x.page).ind * pageSize;
     if (Prefs['2cMemcpy']) {
       prependMain.set('_data', activeData.map(x => `memcpy(_memory + ${dataOffset(x)}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
-      includes.set('string.h', true);
     } else {
       prependMain.set('_data', activeData.map(x => x.bytes.reduce((acc, y, i) => acc + (y === 0 ? '' : `_memory[${dataOffset(x) + i}]=(u8)${y};`), '')).join('\n  '));
     }
