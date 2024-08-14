@@ -17,8 +17,10 @@ export const __Porffor_strcmp = (a: any, b: any): boolean => {
       // bytestring, bytestring
       // this path is hyper-optimized as it is by far the most common and (perf) important
 
-      let ap: i32 = a - 28;
-      let bp: i32 = b - 28;
+      let ap32: i32 = a - 28;
+      let bp32: i32 = b - 28;
+      let ap8: i32 = a - 4;
+      let bp8: i32 = b - 4;
       Porffor.wasm`
 ;; load in 2 i64x2 chunks while length >= 32
 local.get ${al}
@@ -26,29 +28,28 @@ i32.const 32
 i32.ge_s
 if 64
   loop 64
-    local.get ${ap}
+    local.get ${ap32}
     local.get ${al}
     i32.add
     v128.load 0 0
 
-    local.get ${bp}
+    local.get ${bp32}
     local.get ${al}
     i32.add
     v128.load 0 0
-
     v128.xor
 
-    local.get ${ap}
+    local.get ${ap32}
     local.get ${al}
     i32.add
     v128.load 0 16
 
-    local.get ${bp}
+    local.get ${bp32}
     local.get ${al}
     i32.add
     v128.load 0 16
-
     v128.xor
+
     v128.or
     v128.any_true
     if 64
@@ -73,15 +74,15 @@ i32.const 8
 i32.ge_s
 if 64
   loop 64
-    local.get ${ap}
+    local.get ${ap8}
     local.get ${al}
     i32.add
-    i64.load 0 24
+    i64.load 0 0
 
-    local.get ${bp}
+    local.get ${bp8}
     local.get ${al}
     i32.add
-    i64.load 0 24
+    i64.load 0 0
 
     i64.ne
     if 64
