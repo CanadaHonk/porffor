@@ -217,6 +217,10 @@ export const Opcodes = {
   i32x4_add: [ 0xfd, 0xae, 0x01 ],
   i32x4_sub: [ 0xfd, 0xb1, 0x01 ],
   i32x4_mul: [ 0xfd, 0xb5, 0x01 ],
+
+  v128_or: [ 0xfd, 80 ],
+  v128_xor: [ 0xfd, 81 ],
+  v128_any_true: [ 0xfd, 83 ]
 };
 
 export const FuncType = 0x60;
