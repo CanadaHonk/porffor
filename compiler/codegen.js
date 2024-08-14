@@ -78,7 +78,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'ArrowFunctionExpression':
     case 'FunctionDeclaration':
     case 'FunctionExpression':
-      return cacheAst(decl, generateFunc(scope, decl)[1]);
+      return cacheAst(decl, generateFunc(scope, decl, valueUnused)[1]);
 
     case 'BlockStatement':
       return cacheAst(decl, generateCode(scope, decl));
@@ -314,6 +314,248 @@ const lookupName = (scope, _name) => {
   return [ undefined, undefined ];
 };
 
+const findVar = (scope, name) => {
+  do {
+    if (scope.variables && scope.variables.has(name)) {
+      return scope.variables.get(name);
+    }
+
+    if (scope.scopeQueue?.length > 0) {
+      for (let i = scope.scopeQueue.length - 1; i >= 0; i--) {
+        const vars = scope.scopeQueue[i];
+        if (vars.has(name)) {
+          return vars.get(name);
+        }
+      }
+    }
+  } while (scope = scope.upper);
+
+  return undefined;
+}
+
+const findTopScope = (scope) => {
+  do {
+    if (scope.index !== scope.upper?.index) return scope;
+  } while (scope = scope.upper);
+}
+
+const variableNames = new Map();
+
+const createVar = (scope, kind, name, global, type = true) => {
+  // var and bare declarations don't respect block statements
+  const target = kind === 'var' || kind === 'bare' ? findTopScope(scope) : scope;
+
+  let variable;
+  if (target.variables.has(name)) {
+    variable = target.variables.get(name);
+  } else {
+    variable = { kind, index: target.index, nonLocal: false, name };
+    target.variables.set(name, variable);
+  }
+  if (variableNames.has(name)) {
+    if (variableNames.get(name) !== variable) {
+      // this just changes the eventual name of the variable, not the current one
+      variable.name += uniqId();
+    }
+  }
+  variableNames.set(name, variable);
+
+  variable.initialized = true;
+  if (!type) {
+    variable.untyped = true;
+  }
+
+  if (globalThis.precompile) {
+    allocVar(scope, name, global, type);
+    return [];
+  }
+
+  if (kind === 'let' || kind === 'const')
+    return [
+      [ 'var.init', variable ]
+    ];
+  return [];
+}
+
+const pushScope = (scope) => {
+  scope.scopeQueue ??= [];
+  const vars = scope.variables;
+  scope.scopeQueue.push(vars);
+  scope.variables = new Map();
+  return scope;
+}
+
+const popScope = (scope) => {
+  const vars = scope.scopeQueue.pop() ?? new Map();
+  scope.variables = vars;
+}
+
+const setVar = (scope, name, wasm, typeWasm, tee = false, initalizing = false) => {
+  if (Object.hasOwn(scope.locals, name)) {
+    const out = [
+      ...wasm,
+      [ tee ? Opcodes.local_tee : Opcodes.local_set, scope.locals[name].idx ],
+    ];
+    const typeLocal = scope.locals[name + '#type'];
+    if (typeLocal) {
+      out.push(
+        ...typeWasm,
+        [ Opcodes.local_set, scope.locals[name + '#type'].idx ],
+      )
+    }
+    return out;
+  }
+
+  if (Object.hasOwn(globals, name)) {
+    const idx = globals[name].idx;
+    const out = [
+      ...wasm,
+      [ Opcodes.global_set, idx ],
+    ];
+    const typeGlobal = globals[name + '#type'];
+    if (typeGlobal) {
+      out.push(
+        ...typeWasm,
+        [ Opcodes.global_set, globals[name + '#type'].idx ],
+      )
+    }
+    return out;
+  }
+
+  if (globalThis.precompile) throw new Error('Tried to set to a non-local variable during precompile');
+
+  const variable = findVar(scope, name);
+  if (!variable) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, tee);
+
+  const out = [ [ tee ? "var.tee" : "var.set", variable, wasm, typeWasm ] ];
+
+  // check if we are still in the same function
+  if (variable.index !== scope.index) {
+    variable.nonLocal = true;
+  }
+
+  if (!initalizing && variable.kind === 'const') {
+    return internalThrow(scope, 'TypeError', `Assignment to constant variable ${name}`)
+  }
+
+  if (variable.kind === 'let' || variable.kind === 'const') {
+    if (!variable.nonLocal && !variable.initialized) {
+      return internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`);
+    }
+
+    if (variable.nonLocal) out.unshift(
+      [ 'var.initialized', variable ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`),
+      [ Opcodes.end ]
+    );
+  }
+
+  return out;
+};
+
+const getVar = (scope, name) => {
+  if (Object.hasOwn(scope.locals, name)) {
+    const local = scope.locals[name]
+    return [
+      [ Opcodes.local_get, local.idx ],
+      // todo: no support for i64
+      ...(valtypeBinary === Valtype.f64 && local.type === Valtype.i32 ? [ Opcodes.i32_from_u ] : []),
+      ...(valtypeBinary === Valtype.i32 && local.type === Valtype.f64 ? [ Opcodes.i32_to_u ] : [])
+    ];
+  }
+
+  if (Object.hasOwn(globals, name)) {
+    const global = globals[name];
+    return [
+      [ Opcodes.global_get, global.idx ],
+      // todo: no support for i64
+      ...(valtypeBinary === Valtype.f64 && global.type === Valtype.i32 ? [ Opcodes.i32_from_u ] : []),
+      ...(valtypeBinary === Valtype.i32 && global.type === Valtype.f64 ? [ Opcodes.i32_to_u ] : [])
+    ];
+  }
+
+  if (globalThis.precompile) {
+    return internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`);
+  }
+
+  const variable = findVar(scope, name);
+  if (!variable) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
+
+  const out = [ [ "var.get", variable ] ];
+
+  // check if we are still in the same function
+  if (variable.index !== scope.index) {
+    variable.nonLocal = true;
+  }
+
+  if (variable.kind === 'let' || variable.kind === 'const') {
+    if (!variable.nonLocal && !variable.initialized) {
+      return internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`, true);
+    }
+
+    if (variable.nonLocal) out.unshift(
+      [ 'var.initialized', variable ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, "ReferenceError", `Cannot access ${unhackName(name)} before initialization`),
+      [ Opcodes.end ]
+    );
+  }
+
+  return out;
+};
+
+const getVarType = (scope, name) => {
+  const typeName = name + '#type';
+
+  if (Object.hasOwn(scope.locals, name)) {
+    if (scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
+
+    const typeLocal = scope.locals[typeName];
+    if (typeLocal) return [ [ Opcodes.local_get, typeLocal.idx ] ];
+
+    if (Prefs.warnAssumedType) console.warn(`Type of local ${name} assumed to be undefined`);
+    return number(TYPES.undefined, Valtype.i32);
+  }
+
+  if (Object.hasOwn(globals, name)) {
+    if (globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
+
+    const typeLocal = globals[typeName];
+    if (typeLocal) return [ [ Opcodes.global_get, typeLocal.idx ] ];
+
+    if (Prefs.warnAssumedType) console.warn(`Type of global ${name} assumed to be undefined`)
+    return number(TYPES.undefined, Valtype.i32);
+  }
+
+  if (globalThis.precompile) {
+    return [
+      ...internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`),
+      ...number(0, Valtype.i32)
+    ];
+  }
+
+  const variable = findVar(scope, name);
+  if (!variable) return [
+    ...internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`),
+    ...number(0, Valtype.i32)
+  ];
+
+  if (variable && variable.index !== scope.index) {
+    variable.nonLocal = true;
+  }
+
+  if (variable?.metadata?.type != null) {
+    return number(variable.metadata.type, Valtype.i32);
+  }
+
+  return [
+    [ "var.get_type", variable ]
+  ];
+};
+
 const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysValueInternalThrows) => [
   ...generate(scope, {
     type: 'ThrowStatement',
@@ -337,7 +579,6 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
 const generateIdent = (scope, decl) => {
   const lookup = rawName => {
     const name = mapName(rawName);
-    let local = scope.locals[rawName];
 
     if (Object.hasOwn(builtinVars, name)) {
       if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${unhackName(name)} with integer valtype`);
@@ -356,30 +597,42 @@ const generateIdent = (scope, decl) => {
       return number(1);
     }
 
-    if (local?.idx === undefined) {
-      // no local var with name
-      if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
+    const variable = findVar(scope, rawName);
+    if (variable === undefined) {
+      // no declared var with name
 
       if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
-      if (Object.hasOwn(funcIndex, name)) return funcRef(funcByName(name));
+      if (Object.hasOwn(funcIndex, name)) {
+        const func = funcByName(name);
+        // if func is internal, or this identifier is internally generated
+        if (func.internal || name[0] === '#') {
+          return funcRef(func);
+        }
+      }
+
+      if (rawName.startsWith('__')) {
+        // return undefined if unknown key in already known var
+        let parent = rawName.slice(2).split('_').slice(0, -1).join('_');
+        if (parent.includes('_')) parent = '__' + parent;
+
+        const parentLookup = lookup(parent);
+        if (parentLookup.at(-1)[0] !== Opcodes.throw && parentLookup.at(-2)?.[0] !== Opcodes.throw)
+          return number(UNDEFINED);
+      }
     }
 
-    if (local?.idx === undefined && rawName.startsWith('__')) {
-      // return undefined if unknown key in already known var
-      let parent = rawName.slice(2).split('_').slice(0, -1).join('_');
-      if (parent.includes('_')) parent = '__' + parent;
-
-      const parentLookup = lookup(parent);
-      if (!parentLookup[1]) return number(UNDEFINED);
+    // we don't really have to get the variable if it's in the form `const foo = () => {}`
+    if (variable?.kind === 'const' && Object.hasOwn(funcIndex, name)) {
+      return funcRef(funcByName(name));
     }
 
-    if (local?.idx === undefined) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
+    // hack: let test262 use arrow functions instead of function declarlations
+    if (variable?.kind === 'var' && objectHackers.includes(getObjectName(name) || name) && Object.hasOwn(funcIndex, name)) {
+      return funcRef(funcByName(name));
+    }
 
     return [
-      [ Opcodes.local_get, local.idx ],
-      // todo: no support for i64
-      ...(valtypeBinary === Valtype.f64 && local.type === Valtype.i32 ? [ Opcodes.i32_from_u ] : []),
-      ...(valtypeBinary === Valtype.i32 && local.type === Valtype.f64 ? [ Opcodes.i32_to_u ] : [])
+      ...getVar(scope, rawName)
     ];
   };
 
@@ -419,12 +672,12 @@ const generateReturn = (scope, decl) => {
     // ignore return value and return this if being constructed
     // todo: only do this when trying to return a primitive?
     out.push(
-      // ...truthy(scope, [ [ Opcodes.local_get, scope.locals['#newtarget'].idx ] ], [ [ Opcodes.local_get, scope.locals['#newtarget#type'].idx ] ], false, true),
-      [ Opcodes.local_get, scope.locals['#newtarget'].idx ],
+      // ...truthy(scope, getVar(func, '#newtarget'), getVarType(func, '#newtarget'), false, true),
+      ...getVar(scope, '#newtarget'),
       Opcodes.i32_to_u,
       [ Opcodes.if, Blocktype.void ],
-        [ Opcodes.local_get, scope.locals['#this'].idx ],
-        ...(scope.returnType != null ? [] : [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ]),
+        ...getVar(scope, '#this'),
+        ...(scope.returnType != null ? [] : getVarType(scope, '#this')),
         [ Opcodes.return ],
       [ Opcodes.end ]
     );
@@ -1133,24 +1386,20 @@ const getType = (scope, _name) => {
 
   if (Object.hasOwn(builtinVars, name)) return number(builtinVars[name].type ?? TYPES.number, Valtype.i32);
 
-  if (Object.hasOwn(scope.locals, name)) {
-    if (scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
+  const variable = findVar(scope, name);
 
-    const typeLocal = scope.locals[name + '#type'];
-    if (typeLocal) return [ [ Opcodes.local_get, typeLocal.idx ] ];
-
-    // todo: warn here?
-    return number(TYPES.undefined, Valtype.i32);
+  // we don't really have to get the variable if it's in the form `const foo = () => {}`
+  if (variable?.kind === 'const' && Object.hasOwn(funcIndex, name)) {
+    return number(TYPES.function, Valtype.i32);
   }
 
-  if (Object.hasOwn(globals, name)) {
-    if (globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
+  // hack: let test262 use arrow functions instead of function declarlations
+  if (variable?.kind === 'var' && objectHackers.includes(getObjectName(name) || name)) {
+    return number(TYPES.function, Valtype.i32);
+  }
 
-    const typeLocal = globals[name + '#type'];
-    if (typeLocal) return [ [ Opcodes.global_get, typeLocal.idx ] ];
-
-    // todo: warn here?
-    return number(TYPES.undefined, Valtype.i32);
+  if (variable) {
+    return getVarType(scope, name);
   }
 
   if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) ||
@@ -1159,7 +1408,18 @@ const getType = (scope, _name) => {
 
   if (isExistingProtoFunc(name)) return number(TYPES.function, Valtype.i32);
 
-  return number(TYPES.undefined, Valtype.i32);
+  if (name.startsWith('__')) {
+    // return undefined if unknown key in already known var
+    let parent = name.slice(2).split('_').slice(0, -1).join('_');
+    if (parent.includes('_')) parent = '__' + parent;
+
+    const parentLookup = getType(scope, parent);
+    if (parentLookup.at(-1)[0] !== Opcodes.throw && parentLookup.at(-2)?.[0] !== Opcodes.throw)
+      return number(TYPES.undefined, Valtype.i32);
+  }
+
+  // fallback in case everything else fails
+  return getVarType(scope, name);
 };
 
 const setType = (scope, _name, type) => {
@@ -1409,13 +1669,13 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'ThisExpression') {
       if (!scope.constr) return getType(scope, 'globalThis');
-      return [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ];
+      return getVarType(scope, '#this');
     }
 
     if (node.type === 'MetaProperty') {
       switch (`${node.meta.name}.${node.property.name}`) {
         case 'new.target': {
-          return [ [ Opcodes.local_get, scope.locals['#newtarget#type'].idx ] ];
+          return getVarType(scope, '#newtarget');
         }
 
         default:
@@ -1477,11 +1737,21 @@ const countLeftover = wasm => {
 
     if (depth === 0)
       if ([Opcodes.throw, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
-        else if ([Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.f32_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.i32_load8_u, Opcodes.i32_load8_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x04)) {}
-        else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const, Opcodes.memory_size].includes(inst[0])) count++;
+        else if ([Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.f32_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.i32_load8_u, Opcodes.i32_load8_s, Opcodes.memory_grow, 'var.init'].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x04)) {}
+        else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const, Opcodes.memory_size, 'var.get', 'var.get_type', 'var.initialized'].includes(inst[0])) count++;
         else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.f32_store, Opcodes.i32_store16, Opcodes.i32_store8].includes(inst[0])) count -= 2;
         else if (inst[0] === Opcodes.memory_copy[0] && (inst[1] === Opcodes.memory_copy[1] || inst[1] === Opcodes.memory_init[1])) count -= 3;
         else if (inst[0] === Opcodes.return) count = 0;
+        else if (inst[0] === 'var.tee' || inst[0] === 'var.set') {
+          if (inst[2].length != 0) {
+            count += countLeftover(inst[2]); // value
+            if (inst[0] === 'var.set') count--;
+          }
+          if (inst[3].length != 0) {
+            count += countLeftover(inst[3]); // type
+            count--;
+          }
+        }
         else if (inst[0] === Opcodes.call) {
           if (inst[1] < importedFuncs.length) {
             const func = importedFuncs[inst[1]];
@@ -1772,7 +2042,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       throw e;
     }
 
-    const out = generate(scope, {
+    // note: this is just how direct eval works apparently? once we support indirect eval it needs to not do this
+    const evalScope = scope._inParameterList ? scope.upper : scope;
+
+    const out = generate(evalScope, {
       type: 'BlockStatement',
       body: parsed.body
     });
@@ -1808,8 +2081,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     target.name = spl.slice(0, -1).join('_');
 
     if (builtinFuncs['__' + target.name + '_' + protoName]) protoName = null;
-      else if (!lookupName(scope, target.name)[0] && !builtinFuncs[target.name]) {
-        if (lookupName(scope, '__' + target.name)[0] || builtinFuncs['__' + target.name]) target.name = '__' + target.name;
+      else if (!findVar(scope, target.name) && !builtinFuncs[target.name]) {
+        if (findVar(scope, '__' + target.name) || builtinFuncs['__' + target.name]) target.name = '__' + target.name;
           else protoName = null;
       }
   }
@@ -2540,29 +2813,29 @@ const generateThis = (scope, decl) => {
 
   // opt: do not check for pure constructors
   if (scope._onlyConstr || scope._onlyThisMethod || decl._noGlobalThis) return [
-    [ Opcodes.local_get, scope.locals['#this'].idx ],
-    ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
+    ...getVar(scope, '#this'),
+    ...setLastType(scope, getVarType(scope, '#this'))
   ];
 
   return [
     // default this to globalThis
-    [ Opcodes.local_get, scope.locals['#this'].idx ],
+    ...getVar(scope, '#this'),
     Opcodes.i32_to_u,
     [ Opcodes.i32_eqz ],
     [ Opcodes.if, Blocktype.void ],
-      [ Opcodes.local_get, scope.locals['#this#type'].idx ],
+      ...getVarType(scope, '#this'),
       ...number(TYPES.object, Valtype.i32),
       [ Opcodes.i32_eq ],
       [ Opcodes.if, Blocktype.void ],
-        ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
-        [ Opcodes.local_set, scope.locals['#this'].idx ],
-        ...getType(scope, 'globalThis'),
-        [ Opcodes.local_set, scope.locals['#this#type'].idx ],
+        ...setVar(scope, '#this',
+          generate(scope, { type: 'Identifier', name: 'globalThis' }),
+          getType(scope, 'globalThis')
+        ),
       [ Opcodes.end ],
     [ Opcodes.end ],
 
-    [ Opcodes.local_get, scope.locals['#this'].idx ],
-    ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
+    ...getVar(scope, '#this'),
+    ...setLastType(scope, getVarType(scope, '#this'))
   ];
 };
 
@@ -2844,22 +3117,26 @@ const allocVar = (scope, name, global = false, type = true) => {
   }
 
   let idx = global ? globals['#ind']++ : scope.localInd++;
-  target[name] = { idx, type: valtypeBinary };
+  target[name] = { idx, type: valtypeBinary, name };
 
   if (type) {
     let typeIdx = global ? globals['#ind']++ : scope.localInd++;
-    target[name + '#type'] = { idx: typeIdx, type: Valtype.i32, name };
+    target[name + '#type'] = { idx: typeIdx, type: Valtype.i32, name: name + '#type' };
   }
 
   return idx;
 };
 
 const addVarMetadata = (scope, name, global = false, metadata = {}) => {
-  const target = global ? globals : scope.locals;
+  const variable = findVar(scope, name);
+  let target = variable;
+  if (!target || globalThis.precompile) {
+    target = global ? globals[name] : scope.locals[name];
+  }
 
-  target[name].metadata ??= {};
+  target.metadata ??= {};
   for (const x in metadata) {
-    if (metadata[x] != null) target[name].metadata[x] = metadata[x];
+    if (metadata[x] != null) target.metadata[x] = metadata[x];
   }
 };
 
@@ -2899,38 +3176,6 @@ const extractTypeAnnotation = decl => {
   return { type, typeName, elementType };
 };
 
-const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType = undefined) => {
-  const local = isGlobal ? globals[name] : (scope.locals[name] ?? { idx: name });
-  const out = Array.isArray(decl) ? decl : generate(scope, decl, isGlobal, name);
-
-  // optimize away last type usage
-  // todo: detect last type then i32 conversion op
-  const lastOp = out.at(-1);
-  if (lastOp[0] === Opcodes.local_set && lastOp[1] === scope.locals['#last_type']?.idx) {
-    // set last type -> tee last type
-    lastOp[0] = Opcodes.local_tee;
-
-    // still set last type due to side effects or type of decl gotten later
-    const setOut = setType(scope, name, []);
-    out.push(
-      // drop if setType is empty
-      ...(setOut.length === 0 ? [ [ Opcodes.drop ] ] : setOut),
-
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
-      ...(tee ? [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ] : [])
-    );
-  } else {
-    out.push(
-      [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
-      ...(tee ? [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ] : []),
-
-      ...setType(scope, name, overrideType ?? getNodeType(scope, decl))
-    );
-  }
-
-  return out;
-};
-
 const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   const topLevel = scope.name === 'main';
 
@@ -2941,30 +3186,55 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   if (pattern.type === 'Identifier') {
     let out = [];
     const name = mapName(pattern.name);
-
-    if (init && isFuncType(init.type)) {
-      // hack for let a = function () { ... }
-      if (!init.id) {
-        init.id = { name };
-        generateFunc(scope, init);
-        return out;
-      }
-    }
+    const redeclarable = kind === 'var' || kind === 'bare';
 
     if (topLevel && Object.hasOwn(builtinVars, name)) {
       // cannot redeclare
-      if (kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
+      if (!redeclarable) return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
 
       return out; // always ignore
+    }
+
+    if (init && isFuncType(init.type)) {
+      if (!init.id) {
+        init.id = { name };
+        // if this is a const declaration, we can just add it to func index and treat it like a normal function declaration
+        if (kind === 'const') {
+          generateFunc(scope, init);
+          createVar(scope, kind, name, global);
+
+          return out;
+        } else {
+          // hack: allow test262 to use arrow functions instead of function declarations
+          if (kind === 'var' && (objectHackers.includes(getObjectName(name) || name))) {
+            createVar(scope, kind, name, global);
+            generateFunc(scope, init, true);
+
+            return out;
+          }
+        }
+        // otherwise, we need to tell porffor that this function is not safe to call directly
+        init._forceIndirect = true;
+      }
     }
 
     // // generate init before allocating var
     // let generated;
     // if (init) generated = generate(scope, init, global, name);
 
+    const variable = findVar(scope, name);
+
+    if (redeclarable && !init && variable?.index === scope.index) {
+      // i.e. var x = 3; var x
+      return out;
+    }
+
     const typed = typedInput && pattern.typeAnnotation;
-    let idx = allocVar(scope, name, global, !(typed && extractTypeAnnotation(pattern).type != null));
-    addVarMetadata(scope, name, global, { kind });
+    if (!(redeclarable && variable)) {
+      out.push(
+        ...createVar(scope, kind, name, global, !(typed && extractTypeAnnotation(pattern).type != null))
+      );
+    }
 
     if (typed) {
       addVarMetadata(scope, name, global, extractTypeAnnotation(pattern));
@@ -2974,7 +3244,9 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       const alreadyArray = scope.arrays?.get(name) != null;
 
       let newOut = generate(scope, init, global, name);
-      if (!alreadyArray && scope.arrays?.get(name) != null) {
+      if (globalThis.precompile && !alreadyArray && scope.arrays?.get(name) != null) {
+        // todo: this for more than just precompile
+        const idx = (global ? globals : scope.locals)[name].idx;
         // hack to set local as pointer before
         newOut.unshift(...number(scope.arrays.get(name)), [ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
         if (newOut.at(-1) == Opcodes.i32_from_u) newOut.pop();
@@ -2983,35 +3255,62 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
           ...setType(scope, name, getNodeType(scope, init))
         );
       } else {
-        newOut = setLocalWithType(scope, name, global, newOut, false, getNodeType(scope, init));
+        newOut = out.concat(
+          setVar(scope, name,
+            generate(scope, init, global, name),
+            getNodeType(scope, init),
+            false, true
+          )
+        );
       }
+
 
       out = out.concat(newOut);
 
       if (defaultValue) {
         out.push(
-          ...typeIsOneOf(getType(scope, name), [ TYPES.undefined, TYPES.empty ]),
+          ...typeIsOneOf(getVarType(scope, name), [ TYPES.undefined, TYPES.empty ]),
           [ Opcodes.if, Blocktype.void ],
-            ...generate(scope, defaultValue, global, name),
-            [ global ? Opcodes.global_set : Opcodes.local_set, idx ],
-            ...setType(scope, name, getNodeType(scope, defaultValue)),
+            ...setVar(scope, name,
+              generate(scope, defaultValue, global, name),
+              getNodeType(scope, defaultValue),
+              false, true
+            ),
           [ Opcodes.end ],
         );
       }
 
       if (globalThis.precompile && global) {
         scope.globalInits ??= {};
-        scope.globalInits[name] = newOut;
+        scope.globalInits[name] = out;
       }
     }
 
     return out;
   }
 
+  const tmpName = '#destructure' + uniqId();
+  const tmpLocal = allocVar(scope, tmpName, false, true);
+  let out = [
+    ...generate(scope, init, global, tmpName),
+    [ Opcodes.local_set, tmpLocal ],
+    ...getNodeType(scope, init),
+    [ Opcodes.local_set, tmpLocal + 1 ]
+  ];
+  if (defaultValue) {
+    out.push(
+      ...typeIsOneOf([ [ Opcodes.local_get, tmpLocal + 1 ] ], [ TYPES.undefined, TYPES.empty ]),
+      [ Opcodes.if, Blocktype.void ],
+        ...generate(scope, defaultValue, global, tmpName),
+        [ Opcodes.local_set, tmpLocal ],
+        ...getNodeType(scope, defaultValue),
+        [ Opcodes.local_set, tmpLocal + 1 ],
+      [ Opcodes.end ]
+    );
+  }
+
   if (pattern.type === 'ArrayPattern') {
     const decls = [];
-    const tmpName = '#destructure' + uniqId();
-    let out = generateVarDstr(scope, 'const', tmpName, init, defaultValue, false);
 
     let i = 0;
     const elements = [...pattern.elements];
@@ -3099,8 +3398,6 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
   if (pattern.type === 'ObjectPattern') {
     const decls = [];
-    const tmpName = '#destructure' + uniqId();
-    let out = generateVarDstr(scope, 'const', tmpName, init, defaultValue, false);
 
     const properties = [...pattern.properties];
     const usedProps = [];
@@ -3123,7 +3420,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
               type: 'MemberExpression',
               object: { type: 'Identifier', name: tmpName },
               property: prop.key,
-              computed: prop.computed
+              computed: prop.computed || prop.key.type !== 'Identifier'
             }, undefined, global)
           );
         }
@@ -3150,13 +3447,13 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     out = out.concat([
       // check tmp is valid object
       // not undefined or empty type
-      ...typeIsOneOf(getType(scope, tmpName), [ TYPES.undefined, TYPES.empty ]),
+      ...typeIsOneOf(getVarType(scope, tmpName), [ TYPES.undefined, TYPES.empty ]),
 
       // not null
-      ...getType(scope, tmpName),
+      ...getVarType(scope, tmpName),
       ...number(TYPES.object, Valtype.i32),
       [ Opcodes.i32_eq ],
-      [ Opcodes.local_get, scope.locals[tmpName].idx ],
+      ...getVar(scope, tmpName),
       ...number(0),
       [ Opcodes.eq ],
       [ Opcodes.i32_and ],
@@ -3218,7 +3515,6 @@ const getProperty = (decl, forceValueStr = false) => {
 // todo: optimize this func for valueUnused
 const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
-  const [ local, isGlobal ] = lookupName(scope, name);
 
   // if (isFuncType(decl.right.type)) {
   //   // hack for a = function () { ... }
@@ -3536,16 +3832,18 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     ];
   }
 
-  if (local === undefined) {
+  const variable = findVar(scope, name);
+  if (variable === undefined) {
     // only allow = for this, or if in strict mode always throw
     if (op !== '=' || scope.strict) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
     if (type != 'Identifier') {
       const tmpName = '#rhs' + uniqId();
+      allocVar(scope, tmpName, false);
       return [
-        ...generateVarDstr(scope, 'const', tmpName, decl.right, undefined, true),
-        ...generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true),
-        ...generate(scope, { type: 'Identifier', name: tmpName }),
+        ...setVar(scope, tmpName, generate(scope, decl.right), getNodeType(scope, decl.right), false, true),
+        ...generateVarDstr(scope, 'bare', decl.left, { type: 'Identifier', name: tmpName }, undefined, true),
+        ...getVar(scope, tmpName),
         ...setLastType(scope, getNodeType(scope, decl.right))
       ];
     }
@@ -3559,16 +3857,22 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     // set global and return (eg a = 2)
     return [
-      ...generateVarDstr(scope, 'var', name, decl.right, undefined, true),
+      ...generateVarDstr(scope, 'bare', name, decl.right, undefined, true),
       ...generate(scope, decl.left)
     ];
   }
 
-  // check not const
-  if (local.metadata?.kind === 'const') return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${name}`, true);
-
   if (op === '=') {
-    return setLocalWithType(scope, name, isGlobal, decl.right, true);
+    const right = decl.right;
+    if (right && isFuncType(right.type)) {
+      if (!right.id) {
+        // bind name to function
+        right.id = { name };
+        // also, don't add this to the function index
+        right._forceIndirect = true;
+      }
+    }
+    return setVar(scope, name, generate(scope, right, false, name), getNodeType(scope, right), !valueUnused);
   }
 
   if (op === '||' || op === '&&' || op === '??') {
@@ -3578,31 +3882,37 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // eg, x &&= y ~= x && (x = y)
 
     return [
-      ...performOp(scope, op, [
-        [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
-      ], [
-        ...generate(scope, decl.right, isGlobal, name),
-        [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
-        [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
-      ], getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
-      [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+      ...performOp(scope, op,
+        getVar(scope, name),
+        setVar(scope, name, generate(scope, decl.right, false, name), getNodeType(scope, decl.right), true),
+        getType(scope, name),
+        getNodeType(scope, decl.right),
+        false, name, true
+      ),
+      ...getVar(scope, name),
 
       ...setType(scope, name, getLastType(scope))
     ];
   }
 
-  return setLocalWithType(
-    scope, name, isGlobal,
-    performOp(scope, op, [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
-    true,
-    getNodeType(scope, decl)
+  return setVar(scope, name,
+    performOp(scope, op,
+      getVar(scope, name),
+      generate(scope, decl.right),
+      getVarType(scope, name),
+      getNodeType(scope, decl.right),
+      false, name, true
+    ),
+    getNodeType(scope, decl),
+    !valueUnused
   );
 };
 
 const ifIdentifierErrors = (scope, decl) => {
   if (decl.type === 'Identifier') {
     const out = generate(scope, decl);
-    if (out[1]) return true;
+    // either ends with throw, or has a extra value after it (to preserve the stack's shape)
+    if (out.at(-1)[0] === Opcodes.throw || out.at(-2)?.[0] === Opcodes.throw) return true;
   }
 
   return false;
@@ -3678,10 +3988,8 @@ const generateUnary = (scope, decl) => {
       let toReturn = true, toGenerate = true;
 
       if (decl.argument.type === 'Identifier') {
-        const out = generate(scope, decl.argument);
-
         // if ReferenceError (undeclared var), ignore and return true. otherwise false
-        if (!out[1]) {
+        if (ifIdentifierErrors(scope, decl.argument)) {
           // exists
           toReturn = false;
         } else {
@@ -3731,32 +4039,66 @@ const generateUnary = (scope, decl) => {
 const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
   const { name } = decl.argument;
 
-  const [ local, isGlobal ] = lookupName(scope, name);
+  if (name) {
+    const op = decl.operator === '++' ? Opcodes.add : Opcodes.sub;
+    const out = typeSwitch(scope, getVarType(scope, name), {
+      [TYPES.number]: setVar(scope, name, [
+        ...getVar(scope, name),
+        ...number(1),
+        [ op ]
+      ], number(TYPES.number, Valtype.i32)),
 
-  if (local === undefined) {
-    return todo(scope, `update expression with undefined variable`, true);
+      default: setVar(scope, name, [
+        ...getVar(scope, name),
+        ...getVarType(scope, name),
+        [ Opcodes.call, includeBuiltin(scope, '__ecma262_ToNumber').index ],
+        [ Opcodes.drop ],
+        ...number(1),
+        [ op ]
+      ], number(TYPES.number, Valtype.i32)),
+    }, Blocktype.void);
+
+    if (!valueUnused) {
+      if (!decl.prefix) out.unshift(...getVar(scope, name));
+        else out.push(...getVar(scope, name));
+    }
+
+    return out;
+  } else {
+    const out = [];
+
+    if (!decl.prefix) {
+      const idx = allocVar(scope, '#update_tmp', false);
+
+      out.push(
+        ...setVar(scope, '#update_tmp', generate(scope, decl.argument, _global, _name), getNodeType(scope, decl.argument)),
+        ...generate(scope, {
+          type: 'AssignmentExpression',
+          operator: '=',
+          left: decl.argument,
+          right: {
+            type: 'BinaryExpression',
+            operator: decl.operator === '++' ? '+' : '-',
+            left: { type: 'Identifier', name: '#update_tmp' },
+            right: { type: 'Literal', value: 1 }
+          }
+        }, _global, _name, true),
+      );
+      disposeLeftover(out);
+      out.push([ Opcodes.local_get, idx ]);
+    } else {
+      out.push(
+        ...generate(scope, {
+          type: 'AssignmentExpression',
+          operator: decl.operator === '++' ? '+=' : '-=',
+          left: decl.argument,
+          right: { type: 'Literal', value: 1 }
+        }, _global, _name)
+      );
+    }
+
+    return out;
   }
-
-  const idx = local.idx;
-  const out = [];
-
-  out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
-  if (!decl.prefix && !valueUnused) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
-
-  switch (decl.operator) {
-    case '++':
-      out.push(...number(1), [ Opcodes.add ]);
-      break;
-
-    case '--':
-      out.push(...number(1), [ Opcodes.sub ]);
-      break;
-  }
-
-  out.push([ isGlobal ? Opcodes.global_set : Opcodes.local_set, idx ]);
-  if (decl.prefix && !valueUnused) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
-
-  return out;
 };
 
 const generateIf = (scope, decl) => {
@@ -3766,14 +4108,19 @@ const generateIf = (scope, decl) => {
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
+  pushScope(scope);
   const consOut = generate(scope, decl.consequent);
+  popScope(scope);
   disposeLeftover(consOut);
   out.push(...consOut);
 
   if (decl.alternate) {
     out.push([ Opcodes.else ]);
 
+    pushScope(scope);
     const altOut = generate(scope, decl.alternate);
+    popScope(scope);
+
     disposeLeftover(altOut);
     out.push(...altOut);
   }
@@ -3949,20 +4296,20 @@ const generateForOf = (scope, decl) => {
   depth.push('block');
 
   const tmpName = '#forof_tmp' + count;
-  const tmp = localTmp(scope, tmpName, valtypeBinary);
-  localTmp(scope, tmpName + "#type", Valtype.i32);
+  const tmp = allocVar(scope, tmpName, false);
+
+  pushScope(scope);
 
   // setup local for left
-  let setVar;
-  if (decl.left.type === 'Identifier') {
+  let initVar;
+  if (decl.left.type !== 'VariableDeclaration') {
     if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
-    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    initVar = generateVarDstr(scope, 'bare', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
+    initVar = generateVarDstr(scope, decl.left.kind, decl.left.declarations[0].id, { type: 'Identifier', name: tmpName }, undefined, global);
   }
-
 
   // set type for local
   // todo: optimize away counter and use end pointer
@@ -3980,7 +4327,7 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
       ]),
 
-      ...setVar,
+      ...initVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4036,7 +4383,7 @@ const generateForOf = (scope, decl) => {
 	    Opcodes.i32_from_u,
       [ Opcodes.local_set, tmp ],
 
-  	  ...setVar,
+  	  ...initVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4093,7 +4440,7 @@ const generateForOf = (scope, decl) => {
       Opcodes.i32_from_u,
       [ Opcodes.local_set, tmp ],
 
-      ...setVar,
+      ...initVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4128,7 +4475,7 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
       ]),
 
-      ...setVar,
+      ...initVar,
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
@@ -4235,7 +4582,7 @@ const generateForOf = (scope, decl) => {
       postlude: [
         [ Opcodes.local_set, tmp ],
 
-        ...setVar,
+        ...initVar,
 
         [ Opcodes.block, Blocktype.void ],
         [ Opcodes.block, Blocktype.void ],
@@ -4263,6 +4610,8 @@ const generateForOf = (scope, decl) => {
   }, Blocktype.void));
 
   out.push([ Opcodes.end ]); // end if
+
+  popScope(scope);
 
   depth.pop();
   depth.pop();
@@ -4311,14 +4660,16 @@ const generateForIn = (scope, decl) => {
   const tmp = localTmp(scope, tmpName, Valtype.i32);
   localTmp(scope, tmpName + '#type', Valtype.i32);
 
-  let setVar;
+  pushScope(scope);
+
+  let initVar;
   if (decl.left.type === 'Identifier') {
     if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
-    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    initVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
+    initVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
   // set type for local
@@ -4347,7 +4698,7 @@ const generateForIn = (scope, decl) => {
       [ Opcodes.end ]
     ]),
 
-    ...setVar,
+    ...initVar,
 
     [ Opcodes.block, Blocktype.void ],
 
@@ -4383,6 +4734,8 @@ const generateForIn = (scope, decl) => {
   );
 
   out.push([ Opcodes.end ]); // end if
+
+  popScope(scope);
 
   depth.pop();
   depth.pop();
@@ -4480,6 +4833,8 @@ const generateSwitch = (scope, decl) => {
     cases.push(cases.splice(defaultCase, 1)[0]);
   }
 
+  pushScope(scope);
+
   for (let i = 0; i < cases.length; i++) {
     out.push([ Opcodes.block, Blocktype.void ]);
     depth.push('block');
@@ -4512,6 +4867,8 @@ const generateSwitch = (scope, decl) => {
 
   out.push([ Opcodes.end ]);
   depth.pop();
+
+  popScope(scope);
 
   return out;
 };
@@ -4716,9 +5073,9 @@ const generateEmpty = (scope, decl) => {
 
 const generateMeta = (scope, decl) => {
   switch (`${decl.meta.name}.${decl.property.name}`) {
-    case 'new.target': return [
-      [ Opcodes.local_get, scope.locals['#newtarget'].idx ],
-    ];
+    case 'new.target': {
+      return getVar(scope, '#newtarget');
+    }
 
     default:
       return todo(scope, `meta property object ${decl.meta.name} is not supported yet`, true);
@@ -5828,7 +6185,6 @@ const generateFunc = (scope, decl) => {
 
   const params = decl.params ?? [];
 
-  // TODO: share scope/locals between !!!
   const func = {
     locals: {},
     localInd: 0,
@@ -5843,6 +6199,8 @@ const generateFunc = (scope, decl) => {
       !decl.async && !decl.generator,
     _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
+    variables: new Map(),
+    upper: scope,
 
     generate() {
       if (func.wasm) return func.wasm;
@@ -5859,16 +6217,20 @@ const generateFunc = (scope, decl) => {
         };
       }
 
+      if (body.type === 'BlockStatement') {
+        // basically, because we already generate the scope for the function above, we need to mark this so we don't do it again
+        body._funcBody = true;
+      }
+
+      func._inParameterList = true;
+
       for (const x in defaultValues) {
         prelude.push(
-          ...getType(func, x),
+          ...getVarType(func, x),
           ...number(TYPES.undefined, Valtype.i32),
           [ Opcodes.i32_eq ],
           [ Opcodes.if, Blocktype.void ],
-            ...generate(func, defaultValues[x], false, x),
-            [ Opcodes.local_set, func.locals[x].idx ],
-
-            ...setType(func, x, getNodeType(func, defaultValues[x])),
+            ...setVar(func, x, generate(func, defaultValues[x], false, x), getNodeType(func, defaultValues[x])),
           [ Opcodes.end ]
         );
       }
@@ -5878,6 +6240,8 @@ const generateFunc = (scope, decl) => {
           ...generateVarDstr(func, 'var', destructuredArgs[x], { type: 'Identifier', name: x }, undefined, false)
         );
       }
+
+      delete func._inParameterList;
 
       if (decl.async) {
         // make out promise local
@@ -5896,6 +6260,21 @@ const generateFunc = (scope, decl) => {
         );
 
         // todo: wrap in try and reject thrown value once supported
+      }
+
+      if (!globalThis.precompile && func.constr && !func._onlyThisMethod) {
+        wasm.unshift(
+          // opt: do not check for pure constructors
+          ...(func._onlyConstr ? [] : [
+            // if being constructed
+            ...getVar(func, '#newtarget'),
+            Opcodes.i32_to_u,
+            [ Opcodes.if, Blocktype.void ],
+          ]),
+            // set prototype of this ;)
+            ...generate(func, setObjProp({ type: 'ThisExpression', _noGlobalThis: true }, '__proto__', getObjProp(func.name, 'prototype'))),
+          ...(func._onlyConstr ? [] : [ [ Opcodes.end ] ])
+        );
       }
 
       if (name === 'main') {
@@ -5943,6 +6322,13 @@ const generateFunc = (scope, decl) => {
             [ Opcodes.drop ]
           );
         }
+
+        if (func.returns.length !== 0 && countLeftover(wasm) === 0) {
+            wasm.push(
+              ...number(UNDEFINED),
+              ...number(TYPES.undefined, Valtype.i32)
+            );
+        }
       } else {
         // add end return if not found
         if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
@@ -5954,7 +6340,7 @@ const generateFunc = (scope, decl) => {
     }
   };
 
-  funcIndex[name] = func.index;
+  if (!decl._forceIndirect) funcIndex[name] = func.index;
   funcs.push(func);
 
   let errorWasm = null;
@@ -5981,6 +6367,8 @@ const generateFunc = (scope, decl) => {
     allocVar(func, '#newtarget', false);
     allocVar(func, '#this', false);
   }
+
+  func._inParameterList = true;
 
   const prelude = [];
   const defaultValues = {};
@@ -6022,7 +6410,16 @@ const generateFunc = (scope, decl) => {
         break;
     }
 
-    allocVar(func, name, false);
+    if (!globalThis.precompile) {
+      let idx = allocVar(func, 'arg#' + name, false);
+      createVar(func, 'argument', name, false, true);
+      prelude.push(
+        ...setVar(func, name, [ [ Opcodes.local_get, idx ] ], [ [ Opcodes.local_get, idx + 1 ] ], false, true)
+      );
+    } else {
+      createVar(func, 'argument', name, false, true);
+    }
+
     if (typedInput && params[i].typeAnnotation) {
       const typeAnno = extractTypeAnnotation(params[i]);
       addVarMetadata(func, name, false, typeAnno);
@@ -6035,7 +6432,8 @@ const generateFunc = (scope, decl) => {
         TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
       ].includes(typeAnno.type)) {
         prelude.push(
-          [ Opcodes.local_get, func.locals[name].idx + 1 ],
+          // not #this, but _this because precompile
+          [ Opcodes.local_get, func.locals['_this#type'].idx ],
           ...number(typeAnno.type, Valtype.i32),
           [ Opcodes.i32_ne ],
           [ Opcodes.if, Blocktype.void ],
@@ -6048,6 +6446,8 @@ const generateFunc = (scope, decl) => {
     }
   }
 
+  delete func._inParameterList;
+
   func.params = Object.values(func.locals).map(x => x.type);
   func.jsLength = jsLength;
 
@@ -6057,17 +6457,150 @@ const generateFunc = (scope, decl) => {
   // force generate all for precompile
   if (globalThis.precompile) func.generate();
 
-  const out = decl.type.endsWith('Expression') ? funcRef(func) : [];
+  const out = [];
+  if (decl.type === 'FunctionDeclaration' || (decl.type === 'FunctionExpression' && decl.id)) {
+    createVar(scope, 'var', name);
+    out.push(
+      ...setVar(scope, name, funcRef(func), number(TYPES.function, Valtype.i32))
+    );
+  }
+  if (decl.type.endsWith('Expression')) {
+    out.push(...funcRef(func));
+  }
   astCache.set(decl, out);
   return [ func, out ];
 };
 
+let declaredNamesCache = new WeakMap();
+
+const liftDeclaredNames = (scope, body, eager, varOnly = false) => {
+  if (body.type === 'BlockStatement') body = body.body;
+  body = Array.isArray(body) ? body : [body];
+
+  // let eager = [];
+  for (let i = 0; i < body.length; i++) {
+    const x = body[i];
+    let names = [];
+    let kind;
+
+    if (declaredNamesCache.has(x)) {
+      const cache = declaredNamesCache.get(x);
+      names = cache.names;
+      kind = cache.kind;
+    } else {
+      let decl;
+      switch (x.type) {
+        case 'ForStatement':
+        case 'ForOfStatement':
+        case 'ForInStatement':
+          liftDeclaredNames(scope, x.body, eager, true);
+          break;
+
+        case 'IfStatement':
+          liftDeclaredNames(scope, x.consequent, eager, true);
+          if (x.alternate) liftDeclaredNames(scope, x.alternate, eager, true);
+          break;
+
+        case 'TryStatement':
+          // try block is mandatory, and the rest are forced to be `BlockStatement`s
+          liftDeclaredNames(scope, x.block.body, eager, true);
+          if (x.handler) liftDeclaredNames(scope, x.handler.body, eager, true);
+          if (x.finalizer) liftDeclaredNames(scope, x.finalizer.body, eager, true);
+          break;
+
+        case 'SwitchStatement':
+          for (const _case of x.cases) {
+            liftDeclaredNames(scope, _case.consequent, eager, true);
+          }
+          break;
+
+        case 'BlockStatement':
+          liftDeclaredNames(scope, x.body, eager, true);
+          break;
+      }
+
+      switch (x.type) {
+        case 'ForStatement':
+          if (x.body.type === 'BlockStatement') liftDeclaredNames(scope, x.body.body, eager, true);
+          if (x.init?.type !== 'VariableDeclaration') continue;
+          decl = x.init;
+          break;
+        case 'ForOfStatement':
+        case 'ForInStatement':
+          decl = x.left;
+          if (!decl.declarations) {
+            decl = { declarations: [{ id: decl }], kind: 'bare' }
+          }
+          break;
+        case 'VariableDeclaration':
+          decl = x;
+          break;
+        case 'FunctionDeclaration':
+          decl = { declarations: [{ id: { name: x.id.name } }], kind: 'var' };
+          eager.push(body.splice(i, 1)[0]);
+          i--;
+          break;
+      }
+
+      if (!decl) continue;
+
+      let queue = [...decl.declarations];
+      let d;
+      while (d = queue.shift()) {
+        if (!d) continue;
+        switch (d.id.type) {
+          case 'ObjectPattern':
+            for (const p of d.id.properties) {
+              if (!p) continue; // skip over array elisions
+              if (p.type === 'RestElement') queue.push({ id: p.argument });
+                else queue.push({ id: p.value });
+            }
+            break;
+          case 'ArrayPattern':
+            for (const e of d.id.elements) {
+              if (!e) continue; // skip over array elisions
+              if (e.type === 'RestElement') queue.push({ id: e.argument });
+                else queue.push({ id: e });
+            }
+            break;
+          default:
+            names.push(d.id.name);
+            break;
+        }
+      }
+
+      declaredNamesCache.set(x, { names, kind: decl.kind });
+      kind = decl.kind;
+    }
+
+    for (const name of names) {
+      if (varOnly && !(kind === 'var' || kind === 'bare')) continue;
+      if (!scope.variables.has(name)) {
+        scope.variables.set(name, { nonLocal: false, kind, index: scope.index, name });
+      }
+    }
+  }
+
+}
+
 const generateCode = (scope, decl) => {
   let out = [];
 
-  for (const x of decl.body) {
-    out = out.concat(generate(scope, x));
+  const blockScope = decl._funcBody ? scope : pushScope(scope);
+
+  const body = decl.body;
+  let eager = [];
+  liftDeclaredNames(blockScope, body, eager);
+
+  for (const x of eager) {
+    out = out.concat(generate(blockScope, x));
   }
+
+  for (const x of body) {
+    out = out.concat(generate(blockScope, x));
+  }
+
+  if (!decl._funcBody) popScope(blockScope);
 
   return out;
 };
@@ -6219,6 +6752,8 @@ const internalConstrs = {
   }
 };
 
+const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
+
 export default program => {
   globals = {
     ['#ind']: 0
@@ -6232,6 +6767,7 @@ export default program => {
   data = [];
   currentFuncIndex = importedFuncs.length;
   typeswitchDepth = 0;
+  variableNames.clear();
   usedTypes = new Set([ TYPES.empty, TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
 
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
@@ -6259,7 +6795,6 @@ export default program => {
   prototypeFuncs = new PrototypeFuncs();
   allocator = makeAllocator(Prefs.allocator ?? 'static');
 
-  const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
   objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
 
   program.id = { name: 'main' };
@@ -6336,9 +6871,204 @@ export default program => {
   //   }
   // }
 
-  delete globals['#ind'];
-
   // console.log([...usedTypes].map(x => TYPE_NAMES[x]));
+
+  // handle scoping logic
+  if (!globalThis.precompile) {
+    const nonLocalPtrs = new Map();
+
+    const handleVarOp = (scope, name, variable, inst) => {
+      // todo: may be missing some `setLastType`s
+
+      const op = inst[0];
+      const setOp = op === 'var.set' || op === 'var.tee';
+      // note: !setOp here to short circut
+      const initOp = !setOp && op.startsWith('var.init');
+      const global = variable?.global ?? scope.name === 'main';
+      if (variable) variable.global = global;
+
+      if (!variable || (variable && !variable.kind && scope.strict)) {
+        const out = [];
+        if (op == 'var.set') out.push([ Opcodes.drop ]);
+        return [
+          ...internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, op === 'var.get')
+        ];
+      }
+
+      if ((global && variable.kind === 'var') || variable.kind === 'bare') {
+        // variable is a var declaration at the top level, or is a bare declaration
+        // todo: there's probably some issues here with empty wasms and typeWasms
+
+        if (initOp) throw new Error(`${op} used on a non let or const variable`);
+
+        const out = [
+          // obj
+          ...generateIdent(scope, { name: 'globalThis' }),
+          Opcodes.i32_to_u,
+          ...number(TYPES.object, Valtype.i32),
+          // property
+          ...generate(scope, { type: 'Literal', value: name }),
+          Opcodes.i32_to_u,
+          ...number(byteStringable(name) ? TYPES.bytestring : TYPES.string, Valtype.i32)
+        ];
+
+        if (setOp) {
+          return out.concat([
+            // value
+            ...inst[2],
+            ...inst[3],
+
+            [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_set').index ],
+            [ Opcodes.drop ],
+            ...(op === 'var.tee' ? [  ] : [ [ Opcodes.drop ] ])
+          ]);
+        }
+
+        if (op === 'var.get_type') {
+          // todo: is uniqId required here for the swap?
+          const swap = localTmp(scope, '#swap', Valtype.i32);
+          return out.concat([
+            [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
+            [ Opcodes.local_set, swap ],
+            [ Opcodes.drop ],
+            [ Opcodes.local_get, swap ],
+          ]);
+        }
+
+        return out.concat([
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
+          ...setLastType(scope)
+        ]);
+      }
+
+      if (!global && variable.nonLocal) {
+        // e.g:
+        // function b() { a = 2; }; let a = 1; b();
+        // let a = 1; { a = 2; }
+
+        const varPtr = allocPage(scope, 'nonLocal variables') * pageSize;
+        let ptr;
+        if (nonLocalPtrs.has(variable)) {
+          ptr = nonLocalPtrs.get(variable);
+        } else {
+          ptr = nonLocalPtrs.size * (8 + 1 + 1);
+          nonLocalPtrs.set(variable, ptr);
+        }
+        ptr += varPtr;
+
+        if (initOp) {
+          if (op === 'var.init') {
+            return [
+              ...number(ptr, Valtype.i32),
+              ...number(1, Valtype.i32),
+              [ Opcodes.i32_store8, 0, 9 ],
+            ];
+          } else {
+            return [
+              ...number(ptr, Valtype.i32),
+              [ Opcodes.i32_load8_u, 0, 9 ],
+            ];
+          }
+        }
+
+        if (setOp) {
+          const out = [];
+          out.push(
+            ...number(ptr, Valtype.i32),
+            ...inst[2],
+            [ Opcodes.store, 0, 0 ],
+            ...number(ptr, Valtype.i32),
+            ...inst[3],
+            [ Opcodes.i32_store8, 0, 8 ],
+          );
+          if (op === 'var.tee') {
+            out.push(
+              ...number(ptr, Valtype.i32),
+              [ Opcodes.load, 0, 0 ],
+            );
+          }
+          return out;
+        }
+
+        if (op === 'var.get_type') {
+          return [
+            ...number(ptr, Valtype.i32),
+            [ Opcodes.i32_load8_u, 0, 8 ]
+          ];
+        }
+
+        return [
+          ...number(ptr, Valtype.i32),
+          [ Opcodes.load, 0, 0 ]
+        ];
+      }
+
+      if (initOp) {
+        if (global) {
+          const initName = name + '#init';
+          let initIdx;
+          if (Object.hasOwn(globals, initName)) {
+            initIdx = globals[initName].idx;
+          } else {
+            initIdx = globals['#ind']++;
+            globals[initName] = { type: Valtype.i32, idx: initIdx, name: initName };
+          }
+          if (op === 'var.init') {
+            return [
+              ...number(1, Valtype.i32),
+              [ Opcodes.global_set, initIdx ]
+            ];
+          } else {
+            return [
+              [ Opcodes.global_get, initIdx ]
+            ];
+          }
+        }
+        if (op !== 'var.init') {
+          return number(1, Valtype.i32);
+        }
+        return [];
+      }
+
+      let idx = allocVar(scope, name, global, true);
+
+      if (setOp) {
+        let out = [];
+        out.push(
+          ...inst[2],
+          [ global ? Opcodes.global_set : Opcodes.local_set, idx ],
+          ...inst[3],
+          [ global ? Opcodes.global_set : Opcodes.local_set, idx + 1 ],
+        );
+        if (op === 'var.tee') out.push([ global ? Opcodes.global_get : Opcodes.local_get, idx ])
+        return out;
+      }
+
+      if (op === 'var.get_type') {
+        return [
+          [ global ? Opcodes.global_get : Opcodes.local_get, idx + 1 ]
+        ];
+      }
+
+      return [
+        [ global ? Opcodes.global_get : Opcodes.local_get, idx ]
+      ];
+    }
+
+    for (const f of funcs) {
+      for (let i = 0; i < f.wasm.length; i++) {
+        const inst = f.wasm[i];
+        if (typeof inst[0] === 'string' && inst[0].startsWith('var')) {
+          const variable = inst[1];
+          f.wasm.splice(i, 1, ...handleVarOp(f, variable.name, variable, inst));
+          i--;
+          continue;
+        }
+      }
+    }
+  }
+
+  delete globals['#ind'];
 
   return { funcs, globals, tags, exceptions, pages, data };
 };

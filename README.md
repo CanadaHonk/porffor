@@ -153,6 +153,7 @@ These include some early (stage 1/0) and/or dead (last commit years ago) proposa
 - Constructors (`new Foo`)
 - Classes (`class A {}`)
 - Await (`await promise`)
+- Non-local variables (`let foo = 0; function bar() { return foo; }`)
 
 ### Built-ins
 
