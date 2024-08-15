@@ -1,205 +1,217 @@
-export const codifyString = str => {
-  let out = [];
-  for (let i = 0; i < str.length; i++) {
-    out.push(str.charCodeAt(i));
-  }
+let enc;
+let textEncoder = new TextEncoder();
 
-  return out;
-};
+if (WebAssembly?.instantiateStreaming) {
+  let url = "data:application/wasm;base64,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";
+  let wasm = await WebAssembly.instantiateStreaming(fetch(url));
 
-export const encodeString = str => unsignedLEB128(str.length).concat(codifyString(str));
-export const encodeVector = data => unsignedLEB128(data.length).concat(data.flat());
-
-export const encodeLocal = (count, type) => [
-  ...unsignedLEB128(count),
-  type
-];
-
-// todo: this only works with integers within 32 bit range
-export const signedLEB128 = n => {
-  if (typeof n === 'bigint') return big_signedLEB128(n);
-
-  n |= 0;
-
-  // just input for small numbers (for perf as common)
-  if (n >= 0 && n <= 63) return [ n ];
-  if (n >= -64 && n <= 0) return [ 128 + n ];
-
-  const buffer = [];
-
-  while (true) {
-    let byte = n & 0x7f;
-    n >>= 7;
-
-    if ((n === 0 && (byte & 0x40) === 0) || (n === -1 && (byte & 0x40) !== 0)) {
-      buffer.push(byte);
-      break;
-    } else {
-      byte |= 0x80;
+  enc = Object.assign({}, wasm.instance.exports);
+} else {
+  // Wasm not supported
+  // Fallback to ArrayBuffer
+  const memory = {
+    buffer: new ArrayBuffer(65536)
+  };
+  const length = {
+    value: 0
+  };
+  let view = new DataView(buffer);
+  const reserve = (expectSize) => {
+    if (expectSize > mem.buffer.byteLength) {
+      let newLength = Math.max(expectSize, mem.buffer.byteLength * 2);
+      memory.buffer = memory.buffer.transfer(newLength);
+      view = new DataView(memory.buffer);
     }
-
-    buffer.push(byte);
-  }
-
-  return buffer;
-};
-
-export const unsignedLEB128 = n => {
-  if (typeof n === 'bigint') return big_unsignedLEB128(n);
-
-  n |= 0;
-
-  // just input for small numbers (for perf as common)
-  if (n >= 0 && n <= 127) return [ n ];
-
-  const buffer = [];
-  do {
-    let byte = n & 0x7f;
-    n >>>= 7;
-    if (n !== 0) {
-      byte |= 0x80;
-    }
-    buffer.push(byte);
-  } while (n !== 0);
-  return buffer;
-};
-
-export const big_signedLEB128 = n => {
-  // just input for small numbers (for perf as common)
-  if (n >= 0n && n <= 63n) return [ Number(n) ];
-  if (n >= -64n && n <= 0n) return [ 128 + Number(n) ];
-
-  const buffer = [];
-
-  while (true) {
-    let byte = Number(n & 0x7fn);
-    n >>= 7n;
-
-    if ((n === 0n && (byte & 0x40) === 0) || (n === -1n && (byte & 0x40) !== 0)) {
-      buffer.push(byte);
-      break;
-    } else {
-      byte |= 0x80n;
-    }
-
-    buffer.push(byte);
-  }
-
-  return buffer;
-};
-
-export const big_unsignedLEB128 = n => {
-  // just input for small numbers (for perf as common)
-  if (n >= 0n && n <= 127n) return [ n ];
-
-  const buffer = [];
-  do {
-    let byte = Number(n & 0x7fn);
-    n >>>= 7n;
-    if (n !== 0n) {
-      byte |= 0x80;
-    }
-    buffer.push(byte);
-  } while (n !== 0n);
-  return buffer;
-};
-
-export const read_signedLEB128 = _input => {
-  const input = [..._input];
-  let result = 0, shift = 0;
-
-  while (true) {
-    const byte = input.shift();
-    result |= (byte & 0x7f) << shift;
-
-    shift += 7;
-
-    if ((0x80 & byte) === 0) {
-      if (shift < 32 && (byte & 0x40) !== 0) {
-        return result | (-1 << shift);
+  };
+  enc = {
+    memory,
+    length,
+    reserve,
+    write: (value) => {
+      let oldLength = length.value;
+      reserve(oldLength + 1);
+      view.setUint8(oldLength, value);
+      length.value = oldLength + 1;
+    },
+    writeUnsignedLEB128: (value) => {
+      let ptr = length.value;
+      reserve(ptr + 5);
+      while (value >= 0x80) {
+        view.setUint8(ptr++, (value & 0x7F) | 0x80);
+        value >>= 7;
       }
+      view.setUint8(ptr++, value & 0x7F);
+      length.value = ptr;
+    },
+    writeSignedLEB128: (value) => {
+      let ptr = length.value;
+      reserve(ptr + 5);
+      while (value < -0x40 || b >= 0x40) {
+        view.setUint8(ptr++, (value & 0x7F) | 0x80);
+        value >>= 7;
+      }
+      view.setUint8(ptr++, value & 0x7F);
+      length.value = ptr;
+    },
+    insertLength: (ptr) => {
+      let lengthToInsert = length.value - ptr;
+      let lebBytes = (352 - Math.clz32(lengthToInsert) * 9) >> 6; // black magic
+      reserve(length.value + lebBytes);
 
-      return result;
+      // copy memory
+      new Uint8Array(memory.buffer, ptr + lebBytes).set(new Uint8Array(memory.buffer, ptr));
+
+      while (lengthToInsert >= 0x80) {
+        view.setUint8(ptr++, (lengthToInsert & 0x7F) | 0x80);
+        b >>= 7;
+      }
+      view.setUint8(ptr++, lengthToInsert & 0x7F);
+    },
+    writeLongSignedLEB128: (value) => {
+      let ptr = length.value;
+      reserve(ptr + 5);
+      while (b < -0x40n || b >= 0x40n) {
+        view.setUint8(ptr++, (Number(value) & 0x7F) | 0x80);
+        value >>= 7;
+      }
+      view.setUint8(ptr++, Number(value) & 0x7F);
+      length.value = ptr;
+    },
+    writeFloat: (value) => {
+      let oldLength = length.value;
+      reserve(oldLength + 4);
+      view.setFloat32(oldLength, value);
+      length.value = oldLength + 4;
+    },
+    writeDouble: (value) => {
+      let oldLength = length.value;
+      reserve(oldLength + 8);
+      view.setFloat64(oldLength, value);
+      length.value = oldLength + 8;
+    },
+    writeI32x4: (value1, value2, value3, value4) => {
+      let oldLength = length.value;
+      reserve(oldLength + 16);
+      view.setInt32(oldLength, value);
+      view.setInt32(oldLength + 4, value);
+      view.setInt32(oldLength + 8, value);
+      view.setInt32(oldLength + 12, value);
+      length.value = oldLength + 16;
+    },
+    floatToBits32: (x) => {
+      return new Int32Array(new Float32Array([x]).buffer)[0];
+    },
+    bitsToFloat32: (x) => {
+      return new Float32Array(new Int32Array([x]).buffer)[0];
+    },
+    floatToBits64: (x) => {
+      return new BigInt64Array(new Float64Array([x]).buffer)[0];
+    },
+    bitsToFloat64: (x) => {
+      return new Float64Array(new BigInt64Array([x]).buffer)[0];
+    },
+    truncateSaturated: (x) => {
+      return Math.max(-0x8000_0000, Math.min(0x7FFF_FFFF, x)) | 0;
+    },
+    truncateSaturatedUnsigned: (x) => {
+      return Math.max(0, Math.min(0xFFFF_FFFF, x)) | 0;
+    },
+    truncateSaturatedLong: (x) => {
+      if (x != x) {
+        return 0n;
+      }
+      x = Math.trunc(x);
+      if (x < -(2 ** 63)) {
+        x = 2 ** 63;
+      }
+      if (x >= 2 ** 63) {
+        x = 2 ** 63 - 1;
+      }
+      return BigInt(x);
+    },
+    truncateSaturatedLong: (x) => {
+      if (x != x) {
+        return 0n;
+      }
+      x = Math.trunc(x);
+      if (x < 0) {
+        x = 0;
+      }
+      if (x >= 2 ** 64) {
+        x = 2 ** 64 - 1;
+      }
+      return BigInt(x);
     }
+  };
+}
+
+export const encoder = enc;
+
+enc.writeSection = (fn) => {
+  let oldPtr = enc.length.value;
+  fn(enc);
+  enc.insertLength(oldPtr);
+};
+enc.writeVector = (elements, encodeFn) => {
+  enc.writeUnsignedLEB128(elements.length);
+  for (let i = 0; i < elements.length; i++) {
+    encodeFn(enc, elements[i], i);
   }
 };
 
-// todo: check this with large unsigned values
-export const read_unsignedLEB128 = _input => {
-  const input = [..._input];
-  let result = 0, shift = 0;
-
-  while (true) {
-    const byte = input.shift();
-    result |= (byte & 0x7f) << shift;
-
-    shift += 7;
-
-    if ((0x80 & byte) === 0) {
-      return result;
-    }
-  }
-};
-
-// ieee 754 binary64
-const ieee754Buffer = new Float64Array(1);
-const ieee754Cache = {};
-export const ieee754_binary64 = value => {
-  if (value === 0) {
-    if (1 / value === -Infinity) return [ 0, 0, 0, 0, 0, 0, 0, 128 ]; // -0
-    return [ 0, 0, 0, 0, 0, 0, 0, 0 ]; // +0
-  }
-
-  if (ieee754Cache[value]) return ieee754Cache[value].slice();
-
-  ieee754Buffer[0] = value;
-  return ieee754Cache[value] = [...new Uint8Array(ieee754Buffer.buffer)];
-};
-
-export const read_ieee754_binary64 = buffer => new Float64Array(new Uint8Array(buffer).buffer)[0];
-
-
-// into funcs append to a given existing buffer instead of creating our own for perf
-export const signedLEB128_into = (n, buffer) => {
-  n |= 0;
-
-  // just input for small numbers (for perf as common)
-  if (n >= 0 && n <= 63) return buffer.push(n);
-  if (n >= -64 && n <= 0) return buffer.push(128 + n);
-
-  while (true) {
-    let byte = n & 0x7f;
-    n >>= 7;
-
-    if ((n === 0 && (byte & 0x40) === 0) || (n === -1 && (byte & 0x40) !== 0)) {
-      buffer.push(byte);
+enc.writeString = (str) => {
+  let oldPtr = enc.length.value;
+  if (str != '') {
+    while (true) {
+      let view = new Uint8Array(enc.memory.buffer, enc.length.value);
+      let result = textEncoder.encodeInto(str, view);
+      str = str.substring(result.read);
+      enc.length.value += result.written;
+      if (str == '') {
       break;
-    } else {
-      byte |= 0x80;
+      }
+      enc.reserve(enc.length.value + 1); // should cause a grow
     }
-
-    buffer.push(byte);
   }
+  enc.insertLength(oldPtr);
 };
 
-export const unsignedLEB128_into = (n, buffer) => {
-  n |= 0;
+enc.writeData = (array) => {
+  let oldLength = enc.length.value;
+  enc.reserve(oldLength + array.length); // makes sure the memory has enough space
+  new Uint8Array(enc.memory.buffer).set(array, oldLength);
+  enc.length.value = oldLength + array.length;
+};
 
-  // just input for small numbers (for perf as common)
-  if (n >= 0 && n <= 127) return buffer.push(n);
+enc.writeSectionToBuffer = (id, fn) => {
+  let oldPtr = enc.length.value;
+  enc.write(id);
+  fn(enc);
+  let result = new Uint8Array(enc.memory.buffer, oldPtr, enc.length.value).slice(0);
+  enc.length.value = oldPtr;
+  return result;
+};
+enc.writeSectionFromBuffer = (buffer) => {
+  if (!buffer) {
+    return;
+  }
+  enc.write(buffer[0]);
+  enc.writeUnsignedLEB128(buffer.length - 1);
+  enc.writeData(buffer.subarray(1));
+};
 
-  do {
-    let byte = n & 0x7f;
-    n >>>= 7;
-    if (n !== 0) {
-      byte |= 0x80;
+export const { floatToBits32, bitsToFloat32, floatToBits64, bitsToFloat64,
+  truncateSaturated, truncateSaturatedUnsigned, truncateSaturatedLong, truncateSaturatedLongUnsigned } = enc;
+
+export const readUnsignedLEB128 = (array, index) => {
+  let value = 0;
+  let shift = 0;
+  while (true) {
+    value |= (array[index] & 0x7F) << shift;
+    if ((array[index] & 0x80) == 0) {
+      return [ value, index + 1 ];
     }
-    buffer.push(byte);
-  } while (n !== 0);
-};
-
-export const ieee754_binary64_into = (value, buffer) => {
-  const data = new Uint8Array(new Float64Array([ value ]).buffer);
-  for (let i = 0; i < 8; i++) buffer.push(data[i]);
-  // buffer.push(...new Uint8Array(new Float64Array([ value ]).buffer));
+    shift += 7;
+    index++;
+  }
 };

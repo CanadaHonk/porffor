@@ -1,4 +1,3 @@
-import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
 import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
 import { log } from './log.js';
@@ -427,7 +426,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
       switch (i[0]) {
         case Opcodes.i32_const:
         case Opcodes.i64_const:
-          vals.push(read_signedLEB128(i.slice(1)).toString());
+          vals.push(i[1].toString());
           break;
 
         case Opcodes.f64_const: {
@@ -806,7 +805,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
               prepend.set(name, `${func.returns || 'void'} ${name}(i32 align, i32 offset, ${func.args.map((x, i) => `${func.argTypes[i]} ${x}`).join(', ')}) {\n  ${func.c.replaceAll('\n', '\n  ')}\n}\n`);
             }
 
-            const immediates = [ i[1], read_unsignedLEB128(i.slice(2)) ];
+            const immediates = [ i[1], i[2] ];
 
             let args = [];
             for (let j = 0; j < func.args.length; j++) args.unshift(removeBrackets(vals.pop()));

@@ -1,6 +1,6 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
-import { read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
 import { TYPES } from './types.js';
+import { floatToBits64, bitsToFloat64 } from './encoding.js';
 
 import process from 'node:process';
 globalThis.process = process;
@@ -21,7 +21,7 @@ const compile = async (file, _funcs) => {
   let first = source.slice(0, source.indexOf('\n'));
 
   if (first.startsWith('export default')) {
-    source = await (await import(file)).default();
+    source = await (await import('file://' + file)).default();
     first = source.slice(0, source.indexOf('\n'));
   }
 
@@ -154,7 +154,7 @@ const compile = async (file, _funcs) => {
 
 
         if (y[0] === Opcodes.i32_const && n[0] === Opcodes.throw) {
-          const id = read_signedLEB128(y.slice(1));
+          const id = y[1];
           y.splice(0, 10, 'throw', exceptions[id].constructor, exceptions[id].message);
 
           // remove throw inst
@@ -178,7 +178,7 @@ const precompile = async () => {
 
   let funcs = [];
   let fileCount = 0;
-  for (const file of fs.readdirSync(dir)) {
+  for (const file of fs.readdirSync(dir).toSorted()) {
     if (file.endsWith('.d.ts')) continue;
     fileCount++;
 
@@ -204,21 +204,98 @@ import { number } from './embedding.js';
 export const BuiltinFuncs = function() {
 ${funcs.map(x => {
   const rewriteWasm = wasm => {
-    const str = JSON.stringify(wasm.filter(x => x.length && (x[0] != null || typeof x[1] === 'string')), (k, v) => {
-      if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
-      return v;
-    })
-      .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(_,'${reason}','${type}'),${valtype})`)
-      .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode},'${name}',${valtype})`)
-      .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
-      .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)
-      .replace(/\[68,"funcref","(.*?)"]/g, (_, name) => `...funcRef('${name}')`)
-      .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(_,'${constructor}',\`${message}\`)`)
-      .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`)
-      .replace(/\[null,"typeswitch case start",\[(.*?)\]\],/g, (_, types) => `...t([${types}],()=>[`)
-      .replaceAll(',[null,"typeswitch case end"]', '])');
+    let str = '[';
+    let comma = false;
+    let includes = new Map();
+    for (let x of wasm) {
+      if (comma) str += ',';
+      comma = true;
+      if (typeof x[0] === 'number' || typeof x[0] === 'object') {
+        // encode directly
+        if (x[0] === Opcodes.i64_const) {
+          str += `[${Opcodes.i64_const},${x[1]}n]`; // value
+          continue;
+        } else if (x[0] >= Opcodes.local_get && x[0] <= Opcodes.local_tee && x[1] === 'local') {
+          str += `[${x[0]},loc('${x[2]}',${x[3]})]`; // name, valtype
+          includes.set('loc', true);
+          continue;
+        } else if (x[1] === 'funcref') {
+          str += `...funcRef('${x[2]}')`; // name
+          includes.set('funcRef', true);
+          continue;
+        } else if (x[0] === Opcodes.f64_const) {
+          // Constant representable?
+          let value = x[1];
+          /*let bits = floatToBits64(value);
+          if (bits !== floatToBits64(Number(value.toString()))) {
+            str += `[${Opcodes.f64_const},b2f(${bits}n)]`;
+          } else {*/
+            str += `[${Opcodes.f64_const},${value}]`;
+          //}
+          continue;
+        } else if (x[0] === Opcodes.call && typeof x[1] === 'string') {
+          str += `[${Opcodes.call},builtin('${x[1]}')]`;
+          includes.set('builtin', true);
+          continue;
+        }
+        str += JSON.stringify(x);
+        continue;
+      }
+      if (x[0] === null) {
+        if (x[1] === 'typeswitch case start') {
+          str += `...t(${JSON.stringify(x[2])},()=>[`;
+          includes.set('t', true);
+          comma = false;
+          continue;
+        }
+        if (x[1] === 'typeswitch case end') {
+          str = str.substring(0, -1) + '])';
+          continue;
+        }
+        console.error('unknown instruction', x);
+        console.error('inserting no-op');
+        str += '[${Opcodes.nop}]';
+        continue;
+      }
+      if (x[0] === 'alloc') {
+        let reason = x[1];
+        let type = x[2];
+        let valtype = x[3];
+        str += `...number(allocPage(_,'${reason}','${type}'),${valtype})`;
+        includes.set('allocPage', true);
+        continue;
+      }
+      if (x[0] === 'global') {
+        let opcode = x[1];
+        let name = x[2];
+        let valtype = x[3];
+        str += `...glbl(${opcode},'${name}',${valtype})`;
+        includes.set('glbl', true);
+        continue;
+      }
+      if (x[0] === 'throw') {
+        let constructor = x[1];
+        let message = x[2];
+        str += `...internalThrow(_,'${constructor}',\`${message}\`)`;
+        includes.set('internalThrow', true);
+        continue;
+      }
+      if (x[0] === 'get object') {
+        let objName = x[1];
+        str += `...generateIdent(_,{name:'${objName}'})`;
+        includes.set('generateIdent', true);
+        continue;
+      }
+      console.error('unknown instruction', x);
+      console.error('inserting no-op');
+      str += '[${Opcodes.nop}]';
+    }
+    str += ']';
 
-    return `(_,{${str.includes('...t(') ? 't,' : ''}${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('funcRef(') ? 'funcRef,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
+    if (includes.size === 0) {
+      return '()=>' + str;
+    }
+    return `(_,{${Array.from(includes.keys())}})=>${str}`;
   };
 
   const locals = Object.entries(x.locals).sort((a,b) => a[1].idx - b[1].idx)

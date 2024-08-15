@@ -1,5 +1,4 @@
-import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
-import { ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector, read_signedLEB128 } from './encoding.js';
+import { Blocktype, Opcodes, Valtype, ValtypeSize, opcodeSignature } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
 import { PrototypeFuncs } from './prototype.js';
@@ -231,27 +230,62 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
             let inst = Opcodes[asm[0].replace('.', '_')];
             if (inst == null) throw new Error(`inline asm: inst ${asm[0]} not found`);
-            if (!Array.isArray(inst)) inst = [ inst ];
-
-            const immediates = asm.slice(1).map(x => {
-              const int = parseInt(x);
-              if (Number.isNaN(int)) {
-                if (builtinFuncs[x]) {
-                  if (funcIndex[x] == null) includeBuiltin(scope, x);
-                  return funcIndex[x];
-                }
-
-                return scope.locals[x]?.idx ?? globals[x].idx;
+            if (Array.isArray(inst)) {
+              if (inst.length === 1) {
+                inst = inst[0];
+              } else if (Array.isArray(inst[0])) {
+                out.push(...inst);
+                continue;
               }
-              return int;
-            });
+            }
+            if (inst.length === 0) continue; // no-op
+            inst = [ inst ];
 
-            const encodeFunc = ({
-              [Opcodes.f64_const]: x => x,
-              [Opcodes.if]: unsignedLEB128,
-              [Opcodes.loop]: unsignedLEB128
-            })[inst[0]] ?? signedLEB128;
-            out.push([ ...inst, ...immediates.flatMap(x => encodeFunc(x)) ]);
+            if ([ Opcodes.block, Opcodes.loop, Opcodes.if, Opcodes.try ].includes(inst[0])) {
+              if (asm.length === 1) {
+                inst.push(Blocktype.void);
+              } else if (asm.length === 2 && Valtype[asm[1]]) {
+                inst.push(Valtype[asm[1]]);
+              } else {
+                let params = [];
+                let returns = [];
+                let mode = false;
+                for (let i = 0; i < asm.length; i++) {
+                  if (asm[i] == '->') {
+                    mode = true;
+                  } else if (asm[i] != '()') {
+                    let type = Valtype[asm[i]];
+                    if (!type) throw new Error(`inline asm: invalid value type for block, expected one of i32, i64 or f64`);
+                    (mode ? returns : params).push(type);
+                  }
+                }
+                inst.push(mode ? [ params, returns ] : [ [], params ]);
+              }
+            } else {
+              for (let i = 1; i < asm.length; i++) {
+                const x = asm[i];
+                if (inst[0] === Opcodes.i64_const) {
+                  inst.push(BigInt(x));
+                  break;
+                }
+                if (inst[0] === Opcodes.f64_const) {
+                  inst.push(Number(x));
+                  break;
+                }
+                const int = parseInt(x);
+                if (Number.isNaN(int)) {
+                  if (builtinFuncs[x]) {
+                    if (funcIndex[x] == null) includeBuiltin(scope, x);
+                    inst.push(funcIndex[x]);
+                  } else {
+                    inst.push(scope.locals[x]?.idx ?? globals[x].idx);
+                  }
+                } else {
+                  inst.push(int);
+                }
+              }
+            }
+            out.push(inst);
           }
 
           return out;
@@ -521,7 +555,7 @@ const concatStrings = (scope, left, right, leftType, rightType) => {
 
     [ Opcodes.call, includeBuiltin(scope, '__Porffor_concatStrings').index ],
     ...setLastType(scope),
-    ...(valtypeBinary === Valtype.i32 ? [ Opcodes.i32_trunc_sat_f64_u ] : []),
+    ...(valtypeBinary === Valtype.i32 ? [ [ Opcodes.i32_trunc_sat_f64_u ] ] : []),
   ];
 };
 
@@ -540,7 +574,7 @@ const compareStrings = (scope, left, right, leftType, rightType) => {
     [ Opcodes.drop ],
 
     // convert valtype result to i32 as i32 output expected
-    Opcodes.i32_trunc_sat_f64_u
+    [ Opcodes.i32_trunc_sat_f64_u ]
   ];
 };
 
@@ -1071,7 +1105,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     for (const inst of wasm) {
       if (inst.at(-1) === 'read func lut') {
         inst.splice(2, 99);
-        inst.push(...unsignedLEB128(allocPage({}, 'func lut')));
+        inst.push(allocPage({}, 'func lut'));
       }
     }
 
@@ -1462,43 +1496,77 @@ const generateLiteral = (scope, decl, global, name) => {
 };
 
 const countLeftover = wasm => {
-  let count = 0, depth = 0;
+  let count = 0;
 
   for (let i = 0; i < wasm.length; i++) {
     const inst = wasm[i];
     if (inst[0] == null) continue;
 
-    if (depth === 0 && (inst[0] === Opcodes.if || inst[0] === Opcodes.block || inst[0] === Opcodes.loop)) {
-      if (inst[0] === Opcodes.if) count--;
-      if (inst[1] !== Blocktype.void) count++;
+    let sig = opcodeSignature(inst[0]);
+    if (sig === null) {
+      count = 0;
+      break;
     }
-    if ([Opcodes.if, Opcodes.try, Opcodes.loop, Opcodes.block].includes(inst[0])) depth++;
-    if (inst[0] === Opcodes.end) depth--;
-
-    if (depth === 0)
-      if ([Opcodes.throw, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
-        else if ([Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.f32_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.i32_load8_u, Opcodes.i32_load8_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x04)) {}
-        else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const, Opcodes.memory_size].includes(inst[0])) count++;
-        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.f32_store, Opcodes.i32_store16, Opcodes.i32_store8].includes(inst[0])) count -= 2;
-        else if (inst[0] === Opcodes.memory_copy[0] && (inst[1] === Opcodes.memory_copy[1] || inst[1] === Opcodes.memory_init[1])) count -= 3;
-        else if (inst[0] === Opcodes.return) count = 0;
-        else if (inst[0] === Opcodes.call) {
-          if (inst[1] < importedFuncs.length) {
-            const func = importedFuncs[inst[1]];
-            count = count - func.params + func.returns;
-          } else {
-            const func = funcByIndex(inst[1]);
-            count = count - func.params.length + func.returns.length;
+    if (sig === undefined) {
+      if (inst[0] === Opcodes.call) {
+        if (inst[1] < importedFuncs.length) {
+          const func = importedFuncs[inst[1]];
+          count = count - func.params + func.returns;
+        } else {
+          const func = funcByIndex(inst[1]);
+          count = count - func.params.length + func.returns.length;
+        }
+      } else if (inst[0] === Opcodes.call_indirect) {
+        count--; // funcidx
+        count -= inst[1] * 2; // params * 2 (typed)
+        count += 2; // fixed return (value, type)
+      } else {
+        console.error('no signature available for opcode ', inst[0]);
+      }
+      continue;
+    }
+    let [ inCount, outCount, flags ] = sig;
+    count += outCount - inCount;
+    if ((flags & 16) != 0) { // opens scope
+      let type = inst[1];
+      if (typeof type === 'number' && type !== Blocktype.void) {
+        count++;
+      } else if (Array.isArray(type)) {
+        count += type[1].length - type[0].length; // returns - params
+      }
+      let depth = 1;
+      i++;
+      while (i < wasm.length) {
+        if (wasm[i][0] === null) {
+          i++;
+          continue;
+        }
+        if (wasm[i][0] === Opcodes.end) {
+          depth--;
+          if (depth === 0) {
+            break;
           }
-        } else if (inst[0] === Opcodes.call_indirect) {
-          count--; // funcidx
-          count -= inst[1] * 2; // params * 2 (typed)
-          count += 2; // fixed return (value, type)
-        } else count--;
+          i++;
+          continue;
+        }
+        let newSig = opcodeSignature(wasm[i][0]);
+        if (newSig) {
+          let flags = newSig[2];
+          if ((flags & 16) != 0) { // opens scope
+            depth++;
+          }
+        }
+        i++;
+      }
+      if (i >= wasm.length) {
+        // unclosed scope, return
+        throw new Error('unclosed scope');
+      }
+      continue;
+    }
 
     // console.log(count, decompile([ inst ]).slice(0, -1));
   }
-
   return count;
 };
 
@@ -1541,52 +1609,52 @@ const generateChain = (scope, decl) => {
 const CTArrayUtil = {
   getLengthI32: pointer => [
     ...number(0, Valtype.i32),
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
+    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), pointer ]
   ],
 
   getLength: pointer => [
     ...number(0, Valtype.i32),
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ],
+    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), pointer ],
     Opcodes.i32_from_u
   ],
 
   setLengthI32: (pointer, value) => [
     ...number(0, Valtype.i32),
     ...value,
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32), pointer ]
   ],
 
   setLength: (pointer, value) => [
     ...number(0, Valtype.i32),
     ...value,
     Opcodes.i32_to_u,
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32), pointer ]
   ]
 };
 
 const RTArrayUtil = {
   getLengthI32: pointer => [
     ...pointer,
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ]
+    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), 0 ]
   ],
 
   getLength: pointer => [
     ...pointer,
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), 0 ],
     Opcodes.i32_from_u
   ],
 
   setLengthI32: (pointer, value) => [
     ...pointer,
     ...value,
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32), 0 ]
   ],
 
   setLength: (pointer, value) => [
     ...pointer,
     ...value,
     Opcodes.i32_to_u,
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32), 0 ]
   ]
 };
 
@@ -2119,7 +2187,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         i32_const: { imms: 1, args: [], returns: 0 },
 
         // dst, src, size, _, _
-        memory_copy: { imms: 2, args: [ true, true, true ], returns: 0 }
+        memory_copy: { imms: 2, args: [ true, true, true ], returns: 0 },
+
+        // dst, size, value, _
+        memory_fill: { imms: 1, args: [ true, true, true ], returns: 0 },
       };
 
       const opName = name.slice('__Porffor_wasm_'.length);
@@ -2129,25 +2200,30 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
         const argOut = [];
         for (let i = 0; i < op.args.length; i++) {
-          if (!op.args[i]) globalThis.noi32F64CallConv = true;
+          //if (!op.args[i]) globalThis.noi32F64CallConv = true;
 
           argOut.push(
             ...generate(scope, decl.arguments[i]),
             ...(op.args[i] ? [ Opcodes.i32_to ] : [])
           );
 
-          globalThis.noi32F64CallConv = false;
+          //globalThis.noi32F64CallConv = false;
         }
 
         // literals only
-        const imms = decl.arguments.slice(op.args.length).map(x => x.value);
+        const imms = decl.arguments.slice(op.args.length).map(x => {
+          if (x.type !== 'Literal') {
+            throw new Error('Wasm operation ', opName.replace('_', '.'), ' used with non-literals');
+          }
+          return x.value;
+        });
 
         let opcode = Opcodes[opName];
-        if (!Array.isArray(opcode)) opcode = [ opcode ];
+        if (Array.isArray(opcode) && opcode.length === 1) opcode = opcode[0];
 
         return [
           ...argOut,
-          [ ...opcode, ...imms ],
+          [ opcode, ...imms ],
           ...(new Array(op.returns).fill(Opcodes.i32_from))
         ];
       }
@@ -2354,7 +2430,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             [ Opcodes.i32_mul ],
             ...number(4, Valtype.i32),
             [ Opcodes.i32_add ],
-            [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ],
+            [ Opcodes.i32_load8_u, 0, allocPage(scope, 'func lut'), 'read func lut' ],
             [ Opcodes.local_set, flags ],
 
             // check if non-constructor was called with new, if so throw
@@ -2378,7 +2454,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             // [ Opcodes.local_get, funcLocal ],
             // ...number(64, Valtype.i32),
             // [ Opcodes.i32_mul ],
-            // [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ],
+            // [ Opcodes.i32_load16_u, 0, allocPage(scope, 'func lut'), 'read func lut' ],
             // Opcodes.i32_from_u,
             // [ Opcodes.call, 0 ],
 
@@ -2398,7 +2474,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
               [ Opcodes.local_get, funcLocal ],
               ...number(64, Valtype.i32),
               [ Opcodes.i32_mul ],
-              [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ]
+              [ Opcodes.i32_load16_u, 0, allocPage(scope, 'func lut'), 'read func lut' ]
             ], tableBc, valtypeBinary)
           ],
 
@@ -2518,7 +2594,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32 && !globalThis.noi32F64CallConv) {
-    out.push(Opcodes.i32_trunc_sat_f64_s);
+    out.push([ Opcodes.i32_trunc_sat_f64_s ]);
   }
 
   return out;
@@ -2596,7 +2672,7 @@ const knownType = (scope, type) => {
   if (typeof type === 'number') return type;
 
   if (type.length === 1 && type[0][0] === Opcodes.i32_const) {
-    return read_signedLEB128(type[0].slice(1));
+    return type[0][1];
   }
 
   if (typedInput && type.length === 1 && type[0][0] === Opcodes.local_get) {
@@ -2679,7 +2755,7 @@ const brTable = (input, bc, returns) => {
       ...number(offset, Valtype.i32),
       [ Opcodes.i32_sub ]
     ] : []),
-    [ Opcodes.br_table, ...encodeVector(table), 0 ]
+    [ Opcodes.br_table, table, 0 ]
   );
 
   // sort the wrong way and then reverse
@@ -3641,7 +3717,7 @@ const generateUnary = (scope, decl) => {
       return [
         ...generate(scope, decl.argument),
         Opcodes.i32_to,
-        [ Opcodes.i32_const, ...signedLEB128(-1) ],
+        [ Opcodes.i32_const, -1 ],
         [ Opcodes.i32_xor ],
         Opcodes.i32_from
       ];
@@ -3971,13 +4047,13 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.loop, Blocktype.void ],
 
       [ Opcodes.local_get, pointer ],
-      [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.load, 0, ValtypeSize.i32 ],
 
       [ Opcodes.local_set, tmp ],
 
       ...setType(scope, tmpName, [
         [ Opcodes.local_get, pointer ],
-        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
+        [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
       ]),
 
       ...setVar,
@@ -4119,13 +4195,13 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.loop, Blocktype.void ],
 
       [ Opcodes.local_get, pointer ],
-      [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
+      [ Opcodes.load, 0, ValtypeSize.i32 ],
 
       [ Opcodes.local_set, tmp ],
 
       ...setType(scope, tmpName, [
         [ Opcodes.local_get, pointer ],
-        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
+        [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
       ]),
 
       ...setVar,
@@ -4341,9 +4417,9 @@ const generateForIn = (scope, decl) => {
         [ Opcodes.i32_and ],
         [ Opcodes.local_set, tmp ],
 
-        [ Opcodes.i32_const, ...unsignedLEB128(TYPES.string) ],
+        [ Opcodes.i32_const, TYPES.string ],
       [ Opcodes.else ],
-        [ Opcodes.i32_const, ...unsignedLEB128(TYPES.bytestring) ],
+        [ Opcodes.i32_const, TYPES.bytestring ],
       [ Opcodes.end ]
     ]),
 
@@ -4544,7 +4620,7 @@ const generateBreak = (scope, decl) => {
   })[type];
 
   return [
-    [ Opcodes.br, ...unsignedLEB128(depth.length - target - offset) ]
+    [ Opcodes.br, depth.length - target - offset ]
   ];
 };
 
@@ -4565,7 +4641,7 @@ const generateContinue = (scope, decl) => {
   })[type];
 
   return [
-    [ Opcodes.br, ...unsignedLEB128(depth.length - target - offset) ]
+    [ Opcodes.br, depth.length - target - offset ]
   ];
 };
 
@@ -4762,12 +4838,13 @@ let data = [];
 
 const compileBytes = (val, itemType) => {
   switch (itemType) {
-    case 'i8': return [ val % 256 ];
-    case 'i16': return [ val % 256, (val / 256 | 0) % 256 ];
-    case 'i32': return [...new Uint8Array(new Int32Array([ val ]).buffer)];
-    // todo: i64
+    case 'i8': return [ val & 0xFF ];
+    case 'i16': return [ val & 0xFF, (val >> 8) & 0xFF ];
+    case 'i32': return [ val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF, (val >> 24) & 0xFF ];
+    case 'i64': return [ ...new Uint8Array(new BigInt64Array(val).buffer) ];
 
-    case 'f64': return ieee754_binary64(val);
+    case 'f32': return [ ...new Uint8Array(new Float32Array(val).buffer) ];
+    case 'f64': return [ ...new Uint8Array(new Float64Array(val).buffer) ];
   }
 };
 
@@ -4853,7 +4930,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
           ...pointer,
           ...number(0, Valtype.i32),
           ...number(data.size, Valtype.i32),
-          [ ...Opcodes.memory_init, ...unsignedLEB128(data.idx), 0 ]
+          [ Opcodes.memory_init, data.idx, 0 ]
         );
       }
 
@@ -4893,7 +4970,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
             ...pointer,
             ...number(0, Valtype.i32),
             ...number(data.size, Valtype.i32),
-            [ ...Opcodes.memory_init, ...unsignedLEB128(data.idx), 0 ]
+            [ Opcodes.memory_init, data.idx, 0 ]
           );
         }
 
@@ -4957,11 +5034,11 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
     out.push(
       ...pointer,
       ...(useRawElements ? number(elements[i], Valtype[valtype]) : generate(scope, elements[i])),
-      [ storeOp, 0, ...unsignedLEB128(offset) ],
+      [ storeOp, 0, offset ],
       ...(!typed ? [] : [ // typed presumes !useRawElements
         ...pointer,
         ...getNodeType(scope, elements[i]),
-        [ Opcodes.i32_store8, 0, ...unsignedLEB128(offset + ValtypeSize[itemType]) ]
+        [ Opcodes.i32_store8, 0, offset + ValtypeSize[itemType] ]
       ])
     );
   }
@@ -6244,10 +6321,10 @@ export default program => {
   Opcodes.add = [ Opcodes.i32_add, Opcodes.i64_add, Opcodes.f64_add ][valtypeInd];
   Opcodes.sub = [ Opcodes.i32_sub, Opcodes.i64_sub, Opcodes.f64_sub ][valtypeInd];
 
-  Opcodes.i32_to = [ [], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_s ][valtypeInd];
-  Opcodes.i32_to_u = [ [], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_u ][valtypeInd];
-  Opcodes.i32_from = [ [], [ Opcodes.i64_extend_i32_s ], [ Opcodes.f64_convert_i32_s ] ][valtypeInd];
-  Opcodes.i32_from_u = [ [], [ Opcodes.i64_extend_i32_u ], [ Opcodes.f64_convert_i32_u ] ][valtypeInd];
+  Opcodes.i32_to = [ [ Opcodes.nop ], [ Opcodes.i32_wrap_i64 ], [ Opcodes.i32_trunc_sat_f64_s ] ][valtypeInd];
+  Opcodes.i32_to_u = [ [ Opcodes.nop ], [ Opcodes.i32_wrap_i64 ], [ Opcodes.i32_trunc_sat_f64_u ] ][valtypeInd];
+  Opcodes.i32_from = [ [ Opcodes.nop ], [ Opcodes.i64_extend_i32_s ], [ Opcodes.f64_convert_i32_s ] ][valtypeInd];
+  Opcodes.i32_from_u = [ [ Opcodes.nop ], [ Opcodes.i64_extend_i32_u ], [ Opcodes.f64_convert_i32_u ] ][valtypeInd];
 
   Opcodes.load = [ Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load ][valtypeInd];
   Opcodes.store = [ Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store ][valtypeInd];

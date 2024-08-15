@@ -1,18 +1,8 @@
 import { Valtype, FuncType, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize, Reftype } from './wasmSpec.js';
-import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64, ieee754_binary64_into } from './encoding.js';
+import { encoder } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from './log.js';
 import {} from './prefs.js';
-
-const createSection = (type, data) => [
-  type,
-  ...encodeVector(data)
-];
-
-const customSection = (name, data) => [
-  Section.custom,
-  ...encodeVector([...encodeString(name), ...data])
-];
 
 const chHint = (topTier, baselineTier, strategy) => {
   // 1 byte of 4 2 bit components: spare, top tier, baseline tier, compilation strategy
@@ -21,33 +11,32 @@ const chHint = (topTier, baselineTier, strategy) => {
   return (strategy | (baselineTier << 2) | (topTier << 4));
 };
 
-const encodeNames = funcs => {
-  const encodeSection = (id, section) => [
-    id,
-    ...unsignedLEB128(section.length),
-    ...section
-  ];
+const encodeNames = (e, funcs) => {
+  const moduleSection = e => e.writeString('js'); // TODO: filename?
+  const functionsSection = e => e.writeVector(funcs, (e, x) => {
+    e.writeUnsignedLEB128(x.asmIndex);
+    e.writeString(x.name);
+  });
+  const localsSection = e => e.writeVector(funcs, (e, x) => {
+    e.writeUnsignedLEB128(x.asmIndex);
+    e.writeVector(Object.entries(x.locals), (e, [name, local]) => {
+      e.writeUnsignedLEB128(local.idx);
+      e.writeString(name);
+    });
+  });
 
-  const moduleSection = encodeString('js'); // TODO: filename?
-  const functionsSection = encodeVector(
-    funcs.map(x => unsignedLEB128(x.asmIndex).concat(encodeString(x.name))),
-  );
-  const localsSection = encodeVector(
-    funcs.map(x => unsignedLEB128(x.asmIndex).concat(encodeVector(
-      Object.entries(x.locals).map(([name, local]) =>
-        unsignedLEB128(local.idx).concat(encodeString(name))
-      )
-    )))
-  );
-
-  return [
-    ...encodeSection(0, moduleSection),
-    ...encodeSection(1, functionsSection),
-    ...encodeSection(2, localsSection),
-  ];
+  e.write(0);
+  e.writeSection(moduleSection);
+  e.write(1);
+  e.writeSection(functionsSection);
+  e.write(2);
+  e.writeSection(localsSection);
 };
 
 export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) => {
+  encoder.length.value = 0;
+  let e = encoder;
+
   const types = [], typeCache = {};
 
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
@@ -60,7 +49,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     if (Prefs.optLog) log('assemble', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
     if (typeCache[hash] !== undefined) return typeCache[hash];
 
-    const type = [ FuncType, ...encodeVector(params), ...encodeVector(returns) ];
+    const type = [ params, returns ];
     const idx = types.length;
 
     types.push(type);
@@ -99,43 +88,60 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     importDelta = importedFuncs.length - importFuncs.length;
   }
 
-  for (const f of funcs) {
-    f.asmIndex = f.index - importDelta;
+  for (let x of funcs) {
+    x.asmIndex = x.index - importDelta;
   }
 
   time('treeshake import funcs');
 
   if (Prefs.optLog) log('assemble', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 
-  const importSection = importFuncs.length === 0 ? [] : createSection(
-    Section.import,
-    encodeVector(importFuncs.map(x => [ 0, ...encodeString(x.import), ExportDesc.func, getType(typeof x.params === 'object' ? x.params : new Array(x.params).fill(valtypeBinary), new Array(x.returns).fill(valtypeBinary)) ]))
-  );
-  time('import section');
+  let importSection;
+  if (importFuncs.length !== 0) {
+    importSection = e.writeSectionToBuffer(Section.import, e => e.writeVector(importFuncs, (e, x) => {
+      e.writeString('');
+      e.writeString(x.import);
+      e.write(ExportDesc.func);
+      e.writeUnsignedLEB128(getType(
+        Array.isArray(x.params) ? x.params : new Array(x.params).fill(valtypeBinary),
+        Array.isArray(x.returns) ? x.returns : new Array(x.returns).fill(valtypeBinary)
+      ));
+    }));
+    time('import section');
+  }
 
-  const funcSection = createSection(
-    Section.func,
-    encodeVector(funcs.map(x => getType(x.params, x.returns))) // type indexes
-  );
+  const funcSection = e.writeSectionToBuffer(Section.func, e => e.writeVector(funcs, (e, x) => {
+    e.writeUnsignedLEB128(getType(x.params, x.returns)); // type indices
+  }));
   time('func section');
 
-  const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
+  let nameSection;
+  if (Prefs.d) {
+    nameSection = e.writeSectionToBuffer(Section.custom, e => {
+      e.writeString('name');
+      encodeNames(e, funcs);
+    });
+    time('name section');
+  }
 
-  const tableSection = !funcs.table ? [] : createSection(
-    Section.table,
-    encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(funcs.length) ] ])
-  );
-  time('table section');
+  let tableSection, elementSection;
+  if (funcs.table) {
+    tableSection = e.writeSectionToBuffer(Section.table, e => e.writeVector([0], e => {
+      e.write(Reftype.funcref);
+      e.write(0x00);
+      e.writeUnsignedLEB128(funcs.length);
+    }));
+    time('table section');
 
-  const elementSection = !funcs.table ? [] : createSection(
-    Section.element,
-    encodeVector([ [
-      0x00,
-      Opcodes.i32_const, 0, Opcodes.end,
-      ...encodeVector(funcs.map(x => unsignedLEB128(x.asmIndex)))
-    ] ])
-  );
-  time('element section');
+    elementSection = e.writeSectionToBuffer(Section.element, e => e.writeVector([0], e => {
+      e.write(0x00);
+      e.write(Opcodes.i32_const);
+      e.write(0);
+      e.write(Opcodes.end);
+      e.writeVector(funcs, (e, x) => e.writeUnsignedLEB128(x.asmIndex));
+    }));
+    time('element section');
+  }
 
   if (pages.has('func lut')) {
     const offset = pages.get('func lut').ind * pageSize;
@@ -190,82 +196,94 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   }
   time('func lut');
 
-  // specially optimized assembly for globals as this version is much (>5x) faster than traditional createSection()
   const globalsValues = Object.values(globals);
 
-  let globalSection = [];
+  let globalSection;
   if (globalsValues.length > 0) {
-    let data = unsignedLEB128(globalsValues.length);
-    for (let i = 0; i < globalsValues.length; i++) {
-      const global = globalsValues[i];
+    globalSection = e.writeSectionToBuffer(Section.global, e => {
+      e.writeVector(globalsValues, (e, global) => {
+        switch (global.type) {
+          case Valtype.i32:
+            e.writeData([ Valtype.i32, 0x01, Opcodes.i32_const ]);
+            e.writeSignedLEB128(global.init ?? 0);
+            break;
 
-      switch (global.type) {
-        case Valtype.i32:
-          if (i > 0) data.push(Opcodes.end, Valtype.i32, 0x01, Opcodes.i32_const);
-            else data.push(Valtype.i32, 0x01, Opcodes.i32_const);
+          case Valtype.i64:
+            e.writeData(Valtype.i64, 0x01, Opcodes.i64_const);
+            e.writeSignedLEB128(global.init ?? 0);
+            break;
 
-          signedLEB128_into(global.init ?? 0, data);
-          break;
-
-        case Valtype.i64:
-          if (i > 0) data.push(Opcodes.end, Valtype.i64, 0x01, Opcodes.i64_const);
-            else data.push(Valtype.i64, 0x01, Opcodes.i64_const);
-
-          signedLEB128_into(global.init ?? 0, data);
-          break;
-
-        case Valtype.f64:
-          if (i > 0) data.push(Opcodes.end, Valtype.f64, 0x01, Opcodes.f64_const);
-            else data.push(Valtype.f64, 0x01, Opcodes.f64_const);
-
-          ieee754_binary64_into(global.init ?? 0, data);
-          break;
-      }
-    }
-
-    data.push(Opcodes.end);
-
-    globalSection.push(Section.global);
-
-    unsignedLEB128_into(data.length, globalSection);
-    globalSection = globalSection.concat(data);
+          case Valtype.f64:
+            e.writeData([ Valtype.f64, 0x01, Opcodes.f64_const ]);
+            e.writeDouble(global.init ?? 0);
+            break;
+        }
+        e.write(Opcodes.end);
+      });
+    });
+    time('global section');
   }
-  time('global section');
 
   if (Prefs.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
 
   const usesMemory = pages.size > 0;
-  const memorySection = !usesMemory ? [] : createSection(
-    Section.memory,
-    encodeVector([ [ 0x00, ...unsignedLEB128(Math.ceil((pages.size * pageSize) / PageSize)) ] ])
-  );
-  time('memory section');
+  let memorySection;
+  if (usesMemory) {
+    memorySection = e.writeSectionToBuffer(Section.memory, e => e.writeVector([0], e => {
+      e.write(0x00);
+      e.writeUnsignedLEB128(Math.ceil((pages.size * pageSize) / PageSize));
+    }));
+    time('memory section');
+  }
 
-  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, ...unsignedLEB128(x.asmIndex) ]);
+  let tagSection;
+  if (tags.length > 0) {
+    tagSection = e.writeSectionToBuffer(Section.tag, e => {
+      e.writeVector(tags, (e, x) => {
+        e.write(0x00);
+        e.writeUnsignedLEB128(getType(x.params, x.results));
+      });
+    });
+    time('tag section');
+  }
 
-  // export memory if used
-  if (usesMemory) exports.unshift([ ...encodeString('$'), ExportDesc.mem, 0x00 ]);
-  time('gen exports');
+  const exportSection = e.writeSectionToBuffer(Section.export, e => {
+    let exportFuncs = funcs.filter(x => x.export);
+    let exportCount = exportFuncs.length;
+    if (usesMemory) {
+      exportCount++;
+    }
+    if (tagSection) {
+      exportCount++;
+    }
+    e.writeUnsignedLEB128(exportCount);
+    for (let x of exportFuncs) {
+      e.writeString(x.name === 'main' ? 'm' : x.name);
+      e.write(ExportDesc.func);
+      e.writeUnsignedLEB128(x.asmIndex);
+    }
 
-  const tagSection = tags.length === 0 ? [] : createSection(
-    Section.tag,
-    encodeVector(tags.map(x => [ 0x00, getType(x.params, x.results) ]))
-  );
+    // export memory if used
+    if (usesMemory) {
+      e.writeString('$');
+      e.write(ExportDesc.mem);
+      e.write(0x00);
+    }
 
-  // export first tag if used
-  if (tags.length !== 0) exports.unshift([ ...encodeString('0'), ExportDesc.tag, 0x00 ]);
-  time('tag section');
-
-  const exportSection = createSection(
-    Section.export,
-    encodeVector(exports)
-  );
+    // export first tag if used
+    if (tagSection) {
+      e.writeString('0');
+      e.write(ExportDesc.tag);
+      e.write(0x00);
+    }
+  });
   time('export section');
 
-  const codeSection = createSection(
-    Section.code,
-    encodeVector(funcs.map(x => {
+  const codeSection = e.writeSectionToBuffer(Section.code, e => e.writeVector(funcs, (e, x) => {
+    e.writeSection(e => {
       // time(x.name);
+      let oldPtr = e.length.value;
+
       const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx).slice(x.params.length);
       // time('  locals gen');
 
@@ -273,7 +291,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       for (let i = 0; i < locals.length; i++) {
         const local = locals[i];
         if (i !== 0 && local.type !== lastType) {
-          localDecl.push(encodeLocal(typeCount, lastType));
+          localDecl.push([ typeCount, lastType ]);
           typeCount = 0;
         }
 
@@ -281,151 +299,237 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
         lastType = local.type;
       }
 
-      if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
+      if (typeCount !== 0) localDecl.push([ typeCount, lastType ]);
       // time('  localDecl gen');
+      e.writeUnsignedLEB128(localDecl.length);
+      for (let i = 0; i < localDecl.length; i++) {
+        e.writeUnsignedLEB128(localDecl[i][0]);
+        e.write(localDecl[i][1]);
+      }
 
-      const makeAssembled = Prefs.d;
-      let wasm = [], wasmNonFlat = [];
+      const makeDebugInformation = Prefs.d;
+      let offsetTable = [];
       for (let i = 0; i < x.wasm.length; i++) {
+        if (makeDebugInformation) offsetTable.push(e.length.value - oldPtr);
         let o = x.wasm[i];
-
-        // encode local/global ops as unsigned leb128 from raw number
-        if (
-          // (o[0] === Opcodes.local_get || o[0] === Opcodes.local_set || o[0] === Opcodes.local_tee || o[0] === Opcodes.global_get || o[0] === Opcodes.global_set) &&
-          (o[0] >= Opcodes.local_get && o[0] <= Opcodes.global_set) &&
-          o[1] > 127
-        ) {
-          const n = o[1];
-          o = [ o[0] ];
-          unsignedLEB128_into(n, o);
-        }
-
-        // encode f64.const ops as ieee754 from raw number
-        if (o[0] === Opcodes.f64_const) {
-          const n = o[1];
-          // o = [ o[0] ];
-          // ieee754_binary64_into(n, o);
-          o = ieee754_binary64(n);
-          if (o.length === 8) o.unshift(Opcodes.f64_const);
-        }
-
-        // encode call ops as unsigned leb128 from raw number
-        if ((o[0] === Opcodes.call /* || o[0] === Opcodes.return_call */) && o[1] >= importedFuncs.length) {
-          const n = o[1] - importDelta;
-          // o = [ o[0] ];
-          o = [ Opcodes.call ];
-          unsignedLEB128_into(n, o);
-        }
-
-        // encode call indirect ops as types from info
-        if (o[0] === Opcodes.call_indirect) {
-          o = [...o];
-          const params = [];
-          for (let i = 0; i < o[1]; i++) {
-            params.push(valtypeBinary, Valtype.i32);
+        let op = o[0];
+        if (typeof op !== 'number') {
+          if (op === null) {
+            continue;
           }
-
-          let returns = [ valtypeBinary, Valtype.i32 ];
-          if (o.at(-1) === 'no_type_return') {
-            o.pop();
-            returns = [ valtypeBinary ];
+          e.writeData(op);
+          let op2 = op[1] | 0;
+          if (op[0] === 0xfc) {
+            switch (op2) {
+              case /* Opcodes.memory_init[1] */ 0x08:
+                e.writeUnsignedLEB128(o[1]); // <dataidx>
+                e.write(0x00); // <memoryidx> = 0
+                break;
+              case /* Opcodes.data_drop[1] */ 0x09:
+                e.writeUnsignedLEB128(o[1]); // <dataidx>
+                break;
+              case /* Opcodes.memory_copy[1] */ 0x0a:
+                e.write(0x00); // <memoryidx> = 0
+                e.write(0x00); // <memoryidx> = 0
+                break;
+              case /* Opcodes.memory_fill[1] */ 0x0b:
+                e.write(0x00); // <memoryidx> = 0
+                break;
+            }
+          } else if (op[0] == 0xfd) {
+            if (op2 <= /* Opcodes.v128_store[1] */ 0x0b) {
+              e.writeUnsignedLEB128(o[1]); // align
+              e.writeUnsignedLEB128(o[2]); // offset
+            } else if (op2 == /* Opcodes.v128_const[1] */ 0x0c) {
+              e.writeI32x4(o[1], o[2], o[3], o[4]);
+            } else if (op2 == /* Opcodes.i8x16_shuffle[1] */ 0x0d) {
+              e.writeData(o[1]); // <laneidx> * 16
+            } else if (op2 <= /* Opcodes.f64x2_replace_lane[1] */ 0x22) {
+              if (op2 >= /* Opcodes.i8x16_extract_lane_s */ 0x15) {
+                e.write(o[3]); // <laneidx>
+              }
+            } else if (op2 <= /* Opcodes.v128_store64_lane[1] */ 0x5b) {
+              if (op2 >= /* Opcodes.v128_load8_lane */ 0x54) {
+                e.writeUnsignedLEB128(o[1]); // align
+                e.writeUnsignedLEB128(o[2]); // offset
+                e.write(o[3]); // <laneidx>
+              }
+            } else if (op2 <= /* Opcodes.v128_load64_zero[1] */ 0x5d) {
+              e.writeUnsignedLEB128(o[1]); // align
+              e.writeUnsignedLEB128(o[2]); // offset
+            }
           }
-
-          o[1] = getType(params, returns);
+          continue;
+        } else {
+          e.write(op);
         }
 
-        for (let j = 0; j < o.length; j++) {
-          const x = o[j];
-          if (x == null || !(x <= 0xff)) continue;
-          wasm.push(x);
+        switch (op) {
+          // <localidx>
+          case /* Opcodes.local_get */ 0x20:
+          case /* Opcodes.local_set */ 0x21:
+          case /* Opcodes.local_tee */ 0x22:
+          // <globalidx>
+          case /* Opcodes.global_get */ 0x23:
+          case /* Opcodes.global_set */ 0x24:
+          // <labelidx>
+          case /* Opcodes.br */ 0x0c:
+          case /* Opcodes.br_if */ 0x0d:
+          // <tagidx>
+          case /* Opcodes.throw */ 0x08:
+            e.writeUnsignedLEB128(o[1]);
+            break;
+          // <funcidx>
+          case /* Opcodes.call */ 0x10:
+          case /* Opcodes.return_call */ 0x12:
+            if (o[1] >= importedFuncs.length) {
+              e.writeUnsignedLEB128(o[1] - importDelta);
+            } else {
+              e.writeUnsignedLEB128(o[1]);
+            }
+            break;
+          case /* Opcodes.i32_const */ 0x41:
+            e.writeSignedLEB128(o[1]);
+            break;
+          case /* Opcodes.i64_const */ 0x42:
+            e.writeLongSignedLEB128(o[1]);
+            break;
+          case /* Opcodes.f32_const */ 0x43:
+            e.writeFloat(o[1]);
+            break;
+          case /* Opcodes.f64_const */ 0x44:
+            e.writeDouble(o[1]);
+            break;
+          case /* Opcodes.block */ 0x02:
+          case /* Opcodes.loop */ 0x03:
+          case /* Opcodes.if */ 0x04:
+          case /* Opcodes.try */ 0x06:
+            if (Array.isArray(o[1])) {
+              e.writeSignedLEB128(getType(o[1][0], o[1][1])); // supposed to be s33
+            } else {
+              e.write(o[1]);
+            }
+            break;
+          case /* Opcodes.br_table */ 0x0e:
+            let a = o[1];
+            e.writeUnsignedLEB128(a.length);
+            for (let i = 0; i < a.length; i++) {
+              e.writeUnsignedLEB128(a[i]);
+            }
+            e.writeUnsignedLEB128(o[2]);
+            break;
+          case /* Opcodes.call_indirect */ 0x11:
+            const params = [];
+            for (let i = 0; i < o[1]; i++) {
+              params.push(valtypeBinary, Valtype.i32);
+            }
+
+            let returns = [ valtypeBinary, Valtype.i32 ];
+            if (o.at(-1) === 'no_type_return') {
+              returns = [ valtypeBinary ];
+            }
+
+            e.writeUnsignedLEB128(getType(params, returns));
+            e.writeUnsignedLEB128(o[2]); // <tableidx>
+            break;
+          case /* Opcodes.memory_size */ 0x3f:
+          case /* Opcodes.memory_grow */ 0x40:
+            e.write(0x00); // <memoryidx> = 0
+            break;
+          default:
+            if (op >= /* Opcodes.i32_load */ 0x28 && op <= /* Opcodes.i64_store32 */ 0x3e) {
+              e.writeUnsignedLEB128(o[1]); // align
+              e.writeUnsignedLEB128(o[2]); // offset
+            }
         }
-
-        if (makeAssembled) wasmNonFlat.push(o);
-      }
-      // time('  wasm transform');
-
-      if (makeAssembled) {
-        x.assembled = { localDecl, wasm, wasmNonFlat };
       }
 
-      let out = unsignedLEB128(localDecl.length)
-        .concat(localDecl.flat(), wasm, Opcodes.end);
+      if (makeDebugInformation) {
+        offsetTable.push(e.length.value - oldPtr);
+        x.offsetTable = offsetTable;
+      }
 
-      out.unshift(...unsignedLEB128(out.length));
-
-      // time('  finish');
-      return out;
-    }))
-  );
+      e.write(Opcodes.end);
+    });
+  }));
   time('code section');
 
-  const typeSection = createSection(
-    Section.type,
-    encodeVector(types)
-  );
+  const typeSection = e.writeSectionToBuffer(Section.type, e => e.writeVector(types, (e, x) => {
+    e.write(FuncType);
+    e.writeUnsignedLEB128(x[0].length);
+    e.writeData(x[0]);
+    e.writeUnsignedLEB128(x[1].length);
+    e.writeData(x[1]);
+  }));
   time('type section');
 
-  const dataSection = data.length === 0 ? [] : createSection(
-    Section.data,
-    encodeVector(data.map(x => {
+  let dataSection;
+  if (data.length > 0) {
+    dataSection = e.writeSectionToBuffer(Section.data, e => e.writeVector(data, (e, x) => {
       if (Prefs.d && x.bytes.length > PageSize) log.warning('assemble', `data (${x.page}) has more bytes than Wasm page size! (${x.bytes.length})`);
 
-      const bytes = unsignedLEB128(x.bytes.length).concat(x.bytes);
       if (x.page != null) {
         // type: active
         let offset = pages.get(x.page).ind * pageSize;
         if (offset === 0) offset = 16;
-        bytes.unshift(0x00, Opcodes.i32_const, ...signedLEB128(offset), Opcodes.end);
+        e.write(0x00);
+        e.write(Opcodes.i32_const);
+        e.writeSignedLEB128(offset);
+        e.write(Opcodes.end);
       } else {
         // type: passive
-        bytes.unshift(0x01);
+        e.write(0x01);
       }
+      e.writeUnsignedLEB128(x.bytes.length);
+      e.writeData(x.bytes);
+    }));
+    time('data section');
+  }
 
-      return bytes;
-    }))
-  );
-  time('data section');
+  let dataCountSection;
+  if (data.length > 0) {
+    dataCountSection = e.writeSectionToBuffer(Section.data_count, e => e.writeUnsignedLEB128(data.length));
+    time('datacount section');
+  }
 
-  const dataCountSection = data.length === 0 ? [] : createSection(
-    Section.data_count,
-    unsignedLEB128(data.length)
-  );
-  time('datacount section');
-
-  if (Prefs.sections) console.log({
-    typeSection: typeSection.map(x => x.toString(16)),
-    importSection: importSection.map(x => x.toString(16)),
-    funcSection: funcSection.map(x => x.toString(16)),
-    globalSection: globalSection.map(x => x.toString(16)),
-    exportSection: exportSection.map(x => x.toString(16)),
-    codeSection: codeSection.map(x => x.toString(16)),
-    dataSection: dataSection.map(x => x.toString(16)),
-  });
+  if (Prefs.sections) {
+    const dump = section => section ? Array.from(section).map(x => x.toString(16)) : [];
+    console.log({
+      typeSection: dump(typeSection),
+      importSection: dump(importSection),
+      funcSection: dump(funcSection),
+      globalSection: dump(globalSection),
+      exportSection: dump(exportSection),
+      codeSection: dump(codeSection),
+      dataSection: dump(dataSection),
+    });
+  }
 
   // compilation hints section - unspecd, v8 only
   // https://github.com/WebAssembly/design/issues/1473#issuecomment-1431274746
-  const chSection = !compileHints ? [] : customSection(
-    'compilationHints',
-    // for now just do everything as optimize eager
-    encodeVector(funcs.map(_ => chHint(0x02, 0x02, 0x02)))
-  );
+  let chSection;
+  if (compileHints) {
+    chSection = e.writeSection(Section.custom, e => {
+      e.writeString('compilationHints');
+      e.writeVector(func, (e, _) => e.write(chHint(0x02, 0x02, 0x02)));
+    });
+  }
 
-  return Uint8Array.from([
-    ...Magic,
-    ...ModuleVersion,
-    ...typeSection,
-    ...importSection,
-    ...funcSection,
-    ...chSection,
-    ...tableSection,
-    ...memorySection,
-    ...tagSection,
-    ...globalSection,
-    ...exportSection,
-    ...elementSection,
-    ...dataCountSection,
-    ...codeSection,
-    ...dataSection,
-    ...nameSection
-  ]);
+  e.writeData(Magic);
+  e.writeData(ModuleVersion);
+  e.writeSectionFromBuffer(typeSection);
+  e.writeSectionFromBuffer(importSection);
+  e.writeSectionFromBuffer(funcSection);
+  e.writeSectionFromBuffer(chSection);
+  e.writeSectionFromBuffer(tableSection);
+  e.writeSectionFromBuffer(memorySection);
+  e.writeSectionFromBuffer(tagSection);
+  e.writeSectionFromBuffer(globalSection);
+  e.writeSectionFromBuffer(exportSection);
+  e.writeSectionFromBuffer(elementSection);
+  e.writeSectionFromBuffer(dataCountSection);
+  e.writeSectionFromBuffer(codeSection);
+  e.writeSectionFromBuffer(dataSection);
+  e.writeSectionFromBuffer(nameSection);
+  return new Uint8Array(e.memory.buffer, 0, e.length.value).slice(0);
 };

@@ -107,7 +107,7 @@ local.get raw
 i32.const 30
 i32.shr_u
 local.tee msb
-if 127
+if i32
   i32.const 5 ;; symbol
   i32.const 67 ;; string
   local.get msb
