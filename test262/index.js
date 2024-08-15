@@ -415,10 +415,10 @@ if (isMainThread) {
       // .replace(/\. Actual: ' \+ .*\);/g, _ => `');`);
 
     if (debugAsserts) contents = contents
-      .replace('function assert(mustBeTrue) {', 'function assert(mustBeTrue, msg) {')
-      .replaceAll('function (actual, expected) {', 'function (actual, expected, msg) {')
-      .replace('function (actual, unexpected) {', 'function (actual, unexpected, msg) {')
-      .replaceAll('throw new Test262Error', 'if (typeof msg != "undefined") { console.log(msg); console.log(expected); console.log(actual); } throw new Test262Error');
+      .replace('var assert = mustBeTrue => {', 'var assert = (mustBeTrue, msg) => {')
+      .replaceAll('(actual, expected) => {', '(actual, expected, msg) => {')
+      .replace('(actual, unexpected) => {', '(actual, unexpected, msg) => {')
+      .replaceAll('throw new Test262Error', 'if (typeof msg != "undefined") { Porffor.printString(msg); Porffor.printStatic(\'\\n\'); Porffor.print(expected, false); Porffor.printStatic(\'\\n\'); Porffor.print(actual, false); Porffor.printStatic(\'\\n\'); } throw new Test262Error');
 
     // fs.writeFileSync('r.js', contents);
 
@@ -493,7 +493,7 @@ if (isMainThread) {
 
     if (logErrors) {
       process.stdout.write(`\u001b[${pass ? '92' : '91'}m${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m\n`);
-      if (!pass && error) console.log(error?.stack ?? error);
+      if (!pass && error) console.log(error?.message || error?.stack || error);
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {

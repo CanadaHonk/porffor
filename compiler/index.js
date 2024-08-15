@@ -256,7 +256,7 @@ export default (code, flags) => {
       if (logProgress) {
         const total = performance.now();
         progressClear();
-        console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[92mcompiled ${globalThis.file} -> ${outFile}\u001b[0m`);
+        console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
       }
 
       process.exit();

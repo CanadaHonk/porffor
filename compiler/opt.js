@@ -584,16 +584,17 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // trace back drop
           let toDrop = 1;
           let stackNeeded = 0;
-          let removable = [ i ];
-          let minValidIndex = i;
           while (i + 1 < wasm.length && wasm[i + 1][0] === Opcodes.drop) {
             i++;
           }
+          let removable = [ i ];
+          let minValidIndex = i;
           for (let j = i - 1; j >= 0; j--) {
             let traceInst = wasm[j];
             if (stackNeeded === 0 && traceInst[0] === Opcodes.drop) {
               toDrop++;
               removable.push(j);
+              minValidIndex = j;
               continue;
             }
             if (stackNeeded == 0 && traceInst[0] === Opcodes.local_tee) {
