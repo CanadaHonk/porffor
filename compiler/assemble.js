@@ -209,7 +209,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
             break;
 
           case Valtype.i64:
-            e.writeData(Valtype.i64, 0x01, Opcodes.i64_const);
+            e.writeData([ Valtype.i64, 0x01, Opcodes.i64_const ]);
             e.writeSignedLEB128(global.init ?? 0);
             break;
 

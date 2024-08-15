@@ -52,6 +52,14 @@ if (isMainThread) {
     if (test.scenario === 'strict mode' && !test.attrs.flags.onlyStrict) continue;
     tests.push(test);
   }
+  if (process.argv.includes('--shuffle')) {
+    for (let i = 0; i < tests.length; i++) {
+      let j = Math.floor(Math.random() * (tests.length - i)) + i;
+      let tmp = tests[i];
+      tests[i] = tests[j];
+      tests[j] = tmp;
+    }
+  }
 
   const profile = process.argv.includes('--profile');
   const log = console.log;
@@ -123,6 +131,17 @@ if (isMainThread) {
     tests,
     queue
   };
+  const timeStr = ms => {
+    let s = ms / 1000;
+    let out = '';
+    if (s > 60) {
+      out += `${Math.floor(s / 60)}m `;
+      s = s % 60;
+    }
+
+    out += `${s | 0}s`;
+    return out;
+  };
   for (let w = 0; w < threads; w++) {
     const worker = new Worker(__filename, {
       workerData
@@ -175,7 +194,8 @@ if (isMainThread) {
       if (!resultOnly && !logErrors) {
         const percent = ((total / tests.length) * 100) | 0;
         if (allTests) {
-          if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : '91')}m${file}\u001b[0m`);
+          const passPercent = Math.round(passes / total * 1000) / 10;
+          if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : '91')}m${file} (${timeStr(performance.now() - start)}), ${passPercent}% passed\u001b[0m`);
           lastPercent = percent;
         } else {
           process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : (result === 5 ? '90' : '91'))}m${file}\u001b[0m\n`);
@@ -307,17 +327,6 @@ if (isMainThread) {
     if (!dontWriteResults) fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, timeouts: timeoutFiles, total }));
   }
 
-  const timeStr = ms => {
-    let s = ms / 1000;
-    let out = '';
-    if (s > 60) {
-      out += `${Math.floor(s / 60)}m `;
-      s = s % 60;
-    }
-
-    out += `${s | 0}s`;
-    return out;
-  };
   console.log(`\u001b[90mtook ${timeStr(performance.now() - start)}\u001b[0m`);
 
   if (trackErrors) {

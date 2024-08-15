@@ -136,7 +136,7 @@ export const PrototypeFuncs = function() {
       // ...number(pointer + ValtypeSize.i32, Valtype.i32), // dst = base array index + length size
       // ...number(pointer + ValtypeSize.i32 + ValtypeSize[valtype], Valtype.i32), // src = base array index + length size + an index
       // ...number(pageSize - ValtypeSize.i32 - ValtypeSize[valtype], Valtype.i32), // size = PageSize - length size - an index
-      // [ ...Opcodes.memory_copy, 0x00, 0x00 ]
+      // [ Opcodes.memory_copy, 0x00, 0x00 ]
 
       // offset all elements by -1 ind
 
@@ -154,7 +154,7 @@ export const PrototypeFuncs = function() {
       ...length.getCachedI32(),
       ...number(ValtypeSize[valtype] + 1, Valtype.i32),
       [ Opcodes.i32_mul ],
-      [ ...Opcodes.memory_copy, 0x00, 0x00 ]
+      [ Opcodes.memory_copy, 0x00, 0x00 ]
 
       // move pointer + sizeof element
       // ...pointer.get(),

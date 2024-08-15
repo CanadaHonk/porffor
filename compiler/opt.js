@@ -486,7 +486,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
         wasm[i] = inst;
 
         if (inst[0] === null) {
-          break;
+          continue;
         }
 
         // if (inst[0] === Opcodes.throw) {

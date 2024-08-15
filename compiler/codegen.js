@@ -348,8 +348,8 @@ const lookupName = (scope, _name) => {
   return [ undefined, undefined ];
 };
 
-const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysValueInternalThrows) => [
-  ...generate(scope, {
+const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysValueInternalThrows) => {
+  return generate(scope, {
     type: 'ThrowStatement',
     argument: {
       type: 'NewExpression',
@@ -364,9 +364,8 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
         }
       ]
     }
-  }),
-  ...(expectsValue ? number(UNDEFINED) : [])
-];
+  });
+};
 
 const generateIdent = (scope, decl) => {
   const lookup = rawName => {
@@ -2200,14 +2199,14 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
         const argOut = [];
         for (let i = 0; i < op.args.length; i++) {
-          //if (!op.args[i]) globalThis.noi32F64CallConv = true;
+          if (!op.args[i]) globalThis.noi32F64CallConv = true;
 
           argOut.push(
             ...generate(scope, decl.arguments[i]),
             ...(op.args[i] ? [ Opcodes.i32_to ] : [])
           );
 
-          //globalThis.noi32F64CallConv = false;
+          globalThis.noi32F64CallConv = false;
         }
 
         // literals only

@@ -168,7 +168,7 @@ enc.writeString = (str) => {
       str = str.substring(result.read);
       enc.length.value += result.written;
       if (str == '') {
-      break;
+        break;
       }
       enc.reserve(enc.length.value + 1); // should cause a grow
     }
@@ -176,7 +176,7 @@ enc.writeString = (str) => {
   enc.insertLength(oldPtr);
 };
 
-enc.writeData = (array) => {
+enc.writeData = array => {
   let oldLength = enc.length.value;
   enc.reserve(oldLength + array.length); // makes sure the memory has enough space
   new Uint8Array(enc.memory.buffer).set(array, oldLength);
@@ -187,7 +187,7 @@ enc.writeSectionToBuffer = (id, fn) => {
   let oldPtr = enc.length.value;
   enc.write(id);
   fn(enc);
-  let result = new Uint8Array(enc.memory.buffer, oldPtr, enc.length.value).slice(0);
+  let result = new Uint8Array(enc.memory.buffer, oldPtr, enc.length.value - oldPtr).slice();
   enc.length.value = oldPtr;
   return result;
 };
