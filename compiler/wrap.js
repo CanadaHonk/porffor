@@ -1,4 +1,5 @@
-import { encodeVector, encodeLocal } from './encoding.js';
+import { encodeVector, encodeLocal, readUnsignedLEB128FromBuffer, readStringFromBuffer } from './encoding.js';
+import { Section, Valtype } from './wasmSpec.js';
 import { importedFuncs } from './builtins.js';
 import compile from './index.js';
 import decompile from './decompile.js';
@@ -123,6 +124,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.function: {
+      if (!funcs) return function () {};
       let func;
       if (value < 0) {
         func = importedFuncs[value + importedFuncs.length];
@@ -177,6 +179,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.symbol: {
+      if (!pages) return Symbol();
       const page = pages.get('array: symbol.ts/descStore');
       if (!page) return Symbol();
 
@@ -557,4 +560,181 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   }
 
   return { exports, wasm, times, pages, c };
+};
+
+const collectDebugInfo = wasm => {
+  let index = 8; // skip magic and version
+  let exceptions = [], exceptionMode, valtypeBinary;
+  while (index < wasm.length) {
+    let sectionType = wasm[index++];
+    let length;
+    [ length, index ] = readUnsignedLEB128FromBuffer(wasm, index);
+    if (sectionType !== Section.custom) {
+      continue;
+    }
+    let startPosition = index;
+    let endPosition = index + length;
+    let name;
+    [ name, index ] = readStringFromBuffer(wasm, index);
+    if (name !== 'porffor_debug_info') {
+      continue;
+    }
+    while (index < endPosition) {
+      sectionType = wasm[index++];
+      let length;
+      [ length, index ] = readUnsignedLEB128FromBuffer(wasm, index);
+      if (sectionType === 0) { // porffor exceptions
+        let type = wasm[index++];
+        if (type === 0) {
+          exceptionMode = 'lut';
+          let count;
+          [ count, index ] = readUnsignedLEB128FromBuffer(wasm, index);
+          for (let i = 0; i < count; i++) {
+            let exInd, constructor, message;
+            [ exInd, index ] = readUnsignedLEB128FromBuffer(wasm, index);
+            [ constructor, index ] = readStringFromBuffer(wasm, index);
+            [ message, index ] = readStringFromBuffer(wasm, index);
+            if (constructor === '') constructor = null;
+            exceptions[exInd] = { constructor, message };
+          }
+        } else if (type === 1) {
+          exceptionMode = 'stack';
+        } else if (type === 2) {
+          exceptionMode = 'stackest';
+        } else if (type === 3) {
+          exceptionMode = 'partial';
+          let count;
+          [ count, index ] = readUnsignedLEB128FromBuffer(wasm, index);
+          for (let i = 0; i < count; i++) {
+            let exInd, constructor;
+            [ exInd, index ] = readUnsignedLEB128FromBuffer(wasm, index);
+            [ constructor, index ] = readStringFromBuffer(wasm, index);
+            if (constructor === '') constructor = null;
+            exceptions[exInd] = { constructor };
+          }
+        }
+      } else if (type === 1) { // valtype
+        valtypeBinary = wasm[index++];
+      } else {
+        index += length;
+      }
+    }
+    break;
+  }
+  return { exceptions, exceptionMode, valtypeBinary };
+};
+
+// TODO: integrate with default
+export const fromWasm = (wasm, print = str => process.stdout.write(str)) => {
+  let { exceptions, exceptionMode, valtypeBinary } = collectDebugInfo(wasm);
+  let instance, memory;
+  try {
+    const module = new WebAssembly.Module(wasm);
+    instance = new WebAssembly.Instance(module, {
+      '': {
+        p: valtypeBinary === Valtype.i64 ? i => print(Number(i).toString()) : i => print(i.toString()),
+        c: valtypeBinary === Valtype.i64 ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
+        t: () => performance.now(),
+        u: () => performance.timeOrigin,
+        y: () => {},
+        z: () => {},
+        w: (ind, outPtr) => { // readArgv
+          let args = process.argv.slice(2);
+          args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
+
+          const str = args[ind - 1];
+          if (!str) return -1;
+
+          writeByteStr(memory, outPtr, str);
+          return str.length;
+        },
+        q: (pathPtr, outPtr) => { // readFile
+          try {
+            const path = pathPtr === 0 ? 0 : readByteStr(memory, pathPtr);
+            const contents = fs.readFileSync(path, 'utf8');
+            writeByteStr(memory, outPtr, contents);
+            return contents.length;
+          } catch {
+            return -1;
+          }
+        },
+        b: () => {
+          debugger;
+        }
+      }
+    });
+  } catch (e) {
+    throw e;
+  }
+  const exports = {};
+
+  const exceptTag = instance.exports['0'];
+  memory = instance.exports['$'];
+
+  for (const x in instance.exports) {
+    if (x === '0') continue;
+    if (x === '$') {
+      exports.$ = instance.exports.$;
+      continue;
+    }
+
+    const name = x === 'm' ? 'main' : x;
+
+    const exp = instance.exports[x];
+    exports[name] = exp;
+
+    exports[name] = function() {
+      try {
+        const ret = exp.apply(this, arguments);
+        if (ret == null) return undefined;
+
+        return porfToJSValue({ memory }, ret[0], ret[1]);
+      } catch (e) {
+        if (e.is && e.is(exceptTag)) {
+          if (exceptionMode === 'lut') {
+            const exceptId = e.getArg(exceptTag, 0);
+            const exception = exceptions[exceptId];
+
+            const constructorName = exception.constructor;
+
+            // no constructor, just throw message
+            if (!constructorName) throw exception.message;
+
+            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
+            throw new constructor(exception.message);
+          }
+
+          if (exceptionMode === 'stack') {
+            const value = e.getArg(exceptTag, 0);
+            const type = e.getArg(exceptTag, 1);
+
+            throw porfToJSValue({ memory }, value, type);
+          }
+
+          // TODO: support exception mode stackest
+
+          if (exceptionMode === 'partial') {
+            const exceptId = e.getArg(exceptTag, 0);
+            const exception = exceptions[exceptId];
+
+            const constructorName = exception.constructor;
+
+            const value = e.getArg(exceptTag, 1);
+            const type = e.getArg(exceptTag, 2);
+            const message = porfToJSValue({ memory }, value, type);
+
+            // no constructor, just throw message
+            if (!constructorName) throw message;
+
+            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
+            throw new constructor(message);
+          }
+        }
+
+        throw e;
+      }
+    };
+  }
+
+  return { exports, wasm };
 };

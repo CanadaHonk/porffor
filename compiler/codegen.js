@@ -1023,10 +1023,6 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     locals[nameParam(i)] = { idx: i, type: allLocals[i] };
   }
 
-  for (const x in _data) {
-    data.push({ page: x, bytes: _data[x] });
-  }
-
   const func = {
     name,
     params,
@@ -1042,6 +1038,11 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     globalInits
   };
 
+  for (const x in _data) {
+    allocPage(func, x);
+    data.push({ page: x, bytes: _data[x] });
+  }
+
   funcs.push(func);
   funcIndex[name] = func.index;
 
@@ -1050,11 +1051,15 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
       else wasm = asmFuncToAsm(func, wasm);
   }
 
-  let baseGlobalIdx, i = 0;
+  let globalRefs = [], i = 0;
   for (const type of globalTypes) {
-    if (baseGlobalIdx === undefined) baseGlobalIdx = globals['#ind'];
-
-    globals[globalNames[i] ?? `${name}_global_${i}`] = { idx: globals['#ind']++, type, init: globalInits[i] ?? 0 };
+    let nm = globalNames[i] ?? `${name}_global_${i}`;
+    if (globals[nm]) {
+      globalRefs.push(globals[nm].idx);
+      continue;
+    }
+    globalRefs.push(globals['#ind']);
+    globals[nm] = { idx: globals['#ind']++, type, init: globalInits[i] ?? 0 };
     i++;
   }
 
@@ -1062,7 +1067,10 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     // offset global ops for base global idx
     for (const inst of wasm) {
       if (inst[0] === Opcodes.global_get || inst[0] === Opcodes.global_set) {
-        inst[1] += baseGlobalIdx;
+        if (inst[1] >= globalRefs.length) {
+          throw new Error('in builtin ' + name + ': global_get / global_set out of range');
+        }
+        inst[1] = globalRefs[inst[1]];
       }
     }
   }
@@ -5944,6 +5952,11 @@ const generateFunc = (scope, decl) => {
       }
 
       const wasm = prelude.concat(generate(func, body));
+      if (Prefs.includeAllBuiltins) {
+        for (let x in builtinFuncs) {
+          includeBuiltin(func, x);
+        }
+      }
 
       if (decl.async) {
         // make promise at the start

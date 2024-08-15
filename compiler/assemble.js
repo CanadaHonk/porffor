@@ -47,7 +47,46 @@ const encodeNames = funcs => {
   ];
 };
 
-export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) => {
+const encodeDebugInfo = (funcs, globals, tags, exceptions, pages, data, excMode) => {
+  const encodeSection = (id, section) => [
+    id,
+    ...unsignedLEB128(section.length),
+    ...section
+  ];
+  let exceptionSection = [];
+  switch (excMode) {
+    case 'lut':
+      exceptionSection.push(0);
+      unsignedLEB128_into(exceptions.length, exceptionSection);
+      for (let i = 0; i < exceptions.length; i++) {
+        exceptionSection.push(...encodeString(exceptions[i].constructor ?? ""));
+        exceptionSection.push(...encodeString(exceptions[i].message));
+      }
+      break;
+    case 'stack':
+      exceptionSection.push(1);
+      break;
+    case 'stackest':
+      exceptionSection.push(2);
+      break;
+    case 'partial':
+      exceptionSection.push(3);
+      unsignedLEB128_into(exceptions.length, exceptionSection);
+      for (let i = 0; i < exceptions.length; i++) {
+        exceptionSection.push(...encodeString(exceptions[i].constructor ?? ""));
+      }
+      break;
+  }
+  const typeSection = [ valtypeBinary ];
+
+  // TODO: add more information like where funcrefs are, etc.
+  return [
+    ...encodeSection(0, exceptionSection),
+    ...encodeSection(1, typeSection),
+  ];
+};
+
+export default (funcs, globals, tags, exceptions, pages, data, flags, noTreeshake = false) => {
   const types = [], typeCache = {};
 
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
@@ -120,6 +159,8 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   time('func section');
 
   const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
+
+  const porfforDebugInfoSection = Prefs.d ? customSection('porffor_debug_info', encodeDebugInfo(funcs, globals, tags, exceptions, pages, data, Prefs.exceptionMode ?? 'lut')) : [];
 
   const tableSection = !funcs.table ? [] : createSection(
     Section.table,
@@ -424,6 +465,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
     ...exportSection,
     ...elementSection,
     ...dataCountSection,
+    ...porfforDebugInfoSection,
     ...codeSection,
     ...dataSection,
     ...nameSection
