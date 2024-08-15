@@ -1398,6 +1398,11 @@ const getNodeType = (scope, node) => {
       return TYPES.number;
     }
 
+    if (node.type === 'TemplateLiteral') {
+      // could be normal string but shrug
+      return TYPES.bytestring;
+    }
+
     if (node.type === 'TaggedTemplateExpression') {
       // hack
       switch (node.tag.name) {
