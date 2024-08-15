@@ -1,5 +1,4 @@
 import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
-import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
 
 const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[keyMap(obj[x])] = x; return acc; }, {});
 const invOpcodes = inv(Opcodes);
@@ -75,16 +74,22 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
     if (inst[0] === Opcodes.f64_const) {
       out += ` ${inst[1]}`;
     } else if (inst[0] === Opcodes.i32_const || inst[0] === Opcodes.i64_const) {
-      out += ` ${read_signedLEB128(inst.slice(1))}`;
-    } else if (inst[0] === Opcodes.i32_load || inst[0] === Opcodes.i64_load || inst[0] === Opcodes.f64_load || inst[0] === Opcodes.i32_store || inst[0] === Opcodes.i64_store || inst[0] === Opcodes.f64_store || inst[0] === Opcodes.i32_store16 || inst[0] === Opcodes.i32_load16_u) {
-      out += ` ${inst[1]} ${read_unsignedLEB128(inst.slice(2))}`;
-    } else for (const operand of inst.slice(1)) {
-      if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.try) {
-        if (operand === Blocktype.void) continue;
-        out += ` ${invValtype[operand]}`;
-      } else {
-        out += ` ${operand}`;
+      out += ` ${inst[1]}`;
+    } else if (inst[0] >= Opcodes.i32_load && inst[0] <= Opcodes.i64_store32) {
+      out += ` ${inst[1]} ${inst[2]}`;
+    } else if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.try) {
+      let blockType = inst[1];
+      if (blockType !== Blocktype.void) {
+        if (Array.isArray(blockType)) {
+          out += operand[0].length ? operand[0].map(x => ` ${invValtype[x]}`).join('') : '()';
+          out += '->';
+          out += operand[1].length ? operand[1].map(x => ` ${invValtype[x]}`).join('') : '()';
+        } else {
+          out += ` ${invValtype[blockType]}`;
+        }
       }
+    } else for (const operand of inst.slice(1)) {
+      out += ` ${operand}`;
     }
 
     if (comments.length > 0) out += ` ;; ${comments.join(' ')}`;

@@ -26,8 +26,8 @@ export const __Porffor_strcmp = (a: any, b: any): boolean => {
 local.get ${al}
 i32.const 32
 i32.ge_s
-if 64
-  loop 64
+if
+  loop
     local.get ${ap32}
     local.get ${al}
     i32.add
@@ -52,7 +52,7 @@ if 64
 
     v128.or
     v128.any_true
-    if 64
+    if
       i32.const 0
       i32.const 2
       return
@@ -72,8 +72,8 @@ end
 local.get ${al}
 i32.const 8
 i32.ge_s
-if 64
-  loop 64
+if
+  loop
     local.get ${ap8}
     local.get ${al}
     i32.add
@@ -85,7 +85,7 @@ if 64
     i64.load 0 0
 
     i64.ne
-    if 64
+    if
       i32.const 0
       i32.const 2
       return
@@ -105,8 +105,8 @@ end
 local.get ${al}
 i32.const 2
 i32.ge_s
-if 64
-  loop 64
+if
+  loop
     local.get ${a}
     local.get ${al}
     i32.add
@@ -118,7 +118,7 @@ if 64
     i32.load16_u 0 2
 
     i32.ne
-    if 64
+    if
       i32.const 0
       i32.const 2
       return
@@ -161,7 +161,7 @@ end`;
       let ap: i32 = a - 4;
       let bp: i32 = b - 4;
       Porffor.wasm`
-loop 64
+loop
   local.get ${ap}
   local.get ${al}
   i32.const 2
@@ -177,7 +177,7 @@ loop 64
   i64.load 0 0
 
   i64.ne
-  if 64
+  if
     i32.const 0
     i32.const 2
     return

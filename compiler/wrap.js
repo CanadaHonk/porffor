@@ -1,7 +1,8 @@
-import { encodeVector, encodeLocal } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import compile from './index.js';
 import decompile from './decompile.js';
+import { readUnsignedLEB128 } from './encoding.js';
+import { Section } from './wasmSpec.js';
 import { TYPES, TYPE_NAMES } from './types.js';
 import { log } from './log.js';
 import {} from './prefs.js';
@@ -304,6 +305,51 @@ ${flags & 0b0001 ? `    get func idx: ${get}
   }
 };
 
+const binarySearch = (array, mapFn, value) => {
+  let left = 0;
+  let right = array.length;
+  while (right - left > 1) {
+    let mid = (left + right) >>> 1;
+    let midValue = mapFn(array[mid]);
+    if (value < midValue) {
+      right = mid;
+    } else {
+      left = mid;
+    }
+  }
+  return left;
+};
+
+const traverseWasmFunctions = wasm => {
+  let index = 8; // skip magic and version
+  let sections = [];
+  let functions = [];
+  while (index < wasm.length) {
+    let sectionType = wasm[index++];
+    let length;
+    [ length, index ] = readUnsignedLEB128(wasm, index);
+    sections.push({ type: sectionType, offset: index, length });
+    if (sectionType !== Section.code) {
+      // different section
+      index += length;
+      continue;
+    }
+    let startPosition = index;
+    let functionCount;
+    [ functionCount, index ] = readUnsignedLEB128(wasm, index);
+    for (let i = 0; i < functionCount; i++) {
+      let functionLength;
+      [ functionLength, index ] = readUnsignedLEB128(wasm, index);
+      functions.push({ offset: index, length: functionLength });
+      index += functionLength;
+    }
+    if (index !== startPosition + length) {
+      console.error(`code section length mismatch, expected ${length} but found ${index - startPosition}`);
+    }
+  }
+  return { sections, functions };
+};
+
 export default (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {
   const times = [];
 
@@ -319,6 +365,13 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
   times.push(performance.now() - t1);
   if (Prefs.profileCompiler) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
 
+  let functionOffsets, sectionInfo;
+  if (Prefs.d) {
+    let result = traverseWasmFunctions(wasm);
+    functionOffsets = result.functions;
+    sectionInfo = result.sections;
+  }
+
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
 
@@ -329,6 +382,8 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
       min = 0;
       max = func.wasm.length;
     }
+    min = Math.max(0, min);
+    max = Math.min(func.wasm.length, max);
 
     const decomp = decompile(func.wasm.slice(min, max), func.name, 0, func.locals, func.params, func.returns, funcs, globals, exceptions)
       .slice(0, -1).split('\n').filter(x => !x.startsWith('\x1B[90m;;'));
@@ -340,59 +395,45 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     }
 
     if (middleIndex != -1) {
-      const middle = Math.floor(decomp.length / 2);
-      decomp[middle] = `\x1B[47m\x1B[30m${noAnsi(decomp[middle])}${'\u00a0'.repeat(longest - noAnsi(decomp[middle]).length)}\x1B[0m`;
+      if (middleIndex >= func.wasm.length) {
+        decomp.push(`\x1B[47m\x1B[30m${'\u00a0'.repeat(longest)}\x1B[0m`);
+      } else {
+        const middle = middleIndex - min + 1; // plus 1 line for signature
+        decomp[middle] = `\x1B[47m\x1B[30m${noAnsi(decomp[middle])}${'\u00a0'.repeat(longest - noAnsi(decomp[middle]).length)}\x1B[0m`;
+      }
     }
 
     if (min != 0) console.log('\x1B[90m...\x1B[0m');
-    console.log(decomp.join('\n'));
+    console.log(decomp.join('\n') + '\x1B[0m');
     if (max > func.wasm.length) console.log('\x1B[90m...\x1B[0m\n');
   };
 
-  const backtrace = (funcInd, blobOffset) => {
-    if (funcInd == null || blobOffset == null ||
-        Number.isNaN(funcInd) || Number.isNaN(blobOffset)) return false;
+  const backtrace = (blobOffset) => {
+    if (blobOffset == null || Number.isNaN(blobOffset)) return false;
+
+    const sectionIndex = binarySearch(sectionInfo, x => x.offset, blobOffset);
+    const secInfo = sectionInfo[sectionIndex];
+    if (secInfo.type !== Section.code) {
+      console.log('error in section with id ' + secInfo.type + ' at offset ' + (blobOffset - secInfo.offset));
+      return;
+    }
+
+    const funcInd = binarySearch(functionOffsets, x => x.offset, blobOffset);
+    const funcInfo = functionOffsets[funcInd];
+
+    console.log('index ' + funcInd, funcs[funcInd]);
 
     // convert blob offset -> function wasm offset
-    const func = funcs.find(x => x.asmIndex === funcInd);
-    if (!func) return false;
-
-    const { wasm: assembledWasmFlat, wasmNonFlat: assembledWasmOps, localDecl } = func.assembled;
-    const toFind = encodeVector(localDecl).concat(assembledWasmFlat.slice(0, 100));
-
-    let i = 0;
-    for (; i < wasm.length; i++) {
-      let mismatch = false;
-      for (let j = 0; j < toFind.length; j++) {
-        if (wasm[i + j] !== toFind[j]) {
-          mismatch = true;
-          break;
-        }
-      }
-
-      if (!mismatch) break;
-    }
-
-    if (i === wasm.length) {
-      printDecomp(-1, func, funcs, globals, exceptions);
+    const func = funcs[funcInd];
+    if (!func) {
+      console.log('error in code section at offset ' + (blobOffset - secInfo.offset) + ' (no associated function found)');
       return false;
     }
 
-    const offset = (blobOffset - i) - encodeVector(localDecl).length;
+    const offsetTable = func.offsetTable;
+    const instrIndex = binarySearch(offsetTable, x => x, blobOffset - funcInfo.offset);
 
-    let cumLen = 0;
-    i = 0;
-    for (; i < assembledWasmOps.length; i++) {
-      cumLen += assembledWasmOps[i].filter(x => x != null && x <= 0xff).length;
-      if (cumLen === offset) break;
-    }
-
-    if (cumLen !== offset) {
-      printDecomp(-1, func, funcs, globals, exceptions);
-      return false;
-    }
-
-    printDecomp(i + 1, func, funcs, globals, exceptions);
+    printDecomp(instrIndex, func, funcs, globals, exceptions);
     return true;
   };
 
@@ -446,10 +487,9 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     if (!Prefs.d) throw e;
     if (!(e instanceof WebAssembly.CompileError)) throw e;
 
-    const funcInd = parseInt(e.message.match(/function #([0-9]+)/)?.[1]);
     const blobOffset = parseInt(e.message.split('@')?.[1]);
 
-    backtrace(funcInd, blobOffset);
+    backtrace(blobOffset);
     throw e;
   }
 
@@ -541,10 +581,9 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
           if (!Prefs.d) throw e;
 
           const match = e.stack.match(/wasm-function\[([0-9]+)\]:([0-9a-z]+)/) ?? [];
-          const funcInd = parseInt(match[1]);
           const blobOffset = parseInt(match[2]);
 
-          backtrace(funcInd, blobOffset);
+          backtrace(blobOffset);
         }
 
         throw e;
