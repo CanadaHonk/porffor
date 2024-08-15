@@ -125,10 +125,10 @@ const prepared = prepareStatement();
 const run = (): number[] => {
   const result: number[] = new Array(50);
 
-  let status = SQLITE3_ROW;
-  while (status === SQLITE3_ROW) {
+  let status: number = SQLITE3_ROW;
+  while (status == SQLITE3_ROW) {
     status = sqlite3_step(prepared);
-    const i = sqlite3_column_int(prepared, 0);
+    const i: number = sqlite3_column_int(prepared, 0);
     result[i] = i;
   }
 
