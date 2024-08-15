@@ -210,7 +210,7 @@ ${funcs.map(x => {
     for (let x of wasm) {
       if (comma) str += ',';
       comma = true;
-      if (typeof x[0] === 'number' || typeof x[0] === 'object') {
+      if (typeof x[0] === 'number' || Array.isArray(x[0])) {
         // encode directly
         if (x[0] === Opcodes.i64_const) {
           str += `[${Opcodes.i64_const},${x[1]}n]`; // value
@@ -249,7 +249,7 @@ ${funcs.map(x => {
           continue;
         }
         if (x[1] === 'typeswitch case end') {
-          str = str.substring(0, -1) + '])';
+          str = str.substring(0, str.length - 1) + '])';
           continue;
         }
         console.error('unknown instruction', x);
