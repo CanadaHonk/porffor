@@ -1015,7 +1015,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   const existing = funcByName(name);
   if (existing) return existing;
 
-  const nameParam = i => localNames[i] ?? (i >= params.length ? ['a', 'b', 'c'][i - params.length] : ['x', 'y', 'z'][i]);
+  const nameParam = i => localNames[i] ?? `l${i}`;
 
   const allLocals = params.concat(localTypes);
   const locals = {};
@@ -2932,6 +2932,59 @@ const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType
 };
 
 const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
+  // statically analyzed ffi dlopen hack to let 2c handle it
+  if (init && init.type === 'CallExpression' && init.callee.name === '__Porffor_dlopen') {
+    if (Prefs.target !== 'native' && !Prefs.native) throw new Error('Porffor.dlopen is only supported for native target (use --native)');
+
+    // disable pgo if using ffi (lol)
+    Prefs.pgo = false;
+
+    try {
+      let usedNames = [];
+      for (const x of pattern.properties) {
+        const name = x.key.name;
+        usedNames.push(name);
+      }
+
+      let path = init.arguments[0].value;
+      let symbols = {};
+
+      for (const x of init.arguments[1].properties) {
+        const name = x.key.name;
+        if (!usedNames.includes(name)) continue;
+
+        let parameters, result;
+        for (const y of x.value.properties) {
+          switch (y.key.name) {
+            case 'parameters':
+              parameters = y.value.elements.map(z => z.value);
+              break;
+
+            case 'result':
+              result = y.value.value;
+              break;
+          }
+        }
+
+        symbols[name] = { parameters, result };
+
+        // mock ffi function
+        asmFunc(name, {
+          wasm: [],
+          params: parameters.map(x => Valtype.i32),
+          returns: result ? [ Valtype.i32 ] : [],
+          returnType: TYPES.number
+        })
+      }
+
+      return [ [ null, 'dlopen', path, symbols ] ];
+    } catch (e) {
+      console.error('bad Porffor.dlopen syntax');
+      throw e;
+    }
+  }
+
+
   const topLevel = scope.name === 'main';
 
   if (typeof pattern === 'string') {
@@ -5185,7 +5238,7 @@ const countParams = (func, name = undefined) => {
   name ??= func.name;
   let params = func.params.length;
   if (func.constr) params -= 4;
-  if (!builtinFuncs[name] || builtinFuncs[name]?.typedParams) params = Math.floor(params / 2);
+  if (!func.internal || builtinFuncs[name]?.typedParams) params = Math.floor(params / 2);
 
   return func.argc = params;
 };
