@@ -570,6 +570,7 @@ const collectDebugInfo = wasm => {
     let length;
     [ length, index ] = readUnsignedLEB128FromBuffer(wasm, index);
     if (sectionType !== Section.custom) {
+      index += length;
       continue;
     }
     let startPosition = index;
@@ -577,6 +578,7 @@ const collectDebugInfo = wasm => {
     let name;
     [ name, index ] = readStringFromBuffer(wasm, index);
     if (name !== 'porffor_debug_info') {
+      index = endPosition;
       continue;
     }
     while (index < endPosition) {
@@ -613,7 +615,7 @@ const collectDebugInfo = wasm => {
             exceptions[exInd] = { constructor };
           }
         }
-      } else if (type === 1) { // valtype
+      } else if (sectionType === 1) { // valtype
         valtypeBinary = wasm[index++];
       } else {
         index += length;
@@ -627,6 +629,11 @@ const collectDebugInfo = wasm => {
 // TODO: integrate with default
 export const fromWasm = (wasm, print = str => process.stdout.write(str)) => {
   let { exceptions, exceptionMode, valtypeBinary } = collectDebugInfo(wasm);
+  if (exceptionMode == null || valtypeBinary == null) {
+    console.warn("Wasm binary not compiled with debug information");
+    exceptionMode = 'lut';
+    valtypeBinary = Valtype.f64;
+  }
   let instance, memory;
   try {
     const module = new WebAssembly.Module(wasm);
@@ -694,6 +701,10 @@ export const fromWasm = (wasm, print = str => process.stdout.write(str)) => {
           if (exceptionMode === 'lut') {
             const exceptId = e.getArg(exceptTag, 0);
             const exception = exceptions[exceptId];
+
+            if (!exception) {
+              throw new Error('Porffor error id: ' + exceptId);
+            }
 
             const constructorName = exception.constructor;
 

@@ -59,6 +59,7 @@ const encodeDebugInfo = (funcs, globals, tags, exceptions, pages, data, excMode)
       exceptionSection.push(0);
       unsignedLEB128_into(exceptions.length, exceptionSection);
       for (let i = 0; i < exceptions.length; i++) {
+        unsignedLEB128_into(i, exceptionSection);
         exceptionSection.push(...encodeString(exceptions[i].constructor ?? ""));
         exceptionSection.push(...encodeString(exceptions[i].message));
       }
@@ -73,6 +74,7 @@ const encodeDebugInfo = (funcs, globals, tags, exceptions, pages, data, excMode)
       exceptionSection.push(3);
       unsignedLEB128_into(exceptions.length, exceptionSection);
       for (let i = 0; i < exceptions.length; i++) {
+        unsignedLEB128_into(i, exceptionSection);
         exceptionSection.push(...encodeString(exceptions[i].constructor ?? ""));
       }
       break;

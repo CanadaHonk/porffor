@@ -211,7 +211,7 @@ export const readUnsignedLEB128FromBuffer = (buffer, index) => {
     let b = buffer[index];
     value |= (b & 0x7F) << shift;
     if ((value & 0x80) == 0) {
-      return [ value, index ];
+      return [ value, index + 1 ];
     }
     shift += 7;
   }

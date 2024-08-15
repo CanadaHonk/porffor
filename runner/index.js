@@ -104,7 +104,8 @@ if (['precompile', 'run', 'wasm', 'run-wasm', 'native', 'c', 'profile', 'debug',
     } catch (e) {
       let out = e;
       if (Object.getPrototypeOf(e).message != null) out = `${e.constructor.name}${e.message != null ? `: ${e.message}` : ''}`;
-      throw e; // show backtrace
+      if (e instanceof Error && process.argv.includes('-d')) throw e;
+      console.error(e);
     }
     if (process.argv.includes('-t')) console.log(`execution time: ${(performance.now() - runStart).toFixed(2)}ms`);
     process.exit();
@@ -188,7 +189,8 @@ try {
 } catch (e) {
   let out = e;
   if (!process.argv.includes('-d') && Object.getPrototypeOf(e).message != null) out = `${e.constructor.name}${e.message != null ? `: ${e.message}` : ''}`;
-  throw e; // show backtrace
+  if (e instanceof Error && process.argv.includes('-d')) throw e;
+  console.error(out);
 }
 
 if (process.argv.includes('-t')) console.log(`${process.argv.includes('-b') ? '' : '\n'}total time: ${(performance.now() - start).toFixed(2)}ms\nexecution time: ${(performance.now() - runStart).toFixed(2)}ms`);
