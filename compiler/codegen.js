@@ -2955,12 +2955,12 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       let symbols = {};
 
       for (const x of init.arguments[1].properties) {
-        const name = x.key.name;
+        const name = x.key.name || x.key.value;
         if (!usedNames.includes(name)) continue;
 
         let parameters, result;
         for (const y of x.value.properties) {
-          switch (y.key.name) {
+          switch (y.key.name || y.key.value) {
             case 'parameters':
               parameters = y.value.elements.map(z => z.value);
               break;
