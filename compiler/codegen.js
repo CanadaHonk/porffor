@@ -2945,22 +2945,25 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     Prefs.pgo = false;
 
     try {
+      let skipUnusedNames = !!pattern.properties;
       let usedNames = [];
+      if (skipUnusedNames) {
       for (const x of pattern.properties) {
         const name = x.key.name;
         usedNames.push(name);
+      }
       }
 
       let path = init.arguments[0].value;
       let symbols = {};
 
       for (const x of init.arguments[1].properties) {
-        const name = x.key.name;
-        if (!usedNames.includes(name)) continue;
+        const name = x.key.name || x.key.value;
+        if (skipUnusedNames && !usedNames.includes(name)) continue;
 
         let parameters, result;
         for (const y of x.value.properties) {
-          switch (y.key.name) {
+          switch (y.key.name || y.key.value) {
             case 'parameters':
               parameters = y.value.elements.map(z => z.value);
               break;
