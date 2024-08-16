@@ -197,7 +197,7 @@ export const run = obj => {
       }
     }
 
-    log += `  ${func.name}: identified ${counts[2]}/${total} local non-consistent domains${Prefs.verbosePgo ? ':' : ''}\n`;
+    log += `  ${func.name}: identified ${counts[2]}/${total} non-consistent locals domains${Prefs.verbosePgo ? ':' : ''}\n`;
     if (Prefs.verbosePgo) {
       for (let j = func.params.length; j < localData[i].length; j++) {
         if (domains[j] === false) continue;
