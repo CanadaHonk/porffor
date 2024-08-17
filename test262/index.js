@@ -450,7 +450,9 @@ if (isMainThread) {
     } catch (e) {
       if (e?.name === 'Test262Error' && debugAsserts && log) {
         const [ msg, expected, actual ] = log.split('\n');
-        e.message += `: ${msg} | expected: ${expected} | actual: ${actual}`;
+        let spl = e.stack.split('\n');
+        spl[0] += `: ${msg} | expected: ${expected} | actual: ${actual}`;
+        e.stack = spl.join('\n');
       }
 
       stage = 1;
@@ -498,7 +500,7 @@ if (isMainThread) {
 
     if (logErrors) {
       process.stdout.write(`\u001b[${pass ? '92' : '91'}m${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m\n`);
-      if (!pass && error) console.log(error?.message || error?.stack || error);
+      if (!pass && error) console.log(error?.stack || error);
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {
