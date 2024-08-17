@@ -489,36 +489,37 @@ export const __Porffor_object_define = (obj: any, key: any, value: any, flags: i
 
     if ((tail & 0b0010) == 0) {
       // not already configurable, check to see if we can redefine
-      if ((tail & 0b1111) != flags) {
-        // flags have changed, perform checks
-        let err: boolean = false;
+      let err: boolean = false;
 
-        // descriptor type (accessor/data) and/or flags (other than writable) have changed
-        if ((tail & 0b0111) != flags) err = true;
-          else if (!(tail & 0b0001) && !(tail & 0b1000)) {
-          // data descriptor and already non-writable only checks
-          // trying to change writable false -> true
-          if (flags & 0b1000) {
-            err = true;
-          } else {
-            // if already non-writable, check value isn't being changed
-            Porffor.wasm`
+      // descriptor type (accessor/data) and/or flags (other than writable) have changed
+      if ((tail & 0b0111) != (flags & 0b0111)) err = true;
+
+      if (!err && (tail & 0b1001) == 0) {
+        // data descriptor and already non-writable only checks
+        // trying to change writable false -> true
+        if (flags & 0b1000) {
+          err = true;
+        } else {
+          // if already non-writable, check value isn't being changed
+          Porffor.wasm`
 local.get ${entryPtr}
 f64.load 0 4
-local.get ${value}
-f64.ne
-
 local.get ${entryPtr}
 i32.load8_u 0 13
-local.get ${value+1}
-i32.ne
-i32.or
-local.set ${err}`;
-          }
-        }
 
-        if (err) throw new TypeError('Cannot redefine property');
+local.get ${value}
+local.get ${value+1}
+
+call __Object_is
+drop
+
+i32.trunc_sat_f64_u
+i32.eqz
+local.set ${err}`;
+        }
       }
+
+      if (err) throw new TypeError('Cannot redefine property');
     }
   }
 
