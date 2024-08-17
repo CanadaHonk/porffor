@@ -5,18 +5,18 @@ import Byg from '../byg/index.js';
 import fs from 'node:fs';
 
 const file = process.argv.slice(2).find(x => x[0] !== '-');
-let source = fs.readFileSync(file, 'utf8');
-
+const source = await fs.readFile(file, 'utf8');
 const originalLines = source.split('\n');
+const funcs = {};
+let funcId = 0;
 
-let funcs = {}, funcId = 0;
-source = source.replace(/^\s*(function|const)\s*([a-zA-Z0-9]+)(\s*=\s*)?\([^)]*\)\s*(=>)?\s*\{$/gm, (x, _, n) => {
+modifiedSource = source.replace(/^\s*(function|const)\s*([a-zA-Z0-9]+)(\s*=\s*)?\([^)]*\)\s*(=>)?\s*\{$/gm, (x, _, n) => {
   const id = funcId++;
   funcs[funcId] = n;
   return `${x}profile2(Porffor.wasm.i32.const(${id}))`;
 });
 
-const lines = source.split('\n');
+const lines = modifiedSource.split('\n');
 for (let i = 0; i < lines.length; i++) {
   if (lines[i].trim().replace('}', '') !== '') lines[i] = `profile1(Porffor.wasm.i32.const(${i}));` + lines[i];
 }
@@ -27,7 +27,7 @@ const breakpoints = new Array(lines.length);
 let paused = true;
 const byg = Byg({
   lines: originalLines,
-  pause: () => { paused = true; },
+  pause() { paused = true; },
   breakpoint: (line, breakpoint) => {
     breakpoints[line] = breakpoint;
   }
@@ -43,7 +43,7 @@ let lastLine;
 let output = '';
 
 try {
-  const { exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
+  const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
     y: n => {
       if (callStarts[callStarts.length - 1] === n - 1) {
         // end of call
@@ -111,7 +111,7 @@ try {
     }
   }, s => output += s);
 
-  exports.main();
+  await exports.main();
 } catch (e) {
   console.error(e);
 }
