@@ -21,6 +21,11 @@ if (isMainThread) {
   if (!whatTests.startsWith('test/')) whatTests = 'test/' + whatTests;
   if (whatTests.endsWith('/')) whatTests = whatTests.slice(0, -1);
 
+  if (whatTests.endsWith('.js')) {
+    // single test, automatically add debug args
+    process.argv.push('--log-errors');
+  }
+
   const _tests = new Test262Stream(test262Path, {
     paths: [ whatTests ],
     omitRuntime: true
