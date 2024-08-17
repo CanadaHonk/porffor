@@ -5,7 +5,7 @@ import Byg from '../byg/index.js';
 import fs from 'node:fs';
 
 const file = process.argv.slice(2).find(x => x[0] !== '-');
-const source = await fs.readFile(file, 'utf8');
+const source = fs.readFile(file, 'utf8');
 const originalLines = source.split('\n');
 const funcs = {};
 let funcId = 0;
@@ -43,7 +43,7 @@ let lastLine;
 let output = '';
 
 try {
-  const { exports } = await compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
+  const { exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
     y: n => {
       if (callStarts[callStarts.length - 1] === n - 1) {
         // end of call
@@ -111,7 +111,7 @@ try {
     }
   }, s => output += s);
 
-  await exports.main();
+  exports.main();
 } catch (e) {
   console.error(e);
 }
