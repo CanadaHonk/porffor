@@ -5,7 +5,7 @@ import Byg from '../byg/index.js';
 import fs from 'node:fs';
 
 const file = process.argv.slice(2).find(x => x[0] !== '-');
-const source = fs.readFile(file, 'utf8');
+const source = fs.readFileSync(file, 'utf8');
 const originalLines = source.split('\n');
 const funcs = {};
 let funcId = 0;
