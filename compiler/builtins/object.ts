@@ -78,7 +78,7 @@ local.set ${key}`;
       }
     }
 
-    obj = __Porffor_object_makeObject(obj);
+    obj = __Porffor_object_underlying(obj);
     if (Porffor.rawType(obj) == Porffor.TYPES.object) {
       const objKeys: any[] = __Object_keys(obj);
       for (const x of objKeys) Porffor.array.fastPush(out, x);
@@ -132,7 +132,7 @@ local.set ${val+1}`;
       }
     }
 
-    obj = __Porffor_object_makeObject(obj);
+    obj = __Porffor_object_underlying(obj);
     if (Porffor.rawType(obj) == Porffor.TYPES.object) {
       const objVals: any[] = __Object_values(obj);
       for (const x of objVals) Porffor.array.fastPush(out, x);
@@ -195,7 +195,7 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
     return Porffor.object.lookup(_this, p) != -1;
   }
 
-  const obj: any = __Porffor_object_makeObject(_this);
+  const obj: any = __Porffor_object_underlying(_this);
   if (Porffor.rawType(obj) == Porffor.TYPES.object) {
     if (Porffor.object.lookup(obj, p) != -1) return true;
   }
@@ -288,7 +288,7 @@ export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) =
     return Porffor.object.isEnumerable(entryPtr);
   }
 
-  const obj: any = __Porffor_object_makeObject(_this);
+  const obj: any = __Porffor_object_underlying(_this);
   if (Porffor.rawType(obj) == Porffor.TYPES.object) {
     const entryPtr: i32 = Porffor.object.lookup(obj, p);
     if (entryPtr != -1) return Porffor.object.isEnumerable(entryPtr);
@@ -437,7 +437,7 @@ export const __Object_getOwnPropertyDescriptors = (obj: any): any => {
   const out: object = {};
 
   if (Porffor.rawType(obj) != Porffor.TYPES.object) {
-    obj = __Porffor_object_makeObject(obj);
+    obj = __Porffor_object_underlying(obj);
     if (Porffor.rawType(obj) != Porffor.TYPES.object) return out;
   }
 
@@ -513,7 +513,7 @@ local.set ${key}`;
       }
     }
 
-    obj = __Porffor_object_makeObject(obj);
+    obj = __Porffor_object_underlying(obj);
     if (Porffor.rawType(obj) == Porffor.TYPES.object) {
       const objKeys: any[] = __Object_getOwnPropertyNames(obj);
       for (const x of objKeys) Porffor.array.fastPush(out, x);
@@ -527,7 +527,7 @@ export const __Object_getOwnPropertySymbols = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
-  obj = __Porffor_object_makeObject(obj);
+  obj = __Porffor_object_underlying(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
