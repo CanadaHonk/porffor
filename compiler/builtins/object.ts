@@ -18,6 +18,7 @@ export const __Object_keys = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
+  obj = __Porffor_object_underlying(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -64,25 +65,6 @@ local.set ${key}`;
     }
 
     out.length = i;
-  } else {
-    if (Porffor.fastOr(
-      t == Porffor.TYPES.array,
-      t == Porffor.TYPES.bytestring,
-      t == Porffor.TYPES.string
-    )) {
-      const len: i32 = obj.length;
-      out.length = len;
-
-      for (let i: i32 = 0; i < len; i++) {
-        out[i] = __Number_prototype_toString(i);
-      }
-    }
-
-    obj = __Porffor_object_underlying(obj);
-    if (Porffor.rawType(obj) == Porffor.TYPES.object) {
-      const objKeys: any[] = __Object_keys(obj);
-      for (const x of objKeys) Porffor.array.fastPush(out, x);
-    }
   }
 
   return out;
@@ -92,6 +74,7 @@ export const __Object_values = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
+  obj = __Porffor_object_underlying(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -118,25 +101,6 @@ local.set ${val+1}`;
     }
 
     out.length = i;
-  } else {
-    if (Porffor.fastOr(
-      t == Porffor.TYPES.array,
-      t == Porffor.TYPES.bytestring,
-      t == Porffor.TYPES.string
-    )) {
-      const len: i32 = obj.length;
-      out.length = len;
-
-      for (let i: i32 = 0; i < len; i++) {
-        out[i] = obj[i];
-      }
-    }
-
-    obj = __Porffor_object_underlying(obj);
-    if (Porffor.rawType(obj) == Porffor.TYPES.object) {
-      const objVals: any[] = __Object_values(obj);
-      for (const x of objVals) Porffor.array.fastPush(out, x);
-    }
   }
 
   return out;
@@ -454,6 +418,7 @@ export const __Object_getOwnPropertyNames = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: any[] = Porffor.allocate();
 
+  obj = __Porffor_object_underlying(obj);
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 5;
@@ -499,25 +464,6 @@ local.set ${key}`;
     }
 
     out.length = i;
-  } else {
-    if (Porffor.fastOr(
-      t == Porffor.TYPES.array,
-      t == Porffor.TYPES.bytestring,
-      t == Porffor.TYPES.string
-    )) {
-      const len: i32 = obj.length;
-      out.length = len;
-
-      for (let i: i32 = 0; i < len; i++) {
-        out[i] = __Number_prototype_toString(i);
-      }
-    }
-
-    obj = __Porffor_object_underlying(obj);
-    if (Porffor.rawType(obj) == Porffor.TYPES.object) {
-      const objKeys: any[] = __Object_getOwnPropertyNames(obj);
-      for (const x of objKeys) Porffor.array.fastPush(out, x);
-    }
   }
 
   return out;
