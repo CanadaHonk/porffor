@@ -366,7 +366,6 @@ export const __Promise_allSettled = (promises: any): Promise => {
       _allLen++;
       if (__ecma262_IsPromise(x)) {
         x.then(r => {
-          // Porffor.print(r);
           const o = {};
           let status: bytestring = '';
           status = 'fulfilled';
