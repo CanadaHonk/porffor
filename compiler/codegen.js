@@ -1684,9 +1684,10 @@ const aliasPrimObjsBC = bc => {
   const add = (x, y) => {
     if (bc[x] == null) return;
 
-    const original = bc[x];
-    delete bc[x];
-    bc[`${x},${y}`] = original;
+    // bc[`${x},${y}`] = original;
+
+    // intentionally duplicate to avoid extra bc for prim objs as rarely used
+    bc[y] = bc[x];
   };
 
   add(TYPES.boolean, TYPES.booleanobject);
@@ -2748,7 +2749,9 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
       const k = x[0];
       if (k === 'default') continue;
 
-      x[0] = k.split(',').map(x => +x);
+      // uncomment if needed/used again
+      // x[0] = k.split(',').map(x => +x);
+      x[0] = +k;
     }
   }
 
