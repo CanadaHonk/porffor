@@ -5369,7 +5369,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
           _protoInternalCall: true
         });
 
-        bc[type] = generate(scope, {
+        bc[type] = () => generate(scope, {
           type: 'CallExpression',
           callee: {
             type: 'Identifier',
@@ -5404,11 +5404,11 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
         name: x
       };
 
-      bc[type] = [
+      bc[type] = () => [
         ...generate(scope, ident),
         ...setLastType(scope, getNodeType(scope, ident))
       ];
-      if (type === known) return bc[type];
+      if (type === known) return bc[type]();
     }
 
     if (known == null) extraBC = bc;
