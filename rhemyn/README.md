@@ -5,7 +5,6 @@ Age: ~1 day (of work)
 Made for use with Porffor but could possibly be adapted, implementation/library notes:
 - Exposes functions for each regex "operation" (eg test, match)
 - Given a regex pattern string (eg `a+`), it returns a "function" object
-- The Wasm function returned expects an i32 pointer to a UTF-16 string (can add UTF-8 option later if needed)
 
 ## syntax
 🟢 supported 🟡 partial 🟠 parsed only 🔴 unsupported
