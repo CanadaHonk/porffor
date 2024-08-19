@@ -674,8 +674,12 @@ export const __Object_prototype_toString = (_this: any) => {
   const t: i32 = Porffor.rawType(_this);
   if (t == Porffor.TYPES.array) return out = '[object Array]';
   if (t == Porffor.TYPES.function) return out = '[object Function]';
-  if (t == Porffor.TYPES.boolean) return out = '[object Boolean]';
-  if (t == Porffor.TYPES.number) return out = '[object Number]';
+  if (Porffor.fastOr(
+    t == Porffor.TYPES.boolean,
+    t == Porffor.TYPES.booleanobject)) return out = '[object Boolean]';
+  if (Porffor.fastOr(
+    t == Porffor.TYPES.number,
+    t == Porffor.TYPES.numberobject)) return out = '[object Number]';
   if (Porffor.fastOr(
     t == Porffor.TYPES.string,
     t == Porffor.TYPES.bytestring)) return out = '[object String]';

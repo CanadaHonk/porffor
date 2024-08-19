@@ -1680,6 +1680,19 @@ const setObjProp = (obj, prop, value) => {
   });
 };
 
+const aliasPrimObjsBC = bc => {
+  const add = (x, y) => {
+    if (bc[x] == null) return;
+
+    const original = bc[x];
+    delete bc[x];
+    bc[`${x},${y}`] = original;
+  };
+
+  add(TYPES.boolean, TYPES.booleanobject);
+  add(TYPES.number, TYPES.numberobject);
+};
+
 const createThisArg = (scope, decl) => {
   const name = mapName(decl.callee?.name);
   if (decl._new) {
@@ -2074,6 +2087,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       // fallback to object prototype impl as a basic prototype chain hack
       if (protoBC[TYPES.object]) def = protoBC[TYPES.object];
+
+      // alias primitive prototype with primitive object types
+      aliasPrimObjsBC(protoBC);
 
       return [
         ...out,
@@ -2718,27 +2734,38 @@ const typeUsed = (scope, x) => {
   scope.usedTypes ??= new Set();
   scope.usedTypes.add(x);
 };
+
 const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = false) => {
+  if (typeof bc === 'function') bc = bc();
+
+  let def;
+  if (!Array.isArray(bc)) {
+    def = bc.default;
+    bc = Object.entries(bc);
+
+    // turn keys back into numbers from keys
+    for (const x of bc) {
+      const k = x[0];
+      if (k === 'default') continue;
+
+      x[0] = k.split(',').map(x => +x);
+    }
+  }
+
   const known = knownType(scope, type);
   if (known != null) {
-    if (Array.isArray(bc)) {
-      let def;
-      for (const [ type, wasm ] of bc) {
-        if (type === 'default') {
-          def = wasm;
-          continue;
-        }
-
-        if (Array.isArray(type)) {
-          if (type.includes(known)) return typeof wasm === 'function' ? wasm() : wasm;
-        } else if (type === known) return typeof wasm === 'function' ? wasm() : wasm;
+    for (const [ type, wasm ] of bc) {
+      if (type === 'default') {
+        def = wasm;
+        continue;
       }
 
-      return typeof def === 'function' ? def() : def;
-    } else {
-      const wasm = bc[known] ?? bc.default;
-      return typeof wasm === 'function' ? wasm() : wasm;
+      if (type === known || (Array.isArray(type) && type.includes(known))) {
+        return typeof wasm === 'function' ? wasm() : wasm;
+      }
     }
+
+    return typeof def === 'function' ? def() : def;
   }
 
   if (Prefs.typeswitchBrtable) {
@@ -2752,19 +2779,6 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     [ Opcodes.local_set, tmp ],
     [ Opcodes.block, returns ]
   ];
-
-  if (typeof bc === 'function') bc = bc();
-
-  let def;
-  if (!Array.isArray(bc)) {
-    def = bc.default;
-    bc = Object.entries(bc);
-
-    // turn keys back into numbers from keys
-    for (const x of bc) {
-      if (x[0] !== 'default') x[0] = +x[0];
-    }
-  }
 
   for (let i = 0; i < bc.length; i++) {
     let [ types, wasm ] = bc[i];
@@ -2832,6 +2846,17 @@ const typeIsOneOf = (type, types, valtype = Valtype.i32) => {
   for (let i = 0; i < types.length; i++) {
     out.push(...type, ...number(types[i], valtype), valtype === Valtype.f64 ? [ Opcodes.f64_eq ] : [ Opcodes.i32_eq ]);
     if (i !== 0) out.push([ Opcodes.i32_or ]);
+  }
+
+  return out;
+};
+
+const typeIsNotOneOf = (type, types, valtype = Valtype.i32) => {
+  const out = [];
+
+  for (let i = 0; i < types.length; i++) {
+    out.push(...type, ...number(types[i], valtype), valtype === Valtype.f64 ? [ Opcodes.f64_ne ] : [ Opcodes.i32_ne ]);
+    if (i !== 0) out.push([ Opcodes.i32_and ]);
   }
 
   return out;
@@ -5411,7 +5436,10 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       if (type === known) return bc[type]();
     }
 
-    if (known == null) extraBC = bc;
+    if (known == null) {
+      aliasPrimObjsBC(bc);
+      extraBC = bc;
+    }
   }
 
   // todo/perf: use i32 object (and prop?) locals
@@ -6097,10 +6125,11 @@ const generateFunc = (scope, decl) => {
         TYPES.weakref, TYPES.weakset, TYPES.weakmap,
         TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
       ].includes(typeAnno.type)) {
+        let types = [ typeAnno.type ];
+        if (typeAnno.type === TYPES.number) types.push(TYPES.numberobject);
+
         prelude.push(
-          [ Opcodes.local_get, func.locals[name].idx + 1 ],
-          ...number(typeAnno.type, Valtype.i32),
-          [ Opcodes.i32_ne ],
+          ...typeIsNotOneOf([ [ Opcodes.local_get, func.locals[name].idx + 1 ] ], types),
           [ Opcodes.if, Blocktype.void ],
             ...internalThrow(func, 'TypeError', `${unhackName(func.name)} expects 'this' to be a ${TYPE_NAMES[typeAnno.type]}`),
           [ Opcodes.end ]

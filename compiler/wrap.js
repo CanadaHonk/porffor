@@ -41,7 +41,12 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
     case TYPES.undefined:
       return undefined;
 
+    case TYPES.number: return value;
+    case TYPES.numberobject: return new Number(value);
+
     case TYPES.boolean: return Boolean(value);
+    case TYPES.booleanobject: return new Boolean(value);
+
     case TYPES.object: {
       if (value === 0 || checkOOB(memory, value)) return null;
 

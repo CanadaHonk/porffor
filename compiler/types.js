@@ -74,6 +74,9 @@ registerInternalType('WeakMap');
 
 registerInternalType('Promise');
 
+registerInternalType('BooleanObject');
+registerInternalType('NumberObject');
+
 if (Prefs.largestTypes) {
   const typeKeys = Object.keys(TYPES);
   const typeVals = Object.values(TYPES);

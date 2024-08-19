@@ -1,10 +1,16 @@
 import type {} from './porffor.d.ts';
 
-export const Boolean = function (value: any): boolean {
-  // hack: allow to be called via new but we do not have prim objects yet
-  new.target;
+// 20.3.1.1 Boolean (value)
+// https://tc39.es/ecma262/#sec-boolean-constructor-boolean-value
+export const Boolean = function (value: any): boolean|BooleanObject {
+  // 1. Let b be ToBoolean(value).
+  const b: boolean = !!value;
 
-  return !!value;
+  // 2. If NewTarget is undefined, return b.
+  if (!new.target) return b;
+
+  const O: BooleanObject = b;
+  return O;
 };
 
 // 20.3.3.2 Boolean.prototype.toString ()
