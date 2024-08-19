@@ -9,7 +9,10 @@ export const Object = function (value: any): object {
     return obj;
   }
 
-  // todo: turn primitive args into objects
+  // primitives into primitive objects
+  if (Porffor.rawType(value) == Porffor.TYPES.number) return new Number(value);
+  if (Porffor.rawType(value) == Porffor.TYPES.boolean) return new Boolean(value);
+
   // return input
   return value;
 };

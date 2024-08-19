@@ -1693,9 +1693,9 @@ params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[127],localNames:["input","input#type","#last_type"],
 };
 this.Object = {
-wasm:(_,{t,builtin})=>[[32,4],[33,6],[32,5],[33,7],[2,127],...t([0,128],()=>[[32,7],[65,0],[70],[32,7],[65,128,1],[70],[114],[4,64],[65,1],[12,1],[11]]),...t([7],()=>[[32,7],[65,7],[70],[4,64],[32,6],[68,0],[97],[12,1],[11]]),[65,0],[11],[4,64],[16,builtin('__Porffor_allocate')],[183],[34,8],[65,7],[15],[11],[32,4],[32,5],[15]],
+wasm:(_,{t,builtin})=>[[32,4],[33,6],[32,5],[33,7],[2,127],...t([0,128],()=>[[32,7],[65,0],[70],[32,7],[65,128,1],[70],[114],[4,64],[65,1],[12,1],[11]]),...t([7],()=>[[32,7],[65,7],[70],[4,64],[32,6],[68,0],[97],[12,1],[11]]),[65,0],[11],[4,64],[16,builtin('__Porffor_allocate')],[183],[34,8],[65,7],[15],[11],[32,5],[184],[68,1],[97],[4,64],[68,3],[65,6],[16,builtin('__Porffor_allocate')],[184],[65,7],[32,4],[32,5],[16,builtin('Number')],[34,9],[15],[11],[32,5],[184],[68,2],[97],[4,64],[68,4],[65,6],[16,builtin('__Porffor_allocate')],[184],[65,7],[32,4],[32,5],[16,builtin('Boolean')],[34,9],[15],[11],[32,4],[32,5],[15]],
 params:[124,127,124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
-locals:[124,127,124],localNames:["#newtarget","#newtarget#type","#this","#this#type","value","value#type","#logicinner_tmp","#typeswitch_tmp1","obj"],
+locals:[124,127,124,127],localNames:["#newtarget","#newtarget#type","#this","#this#type","value","value#type","#logicinner_tmp","#typeswitch_tmp1","obj","#last_type"],
 usedTypes:[7],
 constr:1,
 };
