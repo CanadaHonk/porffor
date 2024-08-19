@@ -4017,11 +4017,11 @@ const generateForOf = (scope, decl) => {
   let setVar;
   if (decl.left.type === 'Identifier') {
     if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
-    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    setVar = generateVarDstr(scope, decl.left.kind, decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
+    setVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
 
@@ -4375,11 +4375,11 @@ const generateForIn = (scope, decl) => {
   let setVar;
   if (decl.left.type === 'Identifier') {
     if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
-    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    setVar = generateVarDstr(scope, decl.left.kind, decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
+    setVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
   // set type for local
