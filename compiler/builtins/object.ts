@@ -525,13 +525,11 @@ local.set ${key}`;
 };
 
 
-export const __Object_defineProperty = (target: any, prop: any, descriptor: any) => {
+export const __Object_defineProperty = (target: any, prop: any, desc: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
-  if (!Porffor.object.isObject(descriptor)) throw new TypeError('Descriptor is a non-object');
+  if (!Porffor.object.isObject(desc)) throw new TypeError('Descriptor is a non-object');
 
   const p: any = ecma262.ToPropertyKey(prop);
-
-  const desc: object = descriptor;
 
   // base keys
   let configurable: any = desc.configurable;
