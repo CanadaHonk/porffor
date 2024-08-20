@@ -559,7 +559,8 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
-  const def = (truthyMode => {
+  const truthyMode = forceTruthyMode ?? Prefs.truthy ?? 'full';
+  const def = (() => {
     if (truthyMode === 'full') return [
       // if value != 0 or NaN
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
@@ -584,7 +585,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
       ...(!intOut || (intIn && intOut) ? [] : [ Opcodes.i32_to_u ])
     ];
-  })(forceTruthyMode ?? Prefs.truthy ?? 'full');
+  })();
 
   return [
     ...wasm,
@@ -603,6 +604,17 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
         [ Opcodes.i32_eqz ], */
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ] ],
+      // [ [ TYPES.boolean, TYPES.number, TYPES.object, TYPES.undefined, TYPES.empty ], def ],
+      // [ 'default', [
+      //   // other types are always truthy
+      //   ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+      //   ...number(1, intOut ? Valtype.i32 : valtypeBinary)
+      // ] ]
+      ...(truthyMode === 'full' ? [ [ [ TYPES.booleanobject, TYPES.numberobject ], [
+        // always truthy :))
+        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+        ...number(1, intOut ? Valtype.i32 : valtypeBinary)
+      ] ] ] : []),
       [ 'default', def ]
     ], intOut ? Valtype.i32 : valtypeBinary)
   ];
@@ -612,7 +624,8 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
-  const def = (truthyMode => {
+  const truthyMode = forceTruthyMode ?? Prefs.truthy ?? 'full';
+  const def = (() => {
     if (truthyMode === 'full') return [
       // if value == 0 or NaN
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
@@ -638,7 +651,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
       ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
       ...(intOut ? [] : [ Opcodes.i32_from_u ])
     ];
-  })(forceTruthyMode ?? Prefs.truthy ?? 'full');
+  })();
 
   return [
     ...wasm,
@@ -656,6 +669,17 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
         [ Opcodes.i32_eqz ],
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ] ],
+      // [ [ TYPES.boolean, TYPES.number, TYPES.object, TYPES.undefined, TYPES.empty ], def ],
+      // [ 'default', [
+      //   // other types are always truthy
+      //   ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+      //   ...number(0, intOut ? Valtype.i32 : valtypeBinary)
+      // ] ]
+      ...(truthyMode === 'full' ? [ [ [ TYPES.booleanobject, TYPES.numberobject ], [
+        // always truthy :))
+        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+        ...number(0, intOut ? Valtype.i32 : valtypeBinary)
+      ] ] ] : []),
       [ 'default', def ]
     ], intOut ? Valtype.i32 : valtypeBinary)
   ];
