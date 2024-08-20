@@ -532,6 +532,24 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
   if (!Porffor.object.isObject(desc)) throw new TypeError('Descriptor is a non-object');
 
+  if (Porffor.rawType(target) == Porffor.TYPES.array) {
+    const tmp1: bytestring = 'length';
+    const tmp2: bytestring = 'value';
+    if (prop === tmp1 && __Object_hasOwn(desc, tmp2)) {
+      const v: any = desc.value;
+      const n: number = ecma262.ToNumber(v);
+      if (Porffor.fastOr(
+        Number.isNaN(n), // NaN
+        Math.floor(n) != n, // non integer
+        n < 0, // negative
+        n >= 4294967296, // > 2**32 - 1
+      )) throw new RangeError('Invalid array length');
+
+      // set real array length
+      Porffor.wasm.i32.store(target, n, 0, 0);
+    }
+  }
+
   const p: any = ecma262.ToPropertyKey(prop);
 
   // base keys
