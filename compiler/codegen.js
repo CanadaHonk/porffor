@@ -3624,7 +3624,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
         // default: internalThrow(scope, 'TypeError', `Cannot assign member with this type`)
         default: () => [
           ...objectWasm,
-          Opcodes.i32_to_u,
+          Opcodes.i32_to,
           ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
           ...getNodeType(scope, object),
 
@@ -5636,7 +5636,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     // default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
     default: () => [
       ...objectWasm,
-      Opcodes.i32_to_u,
+      Opcodes.i32_to,
       ...getNodeType(scope, object),
 
       ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.computed, true),
