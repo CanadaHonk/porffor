@@ -1174,6 +1174,10 @@ const getType = (scope, _name) => {
     return number(TYPES.undefined, Valtype.i32);
   }
 
+  if (name === 'arguments' && scope.name !== 'main' && !scope.arrow) {
+    return number(TYPES.array, Valtype.i32);
+  }
+
   if (Object.hasOwn(globals, name)) {
     if (globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
 
