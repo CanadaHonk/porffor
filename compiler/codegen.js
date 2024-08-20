@@ -357,6 +357,13 @@ const generateIdent = (scope, decl) => {
     }
 
     if (local?.idx === undefined) {
+      if (name === 'arguments' && scope.name !== 'main' && !scope.arrow) {
+        // todo: stub arguments as [] for now :)
+        return generateArray(scope, {
+          elements: []
+        }, false, '#arguments');
+      }
+
       // no local var with name
       if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
 
@@ -5947,6 +5954,7 @@ const generateFunc = (scope, decl) => {
   const params = decl.params ?? [];
 
   // TODO: share scope/locals between !!!
+  const arrow = decl.type === 'ArrowFunctionExpression' || decl.type === 'Program';
   const func = {
     locals: {},
     localInd: 0,
@@ -5954,11 +5962,8 @@ const generateFunc = (scope, decl) => {
     returns: [ valtypeBinary, Valtype.i32 ],
     name,
     index: currentFuncIndex++,
-    constr:
-      // not arrow function or main
-      (decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program') &&
-      // not async or generator
-      !decl.async && !decl.generator,
+    arrow,
+    constr: !arrow && !decl.generator && !decl.async,
     _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
 
