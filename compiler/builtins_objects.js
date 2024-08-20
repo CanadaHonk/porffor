@@ -106,6 +106,11 @@ export default function({ builtinFuncs }, Prefs) {
       const k = prefix + x;
 
       if (Object.hasOwn(d, 'value') && !Object.hasOwn(builtinFuncs, k) && !Object.hasOwn(this, k)) {
+        if (Array.isArray(d.value) || typeof d.value === 'function') {
+          this[k] = d.value;
+          continue;
+        }
+
         if (typeof d.value === 'number') {
           this[k] = number(d.value);
           this[k].type = TYPES.number;
@@ -195,6 +200,20 @@ export default function({ builtinFuncs }, Prefs) {
 
     // special case: Object.prototype.__proto__ = null
     if (x === '__Object_prototype') Object.defineProperty(props, '__proto__', { value: { value: null }, enumerable: true });
+
+    // add constructor for constructors
+    const name = x.slice(2, x.indexOf('_', 2));
+    if (builtinFuncs[name]?.constr) {
+      const value = (scope, { funcRef }) => funcRef(name);
+      value.type = TYPES.function;
+
+      props.constructor = {
+        value,
+        writable: true,
+        enumerable: false,
+        configurable: true
+      };
+    }
 
     object(x, props);
   }
