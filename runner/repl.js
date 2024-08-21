@@ -88,36 +88,31 @@ const run = (source, _context, _filename, callback, run = true) => {
   let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source;
 
   let shouldPrint = !prev;
-  let exports, pages;
   try {
-    0, { exports, pages } = compile(toRun, process.argv.includes('--module') ? [ 'module' ] : [], {}, str => {
+    const { exports, pages } = compile(toRun, process.argv.includes('--module') ? [ 'module' ] : [], {}, str => {
       if (shouldPrint) process.stdout.write(str);
       if (str === '-4919') shouldPrint = true;
     });
+
+    if (run && exports.$) {
+      lastMemory = exports.$;
+      lastPages = [...pages.keys()];
+    }
+
+    let ret = run ? exports.main() : undefined;
+    let value, type;
+    if (ret?.type != null) {
+      value = ret.value;
+      type = ret.type;
+      ret = ret.js;
+    }
+
+    console.log(util.inspect(ret, false, 2, true), (value != null ? `\x1B[34m\x1B[3m(value: ${value}, type: ${TYPE_NAMES[type]})\x1B[0m` : ''));
+
+    prev = prev + ';\n' + source.trim();
   } catch (e) {
-    console.log(e);
-    callback();
-    return;
+    console.log('Uncaught', e.stack);
   }
-
-  if (run && exports.$) {
-    lastMemory = exports.$;
-    lastPages = [...pages.keys()];
-  }
-
-  let ret = run ? exports.main() : undefined;
-  let value, type;
-  if (ret?.type != null) {
-    value = ret.value;
-    type = ret.type;
-    ret = ret.js;
-  }
-
-  console.log(util.inspect(ret, false, 2, true), (value != null ? `\x1B[34m\x1B[3m(value: ${value}, type: ${TYPE_NAMES[type]})\x1B[0m` : ''));
-
-  // callback(null, ret);
-
-  prev = prev + ';\n' + source.trim();
 
   callback();
 };
