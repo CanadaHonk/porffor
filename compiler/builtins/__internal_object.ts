@@ -4,6 +4,14 @@ export const __Porffor_object_underlying = (obj: any): any => {
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) return obj;
 
+  if (Porffor.fastAnd(
+    t >= Porffor.TYPES.error,
+    t <= Porffor.TYPES.urierror
+  )) {
+    const remap: object = obj;
+    return remap;
+  }
+
   if (Porffor.fastAnd(t > 0x05, t != Porffor.TYPES.undefined)) {
     let idx: i32 = underlyingKeys.indexOf(obj);
     if (idx == -1) {

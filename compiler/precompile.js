@@ -25,7 +25,7 @@ const compile = async (file, _funcs) => {
     first = source.slice(0, source.indexOf('\n'));
   }
 
-  let args = ['--todo-time=compile', '--truthy=no_nan_negative', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data'];
+  let args = ['--todo-time=compile', '--truthy=no_nan_negative', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data', '--exception-mode=lut'];
   if (first.startsWith('// @porf')) {
     args = first.slice('// @porf '.length).split(' ').concat(args);
   }

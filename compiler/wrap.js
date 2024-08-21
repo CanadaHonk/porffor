@@ -305,6 +305,22 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       return out;
     }
 
+    case TYPES.error:
+    case TYPES.aggregateerror:
+    case TYPES.typeerror:
+    case TYPES.referenceerror:
+    case TYPES.syntaxerror:
+    case TYPES.rangeerror:
+    case TYPES.evalerror:
+    case TYPES.urierror: {
+      const obj = porfToJSValue({ memory, funcs, pages }, value, TYPES.object);
+      const constr = globalThis[TYPE_NAMES[type]];
+      const err = new constr(obj.message);
+      err.name = obj.name;
+      err.stack = `${TYPE_NAMES[type]}: ${obj.message}`;
+      return err;
+    }
+
     default: return value;
   }
 };
