@@ -192,14 +192,13 @@ export const __Porffor_object_in = (obj: any, prop: any) => {
   return false;
 };
 
-export const __Porffor_object_instanceof = (obj: any, constr: any) => {
+export const __Porffor_object_instanceof = (obj: any, constr: any, checkProto: any) => {
   if (Porffor.rawType(constr) != Porffor.TYPES.function) {
     throw new TypeError('instanceof right-hand side is not a function');
   }
 
-  const checkProto: any = constr.prototype;
   if (!Porffor.object.isObject(checkProto)) {
-    throw new TypeError('instanceof right-hand side has non-object prototype');
+    return false;
   }
 
   let lastProto = obj;

@@ -890,7 +890,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
     const rightName = decl.right.name;
     if (rightName) {
       const checkType = TYPES[rightName.toLowerCase()];
-      if (checkType != null && rightName === TYPE_NAMES[checkType]) {
+      if (checkType != null && rightName === TYPE_NAMES[checkType] && !rightName.endsWith('Error')) {
         const out = generate(scope, decl.left);
         disposeLeftover(out);
 
@@ -917,7 +917,8 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
       },
       arguments: [
         decl.left,
-        decl.right
+        decl.right,
+        getObjProp(decl.right, 'prototype')
       ]
     });
   }
