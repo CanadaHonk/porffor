@@ -79,6 +79,15 @@ const memoryToString = mem => {
 };
 
 let prev = '';
+
+function setLastEvalExp(prev, ret) {
+  const lastEvalExp = `_ = ${JSON.stringify(ret)};\n`;
+  if (/_ = .*;\n/.test(prev)) {
+    return prev.replace(/_ = .*;\n/, lastEvalExp);
+  }
+  return lastEvalExp + prev;
+}
+
 const run = (source, _context, _filename, callback, run = true) => {
   // hack: print "secret" before latest code ran to only enable printing for new code
 
@@ -117,7 +126,7 @@ const run = (source, _context, _filename, callback, run = true) => {
 
   // callback(null, ret);
 
-  prev = prev + ';\n' + source.trim();
+  prev = setLastEvalExp(prev + ';\n' + source.trim(), ret);  
 
   callback();
 };
