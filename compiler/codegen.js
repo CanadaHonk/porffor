@@ -4747,61 +4747,6 @@ const generateThrow = (scope, decl) => {
       [ Opcodes.throw, tags[0].idx ]
     ];
   }
-
-  if (exceptionMode === 'stackest') {
-    let message = decl.argument, constructor = null;
-
-    // support `throw (new)? Error(...)`
-    if (message.type === 'NewExpression' || message.type === 'CallExpression') {
-      constructor = decl.argument.callee;
-      message = decl.argument.arguments[0];
-    }
-
-    message ??= DEFAULT_VALUE();
-
-    if (tags.length === 0) tags.push({
-      params: [ valtypeBinary, valtypeBinary, Valtype.i32 ],
-      results: [],
-      idx: tags.length
-    });
-
-    return [
-      ...(constructor == null ? number(-1) : generate(scope, constructor)),
-      ...generate(scope, message),
-      ...getNodeType(scope, message),
-      [ Opcodes.throw, tags[0].idx ]
-    ];
-  }
-
-  if (exceptionMode === 'partial') {
-    let message = decl.argument, constructor = null;
-
-    // support `throw (new)? Error(...)`
-    if (message.type === 'NewExpression' || message.type === 'CallExpression') {
-      constructor = decl.argument.callee.name;
-      message = decl.argument.arguments[0];
-    }
-
-    message ??= DEFAULT_VALUE();
-
-    if (tags.length === 0) tags.push({
-      params: [ Valtype.i32, valtypeBinary, Valtype.i32 ],
-      results: [],
-      idx: tags.length
-    });
-
-    let exceptId = exceptions.push({ constructor }) - 1;
-
-    scope.exceptions ??= [];
-    scope.exceptions.push(exceptId);
-
-    return [
-      ...number(exceptId, Valtype.i32),
-      ...generate(scope, message),
-      ...getNodeType(scope, message),
-      [ Opcodes.throw, tags[0].idx ]
-    ];
-  }
 };
 
 const generateTry = (scope, decl) => {
