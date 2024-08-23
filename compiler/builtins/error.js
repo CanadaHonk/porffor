@@ -10,7 +10,7 @@ export default () => {
 
   const obj: object = Porffor.allocate();
 
-  const _name: bytestring = '${name}';
+  const _name: bytestring = '${name.split('_').pop()}';
 
   obj.name = _name;
   obj.message = message;
@@ -40,7 +40,7 @@ export const __${name}_prototype_toString = (_this: ${name}) => {
   error('EvalError');
   error('URIError');
 
-  error('TodoError');
+  error('__Porffor_TodoError');
   error('Test262Error');
 
   return out;

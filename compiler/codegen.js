@@ -32,7 +32,7 @@ const todo = (scope, msg, expectsValue = undefined) => {
       throw new TodoError(msg);
 
     case 'runtime':
-      return internalThrow(scope, 'TodoError', msg, expectsValue);
+      return internalThrow(scope, '__Porffor_TodoError', msg, expectsValue);
   }
 };
 
@@ -4721,6 +4721,8 @@ const generateThrow = (scope, decl) => {
       results: [],
       idx: tags.length
     });
+
+    if (constructor && constructor.startsWith('__')) constructor = constructor.split('_').pop();
 
     let exceptId = exceptions.findIndex(x => x.constructor === constructor && x.message === message);
     if (exceptId === -1) exceptId = exceptions.push({ constructor, message }) - 1;
