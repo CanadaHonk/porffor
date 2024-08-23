@@ -40,5 +40,8 @@ export const __${name}_prototype_toString = (_this: ${name}) => {
   error('EvalError');
   error('URIError');
 
+  error('TodoError');
+  error('Test262Error');
+
   return out;
 };

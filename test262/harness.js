@@ -14,7 +14,10 @@
 //   agent: {}
 // };
 
-function Test262Error() {}
+// function Test262Error(message) {
+//   this.message = message;
+//   this.name = 'Test262Error';
+// }
 
 var __Test262Error_thrower = function (message) {
   throw new Test262Error(message);
