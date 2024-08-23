@@ -5975,6 +5975,18 @@ const generateFunc = (scope, decl) => {
     generate() {
       if (func.wasm) return func.wasm;
 
+      let errorWasm = null;
+      if (decl.generator) {
+        errorWasm = todo(func, 'generator functions are not supported');
+      }
+
+      if (errorWasm) {
+        return func.wasm = errorWasm.concat([
+          ...number(UNDEFINED),
+          ...number(TYPES.undefined, Valtype.i32)
+        ]);
+      }
+
       // generating, stub _wasm
       func.wasm = [];
 
@@ -6066,7 +6078,7 @@ const generateFunc = (scope, decl) => {
         // inject promise job runner func at the end of main if promises are made
         if (Object.hasOwn(funcIndex, 'Promise') || Object.hasOwn(funcIndex, '__Promise_resolve') || Object.hasOwn(funcIndex, '__Promise_reject')) {
           wasm.push(
-            [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_runJobs').index ],
+            [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_runJobs').index ],
             [ Opcodes.drop ],
             [ Opcodes.drop ]
           );
@@ -6084,17 +6096,6 @@ const generateFunc = (scope, decl) => {
 
   funcIndex[name] = func.index;
   funcs.push(func);
-
-  let errorWasm = null;
-  if (decl.generator) errorWasm = todo(scope, 'generator functions are not supported');
-
-  if (errorWasm) {
-    // func.params = [];
-    func.wasm = errorWasm.concat([
-      ...number(UNDEFINED),
-      ...number(TYPES.undefined, Valtype.i32)
-    ]);
-  }
 
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
