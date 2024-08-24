@@ -19,7 +19,7 @@ export default () => {
   return out;
 };
 
-export const __${name}_prototype_toString = (_this: ${name}) => {
+export const __${name.startsWith('__') ? name.slice(2) : name}_prototype_toString = (_this: ${name}) => {
   const obj: object = _this;
 
   const message: any = obj.message;
