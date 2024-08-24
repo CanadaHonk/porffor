@@ -1735,7 +1735,7 @@ const createThisArg = (scope, decl) => {
   if (decl._new) {
     // if precompiling or builtin func, just make empty object
     if (globalThis.precompile || Object.hasOwn(builtinFuncs, name)) return [
-      ...makeObject(scope, {}),
+      ...number(NULL),
       ...number(TYPES.object, Valtype.i32)
     ];
 
@@ -1793,7 +1793,8 @@ const createThisArg = (scope, decl) => {
       ];
     }
 
-    // do not generate globalThis for builtins
+    // do not generate globalThis now,
+    // do it dynamically in generateThis in the func later
     return [
       ...number(NULL),
       ...number(TYPES.object, Valtype.i32)
