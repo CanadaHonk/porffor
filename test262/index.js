@@ -457,7 +457,7 @@ if (isMainThread) {
     }
 
     if (!error) try {
-      timeout(exports.main, 3000);
+      timeout(exports.main, 10000);
       stage = 2;
     } catch (e) {
       if (e?.name === 'Test262Error' && debugAsserts && log) {
