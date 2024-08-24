@@ -504,7 +504,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         return porfToJSValue({ memory, funcs, pages }, ret[0], ret[1]);
       } catch (e) {
         if (e.is && e.is(exceptTag)) {
-          const exceptionMode = Prefs.exceptionMode ?? 'lut';
+          const exceptionMode = Prefs.exceptionMode ?? 'stack';
           if (exceptionMode === 'lut') {
             const exceptId = e.getArg(exceptTag, 0);
             const exception = exceptions[exceptId];

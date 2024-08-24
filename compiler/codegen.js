@@ -4707,7 +4707,7 @@ const generateLabel = (scope, decl) => {
 const generateThrow = (scope, decl) => {
   scope.throws = true;
 
-  const exceptionMode = Prefs.exceptionMode ?? 'lut';
+  const exceptionMode = Prefs.exceptionMode ?? 'stack';
   if (exceptionMode === 'lut') {
     let message = decl.argument.value, constructor = null;
 
