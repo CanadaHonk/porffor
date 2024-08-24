@@ -21,6 +21,11 @@ if (isMainThread) {
   if (!whatTests.startsWith('test/')) whatTests = 'test/' + whatTests;
   if (whatTests.endsWith('/')) whatTests = whatTests.slice(0, -1);
 
+  if (whatTests.endsWith('.js')) {
+    // single test, automatically add debug args
+    process.argv.push('--log-errors');
+  }
+
   const _tests = new Test262Stream(test262Path, {
     paths: [ whatTests ],
     omitRuntime: true
@@ -87,6 +92,54 @@ if (isMainThread) {
   const dontWriteResults = process.argv.includes('--dont-write-results');
   const plainResults = process.argv.includes('--plain-results');
 
+  const todoTime = process.argv.find(x => x.startsWith('--todo-time='))?.split('=')[1] ?? 'runtime';
+
+  const table = (overall, ...arr) => {
+    let out = '';
+    for (let i = 0; i < arr.length; i++) {
+      let icon = [ '🧪', '🤠', '❌', '💀', '🏗️', '💥', '⏰', '📝' ][i];
+      let iconDesc = [ 'total', 'pass', 'fail', 'runtime error', 'wasm compile error', 'compile error', 'timeout', 'todo' ][i];
+      // let color = resultOnly ? '' : ['', '\u001b[42m', '\u001b[43m', '\u001b[101m', '\u001b[41m', '\u001b[41m', '\u001b[101m', todoTime === 'runtime' ? '\u001b[101m' : '\u001b[41m'][i];
+      // let color = resultOnly ? '' : ('\u001b[1m' + ['', '\u001b[32m', '\u001b[33m', '\u001b[91m', '\u001b[31m', '\u001b[31m', '\u001b[91m', todoTime === 'runtime' ? '\u001b[91m' : '\u001b[31m'][i]);
+
+      let change = arr[i] - lastCommitResults[i + 1];
+      // let str = `${color}${icon} ${arr[i]}${resultOnly ? '' : '\u001b[0m'}${overall && change !== 0 ? ` (${change > 0 ? '+' : ''}${change})` : ''}`;
+      let str = `${resultOnly ? '' : '\u001b[1m'}${plainResults ? iconDesc : icon} ${arr[i]}${resultOnly ? '' : '\u001b[0m'}${overall && change !== 0 ? ` (${change > 0 ? '+' : ''}${change})` : ''}`;
+
+      if (i !== arr.length - 1) str += resultOnly ? ' | ' : '\u001b[90m | \u001b[0m';
+      out += str;
+    }
+
+    if (todoTime === 'runtime' && !resultOnly) {
+      // move todo and timeout to after runtime errors
+      const spl = out.split(resultOnly ? ' | ' : '\u001b[90m | \u001b[0m');
+      spl.splice(4, 0, spl.pop(), spl.pop());
+      out = spl.join(resultOnly ? ' | ' : '\u001b[90m | \u001b[0m');
+    }
+
+    return out;
+  };
+
+  const bar = (barWidth, ...arr) => {
+    const total = arr[0];
+
+    let out = '';
+    for (let i = 1; i < arr.length; i++) {
+      const color = [ '\u001b[42m', '\u001b[43m', '\u001b[101m', '\u001b[41m', '\u001b[46m' ][i - 1];
+
+      const width = Math.round((arr[i] / total) * barWidth);
+
+      const label = arr[i].toString();
+      const showLabel = width > (label.length + 2);
+
+      out += `${color}\u001b[97m${showLabel ? (' ' + label) : ''}${' '.repeat(width - (showLabel ? (label.length + 1) : 0))}\u001b[0m`;
+    }
+
+    console.log(out);
+  };
+
+  let spinner = ['-', '\\', '|', '/'], spin = 0;
+
   const start = performance.now();
 
   const passFiles = [], wasmErrorFiles = [], compileErrorFiles = [], timeoutFiles = [];
@@ -106,7 +159,7 @@ if (isMainThread) {
   const allTests = whatTests === 'test' && threads > 1;
   if (!resultOnly && !allTests) console.log();
 
-  let lastPercent = -1;
+  let lastPercent = 0;
 
   let resolve;
   const promise = new Promise(res => {
@@ -114,6 +167,8 @@ if (isMainThread) {
   });
 
   const totalTests = tests.length;
+
+  const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
 
   let queueBuf = new SharedArrayBuffer(4);
   let queue = new Uint32Array(queueBuf);
@@ -173,10 +228,18 @@ if (isMainThread) {
       }
 
       if (!resultOnly && !logErrors) {
-        const percent = ((total / tests.length) * 100) | 0;
+        const percent = ((total / tests.length) * 100);
         if (allTests) {
-          if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : '91')}m${file}\u001b[0m`);
-          lastPercent = percent;
+          // if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : '91')}m${file}\u001b[0m`);
+          if (percent > lastPercent) {
+            if (lastPercent != 0) process.stdout.write(`\u001b[2F\u001b[0J`);
+              else process.stdout.write(`\r${' '.repeat(100)}\r`);
+
+            const tab = `  \u001b[1m${spinner[spin++ % 4]} ${percent.toFixed(1)}%\u001b[0m    ` + table(false, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
+            bar([...noAnsi(tab)].length + 8, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0);
+            console.log(tab);
+            lastPercent = percent + 0.1;
+          }
         } else {
           process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : (result === 5 ? '90' : '91'))}m${file}\u001b[0m\n`);
 
@@ -204,62 +267,16 @@ if (isMainThread) {
 
   console.log = log;
 
-  const todoTime = process.argv.find(x => x.startsWith('--todo-time='))?.split('=')[1] ?? 'runtime';
-
-  const table = (overall, ...arr) => {
-    let out = '';
-    for (let i = 0; i < arr.length; i++) {
-      let icon = [ '🧪', '🤠', '❌', '💀', '🏗️', '💥', '⏰', '📝' ][i];
-      let iconDesc = [ 'total', 'pass', 'fail', 'runtime error', 'wasm compile error', 'compile error', 'timeout', 'todo' ][i];
-      // let color = resultOnly ? '' : ['', '\u001b[42m', '\u001b[43m', '\u001b[101m', '\u001b[41m', '\u001b[41m', '\u001b[101m', todoTime === 'runtime' ? '\u001b[101m' : '\u001b[41m'][i];
-      // let color = resultOnly ? '' : ('\u001b[1m' + ['', '\u001b[32m', '\u001b[33m', '\u001b[91m', '\u001b[31m', '\u001b[31m', '\u001b[91m', todoTime === 'runtime' ? '\u001b[91m' : '\u001b[31m'][i]);
-
-      let change = arr[i] - lastCommitResults[i + 1];
-      // let str = `${color}${icon} ${arr[i]}${resultOnly ? '' : '\u001b[0m'}${overall && change !== 0 ? ` (${change > 0 ? '+' : ''}${change})` : ''}`;
-      let str = `${resultOnly ? '' : '\u001b[1m'}${plainResults ? iconDesc : icon} ${arr[i]}${resultOnly ? '' : '\u001b[0m'}${overall && change !== 0 ? ` (${change > 0 ? '+' : ''}${change})` : ''}`;
-
-      if (i !== arr.length - 1) str += resultOnly ? ' | ' : '\u001b[90m | \u001b[0m';
-      out += str;
-    }
-
-    if (todoTime === 'runtime' && !resultOnly) {
-      // move todo and timeout to after runtime errors
-      const spl = out.split(resultOnly ? ' | ' : '\u001b[90m | \u001b[0m');
-      spl.splice(4, 0, spl.pop(), spl.pop());
-      out = spl.join(resultOnly ? ' | ' : '\u001b[90m | \u001b[0m');
-    }
-
-    console.log(out);
-  };
-
-  const bar = (barWidth, ...arr) => {
-    const total = arr[0];
-
-    let out = '';
-    for (let i = 1; i < arr.length; i++) {
-      const color = [ '\u001b[42m', '\u001b[43m', '\u001b[101m', '\u001b[41m', '\u001b[46m' ][i - 1];
-
-      const width = Math.ceil((arr[i] / total) * barWidth);
-
-      const label = arr[i].toString();
-      const showLabel = width > (label.length + 2);
-
-      out += `${color}\u001b[97m${showLabel ? (' ' + label) : ''}${' '.repeat(width - (showLabel ? (label.length + 1) : 0))}\u001b[0m`;
-    }
-
-    console.log(out);
-  };
-
   const percent = parseFloat(((passes / total) * 100).toFixed(2));
   const percentChange = parseFloat((percent - lastCommitResults[0]).toFixed(2));
 
   if (resultOnly) {
     process.stdout.write(`test262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | `);
-    table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
+    console.log(table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos));
     process.exit();
   }
 
-  console.log('\n\n');
+  process.stdout.write('\u001b[2F\u001b[0J');
 
   const nextMinorPercent = parseFloat(((Math.floor(percent * 10) / 10) + 0.1).toFixed(1));
   const nextMajorPercent = Math.floor(percent) + 1;
@@ -267,9 +284,10 @@ if (isMainThread) {
   const togo = next => `${Math.floor((total * next / 100) - passes)} to go until ${next}%`;
 
   console.log(`\u001b[1m${whatTests}: ${passes}/${total} passed - ${percent.toFixed(2)}%${whatTests === 'test' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
-  bar(140, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0);
+  const tab = table(whatTests === 'test', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
+  bar([...noAnsi(tab)].length + 10, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0);
   process.stdout.write('  ');
-  table(whatTests === 'test', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
+  console.log(tab);
 
   console.log();
 
@@ -281,7 +299,7 @@ if (isMainThread) {
       const [ total, pass, todo, wasmError, compileError, fail, timeout, runtimeError ] = results;
       bar(120, total, pass, fail, runtimeError + (todoTime === 'runtime' ? todo : 0) + timeout, compileError + (todoTime === 'compile' ? todo : 0) + wasmError, 0);
       process.stdout.write(' '.repeat(6) + ' '.repeat(14 + 2));
-      table(false, total, pass, fail, runtimeError, wasmError, compileError, timeout, todo);
+      console.log(table(false, total, pass, fail, runtimeError, wasmError, compileError, timeout, todo));
       console.log();
 
       // if (subdirs) {
@@ -363,8 +381,7 @@ if (isMainThread) {
 
   if (allTests) {
     resultOnly = true;
-    process.stdout.write(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | `);
-    table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
+    console.log(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | ` + table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos));
   }
 } else {
   const { queue, tests, preludes, argv } = workerData;
@@ -415,10 +432,10 @@ if (isMainThread) {
       // .replace(/\. Actual: ' \+ .*\);/g, _ => `');`);
 
     if (debugAsserts) contents = contents
-      .replace('function assert(mustBeTrue) {', 'function assert(mustBeTrue, msg) {')
-      .replaceAll('function (actual, expected) {', 'function (actual, expected, msg) {')
-      .replace('function (actual, unexpected) {', 'function (actual, unexpected, msg) {')
-      .replaceAll('throw new Test262Error', 'if (typeof msg != "undefined") { console.log(msg); console.log(expected); console.log(actual); } throw new Test262Error');
+      .replace('var assert = mustBeTrue => {', 'var assert = (mustBeTrue, msg) => {')
+      .replaceAll('(actual, expected) => {', '(actual, expected, msg) => {')
+      .replace('(actual, unexpected) => {', '(actual, unexpected, msg) => {')
+      .replaceAll('throw new Test262Error', 'if (typeof msg != "undefined") { Porffor.printString(msg); Porffor.printStatic(\'\\n\'); Porffor.print(expected, false); Porffor.printStatic(\'\\n\'); Porffor.print(actual, false); Porffor.printStatic(\'\\n\'); } throw new Test262Error');
 
     // fs.writeFileSync('r.js', contents);
 
@@ -440,12 +457,14 @@ if (isMainThread) {
     }
 
     if (!error) try {
-      timeout(exports.main, 3000);
+      timeout(exports.main, 10000);
       stage = 2;
     } catch (e) {
       if (e?.name === 'Test262Error' && debugAsserts && log) {
         const [ msg, expected, actual ] = log.split('\n');
-        e.message += `: ${msg} | expected: ${expected} | actual: ${actual}`;
+        let spl = e.stack.split('\n');
+        spl[0] += `: ${msg} | expected: ${expected} | actual: ${actual}`;
+        e.stack = spl.join('\n');
       }
 
       stage = 1;
@@ -493,7 +512,7 @@ if (isMainThread) {
 
     if (logErrors) {
       process.stdout.write(`\u001b[${pass ? '92' : '91'}m${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m\n`);
-      if (!pass && error) console.log(error?.stack ?? error);
+      if (!pass && error) console.log(error?.stack || error);
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {

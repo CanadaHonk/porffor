@@ -32,7 +32,7 @@ const todo = (scope, msg, expectsValue = undefined) => {
       throw new TodoError(msg);
 
     case 'runtime':
-      return internalThrow(scope, 'TodoError', msg, expectsValue);
+      return internalThrow(scope, '__Porffor_TodoError', msg, expectsValue);
   }
 };
 
@@ -357,6 +357,13 @@ const generateIdent = (scope, decl) => {
     }
 
     if (local?.idx === undefined) {
+      if (name === 'arguments' && scope.name !== 'main' && !scope.arrow) {
+        // todo: stub arguments as [] for now :)
+        return generateArray(scope, {
+          elements: []
+        }, false, '#arguments');
+      }
+
       // no local var with name
       if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
 
@@ -559,7 +566,8 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
-  const def = (truthyMode => {
+  const truthyMode = forceTruthyMode ?? Prefs.truthy ?? 'full';
+  const def = (() => {
     if (truthyMode === 'full') return [
       // if value != 0 or NaN
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
@@ -584,7 +592,7 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
       ...(!intOut || (intIn && intOut) ? [] : [ Opcodes.i32_to_u ])
     ];
-  })(forceTruthyMode ?? Prefs.truthy ?? 'full');
+  })();
 
   return [
     ...wasm,
@@ -603,6 +611,17 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
         [ Opcodes.i32_eqz ], */
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ] ],
+      // [ [ TYPES.boolean, TYPES.number, TYPES.object, TYPES.undefined, TYPES.empty ], def ],
+      // [ 'default', [
+      //   // other types are always truthy
+      //   ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+      //   ...number(1, intOut ? Valtype.i32 : valtypeBinary)
+      // ] ]
+      ...(truthyMode === 'full' ? [ [ [ TYPES.booleanobject, TYPES.numberobject ], [
+        // always truthy :))
+        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+        ...number(1, intOut ? Valtype.i32 : valtypeBinary)
+      ] ] ] : []),
       [ 'default', def ]
     ], intOut ? Valtype.i32 : valtypeBinary)
   ];
@@ -612,7 +631,8 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
-  const def = (truthyMode => {
+  const truthyMode = forceTruthyMode ?? Prefs.truthy ?? 'full';
+  const def = (() => {
     if (truthyMode === 'full') return [
       // if value == 0 or NaN
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
@@ -638,7 +658,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
       ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
       ...(intOut ? [] : [ Opcodes.i32_from_u ])
     ];
-  })(forceTruthyMode ?? Prefs.truthy ?? 'full');
+  })();
 
   return [
     ...wasm,
@@ -656,6 +676,17 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
         [ Opcodes.i32_eqz ],
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ] ],
+      // [ [ TYPES.boolean, TYPES.number, TYPES.object, TYPES.undefined, TYPES.empty ], def ],
+      // [ 'default', [
+      //   // other types are always truthy
+      //   ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+      //   ...number(0, intOut ? Valtype.i32 : valtypeBinary)
+      // ] ]
+      ...(truthyMode === 'full' ? [ [ [ TYPES.booleanobject, TYPES.numberobject ], [
+        // always truthy :))
+        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+        ...number(0, intOut ? Valtype.i32 : valtypeBinary)
+      ] ] ] : []),
       [ 'default', def ]
     ], intOut ? Valtype.i32 : valtypeBinary)
   ];
@@ -859,7 +890,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
     const rightName = decl.right.name;
     if (rightName) {
       const checkType = TYPES[rightName.toLowerCase()];
-      if (checkType != null && rightName === TYPE_NAMES[checkType]) {
+      if (checkType != null && rightName === TYPE_NAMES[checkType] && !rightName.endsWith('Error')) {
         const out = generate(scope, decl.left);
         disposeLeftover(out);
 
@@ -886,7 +917,8 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
       },
       arguments: [
         decl.left,
-        decl.right
+        decl.right,
+        getObjProp(decl.right, 'prototype')
       ]
     });
   }
@@ -1015,7 +1047,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   const existing = funcByName(name);
   if (existing) return existing;
 
-  const nameParam = i => localNames[i] ?? (i >= params.length ? ['a', 'b', 'c'][i - params.length] : ['x', 'y', 'z'][i]);
+  const nameParam = i => localNames[i] ?? `l${i}`;
 
   const allLocals = params.concat(localTypes);
   const locals = {};
@@ -1141,6 +1173,10 @@ const getType = (scope, _name) => {
 
     // todo: warn here?
     return number(TYPES.undefined, Valtype.i32);
+  }
+
+  if (name === 'arguments' && scope.name !== 'main' && !scope.arrow) {
+    return number(TYPES.array, Valtype.i32);
   }
 
   if (Object.hasOwn(globals, name)) {
@@ -1396,6 +1432,11 @@ const getNodeType = (scope, node) => {
       // presume
       if (Prefs.warnAssumedType) console.warn(`Member access to field .${name} assumed to be number`);
       return TYPES.number;
+    }
+
+    if (node.type === 'TemplateLiteral') {
+      // could be normal string but shrug
+      return TYPES.bytestring;
     }
 
     if (node.type === 'TaggedTemplateExpression') {
@@ -1675,12 +1716,26 @@ const setObjProp = (obj, prop, value) => {
   });
 };
 
+const aliasPrimObjsBC = bc => {
+  const add = (x, y) => {
+    if (bc[x] == null) return;
+
+    // bc[`${x},${y}`] = original;
+
+    // intentionally duplicate to avoid extra bc for prim objs as rarely used
+    bc[y] = bc[x];
+  };
+
+  add(TYPES.boolean, TYPES.booleanobject);
+  add(TYPES.number, TYPES.numberobject);
+};
+
 const createThisArg = (scope, decl) => {
   const name = mapName(decl.callee?.name);
   if (decl._new) {
     // if precompiling or builtin func, just make empty object
     if (globalThis.precompile || Object.hasOwn(builtinFuncs, name)) return [
-      ...makeObject(scope, {}),
+      ...number(NULL),
       ...number(TYPES.object, Valtype.i32)
     ];
 
@@ -1738,7 +1793,8 @@ const createThisArg = (scope, decl) => {
       ];
     }
 
-    // do not generate globalThis for builtins
+    // do not generate globalThis now,
+    // do it dynamically in generateThis in the func later
     return [
       ...number(NULL),
       ...number(TYPES.object, Valtype.i32)
@@ -2069,6 +2125,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       // fallback to object prototype impl as a basic prototype chain hack
       if (protoBC[TYPES.object]) def = protoBC[TYPES.object];
+
+      // alias primitive prototype with primitive object types
+      aliasPrimObjsBC(protoBC);
 
       return [
         ...out,
@@ -2713,27 +2772,40 @@ const typeUsed = (scope, x) => {
   scope.usedTypes ??= new Set();
   scope.usedTypes.add(x);
 };
+
 const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = false) => {
+  if (typeof bc === 'function') bc = bc();
+
+  let def;
+  if (!Array.isArray(bc)) {
+    def = bc.default;
+    bc = Object.entries(bc);
+
+    // turn keys back into numbers from keys
+    for (const x of bc) {
+      const k = x[0];
+      if (k === 'default') continue;
+
+      // uncomment if needed/used again
+      // x[0] = k.split(',').map(x => +x);
+      x[0] = +k;
+    }
+  }
+
   const known = knownType(scope, type);
   if (known != null) {
-    if (Array.isArray(bc)) {
-      let def;
-      for (const [ type, wasm ] of bc) {
-        if (type === 'default') {
-          def = wasm;
-          continue;
-        }
-
-        if (Array.isArray(type)) {
-          if (type.includes(known)) return typeof wasm === 'function' ? wasm() : wasm;
-        } else if (type === known) return typeof wasm === 'function' ? wasm() : wasm;
+    for (const [ type, wasm ] of bc) {
+      if (type === 'default') {
+        def = wasm;
+        continue;
       }
 
-      return typeof def === 'function' ? def() : def;
-    } else {
-      const wasm = bc[known] ?? bc.default;
-      return typeof wasm === 'function' ? wasm() : wasm;
+      if (type === known || (Array.isArray(type) && type.includes(known))) {
+        return typeof wasm === 'function' ? wasm() : wasm;
+      }
     }
+
+    return typeof def === 'function' ? def() : def;
   }
 
   if (Prefs.typeswitchBrtable) {
@@ -2747,19 +2819,6 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     [ Opcodes.local_set, tmp ],
     [ Opcodes.block, returns ]
   ];
-
-  if (typeof bc === 'function') bc = bc();
-
-  let def;
-  if (!Array.isArray(bc)) {
-    def = bc.default;
-    bc = Object.entries(bc);
-
-    // turn keys back into numbers from keys
-    for (const x of bc) {
-      if (x[0] !== 'default') x[0] = +x[0];
-    }
-  }
 
   for (let i = 0; i < bc.length; i++) {
     let [ types, wasm ] = bc[i];
@@ -2827,6 +2886,17 @@ const typeIsOneOf = (type, types, valtype = Valtype.i32) => {
   for (let i = 0; i < types.length; i++) {
     out.push(...type, ...number(types[i], valtype), valtype === Valtype.f64 ? [ Opcodes.f64_eq ] : [ Opcodes.i32_eq ]);
     if (i !== 0) out.push([ Opcodes.i32_or ]);
+  }
+
+  return out;
+};
+
+const typeIsNotOneOf = (type, types, valtype = Valtype.i32) => {
+  const out = [];
+
+  for (let i = 0; i < types.length; i++) {
+    out.push(...type, ...number(types[i], valtype), valtype === Valtype.f64 ? [ Opcodes.f64_ne ] : [ Opcodes.i32_ne ]);
+    if (i !== 0) out.push([ Opcodes.i32_and ]);
   }
 
   return out;
@@ -2932,6 +3002,59 @@ const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType
 };
 
 const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
+  // statically analyzed ffi dlopen hack to let 2c handle it
+  if (init && init.type === 'CallExpression' && init.callee.name === '__Porffor_dlopen') {
+    if (Prefs.target !== 'native' && !Prefs.native) throw new Error('Porffor.dlopen is only supported for native target (use --native)');
+
+    // disable pgo if using ffi (lol)
+    Prefs.pgo = false;
+
+    try {
+      let usedNames = [];
+      for (const x of pattern.properties) {
+        const name = x.key.name;
+        usedNames.push(name);
+      }
+
+      let path = init.arguments[0].value;
+      let symbols = {};
+
+      for (const x of init.arguments[1].properties) {
+        const name = x.key.name || x.key.value;
+        if (!usedNames.includes(name)) continue;
+
+        let parameters, result;
+        for (const y of x.value.properties) {
+          switch (y.key.name || y.key.value) {
+            case 'parameters':
+              parameters = y.value.elements.map(z => z.value);
+              break;
+
+            case 'result':
+              result = y.value.value;
+              break;
+          }
+        }
+
+        symbols[name] = { parameters, result };
+
+        // mock ffi function
+        asmFunc(name, {
+          wasm: [],
+          params: parameters.map(x => Valtype.i32),
+          returns: result ? [ Valtype.i32 ] : [],
+          returnType: TYPES.number
+        })
+      }
+
+      return [ [ null, 'dlopen', path, symbols ] ];
+    } catch (e) {
+      console.error('bad Porffor.dlopen syntax');
+      throw e;
+    }
+  }
+
+
   const topLevel = scope.name === 'main';
 
   if (typeof pattern === 'string') {
@@ -2964,6 +3087,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
     const typed = typedInput && pattern.typeAnnotation;
     let idx = allocVar(scope, name, global, !(typed && extractTypeAnnotation(pattern).type != null));
+    addVarMetadata(scope, name, global, { kind });
 
     if (typed) {
       addVarMetadata(scope, name, global, extractTypeAnnotation(pattern));
@@ -3107,13 +3231,14 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       if (prop.type == 'Property') { // let { foo } = {}
         usedProps.push(getProperty(prop));
 
+        const memberComputed = prop.computed || prop.key.type === 'Literal';
         if (prop.value.type === 'AssignmentPattern') { // let { foo = defaultValue } = {}
           decls.push(
             ...generateVarDstr(scope, kind, prop.value.left, {
               type: 'MemberExpression',
               object: { type: 'Identifier', name: tmpName },
               property: prop.key,
-              computed: prop.computed
+              computed: memberComputed
             }, prop.value.right, global)
           );
         } else {
@@ -3122,7 +3247,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
               type: 'MemberExpression',
               object: { type: 'Identifier', name: tmpName },
               property: prop.key,
-              computed: prop.computed
+              computed: memberComputed
             }, undefined, global)
           );
         }
@@ -3311,199 +3436,201 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
       // todo: review last type usage here
       ...typeSwitch(scope, getNodeType(scope, object), {
-        [TYPES.array]: () => [
-          ...objectWasm,
-          Opcodes.i32_to_u,
-
-          // get index as valtype
-          ...propertyWasm,
-          Opcodes.i32_to_u,
-
-          // turn into byte offset by * valtypeSize + 1
-          ...number(ValtypeSize[valtype] + 1, Valtype.i32),
-          [ Opcodes.i32_mul ],
-          [ Opcodes.i32_add ],
-          [ Opcodes.local_tee, pointerTmp ],
-
-          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-            [ Opcodes.local_get, pointerTmp ],
-            [ Opcodes.load, 0, ValtypeSize.i32 ]
-          ], generate(scope, decl.right), [
-            [ Opcodes.local_get, pointerTmp ],
-            [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
-          ], getNodeType(scope, decl.right), false, name, true)),
-          [ Opcodes.local_tee, newValueTmp ],
-          [ Opcodes.store, 0, ValtypeSize.i32 ],
-
-          [ Opcodes.local_get, pointerTmp ],
-          ...getNodeType(scope, decl),
-          [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
-
-          [ Opcodes.local_get, newValueTmp ]
-        ],
-
-        ...wrapBC({
-          [TYPES.uint8array]: () => [
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load8_u, 0, 4 ],
-              Opcodes.i32_from_u
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            Opcodes.i32_to_u,
-            [ Opcodes.i32_store8, 0, 4 ]
-          ],
-          [TYPES.uint8clampedarray]: () => [
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load8_u, 0, 4 ],
-              Opcodes.i32_from_u
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            ...number(0),
-            [ Opcodes.f64_max ],
-            ...number(255),
-            [ Opcodes.f64_min ],
-            Opcodes.i32_to_u,
-            [ Opcodes.i32_store8, 0, 4 ]
-          ],
-          [TYPES.int8array]: () => [
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load8_s, 0, 4 ],
-              Opcodes.i32_from
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            Opcodes.i32_to,
-            [ Opcodes.i32_store8, 0, 4 ]
-          ],
-          [TYPES.uint16array]: () => [
-            ...number(2, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load16_u, 0, 4 ],
-              Opcodes.i32_from_u
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            Opcodes.i32_to_u,
-            [ Opcodes.i32_store16, 0, 4 ]
-          ],
-          [TYPES.int16array]: () => [
-            ...number(2, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load16_s, 0, 4 ],
-              Opcodes.i32_from
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            Opcodes.i32_to,
-            [ Opcodes.i32_store16, 0, 4 ]
-          ],
-          [TYPES.uint32array]: () => [
-            ...number(4, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load, 0, 4 ],
-              Opcodes.i32_from_u
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            Opcodes.i32_to_u,
-            [ Opcodes.i32_store, 0, 4 ]
-          ],
-          [TYPES.int32array]: () => [
-            ...number(4, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.i32_load, 0, 4 ],
-              Opcodes.i32_from
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            Opcodes.i32_to,
-            [ Opcodes.i32_store, 0, 4 ]
-          ],
-          [TYPES.float32array]: () => [
-            ...number(4, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.f32_load, 0, 4 ],
-              [ Opcodes.f64_promote_f32 ]
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            [ Opcodes.f32_demote_f64 ],
-            [ Opcodes.f32_store, 0, 4 ]
-          ],
-          [TYPES.float64array]: () => [
-            ...number(8, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            [ Opcodes.i32_add ],
-            ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
-
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
-              [ Opcodes.local_get, pointerTmp ],
-              [ Opcodes.f64_load, 0, 4 ]
-            ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
-
-            [ Opcodes.f64_store, 0, 4 ]
-          ],
-        }, {
-          prelude: [
+        ...(decl.left.computed ? {
+          [TYPES.array]: () => [
             ...objectWasm,
             Opcodes.i32_to_u,
-            [ Opcodes.i32_load, 0, 4 ],
 
+            // get index as valtype
             ...propertyWasm,
             Opcodes.i32_to_u,
-          ],
-          postlude: [
-            // setLastType(scope, TYPES.number)
+
+            // turn into byte offset by * valtypeSize + 1
+            ...number(ValtypeSize[valtype] + 1, Valtype.i32),
+            [ Opcodes.i32_mul ],
+            [ Opcodes.i32_add ],
+            [ Opcodes.local_tee, pointerTmp ],
+
+            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.load, 0, ValtypeSize.i32 ]
+            ], generate(scope, decl.right), [
+              [ Opcodes.local_get, pointerTmp ],
+              [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
+            ], getNodeType(scope, decl.right), false, name, true)),
+            [ Opcodes.local_tee, newValueTmp ],
+            [ Opcodes.store, 0, ValtypeSize.i32 ],
+
+            [ Opcodes.local_get, pointerTmp ],
+            ...getNodeType(scope, decl),
+            [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
+
             [ Opcodes.local_get, newValueTmp ]
-          ]
-        }),
+          ],
+
+          ...wrapBC({
+            [TYPES.uint8array]: () => [
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.i32_load8_u, 0, 4 ],
+                Opcodes.i32_from_u
+              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              [ Opcodes.local_tee, newValueTmp ],
+
+              Opcodes.i32_to_u,
+              [ Opcodes.i32_store8, 0, 4 ]
+            ],
+            [TYPES.uint8clampedarray]: () => [
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.i32_load8_u, 0, 4 ],
+                Opcodes.i32_from_u
+              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              [ Opcodes.local_tee, newValueTmp ],
+
+              ...number(0),
+              [ Opcodes.f64_max ],
+              ...number(255),
+              [ Opcodes.f64_min ],
+              Opcodes.i32_to_u,
+              [ Opcodes.i32_store8, 0, 4 ]
+            ],
+            [TYPES.int8array]: () => [
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.i32_load8_s, 0, 4 ],
+                Opcodes.i32_from
+              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              [ Opcodes.local_tee, newValueTmp ],
+
+              Opcodes.i32_to,
+              [ Opcodes.i32_store8, 0, 4 ]
+            ],
+            [TYPES.uint16array]: () => [
+              ...number(2, Valtype.i32),
+              [ Opcodes.i32_mul ],
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.i32_load16_u, 0, 4 ],
+                Opcodes.i32_from_u
+              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              [ Opcodes.local_tee, newValueTmp ],
+
+              Opcodes.i32_to_u,
+              [ Opcodes.i32_store16, 0, 4 ]
+            ],
+            [TYPES.int16array]: () => [
+              ...number(2, Valtype.i32),
+              [ Opcodes.i32_mul ],
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.i32_load16_s, 0, 4 ],
+                Opcodes.i32_from
+              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              [ Opcodes.local_tee, newValueTmp ],
+
+              Opcodes.i32_to,
+              [ Opcodes.i32_store16, 0, 4 ]
+            ],
+            [TYPES.uint32array]: () => [
+              ...number(4, Valtype.i32),
+              [ Opcodes.i32_mul ],
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.i32_load, 0, 4 ],
+                Opcodes.i32_from_u
+              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              [ Opcodes.local_tee, newValueTmp ],
+
+              Opcodes.i32_to_u,
+              [ Opcodes.i32_store, 0, 4 ]
+            ],
+            [TYPES.int32array]: () => [
+              ...number(4, Valtype.i32),
+              [ Opcodes.i32_mul ],
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.i32_load, 0, 4 ],
+                Opcodes.i32_from
+              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              [ Opcodes.local_tee, newValueTmp ],
+
+              Opcodes.i32_to,
+              [ Opcodes.i32_store, 0, 4 ]
+            ],
+            [TYPES.float32array]: () => [
+              ...number(4, Valtype.i32),
+              [ Opcodes.i32_mul ],
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.f32_load, 0, 4 ],
+                [ Opcodes.f64_promote_f32 ]
+              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              [ Opcodes.local_tee, newValueTmp ],
+
+              [ Opcodes.f32_demote_f64 ],
+              [ Opcodes.f32_store, 0, 4 ]
+            ],
+            [TYPES.float64array]: () => [
+              ...number(8, Valtype.i32),
+              [ Opcodes.i32_mul ],
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.f64_load, 0, 4 ]
+              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              [ Opcodes.local_tee, newValueTmp ],
+
+              [ Opcodes.f64_store, 0, 4 ]
+            ],
+          }, {
+            prelude: [
+              ...objectWasm,
+              Opcodes.i32_to_u,
+              [ Opcodes.i32_load, 0, 4 ],
+
+              ...propertyWasm,
+              Opcodes.i32_to_u,
+            ],
+            postlude: [
+              // setLastType(scope, TYPES.number)
+              [ Opcodes.local_get, newValueTmp ]
+            ]
+          }),
+        } : {}),
 
         [TYPES.undefined]: internalThrow(scope, 'TypeError', 'Cannot set property of undefined', true),
 
         // default: internalThrow(scope, 'TypeError', `Cannot assign member with this type`)
-        default: [
+        default: () => [
           ...objectWasm,
-          Opcodes.i32_to_u,
+          Opcodes.i32_to,
           ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
           ...getNodeType(scope, object),
 
@@ -3562,6 +3689,9 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       ...generate(scope, decl.left)
     ];
   }
+
+  // check not const
+  if (local.metadata?.kind === 'const') return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${name}`, true);
 
   if (op === '=') {
     return setLocalWithType(scope, name, isGlobal, decl.right, true);
@@ -3952,11 +4082,11 @@ const generateForOf = (scope, decl) => {
   let setVar;
   if (decl.left.type === 'Identifier') {
     if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
-    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    setVar = generateVarDstr(scope, decl.left.kind, decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
+    setVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
 
@@ -4310,11 +4440,11 @@ const generateForIn = (scope, decl) => {
   let setVar;
   if (decl.left.type === 'Identifier') {
     if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
-    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
+    setVar = generateVarDstr(scope, decl.left.kind, decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
     const global = scope.name === 'main' && decl.left.kind === 'var';
-    setVar = generateVarDstr(scope, 'var', decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
+    setVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
   // set type for local
@@ -4593,6 +4723,8 @@ const generateThrow = (scope, decl) => {
       idx: tags.length
     });
 
+    if (constructor && constructor.startsWith('__')) constructor = constructor.split('_').pop();
+
     let exceptId = exceptions.findIndex(x => x.constructor === constructor && x.message === message);
     if (exceptId === -1) exceptId = exceptions.push({ constructor, message }) - 1;
 
@@ -4615,61 +4747,6 @@ const generateThrow = (scope, decl) => {
     return [
       ...generate(scope, decl.argument),
       ...getNodeType(scope, decl.argument),
-      [ Opcodes.throw, tags[0].idx ]
-    ];
-  }
-
-  if (exceptionMode === 'stackest') {
-    let message = decl.argument, constructor = null;
-
-    // support `throw (new)? Error(...)`
-    if (message.type === 'NewExpression' || message.type === 'CallExpression') {
-      constructor = decl.argument.callee;
-      message = decl.argument.arguments[0];
-    }
-
-    message ??= DEFAULT_VALUE();
-
-    if (tags.length === 0) tags.push({
-      params: [ valtypeBinary, valtypeBinary, Valtype.i32 ],
-      results: [],
-      idx: tags.length
-    });
-
-    return [
-      ...(constructor == null ? number(-1) : generate(scope, constructor)),
-      ...generate(scope, message),
-      ...getNodeType(scope, message),
-      [ Opcodes.throw, tags[0].idx ]
-    ];
-  }
-
-  if (exceptionMode === 'partial') {
-    let message = decl.argument, constructor = null;
-
-    // support `throw (new)? Error(...)`
-    if (message.type === 'NewExpression' || message.type === 'CallExpression') {
-      constructor = decl.argument.callee.name;
-      message = decl.argument.arguments[0];
-    }
-
-    message ??= DEFAULT_VALUE();
-
-    if (tags.length === 0) tags.push({
-      params: [ Valtype.i32, valtypeBinary, Valtype.i32 ],
-      results: [],
-      idx: tags.length
-    });
-
-    let exceptId = exceptions.push({ constructor }) - 1;
-
-    scope.exceptions ??= [];
-    scope.exceptions.push(exceptId);
-
-    return [
-      ...number(exceptId, Valtype.i32),
-      ...generate(scope, message),
-      ...getNodeType(scope, message),
       [ Opcodes.throw, tags[0].idx ]
     ];
   }
@@ -5181,12 +5258,14 @@ const countParams = (func, name = undefined) => {
   name ??= func.name;
   let params = func.params.length;
   if (func.constr) params -= 4;
-  if (!builtinFuncs[name] || builtinFuncs[name]?.typedParams) params = Math.floor(params / 2);
+  if (!func.internal || builtinFuncs[name]?.typedParams) params = Math.floor(params / 2);
 
   return func.argc = params;
 };
 
 const countLength = (func, name = undefined) => {
+  if (func && func.jsLength != null) return func.jsLength;
+
   name ??= func.name;
 
   let count = countParams(func, name);
@@ -5302,7 +5381,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
           _protoInternalCall: true
         });
 
-        bc[type] = generate(scope, {
+        bc[type] = () => generate(scope, {
           type: 'CallExpression',
           callee: {
             type: 'Identifier',
@@ -5337,14 +5416,17 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
         name: x
       };
 
-      bc[type] = [
+      bc[type] = () => [
         ...generate(scope, ident),
         ...setLastType(scope, getNodeType(scope, ident))
       ];
-      if (type === known) return bc[type];
+      if (type === known) return bc[type]();
     }
 
-    if (known == null) extraBC = bc;
+    if (known == null) {
+      aliasPrimObjsBC(bc);
+      extraBC = bc;
+    }
   }
 
   // todo/perf: use i32 object (and prop?) locals
@@ -5352,160 +5434,162 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   const propertyWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_prop') ] ];
 
   const out = typeSwitch(scope, getNodeType(scope, object), {
-    [TYPES.array]: () => [
-      ...loadArray(scope, objectWasm, propertyWasm),
-      ...setLastType(scope)
-    ],
-
-    [TYPES.string]: () => [
-      // allocate out string
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
-      [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
-
-      // set length to 1
-      ...number(1, Valtype.i32),
-      [ Opcodes.i32_store, 0, 0 ],
-
-      // use as pointer for store later
-      [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
-
-      ...propertyWasm,
-      Opcodes.i32_to_u,
-
-      ...number(ValtypeSize.i16, Valtype.i32),
-      [ Opcodes.i32_mul ],
-
-      ...objectWasm,
-      Opcodes.i32_to_u,
-      [ Opcodes.i32_add ],
-
-      // load current string ind {arg}
-      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
-
-      // store to new string ind 0
-      [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
-
-      // return new string (page)
-      [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
-      Opcodes.i32_from_u,
-      ...setLastType(scope, TYPES.string)
-    ],
-
-    [TYPES.bytestring]: () => [
-      // allocate out string
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
-      [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
-
-      // set length to 1
-      ...number(1, Valtype.i32),
-      [ Opcodes.i32_store, 0, 0 ],
-
-      // use as pointer for store later
-      [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
-
-      ...propertyWasm,
-      Opcodes.i32_to_u,
-
-      ...objectWasm,
-      Opcodes.i32_to_u,
-      [ Opcodes.i32_add ],
-
-      // load current string ind {arg}
-      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
-
-      // store to new string ind 0
-      [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
-
-      // return new string (page)
-      [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
-      Opcodes.i32_from_u,
-      ...setLastType(scope, TYPES.bytestring)
-    ],
-
-    ...wrapBC({
-      [TYPES.uint8array]: [
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.i32_load8_u, 0, 4 ],
-        Opcodes.i32_from_u
+    ...(decl.computed ? {
+      [TYPES.array]: () => [
+        ...loadArray(scope, objectWasm, propertyWasm),
+        ...setLastType(scope)
       ],
-      [TYPES.uint8clampedarray]: [
-        [ Opcodes.i32_add ],
 
-        [ Opcodes.i32_load8_u, 0, 4 ],
-        Opcodes.i32_from_u
-      ],
-      [TYPES.int8array]: [
-        [ Opcodes.i32_add ],
+      [TYPES.string]: () => [
+        // allocate out string
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+        [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
-        [ Opcodes.i32_load8_s, 0, 4 ],
-        Opcodes.i32_from
-      ],
-      [TYPES.uint16array]: [
-        ...number(2, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
+        // set length to 1
+        ...number(1, Valtype.i32),
+        [ Opcodes.i32_store, 0, 0 ],
 
-        [ Opcodes.i32_load16_u, 0, 4 ],
-        Opcodes.i32_from_u
-      ],
-      [TYPES.int16array]: [
-        ...number(2, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.i32_load16_s, 0, 4 ],
-        Opcodes.i32_from
-      ],
-      [TYPES.uint32array]: [
-        ...number(4, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.i32_load, 0, 4 ],
-        Opcodes.i32_from_u
-      ],
-      [TYPES.int32array]: [
-        ...number(4, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.i32_load, 0, 4 ],
-        Opcodes.i32_from
-      ],
-      [TYPES.float32array]: [
-        ...number(4, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.f32_load, 0, 4 ],
-        [ Opcodes.f64_promote_f32 ]
-      ],
-      [TYPES.float64array]: [
-        ...number(8, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.f64_load, 0, 4 ]
-      ],
-    }, {
-      prelude: [
-        ...objectWasm,
-        Opcodes.i32_to_u,
-        [ Opcodes.i32_load, 0, 4 ],
+        // use as pointer for store later
+        [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
         ...propertyWasm,
-        Opcodes.i32_to_u
+        Opcodes.i32_to_u,
+
+        ...number(ValtypeSize.i16, Valtype.i32),
+        [ Opcodes.i32_mul ],
+
+        ...objectWasm,
+        Opcodes.i32_to_u,
+        [ Opcodes.i32_add ],
+
+        // load current string ind {arg}
+        [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
+
+        // store to new string ind 0
+        [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
+
+        // return new string (page)
+        [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
+        Opcodes.i32_from_u,
+        ...setLastType(scope, TYPES.string)
       ],
-      postlude: setLastType(scope, TYPES.number)
-    }),
+
+      [TYPES.bytestring]: () => [
+        // allocate out string
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+        [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
+
+        // set length to 1
+        ...number(1, Valtype.i32),
+        [ Opcodes.i32_store, 0, 0 ],
+
+        // use as pointer for store later
+        [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
+
+        ...propertyWasm,
+        Opcodes.i32_to_u,
+
+        ...objectWasm,
+        Opcodes.i32_to_u,
+        [ Opcodes.i32_add ],
+
+        // load current string ind {arg}
+        [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
+
+        // store to new string ind 0
+        [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
+
+        // return new string (page)
+        [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
+        Opcodes.i32_from_u,
+        ...setLastType(scope, TYPES.bytestring)
+      ],
+
+      ...wrapBC({
+        [TYPES.uint8array]: [
+          [ Opcodes.i32_add ],
+
+          [ Opcodes.i32_load8_u, 0, 4 ],
+          Opcodes.i32_from_u
+        ],
+        [TYPES.uint8clampedarray]: [
+          [ Opcodes.i32_add ],
+
+          [ Opcodes.i32_load8_u, 0, 4 ],
+          Opcodes.i32_from_u
+        ],
+        [TYPES.int8array]: [
+          [ Opcodes.i32_add ],
+
+          [ Opcodes.i32_load8_s, 0, 4 ],
+          Opcodes.i32_from
+        ],
+        [TYPES.uint16array]: [
+          ...number(2, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+
+          [ Opcodes.i32_load16_u, 0, 4 ],
+          Opcodes.i32_from_u
+        ],
+        [TYPES.int16array]: [
+          ...number(2, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+
+          [ Opcodes.i32_load16_s, 0, 4 ],
+          Opcodes.i32_from
+        ],
+        [TYPES.uint32array]: [
+          ...number(4, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+
+          [ Opcodes.i32_load, 0, 4 ],
+          Opcodes.i32_from_u
+        ],
+        [TYPES.int32array]: [
+          ...number(4, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+
+          [ Opcodes.i32_load, 0, 4 ],
+          Opcodes.i32_from
+        ],
+        [TYPES.float32array]: [
+          ...number(4, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+
+          [ Opcodes.f32_load, 0, 4 ],
+          [ Opcodes.f64_promote_f32 ]
+        ],
+        [TYPES.float64array]: [
+          ...number(8, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+
+          [ Opcodes.f64_load, 0, 4 ]
+        ],
+      }, {
+        prelude: [
+          ...objectWasm,
+          Opcodes.i32_to_u,
+          [ Opcodes.i32_load, 0, 4 ],
+
+          ...propertyWasm,
+          Opcodes.i32_to_u
+        ],
+        postlude: setLastType(scope, TYPES.number)
+      }),
+    } : {}),
 
     [TYPES.undefined]: internalThrow(scope, 'TypeError', 'Cannot read property of undefined', true),
 
     // default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
     default: () => [
       ...objectWasm,
-      Opcodes.i32_to_u,
+      Opcodes.i32_to,
       ...getNodeType(scope, object),
 
       ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.computed, true),
@@ -5823,6 +5907,7 @@ const generateFunc = (scope, decl) => {
   const params = decl.params ?? [];
 
   // TODO: share scope/locals between !!!
+  const arrow = decl.type === 'ArrowFunctionExpression' || decl.type === 'Program';
   const func = {
     locals: {},
     localInd: 0,
@@ -5830,16 +5915,25 @@ const generateFunc = (scope, decl) => {
     returns: [ valtypeBinary, Valtype.i32 ],
     name,
     index: currentFuncIndex++,
-    constr:
-      // not arrow function or main
-      (decl.type && decl.type !== 'ArrowFunctionExpression' && decl.type !== 'Program') &&
-      // not async or generator
-      !decl.async && !decl.generator,
+    arrow,
+    constr: !arrow && !decl.generator && !decl.async,
     _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
 
     generate() {
       if (func.wasm) return func.wasm;
+
+      let errorWasm = null;
+      if (decl.generator) {
+        errorWasm = todo(func, 'generator functions are not supported');
+      }
+
+      if (errorWasm) {
+        return func.wasm = errorWasm.concat([
+          ...number(UNDEFINED),
+          ...number(TYPES.undefined, Valtype.i32)
+        ]);
+      }
 
       // generating, stub _wasm
       func.wasm = [];
@@ -5932,7 +6026,7 @@ const generateFunc = (scope, decl) => {
         // inject promise job runner func at the end of main if promises are made
         if (Object.hasOwn(funcIndex, 'Promise') || Object.hasOwn(funcIndex, '__Promise_resolve') || Object.hasOwn(funcIndex, '__Promise_reject')) {
           wasm.push(
-            [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_runJobs').index ],
+            [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_runJobs').index ],
             [ Opcodes.drop ],
             [ Opcodes.drop ]
           );
@@ -5951,17 +6045,6 @@ const generateFunc = (scope, decl) => {
   funcIndex[name] = func.index;
   funcs.push(func);
 
-  let errorWasm = null;
-  if (decl.generator) errorWasm = todo(scope, 'generator functions are not supported');
-
-  if (errorWasm) {
-    // func.params = [];
-    func.wasm = errorWasm.concat([
-      ...number(UNDEFINED),
-      ...number(TYPES.undefined, Valtype.i32)
-    ]);
-  }
-
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
     if (type != null && !Prefs.indirectCalls) {
@@ -5979,12 +6062,14 @@ const generateFunc = (scope, decl) => {
   const prelude = [];
   const defaultValues = {};
   const destructuredArgs = {};
+  let jsLength = 0;
   for (let i = 0; i < params.length; i++) {
     let name;
     const x = params[i];
     switch (x.type) {
       case 'Identifier': {
         name = x.name;
+        jsLength++;
         break;
       }
 
@@ -6010,6 +6095,7 @@ const generateFunc = (scope, decl) => {
       default:
         name = '#arg_dstr' + i;
         destructuredArgs[name] = x;
+        jsLength++;
         break;
     }
 
@@ -6025,10 +6111,11 @@ const generateFunc = (scope, decl) => {
         TYPES.weakref, TYPES.weakset, TYPES.weakmap,
         TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
       ].includes(typeAnno.type)) {
+        let types = [ typeAnno.type ];
+        if (typeAnno.type === TYPES.number) types.push(TYPES.numberobject);
+
         prelude.push(
-          [ Opcodes.local_get, func.locals[name].idx + 1 ],
-          ...number(typeAnno.type, Valtype.i32),
-          [ Opcodes.i32_ne ],
+          ...typeIsNotOneOf([ [ Opcodes.local_get, func.locals[name].idx + 1 ] ], types),
           [ Opcodes.if, Blocktype.void ],
             ...internalThrow(func, 'TypeError', `${unhackName(func.name)} expects 'this' to be a ${TYPE_NAMES[typeAnno.type]}`),
           [ Opcodes.end ]
@@ -6040,6 +6127,7 @@ const generateFunc = (scope, decl) => {
   }
 
   func.params = Object.values(func.locals).map(x => x.type);
+  func.jsLength = jsLength;
 
   // force generate for main
   if (name === 'main') func.generate();
@@ -6274,9 +6362,9 @@ export default program => {
       // run callbacks
       const wasm = f.wasm;
       for (let j = 0; j < wasm.length; j++) {
-        const i = wasm[j];
-        if (i[0] === null && typeof i[1] === 'function') {
-          wasm.splice(j, 1, ...i[1]());
+        const o = wasm[j];
+        if (o[0] === null && typeof o[1] === 'function') {
+          wasm.splice(j--, 1, ...o[1]());
         }
       }
 

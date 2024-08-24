@@ -146,7 +146,7 @@ local.set ${key}`;
       }
     }
 
-    target = __Porffor_object_getObject(target);
+    target = __Porffor_object_underlying(target);
     if (Porffor.rawType(target) == Porffor.TYPES.object) {
       const objKeys: any[] = __Reflect_ownKeys(target);
       for (const x of objKeys) Porffor.array.fastPush(out, x);

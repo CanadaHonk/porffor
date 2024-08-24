@@ -3,6 +3,9 @@ export type i64 = number;
 export type f64 = number;
 export type bytestring = string;
 
+export type BooleanObject = Boolean;
+export type NumberObject = Boolean;
+
 type PorfforGlobal = {
   wasm: {
     (...args: any[]): any;
@@ -140,4 +143,7 @@ declare global {
   type i64 = number;
   type f64 = number;
   type bytestring = string;
+
+  type BooleanObject = Boolean;
+  type NumberObject = Boolean;
 }

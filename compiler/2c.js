@@ -15,7 +15,10 @@ const CValtype = {
   f32: 'f32',
   f64: 'f64',
 
-  undefined: 'void'
+  undefined: 'void',
+
+  pointer: 'void*',
+  buffer: 'void*'
 };
 
 const alwaysPreface = `typedef uint8_t u8;
@@ -168,7 +171,7 @@ const removeBrackets = str => {
     if (str.startsWith(p)) return p + removeBrackets(str.slice(p.length));
   }
 
-  return str.startsWith('(') && str.endsWith(')') ? str.slice(1, -1) : str;
+  return str.startsWith('(') && str.endsWith(')') && !str.startsWith('(*') ? str.slice(1, -1) : str;
 };
 
 export default ({ funcs, globals, tags, data, exceptions, pages }) => {
@@ -208,12 +211,12 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
   for (const x in globals) {
     const g = globals[x];
 
-    out += `${CValtype[g.type]} ${sanitize(x)} = ${g.init ?? 0}`;
-    out += ';\n';
+    out += `${CValtype[g.type]} ${sanitize(x)} = ${g.init ?? 0};\n`;
   }
 
   if (pages.size > 0) {
-    prepend.set('_memory', `char _memory[${pages.size * pageSize}];\n`);
+    prepend.set('_memory', `char* _memory; u32 _memoryPages = ${pages.size};\n`);
+    prependMain.set('_initMemory', `_memory = malloc(_memoryPages * ${pageSize});\n`);
     if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
 
@@ -222,9 +225,8 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     const dataOffset = x => pages.get(x.page).ind * pageSize;
     if (Prefs['2cMemcpy']) {
       prependMain.set('_data', activeData.map(x => `memcpy(_memory + ${dataOffset(x)}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
-      includes.set('string.h', true);
     } else {
-      prependMain.set('_data', activeData.map(x => x.bytes.reduce((acc, y, i) => acc + `_memory[${dataOffset(x) + i}]=(u8)${y};`, '')).join('\n  '));
+      prependMain.set('_data', activeData.map(x => x.bytes.reduce((acc, y, i) => acc + (y === 0 ? '' : `_memory[${dataOffset(x) + i}]=(u8)${y};`), '')).join('\n  '));
     }
   }
 
@@ -269,6 +271,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   let brId = 0;
 
+  let ffiFuncs = {};
   const cified = new Set();
   const cify = f => {
     let out = '';
@@ -389,6 +392,23 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
     for (let _ = 0; _ < f.wasm.length; _++) {
       const i = f.wasm[_];
+
+      if (i[0] === null && i[1] === 'dlopen') {
+        // special ffi time
+        const path = i[2];
+        const symbols = i[3];
+
+        includes.set('dlfcn.h', true);
+        line(`void* _dl = dlopen("${path}", RTLD_LAZY)`);
+
+        for (const name in symbols) {
+          line(`*(void**)(&${name}) = dlsym(_dl, "${name}")`);
+          ffiFuncs[name] = symbols[name];
+        }
+
+        continue;
+      }
+
       if (!i || !i[0]) continue;
 
       if (invOperatorOpcode[i[0]]) {
@@ -473,9 +493,9 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
           if (lastCond) {
             vals.push(`!(${removeBrackets(vals.pop())})`);
           } else {
-            let cond = '(' + removeBrackets(vals.pop());
-            if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} == 0e+0`;
-              else cond += ') == 0';
+            let cond = '((' + removeBrackets(vals.pop());
+            if (cond.startsWith(`((i32)`)) cond = `${cond.slice(5)}) == 0e+0)`;
+              else cond += ') == 0)';
             vals.push(cond);
           }
           lastCond = true;
@@ -655,22 +675,46 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
           if (!cified.has(func.name) && func.name !== f.name) {
             cified.add(func.name);
-            cify(func);
+            if (!ffiFuncs[func.name]) {
+              cify(func);
+            }
           }
 
           let args = [];
           for (let j = 0; j < func.params.length; j++) args.unshift(removeBrackets(vals.pop()));
 
+          let name = sanitize(func.name);
+          if (ffiFuncs[func.name]) {
+            name = `(*` + name + ')';
+
+            // handle ffi pointer and buffer args
+            const { parameters } = ffiFuncs[func.name];
+            for (let j = 0; j < parameters.length; j++) {
+              if (parameters[j] === 'buffer') {
+                let x = args[j];
+                if (x.startsWith('(i32)')) x = x.slice(5);
+                args[j] = `(void*)((u64)_memory + (u64)(${x}) + 4)`;
+              }
+
+              if (parameters[j] === 'pointer') {
+                let x = args[j];
+                if (x.startsWith('(i32)')) x = '(u64)' + x.slice(5);
+
+                args[j] = `(void*)${x}`;
+              }
+            }
+          }
+
           if (func.returns.length > 0) {
             if (func.returnType != null) {
-              vals.push(`${sanitize(func.name)}(${args.join(', ')})`);
+              vals.push(`${name}(${args.join(', ')})`);
             } else {
               const id = retTmpId++;
-              line(`const struct ReturnValue _${id} = ${sanitize(func.name)}(${args.join(', ')})`);
+              line(`const struct ReturnValue _${id} = ${name}(${args.join(', ')})`);
               vals.push(`_${id}.value`);
               vals.push(`_${id}.type`);
             }
-          } else line(`${sanitize(func.name)}(${args.join(', ')})`);
+          } else line(`${name}(${args.join(', ')})`);
 
           break;
 
@@ -798,6 +842,15 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
         //   break;
         // }
 
+        case Opcodes.memory_grow: {
+          const id = localTmpId++;
+          line(`const u32 _oldPages${id} = _memoryPages`);
+          line(`_memoryPages += ${vals.pop()}`);
+          line(`_memory = realloc(_memory, _memoryPages * ${pageSize})`);
+          vals.push(`_oldPages${id}`);
+          break;
+        }
+
         default:
           if (CMemFuncs[i[0]]) {
             const name = invOpcodes[i[0]];
@@ -839,6 +892,11 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
   cify(funcs.find(x => x.name === 'main'));
 
+  const rawParams = f => {
+    if (ffiFuncs[f.name]) return ffiFuncs[f.name].parameters;
+    return f.params;
+  };
+
   prepend.set('func decls', funcs.filter(x => x.name !== 'main' && cified.has(x.name)).map(f => {
     const returns = f.returns.length > 0;
     const typedReturns = f.returnType == null;
@@ -850,7 +908,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
     const shouldInline = false;
 
-    return `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')});`;
+    return `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${ffiFuncs[f.name] ? '(*' : ''}${sanitize(f.name)}${ffiFuncs[f.name] ? ')' : ''}(${rawParams(f).map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')});`;
   }).join('\n'));
 
   const makeIncludes = includes => [...includes.keys()].map(x => `#include <${x}>\n`).join('');

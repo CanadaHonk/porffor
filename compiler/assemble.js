@@ -58,7 +58,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   const getType = (params, returns) => {
     const hash = `${params.join(',')}_${returns.join(',')}`;
     if (Prefs.optLog) log('assemble', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
-    if (optLevel >= 1 && typeCache[hash] !== undefined) return typeCache[hash];
+    if (typeCache[hash] !== undefined) return typeCache[hash];
 
     const type = [ FuncType, ...encodeVector(params), ...encodeVector(returns) ];
     const idx = types.length;
@@ -158,7 +158,7 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
       bytes.push(argc % 256, (argc / 256 | 0) % 256);
 
       // userland exposed .length
-      let length = argc;
+      let length = func.jsLength ?? argc;
       // remove _this from internal prototype funcs
       if (func.internal && name.includes('_prototype_')) length--;
 
@@ -233,7 +233,6 @@ export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) =
   time('global section');
 
   if (Prefs.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
-  if (optLevel === 0) pages.set('O0 precaution', 0);
 
   const usesMemory = pages.size > 0;
   const memorySection = !usesMemory ? [] : createSection(

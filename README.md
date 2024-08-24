@@ -64,8 +64,7 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 - `--valtype=i32|i64|f64` (default: `f64`) to set valtype
 - `-O0` to disable opt
 - `-O1` (default) to enable basic opt (simplify insts, treeshake wasm imports)
-- `-O2` to enable advanced opt (inlining). unstable!
-- `-O3` to enable advanceder opt (precompute const math). unstable!
+- `-O2` to enable advanced opt (partial evaluation). unstable!
 
 ## Current limitations
 - Limited async support
@@ -274,7 +273,7 @@ Currently, Porffor is seriously limited in features and functionality, however i
 - More in future probably?
 
 ## Todo
-No particular order and no guarentees, just what could happen soon™
+No particular order and no guarantees, just what could happen soon™
 
 - Asur
   - Support memory
@@ -328,7 +327,7 @@ Porffor intentionally does not use Wasm proposals which are not commonly impleme
 ### 2. Why at all?
 Yes!
 
-## 3. Isn't this the same as AssemblyScript/other Wasm langs?
+### 3. Isn't this the same as AssemblyScript/other Wasm langs?
 No. they are not alike at all internally and have very different goals/ideals:
 - Porffor is made as a generic JS engine, not for Wasm stuff specifically
 - Porffor primarily consumes JS

@@ -53,6 +53,8 @@ const progressClear = () => {
 };
 
 export default (code, flags) => {
+  const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
+
   let target = Prefs.target ?? 'wasm';
   if (Prefs.native) target = 'native';
 
@@ -67,8 +69,13 @@ export default (code, flags) => {
 
   // change some prefs by default for c/native
   if (target !== 'wasm') {
-    Prefs.pgo = Prefs.pgo === false ? false : true;
-    Prefs.passiveData = false;
+    Prefs.pgo = Prefs.pgo === false ? false : true; // enable pgo
+    Prefs.passiveData = false; // disable using passive Wasm data as unsupported by 2c for now
+  }
+
+  // change some prefs by default for -O2
+  if (optLevel >= 2) {
+    Prefs.cyclone = Prefs.cyclone === false ? false : true; // enable cyclone
   }
 
   if (Prefs.pgo) pgo.setup();
@@ -249,7 +256,7 @@ export default (code, flags) => {
       if (logProgress) {
         const total = performance.now();
         progressClear();
-        console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[92mcompiled ${globalThis.file} -> ${outFile}\u001b[0m`);
+        console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
       }
 
       process.exit();

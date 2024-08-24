@@ -41,7 +41,12 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
     case TYPES.undefined:
       return undefined;
 
+    case TYPES.number: return value;
+    case TYPES.numberobject: return new Number(value);
+
     case TYPES.boolean: return Boolean(value);
+    case TYPES.booleanobject: return new Boolean(value);
+
     case TYPES.object: {
       if (value === 0 || checkOOB(memory, value)) return null;
 
@@ -300,6 +305,22 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       return out;
     }
 
+    case TYPES.error:
+    case TYPES.aggregateerror:
+    case TYPES.typeerror:
+    case TYPES.referenceerror:
+    case TYPES.syntaxerror:
+    case TYPES.rangeerror:
+    case TYPES.evalerror:
+    case TYPES.urierror: {
+      const obj = porfToJSValue({ memory, funcs, pages }, value, TYPES.object);
+      const constr = globalThis[TYPE_NAMES[type]];
+      const err = new constr(obj.message);
+      err.name = obj.name;
+      err.stack = `${TYPE_NAMES[type]}: ${obj.message}`;
+      return err;
+    }
+
     default: return value;
   }
 };
@@ -502,38 +523,6 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
             const type = e.getArg(exceptTag, 1);
 
             throw porfToJSValue({ memory, funcs, pages }, value, type);
-          }
-
-          if (exceptionMode === 'stackest') {
-            const constructorIdx = e.getArg(exceptTag, 0);
-            const constructorName = constructorIdx == -1 ? null : funcs.find(x => (x.index - importedFuncs.length) === constructorIdx)?.name;
-
-            const value = e.getArg(exceptTag, 1);
-            const type = e.getArg(exceptTag, 2);
-            const message = porfToJSValue({ memory, funcs, pages }, value, type);
-
-            // no constructor, just throw message
-            if (!constructorName) throw message;
-
-            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
-            throw new constructor(message);
-          }
-
-          if (exceptionMode === 'partial') {
-            const exceptId = e.getArg(exceptTag, 0);
-            const exception = exceptions[exceptId];
-
-            const constructorName = exception.constructor;
-
-            const value = e.getArg(exceptTag, 1);
-            const type = e.getArg(exceptTag, 2);
-            const message = porfToJSValue({ memory, funcs, pages }, value, type);
-
-            // no constructor, just throw message
-            if (!constructorName) throw message;
-
-            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
-            throw new constructor(message);
           }
         }
 
