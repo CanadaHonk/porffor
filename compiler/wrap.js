@@ -325,15 +325,13 @@ ${flags & 0b0001 ? `    get func idx: ${get}
   }
 };
 
-export default (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {
+export default (source, module = undefined, customImports = {}, print = str => process.stdout.write(str)) => {
   const times = [];
 
   const t1 = performance.now();
-  const { wasm, funcs, globals, tags, exceptions, pages, c } = typeof source === 'object' ? source : compile(source, flags);
+  const { wasm, funcs, globals, tags, exceptions, pages, c } = typeof source === 'object' ? source : compile(source, module);
 
   globalThis.porfDebugInfo = { funcs, globals };
-
-  // if (process.argv[1].includes('/runner') && source.includes?.('export ')) flags.push('module');
 
   // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
@@ -541,7 +539,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     };
   }
 
-  if (flags.includes('decomp')) {
+  if (Prefs.decomp) {
     return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, globals, exceptions)), c };
   }
 

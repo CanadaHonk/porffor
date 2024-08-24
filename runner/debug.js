@@ -43,7 +43,7 @@ let lastLine;
 let output = '';
 
 try {
-  const { exports } = compile(source, process.argv.includes('--module') ? [ 'module' ] : [], {
+  const { exports } = compile(source, undefined, {
     y: n => {
       if (callStarts[callStarts.length - 1] === n - 1) {
         // end of call

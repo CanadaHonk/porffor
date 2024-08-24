@@ -10,7 +10,7 @@ const run = source => {
   let out = '', assertFailed = false;
   const print = str => out += str;
 
-  const { exports, wasm, times } = compile(source, [ 'module' ], {
+  const { exports, wasm, times } = compile(source, true, {
     p: i => print(Number(i).toString()),
     c: i => print(String.fromCharCode(Number(i)))
   });

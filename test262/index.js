@@ -445,7 +445,7 @@ if (isMainThread) {
 
     let exports;
     try {
-      const out = compile(contents, attrs.flags.module ? [ 'module' ] : [], {
+      const out = compile(contents, !!attrs.flags.module, {
         p: i => { log += i.toString() },
         c: i => { log += String.fromCharCode(i); }
       });
