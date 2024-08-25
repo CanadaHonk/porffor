@@ -14,6 +14,7 @@ export default () => {
 
   obj.name = _name;
   obj.message = message;
+  obj.constructor = ${name};
 
   const out: ${name} = obj;
   return out;
