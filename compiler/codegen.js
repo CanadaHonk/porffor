@@ -2606,19 +2606,14 @@ const generateThis = (scope, decl) => {
 
   return [
     // default this to globalThis
-    [ Opcodes.local_get, scope.locals['#this'].idx ],
-    Opcodes.i32_to_u,
-    [ Opcodes.i32_eqz ],
+    [ Opcodes.local_get, scope.locals['#this#type'].idx ],
+    ...number(TYPES.undefined, Valtype.i32),
+    [ Opcodes.i32_eq ],
     [ Opcodes.if, Blocktype.void ],
-      [ Opcodes.local_get, scope.locals['#this#type'].idx ],
-      ...number(TYPES.object, Valtype.i32),
-      [ Opcodes.i32_eq ],
-      [ Opcodes.if, Blocktype.void ],
-        ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
-        [ Opcodes.local_set, scope.locals['#this'].idx ],
-        ...getType(scope, 'globalThis'),
-        [ Opcodes.local_set, scope.locals['#this#type'].idx ],
-      [ Opcodes.end ],
+      ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
+      [ Opcodes.local_set, scope.locals['#this'].idx ],
+      ...getType(scope, 'globalThis'),
+      [ Opcodes.local_set, scope.locals['#this#type'].idx ],
     [ Opcodes.end ],
 
     [ Opcodes.local_get, scope.locals['#this'].idx ],
