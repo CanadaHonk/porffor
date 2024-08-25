@@ -335,7 +335,7 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
 ];
 
 const generateIdent = (scope, decl) => {
-  const lookup = rawName => {
+  const lookup = (rawName, failEarly = false) => {
     const name = mapName(rawName);
     let local = scope.locals[rawName];
 
@@ -376,11 +376,18 @@ const generateIdent = (scope, decl) => {
       let parent = rawName.slice(2).split('_').slice(0, -1).join('_');
       if (parent.includes('_')) parent = '__' + parent;
 
-      const parentLookup = lookup(parent);
+      const parentLookup = lookup(parent, true);
       if (!parentLookup[1]) return number(UNDEFINED);
     }
 
-    if (local?.idx === undefined) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
+    if (local?.idx === undefined) {
+      if (failEarly) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
+
+      return [ [ null, () => {
+        // try generating again at the end
+        return lookup(rawName, true);
+      }, 1 ] ];
+    }
 
     return [
       [ Opcodes.local_get, local.idx ],
@@ -1037,7 +1044,7 @@ const asmFuncToAsm = (scope, func) => {
         return [ [ null, () => {
           if (types.some(x => usedTypes.has(x))) return wasm();
           return [];
-        } ] ];
+        }, 0 ] ];
       }
     }
   });
@@ -1165,7 +1172,11 @@ const isExistingProtoFunc = name => {
   return false;
 };
 
-const getType = (scope, _name) => {
+const getType = (scope, _name, failEarly = false) => {
+  const fallback = failEarly ? number(TYPES.undefined, Valtype.i32) : [ [ null, () => {
+    return getType(scope, _name, true);
+  }, 1 ] ];
+
   const name = mapName(_name);
 
   if (Object.hasOwn(builtinVars, name)) return number(builtinVars[name].type ?? TYPES.number, Valtype.i32);
@@ -1177,7 +1188,7 @@ const getType = (scope, _name) => {
     if (typeLocal) return [ [ Opcodes.local_get, typeLocal.idx ] ];
 
     // todo: warn here?
-    return number(TYPES.undefined, Valtype.i32);
+    return fallback;
   }
 
   if (name === 'arguments' && scope.name !== 'main' && !scope.arrow) {
@@ -1191,7 +1202,7 @@ const getType = (scope, _name) => {
     if (typeLocal) return [ [ Opcodes.global_get, typeLocal.idx ] ];
 
     // todo: warn here?
-    return number(TYPES.undefined, Valtype.i32);
+    return fallback;
   }
 
   if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) ||
@@ -1200,7 +1211,7 @@ const getType = (scope, _name) => {
 
   if (isExistingProtoFunc(name)) return number(TYPES.function, Valtype.i32);
 
-  return number(TYPES.undefined, Valtype.i32);
+  return fallback;
 };
 
 const setType = (scope, _name, type) => {
@@ -1512,7 +1523,10 @@ const countLeftover = wasm => {
 
   for (let i = 0; i < wasm.length; i++) {
     const inst = wasm[i];
-    if (inst[0] == null) continue;
+    if (depth === 0 && inst[0] == null) {
+      if (typeof inst[1] === 'function' && typeof inst[2] === 'number') count += inst[2];
+      continue;
+    }
 
     if (depth === 0 && (inst[0] === Opcodes.if || inst[0] === Opcodes.block || inst[0] === Opcodes.loop)) {
       if (inst[0] === Opcodes.if) count--;
@@ -1543,7 +1557,7 @@ const countLeftover = wasm => {
           count += 2; // fixed return (value, type)
         } else count--;
 
-    // console.log(count, decompile([ inst ]).slice(0, -1));
+    // console.log(count, depth, decompile([ inst ]).slice(0, -1));
   }
 
   return count;
@@ -2866,7 +2880,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
           out = [];
           if (types.some(x => usedTypes.has(x))) add();
           return out;
-        }]);
+        }, 0 ]);
       }
     }
   }
