@@ -40,18 +40,6 @@ if (isMainThread) {
 
   if (!resultOnly) process.stdout.write('\u001b[90mreading tests...\u001b[0m');
 
-  // const cachedTotal = 50012; // todo: not need manual updates
-  // const tests = new Array(cachedTotal);
-  // const _testsIter = _tests[Symbol.asyncIterator]();
-  // let i = 0;
-  // while (i < cachedTotal) {
-  //   const test = (await _testsIter.next()).value;
-  //   if (test.scenario === 'strict mode') continue;
-
-  //   tests[i++] = test;
-  //   if (!resultOnly) process.stdout.write(`\r${' '.repeat(50)}\rreading tests... (${i}/${cachedTotal})`);
-  // }
-
   const tests = [];
   for await (const test of _tests) {
     if (test.scenario === 'strict mode' && !test.attrs.flags.onlyStrict) continue;
@@ -148,7 +136,7 @@ if (isMainThread) {
 
   const preludes = fs.readFileSync('test262/harness.js', 'utf8').split('///').reduce((acc, x) => {
     const [ k, ...content ] = x.split('\n');
-    acc[k.trim()] = content.join('\n').trim();
+    acc[k.trim()] = content.join('\n').trim() + '\n';
     return acc;
   }, {});
 
@@ -404,7 +392,7 @@ if (isMainThread) {
   console.log = (...args) => parentPort.postMessage(args.join(' '));
 
   const totalTests = tests.length;
-  const alwaysPrelude = preludes['assert.js'] + '\n' + preludes['sta.js'] + '\n';
+  const alwaysPrelude = preludes['assert.js'] + preludes['sta.js'];
   while (true) {
     const i = Atomics.add(queue, 0, 1);
     if (i >= totalTests) break;
@@ -415,21 +403,8 @@ if (isMainThread) {
     let contents = test.contents, attrs = test.attrs;
 
     if (!attrs.flags.raw) {
-      if (attrs.flags.async) attrs.includes.unshift('doneprintHandle.js');
-      const prelude = attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? '') + '\n', '') + alwaysPrelude;
-      contents = prelude + contents;
+      contents = (attrs.flags.async ? preludes['doneprintHandle.js'] : '') + attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? ''), '') + alwaysPrelude + contents;
     }
-
-    // contents = contents
-      // error detail checks
-      // .replace(/assert\.notSameValue\(er?r?\.message\.indexOf\('.*?'\), -1\);/g, '')
-      // .replace(/if *\(\(er?r? *instanceof *(.*)Error\) *!==? *true\) *\{[\w\W]*?\}/g, '')
-      // .replace(/if *\((er?r?|reason)\.constructor *!==? *(.*)Error\) *\{[\w\W]*?\}/g, '')
-      // .replace(/assert\.sameValue\(\s*e instanceof RangeError,\s*true,[\w\W]+?\);/g, '')
-      // replace old tests' custom checks with standard assert
-      // .replace(/if \(([^ ]+) !== ([^ ]+)\) \{ *\n *throw new Test262Error\(['"](.*)\. Actual:.*\); *\n\} *\n/g, (_, one, two) => `assert.sameValue(${one}, ${two});\n`)
-      // remove actual string concats from some error messages
-      // .replace(/\. Actual: ' \+ .*\);/g, _ => `');`);
 
     if (debugAsserts) contents = contents
       .replace('var assert = mustBeTrue => {', 'var assert = (mustBeTrue, msg) => {')
@@ -438,8 +413,6 @@ if (isMainThread) {
       .replaceAll('throw new Test262Error', 'if (typeof msg != "undefined") { Porffor.printString(msg); Porffor.printStatic(\'\\n\'); Porffor.print(expected, false); Porffor.printStatic(\'\\n\'); Porffor.print(actual, false); Porffor.printStatic(\'\\n\'); } throw new Test262Error');
 
     // fs.writeFileSync('r.js', contents);
-
-    // currentTest = file;
 
     let log = '';
 
@@ -503,8 +476,6 @@ if (isMainThread) {
 
     if (trackErrors && error && (!onlyTrackCompilerErrors || (stage === 0 && error.name !== 'TodoError' && error.constructor.name !== 'CompileError' && error.constructor.name !== 'SyntaxError'))) {
       let errorStr = `${error.constructor.name}: ${error.message}`;
-      // errorStr += `${' '.repeat(160 - errorStr.length)}${error.stack.split('\n')[1]}`;
-
       errors[errorStr] = (errors[errorStr] ?? 0) + 1;
     }
 
