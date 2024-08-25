@@ -1733,7 +1733,7 @@ const aliasPrimObjsBC = bc => {
 const createThisArg = (scope, decl) => {
   const name = mapName(decl.callee?.name);
   if (decl._new) {
-    // if precompiling or builtin func, just make empty object
+    // if precompiling or builtin func, just make it null as unused
     if (globalThis.precompile || Object.hasOwn(builtinFuncs, name)) return [
       ...number(NULL),
       ...number(TYPES.object, Valtype.i32)
@@ -1793,11 +1793,12 @@ const createThisArg = (scope, decl) => {
       ];
     }
 
-    // do not generate globalThis now,
+    // undefined do not generate globalThis now,
     // do it dynamically in generateThis in the func later
+    // (or not for strict mode)
     return [
-      ...number(NULL),
-      ...number(TYPES.object, Valtype.i32)
+      ...number(UNDEFINED),
+      ...number(TYPES.undefined, Valtype.i32)
     ];
   }
 };
@@ -2597,8 +2598,8 @@ const generateThis = (scope, decl) => {
     ];
   }
 
-  // opt: do not check for pure constructors
-  if (scope._onlyConstr || scope._onlyThisMethod || decl._noGlobalThis) return [
+  // opt: do not check for pure constructors or strict mode
+  if ((!globalThis.precompile && scope.strict) || scope._onlyConstr || scope._onlyThisMethod || decl._noGlobalThis) return [
     [ Opcodes.local_get, scope.locals['#this'].idx ],
     ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
   ];
