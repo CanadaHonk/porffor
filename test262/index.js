@@ -264,7 +264,8 @@ if (isMainThread) {
     process.exit();
   }
 
-  process.stdout.write('\u001b[2F\u001b[0J');
+  if (allTests) process.stdout.write('\u001b[2F\u001b[0J');
+    else console.log();
 
   const nextMinorPercent = parseFloat(((Math.floor(percent * 10) / 10) + 0.1).toFixed(1));
   const nextMajorPercent = Math.floor(percent) + 1;
@@ -483,7 +484,7 @@ if (isMainThread) {
 
     if (logErrors) {
       process.stdout.write(`\u001b[${pass ? '92' : '91'}m${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m\n`);
-      if (!pass && error) console.log(error?.stack || error);
+      if (!pass && error) console.log(error?.stack || `${error.name}: ${error.message}`);
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {
