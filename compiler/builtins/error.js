@@ -41,8 +41,8 @@ export const __${name.startsWith('__') ? name.slice(2) : name}_prototype_toStrin
   error('EvalError');
   error('URIError');
 
-  error('__Porffor_TodoError');
   error('Test262Error');
+  error('__Porffor_TodoError');
 
   return out;
 };

@@ -312,9 +312,11 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     case TYPES.syntaxerror:
     case TYPES.rangeerror:
     case TYPES.evalerror:
-    case TYPES.urierror: {
+    case TYPES.urierror:
+    case TYPES.test262error:
+    case TYPES.__porffor_todoerror: {
       const obj = porfToJSValue({ memory, funcs, pages }, value, TYPES.object);
-      const constr = globalThis[TYPE_NAMES[type]];
+      const constr = globalThis[TYPE_NAMES[type]] ?? Error;
       const err = new constr(obj.message);
       err.name = obj.name;
       err.stack = `${TYPE_NAMES[type]}: ${obj.message}`;

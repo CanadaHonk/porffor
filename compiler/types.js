@@ -85,6 +85,8 @@ registerInternalType('SyntaxError');
 registerInternalType('RangeError');
 registerInternalType('EvalError');
 registerInternalType('URIError');
+registerInternalType('Test262Error');
+registerInternalType('__Porffor_TodoError');
 
 if (Prefs.largestTypes) {
   const typeKeys = Object.keys(TYPES);
