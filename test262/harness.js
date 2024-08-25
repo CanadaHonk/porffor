@@ -1322,3 +1322,26 @@ var __assert_deepEqual = (actual, expected) => {
     throw new Test262Error('assert.deepEqual failed');
   }
 };
+
+/// asyncHelpers.js
+const asyncTest = testFunc => {
+  if (typeof testFunc !== "function") {
+    $DONE(new Test262Error("asyncTest called with non-function argument"));
+    return;
+  }
+
+  try {
+    testFunc().then(
+      () => {
+        $DONE();
+      },
+      error => {
+        $DONE(error);
+      }
+    );
+  } catch (syncError) {
+    $DONE(syncError);
+  }
+};
+
+// todo: assert.throwsAsync
