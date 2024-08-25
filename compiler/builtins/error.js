@@ -44,5 +44,7 @@ export const __${name.startsWith('__') ? name.slice(2) : name}_prototype_toStrin
   error('Test262Error');
   error('__Porffor_TodoError');
 
+  out += `\nexport const __Test262Error_thrower = message => { throw new Test262Error(message); };`;
+
   return out;
 };

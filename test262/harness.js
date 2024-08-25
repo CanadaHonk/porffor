@@ -19,9 +19,9 @@
 //   this.name = 'Test262Error';
 // }
 
-var __Test262Error_thrower = function (message) {
-  throw new Test262Error(message);
-};
+// var __Test262Error_thrower = message => {
+//   throw new Test262Error(message);
+// };
 
 var $DONOTEVALUATE = () => {
   throw 'Test262: This statement should not be evaluated.';
