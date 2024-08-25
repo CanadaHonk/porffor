@@ -889,12 +889,17 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
     // try hacky version for built-ins first
     const rightName = decl.right.name;
     if (rightName) {
-      const checkType = TYPES[rightName.toLowerCase()];
+      let checkType = TYPES[rightName.toLowerCase()];
       if (checkType != null && rightName === TYPE_NAMES[checkType] && !rightName.endsWith('Error')) {
         const out = generate(scope, decl.left);
         disposeLeftover(out);
 
-        if ([TYPES.number, TYPES.boolean, TYPES.string].includes(checkType)) {
+        // switch primitive types to primitive object types
+        if (checkType === TYPES.number) checkType = TYPES.numberobject;
+        if (checkType === TYPES.boolean) checkType = TYPES.booleanobject;
+
+        // currently unsupported types
+        if ([TYPES.string].includes(checkType)) {
           out.push(...number(0));
         } else {
           out.push(
