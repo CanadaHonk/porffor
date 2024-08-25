@@ -81,12 +81,12 @@ export const run = obj => {
 
   let activeFunc = null, abort = false;
   try {
-    obj.wasm = assemble(obj.funcs, obj.globals, obj.tags, obj.pages, obj.data, obj.flags, true);
+    obj.wasm = assemble(obj.funcs, obj.globals, obj.tags, obj.pages, obj.data, true);
 
     Prefs._profileCompiler = Prefs.profileCompiler;
     Prefs.profileCompiler = false;
 
-    const { exports } = wrap(obj, [], {
+    const { exports } = wrap(obj, undefined, {
       y: n => {
         activeFunc = n;
       },

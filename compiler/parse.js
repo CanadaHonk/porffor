@@ -25,7 +25,7 @@ await loadParser(types ? '@babel/parser' : undefined);
 
 if (types && !['@babel/parser', 'hermes-parser'].includes(parser)) log.warning('parse', `passed -parse-types with a parser (${parser}) which does not support`);
 
-export default (input, flags) => {
+export default input => {
   try {
     const ast = parse(input, {
       // acorn
@@ -33,14 +33,14 @@ export default (input, flags) => {
 
       // meriyah
       next: true,
-      module: flags.includes('module'),
+      module: Prefs.module,
       webcompat: true,
 
       // babel
-      plugins: types || flags.includes('typed') ? ['estree', 'typescript'] : ['estree'],
+      plugins: types ? ['estree', 'typescript'] : ['estree'],
 
       // multiple
-      sourceType: flags.includes('module') ? 'module' : 'script',
+      sourceType: Prefs.module ? 'module' : 'script',
       ranges: false,
       tokens: false,
       comments: false,

@@ -1733,7 +1733,7 @@ const aliasPrimObjsBC = bc => {
 const createThisArg = (scope, decl) => {
   const name = mapName(decl.callee?.name);
   if (decl._new) {
-    // if precompiling or builtin func, just make empty object
+    // if precompiling or builtin func, just make it null as unused
     if (globalThis.precompile || Object.hasOwn(builtinFuncs, name)) return [
       ...number(NULL),
       ...number(TYPES.object, Valtype.i32)
@@ -1793,11 +1793,12 @@ const createThisArg = (scope, decl) => {
       ];
     }
 
-    // do not generate globalThis now,
+    // undefined do not generate globalThis now,
     // do it dynamically in generateThis in the func later
+    // (or not for strict mode)
     return [
-      ...number(NULL),
-      ...number(TYPES.object, Valtype.i32)
+      ...number(UNDEFINED),
+      ...number(TYPES.undefined, Valtype.i32)
     ];
   }
 };
@@ -2597,27 +2598,22 @@ const generateThis = (scope, decl) => {
     ];
   }
 
-  // opt: do not check for pure constructors
-  if (scope._onlyConstr || scope._onlyThisMethod || decl._noGlobalThis) return [
+  // opt: do not check for pure constructors or strict mode
+  if ((!globalThis.precompile && scope.strict) || scope._onlyConstr || scope._onlyThisMethod || decl._noGlobalThis) return [
     [ Opcodes.local_get, scope.locals['#this'].idx ],
     ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
   ];
 
   return [
     // default this to globalThis
-    [ Opcodes.local_get, scope.locals['#this'].idx ],
-    Opcodes.i32_to_u,
-    [ Opcodes.i32_eqz ],
+    [ Opcodes.local_get, scope.locals['#this#type'].idx ],
+    ...number(TYPES.undefined, Valtype.i32),
+    [ Opcodes.i32_eq ],
     [ Opcodes.if, Blocktype.void ],
-      [ Opcodes.local_get, scope.locals['#this#type'].idx ],
-      ...number(TYPES.object, Valtype.i32),
-      [ Opcodes.i32_eq ],
-      [ Opcodes.if, Blocktype.void ],
-        ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
-        [ Opcodes.local_set, scope.locals['#this'].idx ],
-        ...getType(scope, 'globalThis'),
-        [ Opcodes.local_set, scope.locals['#this#type'].idx ],
-      [ Opcodes.end ],
+      ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
+      [ Opcodes.local_set, scope.locals['#this'].idx ],
+      ...getType(scope, 'globalThis'),
+      [ Opcodes.local_set, scope.locals['#this#type'].idx ],
     [ Opcodes.end ],
 
     [ Opcodes.local_get, scope.locals['#this'].idx ],
@@ -4707,7 +4703,7 @@ const generateLabel = (scope, decl) => {
 const generateThrow = (scope, decl) => {
   scope.throws = true;
 
-  const exceptionMode = Prefs.exceptionMode ?? 'lut';
+  const exceptionMode = Prefs.exceptionMode ?? 'stack';
   if (exceptionMode === 'lut') {
     let message = decl.argument.value, constructor = null;
 

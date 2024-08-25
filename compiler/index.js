@@ -52,7 +52,9 @@ const progressClear = () => {
   progressLines = 0;
 };
 
-export default (code, flags) => {
+export default (code, module = undefined) => {
+  if (module !== undefined) Prefs.module = module;
+
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
 
   let target = Prefs.target ?? 'wasm';
@@ -82,7 +84,7 @@ export default (code, flags) => {
 
   if (logProgress) progressStart('parsing...');
   const t0 = performance.now();
-  const program = parse(code, flags);
+  const program = parse(code);
   if (logProgress) progressDone('parsed', t0);
 
   if (logProgress) progressStart('generating wasm...');
@@ -98,7 +100,7 @@ export default (code, flags) => {
 
   if (Prefs.pgo) {
     if (Prefs.pgoLog) {
-      const oldSize = assemble(funcs, globals, tags, pages, data, flags, true).byteLength;
+      const oldSize = assemble(funcs, globals, tags, pages, data, true).byteLength;
       const t = performance.now();
 
       pgo.run({ funcs, globals, tags, exceptions, pages, data });
@@ -106,7 +108,7 @@ export default (code, flags) => {
 
       console.log(`PGO total time: ${(performance.now() - t).toFixed(2)}ms`);
 
-      const newSize = assemble(funcs, globals, tags, pages, data, flags, true).byteLength;
+      const newSize = assemble(funcs, globals, tags, pages, data, true).byteLength;
       console.log(`PGO size diff: ${oldSize - newSize} bytes (${oldSize} -> ${newSize})\n`);
     } else {
       pgo.run({ funcs, globals, tags, exceptions, pages, data });
@@ -116,7 +118,7 @@ export default (code, flags) => {
 
   if (Prefs.cyclone) {
     if (Prefs.cycloneLog) {
-      const oldSize = assemble(funcs, globals, tags, pages, data, flags, true).byteLength;
+      const oldSize = assemble(funcs, globals, tags, pages, data, true).byteLength;
       const t = performance.now();
 
       for (const x of funcs) {
@@ -129,7 +131,7 @@ export default (code, flags) => {
 
       console.log(`cyclone total time: ${(performance.now() - t).toFixed(2)}ms`);
 
-      const newSize = assemble(funcs, globals, tags, pages, data, flags, true).byteLength;
+      const newSize = assemble(funcs, globals, tags, pages, data, true).byteLength;
       console.log(`cyclone size diff: ${oldSize - newSize} bytes (${oldSize} -> ${newSize})\n`);
     } else {
       for (const x of funcs) {
@@ -171,7 +173,7 @@ export default (code, flags) => {
   const out = { funcs, globals, tags, exceptions, pages, data, times: [ t0, t1, t2, t3 ] };
   if (globalThis.precompile) return out;
 
-  const wasm = out.wasm = assemble(funcs, globals, tags, pages, data, flags);
+  const wasm = out.wasm = assemble(funcs, globals, tags, pages, data);
   if (logProgress) progressDone('assembled', t3);
 
   if (Prefs.optFuncs || Prefs.f) logFuncs(funcs, globals, exceptions);

@@ -47,7 +47,7 @@ const encodeNames = funcs => {
   ];
 };
 
-export default (funcs, globals, tags, pages, data, flags, noTreeshake = false) => {
+export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   const types = [], typeCache = {};
 
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);

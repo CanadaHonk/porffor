@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.37.30+d663c99a2';
+globalThis.version = '0.37.32+fde2c20c4';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -158,7 +158,7 @@ const compile = (await import('../compiler/wrap.js')).default;
 let runStart;
 let ret;
 try {
-  const out = compile(source, process.argv.includes('--module') ? [ 'module' ] : []);
+  const out = compile(source);
   runStart = performance.now();
   if (!process.argv.includes('--no-run')) ret = out.exports.main();
 
