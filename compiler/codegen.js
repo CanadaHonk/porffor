@@ -4542,16 +4542,7 @@ const generateForIn = (scope, decl) => {
 };
 
 const generateSwitch = (scope, decl) => {
-  const tmp = localTmp(scope, '#switch_disc');
-  const out = [
-    ...generate(scope, decl.discriminant),
-    [ Opcodes.local_set, tmp ],
-
-    [ Opcodes.block, Blocktype.void ]
-  ];
-
-  depth.push('switch');
-
+  // special fast path just for `switch (Porffor.rawType(...))`
   if (decl.discriminant.type === 'CallExpression' && decl.discriminant.callee.type === 'Identifier' && decl.discriminant.callee.name === '__Porffor_rawType') {
     const cases = []
     let canTypeCheck = true;
@@ -4574,27 +4565,41 @@ const generateSwitch = (scope, decl) => {
     }
 
     if (canTypeCheck) {
-      const out = typeSwitch(scope,
-        getNodeType(scope, decl.discriminant.arguments[0]),
-        () => {
-          const bc = [];
-          let types = [];
-          for (const [ type, consequent ] of cases) {
-            types.push(type);
+      depth.push('switch');
 
-            if (consequent.length !== 0) {
-              bc.push([ types, () => generate(scope, { type: 'BlockStatement', body: consequent }) ]);
-              types = [];
-            }
+      const out = typeSwitch(scope, getNodeType(scope, decl.discriminant.arguments[0]), () => {
+        const bc = [];
+        let types = [];
+        for (const [ type, consequent ] of cases) {
+          types.push(type);
+
+          if (consequent.length !== 0) {
+            bc.push([ types, () => generate(scope, { type: 'BlockStatement', body: consequent }) ]);
+            types = [];
           }
+        }
 
-          return bc;
-        }, Blocktype.void, true);
+        return bc;
+      }, Blocktype.void, true);
 
       depth.pop();
       return out;
     }
   }
+
+  const tmpName = '#switch' + uniqId();
+  const tmp = localTmp(scope, tmpName);
+  localTmp(scope, tmpName + '#type', Valtype.i32);
+
+  const out = [
+    ...generate(scope, decl.discriminant),
+    [ Opcodes.local_set, tmp ],
+    ...setType(scope, tmpName, getNodeType(scope, decl.discriminant)),
+
+    [ Opcodes.block, Blocktype.void ]
+  ];
+
+  depth.push('switch');
 
   const cases = decl.cases.slice();
   const defaultCase = cases.findIndex(x => x.test == null);
@@ -4613,9 +4618,16 @@ const generateSwitch = (scope, decl) => {
     if (x.test) {
       // todo: this should use same value zero
       out.push(
-        [ Opcodes.local_get, tmp ],
-        ...generate(scope, x.test),
-        [ Opcodes.eq ],
+        ...generate(scope, {
+          type: 'BinaryExpression',
+          operator: '===',
+          left: {
+            type: 'Identifier',
+            name: tmpName
+          },
+          right: x.test
+        }),
+        Opcodes.i32_to_u,
         [ Opcodes.br_if, i ]
       );
     } else {
