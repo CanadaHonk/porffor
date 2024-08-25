@@ -424,7 +424,7 @@ if (isMainThread) {
       // error detail checks
       .replace(/assert\.notSameValue\(er?r?\.message\.indexOf\('.*?'\), -1\);/g, '')
       // .replace(/if *\(\(er?r? *instanceof *(.*)Error\) *!==? *true\) *\{[\w\W]*?\}/g, '')
-      .replace(/if *\((er?r?|reason)\.constructor *!==? *(.*)Error\) *\{[\w\W]*?\}/g, '')
+      // .replace(/if *\((er?r?|reason)\.constructor *!==? *(.*)Error\) *\{[\w\W]*?\}/g, '')
       // .replace(/assert\.sameValue\(\s*e instanceof RangeError,\s*true,[\w\W]+?\);/g, '')
       // replace old tests' custom checks with standard assert
       // .replace(/if \(([^ ]+) !== ([^ ]+)\) \{ *\n *throw new Test262Error\(['"](.*)\. Actual:.*\); *\n\} *\n/g, (_, one, two) => `assert.sameValue(${one}, ${two});\n`)
