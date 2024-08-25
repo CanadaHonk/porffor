@@ -557,9 +557,44 @@ export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, ini
   return acc;
 };
 
+// string less than <
+export const __Porffor_strlt = (a: string|bytestring, b: string|bytestring) => {
+  const maxLength: i32 = Math.max(a.length, b.length);
+  for (let i: i32 = 0; i < maxLength; i++) {
+    const ac: i32 = a.charCodeAt(i);
+    const bc: i32 = b.charCodeAt(i);
+
+    if (ac < bc) return true;
+  }
+
+  return false;
+};
+
 // @porf-typed-array
 export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
-  // todo: default callbackFn
+  if (callbackFn === undefined) {
+    // default callbackFn, convert to strings and sort by char code
+    callbackFn = (x: any, y: any) => {
+      // 23.1.3.30.2 CompareArrayElements (x, y, comparefn)
+      // https://tc39.es/ecma262/#sec-comparearrayelements
+      // 5. Let xString be ? ToString(x).
+      const xString: any = ecma262.ToString(x);
+
+      // 6. Let yString be ? ToString(y).
+      const yString: any = ecma262.ToString(y);
+
+      // 7. Let xSmaller be ! IsLessThan(xString, yString, true).
+      // 8. If xSmaller is true, return -1𝔽.
+      if (__Porffor_strlt(xString, yString)) return -1;
+
+      // 9. Let ySmaller be ! IsLessThan(yString, xString, true).
+      // 10. If ySmaller is true, return 1𝔽.
+      if (__Porffor_strlt(yString, xString)) return 1;
+
+      // 11. Return +0𝔽.
+      return 0;
+    };
+  }
 
   // insertion sort, i guess
   const len: i32 = _this.length;
@@ -584,8 +619,7 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
         else {
           // 4. If comparefn is not undefined, then
           // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
-          // perf: unneeded as we just check >= 0
-          // v = Number(callbackFn(x, y));
+          // perf: ToNumber unneeded as we just check >= 0
           v = callbackFn(x, y);
 
           // b. If v is NaN, return +0𝔽.
