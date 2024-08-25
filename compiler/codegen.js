@@ -1523,6 +1523,7 @@ const countLeftover = wasm => {
         else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.f32_store, Opcodes.i32_store16, Opcodes.i32_store8].includes(inst[0])) count -= 2;
         else if (inst[0] === Opcodes.memory_copy[0] && (inst[1] === Opcodes.memory_copy[1] || inst[1] === Opcodes.memory_init[1])) count -= 3;
         else if (inst[0] === Opcodes.return) count = 0;
+        else if (inst[0] === Opcodes.catch) count += 2;
         else if (inst[0] === Opcodes.call) {
           if (inst[1] < importedFuncs.length) {
             const func = importedFuncs[inst[1]];
@@ -4768,9 +4769,34 @@ const generateTry = (scope, decl) => {
     depth.pop();
     depth.push('catch');
 
-    out.push([ Opcodes.catch_all ]);
-    out.push(...generate(scope, decl.handler.body));
-    out.push(...finalizer);
+    const param = decl.handler.param;
+
+    if (param) {
+      let count = 0;
+      for (let i = 0; i < depth.length; i++) {
+        if (depth[i] === 'catch') count++;
+      }
+
+      const tmpName = '#catch_tmp' + count;
+      const tmp = localTmp(scope, tmpName, valtypeBinary);
+      localTmp(scope, tmpName + "#type", Valtype.i32);
+
+      // setup local for param
+      out.push(
+        [ Opcodes.catch, 0 ],
+        ...setType(scope, tmpName, []),
+        [ Opcodes.local_set, tmp ],
+
+        ...generateVarDstr(scope, 'let', param, { type: 'Identifier', name: tmpName }, undefined, false)
+      );
+    } else {
+      out.push([ Opcodes.catch_all ]);
+    }
+
+    out.push(
+      ...generate(scope, decl.handler.body),
+      ...finalizer
+    );
   }
 
   out.push([ Opcodes.end ]);
