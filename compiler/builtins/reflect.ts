@@ -88,6 +88,7 @@ export const __Reflect_ownKeys = (target: any) => {
 
   const out: any[] = Porffor.allocate();
 
+  target = __Porffor_object_underlying(target);
   const t: i32 = Porffor.rawType(target);
   if (t == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${target}` + 5;
@@ -132,25 +133,6 @@ local.set ${key}`;
     }
 
     out.length = i;
-  } else {
-    if (Porffor.fastOr(
-      t == Porffor.TYPES.array,
-      t == Porffor.TYPES.bytestring,
-      t == Porffor.TYPES.string
-    )) {
-      const len: i32 = obj.length;
-      out.length = len;
-
-      for (let i: i32 = 0; i < len; i++) {
-        out[i] = __Number_prototype_toString(i);
-      }
-    }
-
-    target = __Porffor_object_underlying(target);
-    if (Porffor.rawType(target) == Porffor.TYPES.object) {
-      const objKeys: any[] = __Reflect_ownKeys(target);
-      for (const x of objKeys) Porffor.array.fastPush(out, x);
-    }
   }
 
   return out;
