@@ -1,42 +1,3 @@
-"use strict";
-
-const getArg = (name, def) => {
-  const arg = (typeof process !== 'undefined' ? process.argv : Deno.args).find(x => x.startsWith(`--${name}=`));
-  if (arg) return arg.split('=')[0];
-
-  return def;
-};
-
-// full is spec-compliant but slower. not needed most of the time. (evil)
-const DotChars = () => ({
-  full: [ '\n', '\r', '\u2028', '\u2029' ],
-  fast: [ '\n', '\r' ]
-})[getArg('regex-dot', 'fast')];
-
-const WordChars = () => ({
-  full: [ [ 'a', 'z' ], [ 'A', 'Z' ], [ '0', '9' ], '_' ],
-  fast: [ [ '_', 'z' ], [ 'A', 'Z' ], [ '0', '9' ] ] // skip individual _ with _-z BUT it also matches '`'
-})[getArg('regex-word', 'full')];
-
-const WhitespaceChars = () => ({
-  full: [ ' ', '\t', '\n', '\r', '\u2028', '\u2029' ],
-  fast: [ ' ', '\t', '\n', '\r' ]
-})[getArg('regex-ws', 'fast')];
-
-const _Metachars = () => ({
-  unescaped: {
-    '.': [ DotChars(), true ], // dot
-  },
-  escaped: {
-    d: [ [ [ '0', '9' ] ], false ], // digit
-    D: [ [ [ '0', '9' ] ], true ], // not digit
-    w: [ WordChars(), false ], // word
-    W: [ WordChars(), true ], // not word
-    s: [ WhitespaceChars(), false ], // whitespace
-    S: [ WhitespaceChars(), true ], // not whitespace
-  }
-});
-
 const EscapeSequences = {
   f: '\f',
   n: '\n',
@@ -195,8 +156,83 @@ const parseSet = (str, index, unicodeMode, unicodeSetsMode) => {
   }
   if (!unicodeSetsMode) {
     // Simple character classes
-    
+    let node = {
+      type: 'Set',
+      body: [],
+      negated
+    };
+    while (index < str.length) {
+      let c = str[index++];
+      if (c === ']') {
+        return [ node, index ];
+      }
+      if (c === '\\') {
+        const [ escape, newIndex ] = parseClassEscape(str, index, unicodeMode);
+        if (escape) {
+          node.body.push(escape);
+          index = newIndex;
+          c = '';
+        } else {
+          const [ char, newIndex2 ] = parseEscape(str, index, true, unicodeMode, false);
+          c = char;
+          index = newIndex2;
+        }
+      }
+      if (str[index] !== '-') {
+        if (c) {
+          node.body.push(charNode(c));
+        }
+        continue;
+      }
+      // range
+      if (!c) {
+        if (unicodeMode) {
+          throw new SyntaxError('Cannot use class escape within range in character class');
+        }
+        node.body.push(charNode('-'));
+      }
+      index++;
+      let c2 = str[index++];
+      if (c2 === ']') {
+        if (c) {
+          node.body.push(charNode(c));
+        } else if (unicodeMode) {
+          throw new SyntaxError('Cannot use class escape within range in character class');
+        }
+        node.body.push(charNode('-'));
+        return [ node, index ];
+      }
+      if (c2 === '\\') {
+        const [ escape, newIndex ] = parseClassEscape(str, index, unicodeMode);
+        if (escape) {
+          node.body.push(escape);
+          index = newIndex;
+          c2 = '';
+        } else {
+          const [ char, newIndex2 ] = parseEscape(str, index, true, unicodeMode, false);
+          c2 = char;
+          index = newIndex2;
+        }
+      }
+      if (!c || !c2) {
+        if (unicodeMode) {
+          throw new SyntaxError('Cannot use class escape within range in character class');
+        }
+        if (c) {
+          node.body.push(charNode(c));
+          node.body.push(charNode('-'));
+        }
+        if (c2) node.body.push(charNode(c2));
+      } else {
+        if (c > c2) {
+          throw new SyntaxError('Range out of order in character class');
+        }
+        node.body.push(rangeNode(c, c2));
+      }
+    }
+    throw new SyntaxError('Unclosed character class');
   }
+  // todo: unicode sets
 };
 
 const parseParenthesizedType = (str, index) => {
@@ -303,8 +339,6 @@ const parseQuantifier = (str, index) => {
 };
 
 export default (str, unicodeMode = false, unicodeSetsMode = false) => {
-  const Metachars = _Metachars();
-
   const out = {
     type: 'Expression',
     body: []
@@ -463,6 +497,13 @@ export default (str, unicodeMode = false, unicodeSetsMode = false) => {
           applyQuantifier(node);
         }
         node = parent;
+      } break;
+      case '.': {
+        const n = {
+          type: 'Dot'
+        };
+        target.push(n);
+        applyQuantifier(n);
       } break;
       case '*': case '+': case '?': {
         throw new SyntaxError(`Unexpected quantifier '${c}'`);
