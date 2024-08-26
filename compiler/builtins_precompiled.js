@@ -2053,14 +2053,14 @@ params:[],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[],localNames:[],
 };
 this.__Porffor_promise_resolve = {
-wasm:(_,{t,builtin})=>[[32,2],[32,3],[16,builtin('__ecma262_IsPromise')],[33,4],[33,5],[32,4],[33,6],[2,127],...t([67,195],()=>[[32,6],[65,195,0],[70],[32,6],[65,195,1],[70],[114],[4,64],[32,5],[252,3],[40,1,0],[12,1],[11]]),[32,5],[252,3],[11],[4,64],[5],[32,0],[32,1],[32,2],[32,3],[16,builtin('__ecma262_FulfillPromise')],[33,4],[26],[11],[68,0],[65,128,1],[15]],
+wasm:(_,{t,builtin})=>[[32,0],[32,1],[16,builtin('__ecma262_IsPromise')],[33,4],[33,5],[32,4],[33,6],[2,127],...t([67,195],()=>[[32,6],[65,195,0],[70],[32,6],[65,195,1],[70],[114],[4,64],[32,5],[252,3],[40,1,0],[12,1],[11]]),[32,5],[252,3],[11],[4,64],[5],[32,2],[32,3],[32,0],[32,1],[16,builtin('__ecma262_FulfillPromise')],[33,4],[26],[11],[68,0],[65,128,1],[15]],
 params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
-locals:[127,124,127],localNames:["promise","promise#type","value","value#type","#last_type","#logicinner_tmp","#typeswitch_tmp1"],
+locals:[127,124,127],localNames:["value","value#type","promise","promise#type","#last_type","#logicinner_tmp","#typeswitch_tmp1"],
 };
 this.__Porffor_promise_reject = {
-wasm:(_,{t,builtin})=>[[32,2],[32,3],[16,builtin('__ecma262_IsPromise')],[33,4],[33,5],[32,4],[33,6],[2,127],...t([67,195],()=>[[32,6],[65,195,0],[70],[32,6],[65,195,1],[70],[114],[4,64],[32,5],[252,3],[40,1,0],[12,1],[11]]),[32,5],[252,3],[11],[4,64],[5],[32,0],[32,1],[32,2],[32,3],[16,builtin('__ecma262_RejectPromise')],[33,4],[26],[11],[68,0],[65,128,1],[15]],
+wasm:(_,{t,builtin})=>[[32,0],[32,1],[16,builtin('__ecma262_IsPromise')],[33,4],[33,5],[32,4],[33,6],[2,127],...t([67,195],()=>[[32,6],[65,195,0],[70],[32,6],[65,195,1],[70],[114],[4,64],[32,5],[252,3],[40,1,0],[12,1],[11]]),[32,5],[252,3],[11],[4,64],[5],[32,2],[32,3],[32,0],[32,1],[16,builtin('__ecma262_RejectPromise')],[33,4],[26],[11],[68,0],[65,128,1],[15]],
 params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
-locals:[127,124,127],localNames:["promise","promise#type","reason","reason#type","#last_type","#logicinner_tmp","#typeswitch_tmp1"],
+locals:[127,124,127],localNames:["reason","reason#type","promise","promise#type","#last_type","#logicinner_tmp","#typeswitch_tmp1"],
 };
 this.__Porffor_promise_create = {
 wasm:(_,{builtin})=>[[65,192,0],[16,builtin('__Porffor_allocateBytes')],[183],[34,0],[33,3],[68,0],[33,4],[32,3],[252,3],[32,4],[252,3],[65,9],[108],[106],[34,2],[68,0],[34,1],[57,0,4],[32,2],[65,128,1],[58,0,12],[32,0],[33,3],[68,1],[33,4],[32,3],[252,3],[32,4],[252,3],[65,9],[108],[106],[34,2],[68,0],[34,1],[57,0,4],[32,2],[65,1],[58,0,12],[65,128,4],[16,builtin('__Porffor_allocateBytes')],[183],[33,5],[32,0],[33,3],[68,2],[33,4],[32,3],[252,3],[32,4],[252,3],[65,9],[108],[106],[34,2],[32,5],[34,1],[57,0,4],[32,2],[65,208,0],[58,0,12],[65,128,4],[16,builtin('__Porffor_allocateBytes')],[183],[33,6],[32,0],[33,3],[68,3],[33,4],[32,3],[252,3],[32,4],[252,3],[65,9],[108],[106],[34,2],[32,6],[34,1],[57,0,4],[32,2],[65,208,0],[58,0,12],[32,0],[65,208,0],[15]],
@@ -2088,13 +2088,13 @@ globalInits:{jobQueue:(_,{allocPage,glbl,loc})=>[...number(allocPage(_,'array: p
 table:1,
 };
 this.__Porffor_promise_resolveActive = {
-wasm:(_,{glbl,builtin})=>[...glbl(35,'activePromise',124),...glbl(35,'activePromise#type',127),[32,0],[32,1],[16,builtin('__Porffor_promise_resolve')],[34,2],[15]],
+wasm:(_,{glbl,builtin})=>[[32,0],[32,1],...glbl(35,'activePromise',124),...glbl(35,'activePromise#type',127),[16,builtin('__Porffor_promise_resolve')],[34,2],[15]],
 params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[127],localNames:["value","value#type","#last_type"],
 globalInits:{jobQueue:(_,{allocPage,glbl,loc})=>[...number(allocPage(_,'array: promise.ts/jobQueue','f64'),124),...glbl(36,'jobQueue',124),...glbl(35,'jobQueue',124),[252,3],[33,loc('#makearray_pointer_tmp',127)],[32,loc('#makearray_pointer_tmp',127)],[65,0],[54,1,0],[32,loc('#makearray_pointer_tmp',127)],[68,0],[252,3],[54,1,0],[32,loc('#makearray_pointer_tmp',127)],[26]]},
 };
 this.__Porffor_promise_rejectActive = {
-wasm:(_,{glbl,builtin})=>[...glbl(35,'activePromise',124),...glbl(35,'activePromise#type',127),[32,0],[32,1],[16,builtin('__Porffor_promise_reject')],[34,2],[15]],
+wasm:(_,{glbl,builtin})=>[[32,0],[32,1],...glbl(35,'activePromise',124),...glbl(35,'activePromise#type',127),[16,builtin('__Porffor_promise_reject')],[34,2],[15]],
 params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[127],localNames:["reason","reason#type","#last_type"],
 globalInits:{jobQueue:(_,{allocPage,glbl,loc})=>[...number(allocPage(_,'array: promise.ts/jobQueue','f64'),124),...glbl(36,'jobQueue',124),...glbl(35,'jobQueue',124),[252,3],[33,loc('#makearray_pointer_tmp',127)],[32,loc('#makearray_pointer_tmp',127)],[65,0],[54,1,0],[32,loc('#makearray_pointer_tmp',127)],[68,0],[252,3],[54,1,0],[32,loc('#makearray_pointer_tmp',127)],[26]]},
@@ -2108,13 +2108,13 @@ globalInits:{jobQueue:(_,{allocPage,glbl,loc})=>[...number(allocPage(_,'array: p
 table:1,constr:1,
 };
 this.__Promise_resolve = {
-wasm:(_,{builtin})=>[[16,builtin('__Porffor_promise_create')],[33,3],[34,2],[65,208,0],[32,0],[32,1],[16,builtin('__Porffor_promise_resolve')],[33,3],[26],[32,2],[34,4],[65,36],[15]],
+wasm:(_,{builtin})=>[[16,builtin('__Porffor_promise_create')],[33,3],[33,2],[32,0],[32,1],[32,2],[65,208,0],[16,builtin('__Porffor_promise_resolve')],[33,3],[26],[32,2],[34,4],[65,36],[15]],
 params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[124,127,124],localNames:["value","value#type","obj","#last_type","pro"],
 usedTypes:[80,36],
 };
 this.__Promise_reject = {
-wasm:(_,{builtin})=>[[16,builtin('__Porffor_promise_create')],[33,3],[34,2],[65,208,0],[32,0],[32,1],[16,builtin('__Porffor_promise_reject')],[33,3],[26],[32,2],[34,4],[65,36],[15]],
+wasm:(_,{builtin})=>[[16,builtin('__Porffor_promise_create')],[33,3],[33,2],[32,0],[32,1],[32,2],[65,208,0],[16,builtin('__Porffor_promise_reject')],[33,3],[26],[32,2],[34,4],[65,36],[15]],
 params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[124,127,124],localNames:["reason","reason#type","obj","#last_type","pro"],
 usedTypes:[80,36],

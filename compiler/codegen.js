@@ -408,11 +408,11 @@ const generateReturn = (scope, decl) => {
 
     return [
       // resolve promise with return value
-      [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
-      ...number(TYPES.promise, Valtype.i32),
-
       ...generate(scope, arg),
       ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
+
+      [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
+      ...number(TYPES.promise, Valtype.i32),
 
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_resolve').index ],
       [ Opcodes.drop ],
@@ -6033,10 +6033,29 @@ const generateFunc = (scope, decl) => {
         wasm.unshift(
           [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_create').index ],
           [ Opcodes.drop ],
-          [ Opcodes.local_set, func.locals['#async_out_promise'].idx ]
+          [ Opcodes.local_set, func.locals['#async_out_promise'].idx ],
+
+          // wrap in try for later catch
+          [ Opcodes.try, Blocktype.void ]
         );
 
-        // todo: wrap in try and reject thrown value once supported
+        // reject with thrown value if caught error
+        wasm.push(
+          [ Opcodes.catch, 0 ],
+
+          [ Opcodes.local_get, func.locals['#async_out_promise'].idx ],
+          ...number(TYPES.promise, Valtype.i32),
+
+          [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_reject').index ],
+          [ Opcodes.drop ],
+          [ Opcodes.drop ],
+          [ Opcodes.end ],
+
+          // return promise at the end of func
+          [ Opcodes.local_get, func.locals['#async_out_promise'].idx ],
+          ...number(TYPES.promise, Valtype.i32),
+          [ Opcodes.return ]
+        );
       }
 
       if (name === 'main') {

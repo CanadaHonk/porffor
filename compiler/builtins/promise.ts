@@ -94,7 +94,7 @@ export const __ecma262_RejectPromise = (promise: any[], reason: any): void => {
 
 export const __Porffor_promise_noop = () => {};
 
-export const __Porffor_promise_resolve = (promise: any, value: any): any => {
+export const __Porffor_promise_resolve = (value: any, promise: any): any => {
   // todo: if value is own promise, reject with typeerror
 
   if (__ecma262_IsPromise(value)) {
@@ -106,7 +106,7 @@ export const __Porffor_promise_resolve = (promise: any, value: any): any => {
   return undefined;
 };
 
-export const __Porffor_promise_reject = (promise: any, reason: any): any => {
+export const __Porffor_promise_reject = (reason: any, promise: any): any => {
   if (__ecma262_IsPromise(reason)) {
     // todo
   } else {
@@ -181,8 +181,8 @@ export const __Porffor_promise_runJobs = () => {
 
 // hack: cannot share scope so use a global
 let activePromise: any;
-export const __Porffor_promise_resolveActive = (value: any) => __Porffor_promise_resolve(activePromise, value);
-export const __Porffor_promise_rejectActive = (reason: any) => __Porffor_promise_reject(activePromise, reason);
+export const __Porffor_promise_resolveActive = (value: any) => __Porffor_promise_resolve(value, activePromise);
+export const __Porffor_promise_rejectActive = (reason: any) => __Porffor_promise_reject(reason, activePromise);
 
 export const Promise = function (executor: any): void {
   if (!new.target) throw new TypeError("Constructor Promise requires 'new'");
@@ -200,7 +200,7 @@ export const Promise = function (executor: any): void {
 export const __Promise_resolve = (value: any): Promise => {
   const obj: any[] = __Porffor_promise_create();
 
-  __Porffor_promise_resolve(obj, value);
+  __Porffor_promise_resolve(value, obj);
 
   const pro: Promise = obj;
   return pro;
@@ -209,7 +209,7 @@ export const __Promise_resolve = (value: any): Promise => {
 export const __Promise_reject = (reason: any): Promise => {
   const obj: any[] = __Porffor_promise_create();
 
-  __Porffor_promise_reject(obj, reason);
+  __Porffor_promise_reject(reason, obj);
 
   const pro: Promise = obj;
   return pro;
