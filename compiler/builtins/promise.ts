@@ -191,7 +191,13 @@ export const Promise = function (executor: any): void {
   const obj: any[] = __Porffor_promise_create();
 
   activePromise = obj;
-  executor(__Porffor_promise_resolveActive, __Porffor_promise_rejectActive);
+
+  try {
+    executor(__Porffor_promise_resolveActive, __Porffor_promise_rejectActive);
+  } catch (e) {
+    // executor threw, reject promise
+    __ecma262_RejectPromise(obj, e);
+  }
 
   const pro: Promise = obj;
   return pro;
