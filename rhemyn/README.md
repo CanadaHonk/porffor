@@ -8,7 +8,7 @@ Made for use with Porffor but could possibly be adapted, implementation/library 
 - Wasm function returned expects an i32 pointer to a UTF-16 string (can add UTF-8 option later if someone else actually wants to use this)
 
 ## syntax
-🟢 supported 🟡 partial 🟠 parsed only 🔴 unsupported
+🟢 supported 🟡 partial 🟠 parsed only
 
 - 🟢 literal characters (eg `a`)
 - 🟢 escaping (eg `\.\n\cJ\x0a\u000a`)
@@ -19,7 +19,7 @@ Made for use with Porffor but could possibly be adapted, implementation/library 
 - 🟢 sets (eg `[ab]`)
   - 🟢 ranges (eg `[a-z]`)
   - 🟢 negated sets (eg `[^ab]`)
-  - 🔴 unicode set expressions (eg `[[a-z]&&[b-e]]`)
+  - 🟠 unicode set expressions (eg `[[a-z]&&[b-e]]`)
 - 🟢 metacharacters
   - 🟢 dot (eg `a.b`)
   - 🟢 digit, not digit (eg `\d\D`)

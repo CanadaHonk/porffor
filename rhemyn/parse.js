@@ -56,8 +56,8 @@ const parseEscape = (str, index, inSet, unicodeMode, unicodeSetsMode) => {
         throw new SyntaxError('Unterminated unicode character escape');
       }
       const hexStr = str.substring(index, endIndex);
-      if (/[^0-9a-fA-F]/.test(hexStr)) {
-        throw new SyntaxError('Invalid unicode character escape, expected /\\\\u\\{[0-9a-fA-F]*\\}/');
+      if (hexStr.length === 0 || /[^0-9a-fA-F]/.test(hexStr)) {
+        throw new SyntaxError('Invalid unicode character escape, expected /\\\\u\\{[0-9a-fA-F]+\\}/');
       }
       const code = parseInt(hexStr, 16);
       if (code >= 0x110000) {
@@ -76,7 +76,19 @@ const parseEscape = (str, index, inSet, unicodeMode, unicodeSetsMode) => {
       return [ c, index ];
     }
     const code = parseInt(next, 16);
-    return [ String.fromCharCode(code), index + count ];
+    index += count;
+    if (unicodeMode && inSet && code >= 0xD800 && code <= 0xDBFF && str[index] === '\\' && str[index + 1] === 'u') {
+      // code point using 2 surrogates
+      // only matters within a character class
+      const hexStr = str.substr(index + 2, 4);
+      if (hexStr.length >= 4 && !/[^0-9a-fA-F]/.test(next)) {
+        const code2 = parseInt(hexStr, 16);
+        if (code2 >= 0xDC00 && code2 <= 0xDFFF) {
+          return [ String.fromCharCode(code) + String.fromCharCode(code2), index + 6 ];
+        }
+      }
+    }
+    return [ String.fromCharCode(code), index ];
   }
   if (inSet && c === 'b') {
     return [ '\b', index ];
@@ -111,7 +123,7 @@ const unicodeClassEscapeNode = (property, value, negated) => ({
   negated
 });
 
-const parseClassEscape = (str, index, unicodeMode) => {
+const parseClassEscape = (str, index, unicodeMode, unicodeSetsMode) => {
   switch (str[index]) {
     case 'd': return [ classEscapeNode('Digit', false), index + 1 ];
     case 'D': return [ classEscapeNode('Digit', true), index + 1 ];
@@ -142,7 +154,7 @@ const parseClassEscape = (str, index, unicodeMode) => {
         property = property.substring(0, eq);
       }
       // todo: validate unicode property
-      return [ unicodeClassEscapeNode(property, value, negated), index ];
+      return [ unicodeClassEscapeNode(property, value, negated), endIndex + 1 ];
     default:
       return [ null, index ];
   }
@@ -165,6 +177,14 @@ const parseSet = (str, index, unicodeMode, unicodeSetsMode) => {
       let c = str[index++];
       if (c === ']') {
         return [ node, index ];
+      }
+      if (unicodeMode && c >= '\uD800' && c <= '\uDBFF') {
+        let cx = str[index];
+        if (cx >= '\uDC00' && cx <= '\uDFFF') {
+          // surrogate pair
+          index++;
+          c += cx;
+        }
       }
       if (c === '\\') {
         const [ escape, newIndex ] = parseClassEscape(str, index, unicodeMode);
@@ -193,13 +213,19 @@ const parseSet = (str, index, unicodeMode, unicodeSetsMode) => {
       }
       index++;
       let c2 = str[index++];
+      if (unicodeMode && c2 >= '\uD800' && c2 <= '\uDBFF') {
+        let cx = str[index];
+        if (cx >= '\uDC00' && cx <= '\uDFFF') {
+          // surrogate pair
+          index++;
+          c2 += cx;
+        }
+      }
       if (c2 === ']') {
         if (c) {
           node.body.push(charNode(c));
-        } else if (unicodeMode) {
-          throw new SyntaxError('Cannot use class escape within range in character class');
+          node.body.push(charNode('-'));
         }
-        node.body.push(charNode('-'));
         return [ node, index ];
       }
       if (c2 === '\\') {
@@ -224,7 +250,7 @@ const parseSet = (str, index, unicodeMode, unicodeSetsMode) => {
         }
         if (c2) node.body.push(charNode(c2));
       } else {
-        if (c > c2) {
+        if (c.codePointAt(0) > c2.codePointAt(0)) {
           throw new SyntaxError('Range out of order in character class');
         }
         node.body.push(rangeNode(c, c2));
@@ -232,7 +258,174 @@ const parseSet = (str, index, unicodeMode, unicodeSetsMode) => {
     }
     throw new SyntaxError('Unclosed character class');
   }
-  // todo: unicode sets
+  let node = {
+    type: 'Set',
+    body: [],
+    negated
+  };
+  let parents = [];
+  let allowOperand = true;
+  while (index < str.length) {
+    let c = str[index++];
+    if (c === ']') {
+      if (allowOperand && node.type !== 'Set') {
+        throw new SyntaxError('Trailing set operation ' + (node.type === 'SetIntersection' ? '&&' : '--'));
+      }
+      let parent = parents.pop();
+      if (!parent) {
+        return [ node, index ];
+      }
+      node = parent;
+      allowOperand = node.type === 'Set';
+      continue;
+    }
+    if (c === str[index] && /[&\-!#\$%\*\+,\.:;<=>\?@\^`~]/.test(c)) {
+      // double punctuator
+      index++;
+      if (c !== '&' && c !== '-') {
+        throw new SyntaxError(`Invalid set operation ${c}${c}, only && (intersection) and -- (subtraction) are allowed`);
+      }
+      if (node.body.length === 0) {
+        throw new SyntaxError(`Unexpected set operation ${c}${c} at start of character class`);
+      }
+      if (node.type !== 'Set' && allowOperand) {
+        throw new SyntaxError(`Unexpected set operation ${c}${c} directly after other set operation`);
+      }
+      if (c === '&') {
+        if (node.body.length === 1) {
+          node.type = 'SetIntersection';
+        } else if (node.type !== 'SetIntersection') {
+          throw new SyntaxError('Unexpected set intersection, previously ' + (node.type === 'Set' ? 'union' : 'subtraction'));
+        }
+      } else if (c === '-') {
+        if (node.body.length === 1) {
+          node.type = 'SetSubtraction';
+        } else if (node.type !== 'SetSubtraction') {
+          throw new SyntaxError('Unexpected set subtraction, previously ' + (node.type === 'Set' ? 'union' : 'intersection'));
+        }
+      }
+      if (node.body[0].type === 'Range') {
+        throw new SyntaxError('Range not allowed in set ' + (c === '&' ? 'intersection' : 'subtraction') + ', wrap in []');
+      }
+      allowOperand = true;
+      continue;
+    }
+    if (!allowOperand) {
+      throw new SyntaxError('Unexpected set union, previously ' + (node.type === 'SetIntersection' ? 'intersection' : 'subtraction'));
+    }
+    if (c === '[') {
+      negated = false;
+      if (str[index] === '^') {
+        negated = true;
+        index++;
+      }
+      let newNode = {
+        type: 'Set',
+        body: [],
+        negated
+      };
+      node.body.push(newNode);
+      parents.push(node);
+      node = newNode;
+      allowOperand = true;
+      continue;
+    }
+    if (c === '-') {
+      throw new SyntaxError("Range character '-' has no associated starting character");
+    }
+    if (/[\(\)\{\}\/\|]/.test(c)) {
+      throw new SyntaxError(`Unexpected '${c}' in character class`);
+    }
+    if (c >= '\uD800' && c <= '\uDBFF') {
+      let cx = str[index];
+      if (cx >= '\uDC00' && cx <= '\uDFFF') {
+        // surrogate pair
+        index++;
+        c += cx;
+      }
+    } else if (c === '\\') {
+      // escape sequence or \q{...}
+      if (str[index] === 'q') {
+        // class string disjunction
+        if (str[index + 1] !== '{') {
+          throw new SyntaxError('Invalid escape sequence \\q, expected class string disjunction \\q{...}');
+        }
+        index += 2;
+        let string = '';
+        while (index < str.length) {
+          c = str[index++];
+          if (c === '}') {
+            node.body.push({
+              type: 'ClassStringDisjunction',
+              string
+            });
+            allowOperand = node.type === 'Set';
+            continue;
+          }
+          if (c === str[index] && /[&\-!#\$%\*\+,\.:;<=>\?@\^`~]/.test(c)) {
+            throw new SyntaxError(`Class string disjunction may not contain set operation ${c}${c}, use escaping`);
+          }
+          if (/[\(\)\[\]\{\}\/\-\\\|]/.test(c)) {
+            throw new SyntaxError(`Class string disjunction may not contain set syntax character '${c}', use escaping`);
+          }
+          if (c === '\\') {
+            const [ char, newIndex ] = parseEscape(str, index, true, true, true);
+            c = char;
+            index = newIndex;
+          }
+          string += c;
+        }
+        throw new SyntaxError('Unclosed class string disjunction');
+      }
+      const [ escape, newIndex ] = parseClassEscape(str, index, true, true);
+      if (escape) {
+        node.body.push(escape);
+        allowOperand = node.type === 'Set';
+        index = newIndex;
+        continue;
+      }
+      const [ char, newIndex2 ] = parseEscape(str, index, true, true, true);
+      c = char;
+      index = newIndex2;
+    }
+    if (str[index] === '-') {
+      // range
+      if (node.type !== 'Set') {
+        throw new SyntaxError('Range not allowed in set ' + (node.type === 'SetIntersection' ? 'intersection' : 'subtraction') + ', wrap in []');
+      }
+      index++;
+      let c2 = str[index++];
+      if (!c2) {
+        throw new SyntaxError('Unexpected end after range');
+      }
+      if (c2 === str[index] && /[&\-!#\$%\*\+,\.:;<=>\?@\^`~]/.test(c2)) {
+        throw new SyntaxError(`Range may not end with a set operation (${c2}${c2})`);
+      }
+      if (/[\(\)\[\]\{\}\/\-\\\|]/.test(c)) {
+        throw new SyntaxError(`Range may not contain set syntax character '${c2}', use escaping`);
+      }
+      if (c2 >= '\uD800' && c2 <= '\uDBFF') {
+        let cx = str[index];
+        if (cx >= '\uDC00' && cx <= '\uDFFF') {
+          // surrogate pair
+          index++;
+          c2 += cx;
+        }
+      } else if (c2 === '\\') {
+        const [ char, newIndex ] = parseEscape(str, index, true, true, true);
+        c2 = char;
+        index = newIndex;
+      }
+      if (c.codePointAt(0) > c2.codePointAt(0)) {
+        throw new SyntaxError('Range out of order in character class');
+      }
+      node.body.push(rangeNode(c, c2));
+    } else {
+      node.body.push(charNode(c));
+    }
+    allowOperand = node.type === 'Set';
+  }
+  throw new SyntaxError('Unclosed character class');
 };
 
 const parseParenthesizedType = (str, index) => {
