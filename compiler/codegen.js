@@ -4078,7 +4078,7 @@ const generateForOf = (scope, decl) => {
   // setup local for left
   let setVar;
   if (decl.left.type === 'Identifier') {
-    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    if (scope.strict && lookupName(scope, decl.left.name)[0] == null) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
@@ -4436,7 +4436,7 @@ const generateForIn = (scope, decl) => {
 
   let setVar;
   if (decl.left.type === 'Identifier') {
-    if (scope.strict) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    if (scope.strict && lookupName(scope, decl.left.name)[0] == null) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
