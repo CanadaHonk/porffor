@@ -404,8 +404,6 @@ const generateReturn = (scope, decl) => {
   const arg = decl.argument ?? DEFAULT_VALUE();
 
   if (scope.async) {
-    typeUsed(scope, TYPES.promise);
-
     return [
       // resolve promise with return value
       ...generate(scope, arg),
@@ -6025,7 +6023,9 @@ const generateFunc = (scope, decl) => {
       if (decl.async) {
         // make out promise local
         allocVar(func, '#async_out_promise', false, false);
+
         func.async = true;
+        typeUsed(func, TYPES.promise);
       }
 
       const wasm = prelude.concat(generate(func, body));
