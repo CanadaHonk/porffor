@@ -1149,8 +1149,8 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       return x.toLocaleString('default', {
         month: 'long',
         day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric'
+        // hour: 'numeric',
+        // minute: 'numeric'
       });
     };
 
@@ -1163,7 +1163,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const el = document.createElement('div');
 
       const textEl = document.createElement('a');
-      textEl.textContent = x.title.slice(0, 42) + (x.title.length > 42 ? '...' : '');
+      textEl.textContent = x.title.slice(0, 40) + (x.title.length > 40 ? '...' : '');
       textEl.href = `https://github.com/CanadaHonk/porffor/commit/${x.hash}`;
       textEl.target = '_blank';
 
