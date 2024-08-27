@@ -293,21 +293,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
   }
 };
 
-const mapName = x => {
-  if (!x) return x;
-
-  if (x.startsWith('__globalThis_')) {
-    const key = x.slice('__globalThis_'.length);
-    // hack: this will not work properly
-    return key.includes('_') ? ('__' + key) : key;
-  }
-
-  return x;
-};
-
-const lookupName = (scope, _name) => {
-  const name = mapName(_name);
-
+const lookupName = (scope, name) => {
   if (Object.hasOwn(scope.locals, name)) return [ scope.locals[name], false ];
   if (Object.hasOwn(globals, name)) return [ globals[name], true ];
 
@@ -335,9 +321,8 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
 ];
 
 const generateIdent = (scope, decl) => {
-  const lookup = (rawName, failEarly = false) => {
-    const name = mapName(rawName);
-    let local = scope.locals[rawName];
+  const lookup = (name, failEarly = false) => {
+    let local = scope.locals[name];
 
     if (Object.hasOwn(builtinVars, name)) {
       if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${unhackName(name)} with integer valtype`);
@@ -371,9 +356,9 @@ const generateIdent = (scope, decl) => {
       if (Object.hasOwn(funcIndex, name)) return funcRef(funcByName(name));
     }
 
-    if (local?.idx === undefined && rawName.startsWith('__')) {
+    if (local?.idx === undefined && name.startsWith('__')) {
       // return undefined if unknown key in already known var
-      let parent = rawName.slice(2).split('_').slice(0, -1).join('_');
+      let parent = name.slice(2).split('_').slice(0, -1).join('_');
       if (parent.includes('_')) parent = '__' + parent;
 
       const parentLookup = lookup(parent, true);
@@ -385,7 +370,7 @@ const generateIdent = (scope, decl) => {
 
       return [ [ null, () => {
         // try generating again at the end
-        return lookup(rawName, true);
+        return lookup(name, true);
       }, 1 ] ];
     }
 
@@ -1170,12 +1155,10 @@ const isExistingProtoFunc = name => {
   return false;
 };
 
-const getType = (scope, _name, failEarly = false) => {
+const getType = (scope, name, failEarly = false) => {
   const fallback = failEarly ? number(TYPES.undefined, Valtype.i32) : [ [ null, () => {
-    return getType(scope, _name, true);
+    return getType(scope, name, true);
   }, 1 ] ];
-
-  const name = mapName(_name);
 
   if (Object.hasOwn(builtinVars, name)) return number(builtinVars[name].type ?? TYPES.number, Valtype.i32);
 
@@ -1212,10 +1195,8 @@ const getType = (scope, _name, failEarly = false) => {
   return fallback;
 };
 
-const setType = (scope, _name, type) => {
+const setType = (scope, name, type) => {
   typeUsed(scope, knownType(scope, type));
-
-  const name = mapName(_name);
 
   const out = typeof type === 'number' ? number(type, Valtype.i32) : type;
 
@@ -1749,7 +1730,7 @@ const aliasPrimObjsBC = bc => {
 };
 
 const createThisArg = (scope, decl) => {
-  const name = mapName(decl.callee?.name);
+  const name = decl.callee?.name;
   if (decl._new) {
     // if precompiling or builtin func, just make it null as unused
     if (globalThis.precompile || Object.hasOwn(builtinFuncs, name)) return [
@@ -1823,7 +1804,7 @@ const createThisArg = (scope, decl) => {
 
 const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   let out = [];
-  let name = mapName(decl.callee.name);
+  let name = decl.callee.name;
 
   // opt: virtualize iifes
   if (isFuncType(decl.callee.type)) {
@@ -3075,9 +3056,11 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     pattern = { type: 'Identifier', name: pattern };
   }
 
+  // todo: handle globalThis.foo = ...
+
   if (pattern.type === 'Identifier') {
     let out = [];
-    const name = mapName(pattern.name);
+    const name = pattern.name;
 
     if (init && isFuncType(init.type)) {
       // hack for let a = function () { ... }
@@ -5330,6 +5313,8 @@ const countLength = (func, name = undefined) => {
 const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) => {
   let final = [], finalEnd, extraBC = {};
   const name = decl.object.name;
+
+  // todo: handle globalThis.foo
 
   // hack: .name
   if (decl.property.name === 'name' && hasFuncWithName(name) && !scope.noFastFuncMembers) {
