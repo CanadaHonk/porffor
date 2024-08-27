@@ -316,8 +316,8 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     case TYPES.test262error:
     case TYPES.__porffor_todoerror: {
       const obj = porfToJSValue({ memory, funcs, pages }, value, TYPES.object);
-      const constr = globalThis[TYPE_NAMES[type]] ?? Error;
-      const err = new constr(obj.message);
+      const err = new (globalThis[TYPE_NAMES[type]] ?? Error)(obj.message);
+
       err.name = obj.name;
       err.stack = `${TYPE_NAMES[type]}: ${obj.message}`;
       return err;
