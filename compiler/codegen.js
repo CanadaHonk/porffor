@@ -1864,8 +1864,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     target.name = spl.slice(0, -1).join('_');
 
     if (builtinFuncs['__' + target.name + '_' + protoName]) protoName = null;
-      else if (!lookupName(scope, target.name)[0] && !builtinFuncs[target.name]) {
-        if (lookupName(scope, '__' + target.name)[0] || builtinFuncs['__' + target.name]) target.name = '__' + target.name;
+      else if (lookupName(scope, target.name)[0] == null && !builtinFuncs[target.name]) {
+        if (lookupName(scope, '__' + target.name)[0] != null || builtinFuncs['__' + target.name]) target.name = '__' + target.name;
           else protoName = null;
       }
   }
@@ -3336,6 +3336,19 @@ const getProperty = (decl, forceValueStr = false) => {
   return prop;
 };
 
+const isIdentAssignable = (scope, name, op = '=') => {
+  // not in strict mode and op is =, so ignore
+  if (!scope.strict && op === '=') return true;
+
+  // local exists
+  if (lookupName(scope, name)[0] != null) return true;
+
+  // function with name exists and is not current function
+  if (hasFuncWithName(name) && scope.name !== name) return true;
+
+  return false;
+};
+
 // todo: optimize this func for valueUnused
 const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
@@ -3661,7 +3674,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   if (local === undefined) {
     // only allow = for this, or if in strict mode always throw
-    if (op !== '=' || scope.strict) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
+    if (!isIdentAssignable(scope, name, op)) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
     if (type != 'Identifier') {
       const tmpName = '#rhs' + uniqId();
@@ -4078,7 +4091,7 @@ const generateForOf = (scope, decl) => {
   // setup local for left
   let setVar;
   if (decl.left.type === 'Identifier') {
-    if (scope.strict && lookupName(scope, decl.left.name)[0] == null) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    if (!isIdentAssignable(scope, decl.left.name)) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
@@ -4436,7 +4449,7 @@ const generateForIn = (scope, decl) => {
 
   let setVar;
   if (decl.left.type === 'Identifier') {
-    if (scope.strict && lookupName(scope, decl.left.name)[0] == null) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    if (!isIdentAssignable(scope, decl.left.name)) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
