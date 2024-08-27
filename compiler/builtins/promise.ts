@@ -437,6 +437,5 @@ export const __Porffor_promise_await = (value: any) => {
   if (state == 1) return result;
 
   // rejected
-  // todo: throw result instead of fixed error here
-  throw Error('Uncaught await promise rejection');
+  throw result;
 };
