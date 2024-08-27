@@ -111,7 +111,7 @@ const run = (source, _context, _filename, callback, run = true) => {
 
     prev = prev + ';\n' + source.trim();
   } catch (e) {
-    console.log('Uncaught', e.stack);
+    console.log('Uncaught', e.stack ? e.stack : e);
   }
 
   callback();
