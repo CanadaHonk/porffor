@@ -4735,7 +4735,9 @@ const generateLabel = (scope, decl) => {
 const generateThrow = (scope, decl) => {
   scope.throws = true;
 
-  const exceptionMode = Prefs.exceptionMode ?? 'stack';
+  let exceptionMode = Prefs.exceptionMode ?? 'stack';
+  if (globalThis.precompile) exceptionMode = decl.argument.callee != null ? 'lut' : 'stack';
+
   if (exceptionMode === 'lut') {
     let message = decl.argument.value, constructor = null;
 
@@ -4761,7 +4763,7 @@ const generateThrow = (scope, decl) => {
 
     return [
       ...number(exceptId, Valtype.i32),
-      [ Opcodes.throw, tags[0].idx ]
+      [ Opcodes.throw, 0 ]
     ];
   }
 
@@ -4775,7 +4777,7 @@ const generateThrow = (scope, decl) => {
     return [
       ...generate(scope, decl.argument),
       ...getNodeType(scope, decl.argument),
-      [ Opcodes.throw, tags[0].idx ]
+      [ Opcodes.throw, globalThis.precompile ? 1 : 0 ]
     ];
   }
 };

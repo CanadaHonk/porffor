@@ -25,7 +25,7 @@ const compile = async (file, _funcs) => {
     first = source.slice(0, source.indexOf('\n'));
   }
 
-  let args = ['--module', '--todo-time=compile', '--truthy=no_nan_negative', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--zero-checks=charCodeAt', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data', '--exception-mode=lut'];
+  let args = ['--module', '--todo-time=compile', '--truthy=no_nan_negative', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--zero-checks=charCodeAt', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data'];
   if (first.startsWith('// @porf')) {
     args = first.slice('// @porf '.length).split(' ').concat(args);
   }
@@ -154,11 +154,15 @@ const compile = async (file, _funcs) => {
 
 
         if (y[0] === Opcodes.i32_const && n[0] === Opcodes.throw) {
-          const id = read_signedLEB128(y.slice(1));
-          y.splice(0, 10, 'throw', exceptions[id].constructor, exceptions[id].message);
+          if (n[1] === 0) {
+            const id = read_signedLEB128(y.slice(1));
+            y.splice(0, 10, 'throw', exceptions[id].constructor, exceptions[id].message);
 
-          // remove throw inst
-          wasm.splice(i + 1, 1);
+            // remove throw inst
+            wasm.splice(i + 1, 1);
+          } else {
+            n[0]--;
+          }
         }
       }
     };
