@@ -152,16 +152,15 @@ const compile = async (file, _funcs) => {
           y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type, valtypeBinary);
         }
 
-
-        if (y[0] === Opcodes.i32_const && n[0] === Opcodes.throw) {
-          if (n[1] === 0) {
+        if (n[0] === Opcodes.throw) {
+          if (y[0] === Opcodes.i32_const && n[1] === 0) {
             const id = read_signedLEB128(y.slice(1));
             y.splice(0, 10, 'throw', exceptions[id].constructor, exceptions[id].message);
 
             // remove throw inst
             wasm.splice(i + 1, 1);
           } else {
-            n[0]--;
+            n[1]--;
           }
         }
       }
