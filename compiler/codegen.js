@@ -6223,38 +6223,6 @@ const generateCode = (scope, decl) => {
 };
 
 const internalConstrs = {
-  Array: {
-    generate: (scope, decl, global, name) => {
-      // new Array(i0, i1, ...)
-      if (decl.arguments.length > 1) return generateArray(scope, {
-        elements: decl.arguments
-      }, global, name);
-
-      // new Array(n)
-      const [ out, pointer ] = makeArray(scope, {
-        rawElements: new Array(0)
-      }, global, name, true, undefined, true, true);
-
-      const arg = decl.arguments[0] ?? DEFAULT_VALUE();
-
-      // todo: check in wasm instead of here
-      const literalValue = arg.value ?? 0;
-      if (literalValue < 0 || !Number.isFinite(literalValue) || literalValue > 4294967295) return internalThrow(scope, 'RangeError', 'Invalid array length', true);
-
-      return [
-        ...out,
-        ...generate(scope, arg, global, name),
-        Opcodes.i32_to_u,
-        [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ],
-
-        ...pointer,
-        Opcodes.i32_from_u
-      ];
-    },
-    type: TYPES.array,
-    length: 1
-  },
-
   __Array_of: {
     // this is not a constructor but best fits internal structure here
     generate: (scope, decl, global, name) => {

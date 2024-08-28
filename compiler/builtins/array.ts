@@ -1,5 +1,37 @@
 import type {} from './porffor.d.ts';
 
+export const Array = function (...args: any[]): any[] {
+  const argsLen: number = args.length;
+  if (argsLen == 0) {
+    // 0 args, new 0 length array
+    const out: any[] = Porffor.allocate();
+    return out;
+  }
+
+  if (argsLen == 1) {
+    // 1 arg, length (number) or first element (non-number)
+    const arg: any = args[0];
+    if (Porffor.rawType(arg) == Porffor.TYPES.number) {
+      // number so use as length
+      const n: number = args[0];
+      if (Porffor.fastOr(
+        n < 0, // negative
+        n > 4294967295, // over 2**32 - 1
+        !Number.isInteger(n) // non-integer/non-finite
+      )) throw new RangeError('Invalid array length');
+
+      const out: any[] = Porffor.allocate();
+      out.length = arg;
+      return out;
+    }
+
+    // not number, leave to fallthrough as same as >1
+  }
+
+  // >1 arg, just return args array
+  return args;
+};
+
 export const __Array_isArray = (x: unknown): boolean =>
   Porffor.rawType(x) == Porffor.TYPES.array;
 

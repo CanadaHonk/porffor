@@ -1,8 +1,6 @@
 import type {} from './porffor.d.ts';
 
 export const Object = function (value: any): object {
-  new.target; // trick compiler into allowing as constructor
-
   if (value == null) {
     // if nullish, return new empty object
     const obj: object = Porffor.allocate();
