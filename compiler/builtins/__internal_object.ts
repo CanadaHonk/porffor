@@ -1,5 +1,5 @@
-const underlyingKeys: any[] = new Array(0);
-const underlyingVals: any[] = new Array(0);
+const underlyingKeys: any[] = [];
+const underlyingVals: any[] = [];
 export const __Porffor_object_underlying = (obj: any): any => {
   const t: i32 = Porffor.rawType(obj);
   if (t == Porffor.TYPES.object) return obj;

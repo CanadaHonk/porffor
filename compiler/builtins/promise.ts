@@ -8,7 +8,7 @@ export const __ecma262_NewPromiseReactionJob = (reaction: any[], argument: any):
   return job;
 };
 
-const jobQueue: any[] = new Array(0);
+const jobQueue: any[] = [];
 export const __ecma262_HostEnqueuePromiseJob = (job: any[]): void => {
   Porffor.array.fastPush(jobQueue, job);
 };
