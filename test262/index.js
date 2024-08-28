@@ -404,7 +404,11 @@ if (isMainThread) {
     let contents = test.contents, attrs = test.attrs;
 
     if (!attrs.flags.raw) {
-      contents = (attrs.flags.async ? preludes['doneprintHandle.js'] : '') + attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? ''), '') + alwaysPrelude + contents;
+      contents = (test.scenario === 'strict mode' ? '"use strict";\n' : '') +
+        (attrs.flags.async ? preludes['doneprintHandle.js'] : '') +
+        attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? ''), '') +
+        alwaysPrelude +
+        contents;
     }
 
     if (debugAsserts) contents = contents
@@ -483,7 +487,7 @@ if (isMainThread) {
     out += (i << 4);
 
     if (logErrors) {
-      console.log(`\u001b[${pass ? '92' : '91'}m${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m` + (!pass && error ? ('\n' + error?.stack || `${error.name}: ${error.message}`) : ''));
+      console.log(`\u001b[${pass ? '92' : '91'}m${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m` + (!pass && error ? ('\n' + (error?.stack || error.toString())) : ''));
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {
