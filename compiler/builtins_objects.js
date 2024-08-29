@@ -244,6 +244,10 @@ export default function({ builtinFuncs }, Prefs) {
   object('Reflect', autoFuncs('Reflect'));
   object('Object', autoFuncs('Object'));
   object('JSON', autoFuncs('JSON'));
+  object('Promise', autoFuncs('Promise'));
+  object('Array', autoFuncs('Array'));
+  object('Symbol', autoFuncs('Symbol'));
+  object('Date', autoFuncs('Date'));
 
 
   // these technically not spec compliant as it should be classes or non-enumerable but eh
