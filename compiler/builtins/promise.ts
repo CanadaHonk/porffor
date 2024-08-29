@@ -38,7 +38,7 @@ export const __ecma262_IsPromise = (x: any): boolean => {
 // https://tc39.es/ecma262/#sec-fulfillpromise
 export const __ecma262_FulfillPromise = (promise: any[], value: any): void => {
   // 1. Assert: The value of promise.[[PromiseState]] is pending.
-  // todo
+  if (promise[1] != 0) return;
 
   // 2. Let reactions be promise.[[PromiseFulfillReactions]].
   const reactions: any[] = promise[2]; // fulfillReactions
@@ -65,7 +65,7 @@ export const __ecma262_FulfillPromise = (promise: any[], value: any): void => {
 // https://tc39.es/ecma262/#sec-rejectpromise
 export const __ecma262_RejectPromise = (promise: any[], reason: any): void => {
   // 1. Assert: The value of promise.[[PromiseState]] is pending.
-  // todo
+  if (promise[1] != 0) return;
 
   // 2. Let reactions be promise.[[PromiseRejectReactions]].
   const reactions: any[] = promise[3]; // rejectReactions
