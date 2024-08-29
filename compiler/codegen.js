@@ -3738,7 +3738,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 const ifIdentifierErrors = (scope, decl) => {
   if (decl.type === 'Identifier') {
     const out = generate(scope, decl);
-    if (out[1]) return true;
+    if (out[0][0] === null && typeof out[0][1] === 'function') return true;
   }
 
   return false;
@@ -3814,16 +3814,14 @@ const generateUnary = (scope, decl) => {
       let toReturn = true, toGenerate = true;
 
       if (decl.argument.type === 'Identifier') {
-        const out = generate(scope, decl.argument);
-
         // if ReferenceError (undeclared var), ignore and return true. otherwise false
-        if (!out[1]) {
-          // exists
-          toReturn = false;
-        } else {
+        if (ifIdentifierErrors(scope, decl.argument)) {
           // does not exist (2 ops from throw)
           toReturn = true;
           toGenerate = false;
+        } else {
+          // exists
+          toReturn = false;
         }
       }
 
