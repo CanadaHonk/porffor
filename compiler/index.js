@@ -164,8 +164,26 @@ export default (code, module = undefined) => {
       data[i] = run(data[i]);
     }
 
-    const url = Diagram.url(Diagram.tree(data));
-    console.log(`built-in tree: ${url}`);
+    const print = (x, depth = []) => {
+      for (const [ name, inc ] of x) {
+        if (inc.length === 0) continue;
+        console.log(name);
+
+        for (let i = 0; i < inc.length; i++) {
+          if (inc[i][1].length === 0) continue;
+          process.stdout.write(`${depth.join(' ')}${depth.length > 0 ? ' ' : ''}${i != inc.length - 1 ? '├' : '└' } `);
+
+          const newDepth = [...depth];
+          newDepth.push(i != inc.length - 1 ? '│' : '');
+
+          print([ inc[i] ], newDepth);
+        }
+      }
+    };
+    print(data);
+
+    // const url = Diagram.url(Diagram.tree(data));
+    // console.log(`built-in tree: ${url}`);
   }
 
   if (logProgress) progressStart('assembling...');
