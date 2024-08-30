@@ -68,13 +68,6 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
   return out;
 };
 
-export const __Porffor_array_fastPush = (arr: any[], el: any): i32 => {
-  let len: i32 = arr.length;
-  arr[len] = el;
-  arr.length = ++len;
-  return len;
-};
-
 export const __Array_prototype_push = (_this: any[], ...items: any[]) => {
   let len: i32 = _this.length;
   const itemsLen: i32 = items.length;
@@ -871,4 +864,21 @@ export const __Array_prototype_flat = (_this: any[], _depth: any) => {
   out.length = j;
 
   return out;
+};
+
+
+export const __Porffor_array_fastPush = (arr: any[], el: any): i32 => {
+  let len: i32 = arr.length;
+  arr[len] = el;
+  arr.length = ++len;
+  return len;
+};
+
+export const __Porffor_array_fastIndexOf = (arr: any[], el: any): i32 => {
+  const len: i32 = arr.length;
+  for (let i: i32 = 0; i < len; i++) {
+    if (arr[i] === el) return i;
+  }
+
+  return -1;
 };
