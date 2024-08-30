@@ -2,8 +2,6 @@ export default () => {
   let out = '';
 
   const error = name => out += `export const ${name} = function (message: any) {
-  new.target; // trick compiler into allowing as constructor
-
   const _empty: bytestring = '';
   if (message === undefined) message = _empty;
     else message = ecma262.ToString(message);
