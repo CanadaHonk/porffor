@@ -3747,8 +3747,20 @@ const ifIdentifierErrors = (scope, decl) => {
 const generateUnary = (scope, decl) => {
   switch (decl.operator) {
     case '+':
-      // stub
-      return generate(scope, decl.argument);
+      // 13.5.4 Unary + Operator, 13.5.4.1 Runtime Semantics: Evaluation
+      // https://tc39.es/ecma262/#sec-unary-plus-operator-runtime-semantics-evaluation
+      // 1. Let expr be ? Evaluation of UnaryExpression.
+      // 2. Return ? ToNumber(? GetValue(expr)).
+      return generate(scope, {
+        type: 'CallExpression',
+        callee: {
+          type: 'Identifier',
+          name: '__ecma262_ToNumber'
+        },
+        arguments: [
+          decl.argument
+        ]
+      });
 
     case '-':
       // * -1
