@@ -952,7 +952,7 @@ export const BuiltinFuncs = function() {
   this.__Porffor_bytestringToString = {
     params: [ Valtype.i32, Valtype.i32 ],
     locals: [ Valtype.i32, Valtype.i32 ],
-    localNames: [ 'src', 'len', '#bytestring_to_string_counter', '#bytestring_to_string_dst' ],
+    localNames: [ 'src', 'len', 'counter', 'dst' ],
     returns: [ Valtype.i32 ],
     returnType: TYPES.string,
     wasm: [
@@ -966,10 +966,6 @@ export const BuiltinFuncs = function() {
       // dst.length = len
       [ Opcodes.local_get, 1 ],
       [ Opcodes.i32_store, 0, 0 ],
-
-      // counter = 0
-      [ Opcodes.i32_const, 0 ],
-      [ Opcodes.local_set, 2 ],
 
       [ Opcodes.loop, Blocktype.void ],
 
