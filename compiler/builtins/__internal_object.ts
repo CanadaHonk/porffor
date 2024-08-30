@@ -13,7 +13,10 @@ export const __Porffor_object_underlying = (obj: any): any => {
   }
 
   if (Porffor.fastAnd(t > 0x05, t != Porffor.TYPES.undefined)) {
-    let idx: i32 = Porffor.array.fastIndexOf(underlyingKeys, obj);
+    // this causes memory corruption things in some situations in test262?
+    // let idx: i32 = Porffor.array.fastIndexOf(underlyingKeys, obj);
+
+    let idx: i32 = underlyingKeys.indexOf(obj);
     if (idx == -1) {
       const underlying: object = {};
 
