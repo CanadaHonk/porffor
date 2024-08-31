@@ -46,26 +46,26 @@ export const __Porffor_object_underlying = (obj: any): any => {
         }
       }
 
-      if (t == Porffor.TYPES.string) {
+      if (Porffor.fastOr(t == Porffor.TYPES.string, t == Porffor.TYPES.stringobject)) {
         const str: string = obj;
         const len: i32 = str.length;
 
-        const key3: bytestring = 'length';
-        __Porffor_object_expr_initWithFlags(underlying, key1, len, 0b0000);
+        const key4: bytestring = 'length';
+        __Porffor_object_expr_initWithFlags(underlying, key4, len, 0b0000);
 
         for (let i: i32 = 0; i < len; i++) {
           __Porffor_object_expr_initWithFlags(underlying, __Number_prototype_toString(i), str[i], 0b0100);
         }
 
-        Porffor.object.preventExtensions(underlying);
+        if (t == Porffor.TYPES.string) Porffor.object.preventExtensions(underlying);
       }
 
       if (t == Porffor.TYPES.bytestring) {
         const str: bytestring = obj;
         const len: i32 = str.length;
 
-        const key3: bytestring = 'length';
-        __Porffor_object_expr_initWithFlags(underlying, key1, len, 0b0000);
+        const key5: bytestring = 'length';
+        __Porffor_object_expr_initWithFlags(underlying, key5, len, 0b0000);
 
         for (let i: i32 = 0; i < len; i++) {
           __Porffor_object_expr_initWithFlags(underlying, __Number_prototype_toString(i), str[i], 0b0100);
