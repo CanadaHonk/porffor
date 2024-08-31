@@ -703,7 +703,8 @@ export const __Object_prototype_toString = (_this: any) => {
     t == Porffor.TYPES.numberobject)) return out = '[object Number]';
   if (Porffor.fastOr(
     t == Porffor.TYPES.string,
-    t == Porffor.TYPES.bytestring)) return out = '[object String]';
+    t == Porffor.TYPES.bytestring,
+    t == Porffor.TYPES.stringobject)) return out = '[object String]';
   if (t == Porffor.TYPES.date) return out = '[object Date]';
   if (t == Porffor.TYPES.regexp) return out = '[object RegExp]';
 

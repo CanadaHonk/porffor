@@ -76,6 +76,7 @@ registerInternalType('Promise');
 
 registerInternalType('BooleanObject');
 registerInternalType('NumberObject');
+registerInternalType('StringObject');
 
 registerInternalType('Error');
 registerInternalType('AggregateError');

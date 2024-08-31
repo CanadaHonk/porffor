@@ -601,18 +601,21 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
         [ Opcodes.i32_eqz ], */
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ] ],
+
+      ...(truthyMode === 'full' ? [ [ [ TYPES.booleanobject, TYPES.numberobject ], [
+        // always truthy :))
+        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+        ...number(1, intOut ? Valtype.i32 : valtypeBinary)
+      ] ] ] : []),
+
+      [ 'default', def ]
+
       // [ [ TYPES.boolean, TYPES.number, TYPES.object, TYPES.undefined, TYPES.empty ], def ],
       // [ 'default', [
       //   // other types are always truthy
       //   ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
       //   ...number(1, intOut ? Valtype.i32 : valtypeBinary)
       // ] ]
-      ...(truthyMode === 'full' ? [ [ [ TYPES.booleanobject, TYPES.numberobject ], [
-        // always truthy :))
-        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
-        ...number(1, intOut ? Valtype.i32 : valtypeBinary)
-      ] ] ] : []),
-      [ 'default', def ]
     ], intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
@@ -666,18 +669,21 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
         [ Opcodes.i32_eqz ],
         ...(intOut ? [] : [ Opcodes.i32_from_u ])
       ] ],
+
+      ...(truthyMode === 'full' ? [ [ [ TYPES.booleanobject, TYPES.numberobject ], [
+        // always truthy :))
+        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
+        ...number(0, intOut ? Valtype.i32 : valtypeBinary)
+      ] ] ] : []),
+
+      [ 'default', def ]
+
       // [ [ TYPES.boolean, TYPES.number, TYPES.object, TYPES.undefined, TYPES.empty ], def ],
       // [ 'default', [
       //   // other types are always truthy
       //   ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
       //   ...number(0, intOut ? Valtype.i32 : valtypeBinary)
       // ] ]
-      ...(truthyMode === 'full' ? [ [ [ TYPES.booleanobject, TYPES.numberobject ], [
-        // always truthy :))
-        ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
-        ...number(0, intOut ? Valtype.i32 : valtypeBinary)
-      ] ] ] : []),
-      [ 'default', def ]
     ], intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
@@ -749,7 +755,8 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   // todo: niche null hell with 0
 
   if ((knownLeft === TYPES.string || knownRight === TYPES.string) ||
-      (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring)) {
+      (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) ||
+      (knownLeft === TYPES.stringobject || knownRight === TYPES.stringobject)) {
     if (op === '+') {
       // string concat (a + b)
       return concatStrings(scope, left, right, leftType, rightType);
@@ -887,6 +894,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
         // switch primitive types to primitive object types
         if (checkType === TYPES.number) checkType = TYPES.numberobject;
         if (checkType === TYPES.boolean) checkType = TYPES.booleanobject;
+        if (checkType === TYPES.string) checkType = TYPES.stringobject;
 
         // currently unsupported types
         if ([TYPES.string].includes(checkType)) {
@@ -1269,6 +1277,14 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'CallExpression' || node.type === 'NewExpression') {
       const name = node.callee.name;
+
+      // hack: special primitive object types
+      if (node.type === 'NewExpression') {
+        if (name === 'Number') return TYPES.numberobject;
+        if (name === 'Boolean') return TYPES.booleanobject;
+        if (name === 'String') return TYPES.stringobject;
+      }
+
       if (name == null) {
         // iife
         if (scope.locals['#last_type']) return getLastType(scope);
@@ -1375,11 +1391,14 @@ const getNodeType = (scope, node) => {
 
       if ((knownLeft != null || knownRight != null) && !(
         (knownLeft === TYPES.string || knownRight === TYPES.string) ||
-        (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring)
+        (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) ||
+        (knownLeft === TYPES.stringobject || knownRight === TYPES.stringobject)
       )) return TYPES.number;
 
-      if (knownLeft === TYPES.string || knownRight === TYPES.string)
-        return TYPES.string;
+      if (
+        (knownLeft === TYPES.string || knownRight === TYPES.string) ||
+        (knownLeft === TYPES.stringobject || knownRight === TYPES.stringobject)
+      ) return TYPES.string;
 
       // guess bytestring, could really be bytestring or string
       if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring)
@@ -1727,6 +1746,7 @@ const aliasPrimObjsBC = bc => {
 
   add(TYPES.boolean, TYPES.booleanobject);
   add(TYPES.number, TYPES.numberobject);
+  add(TYPES.string, TYPES.stringobject);
 };
 
 const createThisArg = (scope, decl) => {
@@ -2099,6 +2119,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           ];
         };
       }
+
+      // alias primitive prototype with primitive object types
+      aliasPrimObjsBC(protoBC);
 
       return [
         ...(usePointerCache ? [
@@ -6195,6 +6218,7 @@ const generateFunc = (scope, decl) => {
       ].includes(typeAnno.type)) {
         let types = [ typeAnno.type ];
         if (typeAnno.type === TYPES.number) types.push(TYPES.numberobject);
+        if (typeAnno.type === TYPES.string) types.push(TYPES.stringobject);
 
         prelude.push(
           ...typeIsNotOneOf([ [ Opcodes.local_get, func.locals[name].idx + 1 ] ], types),

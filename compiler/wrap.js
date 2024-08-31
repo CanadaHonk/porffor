@@ -159,6 +159,8 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       return Array.from(read(Uint8Array, memory, value + 4, length)).map(x => String.fromCharCode(x)).join('');
     }
 
+    case TYPES.stringobject: return new String(porfToJSValue({ memory, funcs, pages }, value, TYPES.string));
+
     case TYPES.array: {
       let length = read(Uint32Array, memory, value, 1)[0];
       if (override) length = override;
