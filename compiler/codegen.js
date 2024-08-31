@@ -5885,8 +5885,8 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined) =
     __Porffor_s: str => makeString(scope, str, global, name, false)
   };
 
+  const { quasis, expressions } = decl.quasi;
   if (intrinsics[decl.tag.name]) {
-    const { quasis, expressions } = decl.quasi;
     let str = quasis[0].value.raw;
 
     for (let i = 0; i < expressions.length; i++) {
@@ -5903,7 +5903,20 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined) =
     return cacheAst(decl, intrinsics[decl.tag.name](str));
   }
 
-  return todo(scope, 'tagged template expressions not implemented', true);
+  return generate(scope, {
+    type: 'CallExpression',
+    callee: decl.tag,
+    arguments: [
+      { // strings
+        type: 'ArrayExpression',
+        elements: quasis.map(x => ({
+          type: 'Literal',
+          value: x.value.cooked
+        }))
+      },
+      ...expressions
+    ]
+  });
 };
 
 globalThis._uniqId = 0;
