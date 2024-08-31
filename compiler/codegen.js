@@ -96,10 +96,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateChain(scope, decl));
 
     case 'CallExpression':
-      return cacheAst(decl, generateCall(scope, decl, global, name, valueUnused));
-
     case 'NewExpression':
-      return cacheAst(decl, generateNew(scope, decl, global, name));
+      return cacheAst(decl, generateCall(scope, decl, global, name, valueUnused));
 
     case 'ThisExpression':
       return cacheAst(decl, generateThis(scope, decl));
@@ -1753,6 +1751,8 @@ const createThisArg = (scope, decl) => {
 };
 
 const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
+  if (decl.type === 'NewExpression') decl._new = true;
+
   let out = [];
   let name = decl.callee.name;
 
@@ -2535,11 +2535,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   return out;
 };
-
-const generateNew = (scope, decl, _global, _name) => generateCall(scope, {
-  ...decl,
-  _new: true
-}, _global, _name);
 
 const generateThis = (scope, decl) => {
   if (!scope.constr) {
