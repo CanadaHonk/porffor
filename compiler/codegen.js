@@ -189,6 +189,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'TemplateLiteral':
       return cacheAst(decl, generateTemplate(scope, decl));
 
+    case 'TaggedTemplateExpression':
+      return cacheAst(decl, generateTaggedTemplate(scope, decl, global, name));
+
     case 'ExportNamedDeclaration':
       if (!decl.declaration) return todo(scope, 'unsupported export declaration');
 
@@ -208,79 +211,6 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       }
 
       return cacheAst(decl, []);
-
-    case 'TaggedTemplateExpression': {
-      const funcs = {
-        __Porffor_wasm: str => {
-          let out = [];
-
-          for (const line of str.split('\n')) {
-            const asm = line.trim().split(';;')[0].split(' ').filter(x => x);
-            if (!asm[0]) continue; // blank
-
-            if (asm[0] === 'local') {
-              const [ name, type ] = asm.slice(1);
-              scope.locals[name] = { idx: scope.localInd++, type: Valtype[type] };
-              continue;
-            }
-
-            if (asm[0] === 'returns') {
-              scope.returns = asm.slice(1).map(x => Valtype[x]);
-              continue;
-            }
-
-            let inst = Opcodes[asm[0].replace('.', '_')];
-            if (inst == null) throw new Error(`inline asm: inst ${asm[0]} not found`);
-            if (!Array.isArray(inst)) inst = [ inst ];
-
-            const immediates = asm.slice(1).map(x => {
-              const int = parseInt(x);
-              if (Number.isNaN(int)) {
-                if (builtinFuncs[x]) {
-                  if (funcIndex[x] == null) includeBuiltin(scope, x);
-                  return funcIndex[x];
-                }
-
-                return scope.locals[x]?.idx ?? globals[x].idx;
-              }
-              return int;
-            });
-
-            const encodeFunc = ({
-              [Opcodes.f64_const]: x => x,
-              [Opcodes.if]: unsignedLEB128,
-              [Opcodes.loop]: unsignedLEB128
-            })[inst[0]] ?? signedLEB128;
-            out.push([ ...inst, ...immediates.flatMap(x => encodeFunc(x)) ]);
-          }
-
-          return out;
-        },
-
-        __Porffor_bs: str => makeString(scope, str, global, name, true),
-        __Porffor_s: str => makeString(scope, str, global, name, false)
-      };
-
-      const func = decl.tag.name;
-      // hack for inline asm
-      if (!funcs[func]) return cacheAst(decl, todo(scope, 'tagged template expressions not implemented', true));
-
-      const { quasis, expressions } = decl.quasi;
-      let str = quasis[0].value.raw;
-
-      for (let i = 0; i < expressions.length; i++) {
-        const e = expressions[i];
-        if (!e.name) {
-          if (e.type === 'BinaryExpression' && e.operator === '+' && e.left.type === 'Identifier' && e.right.type === 'Literal') {
-            str += lookupName(scope, e.left.name)[0].idx + e.right.value;
-          } else todo(scope, 'unsupported expression in intrinsic');
-        } else str += lookupName(scope, e.name)[0].idx;
-
-        str += quasis[i + 1].value.raw;
-      }
-
-      return cacheAst(decl, funcs[func](str));
-    }
 
     default:
       // ignore typescript nodes
@@ -5906,6 +5836,79 @@ export const generateTemplate = (scope, decl) => {
   }
 
   return generate(scope, current);
+};
+
+const generateTaggedTemplate = (scope, decl, global = false, name = undefined) => {
+  const intrinsics = {
+    __Porffor_wasm: str => {
+      let out = [];
+
+      for (const line of str.split('\n')) {
+        const asm = line.trim().split(';;')[0].split(' ').filter(x => x);
+        if (!asm[0]) continue; // blank
+
+        if (asm[0] === 'local') {
+          const [ name, type ] = asm.slice(1);
+          scope.locals[name] = { idx: scope.localInd++, type: Valtype[type] };
+          continue;
+        }
+
+        if (asm[0] === 'returns') {
+          scope.returns = asm.slice(1).map(x => Valtype[x]);
+          continue;
+        }
+
+        let inst = Opcodes[asm[0].replace('.', '_')];
+        if (inst == null) throw new Error(`inline asm: inst ${asm[0]} not found`);
+        if (!Array.isArray(inst)) inst = [ inst ];
+
+        const immediates = asm.slice(1).map(x => {
+          const int = parseInt(x);
+          if (Number.isNaN(int)) {
+            if (builtinFuncs[x]) {
+              if (funcIndex[x] == null) includeBuiltin(scope, x);
+              return funcIndex[x];
+            }
+
+            return scope.locals[x]?.idx ?? globals[x].idx;
+          }
+          return int;
+        });
+
+        const encodeFunc = ({
+          [Opcodes.f64_const]: x => x,
+          [Opcodes.if]: unsignedLEB128,
+          [Opcodes.loop]: unsignedLEB128
+        })[inst[0]] ?? signedLEB128;
+        out.push([ ...inst, ...immediates.flatMap(x => encodeFunc(x)) ]);
+      }
+
+      return out;
+    },
+
+    __Porffor_bs: str => makeString(scope, str, global, name, true),
+    __Porffor_s: str => makeString(scope, str, global, name, false)
+  };
+
+  if (intrinsics[decl.tag.name]) {
+    const { quasis, expressions } = decl.quasi;
+    let str = quasis[0].value.raw;
+
+    for (let i = 0; i < expressions.length; i++) {
+      const e = expressions[i];
+      if (!e.name) {
+        if (e.type === 'BinaryExpression' && e.operator === '+' && e.left.type === 'Identifier' && e.right.type === 'Literal') {
+          str += lookupName(scope, e.left.name)[0].idx + e.right.value;
+        } else todo(scope, 'unsupported expression in intrinsic');
+      } else str += lookupName(scope, e.name)[0].idx;
+
+      str += quasis[i + 1].value.raw;
+    }
+
+    return cacheAst(decl, intrinsics[decl.tag.name](str));
+  }
+
+  return todo(scope, 'tagged template expressions not implemented', true);
 };
 
 globalThis._uniqId = 0;
