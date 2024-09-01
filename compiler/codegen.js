@@ -5414,16 +5414,39 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
     const known = knownType(scope, getNodeType(scope, decl.object));
     for (const x of prototypes) {
-      const type = TYPES[x.split('_prototype')[0].slice(2).toLowerCase()];
+      let type = TYPES[x.split('_prototype')[0].slice(2).toLowerCase()];
       if (type == null) continue;
 
       // do not __proto__ primitive hack for objects or functions
       if (type === TYPES.object || type === TYPES.function) continue;
 
+      // hack: do not support primitives for Object.prototype.isPrototypeOf
+      if (scope.name === '__Object_prototype_isPrototypeOf') {
+        switch (type) {
+          case TYPES.boolean:
+            type = TYPES.booleanobject;
+            break;
+
+          case TYPES.number:
+            type = TYPES.numberobject;
+            break;
+
+          case TYPES.string:
+            type = TYPES.stringobject;
+            break;
+
+          case TYPES.bytestring:
+            continue;
+        }
+      }
+
       const ident = {
         type: 'Identifier',
         name: x
       };
+
+      // hack: bytestrings should return string prototype
+      if (type === TYPES.bytestring) ident.name = '__String_prototype';
 
       bc[type] = () => [
         ...generate(scope, ident),
