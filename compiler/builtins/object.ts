@@ -674,11 +674,19 @@ export const __Object_prototype_isPrototypeOf = (_this: any, obj: any) => {
 
 export const __Object_prototype_toString = (_this: any) => {
   if (Porffor.rawType(_this) == Porffor.TYPES.object) {
-     // todo: breaks with Foo.prototype
+    // todo: breaks with Foo.prototype
     const obj: object = _this;
     if (obj != null) {
-      const ovr: any = obj.toString;
-      if (ovr != null && ovr !== __Object_prototype_toString) return ovr.call(_this);
+      let ovr: any = obj.toString;
+      if (Porffor.rawType(ovr) == Porffor.TYPES.function && ovr != __Object_prototype_toString) return ovr.call(_this);
+
+      const key: bytestring = 'toString';
+      const entryPtr: i32 = Porffor.object.lookup(obj, key);
+      if (entryPtr != -1) {
+        ovr = Porffor.object.readValue(entryPtr);
+        if (Porffor.rawType(ovr) == Porffor.TYPES.function) return ovr.call(_this);
+          else return undefined;
+      }
     }
   }
 
@@ -719,8 +727,16 @@ export const __Object_prototype_valueOf = (_this: any) => {
     // todo: breaks with Foo.prototype
     const obj: object = _this;
     if (obj != null) {
-      const ovr: any = obj.valueOf;
-      if (ovr != null && ovr !== __Object_prototype_valueOf) return ovr.call(_this);
+      let ovr: any = obj.valueOf;
+      if (Porffor.rawType(ovr) == Porffor.TYPES.function && ovr != __Object_prototype_valueOf) return ovr.call(_this);
+
+      const key: bytestring = 'valueOf';
+      const entryPtr: i32 = Porffor.object.lookup(obj, key);
+      if (entryPtr != -1) {
+        ovr = Porffor.object.readValue(entryPtr);
+        if (Porffor.rawType(ovr) == Porffor.TYPES.function) return ovr.call(_this);
+          else return undefined;
+      }
     }
   }
 

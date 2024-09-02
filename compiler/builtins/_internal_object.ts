@@ -166,6 +166,15 @@ export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
   return -1;
 };
 
+export const __Porffor_object_readValue = (entryPtr: i32): any => {
+  Porffor.wasm`
+local.get ${entryPtr}
+f64.load 0 4
+local.get ${entryPtr}
+i32.load8_u 0 13
+return`;
+};
+
 export const __Porffor_object_get = (obj: any, key: any): any => {
   const trueType: i32 = Porffor.wasm`local.get ${obj+1}`;
   if (trueType == Porffor.TYPES.function) {
