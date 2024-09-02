@@ -5954,6 +5954,10 @@ let objectHackers = [];
 const objectHack = node => {
   if (!node) return node;
 
+  // delete .end, .loc while here
+  delete node.end;
+  delete node.loc;
+
   if (node.type === 'MemberExpression') {
     const out = (() => {
       const abortOut = { ...node, object: objectHack(node.object) };
