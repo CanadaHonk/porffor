@@ -135,27 +135,7 @@ export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
   const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
   const endPtr: i32 = ptr + size * 14;
 
-  if (targetType == Porffor.TYPES.bytestring) {
-    const targetStr: bytestring = target;
-    for (; ptr < endPtr; ptr += 14) {
-      const keyRaw: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
-      if (keyRaw == 0) break; // ran out of keys
-      if (keyRaw >>> 31) continue; // MSB 1 set, not a bytestring
-
-      const keyStr: bytestring = keyRaw;
-      if (keyStr == targetStr) return ptr;
-    }
-  } else if (targetType == Porffor.TYPES.string) {
-    const targetStr: string = target;
-    for (; ptr < endPtr; ptr += 14) {
-      const keyRaw: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
-      if (keyRaw == 0) break; // ran out of keys
-      if (keyRaw >>> 30 == 2) { // MSB 1 set and 2 unset, regular string type
-        const keyStr: string = keyRaw & 0x7FFFFFFF; // unset MSB
-        if (keyStr == targetStr) return ptr;
-      }
-    }
-  } else { // symbol
+  if (targetType == Porffor.TYPES.symbol) {
     const targetSym: symbol = target;
     for (; ptr < endPtr; ptr += 14) {
       const keyRaw: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
@@ -163,6 +143,22 @@ export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
       if (keyRaw >>> 30 == 3) { // MSB 1 and 2 set, symbol
         const keySym: symbol = keyRaw & 0x3FFFFFFF; // unset MSB
         if (keySym == targetSym) return ptr;
+      }
+    }
+  } else {
+    for (; ptr < endPtr; ptr += 14) {
+      const keyRaw: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
+      if (keyRaw == 0) break; // ran out of keys
+
+      const msb: i32 = keyRaw >>> 30;
+      if (msb == 0) {
+        // bytestring
+        const keyStr: bytestring = keyRaw;
+        if (Porffor.strcmp(keyStr, target)) return ptr;
+      } else if (msb == 2) {
+        // string
+        const keyStr: string = keyRaw & 0x7FFFFFFF; // unset MSB
+        if (Porffor.strcmp(keyStr, target)) return ptr;
       }
     }
   }
