@@ -893,7 +893,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
 
 const asmFuncToAsm = (scope, func) => {
   return func(scope, {
-    TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow,
+    Valtype, Opcodes, TYPES, TYPE_NAMES, typeSwitch, makeArray, makeString, allocPage, internalThrow,
     getNodeType, generate, generateIdent,
     builtin: (n, offset = false) => {
       let idx = funcIndex[n] ?? importedFuncs[n];
@@ -910,6 +910,7 @@ const asmFuncToAsm = (scope, func) => {
 
       return idx;
     },
+    hasFunc: x => funcIndex[x] != null,
     funcRef: name => {
       if (funcIndex[name] == null && builtinFuncs[name]) {
         includeBuiltin(scope, name);
@@ -3854,8 +3855,12 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
 };
 
 const generateIf = (scope, decl) => {
-  const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test), false, true);
+  if (globalThis.precompile && decl.test?.tag?.name === '__Porffor_comptime_flag') {
+    const flag = decl.test.quasi.quasis[0].value.raw;
+    return [ [ null, 'comptime_flag', flag, decl.consequent, '#', Prefs ] ];
+  }
 
+  const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test), false, true);
 
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');

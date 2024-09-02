@@ -201,27 +201,55 @@ return`;
 
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   if (entryPtr == -1) {
-    if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.object) {
-      // check prototype chain
-      const protoKey: bytestring = '__proto__';
-      let lastProto: any = obj;
-      if (key != protoKey) {
-        while (true) {
-          obj = __Porffor_object_get(obj, protoKey);
-          if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
-          lastProto = obj;
+    // check prototype chain
+    const protoKey: bytestring = '__proto__';
+    let lastProto: any = obj;
+    if (key != protoKey) {
+      while (true) {
+        obj = __Porffor_object_get(obj, protoKey);
 
-          if ((entryPtr = __Porffor_object_lookup(obj, key)) != -1) break;
+        if (Porffor.comptime.flag`hasFunc.#get___String_prototype`) {
+          if (Porffor.fastOr(
+            trueType == Porffor.TYPES.string,
+            trueType == Porffor.TYPES.bytestring,
+            trueType == Porffor.TYPES.stringobject
+          )) {
+            obj = __String_prototype;
+          }
         }
-      } else {
-        let proto: i32 = __Object_prototype;
-        if (trueType == Porffor.TYPES.function) proto = __Function_prototype;
-        Porffor.wasm`
+
+        if (Porffor.comptime.flag`hasFunc.#get___Number_prototype`) {
+          if (Porffor.fastOr(
+            trueType == Porffor.TYPES.number,
+            trueType == Porffor.TYPES.numberobject
+          )) {
+            obj = __Number_prototype;
+          }
+        }
+
+        if (Porffor.comptime.flag`hasFunc.#get___Boolean_prototype`) {
+          if (Porffor.fastOr(
+            trueType == Porffor.TYPES.boolean,
+            trueType == Porffor.TYPES.booleanobject
+          )) {
+            obj = __Boolean_prototype;
+          }
+        }
+
+        if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
+        lastProto = obj;
+
+        if ((entryPtr = __Porffor_object_lookup(obj, key)) != -1) break;
+      }
+    } else {
+      let proto: i32 = __Object_prototype;
+      if (trueType == Porffor.TYPES.function) proto = __Function_prototype;
+
+      Porffor.wasm`
 local.get ${proto}
 f64.convert_i32_u
 i32.const 7 ;; object type
 return`;
-      }
     }
 
     if (entryPtr == -1) {

@@ -100,7 +100,7 @@ export const BuiltinVars = function(ctx) {
   this.Infinity.floatOnly = true;
 
   for (const x in TYPES) {
-    this['__Porffor_TYPES_' + x] = number(TYPES[x]);
+    this['__Porffor_TYPES_' + x] = () => number(TYPES[x]);
   }
 
   this.__performance_timeOrigin = [
