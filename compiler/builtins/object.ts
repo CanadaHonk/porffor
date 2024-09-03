@@ -576,15 +576,27 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any) => {
 
   const existingDesc: any = __Object_getOwnPropertyDescriptor(target, prop);
   if (existingDesc) {
-    configurable ??= existingDesc.configurable;
-    enumerable ??= existingDesc.enumerable;
+    let inKey: bytestring = '';
+
+    // probably slow due to excessive in's but needs to have them to be spec compliant handling explicit undefined vs non-existent
+    inKey = 'configurable';
+    if (configurable == null && !(inKey in desc)) configurable = existingDesc.configurable;
+
+    inKey = 'enumerable';
+    if (enumerable == null && !(inKey in desc)) enumerable = existingDesc.enumerable;
 
     if (accessor) {
-      get ??= existingDesc.get;
-      set ??= existingDesc.set;
+      inKey = 'get';
+      if (get == null && !(inKey in desc)) get = existingDesc.get;
+
+      inKey = 'set';
+      if (set == null && !(inKey in desc)) set = existingDesc.set;
     } else {
-      value ??= existingDesc.value;
-      writable ??= existingDesc.writable;
+      inKey = 'value';
+      if (value == null && !(inKey in desc)) value = existingDesc.value;
+
+      inKey = 'writable';
+      if (writable == null && !(inKey in desc)) writable = existingDesc.writable;
     }
   }
 
