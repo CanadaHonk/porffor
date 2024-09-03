@@ -241,6 +241,30 @@ return`;
           }
         }
 
+        if (Porffor.comptime.flag`hasFunc.#get___Function_prototype`) {
+          if (trueType == Porffor.TYPES.function) {
+            obj = __Function_prototype;
+          }
+        }
+
+        if (Porffor.comptime.flag`hasFunc.#get___Array_prototype`) {
+          if (trueType == Porffor.TYPES.array) {
+            obj = __Array_prototype;
+          }
+        }
+
+        if (Porffor.comptime.flag`hasFunc.#get___Date_prototype`) {
+          if (trueType == Porffor.TYPES.date) {
+            obj = __Date_prototype;
+          }
+        }
+
+        if (Porffor.comptime.flag`hasFunc.#get___Error_prototype`) {
+          if (trueType == Porffor.TYPES.error) {
+            obj = __Error_prototype;
+          }
+        }
+
         if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
         lastProto = obj;
 
