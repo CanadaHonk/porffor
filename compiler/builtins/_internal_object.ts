@@ -177,29 +177,6 @@ return`;
 
 export const __Porffor_object_get = (obj: any, key: any): any => {
   const trueType: i32 = Porffor.wasm`local.get ${obj+1}`;
-  if (trueType == Porffor.TYPES.function) {
-    const tmp1: bytestring = 'name';
-    if (key == tmp1) {
-      const o: bytestring = __Porffor_funcLut_name(obj);
-      const t: i32 = Porffor.TYPES.bytestring;
-      Porffor.wasm`
-local.get ${o}
-f64.convert_i32_u
-local.get ${t}
-return`;
-    }
-
-    const tmp2: bytestring = 'length';
-    if (key == tmp2) {
-      const o: i32 = __Porffor_funcLut_length(obj);
-      Porffor.wasm`
-local.get ${o}
-f64.convert_i32_u
-i32.const 1
-return`;
-    }
-  }
-
   if (trueType != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
 
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot get property of null');
@@ -592,20 +569,6 @@ local.set ${err}`;
 export const __Porffor_object_delete = (obj: any, key: any): boolean => {
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot delete property of null');
 
-  if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.function) {
-    const tmp1: bytestring = 'name';
-    if (key == tmp1) {
-      __Porffor_funcLut_deleteName(obj);
-      return true;
-    }
-
-    const tmp2: bytestring = 'length';
-    if (key == tmp2) {
-      __Porffor_funcLut_deleteLength(obj);
-      return true;
-    }
-  }
-
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
   if (Porffor.rawType(obj) != Porffor.TYPES.object) {
     // todo: support non-pure objects
@@ -656,20 +619,6 @@ memory.copy 0 0`;
 
 export const __Porffor_object_deleteStrict = (obj: any, key: any): boolean => {
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot delete property of null');
-
-  if (Porffor.wasm`local.get ${obj+1}` == Porffor.TYPES.function) {
-    const tmp1: bytestring = 'name';
-    if (key == tmp1) {
-      __Porffor_funcLut_deleteName(obj);
-      return true;
-    }
-
-    const tmp2: bytestring = 'length';
-    if (key == tmp2) {
-      __Porffor_funcLut_deleteLength(obj);
-      return true;
-    }
-  }
 
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
   if (Porffor.rawType(obj) != Porffor.TYPES.object) {

@@ -199,7 +199,16 @@ export default function({ builtinFuncs }, Prefs) {
     const props = autoFuncs(x);
 
     // special case: Object.prototype.__proto__ = null
-    if (x === '__Object_prototype') Object.defineProperty(props, '__proto__', { value: { value: null }, enumerable: true });
+    if (x === '__Object_prototype') {
+      Object.defineProperty(props, '__proto__', { value: { value: null, configurable: true }, enumerable: true });
+    }
+
+    // special case: Function.prototype.length = 0
+    // special case: Function.prototype.name = ''
+    if (x === '__Function_prototype') {
+      props.length = { value: 0, configurable: true };
+      props.name = { value: '', configurable: true };
+    }
 
     // add constructor for constructors
     const name = x.slice(2, x.indexOf('_', 2));

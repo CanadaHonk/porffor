@@ -150,16 +150,6 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
     return Porffor.object.lookup(_this, p) != -1;
   }
 
-  if (t == Porffor.TYPES.function) {
-    const tmp1: bytestring = 'name';
-    if (p == tmp1) return !__Porffor_funcLut_isNameDeleted(_this);
-
-    const tmp2: bytestring = 'length';
-    if (p == tmp2) return !__Porffor_funcLut_isLengthDeleted(_this);
-
-    return Porffor.object.lookup(_this, p) != -1;
-  }
-
   const obj: any = __Porffor_object_underlying(_this);
   if (Porffor.rawType(obj) == Porffor.TYPES.object) {
     if (Porffor.object.lookup(obj, p) != -1) return true;
