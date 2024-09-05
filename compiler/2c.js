@@ -772,9 +772,10 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
         }
 
         case Opcodes.throw: {
-          const id = vals.pop();
-
-          line(`printf("Uncaught ${exceptions[id].constructor}: ${exceptions[id].message}\\n")`);
+          // todo: actually print exception
+          vals.pop();
+          vals.pop();
+          line(`printf("Uncaught exception\\n")`);
           line(`exit(1)`);
 
           includes.set('stdio.h', true);

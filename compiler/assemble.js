@@ -53,42 +53,15 @@ const encodeDebugInfo = (funcs, globals, tags, exceptions, pages, data, excMode)
     ...unsignedLEB128(section.length),
     ...section
   ];
-  let exceptionSection = [];
-  switch (excMode) {
-    case 'lut':
-      exceptionSection.push(0);
-      unsignedLEB128_into(exceptions.length, exceptionSection);
-      for (let i = 0; i < exceptions.length; i++) {
-        unsignedLEB128_into(i, exceptionSection);
-        exceptionSection.push(...encodeString(exceptions[i].constructor ?? ""));
-        exceptionSection.push(...encodeString(exceptions[i].message));
-      }
-      break;
-    case 'stack':
-      exceptionSection.push(1);
-      break;
-    case 'stackest':
-      exceptionSection.push(2);
-      break;
-    case 'partial':
-      exceptionSection.push(3);
-      unsignedLEB128_into(exceptions.length, exceptionSection);
-      for (let i = 0; i < exceptions.length; i++) {
-        unsignedLEB128_into(i, exceptionSection);
-        exceptionSection.push(...encodeString(exceptions[i].constructor ?? ""));
-      }
-      break;
-  }
   const typeSection = [ valtypeBinary ];
 
   // TODO: add more information like where funcrefs are, etc.
   return [
-    ...encodeSection(0, exceptionSection),
-    ...encodeSection(1, typeSection),
+    ...encodeSection(0, typeSection),
   ];
 };
 
-export default (funcs, globals, tags, exceptions, pages, data, flags, noTreeshake = false) => {
+export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   const types = [], typeCache = {};
 
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
@@ -162,7 +135,7 @@ export default (funcs, globals, tags, exceptions, pages, data, flags, noTreeshak
 
   const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
 
-  const porfforDebugInfoSection = Prefs.d ? customSection('porffor_debug_info', encodeDebugInfo(funcs, globals, tags, exceptions, pages, data, Prefs.exceptionMode ?? 'lut')) : [];
+  const porfforDebugInfoSection = Prefs.d ? customSection('porffor_debug_info', encodeDebugInfo(funcs, globals, tags, pages, data, Prefs.exceptionMode ?? 'lut')) : [];
 
   const tableSection = !funcs.table ? [] : createSection(
     Section.table,

@@ -43,7 +43,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       inst = [ [ inst[0], inst[1] ], ...inst.slice(2) ];
     }
 
-    if (depth > 0 && (inst[0] === Opcodes.end || inst[0] === Opcodes.else || inst[0] === Opcodes.catch_all)) depth--;
+    if (depth > 0 && (inst[0] === Opcodes.end || inst[0] === Opcodes.else || inst[0] === Opcodes.catch_all || inst[0] === Opcodes.catch)) depth--;
 
     out += ' '.repeat(Math.max(0, depth * 2));
 
@@ -70,7 +70,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       return true;
     })
 
-    if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else || inst[0] === Opcodes.try || inst[0] === Opcodes.catch_all) depth++;
+    if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else || inst[0] === Opcodes.try || inst[0] === Opcodes.catch_all || inst[0] === Opcodes.catch) depth++;
 
     if (inst[0] === Opcodes.f64_const) {
       out += ` ${inst[1]}`;
@@ -89,7 +89,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
     if (comments.length > 0) out += ` ;; ${comments.join(' ')}`;
 
-    if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else || inst[0] === Opcodes.try || inst[0] === Opcodes.catch_all) {
+    if (inst[0] === Opcodes.if || inst[0] === Opcodes.loop || inst[0] === Opcodes.block || inst[0] === Opcodes.else || inst[0] === Opcodes.try || inst[0] === Opcodes.catch_all || inst[0] === Opcodes.catch) {
       out += ` ;; label @${depth}`;
     }
 

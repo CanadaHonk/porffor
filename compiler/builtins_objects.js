@@ -106,6 +106,11 @@ export default function({ builtinFuncs }, Prefs) {
       const k = prefix + x;
 
       if (Object.hasOwn(d, 'value') && !Object.hasOwn(builtinFuncs, k) && !Object.hasOwn(this, k)) {
+        if (Array.isArray(d.value) || typeof d.value === 'function') {
+          this[k] = d.value;
+          continue;
+        }
+
         if (typeof d.value === 'number') {
           this[k] = number(d.value);
           this[k].type = TYPES.number;
@@ -194,7 +199,30 @@ export default function({ builtinFuncs }, Prefs) {
     const props = autoFuncs(x);
 
     // special case: Object.prototype.__proto__ = null
-    if (x === '__Object_prototype') Object.defineProperty(props, '__proto__', { value: { value: null }, enumerable: true });
+    if (x === '__Object_prototype') {
+      Object.defineProperty(props, '__proto__', { value: { value: null, configurable: true }, enumerable: true });
+    }
+
+    // special case: Function.prototype.length = 0
+    // special case: Function.prototype.name = ''
+    if (x === '__Function_prototype') {
+      props.length = { value: 0, configurable: true };
+      props.name = { value: '', configurable: true };
+    }
+
+    // add constructor for constructors
+    const name = x.slice(2, x.indexOf('_', 2));
+    if (builtinFuncs[name]?.constr) {
+      const value = (scope, { funcRef }) => funcRef(name);
+      value.type = TYPES.function;
+
+      props.constructor = {
+        value,
+        writable: true,
+        enumerable: false,
+        configurable: true
+      };
+    }
 
     object(x, props);
   }
@@ -225,6 +253,10 @@ export default function({ builtinFuncs }, Prefs) {
   object('Reflect', autoFuncs('Reflect'));
   object('Object', autoFuncs('Object'));
   object('JSON', autoFuncs('JSON'));
+  object('Promise', autoFuncs('Promise'));
+  object('Array', autoFuncs('Array'));
+  object('Symbol', autoFuncs('Symbol'));
+  object('Date', autoFuncs('Date'));
 
 
   // these technically not spec compliant as it should be classes or non-enumerable but eh

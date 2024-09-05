@@ -2,7 +2,7 @@ import type {} from './porffor.d.ts';
 
 // 21.1.1.1 Number (value)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-number-constructor-number-value
-export const Number = function (value: any): any {
+export const Number = function (value: any): number|NumberObject {
   let n: number = 0;
 
   // 1. If value is present, then
@@ -25,8 +25,8 @@ export const Number = function (value: any): any {
   // 4. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Number.prototype%", « [[NumberData]] »).
   // 5. Set O.[[NumberData]] to n.
   // 6. Return O.
-  // todo: actual prim objects
-  return n;
+  const O: NumberObject = n;
+  return O;
 };
 
 // radix: number|any for rawType check

@@ -10,7 +10,7 @@ export const PrototypeFuncs = function() {
   const noUnlikelyChecks = Prefs.funsafeNoUnlikelyProtoChecks;
 
   let zeroChecks;
-  if (Prefs.zeroChecks) zeroChecks = Prefs.zeroChecks.split('=')[1].split(',').reduce((acc, x) => { acc[x.toLowerCase()] = true; return acc; }, {});
+  if (Prefs.zeroChecks) zeroChecks = Prefs.zeroChecks.split(',').reduce((acc, x) => { acc[x.toLowerCase()] = true; return acc; }, {});
     else zeroChecks = {};
 
   this[TYPES.array] = {

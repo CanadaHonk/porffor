@@ -81,12 +81,12 @@ export const run = obj => {
 
   let activeFunc = null, abort = false;
   try {
-    obj.wasm = assemble(obj.funcs, obj.globals, obj.tags, obj.exceptions, obj.pages, obj.data, obj.flags, true);
+    obj.wasm = assemble(obj.funcs, obj.globals, obj.tags, obj.pages, obj.data, true);
 
     Prefs._profileCompiler = Prefs.profileCompiler;
     Prefs.profileCompiler = false;
 
-    const { exports } = wrap(obj, [], {
+    const { exports } = wrap(obj, undefined, {
       y: n => {
         activeFunc = n;
       },
@@ -197,7 +197,7 @@ export const run = obj => {
       }
     }
 
-    log += `  ${func.name}: identified ${counts[2]}/${total} local non-consistent domains${Prefs.verbosePgo ? ':' : ''}\n`;
+    log += `  ${func.name}: identified ${counts[2]}/${total} non-consistent locals domains${Prefs.verbosePgo ? ':' : ''}\n`;
     if (Prefs.verbosePgo) {
       for (let j = func.params.length; j < localData[i].length; j++) {
         if (domains[j] === false) continue;

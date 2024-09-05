@@ -154,6 +154,12 @@ export const __ecma262_ToString = (argument: unknown): any => {
 
   // 8. If argument is a BigInt, return BigInt::toString(argument, 10).
 
+  // hack: StringObject -> String
+  if (type == Porffor.TYPES.stringobject) {
+    const remap: string = argument;
+    return remap;
+  }
+
   // 9. Assert: argument is an Object.
   // 10. Let primValue be ? ToPrimitive(argument, string).
   const primValue: any = __ecma262_ToPrimitive_String(argument);

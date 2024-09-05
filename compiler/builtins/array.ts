@@ -1,5 +1,37 @@
 import type {} from './porffor.d.ts';
 
+export const Array = function (...args: any[]): any[] {
+  const argsLen: number = args.length;
+  if (argsLen == 0) {
+    // 0 args, new 0 length array
+    const out: any[] = Porffor.allocate();
+    return out;
+  }
+
+  if (argsLen == 1) {
+    // 1 arg, length (number) or first element (non-number)
+    const arg: any = args[0];
+    if (Porffor.rawType(arg) == Porffor.TYPES.number) {
+      // number so use as length
+      const n: number = args[0];
+      if (Porffor.fastOr(
+        n < 0, // negative
+        n > 4294967295, // over 2**32 - 1
+        !Number.isInteger(n) // non-integer/non-finite
+      )) throw new RangeError('Invalid array length');
+
+      const out: any[] = Porffor.allocate();
+      out.length = arg;
+      return out;
+    }
+
+    // not number, leave to fallthrough as same as >1
+  }
+
+  // >1 arg, just return args array
+  return args;
+};
+
 export const __Array_isArray = (x: unknown): boolean =>
   Porffor.rawType(x) == Porffor.TYPES.array;
 
@@ -34,13 +66,6 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
 
   out.length = len;
   return out;
-};
-
-export const __Porffor_array_fastPush = (arr: any[], el: any): i32 => {
-  let len: i32 = arr.length;
-  arr[len] = el;
-  arr.length = ++len;
-  return len;
 };
 
 export const __Array_prototype_push = (_this: any[], ...items: any[]) => {
@@ -557,9 +582,44 @@ export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, ini
   return acc;
 };
 
+// string less than <
+export const __Porffor_strlt = (a: string|bytestring, b: string|bytestring) => {
+  const maxLength: i32 = Math.max(a.length, b.length);
+  for (let i: i32 = 0; i < maxLength; i++) {
+    const ac: i32 = a.charCodeAt(i);
+    const bc: i32 = b.charCodeAt(i);
+
+    if (ac < bc) return true;
+  }
+
+  return false;
+};
+
 // @porf-typed-array
 export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
-  // todo: default callbackFn
+  if (callbackFn === undefined) {
+    // default callbackFn, convert to strings and sort by char code
+    callbackFn = (x: any, y: any) => {
+      // 23.1.3.30.2 CompareArrayElements (x, y, comparefn)
+      // https://tc39.es/ecma262/#sec-comparearrayelements
+      // 5. Let xString be ? ToString(x).
+      const xString: any = ecma262.ToString(x);
+
+      // 6. Let yString be ? ToString(y).
+      const yString: any = ecma262.ToString(y);
+
+      // 7. Let xSmaller be ! IsLessThan(xString, yString, true).
+      // 8. If xSmaller is true, return -1𝔽.
+      if (__Porffor_strlt(xString, yString)) return -1;
+
+      // 9. Let ySmaller be ! IsLessThan(yString, xString, true).
+      // 10. If ySmaller is true, return 1𝔽.
+      if (__Porffor_strlt(yString, xString)) return 1;
+
+      // 11. Return +0𝔽.
+      return 0;
+    };
+  }
 
   // insertion sort, i guess
   const len: i32 = _this.length;
@@ -584,8 +644,7 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
         else {
           // 4. If comparefn is not undefined, then
           // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
-          // perf: unneeded as we just check >= 0
-          // v = Number(callbackFn(x, y));
+          // perf: ToNumber unneeded as we just check >= 0
           v = callbackFn(x, y);
 
           // b. If v is NaN, return +0𝔽.
@@ -805,4 +864,21 @@ export const __Array_prototype_flat = (_this: any[], _depth: any) => {
   out.length = j;
 
   return out;
+};
+
+
+export const __Porffor_array_fastPush = (arr: any[], el: any): i32 => {
+  let len: i32 = arr.length;
+  arr[len] = el;
+  arr.length = ++len;
+  return len;
+};
+
+export const __Porffor_array_fastIndexOf = (arr: any[], el: any): i32 => {
+  const len: i32 = arr.length;
+  for (let i: i32 = 0; i < len; i++) {
+    if (arr[i] === el) return i;
+  }
+
+  return -1;
 };
