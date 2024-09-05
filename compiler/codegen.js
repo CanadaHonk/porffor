@@ -56,50 +56,6 @@ const funcRef = func => {
     [ Opcodes.const, 'funcref', func.name ]
   ];
 
-  if (Prefs.indirectCallMode === 'array' && !func.internal) {
-    const buildArgs = (scope, local) => {
-      const arr = [];
-      const paramLen = countParams(func);
-      for (let i = 0; i < paramLen; i += 1) {
-        arr.push(
-          ...loadArray(scope, local, i)
-        );
-      }
-      return arr;
-    }
-
-    const wrapperFunc = asmFunc('#indirect_wrapper_' + func.name, func.constr ? {
-      params: [ valtypeBinary, Valtype.i32, valtypeBinary, Valtype.i32, valtypeBinary, Valtype.i32 ],
-      locals: [],
-      returns: [ valtypeBinary, Valtype.i32 ],
-      wasm: (scope) => [
-        // new.target
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.local_get, 1 ],
-        // this
-        [ Opcodes.local_get, 2 ],
-        [ Opcodes.local_get, 3 ],
-        // arguments
-        ...buildArgs(scope, [ [ Opcodes.local_get, 4 ] ]),
-
-        [ Opcodes.call, func.index ]
-      ],
-      constr: true
-    } : {
-      params: [ valtypeBinary, Valtype.i32 ],
-      locals: [],
-      returns: [ valtypeBinary, Valtype.i32 ],
-      wasm: (scope) => [
-        // arguments
-        ...buildArgs(scope, [ [ Opcodes.local_get, 0 ] ]),
-
-        [ Opcodes.call, func.index ]
-      ],
-    })
-
-    return [ [ Opcodes.const, wrapperFunc.index - importedFuncs.length ] ]
-  }
-
   if (Prefs.indirectCallMode === 'padding' && !func.internal) {
     const buildArgs = (idx) => {
       const arr = [];
