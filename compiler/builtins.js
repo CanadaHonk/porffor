@@ -100,7 +100,7 @@ export const BuiltinVars = function(ctx) {
   this.Infinity.floatOnly = true;
 
   for (const x in TYPES) {
-    this['__Porffor_TYPES_' + x] = number(TYPES[x]);
+    this['__Porffor_TYPES_' + x] = () => number(TYPES[x]);
   }
 
   this.__performance_timeOrigin = [
@@ -952,7 +952,7 @@ export const BuiltinFuncs = function() {
   this.__Porffor_bytestringToString = {
     params: [ Valtype.i32, Valtype.i32 ],
     locals: [ Valtype.i32, Valtype.i32 ],
-    localNames: [ 'src', 'len', '#bytestring_to_string_counter', '#bytestring_to_string_dst' ],
+    localNames: [ 'src', 'len', 'counter', 'dst' ],
     returns: [ Valtype.i32 ],
     returnType: TYPES.string,
     wasm: [
@@ -966,10 +966,6 @@ export const BuiltinFuncs = function() {
       // dst.length = len
       [ Opcodes.local_get, 1 ],
       [ Opcodes.i32_store, 0, 0 ],
-
-      // counter = 0
-      [ Opcodes.i32_const, 0 ],
-      [ Opcodes.local_set, 2 ],
 
       [ Opcodes.loop, Blocktype.void ],
 
@@ -1048,66 +1044,6 @@ export const BuiltinFuncs = function() {
       [ Opcodes.i32_add ],
       ...number(allocPage(scope, 'func lut'), Valtype.i32),
       [ Opcodes.i32_add ]
-    ],
-    table: true
-  };
-
-  this.__Porffor_funcLut_deleteLength = {
-    params: [ Valtype.i32 ],
-    returns: [],
-    wasm: (scope, { allocPage }) => [
-      [ Opcodes.local_get, 0 ],
-      ...number(64, Valtype.i32),
-      [ Opcodes.i32_mul ],
-      ...number(2, Valtype.i32),
-      [ Opcodes.i32_add ],
-      ...number(0, Valtype.i32),
-      [ Opcodes.i32_store16, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ],
-
-      [ Opcodes.local_get, 0 ],
-      ...number(1, Valtype.i32),
-      [ Opcodes.i32_store8, 0, ...unsignedLEB128(allocPage(scope, 'func length deletion table')) ]
-    ],
-    table: true
-  };
-
-  this.__Porffor_funcLut_deleteName = {
-    params: [ Valtype.i32 ],
-    returns: [],
-    wasm: (scope, { allocPage }) => [
-      [ Opcodes.local_get, 0 ],
-      ...number(64, Valtype.i32),
-      [ Opcodes.i32_mul ],
-      ...number(5, Valtype.i32),
-      [ Opcodes.i32_add ],
-      ...number(0, Valtype.i32),
-      [ Opcodes.i32_store, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ],
-
-      [ Opcodes.local_get, 0 ],
-      ...number(1, Valtype.i32),
-      [ Opcodes.i32_store8, 0, ...unsignedLEB128(allocPage(scope, 'func name deletion table')) ],
-    ],
-    table: true
-  };
-
-  this.__Porffor_funcLut_isLengthDeleted = {
-    params: [ Valtype.i32 ],
-    returns: [ Valtype.i32 ],
-    returnType: TYPES.boolean,
-    wasm: (scope, { allocPage }) => [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func length deletion table')) ]
-    ],
-    table: true
-  };
-
-  this.__Porffor_funcLut_isNameDeleted = {
-    params: [ Valtype.i32 ],
-    returns: [ Valtype.i32 ],
-    returnType: TYPES.boolean,
-    wasm: (scope, { allocPage }) => [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func name deletion table')) ]
     ],
     table: true
   };

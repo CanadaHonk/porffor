@@ -8,7 +8,7 @@ export const __ecma262_NewPromiseReactionJob = (reaction: any[], argument: any):
   return job;
 };
 
-const jobQueue: any[] = new Array(0);
+const jobQueue: any[] = [];
 export const __ecma262_HostEnqueuePromiseJob = (job: any[]): void => {
   Porffor.array.fastPush(jobQueue, job);
 };
@@ -38,7 +38,7 @@ export const __ecma262_IsPromise = (x: any): boolean => {
 // https://tc39.es/ecma262/#sec-fulfillpromise
 export const __ecma262_FulfillPromise = (promise: any[], value: any): void => {
   // 1. Assert: The value of promise.[[PromiseState]] is pending.
-  // todo
+  if (promise[1] != 0) return;
 
   // 2. Let reactions be promise.[[PromiseFulfillReactions]].
   const reactions: any[] = promise[2]; // fulfillReactions
@@ -65,7 +65,7 @@ export const __ecma262_FulfillPromise = (promise: any[], value: any): void => {
 // https://tc39.es/ecma262/#sec-rejectpromise
 export const __ecma262_RejectPromise = (promise: any[], reason: any): void => {
   // 1. Assert: The value of promise.[[PromiseState]] is pending.
-  // todo
+  if (promise[1] != 0) return;
 
   // 2. Let reactions be promise.[[PromiseRejectReactions]].
   const reactions: any[] = promise[3]; // rejectReactions
@@ -94,7 +94,7 @@ export const __ecma262_RejectPromise = (promise: any[], reason: any): void => {
 
 export const __Porffor_promise_noop = () => {};
 
-export const __Porffor_promise_resolve = (promise: any, value: any): any => {
+export const __Porffor_promise_resolve = (value: any, promise: any): any => {
   // todo: if value is own promise, reject with typeerror
 
   if (__ecma262_IsPromise(value)) {
@@ -106,7 +106,7 @@ export const __Porffor_promise_resolve = (promise: any, value: any): any => {
   return undefined;
 };
 
-export const __Porffor_promise_reject = (promise: any, reason: any): any => {
+export const __Porffor_promise_reject = (reason: any, promise: any): any => {
   if (__ecma262_IsPromise(reason)) {
     // todo
   } else {
@@ -181,8 +181,8 @@ export const __Porffor_promise_runJobs = () => {
 
 // hack: cannot share scope so use a global
 let activePromise: any;
-export const __Porffor_promise_resolveActive = (value: any) => __Porffor_promise_resolve(activePromise, value);
-export const __Porffor_promise_rejectActive = (reason: any) => __Porffor_promise_reject(activePromise, reason);
+export const __Porffor_promise_resolveActive = (value: any) => __Porffor_promise_resolve(value, activePromise);
+export const __Porffor_promise_rejectActive = (reason: any) => __Porffor_promise_reject(reason, activePromise);
 
 export const Promise = function (executor: any): void {
   if (!new.target) throw new TypeError("Constructor Promise requires 'new'");
@@ -191,7 +191,13 @@ export const Promise = function (executor: any): void {
   const obj: any[] = __Porffor_promise_create();
 
   activePromise = obj;
-  executor(__Porffor_promise_resolveActive, __Porffor_promise_rejectActive);
+
+  try {
+    executor(__Porffor_promise_resolveActive, __Porffor_promise_rejectActive);
+  } catch (e) {
+    // executor threw, reject promise
+    __ecma262_RejectPromise(obj, e);
+  }
 
   const pro: Promise = obj;
   return pro;
@@ -200,7 +206,7 @@ export const Promise = function (executor: any): void {
 export const __Promise_resolve = (value: any): Promise => {
   const obj: any[] = __Porffor_promise_create();
 
-  __Porffor_promise_resolve(obj, value);
+  __Porffor_promise_resolve(value, obj);
 
   const pro: Promise = obj;
   return pro;
@@ -209,7 +215,7 @@ export const __Promise_resolve = (value: any): Promise => {
 export const __Promise_reject = (reason: any): Promise => {
   const obj: any[] = __Porffor_promise_create();
 
-  __Porffor_promise_reject(obj, reason);
+  __Porffor_promise_reject(reason, obj);
 
   const pro: Promise = obj;
   return pro;
@@ -366,7 +372,6 @@ export const __Promise_allSettled = (promises: any): Promise => {
       _allLen++;
       if (__ecma262_IsPromise(x)) {
         x.then(r => {
-          // Porffor.print(r);
           const o = {};
           let status: bytestring = '';
           status = 'fulfilled';
@@ -406,6 +411,57 @@ export const __Promise_allSettled = (promises: any): Promise => {
   });
 };
 
+export const __Promise_any = (promises: any): Promise => {
+  // todo: use new AggregateError(_allOut, msg) instead of new AggregateError(msg) when supported
+  _allPromises = promises;
+
+  return new Promise((res, rej) => {
+    _allRes = res, _allRej = rej;
+
+    const arr: any[] = Porffor.allocate();
+    _allOut = arr; // list of rejections
+    _allLen = 0;
+
+    for (const x of _allPromises) {
+      _allLen++;
+      if (__ecma262_IsPromise(x)) {
+        x.then(r => {
+          _allRes(r);
+        }, r => {
+          if (Porffor.array.fastPush(_allOut, r) == _allLen) _allRes(new AggregateError());
+        });
+      } else {
+        return _allRes(x);
+      }
+    }
+
+    if (_allLen == 0) {
+      // empty iterable: immediately reject
+      _allRej(new AggregateError());
+    }
+  });
+};
+
+export const __Promise_race = (promises: any): Promise => {
+  _allPromises = promises;
+
+  return new Promise((res, rej) => {
+    _allRes = res, _allRej = rej;
+
+    for (const x of _allPromises) {
+      if (__ecma262_IsPromise(x)) {
+        x.then(r => {
+          _allRes(r);
+        }, r => {
+          _allRej(r);
+        });
+      } else {
+        return _allRes(x);
+      }
+    }
+  });
+};
+
 
 export const __Promise_prototype_toString = (_this: any) => {
   const str: bytestring = '[object Promise]';
@@ -432,6 +488,5 @@ export const __Porffor_promise_await = (value: any) => {
   if (state == 1) return result;
 
   // rejected
-  // todo: throw result instead of fixed error here
-  throw Error('Uncaught await promise rejection');
+  throw result;
 };

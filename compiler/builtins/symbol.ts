@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-const descStore: any[] = new Array(0);
+const descStore: any[] = [];
 
 // 20.4.1.1 Symbol ([ description ])
 // https://tc39.es/ecma262/#sec-symbol-description

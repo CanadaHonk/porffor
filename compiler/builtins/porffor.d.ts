@@ -3,6 +3,10 @@ export type i64 = number;
 export type f64 = number;
 export type bytestring = string;
 
+export type BooleanObject = Boolean;
+export type NumberObject = Number;
+export type StringObject = String;
+
 type PorfforGlobal = {
   wasm: {
     (...args: any[]): any;
@@ -32,6 +36,7 @@ type PorfforGlobal = {
 
   array: {
     fastPush(arr: any[], el: any): i32;
+    fastIndexOf(arr: any[], el: any): i32;
   }
 
   arraybuffer: {
@@ -140,4 +145,8 @@ declare global {
   type i64 = number;
   type f64 = number;
   type bytestring = string;
+
+  type BooleanObject = Boolean;
+  type NumberObject = Number;
+  type StringObject = String;
 }

@@ -41,7 +41,12 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
     case TYPES.undefined:
       return undefined;
 
+    case TYPES.number: return value;
+    case TYPES.numberobject: return new Number(value);
+
     case TYPES.boolean: return Boolean(value);
+    case TYPES.booleanobject: return new Boolean(value);
+
     case TYPES.object: {
       if (value === 0 || checkOOB(memory, value)) return null;
 
@@ -153,6 +158,8 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       const length = read(Uint32Array, memory, value, 1)[0];
       return Array.from(read(Uint8Array, memory, value + 4, length)).map(x => String.fromCharCode(x)).join('');
     }
+
+    case TYPES.stringobject: return new String(porfToJSValue({ memory, funcs, pages }, value, TYPES.string));
 
     case TYPES.array: {
       let length = read(Uint32Array, memory, value, 1)[0];
@@ -300,19 +307,35 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       return out;
     }
 
+    case TYPES.error:
+    case TYPES.aggregateerror:
+    case TYPES.typeerror:
+    case TYPES.referenceerror:
+    case TYPES.syntaxerror:
+    case TYPES.rangeerror:
+    case TYPES.evalerror:
+    case TYPES.urierror:
+    case TYPES.test262error:
+    case TYPES.__porffor_todoerror: {
+      const obj = porfToJSValue({ memory, funcs, pages }, value, TYPES.object);
+      const err = new (globalThis[TYPE_NAMES[type]] ?? Error)(obj.message);
+
+      err.name = obj.name;
+      err.stack = `${TYPE_NAMES[type]}: ${obj.message}`;
+      return err;
+    }
+
     default: return value;
   }
 };
 
-export default (source, flags = [ 'module' ], customImports = {}, print = str => process.stdout.write(str)) => {
+export default (source, module = undefined, customImports = {}, print = str => process.stdout.write(str)) => {
   const times = [];
 
   const t1 = performance.now();
-  const { wasm, funcs, globals, tags, exceptions, pages, c } = typeof source === 'object' ? source : compile(source, flags);
+  const { wasm, funcs, globals, tags, exceptions, pages, c } = typeof source === 'object' ? source : compile(source, module);
 
   globalThis.porfDebugInfo = { funcs, globals };
-
-  // if (process.argv[1].includes('/runner') && source.includes?.('export ')) flags.push('module');
 
   // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
@@ -483,7 +506,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
         return porfToJSValue({ memory, funcs, pages }, ret[0], ret[1]);
       } catch (e) {
         if (e.is && e.is(exceptTag)) {
-          const exceptionMode = Prefs.exceptionMode ?? 'lut';
+          const exceptionMode = Prefs.exceptionMode ?? 'stack';
           if (exceptionMode === 'lut') {
             const exceptId = e.getArg(exceptTag, 0);
             const exception = exceptions[exceptId];
@@ -503,38 +526,6 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
 
             throw porfToJSValue({ memory, funcs, pages }, value, type);
           }
-
-          if (exceptionMode === 'stackest') {
-            const constructorIdx = e.getArg(exceptTag, 0);
-            const constructorName = constructorIdx == -1 ? null : funcs.find(x => (x.index - importedFuncs.length) === constructorIdx)?.name;
-
-            const value = e.getArg(exceptTag, 1);
-            const type = e.getArg(exceptTag, 2);
-            const message = porfToJSValue({ memory, funcs, pages }, value, type);
-
-            // no constructor, just throw message
-            if (!constructorName) throw message;
-
-            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
-            throw new constructor(message);
-          }
-
-          if (exceptionMode === 'partial') {
-            const exceptId = e.getArg(exceptTag, 0);
-            const exception = exceptions[exceptId];
-
-            const constructorName = exception.constructor;
-
-            const value = e.getArg(exceptTag, 1);
-            const type = e.getArg(exceptTag, 2);
-            const message = porfToJSValue({ memory, funcs, pages }, value, type);
-
-            // no constructor, just throw message
-            if (!constructorName) throw message;
-
-            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
-            throw new constructor(message);
-          }
         }
 
         if (e instanceof WebAssembly.RuntimeError) {
@@ -552,7 +543,7 @@ export default (source, flags = [ 'module' ], customImports = {}, print = str =>
     };
   }
 
-  if (flags.includes('decomp')) {
+  if (Prefs.decomp) {
     return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, globals, exceptions)), c };
   }
 

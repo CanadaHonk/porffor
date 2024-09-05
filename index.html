@@ -1072,7 +1072,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
     const setProcess = () => {
       globalThis.process = {
         // argv: ['', '', ...args.value.split(' '), `-O${opt_dropdown.value}`, `--parser=${parser_dropdown.value}`, `--target=${target_dropdown.value}`]
-        argv: ['', '', ...args.value.split(' '), `--parser=${parser_dropdown.value}`, `--target=${target_dropdown.value}`]
+        argv: ['', '', ...args.value.split(' '), `--parser=${parser_dropdown.value}`, `--target=${target_dropdown.value}`, '--decomp']
       };
     };
 
@@ -1100,7 +1100,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
       let wasm, exports, times, decomps, c;
       try {
-        0, { wasm, exports, times, decomps, c } = compile(code, [ 'module', 'decomp' ], {}, print);
+        0, { wasm, exports, times, decomps, c } = compile(code, true, {}, print);
       } catch (e) {
         console.error(e);
         status.textContent = `${e.constructor.name}: ${e.message}`;
@@ -1149,8 +1149,8 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       return x.toLocaleString('default', {
         month: 'long',
         day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric'
+        // hour: 'numeric',
+        // minute: 'numeric'
       });
     };
 
@@ -1163,7 +1163,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const el = document.createElement('div');
 
       const textEl = document.createElement('a');
-      textEl.textContent = x.title.slice(0, 42) + (x.title.length > 42 ? '...' : '');
+      textEl.textContent = x.title.slice(0, 40) + (x.title.length > 40 ? '...' : '');
       textEl.href = `https://github.com/CanadaHonk/porffor/commit/${x.hash}`;
       textEl.target = '_blank';
 

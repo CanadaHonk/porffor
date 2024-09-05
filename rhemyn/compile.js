@@ -12,15 +12,17 @@ const Length = 4;
 const Tmp = 5;
 const QuantifierTmp = 6; // the temporary variable used for quanitifers
 
-const doesSucceedZero = (node) => {
+const doesSucceedZero = node => {
   for (const n of node.body) {
-    if (n.type === "Group") {
-      if (!doesSucceedZero(node)) return false;
+    if (n.type === 'Group') {
+      if (!doesSucceedZero(n)) return false;
     }
+
     if (!n.quantifier || n.quantifier[0] > 0) {
       return false;
     }
   }
+
   return true;
 }
 

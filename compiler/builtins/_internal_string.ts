@@ -16,7 +16,6 @@ export const __Porffor_compareStrings = (a: any, b: any): boolean => {
 
     // todo/perf: just use a.toString()?
     a = ecma262.ToString(a);
-    at = Porffor.rawType(a);
   }
 
   if ((bt | 0b10000000) != Porffor.TYPES.bytestring) {
@@ -31,7 +30,6 @@ export const __Porffor_compareStrings = (a: any, b: any): boolean => {
 
     // todo/perf: just use b.toString()?
     b = ecma262.ToString(b);
-    bt = Porffor.rawType(b);
   }
 
   return Porffor.strcmp(a, b);
@@ -45,14 +43,12 @@ export const __Porffor_concatStrings = (a: any, b: any): boolean => {
     // a is not string or bytestring
     // todo/perf: just use a.toString()?
     a = ecma262.ToString(a);
-    at = Porffor.rawType(a);
   }
 
   if ((bt | 0b10000000) != Porffor.TYPES.bytestring) {
     // b is not string or bytestring
     // todo/perf: just use b.toString()?
     b = ecma262.ToString(b);
-    bt = Porffor.rawType(b);
   }
 
   return Porffor.strcat(a, b);
