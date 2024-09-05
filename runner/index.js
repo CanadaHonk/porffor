@@ -33,7 +33,7 @@ if (process.argv.includes('--help')) {
   for (const [ cmd, [ color, desc ] ] of Object.entries({
     run: [ 34, 'Run a JS file' ],
     wasm: [ 34, 'Compile a JS file to a Wasm binary' ],
-    'run-wasm': [ 34, 'Run a compiled Wasm binary (requires compilation with -d)\n' ],
+    'run-wasm': [ 34, 'Run a compiled Wasm binary\n' ],
 
     c: [ 31, 'Compile a JS file to C source code' ],
     native: [ 31, 'Compile a JS file to a native binary\n' ],
