@@ -55,8 +55,8 @@ const funcRef = func => {
     [ Opcodes.const, 'funcref', func.name ]
   ];
 
-  const wrapperArgc = Prefs.indirectWrapperArgc ?? 6;
-  if (func.returns.length === 2 && countParams(func) < wrapperArgc && !func.wrapperFunc) {
+  const wrapperArgc = Prefs.indirectWrapperArgc ?? 8;
+  if (countParams(func) < wrapperArgc && !func.wrapperFunc) {
     const locals = {}, params = [];
     for (let i = 0; i < wrapperArgc + (func.constr ? 2 : 0); i++) {
       params.push(valtypeBinary, Valtype.i32);
@@ -68,7 +68,7 @@ const funcRef = func => {
     const wasm = [];
     for (let i = 0; i < func.params.length; i++) {
       wasm.push(
-        [ Opcodes.local_get, i ],
+        [ Opcodes.local_get, !func.internal || func.typedParams ? i : i * 2 ],
         ...(i % 2 === 0 && func.params[i] === Valtype.i32 ? [ Opcodes.i32_to ]: [])
       );
     }
@@ -76,14 +76,23 @@ const funcRef = func => {
     wasm.push([ Opcodes.call, func.index ]);
 
     if (func.returns[0] === Valtype.i32) {
-      const localIdx = localInd++;
-      locals[localIdx] = { idx: localIdx, type: Valtype.i32 };
+      if (func.returns.length === 2) {
+        const localIdx = localInd++;
+        locals[localIdx] = { idx: localIdx, type: Valtype.i32 };
 
-      wasm.push(
-        [ Opcodes.local_set, localIdx ],
-        Opcodes.i32_from,
-        [ Opcodes.local_get, localIdx ]
-      );
+        wasm.push(
+          [ Opcodes.local_set, localIdx ],
+          Opcodes.i32_from,
+          [ Opcodes.local_get, localIdx ]
+        );
+      } else {
+        wasm.push(Opcodes.i32_from);
+      }
+    }
+
+    if (func.returns.length === 1) {
+      // add built-in returnType if only returns a value
+      wasm.push(...number(func.returnType ?? TYPES.number, Valtype.i32));
     }
 
     const name = '#indirect_' + func.name;
@@ -2233,7 +2242,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       scope.table = true;
 
       let args = decl.arguments;
-      const wrapperArgc = Prefs.indirectWrapperArgc ?? 6;
+      const wrapperArgc = Prefs.indirectWrapperArgc ?? 8;
       if (args.length < wrapperArgc) {
         args = args.concat(new Array(wrapperArgc - args.length).fill(DEFAULT_VALUE()));
       }
