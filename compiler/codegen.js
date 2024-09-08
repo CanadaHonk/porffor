@@ -56,7 +56,7 @@ const funcRef = func => {
   ];
 
   const wrapperArgc = Prefs.indirectWrapperArgc ?? 8;
-  if (countParams(func) < wrapperArgc && !func.wrapperFunc) {
+  if (!func.wrapperFunc) {
     const locals = {}, params = [];
     for (let i = 0; i < wrapperArgc + (func.constr ? 2 : 0); i++) {
       params.push(valtypeBinary, Valtype.i32);
