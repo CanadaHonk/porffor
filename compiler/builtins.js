@@ -1002,32 +1002,30 @@ export const BuiltinFuncs = function() {
     ]
   };
 
-  this.__Porffor_funcLut_flags = {
-    params: [ Valtype.i32 ],
-    returns: [ Valtype.i32 ],
-    returnType: TYPES.number,
-    wasm: (scope, { allocPage }) => [
-      [ Opcodes.local_get, 0 ],
-      ...number(64, Valtype.i32),
-      [ Opcodes.i32_mul ],
-      ...number(4, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ]
-    ],
-    table: true
-  };
-
   this.__Porffor_funcLut_length = {
     params: [ Valtype.i32 ],
     returns: [ Valtype.i32 ],
     returnType: TYPES.number,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(64, Valtype.i32),
+      ...number(48, Valtype.i32),
+      [ Opcodes.i32_mul ],
+      [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ]
+    ],
+    table: true
+  };
+
+  this.__Porffor_funcLut_flags = {
+    params: [ Valtype.i32 ],
+    returns: [ Valtype.i32 ],
+    returnType: TYPES.number,
+    wasm: (scope, { allocPage }) => [
+      [ Opcodes.local_get, 0 ],
+      ...number(48, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...number(2, Valtype.i32),
       [ Opcodes.i32_add ],
-      [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ]
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ]
     ],
     table: true
   };
@@ -1038,9 +1036,9 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.bytestring,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(64, Valtype.i32),
+      ...number(48, Valtype.i32),
       [ Opcodes.i32_mul ],
-      ...number(5, Valtype.i32),
+      ...number(3, Valtype.i32),
       [ Opcodes.i32_add ],
       ...number(allocPage(scope, 'func lut'), Valtype.i32),
       [ Opcodes.i32_add ]

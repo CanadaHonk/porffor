@@ -49,69 +49,80 @@ const cacheAst = (decl, wasm) => {
 };
 
 const funcRef = func => {
-  // generate func
   func.generate?.();
 
   if (globalThis.precompile) return [
     [ Opcodes.const, 'funcref', func.name ]
   ];
 
-  if (Prefs.indirectCallMode === 'padding' && !func.internal) {
-    const buildArgs = (idx) => {
-      const arr = [];
-      const paramLen = countParams(func);
-      for (let i = 0; i < paramLen; i++) {
-        arr.push(
-          [ Opcodes.local_get, idx + i * 2 ],
-          [ Opcodes.local_get, idx + i * 2 + 1 ],
-        );
-      }
-      return arr;
+  const wrapperArgc = Prefs.indirectWrapperArgc ?? 6;
+  if (func.returns.length === 2 && countParams(func) < wrapperArgc && !func.wrapperFunc) {
+    const locals = {}, params = [];
+    for (let i = 0; i < wrapperArgc + (func.constr ? 2 : 0); i++) {
+      params.push(valtypeBinary, Valtype.i32);
+      locals[i * 2] = { idx: i * 2, type: valtypeBinary };
+      locals[i * 2 + 1] = { idx: i * 2 + 1, type: Valtype.i32 };
+    }
+    let localInd = (wrapperArgc + (func.constr ? 2 : 0)) * 2;
+
+    const wasm = [];
+    for (let i = 0; i < func.params.length; i++) {
+      wasm.push(
+        [ Opcodes.local_get, i ],
+        ...(i % 2 === 0 && func.params[i] === Valtype.i32 ? [ Opcodes.i32_to ]: [])
+      );
     }
 
-    const wrapperArgs = [];
-    const minArgc = Prefs.indirectCallMinArgc ?? 5;
-    for (let i = 0; i < minArgc; i += 1) {
-      wrapperArgs.push(valtypeBinary, Valtype.i32);
+    wasm.push([ Opcodes.call, func.index ]);
+
+    if (func.returns[0] === Valtype.i32) {
+      const localIdx = localInd++;
+      locals[localIdx] = { idx: localIdx, type: Valtype.i32 };
+
+      wasm.push(
+        [ Opcodes.local_set, localIdx ],
+        Opcodes.i32_from,
+        [ Opcodes.local_get, localIdx ]
+      );
     }
 
-    const wrapperFunc = asmFunc('#indirect_wrapper_' + func.name, func.constr ? {
-      params: [ valtypeBinary, Valtype.i32, valtypeBinary, Valtype.i32, ...wrapperArgs ],
-      locals: [],
+    const name = '#indirect_' + func.name;
+    const wrapperFunc = {
+      name,
+      params,
+      locals, localInd,
       returns: [ valtypeBinary, Valtype.i32 ],
-      wasm: [
-        // new.target
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.local_get, 1 ],
-        // this
-        [ Opcodes.local_get, 2 ],
-        [ Opcodes.local_get, 3 ],
-        // arguments
-        ...buildArgs(4),
+      wasm,
+      constr: func.constr,
+      internal: true,
+      index: currentFuncIndex++
+    };
 
-        [ Opcodes.call, func.index ]
-      ],
-      constr: true
-    } : {
-      params: [ ...wrapperArgs ],
-      locals: [],
-      returns: [ valtypeBinary, Valtype.i32 ],
-      wasm: [
-        // arguments
-        ...buildArgs(0),
+    funcs.push(wrapperFunc);
+    funcIndex[name] = wrapperFunc.index;
 
-        [ Opcodes.call, func.index ]
-      ],
-    })
-
-    return [ [ Opcodes.const, wrapperFunc.index - importedFuncs.length ] ]
+    wrapperFunc.jsLength = countLength(func);
+    func.wrapperFunc = wrapperFunc;
   }
 
   return [
     [ Opcodes.const, func.index - importedFuncs.length ]
-    // [ Opcodes.const, func.index - importedFuncs.length, 'funcref' ]
   ];
 };
+
+const forceDuoValtype = (scope, wasm, forceValtype) => [
+  ...wasm,
+  ...(valtypeBinary === Valtype.i32 && forceValtype === Valtype.f64 ? [
+    [ Opcodes.local_set, localTmp(scope, '#swap', Valtype.i32) ],
+    [ Opcodes.f64_convert_i32_s ],
+    [ Opcodes.local_get, localTmp(scope, '#swap', Valtype.i32) ]
+  ] : []),
+  ...(valtypeBinary === Valtype.f64 && forceValtype === Valtype.i32 ? [
+    [ Opcodes.local_set, localTmp(scope, '#swap', Valtype.i32) ],
+    Opcodes.i32_trunc_sat_f64_s,
+    [ Opcodes.local_get, localTmp(scope, '#swap', Valtype.i32) ]
+  ] : [])
+];
 
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   if (astCache.has(decl)) return astCache.get(decl);
@@ -296,7 +307,7 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
       ]
     }
   }),
-  ...(expectsValue ? number(UNDEFINED) : [])
+  ...(expectsValue ? number(UNDEFINED, typeof expectsValue === 'number' ? expectsValue : valtypeBinary) : [])
 ];
 
 const generateIdent = (scope, decl) => {
@@ -2218,179 +2229,45 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     } else {
       if (!Prefs.indirectCalls) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
 
-      // todo: only works when function uses typedParams and typedReturns
-
-      const indirectMode = Prefs.indirectCallMode ?? 'vararg';
-      // options: vararg, strict
-      // - strict: simpler, smaller size usage, no func lut needed.
-      //   ONLY works when arg count of call == arg count of function being called
-      // - vararg: large size usage, cursed.
-      //   works when arg count of call != arg count of function being called*
-      //   * most of the time, some edgecases
-
       funcs.table = true;
       scope.table = true;
 
       let args = decl.arguments;
-      let locals = [];
-
-      if (indirectMode === 'vararg' || indirectMode === 'padding') {
-        const minArgc = Prefs.indirectCallMinArgc ?? 5;
-
-        if (args.length < minArgc) {
-          args = args.concat(new Array(minArgc - args.length).fill(DEFAULT_VALUE()));
-        }
+      const wrapperArgc = Prefs.indirectWrapperArgc ?? 6;
+      if (args.length < wrapperArgc) {
+        args = args.concat(new Array(wrapperArgc - args.length).fill(DEFAULT_VALUE()));
       }
 
       for (let i = 0; i < args.length; i++) {
         const arg = args[i];
-        out = out.concat(generate(scope, arg));
-        out = out.concat(getNodeType(scope, arg));
-
-        if (indirectMode === 'vararg') {
-          const typeLocal = localTmp(scope, `#indirect_arg${i}_type`, Valtype.i32);
-          const valLocal = localTmp(scope, `#indirect_arg${i}_val`);
-
-          locals.push([valLocal, typeLocal]);
-
-          out.push(
-            [ Opcodes.local_set, typeLocal ],
-            [ Opcodes.local_set, valLocal ]
-          );
-        }
+        out = out.concat(generate(scope, arg), valtypeBinary === Valtype.i32 && scope.locals[arg.name]?.type !== Valtype.f64 ? [ [ Opcodes.f64_convert_i32_s ] ] : [], getNodeType(scope, arg));
       }
 
-      if (indirectMode === 'strict') {
-        return [
-          ...generate(scope, decl.callee),
-          [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
-
-          ...typeSwitch(scope, getNodeType(scope, decl.callee), {
-            [TYPES.function]: () => [
-              ...out,
-
-              [ Opcodes.local_get, localTmp(scope, '#indirect_callee') ],
-              ...generate(scope, decl.callee),
-              Opcodes.i32_to_u,
-              [ Opcodes.call_indirect, args.length, 0 ],
-              ...setLastType(scope)
-            ],
-            default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
-          })
-        ];
-      }
-
-      if (indirectMode === 'padding') {
-        let knownThis = undefined;
-
-        let getCallee = undefined;
-        const calleeLocal = localTmp(scope, '#indirect_callee');
-
-        // hack: this should be more thorough, Function.bind, etc
-        if (decl.callee.type == 'MemberExpression' && !decl._new) {
-          const thisLocal = localTmp(scope, '#indirect_caller')
-          const thisLocalType = localTmp(scope, '#indirect_caller#type')
-
-          knownThis = [
-            [ Opcodes.local_get, thisLocal ],
-            [ Opcodes.local_get, thisLocalType ]
-          ];
-          getCallee = [
-            ...generate(scope, decl.callee.object),
-            [ Opcodes.local_set, thisLocal ],
-            ...getNodeType(scope, decl.callee.object),
-            [ Opcodes.local_set, thisLocalType ],
-
-            ...generate(scope, {
-              type: 'MemberExpression',
-              object: { type: 'Identifier', name: '#indirect_caller' },
-              property: decl.callee.property,
-              computed: decl.callee.computed,
-              optional: decl.callee.optional
-            })
-          ]
-        }
-
-        const newTargetWasm = decl._newTargetWasm ?? createNewTarget(scope, decl, [
-          [ Opcodes.local_get, calleeLocal ],
-          Opcodes.i32_from_u
-        ], decl._new);
-        const thisWasm = knownThis ?? createThisArg(scope, decl);
-
-        return [
-          ...(getCallee ? getCallee : generate(scope, decl.callee)),
-          [ Opcodes.local_set, calleeLocal ],
-
-          ...typeSwitch(scope, getNodeType(scope, decl.callee), {
-            [TYPES.function]: () => [
-              // get if func we are calling is a constructor or not
-              [ Opcodes.local_get, calleeLocal ],
-              Opcodes.i32_to_u,
-              ...number(64, Valtype.i32),
-              [ Opcodes.i32_mul ],
-              ...number(4, Valtype.i32),
-              [ Opcodes.i32_add ],
-              [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ],
-
-              ...number(0b10, Valtype.i32),
-              [ Opcodes.i32_and ],
-              [ Opcodes.if, valtypeBinary ],
-                ...newTargetWasm,
-                ...thisWasm,
-                ...out,
-
-                [ Opcodes.local_get, calleeLocal ],
-                Opcodes.i32_to_u,
-                [ Opcodes.call_indirect, args.length + 2, 0 ],
-                ...setLastType(scope),
-              [ Opcodes.else ],
-                ...out,
-
-                [ Opcodes.local_get, calleeLocal ],
-                Opcodes.i32_to_u,
-                [ Opcodes.call_indirect, args.length, 0 ],
-                ...setLastType(scope),
-              [ Opcodes.end ]
-            ],
-            default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
-          })
-        ];
-      }
-
-      // hi, I will now explain how vararg mode works:
-      // wasm's indirect_call instruction requires you know the func type at compile-time
-      // since we have varargs (variable argument count), we do not know it.
-      // we could just store args in memory and not use wasm func args,
-      // but that is slow (probably) and breaks js exports.
-      // instead, we generate every* possibility of argc and use different indirect_call
-      // ops for each one, with type depending on argc for that branch.
-      // then we load the argc for the wanted function from a memory lut,
-      // and call the branch with the matching argc we require.
-      // sorry, yes it is very cursed (and size inefficient), but indirect calls
-      // are kind of rare anyway (mostly callbacks) so I am not concerned atm.
-      // *for argc 0-3, in future (todo:) the max number should be
-      // dynamically changed to the max argc of any func in the js file.
-
-      const funcLocal = localTmp(scope, '#indirect_func', Valtype.i32);
-      const flags = localTmp(scope, '#indirect_flags', Valtype.i32);
-
-      let knownThis = undefined;
-      let getCalleeObj = undefined;
-      let initCalleeObj = undefined;
+      let knownThis = undefined, getCallee = undefined;
+      const calleeLocal = localTmp(scope, '#indirect_callee');
 
       // hack: this should be more thorough, Function.bind, etc
-      if (decl.callee.type == 'MemberExpression' && !decl._new) {
-        const callee = localTmp(scope, '#indirect_callee_obj', Valtype.f64);
-        initCalleeObj = [
-          ...generate(scope, decl.callee.object),
-          [ Opcodes.local_set, callee ]
-        ];
-        getCalleeObj = [
-          [ Opcodes.local_get, callee ]
-        ];
+      if (decl.callee.type === 'MemberExpression' && !decl._new) {
+        const thisLocal = localTmp(scope, '#indirect_caller');
+        const thisLocalType = localTmp(scope, '#indirect_caller#type', Valtype.i32);
+
         knownThis = [
-          [ Opcodes.local_get, callee ],
-          ...getNodeType(scope, decl.callee.object)
+          [ Opcodes.local_get, thisLocal ],
+          [ Opcodes.local_get, thisLocalType ]
+        ];
+        getCallee = [
+          ...generate(scope, decl.callee.object),
+          [ Opcodes.local_set, thisLocal ],
+          ...getNodeType(scope, decl.callee.object),
+          [ Opcodes.local_set, thisLocalType ],
+
+          ...generate(scope, {
+            type: 'MemberExpression',
+            object: { type: 'Identifier', name: '#indirect_caller' },
+            property: decl.callee.property,
+            computed: decl.callee.computed,
+            optional: decl.callee.optional
+          })
         ];
       }
 
@@ -2406,152 +2283,54 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       }
 
       const newTargetWasm = decl._newTargetWasm ?? createNewTarget(scope, decl, [
-        [ Opcodes.local_get, funcLocal ],
-        Opcodes.i32_from_u
+        [ Opcodes.local_get, calleeLocal ]
       ], callAsNew);
-      const thisWasm = knownThis ?? createThisArg(scope, decl);
-
-      const gen = argc => {
-        const argsOut = [];
-        for (let i = 0; i < argc; i++) {
-          argsOut.push(
-            [ Opcodes.local_get, locals[i][0] ],
-            [ Opcodes.local_get, locals[i][1] ]
-          );
-        }
-
-        const checkFlag = (flag, pass, fail) => [
-          [ Opcodes.local_get, flags ],
-          ...number(flag, Valtype.i32),
-          [ Opcodes.i32_and ],
-          [ Opcodes.if, valtypeBinary ],
-          ...pass,
-          [ Opcodes.else ],
-          ...fail,
-          [ Opcodes.end ]
-        ];
-
-        // todo: i'm sure this could be made better somehow, probably only with #96?
-        return checkFlag(0b1,
-          // no type return
-          checkFlag(0b10, [
-            // no type return & constr
-            ...newTargetWasm,
-            ...thisWasm,
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc + 2, 0, 'no_type_return' ],
-          ], [
-            // no type return & not constr
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc, 0, 'no_type_return' ]
-          ]),
-
-          // type return
-          checkFlag(0b10, [
-            // type return & constr
-            ...newTargetWasm,
-            ...thisWasm,
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc + 2, 0 ],
-            ...setLastType(scope),
-          ], [
-            // type return
-            ...argsOut,
-            [ Opcodes.local_get, funcLocal ],
-            [ Opcodes.call_indirect, argc, 0 ],
-            ...setLastType(scope),
-          ])
-        );
-      };
-
-      const tableBc = {};
-      for (let i = 0; i <= args.length; i++) {
-        tableBc[i] = gen(i);
-      }
-
-      // todo/perf: check if we should use br_table here or just generate our own big if..elses
+      const thisWasm = decl._thisWasm ?? knownThis ?? createThisArg(scope, decl);
 
       return [
-        ...(getCalleeObj ? [
-          ...initCalleeObj,
-          ...generate(scope, callee, false, undefined, getCalleeObj)
-        ]: generate(scope, callee)),
-        [ Opcodes.local_set, localTmp(scope, '#indirect_callee') ],
+        ...(getCallee ? getCallee : generate(scope, callee)),
+        [ Opcodes.local_set, calleeLocal ],
 
         ...typeSwitch(scope, getNodeType(scope, callee), {
           [TYPES.function]: () => [
-            ...out,
-
-            [ Opcodes.local_get, localTmp(scope, '#indirect_callee') ],
-            Opcodes.i32_to_u,
-            [ Opcodes.local_set, funcLocal ],
-
             // get if func we are calling is a constructor or not
-            [ Opcodes.local_get, funcLocal ],
-            ...number(64, Valtype.i32),
+            [ Opcodes.local_get, calleeLocal ],
+            Opcodes.i32_to_u,
+            ...number(48, Valtype.i32),
             [ Opcodes.i32_mul ],
-            ...number(4, Valtype.i32),
+            ...number(2, Valtype.i32),
             [ Opcodes.i32_add ],
             [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ],
-            [ Opcodes.local_set, flags ],
 
-            // check if non-constructor was called with new, if so throw
-            ...(callAsNew ? [
-              [ Opcodes.local_get, flags ],
-              ...number(0b10, Valtype.i32),
-              [ Opcodes.i32_and ],
-              [ Opcodes.i32_eqz ],
-              [ Opcodes.if, Blocktype.void ],
-                ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`),
-              [ Opcodes.end ],
-            ] : []),
+            ...number(0b10, Valtype.i32),
+            [ Opcodes.i32_and ],
+            [ Opcodes.if, Valtype.f64 ],
+              ...forceDuoValtype(scope, newTargetWasm, Valtype.f64),
+              ...forceDuoValtype(scope, thisWasm, Valtype.f64),
+              ...out,
 
-            // [ Opcodes.local_get, funcLocal ],
-            // Opcodes.i32_from_u,
-            // [ Opcodes.call, 0 ],
+              [ Opcodes.local_get, calleeLocal ],
+              Opcodes.i32_to_u,
+              [ Opcodes.call_indirect, args.length + 2, 0 ],
+              ...setLastType(scope),
+            [ Opcodes.else ],
+              // throw if non-constructor called with new
+              ...(callAsNew ? [
+                ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, Valtype.f64)
+              ] : [
+                ...out,
 
-            // ...number(32),
-            // [ Opcodes.call, 1 ],
-
-            // [ Opcodes.local_get, funcLocal ],
-            // ...number(64, Valtype.i32),
-            // [ Opcodes.i32_mul ],
-            // [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ],
-            // Opcodes.i32_from_u,
-            // [ Opcodes.call, 0 ],
-
-            // [ Opcodes.local_get, funcLocal ],
-            // [ Opcodes.call, includeBuiltin(scope, '__Porffor_funcLut_name').index ],
-            // Opcodes.i32_from_u,
-            // ...number(TYPES.bytestring, Valtype.i32),
-            // [ Opcodes.call, includeBuiltin(scope, '__Porffor_printString').index ],
-            // [ Opcodes.drop ],
-            // [ Opcodes.drop ],
-
-            // ...number(10),
-            // [ Opcodes.call, 1 ],
-
-            ...brTable([
-              // get argc of func we are calling
-              [ Opcodes.local_get, funcLocal ],
-              ...number(64, Valtype.i32),
-              [ Opcodes.i32_mul ],
-              [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ]
-            ], tableBc, valtypeBinary)
+                [ Opcodes.local_get, calleeLocal ],
+                Opcodes.i32_to_u,
+                [ Opcodes.call_indirect, args.length, 0 ],
+                ...setLastType(scope)
+              ]),
+            [ Opcodes.end ]
           ],
 
-          ...(decl.optional ? {
-            [TYPES.undefined]: [
-              ...number(UNDEFINED),
-              ...setLastType(scope, TYPES.undefined)
-            ]
-          } : {}),
-
-          default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true)
-        })
+          default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, Valtype.f64)
+        }, Valtype.f64),
+        ...(valtypeBinary === Valtype.i32 && scope.returns[0] !== Valtype.f64 ? [ [ Opcodes.f64_convert_i32_s ] ] : [])
       ];
     }
 
@@ -5416,18 +5195,18 @@ const countLength = (func, name = undefined) => {
 
 const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) => {
   let final = [], finalEnd, extraBC = {};
-  const name = decl.object.name;
+  let name = decl.object.name;
 
   // todo: handle globalThis.foo
 
   // hack: .name
   if (decl.property.name === 'name' && hasFuncWithName(name) && !scope.noFastFuncMembers) {
-    let nameProp = name;
-
     // eg: __String_prototype_toLowerCase -> toLowerCase
-    if (nameProp.startsWith('__')) nameProp = nameProp.split('_').pop();
+    if (name.startsWith('__')) name = name.split('_').pop();
+    if (name.startsWith('#indirect_')) name = name.slice(10);
+    if (name.startsWith('#')) name = '';
 
-    return withType(scope, makeString(scope, nameProp, _global, _name, true), TYPES.bytestring);
+    return withType(scope, makeString(scope, name, _global, _name, true), TYPES.bytestring);
   }
 
   const object = decl.object;
@@ -6405,6 +6184,18 @@ const generateFunc = (scope, decl) => {
 
   func.params = Object.values(func.locals).map(x => x.type);
   func.jsLength = jsLength;
+
+  if (globalThis.valtypeOverrides) {
+    if (globalThis.valtypeOverrides.returns[name]) func.returns = globalThis.valtypeOverrides.returns[name];
+    if (globalThis.valtypeOverrides.params[name]) {
+      func.params = globalThis.valtypeOverrides.params[name];
+
+      const localsVals = Object.values(func.locals);
+      for (let i = 0; i < func.params.length; i++) {
+        localsVals[i].type = func.params[i];
+      }
+    }
+  }
 
   // force generate for main
   if (name === 'main') func.generate();

@@ -132,13 +132,12 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     encodeVector([ [
       0x00,
       Opcodes.i32_const, 0, Opcodes.end,
-      ...encodeVector(funcs.map(x => unsignedLEB128(x.asmIndex)))
+      ...encodeVector(funcs.map(x => unsignedLEB128((x.wrapperFunc ?? x).asmIndex)))
     ] ])
   );
   time('element section');
 
   if (pages.has('func lut')) {
-    const offset = pages.get('func lut').ind * pageSize;
     if (data.addedFuncArgcLut) {
       // remove existing data
       data = data.filter(x => x.page !== 'func lut');
@@ -150,17 +149,16 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
       const func = funcs[i];
       let name = func.name;
 
-      // real argc
-      let argc = func.params.length;
-      if (func.constr) argc -= 4;
-      if (!func.internal || func.typedParams) argc = Math.floor(argc / 2);
-
-      bytes.push(argc % 256, (argc / 256 | 0) % 256);
-
       // userland exposed .length
-      let length = func.jsLength ?? argc;
-      // remove _this from internal prototype funcs
-      if (func.internal && name.includes('_prototype_')) length--;
+      let length = func.jsLength;
+      if (length == null) {
+        length = func.params.length;
+        if (func.constr) length -= 4;
+        if (!func.internal || func.typedParams) length = Math.floor(length / 2);
+
+        // remove _this from internal prototype funcs
+        if (func.internal && name.includes('_prototype_')) length--;
+      }
 
       bytes.push(length % 256, (length / 256 | 0) % 256);
 
@@ -169,14 +167,15 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
       if (func.constr) flags |= 0b10;
       bytes.push(flags);
 
+      if (name.startsWith('#indirect_')) name = name.slice(10);
       if (name.startsWith('#')) name = '';
 
       // eg: __String_prototype_toLowerCase -> toLowerCase
       if (name.startsWith('__')) name = name.split('_').pop();
 
-      bytes.push(...new Uint8Array(new Int32Array([ name.length ]).buffer));
+      bytes.push(...new Uint8Array(new Int32Array([ Math.min(name.length, 48 - 5 - 4) ]).buffer));
 
-      for (let i = 0; i < (64 - 5 - 4); i++) {
+      for (let i = 0; i < (48 - 3 - 4); i++) {
         const c = name.charCodeAt(i);
         bytes.push((c || 0) % 256);
       }

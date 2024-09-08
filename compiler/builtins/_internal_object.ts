@@ -280,24 +280,7 @@ i32.const 128
 return`;
     }
 
-    const funcFlags: i32 = __Porffor_funcLut_flags(get);
-    if (funcFlags & 0b10) {
-      // constructor func, add new.target, this args
-      Porffor.wasm`
-f64.const 0
-i32.const 0
-local.get ${obj}
-f64.convert_i32_u
-local.get ${obj+1}
-local.get ${get}
-call_indirect 2 0
-return`;
-    } else {
-      Porffor.wasm`
-local.get ${get}
-call_indirect 0 0
-return`;
-    }
+    return get.call(obj);
   }
 
   // data descriptor
@@ -364,27 +347,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
         return value;
       }
 
-      const funcFlags: i32 = __Porffor_funcLut_flags(set);
-      if (funcFlags & 0b10) {
-        // constructor func, add new.target, this args
-        Porffor.wasm`
-  f64.const 0
-  i32.const 0
-  local.get ${obj}
-  f64.convert_i32_u
-  i32.const 7
-  local.get ${value}
-  local.get ${value+1}
-  local.get ${set}
-  call_indirect 3 0`;
-      } else {
-        Porffor.wasm`
-  local.get ${value}
-  local.get ${value+1}
-  local.get ${set}
-  call_indirect 1 0`;
-      }
-
+      set.call(obj, value);
       return value;
     }
 
@@ -450,27 +413,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
         throw new TypeError('Cannot set property with no setter of object');
       }
 
-      const funcFlags: i32 = __Porffor_funcLut_flags(set);
-      if (funcFlags & 0b10) {
-        // constructor func, add new.target, this args
-        Porffor.wasm`
-  f64.const 0
-  i32.const 0
-  local.get ${obj}
-  f64.convert_i32_u
-  i32.const 7
-  local.get ${value}
-  local.get ${value+1}
-  local.get ${set}
-  call_indirect 3 0`;
-      } else {
-        Porffor.wasm`
-  local.get ${value}
-  local.get ${value+1}
-  local.get ${set}
-  call_indirect 1 0`;
-      }
-
+      set.call(obj, value);
       return value;
     }
 

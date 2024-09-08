@@ -13,6 +13,26 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 globalThis.precompileCompilerPath = __dirname;
 globalThis.precompile = true;
 
+globalThis.valtypeOverrides = {
+  returns: {
+    __Porffor_object_get: [ Valtype.f64, Valtype.i32 ],
+    __Porffor_object_getExplicit: [ Valtype.f64, Valtype.i32 ],
+    __Porffor_object_readValue: [ Valtype.f64, Valtype.i32 ],
+    __Porffor_object_set: [ Valtype.f64, Valtype.i32 ],
+    __Porffor_object_setStrict: [ Valtype.f64, Valtype.i32 ],
+    __Porffor_object_packAccessor: [ Valtype.f64, Valtype.i32 ]
+  },
+  params: {
+    __Porffor_object_set: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
+    __Porffor_object_setStrict: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
+    __Porffor_object_expr_init: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
+    __Porffor_object_expr_initWithFlags: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
+    __Porffor_object_class_value: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
+    __Porffor_object_class_method: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
+    __Porffor_object_define: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
+  }
+};
+
 const argv = process.argv.slice();
 
 const timing = {};
@@ -50,25 +70,6 @@ const compile = async (file, _funcs) => {
     return acc;
   }, {});
 
-  const returnOverrides = {
-    __Porffor_object_get: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_getExplicit: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_readValue: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_set: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_setStrict: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_packAccessor: [ Valtype.f64, Valtype.i32 ]
-  };
-
-  const paramOverrides = {
-    __Porffor_object_set: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
-    __Porffor_object_setStrict: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
-    __Porffor_object_expr_init: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
-    __Porffor_object_expr_initWithFlags: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
-    __Porffor_object_class_value: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
-    __Porffor_object_class_method: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
-    __Porffor_object_define: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
-  };
-
   const main = funcs.find(x => x.name === 'main');
   const exports = funcs.filter(x => x.export && x.name !== 'main');
   for (const x of exports) {
@@ -83,9 +84,6 @@ const compile = async (file, _funcs) => {
         return obj;
       }).filter(x => x);
     }
-
-    if (returnOverrides[x.name]) x.returns = returnOverrides[x.name];
-    if (paramOverrides[x.name]) x.params = paramOverrides[x.name];
 
     const rewriteWasm = (x, wasm, rewriteLocals = false) => {
       const locals = Object.keys(x.locals).reduce((acc, y) => {
