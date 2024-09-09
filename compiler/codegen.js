@@ -3667,8 +3667,11 @@ const generateUnary = (scope, decl) => {
     case 'delete': {
       if (decl.argument.type === 'MemberExpression') {
         const object = decl.argument.object;
-        const property = getProperty(decl.argument);
 
+        // disallow `delete super.*`
+        if (object.type === 'Super') return internalThrow(scope, 'ReferenceError', 'Cannot delete super property', true);
+
+        const property = getProperty(decl.argument);
         if (property.value === 'length' || property.value === 'name') scope.noFastFuncMembers = true;
 
         return [
