@@ -2366,16 +2366,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     paramOffset += 4;
   }
 
-  if (func && !func.hasRestArgument && args.length < paramCount) {
+  if (func && args.length < paramCount) {
     // too little args, push undefineds
-    args = args.concat(new Array(paramCount - args.length).fill(DEFAULT_VALUE()));
+    args = args.concat(new Array(paramCount - (func.hasRestArgument ? 1 : 0) - args.length).fill(DEFAULT_VALUE()));
   }
 
   if (func && func.hasRestArgument) {
-    if (args.length < paramCount) {
-      args = args.concat(new Array(paramCount - 1 - args.length).fill(DEFAULT_VALUE()));
-    }
-
     const restArgs = args.slice(paramCount - 1);
     args = args.slice(0, paramCount - 1);
     args.push({
