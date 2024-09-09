@@ -69,10 +69,18 @@ const funcRef = func => {
     const wasm = [];
     const offset = func.constr ? 0 : 4;
     for (let i = 0; i < func.params.length; i++) {
-      wasm.push(
-        [ Opcodes.local_get, offset + (!func.internal || func.typedParams ? i : i * 2) ],
-        ...(i % 2 === 0 && func.params[i] === Valtype.i32 ? [ Opcodes.i32_to ]: [])
-      );
+      if (func.internal && func.name.includes('_prototype_') && i < 2) {
+        // special case: use real this for prototype internals
+        wasm.push(
+          [ Opcodes.local_get, 2 + i ],
+          ...(i % 2 === 0 && func.params[i] === Valtype.i32 ? [ Opcodes.i32_to ]: [])
+        );
+      } else {
+        wasm.push(
+          [ Opcodes.local_get, offset + (!func.internal || func.typedParams ? i : i * 2) ],
+          ...(i % 2 === 0 && func.params[i] === Valtype.i32 ? [ Opcodes.i32_to ]: [])
+        );
+      }
     }
 
     wasm.push([ Opcodes.call, func.index ]);
