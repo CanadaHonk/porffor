@@ -48,6 +48,7 @@ const cacheAst = (decl, wasm) => {
   return wasm;
 };
 
+let indirectFuncs = [];
 const funcRef = func => {
   func.generate?.();
 
@@ -58,17 +59,18 @@ const funcRef = func => {
   const wrapperArgc = Prefs.indirectWrapperArgc ?? 8;
   if (!func.wrapperFunc) {
     const locals = {}, params = [];
-    for (let i = 0; i < wrapperArgc + (func.constr ? 2 : 0); i++) {
+    for (let i = 0; i < wrapperArgc + 2; i++) {
       params.push(valtypeBinary, Valtype.i32);
       locals[i * 2] = { idx: i * 2, type: valtypeBinary };
       locals[i * 2 + 1] = { idx: i * 2 + 1, type: Valtype.i32 };
     }
-    let localInd = (wrapperArgc + (func.constr ? 2 : 0)) * 2;
+    let localInd = (wrapperArgc + 2) * 2;
 
     const wasm = [];
+    const offset = func.constr ? 0 : 4;
     for (let i = 0; i < func.params.length; i++) {
       wasm.push(
-        [ Opcodes.local_get, !func.internal || func.typedParams ? i : i * 2 ],
+        [ Opcodes.local_get, offset + (!func.internal || func.typedParams ? i : i * 2) ],
         ...(i % 2 === 0 && func.params[i] === Valtype.i32 ? [ Opcodes.i32_to ]: [])
       );
     }
@@ -102,16 +104,26 @@ const funcRef = func => {
       locals, localInd,
       returns: [ valtypeBinary, Valtype.i32 ],
       wasm,
-      constr: func.constr,
+      constr: true,
       internal: true,
-      index: currentFuncIndex++
+      indirect: true
     };
 
-    funcs.push(wrapperFunc);
-    funcIndex[name] = wrapperFunc.index;
+    indirectFuncs.push(wrapperFunc);
 
     wrapperFunc.jsLength = countLength(func);
     func.wrapperFunc = wrapperFunc;
+
+    if (!func.constr) {
+      // check not being constructed
+      wasm.unshift(
+        [ Opcodes.local_get, 0 ], // new.target value
+        Opcodes.i32_to_u,
+        [ Opcodes.if, Blocktype.void ], // if value is non-zero
+          ...internalThrow(wrapperFunc, 'TypeError', `${unhackName(func.name)} is not a constructor`), // throw type error
+        [ Opcodes.end ]
+      );
+    }
   }
 
   return [
@@ -2302,39 +2314,14 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
         ...typeSwitch(scope, getNodeType(scope, callee), {
           [TYPES.function]: () => [
-            // get if func we are calling is a constructor or not
+            ...forceDuoValtype(scope, newTargetWasm, Valtype.f64),
+            ...forceDuoValtype(scope, thisWasm, Valtype.f64),
+            ...out,
+
             [ Opcodes.local_get, calleeLocal ],
             Opcodes.i32_to_u,
-            ...number(48, Valtype.i32),
-            [ Opcodes.i32_mul ],
-            ...number(2, Valtype.i32),
-            [ Opcodes.i32_add ],
-            [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')), 'read func lut' ],
-
-            ...number(0b10, Valtype.i32),
-            [ Opcodes.i32_and ],
-            [ Opcodes.if, Valtype.f64 ],
-              ...forceDuoValtype(scope, newTargetWasm, Valtype.f64),
-              ...forceDuoValtype(scope, thisWasm, Valtype.f64),
-              ...out,
-
-              [ Opcodes.local_get, calleeLocal ],
-              Opcodes.i32_to_u,
-              [ Opcodes.call_indirect, args.length + 2, 0 ],
-              ...setLastType(scope),
-            [ Opcodes.else ],
-              // throw if non-constructor called with new
-              ...(callAsNew ? [
-                ...internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, Valtype.f64)
-              ] : [
-                ...out,
-
-                [ Opcodes.local_get, calleeLocal ],
-                Opcodes.i32_to_u,
-                [ Opcodes.call_indirect, args.length, 0 ],
-                ...setLastType(scope)
-              ]),
-            [ Opcodes.end ]
+            [ Opcodes.call_indirect, args.length + 2, 0 ],
+            ...setLastType(scope)
           ],
 
           default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, Valtype.f64)
@@ -5212,7 +5199,6 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   if (decl.property.name === 'name' && hasFuncWithName(name) && !scope.noFastFuncMembers) {
     // eg: __String_prototype_toLowerCase -> toLowerCase
     if (name.startsWith('__')) name = name.split('_').pop();
-    if (name.startsWith('#indirect_')) name = name.slice(10);
     if (name.startsWith('#')) name = '';
 
     return withType(scope, makeString(scope, name, _global, _name, true), TYPES.bytestring);
@@ -5629,16 +5615,7 @@ const generateClass = (scope, decl) => {
     type: 'Identifier',
     name
   };
-  const proto = {
-    type: 'MemberExpression',
-    object: root,
-    property: {
-      type: 'Identifier',
-      name: 'prototype'
-    },
-    computed: false,
-    optional: false
-  };
+  const proto = getObjProp(root, 'prototype');
 
   const [ func, out ] = generateFunc(scope, {
     ...(body.find(x => x.kind === 'constructor')?.value ?? {
@@ -5665,7 +5642,7 @@ const generateClass = (scope, decl) => {
       // Bar.__proto__ = Foo
       // Bar.prototype.__proto__ = Foo.prototype
       ...generate(scope, setObjProp(root, '__proto__', decl.superClass)),
-      ...generate(scope, setObjProp(getObjProp(root, 'prototype'), '__proto__', getObjProp(decl.superClass, 'prototype')))
+      ...generate(scope, setObjProp(proto, '__proto__', getObjProp(decl.superClass, 'prototype')))
     );
   }
 
@@ -6348,7 +6325,7 @@ export default program => {
   };
   tags = [];
   exceptions = [];
-  funcs = [];
+  funcs = []; indirectFuncs = [];
   funcIndex = {};
   depth = [];
   pages = new Map();
@@ -6403,6 +6380,7 @@ export default program => {
   // todo: these should just be deleted once able
   for (let i = 0; i < funcs.length; i++) {
     const f = funcs[i];
+
     if (f.wasm) {
       // run callbacks
       const wasm = f.wasm;
@@ -6459,9 +6437,15 @@ export default program => {
   //   }
   // }
 
-  delete globals['#ind'];
+  // add indirect funcs to end of funcs
+  for (let i = 0; i < indirectFuncs.length; i++) {
+    const f = indirectFuncs[i];
+    f.index = currentFuncIndex++;
+  }
 
-  // console.log([...usedTypes].map(x => TYPE_NAMES[x]));
+  funcs.push(...indirectFuncs);
+
+  delete globals['#ind'];
 
   return { funcs, globals, tags, exceptions, pages, data };
 };

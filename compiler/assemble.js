@@ -121,9 +121,10 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
   const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
 
+  const directFuncs = funcs.filter(x => !x.indirect);
   const tableSection = !funcs.table ? [] : createSection(
     Section.table,
-    encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(funcs.length) ] ])
+    encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(directFuncs.length) ] ])
   );
   time('table section');
 
@@ -132,7 +133,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     encodeVector([ [
       0x00,
       Opcodes.i32_const, 0, Opcodes.end,
-      ...encodeVector(funcs.map(x => unsignedLEB128((x.wrapperFunc ?? x).asmIndex)))
+      ...encodeVector(directFuncs.map(x => unsignedLEB128((x.wrapperFunc ?? x).asmIndex)))
     ] ])
   );
   time('element section');
@@ -145,8 +146,8 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
     // generate func lut data
     const bytes = [];
-    for (let i = 0; i < funcs.length; i++) {
-      const func = funcs[i];
+    for (let i = 0; i < directFuncs.length; i++) {
+      const func = directFuncs[i];
       let name = func.name;
 
       // userland exposed .length
@@ -167,7 +168,6 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
       if (func.constr) flags |= 0b10;
       bytes.push(flags);
 
-      if (name.startsWith('#indirect_')) name = name.slice(10);
       if (name.startsWith('#')) name = '';
 
       // eg: __String_prototype_toLowerCase -> toLowerCase
