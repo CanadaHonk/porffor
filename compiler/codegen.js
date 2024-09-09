@@ -2389,8 +2389,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     args = args.slice(0, paramCount);
   }
 
-  if (func && func.throws) scope.throws = true;
-
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (Array.isArray(arg)) {
@@ -4608,8 +4606,6 @@ const generateLabel = (scope, decl) => {
 };
 
 const generateThrow = (scope, decl) => {
-  scope.throws = true;
-
   let exceptionMode = Prefs.exceptionMode ?? 'stack';
   if (globalThis.precompile) exceptionMode = decl.argument.callee != null ? 'lut' : 'stack';
 
