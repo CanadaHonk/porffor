@@ -2396,6 +2396,13 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     if (Array.isArray(arg)) {
       // if wasm, just append it
       out = out.concat(arg);
+
+      if (valtypeBinary !== Valtype.i32 &&
+        (func && func.params[paramOffset + i * (typedParams ? 2 : 1)] === Valtype.i32)
+      ) {
+        out.push(...forceDuoValtype(scope, [], Valtype.i32));
+      }
+
       continue;
     }
 
@@ -5060,11 +5067,7 @@ const toPropertyKey = (scope, wasm, type, computed = false, i32Conv = false) => 
   ...wasm,
   ...type,
   [ Opcodes.call, includeBuiltin(scope, '__ecma262_ToPropertyKey').index ],
-  ...(i32Conv ? [
-    [ Opcodes.local_set, localTmp(scope, '#swap', Valtype.i32) ],
-    Opcodes.i32_to_u,
-    [ Opcodes.local_get, localTmp(scope, '#swap', Valtype.i32) ]
-  ] : [])
+  ...(i32Conv ? forceDuoValtype(scope, [], Valtype.i32) : [])
 ] : [
   ...wasm,
   ...(i32Conv ? [ Opcodes.i32_to_u ] : []),
