@@ -1104,7 +1104,7 @@ const asmFuncToAsm = (scope, func) => {
   });
 };
 
-const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false, usedTypes = [] } = {}) => {
+const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usedTypes = [] } = {}) => {
   if (wasm == null) { // called with no builtin
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
@@ -1177,6 +1177,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   }
 
   if (hasRestArgument) func.hasRestArgument = true;
+  if (usesTag) ensureTag();
 
   for (const x of usedTypes) typeUsed(func, x);
 

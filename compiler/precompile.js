@@ -153,6 +153,7 @@ const compile = async (file, _funcs) => {
         }
 
         if (n[0] === Opcodes.throw) {
+          x.usesTag = true;
           if (y[0] === Opcodes.i32_const && n[1] === 0) {
             const id = read_signedLEB128(y.slice(1));
             y.splice(0, 10, 'throw', exceptions[id].constructor, exceptions[id].message);
@@ -162,6 +163,10 @@ const compile = async (file, _funcs) => {
           } else {
             n[1]--;
           }
+        }
+
+        if (n[0] === Opcodes.catch) {
+          x.usesTag = true;
         }
       }
     };
@@ -251,7 +256,7 @@ params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.retu
 locals:${JSON.stringify(locals.slice(x.params.length).map(x => x[1].type))},localNames:${JSON.stringify(locals.map(x => x[0]))},
 ${usedTypes.length > 0 ? `usedTypes:${JSON.stringify(usedTypes)},` : ''}
 ${x.globalInits ? `globalInits:{${Object.keys(x.globalInits).map(y => `${y}:${rewriteWasm(x.globalInits[y])}`).join(',')}},` : ''}${x.data && Object.keys(x.data).length > 0 ? `data:${JSON.stringify(x.data)},` : ''}
-${x.table ? `table:1,` : ''}${x.constr ? `constr:1,` : ''}${x.hasRestArgument ? `hasRestArgument:1,` : ''}
+${x.table ? `table:1,` : ''}${x.constr ? `constr:1,` : ''}${x.hasRestArgument ? `hasRestArgument:1,` : ''}${x.usesTag ? `usesTag:1,` : ''}
 }`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');
 }).join('\n')}
 }`;
