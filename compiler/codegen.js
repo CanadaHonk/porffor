@@ -427,32 +427,75 @@ const generateReturn = (scope, decl) => {
     ];
   }
 
-  const out = [];
   if (
     scope.constr && // only do this in constructors
     !globalThis.precompile // skip in precompiled built-ins, we should not require this and handle it ourselves
   ) {
-    // ignore return value and return this if being constructed
-    // todo: only do this when trying to return a primitive?
-    out.push(
-      // ...truthy(scope, [ [ Opcodes.local_get, scope.locals['#newtarget'].idx ] ], [ [ Opcodes.local_get, scope.locals['#newtarget#type'].idx ] ], false, true),
-      [ Opcodes.local_get, scope.locals['#newtarget'].idx ],
-      Opcodes.i32_to_u,
-      [ Opcodes.if, Blocktype.void ],
-        [ Opcodes.local_get, scope.locals['#this'].idx ],
-        ...(scope.returnType != null ? [] : [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ]),
-        [ Opcodes.return ],
-      [ Opcodes.end ]
-    );
+    // perform return value checks for constructors and (sub)classes
+    return [
+      ...generate(scope, arg),
+      [ Opcodes.local_set, localTmp(scope, '#return') ],
+      ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
+      [ Opcodes.local_set, localTmp(scope, '#return#type', Valtype.i32) ],
+
+      ...(scope._onlyConstr ? [] : [
+        [ Opcodes.local_get, scope.locals['#newtarget'].idx ],
+        Opcodes.i32_to_u,
+        [ Opcodes.if, Blocktype.void ]
+      ]),
+        ...(scope.subclass ? [
+          // if subclass and returning undefined, return this
+          [ Opcodes.local_get, localTmp(scope, '#return#type') ],
+          ...number(TYPE_FLAGS.parity, Valtype.i32),
+          [ Opcodes.i32_or ],
+          ...number(TYPES.undefined, Valtype.i32),
+          [ Opcodes.i32_eq ],
+          [ Opcodes.if, Blocktype.void ],
+            [ Opcodes.local_get, scope.locals['#this'].idx ],
+            ...(scope.returnType != null ? [] : [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ]),
+            [ Opcodes.return ],
+          [ Opcodes.end ]
+        ] : []),
+
+        // if not object, then...
+        ...generate(scope, {
+          type: 'CallExpression',
+          callee: {
+            type: 'Identifier',
+            name: '__Porffor_object_isObject'
+          },
+          arguments: [
+            { type: 'Identifier', name: '#return' }
+          ]
+        }),
+        Opcodes.i32_to_u,
+        [ Opcodes.i32_eqz ],
+        [ Opcodes.if, Blocktype.void ],
+          ...(scope.subclass ? [
+            // throw if subclass
+            ...internalThrow(scope, 'TypeError', 'Subclass can only return an object or undefined'),
+          ] : [
+            // return this if not subclass
+            [ Opcodes.local_get, scope.locals['#this'].idx ],
+            ...(scope.returnType != null ? [] : [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ]),
+            [ Opcodes.return ],
+          ]),
+        [ Opcodes.end ],
+      ...(scope._onlyConstr ? [] : [
+        [ Opcodes.end ]
+      ]),
+
+      [ Opcodes.local_get, localTmp(scope, '#return') ],
+      [ Opcodes.local_get, localTmp(scope, '#return#type') ],
+      [ Opcodes.return ]
+    ];
   }
 
-  out.push(
+  return [
     ...generate(scope, arg),
     ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
     [ Opcodes.return ]
-  );
-
-  return out;
+  ];
 };
 
 const localTmp = (scope, name, type = valtypeBinary) => {
@@ -5633,9 +5676,10 @@ const generateClass = (scope, decl) => {
       }
     }),
     id: root,
-    _onlyConstr: true,
     strict: true,
-    type: expr ? 'FunctionExpression' : 'FunctionDeclaration'
+    type: expr ? 'FunctionExpression' : 'FunctionDeclaration',
+    _onlyConstr: true,
+    _subclass: !!decl.superClass
   });
 
   // always generate class constructor funcs
@@ -5943,7 +5987,7 @@ const generateFunc = (scope, decl) => {
     index: currentFuncIndex++,
     arrow,
     constr: !arrow && !decl.generator && !decl.async,
-    _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
+    subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
 
     generate() {
