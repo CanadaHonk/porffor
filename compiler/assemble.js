@@ -128,12 +128,13 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   );
   time('table section');
 
+  const emptyWrapperFunc = funcs.find(x => x.name === '#indirect#empty');
   const elementSection = !funcs.table ? [] : createSection(
     Section.element,
     encodeVector([ [
       0x00,
       Opcodes.i32_const, 0, Opcodes.end,
-      ...encodeVector(directFuncs.map(x => unsignedLEB128((x.wrapperFunc ?? x).asmIndex)))
+      ...encodeVector(directFuncs.map(x => unsignedLEB128((x.wrapperFunc ?? emptyWrapperFunc ?? x).asmIndex)))
     ] ])
   );
   time('element section');

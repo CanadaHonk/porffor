@@ -66,6 +66,34 @@ const funcRef = func => {
     }
     let localInd = (wrapperArgc + 2) * 2;
 
+    if (indirectFuncs.length === 0) {
+      // add empty indirect func
+      const emptyFunc = {
+        name: '#indirect#empty',
+        params,
+        locals: { ...locals }, localInd,
+        returns: [ valtypeBinary, Valtype.i32 ],
+        wasm: [
+          ...number(0),
+          ...number(0, Valtype.i32)
+        ],
+        constr: true,
+        internal: true,
+        indirect: true
+      };
+
+      // check not being constructed
+      emptyFunc.wasm.unshift(
+        [ Opcodes.local_get, 0 ], // new.target value
+        Opcodes.i32_to_u,
+        [ Opcodes.if, Blocktype.void ], // if value is non-zero
+          ...internalThrow(emptyFunc, 'TypeError', `Function is not a constructor`), // throw type error
+        [ Opcodes.end ]
+      );
+
+      indirectFuncs.push(emptyFunc);
+    }
+
     const wasm = [];
     const offset = func.constr ? 0 : 4;
     for (let i = 0; i < func.params.length; i++) {
