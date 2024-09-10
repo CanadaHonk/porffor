@@ -520,12 +520,10 @@ export default (source, module = undefined, customImports = {}, print = str => p
             throw new constructor(exception.message);
           }
 
-          if (exceptionMode === 'stack') {
-            const value = e.getArg(exceptTag, 0);
-            const type = e.getArg(exceptTag, 1);
+          const value = e.getArg(exceptTag, 0);
+          const type = e.getArg(exceptTag, 1);
 
-            throw porfToJSValue({ memory, funcs, pages }, value, type);
-          }
+          throw porfToJSValue({ memory, funcs, pages }, value, type);
         }
 
         if (e instanceof WebAssembly.RuntimeError) {

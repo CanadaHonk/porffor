@@ -4647,9 +4647,20 @@ const generateLabel = (scope, decl) => {
   return generate(scope, decl.body);
 };
 
+const ensureTag = (exceptionMode = Prefs.exceptionMode ?? 'stack') => {
+  if (tags.length !== 0) return;
+
+  tags.push({
+    params: exceptionMode === 'lut' ? [ Valtype.i32 ] : [ valtypeBinary, Valtype.i32 ],
+    results: [],
+    idx: tags.length
+  });
+};
+
 const generateThrow = (scope, decl) => {
   let exceptionMode = Prefs.exceptionMode ?? 'stack';
   if (globalThis.precompile) exceptionMode = decl.argument.callee != null ? 'lut' : 'stack';
+  ensureTag(exceptionMode);
 
   if (exceptionMode === 'lut') {
     let message = decl.argument.value, constructor = null;
@@ -4659,12 +4670,6 @@ const generateThrow = (scope, decl) => {
       constructor = decl.argument.callee.name;
       message = decl.argument.arguments[0]?.value ?? '';
     }
-
-    if (tags.length === 0) tags.push({
-      params: [ Valtype.i32 ],
-      results: [],
-      idx: tags.length
-    });
 
     if (constructor && constructor.startsWith('__')) constructor = constructor.split('_').pop();
 
@@ -4680,19 +4685,11 @@ const generateThrow = (scope, decl) => {
     ];
   }
 
-  if (exceptionMode === 'stack') {
-    if (tags.length === 0) tags.push({
-      params: [ valtypeBinary, Valtype.i32 ],
-      results: [],
-      idx: tags.length
-    });
-
-    return [
-      ...generate(scope, decl.argument),
-      ...getNodeType(scope, decl.argument),
-      [ Opcodes.throw, globalThis.precompile ? 1 : 0 ]
-    ];
-  }
+  return [
+    ...generate(scope, decl.argument),
+    ...getNodeType(scope, decl.argument),
+    [ Opcodes.throw, globalThis.precompile ? 1 : 0 ]
+  ];
 };
 
 const generateTry = (scope, decl) => {
@@ -4735,6 +4732,9 @@ const generateTry = (scope, decl) => {
 
         ...generateVarDstr(scope, 'let', param, { type: 'Identifier', name: tmpName }, undefined, false)
       );
+
+      // ensure tag exists for specific catch
+      ensureTag();
     } else {
       out.push([ Opcodes.catch_all ]);
     }
@@ -6075,6 +6075,9 @@ const generateFunc = (scope, decl) => {
           ...number(TYPES.promise, Valtype.i32),
           [ Opcodes.return ]
         );
+
+        // ensure tag exists for specific catch
+        ensureTag();
       }
 
       if (name === 'main') {
