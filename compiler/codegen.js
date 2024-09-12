@@ -6066,7 +6066,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         );
       }
 
-      if (decl.async) {
+      if (decl.async && !decl.generator) {
         // make out promise local
         allocVar(func, '#async_out_promise', false, false);
 
@@ -6076,7 +6076,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
       const wasm = prelude.concat(generate(func, body));
 
-      if (decl.async) {
+      if (func.async) {
         // make promise at the start
         wasm.unshift(
           [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_create').index ],
