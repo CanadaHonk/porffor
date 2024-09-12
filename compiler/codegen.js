@@ -6022,18 +6022,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     generate() {
       if (func.wasm) return func.wasm;
 
-      let errorWasm = null;
-      if (decl.generator) {
-        errorWasm = todo(func, 'generator functions are not supported');
-      }
-
-      if (errorWasm) {
-        return func.wasm = errorWasm.concat([
-          ...number(UNDEFINED),
-          ...number(TYPES.undefined, Valtype.i32)
-        ]);
-      }
-
       // generating, stub _wasm
       func.wasm = [];
 
