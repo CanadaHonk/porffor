@@ -1922,7 +1922,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   // opt: virtualize iifes
   if (isFuncType(decl.callee.type)) {
-    const [ func ] = generateFunc(scope, decl.callee);
+    const [ func ] = generateFunc(scope, decl.callee, true);
     name = func.name;
   }
 
@@ -2999,7 +2999,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       // hack for let a = function () { ... }
       if (!init.id) {
         init.id = { name };
-        generateFunc(scope, init);
+        generateFunc(scope, init, true);
         return out;
       }
     }
@@ -5988,7 +5988,7 @@ const funcByIndex = idx => {
 };
 const funcByName = name => funcByIndex(funcIndex[name]);
 
-const generateFunc = (scope, decl) => {
+const generateFunc = (scope, decl, forceNoExpr = false) => {
   const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
   if (decl.type.startsWith('Class')) {
     const out = generateClass(scope, {
@@ -6271,7 +6271,7 @@ const generateFunc = (scope, decl) => {
   // force generate all for precompile
   if (globalThis.precompile) func.generate();
 
-  const out = decl.type.endsWith('Expression') ? funcRef(func) : [];
+  const out = decl.type.endsWith('Expression') && !forceNoExpr ? funcRef(func) : [];
   astCache.set(decl, out);
   return [ func, out ];
 };
