@@ -189,7 +189,6 @@ export const Promise = function (executor: any): void {
   if (Porffor.rawType(executor) != Porffor.TYPES.function) throw new TypeError('Promise executor is not a function');
 
   const obj: any[] = __Porffor_promise_create();
-
   activePromise = obj;
 
   try {
@@ -201,6 +200,20 @@ export const Promise = function (executor: any): void {
 
   const pro: Promise = obj;
   return pro;
+};
+
+export const __Promise_withResolvers = (): Promise => {
+  const obj: any[] = __Porffor_promise_create();
+  activePromise = obj;
+
+  const promise: Promise = obj;
+  const out: object = Porffor.allocate();
+  out.promise = promise;
+
+  out.resolve = __Porffor_promise_resolveActive;
+  out.reject = __Porffor_promise_rejectActive;
+
+  return out;
 };
 
 export const __Promise_resolve = (value: any): Promise => {

@@ -137,24 +137,25 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
   const porfforDebugInfoSection = Prefs.d ? customSection('porffor_debug_info', encodeDebugInfo(funcs, globals, tags, pages, data, Prefs.exceptionMode ?? 'lut')) : [];
 
+  const directFuncs = funcs.filter(x => !x.indirect);
   const tableSection = !funcs.table ? [] : createSection(
     Section.table,
-    encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(funcs.length) ] ])
+    encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(directFuncs.length) ] ])
   );
   time('table section');
 
+  const emptyWrapperFunc = funcs.find(x => x.name === '#indirect#empty');
   const elementSection = !funcs.table ? [] : createSection(
     Section.element,
     encodeVector([ [
       0x00,
       Opcodes.i32_const, 0, Opcodes.end,
-      ...encodeVector(funcs.map(x => unsignedLEB128(x.asmIndex)))
+      ...encodeVector(directFuncs.map(x => unsignedLEB128((x.wrapperFunc ?? emptyWrapperFunc ?? x).asmIndex)))
     ] ])
   );
   time('element section');
 
   if (pages.has('func lut')) {
-    const offset = pages.get('func lut').ind * pageSize;
     if (data.addedFuncArgcLut) {
       // remove existing data
       data = data.filter(x => x.page !== 'func lut');
@@ -162,21 +163,20 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
     // generate func lut data
     const bytes = [];
-    for (let i = 0; i < funcs.length; i++) {
-      const func = funcs[i];
+    for (let i = 0; i < directFuncs.length; i++) {
+      const func = directFuncs[i];
       let name = func.name;
 
-      // real argc
-      let argc = func.params.length;
-      if (func.constr) argc -= 4;
-      if (!func.internal || func.typedParams) argc = Math.floor(argc / 2);
-
-      bytes.push(argc % 256, (argc / 256 | 0) % 256);
-
       // userland exposed .length
-      let length = func.jsLength ?? argc;
-      // remove _this from internal prototype funcs
-      if (func.internal && name.includes('_prototype_')) length--;
+      let length = func.jsLength;
+      if (length == null) {
+        length = func.params.length;
+        if (func.constr) length -= 4;
+        if (!func.internal || func.typedParams) length = Math.floor(length / 2);
+
+        // remove _this from internal prototype funcs
+        if (func.internal && name.includes('_prototype_')) length--;
+      }
 
       bytes.push(length % 256, (length / 256 | 0) % 256);
 
@@ -190,9 +190,9 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
       // eg: __String_prototype_toLowerCase -> toLowerCase
       if (name.startsWith('__')) name = name.split('_').pop();
 
-      bytes.push(...new Uint8Array(new Int32Array([ name.length ]).buffer));
+      bytes.push(...new Uint8Array(new Int32Array([ Math.min(name.length, 48 - 5 - 4) ]).buffer));
 
-      for (let i = 0; i < (64 - 5 - 4); i++) {
+      for (let i = 0; i < (48 - 3 - 4); i++) {
         const c = name.charCodeAt(i);
         bytes.push((c || 0) % 256);
       }

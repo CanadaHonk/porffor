@@ -35,6 +35,7 @@ var assert = mustBeTrue => {
 
   throw new Test262Error('assert failed');
 };
+assert; // idk why exactly but this fixes many tests by forcing indirect ref
 
 var __assert_throws = (expectedErrorConstructor, func) => {
   if (typeof func !== 'function') {

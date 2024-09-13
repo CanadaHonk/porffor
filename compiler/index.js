@@ -71,7 +71,7 @@ export default (code, module = undefined) => {
 
   // change some prefs by default for c/native
   if (target !== 'wasm') {
-    Prefs.pgo = Prefs.pgo === false ? false : true; // enable pgo
+    Prefs.pgo = Prefs.pgo === false || globalThis.document ? false : true; // enable pgo
     Prefs.passiveData = false; // disable using passive Wasm data as unsupported by 2c for now
   }
 
