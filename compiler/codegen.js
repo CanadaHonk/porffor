@@ -429,7 +429,7 @@ const generateIdent = (scope, decl) => {
     ];
   };
 
-  return lookup(decl.name);
+  return lookup(decl.name, scope.identFailEarly);
 };
 
 const generateReturn = (scope, decl) => {
@@ -6023,7 +6023,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       if (func.wasm) return func.wasm;
 
       // generating, stub _wasm
-      func.wasm = [];
+      let wasm = func.wasm = [];
 
       let body = objectHack(decl.body);
       if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
@@ -6034,24 +6034,72 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         };
       }
 
-      for (const x in defaultValues) {
-        prelude.push(
-          ...getType(func, x),
+      func.identFailEarly = true;
+      let localInd = args.length * 2;
+      for (let i = 0; i < args.length; i++) {
+        const { name, def, destr, type } = args[i];
+
+        func.localInd = i * 2;
+        allocVar(func, name, false);
+
+        func.localInd = localInd;
+        if (type) {
+          const typeAnno = extractTypeAnnotation(type);
+          addVarMetadata(func, name, false, typeAnno);
+
+          // automatically add throws if unexpected this type to builtins
+          if (globalThis.precompile && i === 0 && func.name.includes('_prototype_') && [
+            TYPES.date, TYPES.number, TYPES.promise, TYPES.symbol,
+            TYPES.set, TYPES.map,
+            TYPES.weakref, TYPES.weakset, TYPES.weakmap,
+            TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
+          ].includes(typeAnno.type)) {
+            let types = [ typeAnno.type ];
+            if (typeAnno.type === TYPES.number) types.push(TYPES.numberobject);
+            if (typeAnno.type === TYPES.string) types.push(TYPES.stringobject);
+
+            wasm.push(
+              ...typeIsNotOneOf([ [ Opcodes.local_get, func.locals[name].idx + 1 ] ], types),
+              [ Opcodes.if, Blocktype.void ],
+                ...internalThrow(func, 'TypeError', `${unhackName(func.name)} expects 'this' to be a ${TYPE_NAMES[typeAnno.type]}`),
+              [ Opcodes.end ]
+            );
+          }
+
+          // todo: if string, try converting to it to one
+        }
+
+        if (def) wasm.push(
+          ...getType(func, name),
           ...number(TYPES.undefined, Valtype.i32),
           [ Opcodes.i32_eq ],
           [ Opcodes.if, Blocktype.void ],
-            ...generate(func, defaultValues[x], false, x),
-            [ Opcodes.local_set, func.locals[x].idx ],
+            ...generate(func, def, false, name),
+            [ Opcodes.local_set, func.locals[name].idx ],
 
-            ...setType(func, x, getNodeType(func, defaultValues[x])),
+            ...setType(func, name, getNodeType(func, def)),
           [ Opcodes.end ]
         );
+
+        if (destr) wasm.push(
+          ...generateVarDstr(func, 'var', destr, { type: 'Identifier', name }, undefined, false)
+        );
+
+        localInd = func.localInd;
       }
 
-      for (const x in destructuredArgs) {
-        prelude.push(
-          ...generateVarDstr(func, 'var', destructuredArgs[x], { type: 'Identifier', name: x }, undefined, false)
-        );
+      func.identFailEarly = false;
+
+      if (globalThis.valtypeOverrides) {
+        if (globalThis.valtypeOverrides.returns[name]) func.returns = globalThis.valtypeOverrides.returns[name];
+        if (globalThis.valtypeOverrides.params[name]) {
+          func.params = globalThis.valtypeOverrides.params[name];
+
+          const localsVals = Object.values(func.locals);
+          for (let i = 0; i < func.params.length; i++) {
+            localsVals[i].type = func.params[i];
+          }
+        }
       }
 
       if (decl.async && !decl.generator) {
@@ -6062,7 +6110,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         typeUsed(func, TYPES.promise);
       }
 
-      const wasm = prelude.concat(generate(func, body));
+      wasm = wasm.concat(generate(func, body));
 
       if (func.async) {
         // make promise at the start
@@ -6165,17 +6213,12 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     }
   }
 
-  if (func.constr) {
-    allocVar(func, '#newtarget', false);
-    allocVar(func, '#this', false);
-  }
+  const args = [];
+  if (func.constr) args.push({ name: '#newtarget' }, { name: '#this' });
 
-  const prelude = [];
-  const defaultValues = {};
-  const destructuredArgs = {};
   let jsLength = 0;
   for (let i = 0; i < params.length; i++) {
-    let name;
+    let name, def, destr;
     const x = params[i];
     switch (x.type) {
       case 'Identifier': {
@@ -6185,13 +6228,12 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       }
 
       case 'AssignmentPattern': {
+        def = x.right;
         if (x.left.name) {
           name = x.left.name;
-          defaultValues[name] = x.right;
         } else {
           name = '#arg_dstr' + i;
-          destructuredArgs[name] = x.left;
-          defaultValues[name] = x.right;
+          destr = x.left;
         }
 
         break;
@@ -6205,53 +6247,16 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
       default:
         name = '#arg_dstr' + i;
-        destructuredArgs[name] = x;
+        destr = x;
         jsLength++;
         break;
     }
 
-    allocVar(func, name, false);
-    if (typedInput && params[i].typeAnnotation) {
-      const typeAnno = extractTypeAnnotation(params[i]);
-      addVarMetadata(func, name, false, typeAnno);
-
-      // automatically add throws if unexpected this type to builtins
-      if (globalThis.precompile && i === 0 && func.name.includes('_prototype_') && [
-        TYPES.date, TYPES.number, TYPES.promise, TYPES.symbol,
-        TYPES.set, TYPES.map,
-        TYPES.weakref, TYPES.weakset, TYPES.weakmap,
-        TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
-      ].includes(typeAnno.type)) {
-        let types = [ typeAnno.type ];
-        if (typeAnno.type === TYPES.number) types.push(TYPES.numberobject);
-        if (typeAnno.type === TYPES.string) types.push(TYPES.stringobject);
-
-        prelude.push(
-          ...typeIsNotOneOf([ [ Opcodes.local_get, func.locals[name].idx + 1 ] ], types),
-          [ Opcodes.if, Blocktype.void ],
-            ...internalThrow(func, 'TypeError', `${unhackName(func.name)} expects 'this' to be a ${TYPE_NAMES[typeAnno.type]}`),
-          [ Opcodes.end ]
-        );
-      }
-
-      // todo: if string, try converting to it to one
-    }
+    args.push({ name, def, destr, type: typedInput && params[i].typeAnnotation });
   }
 
-  func.params = Object.values(func.locals).map(x => x.type);
+  func.params = new Array((params.length + (func.constr ? 2 : 0)) * 2).fill(0).map((_, i) => i % 2 ? Valtype.i32 : valtypeBinary);
   func.jsLength = jsLength;
-
-  if (globalThis.valtypeOverrides) {
-    if (globalThis.valtypeOverrides.returns[name]) func.returns = globalThis.valtypeOverrides.returns[name];
-    if (globalThis.valtypeOverrides.params[name]) {
-      func.params = globalThis.valtypeOverrides.params[name];
-
-      const localsVals = Object.values(func.locals);
-      for (let i = 0; i < func.params.length; i++) {
-        localsVals[i].type = func.params[i];
-      }
-    }
-  }
 
   // force generate for main
   if (name === 'main') func.generate();
