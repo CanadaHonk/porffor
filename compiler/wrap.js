@@ -1,4 +1,5 @@
-import { encodeVector, encodeLocal } from './encoding.js';
+import { encodeVector, encodeLocal, readUnsignedLEB128FromBuffer, readStringFromBuffer } from './encoding.js';
+import { Section, Valtype } from './wasmSpec.js';
 import { importedFuncs } from './builtins.js';
 import compile from './index.js';
 import decompile from './decompile.js';
@@ -128,6 +129,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.function: {
+      if (!funcs) return function () {};
       let func;
       if (value < 0) {
         func = importedFuncs[value + importedFuncs.length];
@@ -184,6 +186,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.symbol: {
+      if (!pages) return Symbol();
       const page = pages.get('array: symbol.ts/descStore');
       if (!page) return Symbol();
 
@@ -546,4 +549,127 @@ export default (source, module = undefined, customImports = {}, print = str => p
   }
 
   return { exports, wasm, times, pages, c };
+};
+
+const collectDebugInfo = wasm => {
+  let index = 8; // skip magic and version
+  let exceptions = [], exceptionMode, valtypeBinary;
+  while (index < wasm.length) {
+    let sectionType = wasm[index++];
+    let length;
+    [ length, index ] = readUnsignedLEB128FromBuffer(wasm, index);
+    if (sectionType !== Section.custom) {
+      index += length;
+      continue;
+    }
+    let startPosition = index;
+    let endPosition = index + length;
+    let name;
+    [ name, index ] = readStringFromBuffer(wasm, index);
+    if (name !== 'porffor_debug_info') {
+      index = endPosition;
+      continue;
+    }
+    while (index < endPosition) {
+      sectionType = wasm[index++];
+      let length;
+      [ length, index ] = readUnsignedLEB128FromBuffer(wasm, index);
+      if (sectionType === 0) { // valtype
+        valtypeBinary = wasm[index++];
+      } else {
+        index += length;
+      }
+    }
+    break;
+  }
+  return { valtypeBinary };
+};
+
+// TODO: integrate with default
+export const fromWasm = (wasm, print = str => process.stdout.write(str)) => {
+  let { valtypeBinary } = collectDebugInfo(wasm);
+  if (valtypeBinary == null) {
+    // console.warn("Wasm binary not compiled with debug information");
+    valtypeBinary = Valtype.f64;
+  }
+  let instance, memory;
+  try {
+    const module = new WebAssembly.Module(wasm);
+    instance = new WebAssembly.Instance(module, {
+      '': {
+        p: valtypeBinary === Valtype.i64 ? i => print(Number(i).toString()) : i => print(i.toString()),
+        c: valtypeBinary === Valtype.i64 ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
+        t: () => performance.now(),
+        u: () => performance.timeOrigin,
+        y: () => {},
+        z: () => {},
+        w: (ind, outPtr) => { // readArgv
+          let args = process.argv.slice(2);
+          args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
+
+          const str = args[ind - 1];
+          if (!str) return -1;
+
+          writeByteStr(memory, outPtr, str);
+          return str.length;
+        },
+        q: (pathPtr, outPtr) => { // readFile
+          try {
+            const path = pathPtr === 0 ? 0 : readByteStr(memory, pathPtr);
+            const contents = fs.readFileSync(path, 'utf8');
+            writeByteStr(memory, outPtr, contents);
+            return contents.length;
+          } catch {
+            return -1;
+          }
+        },
+        b: () => {
+          debugger;
+        }
+      }
+    });
+  } catch (e) {
+    throw e;
+  }
+  const exports = {};
+
+  const exceptTag = instance.exports['0'];
+  memory = instance.exports['$'];
+
+  for (const x in instance.exports) {
+    if (x === '0') continue;
+    if (x === '$') {
+      exports.$ = instance.exports.$;
+      continue;
+    }
+
+    const name = x === 'm' ? 'main' : x;
+
+    const exp = instance.exports[x];
+    exports[name] = exp;
+
+    exports[name] = function() {
+      try {
+        const ret = exp.apply(this, arguments);
+        if (ret == null) return undefined;
+
+        return porfToJSValue({ memory }, ret[0], ret[1]);
+      } catch (e) {
+        if (e.is && e.is(exceptTag)) {
+          const value = e.getArg(exceptTag, 0);
+
+          try {
+            let type = e.getArg(exceptTag, 1);
+            e = porfToJSValue({ memory }, value, type);
+          } catch (e2) {
+            e = new Error('Porffor error id: ' + value);
+          }
+        }
+
+        throw e;
+      }
+    };
+  }
+
+  return { exports, wasm };
 };
