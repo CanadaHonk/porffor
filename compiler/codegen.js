@@ -1340,8 +1340,12 @@ const setType = (scope, name, type) => {
 };
 
 const getLastType = scope => {
+  if (!scope.locals['#last_type']) return number(TYPES.number, Valtype.i32);
+
   scope.gotLastType = true;
-  return [ [ Opcodes.local_get, localTmp(scope, '#last_type', Valtype.i32) ] ];
+  return [
+    [ Opcodes.local_get, localTmp(scope, '#last_type', Valtype.i32) ]
+  ];
 };
 
 const setLastType = (scope, type = []) => {
@@ -1388,11 +1392,7 @@ const getNodeType = (scope, node) => {
 
       if (name == null) {
         // iife
-        if (scope.locals['#last_type']) return getLastType(scope);
-
-        // presume
-        if (Prefs.warnAssumedType) console.warn(`Indirect call assumed to be number`);
-        return TYPES.number;
+        return getLastType(scope);
       }
 
       const func = funcByName(name);
@@ -1426,38 +1426,7 @@ const getNodeType = (scope, node) => {
         return TYPES.number;
       }
 
-      if (scope.locals['#last_type']) return getLastType(scope);
-
-      // presume
-      if (Prefs.warnAssumedType) console.warn(`Call to ${name} assumed to be number`);
-      return TYPES.number;
-
-      // let protoFunc;
-      // // ident.func()
-      // if (name && name.startsWith('__')) {
-      //   const spl = name.slice(2).split('_');
-
-      //   const baseName = spl.slice(0, -1).join('_');
-      //   const baseType = getType(scope, baseName);
-
-      //   const func = spl[spl.length - 1];
-      //   protoFunc = prototypeFuncs[baseType]?.[func];
-      // }
-
-      // // literal.func()
-      // if (!name && node.callee.type === 'MemberExpression') {
-      //   if (node.callee.object.regex) {
-      //     const funcName = node.callee.property.name;
-      //     return Rhemyn[funcName] ? TYPES.boolean : TYPES.undefined;
-      //   }
-
-      //   const baseType = getNodeType(scope, node.callee.object);
-
-      //   const func = node.callee.property.name;
-      //   protoFunc = prototypeFuncs[baseType]?.[func];
-      // }
-
-      // if (protoFunc) return protoFunc.returnType;
+      return getLastType(scope);
     }
 
     if (node.type === 'ExpressionStatement') {
@@ -1505,10 +1474,7 @@ const getNodeType = (scope, node) => {
       if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring)
         guess = TYPES.bytestring;
 
-      if (scope.locals['#last_type']) return getLastType(scope);
-
-      // presume
-      return TYPES.number;
+      return getLastType(scope);
     }
 
     if (node.type === 'UnaryExpression') {
@@ -1542,11 +1508,7 @@ const getNodeType = (scope, node) => {
         }
       }
 
-      if (scope.locals['#last_type']) return getLastType(scope);
-
-      // presume
-      if (Prefs.warnAssumedType) console.warn(`Member access to field .${name} assumed to be number`);
-      return TYPES.number;
+      return getLastType(scope);
     }
 
     if (node.type === 'TemplateLiteral') {
@@ -1579,11 +1541,7 @@ const getNodeType = (scope, node) => {
       }
     }
 
-    if (scope.locals['#last_type']) return getLastType(scope);
-
-    // presume
-    if (Prefs.warnAssumedType) console.warn(`AST node ${node.type} assumed to be number`);
-    return TYPES.number;
+    return getLastType(scope);
   })();
 
   const out = typeof ret === 'number' ? number(ret, Valtype.i32) : ret;
