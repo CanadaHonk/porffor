@@ -18,14 +18,14 @@ export default function({ builtinFuncs }, Prefs) {
       locals: [],
       returns: [ Valtype.i32 ],
       returnType: TYPES.object,
-      wasm: (scope, { allocPage, makeString, generate, getNodeType, builtin, glbl }) => {
+      wasm: (scope, { allocPage, makeString, generate, getNodeType, builtin, funcRef, glbl }) => {
         if (globalThis.precompile) return [ [ 'get object', name ] ];
 
         // todo/perf: precompute bytes here instead of calling real funcs if we really care about perf later
 
         let ptr;
         if (existingFunc) {
-          ptr = builtin(name, true);
+          ptr = funcRef(name)[0][1];
         } else {
           ptr = allocPage(scope, `builtin object: ${name}`);
         }
@@ -86,20 +86,11 @@ export default function({ builtinFuncs }, Prefs) {
       }
     };
 
-    if (existingFunc) {
-      this[name] = (scope, { builtin, funcRef }) => [
-        [ Opcodes.call, builtin('#get_' + name) ],
-        [ Opcodes.drop ],
-        ...funcRef(name)
-      ];
-      this[name].type = TYPES.function;
-    } else {
-      this[name] = (scope, { builtin }) => [
-        [ Opcodes.call, builtin('#get_' + name) ],
-        Opcodes.i32_from_u
-      ];
-      this[name].type = TYPES.object;
-    }
+    this[name] = (scope, { builtin }) => [
+      [ Opcodes.call, builtin('#get_' + name) ],
+      Opcodes.i32_from_u
+    ];
+    this[name].type = existingFunc ? TYPES.function : TYPES.object;
 
     for (const x in props) {
       const d = props[x];

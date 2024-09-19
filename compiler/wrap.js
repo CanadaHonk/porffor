@@ -132,8 +132,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       if (value < 0) {
         func = importedFuncs[value + importedFuncs.length];
       } else {
-        value += importedFuncs.length;
-        func = funcs.find(x => x.index === value);
+        func = funcs.find(x => x.wrapperFunc?.indirectIndex === value);
       }
 
       if (!func) return function () {};

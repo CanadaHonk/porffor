@@ -121,20 +121,19 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
   const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
 
-  const directFuncs = funcs.filter(x => !x.indirect);
+  const indirectFuncs = funcs.filter(x => x.indirect);
   const tableSection = !funcs.table ? [] : createSection(
     Section.table,
-    encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(directFuncs.length) ] ])
+    encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(indirectFuncs.length) ] ])
   );
   time('table section');
 
-  const emptyWrapperFunc = funcs.find(x => x.name === '#indirect#empty');
   const elementSection = !funcs.table ? [] : createSection(
     Section.element,
     encodeVector([ [
       0x00,
       Opcodes.i32_const, 0, Opcodes.end,
-      ...encodeVector(directFuncs.map(x => unsignedLEB128((x.wrapperFunc ?? emptyWrapperFunc ?? x).asmIndex)))
+      ...encodeVector(indirectFuncs.map(x => unsignedLEB128(x.asmIndex)))
     ] ])
   );
   time('element section');
@@ -147,8 +146,8 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
     // generate func lut data
     const bytes = [];
-    for (let i = 0; i < directFuncs.length; i++) {
-      const func = directFuncs[i];
+    for (let i = 0; i < indirectFuncs.length; i++) {
+      const func = indirectFuncs[i].wrapperOf;
       let name = func.name;
 
       // userland exposed .length

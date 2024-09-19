@@ -79,7 +79,12 @@ const funcRef = func => {
         ],
         constr: true,
         internal: true,
-        indirect: true
+        indirect: true,
+        wrapperOf: {
+          name: '',
+          jsLength: 0
+        },
+        indirectIndex: indirectFuncs.length
       };
 
       // check not being constructed
@@ -91,6 +96,8 @@ const funcRef = func => {
         [ Opcodes.end ]
       );
 
+      // have empty func as indirect funcs 0 and 1
+      indirectFuncs.push(emptyFunc);
       indirectFuncs.push(emptyFunc);
     }
 
@@ -142,7 +149,9 @@ const funcRef = func => {
       wasm,
       constr: true,
       internal: true,
-      indirect: true
+      indirect: true,
+      wrapperOf: func,
+      indirectIndex: indirectFuncs.length
     };
 
     indirectFuncs.push(wrapperFunc);
@@ -163,7 +172,7 @@ const funcRef = func => {
   }
 
   return [
-    [ Opcodes.const, func.index - importedFuncs.length ]
+    [ Opcodes.const, func.wrapperFunc.indirectIndex ]
   ];
 };
 
