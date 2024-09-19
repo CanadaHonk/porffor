@@ -3668,7 +3668,7 @@ const generateUnary = (scope, decl) => {
       });
 
     case '-':
-      // * -1
+      // +x * -1
 
       if (decl.prefix && decl.argument.type === 'Literal' && typeof decl.argument.value === 'number') {
         // if -n, just return that as a const
@@ -3676,7 +3676,12 @@ const generateUnary = (scope, decl) => {
       }
 
       return [
-        ...generate(scope, decl.argument),
+        ...generate(scope, {
+          type: 'UnaryExpression',
+          operator: '+',
+          prefix: true,
+          argument: decl.argument
+        }),
         ...(valtype === 'f64' ? [ [ Opcodes.f64_neg ] ] : [ ...number(-1), [ Opcodes.mul ] ])
       ];
 
@@ -3692,7 +3697,12 @@ const generateUnary = (scope, decl) => {
 
     case '~':
       return [
-        ...generate(scope, decl.argument),
+        ...generate(scope, {
+          type: 'UnaryExpression',
+          operator: '+',
+          prefix: true,
+          argument: decl.argument
+        }),
         Opcodes.i32_to,
         [ Opcodes.i32_const, ...signedLEB128(-1) ],
         [ Opcodes.i32_xor ],
