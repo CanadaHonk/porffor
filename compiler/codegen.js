@@ -3689,6 +3689,8 @@ const ifIdentifierErrors = (scope, decl) => {
 const generateUnary = (scope, decl) => {
   switch (decl.operator) {
     case '+':
+      // todo/opt: skip ToNumber if already known number type
+
       // 13.5.4 Unary + Operator, 13.5.4.1 Runtime Semantics: Evaluation
       // https://tc39.es/ecma262/#sec-unary-plus-operator-runtime-semantics-evaluation
       // 1. Let expr be ? Evaluation of UnaryExpression.
@@ -3821,33 +3823,62 @@ const generateUnary = (scope, decl) => {
 
 const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
   const { name } = decl.argument;
-
   const [ local, isGlobal ] = lookupName(scope, name);
+  if (local != null) {
+    // fast path: just a local
+    // todo: not as compliant as slow path (non numbers)
+    const idx = local.idx;
+    const out = [];
 
-  if (local === undefined) {
-    return todo(scope, `update expression with undefined variable`, true);
+    out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
+    if (!decl.prefix && !valueUnused) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
+
+    switch (decl.operator) {
+      case '++':
+        out.push(...number(1), [ Opcodes.add ]);
+        break;
+
+      case '--':
+        out.push(...number(1), [ Opcodes.sub ]);
+        break;
+    }
+
+    out.push([ isGlobal ? Opcodes.global_set : Opcodes.local_set, idx ]);
+    if (decl.prefix && !valueUnused) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
+
+    return out;
   }
 
-  const idx = local.idx;
-  const out = [];
+  // ++x: tmp = +x; x = tmp + 1
+  // x++: tmp = +x; x = tmp + 1; tmp
+  const tmp = localTmp(scope, '#updatetmp');
+  addVarMetadata(scope, '#updatetmp', false, { type: TYPES.number });
 
-  out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
-  if (!decl.prefix && !valueUnused) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
+  return [
+    // tmp = +x
+    // if postfix, tee to keep on stack as return value
+    ...generate(scope, {
+      type: 'UnaryExpression',
+      operator: '+',
+      prefix: true,
+      argument: decl.argument
+    }),
+    [ decl.prefix ? Opcodes.local_set : Opcodes.local_tee, tmp ],
 
-  switch (decl.operator) {
-    case '++':
-      out.push(...number(1), [ Opcodes.add ]);
-      break;
-
-    case '--':
-      out.push(...number(1), [ Opcodes.sub ]);
-      break;
-  }
-
-  out.push([ isGlobal ? Opcodes.global_set : Opcodes.local_set, idx ]);
-  if (decl.prefix && !valueUnused) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
-
-  return out;
+    // x = tmp + 1
+    ...generate(scope, {
+      type: 'AssignmentExpression',
+      operator: '=',
+      left: decl.argument,
+      right: {
+        type: 'BinaryExpression',
+        operator: decl.operator[0],
+        left: { type: 'Identifier', name: '#updatetmp' },
+        right: { type: 'Literal', value: 1 }
+      }
+    }),
+    ...(decl.prefix ? [] : [ [ Opcodes.drop ] ])
+  ];
 };
 
 const generateIf = (scope, decl) => {
