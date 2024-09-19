@@ -320,7 +320,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       const err = new (globalThis[TYPE_NAMES[type]] ?? Error)(obj.message);
 
       err.name = obj.name;
-      err.stack = `${TYPE_NAMES[type]}: ${obj.message}`;
+      err.stack = `${obj.name}: ${obj.message}`;
       return err;
     }
 
