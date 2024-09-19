@@ -1,5 +1,6 @@
 import { TYPE_NAMES } from '../compiler/types.js';
 import compile from '../compiler/wrap.js';
+import parse from '../compiler/parse.js';
 
 import util from 'node:util';
 
@@ -83,7 +84,13 @@ const run = (source, _context, _filename, callback, run = true) => {
   // hack: print "secret" before latest code ran to only enable printing for new code
 
   source = source.trim();
-  if (source.startsWith('{') && source.endsWith('}')) source = '(' + source + ')';
+  if (source.startsWith('{') && source.endsWith('}')) {
+    const wrapped = '(' + source + ')';
+    try {
+      parse(wrapped);
+      source = wrapped;
+    } catch {}
+  }
 
   let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source;
 
