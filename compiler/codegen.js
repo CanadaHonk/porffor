@@ -3647,7 +3647,10 @@ const ifIdentifierErrors = (scope, decl) => {
 const generateUnary = (scope, decl) => {
   switch (decl.operator) {
     case '+':
-      // todo/opt: skip ToNumber if already known number type
+      // opt: skip ToNumber if already known as number type
+      generate(scope, decl.argument); // hack: fix last type not being defined for getNodeType before generation
+      const known = knownType(scope, getNodeType(scope, decl.argument));
+      if (known === TYPES.number) return generate(scope, decl.argument);
 
       // 13.5.4 Unary + Operator, 13.5.4.1 Runtime Semantics: Evaluation
       // https://tc39.es/ecma262/#sec-unary-plus-operator-runtime-semantics-evaluation
