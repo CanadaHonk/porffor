@@ -89,6 +89,8 @@ registerInternalType('URIError');
 registerInternalType('Test262Error');
 registerInternalType('__Porffor_TodoError');
 
+registerInternalType('__Porffor_generator');
+
 if (Prefs.largestTypes) {
   const typeKeys = Object.keys(TYPES);
   const typeVals = Object.values(TYPES);
