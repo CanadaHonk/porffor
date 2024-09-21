@@ -279,7 +279,7 @@ export const __Math_cbrt = (y: number): number => {
   if (!Number.isFinite(y)) return y;
 
   // Babylonian method
-  let x = Math.abs(y);
+  let x:number = Math.abs(y);
 
   let prev: number;
 
