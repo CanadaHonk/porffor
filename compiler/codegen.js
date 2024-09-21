@@ -2405,6 +2405,31 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     paramOffset += 4;
   }
 
+  if (args.at(-1)?.type === 'SpreadElement') {
+    // hack: support spread element if last by doing essentially:
+    // const foo = (a, b, c, d) => ...
+    // foo(a, b, ...c) -> _ = c; foo(a, b, _[0], _[1])
+    const arg = args.at(-1).argument;
+    out.push(
+      ...generate(scope, arg),
+      [ Opcodes.local_set, localTmp(scope, '#spread') ],
+      ...getNodeType(scope, arg),
+      [ Opcodes.local_set, localTmp(scope, '#spread#type', Valtype.i32) ]
+    );
+
+    args.pop();
+    const leftover = paramCount - args.length;
+    for (let i = 0; i < leftover; i++) {
+      args.push({
+        type: 'MemberExpression',
+        object: { type: 'Identifier', name: '#spread' },
+        property: { type: 'Literal', value: i },
+        computed: true,
+        optional: false
+      });
+    }
+  }
+
   if (func && args.length < paramCount) {
     // too little args, push undefineds
     args = args.concat(new Array(paramCount - (func.hasRestArgument ? 1 : 0) - args.length).fill(DEFAULT_VALUE()));
