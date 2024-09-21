@@ -399,9 +399,19 @@ const generateIdent = (scope, decl) => {
 
     if (local?.idx === undefined) {
       if (name === 'arguments' && scope.name !== 'main' && !scope.arrow) {
-        // todo: stub arguments as [] for now :)
+        // todo: not compliant
+        let len = countLength(scope);
+        const names = new Array(len);
+        const off = scope.constr ? 4 : 0;
+        for (const x in scope.locals) {
+          const i = scope.locals[x].idx - off;
+          if (i >= 0 && i % 2 === 0 && i < len * 2) {
+            names[i / 2] = x;
+          }
+        }
+
         return generateArray(scope, {
-          elements: []
+          elements: names.map(x => ({ type: 'Identifier', name: x }))
         }, false, '#arguments');
       }
 
