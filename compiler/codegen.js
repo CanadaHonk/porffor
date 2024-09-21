@@ -2102,7 +2102,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       }
 
       for (const x of builtinProtoCands) {
-        const type = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
+        const name = x.split('_prototype_')[0].toLowerCase();
+        const type = TYPES[name.slice(2)] ?? TYPES[name];
         if (type == null) continue;
 
         protoBC[type] = () => generate(scope, {
