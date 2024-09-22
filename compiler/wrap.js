@@ -324,6 +324,19 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       return err;
     }
 
+    case TYPES.__porffor_generator: {
+      const values = porfToJSValue({ memory, funcs, pages }, value, TYPES.array);
+
+      const out = { values };
+      Object.defineProperty(out, Symbol.for('nodejs.util.inspect.custom'), {
+        value(depth, opts, inspect) {
+          return `${opts.colors ? '\x1B[36m' : ''}Generator${opts.colors ? '\x1B[0m' : ''} ()`;
+        }
+      });
+
+      return out;
+    }
+
     default: return value;
   }
 };

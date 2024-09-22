@@ -1,8 +1,10 @@
-export const __Porffor_generator = (values: any[]) => {
-  values ??= Porffor.allocate();
-
+export const __Porffor_generator = (values: any[]): __Porffor_generator => {
   const gen: __Porffor_generator = values;
   return gen;
+};
+
+export const __Porffor_generator_yield = (vals: any[], value: any): void => {
+  Porffor.array.fastPush(vals, value);
 };
 
 export const __Porffor_generator_prototype_next = (vals: any[]): object => {

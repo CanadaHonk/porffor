@@ -458,7 +458,7 @@ const generateReturn = (scope, decl) => {
     return [
       // resolve promise with return value
       ...generate(scope, arg),
-      ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
+      ...getNodeType(scope, arg),
 
       [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
       ...number(TYPES.promise, Valtype.i32),
@@ -470,6 +470,26 @@ const generateReturn = (scope, decl) => {
       // return promise
       [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
       ...number(TYPES.promise, Valtype.i32),
+      [ Opcodes.return ]
+    ];
+  }
+
+  if (scope.generator) {
+    return [
+      // return value in generator
+      [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
+      ...number(TYPES.__porffor_generator, Valtype.i32),
+
+      ...generate(scope, arg),
+      ...getNodeType(scope, arg),
+
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_generator_yield').index ],
+      [ Opcodes.drop ],
+      [ Opcodes.drop ],
+
+      // return generator
+      [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
+      ...number(TYPES.__porffor_generator, Valtype.i32),
       [ Opcodes.return ]
     ];
   }
@@ -6157,6 +6177,14 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         typeUsed(func, TYPES.promise);
       }
 
+      if (decl.generator) {
+        // make out generator local
+        allocVar(func, '#generator_out', false, false);
+
+        func.generator = true;
+        typeUsed(func, TYPES.__porffor_generator);
+      }
+
       wasm = wasm.concat(generate(func, body));
 
       if (func.async) {
@@ -6190,6 +6218,19 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
         // ensure tag exists for specific catch
         ensureTag();
+      }
+
+      if (func.generator) {
+        // make generator at the start
+        wasm.unshift(
+          [ Opcodes.call, includeBuiltin(func, '__Porffor_allocate').index ],
+          Opcodes.i32_from_u,
+          ...number(TYPES.array, Valtype.i32),
+
+          [ Opcodes.call, includeBuiltin(func, '__Porffor_generator').index ],
+          [ Opcodes.drop ],
+          [ Opcodes.local_set, func.locals['#generator_out'].idx ]
+        );
       }
 
       if (name === 'main') {
