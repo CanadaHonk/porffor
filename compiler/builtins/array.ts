@@ -558,10 +558,13 @@ export const __Array_prototype_some = (_this: any[], callbackFn: any) => {
 
 // @porf-typed-array
 export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialValue: any) => {
-  let acc: any = initialValue ?? _this[0];
-
   const len: i32 = _this.length;
+  let acc: any = initialValue;
   let i: i32 = 0;
+  if (acc === undefined) {
+    acc = _this[i++];
+  }
+
   while (i < len) {
     acc = callbackFn(acc, _this[i], i++, _this);
   }
@@ -572,9 +575,12 @@ export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialV
 // @porf-typed-array
 export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, initialValue: any) => {
   const len: i32 = _this.length;
-  let acc: any = initialValue ?? _this[len - 1];
-
+  let acc: any = initialValue;
   let i: i32 = len;
+  if (acc === undefined) {
+    acc = _this[--i];
+  }
+
   while (i > 0) {
     acc = callbackFn(acc, _this[--i], i, _this);
   }
