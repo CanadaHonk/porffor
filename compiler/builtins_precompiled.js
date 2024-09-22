@@ -1746,9 +1746,9 @@ locals:[124],localNames:["values","values#type","gen"],
 usedTypes:[80,50],
 }
 this.__Porffor_generator_yield = {
-wasm:(_,{builtin})=>[[32,0],[65,208,0],[32,2],[32,3],[16,builtin('__Porffor_array_fastPush')],[26],[26],[68,0],[65,128,1],[15]],
+wasm:(_,{builtin})=>[[32,0],[65,208,0],[32,2],[32,3],[16,builtin('__Porffor_array_fastPush')],[33,5],[33,4],[32,0],[252,3],[34,7],[32,4],[68,1],[160],[34,6],[252,3],[54,1,0],[68,0],[65,128,1],[15]],
 params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
-locals:[127],localNames:["vals","vals#type","value","value#type","#last_type"],
+locals:[124,127,124,127],localNames:["vals","vals#type","value","value#type","len","#last_type","__length_setter_tmp","__member_setter_ptr_tmp"],
 usedTypes:[80],
 }
 this.__Porffor_generator_prototype_next = {

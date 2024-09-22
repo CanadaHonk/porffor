@@ -4,7 +4,10 @@ export const __Porffor_generator = (values: any[]): __Porffor_generator => {
 };
 
 export const __Porffor_generator_yield = (vals: any[], value: any): void => {
-  Porffor.array.fastPush(vals, value);
+  const len: i32 = Porffor.array.fastPush(vals, value);
+
+  // add 1 to length so done is not true until after yields
+  vals.length = len + 1;
 };
 
 export const __Porffor_generator_prototype_next = (vals: any[]): object => {

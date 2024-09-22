@@ -312,6 +312,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'AwaitExpression':
       return cacheAst(decl, generateAwait(scope, decl));
 
+    case 'YieldExpression':
+      return cacheAst(decl, generateYield(scope, decl));
+
     case 'TemplateLiteral':
       return cacheAst(decl, generateTemplate(scope, decl));
 
@@ -451,6 +454,29 @@ const generateIdent = (scope, decl) => {
   return lookup(decl.name, scope.identFailEarly);
 };
 
+const generateYield = (scope, decl) => {
+  const arg = decl.argument ?? DEFAULT_VALUE();
+
+  // just support a single yield like a return for now
+  return [
+    // return value in generator
+    [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
+    ...number(TYPES.__porffor_generator, Valtype.i32),
+
+    ...generate(scope, arg),
+    ...getNodeType(scope, arg),
+
+    [ Opcodes.call, includeBuiltin(scope, '__Porffor_generator_yield').index ],
+    [ Opcodes.drop ],
+    [ Opcodes.drop ],
+
+    // return generator
+    [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
+    ...number(TYPES.__porffor_generator, Valtype.i32),
+    [ Opcodes.return ]
+  ];
+};
+
 const generateReturn = (scope, decl) => {
   const arg = decl.argument ?? DEFAULT_VALUE();
 
@@ -483,7 +509,7 @@ const generateReturn = (scope, decl) => {
       ...generate(scope, arg),
       ...getNodeType(scope, arg),
 
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_generator_yield').index ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_generator_prototype_return').index ],
       [ Opcodes.drop ],
       [ Opcodes.drop ],
 
