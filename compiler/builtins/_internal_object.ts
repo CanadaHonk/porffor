@@ -469,10 +469,10 @@ export const __Porffor_object_define = (obj: any, key: any, value: any, flags: i
       let err: boolean = false;
 
       // descriptor type (accessor/data) and/or flags (other than writable) have changed
-      if ((tail & 0b0111) != (flags & 0b0111)) err = true;
-
-      if (!err && (tail & 0b1001) == 0) {
-        // data descriptor and already non-writable only checks
+      if ((tail & 0b0111) != (flags & 0b0111)) {
+        err = true;
+      } else if ((tail & 0b1000) == 0) {
+        // already non-writable only checks
         // trying to change writable false -> true
         if (flags & 0b1000) {
           err = true;
