@@ -473,7 +473,11 @@ const generateYield = (scope, decl) => {
     // return generator
     [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
     ...number(TYPES.__porffor_generator, Valtype.i32),
-    [ Opcodes.return ]
+    [ Opcodes.return ],
+
+    // use undefined as yield expression value
+    ...number(0),
+    ...setLastType(scope, TYPES.undefined)
   ];
 };
 
