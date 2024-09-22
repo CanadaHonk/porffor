@@ -552,6 +552,8 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any) => {
 
   let accessor: boolean = false;
 
+  const existingDesc: any = __Object_getOwnPropertyDescriptor(target, prop);
+
   // todo: should check if has attributes not if undefined
   if (get !== undefined || set !== undefined) {
     if (get !== undefined && Porffor.rawType(get) != Porffor.TYPES.function) throw new TypeError('Getter must be a function');
@@ -562,9 +564,13 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any) => {
     }
 
     accessor = true;
+  } else if (existingDesc && value === undefined && writable === undefined) {
+    // all undefined, check if past accessor
+    const _get: bytestring = 'get';
+    const _set: bytestring = 'set';
+    if (_get in existingDesc || _set in existingDesc) accessor = true;
   }
 
-  const existingDesc: any = __Object_getOwnPropertyDescriptor(target, prop);
   if (existingDesc) {
     let inKey: bytestring = '';
 
