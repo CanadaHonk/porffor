@@ -1739,35 +1739,68 @@ locals:[124],localNames:["_this","_this#type","out"],
 usedTypes:[195],
 data:{"bytestring: __Function_prototype_toString/out":[14,0,0,0,102,117,110,99,116,105,111,110,32,40,41,32,123,125]},
 }
-this.__Porffor_generator = {
+this.__Porffor_Generator = {
 wasm:()=>[[32,0],[34,2],[65,50],[15]],
 params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[124],localNames:["values","values#type","gen"],
 usedTypes:[80,50],
 }
-this.__Porffor_generator_yield = {
+this.__Porffor_Generator_yield = {
 wasm:(_,{builtin})=>[[32,0],[65,208,0],[32,2],[32,3],[16,builtin('__Porffor_array_fastPush')],[33,5],[33,4],[32,0],[252,3],[34,7],[32,4],[68,1],[160],[34,6],[252,3],[54,1,0],[68,0],[65,128,1],[15]],
 params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[124,127,124,127],localNames:["vals","vals#type","value","value#type","len","#last_type","__length_setter_tmp","__member_setter_ptr_tmp"],
 usedTypes:[80],
 }
-this.__Porffor_generator_prototype_next = {
+this.__Porffor_Generator_prototype_next = {
 wasm:(_,{builtin})=>[[16,builtin('__Porffor_allocate')],[184],[34,2],[33,5],[16,builtin('__Porffor_allocate')],[184],[34,6],[252,3],[34,7],[65,4],[54,1,0],[32,7],[65,238,0],[58,0,4],[32,7],[65,229,0],[58,0,5],[32,7],[65,248,0],[58,0,6],[32,7],[65,244,0],[58,0,7],[32,7],[184],[33,6],[32,5],[252,2],[65,7],[32,6],[252,3],[65,195,1],[32,0],[252,3],[34,9],[40,1,0],[33,8],[2,124],[32,8],[69],[4,64],[68,0],[12,1],[11],[32,9],[32,8],[65,1],[107],[34,8],[54,1,0],[32,9],[43,0,4],[32,9],[45,0,12],[65,4],[32,9],[106],[65,13],[32,9],[106],[32,8],[65,9],[108],[252,10,0,0],[33,10],[11],[32,10],[16,builtin('__Porffor_object_set')],[26],[26],[32,2],[33,5],[16,builtin('__Porffor_allocate')],[184],[34,6],[252,3],[34,7],[65,4],[54,1,0],[32,7],[65,228,0],[58,0,4],[32,7],[65,239,0],[58,0,5],[32,7],[65,238,0],[58,0,6],[32,7],[65,229,0],[58,0,7],[32,7],[184],[33,6],[32,5],[252,2],[65,7],[32,6],[252,3],[65,195,1],[32,0],[252,3],[40,1,0],[184],[68,0],[97],[184],[65,2],[16,builtin('__Porffor_object_set')],[26],[26],[32,2],[65,7],[15]],
 params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[124,124,127,124,124,127,127,127,127],localNames:["vals","vals#type","obj","#member_setter_val_tmp","#member_setter_ptr_tmp","#member_obj","#member_prop_assign","#makearray_pointer_tmp","__proto_length_cache","__proto_pointer_cache","#last_type"],
 usedTypes:[7,195,80],
 }
-this.__Porffor_generator_prototype_return = {
-wasm:(_,{builtin})=>[[32,0],[252,3],[34,5],[68,1],[34,4],[252,3],[54,1,0],[32,0],[33,8],[68,0],[33,9],[32,8],[252,3],[32,9],[252,3],[65,9],[108],[106],[34,7],[32,2],[34,6],[57,0,4],[32,7],[32,3],[58,0,12],[32,0],[65,208,0],[16,builtin('__Porffor_generator_prototype_next')],[34,10],[15]],
+this.__Porffor_Generator_prototype_return = {
+wasm:(_,{builtin})=>[[32,0],[252,3],[34,5],[68,1],[34,4],[252,3],[54,1,0],[32,0],[33,8],[68,0],[33,9],[32,8],[252,3],[32,9],[252,3],[65,9],[108],[106],[34,7],[32,2],[34,6],[57,0,4],[32,7],[32,3],[58,0,12],[32,0],[65,208,0],[16,builtin('__Porffor_Generator_prototype_next')],[34,10],[15]],
 params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[124,127,124,127,124,124,127],localNames:["vals","vals#type","value","value#type","__length_setter_tmp","__member_setter_ptr_tmp","#member_setter_val_tmp","#member_setter_ptr_tmp","#member_obj","#member_prop_assign","#last_type"],
 usedTypes:[80],
 }
-this.__Porffor_generator_prototype_throw = {
+this.__Porffor_Generator_prototype_throw = {
 wasm:()=>[[32,0],[252,3],[34,5],[68,0],[34,4],[252,3],[54,1,0],[32,2],[32,3],[8,0]],
 params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[124,127],localNames:["vals","vals#type","value","value#type","__length_setter_tmp","__member_setter_ptr_tmp"],
 usedTypes:[80],
+usesTag:1,
+}
+this.__Porffor_AsyncGenerator = {
+wasm:()=>[[32,0],[34,2],[65,51],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124],localNames:["values","values#type","gen"],
+usedTypes:[80,51],
+}
+this.__Porffor_AsyncGenerator_yield = {
+wasm:(_,{builtin})=>[[32,0],[65,208,0],[32,2],[32,3],[16,builtin('__Porffor_array_fastPush')],[33,5],[33,4],[32,0],[252,3],[34,7],[32,4],[68,1],[160],[34,6],[252,3],[54,1,0],[68,0],[65,128,1],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,127,124,127],localNames:["vals","vals#type","value","value#type","len","#last_type","__length_setter_tmp","__member_setter_ptr_tmp"],
+usedTypes:[80],
+}
+this.__Porffor_AsyncGenerator_prototype_next = {
+wasm:(_,{builtin})=>[[16,builtin('__Porffor_promise_create')],[26],[33,2],[6,64],[16,builtin('__Porffor_allocate')],[184],[34,3],[33,6],[16,builtin('__Porffor_allocate')],[184],[34,7],[252,3],[34,8],[65,4],[54,1,0],[32,8],[65,238,0],[58,0,4],[32,8],[65,229,0],[58,0,5],[32,8],[65,248,0],[58,0,6],[32,8],[65,244,0],[58,0,7],[32,8],[184],[33,7],[32,6],[252,2],[65,7],[32,7],[252,3],[65,195,1],[32,0],[252,3],[34,10],[40,1,0],[33,9],[2,124],[32,9],[69],[4,64],[68,0],[12,1],[11],[32,10],[32,9],[65,1],[107],[34,9],[54,1,0],[32,10],[43,0,4],[32,10],[45,0,12],[65,4],[32,10],[106],[65,13],[32,10],[106],[32,9],[65,9],[108],[252,10,0,0],[33,11],[11],[32,11],[16,builtin('__Porffor_promise_await')],[34,11],[16,builtin('__Porffor_object_set')],[26],[26],[32,3],[33,6],[16,builtin('__Porffor_allocate')],[184],[34,7],[252,3],[34,8],[65,4],[54,1,0],[32,8],[65,228,0],[58,0,4],[32,8],[65,239,0],[58,0,5],[32,8],[65,238,0],[58,0,6],[32,8],[65,229,0],[58,0,7],[32,8],[184],[33,7],[32,6],[252,2],[65,7],[32,7],[252,3],[65,195,1],[32,0],[252,3],[40,1,0],[184],[68,0],[97],[184],[65,2],[16,builtin('__Porffor_object_set')],[26],[26],[32,3],[65,7],[32,2],[65,36],[16,builtin('__Porffor_promise_resolve')],[26],[26],[32,2],[65,36],[15],[7,0],[32,2],[65,36],[16,builtin('__Porffor_promise_reject')],[26],[26],[11],[32,2],[65,36],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,124,127,124,124,127,127,127,127],localNames:["vals","vals#type","#async_out_promise","obj","#member_setter_val_tmp","#member_setter_ptr_tmp","#member_obj","#member_prop_assign","#makearray_pointer_tmp","__proto_length_cache","__proto_pointer_cache","#last_type"],
+usedTypes:[36,7,195,80],
+usesTag:1,
+}
+this.__Porffor_AsyncGenerator_prototype_return = {
+wasm:(_,{builtin})=>[[16,builtin('__Porffor_promise_create')],[26],[33,4],[6,64],[32,0],[252,3],[34,6],[68,1],[34,5],[252,3],[54,1,0],[32,0],[33,9],[68,0],[33,10],[32,9],[252,3],[32,10],[252,3],[65,9],[108],[106],[34,8],[32,2],[32,3],[16,builtin('__Porffor_promise_await')],[33,11],[34,7],[57,0,4],[32,8],[32,11],[58,0,12],[32,0],[65,208,0],[16,builtin('__Porffor_AsyncGenerator_prototype_next')],[34,11],[16,builtin('__Porffor_promise_await')],[34,11],[32,4],[65,36],[16,builtin('__Porffor_promise_resolve')],[26],[26],[32,4],[65,36],[15],[7,0],[32,4],[65,36],[16,builtin('__Porffor_promise_reject')],[26],[26],[11],[32,4],[65,36],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127,124,127,124,124,127],localNames:["vals","vals#type","value","value#type","#async_out_promise","__length_setter_tmp","__member_setter_ptr_tmp","#member_setter_val_tmp","#member_setter_ptr_tmp","#member_obj","#member_prop_assign","#last_type"],
+usedTypes:[36,80],
+usesTag:1,
+}
+this.__Porffor_AsyncGenerator_prototype_throw = {
+wasm:(_,{builtin})=>[[16,builtin('__Porffor_promise_create')],[26],[33,4],[6,64],[32,0],[252,3],[34,6],[68,0],[34,5],[252,3],[54,1,0],[32,2],[32,3],[16,builtin('__Porffor_promise_await')],[34,7],[8,0],[7,0],[32,4],[65,36],[16,builtin('__Porffor_promise_reject')],[26],[26],[11],[32,4],[65,36],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[124,124,127,127],localNames:["vals","vals#type","value","value#type","#async_out_promise","__length_setter_tmp","__member_setter_ptr_tmp","#last_type"],
+usedTypes:[36,80],
 usesTag:1,
 }
 this.__Math_exp = {

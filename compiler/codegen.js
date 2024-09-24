@@ -461,18 +461,18 @@ const generateYield = (scope, decl) => {
   return [
     // return value in generator
     [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
-    ...number(TYPES.__porffor_generator, Valtype.i32),
+    ...number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32),
 
     ...generate(scope, arg),
     ...getNodeType(scope, arg),
 
-    [ Opcodes.call, includeBuiltin(scope, '__Porffor_generator_yield').index ],
+    [ Opcodes.call, includeBuiltin(scope, scope.async ? '__Porffor_AsyncGenerator_yield' : '__Porffor_Generator_yield').index ],
     [ Opcodes.drop ],
     [ Opcodes.drop ],
 
     // return generator
     [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
-    ...number(TYPES.__porffor_generator, Valtype.i32),
+    ...number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32),
     [ Opcodes.return ],
 
     // use undefined as yield expression value
@@ -483,6 +483,26 @@ const generateYield = (scope, decl) => {
 
 const generateReturn = (scope, decl) => {
   const arg = decl.argument ?? DEFAULT_VALUE();
+
+  if (scope.generator) {
+    return [
+      // return value in generator
+      [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
+      ...number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32),
+
+      ...generate(scope, arg),
+      ...getNodeType(scope, arg),
+
+      [ Opcodes.call, includeBuiltin(scope, scope.async ? '__Porffor_AsyncGenerator_prototype_return' : '__Porffor_Generator_prototype_return').index ],
+      [ Opcodes.drop ],
+      [ Opcodes.drop ],
+
+      // return generator
+      [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
+      ...number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32),
+      [ Opcodes.return ]
+    ];
+  }
 
   if (scope.async) {
     return [
@@ -500,26 +520,6 @@ const generateReturn = (scope, decl) => {
       // return promise
       [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
       ...number(TYPES.promise, Valtype.i32),
-      [ Opcodes.return ]
-    ];
-  }
-
-  if (scope.generator) {
-    return [
-      // return value in generator
-      [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
-      ...number(TYPES.__porffor_generator, Valtype.i32),
-
-      ...generate(scope, arg),
-      ...getNodeType(scope, arg),
-
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_generator_prototype_return').index ],
-      [ Opcodes.drop ],
-      [ Opcodes.drop ],
-
-      // return generator
-      [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
-      ...number(TYPES.__porffor_generator, Valtype.i32),
       [ Opcodes.return ]
     ];
   }
@@ -6113,6 +6113,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     index: currentFuncIndex++,
     arrow,
     constr: !arrow && !decl.generator && !decl.async,
+    async: decl.async,
     subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
 
@@ -6199,25 +6200,34 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         }
       }
 
-      if (decl.async && !decl.generator) {
-        // make out promise local
-        allocVar(func, '#async_out_promise', false, false);
-
-        func.async = true;
-        typeUsed(func, TYPES.promise);
-      }
-
       if (decl.generator) {
+        func.generator = true;
+
         // make out generator local
         allocVar(func, '#generator_out', false, false);
+        typeUsed(func, func.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator);
+      }
 
-        func.generator = true;
-        typeUsed(func, TYPES.__porffor_generator);
+      if (func.async && !func.generator) {
+        // make out promise local
+        allocVar(func, '#async_out_promise', false, false);
+        typeUsed(func, TYPES.promise);
       }
 
       wasm = wasm.concat(generate(func, body));
 
-      if (func.async) {
+      if (func.generator) {
+        // make generator at the start
+        wasm.unshift(
+          [ Opcodes.call, includeBuiltin(func, '__Porffor_allocate').index ],
+          Opcodes.i32_from_u,
+          ...number(TYPES.array, Valtype.i32),
+
+          [ Opcodes.call, includeBuiltin(func, func.async ? '__Porffor_AsyncGenerator' : '__Porffor_Generator').index ],
+          [ Opcodes.drop ],
+          [ Opcodes.local_set, func.locals['#generator_out'].idx ]
+        );
+      } else if (func.async) {
         // make promise at the start
         wasm.unshift(
           [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_create').index ],
@@ -6248,19 +6258,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
         // ensure tag exists for specific catch
         ensureTag();
-      }
-
-      if (func.generator) {
-        // make generator at the start
-        wasm.unshift(
-          [ Opcodes.call, includeBuiltin(func, '__Porffor_allocate').index ],
-          Opcodes.i32_from_u,
-          ...number(TYPES.array, Valtype.i32),
-
-          [ Opcodes.call, includeBuiltin(func, '__Porffor_generator').index ],
-          [ Opcodes.drop ],
-          [ Opcodes.local_set, func.locals['#generator_out'].idx ]
-        );
       }
 
       if (name === 'main') {
