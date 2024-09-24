@@ -6146,22 +6146,43 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
           addVarMetadata(func, name, false, typeAnno);
 
           // automatically add throws if unexpected this type to builtins
-          if (globalThis.precompile && i === 0 && func.name.includes('_prototype_') && [
-            TYPES.date, TYPES.number, TYPES.promise, TYPES.symbol,
-            TYPES.set, TYPES.map,
-            TYPES.weakref, TYPES.weakset, TYPES.weakmap,
-            TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
-          ].includes(typeAnno.type)) {
-            let types = [ typeAnno.type ];
-            if (typeAnno.type === TYPES.number) types.push(TYPES.numberobject);
-            if (typeAnno.type === TYPES.string) types.push(TYPES.stringobject);
+          if (globalThis.precompile && i === 0 && func.name.includes('_prototype_')) {
+            if (typeAnno.type === TYPES.array) {
+              // Array.from
+              wasm.push(
+                [ Opcodes.local_get, func.locals[name].idx + 1 ],
+                ...number(TYPES.array, Valtype.i32),
+                [ Opcodes.i32_ne ],
+                [ Opcodes.if, Blocktype.void ],
+                  [ Opcodes.local_get, func.locals[name].idx ],
+                  [ Opcodes.local_get, func.locals[name].idx + 1 ],
+                  ...number(0),
+                  ...number(TYPES.undefined, Valtype.i32),
+                  [ Opcodes.call, includeBuiltin(scope, '__Array_from').index ],
 
-            wasm.push(
-              ...typeIsNotOneOf([ [ Opcodes.local_get, func.locals[name].idx + 1 ] ], types),
-              [ Opcodes.if, Blocktype.void ],
-                ...internalThrow(func, 'TypeError', `${unhackName(func.name)} expects 'this' to be a ${TYPE_NAMES[typeAnno.type]}`),
-              [ Opcodes.end ]
-            );
+                  [ Opcodes.local_set, func.locals[name].idx + 1 ],
+                  [ Opcodes.local_set, func.locals[name].idx ],
+                [ Opcodes.end ]
+              );
+            }
+
+            if ([
+              TYPES.date, TYPES.number, TYPES.promise, TYPES.symbol,
+              TYPES.set, TYPES.map,
+              TYPES.weakref, TYPES.weakset, TYPES.weakmap,
+              TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
+            ].includes(typeAnno.type)) {
+              let types = [ typeAnno.type ];
+              if (typeAnno.type === TYPES.number) types.push(TYPES.numberobject);
+              if (typeAnno.type === TYPES.string) types.push(TYPES.stringobject);
+
+              wasm.push(
+                ...typeIsNotOneOf([ [ Opcodes.local_get, func.locals[name].idx + 1 ] ], types),
+                [ Opcodes.if, Blocktype.void ],
+                  ...internalThrow(func, 'TypeError', `${unhackName(func.name)} expects 'this' to be a ${TYPE_NAMES[typeAnno.type]}`),
+                [ Opcodes.end ]
+              );
+            }
           }
 
           // todo: if string, try converting to it to one
