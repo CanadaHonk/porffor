@@ -36,6 +36,8 @@ export const __Array_isArray = (x: unknown): boolean =>
   Porffor.rawType(x) == Porffor.TYPES.array;
 
 export const __Array_from = (arg: any, mapFn: any): any[] => {
+  if (arg == null) throw new TypeError('Argument cannot be nullish');
+
   let out: any[] = Porffor.allocate();
   let len: i32 = 0;
 
@@ -46,10 +48,8 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
     type == Porffor.TYPES.set,
     Porffor.fastAnd(type >= Porffor.TYPES.uint8array, type <= Porffor.TYPES.float64array)
   )) {
-    const hasMapFn = Porffor.rawType(mapFn) != Porffor.TYPES.undefined;
-
     let i: i32 = 0;
-    if (hasMapFn) {
+    if (Porffor.rawType(mapFn) != Porffor.TYPES.undefined) {
       if (Porffor.rawType(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
 
       for (const x of arg) {
@@ -61,7 +61,19 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
         out[i++] = x;
       }
     }
+
     len = i;
+  }
+
+  if (type == Porffor.TYPES.object) {
+    const obj: object = arg;
+
+    const lengthKey: bytestring = 'length';
+    len = obj[lengthKey];
+
+    for (let i: i32 = 0; i < len; i++) {
+      out[i] = obj[i];
+    }
   }
 
   out.length = len;
