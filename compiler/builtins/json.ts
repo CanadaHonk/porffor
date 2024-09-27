@@ -11,7 +11,7 @@ export const __Porffor_json_serialize = (value: any): bytestring => {
 
   const t: i32 = Porffor.rawType(value);
   if ((t | 0b10000000) == Porffor.TYPES.bytestring) { // string
-    out = '"'; // starting "
+    Porffor.bytestring.appendChar(out, 34); // start "
 
     const len: i32 = value.length;
     for (let i: i32 = 0; i < len; i++) {
