@@ -1547,6 +1547,15 @@ export const __Porffor_bytestring_appendChar = (str: bytestring, char: i32): i32
   return 1;
 };
 
+export const __Porffor_bytestring_append2Char = (str: bytestring, char1: i32, char2: i32): i32 => {
+  const len: i32 = str.length;
+  Porffor.wasm.i32.store8(Porffor.wasm`local.get ${str}` + len, char1, 0, 4);
+  Porffor.wasm.i32.store8(Porffor.wasm`local.get ${str}` + len + 1, char2, 0, 4);
+  str.length = len + 2;
+  return 1;
+};
+
+
 // fast appending padded number
 export const __Porffor_bytestring_appendPadNum = (str: bytestring, num: number, len: number): i32 => {
   let numStr: bytestring = Number.prototype.toFixed(num, 0);

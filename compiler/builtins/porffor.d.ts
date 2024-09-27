@@ -85,6 +85,7 @@ type PorfforGlobal = {
     // defined in date.ts
     appendStr(str: bytestring, appendage: bytestring): i32;
     appendChar(str: bytestring, char: i32): i32;
+    append2Char(str: bytestring, char1: i32, char2: i32): i32;
     appendPadNum(str: bytestring, num: number, len: number): i32;
   }
 

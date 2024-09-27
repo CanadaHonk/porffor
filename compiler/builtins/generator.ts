@@ -1,3 +1,5 @@
+import type {} from './porffor.d.ts';
+
 export const __Porffor_Generator = (values: any[]): __Porffor_Generator => {
   const gen: __Porffor_Generator = values;
   return gen;
