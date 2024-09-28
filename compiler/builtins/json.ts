@@ -1,11 +1,13 @@
 import type {} from './porffor.d.ts';
 
-export const __Porffor_json_serialize = (value: any): bytestring => {
+export const __Porffor_json_serialize = (value: any): bytestring|undefined => {
   // todo: many niche things (toJSON, prim objects, etc) are not implemented yet
   // somewhat modelled after 25.5.2.2 SerializeJSONProperty: https://tc39.es/ecma262/#sec-serializejsonproperty
   let out: bytestring = Porffor.allocate();
 
-  if (value === null) return out = 'null';
+  const nullString: bytestring = 'null';
+
+  if (value === null) return nullString;
   if (value === true) return out = 'true';
   if (value === false) return out = 'false';
 
@@ -66,6 +68,7 @@ export const __Porffor_json_serialize = (value: any): bytestring => {
     }
 
     Porffor.bytestring.appendChar(out, 34); // final "
+    return out;
   }
 
   if (Porffor.fastOr(
@@ -73,13 +76,34 @@ export const __Porffor_json_serialize = (value: any): bytestring => {
     t == Porffor.TYPES.numberobject
   )) { // number
     if (Number.isFinite(value)) return out = __Number_prototype_toString(value, 10);
-    return out = 'null';
+    return nullString;
   }
 
-  // todo: array
-  // todo: object
+  if (t == Porffor.TYPES.array) {
+    Porffor.bytestring.appendChar(out, 91); // [
 
-  return out;
+    const arr: any[] = value;
+    for (const x of arr) {
+      Porffor.bytestring.appendStr(out, __Porffor_json_serialize(x) ?? nullString);
+
+      Porffor.bytestring.appendChar(out, 44); // ,
+    }
+
+    // swap trailing , with ]
+    Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 93, 0, 4);
+
+    return out;
+  }
+
+  if (t > 0x06) {
+    // non-function object
+    // hack: just return empty object for now
+    Porffor.bytestring.appendChar(out, 123); // {
+    Porffor.bytestring.appendChar(out, 125); // }
+    return out;
+  }
+
+  return undefined;
 };
 
 export const __JSON_stringify = (value: any, replacer: any, space: any) => {
