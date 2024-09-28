@@ -90,7 +90,7 @@ export const __Porffor_json_serialize = (value: any): bytestring|undefined => {
     }
 
     // swap trailing , with ]
-    Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 93, 0, 4);
+    Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 93, 0, 3);
 
     return out;
   }
