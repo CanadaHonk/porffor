@@ -1,7 +1,6 @@
 import type {} from './porffor.d.ts';
 
 export const __Porffor_json_serialize = (value: any): bytestring|undefined => {
-  // todo: many niche things (toJSON, prim objects, etc) are not implemented yet
   // somewhat modelled after 25.5.2.2 SerializeJSONProperty: https://tc39.es/ecma262/#sec-serializejsonproperty
   let out: bytestring = Porffor.allocate();
 
@@ -12,7 +11,10 @@ export const __Porffor_json_serialize = (value: any): bytestring|undefined => {
   if (value === false) return out = 'false';
 
   const t: i32 = Porffor.rawType(value);
-  if ((t | 0b10000000) == Porffor.TYPES.bytestring) { // string
+  if (Porffor.fastOr(
+    (t | 0b10000000) == Porffor.TYPES.bytestring,
+    t == Porffor.TYPES.stringobject
+  )) { // string
     Porffor.bytestring.appendChar(out, 34); // start "
 
     const len: i32 = value.length;
@@ -89,8 +91,9 @@ export const __Porffor_json_serialize = (value: any): bytestring|undefined => {
       Porffor.bytestring.appendChar(out, 44); // ,
     }
 
-    // swap trailing , with ]
-    Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 93, 0, 3);
+    // swap trailing , with ] (or append if empty)
+    if (out.length > 1) Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 93, 0, 3);
+      else Porffor.bytestring.appendChar(out, 93);
 
     return out;
   }
@@ -99,7 +102,30 @@ export const __Porffor_json_serialize = (value: any): bytestring|undefined => {
     // non-function object
     // hack: just return empty object for now
     Porffor.bytestring.appendChar(out, 123); // {
-    Porffor.bytestring.appendChar(out, 125); // }
+
+    const obj: object = value;
+    for (const key in obj) {
+      // skip symbol keys
+      if (Porffor.rawType(key) == Porffor.TYPES.symbol) continue;
+
+      // skip non-serializable values (functions, etc)
+      const val: bytestring|undefined = __Porffor_json_serialize(obj[key]);
+      if (val == null) continue;
+
+      Porffor.bytestring.appendChar(out, 34); // "
+      Porffor.bytestring.appendStr(out, key);
+      Porffor.bytestring.appendChar(out, 34); // "
+
+      Porffor.bytestring.appendChar(out, 58); // :
+      Porffor.bytestring.appendStr(out, val);
+
+      Porffor.bytestring.appendChar(out, 44); // ,
+    }
+
+    // swap trailing , with } (or append if empty)
+    if (out.length > 1) Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 125, 0, 3);
+      else Porffor.bytestring.appendChar(out, 125);
+
     return out;
   }
 
