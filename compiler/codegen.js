@@ -4839,8 +4839,6 @@ const generateTry = (scope, decl) => {
   out.push(...finalizer);
 
   if (decl.handler) {
-    // todo: allow catching error values
-    // todo: when we can do that, allow destructuring error values
     depth.pop();
     depth.push('catch');
 
