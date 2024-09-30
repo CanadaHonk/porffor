@@ -1656,7 +1656,7 @@ const countLeftover = wasm => {
       if ([Opcodes.throw, Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
         else if ([Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.f32_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.i32_load8_u, Opcodes.i32_load8_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x04)) {}
         else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const, Opcodes.memory_size].includes(inst[0])) count++;
-        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.f32_store, Opcodes.i32_store16, Opcodes.i32_store8].includes(inst[0])) count -= 2;
+        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.f32_store, Opcodes.i32_store16, Opcodes.i32_store8, Opcodes.select].includes(inst[0])) count -= 2;
         else if (inst[0] === Opcodes.memory_copy[0] && (inst[1] === Opcodes.memory_copy[1] || inst[1] === Opcodes.memory_init[1])) count -= 3;
         else if (inst[0] === Opcodes.return) count = 0;
         else if (inst[0] === Opcodes.catch) count += 2;
@@ -4518,14 +4518,20 @@ const generateForIn = (scope, decl) => {
       [ Opcodes.i32_const, 31 ],
       [ Opcodes.i32_shr_u ],
       [ Opcodes.if, Valtype.i32 ],
-        // unset MSB in tmp
+        // unset MSB 1&2 in tmp
         [ Opcodes.local_get, tmp ],
-        ...number(0x7fffffff, Valtype.i32),
+        ...number(0x3fffffff, Valtype.i32),
         [ Opcodes.i32_and ],
         [ Opcodes.local_set, tmp ],
 
+        // symbol is MSB 2 is set
         [ Opcodes.i32_const, ...unsignedLEB128(TYPES.string) ],
-      [ Opcodes.else ],
+        [ Opcodes.i32_const, ...unsignedLEB128(TYPES.symbol) ],
+        [ Opcodes.local_get, tmp ],
+        ...number(0x40000000, Valtype.i32),
+        [ Opcodes.i32_and ],
+        [ Opcodes.select ],
+      [ Opcodes.else ], // bytestring
         [ Opcodes.i32_const, ...unsignedLEB128(TYPES.bytestring) ],
       [ Opcodes.end ]
     ]),
