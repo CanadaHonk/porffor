@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-export const __Porffor_json_serialize = (value: any): bytestring|undefined => {
+export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestring|undefined): bytestring|undefined => {
   // somewhat modelled after 25.5.2.2 SerializeJSONProperty: https://tc39.es/ecma262/#sec-serializejsonproperty
   let out: bytestring = Porffor.allocate();
 
@@ -84,16 +84,36 @@ export const __Porffor_json_serialize = (value: any): bytestring|undefined => {
   if (t == Porffor.TYPES.array) {
     Porffor.bytestring.appendChar(out, 91); // [
 
+    const hasSpace: boolean = space !== undefined;
+    depth += 1;
+
     const arr: any[] = value;
     for (const x of arr) {
-      Porffor.bytestring.appendStr(out, __Porffor_json_serialize(x) ?? nullString);
+      if (hasSpace) {
+        Porffor.bytestring.appendChar(out, 10); // \n
+        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space);
+      }
+
+      Porffor.bytestring.appendStr(out, __Porffor_json_serialize(x, depth, space) ?? nullString);
 
       Porffor.bytestring.appendChar(out, 44); // ,
     }
 
+    depth -= 1;
+
     // swap trailing , with ] (or append if empty)
-    if (out.length > 1) Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 93, 0, 3);
-      else Porffor.bytestring.appendChar(out, 93);
+    if (out.length > 1) {
+      if (hasSpace) {
+        Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 10, 0, 3); // \n
+        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space);
+        Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 93, 0, 4); // ]
+        out.length += 1;
+      } else {
+        Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 93, 0, 3); // ]
+      }
+    } else {
+      Porffor.bytestring.appendChar(out, 93); // ]
+    }
 
     return out;
   }
@@ -103,28 +123,50 @@ export const __Porffor_json_serialize = (value: any): bytestring|undefined => {
     // hack: just return empty object for now
     Porffor.bytestring.appendChar(out, 123); // {
 
+    const hasSpace: boolean = space !== undefined;
+    depth += 1;
+
     const obj: object = value;
     for (const key in obj) {
       // skip symbol keys
       if (Porffor.rawType(key) == Porffor.TYPES.symbol) continue;
 
       // skip non-serializable values (functions, etc)
-      const val: bytestring|undefined = __Porffor_json_serialize(obj[key]);
+      const val: bytestring|undefined = __Porffor_json_serialize(obj[key], depth, space);
       if (val == null) continue;
+
+      if (hasSpace) {
+        Porffor.bytestring.appendChar(out, 10); // \n
+        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space);
+      }
 
       Porffor.bytestring.appendChar(out, 34); // "
       Porffor.bytestring.appendStr(out, key);
       Porffor.bytestring.appendChar(out, 34); // "
 
       Porffor.bytestring.appendChar(out, 58); // :
+      if (hasSpace) Porffor.bytestring.appendChar(out, 32); // space
+
       Porffor.bytestring.appendStr(out, val);
 
       Porffor.bytestring.appendChar(out, 44); // ,
     }
 
+    depth -= 1;
+
     // swap trailing , with } (or append if empty)
-    if (out.length > 1) Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 125, 0, 3);
-      else Porffor.bytestring.appendChar(out, 125);
+    if (out.length > 1) {
+      if (hasSpace) {
+        Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 10, 0, 3); // \n
+        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space);
+        Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 125, 0, 4); // }
+        out.length += 1;
+      } else {
+        Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 125, 0, 3); // }
+      }
+    } else {
+      Porffor.bytestring.appendChar(out, 125); // }
+    }
 
     return out;
   }
@@ -134,7 +176,40 @@ export const __Porffor_json_serialize = (value: any): bytestring|undefined => {
 
 export const __JSON_stringify = (value: any, replacer: any, space: any) => {
   // todo: replacer
-  // todo: space
 
-  return __Porffor_json_serialize(value);
+  if (space !== undefined) {
+    if (Porffor.fastOr(
+      Porffor.rawType(space) == Porffor.TYPES.number,
+      Porffor.rawType(space) == Porffor.TYPES.numberobject
+    )) {
+      space = Math.min(Math.trunc(space), 10);
+      Porffor.print(space); Porffor.printStatic('\n');
+
+      if (space < 1) {
+        space = undefined;
+      } else {
+        const spaceStr: bytestring = '';
+        spaceStr.length = 0;
+
+        for (let i: i32 = 0; i < space; i++) Porffor.bytestring.appendChar(spaceStr, 32);
+        space = spaceStr;
+      }
+    } else if (Porffor.fastOr(
+      (Porffor.rawType(space) | 0b10000000) == Porffor.TYPES.bytestring,
+      Porffor.rawType(space) == Porffor.TYPES.stringobject
+    )) {
+      // if empty, make it undefined
+      const len: i32 = space.length;
+      if (len == 0) {
+        space = undefined;
+      } else if (len > 10) {
+        space = space.slice(0, 10);
+      }
+    } else {
+      // not a number or string, make it undefined
+      space = undefined;
+    }
+  }
+
+  return __Porffor_json_serialize(value, 0, space);
 };
