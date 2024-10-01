@@ -5,7 +5,7 @@ const printChar = i => process.stdout.write(String.fromCharCode(i));
 
 const interpret = str => {
   let ptr = 0;
-  let memory = new Array(8000);
+  let memory = new Array(6000);
   memory.fill(0);
 
   let starts = [];
