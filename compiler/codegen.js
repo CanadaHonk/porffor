@@ -6579,6 +6579,52 @@ export default program => {
 
   program.id = { name: 'main' };
 
+  if (Prefs.repl) {
+    let newBody = [{
+      type: 'VariableDeclaration',
+      declarations: [
+        {
+          type: 'VariableDeclarator',
+          id: { type: 'Identifier', name: '_' },
+          init: { type: 'Identifier', name: 'undefined' }
+        }
+      ],
+      kind: 'let'
+    }];
+    for (const node of program.body) {
+      if (
+        // skip setting _ for:
+        // ;
+        node.type === 'EmptyStatement'
+        // print(...)
+        || node.type === 'ExpressionStatement' && node.expression.type === 'CallExpression' && node.expression.callee.name === 'print'
+      ) {
+        newBody.push(node);
+      } else if (node.type === 'ExpressionStatement') {
+        newBody.push({
+          type: 'ExpressionStatement',
+          expression: {
+            type: 'AssignmentExpression',
+            left: { type: 'Identifier', name: '_' },
+            operator: '=',
+            right: node.expression
+          }
+        })
+      } else {
+        newBody.push(node, {
+          type: 'ExpressionStatement',
+          expression: {
+            type: 'AssignmentExpression',
+            left: { type: 'Identifier', name: '_' },
+            operator: '=',
+            right: { type: 'Identifier', name: 'undefined' }
+          }
+        })
+      }
+    }
+    program.body = newBody;
+  }
+
   program.body = {
     type: 'BlockStatement',
     body: program.body
