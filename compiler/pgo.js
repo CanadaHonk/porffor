@@ -1,7 +1,7 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { importedFuncs } from './builtins.js';
-import {} from './prefs.js';
+import './prefs.js';
 import assemble from './assemble.js';
 import wrap, { writeByteStr } from './wrap.js';
 import * as Havoc from './havoc.js';

@@ -1,6 +1,6 @@
 import { Opcodes, PageSize, Valtype } from './wasmSpec.js';
 import { number } from './embedding.js';
-import {} from './prefs.js';
+import './prefs.js';
 
 // we currently have 3 allocators:
 // - static (default): a static/compile-time allocator. fast (no grow/run-time alloc needed) but can break some code

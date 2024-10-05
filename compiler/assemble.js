@@ -2,7 +2,7 @@ import { Valtype, FuncType, ExportDesc, Section, Magic, ModuleVersion, Opcodes, 
 import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64, ieee754_binary64_into } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from './log.js';
-import {} from './prefs.js';
+import './prefs.js';
 
 const createSection = (type, data) => [
   type,

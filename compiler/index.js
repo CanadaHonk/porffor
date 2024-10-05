@@ -8,7 +8,7 @@ import decompile from './decompile.js';
 import toc from './2c.js';
 import * as pgo from './pgo.js';
 import cyclone from './cyclone.js';
-import {} from './prefs.js';
+import './prefs.js';
 import * as Diagram from './diagram.js';
 
 globalThis.decompile = decompile;

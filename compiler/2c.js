@@ -2,7 +2,7 @@ import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from '.
 import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
 import { log } from './log.js';
-import {} from './prefs.js';
+import './prefs.js';
 
 const CValtype = {
   i8: 'u8',

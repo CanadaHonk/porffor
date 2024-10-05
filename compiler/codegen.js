@@ -8,7 +8,7 @@ import { TYPES, TYPE_FLAGS, TYPE_NAMES, typeHasFlag } from './types.js';
 import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
 import { log } from './log.js';
-import {} from './prefs.js';
+import './prefs.js';
 import makeAllocator from './allocators.js';
 
 let globals = {};

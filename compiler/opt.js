@@ -2,7 +2,7 @@ import { Opcodes, Valtype } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { read_signedLEB128, read_ieee754_binary64 } from './encoding.js';
 import { log } from './log.js';
-import {} from './prefs.js';
+import './prefs.js';
 
 export default (funcs, globals, pages, tags, exceptions) => {
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
