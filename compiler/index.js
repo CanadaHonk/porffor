@@ -25,8 +25,8 @@ const logFuncs = (funcs, globals, exceptions) => {
   console.log();
 };
 
-const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
-const execSync = (typeof process?.version !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
+const fs = (typeof globalThis.process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
+const execSync = (typeof globalThis.process?.version !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
 
 let progressLines = 0, progressInterval;
 let spinner = ['-', '\\', '|', '/'], spin = 0;
@@ -55,7 +55,7 @@ const progressClear = () => {
 export default (code, module = undefined) => {
   if (module !== undefined) Prefs.module = module;
 
-  const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
+  const optLevel = parseInt(globalThis.process?.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
 
   let target = Prefs.target ?? 'wasm';
   if (Prefs.native) target = 'native';
@@ -206,7 +206,7 @@ export default (code, module = undefined) => {
   if (target === 'wasm' && outFile) {
     fs.writeFileSync(outFile, Buffer.from(wasm));
 
-    if (process.version) process.exit();
+    if (globalThis.process?.version) process.exit();
   }
 
   if (target === 'c') {
@@ -219,7 +219,7 @@ export default (code, module = undefined) => {
       console.log(c);
     }
 
-    if (process.version) process.exit();
+    if (globalThis.process?.version) process.exit();
   }
 
   if (target === 'native') {
@@ -252,7 +252,7 @@ export default (code, module = undefined) => {
 
     if (logProgress) progressStart(`compiled C to native (using ${compiler})`, t5);
 
-    if (process.version) {
+    if (globalThis.process?.version) {
       if (Prefs.native) {
         const cleanup = () => {
           try {
