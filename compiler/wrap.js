@@ -6,7 +6,7 @@ import { TYPES, TYPE_NAMES } from './types.js';
 import { log } from './log.js';
 import {} from './prefs.js';
 
-const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
+const fs = (typeof globalThis.process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 
 const bold = x => `\u001b[1m${x}\u001b[0m`;
 

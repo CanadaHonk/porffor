@@ -7,7 +7,7 @@ const getPrefs = () => {
   prefs = {};
   for (const x of onByDefault) prefs[x] = true;
 
-  for (const x of process.argv) {
+  for (const x of globalThis.process?.argv ?? []) {
     if (x[0] !== '-') continue;
 
     let flag = x.slice(x[1] === '-' ? 2 : 1);
