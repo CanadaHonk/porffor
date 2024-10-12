@@ -6171,7 +6171,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
             }
 
             if ([
-              TYPES.date, TYPES.number, TYPES.promise, TYPES.symbol,
+              TYPES.date, TYPES.number, TYPES.promise, TYPES.symbol, TYPES.function,
               TYPES.set, TYPES.map,
               TYPES.weakref, TYPES.weakset, TYPES.weakmap,
               TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
