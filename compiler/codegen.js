@@ -1694,7 +1694,7 @@ const generateExp = (scope, decl) => {
     }
   }
 
-  const out = generate(scope, expression, undefined, undefined, Prefs.optUnused);
+  const out = generate(scope, expression, undefined, undefined, !scope.inEval);
   disposeLeftover(out);
 
   return out;
@@ -1969,10 +1969,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       throw e;
     }
 
+    scope.inEval = true;
     const out = generate(scope, {
       type: 'BlockStatement',
       body: parsed.body
     });
+    scope.inEval = false;
 
     const lastInst = out[out.length - 1];
     if (lastInst && lastInst[0] === Opcodes.drop) {

@@ -1740,11 +1740,18 @@ usedTypes:[195],
 data:{"bytestring: escape/lut":[128,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0]},
 }
 this.__Function_prototype_toString = {
-wasm:(_,{allocPage})=>[...number(allocPage(_,'bytestring: __Function_prototype_toString/out','i8'),124),[34,2],[65,195,1],[15]],
+wasm:(_,{allocPage,builtin,internalThrow})=>[[32,1],[65,6],[71],[4,64],...internalThrow(_,'TypeError',`Function.prototype.toString expects 'this' to be a Function`),[11],[16,builtin('__Porffor_allocate')],[183],[33,2],...number(allocPage(_,'bytestring: __Function_prototype_toString/prefix','i8'),124),[33,3],[32,2],[65,195,1],[32,3],[65,195,1],[16,builtin('__Porffor_bytestring_appendStr')],[33,4],[26],[32,2],[65,195,1],[32,0],[33,5],...number(allocPage(_,'bytestring: __Function_prototype_toString/#member_prop','i8'),124),[34,6],[252,3],[34,7],[65,4],[54,1,0],[32,7],[65,238,0],[58,0,4],[32,7],[65,225,0],[58,0,5],[32,7],[65,237,0],[58,0,6],[32,7],[65,229,0],[58,0,7],[32,7],[184],[33,6],[32,5],[252,2],[65,6],[32,6],[252,3],[65,195,1],[16,builtin('__Porffor_object_get')],[34,4],[16,builtin('__Porffor_bytestring_appendStr')],[33,4],[26],...number(allocPage(_,'bytestring: __Function_prototype_toString/postfix','i8'),124),[33,8],[32,2],[65,195,1],[32,8],[65,195,1],[16,builtin('__Porffor_bytestring_appendStr')],[33,4],[26],[32,2],[65,195,1],[15]],
 params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
-locals:[124],localNames:["_this","_this#type","out"],
+locals:[124,124,127,124,124,127,124],localNames:["_this","_this#type","out","prefix","#last_type","#member_obj","#member_prop","#makearray_pointer_tmp","postfix"],
 usedTypes:[195],
-data:{"bytestring: __Function_prototype_toString/out":[14,0,0,0,102,117,110,99,116,105,111,110,32,40,41,32,123,125]},
+data:{"bytestring: __Function_prototype_toString/prefix":[9,0,0,0,102,117,110,99,116,105,111,110,32],"bytestring: __Function_prototype_toString/postfix":[20,0,0,0,40,41,32,123,32,91,110,97,116,105,118,101,32,99,111,100,101,93,32,125]},
+usesTag:1,
+}
+this.__Function_prototype_toLocaleString = {
+wasm:(_,{builtin,internalThrow})=>[[32,1],[65,6],[71],[4,64],...internalThrow(_,'TypeError',`Function.prototype.toLocaleString expects 'this' to be a Function`),[11],[32,0],[65,6],[16,builtin('__Function_prototype_toString')],[34,2],[15]],
+params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[127],localNames:["_this","_this#type","#last_type"],
+usesTag:1,
 }
 this.__Porffor_Generator = {
 wasm:()=>[[32,0],[34,2],[65,50],[15]],
