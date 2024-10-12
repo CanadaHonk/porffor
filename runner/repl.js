@@ -4,7 +4,7 @@ import parse from '../compiler/parse.js';
 
 import util from 'node:util';
 
-process.argv.push('--no-opt-unused');
+Prefs.optUnused = false;
 
 let repl;
 try {
@@ -142,9 +142,9 @@ replServer.defineCommand('asm', {
     this.clearBufferedCommand();
 
     try {
-      process.argv.push('--opt-funcs');
+      Prefs.optFuncs = true;
       run('', null, null, () => {}, false);
-      process.argv.pop();
+      Prefs.optFuncs = false;
     } catch { }
 
     this.displayPrompt();
