@@ -9,7 +9,7 @@ import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
 import { log } from './log.js';
 import './prefs.js';
-import makeAllocator from './allocators.js';
+import { alloc, nameToReason } from './allocator.js';
 
 let globals = {};
 let tags = [];
@@ -18,7 +18,6 @@ let exceptions = [];
 let funcIndex = {};
 let currentFuncIndex = importedFuncs.length;
 let builtinFuncs = {}, builtinVars = {}, prototypeFuncs = {};
-let allocator;
 
 class TodoError extends Error {
   constructor(message) {
@@ -4899,18 +4898,7 @@ const generateMeta = (scope, decl) => {
 };
 
 let pages = new Map();
-const allocPage = (scope, reason, type) => {
-  const ptr = i => i === 0 ? 16 : (i * pageSize);
-  if (pages.has(reason)) return ptr(pages.get(reason).ind);
-
-  const ind = pages.size;
-  pages.set(reason, { ind, type });
-
-  scope.pages ??= new Map();
-  scope.pages.set(reason, { ind, type });
-
-  return ptr(ind);
-};
+const allocPage = (scope, name) => alloc({ scope, pages }, name);
 
 const itemTypeToValtype = {
   i32: 'i32',
@@ -4994,31 +4982,29 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   const valtype = itemTypeToValtype[itemType];
   const length = elements.length;
 
-  const allocated = allocator.alloc({ scope, pages, globals, asmFunc, funcIndex }, uniqueName, { itemType });
+  const ptr = alloc({ scope, pages }, uniqueName);
+  const reason = nameToReason(scope, uniqueName);
 
-  let pointer = allocated;
-  if (allocator.constructor.name !== 'StaticAllocator') {
-    // const tmp = localTmp(scope, '#makearray_pointer' + uniqueName, Valtype.i32);
-    const tmp = localTmp(scope, '#makearray_pointer' + name, Valtype.i32);
-    out.push(
-      ...allocated,
-      [ Opcodes.local_set, tmp ]
-    );
+  let pointer = number(ptr, Valtype.i32);
 
-    if (Prefs.runtimeAllocLog) out.push(
-      ...printStaticStr(`${name}: `),
+  scope.arrays ??= new Map();
+  const firstAssign = !scope.arrays.has(uniqueName);
+  if (firstAssign) scope.arrays.set(uniqueName, ptr);
 
-      [ Opcodes.local_get, tmp ],
-      Opcodes.i32_from_u,
-      [ Opcodes.call, 0 ],
+  const local = global ? globals[name] : scope.locals?.[name];
+  if (
+    Prefs.data && useRawElements &&
+    name !== '#member_prop' && name !== '#member_prop_assign' &&
+    (!globalThis.precompile || !global)
+  ) {
+    if (Prefs.activeData && firstAssign) {
+      makeData(scope, elements, reason, itemType, initEmpty);
 
-      ...number(10),
-      [ Opcodes.call, 1 ]
-    );
+      // local value as pointer
+      return [ number(ptr, intOut ? Valtype.i32 : valtypeBinary), pointer ];
+    }
 
-    pointer = [ [ Opcodes.local_get, tmp ] ];
-
-    if (Prefs.data && useRawElements) {
+    if (Prefs.passiveData) {
       const data = makeData(scope, elements, null, itemType, initEmpty);
       if (data) {
         // init data
@@ -5031,88 +5017,46 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
       }
 
       // return pointer in out
-      out.push(
-        ...pointer,
-        ...(!intOut ? [ Opcodes.i32_from_u ] : [])
-      );
+      out.push(...number(ptr, intOut ? Valtype.i32 : valtypeBinary));
 
       return [ out, pointer ];
     }
-  } else {
-    const rawPtr = allocator.lastPtr;
-
-    scope.arrays ??= new Map();
-    const firstAssign = !scope.arrays.has(uniqueName);
-    if (firstAssign) scope.arrays.set(uniqueName, rawPtr);
-
-    const local = global ? globals[name] : scope.locals?.[name];
-    if (
-      Prefs.data && useRawElements &&
-      name !== '#member_prop' && name !== '#member_prop_assign' &&
-      (!globalThis.precompile || !global)
-    ) {
-      if (Prefs.activeData && firstAssign) {
-        makeData(scope, elements, allocator.lastName, itemType, initEmpty);
-
-        // local value as pointer
-        return [ number(rawPtr, intOut ? Valtype.i32 : valtypeBinary), pointer ];
-      }
-
-      if (Prefs.passiveData) {
-        const data = makeData(scope, elements, null, itemType, initEmpty);
-        if (data) {
-          // init data
-          out.push(
-            ...pointer,
-            ...number(0, Valtype.i32),
-            ...number(data.size, Valtype.i32),
-            [ ...Opcodes.memory_init, ...unsignedLEB128(data.idx), 0 ]
-          );
-        }
-
-        // return pointer in out
-        out.push(...number(rawPtr, intOut ? Valtype.i32 : valtypeBinary));
-
-        return [ out, pointer ];
-      }
-    }
-
-    if (local != null) {
-      // hack: handle allocation for #member_prop's here instead of in several places /shrug
-      let shouldGet = true;
-      if (name === '#member_prop') {
-        out.push(...number(rawPtr));
-        shouldGet = false;
-      }
-
-      if (name === '#member_prop_assign') {
-        out.push(
-          [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
-          Opcodes.i32_from_u
-        );
-        shouldGet = false;
-      }
-
-      const pointerTmp = localTmp(scope, '#makearray_pointer_tmp', Valtype.i32);
-      out.push(
-        ...(shouldGet ? [
-          [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
-          Opcodes.i32_to_u
-        ] : [
-          // hack: make precompile realise we are allocating
-          ...(globalThis.precompile ? [
-            [ global ? Opcodes.global_set : Opcodes.local_set, local.idx ],
-            [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
-          ] : []),
-          Opcodes.i32_to_u
-        ]),
-        [ Opcodes.local_set, pointerTmp ]
-      );
-
-      pointer = [ [ Opcodes.local_get, pointerTmp ] ];
-    }
   }
 
+  if (local != null) {
+    // hack: handle allocation for #member_prop's here instead of in several places /shrug
+    let shouldGet = true;
+    if (name === '#member_prop') {
+      out.push(...number(ptr));
+      shouldGet = false;
+    }
+
+    if (name === '#member_prop_assign') {
+      out.push(
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+        Opcodes.i32_from_u
+      );
+      shouldGet = false;
+    }
+
+    const pointerTmp = localTmp(scope, '#makearray_pointer_tmp', Valtype.i32);
+    out.push(
+      ...(shouldGet ? [
+        [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+        Opcodes.i32_to_u
+      ] : [
+        // hack: make precompile realise we are allocating
+        ...(globalThis.precompile ? [
+          [ global ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+          [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
+        ] : []),
+        Opcodes.i32_to_u
+      ]),
+      [ Opcodes.local_set, pointerTmp ]
+    );
+
+    pointer = [ [ Opcodes.local_get, pointerTmp ] ];
+  }
 
   // store length
   out.push(
@@ -6574,7 +6518,6 @@ export default program => {
   builtinFuncs = new BuiltinFuncs();
   builtinVars = new BuiltinVars({ builtinFuncs });
   prototypeFuncs = new PrototypeFuncs();
-  allocator = makeAllocator(Prefs.allocator ?? 'static');
 
   const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
   objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];

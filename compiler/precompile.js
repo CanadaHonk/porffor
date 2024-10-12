@@ -136,7 +136,7 @@ const compile = async (file, _funcs) => {
           if (!pageName || allocated.has(pageName)) continue;
           allocated.add(pageName);
 
-          y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type, valtypeBinary);
+          y.splice(0, 10, 'alloc', pageName, valtypeBinary);
         }
 
         if (y[0] === Opcodes.const && n[0] === Opcodes.global_set) {
@@ -149,7 +149,7 @@ const compile = async (file, _funcs) => {
           if (!pageName || allocated.has(pageName)) continue;
           allocated.add(pageName);
 
-          y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type, valtypeBinary);
+          y.splice(0, 10, 'alloc', pageName, valtypeBinary);
         }
 
         if (n[0] === Opcodes.throw) {
@@ -220,7 +220,7 @@ ${funcs.map(x => {
       if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
       return v;
     })
-      .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(_,'${reason}','${type}'),${valtype})`)
+      .replace(/\["alloc","(.*?)",(.*?)\]/g, (_, reason, valtype) => `...number(allocPage(_,'${reason}'),${valtype})`)
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode},'${name}',${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)

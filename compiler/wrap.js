@@ -183,10 +183,10 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.symbol: {
-      const page = pages.get('array: symbol.ts/descStore');
+      const page = pages.get('symbol.ts/descStore');
       if (!page) return Symbol();
 
-      const descStore = page.ind * pageSize;
+      const descStore = page * pageSize;
       const offset = descStore + 4 + ((value - 1) * 9);
 
       const v = read(Float64Array, memory, offset, 1)[0];
