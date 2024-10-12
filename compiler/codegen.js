@@ -191,6 +191,7 @@ const forceDuoValtype = (scope, wasm, forceValtype) => [
 ];
 
 const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
+  if (valueUnused && !Prefs.optUnused) valueUnused = false;
   if (astCache.has(decl)) return astCache.get(decl);
 
   switch (decl.type) {
@@ -240,7 +241,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateVar(scope, decl));
 
     case 'AssignmentExpression':
-      return cacheAst(decl, generateAssign(scope, decl));
+      return cacheAst(decl, generateAssign(scope, decl, global, name, valueUnused));
 
     case 'UnaryExpression':
       return cacheAst(decl, generateUnary(scope, decl));
@@ -352,6 +353,8 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
   }
 };
 
+const optional = (op, clause = op.at(-1)) => clause || clause === 0 ? (Array.isArray(op[0]) ? op : [ op ]) : [];
+
 const lookupName = (scope, name) => {
   if (Object.hasOwn(scope.locals, name)) return [ scope.locals[name], false ];
   if (Object.hasOwn(globals, name)) return [ globals[name], true ];
@@ -363,7 +366,7 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
   ...generate(scope, {
     type: 'ThrowStatement',
     argument: {
-      type: 'NewExpression',
+      type: 'CallExpression',
       callee: {
         type: 'Identifier',
         name: constructor
@@ -1673,8 +1676,6 @@ const countLeftover = wasm => {
           count -= inst[1] * 2; // params * 2 (typed)
           count += 2; // fixed return (value, type)
         } else count--;
-
-    // console.log(count, depth, decompile([ inst ]).slice(0, -1));
   }
 
   return count;
@@ -1986,12 +1987,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       out.push(...number(UNDEFINED));
       out.push(...setLastType(scope, TYPES.undefined));
     }
-
-    // if (lastInst && lastInst[0] === Opcodes.drop) {
-    //   out.splice(out.length - 1, 1);
-    // } else if (countLeftover(out) === 0) {
-    //   out.push(...number(UNDEFINED));
-    // }
 
     return out;
   }
@@ -3337,7 +3332,6 @@ const isIdentAssignable = (scope, name, op = '=') => {
   return false;
 };
 
-// todo: optimize this func for valueUnused
 const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
   const [ local, isGlobal ] = lookupName(scope, name);
@@ -3363,8 +3357,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   // hack: .length setter
   if (type === 'MemberExpression' && decl.left.property.name === 'length' && !decl._internalAssign) {
-    const newValueTmp = localTmp(scope, '__length_setter_tmp');
-    const pointerTmp = localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
+    const newValueTmp = !valueUnused && localTmp(scope, '__length_setter_tmp');
+    let pointerTmp = op !== '=' && localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
     const out = [
       ...generate(scope, decl.left.object),
@@ -3377,22 +3371,24 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         Opcodes.i32_from_u
       ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right))),
-      [ Opcodes.local_tee, newValueTmp ],
+      ...optional([ Opcodes.local_tee, newValueTmp ]),
 
       Opcodes.i32_to_u,
       [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ],
 
-      [ Opcodes.local_get, newValueTmp ]
+      ...optional([ Opcodes.local_get, newValueTmp ])
     ];
 
     const type = getNodeType(scope, decl.left.object);
     const known = knownType(scope, type);
     if (known != null && typeHasFlag(known, TYPE_FLAGS.length)) return [
       ...out,
-      ...(!pointerTmp ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+      ...optional([ Opcodes.local_tee, pointerTmp ]),
 
       ...lengthTypeWasm
     ];
+
+    pointerTmp ||= localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
     return [
       ...out,
@@ -3401,7 +3397,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       ...type,
       ...number(TYPE_FLAGS.length, Valtype.i32),
       [ Opcodes.i32_and ],
-      [ Opcodes.if, valtypeBinary ],
+      [ Opcodes.if, valueUnused ? Blocktype.void : valtypeBinary ],
         [ Opcodes.local_get, pointerTmp ],
         ...lengthTypeWasm,
       [ Opcodes.else ],
@@ -3415,7 +3411,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   // arr[i]
   if (type === 'MemberExpression') {
-    const newValueTmp = localTmp(scope, '#member_setter_val_tmp');
+    const newValueTmp = !valueUnused && localTmp(scope, '#member_setter_val_tmp');
     const pointerTmp = localTmp(scope, '#member_setter_ptr_tmp', Valtype.i32);
 
     const object = decl.left.object;
@@ -3456,14 +3452,14 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               [ Opcodes.local_get, pointerTmp ],
               [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
             ], getNodeType(scope, decl.right), false, name, true)),
-            [ Opcodes.local_tee, newValueTmp ],
+            ...optional([ Opcodes.local_tee, newValueTmp ]),
             [ Opcodes.store, 0, ValtypeSize.i32 ],
 
             [ Opcodes.local_get, pointerTmp ],
             ...getNodeType(scope, decl),
             [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
 
-            [ Opcodes.local_get, newValueTmp ]
+            ...optional([ Opcodes.local_get, newValueTmp ])
           ],
 
           ...wrapBC({
@@ -3476,7 +3472,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.i32_load8_u, 0, 4 ],
                 Opcodes.i32_from_u
               ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-              [ Opcodes.local_tee, newValueTmp ],
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to_u,
               [ Opcodes.i32_store8, 0, 4 ]
@@ -3490,7 +3486,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.i32_load8_u, 0, 4 ],
                 Opcodes.i32_from_u
               ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-              [ Opcodes.local_tee, newValueTmp ],
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               ...number(0),
               [ Opcodes.f64_max ],
@@ -3508,7 +3504,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.i32_load8_s, 0, 4 ],
                 Opcodes.i32_from
               ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-              [ Opcodes.local_tee, newValueTmp ],
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to,
               [ Opcodes.i32_store8, 0, 4 ]
@@ -3524,7 +3520,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.i32_load16_u, 0, 4 ],
                 Opcodes.i32_from_u
               ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-              [ Opcodes.local_tee, newValueTmp ],
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to_u,
               [ Opcodes.i32_store16, 0, 4 ]
@@ -3540,7 +3536,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.i32_load16_s, 0, 4 ],
                 Opcodes.i32_from
               ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-              [ Opcodes.local_tee, newValueTmp ],
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to,
               [ Opcodes.i32_store16, 0, 4 ]
@@ -3556,7 +3552,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.i32_load, 0, 4 ],
                 Opcodes.i32_from_u
               ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-              [ Opcodes.local_tee, newValueTmp ],
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to_u,
               [ Opcodes.i32_store, 0, 4 ]
@@ -3572,7 +3568,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.i32_load, 0, 4 ],
                 Opcodes.i32_from
               ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-              [ Opcodes.local_tee, newValueTmp ],
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to,
               [ Opcodes.i32_store, 0, 4 ]
@@ -3588,7 +3584,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.f32_load, 0, 4 ],
                 [ Opcodes.f64_promote_f32 ]
               ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-              [ Opcodes.local_tee, newValueTmp ],
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               [ Opcodes.f32_demote_f64 ],
               [ Opcodes.f32_store, 0, 4 ]
@@ -3603,7 +3599,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.f64_load, 0, 4 ]
               ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
-              [ Opcodes.local_tee, newValueTmp ],
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               [ Opcodes.f64_store, 0, 4 ]
             ],
@@ -3618,7 +3614,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             ],
             postlude: [
               // setLastType(scope, TYPES.number)
-              [ Opcodes.local_get, newValueTmp ]
+              ...optional([ Opcodes.local_get, newValueTmp ])
             ]
           }),
         } : {}),
@@ -3654,9 +3650,10 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
           [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
           [ Opcodes.drop ],
+          [ Opcodes.drop ]
           // ...setLastType(scope, getNodeType(scope, decl)),
         ]
-      }, valtypeBinary)
+      }, valueUnused ? Blocktype.void : valtypeBinary)
     ];
   }
 
@@ -3684,7 +3681,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // set global and return (eg a = 2)
     return [
       ...generateVarDstr(scope, 'var', name, decl.right, undefined, true),
-      ...generate(scope, decl.left)
+      ...optional(generate(scope, decl.left), valueUnused)
     ];
   }
 
@@ -3692,7 +3689,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   if (local.metadata?.kind === 'const') return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${name}`, true);
 
   if (op === '=') {
-    return setLocalWithType(scope, name, isGlobal, decl.right, true);
+    return setLocalWithType(scope, name, isGlobal, decl.right, !valueUnused);
   }
 
   if (op === '||' || op === '&&' || op === '??') {
@@ -3718,7 +3715,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   return setLocalWithType(
     scope, name, isGlobal,
     performOp(scope, op, [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
-    true,
+    !valueUnused,
     getNodeType(scope, decl)
   );
 };
@@ -3922,7 +3919,7 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
       prefix: true,
       argument: decl.argument
     }),
-    [ decl.prefix ? Opcodes.local_set : Opcodes.local_tee, tmp ],
+    [ decl.prefix || valueUnused ? Opcodes.local_set : Opcodes.local_tee, tmp ],
 
     // x = tmp + 1
     ...generate(scope, {
@@ -3935,8 +3932,8 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
         left: { type: 'Identifier', name: '#updatetmp' },
         right: { type: 'Literal', value: 1 }
       }
-    }),
-    ...(decl.prefix ? [] : [ [ Opcodes.drop ] ])
+    }, _global, _name, valueUnused),
+    ...(decl.prefix || valueUnused ? [] : [ [ Opcodes.drop ] ])
   ];
 };
 
