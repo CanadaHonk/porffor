@@ -31,7 +31,7 @@ if (isMainThread) {
     omitRuntime: true
   });
 
-  if (process.argv.includes('--open')) execSync(`zed ${test262Path}/${whatTests}`);
+  if (process.argv.includes('--open')) execSync(`zed -n ${test262Path}/${whatTests}`);
 
   const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
 
