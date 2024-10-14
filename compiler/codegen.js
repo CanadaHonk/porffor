@@ -3014,7 +3014,6 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     }
   }
 
-
   const topLevel = scope.name === 'main';
 
   if (typeof pattern === 'string') {
@@ -3034,6 +3033,11 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
         generateFunc(scope, init, true);
         return out;
       }
+    }
+
+    if (defaultValue && isFuncType(defaultValue.type)) {
+      // set id as name, but do not use it as it is only default value
+      if (!defaultValue.id) defaultValue.id = { name };
     }
 
     if (topLevel && Object.hasOwn(builtinVars, name)) {
