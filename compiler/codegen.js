@@ -2961,6 +2961,19 @@ const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType
   return out;
 };
 
+const setDefaultFuncName = (decl, name) => {
+  if (decl.id) return;
+
+  if (decl.type === 'ClassExpression') {
+    // check if it has a name definition
+    for (const x of decl.body.body) {
+      if (x.key.name === 'name') return;
+    }
+  }
+
+  decl.id = { name };
+};
+
 const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   // statically analyzed ffi dlopen hack to let 2c handle it
   if (init && init.type === 'CallExpression' && init.callee.name === '__Porffor_dlopen') {
@@ -3029,7 +3042,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     if (init && isFuncType(init.type)) {
       // hack for let a = function () { ... }
       if (!init.id) {
-        init.id = { name };
+        setDefaultFuncName(init, name);
         generateFunc(scope, init, true);
         return out;
       }
@@ -3037,7 +3050,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
     if (defaultValue && isFuncType(defaultValue.type)) {
       // set id as name, but do not use it as it is only default value
-      if (!defaultValue.id) defaultValue.id = { name };
+      if (!defaultValue.id) setDefaultFuncName(defaultValue, name);
     }
 
     if (topLevel && Object.hasOwn(builtinVars, name)) {
