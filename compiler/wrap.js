@@ -352,7 +352,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
   // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
-  if (Prefs.profileCompiler) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
+  if (Prefs.profileCompiler && !globalThis.onProgress) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
 
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
@@ -489,7 +489,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
   }
 
   times.push(performance.now() - t2);
-  if (Prefs.profileCompiler) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
+  if (Prefs.profileCompiler && !globalThis.onProgress) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
 
   const exports = {};
   const rawValues = Prefs.d;

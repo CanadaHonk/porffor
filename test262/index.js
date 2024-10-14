@@ -47,30 +47,10 @@ if (isMainThread) {
   }
 
   const profile = process.argv.includes('--profile');
-  const log = console.log;
-  let currentTest;
-  if (profile) {
-    process.argv.push('--profile-compiler');
-
-    console.log = msg => {
-      if (msg[1] === '.' || msg[2] === ' ') {
-        const n = Number(msg.split(' ').pop().slice(0, -2));
-        profileStats[msg[0]] += n;
-
-        perTestProfile[currentTest] ??= [ 0, 0, 0, 0, 0 ];
-        perTestProfile[currentTest][0] += n;
-        perTestProfile[currentTest][msg[0]] = n;
-      }
-    };
-  }
+  if (profile) process.argv.push('--profile-compiler');
 
   const perTestProfile = {};
-  const profileStats = {
-    1: 0, // parse
-    2: 0, // codegen
-    3: 0, // opt
-    4: 0, // assemble
-  };
+  const profileStats = new Array(5).fill(0);
 
   const trackErrors = process.argv.includes('--errors');
   const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
@@ -178,8 +158,17 @@ if (isMainThread) {
           return;
         }
 
-        for (const x in int) {
-          errors.set(x, (errors.get(x) ?? 0) + int[x]);
+        if (trackErrors) {
+          for (const x in int) {
+            errors.set(x, (errors.get(x) ?? 0) + int[x]);
+          }
+        }
+
+        if (profile) {
+          Object.assign(perTestProfile, int.perTestProfile);
+
+          const ps = int.profileStats;
+          for (let i = 0; i < ps.length; i++) profileStats[i] += ps[i];
         }
 
         if (total === totalTests) resolve();
@@ -252,8 +241,6 @@ if (isMainThread) {
   }
 
   await promise;
-
-  console.log = log;
 
   const percent = parseFloat(((passes / total) * 100).toFixed(2));
   const percentChange = parseFloat((percent - lastCommitResults[0]).toFixed(2));
@@ -348,24 +335,28 @@ if (isMainThread) {
   }
 
   if (profile) {
-    const longestTests = Object.keys(perTestProfile).sort((a, b) => perTestProfile[b][0] - perTestProfile[a][0])
-      .slice(0, 40);
+    const longestTests = Object.keys(perTestProfile).sort((a, b) => perTestProfile[b] - perTestProfile[a])
+      .slice(0, 10);
 
     const longestTestName = Math.max(...longestTests.map(x => x.length)) + 4;
 
-    console.log('\n\x1b[4mlongest individual tests\x1b[0m');
+    console.log('\n\n\x1b[4mlongest individual tests\x1b[0m');
 
     for (const x of longestTests) {
-      const profile = perTestProfile[x].map(x => x.toFixed(2) + 'ms');
-      console.log(`${x.replace('test/', '')}${' '.repeat(longestTestName - x.length)} \x1B[90m│\x1B[0m \x1B[1m${profile[0]} total\x1B[0m (parse: ${profile[1]}, codegen: ${profile[2]}, opt: ${profile[3]}, assemble: ${profile[4]})`);
+      // const profile = perTestProfile[x].map(x => x.toFixed(2) + 'ms');
+      // console.log(`${x.replace('test/', '')}${' '.repeat(longestTestName - x.length)} \x1B[90m│\x1B[0m \x1B[1m${profile[0]} total\x1B[0m (parse: ${profile[1]}, codegen: ${profile[2]}, opt: ${profile[3]}, assemble: ${profile[4]})`);
+      console.log(`${x.replace('test/', '')}${' '.repeat(longestTestName - x.length)}\x1B[90m│\x1B[0m \x1B[1m${(perTestProfile[x] / 1000).toFixed(2)}s\x1B[0m`);
     }
 
     console.log('\n\x1b[4mtime spent on compiler stages\x1b[0m');
 
-    let n = 1;
+    let n = 0;
+    const total = profileStats[n++];
     for (const x of [ 'parse', 'codegen', 'opt', 'assemble' ]) {
-      console.log(`${x}: ${(profileStats[n++] / 1000).toFixed(2)}s`);
+      const y = profileStats[n++];
+      console.log(`${x}\x1B[90m: \x1B[0m\x1B[1m${((y / total) * 100).toFixed(0)}%\x1B[0m (${(y / 1000 / threads).toFixed(2)}s)`);
     }
+    console.log();
   }
 
   if (allTests) {
@@ -392,6 +383,10 @@ if (isMainThread) {
 
   console.log = (...args) => parentPort.postMessage(args.join(' '));
 
+  const profile = process.argv.includes('--profile');
+  const perTestProfile = {};
+  const profileStats = new Array(5).fill(0);
+
   const totalTests = tests.length;
   const alwaysPrelude = preludes['assert.js'] + preludes['sta.js'];
   while (true) {
@@ -402,6 +397,22 @@ if (isMainThread) {
 
     let error, stage;
     let contents = test.contents, attrs = test.attrs;
+
+    if (profile) {
+      globalThis.onProgress = (msg, t) => {
+        let id = 1;
+        if (msg === 'generated wasm') id = 2;
+        if (msg === 'optimized') id = 3;
+        if (msg === 'assembled') id = 4;
+        // if (msg === 'instantiated') id = 5;
+        // if (msg === 'executed') id = 6;
+
+        profileStats[0] += t;
+        profileStats[id] += t;
+
+        perTestProfile[test.file] = (perTestProfile[test.file] ?? 0) + t;
+      };
+    }
 
     if (!attrs.flags.raw) {
       contents = (test.scenario === 'strict mode' ? '"use strict";\n' : '') +
@@ -496,4 +507,5 @@ if (isMainThread) {
   }
 
   if (trackErrors) parentPort.postMessage(errors);
+  if (profile) parentPort.postMessage({ perTestProfile, profileStats })
 }
