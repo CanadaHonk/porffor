@@ -297,7 +297,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, [[ Opcodes.call, importedFuncs.debugger ]]);
 
     case 'ArrayExpression':
-      return cacheAst(decl, generateArray(scope, decl, global, name));
+      return cacheAst(decl, generateArray(scope, decl, global, name, globalThis.precompile));
 
     case 'ObjectExpression':
       return cacheAst(decl, generateObject(scope, decl, global, name));
@@ -417,7 +417,7 @@ const generateIdent = (scope, decl) => {
 
         return generateArray(scope, {
           elements: names.map(x => ({ type: 'Identifier', name: x }))
-        }, false, '#arguments');
+        }, false, '#arguments', true);
       }
 
       // no local var with name
@@ -4968,126 +4968,6 @@ const printStaticStr = str => {
   return out;
 };
 
-// @deprecated
-const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype, intOut = false, typed = false) => {
-  const out = [];
-
-  const uniqueName = name === '$undeclared' ? name + uniqId() : name;
-
-  const useRawElements = !!decl.rawElements;
-  const elements = useRawElements ? decl.rawElements : decl.elements;
-
-  const valtype = itemTypeToValtype[itemType];
-  const length = elements.length;
-
-  const ptr = allocPage(scope, uniqueName);
-  const reason = nameToReason(scope, uniqueName);
-
-  let pointer = number(ptr, Valtype.i32);
-
-  scope.arrays ??= new Map();
-  const firstAssign = !scope.arrays.has(uniqueName);
-  if (firstAssign) scope.arrays.set(uniqueName, ptr);
-
-  const local = global ? globals[name] : scope.locals?.[name];
-  if (
-    Prefs.data && useRawElements &&
-    name !== '#member_prop' && name !== '#member_prop_assign' &&
-    (!globalThis.precompile || !global)
-  ) {
-    if (Prefs.activeData && firstAssign) {
-      makeData(scope, elements, reason, itemType, initEmpty);
-
-      // local value as pointer
-      return [ number(ptr, intOut ? Valtype.i32 : valtypeBinary), pointer ];
-    }
-
-    if (Prefs.passiveData) {
-      const data = makeData(scope, elements, null, itemType, initEmpty);
-      if (data) {
-        // init data
-        out.push(
-          ...pointer,
-          ...number(0, Valtype.i32),
-          ...number(data.size, Valtype.i32),
-          [ ...Opcodes.memory_init, ...unsignedLEB128(data.idx), 0 ]
-        );
-      }
-
-      // return pointer in out
-      out.push(...number(ptr, intOut ? Valtype.i32 : valtypeBinary));
-
-      return [ out, pointer ];
-    }
-  }
-
-  if (local != null) {
-    // hack: handle allocation for #member_prop's here instead of in several places /shrug
-    let shouldGet = true;
-    if (name === '#member_prop') {
-      out.push(...number(ptr));
-      shouldGet = false;
-    }
-
-    if (name === '#member_prop_assign') {
-      out.push(
-        [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
-        Opcodes.i32_from_u
-      );
-      shouldGet = false;
-    }
-
-    const pointerTmp = localTmp(scope, '#makearray_pointer_tmp', Valtype.i32);
-    out.push(
-      ...(shouldGet ? [
-        [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
-        Opcodes.i32_to_u
-      ] : [
-        // hack: make precompile realise we are allocating
-        ...(globalThis.precompile ? [
-          [ global ? Opcodes.global_set : Opcodes.local_set, local.idx ],
-          [ global ? Opcodes.global_get : Opcodes.local_get, local.idx ],
-        ] : []),
-        Opcodes.i32_to_u
-      ]),
-      [ Opcodes.local_set, pointerTmp ]
-    );
-
-    pointer = [ [ Opcodes.local_get, pointerTmp ] ];
-  }
-
-  // store length
-  out.push(
-    ...pointer,
-    ...number(length, Valtype.i32),
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
-  );
-
-  const storeOp = StoreOps[itemType];
-  const sizePerEl = ValtypeSize[itemType] + (typed ? 1 : 0);
-  if (!initEmpty) for (let i = 0; i < length; i++) {
-    if (elements[i] == null) continue;
-
-    const offset = ValtypeSize.i32 + i * sizePerEl;
-    out.push(
-      ...pointer,
-      ...(useRawElements ? number(elements[i], Valtype[valtype]) : generate(scope, elements[i])),
-      [ storeOp, 0, ...unsignedLEB128(offset) ],
-      ...(!typed ? [] : [ // typed presumes !useRawElements
-        ...pointer,
-        ...getNodeType(scope, elements[i]),
-        [ Opcodes.i32_store8, 0, ...unsignedLEB128(offset + ValtypeSize[itemType]) ]
-      ])
-    );
-  }
-
-  // local value as pointer
-  out.push(...pointer);
-  if (!intOut) out.push(Opcodes.i32_from_u);
-
-  return [ out, pointer ];
-};
-
 const storeArray = (scope, array, index, element) => {
   if (!Array.isArray(element)) element = generate(scope, element);
   if (typeof index === 'number') index = number(index);
@@ -5175,8 +5055,61 @@ const makeString = (scope, str, forceBytestring = undefined) => {
   return number(ptr);
 };
 
-const generateArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false) => {
-  return makeArray(scope, decl, global, name, initEmpty, valtype, false, true)[0];
+const generateArray = (scope, decl, global = false, name = '$undeclared', staticAlloc = false) => {
+  const elements = decl.elements;
+  const length = elements.length;
+
+  const out = [];
+  let pointer;
+
+  if (staticAlloc) {
+    const uniqueName = name === '$undeclared' ? name + uniqId() : name;
+
+    const ptr = allocPage(scope, uniqueName);
+    pointer = number(ptr, Valtype.i32)[0];
+
+    scope.arrays ??= new Map();
+    scope.arrays.set(uniqueName, ptr);
+  } else {
+    const tmp = localTmp(scope, '#create_array' + uniqId(), Valtype.i32);
+    out.push(
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+      [ Opcodes.local_set, tmp ]
+    );
+
+    pointer = [ Opcodes.local_get, tmp ];
+  }
+
+  // store length
+  if (length !== 0) out.push(
+    pointer,
+    ...number(length, Valtype.i32),
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
+  );
+
+  // todo: rewrite below to support RestElement (holdover from makeArray)
+  for (let i = 0; i < length; i++) {
+    if (elements[i] == null) continue;
+
+    const offset = ValtypeSize.i32 + i * (ValtypeSize[valtype] + 1);
+    out.push(
+      pointer,
+      ...generate(scope, elements[i]),
+      [ Opcodes.store, 0, ...unsignedLEB128(offset) ],
+
+      pointer,
+      ...getNodeType(scope, elements[i]),
+      [ Opcodes.i32_store8, 0, ...unsignedLEB128(offset + ValtypeSize[valtype]) ]
+    );
+  }
+
+  // return array pointer
+  out.push(
+    pointer,
+    Opcodes.i32_from_u
+  );
+
+  return out;
 };
 
 // opt: do not call ToPropertyKey for non-computed properties as unneeded
