@@ -3652,7 +3652,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
           [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
           [ Opcodes.drop ],
-          [ Opcodes.drop ]
+          ...(valueUnused ? [ [ Opcodes.drop ] ] : [])
           // ...setLastType(scope, getNodeType(scope, decl)),
         ]
       }, valueUnused ? Blocktype.void : valtypeBinary)
