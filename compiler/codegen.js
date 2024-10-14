@@ -3178,7 +3178,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     out = out.concat([
       // check tmp is iterable
       // array or string or bytestring
-      ...typeIsOneOf(getType(scope, tmpName), [ TYPES.array, TYPES.string, TYPES.bytestring ]),
+      ...typeIsOneOf(getType(scope, tmpName), [ TYPES.array, TYPES.string, TYPES.bytestring, TYPES.__porffor_generator ]),
       // typed array
       ...getType(scope, tmpName),
       ...number(TYPES.uint8array, Valtype.i32),
@@ -4116,7 +4116,7 @@ const generateForOf = (scope, decl) => {
 
     // check tmp is iterable
     // array or string or bytestring
-    ...typeIsOneOf(iterType, [ TYPES.array, TYPES.set, TYPES.string, TYPES.bytestring ]),
+    ...typeIsOneOf(iterType, [ TYPES.array, TYPES.set, TYPES.string, TYPES.bytestring, TYPES.__porffor_generator ]),
     // typed array
     ...iterType,
     ...number(TYPES.uint8array, Valtype.i32),
@@ -4455,6 +4455,8 @@ const generateForOf = (scope, decl) => {
         [ Opcodes.end ]
       ]
     }),
+
+    [TYPES.__porffor_generator]: () => [],
 
     // note: should be impossible to reach?
     default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
