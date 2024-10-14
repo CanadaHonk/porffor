@@ -1726,33 +1726,7 @@ const generateChain = (scope, decl) => {
   return generate(scope, decl.expression);
 };
 
-const CTArrayUtil = {
-  getLengthI32: pointer => [
-    ...number(0, Valtype.i32),
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
-  ],
-
-  getLength: pointer => [
-    ...number(0, Valtype.i32),
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ],
-    Opcodes.i32_from_u
-  ],
-
-  setLengthI32: (pointer, value) => [
-    ...number(0, Valtype.i32),
-    ...value,
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
-  ],
-
-  setLength: (pointer, value) => [
-    ...number(0, Valtype.i32),
-    ...value,
-    Opcodes.i32_to_u,
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, ...unsignedLEB128(pointer) ]
-  ]
-};
-
-const RTArrayUtil = {
+const ArrayUtil = {
   getLengthI32: pointer => [
     ...pointer,
     [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ]
@@ -2206,7 +2180,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         const protoFunc = protoCands[x];
         if (protoFunc.noArgRetLength && decl.arguments.length === 0) {
           protoBC[x] = [
-            ...RTArrayUtil.getLength(getPointer),
+            ...ArrayUtil.getLength(getPointer),
             ...setLastType(scope, TYPES.number)
           ];
           continue;
@@ -2220,10 +2194,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           const protoOut = protoFunc(getPointer, {
             getCachedI32: () => [ [ Opcodes.local_get, lengthLocal ] ],
             setCachedI32: () => [ [ Opcodes.local_set, lengthLocal ] ],
-            get: () => RTArrayUtil.getLength(getPointer),
-            getI32: () => RTArrayUtil.getLengthI32(getPointer),
-            set: value => RTArrayUtil.setLength(getPointer, value),
-            setI32: value => RTArrayUtil.setLengthI32(getPointer, value)
+            get: () => ArrayUtil.getLength(getPointer),
+            getI32: () => ArrayUtil.getLengthI32(getPointer),
+            set: value => ArrayUtil.setLength(getPointer, value),
+            setI32: value => ArrayUtil.setLengthI32(getPointer, value)
           },
           generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
           getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
@@ -2254,7 +2228,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ] : []),
 
         ...(useLengthCache ? [
-          ...RTArrayUtil.getLengthI32(getPointer),
+          ...ArrayUtil.getLengthI32(getPointer),
           [ Opcodes.local_set, lengthLocal ],
         ] : []),
 
