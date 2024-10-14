@@ -3392,6 +3392,12 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     pointerTmp ||= localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
+    const slow = generate(scope, {
+      ...decl,
+      _internalAssign: true
+    });
+    if (valueUnused) disposeLeftover(slow);
+
     return [
       ...out,
       [ Opcodes.local_set, pointerTmp ],
@@ -3403,10 +3409,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
         [ Opcodes.local_get, pointerTmp ],
         ...lengthTypeWasm,
       [ Opcodes.else ],
-        ...generate(scope, {
-          ...decl,
-          _internalAssign: true
-        }),
+        ...slow,
       [ Opcodes.end ]
     ];
   }
@@ -3621,7 +3624,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           }),
         } : {}),
 
-        [TYPES.undefined]: internalThrow(scope, 'TypeError', 'Cannot set property of undefined', true),
+        [TYPES.undefined]: internalThrow(scope, 'TypeError', 'Cannot set property of undefined', !valueUnused),
 
         // default: internalThrow(scope, 'TypeError', `Cannot assign member with this type`)
         default: () => [
@@ -3683,7 +3686,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // set global and return (eg a = 2)
     return [
       ...generateVarDstr(scope, 'var', name, decl.right, undefined, true),
-      ...optional(generate(scope, decl.left), valueUnused)
+      ...optional(generate(scope, decl.left), !valueUnused)
     ];
   }
 
