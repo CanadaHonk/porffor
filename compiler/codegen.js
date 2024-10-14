@@ -4924,7 +4924,7 @@ const compileBytes = (val, itemType) => {
   }
 };
 
-const makeData = (scope, elements, page = null, itemType = 'i8', initEmpty = false) => {
+const makeData = (scope, elements, page = null, itemType = 'i8') => {
   // if data for page already exists, abort
   if (page && data.find(x => x.page === page)) return;
 
@@ -4934,7 +4934,7 @@ const makeData = (scope, elements, page = null, itemType = 'i8', initEmpty = fal
   if (length === 0) return false;
 
   let bytes = compileBytes(length, 'i32');
-  if (!initEmpty) if (itemType === 'i8') {
+  if (itemType === 'i8') {
     bytes = bytes.concat(elements);
   } else {
     for (let i = 0; i < length; i++) {
