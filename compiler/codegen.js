@@ -4191,7 +4191,8 @@ const generateForOf = (scope, decl) => {
       ...setType(scope, tmpName, TYPES.string),
 
       // allocate out string
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+      ...number(8, Valtype.i32),
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ],
       [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -4246,7 +4247,8 @@ const generateForOf = (scope, decl) => {
       ...setType(scope, tmpName, TYPES.bytestring),
 
       // allocate out string
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+      ...number(8, Valtype.i32),
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ],
       [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -5445,7 +5447,8 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
       [TYPES.string]: () => [
         // allocate out string
-        [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+        ...number(8, Valtype.i32),
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ],
         [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
         // set length to 1
@@ -5479,7 +5482,8 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
       [TYPES.bytestring]: () => [
         // allocate out string
-        [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+        ...number(8, Valtype.i32),
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ],
         [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
         // set length to 1
