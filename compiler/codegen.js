@@ -348,7 +348,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         return cacheAst(decl, []);
       }
 
-      return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`, true));
+      return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`, !decl.type.endsWith('Statement') && !decl.type.endsWith('Declaration')));
   }
 };
 
