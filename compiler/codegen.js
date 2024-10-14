@@ -348,7 +348,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         return cacheAst(decl, []);
       }
 
-      return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`));
+      return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`, true));
   }
 };
 
@@ -1678,6 +1678,8 @@ const countLeftover = wasm => {
           count -= inst[1] * 2; // params * 2 (typed)
           count += 2; // fixed return (value, type)
         } else count--;
+
+    // console.log(count, depth, decompile([ inst ], undefined, undefined, undefined, undefined, undefined, funcs).slice(0, -1));
   }
 
   return count;
@@ -3387,7 +3389,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       ...out,
       ...optional([ Opcodes.local_tee, pointerTmp ]),
 
-      ...lengthTypeWasm
+      ...lengthTypeWasm,
+      ...optional(number(UNDEFINED), valueUnused)
     ];
 
     pointerTmp ||= localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
@@ -3410,7 +3413,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
         ...lengthTypeWasm,
       [ Opcodes.else ],
         ...slow,
-      [ Opcodes.end ]
+      [ Opcodes.end ],
+      ...optional(number(UNDEFINED), valueUnused)
     ];
   }
 
@@ -3658,7 +3662,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ...(valueUnused ? [ [ Opcodes.drop ] ] : [])
           // ...setLastType(scope, getNodeType(scope, decl)),
         ]
-      }, valueUnused ? Blocktype.void : valtypeBinary)
+      }, valueUnused ? Blocktype.void : valtypeBinary),
+      ...optional(number(UNDEFINED), valueUnused)
     ];
   }
 
@@ -3686,7 +3691,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // set global and return (eg a = 2)
     return [
       ...generateVarDstr(scope, 'var', name, decl.right, undefined, true),
-      ...optional(generate(scope, decl.left), !valueUnused)
+      ...optional(generate(scope, decl.left), !valueUnused),
+      ...optional(number(UNDEFINED), valueUnused)
     ];
   }
 
@@ -3694,7 +3700,10 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   if (local.metadata?.kind === 'const') return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${name}`, true);
 
   if (op === '=') {
-    return setLocalWithType(scope, name, isGlobal, decl.right, !valueUnused);
+    const out = setLocalWithType(scope, name, isGlobal, decl.right, !valueUnused);
+
+    if (valueUnused) out.push(...number(UNDEFINED));
+    return out;
   }
 
   if (op === '||' || op === '&&' || op === '??') {
@@ -3717,12 +3726,15 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     ];
   }
 
-  return setLocalWithType(
+  const out = setLocalWithType(
     scope, name, isGlobal,
     performOp(scope, op, [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
     !valueUnused,
     getNodeType(scope, decl)
   );
+
+  if (valueUnused) out.push(...number(UNDEFINED));
+  return out;
 };
 
 const ifIdentifierErrors = (scope, decl) => {
@@ -3907,6 +3919,7 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
     out.push([ isGlobal ? Opcodes.global_set : Opcodes.local_set, idx ]);
     if (decl.prefix && !valueUnused) out.push([ isGlobal ? Opcodes.global_get : Opcodes.local_get, idx ]);
 
+    if (valueUnused) out.push(...number(UNDEFINED));
     return out;
   }
 
@@ -3938,7 +3951,8 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
         right: { type: 'Literal', value: 1 }
       }
     }, _global, _name, valueUnused),
-    ...(decl.prefix || valueUnused ? [] : [ [ Opcodes.drop ] ])
+    ...(decl.prefix || valueUnused ? [] : [ [ Opcodes.drop ] ]),
+    ...optional(number(UNDEFINED), valueUnused)
   ];
 };
 
@@ -6243,7 +6257,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         if (finalStatement?.type === 'EmptyStatement') finalStatement = decl.body.body[decl.body.body.length - 2];
 
         const lastInst = wasm[wasm.length - 1] ?? [ Opcodes.end ];
-        if (lastInst[0] === Opcodes.drop) {
+        if (lastInst[0] === Opcodes.drop || lastInst[0] === Opcodes.f64_const) {
           if (finalStatement.type.endsWith('Declaration')) {
             // final statement is decl, force undefined
             disposeLeftover(wasm);
