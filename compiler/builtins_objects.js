@@ -64,7 +64,7 @@ export default function({ builtinFuncs }, Prefs) {
             getPtr,
             ...number(existingFunc ? TYPES.function : TYPES.object, Valtype.i32),
 
-            ...makeString(scope, x, false, `#builtin_object_${name}_${x}`),
+            ...makeString(scope, x),
             Opcodes.i32_to_u,
             ...number(TYPES.bytestring, Valtype.i32),
 
@@ -109,7 +109,7 @@ export default function({ builtinFuncs }, Prefs) {
         }
 
         if (typeof d.value === 'string') {
-          this[k] = (scope, { makeString }) => makeString(scope, d.value, false, k);
+          this[k] = (scope, { makeString }) => makeString(scope, d.value);
           this[k].type = TYPES.bytestring;
           continue;
         }

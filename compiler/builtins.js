@@ -860,7 +860,7 @@ export const BuiltinFuncs = function() {
     wasm: (scope, { typeSwitch, makeString }) => {
       const bc = {};
       for (const x in TYPE_NAMES) {
-        bc[x] = makeString(scope, TYPE_NAMES[x], false, '#Porffor_type_result');
+        bc[x] = makeString(scope, TYPE_NAMES[x]);
       }
 
       return typeSwitch(scope, [ [ Opcodes.local_get, 1 ] ], bc);

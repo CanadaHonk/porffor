@@ -372,7 +372,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
       const bytes = unsignedLEB128(x.bytes.length).concat(x.bytes);
       if (x.page != null) {
         // type: active
-        let offset = pages.get(x.page) * pageSize;
+        let offset = pages.allocs.get(x.page) ?? (pages.get(x.page) * pageSize);
         if (offset === 0) offset = 16;
         bytes.unshift(0x00, Opcodes.i32_const, ...signedLEB128(offset), Opcodes.end);
       } else {

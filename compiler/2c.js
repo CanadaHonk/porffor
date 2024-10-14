@@ -222,7 +222,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   const activeData = data.filter(x => x.page != null);
   if (activeData.length > 0) {
-    const dataOffset = x => pages.get(x.page) * pageSize;
+    const dataOffset = x => pages.allocs.get(x.page) ?? (pages.get(x.page) * pageSize);
     if (Prefs['2cMemcpy']) {
       prependMain.set('_data', activeData.map(x => `memcpy(_memory + ${dataOffset(x)}, (unsigned char[]){${x.bytes.join(',')}}, ${x.bytes.length});`).join('\n  '));
     } else {

@@ -9,7 +9,7 @@ import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
 import { log } from './log.js';
 import './prefs.js';
-import { alloc, nameToReason } from './allocator.js';
+import { allocPage as _allocPage, allocBytes, allocStr, nameToReason } from './allocator.js';
 
 let globals = {};
 let tags = [];
@@ -1199,6 +1199,10 @@ const asmFuncToAsm = (scope, func) => {
           return [];
         }, 0 ] ];
       }
+    },
+    i32ify: wasm => {
+      wasm.push(Opcodes.i32_to_u);
+      return wasm;
     }
   });
 };
@@ -1221,6 +1225,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   }
 
   for (const x in _data) {
+    if (data.find(y => y.page === x)) return;
     data.push({ page: x, bytes: _data[x] });
   }
 
@@ -1630,7 +1635,7 @@ const generateLiteral = (scope, decl, global, name) => {
       return number(decl.value ? 1 : 0);
 
     case 'string':
-      return makeString(scope, decl.value, global, name);
+      return makeString(scope, decl.value);
 
     default:
       return todo(scope, `cannot generate literal of type ${typeof decl.value}`, true);
@@ -3875,15 +3880,15 @@ const generateUnary = (scope, decl) => {
       disposeLeftover(out);
 
       out.push(...typeSwitch(scope, overrideType ?? getNodeType(scope, decl.argument), [
-        [ TYPES.number, () => makeString(scope, 'number', false, '#typeof_result') ],
-        [ TYPES.boolean, () => makeString(scope, 'boolean', false, '#typeof_result') ],
-        [ [ TYPES.string, TYPES.bytestring ], () => makeString(scope, 'string', false, '#typeof_result') ],
-        [ [ TYPES.undefined, TYPES.empty ], () => makeString(scope, 'undefined', false, '#typeof_result') ],
-        [ TYPES.function, () => makeString(scope, 'function', false, '#typeof_result') ],
-        [ TYPES.symbol, () => makeString(scope, 'symbol', false, '#typeof_result') ],
+        [ TYPES.number, () => makeString(scope, 'number') ],
+        [ TYPES.boolean, () => makeString(scope, 'boolean') ],
+        [ [ TYPES.string, TYPES.bytestring ], () => makeString(scope, 'string') ],
+        [ [ TYPES.undefined, TYPES.empty ], () => makeString(scope, 'undefined') ],
+        [ TYPES.function, () => makeString(scope, 'function') ],
+        [ TYPES.symbol, () => makeString(scope, 'symbol') ],
 
         // object and internal types
-        [ 'default', () => makeString(scope, 'object', false, '#typeof_result') ],
+        [ 'default', () => makeString(scope, 'object') ],
       ]));
 
       return out;
@@ -4915,7 +4920,7 @@ const generateMeta = (scope, decl) => {
 };
 
 let pages = new Map();
-const allocPage = (scope, name) => alloc({ scope, pages }, name);
+const allocPage = (scope, name) => _allocPage({ scope, pages }, name);
 
 const itemTypeToValtype = {
   i32: 'i32',
@@ -4949,18 +4954,23 @@ const compileBytes = (val, itemType) => {
   }
 };
 
-const makeData = (scope, elements, page = null, itemType, initEmpty) => {
+const makeData = (scope, elements, page = null, itemType = 'i8', initEmpty = false) => {
+  // if data for page already exists, abort
+  if (page && data.find(x => x.page === page)) return;
+
   const length = elements.length;
 
   // if length is 0 memory/data will just be 0000... anyway
   if (length === 0) return false;
 
   let bytes = compileBytes(length, 'i32');
-
-  if (!initEmpty) for (let i = 0; i < length; i++) {
-    if (elements[i] == null) continue;
-
-    bytes.push(...compileBytes(elements[i], itemType));
+  if (!initEmpty) if (itemType === 'i8') {
+    bytes = bytes.concat(elements);
+  } else {
+    for (let i = 0; i < length; i++) {
+      if (elements[i] == null) continue;
+      bytes.push(...compileBytes(elements[i], itemType));
+    }
   }
 
   const obj = { bytes, page };
@@ -4988,6 +4998,7 @@ const printStaticStr = str => {
   return out;
 };
 
+// @deprecated
 const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false, itemType = valtype, intOut = false, typed = false) => {
   const out = [];
 
@@ -4999,7 +5010,7 @@ const makeArray = (scope, decl, global = false, name = '$undeclared', initEmpty 
   const valtype = itemTypeToValtype[itemType];
   const length = elements.length;
 
-  const ptr = alloc({ scope, pages }, uniqueName);
+  const ptr = allocPage(scope, uniqueName);
   const reason = nameToReason(scope, uniqueName);
 
   let pointer = number(ptr, Valtype.i32);
@@ -5172,21 +5183,26 @@ const byteStringable = str => {
   return true;
 };
 
-const makeString = (scope, str, global = false, name = '$undeclared', forceBytestring = undefined) => {
-  const rawElements = new Array(str.length);
-  let byteStringable = true;
+const makeString = (scope, str, forceBytestring = undefined) => {
+  if (str.length === 0) return number(0);
+
+  const elements = new Array(str.length);
+  let bytestring = forceBytestring !== false;
   for (let i = 0; i < str.length; i++) {
     const c = str.charCodeAt(i);
-    rawElements[i] = c;
+    elements[i] = c;
 
-    if (byteStringable && c > 0xFF) byteStringable = false;
+    if (bytestring && c > 0xFF) bytestring = false;
   }
 
-  if (byteStringable && forceBytestring === false) byteStringable = false;
+  if (globalThis.precompile) return [
+    [ Opcodes.const, 'str', str, forceBytestring ]
+  ];
 
-  return makeArray(scope, {
-    rawElements
-  }, global, name, false, byteStringable ? 'i8' : 'i16')[0];
+  const ptr = allocStr({ scope, pages }, str, bytestring);
+  makeData(scope, elements, str, bytestring ? 'i8' : 'i16');
+
+  return number(ptr);
 };
 
 const generateArray = (scope, decl, global = false, name = '$undeclared', initEmpty = false) => {
@@ -5343,7 +5359,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     if (name.startsWith('__')) name = name.split('_').pop();
     if (name.startsWith('#')) name = '';
 
-    return withType(scope, makeString(scope, name, _global, _name, true), TYPES.bytestring);
+    return withType(scope, makeString(scope, name, true), TYPES.bytestring);
   }
 
   const object = decl.object;
@@ -5945,8 +5961,8 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined) =
       return out;
     },
 
-    __Porffor_bs: str => makeString(scope, str, global, name, true),
-    __Porffor_s: str => makeString(scope, str, global, name, false)
+    __Porffor_bs: str => makeString(scope, str, true),
+    __Porffor_s: str => makeString(scope, str, false)
   };
 
   const { quasis, expressions } = decl.quasi;
