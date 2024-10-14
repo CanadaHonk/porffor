@@ -6251,7 +6251,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       if (name === 'main') {
         func.gotLastType = true;
         func.export = true;
-        func.returns = [ valtypeBinary, Valtype.i32 ];
 
         let finalStatement = decl.body.body[decl.body.body.length - 1];
         if (finalStatement?.type === 'EmptyStatement') finalStatement = decl.body.body[decl.body.body.length - 2];
@@ -6295,7 +6294,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         }
       } else {
         // add end return if not found
-        if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) === 0) {
+        if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) < func.returns.length) {
           wasm.push(...generateReturn(func, {}));
         }
       }
