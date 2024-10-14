@@ -698,33 +698,31 @@ export const __Object_prototype_toString = (_this: any) => {
     }
   }
 
-  let out: bytestring = Porffor.allocate();
-
   // 1. If the this value is undefined, return "[object Undefined]".
-  if (_this === undefined) return out = '[object Undefined]';
+  if (_this === undefined) return '[object Undefined]';
 
   // 2. If the this value is null, return "[object Null]".
-  if (_this === null) return out = '[object Null]';
+  if (_this === null) return '[object Null]';
 
   // todo: toStringTag support
 
   const t: i32 = Porffor.rawType(_this);
-  if (t == Porffor.TYPES.array) return out = '[object Array]';
-  if (t == Porffor.TYPES.function) return out = '[object Function]';
+  if (t == Porffor.TYPES.array) return '[object Array]';
+  if (t == Porffor.TYPES.function) return '[object Function]';
   if (Porffor.fastOr(
     t == Porffor.TYPES.boolean,
-    t == Porffor.TYPES.booleanobject)) return out = '[object Boolean]';
+    t == Porffor.TYPES.booleanobject)) return '[object Boolean]';
   if (Porffor.fastOr(
     t == Porffor.TYPES.number,
-    t == Porffor.TYPES.numberobject)) return out = '[object Number]';
+    t == Porffor.TYPES.numberobject)) return '[object Number]';
   if (Porffor.fastOr(
     t == Porffor.TYPES.string,
     t == Porffor.TYPES.bytestring,
-    t == Porffor.TYPES.stringobject)) return out = '[object String]';
-  if (t == Porffor.TYPES.date) return out = '[object Date]';
-  if (t == Porffor.TYPES.regexp) return out = '[object RegExp]';
+    t == Porffor.TYPES.stringobject)) return '[object String]';
+  if (t == Porffor.TYPES.date) return '[object Date]';
+  if (t == Porffor.TYPES.regexp) return '[object RegExp]';
 
-  return out = '[object Object]';
+  return '[object Object]';
 };
 
 export const __Object_prototype_toLocaleString = (_this: any) => __Object_prototype_toString(_this);

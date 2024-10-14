@@ -129,24 +129,22 @@ export const __ecma262_ToString = (argument: unknown): any => {
   // 2. If argument is a Symbol, throw a TypeError exception.
   if (type == Porffor.TYPES.symbol) throw new TypeError('Cannot convert a Symbol value to a string');
 
-  let out: bytestring = Porffor.allocate();
-
   // 3. If argument is undefined, return "undefined".
   if (Porffor.fastOr(
     type == Porffor.TYPES.undefined,
-    type == Porffor.TYPES.empty)) return out = 'undefined';
+    type == Porffor.TYPES.empty)) return 'undefined';
 
   // 4. If argument is null, return "null".
   if (Porffor.fastAnd(
     type == Porffor.TYPES.object,
-    argument == 0)) return out = 'null';
+    argument == 0)) return 'null';
 
   if (type == Porffor.TYPES.boolean) {
     // 5. If argument is true, return "true".
-    if (argument == true) return out = 'true';
+    if (argument == true) return 'true';
 
     // 6. If argument is false, return "false".
-    return out = 'false';
+    return 'false';
   }
 
   // 7. If argument is a Number, return Number::toString(argument, 10).

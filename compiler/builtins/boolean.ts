@@ -18,11 +18,8 @@ export const Boolean = function (value: any): boolean|BooleanObject {
 export const __Boolean_prototype_toString = (_this: boolean) => {
   // 1. Let b be ? ThisBooleanValue(this value).
   // 2. If b is true, return "true"; else return "false".
-  let out: bytestring = Porffor.allocate();
-  if (_this) out = 'true';
-    else out = 'false';
-
-  return out;
+  if (_this) return 'true';
+  return 'false';
 };
 
 // 20.3.3.3 Boolean.prototype.valueOf ()
