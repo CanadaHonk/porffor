@@ -177,7 +177,7 @@ export const PrototypeFuncs = function() {
   this[TYPES.string] = {
     at: (pointer, length, wIndex, wType, iTmp, iOut, alloc) => [
       // setup new/out array and use pointer for store
-      ...alloc(),
+      ...alloc(8),
       [ Opcodes.local_tee, iOut ],
 
       // out.length = 1
@@ -235,7 +235,7 @@ export const PrototypeFuncs = function() {
     // todo: out of bounds properly
     charAt: (pointer, length, wIndex, wType, iTmp, _, alloc) => [
       // setup new/out array and use as pointer for store
-      ...alloc(),
+      ...alloc(8),
       [ Opcodes.local_tee, iTmp ],
 
       // out.length = 1
@@ -315,7 +315,7 @@ export const PrototypeFuncs = function() {
   this[TYPES.bytestring] = {
     at: (pointer, length, wIndex, wType, iTmp, iOut, alloc) => [
       // setup new/out array and use pointer for store
-      ...alloc(),
+      ...alloc(8),
       [ Opcodes.local_tee, iOut ],
 
       // out.length = 1
@@ -371,7 +371,7 @@ export const PrototypeFuncs = function() {
     // todo: out of bounds properly
     charAt: (pointer, length, wIndex, wType, iTmp, _, alloc) => [
       // setup new/out array and use as pointer for store
-      ...alloc(),
+      ...alloc(8),
       [ Opcodes.local_tee, iTmp ],
 
       // out.length = 1
