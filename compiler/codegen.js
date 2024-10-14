@@ -2228,11 +2228,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
           getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
           protoLocal, protoLocal2,
-          (length, itemType) => {
-            return makeArray(scope, {
-              rawElements: new Array(length)
-            }, _global, _name, true, itemType, true);
-          },
+          () => [ [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ] ],
           () => {
             optUnused = true;
             return unusedValue;
