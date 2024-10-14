@@ -3432,12 +3432,12 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const property = getProperty(decl.left);
 
     // todo/perf: use i32 object (and prop?) locals
-    const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];
+    const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj_assign') ] ];
     const propertyWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_prop_assign') ] ];
 
     return [
       ...generate(scope, object),
-      [ Opcodes.local_set, localTmp(scope, '#member_obj') ],
+      [ Opcodes.local_set, objectWasm[0][1] ],
 
       ...generate(scope, property, false, '#member_prop_assign'),
       [ Opcodes.local_set, localTmp(scope, '#member_prop_assign') ],
