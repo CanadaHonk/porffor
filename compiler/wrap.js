@@ -8,8 +8,6 @@ import './prefs.js';
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 
-const bold = x => `\u001b[1m${x}\u001b[0m`;
-
 const checkOOB = (memory, ptr) => ptr >= memory.buffer.byteLength;
 
 let dv;
@@ -352,7 +350,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
   // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
-  if (Prefs.profileCompiler && !globalThis.onProgress) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
+  if (Prefs.profileCompiler && !globalThis.onProgress) console.log(`\u001b[1mcompiled in ${times[0].toFixed(2)}ms\u001b[0m`);
 
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
