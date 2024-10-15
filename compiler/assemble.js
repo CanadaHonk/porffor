@@ -9,10 +9,10 @@ const createSection = (type, data) => [
   ...encodeVector(data)
 ];
 
-const customSection = (name, data) => [
+const customSection = (name, data) => createSection(
   Section.custom,
-  ...encodeVector([...encodeString(name), ...data])
-];
+  [ ...encodeString(name), ...data ]
+);
 
 const encodeNames = funcs => {
   const encodeSection = (id, section) => [
