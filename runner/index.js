@@ -9,18 +9,6 @@ if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
 
 const start = performance.now();
 
-if (process.argv.includes('--compile-hints')) {
-  const v8 = await import('node:v8');
-  v8.setFlagsFromString(`--experimental-wasm-compilation-hints`);
-
-  // see also these flags:
-  // --experimental-wasm-branch-hinting
-  // --experimental-wasm-extended-const
-  // --experimental-wasm-inlining (?)
-  // --experimental-wasm-js-inlining (?)
-  // --experimental-wasm-return-call (on by default)
-}
-
 if (process.argv.includes('--help')) {
   // description + version
   console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript engine/runtime/compiler. \x1B[90m(${globalThis.version})\x1B[0m`);

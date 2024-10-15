@@ -14,13 +14,6 @@ const customSection = (name, data) => [
   ...encodeVector([...encodeString(name), ...data])
 ];
 
-const chHint = (topTier, baselineTier, strategy) => {
-  // 1 byte of 4 2 bit components: spare, top tier, baseline tier, compilation strategy
-  // tiers: 0x00 = default, 0x01 = baseline (liftoff), 0x02 = optimized (turbofan)
-  // strategy: 0x00 = default, 0x01 = lazy, 0x02 = eager, 0x03 = lazy baseline, eager top tier
-  return (strategy | (baselineTier << 2) | (topTier << 4));
-};
-
 const encodeNames = funcs => {
   const encodeSection = (id, section) => [
     id,
@@ -51,9 +44,6 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   const types = [], typeCache = {};
 
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
-
-  const compileHints = Prefs.compileHints;
-  if (compileHints) log.warning('assemble', 'compile hints is V8 only w/ experimental arg! (you used -compile-hints)');
 
   const getType = (params, returns) => {
     const hash = `${params.join(',')}_${returns.join(',')}`;
@@ -401,21 +391,12 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     dataSection: dataSection.map(x => x.toString(16)),
   });
 
-  // compilation hints section - unspecd, v8 only
-  // https://github.com/WebAssembly/design/issues/1473#issuecomment-1431274746
-  const chSection = !compileHints ? [] : customSection(
-    'compilationHints',
-    // for now just do everything as optimize eager
-    encodeVector(funcs.map(_ => chHint(0x02, 0x02, 0x02)))
-  );
-
   return Uint8Array.from([
     ...Magic,
     ...ModuleVersion,
     ...typeSection,
     ...importSection,
     ...funcSection,
-    ...chSection,
     ...tableSection,
     ...memorySection,
     ...tagSection,
