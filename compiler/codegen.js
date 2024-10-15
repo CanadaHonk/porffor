@@ -1608,6 +1608,10 @@ const getNodeType = (scope, node) => {
       }
     }
 
+    if (node.type === 'SequenceExpression') {
+      return getNodeType(scope, node.expressions.at(-1));
+    }
+
     return getLastType(scope);
   })();
 
