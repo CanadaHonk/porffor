@@ -249,99 +249,103 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   );
   time('export section');
 
-  const codeSection = createSection(
-    Section.code,
-    encodeVector(funcs.map(x => {
-      // time(x.name);
-      const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx);
-      // time('  locals gen');
+  let codeSection = [];
+  for (let i = 0; i < funcs.length; i++) {
+    const x = funcs[i];
+    // time(x.name);
+    const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx);
+    // time('  locals gen');
 
-      const paramCount = x.params.length;
-      let localDecl = [], typeCount = 0, lastType, declCount = 0;
-      for (let i = paramCount; i <= locals.length; i++) {
-        const local = locals[i];
-        if (i !== paramCount && local?.type !== lastType) {
-          unsignedLEB128_into(typeCount, localDecl);
-          localDecl.push(lastType);
-          typeCount = 0;
-          declCount++;
-        }
-
-        typeCount++;
-        lastType = local?.type;
+    const paramCount = x.params.length;
+    let localDecl = [], typeCount = 0, lastType, declCount = 0;
+    for (let i = paramCount; i <= locals.length; i++) {
+      const local = locals[i];
+      if (i !== paramCount && local?.type !== lastType) {
+        unsignedLEB128_into(typeCount, localDecl);
+        localDecl.push(lastType);
+        typeCount = 0;
+        declCount++;
       }
 
-      // time('  localDecl gen');
+      typeCount++;
+      lastType = local?.type;
+    }
 
-      const makeAssembled = Prefs.d;
-      let wasm = [], wasmNonFlat = [];
-      for (let i = 0; i < x.wasm.length; i++) {
-        let o = x.wasm[i];
+    // time('  localDecl gen');
 
-        // encode local/global ops as unsigned leb128 from raw number
-        if (
-          (o[0] >= Opcodes.local_get && o[0] <= Opcodes.global_set) &&
-          o[1] > 127
-        ) {
-          const n = o[1];
-          o = [ o[0] ];
-          unsignedLEB128_into(n, o);
-        }
+    const makeAssembled = Prefs.d;
+    let wasm = [], wasmNonFlat = [];
+    for (let i = 0; i < x.wasm.length; i++) {
+      let o = x.wasm[i];
 
-        // encode f64.const ops as ieee754 from raw number
-        if (o[0] === Opcodes.f64_const) {
-          const n = o[1];
-          o = ieee754_binary64(n);
-          if (o.length === 8) o.unshift(Opcodes.f64_const);
-        }
-
-        // encode call ops as unsigned leb128 from raw number
-        if ((o[0] === Opcodes.call /* || o[0] === Opcodes.return_call */) && o[1] >= importedFuncs.length) {
-          const n = o[1] - importDelta;
-          o = [ Opcodes.call ];
-          unsignedLEB128_into(n, o);
-        }
-
-        // encode call indirect ops as types from info
-        if (o[0] === Opcodes.call_indirect) {
-          o = [...o];
-          const params = [];
-          for (let i = 0; i < o[1]; i++) {
-            params.push(valtypeBinary, Valtype.i32);
-          }
-
-          let returns = [ valtypeBinary, Valtype.i32 ];
-          if (o.at(-1) === 'no_type_return') {
-            o.pop();
-            returns = [ valtypeBinary ];
-          }
-
-          o[1] = getType(params, returns);
-        }
-
-        for (let j = 0; j < o.length; j++) {
-          const x = o[j];
-          if (x == null || !(x <= 0xff)) continue;
-          wasm.push(x);
-        }
-
-        if (makeAssembled) wasmNonFlat.push(o);
-      }
-      // time('  wasm transform');
-
-      if (makeAssembled) {
-        x.assembled = { localDecl, wasm, wasmNonFlat };
+      // encode local/global ops as unsigned leb128 from raw number
+      if (
+        (o[0] >= Opcodes.local_get && o[0] <= Opcodes.global_set) &&
+        o[1] > 127
+      ) {
+        const n = o[1];
+        o = [ o[0] ];
+        unsignedLEB128_into(n, o);
       }
 
-      let out = unsignedLEB128(declCount)
-        .concat(localDecl, wasm, Opcodes.end);
+      // encode f64.const ops as ieee754 from raw number
+      if (o[0] === Opcodes.f64_const) {
+        const n = o[1];
+        o = ieee754_binary64(n);
+        if (o.length === 8) o.unshift(Opcodes.f64_const);
+      }
 
-      out.unshift(...unsignedLEB128(out.length));
+      // encode call ops as unsigned leb128 from raw number
+      if ((o[0] === Opcodes.call /* || o[0] === Opcodes.return_call */) && o[1] >= importedFuncs.length) {
+        const n = o[1] - importDelta;
+        o = [ Opcodes.call ];
+        unsignedLEB128_into(n, o);
+      }
 
-      // time('  finish');
-      return out;
-    }))
-  );
+      // encode call indirect ops as types from info
+      if (o[0] === Opcodes.call_indirect) {
+        o = [...o];
+        const params = [];
+        for (let i = 0; i < o[1]; i++) {
+          params.push(valtypeBinary, Valtype.i32);
+        }
+
+        let returns = [ valtypeBinary, Valtype.i32 ];
+        if (o.at(-1) === 'no_type_return') {
+          o.pop();
+          returns = [ valtypeBinary ];
+        }
+
+        o[1] = getType(params, returns);
+      }
+
+      for (let j = 0; j < o.length; j++) {
+        const x = o[j];
+        if (x == null || !(x <= 0xff)) continue;
+        wasm.push(x);
+      }
+
+      if (makeAssembled) wasmNonFlat.push(o);
+    }
+    // time('  wasm transform');
+
+    if (makeAssembled) {
+      x.assembled = { localDecl, wasm, wasmNonFlat };
+    }
+
+    let out = unsignedLEB128(declCount)
+      .concat(localDecl, wasm, Opcodes.end);
+
+    codeSection.push(
+      ...unsignedLEB128(out.length),
+      ...out
+    );
+
+    // time('  finish');
+  }
+
+  codeSection.unshift(...unsignedLEB128(funcs.length, codeSection));
+  codeSection.unshift(Section.code, ...unsignedLEB128(codeSection.length));
   time('code section');
 
   const typeSection = createSection(
@@ -350,25 +354,32 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   );
   time('type section');
 
-  const dataSection = data.length === 0 ? [] : createSection(
-    Section.data,
-    encodeVector(data.map(x => {
+  let dataSection = [];
+  if (data.length > 0) {
+    for (let i = 0; i < data.length; i++) {
+      const x = data[i];
       if (Prefs.d && x.bytes.length > PageSize) log.warning('assemble', `data (${x.page}) has more bytes than Wasm page size! (${x.bytes.length})`);
 
-      const bytes = unsignedLEB128(x.bytes.length).concat(x.bytes);
       if (x.page != null) {
         // type: active
         let offset = pages.allocs.get(x.page) ?? (pages.get(x.page) * pageSize);
         if (offset === 0) offset = 16;
-        bytes.unshift(0x00, Opcodes.i32_const, ...signedLEB128(offset), Opcodes.end);
+        dataSection.push(0x00, Opcodes.i32_const, ...signedLEB128(offset), Opcodes.end);
       } else {
         // type: passive
-        bytes.unshift(0x01);
+        dataSection.push(0x01);
       }
 
-      return bytes;
-    }))
-  );
+      dataSection.push(
+        ...unsignedLEB128(x.bytes.length),
+        ...x.bytes
+      );
+    }
+
+    dataSection.unshift(...unsignedLEB128(data.length, dataSection));
+    dataSection.unshift(Section.data, ...unsignedLEB128(dataSection.length));
+  }
+
   time('data section');
 
   const dataCountSection = data.length === 0 ? [] : createSection(
