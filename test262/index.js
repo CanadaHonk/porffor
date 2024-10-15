@@ -103,7 +103,7 @@ if (isMainThread) {
       out += `${color}\u001b[97m${showLabel ? (' ' + label) : ''}${' '.repeat(width - (showLabel ? (label.length + 1) : 0))}\u001b[0m`;
     }
 
-    console.log(out);
+    return out;
   };
 
   let spinner = ['-', '\\', '|', '/'], spin = 0;
@@ -209,12 +209,14 @@ if (isMainThread) {
         if (allTests) {
           // if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : '91')}m${file}\u001b[0m`);
           if (percent > lastPercent) {
-            if (lastPercent != 0) process.stdout.write(`\u001b[2F\u001b[0J`);
-              else process.stdout.write(`\r${' '.repeat(100)}\r`);
+            const tab = `  \u001b[1m${spinner[spin++ % 4]} ${percent.toFixed(1)}%\u001b[0m    ` +
+              table(false, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
 
-            const tab = `  \u001b[1m${spinner[spin++ % 4]} ${percent.toFixed(1)}%\u001b[0m    ` + table(false, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
-            bar([...noAnsi(tab)].length + 8, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0);
-            console.log(tab);
+            console.log(
+              (lastPercent != 0 ? `\u001b[2F\u001b[0J` : `\r${' '.repeat(100)}\r`) +
+              bar([...noAnsi(tab)].length + 8, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0) +
+              '\n' + tab
+            );
             lastPercent = percent + 0.1;
           }
         } else {
@@ -261,7 +263,7 @@ if (isMainThread) {
 
   console.log(`\u001b[1m${whatTests}: ${passes}/${total} passed - ${percent.toFixed(2)}%${whatTests === 'test' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
   const tab = table(whatTests === 'test', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
-  bar([...noAnsi(tab)].length + 10, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0);
+  console.log(bar([...noAnsi(tab)].length + 10, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0));
   process.stdout.write('  ');
   console.log(tab);
 
@@ -273,7 +275,7 @@ if (isMainThread) {
       process.stdout.write(' '.repeat(6) + dir + ' '.repeat(14 - dir.length));
 
       const [ total, pass, todo, wasmError, compileError, fail, timeout, runtimeError ] = results;
-      bar(120, total, pass, fail, runtimeError + (todoTime === 'runtime' ? todo : 0) + timeout, compileError + (todoTime === 'compile' ? todo : 0) + wasmError, 0);
+      console.log(bar(120, total, pass, fail, runtimeError + (todoTime === 'runtime' ? todo : 0) + timeout, compileError + (todoTime === 'compile' ? todo : 0) + wasmError, 0));
       process.stdout.write(' '.repeat(6) + ' '.repeat(14 + 2));
       console.log(table(false, total, pass, fail, runtimeError, wasmError, compileError, timeout, todo));
       console.log();
