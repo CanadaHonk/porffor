@@ -251,7 +251,7 @@ params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.retu
 locals:${JSON.stringify(locals.slice(x.params.length).map(x => x[1].type))},localNames:${JSON.stringify(locals.map(x => x[0]))},
 ${usedTypes.length > 0 ? `usedTypes:${JSON.stringify(usedTypes)},` : ''}
 ${x.globalInits ? `globalInits:{${Object.keys(x.globalInits).map(y => `${y}:${rewriteWasm(x.globalInits[y])}`).join(',')}},` : ''}${x.data && Object.keys(x.data).length > 0 ? `data:${JSON.stringify(x.data)},` : ''}
-${x.table ? `table:1,` : ''}${x.constr ? `constr:1,` : ''}${x.hasRestArgument ? `hasRestArgument:1,` : ''}${x.usesTag ? `usesTag:1,` : ''}
+${x.table ? `table:1,` : ''}${x.constr ? `constr:1,` : ''}${x.hasRestArgument ? `hasRestArgument:1,` : ''}${x.usesTag ? `usesTag:1,` : ''}${x.usesImports ? `usesImports:1,` : ''}
 }`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');
 }).join('\n')}
 }`;

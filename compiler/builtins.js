@@ -68,21 +68,6 @@ for (let i = 0; i < importedFuncs.length; i++) {
   importedFuncs[f.name] = i;
 }
 
-const printStaticStr = str => {
-  const out = [];
-
-  for (let i = 0; i < str.length; i++) {
-    out.push(
-      // ...number(str.charCodeAt(i)),
-      ...number(str.charCodeAt(i), Valtype.i32),
-      Opcodes.i32_from_u,
-      [ Opcodes.call, importedFuncs.printChar ]
-    );
-  }
-
-  return out;
-};
-
 export const UNDEFINED = 0;
 export const NULL = 0;
 
@@ -106,6 +91,7 @@ export const BuiltinVars = function(ctx) {
   this.__performance_timeOrigin = [
     [ Opcodes.call, importedFuncs.timeOrigin ]
   ];
+  this.__performance_timeOrigin.usesImports = true;
 
   this.__Uint8Array_BYTES_PER_ELEMENT = number(1);
   this.__Int8Array_BYTES_PER_ELEMENT = number(1);
@@ -849,6 +835,7 @@ export const BuiltinFuncs = function() {
       [ Opcodes.call, importedFuncs.time ]
     ]
   };
+  this.__performance_now.usesImports = true;
 
 
   this.__Porffor_type = {

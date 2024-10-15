@@ -72,7 +72,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
     // tree shake imports
     for (const f of funcs) {
-      for (const inst of f.wasm) {
+      if (f.usesImports) for (const inst of f.wasm) {
         if (inst[0] === Opcodes.call && inst[1] < importedFuncs.length) {
           const idx = inst[1];
           const func = importedFuncs[idx];
