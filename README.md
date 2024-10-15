@@ -85,7 +85,7 @@ Rhemyn is Porffor's own regex engine; it compiles literal regex to Wasm bytecode
 ## Versioning
 Porffor uses a unique versioning system, here's an example: `0.18.2+2aa3f0589`. Let's break it down:
 1. `0` - major, always `0` as Porffor is not ready yet
-2. `18` - minor, total Test262 pass percentage (floored to nearest int)
+2. `18` - minor, total Test262 pass percentage (rounded half down, eg `49.4%` -> `48`, `49.5%` -> `49`)
 3. `2` - micro, build number for that minor (incremented each publish/git push)
 4. `2aa3f0589` - commit hash
 
