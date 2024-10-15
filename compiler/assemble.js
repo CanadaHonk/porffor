@@ -1,4 +1,4 @@
-import { Valtype, FuncType, ExportDesc, Section, Magic, ModuleVersion, Opcodes, PageSize, Reftype } from './wasmSpec.js';
+import { Valtype, FuncType, ExportDesc, Section, Magic, Opcodes, PageSize, Reftype } from './wasmSpec.js';
 import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64, ieee754_binary64_into } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from './log.js';
@@ -393,7 +393,6 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
   return Uint8Array.from([
     ...Magic,
-    ...ModuleVersion,
     ...typeSection,
     ...importSection,
     ...funcSection,
