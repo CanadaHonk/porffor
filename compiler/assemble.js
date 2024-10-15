@@ -91,8 +91,6 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     f.asmIndex = f.index - importDelta;
   }
 
-  time('treeshake import funcs');
-
   if (Prefs.optLog) log('assemble', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
@@ -380,13 +378,11 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     dataSection.unshift(Section.data, ...unsignedLEB128(dataSection.length));
   }
 
-  time('data section');
-
   const dataCountSection = data.length === 0 ? [] : createSection(
     Section.data_count,
     unsignedLEB128(data.length)
   );
-  time('datacount section');
+  time('data section');
 
   return Uint8Array.from([
     ...Magic,
