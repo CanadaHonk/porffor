@@ -92,7 +92,7 @@ export const __ecma262_RejectPromise = (promise: any[], reason: any): void => {
 };
 
 
-export const __Porffor_promise_noop = () => {};
+export const __Porffor_promise_noop = (x: any): any => x;
 
 export const __Porffor_promise_newReaction = (handler: Function, promise: any, type: i32): any[] => {
   // enum ReactionType { then = 0, finally = 1 }
