@@ -43,8 +43,6 @@ const encodeNames = funcs => {
 export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   const types = [], typeCache = {};
 
-  const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
-
   const getType = (params, returns) => {
     const hash = `${params.join(',')}_${returns.join(',')}`;
     if (Prefs.optLog) log('assemble', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
@@ -67,7 +65,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   };
 
   let importFuncs = [], importDelta = 0;
-  if (optLevel < 1 || !Prefs.treeshakeWasmImports || noTreeshake) {
+  if (!Prefs.treeshakeWasmImports || noTreeshake) {
     importFuncs = importedFuncs;
   } else {
     let imports = new Map();
