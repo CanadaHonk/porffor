@@ -94,11 +94,26 @@ export const __ecma262_RejectPromise = (promise: any[], reason: any): void => {
 
 export const __Porffor_promise_noop = () => {};
 
+export const __Porffor_promise_newReaction = (handler: Function, promise: any, type: i32): any[] => {
+  // enum ReactionType { then = 0, finally = 1 }
+  const out: any[] = Porffor.allocateBytes(32);
+  out[0] = handler;
+  out[1] = promise;
+  out[2] = type;
+
+  return out;
+};
+
 export const __Porffor_promise_resolve = (value: any, promise: any): any => {
-  // todo: if value is own promise, reject with typeerror
+  // if value is own promise, reject with typeerror
+  if (value === promise) throw new TypeError('cannot resolve promise with itself');
 
   if (__ecma262_IsPromise(value)) {
-    // todo
+    const fulfillReaction: any[] = __Porffor_promise_newReaction(__Porffor_promise_noop, promise, 0);
+    const rejectReaction: any[] = __Porffor_promise_newReaction(__Porffor_promise_noop, promise, 0);
+
+    Porffor.array.fastPush(value[2], fulfillReaction);
+    Porffor.array.fastPush(value[3], rejectReaction);
   } else {
     __ecma262_FulfillPromise(promise, value);
   }
@@ -107,12 +122,7 @@ export const __Porffor_promise_resolve = (value: any, promise: any): any => {
 };
 
 export const __Porffor_promise_reject = (reason: any, promise: any): any => {
-  if (__ecma262_IsPromise(reason)) {
-    // todo
-  } else {
-    __ecma262_RejectPromise(promise, reason);
-  }
-
+  __ecma262_RejectPromise(promise, reason);
   return undefined;
 };
 
@@ -136,16 +146,6 @@ export const __Porffor_promise_create = (): any[] => {
   obj[3] = rejectReactions;
 
   return obj;
-};
-
-export const __Porffor_promise_newReaction = (handler: Function, promise: any, type: i32): any[] => {
-  // enum ReactionType { then = 0, finally = 1 }
-  const out: any[] = Porffor.allocateBytes(32);
-  out[0] = handler;
-  out[1] = promise;
-  out[2] = type;
-
-  return out;
 };
 
 export const __Porffor_promise_runNext = (func: Function) => {
