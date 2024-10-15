@@ -73,7 +73,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     // tree shake imports
     for (const f of funcs) {
       for (const inst of f.wasm) {
-        if ((inst[0] === Opcodes.call /* || inst[0] === Opcodes.return_call */) && inst[1] < importedFuncs.length) {
+        if (inst[0] === Opcodes.call && inst[1] < importedFuncs.length) {
           const idx = inst[1];
           const func = importedFuncs[idx];
 
@@ -253,22 +253,24 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     Section.code,
     encodeVector(funcs.map(x => {
       // time(x.name);
-      const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx).slice(x.params.length);
+      const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx);
       // time('  locals gen');
 
-      let localDecl = [], typeCount = 0, lastType;
-      for (let i = 0; i < locals.length; i++) {
+      const paramCount = x.params.length;
+      let localDecl = [], typeCount = 0, lastType, declCount = 0;
+      for (let i = paramCount; i <= locals.length; i++) {
         const local = locals[i];
-        if (i !== 0 && local.type !== lastType) {
-          localDecl.push(encodeLocal(typeCount, lastType));
+        if (i !== paramCount && local?.type !== lastType) {
+          unsignedLEB128_into(typeCount, localDecl);
+          localDecl.push(lastType);
           typeCount = 0;
+          declCount++;
         }
 
         typeCount++;
-        lastType = local.type;
+        lastType = local?.type;
       }
 
-      if (typeCount !== 0) localDecl.push(encodeLocal(typeCount, lastType));
       // time('  localDecl gen');
 
       const makeAssembled = Prefs.d;
@@ -331,8 +333,8 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
         x.assembled = { localDecl, wasm, wasmNonFlat };
       }
 
-      let out = unsignedLEB128(localDecl.length)
-        .concat(localDecl.flat(), wasm, Opcodes.end);
+      let out = unsignedLEB128(declCount)
+        .concat(localDecl, wasm, Opcodes.end);
 
       out.unshift(...unsignedLEB128(out.length));
 
