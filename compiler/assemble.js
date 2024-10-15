@@ -379,16 +379,6 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   );
   time('datacount section');
 
-  if (Prefs.sections) console.log({
-    typeSection: typeSection.map(x => x.toString(16)),
-    importSection: importSection.map(x => x.toString(16)),
-    funcSection: funcSection.map(x => x.toString(16)),
-    globalSection: globalSection.map(x => x.toString(16)),
-    exportSection: exportSection.map(x => x.toString(16)),
-    codeSection: codeSection.map(x => x.toString(16)),
-    dataSection: dataSection.map(x => x.toString(16)),
-  });
-
   return Uint8Array.from([
     ...Magic,
     ...typeSection,
