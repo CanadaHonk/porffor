@@ -3050,7 +3050,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
     if (defaultValue && isFuncType(defaultValue.type)) {
       // set id as name, but do not use it as it is only default value
-      if (!defaultValue.id) setDefaultFuncName(defaultValue, name);
+      setDefaultFuncName(defaultValue, name);
     }
 
     if (topLevel && Object.hasOwn(builtinVars, name)) {
