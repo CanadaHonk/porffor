@@ -278,7 +278,6 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
         // encode local/global ops as unsigned leb128 from raw number
         if (
-          // (o[0] === Opcodes.local_get || o[0] === Opcodes.local_set || o[0] === Opcodes.local_tee || o[0] === Opcodes.global_get || o[0] === Opcodes.global_set) &&
           (o[0] >= Opcodes.local_get && o[0] <= Opcodes.global_set) &&
           o[1] > 127
         ) {
@@ -290,8 +289,6 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
         // encode f64.const ops as ieee754 from raw number
         if (o[0] === Opcodes.f64_const) {
           const n = o[1];
-          // o = [ o[0] ];
-          // ieee754_binary64_into(n, o);
           o = ieee754_binary64(n);
           if (o.length === 8) o.unshift(Opcodes.f64_const);
         }
@@ -299,7 +296,6 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
         // encode call ops as unsigned leb128 from raw number
         if ((o[0] === Opcodes.call /* || o[0] === Opcodes.return_call */) && o[1] >= importedFuncs.length) {
           const n = o[1] - importDelta;
-          // o = [ o[0] ];
           o = [ Opcodes.call ];
           unsignedLEB128_into(n, o);
         }
