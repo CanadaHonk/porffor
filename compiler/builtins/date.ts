@@ -1744,8 +1744,7 @@ export const __ecma262_DateString = (tv: number): bytestring => {
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-timezonestring
 export const __ecma262_TimeZoneString = (tv: number) => {
   // todo: time zone support
-  let out: bytestring = '+0000 (UTC)';
-  return out;
+  return '+0000 (UTC)';
 };
 
 // 21.4.4.41.4 ToDateString (tv)

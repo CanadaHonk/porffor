@@ -520,9 +520,7 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any) => {
   if (!Porffor.object.isObject(desc)) throw new TypeError('Descriptor is a non-object');
 
   if (Porffor.rawType(target) == Porffor.TYPES.array) {
-    const tmp1: bytestring = 'length';
-    const tmp2: bytestring = 'value';
-    if (prop === tmp1 && __Object_hasOwn(desc, tmp2)) {
+    if (prop === 'length' && __Object_hasOwn(desc, 'value')) {
       const v: any = desc.value;
       const n: number = ecma262.ToNumber(v);
       if (Porffor.fastOr(
@@ -566,33 +564,20 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any) => {
     accessor = true;
   } else if (existingDesc && value === undefined && writable === undefined) {
     // all undefined, check if past accessor
-    const _get: bytestring = 'get';
-    const _set: bytestring = 'set';
-    if (_get in existingDesc || _set in existingDesc) accessor = true;
+    if ('get' in existingDesc || 'set' in existingDesc) accessor = true;
   }
 
   if (existingDesc) {
-    let inKey: bytestring = '';
-
     // probably slow due to excessive in's but needs to have them to be spec compliant handling explicit undefined vs non-existent
-    inKey = 'configurable';
-    if (configurable == null && !(inKey in desc)) configurable = existingDesc.configurable;
-
-    inKey = 'enumerable';
-    if (enumerable == null && !(inKey in desc)) enumerable = existingDesc.enumerable;
+    if (configurable == null && !('configurable' in desc)) configurable = existingDesc.configurable;
+    if (enumerable == null && !('enumerable' in desc)) enumerable = existingDesc.enumerable;
 
     if (accessor) {
-      inKey = 'get';
-      if (get == null && !(inKey in desc)) get = existingDesc.get;
-
-      inKey = 'set';
-      if (set == null && !(inKey in desc)) set = existingDesc.set;
+      if (get == null && !('get' in desc)) get = existingDesc.get;
+      if (set == null && !('set' in desc)) set = existingDesc.set;
     } else {
-      inKey = 'value';
-      if (value == null && !(inKey in desc)) value = existingDesc.value;
-
-      inKey = 'writable';
-      if (writable == null && !(inKey in desc)) writable = existingDesc.writable;
+      if (value == null && !('value' in desc)) value = existingDesc.value;
+      if (writable == null && !('writable' in desc)) writable = existingDesc.writable;
     }
   }
 
@@ -688,8 +673,7 @@ export const __Object_prototype_toString = (_this: any) => {
       let ovr: any = obj.toString;
       if (Porffor.rawType(ovr) == Porffor.TYPES.function && ovr != __Object_prototype_toString) return ovr.call(_this);
 
-      const key: bytestring = 'toString';
-      const entryPtr: i32 = Porffor.object.lookup(obj, key);
+      const entryPtr: i32 = Porffor.object.lookup(obj, 'toString');
       if (entryPtr != -1) {
         ovr = Porffor.object.readValue(entryPtr);
         if (Porffor.rawType(ovr) == Porffor.TYPES.function) return ovr.call(_this);
@@ -736,8 +720,7 @@ export const __Object_prototype_valueOf = (_this: any) => {
       let ovr: any = obj.valueOf;
       if (Porffor.rawType(ovr) == Porffor.TYPES.function && ovr != __Object_prototype_valueOf) return ovr.call(_this);
 
-      const key: bytestring = 'valueOf';
-      const entryPtr: i32 = Porffor.object.lookup(obj, key);
+      const entryPtr: i32 = Porffor.object.lookup(obj, 'valueOf');
       if (entryPtr != -1) {
         ovr = Porffor.object.readValue(entryPtr);
         if (Porffor.rawType(ovr) == Porffor.TYPES.function) return ovr.call(_this);

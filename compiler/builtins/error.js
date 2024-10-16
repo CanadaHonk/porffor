@@ -2,15 +2,12 @@ export default () => {
   let out = '';
 
   const error = name => out += `export const ${name} = function (message: any) {
-  const _empty: bytestring = '';
-  if (message === undefined) message = _empty;
+  if (message === undefined) message = '';
     else message = ecma262.ToString(message);
 
   const obj: object = Porffor.allocate();
 
-  const _name: bytestring = '${name.split('_').pop()}';
-
-  obj.name = _name;
+  obj.name = '${name.split('_').pop()}';
   obj.message = message;
   obj.constructor = ${name};
 
@@ -26,8 +23,7 @@ export const __${name.startsWith('__') ? name.slice(2) : name}_prototype_toStrin
     return obj.name;
   }
 
-  const bridge: bytestring = ': ';
-  return obj.name + bridge + message;
+  return obj.name + ': ' + message;
 };`;
 
   error('Error');

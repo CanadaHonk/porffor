@@ -128,9 +128,5 @@ export const __Map_prototype_values = (_this: Map) => {
   return out;
 };
 
-export const __Map_prototype_toString = (_this: Map) => {
-  const str: bytestring = '[object Map]';
-  return str;
-}
-
+export const __Map_prototype_toString = (_this: Map) => '[object Map]';
 export const __Map_prototype_toLocaleString = (_this: Map) => __Map_prototype_toString(_this);

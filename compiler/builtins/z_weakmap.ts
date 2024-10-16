@@ -37,9 +37,5 @@ export const WeakMap = function (iterable: any): WeakMap {
   return out;
 };
 
-export const __WeakMap_prototype_toString = (_this: WeakMap) => {
-  const out: bytestring = '[object WeakMap]';
-  return out;
-};
-
+export const __WeakMap_prototype_toString = (_this: WeakMap) => '[object WeakMap]';
 export const __WeakMap_prototype_toLocaleString = (_this: WeakMap) => __WeakMap_prototype_toString(_this);

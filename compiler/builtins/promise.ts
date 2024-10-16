@@ -393,27 +393,18 @@ export const __Promise_allSettled = (promises: any): Promise => {
       if (__ecma262_IsPromise(x)) {
         x.then(r => {
           const o = {};
-          let status: bytestring = '';
-          status = 'fulfilled';
-          o.status = status;
-
+          o.status = 'fulfilled';
           o.value = r;
           if (Porffor.array.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
         }, r => {
           const o = {};
-          let status: bytestring = '';
-          status = 'rejected';
-          o.status = status;
-
+          o.status = 'rejected';
           o.reason = r;
           if (Porffor.array.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
         });
       } else {
         const o = {};
-        let status: bytestring = '';
-        status = 'fulfilled';
-        o.status = status;
-
+        o.status = 'fulfilled';
         o.value = x;
         Porffor.array.fastPush(_allOut, o);
       }
@@ -483,11 +474,7 @@ export const __Promise_race = (promises: any): Promise => {
 };
 
 
-export const __Promise_prototype_toString = (_this: any) => {
-  const str: bytestring = '[object Promise]';
-  return str;
-};
-
+export const __Promise_prototype_toString = (_this: any) => '[object Promise]';
 export const __Promise_prototype_toLocaleString = (_this: any) => __Promise_prototype_toString(_this);
 
 

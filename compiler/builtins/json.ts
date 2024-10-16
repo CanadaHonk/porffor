@@ -2,19 +2,16 @@ import type {} from './porffor.d.ts';
 
 export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestring|undefined): bytestring|undefined => {
   // somewhat modelled after 25.5.2.2 SerializeJSONProperty: https://tc39.es/ecma262/#sec-serializejsonproperty
-  let out: bytestring = Porffor.allocate();
-
-  const nullString: bytestring = 'null';
-
-  if (value === null) return nullString;
-  if (value === true) return out = 'true';
-  if (value === false) return out = 'false';
+  if (value === null) return 'null';
+  if (value === true) return 'true';
+  if (value === false) return 'false';
 
   const t: i32 = Porffor.rawType(value);
   if (Porffor.fastOr(
     (t | 0b10000000) == Porffor.TYPES.bytestring,
     t == Porffor.TYPES.stringobject
   )) { // string
+    const out: bytestring = Porffor.allocate();
     Porffor.bytestring.appendChar(out, 34); // start "
 
     const len: i32 = value.length;
@@ -77,11 +74,12 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
     t == Porffor.TYPES.number,
     t == Porffor.TYPES.numberobject
   )) { // number
-    if (Number.isFinite(value)) return out = __Number_prototype_toString(value, 10);
-    return nullString;
+    if (Number.isFinite(value)) return __Number_prototype_toString(value, 10);
+    return 'null';
   }
 
   if (t == Porffor.TYPES.array) {
+    const out: bytestring = Porffor.allocate();
     Porffor.bytestring.appendChar(out, 91); // [
 
     const hasSpace: boolean = space !== undefined;
@@ -94,7 +92,7 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
         for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space);
       }
 
-      Porffor.bytestring.appendStr(out, __Porffor_json_serialize(x, depth, space) ?? nullString);
+      Porffor.bytestring.appendStr(out, __Porffor_json_serialize(x, depth, space) ?? 'null');
 
       Porffor.bytestring.appendChar(out, 44); // ,
     }
@@ -120,7 +118,7 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
 
   if (t > 0x06) {
     // non-function object
-    // hack: just return empty object for now
+    const out: bytestring = Porffor.allocate();
     Porffor.bytestring.appendChar(out, 123); // {
 
     const hasSpace: boolean = space !== undefined;
@@ -188,10 +186,9 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
       if (space < 1) {
         space = undefined;
       } else {
-        const spaceStr: bytestring = '';
-        spaceStr.length = 0;
-
+        const spaceStr: bytestring = Porffor.allocate();
         for (let i: i32 = 0; i < space; i++) Porffor.bytestring.appendChar(spaceStr, 32);
+
         space = spaceStr;
       }
     } else if (Porffor.fastOr(
