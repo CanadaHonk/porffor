@@ -36,7 +36,7 @@ export const __${name.startsWith('__') ? name.slice(2) : name}_prototype_toStrin
   error('URIError');
 
   error('Test262Error');
-  error('__Porffor_TodoError');
+  error('TodoError');
 
   out += `\nexport const __Test262Error_thrower = message => { throw new Test262Error(message); };`;
 

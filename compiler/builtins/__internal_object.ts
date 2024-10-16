@@ -6,7 +6,7 @@ export const __Porffor_object_underlying = (obj: any): any => {
 
   if (Porffor.fastAnd(
     t >= Porffor.TYPES.error,
-    t <= Porffor.TYPES.__porffor_todoerror
+    t <= Porffor.TYPES.todoerror
   )) {
     const remap: object = obj;
     return remap;

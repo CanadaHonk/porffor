@@ -31,7 +31,7 @@ const todo = (scope, msg, expectsValue = undefined) => {
       throw new TodoError(msg);
 
     case 'runtime':
-      return internalThrow(scope, '__Porffor_TodoError', msg, expectsValue);
+      return internalThrow(scope, 'TodoError', msg, expectsValue);
   }
 };
 

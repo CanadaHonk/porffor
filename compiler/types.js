@@ -87,7 +87,7 @@ registerInternalType('RangeError');
 registerInternalType('EvalError');
 registerInternalType('URIError');
 registerInternalType('Test262Error');
-registerInternalType('__Porffor_TodoError');
+registerInternalType('TodoError');
 
 registerInternalType('__Porffor_Generator');
 registerInternalType('__Porffor_AsyncGenerator');
