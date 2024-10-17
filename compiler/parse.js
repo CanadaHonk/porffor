@@ -41,6 +41,7 @@ export default input => {
 
       // multiple
       sourceType: Prefs.module ? 'module' : 'script',
+      locations: false,
       ranges: false,
       tokens: false,
       comments: false,
