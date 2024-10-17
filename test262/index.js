@@ -379,8 +379,8 @@ if (isMainThread) {
   const compile = (await import('../compiler/wrap.js')).default;
 
   const script = new vm.Script('$func()');
-  const timeout = ($func, timeout) => {
-    return script.runInNewContext({ $func }, { timeout });
+  const timeout = $func => {
+    return script.runInNewContext({ $func }, { timeout: 10000 });
   };
 
   console.log = (...args) => parentPort.postMessage(args.join(' '));
@@ -448,7 +448,7 @@ if (isMainThread) {
     }
 
     if (!error) try {
-      timeout(exports.main, 10000);
+      timeout(exports.main);
       stage = 2;
     } catch (e) {
       if (e?.name === 'Test262Error' && debugAsserts && log) {
