@@ -892,10 +892,10 @@ export const __Porffor_array_fastPush = (arr: any[], el: any): i32 => {
   return len;
 };
 
-export const __Porffor_array_fastIndexOf = (arr: any[], el: any): i32 => {
+export const __Porffor_array_fastIndexOf = (arr: any[], el: number): i32 => {
   const len: i32 = arr.length;
   for (let i: i32 = 0; i < len; i++) {
-    if (arr[i] === el) return i;
+    if (arr[i] == el) return i;
   }
 
   return -1;
