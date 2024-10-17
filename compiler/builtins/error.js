@@ -3,7 +3,7 @@ export default () => {
 
   const error = name => out += `export const ${name} = function (message: any) {
   if (message === undefined) message = '';
-    // else message = ecma262.ToString(message);
+    else message = ecma262.ToString(message);
 
   const obj: object = Porffor.allocateBytes(128);
 
