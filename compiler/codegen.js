@@ -1730,7 +1730,11 @@ const generateSequence = (scope, decl) => {
 };
 
 const generateChain = (scope, decl) => {
-  return generate(scope, decl.expression);
+  scope.chainMembers = 0;
+  const out = generate(scope, decl.expression);
+  scope.chainMembers = null;
+
+  return out;
 };
 
 const ArrayUtil = {
@@ -5284,7 +5288,7 @@ const countLength = (func, name = undefined) => {
   return count;
 };
 
-const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) => {
+const generateMember = (scope, decl, _global, _name) => {
   let final = [], finalEnd, extraBC = {};
   let name = decl.object.name;
 
@@ -5301,6 +5305,8 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
 
   const object = decl.object;
   const property = getProperty(decl);
+
+  let chainCount = scope.chainMembers != null ? ++scope.chainMembers : 0;
 
   // generate now so type is gotten correctly later (it gets cached)
   generate(scope, object);
@@ -5640,7 +5646,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
   if (decl.optional) {
     out.unshift(
       [ Opcodes.block, valtypeBinary ],
-      ...(_objectWasm ? _objectWasm : generate(scope, object)),
+      ...generate(scope, object),
       [ Opcodes.local_tee, localTmp(scope, '#member_obj') ],
       ...(scope.locals['#member_obj#type'] ? [
         ...getNodeType(scope, object),
@@ -5651,7 +5657,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       [ Opcodes.if, Blocktype.void ],
       ...setLastType(scope, TYPES.undefined),
       ...number(0),
-      [ Opcodes.br, 1 ],
+      [ Opcodes.br, chainCount ],
       [ Opcodes.end ],
 
       ...generate(scope, property, false, '#member_prop'),
@@ -5663,7 +5669,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     );
   } else {
     out.unshift(
-      ...(_objectWasm ? _objectWasm : generate(scope, object)),
+      ...generate(scope, object),
       [ Opcodes.local_set, localTmp(scope, '#member_obj') ],
       ...(scope.locals['#member_obj#type'] ? [
         ...getNodeType(scope, object),
@@ -5673,6 +5679,17 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       ...generate(scope, property, false, '#member_prop'),
       [ Opcodes.local_set, localTmp(scope, '#member_prop') ]
     );
+
+    // todo: maybe this just needs 1 block?
+    if (chainCount > 0) {
+      out.unshift(
+        [ Opcodes.block, valtypeBinary ]
+      );
+
+      out.push(
+        [ Opcodes.end ]
+      );
+    }
   }
 
   if (final.length > 0) {
