@@ -2401,9 +2401,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     scope.table = true;
 
     const wrapperArgc = Prefs.indirectWrapperArgc ?? 8;
-    if (args.length < wrapperArgc) {
-      args = args.concat(new Array(wrapperArgc - args.length).fill(DEFAULT_VALUE()));
-    }
+    const underflow = wrapperArgc - args.length;
+    for (let i = 0; i < underflow; i++) args.push(DEFAULT_VALUE());
 
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
@@ -2505,7 +2504,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   if (func && args.length < paramCount) {
     // too little args, push undefineds
-    args = args.concat(new Array(paramCount - (func.hasRestArgument ? 1 : 0) - args.length).fill(DEFAULT_VALUE()));
+    const underflow = paramCount - (func.hasRestArgument ? 1 : 0) - args.length;
+    for (let i = 0; i < underflow; i++) args.push(DEFAULT_VALUE());
   }
 
   if (func && func.hasRestArgument) {
@@ -3214,9 +3214,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       [ Opcodes.if, Blocktype.void ],
         ...internalThrow(scope, 'TypeError', 'Cannot array destructure a non-iterable'),
       [ Opcodes.end ],
-
-      ...decls
-    ]);
+    ], decls);
 
     return out;
   }
@@ -3289,10 +3287,8 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       [ Opcodes.i32_or ],
       [ Opcodes.if, Blocktype.void ],
         ...internalThrow(scope, 'TypeError', 'Cannot object destructure undefined or null'),
-      [ Opcodes.end ],
-
-      ...decls
-    ]);
+      [ Opcodes.end ]
+    ], decls);
 
     return out;
   }
@@ -6167,7 +6163,9 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         typeUsed(func, TYPES.promise);
       }
 
-      wasm = wasm.concat(generate(func, body));
+      const preface = wasm;
+      wasm = generate(func, body);
+      wasm.unshift(...preface);
 
       if (func.generator) {
         // make generator at the start
