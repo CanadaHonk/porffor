@@ -164,7 +164,8 @@ const funcRef = func => {
         [ Opcodes.local_get, 0 ], // new.target value
         Opcodes.i32_to_u,
         [ Opcodes.if, Blocktype.void ], // if value is non-zero
-          ...internalThrow(wrapperFunc, 'TypeError', `${unhackName(func.name)} is not a constructor`), // throw type error
+          // ...internalThrow(wrapperFunc, 'TypeError', `${unhackName(func.name)} is not a constructor`), // throw type error
+          ...internalThrow(wrapperFunc, 'TypeError', `Function is not a constructor`), // throw type error
         [ Opcodes.end ]
       );
     }
