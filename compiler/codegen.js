@@ -547,7 +547,7 @@ const generateReturn = (scope, decl) => {
       ]),
         ...(scope.subclass ? [
           // if subclass and returning undefined, return this
-          [ Opcodes.local_get, localTmp(scope, '#return#type') ],
+          [ Opcodes.local_get, localTmp(scope, '#return#type', Valtype.i32) ],
           ...number(TYPE_FLAGS.parity, Valtype.i32),
           [ Opcodes.i32_or ],
           ...number(TYPES.undefined, Valtype.i32),
@@ -588,7 +588,7 @@ const generateReturn = (scope, decl) => {
       ]),
 
       [ Opcodes.local_get, localTmp(scope, '#return') ],
-      [ Opcodes.local_get, localTmp(scope, '#return#type') ],
+      [ Opcodes.local_get, localTmp(scope, '#return#type', Valtype.i32) ],
       [ Opcodes.return ]
     ];
   }
