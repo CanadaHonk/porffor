@@ -83,11 +83,10 @@ Rhemyn is Porffor's own regex engine; it compiles literal regex to Wasm bytecode
 2c is Porffor's own Wasm -> C compiler, using generated Wasm bytecode and internal info to generate specific and efficient/fast C code. Little boilerplate/preluded code or required external files, just for CLI binaries (not like wasm2c very much).
 
 ## Versioning
-Porffor uses a unique versioning system, here's an example: `0.18.2+2aa3f0589`. Let's break it down:
+Porffor uses a unique versioning system, here's an example: `0.48.7`. Let's break it down:
 1. `0` - major, always `0` as Porffor is not ready yet
-2. `18` - minor, total Test262 pass percentage (rounded half down, eg `49.4%` -> `48`, `49.5%` -> `49`)
-3. `2` - micro, build number for that minor (incremented each publish/git push)
-4. `2aa3f0589` - commit hash
+2. `48` - minor, total Test262 pass percentage (rounded half down, eg `49.4%` -> `48`, `49.5%` -> `49`)
+3. `7` - micro, build number for that minor (incremented each git push)
 
 ## Performance
 *For the features it supports most of the time*, Porffor is *blazingly fast* compared to most interpreters and common engines running without JIT. For those with JIT, it is usually slower by default, but can catch up with compiler arguments and typed input, even more so when compiling to native binaries.
