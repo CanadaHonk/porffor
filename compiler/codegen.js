@@ -1256,9 +1256,9 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
 
   let baseGlobalIdx, i = 0;
   for (const type of globalTypes) {
-    if (baseGlobalIdx === undefined) baseGlobalIdx = globals['#ind'];
+    let obj = globals[globalNames[i] ?? `${name}_global_${i}`] ??= { idx: globals['#ind']++, type, init: globalInits[i] ?? 0 };
 
-    globals[globalNames[i] ?? `${name}_global_${i}`] = { idx: globals['#ind']++, type, init: globalInits[i] ?? 0 };
+    if (baseGlobalIdx === undefined) baseGlobalIdx = obj.idx;
     i++;
   }
 
@@ -3377,13 +3377,13 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const lengthTypeWasm = [
       ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
         [ Opcodes.local_get, pointerTmp ],
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), 0 ],
         Opcodes.i32_from_u
       ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right))),
       ...optional([ Opcodes.local_tee, newValueTmp ]),
 
       Opcodes.i32_to_u,
-      [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ],
+      [ Opcodes.i32_store, Math.log2(ValtypeSize.i32), 0 ],
 
       ...optional([ Opcodes.local_get, newValueTmp ])
     ];
@@ -5328,7 +5328,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       return [
         ...out,
 
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), 0 ],
         Opcodes.i32_from_u
       ];
     }
@@ -5338,7 +5338,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
     if (known != null && typeHasFlag(known, TYPE_FLAGS.length)) return [
       ...out,
 
-      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), 0 ],
       Opcodes.i32_from_u
     ];
 
@@ -5352,7 +5352,7 @@ const generateMember = (scope, decl, _global, _name, _objectWasm = undefined) =>
       [ Opcodes.i32_and ],
       [ Opcodes.if, valtypeBinary ],
         [ Opcodes.local_get, tmp ],
-        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+        [ Opcodes.i32_load, Math.log2(ValtypeSize.i32), 0 ],
         Opcodes.i32_from_u,
 
         ...setLastType(scope, TYPES.number),
