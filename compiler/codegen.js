@@ -1864,6 +1864,21 @@ const aliasPrimObjsBC = bc => {
   add(TYPES.string, TYPES.stringobject);
 };
 
+const typeIsIterable = wasm => [
+  // array, set, string, bytestring, generator
+  ...typeIsOneOf(wasm, [ TYPES.array, TYPES.set, TYPES.string, TYPES.bytestring, TYPES.__porffor_generator ]),
+  // typed array
+  ...wasm,
+  ...number(TYPES.uint8array, Valtype.i32),
+  [ Opcodes.i32_ge_s ],
+  ...wasm,
+  ...number(TYPES.float64array, Valtype.i32),
+  [ Opcodes.i32_le_s ],
+  [ Opcodes.i32_and ],
+  [ Opcodes.i32_or ],
+  [ Opcodes.i32_eqz ],
+];
+
 const createThisArg = (scope, decl) => {
   const name = decl.callee?.name;
   if (decl._new) {
@@ -2288,7 +2303,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       ...generate(scope, arg),
       [ Opcodes.local_set, localTmp(scope, '#spread') ],
       ...getNodeType(scope, arg),
-      [ Opcodes.local_set, localTmp(scope, '#spread#type', Valtype.i32) ]
+      [ Opcodes.local_set, localTmp(scope, '#spread#type', Valtype.i32) ],
+
+      ...typeIsIterable([ [ Opcodes.local_get, localTmp(scope, '#spread#type', Valtype.i32) ] ]),
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, 'TypeError', 'Cannot spread a non-iterable'),
+      [ Opcodes.end ]
     );
 
     args.pop();
@@ -3190,18 +3210,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
     out = out.concat([
       // check tmp is iterable
-      // array or string or bytestring
-      ...typeIsOneOf(getType(scope, tmpName), [ TYPES.array, TYPES.string, TYPES.bytestring, TYPES.__porffor_generator ]),
-      // typed array
-      ...getType(scope, tmpName),
-      ...number(TYPES.uint8array, Valtype.i32),
-      [ Opcodes.i32_ge_s ],
-      ...getType(scope, tmpName),
-      ...number(TYPES.float64array, Valtype.i32),
-      [ Opcodes.i32_le_s ],
-      [ Opcodes.i32_and ],
-      [ Opcodes.i32_or ],
-      [ Opcodes.i32_eqz ],
+      ...typeIsIterable(getType(scope, tmpName)),
       [ Opcodes.if, Blocktype.void ],
         ...internalThrow(scope, 'TypeError', 'Cannot array destructure a non-iterable'),
       [ Opcodes.end ],
@@ -4128,18 +4137,7 @@ const generateForOf = (scope, decl) => {
     [ Opcodes.local_set, counter ],
 
     // check tmp is iterable
-    // array or string or bytestring
-    ...typeIsOneOf(iterType, [ TYPES.array, TYPES.set, TYPES.string, TYPES.bytestring, TYPES.__porffor_generator ]),
-    // typed array
-    ...iterType,
-    ...number(TYPES.uint8array, Valtype.i32),
-    [ Opcodes.i32_ge_s ],
-    ...iterType,
-    ...number(TYPES.float64array, Valtype.i32),
-    [ Opcodes.i32_le_s ],
-    [ Opcodes.i32_and ],
-    [ Opcodes.i32_or ],
-    [ Opcodes.i32_eqz ],
+    ...typeIsIterable(iterType),
     [ Opcodes.if, Blocktype.void ],
       ...internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`),
     [ Opcodes.end ],
