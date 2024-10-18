@@ -2278,6 +2278,31 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
   }
 
+  let args = decl.arguments.slice();
+  if (args.at(-1)?.type === 'SpreadElement') {
+    // hack: support spread element if last by doing essentially:
+    // const foo = () => ...;
+    // foo(a, b, ...c) -> _ = c; foo(a, b, _[0], _[1], ...)
+    const arg = args.at(-1).argument;
+    out.push(
+      ...generate(scope, arg),
+      [ Opcodes.local_set, localTmp(scope, '#spread') ],
+      ...getNodeType(scope, arg),
+      [ Opcodes.local_set, localTmp(scope, '#spread#type', Valtype.i32) ]
+    );
+
+    args.pop();
+    for (let i = 0; i < 8; i++) {
+      args.push({
+        type: 'MemberExpression',
+        object: { type: 'Identifier', name: '#spread' },
+        property: { type: 'Literal', value: i },
+        computed: true,
+        optional: false
+      });
+    }
+  }
+
   let idx;
   if (Object.hasOwn(funcIndex, name)) {
     idx = funcIndex[name];
@@ -2355,7 +2380,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     funcs.table = true;
     scope.table = true;
 
-    let args = decl.arguments;
     const wrapperArgc = Prefs.indirectWrapperArgc ?? 8;
     if (args.length < wrapperArgc) {
       args = args.concat(new Array(wrapperArgc - args.length).fill(DEFAULT_VALUE()));
@@ -2447,7 +2471,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
   }
 
-  let args = [...decl.arguments];
   const internalProtoFunc = func && func.internal && func.name.includes('_prototype_');
   if (!globalThis.precompile && internalProtoFunc && !decl._protoInternalCall) {
     // just function called, not as prototype, add this to start
@@ -2458,31 +2481,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     out.push(...(decl._newTargetWasm ?? createNewTarget(scope, decl, idx - importedFuncs.length)));
     out.push(...(decl._thisWasm ?? createThisArg(scope, decl)));
     paramOffset += 4;
-  }
-
-  if (args.at(-1)?.type === 'SpreadElement') {
-    // hack: support spread element if last by doing essentially:
-    // const foo = (a, b, c, d) => ...
-    // foo(a, b, ...c) -> _ = c; foo(a, b, _[0], _[1])
-    const arg = args.at(-1).argument;
-    out.push(
-      ...generate(scope, arg),
-      [ Opcodes.local_set, localTmp(scope, '#spread') ],
-      ...getNodeType(scope, arg),
-      [ Opcodes.local_set, localTmp(scope, '#spread#type', Valtype.i32) ]
-    );
-
-    args.pop();
-    const leftover = paramCount - args.length;
-    for (let i = 0; i < leftover; i++) {
-      args.push({
-        type: 'MemberExpression',
-        object: { type: 'Identifier', name: '#spread' },
-        property: { type: 'Literal', value: i },
-        computed: true,
-        optional: false
-      });
-    }
   }
 
   if (func && args.length < paramCount) {
