@@ -3131,7 +3131,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     let out = generateVarDstr(scope, 'const', tmpName, init, defaultValue, false);
 
     let i = 0;
-    const elements = [...pattern.elements];
+    const elements = pattern.elements.slice();
     for (const e of elements) {
       switch (e?.type) {
         case 'RestElement': { // let [ ...foo ] = []
@@ -3219,7 +3219,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     const tmpName = '#destructure' + uniqId();
     let out = generateVarDstr(scope, 'const', tmpName, init, defaultValue, false);
 
-    const properties = [...pattern.properties];
+    const properties = pattern.properties.slice();
     const usedProps = [];
     for (const prop of properties) {
       if (prop.type == 'Property') { // let { foo } = {}
