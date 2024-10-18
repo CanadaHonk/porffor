@@ -2517,12 +2517,19 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (func && func.hasRestArgument) {
-    const restArgs = args.slice(paramCount - 1);
-    args = args.slice(0, paramCount - 1);
-    args.push({
-      type: 'ArrayExpression',
-      elements: restArgs
-    });
+    // hack: spread + rest special handling
+    if (decl.arguments.at(-1)?.type === 'SpreadElement') {
+      // just use the array being spread
+      args = args.slice(0, args.length - 8);
+      args.push(decl.arguments.at(-1).argument);
+    } else {
+      const restArgs = args.slice(paramCount - 1);
+      args = args.slice(0, paramCount - 1);
+      args.push({
+        type: 'ArrayExpression',
+        elements: restArgs
+      });
+    }
   }
 
   if (func && args.length > paramCount) {
