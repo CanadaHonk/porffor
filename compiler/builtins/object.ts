@@ -629,7 +629,7 @@ export const __Object_groupBy = (items: any, callbackFn: any) => {
       out[k] = arr;
     }
 
-    out[k].push(x);
+    Porffor.array.fastPush(out[k], x);
   }
 
   return out;
