@@ -473,6 +473,8 @@ export const __Promise_race = (promises: any): Promise => {
   });
 };
 
+// export const __Promise_try = function (cb: any, ...args: any[]) { return new this(res => res(cb(...args))) };
+export const __Promise_try = async (cb: any, ...args: any[]) => cb(...args);
 
 export const __Promise_prototype_toString = (_this: any) => '[object Promise]';
 export const __Promise_prototype_toLocaleString = (_this: any) => __Promise_prototype_toString(_this);
