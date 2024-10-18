@@ -1922,21 +1922,29 @@ const createThisArg = (scope, decl) => {
       ...number(TYPES.object, Valtype.i32)
     ];
   } else {
-    if (name && name.startsWith('__') && name.includes('_prototype_')) {
-      // todo: this should just be same as decl._new
-      // but we do not support prototype, constructor, etc yet
-      // so do `this` as `new Type()` instead
-      const node = {
-        type: 'NewExpression',
-        callee: {
-          type: 'Identifier',
-          name: name.slice(2, name.indexOf('_', 2))
-        },
-        arguments: [],
-        _new: true
-      };
+    if (name && name.startsWith('__')) {
+      let node = null;
 
-      return [
+      if (name.includes('_prototype_')) {
+        node = {
+          type: 'NewExpression',
+          callee: {
+            type: 'Identifier',
+            name: name.slice(2, name.indexOf('_', 2))
+          },
+          arguments: [],
+          _new: true
+        };
+      } else {
+        node = {
+          type: 'Identifier',
+          name: name.slice(2, name.lastIndexOf('_'))
+        };
+
+        if (ifIdentifierErrors(scope, node)) node = null;
+      }
+
+      if (node) return [
         ...generate(scope, node),
         ...getNodeType(scope, node)
       ];
