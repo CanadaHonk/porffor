@@ -5126,16 +5126,11 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
     pointer = [ Opcodes.local_get, tmp ];
   }
 
-  // store length
-  if (length !== 0) out.push(
-    pointer,
-    ...number(length, Valtype.i32),
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
-  );
-
-  // todo: rewrite below to support RestElement (holdover from makeArray)
-  for (let i = 0; i < length; i++) {
+  // fast path: no spread elements, just store direct
+  let i = 0;
+  for (; i < length; i++) {
     if (elements[i] == null) continue;
+    if (elements[i].type === 'SpreadElement') break;
 
     const offset = ValtypeSize.i32 + i * (ValtypeSize[valtype] + 1);
     out.push(
@@ -5146,6 +5141,36 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
       pointer,
       ...getNodeType(scope, elements[i]),
       [ Opcodes.i32_store8, 0, ...unsignedLEB128(offset + ValtypeSize[valtype]) ]
+    );
+  }
+
+  // store direct length
+  if (i !== 0) out.push(
+    pointer,
+    ...number(i, Valtype.i32),
+    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
+  );
+
+  // push remaining (non-direct) elements
+  for (; i < length; i++) {
+    out.push(
+      ...generate(scope, {
+        type: 'CallExpression',
+        callee: {
+          type: 'Identifier',
+          name: '__Array_prototype_push'
+        },
+        arguments: [
+          [
+            pointer,
+            Opcodes.i32_from_u,
+            ...number(TYPES.array, Valtype.i32)
+          ],
+          elements[i]
+        ],
+        _protoInternalCall: true
+      }),
+      [ Opcodes.drop ]
     );
   }
 
