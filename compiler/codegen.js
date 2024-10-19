@@ -55,7 +55,7 @@ const funcRef = func => {
     [ Opcodes.const, 'funcref', func.name ]
   ];
 
-  const wrapperArgc = Prefs.indirectWrapperArgc ?? 8;
+  const wrapperArgc = Prefs.indirectWrapperArgc ?? 10;
   if (!func.wrapperFunc) {
     const locals = {}, params = [];
     for (let i = 0; i < wrapperArgc + 2; i++) {
@@ -2408,7 +2408,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     funcs.table = true;
     scope.table = true;
 
-    const wrapperArgc = Prefs.indirectWrapperArgc ?? 8;
+    const wrapperArgc = Prefs.indirectWrapperArgc ?? 10;
     const underflow = wrapperArgc - args.length;
     for (let i = 0; i < underflow; i++) args.push(DEFAULT_VALUE());
 
