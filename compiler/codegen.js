@@ -3,7 +3,7 @@ import { ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector, read_sign
 import { operatorOpcode } from './expression.js';
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
 import { PrototypeFuncs } from './prototype.js';
-import { number } from './embedding.js';
+import { number, typedNumber } from './embedding.js';
 import { TYPES, TYPE_FLAGS, TYPE_NAMES, typeHasFlag } from './types.js';
 import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
@@ -194,6 +194,9 @@ const generate = (scope, decl, valueUnused = false) => {
   if (valueUnused && !Prefs.optUnused) valueUnused = false;
 
   switch (decl.type) {
+    case 'Literal':
+      return generateLiteral(scope, decl);
+
     default:
       let wasm = generateLegacy(scope, decl, false, undefined, valueUnused);
       let leftover = countLeftover(wasm);
@@ -211,6 +214,10 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
   if (astCache.has(decl)) return astCache.get(decl);
 
   switch (decl.type) {
+    // updated versions
+    case 'Literal':
+      return cacheAst(decl, generate(scope, decl).concat(setLastType(scope)));
+
     case 'BinaryExpression':
       return cacheAst(decl, generateBinaryExp(scope, decl, global, name));
 
@@ -249,9 +256,6 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
 
     case 'Super':
       return cacheAst(decl, generateSuper(scope, decl));
-
-    case 'Literal':
-      return cacheAst(decl, generateLiteral(scope, decl, global, name));
 
     case 'VariableDeclaration':
       return cacheAst(decl, generateVar(scope, decl));
@@ -1643,23 +1647,26 @@ const getNodeType = (scope, node) => {
   return out;
 };
 
-const generateLiteral = (scope, decl, global, name) => {
-  if (decl.value === null) return number(NULL);
+const generateLiteral = (scope, decl) => {
+  if (decl.value === null) {
+    typeUsed(scope, TYPES.object);
+    return typedNumber(NULL, TYPES.object);
+  }
 
   // hack: just return 1 for regex literals
   if (decl.regex) {
-    return number(1);
+    return typedNumber(1, TYPES.regex);
   }
 
   switch (typeof decl.value) {
     case 'number':
-      return number(decl.value);
+      return typedNumber(decl.value, TYPES.number);
 
     case 'boolean':
-      return number(decl.value ? 1 : 0);
+      return typedNumber(decl.value ? 1 : 0, TYPES.boolean);
 
     case 'string':
-      return makeString(scope, decl.value);
+      return makeString(scope, decl.value).concat(number(byteStringable(decl.value) ? TYPES.bytestring : TYPES.string, Valtype.i32));
 
     default:
       return todo(scope, `cannot generate literal of type ${typeof decl.value}`, true);
