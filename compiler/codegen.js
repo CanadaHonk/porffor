@@ -381,6 +381,78 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
   }
 };
 
+// returns a setter and calls callback with a getter
+const storeInTmp = (scope, wasm, callback, name = '#generic_tmp' + uniqId(), type = valtypeBinary) => {
+  let last = wasm.at(-1);
+  if (last && [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const ].includes(last[0])) {
+    wasm.pop();
+    let cbInput = [ last ];
+    if (callback(cbInput) !== cbInput) {
+      // keep temporarily for catching bugs
+      throw new Error('storeInTmp should be called with a callback x => myVar = x');
+    }
+  } else {
+    let tmp = localTmp(scope, name, type);
+    let cbInput = [ [ Opcodes.local_get, tmp ] ];
+    if (callback(cbInput) !== cbInput) {
+      // keep temporarily for catching bugs
+      throw new Error('storeInTmp should be called with a callback x => myVar = x');
+    }
+    wasm.push([ Opcodes.local_set, tmp ]);
+  }
+  return wasm;
+};
+
+const dropFromWasm = wasm => {
+  let last = wasm[wasm.length - 1];
+  while (last && [ Opcodes.i32_trunc_sat_f64_u, Opcodes.i32_trunc_sat_f64_s, Opcodes.f64_convert_i32_u, Opcodes.f64_convert_i32_s ].includes(last[0])) {
+    wasm.pop();
+    last = wasm[wasm.length - 1];
+  }
+  if (last && [ Opcodes.br, Opcodes.return, Opcodes.throw ].includes(last[0])) {
+    return wasm;
+  }
+  if (last && [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const, Opcodes.local_get, Opcodes.global_get ].includes(last[0])) {
+    wasm.pop();
+  } else {
+    wasm.push([ Opcodes.drop ]);
+  }
+  return wasm;
+};
+
+const dropBelowFromWasm = wasm => {
+  let last = wasm[wasm.length - 1];
+  if (last && [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const, Opcodes.local_get, Opcodes.global_get ].includes(last[0])) {
+    let type = wasm.pop();
+    dropFromWasm(wasm);
+    wasm.push(type);
+  } else {
+    wasm.push(
+      [ Opcodes.block, [ [ valtypeBinary, Valtype.i32 ], [ Valtype.i32 ] ] ],
+        [ Opcodes.br, 0 ],
+      [ Opcodes.end ]
+    );
+  }
+  return wasm;
+};
+
+const mutateTypedValue = (scope, wasm, valueMutator) => {
+  if (valueMutator.length === 0) {
+    return wasm;
+  }
+  let last = wasm[wasm.length - 1];
+  if (last && [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const, Opcodes.local_get, Opcodes.global_get ].includes(last[0])) {
+    let type = wasm.pop();
+    wasm.push(...valueMutator);
+    wasm.push(type);
+  } else {
+    wasm.push(...setLastType(scope));
+    wasm.push(...valueMutator);
+    wasm.push(...getLastType(scope));
+  }
+  return wasm;
+};
+
 const optional = (op, clause = op.at(-1)) => clause || clause === 0 ? (Array.isArray(op[0]) ? op : [ op ]) : [];
 
 const lookupName = (scope, name) => {
@@ -6224,7 +6296,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       }
 
       const preface = wasm;
-      wasm = generateLegacy(func, body);
+      wasm = generate(func, body);
       wasm.unshift(...preface);
 
       if (func.generator) {
