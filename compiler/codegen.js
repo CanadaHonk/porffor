@@ -195,7 +195,16 @@ const generate = (scope, decl, valueUnused = false) => {
 
   switch (decl.type) {
     case 'Literal':
-      return generateLiteral(scope, decl);
+      return generateLiteral(scope, decl, valueUnused);
+
+    case 'BlockStatement':
+      return generateCode(scope, decl, valueUnused);
+
+    case 'EmptyStatement':
+      return generateEmpty(scope, decl);
+
+    case 'ExpressionStatement':
+      return generateExp(scope, decl, valueUnused);
 
     default:
       let wasm = generateLegacy(scope, decl, false, undefined, valueUnused);
@@ -216,7 +225,7 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
   switch (decl.type) {
     // updated versions
     case 'Literal':
-      let wasm = generate(scope, decl);
+      let wasm = generate(scope, decl, valueUnused);
       const known = knownType(scope, wasm);
       if (known != null) {
         wasm.pop();
@@ -225,6 +234,12 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
       }
       wasm.push(...setLastType(scope));
       return cacheAst(decl, wasm);
+
+    // update statements
+    case 'BlockStatement':
+    case 'EmptyStatement':
+    case 'ExpressionStatement':
+      return cacheAst(decl, dropFromWasm(dropFromWasm(generate(scope, decl, true))));
 
     case 'BinaryExpression':
       return cacheAst(decl, generateBinaryExp(scope, decl, global, name));
@@ -240,14 +255,8 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
     case 'FunctionExpression':
       return cacheAst(decl, generateFunc(scope, decl)[1]);
 
-    case 'BlockStatement':
-      return cacheAst(decl, generateCode(scope, decl));
-
     case 'ReturnStatement':
       return cacheAst(decl, generateReturn(scope, decl));
-
-    case 'ExpressionStatement':
-      return cacheAst(decl, generateExp(scope, decl));
 
     case 'SequenceExpression':
       return cacheAst(decl, generateSequence(scope, decl));
@@ -306,9 +315,6 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
 
     case 'LabeledStatement':
       return cacheAst(decl, generateLabel(scope, decl));
-
-    case 'EmptyStatement':
-      return cacheAst(decl, generateEmpty(scope, decl));
 
     case 'MetaProperty':
       return cacheAst(decl, generateMeta(scope, decl));
@@ -1732,7 +1738,12 @@ const getNodeType = (scope, node) => {
   return out;
 };
 
-const generateLiteral = (scope, decl) => {
+const generateLiteral = (scope, decl, valueUnused) => {
+  if (valueUnused) {
+    // for string expression statements like 'use strict';
+    return typedNumber(UNDEFINED, TYPES.undefined);
+  }
+
   if (decl.value === null) {
     typeUsed(scope, TYPES.object);
     return typedNumber(NULL, TYPES.object);
@@ -1811,7 +1822,7 @@ const disposeLeftover = wasm => {
   for (let i = 0; i < leftover; i++) wasm.push([ Opcodes.drop ]);
 };
 
-const generateExp = (scope, decl) => {
+const generateExp = (scope, decl, valueUnused = true) => {
   const expression = decl.expression;
 
   if (expression.type === 'Literal' && typeof expression.value === 'string') {
@@ -1820,10 +1831,7 @@ const generateExp = (scope, decl) => {
     }
   }
 
-  const out = generateLegacy(scope, expression, undefined, undefined, !scope.inEval);
-  disposeLeftover(out);
-
-  return out;
+  return generate(scope, expression, valueUnused);
 };
 
 const generateSequence = (scope, decl) => {
@@ -2087,22 +2095,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
 
     scope.inEval = true;
-    const out = generateLegacy(scope, {
+    const out = generate(scope, {
       type: 'BlockStatement',
       body: parsed.body
     });
+    out.push(...setLastType(scope));
     scope.inEval = false;
-
-    const lastInst = out[out.length - 1];
-    if (lastInst && lastInst[0] === Opcodes.drop) {
-      out.splice(out.length - 1, 1);
-
-      const finalStatement = parsed.body[parsed.body.length - 1];
-      out.push(...setLastType(scope, getNodeType(scope, finalStatement)));
-    } else if (countLeftover(out) === 0) {
-      out.push(...number(UNDEFINED));
-      out.push(...setLastType(scope, TYPES.undefined));
-    }
 
     return out;
   }
@@ -5008,7 +5006,7 @@ const generateTry = (scope, decl) => {
 };
 
 const generateEmpty = (scope, decl) => {
-  return [];
+  return typedNumber(UNDEFINED, TYPES.undefined);
 };
 
 const generateMeta = (scope, decl) => {
@@ -6296,7 +6294,10 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       }
 
       const preface = wasm;
-      wasm = generate(func, body);
+      wasm = generate(func, body, name !== '#main');
+      if (name !== '#main') {
+        dropFromWasm(dropFromWasm(wasm));
+      }
       wasm.unshift(...preface);
 
       if (func.generator) {
@@ -6346,38 +6347,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       if (name === '#main') {
         func.gotLastType = true;
         func.export = true;
-
-        let finalStatement = decl.body.body[decl.body.body.length - 1];
-        if (finalStatement?.type === 'EmptyStatement') finalStatement = decl.body.body[decl.body.body.length - 2];
-
-        const lastInst = wasm[wasm.length - 1] ?? [ Opcodes.end ];
-        if (lastInst[0] === Opcodes.drop || lastInst[0] === Opcodes.f64_const) {
-          if (finalStatement.type.endsWith('Declaration')) {
-            // final statement is decl, force undefined
-            disposeLeftover(wasm);
-            wasm.push(
-              ...number(UNDEFINED),
-              ...number(TYPES.undefined, Valtype.i32)
-            );
-          } else {
-            wasm.splice(wasm.length - 1, 1);
-            wasm.push(...getNodeType(func, finalStatement));
-          }
-        }
-
-        if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
-          if (lastInst[0] === Opcodes.local_set && lastInst[1] === func.locals['#last_type'].idx) {
-            wasm.splice(wasm.length - 1, 1);
-          } else {
-            func.returns = [];
-          }
-        }
-
-        if (lastInst[0] === Opcodes.call) {
-          const callee = funcByIndex(lastInst[1]);
-          if (callee) func.returns = callee.returns.slice();
-            else func.returns = [];
-        }
 
         // inject promise job runner func at the end of main if promises are made
         if (Object.hasOwn(funcIndex, 'Promise') || Object.hasOwn(funcIndex, '__Promise_resolve') || Object.hasOwn(funcIndex, '__Promise_reject')) {
@@ -6466,11 +6435,22 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   return [ func, out ];
 };
 
-const generateCode = (scope, decl) => {
+const generateCode = (scope, decl, valueUnused = true) => {
   let out = [];
 
-  for (const x of decl.body) {
-    out = out.concat(generateLegacy(scope, x));
+  const last = decl.body.length - 1;
+  for (let i = 0; i < decl.body.length; i++) {
+    const wasm = generate(scope, decl.body[i], valueUnused || i !== last);
+    if (valueUnused || i !== last) {
+      dropFromWasm(dropFromWasm(wasm));
+    }
+    out = out.concat(wasm);
+  }
+  if (!valueUnused && out.length === 0) {
+    return generateEmpty();
+  }
+  if (valueUnused) {
+    out.push(...typedNumber(UNDEFINED, TYPES.undefined));
   }
 
   return out;
