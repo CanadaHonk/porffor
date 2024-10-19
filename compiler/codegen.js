@@ -190,7 +190,23 @@ const forceDuoValtype = (scope, wasm, forceValtype) => [
   ] : [])
 ];
 
-const generate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
+const generate = (scope, decl, valueUnused = false) => {
+  if (valueUnused && !Prefs.optUnused) valueUnused = false;
+
+  switch (decl.type) {
+    default:
+      let wasm = generateLegacy(scope, decl, false, undefined, valueUnused);
+      let leftover = countLeftover(wasm);
+      if (leftover === 0) {
+        wasm = wasm.concat(typedNumber(UNDEFINED, TYPES.undefined));
+      } else if (leftover === 1) {
+        wasm = wasm.concat(getNodeType(scope, decl));
+      }
+      return wasm;
+  }
+};
+
+const generateLegacy = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   if (valueUnused && !Prefs.optUnused) valueUnused = false;
   if (astCache.has(decl)) return astCache.get(decl);
 
@@ -326,7 +342,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       if (!decl.declaration) return todo(scope, 'unsupported export declaration');
 
       const funcsBefore = funcs.map(x => x.name);
-      generate(scope, decl.declaration);
+      generateLegacy(scope, decl.declaration);
 
       // set new funcs as exported
       if (funcsBefore.length !== funcs.length) {
@@ -363,7 +379,7 @@ const lookupName = (scope, name) => {
 };
 
 const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysValueInternalThrows) => [
-  ...generate(scope, {
+  ...generateLegacy(scope, {
     type: 'ThrowStatement',
     argument: {
       type: 'CallExpression',
@@ -468,7 +484,7 @@ const generateYield = (scope, decl) => {
     [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
     ...number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32),
 
-    ...generate(scope, arg),
+    ...generateLegacy(scope, arg),
     ...getNodeType(scope, arg),
 
     [ Opcodes.call, includeBuiltin(scope, scope.async ? '__Porffor_AsyncGenerator_yield' : '__Porffor_Generator_yield').index ],
@@ -495,7 +511,7 @@ const generateReturn = (scope, decl) => {
       [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
       ...number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32),
 
-      ...generate(scope, arg),
+      ...generateLegacy(scope, arg),
       ...getNodeType(scope, arg),
 
       [ Opcodes.call, includeBuiltin(scope, scope.async ? '__Porffor_AsyncGenerator_prototype_return' : '__Porffor_Generator_prototype_return').index ],
@@ -512,7 +528,7 @@ const generateReturn = (scope, decl) => {
   if (scope.async) {
     return [
       // resolve promise with return value
-      ...generate(scope, arg),
+      ...generateLegacy(scope, arg),
       ...getNodeType(scope, arg),
 
       [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
@@ -535,7 +551,7 @@ const generateReturn = (scope, decl) => {
   ) {
     // perform return value checks for constructors and (sub)classes
     return [
-      ...generate(scope, arg),
+      ...generateLegacy(scope, arg),
       [ Opcodes.local_set, localTmp(scope, '#return') ],
       ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
       [ Opcodes.local_set, localTmp(scope, '#return#type', Valtype.i32) ],
@@ -560,7 +576,7 @@ const generateReturn = (scope, decl) => {
         ] : []),
 
         // if not object, then...
-        ...generate(scope, {
+        ...generateLegacy(scope, {
           type: 'CallExpression',
           callee: {
             type: 'Identifier',
@@ -594,7 +610,7 @@ const generateReturn = (scope, decl) => {
   }
 
   return [
-    ...generate(scope, arg),
+    ...generateLegacy(scope, arg),
     ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
     [ Opcodes.return ]
   ];
@@ -1052,7 +1068,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
     if (rightName) {
       let checkType = TYPES[rightName.toLowerCase()];
       if (checkType != null && rightName === TYPE_NAMES[checkType] && !rightName.endsWith('Error')) {
-        const out = generate(scope, decl.left);
+        const out = generateLegacy(scope, decl.left);
         disposeLeftover(out);
 
         // switch primitive types to primitive object types
@@ -1076,7 +1092,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
       }
     }
 
-    return generate(scope, {
+    return generateLegacy(scope, {
       type: 'CallExpression',
       callee: {
         type: 'Identifier',
@@ -1091,7 +1107,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
   }
 
   if (decl.operator === 'in') {
-    return generate(scope, {
+    return generateLegacy(scope, {
       type: 'CallExpression',
       callee: {
         type: 'Identifier',
@@ -1107,21 +1123,21 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
   // opt: == null|undefined -> nullish
   if (decl.operator === '==' || decl.operator === '!=') {
     if (knownNullish(decl.right)) {
-      const out = nullish(scope, generate(scope, decl.left), getNodeType(scope, decl.left), false, true);
+      const out = nullish(scope, generateLegacy(scope, decl.left), getNodeType(scope, decl.left), false, true);
       if (decl.operator === '!=') out.push([ Opcodes.i32_eqz ]);
       out.push(Opcodes.i32_from_u);
       return out;
     }
 
     if (knownNullish(decl.left)) {
-      const out = nullish(scope, generate(scope, decl.right), getNodeType(scope, decl.right), false, true);
+      const out = nullish(scope, generateLegacy(scope, decl.right), getNodeType(scope, decl.right), false, true);
       if (decl.operator === '!=') out.push([ Opcodes.i32_eqz ]);
       out.push(Opcodes.i32_from_u);
       return out;
     }
   }
 
-  const out = performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right), _global, _name);
+  const out = performOp(scope, decl.operator, generateLegacy(scope, decl.left), generateLegacy(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right), _global, _name);
   if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from_u);
 
   return out;
@@ -1130,7 +1146,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
 const asmFuncToAsm = (scope, func) => {
   return func(scope, {
     Valtype, Opcodes, TYPES, TYPE_NAMES, typeSwitch, makeString, allocPage, internalThrow,
-    getNodeType, generate, generateIdent,
+    getNodeType, generate: generateLegacy, generateIdent,
     builtin: (n, offset = false) => {
       let idx = funcIndex[n] ?? importedFuncs[n];
       if (idx == null && builtinFuncs[n]) {
@@ -1302,7 +1318,7 @@ const includeBuiltin = (scope, builtin) => {
 };
 
 const generateLogicExp = (scope, decl) => {
-  return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
+  return performLogicOp(scope, decl.operator, generateLegacy(scope, decl.left), generateLegacy(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
 };
 
 // potential future ideas for nan boxing (unused):
@@ -1712,7 +1728,7 @@ const generateExp = (scope, decl) => {
     }
   }
 
-  const out = generate(scope, expression, undefined, undefined, !scope.inEval);
+  const out = generateLegacy(scope, expression, undefined, undefined, !scope.inEval);
   disposeLeftover(out);
 
   return out;
@@ -1724,7 +1740,7 @@ const generateSequence = (scope, decl) => {
   const exprs = decl.expressions;
   for (let i = 0; i < exprs.length; i++) {
     if (i > 0) disposeLeftover(out);
-    out.push(...generate(scope, exprs[i]));
+    out.push(...generateLegacy(scope, exprs[i]));
   }
 
   return out;
@@ -1732,7 +1748,7 @@ const generateSequence = (scope, decl) => {
 
 const generateChain = (scope, decl) => {
   scope.chainMembers = 0;
-  const out = generate(scope, decl.expression);
+  const out = generateLegacy(scope, decl.expression);
   scope.chainMembers = null;
 
   return out;
@@ -1795,7 +1811,7 @@ const makeObject = (scope, obj) => {
     });
   }
 
-  return generate(scope, {
+  return generateLegacy(scope, {
     type: 'ObjectExpression',
     properties
   });
@@ -1900,14 +1916,14 @@ const createThisArg = (scope, decl) => {
 
       ...number(TYPES.object, Valtype.i32),
 
-      ...generate(scope, {
+      ...generateLegacy(scope, {
         type: 'Literal',
         value: '__proto__'
       }, false, '#member_prop_assign'),
       Opcodes.i32_to_u,
       ...number(TYPES.bytestring, Valtype.i32),
 
-      ...generate(scope, proto),
+      ...generateLegacy(scope, proto),
       ...getNodeType(scope, proto),
 
       // flags: writable
@@ -1945,7 +1961,7 @@ const createThisArg = (scope, decl) => {
       }
 
       if (node) return [
-        ...generate(scope, node),
+        ...generateLegacy(scope, node),
         ...getNodeType(scope, node)
       ];
     }
@@ -1989,7 +2005,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
 
     scope.inEval = true;
-    const out = generate(scope, {
+    const out = generateLegacy(scope, {
       type: 'BlockStatement',
       body: parsed.body
     });
@@ -2045,7 +2061,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const idx = funcIndex[rhemynName];
       return [
         // make string arg
-        ...generate(scope, decl.arguments[0]),
+        ...generateLegacy(scope, decl.arguments[0]),
         Opcodes.i32_to_u,
         ...getNodeType(scope, decl.arguments[0]),
 
@@ -2067,12 +2083,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const valTmp = localTmp(scope, '#call_val');
       const typeTmp = localTmp(scope, '#call_type', Valtype.i32);
 
-      return generate(scope, {
+      return generateLegacy(scope, {
         type: 'CallExpression',
         callee: target,
         arguments: decl.arguments.slice(1),
         _thisWasm: [
-          ...generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+          ...generateLegacy(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
           [ Opcodes.local_tee, valTmp ],
           ...getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
           [ Opcodes.local_tee, typeTmp ],
@@ -2089,7 +2105,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ],
         _thisWasmComponents: {
           _callValue: [
-            ...generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+            ...generateLegacy(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
             [ Opcodes.local_tee, valTmp ],
             ...getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
             [ Opcodes.local_set, typeTmp ],
@@ -2113,7 +2129,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const regex = decl.arguments[0]?.regex?.pattern;
       if (!regex) return [
         // no/bad regex arg, return -1/0 for now
-        ...generate(scope, target),
+        ...generateLegacy(scope, target),
         [ Opcodes.drop ],
 
         ...number(Rhemyn.types[protoName] === TYPES.number ? -1 : 0),
@@ -2133,7 +2149,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const idx = funcIndex[rhemynName];
       return [
         // make string arg
-        ...generate(scope, target),
+        ...generateLegacy(scope, target),
         Opcodes.i32_to_u,
         ...getNodeType(scope, target),
 
@@ -2150,7 +2166,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
     if (!decl._protoInternalCall && builtinProtoCands.length > 0) {
       out.push(
-        ...generate(scope, target),
+        ...generateLegacy(scope, target),
         [ Opcodes.local_set, localTmp(scope, '#proto_target') ],
 
         ...getNodeType(scope, target),
@@ -2171,7 +2187,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         const type = TYPES[name.slice(2)] ?? TYPES[name];
         if (type == null) continue;
 
-        protoBC[type] = () => generate(scope, {
+        protoBC[type] = () => generateLegacy(scope, {
           type: 'CallExpression',
           callee: {
             type: 'Identifier',
@@ -2203,7 +2219,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       // TODO: long-term, prototypes should be their individual separate funcs
 
       const rawPointer = [
-        ...generate(scope, target),
+        ...generateLegacy(scope, target),
         Opcodes.i32_to_u
       ];
 
@@ -2234,7 +2250,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             set: value => ArrayUtil.setLength(getPointer, value),
             setI32: value => ArrayUtil.setLengthI32(getPointer, value)
           },
-          generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+          generateLegacy(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
           getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
           protoLocal, protoLocal2,
           bytes => [
@@ -2308,7 +2324,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     // foo(a, b, ...c) -> _ = c; foo(a, b, _[0], _[1], ...)
     const arg = args.at(-1).argument;
     out.push(
-      ...generate(scope, arg),
+      ...generateLegacy(scope, arg),
       [ Opcodes.local_set, localTmp(scope, '#spread') ],
       ...getNodeType(scope, arg),
       [ Opcodes.local_set, localTmp(scope, '#spread#type', Valtype.i32) ],
@@ -2383,7 +2399,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         if (!op.args[i]) globalThis.noi32F64CallConv = true;
 
         argOut.push(
-          ...generate(scope, decl.arguments[i]),
+          ...generateLegacy(scope, decl.arguments[i]),
           ...(op.args[i] ? [ Opcodes.i32_to ] : [])
         );
 
@@ -2414,7 +2430,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
-      out = out.concat(generate(scope, arg), valtypeBinary === Valtype.i32 && scope.locals[arg.name]?.type !== Valtype.f64 ? [ [ Opcodes.f64_convert_i32_s ] ] : [], getNodeType(scope, arg));
+      out = out.concat(generateLegacy(scope, arg), valtypeBinary === Valtype.i32 && scope.locals[arg.name]?.type !== Valtype.f64 ? [ [ Opcodes.f64_convert_i32_s ] ] : [], getNodeType(scope, arg));
     }
 
     let knownThis = undefined, getCallee = undefined;
@@ -2430,12 +2446,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         [ Opcodes.local_get, thisLocalType ]
       ];
       getCallee = [
-        ...generate(scope, decl.callee.object),
+        ...generateLegacy(scope, decl.callee.object),
         [ Opcodes.local_set, thisLocal ],
         ...getNodeType(scope, decl.callee.object),
         [ Opcodes.local_set, thisLocalType ],
 
-        ...generate(scope, {
+        ...generateLegacy(scope, {
           type: 'MemberExpression',
           object: { type: 'Identifier', name: '#indirect_caller' },
           property: decl.callee.property,
@@ -2451,7 +2467,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       callee = getObjProp(callee, 'constructor');
       callAsNew = true;
       knownThis = [
-        ...generate(scope, { type: 'ThisExpression' }),
+        ...generateLegacy(scope, { type: 'ThisExpression' }),
         ...getNodeType(scope, { type: 'ThisExpression' })
       ];
     }
@@ -2462,7 +2478,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     const thisWasm = decl._thisWasm ?? knownThis ?? createThisArg(scope, decl);
 
     return [
-      ...(getCallee ? getCallee : generate(scope, callee)),
+      ...(getCallee ? getCallee : generateLegacy(scope, callee)),
       [ Opcodes.local_set, calleeLocal ],
 
       ...typeSwitch(scope, getNodeType(scope, callee), {
@@ -2552,7 +2568,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       continue;
     }
 
-    out = out.concat(arg._callValue ?? generate(scope, arg));
+    out = out.concat(arg._callValue ?? generateLegacy(scope, arg));
 
     // todo: this should be used instead of the too many args thing above (by removing that)
     if (i >= paramCount) {
@@ -2605,7 +2621,7 @@ const generateThis = (scope, decl) => {
   if (!scope.constr) {
     // this in a non-constructor context is a reference to globalThis
     return [
-      ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
+      ...generateLegacy(scope, { type: 'Identifier', name: 'globalThis' }),
       ...setLastType(scope, getType(scope, 'globalThis'))
     ];
   }
@@ -2622,7 +2638,7 @@ const generateThis = (scope, decl) => {
     ...number(TYPES.undefined, Valtype.i32),
     [ Opcodes.i32_eq ],
     [ Opcodes.if, Blocktype.void ],
-      ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
+      ...generateLegacy(scope, { type: 'Identifier', name: 'globalThis' }),
       [ Opcodes.local_set, scope.locals['#this'].idx ],
       ...getType(scope, 'globalThis'),
       [ Opcodes.local_set, scope.locals['#this#type'].idx ],
@@ -2633,7 +2649,7 @@ const generateThis = (scope, decl) => {
   ];
 };
 
-const generateSuper = (scope, decl) => generate(scope,
+const generateSuper = (scope, decl) => generateLegacy(scope,
   getObjProp(getObjProp({ type: 'ThisExpression', _noGlobalThis: true }, '__proto__'), '__proto__'));
 
 // bad hack for undefined and null working without additional logic
@@ -2979,7 +2995,7 @@ const extractTypeAnnotation = decl => {
 
 const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType = undefined) => {
   const local = isGlobal ? globals[name] : (scope.locals[name] ?? { idx: name });
-  const out = Array.isArray(decl) ? decl : generate(scope, decl, isGlobal, name);
+  const out = Array.isArray(decl) ? decl : generateLegacy(scope, decl, isGlobal, name);
 
   // optimize away last type usage
   // todo: detect last type then i32 conversion op
@@ -3109,7 +3125,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
     // // generate init before allocating var
     // let generated;
-    // if (init) generated = generate(scope, init, global, name);
+    // if (init) generated = generateLegacy(scope, init, global, name);
 
     const typed = typedInput && pattern.typeAnnotation;
     let idx = allocVar(scope, name, global, !(typed && extractTypeAnnotation(pattern).type != null));
@@ -3122,7 +3138,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     if (init) {
       const alreadyArray = scope.arrays?.get(name) != null;
 
-      let newOut = generate(scope, init, global, name);
+      let newOut = generateLegacy(scope, init, global, name);
       if (!alreadyArray && scope.arrays?.get(name) != null) {
         // hack to set local as pointer before
         newOut.unshift(...number(scope.arrays.get(name)), [ global ? Opcodes.global_set : Opcodes.local_set, idx ]);
@@ -3141,7 +3157,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
         out.push(
           ...typeIsOneOf(getType(scope, name), [ TYPES.undefined, TYPES.empty ]),
           [ Opcodes.if, Blocktype.void ],
-            ...generate(scope, defaultValue, global, name),
+            ...generateLegacy(scope, defaultValue, global, name),
             [ global ? Opcodes.global_set : Opcodes.local_set, idx ],
             ...setType(scope, name, getNodeType(scope, defaultValue)),
           [ Opcodes.end ],
@@ -3392,16 +3408,16 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     let pointerTmp = op !== '=' && localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
     const out = [
-      ...generate(scope, decl.left.object),
+      ...generateLegacy(scope, decl.left.object),
       Opcodes.i32_to_u
     ];
 
     const lengthTypeWasm = [
-      ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+      ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
         [ Opcodes.local_get, pointerTmp ],
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         Opcodes.i32_from_u
-      ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right))),
+      ], generateLegacy(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right))),
       ...optional([ Opcodes.local_tee, newValueTmp ]),
 
       Opcodes.i32_to_u,
@@ -3422,7 +3438,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     pointerTmp ||= localTmp(scope, '__member_setter_ptr_tmp', Valtype.i32);
 
-    const slow = generate(scope, {
+    const slow = generateLegacy(scope, {
       ...decl,
       _internalAssign: true
     });
@@ -3458,10 +3474,10 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const propertyWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_prop_assign') ] ];
 
     return [
-      ...generate(scope, object),
+      ...generateLegacy(scope, object),
       [ Opcodes.local_set, objectWasm[0][1] ],
 
-      ...generate(scope, property, false, '#member_prop_assign'),
+      ...generateLegacy(scope, property, false, '#member_prop_assign'),
       [ Opcodes.local_set, localTmp(scope, '#member_prop_assign') ],
 
       // todo: review last type usage here
@@ -3481,10 +3497,10 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             [ Opcodes.i32_add ],
             [ Opcodes.local_tee, pointerTmp ],
 
-            ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+            ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
               [ Opcodes.local_get, pointerTmp ],
               [ Opcodes.load, 0, ValtypeSize.i32 ]
-            ], generate(scope, decl.right), [
+            ], generateLegacy(scope, decl.right), [
               [ Opcodes.local_get, pointerTmp ],
               [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
             ], getNodeType(scope, decl.right), false, name, true)),
@@ -3503,11 +3519,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               [ Opcodes.i32_add ],
               ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load8_u, 0, 4 ],
                 Opcodes.i32_from_u
-              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              ], generateLegacy(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to_u,
@@ -3517,11 +3533,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               [ Opcodes.i32_add ],
               ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load8_u, 0, 4 ],
                 Opcodes.i32_from_u
-              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              ], generateLegacy(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               ...number(0),
@@ -3535,11 +3551,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               [ Opcodes.i32_add ],
               ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load8_s, 0, 4 ],
                 Opcodes.i32_from
-              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              ], generateLegacy(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to,
@@ -3551,11 +3567,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               [ Opcodes.i32_add ],
               ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load16_u, 0, 4 ],
                 Opcodes.i32_from_u
-              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              ], generateLegacy(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to_u,
@@ -3567,11 +3583,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               [ Opcodes.i32_add ],
               ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load16_s, 0, 4 ],
                 Opcodes.i32_from
-              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              ], generateLegacy(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to,
@@ -3583,11 +3599,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               [ Opcodes.i32_add ],
               ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load, 0, 4 ],
                 Opcodes.i32_from_u
-              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              ], generateLegacy(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to_u,
@@ -3599,11 +3615,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               [ Opcodes.i32_add ],
               ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load, 0, 4 ],
                 Opcodes.i32_from
-              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              ], generateLegacy(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to,
@@ -3615,11 +3631,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               [ Opcodes.i32_add ],
               ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.f32_load, 0, 4 ],
                 [ Opcodes.f64_promote_f32 ]
-              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              ], generateLegacy(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               [ Opcodes.f32_demote_f64 ],
@@ -3631,10 +3647,10 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               [ Opcodes.i32_add ],
               ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
 
-              ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+              ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.f64_load, 0, 4 ]
-              ], generate(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
+              ], generateLegacy(scope, decl.right), number(TYPES.number, Valtype.i32), getNodeType(scope, decl.right), false, name, true)),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               [ Opcodes.f64_store, 0, 4 ]
@@ -3672,7 +3688,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           ]),
           ...(op === '=' ? [] : [ [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
 
-          ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
+          ...(op === '=' ? generateLegacy(scope, decl.right) : performOp(scope, op, [
             [ Opcodes.local_get, localTmp(scope, '#objset_object', Valtype.i32) ],
             ...getNodeType(scope, object),
 
@@ -3681,7 +3697,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
             [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
             ...setLastType(scope)
-          ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
+          ], generateLegacy(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
           ...getNodeType(scope, decl),
 
           [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
@@ -3703,7 +3719,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       return [
         ...generateVarDstr(scope, 'const', tmpName, decl.right, undefined, true),
         ...generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true),
-        ...generate(scope, { type: 'Identifier', name: tmpName }),
+        ...generateLegacy(scope, { type: 'Identifier', name: tmpName }),
         ...setLastType(scope, getNodeType(scope, decl.right))
       ];
     }
@@ -3712,13 +3728,13 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       if (scope.strict) return internalThrow(scope, 'TypeError', `Cannot assign to non-writable global ${name}`, true);
 
       // just return rhs (eg `NaN = 2`)
-      return generate(scope, decl.right);
+      return generateLegacy(scope, decl.right);
     }
 
     // set global and return (eg a = 2)
     return [
       ...generateVarDstr(scope, 'var', name, decl.right, undefined, true),
-      ...optional(generate(scope, decl.left), !valueUnused),
+      ...optional(generateLegacy(scope, decl.left), !valueUnused),
       ...optional(number(UNDEFINED), valueUnused)
     ];
   }
@@ -3743,7 +3759,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       ...performOp(scope, op, [
         [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
       ], [
-        ...generate(scope, decl.right, isGlobal, name),
+        ...generateLegacy(scope, decl.right, isGlobal, name),
         [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
         [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
       ], getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
@@ -3755,7 +3771,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   const out = setLocalWithType(
     scope, name, isGlobal,
-    performOp(scope, op, [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
+    performOp(scope, op, [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generateLegacy(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
     !valueUnused,
     getNodeType(scope, decl)
   );
@@ -3766,7 +3782,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
 const ifIdentifierErrors = (scope, decl) => {
   if (decl.type === 'Identifier') {
-    const out = generate(scope, decl);
+    const out = generateLegacy(scope, decl);
     if (out[0][0] === null && typeof out[0][1] === 'function') return true;
   }
 
@@ -3777,15 +3793,15 @@ const generateUnary = (scope, decl) => {
   switch (decl.operator) {
     case '+':
       // opt: skip ToNumber if already known as number type
-      generate(scope, decl.argument); // hack: fix last type not being defined for getNodeType before generation
+      generateLegacy(scope, decl.argument); // hack: fix last type not being defined for getNodeType before generation
       const known = knownType(scope, getNodeType(scope, decl.argument));
-      if (known === TYPES.number) return generate(scope, decl.argument);
+      if (known === TYPES.number) return generateLegacy(scope, decl.argument);
 
       // 13.5.4 Unary + Operator, 13.5.4.1 Runtime Semantics: Evaluation
       // https://tc39.es/ecma262/#sec-unary-plus-operator-runtime-semantics-evaluation
       // 1. Let expr be ? Evaluation of UnaryExpression.
       // 2. Return ? ToNumber(? GetValue(expr)).
-      return generate(scope, {
+      return generateLegacy(scope, {
         type: 'CallExpression',
         callee: {
           type: 'Identifier',
@@ -3805,7 +3821,7 @@ const generateUnary = (scope, decl) => {
       }
 
       return [
-        ...generate(scope, {
+        ...generateLegacy(scope, {
           type: 'UnaryExpression',
           operator: '+',
           prefix: true,
@@ -3818,15 +3834,15 @@ const generateUnary = (scope, decl) => {
       const arg = decl.argument;
       if (arg.type === 'UnaryExpression' && arg.operator === '!') {
         // opt: !!x -> is x truthy
-        return truthy(scope, generate(scope, arg.argument), getNodeType(scope, arg.argument), false, false, 'full');
+        return truthy(scope, generateLegacy(scope, arg.argument), getNodeType(scope, arg.argument), false, false, 'full');
       }
 
       // !=
-      return falsy(scope, generate(scope, arg), getNodeType(scope, arg), false, false);
+      return falsy(scope, generateLegacy(scope, arg), getNodeType(scope, arg), false, false);
 
     case '~':
       return [
-        ...generate(scope, {
+        ...generateLegacy(scope, {
           type: 'UnaryExpression',
           operator: '+',
           prefix: true,
@@ -3840,7 +3856,7 @@ const generateUnary = (scope, decl) => {
 
     case 'void': {
       // drop current expression value after running, give undefined
-      const out = generate(scope, decl.argument);
+      const out = generateLegacy(scope, decl.argument);
       disposeLeftover(out);
 
       out.push(...number(UNDEFINED));
@@ -3858,11 +3874,11 @@ const generateUnary = (scope, decl) => {
         if (property.value === 'length' || property.value === 'name') scope.noFastFuncMembers = true;
 
         return [
-          ...generate(scope, object),
+          ...generateLegacy(scope, object),
           Opcodes.i32_to_u,
           ...getNodeType(scope, object),
 
-          ...toPropertyKey(scope, generate(scope, property), getNodeType(scope, property), decl.argument.computed, true),
+          ...toPropertyKey(scope, generateLegacy(scope, property), getNodeType(scope, property), decl.argument.computed, true),
 
           [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_deleteStrict' : '__Porffor_object_delete').index ],
           [ Opcodes.drop ],
@@ -3884,7 +3900,7 @@ const generateUnary = (scope, decl) => {
         }
       }
 
-      const out = toGenerate ? generate(scope, decl.argument) : [];
+      const out = toGenerate ? generateLegacy(scope, decl.argument) : [];
       disposeLeftover(out);
 
       out.push(...number(toReturn ? 1 : 0));
@@ -3898,7 +3914,7 @@ const generateUnary = (scope, decl) => {
         toGenerate = false;
       }
 
-      const out = toGenerate ? generate(scope, decl.argument) : [];
+      const out = toGenerate ? generateLegacy(scope, decl.argument) : [];
       disposeLeftover(out);
 
       out.push(...typeSwitch(scope, overrideType ?? getNodeType(scope, decl.argument), [
@@ -3958,7 +3974,7 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
   return [
     // tmp = +x
     // if postfix, tee to keep on stack as return value
-    ...generate(scope, {
+    ...generateLegacy(scope, {
       type: 'UnaryExpression',
       operator: '+',
       prefix: true,
@@ -3967,7 +3983,7 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
     [ decl.prefix || valueUnused ? Opcodes.local_set : Opcodes.local_tee, tmp ],
 
     // x = tmp + 1
-    ...generate(scope, {
+    ...generateLegacy(scope, {
       type: 'AssignmentExpression',
       operator: '=',
       left: decl.argument,
@@ -3989,19 +4005,19 @@ const generateIf = (scope, decl) => {
     return [ [ null, 'comptime_flag', flag, decl.consequent, '#', Prefs ] ];
   }
 
-  const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test), false, true);
+  const out = truthy(scope, generateLegacy(scope, decl.test), getNodeType(scope, decl.test), false, true);
 
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
-  const consOut = generate(scope, decl.consequent);
+  const consOut = generateLegacy(scope, decl.consequent);
   disposeLeftover(consOut);
   out.push(...consOut);
 
   if (decl.alternate) {
     out.push([ Opcodes.else ]);
 
-    const altOut = generate(scope, decl.alternate);
+    const altOut = generateLegacy(scope, decl.alternate);
     disposeLeftover(altOut);
     out.push(...altOut);
   }
@@ -4013,20 +4029,20 @@ const generateIf = (scope, decl) => {
 };
 
 const generateConditional = (scope, decl) => {
-  const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test), false, true);
+  const out = truthy(scope, generateLegacy(scope, decl.test), getNodeType(scope, decl.test), false, true);
 
   out.push([ Opcodes.if, valtypeBinary ]);
   depth.push('if');
 
   out.push(
-    ...generate(scope, decl.consequent),
+    ...generateLegacy(scope, decl.consequent),
     ...setLastType(scope, getNodeType(scope, decl.consequent))
   );
 
   out.push([ Opcodes.else ]);
 
   out.push(
-    ...generate(scope, decl.alternate),
+    ...generateLegacy(scope, decl.alternate),
     ...setLastType(scope, getNodeType(scope, decl.alternate))
   );
 
@@ -4041,14 +4057,14 @@ const generateFor = (scope, decl) => {
   const out = [];
 
   if (decl.init) {
-    out.push(...generate(scope, decl.init, false, undefined, true));
+    out.push(...generateLegacy(scope, decl.init, false, undefined, true));
     disposeLeftover(out);
   }
 
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('for');
 
-  if (decl.test) out.push(...generate(scope, decl.test), Opcodes.i32_to);
+  if (decl.test) out.push(...generateLegacy(scope, decl.test), Opcodes.i32_to);
     else out.push(...number(1, Valtype.i32));
 
   out.push([ Opcodes.if, Blocktype.void ]);
@@ -4056,10 +4072,10 @@ const generateFor = (scope, decl) => {
 
   out.push([ Opcodes.block, Blocktype.void ]);
   depth.push('block');
-  out.push(...generate(scope, decl.body));
+  out.push(...generateLegacy(scope, decl.body));
   out.push([ Opcodes.end ]);
 
-  if (decl.update) out.push(...generate(scope, decl.update, false, undefined, true));
+  if (decl.update) out.push(...generateLegacy(scope, decl.update, false, undefined, true));
 
   out.push([ Opcodes.br, 1 ]);
   out.push([ Opcodes.end ], [ Opcodes.end ]);
@@ -4074,11 +4090,11 @@ const generateWhile = (scope, decl) => {
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('while');
 
-  out.push(...generate(scope, decl.test));
+  out.push(...generateLegacy(scope, decl.test));
   out.push(Opcodes.i32_to, [ Opcodes.if, Blocktype.void ]);
   depth.push('if');
 
-  out.push(...generate(scope, decl.body));
+  out.push(...generateLegacy(scope, decl.body));
 
   out.push([ Opcodes.br, 1 ]);
   out.push([ Opcodes.end ], [ Opcodes.end ]);
@@ -4103,12 +4119,12 @@ const generateDoWhile = (scope, decl) => {
   out.push([ Opcodes.block, Blocktype.void ]);
   depth.push('block');
 
-  out.push(...generate(scope, decl.body));
+  out.push(...generateLegacy(scope, decl.body));
 
   out.push([ Opcodes.end ]);
   depth.pop();
 
-  out.push(...generate(scope, decl.test), Opcodes.i32_to);
+  out.push(...generateLegacy(scope, decl.test), Opcodes.i32_to);
   out.push([ Opcodes.br_if, 1 ]);
 
   out.push([ Opcodes.end ], [ Opcodes.end ]);
@@ -4133,7 +4149,7 @@ const generateForOf = (scope, decl) => {
 
   out.push(
     // set pointer as right
-    ...generate(scope, decl.right),
+    ...generateLegacy(scope, decl.right),
     Opcodes.i32_to_u,
     [ Opcodes.local_set, pointer ],
 
@@ -4199,7 +4215,7 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
+      ...generateLegacy(scope, decl.body),
       [ Opcodes.end ],
 
       // increment iter pointer by valtype size + 1
@@ -4256,7 +4272,7 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
+      ...generateLegacy(scope, decl.body),
       [ Opcodes.end ],
 
       // increment iter pointer by valtype size
@@ -4314,7 +4330,7 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
+      ...generateLegacy(scope, decl.body),
       [ Opcodes.end ],
 
       // increment counter by 1
@@ -4349,7 +4365,7 @@ const generateForOf = (scope, decl) => {
 
       [ Opcodes.block, Blocktype.void ],
       [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
+      ...generateLegacy(scope, decl.body),
       [ Opcodes.end ],
 
       // increment iter pointer by valtype size + 1
@@ -4456,7 +4472,7 @@ const generateForOf = (scope, decl) => {
 
         [ Opcodes.block, Blocktype.void ],
         [ Opcodes.block, Blocktype.void ],
-        ...generate(scope, decl.body),
+        ...generateLegacy(scope, decl.body),
         [ Opcodes.end ],
 
         // increment counter by 1
@@ -4505,7 +4521,7 @@ const generateForIn = (scope, decl) => {
 
   out.push(
     // set pointer as right
-    ...generate(scope, decl.right),
+    ...generateLegacy(scope, decl.right),
     Opcodes.i32_to_u,
     [ Opcodes.local_set, pointer ],
 
@@ -4583,7 +4599,7 @@ const generateForIn = (scope, decl) => {
     [ Opcodes.i32_const, 0b0100 ],
     [ Opcodes.i32_and ],
     [ Opcodes.if, Blocktype.void ],
-    ...generate(scope, decl.body),
+    ...generateLegacy(scope, decl.body),
     [ Opcodes.end ],
 
     // increment pointer by 14
@@ -4619,7 +4635,7 @@ const generateForIn = (scope, decl) => {
     [TYPES.object]: out,
 
     // wrap for of object.keys
-    default: () => generate(scope, {
+    default: () => generateLegacy(scope, {
       type: 'ForOfStatement',
       left: decl.left,
       body: decl.body,
@@ -4676,7 +4692,7 @@ const generateSwitch = (scope, decl) => {
           types.push(type);
 
           if (consequent.length !== 0) {
-            bc.push([ types, () => generate(scope, { type: 'BlockStatement', body: consequent }) ]);
+            bc.push([ types, () => generateLegacy(scope, { type: 'BlockStatement', body: consequent }) ]);
             types = [];
           }
         }
@@ -4694,7 +4710,7 @@ const generateSwitch = (scope, decl) => {
   localTmp(scope, tmpName + '#type', Valtype.i32);
 
   const out = [
-    ...generate(scope, decl.discriminant),
+    ...generateLegacy(scope, decl.discriminant),
     [ Opcodes.local_set, tmp ],
     ...setType(scope, tmpName, getNodeType(scope, decl.discriminant)),
 
@@ -4720,7 +4736,7 @@ const generateSwitch = (scope, decl) => {
     if (x.test) {
       // todo: this should use same value zero
       out.push(
-        ...generate(scope, {
+        ...generateLegacy(scope, {
           type: 'BinaryExpression',
           operator: '===',
           left: {
@@ -4743,7 +4759,7 @@ const generateSwitch = (scope, decl) => {
     depth.pop();
     out.push(
       [ Opcodes.end ],
-      ...generate(scope, { type: 'BlockStatement', body: cases[i].consequent })
+      ...generateLegacy(scope, { type: 'BlockStatement', body: cases[i].consequent })
     );
   }
 
@@ -4812,7 +4828,7 @@ const generateLabel = (scope, decl) => {
   const name = decl.label.name;
   scope.labels.set(name, depth.length);
 
-  return generate(scope, decl.body);
+  return generateLegacy(scope, decl.body);
 };
 
 const ensureTag = (exceptionMode = Prefs.exceptionMode ?? 'stack') => {
@@ -4854,7 +4870,7 @@ const generateThrow = (scope, decl) => {
   }
 
   return [
-    ...generate(scope, decl.argument),
+    ...generateLegacy(scope, decl.argument),
     ...getNodeType(scope, decl.argument),
     [ Opcodes.throw, globalThis.precompile ? 1 : 0 ]
   ];
@@ -4866,12 +4882,12 @@ const generateTry = (scope, decl) => {
 
   const out = [];
 
-  const finalizer = decl.finalizer ? generate(scope, decl.finalizer) : [];
+  const finalizer = decl.finalizer ? generateLegacy(scope, decl.finalizer) : [];
 
   out.push([ Opcodes.try, Blocktype.void ]);
   depth.push('try');
 
-  out.push(...generate(scope, decl.block));
+  out.push(...generateLegacy(scope, decl.block));
   out.push(...finalizer);
 
   if (decl.handler) {
@@ -4906,7 +4922,7 @@ const generateTry = (scope, decl) => {
     }
 
     out.push(
-      ...generate(scope, decl.handler.body),
+      ...generateLegacy(scope, decl.handler.body),
       ...finalizer
     );
   }
@@ -5012,7 +5028,7 @@ const printStaticStr = str => {
 };
 
 const storeArray = (scope, array, index, element) => {
-  if (!Array.isArray(element)) element = generate(scope, element);
+  if (!Array.isArray(element)) element = generateLegacy(scope, element);
   if (typeof index === 'number') index = number(index);
 
   const offset = localTmp(scope, '#storeArray_offset', Valtype.i32);
@@ -5031,7 +5047,7 @@ const storeArray = (scope, array, index, element) => {
 
     // store value
     [ Opcodes.local_get, offset ],
-    ...generate(scope, element),
+    ...generateLegacy(scope, element),
     [ Opcodes.store, 0, ValtypeSize.i32 ],
 
     // store type
@@ -5132,7 +5148,7 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
     const offset = ValtypeSize.i32 + i * (ValtypeSize[valtype] + 1);
     out.push(
       pointer,
-      ...generate(scope, elements[i]),
+      ...generateLegacy(scope, elements[i]),
       [ Opcodes.store, 0, ...unsignedLEB128(offset) ],
 
       pointer,
@@ -5151,7 +5167,7 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
   // push remaining (non-direct) elements
   for (; i < length; i++) {
     out.push(
-      ...generate(scope, {
+      ...generateLegacy(scope, {
         type: 'CallExpression',
         callee: {
           type: 'Identifier',
@@ -5210,7 +5226,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
 
       if (type === 'SpreadElement') {
         out.push(
-          ...generate(scope, {
+          ...generateLegacy(scope, {
             type: 'CallExpression',
             callee: {
               type: 'Identifier',
@@ -5243,9 +5259,9 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         [ Opcodes.local_get, tmp ],
         ...number(TYPES.object, Valtype.i32),
 
-        ...toPropertyKey(scope, generate(scope, k), getNodeType(scope, k), computed, true),
+        ...toPropertyKey(scope, generateLegacy(scope, k), getNodeType(scope, k), computed, true),
 
-        ...generate(scope, value),
+        ...generateLegacy(scope, value),
         ...(kind !== 'init' ? [ Opcodes.i32_to_u ] : []),
         ...getNodeType(scope, value),
 
@@ -5339,7 +5355,7 @@ const generateMember = (scope, decl, _global, _name) => {
   let chainCount = scope.chainMembers != null ? ++scope.chainMembers : 0;
 
   // generate now so type is gotten correctly later (it gets cached)
-  generate(scope, object);
+  generateLegacy(scope, object);
 
   // hack: .length
   if (decl.property.name === 'length') {
@@ -5355,7 +5371,7 @@ const generateMember = (scope, decl, _global, _name) => {
     }
 
     const out = [
-      ...generate(scope, object),
+      ...generateLegacy(scope, object),
       Opcodes.i32_to_u,
     ];
 
@@ -5418,7 +5434,7 @@ const generateMember = (scope, decl, _global, _name) => {
         const type = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
         if (type == null) continue;
 
-        if (type === known) return generate(scope, {
+        if (type === known) return generateLegacy(scope, {
           type: 'CallExpression',
           callee: {
             type: 'Identifier',
@@ -5428,7 +5444,7 @@ const generateMember = (scope, decl, _global, _name) => {
           _protoInternalCall: true
         });
 
-        bc[type] = () => generate(scope, {
+        bc[type] = () => generateLegacy(scope, {
           type: 'CallExpression',
           callee: {
             type: 'Identifier',
@@ -5487,7 +5503,7 @@ const generateMember = (scope, decl, _global, _name) => {
       if (type === TYPES.bytestring) ident.name = '__String_prototype';
 
       bc[type] = () => [
-        ...generate(scope, ident),
+        ...generateLegacy(scope, ident),
         ...setLastType(scope, getNodeType(scope, ident))
       ];
       if (type === known) return bc[type]();
@@ -5676,7 +5692,7 @@ const generateMember = (scope, decl, _global, _name) => {
   if (decl.optional) {
     out.unshift(
       [ Opcodes.block, valtypeBinary ],
-      ...generate(scope, object),
+      ...generateLegacy(scope, object),
       [ Opcodes.local_tee, localTmp(scope, '#member_obj') ],
       ...(scope.locals['#member_obj#type'] ? [
         ...getNodeType(scope, object),
@@ -5690,7 +5706,7 @@ const generateMember = (scope, decl, _global, _name) => {
       [ Opcodes.br, chainCount ],
       [ Opcodes.end ],
 
-      ...generate(scope, property, false, '#member_prop'),
+      ...generateLegacy(scope, property, false, '#member_prop'),
       [ Opcodes.local_set, localTmp(scope, '#member_prop') ]
     );
 
@@ -5699,14 +5715,14 @@ const generateMember = (scope, decl, _global, _name) => {
     );
   } else {
     out.unshift(
-      ...generate(scope, object),
+      ...generateLegacy(scope, object),
       [ Opcodes.local_set, localTmp(scope, '#member_obj') ],
       ...(scope.locals['#member_obj#type'] ? [
         ...getNodeType(scope, object),
         [ Opcodes.local_set, localTmp(scope, '#member_obj#type', Valtype.i32) ],
       ] : []),
 
-      ...generate(scope, property, false, '#member_prop'),
+      ...generateLegacy(scope, property, false, '#member_prop'),
       [ Opcodes.local_set, localTmp(scope, '#member_prop') ]
     );
 
@@ -5733,7 +5749,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
 const generateAwait = (scope, decl) => {
   // hack: implement as ~peeking value `await foo` -> `Porffor.promise.await(foo)`
-  return generate(scope, {
+  return generateLegacy(scope, {
     type: 'CallExpression',
     callee: {
       type: 'Identifier',
@@ -5782,8 +5798,8 @@ const generateClass = (scope, decl) => {
       // class Bar extends Foo {}
       // Bar.__proto__ = Foo
       // Bar.prototype.__proto__ = Foo.prototype
-      ...generate(scope, setObjProp(root, '__proto__', decl.superClass)),
-      ...generate(scope, setObjProp(proto, '__proto__', getObjProp(decl.superClass, 'prototype')))
+      ...generateLegacy(scope, setObjProp(root, '__proto__', decl.superClass)),
+      ...generateLegacy(scope, setObjProp(proto, '__proto__', getObjProp(decl.superClass, 'prototype')))
     );
   }
 
@@ -5833,13 +5849,13 @@ const generateClass = (scope, decl) => {
     }
 
     outArr[outOp](
-      ...generate(outScope, object),
+      ...generateLegacy(outScope, object),
       Opcodes.i32_to_u,
       ...getNodeType(outScope, object),
 
-      ...toPropertyKey(outScope, generate(outScope, k), getNodeType(outScope, k), computed, true),
+      ...toPropertyKey(outScope, generateLegacy(outScope, k), getNodeType(outScope, k), computed, true),
 
-      ...generate(outScope, value),
+      ...generateLegacy(outScope, value),
       ...(initKind !== 'value' && initKind !== 'method' ? [ Opcodes.i32_to_u ] : []),
       ...getNodeType(outScope, value),
 
@@ -5892,7 +5908,7 @@ export const generateTemplate = (scope, decl) => {
     }
   }
 
-  return generate(scope, current);
+  return generateLegacy(scope, current);
 };
 
 const generateTaggedTemplate = (scope, decl, global = false, name = undefined) => {
@@ -5965,7 +5981,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined) =
     return cacheAst(decl, intrinsics[decl.tag.name](str));
   }
 
-  return generate(scope, {
+  return generateLegacy(scope, {
     type: 'CallExpression',
     callee: decl.tag,
     arguments: [
@@ -6154,7 +6170,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
           ...number(TYPES.undefined, Valtype.i32),
           [ Opcodes.i32_eq ],
           [ Opcodes.if, Blocktype.void ],
-            ...generate(func, def, false, name),
+            ...generateLegacy(func, def, false, name),
             [ Opcodes.local_set, func.locals[name].idx ],
 
             ...setType(func, name, getNodeType(func, def)),
@@ -6197,7 +6213,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       }
 
       const preface = wasm;
-      wasm = generate(func, body);
+      wasm = generateLegacy(func, body);
       wasm.unshift(...preface);
 
       if (func.generator) {
@@ -6371,7 +6387,7 @@ const generateCode = (scope, decl) => {
   let out = [];
 
   for (const x of decl.body) {
-    out = out.concat(generate(scope, x));
+    out = out.concat(generateLegacy(scope, x));
   }
 
   return out;
@@ -6397,7 +6413,7 @@ const internalConstrs = {
 
       for (let i = 0; i < decl.arguments.length; i++) {
         out.push(
-          ...generate(scope, decl.arguments[i]),
+          ...generateLegacy(scope, decl.arguments[i]),
           Opcodes.i32_to_u,
           ...(i > 0 ? [ [ Opcodes.i32_or ] ] : [])
         );
@@ -6417,7 +6433,7 @@ const internalConstrs = {
 
       for (let i = 0; i < decl.arguments.length; i++) {
         out.push(
-          ...generate(scope, decl.arguments[i]),
+          ...generateLegacy(scope, decl.arguments[i]),
           Opcodes.i32_to_u,
           ...(i > 0 ? [ [ Opcodes.i32_and ] ] : [])
         );
@@ -6439,7 +6455,7 @@ const internalConstrs = {
 
       for (let i = 0; i < decl.arguments.length; i++) {
         out.push(
-          ...generate(scope, decl.arguments[i]),
+          ...generateLegacy(scope, decl.arguments[i]),
           [ Opcodes.f64_max ]
         );
       }
@@ -6459,7 +6475,7 @@ const internalConstrs = {
 
       for (let i = 0; i < decl.arguments.length; i++) {
         out.push(
-          ...generate(scope, decl.arguments[i]),
+          ...generateLegacy(scope, decl.arguments[i]),
           [ Opcodes.f64_min ]
         );
       }
