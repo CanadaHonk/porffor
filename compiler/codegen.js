@@ -1682,7 +1682,7 @@ const generateLiteral = (scope, decl) => {
       return typedNumber(decl.value ? 1 : 0, TYPES.boolean);
 
     case 'string':
-      return makeString(scope, decl.value).concat(number(byteStringable(decl.value) ? TYPES.bytestring : TYPES.string, Valtype.i32));
+      return makeString(scope, decl.value, undefined, true);
 
     default:
       return todo(scope, `cannot generate literal of type ${typeof decl.value}`, true);
@@ -5115,8 +5115,13 @@ const byteStringable = str => {
   return true;
 };
 
-const makeString = (scope, str, forceBytestring = undefined) => {
-  if (str.length === 0) return number(0);
+const makeString = (scope, str, forceBytestring = undefined, typed = false) => {
+  if (str.length === 0) {
+    if (typed) {
+      return typedNumber(0, forceBytestring !== false ? TYPES.bytestring : TYPES.string);
+    }
+    return number(0);
+  }
 
   const elements = new Array(str.length);
   let bytestring = forceBytestring !== false;
@@ -5127,14 +5132,18 @@ const makeString = (scope, str, forceBytestring = undefined) => {
     if (bytestring && c > 0xFF) bytestring = false;
   }
 
+  let type = bytestring ? TYPES.bytestring : TYPES.string;
+  typeUsed(scope, type);
+
   if (globalThis.precompile) return [
-    [ Opcodes.const, 'str', str, forceBytestring ]
+    [ Opcodes.const, 'str', str, forceBytestring ],
+    ...(typed ? number(type, Valtype.i32) : [])
   ];
 
   const ptr = allocStr({ scope, pages }, str, bytestring);
   makeData(scope, elements, str, bytestring ? 'i8' : 'i16');
 
-  return number(ptr);
+  return typed ? typedNumber(ptr, type) : number(ptr);
 };
 
 const generateArray = (scope, decl, global = false, name = '$undeclared', staticAlloc = false) => {

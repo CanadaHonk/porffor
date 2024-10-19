@@ -2298,7 +2298,7 @@ this.__Promise_withResolvers = {
 wasm:(_,{makeString,glbl,builtin,funcRef})=>[[16,builtin('__Porffor_promise_create')],[33,1],[34,0],...glbl(36,'activePromise',124),[65,208,0],...glbl(36,'activePromise#type',127),[32,0],[33,2],[16,builtin('__Porffor_allocate')],[183],[34,3],[33,5],...makeString(_,"promise",1),[33,6],[32,5],[252,2],[65,7],[32,6],[252,3],[65,195,1],[32,2],[65,36],[16,builtin('__Porffor_object_set')],[26],[26],[32,3],[33,5],...makeString(_,"resolve",1),[33,6],[32,5],[252,2],[65,7],[32,6],[252,3],[65,195,1],...funcRef('__Porffor_promise_resolveActive'),[65,6],[16,builtin('__Porffor_object_set')],[26],[26],[32,3],[33,5],...makeString(_,"reject",1),[33,6],[32,5],[252,2],[65,7],[32,6],[252,3],[65,195,1],...funcRef('__Porffor_promise_rejectActive'),[65,6],[16,builtin('__Porffor_object_set')],[26],[26],[32,3],[65,7],[15]],
 params:[],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[124,127,124,124,127,124,124],localNames:["obj","#last_type","promise","out","#member_setter_ptr_tmp","#member_obj_assign","#member_prop_assign"],
-usedTypes:[80,7,195,36],
+usedTypes:[80,195,7,36],
 globalInits:{jobQueue:(_,{allocPage,glbl})=>[...number(allocPage(_,'promise.ts/jobQueue'),124),...glbl(36,'jobQueue',124),[65,16],[26]]},
 }
 this.__Promise_resolve = {
