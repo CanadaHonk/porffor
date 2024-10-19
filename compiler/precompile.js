@@ -41,7 +41,7 @@ const compile = async (file, _funcs) => {
   let first = source.slice(0, source.indexOf('\n'));
 
   if (first.startsWith('export default')) {
-    source = await (await import(file)).default();
+    source = await (await import('file://' + file)).default();
     first = source.slice(0, source.indexOf('\n'));
   }
 
@@ -180,7 +180,7 @@ const precompile = async () => {
 
   let funcs = [];
   let fileCount = 0;
-  for (const file of fs.readdirSync(dir)) {
+  for (const file of fs.readdirSync(dir).sort()) {
     if (file.endsWith('.d.ts')) continue;
     fileCount++;
 
