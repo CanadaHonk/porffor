@@ -384,7 +384,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
 
   const backtrace = (funcInd, blobOffset) => {
     if (funcInd == null || blobOffset == null ||
-        Number.isNaN(funcInd) || Number.isNaN(blobOffset)) return false;
+        Number.isNaN(funcInd) || Number.isNaN(blobOffset) || Prefs.backtrace === false) return false;
 
     // convert blob offset -> function wasm offset
     const func = funcs.find(x => x.asmIndex === funcInd);
