@@ -70,8 +70,8 @@ const compile = async (file, _funcs) => {
     return acc;
   }, {});
 
-  const main = funcs.find(x => x.name === 'main');
-  const exports = funcs.filter(x => x.export && x.name !== 'main');
+  const main = funcs.find(x => x.name === '#main');
+  const exports = funcs.filter(x => x.export && x.name !== '#main');
   for (const x of exports) {
     if (x.data) {
       x.data = x.data.reduce((acc, x) => { acc[data[x].page] = data[x].bytes; return acc; }, {});

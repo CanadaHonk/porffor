@@ -8,7 +8,7 @@ const pagePtr = ind => {
 
 export const nameToReason = (scope, name) => {
   let scopeName = scope.name;
-  if (globalThis.precompile && scopeName === 'main') scopeName = globalThis.precompile;
+  if (globalThis.precompile && scopeName === '#main') scopeName = globalThis.precompile;
 
   return `${Prefs.scopedPageNames ? (scopeName + '/') : ''}${name}`;
 };

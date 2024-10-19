@@ -214,7 +214,7 @@ export const run = obj => {
   log = '';
   for (const x of funcs) {
     // skip pgo opt for main()
-    if (x.name === 'main') continue;
+    if (x.name === '#main') continue;
 
     const wasmFunc = wasmFuncs.find(y => y.name === x.name);
 

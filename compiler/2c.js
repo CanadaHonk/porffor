@@ -343,7 +343,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     const typedReturns = f.returnType == null;
 
     const shouldInline = false; // f.internal;
-    if (f.name === 'main') out += `int main(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
+    if (f.name === '#main') out += `int main(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
       else out += `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
 
     if (f.name === '__Porffor_promise_runJobs') {
@@ -352,7 +352,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
       return;
     }
 
-    if (f.name === 'main') {
+    if (f.name === '#main') {
       out += '  ' + [...prependMain.values()].join('\n  ');
       if (prependMain.size > 0) out += '\n\n';
     }
@@ -881,7 +881,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
       line(`return ${vals.pop()}`);
     }
 
-    if (f.name === 'main') {
+    if (f.name === '#main') {
       out += '\n';
       line(`return 0`);
     }
@@ -891,14 +891,14 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
     globalThis.out = globalThis.out + out;
   };
 
-  cify(funcs.find(x => x.name === 'main'));
+  cify(funcs.find(x => x.name === '#main'));
 
   const rawParams = f => {
     if (ffiFuncs[f.name]) return ffiFuncs[f.name].parameters;
     return f.params;
   };
 
-  prepend.set('func decls', funcs.filter(x => x.name !== 'main' && cified.has(x.name)).map(f => {
+  prepend.set('func decls', funcs.filter(x => x.name !== '#main' && cified.has(x.name)).map(f => {
     const returns = f.returns.length > 0;
     const typedReturns = f.returnType == null;
 

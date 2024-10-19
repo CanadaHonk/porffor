@@ -406,7 +406,7 @@ const generateIdent = (scope, decl) => {
     }
 
     if (local?.idx === undefined) {
-      if (name === 'arguments' && scope.name !== 'main' && !scope.arrow) {
+      if (name === 'arguments' && scope.name !== '#main' && !scope.arrow) {
         // todo: not compliant
         let len = countLength(scope);
         const names = new Array(len);
@@ -1352,7 +1352,7 @@ const getType = (scope, name, failEarly = false) => {
     return fallback;
   }
 
-  if (name === 'arguments' && scope.name !== 'main' && !scope.arrow) {
+  if (name === 'arguments' && scope.name !== '#main' && !scope.arrow) {
     return number(TYPES.array, Valtype.i32);
   }
 
@@ -3075,14 +3075,13 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     }
   }
 
-  const topLevel = scope.name === 'main';
-
   if (typeof pattern === 'string') {
     pattern = { type: 'Identifier', name: pattern };
   }
 
   // todo: handle globalThis.foo = ...
 
+  const topLevel = scope.name === '#main';
   if (pattern.type === 'Identifier') {
     let out = [];
     const name = pattern.name;
@@ -3314,7 +3313,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 const generateVar = (scope, decl) => {
   let out = [];
 
-  const topLevel = scope.name === 'main';
+  const topLevel = scope.name === '#main';
 
   // global variable if in top scope (main) or if internally wanted
   const global = decl._global ?? (topLevel || decl._bare);
@@ -4175,7 +4174,7 @@ const generateForOf = (scope, decl) => {
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
-    const global = scope.name === 'main' && decl.left.kind === 'var';
+    const global = scope.name === '#main' && decl.left.kind === 'var';
     setVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
@@ -4537,7 +4536,7 @@ const generateForIn = (scope, decl) => {
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
-    const global = scope.name === 'main' && decl.left.kind === 'var';
+    const global = scope.name === '#main' && decl.left.kind === 'var';
     setVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
@@ -6245,7 +6244,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         ensureTag();
       }
 
-      if (name === 'main') {
+      if (name === '#main') {
         func.gotLastType = true;
         func.export = true;
 
@@ -6358,7 +6357,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   func.jsLength = jsLength;
 
   // force generate for main
-  if (name === 'main') func.generate();
+  if (name === '#main') func.generate();
 
   // force generate all for precompile
   if (globalThis.precompile) func.generate();
@@ -6537,7 +6536,7 @@ export default program => {
   const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
   objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
 
-  program.id = { name: 'main' };
+  program.id = { name: '#main' };
 
   program.body = {
     type: 'BlockStatement',

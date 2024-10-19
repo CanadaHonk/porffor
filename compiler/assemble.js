@@ -226,7 +226,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   );
   time('memory section');
 
-  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === 'main' ? 'm' : x.name), ExportDesc.func, ...unsignedLEB128(x.asmIndex) ]);
+  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === '#main' ? 'm' : x.name), ExportDesc.func, ...unsignedLEB128(x.asmIndex) ]);
 
   // export memory if used
   if (usesMemory) exports.unshift([ ...encodeString('$'), ExportDesc.mem, 0x00 ]);
