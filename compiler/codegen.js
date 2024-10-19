@@ -2154,9 +2154,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const idx = funcIndex[rhemynName];
       return [
         // make string arg
-        ...generateLegacy(scope, decl.arguments[0]),
-        Opcodes.i32_to_u,
-        ...getNodeType(scope, decl.arguments[0]),
+        ...mutateTypedValue(scope, generate(scope, decl.arguments[0]), optional(Opcodes.i32_to_u)),
 
         // call regex func
         [ Opcodes.call, idx ],
@@ -2242,9 +2240,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const idx = funcIndex[rhemynName];
       return [
         // make string arg
-        ...generateLegacy(scope, target),
-        Opcodes.i32_to_u,
-        ...getNodeType(scope, target),
+        ...mutateTypedValue(scope, generate(scope, target), optional(Opcodes.i32_to_u)),
 
         // call regex func
         [ Opcodes.call, idx ],
@@ -3960,9 +3956,7 @@ const generateUnary = (scope, decl) => {
         if (property.value === 'length' || property.value === 'name') scope.noFastFuncMembers = true;
 
         return [
-          ...generateLegacy(scope, object),
-          Opcodes.i32_to_u,
-          ...getNodeType(scope, object),
+          ...mutateTypedValue(scope, generate(scope, object), optional(Opcodes.i32_to_u)),
 
           ...toPropertyKey(scope, generateLegacy(scope, property), getNodeType(scope, property), decl.argument.computed, true),
 
@@ -5355,9 +5349,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
 
         ...toPropertyKey(scope, generateLegacy(scope, k), getNodeType(scope, k), computed, true),
 
-        ...generateLegacy(scope, value),
-        ...(kind !== 'init' ? [ Opcodes.i32_to_u ] : []),
-        ...getNodeType(scope, value),
+        ...mutateTypedValue(scope, generate(scope, value), kind !== 'init' ? optional(Opcodes.i32_to_u) : []),
 
         [ Opcodes.call, includeBuiltin(scope, `__Porffor_object_expr_${kind}`).index ],
 
@@ -5943,15 +5935,14 @@ const generateClass = (scope, decl) => {
     }
 
     outArr[outOp](
-      ...generateLegacy(outScope, object),
-      Opcodes.i32_to_u,
-      ...getNodeType(outScope, object),
+      ...mutateTypedValue(scope, generate(outScope, object), optional(Opcodes.i32_to_u)),
 
       ...toPropertyKey(outScope, generateLegacy(outScope, k), getNodeType(outScope, k), computed, true),
 
-      ...generateLegacy(outScope, value),
-      ...(initKind !== 'value' && initKind !== 'method' ? [ Opcodes.i32_to_u ] : []),
-      ...getNodeType(outScope, value),
+      ...mutateTypedValue(
+        scope, generate(outScope, value),
+        initKind !== 'value' && initKind !== 'method' ? optional(Opcodes.i32_to_u) : []
+      ),
 
       [ Opcodes.call, includeBuiltin(outScope, `__Porffor_object_class_${initKind}`).index ],
 
@@ -6577,7 +6568,7 @@ const internalConstrs = {
 
   __Porffor_rawType: {
     generate: (scope, decl) => [
-      ...getNodeType(scope, decl.arguments[0]),
+      ...dropBelowFromWasm(generate(scope, decl.arguments[0])),
       Opcodes.i32_from_u
     ],
     type: TYPES.number,
