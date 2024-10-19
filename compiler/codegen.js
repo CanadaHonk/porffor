@@ -194,6 +194,9 @@ const generate = (scope, decl, valueUnused = false) => {
   if (valueUnused && !Prefs.optUnused) valueUnused = false;
 
   switch (decl.type) {
+    case 'Wasm':
+      return decl.wasm;
+
     case 'Literal':
       return generateLiteral(scope, decl, valueUnused);
 
@@ -205,6 +208,9 @@ const generate = (scope, decl, valueUnused = false) => {
 
     case 'ExpressionStatement':
       return generateExp(scope, decl, valueUnused);
+
+    case 'ReturnStatement':
+      return generateReturn(scope, decl);
 
     default:
       let wasm = generateLegacy(scope, decl, false, undefined, valueUnused);
@@ -224,6 +230,7 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
 
   switch (decl.type) {
     // updated versions
+    case 'Wasm':
     case 'Literal':
       let wasm = generate(scope, decl, valueUnused);
       const known = knownType(scope, wasm);
@@ -239,6 +246,7 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
     case 'BlockStatement':
     case 'EmptyStatement':
     case 'ExpressionStatement':
+    case 'ReturnStatement':
       return cacheAst(decl, dropFromWasm(dropFromWasm(generate(scope, decl, true))));
 
     case 'BinaryExpression':
@@ -254,9 +262,6 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
     case 'FunctionDeclaration':
     case 'FunctionExpression':
       return cacheAst(decl, generateFunc(scope, decl)[1]);
-
-    case 'ReturnStatement':
-      return cacheAst(decl, generateReturn(scope, decl));
 
     case 'SequenceExpression':
       return cacheAst(decl, generateSequence(scope, decl));
@@ -637,12 +642,16 @@ const generateReturn = (scope, decl) => {
     !globalThis.precompile // skip in precompiled built-ins, we should not require this and handle it ourselves
   ) {
     // perform return value checks for constructors and (sub)classes
-    return [
-      ...generateLegacy(scope, arg),
-      [ Opcodes.local_set, localTmp(scope, '#return') ],
-      ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
-      [ Opcodes.local_set, localTmp(scope, '#return#type', Valtype.i32) ],
-
+    const out = generate(scope, arg);
+    let returnValueWasm, returnTypeWasm;
+    if (scope.returnType != null) {
+      dropFromWasm(out);
+      returnTypeWasm = number(scope.returnType, Valtype.i32);
+    } else {
+      storeInTmp(scope, out, x => returnTypeWasm = x, '#return#type', Valtype.i32);
+    }
+    storeInTmp(scope, out, x => returnValueWasm = x, '#return');
+    out.push(
       ...(scope._onlyConstr ? [] : [
         [ Opcodes.local_get, scope.locals['#newtarget'].idx ],
         Opcodes.i32_to_u,
@@ -650,7 +659,7 @@ const generateReturn = (scope, decl) => {
       ]),
         ...(scope.subclass ? [
           // if subclass and returning undefined, return this
-          [ Opcodes.local_get, localTmp(scope, '#return#type', Valtype.i32) ],
+          ...returnTypeWasm,
           ...number(TYPE_FLAGS.parity, Valtype.i32),
           [ Opcodes.i32_or ],
           ...number(TYPES.undefined, Valtype.i32),
@@ -663,16 +672,16 @@ const generateReturn = (scope, decl) => {
         ] : []),
 
         // if not object, then...
-        ...generateLegacy(scope, {
+        ...dropFromWasm(generate(scope, {
           type: 'CallExpression',
           callee: {
             type: 'Identifier',
             name: '__Porffor_object_isObject'
           },
           arguments: [
-            { type: 'Identifier', name: '#return' }
+            { type: 'Wasm', wasm: returnValueWasm.concat(returnTypeWasm) }
           ]
-        }),
+        }, true)),
         Opcodes.i32_to_u,
         [ Opcodes.i32_eqz ],
         [ Opcodes.if, Blocktype.void ],
@@ -690,17 +699,21 @@ const generateReturn = (scope, decl) => {
         [ Opcodes.end ]
       ]),
 
-      [ Opcodes.local_get, localTmp(scope, '#return') ],
-      [ Opcodes.local_get, localTmp(scope, '#return#type', Valtype.i32) ],
-      [ Opcodes.return ]
-    ];
+      ...returnValueWasm
+    );
+    if (scope.returnType == null) {
+      out.push(...returnTypeWasm);
+    }
+    out.push([ Opcodes.return ]);
+    return out;
   }
 
-  return [
-    ...generateLegacy(scope, arg),
-    ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
-    [ Opcodes.return ]
-  ];
+  const out = generate(scope, arg);
+  if (scope.returnType != null) {
+    dropFromWasm(out);
+  }
+  out.push([ Opcodes.return ]);
+  return out;
 };
 
 const localTmp = (scope, name, type = valtypeBinary) => {
@@ -1534,7 +1547,7 @@ const newTypeCache = new WeakMap();
 
 const getNodeType = (scope, node) => {
   // updated versions
-  if ([ 'Literal' ].includes(node.type)) {
+  if ([ 'Wasm', 'Literal' ].includes(node.type)) {
     // cache type
     generateLegacy(scope, node);
     return newTypeCache.get(node) ?? getLastType(scope);
