@@ -496,8 +496,7 @@ const generateYield = (scope, decl) => {
     [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
     ...number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32),
 
-    ...generateLegacy(scope, arg),
-    ...getNodeType(scope, arg),
+    ...generate(scope, arg),
 
     [ Opcodes.call, includeBuiltin(scope, scope.async ? '__Porffor_AsyncGenerator_yield' : '__Porffor_Generator_yield').index ],
     [ Opcodes.drop ],
@@ -523,8 +522,7 @@ const generateReturn = (scope, decl) => {
       [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
       ...number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32),
 
-      ...generateLegacy(scope, arg),
-      ...getNodeType(scope, arg),
+      ...generate(scope, arg),
 
       [ Opcodes.call, includeBuiltin(scope, scope.async ? '__Porffor_AsyncGenerator_prototype_return' : '__Porffor_Generator_prototype_return').index ],
       [ Opcodes.drop ],
@@ -540,8 +538,7 @@ const generateReturn = (scope, decl) => {
   if (scope.async) {
     return [
       // resolve promise with return value
-      ...generateLegacy(scope, arg),
-      ...getNodeType(scope, arg),
+      ...generate(scope, arg),
 
       [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
       ...number(TYPES.promise, Valtype.i32),
@@ -1922,10 +1919,7 @@ const createThisArg = (scope, decl) => {
   const name = decl.callee?.name;
   if (decl._new) {
     // if precompiling or builtin func, just make it null as unused
-    if (globalThis.precompile || Object.hasOwn(builtinFuncs, name)) return [
-      ...number(NULL),
-      ...number(TYPES.object, Valtype.i32)
-    ];
+    if (globalThis.precompile || Object.hasOwn(builtinFuncs, name)) return typedNumber(NULL, TYPES.object);
 
     // create new object with __proto__ set to callee prototype
     const tmp = localTmp(scope, '#this_create_tmp');
@@ -1946,8 +1940,7 @@ const createThisArg = (scope, decl) => {
       Opcodes.i32_to_u,
       ...number(TYPES.bytestring, Valtype.i32),
 
-      ...generateLegacy(scope, proto),
-      ...getNodeType(scope, proto),
+      ...generate(scope, proto),
 
       // flags: writable
       ...number(0b1000, Valtype.i32),
@@ -1983,19 +1976,13 @@ const createThisArg = (scope, decl) => {
         if (ifIdentifierErrors(scope, node)) node = null;
       }
 
-      if (node) return [
-        ...generateLegacy(scope, node),
-        ...getNodeType(scope, node)
-      ];
+      if (node) return generate(scope, node);
     }
 
     // undefined do not generate globalThis now,
     // do it dynamically in generateThis in the func later
     // (or not for strict mode)
-    return [
-      ...number(UNDEFINED),
-      ...number(TYPES.undefined, Valtype.i32)
-    ];
+    return typedNumber(UNDEFINED, TYPES.undefined);
   }
 };
 
@@ -2189,11 +2176,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
     if (!decl._protoInternalCall && builtinProtoCands.length > 0) {
       out.push(
-        ...generateLegacy(scope, target),
-        [ Opcodes.local_set, localTmp(scope, '#proto_target') ],
-
-        ...getNodeType(scope, target),
+        ...generate(scope, target),
         [ Opcodes.local_set, localTmp(scope, '#proto_target#type', Valtype.i32) ],
+        [ Opcodes.local_set, localTmp(scope, '#proto_target') ],
       );
 
       if (decl._thisWasm) {
@@ -2347,10 +2332,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     // foo(a, b, ...c) -> _ = c; foo(a, b, _[0], _[1], ...)
     const arg = args.at(-1).argument;
     out.push(
-      ...generateLegacy(scope, arg),
-      [ Opcodes.local_set, localTmp(scope, '#spread') ],
-      ...getNodeType(scope, arg),
+      ...generate(scope, arg),
       [ Opcodes.local_set, localTmp(scope, '#spread#type', Valtype.i32) ],
+      [ Opcodes.local_set, localTmp(scope, '#spread') ],
 
       ...typeIsIterable([ [ Opcodes.local_get, localTmp(scope, '#spread#type', Valtype.i32) ] ]),
       [ Opcodes.if, Blocktype.void ],
@@ -2469,10 +2453,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         [ Opcodes.local_get, thisLocalType ]
       ];
       getCallee = [
-        ...generateLegacy(scope, decl.callee.object),
-        [ Opcodes.local_set, thisLocal ],
-        ...getNodeType(scope, decl.callee.object),
+        ...generate(scope, decl.callee.object),
         [ Opcodes.local_set, thisLocalType ],
+        [ Opcodes.local_set, thisLocal ],
 
         ...generateLegacy(scope, {
           type: 'MemberExpression',
@@ -2489,10 +2472,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       // call super constructor with direct super() call
       callee = getObjProp(callee, 'constructor');
       callAsNew = true;
-      knownThis = [
-        ...generateLegacy(scope, { type: 'ThisExpression' }),
-        ...getNodeType(scope, { type: 'ThisExpression' })
-      ];
+      knownThis = generate(scope, { type: 'ThisExpression' });
     }
 
     const newTargetWasm = decl._newTargetWasm ?? createNewTarget(scope, decl, [
@@ -4893,8 +4873,7 @@ const generateThrow = (scope, decl) => {
   }
 
   return [
-    ...generateLegacy(scope, decl.argument),
-    ...getNodeType(scope, decl.argument),
+    ...generate(scope, decl.argument),
     [ Opcodes.throw, globalThis.precompile ? 1 : 0 ]
   ];
 };
