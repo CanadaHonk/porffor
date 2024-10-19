@@ -5736,9 +5736,6 @@ const generateMember = (scope, decl, _global, _name) => {
 
 const generateAwait = (scope, decl) => {
   // hack: implement as ~peeking value `await foo` -> `Porffor.promise.await(foo)`
-
-  // todo: warn here if -d?
-
   return generate(scope, {
     type: 'CallExpression',
     callee: {
@@ -5755,7 +5752,6 @@ const generateClass = (scope, decl) => {
   const expr = decl.type === 'ClassExpression';
 
   const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
-  if (name == null) return todo(scope, 'unknown name for class', expr);
 
   const body = decl.body.body;
   const root = {
@@ -5963,7 +5959,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined) =
       if (!e.name) {
         if (e.type === 'BinaryExpression' && e.operator === '+' && e.left.type === 'Identifier' && e.right.type === 'Literal') {
           str += lookupName(scope, e.left.name)[0].idx + e.right.value;
-        } else todo(scope, 'unsupported expression in intrinsic');
+        }
       } else str += lookupName(scope, e.name)[0].idx;
 
       str += quasis[i + 1].value.raw;
