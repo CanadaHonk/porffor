@@ -216,7 +216,15 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
   switch (decl.type) {
     // updated versions
     case 'Literal':
-      return cacheAst(decl, generate(scope, decl).concat(setLastType(scope)));
+      let wasm = generate(scope, decl);
+      const known = knownType(scope, wasm);
+      if (known != null) {
+        wasm.pop();
+        newTypeCache.set(decl, number(known, Valtype.i32));
+        return cacheAst(decl, wasm);
+      }
+      wasm.push(...setLastType(scope));
+      return cacheAst(decl, wasm);
 
     case 'BinaryExpression':
       return cacheAst(decl, generateBinaryExp(scope, decl, global, name));
@@ -1447,7 +1455,15 @@ const setLastType = (scope, type = []) => {
   ];
 };
 
+const newTypeCache = new WeakMap();
+
 const getNodeType = (scope, node) => {
+  // updated versions
+  if ([ 'Literal' ].includes(node.type)) {
+    // cache type
+    generateLegacy(scope, node);
+    return newTypeCache.get(node) ?? getLastType(scope);
+  }
   let guess = null;
   const ret = (() => {
     if (node._type) return node._type;
@@ -2685,8 +2701,8 @@ const unhackName = name => {
 const knownType = (scope, type) => {
   if (typeof type === 'number') return type;
 
-  if (type.length === 1 && type[0][0] === Opcodes.i32_const) {
-    return read_signedLEB128(type[0].slice(1));
+  if (type.length > 0 && type.at(-1)[0] === Opcodes.i32_const) {
+    return read_signedLEB128(type.at(-1).slice(1));
   }
 
   if (typedInput && type.length === 1 && type[0][0] === Opcodes.local_get) {
