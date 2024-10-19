@@ -4119,8 +4119,6 @@ const generateDoWhile = (scope, decl) => {
 };
 
 const generateForOf = (scope, decl) => {
-  if (decl.await) return todo(scope, 'for await is not supported');
-
   const out = [];
 
   let count = 0;
