@@ -500,15 +500,10 @@ export default (source, module = undefined, customImports = {}, print = str => p
       continue;
     }
 
-    const name = x === 'm' ? 'main' : x;
-    const func = funcs.find(x => x.name === name);
-
-    const exp = instance.exports[x];
-    exports[func.name] = exp;
-
-    exports[func.name] = function() {
+    const wasm = instance.exports[x];
+    exports[x === 'm' ? 'main' : x] = function() {
       try {
-        const ret = exp.apply(this, arguments);
+        const ret = wasm.apply(this, arguments);
         if (ret == null) return undefined;
 
         if (rawValues) return { value: ret[0], type: ret[1], js: porfToJSValue({ memory, funcs, pages }, ret[0], ret[1]) };
