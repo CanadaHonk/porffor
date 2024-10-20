@@ -212,6 +212,9 @@ const generate = (scope, decl, valueUnused = false) => {
     case 'ReturnStatement':
       return generateReturn(scope, decl);
 
+    case 'ThrowStatement':
+      return cacheAst(decl, generateThrow(scope, decl));
+
     default:
       let wasm = generateLegacy(scope, decl, false, undefined, valueUnused);
       let leftover = countLeftover(wasm);
@@ -247,6 +250,7 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
     case 'EmptyStatement':
     case 'ExpressionStatement':
     case 'ReturnStatement':
+    case 'ThrowStatement':
       return cacheAst(decl, dropFromWasm(dropFromWasm(generate(scope, decl, true))));
 
     case 'BinaryExpression':
@@ -326,9 +330,6 @@ const generateLegacy = (scope, decl, global = false, name = undefined, valueUnus
 
     case 'ConditionalExpression':
       return cacheAst(decl, generateConditional(scope, decl));
-
-    case 'ThrowStatement':
-      return cacheAst(decl, generateThrow(scope, decl));
 
     case 'TryStatement':
       return cacheAst(decl, generateTry(scope, decl));
@@ -473,25 +474,22 @@ const lookupName = (scope, name) => {
   return [ undefined, undefined ];
 };
 
-const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysValueInternalThrows) => [
-  ...generateLegacy(scope, {
-    type: 'ThrowStatement',
-    argument: {
-      type: 'CallExpression',
-      callee: {
-        type: 'Identifier',
-        name: constructor
-      },
-      arguments: [
-        {
-          type: 'Literal',
-          value: Prefs.d ? `${message} (in ${scope.name})` : message
-        }
-      ]
-    }
-  }),
-  ...(expectsValue ? number(UNDEFINED, typeof expectsValue === 'number' ? expectsValue : valtypeBinary) : [])
-];
+const internalThrow = (scope, constructor, message) => generate(scope, {
+  type: 'ThrowStatement',
+  argument: {
+    type: 'CallExpression',
+    callee: {
+      type: 'Identifier',
+      name: constructor
+    },
+    arguments: [
+      {
+        type: 'Literal',
+        value: Prefs.d ? `${message} (in ${scope.name})` : message
+      }
+    ]
+  }
+});
 
 const generateIdent = (scope, decl) => {
   const lookup = (name, failEarly = false) => {
