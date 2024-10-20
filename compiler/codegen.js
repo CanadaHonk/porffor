@@ -2418,12 +2418,14 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
 
     let knownThis = undefined, getCallee = undefined;
-    const calleeLocal = localTmp(scope, '#indirect_callee');
+
+    const tmpName = '#indirect' + uniqId() + '_';
+    const calleeLocal = localTmp(scope, tmpName + 'callee');
 
     // hack: this should be more thorough, Function.bind, etc
     if (decl.callee.type === 'MemberExpression' && !decl._new) {
-      const thisLocal = localTmp(scope, '#indirect_caller');
-      const thisLocalType = localTmp(scope, '#indirect_caller#type', Valtype.i32);
+      const thisLocal = localTmp(scope, tmpName + 'caller');
+      const thisLocalType = localTmp(scope, tmpName + 'caller#type', Valtype.i32);
 
       knownThis = [
         [ Opcodes.local_get, thisLocal ],
@@ -2437,7 +2439,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
         ...generate(scope, {
           type: 'MemberExpression',
-          object: { type: 'Identifier', name: '#indirect_caller' },
+          object: { type: 'Identifier', name: tmpName + 'caller' },
           property: decl.callee.property,
           computed: decl.callee.computed,
           optional: decl.callee.optional
