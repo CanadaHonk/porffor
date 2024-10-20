@@ -105,9 +105,13 @@ export const Opcodes = {
   i32_ne: 0x47,
 
   i32_lt_s: 0x48,
+  i32_lt_u: 0x49,
   i32_le_s: 0x4c,
+  i32_le_u: 0x4d,
   i32_gt_s: 0x4a,
+  i32_gt_u: 0x4b,
   i32_ge_s: 0x4e,
+  i32_ge_u: 0x4f,
 
   i32_clz: 0x67,
   i32_ctz: 0x68,
@@ -229,6 +233,7 @@ export const Empty = 0x00;
 export const Magic = [ 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00 ];
 
 export const PageSize = 65536; // 64KiB (1024 * 8)
+export const PageSizeBits = 16; // used for left shift / right shift optimization
 
 export const ValtypeSize = {
   i32: 4,
