@@ -4071,9 +4071,8 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
         left: { type: 'Identifier', name: '#updatetmp' },
         right: { type: 'Literal', value: 1 }
       }
-    }, _global, _name, valueUnused),
-    ...(decl.prefix || valueUnused ? [] : [ [ Opcodes.drop ] ]),
-    ...optional(number(UNDEFINED), valueUnused)
+    }, _global, _name, !decl.prefix || valueUnused),
+    ...(decl.prefix || valueUnused ? [] : [ [ Opcodes.drop ] ])
   ];
 };
 
