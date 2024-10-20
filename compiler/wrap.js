@@ -6,7 +6,7 @@ import { TYPES, TYPE_NAMES } from './types.js';
 import { log } from './log.js';
 import './prefs.js';
 
-const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
+const fs = (typeof globalThis.process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 
 const checkOOB = (memory, ptr) => ptr >= memory.buffer.byteLength;
 
