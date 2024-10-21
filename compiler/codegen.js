@@ -622,7 +622,6 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   if (!checks[op]) return todo(scope, `logic operator ${op} not implemented yet`, true);
 
   // generic structure for {a} OP {b}
-  // -->
   // _ = {a}; if (OP_CHECK) {b} else _
 
   // if we can, use int tmp and convert at the end to help prevent unneeded conversions
@@ -1891,7 +1890,6 @@ const createThisArg = (scope, decl) => {
     // create new object with __proto__ set to callee prototype
     const tmp = localTmp(scope, '#this_create_tmp');
     const proto = getObjProp(decl.callee, 'prototype');
-    localTmp(scope, '#member_prop_assign');
 
     return [
       ...makeObject(scope, {}),
@@ -1903,7 +1901,7 @@ const createThisArg = (scope, decl) => {
       ...generate(scope, {
         type: 'Literal',
         value: '__proto__'
-      }, false, '#member_prop_assign'),
+      }),
       Opcodes.i32_to_u,
       ...number(TYPES.bytestring, Valtype.i32),
 
@@ -3365,6 +3363,23 @@ const isIdentAssignable = (scope, name, op = '=') => {
   return false;
 };
 
+const memberTmpNames = scope => {
+  const id = uniqId();
+
+  const objectTmpName = '#member_obj' + id;
+  const objectTmp = localTmp(scope, objectTmpName);
+
+  const propTmpName = '#member_prop' + id;
+  const propertyTmp = localTmp(scope, propTmpName);
+
+  return {
+    objectTmpName, propTmpName,
+    objectTmp, propertyTmp,
+    objectGet: [ Opcodes.local_get, localTmp(scope, objectTmpName) ],
+    propertyGet: [ Opcodes.local_get, localTmp(scope, propTmpName) ]
+  };
+};
+
 const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
   const [ local, isGlobal ] = lookupName(scope, name);
@@ -3456,25 +3471,24 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const property = getProperty(decl.left);
 
     // todo/perf: use i32 object (and prop?) locals
-    const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj_assign') ] ];
-    const propertyWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_prop_assign') ] ];
+    const { objectTmp, propertyTmp, objectGet, propertyGet } = memberTmpNames(scope);
 
     return [
       ...generate(scope, object),
-      [ Opcodes.local_set, objectWasm[0][1] ],
+      [ Opcodes.local_set, objectTmp ],
 
-      ...generate(scope, property, false, '#member_prop_assign'),
-      [ Opcodes.local_set, localTmp(scope, '#member_prop_assign') ],
+      ...generate(scope, property),
+      [ Opcodes.local_set, propertyTmp ],
 
       // todo: review last type usage here
       ...typeSwitch(scope, getNodeType(scope, object), {
         ...(decl.left.computed ? {
           [TYPES.array]: () => [
-            ...objectWasm,
+            objectGet,
             Opcodes.i32_to_u,
 
             // get index as valtype
-            ...propertyWasm,
+            propertyGet,
             Opcodes.i32_to_u,
 
             // turn into byte offset by * valtypeSize + 1
@@ -3643,11 +3657,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             ],
           }, {
             prelude: [
-              ...objectWasm,
+              objectGet,
               Opcodes.i32_to_u,
               [ Opcodes.i32_load, 0, 4 ],
 
-              ...propertyWasm,
+              propertyGet,
               Opcodes.i32_to_u,
             ],
             postlude: [
@@ -3661,12 +3675,12 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
         // default: internalThrow(scope, 'TypeError', `Cannot assign member with this type`)
         default: () => [
-          ...objectWasm,
+          objectGet,
           Opcodes.i32_to,
           ...(op === '=' ? [] : [ [ Opcodes.local_tee, localTmp(scope, '#objset_object', Valtype.i32) ] ]),
           ...getNodeType(scope, object),
 
-          ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.left.computed, op === '='),
+          ...toPropertyKey(scope, [ propertyGet ], getNodeType(scope, property), decl.left.computed, op === '='),
           ...(op === '=' ? [] : [ [ Opcodes.local_set, localTmp(scope, '#objset_property_type', Valtype.i32) ] ]),
           ...(op === '=' ? [] : [
             Opcodes.i32_to_u,
@@ -5405,14 +5419,14 @@ const generateMember = (scope, decl, _global, _name) => {
     }
   }
 
+  // todo/perf: use i32 object (and prop?) locals
+  const { objectTmp, propertyTmp, objectGet, propertyGet } = memberTmpNames(scope);
+
   // todo: generate this array procedurally during builtinFuncs creation
   if (['size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength'].includes(decl.property.name)) {
     // todo: support optional
     const bc = {};
     const cands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + decl.property.name + '$get'));
-
-    localTmp(scope, '#member_obj');
-    localTmp(scope, '#member_obj#type', Valtype.i32);
 
     const known = knownType(scope, getNodeType(scope, object));
     if (cands.length > 0) {
@@ -5437,7 +5451,10 @@ const generateMember = (scope, decl, _global, _name) => {
             name: x
           },
           arguments: [
-            { type: 'Identifier', name: '#member_obj' }
+            [
+              objectGet,
+              ...number(type, Valtype.i32)
+            ]
           ],
           _protoInternalCall: true
         });
@@ -5501,14 +5518,10 @@ const generateMember = (scope, decl, _global, _name) => {
     }
   }
 
-  // todo/perf: use i32 object (and prop?) locals
-  const objectWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_obj') ] ];
-  const propertyWasm = [ [ Opcodes.local_get, localTmp(scope, '#member_prop') ] ];
-
   const out = typeSwitch(scope, getNodeType(scope, object), {
     ...(decl.computed ? {
       [TYPES.array]: () => [
-        ...loadArray(scope, objectWasm, propertyWasm),
+        ...loadArray(scope, [ objectGet ], [ propertyGet ]),
         ...setLastType(scope)
       ],
 
@@ -5525,13 +5538,13 @@ const generateMember = (scope, decl, _global, _name) => {
         // use as pointer for store later
         [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
-        ...propertyWasm,
+        propertyGet,
         Opcodes.i32_to_u,
 
         ...number(ValtypeSize.i16, Valtype.i32),
         [ Opcodes.i32_mul ],
 
-        ...objectWasm,
+        objectGet,
         Opcodes.i32_to_u,
         [ Opcodes.i32_add ],
 
@@ -5560,10 +5573,10 @@ const generateMember = (scope, decl, _global, _name) => {
         // use as pointer for store later
         [ Opcodes.local_get, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
-        ...propertyWasm,
+        propertyGet,
         Opcodes.i32_to_u,
 
-        ...objectWasm,
+        objectGet,
         Opcodes.i32_to_u,
         [ Opcodes.i32_add ],
 
@@ -5647,11 +5660,11 @@ const generateMember = (scope, decl, _global, _name) => {
         ],
       }, {
         prelude: [
-          ...objectWasm,
+          objectGet,
           Opcodes.i32_to_u,
           [ Opcodes.i32_load, 0, 4 ],
 
-          ...propertyWasm,
+          propertyGet,
           Opcodes.i32_to_u
         ],
         postlude: setLastType(scope, TYPES.number)
@@ -5662,11 +5675,11 @@ const generateMember = (scope, decl, _global, _name) => {
 
     // default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
     default: () => [
-      ...objectWasm,
+      objectGet,
       Opcodes.i32_to,
       ...getNodeType(scope, object),
 
-      ...toPropertyKey(scope, propertyWasm, getNodeType(scope, property), decl.computed, true),
+      ...toPropertyKey(scope, [ propertyGet ], getNodeType(scope, property), decl.computed, true),
 
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
       ...setLastType(scope)
@@ -5677,23 +5690,19 @@ const generateMember = (scope, decl, _global, _name) => {
 
   if (decl.optional) {
     out.unshift(
+      ...generate(scope, property),
+      [ Opcodes.local_set, propertyTmp ],
+
       [ Opcodes.block, valtypeBinary ],
       ...generate(scope, object),
-      [ Opcodes.local_tee, localTmp(scope, '#member_obj') ],
-      ...(scope.locals['#member_obj#type'] ? [
-        ...getNodeType(scope, object),
-        [ Opcodes.local_set, localTmp(scope, '#member_obj#type', Valtype.i32) ],
-      ] : []),
+      [ Opcodes.local_tee, objectTmp ],
 
       ...nullish(scope, [], getNodeType(scope, object), false, true),
       [ Opcodes.if, Blocktype.void ],
       ...setLastType(scope, TYPES.undefined),
       ...number(0),
       [ Opcodes.br, chainCount ],
-      [ Opcodes.end ],
-
-      ...generate(scope, property, false, '#member_prop'),
-      [ Opcodes.local_set, localTmp(scope, '#member_prop') ]
+      [ Opcodes.end ]
     );
 
     out.push(
@@ -5701,15 +5710,10 @@ const generateMember = (scope, decl, _global, _name) => {
     );
   } else {
     out.unshift(
+      ...generate(scope, property),
+      [ Opcodes.local_set, propertyTmp ],
       ...generate(scope, object),
-      [ Opcodes.local_set, localTmp(scope, '#member_obj') ],
-      ...(scope.locals['#member_obj#type'] ? [
-        ...getNodeType(scope, object),
-        [ Opcodes.local_set, localTmp(scope, '#member_obj#type', Valtype.i32) ],
-      ] : []),
-
-      ...generate(scope, property, false, '#member_prop'),
-      [ Opcodes.local_set, localTmp(scope, '#member_prop') ]
+      [ Opcodes.local_set, objectTmp ]
     );
 
     // todo: maybe this just needs 1 block?

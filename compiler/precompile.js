@@ -128,7 +128,7 @@ const compile = async (file, _funcs) => {
 
         const alloc = l => {
           if (!l) return;
-          if (!['#member_prop'].includes(l.name) && ![TYPES.array].includes(l.metadata?.type)) return;
+          if (![TYPES.array].includes(l.metadata?.type)) return;
           if (!x.pages) return;
 
           const pageName = [...x.pages.keys()].find(z => z.endsWith(l.name));
