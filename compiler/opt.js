@@ -74,6 +74,24 @@ export default (funcs, globals, pages, tags, exceptions) => {
           }
         }
 
+        if (Prefs.optUnreachable !== false && [ Opcodes.return, Opcodes.throw, Opcodes.br, Opcodes.br_table ].includes(inst[0])) {
+          // this optimization is currently sometimes required to counteract the mess with throw and countLeftover
+          let j = i + 1, depth = 0;
+          for (; j < wasm.length; j++) {
+            const op = wasm[j][0];
+            if (op === Opcodes.if || op === Opcodes.block || op === Opcodes.loop || op === Opcodes.try) depth++;
+            if (op === Opcodes.end) {
+              depth--;
+              if (depth < 0) break;
+            }
+            if (depth === 0 && (op === Opcodes.else || op === Opcodes.catch || op === Opcodes.catch_all)) {
+              break;
+            }
+          }
+          wasm.splice(i + 1, j - i - 1);
+          continue;
+        }
+
         // remove setting last type if it is never gotten
         if (!f.internal && !f.gotLastType && inst[0] === Opcodes.local_set && inst[1] === lastType) {
           // replace this inst with drop

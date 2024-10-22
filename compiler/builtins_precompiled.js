@@ -1023,7 +1023,7 @@ usedTypes:[23],
 usesTag:1,
 }
 this.__DataView_prototype_setFloat32 = {
-wasm:(_,{builtin,internalThrow})=>[[32,1],[65,23],[71],[4,64],...internalThrow(_,'TypeError',`DataView.prototype.setFloat32 expects 'this' to be a DataView`),[11],[68,0],[33,8],[32,4],[182],[188],[184],[33,8],[26],[26],[32,0],[65,23],[32,2],[65,1],[32,8],[65,1],[32,6],[32,7],[16,builtin('__DataView_prototype_setUint32')],[34,9],[15]],
+wasm:(_,{builtin,internalThrow})=>[[32,1],[65,23],[71],[4,64],...internalThrow(_,'TypeError',`DataView.prototype.setFloat32 expects 'this' to be a DataView`),[11],[68,0],[33,8],[32,4],[182],[188],[184],[33,8],[32,0],[65,23],[32,2],[65,1],[32,8],[65,1],[32,6],[32,7],[16,builtin('__DataView_prototype_setUint32')],[34,9],[15]],
 params:[124,127,124,127,124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
 locals:[124,127],localNames:["_this","_this#type","byteOffset","byteOffset#type","value","value#type","littleEndian","littleEndian#type","int","#last_type"],
 usedTypes:[23],
