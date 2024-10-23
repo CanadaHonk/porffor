@@ -20,7 +20,8 @@ if (process.argv.includes('--help')) {
   console.log(`\n\x1B[1mCommands:\x1B[0m`);
   for (const [ cmd, [ color, desc ] ] of Object.entries({
     run: [ 34, 'Run a JS file' ],
-    wasm: [ 34, 'Compile a JS file to a Wasm binary\n' ],
+    wasm: [ 34, 'Compile a JS file to a Wasm binary' ],
+    'run-wasm': [ 34, 'Run a compiled Wasm binary\n' ],
 
     c: [ 31, 'Compile a JS file to C source code' ],
     native: [ 31, 'Compile a JS file to a native binary\n' ],
@@ -59,7 +60,7 @@ const done = async () => {
 };
 
 let file = process.argv.slice(2).find(x => x[0] !== '-');
-if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(file)) {
+if (['precompile', 'run', 'wasm', 'run-wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(file)) {
   // remove this arg
   process.argv.splice(process.argv.indexOf(file), 1);
 
@@ -76,6 +77,26 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm
   if (file === 'debug') {
     await import('./debug.js');
     await done();
+  }
+
+  if (file === 'run-wasm') {
+    file = process.argv.slice(2).find(x => x[0] !== '-');
+    const buffer = fs.readFileSync(file);
+
+    let runStart;
+    const fromWasm = (await import('../compiler/wrap.js')).fromWasm;
+    try {
+      const out = fromWasm(buffer);
+      runStart = performance.now();
+      out.exports.main();
+    } catch (e) {
+      let out = e;
+      if (Object.getPrototypeOf(e).message != null) out = `${e.constructor.name}${e.message != null ? `: ${e.message}` : ''}`;
+      if (e instanceof Error && process.argv.includes('-d')) throw e;
+      console.error(e);
+    }
+    if (process.argv.includes('-t')) console.log(`execution time: ${(performance.now() - runStart).toFixed(2)}ms`);
+    process.exit();
   }
 
   if (['wasm', 'native', 'c'].includes(file)) {

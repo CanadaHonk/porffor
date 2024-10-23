@@ -203,3 +203,24 @@ export const ieee754_binary64_into = (value, buffer) => {
   for (let i = 0; i < 8; i++) buffer.push(data[i]);
   // buffer.push(...new Uint8Array(new Float64Array([ value ]).buffer));
 };
+
+export const readUnsignedLEB128FromBuffer = (buffer, index) => {
+  let value = 0;
+  let shift = 0;
+  while (true) {
+    let b = buffer[index];
+    value |= (b & 0x7F) << shift;
+    if ((value & 0x80) == 0) {
+      return [ value, index + 1 ];
+    }
+    shift += 7;
+  }
+};
+
+export const readStringFromBuffer = (buffer, index) => {
+  let length;
+  [ length, index ] = readUnsignedLEB128FromBuffer(buffer, index);
+  let slice = buffer.subarray(index, index + length);
+  let decoder = new TextDecoder();
+  return [ decoder.decode(slice), index + length ];
+};

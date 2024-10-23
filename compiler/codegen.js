@@ -1227,7 +1227,10 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   }
 
   for (const x in _data) {
-    if (data.find(y => y.page === x)) return;
+    if (data.find(y => y.page === x)) {
+      console.warn('page for', x, 'already exists');
+      return;
+    }
     data.push({ page: x, bytes: _data[x] });
   }
 
@@ -1254,19 +1257,27 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
       else wasm = asmFuncToAsm(func, wasm);
   }
 
-  let baseGlobalIdx, i = 0;
+  let globalRefs = [], i = 0;
   for (const type of globalTypes) {
-    if (baseGlobalIdx === undefined) baseGlobalIdx = globals['#ind'];
-
-    globals[globalNames[i] ?? `${name}_global_${i}`] = { idx: globals['#ind']++, type, init: globalInits[i] ?? 0 };
+    let nm = globalNames[i] ?? `${name}_global_${i}`;
+    if (globals[nm]) {
+      globalRefs.push(globals[nm].idx);
+      continue;
+    }
+    globalRefs.push(globals['#ind']);
+    globals[nm] = { idx: globals['#ind']++, type, init: globalInits[i] ?? 0 };
     i++;
   }
 
   if (globalTypes.length !== 0) {
     // offset global ops for base global idx
-    for (const inst of wasm) {
+    for (let i = 0; i < wasm.length; i++) {
+      const inst = wasm[i];
       if (inst[0] === Opcodes.global_get || inst[0] === Opcodes.global_set) {
-        inst[1] += baseGlobalIdx;
+        if (inst[1] >= globalRefs.length) {
+          throw new Error('in builtin ' + name + ': global_get / global_set out of range (' + inst[1] + ' for count ' + globalRefs.length + ')');
+        }
+        wasm[i] = [ inst[0], globalRefs[inst[1]] ];
       }
     }
   }
@@ -6205,6 +6216,11 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       const preface = wasm;
       wasm = generate(func, body);
       wasm.unshift(...preface);
+      if (Prefs.includeAllBuiltins) {
+        for (let x in builtinFuncs) {
+          includeBuiltin(func, x);
+        }
+      }
 
       if (func.generator) {
         // make generator at the start

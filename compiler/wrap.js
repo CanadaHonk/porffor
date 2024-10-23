@@ -1,4 +1,5 @@
-import { encodeVector, encodeLocal } from './encoding.js';
+import { encodeVector, encodeLocal, readUnsignedLEB128FromBuffer, readStringFromBuffer } from './encoding.js';
+import { Section, Valtype } from './wasmSpec.js';
 import { importedFuncs } from './builtins.js';
 import compile from './index.js';
 import decompile from './decompile.js';
@@ -126,6 +127,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.function: {
+      if (!funcs) return function () {};
       let func;
       if (value < 0) {
         func = importedFuncs[value + importedFuncs.length];
@@ -181,7 +183,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.symbol: {
-      const page = pages.get('symbol.ts/descStore');
+      const page = pages?.get('symbol.ts/descStore');
       if (!page) return Symbol();
 
       const descStore = page * pageSize;
@@ -346,8 +348,6 @@ export default (source, module = undefined, customImports = {}, print = str => p
   const { wasm, funcs, globals, tags, exceptions, pages, c } = typeof source === 'object' ? source : compile(source, module);
 
   globalThis.porfDebugInfo = { funcs, globals };
-
-  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
   if (Prefs.profileCompiler && !globalThis.onProgress) console.log(`\u001b[1mcompiled in ${times[0].toFixed(2)}ms\u001b[0m`);
@@ -551,4 +551,84 @@ export default (source, module = undefined, customImports = {}, print = str => p
   }
 
   return { exports, wasm, times, pages, c };
+};
+
+// TODO: integrate with default
+export const fromWasm = (wasm, print = str => process.stdout.write(str)) => {
+  let instance, memory;
+  try {
+    const module = new WebAssembly.Module(wasm);
+    instance = new WebAssembly.Instance(module, {
+      '': {
+        p: i => print(i.toString()),
+        c: i => print(String.fromCharCode(Number(i))),
+        t: () => performance.now(),
+        u: () => performance.timeOrigin,
+        y: () => {},
+        z: () => {},
+        w: (ind, outPtr) => { // readArgv
+          let args = process.argv.slice(2);
+          args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
+
+          const str = args[ind - 1];
+          if (!str) return -1;
+
+          writeByteStr(memory, outPtr, str);
+          return str.length;
+        },
+        q: (pathPtr, outPtr) => { // readFile
+          try {
+            const path = pathPtr === 0 ? 0 : readByteStr(memory, pathPtr);
+            const contents = fs.readFileSync(path, 'utf8');
+            writeByteStr(memory, outPtr, contents);
+            return contents.length;
+          } catch {
+            return -1;
+          }
+        },
+        b: () => {
+          debugger;
+        }
+      }
+    });
+  } catch (e) {
+    throw e;
+  }
+  const exports = {};
+
+  const exceptTag = instance.exports['0'];
+  memory = instance.exports['$'];
+
+  for (const x in instance.exports) {
+    if (x === '0') continue;
+    if (x === '$') {
+      exports.$ = instance.exports.$;
+      continue;
+    }
+
+    const wasm = instance.exports[x];
+    exports[x === 'm' ? 'main' : x] = function() {
+      try {
+        const ret = wasm.apply(this, arguments);
+        if (ret == null) return undefined;
+
+        return porfToJSValue({ memory }, ret[0], ret[1]);
+      } catch (e) {
+        if (e.is && e.is(exceptTag)) {
+          const value = e.getArg(exceptTag, 0);
+
+          try {
+            let type = e.getArg(exceptTag, 1);
+            e = porfToJSValue({ memory }, value, type);
+          } catch (e2) {
+            e = new Error('Porffor error id: ' + value);
+          }
+        }
+
+        throw e;
+      }
+    };
+  }
+
+  return { exports, wasm };
 };

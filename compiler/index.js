@@ -202,6 +202,15 @@ export default (code, module = undefined) => {
 
   if (Prefs.optFuncs || Prefs.f) logFuncs(funcs, globals, exceptions);
 
+  if (Prefs.sizeLog) {
+    console.log('Functions ordered by size:');
+    const sortedFuncs = funcs.toSorted((x, y) => y.wasm.length - x.wasm.length);
+    const toShow = Math.min(funcs.length, Prefs.sizeLogSize ?? 10);
+    for (let i = 0; i < toShow; i++) {
+      console.log((i + 1) + '. ' + sortedFuncs[i].name + ' with ' + sortedFuncs[i].wasm.length + ' instructions');
+    }
+  }
+
   if (Prefs.compileAllocLog) {
     const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
     const bytes = wasmPages * 65536;
