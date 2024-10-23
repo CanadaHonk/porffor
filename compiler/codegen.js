@@ -5793,7 +5793,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
   if (decl.optional) {
     out.unshift(
-      ...generate(scope, property),
+      ...generateLegacy(scope, property),
       [ Opcodes.local_set, propertyTmp ],
 
       [ Opcodes.block, valtypeBinary ],
