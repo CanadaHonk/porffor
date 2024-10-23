@@ -1,5 +1,5 @@
 import { log } from './log.js';
-import {} from './prefs.js';
+import './prefs.js';
 
 const file = process.argv.slice(2).find(x => x[0] !== '-' && !['run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(x));
 
@@ -41,6 +41,7 @@ export default input => {
 
       // multiple
       sourceType: Prefs.module ? 'module' : 'script',
+      locations: false,
       ranges: false,
       tokens: false,
       comments: false,

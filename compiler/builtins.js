@@ -3,7 +3,7 @@ import ObjectBuiltins from './builtins_objects.js';
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { TYPES, TYPE_NAMES } from './types.js';
-import {} from './prefs.js';
+import './prefs.js';
 import { unsignedLEB128 } from './encoding.js';
 
 export const importedFuncs = [
@@ -68,21 +68,6 @@ for (let i = 0; i < importedFuncs.length; i++) {
   importedFuncs[f.name] = i;
 }
 
-const printStaticStr = str => {
-  const out = [];
-
-  for (let i = 0; i < str.length; i++) {
-    out.push(
-      // ...number(str.charCodeAt(i)),
-      ...number(str.charCodeAt(i), Valtype.i32),
-      Opcodes.i32_from_u,
-      [ Opcodes.call, importedFuncs.printChar ]
-    );
-  }
-
-  return out;
-};
-
 export const UNDEFINED = 0;
 export const NULL = 0;
 
@@ -106,6 +91,7 @@ export const BuiltinVars = function(ctx) {
   this.__performance_timeOrigin = [
     [ Opcodes.call, importedFuncs.timeOrigin ]
   ];
+  this.__performance_timeOrigin.usesImports = true;
 
   this.__Uint8Array_BYTES_PER_ELEMENT = number(1);
   this.__Int8Array_BYTES_PER_ELEMENT = number(1);
@@ -849,6 +835,7 @@ export const BuiltinFuncs = function() {
       [ Opcodes.call, importedFuncs.time ]
     ]
   };
+  this.__performance_now.usesImports = true;
 
 
   this.__Porffor_type = {
@@ -860,7 +847,7 @@ export const BuiltinFuncs = function() {
     wasm: (scope, { typeSwitch, makeString }) => {
       const bc = {};
       for (const x in TYPE_NAMES) {
-        bc[x] = makeString(scope, TYPE_NAMES[x], false, '#Porffor_type_result');
+        bc[x] = makeString(scope, TYPE_NAMES[x]);
       }
 
       return typeSwitch(scope, [ [ Opcodes.local_get, 1 ] ], bc);

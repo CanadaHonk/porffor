@@ -1,4 +1,4 @@
-import {} from './prefs.js';
+import './prefs.js';
 
 export const TYPE_FLAGS = {
   parity:    0b10000000,
@@ -87,7 +87,10 @@ registerInternalType('RangeError');
 registerInternalType('EvalError');
 registerInternalType('URIError');
 registerInternalType('Test262Error');
-registerInternalType('__Porffor_TodoError');
+registerInternalType('TodoError');
+
+registerInternalType('__Porffor_Generator');
+registerInternalType('__Porffor_AsyncGenerator');
 
 if (Prefs.largestTypes) {
   const typeKeys = Object.keys(TYPES);

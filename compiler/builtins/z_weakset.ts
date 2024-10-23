@@ -30,9 +30,5 @@ export const WeakSet = function (iterable: any): WeakSet {
   return out;
 };
 
-export const __WeakSet_prototype_toString = (_this: WeakSet) => {
-  const out: bytestring = '[object WeakSet]';
-  return out;
-};
-
+export const __WeakSet_prototype_toString = (_this: WeakSet) => '[object WeakSet]';
 export const __WeakSet_prototype_toLocaleString = (_this: WeakSet) => __WeakSet_prototype_toString(_this);

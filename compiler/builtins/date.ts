@@ -1547,6 +1547,15 @@ export const __Porffor_bytestring_appendChar = (str: bytestring, char: i32): i32
   return 1;
 };
 
+export const __Porffor_bytestring_append2Char = (str: bytestring, char1: i32, char2: i32): i32 => {
+  const len: i32 = str.length;
+  Porffor.wasm.i32.store8(Porffor.wasm`local.get ${str}` + len, char1, 0, 4);
+  Porffor.wasm.i32.store8(Porffor.wasm`local.get ${str}` + len + 1, char2, 0, 4);
+  str.length = len + 2;
+  return 1;
+};
+
+
 // fast appending padded number
 export const __Porffor_bytestring_appendPadNum = (str: bytestring, num: number, len: number): i32 => {
   let numStr: bytestring = Number.prototype.toFixed(num, 0);
@@ -1735,8 +1744,7 @@ export const __ecma262_DateString = (tv: number): bytestring => {
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-timezonestring
 export const __ecma262_TimeZoneString = (tv: number) => {
   // todo: time zone support
-  let out: bytestring = '+0000 (UTC)';
-  return out;
+  return '+0000 (UTC)';
 };
 
 // 21.4.4.41.4 ToDateString (tv)

@@ -181,7 +181,9 @@ var NaNs = [
 ];
 
 /// testTypedArray.js
-// todo: TypedArray
+// hack: we do not actually have an underlying TypedArray so just use Int8Array
+const TypedArray = Int8Array;
+
 var floatArrayConstructors = [
   Float64Array,
   Float32Array

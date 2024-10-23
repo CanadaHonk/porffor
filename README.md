@@ -82,143 +82,14 @@ Rhemyn is Porffor's own regex engine; it compiles literal regex to Wasm bytecode
 ### 2c
 2c is Porffor's own Wasm -> C compiler, using generated Wasm bytecode and internal info to generate specific and efficient/fast C code. Little boilerplate/preluded code or required external files, just for CLI binaries (not like wasm2c very much).
 
-## Supported
-See [optimizations](#optimizations) for opts implemented/supported.
-
-### Proposals
-These include some early (stage 1/0) and/or dead (last commit years ago) proposals but *I* think they are pretty neat, so.
-
-#### `Math` proposals (stage 1/0)
-
-- [`Math.clamp` Proposal](https://github.com/Richienb/proposal-math-clamp): `Math.clamp` (stage 0 - last commit april 2023)
-- [`Math` Extensions Proposal](https://github.com/rwaldron/proposal-math-extensions): `Math.scale`, `Math.radians`, `Math.degrees`, `Math.RAD_PER_DEG`, `Math.DEG_PER_RAD` (stage 1 - last commit september 2020)
-- [`Math.signbit` Proposal](https://github.com/tc39/proposal-Math.signbit): `Math.signbit` (stage 1 - last commit february 2020)
-
-### Language
-
-- Number literals
-- Declaring functions
-- Calling functions
-- `return`
-- Basic declarations (`let`/`const`/`var`)
-- Some basic integer operators (`+-/*%`)
-- Some basic integer bitwise operators (`&|`)
-- Equality operators (`==`, `!=`, etc)
-- GT/LT operators (`>`, `<`, `>=`, etc)
-- Some unary operators (`!`, `+`, `-`)
-- Logical operators (`&&`, `||`)
-- Declaring multiple variables in one (`let a, b = 0`)
-- Array destructuring (`let [a, ...b] = foo`)
-- Global variables (`var`/none in top scope)
-- Booleans
-- `if` and `if ... else`
-- Anonymous functions
-- Setting functions using vars (`const foo = function() { ... }`)
-- Arrow functions
-- `undefined`/`null`
-- Update expressions (`a++`, `++b`, `c--`, etc)
-- `for` loops (`for (let i = 0; i < N; i++)`, etc)
-- Basic objects (no prototypes)
-- `console.log`
-- `while` loops
-- `break` and `continue`
-- Named export funcs
-- IIFE support
-- Assignment operators (`+=`, `-=`, `>>=`, `&&=`, etc)
-- Conditional/ternary operator (`cond ? a : b`)
-- Recursive functions
-- Bare returns (`return`)
-- `throw` (literals only, hack for `new Error`)
-- Basic `try { ... } catch { ... }` (no error given)
-- Calling functions with non-matching arguments (eg `f(a, b); f(0); f(1, 2, 3);`)
-- `typeof`
-- Runtime errors for undeclared variables (`ReferenceError`), not functions (`TypeError`)
-- Array creation via `[]` (eg `let arr = [ 1, 2, 3 ]`)
-- Array member access via `arr[ind]` (eg `arr[0]`)
-- String literals (`'hello world'`)
-- String member (char) access via `str[ind]` (eg `str[0]`)
-- String concat (`+`) (eg `'a' + 'b'`)
-- Truthy/falsy (eg `!'' == true`)
-- String comparison (eg `'a' == 'a'`, `'a' != 'b'`)
-- Nullish coalescing operator (`??`)
-- `for...of` (arrays and strings)
-- `for...in`
-- Array member setting (`arr[0] = 2`, `arr[0] += 2`, etc)
-- Array constructor (`Array(5)`, `new Array(1, 2, 3)`)
-- Labelled statements (`foo: while (...)`)
-- `do...while` loops
-- Optional parameters (`(foo = 'bar') => { ... }`)
-- Rest parameters (`(...foo) => { ... }`)
-- `this`
-- Constructors (`new Foo`)
-- Classes (`class A {}`)
-- Await (`await promise`)
-
-### Built-ins
-
-- `NaN` and `Infinity`
-- `isNaN()` and `isFinite()`
-- Most of `Number` (`MAX_VALUE`, `MIN_VALUE`, `MAX_SAFE_INTEGER`, `MIN_SAFE_INTEGER`, `POSITIVE_INFINITY`, `NEGATIVE_INFINITY`, `EPSILON`, `NaN`, `isNaN`, `isFinite`, `isInteger`, `isSafeInteger`)
-- Most `Math` funcs (`sqrt`, `abs`, `floor`, `sign`, `round`, `trunc`, `clz32`, `fround`, `random`, `exp`, `log`, `log2`, `log10`, `pow`, `expm1`, `log1p`, `sqrt`, `cbrt`, `hypot`, `sin`, `cos`, `tan`, `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `asin`, `acos`, `atan`, `atan2`)
-- Basic `globalThis` support
-- Basic `Boolean` and `Number`
-- Basic `eval` for literals
-- `Math.random()` using self-made xorshift128+ PRNG
-- Some of `performance` (`now()`, `timeOrigin`)
-- Most of `Array.prototype` (`at`, `push`, `pop`, `shift`, `fill`, `slice`, `indexOf`, `lastIndexOf`, `includes`, `with`, `reverse`, `toReversed`, `forEach`, `filter`, `map`, `find`, `findLast`, `findIndex`, `findLastIndex`, `every`, `some`, `reduce`, `reduceRight`, `join`, `toString`)
-- Most of `Array` (`of`, `isArray`)
-- Most of `String.prototype` (`at`, `charAt`, `charCodeAt`, `toUpperCase`, `toLowerCase`, `startsWith`, `endsWith`, `indexOf`, `lastIndexOf`, `includes`, `padStart`, `padEnd`, `substring`, `substr`, `slice`, `trimStart`, `trimEnd`, `trim`, `toString`, `big`, `blink`, `bold`, `fixed`, `italics`, `small`, `strike`, `sub`, `sup`,  `trimLeft`, `trimRight`, `trim`)
-- Some of `crypto` (`randomUUID`)
-- `escape`
-- `btoa`
-- Most of `Number.prototype` (`toString`, `toFixed`, `toExponential`)
-- `parseInt`
-- Spec-compliant `Date`
-- WIP typed arrays (`Uint8Array`, `Int32Array`, etc)
-- Synchronous `Promise`
-
-### Custom
-
-- Supports i32, i64, and f64 for valtypes
-- Intrinsic functions (see below)
-- Inlining wasm via ``asm`...``\` "macro"
-
 ## Versioning
-Porffor uses a unique versioning system, here's an example: `0.18.2+2aa3f0589`. Let's break it down:
+Porffor uses a unique versioning system, here's an example: `0.48.7`. Let's break it down:
 1. `0` - major, always `0` as Porffor is not ready yet
-2. `18` - minor, total Test262 pass percentage (floored to nearest int)
-3. `2` - micro, build number for that minor (incremented each publish/git push)
-4. `2aa3f0589` - commit hash
+2. `48` - minor, total Test262 pass percentage (rounded half down, eg `49.4%` -> `48`, `49.5%` -> `49`)
+3. `7` - micro, build number for that minor (incremented each git push)
 
 ## Performance
 *For the features it supports most of the time*, Porffor is *blazingly fast* compared to most interpreters and common engines running without JIT. For those with JIT, it is usually slower by default, but can catch up with compiler arguments and typed input, even more so when compiling to native binaries.
-
-## Optimizations
-Mostly for reducing size. I do not really care about compiler perf/time as long as it is reasonable. We do not use/rely on external opt tools (`wasm-opt`, etc), instead doing optimization inside the compiler itself creating even smaller code sizes than `wasm-opt` itself can produce as we have more internal information.
-
-### Traditional opts
-- Inlining functions (WIP, limited)
-- Inline const math ops
-- Tail calls (behind flag `--tail-call`)
-
-### Wasm transforms
-- `local.set`, `local.get` -> `local.tee`
-- `i32.const 0`, `i32.eq` -> `i32.eqz`
-- `i64.extend_i32_s`, `i32.wrap_i64` -> ``
-- `f64.convert_i32_u`, `i32.trunc_sat_f64_s` -> ``
-- `return`, `end` -> `end`
-- Change const, convert to const of converted valtype (eg `f64.const`, `i32.trunc_sat_f64_s` -> `i32.const`)
-- Remove some redundant sets/gets
-- Remove unneeded single just used vars
-- Remove unneeded blocks (no `br`s inside)
-- Remove unused imports
-- Use data segments for initing arrays/strings
-- (Likely more not documented yet, todo)
-
-### Wasm module
-- Type cache/index (no repeated types)
-- No main func if empty (and other exports)
-- No tags if unused/optimized out
 
 ## Test262
 Porffor can run Test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). It currently passes >14% (see latest commit desc for latest and details). Use `node test262` to test, it will also show a difference of overall results between the last commit and current results.

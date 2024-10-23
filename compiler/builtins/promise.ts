@@ -92,13 +92,67 @@ export const __ecma262_RejectPromise = (promise: any[], reason: any): void => {
 };
 
 
-export const __Porffor_promise_noop = () => {};
+export const __Porffor_promise_noop = (x: any): any => x;
+
+export const __Porffor_promise_newReaction = (handler: Function, promise: any, flags: i32): any[] => {
+  // enum ReactionType { then = 0, finally = 1 }
+  const out: any[] = Porffor.allocateBytes(32);
+  out[0] = handler;
+  out[1] = promise;
+  out[2] = flags;
+
+  return out;
+};
+
+export const __Porffor_then = (promise: any[], fulfillReaction: any[], rejectReaction: any[]): void => {
+  const state: i32 = promise[1];
+
+  // 27.2.5.4.1 PerformPromiseThen (promise, onFulfilled, onRejected [, resultCapability])
+  // https://tc39.es/ecma262/#sec-performpromisethen
+
+  // 9. If promise.[[PromiseState]] is pending, then
+  if (state == 0) { // pending
+    // a. Append fulfillReaction to promise.[[PromiseFulfillReactions]].
+    const fulfillReactions: any[] = promise[2];
+    Porffor.array.fastPush(fulfillReactions, fulfillReaction);
+
+    // b. Append rejectReaction to promise.[[PromiseRejectReactions]].
+    const rejectReactions: any[] = promise[3];
+    Porffor.array.fastPush(rejectReactions, rejectReaction);
+  } else if (state == 1) { // fulfilled
+    // 10. Else if promise.[[PromiseState]] is fulfilled, then
+    // a. Let value be promise.[[PromiseResult]].
+    const value: any = promise[0];
+
+    // b. Let fulfillJob be NewPromiseReactionJob(fulfillReaction, value).
+    // c. Perform HostEnqueuePromiseJob(fulfillJob.[[Job]], fulfillJob.[[Realm]]).
+    __ecma262_HostEnqueuePromiseJob(__ecma262_NewPromiseReactionJob(fulfillReaction, value));
+  } else { // rejected
+    // 11. Else,
+    // a. Assert: The value of promise.[[PromiseState]] is rejected.
+    // todo
+
+    // b. Let reason be promise.[[PromiseResult]].
+    const reason: any = promise[0];
+
+    // c. If promise.[[PromiseIsHandled]] is false, perform HostPromiseRejectionTracker(promise, "handle").
+    // unimplemented
+
+    // d. Let rejectJob be NewPromiseReactionJob(rejectReaction, reason).
+    // e. Perform HostEnqueuePromiseJob(rejectJob.[[Job]], rejectJob.[[Realm]]).
+    __ecma262_HostEnqueuePromiseJob(__ecma262_NewPromiseReactionJob(rejectReaction, reason));
+  }
+};
 
 export const __Porffor_promise_resolve = (value: any, promise: any): any => {
-  // todo: if value is own promise, reject with typeerror
+  // if value is own promise, reject with typeerror
+  if (value === promise) throw new TypeError('cannot resolve promise with itself');
 
   if (__ecma262_IsPromise(value)) {
-    // todo
+    const fulfillReaction: any[] = __Porffor_promise_newReaction(__Porffor_promise_noop, promise, 0);
+    const rejectReaction: any[] = __Porffor_promise_newReaction(__Porffor_promise_noop, promise, 2);
+
+    __Porffor_then(value, fulfillReaction, rejectReaction);
   } else {
     __ecma262_FulfillPromise(promise, value);
   }
@@ -107,12 +161,7 @@ export const __Porffor_promise_resolve = (value: any, promise: any): any => {
 };
 
 export const __Porffor_promise_reject = (reason: any, promise: any): any => {
-  if (__ecma262_IsPromise(reason)) {
-    // todo
-  } else {
-    __ecma262_RejectPromise(promise, reason);
-  }
-
+  __ecma262_RejectPromise(promise, reason);
   return undefined;
 };
 
@@ -138,18 +187,8 @@ export const __Porffor_promise_create = (): any[] => {
   return obj;
 };
 
-export const __Porffor_promise_newReaction = (handler: Function, promise: any, type: i32): any[] => {
-  // enum ReactionType { then = 0, finally = 1 }
-  const out: any[] = Porffor.allocateBytes(32);
-  out[0] = handler;
-  out[1] = promise;
-  out[2] = type;
-
-  return out;
-};
-
 export const __Porffor_promise_runNext = (func: Function) => {
-  const reaction = __Porffor_promise_newReaction(func, undefined, 1);
+  const reaction: any[] = __Porffor_promise_newReaction(func, undefined, 1);
   __ecma262_HostEnqueuePromiseJob(__ecma262_NewPromiseReactionJob(reaction, undefined));
 };
 
@@ -161,21 +200,26 @@ export const __Porffor_promise_runJobs = () => {
     const reaction: any[] = x[0];
     const handler: Function = reaction[0];
     const outPromise: any = reaction[1];
-    const type: i32 = reaction[2];
+    const flags: i32 = reaction[2];
 
     const value: any = x[1];
 
     // todo: handle thrown errors in handler?
     let outValue: any;
-    if (type == 0) { // 0: then reaction
-      outValue = handler(value);
-    } else { // 1: finally reaction
+    if (flags & 0b01) { // finally reaction
       handler();
       outValue = value;
+    } else { // then reaction
+      outValue = handler(value);
     }
 
-    // todo: should this be resolve or fulfill?
-    if (outPromise) __ecma262_FulfillPromise(outPromise, outValue);
+    if (outPromise) if (flags & 0b10) {
+      // reject reaction
+      __Porffor_promise_reject(outValue, outPromise);
+    } else {
+      // resolve reaction
+      __Porffor_promise_resolve(outValue, outPromise);
+    }
   }
 };
 
@@ -242,52 +286,15 @@ export const __Promise_prototype_then = (_this: any, onFulfilled: any, onRejecte
   // 2. If IsPromise(promise) is false, throw a TypeError exception.
   if (!__ecma262_IsPromise(_this)) throw new TypeError('Promise.prototype.then called on non-Promise');
 
-  // 27.2.5.4.1 PerformPromiseThen (promise, onFulfilled, onRejected [, resultCapability])
-  // https://tc39.es/ecma262/#sec-performpromisethen
-
   if (Porffor.rawType(onFulfilled) != Porffor.TYPES.function) onFulfilled = __Porffor_promise_noop;
   if (Porffor.rawType(onRejected) != Porffor.TYPES.function) onRejected = __Porffor_promise_noop;
-
-  const promise: any[] = _this;
-  const state: i32 = promise[1];
 
   const outPromise: any[] = __Porffor_promise_create();
 
   const fulfillReaction: any[] = __Porffor_promise_newReaction(onFulfilled, outPromise, 0);
-  const rejectReaction: any[] = __Porffor_promise_newReaction(onRejected, outPromise, 0);
+  const rejectReaction: any[] = __Porffor_promise_newReaction(onRejected, outPromise, 2);
 
-  // 9. If promise.[[PromiseState]] is pending, then
-  if (state == 0) { // pending
-    // a. Append fulfillReaction to promise.[[PromiseFulfillReactions]].
-    const fulfillReactions: any[] = promise[2];
-    Porffor.array.fastPush(fulfillReactions, fulfillReaction);
-
-    // b. Append rejectReaction to promise.[[PromiseRejectReactions]].
-    const rejectReactions: any[] = promise[3];
-    Porffor.array.fastPush(rejectReactions, rejectReaction);
-  } else if (state == 1) { // fulfilled
-    // 10. Else if promise.[[PromiseState]] is fulfilled, then
-    // a. Let value be promise.[[PromiseResult]].
-    const value: any = promise[0];
-
-    // b. Let fulfillJob be NewPromiseReactionJob(fulfillReaction, value).
-    // c. Perform HostEnqueuePromiseJob(fulfillJob.[[Job]], fulfillJob.[[Realm]]).
-    __ecma262_HostEnqueuePromiseJob(__ecma262_NewPromiseReactionJob(fulfillReaction, value));
-  } else { // rejected
-    // 11. Else,
-    // a. Assert: The value of promise.[[PromiseState]] is rejected.
-    // todo
-
-    // b. Let reason be promise.[[PromiseResult]].
-    const reason: any = promise[0];
-
-    // c. If promise.[[PromiseIsHandled]] is false, perform HostPromiseRejectionTracker(promise, "handle").
-    // unimplemented
-
-    // d. Let rejectJob be NewPromiseReactionJob(rejectReaction, reason).
-    // e. Perform HostEnqueuePromiseJob(rejectJob.[[Job]], rejectJob.[[Realm]]).
-    __ecma262_HostEnqueuePromiseJob(__ecma262_NewPromiseReactionJob(rejectReaction, reason));
-  }
+  __Porffor_then(_this, fulfillReaction, rejectReaction);
 
   const pro: Promise = outPromise;
   return pro;
@@ -386,27 +393,18 @@ export const __Promise_allSettled = (promises: any): Promise => {
       if (__ecma262_IsPromise(x)) {
         x.then(r => {
           const o = {};
-          let status: bytestring = '';
-          status = 'fulfilled';
-          o.status = status;
-
+          o.status = 'fulfilled';
           o.value = r;
           if (Porffor.array.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
         }, r => {
           const o = {};
-          let status: bytestring = '';
-          status = 'rejected';
-          o.status = status;
-
+          o.status = 'rejected';
           o.reason = r;
           if (Porffor.array.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
         });
       } else {
         const o = {};
-        let status: bytestring = '';
-        status = 'fulfilled';
-        o.status = status;
-
+        o.status = 'fulfilled';
         o.value = x;
         Porffor.array.fastPush(_allOut, o);
       }
@@ -475,12 +473,10 @@ export const __Promise_race = (promises: any): Promise => {
   });
 };
 
+// export const __Promise_try = function (cb: any, ...args: any[]) { return new this(res => res(cb(...args))) };
+export const __Promise_try = async (cb: any, ...args: any[]) => cb(...args);
 
-export const __Promise_prototype_toString = (_this: any) => {
-  const str: bytestring = '[object Promise]';
-  return str;
-};
-
+export const __Promise_prototype_toString = (_this: any) => '[object Promise]';
 export const __Promise_prototype_toLocaleString = (_this: any) => __Promise_prototype_toString(_this);
 
 

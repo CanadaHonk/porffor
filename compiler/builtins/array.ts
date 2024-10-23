@@ -36,6 +36,8 @@ export const __Array_isArray = (x: unknown): boolean =>
   Porffor.rawType(x) == Porffor.TYPES.array;
 
 export const __Array_from = (arg: any, mapFn: any): any[] => {
+  if (arg == null) throw new TypeError('Argument cannot be nullish');
+
   let out: any[] = Porffor.allocate();
   let len: i32 = 0;
 
@@ -46,10 +48,8 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
     type == Porffor.TYPES.set,
     Porffor.fastAnd(type >= Porffor.TYPES.uint8array, type <= Porffor.TYPES.float64array)
   )) {
-    const hasMapFn = Porffor.rawType(mapFn) != Porffor.TYPES.undefined;
-
     let i: i32 = 0;
-    if (hasMapFn) {
+    if (Porffor.rawType(mapFn) != Porffor.TYPES.undefined) {
       if (Porffor.rawType(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
 
       for (const x of arg) {
@@ -61,7 +61,19 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
         out[i++] = x;
       }
     }
+
     len = i;
+  }
+
+  if (type == Porffor.TYPES.object) {
+    const obj: object = arg;
+
+    const lengthKey: bytestring = 'length';
+    len = obj[lengthKey];
+
+    for (let i: i32 = 0; i < len; i++) {
+      out[i] = obj[i];
+    }
   }
 
   out.length = len;
@@ -558,10 +570,13 @@ export const __Array_prototype_some = (_this: any[], callbackFn: any) => {
 
 // @porf-typed-array
 export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialValue: any) => {
-  let acc: any = initialValue ?? _this[0];
-
   const len: i32 = _this.length;
+  let acc: any = initialValue;
   let i: i32 = 0;
+  if (acc === undefined) {
+    acc = _this[i++];
+  }
+
   while (i < len) {
     acc = callbackFn(acc, _this[i], i++, _this);
   }
@@ -572,9 +587,12 @@ export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialV
 // @porf-typed-array
 export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, initialValue: any) => {
   const len: i32 = _this.length;
-  let acc: any = initialValue ?? _this[len - 1];
-
+  let acc: any = initialValue;
   let i: i32 = len;
+  if (acc === undefined) {
+    acc = _this[--i];
+  }
+
   while (i > 0) {
     acc = callbackFn(acc, _this[--i], i, _this);
   }
@@ -874,10 +892,10 @@ export const __Porffor_array_fastPush = (arr: any[], el: any): i32 => {
   return len;
 };
 
-export const __Porffor_array_fastIndexOf = (arr: any[], el: any): i32 => {
+export const __Porffor_array_fastIndexOf = (arr: any[], el: number): i32 => {
   const len: i32 = arr.length;
   for (let i: i32 = 0; i < len; i++) {
-    if (arr[i] === el) return i;
+    if (arr[i] == el) return i;
   }
 
   return -1;

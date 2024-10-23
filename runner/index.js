@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.42.4+82c4bc5cf';
+globalThis.version = '0.49.6';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -8,18 +8,6 @@ if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
 }
 
 const start = performance.now();
-
-if (process.argv.includes('--compile-hints')) {
-  const v8 = await import('node:v8');
-  v8.setFlagsFromString(`--experimental-wasm-compilation-hints`);
-
-  // see also these flags:
-  // --experimental-wasm-branch-hinting
-  // --experimental-wasm-extended-const
-  // --experimental-wasm-inlining (?)
-  // --experimental-wasm-js-inlining (?)
-  // --experimental-wasm-return-call (on by default)
-}
 
 if (process.argv.includes('--help')) {
   // description + version

@@ -5,11 +5,9 @@ import compile from './index.js';
 import decompile from './decompile.js';
 import { TYPES, TYPE_NAMES } from './types.js';
 import { log } from './log.js';
-import {} from './prefs.js';
+import './prefs.js';
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
-
-const bold = x => `\u001b[1m${x}\u001b[0m`;
 
 const checkOOB = (memory, ptr) => ptr >= memory.buffer.byteLength;
 
@@ -134,8 +132,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       if (value < 0) {
         func = importedFuncs[value + importedFuncs.length];
       } else {
-        value += importedFuncs.length;
-        func = funcs.find(x => x.index === value);
+        func = funcs.find(x => x.wrapperFunc?.indirectIndex === value);
       }
 
       if (!func) return function () {};
@@ -186,11 +183,10 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.symbol: {
-      if (!pages) return Symbol();
-      const page = pages.get('array: symbol.ts/descStore');
+      const page = pages?.get('symbol.ts/descStore');
       if (!page) return Symbol();
 
-      const descStore = page.ind * pageSize;
+      const descStore = page * pageSize;
       const offset = descStore + 4 + ((value - 1) * 9);
 
       const v = read(Float64Array, memory, offset, 1)[0];
@@ -319,13 +315,26 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     case TYPES.evalerror:
     case TYPES.urierror:
     case TYPES.test262error:
-    case TYPES.__porffor_todoerror: {
+    case TYPES.todoerror: {
       const obj = porfToJSValue({ memory, funcs, pages }, value, TYPES.object);
       const err = new (globalThis[TYPE_NAMES[type]] ?? Error)(obj.message);
 
       err.name = obj.name;
-      err.stack = `${TYPE_NAMES[type]}: ${obj.message}`;
+      err.stack = `${obj.name}: ${obj.message}`;
       return err;
+    }
+
+    case TYPES.__porffor_generator: {
+      const values = porfToJSValue({ memory, funcs, pages }, value, TYPES.array);
+
+      const out = { values };
+      Object.defineProperty(out, Symbol.for('nodejs.util.inspect.custom'), {
+        value(depth, opts, inspect) {
+          return `${opts.colors ? '\x1B[36m' : ''}Generator${opts.colors ? '\x1B[0m' : ''} ()`;
+        }
+      });
+
+      return out;
     }
 
     default: return value;
@@ -340,10 +349,8 @@ export default (source, module = undefined, customImports = {}, print = str => p
 
   globalThis.porfDebugInfo = { funcs, globals };
 
-  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
-
   times.push(performance.now() - t1);
-  if (Prefs.profileCompiler) console.log(bold(`compiled in ${times[0].toFixed(2)}ms`));
+  if (Prefs.profileCompiler && !globalThis.onProgress) console.log(`\u001b[1mcompiled in ${times[0].toFixed(2)}ms\u001b[0m`);
 
   const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
@@ -377,7 +384,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
 
   const backtrace = (funcInd, blobOffset) => {
     if (funcInd == null || blobOffset == null ||
-        Number.isNaN(funcInd) || Number.isNaN(blobOffset)) return false;
+        Number.isNaN(funcInd) || Number.isNaN(blobOffset) || Prefs.backtrace === false) return false;
 
     // convert blob offset -> function wasm offset
     const func = funcs.find(x => x.asmIndex === funcInd);
@@ -480,7 +487,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
   }
 
   times.push(performance.now() - t2);
-  if (Prefs.profileCompiler) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
+  if (Prefs.profileCompiler && !globalThis.onProgress) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
 
   const exports = {};
   const rawValues = Prefs.d;
@@ -493,15 +500,10 @@ export default (source, module = undefined, customImports = {}, print = str => p
       continue;
     }
 
-    const name = x === 'm' ? 'main' : x;
-    const func = funcs.find(x => x.name === name);
-
-    const exp = instance.exports[x];
-    exports[func.name] = exp;
-
-    exports[func.name] = function() {
+    const wasm = instance.exports[x];
+    exports[x === 'm' ? 'main' : x] = function() {
       try {
-        const ret = exp.apply(this, arguments);
+        const ret = wasm.apply(this, arguments);
         if (ret == null) return undefined;
 
         if (rawValues) return { value: ret[0], type: ret[1], js: porfToJSValue({ memory, funcs, pages }, ret[0], ret[1]) };
@@ -604,14 +606,10 @@ export const fromWasm = (wasm, print = str => process.stdout.write(str)) => {
       continue;
     }
 
-    const name = x === 'm' ? 'main' : x;
-
-    const exp = instance.exports[x];
-    exports[name] = exp;
-
-    exports[name] = function() {
+    const wasm = instance.exports[x];
+    exports[x === 'm' ? 'main' : x] = function() {
       try {
-        const ret = exp.apply(this, arguments);
+        const ret = wasm.apply(this, arguments);
         if (ret == null) return undefined;
 
         return porfToJSValue({ memory }, ret[0], ret[1]);

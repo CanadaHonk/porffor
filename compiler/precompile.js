@@ -70,8 +70,8 @@ const compile = async (file, _funcs) => {
     return acc;
   }, {});
 
-  const main = funcs.find(x => x.name === 'main');
-  const exports = funcs.filter(x => x.export && x.name !== 'main');
+  const main = funcs.find(x => x.name === '#main');
+  const exports = funcs.filter(x => x.export && x.name !== '#main');
   for (const x of exports) {
     if (x.data) {
       x.data = x.data.reduce((acc, x) => { acc[data[x].page] = data[x].bytes; return acc; }, {});
@@ -126,30 +126,24 @@ const compile = async (file, _funcs) => {
 
         if (!n) continue;
 
-        if (y[0] === Opcodes.const &&(n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
-          const l = locals[n[1]];
-          if (!l) continue;
-          if (!['#member_prop'].includes(l.name) && ![TYPES.string, TYPES.array, TYPES.bytestring].includes(l.metadata?.type)) continue;
-          if (!x.pages) continue;
+        const alloc = l => {
+          if (!l) return;
+          if (![TYPES.array].includes(l.metadata?.type)) return;
+          if (!x.pages) return;
 
           const pageName = [...x.pages.keys()].find(z => z.endsWith(l.name));
-          if (!pageName || allocated.has(pageName)) continue;
+          if (!pageName || allocated.has(pageName)) return;
           allocated.add(pageName);
 
-          y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type, valtypeBinary);
+          y.splice(0, 10, 'alloc', pageName, valtypeBinary);
+        };
+
+        if (y[0] === Opcodes.const &&(n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
+          alloc(locals[n[1]]);
         }
 
         if (y[0] === Opcodes.const && n[0] === Opcodes.global_set) {
-          const l = invGlobals[n[1]];
-          if (!l) continue;
-          if (![TYPES.string, TYPES.array, TYPES.bytestring].includes(l.metadata?.type)) continue;
-          if (!x.pages) continue;
-
-          const pageName = [...x.pages.keys()].find(z => z.endsWith(l.name));
-          if (!pageName || allocated.has(pageName)) continue;
-          allocated.add(pageName);
-
-          y.splice(0, 10, 'alloc', pageName, x.pages.get(pageName).type, valtypeBinary);
+          alloc(invGlobals[n[1]]);
         }
 
         if (n[0] === Opcodes.throw) {
@@ -220,11 +214,12 @@ ${funcs.map(x => {
       if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
       return v;
     })
-      .replace(/\["alloc","(.*?)","(.*?)",(.*?)\]/g, (_, reason, type, valtype) => `...number(allocPage(_,'${reason}','${type}'),${valtype})`)
+      .replace(/\["alloc","(.*?)",(.*?)\]/g, (_, reason, valtype) => `...number(allocPage(_,'${reason}'),${valtype})`)
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode},'${name}',${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)
-      .replace(/\[68,"funcref","(.*?)"]/g, (_, name) => `...funcRef('${name}')`)
+      .replace(/\[(68|65),"funcref","(.*?)"]/g, (_1, op, name) => op === '65' ? `...i32ify(funcRef('${name}'))` : `...funcRef('${name}')`)
+      .replace(/\[(68|65),"str","(.*?)",(.*?)]/g, (_1, op, str, forceBytestring) => op === '65' ? `...i32ify(makeString(_,${JSON.stringify(str)},${forceBytestring ? 1 : 0}))` : `...makeString(_,${JSON.stringify(str)},${forceBytestring ? 1 : 0})`)
       .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(_,'${constructor}',\`${message}\`)`)
       .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`)
       .replace(/\[null,"typeswitch case start",\[(.*?)\]\],/g, (_, types) => `...t([${types}],()=>[`)
@@ -240,7 +235,7 @@ ${funcs.map(x => {
         return `[null,()=>{if(${comptimeFlagChecks[id](extra)}){const r=()=>{valtype=Prefs.valtype??'f64';valtypeBinary=Valtype[valtype];const valtypeInd=['i32','i64','f64'].indexOf(valtype);Opcodes.i32_to=[[],[Opcodes.i32_wrap_i64],Opcodes.i32_trunc_sat_f64_s][valtypeInd];Opcodes.i32_to_u=[[],[Opcodes.i32_wrap_i64],Opcodes.i32_trunc_sat_f64_u][valtypeInd];Opcodes.i32_from=[[],[Opcodes.i64_extend_i32_s],[Opcodes.f64_convert_i32_s]][valtypeInd];Opcodes.i32_from_u=[[],[Opcodes.i64_extend_i32_u],[ Opcodes.f64_convert_i32_u]][valtypeInd]};const a=Prefs;Prefs=${prefs};r();const b=generate(_,${ast});Prefs=a;r();return b;}return []}]`;
       });
 
-    return `(_,{${str.includes('hasFunc(') ? 'hasFunc,' : ''}${str.includes('Valtype[') ? 'Valtype,' : ''}${str.includes('Opcodes.') ? 'Opcodes,' : ''}${str.includes('...t(') ? 't,' : ''}${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('funcRef(') ? 'funcRef,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}${str.includes('generate(') ? 'generate,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
+    return `(_,{${str.includes('hasFunc(') ? 'hasFunc,' : ''}${str.includes('Valtype[') ? 'Valtype,' : ''}${str.includes('i32ify') ? 'i32ify,' : ''}${str.includes('Opcodes.') ? 'Opcodes,' : ''}${str.includes('...t(') ? 't,' : ''}${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('makeString(') ? 'makeString,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('funcRef(') ? 'funcRef,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}${str.includes('generate(') ? 'generate,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
   };
 
   const locals = Object.entries(x.locals).sort((a,b) => a[1].idx - b[1].idx)
@@ -256,7 +251,7 @@ params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.retu
 locals:${JSON.stringify(locals.slice(x.params.length).map(x => x[1].type))},localNames:${JSON.stringify(locals.map(x => x[0]))},
 ${usedTypes.length > 0 ? `usedTypes:${JSON.stringify(usedTypes)},` : ''}
 ${x.globalInits ? `globalInits:{${Object.keys(x.globalInits).map(y => `${y}:${rewriteWasm(x.globalInits[y])}`).join(',')}},` : ''}${x.data && Object.keys(x.data).length > 0 ? `data:${JSON.stringify(x.data)},` : ''}
-${x.table ? `table:1,` : ''}${x.constr ? `constr:1,` : ''}${x.hasRestArgument ? `hasRestArgument:1,` : ''}${x.usesTag ? `usesTag:1,` : ''}
+${x.table ? `table:1,` : ''}${x.constr ? `constr:1,` : ''}${x.hasRestArgument ? `hasRestArgument:1,` : ''}${x.usesTag ? `usesTag:1,` : ''}${x.usesImports ? `usesImports:1,` : ''}
 }`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n');
 }).join('\n')}
 }`;

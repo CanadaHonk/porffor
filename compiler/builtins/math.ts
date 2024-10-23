@@ -76,18 +76,38 @@ export const __Math_log = (y: number): number => {
   }
   if (!Number.isFinite(y)) return y;
 
-  // guess using log knowledge
-  let x: number = y > 1 ? Math.log2(y) : 0;
+  // very large numbers
+  if (y > 1e308) {
+    const n = Math.floor(Math.log2(y));
+    return Math.LN2 * n + Math.log(y / (1 << 30) / (1 << (n - 30)));
+  }
 
-  // refine with Newton-Raphson method
-  let delta: number;
-  do {
-    const e_x: number = Math.exp(x);
-    delta = (e_x - y) / e_x;
-    x -= delta;
-  } while (Math.abs(delta) > 1e-15);
+  let m = 0;
+  while (y >= 2) {
+    y /= 2;
+    m++;
+  }
+  while (y < 1) {
+    y *= 2;
+    m--;
+  }
 
-  return x;
+  y--;  // 1 <= y < 2 -> 0 <= y < 1
+
+  // more accurate series expansion
+  let x = y / (2 + y);
+  const x2 = x * x;
+  let sum = x;
+  let term = x;
+  let i = 1;
+
+  while (Math.abs(term) > 1e-15) {
+    term *= x2 * (2 * i - 1) / (2 * i + 1);
+    sum += term;
+    i++;
+  }
+
+  return 2 * sum + m * Math.LN2;
 };
 
 export const __Math_log10 = (x: number): number => {
@@ -206,7 +226,25 @@ export const __Math_pow = (base: number, exponent: number): number => {
   if (base < 0) if (!Number.isInteger(exponent)) return NaN;
 
   // 13. Return an implementation-approximated Number value representing the result of raising ℝ(base) to the ℝ(exponent) power.
-  return Math.exp(exponent * Math.log(base));
+  let currentBase: number = base;
+  let currentExponent: number = Math.abs(exponent);
+
+  let result: number = 1;
+  while (currentExponent > 0) {
+    if (currentExponent >= 1) {
+      if (currentExponent % 2 != 0) {
+        result *= currentBase;
+      }
+      currentBase *= currentBase;
+      currentExponent = Math.floor(currentExponent / 2);
+    } else {
+      // Handle fractional part
+      result *= Math.exp(currentExponent * Math.log(Math.abs(currentBase)));
+      break;
+    }
+  }
+
+  return exponent < 0 ? 1 / result : result;
 };
 
 
@@ -279,7 +317,7 @@ export const __Math_cbrt = (y: number): number => {
   if (!Number.isFinite(y)) return y;
 
   // Babylonian method
-  let x = Math.abs(y);
+  let x:number = Math.abs(y);
 
   let prev: number;
 

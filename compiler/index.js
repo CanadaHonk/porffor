@@ -8,7 +8,7 @@ import decompile from './decompile.js';
 import toc from './2c.js';
 import * as pgo from './pgo.js';
 import cyclone from './cyclone.js';
-import {} from './prefs.js';
+import './prefs.js';
 import * as Diagram from './diagram.js';
 
 globalThis.decompile = decompile;
@@ -31,6 +31,8 @@ const execSync = (typeof process?.version !== 'undefined' ? (await import('node:
 let progressLines = 0, progressInterval;
 let spinner = ['-', '\\', '|', '/'], spin = 0;
 const progressStart = msg => {
+  if (globalThis.onProgress) return;
+
   const log = (extra, after) => {
     const pre = extra ? `${extra}` : spinner[spin++ % 4];
     process.stdout.write(`\r\u001b[90m${' '.repeat(10 - pre.length)}${pre}  ${msg}${after ?? ''}\u001b[0m`);
@@ -41,6 +43,8 @@ const progressStart = msg => {
   progressInterval = setInterval(log, 100);
 };
 const progressDone = (msg, start) => {
+  if (globalThis.onProgress) return globalThis.onProgress(msg, performance.now() - start);
+
   clearInterval(progressInterval);
 
   const timeStr = (performance.now() - start).toFixed(0);
@@ -48,6 +52,8 @@ const progressDone = (msg, start) => {
   progressLines++;
 };
 const progressClear = () => {
+  if (globalThis.onProgress) return;
+
   process.stdout.write(`\u001b[${progressLines}F\u001b[0J`);
   progressLines = 0;
 };

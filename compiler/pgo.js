@@ -1,7 +1,7 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { number } from './embedding.js';
 import { importedFuncs } from './builtins.js';
-import {} from './prefs.js';
+import './prefs.js';
 import assemble from './assemble.js';
 import wrap, { writeByteStr } from './wrap.js';
 import * as Havoc from './havoc.js';
@@ -214,7 +214,7 @@ export const run = obj => {
   log = '';
   for (const x of funcs) {
     // skip pgo opt for main()
-    if (x.name === 'main') continue;
+    if (x.name === '#main') continue;
 
     const wasmFunc = wasmFuncs.find(y => y.name === x.name);
 

@@ -1,9 +1,10 @@
 import { TYPE_NAMES } from '../compiler/types.js';
 import compile from '../compiler/wrap.js';
+import parse from '../compiler/parse.js';
 
 import util from 'node:util';
 
-process.argv.push('--no-opt-unused');
+Prefs.optUnused = false;
 
 let repl;
 try {
@@ -83,7 +84,13 @@ const run = (source, _context, _filename, callback, run = true) => {
   // hack: print "secret" before latest code ran to only enable printing for new code
 
   source = source.trim();
-  if (source.startsWith('{') && source.endsWith('}')) source = '(' + source + ')';
+  if (source.startsWith('{') && source.endsWith('}')) {
+    const wrapped = '(' + source + ')';
+    try {
+      parse(wrapped);
+      source = wrapped;
+    } catch {}
+  }
 
   let toRun = (prev ? (prev + `;\nprint(-0x1337);\n`) : '') + source;
 
@@ -135,9 +142,9 @@ replServer.defineCommand('asm', {
     this.clearBufferedCommand();
 
     try {
-      process.argv.push('--opt-funcs');
+      Prefs.optFuncs = true;
       run('', null, null, () => {}, false);
-      process.argv.pop();
+      Prefs.optFuncs = false;
     } catch { }
 
     this.displayPrompt();
