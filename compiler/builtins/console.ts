@@ -86,7 +86,7 @@ export const __Porffor_miniLog = (arg: any) => {
   Porffor.printStatic('\n');
 };
 
-export const __Porffor_print = (arg: any, colors: boolean = true) => {
+export const __Porffor_print = (arg: any, colors: boolean = true, depth: number = 0) => {
   // todo: Symbol.toStringTag could reduce duplication here
 
   // note: this doesn't have access to the upper scope!! do not use any variables from up there
@@ -154,21 +154,23 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
           return;
         }
 
-        Porffor.printStatic('{ ');
+        Porffor.printStatic('{\n');
         const len: i32 = keys.length - 1;
         for (let i: i32 = 0; i <= len; i++) {
           const x: any = keys[i];
 
-          Porffor.printStatic('  ');
+          for (let j: i32 = 0; j <= depth; j++) Porffor.printStatic('  ');
           __Porffor_printString(x);
 
           Porffor.printStatic(': ');
-          __Porffor_print(Porffor.object.get(arg, ecma262.ToPropertyKey(x)));
+          __Porffor_print(Porffor.object.get(arg, ecma262.ToPropertyKey(x)), colors, depth + 1);
 
           if (i != len) Porffor.printStatic(',\n');
         }
 
-        Porffor.printStatic(' }');
+        Porffor.printStatic('\n');
+        for (let j: i32 = 0; j < depth; j++) Porffor.printStatic('  ');
+        Porffor.printStatic('}');
       } else {
         if (colors) Porffor.printStatic('\x1b[1m'); // bold
         Porffor.printStatic('null');
@@ -295,7 +297,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true) => {
 
       for (let i: i32 = 0; i < mapLen; i++) {
         const key: any = map[i];
-        __Porffor_print(key);
+        __Porffor_print(key, colors);
         Porffor.printStatic(' => ');
         __Porffor_print(__Map_prototype_get(arg, key), colors);
         if (i != mapLen) Porffor.printStatic(', ');
