@@ -551,54 +551,15 @@ export default (source, module = undefined, customImports = {}, print = str => p
   return { exports, wasm, times, pages, c };
 };
 
-const collectDebugInfo = wasm => {
-  let index = 8; // skip magic and version
-  let exceptions = [], exceptionMode, valtypeBinary;
-  while (index < wasm.length) {
-    let sectionType = wasm[index++];
-    let length;
-    [ length, index ] = readUnsignedLEB128FromBuffer(wasm, index);
-    if (sectionType !== Section.custom) {
-      index += length;
-      continue;
-    }
-    let startPosition = index;
-    let endPosition = index + length;
-    let name;
-    [ name, index ] = readStringFromBuffer(wasm, index);
-    if (name !== 'porffor_debug_info') {
-      index = endPosition;
-      continue;
-    }
-    while (index < endPosition) {
-      sectionType = wasm[index++];
-      let length;
-      [ length, index ] = readUnsignedLEB128FromBuffer(wasm, index);
-      if (sectionType === 0) { // valtype
-        valtypeBinary = wasm[index++];
-      } else {
-        index += length;
-      }
-    }
-    break;
-  }
-  return { valtypeBinary };
-};
-
 // TODO: integrate with default
 export const fromWasm = (wasm, print = str => process.stdout.write(str)) => {
-  let { valtypeBinary } = collectDebugInfo(wasm);
-  if (valtypeBinary == null) {
-    // console.warn("Wasm binary not compiled with debug information");
-    valtypeBinary = Valtype.f64;
-  }
   let instance, memory;
   try {
     const module = new WebAssembly.Module(wasm);
     instance = new WebAssembly.Instance(module, {
       '': {
-        p: valtypeBinary === Valtype.i64 ? i => print(Number(i).toString()) : i => print(i.toString()),
-        c: valtypeBinary === Valtype.i64 ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
+        p: i => print(i.toString()),
+        c: i => print(String.fromCharCode(Number(i))),
         t: () => performance.now(),
         u: () => performance.timeOrigin,
         y: () => {},

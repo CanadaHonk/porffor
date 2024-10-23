@@ -47,20 +47,6 @@ const encodeNames = funcs => {
   ];
 };
 
-const encodeDebugInfo = (funcs, globals, tags, exceptions, pages, data, excMode) => {
-  const encodeSection = (id, section) => [
-    id,
-    ...unsignedLEB128(section.length),
-    ...section
-  ];
-  const typeSection = [ valtypeBinary ];
-
-  // TODO: add more information like where funcrefs are, etc.
-  return [
-    ...encodeSection(0, typeSection),
-  ];
-};
-
 export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   const types = [], typeCache = {};
 
@@ -134,8 +120,6 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   time('func section');
 
   const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
-
-  const porfforDebugInfoSection = Prefs.d ? customSection('porffor_debug_info', encodeDebugInfo(funcs, globals, tags, pages, data, Prefs.exceptionMode ?? 'lut')) : [];
 
   const directFuncs = funcs.filter(x => !x.indirect);
   const tableSection = !funcs.table ? [] : createSection(
@@ -440,7 +424,6 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     ...exportSection,
     ...elementSection,
     ...dataCountSection,
-    ...porfforDebugInfoSection,
     ...codeSection,
     ...dataSection,
     ...nameSection
