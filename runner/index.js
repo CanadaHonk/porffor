@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.49.6';
+globalThis.version = '0.49.7';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -11,42 +11,37 @@ const start = performance.now();
 
 if (process.argv.includes('--help')) {
   // description + version
-  console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript engine/runtime/compiler. \x1B[90m(${globalThis.version})\x1B[0m`);
+  console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript/TypeScript engine/compiler/runtime. \x1B[90m(${globalThis.version})\x1B[0m`);
 
   // basic usage
-  console.log(`Usage: \x1B[1mporf [command] [...prefs] path/to/script.js [...args]\x1B[0m`);
+  console.log(`Usage: \x1B[1mporf <command> [...prefs] path/to/script.js [...args]\x1B[0m`);
 
   // commands
-  console.log(`\n\x1B[1mCommands:\x1B[0m`);
-  for (const [ cmd, [ color, desc ] ] of Object.entries({
-    run: [ 34, 'Run a JS file' ],
-    wasm: [ 34, 'Compile a JS file to a Wasm binary\n' ],
+  for (let [ cmd, [ color, post, desc ] ] of Object.entries({
+    'Compile': [],
+    '': [ 34, 'foo.js', 'Compile and execute a file' ],
+    wasm: [ 34, 'foo.js foo.wasm', 'Compile to a Wasm binary' ],
+    c: [ 94, 'foo.js foo.c', 'Compile to C source code' ],
+    native: [ 94, 'foo.js foo', 'Compile to a native binary' ],
 
-    c: [ 31, 'Compile a JS file to C source code' ],
-    native: [ 31, 'Compile a JS file to a native binary\n' ],
+    'Profile': [],
+    flamegraph: [ 93, 'foo.js', 'View detailed func-by-func performance' ],
+    hotlines: [ 93, 'foo.js', 'View source with line-by-line performance' ],
 
-    profile: [ 33, 'Profile a JS file' ],
-    debug: [ 33, 'Debug a JS file' ],
-    'debug-wasm': [ 33, 'Debug the compiled Wasm of a JS file' ],
+    'Debug': [],
+    debug: [ 33, 'foo.js', 'Debug the source of a file' ],
+    dissect: [ 33, 'foo.js', 'Debug the compiled Wasm of a file' ],
   })) {
-    console.log(`  \x1B[1m\x1B[${color}m${cmd}\x1B[0m${' '.repeat(20 - cmd.length - (desc.startsWith('🧪') ? 3 : 0))}${desc}`);
+    if (color == null) {
+      // header
+      console.log(`\n\x1B[1m\x1B[4m${cmd}\x1B[0m`);
+      continue;
+    }
+
+    if (cmd.length > 0) post = ' ' + post;
+
+    console.log(`  \x1B[90mporf\x1B[0m \x1B[1m\x1B[${color}m${cmd}\x1B[0m\x1B[2m${post}\x1B[0m ${' '.repeat(30 - cmd.length - post.length)}${desc}`);
   }
-
-  // console.log();
-
-  // // options
-  // console.log(`\n\u001b[4mCommands\x1B[0m`);
-  // for (const [ cmd, [ color, desc ] ] of Object.entries({
-  //   run: [ 34, 'Run a JS file' ],
-  //   wasm: [ 34, 'Compile a JS file to a Wasm binary\n' ],
-  //   c: [ 31, 'Compile a JS file to C source code' ],
-  //   native: [ 31, 'Compile a JS file to a native binary\n' ],
-  //   profile: [ 33, 'Profile a JS file' ],
-  //   debug: [ 33, 'Debug a JS file' ],
-  //   'debug-wasm': [ 33, 'Debug the compiled Wasm of a JS file' ]
-  // })) {
-  //   console.log(`  \x1B[1m\x1B[${color}m${cmd}\x1B[0m${' '.repeat(20 - cmd.length - (desc.startsWith('🧪') ? 3 : 0))}${desc}`);
-  // }
 
   console.log();
   process.exit(0);
@@ -59,7 +54,7 @@ const done = async () => {
 };
 
 let file = process.argv.slice(2).find(x => x[0] !== '-');
-if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm'].includes(file)) {
+if (['precompile', 'run', 'wasm', 'native', 'c', 'hotlines', 'debug', 'dissect'].includes(file)) {
   // remove this arg
   process.argv.splice(process.argv.indexOf(file), 1);
 
@@ -68,8 +63,8 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm
     await done();
   }
 
-  if (file === 'profile') {
-    await import('./profile.js');
+  if (file === 'hotlines') {
+    await import('./hotlines.js');
     await done();
   }
 
@@ -82,7 +77,7 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'debug-wasm
     process.argv.push(`--target=${file}`);
   }
 
-  if (file === 'debug-wasm') {
+  if (file === 'dissect') {
     process.argv.push('--asur', '--wasm-debug');
   }
 

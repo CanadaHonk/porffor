@@ -42,7 +42,7 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 > [!WARNING]
 > Very experimental WIP feature!
 
-**`porf profile path/to/script.js`**
+**`porf hotlines path/to/script.js`**
 
 ### Debugging a JS file
 > [!WARNING]
@@ -54,7 +54,7 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 > [!WARNING]
 > Very experimental WIP feature!
 
-**`porf debug-wasm path/to/script.js`**
+**`porf dissect path/to/script.js`**
 
 
 ### Options
@@ -80,7 +80,7 @@ Asur is Porffor's own Wasm engine; it is an intentionally simple interpreter wri
 Rhemyn is Porffor's own regex engine; it compiles literal regex to Wasm bytecode AOT (remind you of anything?). It is quite basic and WIP. See [its readme](rhemyn/README.md) for more details.
 
 ### 2c
-2c is Porffor's own Wasm -> C compiler, using generated Wasm bytecode and internal info to generate specific and efficient/fast C code. Little boilerplate/preluded code or required external files, just for CLI binaries (not like wasm2c very much).
+2c is Porffor's own Wasm -> C compiler, using generated Wasm bytecode and internal info to generate specific and efficient C code. Little boilerplate/preluded code or required external files, just for CLI binaries (not like wasm2c very much).
 
 ## Versioning
 Porffor uses a unique versioning system, here's an example: `0.48.7`. Let's break it down:
