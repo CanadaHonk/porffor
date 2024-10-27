@@ -4,8 +4,6 @@ import parse from '../compiler/parse.js';
 
 import util from 'node:util';
 
-Prefs.optUnused = false;
-
 let repl;
 try {
   // try importing node:repl

@@ -47,7 +47,9 @@ if (isMainThread) {
   }
 
   const profile = process.argv.includes('--profile');
-  if (profile) process.argv.push('--profile-compiler');
+  let dumpProfile = process.argv.includes('--dump-profile');
+  let dumpErrors = process.argv.includes('--dump-errors');
+  if (profile || dumpProfile) process.argv.push('--profile-compiler');
 
   const perTestProfile = {};
   const profileStats = new Array(5).fill(0);
@@ -59,6 +61,13 @@ if (isMainThread) {
   const subdirs = process.argv.includes('--subdirs');
   const dontWriteResults = process.argv.includes('--dont-write-results');
   const plainResults = process.argv.includes('--plain-results');
+
+  const streamResults = process.argv.find(x => x.startsWith('--stream-results='))?.split('=')[1];
+  const resultStream = streamResults != null ? fs.openSync(streamResults, 'w') : null;
+  if ((dumpProfile || dumpErrors) && resultStream == null) {
+    dumpProfile = dumpErrors = false;
+    console.error('--stream-results=<file> required for --dump-profile or --dump-errors');
+  }
 
   const todoTime = process.argv.find(x => x.startsWith('--todo-time='))?.split('=')[1] ?? 'runtime';
 
@@ -170,6 +179,16 @@ if (isMainThread) {
           const ps = int.profileStats;
           for (let i = 0; i < ps.length; i++) profileStats[i] += ps[i];
         }
+        if (dumpErrors && int?.error) {
+          if (resultStream != null) {
+            fs.writeSync(resultStream, 'ERROR: ' + int.error + '\n');
+          }
+        }
+        if (dumpProfile && int?.profile) {
+          if (resultStream != null) {
+            fs.writeSync(resultStream, 'PROFILING: ' + int.profile + '\n');
+          }
+        }
 
         if (total === totalTests) resolve();
         return;
@@ -202,6 +221,9 @@ if (isMainThread) {
         if (!resultOnly) timeoutFiles.push(file);
       } else {
         runtimeErrors++;
+      }
+      if (resultStream != null) {
+        fs.writeSync(resultStream, file + ': ' + [ 'pass', 'todo', 'wasmError', 'compileError', 'fail', 'timeout', 'runtimeError' ][result] + '\n');
       }
 
       if (!resultOnly && !logErrors) {
@@ -365,6 +387,9 @@ if (isMainThread) {
     resultOnly = true;
     console.log(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | ` + table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos));
   }
+  if (resultStream != null) {
+    fs.closeSync(resultStream);
+  }
 } else {
   const { queue, tests, preludes, argv } = workerData;
   const errors = {};
@@ -386,8 +411,10 @@ if (isMainThread) {
   console.log = (...args) => parentPort.postMessage(args.join(' '));
 
   const profile = process.argv.includes('--profile');
+  const dumpProfile = process.argv.includes('--dump-profile');
+  const dumpErrors = process.argv.includes('--dump-errors');
   const perTestProfile = {};
-  const profileStats = new Array(5).fill(0);
+  const profileStats = new Array(6).fill(0);
 
   const totalTests = tests.length;
   const alwaysPrelude = preludes['assert.js'] + preludes['sta.js'];
@@ -407,12 +434,23 @@ if (isMainThread) {
         if (msg === 'optimized') id = 3;
         if (msg === 'assembled') id = 4;
         // if (msg === 'instantiated') id = 5;
-        // if (msg === 'executed') id = 6;
+        if (msg === 'executed') id = 5;
 
         profileStats[0] += t;
         profileStats[id] += t;
 
         perTestProfile[test.file] = (perTestProfile[test.file] ?? 0) + t;
+      };
+    } else if (dumpProfile) {
+      globalThis.onProgress = (msg, t) => {
+        let id = 0;
+        if (msg === 'generated wasm') id = 1;
+        if (msg === 'optimized') id = 2;
+        if (msg === 'assembled') id = 3;
+        // if (msg === 'instantiated') id = 5;
+        if (msg === 'executed') id = 4;
+
+        profileStats[id] = t;
       };
     }
 
@@ -448,7 +486,13 @@ if (isMainThread) {
     }
 
     if (!error) try {
+      let execStartTime = performance.now();
+
       timeout(exports.main);
+
+      let execEndTime = performance.now();
+      if (globalThis.onProgress) globalThis.onProgress('executed', execEndTime - execStartTime);
+
       stage = 2;
     } catch (e) {
       if (e?.name === 'Test262Error' && debugAsserts && log) {
@@ -505,6 +549,12 @@ if (isMainThread) {
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {
       parentPort.postMessage(out);
+    }
+    if (error && dumpErrors) {
+      parentPort.postMessage({ error: error.stack || error.toString() });
+    }
+    if (dumpProfile) {
+      parentPort.postMessage({ profile: profileStats });
     }
   }
 

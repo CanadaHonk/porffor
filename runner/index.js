@@ -109,7 +109,6 @@ if (process.argv.length >= 4) {
   let printIndex = process.argv.indexOf('-p');
   if (printIndex === -1) printIndex = process.argv.indexOf('--print');
   if (printIndex !== -1) {
-    process.argv.push('--no-opt-unused');
     source = process.argv[printIndex + 1];
     if (source) {
       if ((source.startsWith('"') || source.startsWith("'")) && (source.endsWith('"') || source.endsWith("'"))) {
