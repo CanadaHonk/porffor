@@ -3,7 +3,6 @@ import { signedLEB128, ieee754_binary64, read_ieee754_binary64, read_signedLEB12
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { number } from './embedding.js';
 
-
 const f64ToI32Op = {
   [Opcodes.f64_eq]: Opcodes.i32_eq,
   [Opcodes.f64_ne]: Opcodes.i32_ne,
@@ -23,7 +22,6 @@ export default wasm => {
     let op = wasm[i];
     if (!op) continue;
 
-    // op = [ ...op.filter(x => x != null && x <= 0xff) ];
     op = [ ...op ];
     wasm[i] = op;
 
@@ -478,6 +476,12 @@ export default wasm => {
         push(v);
         break;
       }
+
+      // case Opcodes.local_tee: {
+      //   if (stack.length < 1) { empty(); break; }
+      //   push(pop());
+      //   break;
+      // }
 
       default: {
         empty();
