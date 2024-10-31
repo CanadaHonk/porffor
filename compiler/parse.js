@@ -1,7 +1,7 @@
 import { log } from './log.js';
 import './prefs.js';
 
-const file = process.argv.slice(2).find(x => x[0] !== '-' && !['precompile', 'run', 'wasm', 'native', 'c', 'hotlines', 'debug', 'dissect'].includes(x));
+const file = globalThis.file;
 
 // should we try to support types (while parsing)
 const types = Prefs.parseTypes || Prefs.t || file?.endsWith('.ts');
