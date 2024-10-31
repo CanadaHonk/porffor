@@ -54,12 +54,17 @@ const done = async () => {
 };
 
 let file = process.argv.slice(2).find(x => x[0] !== '-');
-if (['precompile', 'run', 'wasm', 'native', 'c', 'hotlines', 'debug', 'dissect'].includes(file)) {
+if (['precompile', 'run', 'wasm', 'native', 'c', 'flamegraph', 'hotlines', 'debug', 'dissect'].includes(file)) {
   // remove this arg
   process.argv.splice(process.argv.indexOf(file), 1);
 
   if (file === 'precompile') {
     await import('../compiler/precompile.js');
+    await done();
+  }
+
+  if (file === 'flamegraph') {
+    await import('./flamegraph.js');
     await done();
   }
 
