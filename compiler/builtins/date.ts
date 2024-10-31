@@ -684,7 +684,7 @@ export const __Date_parse = (string: bytestring): number => {
   // 'Sun May 12 2024 02:44:13 GMT+0000 (UTC)'
 
   // if first char is numerical, use DTSF parser
-  const chr: i32 = Porffor.wasm.i32.load8_u(string, 0, 4);;
+  const chr: i32 = Porffor.wasm.i32.load8_u(string, 0, 4);
   if (Porffor.fastAnd(chr >= 48, chr <= 57)) { // 0-9
     return __ecma262_ParseDTSF(string);
   }
