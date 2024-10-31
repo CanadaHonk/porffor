@@ -96,6 +96,8 @@ export default (code, module = undefined) => {
   if (logProgress) progressStart('generating wasm...');
   const t1 = performance.now();
   const { funcs, globals, tags, exceptions, pages, data } = codegen(program);
+  if (globalThis.compileCallback) globalThis.compileCallback({ funcs, globals, tags, exceptions, pages, data });
+
   if (logProgress) progressDone('generated wasm', t1);
 
   if (Prefs.funcs) logFuncs(funcs, globals, exceptions);
