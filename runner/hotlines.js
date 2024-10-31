@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import compile from '../compiler/wrap.js';
 import fs from 'node:fs';
 
