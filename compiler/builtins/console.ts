@@ -259,7 +259,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
 
       const buffer = new Uint8Array(arg);
       const bufferLen = buffer.length - 1;
-      for (let i = 0; i <= bufferLen; i++) {
+      for (let i: i32 = 0; i <= bufferLen; i++) {
         const ele = buffer[i];
         __Porffor_printHexDigit((ele & 0xF0) / 16);
         __Porffor_printHexDigit(ele & 0xF);
@@ -340,7 +340,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
 
 let tabLevel = 0;
 export const __Porffor_consoleIndent = () => {
-  for (let i = 0; i < tabLevel; i++) {
+  for (let i: i32 = 0; i < tabLevel; i++) {
     Porffor.printStatic('\t');
   }
 };
@@ -376,7 +376,7 @@ export const __console_groupEnd = () => {
 
 export const __console_log = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
-  for (let i = 0; i <= argLen; i++) {
+  for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(args[i]);
 
@@ -388,7 +388,7 @@ export const __console_log = (...args: any[]) => {
 
 export const __console_debug = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
-  for (let i = 0; i <= argLen; i++) {
+  for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(args[i]);
 
@@ -400,7 +400,7 @@ export const __console_debug = (...args: any[]) => {
 
 export const __console_info = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
-  for (let i = 0; i <= argLen; i++) {
+  for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(args[i]);
 
@@ -412,7 +412,7 @@ export const __console_info = (...args: any[]) => {
 
 export const __console_warn = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
-  for (let i = 0; i <= argLen; i++) {
+  for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(args[i]);
 
@@ -424,7 +424,7 @@ export const __console_warn = (...args: any[]) => {
 
 export const __console_error = (...args: any[]) => {
   const argLen: i32 = args.length - 1;
-  for (let i = 0; i <= argLen; i++) {
+  for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(args[i]);
 
@@ -444,7 +444,7 @@ export const __console_assert = (assertion: any, ...args: any[]) => {
   }
 
   const argLen: i32 = args.length - 1;
-  for (let i = 0; i <= argLen; i++) {
+  for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consolePrint(args[i]);
     if (i != argLen) Porffor.printStatic(' ');
   }
