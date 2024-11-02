@@ -1078,13 +1078,13 @@ export const __ByteString_prototype_trim = (_this: bytestring) => {
 };
 
 
-export const __String_prototype_concat = (_this: string, ...vals: any[]) => {
-  let out = Porffor.allocate();
+export const __String_prototype_concat = (_this: any, ...vals: any[]) => {
+  let out: any = Porffor.allocate();
   Porffor.clone(_this, out);
 
-  // override type to string
+  // copy _this type to out
   Porffor.wasm`
-i32.const 67 ;; string
+local.get ${_this+1}
 local.set ${out+1}`;
 
   const valsLen: i32 = vals.length;
@@ -1117,13 +1117,13 @@ local.set ${out}`;
   return out;
 };
 
-export const __ByteString_prototype_concat = (_this: bytestring, ...vals: any[]) => {
-  let out = Porffor.allocate();
+export const __ByteString_prototype_concat = (_this: any, ...vals: any[]) => {
+  let out: any = Porffor.allocate();
   Porffor.clone(_this, out);
 
-  // override type to bytestring
+  // copy _this type to out
   Porffor.wasm`
-i32.const 195 ;; bytestring
+local.get ${_this+1}
 local.set ${out+1}`;
 
   const valsLen: i32 = vals.length;
