@@ -1334,6 +1334,40 @@ const isExistingProtoFunc = name => {
   return false;
 };
 
+let globalInfer;
+const getInferred = (scope, name, global = false) => {
+  if (global) {
+    if (globalInfer.has(name)) return globalInfer.get(name);
+  } else if (scope.inferTree) {
+    for (let i = scope.inferTree.length - 1; i >= 0; i--) {
+      const x = scope.inferTree[i];
+      if (x._infer?.has(name)) return x._infer.get(name);
+    }
+  }
+
+  return null;
+};
+
+const setInferred = (scope, name, type, global = false) => {
+  scope.inferTree ??= [];
+
+  if (global) {
+    // set inferred type in global if not already and not in a loop, else make it null
+    globalInfer.set(name, globalInfer.has(name) || inferLoopPrev.length > 0 ? null : type);
+  } else {
+    // set inferred type in top
+    const top = scope.inferTree.at(-1);
+    top._infer ??= new Map();
+    top._infer.set(name, type);
+
+    // invalidate inferred type above if mismatched
+    for (let i = scope.inferTree.length - 2; i >= 0; i--) {
+      const x = scope.inferTree[i];
+      if (x._infer && x._infer.get(name) !== type) x._infer.set(name, null);
+    }
+  }
+};
+
 const getType = (scope, name, failEarly = false) => {
   const fallback = failEarly ? number(TYPES.undefined, Valtype.i32) : [ [ null, () => {
     return getType(scope, name, true);
@@ -1341,71 +1375,73 @@ const getType = (scope, name, failEarly = false) => {
 
   if (Object.hasOwn(builtinVars, name)) return number(builtinVars[name].type ?? TYPES.number, Valtype.i32);
 
+  let metadata, typeLocal, global = null;
   if (Object.hasOwn(scope.locals, name)) {
-    if (scope.locals[name]?.metadata?.type != null) return number(scope.locals[name].metadata.type, Valtype.i32);
-
-    const typeLocal = scope.locals[name + '#type'];
-    if (typeLocal) return [ [ Opcodes.local_get, typeLocal.idx ] ];
-
-    // todo: warn here?
-    return fallback;
+    metadata = scope.locals[name].metadata;
+    typeLocal = scope.locals[name + '#type'];
+    global = false;
+  } else if (Object.hasOwn(globals, name)) {
+    metadata = globals[name].metadata;
+    typeLocal = globals[name + '#type'];
+    global = true;
   }
 
-  if (name === 'arguments' && scope.name !== '#main' && !scope.arrow) {
+  if (global !== false && name === 'arguments' && scope.name !== '#main' && !scope.arrow) {
     return number(TYPES.array, Valtype.i32);
   }
 
-  if (Object.hasOwn(globals, name)) {
-    if (globals[name]?.metadata?.type != null) return number(globals[name].metadata.type, Valtype.i32);
-
-    const typeLocal = globals[name + '#type'];
-    if (typeLocal) return [ [ Opcodes.global_get, typeLocal.idx ] ];
-
-    // todo: warn here?
-    return fallback;
+  if (metadata?.type != null) {
+    return number(metadata.type, Valtype.i32);
   }
 
-  if (Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) ||
-      Object.hasOwn(funcIndex, name) || Object.hasOwn(internalConstrs, name))
-        return number(TYPES.function, Valtype.i32);
+  const inferred = getInferred(scope, name, global);
+  if (metadata?.type === undefined && inferred != null) return number(inferred, Valtype.i32);
+
+  if (typeLocal) return [
+    [ global ? Opcodes.global_get : Opcodes.local_get, typeLocal.idx ]
+  ];
+
+  if (hasFuncWithName(name)) {
+    return number(TYPES.function, Valtype.i32);
+  }
 
   if (isExistingProtoFunc(name)) return number(TYPES.function, Valtype.i32);
 
   return fallback;
 };
 
-const setType = (scope, name, type) => {
+const setType = (scope, name, type, noInfer = false) => {
   typeUsed(scope, knownType(scope, type));
 
   const out = typeof type === 'number' ? number(type, Valtype.i32) : type;
 
+  let metadata, typeLocal, global = false;
   if (Object.hasOwn(scope.locals, name)) {
-    if (scope.locals[name]?.metadata?.type != null) return [];
+    metadata = scope.locals[name].metadata;
+    typeLocal = scope.locals[name + '#type'];
+  } else if (Object.hasOwn(globals, name)) {
+    metadata = globals[name].metadata;
+    typeLocal = globals[name + '#type'];
+    global = true;
+  }
 
-    const typeLocal = scope.locals[name + '#type'];
-    if (typeLocal) return [
-      ...out,
-      [ Opcodes.local_set, typeLocal.idx ]
-    ];
-
-    // todo: warn here?
+  if (metadata?.type != null) {
     return [];
   }
 
-  if (Object.hasOwn(globals, name)) {
-    if (globals[name]?.metadata?.type != null) return [];
+  if (!noInfer) {
+    const newInferred = knownType(scope, type);
+    setInferred(scope, name, newInferred, global);
 
-    const typeLocal = globals[name + '#type'];
-    if (typeLocal) return [
-      ...out,
-      [ Opcodes.global_set, typeLocal.idx ]
-    ];
-
-    // todo: warn here?
-    return [];
+    // todo/opt: skip setting if already matches previous
   }
 
-  // throw new Error('could not find var');
+  if (typeLocal) return [
+    ...out,
+    [ global ? Opcodes.global_set : Opcodes.local_set, typeLocal.idx ]
+  ];
+
+  // todo: warn or error here
   return [];
 };
 
@@ -1506,7 +1542,6 @@ const getNodeType = (scope, node) => {
     if (node.type === 'AssignmentExpression') {
       const op = node.operator.slice(0, -1) || '=';
       if (op === '=') return getNodeType(scope, node.right);
-      // if (op === '=') return getNodeType(scope, node.left);
 
       return getNodeType(scope, {
         type: ['||', '&&', '??'].includes(op) ? 'LogicalExpression' : 'BinaryExpression',
@@ -1613,6 +1648,10 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'SequenceExpression') {
       return getNodeType(scope, node.expressions.at(-1));
+    }
+
+    if (node.type === 'ChainExpression') {
+      return getNodeType(scope, node.expression);
     }
 
     return getLastType(scope);
@@ -1761,6 +1800,14 @@ const ArrayUtil = {
     Opcodes.i32_to_u,
     [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
   ]
+};
+
+const getLastInst = wasm => {
+  for (let i = wasm.length - 1; i >= 0; i--) {
+    if (wasm[i]?.[0] != null) return wasm[i];
+  }
+
+  return null;
 };
 
 const createNewTarget = (scope, decl, idx = 0, force = false) => {
@@ -1993,7 +2040,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     });
     scope.inEval = false;
 
-    const lastInst = out[out.length - 1];
+    const lastInst = getLastInst(out);
     if (lastInst && lastInst[0] === Opcodes.drop) {
       out.splice(out.length - 1, 1);
 
@@ -2671,10 +2718,7 @@ const knownType = (scope, type) => {
 
     // type idx = var idx + 1
     const name = Object.values(scope.locals).find(x => x.idx === idx)?.name;
-    if (name) {
-      const local = scope.locals[name];
-      if (local.metadata?.type != null) return v.metadata.type;
-    }
+    if (scope.locals[name]?.metadata?.type != null) return scope.locals[name].metadata.type;
   }
 
   return null;
@@ -2774,8 +2818,6 @@ let usedTypes = new Set();
 const typeUsed = (scope, x) => {
   if (x == null) return;
   usedTypes.add(x);
-
-  // console.log(scope.name, TYPE_NAMES[x]);
 
   scope.usedTypes ??= new Set();
   scope.usedTypes.add(x);
@@ -2930,6 +2972,11 @@ const allocVar = (scope, name, global = false, type = true) => {
   }
 
   return idx;
+};
+
+const setVarMetadata = (scope, name, global = false, metadata = {}) => {
+  const target = global ? globals : scope.locals;
+  target[name].metadata = metadata;
 };
 
 const addVarMetadata = (scope, name, global = false, metadata = {}) => {
@@ -3111,13 +3158,12 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     // let generated;
     // if (init) generated = generate(scope, init, global, name);
 
-    const typed = typedInput && pattern.typeAnnotation;
-    let idx = allocVar(scope, name, global, !(typed && extractTypeAnnotation(pattern).type != null));
-    addVarMetadata(scope, name, global, { kind });
+    const typed = typedInput && pattern.typeAnnotation && extractTypeAnnotation(pattern);
+    let idx = allocVar(scope, name, global, !(typed && typed.type != null));
 
-    if (typed) {
-      addVarMetadata(scope, name, global, extractTypeAnnotation(pattern));
-    }
+    const metadata = { kind };
+    setVarMetadata(scope, name, global, metadata);
+    if (typed) Object.assign(metadata, typed);
 
     if (init) {
       const alreadyArray = scope.arrays?.get(name) != null;
@@ -3143,7 +3189,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
           [ Opcodes.if, Blocktype.void ],
             ...generate(scope, defaultValue, global, name),
             [ global ? Opcodes.global_set : Opcodes.local_set, idx ],
-            ...setType(scope, name, getNodeType(scope, defaultValue)),
+            ...setType(scope, name, getNodeType(scope, defaultValue), true),
           [ Opcodes.end ],
         );
       }
@@ -3152,6 +3198,8 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
         scope.globalInits ??= {};
         scope.globalInits[name] = newOut;
       }
+    } else {
+      setInferred(scope, name, null, global);
     }
 
     return out;
@@ -3714,7 +3762,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // only allow = for this, or if in strict mode always throw
     if (!isIdentAssignable(scope, name, op)) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
-    if (type != 'Identifier') {
+    if (type !== 'Identifier') {
       const tmpName = '#rhs' + uniqId();
       return [
         ...generateVarDstr(scope, 'const', tmpName, decl.right, undefined, true),
@@ -3755,6 +3803,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // instead, left @ (left = right)
     // eg, x &&= y ~= x && (x = y)
 
+    setInferred(scope, name, knownType(scope, getNodeType(scope, decl)), isGlobal);
+
     return [
       ...performOp(scope, op, [
         [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
@@ -3765,7 +3815,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       ], getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
       [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
 
-      ...setType(scope, name, getLastType(scope))
+      ...setType(scope, name, getLastType(scope), true)
     ];
   }
 
@@ -3775,6 +3825,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     !valueUnused,
     getNodeType(scope, decl)
   );
+
+  setInferred(scope, name, knownType(scope, getNodeType(scope, decl)), isGlobal);
 
   if (valueUnused) out.push(...number(UNDEFINED));
   return out;
@@ -3999,6 +4051,33 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
   ];
 };
 
+const inferBranchStart = (scope, decl) => {
+  scope.inferTree ??= [];
+  scope.inferTree.push(decl);
+};
+
+const inferBranchEnd = scope => {
+  scope.inferTree.pop();
+};
+
+const inferBranchElse = (scope, decl) => {
+  inferBranchEnd(scope);
+  inferBranchStart(scope, decl);
+};
+
+const inferLoopPrev = [];
+const inferLoopStart = (scope, decl) => {
+  scope.inferTree ??= [];
+
+  // todo/opt: do not just wipe the infer tree for loops
+  inferLoopPrev.push(scope.inferTree);
+  scope.inferTree = [ decl ];
+};
+
+const inferLoopEnd = scope => {
+  scope.inferTree = inferLoopPrev.pop();
+};
+
 const generateIf = (scope, decl) => {
   if (globalThis.precompile && decl.test?.tag?.name === '__Porffor_comptime_flag') {
     const flag = decl.test.quasi.quasis[0].value.raw;
@@ -4006,20 +4085,23 @@ const generateIf = (scope, decl) => {
   }
 
   const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test), false, true);
-
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
+  inferBranchStart(scope, decl.consequent);
 
   const consOut = generate(scope, decl.consequent);
   disposeLeftover(consOut);
   out.push(...consOut);
 
+  inferBranchEnd(scope);
   if (decl.alternate) {
     out.push([ Opcodes.else ]);
+    inferBranchStart(scope, decl.alternate);
 
     const altOut = generate(scope, decl.alternate);
     disposeLeftover(altOut);
     out.push(...altOut);
+    inferBranchEnd(scope);
   }
 
   out.push([ Opcodes.end ]);
@@ -4033,6 +4115,7 @@ const generateConditional = (scope, decl) => {
 
   out.push([ Opcodes.if, valtypeBinary ]);
   depth.push('if');
+  inferBranchStart(scope, decl.consequent);
 
   out.push(
     ...generate(scope, decl.consequent),
@@ -4040,6 +4123,7 @@ const generateConditional = (scope, decl) => {
   );
 
   out.push([ Opcodes.else ]);
+  inferBranchElse(scope, decl.alternate);
 
   out.push(
     ...generate(scope, decl.alternate),
@@ -4047,7 +4131,7 @@ const generateConditional = (scope, decl) => {
   );
 
   out.push([ Opcodes.end ]);
-  depth.pop();
+  inferBranchEnd(scope);
 
   return out;
 };
@@ -4061,6 +4145,7 @@ const generateFor = (scope, decl) => {
     disposeLeftover(out);
   }
 
+  inferLoopStart(scope, decl);
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('for');
 
@@ -4081,11 +4166,13 @@ const generateFor = (scope, decl) => {
   out.push([ Opcodes.end ], [ Opcodes.end ]);
   depth.pop(); depth.pop(); depth.pop();
 
+  inferLoopEnd(scope);
   return out;
 };
 
 const generateWhile = (scope, decl) => {
   const out = [];
+  inferLoopStart(scope, decl);
 
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('while');
@@ -4100,11 +4187,13 @@ const generateWhile = (scope, decl) => {
   out.push([ Opcodes.end ], [ Opcodes.end ]);
   depth.pop(); depth.pop();
 
+  inferLoopEnd(scope);
   return out;
 };
 
 const generateDoWhile = (scope, decl) => {
   const out = [];
+  inferLoopStart(scope, decl);
 
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('dowhile');
@@ -4130,6 +4219,7 @@ const generateDoWhile = (scope, decl) => {
   out.push([ Opcodes.end ], [ Opcodes.end ]);
   depth.pop(); depth.pop();
 
+  inferLoopEnd(scope);
   return out;
 };
 
@@ -4174,6 +4264,7 @@ const generateForOf = (scope, decl) => {
     [ Opcodes.if, Blocktype.void ]
   );
 
+  inferLoopStart(scope, decl);
   depth.push('if');
   depth.push('forof');
   depth.push('block');
@@ -4504,6 +4595,7 @@ const generateForOf = (scope, decl) => {
   depth.pop();
   depth.pop();
 
+  inferLoopEnd(scope);
   return out;
 };
 
@@ -4537,6 +4629,7 @@ const generateForIn = (scope, decl) => {
     [ Opcodes.if, Blocktype.void ]
   );
 
+  inferLoopStart(scope, decl);
   depth.push('if');
   depth.push('forin');
   depth.push('block');
@@ -4629,6 +4722,8 @@ const generateForIn = (scope, decl) => {
   depth.pop();
   depth.pop();
   depth.pop();
+
+  inferLoopEnd(scope);
 
   return typeSwitch(scope, getNodeType(scope, decl.right), {
     // fast path for objects
@@ -5872,7 +5967,6 @@ const generateClass = (scope, decl) => {
 export const generateTemplate = (scope, decl) => {
   let current = null;
   const append = val => {
-    // console.log(val);
     if (!current) {
       current = val;
       return;
@@ -6065,6 +6159,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     return [ func, out ];
   }
 
+  if (name === '#main') globalInfer = new Map();
+
   globalThis.progress?.(null, ' ' + name);
 
   const params = decl.params ?? [];
@@ -6083,6 +6179,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     async: decl.async,
     subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
+    inferTree: [ decl ],
 
     generate() {
       if (func.wasm) return func.wasm;
@@ -6163,7 +6260,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
             ...generate(func, def, false, name),
             [ Opcodes.local_set, func.locals[name].idx ],
 
-            ...setType(func, name, getNodeType(func, def)),
+            ...setType(func, name, getNodeType(func, def), true),
           [ Opcodes.end ]
         );
 
@@ -6257,7 +6354,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         let finalStatement = decl.body.body[decl.body.body.length - 1];
         if (finalStatement?.type === 'EmptyStatement') finalStatement = decl.body.body[decl.body.body.length - 2];
 
-        const lastInst = wasm[wasm.length - 1] ?? [ Opcodes.end ];
+        const lastInst = getLastInst(wasm) ?? [ Opcodes.end ];
         if (lastInst[0] === Opcodes.drop || lastInst[0] === Opcodes.f64_const) {
           if (finalStatement.type.endsWith('Declaration')) {
             // final statement is decl, force undefined
@@ -6376,10 +6473,14 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 const generateCode = (scope, decl) => {
   let out = [];
 
+  scope.inferTree ??= [];
+  scope.inferTree.push(decl);
+
   for (const x of decl.body) {
     out = out.concat(generate(scope, x));
   }
 
+  scope.inferTree.pop();
   return out;
 };
 
@@ -6495,6 +6596,13 @@ const internalConstrs = {
       Opcodes.i32_from_u
     ],
     type: TYPES.number,
+    notConstr: true,
+    length: 1
+  },
+
+  __Porffor_compileType: {
+    generate: (scope, decl) => makeString(scope, TYPE_NAMES[knownType(scope, getNodeType(scope, decl.arguments[0]))] ?? 'unknown'),
+    type: TYPES.bytestring,
     notConstr: true,
     length: 1
   }
