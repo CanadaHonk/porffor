@@ -190,15 +190,15 @@ const precompile = async () => {
     try {
       await compile(join(dir, file), funcs);
     } catch (e) {
-      console.log(`\r${' '.repeat(100)}\r${' '.repeat(12)}${file}`);
+      console.log(`\r${' '.repeat(80)}\r${' '.repeat(12)}${file}`);
       throw e;
     }
 
-    process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${`[${(performance.now() - t).toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92m${file}\u001b[0m`);
+    process.stdout.write(`\r${' '.repeat(80)}\r\u001b[90m${`[${(performance.now() - t).toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92m${file}\u001b[0m`);
   }
 
   const total = performance.now() - t;
-  console.log(`\r${' '.repeat(100)}\r\u001b[90m${`[${total.toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92mcompiled ${fileCount} files (${funcs.length} funcs)\u001b[0m \u001b[90m(${['parse', 'codegen', 'opt'].map(x => `${x}: ${((timing[x] / total) * 100).toFixed(0)}%`).join(', ')})\u001b[0m`);
+  console.log(`\r${' '.repeat(80)}\r\u001b[90m${`[${total.toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92mcompiled ${fileCount} files (${funcs.length} funcs)\u001b[0m \u001b[90m(${['parse', 'codegen', 'opt'].map(x => `${x}: ${((timing[x] / total) * 100).toFixed(0)}%`).join(', ')})\u001b[0m`);
 
   const comptimeFlagChecks = {
     hasFunc: x => `hasFunc('${x}')`
