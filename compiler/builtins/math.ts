@@ -226,17 +226,22 @@ export const __Math_pow = (base: number, exponent: number): number => {
   if (base < 0) if (!Number.isInteger(exponent)) return NaN;
 
   // 13. Return an implementation-approximated Number value representing the result of raising ℝ(base) to the ℝ(exponent) power.
+  if (base == Math.E) {
+    return Math.exp(exponent);
+  }
+
   let currentBase: number = base;
   let currentExponent: number = Math.abs(exponent);
 
   let result: number = 1;
   while (currentExponent > 0) {
     if (currentExponent >= 1) {
-      if (currentExponent % 2 != 0) {
+      if (currentExponent & 1) {
         result *= currentBase;
       }
+
       currentBase *= currentBase;
-      currentExponent = Math.floor(currentExponent / 2);
+      currentExponent >>= 1;
     } else {
       // Handle fractional part
       result *= Math.exp(currentExponent * Math.log(Math.abs(currentBase)));
