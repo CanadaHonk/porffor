@@ -137,3 +137,13 @@ local.set ${key}`;
 
   return out;
 };
+
+
+export const __Reflect_apply = (target: any, thisArgument: any, argumentsList: any) => {
+  return Porffor.call(target, argumentsList, thisArgument, null);
+};
+
+export const __Reflect_construct = (target: any, argumentsList: any, newTarget: any = target) => {
+  // todo: giving undefined/null to newTarget should not default
+  return Porffor.call(target, argumentsList, null, newTarget);
+};

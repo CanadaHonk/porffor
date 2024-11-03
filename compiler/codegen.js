@@ -1507,7 +1507,7 @@ const getNodeType = (scope, node) => {
       }
 
       if (Object.hasOwn(builtinFuncs, name) && !builtinFuncs[name].typedReturns) return builtinFuncs[name].returnType ?? TYPES.number;
-      if (Object.hasOwn(internalConstrs, name)) return internalConstrs[name].type;
+      if (Object.hasOwn(internalConstrs, name) && internalConstrs[name].type != null) return internalConstrs[name].type;
 
       // check if this is a prototype function
       // if so and there is only one impl (eg charCodeAt)
@@ -1929,7 +1929,7 @@ const createThisArg = (scope, decl) => {
   const name = decl.callee?.name;
   if (decl._new) {
     // if precompiling or builtin func, just make it null as unused
-    if (globalThis.precompile || Object.hasOwn(builtinFuncs, name)) return [
+    if (!decl._forceCreateThis && (globalThis.precompile || Object.hasOwn(builtinFuncs, name))) return [
       ...number(NULL),
       ...number(TYPES.object, Valtype.i32)
     ];
@@ -6094,7 +6094,7 @@ const objectHack = node => {
       if (node.computed || node.optional) return;
 
       // hack: block these properties as they can be accessed on functions
-      if (node.property.name === 'length' || node.property.name === 'name' || node.property.name === 'call') return abortOut;
+      if (node.object.name !== 'Porffor' && (node.property.name === 'length' || node.property.name === 'name' || node.property.name === 'call')) return abortOut;
 
       if (node.property.name === '__proto__') return abortOut;
 
@@ -6603,6 +6603,30 @@ const internalConstrs = {
   __Porffor_compileType: {
     generate: (scope, decl) => makeString(scope, TYPE_NAMES[knownType(scope, getNodeType(scope, decl.arguments[0]))] ?? 'unknown'),
     type: TYPES.bytestring,
+    notConstr: true,
+    length: 1
+  },
+
+  __Porffor_call: {
+    // Porffor.call(func, argArray, this, newTarget)
+    generate: (scope, decl) => generate(scope, {
+      type: 'CallExpression',
+      callee: decl.arguments[0],
+      arguments: [ {
+        type: 'SpreadElement',
+        argument: decl.arguments[1],
+      } ],
+      _thisWasm: decl.arguments[2].value === null ? null : [
+        ...generate(scope, decl.arguments[2]),
+        ...getNodeType(scope, decl.arguments[2])
+      ],
+      _newTargetWasm: decl.arguments[3].value === null ? null : [
+        ...generate(scope, decl.arguments[3]),
+        ...getNodeType(scope, decl.arguments[3])
+      ],
+      _new: decl.arguments[3].value !== null,
+      _forceCreateThis: true
+    }),
     notConstr: true,
     length: 1
   }
