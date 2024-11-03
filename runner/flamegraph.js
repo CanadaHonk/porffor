@@ -54,7 +54,7 @@ const render = () => {
   text += `${' '.repeat(12 - text.length)}┃ samples: ${samples}`;
   text += `${' '.repeat(32 - text.length)}┃ render: ${lastRenderTime.toFixed(2)}ms`;
 
-  if (end != null && Prefs.live) {
+  if (end != null || Prefs.live) {
     const btHeight = 20;
     const fgBottom = termHeight - btHeight - 10;
 
