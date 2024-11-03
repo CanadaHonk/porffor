@@ -168,7 +168,8 @@ const removeBrackets = str => {
 
   for (const x in CValtype) {
     const p = `(${x})`;
-    if (str.startsWith(p)) return p + removeBrackets(str.slice(p.length));
+    // if (str.startsWith(p)) return p + removeBrackets(str.slice(p.length));
+    if (str.startsWith(p)) return str;
   }
 
   return str.startsWith('(') && str.endsWith(')') && !str.startsWith('(*') ? str.slice(1, -1) : str;
