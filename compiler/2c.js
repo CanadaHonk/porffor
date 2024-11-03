@@ -193,7 +193,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     return out;
   };
   const sanitize = str => {
-    if (str === 'char') return '_' + str;
+    if (str === 'char' || str === 'main') return '_' + str;
 
     return str.replace(/[^0-9a-zA-Z_]/g, _ => codeToSanitizedStr(_.charCodeAt(0)));
   };
