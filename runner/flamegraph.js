@@ -26,7 +26,6 @@ const plainControlInfo = noAnsi(controlInfo);
 const spinner = ['-', '\\', '|', '/'];
 let spin = 0;
 
-process.stdout.read();
 const onExit = () => {
   process.stdout.write('\x1b[1;1H\x1b[J');
 };
@@ -55,92 +54,94 @@ const render = () => {
   text += `${' '.repeat(12 - text.length)}┃ samples: ${samples}`;
   text += `${' '.repeat(32 - text.length)}┃ render: ${lastRenderTime.toFixed(2)}ms`;
 
-  const btHeight = 20;
-  const fgBottom = termHeight - btHeight - 10;
+  if (end != null && Prefs.live) {
+    const btHeight = 20;
+    const fgBottom = termHeight - btHeight - 10;
 
-  let lastEnds = [];
-  let timelineEnd = total;
+    let lastEnds = [];
+    let timelineEnd = total;
 
-  const xScale = x => 1 + (((x - start) / timelineEnd) * (termWidth - 2));
-  const draw = (func, start, end, running = false) => {
-    let depth = lastEnds.length;
-    lastEnds.push(end);
+    const xScale = x => 1 + (((x - start) / timelineEnd) * (termWidth - 2));
+    const draw = (func, start, end, running = false) => {
+      let depth = lastEnds.length;
+      lastEnds.push(end);
 
-    let color = '103';
-    if (func.internal) color = '105';
+      let color = '103';
+      if (func.internal) color = '105';
 
-    start = xScale(start) | 0;
+      start = xScale(start) | 0;
 
-    end = xScale(end) | 0;
-    if (end >= termWidth) end = termWidth - 1;
+      end = xScale(end) | 0;
+      if (end >= termWidth) end = termWidth - 1;
 
-    const width = end - start;
-    if (start >= termWidth || width === 0) return;
+      const width = end - start;
+      if (start >= termWidth || width === 0) return;
 
-    let text = func.name;
-    if (text.length > width) text = width < 5 ? ' '.repeat(width) : (text.slice(0, width - 1) + '…');
-    if (text.length < width) text += ' '.repeat(width - text.length);
+      let text = func.name;
+      if (text.length > width) text = width < 5 ? ' '.repeat(width) : (text.slice(0, width - 1) + '…');
+      if (text.length < width) text += ' '.repeat(width - text.length);
 
-    let y = fgBottom - depth;
-    process.stdout.write(`\x1b[${1 + y};${1 + start}H\x1b[51m\x1b[30m\x1b[${color}m${text}`);
-  };
+      let y = fgBottom - depth;
+      process.stdout.write(`\x1b[${1 + y};${1 + start}H\x1b[51m\x1b[30m\x1b[${color}m${text}`);
+    };
 
-  const funcTotalTaken = new Map(), funcMeta = new Map();
-  for (let i = 0; i < samples; i++) {
-    const func = funcLookup.get(samplesFunc[i]);
-    const start = samplesStart[i];
-    const end = samplesEnd[i] ?? now;
+    const funcTotalTaken = new Map(), funcMeta = new Map();
+    for (let i = 0; i < samples; i++) {
+      const func = funcLookup.get(samplesFunc[i]);
+      const start = samplesStart[i];
+      const end = samplesEnd[i] ?? now;
 
-    //     DD
-    //   BBCCEE
-    // AAAAAAAA FFFF
-    while (start > lastEnds.at(-1)) lastEnds.pop();
+      //     DD
+      //   BBCCEE
+      // AAAAAAAA FFFF
+      while (start > lastEnds.at(-1)) lastEnds.pop();
 
-    draw(func, start, end);
+      draw(func, start, end);
 
-    if (end == now) continue;
-    const taken = end - start;
-    funcTotalTaken.set(func.index, (funcTotalTaken.get(func.index) ?? 0) + taken);
+      if (end == now) continue;
+      const taken = end - start;
+      funcTotalTaken.set(func.index, (funcTotalTaken.get(func.index) ?? 0) + taken);
 
-    if (!funcMeta.has(func.index)) funcMeta.set(func.index, [0, Infinity, -Infinity]);
-    const meta = funcMeta.get(func.index);
-    meta[0]++;
+      if (!funcMeta.has(func.index)) funcMeta.set(func.index, [0, Infinity, -Infinity]);
+      const meta = funcMeta.get(func.index);
+      meta[0]++;
 
-    if (meta[1] > taken) meta[1] = taken;
-    if (taken > meta[2]) meta[2] = taken;
-  }
+      if (meta[1] > taken) meta[1] = taken;
+      if (taken > meta[2]) meta[2] = taken;
+    }
 
-  process.stdout.write(`\x1b[${termHeight - btHeight};1H\x1b[0m\x1b[90m${'▁'.repeat(termWidth)}\n`);
+    process.stdout.write(`\x1b[${termHeight - btHeight};1H\x1b[0m\x1b[90m${'▁'.repeat(termWidth)}\n`);
 
-  (() => {
-    const perTime = 18;
-    let text = '  ' + 'name';
-    text += `${' '.repeat(40 - text.length)}┃ total`;
-    text += `${' '.repeat(40 + 5 + perTime - text.length)}┃ min`;
-    text += `${' '.repeat(40 + 5 + (perTime * 2) - text.length)}┃ avg`;
-    text += `${' '.repeat(40 + 5 + (perTime * 3) - text.length)}┃ max`;
-    text += `${' '.repeat(40 + 5 + (perTime * 4) - text.length)}┃ count`;
-    process.stdout.write(`\x1b[0m\x1b[2m${text.replaceAll('┃', '\x1b[0m\x1b[90m┃\x1b[0m\x1b[2m')}${' '.repeat(termWidth - text.length)}\x1b[0m`);
-  })();
+    (() => {
+      const perTime = 18;
+      let text = '  ' + 'name';
+      text += `${' '.repeat(40 - text.length)}┃ total`;
+      text += `${' '.repeat(40 + 5 + perTime - text.length)}┃ min`;
+      text += `${' '.repeat(40 + 5 + (perTime * 2) - text.length)}┃ avg`;
+      text += `${' '.repeat(40 + 5 + (perTime * 3) - text.length)}┃ max`;
+      text += `${' '.repeat(40 + 5 + (perTime * 4) - text.length)}┃ count`;
+      process.stdout.write(`\x1b[0m\x1b[2m${text.replaceAll('┃', '\x1b[0m\x1b[90m┃\x1b[0m\x1b[2m')}${' '.repeat(termWidth - text.length)}\x1b[0m`);
+    })();
 
-  const topTakenFuncs = [...funcTotalTaken.keys()].sort((a, b) => funcTotalTaken.get(b) - funcTotalTaken.get(a));
-  for (let i = 0; i < btHeight - 2; i++) {
-    const func = funcLookup.get(topTakenFuncs[i]);
-    if (!func) continue;
+    const topTakenFuncs = [...funcTotalTaken.keys()].sort((a, b) => funcTotalTaken.get(b) - funcTotalTaken.get(a));
+    for (let i = 0; i < btHeight - 2; i++) {
+      const func = funcLookup.get(topTakenFuncs[i]);
+      if (!func) continue;
 
-    const total = funcTotalTaken.get(func.index);
-    const [ count, min, max ] = funcMeta.get(func.index);
-    const avg = total / count;
+      const total = funcTotalTaken.get(func.index);
+      const [ count, min, max ] = funcMeta.get(func.index);
+      const avg = total / count;
 
-    const perTime = 18;
-    let text = '  \x1b[1m' + func.name + '\x1b[22m';
-    text += `${' '.repeat(49 - text.length)}┃ ${total.toFixed(2)}ms`;
-    text += `${' '.repeat(49 + perTime - text.length)}${((total / _total) * 100).toFixed(0)}%`;
-    text += `${' '.repeat(49 + 5 + perTime - text.length)}┃ ${min.toFixed(2)}ms`;
-    text += `${' '.repeat(49 + 5 + (perTime * 2) - text.length)}┃ ${avg.toFixed(2)}ms`;
-    text += `${' '.repeat(49 + 5 + (perTime * 3) - text.length)}┃ ${max.toFixed(2)}ms`;
-    text += `${' '.repeat(49 + 5 + (perTime * 4) - text.length)}┃ ${count}`;
-    process.stdout.write(`\x1b[${termHeight - btHeight + 2 + i};1H\x1b[0m${text.replaceAll('┃', '\x1b[90m┃\x1b[0m').replaceAll('ms', '\x1b[2mms\x1b[22m').replaceAll('%', '\x1b[2m%\x1b[22m')}${' '.repeat(termWidth - noAnsi(text).length)}`);
+      const perTime = 18;
+      let text = '  \x1b[1m' + func.name + '\x1b[22m';
+      text += `${' '.repeat(49 - text.length)}┃ ${total.toFixed(2)}ms`;
+      text += `${' '.repeat(49 + perTime - text.length)}${((total / _total) * 100).toFixed(0)}%`;
+      text += `${' '.repeat(49 + 5 + perTime - text.length)}┃ ${min.toFixed(2)}ms`;
+      text += `${' '.repeat(49 + 5 + (perTime * 2) - text.length)}┃ ${avg.toFixed(2)}ms`;
+      text += `${' '.repeat(49 + 5 + (perTime * 3) - text.length)}┃ ${max.toFixed(2)}ms`;
+      text += `${' '.repeat(49 + 5 + (perTime * 4) - text.length)}┃ ${count}`;
+      process.stdout.write(`\x1b[${termHeight - btHeight + 2 + i};1H\x1b[0m${text.replaceAll('┃', '\x1b[90m┃\x1b[0m').replaceAll('ms', '\x1b[2mms\x1b[22m').replaceAll('%', '\x1b[2m%\x1b[22m')}${' '.repeat(termWidth - noAnsi(text).length)}`);
+    }
   }
 
   process.stdout.write(`\x1b[${termHeight};1H\x1b[107m\x1b[30m${text}${' '.repeat(termWidth - plainControlInfo.length - noAnsi(text).length - 1)}${controlInfo} \x1b[0m\x1b[?2026l`);
@@ -177,20 +178,19 @@ globalThis.compileCallback = ({ funcs }) => {
   }
 };
 
-let last = performance.now();
-let running = [];
+let last = 0;
+let running = new Uint32Array(1024), runningIdx = 0;
 const { exports } = compile(source, undefined, {
   y: f => { // pre-call
     samplesStart.push(performance.now());
-    samplesFunc.push(f);
-    running.push(samplesEnd.push(null) - 1);
+    running[runningIdx++] = samplesFunc.push(f) - 1;
   },
   z: f => { // post-call
     const now = performance.now();
-    samplesEnd[running.pop()] = now;
+    samplesEnd[running[--runningIdx]] = now;
 
-    if (now > last + 100) {
-      last = now;
+    if (now > last) {
+      last = now + 500;
       render();
     }
   }
