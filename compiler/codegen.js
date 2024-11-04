@@ -3364,6 +3364,21 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     return out;
   }
 
+  if (pattern.type === 'MemberExpression') return [
+    ...generate(scope, {
+      type: 'AssignmentExpression',
+      operator: '=',
+      left: pattern,
+      right: !defaultValue ? init : {
+        type: 'LogicalExpression',
+        operator: '??',
+        left: init,
+        right: defaultValue
+      }
+    }),
+    [ Opcodes.drop ]
+  ];
+
   return todo(scope, `variable declarators of type ${pattern.type} are not supported yet`);
 }
 
