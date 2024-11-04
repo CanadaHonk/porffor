@@ -50,6 +50,7 @@ const cacheAst = (decl, wasm) => {
 let indirectFuncs = [];
 const funcRef = func => {
   func.generate?.();
+  func.referenced = true;
 
   if (globalThis.precompile) return [
     [ Opcodes.const, 'funcref', func.name ]
@@ -2532,6 +2533,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   const func = funcByIndex(idx);
 
+  if (func && !decl._new) func.onlyNew = false;
+
   // generate func
   if (func) func.generate?.();
 
@@ -2664,16 +2667,22 @@ const generateThis = (scope, decl) => {
   ];
 
   return [
-    // default this to globalThis
-    [ Opcodes.local_get, scope.locals['#this#type'].idx ],
-    ...number(TYPES.undefined, Valtype.i32),
-    [ Opcodes.i32_eq ],
-    [ Opcodes.if, Blocktype.void ],
-      ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
-      [ Opcodes.local_set, scope.locals['#this'].idx ],
-      ...getType(scope, 'globalThis'),
-      [ Opcodes.local_set, scope.locals['#this#type'].idx ],
-    [ Opcodes.end ],
+    // default this to globalThis unless only new func
+    [ null, () => {
+      if (scope.onlyNew !== false && !scope.referenced) return [];
+
+      return [
+        [ Opcodes.local_get, scope.locals['#this#type'].idx ],
+        ...number(TYPES.undefined, Valtype.i32),
+        [ Opcodes.i32_eq ],
+        [ Opcodes.if, Blocktype.void ],
+          ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
+          [ Opcodes.local_set, scope.locals['#this'].idx ],
+          ...getType(scope, 'globalThis'),
+          [ Opcodes.local_set, scope.locals['#this#type'].idx ],
+        [ Opcodes.end ]
+      ];
+    }, 0 ],
 
     [ Opcodes.local_get, scope.locals['#this'].idx ],
     ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
