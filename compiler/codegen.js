@@ -3222,58 +3222,56 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     let i = 0;
     const elements = pattern.elements.slice();
     for (const e of elements) {
-      switch (e?.type) {
-        case 'RestElement': { // let [ ...foo ] = []
-          if (e.argument.type === 'ArrayPattern') {
-            // let [ ...[a, b, c] ] = []
-            elements.push(...e.argument.elements);
-          } else {
-            decls.push(
-              ...generateVarDstr(scope, kind, e.argument, {
-                type: 'CallExpression',
-                callee: {
-                  type: 'Identifier',
-                  name: '__Array_prototype_slice'
-                },
-                arguments: [
-                  { type: 'Identifier', name: tmpName },
-                  { type: 'Literal', value: i }
-                ],
-                _protoInternalCall: true
-              }, undefined, global)
-            );
-          }
+      if (!e) {
+        i++;
+        continue;
+      }
 
-          continue; // skip i++
-        }
-
-        case 'AssignmentPattern': { // let [ foo = defaultValue ] = []
+      if (e.type === 'RestElement') { // let [ ...foo ] = []
+        if (e.argument.type === 'ArrayPattern') {
+          // let [ ...[a, b, c] ] = []
+          elements.push(...e.argument.elements);
+        } else {
           decls.push(
-            ...generateVarDstr(scope, kind, e.left, {
-              type: 'MemberExpression',
-              object: { type: 'Identifier', name: tmpName },
-              property: { type: 'Literal', value: i },
-              computed: true
-            }, e.right, global)
-          );
-
-          break;
-        }
-
-        case 'ArrayPattern': // let [ [ foo, bar ] ] = [ [ 2, 4 ] ]
-        case 'Identifier': // let [ foo ] = []
-        case 'ObjectPattern': { // let [ { foo } ] = [ { foo: true } ]
-          decls.push(
-            ...generateVarDstr(scope, kind, e, {
-              type: 'MemberExpression',
-              object: { type: 'Identifier', name: tmpName },
-              property: { type: 'Literal', value: i },
-              computed: true
+            ...generateVarDstr(scope, kind, e.argument, {
+              type: 'CallExpression',
+              callee: {
+                type: 'Identifier',
+                name: '__Array_prototype_slice'
+              },
+              arguments: [
+                { type: 'Identifier', name: tmpName },
+                { type: 'Literal', value: i }
+              ],
+              _protoInternalCall: true
             }, undefined, global)
           );
-
-          break;
         }
+
+        continue; // skip i++
+      } else if (e.type === 'AssignmentPattern') { // let [ foo = defaultValue ] = []
+        decls.push(
+          ...generateVarDstr(scope, kind, e.left, {
+            type: 'MemberExpression',
+            object: { type: 'Identifier', name: tmpName },
+            property: { type: 'Literal', value: i },
+            computed: true
+          }, e.right, global)
+        );
+      } else {
+        // let [ [ foo, bar ] ] = [ [ 2, 4 ] ]
+        // let [ foo ] = []
+        // let [ { foo } ] = [ { foo: true } ]
+        // etc
+
+        decls.push(
+          ...generateVarDstr(scope, kind, e, {
+            type: 'MemberExpression',
+            object: { type: 'Identifier', name: tmpName },
+            property: { type: 'Literal', value: i },
+            computed: true
+          }, undefined, global)
+        );
       }
 
       i++;
