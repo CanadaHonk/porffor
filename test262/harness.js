@@ -444,9 +444,8 @@ function $DETACHBUFFER(buffer) {
 }
 
 /// fnGlobalObject.js
-var __globalObject = globalThis;
 function fnGlobalObject() {
-  return __globalObject;
+  return globalThis;
 }
 
 /// doneprintHandle.js
