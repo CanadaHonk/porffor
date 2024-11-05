@@ -118,13 +118,7 @@ var isConstructor = f => {
     throw new Test262Error("isConstructor invoked with a non-function value");
   }
 
-  try {
-    new f();
-  } catch {
-    return false;
-  }
-
-  return true;
+  return ecma262.IsConstructor(f);
 };
 
 /// assertRelativeDateMs.js
