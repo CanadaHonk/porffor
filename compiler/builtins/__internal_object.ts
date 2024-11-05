@@ -18,8 +18,7 @@ export const __Porffor_object_underlying = (obj: any): any => {
       const underlying: object = {};
 
       if (t == Porffor.TYPES.function) {
-        const flags: i32 = __Porffor_funcLut_flags(obj);
-        if (flags & 0b10) { // constructor
+        if (ecma262.IsConstructor(obj)) { // constructor
           // set prototype and prototype.constructor if function and constructor
           const proto = {};
           const key1: bytestring = 'prototype';
