@@ -2123,15 +2123,17 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           ...getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
           [ Opcodes.local_tee, typeTmp ],
 
-          // check not undefined or null
+          // check not undefined or null if not in precompile
           // todo: technically this should be allowed sometimes but for now, never
-          ...nullish(scope,
-            [ [ Opcodes.local_get, valTmp ] ],
-            [ [ Opcodes.local_get, typeTmp ] ],
-            false, true),
-          [ Opcodes.if, Blocktype.void ],
-          ...internalThrow(scope, 'TypeError', `Cannot use undefined or null as 'this'`),
-          [ Opcodes.end ],
+          ...(globalThis.precompile ? [] : [
+            ...nullish(scope,
+              [ [ Opcodes.local_get, valTmp ] ],
+              [ [ Opcodes.local_get, typeTmp ] ],
+              false, true),
+            [ Opcodes.if, Blocktype.void ],
+            ...internalThrow(scope, 'TypeError', `Cannot use undefined or null as 'this'`),
+            [ Opcodes.end ]
+          ])
         ],
         _thisWasmComponents: {
           _callValue: [
@@ -2140,15 +2142,17 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
             ...getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
             [ Opcodes.local_set, typeTmp ],
 
-            // check not undefined or null
+            // check not undefined or null if not in precompile
             // todo: technically this should be allowed sometimes but for now, never
-            ...nullish(scope,
-              [ [ Opcodes.local_get, valTmp ] ],
-              [ [ Opcodes.local_get, typeTmp ] ],
-              false, true),
-            [ Opcodes.if, Blocktype.void ],
+            ...(globalThis.precompile ? [] : [
+              ...nullish(scope,
+                [ [ Opcodes.local_get, valTmp ] ],
+                [ [ Opcodes.local_get, typeTmp ] ],
+                false, true),
+              [ Opcodes.if, Blocktype.void ],
               ...internalThrow(scope, 'TypeError', `Cannot use undefined or null as 'this'`),
-            [ Opcodes.end ],
+              [ Opcodes.end ]
+            ])
           ],
           _callType: [ [ Opcodes.local_get, typeTmp ] ]
         }
