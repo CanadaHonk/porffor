@@ -2018,41 +2018,44 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     name = func.name;
   }
 
-  if (!decl._new && name === 'eval' && decl.arguments[0]?.type === 'Literal') {
-    // literal eval hack
-    const code = decl.arguments[0]?.value ?? '';
+  if (!decl._new && name === 'eval') {
+    const known = knownValue(scope, decl.arguments[0]);
+    if (known !== unknownValue) {
+      // known value literal eval hack
+      const code = String(known);
 
-    let parsed;
-    try {
-      parsed = parse(code, []);
-    } catch (e) {
-      if (e.name === 'SyntaxError') {
-        // throw syntax errors of evals at runtime instead
-        return internalThrow(scope, 'SyntaxError', e.message, true);
+      let parsed;
+      try {
+        parsed = parse(code, []);
+      } catch (e) {
+        if (e.name === 'SyntaxError') {
+          // throw syntax errors of evals at runtime instead
+          return internalThrow(scope, 'SyntaxError', e.message, true);
+        }
+
+        throw e;
       }
 
-      throw e;
+      scope.inEval = true;
+      const out = generate(scope, {
+        type: 'BlockStatement',
+        body: parsed.body
+      });
+      scope.inEval = false;
+
+      const lastInst = getLastInst(out);
+      if (lastInst && lastInst[0] === Opcodes.drop) {
+        out.splice(out.length - 1, 1);
+
+        const finalStatement = parsed.body[parsed.body.length - 1];
+        out.push(...setLastType(scope, getNodeType(scope, finalStatement)));
+      } else if (countLeftover(out) === 0) {
+        out.push(...number(UNDEFINED));
+        out.push(...setLastType(scope, TYPES.undefined));
+      }
+
+      return out;
     }
-
-    scope.inEval = true;
-    const out = generate(scope, {
-      type: 'BlockStatement',
-      body: parsed.body
-    });
-    scope.inEval = false;
-
-    const lastInst = getLastInst(out);
-    if (lastInst && lastInst[0] === Opcodes.drop) {
-      out.splice(out.length - 1, 1);
-
-      const finalStatement = parsed.body[parsed.body.length - 1];
-      out.push(...setLastType(scope, getNodeType(scope, finalStatement)));
-    } else if (countLeftover(out) === 0) {
-      out.push(...number(UNDEFINED));
-      out.push(...setLastType(scope, TYPES.undefined));
-    }
-
-    return out;
   }
 
   let protoName, target;
@@ -2742,6 +2745,35 @@ const knownTypeWithGuess = (scope, type) => {
 
   if (type.guess != null) return knownType(scope, type.guess);
   return known;
+};
+
+const unknownValue = Symbol('Porffor.unknownValue');
+const knownValue = (scope, node) => {
+  if (!node) return undefined;
+
+  // very limited and rarely used for now
+  if (node.type === 'Literal') {
+    return node.value;
+  }
+
+  if (node.type === 'BinaryExpression') {
+    const left = knownValue(scope, node.left);
+    if (left === unknownValue) return unknownValue;
+
+    const right = knownValue(scope, node.right);
+    if (right === unknownValue) return unknownValue;
+
+    switch (node.operator) {
+      case '+': return left + right;
+      case '-': return left - right;
+      case '==': return left == right;
+      case '===': return left === right;
+      case '!=': return left != right;
+      case '!==': return left !== right;
+    }
+  }
+
+  return unknownValue;
 };
 
 const brTable = (input, bc, returns) => {
