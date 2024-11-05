@@ -318,15 +318,14 @@ export const __Array_prototype_indexOf = (_this: any[], searchElement: any, _pos
 // @porf-typed-array
 export const __Array_prototype_lastIndexOf = (_this: any[], searchElement: any, _position: any) => {
   const len: i32 = _this.length;
-  let position: i32 = ecma262.ToIntegerOrInfinity(_position);
+  let position: i32 = _position == null ? len - 1 : ecma262.ToIntegerOrInfinity(_position);
   if (position >= 0) {
-    if (position > len) position = len;
+    if (position > len - 1) position = len - 1;
   } else {
     position = len + position;
-    if (position < 0) position = 0;
   }
 
-  for (let i: i32 = len - 1; i >= position; i--) {
+  for (let i: i32 = position; i >= 0; i--) {
     if (_this[i] === searchElement) return i;
   }
 
