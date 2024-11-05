@@ -2026,7 +2026,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       let parsed;
       try {
-        parsed = parse(code, []);
+        parsed = parse(code);
       } catch (e) {
         if (e.name === 'SyntaxError') {
           // throw syntax errors of evals at runtime instead
@@ -2055,6 +2055,31 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       }
 
       return out;
+    }
+  }
+
+  if (name === 'Function') {
+    const known = knownValue(scope, decl.arguments[0]);
+    if (known !== unknownValue) {
+      // known value literal Function hack
+      const code = String(known);
+
+      let parsed;
+      try {
+        parsed = parse(`(function(){${code}})`);
+      } catch (e) {
+        if (e.name === 'SyntaxError') {
+          // throw syntax errors of evals at runtime instead
+          return internalThrow(scope, 'SyntaxError', e.message, true);
+        }
+
+        throw e;
+      }
+
+      return [
+        ...generate(scope, parsed.body[0].expression),
+        ...setLastType(scope, TYPES.function)
+      ];
     }
   }
 
