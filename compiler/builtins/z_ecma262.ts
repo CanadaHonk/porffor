@@ -186,3 +186,8 @@ export const __ecma262_ToPropertyKey = (argument: any): any => {
   // 3. Return ! ToString(key).
   return __ecma262_ToString(key);
 };
+
+export const __ecma262_IsConstructor = (argument: any): boolean => {
+  if (Porffor.rawType(argument) != Porffor.TYPES.function) return false;
+  return (__Porffor_funcLut_flags(argument) & 0b10) == 2;
+};

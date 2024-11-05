@@ -137,6 +137,7 @@ declare global {
     ToNumber(argument: unknown): number;
     ToNumeric(argument: unknown): number;
     ToPropertyKey(argument: unknown): any;
+    IsConstructor(argument: unknown): boolean;
   }
 
   const print: (arg: any) => void;
