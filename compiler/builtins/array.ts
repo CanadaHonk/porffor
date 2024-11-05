@@ -455,16 +455,16 @@ export const __Array_prototype_reverse = (_this: any[]) => {
 
 
 // @porf-typed-array
-export const __Array_prototype_forEach = (_this: any[], callbackFn: any) => {
+export const __Array_prototype_forEach = (_this: any[], callbackFn: any, thisArg: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
-    callbackFn(_this[i], i++, _this);
+    callbackFn.call(thisArg, _this[i], i++, _this);
   }
 };
 
 // @porf-typed-array
-export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
+export const __Array_prototype_filter = (_this: any[], callbackFn: any, thisArg: any) => {
   const out: any[] = Porffor.allocate();
 
   const len: i32 = _this.length;
@@ -472,7 +472,7 @@ export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
   let j: i32 = 0;
   while (i < len) {
     const el: any = _this[i];
-    if (!!callbackFn(el, i++, _this)) out[j++] = el;
+    if (!!callbackFn.call(thisArg, el, i++, _this)) out[j++] = el;
   }
 
   out.length = j;
@@ -480,26 +480,26 @@ export const __Array_prototype_filter = (_this: any[], callbackFn: any) => {
 };
 
 // @porf-typed-array
-export const __Array_prototype_map = (_this: any[], callbackFn: any) => {
+export const __Array_prototype_map = (_this: any[], callbackFn: any, thisArg: any) => {
   const len: i32 = _this.length;
   const out: any[] = Porffor.allocate();
   out.length = len;
 
   let i: i32 = 0;
   while (i < len) {
-    out[i] = callbackFn(_this[i], i++, _this);
+    out[i] = callbackFn.call(thisArg, _this[i], i++, _this);
   }
 
   return out;
 };
 
-export const __Array_prototype_flatMap = (_this: any[], callbackFn: any) => {
+export const __Array_prototype_flatMap = (_this: any[], callbackFn: any, thisArg: any) => {
   const len: i32 = _this.length;
   const out: any[] = Porffor.allocate();
 
   let i: i32 = 0, j: i32 = 0;
   while (i < len) {
-    let x: any = callbackFn(_this[i], i++, _this);
+    let x: any = callbackFn.call(thisArg, _this[i], i++, _this);
     if (Porffor.rawType(x) == Porffor.TYPES.array) {
       for (const y of x) out[j++] = y;
     } else out[j++] = x;
@@ -510,47 +510,47 @@ export const __Array_prototype_flatMap = (_this: any[], callbackFn: any) => {
 };
 
 // @porf-typed-array
-export const __Array_prototype_find = (_this: any[], callbackFn: any) => {
+export const __Array_prototype_find = (_this: any[], callbackFn: any, thisArg: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
     const el: any = _this[i];
-    if (!!callbackFn(el, i++, _this)) return el;
+    if (!!callbackFn.call(thisArg, el, i++, _this)) return el;
   }
 };
 
 // @porf-typed-array
-export const __Array_prototype_findLast = (_this: any[], callbackFn: any) => {
+export const __Array_prototype_findLast = (_this: any[], callbackFn: any, thisArg: any) => {
   let i: i32 = _this.length;
   while (i > 0) {
     const el: any = _this[--i];
-    if (!!callbackFn(el, i, _this)) return el;
+    if (!!callbackFn.call(thisArg, el, i, _this)) return el;
   }
 };
 
 // @porf-typed-array
-export const __Array_prototype_findIndex = (_this: any[], callbackFn: any) => {
+export const __Array_prototype_findIndex = (_this: any[], callbackFn: any, thisArg: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
-    if (!!callbackFn(_this[i], i++, _this)) return i;
+    if (!!callbackFn.call(thisArg, _this[i], i++, _this)) return i;
   }
 };
 
 // @porf-typed-array
-export const __Array_prototype_findLastIndex = (_this: any[], callbackFn: any) => {
+export const __Array_prototype_findLastIndex = (_this: any[], callbackF: any, thisArg: any) => {
   let i: i32 = _this.length;
   while (i > 0) {
-    if (!!callbackFn(_this[--i], i, _this)) return i;
+    if (!!callbackFn.call(thisArg, _this[--i], i, _this)) return i;
   }
 };
 
 // @porf-typed-array
-export const __Array_prototype_every = (_this: any[], callbackFn: any) => {
+export const __Array_prototype_every = (_this: any[], callbackFn: any, thisArg: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
-    if (!!callbackFn(_this[i], i++, _this)) {}
+    if (!!callbackFn.call(thisArg, _this[i], i++, _this)) {}
       else return false;
   }
 
@@ -558,11 +558,11 @@ export const __Array_prototype_every = (_this: any[], callbackFn: any) => {
 };
 
 // @porf-typed-array
-export const __Array_prototype_some = (_this: any[], callbackFn: any) => {
+export const __Array_prototype_some = (_this: any[], callbackFn: any, thisArg: any) => {
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
-    if (!!callbackFn(_this[i], i++, _this)) return true;
+    if (!!callbackFn.call(thisArg, _this[i], i++, _this)) return true;
   }
 
   return false;
