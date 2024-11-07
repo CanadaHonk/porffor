@@ -2993,9 +2993,15 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
         add();
       } else {
         // type not used, add callback
+        const depthClone = [...depth];
         out.push([ null, () => {
           out = [];
-          if (types.some(x => usedTypes.has(x))) add();
+          if (types.some(x => usedTypes.has(x))) {
+            let oldDepth = depth;
+            depth = depthClone;
+            add();
+            depth = oldDepth;
+          }
           return out;
         }, 0 ]);
       }
@@ -3007,6 +3013,10 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     else if (returns !== Blocktype.void) out.push(...number(0, returns));
 
   out.push([ Opcodes.end ]);
+
+  if (depth.at(-1) === 'typeswitch') {
+    depth.pop();
+  }
 
   typeswitchDepth--;
 
