@@ -196,6 +196,12 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
   if (astCache.has(decl)) return astCache.get(decl);
 
   switch (decl.type) {
+    case 'Wasm':
+      if (typeof decl.wasm === 'function') {
+        return cacheAst(decl, decl.wasm(scope, valueUnused));
+      }
+      return cacheAst(decl, decl.wasm);
+
     case 'BinaryExpression':
       return cacheAst(decl, generateBinaryExp(scope, decl, global, name));
 
@@ -2939,6 +2945,10 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     [ Opcodes.local_set, tmp ],
     [ Opcodes.block, returns ]
   ];
+  // typeswitch via switch doesn't require an additional depth frame
+  if (depth.at(-1) !== 'switch_typeswitch') {
+    depth.push('typeswitch');
+  }
 
   for (let i = 0; i < bc.length; i++) {
     let [ types, wasm ] = bc[i];
@@ -2949,7 +2959,10 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     if (!Array.isArray(types)) types = [ types ];
 
     const add = () => {
+      // handle depth
+      depth.push('if');
       if (typeof wasm === 'function') wasm = wasm();
+      depth.pop();
 
       for (let j = 0; j < types.length; j++) {
         out.push(
@@ -2980,9 +2993,15 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
         add();
       } else {
         // type not used, add callback
+        const depthClone = [...depth];
         out.push([ null, () => {
           out = [];
-          if (types.some(x => usedTypes.has(x))) add();
+          if (types.some(x => usedTypes.has(x))) {
+            let oldDepth = depth;
+            depth = depthClone;
+            add();
+            depth = oldDepth;
+          }
           return out;
         }, 0 ]);
       }
@@ -2994,6 +3013,10 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     else if (returns !== Blocktype.void) out.push(...number(0, returns));
 
   out.push([ Opcodes.end ]);
+
+  if (depth.at(-1) === 'typeswitch') {
+    depth.pop();
+  }
 
   typeswitchDepth--;
 
@@ -4342,55 +4365,66 @@ const generateForOf = (scope, decl) => {
     // get length
     [ Opcodes.local_get, pointer ],
     [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-    [ Opcodes.local_tee, length ],
-
-    [ Opcodes.if, Blocktype.void ]
+    [ Opcodes.local_set, length ]
   );
 
   inferLoopStart(scope, decl);
-  depth.push('if');
   depth.push('forof');
   depth.push('block');
-  depth.push('block');
 
-  const tmpName = '#forof_tmp' + count;
-  const tmp = localTmp(scope, tmpName, valtypeBinary);
-  localTmp(scope, tmpName + "#type", Valtype.i32);
+  out.push([ Opcodes.loop, Blocktype.void ]);
+  out.push([ Opcodes.block, Blocktype.void ]);
 
-  // setup local for left
-  let setVar;
-  if (decl.left.type === 'Identifier') {
-    if (!isIdentAssignable(scope, decl.left.name)) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
-    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
-  } else {
-    // todo: verify this is correct
-    const global = scope.name === '#main' && decl.left.kind === 'var';
-    setVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
-  }
+  const prevDepth = depth.length;
 
+  const makeTypedArrayNext = (getOp, elementSize) => [
+    // if counter == length then break
+    [ Opcodes.local_get, counter ],
+    [ Opcodes.local_get, length ],
+    [ Opcodes.i32_eq ],
+    [ Opcodes.br_if, depth.length - prevDepth ],
 
-  // set type for local
-  // todo: optimize away counter and use end pointer
-  out.push(...typeSwitch(scope, iterType, {
-    [TYPES.array]: () => [
-      [ Opcodes.loop, Blocktype.void ],
+    // get TypedArray.buffer
+    [ Opcodes.local_get, pointer ],
+    [ Opcodes.i32_load, 0, 4 ],
 
+    // calculate address
+    [ Opcodes.local_get, counter ],
+    ...(elementSize === 1 ? [] : [
+      ...number(elementSize, Valtype.i32),
+      [ Opcodes.i32_mul ]
+    ]),
+    [ Opcodes.i32_add ],
+
+    // get value and cast
+    ...getOp,
+
+    // increment counter
+    [ Opcodes.local_get, counter ],
+    ...number(1, Valtype.i32),
+    [ Opcodes.i32_add ],
+    [ Opcodes.local_set, counter ],
+
+    // set last type to number
+    ...setLastType(scope, TYPES.number)
+  ];
+
+  // Wasm to get next element
+  const nextWasm = () => typeSwitch(scope, iterType, [
+    // arrays and sets work the same currently
+    [ [ TYPES.array, TYPES.set ], () => [
+      // if remaining length == 0 then break
+      [ Opcodes.local_get, length ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.br_if, depth.length - prevDepth ],
+
+      // get value
       [ Opcodes.local_get, pointer ],
       [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
 
-      [ Opcodes.local_set, tmp ],
-
-      ...setType(scope, tmpName, [
-        [ Opcodes.local_get, pointer ],
-        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
-      ]),
-
-      ...setVar,
-
-      [ Opcodes.block, Blocktype.void ],
-      [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
-      [ Opcodes.end ],
+      // get type
+      [ Opcodes.local_get, pointer ],
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
 
       // increment iter pointer by valtype size + 1
       [ Opcodes.local_get, pointer ],
@@ -4398,23 +4432,21 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.i32_add ],
       [ Opcodes.local_set, pointer ],
 
-      // increment counter by 1
-      [ Opcodes.local_get, counter ],
-      ...number(1, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_tee, counter ],
-
-      // loop if counter != length
+      // decrement remaining length by 1
       [ Opcodes.local_get, length ],
-      [ Opcodes.i32_ne ],
-      [ Opcodes.br_if, 1 ],
+      ...number(1, Valtype.i32),
+      [ Opcodes.i32_sub ],
+      [ Opcodes.local_set, length ],
 
-      [ Opcodes.end ],
-      [ Opcodes.end ]
-    ],
+      // set type
+      ...setLastType(scope)
+    ] ],
 
-    [TYPES.string]: () => [
-      ...setType(scope, tmpName, TYPES.string),
+    [ TYPES.string, () => [
+      // if remaining length == 0 then break
+      [ Opcodes.local_get, length ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.br_if, depth.length - prevDepth ],
 
       // allocate out string
       ...number(8, Valtype.i32),
@@ -4425,29 +4457,15 @@ const generateForOf = (scope, decl) => {
       ...number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
-      [ Opcodes.loop, Blocktype.void ],
-
       // use as pointer for store later
       [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // load current string ind {arg}
       [ Opcodes.local_get, pointer ],
-      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
+      [ Opcodes.i32_load16_u, Math.log2(ValtypeSize.i16), ValtypeSize.i32 ],
 
       // store to new string ind 0
-      [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
-
-      // return new string (page)
-      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
-	    Opcodes.i32_from_u,
-      [ Opcodes.local_set, tmp ],
-
-  	  ...setVar,
-
-      [ Opcodes.block, Blocktype.void ],
-      [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
-      [ Opcodes.end ],
+      [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16), ValtypeSize.i32 ],
 
       // increment iter pointer by valtype size
       [ Opcodes.local_get, pointer ],
@@ -4455,22 +4473,24 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.i32_add ],
       [ Opcodes.local_set, pointer ],
 
-      // increment counter by 1
-      [ Opcodes.local_get, counter ],
-      ...number(1, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_tee, counter ],
-
-      // loop if counter != length
+      // decrement remaining length by 1
       [ Opcodes.local_get, length ],
-      [ Opcodes.i32_ne ],
-      [ Opcodes.br_if, 1 ],
+      ...number(1, Valtype.i32),
+      [ Opcodes.i32_sub ],
+      [ Opcodes.local_set, length ],
 
-      [ Opcodes.end ],
-      [ Opcodes.end ]
-    ],
-    [TYPES.bytestring]: () => [
-      ...setType(scope, tmpName, TYPES.bytestring),
+      // get new string (page)
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      Opcodes.i32_from_u,
+
+      // set type to string
+      ...setLastType(scope, TYPES.string)
+    ] ],
+    [ TYPES.bytestring, () => [
+      // if remaining length == 0 then break
+      [ Opcodes.local_get, length ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.br_if, depth.length - prevDepth ],
 
       // allocate out string
       ...number(8, Valtype.i32),
@@ -4481,200 +4501,98 @@ const generateForOf = (scope, decl) => {
       ...number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
-      [ Opcodes.loop, Blocktype.void ],
-
       // use as pointer for store later
       [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // load current string ind {arg}
       [ Opcodes.local_get, pointer ],
-      [ Opcodes.local_get, counter ],
-      [ Opcodes.i32_add ],
-      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 ],
+      [ Opcodes.i32_load8_u, Math.log2(ValtypeSize.i8), ValtypeSize.i32 ],
 
       // store to new string ind 0
-      [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
+      [ Opcodes.i32_store8, Math.log2(ValtypeSize.i8), ValtypeSize.i32 ],
 
-      // return new string (page)
-      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
-      Opcodes.i32_from_u,
-      [ Opcodes.local_set, tmp ],
-
-      ...setVar,
-
-      [ Opcodes.block, Blocktype.void ],
-      [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
-      [ Opcodes.end ],
-
-      // increment counter by 1
-      [ Opcodes.local_get, counter ],
-      ...number(1, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_tee, counter ],
-
-      // loop if counter != length
-      [ Opcodes.local_get, length ],
-      [ Opcodes.i32_ne ],
-      [ Opcodes.br_if, 1 ],
-
-      [ Opcodes.end ],
-      [ Opcodes.end ]
-    ],
-
-    [TYPES.set]: () => [
-      [ Opcodes.loop, Blocktype.void ],
-
+      // increment iter pointer by valtype size
       [ Opcodes.local_get, pointer ],
-      [ Opcodes.load, 0, ...unsignedLEB128(ValtypeSize.i32) ],
-
-      [ Opcodes.local_set, tmp ],
-
-      ...setType(scope, tmpName, [
-        [ Opcodes.local_get, pointer ],
-        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(ValtypeSize.i32 + ValtypeSize[valtype]) ],
-      ]),
-
-      ...setVar,
-
-      [ Opcodes.block, Blocktype.void ],
-      [ Opcodes.block, Blocktype.void ],
-      ...generate(scope, decl.body),
-      [ Opcodes.end ],
-
-      // increment iter pointer by valtype size + 1
-      [ Opcodes.local_get, pointer ],
-      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
+      ...number(ValtypeSize.i8, Valtype.i32),
       [ Opcodes.i32_add ],
       [ Opcodes.local_set, pointer ],
 
-      // increment counter by 1
-      [ Opcodes.local_get, counter ],
-      ...number(1, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_tee, counter ],
-
-      // loop if counter != length
+      // decrement remaining length by 1
       [ Opcodes.local_get, length ],
-      [ Opcodes.i32_ne ],
-      [ Opcodes.br_if, 1 ],
+      ...number(1, Valtype.i32),
+      [ Opcodes.i32_sub ],
+      [ Opcodes.local_set, length ],
 
-      [ Opcodes.end ],
-      [ Opcodes.end ]
-    ],
+      // get new string (page)
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      Opcodes.i32_from_u,
 
-    ...wrapBC({
-      [TYPES.uint8array]: () => [
-        [ Opcodes.i32_add ],
+      // set type to string
+      ...setLastType(scope, TYPES.bytestring)
+    ] ],
 
-        [ Opcodes.i32_load8_u, 0, 4 ],
-        Opcodes.i32_from_u
-      ],
-      [TYPES.uint8clampedarray]: () => [
-        [ Opcodes.i32_add ],
+    [ [ TYPES.uint8array, TYPES.uint8clampedarray ], () => makeTypedArrayNext([
+      [ Opcodes.i32_load8_u, 0, 4 ],
+      Opcodes.i32_from_u
+    ], 1) ],
+    [ TYPES.int8array, () => makeTypedArrayNext([
+      [ Opcodes.i32_load8_s, 0, 4 ],
+      Opcodes.i32_from
+    ], 1) ],
+    [ TYPES.uint16array, () => makeTypedArrayNext([
+      [ Opcodes.i32_load16_u, 0, 4 ],
+      Opcodes.i32_from_u
+    ], 2) ],
+    [ TYPES.int16array, () => makeTypedArrayNext([
+      [ Opcodes.i32_load16_u, 0, 4 ],
+      Opcodes.i32_from_u
+    ], 2) ],
+    [ TYPES.uint32array, () => makeTypedArrayNext([
+      [ Opcodes.i32_load, 0, 4 ],
+      Opcodes.i32_from_u
+    ], 4) ],
+    [ TYPES.int32array, () => makeTypedArrayNext([
+      [ Opcodes.i32_load, 0, 4 ],
+      Opcodes.i32_from
+    ], 4) ],
+    [ TYPES.float32array, () => makeTypedArrayNext([
+      [ Opcodes.f32_load, 0, 4 ],
+      [ Opcodes.f64_promote_f32 ]
+    ], 4) ],
+    [ TYPES.float64array, () => makeTypedArrayNext([
+      [ Opcodes.f64_load, 0, 4 ]
+    ], 8) ],
 
-        [ Opcodes.i32_load8_u, 0, 4 ],
-        Opcodes.i32_from_u
-      ],
-      [TYPES.int8array]: () => [
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.i32_load8_s, 0, 4 ],
-        Opcodes.i32_from
-      ],
-      [TYPES.uint16array]: () => [
-        ...number(2, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.i32_load16_u, 0, 4 ],
-        Opcodes.i32_from_u
-      ],
-      [TYPES.int16array]: () => [
-        ...number(2, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.i32_load16_s, 0, 4 ],
-        Opcodes.i32_from
-      ],
-      [TYPES.uint32array]: () => [
-        ...number(4, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.i32_load, 0, 4 ],
-        Opcodes.i32_from_u
-      ],
-      [TYPES.int32array]: () => [
-        ...number(4, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.i32_load, 0, 4 ],
-        Opcodes.i32_from
-      ],
-      [TYPES.float32array]: () => [
-        ...number(4, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.f32_load, 0, 4 ],
-        [ Opcodes.f64_promote_f32 ]
-      ],
-      [TYPES.float64array]: () => [
-        ...number(8, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.i32_add ],
-
-        [ Opcodes.f64_load, 0, 4 ]
-      ],
-    }, {
-      prelude: [
-        ...setType(scope, tmpName, TYPES.number),
-
-        [ Opcodes.loop, Blocktype.void ],
-
-        [ Opcodes.local_get, pointer ],
-        [ Opcodes.i32_load, 0, 4 ],
-        [ Opcodes.local_get, counter ]
-      ],
-      postlude: [
-        [ Opcodes.local_set, tmp ],
-
-        ...setVar,
-
-        [ Opcodes.block, Blocktype.void ],
-        [ Opcodes.block, Blocktype.void ],
-        ...generate(scope, decl.body),
-        [ Opcodes.end ],
-
-        // increment counter by 1
-        [ Opcodes.local_get, counter ],
-        ...number(1, Valtype.i32),
-        [ Opcodes.i32_add ],
-        [ Opcodes.local_tee, counter ],
-
-        // loop if counter != length
-        [ Opcodes.local_get, length ],
-        [ Opcodes.i32_ne ],
-        [ Opcodes.br_if, 1 ],
-
-        [ Opcodes.end ],
-        [ Opcodes.end ]
-      ]
-    }),
-
-    [TYPES.__porffor_generator]: () => [],
+    [ TYPES.__porffor_generator, () => [
+      // just break?! TODO: actually implement this
+      [ Opcodes.br, depth.length - prevDepth ]
+    ] ],
 
     // note: should be impossible to reach?
-    default: internalThrow(scope, 'TypeError', `Tried for..of on non-iterable type`)
-  }, Blocktype.void));
+    [ 'default', [ [ Opcodes.unreachable ] ] ]
+  ], valtypeBinary);
 
-  out.push([ Opcodes.end ]); // end if
+  // setup local for left
+  let setVar;
+  if (decl.left.type === 'Identifier') {
+    if (!isIdentAssignable(scope, decl.left.name)) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Wasm', wasm: nextWasm }, undefined, true);
+  } else {
+    // todo: verify this is correct
+    const global = scope.name === '#main' && decl.left.kind === 'var';
+    setVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Wasm', wasm: nextWasm }, undefined, global);
+  }
 
-  depth.pop();
-  depth.pop();
+  // next and set local
+  out.push(...setVar);
+
+  // generate body
+  out.push(...generate(scope, decl.body));
+
+  out.push([ Opcodes.br, 1 ]); // continue
+  out.push([ Opcodes.end ]); // end block
+  out.push([ Opcodes.end ]); // end loop
+
   depth.pop();
   depth.pop();
 
@@ -4861,7 +4779,7 @@ const generateSwitch = (scope, decl) => {
     }
 
     if (canTypeCheck) {
-      depth.push('switch');
+      depth.push('switch_typeswitch');
 
       const out = typeSwitch(scope, getNodeType(scope, decl.discriminant.arguments[0]), () => {
         const bc = [];
@@ -4950,7 +4868,7 @@ const generateSwitch = (scope, decl) => {
 // find the nearest loop in depth map by type
 const getNearestLoop = () => {
   for (let i = depth.length - 1; i >= 0; i--) {
-    if (['while', 'dowhile', 'for', 'forof', 'forin', 'switch'].includes(depth[i])) return i;
+    if (['while', 'dowhile', 'for', 'forof', 'forin', 'switch', 'switch_typeswitch'].includes(depth[i])) return i;
   }
 
   return -1;
@@ -4968,10 +4886,11 @@ const generateBreak = (scope, decl) => {
     for: 2, // loop > if (wanted branch) > block (we are here)
     while: 2, // loop > if (wanted branch) (we are here)
     dowhile: 2, // loop > block (wanted branch) > block (we are here)
-    forof: 2, // loop > block (wanted branch) > block (we are here)
+    forof: 1, // loop > block (wanted branch) (we are here)
     forin: 2, // loop > block (wanted branch) > if (we are here)
     if: 1, // break inside if, branch 0 to skip the rest of the if
-    switch: 1
+    switch: 1,
+    switch_typeswitch: 1
   })[type];
 
   return [
@@ -4991,7 +4910,7 @@ const generateContinue = (scope, decl) => {
     for: 3, // loop (wanted branch) > if > block (we are here)
     while: 1, // loop (wanted branch) > if (we are here)
     dowhile: 3, // loop > block > block (wanted branch) (we are here)
-    forof: 3, // loop > block > block (wanted branch) (we are here)
+    forof: 2, // loop (wanted branch) > block (we are here)
     forin: 3 // loop > block > if (wanted branch) (we are here)
   })[type];
 
