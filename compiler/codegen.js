@@ -4399,6 +4399,12 @@ const generateForOf = (scope, decl) => {
     // get value and cast
     ...getOp,
 
+    // increment counter
+    [ Opcodes.local_get, counter ],
+    ...number(1, Valtype.i32),
+    [ Opcodes.i32_add ],
+    [ Opcodes.local_set, counter ],
+
     // set last type to number
     ...setLastType(scope, TYPES.number)
   ];
@@ -4553,7 +4559,7 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.f32_load, 0, 4 ],
       [ Opcodes.f64_promote_f32 ]
     ], 4) ],
-    [ TYPES.float32array, () => makeTypedArrayNext([
+    [ TYPES.float64array, () => makeTypedArrayNext([
       [ Opcodes.f64_load, 0, 4 ]
     ], 8) ],
 
