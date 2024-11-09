@@ -126,6 +126,8 @@ const run = (source, _context, _filename, callback, run = true) => {
 
 const replServer = repl.start({ prompt: '> ', eval: run });
 
+replServer.on('reset', () => prev = "");
+
 replServer.setupHistory('.repl_history', () => {});
 
 replServer.defineCommand('memory', {
