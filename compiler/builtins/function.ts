@@ -10,3 +10,8 @@ export const __Function_prototype_toString = (_this: Function) => {
 };
 
 export const __Function_prototype_toLocaleString = (_this: Function) => __Function_prototype_toString(_this);
+
+export const __Function_prototype_apply = (_this: Function, thisArg: any, argsArray: any) => {
+  argsArray = Array.from(argsArray ?? []);
+  return Reflect.apply(_this, thisArg, argsArray);
+};
