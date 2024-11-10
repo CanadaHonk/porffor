@@ -1583,9 +1583,7 @@ export const __Porffor_bytestring_appendPadNum = (str: bytestring, num: number, 
 export const __ecma262_ToUTCDTSF = (t: number): bytestring => {
   const year: number = __ecma262_YearFromTime(t);
 
-  let out: bytestring = Porffor.allocateBytes(31);
-  out.length = 0;
-
+  let out: bytestring = Porffor.allocateBytes(32);
   if (Porffor.fastOr(year < 0, year >= 10000)) {
     // extended year format
     // sign
@@ -1680,8 +1678,6 @@ export const __ecma262_TimeString = (tv: number): bytestring => {
 
   // 4. Return the string-concatenation of hour, ":", minute, ":", second, the code unit 0x0020 (SPACE), and "GMT".
   let out: bytestring = Porffor.allocateBytes(16);
-  out.length = 0;
-
   __Porffor_bytestring_appendPadNum(out, hour, 2);
   __Porffor_bytestring_appendChar(out, 58); // ':'
 
@@ -1719,7 +1715,6 @@ export const __ecma262_DateString = (tv: number): bytestring => {
   // 6. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
   // 7. Return the string-concatenation of weekday, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), yearSign, and paddedYear.
   let out: bytestring = Porffor.allocateBytes(20);
-  out.length = 0;
 
   // weekday
   __Porffor_bytestring_appendStr(out, weekday);
@@ -1750,10 +1745,8 @@ export const __ecma262_TimeZoneString = (tv: number) => {
 // 21.4.4.41.4 ToDateString (tv)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-todatestring
 export const __ecma262_ToDateString = (tv: number) => {
-  let out: bytestring = Porffor.allocateBytes(44);
-  out.length = 0;
-
   // 1. If tv is NaN, return "Invalid Date".
+  let out: bytestring = Porffor.allocateBytes(44);
   if (Number.isNaN(tv)) return out = 'Invalid Date';
 
   // 2. Let t be LocalTime(tv).
@@ -1792,8 +1785,6 @@ export const __Date_prototype_toTimeString = (_this: Date) => {
 
   // 4. If tv is NaN, return "Invalid Date".
   let out: bytestring = Porffor.allocateBytes(27);
-  out.length = 0;
-
   if (Number.isNaN(tv)) return out = 'Invalid Date';
 
   // 5. Let t be LocalTime(tv).
@@ -1817,8 +1808,6 @@ export const __Date_prototype_toDateString = (_this: Date) => {
 
   // 4. If tv is NaN, return "Invalid Date".
   let out: bytestring = Porffor.allocateBytes(20);
-  out.length = 0;
-
   if (Number.isNaN(tv)) return out = 'Invalid Date';
 
   // 5. Let t be LocalTime(tv).
@@ -1839,8 +1828,6 @@ export const __Date_prototype_toUTCString = (_this: Date) => {
 
   // 4. If tv is NaN, return "Invalid Date".
   let out: bytestring = Porffor.allocateBytes(34);
-  out.length = 0;
-
   if (Number.isNaN(tv)) {
     out = 'Invalid Date';
     return out;

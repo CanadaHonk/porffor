@@ -686,8 +686,6 @@ export const __Array_prototype_toString = (_this: any[]) => {
   // todo: this is bytestring only!
 
   let out: bytestring = Porffor.allocate();
-  out.length = 0;
-
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
@@ -720,8 +718,6 @@ export const __Array_prototype_join = (_this: any[], _separator: any) => {
     separator = ecma262.ToString(_separator);
 
   let out: bytestring = Porffor.allocate();
-  out.length = 0;
-
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
