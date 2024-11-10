@@ -9,7 +9,7 @@ import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
 import { log } from './log.js';
 import './prefs.js';
-import { allocPage as _allocPage, allocBytes, allocStr, nameToReason } from './allocator.js';
+import { allocPage, allocStr } from './allocator.js';
 
 let globals = {};
 let tags = [];
@@ -1135,7 +1135,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
 
 const asmFuncToAsm = (scope, func) => {
   return func(scope, {
-    Valtype, Opcodes, TYPES, TYPE_NAMES, typeSwitch, makeString, allocPage, internalThrow,
+    Valtype, Opcodes, TYPES, TYPE_NAMES, typeSwitch, makeString, internalThrow,
     getNodeType, generate, generateIdent,
     builtin: (n, offset = false) => {
       let idx = funcIndex[n] ?? importedFuncs[n];
@@ -1212,7 +1212,8 @@ const asmFuncToAsm = (scope, func) => {
     i32ify: wasm => {
       wasm.push(Opcodes.i32_to_u);
       return wasm;
-    }
+    },
+    allocPage: (scope, name) => allocPage({ scope, pages }, name)
   });
 };
 
@@ -1282,7 +1283,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     for (const inst of wasm) {
       if (inst.at(-1) === 'read func lut') {
         inst.splice(2, 99);
-        inst.push(...unsignedLEB128(allocPage({}, 'func lut')));
+        inst.push(...unsignedLEB128(allocPage({ scope: func, pages }, 'func lut')));
       }
     }
 
@@ -5046,27 +5047,6 @@ const generateMeta = (scope, decl) => {
 };
 
 let pages = new Map();
-const allocPage = (scope, name) => _allocPage({ scope, pages }, name);
-
-const itemTypeToValtype = {
-  i32: 'i32',
-  i64: 'i64',
-  f64: 'f64',
-
-  i8: 'i32',
-  i16: 'i32'
-};
-
-const StoreOps = {
-  i32: Opcodes.i32_store,
-  i64: Opcodes.i64_store,
-  f64: Opcodes.f64_store,
-
-  // expects i32 input!
-  i8: Opcodes.i32_store8,
-  i16: Opcodes.i32_store16,
-};
-
 let data = [];
 
 const compileBytes = (val, itemType) => {
@@ -5221,7 +5201,7 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
   if (staticAlloc) {
     const uniqueName = name === '$undeclared' ? name + uniqId() : name;
 
-    const ptr = allocPage(scope, uniqueName);
+    const ptr = allocPage({ scope, pages }, uniqueName);
     pointer = number(ptr, Valtype.i32)[0];
 
     scope.arrays ??= new Map();
