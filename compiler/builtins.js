@@ -926,12 +926,13 @@ export const BuiltinFuncs = function() {
       [ Opcodes.else ],
         // else, currentPtr += bytesToAllocate
         [ Opcodes.global_get, 0 ],
+
+        [ Opcodes.global_get, 0 ],
         [ Opcodes.local_get, 0 ],
         [ Opcodes.i32_add ],
         [ Opcodes.global_set, 0 ],
 
-        // return currentPtr
-        [ Opcodes.global_get, 0 ],
+        // return currentPtr before +=
       [ Opcodes.end ]
     ]
   };
