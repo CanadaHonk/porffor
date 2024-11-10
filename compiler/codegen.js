@@ -1919,8 +1919,8 @@ const aliasPrimObjsBC = bc => {
 };
 
 const typeIsIterable = wasm => [
-  // array, set, string, bytestring, generator
-  ...typeIsOneOf(wasm, [ TYPES.array, TYPES.set, TYPES.string, TYPES.bytestring, TYPES.__porffor_generator ]),
+  // array, set, map, string, bytestring, generator
+  ...typeIsOneOf(wasm, [ TYPES.array, TYPES.set, TYPES.map, TYPES.string, TYPES.bytestring, TYPES.__porffor_generator ]),
   // typed array
   ...wasm,
   ...number(TYPES.uint8array, Valtype.i32),
