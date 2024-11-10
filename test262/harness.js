@@ -1229,6 +1229,7 @@ function compareObjectEquality(a, b, cache) {
     || compareIf(a, b, isToStringEquatable, compareToStringEquality)
     || compareIf(a, b, isArrayLikeEquatable, compareArrayLikeEquality, cache)
     || compareIf(a, b, isStructurallyEquatable, compareStructuralEquality, cache)
+    || compareIf(a, b, isIterableEquatable, compareIterableEquality, cache)
     || cacheComparison(a, b, fail, cache);
 }
 
@@ -1307,6 +1308,26 @@ function compareStructuralEquality(a, b, cache) {
   }
 
   return EQUAL;
+}
+
+// hack: do iterables via for..of
+function isIterableEquatable(value) {
+  try {
+    for (const _ of value) { break; }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function compareIterableEquality(a, b, cache) {
+  let aValues = [];
+  for (const x of a) aValues.push(x);
+
+  let bValues = [];
+  for (const x of b) bValues.push(x);
+
+  return compareArrayLikeEquality(aValues, bValues, cache);
 }
 
 var __assert_deepEqual__compare = (a, b) => {
