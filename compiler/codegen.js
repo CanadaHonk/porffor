@@ -4569,6 +4569,77 @@ const generateForOf = (scope, decl) => {
       [ Opcodes.br, depth.length - prevDepth ]
     ] ],
 
+    [ TYPES.map, () => [
+      // length is actually keys pointer
+      // if counter == length then break
+      [ Opcodes.local_get, counter ],
+      [ Opcodes.local_get, length ],
+      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+      [ Opcodes.i32_eq ],
+      [ Opcodes.br_if, depth.length - prevDepth ],
+
+      // allocate out array
+      ...number(128, Valtype.i32),
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ],
+      [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+
+      // set length to 2
+      ...number(2, Valtype.i32),
+      [ Opcodes.i32_store, 0, 0 ],
+
+      // use as pointer for stores later
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+
+      // set [0] as key
+      [ Opcodes.local_get, length ],
+      [ Opcodes.local_get, counter ],
+      [ Opcodes.i32_const, 9 ],
+      [ Opcodes.i32_mul ],
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_set, localTmp(scope, '#forof_mapptr', Valtype.i32) ],
+
+      [ Opcodes.local_get, localTmp(scope, '#forof_mapptr', Valtype.i32) ],
+      [ Opcodes.f64_load, 0, 4 ],
+      [ Opcodes.f64_store, 0, 4 ],
+
+      [ Opcodes.local_get, localTmp(scope, '#forof_mapptr', Valtype.i32) ],
+      [ Opcodes.i32_load8_u, 0, 12 ],
+      [ Opcodes.i32_store8, 0, 12 ],
+
+      // set [1] as value
+      [ Opcodes.local_get, pointer ],
+      [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 4 ],
+      [ Opcodes.local_get, counter ],
+      [ Opcodes.i32_const, 9 ],
+      [ Opcodes.i32_mul ],
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_set, localTmp(scope, '#forof_mapptr', Valtype.i32) ],
+
+      [ Opcodes.local_get, localTmp(scope, '#forof_mapptr', Valtype.i32) ],
+      [ Opcodes.f64_load, 0, 4 ],
+      [ Opcodes.f64_store, 0, 13 ],
+
+      [ Opcodes.local_get, localTmp(scope, '#forof_mapptr', Valtype.i32) ],
+      [ Opcodes.i32_load8_u, 0, 12 ],
+      [ Opcodes.i32_store8, 0, 21 ],
+
+      // increment counter
+      [ Opcodes.local_get, counter ],
+      ...number(1, Valtype.i32),
+      [ Opcodes.i32_add ],
+      [ Opcodes.local_set, counter ],
+
+      // get new array (page)
+      [ Opcodes.local_get, localTmp(scope, '#forof_allocd', Valtype.i32) ],
+      Opcodes.i32_from_u,
+
+      // set type to array
+      ...setLastType(scope, TYPES.array)
+    ] ],
+
     // note: should be impossible to reach?
     [ 'default', [ [ Opcodes.unreachable ] ] ]
   ], valtypeBinary);
