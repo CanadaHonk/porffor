@@ -3535,6 +3535,65 @@ const memberTmpNames = scope => {
   };
 };
 
+// COCTC: cross-object compile-time cache
+let coctc = new Map();
+const coctcOffset = prop => {
+  let offset = coctc.get(prop);
+  if (offset == null) {
+    offset = (coctc.lastOffset ?? 60000) - 9;
+    if (offset < 0) return 0;
+
+    coctc.lastOffset = offset;
+    coctc.set(prop, offset);
+  }
+
+  return offset;
+};
+const coctcSetup = (scope, object, tmp, msg, wasm = generate(scope, object), wasmConv = true) => {
+  const type = getNodeType(scope, object);
+  const known = knownType(scope, type);
+
+  return [
+    ...wasm,
+    ...(wasmConv ? [ Opcodes.i32_to ] : []),
+    [ Opcodes.local_set, tmp ],
+
+    ...(known === TYPES.object ? [] : [
+      ...(known != null ? [] : [
+        ...type,
+        [ Opcodes.local_tee, localTmp(scope, '#coctc_type', Valtype.i32) ],
+        ...number(TYPES.object, Valtype.i32),
+        [ Opcodes.i32_ne ],
+        [ Opcodes.if, Blocktype.void ],
+      ]),
+
+      [ Opcodes.local_get, tmp ],
+      Opcodes.i32_from_u,
+      ...(known != null ? type : [
+        [ Opcodes.local_get, localTmp(scope, '#coctc_type', Valtype.i32) ]
+      ]),
+
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_underlying').index ],
+      [ Opcodes.drop ],
+
+      Opcodes.i32_to_u,
+      [ Opcodes.local_set, tmp ],
+
+      ...(known != null ? [] : [
+        [ Opcodes.end ]
+      ])
+    ]),
+
+    ...(msg == null ? [] : [
+      [ Opcodes.local_get, tmp ],
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, 'TypeError', `Cannot ${msg} property of nullish value`),
+      [ Opcodes.end ]
+    ])
+  ];
+};
+
 const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
   const [ local, isGlobal ] = lookupName(scope, name);
@@ -3619,16 +3678,18 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   // arr[i]
   if (type === 'MemberExpression') {
+    const object = decl.left.object;
     const newValueTmp = !valueUnused && localTmp(scope, '#member_setter_val_tmp');
     const pointerTmp = localTmp(scope, '#member_setter_ptr_tmp', Valtype.i32);
-
-    const object = decl.left.object;
     const property = getProperty(decl.left);
 
     // todo/perf: use i32 object (and prop?) locals
     const { objectTmp, propertyTmp, objectGet, propertyGet } = memberTmpNames(scope);
 
-    return [
+    const useCoctc = Prefs.coctc && !decl.left.computed && !decl.left.optional && !['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'length', '__proto__'].includes(decl.left.property.name) && coctcOffset(decl.left.property.name) > 0;
+    if (useCoctc) valueUnused = false;
+
+    const out = [
       ...generate(scope, object),
       [ Opcodes.local_set, objectTmp ],
 
@@ -3863,6 +3924,28 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       }, valueUnused ? Blocktype.void : valtypeBinary),
       ...optional(number(UNDEFINED), valueUnused)
     ];
+
+    if (useCoctc) {
+      // set COCTC
+      const offset = coctcOffset(decl.left.property.name);
+      const valueTmp = localTmp(scope, '#coctc_value');
+      const objectTmp = localTmp(scope, '#coctc_object', Valtype.i32);
+
+      out.push(
+        [ Opcodes.local_tee, valueTmp ],
+        ...coctcSetup(scope, object, objectTmp, null, [ objectGet ]),
+
+        [ Opcodes.local_get, objectTmp ],
+        [ Opcodes.local_get, valueTmp ],
+        [ Opcodes.f64_store, 0, ...unsignedLEB128(offset) ],
+
+        [ Opcodes.local_get, objectTmp ],
+        ...getNodeType(scope, decl),
+        [ Opcodes.i32_store8, 0, ...unsignedLEB128(offset + 8) ]
+      );
+    }
+
+    return out;
   }
 
   if (local === undefined) {
@@ -4032,9 +4115,13 @@ const generateUnary = (scope, decl) => {
         const property = getProperty(decl.argument);
         if (property.value === 'length' || property.value === 'name') scope.noFastFuncMembers = true;
 
-        return [
+        const useCoctc = Prefs.coctc && !decl.argument.computed && !decl.argument.optional && !['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'length', '__proto__'].includes(decl.argument.property.name) && coctcOffset(decl.argument.property.name) > 0;
+        const objectTmp = useCoctc && localTmp(scope, '#coctc_object', Valtype.i32);
+
+        const out = [
           ...generate(scope, object),
           Opcodes.i32_to_u,
+          ...optional([ Opcodes.local_tee, objectTmp ]),
           ...getNodeType(scope, object),
 
           ...toPropertyKey(scope, generate(scope, property), getNodeType(scope, property), decl.argument.computed, true),
@@ -4043,6 +4130,25 @@ const generateUnary = (scope, decl) => {
           [ Opcodes.drop ],
           Opcodes.i32_from_u
         ];
+
+        if (useCoctc) {
+          // set COCTC
+          const offset = coctcOffset(decl.argument.property.name);
+
+          out.push(
+            ...coctcSetup(scope, object, objectTmp, null, [ [ Opcodes.local_get, objectTmp ] ], false),
+
+            [ Opcodes.local_get, objectTmp ],
+            ...number(0),
+            [ Opcodes.f64_store, 0, ...unsignedLEB128(offset) ],
+
+            [ Opcodes.local_get, objectTmp ],
+            ...number(0, Valtype.i32),
+            [ Opcodes.i32_store8, 0, ...unsignedLEB128(offset + 8) ]
+          );
+        }
+
+        return out;
       }
 
       let toReturn = true, toGenerate = true;
@@ -5666,6 +5772,9 @@ const generateMember = (scope, decl, _global, _name) => {
     }
   }
 
+  const useCoctc = Prefs.coctc && !decl.computed && !decl.optional && !['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'length', '__proto__'].includes(decl.property.name) && coctcOffset(decl.property.name) > 0;
+  const coctcObjTmp = useCoctc && localTmp(scope, '#coctc_obj' + uniqId(), Valtype.i32);
+
   const out = typeSwitch(scope, getNodeType(scope, object), {
     ...(decl.computed ? {
       [TYPES.array]: () => [
@@ -5823,6 +5932,15 @@ const generateMember = (scope, decl, _global, _name) => {
 
     // default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
     default: () => [
+      // ...(useCoctc ? [
+      //   [ Opcodes.local_get, coctcObjTmp ],
+      //   ...number(TYPES.object, Valtype.i32)
+      // ] : [
+      //   objectGet,
+      //   Opcodes.i32_to,
+      //   ...getNodeType(scope, object)
+      // ]),
+
       objectGet,
       Opcodes.i32_to,
       ...getNodeType(scope, object),
@@ -5847,9 +5965,9 @@ const generateMember = (scope, decl, _global, _name) => {
 
       ...nullish(scope, [], getNodeType(scope, object), false, true),
       [ Opcodes.if, Blocktype.void ],
-      ...setLastType(scope, TYPES.undefined),
-      ...number(0),
-      [ Opcodes.br, chainCount ],
+        ...setLastType(scope, TYPES.undefined),
+        ...number(0),
+        [ Opcodes.br, chainCount ],
       [ Opcodes.end ]
     );
 
@@ -5857,12 +5975,41 @@ const generateMember = (scope, decl, _global, _name) => {
       [ Opcodes.end ]
     );
   } else {
-    out.unshift(
-      ...generate(scope, property),
-      [ Opcodes.local_set, propertyTmp ],
-      ...generate(scope, object),
-      [ Opcodes.local_set, objectTmp ]
-    );
+    if (useCoctc) {
+      // fast path: COCTC
+      const offset = coctcOffset(decl.property.name);
+
+      out.unshift(
+        ...generate(scope, decl.object),
+        [ Opcodes.local_set, objectTmp ],
+        ...coctcSetup(scope, decl.object, coctcObjTmp, 'get', [ [ Opcodes.local_get, objectTmp ] ]),
+
+        [ Opcodes.local_get, coctcObjTmp ],
+        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(offset + 8) ],
+        [ Opcodes.local_tee, localTmp(scope, '#coctc_tmp', Valtype.i32) ],
+        [ Opcodes.if, Valtype.f64 ],
+          [ Opcodes.local_get, coctcObjTmp ],
+          [ Opcodes.f64_load, 0, ...unsignedLEB128(offset) ],
+
+          ...setLastType(scope, [
+            [ Opcodes.local_get, localTmp(scope, '#coctc_tmp', Valtype.i32) ],
+          ]),
+        [ Opcodes.else ],
+          ...generate(scope, property),
+          [ Opcodes.local_set, propertyTmp ]
+      );
+
+      out.push(
+        [ Opcodes.end ]
+      );
+    } else {
+      out.unshift(
+        ...generate(scope, property),
+        [ Opcodes.local_set, propertyTmp ],
+        ...generate(scope, object),
+        [ Opcodes.local_set, objectTmp ]
+      );
+    }
 
     // todo: maybe this just needs 1 block?
     if (chainCount > 0) {
@@ -6699,6 +6846,7 @@ export default program => {
   currentFuncIndex = importedFuncs.length;
   typeswitchDepth = 0;
   usedTypes = new Set([ TYPES.empty, TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
+  coctc = new Map();
 
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
 

@@ -45,7 +45,7 @@ const compile = async (file, _funcs) => {
     first = source.slice(0, source.indexOf('\n'));
   }
 
-  let args = ['--module', '--todo-time=compile', '--truthy=no_nan_negative', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--zero-checks=charCodeAt', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data', '--no-treeshake-wasm-imports'];
+  let args = ['--module', '--todo-time=compile', '--truthy=no_nan_negative', '--no-rm-unused-types', '--scoped-page-names', '--funsafe-no-unlikely-proto-checks', '--zero-checks=charCodeAt', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data', '--no-treeshake-wasm-imports', '--no-coctc'];
   if (first.startsWith('// @porf')) {
     args = first.slice('// @porf '.length).split(' ').concat(args);
   }
