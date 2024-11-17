@@ -879,7 +879,7 @@ export const BuiltinFuncs = function() {
     wasm: [
       ...number(1, Valtype.i32),
       [ Opcodes.memory_grow, 0 ],
-      ...number(65536, Valtype.i32),
+      ...number(pageSize, Valtype.i32),
       [ Opcodes.i32_mul ]
     ]
   };
@@ -893,12 +893,6 @@ export const BuiltinFuncs = function() {
     returns: [ Valtype.i32 ],
     returnType: TYPES.number,
     wasm: (scope, { builtin }) => [
-      // bytesWritten += bytesToAllocate
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.global_get, 1 ],
-      [ Opcodes.i32_add ],
-      [ Opcodes.global_set, 1 ],
-
       // if bytesWritten >= pageSize:
       [ Opcodes.global_get, 1 ],
       ...number(pageSize, Valtype.i32),
@@ -908,26 +902,21 @@ export const BuiltinFuncs = function() {
         [ Opcodes.local_get, 0 ],
         [ Opcodes.global_set, 1 ],
 
-        // currentPtr = newly allocated page + bytesToAllocate
+        // return currentPtr = newly allocated page
         [ Opcodes.call, builtin('__Porffor_allocate') ],
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.i32_add ],
         [ Opcodes.global_set, 0 ],
-
-        // return currentPtr - bytesToAllocate
         [ Opcodes.global_get, 0 ],
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.i32_sub ],
       [ Opcodes.else ],
-        // else, currentPtr += bytesToAllocate
+        // return currentPtr + bytesWritten
         [ Opcodes.global_get, 0 ],
-
-        [ Opcodes.global_get, 0 ],
-        [ Opcodes.local_get, 0 ],
+        [ Opcodes.global_get, 1 ],
         [ Opcodes.i32_add ],
-        [ Opcodes.global_set, 0 ],
 
-        // return currentPtr before +=
+        // bytesWritten += bytesToAllocate
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.global_get, 1 ],
+        [ Opcodes.i32_add ],
+        [ Opcodes.global_set, 1 ],
       [ Opcodes.end ]
     ]
   };
