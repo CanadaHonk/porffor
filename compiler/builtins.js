@@ -892,7 +892,7 @@ export const BuiltinFuncs = function() {
     globalInits: [ 0, pageSize ], // init to pageSize so we always allocate on first call
     returns: [ Valtype.i32 ],
     returnType: TYPES.number,
-    wasm: [
+    wasm: (scope, { builtin }) => [
       // bytesWritten += bytesToAllocate
       [ Opcodes.local_get, 0 ],
       [ Opcodes.global_get, 1 ],
@@ -908,13 +908,8 @@ export const BuiltinFuncs = function() {
         [ Opcodes.local_get, 0 ],
         [ Opcodes.global_set, 1 ],
 
-        // grow memory by 1 page
-        ...number(1, Valtype.i32),
-        [ Opcodes.memory_grow, 0x00 ],
-
-        // currentPtr = old page count * pageSize + bytesToAllocate
-        ...number(pageSize, Valtype.i32),
-        [ Opcodes.i32_mul ],
+        // currentPtr = newly allocated page + bytesToAllocate
+        [ Opcodes.call, builtin('__Porffor_allocate') ],
         [ Opcodes.local_get, 0 ],
         [ Opcodes.i32_add ],
         [ Opcodes.global_set, 0 ],
