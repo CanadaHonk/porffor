@@ -583,7 +583,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
             const importFunc = importFuncs[i[1]];
             switch (importFunc.name) {
               case 'print':
-                line(`printf("${valtype === 'f64' ? '%g' : '%i'}\\n", ${vals.pop()})`);
+                line(`printf("${valtype === 'f64' ? '%g' : '%i'}", ${vals.pop()})`);
                 includes.set('stdio.h', true);
                 break;
               case 'printChar':
