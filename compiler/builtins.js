@@ -871,18 +871,59 @@ export const BuiltinFuncs = function() {
     ]
   };
 
-  this.__Porffor_allocate = {
-    params: [],
-    locals: [],
-    returns: [ Valtype.i32 ],
-    returnType: TYPES.number,
-    wasm: [
-      ...number(1, Valtype.i32),
-      [ Opcodes.memory_grow, 0 ],
-      ...number(pageSize, Valtype.i32),
-      [ Opcodes.i32_mul ]
-    ]
-  };
+  this.__Porffor_allocate = ({
+    single: {
+      params: [],
+      locals: [],
+      returns: [ Valtype.i32 ],
+      returnType: TYPES.number,
+      wasm: [
+        ...number(1, Valtype.i32),
+        [ Opcodes.memory_grow, 0 ],
+        ...number(pageSize, Valtype.i32),
+        [ Opcodes.i32_mul ]
+      ]
+    },
+    chunk: {
+      params: [],
+      locals: [],
+      globals: [ Valtype.i32, Valtype.i32 ],
+      globalNames: [ 'chunkPtr', 'chunkOffset' ],
+      globalInits: [ 0, 100 * pageSize ],
+      returns: [ Valtype.i32 ],
+      returnType: TYPES.number,
+      wasm: [
+        // if chunkOffset >= chunks:
+        [ Opcodes.global_get, 1 ],
+        ...number(pageSize * (Prefs.allocatorChunks ?? 16), Valtype.i32),
+        [ Opcodes.i32_ge_s ],
+        [ Opcodes.if, Valtype.i32 ],
+          // chunkOffset = 1 page
+          ...number(1 * pageSize, Valtype.i32),
+          [ Opcodes.global_set, 1 ],
+
+          // return chunkPtr = allocated
+          ...number(Prefs.allocatorChunks ?? 16, Valtype.i32),
+          [ Opcodes.memory_grow, 0 ],
+          ...number(pageSize, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.global_set, 0 ],
+          [ Opcodes.global_get, 0 ],
+        [ Opcodes.else ],
+          // return chunkPtr + chunkOffset
+          [ Opcodes.global_get, 0 ],
+          [ Opcodes.global_get, 1 ],
+          [ Opcodes.i32_add ],
+
+          // chunkOffset += 1 page
+          ...number(pageSize, Valtype.i32),
+          [ Opcodes.global_get, 1 ],
+          [ Opcodes.i32_add ],
+          [ Opcodes.global_set, 1 ],
+        [ Opcodes.end ]
+      ]
+    }
+  })[Prefs.allocator ?? 'chunk'];
 
   this.__Porffor_allocateBytes = {
     params: [ Valtype.i32 ],
