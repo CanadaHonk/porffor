@@ -872,7 +872,7 @@ export const BuiltinFuncs = function() {
   };
 
   this.__Porffor_allocate = ({
-    single: {
+    oneshot: {
       params: [],
       locals: [],
       returns: [ Valtype.i32 ],
