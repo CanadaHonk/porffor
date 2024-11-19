@@ -389,6 +389,41 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
   ...(expectsValue ? number(UNDEFINED, typeof expectsValue === 'number' ? expectsValue : valtypeBinary) : [])
 ];
 
+// enum hoistType { value = 0, decl = 1, pdz = 2 }
+// let globalHoist = new Map();
+const hoist = (scope, name, hoistType, global) => {
+  scope.hoists ??= new Map();
+  // if (global) globalHoist.set(name, hoistType);
+  //   else scope.hoists.set(name, hoistType);
+
+  scope.hoists.set(name, hoistType);
+};
+
+const hoistLookup = (scope, name) => {
+  const hoistType = scope.hoists?.get(name) ?? 0;
+  switch (hoistType) {
+    case 0: // value
+      return lookupOrError(scope, name, true);
+
+    case 1: // decl
+      return number(UNDEFINED);
+
+    case 2: // pdz
+      return internalThrow(scope, 'ReferenceError', 'Cannot access before initialization');
+  }
+};
+
+const hoistLookupType = (scope, name) => {
+  const hoistType = scope.hoists?.get(name) ?? 0;
+  switch (hoistType) {
+    case 0: // value
+      return getType(scope, name, true);
+
+    case 1: // decl
+    case 2: // pdz
+      return number(TYPES.undefined, Valtype.i32);
+  }
+};
 
 const lookup = (scope, name, failEarly = false) => {
   let local = scope.locals[name];
@@ -452,10 +487,7 @@ const lookup = (scope, name, failEarly = false) => {
 
     if (failEarly) return null;
 
-    return [ [ null, () => {
-      // try generating again at the end
-      return lookupOrError(scope, name, true);
-    }, 1 ] ];
+    return [ [ null, () => hoistLookup(scope, name), 1 ] ];
   }
 
   return [
@@ -1383,9 +1415,7 @@ const setInferred = (scope, name, type, global = false) => {
 };
 
 const getType = (scope, name, failEarly = false) => {
-  const fallback = failEarly ? number(TYPES.undefined, Valtype.i32) : [ [ null, () => {
-    return getType(scope, name, true);
-  }, 1 ] ];
+  const fallback = failEarly ? number(TYPES.undefined, Valtype.i32) : [ [ null, () => hoistLookupType(scope, name), 1 ] ];
 
   if (Object.hasOwn(builtinVars, name)) return number(builtinVars[name].type ?? TYPES.number, Valtype.i32);
 
@@ -3232,6 +3262,8 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   if (pattern.type === 'Identifier') {
     let out = [];
     const name = pattern.name;
+
+    hoist(scope, name, kind === 'var' ? 1 : 2, global);
 
     if (init && isFuncType(init.type)) {
       // hack for let a = function () { ... }
@@ -6055,6 +6087,7 @@ const generateClass = (scope, decl) => {
   const expr = decl.type === 'ClassExpression';
 
   const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
+  if (!expr) hoist(scope, name, 2, true);
 
   const body = decl.body.body;
   const root = {
