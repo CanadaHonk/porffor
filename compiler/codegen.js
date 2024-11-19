@@ -389,81 +389,87 @@ const internalThrow = (scope, constructor, message, expectsValue = Prefs.alwaysV
   ...(expectsValue ? number(UNDEFINED, typeof expectsValue === 'number' ? expectsValue : valtypeBinary) : [])
 ];
 
-const generateIdent = (scope, decl) => {
-  const lookup = (name, failEarly = false) => {
-    let local = scope.locals[name];
 
-    if (Object.hasOwn(builtinVars, name)) {
-      if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${unhackName(name)} with integer valtype`);
+const lookup = (scope, name, failEarly = false) => {
+  let local = scope.locals[name];
 
-      let wasm = builtinVars[name];
-      if (wasm.usesImports) scope.usesImports = true;
+  if (Object.hasOwn(builtinVars, name)) {
+    if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${unhackName(name)} with integer valtype`);
 
-      if (typeof wasm === 'function') wasm = asmFuncToAsm(scope, wasm);
-      return wasm.slice();
-    }
+    let wasm = builtinVars[name];
+    if (wasm.usesImports) scope.usesImports = true;
 
-    if (!Object.hasOwn(funcIndex, name) && Object.hasOwn(builtinFuncs, name)) {
-      includeBuiltin(scope, name);
-    }
+    if (typeof wasm === 'function') wasm = asmFuncToAsm(scope, wasm);
+    return wasm.slice();
+  }
 
-    if (isExistingProtoFunc(name) || Object.hasOwn(internalConstrs, name)) {
-      // todo: return an actual something
-      return number(1);
-    }
+  if (!Object.hasOwn(funcIndex, name) && Object.hasOwn(builtinFuncs, name)) {
+    includeBuiltin(scope, name);
+  }
 
-    if (local?.idx === undefined) {
-      if (name === 'arguments' && scope.name !== '#main' && !scope.arrow) {
-        // todo: not compliant
-        let len = countLength(scope);
-        const names = new Array(len);
-        const off = scope.constr ? 4 : 0;
-        for (const x in scope.locals) {
-          const i = scope.locals[x].idx - off;
-          if (i >= 0 && i % 2 === 0 && i < len * 2) {
-            names[i / 2] = x;
-          }
+  if (isExistingProtoFunc(name) || Object.hasOwn(internalConstrs, name)) {
+    // todo: return an actual something
+    return number(1);
+  }
+
+  if (local?.idx === undefined) {
+    if (name === 'arguments' && scope.name !== '#main' && !scope.arrow) {
+      // todo: not compliant
+      let len = countLength(scope);
+      const names = new Array(len);
+      const off = scope.constr ? 4 : 0;
+      for (const x in scope.locals) {
+        const i = scope.locals[x].idx - off;
+        if (i >= 0 && i % 2 === 0 && i < len * 2) {
+          names[i / 2] = x;
         }
-
-        return generateArray(scope, {
-          elements: names.map(x => ({ type: 'Identifier', name: x }))
-        }, false, '#arguments', true);
       }
 
-      // no local var with name
-      if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
-
-      if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
-      if (Object.hasOwn(funcIndex, name)) return funcRef(funcByName(name));
+      return generateArray(scope, {
+        elements: names.map(x => ({ type: 'Identifier', name: x }))
+      }, false, '#arguments', true);
     }
 
-    if (local?.idx === undefined && name.startsWith('__')) {
+    // no local var with name
+    if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
+
+    if (Object.hasOwn(importedFuncs, name)) return number(importedFuncs[name] - importedFuncs.length);
+    if (Object.hasOwn(funcIndex, name)) return funcRef(funcByName(name));
+
+    if (name.startsWith('__')) {
       // return undefined if unknown key in already known var
       let parent = name.slice(2).split('_').slice(0, -1).join('_');
       if (parent.includes('_')) parent = '__' + parent;
 
-      const parentLookup = lookup(parent, true);
-      if (!parentLookup[1]) return number(UNDEFINED);
+      if (Object.hasOwn(builtinFuncs, name + '$get')) {
+        // hack: force error as accessors should only be used with objects anyway
+        return internalThrow(scope, 'TypeError', 'Accessor called without object');
+      }
+
+      const parentLookup = lookup(scope, parent, true);
+      if (parentLookup != null) return number(UNDEFINED);
     }
 
-    if (local?.idx === undefined) {
-      if (failEarly) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
+    if (failEarly) return null;
 
-      return [ [ null, () => {
-        // try generating again at the end
-        return lookup(name, true);
-      }, 1 ] ];
-    }
+    return [ [ null, () => {
+      // try generating again at the end
+      return lookupOrError(scope, name, true);
+    }, 1 ] ];
+  }
 
-    return [
-      [ Opcodes.local_get, local.idx ],
-      // todo: no support for i64
-      ...(valtypeBinary === Valtype.f64 && local.type === Valtype.i32 ? [ Opcodes.i32_from_u ] : []),
-      ...(valtypeBinary === Valtype.i32 && local.type === Valtype.f64 ? [ Opcodes.i32_to_u ] : [])
-    ];
-  };
+  return [
+    [ Opcodes.local_get, local.idx ],
+    ...(valtypeBinary === Valtype.f64 && local.type === Valtype.i32 ? [ Opcodes.i32_from_u ] : []),
+    ...(valtypeBinary === Valtype.i32 && local.type === Valtype.f64 ? [ Opcodes.i32_to_u ] : [])
+  ];
+};
 
-  return lookup(decl.name, scope.identFailEarly);
+const lookupOrError = (scope, name, failEarly) => lookup(scope, name, failEarly)
+  ?? internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
+
+const generateIdent = (scope, decl) => {
+  return lookupOrError(scope, decl.name, scope.identFailEarly);
 };
 
 const generateYield = (scope, decl) => {
@@ -4024,8 +4030,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
 const ifIdentifierErrors = (scope, decl) => {
   if (decl.type === 'Identifier') {
-    const out = generate(scope, decl);
-    if (out[0][0] === null && typeof out[0][1] === 'function') return true;
+    if (lookup(scope, decl.name, true) == null) return true;
   }
 
   return false;
@@ -6359,8 +6364,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     return [ func, out ];
   }
 
-  if (name === '#main') globalInfer = new Map();
-
   globalThis.progress?.(null, ' ' + name);
 
   const params = decl.params ?? [];
@@ -6847,6 +6850,7 @@ export default program => {
   typeswitchDepth = 0;
   usedTypes = new Set([ TYPES.empty, TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
   coctc = new Map();
+  globalInfer = new Map();
 
   const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
 
