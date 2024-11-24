@@ -1,7 +1,7 @@
 {
   "name": "porffor",
   "description": "a basic experimental wip aot optimizing js -> wasm engine/compiler/runtime in js",
-  "version": "0.50.6",
+  "version": "0.50.7",
   "author": "CanadaHonk",
   "license": "MIT",
   "scripts": {},
@@ -26,5 +26,9 @@
   "bugs": {
     "url": "https://github.com/CanadaHonk/porffor/issues"
   },
-  "homepage": "https://porffor.dev"
+  "homepage": "https://porffor.dev",
+  "devDependencies": {
+    "@codspeed/tinybench-plugin": "^3.1.1",
+    "tinybench": "^2.9.0"
+  }
 }
