@@ -6432,6 +6432,25 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         };
       }
 
+      // todo: enable for all block statement bodies, not just main
+      if (name === '#main') {
+        // hoist function declarations to the top of AST pre-codegen so
+        // we can optimize function calls so calls before decl are not indirect
+        // (without more post-codegen jank)
+        // plus, more spec-compliant hoisting!
+
+        let b = body.body, j = 0;
+
+        // append after directive if it exists
+        if (b[0]?.directive) j++;
+
+        for (let i = 0; i < b.length; i++) {
+          if (b[i].type === 'FunctionDeclaration') {
+            b.splice(j++, 0, b.splice(i, 1)[0]);
+          }
+        }
+      }
+
       func.identFailEarly = true;
       let localInd = args.length * 2;
       for (let i = 0; i < args.length; i++) {
