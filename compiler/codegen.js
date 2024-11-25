@@ -1786,15 +1786,11 @@ const disposeLeftover = wasm => {
 };
 
 const generateExp = (scope, decl) => {
-  const expression = decl.expression;
-
-  if (expression.type === 'Literal' && typeof expression.value === 'string') {
-    if (expression.value === 'use strict') {
-      scope.strict = true;
-    }
+  if (decl.directive === 'use strict') {
+    scope.strict = true;
   }
 
-  const out = generate(scope, expression, undefined, undefined, !scope.inEval);
+  const out = generate(scope, decl.expression, undefined, undefined, !scope.inEval);
   disposeLeftover(out);
 
   return out;
