@@ -48,13 +48,15 @@ const cacheAst = (decl, wasm) => {
 };
 
 let indirectFuncs = [];
+let doNotMarkFuncRef = false;
 const funcRef = func => {
-  func.generate?.();
-  func.referenced = true;
+  if (!doNotMarkFuncRef) func.referenced = true;
 
   if (globalThis.precompile) return [
     [ Opcodes.const, 'funcref', func.name ]
   ];
+
+  func.generate?.();
 
   const wrapperArgc = Prefs.indirectWrapperArgc ?? 10;
   if (!func.wrapperFunc) {
@@ -3723,6 +3725,9 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     const useCoctc = Prefs.coctc && !decl.left.computed && !decl.left.optional && !['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'length', '__proto__'].includes(decl.left.property.name) && coctcOffset(decl.left.property.name) > 0;
     if (useCoctc) valueUnused = false;
 
+    // opt: do not mark prototype funcs as referenced to optimize this in them
+    if (object?.property?.name === 'prototype' && isFuncType(decl.right.type)) decl.right._doNotMarkFuncRef = true;
+
     const out = [
       ...generate(scope, object),
       [ Opcodes.local_set, objectTmp ],
@@ -5641,8 +5646,12 @@ const generateMember = (scope, decl, _global, _name) => {
 
   let chainCount = scope.chainMembers != null ? ++scope.chainMembers : 0;
 
+  doNotMarkFuncRef = true;
+
   // generate now so type is gotten correctly later (it gets cached)
   generate(scope, object);
+
+  doNotMarkFuncRef = false;
 
   // hack: .length
   if (decl.property.name === 'length') {
@@ -6381,6 +6390,8 @@ const funcByIndex = idx => {
 const funcByName = name => funcByIndex(funcIndex[name]);
 
 const generateFunc = (scope, decl, forceNoExpr = false) => {
+  doNotMarkFuncRef = false;
+
   const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
   if (decl.type.startsWith('Class')) {
     const out = generateClass(scope, {
@@ -6400,6 +6411,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   // TODO: share scope/locals between !!!
   const arrow = decl.type === 'ArrowFunctionExpression' || decl.type === 'Program';
   const func = {
+    start: decl.start,
     locals: {},
     localInd: 0,
     // value, type
@@ -6716,7 +6728,10 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   // force generate all for precompile
   if (globalThis.precompile) func.generate();
 
+  if (decl._doNotMarkFuncRef) doNotMarkFuncRef = true;
   const out = decl.type.endsWith('Expression') && !forceNoExpr ? funcRef(func) : [];
+  doNotMarkFuncRef = false;
+
   astCache.set(decl, out);
   return [ func, out ];
 };
