@@ -843,9 +843,14 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
     if (truthyMode === 'full') return [
       // if value == 0 or NaN
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
-      ...(intIn ? [] : [ Opcodes.i32_to ]),
-
-      [ Opcodes.i32_eqz ],
+      ...(intIn ? [
+        [ Opcodes.i32_eqz ]
+      ] : [
+        [ Opcodes.f64_abs ],
+        [ Opcodes.f64_const, 0 ],
+        [ Opcodes.f64_gt ],
+        [ Opcodes.i32_eqz ]
+      ]),
 
       ...(intOut ? [] : [ Opcodes.i32_from ]),
     ];
