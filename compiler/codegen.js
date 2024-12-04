@@ -6243,6 +6243,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined) =
     __Porffor_wasm: str => {
       let out = [];
 
+      str = str.replaceAll('\\n', '\n');
       for (const line of str.split('\n')) {
         const asm = line.trim().split(';;')[0].split(' ').filter(x => x);
         if (!asm[0]) continue; // blank
