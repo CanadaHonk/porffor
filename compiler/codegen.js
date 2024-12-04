@@ -771,10 +771,14 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
     if (truthyMode === 'full') return [
       // if value != 0 or NaN
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
-      ...(intIn ? [] : [ Opcodes.i32_to ]),
-
-      [ Opcodes.i32_eqz ],
-      [ Opcodes.i32_eqz ],
+      ...(intIn ? [
+        ...number(0, Valtype.i32),
+        [ Opcodes.i32_ne ]
+      ] : [
+        [ Opcodes.f64_abs ],
+        [ Opcodes.f64_const, 0 ],
+        [ Opcodes.f64_gt ]
+      ]),
 
       ...(intOut ? [] : [ Opcodes.i32_from ]),
     ];
