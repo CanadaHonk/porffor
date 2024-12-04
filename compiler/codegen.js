@@ -6264,8 +6264,8 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined) =
         if (!Array.isArray(inst)) inst = [ inst ];
 
         const immediates = asm.slice(1).map(x => {
-          const int = parseInt(x);
-          if (Number.isNaN(int)) {
+          const n = parseFloat(x);
+          if (Number.isNaN(n) && x !== 'NaN') {
             if (builtinFuncs[x]) {
               if (funcIndex[x] == null) includeBuiltin(scope, x);
               return funcIndex[x];
@@ -6273,7 +6273,8 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined) =
 
             return scope.locals[x]?.idx ?? globals[x].idx;
           }
-          return int;
+
+          return n;
         });
 
         const encodeFunc = ({
