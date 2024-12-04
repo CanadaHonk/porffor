@@ -142,7 +142,7 @@ const checkFailure = () => [
 const wrapQuantifier = (node, method, get, stringSize) => {
   const [ min, max ] = node.quantifier;
   return [
-    // initalize our temp value (number of matched characters)
+    // initialize our temp value (number of matched characters)
     ...number(0, Valtype.i32),
     [Opcodes.local_set, QuantifierTmp],
 
