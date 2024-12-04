@@ -528,9 +528,9 @@ Packet.prototype.toString = function () {
   return "Packet";
 };
 
-// const start = Date.now();
+const start = Date.now();
 for (let i = 0; i < 100; i++) {
   runRichards();
 }
 
-// console.log(Date.now() - start);
+console.log(Date.now() - start);
