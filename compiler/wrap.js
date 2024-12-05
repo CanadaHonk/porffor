@@ -521,7 +521,9 @@ export default (source, module = undefined, customImports = {}, print = str => p
             // no constructor, just throw message
             if (!constructorName) throw exception.message;
 
-            const constructor = globalThis[constructorName] ?? eval(`class ${constructorName} extends Error { constructor(message) { super(message); this.name = "${constructorName}"; } }; ${constructorName}`);
+            const err = new Error(obj.message);
+            err.name = constructorName;
+            err.stack = `${constructorName}: ${exception.message}`;
             throw new constructor(exception.message);
           }
 
