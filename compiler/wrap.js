@@ -514,17 +514,15 @@ export default (source, module = undefined, customImports = {}, print = str => p
           const exceptionMode = Prefs.exceptionMode ?? 'stack';
           if (exceptionMode === 'lut') {
             const exceptId = e.getArg(exceptTag, 0);
-            const exception = exceptions[exceptId];
-
-            const constructorName = exception.constructor;
+            const { constructor, message } = exceptions[exceptId];
 
             // no constructor, just throw message
-            if (!constructorName) throw exception.message;
+            if (!constructor) throw message;
 
-            const err = new Error(obj.message);
-            err.name = constructorName;
-            err.stack = `${constructorName}: ${exception.message}`;
-            throw new constructor(exception.message);
+            const err = new Error(message);
+            err.name = constructor;
+            err.stack = `${constructor}: ${message}`;
+            return err;
           }
 
           const value = e.getArg(exceptTag, 0);
