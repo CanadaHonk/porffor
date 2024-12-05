@@ -5193,11 +5193,16 @@ const generateThrow = (scope, decl) => {
     ];
   }
 
-  return [
-    ...generate(scope, decl.argument),
-    ...getNodeType(scope, decl.argument),
-    [ Opcodes.throw, globalThis.precompile ? 1 : 0 ]
-  ];
+  const out = generate(scope, decl.argument);
+  const lastOp = out.at(-1);
+  if (lastOp[0] === Opcodes.local_set && lastOp[1] === scope.locals['#last_type']?.idx) {
+    out.pop();
+  } else {
+    out.push(...getNodeType(scope, decl.argument));
+  }
+
+  out.push([ Opcodes.throw, globalThis.precompile ? 1 : 0 ]);
+  return out;
 };
 
 const generateTry = (scope, decl) => {
