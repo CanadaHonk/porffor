@@ -49,12 +49,12 @@ export const run = obj => {
 
     wasm.unshift(
       // mark active func
-      ...number(i, Valtype.i32),
+      number(i, Valtype.i32),
       [ Opcodes.call, importedFuncs.profile1 ],
 
       // log args
       ...params.flatMap((_, i) => [
-        ...number(i, Valtype.i32),
+        number(i, Valtype.i32),
         [ Opcodes.local_get, i ],
         ...(invLocals[i].type !== Valtype.f64 ? [ Opcodes.i32_from ] : []),
         [ Opcodes.call, importedFuncs.profile2 ]
@@ -65,7 +65,7 @@ export const run = obj => {
       const inst = wasm[j];
       if (inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) {
         wasm.splice(j + 1, 0,
-          ...number(inst[1], Valtype.i32),
+          number(inst[1], Valtype.i32),
           [ Opcodes.local_get, inst[1] ],
           ...(invLocals[inst[1]].type !== Valtype.f64 ? [ Opcodes.i32_from ] : []),
           [ Opcodes.call, importedFuncs.profile2 ]
@@ -238,7 +238,7 @@ export const run = obj => {
       targets.push(i);
 
       const valtype = x.localValues[i].type;
-      consts.push(number(c, valtype)[0]);
+      consts.push(number(c, valtype));
     }
 
     log += `  ${x.name}: replaced ${targets.length} locals with consts\n`;

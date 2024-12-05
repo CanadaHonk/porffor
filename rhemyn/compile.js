@@ -38,16 +38,16 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
         [ Opcodes.local_tee, Length ],
 
-        ...number(0, Valtype.i32),
+        number(0, Valtype.i32),
         [ Opcodes.i32_eq ],
         [ Opcodes.if, Blocktype.void ],
-          ...number(succeedsZero ? 1 : 0, Valtype.i32),
+          number(succeedsZero ? 1 : 0, Valtype.i32),
           [ Opcodes.return ],
         [ Opcodes.end ],
 
         // pointer = base + sizeof i32
         [ Opcodes.local_get, BasePointer ],
-        ...number(ValtypeSize.i32, Valtype.i32),
+        number(ValtypeSize.i32, Valtype.i32),
         [ Opcodes.i32_add ],
         [ Opcodes.local_set, Pointer ],
 
@@ -58,7 +58,9 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
 
             // reached end without branching out, successful match
             ...({
-              test: number(1, Valtype.i32),
+              test: [
+                number(1, Valtype.i32)
+              ],
               search: [
                 [ Opcodes.local_get, Counter ]
               ]
@@ -70,7 +72,7 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
           [ Opcodes.local_get, Length ],
 
           [ Opcodes.local_get, Counter ],
-          ...number(1, Valtype.i32),
+          number(1, Valtype.i32),
           [ Opcodes.i32_add ],
           [ Opcodes.local_tee, Counter ],
 
@@ -80,7 +82,7 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
         [ Opcodes.end ],
 
         // no match
-        ...number(({
+        number(({
           test: 0,
           search: -1
         })[func], Valtype.i32)
@@ -123,7 +125,7 @@ const getNextChar = (stringSize, peek = false) => [
   ...(peek ? [] : [
     // pointer += string size
     [ Opcodes.local_get, Pointer ],
-    ...number(stringSize, Valtype.i32),
+    number(stringSize, Valtype.i32),
     [ Opcodes.i32_add ],
     [ Opcodes.local_set, Pointer ]
   ])
@@ -132,7 +134,7 @@ const getNextChar = (stringSize, peek = false) => [
 const checkFailure = () => [
   // surely we do not need to do this for every single mismatch, right?
   /* [ Opcodes.if, Blocktype.void ],
-  ...number(0, Valtype.i32),
+  number(0, Valtype.i32),
   [ Opcodes.return ],
   [ Opcodes.end ], */
 
@@ -143,14 +145,14 @@ const wrapQuantifier = (node, method, get, stringSize) => {
   const [ min, max ] = node.quantifier;
   return [
     // initalize our temp value (number of matched characters)
-    ...number(0, Valtype.i32),
+    number(0, Valtype.i32),
     [Opcodes.local_set, QuantifierTmp],
 
     // if len - counter == 0, if min == 0, succeed, else fail
     [ Opcodes.local_get, Length ],
     [ Opcodes.local_get, Counter ],
     [ Opcodes.i32_sub ],
-    ...number(0, Valtype.i32),
+    number(0, Valtype.i32),
     [ Opcodes.i32_eq ],
     ...(min == 0 ? [
       [ Opcodes.if, Blocktype.void ],
@@ -175,7 +177,7 @@ const wrapQuantifier = (node, method, get, stringSize) => {
         ...(get ? [
           // pointer += stringSize
           [ Opcodes.local_get, Pointer ],
-          ...number(stringSize, Valtype.i32),
+          number(stringSize, Valtype.i32),
           [ Opcodes.i32_add ],
           [ Opcodes.local_set, Pointer ]
         ] : []),
@@ -183,13 +185,13 @@ const wrapQuantifier = (node, method, get, stringSize) => {
         // if maximum was reached, break
         ...(max ? [
           [ Opcodes.local_get, QuantifierTmp ],
-          ...number(max, Valtype.i32),
+          number(max, Valtype.i32),
           [ Opcodes.i32_eq ],
           [ Opcodes.br_if, 0 ]
         ] : []),
 
         [ Opcodes.local_get, QuantifierTmp ],
-        ...number(1, Valtype.i32),
+        number(1, Valtype.i32),
         [ Opcodes.i32_add ],
         [ Opcodes.local_set, QuantifierTmp ],
         [ Opcodes.br, 1 ],
@@ -198,7 +200,7 @@ const wrapQuantifier = (node, method, get, stringSize) => {
 
     // if less than minimum, fail
     [Opcodes.local_get, QuantifierTmp],
-    ...number(min, Valtype.i32),
+    number(min, Valtype.i32),
     [Opcodes.i32_lt_s],
     ...(get ? checkFailure(): []),
 
@@ -210,7 +212,7 @@ const generateChar = (node, negated, get, stringSize) => {
   const hasQuantifier = !!node.quantifier;
   const out = [
     ...(get ? getNextChar(stringSize, hasQuantifier) : []),
-    ...number(node.char.charCodeAt(0), Valtype.i32),
+    number(node.char.charCodeAt(0), Valtype.i32),
     negated ? [ Opcodes.i32_eq ] : [ Opcodes.i32_ne ],
   ];
 
@@ -264,12 +266,12 @@ const generateRange = (node, negated, get, stringSize) => {
     ...(get ? getNextChar(stringSize) : []),
     ...(get ? [ [ Opcodes.local_tee, Tmp ] ] : []),
 
-    ...number(node.from.charCodeAt(0), Valtype.i32),
+    number(node.from.charCodeAt(0), Valtype.i32),
     // negated ? [ Opcodes.i32_lt_s ] : [ Opcodes.i32_ge_s ],
     negated ? [ Opcodes.i32_ge_s ] : [ Opcodes.i32_lt_s ],
 
     [ Opcodes.local_get, Tmp ],
-    ...number(node.to.charCodeAt(0), Valtype.i32),
+    number(node.to.charCodeAt(0), Valtype.i32),
     // negated ? [ Opcodes.i32_gt_s ] : [ Opcodes.i32_le_s ],
     negated ? [ Opcodes.i32_le_s ] : [ Opcodes.i32_gt_s ],
 
@@ -288,7 +290,7 @@ const wrapFunc = (regex, func, name, index) => {
 
   return outputFunc([
     [ Opcodes.local_get, 1 ],
-    ...number(TYPES.string, Valtype.i32),
+    number(TYPES.string, Valtype.i32),
     [ Opcodes.i32_eq ],
     [ Opcodes.if, Valtype.i32 ],
     // string

@@ -21,7 +21,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.local_tee, iTmp ],
 
       // if index < 0: access index + array length
-      ...number(0, Valtype.i32),
+      number(0, Valtype.i32),
       [ Opcodes.i32_lt_s ],
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, iTmp ],
@@ -32,7 +32,7 @@ export const PrototypeFuncs = function() {
 
       // if still < 0 or >= length: return undefined
       [ Opcodes.local_get, iTmp ],
-      ...number(0, Valtype.i32),
+      number(0, Valtype.i32),
       [ Opcodes.i32_lt_s ],
 
       [ Opcodes.local_get, iTmp ],
@@ -41,12 +41,12 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_or ],
 
       [ Opcodes.if, Blocktype.void ],
-      ...number(UNDEFINED),
+      number(UNDEFINED),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
       [ Opcodes.local_get, iTmp ],
-      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
+      number(ValtypeSize[valtype] + 1, Valtype.i32),
       [ Opcodes.i32_mul ],
       ...pointer,
       [ Opcodes.i32_add ],
@@ -66,7 +66,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_eqz ],
       [ Opcodes.if, Blocktype.void ],
       ...(unusedValue() ? [] : [
-        ...number(UNDEFINED),
+        number(UNDEFINED),
       ]),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
@@ -76,7 +76,7 @@ export const PrototypeFuncs = function() {
       // decrement length by 1
       ...length.setI32([
         ...length.getCachedI32(),
-        ...number(1, Valtype.i32),
+        number(1, Valtype.i32),
         [ Opcodes.i32_sub ],
 
         ...(unusedValue() ? [] : [
@@ -88,7 +88,7 @@ export const PrototypeFuncs = function() {
       // load last element
       ...(unusedValue() ? [] : [
         ...length.getCachedI32(),
-        ...number(ValtypeSize[valtype] + 1, Valtype.i32),
+        number(ValtypeSize[valtype] + 1, Valtype.i32),
         [ Opcodes.i32_mul ],
 
         ...pointer,
@@ -108,7 +108,7 @@ export const PrototypeFuncs = function() {
       ...length.getCachedI32(),
       [ Opcodes.i32_eqz ],
       [ Opcodes.if, Blocktype.void ],
-      ...number(UNDEFINED),
+      number(UNDEFINED),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
@@ -117,7 +117,7 @@ export const PrototypeFuncs = function() {
       // decrement length by 1
       ...length.setI32([
         ...length.getCachedI32(),
-        ...number(1, Valtype.i32),
+        number(1, Valtype.i32),
         [ Opcodes.i32_sub ],
 
         ...length.setCachedI32(),
@@ -133,39 +133,39 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
 
       // offset page by -1 ind
-      // ...number(pointer + ValtypeSize.i32, Valtype.i32), // dst = base array index + length size
-      // ...number(pointer + ValtypeSize.i32 + ValtypeSize[valtype], Valtype.i32), // src = base array index + length size + an index
-      // ...number(pageSize - ValtypeSize.i32 - ValtypeSize[valtype], Valtype.i32), // size = PageSize - length size - an index
+      // number(pointer + ValtypeSize.i32, Valtype.i32), // dst = base array index + length size
+      // number(pointer + ValtypeSize.i32 + ValtypeSize[valtype], Valtype.i32), // src = base array index + length size + an index
+      // number(pageSize - ValtypeSize.i32 - ValtypeSize[valtype], Valtype.i32), // size = PageSize - length size - an index
       // [ ...Opcodes.memory_copy, 0x00, 0x00 ]
 
       // offset all elements by -1 ind
 
       // dst = base array index + length size
-      ...number(ValtypeSize.i32, Valtype.i32),
+      number(ValtypeSize.i32, Valtype.i32),
       ...pointer,
       [ Opcodes.i32_add ],
 
       // src = base array index + length size + an index
-      ...number(ValtypeSize.i32 + ValtypeSize[valtype] + 1, Valtype.i32),
+      number(ValtypeSize.i32 + ValtypeSize[valtype] + 1, Valtype.i32),
       ...pointer,
       [ Opcodes.i32_add ],
 
       // size = new length * sizeof element
       ...length.getCachedI32(),
-      ...number(ValtypeSize[valtype] + 1, Valtype.i32),
+      number(ValtypeSize[valtype] + 1, Valtype.i32),
       [ Opcodes.i32_mul ],
       [ ...Opcodes.memory_copy, 0x00, 0x00 ]
 
       // move pointer + sizeof element
       // ...pointer.get(),
-      // ...number(ValtypeSize[valtype], Valtype.i32),
+      // number(ValtypeSize[valtype], Valtype.i32),
       // [ Opcodes.i32_add ],
       // ...pointer.set(),
 
       // // write length - 1 in new address
       // ...length.setI32([
       //   ...length.getCachedI32(),
-      //   ...number(1, Valtype.i32),
+      //   number(1, Valtype.i32),
       //   [ Opcodes.i32_sub ]
       // ]),
     ]
@@ -182,7 +182,7 @@ export const PrototypeFuncs = function() {
 
       // out.length = 1
       [ Opcodes.local_get, iOut ],
-      ...number(1, Valtype.i32),
+      number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
       ...wIndex,
@@ -190,7 +190,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.local_tee, iTmp ],
 
       // if index < 0: access index + array length
-      ...number(0, Valtype.i32),
+      number(0, Valtype.i32),
       [ Opcodes.i32_lt_s ],
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, iTmp ],
@@ -201,7 +201,7 @@ export const PrototypeFuncs = function() {
 
       // if still < 0 or >= length: return undefined
       [ Opcodes.local_get, iTmp ],
-      ...number(0, Valtype.i32),
+      number(0, Valtype.i32),
       [ Opcodes.i32_lt_s ],
 
       [ Opcodes.local_get, iTmp ],
@@ -210,12 +210,12 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_or ],
 
       [ Opcodes.if, Blocktype.void ],
-      ...number(UNDEFINED),
+      number(UNDEFINED),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
       [ Opcodes.local_get, iTmp ],
-      ...number(ValtypeSize.i16, Valtype.i32),
+      number(ValtypeSize.i16, Valtype.i32),
       [ Opcodes.i32_mul ],
 
       ...pointer,
@@ -240,13 +240,13 @@ export const PrototypeFuncs = function() {
 
       // out.length = 1
       [ Opcodes.local_get, iTmp ],
-      ...number(1, Valtype.i32),
+      number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
       ...wIndex,
       Opcodes.i32_to,
 
-      ...number(ValtypeSize.i16, Valtype.i32),
+      number(ValtypeSize.i16, Valtype.i32),
       [ Opcodes.i32_mul ],
 
       ...pointer,
@@ -273,7 +273,7 @@ export const PrototypeFuncs = function() {
         // index < 0
         ...(noUnlikelyChecks ? [] : [
           [ Opcodes.local_get, iTmp ],
-          ...number(0, Valtype.i32),
+          number(0, Valtype.i32),
           [ Opcodes.i32_lt_s ],
         ]),
 
@@ -284,14 +284,14 @@ export const PrototypeFuncs = function() {
 
         ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
         [ Opcodes.if, Blocktype.void ],
-        ...number(valtype === 'i32' ? -1 : NaN),
+        number(valtype === 'i32' ? -1 : NaN),
         [ Opcodes.br, 1 ],
         [ Opcodes.end ],
 
         [ Opcodes.local_get, iTmp ],
       ]),
 
-      ...number(ValtypeSize.i16, Valtype.i32),
+      number(ValtypeSize.i16, Valtype.i32),
       [ Opcodes.i32_mul ],
 
       ...pointer,
@@ -320,7 +320,7 @@ export const PrototypeFuncs = function() {
 
       // out.length = 1
       [ Opcodes.local_get, iOut ],
-      ...number(1, Valtype.i32),
+      number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
       ...wIndex,
@@ -328,7 +328,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.local_tee, iTmp ],
 
       // if index < 0: access index + array length
-      ...number(0, Valtype.i32),
+      number(0, Valtype.i32),
       [ Opcodes.i32_lt_s ],
       [ Opcodes.if, Blocktype.void ],
       [ Opcodes.local_get, iTmp ],
@@ -339,7 +339,7 @@ export const PrototypeFuncs = function() {
 
       // if still < 0 or >= length: return undefined
       [ Opcodes.local_get, iTmp ],
-      ...number(0, Valtype.i32),
+      number(0, Valtype.i32),
       [ Opcodes.i32_lt_s ],
 
       [ Opcodes.local_get, iTmp ],
@@ -348,7 +348,7 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_or ],
 
       [ Opcodes.if, Blocktype.void ],
-      ...number(UNDEFINED),
+      number(UNDEFINED),
       [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
@@ -376,7 +376,7 @@ export const PrototypeFuncs = function() {
 
       // out.length = 1
       [ Opcodes.local_get, iTmp ],
-      ...number(1, Valtype.i32),
+      number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
       ...wIndex,
@@ -406,7 +406,7 @@ export const PrototypeFuncs = function() {
         // index < 0
         ...(noUnlikelyChecks ? [] : [
           [ Opcodes.local_get, iTmp ],
-          ...number(0, Valtype.i32),
+          number(0, Valtype.i32),
           [ Opcodes.i32_lt_s ],
         ]),
 
@@ -417,7 +417,7 @@ export const PrototypeFuncs = function() {
 
         ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
         [ Opcodes.if, Blocktype.void ],
-        ...number(valtype === 'i32' ? -1 : NaN),
+        number(valtype === 'i32' ? -1 : NaN),
         [ Opcodes.br, 1 ],
         [ Opcodes.end ],
 

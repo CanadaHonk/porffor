@@ -40,7 +40,7 @@ export default function({ builtinFuncs }, Prefs) {
           [ Opcodes.end ],
 
           // set cache & ptr for use
-          ...number(ptr, Valtype.i32),
+          number(ptr, Valtype.i32),
           glbl(Opcodes.global_set, `getptr_${name}`, Valtype.i32)[0]
         ];
 
@@ -62,17 +62,17 @@ export default function({ builtinFuncs }, Prefs) {
 
           out.push(
             getPtr,
-            ...number(existingFunc ? TYPES.function : TYPES.object, Valtype.i32),
+            number(existingFunc ? TYPES.function : TYPES.object, Valtype.i32),
 
             ...makeString(scope, x),
             Opcodes.i32_to_u,
-            ...number(TYPES.bytestring, Valtype.i32),
+            number(TYPES.bytestring, Valtype.i32),
 
             ...generate(scope, value),
             ...getNodeType(scope, value),
 
-            ...number(flags, Valtype.i32),
-            ...number(TYPES.number, Valtype.i32),
+            number(flags, Valtype.i32),
+            number(TYPES.number, Valtype.i32),
 
             [ Opcodes.call, builtin('__Porffor_object_expr_initWithFlags') ],
             [ Opcodes.drop ],
@@ -103,7 +103,7 @@ export default function({ builtinFuncs }, Prefs) {
         }
 
         if (typeof d.value === 'number') {
-          this[k] = number(d.value);
+          this[k] = [ number(d.value) ];
           this[k].type = TYPES.number;
           continue;
         }

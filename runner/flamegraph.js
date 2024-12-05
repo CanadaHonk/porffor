@@ -170,8 +170,8 @@ globalThis.compileCallback = ({ funcs }) => {
           x.locals['#profile_tmp'] = { idx: local, type: Valtype.f64 };
         }
 
-        w.splice(i + 1, 0, number(f, Valtype.i32)[0], [ Opcodes.call, importedFuncs.profile2 ]);
-        w.splice(i, 0, number(f, Valtype.i32)[0], [ Opcodes.call, importedFuncs.profile1 ]);
+        w.splice(i + 1, 0, number(f, Valtype.i32), [ Opcodes.call, importedFuncs.profile2 ]);
+        w.splice(i, 0, number(f, Valtype.i32), [ Opcodes.call, importedFuncs.profile1 ]);
         i += 4;
       }
     }

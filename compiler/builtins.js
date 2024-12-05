@@ -72,20 +72,20 @@ export const UNDEFINED = 0;
 export const NULL = 0;
 
 export const BuiltinVars = function(ctx) {
-  this.undefined = number(UNDEFINED);
+  this.undefined = [ number(UNDEFINED) ];
   this.undefined.type = TYPES.undefined;
 
-  this.null = number(NULL);
+  this.null = [ number(NULL) ];
   this.null.type = TYPES.object;
 
-  this.NaN = number(NaN);
+  this.NaN = [ number(NaN) ];
   this.NaN.floatOnly = true;
 
-  this.Infinity = number(Infinity);
+  this.Infinity = [ number(Infinity) ];
   this.Infinity.floatOnly = true;
 
   for (const x in TYPES) {
-    this['__Porffor_TYPES_' + x] = () => number(TYPES[x]);
+    this['__Porffor_TYPES_' + x] = () => [ number(TYPES[x]) ];
   }
 
   this.__performance_timeOrigin = [
@@ -93,15 +93,15 @@ export const BuiltinVars = function(ctx) {
   ];
   this.__performance_timeOrigin.usesImports = true;
 
-  this.__Uint8Array_BYTES_PER_ELEMENT = number(1);
-  this.__Int8Array_BYTES_PER_ELEMENT = number(1);
-  this.__Uint8ClampedArray_BYTES_PER_ELEMENT = number(1);
-  this.__Uint16Array_BYTES_PER_ELEMENT = number(2);
-  this.__Int16Array_BYTES_PER_ELEMENT = number(2);
-  this.__Uint32Array_BYTES_PER_ELEMENT = number(4);
-  this.__Int32Array_BYTES_PER_ELEMENT = number(4);
-  this.__Float32Array_BYTES_PER_ELEMENT = number(4);
-  this.__Float64Array_BYTES_PER_ELEMENT = number(8);
+  this.__Uint8Array_BYTES_PER_ELEMENT = [ number(1) ];
+  this.__Int8Array_BYTES_PER_ELEMENT = [ number(1) ];
+  this.__Uint8ClampedArray_BYTES_PER_ELEMENT = [ number(1) ];
+  this.__Uint16Array_BYTES_PER_ELEMENT = [ number(2) ];
+  this.__Int16Array_BYTES_PER_ELEMENT = [ number(2) ];
+  this.__Uint32Array_BYTES_PER_ELEMENT = [ number(4) ];
+  this.__Int32Array_BYTES_PER_ELEMENT = [ number(4) ];
+  this.__Float32Array_BYTES_PER_ELEMENT = [ number(4) ];
+  this.__Float64Array_BYTES_PER_ELEMENT = [ number(8) ];
 
   ObjectBuiltins.call(this, ctx, Prefs);
 };
@@ -135,9 +135,9 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: (scope, { builtin }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(TYPES.number, Valtype.i32),
+      number(TYPES.number, Valtype.i32),
       [ Opcodes.local_get, 1 ],
-      ...number(TYPES.number, Valtype.i32),
+      number(TYPES.number, Valtype.i32),
       [ Opcodes.call, builtin('__Math_pow') ],
       [ Opcodes.drop ],
     ]
@@ -224,12 +224,12 @@ export const BuiltinFuncs = function() {
       [ Opcodes.f64_trunc ],
       [ Opcodes.f64_ne ],
       [ Opcodes.if, Blocktype.void ],
-      ...number(0),
+      number(0),
       [ Opcodes.return ],
       [ Opcodes.end ],
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_abs ],
-      ...number(9007199254740991),
+      number(9007199254740991),
       [ Opcodes.f64_le ],
       Opcodes.i32_from
     ]
@@ -267,7 +267,7 @@ export const BuiltinFuncs = function() {
     returns: [ valtypeBinary ],
     returnType: TYPES.number,
     wasm: [
-      ...number(1),
+      number(1),
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_copysign ]
     ]
@@ -378,15 +378,15 @@ export const BuiltinFuncs = function() {
         // seed = (MULTIPLIER * seed + INCREMENT) % MODULUS
         // MULTIPLIER * state0
         [ Opcodes.global_get, 0 ],
-        ...number(1103515245, Valtype.i32),
+        number(1103515245, Valtype.i32),
         [ Opcodes.i32_mul ],
 
         // + INCREMENT
-        ...number(12345, Valtype.i32),
+        number(12345, Valtype.i32),
         [ Opcodes.i32_add ],
 
         // % MODULUS
-        ...number(2 ** 31, Valtype.i32),
+        number(2 ** 31, Valtype.i32),
         [ Opcodes.i32_rem_s ],
 
         // state0 =
@@ -404,11 +404,11 @@ export const BuiltinFuncs = function() {
         // seed = (MULTIPLIER * seed + INCREMENT) % MODULUS
         // MULTIPLIER * state0
         [ Opcodes.global_get, 0 ],
-        ...number(48271, Valtype.i32),
+        number(48271, Valtype.i32),
         [ Opcodes.i32_mul ],
 
         // % MODULUS
-        ...number((2 ** 31) - 1, Valtype.i32),
+        number((2 ** 31) - 1, Valtype.i32),
         [ Opcodes.i32_rem_s ],
 
         // state0 =
@@ -574,14 +574,14 @@ export const BuiltinFuncs = function() {
 
         // rotl(s0, 24) ^ s1
         [ Opcodes.local_get, 1 ], // s0
-        ...number(24, Valtype.i64),
+        number(24, Valtype.i64),
         [ Opcodes.i64_rotl ],
         [ Opcodes.local_get, 0 ], // s1
         [ Opcodes.i64_xor ],
 
         // ^ (s1 << 16)
         [ Opcodes.local_get, 0 ], // s1
-        ...number(16, Valtype.i64),
+        number(16, Valtype.i64),
         [ Opcodes.i64_shl ],
         [ Opcodes.i64_xor ],
 
@@ -590,7 +590,7 @@ export const BuiltinFuncs = function() {
 
         // state1 = rotl(s1, 37)
         [ Opcodes.local_get, 0 ], // s1
-        ...number(37, Valtype.i64),
+        number(37, Valtype.i64),
         [ Opcodes.i64_rotl ],
         [ Opcodes.global_set, 1 ], // state1
 
@@ -612,7 +612,7 @@ export const BuiltinFuncs = function() {
 
         // t = state1 << 9
         [ Opcodes.global_get, 1 ], // state1
-        ...number(9, Valtype.i32),
+        number(9, Valtype.i32),
         [ Opcodes.i32_shl ],
         [ Opcodes.local_set, 1 ], // t
 
@@ -648,7 +648,7 @@ export const BuiltinFuncs = function() {
 
         // state3 = rotl(state3, 11)
         [ Opcodes.global_get, 3 ], // state3
-        ...number(11, Valtype.i32),
+        number(11, Valtype.i32),
         [ Opcodes.i32_rotl ],
         [ Opcodes.global_set, 3 ], // state3
 
@@ -686,28 +686,28 @@ export const BuiltinFuncs = function() {
       // [ Opcodes.f64_reinterpret_i64 ],
 
       // - 1
-      // ...number(1),
+      // number(1),
       // [ Opcodes.f64_sub ],
 
       ...(prng.returns === Valtype.i64 ? [
-        ...number((1 << 53) - 1, Valtype.i64),
+        number((1 << 53) - 1, Valtype.i64),
         [ Opcodes.i64_and ],
 
         // double(mantissa)
         [ Opcodes.f64_convert_i64_u ],
 
         // / (1 << 53)
-        ...number(1 << 53),
+        number(1 << 53),
         [ Opcodes.f64_div ]
       ] : [
-        ...number((1 << 21) - 1, Valtype.i32),
+        number((1 << 21) - 1, Valtype.i32),
         [ Opcodes.i32_and ],
 
         // double(mantissa)
         [ Opcodes.f64_convert_i32_u ],
 
         // / (1 << 21)
-        ...number(1 << 21),
+        number(1 << 21),
         [ Opcodes.f64_div ]
       ])
     ]
@@ -727,13 +727,13 @@ export const BuiltinFuncs = function() {
 
       ...(prng.returns === Valtype.i64 ? [
         // the lowest bits of the output generated by xorshift128+ have low quality
-        ...number(56, Valtype.i64),
+        number(56, Valtype.i64),
         [ Opcodes.i64_shr_u ],
 
         [ Opcodes.i32_wrap_i64 ],
       ] : []),
 
-      ...number(0xff, Valtype.i32),
+      number(0xff, Valtype.i32),
       [ Opcodes.i32_and ],
     ]
   };
@@ -746,7 +746,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
-      ...number(Math.PI / 180),
+      number(Math.PI / 180),
       [ Opcodes.f64_mul ]
     ]
   };
@@ -759,7 +759,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: [
       [ Opcodes.local_get, 0 ],
-      ...number(180 / Math.PI),
+      number(180 / Math.PI),
       [ Opcodes.f64_mul ]
     ]
   };
@@ -819,7 +819,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.boolean,
     wasm: [
       [ Opcodes.local_get, 0 ],
-      ...number(0),
+      number(0),
       [ Opcodes.f64_le ],
       Opcodes.i32_from
     ]
@@ -866,7 +866,7 @@ export const BuiltinFuncs = function() {
       [ Opcodes.local_get, 0 ],
 
       // size = pageSize
-      ...number(pageSize, Valtype.i32),
+      number(pageSize, Valtype.i32),
       [ ...Opcodes.memory_copy, 0x00, 0x00 ],
     ]
   };
@@ -878,9 +878,9 @@ export const BuiltinFuncs = function() {
       returns: [ Valtype.i32 ],
       returnType: TYPES.number,
       wasm: [
-        ...number(1, Valtype.i32),
+        number(1, Valtype.i32),
         [ Opcodes.memory_grow, 0 ],
-        ...number(pageSize, Valtype.i32),
+        number(pageSize, Valtype.i32),
         [ Opcodes.i32_mul ]
       ]
     },
@@ -895,17 +895,17 @@ export const BuiltinFuncs = function() {
       wasm: [
         // if chunkOffset >= chunks:
         [ Opcodes.global_get, 1 ],
-        ...number(pageSize * (Prefs.allocatorChunks ?? 16), Valtype.i32),
+        number(pageSize * (Prefs.allocatorChunks ?? 16), Valtype.i32),
         [ Opcodes.i32_ge_s ],
         [ Opcodes.if, Valtype.i32 ],
           // chunkOffset = 1 page
-          ...number(1 * pageSize, Valtype.i32),
+          number(1 * pageSize, Valtype.i32),
           [ Opcodes.global_set, 1 ],
 
           // return chunkPtr = allocated
-          ...number(Prefs.allocatorChunks ?? 16, Valtype.i32),
+          number(Prefs.allocatorChunks ?? 16, Valtype.i32),
           [ Opcodes.memory_grow, 0 ],
-          ...number(pageSize, Valtype.i32),
+          number(pageSize, Valtype.i32),
           [ Opcodes.i32_mul ],
           [ Opcodes.global_set, 0 ],
           [ Opcodes.global_get, 0 ],
@@ -916,7 +916,7 @@ export const BuiltinFuncs = function() {
           [ Opcodes.i32_add ],
 
           // chunkOffset += 1 page
-          ...number(pageSize, Valtype.i32),
+          number(pageSize, Valtype.i32),
           [ Opcodes.global_get, 1 ],
           [ Opcodes.i32_add ],
           [ Opcodes.global_set, 1 ],
@@ -936,7 +936,7 @@ export const BuiltinFuncs = function() {
     wasm: (scope, { builtin }) => [
       // if bytesWritten >= pageSize:
       [ Opcodes.global_get, 1 ],
-      ...number(pageSize, Valtype.i32),
+      number(pageSize, Valtype.i32),
       [ Opcodes.i32_ge_s ],
       [ Opcodes.if, Valtype.i32 ],
         // bytesWritten = bytesToAllocate
@@ -972,7 +972,7 @@ export const BuiltinFuncs = function() {
       // dst = grow memory by 1 page
       [ Opcodes.i32_const, 1 ],
       [ Opcodes.memory_grow, 0 ],
-      ...number(65536, Valtype.i32),
+      number(65536, Valtype.i32),
       [ Opcodes.i32_mul ],
       [ Opcodes.local_tee, 3 ],
 
@@ -1021,7 +1021,7 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(48, Valtype.i32),
+      number(48, Valtype.i32),
       [ Opcodes.i32_mul ],
       [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ]
     ],
@@ -1034,9 +1034,9 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(48, Valtype.i32),
+      number(48, Valtype.i32),
       [ Opcodes.i32_mul ],
-      ...number(2, Valtype.i32),
+      number(2, Valtype.i32),
       [ Opcodes.i32_add ],
       [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocPage(scope, 'func lut')) ]
     ],
@@ -1049,11 +1049,11 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.bytestring,
     wasm: (scope, { allocPage }) => [
       [ Opcodes.local_get, 0 ],
-      ...number(48, Valtype.i32),
+      number(48, Valtype.i32),
       [ Opcodes.i32_mul ],
-      ...number(3, Valtype.i32),
+      number(3, Valtype.i32),
       [ Opcodes.i32_add ],
-      ...number(allocPage(scope, 'func lut'), Valtype.i32),
+      number(allocPage(scope, 'func lut'), Valtype.i32),
       [ Opcodes.i32_add ]
     ],
     table: true

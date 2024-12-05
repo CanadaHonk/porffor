@@ -1,12 +1,13 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
-import { signedLEB128, ieee754_binary64 } from './encoding.js';
+import { signedLEB128, ieee754_binary64, signedLEB128_into } from './encoding.js';
 
 export const number = (n, valtype = valtypeBinary) => {
-  switch (valtype) {
-    case Valtype.i32: return [ [ Opcodes.i32_const, ...signedLEB128(n) ] ];
-    case Valtype.i64: return [ [ Opcodes.i64_const, ...signedLEB128(n) ] ];
-    case Valtype.f64: return [ [ Opcodes.f64_const, n ] ];
-  }
+  if (valtype === Valtype.f64) return [ Opcodes.f64_const, n ];
+
+  const out = [ valtype === Valtype.i32 ? Opcodes.i32_const : Opcodes.i64_const ];
+  signedLEB128_into(n, out);
+
+  return out;
 };
 
 export const enforceOneByte = arr => [ arr[0] ?? 0 ];

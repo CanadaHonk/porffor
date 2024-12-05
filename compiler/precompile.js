@@ -214,7 +214,7 @@ ${funcs.map(x => {
       if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
       return v;
     })
-      .replace(/\["alloc","(.*?)",(.*?)\]/g, (_, reason, valtype) => `...number(allocPage(_,'${reason}'),${valtype})`)
+      .replace(/\["alloc","(.*?)",(.*?)\]/g, (_, reason, valtype) => `number(allocPage(_,'${reason}'),${valtype})`)
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode},'${name}',${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)
