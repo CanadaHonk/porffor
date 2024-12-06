@@ -219,7 +219,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateFunc(scope, decl)[1]);
 
     case 'BlockStatement':
-      return cacheAst(decl, generateCode(scope, decl));
+      return cacheAst(decl, generateBlock(scope, decl));
 
     case 'ReturnStatement':
       return cacheAst(decl, generateReturn(scope, decl));
@@ -304,7 +304,10 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateTry(scope, decl));
 
     case 'DebuggerStatement':
-      return cacheAst(decl, [[ Opcodes.call, importedFuncs.debugger ]]);
+      return cacheAst(decl, [
+        [ Opcodes.call, importedFuncs.debugger ],
+        number(UNDEFINED)
+      ]);
 
     case 'ArrayExpression':
       return cacheAst(decl, generateArray(scope, decl, global, name, globalThis.precompile));
@@ -332,7 +335,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateTaggedTemplate(scope, decl, global, name));
 
     case 'ExportNamedDeclaration':
-      if (!decl.declaration) return todo(scope, 'unsupported export declaration');
+      if (!decl.declaration) return todo(scope, 'unsupported export declaration', true);
 
       const funcsBefore = funcs.map(x => x.name);
       generate(scope, decl.declaration);
@@ -349,16 +352,16 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         }
       }
 
-      return cacheAst(decl, []);
+      return cacheAst(decl, [ number(UNDEFINED) ]);
 
     default:
       // ignore typescript nodes
       if (decl.type.startsWith('TS') ||
           decl.type === 'ImportDeclaration' && decl.importKind === 'type') {
-        return cacheAst(decl, []);
+        return cacheAst(decl, [ number(UNDEFINED) ]);
       }
 
-      return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`, !decl.type.endsWith('Statement') && !decl.type.endsWith('Declaration')));
+      return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`, true));
   }
 };
 
@@ -1110,7 +1113,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
       let checkType = TYPES[rightName.toLowerCase()];
       if (checkType != null && rightName === TYPE_NAMES[checkType] && !rightName.endsWith('Error')) {
         const out = generate(scope, decl.left);
-        disposeLeftover(out);
+        out.push([ Opcodes.drop ]);
 
         // switch primitive types to primitive object types
         if (checkType === TYPES.number) checkType = TYPES.numberobject;
@@ -1532,6 +1535,7 @@ const getNodeType = (scope, node) => {
     }
 
     if (isFuncType(node.type)) {
+      if (node.type.endsWith('Declaration')) return TYPES.undefined;
       return TYPES.function;
     }
 
@@ -1711,6 +1715,18 @@ const getNodeType = (scope, node) => {
       return getNodeType(scope, node.expression);
     }
 
+    if (node.type === 'BlockStatement') {
+      return getNodeType(scope, getLastNode(node.body));
+    }
+
+    if (node.type === 'LabeledStatement') {
+      return getNodeType(scope, node.body);
+    }
+
+    if (node.type.endsWith('Statement') || node.type.endsWith('Declaration')) {
+      return TYPES.undefined;
+    }
+
     return getLastType(scope);
   })();
 
@@ -1745,68 +1761,13 @@ const generateLiteral = (scope, decl, global, name) => {
   }
 };
 
-const countLeftover = wasm => {
-  let count = 0, depth = 0;
-
-  for (let i = 0; i < wasm.length; i++) {
-    const inst = wasm[i];
-    if (depth === 0 && inst[0] == null) {
-      if (typeof inst[1] === 'function' && typeof inst[2] === 'number') count += inst[2];
-      continue;
-    }
-
-    if (depth === 0 && (inst[0] === Opcodes.if || inst[0] === Opcodes.block || inst[0] === Opcodes.loop)) {
-      if (inst[0] === Opcodes.if) count--;
-      if (inst[1] !== Blocktype.void) count++;
-    }
-    if ([Opcodes.if, Opcodes.try, Opcodes.loop, Opcodes.block].includes(inst[0])) depth++;
-    if (inst[0] === Opcodes.end) depth--;
-
-    if (depth === 0)
-      if ([Opcodes.drop, Opcodes.local_set, Opcodes.global_set].includes(inst[0])) count--;
-        else if ([Opcodes.i32_eqz, Opcodes.i64_eqz, Opcodes.f64_abs, Opcodes.f64_ceil, Opcodes.f64_floor, Opcodes.f64_trunc, Opcodes.f64_nearest, Opcodes.f64_sqrt, Opcodes.local_tee, Opcodes.i32_wrap_i64, Opcodes.i64_extend_i32_s, Opcodes.i64_extend_i32_u, Opcodes.f32_demote_f64, Opcodes.f64_promote_f32, Opcodes.f64_convert_i32_s, Opcodes.f64_convert_i32_u, Opcodes.i32_clz, Opcodes.i32_ctz, Opcodes.i32_popcnt, Opcodes.f64_neg, Opcodes.end, Opcodes.i32_trunc_sat_f64_s[0], Opcodes.i32x4_extract_lane, Opcodes.i16x8_extract_lane, Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load, Opcodes.f32_load, Opcodes.v128_load, Opcodes.i32_load16_u, Opcodes.i32_load16_s, Opcodes.i32_load8_u, Opcodes.i32_load8_s, Opcodes.memory_grow].includes(inst[0]) && (inst[0] !== 0xfc || inst[1] < 0x04)) {}
-        else if ([Opcodes.local_get, Opcodes.global_get, Opcodes.f64_const, Opcodes.i32_const, Opcodes.i64_const, Opcodes.v128_const, Opcodes.memory_size].includes(inst[0])) count++;
-        else if ([Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store, Opcodes.f32_store, Opcodes.i32_store16, Opcodes.i32_store8, Opcodes.select].includes(inst[0])) count -= 2;
-        else if (inst[0] === Opcodes.memory_copy[0] && (inst[1] === Opcodes.memory_copy[1] || inst[1] === Opcodes.memory_init[1])) count -= 3;
-        else if (inst[0] === Opcodes.return) count = 0;
-        else if (inst[0] === Opcodes.catch) count += 2;
-        else if (inst[0] === Opcodes.throw) {
-          count--;
-          if ((Prefs.exceptionMode ?? 'stack') === 'stack' || (globalThis.precompile && inst[1] === 1)) count--;
-        } else if (inst[0] === Opcodes.call) {
-          if (inst[1] < importedFuncs.length) {
-            const func = importedFuncs[inst[1]];
-            count = count - func.params + func.returns;
-          } else {
-            const func = funcByIndex(inst[1]);
-            count = count - func.params.length + func.returns.length;
-          }
-        } else if (inst[0] === Opcodes.call_indirect) {
-          count--; // funcidx
-          count -= inst[1] * 2; // params * 2 (typed)
-          count += 2; // fixed return (value, type)
-        } else count--;
-
-    // console.log(count, depth, decompile([ inst ], undefined, undefined, undefined, undefined, undefined, funcs).slice(0, -1));
-  }
-
-  return count;
-};
-
-const disposeLeftover = wasm => {
-  const leftover = countLeftover(wasm);
-  for (let i = 0; i < leftover; i++) wasm.push([ Opcodes.drop ]);
-};
-
 const generateExp = (scope, decl) => {
   if (decl.directive === 'use strict') {
     scope.strict = true;
+    return [ number(UNDEFINED) ];
   }
 
-  const out = generate(scope, decl.expression, undefined, undefined, !scope.inEval);
-  disposeLeftover(out);
-
-  return out;
+  return generate(scope, decl.expression, undefined, undefined, !scope.inEval);
 };
 
 const generateSequence = (scope, decl) => {
@@ -1814,8 +1775,8 @@ const generateSequence = (scope, decl) => {
 
   const exprs = decl.expressions;
   for (let i = 0; i < exprs.length; i++) {
-    if (i > 0) disposeLeftover(out);
     out.push(...generate(scope, exprs[i]));
+    if (i !== exprs.length - 1) out.push([ Opcodes.drop ]);
   }
 
   return out;
@@ -1932,19 +1893,16 @@ const setObjProp = (obj, prop, value) => {
   };
 
   return objectHack({
-    type: 'ExpressionStatement',
-    expression: {
-      type: 'AssignmentExpression',
-      operator: '=',
-      left: {
-        type: 'MemberExpression',
-        object: obj,
-        property: prop,
-        computed: false,
-        optional: false
-      },
-      right: value
-    }
+    type: 'AssignmentExpression',
+    operator: '=',
+    left: {
+      type: 'MemberExpression',
+      object: obj,
+      property: prop,
+      computed: false,
+      optional: false
+    },
+    right: value
   });
 };
 
@@ -2058,6 +2016,14 @@ const createThisArg = (scope, decl) => {
   }
 };
 
+const isEmptyNode = x => x && (x.type === 'EmptyStatement' || (x.type === 'BlockStatement' && x.body.length === 0));
+const getLastNode = body => {
+  let offset = 1, node = body[body.length - offset];
+  while (isEmptyNode(node)) node = body[body.length - ++offset];
+
+  return node ?? { type: 'EmptyStatement' };
+};
+
 const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (decl.type === 'NewExpression') decl._new = true;
 
@@ -2095,17 +2061,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       });
       scope.inEval = false;
 
-      const lastInst = getLastInst(out);
-      if (lastInst && lastInst[0] === Opcodes.drop) {
-        out.splice(out.length - 1, 1);
-
-        const finalStatement = parsed.body[parsed.body.length - 1];
-        out.push(...setLastType(scope, getNodeType(scope, finalStatement)));
-      } else if (countLeftover(out) === 0) {
-        out.push(number(UNDEFINED));
-        out.push(...setLastType(scope, TYPES.undefined));
-      }
-
+      out.push(...setLastType(scope, getNodeType(scope, getLastNode(parsed.body))));
       return out;
     }
   }
@@ -2406,6 +2362,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           // TODO: error better
           default: internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`, !unusedValue)
         }, unusedValue ? Blocktype.void : valtypeBinary),
+        ...(unusedValue ? [ number(UNDEFINED) ] : [])
       ];
     }
 
@@ -3060,6 +3017,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
 
   out.push([ Opcodes.end ]);
 
+  // todo: sometimes gets stuck?
   if (depth.at(-1) === 'typeswitch') {
     depth.pop();
   }
@@ -3524,6 +3482,7 @@ const generateVar = (scope, decl) => {
     out = out.concat(generateVarDstr(scope, decl.kind, x.id, x.init, undefined, global));
   }
 
+  out.push(number(UNDEFINED));
   return out;
 };
 
@@ -3704,7 +3663,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       ...decl,
       _internalAssign: true
     });
-    if (valueUnused) disposeLeftover(slow);
+    if (valueUnused) slow.push([ Opcodes.drop ]);
 
     return [
       ...out,
@@ -4053,7 +4012,6 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
         [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
         [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
       ], getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
-      [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
 
       ...setType(scope, name, getLastType(scope), true)
     ];
@@ -4148,7 +4106,7 @@ const generateUnary = (scope, decl) => {
     case 'void': {
       // drop current expression value after running, give undefined
       const out = generate(scope, decl.argument);
-      disposeLeftover(out);
+      out.push([ Opcodes.drop ]);
 
       out.push(number(UNDEFINED));
       return out;
@@ -4215,7 +4173,7 @@ const generateUnary = (scope, decl) => {
       }
 
       const out = toGenerate ? generate(scope, decl.argument) : [];
-      disposeLeftover(out);
+      if (toGenerate) out.push([ Opcodes.drop ]);
 
       out.push(number(toReturn ? 1 : 0));
       return out;
@@ -4229,7 +4187,7 @@ const generateUnary = (scope, decl) => {
       }
 
       const out = toGenerate ? generate(scope, decl.argument) : [];
-      disposeLeftover(out);
+      if (toGenerate) out.push([ Opcodes.drop ]);
 
       out.push(...typeSwitch(scope, overrideType ?? getNodeType(scope, decl.argument), [
         [ TYPES.number, () => makeString(scope, 'number') ],
@@ -4308,8 +4266,7 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
         right: { type: 'Literal', value: 1 }
       }
     }, _global, _name, valueUnused),
-    ...(decl.prefix || valueUnused ? [] : [ [ Opcodes.drop ] ]),
-    ...optional([ number(UNDEFINED) ], valueUnused)
+    ...(decl.prefix || valueUnused ? [] : [ [ Opcodes.drop ] ])
   ];
 };
 
@@ -4351,22 +4308,26 @@ const generateIf = (scope, decl) => {
   depth.push('if');
   inferBranchStart(scope, decl.consequent);
 
-  const consOut = generate(scope, decl.consequent);
-  disposeLeftover(consOut);
-  out.push(...consOut);
+  out.push(
+    ...generate(scope, decl.consequent),
+    [ Opcodes.drop ]
+  );
 
   inferBranchEnd(scope);
   if (decl.alternate) {
-    out.push([ Opcodes.else ]);
     inferBranchStart(scope, decl.alternate);
-
-    const altOut = generate(scope, decl.alternate);
-    disposeLeftover(altOut);
-    out.push(...altOut);
+    out.push(
+      [ Opcodes.else ],
+      ...generate(scope, decl.alternate),
+      [ Opcodes.drop ]
+    );
     inferBranchEnd(scope);
   }
 
-  out.push([ Opcodes.end ]);
+  out.push(
+    [ Opcodes.end ],
+    number(UNDEFINED)
+  );
   depth.pop();
 
   return out;
@@ -4402,10 +4363,10 @@ let depth = [];
 const generateFor = (scope, decl) => {
   const out = [];
 
-  if (decl.init) {
-    out.push(...generate(scope, decl.init, false, undefined, true));
-    disposeLeftover(out);
-  }
+  if (decl.init) out.push(
+    ...generate(scope, decl.init, false, undefined, true),
+    [ Opcodes.drop ]
+  );
 
   inferLoopStart(scope, decl);
   out.push([ Opcodes.loop, Blocktype.void ]);
@@ -4414,19 +4375,31 @@ const generateFor = (scope, decl) => {
   if (decl.test) out.push(...generate(scope, decl.test), Opcodes.i32_to);
     else out.push(number(1, Valtype.i32));
 
-  out.push([ Opcodes.if, Blocktype.void ]);
-  depth.push('if');
+  out.push(
+    [ Opcodes.if, Blocktype.void ],
+    [ Opcodes.block, Blocktype.void ]
+  );
+  depth.push('if', 'block');
 
-  out.push([ Opcodes.block, Blocktype.void ]);
-  depth.push('block');
-  out.push(...generate(scope, decl.body));
-  out.push([ Opcodes.end ]);
+  out.push(
+    ...generate(scope, decl.body),
+    [ Opcodes.drop ],
+    [ Opcodes.end ]
+  );
+  depth.pop();
 
-  if (decl.update) out.push(...generate(scope, decl.update, false, undefined, true));
+  if (decl.update) out.push(
+    ...generate(scope, decl.update, false, undefined, true),
+    [ Opcodes.drop ]
+  );
 
-  out.push([ Opcodes.br, 1 ]);
-  out.push([ Opcodes.end ], [ Opcodes.end ]);
-  depth.pop(); depth.pop(); depth.pop();
+  out.push(
+    [ Opcodes.br, 1 ],
+    [ Opcodes.end ],
+    [ Opcodes.end ],
+    number(UNDEFINED)
+  );
+  depth.pop(); depth.pop();
 
   inferLoopEnd(scope);
   return out;
@@ -4439,14 +4412,21 @@ const generateWhile = (scope, decl) => {
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('while');
 
-  out.push(...generate(scope, decl.test));
-  out.push(Opcodes.i32_to, [ Opcodes.if, Blocktype.void ]);
+  out.push(
+    ...generate(scope, decl.test),
+    Opcodes.i32_to,
+    [ Opcodes.if, Blocktype.void ]
+  );
   depth.push('if');
 
-  out.push(...generate(scope, decl.body));
-
-  out.push([ Opcodes.br, 1 ]);
-  out.push([ Opcodes.end ], [ Opcodes.end ]);
+  out.push(
+    ...generate(scope, decl.body),
+    [ Opcodes.drop ],
+    [ Opcodes.br, 1 ],
+    [ Opcodes.end ],
+    [ Opcodes.end ],
+    number(UNDEFINED)
+  );
   depth.pop(); depth.pop();
 
   inferLoopEnd(scope);
@@ -4458,27 +4438,31 @@ const generateDoWhile = (scope, decl) => {
   inferLoopStart(scope, decl);
 
   out.push([ Opcodes.loop, Blocktype.void ]);
-  depth.push('dowhile');
 
   // block for break (includes all)
   out.push([ Opcodes.block, Blocktype.void ]);
-  depth.push('block');
 
   // block for continue
   // includes body but not test+loop so we can exit body at anytime
   // and still test+loop after
   out.push([ Opcodes.block, Blocktype.void ]);
-  depth.push('block');
+  depth.push('dowhile', 'block', 'block');
 
-  out.push(...generate(scope, decl.body));
-
-  out.push([ Opcodes.end ]);
+  out.push(
+    ...generate(scope, decl.body),
+    [ Opcodes.drop ],
+    [ Opcodes.end ]
+  );
   depth.pop();
 
-  out.push(...generate(scope, decl.test), Opcodes.i32_to);
-  out.push([ Opcodes.br_if, 1 ]);
-
-  out.push([ Opcodes.end ], [ Opcodes.end ]);
+  out.push(
+    ...generate(scope, decl.test),
+    Opcodes.i32_to,
+    [ Opcodes.br_if, 1 ],
+    [ Opcodes.end ],
+    [ Opcodes.end ],
+    number(UNDEFINED)
+  );
   depth.pop(); depth.pop();
 
   inferLoopEnd(scope);
@@ -4811,17 +4795,17 @@ const generateForOf = (scope, decl) => {
   }
 
   // next and set local
-  out.push(...setVar);
+  out.push(
+    ...setVar,
+    ...generate(scope, decl.body),
+    [ Opcodes.drop ],
+    [ Opcodes.br, 1 ], // continue
+    [ Opcodes.end ], // end block
+    [ Opcodes.end ], // end loop
+    number(UNDEFINED)
+  );
 
-  // generate body
-  out.push(...generate(scope, decl.body));
-
-  out.push([ Opcodes.br, 1 ]); // continue
-  out.push([ Opcodes.end ]); // end block
-  out.push([ Opcodes.end ]); // end loop
-
-  depth.pop();
-  depth.pop();
+  depth.pop(); depth.pop();
 
   inferLoopEnd(scope);
   return out;
@@ -4921,6 +4905,7 @@ const generateForIn = (scope, decl) => {
     [ Opcodes.i32_and ],
     [ Opcodes.if, Blocktype.void ],
     ...generate(scope, decl.body),
+    [ Opcodes.drop ],
     [ Opcodes.end ],
 
     // increment pointer by 14
@@ -4953,33 +4938,41 @@ const generateForIn = (scope, decl) => {
 
   inferLoopEnd(scope);
 
-  return typeSwitch(scope, getNodeType(scope, decl.right), {
+  const final = typeSwitch(scope, getNodeType(scope, decl.right), {
     // fast path for objects
     [TYPES.object]: out,
 
     // wrap for of object.keys
-    default: () => generate(scope, {
-      type: 'ForOfStatement',
-      left: decl.left,
-      body: decl.body,
-      right: {
-        type: 'CallExpression',
-        callee: {
-          type: 'Identifier',
-          name: '__Object_keys'
-        },
-        arguments: [ {
-          type: 'LogicalExpression',
-          left: decl.right,
-          operator: '??',
-          right: {
-            type: 'Literal',
-            value: 0
-          }
-        } ]
-      }
-    })
+    default: () => {
+      const out = generate(scope, {
+        type: 'ForOfStatement',
+        left: decl.left,
+        body: decl.body,
+        right: {
+          type: 'CallExpression',
+          callee: {
+            type: 'Identifier',
+            name: '__Object_keys'
+          },
+          arguments: [ {
+            type: 'LogicalExpression',
+            left: decl.right,
+            operator: '??',
+            right: {
+              type: 'Literal',
+              value: 0
+            }
+          } ]
+        }
+      });
+
+      out.push([ Opcodes.drop ]);
+      return out;
+    }
   }, Blocktype.void);
+
+  final.push(number(UNDEFINED));
+  return final;
 };
 
 const generateSwitch = (scope, decl) => {
@@ -5024,6 +5017,7 @@ const generateSwitch = (scope, decl) => {
       }, Blocktype.void, true);
 
       depth.pop();
+      out.push(number(UNDEFINED));
       return out;
     }
   }
@@ -5082,13 +5076,15 @@ const generateSwitch = (scope, decl) => {
     depth.pop();
     out.push(
       [ Opcodes.end ],
-      ...generate(scope, { type: 'BlockStatement', body: cases[i].consequent })
+      ...generate(scope, { type: 'BlockStatement', body: cases[i].consequent }),
+      [ Opcodes.drop ]
     );
   }
 
   out.push([ Opcodes.end ]);
   depth.pop();
 
+  out.push(number(UNDEFINED));
   return out;
 };
 
@@ -5211,13 +5207,19 @@ const generateTry = (scope, decl) => {
 
   const out = [];
 
-  const finalizer = decl.finalizer ? generate(scope, decl.finalizer) : [];
+  const finalizer = decl.finalizer ? [
+    ...generate(scope, decl.finalizer),
+    [ Opcodes.drop ]
+  ]: [];
 
   out.push([ Opcodes.try, Blocktype.void ]);
   depth.push('try');
 
-  out.push(...generate(scope, decl.block));
-  out.push(...finalizer);
+  out.push(
+    ...generate(scope, decl.block),
+    [ Opcodes.drop ],
+    ...finalizer
+  );
 
   if (decl.handler) {
     depth.pop();
@@ -5252,6 +5254,7 @@ const generateTry = (scope, decl) => {
 
     out.push(
       ...generate(scope, decl.handler.body),
+      [ Opcodes.drop ],
       ...finalizer
     );
   }
@@ -5259,11 +5262,12 @@ const generateTry = (scope, decl) => {
   out.push([ Opcodes.end ]);
   depth.pop();
 
+  out.push(number(UNDEFINED));
   return out;
 };
 
 const generateEmpty = (scope, decl) => {
-  return [];
+  return [ number(UNDEFINED) ];
 };
 
 const generateMeta = (scope, decl) => {
@@ -6143,13 +6147,15 @@ const generateClass = (scope, decl) => {
       // Bar.__proto__ = Foo
       // Bar.prototype.__proto__ = Foo.prototype
       ...generate(scope, setObjProp(root, '__proto__', decl.superClass)),
-      ...generate(scope, setObjProp(proto, '__proto__', getObjProp(decl.superClass, 'prototype')))
+      [ Opcodes.drop ],
+      ...generate(scope, setObjProp(proto, '__proto__', getObjProp(decl.superClass, 'prototype'))),
+      [ Opcodes.drop ]
     );
   }
 
   for (const x of body) {
     let { type, key, value, kind, static: _static, computed } = x;
-    if (type !== 'MethodDefinition' && type !== 'PropertyDefinition') return todo(scope, `class body type ${type} is not supported yet`, expr);
+    if (type !== 'MethodDefinition' && type !== 'PropertyDefinition') return todo(scope, `class body type ${type} is not supported yet`, true);
 
     if (kind === 'constructor') continue;
 
@@ -6584,6 +6590,30 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       wasm = generate(func, body);
       wasm.unshift(...preface);
 
+      if (name === '#main') {
+        func.gotLastType = true;
+        func.export = true;
+
+        wasm.push(...getNodeType(func, getLastNode(decl.body.body)));
+
+        // inject promise job runner func at the end of main if promises are made
+        if (Object.hasOwn(funcIndex, 'Promise') || Object.hasOwn(funcIndex, '__Promise_resolve') || Object.hasOwn(funcIndex, '__Promise_reject')) {
+          wasm.push(
+            [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_runJobs').index ],
+            [ Opcodes.drop ],
+            [ Opcodes.drop ]
+          );
+        }
+      } else {
+        // add end empty return if not found
+        if (wasm[wasm.length - 1]?.[0] !== Opcodes.return) {
+          wasm.push(
+            [ Opcodes.drop ],
+            ...generateReturn(func, {})
+          );
+        }
+      }
+
       if (func.generator) {
         // make generator at the start
         wasm.unshift(
@@ -6626,57 +6656,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
         // ensure tag exists for specific catch
         ensureTag();
-      }
-
-      if (name === '#main') {
-        func.gotLastType = true;
-        func.export = true;
-
-        let finalStatement = decl.body.body[decl.body.body.length - 1];
-        if (finalStatement?.type === 'EmptyStatement') finalStatement = decl.body.body[decl.body.body.length - 2];
-
-        const lastInst = getLastInst(wasm) ?? [ Opcodes.end ];
-        if (lastInst[0] === Opcodes.drop || lastInst[0] === Opcodes.f64_const) {
-          if (finalStatement.type.endsWith('Declaration')) {
-            // final statement is decl, force undefined
-            disposeLeftover(wasm);
-            wasm.push(
-              number(UNDEFINED),
-              number(TYPES.undefined, Valtype.i32)
-            );
-          } else {
-            wasm.splice(wasm.length - 1, 1);
-            wasm.push(...getNodeType(func, finalStatement));
-          }
-        }
-
-        if (lastInst[0] === Opcodes.end || lastInst[0] === Opcodes.local_set || lastInst[0] === Opcodes.global_set) {
-          if (lastInst[0] === Opcodes.local_set && lastInst[1] === func.locals['#last_type'].idx) {
-            wasm.splice(wasm.length - 1, 1);
-          } else {
-            func.returns = [];
-          }
-        }
-
-        if (lastInst[0] === Opcodes.call) {
-          const callee = funcByIndex(lastInst[1]);
-          if (callee) func.returns = callee.returns.slice();
-            else func.returns = [];
-        }
-
-        // inject promise job runner func at the end of main if promises are made
-        if (Object.hasOwn(funcIndex, 'Promise') || Object.hasOwn(funcIndex, '__Promise_resolve') || Object.hasOwn(funcIndex, '__Promise_reject')) {
-          wasm.push(
-            [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_runJobs').index ],
-            [ Opcodes.drop ],
-            [ Opcodes.drop ]
-          );
-        }
-      } else {
-        // add end return if not found
-        if (wasm[wasm.length - 1]?.[0] !== Opcodes.return && countLeftover(wasm) < func.returns.length) {
-          wasm.push(...generateReturn(func, {}));
-        }
       }
 
       return func.wasm = wasm;
@@ -6747,24 +6726,31 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   if (globalThis.precompile) func.generate();
 
   if (decl._doNotMarkFuncRef) doNotMarkFuncRef = true;
-  const out = decl.type.endsWith('Expression') && !forceNoExpr ? funcRef(func) : [];
+  const out = decl.type.endsWith('Expression') && !forceNoExpr ? funcRef(func) : [ number(UNDEFINED) ];
   doNotMarkFuncRef = false;
 
   astCache.set(decl, out);
   return [ func, out ];
 };
 
-const generateCode = (scope, decl) => {
+const generateBlock = (scope, decl) => {
   let out = [];
 
   scope.inferTree ??= [];
   scope.inferTree.push(decl);
 
-  for (const x of decl.body) {
+  let j = 0;
+  for (let i = 0; i < decl.body.length; i++) {
+    const x = decl.body[i];
+    if (isEmptyNode(x)) continue;
+
+    if (j++ > 0) out.push([ Opcodes.drop ]);
     out = out.concat(generate(scope, x));
   }
 
   scope.inferTree.pop();
+
+  if (out.length === 0) out.push(number(UNDEFINED));
   return out;
 };
 
@@ -6867,7 +6853,9 @@ const internalConstrs = {
       scope.usesImports = true;
 
       const str = decl.arguments[0].value;
-      return printStaticStr(str);
+      const out = printStaticStr(str);
+      out.push(number(UNDEFINED));
+      return out;
     },
     type: TYPES.undefined,
     notConstr: true,
