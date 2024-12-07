@@ -5157,7 +5157,19 @@ const generateLabel = (scope, decl) => {
   const name = decl.label.name;
   scope.labels.set(name, depth.length);
 
-  return generate(scope, decl.body);
+  const out = generate(scope, decl.body);
+
+  // if block statement, wrap in block to allow for breaking
+  if (decl.body.type === 'BlockStatement') {
+    out.unshift([ Opcodes.block, Blocktype.void ]);
+    out.push(
+      [ Opcodes.drop ],
+      [ Opcodes.end ],
+      number(UNDEFINED)
+    );
+  }
+
+  return out;
 };
 
 const ensureTag = (exceptionMode = Prefs.exceptionMode ?? 'stack') => {
