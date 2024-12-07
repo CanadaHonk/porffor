@@ -35,7 +35,7 @@ const progressStart = msg => {
 
   const log = (extra, after) => {
     const pre = extra ? `${extra}` : spinner[spin++ % 4];
-    process.stdout.write(`\r\u001b[90m${' '.repeat(10 - pre.length)}${pre}  ${msg}${after ?? ''}\u001b[0m`);
+    process.stdout.write(`\r\u001b[90m${' '.repeat(120)}\r${' '.repeat(10 - pre.length)}${pre}  ${msg}${after ?? ''}\u001b[0m`);
   };
   log();
 

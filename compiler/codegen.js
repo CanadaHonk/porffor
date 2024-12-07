@@ -6457,8 +6457,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     return [ func, out ];
   }
 
-  globalThis.progress?.(null, ' ' + name);
-
   const params = decl.params ?? [];
 
   // TODO: share scope/locals between !!!
@@ -6762,15 +6760,18 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   return [ func, out ];
 };
 
+let largestBlockBody = 0;
 const generateBlock = (scope, decl) => {
   let out = [];
 
   scope.inferTree ??= [];
   scope.inferTree.push(decl);
 
-  let j = 0;
-  for (let i = 0; i < decl.body.length; i++) {
+  let len = decl.body.length, j = 0;
+  if (len > largestBlockBody) largestBlockBody = len;
+  for (let i = 0; i < len; i++) {
     const x = decl.body[i];
+    if (len >= largestBlockBody) globalThis.progress?.(`${i}/${len}`);
     if (isEmptyNode(x)) continue;
 
     if (j++ > 0) out.push([ Opcodes.drop ]);
@@ -6946,6 +6947,7 @@ export default program => {
   data = [];
   currentFuncIndex = importedFuncs.length;
   typeswitchDepth = 0;
+  largestBlockBody = 0;
   usedTypes = new Set([ TYPES.empty, TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
   coctc = new Map();
   globalInfer = new Map();
