@@ -66,7 +66,7 @@ export default (code, module = undefined) => {
   let target = Prefs.target ?? 'wasm';
   if (Prefs.native) target = 'native';
 
-  const logProgress = Prefs.profileCompiler || (target === 'native' && !Prefs.native && globalThis.file);
+  const logProgress = Prefs.profileCompiler || (Prefs.target && !Prefs.native && globalThis.file);
 
   let outFile = Prefs.o;
 
