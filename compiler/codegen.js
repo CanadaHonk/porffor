@@ -3055,15 +3055,18 @@ const typeIsNotOneOf = (type, types, valtype = Valtype.i32) => {
   return out;
 };
 
-const allocVar = (scope, name, global = false, type = true) => {
+const allocVar = (scope, name, global = false, type = true, redecl = false) => {
   const target = global ? globals : scope.locals;
 
   // already declared
   if (Object.hasOwn(target, name)) {
-    // parser should catch this but sanity check anyway
-    // if (decl.kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
-
-    return target[name].idx;
+    if (redecl) {
+      // force change old local name(s)
+      target['#redecl_' + name + uniqId()] = target[name];
+      if (type) target['#redecl_' + name + '#type' + uniqId()] = target[name + '#type'];
+    } else {
+      return target[name].idx;
+    }
   }
 
   let idx = global ? globals['#ind']++ : scope.localInd++;
@@ -6515,7 +6518,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         const { name, def, destr, type } = args[i];
 
         func.localInd = i * 2;
-        allocVar(func, name, false);
+        allocVar(func, name, false, true, true);
 
         func.localInd = localInd;
         if (type) {
