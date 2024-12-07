@@ -66,9 +66,8 @@ export default (code, module = undefined) => {
   let target = Prefs.target ?? 'wasm';
   if (Prefs.native) target = 'native';
 
-  const logProgress = Prefs.profileCompiler || (Prefs.target && !Prefs.native && globalThis.file);
-
-  let outFile = Prefs.o;
+  const outFile = Prefs.o;
+  const logProgress = Prefs.profileCompiler || (Prefs.target && outFile && !Prefs.native && globalThis.file);
 
   globalThis.valtype = Prefs.valtype ?? 'f64';
   globalThis.valtypeBinary = Valtype[valtype];
@@ -214,6 +213,12 @@ export default (code, module = undefined) => {
   if (target === 'wasm' && outFile) {
     fs.writeFileSync(outFile, Buffer.from(wasm));
 
+    if (logProgress) {
+      const total = performance.now();
+      progressClear();
+      console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
+    }
+
     if (process.version) process.exit();
   }
 
@@ -225,6 +230,12 @@ export default (code, module = undefined) => {
       fs.writeFileSync(outFile, c);
     } else {
       console.log(c);
+    }
+
+    if (logProgress) {
+      const total = performance.now();
+      progressClear();
+      console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
     }
 
     if (process.version) process.exit();
@@ -260,35 +271,33 @@ export default (code, module = undefined) => {
 
     if (logProgress) progressStart(`compiled C to native (using ${compiler})`, t5);
 
-    if (process.version) {
-      if (Prefs.native) {
-        const cleanup = () => {
-          try {
-            fs.unlinkSync(outFile);
-          } catch {}
-        };
-
-        process.on('exit', cleanup);
-        process.on('beforeExit', cleanup);
-        process.on('SIGINT', () => {
-          cleanup();
-          process.exit();
-        });
-
-        const runArgs = process.argv.slice(2).filter(x => !x.startsWith('-'));
+    if (Prefs.native) {
+      const cleanup = () => {
         try {
-          execSync([ outFile, ...runArgs.slice(1) ].join(' '), { stdio: 'inherit' });
+          fs.unlinkSync(outFile);
         } catch {}
-      }
+      };
 
-      if (logProgress) {
-        const total = performance.now();
-        progressClear();
-        console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
-      }
+      process.on('exit', cleanup);
+      process.on('beforeExit', cleanup);
+      process.on('SIGINT', () => {
+        cleanup();
+        process.exit();
+      });
 
-      process.exit();
+      const runArgs = process.argv.slice(2).filter(x => !x.startsWith('-'));
+      try {
+        execSync([ outFile, ...runArgs.slice(1) ].join(' '), { stdio: 'inherit' });
+      } catch {}
     }
+
+    if (logProgress) {
+      const total = performance.now();
+      progressClear();
+      console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
+    }
+
+    process.exit();
   }
 
   return out;
