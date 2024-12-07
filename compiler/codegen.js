@@ -332,7 +332,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateTemplate(scope, decl));
 
     case 'TaggedTemplateExpression':
-      return cacheAst(decl, generateTaggedTemplate(scope, decl, global, name));
+      return cacheAst(decl, generateTaggedTemplate(scope, decl, global, name, valueUnused));
 
     case 'ExportNamedDeclaration':
       if (!decl.declaration) return todo(scope, 'unsupported export declaration', true);
@@ -2438,26 +2438,26 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       // pointer, align, offset
       i32_load: { imms: 2, args: [ true ], returns: 1 },
       // pointer, value, align, offset
-      i32_store: { imms: 2, args: [ true, true ], returns: 0 },
+      i32_store: { imms: 2, args: [ true, true ], returns: 0, addValue: true },
       // pointer, align, offset
       i32_load8_u: { imms: 2, args: [ true ], returns: 1 },
       // pointer, value, align, offset
-      i32_store8: { imms: 2, args: [ true, true ], returns: 0 },
+      i32_store8: { imms: 2, args: [ true, true ], returns: 0, addValue: true },
       // pointer, align, offset
       i32_load16_u: { imms: 2, args: [ true ], returns: 1 },
       // pointer, value, align, offset
-      i32_store16: { imms: 2, args: [ true, true ], returns: 0 },
+      i32_store16: { imms: 2, args: [ true, true ], returns: 0, addValue: true },
 
       // pointer, align, offset
       f64_load: { imms: 2, args: [ true ], returns: 0 }, // 0 due to not i32
       // pointer, value, align, offset
-      f64_store: { imms: 2, args: [ true, false ], returns: 0 },
+      f64_store: { imms: 2, args: [ true, false ], returns: 0, addValue: true },
 
       // value
       i32_const: { imms: 1, args: [], returns: 0 },
 
       // dst, src, size, _, _
-      memory_copy: { imms: 2, args: [ true, true, true ], returns: 0 }
+      memory_copy: { imms: 2, args: [ true, true, true ], returns: 0, addValue: true }
     };
 
     const opName = name.slice('__Porffor_wasm_'.length);
@@ -2486,7 +2486,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       return [
         ...argOut,
         [ ...opcode, ...imms ],
-        ...(new Array(op.returns).fill(Opcodes.i32_from))
+        ...(new Array(op.returns).fill(Opcodes.i32_from)),
+        ...(op.addValue ? [ number(UNDEFINED) ] : [])
       ];
     }
   } else {
@@ -2687,6 +2688,11 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32 && !globalThis.noi32F64CallConv) {
     out.push(Opcodes.i32_trunc_sat_f64_s);
+  }
+
+  if ((builtinFuncs[name] && builtinFuncs[name].returns?.length === 0) ||
+      (importedFuncs[name] != null && importedFuncs[importedFuncs[name]]?.returns === 0)) {
+    out.push(number(UNDEFINED));
   }
 
   return out;
@@ -4300,7 +4306,10 @@ const inferLoopEnd = scope => {
 const generateIf = (scope, decl) => {
   if (globalThis.precompile && decl.test?.tag?.name === '__Porffor_comptime_flag') {
     const flag = decl.test.quasi.quasis[0].value.raw;
-    return [ [ null, 'comptime_flag', flag, decl.consequent, '#', Prefs ] ];
+    return [
+      [ null, 'comptime_flag', flag, decl.consequent, '#', Prefs ],
+      number(UNDEFINED)
+    ];
   }
 
   const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test), false, true);
@@ -6260,7 +6269,7 @@ export const generateTemplate = (scope, decl) => {
   return generate(scope, current);
 };
 
-const generateTaggedTemplate = (scope, decl, global = false, name = undefined) => {
+const generateTaggedTemplate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   const intrinsics = {
     __Porffor_wasm: str => {
       let out = [];
@@ -6306,6 +6315,11 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined) =
         })[inst[0]] ?? signedLEB128;
         out.push([ ...inst, ...immediates.flatMap(x => encodeFunc(x)) ]);
       }
+
+      // add value to stack if value unused as 99% typically means
+      // no value on stack at end of wasm
+      // unless final op is return
+      if (valueUnused && out.at(-1)[0] !== Opcodes.return) out.push(number(UNDEFINED));
 
       return out;
     },

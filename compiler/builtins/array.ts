@@ -367,7 +367,6 @@ export const __Array_prototype_with = (_this: any[], _index: any, value: any) =>
   }
 
   let out: any[] = Porffor.allocate();
-
   Porffor.clone(_this, out);
 
   out[index] = value;
