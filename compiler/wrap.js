@@ -469,9 +469,6 @@ export default (source, module = undefined, customImports = {}, print = str => p
             return -1;
           }
         },
-        b: () => {
-          debugger;
-        },
         ...customImports
       }
     });

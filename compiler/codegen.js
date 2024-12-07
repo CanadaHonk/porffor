@@ -305,7 +305,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
     case 'DebuggerStatement':
       return cacheAst(decl, [
-        [ Opcodes.call, importedFuncs.debugger ],
+        // [ Opcodes.call, importedFuncs.debugger ],
         number(UNDEFINED)
       ]);
 
