@@ -64,6 +64,22 @@ export const unsignedLEB128 = n => {
   return buffer;
 };
 
+export const unsignedLEB128_length = n => {
+  if (n < 0) n = n >>> 0;
+  if (n <= 127) return 1;
+  if (n <= 16383) return 2;
+  if (n <= 2097151) return 3;
+  if (n <= 268435455) return 4;
+  if (n <= 34359738367) return 5;
+
+  let length = 0;
+  do {
+    length++;
+    n >>>= 7;
+  } while (n > 0);
+  return length;
+};
+
 export const big_signedLEB128 = n => {
   // just input for small numbers (for perf as common)
   if (n >= 0n && n <= 63n) return [ Number(n) ];
