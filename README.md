@@ -175,9 +175,6 @@ No particular order and no guarantees, just what could happen soon™
   - PGO
 - Self hosted testing?
 
-## VSCode extension
-There is a vscode extension in `vscode-ext` which tweaks JS syntax highlighting to be nicer with porffor features (eg highlighting wasm inside of inline asm).
-
 ## Wasm proposals used
 Porffor intentionally does not use Wasm proposals which are not commonly implemented yet (eg GC) so it can be used in as many places as possible.
 
