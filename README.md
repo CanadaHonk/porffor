@@ -98,8 +98,9 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
 
 ## Codebase
 - `compiler`: contains the compiler itself
-  - `2c.js`: porffor's custom wasm-to-c engine
-  - `allocators.js`: static/compile-time allocator
+  - `builtins`: built-in apis written in typescript
+  - `2c.js`: custom wasm-to-c engine
+  - `allocator.js`: static/compile-time allocator
   - `assemble.js`: assembles wasm ops and metadata into a spec-compliant wasm module/file
   - `builtins.js`: all manually written built-ins of the engine (spec, custom. vars, funcs)
   - `builtins_object.js`: all the various built-in objects (think `String`, `globalThis`, etc.)
@@ -107,7 +108,6 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
   - `codegen.js`: code (wasm) generation, ast -> wasm. The bulk of the effort
   - `cyclone.js`: wasm partial constant evaluator (it is fast and dangerous hence "cyclone")
   - `decompile.js`: basic wasm decompiler for debug info
-  - `diagram.js`: produces [Mermaid](https://mermaid.js.org) graphs
   - `embedding.js`: utils for embedding consts
   - `encoding.js`: utils for encoding things as bytes as wasm expects
   - `expression.js`: mapping most operators to an opcode (advanced are as built-ins eg `f64_%`)
@@ -131,7 +131,6 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
   - `compile.js`: compiles regex ast into wasm bytecode aot
   - `parse.js`: own regex parser
 
-- `test`: contains many test files for majority of supported features
 - `test262`: test262 runner and utils
 
 ## Usecases

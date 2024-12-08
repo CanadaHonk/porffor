@@ -9,7 +9,6 @@ import toc from './2c.js';
 import * as pgo from './pgo.js';
 import cyclone from './cyclone.js';
 import './prefs.js';
-import * as Diagram from './diagram.js';
 
 globalThis.decompile = decompile;
 
@@ -188,9 +187,6 @@ export default (code, module = undefined) => {
       }
     };
     print(data);
-
-    // const url = Diagram.url(Diagram.tree(data));
-    // console.log(`built-in tree: ${url}`);
   }
 
   if (logProgress) progressStart('assembling...');
