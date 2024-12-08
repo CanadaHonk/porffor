@@ -412,7 +412,6 @@ export const BuiltinFuncs = function() {
         [ Opcodes.global_get, 0 ],
       ],
     },
-    'lcg64_musl': 0, // todo
 
     'xorshift32+': {
       globals: [ Valtype.i32 ],
