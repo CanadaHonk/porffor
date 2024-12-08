@@ -67,7 +67,7 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 - `-O2` to enable advanced opt (partial evaluation). unstable!
 
 ## Current limitations
-- Limited async support
+- Limited async support (`Promise` and `await` have known bugs)
 - No variables between scopes (except args and globals)
 - No `eval()`/`Function()` etc (since it is AOT)
 
