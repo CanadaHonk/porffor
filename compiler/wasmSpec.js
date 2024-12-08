@@ -1,18 +1,36 @@
-const enumify = (...args) => {
-  const obj = {};
+export const Magic = [ 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00 ];
+export const PageSize = 65536; // 64KiB
+export const FuncType = 0x60;
 
-  for (let i = 0; i < args.length; i++) {
-    obj[i] = args[i];
-    obj[args[i]] = i;
-  }
-
-  return obj;
+export const Section = {
+  custom: 0,
+  type: 1,
+  import: 2,
+  func: 3,
+  table: 4,
+  memory: 5,
+  global: 6,
+  export: 7,
+  start: 8,
+  element: 9,
+  code: 10,
+  data: 11,
+  data_count: 12,
+  tag: 13
 };
 
-export const Section = enumify('custom', 'type', 'import', 'func', 'table', 'memory', 'global', 'export', 'start', 'element', 'code', 'data', 'data_count', 'tag');
-export const ExportDesc = enumify('func', 'table', 'mem', 'global', 'tag');
+export const ExportDesc = {
+  func: 0,
+  table: 1,
+  mem: 2,
+  global: 3,
+  tag: 4
+};
 
-export const Mut = enumify('const', 'var');
+export const Mut = {
+  const: 0,
+  var: 1
+};
 
 export const Valtype = {
   i32: 0x7f,
@@ -21,13 +39,21 @@ export const Valtype = {
   v128: 0x7b
 };
 
+export const ValtypeSize = {
+  i8: 1,
+  i16: 2,
+  i32: 4,
+  i64: 8,
+  f64: 8
+};
+
 export const Reftype = {
   funcref: 0x70,
   externref: 0x6f
 };
 
 export const Blocktype = {
-  void: 0x40,
+  void: 0x40
 };
 
 export const Opcodes = {
@@ -221,21 +247,4 @@ export const Opcodes = {
   v128_or: [ 0xfd, 80 ],
   v128_xor: [ 0xfd, 81 ],
   v128_any_true: [ 0xfd, 83 ]
-};
-
-export const FuncType = 0x60;
-export const Empty = 0x00;
-
-export const Magic = [ 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00 ];
-
-export const PageSize = 65536; // 64KiB (1024 * 8)
-
-export const ValtypeSize = {
-  i32: 4,
-  i64: 8,
-  f64: 8,
-
-  // special
-  i8: 1,
-  i16: 2
 };
