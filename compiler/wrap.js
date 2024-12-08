@@ -433,13 +433,6 @@ export default (source, module = undefined, customImports = {}, print = str => p
 
   let instance;
   try {
-    // let wasmEngine = WebAssembly;
-    // if (Prefs.asur) {
-    //   log.warning('wrap', 'using our !experimental! asur wasm engine instead of host to run');
-    //   wasmEngine = await import('../asur/index.js');
-    // }
-
-    // 0, { instance } = await wasmEngine.instantiate(wasm, {
     const module = new WebAssembly.Module(wasm);
     instance = new WebAssembly.Instance(module, {
       '': {
