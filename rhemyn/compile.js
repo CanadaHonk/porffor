@@ -92,7 +92,7 @@ const generate = (node, negated = false, get = true, stringSize = 2, func = 'tes
         const underline = x => `\u001b[4m\u001b[1m${x}\u001b[0m`;
         console.log(`\n${underline('ast')}`);
         console.log(node);
-        console.log(`\n${underline('wasm bytecode')}\n` + decompile(out) + '\n');
+        console.log(`\n${underline('wasm bytecode')}\n` + disassemble(out) + '\n');
       }
 
       break;

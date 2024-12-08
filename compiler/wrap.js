@@ -1,7 +1,7 @@
 import { encodeVector, encodeLocal } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import compile from './index.js';
-import decompile from './decompile.js';
+import disassemble from './ddisassemblee.js';
 import { TYPES, TYPE_NAMES } from './types.js';
 import { log } from './log.js';
 import './prefs.js';
@@ -352,7 +352,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
   times.push(performance.now() - t1);
   if (Prefs.profileCompiler && !globalThis.onProgress) console.log(`\u001b[1mcompiled in ${times[0].toFixed(2)}ms\u001b[0m`);
 
-  const printDecomp = (middleIndex, func, funcs, globals, exceptions) => {
+  const printBacktrace = (middleIndex, func, funcs, globals, exceptions) => {
     console.log(`\x1B[35m\x1B[1mporffor backtrace\u001b[0m`);
 
     const surrounding = Prefs.backtraceSurrounding ?? 10;
@@ -363,22 +363,22 @@ export default (source, module = undefined, customImports = {}, print = str => p
       max = func.wasm.length;
     }
 
-    const decomp = decompile(func.wasm.slice(min, max), func.name, 0, func.locals, func.params, func.returns, funcs, globals, exceptions)
+    const disasm = disassemble(func.wasm.slice(min, max), func.name, 0, func.locals, func.params, func.returns, funcs, globals, exceptions)
       .slice(0, -1).split('\n').filter(x => !x.startsWith('\x1B[90m;;'));
 
     const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
     let longest = 0;
-    for (let j = 0; j < decomp.length; j++) {
-      longest = Math.max(longest, noAnsi(decomp[j]).length);
+    for (let j = 0; j < disassemble.length; j++) {
+      longest = Math.max(longest, noAnsi(disassemble[j]).length);
     }
 
     if (middleIndex != -1) {
-      const middle = Math.floor(decomp.length / 2);
-      decomp[middle] = `\x1B[47m\x1B[30m${noAnsi(decomp[middle])}${'\u00a0'.repeat(longest - noAnsi(decomp[middle]).length)}\x1B[0m`;
+      const middle = Math.floor(disasm.length / 2);
+      disasm[middle] = `\x1B[47m\x1B[30m${noAnsi(disasm[middle])}${'\u00a0'.repeat(longest - noAnsi(disasm[middle]).length)}\x1B[0m`;
     }
 
     if (min != 0) console.log('\x1B[90m...\x1B[0m');
-    console.log(decomp.join('\n'));
+    console.log(disasm.join('\n'));
     if (max > func.wasm.length) console.log('\x1B[90m...\x1B[0m\n');
   };
 
@@ -407,7 +407,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
     }
 
     if (i === wasm.length) {
-      printDecomp(-1, func, funcs, globals, exceptions);
+      printBacktrace(-1, func, funcs, globals, exceptions);
       return false;
     }
 
@@ -421,11 +421,11 @@ export default (source, module = undefined, customImports = {}, print = str => p
     }
 
     if (cumLen !== offset) {
-      printDecomp(-1, func, funcs, globals, exceptions);
+      printBacktrace(-1, func, funcs, globals, exceptions);
       return false;
     }
 
-    printDecomp(i + 1, func, funcs, globals, exceptions);
+    printBacktrace(i + 1, func, funcs, globals, exceptions);
     return true;
   };
 
@@ -536,8 +536,8 @@ export default (source, module = undefined, customImports = {}, print = str => p
     };
   }
 
-  if (Prefs.decomp) {
-    return { exports, wasm, times, decomps: funcs.map(x => decompile(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, globals, exceptions)), c };
+  if (Prefs.disassemble) {
+    return { exports, wasm, times, disams: funcs.map(x => disassemble(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, globals, exceptions)), c };
   }
 
   return { exports, wasm, times, pages, c };

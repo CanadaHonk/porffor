@@ -1334,7 +1334,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
             ...args.value.split(' '),
             `--parser=${parser_dropdown.value}`,
             `--target=${target_dropdown.value}`,
-            '--decomp',
+            '--disassemble',
           ],
         };
       };
@@ -1362,10 +1362,10 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         wasmView.innerHTML = '';
         status.textContent = 'Compiling...';
 
-        let wasm, exports, times, decomps, c;
+        let wasm, exports, times, disasms, c;
         try {
           0,
-            ({ wasm, exports, times, decomps, c } = compile(
+            ({ wasm, exports, times, disasms, c } = compile(
               code,
               true,
               {},
@@ -1382,7 +1382,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         } else {
           wasmView.innerHTML =
             `<div id='wasm-size'>${wasm.byteLength} bytes</div>` +
-            ansi(decomps.join('\n'));
+            ansi(disasms.join('\n'));
         }
 
         status.textContent = `Compiled in ${times[0].toFixed(0)}ms`;

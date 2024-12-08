@@ -291,7 +291,7 @@ i32.eq
 i32.and
 ```
 
-This part is a little more complicated, first you have to understand how Wasm represents function parameters and local variables in general. When looking at the decompiled output of something like `let a = 1;`, you'll likely see something like this:
+This part is a little more complicated, first you have to understand how Wasm represents function parameters and local variables in general. When looking at the disassembled output of something like `let a = 1;`, you'll likely see something like this:
 ```
 f64.const 1
 i32.const 1

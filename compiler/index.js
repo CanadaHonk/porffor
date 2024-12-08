@@ -4,13 +4,13 @@ import parse from './parse.js';
 import codegen from './codegen.js';
 import opt from './opt.js';
 import assemble from './assemble.js';
-import decompile from './decompile.js';
+import disassemble from './disassemble.js';
 import toc from './2c.js';
 import * as pgo from './pgo.js';
 import cyclone from './cyclone.js';
 import './prefs.js';
 
-globalThis.decompile = decompile;
+globalThis.disassemble = disassemble;
 
 const logFuncs = (funcs, globals, exceptions) => {
   console.log('\n' + underline(bold('funcs')));
@@ -20,7 +20,7 @@ const logFuncs = (funcs, globals, exceptions) => {
 
   for (const f of funcs) {
     if ((wanted && f.name !== wanted) || (!wanted && f.internal)) continue;
-    console.log(decompile(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
+    console.log(disassemble(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
   }
 
   console.log();

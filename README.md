@@ -107,7 +107,7 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
   - `builtins_precompiled.js`: dynamically generated builtins from the `builtins/` folder
   - `codegen.js`: code (wasm) generation, ast -> wasm. The bulk of the effort
   - `cyclone.js`: wasm partial constant evaluator (it is fast and dangerous hence "cyclone")
-  - `decompile.js`: basic wasm decompiler for debug info
+  - `disassemble.js`: wasm disassembler using internal debug info
   - `embedding.js`: utils for embedding consts
   - `encoding.js`: utils for encoding things as bytes as wasm expects
   - `expression.js`: mapping most operators to an opcode (advanced are as built-ins eg `f64_%`)

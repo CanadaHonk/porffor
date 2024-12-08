@@ -137,7 +137,7 @@ replServer.defineCommand('memory', {
   }
 });
 replServer.defineCommand('asm', {
-  help: 'Log Wasm decompiled bytecode',
+  help: 'Log Wasm disassembled bytecode',
   action() {
     this.clearBufferedCommand();
 

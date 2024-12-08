@@ -49,7 +49,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
 
     let opStr = invOpcodes[inst[0]];
     if (!opStr) {
-      console.log(`decomp: unknown op ${inst[0]?.toString?.(16)} @${i}`);
+      console.log(`disasm: unknown op ${inst[0]?.toString?.(16)} @${i}`);
       // console.log(`prior: ${invOpcodes[wasm[i - 1][0]]}`);
       out += `;; unknown op ${inst[0]?.toString?.(16)}\n`;
       continue;
