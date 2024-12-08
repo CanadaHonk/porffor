@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.50.21';
+globalThis.version = '0.50.22';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -94,8 +94,6 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'flamegraph', 'hotlines', 'debu
   }
 }
 
-globalThis.file = file;
-
 let source = '', printOutput = false;
 if (process.argv.length >= 4) {
   let evalIndex = process.argv.indexOf('-e');
@@ -126,6 +124,20 @@ if (process.argv.length >= 4) {
     printOutput = true;
   }
 }
+
+if (file.startsWith('https://')) { // https only :)
+  // rce warning, make user confirm (disabled)
+  // const rl = (await import('readline')).createInterface({ input: process.stdin, output: process.stdout });
+  // const ans = await new Promise(resolve => rl.question(`\u001b[1mAre you sure you want to download this URL:\u001b[0m ${file} (y/n)? `, ans => {
+  //   rl.close();
+  //   resolve(ans);
+  // }));
+  // if (ans.toLowerCase()[0] !== 'y') process.exit();
+
+  source = await (await fetch(file)).text();
+}
+
+globalThis.file = file;
 
 if (!file && !source) {
   if (process.argv.includes('-v') || process.argv.includes('--version')) {
