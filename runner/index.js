@@ -11,7 +11,7 @@ const start = performance.now();
 
 if (process.argv.includes('--help')) {
   // description + version
-  console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript/TypeScript engine/compiler/runtime. \x1B[90m(${globalThis.version})\x1B[0m`);
+  console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript/TypeScript engine/compiler/runtime. \x1B[2m(${globalThis.version})\x1B[0m`);
 
   // basic usage
   console.log(`Usage: \x1B[1mporf <command> [...prefs] path/to/script.js [...args]\x1B[0m`);
@@ -41,6 +41,43 @@ if (process.argv.includes('--help')) {
     if (cmd.length > 0) post = ' ' + post;
 
     console.log(`  \x1B[90mporf\x1B[0m \x1B[1m\x1B[${color}m${cmd}\x1B[0m\x1B[2m${post}\x1B[0m ${' '.repeat(30 - cmd.length - post.length)}${desc}`);
+  }
+
+  // flags
+  console.log(`\n\x1B[1m\x1B[4mFlags\x1B[0m`);
+  for (let [ flag, desc ] of Object.entries({
+    module: 'Parse input as a module',
+    t: 'Force TypeScript input',
+    d: 'Debug mode (include names in Wasm and debug logs)'
+  })) {
+    flag = '-' + flag;
+    if (flag.length > 3) flag = '-' + flag;
+
+    console.log(`  \x1B[1m${flag}\x1B[0m${' '.repeat(36 - flag.length)}${desc}`);
+  }
+
+  // niche flags
+  if (process.argv.includes('--flags')) {
+    for (let [ flag, desc ] of Object.entries({
+      f: 'Print disassembled Wasm generated from user functions',
+      pgo: 'Enable PGO (profile-guided optimization)',
+      'profile-compiler': 'Log general compiler performance (on by default when compiling to a file)',
+      valtype: 'Valtype to use (i32|i64|\x1B[1mf64\x1B[0m)',
+      prng: 'PRNG algorithm to use (lcg32_glibc|lcg32_minstd|xorshift32+|xorshift64+|\x1B[1mxorshift128+\x1B[0m|xoroshiro128+|xoshiro128+)',
+      allocator: 'Allocator to use (oneshot|\x1B[1mchunk\x1B[0m)',
+      'exception-mode': 'Exception mode to use (lut|\x1B[1mstack\x1B[0m)',
+      fastLength: 'Spec non-compliant optimization to make .length faster',
+      'no-coctc': 'Disable COCTC (cross-object compile-time cache)',
+      cyclone: 'Enable experimental Cyclone optimizer',
+      'no-treeshake-wasm-imports': 'Do not treeshake Wasm imports'
+    })) {
+      flag = '-' + flag;
+      if (flag.length > 3) flag = '-' + flag;
+
+      console.log(`  \x1B[1m${flag}\x1B[0m${' '.repeat(36 - flag.length)}${desc}`);
+    }
+  } else {
+    console.log(`  \x1B[2m(To view all flags use --flags)\x1B[0m`);
   }
 
   console.log();
