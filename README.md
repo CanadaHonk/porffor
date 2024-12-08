@@ -142,38 +142,6 @@ Currently, Porffor is seriously limited in features and functionality, however i
 - Potential for SIMD operations and other lower level concepts.
 - More in future probably?
 
-## Todo
-No particular order and no guarantees, just what could happen soon™
-
-- Asur
-  - Support memory
-  - Support exceptions
-- Exceptions
-  - Rethrowing inside catch
-- Optimizations
-  - Rewrite local indexes per func for smallest local header and remove unused idxs
-  - Smarter inline selection (snapshots?)
-  - Memory alignment
-- Runtime
-  - WASI target
-  - Run precompiled Wasm file if given
-- Cool proposals
-  - [Optional Chaining Assignment](https://github.com/tc39/proposal-optional-chaining-assignment)
-  - [Modulus and Additional Integer Math](https://github.com/tc39/proposal-integer-and-modulus-math)
-  - [Array Equality](https://github.com/tc39/proposal-array-equality)
-  - [Declarations in Conditionals](https://github.com/tc39/proposal-Declarations-in-Conditionals)
-  - [Seeded Pseudo-Random Numbers](https://github.com/tc39/proposal-seeded-random)
-  - [`do` expressions](https://github.com/tc39/proposal-do-expressions)
-  - [String Trim Characters](https://github.com/Kingwl/proposal-string-trim-characters)
-- Posts
-  - Inlining investigation
-  - JS -> Native
-  - Precompiled TS built-ins
-  - Asur
-  - `escape()` optimization
-  - PGO
-- Self hosted testing?
-
 ## Wasm proposals used
 Porffor intentionally does not use Wasm proposals which are not commonly implemented yet (eg GC) so it can be used in as many places as possible.
 
@@ -183,20 +151,8 @@ Porffor intentionally does not use Wasm proposals which are not commonly impleme
 - Exception handling (optional, only for errors)
 - Tail calls (opt-in, off by default)
 
-## FAQ
-
-### 1. Why the name?
+## The name
 `purple` in Welsh is `porffor`. Why purple?
 - No other JS engine is purple colored
 - Purple is pretty cool
 - Purple apparently represents "ambition", which is one word to describe this project
-
-### 2. Why at all?
-Yes!
-
-### 3. Isn't this the same as AssemblyScript/other Wasm langs?
-No. they are not alike at all internally and have very different goals/ideals:
-- Porffor is made as a generic JS engine, not for Wasm stuff specifically
-- Porffor primarily consumes JS
-- Porffor is written in pure JS and compiles itself, not using Binaryen/etc
-- (Also I didn't know it existed when I started this, lol)
