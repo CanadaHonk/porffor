@@ -99,8 +99,8 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
 ## Codebase
 - `compiler`: contains the compiler itself
   - `2c.js`: porffor's custom wasm-to-c engine
-  - `allocators.js`: static and dynamic allocators to power various language features
-  - `assemble.js`: assembles wasm ops and metadata into a wasm module/file
+  - `allocators.js`: static/compile-time allocator
+  - `assemble.js`: assembles wasm ops and metadata into a spec-compliant wasm module/file
   - `builtins.js`: all manually written built-ins of the engine (spec, custom. vars, funcs)
   - `builtins_object.js`: all the various built-in objects (think `String`, `globalThis`, etc.)
   - `builtins_precompiled.js`: dynamically generated builtins from the `builtins/` folder
@@ -114,22 +114,21 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
   - `havoc.js`: wasm rewrite library (it wreaks havoc upon wasm bytecode hence "havoc")
   - `index.js`: doing all the compiler steps, takes code in, wasm out
   - `opt.js`: self-made wasm bytecode optimizer
-  - `parse.js`: parser simply wrapping acorn
+  - `parse.js`: parser simply wrapping acorn (or other acorn-like parsers)
   - `pgo.js`: a profile guided optimizer
   - `precompile.js`: the tool to generate `builtins_precompied.js`
   - `prefs.js`: a utility to read command line arguments
-  - `prototype.js`: some builtin prototype functions
+  - `prototype.js`: some builtin prototype functions (~legacy)
   - `types.js`: definitions for each of the builtin types
   - `wasmSpec.js`: "enums"/info from wasm spec
   - `wrap.js`: wrapper for compiler which instantiates and produces nice exports
 
 - `runner`: contains utils for running JS with the compiler
   - `index.js`: the main file, you probably want to use this
-  - `info.js`: runs with extra info printed
   - `repl.js`: basic repl (uses `node:repl`)
 
 - `rhemyn`: contains [Rhemyn](#rhemyn) - our regex engine (used by Porffor)
-  - `compile.js`: compiles regex ast into wasm bytecode
+  - `compile.js`: compiles regex ast into wasm bytecode aot
   - `parse.js`: own regex parser
 
 - `test`: contains many test files for majority of supported features
