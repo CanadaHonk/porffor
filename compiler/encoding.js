@@ -10,15 +10,8 @@ export const codifyString = str => {
 export const encodeString = str => unsignedLEB128(str.length).concat(codifyString(str));
 export const encodeVector = data => unsignedLEB128(data.length).concat(data.flat());
 
-export const encodeLocal = (count, type) => [
-  ...unsignedLEB128(count),
-  type
-];
-
 // todo: this only works with integers within 32 bit range
 export const signedLEB128 = n => {
-  if (typeof n === 'bigint') return big_signedLEB128(n);
-
   n |= 0;
 
   // just input for small numbers (for perf as common)
@@ -45,8 +38,6 @@ export const signedLEB128 = n => {
 };
 
 export const unsignedLEB128 = n => {
-  if (typeof n === 'bigint') return big_unsignedLEB128(n);
-
   n |= 0;
 
   // just input for small numbers (for perf as common)
@@ -217,5 +208,4 @@ export const unsignedLEB128_into = (n, buffer) => {
 export const ieee754_binary64_into = (value, buffer) => {
   const data = new Uint8Array(new Float64Array([ value ]).buffer);
   for (let i = 0; i < 8; i++) buffer.push(data[i]);
-  // buffer.push(...new Uint8Array(new Float64Array([ value ]).buffer));
 };

@@ -1,5 +1,5 @@
 import { Valtype, FuncType, ExportDesc, Section, Magic, Opcodes, PageSize, Reftype } from './wasmSpec.js';
-import { encodeVector, encodeString, encodeLocal, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64, ieee754_binary64_into, unsignedLEB128_length } from './encoding.js';
+import { encodeVector, encodeString, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64, ieee754_binary64_into, unsignedLEB128_length } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from './log.js';
 import './prefs.js';

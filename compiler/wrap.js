@@ -1,4 +1,4 @@
-import { encodeVector, encodeLocal } from './encoding.js';
+import { encodeVector } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import compile from './index.js';
 import disassemble from './ddisassemblee.js';
