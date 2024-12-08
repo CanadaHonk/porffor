@@ -3,13 +3,11 @@ import './prefs.js';
 
 const file = globalThis.file;
 
-// should we try to support types (while parsing)
 const types = Prefs.parseTypes || Prefs.t || file?.endsWith('.ts');
 globalThis.typedInput = types && Prefs.optTypes;
 
-// todo: review which to use by default
 // supported parsers:
-// - acorn
+// - acorn (default)
 // - meriyah
 // - hermes-parser
 // - @babel/parser
