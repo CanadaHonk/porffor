@@ -11,11 +11,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
   const tailCall = Prefs.tailCall;
   if (tailCall) log.warning('opt', 'tail call proposal is not widely implemented! (you used --tail-call)');
 
-  // todo: this breaks exceptions after due to indexes not being adjusted
-  // const tagUse = tags.reduce((acc, x) => { acc[x.idx] = 0; return acc; }, {});
-  // const exceptionUse = exceptions.reduce((acc, _, i) => { acc[i] = 0; return acc; }, {});
-
-  // wasm transform pass
   let fi = 0;
   for (const f of funcs) {
     const wasm = f.wasm;
@@ -33,13 +28,6 @@ export default (funcs, globals, pages, tags, exceptions) => {
         let inst = wasm[i];
         inst = [ ...inst ];
         wasm[i] = inst;
-
-        // if (inst[0] === Opcodes.throw) {
-        //   tagUse[inst[1]]++;
-
-        //   const exceptId = read_signedLEB128(wasm[i - 1].slice(1));
-        //   exceptionUse[exceptId]++;
-        // }
 
         if (inst[0] === Opcodes.block) {
           // remove unneeded blocks (no brs inside)
@@ -251,19 +239,4 @@ export default (funcs, globals, pages, tags, exceptions) => {
       }
     }
   }
-
-  // for (const x in tagUse) {
-  //   if (tagUse[x] === 0) {
-  //     const el = tags.find(y => y.idx === x);
-  //     tags.splice(tags.indexOf(el), 1);
-  //   }
-  // }
-
-  // for (const x of Object.keys(exceptionUse).sort((a, b) => b - a)) {
-  //   if (exceptionUse[x] === 0) {
-  //     exceptions.splice(+x, 1);
-  //   }
-  // }
-
-  // return funcs;
 };
