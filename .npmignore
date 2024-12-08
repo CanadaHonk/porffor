@@ -1,9 +1,7 @@
 /.github
-/vscode-ext
 /bench
 /demos
 /test262
-/test
 
 logo.png
 index.html
