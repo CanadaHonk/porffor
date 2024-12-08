@@ -1697,14 +1697,12 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type === 'MetaProperty') {
-      switch (`${node.meta.name}.${node.property.name}`) {
-        case 'new.target': {
-          return [ [ Opcodes.local_get, scope.locals['#newtarget#type'].idx ] ];
-        }
-
-        default:
-          return todo(scope, `meta property object ${node.meta.name} is not supported yet`, true);
+      if (scope.constr && node.meta.name === 'new' && node.property.name === 'target') {
+        // new.target
+        return [ [ Opcodes.local_get, scope.locals['#newtarget#type'].idx ] ];
       }
+
+      return TYPES.undefined;
     }
 
     if (node.type === 'SequenceExpression') {
@@ -5295,14 +5293,17 @@ const generateEmpty = (scope, decl) => {
 };
 
 const generateMeta = (scope, decl) => {
-  switch (`${decl.meta.name}.${decl.property.name}`) {
-    case 'new.target': return [
-      [ Opcodes.local_get, scope.locals['#newtarget'].idx ],
+  if (decl.meta.name === 'new' && decl.property.name === 'target') {
+    // new.target
+    if (scope.constr) return [
+      [ Opcodes.local_get, scope.locals['#newtarget'].idx ]
     ];
 
-    default:
-      return todo(scope, `meta property object ${decl.meta.name} is not supported yet`, true);
+    // not constructor so does not exist, return undefined
+    return [ number(UNDEFINED) ];
   }
+
+  return todo(scope, `meta property object ${decl.meta.name} is not supported yet`, true);
 };
 
 let pages = new Map();
