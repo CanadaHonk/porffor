@@ -1362,3 +1362,24 @@ const asyncTest = testFunc => {
 };
 
 // todo: assert.throwsAsync
+
+/// nativeFunctionMatcher.js
+const validateNativeFunctionSource = source => source.startsWith('function ') && source.endsWith('() { [native code] }');
+
+const assertToStringOrNativeFunction = function(fn, expected) {
+  const actual = fn.toString();
+  try {
+    assert.sameValue(actual, expected);
+  } catch {
+    assertNativeFunction(fn, expected);
+  }
+};
+
+const assertNativeFunction = function(fn, special) {
+  const actual = fn.toString();
+  try {
+    validateNativeFunctionSource(actual);
+  } catch {
+    throw new Test262Error('assertNativeFunction failed');
+  }
+};
