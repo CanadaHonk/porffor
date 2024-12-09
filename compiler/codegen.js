@@ -3254,7 +3254,6 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
   const topLevel = scope.name === '#main';
   if (pattern.type === 'Identifier') {
-    let out = [];
     const name = pattern.name;
 
     hoist(scope, name, kind === 'var' ? 1 : 2, global);
@@ -3262,7 +3261,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     if (init && isFuncType(init.type)) {
       // opt: make decl with func expression like declaration
       setDefaultFuncName(init, name);
-      generateFunc(scope, init, true);
+      const [ _func, out ] = generateFunc(scope, init, true);
 
       const funcName = init.id?.name;
       if (name !== funcName) {
@@ -3270,6 +3269,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
         delete funcIndex[funcName];
       }
 
+      out.push([ Opcodes.drop ]);
       return out;
     }
 
@@ -3278,6 +3278,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       setDefaultFuncName(defaultValue, name);
     }
 
+    let out = [];
     if (topLevel && Object.hasOwn(builtinVars, name)) {
       // cannot redeclare
       if (kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
