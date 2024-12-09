@@ -514,6 +514,18 @@ const generateIdent = (scope, decl) => {
 const generateYield = (scope, decl) => {
   const arg = decl.argument ?? DEFAULT_VALUE();
 
+  if (!scope.generator) {
+    // todo: access upper-scoped generator
+    return [
+      ...generate(scope, arg),
+      [ Opcodes.drop ],
+
+      // use undefined as yield expression value
+      number(0),
+      ...setLastType(scope, TYPES.undefined)
+    ];
+  }
+
   // just support a single yield like a return for now
   return [
     // return value in generator
@@ -5299,7 +5311,7 @@ const generateMeta = (scope, decl) => {
       [ Opcodes.local_get, scope.locals['#newtarget'].idx ]
     ];
 
-    // not constructor so does not exist, return undefined
+    // todo: access upper-scoped new.target
     return [ number(UNDEFINED) ];
   }
 
