@@ -1,7 +1,10 @@
 export default () => {
   let out = '';
 
-  const error = name => out += `export const ${name} = function (message: any) {
+  const errors = [];
+  const error = name => {
+    errors.push(name);
+    out += `export const ${name} = function (message: any) {
   if (message === undefined) message = '';
     else message = ecma262.ToString(message);
 
@@ -25,6 +28,7 @@ export const __${name}_prototype_toString = (_this: ${name}) => {
 
   return obj.name + ': ' + message;
 };`;
+  };
 
   error('Error');
   error('AggregateError');
@@ -38,7 +42,12 @@ export const __${name}_prototype_toString = (_this: ${name}) => {
   error('Test262Error');
   error('TodoError');
 
-  out += `\nexport const __Test262Error_thrower = message => { throw new Test262Error(message); };`;
+  out += `
+export const __Test262Error_thrower = message => {
+  throw new Test262Error(message);
+};
+
+export const __Error_isError = (x: unknown): boolean => Porffor.fastOr(${errors.map(x => `Porffor.rawType(x) == Porffor.TYPES.${x.toLowerCase()}`).join(', ')});`;
 
   return out;
 };
