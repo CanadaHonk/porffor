@@ -162,7 +162,7 @@ if (process.argv.length >= 4) {
   }
 }
 
-if (file.startsWith('https://')) { // https only :)
+if (file && file.startsWith('https://')) { // https only :)
   // rce warning, make user confirm (disabled)
   // const rl = (await import('readline')).createInterface({ input: process.stdin, output: process.stdout });
   // const ans = await new Promise(resolve => rl.question(`\u001b[1mAre you sure you want to download this URL:\u001b[0m ${file} (y/n)? `, ans => {
