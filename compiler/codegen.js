@@ -492,6 +492,11 @@ const lookup = (scope, name, failEarly = false) => {
       if (parentLookup != null) return [ number(UNDEFINED) ];
     }
 
+    if (scope.name === name) {
+      // fallback for own func but with a different var/id name
+      return funcRef(funcByIndex(scope.index));
+    }
+
     if (failEarly) return null;
 
     return [ [ null, () => hoistLookup(scope, name), 1 ] ];
@@ -2431,6 +2436,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   let idx;
   if (Object.hasOwn(funcIndex, name)) {
     idx = funcIndex[name];
+  } else if (scope.name === name) {
+    // fallback for own func but with a different var/id name
+    idx = scope.index;
   } else if (Object.hasOwn(importedFuncs, name)) {
     idx = importedFuncs[name];
     scope.usesImports = true;
@@ -3252,12 +3260,17 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     hoist(scope, name, kind === 'var' ? 1 : 2, global);
 
     if (init && isFuncType(init.type)) {
-      // hack for let a = function () { ... }
-      if (!init.id) {
-        setDefaultFuncName(init, name);
-        generateFunc(scope, init, true);
-        return out;
+      // opt: make decl with func expression like declaration
+      setDefaultFuncName(init, name);
+      generateFunc(scope, init, true);
+
+      const funcName = init.id?.name;
+      if (name !== funcName) {
+        funcIndex[name] = funcIndex[funcName];
+        delete funcIndex[funcName];
       }
+
+      return out;
     }
 
     if (defaultValue && isFuncType(defaultValue.type)) {
@@ -3622,23 +3635,6 @@ const coctcSetup = (scope, object, tmp, msg, wasm = generate(scope, object), was
 const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
   const { type, name } = decl.left;
   const [ local, isGlobal ] = lookupName(scope, name);
-
-  // if (isFuncType(decl.right.type)) {
-  //   // hack for a = function () { ... }
-  //   decl.right.id = { name };
-
-  //   const func = generateFunc(scope, decl.right);
-
-  //   return [
-  //     number(func.index - importedFuncs.length),
-  //     ...(local != null ? [
-  //       [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
-  //       [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ],
-
-  //       ...setType(scope, name, TYPES.function)
-  //     ] : [])
-  //   ];
-  // }
 
   const op = decl.operator.slice(0, -1) || '=';
 
@@ -5691,6 +5687,9 @@ const generateMember = (scope, decl, _global, _name) => {
 
   // hack: .name
   if (decl.property.name === 'name' && hasFuncWithName(name) && !scope.noFastFuncMembers) {
+    // function name can mismatch variable/access name
+    name = funcByName(name)?.name ?? name;
+
     // eg: __String_prototype_toLowerCase -> toLowerCase
     if (name.startsWith('__')) name = name.split('_').pop();
     if (name.startsWith('#')) name = '';
