@@ -1428,7 +1428,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
       const history = await (await fetch('/test262/history.json')).json();
       const percent = history[0].results[0];
-      test262_percent.innerHTML = `${percent}% <span style="color: var(--text-muted); font-size: 80%">${'█'.repeat(Math.floor(percent / 4))}${'░'.repeat(Math.ceil((100 - percent) / 4))}</span>`;
+      test262_percent.innerHTML = `${percent.toFixed(2)}% <span style="color: var(--text-muted); font-size: 80%">${'█'.repeat(Math.floor(percent / 4))}${'░'.repeat(Math.ceil((100 - percent) / 4))}</span>`;
 
       const colors = {
         pass: '#57f287',
