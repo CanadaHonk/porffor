@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.50.27';
+globalThis.version = '0.50.28';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -63,7 +63,7 @@ if (process.argv.includes('--help')) {
       pgo: 'Enable PGO (profile-guided optimization)',
       'profile-compiler': 'Log general compiler performance (on by default when compiling to a file)',
       valtype: 'Valtype to use (i32|i64|\x1B[1mf64\x1B[0m)',
-      prng: 'PRNG algorithm to use (lcg32_glibc|lcg32_minstd|xorshift32+|xorshift64+|\x1B[1mxorshift128+\x1B[0m|xoroshiro128+|xoshiro128+)',
+      prng: 'PRNG algorithm to use (lcg32|xorshift32+|xorshift64+|\x1B[1mxorshift128+\x1B[0m|xoroshiro128+|xoshiro128+)',
       allocator: 'Allocator to use (oneshot|\x1B[1mchunk\x1B[0m)',
       'exception-mode': 'Exception mode to use (lut|\x1B[1mstack\x1B[0m)',
       fastLength: 'Spec non-compliant optimization to make .length faster',

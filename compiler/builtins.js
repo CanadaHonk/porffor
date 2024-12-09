@@ -364,13 +364,13 @@ export const BuiltinFuncs = function() {
   const prngSeed0 = (Math.random() * (2 ** 30)) | 0, prngSeed1 = (Math.random() * (2 ** 30)) | 0;
 
   const prng = ({
-    'lcg32_glibc': {
+    'lcg32': {
       globals: [ Valtype.i32 ],
       locals: [],
       returns: Valtype.i32,
       wasm: [
+        // use glibc/musl's constants
         // seed = (MULTIPLIER * seed + INCREMENT) % MODULUS
-        // MULTIPLIER * state0
         [ Opcodes.global_get, 0 ],
         number(1103515245, Valtype.i32),
         [ Opcodes.i32_mul ],
@@ -380,30 +380,8 @@ export const BuiltinFuncs = function() {
         [ Opcodes.i32_add ],
 
         // % MODULUS
-        number(2 ** 31, Valtype.i32),
-        [ Opcodes.i32_rem_s ],
-
-        // state0 =
-        [ Opcodes.global_set, 0 ],
-
-        // state0
-        [ Opcodes.global_get, 0 ],
-      ],
-    },
-    'lcg32_minstd': {
-      globals: [ Valtype.i32 ],
-      locals: [],
-      returns: Valtype.i32,
-      wasm: [
-        // seed = (MULTIPLIER * seed + INCREMENT) % MODULUS
-        // MULTIPLIER * state0
-        [ Opcodes.global_get, 0 ],
-        number(48271, Valtype.i32),
-        [ Opcodes.i32_mul ],
-
-        // % MODULUS
-        number((2 ** 31) - 1, Valtype.i32),
-        [ Opcodes.i32_rem_s ],
+        number(0x7fffffff, Valtype.i32),
+        [ Opcodes.i32_and ],
 
         // state0 =
         [ Opcodes.global_set, 0 ],
@@ -483,11 +461,6 @@ export const BuiltinFuncs = function() {
 
         // state0 = s1
         [ Opcodes.global_set, 0 ],
-
-        // // s1 * 0x2545F4914F6CDD1D
-        // [ Opcodes.local_get, 0 ],
-        // [ Opcodes.i64_const, 0x9d, 0xba, 0xb3, 0xfb, 0x94, 0x92, 0xfd, 0xa2, 0x25 ],
-        // [ Opcodes.i64_mul ]
 
         // s1
         [ Opcodes.local_get, 0 ],
