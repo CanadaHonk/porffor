@@ -1717,6 +1717,12 @@ locals:[124,124,127,127],localNames:["_this","_this#type","thisArg","thisArg#typ
 usedTypes:[80],
 usesTag:1,
 }
+this.__Function_prototype_bind = {
+wasm:(_,{internalThrow})=>[[32,1],[65,6],[71],[4,64],...internalThrow(_,'TypeError',`Function.prototype.bind expects 'this' to be a Function`),[11],[32,0],[65,6],[15]],
+params:[124,127,124,127,124,127],typedParams:1,returns:[124,127],typedReturns:1,
+locals:[],localNames:["_this","_this#type","thisArg","thisArg#type","argsArray","argsArray#type"],
+usesTag:1,
+}
 this.__Porffor_Generator = {
 wasm:()=>[[32,0],[34,2],[65,50],[15]],
 params:[124,127],typedParams:1,returns:[124,127],typedReturns:1,
