@@ -2720,15 +2720,13 @@ const generateThis = (scope, decl) => {
   if (!scope.constr) {
     // this in a non-constructor context is a reference to globalThis
     return [
-      ...generate(scope, { type: 'Identifier', name: 'globalThis' }),
-      ...setLastType(scope, getType(scope, 'globalThis'))
+      ...generate(scope, { type: 'Identifier', name: 'globalThis' })
     ];
   }
 
   // opt: do not check for pure constructors or strict mode
   if ((!globalThis.precompile && scope.strict) || scope._onlyConstr || scope._onlyThisMethod || decl._noGlobalThis) return [
-    [ Opcodes.local_get, scope.locals['#this'].idx ],
-    ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
+    [ Opcodes.local_get, scope.locals['#this'].idx ]
   ];
 
   return [
@@ -2749,8 +2747,7 @@ const generateThis = (scope, decl) => {
       ];
     }, 0 ],
 
-    [ Opcodes.local_get, scope.locals['#this'].idx ],
-    ...setLastType(scope, [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ])
+    [ Opcodes.local_get, scope.locals['#this'].idx ]
   ];
 };
 
