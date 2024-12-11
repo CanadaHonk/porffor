@@ -6197,6 +6197,18 @@ const generateClass = (scope, decl) => {
     let { type, key, value, kind, static: _static, computed } = x;
     if (kind === 'constructor') continue;
 
+    if (type === 'StaticBlock') {
+      // todo: make this more compliant
+      out.push(
+        ...generate(scope, {
+          type: 'BlockStatement',
+          body: x.body
+        }),
+        [ Opcodes.drop ]
+      );
+      continue;
+    }
+
     let object = _static ? root : proto;
 
     const k = getProperty(x, true);
