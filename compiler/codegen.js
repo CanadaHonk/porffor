@@ -567,13 +567,8 @@ const generateReturn = (scope, decl) => {
       ...generate(scope, arg),
       ...getNodeType(scope, arg),
 
-      [ Opcodes.call, includeBuiltin(scope, scope.async ? '__Porffor_AsyncGenerator_prototype_return' : '__Porffor_Generator_prototype_return').index ],
-      [ Opcodes.drop ],
-      [ Opcodes.drop ],
-
-      // return generator
-      [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
-      number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32),
+      [ Opcodes.call, includeBuiltin(scope, scope.async ? '__Porffor_AsyncGenerator_return' : '__Porffor_Generator_return').index ],
+      // returns generator
       [ Opcodes.return ]
     ];
   }
@@ -6553,7 +6548,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
           addVarMetadata(func, name, false, typeAnno);
 
           // automatically add throws if unexpected this type to builtins
-          if (globalThis.precompile && i === 0 && func.name.includes('_prototype_')) {
+          if (globalThis.precompile && i === 0 && func.name.includes('_prototype_') && !func.name.startsWith('__Porffor_')) {
             if (typeAnno.type === TYPES.array) {
               // Array.from
               wasm.push(

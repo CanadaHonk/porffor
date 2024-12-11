@@ -306,6 +306,7 @@ export const __Porffor_object_writeKey = (ptr: i32, key: any): void => {
   Porffor.wasm.i32.store(ptr, keyEnc, 0, 0);
 };
 
+// todo: check prototype for setters
 export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);

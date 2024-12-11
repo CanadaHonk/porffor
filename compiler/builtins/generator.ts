@@ -12,9 +12,17 @@ export const __Porffor_Generator_yield = (vals: any[], value: any): void => {
   vals.length = len + 1;
 };
 
+export const __Porffor_Generator_return = (vals: any[], value: any): __Porffor_Generator => {
+  vals.length = 1;
+  vals[0] = value;
+
+  const gen: __Porffor_Generator = vals;
+  return gen;
+};
+
 export const __Porffor_Generator_prototype_next = (vals: any[]): object => {
   const obj: object = {};
-  obj.next = vals.shift();
+  obj.value = vals.shift();
   obj.done = vals.length == 0;
 
   return obj;
@@ -45,9 +53,17 @@ export const __Porffor_AsyncGenerator_yield = (vals: any[], value: any): void =>
   vals.length = len + 1;
 };
 
+export const __Porffor_AsyncGenerator_return = (vals: any[], value: any): __Porffor_AsyncGenerator => {
+  vals.length = 1;
+  vals[0] = value;
+
+  const gen: __Porffor_AsyncGenerator = vals;
+  return gen;
+};
+
 export const __Porffor_AsyncGenerator_prototype_next = async (vals: any[]): object => {
   const obj: object = {};
-  obj.next = await vals.shift();
+  obj.value = await vals.shift();
   obj.done = vals.length == 0;
 
   return obj;
