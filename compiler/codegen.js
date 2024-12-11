@@ -1709,6 +1709,7 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type === 'ThisExpression') {
+      if (scope.overrideThisType) return scope.overrideThisType;
       if (!scope.constr) return getType(scope, 'globalThis');
       return [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ];
     }
@@ -2717,6 +2718,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 };
 
 const generateThis = (scope, decl) => {
+  if (scope.overrideThis) return scope.overrideThis;
+
   if (!scope.constr) {
     // this in a non-constructor context is a reference to globalThis
     return [
@@ -6187,10 +6190,11 @@ const generateClass = (scope, decl) => {
     );
   }
 
+  scope.overrideThis = generate(scope, root);
+  scope.overrideThisType = TYPES.function;
+
   for (const x of body) {
     let { type, key, value, kind, static: _static, computed } = x;
-    if (type !== 'MethodDefinition' && type !== 'PropertyDefinition') return todo(scope, `class body type ${type} is not supported yet`, true);
-
     if (kind === 'constructor') continue;
 
     let object = _static ? root : proto;
@@ -6249,6 +6253,9 @@ const generateClass = (scope, decl) => {
       [ Opcodes.drop ]
     );
   }
+
+  delete scope.overrideThis;
+  delete scope.overrideThisType;
 
   // error if not being constructed
   func.wasm.unshift(
