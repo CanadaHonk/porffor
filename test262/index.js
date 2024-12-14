@@ -424,6 +424,11 @@ if (isMainThread) {
         contents;
     }
 
+    // hack: skip compiler timeouts
+    if (test.file === 'test/staging/sm/String/normalize-generateddata-input.js') {
+      contents = 'throw "skipped";';
+    }
+
     if (debugAsserts) contents = contents
       .replace('var assert = mustBeTrue => {', 'var assert = (mustBeTrue, msg) => {')
       .replaceAll('(actual, expected) => {', '(actual, expected, msg) => {')

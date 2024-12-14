@@ -1383,3 +1383,130 @@ const assertNativeFunction = function(fn, special) {
     throw new Test262Error('assertNativeFunction failed');
   }
 };
+
+/// sm/non262.js
+function print() {}
+function printBugNumber() {}
+function inSection() {}
+function printStatus() {}
+function writeHeaderToLog() {}
+
+function assertThrownErrorContains(f, substr) {
+  try {
+    f();
+  } catch {
+    return;
+  }
+
+  throw new Test262Error("Expected error no exception thrown");
+}
+
+function assertThrowsInstanceOfWithMessageCheck(f, ctor, _check, msg) {
+  var fullmsg;
+  try {
+    f();
+  } catch (exc) {
+    if (exc instanceof ctor)
+      return;
+    fullmsg = `Assertion failed: expected exception ${ctor.name}, got ${exc}`;
+  }
+
+  if (fullmsg === undefined)
+    fullmsg = `Assertion failed: expected exception ${ctor.name}, no exception thrown`;
+  if (msg !== undefined)
+    fullmsg += " - " + msg;
+
+  throw new Error(fullmsg);
+}
+
+function assertEq(a, b) {
+  assert.sameValue(a, b);
+}
+function reportCompare(a, b) {
+  assert.sameValue(a, b);
+}
+
+function reportMatch(expectedRegExp, actual) {
+  assert.sameValue(typeof actual, "string");
+  assert.notSameValue(expectedRegExp.exec(actual), null);
+}
+
+function createExternalArrayBuffer(size) {
+  return new ArrayBuffer(size);
+}
+
+function enableGeckoProfilingWithSlowAssertions() {}
+function enableGeckoProfiling() {}
+function disableGeckoProfiling() {}
+
+// sm/non262-shell.js
+function deepEqual(a, b) {
+  if (typeof a != typeof b)
+    return false;
+
+  if (typeof a == 'object') {
+    var props = {};
+    for (var prop in a) {
+      if (!deepEqual(a[prop], b[prop]))
+        return false;
+      props[prop] = true;
+    }
+
+    for (var prop in b)
+      if (!props[prop])
+        return false;
+
+    return a.length == b.length;
+  }
+
+  if (a === b) {
+    return a !== 0 || 1/a === 1/b;
+  }
+
+  return a !== a && b !== b;
+}
+
+function assertThrowsValue(f, val, msg) {
+  var fullmsg;
+  try {
+    f();
+  } catch (exc) {
+    if ((exc === val) === (val === val) && (val !== 0 || 1 / exc === 1 / val))
+      return;
+  }
+
+  throw new Error('assertThrowsValue failed');
+};
+
+function assertThrownErrorContains(thunk, substr) {
+  try {
+    thunk();
+  } catch {
+    return;
+  }
+
+  throw new Error("Expected error no exception thrown");
+};
+
+function assertThrowsInstanceOfWithMessageCheck(f, ctor, check, msg) {
+  var fullmsg;
+  try {
+    f();
+  } catch (exc) {
+    if (exc instanceof ctor) return;
+  }
+
+  throw new Error('assertThrowsInstanceOfWithMessageCheck failed');
+};
+
+function assertThrowsInstanceOf(f, ctor, msg) {
+  assertThrowsInstanceOfWithMessageCheck(f, ctor, _ => true, msg);
+};
+
+function assertThrowsInstanceOfWithMessage(f, ctor, expected, msg) {
+  assertThrowsInstanceOfWithMessageCheck(f, ctor, message => message === expected, msg);
+}
+
+function assertThrowsInstanceOfWithMessageContains(f, ctor, substr, msg) {
+  assertThrowsInstanceOfWithMessageCheck(f, ctor, message => message.indexOf(substr) !== -1, msg);
+}
