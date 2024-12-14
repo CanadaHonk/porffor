@@ -474,9 +474,8 @@ const lookup = (scope, name, failEarly = false) => {
 
     // no local var with name
     if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
-
-    if (Object.hasOwn(importedFuncs, name)) return [ number(importedFuncs[name] - importedFuncs.length) ];
     if (Object.hasOwn(funcIndex, name)) return funcRef(funcByName(name));
+    if (Object.hasOwn(importedFuncs, name)) return [ number(importedFuncs[name] - importedFuncs.length) ];
 
     if (name.startsWith('__')) {
       // return undefined if unknown key in already known var
@@ -2705,7 +2704,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if ((builtinFuncs[name] && builtinFuncs[name].returns?.length === 0) ||
-      (importedFuncs[name] != null && importedFuncs[importedFuncs[name]]?.returns === 0)) {
+      (idx === importedFuncs[name] && importedFuncs[importedFuncs[name]]?.returns === 0)) {
     out.push(number(UNDEFINED));
   }
 
