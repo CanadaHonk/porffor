@@ -366,10 +366,10 @@ export default (source, module = undefined, customImports = {}, print = str => p
     const disasm = disassemble(func.wasm.slice(min, max), func.name, 0, func.locals, func.params, func.returns, funcs, globals, exceptions)
       .slice(0, -1).split('\n').filter(x => !x.startsWith('\x1B[90m;;'));
 
-    const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
+    const noAnsi = s => s && s.replace(/\u001b\[[0-9]+m/g, '');
     let longest = 0;
     for (let j = 0; j < disassemble.length; j++) {
-      longest = Math.max(longest, noAnsi(disassemble[j]).length);
+      longest = Math.max(longest, noAnsi(disassemble[j])?.length ?? 0);
     }
 
     if (middleIndex != -1) {
