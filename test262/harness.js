@@ -1391,7 +1391,7 @@ function inSection() {}
 function printStatus() {}
 function writeHeaderToLog() {}
 
-function assertThrownErrorContains(f, substr) {
+function assertThrownErrorContains(f) {
   try {
     f();
   } catch {
@@ -1401,23 +1401,15 @@ function assertThrownErrorContains(f, substr) {
   throw new Test262Error("Expected error no exception thrown");
 }
 
-function assertThrowsInstanceOfWithMessageCheck(f, ctor, _check, msg) {
-  var fullmsg;
+function assertThrowsInstanceOfWithMessageCheck(f, ctor) {
   try {
     f();
   } catch (exc) {
-    if (exc instanceof ctor)
-      return;
-    fullmsg = `Assertion failed: expected exception ${ctor.name}, got ${exc}`;
+    if (exc instanceof ctor) return;
   }
 
-  if (fullmsg === undefined)
-    fullmsg = `Assertion failed: expected exception ${ctor.name}, no exception thrown`;
-  if (msg !== undefined)
-    fullmsg += " - " + msg;
-
-  throw new Error(fullmsg);
-}
+  throw new Error('assertThrowsInstanceOfWithMessageCheck failed');
+};
 
 function assertEq(a, b) {
   assert.sameValue(a, b);
@@ -1466,7 +1458,7 @@ function deepEqual(a, b) {
   return a !== a && b !== b;
 }
 
-function assertThrowsValue(f, val, msg) {
+function assertThrowsValue(f, val) {
   var fullmsg;
   try {
     f();
@@ -1478,35 +1470,14 @@ function assertThrowsValue(f, val, msg) {
   throw new Error('assertThrowsValue failed');
 };
 
-function assertThrownErrorContains(thunk, substr) {
-  try {
-    thunk();
-  } catch {
-    return;
-  }
-
-  throw new Error("Expected error no exception thrown");
+function assertThrowsInstanceOf(f, ctor) {
+  assertThrowsInstanceOfWithMessageCheck(f, ctor);
 };
 
-function assertThrowsInstanceOfWithMessageCheck(f, ctor, check, msg) {
-  var fullmsg;
-  try {
-    f();
-  } catch (exc) {
-    if (exc instanceof ctor) return;
-  }
-
-  throw new Error('assertThrowsInstanceOfWithMessageCheck failed');
-};
-
-function assertThrowsInstanceOf(f, ctor, msg) {
-  assertThrowsInstanceOfWithMessageCheck(f, ctor, _ => true, msg);
-};
-
-function assertThrowsInstanceOfWithMessage(f, ctor, expected, msg) {
-  assertThrowsInstanceOfWithMessageCheck(f, ctor, message => message === expected, msg);
+function assertThrowsInstanceOfWithMessage(f, ctor) {
+  assertThrowsInstanceOfWithMessageCheck(f, ctor);
 }
 
-function assertThrowsInstanceOfWithMessageContains(f, ctor, substr, msg) {
-  assertThrowsInstanceOfWithMessageCheck(f, ctor, message => message.indexOf(substr) !== -1, msg);
+function assertThrowsInstanceOfWithMessageContains(f, ctor) {
+  assertThrowsInstanceOfWithMessageCheck(f, ctor);
 }
