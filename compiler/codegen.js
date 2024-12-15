@@ -2134,12 +2134,13 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         funcs.push(func);
       }
 
+      const arg = decl.arguments[0] ?? DEFAULT_VALUE();
       const idx = funcIndex[rhemynName];
       return [
         // make string arg
-        ...generate(scope, decl.arguments[0]),
+        ...generate(scope, arg),
         Opcodes.i32_to_u,
-        ...getNodeType(scope, decl.arguments[0]),
+        ...getNodeType(scope, arg),
 
         // call regex func
         [ Opcodes.call, idx ],
@@ -2150,7 +2151,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
 
     protoName = decl.callee.property.name;
-
     target = decl.callee.object;
   }
 
