@@ -42,7 +42,7 @@ if (isMainThread) {
 
   const tests = [];
   for await (const test of _tests) {
-    if (test.scenario === 'strict mode' && !test.attrs.flags.onlyStrict) continue;
+    if ((test.scenario === 'strict mode' && !test.attrs.flags.onlyStrict) || test.file.endsWith('.py')) continue;
     tests.push(test);
   }
 
