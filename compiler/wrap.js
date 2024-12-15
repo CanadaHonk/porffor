@@ -537,7 +537,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
   }
 
   if (Prefs.disassemble) {
-    return { exports, wasm, times, disams: funcs.map(x => disassemble(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, globals, exceptions)), c };
+    return { exports, wasm, times, disasms: funcs.map(x => disassemble(x.wasm, x.name, x.index, x.locals, x.params, x.returns, funcs, globals, exceptions)), c };
   }
 
   return { exports, wasm, times, pages, c };
