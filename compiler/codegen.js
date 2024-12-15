@@ -2163,6 +2163,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         type: 'CallExpression',
         callee: target,
         arguments: decl.arguments.slice(1),
+        optional: decl.optional,
         _thisWasm: [
           ...generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
           [ Opcodes.local_tee, valTmp ],
@@ -2269,6 +2270,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
         protoBC[type] = () => generate(scope, {
           type: 'CallExpression',
+          optional: decl.optional,
           callee: {
             type: 'Identifier',
             name: x
@@ -2370,7 +2372,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           ...protoBC,
 
           // TODO: error better
-          default: internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`, !unusedValue)
+          default: decl.optional ? withType(scope, [ number(UNDEFINED) ], TYPES.undefined)
+            : internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`, !unusedValue)
         }, unusedValue ? Blocktype.void : valtypeBinary),
         ...(unusedValue ? [ number(UNDEFINED) ] : [])
       ];
@@ -2392,7 +2395,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           ...protoBC,
 
           // TODO: error better
-          default: def
+          default: decl.optional ? withType(scope, [ number(UNDEFINED) ], TYPES.undefined)
+            : def
         }, valtypeBinary)
       ];
     }
@@ -2580,7 +2584,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           ...setLastType(scope)
         ],
 
-        default: internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, Valtype.f64)
+        default: decl.optional ? withType(scope, [ number(UNDEFINED) ], TYPES.undefined)
+          : internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, Valtype.f64)
       }, Valtype.f64),
       ...(valtypeBinary === Valtype.i32 && scope.returns[0] !== Valtype.f64 ? [ [ Opcodes.f64_convert_i32_s ] ] : [])
     ];
