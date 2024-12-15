@@ -3180,7 +3180,7 @@ const setDefaultFuncName = (decl, name) => {
   if (decl.type === 'ClassExpression') {
     // check if it has a name definition
     for (const x of decl.body.body) {
-      if (x.key.name === 'name') return;
+      if (x.static && x.key.name === 'name') return;
     }
   }
 
