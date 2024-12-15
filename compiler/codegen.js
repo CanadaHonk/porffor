@@ -3258,7 +3258,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       const [ _func, out ] = generateFunc(scope, init, true);
 
       const funcName = init.id?.name;
-      if (name !== funcName) {
+      if (name !== funcName && funcIndex[funcName]) {
         funcIndex[name] = funcIndex[funcName];
         delete funcIndex[funcName];
       }
