@@ -243,7 +243,7 @@ export default (code, module = undefined) => {
     outFile ??= Prefs.native ? './porffor_tmp' : file.split('/').at(-1).split('.')[0];
 
     let compiler = Prefs.compiler ?? 'clang';
-    const cO = Prefs._cO ?? 'Ofast';
+    const cO = Prefs._cO ?? 'O3';
 
     if (compiler === 'zig') compiler = [ 'zig', 'cc' ];
       else compiler = [ compiler ];
