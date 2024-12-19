@@ -2119,15 +2119,17 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   // literal.func()
-  if (!decl._new && !name && decl.callee.type === 'MemberExpression') {
+  if (!decl._new && !name && (decl.callee.type === 'MemberExpression' || decl.callee.type === 'ChainExpression')) {
+    const prop = (decl.callee.expression ?? decl.callee).property;
+    const object = (decl.callee.expression ?? decl.callee).object;
+
     // megahack for /regex/.func()
-    const funcName = decl.callee.property.name;
-    if (decl.callee.object.regex && ['test'].includes(funcName)) {
-      const regex = decl.callee.object.regex.pattern;
-      const rhemynName = `regex_${funcName}_${sanitize(regex)}`;
+    if (object?.regex && ['test'].includes(prop.name)) {
+      const regex = object.regex.pattern;
+      const rhemynName = `regex_${prop.name}_${sanitize(regex)}`;
 
       if (!funcIndex[rhemynName]) {
-        const func = Rhemyn[funcName](regex, currentFuncIndex++, rhemynName);
+        const func = Rhemyn[prop.name](regex, currentFuncIndex++, rhemynName);
         func.internal = true;
 
         funcIndex[func.name] = func.index;
@@ -2146,15 +2148,15 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         [ Opcodes.call, idx ],
         Opcodes.i32_from_u,
 
-        ...setLastType(scope, Rhemyn.types[funcName])
+        ...setLastType(scope, Rhemyn.types[prop.name])
       ];
     }
 
-    protoName = decl.callee.property.name;
-    target = decl.callee.object;
+    protoName = prop?.name;
+    target = object;
   }
 
-  if (protoName) {
+  if (protoName && target) {
     if (protoName === 'call') {
       const valTmp = localTmp(scope, '#call_val');
       const typeTmp = localTmp(scope, '#call_type', Valtype.i32);
@@ -2528,28 +2530,31 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     const calleeLocal = localTmp(scope, tmpName + 'callee');
 
     // hack: this should be more thorough, Function.bind, etc
-    if (decl.callee.type === 'MemberExpression' && !decl._new) {
-      const thisLocal = localTmp(scope, tmpName + 'caller');
-      const thisLocalType = localTmp(scope, tmpName + 'caller#type', Valtype.i32);
+    if (!decl._new && (decl.callee.type === 'MemberExpression' || decl.callee.type === 'ChainExpression')) {
+      const { property, object, computed, optional } = decl.callee.expression ?? decl.callee;
+      if (object && property) {
+        const thisLocal = localTmp(scope, tmpName + 'caller');
+        const thisLocalType = localTmp(scope, tmpName + 'caller#type', Valtype.i32);
 
-      knownThis = [
-        [ Opcodes.local_get, thisLocal ],
-        [ Opcodes.local_get, thisLocalType ]
-      ];
-      getCallee = [
-        ...generate(scope, decl.callee.object),
-        [ Opcodes.local_set, thisLocal ],
-        ...getNodeType(scope, decl.callee.object),
-        [ Opcodes.local_set, thisLocalType ],
+        knownThis = [
+          [ Opcodes.local_get, thisLocal ],
+          [ Opcodes.local_get, thisLocalType ]
+        ];
+        getCallee = [
+          ...generate(scope, object),
+          [ Opcodes.local_set, thisLocal ],
+          ...getNodeType(scope, object),
+          [ Opcodes.local_set, thisLocalType ],
 
-        ...generate(scope, {
-          type: 'MemberExpression',
-          object: { type: 'Identifier', name: tmpName + 'caller' },
-          property: decl.callee.property,
-          computed: decl.callee.computed,
-          optional: decl.callee.optional
-        })
-      ];
+          ...generate(scope, {
+            type: 'MemberExpression',
+            object: { type: 'Identifier', name: tmpName + 'caller' },
+            property,
+            computed,
+            optional
+          })
+        ];
+      }
     }
 
     let callee = decl.callee, callAsNew = decl._new;
