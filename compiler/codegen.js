@@ -2382,24 +2382,22 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
 
     if (Object.keys(protoBC).length > 0) {
-      let def = internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`, true);
+      protoBC.default = decl.optional ?
+        withType(scope, [ number(UNDEFINED) ], TYPES.undefined) :
+        internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`, true);
 
       // fallback to object prototype impl as a basic prototype chain hack
-      if (protoBC[TYPES.object]) def = protoBC[TYPES.object];
+      if (protoBC[TYPES.object]) {
+        protoBC[TYPES.undefined] = protoBC[TYPES.null] = protoBC.default;
+        protoBC.default = protoBC[TYPES.object];
+      }
 
       // alias primitive prototype with primitive object types
       aliasPrimObjsBC(protoBC);
 
       return [
         ...out,
-
-        ...typeSwitch(scope, getNodeType(scope, target), {
-          ...protoBC,
-
-          // TODO: error better
-          default: decl.optional ? withType(scope, [ number(UNDEFINED) ], TYPES.undefined)
-            : def
-        }, valtypeBinary)
+        ...typeSwitch(scope, getNodeType(scope, target), protoBC, valtypeBinary)
       ];
     }
   }
