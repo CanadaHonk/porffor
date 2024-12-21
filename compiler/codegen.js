@@ -6524,6 +6524,11 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         };
       }
 
+      if (globalThis.precompile) {
+        globalThis.funcBodies ??= {};
+        globalThis.funcBodies[name] = body;
+      }
+
       // todo: enable for all block statement bodies, not just main
       if (name === '#main') {
         // hoist function declarations to the top of AST pre-codegen so

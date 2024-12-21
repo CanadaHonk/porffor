@@ -1,14 +1,15 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
 import { TYPES } from './types.js';
+import { log } from './log.js';
 
 import process from 'node:process';
 globalThis.process = process;
 
 import fs from 'node:fs';
 import { join } from 'node:path';
-
 import { fileURLToPath } from 'node:url';
+
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 globalThis.precompileCompilerPath = __dirname;
 globalThis.precompile = true;
@@ -73,6 +74,9 @@ const compile = async (file, _funcs) => {
   const main = funcs.find(x => x.name === '#main');
   const exports = funcs.filter(x => x.export && x.name !== '#main');
   for (const x of exports) {
+    const body = globalThis.funcBodies[x.name];
+    const bodyHasTopLevelThrow = body?.body && body.body.some(x => x.type === 'ThrowStatement');
+
     if (x.data) {
       x.data = x.data.reduce((acc, x) => { acc[data[x].page] = data[x].bytes; return acc; }, {});
     }
@@ -91,9 +95,14 @@ const compile = async (file, _funcs) => {
         return acc;
       }, {});
 
+      let depth = 0;
       for (let i = 0; i < wasm.length; i++) {
         const y = wasm[i];
         const n = wasm[i + 1];
+
+        if (y[0] === Opcodes.block || y[0] === Opcodes.loop || y[0] === Opcodes.if || y[0] === Opcodes.try) depth++;
+        if (y[0] === Opcodes.end) depth--;
+
         if (y[0] === Opcodes.call) {
           const idx = y[1];
           const f = funcs.find(x => x.index === idx);
@@ -147,6 +156,8 @@ const compile = async (file, _funcs) => {
         }
 
         if (n[0] === Opcodes.throw) {
+          if (!bodyHasTopLevelThrow && depth === 0) log.warning('codegen', `top-level throw in ${x.name}`);
+
           x.usesTag = true;
           if (y[0] === Opcodes.i32_const && n[1] === 0) {
             const id = read_signedLEB128(y.slice(1));
@@ -190,11 +201,11 @@ const precompile = async () => {
     try {
       await compile(join(dir, file), funcs);
     } catch (e) {
-      console.log(`\r${' '.repeat(80)}\r${' '.repeat(12)}${file}`);
+      console.log(`\r${' '.repeat(80)}\r${' '.repeat(12)}${file}\r`);
       throw e;
     }
 
-    process.stdout.write(`\r${' '.repeat(80)}\r\u001b[90m${`[${(performance.now() - t).toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92m${file}\u001b[0m`);
+    process.stdout.write(`\r${' '.repeat(80)}\r\u001b[90m${`[${(performance.now() - t).toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92m${file}\u001b[0m\r`);
   }
 
   const total = performance.now() - t;
