@@ -69,7 +69,7 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
     const obj: object = arg;
 
     const lengthKey: bytestring = 'length';
-    len = obj[lengthKey];
+    len = ecma262.ToIntegerOrInfinity(obj[lengthKey]);
 
     for (let i: i32 = 0; i < len; i++) {
       out[i] = obj[i];
