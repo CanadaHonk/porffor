@@ -31,15 +31,6 @@ export const Number = function (value: any): number|NumberObject {
 
 // radix: number|any for rawType check
 export const __Number_prototype_toString = (_this: number, radix: number|any) => {
-  let out: bytestring = Porffor.allocate();
-  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
-
-  if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) return out = 'NaN';
-    if (_this == Infinity) return out = 'Infinity';
-    return out = '-Infinity';
-  }
-
   if (Porffor.rawType(radix) != Porffor.TYPES.number) {
     // todo: string to number
     radix = 10;
@@ -50,9 +41,18 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     throw new RangeError('toString() radix argument must be between 2 and 36');
   }
 
-  if (_this == 0) {
-    return out = '0';
+  if (!Number.isFinite(_this)) {
+    if (Number.isNaN(_this)) return 'NaN';
+    if (_this == Infinity) return 'Infinity';
+    return '-Infinity';
   }
+
+  if (_this == 0) {
+    return '0';
+  }
+
+  let out: bytestring = Porffor.allocate();
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   // if negative value
   if (_this < 0) {
@@ -264,19 +264,19 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
 };
 
 export const __Number_prototype_toFixed = (_this: number, fractionDigits: number) => {
-  let out: bytestring = Porffor.allocate();
-  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
-
-  if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) return out = 'NaN';
-    if (_this == Infinity) return out = 'Infinity';
-    return out = '-Infinity';
-  }
-
   fractionDigits |= 0;
   if (fractionDigits < 0 || fractionDigits > 100) {
     throw new RangeError('toFixed() fractionDigits argument must be between 0 and 100');
   }
+
+  if (!Number.isFinite(_this)) {
+    if (Number.isNaN(_this)) return 'NaN';
+    if (_this == Infinity) return 'Infinity';
+    return '-Infinity';
+  }
+
+  let out: bytestring = Porffor.allocate();
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   // if negative value
   if (_this < 0) {
@@ -353,13 +353,10 @@ export const __Number_prototype_toLocaleString = (_this: number) => __Number_pro
 
 // fractionDigits: number|any for rawType check
 export const __Number_prototype_toExponential = (_this: number, fractionDigits: number|any) => {
-  let out: bytestring = Porffor.allocate();
-  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
-
   if (!Number.isFinite(_this)) {
-    if (Number.isNaN(_this)) return out = 'NaN';
-    if (_this == Infinity) return out = 'Infinity';
-    return out = '-Infinity';
+    if (Number.isNaN(_this)) return 'NaN';
+    if (_this == Infinity) return 'Infinity';
+    return '-Infinity';
   }
 
   if (Porffor.rawType(fractionDigits) != Porffor.TYPES.number) {
@@ -371,6 +368,9 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
       throw new RangeError('toExponential() fractionDigits argument must be between 0 and 100');
     }
   }
+
+  let out: bytestring = Porffor.allocate();
+  let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   // if negative value
   if (_this < 0) {
