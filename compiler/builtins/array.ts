@@ -70,6 +70,8 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
 
     const lengthKey: bytestring = 'length';
     len = ecma262.ToIntegerOrInfinity(obj[lengthKey]);
+    if (len > 4294967295) throw new RangeError('Invalid array length');
+    if (len < 0) len = 0;
 
     for (let i: i32 = 0; i < len; i++) {
       out[i] = obj[i];
