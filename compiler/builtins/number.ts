@@ -51,7 +51,7 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     return '0';
   }
 
-  let out: bytestring = Porffor.allocate();
+  let out: bytestring = Porffor.allocateBytes(512);
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   // if negative value
@@ -275,7 +275,7 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
     return '-Infinity';
   }
 
-  let out: bytestring = Porffor.allocate();
+  let out: bytestring = Porffor.allocateBytes(512);
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   // if negative value
@@ -369,7 +369,7 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
     }
   }
 
-  let out: bytestring = Porffor.allocate();
+  let out: bytestring = Porffor.allocateBytes(512);
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
 
   // if negative value
