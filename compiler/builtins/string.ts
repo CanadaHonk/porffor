@@ -1162,6 +1162,8 @@ export const __String_prototype_repeat = (_this: string, cnt: any) => {
 
   let out: string = Porffor.allocate();
   const thisLen: i32 = _this.length * 2;
+  if (thisLen == 0) return '';
+
   for (let i: i32 = 0; i < count; i++) {
     Porffor.wasm`
 ;; dst = out + 4 + i * thisLen
@@ -1194,6 +1196,8 @@ export const __ByteString_prototype_repeat = (_this: string, cnt: any) => {
 
   let out: bytestring = Porffor.allocate();
   const thisLen: i32 = _this.length;
+  if (thisLen == 0) return '';
+
   for (let i: i32 = 0; i < count; i++) {
     Porffor.wasm`
 ;; dst = out + 4 + i * thisLen
