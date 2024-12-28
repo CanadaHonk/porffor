@@ -748,8 +748,20 @@ const concatStrings = (scope, left, right, leftType, rightType) => {
   ];
 };
 
-const compareStrings = (scope, left, right, leftType, rightType) => {
-  // todo/perf: add mode to use strcmp instead
+const compareStrings = (scope, left, right, leftType, rightType, noConv = false) => {
+  if (noConv) return [
+    ...left,
+    Opcodes.i32_to_u,
+    ...leftType,
+
+    ...right,
+    Opcodes.i32_to_u,
+    ...rightType,
+
+    [ Opcodes.call, includeBuiltin(scope, '__Porffor_strcmp').index ],
+    [ Opcodes.drop ]
+  ];
+
   return [
     ...left,
     ...(valtypeBinary === Valtype.i32 ? [ [ Opcodes.f64_convert_i32_s ] ] : []),
@@ -989,9 +1001,9 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   // todo: if equality op and an operand is undefined, return false
   // todo: niche null hell with 0
 
-  if ((knownLeft === TYPES.string || knownRight === TYPES.string) ||
-      (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring) ||
-      (knownLeft === TYPES.stringobject || knownRight === TYPES.stringobject)) {
+  const knownLeftStr = knownLeft === TYPES.string || knownLeft === TYPES.bytestring || knownLeft === TYPES.stringobject;
+  const knownRightStr = knownRight === TYPES.string || knownRight === TYPES.bytestring || knownRight === TYPES.stringobject;
+  if (knownLeftStr || knownRightStr) {
     if (op === '+') {
       // string concat (a + b)
       return concatStrings(scope, left, right, leftType, rightType);
@@ -1003,7 +1015,7 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
     // string comparison
     if (op === '===' || op === '==' || op === '!==' || op === '!=') {
       return [
-        ...compareStrings(scope, left, right, leftType, rightType),
+        ...compareStrings(scope, left, right, leftType, rightType, knownLeftStr && knownRightStr),
         ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : [])
       ];
     }
