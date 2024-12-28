@@ -61,15 +61,15 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     for (let [ flag, desc ] of Object.entries({
       f: 'Print disassembled Wasm generated from user functions',
       pgo: 'Enable PGO (profile-guided optimization)',
-      'profile-compiler': 'Log general compiler performance (on by default when compiling to a file)',
-      valtype: 'Valtype to use (i32|i64|\x1B[1mf64\x1B[0m)',
-      prng: 'PRNG algorithm to use (lcg32|xorshift32+|xorshift64+|\x1B[1mxorshift128+\x1B[0m|xoroshiro128+|xoshiro128+)',
-      allocator: 'Allocator to use (oneshot|\x1B[1mchunk\x1B[0m)',
-      'exception-mode': 'Exception mode to use (lut|\x1B[1mstack\x1B[0m)',
-      fastLength: 'Spec non-compliant optimization to make .length faster',
+      valtype: 'Valtype to use, not well supported (i32|i64|\x1B[1mf64\x1B[0m)',
       'no-coctc': 'Disable COCTC (cross-object compile-time cache)',
       cyclone: 'Enable experimental Cyclone optimizer',
-      'no-treeshake-wasm-imports': 'Do not treeshake Wasm imports'
+      'no-treeshake-wasm-imports': 'Do not treeshake Wasm imports',
+      allocator: 'Allocator to use (oneshot|\x1B[1mchunk\x1B[0m)',
+      'exception-mode': 'Exception mode to use (lut|\x1B[1mstack\x1B[0m)',
+      'fast-length': 'Non-compliant optimization to make .length faster',
+      'profile-compiler': 'Log general compiler performance (on by default when compiling to a file)',
+      prng: 'PRNG algorithm to use (lcg32|xorshift32+|xorshift64+|\x1B[1mxorshift128+\x1B[0m|xoroshiro128+|xoshiro128+)'
     })) {
       flag = '-' + flag;
       if (flag.length > 3) flag = '-' + flag;
@@ -77,7 +77,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
       console.log(`  \x1B[1m${flag}\x1B[0m${' '.repeat(36 - flag.length)}${desc}`);
     }
   } else {
-    console.log(`  \x1B[2m(To view all flags use --flags)\x1B[0m`);
+    console.log(`  \x1B[2m(To view all flags also use --flags)\x1B[0m`);
   }
 
   console.log();
