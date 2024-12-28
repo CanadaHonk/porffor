@@ -1294,8 +1294,8 @@ const asmFuncToAsm = (scope, func) => {
   });
 };
 
-const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], data: _data = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, usedTypes = [] } = {}) => {
-  if (wasm == null) { // called with no builtin
+const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, usedTypes = [] } = {}) => {
+  if (wasm == null) { // called with no built-in
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
   }
@@ -1303,17 +1303,10 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   const existing = funcByName(name);
   if (existing) return existing;
 
-  const nameParam = i => localNames[i] ?? `l${i}`;
-
   const allLocals = params.concat(localTypes);
   const locals = {};
   for (let i = 0; i < allLocals.length; i++) {
-    locals[nameParam(i)] = { idx: i, type: allLocals[i] };
-  }
-
-  for (const x in _data) {
-    if (data.find(y => y.page === x)) return;
-    data.push({ page: x, bytes: _data[x] });
+    locals[localNames[i] ?? `l${i}`] = { idx: i, type: allLocals[i] };
   }
 
   const func = {
@@ -1326,9 +1319,8 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     returnType,
     internal: true,
     index: currentFuncIndex++,
-    table,
-    constr,
-    globalInits
+    globalInits,
+    constr, table, usesImports, hasRestArgument
   };
 
   funcs.push(func);
@@ -1357,15 +1349,10 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     }
   }
 
-  if (table) funcs.table = true;
-  if (usesImports) func.usesImports = true;
-  if (hasRestArgument) func.hasRestArgument = true;
   if (usesTag) ensureTag();
-
   for (const x of usedTypes) typeUsed(func, x);
 
   func.wasm = wasm;
-
   return func;
 };
 
