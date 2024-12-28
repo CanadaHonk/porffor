@@ -1349,6 +1349,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     }
   }
 
+  if (table) funcs.table = true;
   if (usesTag) ensureTag();
   for (const x of usedTypes) typeUsed(func, x);
 
