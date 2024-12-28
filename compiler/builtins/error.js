@@ -22,7 +22,7 @@ export const __${name}_prototype_toString = (_this: ${name}) => {
   const obj: object = _this;
 
   const message: any = obj.message;
-  if (message.length === 0) {
+  if (message.length == 0) {
     return obj.name;
   }
 
