@@ -90,9 +90,6 @@ var compareArray = (a, b) => {
   // if either are nullish
   if (a == null || b == null) return false;
 
-  // megahack: all arrays from now on will be >0 pointer
-  const _hack = '';
-
   if (b.length !== a.length) {
     return false;
   }
@@ -1364,6 +1361,7 @@ const asyncTest = testFunc => {
 // todo: assert.throwsAsync
 
 /// nativeFunctionMatcher.js
+// todo: throw and make looser
 const validateNativeFunctionSource = source => source.startsWith('function ') && source.endsWith('() { [native code] }');
 
 const assertToStringOrNativeFunction = function(fn, expected) {
