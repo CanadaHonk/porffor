@@ -9,7 +9,7 @@ if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
 
 const start = performance.now();
 
-if (process.argv.includes('--help')) {
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
   // description + version
   console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript/TypeScript engine/compiler/runtime. \x1B[2m(${globalThis.version})\x1B[0m`);
 
