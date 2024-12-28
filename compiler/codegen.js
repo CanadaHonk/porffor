@@ -1339,17 +1339,18 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
       else wasm = asmFuncToAsm(func, wasm);
   }
 
-  let baseGlobalIdx, i = 0;
-  for (const type of globalTypes) {
-    if (baseGlobalIdx === undefined) baseGlobalIdx = globals['#ind'];
-
-    globals[globalNames[i] ?? `${name}_global_${i}`] = { idx: globals['#ind']++, type, init: globalInits[i] ?? 0 };
-    i++;
-  }
-
   if (globalTypes.length !== 0) {
     // offset global ops for base global idx
-    for (const inst of wasm) {
+    let baseGlobalIdx, i = 0;
+    for (const type of globalTypes) {
+      if (baseGlobalIdx === undefined) baseGlobalIdx = globals['#ind'];
+
+      globals[globalNames[i] ?? `${name}_global_${i}`] = { idx: globals['#ind']++, type, init: globalInits[i] ?? 0 };
+      i++;
+    }
+
+    for (let i = 0; i < wasm.length; i++) {
+      const inst = wasm[i];
       if (inst[0] === Opcodes.global_get || inst[0] === Opcodes.global_set) {
         inst[1] += baseGlobalIdx;
       }
