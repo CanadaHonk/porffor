@@ -965,7 +965,7 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
   ];
 };
 
-const performOp = (scope, op, left, right, leftType, rightType, _global = false, _name = '$undeclared', assign = false) => {
+const performOp = (scope, op, left, right, leftType, rightType) => {
   if (op === '||' || op === '&&' || op === '??') {
     return performLogicOp(scope, op, left, right, leftType, rightType);
   }
@@ -1128,7 +1128,7 @@ const knownNullish = decl => {
   return false;
 };
 
-const generateBinaryExp = (scope, decl, _global, _name) => {
+const generateBinaryExp = (scope, decl) => {
   if (decl.operator === 'instanceof') {
     // try hacky version for built-ins first
     const rightName = decl.right.name;
@@ -1204,7 +1204,7 @@ const generateBinaryExp = (scope, decl, _global, _name) => {
     }
   }
 
-  const out = performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right), _global, _name);
+  const out = performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
   if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from_u);
 
   return out;
@@ -3758,7 +3758,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             ], generate(scope, decl.right), [
               [ Opcodes.local_get, pointerTmp ],
               [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
-            ], getNodeType(scope, decl.right), false, name, true)),
+            ], getNodeType(scope, decl.right))),
             ...optional([ Opcodes.local_tee, newValueTmp ]),
             [ Opcodes.store, 0, ValtypeSize.i32 ],
 
@@ -3778,7 +3778,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load8_u, 0, 4 ],
                 Opcodes.i32_from_u
-              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right), false, name, true)),
+              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right))),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to_u,
@@ -3792,7 +3792,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load8_u, 0, 4 ],
                 Opcodes.i32_from_u
-              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right), false, name, true)),
+              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right))),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               number(0),
@@ -3810,7 +3810,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load8_s, 0, 4 ],
                 Opcodes.i32_from
-              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right), false, name, true)),
+              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right))),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to,
@@ -3826,7 +3826,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load16_u, 0, 4 ],
                 Opcodes.i32_from_u
-              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right), false, name, true)),
+              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right))),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to_u,
@@ -3842,7 +3842,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load16_s, 0, 4 ],
                 Opcodes.i32_from
-              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right), false, name, true)),
+              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right))),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to,
@@ -3858,7 +3858,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load, 0, 4 ],
                 Opcodes.i32_from_u
-              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right), false, name, true)),
+              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right))),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to_u,
@@ -3874,7 +3874,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.i32_load, 0, 4 ],
                 Opcodes.i32_from
-              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right), false, name, true)),
+              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right))),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               Opcodes.i32_to,
@@ -3890,7 +3890,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.f32_load, 0, 4 ],
                 [ Opcodes.f64_promote_f32 ]
-              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right), false, name, true)),
+              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right))),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               [ Opcodes.f32_demote_f64 ],
@@ -3905,7 +3905,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
               ...(op === '=' ? generate(scope, decl.right) : performOp(scope, op, [
                 [ Opcodes.local_get, pointerTmp ],
                 [ Opcodes.f64_load, 0, 4 ]
-              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right), false, name, true)),
+              ], generate(scope, decl.right), [ number(TYPES.number, Valtype.i32) ], getNodeType(scope, decl.right))),
               ...optional([ Opcodes.local_tee, newValueTmp ]),
 
               [ Opcodes.f64_store, 0, 4 ]
@@ -3952,7 +3952,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
             [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
             ...setLastType(scope)
-          ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right), false, name, true)),
+          ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right))),
           ...getNodeType(scope, decl),
 
           [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
@@ -4041,7 +4041,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
         ...generate(scope, decl.right, isGlobal, name),
         [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
         [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
-      ], getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
+      ], getType(scope, name), getNodeType(scope, decl.right)),
 
       ...setType(scope, name, getLastType(scope), true)
     ];
@@ -4049,7 +4049,9 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   const out = setLocalWithType(
     scope, name, isGlobal,
-    performOp(scope, op, [ [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ] ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right), isGlobal, name, true),
+    performOp(scope, op, [
+      [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
+    ], generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right)),
     !valueUnused,
     getNodeType(scope, decl)
   );
