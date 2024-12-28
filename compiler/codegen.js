@@ -979,8 +979,8 @@ const performOp = (scope, op, left, right, leftType, rightType, _global = false,
   const startOut = [], endOut = [];
   const finalize = out => startOut.concat(out, endOut);
 
-  // if strict (in)equal check types match
-  if (strictOp) {
+  // if strict (in)equal check types match, skip if known
+  if (strictOp && !(knownLeft && knownLeft === knownRight)) {
     endOut.push(
       ...leftType,
       number(TYPE_FLAGS.parity, Valtype.i32),
