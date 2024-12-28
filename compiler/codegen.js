@@ -1356,20 +1356,10 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     }
   }
 
-  if (table) {
-    for (const inst of wasm) {
-      if (inst.at(-1) === 'read func lut') {
-        inst.splice(2, 99);
-        inst.push(...unsignedLEB128(allocPage({ scope: func, pages }, 'func lut')));
-      }
-    }
-
-    funcs.table = true;
-  }
-
+  if (table) funcs.table = true;
+  if (usesImports) func.usesImports = true;
   if (hasRestArgument) func.hasRestArgument = true;
   if (usesTag) ensureTag();
-  if (usesImports) func.usesImports = true;
 
   for (const x of usedTypes) typeUsed(func, x);
 
