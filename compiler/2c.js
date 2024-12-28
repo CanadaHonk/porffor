@@ -722,7 +722,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
         case Opcodes.call_indirect:
           // todo: stub
-          if (Prefs.d) log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]} \x1b[90m(${f.name})`);
+          if (Prefs.d) log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]} \x1b[2m(${f.name})`);
           vals.pop();
           vals.push('0', '0');
           break;
@@ -874,7 +874,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             break;
           }
 
-          if (Prefs.d) log.warning('2c', `unimplemented op: ${invOpcodes[i[0]] ?? invOpcodes[i[0] + ',' + i[1]]} \x1b[90m(${f.name})`);
+          if (Prefs.d) log.warning('2c', `unimplemented op: ${invOpcodes[i[0]] ?? invOpcodes[i[0] + ',' + i[1]]} \x1b[2m(${f.name})`);
       }
 
       lastCond = false;

@@ -36,7 +36,7 @@ const progressStart = msg => {
 
   const log = (extra, after) => {
     const pre = extra ? `${extra}` : spinner[spin++ % 4];
-    process.stdout.write(`\r\u001b[90m${' '.repeat(120)}\r${' '.repeat(12 - pre.length)}${pre}  ${msg}${after ?? ''}\u001b[0m`);
+    process.stdout.write(`\r\u001b[2m${' '.repeat(120)}\r${' '.repeat(12 - pre.length)}${pre}  ${msg}${after ?? ''}\u001b[0m`);
   };
   log();
 
@@ -49,7 +49,7 @@ const progressDone = (msg, start) => {
   clearInterval(progressInterval);
 
   const timeStr = (performance.now() - start).toFixed(0);
-  console.log(`\r${' '.repeat(120)}\r\u001b[90m${' '.repeat(10 - timeStr.length)}${timeStr}ms\u001b[0m  \u001b[92m${msg}\u001b[0m`);
+  console.log(`\r${' '.repeat(120)}\r\u001b[2m${' '.repeat(10 - timeStr.length)}${timeStr}ms\u001b[0m  \u001b[92m${msg}\u001b[0m`);
   progressLines++;
 };
 const progressClear = () => {
@@ -214,7 +214,7 @@ export default (code, module = undefined) => {
     if (logProgress) {
       const total = performance.now();
       progressClear();
-      console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
+      console.log(`\u001b[2m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
     }
 
     if (process.version) process.exit();
@@ -233,7 +233,7 @@ export default (code, module = undefined) => {
     if (logProgress) {
       const total = performance.now();
       progressClear();
-      console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
+      console.log(`\u001b[2m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
     }
 
     if (process.version) process.exit();
@@ -293,7 +293,7 @@ export default (code, module = undefined) => {
     if (logProgress) {
       const total = performance.now();
       progressClear();
-      console.log(`\u001b[90m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
+      console.log(`\u001b[2m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
     }
 
     process.exit();

@@ -364,7 +364,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
     }
 
     const disasm = disassemble(func.wasm.slice(min, max), func.name, 0, func.locals, func.params, func.returns, funcs, globals, exceptions)
-      .slice(0, -1).split('\n').filter(x => !x.startsWith('\x1B[90m;;'));
+      .slice(0, -1).split('\n').filter(x => !x.startsWith('\x1B[2m;;'));
 
     const noAnsi = s => s && s.replace(/\u001b\[[0-9]+m/g, '');
     let longest = 0;
@@ -377,9 +377,9 @@ export default (source, module = undefined, customImports = {}, print = str => p
       disasm[middle] = `\x1B[47m\x1B[30m${noAnsi(disasm[middle])}${'\u00a0'.repeat(longest - noAnsi(disasm[middle]).length)}\x1B[0m`;
     }
 
-    if (min != 0) console.log('\x1B[90m...\x1B[0m');
+    if (min != 0) console.log('\x1B[2m...\x1B[0m');
     console.log(disasm.join('\n'));
-    if (max > func.wasm.length) console.log('\x1B[90m...\x1B[0m\n');
+    if (max > func.wasm.length) console.log('\x1B[2m...\x1B[0m\n');
   };
 
   const backtrace = (funcInd, blobOffset) => {

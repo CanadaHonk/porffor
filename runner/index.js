@@ -40,7 +40,7 @@ if (process.argv.includes('--help')) {
 
     if (cmd.length > 0) post = ' ' + post;
 
-    console.log(`  \x1B[90mporf\x1B[0m \x1B[1m\x1B[${color}m${cmd}\x1B[0m\x1B[2m${post}\x1B[0m ${' '.repeat(30 - cmd.length - post.length)}${desc}`);
+    console.log(`  \x1B[2mporf\x1B[0m \x1B[1m\x1B[${color}m${cmd}\x1B[0m${post} ${' '.repeat(30 - cmd.length - post.length)}${desc}`);
   }
 
   // flags

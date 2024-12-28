@@ -140,4 +140,4 @@ export const highlightAsm = asm => asm
   .replace(/(block|loop|if|end|else|try|catch_all|catch|delegate)/g, _ => `\x1B[95m${_}\x1B[0m`)
   .replace(/unreachable/g, _ => `\x1B[91m${_}\x1B[0m`)
   .replace(/ \-?[0-9\.]+/g, _ => ` \x1B[33m${_.slice(1)}\x1B[0m`)
-  .replace(/;;.*$/gm, _ => `\x1B[90m${_.replaceAll(/\x1B\[[0-9]+m/g, '')}\x1B[0m`);
+  .replace(/;;.*$/gm, _ => `\x1B[2m${_.replaceAll(/\x1B\[[0-9]+m/g, '')}\x1B[0m`);
