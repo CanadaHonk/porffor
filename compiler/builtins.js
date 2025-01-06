@@ -1025,5 +1025,24 @@ export const BuiltinFuncs = function() {
     table: true
   };
 
+  this.__Porffor_number_getExponent = {
+    params: [ Valtype.f64 ],
+    returns: [ Valtype.i32 ],
+    returnType: TYPES.number,
+    wasm: [
+      // extract exponent bits from f64 with bit manipulation
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.i64_reinterpret_f64 ],
+      number(52, Valtype.i64),
+      [ Opcodes.i64_shr_u ],
+      number(0x7FF, Valtype.i64),
+      [ Opcodes.i64_and ],
+      [ Opcodes.i32_wrap_i64 ],
+      number(1023, Valtype.i32),
+      [ Opcodes.i32_sub ]
+    ]
+  };
+
+
   PrecompiledBuiltins.BuiltinFuncs.call(this);
 };

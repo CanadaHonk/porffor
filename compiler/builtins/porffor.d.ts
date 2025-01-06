@@ -89,6 +89,10 @@ type PorfforGlobal = {
     appendPadNum(str: bytestring, num: number, len: number): i32;
   }
 
+  number: {
+    getExponent(v: f64): i32;
+  }
+
   print(x: any): i32;
 
   randomByte(): i32;
