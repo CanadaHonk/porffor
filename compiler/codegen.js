@@ -2045,7 +2045,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       let parsed;
       try {
-        parsed = parse(code);
+        parsed = objectHack(parse(code));
       } catch (e) {
         if (e.name === 'SyntaxError') {
           // throw syntax errors of evals at runtime instead
@@ -2075,7 +2075,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       let parsed;
       try {
-        parsed = parse(`(function(){${code}})`);
+        parsed = objectHack(parse(`(function(){${code}})`));
       } catch (e) {
         if (e.name === 'SyntaxError') {
           // throw syntax errors of evals at runtime instead
