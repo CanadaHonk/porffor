@@ -2037,15 +2037,18 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     name = func.name;
   }
 
-  if (!decl._new && name === 'eval') {
+  if (!decl._new && (name === 'eval' || (decl.callee.type === 'SequenceExpression' && decl.callee.expressions.at(-1)?.name === 'eval'))) {
     const known = knownValue(scope, decl.arguments[0]);
     if (known !== unknownValue) {
-      // known value literal eval hack
+      // eval('with known/literal string')
       const code = String(known);
 
       let parsed;
       try {
-        parsed = objectHack(parse(code));
+        parsed = {
+          type: 'BlockStatement',
+          body: parse(code).body.map(objectHack)
+        };
       } catch (e) {
         if (e.name === 'SyntaxError') {
           // throw syntax errors of evals at runtime instead
@@ -2055,11 +2058,24 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         throw e;
       }
 
+      if (decl.callee.type === 'SequenceExpression' || decl.optional) {
+        // indirect, use separate func+scope
+        const [ func ] = generateFunc({}, {
+          type: 'ArrowFunctionExpression',
+          body: parsed,
+          expression: true
+        }, true);
+
+        func.generate();
+
+        return [
+          [ Opcodes.call, func.index ],
+          ...setLastType(scope)
+        ];
+      }
+
       scope.inEval = true;
-      const out = generate(scope, {
-        type: 'BlockStatement',
-        body: parsed.body
-      });
+      const out = generate(scope, parsed);
       scope.inEval = false;
 
       out.push(...setLastType(scope, getNodeType(scope, getLastNode(parsed.body))));
@@ -2070,7 +2086,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (name === 'Function') {
     const known = knownValue(scope, decl.arguments[0]);
     if (known !== unknownValue) {
-      // known value literal Function hack
+      // new Function('with known/literal string')
       const code = String(known);
 
       let parsed;
@@ -6484,8 +6500,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     start: decl.start,
     locals: {},
     localInd: 0,
-    // value, type
-    returns: [ valtypeBinary, Valtype.i32 ],
+    returns: [ valtypeBinary, Valtype.i32 ], // value, type
     name,
     index: currentFuncIndex++,
     arrow,
