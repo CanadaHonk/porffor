@@ -137,6 +137,11 @@ export const __Math_pow = (base: number, exponent: number): number => {
   // 2. If exponent is either +0𝔽 or -0𝔽, return 1𝔽.
   if (exponent == 0) return 1;
 
+  // opt: use bit shift for base 2
+  if (base == 2) {
+    if (Porffor.fastAnd(Number.isInteger(exponent), exponent > 0, exponent < 31)) return 2 << (exponent - 1);
+  }
+
   if (!Number.isFinite(base)) {
     // 3. If base is NaN, return NaN.
     if (Number.isNaN(base)) return base;
