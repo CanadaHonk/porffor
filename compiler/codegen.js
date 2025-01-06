@@ -3512,12 +3512,7 @@ const generateVar = (scope, decl) => {
   return out;
 };
 
-const privateIDName = name => '.#.' + name;
-const privateIdentifierToIdentifier = decl => ({
-  type: 'Identifier',
-  name: privateIDName(decl.name)
-});
-
+const privateIDName = name => '__#' + name;
 const getProperty = (decl, forceValueStr = false) => {
   const prop = decl.property ?? decl.key;
   if (decl.computed) return prop;
