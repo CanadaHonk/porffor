@@ -377,105 +377,6 @@
       border-radius: 12px;
     }
 
-    table {
-      background: #202428;
-      color: var(--header-primary);
-
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-
-    .compat tr:first-child {
-      background: #101418;
-      font-size: 20px;
-    }
-
-    .compat tr:first-child > td:nth-child(2),
-    .compat tr:first-child > td:nth-child(3) {
-      width: 160px;
-    }
-
-    .compat tr {
-      border: 2px solid var(--header-secondary);
-      font-size: 18px;
-    }
-
-    .compat td {
-      padding: 4px;
-      border: 2px solid black;
-    }
-
-    .compat td:not(:first-child) {
-      text-align: center;
-    }
-
-    td.most {
-      background: #97ca00;
-    }
-
-    td.some {
-      background: #dfb317;
-    }
-
-    td.initial {
-      background: #fe7d37;
-    }
-
-    td.unsupported {
-      background: #e05d44;
-    }
-
-    .index {
-      margin-bottom: 20px;
-    }
-
-    .index td {
-      padding: 4px;
-    }
-
-    .index td:first-child {
-      border-left: 3px solid transparent;
-      padding-left: 10px;
-    }
-
-    .index td:nth-child(2) {
-      width: 70%;
-      color: var(--text-normal);
-    }
-
-    .sandbox-table {
-      margin-top: 12px;
-      margin-bottom: 12px;
-    }
-
-    .sandbox-table td {
-      padding: 6px;
-    }
-
-    .sandbox-table td:last-child {
-      text-align: center;
-    }
-
-    .detailed.cards {
-      gap: 60px;
-    }
-
-    .detailed.cards p {
-      font-size: 20px;
-      margin-bottom: 20px;
-    }
-
-    .detailed.cards h2 {
-      font-size: 24px;
-      color: var(--text-normal);
-      margin-top: 10px;
-      margin-bottom: -4px;
-    }
-
-    .detailed.cards p + p {
-      margin-top: 0;
-    }
-
     ul,
     ol {
       margin-top: 0px;
@@ -484,27 +385,6 @@
 
     code {
       color: #a0a4a8;
-    }
-
-    .usage-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .usage-header code {
-      font-size: 16px;
-    }
-
-    .check {
-      border-radius: 50%;
-      background: var(--accent);
-      width: 20px;
-      height: 20px;
-    }
-
-    .check.no {
-      background: none;
     }
 
     .tagline {
@@ -658,51 +538,6 @@
       margin-right: 12px;
     }
 
-    #commit_log {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-
-      overflow-x: auto;
-    }
-
-    #commit_log > div {
-      display: flex;
-      flex-direction: column;
-
-      background: var(--background-secondary);
-      padding: 8px;
-      border-radius: 8px;
-    }
-
-    #commit_log > div > :first-child {
-      font-size: 18px;
-      color: var(--text-normal);
-    }
-
-    #commit_log > div > :last-child {
-      font-size: 18px;
-
-      color: #57f287;
-
-      margin-top: 6px;
-    }
-
-    #commit_log > div > :last-child > span {
-      color: var(--text-muted);
-      font-size: 16px;
-      margin-left: 6px;
-    }
-
-    #commit_log > div > :last-child > div {
-      font-size: 16px;
-      font-weight: 400;
-      color: var(--text-muted);
-
-      display: inline;
-      float: right;
-    }
-
     #graph {
       width: 100%;
       height: 800px;
@@ -781,7 +616,6 @@
     }
 
     .browser-js-marker::before {
-      /* content: "▲ Fast compile\A |\A |\A |\A |\A |\A |\A |\A |\A |\A |\A |\A |\A |\A |\A |\A |\A |\A ▼ Fast JS"; */
       content: "Fast startup ▲\A              ┆\A              ┆\A              ┆\A              ┆\A              ┆\A              ┆\A              ┆\A              ┆\A              ┆\A              ┆\A              ┆\A              ┆\A              ┆\A              ┆\A      Fast JS ▼";
       color: var(--text-muted);
       position: absolute;
@@ -795,10 +629,6 @@
       font-size: 100%;
       margin: 0;
       display: inline;
-    }
-
-    pre b {
-      /* font-weight: 400; */
     }
 
     b {
@@ -927,15 +757,6 @@
         <a href="https://x.com/CanadaHonk"><span class="hidden-600">Twitter</span><span class="shown-600">🐦</span></a><span class="hidden-600">&nbsp;|&nbsp;</span>
         <a href="https://bsky.app/profile/goose.icu"><span class="hidden-600">Bluesky</span><span class="shown-600">🦋</span></a>
       </div>
-
-      <!-- <div>
-        <a href="https://github.com/CanadaHonk/porffor">Code</a>
-        <a href="https://discord.gg/wPV3WgDGwg">Chat</a>
-        <div>
-          <a href="https://x.com/CanadaHonk">🐦</a>
-          <a href="https://bsky.app/profile/goose.icu">🦋</a>
-        </div>
-      </div> -->
     </div>
   </header>
 
@@ -1027,8 +848,6 @@
       </div>
     </section>
 
-    <!-- <h2>Traditional Engine Techniques vs AOT</h2> -->
-    <!-- <hr class="invis"> -->
     <section class="dual">
       <pre>
 <h2>Compile-time (developer's machine)</h2>
@@ -1190,7 +1009,6 @@
 
       if (!window.monaco) {
         await loadScript('https://cdn.openasar.dev/monaco-editor/min/vs/loader.js');
-        // await new Promise(res => setTimeout(res, 500));
 
         require.config({
           paths: { vs: 'https://cdn.openasar.dev/monaco-editor/min/vs' }
@@ -1199,8 +1017,6 @@
       }
 
       const monacoContainer = document.createElement('div');
-      // monacoContainer.style.width = '100%';
-      // monacoContainer.style.height = '75vh';
       split.appendChild(monacoContainer);
 
       const jsSize = document.createElement('div');
@@ -1420,9 +1236,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
       const niceDate = (x) => {
         return x.toLocaleString('default', {
           month: 'long',
-          day: 'numeric',
-          // hour: 'numeric',
-          // minute: 'numeric'
+          day: 'numeric'
         });
       };
 
@@ -1520,18 +1334,6 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
           svg.appendChild(text);
         }
 
-        const addCircle = (x, y, color) => {
-          // const circle = document.createElementNS(
-          //   'http://www.w3.org/2000/svg',
-          //   'circle',
-          // );
-          // circle.setAttribute('cx', x);
-          // circle.setAttribute('cy', y);
-          // circle.setAttribute('r', 3);
-          // circle.setAttribute('fill', color);
-          // svg.appendChild(circle);
-        };
-
         const points = {
           pass: [],
           fail: [],
@@ -1558,7 +1360,6 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
           const run = (n, type) => {
             const y = (paddingY + (1 - n / total) * height).toFixed();
             points[type].push(`${x},${y}`);
-            addCircle(x, y, colors[type]);
           };
 
           run(pass, 'pass');
