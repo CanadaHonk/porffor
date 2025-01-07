@@ -559,6 +559,8 @@ export const parseInt = (input: any, radix: any): f64 => {
 
   let defaultRadix: boolean = false;
   radix = ecma262.ToIntegerOrInfinity(radix);
+  if (!Number.isFinite(radix)) radix = 0; // infinity/NaN -> default
+
   if (radix == 0) {
     defaultRadix = true;
     radix = 10;
