@@ -135,11 +135,16 @@ export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
   const size: i32 = Porffor.wasm.i32.load(obj, 0, 0);
   const endPtr: i32 = ptr + size * 14;
 
+  let out: boolean = false;
   if (targetType == Porffor.TYPES.symbol) {
     const targetSym: symbol = target;
     for (; ptr < endPtr; ptr += 14) {
       const keyRaw: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
-      if (keyRaw == 0) break; // ran out of keys
+      if (keyRaw == 0) {
+        if (out) break; // ran out of keys
+        out = true;
+      }
+
       if (keyRaw >>> 30 == 3) { // MSB 1 and 2 set, symbol
         const keySym: symbol = keyRaw & 0x3FFFFFFF; // unset MSB
         if (keySym == targetSym) return ptr;
@@ -148,7 +153,10 @@ export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
   } else {
     for (; ptr < endPtr; ptr += 14) {
       const keyRaw: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
-      if (keyRaw == 0) break; // ran out of keys
+      if (keyRaw == 0) {
+        if (out) break; // ran out of keys
+        out = true;
+      }
 
       const msb: i32 = keyRaw >>> 30;
       if (msb == 0) {
