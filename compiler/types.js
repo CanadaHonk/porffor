@@ -58,15 +58,9 @@ registerInternalType('Map');
 registerInternalType('ArrayBuffer');
 registerInternalType('SharedArrayBuffer');
 registerInternalType('DataView');
-registerInternalType('Uint8Array', ['iterable', 'length']);
-registerInternalType('Int8Array', ['iterable', 'length']);
-registerInternalType('Uint8ClampedArray', ['iterable', 'length']);
-registerInternalType('Uint16Array', ['iterable', 'length']);
-registerInternalType('Int16Array', ['iterable', 'length']);
-registerInternalType('Uint32Array', ['iterable', 'length']);
-registerInternalType('Int32Array', ['iterable', 'length']);
-registerInternalType('Float32Array', ['iterable', 'length']);
-registerInternalType('Float64Array', ['iterable', 'length']);
+
+for (const x of [ 'Uint8', 'Int8', 'Uint8Clamped', 'Uint16', 'Int16', 'Uint32', 'Int32', 'Float32', 'Float64' ])
+  registerInternalType(`${x}Array`, ['iterable', 'length']);
 
 registerInternalType('WeakRef');
 registerInternalType('WeakSet');
@@ -78,16 +72,8 @@ registerInternalType('BooleanObject');
 registerInternalType('NumberObject');
 registerInternalType('StringObject');
 
-registerInternalType('Error');
-registerInternalType('AggregateError');
-registerInternalType('TypeError');
-registerInternalType('ReferenceError');
-registerInternalType('SyntaxError');
-registerInternalType('RangeError');
-registerInternalType('EvalError');
-registerInternalType('URIError');
-registerInternalType('Test262Error');
-registerInternalType('TodoError');
+for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval', 'URI', 'Test262', 'Todo' ])
+  registerInternalType(`${x}Error`);
 
 registerInternalType('__Porffor_Generator');
 registerInternalType('__Porffor_AsyncGenerator');
