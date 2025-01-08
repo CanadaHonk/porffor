@@ -229,90 +229,26 @@ export const BuiltinFuncs = function() {
   };
 
 
-  this.__Math_sqrt = {
-    floatOnly: true,
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_sqrt ]
-    ]
-  };
-
-  this.__Math_abs = {
-    floatOnly: true,
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_abs ]
-    ]
-  };
-
-  this.__Math_sign = {
-    floatOnly: true,
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: [
-      number(1),
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_copysign ]
-    ]
-  };
-
-  this.__Math_floor = {
-    floatOnly: true,
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_floor ]
-    ]
-  };
-
-  this.__Math_ceil = {
-    floatOnly: true,
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_ceil ]
-    ]
-  };
-
-  this.__Math_round = {
-    floatOnly: true,
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_nearest ]
-    ]
-  };
-
-  this.__Math_trunc = {
-    floatOnly: true,
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_trunc ]
-    ]
-  };
+  for (const [ name, op, prefix = [ [ Opcodes.local_get, 0 ] ] ] of [
+    [ 'sqrt', Opcodes.f64_sqrt ],
+    [ 'abs', Opcodes.f64_abs ],
+    [ 'sign', Opcodes.f64_copysign, [ number(1), [ Opcodes.local_get, 0 ] ] ],
+    [ 'floor', Opcodes.f64_floor ],
+    [ 'ceil', Opcodes.f64_ceil ],
+    [ 'round', Opcodes.f64_nearest ],
+    [ 'trunc', Opcodes.f64_trunc ]
+  ]) {
+    this[`__Math_${name}`] = {
+      params: [ Valtype.f64 ],
+      locals: [],
+      returns: [ Valtype.f64 ],
+      returnType: TYPES.number,
+      wasm: [
+        ...prefix,
+        [ op ]
+      ]
+    };
+  }
 
   // todo: does not follow spec with +-Infinity and values >2**32
   this.__Math_clz32 = {
@@ -358,10 +294,7 @@ export const BuiltinFuncs = function() {
     ]
   };
 
-  // this is an implementation of xorshift128+ (in wasm bytecode)
-  // fun fact: v8, SM, JSC also use this (you will need this fun fact to maintain your sanity reading this code)
   const prngSeed0 = (Math.random() * (2 ** 30)) | 0, prngSeed1 = (Math.random() * (2 ** 30)) | 0;
-
   const prng = ({
     'lcg32': {
       globals: [ Valtype.i32 ],
