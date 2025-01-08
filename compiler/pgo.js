@@ -1,10 +1,10 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
-import { number } from './embedding.js';
+import { number } from './encoding.js';
 import { importedFuncs } from './builtins.js';
-import './prefs.js';
 import assemble from './assemble.js';
 import wrap, { writeByteStr } from './wrap.js';
 import * as Havoc from './havoc.js';
+import './prefs.js';
 
 export const setup = () => {
   importedFuncs[importedFuncs.profile2].params = [ Valtype.i32, valtypeBinary ];

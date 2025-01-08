@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Opcodes, Valtype } from '../compiler/wasmSpec.js';
-import { number } from '../compiler/embedding.js';
+import { number } from '../compiler/encoding.js';
 import { importedFuncs } from '../compiler/builtins.js';
 import compile from '../compiler/wrap.js';
 import fs from 'node:fs';

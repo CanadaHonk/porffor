@@ -1,15 +1,14 @@
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
-import { ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector, read_signedLEB128 } from './encoding.js';
+import { number, ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector, read_signedLEB128 } from './encoding.js';
 import { operatorOpcode } from './expression.js';
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
 import { PrototypeFuncs } from './prototype.js';
-import { number } from './embedding.js';
 import { TYPES, TYPE_FLAGS, TYPE_NAMES, typeHasFlag } from './types.js';
 import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
 import { log } from './log.js';
-import './prefs.js';
 import { allocPage, allocStr } from './allocator.js';
+import './prefs.js';
 
 let globals = {};
 let tags = [];

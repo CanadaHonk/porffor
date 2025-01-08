@@ -1,5 +1,5 @@
 import { Opcodes, Blocktype, Valtype, ValtypeSize } from './wasmSpec.js';
-import { number } from './embedding.js';
+import { number } from './encoding.js';
 import { UNDEFINED } from './builtins.js';
 import { TYPES } from './types.js';
 import './prefs.js';

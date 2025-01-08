@@ -1,6 +1,5 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
-import { number } from './embedding.js';
-import { read_signedLEB128, read_ieee754_binary64 } from './encoding.js';
+import { number, read_signedLEB128, read_ieee754_binary64 } from './encoding.js';
 import { log } from './log.js';
 import './prefs.js';
 

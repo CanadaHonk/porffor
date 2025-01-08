@@ -1,7 +1,6 @@
 // cyclone: wasm partial constant evaluator (it is fast and dangerous hence "cyclone")
-import { signedLEB128, ieee754_binary64, read_ieee754_binary64, read_signedLEB128 } from './encoding.js';
+import { number, signedLEB128, ieee754_binary64, read_ieee754_binary64, read_signedLEB128 } from './encoding.js';
 import { Opcodes, Valtype } from './wasmSpec.js';
-import { number } from './embedding.js';
 
 const f64ToI32Op = {
   [Opcodes.f64_eq]: Opcodes.i32_eq,

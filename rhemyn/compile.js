@@ -1,8 +1,8 @@
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from '../compiler/wasmSpec.js';
-import { number } from '../compiler/embedding.js';
+import { number } from '../compiler/encoding.js';
 import parse from './parse.js';
-import '../compiler/prefs.js';
 import { TYPES } from '../compiler/types.js';
+import '../compiler/prefs.js';
 
 // local indexes
 const BasePointer = 0; // base string pointer

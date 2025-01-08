@@ -1,6 +1,6 @@
 import { Blocktype, Opcodes, PageSize, Valtype } from './wasmSpec.js';
 import { TYPES } from './types.js';
-import { number } from './embedding.js';
+import { number } from './encoding.js';
 
 export default function({ builtinFuncs }, Prefs) {
   const makePrefix = name => (name.startsWith('__') ? '' : '__') + name + '_';
