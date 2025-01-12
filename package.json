@@ -1,8 +1,8 @@
 {
   "name": "porffor",
-  "description": "a basic experimental wip aot optimizing js -> wasm engine/compiler/runtime in js",
-  "version": "0.55.16",
-  "author": "CanadaHonk",
+  "description": "An ahead-of-time JavaScript compiler",
+  "version": "0.55.17",
+  "author": "Oliver Medhurst <honk@goose.icu>",
   "license": "MIT",
   "scripts": {},
   "dependencies": {
