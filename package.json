@@ -26,9 +26,5 @@
   "bugs": {
     "url": "https://github.com/CanadaHonk/porffor/issues"
   },
-  "homepage": "https://porffor.dev",
-  "devDependencies": {
-    "@codspeed/tinybench-plugin": "^3.1.1",
-    "tinybench": "^2.9.0"
-  }
+  "homepage": "https://porffor.dev"
 }
