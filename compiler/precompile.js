@@ -209,7 +209,7 @@ const precompile = async () => {
   }
 
   const total = performance.now() - t;
-  console.log(`\r${' '.repeat(80)}\r\u001b[2m${`[${total.toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92mcompiled ${fileCount} files/${funcs.length} funcs\u001b[0m \u001b[90m(${['parse', 'codegen', 'opt'].map(x => `${x}: ${((timing[x] / total) * 100).toFixed(0)}%`).join(', ')})\u001b[0m`);
+  console.log(`\r${' '.repeat(80)}\r\u001b[2m${`[${total.toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92mcompiled ${funcs.length} funcs from ${fileCount} files\u001b[0m \u001b[90m(${['parse', 'codegen', 'opt'].map(x => `${x}: ${((timing[x] / total) * 100).toFixed(0)}%`).join(', ')})\u001b[0m`);
 
   const comptimeFlagChecks = {
     hasFunc: x => `hasFunc('${x}')`
