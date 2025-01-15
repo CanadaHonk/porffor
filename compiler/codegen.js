@@ -353,6 +353,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
       return cacheAst(decl, [ number(UNDEFINED) ]);
 
+    case 'TSAsExpression':
+      return cacheAst(decl, generate(scope, decl.expression));
+
     default:
       // ignore typescript nodes
       if (decl.type.startsWith('TS') ||
@@ -1527,6 +1530,11 @@ const getNodeType = (scope, node) => {
   let guess = null;
   const ret = (() => {
     if (node._type) return node._type;
+
+    if (node.type === 'TSAsExpression') {
+      return extractTypeAnnotation(node).type;
+    }
+
     if (node.type === 'Literal') {
       if (node.regex) return TYPES.regexp;
 
