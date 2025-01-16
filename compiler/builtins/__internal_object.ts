@@ -8,8 +8,7 @@ export const __Porffor_object_underlying = (obj: any): any => {
     t >= Porffor.TYPES.error,
     t <= Porffor.TYPES.todoerror
   )) {
-    const remap: object = obj;
-    return remap;
+    return obj as object;
   }
 
   if (Porffor.fastAnd(t > 0x05, t != Porffor.TYPES.undefined)) {
@@ -36,41 +35,38 @@ export const __Porffor_object_underlying = (obj: any): any => {
       }
 
       if (t == Porffor.TYPES.array) {
-        const arr: any[] = obj;
-        const len: i32 = arr.length;
+        const len: i32 = (obj as any[]).length;
 
         const key5: bytestring = 'length';
         __Porffor_object_expr_initWithFlags(underlying, key5, len, 0b1000);
 
         // todo: this should somehow be kept in sync?
         for (let i: i32 = 0; i < len; i++) {
-          __Porffor_object_expr_initWithFlags(underlying, __Number_prototype_toString(i), arr[i], 0b1110);
+          __Porffor_object_expr_initWithFlags(underlying, __Number_prototype_toString(i), (obj as any[])[i], 0b1110);
         }
       }
 
       if (Porffor.fastOr(t == Porffor.TYPES.string, t == Porffor.TYPES.stringobject)) {
-        const str: string = obj;
-        const len: i32 = str.length;
+        const len: i32 = (obj as string).length;
 
         const key6: bytestring = 'length';
         __Porffor_object_expr_initWithFlags(underlying, key6, len, 0b0000);
 
         for (let i: i32 = 0; i < len; i++) {
-          __Porffor_object_expr_initWithFlags(underlying, __Number_prototype_toString(i), str[i], 0b0100);
+          __Porffor_object_expr_initWithFlags(underlying, __Number_prototype_toString(i), (obj as string)[i], 0b0100);
         }
 
         if (t == Porffor.TYPES.string) Porffor.object.preventExtensions(underlying);
       }
 
       if (t == Porffor.TYPES.bytestring) {
-        const str: bytestring = obj;
-        const len: i32 = str.length;
+        const len: i32 = (obj as bytestring).length;
 
         const key7: bytestring = 'length';
         __Porffor_object_expr_initWithFlags(underlying, key7, len, 0b0000);
 
         for (let i: i32 = 0; i < len; i++) {
-          __Porffor_object_expr_initWithFlags(underlying, __Number_prototype_toString(i), str[i], 0b0100);
+          __Porffor_object_expr_initWithFlags(underlying, __Number_prototype_toString(i), (obj as bytestring)[i], 0b0100);
         }
 
         Porffor.object.preventExtensions(underlying);

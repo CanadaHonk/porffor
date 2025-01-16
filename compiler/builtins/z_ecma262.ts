@@ -154,8 +154,7 @@ export const __ecma262_ToString = (argument: unknown): any => {
 
   // hack: StringObject -> String
   if (type == Porffor.TYPES.stringobject) {
-    const remap: string = argument;
-    return remap;
+    return argument as string;
   }
 
   // 9. Assert: argument is an Object.
@@ -171,9 +170,8 @@ export const __ecma262_ToString = (argument: unknown): any => {
 // https://tc39.es/ecma262/#sec-topropertykey
 export const __ecma262_ToPropertyKey = (argument: any): any => {
   // 1. Let key be ? ToPrimitive(argument, string).
-  let key: any = argument;
-
   // only run ToPrimitive if pure object for perf
+  let key: any = argument;
   if (Porffor.rawType(argument) == Porffor.TYPES.object && Porffor.wasm`local.get ${argument}` != 0)
     key = __ecma262_ToPrimitive_String(argument);
 

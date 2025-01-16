@@ -1,8 +1,7 @@
 import type {} from './porffor.d.ts';
 
 export const __Porffor_Generator = (values: any[]): __Porffor_Generator => {
-  const gen: __Porffor_Generator = values;
-  return gen;
+  return values as __Porffor_Generator;
 };
 
 export const __Porffor_Generator_yield = (vals: any[], value: any): void => {
@@ -16,8 +15,7 @@ export const __Porffor_Generator_return = (vals: any[], value: any): __Porffor_G
   vals.length = 1;
   vals[0] = value;
 
-  const gen: __Porffor_Generator = vals;
-  return gen;
+  return vals as __Porffor_Generator;
 };
 
 export const __Porffor_Generator_prototype_next = (vals: any[]): object => {
@@ -42,8 +40,7 @@ export const __Porffor_Generator_prototype_throw = (vals: any[], value: any): ob
 
 
 export const __Porffor_AsyncGenerator = (values: any[]): __Porffor_AsyncGenerator => {
-  const gen: __Porffor_AsyncGenerator = values;
-  return gen;
+  return values as __Porffor_AsyncGenerator;
 };
 
 export const __Porffor_AsyncGenerator_yield = (vals: any[], value: any): void => {
@@ -57,8 +54,7 @@ export const __Porffor_AsyncGenerator_return = (vals: any[], value: any): __Porf
   vals.length = 1;
   vals[0] = value;
 
-  const gen: __Porffor_AsyncGenerator = vals;
-  return gen;
+  return vals as __Porffor_AsyncGenerator;
 };
 
 export const __Porffor_AsyncGenerator_prototype_next = async (vals: any[]): object => {

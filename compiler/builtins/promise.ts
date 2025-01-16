@@ -242,17 +242,15 @@ export const Promise = function (executor: any): void {
     __ecma262_RejectPromise(obj, e);
   }
 
-  const pro: Promise = obj;
-  return pro;
+  return obj as Promise;
 };
 
 export const __Promise_withResolvers = (): Promise => {
   const obj: any[] = __Porffor_promise_create();
   activePromise = obj;
 
-  const promise: Promise = obj;
   const out: object = Porffor.allocate();
-  out.promise = promise;
+  out.promise = obj as Promise;
 
   out.resolve = __Porffor_promise_resolveActive;
   out.reject = __Porffor_promise_rejectActive;
@@ -265,8 +263,7 @@ export const __Promise_resolve = (value: any): Promise => {
 
   __Porffor_promise_resolve(value, obj);
 
-  const pro: Promise = obj;
-  return pro;
+  return obj as Promise;
 };
 
 export const __Promise_reject = (reason: any): Promise => {
@@ -274,8 +271,7 @@ export const __Promise_reject = (reason: any): Promise => {
 
   __Porffor_promise_reject(reason, obj);
 
-  const pro: Promise = obj;
-  return pro;
+  return obj as Promise;
 };
 
 
@@ -296,8 +292,7 @@ export const __Promise_prototype_then = (_this: any, onFulfilled: any, onRejecte
 
   __Porffor_then(_this, fulfillReaction, rejectReaction);
 
-  const pro: Promise = outPromise;
-  return pro;
+  return outPromise as Promise;
 };
 
 // 27.2.5.1 Promise.prototype.catch (onRejected)
@@ -332,8 +327,7 @@ export const __Promise_prototype_finally = (_this: any, onFinally: any): Promise
     __ecma262_HostEnqueuePromiseJob(__ecma262_NewPromiseReactionJob(finallyReaction, value));
   }
 
-  const pro: Promise = outPromise;
-  return pro;
+  return outPromise as Promise;
 };
 
 
@@ -484,14 +478,12 @@ export const __Porffor_promise_await = (value: any) => {
   if (Porffor.rawType(value) != Porffor.TYPES.promise) return value;
 
   // hack: peek value instead of awaiting
-  const promise: any[] = value;
-
-  const state: i32 = promise[1];
+  const state: i32 = (value as any[])[1];
 
   // pending
   if (state == 0) return value;
 
-  const result: any = promise[0];
+  const result: any = (value as any[])[0];
 
   // fulfilled
   if (state == 1) return result;

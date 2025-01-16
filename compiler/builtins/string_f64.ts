@@ -28,8 +28,7 @@ export const String = function (...args: any[]): string|bytestring|StringObject 
   // force bytestrings to strings
   if (Porffor.rawType(s) == Porffor.TYPES.bytestring) s = Porffor.bytestringToString(s, s.length);
 
-  const O: StringObject = s;
-  return O;
+  return s as StringObject;
 };
 
 export const __String_fromCharCode = (...codes: any[]): bytestring|string => {

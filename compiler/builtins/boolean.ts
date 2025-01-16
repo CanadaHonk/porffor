@@ -9,8 +9,7 @@ export const Boolean = function (value: any): boolean|BooleanObject {
   // 2. If NewTarget is undefined, return b.
   if (!new.target) return b;
 
-  const O: BooleanObject = b;
-  return O;
+  return b as BooleanObject;
 };
 
 // 20.3.3.2 Boolean.prototype.toString ()

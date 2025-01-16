@@ -25,8 +25,7 @@ export const Number = function (value: any): number|NumberObject {
   // 4. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Number.prototype%", « [[NumberData]] »).
   // 5. Set O.[[NumberData]] to n.
   // 6. Return O.
-  const O: NumberObject = n;
-  return O;
+  return n as NumberObject;
 };
 
 // radix: number|any for rawType check

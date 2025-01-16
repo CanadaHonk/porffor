@@ -85,8 +85,7 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
     const hasSpace: boolean = space !== undefined;
     depth += 1;
 
-    const arr: any[] = value;
-    for (const x of arr) {
+    for (const x of (value as any[])) {
       if (hasSpace) {
         Porffor.bytestring.appendChar(out, 10); // \n
         for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space);
@@ -124,13 +123,12 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
     const hasSpace: boolean = space !== undefined;
     depth += 1;
 
-    const obj: object = value;
-    for (const key in obj) {
+    for (const key in (value as object)) {
       // skip symbol keys
       if (Porffor.rawType(key) == Porffor.TYPES.symbol) continue;
 
       // skip non-serializable values (functions, etc)
-      const val: bytestring|undefined = __Porffor_json_serialize(obj[key], depth, space);
+      const val: bytestring|undefined = __Porffor_json_serialize((value as object)[key], depth, space);
       if (val == null) continue;
 
       if (hasSpace) {

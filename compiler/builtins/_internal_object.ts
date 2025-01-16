@@ -137,7 +137,6 @@ export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
 
   let out: boolean = false;
   if (targetType == Porffor.TYPES.symbol) {
-    const targetSym: symbol = target;
     for (; ptr < endPtr; ptr += 14) {
       const keyRaw: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
       if (keyRaw == 0) {
@@ -145,9 +144,9 @@ export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
         out = true;
       }
 
-      if (keyRaw >>> 30 == 3) { // MSB 1 and 2 set, symbol
-        const keySym: symbol = keyRaw & 0x3FFFFFFF; // unset MSB
-        if (keySym == targetSym) return ptr;
+      if (keyRaw >>> 30 == 3) { // MSB 1 and 2 set, symbol (unset MSB x2)
+        // todo: remove casts once weird bug which breaks unrelated things is fixed (https://github.com/CanadaHonk/porffor/commit/5747f0c1f3a4af95283ebef175cdacb21e332a52)
+        if ((keyRaw & 0x3FFFFFFF) as symbol == target as symbol) return ptr;
       }
     }
   } else {
@@ -161,12 +160,10 @@ export const __Porffor_object_lookup = (obj: any, target: any): i32 => {
       const msb: i32 = keyRaw >>> 30;
       if (msb == 0) {
         // bytestring
-        const keyStr: bytestring = keyRaw;
-        if (Porffor.strcmp(keyStr, target)) return ptr;
+        if (Porffor.strcmp(keyRaw as bytestring, target)) return ptr;
       } else if (msb == 2) {
-        // string
-        const keyStr: string = keyRaw & 0x7FFFFFFF; // unset MSB
-        if (Porffor.strcmp(keyStr, target)) return ptr;
+        // string (unset MSB)
+        if (Porffor.strcmp((keyRaw & 0x7FFFFFFF) as string, target)) return ptr;
       }
     }
   }

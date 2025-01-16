@@ -17,8 +17,7 @@ export const Symbol = (description: any): Symbol => {
   }
 
   // 4. Return a new Symbol whose [[Description]] is descString.
-  const sym: Symbol = Porffor.array.fastPush(descStore, descString);
-  return sym;
+  return Porffor.array.fastPush(descStore, descString) as Symbol;
 };
 
 export const __Symbol_prototype_description$get = (_this: Symbol) => {
@@ -55,7 +54,6 @@ export const __Symbol_prototype_toString = (_this: Symbol) => {
   Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + descLen, 41, 0, 11);
 
   out.length = 8 + descLen;
-
   return out;
 };
 
