@@ -2091,14 +2091,15 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (name === 'Function') {
-    const known = knownValue(scope, decl.arguments[0]);
-    if (known !== unknownValue) {
-      // new Function('with known/literal string')
-      const code = String(known);
+    const knowns = decl.arguments.map(x => knownValue(scope, x));
+    if (knowns.every(x => x !== unknownValue)) {
+      // new Function('with known/literal strings')
+      const code = String(knowns[knowns.length - 1]);
+      const args = knowns.slice(0, -1).map(x => String(x));
 
       let parsed;
       try {
-        parsed = objectHack(parse(`(function(){${code}})`));
+        parsed = objectHack(parse(`(function(${args.join(',')}){${code}})`));
       } catch (e) {
         if (e.name === 'SyntaxError') {
           // throw syntax errors of evals at runtime instead
