@@ -368,8 +368,8 @@ export default (source, module = undefined, customImports = {}, print = str => p
 
     const noAnsi = s => s && s.replace(/\u001b\[[0-9]+m/g, '');
     let longest = 0;
-    for (let j = 0; j < disassemble.length; j++) {
-      longest = Math.max(longest, noAnsi(disassemble[j])?.length ?? 0);
+    for (let j = 0; j < disasm.length; j++) {
+      longest = Math.max(longest, noAnsi(disasm[j])?.length ?? 0);
     }
 
     if (middleIndex != -1) {
