@@ -220,7 +220,7 @@ if (isMainThread) {
             lastPercent = percent + 0.1;
           }
         } else {
-          process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : (result === 5 ? '90' : '91'))}m${file}\u001b[0m\n`);
+          process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : (result === 5 ? '90' : '91'))}m${['🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀'][result]} ${file}\u001b[0m\n`);
 
           if (threads === 1 && tests[i + 1]) {
             const nextFile = tests[i + 1].file.replaceAll('\\', '/').slice(5);
@@ -505,7 +505,7 @@ if (isMainThread) {
     out += (i << 4);
 
     if (logErrors) {
-      console.log(`\u001b[${pass ? '92' : '91'}m${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m` + (!pass && error ? ('\n' + (error?.stack || error.toString())) : ''));
+      console.log(`\u001b[${pass ? '92' : '91'}m${['🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀'][out]} ${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m` + (!pass && error ? ('\n' + (error?.stack || error.toString())) : ''));
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {
