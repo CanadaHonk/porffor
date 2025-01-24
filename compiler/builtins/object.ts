@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-export const Object = function (value: any): object {
+export const Object = function (value: any): any {
   if (value == null) {
     // if nullish, return new empty object
     const obj: object = Porffor.allocate();
@@ -8,6 +8,7 @@ export const Object = function (value: any): object {
   }
 
   // primitives into primitive objects
+  if ((Porffor.rawType(value) | 0b10000000) == Porffor.TYPES.bytestring) return new String(value);
   if (Porffor.rawType(value) == Porffor.TYPES.number) return new Number(value);
   if (Porffor.rawType(value) == Porffor.TYPES.boolean) return new Boolean(value);
 
