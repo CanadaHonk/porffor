@@ -92,13 +92,11 @@ i64.shl
 local.get ${get}
 i64.extend_i32_u
 i64.or
-
 f64.reinterpret_i64
-i32.const 1
 return`;
 };
 
-export const __Porffor_object_accessorGet = (entryPtr: i32): Function => {
+export const __Porffor_object_accessorGet = (entryPtr: i32): Function|undefined => {
   const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 4);
 
   // no getter, return undefined
@@ -109,7 +107,7 @@ export const __Porffor_object_accessorGet = (entryPtr: i32): Function => {
   return out;
 };
 
-export const __Porffor_object_accessorSet = (entryPtr: i32): Function => {
+export const __Porffor_object_accessorSet = (entryPtr: i32): Function|undefined => {
   const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 8);
 
   // no setter, return undefined
@@ -494,8 +492,6 @@ local.get ${value}
 local.get ${value+1}
 
 call __Object_is
-drop
-
 i32.trunc_sat_f64_u
 i32.eqz
 local.set ${err}`;

@@ -144,7 +144,7 @@ export const __Porffor_then = (promise: any[], fulfillReaction: any[], rejectRea
   }
 };
 
-export const __Porffor_promise_resolve = (value: any, promise: any): any => {
+export const __Porffor_promise_resolve = (value: any, promise: any): void => {
   // if value is own promise, reject with typeerror
   if (value === promise) throw new TypeError('cannot resolve promise with itself');
 
@@ -156,13 +156,10 @@ export const __Porffor_promise_resolve = (value: any, promise: any): any => {
   } else {
     __ecma262_FulfillPromise(promise, value);
   }
-
-  return undefined;
 };
 
-export const __Porffor_promise_reject = (reason: any, promise: any): any => {
+export const __Porffor_promise_reject = (reason: any, promise: any): void => {
   __ecma262_RejectPromise(promise, reason);
-  return undefined;
 };
 
 export const __Porffor_promise_create = (): any[] => {
@@ -187,12 +184,12 @@ export const __Porffor_promise_create = (): any[] => {
   return obj;
 };
 
-export const __Porffor_promise_runNext = (func: Function) => {
+export const __Porffor_promise_runNext = (func: Function): void => {
   const reaction: any[] = __Porffor_promise_newReaction(func, undefined, 1);
   __ecma262_HostEnqueuePromiseJob(__ecma262_NewPromiseReactionJob(reaction, undefined));
 };
 
-export const __Porffor_promise_runJobs = () => {
+export const __Porffor_promise_runJobs = (): void => {
   while (true) {
     let x: any = jobQueue.shift();
     if (x == null) break;
@@ -225,10 +222,10 @@ export const __Porffor_promise_runJobs = () => {
 
 // hack: cannot share scope so use a global
 let activePromise: any;
-export const __Porffor_promise_resolveActive = (value: any) => __Porffor_promise_resolve(value, activePromise);
-export const __Porffor_promise_rejectActive = (reason: any) => __Porffor_promise_reject(reason, activePromise);
+export const __Porffor_promise_resolveActive = (value: any): void => __Porffor_promise_resolve(value, activePromise);
+export const __Porffor_promise_rejectActive = (reason: any): void => __Porffor_promise_reject(reason, activePromise);
 
-export const Promise = function (executor: any): void {
+export const Promise = function (executor: any): Promise {
   if (!new.target) throw new TypeError("Constructor Promise requires 'new'");
   if (Porffor.rawType(executor) != Porffor.TYPES.function) throw new TypeError('Promise executor is not a function');
 
@@ -297,13 +294,13 @@ export const __Promise_prototype_then = (_this: any, onFulfilled: any, onRejecte
 
 // 27.2.5.1 Promise.prototype.catch (onRejected)
 // https://tc39.es/ecma262/#sec-promise.prototype.catch
-export const __Promise_prototype_catch = (_this: any, onRejected: any): Promise => {
+export const __Promise_prototype_catch = (_this: any, onRejected: any) => {
   // 1. Let promise be the this value.
   // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
   return __Promise_prototype_then(_this, undefined, onRejected);
 };
 
-export const __Promise_prototype_finally = (_this: any, onFinally: any): Promise => {
+export const __Promise_prototype_finally = (_this: any, onFinally: any) => {
   // custom impl based on then but also not (sorry)
   if (!__ecma262_IsPromise(_this)) throw new TypeError('Promise.prototype.then called on non-Promise');
 
@@ -474,7 +471,7 @@ export const __Promise_prototype_toString = (_this: any) => '[object Promise]';
 export const __Promise_prototype_toLocaleString = (_this: any) => __Promise_prototype_toString(_this);
 
 
-export const __Porffor_promise_await = (value: any) => {
+export const __Porffor_promise_await = (value: any): any => {
   if (Porffor.rawType(value) != Porffor.TYPES.promise) return value;
 
   // hack: peek value instead of awaiting

@@ -54,7 +54,6 @@ if 64
     v128.any_true
     if 64
       i32.const 0
-      i32.const 2
       return
     end
 
@@ -87,7 +86,6 @@ if 64
     i64.ne
     if 64
       i32.const 0
-      i32.const 2
       return
     end
 
@@ -120,7 +118,6 @@ if 64
     i32.ne
     if 64
       i32.const 0
-      i32.const 2
       return
     end
 
@@ -200,7 +197,6 @@ if 64
     v128.any_true
     if 64
       i32.const 0
-      i32.const 2
       return
     end
 
@@ -233,7 +229,6 @@ if 64
     i64.ne
     if 64
       i32.const 0
-      i32.const 2
       return
     end
 
@@ -266,7 +261,6 @@ if 64
     i32.ne
     if 64
       i32.const 0
-      i32.const 2
       return
     end
 

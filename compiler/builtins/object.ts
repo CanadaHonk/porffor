@@ -160,11 +160,11 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
   return __Array_prototype_includes(keys, p);
 };
 
-export const __Object_hasOwn = (obj: any, prop: any) => {
+export const __Object_hasOwn = (obj: any, prop: any): boolean => {
   return __Object_prototype_hasOwnProperty(obj, prop);
 };
 
-export const __Porffor_object_in = (obj: any, prop: any) => {
+export const __Porffor_object_in = (obj: any, prop: any): boolean => {
   if (__Object_prototype_hasOwnProperty(obj, prop)) {
     return true;
   }
@@ -181,7 +181,7 @@ export const __Porffor_object_in = (obj: any, prop: any) => {
   return false;
 };
 
-export const __Porffor_object_instanceof = (obj: any, constr: any, checkProto: any) => {
+export const __Porffor_object_instanceof = (obj: any, constr: any, checkProto: any): boolean => {
   if (Porffor.rawType(constr) != Porffor.TYPES.function) {
     throw new TypeError('instanceof right-hand side is not a function');
   }
@@ -203,7 +203,7 @@ export const __Porffor_object_instanceof = (obj: any, constr: any, checkProto: a
 };
 
 
-export const __Object_assign = (target: any, ...sources: any[]) => {
+export const __Object_assign = (target: any, ...sources: any[]): any => {
   if (target == null) throw new TypeError('Argument is nullish, expected object');
 
   for (const x of sources) {
@@ -221,7 +221,7 @@ export const __Object_assign = (target: any, ...sources: any[]) => {
 };
 
 // Object.assign but also non enumerable properties and 1 source
-export const __Porffor_object_assignAll = (target: any, source: any) => {
+export const __Porffor_object_assignAll = (target: any, source: any): any => {
   if (target == null) throw new TypeError('Argument is nullish, expected object');
 
   const keys: any[] = Reflect.ownKeys(source);
@@ -338,7 +338,7 @@ export const __Object_isSealed = (obj: any): any => {
 };
 
 
-export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): any => {
+export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|undefined => {
   const p: any = ecma262.ToPropertyKey(prop);
 
   const entryPtr: i32 = Porffor.object.lookup(obj, p);
@@ -388,7 +388,7 @@ local.set ${value+1}`;
   return out;
 };
 
-export const __Object_getOwnPropertyDescriptors = (obj: any): any => {
+export const __Object_getOwnPropertyDescriptors = (obj: any): object => {
   const out: object = {};
 
   if (Porffor.rawType(obj) != Porffor.TYPES.object) {
@@ -516,7 +516,7 @@ local.set ${key}`;
 };
 
 
-export const __Object_defineProperty = (target: any, prop: any, desc: any) => {
+export const __Object_defineProperty = (target: any, prop: any, desc: any): any => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
   if (!Porffor.object.isObject(desc)) throw new TypeError('Descriptor is a non-object');
 
@@ -594,7 +594,7 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any) => {
   return target;
 };
 
-export const __Object_defineProperties = (target: any, props: any) => {
+export const __Object_defineProperties = (target: any, props: any): any => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
   if (!Porffor.object.isObjectOrSymbol(props)) throw new TypeError('Props needs to be an object or symbol');
 
@@ -605,7 +605,7 @@ export const __Object_defineProperties = (target: any, props: any) => {
   return target;
 };
 
-export const __Object_create = (proto: any, props: any) => {
+export const __Object_create = (proto: any, props: any): object => {
   if (!Porffor.object.isObjectOrNull(proto)) throw new TypeError('Prototype should be an object or null');
 
   const out: object = {};
@@ -619,7 +619,7 @@ export const __Object_create = (proto: any, props: any) => {
 };
 
 
-export const __Object_groupBy = (items: any, callbackFn: any) => {
+export const __Object_groupBy = (items: any, callbackFn: any): object => {
   const out: object = {};
 
   let i = 0;
@@ -637,13 +637,13 @@ export const __Object_groupBy = (items: any, callbackFn: any) => {
 };
 
 
-export const __Object_getPrototypeOf = (obj: any) => {
+export const __Object_getPrototypeOf = (obj: any): any => {
   if (obj == null) throw new TypeError('Object is nullish, expected object');
 
   return obj.__proto__;
 };
 
-export const __Object_setPrototypeOf = (obj: any, proto: any) => {
+export const __Object_setPrototypeOf = (obj: any, proto: any): any => {
   if (obj == null) throw new TypeError('Object is nullish, expected object');
   if (!Porffor.object.isObjectOrNull(proto)) throw new TypeError('Prototype should be an object or null');
 

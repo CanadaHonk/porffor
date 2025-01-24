@@ -131,8 +131,7 @@ export const BuiltinFuncs = function() {
       number(TYPES.number, Valtype.i32),
       [ Opcodes.local_get, 1 ],
       number(TYPES.number, Valtype.i32),
-      [ Opcodes.call, builtin('__Math_pow') ],
-      [ Opcodes.drop ],
+      [ Opcodes.call, builtin('__Math_pow') ]
     ]
   };
 
@@ -756,6 +755,7 @@ export const BuiltinFuncs = function() {
     params: [ Valtype.i32, Valtype.i32 ],
     locals: [],
     returns: [],
+    returnType: TYPES.undefined,
     wasm: [
       // dst
       [ Opcodes.local_get, 1 ],

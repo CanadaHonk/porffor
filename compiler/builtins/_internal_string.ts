@@ -35,7 +35,7 @@ export const __Porffor_compareStrings = (a: any, b: any): boolean => {
   return Porffor.strcmp(a, b);
 };
 
-export const __Porffor_concatStrings = (a: any, b: any): boolean => {
+export const __Porffor_concatStrings = (a: any, b: any): any => {
   let at: i32 = Porffor.rawType(a);
   let bt: i32 = Porffor.rawType(b);
 

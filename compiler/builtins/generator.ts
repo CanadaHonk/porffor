@@ -18,7 +18,7 @@ export const __Porffor_Generator_return = (vals: any[], value: any): __Porffor_G
   return vals as __Porffor_Generator;
 };
 
-export const __Porffor_Generator_prototype_next = (vals: any[]): object => {
+export const __Porffor_Generator_prototype_next = (vals: any[]) => {
   const obj: object = {};
   obj.value = vals.shift();
   obj.done = vals.length == 0;
@@ -26,14 +26,14 @@ export const __Porffor_Generator_prototype_next = (vals: any[]): object => {
   return obj;
 };
 
-export const __Porffor_Generator_prototype_return = (vals: any[], value: any): object => {
+export const __Porffor_Generator_prototype_return = (vals: any[], value: any) => {
   vals.length = 1;
   vals[0] = value;
 
   return __Porffor_Generator_prototype_next(vals);
 };
 
-export const __Porffor_Generator_prototype_throw = (vals: any[], value: any): object => {
+export const __Porffor_Generator_prototype_throw = (vals: any[], value: any) => {
   vals.length = 0;
   throw value;
 };
@@ -57,7 +57,7 @@ export const __Porffor_AsyncGenerator_return = (vals: any[], value: any): __Porf
   return vals as __Porffor_AsyncGenerator;
 };
 
-export const __Porffor_AsyncGenerator_prototype_next = async (vals: any[]): object => {
+export const __Porffor_AsyncGenerator_prototype_next = async (vals: any[]) => {
   const obj: object = {};
   obj.value = await vals.shift();
   obj.done = vals.length == 0;
@@ -65,14 +65,14 @@ export const __Porffor_AsyncGenerator_prototype_next = async (vals: any[]): obje
   return obj;
 };
 
-export const __Porffor_AsyncGenerator_prototype_return = async (vals: any[], value: any): object => {
+export const __Porffor_AsyncGenerator_prototype_return = async (vals: any[], value: any) => {
   vals.length = 1;
   vals[0] = await value;
 
   return await __Porffor_AsyncGenerator_prototype_next(vals);
 };
 
-export const __Porffor_AsyncGenerator_prototype_throw = async (vals: any[], value: any): object => {
+export const __Porffor_AsyncGenerator_prototype_throw = async (vals: any[], value: any) => {
   vals.length = 0;
   throw await value;
 };

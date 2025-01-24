@@ -17,11 +17,10 @@ globalThis.precompile = true;
 globalThis.valtypeOverrides = {
   returns: {
     __Porffor_object_get: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_getExplicit: [ Valtype.f64, Valtype.i32 ],
     __Porffor_object_readValue: [ Valtype.f64, Valtype.i32 ],
     __Porffor_object_set: [ Valtype.f64, Valtype.i32 ],
     __Porffor_object_setStrict: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_packAccessor: [ Valtype.f64, Valtype.i32 ]
+    __Porffor_object_packAccessor: [ Valtype.f64 ]
   },
   params: {
     __Porffor_object_set: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
@@ -258,7 +257,7 @@ ${funcs.map(x => {
 
   return `this${name} = {
 wasm:${rewriteWasm(x.wasm)},
-params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.returns)},${x.returnType != null ? `returnType:${JSON.stringify(x.returnType)}` : 'typedReturns:1'},
+params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.returns)},${x.returnType != null ? `returnType:${JSON.stringify(x.returnType)},` : ''}
 locals:${JSON.stringify(locals.slice(x.params.length).map(x => x[1].type))},localNames:${JSON.stringify(locals.map(x => x[0]))},
 ${usedTypes.length > 0 ? `usedTypes:${JSON.stringify(usedTypes)},` : ''}
 ${x.globalInits ? `globalInits:{${Object.keys(x.globalInits).map(y => `${y}:${rewriteWasm(x.globalInits[y])}`).join(',')}},` : ''}${x.data && Object.keys(x.data).length > 0 ? `data:${JSON.stringify(x.data)},` : ''}

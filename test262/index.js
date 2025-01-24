@@ -433,7 +433,7 @@ if (isMainThread) {
       .replace('var assert = mustBeTrue => {', 'var assert = (mustBeTrue, msg) => {')
       .replaceAll('(actual, expected) => {', '(actual, expected, msg) => {')
       .replace('(actual, unexpected) => {', '(actual, unexpected, msg) => {')
-      .replaceAll('throw new Test262Error', 'if (typeof msg != "undefined") { Porffor.printString(msg); Porffor.printStatic(\'\\n\'); Porffor.print(expected, false); Porffor.printStatic(\'\\n\'); Porffor.print(actual, false); Porffor.printStatic(\'\\n\'); } throw new Test262Error');
+      .replaceAll('throw new Test262Error', 'if (typeof expected !== \'undefined\') { Porffor.printString(msg ?? \'\'); Porffor.printStatic(\'\\n\'); Porffor.print(expected, false); Porffor.printStatic(\'\\n\'); Porffor.print(actual, false); Porffor.printStatic(\'\\n\'); } throw new Test262Error');
 
     // fs.writeFileSync('r.js', contents);
 

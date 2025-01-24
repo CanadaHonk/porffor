@@ -136,7 +136,12 @@ const funcRef = func => {
       }
     }
 
-    if (func.returns.length === 1) {
+    if (func.returns.length === 0) {
+      // add to stack if returns nothing
+      wasm.push(number(UNDEFINED));
+    }
+
+    if (func.returns.length < 2) {
       // add built-in returnType if only returns a value
       wasm.push(number(func.returnType ?? TYPES.number, Valtype.i32));
     }
@@ -542,12 +547,10 @@ const generateYield = (scope, decl) => {
     ...getNodeType(scope, arg),
 
     [ Opcodes.call, includeBuiltin(scope, scope.async ? '__Porffor_AsyncGenerator_yield' : '__Porffor_Generator_yield').index ],
-    [ Opcodes.drop ],
-    [ Opcodes.drop ],
 
     // return generator
     [ Opcodes.local_get, scope.locals['#generator_out'].idx ],
-    number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32),
+    ...(scope.returnType != null ? [] : [ number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32) ]),
     [ Opcodes.return ],
 
     // use undefined as yield expression value
@@ -568,8 +571,9 @@ const generateReturn = (scope, decl) => {
       ...generate(scope, arg),
       ...getNodeType(scope, arg),
 
+      // return generator
       [ Opcodes.call, includeBuiltin(scope, scope.async ? '__Porffor_AsyncGenerator_return' : '__Porffor_Generator_return').index ],
-      // returns generator
+      ...(scope.returnType != null ? [] : [ number(scope.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator, Valtype.i32) ]),
       [ Opcodes.return ]
     ];
   }
@@ -584,15 +588,17 @@ const generateReturn = (scope, decl) => {
       number(TYPES.promise, Valtype.i32),
 
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_promise_resolve').index ],
-      [ Opcodes.drop ],
-      [ Opcodes.drop ],
 
       // return promise
       [ Opcodes.local_get, scope.locals['#async_out_promise'].idx ],
-      number(TYPES.promise, Valtype.i32),
+      ...(scope.returnType != null ? [] : [ number(TYPES.promise, Valtype.i32) ]),
       [ Opcodes.return ]
     ];
   }
+
+  if (scope.returns.length === 0) return [
+    [ Opcodes.return ]
+  ];
 
   if (
     scope.constr && // only do this in constructors
@@ -653,7 +659,7 @@ const generateReturn = (scope, decl) => {
       ]),
 
       [ Opcodes.local_get, localTmp(scope, '#return') ],
-      [ Opcodes.local_get, localTmp(scope, '#return#type', Valtype.i32) ],
+      ...(scope.returnType != null ? [] : [ [ Opcodes.local_get, localTmp(scope, '#return#type', Valtype.i32) ] ]),
       [ Opcodes.return ]
     ];
   }
@@ -760,8 +766,7 @@ const compareStrings = (scope, left, right, leftType, rightType, noConv = false)
     Opcodes.i32_to_u,
     ...rightType,
 
-    [ Opcodes.call, includeBuiltin(scope, '__Porffor_strcmp').index ],
-    [ Opcodes.drop ]
+    [ Opcodes.call, includeBuiltin(scope, '__Porffor_strcmp').index ]
   ];
 
   return [
@@ -774,7 +779,6 @@ const compareStrings = (scope, left, right, leftType, rightType, noConv = false)
     ...rightType,
 
     [ Opcodes.call, includeBuiltin(scope, '__Porffor_compareStrings').index ],
-    [ Opcodes.drop ],
 
     // convert valtype result to i32 as i32 output expected
     Opcodes.i32_trunc_sat_f64_u
@@ -1557,7 +1561,7 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type === 'CallExpression' || node.type === 'NewExpression') {
-      const name = node.callee.name;
+      let name = node.callee.name;
 
       // hack: special primitive object types
       if (node.type === 'NewExpression') {
@@ -1566,8 +1570,13 @@ const getNodeType = (scope, node) => {
         if (name === 'String') return TYPES.stringobject;
       }
 
+      // hack: try reading from member if call
+      if (name == null && node.callee.type === 'MemberExpression' && node.callee.property.name === 'call') {
+        name = node.callee.object.name;
+      }
+
       if (name == null) {
-        // iife
+        // unknown name
         return getLastType(scope);
       }
 
@@ -1576,7 +1585,7 @@ const getNodeType = (scope, node) => {
         if (func.returnType != null) return func.returnType;
       }
 
-      if (Object.hasOwn(builtinFuncs, name) && !builtinFuncs[name].typedReturns) return builtinFuncs[name].returnType ?? TYPES.number;
+      if (Object.hasOwn(builtinFuncs, name) && builtinFuncs[name].returnType != null) return builtinFuncs[name].returnType;
       if (Object.hasOwn(internalConstrs, name) && internalConstrs[name].type != null) return internalConstrs[name].type;
 
       // check if this is a prototype function
@@ -1979,8 +1988,6 @@ const createThisArg = (scope, decl) => {
       number(TYPES.number, Valtype.i32),
 
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_expr_initWithFlags').index ],
-      [ Opcodes.drop ],
-      [ Opcodes.drop ],
 
       [ Opcodes.local_get, tmp ],
       number(TYPES.object, Valtype.i32)
@@ -2618,7 +2625,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   const userFunc = func && !func.internal;
   const typedParams = userFunc || func?.typedParams;
-  const typedReturns = (userFunc && func.returnType == null) || builtinFuncs[name]?.typedReturns;
+  const typedReturns = func && func.returnType == null;
   let paramCount = countParams(func, name);
 
   let paramOffset = 0;
@@ -2718,17 +2725,19 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     // );
   } else out.push(...setLastType(scope));
 
-  if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
+  if (
+    func?.returns?.length === 0 ||
+    (idx === importedFuncs[name] && importedFuncs[importedFuncs[name]]?.returns === 0)
+  ) {
+    out.push(number(UNDEFINED));
+  }
+
+  if (func?.returns?.[0] === Valtype.i32 && valtypeBinary !== Valtype.i32) {
     out.push(Opcodes.i32_from);
   }
 
-  if (builtinFuncs[name] && builtinFuncs[name].returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32 && !globalThis.noi32F64CallConv) {
+  if (func?.returns?.[0] === Valtype.f64 && valtypeBinary === Valtype.i32 && !globalThis.noi32F64CallConv) {
     out.push(Opcodes.i32_trunc_sat_f64_s);
-  }
-
-  if ((builtinFuncs[name] && builtinFuncs[name].returns?.length === 0) ||
-      (idx === importedFuncs[name] && importedFuncs[importedFuncs[name]]?.returns === 0)) {
-    out.push(number(UNDEFINED));
   }
 
   return out;
@@ -3152,6 +3161,7 @@ const extractTypeAnnotation = decl => {
     type = a.typeName.name;
   } else if (a.type.endsWith('Keyword')) {
     type = a.type.slice(2, -7).toLowerCase();
+    if (type === 'void') type = 'undefined';
   } else if (a.type === 'TSArrayType') {
     type = 'array';
     elementType = extractTypeAnnotation(a.elementType).type;
@@ -4164,7 +4174,6 @@ const generateUnary = (scope, decl) => {
           ...toPropertyKey(scope, generate(scope, property), getNodeType(scope, property), decl.argument.computed, true),
 
           [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_deleteStrict' : '__Porffor_object_delete').index ],
-          [ Opcodes.drop ],
           Opcodes.i32_from_u
         ];
 
@@ -5625,10 +5634,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         ...(kind !== 'init' ? [ Opcodes.i32_to_u ] : []),
         ...getNodeType(scope, value),
 
-        [ Opcodes.call, includeBuiltin(scope, `__Porffor_object_expr_${kind}`).index ],
-
-        [ Opcodes.drop ],
-        [ Opcodes.drop ]
+        [ Opcodes.call, includeBuiltin(scope, `__Porffor_object_expr_${kind}`).index ]
       );
     }
   }
@@ -6273,10 +6279,7 @@ const generateClass = (scope, decl) => {
       ...(initKind !== 'value' && initKind !== 'method' ? [ Opcodes.i32_to_u ] : []),
       ...getNodeType(outScope, value),
 
-      [ Opcodes.call, includeBuiltin(outScope, `__Porffor_object_class_${initKind}`).index ],
-
-      [ Opcodes.drop ],
-      [ Opcodes.drop ]
+      [ Opcodes.call, includeBuiltin(outScope, `__Porffor_object_class_${initKind}`).index ]
     );
   }
 
@@ -6584,9 +6587,10 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
                   number(0),
                   number(TYPES.undefined, Valtype.i32),
                   [ Opcodes.call, includeBuiltin(scope, '__Array_from').index ],
-
-                  [ Opcodes.local_set, func.locals[name].idx + 1 ],
                   [ Opcodes.local_set, func.locals[name].idx ],
+
+                  number(TYPES.array, Valtype.i32),
+                  [ Opcodes.local_set, func.locals[name].idx + 1 ],
                 [ Opcodes.end ]
               );
             }
@@ -6673,9 +6677,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         // inject promise job runner func at the end of main if promises are made
         if (Object.hasOwn(funcIndex, 'Promise') || Object.hasOwn(funcIndex, '__Promise_resolve') || Object.hasOwn(funcIndex, '__Promise_reject')) {
           wasm.push(
-            [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_runJobs').index ],
-            [ Opcodes.drop ],
-            [ Opcodes.drop ]
+            [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_runJobs').index ]
           );
         }
       } else {
@@ -6696,14 +6698,12 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
           number(TYPES.array, Valtype.i32),
 
           [ Opcodes.call, includeBuiltin(func, func.async ? '__Porffor_AsyncGenerator' : '__Porffor_Generator').index ],
-          [ Opcodes.drop ],
           [ Opcodes.local_set, func.locals['#generator_out'].idx ]
         );
       } else if (func.async) {
         // make promise at the start
         wasm.unshift(
           [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_create').index ],
-          [ Opcodes.drop ],
           [ Opcodes.local_set, func.locals['#async_out_promise'].idx ],
 
           // wrap in try for later catch
@@ -6713,18 +6713,15 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         // reject with thrown value if caught error
         wasm.push(
           [ Opcodes.catch, 0 ],
+            [ Opcodes.local_get, func.locals['#async_out_promise'].idx ],
+            number(TYPES.promise, Valtype.i32),
 
-          [ Opcodes.local_get, func.locals['#async_out_promise'].idx ],
-          number(TYPES.promise, Valtype.i32),
-
-          [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_reject').index ],
-          [ Opcodes.drop ],
-          [ Opcodes.drop ],
+            [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_reject').index ],
           [ Opcodes.end ],
 
           // return promise at the end of func
           [ Opcodes.local_get, func.locals['#async_out_promise'].idx ],
-          number(TYPES.promise, Valtype.i32),
+          ...(scope.returnType != null ? [] : [ number(TYPES.promise, Valtype.i32) ]),
           [ Opcodes.return ]
         );
 
@@ -6741,10 +6738,9 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
-    if (type != null && !Prefs.indirectCalls) {
-    // if (type != null) {
+    if (type != null) {
       func.returnType = type;
-      func.returns = [ valtypeBinary ];
+      func.returns = func.returnType === TYPES.undefined && !func.async && !func.generator ? [] : [ valtypeBinary ];
     }
   }
 
