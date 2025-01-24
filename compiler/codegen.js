@@ -505,7 +505,7 @@ const lookup = (scope, name, failEarly = false) => {
 
     if (failEarly) return null;
 
-    return [ [ null, () => hoistLookup(scope, name), 1 ] ];
+    return [ [ null, () => hoistLookup(scope, name) ] ];
   }
 
   return [
@@ -1289,7 +1289,7 @@ const asmFuncToAsm = (scope, func) => {
         return [ [ null, () => {
           if (types.some(x => usedTypes.has(x))) return wasm();
           return [];
-        }, 0 ] ];
+        } ] ];
       }
     },
     i32ify: wasm => {
@@ -1439,7 +1439,11 @@ const setInferred = (scope, name, type, global = false) => {
 };
 
 const getType = (scope, name, failEarly = false) => {
-  const fallback = failEarly ? [ number(TYPES.undefined, Valtype.i32) ] : [ [ null, () => hoistLookupType(scope, name), 1 ] ];
+  const fallback = failEarly ? [
+    number(TYPES.undefined, Valtype.i32)
+  ] : [
+    [ null, () => hoistLookupType(scope, name) ]
+  ];
 
   if (Object.hasOwn(builtinVars, name)) return [ number(builtinVars[name].type ?? TYPES.number, Valtype.i32) ];
 
@@ -2774,7 +2778,7 @@ const generateThis = (scope, decl) => {
           [ Opcodes.local_set, scope.locals['#this#type'].idx ],
         [ Opcodes.end ]
       ];
-    }, 0 ],
+    } ],
 
     [ Opcodes.local_get, scope.locals['#this'].idx ]
   ];
@@ -3056,7 +3060,7 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
             depth = oldDepth;
           }
           return out;
-        }, 0 ]);
+        } ]);
       }
     }
   }
