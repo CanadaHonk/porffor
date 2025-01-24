@@ -1837,14 +1837,6 @@ const ArrayUtil = {
   ]
 };
 
-const getLastInst = wasm => {
-  for (let i = wasm.length - 1; i >= 0; i--) {
-    if (wasm[i]?.[0] != null) return wasm[i];
-  }
-
-  return null;
-};
-
 const createNewTarget = (scope, decl, idx = 0, force = false) => {
   if (decl._new || force) {
     return [
@@ -6303,7 +6295,7 @@ const generateClass = (scope, decl) => {
   return out;
 };
 
-export const generateTemplate = (scope, decl) => {
+const generateTemplate = (scope, decl) => {
   let current = null;
   const append = val => {
     if (!current) {
@@ -7016,8 +7008,6 @@ export default program => {
 
   Opcodes.load = [ Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load ][valtypeInd];
   Opcodes.store = [ Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store ][valtypeInd];
-
-  Opcodes.lt = [ Opcodes.i32_lt_s, Opcodes.i64_lt_s, Opcodes.f64_lt ][valtypeInd];
 
   builtinFuncs = new BuiltinFuncs();
   builtinVars = new BuiltinVars({ builtinFuncs });
