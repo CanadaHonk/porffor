@@ -242,7 +242,7 @@ export const Promise = function (executor: any): Promise {
   return obj as Promise;
 };
 
-export const __Promise_withResolvers = (): Promise => {
+export const __Promise_withResolvers = (): object => {
   const obj: any[] = __Porffor_promise_create();
   activePromise = obj;
 
