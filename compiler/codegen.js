@@ -1004,6 +1004,18 @@ const performOp = (scope, op, left, right, leftType, rightType) => {
     );
   }
 
+  if (!eqOp && (knownLeft === TYPES.bigint || knownRight === TYPES.bigint) && !(knownLeft === TYPES.bigint && knownRight === TYPES.bigint)) {
+    const unknownType = knownLeft === TYPES.bigint ? rightType : leftType;
+    startOut.push(
+      ...unknownType,
+      number(TYPES.bigint, Valtype.i32),
+      [ Opcodes.i32_ne ],
+      [ Opcodes.if, Blocktype.void ],
+        ...internalThrow(scope, 'TypeError', 'Cannot mix BigInts and non-BigInts in numeric expressions'),
+      [ Opcodes.end ]
+    );
+  }
+
   // todo: if equality op and an operand is undefined, return false
   // todo: niche null hell with 0
 
@@ -1218,7 +1230,7 @@ const generateBinaryExp = (scope, decl) => {
 
 const asmFuncToAsm = (scope, func) => {
   return func(scope, {
-    Valtype, Opcodes, TYPES, TYPE_NAMES, typeSwitch, makeString, internalThrow,
+    Valtype, Opcodes, TYPES, TYPE_NAMES, usedTypes, typeSwitch, makeString, internalThrow,
     getNodeType, generate, generateIdent,
     builtin: (n, offset = false) => {
       let idx = funcIndex[n] ?? importedFuncs[n];
@@ -1640,12 +1652,14 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'BinaryExpression') {
       if (['==', '===', '!=', '!==', '>', '>=', '<', '<=', 'instanceof', 'in'].includes(node.operator)) return TYPES.boolean;
-      if (node.operator !== '+') return TYPES.number;
 
       const leftType = getNodeType(scope, node.left);
       const rightType = getNodeType(scope, node.right);
       const knownLeft = knownTypeWithGuess(scope, leftType);
       const knownRight = knownTypeWithGuess(scope, rightType);
+
+      if (knownLeft === TYPES.bigint || knownRight === TYPES.bigint) return TYPES.bigint;
+      if (node.operator !== '+') return TYPES.number;
 
       if ((knownLeft != null || knownRight != null) && !(
         (knownLeft === TYPES.string || knownRight === TYPES.string) ||
@@ -1670,6 +1684,11 @@ const getNodeType = (scope, node) => {
       if (node.operator === 'void') return TYPES.undefined;
       if (node.operator === 'delete') return TYPES.boolean;
       if (node.operator === 'typeof') return TYPES.bytestring;
+
+      // todo: proper bigint support
+      const type = getNodeType(scope, node.argument);
+      const known = knownType(scope, type);
+      if (known === TYPES.bigint) return TYPES.bigint;
 
       return TYPES.number;
     }
@@ -1776,6 +1795,29 @@ const generateLiteral = (scope, decl, global, name) => {
 
     case 'string':
       return makeString(scope, decl.value);
+
+    case 'bigint':
+      let n = decl.value;
+
+      // inline if small enough
+      if ((n < 0 ? -n : n) < 0x8000000000000n) {
+        return [ number(Number(n)) ];
+      }
+
+      // todo/opt: calculate and statically store digits
+      return generate(scope, {
+        type: 'CallExpression',
+        callee: {
+          type: 'Identifier',
+          name: '__Porffor_bigint_fromString'
+        },
+        arguments: [
+          {
+            type: 'Literal',
+            value: decl.value.toString()
+          }
+        ]
+      });
 
     default:
       return todo(scope, `cannot generate literal of type ${typeof decl.value}`, true);
@@ -4075,6 +4117,24 @@ const ifIdentifierErrors = (scope, decl) => {
 };
 
 const generateUnary = (scope, decl) => {
+  const toNumeric = () => {
+    // opt: skip if already known as number type
+    generate(scope, decl.argument); // hack: fix last type not being defined for getNodeType before generation
+    const known = knownType(scope, getNodeType(scope, decl.argument));
+    if (known === TYPES.number) return generate(scope, decl.argument);
+
+    return generate(scope, {
+      type: 'CallExpression',
+      callee: {
+        type: 'Identifier',
+        name: '__ecma262_ToNumeric'
+      },
+      arguments: [
+        decl.argument
+      ]
+    });
+  };
+
   switch (decl.operator) {
     case '+':
       // opt: skip ToNumber if already known as number type
@@ -4100,20 +4160,30 @@ const generateUnary = (scope, decl) => {
     case '-':
       // +x * -1
 
-      if (decl.prefix && decl.argument.type === 'Literal' && typeof decl.argument.value === 'number') {
-        // if -n, just return that as a const
-        return [ number(-1 * decl.argument.value) ];
+      if (decl.prefix && decl.argument.type === 'Literal' && (typeof decl.argument.value === 'number' || typeof decl.argument.value === 'bigint')) {
+        // if -n, just return that as a literal
+        return generate(scope, {
+          type: 'Literal',
+          value: -decl.argument.value
+        });
       }
 
+      // todo: proper bigint support
       return [
-        ...generate(scope, {
-          type: 'UnaryExpression',
-          operator: '+',
-          prefix: true,
-          argument: decl.argument
-        }),
+        ...toNumeric(),
         ...(valtype === 'f64' ? [ [ Opcodes.f64_neg ] ] : [ number(-1), [ Opcodes.mul ] ])
       ];
+
+    case '~':
+      // todo: proper bigint support
+      return [
+        ...toNumeric(),
+        Opcodes.i32_to,
+        [ Opcodes.i32_const, ...signedLEB128(-1) ],
+        [ Opcodes.i32_xor ],
+        Opcodes.i32_from
+      ];
+
 
     case '!':
       const arg = decl.argument;
@@ -4124,20 +4194,6 @@ const generateUnary = (scope, decl) => {
 
       // !=
       return falsy(scope, generate(scope, arg), getNodeType(scope, arg), false, false);
-
-    case '~':
-      return [
-        ...generate(scope, {
-          type: 'UnaryExpression',
-          operator: '+',
-          prefix: true,
-          argument: decl.argument
-        }),
-        Opcodes.i32_to,
-        [ Opcodes.i32_const, ...signedLEB128(-1) ],
-        [ Opcodes.i32_xor ],
-        Opcodes.i32_from
-      ];
 
     case 'void': {
       // drop current expression value after running, give undefined

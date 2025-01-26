@@ -71,13 +71,18 @@ export const __ecma262_ToNumber = (argument: unknown): number => {
 // https://tc39.es/ecma262/#sec-tonumeric
 export const __ecma262_ToNumeric = (value: unknown): number => {
   // 1. Let primValue be ? ToPrimitive(value, number).
-  // we do not have ToPrimitive
+  // only run ToPrimitive if pure object for perf
+  let primValue: any = value;
+  if (Porffor.rawType(value) == Porffor.TYPES.object && Porffor.wasm`local.get ${value}` != 0)
+    primValue = __ecma262_ToPrimitive_Number(value);
 
   // 2. If primValue is a BigInt, return primValue.
-  // todo: do this when we have bigints
+  if (Porffor.comptime.flag`hasType.bigint`) {
+    if (Porffor.rawType(primValue) == Porffor.TYPES.bigint) return primValue;
+  }
 
   // 3. Return ? ToNumber(primValue).
-  return __ecma262_ToNumber(value);
+  return __ecma262_ToNumber(primValue);
 };
 
 // 7.1.5 ToIntegerOrInfinity (argument)

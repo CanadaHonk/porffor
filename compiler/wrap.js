@@ -335,6 +335,25 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       return out;
     }
 
+    case TYPES.bigint: {
+      if (Math.abs(value) < 0x8000000000000) {
+        return BigInt(value);
+      }
+      value -= 0x8000000000000;
+
+      const negative = read(Uint8Array, memory, value, 1)[0] !== 0;
+      const len = read(Uint16Array, memory, value + 2, 1)[0];
+      const digits = read(Uint32Array, memory, value + 4, len);
+
+      if (Prefs.d) console.log(digits);
+
+      let result = 0n;
+      for (let i = 0; i < digits.length; i++) {
+        result = result * 0x100000000n + BigInt(digits[i]);
+      }
+      return negative ? -result : result;
+    }
+
     default: return value;
   }
 };

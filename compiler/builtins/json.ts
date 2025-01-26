@@ -167,6 +167,11 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
     return out;
   }
 
+  if (t == 0x04) {
+    // bigint
+    throw new TypeError('Cannot serialize BigInts');
+  }
+
   return undefined;
 };
 

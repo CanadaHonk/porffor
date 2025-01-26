@@ -9,10 +9,15 @@ export const Number = function (value: any): number|NumberObject {
   // todo: handle undefined (NaN) and not present (0) args differently
   if (Porffor.rawType(value) != Porffor.TYPES.undefined) {
     // a. Let prim be ? ToNumeric(value).
-    // b. If prim is a BigInt, let n be 𝔽(ℝ(prim)).
-    // todo: handle when bigints exist
-    // c. Otherwise, let n be prim.
     n = ecma262.ToNumeric(value);
+
+    // b. If prim is a BigInt, let n be 𝔽(ℝ(prim)).
+    if (Porffor.comptime.flag`hasType.bigint`) {
+      if (Porffor.rawType(n) == Porffor.TYPES.bigint)
+        n = Porffor.bigint.toNumber(n);
+    }
+
+    // c. Otherwise, let n be prim.
   }
 
   // 2. Else,
