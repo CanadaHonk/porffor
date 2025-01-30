@@ -76,12 +76,12 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
   const len: i32 = n.length;
 
   let negative: boolean = false;
-  let end: i32 = 0;
+  let offset: i32 = 0;
   if (n[0] === '-') {
     negative = true;
-    end = 1;
+    offset = 1;
   } else if (n[0] === '+') {
-    end = 1;
+    offset = 1;
   }
 
   // n -> digits (base 2^32) (most to least significant)
@@ -89,44 +89,46 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
   // 4294967295 -> [ 4294967295 ]
   // 4294967296 -> [ 1, 0 ]
   // 4294967297 -> [ 1, 1 ]
-  // 4294967298 -> [ 1, 2 ]
-  // 9007199254740992 -> [ 2097152 ]
+  // 9007199254740992 -> [ 2097152, 0 ]
   // 9007199254740993 -> [ 2097152, 1 ]
   // 9007199254740994 -> [ 2097152, 2 ]
-  // 9007199254740995 -> [ 2097152, 3 ]
 
-  let acc: number = 0;
-  let digits: i32[];
   const BASE: i32 = 0x100000000; // 2^32
+  const digits: i32[] = Porffor.allocate(); // todo: free later
+  digits.length = len - offset;
 
-  for (let i: i32 = end; i < len; i++) {
-    const char: i32 = n.charCodeAt(i);
+  let i: i32 = 0;
+  let acc: number = 0;
+  while (i < len) {
+    const char: i32 = n.charCodeAt(offset + i);
     const digit: i32 = char - 48;
-    if (digit < 0 || digit > 9) throw new SyntaxError('Invalid character in BigInt string');
+    if (Porffor.fastOr(digit < 0, digit > 9)) throw new SyntaxError('Invalid character in BigInt string');
 
-    if (acc == -1) {
-      let carry: i32 = digit;
-      for (let j: i32 = 0; j < digits.length; j++) {
-        const value: i32 = digits[j] * BASE + carry;
-        digits[j] = value % BASE;
-        carry = Math.trunc(value / BASE);
-      }
-
-      if (carry > 0) digits.push(carry);
-    } else {
-      acc = acc * 10 + digit;
-      if (acc >= BASE) {
-        digits = Porffor.allocate();
-        digits.length = 2;
-        digits[0] = Math.floor(acc / BASE);
-        digits[1] = acc % BASE;
-        acc = -1;
-      }
-    }
+    digits[i++] = digit;
+    acc = acc * 10 + digit;
   }
 
-  if (acc == -1) return __Porffor_bigint_fromDigits(negative, digits);
-  return (negative ? -acc : acc) as bigint;
+  if (acc < 0x8000000000000) {
+    // inline if small enough
+    return acc as bigint;
+  }
+
+  const result: i32[] = Porffor.allocate();
+  while (digits.length > 0) {
+    let carry: i32 = 0;
+    for (let j: i32 = 0; j < digits.length; j++) {
+      let value: i32 = carry * 10 + digits[j];
+      let quotient: i32 = Math.floor(value / BASE);
+      carry = value % BASE;
+
+      digits[j] = quotient;
+    }
+
+    while (digits.length > 0 && digits[0] === 0) digits.shift();
+    if (carry !== 0 || digits.length > 0) result.unshift(carry);
+  }
+
+  return __Porffor_bigint_fromDigits(negative, result);
 };
 
 export const __Porffor_bigint_toString = (x: number, radix: any): string => {
