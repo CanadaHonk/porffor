@@ -3636,6 +3636,15 @@ const memberTmpNames = scope => {
 // COCTC: cross-object compile-time cache
 let coctc = new Map();
 const coctcOffset = prop => {
+  if (typeof prop === 'object') {
+    if (
+      prop.computed || prop.optional ||
+      ['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'length', '__proto__'].includes(prop.property.name)
+    ) return 0;
+
+    prop = prop.property.name;
+  }
+
   let offset = coctc.get(prop);
   if (offset == null) {
     offset = (coctc.lastOffset ?? 60000) - 9;
@@ -3767,7 +3776,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // todo/perf: use i32 object (and prop?) locals
     const { objectTmp, propertyTmp, objectGet, propertyGet } = memberTmpNames(scope);
 
-    const useCoctc = Prefs.coctc && !decl.left.computed && !decl.left.optional && !['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'length', '__proto__'].includes(decl.left.property.name) && coctcOffset(decl.left.property.name) > 0;
+    const useCoctc = Prefs.coctc && coctcOffset(decl.left) > 0;
     if (useCoctc) valueUnused = false;
 
     // opt: do not mark prototype funcs as referenced to optimize this in them
@@ -4213,7 +4222,7 @@ const generateUnary = (scope, decl) => {
         const property = getProperty(decl.argument);
         if (property.value === 'length' || property.value === 'name') scope.noFastFuncMembers = true;
 
-        const useCoctc = Prefs.coctc && !decl.argument.computed && !decl.argument.optional && !['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'length', '__proto__'].includes(decl.argument.property.name) && coctcOffset(decl.argument.property.name) > 0;
+        const useCoctc = Prefs.coctc && coctcOffset(decl.argument) > 0;
         const objectTmp = useCoctc && localTmp(scope, '#coctc_object', Valtype.i32);
 
         const out = [
@@ -5942,7 +5951,7 @@ const generateMember = (scope, decl, _global, _name) => {
     }
   }
 
-  const useCoctc = Prefs.coctc && !decl.computed && !decl.optional && !['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'length', '__proto__'].includes(decl.property.name) && coctcOffset(decl.property.name) > 0;
+  const useCoctc = Prefs.coctc && coctcOffset(decl) > 0;
   const coctcObjTmp = useCoctc && localTmp(scope, '#coctc_obj' + uniqId(), Valtype.i32);
 
   const out = typeSwitch(scope, getNodeType(scope, object), {
