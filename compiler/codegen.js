@@ -462,7 +462,7 @@ const lookup = (scope, name, failEarly = false) => {
   }
 
   if (local?.idx === undefined) {
-    if (name === 'arguments' && scope.name !== '#main' && !scope.arrow) {
+    if (name === 'arguments' && !scope.arrow) {
       // todo: not compliant
       let len = countLength(scope);
       const names = new Array(len);
@@ -1470,7 +1470,7 @@ const getType = (scope, name, failEarly = false) => {
     global = true;
   }
 
-  if (global !== false && name === 'arguments' && scope.name !== '#main' && !scope.arrow) {
+  if (global !== false && name === 'arguments' && !scope.arrow) {
     return [ number(TYPES.array, Valtype.i32) ];
   }
 
@@ -3571,9 +3571,8 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 const generateVar = (scope, decl) => {
   let out = [];
 
-  const topLevel = scope.name === '#main';
-
   // global variable if in top scope (main) or if internally wanted
+  const topLevel = scope.name === '#main';
   const global = decl._global ?? (topLevel || decl._bare);
 
   for (const x of decl.declarations) {
@@ -7072,28 +7071,24 @@ export default program => {
   const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
   objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
 
-  program.id = { name: '#main' };
-
-  program.body = {
-    type: 'BlockStatement',
-    body: program.body
-  };
-
-  if (Prefs.astLog) console.log(JSON.stringify(program.body.body, null, 2));
-
-  const [ main ] = generateFunc({}, program);
+  const [ main ] = generateFunc({}, {
+    type: 'Program',
+    id: { name: '#main' },
+    body: {
+      type: 'BlockStatement',
+      body: program.body
+    }
+  });
 
   // if wanted and blank main func and other exports, remove it
   if (Prefs.rmBlankMain && main.wasm.length === 0 && funcs.some(x => x.export)) funcs.splice(main.index - importedFuncs.length, 1);
 
-  // make ~empty funcs for never generated funcs
-  // todo: these should just be deleted once able
   for (let i = 0; i < funcs.length; i++) {
     const f = funcs[i];
 
-    if (f.wasm) {
-      // run callbacks
-      const wasm = f.wasm;
+    const wasm = f.wasm;
+    if (wasm) {
+      // func was generated, run callback ops
       for (let j = 0; j < wasm.length; j++) {
         const o = wasm[j];
         if (o[0] === null && typeof o[1] === 'function') {
@@ -7104,14 +7099,8 @@ export default program => {
       continue;
     }
 
-    // make wasm just return 0s for expected returns
+    // func was never generated, make wasm just return 0s for expected returns
     f.wasm = f.returns.map(x => number(0, x));
-
-    // alternative: make func empty, may break some indirect calls
-    // f.wasm = [];
-    // f.returns = [];
-    // f.params = [];
-    // f.locals = {};
   }
 
   // // remove never generated functions
@@ -7151,9 +7140,8 @@ export default program => {
   for (let i = 0; i < indirectFuncs.length; i++) {
     const f = indirectFuncs[i];
     f.index = currentFuncIndex++;
+    funcs.push(f);
   }
-
-  funcs.push(...indirectFuncs);
 
   delete globals['#ind'];
 
