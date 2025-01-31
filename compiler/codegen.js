@@ -10,14 +10,6 @@ import { log } from './log.js';
 import { allocPage, allocStr } from './allocator.js';
 import './prefs.js';
 
-let globals = {};
-let tags = [];
-let funcs = [];
-let exceptions = [];
-let funcIndex = {};
-let currentFuncIndex = importedFuncs.length;
-let builtinFuncs = {}, builtinVars = {}, prototypeFuncs = {};
-
 class TodoError extends Error {
   constructor(message) {
     super(message);
@@ -46,7 +38,6 @@ const cacheAst = (decl, wasm) => {
   return wasm;
 };
 
-let indirectFuncs = [];
 let doNotMarkFuncRef = false;
 const funcRef = func => {
   if (!doNotMarkFuncRef) func.referenced = true;
@@ -1393,7 +1384,6 @@ const isExistingProtoFunc = name => {
   return false;
 };
 
-let globalInfer;
 const getInferred = (scope, name, global = false) => {
   if (global) {
     if (globalInfer.has(name)) return globalInfer.get(name);
@@ -2907,8 +2897,7 @@ const brTable = (input, bc, returns) => {
   for (let i = offset; i <= max; i++) {
     // if branch for this num, go to that block
     if (bc[i]) {
-      table.push(br);
-      br++;
+      table.push(br++);
       continue;
     }
 
@@ -2945,9 +2934,6 @@ const brTable = (input, bc, returns) => {
   return out;
 };
 
-let typeswitchDepth = 0;
-
-let usedTypes = new Set();
 const typeUsed = (scope, x) => {
   if (x == null) return;
   usedTypes.add(x);
@@ -3600,7 +3586,6 @@ const memberTmpNames = scope => {
 };
 
 // COCTC: cross-object compile-time cache
-let coctc = new Map();
 const coctcOffset = prop => {
   if (typeof prop === 'object') {
     if (
@@ -4427,7 +4412,6 @@ const generateConditional = (scope, decl) => {
   return out;
 };
 
-let depth = [];
 const generateFor = (scope, decl) => {
   const out = [];
 
@@ -5363,9 +5347,6 @@ const generateMeta = (scope, decl) => {
 
   return todo(scope, `meta property object ${decl.meta.name} is not supported yet`, true);
 };
-
-let pages = new Map();
-let data = [];
 
 const compileBytes = (val, itemType) => {
   switch (itemType) {
@@ -6784,7 +6765,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   return [ func, out ];
 };
 
-let largestBlockBody = 0;
 const generateBlock = (scope, decl) => {
   let out = [];
 
@@ -6792,10 +6772,8 @@ const generateBlock = (scope, decl) => {
   scope.inferTree.push(decl);
 
   let len = decl.body.length, j = 0;
-  if (len > largestBlockBody) largestBlockBody = len;
   for (let i = 0; i < len; i++) {
     const x = decl.body[i];
-    if (len >= largestBlockBody) globalThis.progress?.(`${i}/${len}`);
     if (isEmptyNode(x)) continue;
 
     if (j++ > 0) out.push([ Opcodes.drop ]);
@@ -6958,10 +6936,9 @@ const internalConstrs = {
   }
 };
 
+let globals, tags, exceptions, funcs, indirectFuncs, funcIndex, currentFuncIndex, depth, pages, data, typeswitchDepth, usedTypes, coctc, globalInfer, builtinFuncs, builtinVars, prototypeFuncs;
 export default program => {
-  globals = {
-    ['#ind']: 0
-  };
+  globals = { ['#ind']: 0 };
   tags = [];
   exceptions = [];
   funcs = []; indirectFuncs = [];
@@ -6971,26 +6948,22 @@ export default program => {
   data = [];
   currentFuncIndex = importedFuncs.length;
   typeswitchDepth = 0;
-  largestBlockBody = 0;
   usedTypes = new Set([ TYPES.empty, TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
   coctc = new Map();
   globalInfer = new Map();
 
-  const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
-
   // set generic opcodes for current valtype
+  const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
   Opcodes.const = [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const ][valtypeInd];
   Opcodes.eq = [ Opcodes.i32_eq, Opcodes.i64_eq, Opcodes.f64_eq ][valtypeInd];
   Opcodes.eqz = [ [ [ Opcodes.i32_eqz ] ], [ [ Opcodes.i64_eqz ] ], [ number(0), [ Opcodes.f64_eq ] ] ][valtypeInd];
   Opcodes.mul = [ Opcodes.i32_mul, Opcodes.i64_mul, Opcodes.f64_mul ][valtypeInd];
   Opcodes.add = [ Opcodes.i32_add, Opcodes.i64_add, Opcodes.f64_add ][valtypeInd];
   Opcodes.sub = [ Opcodes.i32_sub, Opcodes.i64_sub, Opcodes.f64_sub ][valtypeInd];
-
   Opcodes.i32_to = [ [], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_s ][valtypeInd];
   Opcodes.i32_to_u = [ [], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_u ][valtypeInd];
   Opcodes.i32_from = [ [], [ Opcodes.i64_extend_i32_s ], [ Opcodes.f64_convert_i32_s ] ][valtypeInd];
   Opcodes.i32_from_u = [ [], [ Opcodes.i64_extend_i32_u ], [ Opcodes.f64_convert_i32_u ] ][valtypeInd];
-
   Opcodes.load = [ Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load ][valtypeInd];
   Opcodes.store = [ Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store ][valtypeInd];
 
