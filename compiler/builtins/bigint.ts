@@ -5,11 +5,11 @@ export const __Porffor_bigint_fromDigits = (negative: boolean, digits: i32[]): b
   const len: i32 = digits.length;
   if (len > 16383) throw new RangeError('Maximum BigInt size exceeded'); // (65536 - 4) / 4
 
-  // const ptr: i32 = Porffor.allocate();
+  // use digits pointer as bigint pointer, as only used here
   let ptr: i32 = Porffor.wasm`local.get ${digits}`;
 
-  Porffor.wasm.i32.store8(ptr, negative ? 1 : 0, 0, 0);
-  Porffor.wasm.i32.store16(ptr, len, 0, 2);
+  Porffor.wasm.i32.store8(ptr, negative ? 1 : 0, 0, 0); // sign
+  Porffor.wasm.i32.store16(ptr, len, 0, 2); // digit count
 
   let allZero: boolean = true;
   for (let i: i32 = 0; i < len; i++) {
@@ -84,14 +84,10 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
     offset = 1;
   }
 
-  // n -> digits (base 2^32) (most to least significant)
-  // 4294967294 -> [ 4294967294 ]
+  // n -> base 2^32 digits (most to least significant)
   // 4294967295 -> [ 4294967295 ]
   // 4294967296 -> [ 1, 0 ]
   // 4294967297 -> [ 1, 1 ]
-  // 9007199254740992 -> [ 2097152, 0 ]
-  // 9007199254740993 -> [ 2097152, 1 ]
-  // 9007199254740994 -> [ 2097152, 2 ]
 
   const BASE: i32 = 0x100000000; // 2^32
   const digits: i32[] = Porffor.allocate(); // todo: free later
