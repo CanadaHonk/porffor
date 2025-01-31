@@ -1386,29 +1386,6 @@ const generateLogicExp = (scope, decl) => {
   return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
 };
 
-// potential future ideas for nan boxing (unused):
-// T = JS type, V = value/pointer
-// 0bTTT
-// qNAN: 0 11111111111 1000000000000000000000000000000000000000000000000001
-// 50 bits usable: 0 11111111111 11??????????????????????????????????????????????????
-// js type: 4 bits
-// internal type: ? bits
-// pointer: 32 bits
-// https://piotrduperas.com/posts/nan-boxing
-// 0x7ffc000000000000
-// budget: 50 bits
-// js type: 4 bits
-// internal type: ? bits
-// pointer: 32 bits
-// generic
-// 1              23   4             5
-// 0 11111111111 11TTTTIIII??????????PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
-// 1: regular iEEE 754 double NaN
-// 2: extra 1 bit to identify NaN box
-// 3: js type
-// 4: internal type
-// 5: pointer
-
 const isExistingProtoFunc = name => {
   if (name.startsWith('__Array_prototype')) return !!prototypeFuncs[TYPES.array][name.slice(18)];
   if (name.startsWith('__String_prototype_')) return !!prototypeFuncs[TYPES.string][name.slice(19)];
@@ -2750,18 +2727,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   out.push([ Opcodes.call, idx ]);
-
-  if (!typedReturns) {
-    // let type;
-    // if (builtinFuncs[name]) type = TYPES[builtinFuncs[name].returnType ?? 'number'];
-    // if (internalConstrs[name]) type = internalConstrs[name].type;
-    // if (importedFuncs[name] && importedFuncs[]) type =
-
-    // if (type) out.push(
-    //   number(type, Valtype.i32),
-    //   [ Opcodes.local_set, localTmp(scope, '#last_type', Valtype.i32) ]
-    // );
-  } else out.push(...setLastType(scope));
+  if (typedReturns) out.push(...setLastType(scope));
 
   if (
     func?.returns?.length === 0 ||
@@ -5418,7 +5384,7 @@ const makeData = (scope, elements, page = null, itemType = 'i8') => {
 
   const length = elements.length;
 
-  // if length is 0 memory/data will just be 0000... anyway
+  // if length is 0, memory/data will just be 0000... anyway
   if (length === 0) return false;
 
   let bytes = compileBytes(length, 'i32');
@@ -5432,7 +5398,6 @@ const makeData = (scope, elements, page = null, itemType = 'i8') => {
   }
 
   const obj = { bytes, page };
-
   const idx = data.push(obj) - 1;
 
   scope.data ??= [];
@@ -5454,63 +5419,6 @@ const printStaticStr = str => {
   }
 
   return out;
-};
-
-const storeArray = (scope, array, index, element) => {
-  if (!Array.isArray(element)) element = generate(scope, element);
-  if (typeof index === 'number') index = [ number(index) ];
-
-  const offset = localTmp(scope, '#storeArray_offset', Valtype.i32);
-
-  return [
-    // calculate offset
-    ...index,
-    Opcodes.i32_to_u,
-    number(ValtypeSize[valtype] + 1, Valtype.i32),
-    [ Opcodes.i32_mul ],
-
-    ...array,
-    Opcodes.i32_to_u,
-    [ Opcodes.i32_add ],
-    [ Opcodes.local_set, offset ],
-
-    // store value
-    [ Opcodes.local_get, offset ],
-    ...generate(scope, element),
-    [ Opcodes.store, 0, ValtypeSize.i32 ],
-
-    // store type
-    [ Opcodes.local_get, offset ],
-    ...getNodeType(scope, element),
-    [ Opcodes.i32_store8, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
-  ];
-};
-
-const loadArray = (scope, array, index) => {
-  if (typeof index === 'number') index = [ number(index) ];
-
-  const offset = localTmp(scope, '#loadArray_offset', Valtype.i32);
-
-  return [
-    // calculate offset
-    ...index,
-    Opcodes.i32_to_u,
-    number(ValtypeSize[valtype] + 1, Valtype.i32),
-    [ Opcodes.i32_mul ],
-
-    ...array,
-    Opcodes.i32_to_u,
-    [ Opcodes.i32_add ],
-    [ Opcodes.local_set, offset ],
-
-    // load value
-    [ Opcodes.local_get, offset ],
-    [ Opcodes.load, 0, ValtypeSize.i32 ],
-
-    // load type
-    [ Opcodes.local_get, offset ],
-    [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
-  ];
 };
 
 const byteStringable = str => {
@@ -5957,8 +5865,21 @@ const generateMember = (scope, decl, _global, _name) => {
   const out = typeSwitch(scope, getNodeType(scope, object), {
     ...(decl.computed ? {
       [TYPES.array]: () => [
-        ...loadArray(scope, [ objectGet ], [ propertyGet ]),
-        ...setLastType(scope)
+        propertyGet,
+        Opcodes.i32_to_u,
+        number(ValtypeSize[valtype] + 1, Valtype.i32),
+        [ Opcodes.i32_mul ],
+
+        objectGet,
+        Opcodes.i32_to_u,
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_tee, localTmp(scope, '#loadArray_offset', Valtype.i32) ],
+        [ Opcodes.load, 0, ValtypeSize.i32 ],
+
+        ...setLastType(scope, [
+          [ Opcodes.local_get, localTmp(scope, '#loadArray_offset', Valtype.i32) ],
+          [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
+        ])
       ],
 
       [TYPES.string]: () => [
