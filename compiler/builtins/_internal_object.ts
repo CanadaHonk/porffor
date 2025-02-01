@@ -188,8 +188,8 @@ export const __Porffor_object_get = (obj: any, key: any): any => {
   if (entryPtr == -1) {
     // check prototype chain
     const protoKey: bytestring = '__proto__';
-    let lastProto: any = obj;
     if (key != protoKey) {
+      let lastProto: any = obj;
       while (true) {
         obj = __Porffor_object_get(obj, protoKey);
 
@@ -270,7 +270,6 @@ return`;
   }
 
   const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
-
   if (tail & 0b0001) {
     // accessor descriptor
     const get: Function = __Porffor_object_accessorGet(entryPtr);
@@ -309,7 +308,6 @@ export const __Porffor_object_writeKey = (ptr: i32, key: any): void => {
   Porffor.wasm.i32.store(ptr, keyEnc, 0, 0);
 };
 
-// todo: check prototype for setters
 export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
@@ -321,6 +319,38 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   let flags: i32;
   if (entryPtr == -1) {
+    // todo/opt: skip if no setters used
+    // todo/opt: add flag to objects if __proto__ is set, skip below if not
+    // check prototype chain for setter
+    const protoKey: bytestring = '__proto__';
+    if (key != protoKey) {
+      let lastProto: any = obj;
+      while (true) {
+        const proto: any = __Porffor_object_get(obj, protoKey);
+        if (Porffor.fastOr(proto == null, Porffor.wasm`local.get ${proto}` == Porffor.wasm`local.get ${lastProto}`)) break;
+
+        if ((entryPtr = __Porffor_object_lookup(proto, key)) != -1) break;
+        lastProto = proto;
+      }
+
+      if (entryPtr != -1) {
+        // found possible setter
+        const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
+        if (tail & 0b0001) {
+          // accessor descriptor
+          const set: Function = __Porffor_object_accessorSet(entryPtr);
+
+          // no setter, return early
+          if (Porffor.wasm`local.get ${set}` == 0) {
+            return value;
+          }
+
+          set.call(obj, value);
+          return value;
+        }
+      }
+    }
+
     // add new entry
     // check if object is inextensible
     if (__Porffor_object_isInextensible(obj)) {
@@ -365,7 +395,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
     flags = tail & 0xff;
   }
 
-  // write new value value (lol)
+  // write new value value
   Porffor.wasm.f64.store(entryPtr, value, 0, 4);
 
   // write new tail (value type + flags)
@@ -387,6 +417,36 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
   let entryPtr: i32 = __Porffor_object_lookup(obj, key);
   let flags: i32;
   if (entryPtr == -1) {
+    // check prototype chain for setter
+    const protoKey: bytestring = '__proto__';
+    if (key != protoKey) {
+      let lastProto: any = obj;
+      while (true) {
+        const proto: any = __Porffor_object_get(obj, protoKey);
+        if (Porffor.fastOr(proto == null, Porffor.wasm`local.get ${proto}` == Porffor.wasm`local.get ${lastProto}`)) break;
+
+        if ((entryPtr = __Porffor_object_lookup(proto, key)) != -1) break;
+        lastProto = proto;
+      }
+
+      if (entryPtr != -1) {
+        // found possible setter
+        const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 12);
+        if (tail & 0b0001) {
+          // accessor descriptor
+          const set: Function = __Porffor_object_accessorSet(entryPtr);
+
+          // no setter, return early
+          if (Porffor.wasm`local.get ${set}` == 0) {
+            return value;
+          }
+
+          set.call(obj, value);
+          return value;
+        }
+      }
+    }
+
     // add new entry
     // check if object is inextensible
     if (__Porffor_object_isInextensible(obj)) {
