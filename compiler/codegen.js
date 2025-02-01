@@ -3089,7 +3089,7 @@ const typeIsNotOneOf = (type, types, valtype = Valtype.i32) => {
   return out;
 };
 
-const allocVar = (scope, name, global = false, type = true, redecl = false) => {
+const allocVar = (scope, name, global = false, type = true, redecl = false, i32 = false) => {
   const target = global ? globals : scope.locals;
 
   // already declared
@@ -3104,7 +3104,7 @@ const allocVar = (scope, name, global = false, type = true, redecl = false) => {
   }
 
   let idx = global ? globals['#ind']++ : scope.localInd++;
-  target[name] = { idx, type: valtypeBinary };
+  target[name] = { idx, type: i32 ? Valtype.i32 : valtypeBinary };
 
   if (type) {
     let typeIdx = global ? globals['#ind']++ : scope.localInd++;
@@ -6201,18 +6201,6 @@ const generateClass = (scope, decl) => {
     // default value to undefined
     value ??= DEFAULT_VALUE();
 
-    let outArr = out, outOp = 'push', outScope = scope;
-    if (type === 'PropertyDefinition' && !_static) {
-      // define in construction instead
-      outArr = func.wasm;
-      outOp = 'unshift';
-      object = {
-        type: 'ThisExpression',
-        _noGlobalThis: true
-      };
-      outScope = func;
-    }
-
     if (isFuncType(value.type)) {
       let id = value.id;
 
@@ -6230,19 +6218,60 @@ const generateClass = (scope, decl) => {
       };
     }
 
-    outArr[outOp](
-      ...generate(outScope, object),
-      Opcodes.i32_to_u,
-      ...getNodeType(outScope, object),
+    if (type === 'PropertyDefinition' && !_static) {
+      // define in construction instead
+      object = {
+        type: 'ThisExpression',
+        _noGlobalThis: true
+      };
 
-      ...toPropertyKey(outScope, generate(outScope, k), getNodeType(outScope, k), computed, true),
+      let computedTmp;
+      if (computed) {
+        // compute now, reference in construction
+        computedTmp = allocVar(scope, `#class_computed_prop${uniqId()}`, true, true, false, true);
 
-      ...generate(outScope, value),
-      ...(initKind !== 'value' && initKind !== 'method' ? [ Opcodes.i32_to_u ] : []),
-      ...getNodeType(outScope, value),
+        out.push(
+          ...toPropertyKey(scope, generate(scope, k), getNodeType(scope, k), computed, true),
+          [ Opcodes.global_set, computedTmp + 1 ],
+          [ Opcodes.global_set, computedTmp ]
+        );
+      }
 
-      [ Opcodes.call, includeBuiltin(outScope, `__Porffor_object_class_${initKind}`).index ]
-    );
+      func.wasm.unshift(
+        ...generate(func, object),
+        Opcodes.i32_to_u,
+        ...getNodeType(func, object),
+
+        ...(computed ? [
+          [ Opcodes.global_get, computedTmp ],
+          [ Opcodes.global_get, computedTmp + 1 ],
+        ] : [
+          ...generate(func, k),
+          Opcodes.i32_to_u,
+          ...getNodeType(func, k)
+        ]),
+
+        ...generate(func, value),
+        ...(initKind !== 'value' && initKind !== 'method' ? [ Opcodes.i32_to_u ] : []),
+        ...getNodeType(func, value),
+
+        [ Opcodes.call, includeBuiltin(func, `__Porffor_object_class_${initKind}`).index ]
+      );
+    } else {
+      out.push(
+        ...generate(scope, object),
+        Opcodes.i32_to_u,
+        ...getNodeType(scope, object),
+
+        ...toPropertyKey(scope, generate(scope, k), getNodeType(scope, k), computed, true),
+
+        ...generate(scope, value),
+        ...(initKind !== 'value' && initKind !== 'method' ? [ Opcodes.i32_to_u ] : []),
+        ...getNodeType(scope, value),
+
+        [ Opcodes.call, includeBuiltin(scope, `__Porffor_object_class_${initKind}`).index ]
+      );
+    }
   }
 
   delete scope.overrideThis;
