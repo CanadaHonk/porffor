@@ -1571,24 +1571,6 @@ const getNodeType = (scope, node) => {
       if (Object.hasOwn(builtinFuncs, name) && builtinFuncs[name].returnType != null) return builtinFuncs[name].returnType;
       if (Object.hasOwn(internalConstrs, name) && internalConstrs[name].type != null) return internalConstrs[name].type;
 
-      // check if this is a prototype function
-      // if so and there is only one impl (eg charCodeAt)
-      // or all impls have the same return type
-      // use that return type as that is the only possibility
-      // (if non-matching type it would error out)
-      if (name.startsWith('__')) {
-        const spl = name.slice(2).split('_');
-
-        const func = spl[spl.length - 1];
-        const protoFuncs = Object.keys(prototypeFuncs).filter(x => x != TYPES.bytestring && prototypeFuncs[x][func] != null);
-        if (
-          protoFuncs.length === 1 ||
-          (protoFuncs.length > 1 && protoFuncs.every(x => x.returnType === protoFuncs[0].returnType))
-        ) {
-          if (protoFuncs[0].returnType != null) return protoFuncs[0].returnType;
-        }
-      }
-
       if (name.startsWith('__Porffor_wasm_')) {
         // todo: return undefined for non-returning ops
         return TYPES.number;
@@ -2353,30 +2335,34 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           const protoLocal2 = protoFunc.local2 ? localTmp(scope, `__${protoName}_tmp2`, protoFunc.local2) : -1;
 
           let optUnused = false;
-          const protoOut = protoFunc(getPointer, {
-            getCachedI32: () => [ [ Opcodes.local_get, lengthLocal ] ],
-            setCachedI32: () => [ [ Opcodes.local_set, lengthLocal ] ],
-            get: () => ArrayUtil.getLength(getPointer),
-            getI32: () => ArrayUtil.getLengthI32(getPointer),
-            set: value => ArrayUtil.setLength(getPointer, value),
-            setI32: value => ArrayUtil.setLengthI32(getPointer, value)
-          },
-          generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
-          getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
-          protoLocal, protoLocal2,
-          bytes => [
-            number(bytes, Valtype.i32),
-            [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ]
-          ],
-          () => {
-            optUnused = true;
-            return unusedValue;
+          const protoOut = protoFunc({
+            pointer: getPointer,
+            length: {
+              getCachedI32: () => [ [ Opcodes.local_get, lengthLocal ] ],
+              setCachedI32: () => [ [ Opcodes.local_set, lengthLocal ] ],
+              get: () => ArrayUtil.getLength(getPointer),
+              getI32: () => ArrayUtil.getLengthI32(getPointer),
+              set: value => ArrayUtil.setLength(getPointer, value),
+              setI32: value => ArrayUtil.setLengthI32(getPointer, value)
+            },
+            arg: generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+            argType: getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
+            iTmp: protoLocal,
+            iTmp2: protoLocal2,
+            alloc: bytes => [
+              number(bytes, Valtype.i32),
+              [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ]
+            ],
+            unusedValue: () => {
+              optUnused = true;
+              return unusedValue;
+            },
+            setType: type => setLastType(scope, type)
           });
 
           return [
             [ Opcodes.block, unusedValue ? Blocktype.void : valtypeBinary ],
               ...protoOut,
-              ...(unusedValue && optUnused ? [] : (protoFunc.returnType != null ? setLastType(scope, protoFunc.returnType) : setLastType(scope))),
               ...(unusedValue && !optUnused ? [ [ Opcodes.drop ] ] : []),
             [ Opcodes.end ]
           ];

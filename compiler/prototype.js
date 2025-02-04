@@ -15,8 +15,8 @@ export const PrototypeFuncs = function() {
 
   this[TYPES.array] = {
     // lX = local accessor of X ({ get, set }), iX = local index of X, wX = wasm ops of X
-    at: (pointer, length, wIndex, wType, iTmp) => [
-      ...wIndex,
+    at: ({ pointer, length, arg, iTmp, setType }) => [
+      ...arg,
       Opcodes.i32_to,
       [ Opcodes.local_tee, iTmp ],
 
@@ -24,10 +24,10 @@ export const PrototypeFuncs = function() {
       number(0, Valtype.i32),
       [ Opcodes.i32_lt_s ],
       [ Opcodes.if, Blocktype.void ],
-      [ Opcodes.local_get, iTmp ],
-      ...length.getCachedI32(),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_set, iTmp ],
+        [ Opcodes.local_get, iTmp ],
+        ...length.getCachedI32(),
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_set, iTmp ],
       [ Opcodes.end ],
 
       // if still < 0 or >= length: return undefined
@@ -41,8 +41,9 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_or ],
 
       [ Opcodes.if, Blocktype.void ],
-      number(UNDEFINED),
-      [ Opcodes.br, 1 ],
+        number(UNDEFINED),
+        ...setType(TYPES.undefined),
+        [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
       [ Opcodes.local_get, iTmp ],
@@ -57,18 +58,20 @@ export const PrototypeFuncs = function() {
       [ Opcodes.load, 0, ValtypeSize.i32 ],
 
       [ Opcodes.local_get, iTmp ],
-      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
+      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
+      ...setType()
     ],
 
-    pop: (pointer, length, _1, _2, iTmp, _3, _4, unusedValue) => [
+    pop: ({ pointer, length, iTmp, unusedValue, setType }) => [
       // if length == 0, noop
       ...length.getCachedI32(),
       [ Opcodes.i32_eqz ],
       [ Opcodes.if, Blocktype.void ],
-      ...(unusedValue() ? [] : [
-        number(UNDEFINED),
-      ]),
-      [ Opcodes.br, 1 ],
+        ...(unusedValue() ? [] : [
+          number(UNDEFINED),
+          ...setType(TYPES.undefined)
+        ]),
+        [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
       // todo: should we store 0/undefined in "removed" element?
@@ -99,17 +102,19 @@ export const PrototypeFuncs = function() {
         [ Opcodes.load, 0, ValtypeSize.i32 ],
 
         [ Opcodes.local_get, iTmp ],
-        [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ]
+        [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
+        ...setType()
       ])
     ],
 
-    shift: (pointer, length) => [
+    shift: ({ pointer, length, setType }) => [
       // if length == 0, noop
       ...length.getCachedI32(),
       [ Opcodes.i32_eqz ],
       [ Opcodes.if, Blocktype.void ],
-      number(UNDEFINED),
-      [ Opcodes.br, 1 ],
+        number(UNDEFINED),
+        ...setType(TYPES.undefined),
+        [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
       // todo: should we store 0/undefined in "removed" element?
@@ -131,6 +136,7 @@ export const PrototypeFuncs = function() {
 
       ...pointer,
       [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
+      ...setType(),
 
       // offset page by -1 ind
       // number(pointer + ValtypeSize.i32, Valtype.i32), // dst = base array index + length size
@@ -175,17 +181,17 @@ export const PrototypeFuncs = function() {
   this[TYPES.array].pop.local = Valtype.i32;
 
   this[TYPES.string] = {
-    at: (pointer, length, wIndex, wType, iTmp, iOut, alloc) => [
-      // setup new/out array and use pointer for store
+    at: ({ pointer, length, arg, iTmp, iTmp2, alloc, setType }) => [
+      // setup out string and use pointer for store
       ...alloc(8),
-      [ Opcodes.local_tee, iOut ],
+      [ Opcodes.local_tee, iTmp2 ],
 
       // out.length = 1
-      [ Opcodes.local_get, iOut ],
+      [ Opcodes.local_get, iTmp2 ],
       number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
-      ...wIndex,
+      ...arg,
       Opcodes.i32_to_u,
       [ Opcodes.local_tee, iTmp ],
 
@@ -193,10 +199,10 @@ export const PrototypeFuncs = function() {
       number(0, Valtype.i32),
       [ Opcodes.i32_lt_s ],
       [ Opcodes.if, Blocktype.void ],
-      [ Opcodes.local_get, iTmp ],
-      ...length.getCachedI32(),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_set, iTmp ],
+        [ Opcodes.local_get, iTmp ],
+        ...length.getCachedI32(),
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_set, iTmp ],
       [ Opcodes.end ],
 
       // if still < 0 or >= length: return undefined
@@ -210,8 +216,9 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_or ],
 
       [ Opcodes.if, Blocktype.void ],
-      number(UNDEFINED),
-      [ Opcodes.br, 1 ],
+        number(UNDEFINED),
+        ...setType(TYPES.undefined),
+        [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
       [ Opcodes.local_get, iTmp ],
@@ -228,13 +235,15 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_store16, Math.log2(ValtypeSize.i16) - 1, ValtypeSize.i32 ],
 
       // return new string (pointer)
-      [ Opcodes.local_get, iOut ],
-      Opcodes.i32_from_u
+      [ Opcodes.local_get, iTmp2 ],
+      Opcodes.i32_from_u,
+
+      ...setType(TYPES.string)
     ],
 
     // todo: out of bounds properly
-    charAt: (pointer, length, wIndex, wType, iTmp, _, alloc) => [
-      // setup new/out array and use as pointer for store
+    charAt: ({ pointer, arg, iTmp, alloc, setType }) => [
+      // setup out string and use as pointer for store
       ...alloc(8),
       [ Opcodes.local_tee, iTmp ],
 
@@ -243,7 +252,7 @@ export const PrototypeFuncs = function() {
       number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
-      ...wIndex,
+      ...arg,
       Opcodes.i32_to,
 
       number(ValtypeSize.i16, Valtype.i32),
@@ -260,11 +269,15 @@ export const PrototypeFuncs = function() {
 
       // return new string (page)
       [ Opcodes.local_get, iTmp ],
-      Opcodes.i32_from_u
+      Opcodes.i32_from_u,
+
+      ...setType(TYPES.string)
     ],
 
-    charCodeAt: (pointer, length, wIndex, wType, iTmp) => [
-      ...wIndex,
+    charCodeAt: ({ pointer, length, arg, iTmp, setType }) => [
+      ...setType(TYPES.number),
+
+      ...arg,
       Opcodes.i32_to,
 
       ...(zeroChecks.charcodeat ? [] : [
@@ -284,8 +297,8 @@ export const PrototypeFuncs = function() {
 
         ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
         [ Opcodes.if, Blocktype.void ],
-        number(valtype === 'i32' ? -1 : NaN),
-        [ Opcodes.br, 1 ],
+          number(valtype === 'i32' ? -1 : NaN),
+          [ Opcodes.br, 1 ],
         [ Opcodes.end ],
 
         [ Opcodes.local_get, iTmp ],
@@ -305,25 +318,22 @@ export const PrototypeFuncs = function() {
 
   this[TYPES.string].at.local = Valtype.i32;
   this[TYPES.string].at.local2 = Valtype.i32;
-  this[TYPES.string].at.returnType = TYPES.string;
   this[TYPES.string].charAt.local = Valtype.i32;
-  this[TYPES.string].charAt.returnType = TYPES.string;
-  this[TYPES.string].charCodeAt.returnType = TYPES.number;
   this[TYPES.string].charCodeAt.local = Valtype.i32;
   this[TYPES.string].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 
   this[TYPES.bytestring] = {
-    at: (pointer, length, wIndex, wType, iTmp, iOut, alloc) => [
-      // setup new/out array and use pointer for store
+    at: ({ pointer, length, arg, iTmp, iTmp2, alloc, setType }) => [
+      // setup out string and use pointer for store
       ...alloc(8),
-      [ Opcodes.local_tee, iOut ],
+      [ Opcodes.local_tee, iTmp2 ],
 
       // out.length = 1
-      [ Opcodes.local_get, iOut ],
+      [ Opcodes.local_get, iTmp2 ],
       number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
-      ...wIndex,
+      ...arg,
       Opcodes.i32_to_u,
       [ Opcodes.local_tee, iTmp ],
 
@@ -331,10 +341,10 @@ export const PrototypeFuncs = function() {
       number(0, Valtype.i32),
       [ Opcodes.i32_lt_s ],
       [ Opcodes.if, Blocktype.void ],
-      [ Opcodes.local_get, iTmp ],
-      ...length.getCachedI32(),
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_set, iTmp ],
+        [ Opcodes.local_get, iTmp ],
+        ...length.getCachedI32(),
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_set, iTmp ],
       [ Opcodes.end ],
 
       // if still < 0 or >= length: return undefined
@@ -348,8 +358,9 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_or ],
 
       [ Opcodes.if, Blocktype.void ],
-      number(UNDEFINED),
-      [ Opcodes.br, 1 ],
+        number(UNDEFINED),
+        ...setType(TYPES.undefined),
+        [ Opcodes.br, 1 ],
       [ Opcodes.end ],
 
       [ Opcodes.local_get, iTmp ],
@@ -364,13 +375,15 @@ export const PrototypeFuncs = function() {
       [ Opcodes.i32_store8, 0, ValtypeSize.i32 ],
 
       // return new string (pointer)
-      [ Opcodes.local_get, iOut ],
-      Opcodes.i32_from_u
+      [ Opcodes.local_get, iTmp2 ],
+      Opcodes.i32_from_u,
+
+      ...setType(TYPES.bytestring)
     ],
 
     // todo: out of bounds properly
-    charAt: (pointer, length, wIndex, wType, iTmp, _, alloc) => [
-      // setup new/out array and use as pointer for store
+    charAt: ({ pointer, arg, iTmp, alloc, setType }) => [
+      // setup out string and use as pointer for store
       ...alloc(8),
       [ Opcodes.local_tee, iTmp ],
 
@@ -379,7 +392,7 @@ export const PrototypeFuncs = function() {
       number(1, Valtype.i32),
       [ Opcodes.i32_store, 0, 0 ],
 
-      ...wIndex,
+      ...arg,
       Opcodes.i32_to,
 
       ...pointer,
@@ -393,11 +406,15 @@ export const PrototypeFuncs = function() {
 
       // return new string (page)
       [ Opcodes.local_get, iTmp ],
-      Opcodes.i32_from_u
+      Opcodes.i32_from_u,
+
+      ...setType(TYPES.bytestring)
     ],
 
-    charCodeAt: (pointer, length, wIndex, wType, iTmp) => [
-      ...wIndex,
+    charCodeAt: ({ pointer, length, arg, iTmp, setType }) => [
+      ...setType(TYPES.number),
+
+      ...arg,
       Opcodes.i32_to,
 
       ...(zeroChecks.charcodeat ? [] : [
@@ -417,8 +434,8 @@ export const PrototypeFuncs = function() {
 
         ...(noUnlikelyChecks ? [] : [ [ Opcodes.i32_or ] ]),
         [ Opcodes.if, Blocktype.void ],
-        number(valtype === 'i32' ? -1 : NaN),
-        [ Opcodes.br, 1 ],
+          number(valtype === 'i32' ? -1 : NaN),
+          [ Opcodes.br, 1 ],
         [ Opcodes.end ],
 
         [ Opcodes.local_get, iTmp ],
@@ -435,10 +452,7 @@ export const PrototypeFuncs = function() {
 
   this[TYPES.bytestring].at.local = Valtype.i32;
   this[TYPES.bytestring].at.local2 = Valtype.i32;
-  this[TYPES.bytestring].at.returnType = TYPES.bytestring;
   this[TYPES.bytestring].charAt.local = Valtype.i32;
-  this[TYPES.bytestring].charAt.returnType = TYPES.bytestring;
-  this[TYPES.bytestring].charCodeAt.returnType = TYPES.number;
   this[TYPES.bytestring].charCodeAt.local = Valtype.i32;
   this[TYPES.bytestring].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 };
