@@ -1539,7 +1539,7 @@ const getNodeType = (scope, node) => {
       return getType(scope, node.name);
     }
 
-    if (node.type === 'ObjectExpression') {
+    if (node.type === 'ObjectExpression' || node.type === 'Super') {
       return TYPES.object;
     }
 
@@ -1842,29 +1842,6 @@ const createNewTarget = (scope, decl, idx = 0, force = false) => {
   ];
 };
 
-const makeObject = (scope, obj) => {
-  const properties = [];
-  for (const x in obj) {
-    properties.push({
-      type: 'Property',
-      method: false,
-      shorthand: false,
-      computed: false,
-      key: {
-        type: 'Identifier',
-        name: x
-      },
-      value: obj[x],
-      kind: 'init'
-    });
-  }
-
-  return generate(scope, {
-    type: 'ObjectExpression',
-    properties
-  });
-};
-
 const getObjProp = (obj, prop) => {
   if (typeof obj === 'string') obj = {
     type: 'Identifier',
@@ -1949,32 +1926,22 @@ const createThisArg = (scope, decl) => {
       number(TYPES.object, Valtype.i32)
     ];
 
-    // create new object with __proto__ set to callee prototype
+    // create new object with prototype set to callee prototype
     const tmp = localTmp(scope, '#this_create_tmp');
     const proto = getObjProp(decl.callee, 'prototype');
 
     return [
-      ...makeObject(scope, {}),
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+      Opcodes.i32_from_u,
       [ Opcodes.local_tee, tmp ],
       Opcodes.i32_to_u,
-
       number(TYPES.object, Valtype.i32),
 
-      ...generate(scope, {
-        type: 'Literal',
-        value: '__proto__'
-      }),
-      Opcodes.i32_to_u,
-      number(TYPES.bytestring, Valtype.i32),
-
       ...generate(scope, proto),
+      Opcodes.i32_to_u,
       ...getNodeType(scope, proto),
 
-      // flags: writable
-      number(0b1000, Valtype.i32),
-      number(TYPES.number, Valtype.i32),
-
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_expr_initWithFlags').index ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_setPrototype').index ],
 
       [ Opcodes.local_get, tmp ],
       number(TYPES.object, Valtype.i32)
@@ -2760,8 +2727,19 @@ const generateThis = (scope, decl) => {
   ];
 };
 
-const generateSuper = (scope, decl) => generate(scope,
-  getObjProp(getObjProp({ type: 'ThisExpression', _noGlobalThis: true }, '__proto__'), '__proto__'));
+const generateSuper = (scope, decl) => generate(scope, {
+  type: 'CallExpression',
+  callee: { type: 'Identifier', name: '__Porffor_object_getPrototype' },
+  arguments: [
+    {
+      type: 'CallExpression',
+      callee: { type: 'Identifier', name: '__Porffor_object_getPrototype' },
+      arguments: [
+        { type: 'ThisExpression', _noGlobalThis: true }
+      ]
+    }
+  ]
+});
 
 // bad hack for undefined and null working without additional logic
 const DEFAULT_VALUE = () => ({
@@ -4873,7 +4851,7 @@ const generateForIn = (scope, decl) => {
 
     // get length
     [ Opcodes.local_get, pointer ],
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
+    [ Opcodes.i32_load16_u, 0, 0 ],
     [ Opcodes.local_tee, length ],
 
     [ Opcodes.if, Blocktype.void ]
@@ -4906,7 +4884,7 @@ const generateForIn = (scope, decl) => {
 
     // read key
     [ Opcodes.local_get, pointer ],
-    [ Opcodes.i32_load, 0, 5 ],
+    [ Opcodes.i32_load, 0, 12 ],
     [ Opcodes.local_tee, tmp ],
 
     ...setType(scope, tmpName, [
@@ -4938,7 +4916,7 @@ const generateForIn = (scope, decl) => {
     // todo/perf: do not read key for non-enumerables
     // only run body if entry is enumerable
     [ Opcodes.local_get, pointer ],
-    [ Opcodes.i32_load8_u, 0, 17 ],
+    [ Opcodes.i32_load8_u, 0, 24 ],
     [ Opcodes.i32_const, 0b0100 ],
     [ Opcodes.i32_and ],
     [ Opcodes.if, Blocktype.void ],
@@ -4946,9 +4924,9 @@ const generateForIn = (scope, decl) => {
     [ Opcodes.drop ],
     [ Opcodes.end ],
 
-    // increment pointer by 14
+    // increment pointer by 18
     [ Opcodes.local_get, pointer ],
-    number(14, Valtype.i32),
+    number(18, Valtype.i32),
     [ Opcodes.i32_add ],
     [ Opcodes.local_set, pointer ],
 
@@ -5772,60 +5750,6 @@ const generateMember = (scope, decl, _global, _name) => {
     if (known == null) extraBC = bc;
   }
 
-  if (decl.property.name === '__proto__') {
-    // todo: support optional
-    const bc = {};
-    const prototypes = Object.keys(builtinVars).filter(x => x.endsWith('_prototype'));
-
-    const known = knownType(scope, getNodeType(scope, decl.object));
-    for (const x of prototypes) {
-      let type = TYPES[x.split('_prototype')[0].slice(2).toLowerCase()];
-      if (type == null) continue;
-
-      // do not __proto__ primitive hack for objects or functions
-      if (type === TYPES.object || type === TYPES.function) continue;
-
-      // hack: do not support primitives for Object.prototype.isPrototypeOf
-      if (scope.name === '__Object_prototype_isPrototypeOf') {
-        switch (type) {
-          case TYPES.boolean:
-            type = TYPES.booleanobject;
-            break;
-
-          case TYPES.number:
-            type = TYPES.numberobject;
-            break;
-
-          case TYPES.string:
-            type = TYPES.stringobject;
-            break;
-
-          case TYPES.bytestring:
-            continue;
-        }
-      }
-
-      const ident = {
-        type: 'Identifier',
-        name: x
-      };
-
-      // hack: bytestrings should return string prototype
-      if (type === TYPES.bytestring) ident.name = '__String_prototype';
-
-      bc[type] = () => [
-        ...generate(scope, ident),
-        ...setLastType(scope, getNodeType(scope, ident))
-      ];
-      if (type === known) return bc[type]();
-    }
-
-    if (known == null) {
-      aliasPrimObjsBC(bc);
-      extraBC = bc;
-    }
-  }
-
   const useCoctc = Prefs.coctc && coctcOffset(decl) > 0;
   const coctcObjTmp = useCoctc && localTmp(scope, '#coctc_obj' + uniqId(), Valtype.i32);
 
@@ -5995,7 +5919,7 @@ const generateMember = (scope, decl, _global, _name) => {
       }),
     } : {}),
 
-    [TYPES.undefined]: internalThrow(scope, 'TypeError', 'Cannot read property of undefined', true),
+    [TYPES.undefined]: internalThrow(scope, 'TypeError', `Cannot read property of undefined`, true),
 
     // default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
     default: () => [
@@ -6150,10 +6074,25 @@ const generateClass = (scope, decl) => {
       // class Foo {}
       // class Bar extends Foo {}
       // Bar.__proto__ = Foo
-      // Bar.prototype.__proto__ = Foo.prototype
-      ...generate(scope, setObjProp(root, '__proto__', decl.superClass)),
+      ...generate(scope, {
+        type: 'CallExpression',
+        callee: { type: 'Identifier', name: '__Porffor_object_setPrototype' },
+        arguments: [
+          root,
+          decl.superClass
+        ]
+      }),
       [ Opcodes.drop ],
-      ...generate(scope, setObjProp(proto, '__proto__', getObjProp(decl.superClass, 'prototype'))),
+
+      // Bar.prototype.__proto__ = Foo.prototype
+      ...generate(scope, {
+        type: 'CallExpression',
+        callee: { type: 'Identifier', name: '__Porffor_object_setPrototype' },
+        arguments: [
+          proto,
+          getObjProp(decl.superClass, 'prototype')
+        ]
+      }),
       [ Opcodes.drop ]
     );
   }
@@ -6340,7 +6279,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
               return funcIndex[x];
             }
 
-            return scope.locals[x]?.idx ?? globals[x].idx;
+            return scope.locals[x]?.idx ?? globals[x]?.idx ?? (log.warning('codegen', `unknown immediate in Porffor.wasm: ${x}`) || 0);
           }
 
           return n;
@@ -6414,7 +6353,6 @@ const objectHack = node => {
 
       // hack: block these properties as they can be accessed on functions
       if (node.object.name !== 'Porffor' && (node.property.name === 'length' || node.property.name === 'name' || node.property.name === 'call')) return abortOut;
-
       if (node.property.name === '__proto__') return abortOut;
 
       let objectName = node.object.name;

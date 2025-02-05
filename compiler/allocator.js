@@ -47,7 +47,7 @@ export const allocBytes = ({ scope, pages }, reason, bytes) => {
     };
 
     const id = bins.push(bin);
-    pages.set(`#bin_${id}`, page);
+    pages.set(`#bin: ${id}`, page);
   }
 
   const ptr = pagePtr(bin.page) + bin.used;

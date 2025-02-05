@@ -1,6 +1,6 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
-import { TYPES } from './types.js';
+import { TYPES, TYPE_NAMES } from './types.js';
 import { log } from './log.js';
 
 import process from 'node:process';
@@ -41,7 +41,7 @@ const compile = async (file, _funcs) => {
   let first = source.slice(0, source.indexOf('\n'));
 
   if (first.startsWith('export default')) {
-    source = await (await import('file://' + file)).default();
+    source = await (await import('file://' + file)).default({ TYPES, TYPE_NAMES });
     first = source.slice(0, source.indexOf('\n'));
   }
 
@@ -155,11 +155,10 @@ const compile = async (file, _funcs) => {
         }
 
         if (n[0] === Opcodes.throw) {
-          if (!bodyHasTopLevelThrow && depth === 0) log.warning('codegen', `top-level throw in ${x.name}`);
-
           x.usesTag = true;
+          let id;
           if (y[0] === Opcodes.i32_const && n[1] === 0) {
-            const id = read_signedLEB128(y.slice(1));
+            id = read_signedLEB128(y.slice(1));
             y.splice(0, 10, 'throw', exceptions[id].constructor, exceptions[id].message);
 
             // remove throw inst
@@ -167,6 +166,8 @@ const compile = async (file, _funcs) => {
           } else {
             n[1]--;
           }
+
+          if (!bodyHasTopLevelThrow && depth === 0) log.warning('codegen', `top-level throw in ${x.name} (${exceptions[id].constructor}: ${exceptions[id].message})`);
         }
 
         if (n[0] === Opcodes.catch) {

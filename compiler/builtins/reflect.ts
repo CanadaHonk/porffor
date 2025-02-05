@@ -91,17 +91,17 @@ export const __Reflect_ownKeys = (target: any) => {
   target = __Porffor_object_underlying(target);
   const t: i32 = Porffor.rawType(target);
   if (t == Porffor.TYPES.object) {
-    let ptr: i32 = Porffor.wasm`local.get ${target}` + 5;
-    const endPtr: i32 = ptr + Porffor.wasm.i32.load(target, 0, 0) * 14;
+    let ptr: i32 = Porffor.wasm`local.get ${target}` + 8;
+    const endPtr: i32 = ptr + Porffor.wasm.i32.load16_u(target, 0, 0) * 18;
 
     let i: i32 = 0;
-    for (; ptr < endPtr; ptr += 14) {
+    for (; ptr < endPtr; ptr += 18) {
       let key: any;
       Porffor.wasm`local raw i32
 local msb i32
 local.get ${ptr}
 i32.to_u
-i32.load 0 0
+i32.load 0 4
 local.set raw
 
 local.get raw

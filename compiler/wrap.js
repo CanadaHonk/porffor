@@ -48,11 +48,11 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
     case TYPES.object: {
       if (value === 0 || checkOOB(memory, value)) return null;
 
-      const size = read(Uint32Array, memory, value, 1)[0];
+      const size = read(Uint16Array, memory, value, 1)[0];
 
       const out = {};
       for (let i = 0; i < size; i++) {
-        const offset = 5 + (i * 14);
+        const offset = 8 + (i * 18) + 4;
 
         const kRaw = read(Uint32Array, memory, value + offset, 1)[0];
         let kType = TYPES.bytestring;
@@ -65,10 +65,9 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
             kType = TYPES.symbol;
             break;
         }
+
         const kValue = kRaw & 0x3fffffff;
         const k = porfToJSValue({ memory, funcs, pages }, kValue, kType);
-
-        if (k === '__proto__') continue;
 
         const tail = read(Uint16Array, memory, value + offset + 12, 1)[0];
 

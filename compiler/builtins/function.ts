@@ -13,7 +13,7 @@ export const __Function_prototype_toLocaleString = (_this: Function) => __Functi
 
 export const __Function_prototype_apply = (_this: Function, thisArg: any, argsArray: any) => {
   argsArray = Array.from(argsArray ?? []);
-  return Reflect.apply(_this, thisArg, argsArray);
+  return Porffor.call(_this, argsArray, thisArg, null);
 };
 
 export const __Function_prototype_bind = (_this: Function, thisArg: any, argsArray: any) => {
