@@ -156,6 +156,9 @@ export const __ecma262_ToString = (argument: unknown): any => {
   if (type == Porffor.TYPES.number) return __Number_prototype_toString(argument, 10);
 
   // 8. If argument is a BigInt, return BigInt::toString(argument, 10).
+  if (Porffor.comptime.flag`hasType.bigint`) {
+    if (type == Porffor.TYPES.bigint) return __Porffor_bigint_toString(argument, 10);
+  }
 
   // hack: StringObject -> String
   if (type == Porffor.TYPES.stringobject) {

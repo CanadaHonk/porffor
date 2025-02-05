@@ -127,9 +127,9 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
   return __Porffor_bigint_fromDigits(negative, result);
 };
 
-export const __Porffor_bigint_toString = (x: number, radix: any): string => {
+export const __Porffor_bigint_toString = (x: number, radix: any): string|bytestring => {
   // todo: actually use bigint
-  return __Number_prototype_toFixed(__Porffor_bigint_toNumber(x), radix);
+  return __Number_prototype_toString(Math.trunc(__Porffor_bigint_toNumber(x)), radix);
 };
 
 // todo: hook up all funcs below to codegen

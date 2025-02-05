@@ -752,8 +752,8 @@ usedTypes:[67,195,80],
 usesTag:1,
 }
 this.__Porffor_bigint_toString = {
-wasm:(_,{builtin})=>[[32,0],[65,1],[16,builtin('__Porffor_bigint_toNumber')],[65,1],[32,2],[32,3],[16,builtin('__Number_prototype_toFixed')],[26],[15]],
-params:[124,127,124,127],typedParams:1,returns:[124],returnType:67,
+wasm:(_,{builtin})=>[[32,0],[65,1],[16,builtin('__Porffor_bigint_toNumber')],[16,builtin('__Math_trunc')],[65,1],[32,2],[32,3],[16,builtin('__Number_prototype_toString')],[34,4],[15]],
+params:[124,127,124,127],typedParams:1,returns:[124,127],
 locals:[127],localNames:["x","x#type","radix","radix#type","#last_type"],
 }
 this.__Porffor_bigint_add = {
@@ -825,16 +825,16 @@ params:[124,127],typedParams:1,returns:[124],returnType:4,
 locals:[124,127,127],localNames:["value","value#type","prim","prim#type","#last_type"],
 }
 this.__BigInt_prototype_toString = {
-wasm:(_,{builtin})=>[[32,0],[65,4],[32,2],[32,3],[16,builtin('__Porffor_bigint_toString')],[65,195,0],[15]],
+wasm:(_,{builtin})=>[[32,0],[65,4],[32,2],[32,3],[16,builtin('__Porffor_bigint_toString')],[34,4],[15]],
 params:[124,127,124,127],typedParams:1,returns:[124,127],
-locals:[],localNames:["_this","_this#type","radix","radix#type"],
-usedTypes:[4,67],
+locals:[127],localNames:["_this","_this#type","radix","radix#type","#last_type"],
+usedTypes:[4],
 }
 this.__BigInt_prototype_toLocaleString = {
-wasm:(_,{builtin})=>[[32,0],[65,4],[68,10],[65,1],[16,builtin('__Porffor_bigint_toString')],[65,195,0],[15]],
+wasm:(_,{builtin})=>[[32,0],[65,4],[68,10],[65,1],[16,builtin('__Porffor_bigint_toString')],[34,2],[15]],
 params:[124,127],typedParams:1,returns:[124,127],
-locals:[],localNames:["_this","_this#type"],
-usedTypes:[4,67],
+locals:[127],localNames:["_this","_this#type","#last_type"],
+usedTypes:[4],
 }
 this.__BigInt_prototype_valueOf = {
 wasm:()=>[[32,0],[65,4],[15]],
@@ -5348,7 +5348,7 @@ locals:[124],localNames:["value","value#type","integer"],
 usesTag:1,
 }
 this.__ecma262_ToString = {
-wasm:(_,{makeString,builtin,internalThrow})=>[[32,1],[184],[34,2],[68,67],[97],[32,2],[68,195],[97],[114],[4,64],[32,0],[32,1],[15],[26],[11],[32,2],[68,5],[97],[4,64],...internalThrow(_,'TypeError',`Cannot convert a Symbol value to a string`),[26],[11],[32,2],[68,128],[97],[32,2],[68,0],[97],[114],[4,64],...makeString(_,"undefined",1),[65,195,1],[15],[26],[11],[32,2],[68,7],[97],[32,0],[68,0],[97],[113],[4,64],...makeString(_,"null",1),[65,195,1],[15],[26],[11],[32,2],[68,2],[97],[4,64],[32,0],[68,1],[97],[4,64],...makeString(_,"true",1),[65,195,1],[15],[26],[11],...makeString(_,"false",1),[65,195,1],[15],[26],[11],[32,2],[68,1],[97],[4,64],[32,0],[32,1],[68,10],[65,1],[16,builtin('__Number_prototype_toString')],[34,3],[15],[26],[11],[32,2],[68,39],[97],[4,64],[32,0],[65,195,0],[15],[26],[11],[32,0],[32,1],[16,builtin('__ecma262_ToPrimitive_String')],[34,3],[33,5],[34,4],[32,5],[16,builtin('__ecma262_ToString')],[34,3],[15]],
+wasm:(_,{usedTypes,Valtype,Opcodes,makeString,builtin,internalThrow,generate})=>[[32,1],[184],[34,2],[68,67],[97],[32,2],[68,195],[97],[114],[4,64],[32,0],[32,1],[15],[26],[11],[32,2],[68,5],[97],[4,64],...internalThrow(_,'TypeError',`Cannot convert a Symbol value to a string`),[26],[11],[32,2],[68,128],[97],[32,2],[68,0],[97],[114],[4,64],...makeString(_,"undefined",1),[65,195,1],[15],[26],[11],[32,2],[68,7],[97],[32,0],[68,0],[97],[113],[4,64],...makeString(_,"null",1),[65,195,1],[15],[26],[11],[32,2],[68,2],[97],[4,64],[32,0],[68,1],[97],[4,64],...makeString(_,"true",1),[65,195,1],[15],[26],[11],...makeString(_,"false",1),[65,195,1],[15],[26],[11],[32,2],[68,1],[97],[4,64],[32,0],[32,1],[68,10],[65,1],[16,builtin('__Number_prototype_toString')],[34,3],[15],[26],[11],[null,()=>{if(usedTypes.has(4)){const r=()=>{valtype=Prefs.valtype??'f64';valtypeBinary=Valtype[valtype];const valtypeInd=['i32','i64','f64'].indexOf(valtype);Opcodes.i32_to=[[],[Opcodes.i32_wrap_i64],Opcodes.i32_trunc_sat_f64_s][valtypeInd];Opcodes.i32_to_u=[[],[Opcodes.i32_wrap_i64],Opcodes.i32_trunc_sat_f64_u][valtypeInd];Opcodes.i32_from=[[],[Opcodes.i64_extend_i32_s],[Opcodes.f64_convert_i32_s]][valtypeInd];Opcodes.i32_from_u=[[],[Opcodes.i64_extend_i32_u],[ Opcodes.f64_convert_i32_u]][valtypeInd]};const a=Prefs;Prefs={"treeshakeWasmImports":false,"alwaysMemory":true,"indirectCalls":true,"optUnused":true,"data":true,"passiveData":false,"rmUnusedTypes":false,"optTypes":true,"coctc":false,"module":true,"todoTime":"compile","truthy":"no_nan_negative","scopedPageNames":true,"funsafeNoUnlikelyProtoChecks":true,"zeroChecks":"charCodeAt","fastLength":true,"parseTypes":true,"activeData":true};r();const b=generate(_,{"type":"BlockStatement","body":[{"type":"IfStatement","test":{"type":"BinaryExpression","left":{"type":"Identifier","name":"type"},"operator":"==","right":{"type":"Identifier","name":"__Porffor_TYPES_bigint"}},"consequent":{"type":"ReturnStatement","argument":{"type":"CallExpression","callee":{"type":"Identifier","name":"__Porffor_bigint_toString"},"arguments":[{"type":"Identifier","name":"argument"},{"type":"Literal","value":10,"raw":"10"}],"optional":false}},"alternate":null}]}).slice(0,-1);Prefs=a;r();return b;}return []}],[32,2],[68,39],[97],[4,64],[32,0],[65,195,0],[15],[26],[11],[32,0],[32,1],[16,builtin('__ecma262_ToPrimitive_String')],[34,3],[33,5],[34,4],[32,5],[16,builtin('__ecma262_ToString')],[34,3],[15]],
 params:[124,127],typedParams:1,returns:[124,127],
 locals:[124,127,124,127],localNames:["argument","argument#type","type","#last_type","primValue","primValue#type"],
 usedTypes:[195,67],
