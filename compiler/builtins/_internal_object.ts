@@ -435,7 +435,7 @@ export const __Porffor_object_get = (obj: any, key: any): any => {
     obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
 
     // todo/opt: put this behind comptime flag if only __proto__ is used
-    if (key == '__proto__') {
+    if (hash == -406948493) if (key == '__proto__') {
       // get prototype
       Porffor.wasm`
 local.get ${obj}
@@ -515,7 +515,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   let flags: i32;
   if (entryPtr == -1) {
-    if (key == '__proto__') {
+    if (hash == -406948493) if (key == '__proto__') {
       // set prototype
       Porffor.wasm`
 local.get ${obj}
@@ -625,7 +625,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   let flags: i32;
   if (entryPtr == -1) {
-    if (key == '__proto__') {
+    if (hash == -406948493) if (key == '__proto__') {
       // set prototype
       Porffor.wasm`
 local.get ${obj}
