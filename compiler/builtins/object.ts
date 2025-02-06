@@ -143,16 +143,17 @@ export const __Object_fromEntries = (iterable: any): object => {
 
 
 export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
+  if (_this == null) throw new TypeError('Argument is nullish, expected object');
   const p: any = ecma262.ToPropertyKey(prop);
 
   const t: i32 = Porffor.rawType(_this);
   if (t == Porffor.TYPES.object) {
-    return Porffor.object.lookup(_this, p) != -1;
+    return Porffor.object.lookup(_this, p, __Porffor_object_hash(p)) != -1;
   }
 
   const obj: any = __Porffor_object_underlying(_this);
   if (Porffor.rawType(obj) == Porffor.TYPES.object) {
-    if (Porffor.object.lookup(obj, p) != -1) return true;
+    if (Porffor.object.lookup(obj, p, __Porffor_object_hash(p)) != -1) return true;
   }
 
   const keys: any[] = __Object_keys(_this);
@@ -235,10 +236,12 @@ export const __Porffor_object_assignAll = (target: any, source: any): any => {
 
 
 export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) => {
+  if (_this == null) throw new TypeError('Argument is nullish, expected object');
+
   const p: any = ecma262.ToPropertyKey(prop);
 
   if (Porffor.rawType(_this) == Porffor.TYPES.object) {
-    const entryPtr: i32 = Porffor.object.lookup(_this, p);
+    const entryPtr: i32 = Porffor.object.lookup(_this, p, __Porffor_object_hash(p));
     if (entryPtr == -1) return false;
 
     return Porffor.object.isEnumerable(entryPtr);
@@ -246,7 +249,7 @@ export const __Object_prototype_propertyIsEnumerable = (_this: any, prop: any) =
 
   const obj: any = __Porffor_object_underlying(_this);
   if (Porffor.rawType(obj) == Porffor.TYPES.object) {
-    const entryPtr: i32 = Porffor.object.lookup(obj, p);
+    const entryPtr: i32 = Porffor.object.lookup(obj, p, __Porffor_object_hash(p));
     if (entryPtr != -1) return Porffor.object.isEnumerable(entryPtr);
   }
 
@@ -339,9 +342,10 @@ export const __Object_isSealed = (obj: any): boolean => {
 
 
 export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|undefined => {
+  if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const entryPtr: i32 = Porffor.object.lookup(obj, p);
+  const entryPtr: i32 = Porffor.object.lookup(obj, p, __Porffor_object_hash(p));
   if (entryPtr == -1) {
     if (Porffor.rawType(obj) == Porffor.TYPES.function) {
       // hack: function .name and .length
@@ -665,7 +669,7 @@ export const __Object_prototype_toString = (_this: any) => {
       let ovr: any = obj.toString;
       if (Porffor.rawType(ovr) == Porffor.TYPES.function && ovr != __Object_prototype_toString) return ovr.call(_this);
 
-      const entryPtr: i32 = Porffor.object.lookup(obj, 'toString');
+      const entryPtr: i32 = Porffor.object.lookup(obj, 'toString', __Porffor_object_hash('toString')); // todo: comptime
       if (entryPtr != -1) {
         ovr = Porffor.object.readValue(entryPtr);
         if (Porffor.rawType(ovr) == Porffor.TYPES.function) return ovr.call(_this);
@@ -712,7 +716,7 @@ export const __Object_prototype_valueOf = (_this: any) => {
       let ovr: any = obj.valueOf;
       if (Porffor.rawType(ovr) == Porffor.TYPES.function && ovr != __Object_prototype_valueOf) return ovr.call(_this);
 
-      const entryPtr: i32 = Porffor.object.lookup(obj, 'valueOf');
+      const entryPtr: i32 = Porffor.object.lookup(obj, 'valueOf', __Porffor_object_hash('valueOf')); // todo: comptime
       if (entryPtr != -1) {
         ovr = Porffor.object.readValue(entryPtr);
         if (Porffor.rawType(ovr) == Porffor.TYPES.function) return ovr.call(_this);

@@ -182,8 +182,8 @@ export const __Porffor_object_accessorSet = (entryPtr: i32): Function|undefined 
 
 export const __Porffor_object_hash = (key: any): i32 => {
   if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.symbol) {
-    // symbol, hash is just the symbol
-    return key as number;
+    // symbol, hash is unused so just return 0
+    return 0;
   }
 
   // bytestring or string, fnv-1a hash (custom variant)
@@ -386,26 +386,28 @@ export const __Porffor_object_lookup = (obj: any, target: any, targetHash: i32):
       }
     }
   } else {
-    if (targetHash == 0) targetHash = __Porffor_object_hash(target);
     for (; ptr < endPtr; ptr += 18) {
-      const hash: i32 = Porffor.wasm.i32.load(ptr, 0, 0);
-
-      // todo: is below needed anymore?
-      if (hash == 0) {
-        if (out) break; // ran out of keys
-        out = true;
-      }
-
-      if (hash == targetHash) {
+      if (Porffor.wasm.i32.load(ptr, 0, 0) == targetHash) {
         const key: i32 = Porffor.wasm.i32.load(ptr, 0, 4);
-        const msb: i32 = key >>> 30;
-        if (msb == 0) {
-          // bytestring
-          if (Porffor.strcmp(key as bytestring, target)) return ptr;
-        } else if (msb == 2) {
-          // string (unset MSB)
-          if (Porffor.strcmp((key & 0x7FFFFFFF) as string, target)) return ptr;
-        }
+        Porffor.wasm`
+local.get ${key}
+i32.const 2147483647
+i32.and
+
+i32.const 67 ;; bytestring
+i32.const 195 ;; string
+local.get ${key}
+i32.const 30
+i32.shr_u
+select
+
+local.get ${target}
+local.get ${target+1}
+call __Porffor_strcmp
+if 64
+  local.get ${ptr}
+  return
+end`;
       }
     }
   }
@@ -801,7 +803,7 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return true;
   }
 
-  const entryPtr: i32 = __Porffor_object_lookup(obj, key);
+  const entryPtr: i32 = __Porffor_object_lookup(obj, key, __Porffor_object_hash(key));
   if (entryPtr == -1) {
     // not found, stop
     return true;
@@ -851,7 +853,7 @@ export const __Porffor_object_deleteStrict = (obj: any, key: any): boolean => {
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return true;
   }
 
-  const entryPtr: i32 = __Porffor_object_lookup(obj, key);
+  const entryPtr: i32 = __Porffor_object_lookup(obj, key, __Porffor_object_hash(key));
   if (entryPtr == -1) {
     // not found, stop
     return true;
