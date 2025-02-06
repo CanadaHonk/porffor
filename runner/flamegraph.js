@@ -115,11 +115,11 @@ const render = () => {
     (() => {
       const perTime = 18;
       let text = '  ' + 'name';
-      text += `${' '.repeat(40 - text.length)}┃ total`;
-      text += `${' '.repeat(40 + 5 + perTime - text.length)}┃ min`;
-      text += `${' '.repeat(40 + 5 + (perTime * 2) - text.length)}┃ avg`;
-      text += `${' '.repeat(40 + 5 + (perTime * 3) - text.length)}┃ max`;
-      text += `${' '.repeat(40 + 5 + (perTime * 4) - text.length)}┃ count`;
+      text += `${' '.repeat(60 - text.length)}┃ total`;
+      text += `${' '.repeat(60 + 5 + perTime - text.length)}┃ min`;
+      text += `${' '.repeat(60 + 5 + (perTime * 2) - text.length)}┃ avg`;
+      text += `${' '.repeat(60 + 5 + (perTime * 3) - text.length)}┃ max`;
+      text += `${' '.repeat(60 + 5 + (perTime * 4) - text.length)}┃ count`;
       process.stdout.write(`\x1b[0m\x1b[2m${text.replaceAll('┃', '\x1b[0m\x1b[90m┃\x1b[0m\x1b[2m')}${' '.repeat(termWidth - text.length)}\x1b[0m`);
     })();
 
@@ -134,12 +134,12 @@ const render = () => {
 
       const perTime = 18;
       let text = '  \x1b[1m' + func.name + '\x1b[22m';
-      text += `${' '.repeat(49 - text.length)}┃ ${total.toFixed(2)}ms`;
-      text += `${' '.repeat(49 + perTime - text.length)}${((total / _total) * 100).toFixed(0)}%`;
-      text += `${' '.repeat(49 + 5 + perTime - text.length)}┃ ${min.toFixed(2)}ms`;
-      text += `${' '.repeat(49 + 5 + (perTime * 2) - text.length)}┃ ${avg.toFixed(2)}ms`;
-      text += `${' '.repeat(49 + 5 + (perTime * 3) - text.length)}┃ ${max.toFixed(2)}ms`;
-      text += `${' '.repeat(49 + 5 + (perTime * 4) - text.length)}┃ ${count}`;
+      text += `${' '.repeat(69 - text.length)}┃ ${total.toFixed(2)}ms`;
+      text += `${' '.repeat(69 + perTime - text.length)}${((total / _total) * 100).toFixed(0)}%`;
+      text += `${' '.repeat(69 + 5 + perTime - text.length)}┃ ${min.toFixed(2)}ms`;
+      text += `${' '.repeat(69 + 5 + (perTime * 2) - text.length)}┃ ${avg.toFixed(2)}ms`;
+      text += `${' '.repeat(69 + 5 + (perTime * 3) - text.length)}┃ ${max.toFixed(2)}ms`;
+      text += `${' '.repeat(69 + 5 + (perTime * 4) - text.length)}┃ ${count}`;
       process.stdout.write(`\x1b[${termHeight - btHeight + 2 + i};1H\x1b[0m${text.replaceAll('┃', '\x1b[90m┃\x1b[0m').replaceAll('ms', '\x1b[2mms\x1b[22m').replaceAll('%', '\x1b[2m%\x1b[22m')}${' '.repeat(termWidth - noAnsi(text).length)}`);
     }
   }
