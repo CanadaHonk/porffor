@@ -848,13 +848,6 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
       ] ] ] : []),
 
       [ 'default', def ]
-
-      // [ [ TYPES.boolean, TYPES.number, TYPES.object, TYPES.undefined, TYPES.empty ], def ],
-      // [ 'default', [
-      //   // other types are always truthy
-      //   ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
-      //   number(1, intOut ? Valtype.i32 : valtypeBinary)
-      // ] ]
     ], intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
@@ -921,13 +914,6 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
       ] ] ] : []),
 
       [ 'default', def ]
-
-      // [ [ TYPES.boolean, TYPES.number, TYPES.object, TYPES.undefined, TYPES.empty ], def ],
-      // [ 'default', [
-      //   // other types are always truthy
-      //   ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
-      //   number(0, intOut ? Valtype.i32 : valtypeBinary)
-      // ] ]
     ], intOut ? Valtype.i32 : valtypeBinary)
   ];
 };
@@ -1890,8 +1876,6 @@ const setObjProp = (obj, prop, value) => {
 const aliasPrimObjsBC = bc => {
   const add = (x, y) => {
     if (bc[x] == null) return;
-
-    // bc[`${x},${y}`] = original;
 
     // intentionally duplicate to avoid extra bc for prim objs as rarely used
     bc[y] = bc[x];
@@ -3123,8 +3107,6 @@ const extractTypeAnnotation = decl => {
 
   const typeName = type;
   type = typeAnnoToPorfType(type);
-
-  // if (decl.name) console.log(decl.name, { type, elementType });
 
   return { type, typeName, elementType };
 };
@@ -5921,7 +5903,6 @@ const generateMember = (scope, decl, _global, _name) => {
 
     [TYPES.undefined]: internalThrow(scope, 'TypeError', `Cannot read property of undefined`, true),
 
-    // default: internalThrow(scope, 'TypeError', 'Unsupported member expression object', true)
     default: () => [
       // ...(useCoctc ? [
       //   [ Opcodes.local_get, coctcObjTmp ],
@@ -6958,39 +6939,6 @@ export default program => {
     // func was never generated, make wasm just return 0s for expected returns
     f.wasm = f.returns.map(x => number(0, x));
   }
-
-  // // remove never generated functions
-  // let indexDelta = 0;
-  // const funcRemap = new Map();
-  // for (let i = 0; i < funcs.length; i++) {
-  //   const f = funcs[i];
-  //   if (f.internal || f.wasm) {
-  //     if (indexDelta) {
-  //       funcRemap.set(f.index, f.index - indexDelta);
-  //       f.index -= indexDelta;
-  //     }
-  //     continue;
-  //   }
-
-  //   funcs.splice(i--, 1);
-  //   indexDelta++;
-  // }
-
-  // // remap call ops
-  // if (indexDelta) for (let i = 0; i < funcs.length; i++) {
-  //   const wasm = funcs[i].wasm;
-  //   for (let j = 0; j < wasm.length; j++) {
-  //     const op = wasm[j];
-  //     if (op[0] === Opcodes.call) {
-  //       let idx = op[1];
-  //       wasm[j] = [ Opcodes.call, funcRemap.get(idx) ?? idx ];
-  //     }
-
-  //     if (op[0] === Opcodes.const && op[2] === 'funcref') {
-  //       wasm[j] = [ Opcodes.const, funcRemap.get(op[1] + importedFuncs.length) - importedFuncs.length ];
-  //     }
-  //   }
-  // }
 
   // add indirect funcs to end of funcs
   for (let i = 0; i < indirectFuncs.length; i++) {
