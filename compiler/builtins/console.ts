@@ -181,7 +181,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
 
     case Porffor.TYPES.function:
       Porffor.printStatic('[Function ');
-      __Porffor_printString(__Porffor_funcLut_name(arg));
+      __Porffor_printString(__Porffor_funcLut_name(arg) || '(anonymous)');
       Porffor.printStatic(']');
       return;
 
