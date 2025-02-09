@@ -1709,7 +1709,6 @@ const getNodeType = (scope, node) => {
   if (guess != null) out.guess = typeof guess === 'number' ? [ number(guess, Valtype.i32) ] : guess;
 
   typeUsed(scope, knownType(scope, out));
-
   return out;
 };
 
@@ -3533,6 +3532,8 @@ const memberTmpNames = scope => {
 
 // COCTC: cross-object compile-time cache
 const coctcOffset = prop => {
+  if (!Prefs.coctc) return 0;
+
   if (typeof prop === 'object') {
     if (
       prop.computed || prop.optional ||
@@ -3673,7 +3674,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // todo/perf: use i32 object (and prop?) locals
     const { objectTmp, propertyTmp, objectGet, propertyGet } = memberTmpNames(scope);
 
-    const useCoctc = Prefs.coctc && coctcOffset(decl.left) > 0;
+    const useCoctc = coctcOffset(decl.left) > 0;
     if (useCoctc) valueUnused = false;
 
     // opt: do not mark prototype funcs as referenced to optimize this in them
@@ -4119,7 +4120,7 @@ const generateUnary = (scope, decl) => {
         const property = getProperty(decl.argument);
         if (property.value === 'length' || property.value === 'name') scope.noFastFuncMembers = true;
 
-        const useCoctc = Prefs.coctc && coctcOffset(decl.argument) > 0;
+        const useCoctc = coctcOffset(decl.argument) > 0;
         const objectTmp = useCoctc && localTmp(scope, '#coctc_object', Valtype.i32);
 
         const out = [
@@ -5640,7 +5641,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
     const out = [
       ...generate(scope, object),
-      Opcodes.i32_to_u,
+      Opcodes.i32_to_u
     ];
 
     if (Prefs.fastLength) {
@@ -5667,7 +5668,7 @@ const generateMember = (scope, decl, _global, _name) => {
       ...out,
       [ Opcodes.local_set, tmp ],
 
-      ...getNodeType(scope, object),
+      ...type,
       number(TYPE_FLAGS.length, Valtype.i32),
       [ Opcodes.i32_and ],
       [ Opcodes.if, valtypeBinary ],
@@ -5689,6 +5690,8 @@ const generateMember = (scope, decl, _global, _name) => {
 
   // todo/perf: use i32 object (and prop?) locals
   const { objectTmp, propertyTmp, objectGet, propertyGet } = memberTmpNames(scope);
+  const type = getNodeType(scope, object);
+  const known = knownType(scope, type);
 
   // todo: generate this array procedurally during builtinFuncs creation
   if (['size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength'].includes(decl.property.name)) {
@@ -5696,7 +5699,6 @@ const generateMember = (scope, decl, _global, _name) => {
     const bc = {};
     const cands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + decl.property.name + '$get'));
 
-    const known = knownType(scope, getNodeType(scope, object));
     if (cands.length > 0) {
       for (const x of cands) {
         const type = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
@@ -5732,10 +5734,10 @@ const generateMember = (scope, decl, _global, _name) => {
     if (known == null) extraBC = bc;
   }
 
-  const useCoctc = Prefs.coctc && coctcOffset(decl) > 0;
+  const useCoctc = coctcOffset(decl) > 0;
   const coctcObjTmp = useCoctc && localTmp(scope, '#coctc_obj' + uniqId(), Valtype.i32);
 
-  const out = typeSwitch(scope, getNodeType(scope, object), {
+  const out = typeSwitch(scope, type, {
     ...(decl.computed ? {
       [TYPES.array]: () => [
         propertyGet,
@@ -5904,18 +5906,14 @@ const generateMember = (scope, decl, _global, _name) => {
     [TYPES.undefined]: internalThrow(scope, 'TypeError', `Cannot read property of undefined`, true),
 
     default: () => [
-      // ...(useCoctc ? [
-      //   [ Opcodes.local_get, coctcObjTmp ],
-      //   number(TYPES.object, Valtype.i32)
-      // ] : [
-      //   objectGet,
-      //   Opcodes.i32_to,
-      //   ...getNodeType(scope, object)
-      // ]),
-
-      objectGet,
-      Opcodes.i32_to,
-      ...getNodeType(scope, object),
+      ...(useCoctc && known === TYPES.object ? [
+        [ Opcodes.local_get, coctcObjTmp ],
+        number(TYPES.object, Valtype.i32)
+      ] : [
+        objectGet,
+        Opcodes.i32_to,
+        ...type
+      ]),
 
       ...toPropertyKey(scope, [ propertyGet ], getNodeType(scope, property), decl.computed, true),
 
@@ -5935,7 +5933,7 @@ const generateMember = (scope, decl, _global, _name) => {
       ...generate(scope, object),
       [ Opcodes.local_tee, objectTmp ],
 
-      ...nullish(scope, [], getNodeType(scope, object), false, true),
+      ...nullish(scope, [], type, false, true),
       [ Opcodes.if, Blocktype.void ],
         ...setLastType(scope, TYPES.undefined),
         number(0),
