@@ -73,7 +73,8 @@ export default (code, module = undefined) => {
   globalThis.valtype = Prefs.valtype ?? 'f64';
   globalThis.valtypeBinary = Valtype[valtype];
 
-  globalThis.pageSize = (parseInt(Prefs.valtype) * 1024) || PageSize;
+  // use smaller page sizes internally (65536 / 4 = 16384)
+  globalThis.pageSize = Prefs.pageSize ?? (PageSize / 4);
 
   // change some prefs by default for c/native
   if (target !== 'wasm') {

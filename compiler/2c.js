@@ -1,5 +1,5 @@
 import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
-import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
+import { Blocktype, Opcodes, Valtype, PageSize } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
 import { log } from './log.js';
 import './prefs.js';
@@ -218,7 +218,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
   if (pages.size > 0) {
     includes.set('stdlib.h', true);
     prepend.set('_memory', `char* _memory; u32 _memoryPages = ${pages.size};\n`);
-    prependMain.set('_initMemory', `_memory = malloc(_memoryPages * ${pageSize});\n`);
+    prependMain.set('_initMemory', `_memory = malloc(_memoryPages * ${PageSize});\n`);
     if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
 

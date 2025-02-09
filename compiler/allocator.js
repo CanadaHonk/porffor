@@ -1,9 +1,8 @@
-import { PageSize } from './wasmSpec.js';
 import './prefs.js';
 
 const pagePtr = ind => {
   if (ind === 0) return 16;
-  return ind * PageSize;
+  return ind * pageSize;
 };
 
 export const nameToReason = (scope, name) => {
@@ -37,7 +36,7 @@ export const allocBytes = ({ scope, pages }, reason, bytes) => {
     return allocs.get(reason);
   }
 
-  let bin = bins.find(x => (PageSize - x.used) >= bytes);
+  let bin = bins.find(x => (pageSize - x.used) >= bytes);
   if (!bin) {
     // new bin
     const page = pages.size;

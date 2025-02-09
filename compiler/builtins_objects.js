@@ -1,4 +1,4 @@
-import { Blocktype, Opcodes, PageSize, Valtype } from './wasmSpec.js';
+import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { TYPES } from './types.js';
 import { number } from './encoding.js';
 

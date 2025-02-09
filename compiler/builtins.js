@@ -1,6 +1,6 @@
 import * as PrecompiledBuiltins from './builtins_precompiled.js';
 import ObjectBuiltins from './builtins_objects.js';
-import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
+import { PageSize, Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { TYPES, TYPE_NAMES } from './types.js';
 import { number, unsignedLEB128 } from './encoding.js';
 import './prefs.js';
@@ -778,7 +778,7 @@ export const BuiltinFuncs = function() {
       wasm: [
         number(1, Valtype.i32),
         [ Opcodes.memory_grow, 0 ],
-        number(pageSize, Valtype.i32),
+        number(PageSize, Valtype.i32),
         [ Opcodes.i32_mul ]
       ]
     },
@@ -787,23 +787,23 @@ export const BuiltinFuncs = function() {
       locals: [],
       globals: [ Valtype.i32, Valtype.i32 ],
       globalNames: [ 'chunkPtr', 'chunkOffset' ],
-      globalInits: [ 0, 100 * pageSize ],
+      globalInits: [ 0, 100 * PageSize ],
       returns: [ Valtype.i32 ],
       returnType: TYPES.number,
       wasm: [
         // if chunkOffset >= chunks:
         [ Opcodes.global_get, 1 ],
-        number(pageSize * (Prefs.allocatorChunks ?? 16), Valtype.i32),
+        number(PageSize * (Prefs.allocatorChunks ?? 16), Valtype.i32),
         [ Opcodes.i32_ge_s ],
         [ Opcodes.if, Valtype.i32 ],
           // chunkOffset = 1 page
-          number(1 * pageSize, Valtype.i32),
+          number(pageSize, Valtype.i32),
           [ Opcodes.global_set, 1 ],
 
           // return chunkPtr = allocated
           number(Prefs.allocatorChunks ?? 16, Valtype.i32),
           [ Opcodes.memory_grow, 0 ],
-          number(pageSize, Valtype.i32),
+          number(PageSize, Valtype.i32),
           [ Opcodes.i32_mul ],
           [ Opcodes.global_set, 0 ],
           [ Opcodes.global_get, 0 ],

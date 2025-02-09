@@ -34,10 +34,9 @@ console.log(`Welcome to \x1B[1m\x1B[35mPorffor\x1B[0m \x1B[2m(${globalThis.versi
 console.log();
 
 let lastMemory, lastPages;
-const PageSize = 65536;
 const memoryToString = mem => {
   let out = '';
-  const wasmPages = mem.buffer.byteLength / PageSize;
+  const wasmPages = mem.buffer.byteLength / 65536;
 
   out += `\x1B[1mallocated ${mem.buffer.byteLength / 1024}KiB\x1B[0m (using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'})\n\n`;
 
