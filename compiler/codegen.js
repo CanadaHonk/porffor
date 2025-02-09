@@ -596,6 +596,27 @@ const generateReturn = (scope, decl) => {
     !globalThis.precompile // skip in precompiled built-ins, we should not require this and handle it ourselves
   ) {
     // perform return value checks for constructors and (sub)classes
+
+    // just return this if `return undefined` or `return this`
+    if ((arg.type === 'Identifier' && arg.name === 'undefined') || (arg.type === 'ThisExpression')) {
+      return [
+        ...(scope._onlyConstr ? [] : [
+          [ Opcodes.local_get, scope.locals['#newtarget'].idx ],
+          Opcodes.i32_to_u,
+          [ Opcodes.if, Blocktype.void ]
+        ]),
+          [ Opcodes.local_get, scope.locals['#this'].idx ],
+          ...(scope.returnType != null ? [] : [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ]),
+          [ Opcodes.return ],
+        ...(scope._onlyConstr ? [] : [
+          [ Opcodes.end ],
+          ...generate(scope, arg),
+          ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
+          [ Opcodes.return ],
+        ])
+      ];
+    }
+
     return [
       ...generate(scope, arg),
       [ Opcodes.local_set, localTmp(scope, '#return') ],
