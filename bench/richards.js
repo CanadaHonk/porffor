@@ -113,7 +113,7 @@ var KIND_WORK = 1;
  * @param {Packet} queue the queue of work to be processed by the task
  * @param {int} count the number of times to schedule the task
  */
-Scheduler.prototype.addIdleTask = function (id, priority, queue, count) {
+Scheduler.prototype.addIdleTask = function scheduler_addIdleTask(id, priority, queue, count) {
   this.addRunningTask(id, priority, queue, new IdleTask(this, 1, count));
 };
 
@@ -123,7 +123,7 @@ Scheduler.prototype.addIdleTask = function (id, priority, queue, count) {
  * @param {int} priority the task's priority
  * @param {Packet} queue the queue of work to be processed by the task
  */
-Scheduler.prototype.addWorkerTask = function (id, priority, queue) {
+Scheduler.prototype.addWorkerTask = function scheduler_addWorkerTask(id, priority, queue) {
   this.addTask(id, priority, queue, new WorkerTask(this, ID_HANDLER_A, 0));
 };
 
@@ -133,7 +133,7 @@ Scheduler.prototype.addWorkerTask = function (id, priority, queue) {
  * @param {int} priority the task's priority
  * @param {Packet} queue the queue of work to be processed by the task
  */
-Scheduler.prototype.addHandlerTask = function (id, priority, queue) {
+Scheduler.prototype.addHandlerTask = function scheduler_addHandlerTask(id, priority, queue) {
   this.addTask(id, priority, queue, new HandlerTask(this));
 };
 
@@ -143,7 +143,7 @@ Scheduler.prototype.addHandlerTask = function (id, priority, queue) {
  * @param {int} priority the task's priority
  * @param {Packet} queue the queue of work to be processed by the task
  */
-Scheduler.prototype.addDeviceTask = function (id, priority, queue) {
+Scheduler.prototype.addDeviceTask = function scheduler_addDeviceTask(id, priority, queue) {
   this.addTask(id, priority, queue, new DeviceTask(this));
 };
 
@@ -154,7 +154,7 @@ Scheduler.prototype.addDeviceTask = function (id, priority, queue) {
  * @param {Packet} queue the queue of work to be processed by the task
  * @param {Task} task the task to add
  */
-Scheduler.prototype.addRunningTask = function (id, priority, queue, task) {
+Scheduler.prototype.addRunningTask = function scheduler_addRunningTask(id, priority, queue, task) {
   this.addTask(id, priority, queue, task);
   this.currentTcb.setRunning();
 };
@@ -166,7 +166,7 @@ Scheduler.prototype.addRunningTask = function (id, priority, queue, task) {
  * @param {Packet} queue the queue of work to be processed by the task
  * @param {Task} task the task to add
  */
-Scheduler.prototype.addTask = function (id, priority, queue, task) {
+Scheduler.prototype.addTask = function scheduler_addTask(id, priority, queue, task) {
   this.currentTcb = new TaskControlBlock(this.list, id, priority, queue, task);
   this.list = this.currentTcb;
   this.blocks[id] = this.currentTcb;
@@ -175,7 +175,7 @@ Scheduler.prototype.addTask = function (id, priority, queue, task) {
 /**
  * Execute the tasks managed by this scheduler.
  */
-Scheduler.prototype.schedule = function () {
+Scheduler.prototype.schedule = function scheduler_schedule() {
   this.currentTcb = this.list;
   while (this.currentTcb != null) {
     if (this.currentTcb.isHeldOrSuspended()) {
@@ -191,7 +191,7 @@ Scheduler.prototype.schedule = function () {
  * Release a task that is currently blocked and return the next block to run.
  * @param {int} id the id of the task to suspend
  */
-Scheduler.prototype.release = function (id) {
+Scheduler.prototype.release = function scheduler_release(id) {
   var tcb = this.blocks[id];
   if (tcb == null) return tcb;
   tcb.markAsNotHeld();
@@ -207,7 +207,7 @@ Scheduler.prototype.release = function (id) {
  * to run.  The blocked task will not be made runnable until it is explicitly
  * released, even if new work is added to it.
  */
-Scheduler.prototype.holdCurrent = function () {
+Scheduler.prototype.holdCurrent = function scheduler_holdCurrent() {
   this.holdCount++;
   this.currentTcb.markAsHeld();
   return this.currentTcb.link;
@@ -217,7 +217,7 @@ Scheduler.prototype.holdCurrent = function () {
  * Suspend the currently executing task and return the next task control block
  * to run.  If new work is added to the suspended task it will be made runnable.
  */
-Scheduler.prototype.suspendCurrent = function () {
+Scheduler.prototype.suspendCurrent = function scheduler_suspendCurrent() {
   this.currentTcb.markAsSuspended();
   return this.currentTcb;
 };
@@ -228,7 +228,7 @@ Scheduler.prototype.suspendCurrent = function () {
  * suspended.
  * @param {Packet} packet the packet to add
  */
-Scheduler.prototype.queue = function (packet) {
+Scheduler.prototype.queue = function scheduler_queue(packet) {
   var t = this.blocks[packet.id];
   if (t == null) return t;
   this.queueCount++;
@@ -284,34 +284,34 @@ var STATE_HELD = 4;
 var STATE_SUSPENDED_RUNNABLE = STATE_SUSPENDED | STATE_RUNNABLE;
 var STATE_NOT_HELD = ~STATE_HELD;
 
-TaskControlBlock.prototype.setRunning = function () {
+TaskControlBlock.prototype.setRunning = function tcb_setRunning() {
   this.state = STATE_RUNNING;
 };
 
-TaskControlBlock.prototype.markAsNotHeld = function () {
+TaskControlBlock.prototype.markAsNotHeld = function tcb_markAsNotHeld() {
   this.state = this.state & STATE_NOT_HELD;
 };
 
-TaskControlBlock.prototype.markAsHeld = function () {
+TaskControlBlock.prototype.markAsHeld = function tcb_markAsHeld() {
   this.state = this.state | STATE_HELD;
 };
 
-TaskControlBlock.prototype.isHeldOrSuspended = function () {
+TaskControlBlock.prototype.isHeldOrSuspended = function tcb_isHeldOrSuspended() {
   return (this.state & STATE_HELD) != 0 || this.state == STATE_SUSPENDED;
 };
 
-TaskControlBlock.prototype.markAsSuspended = function () {
+TaskControlBlock.prototype.markAsSuspended = function tcb_markAsSuspended() {
   this.state = this.state | STATE_SUSPENDED;
 };
 
-TaskControlBlock.prototype.markAsRunnable = function () {
+TaskControlBlock.prototype.markAsRunnable = function tcb_markAsRunnable() {
   this.state = this.state | STATE_RUNNABLE;
 };
 
 /**
  * Runs this task, if it is ready to be run, and returns the next task to run.
  */
-TaskControlBlock.prototype.run = function () {
+TaskControlBlock.prototype.run = function tcb_run() {
   var packet;
   if (this.state == STATE_SUSPENDED_RUNNABLE) {
     packet = this.queue;
@@ -332,7 +332,7 @@ TaskControlBlock.prototype.run = function () {
  * necessary, and returns the next runnable object to run (the one
  * with the highest priority).
  */
-TaskControlBlock.prototype.checkPriorityAdd = function (task, packet) {
+TaskControlBlock.prototype.checkPriorityAdd = function tcb_checkPriorityAdd(task, packet) {
   if (this.queue == null) {
     this.queue = packet;
     this.markAsRunnable();
@@ -343,7 +343,7 @@ TaskControlBlock.prototype.checkPriorityAdd = function (task, packet) {
   return task;
 };
 
-TaskControlBlock.prototype.toString = function () {
+TaskControlBlock.prototype.toString = function tcb_toString() {
   return "tcb { " + this.task + "@" + this.state + " }";
 };
 
@@ -361,7 +361,7 @@ function IdleTask(scheduler, v1, count) {
   this.count = count;
 }
 
-IdleTask.prototype.run = function (packet) {
+IdleTask.prototype.run = function idleTask_run(packet) {
   this.count--;
   if (this.count == 0) return this.scheduler.holdCurrent();
   if ((this.v1 & 1) == 0) {
@@ -373,7 +373,7 @@ IdleTask.prototype.run = function (packet) {
   }
 };
 
-IdleTask.prototype.toString = function () {
+IdleTask.prototype.toString = function idleTask_toString() {
   return "IdleTask";
 };
 
@@ -388,7 +388,7 @@ function DeviceTask(scheduler) {
   this.v1 = null;
 }
 
-DeviceTask.prototype.run = function (packet) {
+DeviceTask.prototype.run = function deviceTask_run(packet) {
   if (packet == null) {
     if (this.v1 == null) return this.scheduler.suspendCurrent();
     var v = this.v1;
@@ -400,7 +400,7 @@ DeviceTask.prototype.run = function (packet) {
   }
 };
 
-DeviceTask.prototype.toString = function () {
+DeviceTask.prototype.toString = function deviceTask_toString() {
   return "DeviceTask";
 };
 
@@ -417,7 +417,7 @@ function WorkerTask(scheduler, v1, v2) {
   this.v2 = v2;
 }
 
-WorkerTask.prototype.run = function (packet) {
+WorkerTask.prototype.run = function workerTask_run(packet) {
   if (packet == null) {
     return this.scheduler.suspendCurrent();
   } else {
@@ -437,7 +437,7 @@ WorkerTask.prototype.run = function (packet) {
   }
 };
 
-WorkerTask.prototype.toString = function () {
+WorkerTask.prototype.toString = function workerTask_toString() {
   return "WorkerTask";
 };
 
@@ -452,7 +452,7 @@ function HandlerTask(scheduler) {
   this.v2 = null;
 }
 
-HandlerTask.prototype.run = function (packet) {
+HandlerTask.prototype.run = function handlerTask_run(packet) {
   if (packet != null) {
     if (packet.kind == KIND_WORK) {
       this.v1 = packet.addTo(this.v1);
@@ -480,7 +480,7 @@ HandlerTask.prototype.run = function (packet) {
   return this.scheduler.suspendCurrent();
 };
 
-HandlerTask.prototype.toString = function () {
+HandlerTask.prototype.toString = function handlerTask_toString() {
   return "HandlerTask";
 };
 
@@ -514,7 +514,7 @@ function Packet(link, id, kind) {
  * Add this packet to the end of a worklist, and return the worklist.
  * @param {Packet} queue the worklist to add this packet to
  */
-Packet.prototype.addTo = function (queue) {
+Packet.prototype.addTo = function packet_addTo(queue) {
   this.link = null;
   if (queue == null) return this;
   var peek,
@@ -524,7 +524,7 @@ Packet.prototype.addTo = function (queue) {
   return queue;
 };
 
-Packet.prototype.toString = function () {
+Packet.prototype.toString = function packet_toString() {
   return "Packet";
 };
 
