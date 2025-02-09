@@ -173,7 +173,7 @@ export const __Porffor_object_in = (obj: any, prop: any): boolean => {
 
   let lastProto = obj;
   while (true) {
-    obj = Porffor.object.getPrototypeWithHidden(obj);
+    obj = Porffor.object.getPrototypeWithHidden(obj, Porffor.rawType(obj));
     if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
 
     if (__Object_prototype_hasOwnProperty(obj, prop)) return true;
@@ -194,7 +194,7 @@ export const __Porffor_object_instanceof = (obj: any, constr: any, checkProto: a
 
   let lastProto = obj;
   while (true) {
-    obj = Porffor.object.getPrototypeWithHidden(obj);
+    obj = Porffor.object.getPrototypeWithHidden(obj, Porffor.rawType(obj));
     if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
 
     if (obj === checkProto) return true;
@@ -640,7 +640,7 @@ export const __Object_groupBy = (items: any, callbackFn: any): object => {
 
 export const __Object_getPrototypeOf = (obj: any): any => {
   if (obj == null) throw new TypeError('Object is nullish, expected object');
-  return Porffor.object.getPrototypeWithHidden(obj);
+  return Porffor.object.getPrototypeWithHidden(obj, Porffor.rawType(obj));
 };
 
 export const __Object_setPrototypeOf = (obj: any, proto: any): any => {
@@ -657,7 +657,7 @@ export const __Object_prototype_isPrototypeOf = (_this: any, obj: any) => {
   if (_this == null) throw new TypeError('This is nullish, expected object');
 
   if (!Porffor.object.isObject(obj)) return false;
-  return _this == Porffor.object.getPrototypeWithHidden(obj);
+  return _this == Porffor.object.getPrototypeWithHidden(obj, Porffor.rawType(obj));
 };
 
 
