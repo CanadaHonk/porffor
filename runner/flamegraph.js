@@ -55,7 +55,7 @@ const render = () => {
   text += `${' '.repeat(32 - text.length)}┃ render: ${lastRenderTime.toFixed(2)}ms`;
 
   if (end != null || Prefs.live) {
-    const btHeight = 20;
+    const btHeight = 40;
     const fgBottom = termHeight - btHeight - 10;
 
     let lastEnds = [];
@@ -140,7 +140,7 @@ const render = () => {
       text += `${' '.repeat(69 + 5 + (perTime * 2) - text.length)}┃ ${avg.toFixed(2)}ms`;
       text += `${' '.repeat(69 + 5 + (perTime * 3) - text.length)}┃ ${max.toFixed(2)}ms`;
       text += `${' '.repeat(69 + 5 + (perTime * 4) - text.length)}┃ ${count}`;
-      process.stdout.write(`\x1b[${termHeight - btHeight + 2 + i};1H\x1b[0m${text.replaceAll('┃', '\x1b[90m┃\x1b[0m').replaceAll('ms', '\x1b[2mms\x1b[22m').replaceAll('%', '\x1b[2m%\x1b[22m')}${' '.repeat(termWidth - noAnsi(text).length)}`);
+      process.stdout.write(`\x1b[${termHeight - btHeight + 2 + i};1H\x1b[0m${text.replaceAll('┃', '\x1b[90m┃\x1b[0m').replaceAll(/(\.[0-9][0-9])ms/g, '\x1b[2m$1ms\x1b[22m').replaceAll('%', '\x1b[2m%\x1b[22m')}${' '.repeat(termWidth - noAnsi(text).length)}`);
     }
   }
 
