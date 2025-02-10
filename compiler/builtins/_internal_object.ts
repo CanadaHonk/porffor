@@ -371,15 +371,9 @@ export const __Porffor_object_lookup = (obj: any, target: any, targetHash: i32):
   let ptr: i32 = Porffor.wasm`local.get ${obj}` + 8;
   const endPtr: i32 = ptr + Porffor.wasm.i32.load16_u(obj, 0, 0) * 18;
 
-  let out: boolean = false;
   if (Porffor.wasm`local.get ${target+1}` == Porffor.TYPES.symbol) {
     for (; ptr < endPtr; ptr += 18) {
       const key: i32 = Porffor.wasm.i32.load(ptr, 0, 4);
-      if (key == 0) {
-        if (out) break; // ran out of keys
-        out = true;
-      }
-
       if ((key >>> 30) == 3) { // MSB 1 and 2 set, symbol (unset MSB x2)
         // todo: remove casts once weird bug which breaks unrelated things is fixed (https://github.com/CanadaHonk/porffor/commit/5747f0c1f3a4af95283ebef175cdacb21e332a52)
         if ((key & 0x3FFFFFFF) as symbol == target as symbol) return ptr;
