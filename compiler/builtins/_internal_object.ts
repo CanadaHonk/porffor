@@ -188,6 +188,7 @@ export const __Porffor_object_hash = (key: any): i32 => {
 
   // bytestring or string, fnv-1a hash (custom variant)
   // todo/opt: custom wasm simd variant?
+  // todo/opt: pgo for if no hash collisions?
 
   let ptr: i32 = Porffor.wasm`local.get ${key}`;
   const len: i32 = Porffor.wasm.i32.load(key, 0, 0);
@@ -383,6 +384,11 @@ export const __Porffor_object_lookup = (obj: any, target: any, targetHash: i32):
     for (; ptr < endPtr; ptr += 18) {
       if (Porffor.wasm.i32.load(ptr, 0, 0) == targetHash) {
         const key: i32 = Porffor.wasm.i32.load(ptr, 0, 4);
+
+        // fast path: check if same pointer first
+        if (key == Porffor.wasm`local.get ${target}`) return ptr;
+
+        // slow path: strcmp
         Porffor.wasm`
 local.get ${key}
 i32.const 2147483647
