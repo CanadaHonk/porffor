@@ -588,6 +588,7 @@ const generateReturn = (scope, decl) => {
   }
 
   if (scope.returns.length === 0) return [
+    ...(arg.type !== 'Identifier' ? generate(scope, arg) : []),
     [ Opcodes.return ]
   ];
 

@@ -2449,14 +2449,16 @@ globalInits:{jobQueue:(_,{allocPage,glbl})=>[number(allocPage(_,'promise.ts/jobQ
 table:1,usesTag:1,
 }
 this.__Porffor_promise_resolveActive = {
-wasm:()=>[[15]],
+wasm:(_,{glbl,builtin})=>[[32,0],[32,1],...glbl(35,'activePromise',124),...glbl(35,'activePromise#type',127),[16,builtin('__Porffor_promise_resolve')],[68,0],[15]],
 params:[124,127],typedParams:1,returns:[],returnType:128,
 locals:[],localNames:["value","value#type"],
+globalInits:{jobQueue:(_,{allocPage,glbl})=>[number(allocPage(_,'promise.ts/jobQueue'),124),...glbl(36,'jobQueue',124),[65,16],[26]]},
 }
 this.__Porffor_promise_rejectActive = {
-wasm:()=>[[15]],
+wasm:(_,{glbl,builtin})=>[[32,0],[32,1],...glbl(35,'activePromise',124),...glbl(35,'activePromise#type',127),[16,builtin('__Porffor_promise_reject')],[68,0],[15]],
 params:[124,127],typedParams:1,returns:[],returnType:128,
 locals:[],localNames:["reason","reason#type"],
+globalInits:{jobQueue:(_,{allocPage,glbl})=>[number(allocPage(_,'promise.ts/jobQueue'),124),...glbl(36,'jobQueue',124),[65,16],[26]]},
 }
 this.Promise = {
 wasm:(_,{t,glbl,builtin,funcRef,internalThrow})=>[[32,0],[33,6],[32,1],[33,7],[2,124],...t([67,195],()=>[[32,7],[65,195,0],[70],[32,7],[65,195,1],[70],[114],[4,64],[32,6],[252,3],[40,1,0],[69],[184],[12,1],[11]]),[32,6],[68,0],[97],[184],[11],[252,3],[4,64],...internalThrow(_,'TypeError',`Constructor Promise requires 'new'`),[26],[11],[32,5],[184],[68,6],[98],[4,64],...internalThrow(_,'TypeError',`Promise executor is not a function`),[26],[11],[16,builtin('__Porffor_promise_create')],[34,8],...glbl(36,'activePromise',124),[65,208,0],...glbl(36,'activePromise#type',127),[6,64],[32,4],[33,9],[32,5],[33,7],[2,124],...t([6],()=>[[32,7],[65,6],[70],[4,64],[68,0],[65,128,1],[68,0],[65,128,1],...funcRef('__Porffor_promise_resolveActive'),[65,6],...funcRef('__Porffor_promise_rejectActive'),[65,6],[68,0],[65,128,1],[68,0],[65,128,1],[68,0],[65,128,1],[68,0],[65,128,1],[68,0],[65,128,1],[68,0],[65,128,1],[68,0],[65,128,1],[68,0],[65,128,1],[32,9],[252,3],[17,12,0],[26],[12,1],[11]]),...internalThrow(_,'TypeError',`executor is not a function`),[68,0],[11],[26],[7,0],[33,12],[34,11],[33,13],[32,12],[33,14],[32,8],[65,208,0],[32,13],[32,14],[16,builtin('__ecma262_RejectPromise')],[11],[32,8],[15]],
