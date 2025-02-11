@@ -134,7 +134,7 @@ export default (code, module = undefined) => {
         const preOps = x.wasm.length;
         cyclone(x.wasm);
 
-        console.log(`${x.name}: ${preOps} -> ${x.wasm.length} ops`);
+        if (preOps !== x.wasm.length) console.log(`${x.name}: ${preOps} -> ${x.wasm.length} ops`);
       }
       opt(funcs, globals, pages, tags, exceptions);
 

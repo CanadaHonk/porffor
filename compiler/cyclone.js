@@ -1,6 +1,7 @@
 // cyclone: wasm partial constant evaluator (it is fast and dangerous hence "cyclone")
 import { number, signedLEB128, ieee754_binary64, read_ieee754_binary64, read_signedLEB128 } from './encoding.js';
 import { Opcodes, Valtype } from './wasmSpec.js';
+import './prefs.js';
 
 const f64ToI32Op = {
   [Opcodes.f64_eq]: Opcodes.i32_eq,
@@ -16,7 +17,7 @@ const f64ToI32Op = {
 };
 
 export default wasm => {
-  let stack = []; // """""stack"""""
+  let stack = []; // "stack"
   for (let i = 0; i < wasm.length; i++) {
     let op = wasm[i];
     if (!op) continue;
@@ -33,8 +34,10 @@ export default wasm => {
       stack.push({ val, op });
     };
 
+    // let debugPops = [];
     const pop = () => {
       const popped = stack.pop();
+      // debugPops.unshift({ ...popped, index: wasm.indexOf(popped.op) });
 
       // remove the op
       wasm.splice(wasm.indexOf(popped.op), 1);
@@ -48,6 +51,12 @@ export default wasm => {
     const bool = v => v ? 1 : 0;
 
     const replaceOp = newOp => {
+      // const oldOps = [ ...debugPops, { op, index: i + debugPops.length } ];
+      // for (const x of oldOps) {
+      //   console.log(`\x1b[90m${x.index.toString().padStart(4)} ▌\x1b[0m ${disassemble([ x.op ]).slice(0, -1)}${x.val != null ? ` \x1b[2m(${x.val})\x1b[0m` : ''}`);
+      // }
+      // process.stdout.write(`\x1b[s\x1b[${oldOps.length}A\x1b[40C\x1b[2m->\x1b[0m  ${disassemble([ newOp ]).slice(0, -1)}\x1b[u\n`);
+
       op.splice(0, op.length, ...newOp);
     };
     const replaceVal = (val, valtype) => replaceOp(number(val, valtype));
@@ -57,41 +66,41 @@ export default wasm => {
     };
 
     switch (opcode) {
-      case Opcodes.if: {
-        if (stack.length < 1) { empty(); break; }
-        const cond = bool(pop());
+      // case Opcodes.if: {
+      //   if (stack.length < 1) { empty(); break; }
+      //   const cond = bool(pop());
 
-        // find else split and end
-        let j = i + 1;
-        let depth = 0, elseStart = 0;
-        for (; j < wasm.length; j++) {
-          const op = wasm[j][0];
-          if (op === Opcodes.if || op === Opcodes.block || op === Opcodes.loop || op === Opcodes.try) depth++;
-          if (op === Opcodes.else && depth === 0) elseStart = j;
-          if (op === Opcodes.end) {
-            depth--;
-            if (depth < 0) break;
-          }
-          if (op === Opcodes.br || op === Opcodes.br_if) wasm[j][1] -= 1;
-        }
+      //   // find else split and end
+      //   let j = i + 1;
+      //   let depth = 0, elseStart = 0;
+      //   for (; j < wasm.length; j++) {
+      //     const op = wasm[j][0];
+      //     if (op === Opcodes.if || op === Opcodes.block || op === Opcodes.loop || op === Opcodes.try) depth++;
+      //     if (op === Opcodes.else && depth === 0) elseStart = j;
+      //     if (op === Opcodes.end) {
+      //       depth--;
+      //       if (depth < 0) break;
+      //     }
+      //     if (op === Opcodes.br || op === Opcodes.br_if) wasm[j][1] -= 1;
+      //   }
 
-        if (cond) {
-          // remove else if it exists, or just remove end
-          if (elseStart) wasm.splice(elseStart, j - elseStart + 1);
-            else wasm.splice(j, 1);
-        } else {
-          // remove truthy conseq and keep else if it exists, or just remove entire thing
-          if (elseStart) {
-            wasm.splice(j, 1); // remove end
-            wasm.splice(i + 1, elseStart - i + 1); // remove truthy conseq
-          } else wasm.splice(i + 1, j - i + 0); // no else, remove entire if
-        }
+      //   if (cond) {
+      //     // remove else if it exists, or just remove end
+      //     if (elseStart) wasm.splice(elseStart, j - elseStart + 1);
+      //       else wasm.splice(j, 1);
+      //   } else {
+      //     // remove truthy conseq and keep else if it exists, or just remove entire thing
+      //     if (elseStart) {
+      //       wasm.splice(j, 1); // remove end
+      //       wasm.splice(i + 1, elseStart - i + 1); // remove truthy conseq
+      //     } else wasm.splice(i + 1, j - i + 0); // no else, remove entire if
+      //   }
 
-        // remove this if op
-        wasm.splice(i, 1);
+      //   // remove this if op
+      //   wasm.splice(i, 1);
 
-        break;
-      }
+      //   break;
+      // }
 
       case Opcodes.i32_const: {
         const n = read_signedLEB128(op.slice(1));
@@ -458,7 +467,7 @@ export default wasm => {
         break;
       }
 
-      case 0xfc02: { // i32_trunc_sat_f64_s
+      case 0xfc02: { // i32.trunc_sat_f64_s
         if (stack.length < 1) { empty(); break; }
         const v = pop();
 
@@ -467,7 +476,7 @@ export default wasm => {
         break;
       }
 
-      case 0xfc03: { // i32_trunc_sat_f64_u
+      case 0xfc03: { // i32.trunc_sat_f64_u
         if (stack.length < 1) { empty(); break; }
         const v = pop();
 
@@ -500,69 +509,69 @@ export default wasm => {
     // i32.const 1
     // i32.add
     // local.set 7 ;; $i (i32)
-    if (i >= 2 &&
-      ((opcode >= 0xa0 && opcode <= 0xa3) || // main f64 math op
-      (opcode >= 0x61 && opcode <= 0x66)) // main f64 eq op
-    ) {
-      const o2 = wasm[i - 1][0];
-      if (o2 === Opcodes.f64_const) { // f64.const
-        const o3 = wasm[i - 2][0];
-        if (o3 === Opcodes.f64_convert_i32_s || o3 === Opcodes.f64_convert_i32_u) {
-          // remove now unneeded i32 -> f64 convert
-          wasm.splice(i - 2, 1);
-          i--;
+    // if (i >= 2 &&
+    //   ((opcode >= 0xa0 && opcode <= 0xa3) || // main f64 math op
+    //   (opcode >= 0x61 && opcode <= 0x66)) // main f64 eq op
+    // ) {
+    //   const o2 = wasm[i - 1][0];
+    //   if (o2 === Opcodes.f64_const) { // f64.const
+    //     const o3 = wasm[i - 2][0];
+    //     if (o3 === Opcodes.f64_convert_i32_s || o3 === Opcodes.f64_convert_i32_u) {
+    //       // remove now unneeded i32 -> f64 convert
+    //       wasm.splice(i - 2, 1);
+    //       i--;
 
-          // convert f64.const -> i32.const
-          const n = wasm[i - 1][1];
-          wasm.splice(i - 1, 1, number(n, Valtype.i32));
+    //       // convert f64.const -> i32.const
+    //       const n = wasm[i - 1][1];
+    //       wasm.splice(i - 1, 1, number(n, Valtype.i32));
 
-          // convert math op from f64 to i32
-          wasm[i][0] = f64ToI32Op[wasm[i][0]];
+    //       // convert math op from f64 to i32
+    //       wasm[i][0] = f64ToI32Op[wasm[i][0]];
 
-          const nextOp = wasm[i + 1];
-          if (nextOp && opcode >= 0xa0 && opcode <= 0xa3) {
-            if (nextOp[0] === 0xfc && (nextOp[1] === 0x02 || nextOp[1] === 0x03)) {
-              // remove optional unneeded f64 -> i32 convert after
-              wasm.splice(i + 1, 1);
-            } else {
-              // add now needed i32 -> f64 convert after
-              wasm.splice(i + 1, Opcodes.i32_trunc_sat_f64_s);
-            }
-          }
-        }
-      }
-    }
+    //       const nextOp = wasm[i + 1];
+    //       if (nextOp && opcode >= 0xa0 && opcode <= 0xa3) {
+    //         if (nextOp[0] === 0xfc && (nextOp[1] === 0x02 || nextOp[1] === 0x03)) {
+    //           // remove optional unneeded f64 -> i32 convert after
+    //           wasm.splice(i + 1, 1);
+    //         } else {
+    //           // add now needed i32 -> f64 convert after
+    //           wasm.splice(i + 1, Opcodes.i32_trunc_sat_f64_s);
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
 
-    if ((opcode === 0xfc02 || opcode === 0xfc03) && i >= 3) { // i32.trunc_sat_f64_s/u
-      const o2 = wasm[i - 1][0];
-      if (
-        (o2 >= 0xa0 && o2 <= 0xa3) || // main f64 math op
-        (o2 >= 0x61 && o2 <= 0x66) // main f64 eq op
-      ) {
-        const o3 = wasm[i - 2][0];
-        if (o3 === Opcodes.f64_const) { // f64.const
-          const o4 = wasm[i - 3][0];
-          if (o4 === Opcodes.f64_convert_i32_s || o4 === Opcodes.f64_convert_i32_u) {
-            // remove now unneeded i32 -> f64 convert
-            wasm.splice(i - 3, 1);
-            i--;
-          } else {
-            // add now needed f64 -> i32 convert prior
-            wasm.splice(i - 2, 0, Opcodes.i32_trunc_sat_f64_s);
-            i++;
-          }
+    // if ((opcode === 0xfc02 || opcode === 0xfc03) && i >= 3) { // i32.trunc_sat_f64_s/u
+    //   const o2 = wasm[i - 1][0];
+    //   if (
+    //     (o2 >= 0xa0 && o2 <= 0xa3) || // main f64 math op
+    //     (o2 >= 0x61 && o2 <= 0x66) // main f64 eq op
+    //   ) {
+    //     const o3 = wasm[i - 2][0];
+    //     if (o3 === Opcodes.f64_const) { // f64.const
+    //       const o4 = wasm[i - 3][0];
+    //       if (o4 === Opcodes.f64_convert_i32_s || o4 === Opcodes.f64_convert_i32_u) {
+    //         // remove now unneeded i32 -> f64 convert
+    //         wasm.splice(i - 3, 1);
+    //         i--;
+    //       } else {
+    //         // add now needed f64 -> i32 convert prior
+    //         wasm.splice(i - 2, 0, Opcodes.i32_trunc_sat_f64_s);
+    //         i++;
+    //       }
 
-          // convert f64.const -> i32.const
-          const n = wasm[i - 2][1];
-          wasm.splice(i - 2, 1, number(n, Valtype.i32));
+    //       // convert f64.const -> i32.const
+    //       const n = wasm[i - 2][1];
+    //       wasm.splice(i - 2, 1, number(n, Valtype.i32));
 
-          // convert math op from f64 to i32
-          wasm[i - 1][0] = f64ToI32Op[wasm[i - 1][0]];
+    //       // convert math op from f64 to i32
+    //       wasm[i - 1][0] = f64ToI32Op[wasm[i - 1][0]];
 
-          // remove this now unneeded f64 -> i32 convert
-          wasm.splice(i, 1);
-        }
-      }
-    }
+    //       // remove this now unneeded f64 -> i32 convert
+    //       wasm.splice(i, 1);
+    //     }
+    //   }
+    // }
   }
 };
