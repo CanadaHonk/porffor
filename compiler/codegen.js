@@ -1505,7 +1505,18 @@ const setType = (scope, name, type, noInfer = false) => {
 };
 
 const getLastType = scope => {
-  if (!scope.locals['#last_type']) return [ number(TYPES.number, Valtype.i32) ];
+  if (!scope.locals['#last_type']) return [
+    [ null, () => {
+      if (scope.locals['#last_type']) {
+        scope.gotLastType = true;
+        return [
+          [ Opcodes.local_get, localTmp(scope, '#last_type', Valtype.i32) ]
+        ];
+      }
+
+      return [ number(TYPES.number, Valtype.i32) ];
+    } ]
+  ];
 
   scope.gotLastType = true;
   return [
