@@ -6655,6 +6655,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   if (typedInput && decl.returnType) {
     const { type } = extractTypeAnnotation(decl.returnType);
     if (type != null) {
+      typeUsed(func, type);
       func.returnType = type;
       func.returns = func.returnType === TYPES.undefined && !func.async && !func.generator ? [] : [ valtypeBinary ];
     }
