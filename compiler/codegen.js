@@ -3,7 +3,7 @@ import { number, ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector, r
 import { operatorOpcode } from './expression.js';
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
 import { PrototypeFuncs } from './prototype.js';
-import { TYPES, TYPE_FLAGS, TYPE_NAMES, typeHasFlag } from './types.js';
+import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
 import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
 import { log } from './log.js';
@@ -1664,7 +1664,7 @@ const getNodeType = (scope, node) => {
 
       const objectKnownType = knownType(scope, getNodeType(scope, node.object));
       if (objectKnownType != null) {
-        if (name === 'length' && typeHasFlag(objectKnownType, TYPE_FLAGS.length)) return TYPES.number;
+        if (name === 'length' && (objectKnownType & TYPE_FLAGS.length) !== 0) return TYPES.number;
 
         if (node.computed) {
           if (objectKnownType === TYPES.string) return TYPES.string;
@@ -3653,7 +3653,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     const type = getNodeType(scope, decl.left.object);
     const known = knownType(scope, type);
-    if (known != null && typeHasFlag(known, TYPE_FLAGS.length)) return [
+    if (known != null && (known & TYPE_FLAGS.length) !== 0) return [
       ...out,
       ...optional([ Opcodes.local_tee, pointerTmp ]),
 
@@ -5678,7 +5678,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
     const type = getNodeType(scope, object);
     const known = knownType(scope, type);
-    if (known != null && typeHasFlag(known, TYPE_FLAGS.length)) return [
+    if (known != null && (known & TYPE_FLAGS.length) !== 0) return [
       ...out,
 
       [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],

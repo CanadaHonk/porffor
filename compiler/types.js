@@ -30,8 +30,6 @@ export const TYPE_NAMES = {
   [TYPES.bigint]: 'BigInt'
 };
 
-export const typeHasFlag = (type, flag) => (type & flag) !== 0;
-
 let internalTypeIndex = TYPES.object + 1;
 const registerInternalType = (name, flags = [], overrideType = undefined) => {
   let n = overrideType ?? internalTypeIndex++;
