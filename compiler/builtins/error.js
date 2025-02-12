@@ -9,24 +9,36 @@ export default () => {
     else message = ecma262.ToString(message);
 
   const obj: object = Porffor.allocateBytes(128);
+  obj.name = '${name}';
+  obj.message = message;
+  obj.constructor = ${name};
+
+  return obj as ${name};
+};
+
+export const __${name}_prototype_toString = (_this: ${name}) => {
+  const name: any = (_this as object).name;
+  const message: any = (_this as object).message;
+  if (message.length == 0) {
+    return name;
+  }
+
+  return name + ': ' + message;
+};`;
+  };
+
+  const errorNoType = name => {
+    out += `export const ${name} = function (message: any) {
+  if (message === undefined) message = '';
+    else message = ecma262.ToString(message);
+
+  const obj: object = Porffor.allocateBytes(128);
 
   obj.name = '${name}';
   obj.message = message;
   obj.constructor = ${name};
 
-  const out: ${name} = obj;
-  return out;
-};
-
-export const __${name}_prototype_toString = (_this: ${name}) => {
-  const obj: object = _this;
-
-  const message: any = obj.message;
-  if (message.length == 0) {
-    return obj.name;
-  }
-
-  return obj.name + ': ' + message;
+  return obj as Error;
 };`;
   };
 
@@ -38,9 +50,8 @@ export const __${name}_prototype_toString = (_this: ${name}) => {
   error('RangeError');
   error('EvalError');
   error('URIError');
-
   error('Test262Error');
-  error('TodoError');
+  errorNoType('TodoError');
 
   out += `
 export const __Test262Error_thrower = message => {

@@ -311,8 +311,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     case TYPES.rangeerror:
     case TYPES.evalerror:
     case TYPES.urierror:
-    case TYPES.test262error:
-    case TYPES.todoerror: {
+    case TYPES.test262error: {
       const obj = porfToJSValue({ memory, funcs, pages }, value, TYPES.object);
       const err = new (globalThis[TYPE_NAMES[type]] ?? Error)(obj.message);
 

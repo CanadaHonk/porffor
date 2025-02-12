@@ -6,7 +6,7 @@ export const __Porffor_object_underlying = (obj: any): any => {
 
   if (Porffor.fastAnd(
     t >= Porffor.TYPES.error,
-    t <= Porffor.TYPES.todoerror
+    t < 0x40
   )) {
     return obj as object;
   }

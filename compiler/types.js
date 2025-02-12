@@ -69,11 +69,12 @@ registerInternalType('BooleanObject');
 registerInternalType('NumberObject');
 registerInternalType('StringObject');
 
-for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval', 'URI', 'Test262', 'Todo' ])
-  registerInternalType(`${x}Error`);
-
 registerInternalType('__Porffor_Generator');
 registerInternalType('__Porffor_AsyncGenerator');
+
+// from here, remapped object types only
+for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval', 'URI', 'Test262' ])
+  registerInternalType(`${x}Error`);
 
 if (Prefs.largestTypes) {
   const typeKeys = Object.keys(TYPES);
