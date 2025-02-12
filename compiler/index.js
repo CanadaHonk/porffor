@@ -132,7 +132,7 @@ export default (code, module = undefined) => {
 
       for (const x of funcs) {
         const preOps = x.wasm.length;
-        cyclone(x.wasm);
+        cyclone(x);
 
         if (preOps !== x.wasm.length) console.log(`${x.name}: ${preOps} -> ${x.wasm.length} ops`);
       }
@@ -144,7 +144,7 @@ export default (code, module = undefined) => {
       console.log(`cyclone size diff: ${oldSize - newSize} bytes (${oldSize} -> ${newSize})\n`);
     } else {
       for (const x of funcs) {
-        cyclone(x.wasm);
+        cyclone(x);
       }
     }
   }

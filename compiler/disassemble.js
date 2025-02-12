@@ -18,7 +18,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
     }
 
     return `(${params.map((x, i) => invValtype[x]).join(', ')}) -> (${returns.map(x => invValtype[x]).join(', ')})`;
-  }
+  };
 
   let out = '', depth = 0;
   if (name) out += `${name}(${ind}) ${makeSignature(params, returns, locals)}\n`;

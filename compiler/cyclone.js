@@ -16,7 +16,15 @@ const f64ToI32Op = {
   [Opcodes.f64_div]: Opcodes.i32_div_s,
 };
 
-export default wasm => {
+export default ({ name, wasm, locals: _locals, params }) => {
+  let locals = Object.values(_locals);
+  const localValtypes = locals.map(x => x.type);
+
+  const resetLocals = () => {
+    locals = new Array(locals.length).fill(false);
+  };
+  resetLocals();
+
   let stack = []; // "stack"
   for (let i = 0; i < wasm.length; i++) {
     let op = wasm[i];
@@ -34,6 +42,9 @@ export default wasm => {
       stack.push({ val, op });
     };
 
+    const peek = () => stack[stack.length - 1]?.val;
+    const popWithoutRemove = () => stack.pop().val;
+
     // let debugPops = [];
     const pop = () => {
       const popped = stack.pop();
@@ -45,15 +56,15 @@ export default wasm => {
 
       return popped.val;
     };
-
     const pop2 = () => [ pop(), pop() ];
 
     const bool = v => v ? 1 : 0;
 
     const replaceOp = newOp => {
+      // console.log(`\x1b[4m${name}\x1b[0m`);
       // const oldOps = [ ...debugPops, { op, index: i + debugPops.length } ];
       // for (const x of oldOps) {
-      //   console.log(`\x1b[90m${x.index.toString().padStart(4)} ▌\x1b[0m ${disassemble([ x.op ]).slice(0, -1)}${x.val != null ? ` \x1b[2m(${x.val})\x1b[0m` : ''}`);
+      //   console.log(`\x1b[90m${x.index.toString().padStart(4)} ▌\x1b[0m ${disassemble([ x.op ], undefined, undefined, _locals).slice(0, -1)}${x.val != null ? ` \x1b[2m(${x.val})\x1b[0m` : ''}`);
       // }
       // process.stdout.write(`\x1b[s\x1b[${oldOps.length}A\x1b[40C\x1b[2m->\x1b[0m  ${disassemble([ newOp ]).slice(0, -1)}\x1b[u\n`);
 
@@ -457,8 +468,8 @@ export default wasm => {
         break;
       }
 
-      case Opcodes.f64_convert_i32_u:
-      case Opcodes.f64_convert_i32_s: {
+      case Opcodes.f64_convert_i32_s:
+      case Opcodes.f64_convert_i32_u: {
         if (stack.length < 1) { empty(); break; };
         const v = pop();
 
@@ -467,15 +478,7 @@ export default wasm => {
         break;
       }
 
-      case 0xfc02: { // i32.trunc_sat_f64_s
-        if (stack.length < 1) { empty(); break; }
-        const v = pop();
-
-        replaceVal(v, Valtype.i32);
-        push(v);
-        break;
-      }
-
+      case 0xfc02: // i32.trunc_sat_f64_s
       case 0xfc03: { // i32.trunc_sat_f64_u
         if (stack.length < 1) { empty(); break; }
         const v = pop();
@@ -485,11 +488,60 @@ export default wasm => {
         break;
       }
 
-      // case Opcodes.local_tee: {
-      //   if (stack.length < 1) { empty(); break; }
-      //   push(pop());
-      //   break;
-      // }
+      case Opcodes.drop: {
+        if (stack.length < 1) { empty(); break; }
+        pop();
+        break;
+      }
+
+      case Opcodes.local_get: {
+        const x = locals[op[1]];
+        if (x === false) {
+          empty();
+        } else {
+          replaceVal(x, localValtypes[op[1]]);
+          push(x);
+        }
+        break;
+      }
+
+      case Opcodes.local_set: {
+        if (stack.length < 1) {
+          locals[op[1]] = false;
+          empty();
+          break;
+        }
+
+        const x = popWithoutRemove();
+        locals[op[1]] = x;
+        break;
+      }
+
+      case Opcodes.local_tee: {
+        if (stack.length < 1) {
+          locals[op[1]] = false;
+          empty();
+          break;
+        }
+
+        const x = pop();
+        locals[op[1]] = x;
+        replaceVal(x, localValtypes[op[1]]);
+        push(x);
+        break;
+      }
+
+      case Opcodes.block:
+      case Opcodes.loop:
+      case Opcodes.try:
+      case Opcodes.if:
+      case Opcodes.else:
+      case Opcodes.catch:
+      case Opcodes.end: {
+        resetLocals();
+        empty();
+        break;
+      }
 
       default: {
         empty();
