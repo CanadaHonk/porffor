@@ -32,8 +32,7 @@ export const TYPE_NAMES = {
 
 export const typeHasFlag = (type, flag) => (type & flag) !== 0;
 
-export const INTERNAL_TYPE_BASE = 0x10;
-let internalTypeIndex = INTERNAL_TYPE_BASE;
+let internalTypeIndex = TYPES.object + 1;
 const registerInternalType = (name, flags = [], overrideType = undefined) => {
   let n = overrideType ?? internalTypeIndex++;
 
