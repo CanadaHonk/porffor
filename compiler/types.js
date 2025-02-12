@@ -85,11 +85,11 @@ if (Prefs.largestTypes) {
     return [ val, key ];
   };
 
-  const unflag = val => val & 0b00111111;
-
   const logType = (label, val, key) => console.log(`${label}    ${key} - ${val} (0x${val.toString(16)}, 0b${val.toString(2).padStart(8, '0')})`);
 
-  logType(`largest type:         `, ...largestType(typeVals.map(unflag), typeKeys));
+  const largestUnflagged = largestType(typeVals.map(x => x & 0b00111111), typeKeys);
+  logType(`largest type:         `, ...largestUnflagged);
   logType(`largest type w/ flags:`, ...largestType(typeVals, typeKeys));
+  console.log('types left:', 0b00111111 - largestUnflagged[0]);
   console.log();
 }
