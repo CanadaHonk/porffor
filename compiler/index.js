@@ -251,7 +251,7 @@ export default (code, module = undefined) => {
 
     const tmpfile = 'porffor_tmp.c';
     const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
-    if (compiler.includes('clang')) args.push('-flto=thin', '-march=native', '-ffast-math', '-fno-exceptions', '-fno-ident', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections');
+    if (compiler.includes('clang')) args.push('-lm', '-flto=thin', '-march=native', '-ffast-math', '-fno-exceptions', '-fno-ident', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections');
     if (Prefs.s) args.push('-s');
 
     if (logProgress) progressStart('compiling Wasm to C...');
