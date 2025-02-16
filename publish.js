@@ -21,4 +21,4 @@ execSync(`git add package.json runner/index.js`, { stdio: 'inherit' });
 // execSync(`git commit -m "version: ${version}"`, { stdio: 'inherit' });
 execSync(`git commit --amend -C HEAD --no-verify`, { stdio: 'inherit' });
 
-execSync(`npm publish`, { stdio: 'inherit' });
+execSync(`${process.env.NPM_BINARY ?? 'npm'} publish`, { stdio: 'inherit' });
