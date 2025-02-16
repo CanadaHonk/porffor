@@ -217,7 +217,7 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
 
   if (pages.size > 0) {
     includes.set('stdlib.h', true);
-    prepend.set('_memory', `char* _memory; u32 _memoryPages = ${pages.size};\n`);
+    prepend.set('_memory', `char* _memory; u32 _memoryPages = ${Math.ceil((pages.size * pageSize) / PageSize)};\n`);
     prependMain.set('_initMemory', `_memory = malloc(_memoryPages * ${PageSize});\n`);
     if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
@@ -850,7 +850,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           const id = localTmpId++;
           line(`const u32 _oldPages${id} = _memoryPages`);
           line(`_memoryPages += ${vals.pop()}`);
-          line(`_memory = realloc(_memory, _memoryPages * ${pageSize})`);
+          line(`_memory = realloc(_memory, _memoryPages * ${PageSize})`);
           vals.push(`_oldPages${id}`);
           break;
         }
@@ -911,7 +911,6 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
     }
 
     const shouldInline = false;
-
     return `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${ffiFuncs[f.name] ? '(*' : ''}${sanitize(f.name)}${ffiFuncs[f.name] ? ')' : ''}(${rawParams(f).map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')});`;
   }).join('\n'));
 
