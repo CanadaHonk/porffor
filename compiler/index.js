@@ -243,11 +243,8 @@ export default (code, module = undefined) => {
   if (target === 'native') {
     outFile ??= Prefs.native ? './porffor_tmp' : file.split('/').at(-1).split('.')[0];
 
-    let compiler = Prefs.compiler ?? 'clang';
+    const compiler = (Prefs.compiler ?? 'clang').split(' ');
     const cO = Prefs._cO ?? 'O3';
-
-    if (compiler === 'zig') compiler = [ 'zig', 'cc' ];
-      else compiler = [ compiler ];
 
     const tmpfile = 'porffor_tmp.c';
     const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
