@@ -860,7 +860,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             const name = invOpcodes[i[0]];
             const func = CMemFuncs[i[0]];
             if (!prepend.has(name)) {
-              prepend.set(name, `inline ${func.returns || 'void'} ${name}(i32 align, i32 offset, ${func.args.map((x, i) => `${func.argTypes[i]} ${x}`).join(', ')}) {\n  ${func.c.replaceAll('\n', '\n  ')}\n}\n`);
+              prepend.set(name, `${func.returns || 'void'} ${name}(i32 align, i32 offset, ${func.args.map((x, i) => `${func.argTypes[i]} ${x}`).join(', ')}) {\n  ${func.c.replaceAll('\n', '\n  ')}\n}\n`);
             }
 
             const immediates = [ i[1], read_unsignedLEB128(i.slice(2)) ];
