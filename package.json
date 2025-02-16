@@ -1,13 +1,13 @@
 {
   "name": "porffor",
   "description": "An ahead-of-time JavaScript compiler",
-  "version": "0.55.31",
+  "version": "0.55.32",
   "author": "Oliver Medhurst <honk@goose.icu>",
   "license": "MIT",
   "scripts": {},
   "dependencies": {
     "acorn": "^8.14.0",
-    "node-repl-polyfill": "^0.1.1"
+    "node-repl-polyfill": "github:CanadaHonk/node-repl-polyfill"
   },
   "optionalDependencies": {
     "@babel/parser": "^7.24.4",
