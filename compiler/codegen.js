@@ -76,7 +76,7 @@ const funcRef = func => {
           name: '',
           jsLength: 0
         },
-        indirectIndex: indirectFuncs.length
+        indirectIndex: 0
       };
 
       // check not being constructed
@@ -89,8 +89,7 @@ const funcRef = func => {
       );
 
       // have empty func as indirect funcs 0 and 1
-      indirectFuncs.push(emptyFunc);
-      indirectFuncs.push(emptyFunc);
+      indirectFuncs.push(emptyFunc, emptyFunc);
     }
 
     const wasm = [];
@@ -2934,9 +2933,6 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     for (const x of bc) {
       const k = x[0];
       if (k === 'default') continue;
-
-      // uncomment if needed/used again
-      // x[0] = k.split(',').map(x => +x);
       x[0] = +k;
     }
   }
@@ -5520,7 +5516,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
 
     for (const x of decl.properties) {
       // method, shorthand are made into useful values by parser for us :)
-      let { type, argument, computed, kind, key, value } = x;
+      let { type, argument, computed, kind, value } = x;
 
       if (type === 'SpreadElement') {
         out.push(
@@ -5540,14 +5536,14 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         continue;
       }
 
-      const k = getProperty(x, true);
+      const key = getProperty(x, true);
       if (isFuncType(value.type)) {
         let id = value.id;
 
         // todo: support computed names properly
-        if (typeof k.value === 'string') id ??= {
+        if (typeof key.value === 'string') id ??= {
           type: 'Identifier',
-          name: k.value
+          name: key.value
         };
 
         value = { ...value, id };
@@ -5557,7 +5553,7 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
         [ Opcodes.local_get, tmp ],
         number(TYPES.object, Valtype.i32),
 
-        ...toPropertyKey(scope, generate(scope, k), getNodeType(scope, k), computed, true),
+        ...toPropertyKey(scope, generate(scope, key), getNodeType(scope, key), computed, true),
 
         ...generate(scope, value),
         ...(kind !== 'init' ? [ Opcodes.i32_to_u ] : []),
@@ -6113,7 +6109,7 @@ const generateClass = (scope, decl) => {
   scope.overrideThisType = TYPES.function;
 
   for (const x of body) {
-    let { type, key, value, kind, static: _static, computed } = x;
+    let { type, value, kind, static: _static, computed } = x;
     if (kind === 'constructor') continue;
 
     if (type === 'StaticBlock') {
@@ -6128,9 +6124,8 @@ const generateClass = (scope, decl) => {
       continue;
     }
 
+    const key = getProperty(x, true);
     let object = _static ? root : proto;
-
-    const k = getProperty(x, true);
 
     let initKind = type === 'MethodDefinition' ? 'method' : 'value';
     if (kind === 'get' || kind === 'set') initKind = kind;
@@ -6142,9 +6137,9 @@ const generateClass = (scope, decl) => {
       let id = value.id;
 
       // todo: support computed names properly
-      if (typeof k.value === 'string') id ??= {
+      if (typeof key.value === 'string') id ??= {
         type: 'Identifier',
-        name: k.value
+        name: key.value
       };
 
       value = {
@@ -6168,7 +6163,7 @@ const generateClass = (scope, decl) => {
         computedTmp = allocVar(scope, `#class_computed_prop${uniqId()}`, true, true, false, true);
 
         out.push(
-          ...toPropertyKey(scope, generate(scope, k), getNodeType(scope, k), computed, true),
+          ...toPropertyKey(scope, generate(scope, key), getNodeType(scope, key), computed, true),
           [ Opcodes.global_set, computedTmp + 1 ],
           [ Opcodes.global_set, computedTmp ]
         );
@@ -6183,9 +6178,9 @@ const generateClass = (scope, decl) => {
           [ Opcodes.global_get, computedTmp ],
           [ Opcodes.global_get, computedTmp + 1 ],
         ] : [
-          ...generate(func, k),
+          ...generate(func, key),
           Opcodes.i32_to_u,
-          ...getNodeType(func, k)
+          ...getNodeType(func, key)
         ]),
 
         ...generate(func, value),
@@ -6200,7 +6195,7 @@ const generateClass = (scope, decl) => {
         Opcodes.i32_to_u,
         ...getNodeType(scope, object),
 
-        ...toPropertyKey(scope, generate(scope, k), getNodeType(scope, k), computed, true),
+        ...toPropertyKey(scope, generate(scope, key), getNodeType(scope, key), computed, true),
 
         ...generate(scope, value),
         ...(initKind !== 'value' && initKind !== 'method' ? [ Opcodes.i32_to_u ] : []),
