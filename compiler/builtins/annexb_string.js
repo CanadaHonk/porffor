@@ -1,12 +1,11 @@
 export default () => {
   let out = ``;
   const noArgs = (a0, a1) => out += `
-export const __String_prototype_${a0} = (_this: any) => {
-  const pre: bytestring = '<${a1}>';
-  const post: bytestring = '</${a1}>';
+export const __String_prototype_${a0} = (_this: any) =>
+  Porffor.concatStrings(
+    Porffor.concatStrings('<${a1}>', _this),
+    '</${a1}>');
 
-  return Porffor.concatStrings(Porffor.concatStrings(pre, _this), post);
-};
 export const __ByteString_prototype_${a0} = (_this: any) =>
   __String_prototype_${a0}(_this);
 `;
@@ -22,13 +21,15 @@ export const __ByteString_prototype_${a0} = (_this: any) =>
   noArgs('sup', 'sup');
 
   const arg = (name, s1, s2) => out += `
-export const __String_prototype_${name} = (_this: any, arg: any) => {
-  const pre1: bytestring = '<${s1} ${s2}="';
-  const pre2: bytestring = '">';
-  const post: bytestring = '</${s1}>';
+export const __String_prototype_${name} = (_this: any, arg: any) =>
+  Porffor.concatStrings(
+    Porffor.concatStrings(
+      Porffor.concatStrings(
+        Porffor.concatStrings('<${s1} ${s2}="', arg),
+        '">'),
+      _this),
+    '</${s1}>');
 
-  return Porffor.concatStrings(Porffor.concatStrings(Porffor.concatStrings(Porffor.concatStrings(pre1, arg), pre2), _this), post);
-};
 export const __ByteString_prototype_${name} = (_this: any, arg: any) =>
   __String_prototype_${name}(_this, arg);
 `;

@@ -413,10 +413,8 @@ export const __ecma262_WeekDayName = (tv: number): bytestring => {
   // 4𝔽 	"Thu"
   // 5𝔽 	"Fri"
   // 6𝔽 	"Sat"
-
-  const weekday: number = __ecma262_WeekDay(tv);
-
   const lut: bytestring = 'SunMonTueWedThuFriSat';
+  const weekday: number = __ecma262_WeekDay(tv);
 
   let out: bytestring = Porffor.allocateBytes(7);
   out.length = 3;
@@ -447,10 +445,8 @@ export const __ecma262_MonthName = (tv: number): bytestring => {
   // 9𝔽  "Oct"
   // 10𝔽 "Nov"
   // 11𝔽 "Dec"
-
-  const month: number = __ecma262_MonthFromTime(tv);
-
   const lut: bytestring = 'JanFebMarAprMayJunJulAugSepOctNovDec';
+  const month: number = __ecma262_MonthFromTime(tv);
 
   let out: bytestring = Porffor.allocateBytes(7);
   out.length = 3;
@@ -1746,13 +1742,13 @@ export const __ecma262_TimeZoneString = (tv: number) => {
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-todatestring
 export const __ecma262_ToDateString = (tv: number) => {
   // 1. If tv is NaN, return "Invalid Date".
-  let out: bytestring = Porffor.allocateBytes(44);
-  if (Number.isNaN(tv)) return out = 'Invalid Date';
+  if (Number.isNaN(tv)) return 'Invalid Date';
 
   // 2. Let t be LocalTime(tv).
   const t: number = __ecma262_LocalTime(tv);
 
   // 3. Return the string-concatenation of DateString(t), the code unit 0x0020 (SPACE), TimeString(t), and TimeZoneString(tv).
+  const out: bytestring = Porffor.allocateBytes(44);
   __Porffor_bytestring_appendStr(out, __ecma262_DateString(t));
   __Porffor_bytestring_appendChar(out, 32);
 
@@ -1784,13 +1780,13 @@ export const __Date_prototype_toTimeString = (_this: Date) => {
   const tv: number = __Porffor_date_read(_this);
 
   // 4. If tv is NaN, return "Invalid Date".
-  let out: bytestring = Porffor.allocateBytes(27);
-  if (Number.isNaN(tv)) return out = 'Invalid Date';
+  if (Number.isNaN(tv)) return 'Invalid Date';
 
   // 5. Let t be LocalTime(tv).
   const t: number = __ecma262_LocalTime(tv);
 
   // 6. Return the string-concatenation of TimeString(t) and TimeZoneString(tv).
+  const out: bytestring = Porffor.allocateBytes(27);
   __Porffor_bytestring_appendStr(out, __ecma262_TimeString(t));
   __Porffor_bytestring_appendStr(out, __ecma262_TimeZoneString(tv));
 
@@ -1807,15 +1803,13 @@ export const __Date_prototype_toDateString = (_this: Date) => {
   const tv: number = __Porffor_date_read(_this);
 
   // 4. If tv is NaN, return "Invalid Date".
-  let out: bytestring = Porffor.allocateBytes(20);
-  if (Number.isNaN(tv)) return out = 'Invalid Date';
+  if (Number.isNaN(tv)) return 'Invalid Date';
 
   // 5. Let t be LocalTime(tv).
   const t: number = __ecma262_LocalTime(tv);
 
   // 6. Return DateString(t).
-  out = __ecma262_DateString(t);
-  return out;
+  return __ecma262_DateString(t);
 };
 
 // 21.4.4.43 Date.prototype.toUTCString ()
@@ -1827,11 +1821,7 @@ export const __Date_prototype_toUTCString = (_this: Date) => {
   const tv: number = __Porffor_date_read(_this);
 
   // 4. If tv is NaN, return "Invalid Date".
-  let out: bytestring = Porffor.allocateBytes(34);
-  if (Number.isNaN(tv)) {
-    out = 'Invalid Date';
-    return out;
-  }
+  if (Number.isNaN(tv)) return 'Invalid Date';
 
   // 5. Let weekday be the Name of the entry in Table 62 with the Number WeekDay(tv).
   const weekday: bytestring = __ecma262_WeekDayName(tv);
@@ -1847,7 +1837,11 @@ export const __Date_prototype_toUTCString = (_this: Date) => {
 
   // 9. If yv is +0𝔽 or yv > +0𝔽, let yearSign be the empty String; otherwise, let yearSign be "-".
   // 10. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
-  // 11. Return the string-concatenation of weekday, ",", the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), yearSign, paddedYear, the code unit 0x0020 (SPACE), and TimeString(tv).
+  // 11. Return the string-concatenation of weekday, ",", the code unit 0x0020 (SPACE),
+  // day, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE),
+  // yearSign, paddedYear, the code unit 0x0020 (SPACE), and TimeString(tv).
+  const out: bytestring = Porffor.allocateBytes(34);
+
   // weekday
   __Porffor_bytestring_appendStr(out, weekday);
   __Porffor_bytestring_appendChar(out, 44); // ','

@@ -43,7 +43,7 @@ const funcRef = func => {
   if (!doNotMarkFuncRef) func.referenced = true;
 
   if (globalThis.precompile) return [
-    [ Opcodes.const, 'funcref', func.name ]
+    [ 'funcref', Opcodes.const, func.name ]
   ];
 
   func.generate?.();
@@ -5401,7 +5401,7 @@ const makeString = (scope, str, forceBytestring = undefined) => {
   }
 
   if (globalThis.precompile) return [
-    [ Opcodes.const, 'str', str, forceBytestring ]
+    [ 'str', Opcodes.const, str, forceBytestring ]
   ];
 
   const ptr = allocStr({ scope, pages }, str, bytestring);
