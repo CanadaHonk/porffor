@@ -2670,12 +2670,14 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
 
     if (valtypeBinary !== Valtype.i32 &&
+      scope.locals[arg.name]?.type !== Valtype.i32 &&
       (func && func.params[paramOffset + i * (typedParams ? 2 : 1)] === Valtype.i32)
     ) {
       out.push(Opcodes.i32_to);
     }
 
     if (valtypeBinary === Valtype.i32 &&
+      scope.locals[arg.name]?.type !== Valtype.f64 &&
       (func && func.params[paramOffset + i * (typedParams ? 2 : 1)] === Valtype.f64)
     ) {
       out.push([ Opcodes.f64_convert_i32_s ]);
