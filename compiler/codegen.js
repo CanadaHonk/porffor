@@ -2469,7 +2469,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       i32_const: { imms: 1, args: [], returns: 0 },
 
       // dst, src, size, _, _
-      memory_copy: { imms: 2, args: [ true, true, true ], returns: 0, addValue: true }
+      memory_copy: { imms: 2, args: [ true, true, true ], returns: 0, addValue: true },
+
+      // a, b
+      f64_eq: { imms: 0, args: [ false, false ], returns: 1 }
     };
 
     const opName = name.slice('__Porffor_wasm_'.length);
@@ -3612,7 +3615,6 @@ const coctcSetup = (scope, object, tmp, msg, wasm = generate(scope, object), was
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_underlying').index ],
       [ Opcodes.drop ],
 
-      Opcodes.i32_to_u,
       [ Opcodes.local_set, tmp ],
 
       ...(known != null ? [] : [

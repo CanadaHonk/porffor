@@ -23,6 +23,7 @@ type PorfforGlobal = {
     f64: {
       load(pointer: any, align: i32, offset: i32): i32;
       store(pointer: any, value: f64, align: i32, offset: i32): f64;
+      eq(a: f64, b: f64): boolean;
     }
   }
 
