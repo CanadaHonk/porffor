@@ -30,6 +30,7 @@ globalThis.valtypeOverrides = {
     __Porffor_object_class_value: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
     __Porffor_object_class_method: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
     __Porffor_object_define: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
+    __Porffor_object_underlying: [ Valtype.f64, Valtype.i32 ]
   }
 };
 
