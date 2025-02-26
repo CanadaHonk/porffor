@@ -15,7 +15,7 @@ export default function({ builtinFuncs }, Prefs) {
 
     builtinFuncs['#get_' + name] = {
       params: [],
-      locals: [],
+      locals: [ Valtype.i32 ],
       returns: [ Valtype.i32 ],
       returnType: TYPES.object,
       wasm: (scope, { allocPage, makeString, generate, getNodeType, builtin, funcRef, glbl }) => {
@@ -41,7 +41,15 @@ export default function({ builtinFuncs }, Prefs) {
 
           // set cache & ptr for use
           number(ptr, Valtype.i32),
-          glbl(Opcodes.global_set, `getptr_${name}`, Valtype.i32)[0]
+          [ Opcodes.local_tee, 0 ],
+          glbl(Opcodes.global_set, `getptr_${name}`, Valtype.i32)[0],
+
+          [ Opcodes.local_get, 0 ],
+          Opcodes.i32_from_u,
+          number(existingFunc ? TYPES.function : TYPES.object, Valtype.i32),
+          [ Opcodes.call, builtin('__Porffor_object_underlying') ],
+          [ Opcodes.drop ],
+          [ Opcodes.local_set, 0 ]
         ];
 
         for (const x in props) {
@@ -49,6 +57,20 @@ export default function({ builtinFuncs }, Prefs) {
             type: 'Identifier',
             name: prefix + x
           };
+
+          if (x === '__proto__') {
+            out.push(
+              [ Opcodes.local_get, 0 ],
+              number(TYPES.object, Valtype.i32),
+
+              ...generate(scope, value),
+              Opcodes.i32_to_u,
+              ...getNodeType(scope, value),
+
+              [ Opcodes.call, builtin('__Porffor_object_setPrototype') ]
+            );
+            continue;
+          }
 
           let flags = 0b0000;
 
@@ -61,8 +83,8 @@ export default function({ builtinFuncs }, Prefs) {
           if (this[prefix + x]?.type === TYPES.object && this[prefix + x] !== this.null) value = { type: 'ObjectExpression', properties: [] };
 
           out.push(
-            getPtr,
-            number(existingFunc ? TYPES.function : TYPES.object, Valtype.i32),
+            [ Opcodes.local_get, 0 ],
+            number(TYPES.object, Valtype.i32),
 
             ...makeString(scope, x),
             Opcodes.i32_to_u,
@@ -74,7 +96,7 @@ export default function({ builtinFuncs }, Prefs) {
             number(flags, Valtype.i32),
             number(TYPES.number, Valtype.i32),
 
-            [ Opcodes.call, builtin('__Porffor_object_expr_initWithFlags') ]
+            [ Opcodes.call, builtin('__Porffor_object_fastAdd') ]
           );
         }
 
