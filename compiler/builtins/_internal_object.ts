@@ -654,13 +654,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   if (entryPtr == -1) {
     if (hash == -406948493) if (key == '__proto__') {
       // set prototype
-      Porffor.wasm`
-local.get ${obj}
-local.get ${obj+1}
-local.get ${value}
-i32.trunc_sat_f64_u
-local.get ${value+1}
-call __Porffor_object_setPrototype`;
+      __Porffor_object_setPrototype(obj, value);
       return value;
     }
 
@@ -764,13 +758,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
   if (entryPtr == -1) {
     if (hash == -406948493) if (key == '__proto__') {
       // set prototype
-      Porffor.wasm`
-local.get ${obj}
-local.get ${obj+1}
-local.get ${value}
-i32.trunc_sat_f64_u
-local.get ${value+1}
-call __Porffor_object_setPrototype`;
+      __Porffor_object_setPrototype(obj, value);
       return value;
     }
 
@@ -1045,13 +1033,7 @@ export const __Porffor_object_expr_init = (obj: any, key: any, value: any): void
   if (entryPtr == -1) {
     if (hash == -406948493) if (key == '__proto__') {
       // set prototype
-      Porffor.wasm`
-local.get ${obj}
-local.get ${obj+1}
-local.get ${value}
-i32.trunc_sat_f64_u
-local.get ${value+1}
-call __Porffor_object_setPrototype`;
+      __Porffor_object_setPrototype(obj, value);
       return value;
     }
 
