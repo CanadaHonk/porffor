@@ -18,168 +18,7 @@ import type {} from './porffor.d.ts';
 //   enumerable - 0b0100
 //   writable - 0b1000
 
-export const __Porffor_object_isObject = (arg: any): boolean => {
-  const t: i32 = Porffor.wasm`local.get ${arg+1}`;
-  return Porffor.fastAnd(
-    arg != 0, // null
-    t > 0x05,
-    t != Porffor.TYPES.string,
-    t != Porffor.TYPES.bytestring
-  );
-};
-
-export const __Porffor_object_isObjectOrNull = (arg: any): boolean => {
-  const t: i32 = Porffor.wasm`local.get ${arg+1}`;
-  return Porffor.fastAnd(
-    t > 0x05,
-    t != Porffor.TYPES.string,
-    t != Porffor.TYPES.bytestring
-  );
-};
-
-export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
-  const t: i32 = Porffor.wasm`local.get ${arg+1}`;
-  return Porffor.fastAnd(
-    arg != 0, // null
-    t > 0x04,
-    t != Porffor.TYPES.string,
-    t != Porffor.TYPES.bytestring
-  );
-};
-
-
-export const __Porffor_object_preventExtensions = (obj: any): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_underlying(obj);
-    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
-  }
-
-  Porffor.wasm.i32.store8(obj, Porffor.wasm.i32.load8_u(obj, 0, 2) | 0b0001, 0, 2);
-};
-
-export const __Porffor_object_isInextensible = (obj: any): boolean => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_underlying(obj);
-    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return false;
-  }
-
-  return (Porffor.wasm.i32.load8_u(obj, 0, 2) & 0b0001) as boolean;
-};
-
-export const __Porffor_object_setPrototype = (obj: any, proto: any): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_underlying(obj);
-    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
-  }
-
-  if (__Porffor_object_isObjectOrNull(proto)) {
-    Porffor.wasm.i32.store(obj, proto, 0, 4);
-    Porffor.wasm.i32.store8(obj, Porffor.rawType(proto), 0, 3);
-  }
-};
-
-export const __Porffor_object_getPrototype = (obj: any): any => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_underlying(obj);
-    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-      // return empty
-      Porffor.wasm`
-i32.const 0
-i32.const 0
-return`;
-    }
-  }
-
-  Porffor.wasm`
-local.get ${obj}
-i32.load 0 4
-local.get ${obj}
-i32.load8_u 0 3
-return`;
-};
-
-
-export const __Porffor_object_overrideAllFlags = (obj: any, overrideOr: i32, overrideAnd: i32): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_underlying(obj);
-    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
-  }
-
-  let ptr: i32 = Porffor.wasm`local.get ${obj}`;
-
-  const size: i32 = Porffor.wasm.i32.load16_u(obj, 0, 0);
-  const endPtr: i32 = ptr + size * 18;
-
-  for (; ptr < endPtr; ptr += 18) {
-    let flags: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 24);
-    flags = (flags | overrideOr) & overrideAnd;
-    Porffor.wasm.i32.store8(ptr, flags, 0, 24);
-  }
-};
-
-export const __Porffor_object_checkAllFlags = (obj: any, dataAnd: i32, accessorAnd: i32, dataExpected: i32, accessorExpected: i32): boolean => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_underlying(obj);
-    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return false;
-  }
-
-  let ptr: i32 = Porffor.wasm`local.get ${obj}`;
-
-  const size: i32 = Porffor.wasm.i32.load16_u(obj, 0, 0);
-  const endPtr: i32 = ptr + size * 18;
-
-  for (; ptr < endPtr; ptr += 18) {
-    const flags: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 24);
-    if (flags & 0b0001) {
-      // accessor
-      if ((flags & accessorAnd) != accessorExpected) return false;
-    } else {
-      // data
-      if ((flags & dataAnd) != dataExpected) return false;
-    }
-
-  }
-
-  return true;
-};
-
-export const __Porffor_object_packAccessor = (get: any, set: any): f64 => {
-  // pack i32s get & set into a single f64 (reinterpreted u64)
-  Porffor.wasm`
-local.get ${set}
-i64.extend_i32_u
-i64.const 32
-i64.shl
-local.get ${get}
-i64.extend_i32_u
-i64.or
-f64.reinterpret_i64
-return`;
-};
-
-export const __Porffor_object_accessorGet = (entryPtr: i32): Function|undefined => {
-  const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 8);
-
-  // no getter, return undefined
-  if (Porffor.wasm`local.get ${out}` == 0) {
-    return undefined;
-  }
-
-  return out;
-};
-
-export const __Porffor_object_accessorSet = (entryPtr: i32): Function|undefined => {
-  const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 12);
-
-  // no setter, return undefined
-  if (Porffor.wasm`local.get ${out}` == 0) {
-    return undefined;
-  }
-
-  return out;
-};
-
-
+// hash key for hashmap
 export const __Porffor_object_hash = (key: any): i32 => {
   if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.symbol) {
     // symbol, hash is unused so just return 0
@@ -362,6 +201,318 @@ local.set ${hash}`;
   return hash;
 };
 
+export const __Porffor_object_writeKey = (ptr: i32, key: any, hash: i32): void => {
+  // write hash to ptr
+  Porffor.wasm.i32.store(ptr, hash, 0, 0);
+
+  // encode key type
+  let keyEnc: i32 = Porffor.wasm`local.get ${key}`;
+
+  // set MSB 1 if regular string
+  if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.string) keyEnc |= 0x80000000;
+    // set MSB 1&2 if symbol
+    else if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.symbol) keyEnc |= 0xc0000000;
+
+  // write encoded key to ptr + 4
+  Porffor.wasm.i32.store(ptr, keyEnc, 0, 4);
+};
+
+export const __Porffor_object_fastAdd = (obj: any, key: any, value: any, flags: i32): void => {
+  // add new entry
+  // bump size +1
+  const size: i32 = Porffor.wasm.i32.load16_u(obj, 0, 0);
+  Porffor.wasm.i32.store16(obj, size + 1, 0, 0);
+
+  // entryPtr = current end of object
+  const entryPtr: i32 = Porffor.wasm`local.get ${obj}` + 8 + size * 18;
+  __Porffor_object_writeKey(entryPtr, key, __Porffor_object_hash(key));
+
+  // write new value value
+  Porffor.wasm.f64.store(entryPtr, value, 0, 8);
+
+  // write new tail (value type + flags)
+  Porffor.wasm.i32.store16(entryPtr,
+    flags + (Porffor.wasm`local.get ${value+1}` << 8),
+    0, 16);
+};
+
+// store underlying (real) objects for hidden types
+let underlyingStore: i32 = 0;
+export const __Porffor_object_underlying = (_obj: any): any => {
+  if (Porffor.rawType(_obj) == Porffor.TYPES.object) {
+    Porffor.wasm`
+local.get ${_obj}
+i32.trunc_sat_f64_u
+i32.const 7 ;; object
+return`;
+  }
+
+  if (Porffor.fastAnd(
+    Porffor.rawType(_obj) >= Porffor.TYPES.error,
+    Porffor.rawType(_obj) < 0x40
+  )) {
+    Porffor.wasm`
+local.get ${_obj}
+i32.trunc_sat_f64_u
+i32.const 7 ;; object
+return`;
+  }
+
+  if (Porffor.fastAnd(
+    Porffor.rawType(_obj) > 0x05,
+    Porffor.rawType(_obj) != Porffor.TYPES.undefined
+  )) {
+    if (underlyingStore == 0) underlyingStore = Porffor.allocate();
+
+    // check if underlying object already exists for obj
+    const underlyingLength: i32 = Porffor.wasm.i32.load(underlyingStore, 0, 0);
+    const end: i32 = underlyingLength * 12;
+    for (let i: i32 = 0; i < end; i += 12) {
+      if (Porffor.wasm.f64.eq(Porffor.wasm.f64.load(underlyingStore + i, 0, 4), _obj))
+        return Porffor.wasm.i32.load(underlyingStore + i, 0, 12) as object;
+    }
+
+    let obj;
+    Porffor.wasm`
+local.get ${_obj}
+i32.trunc_sat_f64_u
+local.set ${obj}`;
+
+    // it does not, make it
+    const underlying: object = {};
+    if (Porffor.rawType(_obj) == Porffor.TYPES.function) {
+      if (ecma262.IsConstructor(_obj)) { // constructor
+        // set prototype and prototype.constructor if function and constructor
+        const proto: object = {};
+        __Porffor_object_fastAdd(underlying, 'prototype', proto, 0b1000);
+        __Porffor_object_fastAdd(proto, 'constructor', _obj, 0b1010);
+      }
+
+      __Porffor_object_fastAdd(underlying, 'name', __Porffor_funcLut_name(obj), 0b0010);
+      __Porffor_object_fastAdd(underlying, 'length', __Porffor_funcLut_length(obj), 0b0010);
+    }
+
+    if (Porffor.rawType(_obj) == Porffor.TYPES.array) {
+      const len: i32 = Porffor.wasm.i32.load(obj, 0, 0);
+      __Porffor_object_fastAdd(underlying, 'length', len, 0b1000);
+
+      // todo: this should somehow be kept in sync?
+      for (let i: i32 = 0; i < len; i++) {
+        let ptr: i32 = obj + i * 9;
+        Porffor.wasm`
+local x f64
+local x#type i32
+local.get ${ptr}
+f64.load 0 4
+local.set x
+
+local.get ${ptr}
+i32.load8_u 0 12
+local.set x#type`;
+        __Porffor_object_fastAdd(underlying, __Number_prototype_toString(i), x, 0b1110);
+      }
+    }
+
+    if (Porffor.fastOr(
+      Porffor.rawType(_obj) == Porffor.TYPES.string,
+      Porffor.rawType(_obj) == Porffor.TYPES.stringobject)
+    ) {
+      const len: i32 = (obj as string).length;
+      __Porffor_object_fastAdd(underlying, 'length', len, 0b0000);
+
+      for (let i: i32 = 0; i < len; i++) {
+        __Porffor_object_fastAdd(underlying, __Number_prototype_toString(i), (obj as string)[i], 0b0100);
+      }
+
+      if (Porffor.rawType(_obj) == Porffor.TYPES.string) Porffor.wasm.i32.store8(obj, 0b0001, 0, 2); // make inextensible
+    }
+
+    if (Porffor.rawType(_obj) == Porffor.TYPES.bytestring) {
+      const len: i32 = (obj as bytestring).length;
+      __Porffor_object_fastAdd(underlying, 'length', len, 0b0000);
+
+      for (let i: i32 = 0; i < len; i++) {
+        __Porffor_object_fastAdd(underlying, __Number_prototype_toString(i), (obj as bytestring)[i], 0b0100);
+      }
+
+      Porffor.wasm.i32.store8(obj, 0b0001, 0, 2); // make inextensible
+    }
+
+    // store new underlying obj
+    Porffor.wasm.i32.store(underlyingStore, underlyingLength + 1, 0, 0);
+    Porffor.wasm.f64.store(underlyingStore + underlyingLength * 12, _obj, 0, 4);
+    Porffor.wasm.i32.store(underlyingStore + underlyingLength * 12, underlying, 0, 12);
+    return underlying;
+  }
+
+  Porffor.wasm`
+local.get ${_obj}
+i32.trunc_sat_f64_u
+local.get ${_obj+1}
+return`;
+};
+
+export const __Porffor_object_isObject = (arg: any): boolean => {
+  const t: i32 = Porffor.wasm`local.get ${arg+1}`;
+  return Porffor.fastAnd(
+    arg != 0, // null
+    t > 0x05,
+    t != Porffor.TYPES.string,
+    t != Porffor.TYPES.bytestring
+  );
+};
+
+export const __Porffor_object_isObjectOrNull = (arg: any): boolean => {
+  const t: i32 = Porffor.wasm`local.get ${arg+1}`;
+  return Porffor.fastAnd(
+    t > 0x05,
+    t != Porffor.TYPES.string,
+    t != Porffor.TYPES.bytestring
+  );
+};
+
+export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
+  const t: i32 = Porffor.wasm`local.get ${arg+1}`;
+  return Porffor.fastAnd(
+    arg != 0, // null
+    t > 0x04,
+    t != Porffor.TYPES.string,
+    t != Porffor.TYPES.bytestring
+  );
+};
+
+
+export const __Porffor_object_preventExtensions = (obj: any): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_underlying(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
+  }
+
+  Porffor.wasm.i32.store8(obj, Porffor.wasm.i32.load8_u(obj, 0, 2) | 0b0001, 0, 2);
+};
+
+export const __Porffor_object_isInextensible = (obj: any): boolean => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_underlying(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return false;
+  }
+
+  return (Porffor.wasm.i32.load8_u(obj, 0, 2) & 0b0001) as boolean;
+};
+
+export const __Porffor_object_setPrototype = (obj: any, proto: any): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_underlying(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
+  }
+
+  if (__Porffor_object_isObjectOrNull(proto)) {
+    Porffor.wasm.i32.store(obj, proto, 0, 4);
+    Porffor.wasm.i32.store8(obj, Porffor.rawType(proto), 0, 3);
+  }
+};
+
+export const __Porffor_object_getPrototype = (obj: any): any => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_underlying(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+      // return empty
+      Porffor.wasm`
+i32.const 0
+i32.const 0
+return`;
+    }
+  }
+
+  Porffor.wasm`
+local.get ${obj}
+i32.load 0 4
+local.get ${obj}
+i32.load8_u 0 3
+return`;
+};
+
+
+export const __Porffor_object_overrideAllFlags = (obj: any, overrideOr: i32, overrideAnd: i32): void => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_underlying(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return;
+  }
+
+  let ptr: i32 = Porffor.wasm`local.get ${obj}`;
+
+  const size: i32 = Porffor.wasm.i32.load16_u(obj, 0, 0);
+  const endPtr: i32 = ptr + size * 18;
+
+  for (; ptr < endPtr; ptr += 18) {
+    let flags: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 24);
+    flags = (flags | overrideOr) & overrideAnd;
+    Porffor.wasm.i32.store8(ptr, flags, 0, 24);
+  }
+};
+
+export const __Porffor_object_checkAllFlags = (obj: any, dataAnd: i32, accessorAnd: i32, dataExpected: i32, accessorExpected: i32): boolean => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_underlying(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return false;
+  }
+
+  let ptr: i32 = Porffor.wasm`local.get ${obj}`;
+
+  const size: i32 = Porffor.wasm.i32.load16_u(obj, 0, 0);
+  const endPtr: i32 = ptr + size * 18;
+
+  for (; ptr < endPtr; ptr += 18) {
+    const flags: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 24);
+    if (flags & 0b0001) {
+      // accessor
+      if ((flags & accessorAnd) != accessorExpected) return false;
+    } else {
+      // data
+      if ((flags & dataAnd) != dataExpected) return false;
+    }
+
+  }
+
+  return true;
+};
+
+export const __Porffor_object_packAccessor = (get: any, set: any): f64 => {
+  // pack i32s get & set into a single f64 (reinterpreted u64)
+  Porffor.wasm`
+local.get ${set}
+i64.extend_i32_u
+i64.const 32
+i64.shl
+local.get ${get}
+i64.extend_i32_u
+i64.or
+f64.reinterpret_i64
+return`;
+};
+
+export const __Porffor_object_accessorGet = (entryPtr: i32): Function|undefined => {
+  const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 8);
+
+  // no getter, return undefined
+  if (Porffor.wasm`local.get ${out}` == 0) {
+    return undefined;
+  }
+
+  return out;
+};
+
+export const __Porffor_object_accessorSet = (entryPtr: i32): Function|undefined => {
+  const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 12);
+
+  // no setter, return undefined
+  if (Porffor.wasm`local.get ${out}` == 0) {
+    return undefined;
+  }
+
+  return out;
+};
+
 export const __Porffor_object_lookup = (obj: any, target: any, targetHash: i32): i32 => {
   if (Porffor.wasm`local.get ${obj}` == 0) return -1;
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
@@ -487,22 +638,6 @@ local.get ${tail}
 i32.const 8
 i32.shr_u
 return`;
-};
-
-export const __Porffor_object_writeKey = (ptr: i32, key: any, hash: i32): void => {
-  // write hash to ptr
-  Porffor.wasm.i32.store(ptr, hash, 0, 0);
-
-  // encode key type
-  let keyEnc: i32 = Porffor.wasm`local.get ${key}`;
-
-  // set MSB 1 if regular string
-  if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.string) keyEnc |= 0x80000000;
-    // set MSB 1&2 if symbol
-    else if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.symbol) keyEnc |= 0xc0000000;
-
-  // write encoded key to ptr + 4
-  Porffor.wasm.i32.store(ptr, keyEnc, 0, 4);
 };
 
 export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
