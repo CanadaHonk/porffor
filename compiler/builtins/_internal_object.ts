@@ -1043,7 +1043,7 @@ export const __Porffor_object_expr_init = (obj: any, key: any, value: any): void
   const hash: i32 = __Porffor_object_hash(key);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   if (entryPtr == -1) {
-    if (key == '__proto__') {
+    if (hash == -406948493) if (key == '__proto__') {
       // set prototype
       Porffor.wasm`
 local.get ${obj}
