@@ -6467,8 +6467,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         globalThis.funcBodies[name] = body;
       }
 
-      // todo: enable for all block statement bodies, not just main
-      if (name === '#main') {
+      if (body.type === 'BlockStatement') {
         // hoist function declarations to the top of AST pre-codegen so
         // we can optimize function calls so calls before decl are not indirect
         // (without more post-codegen jank)
