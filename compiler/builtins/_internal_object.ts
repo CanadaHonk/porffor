@@ -1075,43 +1075,6 @@ call __Porffor_object_setPrototype`;
     0, 16);
 };
 
-export const __Porffor_object_expr_initWithFlags = (obj: any, key: any, value: any, flags: i32): void => {
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
-
-  const hash: i32 = __Porffor_object_hash(key);
-  let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
-  if (entryPtr == -1) {
-    if (key == '__proto__') {
-      // set prototype
-      Porffor.wasm`
-local.get ${obj}
-local.get ${obj+1}
-local.get ${value}
-i32.trunc_sat_f64_u
-local.get ${value+1}
-call __Porffor_object_setPrototype`;
-      return value;
-    }
-
-    // add new entry
-    // bump size +1
-    const size: i32 = Porffor.wasm.i32.load16_u(obj, 0, 0);
-    Porffor.wasm.i32.store16(obj, size + 1, 0, 0);
-
-    // entryPtr = current end of object
-    entryPtr = Porffor.wasm`local.get ${obj}` + 8 + size * 18;
-    __Porffor_object_writeKey(entryPtr, key, hash);
-  }
-
-  // write new value value
-  Porffor.wasm.f64.store(entryPtr, value, 0, 8);
-
-  // write new tail (value type + flags)
-  Porffor.wasm.i32.store16(entryPtr,
-    flags + (Porffor.wasm`local.get ${value+1}` << 8),
-    0, 16);
-};
-
 // used for { get foo() {} }
 export const __Porffor_object_expr_get = (obj: any, key: any, get: any): void => {
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);

@@ -156,12 +156,6 @@ params:[127,127,127,127,124,127],typedParams:1,returns:[],returnType:128,
 locals:[127,127,127,127],localNames:["obj","obj#type","key","key#type","value","value#type","#last_type","hash","entryPtr","size"],
 usedTypes:[195],
 }
-this.__Porffor_object_expr_initWithFlags = {
-wasm:(_,{i32ify,makeString,builtin})=>[[32,1],[65,7],[71],[4,64],[32,0],[183],[32,1],[16,builtin('__Porffor_object_underlying')],[34,8],[33,1],[33,0],[11],[32,2],[32,3],[16,builtin('__Porffor_object_hash')],[33,9],[32,0],[32,1],[32,2],[32,3],[32,9],[65,1],[16,builtin('__Porffor_object_lookup')],[34,10],[65,127],[70],[4,64],[32,2],[183],[32,3],...i32ify(makeString(_,"__proto__",1)),[183],[65,195,1],[16,builtin('__Porffor_compareStrings')],[252,3],[4,64],[32,0],[32,1],[32,4],[252,3],[32,5],[16,builtin('__Porffor_object_setPrototype')],[15],[26],[11],[32,0],[47,0,0],[33,11],[32,0],[32,11],[65,1],[106],[59,0,0],[32,0],[65,8],[106],[32,11],[65,18],[108],[106],[34,10],[65,1],[32,2],[32,3],[32,9],[65,1],[16,builtin('__Porffor_object_writeKey')],[11],[32,10],[32,4],[57,0,8],[32,10],[32,6],[32,5],[65,8],[116],[106],[59,0,16],[15]],
-params:[127,127,127,127,124,127,127,127],typedParams:1,returns:[],returnType:128,
-locals:[127,127,127,127],localNames:["obj","obj#type","key","key#type","value","value#type","flags","flags#type","#last_type","hash","entryPtr","size"],
-usedTypes:[195],
-}
 this.__Porffor_object_expr_get = {
 wasm:(_,{builtin})=>[[32,1],[65,7],[71],[4,64],[32,0],[183],[32,1],[16,builtin('__Porffor_object_underlying')],[34,6],[33,1],[33,0],[11],[32,2],[32,3],[16,builtin('__Porffor_object_hash')],[33,7],[32,0],[32,1],[32,2],[32,3],[32,7],[65,1],[16,builtin('__Porffor_object_lookup')],[33,8],[65,0],[33,9],[65,128,1],[33,10],[32,8],[65,127],[70],[4,64],[32,0],[47,0,0],[33,11],[32,0],[32,11],[65,1],[106],[59,0,0],[32,0],[65,8],[106],[32,11],[65,18],[108],[106],[34,8],[65,1],[32,2],[32,3],[32,7],[65,1],[16,builtin('__Porffor_object_writeKey')],[5],[32,8],[65,1],[16,builtin('__Porffor_object_accessorSet')],[34,6],[33,10],[33,9],[11],[32,8],[32,4],[32,5],[32,9],[32,10],[16,builtin('__Porffor_object_packAccessor')],[57,0,8],[32,8],[65,15],[65,1],[65,8],[116],[106],[59,0,16],[15]],
 params:[127,127,127,127,127,127],typedParams:1,returns:[],returnType:128,
