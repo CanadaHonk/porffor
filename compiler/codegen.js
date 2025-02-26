@@ -2672,18 +2672,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       continue;
     }
 
-    if (valtypeBinary !== Valtype.i32 &&
-      scope.locals[arg.name]?.type !== Valtype.i32 &&
-      (func && func.params[paramOffset + i * (typedParams ? 2 : 1)] === Valtype.i32)
-    ) {
-      out.push(Opcodes.i32_to);
-    }
-
-    if (valtypeBinary === Valtype.i32 &&
-      scope.locals[arg.name]?.type !== Valtype.f64 &&
-      (func && func.params[paramOffset + i * (typedParams ? 2 : 1)] === Valtype.f64)
-    ) {
-      out.push([ Opcodes.f64_convert_i32_s ]);
+    const argType = func ? func.params[paramOffset + i * (typedParams ? 2 : 1)] : valtypeBinary;
+    const localType = scope.locals[arg.name]?.type;
+    if ((valtypeBinary !== argType && localType !== argType) || (localType && localType !== argType && valtypeBinary !== Valtype.f64)) {
+      out.push(argType === Valtype.i32 ? Opcodes.i32_trunc_sat_f64_s : [ Opcodes.f64_convert_i32_s ]);
     }
 
     if (typedParams) out = out.concat(arg._callType ?? getNodeType(scope, arg));
