@@ -489,7 +489,7 @@ i32.shr_u
 return`;
 };
 
-export const __Porffor_object_writeKey = (ptr: i32, key: any, hash: i32 = __Porffor_object_hash(key)): void => {
+export const __Porffor_object_writeKey = (ptr: i32, key: any, hash: i32): void => {
   // write hash to ptr
   Porffor.wasm.i32.store(ptr, hash, 0, 0);
 

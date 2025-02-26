@@ -58,7 +58,7 @@ type PorfforGlobal = {
     lookup(obj: object, target: any): i32;
     get(obj: any, key: any): any;
 
-    writeKey(ptr: i32, key: any): void;
+    writeKey(ptr: i32, key: any, hash: i32): void;
     set(obj: object, key: any, value: any): any;
     define(obj: object, key: any, value: any, flags: i32): void;
     delete(obj: object, key: any): boolean;
