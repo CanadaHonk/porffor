@@ -432,6 +432,13 @@ i32.load8_u 0 3
 return`;
 };
 
+export const __Porffor_object_getPrototypeWithHidden = (obj: any, trueType: i32): any => {
+  const objectProto: any = __Porffor_object_getPrototype(obj);
+  if (Porffor.type(objectProto) != Porffor.TYPES.empty) return objectProto;
+
+  return __Porffor_object_getHiddenPrototype(trueType);
+};
+
 
 export const __Porffor_object_overrideAllFlags = (obj: any, overrideOr: i32, overrideAnd: i32): void => {
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
