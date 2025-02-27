@@ -4323,7 +4323,7 @@ const generateIf = (scope, decl) => {
   if (globalThis.precompile && decl.test?.tag?.name === '__Porffor_comptime_flag') {
     const flag = decl.test.quasi.quasis[0].value.raw;
     return [
-      [ null, 'comptime_flag', flag, decl.consequent, '#', Prefs ],
+      [ null, 'comptime_flag', flag, decl.consequent, '#', decl.alternate ?? { type: 'EmptyStatement' }, '#', Prefs ],
       number(UNDEFINED)
     ];
   }

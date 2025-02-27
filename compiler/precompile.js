@@ -237,15 +237,19 @@ ${funcs.map(x => {
       .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`)
       .replace(/\[null,"typeswitch case start",\[(.*?)\]\],/g, (_, types) => `...t([${types}],()=>[`)
       .replaceAll(',[null,"typeswitch case end"]', '])')
-      .replace(/\[null,"comptime_flag","(.*?)",(\{.*?\}),"#",(\{.*?\})\]/g, (_, flag, ast, prefs) => {
-        ast = JSON.parse(ast.replaceAll('\n', '\\n'));
-        ast = JSON.stringify(ast, (k, v) => {
-          if (k === 'loc' || k === 'start' || k === 'end') return undefined;
-          return v;
-        });
+      .replace(/\[null,"comptime_flag","(.*?)",(\{.*?\}),"#",(\{.*?\}),"#",(\{.*?\})\]/g, (_, flag, passAst, failAst, prefs) => {
+        const processAst = ast => JSON.stringify(
+          JSON.parse(ast.replaceAll('\n', '\\n')),
+          (k, v) => {
+            if (k === 'loc' || k === 'start' || k === 'end') return undefined;
+            return v;
+          }
+        );
+        passAst = processAst(passAst);
+        failAst = processAst(failAst);
 
         const [ id, extra ] = flag.split('.');
-        return `[null,()=>{if(${comptimeFlagChecks[id](extra)}){const r=()=>{valtype=Prefs.valtype??'f64';valtypeBinary=Valtype[valtype];const valtypeInd=['i32','i64','f64'].indexOf(valtype);Opcodes.i32_to=[[],[Opcodes.i32_wrap_i64],Opcodes.i32_trunc_sat_f64_s][valtypeInd];Opcodes.i32_to_u=[[],[Opcodes.i32_wrap_i64],Opcodes.i32_trunc_sat_f64_u][valtypeInd];Opcodes.i32_from=[[],[Opcodes.i64_extend_i32_s],[Opcodes.f64_convert_i32_s]][valtypeInd];Opcodes.i32_from_u=[[],[Opcodes.i64_extend_i32_u],[ Opcodes.f64_convert_i32_u]][valtypeInd]};const a=Prefs;Prefs=${prefs};r();const b=generate(_,${ast}).slice(0,-1);Prefs=a;r();return b;}return []}]`;
+        return `[null,()=>{const r=()=>{valtype=Prefs.valtype??'f64';valtypeBinary=Valtype[valtype];const valtypeInd=['i32','i64','f64'].indexOf(valtype);Opcodes.i32_to=[[],[Opcodes.i32_wrap_i64],Opcodes.i32_trunc_sat_f64_s][valtypeInd];Opcodes.i32_to_u=[[],[Opcodes.i32_wrap_i64],Opcodes.i32_trunc_sat_f64_u][valtypeInd];Opcodes.i32_from=[[],[Opcodes.i64_extend_i32_s],[Opcodes.f64_convert_i32_s]][valtypeInd];Opcodes.i32_from_u=[[],[Opcodes.i64_extend_i32_u],[ Opcodes.f64_convert_i32_u]][valtypeInd]};const a=Prefs;Prefs=${prefs};r();const b=generate(_,${comptimeFlagChecks[id](extra)}?${passAst}:${failAst}).slice(0,-1);Prefs=a;r();return b;}]`;
       });
 
     return `(_,{${str.includes('usedTypes.') ? 'usedTypes,' : ''}${str.includes('hasFunc(') ? 'hasFunc,' : ''}${str.includes('Valtype[') ? 'Valtype,' : ''}${str.includes('i32ify') ? 'i32ify,' : ''}${str.includes('Opcodes.') ? 'Opcodes,' : ''}${str.includes('...t(') ? 't,' : ''}${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('makeString(') ? 'makeString,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('funcRef(') ? 'funcRef,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}${str.includes('generate(') ? 'generate,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + str;
