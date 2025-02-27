@@ -480,7 +480,7 @@ export const __Math_sumPrecise = (values: any[]): number => {
   const large: Float64Array = new Float64Array(LARGE_SLOTS);
 
   for (const _ of values) {
-    if (Porffor.rawType(_) != Porffor.TYPES.number) throw new TypeError('Math.sumPrecise must have only numbers in values');
+    if (Porffor.type(_) != Porffor.TYPES.number) throw new TypeError('Math.sumPrecise must have only numbers in values');
 
     const v: number = _;
     if (v == 0) continue;

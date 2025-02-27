@@ -18,7 +18,7 @@ export default async () => {
   let len: i32 = 0;
   let bufferPtr: i32;
 
-  const type: i32 = Porffor.rawType(arg);
+  const type: i32 = Porffor.type(arg);
   if (Porffor.fastOr(
     type == Porffor.TYPES.arraybuffer,
     type == Porffor.TYPES.sharedarraybuffer
@@ -28,13 +28,13 @@ export default async () => {
     if (arg.detached) throw new TypeError('Constructed ${name} with a detached ArrayBuffer');
 
     let offset: i32 = 0;
-    if (Porffor.rawType(byteOffset) != Porffor.TYPES.undefined) offset = Math.trunc(byteOffset);
+    if (Porffor.type(byteOffset) != Porffor.TYPES.undefined) offset = Math.trunc(byteOffset);
     if (offset < 0) throw new RangeError('Invalid DataView byte offset (negative)');
 
     Porffor.wasm.i32.store(outPtr, offset, 0, 8);
     Porffor.wasm.i32.store(outPtr, bufferPtr + offset, 0, 4);
 
-    if (Porffor.rawType(length) == Porffor.TYPES.undefined) {
+    if (Porffor.type(length) == Porffor.TYPES.undefined) {
       const bufferLen: i32 = Porffor.wasm.i32.load(bufferPtr, 0, 0);
       len = (bufferLen - byteOffset) / ${name}.BYTES_PER_ELEMENT;
 
@@ -75,18 +75,18 @@ export const __${name}_from = (arg: any, mapFn: any): ${name} => {
   const arr: any[] = Porffor.allocate();
   let len: i32 = 0;
 
-  const type = Porffor.rawType(arg);
+  const type = Porffor.type(arg);
   if (Porffor.fastOr(
     type == Porffor.TYPES.array,
     type == Porffor.TYPES.string, type == Porffor.TYPES.bytestring,
     type == Porffor.TYPES.set,
     Porffor.fastAnd(type >= Porffor.TYPES.uint8array, type <= Porffor.TYPES.float64array)
   )) {
-    const hasMapFn = Porffor.rawType(mapFn) != Porffor.TYPES.undefined;
+    const hasMapFn = Porffor.type(mapFn) != Porffor.TYPES.undefined;
 
     let i: i32 = 0;
     if (hasMapFn) {
-      if (Porffor.rawType(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
+      if (Porffor.type(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
 
       for (const x of arg) {
         arr[i] = mapFn(x, i);
@@ -132,7 +132,7 @@ export const __${name}_prototype_at = (_this: ${name}, index: number) => {
 
 export const __${name}_prototype_slice = (_this: ${name}, start: number, end: number) => {
   const len: i32 = _this.length;
-  if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
+  if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
 
   start |= 0;
   end |= 0;

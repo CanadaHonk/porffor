@@ -5000,8 +5000,8 @@ const generateForIn = (scope, decl) => {
 };
 
 const generateSwitch = (scope, decl) => {
-  // special fast path just for `switch (Porffor.rawType(...))`
-  if (decl.discriminant.type === 'CallExpression' && decl.discriminant.callee.type === 'Identifier' && decl.discriminant.callee.name === '__Porffor_rawType') {
+  // special fast path just for `switch (Porffor.type(...))`
+  if (decl.discriminant.type === 'CallExpression' && decl.discriminant.callee.type === 'Identifier' && decl.discriminant.callee.name === '__Porffor_type') {
     const cases = []
     let canTypeCheck = true;
     for (const x of decl.cases) {
@@ -6850,7 +6850,7 @@ const internalConstrs = {
     length: 1
   },
 
-  __Porffor_rawType: {
+  __Porffor_type: {
     generate: (scope, decl) => [
       ...getNodeType(scope, decl.arguments[0]),
       Opcodes.i32_from_u

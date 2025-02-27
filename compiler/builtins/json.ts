@@ -6,7 +6,7 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
   if (value === true) return 'true';
   if (value === false) return 'false';
 
-  const t: i32 = Porffor.rawType(value);
+  const t: i32 = Porffor.type(value);
   if (Porffor.fastOr(
     (t | 0b10000000) == Porffor.TYPES.bytestring,
     t == Porffor.TYPES.stringobject
@@ -125,7 +125,7 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
 
     for (const key in (value as object)) {
       // skip symbol keys
-      if (Porffor.rawType(key) == Porffor.TYPES.symbol) continue;
+      if (Porffor.type(key) == Porffor.TYPES.symbol) continue;
 
       // skip non-serializable values (functions, etc)
       const val: bytestring|undefined = __Porffor_json_serialize((value as object)[key], depth, space);
@@ -180,8 +180,8 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
 
   if (space !== undefined) {
     if (Porffor.fastOr(
-      Porffor.rawType(space) == Porffor.TYPES.number,
-      Porffor.rawType(space) == Porffor.TYPES.numberobject
+      Porffor.type(space) == Porffor.TYPES.number,
+      Porffor.type(space) == Porffor.TYPES.numberobject
     )) {
       space = Math.min(Math.trunc(space), 10);
       Porffor.print(space); Porffor.printStatic('\n');
@@ -195,8 +195,8 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
         space = spaceStr;
       }
     } else if (Porffor.fastOr(
-      (Porffor.rawType(space) | 0b10000000) == Porffor.TYPES.bytestring,
-      Porffor.rawType(space) == Porffor.TYPES.stringobject
+      (Porffor.type(space) | 0b10000000) == Porffor.TYPES.bytestring,
+      Porffor.type(space) == Porffor.TYPES.stringobject
     )) {
       // if empty, make it undefined
       const len: i32 = space.length;

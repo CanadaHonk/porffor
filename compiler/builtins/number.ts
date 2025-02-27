@@ -7,13 +7,13 @@ export const Number = function (value: any): number|NumberObject {
 
   // 1. If value is present, then
   // todo: handle undefined (NaN) and not present (0) args differently
-  if (Porffor.rawType(value) != Porffor.TYPES.undefined) {
+  if (Porffor.type(value) != Porffor.TYPES.undefined) {
     // a. Let prim be ? ToNumeric(value).
     n = ecma262.ToNumeric(value);
 
     // b. If prim is a BigInt, let n be 𝔽(ℝ(prim)).
     if (Porffor.comptime.flag`hasType.bigint`) {
-      if (Porffor.rawType(n) == Porffor.TYPES.bigint)
+      if (Porffor.type(n) == Porffor.TYPES.bigint)
         n = Porffor.bigint.toNumber(n);
     }
 
@@ -33,9 +33,9 @@ export const Number = function (value: any): number|NumberObject {
   return n as NumberObject;
 };
 
-// radix: number|any for rawType check
+// radix: number|any for type check
 export const __Number_prototype_toString = (_this: number, radix: number|any) => {
-  if (Porffor.rawType(radix) != Porffor.TYPES.number) {
+  if (Porffor.type(radix) != Porffor.TYPES.number) {
     // todo: string to number
     radix = 10;
   }
@@ -355,7 +355,7 @@ export const __Number_prototype_toFixed = (_this: number, fractionDigits: number
 
 export const __Number_prototype_toLocaleString = (_this: number) => __Number_prototype_toString(_this, 10);
 
-// fractionDigits: number|any for rawType check
+// fractionDigits: number|any for type check
 export const __Number_prototype_toExponential = (_this: number, fractionDigits: number|any) => {
   if (!Number.isFinite(_this)) {
     if (Number.isNaN(_this)) return 'NaN';
@@ -363,7 +363,7 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
     return '-Infinity';
   }
 
-  if (Porffor.rawType(fractionDigits) != Porffor.TYPES.number) {
+  if (Porffor.type(fractionDigits) != Porffor.TYPES.number) {
     // todo: string to number
     fractionDigits = undefined;
   } else {
@@ -404,7 +404,7 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
     Porffor.wasm.i32.store8(outPtr++, 43, 0, 4); // +
   } else if (_this < 1) {
     // small exponential
-    if (Porffor.rawType(fractionDigits) != Porffor.TYPES.number) {
+    if (Porffor.type(fractionDigits) != Porffor.TYPES.number) {
       e = 1;
       while (true) {
         i *= 10;
@@ -461,7 +461,7 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
       e++;
     }
 
-    if (Porffor.rawType(fractionDigits) != Porffor.TYPES.number) {
+    if (Porffor.type(fractionDigits) != Porffor.TYPES.number) {
       while (true) {
         i *= 10;
 
@@ -582,7 +582,7 @@ export const parseInt = (input: any, radix: any): f64 => {
 
   let negative: boolean = false;
 
-  if (Porffor.rawType(input) == Porffor.TYPES.bytestring) {
+  if (Porffor.type(input) == Porffor.TYPES.bytestring) {
     const endPtr: i32 = i + len;
 
     // check start of string

@@ -14,7 +14,7 @@ export const String = function (...args: any[]): string|bytestring|StringObject 
     const value: any = args[0];
 
     // a. If NewTarget is undefined and value is a Symbol, return SymbolDescriptiveString(value).
-    if (!new.target && Porffor.rawType(value) == Porffor.TYPES.symbol) return __Symbol_prototype_toString(value);
+    if (!new.target && Porffor.type(value) == Porffor.TYPES.symbol) return __Symbol_prototype_toString(value);
 
     // b. Let s be ? ToString(value).
     s = ecma262.ToString(value);
@@ -26,7 +26,7 @@ export const String = function (...args: any[]): string|bytestring|StringObject 
   // 4. Return StringCreate(s, ? GetPrototypeFromConstructor(NewTarget, "%String.prototype%")).
 
   // force bytestrings to strings
-  if (Porffor.rawType(s) == Porffor.TYPES.bytestring) s = Porffor.bytestringToString(s, s.length);
+  if (Porffor.type(s) == Porffor.TYPES.bytestring) s = Porffor.bytestringToString(s, s.length);
 
   return s as StringObject;
 };

@@ -372,27 +372,27 @@ export const __Date_UTC = (year: unknown, month: unknown, date: unknown, hours: 
 
   // 2. If month is present, let m be ? ToNumber(month); else let m be +0𝔽.
   let m: number = 0;
-  if (Porffor.rawType(month) != Porffor.TYPES.undefined) m = ecma262.ToNumber(month);
+  if (Porffor.type(month) != Porffor.TYPES.undefined) m = ecma262.ToNumber(month);
 
   // 3. If date is present, let dt be ? ToNumber(date); else let dt be 1𝔽.
   let dt: number = 1;
-  if (Porffor.rawType(date) != Porffor.TYPES.undefined) dt = ecma262.ToNumber(date);
+  if (Porffor.type(date) != Porffor.TYPES.undefined) dt = ecma262.ToNumber(date);
 
   // 4. If hours is present, let h be ? ToNumber(hours); else let h be +0𝔽.
   let h: number = 0;
-  if (Porffor.rawType(hours) != Porffor.TYPES.undefined) h = ecma262.ToNumber(hours);
+  if (Porffor.type(hours) != Porffor.TYPES.undefined) h = ecma262.ToNumber(hours);
 
   // 5. If minutes is present, let min be ? ToNumber(minutes); else let min be +0𝔽.
   let min: number = 0;
-  if (Porffor.rawType(minutes) != Porffor.TYPES.undefined) min = ecma262.ToNumber(minutes);
+  if (Porffor.type(minutes) != Porffor.TYPES.undefined) min = ecma262.ToNumber(minutes);
 
   // 6. If seconds is present, let s be ? ToNumber(seconds); else let s be +0𝔽.
   let s: number = 0;
-  if (Porffor.rawType(seconds) != Porffor.TYPES.undefined) s = ecma262.ToNumber(seconds);
+  if (Porffor.type(seconds) != Porffor.TYPES.undefined) s = ecma262.ToNumber(seconds);
 
   // 7. If ms is present, let milli be ? ToNumber(ms); else let milli be +0𝔽.
   let milli: number = 0;
-  if (Porffor.rawType(ms) != Porffor.TYPES.undefined) h = ecma262.ToNumber(ms);
+  if (Porffor.type(ms) != Porffor.TYPES.undefined) h = ecma262.ToNumber(ms);
 
   // 8. Let yr be MakeFullYear(y).
   const yr: number = __ecma262_MakeFullYear(y);
@@ -1011,12 +1011,12 @@ export const __Date_prototype_setFullYear = (_this: Date, year: any, month: any,
 
   // 6. If month is not present, let m be MonthFromTime(t); otherwise, let m be ? ToNumber(month).
   let m: number;
-  if (Porffor.rawType(month) == Porffor.TYPES.undefined) m = __ecma262_MonthFromTime(t);
+  if (Porffor.type(month) == Porffor.TYPES.undefined) m = __ecma262_MonthFromTime(t);
     else m = ecma262.ToNumber(month);
 
   // 7. If date is not present, let dt be DateFromTime(t); otherwise, let dt be ? ToNumber(date).
   let dt: number;
-  if (Porffor.rawType(date) == Porffor.TYPES.undefined) dt = __ecma262_DateFromTime(t);
+  if (Porffor.type(date) == Porffor.TYPES.undefined) dt = __ecma262_DateFromTime(t);
     else dt = ecma262.ToNumber(date);
 
   // 8. Let newDate be MakeDate(MakeDay(y, m, dt), TimeWithinDay(t)).
@@ -1053,19 +1053,19 @@ export const __Date_prototype_setHours = (_this: Date, hour: any, min: any, sec:
 
   // 5. If min is present, let m be ? ToNumber(min).
   let m: number;
-  if (Porffor.rawType(min) != Porffor.TYPES.undefined) m = ecma262.ToNumber(min);
+  if (Porffor.type(min) != Porffor.TYPES.undefined) m = ecma262.ToNumber(min);
     // 10. If min is not present, let m be MinFromTime(t).
     else m = __ecma262_MinFromTime(t);
 
   // 6. If sec is present, let s be ? ToNumber(sec).
   let s: number;
-  if (Porffor.rawType(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
+  if (Porffor.type(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
     // 11. If sec is not present, let s be SecFromTime(t).
     else s = __ecma262_SecFromTime(t);
 
   // 7. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.rawType(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 12. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1134,13 +1134,13 @@ export const __Date_prototype_setMinutes = (_this: Date, min: any, sec: any, ms:
 
   // 5. If sec is present, let s be ? ToNumber(sec).
   let s: number;
-  if (Porffor.rawType(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
+  if (Porffor.type(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
     // 9. If sec is not present, let s be SecFromTime(t).
     else s = __ecma262_SecFromTime(t);
 
   // 6. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.rawType(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 10. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1178,7 +1178,7 @@ export const __Date_prototype_setMonth = (_this: Date, month: any, date: any) =>
 
   // 5. If date is present, let dt be ? ToNumber(date).
   let dt: number;
-  if (Porffor.rawType(date) != Porffor.TYPES.undefined) dt = ecma262.ToNumber(date);
+  if (Porffor.type(date) != Porffor.TYPES.undefined) dt = ecma262.ToNumber(date);
   // 8. If date is not present, let dt be DateFromTime(t).
     else dt = __ecma262_DateFromTime(t);
 
@@ -1216,7 +1216,7 @@ export const __Date_prototype_setSeconds = (_this: Date, sec: any, ms: any) => {
 
   // 5. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.rawType(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 8. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1295,12 +1295,12 @@ export const __Date_prototype_setUTCFullYear = (_this: Date, year: any, month: a
 
   // 6. If month is not present, let m be MonthFromTime(t); otherwise, let m be ? ToNumber(month).
   let m: number;
-  if (Porffor.rawType(month) == Porffor.TYPES.undefined) m = __ecma262_MonthFromTime(t);
+  if (Porffor.type(month) == Porffor.TYPES.undefined) m = __ecma262_MonthFromTime(t);
     else m = ecma262.ToNumber(month);
 
   // 7. If date is not present, let dt be DateFromTime(t); otherwise, let dt be ? ToNumber(date).
   let dt: number;
-  if (Porffor.rawType(date) == Porffor.TYPES.undefined) dt = __ecma262_DateFromTime(t);
+  if (Porffor.type(date) == Porffor.TYPES.undefined) dt = __ecma262_DateFromTime(t);
     else dt = ecma262.ToNumber(date);
 
   // 8. Let newDate be MakeDate(MakeDay(y, m, dt), TimeWithinDay(t)).
@@ -1334,19 +1334,19 @@ export const __Date_prototype_setUTCHours = (_this: Date, hour: any, min: any, s
 
   // 5. If min is present, let m be ? ToNumber(min).
   let m: number;
-  if (Porffor.rawType(min) != Porffor.TYPES.undefined) m = ecma262.ToNumber(min);
+  if (Porffor.type(min) != Porffor.TYPES.undefined) m = ecma262.ToNumber(min);
     // 9. If min is not present, let m be MinFromTime(t).
     else m = __ecma262_MinFromTime(t);
 
   // 6. If sec is present, let s be ? ToNumber(sec).
   let s: number;
-  if (Porffor.rawType(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
+  if (Porffor.type(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
     // 10. If sec is not present, let s be SecFromTime(t).
     else s = __ecma262_SecFromTime(t);
 
   // 7. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.rawType(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 11. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1409,13 +1409,13 @@ export const __Date_prototype_setUTCMinutes = (_this: Date, min: any, sec: any, 
 
   // 5. If sec is present, let s be ? ToNumber(sec).
   let s: number;
-  if (Porffor.rawType(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
+  if (Porffor.type(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
     // 8. If sec is not present, let s be SecFromTime(t).
     else s = __ecma262_SecFromTime(t);
 
   // 6. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.rawType(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 9. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1450,7 +1450,7 @@ export const __Date_prototype_setUTCMonth = (_this: Date, month: any, date: any)
 
   // 5. If date is present, let dt be ? ToNumber(date).
   let dt: number;
-  if (Porffor.rawType(date) != Porffor.TYPES.undefined) dt = ecma262.ToNumber(date);
+  if (Porffor.type(date) != Porffor.TYPES.undefined) dt = ecma262.ToNumber(date);
   // 7. If date is not present, let dt be DateFromTime(t).
     else dt = __ecma262_DateFromTime(t);
 
@@ -1485,7 +1485,7 @@ export const __Date_prototype_setUTCSeconds = (_this: Date, sec: any, ms: any) =
 
   // 5. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.rawType(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 7. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1907,13 +1907,13 @@ export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown
   // 2. Let numberOfArgs be the number of elements in values.
   // sorry.
   const numberOfArgs: i32 =
-    (Porffor.rawType(v0) != Porffor.TYPES.undefined) +
-    (Porffor.rawType(v1) != Porffor.TYPES.undefined) +
-    (Porffor.rawType(v2) != Porffor.TYPES.undefined) +
-    (Porffor.rawType(v3) != Porffor.TYPES.undefined) +
-    (Porffor.rawType(v4) != Porffor.TYPES.undefined) +
-    (Porffor.rawType(v5) != Porffor.TYPES.undefined) +
-    (Porffor.rawType(v6) != Porffor.TYPES.undefined);
+    (Porffor.type(v0) != Porffor.TYPES.undefined) +
+    (Porffor.type(v1) != Porffor.TYPES.undefined) +
+    (Porffor.type(v2) != Porffor.TYPES.undefined) +
+    (Porffor.type(v3) != Porffor.TYPES.undefined) +
+    (Porffor.type(v4) != Porffor.TYPES.undefined) +
+    (Porffor.type(v5) != Porffor.TYPES.undefined) +
+    (Porffor.type(v6) != Porffor.TYPES.undefined);
 
   let dv: number = 0;
 
@@ -1926,7 +1926,7 @@ export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown
     // a. Let value be values[0].
     const value: any = v0;
 
-    const valueType: i32 = Porffor.rawType(v0);
+    const valueType: i32 = Porffor.type(v0);
 
     let tv: number = 0;
 

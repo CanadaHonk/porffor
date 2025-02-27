@@ -1,8 +1,8 @@
 import type {} from './porffor.d.ts';
 
 export const __Porffor_compareStrings = (a: any, b: any): boolean => {
-  let at: i32 = Porffor.rawType(a);
-  let bt: i32 = Porffor.rawType(b);
+  let at: i32 = Porffor.type(a);
+  let bt: i32 = Porffor.type(b);
 
   if ((at | 0b10000000) != Porffor.TYPES.bytestring) {
     // a is not string or bytestring
@@ -36,8 +36,8 @@ export const __Porffor_compareStrings = (a: any, b: any): boolean => {
 };
 
 export const __Porffor_concatStrings = (a: any, b: any): any => {
-  let at: i32 = Porffor.rawType(a);
-  let bt: i32 = Porffor.rawType(b);
+  let at: i32 = Porffor.type(a);
+  let bt: i32 = Porffor.type(b);
 
   if ((at | 0b10000000) != Porffor.TYPES.bytestring) {
     // a is not string or bytestring

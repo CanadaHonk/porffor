@@ -1,7 +1,7 @@
 import type {} from './porffor.d.ts';
 
 export const __ArrayBuffer_isView = (value: any): boolean => {
-  const t: i32 = Porffor.rawType(value);
+  const t: i32 = Porffor.type(value);
   if (Porffor.fastOr(
     t == Porffor.TYPES.dataview,
     Porffor.fastAnd(t >= Porffor.TYPES.uint8array, t <= Porffor.TYPES.float64array)
@@ -84,7 +84,7 @@ export const __ArrayBuffer_prototype_slice = (_this: ArrayBuffer, start: any, en
   if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.slice on a detached ArrayBuffer');
 
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
-  if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
+  if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
 
   start = ecma262.ToIntegerOrInfinity(start);
   end = ecma262.ToIntegerOrInfinity(end);
@@ -136,7 +136,7 @@ export const __ArrayBuffer_prototype_transfer = (_this: ArrayBuffer, newLength: 
   if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.transfer on a detached ArrayBuffer');
 
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
-  if (Porffor.rawType(newLength) == Porffor.TYPES.undefined) newLength = len;
+  if (Porffor.type(newLength) == Porffor.TYPES.undefined) newLength = len;
 
   // make new arraybuffer
   const out: ArrayBuffer = new ArrayBuffer(newLength);
@@ -208,7 +208,7 @@ export const __SharedArrayBuffer_prototype_growable$get = (_this: SharedArrayBuf
 
 export const __SharedArrayBuffer_prototype_slice = (_this: SharedArrayBuffer, start: any, end: any) => {
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
-  if (Porffor.rawType(end) == Porffor.TYPES.undefined) end = len;
+  if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
 
   start = ecma262.ToIntegerOrInfinity(start);
   end = ecma262.ToIntegerOrInfinity(end);

@@ -280,16 +280,16 @@ export const __ecma262_ToBigInt = (argument: any): bigint => {
   // Table 12: BigInt Conversions
   // Argument Type 	Result
   // BigInt 	Return prim.
-  if (Porffor.rawType(prim) == Porffor.TYPES.bigint) return prim;
+  if (Porffor.type(prim) == Porffor.TYPES.bigint) return prim;
 
   // String
   //     1. Let n be StringToBigInt(prim).
   //     2. If n is undefined, throw a SyntaxError exception.
   //     3. Return n.
-  if ((Porffor.rawType(prim) | 0b10000000) == Porffor.TYPES.bytestring) return __Porffor_bigint_fromString(prim);
+  if ((Porffor.type(prim) | 0b10000000) == Porffor.TYPES.bytestring) return __Porffor_bigint_fromString(prim);
 
   // Boolean 	Return 1n if prim is true and 0n if prim is false.
-  if (Porffor.rawType(prim) == Porffor.TYPES.boolean) return prim ? 1n : 0n;
+  if (Porffor.type(prim) == Porffor.TYPES.boolean) return prim ? 1n : 0n;
 
   // Number 	Throw a TypeError exception.
   // Symbol 	Throw a TypeError exception.
@@ -306,7 +306,7 @@ export const BigInt = (value: any): bigint => {
   const prim: any = ecma262.ToPrimitive.Number(value);
 
   // 3. If prim is a Number, return ? NumberToBigInt(prim).
-  if (Porffor.rawType(prim) == Porffor.TYPES.number) return __Porffor_bigint_fromNumber(prim);
+  if (Porffor.type(prim) == Porffor.TYPES.number) return __Porffor_bigint_fromNumber(prim);
 
   // 4. Otherwise, return ? ToBigInt(prim).
   return __ecma262_ToBigInt(prim);

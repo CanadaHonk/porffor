@@ -98,8 +98,8 @@ type PorfforGlobal = {
 
   randomByte(): i32;
 
-  type(x: any): bytestring;
-  rawType(x: any): i32;
+  type(x: any): i32;
+  typeName(type: i32): bytestring;
   TYPES: {
     number: i32;
     boolean: i32;

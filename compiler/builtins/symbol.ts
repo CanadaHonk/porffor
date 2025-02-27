@@ -12,7 +12,7 @@ export const Symbol = (description: any): Symbol => {
   let descString: any = undefined;
 
   // 3. Else, let descString be ? ToString(description).
-  if (Porffor.rawType(description) != Porffor.TYPES.undefined) {
+  if (Porffor.type(description) != Porffor.TYPES.undefined) {
     descString = ecma262.ToString(description);
   }
 
@@ -74,7 +74,7 @@ export const __Symbol_for = (key: any): Symbol => {
 };
 
 export const __Symbol_keyFor = (arg: any): any => {
-  if (Porffor.rawType(arg) != Porffor.TYPES.symbol) throw new TypeError('Symbol.keyFor argument should be a Symbol');
+  if (Porffor.type(arg) != Porffor.TYPES.symbol) throw new TypeError('Symbol.keyFor argument should be a Symbol');
 
   const sym: Symbol = arg;
   const desc: any = sym.description;

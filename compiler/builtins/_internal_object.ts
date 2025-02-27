@@ -239,7 +239,7 @@ export const __Porffor_object_fastAdd = (obj: any, key: any, value: any, flags: 
 // store underlying (real) objects for hidden types
 let underlyingStore: i32 = 0;
 export const __Porffor_object_underlying = (_obj: any): any => {
-  if (Porffor.rawType(_obj) == Porffor.TYPES.object) {
+  if (Porffor.type(_obj) == Porffor.TYPES.object) {
     Porffor.wasm`
 local.get ${_obj}
 i32.trunc_sat_f64_u
@@ -248,8 +248,8 @@ return`;
   }
 
   if (Porffor.fastAnd(
-    Porffor.rawType(_obj) >= Porffor.TYPES.error,
-    Porffor.rawType(_obj) < 0x40
+    Porffor.type(_obj) >= Porffor.TYPES.error,
+    Porffor.type(_obj) < 0x40
   )) {
     Porffor.wasm`
 local.get ${_obj}
@@ -259,8 +259,8 @@ return`;
   }
 
   if (Porffor.fastAnd(
-    Porffor.rawType(_obj) > 0x05,
-    Porffor.rawType(_obj) != Porffor.TYPES.undefined
+    Porffor.type(_obj) > 0x05,
+    Porffor.type(_obj) != Porffor.TYPES.undefined
   )) {
     if (underlyingStore == 0) underlyingStore = Porffor.allocate();
 
@@ -280,7 +280,7 @@ local.set ${obj}`;
 
     // it does not, make it
     const underlying: object = {};
-    if (Porffor.rawType(_obj) == Porffor.TYPES.function) {
+    if (Porffor.type(_obj) == Porffor.TYPES.function) {
       if (ecma262.IsConstructor(_obj)) { // constructor
         // set prototype and prototype.constructor if function and constructor
         const proto: object = {};
@@ -292,7 +292,7 @@ local.set ${obj}`;
       __Porffor_object_fastAdd(underlying, 'length', __Porffor_funcLut_length(obj), 0b0010);
     }
 
-    if (Porffor.rawType(_obj) == Porffor.TYPES.array) {
+    if (Porffor.type(_obj) == Porffor.TYPES.array) {
       const len: i32 = Porffor.wasm.i32.load(obj, 0, 0);
       __Porffor_object_fastAdd(underlying, 'length', len, 0b1000);
 
@@ -314,8 +314,8 @@ local.set x#type`;
     }
 
     if (Porffor.fastOr(
-      Porffor.rawType(_obj) == Porffor.TYPES.string,
-      Porffor.rawType(_obj) == Porffor.TYPES.stringobject)
+      Porffor.type(_obj) == Porffor.TYPES.string,
+      Porffor.type(_obj) == Porffor.TYPES.stringobject)
     ) {
       const len: i32 = (obj as string).length;
       __Porffor_object_fastAdd(underlying, 'length', len, 0b0000);
@@ -324,10 +324,10 @@ local.set x#type`;
         __Porffor_object_fastAdd(underlying, __Number_prototype_toString(i), (obj as string)[i], 0b0100);
       }
 
-      if (Porffor.rawType(_obj) == Porffor.TYPES.string) Porffor.wasm.i32.store8(obj, 0b0001, 0, 2); // make inextensible
+      if (Porffor.type(_obj) == Porffor.TYPES.string) Porffor.wasm.i32.store8(obj, 0b0001, 0, 2); // make inextensible
     }
 
-    if (Porffor.rawType(_obj) == Porffor.TYPES.bytestring) {
+    if (Porffor.type(_obj) == Porffor.TYPES.bytestring) {
       const len: i32 = (obj as bytestring).length;
       __Porffor_object_fastAdd(underlying, 'length', len, 0b0000);
 
@@ -408,7 +408,7 @@ export const __Porffor_object_setPrototype = (obj: any, proto: any): void => {
 
   if (__Porffor_object_isObjectOrNull(proto)) {
     Porffor.wasm.i32.store(obj, proto, 0, 4);
-    Porffor.wasm.i32.store8(obj, Porffor.rawType(proto), 0, 3);
+    Porffor.wasm.i32.store8(obj, Porffor.type(proto), 0, 3);
   }
 };
 

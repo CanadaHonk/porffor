@@ -31,7 +31,7 @@ export const __ecma262_TriggerPromiseReactions = (reactions: any[], argument: an
 // https://tc39.es/ecma262/#sec-ispromise
 export const __ecma262_IsPromise = (x: any): boolean => {
   // custom impl
-  return Porffor.rawType(x) == Porffor.TYPES.promise;
+  return Porffor.type(x) == Porffor.TYPES.promise;
 };
 
 // 27.2.1.4 FulfillPromise (promise, value)
@@ -227,7 +227,7 @@ export const __Porffor_promise_rejectActive = (reason: any): void => __Porffor_p
 
 export const Promise = function (executor: any): Promise {
   if (!new.target) throw new TypeError("Constructor Promise requires 'new'");
-  if (Porffor.rawType(executor) != Porffor.TYPES.function) throw new TypeError('Promise executor is not a function');
+  if (Porffor.type(executor) != Porffor.TYPES.function) throw new TypeError('Promise executor is not a function');
 
   const obj: any[] = __Porffor_promise_create();
   activePromise = obj;
@@ -279,8 +279,8 @@ export const __Promise_prototype_then = (_this: any, onFulfilled: any, onRejecte
   // 2. If IsPromise(promise) is false, throw a TypeError exception.
   if (!__ecma262_IsPromise(_this)) throw new TypeError('Promise.prototype.then called on non-Promise');
 
-  if (Porffor.rawType(onFulfilled) != Porffor.TYPES.function) onFulfilled = __Porffor_promise_noop;
-  if (Porffor.rawType(onRejected) != Porffor.TYPES.function) onRejected = __Porffor_promise_noop;
+  if (Porffor.type(onFulfilled) != Porffor.TYPES.function) onFulfilled = __Porffor_promise_noop;
+  if (Porffor.type(onRejected) != Porffor.TYPES.function) onRejected = __Porffor_promise_noop;
 
   const outPromise: any[] = __Porffor_promise_create();
 
@@ -304,7 +304,7 @@ export const __Promise_prototype_finally = (_this: any, onFinally: any) => {
   // custom impl based on then but also not (sorry)
   if (!__ecma262_IsPromise(_this)) throw new TypeError('Promise.prototype.then called on non-Promise');
 
-  if (Porffor.rawType(onFinally) != Porffor.TYPES.function) onFinally = __Porffor_promise_noop;
+  if (Porffor.type(onFinally) != Porffor.TYPES.function) onFinally = __Porffor_promise_noop;
 
   const promise: any[] = _this;
   const state: i32 = promise[1];
@@ -472,7 +472,7 @@ export const __Promise_prototype_toLocaleString = (_this: any) => __Promise_prot
 
 
 export const __Porffor_promise_await = (value: any): any => {
-  if (Porffor.rawType(value) != Porffor.TYPES.promise) return value;
+  if (Porffor.type(value) != Porffor.TYPES.promise) return value;
 
   // hack: peek value instead of awaiting
   const state: i32 = (value as any[])[1];

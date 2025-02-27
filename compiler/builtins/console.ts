@@ -2,7 +2,7 @@ import type {} from './porffor.d.ts';
 
 export const __Porffor_printString = (arg: bytestring|string) => {
   let ptr: i32 = Porffor.wasm`local.get ${arg}`;
-  if (Porffor.rawType(arg) == Porffor.TYPES.bytestring) {
+  if (Porffor.type(arg) == Porffor.TYPES.bytestring) {
     const end: i32 = ptr + arg.length;
     while (ptr < end) {
       printChar(Porffor.wasm.i32.load8_u(ptr++, 0, 4));
@@ -35,7 +35,7 @@ export const __Porffor_numberLog = (arg: number) => {
 };
 
 export const __Porffor_miniLog = (arg: any) => {
-  switch (Porffor.rawType(arg)) {
+  switch (Porffor.type(arg)) {
     case Porffor.TYPES.number:
       print(arg);
       break;
@@ -111,7 +111,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
     }
   };
 
-  switch (Porffor.rawType(arg)) {
+  switch (Porffor.type(arg)) {
     case Porffor.TYPES.number:
       if (colors) Porffor.printStatic('\x1b[33m'); // yellow
       print(arg);
@@ -248,7 +248,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
 
     case Porffor.TYPES.sharedarraybuffer:
     case Porffor.TYPES.arraybuffer:
-      if (Porffor.rawType(arg) == Porffor.TYPES.sharedarraybuffer) Porffor.printStatic('SharedArrayBuffer');
+      if (Porffor.type(arg) == Porffor.TYPES.sharedarraybuffer) Porffor.printStatic('SharedArrayBuffer');
         else Porffor.printStatic('ArrayBuffer');
       Porffor.printStatic(' {\n');
 
@@ -286,7 +286,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
 
     case Porffor.TYPES.weakmap:
     case Porffor.TYPES.map:
-      if (Porffor.rawType(arg) == Porffor.TYPES.weakmap) Porffor.printStatic('WeakMap');
+      if (Porffor.type(arg) == Porffor.TYPES.weakmap) Porffor.printStatic('WeakMap');
         else Porffor.printStatic('Map');
       Porffor.printStatic('(');
 
@@ -308,7 +308,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
 
     case Porffor.TYPES.weakset:
     case Porffor.TYPES.set:
-      if (Porffor.rawType(arg) == Porffor.TYPES.weakset) Porffor.printStatic('WeakSet');
+      if (Porffor.type(arg) == Porffor.TYPES.weakset) Porffor.printStatic('WeakSet');
         else Porffor.printStatic('Set');
       Porffor.printStatic('(');
 
@@ -351,7 +351,7 @@ export const __console_clear = () => {
 };
 
 export const __Porffor_consolePrint = (arg: any) => {
-  if (Porffor.fastOr(Porffor.rawType(arg) == Porffor.TYPES.bytestring, Porffor.rawType(arg) == Porffor.TYPES.string)) {
+  if (Porffor.fastOr(Porffor.type(arg) == Porffor.TYPES.bytestring, Porffor.type(arg) == Porffor.TYPES.string)) {
     __Porffor_printString(arg);
     return;
   }
@@ -359,7 +359,7 @@ export const __Porffor_consolePrint = (arg: any) => {
 };
 
 export const __console_group = (label: bytestring) => {
-  if (Porffor.rawType(label) != Porffor.TYPES.undefined) {
+  if (Porffor.type(label) != Porffor.TYPES.undefined) {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(label);
   }
@@ -453,7 +453,7 @@ export const __console_assert = (assertion: any, ...args: any[]) => {
 };
 
 export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showHidden: boolean) => {
-  if (Porffor.rawType(obj) != Porffor.TYPES.object || depth == 0) {
+  if (Porffor.type(obj) != Porffor.TYPES.object || depth == 0) {
     __Porffor_print(obj, colors);
     return;
   }

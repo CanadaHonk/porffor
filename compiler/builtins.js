@@ -735,19 +735,18 @@ export const BuiltinFuncs = function() {
   this.__performance_now.usesImports = true;
 
 
-  this.__Porffor_type = {
-    params: [ valtypeBinary, Valtype.i32 ],
-    typedParams: true,
-    locals: [ Valtype.i32, Valtype.i32 ],
+  this.__Porffor_typeName = {
+    params: [ Valtype.i32 ],
+    locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.bytestring,
     wasm: (scope, { typeSwitch, makeString }) => {
       const bc = {};
       for (const x in TYPE_NAMES) {
-        bc[x] = makeString(scope, TYPE_NAMES[x]);
+        bc[x] = () => makeString(scope, TYPE_NAMES[x]);
       }
 
-      return typeSwitch(scope, [ [ Opcodes.local_get, 1 ] ], bc);
+      return typeSwitch(scope, [ [ Opcodes.local_get, 0 ] ], bc);
     }
   };
 

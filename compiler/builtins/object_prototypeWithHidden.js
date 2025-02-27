@@ -2,7 +2,7 @@ export default ({ TYPES, TYPE_NAMES }) => {
   let out = `// @porf --valtype=i32
 export const __Porffor_object_getPrototypeWithHidden = (obj: any, trueType: i32): any => {
   const objectProto: any = __Porffor_object_getPrototype(obj);
-  if (Porffor.rawType(objectProto) == Porffor.TYPES.empty) {
+  if (Porffor.type(objectProto) == Porffor.TYPES.empty) {
     if (Porffor.comptime.flag\`hasFunc.#get___String_prototype\`) {
       if (Porffor.fastOr(
         trueType == Porffor.TYPES.string,

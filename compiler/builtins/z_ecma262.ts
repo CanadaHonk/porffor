@@ -28,7 +28,7 @@ export const __ecma262_ToPrimitive_String = (input: any): any => {
 // 7.1.4 ToNumber (argument)
 // https://tc39.es/ecma262/#sec-tonumber
 export const __ecma262_ToNumber = (argument: unknown): number => {
-  const t: i32 = Porffor.rawType(argument);
+  const t: i32 = Porffor.type(argument);
 
   // 1. If argument is a Number, return argument.
   if (t == Porffor.TYPES.number) return argument;
@@ -73,12 +73,12 @@ export const __ecma262_ToNumeric = (value: unknown): number => {
   // 1. Let primValue be ? ToPrimitive(value, number).
   // only run ToPrimitive if pure object for perf
   let primValue: any = value;
-  if (Porffor.rawType(value) == Porffor.TYPES.object && Porffor.wasm`local.get ${value}` != 0)
+  if (Porffor.type(value) == Porffor.TYPES.object && Porffor.wasm`local.get ${value}` != 0)
     primValue = __ecma262_ToPrimitive_Number(value);
 
   // 2. If primValue is a BigInt, return primValue.
   if (Porffor.comptime.flag`hasType.bigint`) {
-    if (Porffor.rawType(primValue) == Porffor.TYPES.bigint) return primValue;
+    if (Porffor.type(primValue) == Porffor.TYPES.bigint) return primValue;
   }
 
   // 3. Return ? ToNumber(primValue).
@@ -124,7 +124,7 @@ export const __ecma262_ToIndex = (value: unknown): number => {
 // 7.1.17 ToString (argument)
 // https://tc39.es/ecma262/#sec-tostring
 export const __ecma262_ToString = (argument: unknown): any => {
-  const type: i32 = Porffor.rawType(argument);
+  const type: i32 = Porffor.type(argument);
 
   // 1. If argument is a String, return argument.
   if (Porffor.fastOr(
@@ -180,11 +180,11 @@ export const __ecma262_ToPropertyKey = (argument: any): any => {
   // 1. Let key be ? ToPrimitive(argument, string).
   // only run ToPrimitive if pure object for perf
   let key: any = argument;
-  if (Porffor.rawType(argument) == Porffor.TYPES.object && Porffor.wasm`local.get ${argument}` != 0)
+  if (Porffor.type(argument) == Porffor.TYPES.object && Porffor.wasm`local.get ${argument}` != 0)
     key = __ecma262_ToPrimitive_String(argument);
 
   // 2. If key is a Symbol, then
-  if (Porffor.rawType(key) == Porffor.TYPES.symbol) {
+  if (Porffor.type(key) == Porffor.TYPES.symbol) {
     // a. Return key.
     return key;
   }
@@ -194,6 +194,6 @@ export const __ecma262_ToPropertyKey = (argument: any): any => {
 };
 
 export const __ecma262_IsConstructor = (argument: any): boolean => {
-  if (Porffor.rawType(argument) != Porffor.TYPES.function) return false;
+  if (Porffor.type(argument) != Porffor.TYPES.function) return false;
   return (__Porffor_funcLut_flags(argument) & 0b10) == 2;
 };
