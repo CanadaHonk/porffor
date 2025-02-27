@@ -592,7 +592,19 @@ export const __Porffor_object_get = (obj: any, key: any): any => {
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   if (entryPtr == -1) {
     // check prototype chain
-    obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
+    if (trueType == Porffor.TYPES.object) {
+      // opt: inline get object prototype
+      Porffor.wasm`
+local.get ${obj}
+local.get ${obj}
+i32.load 0 4
+local.set ${obj}
+i32.load8_u 0 3
+local.set ${obj+1}`;
+
+      // if empty, prototype is object.prototype
+      if (Porffor.type(obj) == Porffor.TYPES.empty) obj = __Object_prototype;
+    } else obj = __Porffor_object_getHiddenPrototype(trueType);
 
     // todo/opt: put this behind comptime flag if only __proto__ is used
     if (hash == -406948493) if (key == '__proto__') {
@@ -608,7 +620,17 @@ return`;
     while (true) {
       if ((entryPtr = __Porffor_object_lookup(obj, key, hash)) != -1) break;
 
-      obj = __Porffor_object_getPrototype(obj);
+      // inline get prototype
+      if (Porffor.type(obj) == Porffor.TYPES.object) {
+        Porffor.wasm`
+local.get ${obj}
+local.get ${obj}
+i32.load 0 4
+local.set ${obj}
+i32.load8_u 0 3
+local.set ${obj+1}`;
+      } else obj = __Porffor_object_getPrototype(obj);
+
       if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
       lastProto = obj;
     }
