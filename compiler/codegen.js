@@ -513,7 +513,7 @@ const generateIdent = (scope, decl) => {
 };
 
 const generateYield = (scope, decl) => {
-  const arg = decl.argument ?? DEFAULT_VALUE();
+  let arg = decl.argument ?? DEFAULT_VALUE();
 
   if (!scope.generator) {
     // todo: access upper-scoped generator
@@ -526,6 +526,17 @@ const generateYield = (scope, decl) => {
       ...setLastType(scope, TYPES.undefined)
     ];
   }
+
+  // hack: `yield* foo` -> `yielf foo[0]`
+  if (decl.delegate) arg = {
+    type: 'MemberExpression',
+    object: arg,
+    property: {
+      type: 'Literal',
+      value: 0
+    },
+    computed: true
+  };
 
   // just support a single yield like a return for now
   return [
