@@ -995,22 +995,29 @@ const performOp = (scope, op, left, right, leftType, rightType) => {
   const finalize = out => startOut.concat(out, endOut);
 
   // if strict (in)equal check types match, skip if known
-  if (strictOp && !(knownLeft && knownLeft === knownRight)) {
-    endOut.push(
-      ...leftType,
-      number(TYPE_FLAGS.parity, Valtype.i32),
-      [ Opcodes.i32_or ],
-      ...rightType,
-      number(TYPE_FLAGS.parity, Valtype.i32),
-      [ Opcodes.i32_or ],
-      ...(op === '===' ? [
-        [ Opcodes.i32_eq ],
-        [ Opcodes.i32_and ]
-      ] : [
-        [ Opcodes.i32_ne ],
-        [ Opcodes.i32_or ]
-      ])
-    );
+  if (strictOp) {
+    if (knownLeft != null && knownRight != null) {
+      if ((knownLeft | TYPE_FLAGS.parity) !== (knownRight | TYPE_FLAGS.parity)) endOut.push(
+        number(op === '===' ? 0 : 1, Valtype.i32),
+        [ op === '===' ? Opcodes.i32_and : Opcodes.i32_or ]
+      );
+    } else {
+      endOut.push(
+        ...leftType,
+        number(TYPE_FLAGS.parity, Valtype.i32),
+        [ Opcodes.i32_or ],
+        ...rightType,
+        number(TYPE_FLAGS.parity, Valtype.i32),
+        [ Opcodes.i32_or ],
+        ...(op === '===' ? [
+          [ Opcodes.i32_eq ],
+          [ Opcodes.i32_and ]
+        ] : [
+          [ Opcodes.i32_ne ],
+          [ Opcodes.i32_or ]
+        ])
+      );
+    }
   }
 
   if (!eqOp && (knownLeft === TYPES.bigint || knownRight === TYPES.bigint) && !(knownLeft === TYPES.bigint && knownRight === TYPES.bigint)) {
@@ -1041,10 +1048,10 @@ const performOp = (scope, op, left, right, leftType, rightType) => {
 
     // string comparison
     if (op === '===' || op === '==' || op === '!==' || op === '!=') {
-      return [
+      return finalize([
         ...compareStrings(scope, left, right, leftType, rightType, knownLeftStr && knownRightStr),
         ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : [])
-      ];
+      ]);
     }
 
     // todo: proper >|>=|<|<=
