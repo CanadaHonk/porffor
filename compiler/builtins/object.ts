@@ -524,7 +524,7 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any): any 
   if (!Porffor.object.isObject(desc)) throw new TypeError('Descriptor is a non-object');
 
   if (Porffor.type(target) == Porffor.TYPES.array) {
-    if (prop === 'length' && __Object_hasOwn(desc, 'value')) {
+    if (prop == 'length' && __Object_hasOwn(desc, 'value')) {
       const v: any = desc.value;
       const n: number = ecma262.ToNumber(v);
       if (Porffor.fastOr(
