@@ -77,10 +77,10 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
 
   let negative: boolean = false;
   let offset: i32 = 0;
-  if (n[0] === '-') {
+  if (n[0] == '-') {
     negative = true;
     offset = 1;
-  } else if (n[0] === '+') {
+  } else if (n[0] == '+') {
     offset = 1;
   }
 
@@ -120,8 +120,8 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
       digits[j] = quotient;
     }
 
-    while (digits.length > 0 && digits[0] === 0) digits.shift();
-    if (carry !== 0 || digits.length > 0) result.unshift(carry);
+    while (digits.length > 0 && digits[0] == 0) digits.shift();
+    if (carry != 0 || digits.length > 0) result.unshift(carry);
   }
 
   return __Porffor_bigint_fromDigits(negative, result);
