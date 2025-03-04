@@ -809,12 +809,23 @@ const compareStrings = (scope, left, right, leftType, rightType, noConv = false)
 };
 
 const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode = undefined) => {
+  const truthyMode = forceTruthyMode ?? Prefs.truthy ?? 'full';
   if (isIntToFloatOp(wasm[wasm.length - 1])) return [
     ...wasm,
-    ...(!intIn && intOut ? [ Opcodes.i32_to_u ] : [])
+    ...(truthyMode === 'full' ? [
+      [ Opcodes.f64_const, 0 ],
+      [ Opcodes.f64_ne ],
+      ...(!intOut ? [ Opcodes.i32_from_u ] : [])
+    ] : [
+      ...(!intIn && intOut ? [ Opcodes.i32_to_u ] : [])
+    ])
   ];
   if (isIntOp(wasm[wasm.length - 1])) return [
     ...wasm,
+    ...(truthyMode === 'full' ? [
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.i32_eqz ]
+    ] : []),
     ...(intOut ? [] : [ Opcodes.i32_from ]),
   ];
 
@@ -822,8 +833,6 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
 
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
-
-  const truthyMode = forceTruthyMode ?? Prefs.truthy ?? 'full';
   const def = (() => {
     if (truthyMode === 'full') return [
       // if value != 0 or NaN
