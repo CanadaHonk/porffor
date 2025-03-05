@@ -1,4 +1,14 @@
-import { Opcodes } from './wasmSpec.js';
+import { Opcodes, Valtype } from './wasmSpec.js';
+import { TYPES } from './types.js';
+
+const f64ifyBitwise = op => (_1, _2, { left, right }) => [
+  ...left,
+  Opcodes.i32_trunc_sat_f64_s,
+  ...right,
+  Opcodes.i32_trunc_sat_f64_s,
+  [ op ],
+  [ Opcodes.f64_convert_i32_s ]
+];
 
 export const operatorOpcode = {
   i32: {
@@ -23,7 +33,17 @@ export const operatorOpcode = {
     '>': Opcodes.i32_gt_s,
     '>=': Opcodes.i32_ge_s,
     '<': Opcodes.i32_lt_s,
-    '<=': Opcodes.i32_le_s
+    '<=': Opcodes.i32_le_s,
+
+    '**': (_, { builtin }, { left, right }) => [
+      ...left,
+      [ Opcodes.f64_convert_i32_s ],
+      [ Opcodes.i32_const, TYPES.number ],
+      ...right,
+      [ Opcodes.f64_convert_i32_s ],
+      [ Opcodes.i32_const, TYPES.number ],
+      [ Opcodes.call, builtin('__Math_pow') ]
+    ]
   },
 
   i64: {
@@ -65,6 +85,38 @@ export const operatorOpcode = {
     '>': Opcodes.f64_gt,
     '>=': Opcodes.f64_ge,
     '<': Opcodes.f64_lt,
-    '<=': Opcodes.f64_le
+    '<=': Opcodes.f64_le,
+
+    '**': (_, { builtin }, { left, right }) => [
+      ...left,
+      [ Opcodes.i32_const, TYPES.number ],
+      ...right,
+      [ Opcodes.i32_const, TYPES.number ],
+      [ Opcodes.call, builtin('__Math_pow') ]
+    ],
+
+    '%': (_, { builtin, loc }, { left, right }) => [
+      // a - truncf(a / b) * b
+      ...left,
+      [ Opcodes.local_tee, loc('#math_a', Valtype.f64) ],
+      ...right,
+      [ Opcodes.local_tee, loc('#math_b', Valtype.f64) ],
+
+      [ Opcodes.local_get, loc('#math_a', Valtype.f64) ],
+      [ Opcodes.local_get, loc('#math_b', Valtype.f64) ],
+      [ Opcodes.f64_div ],
+      [ Opcodes.f64_trunc ],
+
+      [ Opcodes.f64_mul ],
+      [ Opcodes.f64_sub ]
+    ],
+
+    // add bitwise ops by converting operands to i32 first
+    '&': f64ifyBitwise(Opcodes.i32_and),
+    '|': f64ifyBitwise(Opcodes.i32_or),
+    '^': f64ifyBitwise(Opcodes.i32_xor),
+    '<<': f64ifyBitwise(Opcodes.i32_shl),
+    '>>': f64ifyBitwise(Opcodes.i32_shr_s),
+    '>>>': f64ifyBitwise(Opcodes.i32_shr_u)
   }
 };

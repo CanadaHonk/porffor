@@ -100,61 +100,6 @@ export const BuiltinVars = function(ctx) {
 };
 
 export const BuiltinFuncs = function() {
-  this['f64_%'] = {
-    params: [ valtypeBinary, valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: [ // x - truncf(x / y) * y
-      [ Opcodes.local_get, 0 ], // x
-
-      [ Opcodes.local_get, 0 ], // x
-      [ Opcodes.local_get, 1 ], // y
-
-      [ Opcodes.f64_div ],
-      [ Opcodes.f64_trunc ],
-
-      [ Opcodes.local_get, 1 ], // y
-      [ Opcodes.f64_mul ],
-
-      [ Opcodes.f64_sub ]
-    ]
-  };
-
-  this['f64_**'] = this['i32_**'] = {
-    params: [ valtypeBinary, valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: (scope, { builtin }) => [
-      [ Opcodes.local_get, 0 ],
-      number(TYPES.number, Valtype.i32),
-      [ Opcodes.local_get, 1 ],
-      number(TYPES.number, Valtype.i32),
-      [ Opcodes.call, builtin('__Math_pow') ]
-    ]
-  };
-
-  // add bitwise ops by converting operands to i32 first
-  for (const [ char, op ] of [ ['&', Opcodes.i32_and], ['|', Opcodes.i32_or], ['^', Opcodes.i32_xor], ['<<', Opcodes.i32_shl], ['>>', Opcodes.i32_shr_s], ['>>>', Opcodes.i32_shr_u] ]) {
-    this[`f64_${char}`] = {
-      params: [ Valtype.f64, Valtype.f64 ],
-      locals: [],
-      returns: [ Valtype.f64 ],
-      returnType: TYPES.number,
-      wasm: [
-        [ Opcodes.local_get, 0 ],
-        Opcodes.i32_trunc_sat_f64_s,
-
-        [ Opcodes.local_get, 1 ],
-        Opcodes.i32_trunc_sat_f64_s,
-
-        [ op ],
-        [ Opcodes.f64_convert_i32_s ]
-      ]
-    };
-  }
-
   this.isNaN = {
     floatOnly: true,
     params: [ valtypeBinary ],

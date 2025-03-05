@@ -1068,21 +1068,9 @@ const performOp = (scope, op, left, right, leftType, rightType) => {
 
   let ops = operatorOpcode[valtype][op];
 
-  // some complex ops are implemented as builtin funcs
-  const builtinName = `${valtype}_${op}`;
-  if (!ops && builtinFuncs[builtinName]) {
-    includeBuiltin(scope, builtinName);
-    const idx = funcIndex[builtinName];
-
-    return finalize([
-      ...left,
-      ...right,
-      [ Opcodes.call, idx ]
-    ]);
-  }
-
+  // some complex ops are implemented in funcs
+  if (typeof ops === 'function') return finalize(asmFuncToAsm(scope, ops, { left, right }));
   if (!ops) return todo(scope, `operator ${op} not implemented yet`, true);
-
   if (!Array.isArray(ops)) ops = [ ops ];
   ops = [ ops ];
 
@@ -1253,7 +1241,7 @@ const generateBinaryExp = (scope, decl) => {
   return out;
 };
 
-const asmFuncToAsm = (scope, func) => {
+const asmFuncToAsm = (scope, func, extra) => {
   return func(scope, {
     Valtype, Opcodes, TYPES, TYPE_NAMES, usedTypes, typeSwitch, makeString, internalThrow,
     getNodeType, generate, generateIdent,
@@ -1334,7 +1322,7 @@ const asmFuncToAsm = (scope, func) => {
       return wasm;
     },
     allocPage: (scope, name) => allocPage({ scope, pages }, name)
-  });
+  }, extra);
 };
 
 const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, usedTypes = [] } = {}) => {
