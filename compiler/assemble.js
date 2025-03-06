@@ -141,6 +141,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
       if (length == null) {
         length = func.params.length;
         if (func.constr) length -= 4;
+        if (func.method) length -= 2;
         if (!func.internal || func.typedParams) length = Math.floor(length / 2);
 
         // remove _this from internal prototype funcs

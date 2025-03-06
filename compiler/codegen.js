@@ -93,7 +93,7 @@ const funcRef = func => {
     }
 
     const wasm = [];
-    const offset = func.constr ? 0 : 4;
+    const offset = func.constr ? 0 : (func.method ? 2 : 4);
     for (let i = 0; i < func.params.length; i++) {
       if (func.internal && func.name.includes('_prototype_') && i < 2) {
         // special case: use real this for prototype internals
@@ -456,7 +456,7 @@ const lookup = (scope, name, failEarly = false) => {
       // todo: not compliant
       let len = countLength(scope);
       const names = new Array(len);
-      const off = scope.constr ? 4 : 0;
+      const off = scope.constr ? 4 : (scope.method ? 2 : 0);
       for (const x in scope.locals) {
         const i = scope.locals[x].idx - off;
         if (i >= 0 && i % 2 === 0 && i < len * 2) {
@@ -1716,7 +1716,7 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'ThisExpression') {
       if (scope.overrideThisType) return scope.overrideThisType;
-      if (!scope.constr) return getType(scope, 'globalThis');
+      if (!scope.constr && !scope.method) return getType(scope, 'globalThis');
       return [ [ Opcodes.local_get, scope.locals['#this#type'].idx ] ];
     }
 
@@ -2636,6 +2636,11 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     paramOffset += 4;
   }
 
+  if (func && func.method) {
+    out.push(...(decl._thisWasm ?? createThisArg(scope, decl)));
+    paramOffset += 2;
+  }
+
   if (func && args.length < paramCount) {
     // too little args, push undefineds
     const underflow = paramCount - (func.hasRestArgument ? 1 : 0) - args.length;
@@ -2720,7 +2725,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 const generateThis = (scope, decl) => {
   if (scope.overrideThis) return scope.overrideThis;
 
-  if (!scope.constr) {
+  if (!scope.constr && !scope.method) {
     // this in a non-constructor context is a reference to globalThis
     return [
       ...generate(scope, { type: 'Identifier', name: 'globalThis' })
@@ -5527,7 +5532,10 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
 
     for (const x of decl.properties) {
       // method, shorthand are made into useful values by parser for us :)
-      let { type, argument, computed, kind, value } = x;
+      let { type, argument, computed, kind, value, method } = x;
+
+      // tag function as not a constructor
+      if (method) value._method = true;
 
       if (type === 'SpreadElement') {
         out.push(
@@ -5620,6 +5628,7 @@ const countParams = (func, name = undefined) => {
   name ??= func.name;
   let params = func.params.length;
   if (func.constr) params -= 4;
+  if (func.method) params -= 2;
   if (!func.internal || builtinFuncs[name]?.typedParams) params = Math.floor(params / 2);
 
   return func.argc = params;
@@ -6123,6 +6132,9 @@ const generateClass = (scope, decl) => {
     let { type, value, kind, static: _static, computed } = x;
     if (kind === 'constructor') continue;
 
+    // tag function as not a constructor
+    if (type === 'MethodDefinition') value._method = true;
+
     if (type === 'StaticBlock') {
       // todo: make this more compliant
       out.push(
@@ -6448,7 +6460,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     name,
     index: currentFuncIndex++,
     arrow,
-    constr: !arrow && !decl.generator && !decl.async,
+    constr: !arrow && !decl.generator && !decl.async && !decl._method, // constructable
+    method: decl._method || decl.generator || decl.async, // has this but not constructable
     async: decl.async,
     subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
@@ -6679,6 +6692,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
   const args = [];
   if (func.constr) args.push({ name: '#newtarget' }, { name: '#this' });
+  if (func.method) args.push({ name: '#this' });
 
   let jsLength = 0;
   for (let i = 0; i < params.length; i++) {
@@ -6719,7 +6733,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     args.push({ name, def, destr, type: typedInput && params[i].typeAnnotation });
   }
 
-  func.params = new Array((params.length + (func.constr ? 2 : 0)) * 2).fill(0).map((_, i) => i % 2 ? Valtype.i32 : valtypeBinary);
+  func.params = new Array((params.length + (func.constr ? 2 : (func.method ? 1 : 0))) * 2).fill(0).map((_, i) => i % 2 ? Valtype.i32 : valtypeBinary);
   func.jsLength = jsLength;
 
   // force generate for main
