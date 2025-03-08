@@ -6461,7 +6461,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     index: currentFuncIndex++,
     arrow,
     constr: !arrow && !decl.generator && !decl.async && !decl._method, // constructable
-    method: decl._method || decl.generator || decl.async, // has this but not constructable
+    method: !arrow && (decl._method || decl.generator || decl.async), // has this but not constructable
     async: decl.async,
     subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
