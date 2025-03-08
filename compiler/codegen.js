@@ -6540,6 +6540,31 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
               );
             }
 
+            if (typeAnno.type === TYPES.string) {
+              wasm.push(
+                [ Opcodes.local_get, func.locals[name].idx + 1 ],
+                number(TYPES.string, Valtype.i32),
+                [ Opcodes.i32_ne ],
+                [ Opcodes.if, Blocktype.void ],
+                  [ Opcodes.local_get, func.locals[name].idx ],
+                  [ Opcodes.f64_convert_i32_s ],
+                  [ Opcodes.local_get, func.locals[name].idx + 1 ],
+                  [ Opcodes.call, includeBuiltin(scope, '__ecma262_ToString').index ],
+                  [ Opcodes.local_set, func.locals[name].idx + 1 ],
+                  Opcodes.i32_trunc_sat_f64_s,
+                  [ Opcodes.local_set, func.locals[name].idx ],
+                  [ Opcodes.local_get, func.locals[name].idx + 1 ],
+                  number(TYPES.bytestring, Valtype.i32),
+                  [ Opcodes.i32_eq ],
+                  [ Opcodes.if, Blocktype.void ],
+                    [ Opcodes.local_get, func.locals[name].idx ],
+                    [ Opcodes.call, includeBuiltin(scope, '__Porffor_bytestringToString').index ],
+                    [ Opcodes.local_set, func.locals[name].idx ],
+                  [ Opcodes.end ],
+                [ Opcodes.end ]
+              );
+            }
+
             if ([
               TYPES.date, TYPES.number, TYPES.promise, TYPES.symbol, TYPES.function,
               TYPES.set, TYPES.map,
