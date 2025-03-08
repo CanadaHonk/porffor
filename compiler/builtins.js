@@ -504,23 +504,6 @@ export const BuiltinFuncs = function() {
     returnType: TYPES.number,
     wasm: [
       ...prng.wasm,
-
-      // you thought it was over? now we need the result as a f64 between 0-1 :)
-
-      // should we >> 12 here?
-      // it feels like it but it breaks values
-
-      // | 0x3FF0000000000000
-      // [ Opcodes.i64_const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xf8, 0x3f ],
-      // [ Opcodes.i64_or ],
-
-      // bit cast as f64
-      // [ Opcodes.f64_reinterpret_i64 ],
-
-      // - 1
-      // number(1),
-      // [ Opcodes.f64_sub ],
-
       ...(prng.returns === Valtype.i64 ? [
         number((1 << 53) - 1, Valtype.i64),
         [ Opcodes.i64_and ],
@@ -686,13 +669,8 @@ export const BuiltinFuncs = function() {
     returns: [],
     returnType: TYPES.undefined,
     wasm: [
-      // dst
       [ Opcodes.local_get, 1 ],
-
-      // src
       [ Opcodes.local_get, 0 ],
-
-      // size = pageSize
       number(pageSize, Valtype.i32),
       [ ...Opcodes.memory_copy, 0x00, 0x00 ],
     ]
