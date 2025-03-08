@@ -433,8 +433,6 @@ const lookup = (scope, name, failEarly = false) => {
   let local = scope.locals[name];
 
   if (Object.hasOwn(builtinVars, name)) {
-    if (builtinVars[name].floatOnly && valtype[0] === 'i') throw new Error(`Cannot use ${unhackName(name)} with integer valtype`);
-
     let wasm = builtinVars[name];
     if (wasm.usesImports) scope.usesImports = true;
 
@@ -2452,7 +2450,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     idx = importedFuncs[name];
     scope.usesImports = true;
   } else if (Object.hasOwn(builtinFuncs, name)) {
-    if (builtinFuncs[name].floatOnly && valtype !== 'f64') throw new Error(`Cannot use built-in ${unhackName(name)} with integer valtype`);
     if (decl._new && !builtinFuncs[name].constr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
 
     includeBuiltin(scope, name);

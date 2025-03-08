@@ -72,10 +72,7 @@ export const BuiltinVars = function(ctx) {
   this.null.type = TYPES.object;
 
   this.NaN = [ number(NaN) ];
-  this.NaN.floatOnly = true;
-
   this.Infinity = [ number(Infinity) ];
-  this.Infinity.floatOnly = true;
 
   for (const x in TYPES) {
     this['__Porffor_TYPES_' + x] = () => [ number(TYPES[x]) ];
@@ -101,7 +98,6 @@ export const BuiltinVars = function(ctx) {
 
 export const BuiltinFuncs = function() {
   this.isNaN = {
-    floatOnly: true,
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
@@ -116,7 +112,6 @@ export const BuiltinFuncs = function() {
   this.__Number_isNaN = this.isNaN;
 
   this.isFinite = {
-    floatOnly: true,
     params: [ valtypeBinary ],
     locals: [ valtypeBinary ],
     returns: [ valtypeBinary ],
@@ -135,7 +130,6 @@ export const BuiltinFuncs = function() {
 
   // todo: should be false for +-Infinity
   this.__Number_isInteger = {
-    floatOnly: true,
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
@@ -150,7 +144,6 @@ export const BuiltinFuncs = function() {
   };
 
   this.__Number_isSafeInteger = {
-    floatOnly: true,
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
@@ -209,7 +202,6 @@ export const BuiltinFuncs = function() {
   };
 
   this.__Math_fround = {
-    floatOnly: true,
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
@@ -223,7 +215,6 @@ export const BuiltinFuncs = function() {
 
   // todo: this does not overflow correctly
   this.__Math_imul = {
-    floatOnly: true,
     params: [ valtypeBinary, valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
@@ -503,7 +494,6 @@ export const BuiltinFuncs = function() {
   if (!prng) throw new Error(`unknown prng algo: ${Prefs.prng}`);
 
   this.__Math_random = {
-    floatOnly: true,
     params: [],
     locals: prng.locals,
     localNames: [ 's1', 's0' ],
@@ -581,7 +571,6 @@ export const BuiltinFuncs = function() {
   };
 
   this.__Math_radians = {
-    floatOnly: true,
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
@@ -594,7 +583,6 @@ export const BuiltinFuncs = function() {
   };
 
   this.__Math_degrees = {
-    floatOnly: true,
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
@@ -607,7 +595,6 @@ export const BuiltinFuncs = function() {
   };
 
   this.__Math_clamp = {
-    floatOnly: true,
     params: [ valtypeBinary, valtypeBinary, valtypeBinary ],
     locals: [],
     localNames: [ 'x', 'lower', 'upper' ],
@@ -623,7 +610,6 @@ export const BuiltinFuncs = function() {
   };
 
   this.__Math_scale = {
-    floatOnly: true,
     params: [ valtypeBinary, valtypeBinary, valtypeBinary, valtypeBinary, valtypeBinary ],
     locals: [],
     localNames: [ 'x', 'inLow', 'inHigh', 'outLow', 'outHigh' ],
@@ -654,7 +640,6 @@ export const BuiltinFuncs = function() {
 
   // todo: fix for -0
   this.__Math_signbit = {
-    floatOnly: true,
     params: [ valtypeBinary ],
     locals: [],
     returns: [ valtypeBinary ],
