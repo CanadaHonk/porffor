@@ -805,21 +805,20 @@ export const BuiltinFuncs = function() {
   };
 
   this.__Porffor_bytestringToString = {
-    params: [ Valtype.i32, Valtype.i32 ],
-    locals: [ Valtype.i32, Valtype.i32 ],
+    params: [ Valtype.i32 ],
+    locals: [ Valtype.i32, Valtype.i32, Valtype.i32 ],
     localNames: [ 'src', 'len', 'counter', 'dst' ],
     returns: [ Valtype.i32 ],
     returnType: TYPES.string,
-    wasm: [
-      // dst = grow memory by 1 page
-      [ Opcodes.i32_const, 1 ],
-      [ Opcodes.memory_grow, 0 ],
-      number(65536, Valtype.i32),
-      [ Opcodes.i32_mul ],
+    wasm: (scope, { builtin }) => [
+      // dst = allocate
+      [ Opcodes.call, builtin('__Porffor_allocate') ],
       [ Opcodes.local_tee, 3 ],
 
-      // dst.length = len
-      [ Opcodes.local_get, 1 ],
+      // dst.length = src.length
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.i32_load, 0, 0 ],
+      [ Opcodes.local_tee, 1 ],
       [ Opcodes.i32_store, 0, 0 ],
 
       [ Opcodes.loop, Blocktype.void ],

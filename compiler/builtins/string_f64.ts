@@ -26,7 +26,7 @@ export const String = function (...args: any[]): string|bytestring|StringObject 
   // 4. Return StringCreate(s, ? GetPrototypeFromConstructor(NewTarget, "%String.prototype%")).
 
   // force bytestrings to strings
-  if (Porffor.type(s) == Porffor.TYPES.bytestring) s = Porffor.bytestringToString(s, s.length);
+  if (Porffor.type(s) == Porffor.TYPES.bytestring) s = Porffor.bytestringToString(s);
 
   return s as StringObject;
 };
