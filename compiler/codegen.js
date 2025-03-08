@@ -506,9 +506,8 @@ const lookup = (scope, name, failEarly = false) => {
 const lookupOrError = (scope, name, failEarly) => lookup(scope, name, failEarly)
   ?? internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`, true);
 
-const generateIdent = (scope, decl) => {
-  return lookupOrError(scope, decl.name, scope.identFailEarly);
-};
+const generateIdent = (scope, decl) =>
+  lookupOrError(scope, decl.name, scope.identFailEarly);
 
 const generateYield = (scope, decl) => {
   let arg = decl.argument ?? DEFAULT_VALUE();
@@ -761,21 +760,19 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   ];
 };
 
-const concatStrings = (scope, left, right, leftType, rightType) => {
-  return [
-    ...left,
-    ...(valtypeBinary === Valtype.i32 ? [ [ Opcodes.f64_convert_i32_s ] ] : []),
-    ...leftType,
+const concatStrings = (scope, left, right, leftType, rightType) => [
+  ...left,
+  ...(valtypeBinary === Valtype.i32 ? [ [ Opcodes.f64_convert_i32_s ] ] : []),
+  ...leftType,
 
-    ...right,
-    ...(valtypeBinary === Valtype.i32 ? [ [ Opcodes.f64_convert_i32_s ] ] : []),
-    ...rightType,
+  ...right,
+  ...(valtypeBinary === Valtype.i32 ? [ [ Opcodes.f64_convert_i32_s ] ] : []),
+  ...rightType,
 
-    [ Opcodes.call, includeBuiltin(scope, '__Porffor_concatStrings').index ],
-    ...setLastType(scope),
-    ...(valtypeBinary === Valtype.i32 ? [ Opcodes.i32_trunc_sat_f64_u ] : []),
-  ];
-};
+  [ Opcodes.call, includeBuiltin(scope, '__Porffor_concatStrings').index ],
+  ...setLastType(scope),
+  ...(valtypeBinary === Valtype.i32 ? [ Opcodes.i32_trunc_sat_f64_u ] : []),
+];
 
 const compareStrings = (scope, left, right, leftType, rightType, noConv = false) => {
   if (noConv) return [
@@ -1239,89 +1236,87 @@ const generateBinaryExp = (scope, decl) => {
   return out;
 };
 
-const asmFuncToAsm = (scope, func, extra) => {
-  return func(scope, {
-    Valtype, Opcodes, TYPES, TYPE_NAMES, usedTypes, typeSwitch, makeString, internalThrow,
-    getNodeType, generate, generateIdent,
-    builtin: (n, offset = false) => {
-      let idx = funcIndex[n] ?? importedFuncs[n];
-      if (idx == null && builtinFuncs[n]) {
-        includeBuiltin(scope, n);
-        idx = funcIndex[n];
-      }
+const asmFuncToAsm = (scope, func, extra) => func(scope, {
+  Valtype, Opcodes, TYPES, TYPE_NAMES, usedTypes, typeSwitch, makeString, internalThrow,
+  getNodeType, generate, generateIdent,
+  builtin: (n, offset = false) => {
+    let idx = funcIndex[n] ?? importedFuncs[n];
+    if (idx == null && builtinFuncs[n]) {
+      includeBuiltin(scope, n);
+      idx = funcIndex[n];
+    }
 
-      scope.includes ??= new Set();
-      scope.includes.add(n);
+    scope.includes ??= new Set();
+    scope.includes.add(n);
 
-      if (idx == null) throw new Error(`builtin('${n}') failed: could not find func (from ${scope.name})`);
-      if (offset) idx -= importedFuncs.length;
+    if (idx == null) throw new Error(`builtin('${n}') failed: could not find func (from ${scope.name})`);
+    if (offset) idx -= importedFuncs.length;
 
-      return idx;
-    },
-    hasFunc: x => funcIndex[x] != null,
-    funcRef: name => {
-      if (funcIndex[name] == null && builtinFuncs[name]) {
-        includeBuiltin(scope, name);
-      }
+    return idx;
+  },
+  hasFunc: x => funcIndex[x] != null,
+  funcRef: name => {
+    if (funcIndex[name] == null && builtinFuncs[name]) {
+      includeBuiltin(scope, name);
+    }
 
-      const func = funcByName(name);
-      return funcRef(func);
-    },
-    glbl: (opcode, name, type) => {
-      const globalName = '#porf#' + name; // avoid potential name clashing with user js
-      if (!globals[globalName]) {
-        const idx = globals['#ind']++;
-        globals[globalName] = { idx, type };
+    const func = funcByName(name);
+    return funcRef(func);
+  },
+  glbl: (opcode, name, type) => {
+    const globalName = '#porf#' + name; // avoid potential name clashing with user js
+    if (!globals[globalName]) {
+      const idx = globals['#ind']++;
+      globals[globalName] = { idx, type };
 
-        const tmpIdx = globals['#ind']++;
-        globals[globalName + '#glbl_inited'] = { idx: tmpIdx, type: Valtype.i32 };
-      }
+      const tmpIdx = globals['#ind']++;
+      globals[globalName + '#glbl_inited'] = { idx: tmpIdx, type: Valtype.i32 };
+    }
 
-      const out = [
-        [ opcode, globals[globalName].idx ]
-      ];
+    const out = [
+      [ opcode, globals[globalName].idx ]
+    ];
 
-      scope.initedGlobals ??= new Set();
-      if (!scope.initedGlobals.has(name)) {
-        scope.initedGlobals.add(name);
-        if (scope.globalInits[name]) out.unshift(
-          [ Opcodes.global_get, globals[globalName + '#glbl_inited'].idx ],
-          [ Opcodes.i32_eqz ],
-          [ Opcodes.if, Blocktype.void ],
-          ...asmFuncToAsm(scope, scope.globalInits[name]),
-          number(1, Valtype.i32),
-          [ Opcodes.global_set, globals[globalName + '#glbl_inited'].idx ],
-          [ Opcodes.end ]
-        );
-      }
+    scope.initedGlobals ??= new Set();
+    if (!scope.initedGlobals.has(name)) {
+      scope.initedGlobals.add(name);
+      if (scope.globalInits[name]) out.unshift(
+        [ Opcodes.global_get, globals[globalName + '#glbl_inited'].idx ],
+        [ Opcodes.i32_eqz ],
+        [ Opcodes.if, Blocktype.void ],
+        ...asmFuncToAsm(scope, scope.globalInits[name]),
+        number(1, Valtype.i32),
+        [ Opcodes.global_set, globals[globalName + '#glbl_inited'].idx ],
+        [ Opcodes.end ]
+      );
+    }
 
-      return out;
-    },
-    loc: (name, type) => {
-      if (!scope.locals[name]) {
-        const idx = scope.localInd++;
-        scope.locals[name] = { idx, type };
-      }
+    return out;
+  },
+  loc: (name, type) => {
+    if (!scope.locals[name]) {
+      const idx = scope.localInd++;
+      scope.locals[name] = { idx, type };
+    }
 
-      return scope.locals[name].idx;
-    },
-    t: (types, wasm) => {
-      if (types.some(x => usedTypes.has(x))) {
-        return wasm();
-      } else {
-        return [ [ null, () => {
-          if (types.some(x => usedTypes.has(x))) return wasm();
-          return [];
-        } ] ];
-      }
-    },
-    i32ify: wasm => {
-      wasm.push(Opcodes.i32_to_u);
-      return wasm;
-    },
-    allocPage: (scope, name) => allocPage({ scope, pages }, name)
-  }, extra);
-};
+    return scope.locals[name].idx;
+  },
+  t: (types, wasm) => {
+    if (types.some(x => usedTypes.has(x))) {
+      return wasm();
+    } else {
+      return [ [ null, () => {
+        if (types.some(x => usedTypes.has(x))) return wasm();
+        return [];
+      } ] ];
+    }
+  },
+  i32ify: wasm => {
+    wasm.push(Opcodes.i32_to_u);
+    return wasm;
+  },
+  allocPage: (scope, name) => allocPage({ scope, pages }, name)
+}, extra);
 
 const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, usedTypes = [] } = {}) => {
   if (wasm == null) { // called with no built-in
@@ -1393,9 +1388,8 @@ const includeBuiltin = (scope, builtin) => {
   return asmFunc(builtin, builtinFuncs[builtin]);
 };
 
-const generateLogicExp = (scope, decl) => {
-  return performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
-};
+const generateLogicExp = (scope, decl) =>
+  performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
 
 const isExistingProtoFunc = name => {
   if (name.startsWith('__Array_prototype')) return !!prototypeFuncs[TYPES.array][name.slice(18)];
@@ -5319,9 +5313,7 @@ const generateTry = (scope, decl) => {
   return out;
 };
 
-const generateEmpty = (scope, decl) => {
-  return [ number(UNDEFINED) ];
-};
+const generateEmpty = (scope, decl) => [ number(UNDEFINED) ];
 
 const generateMeta = (scope, decl) => {
   if (decl.meta.name === 'new' && decl.property.name === 'target') {
