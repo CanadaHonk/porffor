@@ -6564,8 +6564,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
             if ([
               TYPES.date, TYPES.number, TYPES.promise, TYPES.symbol, TYPES.function,
-              TYPES.set, TYPES.map,
-              TYPES.weakref, TYPES.weakset, TYPES.weakmap,
+              TYPES.set, TYPES.map, TYPES.weakref, TYPES.weakset, TYPES.weakmap,
               TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
             ].includes(typeAnno.type)) {
               let types = [ typeAnno.type ];
@@ -6580,8 +6579,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
               );
             }
           }
-
-          // todo: if string, try converting to it to one
         }
 
         if (def) wasm.push(
