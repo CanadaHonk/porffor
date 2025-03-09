@@ -29,6 +29,8 @@ export const allocPage = ({ scope, pages }, name) => {
 };
 
 export const allocBytes = ({ scope, pages }, reason, bytes) => {
+  bytes += 2; // overallocate by 2 bytes to ensure null termination
+
   const allocs = pages.allocs ??= new Map();
   const bins = pages.bins ??= [];
 
