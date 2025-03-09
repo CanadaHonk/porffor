@@ -522,10 +522,6 @@ export const __Porffor_object_accessorSet = (entryPtr: i32): Function|undefined 
 
 export const __Porffor_object_lookup = (obj: any, target: any, targetHash: i32): i32 => {
   if (Porffor.wasm`local.get ${obj}` == 0) return -1;
-  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-    obj = __Porffor_object_underlying(obj);
-    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return -1;
-  }
 
   let ptr: i32 = Porffor.wasm`local.get ${obj}` + 8;
   const endPtr: i32 = ptr + Porffor.wasm.i32.load16_u(obj, 0, 0) * 18;
@@ -616,6 +612,7 @@ local.get ${obj+1}
 return`;
     }
 
+    if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
     let lastProto: any = obj;
     while (true) {
       if ((entryPtr = __Porffor_object_lookup(obj, key, hash)) != -1) break;
@@ -630,6 +627,7 @@ local.set ${obj}
 i32.load8_u 0 3
 local.set ${obj+1}`;
       } else obj = __Porffor_object_getPrototype(obj);
+      if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
 
       if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
       lastProto = obj;
@@ -691,11 +689,13 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
     // check prototype chain for setter
     let proto: any = __Porffor_object_getPrototype(obj);
     if (proto != null) {
+      if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
       let lastProto: any = proto;
       while (true) {
         if ((entryPtr = __Porffor_object_lookup(proto, key, hash)) != -1) break;
 
         proto = __Porffor_object_getPrototype(proto);
+        if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
         if (Porffor.fastOr(proto == null, Porffor.wasm`local.get ${proto}` == Porffor.wasm`local.get ${lastProto}`)) break;
         lastProto = proto;
       }
@@ -795,11 +795,14 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
     // check prototype chain for setter
     let proto: any = __Porffor_object_getPrototype(obj);
     if (proto != null) {
+      if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
+
       let lastProto: any = proto;
       while (true) {
         if ((entryPtr = __Porffor_object_lookup(proto, key, hash)) != -1) break;
 
         proto = __Porffor_object_getPrototype(proto);
+        if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
         if (Porffor.fastOr(proto == null, Porffor.wasm`local.get ${proto}` == Porffor.wasm`local.get ${lastProto}`)) break;
         lastProto = proto;
       }

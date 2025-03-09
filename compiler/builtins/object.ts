@@ -345,6 +345,7 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|u
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const p: any = ecma262.ToPropertyKey(prop);
 
+  obj = __Porffor_object_underlying(obj);
   const entryPtr: i32 = Porffor.object.lookup(obj, p, __Porffor_object_hash(p));
   if (entryPtr == -1) {
     if (Porffor.type(obj) == Porffor.TYPES.function) {
