@@ -136,23 +136,8 @@ const run = (): number[] => {
   return result;
 };
 
-// Porffor.print(run()); Porffor.printStatic('\n');
+const runs = 10_000;
+const start = performance.now();
+for (let i = 0; i < runs; i++) run();
 
-// based on https://github.com/littledivy/blazing-fast-ffi-talk/blob/main/bench.mjs
-const total = 10;
-const runs = 100_000;
-
-let sum = 0;
-const bench = () => {
-  const start = performance.now();
-  for (let i = 0; i < runs; i++) run();
-  const elapsed = Math.floor(performance.now() - start);
-  const rate = Math.floor(runs / (elapsed / 1000));
-  sum += rate;
-};
-
-for (let i = 0; i < total; i++) {
-  bench();
-}
-
-console.log(sum / total);
+console.log(((performance.now() - start)).toFixed(10));
