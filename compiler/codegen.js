@@ -3195,7 +3195,7 @@ const setDefaultFuncName = (decl, name) => {
 const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   // statically analyzed ffi dlopen hack to let 2c handle it
   if (init && init.type === 'CallExpression' && init.callee.name === '__Porffor_dlopen') {
-    if (Prefs.target !== 'native' && !Prefs.native) throw new Error('Porffor.dlopen is only supported for native target (use --native)');
+    if (Prefs.target !== 'native' && Prefs.target !== 'c' && !Prefs.native) throw new Error('Porffor.dlopen is only supported for native target (use --native)');
 
     // disable pgo if using ffi (lol)
     Prefs.pgo = false;
