@@ -728,8 +728,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           break;
 
         case Opcodes.drop:
-          // line(vals.pop());
-          vals.pop();
+          if (vals.length > 0) line(`(void) ${vals.pop()}`);
           break;
 
         case Opcodes.block:
