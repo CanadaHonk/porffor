@@ -158,6 +158,27 @@ export const __${name}_prototype_slice = (_this: ${name}, start: number, end: nu
   return out;
 };
 
+export const __${name}_prototype_set = (_this: ${name}, array: any, offset: number) => {
+  const len: i32 = _this.length;
+  if (Porffor.type(offset) == Porffor.TYPES.undefined) offset = 0;
+
+  offset |= 0;
+  if (Porffor.fastOr(offset < 0, offset > len)) throw new RangeError('Offset out of bounds');
+
+  if (Porffor.fastOr(
+    Porffor.type(array) == Porffor.TYPES.array,
+    Porffor.type(array) == Porffor.TYPES.string, Porffor.type(array) == Porffor.TYPES.bytestring,
+    Porffor.type(array) == Porffor.TYPES.set,
+    Porffor.fastAnd(Porffor.type(array) >= Porffor.TYPES.uint8array, Porffor.type(array) <= Porffor.TYPES.float64array)
+  )) {
+    let i: i32 = offset;
+    for (const x of array) {
+      _this[i++] = Porffor.type(x) == Porffor.TYPES.number ? x : 0;
+      if (i > len) throw new RangeError('Array is too long for given offset');
+    }
+  }
+};
+
 ${typedArrayFuncs.reduce((acc, x) => acc + x.replace('// @porf-typed-array\n', '').replaceAll('Array', name).replaceAll('any[]', name) + '\n\n', '')}
 `;
 
