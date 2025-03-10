@@ -607,6 +607,11 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
                 winIncludes.set('windows.h', true);
                 break;
 
+              case 'timeOrigin':
+                // todo: actually implement
+                vals.push('0');
+                break;
+
               case '__Porffor_readArgv': {
                 prepend.set('__Porffor_readArgv',
 `i32 __Porffor_readArgv(u32 index, u32 outPtr) {
