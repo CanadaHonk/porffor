@@ -38,6 +38,7 @@ type PorfforGlobal = {
   array: {
     fastPush(arr: any[], el: any): i32;
     fastIndexOf(arr: any[], el: any): i32;
+    fastRemove(arr: any[], i: i32): void;
   }
 
   arraybuffer: {

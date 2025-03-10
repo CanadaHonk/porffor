@@ -5,31 +5,33 @@ export const __Map_prototype_size$get = (_this: Map) => {
 };
 
 export const __Map_prototype_has = (_this: Map, key: any) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-  return __Set_prototype_has(keys, key);
+  const keys: any[] = Porffor.wasm.i32.load(_this, 0, 0);
+  for (const x of keys) {
+    if (x === key) return true;
+  }
+
+  return false;
 };
 
 export const __Map_prototype_get = (_this: Map, key: any) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
+  const keys: any[] = Porffor.wasm.i32.load(_this, 0, 0);
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
 
   const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
-
   for (let i: i32 = 0; i < size; i++) {
-    if (Porffor.set.read(keys, i) === key) return vals[i];
+    if (keys[i] === key) return vals[i];
   }
 
   return undefined;
 };
 
 export const __Map_prototype_set = (_this: Map, key: any, value: any) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
+  const keys: any[] = Porffor.wasm.i32.load(_this, 0, 0);
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
 
-  const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
-
+  const size: i32 = keys.length;
   for (let i: i32 = 0; i < size; i++) {
-    if (Porffor.set.read(keys, i) === key) {
+    if (keys[i] === key) {
       vals[i] = value;
       return _this;
     }
@@ -37,28 +39,24 @@ export const __Map_prototype_set = (_this: Map, key: any, value: any) => {
 
   // add key if non-existent
   // increment size by 1
-  Porffor.wasm.i32.store(keys, size + 1, 0, 0);
+  keys.length = size + 1;
 
-  // write new key at end
-  Porffor.set.write(keys, size, key);
-
-  // write new value at end
+  // write new key and value at end
+  keys[size] = key;
   vals[size] = value;
 
   return _this;
 };
 
 export const __Map_prototype_delete = (_this: Map, key: any) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
+  const keys: any[] = Porffor.wasm.i32.load(_this, 0, 0);
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
 
-  const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
-
+  const size: i32 = keys.length;
   for (let i: i32 = 0; i < size; i++) {
-    if (Porffor.set.read(keys, i) === key) {
-      __Set_prototype_delete(keys, key);
-      __Array_prototype_splice(vals, i, 1);
-
+    if (keys[i] === key) {
+      Porffor.array.fastRemove(keys, i, size);
+      Porffor.array.fastRemove(vals, i, size);
       return true;
     }
   }
@@ -67,22 +65,22 @@ export const __Map_prototype_delete = (_this: Map, key: any) => {
 };
 
 export const __Map_prototype_clear = (_this: Map) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
-  __Set_prototype_clear(keys);
+  const keys: any[] = Porffor.wasm.i32.load(_this, 0, 0);
+  keys.length = 0;
 
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
   vals.length = 0;
 };
 
 export const __Map_prototype_forEach = (_this: Map, callbackFn: any) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
+  const keys: any[] = Porffor.wasm.i32.load(_this, 0, 0);
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
 
   const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
 
   let i: i32 = 0;
   while (i < size) {
-    callbackFn(vals[i], Porffor.set.read(keys, i++), _this);
+    callbackFn(vals[i], keys[i++], _this);
   }
 };
 
@@ -91,10 +89,9 @@ export const Map = function (iterable: any): Map {
 
   const out: Map = Porffor.allocateBytes(8);
 
-  const keys: Set = Porffor.allocate();
-  Porffor.wasm.i32.store(out, keys, 0, 0);
-
+  const keys: any[] = Porffor.allocate();
   const vals: any[] = Porffor.allocate();
+  Porffor.wasm.i32.store(out, keys, 0, 0);
   Porffor.wasm.i32.store(out, vals, 0, 4);
 
   if (iterable != null) for (const x of iterable) {
@@ -106,7 +103,7 @@ export const Map = function (iterable: any): Map {
 };
 
 export const __Map_prototype_keys = (_this: Map) => {
-  const keys: Set = Porffor.wasm.i32.load(_this, 0, 0);
+  const keys: any[] = Porffor.wasm.i32.load(_this, 0, 0);
   const out: any[] = Porffor.allocate();
 
   for (const x of keys) {

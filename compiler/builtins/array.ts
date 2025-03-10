@@ -893,3 +893,42 @@ export const __Porffor_array_fastIndexOf = (arr: any[], el: number): i32 => {
 
   return -1;
 };
+
+// functional to arr.splice(i, 1)
+export const __Porffor_array_fastRemove = (arr: any[], i: i32, len: i32): void => {
+  arr.length = len - 1;
+
+  // offset all elements after by -1 ind
+  Porffor.wasm`
+local offset i32
+local.get ${i}
+i32.to_u
+i32.const 9
+i32.mul
+local.get ${arr}
+i32.to_u
+i32.add
+i32.const 4
+i32.add
+local.set offset
+
+;; dst = offset (this element)
+local.get offset
+
+;; src = offset + 9 (this element + 1 element)
+local.get offset
+i32.const 9
+i32.add
+
+;; size = (size - i - 1) * 9
+local.get ${len}
+local.get ${i}
+f64.sub
+i32.to_u
+i32.const 1
+i32.sub
+i32.const 9
+i32.mul
+
+memory.copy 0 0`;
+};

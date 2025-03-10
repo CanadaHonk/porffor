@@ -1,50 +1,5 @@
 import type {} from './porffor.d.ts';
 
-// dark wasm magic for dealing with memory, sorry.
-export const __Porffor_set_read = (set: Set, index: number): any => {
-  Porffor.wasm`
-local offset i32
-local.get ${index}
-i32.to_u
-i32.const 9
-i32.mul
-local.get ${set}
-i32.to_u
-i32.add
-local.set offset
-
-local.get offset
-f64.load 0 4
-
-local.get offset
-i32.load8_u 0 12
-return`;
-};
-
-export const __Porffor_set_write = (set: Set, index: number, value: any): boolean => {
-  Porffor.wasm`
-local offset i32
-local.get ${index}
-i32.to_u
-i32.const 9
-i32.mul
-local.get ${set}
-i32.to_u
-i32.add
-local.set offset
-
-local.get offset
-local.get ${value}
-f64.store 0 4
-
-local.get offset
-local.get ${value+1}
-i32.store8 0 12`;
-
-  return true;
-};
-
-
 export const __Set_prototype_size$get = (_this: Set) => {
   return Porffor.wasm.i32.load(_this, 0, 0);
 };
@@ -55,8 +10,7 @@ export const __Set_prototype_values = (_this: Set) => {
 
   const out: any[] = __Porffor_allocate();
   for (let i: number = 0; i < size; i++) {
-    const val: any = __Porffor_set_read(_this, i);
-    Porffor.array.fastPush(out, val);
+    Porffor.array.fastPush(out, (_this as any[])[i]);
   }
 
   return out;
@@ -70,7 +24,7 @@ export const __Set_prototype_has = (_this: Set, value: any) => {
   const size: number = Porffor.wasm.i32.load(_this, 0, 0);
 
   for (let i: number = 0; i < size; i++) {
-    if (__Porffor_set_read(_this, i) === value) return true;
+    if ((_this as any[])[i] === value) return true;
   }
 
   return false;
@@ -81,7 +35,7 @@ export const __Set_prototype_add = (_this: Set, value: any) => {
 
   // check if already in set
   for (let i: number = 0; i < size; i++) {
-    if (__Porffor_set_read(_this, i) === value) return _this;
+    if ((_this as any[])[i] === value) return _this;
   }
 
   // not, add it
@@ -89,55 +43,18 @@ export const __Set_prototype_add = (_this: Set, value: any) => {
   Porffor.wasm.i32.store(_this, size + 1, 0, 0);
 
   // write new value at end
-  __Porffor_set_write(_this, size, value);
+  (_this as any[])[size] = value;
 
   return _this;
 };
 
 export const __Set_prototype_delete = (_this: Set, value: any) => {
-  const size: number = Porffor.wasm.i32.load(_this, 0, 0);
-
   // check if already in set
+  const size: number = Porffor.wasm.i32.load(_this, 0, 0);
   for (let i: number = 0; i < size; i++) {
-    if (__Porffor_set_read(_this, i) === value) {
+    if ((_this as any[])[i] === value) {
       // found, delete
-      // decrement size by 1
-      Porffor.wasm.i32.store(_this, size - 1, 0, 0);
-
-      // offset all elements after by -1 ind
-      Porffor.wasm`
-local offset i32
-local.get ${i}
-i32.to_u
-i32.const 9
-i32.mul
-local.get ${_this}
-i32.to_u
-i32.add
-i32.const 4
-i32.add
-local.set offset
-
-;; dst = offset (this element)
-local.get offset
-
-;; src = offset + 9 (this element + 1 element)
-local.get offset
-i32.const 9
-i32.add
-
-;; size = (size - i - 1) * 9
-local.get ${size}
-local.get ${i}
-f64.sub
-i32.to_u
-i32.const 1
-i32.sub
-i32.const 9
-i32.mul
-
-memory.copy 0 0`;
-
+      Porffor.array.fastRemove(_this, i, size);
       return true;
     }
   }
@@ -148,8 +65,7 @@ memory.copy 0 0`;
 
 export const __Set_prototype_clear = (_this: Set) => {
   // just set size to 0
-  // do not need to delete any as will not be accessed anymore,
-  // and will be overwritten with new add
+  // do not need to delete any as old will just be overwritten
   Porffor.wasm.i32.store(_this, 0, 0, 0);
 };
 
