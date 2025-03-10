@@ -395,6 +395,21 @@ export default ({ funcs, globals, tags, data, exceptions, pages }) => {
     for (let _ = 0; _ < f.wasm.length; _++) {
       const i = f.wasm[_];
 
+      if (i[0] === null && i[1] === 'c') {
+        // inline c
+        let c = i[2];
+        c = c.replace(/^\s*(?:(?:inline|static)\s+)?\w+\s+\*?\s*\w+\s*\(.*?\)\s* {([\w\W]*?)\n}/gm, _ => {
+          prepend.set(_, _);
+          return '';
+        });
+        line(c);
+
+        // hack: add includes for some common calls
+        if (c.includes('printf')) includes.set('stdio.h', true);
+
+        continue;
+      }
+
       if (i[0] === null && i[1] === 'dlopen') {
         // special ffi time
         const path = i[2];
@@ -726,7 +741,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           break;
 
         case Opcodes.call_indirect:
-          // todo: stub
+          // stub
           if (Prefs.d) log.warning('2c', `unimplemented op: ${invOpcodes[i[0]]} \x1b[2m(${f.name})`);
           vals.pop();
           vals.push('0', '0');
@@ -837,23 +852,12 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           includes.set('math.h', true);
           break;
         case Opcodes.f64_trunc:
-          // vals.push(`trunc(${vals.pop()})`);
-          // includes.set('math.h', true);
-
-          vals.push(`(i32)(${removeBrackets(vals.pop())})`); // this is ~10x faster with clang??
+          vals.push(`(i32)(${removeBrackets(vals.pop())})`); // this is ~10x faster than math.h's trunc() with clang??
           break;
         case Opcodes.f64_nearest:
           vals.push(`round(${vals.pop()})`);
           includes.set('math.h', true);
           break;
-
-        // case Opcodes.f64_sqrt: {
-        //   break;
-        // }
-
-        // case Opcodes.f64_copysign: {
-        //   break;
-        // }
 
         case Opcodes.memory_grow: {
           const id = localTmpId++;

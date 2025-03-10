@@ -6320,6 +6320,12 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
       return out;
     },
 
+    __Porffor_c: str => {
+      return [
+        [ null, 'c', str ]
+      ];
+    },
+
     __Porffor_bs: str => makeString(scope, str, true),
     __Porffor_s: str => makeString(scope, str, false)
   };
