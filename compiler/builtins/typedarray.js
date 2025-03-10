@@ -18,10 +18,9 @@ export default async () => {
   let len: i32 = 0;
   let bufferPtr: i32;
 
-  const type: i32 = Porffor.type(arg);
   if (Porffor.fastOr(
-    type == Porffor.TYPES.arraybuffer,
-    type == Porffor.TYPES.sharedarraybuffer
+    Porffor.type(arg) == Porffor.TYPES.arraybuffer,
+    Porffor.type(arg) == Porffor.TYPES.sharedarraybuffer
   )) {
     bufferPtr = Porffor.wasm\`local.get \${arg}\`;
 
@@ -45,17 +44,17 @@ export default async () => {
     Porffor.wasm.i32.store(outPtr, bufferPtr, 0, 4);
 
     if (Porffor.fastOr(
-      type == Porffor.TYPES.array,
-      type == Porffor.TYPES.string, type == Porffor.TYPES.bytestring,
-      type == Porffor.TYPES.set,
-      Porffor.fastAnd(type >= Porffor.TYPES.uint8array, type <= Porffor.TYPES.float64array)
+      Porffor.type(arg) == Porffor.TYPES.array,
+      Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
+      Porffor.type(arg) == Porffor.TYPES.set,
+      Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8array, Porffor.type(arg) <= Porffor.TYPES.float64array)
     )) {
       let i: i32 = 0;
       for (const x of arg) {
         out[i++] = x;
       }
       len = i;
-    } else if (type == Porffor.TYPES.number) {
+    } else if (Porffor.type(arg) == Porffor.TYPES.number) {
       len = Math.trunc(arg);
     }
 
@@ -75,17 +74,14 @@ export const __${name}_from = (arg: any, mapFn: any): ${name} => {
   const arr: any[] = Porffor.allocate();
   let len: i32 = 0;
 
-  const type = Porffor.type(arg);
   if (Porffor.fastOr(
-    type == Porffor.TYPES.array,
-    type == Porffor.TYPES.string, type == Porffor.TYPES.bytestring,
-    type == Porffor.TYPES.set,
-    Porffor.fastAnd(type >= Porffor.TYPES.uint8array, type <= Porffor.TYPES.float64array)
+    Porffor.type(arg) == Porffor.TYPES.array,
+    Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
+    Porffor.type(arg) == Porffor.TYPES.set,
+    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8array, Porffor.type(arg) <= Porffor.TYPES.float64array)
   )) {
-    const hasMapFn = Porffor.type(mapFn) != Porffor.TYPES.undefined;
-
     let i: i32 = 0;
-    if (hasMapFn) {
+    if (Porffor.type(mapFn) != Porffor.TYPES.undefined) {
       if (Porffor.type(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
 
       for (const x of arg) {

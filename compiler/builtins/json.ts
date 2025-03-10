@@ -6,10 +6,9 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
   if (value === true) return 'true';
   if (value === false) return 'false';
 
-  const t: i32 = Porffor.type(value);
   if (Porffor.fastOr(
-    (t | 0b10000000) == Porffor.TYPES.bytestring,
-    t == Porffor.TYPES.stringobject
+    (Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring,
+    Porffor.type(value) == Porffor.TYPES.stringobject
   )) { // string
     const out: bytestring = Porffor.allocate();
     Porffor.bytestring.appendChar(out, 34); // start "
@@ -71,14 +70,14 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
   }
 
   if (Porffor.fastOr(
-    t == Porffor.TYPES.number,
-    t == Porffor.TYPES.numberobject
+    Porffor.type(value) == Porffor.TYPES.number,
+    Porffor.type(value) == Porffor.TYPES.numberobject
   )) { // number
     if (Number.isFinite(value)) return __Number_prototype_toString(value, 10);
     return 'null';
   }
 
-  if (t == Porffor.TYPES.array) {
+  if (Porffor.type(value) == Porffor.TYPES.array) {
     const out: bytestring = Porffor.allocate();
     Porffor.bytestring.appendChar(out, 91); // [
 
@@ -115,7 +114,7 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
     return out;
   }
 
-  if (t > 0x06) {
+  if (Porffor.type(value) > 0x06) {
     // non-function object
     const out: bytestring = Porffor.allocate();
     Porffor.bytestring.appendChar(out, 123); // {
@@ -167,7 +166,7 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
     return out;
   }
 
-  if (t == 0x04) {
+  if (Porffor.type(value) == 0x04) {
     // bigint
     throw new TypeError('Cannot serialize BigInts');
   }

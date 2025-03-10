@@ -1,12 +1,10 @@
 import type {} from './porffor.d.ts';
 
 export const __ArrayBuffer_isView = (value: any): boolean => {
-  const t: i32 = Porffor.type(value);
-  if (Porffor.fastOr(
-    t == Porffor.TYPES.dataview,
-    Porffor.fastAnd(t >= Porffor.TYPES.uint8array, t <= Porffor.TYPES.float64array)
-  )) return true;
-  return false;
+  return Porffor.fastOr(
+    Porffor.type(value) == Porffor.TYPES.dataview,
+    Porffor.fastAnd(Porffor.type(value) >= Porffor.TYPES.uint8array, Porffor.type(value) <= Porffor.TYPES.float64array)
+  );
 };
 
 export const __Porffor_arraybuffer_detach = (buffer: any): void => {

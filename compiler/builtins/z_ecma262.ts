@@ -28,20 +28,18 @@ export const __ecma262_ToPrimitive_String = (input: any): any => {
 // 7.1.4 ToNumber (argument)
 // https://tc39.es/ecma262/#sec-tonumber
 export const __ecma262_ToNumber = (argument: unknown): number => {
-  const t: i32 = Porffor.type(argument);
-
   // 1. If argument is a Number, return argument.
-  if (t == Porffor.TYPES.number) return argument;
+  if (Porffor.type(argument) == Porffor.TYPES.number) return argument;
 
   // 2. If argument is either a Symbol or a BigInt, throw a TypeError exception.
   if (Porffor.fastOr(
-    t == Porffor.TYPES.symbol,
-    t == Porffor.TYPES.bigint)) throw new TypeError('Cannot convert Symbol or BigInt to a number');
+    Porffor.type(argument) == Porffor.TYPES.symbol,
+    Porffor.type(argument) == Porffor.TYPES.bigint)) throw new TypeError('Cannot convert Symbol or BigInt to a number');
 
   // 3. If argument is undefined, return NaN.
   if (Porffor.fastOr(
-    t == Porffor.TYPES.undefined,
-    t == Porffor.TYPES.empty)) return NaN;
+    Porffor.type(argument) == Porffor.TYPES.undefined,
+    Porffor.type(argument) == Porffor.TYPES.empty)) return NaN;
 
   // 4. If argument is either null or false, return +0𝔽.
   if (Porffor.fastOr(
@@ -54,8 +52,8 @@ export const __ecma262_ToNumber = (argument: unknown): number => {
 
   // 6. If argument is a String, return StringToNumber(argument).
   if (Porffor.fastOr(
-    t == Porffor.TYPES.string,
-    t == Porffor.TYPES.bytestring)) return __ecma262_StringToNumber(argument);
+    Porffor.type(argument) == Porffor.TYPES.string,
+    Porffor.type(argument) == Porffor.TYPES.bytestring)) return __ecma262_StringToNumber(argument);
 
   // 7. Assert: argument is an Object.
   // 8. Let primValue be ? ToPrimitive(argument, number).
@@ -124,27 +122,25 @@ export const __ecma262_ToIndex = (value: unknown): number => {
 // 7.1.17 ToString (argument)
 // https://tc39.es/ecma262/#sec-tostring
 export const __ecma262_ToString = (argument: unknown): any => {
-  const type: i32 = Porffor.type(argument);
-
   // 1. If argument is a String, return argument.
   if (Porffor.fastOr(
-    type == Porffor.TYPES.string,
-    type == Porffor.TYPES.bytestring)) return argument;
+    Porffor.type(argument) == Porffor.TYPES.string,
+    Porffor.type(argument) == Porffor.TYPES.bytestring)) return argument;
 
   // 2. If argument is a Symbol, throw a TypeError exception.
-  if (type == Porffor.TYPES.symbol) throw new TypeError('Cannot convert a Symbol value to a string');
+  if (Porffor.type(argument) == Porffor.TYPES.symbol) throw new TypeError('Cannot convert a Symbol value to a string');
 
   // 3. If argument is undefined, return "undefined".
   if (Porffor.fastOr(
-    type == Porffor.TYPES.undefined,
-    type == Porffor.TYPES.empty)) return 'undefined';
+    Porffor.type(argument) == Porffor.TYPES.undefined,
+    Porffor.type(argument) == Porffor.TYPES.empty)) return 'undefined';
 
   // 4. If argument is null, return "null".
   if (Porffor.fastAnd(
-    type == Porffor.TYPES.object,
+    Porffor.type(argument) == Porffor.TYPES.object,
     argument == 0)) return 'null';
 
-  if (type == Porffor.TYPES.boolean) {
+  if (Porffor.type(argument) == Porffor.TYPES.boolean) {
     // 5. If argument is true, return "true".
     if (argument == true) return 'true';
 
@@ -153,15 +149,15 @@ export const __ecma262_ToString = (argument: unknown): any => {
   }
 
   // 7. If argument is a Number, return Number::toString(argument, 10).
-  if (type == Porffor.TYPES.number) return __Number_prototype_toString(argument, 10);
+  if (Porffor.type(argument) == Porffor.TYPES.number) return __Number_prototype_toString(argument, 10);
 
   // 8. If argument is a BigInt, return BigInt::toString(argument, 10).
   if (Porffor.comptime.flag`hasType.bigint`) {
-    if (type == Porffor.TYPES.bigint) return __Porffor_bigint_toString(argument, 10);
+    if (Porffor.type(argument) == Porffor.TYPES.bigint) return __Porffor_bigint_toString(argument, 10);
   }
 
   // hack: StringObject -> String
-  if (type == Porffor.TYPES.stringobject) {
+  if (Porffor.type(argument) == Porffor.TYPES.stringobject) {
     return argument as string;
   }
 

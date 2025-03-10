@@ -20,8 +20,7 @@ export const __Object_keys = (obj: any): any[] => {
   const out: any[] = Porffor.allocate();
 
   obj = __Porffor_object_underlying(obj);
-  const t: i32 = Porffor.type(obj);
-  if (t == Porffor.TYPES.object) {
+  if (Porffor.type(obj) == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 8;
     const endPtr: i32 = ptr + Porffor.wasm.i32.load16_u(obj, 0, 0) * 18;
 
@@ -76,8 +75,7 @@ export const __Object_values = (obj: any): any[] => {
   const out: any[] = Porffor.allocate();
 
   obj = __Porffor_object_underlying(obj);
-  const t: i32 = Porffor.type(obj);
-  if (t == Porffor.TYPES.object) {
+  if (Porffor.type(obj) == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 8;
     const endPtr: i32 = ptr + Porffor.wasm.i32.load16_u(obj, 0, 0) * 18;
 
@@ -146,8 +144,7 @@ export const __Object_prototype_hasOwnProperty = (_this: any, prop: any) => {
   if (_this == null) throw new TypeError('Argument is nullish, expected object');
   const p: any = ecma262.ToPropertyKey(prop);
 
-  const t: i32 = Porffor.type(_this);
-  if (t == Porffor.TYPES.object) {
+  if (Porffor.type(_this) == Porffor.TYPES.object) {
     return Porffor.object.lookup(_this, p, __Porffor_object_hash(p)) != -1;
   }
 
@@ -414,8 +411,7 @@ export const __Object_getOwnPropertyNames = (obj: any): any[] => {
   const out: any[] = Porffor.allocate();
 
   obj = __Porffor_object_underlying(obj);
-  const t: i32 = Porffor.type(obj);
-  if (t == Porffor.TYPES.object) {
+  if (Porffor.type(obj) == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 8;
     const endPtr: i32 = ptr + Porffor.wasm.i32.load16_u(obj, 0, 0) * 18;
 
@@ -469,8 +465,7 @@ export const __Object_getOwnPropertySymbols = (obj: any): any[] => {
   const out: any[] = Porffor.allocate();
 
   obj = __Porffor_object_underlying(obj);
-  const t: i32 = Porffor.type(obj);
-  if (t == Porffor.TYPES.object) {
+  if (Porffor.type(obj) == Porffor.TYPES.object) {
     let ptr: i32 = Porffor.wasm`local.get ${obj}` + 8;
     const endPtr: i32 = ptr + Porffor.wasm.i32.load16_u(obj, 0, 0) * 18;
 
@@ -686,22 +681,20 @@ export const __Object_prototype_toString = (_this: any) => {
   if (_this === null) return '[object Null]';
 
   // todo: toStringTag support
-
-  const t: i32 = Porffor.type(_this);
-  if (t == Porffor.TYPES.array) return '[object Array]';
-  if (t == Porffor.TYPES.function) return '[object Function]';
+  if (Porffor.type(_this) == Porffor.TYPES.array) return '[object Array]';
+  if (Porffor.type(_this) == Porffor.TYPES.function) return '[object Function]';
   if (Porffor.fastOr(
-    t == Porffor.TYPES.boolean,
-    t == Porffor.TYPES.booleanobject)) return '[object Boolean]';
+    Porffor.type(_this) == Porffor.TYPES.boolean,
+    Porffor.type(_this) == Porffor.TYPES.booleanobject)) return '[object Boolean]';
   if (Porffor.fastOr(
-    t == Porffor.TYPES.number,
-    t == Porffor.TYPES.numberobject)) return '[object Number]';
+    Porffor.type(_this) == Porffor.TYPES.number,
+    Porffor.type(_this) == Porffor.TYPES.numberobject)) return '[object Number]';
   if (Porffor.fastOr(
-    t == Porffor.TYPES.string,
-    t == Porffor.TYPES.bytestring,
-    t == Porffor.TYPES.stringobject)) return '[object String]';
-  if (t == Porffor.TYPES.date) return '[object Date]';
-  if (t == Porffor.TYPES.regexp) return '[object RegExp]';
+    Porffor.type(_this) == Porffor.TYPES.string,
+    Porffor.type(_this) == Porffor.TYPES.bytestring,
+    Porffor.type(_this) == Porffor.TYPES.stringobject)) return '[object String]';
+  if (Porffor.type(_this) == Porffor.TYPES.date) return '[object Date]';
+  if (Porffor.type(_this) == Porffor.TYPES.regexp) return '[object RegExp]';
 
   return '[object Object]';
 };

@@ -39,14 +39,12 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
   if (arg == null) throw new TypeError('Argument cannot be nullish');
 
   let out: any[] = Porffor.allocate();
-  let len: i32 = 0;
 
-  const type = Porffor.type(arg);
   if (Porffor.fastOr(
-    type == Porffor.TYPES.array,
-    type == Porffor.TYPES.string, type == Porffor.TYPES.bytestring,
-    type == Porffor.TYPES.set,
-    Porffor.fastAnd(type >= Porffor.TYPES.uint8array, type <= Porffor.TYPES.float64array)
+    Porffor.type(arg) == Porffor.TYPES.array,
+    Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
+    Porffor.type(arg) == Porffor.TYPES.set,
+    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8array, Porffor.type(arg) <= Porffor.TYPES.float64array)
   )) {
     let i: i32 = 0;
     if (Porffor.type(mapFn) != Porffor.TYPES.undefined) {
@@ -62,20 +60,23 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
       }
     }
 
-    len = i;
+    out.length = i;
+    return out;
   }
 
-  if (type == Porffor.TYPES.object) {
-    len = ecma262.ToIntegerOrInfinity((arg as object)['length']);
+  if (Porffor.type(arg) == Porffor.TYPES.object) {
+    let len = ecma262.ToIntegerOrInfinity((arg as object)['length']);
     if (len > 4294967295) throw new RangeError('Invalid array length');
     if (len < 0) len = 0;
 
     for (let i: i32 = 0; i < len; i++) {
       out[i] = (arg as object)[i];
     }
+
+    out.length = len;
+    return out;
   }
 
-  out.length = len;
   return out;
 };
 
@@ -646,16 +647,14 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
 
       // 23.1.3.30.2 CompareArrayElements (x, y, comparefn)
       // https://tc39.es/ecma262/#sec-comparearrayelements
-      const xt: i32 = Porffor.type(x);
-      const yt: i32 = Porffor.type(y);
       let v: number;
 
       // 1. If x and y are both undefined, return +0𝔽.
-      if (xt == Porffor.TYPES.undefined && yt == Porffor.TYPES.undefined) v = 0;
+      if (Porffor.type(x) == Porffor.TYPES.undefined && Porffor.type(y) == Porffor.TYPES.undefined) v = 0;
         // 2. If x is undefined, return 1𝔽.
-        else if (xt == Porffor.TYPES.undefined) v = 1;
+        else if (Porffor.type(x) == Porffor.TYPES.undefined) v = 1;
         // 3. If y is undefined, return -1𝔽.
-        else if (yt == Porffor.TYPES.undefined) v = -1;
+        else if (Porffor.type(y) == Porffor.TYPES.undefined) v = -1;
         else {
           // 4. If comparefn is not undefined, then
           // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
@@ -690,10 +689,9 @@ export const __Array_prototype_toString = (_this: any[]) => {
     if (i > 0) Porffor.bytestring.appendChar(out, 44);
 
     const element: any = _this[i++];
-    const type: i32 = Porffor.type(element);
     if (element != 0 || Porffor.fastAnd(
-      type != Porffor.TYPES.undefined, // undefined
-      type != Porffor.TYPES.object // null
+      Porffor.type(element) != Porffor.TYPES.undefined, // undefined
+      Porffor.type(element) != Porffor.TYPES.object // null
     )) {
       Porffor.bytestring.appendStr(out, ecma262.ToString(element));
     }
@@ -722,10 +720,9 @@ export const __Array_prototype_join = (_this: any[], _separator: any) => {
     if (i > 0) Porffor.bytestring.appendStr(out, separator);
 
     const element: any = _this[i++];
-    const type: i32 = Porffor.type(element);
     if (element != 0 || Porffor.fastAnd(
-      type != Porffor.TYPES.undefined, // undefined
-      type != Porffor.TYPES.object // null
+      Porffor.type(element) != Porffor.TYPES.undefined, // undefined
+      Porffor.type(element) != Porffor.TYPES.object // null
     )) {
       Porffor.bytestring.appendStr(out, ecma262.ToString(element));
     }
