@@ -128,8 +128,6 @@ export const __${name}_prototype_at = (_this: ${name}, index: number) => {
 
 export const __${name}_prototype_slice = (_this: ${name}, start: number, end: number) => {
   const len: i32 = _this.length;
-  if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
-
   start |= 0;
   end |= 0;
 
@@ -160,7 +158,6 @@ export const __${name}_prototype_slice = (_this: ${name}, start: number, end: nu
 
 export const __${name}_prototype_set = (_this: ${name}, array: any, offset: number) => {
   const len: i32 = _this.length;
-  if (Porffor.type(offset) == Porffor.TYPES.undefined) offset = 0;
 
   offset |= 0;
   if (Porffor.fastOr(offset < 0, offset > len)) throw new RangeError('Offset out of bounds');
@@ -177,6 +174,32 @@ export const __${name}_prototype_set = (_this: ${name}, array: any, offset: numb
       if (i > len) throw new RangeError('Array is too long for given offset');
     }
   }
+};
+
+export const __${name}_prototype_subarray = (_this: ${name}, start: number, end: any) => {
+  const len: i32 = _this.length;
+  if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
+
+  start |= 0;
+  end |= 0;
+
+  if (start < 0) {
+    start = len + start;
+    if (start < 0) start = 0;
+  }
+  if (start > len) start = len;
+  if (end < 0) {
+    end = len + end;
+    if (end < 0) end = 0;
+  }
+  if (end > len) end = len;
+
+  const out: ${name} = Porffor.allocateBytes(12);
+  Porffor.wasm.i32.store(out, end - start, 0, 0);
+  Porffor.wasm.i32.store(out, Porffor.wasm.i32.load(_this, 0, 4) + start * ${name}.BYTES_PER_ELEMENT, 0, 4);
+  Porffor.wasm.i32.store(out, Porffor.wasm.i32.load(_this, 0, 8) + start * ${name}.BYTES_PER_ELEMENT, 0, 8);
+
+  return out;
 };
 
 ${typedArrayFuncs.reduce((acc, x) => acc + x.replace('// @porf-typed-array\n', '').replaceAll('Array', name).replaceAll('any[]', name) + '\n\n', '')}
