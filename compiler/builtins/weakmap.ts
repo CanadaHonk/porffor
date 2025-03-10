@@ -1,21 +1,18 @@
 import type {} from './porffor.d.ts';
 
 export const __WeakMap_prototype_has = (_this: WeakMap, key: any) => {
-  const map: Map = _this;
-  return __Map_prototype_has(map, key);
+  return __Map_prototype_has(_this as Map, key);
 };
 
 export const __WeakMap_prototype_set = (_this: WeakMap, key: any, value: any) => {
   if (!Porffor.object.isObjectOrSymbol(key)) throw new TypeError('Value in WeakSet needs to be an object or symbol');
 
-  const map: Map = _this;
-  __Map_prototype_set(map, key, value);
+  __Map_prototype_set(_this as Map, key, value);
   return _this;
 };
 
 export const __WeakMap_prototype_delete = (_this: WeakMap, key: any) => {
-  const map: Map = _this;
-  return __Map_prototype_delete(map, key);
+  return __Map_prototype_delete(_this as Map, key);
 };
 
 export const WeakMap = function (iterable: any): WeakMap {
@@ -23,10 +20,9 @@ export const WeakMap = function (iterable: any): WeakMap {
 
   const out: WeakMap = Porffor.allocateBytes(8);
 
-  const keys: Set = Porffor.allocate();
-  Porffor.wasm.i32.store(out, keys, 0, 0);
-
+  const keys: any[] = Porffor.allocate();
   const vals: any[] = Porffor.allocate();
+  Porffor.wasm.i32.store(out, keys, 0, 0);
   Porffor.wasm.i32.store(out, vals, 0, 4);
 
   if (iterable != null) for (const x of iterable) {
