@@ -779,10 +779,15 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
         }
 
         case Opcodes.throw: {
-          // todo: actually print exception
-          vals.pop();
-          vals.pop();
-          line(`printf("Uncaught exception\\n")`);
+          // todo: allow catching
+          const type = vals.pop();
+          const val = vals.pop();
+          line(`printf("Uncaught ")`);
+
+          const id = tmpId++;
+          line(`const struct ReturnValue _t${id} = __ecma262_ToString(${val}, ${type})`);
+          line(`__Porffor_printString(_t${id}.value, _t${id}.type)`);
+          line(`printf("\\n")`);
           line(`exit(1)`);
 
           includes.set('stdio.h', true);
