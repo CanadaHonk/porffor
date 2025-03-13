@@ -21,7 +21,7 @@ export const __Porffor_bigint_fromDigits = (negative: boolean, digits: i32[]): b
 
   if (allZero) {
     // todo: free ptr
-    ptr = 0;
+    return 0 as bigint;
   }
 
   return (ptr + 0x8000000000000) as bigint;
