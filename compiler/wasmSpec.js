@@ -131,9 +131,13 @@ export const Opcodes = {
   i32_ne: 0x47,
 
   i32_lt_s: 0x48,
-  i32_le_s: 0x4c,
+  i32_lt_u: 0x49,
   i32_gt_s: 0x4a,
+  i32_gt_u: 0x4b,
+  i32_le_s: 0x4c,
+  i32_le_u: 0x4d,
   i32_ge_s: 0x4e,
+  i32_ge_u: 0x4f,
 
   i32_clz: 0x67,
   i32_ctz: 0x68,
