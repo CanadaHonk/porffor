@@ -36,7 +36,7 @@ const progressStart = msg => {
 
   const log = (extra, after) => {
     const pre = extra ? `${extra}` : spinner[spin++ % 4];
-    process.stdout.write(`\r\u001b[2m${' '.repeat(120)}\r${' '.repeat(12 - pre.length)}${pre}  ${msg}${after ?? ''}\u001b[0m`);
+    process.stdout.write(`\r\u001b[2m${' '.repeat(60)}\r${' '.repeat(12 - pre.length)}${pre}  ${msg}${after ?? ''}\u001b[0m`);
   };
   log();
 
@@ -49,7 +49,7 @@ const progressDone = (msg, start) => {
   clearInterval(progressInterval);
 
   const timeStr = (performance.now() - start).toFixed(0);
-  console.log(`\r${' '.repeat(120)}\r\u001b[2m${' '.repeat(10 - timeStr.length)}${timeStr}ms\u001b[0m  \u001b[92m${msg}\u001b[0m`);
+  console.log(`\r${' '.repeat(60)}\r\u001b[2m${' '.repeat(10 - timeStr.length)}${timeStr}ms\u001b[0m  \u001b[92m${msg}\u001b[0m`);
   progressLines++;
 };
 const progressClear = () => {
