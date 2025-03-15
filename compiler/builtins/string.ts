@@ -1354,9 +1354,10 @@ export const __ByteString_prototype_split = (_this: bytestring, separator: any, 
 
   let tmp: bytestring = Porffor.allocate(), tmpLen: i32 = 0;
   const thisLen: i32 = _this.length, sepLen: i32 = separator.length;
-  if (sepLen == 1) {
+
+  if (sepLen == 1 || separator === undefined) {
     // fast path: single char separator
-    const sepChar: i32 = separator.charCodeAt(0);
+    const sepChar: i32 = separator?  separator.charCodeAt(0): 0;
     for (let i: i32 = 0; i < thisLen; i++) {
       const x: i32 = Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
 
@@ -1394,7 +1395,42 @@ i32.store8 0 12`;
       Porffor.wasm.i32.store8(Porffor.wasm`local.get ${tmp}` + tmpLen, x, 0, 4);
       tmpLen++;
     }
-  } else {
+  }  else if (sepLen == 0) {
+    const clammedLimit: i32 = limit > thisLen ? thisLen : limit;
+    for (let i = 0; i <= clammedLimit; i++) {
+      tmp = Porffor.allocate();
+      tmpLen = 0;
+      const x: i32 = Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
+
+      Porffor.wasm.i32.store8(Porffor.wasm`local.get ${tmp}` + tmpLen, x, 0, 4);
+      tmpLen = 1;
+      tmp.length = tmpLen;
+      out.length = outLen;
+
+Porffor.wasm`
+  local.get ${out}
+  local.get ${outLen}
+  i32.const 9
+  i32.mul 
+  i32.add
+  local.get ${tmp}
+  f64.convert_i32_u
+  f64.store 0 4
+
+  local.get ${out}
+  local.get ${outLen}
+  i32.const 9 
+  i32.mul
+  i32.add
+  local.get ${bsType}
+  i32.store8 0 12
+    `;
+      tmpLen++;
+      outLen++;
+    }
+    return out;
+  }
+  else {
     let sepInd: i32 = 0;
     for (let i: i32 = 0; i < thisLen; i++) {
       const x: i32 = Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
