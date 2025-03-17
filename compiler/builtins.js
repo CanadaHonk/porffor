@@ -881,6 +881,185 @@ export const BuiltinFuncs = function() {
     ]
   };
 
+  this.__Porffor_bigint_fromU64 = {
+    params: [ Valtype.i64 ],
+    locals: [ Valtype.i32, Valtype.i32, Valtype.i32 ],
+    localNames: [ 'x', 'hi', 'lo', 'ptr' ],
+    returns: [ Valtype.f64 ],
+    returnType: TYPES.bigint,
+    wasm: (scope, { builtin }) => [
+      // x is u64 so abs(x) = x
+      [ Opcodes.local_get, 0 ],
+      number(32, Valtype.i64),
+      [ Opcodes.i64_shr_u ],
+      [ Opcodes.i32_wrap_i64 ],
+      [ Opcodes.local_tee, 1 ],
+
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.i32_wrap_i64 ],
+      [ Opcodes.local_set, 2 ],
+
+      // if abs(x) < 0x8000000000000, return x as bigint
+      number(0x8000000000000 / (2 ** 32), Valtype.i32),
+      [ Opcodes.i32_lt_u ],
+      [ Opcodes.if, Blocktype.void ],
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.f64_convert_i64_u ],
+        [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      number(16, Valtype.i32),
+      [ Opcodes.call, builtin('__Porffor_allocateBytes') ],
+      [ Opcodes.local_tee, 3 ],
+
+      // sign is already 0
+      // digit count = 2
+      number(2, Valtype.i32),
+      [ Opcodes.i32_store16, 0, 2 ],
+
+      // hi and lo as digits
+      [ Opcodes.local_get, 3 ],
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.i32_store, 0, 4 ],
+
+      [ Opcodes.local_get, 3 ],
+      [ Opcodes.local_get, 2 ],
+      [ Opcodes.i32_store, 0, 8 ],
+
+      [ Opcodes.local_get, 3 ],
+      Opcodes.i32_from_u,
+      number(0x8000000000000, Valtype.f64),
+      [ Opcodes.f64_add ]
+    ]
+  };
+
+  this.__Porffor_bigint_fromS64 = {
+    params: [ Valtype.i64 ],
+    locals: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i64 ],
+    localNames: [ 'x', 'hi', 'lo', 'ptr', 'abs' ],
+    returns: [ Valtype.f64 ],
+    returnType: TYPES.bigint,
+    wasm: (scope, { builtin }) => [
+      // abs = abs(x) = ((x >> 63) ^ x) - (x >> 63)
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.i64_const, 63 ],
+      [ Opcodes.i64_shr_s ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.i64_xor ],
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.i64_const, 63 ],
+      [ Opcodes.i64_shr_s ],
+      [ Opcodes.i64_sub ],
+      [ Opcodes.local_tee, 4 ],
+
+      number(32, Valtype.i64),
+      [ Opcodes.i64_shr_u ],
+      [ Opcodes.i32_wrap_i64 ],
+      [ Opcodes.local_tee, 1 ],
+
+      [ Opcodes.local_get, 4 ],
+      [ Opcodes.i32_wrap_i64 ],
+      [ Opcodes.local_set, 2 ],
+
+      // if hi < (0x8000000000000 / 2**32), return (hi * 2**32) + lo as bigint
+      number(0x8000000000000 / (2 ** 32), Valtype.i32),
+      [ Opcodes.i32_lt_u ],
+      [ Opcodes.if, Blocktype.void ],
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.f64_convert_i64_s ],
+        [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      number(16, Valtype.i32),
+      [ Opcodes.call, builtin('__Porffor_allocateBytes') ],
+      [ Opcodes.local_tee, 3 ],
+
+      // sign = x != abs
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.local_get, 4 ],
+      [ Opcodes.i64_ne ],
+      [ Opcodes.i32_store8, 0, 0 ],
+
+      // digit count = 2
+      [ Opcodes.local_get, 3 ],
+      number(2, Valtype.i32),
+      [ Opcodes.i32_store16, 0, 2 ],
+
+      // hi and lo as digits
+      [ Opcodes.local_get, 3 ],
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.i32_store, 0, 4 ],
+
+      [ Opcodes.local_get, 3 ],
+      [ Opcodes.local_get, 2 ],
+      [ Opcodes.i32_store, 0, 8 ],
+
+      [ Opcodes.local_get, 3 ],
+      Opcodes.i32_from_u,
+      number(0x8000000000000, Valtype.f64),
+      [ Opcodes.f64_add ]
+    ]
+  };
+
+  this.__Porffor_bigint_toI64 = {
+    params: [ Valtype.f64 ],
+    locals: [ Valtype.i32, Valtype.i32 ],
+    localNames: [ 'x', 'ptr', 'digits' ],
+    returns: [ Valtype.i64 ],
+    returnType: TYPES.bigint,
+    wasm: () => [
+      // if abs(x) < 0x8000000000000, return x as u64
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.f64_abs ],
+      number(0x8000000000000, Valtype.f64),
+      [ Opcodes.f64_lt ],
+      [ Opcodes.if, Blocktype.void ],
+        [ Opcodes.local_get, 0 ],
+        Opcodes.i64_trunc_sat_f64_s,
+        [ Opcodes.return ],
+      [ Opcodes.end ],
+
+      [ Opcodes.local_get, 0 ],
+      Opcodes.i32_to_u,
+      [ Opcodes.local_tee, 1 ],
+
+      // if sign == 1, * -1, else * 1
+      [ Opcodes.i32_load8_u, 0, 0 ],
+      [ Opcodes.if, Valtype.i64 ],
+        number(-1, Valtype.i64),
+      [ Opcodes.else ],
+        number(1, Valtype.i64),
+      [ Opcodes.end ],
+
+      // move ptr to final 2 digits
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.i32_load16_u, 0, 2 ],
+      [ Opcodes.local_tee, 2 ],
+      [ Opcodes.i32_const, 2 ],
+      [ Opcodes.i32_gt_u ],
+      [ Opcodes.if, Blocktype.void ],
+        [ Opcodes.local_get, 2 ],
+        [ Opcodes.i32_const, 2 ],
+        [ Opcodes.i32_sub ],
+        [ Opcodes.i32_const, 4 ],
+        [ Opcodes.i32_mul ],
+        [ Opcodes.local_get, 1 ],
+        [ Opcodes.i32_add ],
+        [ Opcodes.local_set, 1 ],
+      [ Opcodes.end ],
+
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.i32_load, 0, 4 ],
+      [ Opcodes.i64_extend_i32_u ],
+      [ Opcodes.i64_const, 128, 128, 128, 128, 16 ], // todo: fix >2**32 for regular seb 128 encoding
+      [ Opcodes.i64_mul ],
+      [ Opcodes.local_get, 1 ],
+      [ Opcodes.i32_load, 0, 8 ],
+      [ Opcodes.i64_extend_i32_u ],
+      [ Opcodes.i64_add ],
+      [ Opcodes.i64_mul ] // * sign earlier
+    ]
+  };
 
   PrecompiledBuiltins.BuiltinFuncs.call(this);
 };
