@@ -4603,7 +4603,7 @@ const generateForOf = (scope, decl) => {
 
   const prevDepth = depth.length;
 
-  const makeTypedArrayNext = (getOp, elementSize) => [
+  const makeTypedArrayNext = (getOp, elementSize, type = TYPES.number) => [
     // if counter == length then break
     [ Opcodes.local_get, counter ],
     [ Opcodes.local_get, length ],
@@ -4631,8 +4631,8 @@ const generateForOf = (scope, decl) => {
     [ Opcodes.i32_add ],
     [ Opcodes.local_set, counter ],
 
-    // set last type to number
-    ...setLastType(scope, TYPES.number)
+    // set last type to number or specified
+    ...setLastType(scope, type, true)
   ];
 
   // Wasm to get next element
@@ -4788,7 +4788,14 @@ const generateForOf = (scope, decl) => {
     [ TYPES.float64array, () => makeTypedArrayNext([
       [ Opcodes.f64_load, 0, 4 ]
     ], 8) ],
-    // todo: bigint64array and biguint64array
+    [ TYPES.bigint64array, () => makeTypedArrayNext([
+      [ Opcodes.i64_load, 0, 4 ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_bigint_fromS64').index ]
+    ], 8, TYPES.bigint) ],
+    [ TYPES.biguint64array, () => makeTypedArrayNext([
+      [ Opcodes.i64_load, 0, 4 ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_bigint_fromU64').index ]
+    ], 8, TYPES.bigint) ],
     [ TYPES.__porffor_generator, () => [
       // just break?! TODO: actually implement this
       [ Opcodes.br, depth.length - prevDepth ]
