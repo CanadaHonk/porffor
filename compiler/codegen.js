@@ -1659,7 +1659,7 @@ const getNodeType = (scope, node) => {
       if (node.operator === 'delete') return TYPES.boolean;
       if (node.operator === 'typeof') return TYPES.bytestring;
 
-      // todo: proper bigint support
+      // todo: non-static bigint support
       const type = getNodeType(scope, node.argument);
       const known = knownType(scope, type);
       if (known === TYPES.bigint) return TYPES.bigint;
@@ -1668,6 +1668,7 @@ const getNodeType = (scope, node) => {
     }
 
     if (node.type === 'UpdateExpression') {
+      // todo: bigint support
       return TYPES.number;
     }
 
@@ -1932,7 +1933,7 @@ const typeIsIterable = wasm => [
   number(TYPES.uint8array, Valtype.i32),
   [ Opcodes.i32_ge_s ],
   ...wasm,
-  number(TYPES.float64array, Valtype.i32),
+  number(TYPES.biguint64array, Valtype.i32),
   [ Opcodes.i32_le_s ],
   [ Opcodes.i32_and ],
   [ Opcodes.i32_or ],
@@ -3898,6 +3899,56 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
               [ Opcodes.f64_store, 0, 4 ]
             ],
+            [TYPES.bigint64array]: () => [
+              number(8, Valtype.i32),
+              [ Opcodes.i32_mul ],
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? [
+                ...generate(scope, decl.right),
+                ...getNodeType(scope, decl.right),
+                [ Opcodes.call, includeBuiltin(scope, '__ecma262_ToBigInt').index ]
+              ] : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.i64_load, 0, 4 ],
+                [ Opcodes.call, includeBuiltin(scope, '__Porffor_bigint_fromS64').index ]
+              ], [
+                ...generate(scope, decl.right),
+                ...getNodeType(scope, decl.right),
+                [ Opcodes.call, includeBuiltin(scope, '__ecma262_ToBigInt').index ]
+              ], [ number(TYPES.bigint, Valtype.i32) ], [ number(TYPES.bigint, Valtype.i32) ])),
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
+
+              [ Opcodes.call, includeBuiltin(scope, '__Porffor_bigint_toI64').index ],
+              [ Opcodes.i64_store, 0, 4 ],
+              setLastType(scope, TYPES.bigint)
+            ],
+            [TYPES.biguint64array]: () => [
+              number(8, Valtype.i32),
+              [ Opcodes.i32_mul ],
+              [ Opcodes.i32_add ],
+              ...(op === '=' ? [] : [ [ Opcodes.local_tee, pointerTmp ] ]),
+
+              ...(op === '=' ? [
+                ...generate(scope, decl.right),
+                ...getNodeType(scope, decl.right),
+                [ Opcodes.call, includeBuiltin(scope, '__ecma262_ToBigInt').index ]
+              ] : performOp(scope, op, [
+                [ Opcodes.local_get, pointerTmp ],
+                [ Opcodes.i64_load, 0, 4 ],
+                [ Opcodes.call, includeBuiltin(scope, '__Porffor_bigint_fromS64').index ]
+              ], [
+                ...generate(scope, decl.right),
+                ...getNodeType(scope, decl.right),
+                [ Opcodes.call, includeBuiltin(scope, '__ecma262_ToBigInt').index ]
+              ], [ number(TYPES.bigint, Valtype.i32) ], [ number(TYPES.bigint, Valtype.i32) ])),
+              ...optional([ Opcodes.local_tee, newValueTmp ]),
+
+              [ Opcodes.call, includeBuiltin(scope, '__Porffor_bigint_toI64').index ],
+              [ Opcodes.i64_store, 0, 4 ],
+              setLastType(scope, TYPES.bigint)
+            ]
           }, {
             prelude: [
               objectGet,
@@ -4737,7 +4788,7 @@ const generateForOf = (scope, decl) => {
     [ TYPES.float64array, () => makeTypedArrayNext([
       [ Opcodes.f64_load, 0, 4 ]
     ], 8) ],
-
+    // todo: bigint64array and biguint64array
     [ TYPES.__porffor_generator, () => [
       // just break?! TODO: actually implement this
       [ Opcodes.br, depth.length - prevDepth ]
@@ -5927,7 +5978,7 @@ const generateMember = (scope, decl, _global, _name) => {
           [ Opcodes.i32_add ],
 
           [ Opcodes.f64_load, 0, 4 ]
-        ],
+        ]
       }, {
         prelude: [
           objectGet,
@@ -5939,6 +5990,31 @@ const generateMember = (scope, decl, _global, _name) => {
         ],
         postlude: setLastType(scope, TYPES.number)
       }),
+
+      ...wrapBC({
+        [TYPES.bigint64array]: () => [
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_bigint_fromS64').index ]
+        ],
+        [TYPES.biguint64array]: () => [
+          [ Opcodes.call, includeBuiltin(scope, '__Porffor_bigint_fromU64').index ]
+        ]
+      }, {
+        prelude: [
+          objectGet,
+          Opcodes.i32_to_u,
+          [ Opcodes.i32_load, 0, 4 ],
+
+          propertyGet,
+          Opcodes.i32_to_u,
+
+          number(8, Valtype.i32),
+          [ Opcodes.i32_mul ],
+          [ Opcodes.i32_add ],
+
+          [ Opcodes.i64_load, 0, 4 ]
+        ],
+        postlude: setLastType(scope, TYPES.bigint)
+      })
     } : {}),
 
     [TYPES.undefined]: internalThrow(scope, 'TypeError', `Cannot read property of undefined`, true),

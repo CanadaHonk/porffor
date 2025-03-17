@@ -9,7 +9,9 @@ export default async () => {
   // bufferPtr (i32) - buffer + byteOffset
   // byteOffset (i32) - only used for getter
 
-  const constr = name => out += `export const ${name} = function (arg: any, byteOffset: any, length: any): ${name} {
+  for (const x of [ 'Uint8', 'Int8', 'Uint8Clamped', 'Uint16', 'Int16', 'Uint32', 'Int32', 'Float32', 'Float64', 'BigInt64', 'BigUint64' ]) {
+    const name = x + 'Array';
+    out += `export const ${name} = function (arg: any, byteOffset: any, length: any): ${name} {
   if (!new.target) throw new TypeError("Constructor ${name} requires 'new'");
 
   const out: ${name} = Porffor.allocateBytes(12);
@@ -47,7 +49,7 @@ export default async () => {
       Porffor.type(arg) == Porffor.TYPES.array,
       Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
       Porffor.type(arg) == Porffor.TYPES.set,
-      Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8array, Porffor.type(arg) <= Porffor.TYPES.float64array)
+      Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8array, Porffor.type(arg) <= Porffor.TYPES.biguint64array)
     )) {
       let i: i32 = 0;
       for (const x of arg) {
@@ -78,7 +80,7 @@ export const __${name}_from = (arg: any, mapFn: any): ${name} => {
     Porffor.type(arg) == Porffor.TYPES.array,
     Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
     Porffor.type(arg) == Porffor.TYPES.set,
-    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8array, Porffor.type(arg) <= Porffor.TYPES.float64array)
+    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8array, Porffor.type(arg) <= Porffor.TYPES.biguint64array)
   )) {
     let i: i32 = 0;
     if (Porffor.type(mapFn) != Porffor.TYPES.undefined) {
@@ -166,7 +168,7 @@ export const __${name}_prototype_set = (_this: ${name}, array: any, offset: numb
     Porffor.type(array) == Porffor.TYPES.array,
     Porffor.type(array) == Porffor.TYPES.string, Porffor.type(array) == Porffor.TYPES.bytestring,
     Porffor.type(array) == Porffor.TYPES.set,
-    Porffor.fastAnd(Porffor.type(array) >= Porffor.TYPES.uint8array, Porffor.type(array) <= Porffor.TYPES.float64array)
+    Porffor.fastAnd(Porffor.type(array) >= Porffor.TYPES.uint8array, Porffor.type(array) <= Porffor.TYPES.biguint64array)
   )) {
     let i: i32 = offset;
     for (const x of array) {
@@ -202,18 +204,8 @@ export const __${name}_prototype_subarray = (_this: ${name}, start: number, end:
   return out;
 };
 
-${typedArrayFuncs.reduce((acc, x) => acc + x.replace('// @porf-typed-array\n', '').replaceAll('Array', name).replaceAll('any[]', name) + '\n\n', '')}
-`;
-
-  constr('Uint8Array');
-  constr('Int8Array');
-  constr('Uint8ClampedArray');
-  constr('Uint16Array');
-  constr('Int16Array');
-  constr('Uint32Array');
-  constr('Int32Array');
-  constr('Float32Array');
-  constr('Float64Array');
+${typedArrayFuncs.reduce((acc, x) => acc + x.replace('// @porf-typed-array\n', '').replaceAll('Array', name).replaceAll('any[]', name) + '\n\n', '')}`;
+  };
 
   return out;
 };

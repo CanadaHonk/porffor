@@ -228,7 +228,9 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     case TYPES.uint32array:
     case TYPES.int32array:
     case TYPES.float32array:
-    case TYPES.float64array: {
+    case TYPES.float64array:
+    case TYPES.bigint64array:
+    case TYPES.biguint64array: {
       const [ length, ptr ] = read(Uint32Array, memory, value, 2);
       return read(globalThis[TYPE_NAMES[type]], memory, ptr + 4, length);
     }

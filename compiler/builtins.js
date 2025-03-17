@@ -92,6 +92,8 @@ export const BuiltinVars = function(ctx) {
   this.__Int32Array_BYTES_PER_ELEMENT = [ number(4) ];
   this.__Float32Array_BYTES_PER_ELEMENT = [ number(4) ];
   this.__Float64Array_BYTES_PER_ELEMENT = [ number(8) ];
+  this.__BigInt64Array_BYTES_PER_ELEMENT = [ number(8) ];
+  this.__BigUint64Array_BYTES_PER_ELEMENT = [ number(8) ];
 
   ObjectBuiltins.call(this, ctx, Prefs);
 };
