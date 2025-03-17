@@ -96,7 +96,7 @@ export const big_signedLEB128 = n => {
       buffer.push(byte);
       break;
     } else {
-      byte |= 0x80n;
+      byte |= 0x80;
     }
 
     buffer.push(byte);
