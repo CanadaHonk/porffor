@@ -173,7 +173,7 @@ var NaNs = [
 
 /// testTypedArray.js
 // hack: we do not actually have an underlying TypedArray so just use Int8Array
-const TypedArray = Int8Array;
+var TypedArray = Int8Array;
 
 var floatArrayConstructors = [
   Float64Array,
@@ -274,7 +274,7 @@ function floatTypedArrayConstructorPrecision(FA) {
 
 /// testBigIntTypedArray.js
 // hack: we do not actually have an underlying TypedArray so just use Int8Array
-const TypedArray = Int8Array;
+var TypedArray = Int8Array;
 
 function testWithBigIntTypedArrayConstructors(f, selected) {
   const constructors = selected || [
