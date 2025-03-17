@@ -272,6 +272,21 @@ function floatTypedArrayConstructorPrecision(FA) {
   }
 }
 
+/// testBigIntTypedArray.js
+// hack: we do not actually have an underlying TypedArray so just use Int8Array
+const TypedArray = Int8Array;
+
+function testWithBigIntTypedArrayConstructors(f, selected) {
+  const constructors = selected || [
+    BigInt64Array,
+    BigUint64Array
+  ];
+
+  for (let i = 0; i < constructors.length; i++) {
+    f(constructors[i]);
+  }
+}
+
 /// propertyHelper.js
 function isConfigurable(obj, name) {
   if (Object.hasOwn(obj, name)) return Object.getOwnPropertyDescriptor(obj, name).configurable;
