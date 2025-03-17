@@ -1530,8 +1530,8 @@ const getLastType = scope => {
   ];
 };
 
-const setLastType = (scope, type = []) => {
-  typeUsed(scope, knownType(scope, type));
+const setLastType = (scope, type = [], doNotMarkAsUsed = false) => {
+  if (!doNotMarkAsUsed) typeUsed(scope, knownType(scope, type));
   return [
     ...(typeof type === 'number' ? [ number(type, Valtype.i32) ] : type),
     [ Opcodes.local_set, localTmp(scope, '#last_type', Valtype.i32) ]
@@ -3922,7 +3922,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
               [ Opcodes.call, includeBuiltin(scope, '__Porffor_bigint_toI64').index ],
               [ Opcodes.i64_store, 0, 4 ],
-              setLastType(scope, TYPES.bigint)
+              setLastType(scope, TYPES.bigint, true)
             ],
             [TYPES.biguint64array]: () => [
               number(8, Valtype.i32),
@@ -3947,7 +3947,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
               [ Opcodes.call, includeBuiltin(scope, '__Porffor_bigint_toI64').index ],
               [ Opcodes.i64_store, 0, 4 ],
-              setLastType(scope, TYPES.bigint)
+              setLastType(scope, TYPES.bigint, true)
             ]
           }, {
             prelude: [
@@ -6013,7 +6013,7 @@ const generateMember = (scope, decl, _global, _name) => {
 
           [ Opcodes.i64_load, 0, 4 ]
         ],
-        postlude: setLastType(scope, TYPES.bigint)
+        postlude: setLastType(scope, TYPES.bigint, true)
       })
     } : {}),
 
