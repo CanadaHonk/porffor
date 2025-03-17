@@ -226,6 +226,8 @@ export const Opcodes = {
 
   i32_trunc_sat_f64_s: [ 0xfc, 0x02 ],
   i32_trunc_sat_f64_u: [ 0xfc, 0x03 ],
+  i64_trunc_sat_f64_s: [ 0xfc, 0x06 ],
+  i64_trunc_sat_f64_u: [ 0xfc, 0x07 ],
 
   memory_init: [ 0xfc, 0x08 ],
   data_drop: [ 0xfc, 0x09 ],
