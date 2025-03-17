@@ -1020,6 +1020,8 @@ export const BuiltinFuncs = function() {
       [ Opcodes.end ],
 
       [ Opcodes.local_get, 0 ],
+      number(0x8000000000000, Valtype.f64),
+      [ Opcodes.f64_sub ],
       Opcodes.i32_to_u,
       [ Opcodes.local_tee, 1 ],
 
