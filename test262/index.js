@@ -504,7 +504,7 @@ if (isMainThread) {
     out += (i << 4);
 
     if (logErrors) {
-      console.log(`\u001b[${pass ? '92' : '91'}m${['🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀'][out]} ${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m` + (!pass && error ? ('\n' + (error?.stack || error.toString())) : ''));
+      console.log(`\u001b[${pass ? '92' : '91'}m${['🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀'][out & 0b1111]} ${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m` + (!pass && error ? ('\n' + (error?.stack || error.toString())) : ''));
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {
