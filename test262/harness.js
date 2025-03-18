@@ -1503,6 +1503,21 @@ const assertNativeFunction = function(fn, special) {
   }
 };
 
+/// compareIterator.js
+var __assert_compareIterator = (iter, validators) => {
+  var i, result;
+  for (i = 0; i < validators.length; i++) {
+    result = iter.next();
+    assert(!result.done);
+    validators[i](result.value);
+  }
+
+  result = iter.next();
+  assert(result.done);
+  assert.sameValue(result.value, undefined);
+};
+
+
 /// sm/non262.js
 function print() {}
 function printBugNumber() {}
@@ -1550,7 +1565,7 @@ function enableGeckoProfilingWithSlowAssertions() {}
 function enableGeckoProfiling() {}
 function disableGeckoProfiling() {}
 
-// sm/non262-shell.js
+/// sm/non262-shell.js
 function deepEqual(a, b) {
   if (typeof a != typeof b)
     return false;
