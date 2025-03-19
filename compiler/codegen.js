@@ -3196,6 +3196,7 @@ const setDefaultFuncName = (decl, name) => {
 const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   // statically analyzed ffi dlopen hack to let 2c handle it
   if (init && init.type === 'CallExpression' && init.callee.name === '__Porffor_dlopen') {
+    if (Prefs.secure) throw new Error('Porffor.dlopen is not allowed in --secure');
     if (Prefs.target !== 'native' && Prefs.target !== 'c' && !Prefs.native) throw new Error('Porffor.dlopen is only supported for native target (use --native)');
 
     // disable pgo if using ffi (lol)
@@ -6404,6 +6405,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
     },
 
     __Porffor_c: str => {
+      if (Prefs.secure) throw new Error('Porffor.c is not allowed in --secure');
       return [
         [ null, 'c', str ]
       ];

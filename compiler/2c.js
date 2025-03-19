@@ -176,6 +176,8 @@ const removeBrackets = str => {
 };
 
 export default ({ funcs, globals, tags, data, exceptions, pages }) => {
+  if (Prefs.secure) log.warning('2c', `native/c targets are not sandboxed or proven to be safe (--secure)`);
+
   const invOperatorOpcode = Object.values(operatorOpcode).reduce((acc, x) => {
     for (const k in x) {
       acc[x[k]] = k;
