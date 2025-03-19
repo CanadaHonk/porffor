@@ -351,6 +351,10 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'TSAsExpression':
       return cacheAst(decl, generate(scope, decl.expression));
 
+    case 'WithStatement':
+      if (Prefs.d) log.warning('codegen', 'with is not supported, treating as expression');
+      return cacheAst(decl, generate(scope, decl.body));
+
     default:
       // ignore typescript nodes
       if (decl.type.startsWith('TS') ||
