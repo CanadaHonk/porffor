@@ -1517,12 +1517,6 @@ var __assert_compareIterator = (iter, validators) => {
   assert.sameValue(result.value, undefined);
 };
 
-/// hidden-constructors.js
-// hack: we do not actually have the underlying hidden constructors so just use Function
-var AsyncFunction = Function;
-var AsyncGeneratorFunction = Function;
-var GeneratorFunction = Function;
-
 /// sm/non262.js
 function print() {}
 function printBugNumber() {}
