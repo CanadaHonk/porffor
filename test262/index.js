@@ -496,7 +496,7 @@ if (isMainThread) {
         else if (stage === 2) out = 4;
     }
 
-    if (trackErrors && error && (!onlyTrackCompilerErrors || (stage === 0 && errorName !== 'TodoError' && errorName !== 'CompileError' && errorName !== 'SyntaxError'))) {
+    if (!test.attrs.negative && trackErrors && error && (!onlyTrackCompilerErrors || (stage === 0 && errorName !== 'TodoError' && errorName !== 'CompileError' && errorName !== 'SyntaxError'))) {
       let errorStr = `${error.constructor.name}: ${error.message}`;
       errors[errorStr] = (errors[errorStr] ?? 0) + 1;
     }
