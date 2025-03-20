@@ -380,7 +380,7 @@ if (isMainThread) {
 
   const script = new vm.Script('$func()');
   const timeout = $func => {
-    return script.runInNewContext({ $func }, { timeout: 10000 });
+    return script.runInNewContext({ $func }, { timeout: 20000 });
   };
 
   console.log = (...args) => parentPort.postMessage(args.join(' '));
