@@ -87,30 +87,27 @@ export const __Porffor_miniLog = (arg: any) => {
 };
 
 export const __Porffor_print = (arg: any, colors: boolean = true, depth: number = 0) => {
-  // todo: Symbol.toStringTag could reduce duplication here
-
-  // note: this doesn't have access to the upper scope!! do not use any variables from up there
-  const __Porffor_printArray = (arg: any, colors: boolean, length: boolean = false) => {
-    const arrLen: i32 = arg.length - 1;
-
+  const __Porffor_printArray = (arg: any[]|Uint8Array|Int8Array|Uint8ClampedArray|Uint16Array|Int16Array|Uint32Array|Int32Array|Float32Array|Float64Array, colors: boolean, length: boolean = false) => {
+    const arrLen: i32 = arg.length;
     if (length) {
       Porffor.printStatic('(');
-      print(arrLen + 1);
+      print(arrLen);
       Porffor.printStatic(') ');
     }
 
-    if (arrLen == -1) {
+    if (arrLen == 0) {
       Porffor.printStatic('[]');
     } else {
       Porffor.printStatic('[ ');
-      for (let i: i32 = 0; i <= arrLen; i++) {
+      for (let i: i32 = 0; i < arrLen; i++) {
         __Porffor_print(arg[i], colors);
-        if (i != arrLen) Porffor.printStatic(', ');
+        if (i != arrLen - 1) Porffor.printStatic(', ');
       }
       Porffor.printStatic(' ]');
     }
   };
 
+  // todo: Symbol.toStringTag could reduce duplication here
   switch (Porffor.type(arg)) {
     case Porffor.TYPES.number:
       if (colors) Porffor.printStatic('\x1b[33m'); // yellow
@@ -338,7 +335,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
   }
 };
 
-let tabLevel = 0;
+let tabLevel: i32 = 0;
 export const __Porffor_consoleIndent = () => {
   for (let i: i32 = 0; i < tabLevel; i++) {
     Porffor.printStatic('\t');
@@ -462,7 +459,7 @@ export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showH
 
   const keys = __Object_keys(obj);
   const keysLen = keys.length - 1;
-  for (let i = 0; i <= keysLen; i++) {
+  for (let i: i32 = 0; i <= keysLen; i++) {
     const key = keys[i];
     __Porffor_consolePrint(key);
     Porffor.printStatic(': ');
