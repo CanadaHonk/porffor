@@ -46,9 +46,11 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   // flags
   console.log(`\n\x1B[1m\x1B[4mFlags\x1B[0m`);
   for (let [ flag, desc ] of Object.entries({
+    'On': 'Optimization level, use -O(0|\x1B[1m1\x1B[0m|2|3)',
+    t: 'Force parsing input as TypeScript',
+    d: 'Debug mode (include names in Wasm and debug logs)',
     module: 'Parse input as a module',
-    t: 'Force TypeScript input',
-    d: 'Debug mode (include names in Wasm and debug logs)'
+    secure: 'Secure mode (error on unsafe Porffor features eg FFI)'
   })) {
     flag = '-' + flag;
     if (flag.length > 3) flag = '-' + flag;
@@ -57,10 +59,10 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   }
 
   // niche flags
-  if (process.argv.includes('--flags')) {
+  if (process.argv.includes('all')) {
     for (let [ flag, desc ] of Object.entries({
       f: 'Print disassembled Wasm generated from user functions',
-      pgo: 'Enable PGO (profile-guided optimization)',
+      pgo: 'Enable profile-guided optimization',
       valtype: 'Valtype to use, not well supported (i32|i64|\x1B[1mf64\x1B[0m)',
       'no-coctc': 'Disable COCTC (cross-object compile-time cache)',
       cyclone: 'Enable experimental Cyclone optimizer',
@@ -77,7 +79,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
       console.log(`  \x1B[1m${flag}\x1B[0m${' '.repeat(36 - flag.length)}${desc}`);
     }
   } else {
-    console.log(`  \x1B[2m(To view all flags also use --flags)\x1B[0m`);
+    console.log(`  \x1B[90m(To view all flags use --help all)\x1B[0m`);
   }
 
   console.log();
