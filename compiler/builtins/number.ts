@@ -694,7 +694,7 @@ export const parseFloat = (input: any): f64 => {
   let dec: i32 = 0;
   let negative: boolean = false;
 
-  let i = 0;
+  let i: i32 = 0;
   const start: i32 = input.charCodeAt(0);
 
   // +, ignore

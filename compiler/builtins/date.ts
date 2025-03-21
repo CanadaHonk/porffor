@@ -147,7 +147,7 @@ export const __ecma262_DateFromTime = (t: number): number => {
   const dayWithinYear: number = __ecma262_DayWithinYear(t);
 
   // 3. Let month be MonthFromTime(t).
-  const month = __ecma262_MonthFromTime(t);
+  const month: number = __ecma262_MonthFromTime(t);
 
   // 4. If month is +0𝔽, return dayWithinYear + 1𝔽.
   if (month == 0) return dayWithinYear + 1;

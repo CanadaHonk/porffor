@@ -15,7 +15,7 @@ export const btoa = (input: bytestring): bytestring => {
 
   // todo/perf: add some per 6 char variant using bitwise magic?
 
-  const endPtr = i + len;
+  const endPtr: i32 = i + len;
   while (i < endPtr) {
     const chr1: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
     const chr2: i32 = i < endPtr ? Porffor.wasm.i32.load8_u(i++, 0, 4) : -1;
@@ -54,7 +54,7 @@ export const atob = (input: bytestring): bytestring => {
   let i: i32 = Porffor.wasm`local.get ${input}`,
       j: i32 = Porffor.wasm`local.get ${output}`;
 
-  const endPtr = i + input.length;
+  const endPtr: i32 = i + input.length;
   while (i < endPtr) {
     const enc1: i32 = Porffor.wasm.i32.load8_u(lutPtr + Porffor.wasm.i32.load8_u(i++, 0, 4), 0, 4);
     const enc2: i32 = i < endPtr ? Porffor.wasm.i32.load8_u(lutPtr + Porffor.wasm.i32.load8_u(i++, 0, 4), 0, 4) : -1;

@@ -168,7 +168,7 @@ export const __Porffor_object_in = (obj: any, prop: any): boolean => {
     return true;
   }
 
-  let lastProto = obj;
+  let lastProto: any = obj;
   while (true) {
     obj = Porffor.object.getPrototypeWithHidden(obj, Porffor.type(obj));
     if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
@@ -189,7 +189,7 @@ export const __Porffor_object_instanceof = (obj: any, constr: any, checkProto: a
     return false;
   }
 
-  let lastProto = obj;
+  let lastProto: any = obj;
   while (true) {
     obj = Porffor.object.getPrototypeWithHidden(obj, Porffor.type(obj));
     if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
@@ -347,7 +347,7 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|u
   if (entryPtr == -1) {
     if (Porffor.type(obj) == Porffor.TYPES.function) {
       // hack: function .name and .length
-      const v = obj[p];
+      const v: any = obj[p];
       if (v != null) {
         const out: object = {};
         out.writable = false;
@@ -619,7 +619,7 @@ export const __Object_create = (proto: any, props: any): object => {
 export const __Object_groupBy = (items: any, callbackFn: any): object => {
   const out: object = {};
 
-  let i = 0;
+  let i: i32 = 0;
   for (const x of items) {
     const k: any = callbackFn(x, i++);
     if (!__Object_hasOwn(out, k)) {
