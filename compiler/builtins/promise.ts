@@ -383,18 +383,18 @@ export const __Promise_allSettled = (promises: any): Promise => {
       _allLen++;
       if (__ecma262_IsPromise(x)) {
         x.then(r => {
-          const o = {};
+          const o: object = {};
           o.status = 'fulfilled';
           o.value = r;
           if (Porffor.array.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
         }, r => {
-          const o = {};
+          const o: object = {};
           o.status = 'rejected';
           o.reason = r;
           if (Porffor.array.fastPush(_allOut, o) == _allLen) _allRes(_allOut);
         });
       } else {
-        const o = {};
+        const o: object = {};
         o.status = 'fulfilled';
         o.value = x;
         Porffor.array.fastPush(_allOut, o);

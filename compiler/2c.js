@@ -175,7 +175,9 @@ const removeBrackets = str => {
   return str.startsWith('(') && str.endsWith(')') && !str.startsWith('(*') ? str.slice(1, -1) : str;
 };
 
-export default ({ funcs, globals, tags, data, exceptions, pages }) => {
+export default ({ funcs, globals, data, pages }) => {
+  if (Prefs.secure) log.warning('2c', `native/c targets are not sandboxed or proven to be safe (--secure)`);
+
   const invOperatorOpcode = Object.values(operatorOpcode).reduce((acc, x) => {
     for (const k in x) {
       acc[x[k]] = k;
@@ -794,6 +796,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
         }
 
         case Opcodes.throw: {
+          // only supports stack exception mode
           // todo: allow catching
           const type = vals.pop();
           const val = vals.pop();

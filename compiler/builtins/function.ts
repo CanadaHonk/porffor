@@ -4,7 +4,7 @@ export const __Function_prototype_toString = (_this: Function) => {
   const out: bytestring = Porffor.allocate();
 
   Porffor.bytestring.appendStr(out, 'function ');
-  Porffor.bytestring.appendStr(out, _this.name);
+  Porffor.bytestring.appendStr(out, __Porffor_funcLut_name(_this));
   Porffor.bytestring.appendStr(out, '() { [native code] }');
   return out;
 };

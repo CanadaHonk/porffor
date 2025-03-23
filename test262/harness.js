@@ -287,6 +287,112 @@ function testWithBigIntTypedArrayConstructors(f, selected) {
   }
 }
 
+/// resizableArrayBufferUtils.js
+const builtinCtors = [
+  Uint8Array,
+  Int8Array,
+  Uint16Array,
+  Int16Array,
+  Uint32Array,
+  Int32Array,
+  Float32Array,
+  Float64Array,
+  Uint8ClampedArray,
+  BigUint64Array,
+  BigInt64Array
+];
+
+const floatCtors = [
+  Float32Array,
+  Float64Array
+];
+
+const ctors = builtinCtors;
+
+function CreateResizableArrayBuffer(byteLength, maxByteLength) {
+  return new ArrayBuffer(byteLength, { maxByteLength });
+}
+
+function Convert(item) {
+  if (typeof item == 'bigint') {
+    return Number(item);
+  }
+
+  return item;
+}
+
+function ToNumbers(array) {
+  let result = [];
+  for (let i = 0; i < array.length; i++) {
+    let item = array[i];
+    result.push(Convert(item));
+  }
+  return result;
+}
+
+function MayNeedBigInt(ta, n) {
+  assert.sameValue(typeof n, 'number');
+  if (ta instanceof BigInt64Array || ta instanceof BigUint64Array) {
+    return BigInt(n);
+  }
+  return n;
+}
+
+function CreateRabForTest(ctor) {
+  const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT, 8 * ctor.BYTES_PER_ELEMENT);
+  // Write some data into the array.
+  const taWrite = new ctor(rab);
+  for (let i = 0; i < 4; ++i) {
+    taWrite[i] = MayNeedBigInt(taWrite, 2 * i);
+  }
+  return rab;
+}
+
+function CollectValuesAndResize(n, values, rab, resizeAfter, resizeTo) {
+  if (typeof n == 'bigint') {
+    values.push(Number(n));
+  } else {
+    values.push(n);
+  }
+  if (values.length == resizeAfter) {
+    rab.resize(resizeTo);
+  }
+  return true;
+}
+
+function TestIterationAndResize(iterable, expected, rab, resizeAfter, newByteLength) {
+  let values = [];
+  let resized = false;
+  var arrayValues = false;
+
+  for (let value of iterable) {
+    if (Array.isArray(value)) {
+      arrayValues = true;
+      values.push([
+        value[0],
+        Number(value[1])
+      ]);
+    } else {
+      values.push(Number(value));
+    }
+
+    if (!resized && values.length == resizeAfter) {
+      rab.resize(newByteLength);
+      resized = true;
+    }
+  }
+
+  if (!arrayValues) {
+      assert.compareArray([].concat(values), expected, "TestIterationAndResize: list of iterated values");
+  } else {
+    for (let i = 0; i < expected.length; i++) {
+      assert.compareArray(values[i], expected[i], "TestIterationAndResize: list of iterated lists of values");
+    }
+  }
+
+  assert(resized, "TestIterationAndResize: resize condition should have been hit");
+}
+
 /// propertyHelper.js
 function isConfigurable(obj, name) {
   if (Object.hasOwn(obj, name)) return Object.getOwnPropertyDescriptor(obj, name).configurable;
@@ -1397,6 +1503,20 @@ const assertNativeFunction = function(fn, special) {
   }
 };
 
+/// compareIterator.js
+var __assert_compareIterator = (iter, validators) => {
+  var i, result;
+  for (i = 0; i < validators.length; i++) {
+    result = iter.next();
+    assert(!result.done);
+    validators[i](result.value);
+  }
+
+  result = iter.next();
+  assert(result.done);
+  assert.sameValue(result.value, undefined);
+};
+
 /// sm/non262.js
 function print() {}
 function printBugNumber() {}
@@ -1444,7 +1564,7 @@ function enableGeckoProfilingWithSlowAssertions() {}
 function enableGeckoProfiling() {}
 function disableGeckoProfiling() {}
 
-// sm/non262-shell.js
+/// sm/non262-shell.js
 function deepEqual(a, b) {
   if (typeof a != typeof b)
     return false;

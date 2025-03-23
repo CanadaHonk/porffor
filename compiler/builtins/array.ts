@@ -65,7 +65,7 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
   }
 
   if (Porffor.type(arg) == Porffor.TYPES.object) {
-    let len = ecma262.ToIntegerOrInfinity((arg as object)['length']);
+    let len: i32 = ecma262.ToIntegerOrInfinity((arg as object)['length']);
     if (len > 4294967295) throw new RangeError('Invalid array length');
     if (len < 0) len = 0;
 

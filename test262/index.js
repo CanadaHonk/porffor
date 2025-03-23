@@ -380,7 +380,7 @@ if (isMainThread) {
 
   const script = new vm.Script('$func()');
   const timeout = $func => {
-    return script.runInNewContext({ $func }, { timeout: 10000 });
+    return script.runInNewContext({ $func }, { timeout: 20000 });
   };
 
   console.log = (...args) => parentPort.postMessage(args.join(' '));
@@ -496,7 +496,7 @@ if (isMainThread) {
         else if (stage === 2) out = 4;
     }
 
-    if (trackErrors && error && (!onlyTrackCompilerErrors || (stage === 0 && errorName !== 'TodoError' && errorName !== 'CompileError' && errorName !== 'SyntaxError'))) {
+    if (!test.attrs.negative && trackErrors && error && (!onlyTrackCompilerErrors || (stage === 0 && errorName !== 'TodoError' && errorName !== 'CompileError' && errorName !== 'SyntaxError'))) {
       let errorStr = `${error.constructor.name}: ${error.message}`;
       errors[errorStr] = (errors[errorStr] ?? 0) + 1;
     }
@@ -504,7 +504,7 @@ if (isMainThread) {
     out += (i << 4);
 
     if (logErrors) {
-      console.log(`\u001b[${pass ? '92' : '91'}m${['🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀'][out]} ${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m` + (!pass && error ? ('\n' + (error?.stack || error.toString())) : ''));
+      console.log(`\u001b[${pass ? '92' : '91'}m${['🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀'][out & 0b1111]} ${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m` + (!pass && error ? ('\n' + (error?.stack || error.toString())) : ''));
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {

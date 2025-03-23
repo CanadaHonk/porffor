@@ -351,6 +351,10 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'TSAsExpression':
       return cacheAst(decl, generate(scope, decl.expression));
 
+    case 'WithStatement':
+      if (Prefs.d) log.warning('codegen', 'with is not supported, treating as expression');
+      return cacheAst(decl, generate(scope, decl.body));
+
     default:
       // ignore typescript nodes
       if (decl.type.startsWith('TS') ||
@@ -1318,7 +1322,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
   allocPage: (scope, name) => allocPage({ scope, pages }, name)
 }, extra);
 
-const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, usedTypes = [] } = {}) => {
+const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, returnTypes } = {}) => {
   if (wasm == null) { // called with no built-in
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
@@ -1375,7 +1379,12 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
 
   if (table) funcs.table = true;
   if (usesTag) ensureTag();
-  for (const x of usedTypes) typeUsed(func, x);
+
+  if (returnTypes) {
+    for (const x of returnTypes) typeUsed(func, x);
+  } else if (returnType != null) {
+    typeUsed(func, returnType);
+  }
 
   func.wasm = wasm;
   return func;
@@ -1748,7 +1757,7 @@ const getNodeType = (scope, node) => {
   const out = typeof ret === 'number' ? [ number(ret, Valtype.i32) ] : ret;
   if (guess != null) out.guess = typeof guess === 'number' ? [ number(guess, Valtype.i32) ] : guess;
 
-  typeUsed(scope, knownType(scope, out));
+  if (!node._doNotMarkTypeUsed) typeUsed(scope, knownType(scope, out));
   return out;
 };
 
@@ -2650,7 +2659,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       args = args.slice(0, paramCount - 1);
       args.push({
         type: 'ArrayExpression',
-        elements: restArgs
+        elements: restArgs,
+        _doNotMarkTypeUsed: true
       });
     }
   }
@@ -3011,10 +3021,14 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     };
 
     if (globalThis.precompile) {
-      // just magic precompile things™
-      out.push([ null, 'typeswitch case start', types ]);
-      add();
-      out.push([ null, 'typeswitch case end' ]);
+      if (scope.usedTypes && types.some(x => scope.usedTypes.has(x))) {
+        add();
+      } else {
+        // just magic precompile things™
+        out.push([ null, 'typeswitch case start', types ]);
+        add();
+        out.push([ null, 'typeswitch case end' ]);
+      }
     } else {
       if (types.some(x => usedTypes.has(x))) {
         // type already used, just add it now
@@ -3131,7 +3145,7 @@ const extractTypeAnnotation = decl => {
   let a = decl;
   while (a.typeAnnotation) a = a.typeAnnotation;
 
-  let type = null, elementType = null;
+  let types = null, type = null, elementType = null;
   if (a.typeName) {
     type = a.typeName.name;
   } else if (a.type.endsWith('Keyword')) {
@@ -3140,12 +3154,16 @@ const extractTypeAnnotation = decl => {
   } else if (a.type === 'TSArrayType') {
     type = 'array';
     elementType = extractTypeAnnotation(a.elementType).type;
+  } else if (a.type === 'TSUnionType') {
+    types = a.types.map(x => extractTypeAnnotation(x).type);
   }
 
   const typeName = type;
   type = typeAnnoToPorfType(type);
 
-  return { type, typeName, elementType };
+  if (!types && type != null) types = [ type ];
+
+  return { type, types, typeName, elementType };
 };
 
 const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType = undefined) => {
@@ -3196,6 +3214,7 @@ const setDefaultFuncName = (decl, name) => {
 const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   // statically analyzed ffi dlopen hack to let 2c handle it
   if (init && init.type === 'CallExpression' && init.callee.name === '__Porffor_dlopen') {
+    if (Prefs.secure) throw new Error('Porffor.dlopen is not allowed in --secure');
     if (Prefs.target !== 'native' && Prefs.target !== 'c' && !Prefs.native) throw new Error('Porffor.dlopen is only supported for native target (use --native)');
 
     // disable pgo if using ffi (lol)
@@ -5094,6 +5113,10 @@ const generateSwitch = (scope, decl) => {
     if (canTypeCheck) {
       depth.push('switch_typeswitch');
 
+      // temporarily stub scope used types to have none always included for these cases
+      const usedTypes = scope.usedTypes;
+      scope.usedTypes = { add: () => {}, has: () => false };
+
       const out = typeSwitch(scope, getNodeType(scope, decl.discriminant.arguments[0]), () => {
         const bc = [];
         let types = [];
@@ -5108,6 +5131,8 @@ const generateSwitch = (scope, decl) => {
 
         return bc;
       }, Blocktype.void, true);
+
+      scope.usedTypes = usedTypes;
 
       depth.pop();
       out.push(number(UNDEFINED));
@@ -6404,6 +6429,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
     },
 
     __Porffor_c: str => {
+      if (Prefs.secure) throw new Error('Porffor.c is not allowed in --secure');
       return [
         [ null, 'c', str ]
       ];
@@ -6596,6 +6622,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
           const typeAnno = extractTypeAnnotation(type);
           addVarMetadata(func, name, false, typeAnno);
 
+          if (typeAnno.types) for (const x of typeAnno.types) typeUsed(func, x);
+
           // automatically add throws if unexpected this type to builtins
           if (globalThis.precompile && i === 0 && func.name.includes('_prototype_') && !func.name.startsWith('__Porffor_')) {
             if (typeAnno.type === TYPES.array) {
@@ -6701,6 +6729,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         // make out generator local
         allocVar(func, '#generator_out', false, false);
         typeUsed(func, func.async ? TYPES.__porffor_asyncgenerator : TYPES.__porffor_generator);
+        if (func.async) typeUsed(func, TYPES.promise);
       }
 
       if (func.async && !func.generator) {
@@ -6782,11 +6811,15 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   funcs.push(func);
 
   if (typedInput && decl.returnType) {
-    const { type } = extractTypeAnnotation(decl.returnType);
+    const { type, types } = extractTypeAnnotation(decl.returnType);
+
     if (type != null) {
       typeUsed(func, type);
       func.returnType = type;
       func.returns = func.returnType === TYPES.undefined && !func.async && !func.generator ? [] : [ valtypeBinary ];
+    } else if (types != null) {
+      func.returnTypes = types;
+      for (const x of types) typeUsed(func, x);
     }
   }
 
@@ -6830,7 +6863,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         break;
     }
 
-    args.push({ name, def, destr, type: typedInput && params[i].typeAnnotation });
+    args.push({ name, def, destr, type: typedInput && x.typeAnnotation });
   }
 
   func.params = new Array((params.length + (func.constr ? 2 : (func.method ? 1 : 0))) * 2).fill(0).map((_, i) => i % 2 ? Valtype.i32 : valtypeBinary);

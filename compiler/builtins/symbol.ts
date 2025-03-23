@@ -1,7 +1,5 @@
 import type {} from './porffor.d.ts';
 
-const descStore: any[] = [];
-
 // 20.4.1.1 Symbol ([ description ])
 // https://tc39.es/ecma262/#sec-symbol-description
 export const Symbol = (description: any): Symbol => {
@@ -17,11 +15,28 @@ export const Symbol = (description: any): Symbol => {
   }
 
   // 4. Return a new Symbol whose [[Description]] is descString.
-  return Porffor.array.fastPush(descStore, descString) as Symbol;
+  Porffor.wasm`
+local symbol i32
+i32.const 16
+call __Porffor_allocateBytes
+local.tee symbol
+local.get ${descString}
+f64.store 0 0
+local.get symbol
+local.get ${descString+1}
+i32.store8 0 8`;
+
+  return symbol;
 };
 
 export const __Symbol_prototype_description$get = (_this: Symbol) => {
-  return descStore[Porffor.wasm`local.get ${_this}` - 1];
+  Porffor.wasm`local.get ${_this}
+i32.to_u
+f64.load 0 0
+local.get ${_this}
+i32.to_u
+i32.load8_u 0 8
+return`;
 };
 
 export const __Symbol_prototype_toString = (_this: Symbol) => {
