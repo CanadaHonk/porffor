@@ -1233,6 +1233,12 @@ export const __String_prototype_split = (_this: string, separator: any, limit: a
   limit |= 0;
   if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
 
+  if (separator === undefined || separator === null) {
+    out.length = 1;
+    out[0] = _this;
+    return out;
+  }
+
   let tmp: string = Porffor.allocate(), tmpLen: i32 = 0;
   const thisLen: i32 = _this.length * 2, sepLen: i32 = separator.length;
   if (sepLen == 1) {
@@ -1275,7 +1281,40 @@ i32.store8 0 12`;
       Porffor.wasm.i32.store16(Porffor.wasm`local.get ${tmp}` + tmpLen * 2, x, 0, 4);
       tmpLen++;
     }
-  } else {
+  } else if (sepLen == 0) {
+    const clammedLimit: i32 = limit > thisLen ? thisLen : limit;
+    tmpLen = 1;
+    for (let i = 0; i <= clammedLimit; i+=2) {
+      tmp = Porffor.allocateBytes(8);
+      const x: i32 = Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
+
+      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${tmp}`, x, 0, 4);
+      tmp.length = tmpLen;
+      out.length = outLen;
+
+Porffor.wasm`
+  local.get ${out}
+  local.get ${outLen}
+  i32.const 9
+  i32.mul 
+  i32.add
+  local.get ${tmp}
+  f64.convert_i32_u
+  f64.store 0 4
+  local.get ${out}
+  local.get ${outLen}
+  i32.const 9 
+  i32.mul
+  i32.add
+  local.get ${sType}
+  i32.store8 0 12
+    `;
+      outLen++;
+    }
+    return out;
+  }
+  
+  else {
     let sepInd: i32 = 0;
     for (let i: i32 = 0; i < thisLen; i += 2) {
       const x: i32 = Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
@@ -1348,6 +1387,12 @@ export const __ByteString_prototype_split = (_this: bytestring, separator: any, 
   let out: any[] = Porffor.allocate(), outLen: i32 = 0;
   const bsType: i32 = Porffor.TYPES.bytestring;
 
+  if (separator === undefined || separator === null) {
+    out.length = 1;
+    out[0] = _this;
+    return out;
+  }
+
   if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
   limit |= 0;
   if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
@@ -1394,7 +1439,39 @@ i32.store8 0 12`;
       Porffor.wasm.i32.store8(Porffor.wasm`local.get ${tmp}` + tmpLen, x, 0, 4);
       tmpLen++;
     }
-  } else {
+  } else if (sepLen == 0){
+    const clammedLimit: i32 = limit > thisLen ? thisLen : limit;
+    tmpLen = 1;
+    for (let i = 0; i <= clammedLimit; i++) {
+      tmp = Porffor.allocateBytes(8);
+      const x: i32 = Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
+
+      Porffor.wasm.i32.store8(Porffor.wasm`local.get ${tmp}`, x, 0, 4);
+      tmp.length = tmpLen;
+      out.length = outLen;
+
+Porffor.wasm`
+  local.get ${out}
+  local.get ${outLen}
+  i32.const 9
+  i32.mul 
+  i32.add
+  local.get ${tmp}
+  f64.convert_i32_u
+  f64.store 0 4
+  local.get ${out}
+  local.get ${outLen}
+  i32.const 9 
+  i32.mul
+  i32.add
+  local.get ${bsType}
+  i32.store8 0 12
+    `;
+      outLen++;
+    }
+    return out;
+  }
+  else {
     let sepInd: i32 = 0;
     for (let i: i32 = 0; i < thisLen; i++) {
       const x: i32 = Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
