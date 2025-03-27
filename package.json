@@ -15,7 +15,7 @@
     "meriyah": "^4.3.9"
   },
   "bin": {
-    "porf": "./runner/index.js"
+    "porf": "./runtime/index.js"
   },
   "main": "./compiler/wrap.js",
   "type": "module",

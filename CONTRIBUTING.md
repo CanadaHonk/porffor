@@ -21,7 +21,7 @@ The repo comes with easy alias scripts for Unix and Windows, which you can use l
 - Unix: `./porf path/to/script.js`
 - Windows: `.\porf path/to/script.js`
 
-You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A ...`) or Bun (`bun ...`), or just use it yourself (eg `node runner/index.js ...`, `bun runner/index.js ...`). Node, Deno, Bun should work.
+You can also swap out `node` in the alias to use another runtime like Deno (`deno run -A ...`) or Bun (`bun ...`), or just use it yourself (eg `node runtime/index.js ...`, `bun runtime/index.js ...`). Node, Deno, Bun should work.
 
 ### Precompile
 

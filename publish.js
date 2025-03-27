@@ -13,10 +13,10 @@ const version = `${majorminor}.${patch}`;
 
 fs.writeFileSync('package.json', packageJson.replace(`"${packageVersion}"`, `"${version}"`));
 
-fs.writeFileSync('runner/index.js', fs.readFileSync('runner/index.js', 'utf8')
+fs.writeFileSync('runtime/index.js', fs.readFileSync('runtime/index.js', 'utf8')
   .replace(/globalThis\.version = '.*?';/, `globalThis.version = '${version}';`));
 
-execSync(`git add package.json runner/index.js`, { stdio: 'inherit' });
+execSync(`git add package.json runtime/index.js`, { stdio: 'inherit' });
 
 // execSync(`git commit -m "version: ${version}"`, { stdio: 'inherit' });
 execSync(`git commit --amend -C HEAD --no-verify`, { stdio: 'inherit' });
