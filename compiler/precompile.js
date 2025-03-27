@@ -1,5 +1,5 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
-import { read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
+import { read_signedLEB128 } from './encoding.js';
 import { TYPES, TYPE_NAMES } from './types.js';
 import { log } from './log.js';
 

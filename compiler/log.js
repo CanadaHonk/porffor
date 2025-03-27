@@ -12,7 +12,5 @@ const areaColors = {
   wrap: [ 250, 100, 20 ]
 };
 
-// for (const x in areaColors) console.log(rgb(areaColors[x][0], areaColors[x][1], areaColors[x][2], x));
-
 export const log = (area, ...args) => console.log(`\u001b[90m[\u001b[0m${rgb(...areaColors[area], area)}\u001b[90m]\u001b[0m`, ...args);
 log.warning = (area, ...args) => log(area, '\u001b[93m' + args[0], ...args.slice(1), '\u001b[0m');

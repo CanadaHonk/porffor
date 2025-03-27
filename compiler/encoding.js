@@ -1,4 +1,5 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
+
 export const number = (n, valtype = valtypeBinary) => {
   if (valtype === Valtype.f64) return [ Opcodes.f64_const, n ];
 

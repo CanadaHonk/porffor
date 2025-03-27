@@ -1,4 +1,4 @@
-import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
+import { read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
 import { Blocktype, Opcodes, Valtype, PageSize } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
 import { log } from './log.js';

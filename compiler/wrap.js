@@ -3,7 +3,6 @@ import { importedFuncs } from './builtins.js';
 import compile from './index.js';
 import disassemble from './disassemble.js';
 import { TYPES, TYPE_NAMES } from './types.js';
-import { log } from './log.js';
 import './prefs.js';
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
