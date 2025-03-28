@@ -1280,7 +1280,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
     scope.initedGlobals ??= new Set();
     if (!scope.initedGlobals.has(name)) {
       scope.initedGlobals.add(name);
-      if (scope.globalInits[name]) out.unshift(
+      if (scope.globalInits?.[name]) out.unshift(
         [ Opcodes.global_get, globals[globalName + '#glbl_inited'].idx ],
         [ Opcodes.i32_eqz ],
         [ Opcodes.if, Blocktype.void ],
