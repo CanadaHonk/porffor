@@ -397,7 +397,7 @@ if (isMainThread) {
 
     const test = tests[i];
 
-    let error, stage;
+    let error, stage = 0;
     let contents = test.contents, attrs = test.attrs;
 
     if (profile) {
@@ -448,7 +448,6 @@ if (isMainThread) {
 
       exports = out.exports;
     } catch (e) {
-      stage = 0;
       error = e;
     }
 
@@ -473,32 +472,30 @@ if (isMainThread) {
     }
 
     let pass = stage === 2;
-    const errorName = error?.name;
 
     // todo: parse vs runtime expected
     if (test.attrs.negative) {
-      if (test.attrs.negative.type) pass = errorName === test.attrs.negative.type;
+      if (test.attrs.negative.type) pass = error?.name === test.attrs.negative.type;
         else pass = !pass;
     }
 
     let out = 0;
-
     if (!pass) {
-      if (errorName === 'TodoError') out = 1;
-        else if (stage === 0) {
-          out = errorName === 'CompileError' ? 2 : 3;
-        }
-        else if (stage === 1) {
-          if (errorName === 'Test262Error') out = 4;
-            else if (error?.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') out = 5;
-            else out = 6;
-        }
-        else if (stage === 2) out = 4;
-    }
+      const errorName = error && error.name;
+      if (stage === 0) {
+        out = errorName === 'CompileError' ? 2 : 3;
+      } else if (stage === 1) {
+        if (errorName === 'Test262Error') out = 4;
+          else if (error?.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') out = 5;
+          else out = 6;
+      } else {
+        out = 4;
+      }
 
-    if (!test.attrs.negative && trackErrors && error && (!onlyTrackCompilerErrors || (stage === 0 && errorName !== 'TodoError' && errorName !== 'CompileError' && errorName !== 'SyntaxError'))) {
-      let errorStr = `${error.constructor.name}: ${error.message}`;
-      errors[errorStr] = (errors[errorStr] ?? 0) + 1;
+      if (trackErrors && error && (!onlyTrackCompilerErrors || (stage === 0 && errorName !== 'CompileError' && errorName !== 'SyntaxError'))) {
+        let errorStr = `${error.constructor.name}: ${error.message}`;
+        errors[errorStr] = (errors[errorStr] ?? 0) + 1;
+      }
     }
 
     out += (i << 4);

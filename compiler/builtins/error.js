@@ -36,7 +36,6 @@ ${type ? `export const __${name}_prototype_toString = (_this: ${name}) => {
   error('EvalError');
   error('URIError');
   error('Test262Error');
-  error('TodoError', false);
 
   out += `
 export const __Test262Error_thrower = message => {

@@ -10,19 +10,15 @@ import { log } from './log.js';
 import { allocPage, allocStr } from './allocator.js';
 import './prefs.js';
 
-class TodoError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'TodoError';
-  }
-}
 const todo = (scope, msg, expectsValue = undefined) => {
+  msg = `todo: ${msg}`;
+
   switch (Prefs.todoTime ?? 'runtime') {
     case 'compile':
-      throw new TodoError(msg);
+      throw new Error(msg);
 
     case 'runtime':
-      return internalThrow(scope, 'TodoError', msg, expectsValue);
+      return internalThrow(scope, 'Error', msg, expectsValue);
   }
 };
 
@@ -1801,10 +1797,9 @@ const generateLiteral = (scope, decl, global, name) => {
           }
         ]
       });
-
-    default:
-      return todo(scope, `cannot generate literal of type ${typeof decl.value}`, true);
   }
+
+  return todo(scope, `cannot generate literal of type ${typeof decl.value}`, true);
 };
 
 const generateExp = (scope, decl) => {
@@ -4306,10 +4301,9 @@ const generateUnary = (scope, decl) => {
 
       return out;
     }
-
-    default:
-      return todo(scope, `unary operator ${decl.operator} not implemented yet`, true);
   }
+
+  return todo(scope, `unary operator ${decl.operator} not implemented yet`, true);
 };
 
 const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
