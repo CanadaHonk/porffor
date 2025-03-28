@@ -95,6 +95,34 @@ export const BuiltinVars = function(ctx) {
   this.__BigInt64Array_BYTES_PER_ELEMENT = [ number(8) ];
   this.__BigUint64Array_BYTES_PER_ELEMENT = [ number(8) ];
 
+  // well-known symbols
+  for (const x of [
+    'asyncIterator', 'hasInstance',
+    'isConcatSpreadable', 'iterator',
+    'match', 'matchAll', 'replace',
+    'search', 'species', 'split',
+    'toPrimitive', 'toStringTag', 'unscopables',
+    'dispose', 'asyncDispose'
+  ]) {
+    this[`__Symbol_${x}`] = (scope, { glbl, builtin, makeString }) => [
+      [ Opcodes.block, Valtype.f64 ],
+        ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
+        Opcodes.i32_to_u,
+        [ Opcodes.if, Blocktype.void ],
+          ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
+          [ Opcodes.br, 1 ],
+        [ Opcodes.end ],
+
+        ...makeString(scope, `Symbol.${x}`),
+        number(TYPES.bytestring, Valtype.i32),
+        [ Opcodes.call, builtin('Symbol') ],
+        ...glbl(Opcodes.global_set, `#wellknown_${x}`, Valtype.f64),
+        ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
+      [ Opcodes.end ]
+    ];
+    this[`__Symbol_${x}`].type = TYPES.symbol;
+  }
+
   ObjectBuiltins.call(this, ctx, Prefs);
 };
 
