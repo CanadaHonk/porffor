@@ -179,14 +179,8 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.symbol: {
-      const page = pages.get('symbol.ts/descStore');
-      if (!page) return Symbol();
-
-      const descStore = page * pageSize;
-      const offset = descStore + 4 + ((value - 1) * 9);
-
-      const v = read(Float64Array, memory, offset, 1)[0];
-      const t = read(Uint8Array, memory, offset + 8, 1)[0];
+      const v = read(Float64Array, memory, value, 1)[0];
+      const t = read(Uint8Array, memory, value + 8, 1)[0];
 
       const desc = porfToJSValue({ memory, funcs, pages }, v, t);
       return Symbol(desc);
