@@ -2,29 +2,49 @@ export default () => {
   let out = '';
 
   const errors = [];
-  const error = (name, type = true) => {
-    if (type) errors.push(name);
-    out += `export const ${name} = function (message: any): ${type ? name : 'Error'} {
+  const error = name => {
+    errors.push(name);
+    out += `export const ${name} = function (message: any): ${name} {
   if (message === undefined) message = '';
     else message = ecma262.ToString(message);
 
-  const obj: object = Porffor.allocateBytes(128);
-  obj.name = '${name}';
-  obj.message = message;
-  obj.constructor = ${name};
+  const obj: ${name} = Porffor.allocateBytes(8);
+  Porffor.wasm.i32.store(obj, message, 0, 0);
+  Porffor.wasm.i32.store8(obj, Porffor.type(message), 0, 4);
 
-  return obj as ${type ? name : 'Error'};
+  return obj;
 };
 
-${type ? `export const __${name}_prototype_toString = (_this: ${name}) => {
-  const name: any = (_this as object).name;
-  const message: any = (_this as object).message;
+export const __${name}_prototype_constructor$get = (_this: ${name}) => {
+  return ${name};
+};
+
+export const __${name}_prototype_name$get = (_this: ${name}) => {
+  return '${name}';
+};
+
+export const __${name}_prototype_message$get = (_this: ${name}) => {
+  Porffor.wasm\`
+local.get \${_this}
+i32.trunc_sat_f64_u
+i32.load 0 0
+f64.convert_i32_u
+
+local.get \${_this}
+i32.trunc_sat_f64_u
+i32.load8_u 0 4
+return\`;
+};
+
+export const __${name}_prototype_toString = (_this: ${name}) => {
+  const name: any = _this.name;
+  const message: any = _this.message;
   if (message.length == 0) {
     return name;
   }
 
   return name + ': ' + message;
-};` : ''}`;
+};\n`;
   };
 
   error('Error');

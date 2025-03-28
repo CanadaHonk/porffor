@@ -3589,7 +3589,7 @@ const coctcOffset = prop => {
   if (typeof prop === 'object') {
     if (
       prop.computed || prop.optional ||
-      ['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'length', '__proto__'].includes(prop.property.name)
+      ['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor', 'length', '__proto__'].includes(prop.property.name)
     ) return 0;
 
     prop = prop.property.name;
@@ -5809,7 +5809,7 @@ const generateMember = (scope, decl, _global, _name) => {
   const known = knownType(scope, type);
 
   // todo: generate this array procedurally during builtinFuncs creation
-  if (['size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength'].includes(decl.property.name)) {
+  if (['size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor'].includes(decl.property.name)) {
     // todo: support optional
     const bc = {};
     const cands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + decl.property.name + '$get'));

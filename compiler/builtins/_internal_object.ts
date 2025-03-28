@@ -248,17 +248,6 @@ return`;
   }
 
   if (Porffor.fastAnd(
-    Porffor.type(_obj) >= Porffor.TYPES.error,
-    Porffor.type(_obj) < 0x40
-  )) {
-    Porffor.wasm`
-local.get ${_obj}
-i32.trunc_sat_f64_u
-i32.const 7 ;; object
-return`;
-  }
-
-  if (Porffor.fastAnd(
     Porffor.type(_obj) > 0x05,
     Porffor.type(_obj) != Porffor.TYPES.undefined
   )) {

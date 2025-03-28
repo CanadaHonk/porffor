@@ -72,7 +72,6 @@ registerInternalType('StringObject');
 registerInternalType('__Porffor_Generator');
 registerInternalType('__Porffor_AsyncGenerator');
 
-// from here, remapped object types only
 for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval', 'URI', 'Test262' ])
   registerInternalType(`${x}Error`);
 
