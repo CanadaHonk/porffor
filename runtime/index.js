@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.57.2';
+globalThis.version = '0.57.3';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -208,6 +208,7 @@ try {
   let out = e;
   if (!process.argv.includes('-d') && Object.getPrototypeOf(e).message != null) out = `${e.name}${e.message != null ? `: ${e.message}` : ''}`;
   console.error(out);
+  process.exit(1);
 }
 
 if (process.argv.includes('-t')) console.log(`${process.argv.includes('-b') ? '' : '\n'}total time: ${(performance.now() - start).toFixed(2)}ms\nexecution time: ${(performance.now() - runStart).toFixed(2)}ms`);
