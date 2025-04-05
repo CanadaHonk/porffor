@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.57.5';
+globalThis.version = '0.57.6';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -63,7 +63,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     for (let [ flag, desc ] of Object.entries({
       f: 'Print disassembled Wasm generated from user functions',
       pgo: 'Enable profile-guided optimization',
-      valtype: 'Valtype to use, not well supported (i32|i64|\x1B[1mf64\x1B[0m)',
+      valtype: 'Valtype to use, not well supported (i32|\x1B[1mf64\x1B[0m)',
       'no-coctc': 'Disable COCTC (cross-object compile-time cache)',
       cyclone: 'Enable experimental Cyclone optimizer',
       'no-treeshake-wasm-imports': 'Do not treeshake Wasm imports',

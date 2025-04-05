@@ -449,8 +449,8 @@ export default (source, module = undefined, customImports = {}, print = str => p
     const module = new WebAssembly.Module(wasm);
     instance = new WebAssembly.Instance(module, {
       '': {
-        p: valtype === 'i64' ? i => print(Number(i).toString()) : i => print(i.toString()),
-        c: valtype === 'i64' ? i => print(String.fromCharCode(Number(i))) : i => print(String.fromCharCode(i)),
+        p: i => print(i.toString()),
+        c: i => print(String.fromCharCode(i)),
         t: () => performance.now(),
         u: () => performance.timeOrigin,
         y: () => {},

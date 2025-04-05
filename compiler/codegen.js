@@ -7065,19 +7065,18 @@ export default program => {
   globalInfer = new Map();
 
   // set generic opcodes for current valtype
-  const valtypeInd = ['i32', 'i64', 'f64'].indexOf(valtype);
-  Opcodes.const = [ Opcodes.i32_const, Opcodes.i64_const, Opcodes.f64_const ][valtypeInd];
-  Opcodes.eq = [ Opcodes.i32_eq, Opcodes.i64_eq, Opcodes.f64_eq ][valtypeInd];
-  Opcodes.eqz = [ [ [ Opcodes.i32_eqz ] ], [ [ Opcodes.i64_eqz ] ], [ number(0), [ Opcodes.f64_eq ] ] ][valtypeInd];
-  Opcodes.mul = [ Opcodes.i32_mul, Opcodes.i64_mul, Opcodes.f64_mul ][valtypeInd];
-  Opcodes.add = [ Opcodes.i32_add, Opcodes.i64_add, Opcodes.f64_add ][valtypeInd];
-  Opcodes.sub = [ Opcodes.i32_sub, Opcodes.i64_sub, Opcodes.f64_sub ][valtypeInd];
-  Opcodes.i32_to = [ [], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_s ][valtypeInd];
-  Opcodes.i32_to_u = [ [], [ Opcodes.i32_wrap_i64 ], Opcodes.i32_trunc_sat_f64_u ][valtypeInd];
-  Opcodes.i32_from = [ [], [ Opcodes.i64_extend_i32_s ], [ Opcodes.f64_convert_i32_s ] ][valtypeInd];
-  Opcodes.i32_from_u = [ [], [ Opcodes.i64_extend_i32_u ], [ Opcodes.f64_convert_i32_u ] ][valtypeInd];
-  Opcodes.load = [ Opcodes.i32_load, Opcodes.i64_load, Opcodes.f64_load ][valtypeInd];
-  Opcodes.store = [ Opcodes.i32_store, Opcodes.i64_store, Opcodes.f64_store ][valtypeInd];
+  Opcodes.const = valtypeBinary === Valtype.i32 ? Opcodes.i32_const : Opcodes.f64_const;
+  Opcodes.eq = valtypeBinary === Valtype.i32 ? Opcodes.i32_eq : Opcodes.f64_eq;
+  Opcodes.eqz = valtypeBinary === Valtype.i32 ? [ [ Opcodes.i32_eqz ] ] : [ number(0), [ Opcodes.f64_eq ] ];
+  Opcodes.mul = valtypeBinary === Valtype.i32 ? Opcodes.i32_mul : Opcodes.f64_mul;
+  Opcodes.add = valtypeBinary === Valtype.i32 ? Opcodes.i32_add : Opcodes.f64_add;
+  Opcodes.sub = valtypeBinary === Valtype.i32 ? Opcodes.i32_sub : Opcodes.f64_sub;
+  Opcodes.i32_to = valtypeBinary === Valtype.i32 ? [] : Opcodes.i32_trunc_sat_f64_s;
+  Opcodes.i32_to_u = valtypeBinary === Valtype.i32 ? [] : Opcodes.i32_trunc_sat_f64_u;
+  Opcodes.i32_from = valtypeBinary === Valtype.i32 ? [] : [ Opcodes.f64_convert_i32_s ];
+  Opcodes.i32_from_u = valtypeBinary === Valtype.i32 ? [] : [ Opcodes.f64_convert_i32_u ];
+  Opcodes.load = valtypeBinary === Valtype.i32 ? Opcodes.i32_load : Opcodes.f64_load;
+  Opcodes.store = valtypeBinary === Valtype.i32 ? Opcodes.i32_store : Opcodes.f64_store;
 
   builtinFuncs = new BuiltinFuncs();
   builtinVars = new BuiltinVars({ builtinFuncs });
