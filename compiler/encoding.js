@@ -184,6 +184,7 @@ export const signedLEB128_into = (n, buffer) => {
   // just input for small numbers (for perf as common)
   if (n >= 0 && n <= 63) return buffer.push(n);
   if (n >= -64 && n <= 0) return buffer.push(128 + n);
+  if (n >= 0 && n <= 8191) return buffer.push(128 + (n % 128), Math.floor(n / 128));
 
   while (true) {
     let byte = n & 0x7f;
@@ -205,6 +206,7 @@ export const unsignedLEB128_into = (n, buffer) => {
 
   // just input for small numbers (for perf as common)
   if (n >= 0 && n <= 127) return buffer.push(n);
+  if (n >= 0 && n <= 16383) return buffer.push(128 + (n % 128), Math.floor(n / 128));
 
   do {
     let byte = n & 0x7f;
