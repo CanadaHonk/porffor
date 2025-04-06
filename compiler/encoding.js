@@ -124,14 +124,13 @@ export const big_unsignedLEB128 = n => {
   return buffer;
 };
 
-export const read_signedLEB128 = _input => {
-  const input = [..._input];
+export const read_signedLEB128 = input => {
   let result = 0, shift = 0;
 
+  let i = 0;
   while (true) {
-    const byte = input.shift();
+    const byte = input[i++];
     result |= (byte & 0x7f) << shift;
-
     shift += 7;
 
     if ((0x80 & byte) === 0) {
@@ -145,14 +144,13 @@ export const read_signedLEB128 = _input => {
 };
 
 // todo: check this with large unsigned values
-export const read_unsignedLEB128 = _input => {
-  const input = [..._input];
+export const read_unsignedLEB128 = input => {
   let result = 0, shift = 0;
 
+  let i = 0;
   while (true) {
-    const byte = input.shift();
+    const byte = input[i++];
     result |= (byte & 0x7f) << shift;
-
     shift += 7;
 
     if ((0x80 & byte) === 0) {
