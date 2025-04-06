@@ -2,7 +2,7 @@
 import { Opcodes, Valtype } from '../compiler/wasmSpec.js';
 import { number } from '../compiler/encoding.js';
 import { importedFuncs } from '../compiler/builtins.js';
-import compile from '../compiler/wrap.js';
+import compile, { createImport } from '../compiler/wrap.js';
 import fs from 'node:fs';
 
 const file = process.argv.slice(2).find(x => x[0] !== '-');
@@ -148,7 +148,19 @@ const render = () => {
   lastRenderTime = performance.now() - renderStart;
 };
 
-// importedFuncs[importedFuncs.profile2].params = [ Valtype.i32, Valtype.f64 ];
+createImport('profile1', 1, 0, f => { // pre-call
+  samplesStart.push(performance.now());
+  running[runningIdx++] = samplesFunc.push(f) - 1;
+});
+createImport('profile2', 1, 0, f => { // post-call
+  const now = performance.now();
+  samplesEnd[running[--runningIdx]] = now;
+
+  if (now > last) {
+    last = now + 500;
+    render();
+  }
+});
 
 Prefs.treeshakeWasmImports = false;
 let funcLookup = new Map();
@@ -180,21 +192,7 @@ globalThis.compileCallback = ({ funcs }) => {
 
 let last = 0;
 let running = new Uint32Array(1024), runningIdx = 0;
-const { exports } = compile(source, undefined, {
-  y: f => { // pre-call
-    samplesStart.push(performance.now());
-    running[runningIdx++] = samplesFunc.push(f) - 1;
-  },
-  z: f => { // post-call
-    const now = performance.now();
-    samplesEnd[running[--runningIdx]] = now;
-
-    if (now > last) {
-      last = now + 500;
-      render();
-    }
-  }
-}, () => {});
+const { exports } = compile(source, undefined, {}, () => {});
 
 start = performance.now();
 render();

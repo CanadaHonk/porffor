@@ -5,61 +5,44 @@ import { TYPES, TYPE_NAMES } from './types.js';
 import { number, unsignedLEB128 } from './encoding.js';
 import './prefs.js';
 
-export const importedFuncs = [
-  {
-    name: 'print',
-    import: 'p',
-    params: 1,
-    returns: 0
-  },
-  {
-    name: 'printChar',
-    import: 'c',
-    params: 1,
-    returns: 0
-  },
-  {
-    name: 'time',
-    import: 't',
-    params: 0,
-    returns: 1
-  },
-  {
-    name: 'timeOrigin',
-    import: 'u',
-    params: 0,
-    returns: 1
-  },
-  {
-    name: 'profile1',
-    import: 'y',
-    params: [ Valtype.i32 ],
-    returns: 0
-  },
-  {
-    name: 'profile2',
-    import: 'z',
-    params: [ Valtype.i32 ],
-    returns: 0
-  },
-  {
-    name: '__Porffor_readArgv',
-    import: 'w',
-    params: 2,
-    returns: 1
-  },
-  {
-    name: '__Porffor_readFile',
-    import: 'q',
-    params: 2,
-    returns: 1
-  }
-];
+export const importedFuncs = {};
+Object.defineProperty(importedFuncs, 'length', { configurable: true, writable: true, value: 0 });
 
-for (let i = 0; i < importedFuncs.length; i++) {
-  const f = importedFuncs[i];
-  importedFuncs[f.name] = i;
-}
+export const createImport = (name, params, returns, js = null, c = null) => {
+  if (name in importedFuncs) return false;
+
+  const call = importedFuncs.length;
+  const ident = String.fromCharCode(97 + importedFuncs.length);
+  let obj;
+  const get = () => {
+    if (obj) return obj;
+
+    if (typeof params === 'function') params = params();
+    if (typeof returns === 'function') returns = returns();
+    if (typeof params === 'number') params = new Array(params).fill(valtypeBinary);
+    if (typeof returns === 'number') returns = new Array(returns).fill(valtypeBinary);
+
+    obj = new Number(call);
+    obj.name = name;
+    obj.import = ident;
+    obj.params = params;
+    obj.returns = returns;
+    obj.js = js;
+    obj.c = c;
+    return obj;
+  };
+
+  Object.defineProperty(importedFuncs, name, {
+    get,
+    configurable: true,
+    enumerable: true
+  });
+  Object.defineProperty(importedFuncs, call, {
+    get,
+    configurable: true
+  });
+  importedFuncs.length = call + 1;
+};
 
 export const UNDEFINED = 0;
 export const NULL = 0;

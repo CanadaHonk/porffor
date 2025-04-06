@@ -1,5 +1,5 @@
 import { encodeVector } from './encoding.js';
-import { importedFuncs } from './builtins.js';
+import { importedFuncs, createImport } from './builtins.js';
 import compile from './index.js';
 import disassemble from './disassemble.js';
 import { TYPES, TYPE_NAMES } from './types.js';
@@ -352,15 +352,60 @@ ${flags & 0b0001 ? `    get func idx: ${get}
   }
 };
 
+export { createImport };
 export default (source, module = undefined, customImports = {}, print = str => process.stdout.write(str)) => {
+  createImport('print', 1, 0, i => print(i.toString()));
+  createImport('printChar', 1, 0, i => print(String.fromCharCode(i)));
+  createImport('time', 0, 1, () => performance.now());
+  createImport('timeOrigin', 0, 1, () => performance.timeOrigin);
+
+  // todo: these should be provided elsewhere in runtime itself
+  createImport('__Porffor_readArgv', 2, 1, (ind, outPtr) => {
+    let args = process.argv.slice(2);
+    args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
+
+    const str = args[ind - 1];
+    if (!str) return -1;
+
+    writeByteStr(memory, outPtr, str);
+    return str.length;
+  });
+  createImport('__Porffor_readFile', 2, 1, (pathPtr, outPtr) => { // readFile
+    try {
+      const path = pathPtr === 0 ? 0 : readByteStr(memory, pathPtr);
+      const contents = fs.readFileSync(path, 'utf8');
+      writeByteStr(memory, outPtr, contents);
+      return contents.length;
+    } catch {
+      return -1;
+    }
+  });
+
+  for (const x in customImports) {
+    const custom = customImports[x];
+
+    if (x in importedFuncs) {
+      // overwrite with user custom import
+      const existing = importedFuncs[x];
+      if (typeof custom === 'function') {
+        existing.js = custom;
+      } else {
+        existing.params = custom.params;
+        existing.returns = custom.returns;
+        existing.js = custom.js;
+        existing.c = custom.c;
+      }
+      continue;
+    }
+
+    // todo: make a simpler api for just js functions at some point using function.length etc
+    createImport(x, custom.params, custom.returns, custom.js, custom.c);
+  }
+
   const times = [];
 
   const t1 = performance.now();
   const { wasm, funcs, globals, tags, exceptions, pages, c } = typeof source === 'object' ? source : compile(source, module);
-
-  globalThis.porfDebugInfo = { funcs, globals };
-
-  // fs.writeFileSync('out.wasm', Buffer.from(wasm));
 
   times.push(performance.now() - t1);
   if (Prefs.profileCompiler && !globalThis.onProgress) console.log(`\u001b[1mcompiled in ${times[0].toFixed(2)}ms\u001b[0m`);
@@ -448,35 +493,11 @@ export default (source, module = undefined, customImports = {}, print = str => p
   try {
     const module = new WebAssembly.Module(wasm);
     instance = new WebAssembly.Instance(module, {
-      '': {
-        p: i => print(i.toString()),
-        c: i => print(String.fromCharCode(i)),
-        t: () => performance.now(),
-        u: () => performance.timeOrigin,
-        y: () => {},
-        z: () => {},
-        w: (ind, outPtr) => { // readArgv
-          let args = process.argv.slice(2);
-          args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
-
-          const str = args[ind - 1];
-          if (!str) return -1;
-
-          writeByteStr(memory, outPtr, str);
-          return str.length;
-        },
-        q: (pathPtr, outPtr) => { // readFile
-          try {
-            const path = pathPtr === 0 ? 0 : readByteStr(memory, pathPtr);
-            const contents = fs.readFileSync(path, 'utf8');
-            writeByteStr(memory, outPtr, contents);
-            return contents.length;
-          } catch {
-            return -1;
-          }
-        },
-        ...customImports
-      }
+      '': Object.keys(importedFuncs).reduce((acc, y) => {
+        const x = importedFuncs[y];
+        acc[x.import] = x.js ?? (() => {});
+        return acc;
+      }, {})
     });
   } catch (e) {
     if (!Prefs.d) throw e;

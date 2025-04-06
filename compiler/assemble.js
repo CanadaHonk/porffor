@@ -95,7 +95,13 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
   const importSection = importFuncs.length === 0 ? [] : createSection(
     Section.import,
-    encodeVector(importFuncs.map(x => [ 0, ...encodeString(x.import), ExportDesc.func, getType(typeof x.params === 'object' ? x.params : new Array(x.params).fill(valtypeBinary), new Array(x.returns).fill(valtypeBinary)) ]))
+    encodeVector(importFuncs.map(x => {
+      return [
+        0, 1, x.import.charCodeAt(0),
+        ExportDesc.func,
+        getType(x.params, x.returns)
+      ];
+    }))
   );
   time('import section');
 

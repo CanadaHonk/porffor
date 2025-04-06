@@ -62,6 +62,9 @@ const progressClear = () => {
 export default (code, module = undefined) => {
   if (module !== undefined) Prefs.module = module;
 
+  globalThis.valtype = Prefs.valtype ?? 'f64';
+  globalThis.valtypeBinary = Valtype[valtype];
+
   const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
 
   let target = Prefs.target ?? 'wasm';

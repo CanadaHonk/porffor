@@ -1,14 +1,12 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { number } from './encoding.js';
-import { importedFuncs } from './builtins.js';
+import { createImport, importedFuncs } from './builtins.js';
 import assemble from './assemble.js';
 import wrap, { writeByteStr } from './wrap.js';
 import * as Havoc from './havoc.js';
 import './prefs.js';
 
 export const setup = () => {
-  importedFuncs[importedFuncs.profile2].params = [ Valtype.i32, valtypeBinary ];
-
   // enable these prefs by default for pgo
   for (const x of [
     'typeswitchUniqueTmp', // use unique tmps for typeswitches
@@ -35,6 +33,15 @@ export const run = obj => {
   };
 
   time(0, `injecting PGO logging...`);
+
+  let activeFunc = null, abort = false;
+  createImport('profile1', 1, 0, n => {
+    activeFunc = n;
+  });
+  createImport('profile2', 2, 0, (i, n) => {
+    if (activeFunc == null) throw 'fail';
+    localData[activeFunc][i].push(n);
+  });
 
   let funcs = [];
   for (let i = 0; i < wasmFuncs.length; i++) {
@@ -79,7 +86,7 @@ export const run = obj => {
   time(0, `injected PGO logging`);
   time(1, `running with PGO logging...`);
 
-  let activeFunc = null, abort = false;
+
   try {
     obj.wasm = assemble(obj.funcs, obj.globals, obj.tags, obj.pages, obj.data, true);
 
@@ -87,14 +94,7 @@ export const run = obj => {
     Prefs.profileCompiler = false;
 
     const { exports } = wrap(obj, undefined, {
-      y: n => {
-        activeFunc = n;
-      },
-      z: (i, n) => {
-        if (activeFunc == null) throw 'fail';
-        localData[activeFunc][i].push(n);
-      },
-      w: (ind, outPtr) => { // readArgv
+      readArgv: (ind, outPtr) => {
         const pgoInd = process.argv.indexOf('--pgo');
         let args = process.argv.slice(pgoInd);
         args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
@@ -108,7 +108,7 @@ export const run = obj => {
         writeByteStr(exports.$, outPtr, str);
         return str.length;
       },
-      q: (pathPtr, outPtr) => {
+      readFile: (pathPtr, outPtr) => {
         return -1;
       }
     }, () => {});

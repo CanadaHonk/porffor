@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import compile from '../compiler/wrap.js';
+import compile, { createImport } from '../compiler/wrap.js';
 import Byg from '../byg/index.js';
 import fs from 'node:fs';
 
@@ -41,75 +41,75 @@ let lastLine;
 
 let output = '';
 
-try {
-  const { exports } = compile(source, undefined, {
-    y: n => {
-      if (callStarts[callStarts.length - 1] === n - 1) {
-        // end of call
+createImport('profile1', 1, 0, n => {
+  if (callStarts[callStarts.length - 1] === n - 1) {
+    // end of call
 
-        callStarts.pop();
-        callStack.pop();
+    callStarts.pop();
+    callStack.pop();
 
-        paused = _paused;
-      }
+    paused = _paused;
+  }
 
-      lastLine = n;
+  lastLine = n;
 
-      if (breakpoints[n]) paused = true;
+  if (breakpoints[n]) paused = true;
 
-      if (paused) {
-        stepIn = false; stepOut = false;
+  if (paused) {
+    stepIn = false; stepOut = false;
 
-        switch (byg(
-          paused,
-          n,
-          `\x1b[1mporffor debugger\x1b[22m: ${file}@${n + 1}    ${callStack.join('->')}`,
-          [
-            {
-              x: termWidth - 1 - 40 - 6,
-              y: () => 4,
-              width: 40,
-              height: 20,
-              title: 'console',
-              content: output.split('\n')
-            }
-          ]
-        )) {
-          case 'resume': {
-            paused = false;
-            break;
-          }
-
-          case 'stepOver': {
-            break;
-          }
-
-          case 'stepIn': {
-            stepIn = true;
-            // paused = false;
-            break;
-          }
-
-          case 'stepOut': {
-            stepOut = true;
-            paused = false;
-            break;
-          }
+    switch (byg(
+      paused,
+      n,
+      `\x1b[1mporffor debugger\x1b[22m: ${file}@${n + 1}    ${callStack.join('->')}`,
+      [
+        {
+          x: termWidth - 1 - 40 - 6,
+          y: () => 4,
+          width: 40,
+          height: 20,
+          title: 'console',
+          content: output.split('\n')
         }
+      ]
+    )) {
+      case 'resume': {
+        paused = false;
+        break;
       }
-    },
-    z: n => {
-      // start of call
-      callStack.push(funcs[n]);
 
-      callStarts.push(lastLine);
+      case 'stepOver': {
+        break;
+      }
 
-      _paused = paused;
-      if (!stepIn) paused = false;
-        else paused = true;
+      case 'stepIn': {
+        stepIn = true;
+        // paused = false;
+        break;
+      }
+
+      case 'stepOut': {
+        stepOut = true;
+        paused = false;
+        break;
+      }
     }
-  }, s => output += s);
+  }
+});
 
+createImport('profile2', 1, 0, n => {
+  // start of call
+  callStack.push(funcs[n]);
+
+  callStarts.push(lastLine);
+
+  _paused = paused;
+  if (!stepIn) paused = false;
+    else paused = true;
+});
+
+try {
+  const { exports } = compile(source, undefined, {}, s => output += s);
   exports.main();
 } catch (e) {
   console.error(e);

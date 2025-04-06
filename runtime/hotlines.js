@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import compile from '../compiler/wrap.js';
+import compile, { createImport } from '../compiler/wrap.js';
 import fs from 'node:fs';
 
 const file = process.argv.slice(2).find(x => x[0] !== '-');
@@ -18,29 +18,26 @@ const spinner = ['-', '\\', '|', '/'];
 let spin = 0;
 let last = 0;
 
+createImport('profile1', 1, 0, n => {
+  tmp[n] = performance.now();
+});
+createImport('profile2', 1, 0, n => {
+  const t = performance.now();
+  times[n] += t - tmp[n];
+
+  samples++;
+  if (t > last) {
+    process.stdout.write(`\r${spinner[spin++ % 4]} running: collected ${samples} samples...`);
+    last = t + 100;
+  }
+})
+
 try {
-  const { exports } = compile(source, undefined, {
-    y: n => {
-      tmp[n] = performance.now();
-    },
-    z: n => {
-      const t = performance.now();
-      times[n] += t - tmp[n];
-
-      samples++;
-      if (t > last) {
-        process.stdout.write(`\r${spinner[spin++ % 4]} running: collected ${samples} samples...`);
-        last = t + 100;
-      }
-    }
-  });
-
+  const { exports } = compile(source, undefined);
   const start = performance.now();
-
   exports.main();
 
   const total = performance.now() - start;
-
   console.log(`\ntotal: ${total}ms\nsamples: ${samples}\n\n\n` + source.split('\n').map(x => {
     let time = 0;
     if (x.startsWith('profile')) {

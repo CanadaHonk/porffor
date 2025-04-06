@@ -435,17 +435,11 @@ if (isMainThread) {
       .replace('(actual, unexpected) => {', '(actual, unexpected, msg) => {')
       .replaceAll('throw new Test262Error', 'if (typeof expected !== \'undefined\') { Porffor.printString(msg ?? \'\'); Porffor.printStatic(\'\\n\'); Porffor.print(expected, false); Porffor.printStatic(\'\\n\'); Porffor.print(actual, false); Porffor.printStatic(\'\\n\'); } throw new Test262Error');
 
-    // fs.writeFileSync('r.js', contents);
-
     let log = '';
 
     let exports;
     try {
-      const out = compile(contents, !!attrs.flags.module, {
-        p: i => { log += i.toString() },
-        c: i => { log += String.fromCharCode(i); }
-      });
-
+      const out = compile(contents, !!attrs.flags.module, {}, x => log += x);
       exports = out.exports;
     } catch (e) {
       error = e;
