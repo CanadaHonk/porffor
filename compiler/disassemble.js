@@ -102,8 +102,8 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       const callFunc = funcs.find(x => x.index === idx);
       if (callFunc) out += ` ;; $${callFunc.name} ${makeSignature(callFunc.params, callFunc.returns)}`;
       if (globalThis.importFuncs && idx < importFuncs.length) {
-        const importFunc = importFuncs[idx];
-        out += ` ;; import ${importFunc.name} ${makeSignature(typeof importFunc.params === 'object' ? importFunc.params : new Array(importFunc.params).fill(valtypeBinary), new Array(importFunc.returns).fill(valtypeBinary),)}`;
+        const importFunc = globalThis.importFuncs[idx];
+        out += ` ;; import ${importFunc.name} ${makeSignature(importFunc.params, importFunc.returns)}`;
       }
     }
 
