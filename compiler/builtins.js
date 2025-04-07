@@ -9,18 +9,31 @@ export const importedFuncs = {};
 Object.defineProperty(importedFuncs, 'length', { configurable: true, writable: true, value: 0 });
 
 export const createImport = (name, params, returns, js = null, c = null) => {
-  if (name in importedFuncs) return false;
+  const lazy = () => {
+    if (typeof params === 'function') params = params();
+    if (typeof returns === 'function') returns = returns();
+    if (typeof params === 'number') params = new Array(params).fill(valtypeBinary);
+    if (typeof returns === 'number') returns = new Array(returns).fill(valtypeBinary);
+  };
+
+  if (name in importedFuncs) {
+    // overwrite existing import
+    const existing = importedFuncs[name];
+    lazy();
+
+    existing.params = params;
+    existing.returns = returns;
+    existing.js = js;
+    existing.c = c;
+    return;
+  }
 
   const call = importedFuncs.length;
   const ident = String.fromCharCode(97 + importedFuncs.length);
   let obj;
   const get = () => {
     if (obj) return obj;
-
-    if (typeof params === 'function') params = params();
-    if (typeof returns === 'function') returns = returns();
-    if (typeof params === 'number') params = new Array(params).fill(valtypeBinary);
-    if (typeof returns === 'number') returns = new Array(returns).fill(valtypeBinary);
+    lazy();
 
     obj = new Number(call);
     obj.name = name;

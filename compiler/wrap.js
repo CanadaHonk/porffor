@@ -383,21 +383,6 @@ export default (source, module = undefined, customImports = {}, print = str => p
 
   for (const x in customImports) {
     const custom = customImports[x];
-
-    if (x in importedFuncs) {
-      // overwrite with user custom import
-      const existing = importedFuncs[x];
-      if (typeof custom === 'function') {
-        existing.js = custom;
-      } else {
-        existing.params = custom.params;
-        existing.returns = custom.returns;
-        existing.js = custom.js;
-        existing.c = custom.c;
-      }
-      continue;
-    }
-
     // todo: make a simpler api for just js functions at some point using function.length etc
     createImport(x, custom.params, custom.returns, custom.js, custom.c);
   }
