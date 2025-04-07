@@ -2703,7 +2703,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
   if (
     func?.returns?.length === 0 ||
-    (idx === importedFuncs[name] && importedFuncs[importedFuncs[name]]?.returns === 0)
+    (idx === importedFuncs[name] && importedFuncs[importedFuncs[name]]?.returns?.length === 0)
   ) {
     out.push(number(UNDEFINED));
   }
@@ -5750,7 +5750,7 @@ const generateMember = (scope, decl, _global, _name) => {
       if (func) return withType(scope, [ number(countLength(func, name)) ], TYPES.number);
 
       if (Object.hasOwn(builtinFuncs, name)) return withType(scope, [ number(countLength(builtinFuncs[name], name)) ], TYPES.number);
-      if (Object.hasOwn(importedFuncs, name)) return withType(scope, [ number(importedFuncs[name].params.length ?? importedFuncs[name].params) ], TYPES.number);
+      if (Object.hasOwn(importedFuncs, name)) return withType(scope, [ number(importedFuncs[name].params.length) ], TYPES.number);
       if (Object.hasOwn(internalConstrs, name)) return withType(scope, [ number(internalConstrs[name].length ?? 0) ], TYPES.number);
     }
 
