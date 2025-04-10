@@ -1,7 +1,7 @@
 {
   "name": "porffor",
   "description": "An ahead-of-time JavaScript compiler",
-  "version": "0.57.11",
+  "version": "0.57.12",
   "author": "Oliver Medhurst <honk@goose.icu>",
   "license": "MIT",
   "scripts": {},
