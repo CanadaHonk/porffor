@@ -1,7 +1,13 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { read_signedLEB128 } from './encoding.js';
 import { TYPES, TYPE_NAMES } from './types.js';
+import { createImport } from './builtins.js';
 import { log } from './log.js';
+
+createImport('print', 1, 0);
+createImport('printChar', 1, 0);
+createImport('time', 0, 1);
+createImport('timeOrigin', 0, 1);
 
 import process from 'node:process';
 globalThis.process = process;
