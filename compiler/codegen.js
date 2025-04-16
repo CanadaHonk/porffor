@@ -1938,10 +1938,10 @@ const typeIsIterable = wasm => [
   ...typeIsOneOf(wasm, [ TYPES.array, TYPES.set, TYPES.map, TYPES.string, TYPES.bytestring, TYPES.__porffor_generator ]),
   // typed array
   ...wasm,
-  number(TYPES.uint8array, Valtype.i32),
+  number(TYPES.uint8clampedarray, Valtype.i32),
   [ Opcodes.i32_ge_s ],
   ...wasm,
-  number(TYPES.biguint64array, Valtype.i32),
+  number(TYPES.float64array, Valtype.i32),
   [ Opcodes.i32_le_s ],
   [ Opcodes.i32_and ],
   [ Opcodes.i32_or ],
@@ -6392,7 +6392,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
           continue;
         }
 
-        let inst = Opcodes[asm[0].replace('.', '_')];
+        let inst = Opcodes[asm[0].replaceAll('.', '_')];
         if (inst == null) throw new Error(`inline asm: inst ${asm[0]} not found`);
         if (!Array.isArray(inst)) inst = [ inst ];
 

@@ -37,9 +37,7 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
     if (inst[0] === 0xfd) { // simd inst prefix
       if (inst[1] >= 128) inst = [ [ inst[0], inst[1], inst[2] ], ...inst.slice(3) ];
         else inst = [ [ inst[0], inst[1] ], ...inst.slice(2) ];
-    }
-
-    if (inst[0] === 0xfc) { // misc inst prefix
+    } else if (inst[0] > 0xf0) { // other multi-byte insts
       inst = [ [ inst[0], inst[1] ], ...inst.slice(2) ];
     }
 

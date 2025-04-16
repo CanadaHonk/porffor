@@ -25,7 +25,6 @@ export default async () => {
     Porffor.type(arg) == Porffor.TYPES.sharedarraybuffer
   )) {
     bufferPtr = Porffor.wasm\`local.get \${arg}\`;
-
     if (arg.detached) throw new TypeError('Constructed ${name} with a detached ArrayBuffer');
 
     let offset: i32 = 0;
@@ -49,7 +48,7 @@ export default async () => {
       Porffor.type(arg) == Porffor.TYPES.array,
       Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
       Porffor.type(arg) == Porffor.TYPES.set,
-      Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8array, Porffor.type(arg) <= Porffor.TYPES.biguint64array)
+      Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array)
     )) {
       let i: i32 = 0;
       for (const x of arg) {
@@ -80,7 +79,7 @@ export const __${name}_from = (arg: any, mapFn: any): ${name} => {
     Porffor.type(arg) == Porffor.TYPES.array,
     Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
     Porffor.type(arg) == Porffor.TYPES.set,
-    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8array, Porffor.type(arg) <= Porffor.TYPES.biguint64array)
+    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array)
   )) {
     let i: i32 = 0;
     if (Porffor.type(mapFn) != Porffor.TYPES.undefined) {
@@ -168,7 +167,7 @@ export const __${name}_prototype_set = (_this: ${name}, array: any, offset: numb
     Porffor.type(array) == Porffor.TYPES.array,
     Porffor.type(array) == Porffor.TYPES.string, Porffor.type(array) == Porffor.TYPES.bytestring,
     Porffor.type(array) == Porffor.TYPES.set,
-    Porffor.fastAnd(Porffor.type(array) >= Porffor.TYPES.uint8array, Porffor.type(array) <= Porffor.TYPES.biguint64array)
+    Porffor.fastAnd(Porffor.type(array) >= Porffor.TYPES.uint8clampedarray, Porffor.type(array) <= Porffor.TYPES.float64array)
   )) {
     let i: i32 = offset;
     for (const x of array) {

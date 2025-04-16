@@ -268,7 +268,7 @@ export default function({ builtinFuncs }, Prefs) {
   object('Array', autoFuncs('Array'));
   object('Symbol', autoFuncs('Symbol'));
   object('Date', autoFuncs('Date'));
-
+  object('Atomics', autoFuncs('Atomics'));
 
   // these technically not spec compliant as it should be classes or non-enumerable but eh
   object('navigator', {

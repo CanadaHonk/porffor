@@ -56,7 +56,7 @@ registerInternalType('ArrayBuffer');
 registerInternalType('SharedArrayBuffer');
 registerInternalType('DataView');
 
-for (const x of [ 'Uint8', 'Int8', 'Uint8Clamped', 'Uint16', 'Int16', 'Uint32', 'Int32', 'Float32', 'Float64', 'BigInt64', 'BigUint64' ])
+for (const x of [ 'Uint8Clamped', 'Uint8', 'Int8', 'Uint16', 'Int16', 'Uint32', 'Int32', 'BigUint64', 'BigInt64', 'Float32', 'Float64' ])
   registerInternalType(`${x}Array`, ['iterable', 'length']);
 
 registerInternalType('WeakRef');

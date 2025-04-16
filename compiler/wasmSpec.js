@@ -252,5 +252,55 @@ export const Opcodes = {
 
   v128_or: [ 0xfd, 80 ],
   v128_xor: [ 0xfd, 81 ],
-  v128_any_true: [ 0xfd, 83 ]
+  v128_any_true: [ 0xfd, 83 ],
+
+  // Atomic memory operations
+  memory_atomic_notify: [ 0xfe, 0x00 ],
+  memory_atomic_wait32: [ 0xfe, 0x01 ],
+  memory_atomic_wait64: [ 0xfe, 0x02 ],
+  atomic_fence: [ 0xfe, 0x03, 0x00 ],
+
+  i32_atomic_load: [ 0xfe, 0x10 ],
+  i64_atomic_load: [ 0xfe, 0x11 ],
+  i32_atomic_load8: [ 0xfe, 0x12 ],
+  i32_atomic_load16: [ 0xfe, 0x13 ],
+  i32_atomic_store: [ 0xfe, 0x17 ],
+  i64_atomic_store: [ 0xfe, 0x18 ],
+  i32_atomic_store8: [ 0xfe, 0x19 ],
+  i32_atomic_store16: [ 0xfe, 0x1a ],
+
+  i32_atomic_rmw_add: [ 0xfe, 0x1e ],
+  i64_atomic_rmw_add: [ 0xfe, 0x1f ],
+  i32_atomic_rmw_add8: [ 0xfe, 0x20 ],
+  i32_atomic_rmw_add16: [ 0xfe, 0x21 ],
+
+  i32_atomic_rmw_sub: [ 0xfe, 0x25 ],
+  i64_atomic_rmw_sub: [ 0xfe, 0x26 ],
+  i32_atomic_rmw_sub8: [ 0xfe, 0x27 ],
+  i32_atomic_rmw_sub16: [ 0xfe, 0x28 ],
+
+  i32_atomic_rmw_and: [ 0xfe, 0x2c ],
+  i64_atomic_rmw_and: [ 0xfe, 0x2d ],
+  i32_atomic_rmw_and8: [ 0xfe, 0x2e ],
+  i32_atomic_rmw_and16: [ 0xfe, 0x2f ],
+
+  i32_atomic_rmw_or: [ 0xfe, 0x33 ],
+  i64_atomic_rmw_or: [ 0xfe, 0x34 ],
+  i32_atomic_rmw_or8: [ 0xfe, 0x35 ],
+  i32_atomic_rmw_or16: [ 0xfe, 0x36 ],
+
+  i32_atomic_rmw_xor: [ 0xfe, 0x3a ],
+  i64_atomic_rmw_xor: [ 0xfe, 0x3b ],
+  i32_atomic_rmw_xor8: [ 0xfe, 0x3c ],
+  i32_atomic_rmw_xor16: [ 0xfe, 0x3d ],
+
+  i32_atomic_rmw_xchg: [ 0xfe, 0x41 ],
+  i64_atomic_rmw_xchg: [ 0xfe, 0x42 ],
+  i32_atomic_rmw_xchg8: [ 0xfe, 0x43 ],
+  i32_atomic_rmw_xchg16: [ 0xfe, 0x44 ],
+
+  i32_atomic_rmw_cmpxchg: [ 0xfe, 0x48 ],
+  i64_atomic_rmw_cmpxchg: [ 0xfe, 0x49 ],
+  i32_atomic_rmw_cmpxchg8: [ 0xfe, 0x4a ],
+  i32_atomic_rmw_cmpxchg16: [ 0xfe, 0x4b ]
 };

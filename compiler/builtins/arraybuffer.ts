@@ -3,7 +3,7 @@ import type {} from './porffor.d.ts';
 export const __ArrayBuffer_isView = (value: any): boolean => {
   return Porffor.fastOr(
     Porffor.type(value) == Porffor.TYPES.dataview,
-    Porffor.fastAnd(Porffor.type(value) >= Porffor.TYPES.uint8array, Porffor.type(value) <= Porffor.TYPES.biguint64array)
+    Porffor.fastAnd(Porffor.type(value) >= Porffor.TYPES.uint8clampedarray, Porffor.type(value) <= Porffor.TYPES.float64array)
   );
 };
 

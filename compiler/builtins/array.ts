@@ -44,7 +44,7 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
     Porffor.type(arg) == Porffor.TYPES.array,
     Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
     Porffor.type(arg) == Porffor.TYPES.set,
-    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8array, Porffor.type(arg) <= Porffor.TYPES.biguint64array)
+    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array)
   )) {
     let i: i32 = 0;
     if (Porffor.type(mapFn) != Porffor.TYPES.undefined) {
