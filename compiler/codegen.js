@@ -206,6 +206,10 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'ArrowFunctionExpression':
     case 'FunctionDeclaration':
     case 'FunctionExpression':
+      // ignore body-less function definitions, likely ts overload signatures
+      if (!decl.body) {
+        return cacheAst(decl, [ number(UNDEFINED) ]);
+      }
       return cacheAst(decl, generateFunc(scope, decl)[1]);
 
     case 'BlockStatement':
