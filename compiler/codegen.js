@@ -5157,6 +5157,9 @@ const generateSwitch = (scope, decl) => {
   if (defaultCase != -1) {
     // move default case to last
     cases.push(cases.splice(defaultCase, 1)[0]);
+  } else {
+    // make empty default case
+    cases.push({ test: null, consequent: [] });
   }
 
   for (let i = 0; i < cases.length; i++) {
