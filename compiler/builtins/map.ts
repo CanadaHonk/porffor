@@ -127,3 +127,20 @@ export const __Map_prototype_values = (_this: Map) => {
 
 export const __Map_prototype_toString = (_this: Map) => '[object Map]';
 export const __Map_prototype_toLocaleString = (_this: Map) => __Map_prototype_toString(_this);
+
+// https://github.com/tc39/proposal-upsert
+export const __Map_prototype_getOrInsert = (_this: Map, key: any, value: any) => {
+  if (!__Map_prototype_has(_this, key)) {
+    __Map_prototype_set(_this, key, value);
+  }
+
+  return __Map_prototype_get(_this, key);
+};
+
+export const __Map_prototype_getOrInsertComputed = (_this: Map, key: any, callbackFn: any) => {
+  if (!__Map_prototype_has(_this, key)) {
+    __Map_prototype_set(_this, key, callbackFn(key));
+  }
+
+  return __Map_prototype_get(_this, key);
+};

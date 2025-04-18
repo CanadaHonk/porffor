@@ -35,3 +35,20 @@ export const WeakMap = function (iterable: any): WeakMap {
 
 export const __WeakMap_prototype_toString = (_this: WeakMap) => '[object WeakMap]';
 export const __WeakMap_prototype_toLocaleString = (_this: WeakMap) => __WeakMap_prototype_toString(_this);
+
+// https://github.com/tc39/proposal-upsert
+export const __WeakMap_prototype_getOrInsert = (_this: WeakMap, key: any, value: any) => {
+  if (!__WeakMap_prototype_has(_this, key)) {
+    __WeakMap_prototype_set(_this, key, value);
+  }
+
+  return __WeakMap_prototype_get(_this, key);
+};
+
+export const __WeakMap_prototype_getOrInsertComputed = (_this: WeakMap, key: any, callbackFn: any) => {
+  if (!__WeakMap_prototype_has(_this, key)) {
+    __WeakMap_prototype_set(_this, key, callbackFn(key));
+  }
+
+  return __WeakMap_prototype_get(_this, key);
+};
