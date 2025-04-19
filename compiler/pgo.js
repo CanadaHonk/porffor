@@ -35,10 +35,10 @@ export const run = obj => {
   time(0, `injecting PGO logging...`);
 
   let activeFunc = null, abort = false;
-  createImport('profile1', 1, 0, n => {
+  createImport('profile1', [ Valtype.i32 ], 0, n => {
     activeFunc = n;
   });
-  createImport('profile2', 2, 0, (i, n) => {
+  createImport('profile2', [ Valtype.i32, Valtype.f64 ], 0, (i, n) => {
     if (activeFunc == null) throw 'fail';
     localData[activeFunc][i].push(n);
   });
