@@ -18,10 +18,10 @@ const spinner = ['-', '\\', '|', '/'];
 let spin = 0;
 let last = 0;
 
-createImport('profile1', 1, 0, n => {
+createImport('profile1', [ Valtype.i32 ], 0, n => {
   tmp[n] = performance.now();
 });
-createImport('profile2', 1, 0, n => {
+createImport('profile2', [ Valtype.i32 ], 0, n => {
   const t = performance.now();
   times[n] += t - tmp[n];
 
@@ -30,7 +30,7 @@ createImport('profile2', 1, 0, n => {
     process.stdout.write(`\r${spinner[spin++ % 4]} running: collected ${samples} samples...`);
     last = t + 100;
   }
-})
+});
 
 try {
   const { exports } = compile(source, undefined);
