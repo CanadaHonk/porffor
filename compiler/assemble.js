@@ -66,7 +66,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
   let importFuncs = [], importDelta = 0;
   if (!Prefs.treeshakeWasmImports || noTreeshake) {
-    importFuncs = importedFuncs;
+    importFuncs = Array.from(importedFuncs);
   } else {
     let imports = new Map();
 
