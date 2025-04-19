@@ -148,11 +148,11 @@ const render = () => {
   lastRenderTime = performance.now() - renderStart;
 };
 
-createImport('profile1', 1, 0, f => { // pre-call
+createImport('profile1', [ Valtype.i32 ], 0, f => { // pre-call
   samplesStart.push(performance.now());
   running[runningIdx++] = samplesFunc.push(f) - 1;
 });
-createImport('profile2', 1, 0, f => { // post-call
+createImport('profile2', 0, 0, () => { // post-call
   const now = performance.now();
   samplesEnd[running[--runningIdx]] = now;
 
@@ -174,17 +174,9 @@ globalThis.compileCallback = ({ funcs }) => {
         const f = w[i][1];
         if (f < importedFuncs.length) continue;
 
-        let local;
-        if (x.locals['#profile_tmp']) {
-          local = x.locals['#profile_tmp'].idx;
-        } else {
-          local = x.localInd++;
-          x.locals['#profile_tmp'] = { idx: local, type: Valtype.f64 };
-        }
-
-        w.splice(i + 1, 0, number(f, Valtype.i32), [ Opcodes.call, importedFuncs.profile2 ]);
+        w.splice(i + 1, 0, [ Opcodes.call, importedFuncs.profile2 ]);
         w.splice(i, 0, number(f, Valtype.i32), [ Opcodes.call, importedFuncs.profile1 ]);
-        i += 4;
+        i += 3;
       }
     }
   }
