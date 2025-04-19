@@ -1,5 +1,6 @@
 import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { read_ieee754_binary64, read_signedLEB128, read_unsignedLEB128 } from './encoding.js';
+import { importedFuncs } from './builtins.js';
 
 const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[keyMap(obj[x])] = x; return acc; }, {});
 const invOpcodes = inv(Opcodes);
@@ -99,8 +100,8 @@ export default (wasm, name = '', ind = 0, locals = {}, params = [], returns = []
       const idx = inst[1];
       const callFunc = funcs.find(x => x.index === idx);
       if (callFunc) out += ` ;; $${callFunc.name} ${makeSignature(callFunc.params, callFunc.returns)}`;
-      if (globalThis.importFuncs && idx < importFuncs.length) {
-        const importFunc = globalThis.importFuncs[idx];
+      if (idx < importedFuncs.length) {
+        const importFunc = importedFuncs[idx];
         out += ` ;; import ${importFunc.name} ${makeSignature(importFunc.params, importFunc.returns)}`;
       }
     }
