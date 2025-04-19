@@ -1,7 +1,7 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { read_signedLEB128 } from './encoding.js';
 import { TYPES, TYPE_NAMES } from './types.js';
-import { createImport } from './builtins.js';
+import { createImport, importedFuncs } from './builtins.js';
 import { log } from './log.js';
 
 createImport('print', 1, 0);
@@ -112,7 +112,13 @@ const compile = async (file, _funcs) => {
         if (y[0] === Opcodes.call) {
           const idx = y[1];
           const f = funcs.find(x => x.index === idx);
-          if (!f) continue;
+          if (!f) {
+            if (idx < importedFuncs.length) {
+              y.splice(1, 10, importedFuncs[idx].name);
+            }
+
+            continue;
+          }
 
           y.splice(1, 10, f.name);
         }
