@@ -268,12 +268,16 @@ return `
             color: var(--text-muted);
         }
         h2 {
-            text-align: center;
             color: var(--header-primary);
             font-weight: 800;
             margin: 0;
             margin-bottom: 16px;
             font-size: 24px;
+        }
+        h2 > span {
+            color: var(--text-muted);
+            float: right;
+            font-weight: normal;
         }
         #flamegraph-container, #barchart-container {
             border: 2px solid var(--accent);
@@ -336,7 +340,7 @@ return `
     </style>
 </head>
 <body>
-    <h2>Porffor Profile: ${path.basename(file)} (${totalDuration.toFixed(2)}ms total)</h2>
+    <h2>${path.basename(file)} <span>${totalDuration.toFixed(2)}ms | ${samplesFunc.length} samples</span></h2>
 
     <div id="flamegraph-container" style="position: relative;">
         <div id="flamegraph-chart"></div>
@@ -344,7 +348,6 @@ return `
     </div>
 
     <div id="barchart-container">
-        <div class="chart-title">Function Execution Time</div>
         <div id="barchart"></div>
     </div>
 
