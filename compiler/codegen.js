@@ -1244,7 +1244,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
   Valtype, Opcodes, TYPES, TYPE_NAMES, usedTypes, typeSwitch, makeString, internalThrow,
   getNodeType, generate, generateIdent,
   builtin: (n, offset = false) => {
-    let idx = funcIndex[n] ?? importedFuncs[n];
+    let idx = importedFuncs[n] ?? funcIndex[n];
     if (idx == null && builtinFuncs[n]) {
       includeBuiltin(scope, n);
       idx = funcIndex[n];
