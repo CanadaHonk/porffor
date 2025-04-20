@@ -28,16 +28,17 @@ export const __Porffor_object_hash = (key: any): i32 => {
   // bytestring or string, fnv-1a hash (custom variant)
   // todo/opt: custom wasm simd variant?
   // todo/opt: pgo for if no hash collisions?
+  // todo: bytestring/string symmetric hashing
 
   let ptr: i32 = Porffor.wasm`local.get ${key}`;
   const len: i32 = Porffor.wasm.i32.load(key, 0, 0);
 
   let hash: i32 = (2166136261 ^ len) * 16777619;
-  if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.bytestring) {
-    // chunks of 8 bytes via i64.load
-    const endPtr: i32 = ptr + len - 8;
-    for (; ptr <= endPtr; ptr += 8) {
-      Porffor.wasm`
+
+  // chunks of 8 bytes via i64.load
+  const endPtr: i32 = ptr + len - 8;
+  for (; ptr <= endPtr; ptr += 8) {
+    Porffor.wasm`
 local x i64
 local.get ${ptr}
 i64.load 0 4
@@ -59,10 +60,10 @@ i32.const 16777619
 i32.mul
 
 local.set ${hash}`;
-    }
+  }
 
-    // remaining 0-7 bytes via i64.load and bitwise
-    Porffor.wasm`
+  // remaining 0-7 bytes via i64.load and bitwise
+  Porffor.wasm`
 local.get ${ptr}
 i64.load 0 4
 
@@ -94,111 +95,7 @@ i32.wrap_i64
 i32.xor
 i32.const 16777619
 i32.mul
-
-local.set ${hash}`;
-  } else {
-    // slow path: string, process like bytestring
-    // skips 1 byte per char but we want collisions (false positives) instead of lack there of
-    // 4x 16 chars (u64): 0x0012003400560078
-    // 4x 8 chars (u32): 0x12345678
-    // todo: this doesn't work?
-
-    const endPtr: i32 = ptr + len * 2 - 8;
-    for (; ptr <= endPtr; ptr += 8) {
-      Porffor.wasm`
-local.get ${ptr}
-i64.load 0 4
-local.set x
-
-local.get ${hash}
-local.get x
-i64.const 48
-i64.shr_u
-i64.const 255
-i64.and
-i64.const 24
-i64.shl
-local.get x
-i64.const 32
-i64.shr_u
-i64.const 255
-i64.and
-i64.const 16
-i64.shl
-i64.or
-local.get x
-i64.const 16
-i64.shr_u
-i64.const 255
-i64.and
-i64.const 8
-i64.shl
-i64.or
-local.get x
-i64.const 255
-i64.and
-i64.or
-i32.wrap_i64
-i32.xor
-i32.const 16777619
-i32.mul
-local.set ${hash}`;
-    }
-
-    // remaining 0-7 bytes via i64.load and bitwise
-    Porffor.wasm`
-local.get ${ptr}
-i64.load 0 4
-
-local.get ${ptr}
-local.get ${endPtr}
-i32.sub
-i32.const 8
-i32.mul
-i64.extend_i32_u
-local.tee shift
-
-i64.shl
-local.get shift
-i64.shr_u
-local.set x
-
-local.get ${hash}
-local.get x
-i64.const 48
-i64.shr_u
-i64.const 255
-i64.and
-i64.const 24
-i64.shl
-local.get x
-i64.const 32
-i64.shr_u
-i64.const 255
-i64.and
-i64.const 16
-i64.shl
-i64.or
-local.get x
-i64.const 16
-i64.shr_u
-i64.const 255
-i64.and
-i64.const 8
-i64.shl
-i64.or
-local.get x
-i64.const 255
-i64.and
-i64.or
-i32.wrap_i64
-i32.xor
-i32.const 16777619
-i32.mul
-local.set ${hash}`;
-  }
-
-  return hash;
+return`;
 };
 
 export const __Porffor_object_writeKey = (ptr: i32, key: any, hash: i32): void => {
