@@ -43,12 +43,6 @@ createImport('profile1', [ Valtype.i32 ], 0, f => { // pre-call
   // This index corresponds to the entry in samplesFunc/Start/End
   const sampleIndex = samplesFunc.push(f) - 1;
   samplesEnd.push(null); // Placeholder for end time
-  if (runningIdx >= running.length) {
-    // Resize running buffer if needed
-    const newRunning = new Uint32Array(running.length * 2);
-    newRunning.set(running);
-    running = newRunning;
-  }
   running[runningIdx++] = sampleIndex;
 });
 
