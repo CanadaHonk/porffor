@@ -40,9 +40,9 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 
 ### Profiling a JS file
 > [!WARNING]
-> Very experimental WIP feature!
+> Experimental WIP feature!
 
-**`porf hotlines path/to/script.js`**
+**`porf profile path/to/script.js`**
 
 ### Debugging a JS file
 > [!WARNING]

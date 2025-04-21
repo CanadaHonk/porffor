@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.57.16';
+globalThis.version = '0.57.17';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -24,11 +24,8 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     c: [ 94, 'foo.js foo.c', 'Compile to C source code' ],
     native: [ 94, 'foo.js foo', 'Compile to a native binary' ],
 
-    'Profile': [],
-    flamegraph: [ 93, 'foo.js', 'View detailed func-by-func performance' ],
-    hotlines: [ 93, 'foo.js', 'View source with line-by-line performance' ],
-
-    'Debug': [],
+    'Analyze': [],
+    profile: [ 93, 'foo.js', 'View detailed func-by-func performance' ],
     debug: [ 33, 'foo.js', 'Debug the source of a file' ],
     dissect: [ 33, 'foo.js', 'Debug the compiled Wasm of a file' ],
   })) {
@@ -93,7 +90,7 @@ const done = async () => {
 };
 
 let file = process.argv.slice(2).find(x => x[0] !== '-');
-if (['precompile', 'run', 'wasm', 'native', 'c', 'flamegraph', 'hotlines', 'debug', 'dissect'].includes(file)) {
+if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'dissect'].includes(file)) {
   // remove this arg
   process.argv.splice(process.argv.indexOf(file), 1);
 
@@ -102,13 +99,8 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'flamegraph', 'hotlines', 'debu
     await done();
   }
 
-  if (file === 'flamegraph') {
-    await import('./flamegraph.js');
-    await done();
-  }
-
-  if (file === 'hotlines') {
-    await import('./hotlines.js');
+  if (file === 'profile') {
+    await import('./profile.js');
     await done();
   }
 
