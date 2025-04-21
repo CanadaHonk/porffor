@@ -3601,7 +3601,7 @@ const coctcOffset = prop => {
 
   let offset = coctc.get(prop);
   if (offset == null) {
-    offset = (coctc.lastOffset ?? Prefs.coctcOffset ?? 16300) - 9;
+    offset = (coctc.lastOffset ?? Prefs.coctcOffset ?? (globalThis.pageSize - 128)) - 9;
     if (offset < 0) return 0;
 
     coctc.lastOffset = offset;
