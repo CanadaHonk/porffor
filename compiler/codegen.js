@@ -2177,38 +2177,14 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           ...generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
           [ Opcodes.local_tee, valTmp ],
           ...getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
-          [ Opcodes.local_tee, typeTmp ],
-
-          // check not undefined or null if not in precompile
-          // todo: technically this should be allowed sometimes but for now, never
-          ...(globalThis.precompile ? [] : [
-            ...nullish(scope,
-              [ [ Opcodes.local_get, valTmp ] ],
-              [ [ Opcodes.local_get, typeTmp ] ],
-              false, true),
-            [ Opcodes.if, Blocktype.void ],
-            ...internalThrow(scope, 'TypeError', `Cannot use undefined or null as 'this'`),
-            [ Opcodes.end ]
-          ])
+          [ Opcodes.local_tee, typeTmp ]
         ],
         _thisWasmComponents: {
           _callValue: [
             ...generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
             [ Opcodes.local_tee, valTmp ],
             ...getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
-            [ Opcodes.local_set, typeTmp ],
-
-            // check not undefined or null if not in precompile
-            // todo: technically this should be allowed sometimes but for now, never
-            ...(globalThis.precompile ? [] : [
-              ...nullish(scope,
-                [ [ Opcodes.local_get, valTmp ] ],
-                [ [ Opcodes.local_get, typeTmp ] ],
-                false, true),
-              [ Opcodes.if, Blocktype.void ],
-              ...internalThrow(scope, 'TypeError', `Cannot use undefined or null as 'this'`),
-              [ Opcodes.end ]
-            ])
+            [ Opcodes.local_set, typeTmp ]
           ],
           _callType: [ [ Opcodes.local_get, typeTmp ] ]
         }
