@@ -199,133 +199,146 @@ params:[124,127,124,127],typedParams:1,returns:[124,127],
 locals:[127],localNames:["a","a#type","b","b#type","#last_type"],
 }
 this.__String_prototype_big = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<big>",1),[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,2],...makeString(_,"</big>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.big expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<big>",1)),[183],[65,195,1],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[183],[32,2],...i32ify(makeString(_,"</big>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[32,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_big = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_big')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[16,builtin('__String_prototype_big')],[34,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
 }
 this.__String_prototype_blink = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<blink>",1),[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,2],...makeString(_,"</blink>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.blink expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<blink>",1)),[183],[65,195,1],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[183],[32,2],...i32ify(makeString(_,"</blink>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[32,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_blink = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_blink')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[16,builtin('__String_prototype_blink')],[34,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
 }
 this.__String_prototype_bold = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<b>",1),[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,2],...makeString(_,"</b>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.bold expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<b>",1)),[183],[65,195,1],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[183],[32,2],...i32ify(makeString(_,"</b>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[32,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_bold = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_bold')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[16,builtin('__String_prototype_bold')],[34,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
 }
 this.__String_prototype_fixed = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<tt>",1),[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,2],...makeString(_,"</tt>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.fixed expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<tt>",1)),[183],[65,195,1],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[183],[32,2],...i32ify(makeString(_,"</tt>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[32,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_fixed = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_fixed')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[16,builtin('__String_prototype_fixed')],[34,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
 }
 this.__String_prototype_italics = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<i>",1),[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,2],...makeString(_,"</i>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.italics expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<i>",1)),[183],[65,195,1],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[183],[32,2],...i32ify(makeString(_,"</i>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[32,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_italics = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_italics')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[16,builtin('__String_prototype_italics')],[34,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
 }
 this.__String_prototype_small = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<small>",1),[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,2],...makeString(_,"</small>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.small expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<small>",1)),[183],[65,195,1],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[183],[32,2],...i32ify(makeString(_,"</small>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[32,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_small = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_small')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[16,builtin('__String_prototype_small')],[34,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
 }
 this.__String_prototype_strike = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<strike>",1),[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,2],...makeString(_,"</strike>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.strike expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<strike>",1)),[183],[65,195,1],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[183],[32,2],...i32ify(makeString(_,"</strike>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[32,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_strike = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_strike')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[16,builtin('__String_prototype_strike')],[34,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
 }
 this.__String_prototype_sub = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<sub>",1),[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,2],...makeString(_,"</sub>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.sub expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<sub>",1)),[183],[65,195,1],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[183],[32,2],...i32ify(makeString(_,"</sub>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[32,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_sub = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_sub')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[16,builtin('__String_prototype_sub')],[34,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
 }
 this.__String_prototype_sup = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<sup>",1),[65,195,1],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,2],...makeString(_,"</sup>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.sup expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<sup>",1)),[183],[65,195,1],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[183],[32,2],...i32ify(makeString(_,"</sup>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,2],[252,2],[32,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_sup = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[16,builtin('__String_prototype_sup')],[34,2],[15]],
-params:[124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[16,builtin('__String_prototype_sup')],[34,2],[15]],
+params:[127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","#last_type"],
 }
 this.__String_prototype_fontcolor = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<font color=\"",1),[65,195,1],[32,2],[32,3],[16,builtin('__Porffor_concatStrings')],[34,4],...makeString(_,"\">",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],...makeString(_,"</font>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
-params:[124,127,124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.fontcolor expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<font color=\"",1)),[183],[65,195,1],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],...i32ify(makeString(_,"\">",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],...i32ify(makeString(_,"</font>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[32,4],[15]],
+params:[127,127,127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_fontcolor = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[32,2],[32,3],[16,builtin('__String_prototype_fontcolor')],[34,4],[15]],
-params:[124,127,124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[32,2],[32,3],[16,builtin('__String_prototype_fontcolor')],[34,4],[15]],
+params:[127,127,127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
 }
 this.__String_prototype_fontsize = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<font size=\"",1),[65,195,1],[32,2],[32,3],[16,builtin('__Porffor_concatStrings')],[34,4],...makeString(_,"\">",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],...makeString(_,"</font>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
-params:[124,127,124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.fontsize expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<font size=\"",1)),[183],[65,195,1],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],...i32ify(makeString(_,"\">",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],...i32ify(makeString(_,"</font>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[32,4],[15]],
+params:[127,127,127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_fontsize = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[32,2],[32,3],[16,builtin('__String_prototype_fontsize')],[34,4],[15]],
-params:[124,127,124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[32,2],[32,3],[16,builtin('__String_prototype_fontsize')],[34,4],[15]],
+params:[127,127,127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
 }
 this.__String_prototype_anchor = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<a name=\"",1),[65,195,1],[32,2],[32,3],[16,builtin('__Porffor_concatStrings')],[34,4],...makeString(_,"\">",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],...makeString(_,"</a>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
-params:[124,127,124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.anchor expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<a name=\"",1)),[183],[65,195,1],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],...i32ify(makeString(_,"\">",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],...i32ify(makeString(_,"</a>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[32,4],[15]],
+params:[127,127,127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_anchor = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[32,2],[32,3],[16,builtin('__String_prototype_anchor')],[34,4],[15]],
-params:[124,127,124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[32,2],[32,3],[16,builtin('__String_prototype_anchor')],[34,4],[15]],
+params:[127,127,127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
 }
 this.__String_prototype_link = {
-wasm:(_,{makeString,builtin})=>[...makeString(_,"<a href=\"",1),[65,195,1],[32,2],[32,3],[16,builtin('__Porffor_concatStrings')],[34,4],...makeString(_,"\">",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,0],[32,1],[16,builtin('__Porffor_concatStrings')],[34,4],...makeString(_,"</a>",1),[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[15]],
-params:[124,127,124,127],typedParams:1,returns:[124,127],
+wasm:(_,{i32ify,makeString,builtin,internalThrow})=>[[32,1],[65,195,0],[71],[4,64],[32,1],[65,128,1],[114],[65,128,1],[70],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.link expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195,1],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],...i32ify(makeString(_,"<a href=\"",1)),[183],[65,195,1],[32,2],[183],[32,3],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],...i32ify(makeString(_,"\">",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],[32,0],[183],[65,195,0],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[183],[32,4],...i32ify(makeString(_,"</a>",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,4],[252,2],[32,4],[15]],
+params:[127,127,127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
+usesTag:1,
 }
 this.__ByteString_prototype_link = {
-wasm:(_,{builtin})=>[[32,0],[32,1],[32,2],[32,3],[16,builtin('__String_prototype_link')],[34,4],[15]],
-params:[124,127,124,127],typedParams:1,returns:[124,127],
+wasm:(_,{builtin})=>[[32,0],[65,195,1],[32,2],[32,3],[16,builtin('__String_prototype_link')],[34,4],[15]],
+params:[127,127,127,127],typedParams:1,returns:[127,127],
 locals:[127],localNames:["_this","_this#type","arg","arg#type","#last_type"],
 }
 this.Array = {

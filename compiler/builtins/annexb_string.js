@@ -1,14 +1,12 @@
 export default () => {
-  let out = ``;
+  let out = `// @porf --valtype=i32`;
   const noArgs = (a0, a1) => out += `
-export const __String_prototype_${a0} = (_this: any) =>
+export const __String_prototype_${a0} = (_this: string) =>
   Porffor.concatStrings(
     Porffor.concatStrings('<${a1}>', _this),
     '</${a1}>');
-
-export const __ByteString_prototype_${a0} = (_this: any) =>
-  __String_prototype_${a0}(_this);
-`;
+export const __ByteString_prototype_${a0} = (_this: bytestring) =>
+  __String_prototype_${a0}(_this);`;
 
   noArgs('big', 'big');
   noArgs('blink', 'blink');
@@ -21,7 +19,7 @@ export const __ByteString_prototype_${a0} = (_this: any) =>
   noArgs('sup', 'sup');
 
   const arg = (name, s1, s2) => out += `
-export const __String_prototype_${name} = (_this: any, arg: any) =>
+export const __String_prototype_${name} = (_this: string, arg: any) =>
   Porffor.concatStrings(
     Porffor.concatStrings(
       Porffor.concatStrings(
@@ -29,21 +27,19 @@ export const __String_prototype_${name} = (_this: any, arg: any) =>
         '">'),
       _this),
     '</${s1}>');
-
-export const __ByteString_prototype_${name} = (_this: any, arg: any) =>
-  __String_prototype_${name}(_this, arg);
-`;
+export const __ByteString_prototype_${name} = (_this: bytestring, arg: any) =>
+  __String_prototype_${name}(_this, arg);`;
 
   arg('fontcolor', 'font', 'color');
   arg('fontsize', 'font', 'size');
   arg('anchor', 'a', 'name');
   arg('link', 'a', 'href');
 
-  const prototypeAlias = (regular, annex) => `export const __String_prototype_${annex} = (_this: any) =>
+  const prototypeAlias = (regular, annex) => `
+export const __String_prototype_${annex} = (_this: any) =>
   __String_prototype_${regular}(_this);
 export const __ByteString_prototype_${annex} = (_this: any) =>
-  __ByteString_prototype_${regular}(_this);
-`;
+  __ByteString_prototype_${regular}(_this);`;
 
   prototypeAlias('trimStart', 'trimLeft');
   prototypeAlias('trimEnd', 'trimRight');
