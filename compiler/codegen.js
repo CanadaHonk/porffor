@@ -1245,7 +1245,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
   getNodeType, generate, generateIdent,
   builtin: (n, offset = false) => {
     let idx = importedFuncs[n] ?? funcIndex[n];
-    if (idx == null && builtinFuncs[n]) {
+    if (idx == null && Object.hasOwn(builtinFuncs, n)) {
       includeBuiltin(scope, n);
       idx = funcIndex[n];
     }
@@ -1260,7 +1260,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
   },
   hasFunc: x => funcIndex[x] != null,
   funcRef: name => {
-    if (funcIndex[name] == null && builtinFuncs[name]) {
+    if (funcIndex[name] == null && Object.hasOwn(builtinFuncs, name)) {
       includeBuiltin(scope, name);
     }
 
@@ -1269,7 +1269,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
   },
   glbl: (opcode, name, type) => {
     const globalName = '#porf#' + name; // avoid potential name clashing with user js
-    if (!globals[globalName]) {
+    if (!Object.hasOwn(globals, globalName)) {
       const idx = globals['#ind']++;
       globals[globalName] = { idx, type };
 
@@ -1298,7 +1298,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
     return out;
   },
   loc: (name, type) => {
-    if (!scope.locals[name]) {
+    if (!Object.hasOwn(scope.locals, name)) {
       const idx = scope.localInd++;
       scope.locals[name] = { idx, type };
     }
@@ -1401,8 +1401,8 @@ const generateLogicExp = (scope, decl) =>
   performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
 
 const isExistingProtoFunc = name => {
-  if (name.startsWith('__Array_prototype')) return !!prototypeFuncs[TYPES.array][name.slice(18)];
-  if (name.startsWith('__String_prototype_')) return !!prototypeFuncs[TYPES.string][name.slice(19)];
+  if (name.startsWith('__Array_prototype')) return Object.hasOwn(prototypeFuncs[TYPES.array], name.slice(18));
+  if (name.startsWith('__String_prototype_')) return Object.hasOwn(prototypeFuncs[TYPES.string], name.slice(19));
 
   return false;
 };
@@ -1475,11 +1475,9 @@ const getType = (scope, name, failEarly = false) => {
     [ global ? Opcodes.global_get : Opcodes.local_get, typeLocal.idx ]
   ];
 
-  if (hasFuncWithName(name)) {
+  if (hasFuncWithName(name) || isExistingProtoFunc(name)) {
     return [ number(TYPES.function, Valtype.i32) ];
   }
-
-  if (isExistingProtoFunc(name)) return [ number(TYPES.function, Valtype.i32) ];
 
   return fallback;
 };
@@ -2119,7 +2117,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     target.name = spl.slice(0, -1).join('_');
 
     if (builtinFuncs['__' + target.name + '_' + protoName]) protoName = null;
-      else if (lookupName(scope, target.name)[0] == null && !builtinFuncs[target.name]) {
+      else if (lookupName(scope, target.name)[0] == null && !Object.hasOwn(builtinFuncs, target.name)) {
         if (lookupName(scope, '__' + target.name)[0] != null || builtinFuncs['__' + target.name]) target.name = '__' + target.name;
           else protoName = null;
       }
@@ -3258,7 +3256,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       const [ _func, out ] = generateFunc(scope, init, true);
 
       const funcName = init.id?.name;
-      if (name !== funcName && funcIndex[funcName]) {
+      if (name !== funcName && Object.hasOwn(funcIndex, funcName)) {
         funcIndex[name] = funcIndex[funcName];
         delete funcIndex[funcName];
       }
@@ -6378,7 +6376,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
         const immediates = asm.slice(1).map(x => {
           const n = parseFloat(x);
           if (Number.isNaN(n) && x !== 'NaN') {
-            if (builtinFuncs[x]) {
+            if (Object.hasOwn(builtinFuncs, x)) {
               if (funcIndex[x] == null) includeBuiltin(scope, x);
               return funcIndex[x];
             }
@@ -6417,7 +6415,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
   };
 
   const { quasis, expressions } = decl.quasi;
-  if (intrinsics[decl.tag.name]) {
+  if (Object.hasOwn(intrinsics, decl.tag.name)) {
     let str = quasis[0].value.raw;
 
     for (let i = 0; i < expressions.length; i++) {
