@@ -466,9 +466,22 @@ const lookup = (scope, name, failEarly = false) => {
         }
       }
 
-      return generateArray(scope, {
-        elements: names.map(x => ({ type: 'Identifier', name: x }))
-      }, false, '#arguments', true);
+      return [
+        [ Opcodes.local_get, localTmp(scope, '#arguments') ],
+        ...Opcodes.eqz,
+        [ Opcodes.if, Blocktype.void ],
+          ...generateObject(scope, {
+            properties: names.map((x, i) => ({
+              key: { type: 'Literal', value: i },
+              value: { type: 'Identifier', name: x },
+              kind: 'init'
+            }))
+          }, '#arguments', false),
+          [ Opcodes.local_set, localTmp(scope, '#arguments') ],
+        [ Opcodes.end ],
+
+        [ Opcodes.local_get, localTmp(scope, '#arguments') ]
+      ];
     }
 
     // no local var with name
@@ -1461,7 +1474,7 @@ const getType = (scope, name, failEarly = false) => {
   }
 
   if (global !== false && name === 'arguments' && !scope.arrow) {
-    return [ number(TYPES.array, Valtype.i32) ];
+    return [ number(TYPES.object, Valtype.i32) ];
   }
 
   if (metadata?.type != null) {
@@ -5631,7 +5644,6 @@ const generateObject = (scope, decl, global = false, name = '$undeclared') => {
   }
 
   out.push(Opcodes.i32_from_u);
-
   return out;
 };
 
