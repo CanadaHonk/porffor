@@ -810,7 +810,7 @@ export const __String_prototype_substr = (_this: string, start: number, length: 
   return out;
 };
 
-export const __ByteString_prototype_substr = (_this: string, start: number, length: number) => {
+export const __ByteString_prototype_substr = (_this: bytestring, start: number, length: number) => {
   const len: i32 = _this.length;
 
   start |= 0;
@@ -1078,7 +1078,7 @@ export const __ByteString_prototype_trim = (_this: bytestring) => {
 };
 
 
-export const __String_prototype_concat = (_this: any, ...vals: any[]) => {
+export const __String_prototype_concat = (_this: string, ...vals: any[]) => {
   let out: any = Porffor.allocate();
   Porffor.clone(_this, out);
 
@@ -1117,7 +1117,7 @@ local.set ${out}`;
   return out;
 };
 
-export const __ByteString_prototype_concat = (_this: any, ...vals: any[]) => {
+export const __ByteString_prototype_concat = (_this: bytestring, ...vals: any[]) => {
   let out: any = Porffor.allocate();
   Porffor.clone(_this, out);
 
@@ -1190,7 +1190,7 @@ memory.copy 0 0`;
   return out;
 };
 
-export const __ByteString_prototype_repeat = (_this: string, cnt: any) => {
+export const __ByteString_prototype_repeat = (_this: bytestring, cnt: any) => {
   const count: number = ecma262.ToIntegerOrInfinity(cnt);
   if (count < 0) throw new RangeError('Invalid count value');
 
