@@ -84,6 +84,28 @@ export const unsignedLEB128_length = n => {
   return length;
 };
 
+export const signedLEB128_length = n => {
+  if (n >= -64 && n <= 63) return 1;
+  if (n >= -8192 && n <= 8191) return 2;
+  if (n >= -1048576 && n <= 1048575) return 3;
+  if (n >= -134217728 && n <= 134217727) return 4;
+
+  let length = 0;
+  while (true) {
+    let byte = n & 0x7f;
+    n >>= 7;
+
+    if ((n === 0 && (byte & 0x40) === 0) || (n === -1 && (byte & 0x40) !== 0)) {
+      length++;
+      break;
+    } else {
+      length++;
+    }
+  }
+
+  return length;
+};
+
 export const big_signedLEB128 = n => {
   // just input for small numbers (for perf as common)
   if (n >= 0n && n <= 63n) return [ Number(n) ];

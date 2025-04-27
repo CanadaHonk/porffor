@@ -2516,6 +2516,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     const wrapperArgc = Prefs.indirectWrapperArgc ?? 10;
     const underflow = wrapperArgc - args.length;
     for (let i = 0; i < underflow; i++) args.push(DEFAULT_VALUE());
+    if (args.length > wrapperArgc) args = args.slice(0, wrapperArgc);
 
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
@@ -2715,9 +2716,7 @@ const generateThis = (scope, decl) => {
 
   if (!scope.constr && !scope.method) {
     // this in a non-constructor context is a reference to globalThis
-    return [
-      ...generate(scope, { type: 'Identifier', name: 'globalThis' })
-    ];
+    return generate(scope, { type: 'Identifier', name: 'globalThis' });
   }
 
   // opt: do not check for pure constructors or strict mode

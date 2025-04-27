@@ -401,7 +401,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
     const surrounding = Prefs.backtraceSurrounding ?? 10;
     let min = middleIndex - surrounding;
     let max = middleIndex + surrounding + 1;
-    if (Prefs.backtraceFunc || middleIndex == -1) {
+    if (Prefs.backtraceFunc || middleIndex === -1) {
       min = 0;
       max = func.wasm.length;
     }
@@ -415,7 +415,7 @@ export default (source, module = undefined, customImports = {}, print = str => p
       longest = Math.max(longest, noAnsi(disasm[j])?.length ?? 0);
     }
 
-    if (middleIndex != -1) {
+    if (middleIndex !== -1) {
       const middle = Math.floor(disasm.length / 2);
       disasm[middle] = `\x1B[47m\x1B[30m${noAnsi(disasm[middle])}${'\u00a0'.repeat(longest - noAnsi(disasm[middle]).length)}\x1B[0m`;
     }
@@ -429,47 +429,11 @@ export default (source, module = undefined, customImports = {}, print = str => p
     if (funcInd == null || blobOffset == null ||
         Number.isNaN(funcInd) || Number.isNaN(blobOffset) || Prefs.backtrace === false) return false;
 
-    // convert blob offset -> function wasm offset
-    const func = funcs.find(x => x.asmIndex === funcInd);
+    const func = funcs.find(x => (x.index - importDelta) === funcInd);
     if (!func) return false;
 
-    const { wasm: assembledWasmFlat, wasmNonFlat: assembledWasmOps, localDecl } = func.assembled;
-    const toFind = encodeVector(localDecl).concat(assembledWasmFlat.slice(0, 100));
-
-    let i = 0;
-    for (; i < wasm.length; i++) {
-      let mismatch = false;
-      for (let j = 0; j < toFind.length; j++) {
-        if (wasm[i + j] !== toFind[j]) {
-          mismatch = true;
-          break;
-        }
-      }
-
-      if (!mismatch) break;
-    }
-
-    if (i === wasm.length) {
-      printBacktrace(-1, func, funcs, globals, exceptions);
-      return false;
-    }
-
-    const offset = (blobOffset - i) - encodeVector(localDecl).length;
-
-    let cumLen = 0;
-    i = 0;
-    for (; i < assembledWasmOps.length; i++) {
-      cumLen += assembledWasmOps[i].filter(x => x != null && x <= 0xff).length;
-      if (cumLen === offset) break;
-    }
-
-    if (cumLen !== offset) {
-      printBacktrace(-1, func, funcs, globals, exceptions);
-      return false;
-    }
-
-    printBacktrace(i + 1, func, funcs, globals, exceptions);
-    return true;
+    printBacktrace(-1, func, funcs, globals, exceptions);
+    return false;
   };
 
   const t2 = performance.now();

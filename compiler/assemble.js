@@ -1,61 +1,10 @@
 import { Valtype, FuncType, ExportDesc, Section, Magic, Opcodes, PageSize, Reftype } from './wasmSpec.js';
-import { encodeVector, encodeString, unsignedLEB128, signedLEB128, unsignedLEB128_into, signedLEB128_into, ieee754_binary64, ieee754_binary64_into, unsignedLEB128_length } from './encoding.js';
+import { unsignedLEB128_length, signedLEB128_length } from './encoding.js';
 import { importedFuncs } from './builtins.js';
 import { log } from './log.js';
 import './prefs.js';
 
-const createSection = (type, data) => [
-  type,
-  ...encodeVector(data)
-];
-
-const customSection = (name, data) => createSection(
-  Section.custom,
-  [ ...encodeString(name), ...data ]
-);
-
-const encodeNames = funcs => {
-  const encodeSection = (id, section) => [
-    id,
-    ...unsignedLEB128(section.length),
-    ...section
-  ];
-
-  const moduleSection = encodeString('js'); // TODO: filename?
-  const functionsSection = encodeVector(
-    funcs.map(x => unsignedLEB128(x.asmIndex).concat(encodeString(x.name))),
-  );
-  const localsSection = encodeVector(
-    funcs.map(x => unsignedLEB128(x.asmIndex).concat(encodeVector(
-      Object.entries(x.locals).map(([name, local]) =>
-        unsignedLEB128(local.idx).concat(encodeString(name))
-      )
-    )))
-  );
-
-  return [
-    ...encodeSection(0, moduleSection),
-    ...encodeSection(1, functionsSection),
-    ...encodeSection(2, localsSection),
-  ];
-};
-
 export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
-  const types = [], typeCache = {};
-
-  const getType = (params, returns) => {
-    const hash = `${params.join(',')}_${returns.join(',')}`;
-    if (Prefs.optLog) log('assemble', `getType(${JSON.stringify(params)}, ${JSON.stringify(returns)}) -> ${hash} | cache: ${typeCache[hash]}`);
-    if (typeCache[hash] !== undefined) return typeCache[hash];
-
-    const type = [ FuncType, ...encodeVector(params), ...encodeVector(returns) ];
-    const idx = types.length;
-
-    types.push(type);
-
-    return typeCache[hash] = idx;
-  };
-
   let t = performance.now();
   const time = msg => {
     if (!Prefs.profileAssemble) return;
@@ -64,71 +13,189 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     t = performance.now();
   };
 
-  let importFuncs = [], importDelta = 0;
+  let importFuncs = [];
+  globalThis.importDelta = 0;
   if (!Prefs.treeshakeWasmImports || noTreeshake) {
     importFuncs = Array.from(importedFuncs);
   } else {
-    let imports = new Map();
-
     // tree shake imports
-    for (const f of funcs) {
-      if (f.usesImports) for (const inst of f.wasm) {
-        if (inst[0] === Opcodes.call && inst[1] < importedFuncs.length) {
-          const idx = inst[1];
+    const remap = new WeakMap();
+    for (let i = 0; i < funcs.length; i++) {
+      const f = funcs[i];
+      if (f.usesImports) for (let j = 0; j < f.wasm.length; j++) {
+        const x = f.wasm[j];
+        if (x[0] === Opcodes.call && x[1] < importedFuncs.length) {
+          const idx = x[1];
           const func = importedFuncs[idx];
 
-          if (!imports.has(func.name)) imports.set(func.name, { ...func, idx: imports.size });
-          inst[1] = imports.get(func.name).idx;
+          if (!remap.has(func)) {
+            remap.set(func, importFuncs.length);
+            importFuncs.push(func);
+          }
+          x[1] = remap.get(func);
         }
       }
     }
 
-    importFuncs = globalThis.importFuncs = [...imports.values()];
-    importDelta = importedFuncs.length - importFuncs.length;
-  }
-
-  for (const f of funcs) {
-    f.asmIndex = f.index - importDelta;
+    globalThis.importDelta = importedFuncs.length - importFuncs.length;
   }
 
   if (Prefs.optLog) log('assemble', `treeshake: using ${importFuncs.length}/${importedFuncs.length} imports`);
+  time('import treeshake');
 
-  const importSection = importFuncs.length === 0 ? [] : createSection(
-    Section.import,
-    encodeVector(importFuncs.map(x => {
-      return [
-        0, 1, x.import.charCodeAt(0),
-        ExportDesc.func,
-        getType(x.params, x.returns)
-      ];
-    }))
-  );
+  // todo: this will just break if it is too small
+  let bufferSize = 1024 * 1024; // 1MB
+  let buffer = new Uint8Array(bufferSize);
+  let offset = 0;
+
+  const ensureBufferSize = added => {
+    if (offset + added >= bufferSize - 64) {
+      const newBuffer = new Uint8Array(bufferSize *= 2);
+      newBuffer.set(buffer);
+      buffer = null; // help gc
+      buffer = newBuffer;
+    }
+  };
+
+  const byte = byte => {
+    ensureBufferSize(1);
+    buffer[offset++] = byte;
+  };
+
+  const array = array => {
+    ensureBufferSize(array.length);
+    buffer.set(array, offset);
+    offset += array.length;
+  };
+
+  const unsigned = n => {
+    n |= 0;
+    if (n >= 0 && n <= 127) return byte(n);
+
+    do {
+      let x = n & 0x7f;
+      n >>>= 7;
+      if (n !== 0) {
+        x |= 0x80;
+      }
+
+      byte(x);
+    } while (n !== 0);
+  };
+
+  const signed = n => {
+    n |= 0;
+    if (n >= 0 && n <= 63) return byte(n);
+
+    while (true) {
+      let x = n & 0x7f;
+      n >>= 7;
+
+      if ((n === 0 && (x & 0x40) === 0) || (n === -1 && (x & 0x40) !== 0)) {
+        byte(x);
+        break;
+      } else {
+        x |= 0x80;
+      }
+
+      byte(x);
+    }
+  };
+
+  const ieee754 = n => {
+    ensureBufferSize(8);
+    array(new Uint8Array(new Float64Array([ n ]).buffer));
+  };
+
+  const string = str => {
+    unsigned(str.length);
+    for (let i = 0; i < str.length; i++) {
+      byte(str.charCodeAt(i));
+    }
+  };
+
+  const section = (id, bytes) => {
+    byte(id);
+    unsigned(bytes);
+  };
+
+  const unsignedPost = () => {
+    const o = offset;
+    offset += 5;
+    return n => {
+      const o2 = offset;
+      offset = o;
+      unsigned(n);
+
+      buffer.set(buffer.subarray(o + 5, o2), offset);
+      offset = o2 - (5 - (offset - o));
+    };
+  };
+
+  array(Magic, Magic.length);
+  time('setup');
+
+  const types = [], typeCache = new Map();
+  const getType = (params, returns) => {
+    const hash = `${params.join()}_${returns.join()}`;
+    if (typeCache.has(hash)) return typeCache.get(hash);
+
+    const type = [ FuncType, params.length, ...params, returns.length, ...returns ];
+    const idx = types.length;
+
+    types.push(type);
+    typeCache.set(hash, idx);
+    return idx;
+  };
+
+  // precache all types to be used
+  for (let i = 0; i < funcs.length; i++) {
+    const func = funcs[i];
+    getType(func.params, func.returns);
+  }
+
+  for (let i = 0; i < importFuncs.length; i++) {
+    const func = importFuncs[i];
+    getType(func.params, func.returns);
+  }
+
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i];
+    getType(tag.params, tag.results);
+  }
+
+  section(Section.type, unsignedLEB128_length(types.length) + types.reduce((acc, x) => acc + x.length, 0));
+  unsigned(types.length);
+  for (let i = 0; i < types.length; i++) {
+    array(types[i]);
+  }
+  time('type section');
+
+  if (importFuncs.length > 0) {
+    section(Section.import, unsignedLEB128_length(importFuncs.length) + importFuncs.length * 5);
+    unsigned(importFuncs.length);
+    for (let i = 0; i < importFuncs.length; i++) {
+      const x = importFuncs[i];
+      byte(0); byte(1);
+      byte(x.import.charCodeAt(0));
+      byte(ExportDesc.func);
+      byte(getType(x.params, x.returns));
+    }
+  }
   time('import section');
 
-  const funcSection = createSection(
-    Section.func,
-    encodeVector(funcs.map(x => getType(x.params, x.returns))) // type indexes
-  );
+  const indirectFuncs = [], exportFuncs = [];
+
+  section(Section.func, unsignedLEB128_length(funcs.length) + funcs.length);
+  unsigned(funcs.length);
+  for (let i = 0; i < funcs.length; i++) {
+    const x = funcs[i];
+    byte(getType(x.params, x.returns));
+
+    if (x.indirect) indirectFuncs.push(x);
+    if (x.export) exportFuncs.push(x);
+  }
   time('func section');
-
-  const nameSection = Prefs.d ? customSection('name', encodeNames(funcs)) : [];
-
-  const indirectFuncs = funcs.filter(x => x.indirect);
-  const tableSection = !funcs.table ? [] : createSection(
-    Section.table,
-    encodeVector([ [ Reftype.funcref, 0x00, ...unsignedLEB128(indirectFuncs.length) ] ])
-  );
-  time('table section');
-
-  const elementSection = !funcs.table ? [] : createSection(
-    Section.element,
-    encodeVector([ [
-      0x00,
-      Opcodes.i32_const, 0, Opcodes.end,
-      ...encodeVector(indirectFuncs.map(x => unsignedLEB128(x.asmIndex)))
-    ] ])
-  );
-  time('element section');
 
   if (pages.has('func lut')) {
     if (data.addedFuncArgcLut) {
@@ -182,285 +249,276 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   }
   time('func lut');
 
-  // specially optimized assembly for globals as this version is much (>5x) faster than traditional createSection()
+  if (funcs.table) {
+    section(Section.table, unsignedLEB128_length(indirectFuncs.length) + 3);
+    byte(1); // table count
+    byte(Reftype.funcref); byte(0); // table type
+    unsigned(indirectFuncs.length); // table size
+    time('table section');
+  }
+
+  if (Prefs.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
+  const usesMemory = pages.size > 0;
+  if (usesMemory) {
+    const pageCount = Math.ceil((pages.size * pageSize) / PageSize);
+    section(Section.memory, unsignedLEB128_length(pageCount) + 2);
+    byte(1); // memory count
+    byte(0); // memory type
+    unsigned(pageCount); // memory size
+    time('memory section');
+  }
+
+  const usesTags = tags.length > 0;
+  if (usesTags) {
+    section(Section.tag, unsignedLEB128_length(tags.length) + tags.length * 2);
+    unsigned(tags.length);
+    for (let i = 0; i < tags.length; i++) {
+      const x = tags[i];
+      byte(0); // tag type
+      byte(getType(x.params, x.results)); // tag signature
+    }
+    time('tag section');
+  }
+
   const globalsValues = Object.values(globals);
-
-  let globalSection = [];
   if (globalsValues.length > 0) {
-    let data = unsignedLEB128(globalsValues.length);
+    section(Section.global, unsignedLEB128_length(globalsValues.length) + globalsValues.length * 4
+      + globalsValues.reduce((acc, x) => acc + (x.type === Valtype.f64 ? 8 : signedLEB128_length(x.init ?? 0)), 0));
+    unsigned(globalsValues.length);
     for (let i = 0; i < globalsValues.length; i++) {
-      const global = globalsValues[i];
-
-      switch (global.type) {
+      const x = globalsValues[i];
+      switch (x.type) {
         case Valtype.i32:
-          if (i > 0) data.push(Opcodes.end, Valtype.i32, 0x01, Opcodes.i32_const);
-            else data.push(Valtype.i32, 0x01, Opcodes.i32_const);
-
-          signedLEB128_into(global.init ?? 0, data);
+          byte(Valtype.i32);
+          byte(0x01);
+          byte(Opcodes.i32_const);
+          signed(x.init ?? 0);
           break;
 
         case Valtype.i64:
-          if (i > 0) data.push(Opcodes.end, Valtype.i64, 0x01, Opcodes.i64_const);
-            else data.push(Valtype.i64, 0x01, Opcodes.i64_const);
-
-          signedLEB128_into(global.init ?? 0, data);
+          byte(Valtype.i64);
+          byte(0x01);
+          byte(Opcodes.i64_const);
+          signed(x.init ?? 0);
           break;
 
         case Valtype.f64:
-          if (i > 0) data.push(Opcodes.end, Valtype.f64, 0x01, Opcodes.f64_const);
-            else data.push(Valtype.f64, 0x01, Opcodes.f64_const);
-
-          ieee754_binary64_into(global.init ?? 0, data);
+          byte(Valtype.f64);
+          byte(0x01);
+          byte(Opcodes.f64_const);
+          ieee754(x.init ?? 0);
           break;
       }
+
+      byte(Opcodes.end);
+    }
+    time('global section');
+  }
+
+  if (exportFuncs.length > 0 || usesMemory || usesTags) {
+    byte(Section.export);
+    const sizeOffset = offset, setSize = unsignedPost();
+
+    unsigned(exportFuncs.length + usesMemory + usesTags);
+    if (usesMemory) {
+      string('$');
+      byte(ExportDesc.mem); byte(0);
+    }
+    if (usesTags) {
+      string('0');
+      byte(ExportDesc.tag); byte(0);
     }
 
-    data.push(Opcodes.end);
+    for (let i = 0; i < exportFuncs.length; i++) {
+      const x = exportFuncs[i];
+      string(x.name === '#main' ? 'm' : x.name);
+      byte(ExportDesc.func);
+      unsigned(x.index - importDelta);
+    }
 
-    globalSection.push(Section.global);
-
-    unsignedLEB128_into(data.length, globalSection);
-    globalSection = globalSection.concat(data);
+    setSize(offset - sizeOffset - 5);
+    time('export section');
   }
-  time('global section');
 
-  if (Prefs.alwaysMemory && pages.size === 0) pages.set('--always-memory', 0);
+  if (funcs.table) {
+    section(Section.element, unsignedLEB128_length(indirectFuncs.length) + 5 + indirectFuncs.reduce((acc, x) => acc + unsignedLEB128_length(x.index - importDelta), 0));
+    byte(1); // table index
+    byte(0); // element type
+    byte(Opcodes.i32_const); byte(0); byte(Opcodes.end); // offset
 
-  const usesMemory = pages.size > 0;
-  const memorySection = !usesMemory ? [] : createSection(
-    Section.memory,
-    encodeVector([ [ 0x00, ...unsignedLEB128(Math.ceil((pages.size * pageSize) / PageSize)) ] ])
-  );
-  time('memory section');
+    unsigned(indirectFuncs.length);
+    for (let i = 0; i < indirectFuncs.length; i++) {
+      const x = indirectFuncs[i];
+      unsigned(x.index - importDelta);
+    }
+    time('element section');
+  }
 
-  const exports = funcs.filter(x => x.export).map((x, i) => [ ...encodeString(x.name === '#main' ? 'm' : x.name), ExportDesc.func, ...unsignedLEB128(x.asmIndex) ]);
+  if (data.length > 0) {
+    section(Section.data_count, unsignedLEB128_length(data.length));
+    unsigned(data.length);
+    time('data count section');
+  }
 
-  // export memory if used
-  if (usesMemory) exports.unshift([ ...encodeString('$'), ExportDesc.mem, 0x00 ]);
-  time('gen exports');
+  byte(Section.code);
+  const codeSectionSizeOffset = offset, setCodeSectionSize = unsignedPost();
 
-  const tagSection = tags.length === 0 ? [] : createSection(
-    Section.tag,
-    encodeVector(tags.map(x => [ 0x00, getType(x.params, x.results) ]))
-  );
-
-  // export first tag if used
-  if (tags.length !== 0) exports.unshift([ ...encodeString('0'), ExportDesc.tag, 0x00 ]);
-  time('tag section');
-
-  const exportSection = createSection(
-    Section.export,
-    encodeVector(exports)
-  );
-  time('export section');
-
-  let codeSection = [];
+  unsigned(funcs.length);
   for (let i = 0; i < funcs.length; i++) {
+    const funcSizeOffset = offset, setFuncSize = unsignedPost();
+
     const x = funcs[i];
     const locals = Object.values(x.locals).sort((a, b) => a.idx - b.idx);
 
     const paramCount = x.params.length;
-    let localDecl = [], typeCount = 0, lastType, declCount = 0;
+    let declCount = 0, lastType, typeCount = 0;
     for (let i = paramCount; i <= locals.length; i++) {
       const local = locals[i];
-      if (i !== paramCount && local?.type !== lastType) {
-        unsignedLEB128_into(typeCount, localDecl);
-        localDecl.push(lastType);
-        typeCount = 0;
+      if (lastType && local?.type !== lastType) {
         declCount++;
+      }
+
+      lastType = local?.type;
+    }
+    unsigned(declCount);
+
+    lastType = undefined;
+    for (let i = paramCount; i <= locals.length; i++) {
+      const local = locals[i];
+      if (lastType && local?.type !== lastType) {
+        unsigned(typeCount);
+        byte(lastType);
+        typeCount = 0;
       }
 
       typeCount++;
       lastType = local?.type;
     }
 
-    let wasm = [], wasmNonFlat = [];
-    if (Prefs.d) {
-      for (let i = 0; i < x.wasm.length; i++) {
-        let o = x.wasm[i];
+    for (let i = 0; i < x.wasm.length; i++) {
+      let o = x.wasm[i];
+      const op = o[0];
 
-        // encode local/global ops as unsigned leb128 from raw number
-        if (
-          (o[0] >= Opcodes.local_get && o[0] <= Opcodes.global_set) &&
-          o[1] > 127
-        ) {
-          const n = o[1];
-          o = [ o[0] ];
-          unsignedLEB128_into(n, o);
-        }
-
-        // encode f64.const ops as ieee754 from raw number
-        if (o[0] === Opcodes.f64_const) {
-          const n = o[1];
-          o = ieee754_binary64(n);
-          if (o.length === 8) o.unshift(Opcodes.f64_const);
-        }
-
-        // encode call ops as unsigned leb128 from raw number
-        if ((o[0] === Opcodes.call /* || o[0] === Opcodes.return_call */) && o[1] >= importedFuncs.length) {
-          const n = o[1] - importDelta;
-          o = [ Opcodes.call ];
-          unsignedLEB128_into(n, o);
-        }
-
-        // encode call indirect ops as types from info
-        if (o[0] === Opcodes.call_indirect) {
-          o = [...o];
-          const params = [];
-          for (let i = 0; i < o[1]; i++) {
-            params.push(valtypeBinary, Valtype.i32);
-          }
-
-          let returns = [ valtypeBinary, Valtype.i32 ];
-          if (o.at(-1) === 'no_type_return') {
-            o.pop();
-            returns = [ valtypeBinary ];
-          }
-
-          o[1] = getType(params, returns);
-        }
-
-        for (let j = 0; j < o.length; j++) {
-          const x = o[j];
-          if (x == null || !(x <= 0xff)) continue;
-          wasm.push(x);
-        }
-
-        wasmNonFlat.push(o);
+      // encode local/global ops as unsigned leb128 from raw number
+      if (
+        (op >= Opcodes.local_get && op <= Opcodes.global_set) &&
+        o[1] > 127
+      ) {
+        byte(op);
+        unsigned(o[1]);
+        continue;
       }
 
-      x.assembled = { localDecl, wasm, wasmNonFlat };
-    } else {
-      for (let i = 0; i < x.wasm.length; i++) {
-        let o = x.wasm[i];
-        const op = o[0];
+      // encode f64.const ops as ieee754 from raw number
+      if (op === Opcodes.f64_const) {
+        byte(op);
+        ieee754(o[1]);
+        continue;
+      }
 
-        // encode local/global ops as unsigned leb128 from raw number
-        if (
-          (op >= Opcodes.local_get && op <= Opcodes.global_set) &&
-          o[1] > 127
-        ) {
-          wasm.push(op);
-          unsignedLEB128_into(o[1], wasm);
-          continue;
+      // encode call ops as unsigned leb128 from raw number
+      if ((op === Opcodes.call /* || o[0] === Opcodes.return_call */) && o[1] >= importedFuncs.length) {
+        byte(op);
+        unsigned(o[1] - importDelta);
+        continue;
+      }
+
+      // encode call indirect ops as types from info
+      if (op === Opcodes.call_indirect) {
+        const params = [];
+        for (let i = 0; i < o[1]; i++) {
+          params.push(valtypeBinary, Valtype.i32);
         }
 
-        // encode f64.const ops as ieee754 from raw number
-        if (op === Opcodes.f64_const) {
-          wasm.push(op);
-          ieee754_binary64_into(o[1], wasm);
-          continue;
-        }
+        byte(op);
+        byte(getType(params, [ valtypeBinary, Valtype.i32 ]));
+        byte(o[2]);
+        continue;
+      }
 
-        // encode call ops as unsigned leb128 from raw number
-        if ((op === Opcodes.call /* || o[0] === Opcodes.return_call */) && o[1] >= importedFuncs.length) {
-          wasm.push(op);
-          unsignedLEB128_into(o[1] - importDelta, wasm);
-          continue;
-        }
-
-        // encode call indirect ops as types from info
-        if (op === Opcodes.call_indirect) {
-          const params = [];
-          for (let i = 0; i < o[1]; i++) {
-            params.push(valtypeBinary, Valtype.i32);
-          }
-
-          let returns = [ valtypeBinary, Valtype.i32 ];
-          if (o.at(-1) === 'no_type_return') {
-            returns = [ valtypeBinary ];
-          }
-
-          wasm.push(op, getType(params, returns), o[2]);
-          continue;
-        }
-
-        for (let j = 0; j < o.length; j++) {
-          const x = o[j];
-          if (x == null || !(x <= 0xff)) continue;
-          wasm.push(x);
-        }
+      for (let j = 0; j < o.length; j++) {
+        const x = o[j];
+        if (x == null || !(x <= 0xff)) continue;
+        buffer[offset++] = x;
       }
     }
 
-    if (wasm.length > 100000) {
-      // slow path for handling large arrays which break v8 due to running out of stack size
-      const out = unsignedLEB128(declCount)
-        .concat(localDecl, wasm, Opcodes.end);
-      codeSection = codeSection.concat(unsignedLEB128(out.length), out);
-    } else {
-      codeSection.push(
-        ...unsignedLEB128(unsignedLEB128_length(declCount) + localDecl.length + wasm.length + 1),
-        ...unsignedLEB128(declCount),
-        ...localDecl,
-        ...wasm,
-        Opcodes.end
-      );
-    }
-
-    // globalThis.progress?.(`${i}/${funcs.length}`);
+    byte(Opcodes.end);
+    setFuncSize(offset - funcSizeOffset - 5);
   }
 
-  codeSection.unshift(...unsignedLEB128(funcs.length, codeSection));
-  codeSection.unshift(Section.code, ...unsignedLEB128(codeSection.length));
+  setCodeSectionSize(offset - codeSectionSizeOffset - 5);
   time('code section');
 
-  const typeSection = createSection(
-    Section.type,
-    encodeVector(types)
-  );
-  time('type section');
+  section(Section.data, unsignedLEB128_length(data.length) + data.reduce((acc, x) =>
+    acc + (x.page != null ? (3 + signedLEB128_length(pages.allocs.get(x.page) ?? (pages.get(x.page) * pageSize))) : 1)
+    + unsignedLEB128_length(x.bytes.length) + x.bytes.length, 0));
 
-  let dataSection = [];
-  if (data.length > 0) {
-    for (let i = 0; i < data.length; i++) {
-      const x = data[i];
-      if (Prefs.d && x.bytes.length > PageSize) log.warning('assemble', `data (${x.page}) has more bytes than Wasm page size! (${x.bytes.length})`);
+  unsigned(data.length);
+  for (let i = 0; i < data.length; i++) {
+    const x = data[i];
+    if (x.page != null) { // active
+      let offset = pages.allocs.get(x.page) ?? (pages.get(x.page) * pageSize);
+      if (offset === 0) offset = 16;
 
-      if (x.page != null) {
-        // type: active
-        let offset = pages.allocs.get(x.page) ?? (pages.get(x.page) * pageSize);
-        if (offset === 0) offset = 16;
-        dataSection.push(0x00, Opcodes.i32_const, ...signedLEB128(offset), Opcodes.end);
-      } else {
-        // type: passive
-        dataSection.push(0x01);
-      }
-
-      if (x.bytes.length > 100000) {
-        codeSection = codeSection.concat(unsignedLEB128(x.bytes.length), x.bytes);
-      } else {
-        dataSection.push(
-          ...unsignedLEB128(x.bytes.length),
-          ...x.bytes
-        );
-      }
+      byte(0x00);
+      byte(Opcodes.i32_const);
+      signed(offset);
+      byte(Opcodes.end);
+    } else { // passive
+      byte(0x01);
     }
 
-    dataSection.unshift(...unsignedLEB128(data.length, dataSection));
-    dataSection.unshift(Section.data, ...unsignedLEB128(dataSection.length));
+    unsigned(x.bytes.length);
+    array(x.bytes);
   }
-
-  const dataCountSection = data.length === 0 ? [] : createSection(
-    Section.data_count,
-    unsignedLEB128(data.length)
-  );
   time('data section');
 
-  return Uint8Array.from([
-    ...Magic,
-    ...typeSection,
-    ...importSection,
-    ...funcSection,
-    ...tableSection,
-    ...memorySection,
-    ...tagSection,
-    ...globalSection,
-    ...exportSection,
-    ...elementSection,
-    ...dataCountSection,
-    ...codeSection,
-    ...dataSection,
-    ...nameSection
-  ]);
+  if (Prefs.d) {
+    byte(Section.custom);
+    const totalSizeOffset = offset, setTotalSize = unsignedPost();
+    string('name');
+
+    const section = (id, cb) => {
+      byte(id);
+      const sizeOffset = offset, setSize = unsignedPost();
+      cb();
+      setSize(offset - sizeOffset - 5);
+    };
+
+    section(0, () => { // module
+      string('js'); // todo: filename?
+    });
+
+    section(1, () => { // funcs
+      unsigned(funcs.length);
+      for (let i = 0; i < funcs.length; i++) {
+        const x = funcs[i];
+        unsigned(x.index - importDelta);
+        string(x.name);
+      }
+    });
+
+    section(2, () => { // locals
+      unsigned(funcs.length);
+      for (let i = 0; i < funcs.length; i++) {
+        const x = funcs[i];
+        unsigned(x.index - importDelta);
+
+        const locals = Object.keys(x.locals);
+        unsigned(locals.length);
+        for (let j = 0; j < locals.length; j++) {
+          const name = locals[j];
+          unsigned(x.locals[name]);
+          string(name);
+        }
+      }
+    });
+
+    setTotalSize(offset - totalSizeOffset - 5);
+    time('name section');
+  }
+
+  buffer = buffer.subarray(0, offset);
+  return buffer;
 };
