@@ -13,7 +13,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     t = performance.now();
   };
 
-  let importFuncs = [];
+  let importFuncs = globalThis.importFuncs = [];
   globalThis.importDelta = 0;
   if (!Prefs.treeshakeWasmImports || noTreeshake) {
     importFuncs = Array.from(importedFuncs);
