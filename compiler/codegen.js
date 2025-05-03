@@ -1391,7 +1391,18 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   }
 
   if (table) funcs.table = true;
-  if (usesTag) ensureTag();
+  if (usesTag) {
+    if (Prefs.wasmExceptions === false) {
+      for (let i = 0; i < wasm.length; i++) {
+        const inst = wasm[i];
+        if (inst[0] === Opcodes.throw) {
+          wasm.splice(i, 1, ...generateThrow(func, {}));
+        }
+      }
+    } else {
+      ensureTag();
+    }
+  }
 
   if (returnTypes) {
     for (const x of returnTypes) typeUsed(func, x);
@@ -5279,6 +5290,14 @@ const ensureTag = (exceptionMode = Prefs.exceptionMode ?? 'stack') => {
 };
 
 const generateThrow = (scope, decl) => {
+  if (Prefs.wasmExceptions === false) {
+    return [
+      ...(scope.returns.length === 0 ? [] : [ number(0, scope.returns[0]) ]),
+      ...(scope.returns.length === 0 || scope.returnType != null ? [] : [ number(0, scope.returns[1]) ]),
+      [ Opcodes.return ]
+    ];
+  }
+
   let exceptionMode = Prefs.exceptionMode ?? 'stack';
   if (globalThis.precompile) exceptionMode = decl.argument.callee != null ? 'lut' : 'stack';
   ensureTag(exceptionMode);
