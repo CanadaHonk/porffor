@@ -6411,6 +6411,11 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
               return funcIndex[x];
             }
 
+            if (Object.hasOwn(importedFuncs, x)) {
+              scope.usesImports = true;
+              return importedFuncs[x];
+            }
+
             return scope.locals[x]?.idx ?? globals[x]?.idx ?? (log.warning('codegen', `unknown immediate in Porffor.wasm: ${x}`) || 0);
           }
 
