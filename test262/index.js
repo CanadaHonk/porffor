@@ -4,10 +4,10 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import os from 'node:os';
 import process from 'node:process';
-
-import Test262Stream from 'test262-stream';
-
 import { join } from 'node:path';
+import Test262Stream from 'test262-stream';
+import { log } from '../compiler/log.js';
+
 const __dirname = import.meta.dirname;
 const __filename = join(__dirname, 'index.js');
 
@@ -24,6 +24,15 @@ if (isMainThread) {
   if (whatTests.endsWith('.js')) {
     // single test, automatically add debug args
     process.argv.push('--log-errors');
+  }
+
+  let threads = parseInt(process.argv.find(x => x.startsWith('--threads='))?.split('=')?.[1]);
+  if (Number.isNaN(threads)) try {
+    threads = parseInt(fs.readFileSync(join(__dirname, '.threads'), 'utf8'));
+  } catch {
+    threads = Math.min(12, os.cpus().length) - 4;
+    log.warning('test262', `no --threads=n arg or .threads file found, using ${threads} as cautious default (min(12, threads) - 4)`);
+    log.warning('test262', 'please specify via either method to make test262 runs potentially much faster! (ask for tuning advice)');
   }
 
   const _tests = new Test262Stream(test262Path, {
@@ -120,8 +129,6 @@ if (isMainThread) {
     return acc;
   }, {});
 
-  // hack: limit auto to 10 for now due to oom and p-core pain
-  let threads = parseInt(process.argv.find(x => x.startsWith('--threads='))?.split('=')?.[1]) || Math.min(10, os.cpus().length);
   if (logErrors) threads = 1;
 
   const allTests = whatTests === 'test' && threads > 1;

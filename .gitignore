@@ -11,3 +11,4 @@ bun.lock
 
 /test262/test262
 /test262/results.json
+/test262/.threads
