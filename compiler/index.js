@@ -227,6 +227,8 @@ export default (code, module = undefined) => {
   }
 
   if (target === 'c') {
+    if (Prefs.wasm) fs.writeFileSync(Prefs.wasm, Buffer.from(wasm));
+
     const c = toc(out);
     out.c = c;
 
