@@ -25,76 +25,79 @@ export const __Porffor_object_hash = (key: any): i32 => {
     return 0;
   }
 
-  // bytestring or string, fnv-1a hash (custom variant)
+  // bytestring or string, xxh32-based hash
   // todo/opt: custom wasm simd variant?
-  // todo/opt: pgo for if no hash collisions?
   // todo: bytestring/string symmetric hashing
+  let p: i32 = Porffor.wasm`local.get ${key}`;
+  let len: i32 = Porffor.wasm.i32.load(key, 0, 0);
+  if (Porffor.wasm`local.get ${key+1}` == Porffor.TYPES.string) len *= 2;
 
-  let ptr: i32 = Porffor.wasm`local.get ${key}`;
-  const len: i32 = Porffor.wasm.i32.load(key, 0, 0);
-
-  let hash: i32 = (2166136261 ^ len) * 16777619;
-
-  // chunks of 8 bytes via i64.load
-  const endPtr: i32 = ptr + len - 8;
-  for (; ptr <= endPtr; ptr += 8) {
+  let hash: i32 = 374761393 + len;
+  const end: i32 = p + len;
+  while (p + 4 <= end) {
+    // hash in chunks of i32 (4 bytes)
     Porffor.wasm`
-local x i64
-local.get ${ptr}
-i64.load 0 4
-local.set x
-
-local.get ${hash}
-local.get x
-i64.const 32
-i64.shr_u
-i32.wrap_i64
-i32.xor
-i32.const 16777619
+local.get hash
+local.get p
+i32.load 0 4
+i32.const 3266489917
 i32.mul
-
-local.get x
-i32.wrap_i64
-i32.xor
-i32.const 16777619
+i32.add
+i32.const 17
+i32.rotl
+i32.const 668265263
 i32.mul
-
-local.set ${hash}`;
+local.set hash`;
+    p += 4;
   }
 
-  // remaining 0-7 bytes via i64.load and bitwise
   Porffor.wasm`
-local.get ${ptr}
-i64.load 0 4
+;; hash final bytes up to 4 via shift depending on bytes remaining
+local.get hash
+local.get p
+i32.load 0 4
 
-local shift i64
-local.get ${ptr}
-local.get ${endPtr}
+i32.const 1
+local.get end
+local.get p
 i32.sub
 i32.const 8
 i32.mul
-i64.extend_i32_u
-local.tee shift
+i32.shl
+i32.const 1
+i32.sub
+i32.and
 
-i64.shl
-local.get shift
-i64.shr_u
-local.set x
-
-local.get ${hash}
-local.get x
-i64.const 32
-i64.shr_u
-i32.wrap_i64
-i32.xor
-i32.const 16777619
+i32.const 3266489917
 i32.mul
-
-local.get x
-i32.wrap_i64
-i32.xor
-i32.const 16777619
+i32.add
+i32.const 17
+i32.rotl
+i32.const 668265263
 i32.mul
+local.tee hash
+
+;; final avalanche
+local.get hash
+i32.const 15
+i32.shr_u
+i32.xor
+i32.const 2246822519
+i32.mul
+local.tee hash
+
+local.get hash
+i32.const 13
+i32.shr_u
+i32.xor
+i32.const 3266489917
+i32.mul
+local.tee hash
+
+local.get hash
+i32.const 16
+i32.shr_u
+i32.xor
 return`;
 };
 
@@ -489,7 +492,7 @@ local.set ${obj+1}`;
     } else obj = __Porffor_object_getHiddenPrototype(trueType);
 
     // todo/opt: put this behind comptime flag if only __proto__ is used
-    if (hash == -406948493) if (Porffor.strcmp(key, '__proto__')) {
+    if (hash == 593337848) if (Porffor.strcmp(key, '__proto__')) {
       // get prototype
       Porffor.wasm`
 local.get ${obj}
@@ -565,7 +568,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   let flags: i32;
   if (entryPtr == -1) {
-    if (hash == -406948493) if (Porffor.strcmp(key, '__proto__')) {
+    if (hash == 593337848) if (Porffor.strcmp(key, '__proto__')) {
       // set prototype
       __Porffor_object_setPrototype(obj, value);
       return value;
@@ -671,7 +674,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   let flags: i32;
   if (entryPtr == -1) {
-    if (hash == -406948493) if (Porffor.strcmp(key, '__proto__')) {
+    if (hash == 593337848) if (Porffor.strcmp(key, '__proto__')) {
       // set prototype
       __Porffor_object_setPrototype(obj, value);
       return value;
@@ -949,7 +952,7 @@ export const __Porffor_object_expr_init = (obj: any, key: any, value: any): void
   const hash: i32 = __Porffor_object_hash(key);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   if (entryPtr == -1) {
-    if (hash == -406948493) if (Porffor.strcmp(key, '__proto__')) {
+    if (hash == 593337848) if (Porffor.strcmp(key, '__proto__')) {
       // set prototype
       __Porffor_object_setPrototype(obj, value);
       return value;
