@@ -248,12 +248,15 @@ export default (code, module = undefined) => {
   if (target === 'native') {
     outFile ??= Prefs.native ? './porffor_tmp' : file.split('/').at(-1).split('.')[0];
 
-    const compiler = (Prefs.compiler ?? 'clang').split(' ');
+    const compiler = (Prefs.compiler ?? process.env.CC ?? 'cc').split(' ');
     const cO = Prefs._cO ?? 'O3';
 
     const tmpfile = 'porffor_tmp.c';
     const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
+
+    // todo: redo how default cc args work
     if (compiler.includes('clang')) args.push('-lm', '-flto=thin', '-march=native', '-ffast-math', '-fno-exceptions', '-fno-ident', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections');
+
     if (Prefs.s) args.push('-s');
 
     if (logProgress) progressStart('compiling Wasm to C...');
