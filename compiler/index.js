@@ -33,6 +33,7 @@ let progressLines = 0, progressInterval;
 let spinner = ['-', '\\', '|', '/'], spin = 0;
 const progressStart = msg => {
   if (globalThis.onProgress) return;
+  if (!process.stdout.isTTY) return;
 
   const log = (extra, after) => {
     const pre = extra ? `${extra}` : spinner[spin++ % 4];
@@ -49,11 +50,12 @@ const progressDone = (msg, start) => {
   clearInterval(progressInterval);
 
   const timeStr = (performance.now() - start).toFixed(0);
-  console.log(`\r${' '.repeat(60)}\r\u001b[2m${' '.repeat(10 - timeStr.length)}${timeStr}ms\u001b[0m  \u001b[92m${msg}\u001b[0m`);
+  console.log(`${process.stdout.isTTY ? `\r${' '.repeat(60)}\r` : ''}\u001b[2m${' '.repeat(10 - timeStr.length)}${timeStr}ms\u001b[0m  \u001b[92m${msg}\u001b[0m`);
   progressLines++;
 };
 const progressClear = () => {
   if (globalThis.onProgress) return;
+  if (!process.stdout.isTTY) return;
 
   process.stdout.write(`\u001b[${progressLines}F\u001b[0J`);
   progressLines = 0;
