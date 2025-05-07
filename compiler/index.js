@@ -73,7 +73,7 @@ export default (code, module = undefined) => {
   if (Prefs.native) target = 'native';
 
   let outFile = Prefs.o;
-  const logProgress = Prefs.profileCompiler || (Prefs.target && outFile && !Prefs.native && globalThis.file);
+  const logProgress = Prefs.profileCompiler || (outFile && !Prefs.native);
 
   globalThis.valtype = Prefs.valtype ?? 'f64';
   globalThis.valtypeBinary = Valtype[valtype];
