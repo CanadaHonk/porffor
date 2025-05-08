@@ -541,6 +541,84 @@ i32.shr_u
 return`;
 };
 
+export const __Porffor_object_get_withHash = (obj: any, key: any, hash: i32): any => {
+  const trueType: i32 = Porffor.wasm`local.get ${obj+1}`;
+  if (trueType != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
+
+  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot get property of null');
+
+  let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
+  if (entryPtr == -1) {
+    // check prototype chain
+    if (trueType == Porffor.TYPES.object) {
+      // opt: inline get object prototype
+      Porffor.wasm`
+local.get ${obj}
+local.get ${obj}
+i32.load 0 4
+local.set ${obj}
+i32.load8_u 0 3
+local.set ${obj+1}`;
+
+      // if empty, prototype is object.prototype
+      if (Porffor.type(obj) == Porffor.TYPES.empty) obj = __Object_prototype;
+    } else obj = __Porffor_object_getHiddenPrototype(trueType);
+
+    if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
+    let lastProto: any = obj;
+    while (true) {
+      if ((entryPtr = __Porffor_object_lookup(obj, key, hash)) != -1) break;
+
+      // inline get prototype
+      if (Porffor.type(obj) == Porffor.TYPES.object) {
+        Porffor.wasm`
+local.get ${obj}
+local.get ${obj}
+i32.load 0 4
+local.set ${obj}
+i32.load8_u 0 3
+local.set ${obj+1}`;
+      } else obj = __Porffor_object_getPrototype(obj);
+      if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
+
+      if (Porffor.fastOr(obj == null, Porffor.wasm`local.get ${obj}` == Porffor.wasm`local.get ${lastProto}`)) break;
+      lastProto = obj;
+    }
+
+    if (entryPtr == -1) {
+      Porffor.wasm`
+f64.const 0
+i32.const 128
+return`;
+    }
+  }
+
+  const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 16);
+  if (tail & 0b0001) {
+    // accessor descriptor
+    const get: Function = __Porffor_object_accessorGet(entryPtr);
+
+    // no getter, return undefined
+    if (Porffor.wasm`local.get ${get}` == 0) {
+      Porffor.wasm`
+f64.const 0
+i32.const 128
+return`;
+    }
+
+    return get.call(obj);
+  }
+
+  // data descriptor
+  Porffor.wasm`
+local.get ${entryPtr}
+f64.load 0 8
+local.get ${tail}
+i32.const 8
+i32.shr_u
+return`;
+};
+
 export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
@@ -647,6 +725,105 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   return value;
 };
 
+export const __Porffor_object_set_withHash = (obj: any, key: any, value: any, hash: i32): any => {
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_underlying(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return value;
+  }
+
+  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
+
+  let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
+  let flags: i32;
+  if (entryPtr == -1) {
+    // todo/opt: skip if no setters used
+    // check prototype chain for setter
+    let proto: any = __Porffor_object_getPrototype(obj);
+    if (proto != null) {
+      if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
+      let lastProto: any = proto;
+      while (true) {
+        if ((entryPtr = __Porffor_object_lookup(proto, key, hash)) != -1) break;
+
+        proto = __Porffor_object_getPrototype(proto);
+        if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
+        if (Porffor.fastOr(proto == null, Porffor.wasm`local.get ${proto}` == Porffor.wasm`local.get ${lastProto}`)) break;
+        lastProto = proto;
+      }
+
+      if (entryPtr != -1) {
+        // found possible setter
+        const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 16);
+        if (tail & 0b0001) {
+          // accessor descriptor
+          const set: Function = __Porffor_object_accessorSet(entryPtr);
+
+          // no setter, return early
+          if (Porffor.wasm`local.get ${set}` == 0) {
+            return value;
+          }
+
+          set.call(obj, value);
+          return value;
+        }
+      }
+    }
+
+    // add new entry
+    // check if object is inextensible
+    if (__Porffor_object_isInextensible(obj)) {
+      return value;
+    }
+
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load16_u(obj, 0, 0);
+    Porffor.wasm.i32.store16(obj, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${obj}` + 8 + size * 18;
+
+    __Porffor_object_writeKey(entryPtr, key, hash);
+
+    // flags = writable, enumerable, configurable, not accessor
+    flags = 0b1110;
+  } else {
+    // existing entry, modify it
+    const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 16);
+
+    if (tail & 0b0001) {
+      // accessor descriptor
+      const set: Function = __Porffor_object_accessorSet(entryPtr);
+
+      // no setter, return early
+      if (Porffor.wasm`local.get ${set}` == 0) {
+        return value;
+      }
+
+      set.call(obj, value);
+      return value;
+    }
+
+    // data descriptor
+    if (!(tail & 0b1000)) {
+      // not writable, return now
+      return value;
+    }
+
+    // flags = same flags as before
+    flags = tail & 0xff;
+  }
+
+  // write new value value
+  Porffor.wasm.f64.store(entryPtr, value, 0, 8);
+
+  // write new tail (value type + flags)
+  Porffor.wasm.i32.store16(entryPtr,
+    flags + (Porffor.wasm`local.get ${value+1}` << 8),
+    0, 16);
+
+  return value;
+};
+
 export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any => {
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
 
@@ -665,6 +842,106 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
       return value;
     }
 
+    // todo/opt: skip if no setters used
+    // check prototype chain for setter
+    let proto: any = __Porffor_object_getPrototype(obj);
+    if (proto != null) {
+      if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
+
+      let lastProto: any = proto;
+      while (true) {
+        if ((entryPtr = __Porffor_object_lookup(proto, key, hash)) != -1) break;
+
+        proto = __Porffor_object_getPrototype(proto);
+        if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
+        if (Porffor.fastOr(proto == null, Porffor.wasm`local.get ${proto}` == Porffor.wasm`local.get ${lastProto}`)) break;
+        lastProto = proto;
+      }
+
+      if (entryPtr != -1) {
+        // found possible setter
+        const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 16);
+        if (tail & 0b0001) {
+          // accessor descriptor
+          const set: Function = __Porffor_object_accessorSet(entryPtr);
+
+          // no setter, return early
+          if (Porffor.wasm`local.get ${set}` == 0) {
+            return value;
+          }
+
+          set.call(obj, value);
+          return value;
+        }
+      }
+    }
+
+    // add new entry
+    // check if object is inextensible
+    if (__Porffor_object_isInextensible(obj)) {
+      throw new TypeError('Cannot add property to inextensible object');
+    }
+
+    // bump size +1
+    const size: i32 = Porffor.wasm.i32.load16_u(obj, 0, 0);
+    Porffor.wasm.i32.store16(obj, size + 1, 0, 0);
+
+    // entryPtr = current end of object
+    entryPtr = Porffor.wasm`local.get ${obj}` + 8 + size * 18;
+
+    __Porffor_object_writeKey(entryPtr, key, hash);
+
+    // flags = writable, enumerable, configurable, not accessor
+    flags = 0b1110;
+  } else {
+    // existing entry, modify it
+    const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 16);
+
+    if (tail & 0b0001) {
+      // accessor descriptor
+      const set: Function = __Porffor_object_accessorSet(entryPtr);
+
+      // no setter, return early
+      if (Porffor.wasm`local.get ${set}` == 0) {
+        throw new TypeError('Cannot set property with no setter of object');
+      }
+
+      set.call(obj, value);
+      return value;
+    }
+
+    // data descriptor
+    if (!(tail & 0b1000)) {
+      // not writable, return now
+      throw new TypeError('Cannot modify read-only property of object');
+    }
+
+    // flags = same flags as before
+    flags = tail & 0xff;
+  }
+
+  // write new value value (lol)
+  Porffor.wasm.f64.store(entryPtr, value, 0, 8);
+
+  // write new tail (value type + flags)
+  Porffor.wasm.i32.store16(entryPtr,
+    flags + (Porffor.wasm`local.get ${value+1}` << 8),
+    0, 16);
+
+  return value;
+};
+
+export const __Porffor_object_setStrict_withHash = (obj: any, key: any, value: any, hash: i32): any => {
+  if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
+
+  if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
+    obj = __Porffor_object_underlying(obj);
+    if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return value;
+  }
+
+  let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
+  let flags: i32;
+  if (entryPtr == -1) {
     // todo/opt: skip if no setters used
     // check prototype chain for setter
     let proto: any = __Porffor_object_getPrototype(obj);

@@ -23,14 +23,19 @@ globalThis.precompile = true;
 globalThis.valtypeOverrides = {
   returns: {
     __Porffor_object_get: [ Valtype.f64, Valtype.i32 ],
+    __Porffor_object_get_withHash: [ Valtype.f64, Valtype.i32 ],
     __Porffor_object_readValue: [ Valtype.f64, Valtype.i32 ],
     __Porffor_object_set: [ Valtype.f64, Valtype.i32 ],
+    __Porffor_object_set_withHash: [ Valtype.f64, Valtype.i32 ],
     __Porffor_object_setStrict: [ Valtype.f64, Valtype.i32 ],
+    __Porffor_object_setStrict_withHash: [ Valtype.f64, Valtype.i32 ],
     __Porffor_object_packAccessor: [ Valtype.f64 ]
   },
   params: {
     __Porffor_object_set: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
+    __Porffor_object_set_withHash: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
     __Porffor_object_setStrict: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
+    __Porffor_object_setStrict_withHash: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
     __Porffor_object_expr_init: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
     __Porffor_object_fastAdd: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
     __Porffor_object_class_value: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],

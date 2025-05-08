@@ -3583,7 +3583,38 @@ const memberTmpNames = scope => {
   };
 };
 
-// COCTC: cross-object compile-time cache
+const ctHash = prop => {
+  const _ = prop;
+  if (!Prefs.ctHash || !prop ||
+    prop.computed || prop.optional ||
+    prop.property.type === 'PrivateIdentifier'
+  ) return null;
+
+  prop = prop.property.name;
+  if (!prop || prop === '__proto__' || !byteStringable(prop)) return null;
+
+  let i = 0;
+  const len = prop.length;
+  let hash = 374761393 + len;
+
+  const rotl = (n, k) => (n << k) | (n >>> (32 - k));
+  const read = () => (prop.charCodeAt(i + 3) << 24 | prop.charCodeAt(i + 2) << 16 | prop.charCodeAt(i + 1) << 8 | prop.charCodeAt(i));
+
+  // hash in chunks of i32 (4 bytes)
+  for (; i <= len - 4; i += 4) {
+    hash = Math.imul(rotl(hash + Math.imul(read(), 3266489917), 17), 668265263);
+  }
+
+  // hash final bytes up to 4 via shift depending on bytes remaining
+  hash = Math.imul(rotl(hash + Math.imul(read(), 3266489917), 17), 668265263);
+
+  // final avalanche
+  hash = Math.imul(hash ^ (hash >>> 15), 2246822519);
+  hash = Math.imul(hash ^ (hash >>> 13), 3266489917);
+  return (hash ^ (hash >>> 16));
+};
+
+// COCTC: cross-object compile-time (inline) cache
 const coctcOffset = prop => {
   if (!Prefs.coctc || !prop ||
     prop.computed || prop.optional ||
@@ -3723,6 +3754,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // todo/perf: use i32 object (and prop?) locals
     const { objectTmp, propertyTmp, objectGet, propertyGet } = memberTmpNames(scope);
 
+    const hash = ctHash(decl.left);
     const coctc = coctcOffset(decl.left);
     if (coctc > 0) valueUnused = false;
 
@@ -4001,12 +4033,24 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             [ Opcodes.local_get, localTmp(scope, '#objset_property', Valtype.i32) ],
             [ Opcodes.local_get, localTmp(scope, '#objset_property_type', Valtype.i32) ],
 
-            [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
+            ...(hash != null ? [
+              number(hash, Valtype.i32),
+              number(TYPES.number, Valtype.i32),
+              [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get_withHash').index ]
+            ] : [
+              [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ]
+            ]),
             ...setLastType(scope)
           ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right))),
           ...getNodeType(scope, decl),
 
-          [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
+          ...(hash != null ? [
+            number(hash, Valtype.i32),
+            number(TYPES.number, Valtype.i32),
+            [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict_withHash' : '__Porffor_object_set_withHash').index ],
+          ] : [
+            [ Opcodes.call, includeBuiltin(scope, scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set').index ],
+          ]),
           [ Opcodes.drop ],
           ...(valueUnused ? [ [ Opcodes.drop ] ] : [])
           // ...setLastType(scope, getNodeType(scope, decl)),
@@ -5854,6 +5898,7 @@ const generateMember = (scope, decl, _global, _name) => {
     if (known == null) extraBC = bc;
   }
 
+  const hash = ctHash(decl);
   const coctc = coctcOffset(decl);
   const coctcObjTmp = coctc > 0 && localTmp(scope, '#coctc_obj' + uniqId(), Valtype.i32);
 
@@ -6062,7 +6107,14 @@ const generateMember = (scope, decl, _global, _name) => {
 
       ...toPropertyKey(scope, [ propertyGet ], getNodeType(scope, property), decl.computed, true),
 
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ],
+      ...(hash != null ? [
+        number(hash, Valtype.i32),
+        number(TYPES.number, Valtype.i32),
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get_withHash').index ]
+      ] : [
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ]
+      ]),
+
       ...setLastType(scope)
     ],
 
