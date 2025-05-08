@@ -3589,11 +3589,12 @@ const coctcOffset = prop => {
 
   if (typeof prop === 'object') {
     if (
-      prop.computed || prop.optional ||
+      prop.computed || prop.optional || prop.property.type === 'PrivateIdentifier' ||
       ['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor', 'length', '__proto__'].includes(prop.property.name)
     ) return 0;
 
     prop = prop.property.name;
+    if (!prop) return 0;
   }
 
   let offset = coctc.get(prop);
@@ -6493,7 +6494,7 @@ const objectHack = node => {
   if (node.type === 'MemberExpression') {
     const out = (() => {
       const abortOut = { ...node, object: objectHack(node.object) };
-      if (node.computed || node.optional) return;
+      if (node.computed || node.optional || node.property.type === 'PrivateIdentifier') return;
 
       // hack: block these properties as they can be accessed on functions
       if (node.object.name !== 'Porffor' && (node.property.name === 'length' || node.property.name === 'name' || node.property.name === 'call')) return abortOut;
