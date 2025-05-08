@@ -3585,17 +3585,13 @@ const memberTmpNames = scope => {
 
 // COCTC: cross-object compile-time cache
 const coctcOffset = prop => {
-  if (!Prefs.coctc) return 0;
+  if (!Prefs.coctc || !prop ||
+    prop.computed || prop.optional ||
+    prop.property.type === 'PrivateIdentifier'
+  ) return 0;
 
-  if (typeof prop === 'object') {
-    if (
-      prop.computed || prop.optional || prop.property.type === 'PrivateIdentifier' ||
-      ['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor', 'length', '__proto__'].includes(prop.property.name)
-    ) return 0;
-
-    prop = prop.property.name;
-    if (!prop) return 0;
-  }
+  prop = prop.property.name;
+  if (!prop || ['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor', 'length', '__proto__'].includes(prop)) return 0;
 
   let offset = coctc.get(prop);
   if (offset == null) {
@@ -3727,8 +3723,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
     // todo/perf: use i32 object (and prop?) locals
     const { objectTmp, propertyTmp, objectGet, propertyGet } = memberTmpNames(scope);
 
-    const useCoctc = coctcOffset(decl.left) > 0;
-    if (useCoctc) valueUnused = false;
+    const coctc = coctcOffset(decl.left);
+    if (coctc > 0) valueUnused = false;
 
     // opt: do not mark prototype funcs as referenced to optimize this in them
     if (object?.property?.name === 'prototype' && isFuncType(decl.right.type)) decl.right._doNotMarkFuncRef = true;
@@ -4019,9 +4015,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       ...optional(number(UNDEFINED), valueUnused)
     ];
 
-    if (useCoctc) {
+    if (coctc > 0) {
       // set COCTC
-      const offset = coctcOffset(decl.left.property.name);
       const valueTmp = localTmp(scope, '#coctc_value');
       const objectTmp = localTmp(scope, '#coctc_object', Valtype.i32);
 
@@ -4031,11 +4026,11 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
         [ Opcodes.local_get, objectTmp ],
         [ Opcodes.local_get, valueTmp ],
-        [ Opcodes.f64_store, 0, ...unsignedLEB128(offset) ],
+        [ Opcodes.f64_store, 0, ...unsignedLEB128(coctc) ],
 
         [ Opcodes.local_get, objectTmp ],
         ...getNodeType(scope, decl),
-        [ Opcodes.i32_store8, 0, ...unsignedLEB128(offset + 8) ]
+        [ Opcodes.i32_store8, 0, ...unsignedLEB128(coctc + 8) ]
       );
     }
 
@@ -4223,8 +4218,8 @@ const generateUnary = (scope, decl) => {
         const property = getProperty(decl.argument);
         if (property.value === 'length' || property.value === 'name') scope.noFastFuncMembers = true;
 
-        const useCoctc = coctcOffset(decl.argument) > 0;
-        const objectTmp = useCoctc && localTmp(scope, '#coctc_object', Valtype.i32);
+        const coctc = coctcOffset(decl.argument);
+        const objectTmp = coctc > 0 && localTmp(scope, '#coctc_object', Valtype.i32);
 
         const out = [
           ...generate(scope, object),
@@ -4238,20 +4233,18 @@ const generateUnary = (scope, decl) => {
           Opcodes.i32_from_u
         ];
 
-        if (useCoctc) {
+        if (coctc > 0) {
           // set COCTC
-          const offset = coctcOffset(decl.argument.property.name);
-
           out.push(
             ...coctcSetup(scope, object, objectTmp, null, [ [ Opcodes.local_get, objectTmp ] ], false),
 
             [ Opcodes.local_get, objectTmp ],
             number(0),
-            [ Opcodes.f64_store, 0, ...unsignedLEB128(offset) ],
+            [ Opcodes.f64_store, 0, ...unsignedLEB128(coctc) ],
 
             [ Opcodes.local_get, objectTmp ],
             number(0, Valtype.i32),
-            [ Opcodes.i32_store8, 0, ...unsignedLEB128(offset + 8) ]
+            [ Opcodes.i32_store8, 0, ...unsignedLEB128(coctc + 8) ]
           );
         }
 
@@ -5861,8 +5854,8 @@ const generateMember = (scope, decl, _global, _name) => {
     if (known == null) extraBC = bc;
   }
 
-  const useCoctc = coctcOffset(decl) > 0;
-  const coctcObjTmp = useCoctc && localTmp(scope, '#coctc_obj' + uniqId(), Valtype.i32);
+  const coctc = coctcOffset(decl);
+  const coctcObjTmp = coctc > 0 && localTmp(scope, '#coctc_obj' + uniqId(), Valtype.i32);
 
   const out = typeSwitch(scope, type, {
     ...(decl.computed ? {
@@ -6058,7 +6051,7 @@ const generateMember = (scope, decl, _global, _name) => {
     [TYPES.undefined]: internalThrow(scope, 'TypeError', `Cannot read property of undefined`, true),
 
     default: () => [
-      ...(useCoctc && known === TYPES.object ? [
+      ...(coctc > 0 && known === TYPES.object ? [
         [ Opcodes.local_get, coctcObjTmp ],
         number(TYPES.object, Valtype.i32)
       ] : [
@@ -6097,21 +6090,19 @@ const generateMember = (scope, decl, _global, _name) => {
       [ Opcodes.end ]
     );
   } else {
-    if (useCoctc) {
+    if (coctc > 0) {
       // fast path: COCTC
-      const offset = coctcOffset(decl.property.name);
-
       out.unshift(
         ...generate(scope, decl.object),
         [ Opcodes.local_set, objectTmp ],
         ...coctcSetup(scope, decl.object, coctcObjTmp, 'get', [ [ Opcodes.local_get, objectTmp ] ]),
 
         [ Opcodes.local_get, coctcObjTmp ],
-        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(offset + 8) ],
+        [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(coctc + 8) ],
         [ Opcodes.local_tee, localTmp(scope, '#coctc_tmp', Valtype.i32) ],
         [ Opcodes.if, Valtype.f64 ],
           [ Opcodes.local_get, coctcObjTmp ],
-          [ Opcodes.f64_load, 0, ...unsignedLEB128(offset) ],
+          [ Opcodes.f64_load, 0, ...unsignedLEB128(coctc) ],
 
           ...setLastType(scope, [
             [ Opcodes.local_get, localTmp(scope, '#coctc_tmp', Valtype.i32) ],
