@@ -2,9 +2,8 @@ const onByDefault = [ 'treeshakeWasmImports', 'alwaysMemory', 'indirectCalls', '
 
 const nameToKey = x => x.replace(/[a-z]\-[a-z]/g, y => `${y[0]}${y[2].toUpperCase()}`);
 
-let prefs = {};
 const getPrefs = () => {
-  prefs = {};
+  const prefs = globalThis.Prefs = {};
   for (const x of onByDefault) prefs[x] = true;
 
   for (const x of process.argv) {
@@ -18,12 +17,8 @@ const getPrefs = () => {
       prefs[nameToKey(name)] = value ?? true;
     }
   }
-
-  globalThis.Prefs = prefs;
 };
 getPrefs();
-
-// export default prefs;
 
 export const uncache = () => getPrefs();
 globalThis.argvChanged = uncache;
