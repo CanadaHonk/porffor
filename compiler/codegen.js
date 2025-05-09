@@ -3584,7 +3584,6 @@ const memberTmpNames = scope => {
 };
 
 const ctHash = prop => {
-  const _ = prop;
   if (!Prefs.ctHash || !prop ||
     prop.computed || prop.optional ||
     prop.property.type === 'PrivateIdentifier'
@@ -3601,12 +3600,9 @@ const ctHash = prop => {
   const read = () => (prop.charCodeAt(i + 3) << 24 | prop.charCodeAt(i + 2) << 16 | prop.charCodeAt(i + 1) << 8 | prop.charCodeAt(i));
 
   // hash in chunks of i32 (4 bytes)
-  for (; i <= len - 4; i += 4) {
+  for (; i <= len; i += 4) {
     hash = Math.imul(rotl(hash + Math.imul(read(), 3266489917), 17), 668265263);
   }
-
-  // hash final bytes up to 4 via shift depending on bytes remaining
-  hash = Math.imul(rotl(hash + Math.imul(read(), 3266489917), 17), 668265263);
 
   // final avalanche
   hash = Math.imul(hash ^ (hash >>> 15), 2246822519);
