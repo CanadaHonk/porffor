@@ -4,7 +4,6 @@ import { operatorOpcode } from './expression.js';
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
 import { PrototypeFuncs } from './prototype.js';
 import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
-import * as Rhemyn from '../rhemyn/compile.js';
 import parse from './parse.js';
 import { log } from './log.js';
 import { allocPage, allocStr } from './allocator.js';
@@ -1580,9 +1579,7 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'Literal') {
       if (node.regex) return TYPES.regexp;
-
       if (typeof node.value === 'string' && byteStringable(node.value)) return TYPES.bytestring;
-
       return TYPES[typeof node.value];
     }
 
@@ -1786,9 +1783,25 @@ const getNodeType = (scope, node) => {
 const generateLiteral = (scope, decl, global, name) => {
   if (decl.value === null) return [ number(NULL) ];
 
-  // hack: just return 1 for regex literals
   if (decl.regex) {
-    return [ number(1) ];
+    // todo/opt: separate aot compiling regex engine for compile-time known regex (literals, known RegExp args)
+    return generate(scope, {
+      type: 'CallExpression',
+      callee: {
+        type: 'Identifier',
+        name: 'RegExp'
+      },
+      arguments: [
+        {
+          type: 'Literal',
+          value: decl.regex.pattern
+        },
+        {
+          type: 'Literal',
+          value: decl.regex.flags
+        }
+      ]
+    });
   }
 
   switch (typeof decl.value) {
@@ -2152,35 +2165,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     const prop = (decl.callee.expression ?? decl.callee).property;
     const object = (decl.callee.expression ?? decl.callee).object;
 
-    // megahack for /regex/.func()
-    if (object?.regex && ['test'].includes(prop.name)) {
-      const regex = object.regex.pattern;
-      const rhemynName = `regex_${prop.name}_${sanitize(regex)}`;
-
-      if (!funcIndex[rhemynName]) {
-        const func = Rhemyn[prop.name](regex, currentFuncIndex++, rhemynName);
-        func.internal = true;
-
-        funcIndex[func.name] = func.index;
-        funcs.push(func);
-      }
-
-      const arg = decl.arguments[0] ?? DEFAULT_VALUE();
-      const idx = funcIndex[rhemynName];
-      return [
-        // make string arg
-        ...generate(scope, arg),
-        Opcodes.i32_to_u,
-        ...getNodeType(scope, arg),
-
-        // call regex func
-        [ Opcodes.call, idx ],
-        Opcodes.i32_from_u,
-
-        ...setLastType(scope, Rhemyn.types[prop.name])
-      ];
-    }
-
     protoName = prop?.name;
     target = object;
   }
@@ -2211,42 +2195,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           _callType: [ [ Opcodes.local_get, typeTmp ] ]
         }
       });
-    }
-
-    if (['search'].includes(protoName)) {
-      const regex = decl.arguments[0]?.regex?.pattern;
-      if (!regex) return [
-        // no/bad regex arg, return -1/0 for now
-        ...generate(scope, target),
-        [ Opcodes.drop ],
-
-        number(Rhemyn.types[protoName] === TYPES.number ? -1 : 0),
-        ...setLastType(scope, Rhemyn.types[protoName])
-      ];
-
-      const rhemynName = `regex_${protoName}_${sanitize(regex)}`;
-
-      if (!funcIndex[rhemynName]) {
-        const func = Rhemyn[protoName](regex, currentFuncIndex++, rhemynName);
-        func.internal = true;
-
-        funcIndex[func.name] = func.index;
-        funcs.push(func);
-      }
-
-      const idx = funcIndex[rhemynName];
-      return [
-        // make string arg
-        ...generate(scope, target),
-        Opcodes.i32_to_u,
-        ...getNodeType(scope, target),
-
-        // call regex func
-        [ Opcodes.call, idx ],
-        Opcodes.i32_from,
-
-        ...setLastType(scope, Rhemyn.types[protoName])
-      ];
     }
 
     const protoBC = {};
@@ -3583,6 +3531,9 @@ const memberTmpNames = scope => {
   };
 };
 
+// todo: generate this array procedurally
+const builtinPrototypeGets = ['size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor', 'source', 'flags', 'global', 'ignoreCase', 'multiline', 'dotAll', 'unicode', 'sticky', 'hasIndices', 'unicodeSets'];
+
 const ctHash = prop => {
   if (!Prefs.ctHash || !prop ||
     prop.computed || prop.optional ||
@@ -3618,7 +3569,9 @@ const coctcOffset = prop => {
   ) return 0;
 
   prop = prop.property.name;
-  if (!prop || ['prototype', 'size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor', 'length', '__proto__'].includes(prop)) return 0;
+  if (!prop || builtinPrototypeGets.includes(prop) ||
+    prop === 'prototype' || prop === 'length' || prop === '__proto__'
+  ) return 0;
 
   let offset = coctc.get(prop);
   if (offset == null) {
@@ -5853,8 +5806,7 @@ const generateMember = (scope, decl, _global, _name) => {
   const type = getNodeType(scope, object);
   const known = knownType(scope, type);
 
-  // todo: generate this array procedurally during builtinFuncs creation
-  if (['size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor'].includes(decl.property.name)) {
+  if (builtinPrototypeGets.includes(decl.property.name)) {
     // todo: support optional
     const bc = {};
     const cands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + decl.property.name + '$get'));

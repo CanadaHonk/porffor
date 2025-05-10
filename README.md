@@ -76,9 +76,6 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 ### Asur
 Asur is Porffor's own Wasm engine; it is an intentionally simple interpreter written in JS. It is very WIP. See [its readme](asur/README.md) for more details.
 
-### Rhemyn
-Rhemyn is Porffor's own regex engine; it compiles literal regex to Wasm bytecode AOT (remind you of anything?). It is quite basic and WIP. See [its readme](rhemyn/README.md) for more details.
-
 ### 2c
 2c is Porffor's own Wasm -> C compiler, using generated Wasm bytecode and internal info to generate specific and efficient C code. Little boilerplate/preluded code or required external files, just for CLI binaries (not like wasm2c very much).
 
@@ -125,10 +122,6 @@ Porffor can run Test262 via some hacks/transforms which remove unsupported featu
 - `runtime`: contains utils for running JS with the compiler
   - `index.js`: the main file, you probably want to use this
   - `repl.js`: basic repl (uses `node:repl`)
-
-- `rhemyn`: contains [Rhemyn](#rhemyn) - our regex engine (used by Porffor)
-  - `compile.js`: compiles regex ast into wasm bytecode aot
-  - `parse.js`: own regex parser
 
 - `test262`: test262 runner and utils
 

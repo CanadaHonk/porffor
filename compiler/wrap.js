@@ -348,6 +348,14 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       return negative ? -result : result;
     }
 
+    case TYPES.regexp: {
+      const [ pattern, flags ] = read(Uint32Array, memory, value, 2);
+      return new RegExp(
+        porfToJSValue({ memory, funcs, pages }, pattern, TYPES.bytestring),
+        porfToJSValue({ memory, funcs, pages }, flags, TYPES.bytestring)
+      );
+    }
+
     default: return value;
   }
 };
