@@ -1255,28 +1255,16 @@ const generateBinaryExp = (scope, decl) => {
 const asmFuncToAsm = (scope, func, extra) => func(scope, {
   Valtype, Opcodes, TYPES, TYPE_NAMES, usedTypes, typeSwitch, makeString, internalThrow,
   getNodeType, generate, generateIdent,
-  builtin: (n, offset = false) => {
-    let idx = importedFuncs[n] ?? funcIndex[n];
-    if (idx == null && Object.hasOwn(builtinFuncs, n)) {
-      includeBuiltin(scope, n);
-      idx = funcIndex[n];
-    }
-
-    scope.includes ??= new Set();
-    scope.includes.add(n);
-
-    if (idx == null) throw new Error(`builtin('${n}') failed: could not find func (from ${scope.name})`);
+  builtin: (name, offset = false) => {
+    let idx = importedFuncs[name] ?? includeBuiltin(scope, name)?.index;
+    if (idx == null) throw new Error(`builtin('${name}') failed: could not find func (from ${scope.name})`);
     if (offset) idx -= importedFuncs.length;
 
     return idx;
   },
   hasFunc: x => funcIndex[x] != null,
   funcRef: name => {
-    if (funcIndex[name] == null && Object.hasOwn(builtinFuncs, name)) {
-      includeBuiltin(scope, name);
-    }
-
-    const func = funcByName(name);
+    const func = includeBuiltin(scope, name);
     return funcRef(func);
   },
   glbl: (opcode, name, type) => {
@@ -1340,7 +1328,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     wasm = [];
   }
 
-  const existing = funcByName(name);
+  const existing = builtinFuncByName(name);
   if (existing) return existing;
 
   const allLocals = params.concat(localTypes);
@@ -6538,6 +6526,13 @@ const funcByIndex = idx => {
   return funcs.find(x => x.index === idx);
 };
 const funcByName = name => funcByIndex(funcIndex[name]);
+
+const builtinFuncByName = name => {
+  const normal = funcByName(name);
+  if (!normal || normal.internal) return normal;
+
+  return funcs.find(x => x.name === name && x.internal);
+};
 
 const generateFunc = (scope, decl, forceNoExpr = false) => {
   doNotMarkFuncRef = false;
