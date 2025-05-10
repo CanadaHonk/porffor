@@ -2486,20 +2486,24 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           [ Opcodes.local_get, thisLocal ],
           [ Opcodes.local_get, thisLocalType ]
         ];
-        getCallee = [
-          ...generate(scope, object),
-          [ Opcodes.local_set, thisLocal ],
-          ...getNodeType(scope, object),
-          [ Opcodes.local_set, thisLocalType ],
-
-          ...generate(scope, {
-            type: 'MemberExpression',
-            object: { type: 'Identifier', name: tmpName + 'caller' },
-            property,
-            computed,
-            optional
-          })
-        ];
+        getCallee = generate(scope, {
+          type: 'MemberExpression',
+          object: {
+            type: 'Wasm',
+            wasm: () => [
+              ...generate(scope, object),
+              [ Opcodes.local_tee, thisLocal ],
+              ...getNodeType(scope, object),
+              [ Opcodes.local_set, thisLocalType ]
+            ],
+            _type: [
+              [ Opcodes.local_get, thisLocalType ]
+            ]
+          },
+          property,
+          computed,
+          optional
+        });
       }
     }
 
