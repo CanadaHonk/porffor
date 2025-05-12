@@ -2577,13 +2577,15 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   if (func && func.constr) {
-    out.push(...(decl._newTargetWasm ?? createNewTarget(scope, decl, idx - importedFuncs.length)));
-    out.push(...(decl._thisWasm ?? createThisArg(scope, decl)));
+    out.push(
+      ...forceDuoValtype(scope, decl._newTargetWasm ?? createNewTarget(scope, decl, idx - importedFuncs.length), func.params[0]),
+      ...forceDuoValtype(scope, decl._thisWasm ?? createThisArg(scope, decl), func.params[2])
+    );
     paramOffset += 4;
   }
 
   if (func && func.method) {
-    out.push(...(decl._thisWasm ?? createThisArg(scope, decl)));
+    out.push(...forceDuoValtype(scope, decl._thisWasm ?? createThisArg(scope, decl), func.params[0]));
     paramOffset += 2;
   }
 
