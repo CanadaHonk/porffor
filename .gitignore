@@ -6,6 +6,8 @@
 node_modules
 package-lock.json
 bun.lock
+deno.lock
+pnpm-lock.yaml
 
 .repl_history
 
