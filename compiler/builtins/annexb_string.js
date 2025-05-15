@@ -35,7 +35,7 @@ export const __ByteString_prototype_${name} = (_this: bytestring, arg: any) =>
   arg('anchor', 'a', 'name');
   arg('link', 'a', 'href');
 
-  const prototypeAlias = (regular, annex) => `
+  const prototypeAlias = (regular, annex) => out += `
 export const __String_prototype_${annex} = (_this: any) =>
   __String_prototype_${regular}(_this);
 export const __ByteString_prototype_${annex} = (_this: any) =>
