@@ -95,7 +95,7 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
 
   let i: i32 = 0;
   let acc: number = 0;
-  while (i < len) {
+  while (i < digits.length) {
     const char: i32 = n.charCodeAt(offset + i);
     const digit: i32 = char - 48;
     if (Porffor.fastOr(digit < 0, digit > 9)) throw new SyntaxError('Invalid character in BigInt string');
