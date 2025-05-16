@@ -84,6 +84,31 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
     offset = 1;
   }
 
+  let radix: number = 10;
+  radix: if (len - offset >= 3 && n[offset] == '0') {
+    switch (n[offset + 1]) {
+      case 'x':
+      case 'X':
+        radix = 16;
+        break;
+        
+      case 'o':
+      case 'O':
+        radix = 8;
+        break;
+        
+      case 'b':
+      case 'B':
+        radix = 2;
+        break;
+        
+      default:
+        break radix;
+    }
+    offset += 2;
+  }
+  console.log("offset: ", offset);
+
   // n -> base 2^32 digits (most to least significant)
   // 4294967295 -> [ 4294967295 ]
   // 4294967296 -> [ 1, 0 ]
@@ -97,11 +122,18 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
   let acc: number = 0;
   while (i < digits.length) {
     const char: i32 = n.charCodeAt(offset + i);
-    const digit: i32 = char - 48;
-    if (Porffor.fastOr(digit < 0, digit > 9)) throw new SyntaxError('Invalid character in BigInt string');
+    let digit: i32;
+    if (radix > 10 && char > 57) {
+      // masking off this bit turns the number lowercase
+      digit = ((char - 65) & 0b1101_1111) + 10;
+    } else {
+      digit = char - 48;
+    }
+    
+    if (Porffor.fastOr(digit < 0, digit >= radix)) throw new SyntaxError('Invalid character in BigInt string');
 
     digits[i++] = digit;
-    acc = acc * 10 + digit;
+    acc = acc * radix + digit;
   }
 
   if (acc < 0x8000000000000) {
