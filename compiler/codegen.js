@@ -6451,20 +6451,52 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
     return cacheAst(decl, intrinsics[decl.tag.name](str));
   }
 
-  return generate(scope, {
-    type: 'CallExpression',
-    callee: decl.tag,
-    arguments: [
-      { // strings
-        type: 'ArrayExpression',
-        elements: quasis.map(x => ({
-          type: 'Literal',
-          value: x.value.cooked
-        }))
-      },
-      ...expressions
-    ]
-  });
+  return [
+    ...generate(scope, {
+      type: 'ArrayExpression',
+      elements: quasis.map(x => ({
+        type: 'Literal',
+        value: x.value.cooked
+      }))
+    }),
+    [ Opcodes.local_set, localTmp(scope, '#cooked') ],
+    number(TYPES.array, Valtype.i32),
+    [ Opcodes.local_set, localTmp(scope, '#cooked#type', Valtype.i32) ],
+    
+    ...generate(scope, {
+      type: 'ArrayExpression',
+      elements: quasis.map(x => ({
+        type: 'Literal',
+        value: x.value.raw
+      }))
+    }),
+    [ Opcodes.local_set, localTmp(scope, '#raw') ],
+    number(TYPES.array, Valtype.i32),
+    [ Opcodes.local_set, localTmp(scope, '#raw#type', Valtype.i32) ],
+    
+    ...generate(scope, {
+      type: 'CallExpression',
+      callee: { type: 'Identifier', name: '__Porffor_object_set' },
+      arguments: [
+        { type: 'Identifier', name: '#cooked' },
+        { type: 'Literal', value: 'raw' },
+        { type: 'Identifier', name: '#raw' }
+      ]
+    }),
+    [ Opcodes.drop ],
+    
+    ...generate(scope, {
+      type: 'CallExpression',
+      callee: decl.tag,
+      arguments: [
+        {
+          type: 'Identifier',
+          name: '#cooked'
+        },
+        ...expressions
+      ]
+    }),
+  ];
 };
 
 globalThis._uniqId = 0;
