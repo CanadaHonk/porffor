@@ -2,7 +2,7 @@ import type {} from './porffor.d.ts';
 
 // 20.4.1.1 Symbol ([ description ])
 // https://tc39.es/ecma262/#sec-symbol-description
-export const Symbol = (description: any): Symbol => {
+export const Symbol = (description: any = undefined): Symbol => {
   // 1. If NewTarget is not undefined, throw a TypeError exception.
   // This is an arrow function so happens implicitly
 

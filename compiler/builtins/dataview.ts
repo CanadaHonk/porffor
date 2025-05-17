@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-export const DataView = function (arg: any, byteOffset: any, length: any): DataView {
+export const DataView = function (arg: any, byteOffset: any = undefined, length: any = undefined): DataView {
   if (!new.target) throw new TypeError("Constructor DataView requires 'new'");
 
   const out: DataView = Porffor.allocateBytes(12);
