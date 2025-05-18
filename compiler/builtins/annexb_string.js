@@ -19,14 +19,26 @@ export const __ByteString_prototype_${a0} = (_this: bytestring) =>
   noArgs('sup', 'sup');
 
   const arg = (name, s1, s2) => out += `
-export const __String_prototype_${name} = (_this: string, arg: any) =>
-  Porffor.concatStrings(
+export const __String_prototype_${name} = (_this: string, arg: any) => {
+  arg = ecma262.ToString(arg);
+  let escaped: bytestring = Porffor.allocate();
+  for (let i = 0; i < arg.length; i++) {
+    const c = arg.charCodeAt(i);
+    if (c != 34) {
+      __Porffor_bytestring_appendChar(escaped, c);
+    } else {
+      __Porffor_bytestring_appendStr(escaped, '&quot;');
+    }
+  }
+  
+  return Porffor.concatStrings(
     Porffor.concatStrings(
       Porffor.concatStrings(
-        Porffor.concatStrings('<${s1} ${s2}="', arg),
+        Porffor.concatStrings('<${s1} ${s2}="', escaped),
         '">'),
       _this),
     '</${s1}>');
+}
 export const __ByteString_prototype_${name} = (_this: bytestring, arg: any) =>
   __String_prototype_${name}(_this, arg);`;
 
