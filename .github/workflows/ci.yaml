@@ -1,0 +1,26 @@
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - bun-linux-x64
+          - bun-linux-arm64
+          - bun-windows-x64
+          - bun-darwin-x64
+          - bun-darwin-arm64
+          - bun-linux-x64-musl
+          - bun-linux-arm64-musl
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile --exact
+      - run: bun build --compile --minify --sourcemap --target=${{ matrix.target }} runtime/index.js --outfile porf
+      - uses: actions/upload-artifact@v4
+        with:
+          name: porf-${{ matrix.target }}
+          path: porf
