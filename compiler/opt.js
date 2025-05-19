@@ -163,6 +163,19 @@ export default (funcs, globals, pages, tags, exceptions) => {
           continue;
         }
 
+        if (lastInst[0] === Opcodes.i32_trunc_sat_f64_s[0] && (inst[0] === Opcodes.f64_convert_i32_u || inst[0] === Opcodes.f64_convert_i32_s)) {
+          // remove unneeded f64 -> i32 -> f64
+          // i32.trunc_sat_f64_s || i32.trunc_sat_f64_u
+          // f64.convert_i32_s || f64.convert_i32_u
+          // -->
+          // <nothing>
+
+          wasm.splice(i - 1, 2); // remove this inst and last
+          i -= 2;
+          // if (Prefs.optLog) log('opt', `removed redundant f64 -> i32 -> f64 conversion ops`);
+          continue;
+        }
+
         if (lastInst[0] === Opcodes.const && inst[0] === Opcodes.i32_to[0] && (inst[1] === Opcodes.i32_to[1] || inst[1] === Opcodes.i32_to_u[1])) {
           // change const and immediate i32 convert to i32 const
           // f64.const 0
