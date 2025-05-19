@@ -707,11 +707,14 @@ const generateReturn = (scope, decl) => {
     ];
   }
 
-  return [
-    ...generate(scope, arg),
-    ...(scope.returnType != null ? [] : getNodeType(scope, arg)),
-    [ Opcodes.return ]
-  ];
+  const out = generate(scope, arg);
+  if (scope.returns[0] === Valtype.f64 && valtypeBinary === Valtype.i32 && out[out.length - 1][0] !== Opcodes.f64_const && out[out.length - 1] !== Opcodes.i32_to_u)
+    out.push([ Opcodes.f64_convert_i32_s ]);
+
+  if (scope.returnType == null) out.push(...getNodeType(scope, arg));
+
+  out.push([ Opcodes.return ]);
+  return out;
 };
 
 const localTmp = (scope, name, type = valtypeBinary) => {
@@ -2543,7 +2546,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           [ Opcodes.local_get, calleeLocal ],
           Opcodes.i32_to_u,
           [ Opcodes.call_indirect, args.length + 2, 0 ],
-          ...setLastType(scope)
+          ...setLastType(scope),
+          ...(globalThis.precompile && valtypeBinary === Valtype.i32 ? [ Opcodes.i32_trunc_sat_f64_s ] : [])
         ],
 
         default: decl.optional ? withType(scope, [ number(UNDEFINED) ], TYPES.undefined)

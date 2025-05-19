@@ -395,22 +395,14 @@ return`;
 export const __Porffor_object_accessorGet = (entryPtr: i32): Function|undefined => {
   const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 8);
 
-  // no getter, return undefined
-  if (Porffor.wasm`local.get ${out}` == 0) {
-    return undefined;
-  }
-
+  if (Porffor.wasm`local.get ${out}` == 0) return undefined;
   return out;
 };
 
 export const __Porffor_object_accessorSet = (entryPtr: i32): Function|undefined => {
   const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 12);
 
-  // no setter, return undefined
-  if (Porffor.wasm`local.get ${out}` == 0) {
-    return undefined;
-  }
-
+  if (Porffor.wasm`local.get ${out}` == 0) return undefined;
   return out;
 };
 
@@ -507,12 +499,7 @@ local.set ${obj+1}`;
       lastProto = obj;
     }
 
-    if (entryPtr == -1) {
-      Porffor.wasm`
-f64.const 0
-i32.const 128
-return`;
-    }
+    if (entryPtr == -1) return undefined;
   }
 
   const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 16);
@@ -520,14 +507,7 @@ return`;
     // accessor descriptor
     const get: Function = __Porffor_object_accessorGet(entryPtr);
 
-    // no getter, return undefined
-    if (Porffor.wasm`local.get ${get}` == 0) {
-      Porffor.wasm`
-f64.const 0
-i32.const 128
-return`;
-    }
-
+    if (Porffor.wasm`local.get ${get}` == 0) return undefined;
     return get.call(obj);
   }
 
@@ -585,12 +565,7 @@ local.set ${obj+1}`;
       lastProto = obj;
     }
 
-    if (entryPtr == -1) {
-      Porffor.wasm`
-f64.const 0
-i32.const 128
-return`;
-    }
+    if (entryPtr == -1) return undefined;
   }
 
   const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 16);
@@ -598,14 +573,7 @@ return`;
     // accessor descriptor
     const get: Function = __Porffor_object_accessorGet(entryPtr);
 
-    // no getter, return undefined
-    if (Porffor.wasm`local.get ${get}` == 0) {
-      Porffor.wasm`
-f64.const 0
-i32.const 128
-return`;
-    }
-
+    if (Porffor.wasm`local.get ${get}` == 0) return undefined;
     return get.call(obj);
   }
 
