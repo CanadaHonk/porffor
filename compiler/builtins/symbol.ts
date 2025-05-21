@@ -80,6 +80,8 @@ export const __Symbol_prototype_valueOf = (_this: Symbol) => {
 
 const forStore: Map = new Map();
 export const __Symbol_for = (key: any): Symbol => {
+  key = ecma262.ToString(key);
+
   if (forStore.has(key)) return forStore.get(key);
 
   const out: Symbol = Symbol(key);

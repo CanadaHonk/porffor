@@ -3366,9 +3366,9 @@ locals:[],localNames:["_this","_this#type"],
 usesTag:1,
 }
 this.__Symbol_for = {
-wasm:(_,{t,glbl,builtin})=>[...glbl(35,'forStore',124),[33,2],[65,12],[33,3],[32,2],[32,3],[32,0],[32,1],[16,builtin('__Map_prototype_has')],[33,4],[33,5],[32,4],[33,6],[2,127],...t([67,195],()=>[[32,6],[65,195,0],[70],[32,6],[65,195,1],[70],[114],[4,64],[32,5],[252,3],[40,1,0],[12,1],[11]]),[32,5],[252,3],[11],[4,64],...glbl(35,'forStore',124),[33,2],[65,12],[33,3],[32,2],[32,3],[32,0],[32,1],[16,builtin('__Map_prototype_get')],[33,4],[15],[26],[11],[32,0],[32,1],[16,builtin('Symbol')],[33,7],...glbl(35,'forStore',124),[33,2],[65,12],[33,3],[32,2],[32,3],[32,0],[32,1],[32,7],[65,5],[16,builtin('__Map_prototype_set')],[33,4],[26],[32,7],[15]],
+wasm:(_,{t,glbl,builtin})=>[[32,0],[32,1],[16,builtin('__ecma262_ToString')],[34,2],[33,1],[33,0],...glbl(35,'forStore',124),[33,3],[65,12],[33,4],[32,3],[32,4],[32,0],[32,1],[16,builtin('__Map_prototype_has')],[33,2],[33,5],[32,2],[33,6],[2,127],...t([67,195],()=>[[32,6],[65,195,0],[70],[32,6],[65,195,1],[70],[114],[4,64],[32,5],[252,3],[40,1,0],[12,1],[11]]),[32,5],[252,3],[11],[4,64],...glbl(35,'forStore',124),[33,3],[65,12],[33,4],[32,3],[32,4],[32,0],[32,1],[16,builtin('__Map_prototype_get')],[33,2],[15],[26],[11],[32,0],[32,1],[16,builtin('Symbol')],[33,7],...glbl(35,'forStore',124),[33,3],[65,12],[33,4],[32,3],[32,4],[32,0],[32,1],[32,7],[65,5],[16,builtin('__Map_prototype_set')],[33,2],[26],[32,7],[15]],
 params:[124,127],typedParams:1,returns:[124],returnType:5,
-locals:[124,127,127,124,127,124],localNames:["key","key#type","#proto_target","#proto_target#type","#last_type","#logicinner_tmp","#typeswitch_tmp1","out"],
+locals:[127,124,127,124,127,124],localNames:["key","key#type","#last_type","#proto_target","#proto_target#type","#logicinner_tmp","#typeswitch_tmp1","out"],
 globalInits:{forStore:(_,{glbl,builtin})=>[[68,9],[65,6],[68,0],[65,7],[68,0],[65,128,1],[16,builtin('Map')],...glbl(36,'forStore',124)]},
 }
 this.__Symbol_keyFor = {
