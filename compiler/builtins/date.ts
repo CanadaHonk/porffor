@@ -1478,16 +1478,15 @@ export const __Date_prototype_setUTCSeconds = (_this: Date, sec: any, ms: any) =
   // 4. Let s be ? ToNumber(sec).
   const s: number = ecma262.ToNumber(sec);
 
-  // we reorder the spec steps in this func for easier arg handling
-
-  // 6. If t is NaN, return NaN.
-  if (Number.isNaN(t)) return NaN;
-
   // 5. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
   if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
-    // 7. If ms is not present, let milli be msFromTime(t).
-    else milli = __ecma262_msFromTime(t);
+  
+  // 6. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
+
+  // 7. If ms is not present, let milli be msFromTime(t).
+  if (Porffor.type(ms) == Porffor.TYPES.undefined) milli = __ecma262_msFromTime(t);
 
   // 8. Let date be MakeDate(Day(t), MakeTime(HourFromTime(t), MinFromTime(t), s, milli)).
   const date: number = __ecma262_MakeDate(__ecma262_Day(t), __ecma262_MakeTime(__ecma262_HourFromTime(t), __ecma262_MinFromTime(t), s, milli));
