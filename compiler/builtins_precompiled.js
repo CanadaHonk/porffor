@@ -2847,9 +2847,10 @@ params:[124,127],typedParams:1,returns:[124,127],
 locals:[],localNames:["_this","_this#type"],
 }
 this.__RegExp_prototype_flags$get = {
-wasm:()=>[[32,0],[252,2],[40,0,4],[183],[65,195,1],[15]],
+wasm:(_,{builtin,internalThrow})=>[[32,0],[252,2],[65,9],[16,builtin('__Porffor_object_isObject')],[183],[68,0],[97],[4,64],...internalThrow(_,'TypeError',`This is a non-object`),[26],[11],[32,0],[252,2],[40,0,8],[183],[33,2],[68,4],[68,8],[160],[252,2],[16,builtin('__Porffor_allocateBytes')],[183],[33,3],[32,2],[252,2],[65,192,0],[113],[4,64],[32,3],[65,195,1],[68,100],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[26],[11],[32,2],[252,2],[65,1],[113],[4,64],[32,3],[65,195,1],[68,103],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[26],[11],[32,2],[252,2],[65,2],[113],[4,64],[32,3],[65,195,1],[68,105],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[26],[11],[32,2],[252,2],[65,4],[113],[4,64],[32,3],[65,195,1],[68,109],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[26],[11],[32,2],[252,2],[65,8],[113],[4,64],[32,3],[65,195,1],[68,115],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[26],[11],[32,2],[252,2],[65,16],[113],[4,64],[32,3],[65,195,1],[68,117],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[26],[11],[32,2],[252,2],[65,128,1],[113],[4,64],[32,3],[65,195,1],[68,118],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[26],[11],[32,2],[252,2],[65,32],[113],[4,64],[32,3],[65,195,1],[68,121],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[26],[11],[32,3],[65,195,1],[15]],
 params:[124,127],typedParams:1,returns:[124,127],
-locals:[],localNames:["_this","_this#type"],
+locals:[124,124],localNames:["_this","_this#type","flags","result"],
+usesTag:1,
 }
 this.__RegExp_prototype_global$get = {
 wasm:()=>[[32,0],[252,2],[40,0,8],[65,1],[113],[183],[65,2],[15]],

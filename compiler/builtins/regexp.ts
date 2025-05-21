@@ -87,8 +87,41 @@ export const __RegExp_prototype_source$get = (_this: RegExp) => {
   return Porffor.wasm.i32.load(_this, 0, 0) as bytestring;
 };
 
+// 22.2.6.4 get RegExp.prototype.flags
+// https://tc39.es/ecma262/multipage/text-processing.html#sec-get-regexp.prototype.flags
 export const __RegExp_prototype_flags$get = (_this: RegExp) => {
-  return Porffor.wasm.i32.load(_this, 0, 4) as bytestring;
+  // 1. Let R be the this value.
+  // 2. If R is not an Object, throw a TypeError exception.
+  if (!Porffor.object.isObject(_this)) throw new TypeError('This is a non-object');
+  let flags: i32 = Porffor.wasm.i32.load(_this, 0, 8);
+  // 3. Let codeUnits be a new empty List.
+  let result: bytestring = Porffor.allocateBytes(4 + 8);
+  // 4. Let hasIndices be ToBoolean(? Get(R, "hasIndices")).
+  // 5. If hasIndices is true, append the code unit 0x0064 (LATIN SMALL LETTER D) to codeUnits.
+  if (flags & 0b01000000) Porffor.bytestring.appendChar(result, 0x64);
+  // 6. Let global be ToBoolean(? Get(R, "global")).
+  // 7. If global is true, append the code unit 0x0067 (LATIN SMALL LETTER G) to codeUnits.
+  if (flags & 0b00000001) Porffor.bytestring.appendChar(result, 0x67);
+  // 8. Let ignoreCase be ToBoolean(? Get(R, "ignoreCase")).
+  // 9. If ignoreCase is true, append the code unit 0x0069 (LATIN SMALL LETTER I) to codeUnits.
+  if (flags & 0b00000010) Porffor.bytestring.appendChar(result, 0x69);
+  // 10. Let multiline be ToBoolean(? Get(R, "multiline")).
+  // 11. If multiline is true, append the code unit 0x006D (LATIN SMALL LETTER M) to codeUnits.
+  if (flags & 0b00000100) Porffor.bytestring.appendChar(result, 0x6d);
+  // 12. Let dotAll be ToBoolean(? Get(R, "dotAll")).
+  // 13. If dotAll is true, append the code unit 0x0073 (LATIN SMALL LETTER S) to codeUnits.
+  if (flags & 0b00001000) Porffor.bytestring.appendChar(result, 0x73);
+  // 14. Let unicode be ToBoolean(? Get(R, "unicode")).
+  // 15. If unicode is true, append the code unit 0x0075 (LATIN SMALL LETTER U) to codeUnits.
+  if (flags & 0b00010000) Porffor.bytestring.appendChar(result, 0x75);
+  // 16. Let unicodeSets be ToBoolean(? Get(R, "unicodeSets")).
+  // 17. If unicodeSets is true, append the code unit 0x0076 (LATIN SMALL LETTER V) to codeUnits.
+  if (flags & 0b10000000) Porffor.bytestring.appendChar(result, 0x76);
+  // 18. Let sticky be ToBoolean(? Get(R, "sticky")).
+  // 19. If sticky is true, append the code unit 0x0079 (LATIN SMALL LETTER Y) to codeUnits.
+  if (flags & 0b00100000) Porffor.bytestring.appendChar(result, 0x79);
+  // 20. Return the String value whose code units are the elements of the List codeUnits. If codeUnits has no elements, the empty String is returned.
+  return result;
 };
 
 export const __RegExp_prototype_global$get = (_this: RegExp) => {
