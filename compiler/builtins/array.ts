@@ -746,8 +746,11 @@ export const __Array_prototype_toReversed = (_this: any[]) => {
   let out: any[] = Porffor.allocate();
   out.length = len;
 
-  while (start < end) {
+  while (true) {
     out[start] = _this[end];
+    if (start >= end) {
+      break;
+    }
     out[end--] = _this[start++];
   }
 
