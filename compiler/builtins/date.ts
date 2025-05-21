@@ -392,7 +392,7 @@ export const __Date_UTC = (year: unknown, month: unknown, date: unknown, hours: 
 
   // 7. If ms is present, let milli be ? ToNumber(ms); else let milli be +0𝔽.
   let milli: number = 0;
-  if (Porffor.type(ms) != Porffor.TYPES.undefined) h = ecma262.ToNumber(ms);
+  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
 
   // 8. Let yr be MakeFullYear(y).
   const yr: number = __ecma262_MakeFullYear(y);
