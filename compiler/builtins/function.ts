@@ -20,3 +20,7 @@ export const __Function_prototype_bind = (_this: Function, thisArg: any, argsArr
   // todo: no good way to bind without dynamic functions or closure yet, just return function
   return _this;
 };
+
+export const __Function_prototype_call = (_this: Function, thisArg: any, ...args: any[]) => {
+  return Porffor.call(_this, args, thisArg, null);
+}
