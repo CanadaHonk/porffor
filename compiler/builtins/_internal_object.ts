@@ -626,11 +626,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
         if (tail & 0b0001) {
           // accessor descriptor
           const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-          // no setter, return early
-          if (Porffor.wasm`local.get ${set}` == 0) {
-            return value;
-          }
+          if (Porffor.wasm`local.get ${set}` == 0) return value;
 
           set.call(obj, value);
           return value;
@@ -662,11 +658,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
     if (tail & 0b0001) {
       // accessor descriptor
       const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-      // no setter, return early
-      if (Porffor.wasm`local.get ${set}` == 0) {
-        return value;
-      }
+      if (Porffor.wasm`local.get ${set}` == 0) return value;
 
       set.call(obj, value);
       return value;
@@ -725,11 +717,7 @@ export const __Porffor_object_set_withHash = (obj: any, key: any, value: any, ha
         if (tail & 0b0001) {
           // accessor descriptor
           const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-          // no setter, return early
-          if (Porffor.wasm`local.get ${set}` == 0) {
-            return value;
-          }
+          if (Porffor.wasm`local.get ${set}` == 0) return value;
 
           set.call(obj, value);
           return value;
@@ -761,11 +749,7 @@ export const __Porffor_object_set_withHash = (obj: any, key: any, value: any, ha
     if (tail & 0b0001) {
       // accessor descriptor
       const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-      // no setter, return early
-      if (Porffor.wasm`local.get ${set}` == 0) {
-        return value;
-      }
+      if (Porffor.wasm`local.get ${set}` == 0) return value;
 
       set.call(obj, value);
       return value;
@@ -832,11 +816,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
         if (tail & 0b0001) {
           // accessor descriptor
           const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-          // no setter, return early
-          if (Porffor.wasm`local.get ${set}` == 0) {
-            return value;
-          }
+          if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
           set.call(obj, value);
           return value;
@@ -868,11 +848,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
     if (tail & 0b0001) {
       // accessor descriptor
       const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-      // no setter, return early
-      if (Porffor.wasm`local.get ${set}` == 0) {
-        throw new TypeError('Cannot set property with no setter of object');
-      }
+      if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
       set.call(obj, value);
       return value;
@@ -932,11 +908,7 @@ export const __Porffor_object_setStrict_withHash = (obj: any, key: any, value: a
         if (tail & 0b0001) {
           // accessor descriptor
           const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-          // no setter, return early
-          if (Porffor.wasm`local.get ${set}` == 0) {
-            return value;
-          }
+          if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
           set.call(obj, value);
           return value;
@@ -968,11 +940,7 @@ export const __Porffor_object_setStrict_withHash = (obj: any, key: any, value: a
     if (tail & 0b0001) {
       // accessor descriptor
       const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-      // no setter, return early
-      if (Porffor.wasm`local.get ${set}` == 0) {
-        throw new TypeError('Cannot set property with no setter of object');
-      }
+      if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
       set.call(obj, value);
       return value;
