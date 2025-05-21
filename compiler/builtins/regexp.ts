@@ -71,8 +71,8 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
   return ptr;
 };
 
-
-export const RegExp = function (patternStr: any, flagsStr: any = ''): RegExp {
+// todo: reimplement following spec, this shouldn't use default parameters because `RegExp.length == 2`
+export const RegExp = function (patternStr: any = '', flagsStr: any = ''): RegExp {
   if (Porffor.fastOr(
     Porffor.type(patternStr) != Porffor.TYPES.bytestring,
     Porffor.type(flagsStr) != Porffor.TYPES.bytestring
