@@ -470,11 +470,18 @@ const lookup = (scope, name, failEarly = false) => {
         ...Opcodes.eqz,
         [ Opcodes.if, Blocktype.void ],
           ...generateObject(scope, {
-            properties: names.map((x, i) => ({
-              key: { type: 'Literal', value: i },
-              value: { type: 'Identifier', name: x },
-              kind: 'init'
-            }))
+            properties: [
+              {
+                key: { type: 'Literal', value: 'length' },
+                value: { type: 'Literal', value: len },
+                kind: 'init'
+              },
+              ...names.map((x, i) => ({
+                key: { type: 'Literal', value: i },
+                value: { type: 'Identifier', name: x },
+                kind: 'init'
+              }))
+            ]
           }, '#arguments', false),
           [ Opcodes.local_set, localTmp(scope, '#arguments') ],
         [ Opcodes.end ],
