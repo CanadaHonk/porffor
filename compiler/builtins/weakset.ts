@@ -15,7 +15,7 @@ export const __WeakSet_prototype_delete = (_this: WeakSet, value: any) => {
   return __Set_prototype_delete(_this as Set, value);
 };
 
-export const WeakSet = function (iterable: any): WeakSet {
+export const WeakSet = function (iterable: any = undefined): WeakSet {
   if (!new.target) throw new TypeError("Constructor WeakSet requires 'new'");
 
   const out: WeakSet = __Porffor_allocate();

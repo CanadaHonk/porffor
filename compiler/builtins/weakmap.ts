@@ -15,7 +15,7 @@ export const __WeakMap_prototype_delete = (_this: WeakMap, key: any) => {
   return __Map_prototype_delete(_this as Map, key);
 };
 
-export const WeakMap = function (iterable: any): WeakMap {
+export const WeakMap = function (iterable: any = undefined): WeakMap {
   if (!new.target) throw new TypeError("Constructor WeakMap requires 'new'");
 
   const out: WeakMap = Porffor.allocateBytes(8);

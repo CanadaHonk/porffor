@@ -75,7 +75,7 @@ export const __Set_prototype_forEach = (_this: Set, callbackFn: any) => {
   }
 };
 
-export const Set = function (iterable: any): Set {
+export const Set = function (iterable: any = undefined): Set {
   if (!new.target) throw new TypeError("Constructor Set requires 'new'");
 
   const out: Set = __Porffor_allocate();

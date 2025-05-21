@@ -84,7 +84,7 @@ export const __Map_prototype_forEach = (_this: Map, callbackFn: any) => {
   }
 };
 
-export const Map = function (iterable: any): Map {
+export const Map = function (iterable: any = undefined): Map {
   if (!new.target) throw new TypeError("Constructor Map requires 'new'");
 
   const out: Map = Porffor.allocateBytes(8);
