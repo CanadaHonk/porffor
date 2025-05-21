@@ -84,17 +84,28 @@ export const __Object_values = (obj: any): any[] => {
       if (!Porffor.object.isEnumerable(ptr)) continue;
 
       let val: any;
-      Porffor.wasm`local ptr32 i32
+
+      const tail: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 16);
+      if (tail & 0b0001) {
+        const get: Function = Porffor.object.accessorGet(ptr);
+
+        if (Porffor.wasm`local.get ${get}` != 0) {
+          val = get.call(obj);
+        }
+      } else {
+        Porffor.wasm`
 local.get ${ptr}
 i32.to_u
-local.tee ptr32
 
 f64.load 0 8
 local.set ${val}
 
-local.get ptr32
-i32.load8_u 0 17
+local.get ${tail}
+i32_to_u
+i32.const 8 
+i32.shr_u
 local.set ${val+1}`;
+      }
 
       out[i++] = val;
     }
