@@ -61,14 +61,14 @@ export const UNDEFINED = 0;
 export const NULL = 0;
 
 export const BuiltinVars = function(ctx) {
-  this.undefined = [ number(UNDEFINED) ];
+  this.undefined = () => [ number(UNDEFINED) ];
   this.undefined.type = TYPES.undefined;
 
-  this.null = [ number(NULL) ];
+  this.null = () => [ number(NULL) ];
   this.null.type = TYPES.object;
 
-  this.NaN = [ number(NaN) ];
-  this.Infinity = [ number(Infinity) ];
+  this.NaN = () => [ number(NaN) ];
+  this.Infinity = () => [ number(Infinity) ];
 
   for (const x in TYPES) {
     this['__Porffor_TYPES_' + x] = () => [ number(TYPES[x]) ];
@@ -79,17 +79,17 @@ export const BuiltinVars = function(ctx) {
   ];
   this.__performance_timeOrigin.usesImports = true;
 
-  this.__Uint8Array_BYTES_PER_ELEMENT = [ number(1) ];
-  this.__Int8Array_BYTES_PER_ELEMENT = [ number(1) ];
-  this.__Uint8ClampedArray_BYTES_PER_ELEMENT = [ number(1) ];
-  this.__Uint16Array_BYTES_PER_ELEMENT = [ number(2) ];
-  this.__Int16Array_BYTES_PER_ELEMENT = [ number(2) ];
-  this.__Uint32Array_BYTES_PER_ELEMENT = [ number(4) ];
-  this.__Int32Array_BYTES_PER_ELEMENT = [ number(4) ];
-  this.__Float32Array_BYTES_PER_ELEMENT = [ number(4) ];
-  this.__Float64Array_BYTES_PER_ELEMENT = [ number(8) ];
-  this.__BigInt64Array_BYTES_PER_ELEMENT = [ number(8) ];
-  this.__BigUint64Array_BYTES_PER_ELEMENT = [ number(8) ];
+  this.__Uint8Array_BYTES_PER_ELEMENT = () => [ number(1) ];
+  this.__Int8Array_BYTES_PER_ELEMENT = () => [ number(1) ];
+  this.__Uint8ClampedArray_BYTES_PER_ELEMENT = () => [ number(1) ];
+  this.__Uint16Array_BYTES_PER_ELEMENT = () => [ number(2) ];
+  this.__Int16Array_BYTES_PER_ELEMENT = () => [ number(2) ];
+  this.__Uint32Array_BYTES_PER_ELEMENT = () => [ number(4) ];
+  this.__Int32Array_BYTES_PER_ELEMENT = () => [ number(4) ];
+  this.__Float32Array_BYTES_PER_ELEMENT = () => [ number(4) ];
+  this.__Float64Array_BYTES_PER_ELEMENT = () => [ number(8) ];
+  this.__BigInt64Array_BYTES_PER_ELEMENT = () => [ number(8) ];
+  this.__BigUint64Array_BYTES_PER_ELEMENT = () => [ number(8) ];
 
   // well-known symbols
   for (const x of [
