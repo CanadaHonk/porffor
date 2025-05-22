@@ -2546,14 +2546,13 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           [ Opcodes.local_get, calleeLocal ],
           Opcodes.i32_to_u,
           [ Opcodes.call_indirect, args.length + 2, 0 ],
-          ...setLastType(scope),
-          ...(globalThis.precompile && valtypeBinary === Valtype.i32 ? [ Opcodes.i32_trunc_sat_f64_s ] : [])
+          ...setLastType(scope)
         ],
 
-        default: decl.optional ? withType(scope, [ number(UNDEFINED) ], TYPES.undefined)
+        default: decl.optional ? withType(scope, [ number(UNDEFINED, Valtype.f64) ], TYPES.undefined)
           : internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, Valtype.f64)
       }, Valtype.f64),
-      ...(valtypeBinary === Valtype.i32 && scope.returns[0] !== Valtype.f64 ? [ [ Opcodes.f64_convert_i32_s ] ] : [])
+      ...(valtypeBinary === Valtype.i32 ? [ Opcodes.i32_trunc_sat_f64_s ] : [])
     ];
   }
 
