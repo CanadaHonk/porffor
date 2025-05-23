@@ -3638,6 +3638,71 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
   const op = decl.operator.slice(0, -1) || '=';
 
+  // short-circuit behavior for logical assignment operators
+  if (op === '||' || op === '&&' || op === '??') {
+    // for logical assignment ops, it is not left @= right -> left = left @ right
+    // instead, left @ (left = right)
+    // eg, x &&= y -> x && (x = y)
+    if (local !== undefined) {
+      // fast path: just assigning to a local
+      setInferred(scope, name, knownType(scope, getNodeType(scope, decl)), isGlobal);
+      return [
+        ...performOp(scope, op, [
+          [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
+        ], [
+          ...generate(scope, decl.right, isGlobal, name),
+          [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
+          [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
+        ], getType(scope, name), getNodeType(scope, decl.right)),
+        ...setType(scope, name, getLastType(scope), true)
+      ];
+    } else if (type === 'MemberExpression' && decl.left.computed) {
+      // special path: cache properties for computed members so they are not evaluated twice
+      // eg, x[y] &&= z -> (a = y, x[a] = (x[a] = z))
+      const propTmp = localTmp(scope, '#logical_prop');
+      const propTypeTmp = localTmp(scope, '#logical_prop#type', Valtype.i32);
+
+      const member = {
+        type: 'MemberExpression',
+        object: decl.left.object,
+        property: { type: 'Identifier', name: '#logical_prop' },
+        computed: true
+      };
+
+      return [
+        ...generate(scope, decl.left.property),
+        [ Opcodes.local_set, propTmp ],
+        ...getNodeType(scope, decl.left.property),
+        [ Opcodes.local_set, propTypeTmp ],
+
+        ...generate(scope, {
+          type: 'LogicalExpression',
+          operator: op,
+          left: member,
+          right: {
+            type: 'AssignmentExpression',
+            operator: '=',
+            left: member,
+            right: decl.right
+          }
+        }, _global, _name, valueUnused)
+      ];
+    } else {
+      // other: generate as LogicalExpression
+      return generate(scope, {
+        type: 'LogicalExpression',
+        operator: op,
+        left: decl.left,
+        right: {
+          type: 'AssignmentExpression',
+          operator: '=',
+          left: decl.left,
+          right: decl.right
+        }
+      }, _global, _name, valueUnused);
+    }
+  }
+
   // hack: .length setter
   if (type === 'MemberExpression' && decl.left.property.name === 'length' && !decl._internalAssign) {
     const newValueTmp = !valueUnused && localTmp(scope, '__length_setter_tmp');
@@ -4071,27 +4136,6 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
 
     if (valueUnused) out.push(number(UNDEFINED));
     return out;
-  }
-
-  if (op === '||' || op === '&&' || op === '??') {
-    // todo: is this needed?
-    // for logical assignment ops, it is not left @= right ~= left = left @ right
-    // instead, left @ (left = right)
-    // eg, x &&= y ~= x && (x = y)
-
-    setInferred(scope, name, knownType(scope, getNodeType(scope, decl)), isGlobal);
-
-    return [
-      ...performOp(scope, op, [
-        [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
-      ], [
-        ...generate(scope, decl.right, isGlobal, name),
-        [ isGlobal ? Opcodes.global_set : Opcodes.local_set, local.idx ],
-        [ isGlobal ? Opcodes.global_get : Opcodes.local_get, local.idx ]
-      ], getType(scope, name), getNodeType(scope, decl.right)),
-
-      ...setType(scope, name, getLastType(scope), true)
-    ];
   }
 
   const out = setLocalWithType(
