@@ -1294,15 +1294,21 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
     scope.initedGlobals ??= new Set();
     if (!scope.initedGlobals.has(name)) {
       scope.initedGlobals.add(name);
-      if (scope.globalInits?.[name]) out.unshift(
-        [ Opcodes.global_get, globals[globalName + '#glbl_inited'].idx ],
-        [ Opcodes.i32_eqz ],
-        [ Opcodes.if, Blocktype.void ],
-        ...asmFuncToAsm(scope, scope.globalInits[name]),
-        number(1, Valtype.i32),
-        [ Opcodes.global_set, globals[globalName + '#glbl_inited'].idx ],
-        [ Opcodes.end ]
-      );
+      if (scope.globalInits?.[name]) {
+        if (typeof scope.globalInits[name] === 'function') {
+          out.unshift(
+            [ Opcodes.global_get, globals[globalName + '#glbl_inited'].idx ],
+            [ Opcodes.i32_eqz ],
+            [ Opcodes.if, Blocktype.void ],
+            ...asmFuncToAsm(scope, scope.globalInits[name]),
+            number(1, Valtype.i32),
+            [ Opcodes.global_set, globals[globalName + '#glbl_inited'].idx ],
+            [ Opcodes.end ]
+          );
+        } else {
+          globals[globalName].init = scope.globalInits[name];
+        }
+      }
     }
 
     return out;
@@ -1332,7 +1338,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
   allocPage: (scope, name) => allocPage({ scope, pages }, name)
 }, extra);
 
-const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globals: globalTypes = [], globalInits = [], returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, returnTypes } = {}) => {
+const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globalInits = {}, returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, returnTypes } = {}) => {
   if (wasm == null) { // called with no built-in
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
@@ -1367,28 +1373,6 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   if (typeof wasm === 'function') {
     if (globalThis.precompile) wasm = [];
       else wasm = asmFuncToAsm(func, wasm);
-  }
-
-  if (globalTypes.length !== 0) {
-    // offset global ops for base global idx
-    const globalRemap = new Map();
-    for (let i = 0; i < globalTypes.length; i++) {
-      const name = globalNames[i] ?? `${name}_global_${i}`;
-      globals[name] ??= {
-        idx: globals['#ind']++,
-        type: globalTypes[i],
-        init: globalInits[i] ?? 0
-      };
-
-      globalRemap.set(i, globals[name].idx);
-    }
-
-    for (let i = 0; i < wasm.length; i++) {
-      let inst = wasm[i];
-      if (inst[0] === Opcodes.global_get || inst[0] === Opcodes.global_set) {
-        wasm[i] = [ inst[0], globalRemap.get(inst[1]) ];
-      }
-    }
   }
 
   if (table) funcs.table = true;

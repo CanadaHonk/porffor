@@ -68,7 +68,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
       'exception-mode': 'Exception mode to use (lut|\x1B[1mstack\x1B[0m)',
       'fast-length': 'Non-compliant optimization to make .length faster',
       'profile-compiler': 'Log general compiler performance (on by default when compiling to a file)',
-      prng: 'PRNG algorithm to use (lcg32|xorshift32+|xorshift64+|\x1B[1mxorshift128+\x1B[0m|xoroshiro128+|xoshiro128+)'
+      prng: 'PRNG algorithm to use (xorshift32+|xorshift64+|\x1B[1mxorshift128+\x1B[0m|xoroshiro128+|xoshiro128+)'
     })) {
       flag = '-' + flag;
       if (flag.length > 3) flag = '-' + flag;

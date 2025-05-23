@@ -2,6 +2,7 @@
 /bench
 /demos
 /test262
+/envoy
 
 logo.png
 index.html
