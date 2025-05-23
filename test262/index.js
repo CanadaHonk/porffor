@@ -16,7 +16,7 @@ let resultOnly = process.env.RESULT_ONLY;
 if (isMainThread) {
   const veryStart = performance.now();
 
-  const test262Path = 'test262/test262';
+  const test262Path = join(__dirname, 'test262');
   let whatTests = process.argv.slice(2).find(x => x[0] !== '-') ?? '';
   if (!whatTests.startsWith('test/')) whatTests = 'test/' + whatTests;
   if (whatTests.endsWith('/')) whatTests = whatTests.slice(0, -1);
@@ -40,11 +40,13 @@ if (isMainThread) {
     omitRuntime: true
   });
 
-  if (process.argv.includes('--open')) execSync(`cursor ${test262Path}/${whatTests}`);
+  if (process.argv.includes('--open')) execSync(`zed ${test262Path}/${whatTests}`);
 
-  const lastResults = fs.existsSync('test262/results.json') ? JSON.parse(fs.readFileSync('test262/results.json', 'utf8')) : {};
+  let minimal = process.argv.includes('--minimal');
+  if (minimal) resultOnly = true;
+  const lastResults = fs.existsSync(join(__dirname, 'results.json')) ? JSON.parse(fs.readFileSync(join(__dirname, 'results.json'), 'utf8')) : {};
 
-  let lastCommitResults = execSync(`git log -200 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1') || x.startsWith('test262: 2') || x.startsWith('test262: 3') || x.startsWith('test262: 4') || x.startsWith('test262: 5')).split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
+  let lastCommitResults = minimal ? [] : execSync(`git log -200 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1') || x.startsWith('test262: 2') || x.startsWith('test262: 3') || x.startsWith('test262: 4') || x.startsWith('test262: 5')).split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
   if (lastCommitResults.length === 8) lastCommitResults = [ ...lastCommitResults.slice(0, 7), 0, lastCommitResults[7] ];
 
   if (!resultOnly) process.stdout.write('\u001b[90mreading tests...\u001b[0m');
@@ -71,6 +73,7 @@ if (isMainThread) {
 
   const todoTime = process.argv.find(x => x.startsWith('--todo-time='))?.split('=')[1] ?? 'runtime';
 
+  const runIconTable = plainResults ? [ 'pass:', 'todo:', 'wasm compile error:', 'compile error:', 'fail:', 'timeout:', 'runtime error:' ] : [ '🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀' ];
   const table = (overall, ...arr) => {
     let out = '';
     for (let i = 0; i < arr.length; i++) {
@@ -123,7 +126,7 @@ if (isMainThread) {
   let dirs = new Map(), features = new Map(), errors = new Map(), pagesUsed = new Map();
   let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0, todos = 0;
 
-  const preludes = fs.readFileSync('test262/harness.js', 'utf8').split('///').reduce((acc, x) => {
+  const preludes = fs.readFileSync(join(__dirname, 'harness.js'), 'utf8').split('///').reduce((acc, x) => {
     const [ k, ...content ] = x.split('\n');
     acc[k.trim()] = content.join('\n').trim() + '\n';
     return acc;
@@ -227,7 +230,7 @@ if (isMainThread) {
             lastPercent = percent + 0.1;
           }
         } else {
-          process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : (result === 5 ? '90' : '91'))}m${['🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀'][result]} ${file}\u001b[0m\n`);
+          process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : (result === 5 ? '90' : '91'))}m${runIconTable[result]} ${file}\u001b[0m\n`);
 
           if (threads === 1 && tests[i + 1]) {
             const nextFile = tests[i + 1].file.replaceAll('\\', '/').slice(5);
@@ -253,6 +256,8 @@ if (isMainThread) {
 
   const percent = parseFloat(((passes / total) * 100).toFixed(2));
   const percentChange = parseFloat((percent - lastCommitResults[0]).toFixed(2));
+
+  if (minimal) process.exit();
 
   if (resultOnly) {
     process.stdout.write(`test262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | `);
@@ -307,7 +312,7 @@ if (isMainThread) {
     if (lastResults.passes) console.log(`\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastResults.passes.includes(x)).join('\n')}\n\n`);
     if (lastResults.passes) console.log(`\u001b[4mnew fails\u001b[0m\n${lastResults.passes.filter(x => !passFiles.includes(x)).join('\n')}`);
 
-    if (!dontWriteResults) fs.writeFileSync('test262/results.json', JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, timeouts: timeoutFiles, total }));
+    if (!dontWriteResults) fs.writeFileSync(join(__dirname, 'results.json'), JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, timeouts: timeoutFiles, total }));
   }
 
   const timeStr = ms => {
@@ -382,6 +387,8 @@ if (isMainThread) {
   const logErrors = process.argv.includes('--log-errors');
   const debugAsserts = process.argv.includes('--debug-asserts');
   const subdirs = process.argv.includes('--subdirs');
+  const plainResults = process.argv.includes('--plain-results');
+  const runIconTable = plainResults ? [ 'pass:', 'todo:', 'wasm compile error:', 'compile error:', 'fail:', 'timeout:', 'runtime error:' ] : [ '🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀' ];
 
   const compile = (await import('../compiler/wrap.js')).default;
 
@@ -502,7 +509,10 @@ if (isMainThread) {
     out += (i << 4);
 
     if (logErrors) {
-      console.log(`\u001b[${pass ? '92' : '91'}m${['🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀'][out & 0b1111]} ${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m` + (!pass && error ? ('\n' + (error?.stack || error.toString())) : ''));
+      let e = (!pass && error ? (error?.stack || error.toString()) : '');
+      if (e.includes('throw porfToJSValue')) e = e.split('\n').at(-1);
+
+      console.log(`\u001b[${pass ? '92' : '91'}m${runIconTable[out & 0b1111]} ${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m${e ? `\n${e}` : ''}`);
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {
