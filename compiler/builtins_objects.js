@@ -79,9 +79,6 @@ export default function({ builtinFuncs }, Prefs) {
           if (d.enumerable) flags |= 0b0100;
           if (d.writable) flags |= 0b1000;
 
-          // hack: do not generate objects inside of objects as it causes issues atm
-          if (this[prefix + x]?.type === TYPES.object && this[prefix + x] !== this.null) value = { type: 'ObjectExpression', properties: [] };
-
           out.push(
             [ Opcodes.local_get, 0 ],
             number(TYPES.object, Valtype.i32),
