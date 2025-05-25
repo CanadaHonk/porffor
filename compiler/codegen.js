@@ -7118,7 +7118,7 @@ const internalConstrs = {
   }
 };
 
-let globals, tags, exceptions, funcs, indirectFuncs, funcIndex, currentFuncIndex, depth, pages, data, typeswitchDepth, usedTypes, coctc, globalInfer, builtinFuncs, builtinVars, prototypeFuncs;
+let globals, tags, exceptions, funcs, indirectFuncs, funcIndex, currentFuncIndex, depth, pages, data, typeswitchDepth, usedTypes, coctc, globalInfer, builtinFuncs, builtinVars, prototypeFuncs, lastValtype;
 export default program => {
   globals = { ['#ind']: 0 };
   tags = [];
@@ -7148,12 +7148,16 @@ export default program => {
   Opcodes.load = valtypeBinary === Valtype.i32 ? Opcodes.i32_load : Opcodes.f64_load;
   Opcodes.store = valtypeBinary === Valtype.i32 ? Opcodes.i32_store : Opcodes.f64_store;
 
-  builtinFuncs = new BuiltinFuncs();
-  builtinVars = new BuiltinVars({ builtinFuncs });
-  prototypeFuncs = new PrototypeFuncs();
+  // keep builtins between compiles as much as possible
+  if (lastValtype !== valtypeBinary) {
+    lastValtype = valtypeBinary;
+    builtinFuncs = new BuiltinFuncs();
+    builtinVars = new BuiltinVars({ builtinFuncs });
+    prototypeFuncs = new PrototypeFuncs();
 
-  const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
-  objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
+    const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
+    objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
+  }
 
   const [ main ] = generateFunc({}, {
     type: 'Program',
