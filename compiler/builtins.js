@@ -128,7 +128,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.boolean,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_ne ],
@@ -142,7 +142,7 @@ export const BuiltinFuncs = function() {
     locals: [ valtypeBinary ],
     returns: [ valtypeBinary ],
     returnType: TYPES.boolean,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_sub ],
@@ -160,7 +160,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.boolean,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_trunc ],
@@ -174,7 +174,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.boolean,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f64_trunc ],
@@ -206,7 +206,7 @@ export const BuiltinFuncs = function() {
       locals: [],
       returns: [ Valtype.f64 ],
       returnType: TYPES.number,
-      wasm: [
+      wasm: () => [
         ...prefix,
         [ op ]
       ]
@@ -219,7 +219,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.number,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       Opcodes.i32_to_u,
       [ Opcodes.i32_clz ],
@@ -232,7 +232,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.number,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.f32_demote_f64 ],
       [ Opcodes.f64_promote_f32 ]
@@ -245,7 +245,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.number,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       Opcodes.i32_to,
       [ Opcodes.local_get, 1 ],
@@ -551,7 +551,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.number,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       number(Math.PI / 180),
       [ Opcodes.f64_mul ]
@@ -563,7 +563,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.number,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       number(180 / Math.PI),
       [ Opcodes.f64_mul ]
@@ -576,7 +576,7 @@ export const BuiltinFuncs = function() {
     localNames: [ 'x', 'lower', 'upper' ],
     returns: [ valtypeBinary ],
     returnType: TYPES.number,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 1 ],
       [ Opcodes.f64_max ],
@@ -591,7 +591,7 @@ export const BuiltinFuncs = function() {
     localNames: [ 'x', 'inLow', 'inHigh', 'outLow', 'outHigh' ],
     returns: [ valtypeBinary ],
     returnType: TYPES.number,
-    wasm: [
+    wasm: () => [
       // (x − inLow) * (outHigh − outLow) / (inHigh - inLow) + outLow
       [ Opcodes.local_get, 0 ],
       [ Opcodes.local_get, 1 ],
@@ -620,7 +620,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.boolean,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 0 ],
       number(0),
       [ Opcodes.f64_le ],
@@ -634,7 +634,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [ valtypeBinary ],
     returnType: TYPES.number,
-    wasm: [
+    wasm: () => [
       [ Opcodes.call, importedFuncs.time ]
     ]
   };
@@ -661,7 +661,7 @@ export const BuiltinFuncs = function() {
     locals: [],
     returns: [],
     returnType: TYPES.undefined,
-    wasm: [
+    wasm: () => [
       [ Opcodes.local_get, 1 ],
       [ Opcodes.local_get, 0 ],
       number(pageSize, Valtype.i32),
@@ -675,7 +675,7 @@ export const BuiltinFuncs = function() {
       locals: [],
       returns: [ Valtype.i32 ],
       returnType: TYPES.number,
-      wasm: [
+      wasm: () => [
         number(1, Valtype.i32),
         [ Opcodes.memory_grow, 0 ],
         number(PageSize, Valtype.i32),
@@ -856,7 +856,7 @@ export const BuiltinFuncs = function() {
     params: [ Valtype.f64 ],
     returns: [ Valtype.i32 ],
     returnType: TYPES.number,
-    wasm: [
+    wasm: () => [
       // extract exponent bits from f64 with bit manipulation
       [ Opcodes.local_get, 0 ],
       [ Opcodes.i64_reinterpret_f64 ],

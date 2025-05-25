@@ -1370,10 +1370,8 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
   funcs.push(func);
   funcIndex[name] = func.index;
 
-  if (typeof wasm === 'function') {
-    if (globalThis.precompile) wasm = [];
-      else wasm = asmFuncToAsm(func, wasm);
-  }
+  if (globalThis.precompile) wasm = [];
+    else wasm = asmFuncToAsm(func, wasm);
 
   if (table) funcs.table = true;
   if (usesTag) {
