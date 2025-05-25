@@ -127,6 +127,56 @@ export const __${name}_prototype_at = (_this: ${name}, index: number) => {
   return _this[index];
 };
 
+// 23.2.3.9 %TypedArray%.prototype.fill ( value [ , start [ , end ] ] )
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.fill
+export const __${name}_prototype_fill = (_this: ${name}, value: any, start: any, end: any) => {
+  // 1. Let O be the this value.
+  // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
+  // 3. Let len be TypedArrayLength(taRecord).
+  const len: i32 = _this.length;
+  // 4. If O.[[ContentType]] is bigint, set value to ? ToBigInt(value).
+  // 5. Otherwise, set value to ? ToNumber(value).
+  value = ecma262.To${name == 'BigInt64Array' || name == 'BigUint64Array' ? 'BigInt' : 'Number'}(value);
+  // 6. Let relativeStart be ? ToIntegerOrInfinity(start).
+  let relativeStart: i32 = ecma262.ToIntegerOrInfinity(start);
+  // 7. If relativeStart = -∞, let startIndex be 0.
+  let startIndex: i32 = 0;
+  if (relativeStart == -Infinity) {
+  } else if (relativeStart < 0) {
+    // 8. Else if relativeStart < 0, let startIndex be max(len + relativeStart, 0).
+    startIndex = Math.max(len + relativeStart, 0);
+  } else {
+    // 9. Else, let startIndex be min(relativeStart, len).
+    startIndex = Math.min(relativeStart, len);
+  }
+  // 10. If end is undefined, let relativeEnd be len; else let relativeEnd be ? ToIntegerOrInfinity(end).
+  let relativeEnd: i32 = Porffor.type(end) == Porffor.TYPES.undefined ? len : ecma262.ToIntegerOrInfinity(end);
+  // 11. If relativeEnd = -∞, let endIndex be 0.
+  let endIndex: i32 = 0;
+  if (relativeEnd == -Infinity) {
+  } else if (relativeEnd < 0) {
+    // 12. Else if relativeEnd < 0, let endIndex be max(len + relativeEnd, 0).
+    endIndex = Math.max(len + relativeEnd, 0);
+  } else {
+    // 13. Else, let endIndex be min(relativeEnd, len).
+    endIndex = Math.min(relativeEnd, len);
+  }
+  // 14. Set taRecord to MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
+  // 15. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
+  // 16. Set len to TypedArrayLength(taRecord).
+  // 17. Set endIndex to min(endIndex, len).
+  // 18. Let k be startIndex.
+  // 19. Repeat, while k < endIndex,
+  for (let k = startIndex; k < endIndex; k++) {
+    // a. Let Pk be ! ToString(𝔽(k)).
+    // b. Perform ! Set(O, Pk, value, true).
+    _this[k] = value;
+    // c. Set k to k + 1.
+  }
+  // 20. Return O.
+  return _this;
+};
+
 export const __${name}_prototype_slice = (_this: ${name}, start: number, end: number) => {
   const len: i32 = _this.length;
   start |= 0;
