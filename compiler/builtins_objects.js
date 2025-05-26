@@ -2,7 +2,7 @@ import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { TYPES } from './types.js';
 import { number } from './encoding.js';
 
-export default function({ builtinFuncs }, Prefs) {
+export default function ({ builtinFuncs }, Prefs) {
   const makePrefix = name => (name.startsWith('__') ? '' : '__') + name + '_';
 
   const done = new Set();
@@ -72,8 +72,10 @@ export default function({ builtinFuncs }, Prefs) {
             continue;
           }
 
-          let flags = 0b0000;
+          let add = true;
+          if (existingFunc && (x === 'prototype' || x === 'constructor')) add = false;
 
+          let flags = 0b0000;
           const d = props[x];
           if (d.configurable) flags |= 0b0010;
           if (d.enumerable) flags |= 0b0100;
@@ -93,7 +95,7 @@ export default function({ builtinFuncs }, Prefs) {
             number(flags, Valtype.i32),
             number(TYPES.number, Valtype.i32),
 
-            [ Opcodes.call, builtin('__Porffor_object_fastAdd') ]
+            [ Opcodes.call, builtin(add ? '__Porffor_object_fastAdd' : '__Porffor_object_define') ]
           );
         }
 
@@ -167,11 +169,20 @@ export default function({ builtinFuncs }, Prefs) {
     const prefix = makePrefix(name);
     return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length)).filter(x => !x.startsWith('prototype_'));
   };
-  const autoFuncs = name => props({
-    writable: true,
-    enumerable: false,
-    configurable: true
-  }, autoFuncKeys(name));
+  const autoFuncs = name => ({
+    ...props({
+      writable: true,
+      enumerable: false,
+      configurable: true
+    }, autoFuncKeys(name)),
+    ...(this[`__${name}_prototype`] ? {
+      prototype: {
+        writable: false,
+        enumerable: false,
+        configurable: false
+      }
+    } : {})
+  });
 
   object('Math', {
     ...props({
