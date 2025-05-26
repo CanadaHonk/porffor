@@ -256,27 +256,15 @@ export default function ({ builtinFuncs }, Prefs) {
       NaN: NaN,
       POSITIVE_INFINITY: Infinity,
       NEGATIVE_INFINITY: -Infinity,
-
       MAX_VALUE: valtype === 'i32' ? 2147483647 : 1.7976931348623157e+308,
       MIN_VALUE: valtype === 'i32' ? -2147483648 : 5e-324,
-
       MAX_SAFE_INTEGER: valtype === 'i32' ? 2147483647 : 9007199254740991,
       MIN_SAFE_INTEGER: valtype === 'i32' ? -2147483648 : -9007199254740991,
-
       EPSILON: 2.220446049250313e-16
     }),
 
     ...autoFuncs('Number')
   });
-
-  object('Reflect', autoFuncs('Reflect'));
-  object('Object', autoFuncs('Object'));
-  object('JSON', autoFuncs('JSON'));
-  object('Promise', autoFuncs('Promise'));
-  object('Array', autoFuncs('Array'));
-  object('Symbol', autoFuncs('Symbol'));
-  object('Date', autoFuncs('Date'));
-  object('Atomics', autoFuncs('Atomics'));
 
   // these technically not spec compliant as it should be classes or non-enumerable but eh
   object('navigator', {
@@ -294,13 +282,15 @@ export default function ({ builtinFuncs }, Prefs) {
     'crypto',
     'performance',
   ]) {
-    object(x, {
-      ...props({
-        writable: true,
-        enumerable: true,
-        configurable: true
-      }, autoFuncKeys(x).slice(0, 12))
-    });
+    object(x, props({
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }, autoFuncKeys(x).slice(0, 12)));
+  }
+
+  for (const x of [ 'Array', 'ArrayBuffer', 'Atomics', 'Date', 'Error', 'JSON', 'Object', 'Promise', 'Reflect', 'String', 'Symbol', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'SharedArrayBuffer', 'BigInt', 'Boolean', 'DataView', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'Function', 'Map', 'RegExp', 'Set', 'WeakMap', 'WeakRef', 'WeakSet' ]) {
+    object(x, autoFuncs(x));
   }
 
   const enumerableGlobals = [ 'atob', 'btoa', 'performance', 'crypto', 'navigator' ];
@@ -342,7 +332,6 @@ export default function ({ builtinFuncs }, Prefs) {
 
   if (Prefs.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(this))) {
     if (!x.startsWith('__')) continue;
-
     const name = x.split('_').slice(2, -1).join('_');
 
     let t = globalThis;

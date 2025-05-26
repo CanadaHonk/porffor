@@ -1631,7 +1631,7 @@ locals:[127,124],localNames:["#newtarget","#newtarget#type","#this","#this#type"
 constr:1,
 }
 this.__Error_prototype_constructor$get = {
-wasm:(_,{funcRef})=>eval("[...funcRef('Error'),[65,6],[15]]"),
+wasm:(_,{builtin})=>eval("[[16,builtin('#get_Error')],[184],[65,6],[15]]"),
 params:[124,127],typedParams:1,returns:[124,127],
 locals:[],localNames:["_this","_this#type"],
 }
@@ -1657,7 +1657,7 @@ locals:[127,124],localNames:["#newtarget","#newtarget#type","#this","#this#type"
 constr:1,
 }
 this.__AggregateError_prototype_constructor$get = {
-wasm:(_,{funcRef})=>eval("[...funcRef('AggregateError'),[65,6],[15]]"),
+wasm:(_,{builtin})=>eval("[[16,builtin('#get_AggregateError')],[184],[65,6],[15]]"),
 params:[124,127],typedParams:1,returns:[124,127],
 locals:[],localNames:["_this","_this#type"],
 }
@@ -1683,7 +1683,7 @@ locals:[127,124],localNames:["#newtarget","#newtarget#type","#this","#this#type"
 constr:1,
 }
 this.__TypeError_prototype_constructor$get = {
-wasm:(_,{funcRef})=>eval("[...funcRef('TypeError'),[65,6],[15]]"),
+wasm:(_,{builtin})=>eval("[[16,builtin('#get_TypeError')],[184],[65,6],[15]]"),
 params:[124,127],typedParams:1,returns:[124,127],
 locals:[],localNames:["_this","_this#type"],
 }
@@ -1709,7 +1709,7 @@ locals:[127,124],localNames:["#newtarget","#newtarget#type","#this","#this#type"
 constr:1,
 }
 this.__ReferenceError_prototype_constructor$get = {
-wasm:(_,{funcRef})=>eval("[...funcRef('ReferenceError'),[65,6],[15]]"),
+wasm:(_,{builtin})=>eval("[[16,builtin('#get_ReferenceError')],[184],[65,6],[15]]"),
 params:[124,127],typedParams:1,returns:[124,127],
 locals:[],localNames:["_this","_this#type"],
 }
@@ -1735,7 +1735,7 @@ locals:[127,124],localNames:["#newtarget","#newtarget#type","#this","#this#type"
 constr:1,
 }
 this.__SyntaxError_prototype_constructor$get = {
-wasm:(_,{funcRef})=>eval("[...funcRef('SyntaxError'),[65,6],[15]]"),
+wasm:(_,{builtin})=>eval("[[16,builtin('#get_SyntaxError')],[184],[65,6],[15]]"),
 params:[124,127],typedParams:1,returns:[124,127],
 locals:[],localNames:["_this","_this#type"],
 }
@@ -1761,7 +1761,7 @@ locals:[127,124],localNames:["#newtarget","#newtarget#type","#this","#this#type"
 constr:1,
 }
 this.__RangeError_prototype_constructor$get = {
-wasm:(_,{funcRef})=>eval("[...funcRef('RangeError'),[65,6],[15]]"),
+wasm:(_,{builtin})=>eval("[[16,builtin('#get_RangeError')],[184],[65,6],[15]]"),
 params:[124,127],typedParams:1,returns:[124,127],
 locals:[],localNames:["_this","_this#type"],
 }
@@ -1787,7 +1787,7 @@ locals:[127,124],localNames:["#newtarget","#newtarget#type","#this","#this#type"
 constr:1,
 }
 this.__EvalError_prototype_constructor$get = {
-wasm:(_,{funcRef})=>eval("[...funcRef('EvalError'),[65,6],[15]]"),
+wasm:(_,{builtin})=>eval("[[16,builtin('#get_EvalError')],[184],[65,6],[15]]"),
 params:[124,127],typedParams:1,returns:[124,127],
 locals:[],localNames:["_this","_this#type"],
 }
@@ -1813,7 +1813,7 @@ locals:[127,124],localNames:["#newtarget","#newtarget#type","#this","#this#type"
 constr:1,
 }
 this.__URIError_prototype_constructor$get = {
-wasm:(_,{funcRef})=>eval("[...funcRef('URIError'),[65,6],[15]]"),
+wasm:(_,{builtin})=>eval("[[16,builtin('#get_URIError')],[184],[65,6],[15]]"),
 params:[124,127],typedParams:1,returns:[124,127],
 locals:[],localNames:["_this","_this#type"],
 }
