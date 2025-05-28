@@ -6226,30 +6226,61 @@ const generateClass = (scope, decl) => {
   func.generate();
 
   if (decl.superClass) {
+    const superTmp = localTmp(scope, '#superclass');
+    const superTypeTmp = localTmp(scope, '#superclass#type', Valtype.i32);
+
     out.push(
       // class Foo {}
       // class Bar extends Foo {}
-      // Bar.__proto__ = Foo
-      ...generate(scope, {
-        type: 'CallExpression',
-        callee: { type: 'Identifier', name: '__Porffor_object_setPrototype' },
-        arguments: [
-          root,
-          decl.superClass
-        ]
-      }),
-      [ Opcodes.drop ],
+      ...generate(scope, decl.superClass),
+      [ Opcodes.local_set, superTmp ],
+      ...getNodeType(scope, decl.superClass),
+      [ Opcodes.local_tee, superTypeTmp ],
 
-      // Bar.prototype.__proto__ = Foo.prototype
-      ...generate(scope, {
-        type: 'CallExpression',
-        callee: { type: 'Identifier', name: '__Porffor_object_setPrototype' },
-        arguments: [
-          proto,
-          getObjProp(decl.superClass, 'prototype')
-        ]
-      }),
-      [ Opcodes.drop ]
+      // check if Foo is null, if so special case
+      // see also: https://github.com/tc39/ecma262/pull/1321
+      number(TYPES.object, Valtype.i32),
+      [ Opcodes.i32_eq ],
+      [ Opcodes.local_get, superTmp ],
+      ...Opcodes.eqz,
+      [ Opcodes.i32_and ],
+      [ Opcodes.if, Blocktype.void ],
+        // Bar.prototype.__proto__ = null
+        ...generate(scope, {
+          type: 'CallExpression',
+          callee: { type: 'Identifier', name: '__Porffor_object_setPrototype' },
+          arguments: [
+            proto,
+            { type: 'Literal', value: null }
+          ]
+        }),
+        [ Opcodes.drop ],
+      [ Opcodes.else ],
+        // Bar.__proto__ = Foo
+        ...generate(scope, {
+          type: 'CallExpression',
+          callee: { type: 'Identifier', name: '__Porffor_object_setPrototype' },
+          arguments: [
+            root,
+            { type: 'Identifier', name: '#superclass' }
+          ]
+        }),
+        [ Opcodes.drop ],
+
+        // Bar.prototype.__proto__ = Foo.prototype
+        ...generate(scope, {
+          type: 'CallExpression',
+          callee: { type: 'Identifier', name: '__Porffor_object_setPrototype' },
+          arguments: [
+            proto,
+            getObjProp(
+              { type: 'Identifier', name: '#superclass' },
+              'prototype'
+            )
+          ]
+        }),
+        [ Opcodes.drop ],
+      [ Opcodes.end ]
     );
   }
 
