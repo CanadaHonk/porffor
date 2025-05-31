@@ -269,7 +269,6 @@ memory.copy 0 0`;
   return out;
 };
 
-// @porf-typed-array
 export const __Array_prototype_fill = (_this: any[], value: any, _start: any, _end: any) => {
   const len: i32 = _this.length;
 
