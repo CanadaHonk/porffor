@@ -125,6 +125,13 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
       if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
+    case Porffor.TYPES.bigint:
+      if (colors) Porffor.printStatic('\x1b[33m'); // yellow
+      Porffor.printString(__Porffor_bigint_toString(arg, 10));
+      Porffor.printStatic('n');
+      if (colors) Porffor.printStatic('\x1b[0m');
+      return;
+
     case Porffor.TYPES.bytestring:
     case Porffor.TYPES.string:
       if (colors) Porffor.printStatic('\x1b[32m'); // green
@@ -243,6 +250,16 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
       __Porffor_printArray(arg, colors, true);
       return;
 
+    case Porffor.TYPES.bigint64array:
+      Porffor.printStatic('BigInt64Array');
+      __Porffor_printArray(arg, colors, true);
+      return;
+
+    case Porffor.TYPES.biguint64array:
+      Porffor.printStatic('BigUint64Array');
+      __Porffor_printArray(arg, colors, true);
+      return;
+
     case Porffor.TYPES.sharedarraybuffer:
     case Porffor.TYPES.arraybuffer:
       if (Porffor.type(arg) == Porffor.TYPES.sharedarraybuffer) Porffor.printStatic('SharedArrayBuffer');
@@ -326,8 +343,11 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
       Porffor.printStatic('WeakRef {}');
       return;
 
-    // case Porffor.TYPES.regexp:
-    //   // todo: we currently have no way of getting the source text, so this falls back
+    case Porffor.TYPES.regexp:
+      if (colors) Porffor.printStatic('\x1b[31m'); // red
+      Porffor.printString(__RegExp_prototype_toString(arg));
+      if (colors) Porffor.printStatic('\x1b[0m');
+      return;
 
     // default:
     //   __Porffor_printString(arg.toString());
