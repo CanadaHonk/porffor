@@ -19,7 +19,7 @@ const logFuncs = (funcs, globals, exceptions) => {
   if (typeof wanted !== 'string') wanted = null;
 
   for (const f of funcs) {
-    if ((wanted && f.name !== wanted) || (!wanted && f.internal)) continue;
+    if ((wanted && (f.name !== wanted && wanted !== '!')) || (!wanted && f.internal)) continue;
     console.log(disassemble(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
   }
 
