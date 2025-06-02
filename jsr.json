@@ -1,0 +1,28 @@
+{
+  "name": "@honk/porffor",
+  "version": "0.58.0",
+  "exports": "./compiler/wrap.js",
+  "publish": {
+    "exclude": [
+      ".github",
+      "bench",
+      "demos",
+      "test262",
+      "envoy",
+
+      "logo.png",
+      "index.html",
+      "CNAME",
+      "publish.js",
+
+      ".repl_history",
+      "*.wasm",
+      "*.csv",
+      "*.txt",
+      "*.exe",
+
+      ".npmignore",
+      ".editorconfig"
+    ]
+  }
+}
