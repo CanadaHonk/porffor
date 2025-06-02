@@ -361,6 +361,15 @@ ${flags & 0b0001 ? `    get func idx: ${get}
 };
 
 export { createImport };
+
+/**
+ * Compile given JavaScript source code. // todo: more docs here (sorry)
+ *
+ * @param {string} source - JavaScript source code to compile
+ * @param {boolean} module - If the source is a module or not (default: false)
+ * @param {object} customImports - Custom imports
+ * @param {(str: string) => void} print - Function to use for printing (used by console.log etc)
+ */
 export default (source, module = undefined, customImports = {}, print = str => process.stdout.write(str)) => {
   createImport('print', 1, 0, i => print(i.toString()));
   createImport('printChar', 1, 0, i => print(String.fromCharCode(i)));
