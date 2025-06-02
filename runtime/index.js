@@ -27,7 +27,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     'Analyze': [],
     profile: [ 93, 'foo.js', 'View detailed func-by-func performance' ],
     debug: [ 33, 'foo.js', 'Debug the source of a file' ],
-    dissect: [ 33, 'foo.js', 'Debug the compiled Wasm of a file' ],
+    // dissect: [ 33, 'foo.js', 'Debug the compiled Wasm of a file' ],
   })) {
     if (color == null) {
       // header
@@ -113,9 +113,9 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'dissect'].
     process.argv.push(`--target=${file}`);
   }
 
-  if (file === 'dissect') {
-    process.argv.push('--asur', '--wasm-debug');
-  }
+  // if (file === 'dissect') {
+  //   process.argv.push('--asur', '--wasm-debug');
+  // }
 
   file = process.argv.slice(2).find(x => x[0] !== '-');
 

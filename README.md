@@ -50,11 +50,11 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 
 **`porf debug path/to/script.js`**
 
-### Debugging the compiled Wasm of a JS file
+<!-- ### Debugging the compiled Wasm of a JS file
 > [!WARNING]
 > Very experimental WIP feature!
 
-**`porf dissect path/to/script.js`**
+**`porf dissect path/to/script.js`** -->
 
 
 ### Options
@@ -73,8 +73,8 @@ Expect nothing to work! Only very limited JS is currently supported. See files i
 
 ## Sub-engines
 
-### Asur
-Asur is Porffor's own Wasm engine; it is an intentionally simple interpreter written in JS. It is very WIP. See [its readme](asur/README.md) for more details.
+<!-- ### Asur
+Asur is Porffor's own Wasm engine; it is an intentionally simple interpreter written in JS. It is very WIP. See [its readme](asur/README.md) for more details. -->
 
 ### 2c
 2c is Porffor's own Wasm -> C compiler, using generated Wasm bytecode and internal info to generate specific and efficient C code. Little boilerplate/preluded code or required external files, just for CLI binaries (not like wasm2c very much).
