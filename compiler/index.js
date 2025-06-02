@@ -256,8 +256,14 @@ export default (code, module = undefined) => {
     const tmpfile = 'porffor_tmp.c';
     const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
 
-    // todo: redo how default cc args work
-    if (compiler.includes('clang')) args.push('-lm', '-flto=thin', '-march=native', '-ffast-math', '-fno-exceptions', '-fno-ident', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections');
+    // default cc args, always
+    args.push(
+      '-lm', // link math.h
+      '-fno-exceptions', // disable exceptions
+      '-fno-ident', '-ffunction-sections', '-fdata-sections' // remove unneeded binary sections
+    );
+
+    if (Prefs.clangFast) args.push('-flto=thin', '-march=native', '-ffast-math', '-fno-asynchronous-unwind-tables');
 
     if (Prefs.s) args.push('-s');
 
