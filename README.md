@@ -88,11 +88,6 @@ Porffor uses a unique versioning system, here's an example: `0.48.7`. Let's brea
 ## Performance
 *For the features it supports most of the time*, Porffor is *blazingly fast* compared to most interpreters and common engines running without JIT. For those with JIT, it is usually slower by default, but can catch up with compiler arguments and typed input, even more so when compiling to native binaries.
 
-## Test262
-Porffor can run Test262 via some hacks/transforms which remove unsupported features whilst still doing the same asserts (eg simpler error messages using literals only). It currently passes >14% (see latest commit desc for latest and details). Use `node test262` to test, it will also show a difference of overall results between the last commit and current results.
-
-![image](https://github.com/CanadaHonk/porffor/assets/19228318/5320da7d-e945-4d16-857b-499f3a6c1180)
-
 ## Codebase
 - `compiler`: contains the compiler itself
   - `builtins`: built-in apis written in typescript
