@@ -22,4 +22,4 @@ execSync(`git add package.json  jsr.json runtime/index.js`, { stdio: 'inherit' }
 execSync(`git commit --amend -C HEAD --no-verify`, { stdio: 'inherit' });
 
 execSync(`${process.env.NPM_BINARY ?? 'npm'} publish`, { stdio: 'inherit' });
-execSync(`${process.env.NPM_BINARY ?? 'npm'} x jsr -- publish --allow-dirty`, { stdio: 'inherit' });
+execSync(`${process.env.NPM_BINARY ?? 'npm'} x jsr -- publish --token=${process.env.JSR_TOKEN} --allow-dirty`, { stdio: 'inherit' });
