@@ -15,12 +15,12 @@ const read = (ta, memory, ptr, length) => {
   return new ta(memory.buffer.slice(ptr, ptr + length * ta.BYTES_PER_ELEMENT), 0, length);
 };
 
-export const readByteStr = (memory, ptr) => {
+const readByteStr = (memory, ptr) => {
   const length = read(Uint32Array, memory, ptr, 1)[0];
   return Array.from(read(Uint8Array, memory, ptr + 4, length)).map(x => String.fromCharCode(x)).join('');
 };
 
-export const writeByteStr = (memory, ptr, str) => {
+const writeByteStr = (memory, ptr, str) => {
   const length = str.length;
 
   if (dv?.memory !== memory) dv = new DataView(memory.buffer);
