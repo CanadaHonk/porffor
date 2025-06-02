@@ -1,4 +1,3 @@
-import { encodeVector } from './encoding.js';
 import { importedFuncs, createImport } from './builtins.js';
 import compile from './index.js';
 import disassemble from './disassemble.js';
