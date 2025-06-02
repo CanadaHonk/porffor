@@ -1760,7 +1760,7 @@ const getNodeType = (scope, node) => {
   const out = typeof ret === 'number' ? [ number(ret, Valtype.i32) ] : ret;
   if (guess != null) out.guess = typeof guess === 'number' ? [ number(guess, Valtype.i32) ] : guess;
 
-  typeUsed(scope, knownType(scope, out));
+  if (!node._doNotMarkTypeUsed) typeUsed(scope, knownType(scope, out));
   return out;
 };
 
@@ -2595,7 +2595,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       args = args.slice(0, paramCount - 1);
       args.push({
         type: 'ArrayExpression',
-        elements: restArgs
+        elements: restArgs,
+        _doNotMarkTypeUsed: true
       });
     }
   }
