@@ -8,6 +8,15 @@ import './prefs.js';
 export const importedFuncs = {};
 Object.defineProperty(importedFuncs, 'length', { configurable: true, writable: true, value: 0 });
 
+/**
+ * Create an import function for the Porffor world to use.
+ *
+ * @param {string} name - Name of the import
+ * @param {number} params - Number of parameters
+ * @param {number} results - Number of results
+ * @param {function} js - Native (your world) function to call as import implementation
+ * @param {string} c - C source code to compile as import implementation
+ */
 export const createImport = (name, params, returns, js = null, c = null) => {
   const lazy = () => {
     if (typeof params === 'function') params = params();
