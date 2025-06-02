@@ -5,8 +5,8 @@ A from-scratch experimental **AOT** optimizing JS/TS -> Wasm/C engine/compiler/r
 
 ## Design
 Porffor is a very unique JS engine, due many wildly different approaches. It is seriously limited, but what it can do, it does pretty well. Key differences:
-- 100% AOT compiled (no JIT)
-- No constant runtime/preluded code
+- 100% AOT compiled (no JIT or interpreter)
+- Zero constant runtime/preluded code
 - Least Wasm imports possible (only I/O)
 
 Porffor is primarily built from scratch, the only thing that is not is the parser (using [Acorn](https://github.com/acornjs/acorn)). Binaryen/etc is not used, we make final wasm binaries ourself. You could imagine it as compiling a language which is a sub (some things unsupported) and super (new/custom apis) set of javascript. Not based on any particular spec version.
