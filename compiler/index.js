@@ -253,15 +253,17 @@ export default (code, module = undefined) => {
     const compiler = (Prefs.compiler ?? process.env.CC ?? 'cc').split(' ');
     const cO = Prefs._cO ?? 'O3';
 
-    const tmpfile = 'porffor_tmp.c';
-    const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
+    const args = [
+      ...compiler,
+      '-xc', '-', // use stdin as c source in
+      '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), // set path for output
 
-    // default cc args, always
-    args.push(
+      // default cc args, always
       '-lm', // link math.h
       '-fno-exceptions', // disable exceptions
-      '-fno-ident', '-ffunction-sections', '-fdata-sections' // remove unneeded binary sections
-    );
+      '-fno-ident', '-ffunction-sections', '-fdata-sections', // remove unneeded binary sections
+      '-' + cO
+    ];
 
     if (Prefs.clangFast) args.push('-flto=thin', '-march=native', '-ffast-math', '-fno-asynchronous-unwind-tables');
 
@@ -275,12 +277,12 @@ export default (code, module = undefined) => {
     if (logProgress) progressStart(`compiling C to native (using ${compiler})...`);
     const t5 = performance.now();
 
-    fs.writeFileSync(tmpfile, c);
-
     // obvious command escape is obvious
-    execSync(args.join(' '), { stdio: 'inherit' });
-
-    fs.unlinkSync(tmpfile);
+    execSync(args.join(' '), {
+      stdio: [ 'pipe', 'inherit', 'inherit' ],
+      input: c,
+      encoding: 'utf8'
+    });
 
     if (logProgress) progressStart(`compiled C to native (using ${compiler})`, t5);
 
