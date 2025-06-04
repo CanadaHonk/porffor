@@ -1141,6 +1141,9 @@ export const __Date_prototype_setSeconds = (_this: any, sec: any, ms: any) => {
 export const __Date_prototype_setTime = (_this: any, time: any) => {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+  // extra check here to check ensure this type before coerce as only function where coerce is done before any true read
+  if (Porffor.type(_this) != Porffor.TYPES.date) throw TypeError('Date prototype methods require this to be a Date object');
+
   // 3. Let t be ? ToNumber(time).
   const t: number = ecma262.ToNumber(time);
 
@@ -1383,7 +1386,7 @@ export const __Date_prototype_setUTCSeconds = (_this: any, sec: any, ms: any) =>
   // 5. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
   if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
-  
+
   // 6. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
 

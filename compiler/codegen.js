@@ -45,17 +45,23 @@ const funcRef = func => {
 
   const wrapperArgc = Prefs.indirectWrapperArgc ?? 10;
   if (!func.wrapperFunc) {
-    const locals = {}, params = [];
+    const locals = {
+      ['#length']: { idx: 0, type: Valtype.i32 }
+    }, params = [
+      Valtype.i32
+    ];
+
     for (let i = 0; i < wrapperArgc + 2; i++) {
       params.push(valtypeBinary, Valtype.i32);
-      locals[i * 2] = { idx: i * 2, type: valtypeBinary };
-      locals[i * 2 + 1] = { idx: i * 2 + 1, type: Valtype.i32 };
+      locals[`#${i}`] = { idx: 1 + i * 2, type: valtypeBinary };
+      locals[`#${i}#type`] = { idx: 2 + i * 2, type: Valtype.i32 };
     }
-    let localInd = (wrapperArgc + 2) * 2;
+    let localInd = 1 + (wrapperArgc + 2) * 2;
 
     if (indirectFuncs.length === 0) {
       // add empty indirect func
       const emptyFunc = {
+        constr: true, internal: true, indirect: true,
         name: '#indirect#empty',
         params,
         locals: { ...locals }, localInd,
@@ -64,9 +70,6 @@ const funcRef = func => {
           number(0),
           number(0, Valtype.i32)
         ],
-        constr: true,
-        internal: true,
-        indirect: true,
         wrapperOf: {
           name: '',
           jsLength: 0
@@ -76,7 +79,7 @@ const funcRef = func => {
 
       // check not being constructed
       emptyFunc.wasm.unshift(
-        [ Opcodes.local_get, 0 ], // new.target value
+        [ Opcodes.local_get, 1 ], // new.target value
         Opcodes.i32_to_u,
         [ Opcodes.if, Blocktype.void ], // if value is non-zero
           ...internalThrow(emptyFunc, 'TypeError', `Function is not a constructor`), // throw type error
@@ -88,27 +91,94 @@ const funcRef = func => {
     }
 
     const wasm = [];
-    const offset = func.constr ? 0 : (func.method ? 2 : 4);
-    for (let i = 0; i < func.params.length; i++) {
-      if (func.internal && func.name.includes('_prototype_') && i < 2) {
-        // special case: use real this for prototype internals
-        wasm.push(
-          [ Opcodes.local_get, 2 + i ],
-          ...(i % 2 === 0 && func.params[i] === Valtype.i32 ? [ Opcodes.i32_to ]: [])
-        );
-      } else {
-        wasm.push(
-          [ Opcodes.local_get, offset + (!func.internal || func.typedParams ? i : i * 2) ],
-          ...(i % 2 === 0 && func.params[i] === Valtype.i32 ? [ Opcodes.i32_to ]: [])
-        );
-      }
+    const name = '#indirect_' + func.name;
+    const wrapperFunc = {
+      constr: true, internal: true, indirect: true,
+      name, params, locals, localInd,
+      returns: [ valtypeBinary, Valtype.i32 ],
+      wasm,
+      wrapperOf: func,
+      indirectIndex: indirectFuncs.length
+    };
+
+    indirectFuncs.push(wrapperFunc);
+
+    wrapperFunc.jsLength = countLength(func);
+    func.wrapperFunc = wrapperFunc;
+
+    const paramCount = countParams(func, name);
+    const args = [];
+    for (let i = 0; i < paramCount - (func.hasRestArgument ? 1 : 0); i++) {
+      args.push({
+        type: 'Identifier',
+        name: `#${i + 2}`
+      });
     }
 
-    wasm.push([ Opcodes.call, func.index ]);
+    if (func.hasRestArgument) {
+      const array = (wrapperFunc.localInd += 2) - 2;
+      locals['#array#i32'] = { idx: array, type: Valtype.i32 };
+      locals['#array'] = { idx: array + 1, type: valtypeBinary };
+
+      wasm.push(
+        [ Opcodes.call, includeBuiltin(wrapperFunc, '__Porffor_allocate').index ],
+        [ Opcodes.local_tee, array ],
+        Opcodes.i32_from_u,
+        [ Opcodes.local_set, array + 1 ],
+
+        [ Opcodes.local_get, array ],
+        [ Opcodes.local_get, 0 ],
+        number(paramCount - 1, Valtype.i32),
+        [ Opcodes.i32_sub ],
+        [ Opcodes.i32_store, 0, 0 ]
+      );
+
+      let offset = 4;
+      for (let i = paramCount - 1; i < wrapperArgc; i++) {
+        wasm.push(
+          [ Opcodes.local_get, array ],
+          [ Opcodes.local_get, 5 + i * 2 ],
+          [ Opcodes.f64_store, 0, offset ],
+
+          [ Opcodes.local_get, array ],
+          [ Opcodes.local_get, 6 + i * 2 ],
+          [ Opcodes.i32_store8, 0, offset + 8 ],
+        );
+        offset += 9;
+      }
+
+      args.push({
+        type: 'SpreadElement',
+        argument: {
+          type: 'Identifier',
+          name: '#array',
+          _type: TYPES.array
+        }
+      });
+    }
+
+    wasm.push(...generate(wrapperFunc, {
+      type: 'CallExpression',
+      callee: {
+        type: 'Identifier',
+        name: func.name
+      },
+      _funcIdx: func.index,
+      arguments: args,
+      _insideIndirect: true,
+      _newTargetWasm: [
+        [ Opcodes.local_get, 1 ],
+        [ Opcodes.local_get, 2 ]
+      ],
+      _thisWasm: [
+        [ Opcodes.local_get, 3 ],
+        [ Opcodes.local_get, 4 ]
+      ]
+    }));
 
     if (func.returns[0] === Valtype.i32) {
       if (func.returns.length === 2) {
-        const localIdx = localInd++;
+        const localIdx = wrapperFunc.localInd++;
         locals[localIdx] = { idx: localIdx, type: Valtype.i32 };
 
         wasm.push(
@@ -131,29 +201,10 @@ const funcRef = func => {
       wasm.push(number(func.returnType ?? TYPES.number, Valtype.i32));
     }
 
-    const name = '#indirect_' + func.name;
-    const wrapperFunc = {
-      name,
-      params,
-      locals, localInd,
-      returns: [ valtypeBinary, Valtype.i32 ],
-      wasm,
-      constr: true,
-      internal: true,
-      indirect: true,
-      wrapperOf: func,
-      indirectIndex: indirectFuncs.length
-    };
-
-    indirectFuncs.push(wrapperFunc);
-
-    wrapperFunc.jsLength = countLength(func);
-    func.wrapperFunc = wrapperFunc;
-
     if (!func.constr) {
       // check not being constructed
       wasm.unshift(
-        [ Opcodes.local_get, 0 ], // new.target value
+        [ Opcodes.local_get, 1 ], // new.target value
         Opcodes.i32_to_u,
         [ Opcodes.if, Blocktype.void ], // if value is non-zero
           // ...internalThrow(wrapperFunc, 'TypeError', `${unhackName(func.name)} is not a constructor`), // throw type error
@@ -2053,7 +2104,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     name = func.name;
   }
 
-  if (!decl._new && (name === 'eval' || (decl.callee.type === 'SequenceExpression' && decl.callee.expressions.at(-1)?.name === 'eval'))) {
+  if (!decl._funcIdx && !decl._new && (name === 'eval' || (decl.callee.type === 'SequenceExpression' && decl.callee.expressions.at(-1)?.name === 'eval'))) {
     const known = knownValue(scope, decl.arguments[0]);
     if (known !== unknownValue) {
       // eval('with known/literal string')
@@ -2099,7 +2150,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
   }
 
-  if (name === 'Function') {
+  if (!decl._funcIdx && name === 'Function') {
     const knowns = decl.arguments.map(x => knownValue(scope, x));
     if (knowns.every(x => x !== unknownValue)) {
       // new Function('with known/literal strings')
@@ -2372,7 +2423,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   let idx;
-  if (Object.hasOwn(funcIndex, name)) {
+  if (decl._funcIdx) {
+    idx = decl._funcIdx;
+  } else if (Object.hasOwn(funcIndex, name)) {
     idx = funcIndex[name];
   } else if (scope.name === name) {
     // fallback for own func but with a different var/id name
@@ -2523,6 +2576,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       ...typeSwitch(scope, getNodeType(scope, callee), {
         [TYPES.function]: () => [
+          number(10 - underflow, Valtype.i32),
           ...forceDuoValtype(scope, newTargetWasm, Valtype.f64),
           ...forceDuoValtype(scope, thisWasm, Valtype.f64),
           ...out,
@@ -2541,8 +2595,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   const func = funcByIndex(idx);
-
-  if (func && !decl._new) func.onlyNew = false;
+  if (func && !decl._new && !decl._insideIndirect) func.onlyNew = false;
 
   // generate func
   if (func) func.generate?.();
@@ -2638,6 +2691,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   }
 
   out.push([ Opcodes.call, idx ]);
+  if (decl._insideIndirect) return out;
+
   if (typedReturns) out.push(...setLastType(scope));
 
   if (

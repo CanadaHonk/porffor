@@ -425,7 +425,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
       // encode call indirect ops as types from info
       if (op === Opcodes.call_indirect) {
-        const params = [];
+        const params = [ Valtype.i32 ];
         for (let i = 0; i < o[1]; i++) {
           params.push(valtypeBinary, Valtype.i32);
         }
