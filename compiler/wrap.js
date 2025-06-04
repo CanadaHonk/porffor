@@ -33,7 +33,6 @@ const writeByteStr = (memory, ptr, str) => {
 
 const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefined) => {
   switch (type) {
-    case TYPES.empty:
     case TYPES.undefined:
       return undefined;
 

@@ -69,7 +69,6 @@ export const __Porffor_miniLog = (arg: any) => {
       }
       break;
 
-    case Porffor.TYPES.empty:
     case Porffor.TYPES.undefined:
       Porffor.printStatic('undefined');
       break;
@@ -136,7 +135,6 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
       if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
-    case Porffor.TYPES.empty:
     case Porffor.TYPES.undefined:
       if (colors) Porffor.printStatic('\x1b[2m'); // dim
       Porffor.printStatic('undefined');

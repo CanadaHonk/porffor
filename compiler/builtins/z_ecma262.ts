@@ -37,9 +37,7 @@ export const __ecma262_ToNumber = (argument: unknown): number => {
     Porffor.type(argument) == Porffor.TYPES.bigint)) throw new TypeError('Cannot convert Symbol or BigInt to a number');
 
   // 3. If argument is undefined, return NaN.
-  if (Porffor.fastOr(
-    Porffor.type(argument) == Porffor.TYPES.undefined,
-    Porffor.type(argument) == Porffor.TYPES.empty)) return NaN;
+  if (Porffor.type(argument) == Porffor.TYPES.undefined) return NaN;
 
   // 4. If argument is either null or false, return +0𝔽.
   if (Porffor.fastOr(
@@ -131,9 +129,7 @@ export const __ecma262_ToString = (argument: unknown): any => {
   if (Porffor.type(argument) == Porffor.TYPES.symbol) throw new TypeError('Cannot convert a Symbol value to a string');
 
   // 3. If argument is undefined, return "undefined".
-  if (Porffor.fastOr(
-    Porffor.type(argument) == Porffor.TYPES.undefined,
-    Porffor.type(argument) == Porffor.TYPES.empty)) return 'undefined';
+  if (Porffor.type(argument) == Porffor.TYPES.undefined) return 'undefined';
 
   // 4. If argument is null, return "null".
   if (Porffor.fastAnd(

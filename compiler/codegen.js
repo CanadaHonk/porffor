@@ -662,8 +662,6 @@ const generateReturn = (scope, decl) => {
         ...(scope.subclass ? [
           // if subclass and returning undefined, return this
           [ Opcodes.local_get, localTmp(scope, '#return#type', Valtype.i32) ],
-          number(TYPE_FLAGS.parity, Valtype.i32),
-          [ Opcodes.i32_or ],
           number(TYPES.undefined, Valtype.i32),
           [ Opcodes.i32_eq ],
           [ Opcodes.if, Blocktype.void ],
@@ -989,7 +987,7 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
     ...(!useTmp ? [] : [ [ Opcodes.local_set, tmp ] ]),
 
     ...typeSwitch(scope, type, [
-      [ [ TYPES.empty, TYPES.undefined ], [
+      [ TYPES.undefined, [
         // empty
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
         number(1, intOut ? Valtype.i32 : valtypeBinary)
@@ -3270,7 +3268,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
       if (defaultValue) {
         out.push(
-          ...typeIsOneOf(getType(scope, name), [ TYPES.undefined, TYPES.empty ]),
+          ...typeIsOneOf(getType(scope, name), [ TYPES.undefined ]),
           [ Opcodes.if, Blocktype.void ],
             ...generate(scope, defaultValue, global, name),
             [ global ? Opcodes.global_set : Opcodes.local_set, idx ],
@@ -3418,7 +3416,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     out = out.concat([
       // check tmp is valid object
       // not undefined or empty type
-      ...typeIsOneOf(getType(scope, tmpName), [ TYPES.undefined, TYPES.empty ]),
+      ...typeIsOneOf(getType(scope, tmpName), [ TYPES.undefined ]),
 
       // not null
       ...getType(scope, tmpName),
@@ -4313,7 +4311,7 @@ const generateUnary = (scope, decl) => {
         [ TYPES.number, () => makeString(scope, 'number') ],
         [ TYPES.boolean, () => makeString(scope, 'boolean') ],
         [ [ TYPES.string, TYPES.bytestring ], () => makeString(scope, 'string') ],
-        [ [ TYPES.undefined, TYPES.empty ], () => makeString(scope, 'undefined') ],
+        [ TYPES.undefined, () => makeString(scope, 'undefined') ],
         [ TYPES.function, () => makeString(scope, 'function') ],
         [ TYPES.symbol, () => makeString(scope, 'symbol') ],
 
@@ -6727,8 +6725,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
                 [ Opcodes.i32_ne ],
                 [ Opcodes.if, Blocktype.void ],
                   [ Opcodes.local_get, func.locals[name].idx + 1 ],
-                  number(TYPE_FLAGS.parity, Valtype.i32),
-                  [ Opcodes.i32_or ],
                   number(TYPES.undefined, Valtype.i32),
                   [ Opcodes.i32_eq ],
 
@@ -7161,7 +7157,7 @@ export default program => {
   data = [];
   currentFuncIndex = importedFuncs.length;
   typeswitchDepth = 0;
-  usedTypes = new Set([ TYPES.empty, TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
+  usedTypes = new Set([ TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
   coctc = new Map();
   globalInfer = new Map();
 

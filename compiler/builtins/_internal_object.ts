@@ -152,10 +152,7 @@ i32.const 7 ;; object
 return`;
   }
 
-  if (Porffor.fastAnd(
-    Porffor.type(_obj) > 0x05,
-    Porffor.type(_obj) != Porffor.TYPES.undefined
-  )) {
+  if (Porffor.type(_obj) > 0x05) {
     if (underlyingStore == 0) underlyingStore = Porffor.allocate();
 
     // check if underlying object already exists for obj
@@ -310,7 +307,7 @@ export const __Porffor_object_getPrototype = (obj: any): any => {
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-      // return empty
+      // return undefined
       Porffor.wasm`
 i32.const 0
 i32.const 0
@@ -328,7 +325,7 @@ return`;
 
 export const __Porffor_object_getPrototypeWithHidden = (obj: any, trueType: i32): any => {
   const objectProto: any = __Porffor_object_getPrototype(obj);
-  if (Porffor.type(objectProto) != Porffor.TYPES.empty) return objectProto;
+  if (Porffor.type(objectProto) != Porffor.TYPES.undefined) return objectProto;
 
   return __Porffor_object_getHiddenPrototype(trueType);
 };
@@ -464,8 +461,8 @@ local.set ${obj}
 i32.load8_u 0 3
 local.set ${obj+1}`;
 
-      // if empty, prototype is object.prototype
-      if (Porffor.type(obj) == Porffor.TYPES.empty) obj = __Object_prototype;
+      // if undefined, prototype is object.prototype
+      if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
     } else obj = __Porffor_object_getHiddenPrototype(trueType);
 
     // todo/opt: put this behind comptime flag if only __proto__ is used
@@ -540,8 +537,8 @@ local.set ${obj}
 i32.load8_u 0 3
 local.set ${obj+1}`;
 
-      // if empty, prototype is object.prototype
-      if (Porffor.type(obj) == Porffor.TYPES.empty) obj = __Object_prototype;
+      // if undefined, prototype is object.prototype
+      if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
     } else obj = __Porffor_object_getHiddenPrototype(trueType);
 
     if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);

@@ -277,7 +277,7 @@ ${funcs.map(x => {
   // todo: check for other identifier unsafe characters
   const name = x.name.includes('#') ? `['${x.name}']` : `.${x.name}`;
 
-  const returnTypes = [...(x.returnTypes ?? [])].filter(x => ![ TYPES.empty, TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ].includes(x));
+  const returnTypes = [...(x.returnTypes ?? [])].filter(x => ![ TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ].includes(x));
   return `this${name} = {
 wasm:${rewriteWasm(x.wasm)},
 params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.returns)},${x.returnType != null ? `returnType:${JSON.stringify(x.returnType)},` : ''}${returnTypes.length > 0 ? `returnTypes:${JSON.stringify(returnTypes)},` : ''}
