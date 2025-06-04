@@ -12,7 +12,8 @@
   "optionalDependencies": {
     "@babel/parser": "^7.24.4",
     "hermes-parser": "^0.18.2",
-    "meriyah": "^4.3.9"
+    "meriyah": "^4.3.9",
+    "oxc-parser": "^0.72.2"
   },
   "bin": {
     "porf": "./runtime/index.js"
