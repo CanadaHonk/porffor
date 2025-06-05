@@ -2286,19 +2286,24 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       const lengthLocal = localTmp(scope, '__proto_length_cache', Valtype.i32);
       const pointerLocal = localTmp(scope, '__proto_pointer_cache', Valtype.i32);
 
-      // TODO: long-term, prototypes should be their individual separate funcs
+      if (out.length === 0) {
+        out.push(
+          ...generate(scope, target),
+          Opcodes.i32_to_u,
+          [ Opcodes.local_set, pointerLocal ]
+        );
+      } else {
+        out.push(
+          [ Opcodes.local_get, localTmp(scope, '#proto_target') ],
+          Opcodes.i32_to_u,
+          [ Opcodes.local_set, pointerLocal ]
+        );
+      }
 
-      const rawPointer = [
-        ...generate(scope, target),
-        Opcodes.i32_to_u
-      ];
-
-      const usePointerCache = !Object.values(protoCands).every(x => x.noPointerCache === true);
-      const getPointer = usePointerCache ? [ [ Opcodes.local_get, pointerLocal ] ] : rawPointer;
-
-      const useLengthCache = true; // basically every prototype uses it
       for (const x in protoCands) {
         const protoFunc = protoCands[x];
+        const getPointer = [ [ Opcodes.local_get, pointerLocal ] ];
+
         if (protoFunc.noArgRetLength && decl.arguments.length === 0) {
           protoBC[x] = [
             ...ArrayUtil.getLength(getPointer),
@@ -2338,37 +2343,16 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           });
 
           return [
-            [ Opcodes.block, unusedValue ? Blocktype.void : valtypeBinary ],
+            ...ArrayUtil.getLengthI32(getPointer),
+            [ Opcodes.local_set, lengthLocal ],
+
+            [ Opcodes.block, unusedValue && optUnused ? Blocktype.void : valtypeBinary ],
               ...protoOut,
-              ...(unusedValue && !optUnused ? [ [ Opcodes.drop ] ] : []),
-            [ Opcodes.end ]
+            [ Opcodes.end ],
+            ...(unusedValue && optUnused ? [ number(UNDEFINED) ] : [])
           ];
         };
       }
-
-      // alias primitive prototype with primitive object types
-      aliasPrimObjsBC(protoBC);
-
-      return [
-        ...(usePointerCache ? [
-          ...rawPointer,
-          [ Opcodes.local_set, pointerLocal ],
-        ] : []),
-
-        ...(useLengthCache ? [
-          ...ArrayUtil.getLengthI32(getPointer),
-          [ Opcodes.local_set, lengthLocal ],
-        ] : []),
-
-        ...typeSwitch(scope, getNodeType(scope, target), {
-          ...protoBC,
-
-          // TODO: error better
-          default: decl.optional ? withType(scope, [ number(UNDEFINED) ], TYPES.undefined)
-            : internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`, !unusedValue)
-        }, unusedValue ? Blocktype.void : valtypeBinary),
-        ...(unusedValue ? [ number(UNDEFINED) ] : [])
-      ];
     }
 
     if (Object.keys(protoBC).length > 0) {
