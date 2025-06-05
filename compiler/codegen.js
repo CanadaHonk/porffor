@@ -2554,7 +2554,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       }
     }
 
-    let callee = decl.callee, callAsNew = decl._new;
+    let callee = decl.callee, callAsNew = decl._new, sup = false;
     if (callee.type === 'Super') {
       // call super constructor with direct super() call
       callee = getObjProp(callee, 'constructor');
@@ -2563,6 +2563,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         ...generate(scope, { type: 'ThisExpression' }),
         ...getNodeType(scope, { type: 'ThisExpression' })
       ];
+      sup = true;
     }
 
     const newTargetWasm = decl._newTargetWasm ?? createNewTarget(scope, decl, [
@@ -2570,7 +2571,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     ], callAsNew);
     const thisWasm = decl._thisWasm ?? knownThis ?? createThisArg(scope, decl);
 
-    return [
+    out = [
       ...(getCallee ? getCallee : generate(scope, callee)),
       [ Opcodes.local_set, calleeLocal ],
 
@@ -2583,15 +2584,18 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
           [ Opcodes.local_get, calleeLocal ],
           Opcodes.i32_to_u,
-          [ Opcodes.call_indirect, args.length + 2, 0 ],
+          [ Opcodes.call_indirect, args.length + 2, 0,  ],
           ...setLastType(scope)
         ],
 
         default: decl.optional ? withType(scope, [ number(UNDEFINED, Valtype.f64) ], TYPES.undefined)
           : internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, Valtype.f64)
-      }, Valtype.f64),
-      ...(valtypeBinary === Valtype.i32 ? [ Opcodes.i32_trunc_sat_f64_s ] : [])
+      }, Valtype.f64)
     ];
+
+    if (valtypeBinary === Valtype.i32) out.push(Opcodes.i32_trunc_sat_f64_s);
+    if (sup) out.push([ null, 'super marker' ]);
+    return out;
   }
 
   const func = funcByIndex(idx);
@@ -6260,14 +6264,33 @@ const generateClass = (scope, decl) => {
   const proto = getObjProp(root, 'prototype');
 
   const [ func, out ] = generateFunc(scope, {
-    ...(body.find(x => x.kind === 'constructor')?.value ?? {
+    ...(body.find(x => x.kind === 'constructor')?.value ?? (decl.superClass ? {
+      type: 'FunctionExpression',
+      params: [
+        {
+          type: 'RestElement',
+          argument: { type: 'Identifier', name: 'args' }
+        }
+      ],
+      body: {
+        type: 'ExpressionStatement',
+        expression: {
+          type: 'CallExpression',
+          callee: { type: 'Super' },
+          arguments: [ {
+            type: 'SpreadElement',
+            argument: { type: 'Identifier', name: 'args' }
+          } ]
+        }
+      }
+    }: {
       type: 'FunctionExpression',
       params: [],
       body: {
         type: 'BlockStatement',
         body: []
       }
-    }),
+    })),
     id: root,
     strict: true,
     type: expr ? 'FunctionExpression' : 'FunctionDeclaration',
@@ -6277,6 +6300,13 @@ const generateClass = (scope, decl) => {
 
   // always generate class constructor funcs
   func.generate();
+
+  let constrInsertIndex = func.wasm.findIndex(x => x.at(-1) === 'super marker');
+  if (constrInsertIndex != -1) {
+    func.wasm.splice(constrInsertIndex, 1);
+  } else {
+    constrInsertIndex = 0;
+  }
 
   if (decl.superClass) {
     const superTmp = localTmp(scope, '#superclass');
@@ -6340,6 +6370,7 @@ const generateClass = (scope, decl) => {
   scope.overrideThis = generate(scope, root);
   scope.overrideThisType = TYPES.function;
 
+  let constrAdd = [];
   for (const x of body) {
     let { type, value, kind, static: _static, computed } = x;
     if (kind === 'constructor') continue;
@@ -6404,7 +6435,7 @@ const generateClass = (scope, decl) => {
         );
       }
 
-      func.wasm.unshift(
+      const constrWasm = [
         ...generate(func, object),
         Opcodes.i32_to_u,
         ...getNodeType(func, object),
@@ -6423,7 +6454,10 @@ const generateClass = (scope, decl) => {
         ...getNodeType(func, value),
 
         [ Opcodes.call, includeBuiltin(func, `__Porffor_object_class_${initKind}`).index ]
-      );
+      ];
+
+      func.wasm.splice(constrInsertIndex, 0, ...constrWasm);
+      constrInsertIndex += constrWasm.length;
     } else {
       out.push(
         ...generate(scope, object),
