@@ -347,10 +347,128 @@ ${flags & 0b0001 ? `    get func idx: ${get}
     }
 
     case TYPES.regexp: {
-      const [ pattern, flags ] = read(Uint32Array, memory, value, 2);
+      const [ pattern ] = read(Uint32Array, memory, value, 1);
+      const [ flags ] = read(Uint16Array, memory, value + 4, 1);
+
+      if (Prefs.d) {
+        const bc = new Uint8Array(memory.buffer.slice(value + 6));
+        let i = 0;
+        while (true) {
+          const opcode = bc[i++];
+          if (opcode === 0x00) break;
+          process.stdout.write(`\x1b[90m${`@${i - 1}`.padEnd(6)}\x1b[0m`);
+
+          switch (opcode) {
+            case 0x01: {
+              const char = bc[i++];
+              console.log('\x1b[36msingle\x1b[0m', String.fromCharCode(char));
+              break;
+            }
+
+            case 0x02:
+            case 0x03: {
+              const negated = opcode === 0x03;
+              console.log(`\x1b[31m${negated ? 'negated ' : ''}class\x1b[0m\x1b[2m:\x1b[0m`);
+              classLoop: while (true) {
+                const itemcode = bc[i++];
+                switch (itemcode) {
+                  case 0x00: {
+                    const from = bc[i++];
+                    const to = bc[i++];
+                    console.log('        \x1b[36mrange\x1b[0m', String.fromCharCode(from), '\x1b[2m-\x1b[0m', String.fromCharCode(to));
+                    break;
+                  }
+                  case 0x01: {
+                    const char = bc[i++];
+                    console.log('        \x1b[36mchar\x1b[0m', String.fromCharCode(char));
+                    break;
+                  }
+                  case 0x02: {
+                    const id = bc[i++];
+                    console.log('        \x1b[36mpredef\x1b[0m', id);
+                    break;
+                  }
+                  case 0xff: {
+                    break classLoop;
+                  }
+                }
+              }
+              break;
+            }
+
+            case 0x04: {
+              const id = bc[i++];
+              console.log('\x1b[36mpredef\x1b[0m', id);
+              break;
+            }
+
+            case 0x05:
+            case 0x06:
+            case 0x07:
+            case 0x08:
+            case 0x09: {
+              console.log(`${({
+                0x05: 'start',
+                0x06: 'end',
+                0x07: 'word boundary',
+                0x08: 'non-word boundary',
+                0x09: 'dot'
+              })[opcode]}`);
+              break;
+            }
+
+            case 0x0a: {
+              const index = bc[i++];
+              console.log(`backref ${index}`);
+              break;
+            }
+
+            case 0x10: {
+              console.log('\x1b[92maccept\x1b[0m');
+              break;
+            }
+            case 0x11: {
+              console.log('\x1b[91mreject\x1b[0m');
+              break;
+            }
+
+            case 0x20: {
+              const [ target ] = read(Int16Array, bc, i, 1);
+              i += 2;
+              console.log('\x1b[93mjump\x1b[0m', target, `\x1b[2m(${i + target - 3})\x1b[0m`);
+              break;
+            }
+
+            case 0x21: {
+              const [ branch1, branch2 ] = read(Int16Array, bc, i, 2);
+              i += 4;
+              console.log('\x1b[93mfork\x1b[0m', branch1, `\x1b[2m(${i + branch1 - 5})\x1b[0m`, branch2, `\x1b[2m(${i + branch2 - 5})\x1b[0m`);
+              break;
+            }
+
+            case 0x30:
+            case 0x31: {
+              const index = bc[i++];
+              console.log(`${opcode === 0x30 ? 'start' : 'end'} capture`, index);
+              break;
+            }
+          }
+        }
+      }
+
+      let flagStr = '';
+      if (flags & 0b01000000) flagStr += 'd';
+      if (flags & 0b00000001) flagStr += 'g';
+      if (flags & 0b00000010) flagStr += 'i';
+      if (flags & 0b00000100) flagStr += 'm';
+      if (flags & 0b00001000) flagStr += 's';
+      if (flags & 0b00010000) flagStr += 'u';
+      if (flags & 0b10000000) flagStr += 'v';
+      if (flags & 0b00100000) flagStr += 'y';
+
       return new RegExp(
         porfToJSValue({ memory, funcs, pages }, pattern, TYPES.bytestring),
-        porfToJSValue({ memory, funcs, pages }, flags, TYPES.bytestring)
+        flagStr
       );
     }
 

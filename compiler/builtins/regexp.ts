@@ -1,8 +1,8 @@
+// @porf --valtype=i32
 import type {} from './porffor.d.ts';
 
 // regex memory structure:
 //  source string ptr (u32)
-//  flags string ptr (u32)
 //  flags (u16):
 //   g, global - 0b00000001
 //   i, ignore case - 0b00000010
@@ -12,13 +12,45 @@ import type {} from './porffor.d.ts';
 //   y, sticky - 0b00100000
 //   d, has indices - 0b01000000
 //   v, unicode sets - 0b10000000
-//  bytecode length (u16)
-//  bytecode ...
+//  bytecode (variable):
+//   op (u8)
+//   depends on op (variable)
+//   ----------------------------
+//   single - 0x01:
+//     char (u8)
+//   class - 0x02 / negated class - 0x03:
+//     items (variable):
+//       RANGE_MARKER (0x00) (u8) + from (u8) + to (u8)
+//       CHAR_MARKER (0x01) (u8) + char (u8)
+//       PREDEF_MARKER (0x02) (u8) + classId (u8)
+//     END_CLASS_MARKER (0xFF) (u8)
+//   predefined class - 0x04:
+//     class (u8)
+//   start (line or string) - 0x05
+//   end (line or string) - 0x06
+//   word boundary - 0x07
+//   non-word boundary - 0x08
+//   dot - 0x09
+//   back reference - 0x0a:
+//     index (u8)
+//   ----------------------------
+//   accept - 0x10
+//   reject - 0x11
+//   ----------------------------
+//   jump - 0x20:
+//     target (u16)
+//   fork - 0x21:
+//     branch 1 (u16)
+//     branch 2 (u16)
+//   ----------------------------
+//   start capture - 0x30:
+//     index (u8)
+//   end capture - 0x31:
+//     index (u8)
 
 export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: bytestring): RegExp => {
   const ptr: i32 = Porffor.allocate();
   Porffor.wasm.i32.store(ptr, patternStr, 0, 0);
-  Porffor.wasm.i32.store(ptr, flagsStr, 0, 4);
 
   // parse flags
   let flags: i32 = 0;
@@ -26,7 +58,7 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
   const flagsEndPtr: i32 = flagsPtr + flagsStr.length;
   while (flagsPtr < flagsEndPtr) {
     const char: i32 = Porffor.wasm.i32.load8_u(flagsPtr, 0, 4);
-    flagsPtr = flagsPtr + 1;
+    flagsPtr += 1;
 
     if (char == 103) { // g
       flags |= 0b00000001;
@@ -45,7 +77,7 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
       continue;
     }
     if (char == 117) { // u
-      if (flags & 0b10000000) throw new SyntaxError('Conflicting regular expression unicode flags');
+      if (flags & 0b10000000) throw new SyntaxError('Regex parse: Conflicting unicode flag');
       flags |= 0b00010000;
       continue;
     }
@@ -58,17 +90,589 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
       continue;
     }
     if (char == 118) { // v
-      if (flags & 0b00010000) throw new SyntaxError('Conflicting regular expression unicode flags');
+      if (flags & 0b00010000) throw new SyntaxError('Regex parse: Conflicting unicode flag');
       flags |= 0b10000000;
       continue;
     }
 
-    throw new SyntaxError('Invalid regular expression flag');
+    throw new SyntaxError('Regex parse: Invalid flag');
+  }
+  Porffor.wasm.i32.store16(ptr, flags, 0, 4);
+
+  let bcPtr: i32 = ptr + 6;
+  const bcStart: i32 = bcPtr;
+  let patternPtr: i32 = patternStr;
+  let patternEndPtr: i32 = patternPtr + patternStr.length;
+
+  let groupDepth: i32 = 0;
+  let captureIndex: i32 = 1;
+  let lastWasAtom: boolean = false;
+  let lastAtomStart: i32 = 0;
+  let groupStack: i32[] = [];
+  let altStackPos: i32[] = [];
+  let altStackGroupDepth: i32[] = [];
+  let inClass: boolean = false;
+
+  while (patternPtr < patternEndPtr) {
+    let char: i32 = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+    patternPtr = patternPtr + 1;
+
+    // escape
+    let notEscaped: boolean = true;
+    if (char == 92) { // '\'
+      notEscaped = false;
+      if (patternPtr >= patternEndPtr) throw new SyntaxError('Regex parse: trailing \\');
+
+      char = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+      patternPtr = patternPtr + 1;
+    }
+
+    if (inClass) {
+      if (notEscaped && char == 93) { // ']'
+        inClass = false;
+        // end class
+        Porffor.wasm.i32.store8(bcPtr, 0xFF, 0, 0);
+        bcPtr += 1;
+        lastWasAtom = true;
+        continue;
+      }
+
+      // class escape
+      let v: i32 = char;
+      let predefClassId: i32 = 0;
+      if (!notEscaped) {
+        if (char == 100) predefClassId = 1; // \d
+        else if (char == 68) predefClassId = 2; // \D
+        else if (char == 115) predefClassId = 3; // \s
+        else if (char == 83) predefClassId = 4; // \S
+        else if (char == 119) predefClassId = 5; // \w
+        else if (char == 87) predefClassId = 6; // \W
+        else if (char == 110) v = 10; // \n
+        else if (char == 114) v = 13; // \r
+        else if (char == 116) v = 9; // \t
+        else if (char == 118) v = 11; // \v
+        else if (char == 102) v = 12; // \f
+        else if (char == 48) v = 0; // \0
+      }
+
+      if ((patternPtr + 1) < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 45 && Porffor.wasm.i32.load8_u(patternPtr, 0, 5) != 93) {
+        // possible range
+        patternPtr += 1;
+        let endChar: i32;
+        let endNotEscaped: boolean = true;
+        if (patternPtr < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 92) {
+          endNotEscaped = false;
+          patternPtr += 1;
+          if (patternPtr >= patternEndPtr) throw new SyntaxError('Regex parse: trailing \\ in range');
+        }
+
+        endChar = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+        patternPtr += 1;
+
+        let endPredefClassId: i32 = 0;
+        if (!endNotEscaped) {
+          if (endChar == 100) endPredefClassId = 1;
+            else if (endChar == 68) endPredefClassId = 2;
+            else if (endChar == 115) endPredefClassId = 3;
+            else if (endChar == 83) endPredefClassId = 4;
+            else if (endChar == 119) endPredefClassId = 5;
+            else if (endChar == 87) endPredefClassId = 6;
+            else if (endChar == 110) endChar = 10;
+            else if (endChar == 114) endChar = 13;
+            else if (endChar == 116) endChar = 9;
+            else if (endChar == 118) endChar = 11;
+            else if (endChar == 102) endChar = 12;
+            else if (endChar == 48) endChar = 0;
+        }
+
+        // If either side is a predefined class, treat as literal chars
+        if (predefClassId > 0 || endPredefClassId > 0) {
+          // emit start char/predef
+          if (predefClassId > 0) {
+            Porffor.wasm.i32.store8(bcPtr, 0x02, 0, 0); // PREDEF_MARKER
+            Porffor.wasm.i32.store8(bcPtr, predefClassId, 0, 1);
+            bcPtr += 2;
+          } else {
+            Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0); // CHAR_MARKER
+            Porffor.wasm.i32.store8(bcPtr, v, 0, 1);
+            bcPtr += 2;
+          }
+
+          // emit hyphen
+          Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0); // CHAR_MARKER
+          Porffor.wasm.i32.store8(bcPtr, 45, 0, 1);
+          bcPtr += 2;
+
+          // emit end char/predef
+          if (endPredefClassId > 0) {
+            Porffor.wasm.i32.store8(bcPtr, 0x02, 0, 0); // PREDEF_MARKER
+            Porffor.wasm.i32.store8(bcPtr, endPredefClassId, 0, 1);
+            bcPtr += 2;
+          } else {
+            Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0); // CHAR_MARKER
+            Porffor.wasm.i32.store8(bcPtr, endChar, 0, 1);
+            bcPtr += 2;
+          }
+        } else {
+          if (v > endChar) throw new SyntaxError('Regex parse: invalid range');
+
+          Porffor.wasm.i32.store8(bcPtr, 0x00, 0, 0); // RANGE_MARKER
+          Porffor.wasm.i32.store8(bcPtr, v, 0, 1);
+          Porffor.wasm.i32.store8(bcPtr, endChar, 0, 2);
+          bcPtr += 3;
+        }
+
+        continue;
+      }
+
+      // store v as char or predefined
+      if (predefClassId > 0) {
+        Porffor.wasm.i32.store8(bcPtr, 0x02, 0, 0); // PREDEF_MARKER
+        Porffor.wasm.i32.store8(bcPtr, predefClassId, 0, 1);
+      } else {
+        Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0); // CHAR_MARKER
+        Porffor.wasm.i32.store8(bcPtr, v, 0, 1);
+      }
+
+      bcPtr += 2;
+      continue;
+    }
+
+    if (notEscaped) {
+      if (char == 91) { // '['
+        lastAtomStart = bcPtr;
+        inClass = true;
+        if (patternPtr < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 94) {
+          patternPtr += 1;
+
+          // negated
+          Porffor.wasm.i32.store8(bcPtr, 0x03, 0, 0);
+          bcPtr += 1;
+          continue;
+        }
+
+        // not negated
+        Porffor.wasm.i32.store8(bcPtr, 0x02, 0, 0);
+        bcPtr += 1;
+        continue;
+      }
+
+      if (char == 40) { // '('
+        lastAtomStart = bcPtr;
+
+        // Check for non-capturing group
+        let ncg: boolean = false;
+        if (patternPtr < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 63) { // '?'
+          if ((patternPtr + 1) < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 5) == 58) { // ':'
+            ncg = true;
+            patternPtr += 2;
+          }
+        }
+
+        groupDepth += 1;
+        if (!ncg) {
+          Porffor.wasm.i32.store8(bcPtr, 0x30, 0, 0); // start capture
+          Porffor.wasm.i32.store8(bcPtr, captureIndex, 0, 1);
+          bcPtr += 2;
+
+          Porffor.array.fastPush(groupStack, captureIndex);
+          captureIndex += 1;
+        } else {
+          Porffor.array.fastPush(groupStack, -1);
+        }
+
+        lastWasAtom = false;
+        continue;
+      }
+
+      if (char == 41) { // ')'
+        if (groupDepth == 0) throw new SyntaxError('Regex parse: unmatched )');
+        groupDepth -= 1;
+
+        const popped: i32 = groupStack.pop()!;
+        if (popped != -1) {
+          Porffor.wasm.i32.store8(bcPtr, 0x31, 0, 0); // end capture
+          Porffor.wasm.i32.store8(bcPtr, popped, 0, 1);
+          bcPtr += 2;
+        }
+
+        // Patch alternation jumps for this group
+        for (let i: i32 = altStackPos.length - 1; i >= 0; --i) {
+          if (altStackGroupDepth[i] < groupDepth + 1) break;
+          Porffor.wasm.i32.store16(altStackPos[i], bcPtr - altStackPos[i] - 5, 0, 3); // patch branch2
+          altStackPos.pop();
+          altStackGroupDepth.pop();
+        }
+
+        lastWasAtom = true;
+        continue;
+      }
+
+      if (char == 124) { // '|'
+        // alternation: fork to choose between alternatives
+        Porffor.array.fastPush(altStackPos, bcPtr);
+        Porffor.array.fastPush(altStackGroupDepth, groupDepth);
+
+        Porffor.wasm.i32.store8(bcPtr, 0x21, 0, 0); // fork
+        Porffor.wasm.i32.store16(bcPtr, 5, 0, 1); // branch1 (next instruction)
+        Porffor.wasm.i32.store16(bcPtr, 0, 0, 3); // branch2 (to patch later)
+        bcPtr += 5;
+
+        lastWasAtom = false;
+        continue;
+      }
+
+      if (char == 46) { // '.'
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x09, 0, 0); // dot
+        bcPtr += 1;
+        lastWasAtom = true;
+        continue;
+      }
+
+      if (char == 94) { // '^'
+        Porffor.wasm.i32.store8(bcPtr, 0x05, 0, 0); // start
+        bcPtr += 1;
+        lastWasAtom = false;
+        continue;
+      }
+      if (char == 36) { // '$'
+        Porffor.wasm.i32.store8(bcPtr, 0x06, 0, 0); // end
+        bcPtr += 1;
+        lastWasAtom = false;
+        continue;
+      }
+
+      // quantifiers: *, +, ?
+      if (Porffor.fastOr(char == 42, char == 43, char == 63)) {
+        if (!lastWasAtom) throw new SyntaxError('Regex parser: quantifier without atom');
+
+        // check for lazy
+        let lazy: boolean = false;
+        if (patternPtr < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 63) { // '?'
+          lazy = true;
+          patternPtr++;
+        }
+
+        // Calculate atom size and move it forward to make space for quantifier logic
+        const atomSize: i32 = bcPtr - lastAtomStart;
+
+        if (char == 42) { // * (zero or more)
+          // Move atom forward to make space for fork BEFORE it
+          Porffor.wasm.memory.copy(lastAtomStart + 5, lastAtomStart, atomSize, 0, 0);
+
+          // Insert fork at atom start position
+          Porffor.wasm.i32.store8(lastAtomStart, 0x21, 0, 0); // fork
+          if (lazy) {
+            Porffor.wasm.i32.store16(lastAtomStart, atomSize + 8, 0, 1); // branch1: skip atom entirely
+            Porffor.wasm.i32.store16(lastAtomStart, 5, 0, 3); // branch2: execute atom
+          } else {
+            Porffor.wasm.i32.store16(lastAtomStart, 5, 0, 1); // branch1: execute atom
+            Porffor.wasm.i32.store16(lastAtomStart, atomSize + 8, 0, 3); // branch2: skip atom entirely
+          }
+
+          // insert jump to loop
+          Porffor.wasm.i32.store8(bcPtr, 0x20, 0, 5);
+          Porffor.wasm.i32.store16(bcPtr, -atomSize - 5, 0, 6);
+
+          // Update bcPtr to point after the moved atom
+          bcPtr += 8;
+        } else if (char == 43) { // + (one or more)
+          // For +, atom executes once, then add fork for additional matches
+          Porffor.wasm.i32.store8(bcPtr, 0x21, 0, 0); // fork
+          if (lazy) {
+            Porffor.wasm.i32.store16(bcPtr, 5, 0, 1); // branch1: continue (done)
+            Porffor.wasm.i32.store16(bcPtr, -(bcPtr - lastAtomStart), 0, 3); // branch2: back to atom
+          } else {
+            Porffor.wasm.i32.store16(bcPtr, -(bcPtr - lastAtomStart), 0, 1); // branch1: back to atom
+            Porffor.wasm.i32.store16(bcPtr, 5, 0, 3); // branch2: continue (done)
+          }
+          bcPtr += 5;
+        } else { // ? (zero or one)
+          // Move atom forward to make space for fork
+          Porffor.wasm.memory.copy(lastAtomStart + 5, lastAtomStart, atomSize, 0, 0);
+
+          // Insert fork at atom start position
+          const forkPos: i32 = lastAtomStart;
+          Porffor.wasm.i32.store8(forkPos, 0x21, 0, 0); // fork
+          if (lazy) {
+            Porffor.wasm.i32.store16(forkPos, atomSize + 5, 0, 1); // branch1: skip atom
+            Porffor.wasm.i32.store16(forkPos, 5, 0, 3); // branch2: execute atom
+          } else {
+            Porffor.wasm.i32.store16(forkPos, 5, 0, 1); // branch1: execute atom
+            Porffor.wasm.i32.store16(forkPos, atomSize + 5, 0, 3); // branch2: skip atom
+          }
+
+          // Update bcPtr to point after the moved atom
+          bcPtr = lastAtomStart + 5 + atomSize;
+        }
+        lastWasAtom = false;
+        continue;
+      }
+
+      if (char == 123) { // {n,m}
+        // parse n
+        let n: i32 = 0;
+        let m: i32 = -1;
+        let sawComma: boolean = false;
+        let sawDigit: boolean = false;
+        while (patternPtr < patternEndPtr) {
+          const d: i32 = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+          if (Porffor.fastAnd(d >= 48, d <= 57)) { // digit
+            n = n * 10 + (d - 48);
+            sawDigit = true;
+            patternPtr++;
+            continue;
+          }
+
+          if (d == 44) { // ','
+            sawComma = true;
+            patternPtr++;
+            break;
+          }
+
+          if (d == 125) { // '}'
+            patternPtr++;
+            break;
+          }
+
+          throw new SyntaxError('Regex parse: invalid {n,m} quantifier');
+        }
+
+        if (!sawDigit) throw new SyntaxError('Regex parse: invalid {n,m} quantifier');
+        if (patternPtr > patternEndPtr) throw new SyntaxError('Regex parse: unterminated {n,m} quantifier');
+
+        if (sawComma) {
+          // parse m (or none)
+          let mVal: i32 = 0;
+          let sawMDigit: boolean = false;
+          while (patternPtr < patternEndPtr) {
+            const d: i32 = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+            if (Porffor.fastAnd(d >= 48, d <= 57)) {
+              mVal = mVal * 10 + (d - 48);
+              sawMDigit = true;
+              patternPtr++;
+              continue;
+            }
+
+            if (d == 125) {
+              patternPtr++;
+              break;
+            }
+
+            throw new SyntaxError('Regex parse: invalid {n,m} quantifier');
+          }
+
+          if (sawMDigit) {
+            m = mVal;
+            if (m < n) throw new SyntaxError('Regex parse: {n,m} with m < n');
+          } else {
+            m = -1; // open
+          }
+        } else {
+          m = n;
+        }
+
+        // check for lazy
+        let lazyBrace: boolean = false;
+        if (patternPtr < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 63) { // '?'
+          lazyBrace = true;
+          patternPtr++;
+        }
+
+        // emit n times
+        for (let i: i32 = 1; i < n; i++) {
+          let len: i32 = bcPtr - lastAtomStart;
+          for (let j: i32 = 0; j < len; ++j) {
+            Porffor.wasm.i32.store8(bcPtr + j, Porffor.wasm.i32.load8_u(lastAtomStart + j, 0, 0), 0, 0);
+          }
+          bcPtr += len;
+        }
+
+        if (m == n) {
+          // exactly n
+        } else if (m == -1) {
+          // {n,} - infinite (like * after n mandatory matches)
+          Porffor.wasm.i32.store8(bcPtr, 0x21, 0, 0); // fork
+          if (lazyBrace) {
+            Porffor.wasm.i32.store16(bcPtr, 5, 0, 1); // branch1: continue (done)
+            Porffor.wasm.i32.store16(bcPtr, -(bcPtr - lastAtomStart), 0, 3); // branch2: back to atom
+          } else {
+            Porffor.wasm.i32.store16(bcPtr, -(bcPtr - lastAtomStart), 0, 1); // branch1: back to atom
+            Porffor.wasm.i32.store16(bcPtr, 5, 0, 3); // branch2: continue (done)
+          }
+          bcPtr += 5;
+        } else {
+          // {n,m} - exactly between n and m matches
+          // Create chain of forks, each executing atom inline
+          const atomSize: i32 = bcPtr - lastAtomStart;
+          for (let i: i32 = n; i < m; i++) {
+            Porffor.wasm.i32.store8(bcPtr, 0x21, 0, 0); // fork
+            if (lazyBrace) {
+              Porffor.wasm.i32.store16(bcPtr, 5 + atomSize, 0, 1); // branch1: skip this match
+              Porffor.wasm.i32.store16(bcPtr, 5, 0, 3); // branch2: execute atom
+            } else {
+              Porffor.wasm.i32.store16(bcPtr, 5, 0, 1); // branch1: execute atom
+              Porffor.wasm.i32.store16(bcPtr, 5 + atomSize, 0, 3); // branch2: skip this match
+            }
+            bcPtr += 5;
+
+            // Copy the atom inline
+            for (let j: i32 = 0; j < atomSize; j++) {
+              Porffor.wasm.i32.store8(bcPtr + j, Porffor.wasm.i32.load8_u(lastAtomStart + j, 0, 0), 0, 0);
+            }
+            bcPtr += atomSize;
+          }
+        }
+
+        continue;
+      }
+    } else {
+      // handle escapes outside class OR literal chars if escaped and not special
+      // backreference: \1, \2, ...
+      if (Porffor.fastAnd(char >= 49, char <= 57)) { // '1'-'9'
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x0a, 0, 0); // back reference
+        Porffor.wasm.i32.store8(bcPtr, char - 48, 0, 1);
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+
+      if (char == 100) { // \d
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x04, 0, 0); // predefined class
+        Porffor.wasm.i32.store8(bcPtr, 1, 0, 1); // digit
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+      if (char == 68) { // \D
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x04, 0, 0);
+        Porffor.wasm.i32.store8(bcPtr, 2, 0, 1); // non-digit
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+
+      if (char == 115) { // \s
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x04, 0, 0);
+        Porffor.wasm.i32.store8(bcPtr, 3, 0, 1); // space
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+      if (char == 83) { // \S
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x04, 0, 0);
+        Porffor.wasm.i32.store8(bcPtr, 4, 0, 1); // non-space
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+
+      if (char == 119) { // \w
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x04, 0, 0);
+        Porffor.wasm.i32.store8(bcPtr, 5, 0, 1); // word
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+      if (char == 87) { // \W
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x04, 0, 0);
+        Porffor.wasm.i32.store8(bcPtr, 6, 0, 1); // non-word
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+
+      if (char == 98) { // \b
+        Porffor.wasm.i32.store8(bcPtr, 0x07, 0, 0); // word boundary
+        bcPtr += 1;
+        lastWasAtom = false;
+        continue;
+      }
+      if (char == 66) { // \B
+        Porffor.wasm.i32.store8(bcPtr, 0x08, 0, 0); // non-word boundary
+        bcPtr += 1;
+        lastWasAtom = false;
+        continue;
+      }
+
+      if (char == 110) { // \n
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0); // single
+        Porffor.wasm.i32.store8(bcPtr, 10, 0, 1);
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+      if (char == 114) { // \r
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
+        Porffor.wasm.i32.store8(bcPtr, 13, 0, 1);
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+      if (char == 116) { // \t
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
+        Porffor.wasm.i32.store8(bcPtr, 9, 0, 1);
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+      if (char == 118) { // \v
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
+        Porffor.wasm.i32.store8(bcPtr, 11, 0, 1);
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+      if (char == 102) { // \f
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
+        Porffor.wasm.i32.store8(bcPtr, 12, 0, 1);
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+      if (char == 48) { // \0
+        lastAtomStart = bcPtr;
+        Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
+        Porffor.wasm.i32.store8(bcPtr, 0, 0, 1);
+        bcPtr += 2;
+        lastWasAtom = true;
+        continue;
+      }
+    }
+
+    // default: emit single char (either a literal, or an escape that resolves to a literal)
+    lastAtomStart = bcPtr;
+    Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
+    Porffor.wasm.i32.store8(bcPtr, char, 0, 1);
+    bcPtr += 2;
+    lastWasAtom = true;
   }
 
-  Porffor.wasm.i32.store16(ptr, flags, 0, 8);
+  if (groupDepth != 0) throw new SyntaxError('Regex parse: Unmatched (');
+  if (inClass) throw new SyntaxError('Regex parse: Unmatched [');
 
-  return ptr;
+  // Accept
+  Porffor.wasm.i32.store8(bcPtr, 0x10, 0, 0);
+
+  // Patch any remaining alternation jumps at the end of the pattern
+  for (let i: i32 = 0; i < altStackPos.length; i++) {
+    Porffor.wasm.i32.store16(altStackPos[i], bcPtr - altStackPos[i] - 5, 0, 3);
+  }
+
+  return ptr as RegExp;
 };
 
 
@@ -92,10 +696,12 @@ export const __RegExp_prototype_source$get = (_this: RegExp) => {
 export const __RegExp_prototype_flags$get = (_this: RegExp) => {
   // 1. Let R be the this value.
   // 2. If R is not an Object, throw a TypeError exception.
-  if (!Porffor.object.isObject(_this)) throw new TypeError('This is a non-object');
-  let flags: i32 = Porffor.wasm.i32.load(_this, 0, 8);
+  if (!Porffor.object.isObject(_this)) throw new TypeError('this is a non-object');
+
   // 3. Let codeUnits be a new empty List.
-  let result: bytestring = Porffor.allocateBytes(4 + 8);
+  const flags: i32 = Porffor.wasm.i32.load(_this, 0, 8);
+  const result: bytestring = Porffor.allocateBytes(4 + 8);
+
   // 4. Let hasIndices be ToBoolean(? Get(R, "hasIndices")).
   // 5. If hasIndices is true, append the code unit 0x0064 (LATIN SMALL LETTER D) to codeUnits.
   if (flags & 0b01000000) Porffor.bytestring.appendChar(result, 0x64);
@@ -120,7 +726,9 @@ export const __RegExp_prototype_flags$get = (_this: RegExp) => {
   // 18. Let sticky be ToBoolean(? Get(R, "sticky")).
   // 19. If sticky is true, append the code unit 0x0079 (LATIN SMALL LETTER Y) to codeUnits.
   if (flags & 0b00100000) Porffor.bytestring.appendChar(result, 0x79);
-  // 20. Return the String value whose code units are the elements of the List codeUnits. If codeUnits has no elements, the empty String is returned.
+
+  // 20. Return the String value whose code units are the elements of the List codeUnits.
+  //     If codeUnits has no elements, the empty String is returned.
   return result;
 };
 
