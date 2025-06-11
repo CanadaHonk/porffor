@@ -699,8 +699,8 @@ export const __RegExp_prototype_flags$get = (_this: RegExp) => {
   if (!Porffor.object.isObject(_this)) throw new TypeError('this is a non-object');
 
   // 3. Let codeUnits be a new empty List.
-  const flags: i32 = Porffor.wasm.i32.load(_this, 0, 8);
-  const result: bytestring = Porffor.allocateBytes(4 + 8);
+  const flags: i32 = Porffor.wasm.i32.load16_u(_this, 0, 4);
+  const result: bytestring = Porffor.allocateBytes(16);
 
   // 4. Let hasIndices be ToBoolean(? Get(R, "hasIndices")).
   // 5. If hasIndices is true, append the code unit 0x0064 (LATIN SMALL LETTER D) to codeUnits.
@@ -733,35 +733,35 @@ export const __RegExp_prototype_flags$get = (_this: RegExp) => {
 };
 
 export const __RegExp_prototype_global$get = (_this: RegExp) => {
-  return (Porffor.wasm.i32.load(_this, 0, 8) & 0b00000001) as boolean;
+  return (Porffor.wasm.i32.load16_u(_this, 0, 4) & 0b00000001) as boolean;
 };
 
 export const __RegExp_prototype_ignoreCase$get = (_this: RegExp) => {
-  return (Porffor.wasm.i32.load(_this, 0, 8) & 0b00000010) as boolean;
+  return (Porffor.wasm.i32.load16_u(_this, 0, 4) & 0b00000010) as boolean;
 };
 
 export const __RegExp_prototype_multiline$get = (_this: RegExp) => {
-  return (Porffor.wasm.i32.load(_this, 0, 8) & 0b00000100) as boolean;
+  return (Porffor.wasm.i32.load16_u(_this, 0, 4) & 0b00000100) as boolean;
 };
 
 export const __RegExp_prototype_dotAll$get = (_this: RegExp) => {
-  return (Porffor.wasm.i32.load(_this, 0, 8) & 0b00001000) as boolean;
+  return (Porffor.wasm.i32.load16_u(_this, 0, 4) & 0b00001000) as boolean;
 };
 
 export const __RegExp_prototype_unicode$get = (_this: RegExp) => {
-  return (Porffor.wasm.i32.load(_this, 0, 8) & 0b00010000) as boolean;
+  return (Porffor.wasm.i32.load16_u(_this, 0, 4) & 0b00010000) as boolean;
 };
 
 export const __RegExp_prototype_sticky$get = (_this: RegExp) => {
-  return (Porffor.wasm.i32.load(_this, 0, 8) & 0b00100000) as boolean;
+  return (Porffor.wasm.i32.load16_u(_this, 0, 4) & 0b00100000) as boolean;
 };
 
 export const __RegExp_prototype_hasIndices$get = (_this: RegExp) => {
-  return (Porffor.wasm.i32.load(_this, 0, 8) & 0b01000000) as boolean;
+  return (Porffor.wasm.i32.load16_u(_this, 0, 4) & 0b01000000) as boolean;
 };
 
 export const __RegExp_prototype_unicodeSets$get = (_this: RegExp) => {
-  return (Porffor.wasm.i32.load(_this, 0, 8) & 0b10000000) as boolean;
+  return (Porffor.wasm.i32.load16_u(_this, 0, 4) & 0b10000000) as boolean;
 };
 
 export const __RegExp_prototype_toString = (_this: RegExp) => {

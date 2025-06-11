@@ -2808,48 +2808,48 @@ params:[127,127],typedParams:1,returns:[127,127],
 locals:[],localNames:["_this","_this#type"],
 }
 this.__RegExp_prototype_flags$get = {
-wasm:(_,{builtin,internalThrow})=>eval("[[32,0],[65,9],[16,builtin('__Porffor_object_isObject')],[69],[4,64],...internalThrow(_,'TypeError',`this is a non-object`),[26],[11],[32,0],[40,0,8],[33,2],[65,4],[65,8],[106],[16,builtin('__Porffor_allocateBytes')],[33,3],[32,2],[65,192,0],[113],[4,64],[32,3],[183],[65,195,1],[65,228,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,1],[113],[4,64],[32,3],[183],[65,195,1],[65,231,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,2],[113],[4,64],[32,3],[183],[65,195,1],[65,233,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,4],[113],[4,64],[32,3],[183],[65,195,1],[65,237,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,8],[113],[4,64],[32,3],[183],[65,195,1],[65,243,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,16],[113],[4,64],[32,3],[183],[65,195,1],[65,245,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,128,1],[113],[4,64],[32,3],[183],[65,195,1],[65,246,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,32],[113],[4,64],[32,3],[183],[65,195,1],[65,249,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,3],[65,195,1],[15]]"),
+wasm:(_,{builtin,internalThrow})=>eval("[[32,0],[65,9],[16,builtin('__Porffor_object_isObject')],[69],[4,64],...internalThrow(_,'TypeError',`this is a non-object`),[26],[11],[32,0],[47,0,4],[33,2],[65,16],[16,builtin('__Porffor_allocateBytes')],[33,3],[32,2],[65,192,0],[113],[4,64],[32,3],[183],[65,195,1],[65,228,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,1],[113],[4,64],[32,3],[183],[65,195,1],[65,231,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,2],[113],[4,64],[32,3],[183],[65,195,1],[65,233,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,4],[113],[4,64],[32,3],[183],[65,195,1],[65,237,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,8],[113],[4,64],[32,3],[183],[65,195,1],[65,243,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,16],[113],[4,64],[32,3],[183],[65,195,1],[65,245,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,128,1],[113],[4,64],[32,3],[183],[65,195,1],[65,246,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,32],[113],[4,64],[32,3],[183],[65,195,1],[65,249,0],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,3],[65,195,1],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],
 locals:[127,127],localNames:["_this","_this#type","flags","result"],
 usesTag:1,
 }
 this.__RegExp_prototype_global$get = {
-wasm:()=>eval("[[32,0],[40,0,8],[65,1],[113],[65,2],[15]]"),
+wasm:()=>eval("[[32,0],[47,0,4],[65,1],[113],[65,2],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],
 locals:[],localNames:["_this","_this#type"],
 }
 this.__RegExp_prototype_ignoreCase$get = {
-wasm:()=>eval("[[32,0],[40,0,8],[65,2],[113],[65,2],[15]]"),
+wasm:()=>eval("[[32,0],[47,0,4],[65,2],[113],[65,2],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],
 locals:[],localNames:["_this","_this#type"],
 }
 this.__RegExp_prototype_multiline$get = {
-wasm:()=>eval("[[32,0],[40,0,8],[65,4],[113],[65,2],[15]]"),
+wasm:()=>eval("[[32,0],[47,0,4],[65,4],[113],[65,2],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],
 locals:[],localNames:["_this","_this#type"],
 }
 this.__RegExp_prototype_dotAll$get = {
-wasm:()=>eval("[[32,0],[40,0,8],[65,8],[113],[65,2],[15]]"),
+wasm:()=>eval("[[32,0],[47,0,4],[65,8],[113],[65,2],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],
 locals:[],localNames:["_this","_this#type"],
 }
 this.__RegExp_prototype_unicode$get = {
-wasm:()=>eval("[[32,0],[40,0,8],[65,16],[113],[65,2],[15]]"),
+wasm:()=>eval("[[32,0],[47,0,4],[65,16],[113],[65,2],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],
 locals:[],localNames:["_this","_this#type"],
 }
 this.__RegExp_prototype_sticky$get = {
-wasm:()=>eval("[[32,0],[40,0,8],[65,32],[113],[65,2],[15]]"),
+wasm:()=>eval("[[32,0],[47,0,4],[65,32],[113],[65,2],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],
 locals:[],localNames:["_this","_this#type"],
 }
 this.__RegExp_prototype_hasIndices$get = {
-wasm:()=>eval("[[32,0],[40,0,8],[65,192,0],[113],[65,2],[15]]"),
+wasm:()=>eval("[[32,0],[47,0,4],[65,192,0],[113],[65,2],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],
 locals:[],localNames:["_this","_this#type"],
 }
 this.__RegExp_prototype_unicodeSets$get = {
-wasm:()=>eval("[[32,0],[40,0,8],[65,128,1],[113],[65,2],[15]]"),
+wasm:()=>eval("[[32,0],[47,0,4],[65,128,1],[113],[65,2],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],
 locals:[],localNames:["_this","_this#type"],
 }
