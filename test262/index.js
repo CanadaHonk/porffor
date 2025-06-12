@@ -1,4 +1,4 @@
-import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
+import cluster from 'node:cluster';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -13,7 +13,9 @@ const __filename = join(__dirname, 'index.js');
 
 let resultOnly = process.env.RESULT_ONLY;
 
-if (isMainThread) {
+const workerDataPath = '/tmp/workerData.json';
+
+if (cluster.isPrimary) {
   const veryStart = performance.now();
 
   const test262Path = join(__dirname, 'test262');
@@ -148,20 +150,26 @@ if (isMainThread) {
 
   const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
 
-  let queueBuf = new SharedArrayBuffer(4);
-  let queue = new Uint32Array(queueBuf);
   const workerData = {
     argv: process.argv,
     preludes,
     tests,
-    queue
+    threads
   };
+  fs.writeFileSync(workerDataPath, JSON.stringify(workerData));
+
+  let queue = 0;
+  const workers = [];
   for (let w = 0; w < threads; w++) {
-    const worker = new Worker(__filename, {
-      workerData
-    });
+    const worker = cluster.fork();
+    workers.push(worker);
 
     worker.on('message', int => {
+      if (int == null) {
+        worker.send(queue++);
+        return;
+      }
+
       if (typeof int !== 'number') {
         if (typeof int === 'string') {
           console.log(int);
@@ -184,6 +192,8 @@ if (isMainThread) {
         if (total === totalTests) resolve();
         return;
       }
+
+      worker.send(queue++);
 
       const result = int & 0b1111;
       const i = int >> 4;
@@ -253,6 +263,8 @@ if (isMainThread) {
   }
 
   await promise;
+
+  for (const x of workers) x.kill();
 
   const percent = parseFloat(((passes / total) * 100).toFixed(2));
   const percentChange = parseFloat((percent - lastCommitResults[0]).toFixed(2));
@@ -378,7 +390,7 @@ if (isMainThread) {
     console.log(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | ` + table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos));
   }
 } else {
-  const { queue, tests, preludes, argv } = workerData;
+  const { tests, preludes, argv, threads } = JSON.parse(fs.readFileSync(workerDataPath, 'utf8'));
   const errors = {};
 
   process.argv = argv;
@@ -397,19 +409,17 @@ if (isMainThread) {
     return script.runInNewContext({ $func }, { timeout: 30000 });
   };
 
-  console.log = (...args) => parentPort.postMessage(args.join(' '));
+  // console.log = (...args) => parentPort.postMessage(args.join(' '));
 
   const profile = process.argv.includes('--profile');
   const perTestProfile = {};
   const profileStats = new Array(5).fill(0);
 
-  const totalTests = tests.length;
   const alwaysPrelude = preludes['assert.js'] + preludes['sta.js'];
-  while (true) {
-    const i = Atomics.add(queue, 0, 1);
-    if (i >= totalTests) break;
 
+  process.on('message', i => {
     const test = tests[i];
+    if (!test) return;
 
     let error, stage = 0;
     let contents = test.contents, attrs = test.attrs;
@@ -516,9 +526,11 @@ if (isMainThread) {
 
       setTimeout(() => { parentPort.postMessage(out); }, 10);
     } else {
-      parentPort.postMessage(out);
+      process.send(out);
     }
-  }
+  });
+
+  process.send(null);
 
   if (trackErrors) parentPort.postMessage(errors);
   if (profile) parentPort.postMessage({ perTestProfile, profileStats })
