@@ -405,6 +405,9 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       if (Prefs.d) log.warning('codegen', 'with is not supported, treating as expression');
       return cacheAst(decl, generate(scope, decl.body));
 
+    case 'TSEnumDeclaration':
+      return cacheAst(decl, generateEnum(scope, decl));
+
     default:
       // ignore typescript nodes
       if (decl.type.startsWith('TS') ||
@@ -414,6 +417,61 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
 
       return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`, true));
   }
+};
+
+const generateEnum = (scope, decl) => {
+  // todo: opt const enum into compile-time values
+
+  if (decl.body) decl = decl.body; // non-standard ast node :)
+
+  const properties = [];
+
+  let value = -1;
+  for (const x of decl.members) {
+    if (x.initializer) {
+      value = x.initializer;
+    } else {
+      if (typeof value === 'number') {
+        value = {
+          type: 'Literal',
+          value: value + 1
+        };
+      } else {
+        value = {
+          type: 'Identifier',
+          value: undefined
+        };
+      }
+    }
+
+    // enum.key = value
+    properties.push({
+      key: x.id,
+      value,
+      kind: 'init'
+    });
+
+    // enum[value] = key
+    properties.push({
+      key: value,
+      value: {
+        type: 'Literal',
+        value: x.id.name
+      },
+      computed: true,
+      kind: 'init'
+    });
+
+    value = value?.value;
+  }
+
+  return [
+    ...generateVarDstr(scope, decl.const ? 'const' : 'let', decl.id, {
+      type: 'ObjectExpression',
+      properties
+    }),
+    number(UNDEFINED)
+  ];
 };
 
 const optional = (op, clause = op.at(-1)) => clause || clause === 0 ? (Array.isArray(op[0]) ? op : [ op ]) : [];
