@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {},
   "dependencies": {
-    "acorn": "^8.14.1",
+    "acorn": "^8.15.0",
     "node-repl-polyfill": "github:CanadaHonk/node-repl-polyfill"
   },
   "optionalDependencies": {
