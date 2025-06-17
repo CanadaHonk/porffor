@@ -3,7 +3,7 @@ import { $ } from 'bun';
 const dir = process.argv[2];
 
 let now = (await $`node test262/index.js ${dir}`).stdout.toString();
-await $`git stash push compiler`;
+await $`git stash push compiler test262`;
 let before = (await $`node test262/index.js ${dir}`).stdout.toString();
 await $`git stash pop`;
 

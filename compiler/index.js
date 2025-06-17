@@ -61,8 +61,8 @@ const progressClear = () => {
   progressLines = 0;
 };
 
-export default (code, module = undefined) => {
-  if (module !== undefined) Prefs.module = module;
+export default (code, module = false) => {
+  Prefs.module = module;
 
   globalThis.valtype = Prefs.valtype ?? 'f64';
   globalThis.valtypeBinary = Valtype[valtype];

@@ -1,24 +1,22 @@
-import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
+import cluster from 'node:cluster';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
-import vm from 'node:vm';
 import os from 'node:os';
 import process from 'node:process';
 import { join } from 'node:path';
-import Test262Stream from 'test262-stream';
 import { log } from '../compiler/log.js';
+import readTest262 from './read.js';
 
 const __dirname = import.meta.dirname;
-const __filename = join(__dirname, 'index.js');
 
 let resultOnly = process.env.RESULT_ONLY;
 
-if (isMainThread) {
+const workerDataPath = '/tmp/workerData.json';
+if (cluster.isPrimary) {
   const veryStart = performance.now();
 
   const test262Path = join(__dirname, 'test262');
   let whatTests = process.argv.slice(2).find(x => x[0] !== '-') ?? '';
-  if (!whatTests.startsWith('test/')) whatTests = 'test/' + whatTests;
   if (whatTests.endsWith('/')) whatTests = whatTests.slice(0, -1);
 
   if (whatTests.endsWith('.js')) {
@@ -35,12 +33,7 @@ if (isMainThread) {
     log.warning('test262', 'please specify via either method to make test262 runs potentially much faster! (ask for tuning advice)');
   }
 
-  const _tests = new Test262Stream(test262Path, {
-    paths: [ whatTests ],
-    omitRuntime: true
-  });
-
-  if (process.argv.includes('--open')) execSync(`zed ${test262Path}/${whatTests}`);
+  if (process.argv.includes('--open')) execSync(`zed ${test262Path}/test/${whatTests}`);
 
   let minimal = process.argv.includes('--minimal');
   if (minimal) resultOnly = true;
@@ -51,11 +44,13 @@ if (isMainThread) {
 
   if (!resultOnly) process.stdout.write('\u001b[90mreading tests...\u001b[0m');
 
-  const tests = [];
-  for await (const test of _tests) {
-    if ((test.scenario === 'strict mode' && !test.attrs.flags.onlyStrict) || test.file.endsWith('.py')) continue;
-    tests.push(test);
-  }
+  const preludes = fs.readFileSync(join(__dirname, 'harness.js'), 'utf8').split('///').reduce((acc, x) => {
+    const [ k, ...content ] = x.split('\n');
+    acc[k.trim()] = content.join('\n').trim() + '\n';
+    return acc;
+  }, {});
+
+  const tests = await readTest262(test262Path, whatTests, preludes, lastResults.timeouts);
 
   const profile = process.argv.includes('--profile');
   if (profile) process.argv.push('--profile-compiler');
@@ -126,15 +121,9 @@ if (isMainThread) {
   let dirs = new Map(), features = new Map(), errors = new Map(), pagesUsed = new Map();
   let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0, todos = 0;
 
-  const preludes = fs.readFileSync(join(__dirname, 'harness.js'), 'utf8').split('///').reduce((acc, x) => {
-    const [ k, ...content ] = x.split('\n');
-    acc[k.trim()] = content.join('\n').trim() + '\n';
-    return acc;
-  }, {});
-
   if (logErrors) threads = 1;
 
-  const allTests = whatTests === 'test' && threads > 1;
+  const allTests = whatTests === '' && threads > 1;
   if (!resultOnly && !allTests) console.log();
 
   let lastPercent = 0;
@@ -148,20 +137,50 @@ if (isMainThread) {
 
   const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
 
-  let queueBuf = new SharedArrayBuffer(4);
-  let queue = new Uint32Array(queueBuf);
   const workerData = {
     argv: process.argv,
-    preludes,
     tests,
-    queue
+    threads
   };
-  for (let w = 0; w < threads; w++) {
-    const worker = new Worker(__filename, {
-      workerData
-    });
+  fs.writeFileSync(workerDataPath, JSON.stringify(workerData));
+
+  let queue = 0;
+  const spawn = () => {
+    const worker = cluster.fork();
+
+    let timeout;
+    const enqueue = () => {
+      if (timeout) clearTimeout(timeout);
+      const i = queue;
+      if (i >= totalTests) {
+        worker.kill();
+        return;
+      }
+
+      worker.send(queue++);
+      timeout = setTimeout(() => {
+        worker.kill();
+
+        total++;
+        timeouts++;
+
+        const file = tests[i].file;
+        if (!resultOnly) timeoutFiles.push(file);
+
+        if (total === totalTests) {
+          if (!trackErrors) resolve();
+        } else {
+          spawn();
+        }
+      }, 10000);
+    };
 
     worker.on('message', int => {
+      if (int == null) {
+        enqueue();
+        return;
+      }
+
       if (typeof int !== 'number') {
         if (typeof int === 'string') {
           console.log(int);
@@ -185,10 +204,12 @@ if (isMainThread) {
         return;
       }
 
+      enqueue();
+
       const result = int & 0b1111;
       const i = int >> 4;
 
-      const file = tests[i].file.replaceAll('\\', '/').slice(5);
+      const file = tests[i].file;
 
       // result: pass, todo, wasmError, compileError, fail, timeout, runtimeError
       total++;
@@ -233,7 +254,7 @@ if (isMainThread) {
           process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : (result === 5 ? '90' : '91'))}m${runIconTable[result]} ${file}\u001b[0m\n`);
 
           if (threads === 1 && tests[i + 1]) {
-            const nextFile = tests[i + 1].file.replaceAll('\\', '/').slice(5);
+            const nextFile = tests[i + 1].file;
             process.stdout.write(`\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% | ${nextFile}\u001b[0m`);
           }
         }
@@ -248,9 +269,9 @@ if (isMainThread) {
 
       if (total === totalTests && !trackErrors) resolve();
     });
+  };
 
-    // if (!resultOnly) process.stdout.write(`\r${' '.repeat(100)}\r\u001b[90mspawned ${w + 1}/${threads} threads...`);
-  }
+  for (let w = 0; w < threads; w++) spawn();
 
   await promise;
 
@@ -273,15 +294,15 @@ if (isMainThread) {
 
   const togo = next => `${Math.floor((total * next / 100) - passes)} to go until ${next}%`;
 
-  console.log(`\u001b[1m${whatTests}: ${passes}/${total} passed - ${percent.toFixed(2)}%${whatTests === 'test' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
-  const tab = table(whatTests === 'test', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
+  console.log(`\u001b[1m${whatTests || 'test262'}: ${passes}/${total} passed - ${percent.toFixed(2)}%${whatTests === '' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
+  const tab = table(whatTests === '', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
   console.log(bar([...noAnsi(tab)].length + 10, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0));
   process.stdout.write('  ');
   console.log(tab);
 
   console.log();
 
-  if (whatTests === 'test') {
+  if (whatTests === '') {
     for (const dir of dirs.keys()) {
       const results = dirs.get(dir);
       process.stdout.write(' '.repeat(6) + dir + ' '.repeat(14 - dir.length));
@@ -359,7 +380,7 @@ if (isMainThread) {
     for (const x of longestTests) {
       // const profile = perTestProfile[x].map(x => x.toFixed(2) + 'ms');
       // console.log(`${x.replace('test/', '')}${' '.repeat(longestTestName - x.length)} \x1B[90m│\x1B[0m \x1B[1m${profile[0]} total\x1B[0m (parse: ${profile[1]}, codegen: ${profile[2]}, opt: ${profile[3]}, assemble: ${profile[4]})`);
-      console.log(`${x.replace('test/', '')}${' '.repeat(longestTestName - x.length)}\x1B[90m│\x1B[0m \x1B[1m${(perTestProfile[x] / 1000).toFixed(2)}s\x1B[0m`);
+      console.log(`${x}${' '.repeat(longestTestName - x.length)}\x1B[90m│\x1B[0m \x1B[1m${(perTestProfile[x] / 1000).toFixed(2)}s\x1B[0m`);
     }
 
     console.log('\n\x1b[4mtime spent on compiler stages\x1b[0m');
@@ -378,7 +399,7 @@ if (isMainThread) {
     console.log(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | ` + table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos));
   }
 } else {
-  const { queue, tests, preludes, argv } = workerData;
+  const { tests, argv } = JSON.parse(fs.readFileSync(workerDataPath, 'utf8'))
   const errors = {};
 
   process.argv = argv;
@@ -392,27 +413,21 @@ if (isMainThread) {
 
   const compile = (await import('../compiler/wrap.js')).default;
 
-  const script = new vm.Script('$func()');
-  const timeout = $func => {
-    return script.runInNewContext({ $func }, { timeout: 30000 });
-  };
-
-  console.log = (...args) => parentPort.postMessage(args.join(' '));
+  // console.log = (...args) => parentPort.postMessage(args.join(' '));
 
   const profile = process.argv.includes('--profile');
   const perTestProfile = {};
   const profileStats = new Array(5).fill(0);
 
-  const totalTests = tests.length;
-  const alwaysPrelude = preludes['assert.js'] + preludes['sta.js'];
-  while (true) {
-    const i = Atomics.add(queue, 0, 1);
-    if (i >= totalTests) break;
-
+  process.on('message', i => {
     const test = tests[i];
+    // if (!test) return;
+    // console.log('\n\n\n' + cluster.worker.id, i, test.file, '\n\n\n');
 
     let error, stage = 0;
-    let contents = test.contents, attrs = test.attrs;
+    let contents = test.contents,
+        flags = test.flags,
+        negative = test.negative;
 
     if (profile) {
       globalThis.onProgress = (msg, t) => {
@@ -430,19 +445,6 @@ if (isMainThread) {
       };
     }
 
-    if (!attrs.flags.raw) {
-      contents = (test.scenario === 'strict mode' ? '"use strict";\n' : '') +
-        (attrs.flags.async ? preludes['doneprintHandle.js'] : '') +
-        attrs.includes.reduce((acc, x) => acc + (preludes[x] ?? ''), '') +
-        alwaysPrelude +
-        contents;
-    }
-
-    // hack: skip compiler timeouts
-    if (test.file === 'test/staging/sm/String/normalize-generateddata-input.js') {
-      contents = 'throw "skipped";';
-    }
-
     if (debugAsserts) contents = contents
       .replace('var assert = mustBeTrue => {', 'var assert = (mustBeTrue, msg) => {')
       .replaceAll('(actual, expected) => {', '(actual, expected, msg) => {')
@@ -453,14 +455,15 @@ if (isMainThread) {
 
     let exports;
     try {
-      const out = compile(contents, !!attrs.flags.module, {}, x => log += x);
+      const out = compile(contents, flags.module, {}, x => log += x);
       exports = out.exports;
     } catch (e) {
       error = e;
     }
 
     if (!error) try {
-      timeout(exports.main);
+      // timeout(exports.main);
+      exports.main();
       stage = 2;
     } catch (e) {
       if (e?.name === 'Test262Error' && debugAsserts && log) {
@@ -482,8 +485,8 @@ if (isMainThread) {
     let pass = stage === 2;
 
     // todo: parse vs runtime expected
-    if (test.attrs.negative) {
-      if (test.attrs.negative.type) pass = error?.name === test.attrs.negative.type;
+    if (negative) {
+      if (negative.type) pass = error?.name === negative.type;
         else pass = !pass;
     }
 
@@ -512,13 +515,13 @@ if (isMainThread) {
       let e = (!pass && error ? (error?.stack || error.toString()) : '');
       if (e.includes('throw porfToJSValue')) e = e.split('\n').at(-1);
 
-      console.log(`\u001b[${pass ? '92' : '91'}m${runIconTable[out & 0b1111]} ${test.file.replaceAll('\\', '/').slice(5)}\u001b[0m${e ? `\n${e}` : ''}`);
-
-      setTimeout(() => { parentPort.postMessage(out); }, 10);
-    } else {
-      parentPort.postMessage(out);
+      console.log(`\u001b[${pass ? '92' : '91'}m${runIconTable[out & 0b1111]} ${test.file}\u001b[0m${e ? `\n${e}` : ''}`);
     }
-  }
+
+    process.send(out);
+  });
+
+  process.send(null);
 
   if (trackErrors) parentPort.postMessage(errors);
   if (profile) parentPort.postMessage({ perTestProfile, profileStats })
