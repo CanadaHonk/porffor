@@ -60,6 +60,7 @@ export default async (test262Path, filter, preludes, first = []) => {
       phase: negative[1],
       type: negative[2]
     };
+    if (flags.negative && !negative) negative = true;
 
     tests.push({
       file: file.replace(testPath + '/', ''),

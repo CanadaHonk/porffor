@@ -399,7 +399,7 @@ if (cluster.isPrimary) {
     console.log(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | ` + table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos));
   }
 } else {
-  const { tests, argv } = JSON.parse(fs.readFileSync(workerDataPath, 'utf8'))
+  const { tests, argv } = JSON.parse(fs.readFileSync(workerDataPath, 'utf8'));
   const errors = {};
 
   process.argv = argv;
