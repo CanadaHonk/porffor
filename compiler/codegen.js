@@ -2495,6 +2495,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       i32_store8: { imms: 2, args: [ true, true ], returns: 0, addValue: true },
       // pointer, align, offset
       i32_load16_u: { imms: 2, args: [ true ], returns: 1 },
+      // pointer, align, offset
+      i32_load16_s: { imms: 2, args: [ true ], returns: 1 },
       // pointer, value, align, offset
       i32_store16: { imms: 2, args: [ true, true ], returns: 0, addValue: true },
 
@@ -2514,35 +2516,34 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     };
 
     const opName = name.slice('__Porffor_wasm_'.length);
+    if (!wasmOps[opName]) throw new Error('Unimplemented Porffor.wasm op: ' + opName);
 
-    if (wasmOps[opName]) {
-      const op = wasmOps[opName];
+    const op = wasmOps[opName];
 
-      const argOut = [];
-      for (let i = 0; i < op.args.length; i++) {
-        if (!op.args[i]) globalThis.noi32F64CallConv = true;
+    const argOut = [];
+    for (let i = 0; i < op.args.length; i++) {
+      if (!op.args[i]) globalThis.noi32F64CallConv = true;
 
-        argOut.push(
-          ...generate(scope, decl.arguments[i]),
-          ...(op.args[i] ? [ Opcodes.i32_to ] : [])
-        );
+      argOut.push(
+        ...generate(scope, decl.arguments[i]),
+        ...(op.args[i] ? [ Opcodes.i32_to ] : [])
+      );
 
-        globalThis.noi32F64CallConv = false;
-      }
-
-      // literals only
-      const imms = decl.arguments.slice(op.args.length).map(x => x.value);
-
-      let opcode = Opcodes[opName];
-      if (!Array.isArray(opcode)) opcode = [ opcode ];
-
-      return [
-        ...argOut,
-        [ ...opcode, ...imms ],
-        ...(new Array(op.returns).fill(Opcodes.i32_from)),
-        ...(op.addValue ? [ number(UNDEFINED) ] : [])
-      ];
+      globalThis.noi32F64CallConv = false;
     }
+
+    // literals only
+    const imms = decl.arguments.slice(op.args.length).map(x => x.value);
+
+    let opcode = Opcodes[opName];
+    if (!Array.isArray(opcode)) opcode = [ opcode ];
+
+    return [
+      ...argOut,
+      [ ...opcode, ...imms ],
+      ...(new Array(op.returns).fill(Opcodes.i32_from)),
+      ...(op.addValue ? [ number(UNDEFINED) ] : [])
+    ];
   } else {
     if (!Prefs.indirectCalls) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, true);
 
