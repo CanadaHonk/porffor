@@ -4146,6 +4146,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
             ]),
             ...setLastType(scope)
           ], generate(scope, decl.right), getLastType(scope), getNodeType(scope, decl.right))),
+          ...(valtypeBinary === Valtype.i32 ? [ [ Opcodes.f64_convert_i32_s ] ] : []),
           ...getNodeType(scope, decl),
 
           ...(hash != null ? [
@@ -6196,8 +6197,8 @@ const generateMember = (scope, decl, _global, _name) => {
       ] : [
         [ Opcodes.call, includeBuiltin(scope, '__Porffor_object_get').index ]
       ]),
-
-      ...setLastType(scope)
+      ...setLastType(scope),
+      ...(valtypeBinary === Valtype.i32 ? [ Opcodes.i32_trunc_sat_f64_s ] : [])
     ],
 
     ...extraBC
