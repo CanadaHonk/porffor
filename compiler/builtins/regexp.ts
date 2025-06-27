@@ -1004,7 +1004,7 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
       }
 
       result.index = matchStart;
-      result.input = input;
+      result.input = input as bytestring;
 
       return result;
     }
