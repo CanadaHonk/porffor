@@ -1370,7 +1370,7 @@ const generateBinaryExp = (scope, decl) => {
 };
 
 const asmFuncToAsm = (scope, func, extra) => func(scope, {
-  Valtype, Opcodes, TYPES, TYPE_NAMES, usedTypes, typeSwitch, makeString, internalThrow,
+  Valtype, Opcodes, TYPES, TYPE_NAMES, usedTypes, typeSwitch, makeString, internalThrow, funcs,
   getNodeType, generate, generateIdent,
   builtin: (name, offset = false) => {
     let idx = importedFuncs[name] ?? includeBuiltin(scope, name)?.index;
@@ -1442,7 +1442,13 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
     wasm.push(Opcodes.i32_to_u);
     return wasm;
   },
-  allocPage: (scope, name) => allocPage({ scope, pages }, name)
+  allocPage: (scope, name) => allocPage({ scope, pages }, name),
+  allocLargePage: (scope, name) => {
+    const _ = allocPage({ scope, pages }, name);
+    allocPage({ scope, pages }, name + '#2');
+
+    return _;
+  }
 }, extra);
 
 const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globalInits = {}, returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, returnTypes } = {}) => {
@@ -7284,6 +7290,10 @@ export default program => {
   tags = [];
   exceptions = [];
   funcs = []; indirectFuncs = [];
+  funcs.bytesPerFuncLut = () => {
+    return indirectFuncs._bytesPerFuncLut ??=
+      Math.min(Math.floor((pageSize * 2) / indirectFuncs.length), indirectFuncs.reduce((acc, x) => x.name.length > acc ? x.name.length : acc, 0) + 8);
+  };
   funcIndex = {};
   depth = [];
   pages = new Map();
