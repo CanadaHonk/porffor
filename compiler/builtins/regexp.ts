@@ -1,9 +1,9 @@
 // @porf --valtype=i32
 import type {} from './porffor.d.ts';
 
-// regex memory structure:
-//  source string ptr (u32)
-//  flags (u16):
+// regex memory structure (10):
+//  0 @ source string ptr (u32)
+//  4 @ flags (u16):
 //   g, global - 0b00000001
 //   i, ignore case - 0b00000010
 //   m, multiline - 0b00000100
@@ -12,6 +12,8 @@ import type {} from './porffor.d.ts';
 //   y, sticky - 0b00100000
 //   d, has indices - 0b01000000
 //   v, unicode sets - 0b10000000
+//  6 @ capture count (u16)
+//  8 @ last index (u16)
 //  bytecode (variable):
 //   op (u8)
 //   depends on op (variable)
@@ -48,7 +50,14 @@ import type {} from './porffor.d.ts';
 //   end capture - 0x31:
 //     index (u8)
 
-export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: bytestring): RegExp => {
+export const __Porffor_array_fastPushI32 = (arr: any[], el: any): i32 => {
+  let len: i32 = arr.length;
+  arr[len] = el;
+  arr.length = ++len;
+  return len;
+};
+
+export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytestring): RegExp => {
   const ptr: i32 = Porffor.allocate();
   Porffor.wasm.i32.store(ptr, patternStr, 0, 0);
 
@@ -99,19 +108,21 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
   }
   Porffor.wasm.i32.store16(ptr, flags, 0, 4);
 
-  let bcPtr: i32 = ptr + 6;
+  let bcPtr: i32 = ptr + 10;
   const bcStart: i32 = bcPtr;
   let patternPtr: i32 = patternStr;
   let patternEndPtr: i32 = patternPtr + patternStr.length;
 
-  let groupDepth: i32 = 0;
-  let captureIndex: i32 = 1;
   let lastWasAtom: boolean = false;
   let lastAtomStart: i32 = 0;
-  let groupStack: i32[] = [];
-  let altStackPos: i32[] = [];
-  let altStackGroupDepth: i32[] = [];
   let inClass: boolean = false;
+  let captureIndex: i32 = 1;
+
+  let groupDepth: i32 = 0;
+  // todo: free all at the end (or statically allocate but = [] causes memory corruption)
+  const groupStack: i32[] = Porffor.allocateBytes(6144);
+  const altDepth: i32[] = Porffor.allocateBytes(6144); // number of |s so far at each depth
+  const altStack: i32[] = Porffor.allocateBytes(6144);
 
   while (patternPtr < patternEndPtr) {
     let char: i32 = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
@@ -269,16 +280,18 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
           }
         }
 
+        Porffor.array.fastPushI32(groupStack, lastAtomStart);
+
         groupDepth += 1;
         if (!ncg) {
           Porffor.wasm.i32.store8(bcPtr, 0x30, 0, 0); // start capture
           Porffor.wasm.i32.store8(bcPtr, captureIndex, 0, 1);
           bcPtr += 2;
 
-          Porffor.array.fastPush(groupStack, captureIndex);
+          Porffor.array.fastPushI32(groupStack, captureIndex);
           captureIndex += 1;
         } else {
-          Porffor.array.fastPush(groupStack, -1);
+          Porffor.array.fastPushI32(groupStack, -1);
         }
 
         lastWasAtom = false;
@@ -287,37 +300,46 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
 
       if (char == 41) { // ')'
         if (groupDepth == 0) throw new SyntaxError('Regex parse: unmatched )');
+
+        let thisAltDepth: i32 = altDepth[groupDepth];
+        while (thisAltDepth-- > 0) {
+          const jumpPtr: i32 = altStack.pop();
+          Porffor.wasm.i32.store16(jumpPtr, bcPtr - jumpPtr, 0, 1);
+        }
+        altDepth[groupDepth] = 0;
+
         groupDepth -= 1;
 
-        const popped: i32 = groupStack.pop()!;
-        if (popped != -1) {
+        const capturePop: i32 = groupStack.pop();
+        if (capturePop != -1) {
           Porffor.wasm.i32.store8(bcPtr, 0x31, 0, 0); // end capture
-          Porffor.wasm.i32.store8(bcPtr, popped, 0, 1);
+          Porffor.wasm.i32.store8(bcPtr, capturePop, 0, 1);
           bcPtr += 2;
         }
 
-        // Patch alternation jumps for this group
-        for (let i: i32 = altStackPos.length - 1; i >= 0; --i) {
-          if (altStackGroupDepth[i] < groupDepth + 1) break;
-          Porffor.wasm.i32.store16(altStackPos[i], bcPtr - altStackPos[i] - 5, 0, 3); // patch branch2
-          altStackPos.pop();
-          altStackGroupDepth.pop();
-        }
-
+        const groupStartPtr: i32 = groupStack.pop();
         lastWasAtom = true;
+        lastAtomStart = groupStartPtr;
         continue;
       }
 
       if (char == 124) { // '|'
-        // alternation: fork to choose between alternatives
-        Porffor.array.fastPush(altStackPos, bcPtr);
-        Porffor.array.fastPush(altStackGroupDepth, groupDepth);
+        altDepth[groupDepth] += 1;
 
-        Porffor.wasm.i32.store8(bcPtr, 0x21, 0, 0); // fork
-        Porffor.wasm.i32.store16(bcPtr, 5, 0, 1); // branch1 (next instruction)
-        Porffor.wasm.i32.store16(bcPtr, 0, 0, 3); // branch2 (to patch later)
+        const atomSize: i32 = bcPtr - lastAtomStart;
+        Porffor.wasm.memory.copy(lastAtomStart + 5, lastAtomStart, atomSize, 0, 0);
         bcPtr += 5;
 
+        Porffor.wasm.i32.store8(lastAtomStart, 0x21, 0, 0); // fork
+        Porffor.wasm.i32.store16(lastAtomStart, 5, 0, 1); // branch1: after fork
+
+        Porffor.wasm.i32.store8(bcPtr, 0x20, 0, 0); // jump
+        Porffor.array.fastPushI32(altStack, bcPtr); // target: to be written in later
+        bcPtr += 3;
+
+        Porffor.wasm.i32.store16(lastAtomStart, bcPtr - lastAtomStart, 0, 3); // fork branch2: after jump
+
+        lastAtomStart = bcPtr;
         lastWasAtom = false;
         continue;
       }
@@ -356,7 +378,6 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
 
         // Calculate atom size and move it forward to make space for quantifier logic
         const atomSize: i32 = bcPtr - lastAtomStart;
-
         if (char == 42) { // * (zero or more)
           // Move atom forward to make space for fork BEFORE it
           Porffor.wasm.memory.copy(lastAtomStart + 5, lastAtomStart, atomSize, 0, 0);
@@ -481,12 +502,12 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
         }
 
         // emit n times
+        const atomSize: i32 = bcPtr - lastAtomStart;
         for (let i: i32 = 1; i < n; i++) {
-          let len: i32 = bcPtr - lastAtomStart;
-          for (let j: i32 = 0; j < len; ++j) {
+          for (let j: i32 = 0; j < atomSize; ++j) {
             Porffor.wasm.i32.store8(bcPtr + j, Porffor.wasm.i32.load8_u(lastAtomStart + j, 0, 0), 0, 0);
           }
-          bcPtr += len;
+          bcPtr += atomSize;
         }
 
         if (m == n) {
@@ -505,7 +526,6 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
         } else {
           // {n,m} - exactly between n and m matches
           // Create chain of forks, each executing atom inline
-          const atomSize: i32 = bcPtr - lastAtomStart;
           for (let i: i32 = n; i < m; i++) {
             Porffor.wasm.i32.store8(bcPtr, 0x21, 0, 0); // fork
             if (lazyBrace) {
@@ -664,28 +684,337 @@ export const __Porffor_regex_construct = (patternStr: bytestring, flagsStr: byte
   if (groupDepth != 0) throw new SyntaxError('Regex parse: Unmatched (');
   if (inClass) throw new SyntaxError('Regex parse: Unmatched [');
 
+  let thisAltDepth: i32 = altDepth[groupDepth];
+  while (thisAltDepth-- > 0) {
+    const jumpPtr: i32 = altStack.pop();
+    Porffor.wasm.i32.store16(jumpPtr, bcPtr - jumpPtr, 0, 1);
+  }
+  altDepth[groupDepth] = 0;
+
   // Accept
   Porffor.wasm.i32.store8(bcPtr, 0x10, 0, 0);
 
-  // Patch any remaining alternation jumps at the end of the pattern
-  for (let i: i32 = 0; i < altStackPos.length; i++) {
-    Porffor.wasm.i32.store16(altStackPos[i], bcPtr - altStackPos[i] - 5, 0, 3);
-  }
+  // Store capture count
+  Porffor.wasm.i32.store16(ptr, captureIndex - 1, 0, 6);
 
   return ptr as RegExp;
 };
 
 
-export const RegExp = function (patternStr: any, flagsStr: any = ''): RegExp {
-  if (Porffor.fastOr(
-    Porffor.type(patternStr) != Porffor.TYPES.bytestring,
-    Porffor.type(flagsStr) != Porffor.TYPES.bytestring
-  )) {
-    throw new TypeError('Invalid regular expression');
+export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: boolean): any => {
+  const bcBase: i32 = regexp + 10;
+  const flags: i32 = Porffor.wasm.i32.load16_u(regexp, 0, 4);
+  const totalCaptures: i32 = Porffor.wasm.i32.load16_u(regexp, 0, 6);
+
+  const ignoreCase: boolean = (flags & 0b00000010) != 0;
+  const multiline: boolean = (flags & 0b00000100) != 0;
+  const dotAll: boolean = (flags & 0b00001000) != 0;
+  const global: boolean = (flags & 0b00000001) != 0;
+  const sticky: boolean = (flags & 0b00100000) != 0;
+
+  const inputLen: i32 = Porffor.wasm.i32.load(input, 0, 0);
+  let searchStart: i32 = 0;
+  if (global || sticky) {
+    searchStart = Porffor.wasm.i32.load(regexp, 0, 8);
   }
 
-  return __Porffor_regex_construct(patternStr, flagsStr);
+  if (searchStart > inputLen) {
+    if (global || sticky) Porffor.wasm.i32.store(regexp, 0, 0, 8);
+    return null;
+  }
+
+  // todo: free all at the end (or statically allocate but = [] causes memory corruption)
+  const backtrackStack: i32[] = Porffor.allocate();
+  const captures: i32[] = Porffor.allocateBytes(6144);
+
+  for (let i: i32 = searchStart; i <= inputLen; i++) {
+    if (sticky && i != searchStart) {
+      if (isTest) return false;
+      return null;
+    }
+
+    backtrackStack.length = 0;
+    captures.length = 0;
+
+    let pc: i32 = bcBase;
+    let sp: i32 = i;
+
+    let matched: boolean = false;
+    let finalSp: i32 = -1;
+
+    while (true) {
+      const op: i32 = Porffor.wasm.i32.load8_u(pc, 0, 0);
+      if (op == 0x10) { // accept
+        matched = true;
+        finalSp = sp;
+        break;
+      }
+
+      let backtrack: boolean = false;
+
+      if (op == 0x01) { // single
+        if (sp >= inputLen) {
+          // Porffor.log(`single: oob`);
+          backtrack = true;
+        } else {
+          let c1: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
+          let c2: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+          if (ignoreCase) {
+            if (c1 >= 97 && c1 <= 122) c1 -= 32;
+            if (c2 >= 97 && c2 <= 122) c2 -= 32;
+          }
+          if (c1 == c2) {
+            // Porffor.log(`single: matched ${c1}`);
+            pc += 2;
+            sp += 1;
+          } else {
+            // Porffor.log(`single: failed, expected ${c1}, got ${c2}`);
+            backtrack = true;
+          }
+        }
+      } else if (op == 0x02 || op == 0x03) { // class or negated class
+        if (sp >= inputLen) {
+          backtrack = true;
+        } else {
+          let char: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+          let classPc: i32 = pc + 1;
+          let charInClass: boolean = false;
+          while (true) {
+            const marker: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 0);
+            if (marker == 0xFF) break; // end of class
+
+            if (marker == 0x00) { // range
+              let from: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
+              let to: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 2);
+              let cCheck: i32 = char;
+              if (ignoreCase) {
+                if (from >= 97 && from <= 122) from -= 32;
+                if (to >= 97 && to <= 122) to -= 32;
+                if (cCheck >= 97 && cCheck <= 122) cCheck -= 32;
+              }
+              if (cCheck >= from && cCheck <= to) {
+                charInClass = true;
+                break;
+              }
+              classPc += 3;
+            } else if (marker == 0x01) { // char
+              let c1: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
+              let c2: i32 = char;
+              if (ignoreCase) {
+                if (c1 >= 97 && c1 <= 122) c1 -= 32;
+                if (c2 >= 97 && c2 <= 122) c2 -= 32;
+              }
+              if (c1 == c2) {
+                charInClass = true;
+                break;
+              }
+              classPc += 2;
+            } else if (marker == 0x02) { // predefined
+              const classId: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
+              let isMatch: boolean = false;
+              if (classId == 1) isMatch = char >= 48 && char <= 57;
+              else if (classId == 2) isMatch = !(char >= 48 && char <= 57);
+              else if (classId == 3) isMatch = Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
+              else if (classId == 4) isMatch = !Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
+              else if (classId == 5) isMatch = (char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95;
+              else if (classId == 6) isMatch = !((char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95);
+
+              if (isMatch) {
+                charInClass = true;
+                break;
+              }
+              classPc += 2;
+            }
+          }
+
+          if (op == 0x03) charInClass = !charInClass;
+
+          if (charInClass) {
+            while (Porffor.wasm.i32.load8_u(classPc, 0, 0) != 0xFF) {
+              const marker: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 0);
+              if (marker == 0x00) classPc += 3;
+              else if (marker == 0x01) classPc += 2;
+              else if (marker == 0x02) classPc += 2;
+            }
+            pc = classPc + 1;
+            sp += 1;
+          } else {
+            backtrack = true;
+          }
+        }
+      } else if (op == 0x04) { // predefined class
+        if (sp >= inputLen) {
+          backtrack = true;
+        } else {
+          const classId: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
+          const char: i32 = Porffor.wasm.i32.load8_u(input + 4 + sp, 0, 0);
+          let isMatch: boolean = false;
+          if (classId == 1) isMatch = char >= 48 && char <= 57;
+          else if (classId == 2) isMatch = !(char >= 48 && char <= 57);
+          else if (classId == 3) isMatch = Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
+          else if (classId == 4) isMatch = !Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
+          else if (classId == 5) isMatch = (char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95;
+          else if (classId == 6) isMatch = !((char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95);
+
+          if (isMatch) {
+            pc += 2;
+            sp += 1;
+          } else {
+            backtrack = true;
+          }
+        }
+      } else if (op == 0x05) { // start
+        if (sp == 0 || (multiline && sp > 0 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) == 10)) {
+          pc += 1;
+        } else {
+          backtrack = true;
+        }
+      } else if (op == 0x06) { // end
+        if (sp == inputLen || (multiline && sp < inputLen && Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 10)) {
+          pc += 1;
+        } else {
+          backtrack = true;
+        }
+      } else if (op == 0x07) { // word boundary
+        const prevIsWord = sp > 0 && ((Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 65 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 90) || (Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 97 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 122) || (Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 48 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 57) || Porffor.wasm.i32.load8_u(input + sp, 0, 3) == 95);
+        const nextIsWord = sp < inputLen && ((Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 65 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 90) || (Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 97 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 122) || (Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 48 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 57) || Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 95);
+        if (prevIsWord != nextIsWord) {
+          pc += 1;
+        } else {
+          backtrack = true;
+        }
+      } else if (op == 0x08) { // non-word boundary
+        const prevIsWord = sp > 0 && ((Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 65 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 90) || (Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 97 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 122) || (Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 48 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 57) || Porffor.wasm.i32.load8_u(input + sp, 0, 3) == 95);
+        const nextIsWord = sp < inputLen && ((Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 65 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 90) || (Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 97 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 122) || (Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 48 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 57) || Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 95);
+        if (prevIsWord == nextIsWord) {
+          pc += 1;
+        } else {
+          backtrack = true;
+        }
+      } else if (op == 0x09) { // dot
+        if (sp >= inputLen || (!dotAll && Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 10)) {
+          backtrack = true;
+        } else {
+          pc += 1;
+          sp += 1;
+        }
+      } else if (op == 0x0a) { // back reference
+        const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
+        const arrIndex = (capIndex - 1) * 2;
+        if (arrIndex + 1 >= captures.length) { // reference to group that hasn't been seen
+          pc += 2;
+        } else {
+          const capStart = captures[arrIndex];
+          const capEnd = captures[arrIndex + 1];
+          if (capStart == -1 || capEnd == -1) { // reference to unmatched group
+            pc += 2;
+          } else {
+            const capLen = capEnd - capStart;
+            if (sp + capLen > inputLen) {
+              backtrack = true;
+            } else {
+              let matches = true;
+              for (let k = 0; k < capLen; k++) {
+                let c1 = Porffor.wasm.i32.load8_u(input + capStart + k, 0, 4);
+                let c2 = Porffor.wasm.i32.load8_u(input + sp + k, 0, 4);
+                if (ignoreCase) {
+                  if (c1 >= 97 && c1 <= 122) c1 -= 32;
+                  if (c2 >= 97 && c2 <= 122) c2 -= 32;
+                }
+                if (c1 != c2) {
+                  matches = false;
+                  break;
+                }
+              }
+              if (matches) {
+                sp += capLen;
+                pc += 2;
+              } else {
+                backtrack = true;
+              }
+            }
+          }
+        }
+      } else if (op == 0x20) { // jump
+        pc += Porffor.wasm.i32.load16_s(pc, 0, 1);
+      } else if (op == 0x21) { // fork
+        const branch1Offset = Porffor.wasm.i32.load16_s(pc, 0, 1);
+        const branch2Offset = Porffor.wasm.i32.load16_s(pc, 0, 3);
+
+        Porffor.array.fastPushI32(backtrackStack, pc + branch2Offset);
+        Porffor.array.fastPushI32(backtrackStack, sp);
+        Porffor.array.fastPushI32(backtrackStack, captures.length);
+
+        pc += branch1Offset;
+      } else if (op == 0x30) { // start capture
+        const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
+        const arrIndex = capIndex + 255; // + 255 offset for temp start, as it could never end properly
+        captures[arrIndex] = sp;
+        // Porffor.log(`startCapture: captures[${arrIndex}] = ${sp} | captures.length = ${captures.length}`);
+        pc += 2;
+      } else if (op == 0x31) { // end capture
+        const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
+        const arrIndex = (capIndex - 1) * 2 + 1;
+        while (captures.length <= arrIndex) Porffor.array.fastPushI32(captures, -1);
+        captures[arrIndex - 1] = captures[capIndex + 255];
+        captures[arrIndex] = sp;
+        // Porffor.log(`endCapture: captures[${arrIndex}] = ${sp} | captures.length = ${captures.length}`);
+        pc += 2;
+      } else { // unknown op
+        backtrack = true;
+      }
+
+      if (backtrack) {
+        if (backtrackStack.length == 0) break;
+        // Porffor.log(`backtrack! before: captures.length = ${captures.length}, sp = ${sp}, pc = ${pc}`);
+        captures.length = backtrackStack.pop();
+        sp = backtrackStack.pop();
+        pc = backtrackStack.pop();
+        // Porffor.log(`backtrack! after: captures.length = ${captures.length}, sp = ${sp}, pc = ${pc}`);
+      }
+    }
+
+    if (matched) {
+      if (isTest) return true;
+
+      const matchStart: i32 = i;
+      if (global || sticky) {
+        Porffor.wasm.i32.store(regexp, finalSp, 0, 8);
+      }
+
+      const result: any[] = Porffor.allocateBytes(4096);
+      Porffor.array.fastPush(result, __ByteString_prototype_substring(input, matchStart, finalSp));
+
+      for (let k = 0; k < totalCaptures; k++) {
+        const arrIdx = k * 2;
+        if (arrIdx + 1 < captures.length) {
+          const capStart = captures[arrIdx];
+          const capEnd = captures[arrIdx + 1];
+          if (capStart != -1 && capEnd != -1) {
+            Porffor.array.fastPush(result, __ByteString_prototype_substring(input, capStart, capEnd));
+          } else {
+            Porffor.array.fastPush(result, undefined);
+          }
+        } else {
+          Porffor.array.fastPush(result, undefined);
+        }
+      }
+
+      result.index = matchStart;
+      result.input = input;
+
+      return result;
+    }
+  }
+
+  if (global || sticky) {
+    Porffor.wasm.i32.store(regexp, 0, 0, 8);
+  }
+
+  if (isTest) return false;
+  return null;
 };
+
 
 export const __RegExp_prototype_source$get = (_this: RegExp) => {
   return Porffor.wasm.i32.load(_this, 0, 0) as bytestring;
@@ -766,4 +1095,54 @@ export const __RegExp_prototype_unicodeSets$get = (_this: RegExp) => {
 
 export const __RegExp_prototype_toString = (_this: RegExp) => {
   return '/' + _this.source + '/' + _this.flags;
+};
+
+
+export const RegExp = function (pattern: any, flags: any = undefined): RegExp {
+  let patternSrc, flagsSrc;
+  if (Porffor.type(pattern) === Porffor.TYPES.regexp) {
+    patternSrc = __RegExp_prototype_source$get(pattern);
+    if (flags === undefined) {
+      flagsSrc = __RegExp_prototype_flags$get(pattern);
+    } else {
+      flagsSrc = flags;
+    }
+  } else {
+    patternSrc = pattern;
+    flagsSrc = flags;
+  }
+
+  if (patternSrc === undefined) patternSrc = '';
+  if (flagsSrc === undefined) flagsSrc = '';
+
+  if (Porffor.type(patternSrc) !== Porffor.TYPES.bytestring || Porffor.type(flagsSrc) !== Porffor.TYPES.bytestring) {
+    throw new TypeError('Invalid regular expression');
+  }
+
+  return __Porffor_regex_compile(patternSrc, flagsSrc);
+};
+
+
+export const __RegExp_prototype_exec = (_this: RegExp, input: bytestring) => {
+  return __Porffor_regex_interpret(_this, input, false);
+};
+
+export const __RegExp_prototype_test = (_this: RegExp, input: bytestring) => {
+  return __Porffor_regex_interpret(_this, input, true);
+};
+
+export const __String_prototype_match = (_this: string, regexp: RegExp) => {
+  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) {
+    regexp = new RegExp(regexp);
+  }
+
+  return regexp.exec(_this);
+};
+
+export const __ByteString_prototype_match = (_this: bytestring, regexp: RegExp) => {
+  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) {
+    regexp = new RegExp(regexp);
+  }
+
+  return regexp.exec(_this);
 };

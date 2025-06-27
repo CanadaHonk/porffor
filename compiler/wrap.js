@@ -351,7 +351,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       const [ flags ] = read(Uint16Array, memory, value + 4, 1);
 
       if (Prefs.d) {
-        const bc = new Uint8Array(memory.buffer.slice(value + 6));
+        const bc = new Uint8Array(memory.buffer.slice(value + 10));
         let i = 0;
         while (true) {
           const opcode = bc[i++];
@@ -449,7 +449,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
             case 0x30:
             case 0x31: {
               const index = bc[i++];
-              console.log(`${opcode === 0x30 ? 'start' : 'end'} capture`, index);
+              console.log(`\x1b[2m${opcode === 0x30 ? 'start' : 'end'} capture ${index}\x1b[0m`);
               break;
             }
           }

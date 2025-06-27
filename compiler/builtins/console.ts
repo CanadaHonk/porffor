@@ -549,3 +549,8 @@ export const __console_timeEnd = (label: any) => {
   __console_timeLog(label);
   timeMap.delete(label);
 };
+
+export const __Porffor_log = (arg: any) => {
+  __Porffor_consolePrint(arg);
+  Porffor.printStatic('\n');
+};
