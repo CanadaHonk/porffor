@@ -25,9 +25,9 @@ jobs:
             --target ${{ matrix.target }} \
             --include runtime \
             --include compiler \
-            --output porffor \
+            --output out/porffor \
             runtime/index.js
       - uses: actions/upload-artifact@v4
         with:
           name: porf-${{ matrix.target }}
-          path: porffor
+          path: out/*
