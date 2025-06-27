@@ -432,6 +432,8 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
       }
 
       if (char == 123) { // {n,m}
+        if (!lastWasAtom) throw new SyntaxError('Regex parser: quantifier without atom');
+
         // parse n
         let n: i32 = 0;
         let m: i32 = -1;
@@ -545,6 +547,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
           }
         }
 
+        lastWasAtom = false;
         continue;
       }
     } else {
