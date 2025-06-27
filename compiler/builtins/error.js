@@ -62,7 +62,7 @@ export const __Test262Error_thrower = message => {
   throw new Test262Error(message);
 };
 
-export const __Error_isError = (x: unknown): boolean => Porffor.fastOr(${errors.map(x => `Porffor.type(x) == Porffor.TYPES.${x.toLowerCase()}`).join(', ')});`;
+export const __Error_isError = (x: unknown): boolean => Porffor.fastAnd(Porffor.type(x) >= Porffor.TYPES.error, Porffor.type(x) <= Porffor.TYPES.test262error);`;
 
   return out;
 };

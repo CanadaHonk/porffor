@@ -19,7 +19,7 @@ const logFuncs = (funcs, globals, exceptions) => {
   if (typeof wanted !== 'string') wanted = null;
 
   for (const f of funcs) {
-    if ((wanted && f.name !== wanted) || (!wanted && f.internal)) continue;
+    if ((wanted && (f.name !== wanted && wanted !== '!')) || (!wanted && f.internal)) continue;
     console.log(disassemble(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
   }
 
@@ -61,8 +61,8 @@ const progressClear = () => {
   progressLines = 0;
 };
 
-export default (code, module = undefined) => {
-  if (module !== undefined) Prefs.module = module;
+export default (code, module = Prefs.module) => {
+  Prefs.module = module;
 
   globalThis.valtype = Prefs.valtype ?? 'f64';
   globalThis.valtypeBinary = Valtype[valtype];
@@ -253,11 +253,19 @@ export default (code, module = undefined) => {
     const compiler = (Prefs.compiler ?? process.env.CC ?? 'cc').split(' ');
     const cO = Prefs._cO ?? 'O3';
 
-    const tmpfile = 'porffor_tmp.c';
-    const args = [ ...compiler, tmpfile, '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), '-' + cO ];
+    const args = [
+      ...compiler,
+      '-xc', '-', // use stdin as c source in
+      '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), // set path for output
 
-    // todo: redo how default cc args work
-    if (compiler.includes('clang')) args.push('-lm', '-flto=thin', '-march=native', '-ffast-math', '-fno-exceptions', '-fno-ident', '-fno-asynchronous-unwind-tables', '-ffunction-sections', '-fdata-sections');
+      // default cc args, always
+      '-lm', // link math.h
+      '-fno-exceptions', // disable exceptions
+      '-fno-ident', '-ffunction-sections', '-fdata-sections', // remove unneeded binary sections
+      '-' + cO
+    ];
+
+    if (Prefs.clangFast) args.push('-flto=thin', '-march=native', '-ffast-math', '-fno-asynchronous-unwind-tables');
 
     if (Prefs.s) args.push('-s');
 
@@ -269,12 +277,12 @@ export default (code, module = undefined) => {
     if (logProgress) progressStart(`compiling C to native (using ${compiler})...`);
     const t5 = performance.now();
 
-    fs.writeFileSync(tmpfile, c);
-
     // obvious command escape is obvious
-    execSync(args.join(' '), { stdio: 'inherit' });
-
-    fs.unlinkSync(tmpfile);
+    execSync(args.join(' '), {
+      stdio: [ 'pipe', 'inherit', 'inherit' ],
+      input: c,
+      encoding: 'utf8'
+    });
 
     if (logProgress) progressStart(`compiled C to native (using ${compiler})`, t5);
 

@@ -14,3 +14,4 @@ pnpm-lock.yaml
 /test262/test262
 /test262/results.json
 /test262/.threads
+/envoy

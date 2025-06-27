@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.57.28';
+globalThis.version = '0.58.13';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -27,7 +27,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     'Analyze': [],
     profile: [ 93, 'foo.js', 'View detailed func-by-func performance' ],
     debug: [ 33, 'foo.js', 'Debug the source of a file' ],
-    dissect: [ 33, 'foo.js', 'Debug the compiled Wasm of a file' ],
+    // dissect: [ 33, 'foo.js', 'Debug the compiled Wasm of a file' ],
   })) {
     if (color == null) {
       // header
@@ -68,7 +68,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
       'exception-mode': 'Exception mode to use (lut|\x1B[1mstack\x1B[0m)',
       'fast-length': 'Non-compliant optimization to make .length faster',
       'profile-compiler': 'Log general compiler performance (on by default when compiling to a file)',
-      prng: 'PRNG algorithm to use (lcg32|xorshift32+|xorshift64+|\x1B[1mxorshift128+\x1B[0m|xoroshiro128+|xoshiro128+)'
+      prng: 'PRNG algorithm to use (xorshift32+|xorshift64+|\x1B[1mxorshift128+\x1B[0m|xoroshiro128+|xoshiro128+)'
     })) {
       flag = '-' + flag;
       if (flag.length > 3) flag = '-' + flag;
@@ -113,9 +113,9 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'dissect'].
     process.argv.push(`--target=${file}`);
   }
 
-  if (file === 'dissect') {
-    process.argv.push('--asur', '--wasm-debug');
-  }
+  // if (file === 'dissect') {
+  //   process.argv.push('--asur', '--wasm-debug');
+  // }
 
   file = process.argv.slice(2).find(x => x[0] !== '-');
 

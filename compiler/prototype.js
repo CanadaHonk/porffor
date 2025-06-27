@@ -320,7 +320,6 @@ export const PrototypeFuncs = function() {
   this[TYPES.string].at.local2 = Valtype.i32;
   this[TYPES.string].charAt.local = Valtype.i32;
   this[TYPES.string].charCodeAt.local = Valtype.i32;
-  this[TYPES.string].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 
   this[TYPES.bytestring] = {
     at: ({ pointer, length, arg, iTmp, iTmp2, alloc, setType }) => [
@@ -454,5 +453,4 @@ export const PrototypeFuncs = function() {
   this[TYPES.bytestring].at.local2 = Valtype.i32;
   this[TYPES.bytestring].charAt.local = Valtype.i32;
   this[TYPES.bytestring].charCodeAt.local = Valtype.i32;
-  this[TYPES.bytestring].charCodeAt.noPointerCache = zeroChecks.charcodeat;
 };

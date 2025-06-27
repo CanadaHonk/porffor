@@ -205,6 +205,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
     // generate func lut data
     const bytes = [];
+    const bytesPerFunc = funcs.bytesPerFuncLut();
     for (let i = 0; i < indirectFuncs.length; i++) {
       const func = indirectFuncs[i].wrapperOf;
       let name = func.name;
@@ -233,13 +234,14 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
       // eg: __String_prototype_toLowerCase -> toLowerCase
       if (name.startsWith('__')) name = name.split('_').pop();
 
-      bytes.push(...new Uint8Array(new Int32Array([ Math.min(name.length, 48 - 5 - 4) ]).buffer));
-
-      for (let i = 0; i < (48 - 3 - 4); i++) {
+      bytes.push(...new Uint8Array(new Int32Array([ Math.min(name.length, bytesPerFunc - 3 - 4) ]).buffer));
+      for (let i = 0; i < (bytesPerFunc - 3 - 4); i++) {
         const c = name.charCodeAt(i);
         bytes.push((c || 0) % 256);
       }
     }
+
+    if (Prefs.debugFuncLut) log('assemble', `func lut using ${bytes.length}/${pageSize * 2} (${bytesPerFunc} bytes per func)`);
 
     data.push({
       page: 'func lut',
@@ -425,7 +427,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
 
       // encode call indirect ops as types from info
       if (op === Opcodes.call_indirect) {
-        const params = [];
+        const params = [ Valtype.i32 ];
         for (let i = 0; i < o[1]; i++) {
           params.push(valtypeBinary, Valtype.i32);
         }

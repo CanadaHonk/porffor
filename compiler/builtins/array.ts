@@ -536,7 +536,7 @@ export const __Array_prototype_findIndex = (_this: any[], callbackFn: any, thisA
 };
 
 // @porf-typed-array
-export const __Array_prototype_findLastIndex = (_this: any[], callbackF: any, thisArg: any) => {
+export const __Array_prototype_findLastIndex = (_this: any[], callbackFn: any, thisArg: any) => {
   let i: i32 = _this.length;
   while (i > 0) {
     if (!!callbackFn.call(thisArg, _this[--i], i, _this)) return i;
@@ -746,8 +746,11 @@ export const __Array_prototype_toReversed = (_this: any[]) => {
   let out: any[] = Porffor.allocate();
   out.length = len;
 
-  while (start < end) {
+  while (true) {
     out[start] = _this[end];
+    if (start >= end) {
+      break;
+    }
     out[end--] = _this[start++];
   }
 

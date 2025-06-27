@@ -2,7 +2,7 @@ import { Opcodes, Valtype } from './wasmSpec.js';
 import { number } from './encoding.js';
 import { createImport, importedFuncs } from './builtins.js';
 import assemble from './assemble.js';
-import wrap, { writeByteStr } from './wrap.js';
+import wrap from './wrap.js';
 import * as Havoc from './havoc.js';
 import './prefs.js';
 
@@ -95,18 +95,19 @@ export const run = obj => {
 
     const { exports } = wrap(obj, undefined, {
       readArgv: (ind, outPtr) => {
-        const pgoInd = process.argv.indexOf('--pgo');
-        let args = process.argv.slice(pgoInd);
-        args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
+        // const pgoInd = process.argv.indexOf('--pgo');
+        // let args = process.argv.slice(pgoInd);
+        // args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
 
-        const str = args[ind - 1];
-        if (pgoInd === -1 || !str) {
-          if (Prefs.pgoLog) console.log('\nPGO warning: script was expecting arguments, please specify args to use for PGO after --pgo arg');
-          return -1;
-        }
+        // const str = args[ind - 1];
+        // if (pgoInd === -1 || !str) {
+        //   if (Prefs.pgoLog) console.log('\nPGO warning: script was expecting arguments, please specify args to use for PGO after --pgo arg');
+        //   return -1;
+        // }
 
-        writeByteStr(exports.$, outPtr, str);
-        return str.length;
+        // writeByteStr(exports.$, outPtr, str);
+        // return str.length;
+        return -1;
       },
       readFile: (pathPtr, outPtr) => {
         return -1;

@@ -2,7 +2,7 @@ import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { TYPES } from './types.js';
 import { number } from './encoding.js';
 
-export default function({ builtinFuncs }, Prefs) {
+export default function ({ builtinFuncs }, Prefs) {
   const makePrefix = name => (name.startsWith('__') ? '' : '__') + name + '_';
 
   const done = new Set();
@@ -72,15 +72,14 @@ export default function({ builtinFuncs }, Prefs) {
             continue;
           }
 
-          let flags = 0b0000;
+          let add = true;
+          if (existingFunc && (x === 'prototype' || x === 'constructor')) add = false;
 
+          let flags = 0b0000;
           const d = props[x];
           if (d.configurable) flags |= 0b0010;
           if (d.enumerable) flags |= 0b0100;
           if (d.writable) flags |= 0b1000;
-
-          // hack: do not generate objects inside of objects as it causes issues atm
-          if (this[prefix + x]?.type === TYPES.object && this[prefix + x] !== this.null) value = { type: 'ObjectExpression', properties: [] };
 
           out.push(
             [ Opcodes.local_get, 0 ],
@@ -96,7 +95,7 @@ export default function({ builtinFuncs }, Prefs) {
             number(flags, Valtype.i32),
             number(TYPES.number, Valtype.i32),
 
-            [ Opcodes.call, builtin('__Porffor_object_fastAdd') ]
+            [ Opcodes.call, builtin(add ? '__Porffor_object_fastAdd' : '__Porffor_object_define') ]
           );
         }
 
@@ -170,11 +169,20 @@ export default function({ builtinFuncs }, Prefs) {
     const prefix = makePrefix(name);
     return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length)).filter(x => !x.startsWith('prototype_'));
   };
-  const autoFuncs = name => props({
-    writable: true,
-    enumerable: false,
-    configurable: true
-  }, autoFuncKeys(name));
+  const autoFuncs = name => ({
+    ...props({
+      writable: true,
+      enumerable: false,
+      configurable: true
+    }, autoFuncKeys(name)),
+    ...(this[`__${name}_prototype`] ? {
+      prototype: {
+        writable: false,
+        enumerable: false,
+        configurable: false
+      }
+    } : {})
+  });
 
   object('Math', {
     ...props({
@@ -248,27 +256,15 @@ export default function({ builtinFuncs }, Prefs) {
       NaN: NaN,
       POSITIVE_INFINITY: Infinity,
       NEGATIVE_INFINITY: -Infinity,
-
       MAX_VALUE: valtype === 'i32' ? 2147483647 : 1.7976931348623157e+308,
       MIN_VALUE: valtype === 'i32' ? -2147483648 : 5e-324,
-
       MAX_SAFE_INTEGER: valtype === 'i32' ? 2147483647 : 9007199254740991,
       MIN_SAFE_INTEGER: valtype === 'i32' ? -2147483648 : -9007199254740991,
-
       EPSILON: 2.220446049250313e-16
     }),
 
     ...autoFuncs('Number')
   });
-
-  object('Reflect', autoFuncs('Reflect'));
-  object('Object', autoFuncs('Object'));
-  object('JSON', autoFuncs('JSON'));
-  object('Promise', autoFuncs('Promise'));
-  object('Array', autoFuncs('Array'));
-  object('Symbol', autoFuncs('Symbol'));
-  object('Date', autoFuncs('Date'));
-  object('Atomics', autoFuncs('Atomics'));
 
   // these technically not spec compliant as it should be classes or non-enumerable but eh
   object('navigator', {
@@ -286,13 +282,15 @@ export default function({ builtinFuncs }, Prefs) {
     'crypto',
     'performance',
   ]) {
-    object(x, {
-      ...props({
-        writable: true,
-        enumerable: true,
-        configurable: true
-      }, autoFuncKeys(x).slice(0, 12))
-    });
+    object(x, props({
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }, autoFuncKeys(x).slice(0, 12)));
+  }
+
+  for (const x of [ 'Array', 'ArrayBuffer', 'Atomics', 'Date', 'Error', 'JSON', 'Object', 'Promise', 'Reflect', 'String', 'Symbol', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'SharedArrayBuffer', 'BigInt', 'Boolean', 'DataView', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'Function', 'Map', 'RegExp', 'Set', 'WeakMap', 'WeakRef', 'WeakSet' ]) {
+    object(x, autoFuncs(x));
   }
 
   const enumerableGlobals = [ 'atob', 'btoa', 'performance', 'crypto', 'navigator' ];
@@ -334,7 +332,6 @@ export default function({ builtinFuncs }, Prefs) {
 
   if (Prefs.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(this))) {
     if (!x.startsWith('__')) continue;
-
     const name = x.split('_').slice(2, -1).join('_');
 
     let t = globalThis;

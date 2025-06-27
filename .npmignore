@@ -2,6 +2,7 @@
 /bench
 /demos
 /test262
+/envoy
 
 logo.png
 index.html
@@ -13,3 +14,6 @@ publish.js
 *.csv
 *.txt
 *.exe
+
+.editorconfig
+.npmignore

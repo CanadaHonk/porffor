@@ -152,10 +152,7 @@ i32.const 7 ;; object
 return`;
   }
 
-  if (Porffor.fastAnd(
-    Porffor.type(_obj) > 0x05,
-    Porffor.type(_obj) != Porffor.TYPES.undefined
-  )) {
+  if (Porffor.type(_obj) > 0x05) {
     if (underlyingStore == 0) underlyingStore = Porffor.allocate();
 
     // check if underlying object already exists for obj
@@ -310,7 +307,7 @@ export const __Porffor_object_getPrototype = (obj: any): any => {
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
-      // return empty
+      // return undefined
       Porffor.wasm`
 i32.const 0
 i32.const 0
@@ -328,7 +325,7 @@ return`;
 
 export const __Porffor_object_getPrototypeWithHidden = (obj: any, trueType: i32): any => {
   const objectProto: any = __Porffor_object_getPrototype(obj);
-  if (Porffor.type(objectProto) != Porffor.TYPES.empty) return objectProto;
+  if (Porffor.type(objectProto) != Porffor.TYPES.undefined) return objectProto;
 
   return __Porffor_object_getHiddenPrototype(trueType);
 };
@@ -395,22 +392,14 @@ return`;
 export const __Porffor_object_accessorGet = (entryPtr: i32): Function|undefined => {
   const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 8);
 
-  // no getter, return undefined
-  if (Porffor.wasm`local.get ${out}` == 0) {
-    return undefined;
-  }
-
+  if (Porffor.wasm`local.get ${out}` == 0) return undefined;
   return out;
 };
 
 export const __Porffor_object_accessorSet = (entryPtr: i32): Function|undefined => {
   const out: Function = Porffor.wasm.i32.load(entryPtr, 0, 12);
 
-  // no setter, return undefined
-  if (Porffor.wasm`local.get ${out}` == 0) {
-    return undefined;
-  }
-
+  if (Porffor.wasm`local.get ${out}` == 0) return undefined;
   return out;
 };
 
@@ -472,8 +461,8 @@ local.set ${obj}
 i32.load8_u 0 3
 local.set ${obj+1}`;
 
-      // if empty, prototype is object.prototype
-      if (Porffor.type(obj) == Porffor.TYPES.empty) obj = __Object_prototype;
+      // if undefined, prototype is object.prototype
+      if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
     } else obj = __Porffor_object_getHiddenPrototype(trueType);
 
     // todo/opt: put this behind comptime flag if only __proto__ is used
@@ -507,12 +496,7 @@ local.set ${obj+1}`;
       lastProto = obj;
     }
 
-    if (entryPtr == -1) {
-      Porffor.wasm`
-f64.const 0
-i32.const 128
-return`;
-    }
+    if (entryPtr == -1) return undefined;
   }
 
   const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 16);
@@ -520,14 +504,7 @@ return`;
     // accessor descriptor
     const get: Function = __Porffor_object_accessorGet(entryPtr);
 
-    // no getter, return undefined
-    if (Porffor.wasm`local.get ${get}` == 0) {
-      Porffor.wasm`
-f64.const 0
-i32.const 128
-return`;
-    }
-
+    if (Porffor.wasm`local.get ${get}` == 0) return undefined;
     return get.call(obj);
   }
 
@@ -560,8 +537,8 @@ local.set ${obj}
 i32.load8_u 0 3
 local.set ${obj+1}`;
 
-      // if empty, prototype is object.prototype
-      if (Porffor.type(obj) == Porffor.TYPES.empty) obj = __Object_prototype;
+      // if undefined, prototype is object.prototype
+      if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
     } else obj = __Porffor_object_getHiddenPrototype(trueType);
 
     if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
@@ -585,12 +562,7 @@ local.set ${obj+1}`;
       lastProto = obj;
     }
 
-    if (entryPtr == -1) {
-      Porffor.wasm`
-f64.const 0
-i32.const 128
-return`;
-    }
+    if (entryPtr == -1) return undefined;
   }
 
   const tail: i32 = Porffor.wasm.i32.load16_u(entryPtr, 0, 16);
@@ -598,14 +570,7 @@ return`;
     // accessor descriptor
     const get: Function = __Porffor_object_accessorGet(entryPtr);
 
-    // no getter, return undefined
-    if (Porffor.wasm`local.get ${get}` == 0) {
-      Porffor.wasm`
-f64.const 0
-i32.const 128
-return`;
-    }
-
+    if (Porffor.wasm`local.get ${get}` == 0) return undefined;
     return get.call(obj);
   }
 
@@ -658,11 +623,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
         if (tail & 0b0001) {
           // accessor descriptor
           const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-          // no setter, return early
-          if (Porffor.wasm`local.get ${set}` == 0) {
-            return value;
-          }
+          if (Porffor.wasm`local.get ${set}` == 0) return value;
 
           set.call(obj, value);
           return value;
@@ -694,11 +655,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
     if (tail & 0b0001) {
       // accessor descriptor
       const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-      // no setter, return early
-      if (Porffor.wasm`local.get ${set}` == 0) {
-        return value;
-      }
+      if (Porffor.wasm`local.get ${set}` == 0) return value;
 
       set.call(obj, value);
       return value;
@@ -757,11 +714,7 @@ export const __Porffor_object_set_withHash = (obj: any, key: any, value: any, ha
         if (tail & 0b0001) {
           // accessor descriptor
           const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-          // no setter, return early
-          if (Porffor.wasm`local.get ${set}` == 0) {
-            return value;
-          }
+          if (Porffor.wasm`local.get ${set}` == 0) return value;
 
           set.call(obj, value);
           return value;
@@ -793,11 +746,7 @@ export const __Porffor_object_set_withHash = (obj: any, key: any, value: any, ha
     if (tail & 0b0001) {
       // accessor descriptor
       const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-      // no setter, return early
-      if (Porffor.wasm`local.get ${set}` == 0) {
-        return value;
-      }
+      if (Porffor.wasm`local.get ${set}` == 0) return value;
 
       set.call(obj, value);
       return value;
@@ -864,11 +813,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
         if (tail & 0b0001) {
           // accessor descriptor
           const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-          // no setter, return early
-          if (Porffor.wasm`local.get ${set}` == 0) {
-            return value;
-          }
+          if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
           set.call(obj, value);
           return value;
@@ -900,11 +845,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
     if (tail & 0b0001) {
       // accessor descriptor
       const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-      // no setter, return early
-      if (Porffor.wasm`local.get ${set}` == 0) {
-        throw new TypeError('Cannot set property with no setter of object');
-      }
+      if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
       set.call(obj, value);
       return value;
@@ -964,11 +905,7 @@ export const __Porffor_object_setStrict_withHash = (obj: any, key: any, value: a
         if (tail & 0b0001) {
           // accessor descriptor
           const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-          // no setter, return early
-          if (Porffor.wasm`local.get ${set}` == 0) {
-            return value;
-          }
+          if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
           set.call(obj, value);
           return value;
@@ -1000,11 +937,7 @@ export const __Porffor_object_setStrict_withHash = (obj: any, key: any, value: a
     if (tail & 0b0001) {
       // accessor descriptor
       const set: Function = __Porffor_object_accessorSet(entryPtr);
-
-      // no setter, return early
-      if (Porffor.wasm`local.get ${set}` == 0) {
-        throw new TypeError('Cannot set property with no setter of object');
-      }
+      if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
       set.call(obj, value);
       return value;
