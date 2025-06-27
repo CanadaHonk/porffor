@@ -17,7 +17,7 @@ globalThis.parser = '';
 let parse;
 const loadParser = async (fallbackParser = 'acorn', forceParser) => {
   parser = forceParser ?? Prefs.parser ?? fallbackParser;
-  const mod = (await import((globalThis.document || globalThis.Deno ? 'https://esm.sh/' : '') + parser));
+  const mod = (await import((globalThis.document ? 'https://esm.sh/' : '') + parser));
   if (mod.parseSync) parse = mod.parseSync;
     else parse = mod.parse;
 };

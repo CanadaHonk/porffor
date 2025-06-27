@@ -79,7 +79,7 @@ const memoryToString = mem => {
 };
 
 let prev = '';
-const run = (source, _context, _filename, callback, run = true) => {
+const run = async (source, _context, _filename, callback, run = true) => {
   // hack: print "secret" before latest code ran to only enable printing for new code
 
   source = source.trim();

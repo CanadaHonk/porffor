@@ -7,19 +7,26 @@ jobs:
     strategy:
       matrix:
         target:
-          - bun-linux-x64
-          - bun-linux-arm64
-          - bun-windows-x64
-          - bun-darwin-x64
-          - bun-darwin-arm64
-          - bun-linux-x64-musl
-          - bun-linux-arm64-musl
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-pc-windows-msvc
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile --exact
-      - run: bun build --compile --minify --sourcemap --target=${{ matrix.target }} runtime/index.js --outfile porf
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno install
+      - run: |
+          deno compile \
+            --allow-all \
+            --no-check \
+            --target ${{ matrix.target }} \
+            --include runtime \
+            --include compiler \
+            --output porf \
+            runtime/index.js
       - uses: actions/upload-artifact@v4
         with:
           name: porf-${{ matrix.target }}
