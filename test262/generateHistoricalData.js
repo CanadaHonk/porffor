@@ -6,7 +6,7 @@ const out = [];
 
 for (let i = 0; i < log.length; i++) {
   const x = log[i];
-  if (!x.startsWith('test262: 1') && !x.startsWith('test262: 2') && !x.startsWith('test262: 3') && !x.startsWith('test262: 4') && !x.startsWith('test262: 5')) continue;
+  if (!x.startsWith('test262: 1') && !x.startsWith('test262: 2') && !x.startsWith('test262: 3') && !x.startsWith('test262: 4') && !x.startsWith('test262: 5') && !x.startsWith('test262: 6')) continue;
 
   let title;
   let j = i;
