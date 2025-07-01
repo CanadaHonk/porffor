@@ -6,8 +6,6 @@ import './prefs.js';
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 
-const checkOOB = (memory, ptr) => ptr >= memory.buffer.byteLength;
-
 let dv;
 const read = (ta, memory, ptr, length) => {
   if (ta === Uint8Array) return new Uint8Array(memory.buffer, ptr, length);
@@ -43,7 +41,7 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
     case TYPES.booleanobject: return new Boolean(value);
 
     case TYPES.object: {
-      if (value === 0 || checkOOB(memory, value)) return null;
+      if (value === 0) return null;
 
       const size = read(Uint16Array, memory, value, 1)[0];
 
