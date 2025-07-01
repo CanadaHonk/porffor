@@ -80,6 +80,29 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
   return out;
 };
 
+// 23.1.3.1 Array.prototype.at (index)
+// https://tc39.es/ecma262/multipage/indexed-collections.html#sec-array.prototype.at
+export const __Array_prototype_at = (_this: any[], index: any) => {
+  // 1. Let O be ? ToObject(this value).
+  // 2. Let len be ? LengthOfArrayLike(O).
+  const len: i32 = _this.length;
+
+  // 3. Let relativeIndex be ? ToIntegerOrInfinity(index).
+  index = ecma262.ToIntegerOrInfinity(index);
+
+  // 4. If relativeIndex ≥ 0, then
+  //        a. Let k be relativeIndex.
+  // 5. Else,
+  //        a. Let k be len + relativeIndex.
+  if (index < 0) index = len + index;
+
+  // 6. If k < 0 or k ≥ len, return undefined.
+  if (Porffor.fastOr(index < 0, index >= len)) return undefined;
+
+  // 7. Return ? Get(O, ! ToString(𝔽(k))).
+  return _this[index];
+};
+
 export const __Array_prototype_push = (_this: any[], ...items: any[]) => {
   let len: i32 = _this.length;
   const itemsLen: i32 = items.length;

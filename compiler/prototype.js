@@ -14,54 +14,6 @@ export const PrototypeFuncs = function() {
     else zeroChecks = {};
 
   this[TYPES.array] = {
-    // lX = local accessor of X ({ get, set }), iX = local index of X, wX = wasm ops of X
-    at: ({ pointer, length, arg, iTmp, setType }) => [
-      ...arg,
-      Opcodes.i32_to,
-      [ Opcodes.local_tee, iTmp ],
-
-      // if index < 0: access index + array length
-      number(0, Valtype.i32),
-      [ Opcodes.i32_lt_s ],
-      [ Opcodes.if, Blocktype.void ],
-        [ Opcodes.local_get, iTmp ],
-        ...length.getCachedI32(),
-        [ Opcodes.i32_add ],
-        [ Opcodes.local_set, iTmp ],
-      [ Opcodes.end ],
-
-      // if still < 0 or >= length: return undefined
-      [ Opcodes.local_get, iTmp ],
-      number(0, Valtype.i32),
-      [ Opcodes.i32_lt_s ],
-
-      [ Opcodes.local_get, iTmp ],
-      ...length.getCachedI32(),
-      [ Opcodes.i32_ge_s ],
-      [ Opcodes.i32_or ],
-
-      [ Opcodes.if, Blocktype.void ],
-        number(UNDEFINED),
-        ...setType(TYPES.undefined),
-        [ Opcodes.br, 1 ],
-      [ Opcodes.end ],
-
-      [ Opcodes.local_get, iTmp ],
-      number(ValtypeSize[valtype] + 1, Valtype.i32),
-      [ Opcodes.i32_mul ],
-      ...pointer,
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_set, iTmp ],
-
-      // read from memory
-      [ Opcodes.local_get, iTmp ],
-      [ Opcodes.load, 0, ValtypeSize.i32 ],
-
-      [ Opcodes.local_get, iTmp ],
-      [ Opcodes.i32_load8_u, 0, ValtypeSize.i32 + ValtypeSize[valtype] ],
-      ...setType()
-    ],
-
     pop: ({ pointer, length, iTmp, unusedValue, setType }) => [
       // if length == 0, noop
       ...length.getCachedI32(),
@@ -177,7 +129,6 @@ export const PrototypeFuncs = function() {
     ]
   };
 
-  this[TYPES.array].at.local = Valtype.i32;
   this[TYPES.array].pop.local = Valtype.i32;
 
   this[TYPES.string] = {
