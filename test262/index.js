@@ -172,7 +172,7 @@ if (cluster.isPrimary) {
         } else {
           spawn();
         }
-      }, 10000);
+      }, 15000);
     };
 
     worker.on('message', int => {
