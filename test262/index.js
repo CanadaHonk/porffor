@@ -153,7 +153,12 @@ if (cluster.isPrimary) {
       if (timeout) clearTimeout(timeout);
       const i = queue;
       if (i >= totalTests) {
-        worker.kill();
+        if (trackErrors || profile) {
+          worker.send(null);
+        } else {
+          worker.kill();
+        }
+
         return;
       }
 
@@ -420,6 +425,14 @@ if (cluster.isPrimary) {
   const profileStats = new Array(5).fill(0);
 
   process.on('message', i => {
+    if (i === null) {
+      if (trackErrors) process.send(errors);
+      if (profile) process.send({ perTestProfile, profileStats });
+
+      cluster.worker.kill();
+      return;
+    }
+
     const test = tests[i];
     // if (!test) return;
     // console.log('\n\n\n' + cluster.worker.id, i, test.file, '\n\n\n');
@@ -522,7 +535,4 @@ if (cluster.isPrimary) {
   });
 
   process.send(null);
-
-  if (trackErrors) parentPort.postMessage(errors);
-  if (profile) parentPort.postMessage({ perTestProfile, profileStats })
 }
