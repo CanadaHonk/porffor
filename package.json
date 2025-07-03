@@ -7,7 +7,7 @@
   "scripts": {},
   "dependencies": {
     "acorn": "^8.15.0",
-    "node-repl-polyfill": "github:CanadaHonk/node-repl-polyfill"
+    "node-repl-polyfill": "^0.1.2"
   },
   "optionalDependencies": {
     "@babel/parser": "^7.24.4",
