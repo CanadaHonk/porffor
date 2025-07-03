@@ -36,6 +36,7 @@ export default input => {
       next: true,
       module: Prefs.module,
       webcompat: true,
+      raw: true,
 
       // babel
       plugins: types ? ['estree', 'typescript'] : ['estree'],
@@ -46,10 +47,11 @@ export default input => {
       ranges: false,
       tokens: false,
       comments: false,
+      preserveParens: false,
 
       // oxc
       lang: types ? 'ts' : 'js',
-      showSemanticErrors: true // sorry oxc pals but this default is bad
+      showSemanticErrors: true
     };
 
     let ast = parser === 'oxc-parser' ? parse('js', input, options) : parse(input, options);
