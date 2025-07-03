@@ -25,10 +25,6 @@ export default ({ name, wasm, locals: _locals, params }) => {
   const localValtypes = locals.map(x => x.type);
   const localNeeded = new Array(locals.length).fill(0);
 
-  const resetLocals = () => {
-    locals = new Array(locals.length).fill(false);
-  };
-
   // every pass does the same initial low level things
   // each subsequent pass does it again and does more high-level things
   const passes = [
@@ -38,8 +34,18 @@ export default ({ name, wasm, locals: _locals, params }) => {
 
   while (passes.length > 0) {
     const pass = passes.shift();
+
     let stack = []; // "stack"
-    resetLocals();
+    const empty = () => {
+      stack = [];
+    };
+
+    const reset = () => {
+      locals = new Array(locals.length).fill(false);
+      empty();
+    };
+
+    reset();
 
     for (let i = 0; i < wasm.length; i++) {
       let op = wasm[i];
@@ -75,10 +81,6 @@ export default ({ name, wasm, locals: _locals, params }) => {
 
       const replaceOp = newOp => op.splice(0, op.length, ...newOp);
       const replaceVal = (val, valtype) => replaceOp(number(val, valtype));
-
-      const empty = () => {
-        stack = [];
-      };
 
       // debugging
       // if (Prefs.f === name) console.log(invOpcodes[opcode], stack);
@@ -516,7 +518,7 @@ export default ({ name, wasm, locals: _locals, params }) => {
         case Opcodes.local_set: {
           if (pass === 1) {
             if (localNeeded[op[1]] === 0) {
-              // todo: breaks some bad local code
+              // todo: breaks some bad assembler local code
               // delete _locals[localNames[op[1]]];
 
               pop();
@@ -541,7 +543,7 @@ export default ({ name, wasm, locals: _locals, params }) => {
         case Opcodes.local_tee: {
           if (pass === 1) {
             if (localNeeded[op[1]] === 0) {
-              // todo: breaks some bad local code
+              // todo: breaks some bad assembler local code
               // delete _locals[localNames[op[1]]];
 
               pop();
@@ -572,8 +574,7 @@ export default ({ name, wasm, locals: _locals, params }) => {
         case Opcodes.else:
         case Opcodes.catch:
         case Opcodes.end: {
-          resetLocals();
-          empty();
+          reset();
           break;
         }
 
