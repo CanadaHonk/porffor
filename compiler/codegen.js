@@ -1880,27 +1880,6 @@ const getNodeType = (scope, node) => {
 const generateLiteral = (scope, decl, global, name) => {
   if (decl.value === null) return [ number(NULL) ];
 
-  if (decl.regex) {
-    // todo/opt: separate aot compiling regex engine for compile-time known regex (literals, known RegExp args)
-    return generate(scope, {
-      type: 'CallExpression',
-      callee: {
-        type: 'Identifier',
-        name: 'RegExp'
-      },
-      arguments: [
-        {
-          type: 'Literal',
-          value: decl.regex.pattern
-        },
-        {
-          type: 'Literal',
-          value: decl.regex.flags
-        }
-      ]
-    });
-  }
-
   switch (typeof decl.value) {
     case 'number':
       return [ number(decl.value) ];
@@ -1933,6 +1912,27 @@ const generateLiteral = (scope, decl, global, name) => {
           }
         ]
       });
+  }
+
+  if (decl.regex) {
+    // todo/opt: separate aot compiling regex engine for compile-time known regex (literals, known RegExp args)
+    return generate(scope, {
+      type: 'CallExpression',
+      callee: {
+        type: 'Identifier',
+        name: 'RegExp'
+      },
+      arguments: [
+        {
+          type: 'Literal',
+          value: decl.regex.pattern
+        },
+        {
+          type: 'Literal',
+          value: decl.regex.flags
+        }
+      ]
+    });
   }
 
   return todo(scope, `cannot generate literal of type ${typeof decl.value}`, true);
