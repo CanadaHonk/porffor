@@ -6351,13 +6351,6 @@ const generateClass = (scope, decl) => {
   // always generate class constructor funcs
   func.generate();
 
-  let constrInsertIndex = func.wasm.findIndex(x => x.at(-1) === 'super marker');
-  if (constrInsertIndex != -1) {
-    func.wasm.splice(constrInsertIndex, 1);
-  } else {
-    constrInsertIndex = 0;
-  }
-
   if (decl.superClass) {
     const superTmp = localTmp(scope, '#superclass');
     const superTypeTmp = localTmp(scope, '#superclass#type', Valtype.i32);
@@ -6417,10 +6410,15 @@ const generateClass = (scope, decl) => {
     );
   }
 
-  scope.overrideThis = generate(scope, root);
-  scope.overrideThisType = TYPES.function;
+  // opt: avoid mass generate calls for many class fields
+  const rootWasm = scope.overrideThis = generate(scope, root);
+  const rootType = scope.overrideThisType = [ [ Opcodes.i32_const, TYPES.function ] ];
+  const protoWasm = generate(scope, proto);
+  const protoType = getNodeType(scope, proto);
+  const thisWasm = generate(func, { type: 'ThisExpression', _noGlobalThis: true });
+  const thisType = getNodeType(func, { type: 'ThisExpression', _noGlobalThis: true });
 
-  let constrAdd = [];
+  const batchedNonStaticPropWasm = [];
   for (const x of body) {
     let { type, value, kind, static: _static, computed } = x;
     if (kind === 'constructor') continue;
@@ -6441,13 +6439,11 @@ const generateClass = (scope, decl) => {
     }
 
     const key = getProperty(x, true);
-    let object = _static ? root : proto;
 
-    let initKind = type === 'MethodDefinition' ? 'method' : 'value';
-    if (kind === 'get' || kind === 'set') initKind = kind;
-
-    // default value to undefined
-    value ??= DEFAULT_VALUE();
+    value ??= {
+      type: 'Identifier',
+      name: 'undefined'
+    };
 
     if (isFuncType(value.type)) {
       let id = value.id;
@@ -6468,51 +6464,53 @@ const generateClass = (scope, decl) => {
 
     if (type === 'PropertyDefinition' && !_static) {
       // define in construction instead
-      object = {
-        type: 'ThisExpression',
-        _noGlobalThis: true
-      };
-
-      let computedTmp;
       if (computed) {
-        // compute now, reference in construction
-        computedTmp = allocVar(scope, `#class_computed_prop${uniqId()}`, true, true, false, true);
+        // compute key now, reference in construction
+        const computedTmp = allocVar(scope, `#class_computed_prop${uniqId()}`, true, true, false, true);
 
         out.push(
           ...toPropertyKey(scope, generate(scope, key), getNodeType(scope, key), computed, true),
           [ Opcodes.global_set, computedTmp + 1 ],
           [ Opcodes.global_set, computedTmp ]
         );
-      }
 
-      const constrWasm = [
-        ...generate(func, object),
-        Opcodes.i32_to_u,
-        ...getNodeType(func, object),
+        batchedNonStaticPropWasm.push(
+          ...thisWasm,
+          Opcodes.i32_to_u,
+          ...thisType,
 
-        ...(computed ? [
           [ Opcodes.global_get, computedTmp ],
           [ Opcodes.global_get, computedTmp + 1 ],
-        ] : [
+
+          ...generate(func, value),
+          ...getNodeType(func, value),
+
+          [ Opcodes.call, includeBuiltin(func, `__Porffor_object_class_value`).index ]
+        );
+      } else {
+        batchedNonStaticPropWasm.push(
+          ...thisWasm,
+          Opcodes.i32_to_u,
+          ...thisType,
+
           ...generate(func, key),
           Opcodes.i32_to_u,
-          ...getNodeType(func, key)
-        ]),
+          ...getNodeType(func, key),
 
-        ...generate(func, value),
-        ...(initKind !== 'value' && initKind !== 'method' ? [ Opcodes.i32_to_u ] : []),
-        ...getNodeType(func, value),
+          ...generate(func, value),
+          ...getNodeType(func, value),
 
-        [ Opcodes.call, includeBuiltin(func, `__Porffor_object_class_${initKind}`).index ]
-      ];
-
-      func.wasm.splice(constrInsertIndex, 0, ...constrWasm);
-      constrInsertIndex += constrWasm.length;
+          [ Opcodes.call, includeBuiltin(func, `__Porffor_object_class_value`).index ]
+        );
+      }
     } else {
+      let initKind = type === 'MethodDefinition' ? 'method' : 'value';
+      if (kind === 'get' || kind === 'set') initKind = kind;
+
       out.push(
-        ...generate(scope, object),
+        ...(_static ? rootWasm : protoWasm),
         Opcodes.i32_to_u,
-        ...getNodeType(scope, object),
+        ...(_static ? rootType : protoType),
 
         ...toPropertyKey(scope, generate(scope, key), getNodeType(scope, key), computed, true),
 
@@ -6523,6 +6521,14 @@ const generateClass = (scope, decl) => {
         [ Opcodes.call, includeBuiltin(scope, `__Porffor_object_class_${initKind}`).index ]
       );
     }
+  }
+
+  const constrInsertIndex = func.wasm.findIndex(x => x.at(-1) === 'super marker');
+  if (constrInsertIndex != -1) {
+    func.wasm.splice(constrInsertIndex, 1);
+    func.wasm.splice(constrInsertIndex, 0, ...batchedNonStaticPropWasm);
+  } else {
+    func.wasm = batchedNonStaticPropWasm.concat(func.wasm);
   }
 
   delete scope.overrideThis;

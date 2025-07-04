@@ -248,7 +248,7 @@ if (cluster.isPrimary) {
             const tab = `  \u001b[1m${spinner[spin++ % 4]} ${percent.toFixed(1)}%\u001b[0m    ` +
               table(false, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
 
-            console.log(
+            process.stdout.write(
               (lastPercent != 0 ? `\u001b[2F\u001b[0J` : `\r${' '.repeat(100)}\r`) +
               bar([...noAnsi(tab)].length + 8, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0) +
               '\n' + tab
