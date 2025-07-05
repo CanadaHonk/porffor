@@ -5559,7 +5559,11 @@ const compileBytes = (val, itemType) => {
 
 const makeData = (scope, elements, page = null, itemType = 'i8') => {
   // if data for page already exists, abort
-  if (page && data.find(x => x.page === page)) return;
+  if (page) {
+    data.existsForPage ??= new Map();
+    if (data.existsForPage.has(page)) return;
+    data.existsForPage.set(page, true);
+  }
 
   const length = elements.length;
 
