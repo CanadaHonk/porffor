@@ -249,7 +249,7 @@ ${funcs.map(x => {
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)
       .replace(/\["funcref",(.*?),"(.*?)"]/g, (_1, op, name) => op === '65' ? `...i32ify(funcRef('${name}'))` : `...funcRef('${name}')`)
-      .replace(/\["str",(.*?),"(.*?)",(.*?)]/g, (_1, op, str, forceBytestring) => op === '65' ? `...i32ify(makeString(_,"${str}",${forceBytestring ? 1 : 0}))` : `...makeString(_,"${str}",${forceBytestring ? 1 : 0})`)
+      .replace(/\["str",(.*?),"(.*?)",(.*?)]/g, (_1, op, str, bytestring) => op === '65' ? `...i32ify(makeString(_,"${str}",${bytestring}))` : `...makeString(_,"${str}",${bytestring === 'true' ? 1 : 0})`)
       .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(_,'${constructor}',\`${message}\`)`)
       .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`)
       .replace(/\[null,"typeswitch case start",\[(.*?)\]\],/g, (_, types) => `...t([${types}],()=>[`)

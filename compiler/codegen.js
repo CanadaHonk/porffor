@@ -5608,21 +5608,20 @@ const byteStringable = str => {
   return true;
 };
 
-const makeString = (scope, str, forceBytestring = undefined) => {
+const makeString = (scope, str, bytestring = true) => {
   if (str.length === 0) return [ number(0) ];
 
+  if (globalThis.precompile) return [
+    [ 'str', Opcodes.const, str, bytestring ]
+  ];
+
   const elements = new Array(str.length);
-  let bytestring = forceBytestring !== false;
   for (let i = 0; i < str.length; i++) {
     const c = str.charCodeAt(i);
     elements[i] = c;
 
-    if (bytestring && c > 0xFF) bytestring = false;
+    if (c > 0xFF) bytestring = false;
   }
-
-  if (globalThis.precompile) return [
-    [ 'str', Opcodes.const, str, forceBytestring ]
-  ];
 
   const ptr = allocStr({ scope, pages }, str, bytestring);
   makeData(scope, elements, str, bytestring ? 'i8' : 'i16');
