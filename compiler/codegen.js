@@ -1529,7 +1529,7 @@ const isExistingProtoFunc = name => {
 
 const getInferred = (scope, name, global = false) => {
   if (global) {
-    if (globalInfer.has(name)) return globalInfer.get(name);
+    if (globalInfer.has(name) && inferLoopPrev.length === 0) return globalInfer.get(name);
   } else if (scope.inferTree) {
     for (let i = scope.inferTree.length - 1; i >= 0; i--) {
       const x = scope.inferTree[i];
