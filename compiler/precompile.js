@@ -119,18 +119,18 @@ const compile = async (file, _funcs) => {
           const f = funcs.find(x => x.index === idx);
           if (!f) {
             if (idx < importedFuncs.length) {
-              y.splice(1, 10, importedFuncs[idx].name);
+              wasm[i] = [ Opcodes.call, importedFuncs[idx].name ];
             }
 
             continue;
           }
 
-          y.splice(1, 10, f.name);
+          wasm[i] = [ Opcodes.call, f.name ];
         }
 
         if (y[0] === Opcodes.global_get || y[0] === Opcodes.global_set) {
           const global = invGlobals[y[1]];
-          y.splice(0, 10, 'global', y[0], global.name, global.type);
+          wasm[i] = [ 'global', y[0], global.name, global.type ];
 
           if (!x.globalInits) {
             if (!main.rewrittenGlobalInits) {
@@ -147,7 +147,7 @@ const compile = async (file, _funcs) => {
 
         if (rewriteLocals && typeof y[1] === 'number' && (y[0] === Opcodes.local_get || y[0] === Opcodes.local_set || y[0] === Opcodes.local_tee)) {
           const local = locals[y[1]];
-          y.splice(1, 10, 'local', local.name, local.type);
+          wasm[i] = [ y[0], 'local', local.name, local.type ];
         }
 
         if (!n) continue;
@@ -161,7 +161,7 @@ const compile = async (file, _funcs) => {
           if (!pageName || allocated.has(pageName)) return;
           allocated.add(pageName);
 
-          y.splice(0, 10, 'alloc', pageName, valtypeBinary);
+          wasm[i] = [ 'alloc', pageName, valtypeBinary ];
         };
 
         if (y[0] === Opcodes.const &&(n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
@@ -177,7 +177,7 @@ const compile = async (file, _funcs) => {
           let id;
           if (y[0] === Opcodes.i32_const && n[1] === 0) {
             id = read_signedLEB128(y.slice(1));
-            y.splice(0, 10, 'throw', exceptions[id].constructor, exceptions[id].message);
+            wasm[i] = [ 'throw', exceptions[id].constructor, exceptions[id].message ];
 
             // remove throw inst
             wasm.splice(i + 1, 1);
@@ -249,7 +249,7 @@ ${funcs.map(x => {
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)
       .replace(/\["funcref",(.*?),"(.*?)"]/g, (_1, op, name) => op === '65' ? `...i32ify(funcRef('${name}'))` : `...funcRef('${name}')`)
-      .replace(/\["str",(.*?),"(.*?)",(.*?)]/g, (_1, op, str, bytestring) => op === '65' ? `...i32ify(makeString(_,"${str}",${bytestring}))` : `...makeString(_,"${str}",${bytestring === 'true' ? 1 : 0})`)
+      .replace(/\["str",(.*?),"(.*?)",(.*?)]/g, (_1, op, str, bytestring) => op === '65' ? `...i32ify(makeString(_,"${str}",${bytestring === 'true' ? 1 : 0}))` : `...makeString(_,"${str}",${bytestring === 'true' ? 1 : 0})`)
       .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(_,'${constructor}',\`${message}\`)`)
       .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`)
       .replace(/\[null,"typeswitch case start",\[(.*?)\]\],/g, (_, types) => `...t([${types}],()=>[`)
