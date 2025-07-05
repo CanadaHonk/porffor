@@ -4583,6 +4583,7 @@ const generateConditional = (scope, decl) => {
   );
 
   out.push([ Opcodes.end ]);
+  depth.pop();
   inferBranchEnd(scope);
 
   return out;
