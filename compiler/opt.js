@@ -22,12 +22,8 @@ export default (funcs, globals, pages, tags, exceptions) => {
     while (runs > 0) {
       runs--;
 
-      // main pass
       for (let i = 0; i < wasm.length; i++) {
-        let inst = wasm[i];
-        inst = [ ...inst ];
-        wasm[i] = inst;
-
+        const inst = wasm[i];
         if (inst[0] === Opcodes.block) {
           // remove unneeded blocks (no brs inside)
           // block
@@ -53,23 +49,22 @@ export default (funcs, globals, pages, tags, exceptions) => {
           if (!hasBranch) {
             wasm.splice(i, 1); // remove this inst (block)
             if (i > 0) i--;
-            inst = wasm[i];
 
             wasm.splice(j - 1, 1); // remove end of this block
 
             if (Prefs.optLog) log('opt', `removed unneeded block in for loop`);
+            continue;
           }
         }
 
         // remove setting last type if it is never gotten
         if (!f.internal && !f.gotLastType && inst[0] === Opcodes.local_set && inst[1] === lastType) {
           // replace this inst with drop
-          wasm.splice(i, 1, [ Opcodes.drop ]); // remove this and last inst
-          if (i > 0) i--;
+          wasm[i] = [ Opcodes.drop ];
         }
 
         if (i < 1) continue;
-        let lastInst = wasm[i - 1];
+        const lastInst = wasm[i - 1];
 
         if (lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_set && inst[0] === Opcodes.local_get) {
           // replace set, get -> tee (sets and returns)
@@ -78,8 +73,8 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // -->
           // local.tee 0
 
-          lastInst[0] = Opcodes.local_tee; // replace last inst opcode (set -> tee)
           wasm.splice(i, 1); // remove this inst (get)
+          wasm[i - 1] = [ Opcodes.local_tee, ...lastInst.slice(1) ]; // replace last inst opcode (set -> tee)
 
           i--;
           // if (Prefs.optLog) log('opt', `consolidated set, get -> tee`);
@@ -105,8 +100,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // -->
           // local.set 0
 
-          lastInst[0] = Opcodes.local_set; // change last op
-
+          wasm[i - 1] = [ Opcodes.local_set, lastInst[1] ]; // change last op
           wasm.splice(i, 1); // remove this inst
           i--;
           continue;
@@ -131,7 +125,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // -->
           // i32.eqz
 
-          inst[0] = Opcodes.eqz[0][0]; // eq -> eqz
+          wasm[i] = [ Opcodes.eqz[0][0] ]; // eq -> eqz
           wasm.splice(i - 1, 1); // remove const 0
           i--;
           continue;
@@ -213,7 +207,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // -->
           // return_call X
 
-          lastInst[0] = Opcodes.return_call; // change last inst return -> return_call
+          wasm[i - 1] = [ Opcodes.return_call, ...lastInst.slice(1) ]; // change last inst return -> return_call
 
           wasm.splice(i, 1); // remove this inst (return)
           i--;

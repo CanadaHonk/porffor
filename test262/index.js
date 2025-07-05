@@ -251,7 +251,7 @@ if (cluster.isPrimary) {
             process.stdout.write(
               (lastPercent != 0 ? `\u001b[2F\u001b[0J` : `\r${' '.repeat(100)}\r`) +
               bar([...noAnsi(tab)].length + 8, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0) +
-              '\n' + tab
+              '\n' + tab + '\n'
             );
             lastPercent = percent + 0.1;
           }
