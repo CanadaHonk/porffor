@@ -17,8 +17,8 @@ if (cluster.isPrimary) {
   }
 
   const duration = parseFloat(process.argv.find(x => x.startsWith('--duration='))?.split('=')?.[1]) || 60; // seconds
-  const maxStatements = parseInt(process.argv.find(x => x.startsWith('--max-statements='))?.split('=')?.[1]) || 8;
-  const maxFunctions = parseInt(process.argv.find(x => x.startsWith('--max-functions='))?.split('=')?.[1]) || 2;
+  const maxStatements = parseInt(process.argv.find(x => x.startsWith('--max-statements='))?.split('=')?.[1]) || 20;
+  const maxFunctions = parseInt(process.argv.find(x => x.startsWith('--max-functions='))?.split('=')?.[1]) || 4;
   const verbose = process.argv.includes('--verbose');
   const saveFailures = process.argv.includes('--save-failures');
   const plainResults = process.argv.includes('--plain-results');
@@ -141,7 +141,17 @@ if (cluster.isPrimary) {
         const error = `${msg.error.name}: ${msg.error.message}`
           .replace(/\([0-9]+:[0-9]+\)/, '')
           .replace(/@\+[0-9]+/, '');
-        errorCounts.set(error, (errorCounts.get(error) || 0) + 1);
+
+        const count = errorCounts.get(error) || 0;
+        errorCounts.set(error, count + 1);
+
+        if (count === 0) {
+          const resultNames = ['PASS', 'TODO', 'WASM_ERROR', 'COMPILE_ERROR', 'FAIL', 'TIMEOUT', 'RUNTIME_ERROR'];
+          console.log('\n---');
+          console.log(`\x1b[4mNEW ${resultNames[result]}: ${error}\x1b[0m`);
+          console.log(msg.code);
+          console.log('---\n');
+        }
       }
 
       if (result === 0) {
@@ -262,7 +272,8 @@ if (cluster.isPrimary) {
     process.send({
       result,
       error: error ? { name: error.name, message: error.message } : null,
-      code: verbose || saveFailures ? code : null
+      // code: verbose || saveFailures ? code : null
+      code
     });
   });
 

@@ -8,9 +8,17 @@ const generators = {
     return `(${num})`;
   },
   string: () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const len = Math.floor(Math.random() * 8) + 1;
-    return `'${Array.from({length: len}, () => chars[Math.floor(Math.random() * chars.length)]).join('')}'`;
+    if (Math.random() < 0.1) {
+      return `''`;
+    }
+
+    const len = Math.floor(Math.random() * 32) + 1;
+    if (Math.random() < 0.8) { // bytestring
+      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      return `'${Array.from({length: len}, () => chars[Math.floor(Math.random() * chars.length)]).join('')}'`;
+    } else { // unicode string
+      return `'${Array.from({length: len}, () => `\\u${Math.floor(Math.random() * 0x10000).toString(16).padStart(4, '0')}`).join('')}'`;
+    }
   },
   boolean: () => Math.random() < 0.5 ? 'true' : 'false',
   null: () => 'null',
@@ -21,7 +29,7 @@ const generators = {
     if (depth > 2) return '[]';
     const len = Math.floor(Math.random() * 3);
     if (len === 0) return '[]';
-    const items = Array.from({length: len}, () => generateSimple());
+    const items = Array.from({ length: len }, () => generateExpression(depth + 1));
     return `[${items.join(', ')}]`;
   },
 
@@ -31,9 +39,12 @@ const generators = {
     const len = Math.floor(Math.random() * 3);
     if (len === 0) return '{}';
     const props = Array.from({length: len}, () => {
-      const key = String.fromCharCode(97 + Math.floor(Math.random() * 26));
-      // Ensure valid property syntax
-      return `'${key}': ${generateSimple()}`;
+      if (Math.random() < 0.5) {
+        const key = String.fromCharCode(97 + Math.floor(Math.random() * 26));
+        return `'${key}': ${generateExpression(depth + 1)}`;
+      } else {
+        return `[${generateExpression(depth + 1)}]: ${generateExpression(depth + 1)}`;
+      }
     });
     return `({${props.join(', ')}})`;
   },
@@ -63,27 +74,27 @@ function generateExpression(depth = 0) {
 
   const roll = Math.random();
 
-  if (roll < 0.4) {
+  if (roll < 0.3) {
     // Simple value
     return generateSimple();
-  } else if (roll < 0.6) {
+  } else if (roll < 0.4) {
     // Binary operation
     const ops = ['+', '-', '*', '/', '%', '===', '!==', '>', '<', '>=', '<=', '&&', '||'];
     const op = ops[Math.floor(Math.random() * ops.length)];
     return `(${generateExpression(depth + 1)} ${op} ${generateExpression(depth + 1)})`;
-  } else if (roll < 0.75) {
+  } else if (roll < 0.65) {
     // Unary operation
     const ops = ['!', '-', '+', 'typeof'];
     const op = ops[Math.floor(Math.random() * ops.length)];
     return `(${op} ${generateExpression(depth + 1)})`;
-  } else if (roll < 0.85) {
+  } else if (roll < 0.75) {
     // Function call
     const builtins = ['Math.abs', 'Math.floor', 'Math.ceil', 'String', 'Number', 'Boolean'];
     const func = builtins[Math.floor(Math.random() * builtins.length)];
     const argCount = Math.floor(Math.random() * 2);
     const args = Array.from({length: argCount}, () => generateExpression(depth + 1));
     return `${func}(${args.join(', ')})`;
-  } else if (roll < 0.95) {
+  } else if (roll < 0.85) {
     // Conditional
     return `(${generateExpression(depth + 1)} ? ${generateExpression(depth + 1)} : ${generateExpression(depth + 1)})`;
   } else {
@@ -105,10 +116,10 @@ function generateStatement(depth = 0, inFunction = false) {
   } else if (roll < 0.5 && declaredVars.length > 0) {
     // Variable assignment
     const varName = declaredVars[Math.floor(Math.random() * declaredVars.length)];
-    const ops = ['=', '+=', '-=', '*='];
+    const ops = ['=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '>>=', '>>>=', '<<='];
     const op = ops[Math.floor(Math.random() * ops.length)];
     return `${varName} ${op} ${generateExpression()};`;
-  } else if (roll < 0.65) {
+  } else if (roll < 0.6) {
     // If statement
     if (Math.random() < 0.5) {
       return `if (${generateExpression()}) { ${generateStatement(depth + 1, inFunction)} }`;
@@ -150,8 +161,7 @@ function generateFunction() {
     statements.push('  ' + generateStatement(0, true));
   }
 
-  // Always add a simple return to avoid syntax issues
-  statements.push('  return ' + generateSimple() + ';');
+  statements.push('  return ' + generateExpression() + ';');
 
   // Restore variables
   declaredVars = savedVars;
@@ -193,7 +203,7 @@ function generateProgram(options = {}) {
   }
 
   // Always end with a result
-  code += `var result = ${generateExpression()};\n`;
+  code += `var result = ${generateExpression()};`;
 
   return code;
 }
