@@ -104,3 +104,22 @@ export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
 
   return out;
 };
+
+// in f64 file as returns NaN which returns 0 in i32
+export const __String_prototype_charCodeAt = (_this: string, index: number) => {
+  const len: i32 = _this.length;
+
+  index |= 0;
+  if (Porffor.fastOr(index < 0, index >= len)) return NaN;
+
+  return Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + index * 2, 0, 4);
+};
+
+export const __ByteString_prototype_charCodeAt = (_this: bytestring, index: number) => {
+  const len: i32 = _this.length;
+
+  index |= 0;
+  if (Porffor.fastOr(index < 0, index >= len)) return NaN;
+
+  return Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4);
+};

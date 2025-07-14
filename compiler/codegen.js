@@ -2,7 +2,6 @@ import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
 import { number, ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector, read_signedLEB128 } from './encoding.js';
 import { operatorOpcode } from './expression.js';
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
-import { PrototypeFuncs } from './prototype.js';
 import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
 import parse from './parse.js';
 import { log } from './log.js';
@@ -556,7 +555,7 @@ const lookup = (scope, name, failEarly = false) => {
     includeBuiltin(scope, name);
   }
 
-  if (isExistingProtoFunc(name) || Object.hasOwn(internalConstrs, name)) {
+  if (Object.hasOwn(internalConstrs, name)) {
     // todo: return an actual something
     return [ number(1) ];
   }
@@ -1520,11 +1519,6 @@ const includeBuiltin = (scope, builtin) => {
 const generateLogicExp = (scope, decl) =>
   performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
 
-const isExistingProtoFunc = name => {
-  if (name.startsWith('__String_prototype_')) return Object.hasOwn(prototypeFuncs[TYPES.string], name.slice(19));
-  return false;
-};
-
 const getInferred = (scope, name, global = false) => {
   if (global) {
     if (globalInfer.has(name) && inferLoopPrev.length === 0) return globalInfer.get(name);
@@ -1593,7 +1587,7 @@ const getType = (scope, name, failEarly = false) => {
     [ global ? Opcodes.global_get : Opcodes.local_get, typeLocal.idx ]
   ];
 
-  if (hasFuncWithName(name) || isExistingProtoFunc(name)) {
+  if (hasFuncWithName(name)) {
     return [ number(TYPES.function, Valtype.i32) ];
   }
 
@@ -2292,9 +2286,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       });
     }
 
-    const protoBC = {};
     const builtinProtoCands = Object.keys(builtinFuncs).filter(x => x.startsWith('__') && x.endsWith('_prototype_' + protoName));
-
     if (!decl._protoInternalCall && builtinProtoCands.length > 0) {
       out.push(
         ...generate(scope, target),
@@ -2313,6 +2305,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
         );
       }
 
+      const protoBC = {};
       for (const x of builtinProtoCands) {
         const name = x.split('_prototype_')[0].toLowerCase();
         const type = TYPES[name.slice(2)] ?? TYPES[name];
@@ -2336,88 +2329,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           _protoInternalCall: true
         });
       }
-    }
 
-    const protoCands = Object.keys(prototypeFuncs).reduce((acc, x) => {
-      if (Object.hasOwn(prototypeFuncs[x], protoName)) acc[x] = prototypeFuncs[x][protoName];
-      return acc;
-    }, {});
-
-    if (Object.keys(protoCands).length > 0) {
-      // use local for cached i32 length as commonly used
-      const lengthLocal = localTmp(scope, '__proto_length_cache', Valtype.i32);
-      const pointerLocal = localTmp(scope, '__proto_pointer_cache', Valtype.i32);
-
-      if (out.length === 0) {
-        out.push(
-          ...generate(scope, target),
-          Opcodes.i32_to_u,
-          [ Opcodes.local_set, pointerLocal ]
-        );
-      } else {
-        out.push(
-          [ Opcodes.local_get, localTmp(scope, '#proto_target') ],
-          Opcodes.i32_to_u,
-          [ Opcodes.local_set, pointerLocal ]
-        );
-      }
-
-      for (const x in protoCands) {
-        const protoFunc = protoCands[x];
-        const getPointer = [ [ Opcodes.local_get, pointerLocal ] ];
-
-        if (protoFunc.noArgRetLength && decl.arguments.length === 0) {
-          protoBC[x] = [
-            ...ArrayUtil.getLength(getPointer),
-            ...setLastType(scope, TYPES.number)
-          ];
-          continue;
-        }
-
-        protoBC[x] = () => {
-          const protoLocal = protoFunc.local ? localTmp(scope, `__${protoName}_tmp`, protoFunc.local) : -1;
-          const protoLocal2 = protoFunc.local2 ? localTmp(scope, `__${protoName}_tmp2`, protoFunc.local2) : -1;
-
-          let optUnused = false;
-          const protoOut = protoFunc({
-            pointer: getPointer,
-            length: {
-              getCachedI32: () => [ [ Opcodes.local_get, lengthLocal ] ],
-              setCachedI32: () => [ [ Opcodes.local_set, lengthLocal ] ],
-              get: () => ArrayUtil.getLength(getPointer),
-              getI32: () => ArrayUtil.getLengthI32(getPointer),
-              set: value => ArrayUtil.setLength(getPointer, value),
-              setI32: value => ArrayUtil.setLengthI32(getPointer, value)
-            },
-            arg: generate(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
-            argType: getNodeType(scope, decl.arguments[0] ?? DEFAULT_VALUE()),
-            iTmp: protoLocal,
-            iTmp2: protoLocal2,
-            alloc: bytes => [
-              number(bytes, Valtype.i32),
-              [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ]
-            ],
-            unusedValue: () => {
-              optUnused = true;
-              return unusedValue;
-            },
-            setType: type => setLastType(scope, type)
-          });
-
-          return [
-            ...ArrayUtil.getLengthI32(getPointer),
-            [ Opcodes.local_set, lengthLocal ],
-
-            [ Opcodes.block, unusedValue && optUnused ? Blocktype.void : valtypeBinary ],
-              ...protoOut,
-            [ Opcodes.end ],
-            ...(unusedValue && optUnused ? [ number(UNDEFINED) ] : [])
-          ];
-        };
-      }
-    }
-
-    if (Object.keys(protoBC).length > 0) {
       protoBC.default = decl.optional ?
         withType(scope, [ number(UNDEFINED) ], TYPES.undefined) :
         internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`, true);
@@ -6715,7 +6627,7 @@ const objectHack = node => {
       if (objectName !== 'Object_prototype' && (node.property.name === 'propertyIsEnumerable' || node.property.name === 'hasOwnProperty' || node.property.name === 'isPrototypeOf')) return abortOut;
 
       const name = '__' + objectName + '_' + node.property.name;
-      if ((!hasFuncWithName(name) && !Object.hasOwn(builtinVars, name) && !isExistingProtoFunc(name) && !hasFuncWithName(name + '$get')) && (hasFuncWithName(objectName) || Object.hasOwn(builtinVars, objectName) || hasFuncWithName('__' + objectName) || Object.hasOwn(builtinVars, '__' + objectName))) return abortOut;
+      if ((!hasFuncWithName(name) && !Object.hasOwn(builtinVars, name) && !hasFuncWithName(name + '$get')) && (hasFuncWithName(objectName) || Object.hasOwn(builtinVars, objectName) || hasFuncWithName('__' + objectName) || Object.hasOwn(builtinVars, '__' + objectName))) return abortOut;
 
       if (Prefs.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
 
@@ -7292,7 +7204,7 @@ const internalConstrs = {
   }
 };
 
-let globals, tags, exceptions, funcs, indirectFuncs, funcIndex, currentFuncIndex, depth, pages, data, typeswitchDepth, usedTypes, coctc, globalInfer, builtinFuncs, builtinVars, prototypeFuncs, lastValtype;
+let globals, tags, exceptions, funcs, indirectFuncs, funcIndex, currentFuncIndex, depth, pages, data, typeswitchDepth, usedTypes, coctc, globalInfer, builtinFuncs, builtinVars, lastValtype;
 export default program => {
   globals = { ['#ind']: 0 };
   tags = [];
@@ -7331,7 +7243,6 @@ export default program => {
     lastValtype = valtypeBinary;
     builtinFuncs = new BuiltinFuncs();
     builtinVars = new BuiltinVars({ builtinFuncs });
-    prototypeFuncs = new PrototypeFuncs();
 
     const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
     objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];

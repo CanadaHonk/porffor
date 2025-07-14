@@ -353,6 +353,77 @@ export const __Porffor_strcat = (a: any, b: any): any => {
 };
 
 
+
+export const __String_prototype_at = (_this: string, index: number) => {
+  const len: i32 = _this.length;
+
+  index |= 0;
+  if (index < 0) index = len + index;
+  if (Porffor.fastOr(index < 0, index >= len)) return undefined;
+
+  let out: string = Porffor.allocateBytes(8);
+  Porffor.wasm.i32.store(out, 1, 0, 0); // out.length = 1
+
+  Porffor.wasm.i32.store16(
+    Porffor.wasm`local.get ${out}`,
+    Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + index * 2, 0, 4),
+    0, 4);
+
+  return out;
+};
+
+export const __ByteString_prototype_at = (_this: bytestring, index: number) => {
+  const len: i32 = _this.length;
+
+  index |= 0;
+  if (index < 0) index = len + index;
+  if (Porffor.fastOr(index < 0, index >= len)) return undefined;
+
+  let out: bytestring = Porffor.allocateBytes(8);
+  Porffor.wasm.i32.store(out, 1, 0, 0); // out.length = 1
+
+  Porffor.wasm.i32.store8(
+    Porffor.wasm`local.get ${out}`,
+    Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4),
+    0, 4);
+
+  return out;
+};
+
+export const __String_prototype_charAt = (_this: string, index: number) => {
+  const len: i32 = _this.length;
+
+  index |= 0;
+  if (Porffor.fastOr(index < 0, index >= len)) return '';
+
+  let out: string = Porffor.allocateBytes(8);
+  Porffor.wasm.i32.store(out, 1, 0, 0); // out.length = 1
+
+  Porffor.wasm.i32.store16(
+    Porffor.wasm`local.get ${out}`,
+    Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + index * 2, 0, 4),
+    0, 4);
+
+  return out;
+};
+
+export const __ByteString_prototype_charAt = (_this: bytestring, index: number) => {
+  const len: i32 = _this.length;
+
+  index |= 0;
+  if (Porffor.fastOr(index < 0, index >= len)) return '';
+
+  let out: bytestring = Porffor.allocateBytes(8);
+  Porffor.wasm.i32.store(out, 1, 0, 0); // out.length = 1
+
+  Porffor.wasm.i32.store8(
+    Porffor.wasm`local.get ${out}`,
+    Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4),
+    0, 4);
+
+  return out;
+};
+
 export const __String_prototype_toUpperCase = (_this: string) => {
   // todo: unicode not just ascii
   const len: i32 = _this.length;
@@ -878,7 +949,6 @@ export const __String_prototype_padStart = (_this: string, targetLength: number,
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-  // const padStringPtr: i32 = Porffor.wasm`local.get ${padString}`;
 
   const len: i32 = _this.length;
 
@@ -897,8 +967,7 @@ export const __String_prototype_padStart = (_this: string, targetLength: number,
       const padStringLen: i32 = padString.length;
       if (padStringLen > 0) {
         for (let i: i32 = 0; i < todo; i++) {
-          // Porffor.wasm.i32.store16(outPtr, Porffor.wasm.i32.load16_u(padStringPtr + (i % padStringLen) * 2, 0, 4), 0, 4);
-          Porffor.wasm.i32.store16(outPtr, padString.charCodeAt(i % padStringLen), 0, 4);
+          Porffor.wasm.i32.store16(outPtr, Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${padString}` + (i % padStringLen) * 2, 0, 4), 0, 4);
           outPtr += 2;
         }
         out.length = targetLength;
@@ -925,7 +994,6 @@ export const __ByteString_prototype_padStart = (_this: bytestring, targetLength:
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-  const padStringPtr: i32 = Porffor.wasm`local.get ${padString}`;
 
   const len: i32 = _this.length;
 
@@ -943,8 +1011,7 @@ export const __ByteString_prototype_padStart = (_this: bytestring, targetLength:
       const padStringLen: i32 = padString.length;
       if (padStringLen > 0) {
         for (let i: i32 = 0; i < todo; i++) {
-          Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(padStringPtr + (i % padStringLen), 0, 4), 0, 4);
-          // Porffor.wasm.i32.store8(outPtr++, padString.charCodeAt(i % padStringLen), 0, 4);
+          Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${padString}` + (i % padStringLen), 0, 4), 0, 4);
         }
 
         out.length = targetLength;
@@ -967,7 +1034,6 @@ export const __String_prototype_padEnd = (_this: string, targetLength: number, p
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-  // const padStringPtr: i32 = Porffor.wasm`local.get ${padString}`;
 
   const len: i32 = _this.length;
 
@@ -995,8 +1061,7 @@ export const __String_prototype_padEnd = (_this: string, targetLength: number, p
       const padStringLen: i32 = padString.length;
       if (padStringLen > 0) {
         for (let i: i32 = 0; i < todo; i++) {
-          // Porffor.wasm.i32.store16(outPtr, Porffor.wasm.i32.load16_u(padStringPtr + (i % padStringLen) * 2, 0, 4), 0, 4);
-          Porffor.wasm.i32.store16(outPtr, padString.charCodeAt(i % padStringLen), 0, 4);
+          Porffor.wasm.i32.store16(outPtr, Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${padString}` + (i % padStringLen) * 2, 0, 4), 0, 4);
           outPtr += 2;
         }
         out.length = targetLength;
@@ -1014,7 +1079,6 @@ export const __ByteString_prototype_padEnd = (_this: bytestring, targetLength: n
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-  const padStringPtr: i32 = Porffor.wasm`local.get ${padString}`;
 
   const len: i32 = _this.length;
 
@@ -1038,8 +1102,7 @@ export const __ByteString_prototype_padEnd = (_this: bytestring, targetLength: n
       const padStringLen: i32 = padString.length;
       if (padStringLen > 0) {
         for (let i: i32 = 0; i < todo; i++) {
-          Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(padStringPtr + (i % padStringLen), 0, 4), 0, 4);
-          // Porffor.wasm.i32.store8(outPtr++, padString.charCodeAt(i % padStringLen), 0, 4);
+          Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${padString}` + (i % padStringLen), 0, 4), 0, 4);
         }
 
         out.length = targetLength;
