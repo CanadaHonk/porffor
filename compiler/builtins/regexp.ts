@@ -57,6 +57,13 @@ export const __Porffor_array_fastPushI32 = (arr: any[], el: any): i32 => {
   return len;
 };
 
+export const __Porffor_array_fastPopI32 = (arr: any[]): i32 => {
+  let len: i32 = arr.length;
+  const ret: any = arr[--len];
+  arr.length = len;
+  return ret;
+};
+
 export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytestring): RegExp => {
   const ptr: i32 = Porffor.allocate();
   Porffor.wasm.i32.store(ptr, patternStr, 0, 0);
@@ -341,21 +348,21 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
 
         let thisAltDepth: i32 = altDepth[groupDepth];
         while (thisAltDepth-- > 0) {
-          const jumpPtr: i32 = altStack.pop();
+          const jumpPtr: i32 = Porffor.array.fastPopI32(altStack);
           Porffor.wasm.i32.store16(jumpPtr, bcPtr - jumpPtr, 0, 1);
         }
         altDepth[groupDepth] = 0;
 
         groupDepth -= 1;
 
-        const capturePop: i32 = groupStack.pop();
+        const capturePop: i32 = Porffor.array.fastPopI32(groupStack);
         if (capturePop != -1) {
           Porffor.wasm.i32.store8(bcPtr, 0x31, 0, 0); // end capture
           Porffor.wasm.i32.store8(bcPtr, capturePop, 0, 1);
           bcPtr += 2;
         }
 
-        const groupStartPtr: i32 = groupStack.pop();
+        const groupStartPtr: i32 = Porffor.array.fastPopI32(groupStack);
         lastWasAtom = true;
         lastAtomStart = groupStartPtr;
         continue;
@@ -751,7 +758,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
 
   let thisAltDepth: i32 = altDepth[groupDepth];
   while (thisAltDepth-- > 0) {
-    const jumpPtr: i32 = altStack.pop();
+    const jumpPtr: i32 = Porffor.array.fastPopI32(altStack);
     Porffor.wasm.i32.store16(jumpPtr, bcPtr - jumpPtr, 0, 1);
   }
   altDepth[groupDepth] = 0;
@@ -1032,9 +1039,9 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
       if (backtrack) {
         if (backtrackStack.length == 0) break;
         // Porffor.log(`backtrack! before: captures.length = ${captures.length}, sp = ${sp}, pc = ${pc}`);
-        captures.length = backtrackStack.pop();
-        sp = backtrackStack.pop();
-        pc = backtrackStack.pop();
+        captures.length = Porffor.array.fastPopI32(backtrackStack);
+        sp = Porffor.array.fastPopI32(backtrackStack);
+        pc = Porffor.array.fastPopI32(backtrackStack);
         // Porffor.log(`backtrack! after: captures.length = ${captures.length}, sp = ${sp}, pc = ${pc}`);
       }
     }
