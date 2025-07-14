@@ -1521,9 +1521,7 @@ const generateLogicExp = (scope, decl) =>
   performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
 
 const isExistingProtoFunc = name => {
-  if (name.startsWith('__Array_prototype')) return Object.hasOwn(prototypeFuncs[TYPES.array], name.slice(18));
   if (name.startsWith('__String_prototype_')) return Object.hasOwn(prototypeFuncs[TYPES.string], name.slice(19));
-
   return false;
 };
 
