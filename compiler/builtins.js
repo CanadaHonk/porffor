@@ -5,8 +5,11 @@ import { TYPES, TYPE_NAMES } from './types.js';
 import { number, unsignedLEB128 } from './encoding.js';
 import './prefs.js';
 
-export const importedFuncs = {};
-Object.defineProperty(importedFuncs, 'length', { configurable: true, writable: true, value: 0 });
+export let importedFuncs;
+export const setImports = (v = null) => {
+  importedFuncs = v ?? { length: 0 };
+};
+setImports();
 
 /**
  * Create an import function for the Porffor world to use.
@@ -18,51 +21,41 @@ Object.defineProperty(importedFuncs, 'length', { configurable: true, writable: t
  * @param {string} c - C source code to compile as import implementation
  */
 export const createImport = (name, params, returns, js = null, c = null) => {
-  const lazy = () => {
-    if (typeof params === 'function') params = params();
-    if (typeof returns === 'function') returns = returns();
-    if (typeof params === 'number') params = new Array(params).fill(valtypeBinary);
-    if (typeof returns === 'number') returns = new Array(returns).fill(valtypeBinary);
-  };
+  if (!globalThis.valtype) {
+    globalThis.valtype = Prefs.valtype ?? 'f64';
+    globalThis.valtypeBinary = Valtype[valtype];
+  }
+
+  if (typeof params === 'number') params = new Array(params).fill(valtypeBinary);
+  if (typeof returns === 'number') returns = new Array(returns).fill(valtypeBinary);
 
   if (name in importedFuncs) {
     // overwrite existing import
     const existing = importedFuncs[name];
-    lazy();
+    const call = +existing;
+    const replacement = new Number(call);
+    replacement.name = name;
+    replacement.import = existing.import;
+    replacement.params = params;
+    replacement.returns = returns;
+    replacement.js = js;
+    replacement.c = c;
 
-    existing.params = params;
-    existing.returns = returns;
-    existing.js = js;
-    existing.c = c;
+    importedFuncs[name] = replacement;
     return;
   }
 
   const call = importedFuncs.length;
   const ident = String.fromCharCode(97 + importedFuncs.length);
-  let obj;
-  const get = () => {
-    if (obj) return obj;
-    lazy();
 
-    obj = new Number(call);
-    obj.name = name;
-    obj.import = ident;
-    obj.params = params;
-    obj.returns = returns;
-    obj.js = js;
-    obj.c = c;
-    return obj;
-  };
+  const obj = importedFuncs[name] = importedFuncs[call] = new Number(call);
+  obj.name = name;
+  obj.import = ident;
+  obj.params = params;
+  obj.returns = returns;
+  obj.js = js;
+  obj.c = c;
 
-  Object.defineProperty(importedFuncs, name, {
-    get,
-    configurable: true,
-    enumerable: true
-  });
-  Object.defineProperty(importedFuncs, call, {
-    get,
-    configurable: true
-  });
   importedFuncs.length = call + 1;
 };
 

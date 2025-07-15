@@ -511,9 +511,6 @@ export default (source, module = undefined, print = str => process.stdout.write(
     }
   });
 
-  for (const x in customImports) {
-    const custom = customImports[x];
-    // todo: make a simpler api for just js functions at some point using function.length etc
   const times = [];
 
   const t1 = performance.now();
@@ -571,6 +568,8 @@ export default (source, module = undefined, print = str => process.stdout.write(
     instance = new WebAssembly.Instance(module, {
       '': Object.keys(importedFuncs).reduce((acc, y) => {
         const x = importedFuncs[y];
+        if (!x.import) return acc;
+
         acc[x.import] = x.js ?? (() => {});
         return acc;
       }, {})
