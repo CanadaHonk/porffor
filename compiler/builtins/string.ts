@@ -357,7 +357,6 @@ export const __Porffor_strcat = (a: any, b: any): any => {
 export const __String_prototype_at = (_this: string, index: number) => {
   const len: i32 = _this.length;
 
-  index |= 0;
   if (index < 0) index = len + index;
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
 
@@ -375,7 +374,6 @@ export const __String_prototype_at = (_this: string, index: number) => {
 export const __ByteString_prototype_at = (_this: bytestring, index: number) => {
   const len: i32 = _this.length;
 
-  index |= 0;
   if (index < 0) index = len + index;
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
 
@@ -393,7 +391,6 @@ export const __ByteString_prototype_at = (_this: bytestring, index: number) => {
 export const __String_prototype_charAt = (_this: string, index: number) => {
   const len: i32 = _this.length;
 
-  index |= 0;
   if (Porffor.fastOr(index < 0, index >= len)) return '';
 
   let out: string = Porffor.allocateBytes(8);
@@ -410,7 +407,6 @@ export const __String_prototype_charAt = (_this: string, index: number) => {
 export const __ByteString_prototype_charAt = (_this: bytestring, index: number) => {
   const len: i32 = _this.length;
 
-  index |= 0;
   if (Porffor.fastOr(index < 0, index >= len)) return '';
 
   let out: bytestring = Porffor.allocateBytes(8);
@@ -522,7 +518,6 @@ export const __ByteString_prototype_toLocaleLowerCase = (_this: bytestring) => _
 export const __String_prototype_codePointAt = (_this: string, index: number) => {
   const len: i32 = _this.length;
 
-  index |= 0;
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
 
   index *= 2;
@@ -545,7 +540,6 @@ export const __String_prototype_codePointAt = (_this: string, index: number) => 
 export const __ByteString_prototype_codePointAt = (_this: bytestring, index: number) => {
   const len: i32 = _this.length;
 
-  index |= 0;
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
 
   // bytestrings cannot have surrogates, so just do charCodeAt
@@ -565,7 +559,6 @@ export const __String_prototype_startsWith = (_this: string, searchString: strin
   const len: i32 = _this.length;
   if (position > 0) {
     if (position > len) position = len;
-      else position |= 0;
   } else position = 0;
 
   thisPtr += position * 2;
@@ -595,7 +588,6 @@ export const __ByteString_prototype_startsWith = (_this: bytestring, searchStrin
   const len: i32 = _this.length;
   if (position > 0) {
     if (position > len) position = len;
-      else position |= 0;
   } else position = 0;
 
   thisPtr += position;
@@ -628,7 +620,6 @@ export const __String_prototype_endsWith = (_this: string, searchString: string,
 
   if (endPosition > 0) {
     if (endPosition > len) endPosition = len;
-      else endPosition |= 0;
   } else endPosition = 0;
 
   endPosition -= searchLen;
@@ -669,7 +660,6 @@ export const __ByteString_prototype_endsWith = (_this: bytestring, searchString:
 
   if (endPosition > 0) {
     if (endPosition > len) endPosition = len;
-      else endPosition |= 0;
   } else endPosition = 0;
 
   endPosition -= searchLen;
@@ -702,7 +692,6 @@ export const __String_prototype_indexOf = (_this: string, searchString: string, 
   const len: i32 = _this.length;
   if (position > 0) {
     if (position > len) position = len;
-      else position |= 0;
   } else position = 0;
 
   const thisPtrEnd: i32 = thisPtr + (len * 2) - searchLenX2;
@@ -743,7 +732,6 @@ export const __ByteString_prototype_indexOf = (_this: bytestring, searchString: 
   const len: i32 = _this.length;
   if (position > 0) {
     if (position > len) position = len;
-      else position |= 0;
   } else position = 0;
 
   const thisPtrEnd: i32 = thisPtr + len - searchLen;
@@ -789,7 +777,6 @@ export const __String_prototype_lastIndexOf = (_this: string, searchString: stri
   if (position > 0) {
     const max: i32 = len - searchLen;
     if (position > max) position = max;
-      else position |= 0;
   } else position = 0;
 
   const thisPtrStart: i32 = thisPtr;
@@ -835,7 +822,6 @@ export const __ByteString_prototype_lastIndexOf = (_this: bytestring, searchStri
   if (position > 0) {
     const max: i32 = len - searchLen;
     if (position > max) position = max;
-      else position |= 0;
   } else position = 0;
 
   const thisPtrStart: i32 = thisPtr;
@@ -875,7 +861,6 @@ export const __String_prototype_includes = (_this: string, searchString: string,
   const len: i32 = _this.length;
   if (position > 0) {
     if (position > len) position = len;
-      else position |= 0;
   } else position = 0;
 
   const thisPtrEnd: i32 = thisPtr + (len * 2) - searchLenX2;
@@ -916,7 +901,6 @@ export const __ByteString_prototype_includes = (_this: bytestring, searchString:
   const len: i32 = _this.length;
   if (position > 0) {
     if (position > len) position = len;
-      else position |= 0;
   } else position = 0;
 
   const thisPtrEnd: i32 = thisPtr + len - searchLen;
@@ -952,7 +936,6 @@ export const __String_prototype_padStart = (_this: string, targetLength: number,
 
   const len: i32 = _this.length;
 
-  targetLength |= 0;
 
   const todo: i32 = targetLength - len;
   if (todo > 0) {
@@ -997,7 +980,6 @@ export const __ByteString_prototype_padStart = (_this: bytestring, targetLength:
 
   const len: i32 = _this.length;
 
-  targetLength |= 0;
 
   const todo: i32 = targetLength - len;
   if (todo > 0) {
@@ -1046,7 +1028,6 @@ export const __String_prototype_padEnd = (_this: string, targetLength: number, p
     outPtr += 2;
   }
 
-  targetLength |= 0;
 
   const todo: i32 = targetLength - len;
   if (todo > 0) {
@@ -1088,7 +1069,6 @@ export const __ByteString_prototype_padEnd = (_this: bytestring, targetLength: n
     Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(thisPtr++, 0, 4), 0, 4);
   }
 
-  targetLength |= 0;
 
   const todo: i32 = targetLength - len;
   if (todo > 0) {
@@ -1123,8 +1103,6 @@ export const __String_prototype_substring = (_this: string, start: number, end: 
       start = tmp;
     }
 
-  start |= 0;
-  end |= 0;
 
   if (start < 0) start = 0;
   if (start > len) start = len;
@@ -1161,8 +1139,6 @@ export const __ByteString_prototype_substring = (_this: bytestring, start: numbe
       start = tmp;
     }
 
-  start |= 0;
-  end |= 0;
 
   if (start < 0) start = 0;
   if (start > len) start = len;
@@ -1191,7 +1167,6 @@ export const __ByteString_prototype_substring = (_this: bytestring, start: numbe
 export const __String_prototype_substr = (_this: string, start: number, length: number) => {
   const len: i32 = _this.length;
 
-  start |= 0;
 
   if (start < 0) {
     start = len + start;
@@ -1200,7 +1175,6 @@ export const __String_prototype_substr = (_this: string, start: number, length: 
 
   if (Porffor.wasm`local.get ${length+1}` == Porffor.TYPES.undefined) length = len - start;
 
-  length |= 0;
 
   if (start + length > len) length = len - start;
 
@@ -1228,7 +1202,6 @@ export const __String_prototype_substr = (_this: string, start: number, length: 
 export const __ByteString_prototype_substr = (_this: bytestring, start: number, length: number) => {
   const len: i32 = _this.length;
 
-  start |= 0;
 
   if (start < 0) {
     start = len + start;
@@ -1237,7 +1210,6 @@ export const __ByteString_prototype_substr = (_this: bytestring, start: number, 
 
   if (Porffor.wasm`local.get ${length+1}` == Porffor.TYPES.undefined) length = len - start;
 
-  length |= 0;
 
   if (start + length > len) length = len - start;
 
@@ -1264,8 +1236,6 @@ export const __String_prototype_slice = (_this: string, start: number, end: numb
   const len: i32 = _this.length;
   if (Porffor.wasm`local.get ${end+1}` == Porffor.TYPES.undefined) end = len;
 
-  start |= 0;
-  end |= 0;
 
   if (start < 0) {
     start = len + start;
@@ -1305,8 +1275,6 @@ export const __ByteString_prototype_slice = (_this: bytestring, start: number, e
   const len: i32 = _this.length;
   if (Porffor.wasm`local.get ${end+1}` == Porffor.TYPES.undefined) end = len;
 
-  start |= 0;
-  end |= 0;
 
   if (start < 0) {
     start = len + start;
@@ -1644,7 +1612,6 @@ export const __String_prototype_split = (_this: string, separator: any, limit: a
   let out: any[] = Porffor.allocate(), outLen: i32 = 0;
 
   if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
-  limit |= 0;
   if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
 
   if (separator == null) {
@@ -1822,7 +1789,6 @@ i32.store8 0 12`;
   }
 
   if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
-  limit |= 0;
   if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
 
   let tmp: bytestring = Porffor.allocate(), tmpLen: i32 = 0;
