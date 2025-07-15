@@ -481,10 +481,9 @@ export { createImport };
  *
  * @param {string} source - JavaScript source code to compile
  * @param {boolean} module - If the source is a module or not (default: false)
- * @param {object} customImports - Custom imports
  * @param {(str: string) => void} print - Function to use for printing (used by console.log etc)
  */
-export default (source, module = undefined, customImports = {}, print = str => process.stdout.write(str)) => {
+export default (source, module = undefined, print = str => process.stdout.write(str)) => {
   createImport('print', 1, 0, i => print(i.toString()));
   createImport('printChar', 1, 0, i => print(String.fromCharCode(i)));
   createImport('time', 0, 1, () => performance.now());
@@ -515,9 +514,6 @@ export default (source, module = undefined, customImports = {}, print = str => p
   for (const x in customImports) {
     const custom = customImports[x];
     // todo: make a simpler api for just js functions at some point using function.length etc
-    createImport(x, custom.params, custom.returns, custom.js, custom.c);
-  }
-
   const times = [];
 
   const t1 = performance.now();

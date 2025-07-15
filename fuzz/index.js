@@ -246,7 +246,7 @@ if (cluster.isPrimary) {
     let stage = 0;
 
     try {
-      const out = compile(code, false, {});
+      const out = compile(code, false);
 
       try {
         out.exports.main();

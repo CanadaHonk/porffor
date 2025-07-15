@@ -468,7 +468,7 @@ if (cluster.isPrimary) {
 
     let exports;
     try {
-      const out = compile(contents, !!flags.module, {}, x => log += x);
+      const out = compile(contents, !!flags.module, x => log += x);
       exports = out.exports;
     } catch (e) {
       error = e;

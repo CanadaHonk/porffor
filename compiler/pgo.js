@@ -93,27 +93,7 @@ export const run = obj => {
     Prefs._profileCompiler = Prefs.profileCompiler;
     Prefs.profileCompiler = false;
 
-    const { exports } = wrap(obj, undefined, {
-      readArgv: (ind, outPtr) => {
-        // const pgoInd = process.argv.indexOf('--pgo');
-        // let args = process.argv.slice(pgoInd);
-        // args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
-
-        // const str = args[ind - 1];
-        // if (pgoInd === -1 || !str) {
-        //   if (Prefs.pgoLog) console.log('\nPGO warning: script was expecting arguments, please specify args to use for PGO after --pgo arg');
-        //   return -1;
-        // }
-
-        // writeByteStr(exports.$, outPtr, str);
-        // return str.length;
-        return -1;
-      },
-      readFile: (pathPtr, outPtr) => {
-        return -1;
-      }
-    }, () => {});
-
+    const { exports } = wrap(obj, undefined, () => {});
     exports.main();
   } catch (e) {
     throw e;
