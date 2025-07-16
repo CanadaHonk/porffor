@@ -1822,6 +1822,12 @@ const getNodeType = (scope, node) => {
         case '__Porffor_bs': return TYPES.bytestring;
         case '__Porffor_s': return TYPES.string;
       }
+
+      return getNodeType(scope, {
+        type: 'CallExpression',
+        callee: node.tag,
+        arguments: []
+      });
     }
 
     if (node.type === 'ThisExpression') {
