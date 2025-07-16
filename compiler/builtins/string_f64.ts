@@ -107,26 +107,23 @@ export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
 
 export const __String_fromCodePoint = (...codePoints: any[]): string => {
   let out: string = Porffor.allocate();
-  
+
   const len: i32 = codePoints.length;
   let outLength: i32 = 0;
-  
+
   for (let i: i32 = 0; i < len; i++) {
-    const nextCP: number = ecma262.ToNumber(codePoints[i]);
-    
-    // Check if nextCP is not an integral Number
-    if (nextCP != (nextCP | 0)) {
+    const codepoint: number = ecma262.ToNumber(codePoints[i]);
+
+    if (codepoint != (codepoint | 0)) {
       throw new RangeError('Invalid code point');
     }
-    
-    const cp: i32 = nextCP;
-    
+
     // Check if code point is valid (0 to 0x10FFFF)
-    if (Porffor.fastOr(cp < 0, cp > 0x10FFFF)) {
+    if (Porffor.fastOr(codepoint < 0, codepoint > 0x10FFFF)) {
       throw new RangeError('Invalid code point');
     }
-    
-    if (cp <= 0xFFFF) {
+
+    if (codepoint <= 0xFFFF) {
       // BMP code point - single 16-bit unit
       outLength++;
     } else {
@@ -134,31 +131,29 @@ export const __String_fromCodePoint = (...codePoints: any[]): string => {
       outLength += 2;
     }
   }
-  
+
   out.length = outLength;
   let outIndex: i32 = 0;
-  
+
   for (let i: i32 = 0; i < len; i++) {
-    const nextCP: number = ecma262.ToNumber(codePoints[i]);
-    const cp: i32 = nextCP;
-    
-    if (cp <= 0xFFFF) {
+    const codepoint: number = ecma262.ToNumber(codePoints[i]);
+
+    if (codepoint <= 0xFFFF) {
       // BMP code point
-      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, cp, 0, 4);
+      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, codepoint, 0, 4);
       outIndex++;
     } else {
       // Supplementary code point - encode as surrogate pair
-      const cpMinusBase: i32 = cp - 0x10000;
+      const cpMinusBase: i32 = codepoint - 0x10000;
       const highSurrogate: i32 = 0xD800 + (cpMinusBase >> 10);
       const lowSurrogate: i32 = 0xDC00 + (cpMinusBase & 0x3FF);
-      
+
       Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, highSurrogate, 0, 4);
-      outIndex++;
-      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, lowSurrogate, 0, 4);
-      outIndex++;
+      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, lowSurrogate, 0, 6);
+      outIndex += 2;
     }
   }
-  
+
   return out;
 };
 
