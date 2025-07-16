@@ -208,20 +208,9 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     const bytesPerFunc = funcs.bytesPerFuncLut();
     for (let i = 0; i < indirectFuncs.length; i++) {
       const func = indirectFuncs[i].wrapperOf;
-      let name = func.name;
 
       // userland exposed .length
-      let length = func.jsLength;
-      if (length == null) {
-        length = func.params.length;
-        if (func.constr) length -= 4;
-        if (func.method) length -= 2;
-        if (!func.internal || func.typedParams) length = Math.floor(length / 2);
-
-        // remove _this from internal prototype funcs
-        if (func.internal && name.includes('_prototype_')) length--;
-      }
-
+      const length = func.jsLength;
       bytes.push(length % 256, (length / 256 | 0) % 256);
 
       let flags = 0b00000000; // 8 flag bits
@@ -229,8 +218,8 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
       if (func.constr) flags |= 0b10;
       bytes.push(flags);
 
+      let name = func.name;
       if (name.startsWith('#')) name = '';
-
       // eg: __String_prototype_toLowerCase -> toLowerCase
       if (name.startsWith('__')) name = name.split('_').pop();
 

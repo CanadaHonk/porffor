@@ -1505,6 +1505,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     typeUsed(func, returnType);
   }
 
+  func.jsLength = countLength(func);
   func.wasm = wasm;
   return func;
 };
@@ -5766,7 +5767,24 @@ const countLength = (func, name = undefined) => {
 
   let count = countParams(func, name);
   if (builtinFuncs[name] && name.includes('_prototype_')) count--;
+  if (func.hasRestArgument) count--;
 
+  if (func.internal) {
+    // some js built-ins have an old non-standard length
+    const override = ({
+      Array: 1,
+      String: 1,
+      __Object_assign: 2,
+      __String_fromCharCode: 1,
+      __String_fromCodePoint: 1,
+      __Array_prototype_concat: 1,
+      __Array_prototype_push: 1,
+      __Array_prototype_unshift: 1,
+      __String_prototype_concat: 1,
+      __ByteString_prototype_concat: 1
+    })[name];
+    if (override != null) return override;
+  }
   return count;
 };
 
