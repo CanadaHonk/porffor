@@ -6581,20 +6581,41 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
     return cacheAst(decl, intrinsics[decl.tag.name](str));
   }
 
-  return generate(scope, {
-    type: 'CallExpression',
-    callee: decl.tag,
-    arguments: [
-      { // strings
-        type: 'ArrayExpression',
-        elements: quasis.map(x => ({
-          type: 'Literal',
-          value: x.value.cooked
-        }))
-      },
-      ...expressions
-    ]
-  });
+  const tmp = localTmp(scope, '#tagged_template_strings');
+  const tmpIdent = {
+    type: 'Identifier',
+    name: '#tagged_template_strings',
+    _type: TYPES.array
+  };
+
+  return [
+    ...generate(scope, {
+      type: 'ArrayExpression',
+      elements: quasis.map(x => ({
+        type: 'Literal',
+        value: x.value.cooked
+      }))
+    }),
+    [ Opcodes.local_set, tmp ],
+
+    ...generate(scope, setObjProp(tmpIdent, 'raw', {
+      type: 'ArrayExpression',
+      elements: quasis.map(x => ({
+        type: 'Literal',
+        value: x.value.raw
+      }))
+    })),
+    [ Opcodes.drop ],
+
+    ...generate(scope, {
+      type: 'CallExpression',
+      callee: decl.tag,
+      arguments: [
+        tmpIdent,
+        ...expressions
+      ]
+    })
+  ];
 };
 
 globalThis._uniqId = 0;
