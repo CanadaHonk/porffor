@@ -353,7 +353,6 @@ export const __Porffor_strcat = (a: any, b: any): any => {
 };
 
 
-
 export const __String_prototype_at = (_this: string, index: number) => {
   const len: i32 = _this.length;
 

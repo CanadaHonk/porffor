@@ -175,3 +175,48 @@ export const __ByteString_prototype_charCodeAt = (_this: bytestring, index: numb
 
   return Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4);
 };
+
+// 22.1.2.4 String.raw ( template, ...substitutions )
+// https://tc39.es/ecma262/#sec-string.raw
+export const __String_raw = (template: any, ...substitutions: any[]): string => {
+  // 1. Let substitutionCount be the number of elements in substitutions.
+  const substitutionCount: i32 = substitutions.length;
+
+  // 2. Let cooked be ? ToObject(template).
+  // 3. Let literals be ? ToObject(? Get(cooked, "raw")).
+  const literals: any = template.raw;
+
+  // 4. Let literalCount be ? LengthOfArrayLike(literals).
+  const literalCount: number = ecma262.ToIntegerOrInfinity(Porffor.type(literals) == Porffor.TYPES.object ? (literals as object)['length'] : literals.length);
+
+  // 5. If literalCount ≤ 0, return the empty String.
+  if (literalCount <= 0) return '';
+
+  // 6. Let R be the empty String.
+  let R: string = '';
+
+  // 7. Let nextIndex be 0.
+  let nextIndex: i32 = 0;
+
+  // 8. Repeat,
+  while (true) {
+    // a. Let nextLiteralVal be ? Get(literals, ! ToString(𝔽(nextIndex))).
+    // b. Let nextLiteral be ? ToString(nextLiteralVal).
+    // c. Set R to the string-concatenation of R and nextLiteral.
+    R = __Porffor_concatStrings(R, literals[nextIndex]);
+
+    // d. If nextIndex + 1 = literalCount, return R.
+    if (nextIndex + 1 == literalCount) return R;
+
+    // e. If nextIndex < substitutionCount, then
+    if (nextIndex < substitutionCount) {
+      // i. Let nextSubVal be substitutions[nextIndex].
+      // ii. Let nextSub be ? ToString(nextSubVal).
+      // iii. Set R to the string-concatenation of R and nextSub.
+      R = __Porffor_concatStrings(R, substitutions[nextIndex]);
+    }
+
+    // f. Set nextIndex to nextIndex + 1.
+    nextIndex += 1;
+  }
+};
