@@ -218,6 +218,20 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
             else throw new SyntaxError('Regex parse: invalid \\u escape');
 
           v = d1 * 4096 + d2 * 256 + d3 * 16 + d4;
+        } else if (char == 99) { // \c
+          if (patternPtr >= patternEndPtr) {
+            // No character after \c, treat as literal \c
+            v = char;
+          } else {
+            const ctrlChar = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+            if ((ctrlChar >= 65 && ctrlChar <= 90) || (ctrlChar >= 97 && ctrlChar <= 122)) {
+              patternPtr++;
+              v = ctrlChar & 0x1F;
+            } else {
+              // Invalid control character, treat as literal \c
+              v = char;
+            }
+          }
         }
       }
 
@@ -296,6 +310,20 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
                 else throw new SyntaxError('Regex parse: invalid \\u escape');
 
               endChar = d1 * 4096 + d2 * 256 + d3 * 16 + d4;
+            } else if (endChar == 99) { // \c
+              if (patternPtr >= patternEndPtr) {
+                // No character after \c, treat as literal \c
+                endChar = endChar;
+              } else {
+                const ctrlChar = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+                if ((ctrlChar >= 65 && ctrlChar <= 90) || (ctrlChar >= 97 && ctrlChar <= 122)) {
+                  patternPtr++;
+                  endChar = ctrlChar & 0x1F;
+                } else {
+                  // Invalid control character, treat as literal \c
+                  endChar = endChar;
+                }
+              }
             }
         }
 
@@ -836,6 +864,23 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
         lastAtomStart = bcPtr;
         lastWasAtom = true;
         continue;
+      }
+      if (char == 99) { // \c
+        if (patternPtr >= patternEndPtr) {
+          // No character after \c, treat as literal \c - fall through to default case
+        } else {
+          const ctrlChar = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+          if ((ctrlChar >= 65 && ctrlChar <= 90) || (ctrlChar >= 97 && ctrlChar <= 122)) {
+            patternPtr++;
+            lastAtomStart = bcPtr;
+            Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
+            Porffor.wasm.i32.store8(bcPtr, ctrlChar & 0x1F, 0, 1);
+            bcPtr += 2;
+            lastWasAtom = true;
+            continue;
+          }
+          // Invalid control character, treat as literal \c - fall through to default case
+        }
       }
     }
 
