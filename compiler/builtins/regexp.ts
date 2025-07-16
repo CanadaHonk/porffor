@@ -787,11 +787,11 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
   const inputLen: i32 = Porffor.wasm.i32.load(input, 0, 0);
   let searchStart: i32 = 0;
   if (global || sticky) {
-    searchStart = Porffor.wasm.i32.load(regexp, 0, 8);
+    searchStart = Porffor.wasm.i32.load16_u(regexp, 0, 8);
   }
 
   if (searchStart > inputLen) {
-    if (global || sticky) Porffor.wasm.i32.store(regexp, 0, 0, 8);
+    if (global || sticky) Porffor.wasm.i32.store16(regexp, 0, 0, 8);
     return null;
   }
 
@@ -919,7 +919,7 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
           backtrack = true;
         } else {
           const classId: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
-          const char: i32 = Porffor.wasm.i32.load8_u(input + 4 + sp, 0, 0);
+          const char: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
           let isMatch: boolean = false;
           if (classId == 1) isMatch = char >= 48 && char <= 57;
           else if (classId == 2) isMatch = !(char >= 48 && char <= 57);
@@ -948,16 +948,56 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
           backtrack = true;
         }
       } else if (op == 0x07) { // word boundary
-        const prevIsWord = sp > 0 && ((Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 65 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 90) || (Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 97 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 122) || (Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 48 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 57) || Porffor.wasm.i32.load8_u(input + sp, 0, 3) == 95);
-        const nextIsWord = sp < inputLen && ((Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 65 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 90) || (Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 97 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 122) || (Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 48 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 57) || Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 95);
+        let prevIsWord: boolean = false;
+        if (sp > 0) {
+          const prevChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 3);
+          prevIsWord = Porffor.fastOr(
+            prevChar >= 65 && prevChar <= 90, // A-Z
+            prevChar >= 97 && prevChar <= 122, // a-z
+            prevChar >= 48 && prevChar <= 57, // 0-9
+            prevChar == 95 // _
+          );
+        }
+
+        let nextIsWord: boolean = false;
+        if (sp < inputLen) {
+          const nextChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+          nextIsWord = Porffor.fastOr(
+            nextChar >= 65 && nextChar <= 90, // A-Z
+            nextChar >= 97 && nextChar <= 122, // a-z
+            nextChar >= 48 && nextChar <= 57, // 0-9
+            nextChar == 95 // _
+          );
+        }
+
         if (prevIsWord != nextIsWord) {
           pc += 1;
         } else {
           backtrack = true;
         }
       } else if (op == 0x08) { // non-word boundary
-        const prevIsWord = sp > 0 && ((Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 65 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 90) || (Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 97 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 122) || (Porffor.wasm.i32.load8_u(input + sp, 0, 3) >= 48 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) <= 57) || Porffor.wasm.i32.load8_u(input + sp, 0, 3) == 95);
-        const nextIsWord = sp < inputLen && ((Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 65 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 90) || (Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 97 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 122) || (Porffor.wasm.i32.load8_u(input + sp, 0, 4) >= 48 && Porffor.wasm.i32.load8_u(input + sp, 0, 4) <= 57) || Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 95);
+        let prevIsWord: boolean = false;
+        if (sp > 0) {
+          const prevChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 3);
+          prevIsWord = Porffor.fastOr(
+            prevChar >= 65 && prevChar <= 90, // A-Z
+            prevChar >= 97 && prevChar <= 122, // a-z
+            prevChar >= 48 && prevChar <= 57, // 0-9
+            prevChar == 95 // _
+          );
+        }
+
+        let nextIsWord: boolean = false;
+        if (sp < inputLen) {
+          const nextChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+          nextIsWord = Porffor.fastOr(
+            nextChar >= 65 && nextChar <= 90, // A-Z
+            nextChar >= 97 && nextChar <= 122, // a-z
+            nextChar >= 48 && nextChar <= 57, // 0-9
+            nextChar == 95 // _
+          );
+        }
+
         if (prevIsWord == nextIsWord) {
           pc += 1;
         } else {
