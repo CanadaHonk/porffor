@@ -5,7 +5,6 @@ import assemble from './assemble.js';
 import wrap from './wrap.js';
 import * as Havoc from './havoc.js';
 import './prefs.js';
-import fs from 'node:fs';
 
 let activeFunc, localData;
 export const setup = () => {
