@@ -21,8 +21,8 @@ setImports();
  * @param {string} c - C source code to compile as import implementation
  */
 export const createImport = (name, params, returns, js = null, c = null) => {
-  if (!globalThis.valtype) {
-    globalThis.valtype = Prefs.valtype ?? 'f64';
+  if (!globalThis.valtypeBinary) {
+    globalThis.valtype ??= Prefs.valtype ?? 'f64';
     globalThis.valtypeBinary = Valtype[valtype];
   }
 
