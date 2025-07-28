@@ -879,7 +879,7 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   return [
     ...left,
     [ Opcodes.local_tee, localTmp(scope, 'logictmp') ],
-    ...checks[op](scope, [], leftType, false, true),
+    ...checks[op](scope, [], leftType),
     [ Opcodes.if, valtypeBinary ],
     ...right,
     // note type
@@ -935,25 +935,27 @@ const compareStrings = (scope, left, right, leftType, rightType, noConv = false)
   ];
 };
 
-const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode = undefined) => {
-  const truthyMode = forceTruthyMode ?? Prefs.truthy ?? 'full';
+const truthy = (scope, wasm, type, nonbinary = true, intIn = false) => {
+  // nonbinary = true: int output, 0 or non-0
+  // nonbinary = false: float output, 0 or 1
+
+  const truthyMode = nonbinary ? (Prefs.truthy ?? 'full') : 'full';
   if (isIntToFloatOp(wasm[wasm.length - 1])) return [
     ...wasm,
     ...(truthyMode === 'full' ? [
       [ Opcodes.f64_const, 0 ],
       [ Opcodes.f64_ne ],
-      ...(!intOut ? [ Opcodes.i32_from_u ] : [])
-    ] : [
-      ...(!intIn && intOut ? [ Opcodes.i32_to_u ] : [])
-    ])
+      ...(!nonbinary ? [ Opcodes.i32_from_u ] : [])
+    ] : (!intIn && nonbinary ? [ Opcodes.i32_to_u ] : []))
   ];
+
   if (isIntOp(wasm[wasm.length - 1])) return [
     ...wasm,
     ...(truthyMode === 'full' ? [
       [ Opcodes.i32_eqz ],
       [ Opcodes.i32_eqz ]
     ] : []),
-    ...(intOut ? [] : [ Opcodes.i32_from ]),
+    ...(nonbinary ? [] : [ Opcodes.i32_from ])
   ];
 
   // todo/perf: use knownType and custom bytecode here instead of typeSwitch
@@ -973,21 +975,21 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
         [ Opcodes.f64_gt ]
       ]),
 
-      ...(intOut ? [] : [ Opcodes.i32_from ]),
+      ...(nonbinary ? [] : [ Opcodes.i32_from ]),
     ];
 
     if (truthyMode === 'no_negative') return [
       // if value != 0 or NaN, non-binary output. negative numbers not truthy :/
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
       ...(intIn ? [] : [ Opcodes.i32_to ]),
-      ...(intOut ? [] : [ Opcodes.i32_from ])
+      ...(nonbinary ? [] : [ Opcodes.i32_from ])
     ];
 
     if (truthyMode === 'no_nan_negative') return [
       // simpler and faster but makes NaN truthy and negative numbers not truthy,
       // plus non-binary output
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
-      ...(!intOut || (intIn && intOut) ? [] : [ Opcodes.i32_to_u ])
+      ...(!nonbinary || (intIn && nonbinary) ? [] : [ Opcodes.i32_to_u ])
     ];
   })();
 
@@ -1004,27 +1006,32 @@ const truthy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMod
         [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
 
         // if length != 0
-        /* [ Opcodes.i32_eqz ],
-        [ Opcodes.i32_eqz ], */
-        ...(intOut ? [] : [ Opcodes.i32_from_u ])
+        ...(nonbinary ? [] : [
+          [ Opcodes.i32_eqz ],
+          [ Opcodes.i32_eqz ],
+          Opcodes.i32_from_u
+        ])
       ] ],
 
       ...(truthyMode === 'full' ? [ [ [ TYPES.booleanobject, TYPES.numberobject ], [
         // always truthy :))
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
-        number(1, intOut ? Valtype.i32 : valtypeBinary)
+        number(1, nonbinary ? Valtype.i32 : valtypeBinary)
       ] ] ] : []),
 
       [ 'default', def ]
-    ], intOut ? Valtype.i32 : valtypeBinary)
+    ], nonbinary ? Valtype.i32 : valtypeBinary)
   ];
 };
 
-const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode = undefined) => {
+const falsy = (scope, wasm, type, nonbinary = true, intIn = false) => {
+  // nonbinary = true: int output, 0 or non-0
+  // nonbinary = false: float output, 0 or 1
+
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
-  const truthyMode = forceTruthyMode ?? Prefs.truthy ?? 'full';
+  const truthyMode = Prefs.truthy ?? 'full';
   const def = (() => {
     if (truthyMode === 'full') return [
       // if value == 0 or NaN
@@ -1038,7 +1045,7 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
         [ Opcodes.i32_eqz ]
       ]),
 
-      ...(intOut ? [] : [ Opcodes.i32_from ]),
+      ...(nonbinary ? [] : [ Opcodes.i32_from ]),
     ];
 
     if (truthyMode === 'no_negative') return [
@@ -1046,15 +1053,15 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
       ...(intIn ? [] : [ Opcodes.i32_to ]),
       [ Opcodes.i32_eqz ],
-      ...(intOut ? [] : [ Opcodes.i32_from ])
+      ...(nonbinary ? [] : [ Opcodes.i32_from ])
     ];
 
     if (truthyMode === 'no_nan_negative') return [
       // simpler and faster but makes NaN truthy and negative numbers not truthy,
       // plus non-binary output
       ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
-      ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
-      ...(intOut ? [] : [ Opcodes.i32_from_u ])
+      ...(intIn ? [ [ Opcodes.i32_eqz ] ] : Opcodes.eqz),
+      ...(nonbinary ? [] : [ Opcodes.i32_from_u ])
     ];
   })();
 
@@ -1072,21 +1079,24 @@ const falsy = (scope, wasm, type, intIn = false, intOut = false, forceTruthyMode
 
         // if length == 0
         [ Opcodes.i32_eqz ],
-        ...(intOut ? [] : [ Opcodes.i32_from_u ])
+        ...(nonbinary ? [] : [ Opcodes.i32_from_u ])
       ] ],
 
       ...(truthyMode === 'full' ? [ [ [ TYPES.booleanobject, TYPES.numberobject ], [
         // always truthy :))
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
-        number(0, intOut ? Valtype.i32 : valtypeBinary)
+        number(0, nonbinary ? Valtype.i32 : valtypeBinary)
       ] ] ] : []),
 
       [ 'default', def ]
-    ], intOut ? Valtype.i32 : valtypeBinary)
+    ], nonbinary ? Valtype.i32 : valtypeBinary)
   ];
 };
 
-const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
+const nullish = (scope, wasm, type, nonbinary = true, intIn = false) => {
+  // nonbinary = true: int output, 0 or non-0
+  // nonbinary = false: float output, 0 or 1
+
   const useTmp = knownType(scope, type) == null;
   const tmp = useTmp && localTmp(scope, `#logicinner_tmp${intIn ? '_int' : ''}`, intIn ? Valtype.i32 : valtypeBinary);
 
@@ -1098,21 +1108,21 @@ const nullish = (scope, wasm, type, intIn = false, intOut = false) => {
       [ TYPES.undefined, [
         // empty
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
-        number(1, intOut ? Valtype.i32 : valtypeBinary)
+        number(1, nonbinary ? Valtype.i32 : valtypeBinary)
       ] ],
       [ TYPES.object, [
         // object, null if == 0
         ...(!useTmp ? [] : [ [ Opcodes.local_get, tmp ] ]),
 
-        ...(intIn ? [ [ Opcodes.i32_eqz ] ] : [ ...Opcodes.eqz ]),
-        ...(intOut ? [] : [ Opcodes.i32_from_u ])
+        ...(intIn ? [ [ Opcodes.i32_eqz ] ] : Opcodes.eqz),
+        ...(nonbinary ? [] : [ Opcodes.i32_from_u ])
       ] ],
       [ 'default', [
         // not
         ...(!useTmp ? [ [ Opcodes.drop ] ] : []),
-        number(0, intOut ? Valtype.i32 : valtypeBinary)
+        number(0, nonbinary ? Valtype.i32 : valtypeBinary)
       ] ]
-    ], intOut ? Valtype.i32 : valtypeBinary)
+    ], nonbinary ? Valtype.i32 : valtypeBinary)
   ];
 };
 
@@ -1348,14 +1358,14 @@ const generateBinaryExp = (scope, decl) => {
   // opt: == null|undefined -> nullish
   if (decl.operator === '==' || decl.operator === '!=') {
     if (knownNullish(decl.right)) {
-      const out = nullish(scope, generate(scope, decl.left), getNodeType(scope, decl.left), false, true);
+      const out = nullish(scope, generate(scope, decl.left), getNodeType(scope, decl.left));
       if (decl.operator === '!=') out.push([ Opcodes.i32_eqz ]);
       out.push(Opcodes.i32_from_u);
       return out;
     }
 
     if (knownNullish(decl.left)) {
-      const out = nullish(scope, generate(scope, decl.right), getNodeType(scope, decl.right), false, true);
+      const out = nullish(scope, generate(scope, decl.right), getNodeType(scope, decl.right));
       if (decl.operator === '!=') out.push([ Opcodes.i32_eqz ]);
       out.push(Opcodes.i32_from_u);
       return out;
@@ -4244,11 +4254,11 @@ const generateUnary = (scope, decl) => {
       const arg = decl.argument;
       if (arg.type === 'UnaryExpression' && arg.operator === '!') {
         // opt: !!x -> is x truthy
-        return truthy(scope, generate(scope, arg.argument), getNodeType(scope, arg.argument), false, false, 'full');
+        return truthy(scope, generate(scope, arg.argument), getNodeType(scope, arg.argument), false);
       }
 
       // !=
-      return falsy(scope, generate(scope, arg), getNodeType(scope, arg), false, false);
+      return falsy(scope, generate(scope, arg), getNodeType(scope, arg), false);
 
     case 'void': {
       // drop current expression value after running, give undefined
@@ -4449,7 +4459,7 @@ const generateIf = (scope, decl) => {
     ];
   }
 
-  const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test), false, true);
+  const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test));
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
   inferBranchStart(scope, decl.consequent);
@@ -4480,7 +4490,7 @@ const generateIf = (scope, decl) => {
 };
 
 const generateConditional = (scope, decl) => {
-  const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test), false, true);
+  const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test));
 
   out.push([ Opcodes.if, valtypeBinary ]);
   depth.push('if');
@@ -6157,7 +6167,7 @@ const generateMember = (scope, decl, _global, _name) => {
       ...generate(scope, object),
       [ Opcodes.local_tee, objectTmp ],
 
-      ...nullish(scope, [], type, false, true),
+      ...nullish(scope, [], type),
       [ Opcodes.if, Blocktype.void ],
         ...setLastType(scope, TYPES.undefined),
         number(0),
