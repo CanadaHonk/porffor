@@ -2493,14 +2493,13 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       out = out.concat(generate(scope, arg), valtypeBinary === Valtype.i32 && scope.locals[arg.name]?.type !== Valtype.f64 ? [ [ Opcodes.f64_convert_i32_s ] ] : [], getNodeType(scope, arg));
     }
 
-    let knownThis = undefined, getCallee = undefined;
-
     const tmpName = '#indirect' + uniqId() + '_';
     const calleeLocal = localTmp(scope, tmpName + 'callee');
+    let callee = decl.callee, callAsNew = decl._new, sup = false, knownThis = undefined;
 
     // hack: this should be more thorough, Function.bind, etc
-    if (!decl._new && (decl.callee.type === 'MemberExpression' || decl.callee.type === 'ChainExpression')) {
-      const { property, object, computed, optional } = decl.callee.expression ?? decl.callee;
+    if (!callAsNew && (callee.type === 'MemberExpression' || callee.type === 'ChainExpression')) {
+      const { property, object, computed, optional } = callee.expression ?? callee;
       if (object && property) {
         const thisLocal = localTmp(scope, tmpName + 'caller');
         const thisLocalType = localTmp(scope, tmpName + 'caller#type', Valtype.i32);
@@ -2509,7 +2508,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           [ Opcodes.local_get, thisLocal ],
           [ Opcodes.local_get, thisLocalType ]
         ];
-        getCallee = generate(scope, {
+        callee = {
           type: 'MemberExpression',
           object: {
             type: 'Wasm',
@@ -2526,11 +2525,10 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           property,
           computed,
           optional
-        });
+        };
       }
     }
 
-    let callee = decl.callee, callAsNew = decl._new, sup = false;
     if (callee.type === 'Super') {
       // call super constructor with direct super() call
       callee = getObjProp(callee, 'constructor');
@@ -2548,7 +2546,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     const thisWasm = decl._thisWasm ?? knownThis ?? createThisArg(scope, decl);
 
     out = [
-      ...(getCallee ? getCallee : generate(scope, callee)),
+      ...generate(scope, callee),
       [ Opcodes.local_set, calleeLocal ],
 
       ...typeSwitch(scope, getNodeType(scope, callee), {
