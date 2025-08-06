@@ -936,6 +936,8 @@ const compareStrings = (scope, left, right, leftType, rightType, noConv = false)
 };
 
 const truthy = (scope, wasm, type, nonbinary = true, intIn = false) => {
+  if (valtypeBinary === Valtype.i32) intIn = true;
+
   // nonbinary = true: int output, 0 or non-0
   // nonbinary = false: float output, 0 or 1
 
@@ -1460,7 +1462,9 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
   }
 }, extra);
 
-const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globalInits = {}, returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, returnTypes, jsLength } = {}) => {
+const asmFunc = (name, func) => {
+  func = { ...func };
+  let { wasm, params, locals: localTypes, localNames = [], table, usesTag, returnTypes, returnType } = func;
   if (wasm == null) { // called with no built-in
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
@@ -1475,19 +1479,11 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     locals[localNames[i] ?? `l${i}`] = { idx: i, type: allLocals[i] };
   }
 
-  const func = {
-    name,
-    params,
-    typedParams,
-    locals,
-    localInd: allLocals.length,
-    returns,
-    returnType,
-    internal: true,
-    index: currentFuncIndex++,
-    globalInits,
-    constr, table, usesImports, hasRestArgument, jsLength
-  };
+  func.internal = true;
+  func.name = name;
+  func.locals = locals;
+  func.localInd = allLocals.length;
+  func.index = currentFuncIndex++;
 
   funcs.push(func);
   funcIndex[name] = func.index;
@@ -1517,6 +1513,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
 
   if (func.jsLength == null) func.jsLength = countLength(func);
   func.wasm = wasm;
+
   return func;
 };
 

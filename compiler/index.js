@@ -75,9 +75,6 @@ export default (code, module = Prefs.module) => {
   let outFile = Prefs.o;
   const logProgress = Prefs.profileCompiler || (outFile && !Prefs.native);
 
-  globalThis.valtype = Prefs.valtype ?? 'f64';
-  globalThis.valtypeBinary = Valtype[valtype];
-
   // use smaller page sizes internally (65536 / 4 = 16384)
   globalThis.pageSize = Prefs.pageSize ?? (PageSize / 4);
 
