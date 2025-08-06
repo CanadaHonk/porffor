@@ -1349,7 +1349,7 @@ export const __RegExp_prototype_toString = (_this: RegExp) => {
 };
 
 
-export const RegExp = function (pattern: any, flags: any = undefined): RegExp {
+export const RegExp = function (pattern: any, flags: any): RegExp {
   let patternSrc, flagsSrc;
   if (Porffor.type(pattern) === Porffor.TYPES.regexp) {
     patternSrc = __RegExp_prototype_source$get(pattern);

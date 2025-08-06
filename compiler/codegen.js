@@ -1460,7 +1460,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
   }
 }, extra);
 
-const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globalInits = {}, returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, returnTypes } = {}) => {
+const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTypes = [], globalInits = {}, returns = [], returnType, localNames = [], globalNames = [], table = false, constr = false, hasRestArgument = false, usesTag = false, usesImports = false, returnTypes, jsLength } = {}) => {
   if (wasm == null) { // called with no built-in
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
@@ -1486,7 +1486,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     internal: true,
     index: currentFuncIndex++,
     globalInits,
-    constr, table, usesImports, hasRestArgument
+    constr, table, usesImports, hasRestArgument, jsLength
   };
 
   funcs.push(func);
@@ -1515,7 +1515,7 @@ const asmFunc = (name, { wasm, params = [], typedParams = false, locals: localTy
     typeUsed(func, returnType);
   }
 
-  func.jsLength = countLength(func);
+  if (func.jsLength == null) func.jsLength = countLength(func);
   func.wasm = wasm;
   return func;
 };
@@ -5764,37 +5764,14 @@ const countParams = (func, name = undefined) => {
   let params = func.params.length;
   if (func.constr) params -= 4;
   if (func.method) params -= 2;
-  if (!func.internal || builtinFuncs[name]?.typedParams) params = Math.floor(params / 2);
+  if (!func.internal || func.typedParams) params = Math.floor(params / 2);
 
   return func.argc = params;
 };
 
 const countLength = (func, name = undefined) => {
   if (func && func.jsLength != null) return func.jsLength;
-
-  name ??= func.name;
-
-  let count = countParams(func, name);
-  if (builtinFuncs[name] && name.includes('_prototype_')) count--;
-  if (func.hasRestArgument) count--;
-
-  if (func.internal) {
-    // some js built-ins have an old non-standard length
-    const override = ({
-      Array: 1,
-      String: 1,
-      __Object_assign: 2,
-      __String_fromCharCode: 1,
-      __String_fromCodePoint: 1,
-      __Array_prototype_concat: 1,
-      __Array_prototype_push: 1,
-      __Array_prototype_unshift: 1,
-      __String_prototype_concat: 1,
-      __ByteString_prototype_concat: 1
-    })[name];
-    if (override != null) return override;
-  }
-  return count;
+  return countParams(func, name ?? func.name);
 };
 
 const generateMember = (scope, decl, _global, _name) => {
@@ -7068,6 +7045,25 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     }
 
     args.push({ name, def, destr, type: typedInput && x.typeAnnotation });
+  }
+
+  // custom built-in length changes
+  if (globalThis.precompile) {
+    if (name.includes('_prototype_')) jsLength--;
+    jsLength = ({
+      Array: 1,
+      String: 1,
+      __Object_assign: 2,
+      __String_fromCharCode: 1,
+      __String_fromCodePoint: 1,
+      __Array_prototype_concat: 1,
+      __Array_prototype_push: 1,
+      __Array_prototype_unshift: 1,
+      __String_prototype_concat: 1,
+      __ByteString_prototype_concat: 1,
+      __Atomics_wait: 4,
+      __Atomics_notify: 3
+    })[name] ?? jsLength;
   }
 
   func.params = new Array((params.length + (func.constr ? 2 : (func.method ? 1 : 0))) * 2).fill(0).map((_, i) => i % 2 ? Valtype.i32 : valtypeBinary);

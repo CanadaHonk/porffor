@@ -280,7 +280,7 @@ ${funcs.map(x => {
   const returnTypes = [...(x.returnTypes ?? [])].filter(x => ![ TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ].includes(x));
   return `this${name} = {
 wasm:${rewriteWasm(x.wasm)},
-params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.returns)},${x.returnType != null ? `returnType:${JSON.stringify(x.returnType)},` : ''}${returnTypes.length > 0 ? `returnTypes:${JSON.stringify(returnTypes)},` : ''}
+params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.returns)},${x.returnType != null ? `returnType:${JSON.stringify(x.returnType)},` : ''}${returnTypes.length > 0 ? `returnTypes:${JSON.stringify(returnTypes)},` : ''}jsLength:${x.jsLength},
 locals:${JSON.stringify(locals.slice(x.params.length).map(x => x[1].type))},localNames:${JSON.stringify(locals.map(x => x[0]))},
 ${x.globalInits ? `globalInits:{${Object.keys(x.globalInits).map(y => `${y}:${rewriteWasm(x.globalInits[y])}`).join(',')}},` : ''}${x.data && Object.keys(x.data).length > 0 ? `data:${JSON.stringify(x.data)},` : ''}
 ${x.table ? `table:1,` : ''}${x.constr ? `constr:1,` : ''}${x.hasRestArgument ? `hasRestArgument:1,` : ''}${x.usesTag ? `usesTag:1,` : ''}${x.usesImports ? `usesImports:1,` : ''}
