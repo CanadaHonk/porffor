@@ -1483,7 +1483,10 @@ const asyncTest = testFunc => {
 
 /// nativeFunctionMatcher.js
 // todo: throw and make looser
-const validateNativeFunctionSource = source => source.startsWith('function ') && source.endsWith('() { [native code] }');
+const validateNativeFunctionSource = source => {
+  if (source.startsWith('function ') && source.endsWith('() { [native code] }')) return;
+  throw new Test262Error('validateNativeFunctionSource failed');
+};
 
 const assertToStringOrNativeFunction = function(fn, expected) {
   const actual = fn.toString();
