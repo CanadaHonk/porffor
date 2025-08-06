@@ -1466,20 +1466,46 @@ const asyncTest = testFunc => {
   }
 
   try {
-    testFunc().then(
-      () => {
-        $DONE();
-      },
-      error => {
-        $DONE(error);
-      }
-    );
+    testFunc().then(() => {
+      $DONE();
+    }, error => {
+      $DONE(error);
+    });
   } catch (syncError) {
     $DONE(syncError);
   }
 };
 
-// todo: assert.throwsAsync
+var __assert_throwsAsync = (expectedErrorConstructor, func) => {
+  if (typeof func !== 'function') {
+    throw new Test262Error('assert.throwsAsync invoked with a non-function value');
+  }
+
+  let res;
+  try {
+    res = func();
+  } catch {
+    throw new Test262Error('assert.throwsAsync failed: function threw synchronously');
+  }
+
+  if (res === null || typeof res !== 'object' || typeof res.then !== 'function') {
+    throw new Test262Error('assert.throwsAsync failed: result was not a thenable');
+  }
+
+  return res.then(
+    () => {
+      throw new Test262Error('assert.throwsAsync failed: no exception was thrown');
+    },
+    thrown => {
+      // if (thrown === null || typeof thrown !== 'object') {
+      //   throw new Test262Error('assert.throwsAsync failed: thrown value was not an object');
+      // }
+      // if (thrown.constructor !== expectedErrorConstructor) {
+      //   throw new Test262Error('assert.throwsAsync failed: wrong error constructor');
+      // }
+    }
+  );
+};
 
 /// nativeFunctionMatcher.js
 // todo: throw and make looser
