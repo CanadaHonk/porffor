@@ -5638,6 +5638,7 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
     Opcodes.i32_from_u
   );
 
+  typeUsed(scope, TYPES.array);
   return out;
 };
 
