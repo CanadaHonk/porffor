@@ -540,15 +540,39 @@ function verifyNotConfigurable(obj, name) {
 
 /// promiseHelper.js
 function checkSequence(arr) {
-  arr.forEach((x, i) => {
+  for (let i = 0; i < arr.length; i++) {
+    const x = arr[i];
     if (x !== (i + 1)) {
       throw new Test262Error('promiseHelper checkSequence failed');
     }
-  });
+  }
 
   return true;
 }
-// todo: checkSettledPromises
+
+function checkSettledPromises(settleds, expected) {
+  assert.sameValue(Array.isArray(settleds), true);
+  assert.sameValue(settleds.length, expected.length);
+
+  for (let i = 0; i < settleds.length; i++) {
+    const settled = settleds[i];
+    const expected = expected[i];
+
+    assert.sameValue(Object.hasOwn(settled, 'status'), true);
+    assert.sameValue(settled.status, expected.status);
+
+    if (settled.status === 'fulfilled') {
+      assert.sameValue(Object.hasOwn(settled, 'value'), true);
+      assert.sameValue(Object.hasOwn(settled, 'reason'), false);
+      assert.sameValue(settled.value, expected.value);
+    } else {
+      assert.sameValue(settled.status, 'rejected');
+      assert.sameValue(Object.hasOwn(settled, 'value'), false);
+      assert.sameValue(Object.hasOwn(settled, 'reason'), true);
+      assert.sameValue(settled.reason, expected.reason);
+    }
+  }
+}
 
 /// detachArrayBuffer.js
 function $DETACHBUFFER(buffer) {
