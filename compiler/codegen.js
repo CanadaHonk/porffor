@@ -1464,7 +1464,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
 
 const asmFunc = (name, func) => {
   func = { ...func };
-  let { wasm, params, locals: localTypes, localNames = [], table, usesTag, returnTypes, returnType } = func;
+  let { wasm, params = [], locals: localTypes = [], localNames = [], table, usesTag, returnTypes, returnType } = func;
   if (wasm == null) { // called with no built-in
     log.warning('codegen', `${name} has no built-in!`);
     wasm = [];
