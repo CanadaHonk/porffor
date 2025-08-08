@@ -101,9 +101,9 @@ export const __Set_prototype_union = (_this: Set, other: any) => {
 export const __Set_prototype_intersection = (_this: Set, other: any) => {
   if (Porffor.type(other) != Porffor.TYPES.set) throw new TypeError('other argument must be a Set');
 
-  const out: Set = new Set(_this);
-  for (const x of other) {
-    out.add(x);
+  const out: Set = new Set();
+  for (const x of _this) {
+    if (other.has(x)) out.add(x);
   }
 
   return out;
