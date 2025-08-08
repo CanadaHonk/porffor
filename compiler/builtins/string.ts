@@ -1612,6 +1612,10 @@ export const __String_prototype_split = (_this: string, separator: any, limit: a
 
   if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
   if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
+  if (limit == 0) {
+    out.length = 0;
+    return out;
+  }
 
   if (separator == null) {
     out.length = 1;
@@ -1626,6 +1630,10 @@ local.get ${out}
 i32.const 67
 i32.store8 0 12`;
     return out;
+  }
+
+  if (Porffor.type(separator) != Porffor.TYPES.string && Porffor.type(separator) != Porffor.TYPES.bytestring) {
+    separator = ecma262.ToString(separator);
   }
 
   let tmp: string = Porffor.allocate(), tmpLen: i32 = 0;
@@ -1671,9 +1679,9 @@ i32.store8 0 12`;
       tmpLen++;
     }
   } else if (sepLen == 0) {
-    const clammedLimit: i32 = limit > thisLen ? thisLen : limit;
     tmpLen = 1;
-    for (let i = 0; i <= clammedLimit; i+=2) {
+    let produced: i32 = 0;
+    for (let i = 0; i < thisLen && produced < limit; i += 2) {
       tmp = Porffor.allocateBytes(8);
       const x: i32 = Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
 
@@ -1698,6 +1706,7 @@ i32.add
 i32.const 67
 i32.store8 0 12`;
       outLen++;
+      produced++;
     }
     return out;
   } else {
@@ -1738,12 +1747,13 @@ i32.store8 0 12`;
         }
       } else sepInd = 0;
 
-      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${tmp}` + tmpLen, x, 0, 4);
+      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${tmp}` + tmpLen * 2, x, 0, 4);
       tmpLen++;
     }
   }
 
-  if (tmpLen > 0 && outLen < limit) {
+  if (outLen < limit) {
+    // per spec, push final (possibly empty) segment unless limited
     tmp.length = tmpLen;
     Porffor.wasm`
 local.get ${out}
@@ -1772,6 +1782,13 @@ i32.store8 0 12`;
 export const __ByteString_prototype_split = (_this: bytestring, separator: any, limit: any) => {
   let out: any[] = Porffor.allocate(), outLen: i32 = 0;
 
+  if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
+  if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
+  if (limit == 0) {
+    out.length = 0;
+    return out;
+  }
+
   if (separator == null) {
     out.length = 1;
     // out[0] = _this; (but in wasm as it is a f64 array and we are in i32 space)
@@ -1787,8 +1804,9 @@ i32.store8 0 12`;
     return out;
   }
 
-  if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
-  if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
+  if (Porffor.type(separator) != Porffor.TYPES.string && Porffor.type(separator) != Porffor.TYPES.bytestring) {
+    separator = ecma262.ToString(separator);
+  }
 
   let tmp: bytestring = Porffor.allocate(), tmpLen: i32 = 0;
   const thisLen: i32 = _this.length, sepLen: i32 = separator.length;
@@ -1833,9 +1851,9 @@ i32.store8 0 12`;
       tmpLen++;
     }
   } else if (sepLen == 0) {
-    const clammedLimit: i32 = limit > thisLen ? thisLen : limit;
     tmpLen = 1;
-    for (let i = 0; i <= clammedLimit; i++) {
+    let produced: i32 = 0;
+    for (let i = 0; i < thisLen && produced < limit; i++) {
       tmp = Porffor.allocateBytes(8);
       const x: i32 = Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + i, 0, 4);
 
@@ -1861,6 +1879,7 @@ i32.add
 i32.const 195
 i32.store8 0 12`;
       outLen++;
+      produced++;
     }
     return out;
   } else {
@@ -1906,7 +1925,7 @@ i32.store8 0 12`;
     }
   }
 
-  if (tmpLen > 0 && outLen < limit) {
+  if (outLen < limit) {
     tmp.length = tmpLen;
     Porffor.wasm`
 local.get ${out}
