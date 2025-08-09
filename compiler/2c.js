@@ -600,7 +600,7 @@ export default ({ funcs, globals, data, pages }) => {
             const importFunc = importFuncs[i[1]];
             switch (importFunc.name) {
               case 'print':
-                line(`printf("${valtype === 'f64' ? '%g' : '%i'}", ${vals.pop()})`);
+                line(`printf("${valtype === 'f64' ? '%.15g' : '%i'}", ${vals.pop()})`);
                 includes.set('stdio.h', true);
                 break;
               case 'printChar':
