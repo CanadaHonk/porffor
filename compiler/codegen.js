@@ -2573,7 +2573,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
           ...setLastType(scope)
         ],
 
-        default: decl.optional ? withType(scope, [ number(UNDEFINED, Valtype.f64) ], TYPES.undefined)
+        default: () => decl.optional ? withType(scope, [ number(UNDEFINED, Valtype.f64) ], TYPES.undefined)
           : internalThrow(scope, 'TypeError', `${unhackName(name)} is not a function`, Valtype.f64)
       }, Valtype.f64)
     ];
@@ -4055,9 +4055,8 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
           }),
         } : {}),
 
-        [TYPES.undefined]: internalThrow(scope, 'TypeError', 'Cannot set property of undefined', !valueUnused),
+        [TYPES.undefined]: () => internalThrow(scope, 'TypeError', 'Cannot set property of undefined', !valueUnused),
 
-        // default: internalThrow(scope, 'TypeError', `Cannot assign member with this type`)
         default: () => [
           objectGet,
           Opcodes.i32_to,
@@ -6116,7 +6115,7 @@ const generateMember = (scope, decl, _global, _name) => {
       })
     } : {}),
 
-    [TYPES.undefined]: internalThrow(scope, 'TypeError', `Cannot read property of undefined`, true),
+    [TYPES.undefined]: () => internalThrow(scope, 'TypeError', `Cannot read property of undefined`, true),
 
     default: () => [
       ...(coctc > 0 && known === TYPES.object ? [
