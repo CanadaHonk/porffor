@@ -46,8 +46,10 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
         Porffor.bytestring.append2Char(out, 92, 117); // \u
         Porffor.bytestring.append2Char(out, 48, 48); // 00
 
-        Porffor.printHexDigit((c & 0xf0) / 0x10);
-        Porffor.printHexDigit(c & 0x0f);
+        const h1: i32 = (c & 0xf0) / 0x10;
+        const h2: i32 = c & 0x0f;
+        Porffor.bytestring.appendChar(out, h1 < 10 ? h1 + 48 : h1 + 55); // 0-9 or A-F
+        Porffor.bytestring.appendChar(out, h2 < 10 ? h2 + 48 : h2 + 55); // 0-9 or A-F
         continue;
       }
 
@@ -87,7 +89,7 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
     for (const x of (value as any[])) {
       if (hasSpace) {
         Porffor.bytestring.appendChar(out, 10); // \n
-        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space);
+        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space as bytestring);
       }
 
       Porffor.bytestring.appendStr(out, __Porffor_json_serialize(x, depth, space) ?? 'null');
@@ -132,7 +134,7 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
 
       if (hasSpace) {
         Porffor.bytestring.appendChar(out, 10); // \n
-        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space);
+        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space as bytestring);
       }
 
       Porffor.bytestring.appendChar(out, 34); // "
@@ -183,7 +185,6 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
       Porffor.type(space) == Porffor.TYPES.numberobject
     )) {
       space = Math.min(Math.trunc(space), 10);
-      Porffor.print(space); Porffor.printStatic('\n');
 
       if (space < 1) {
         space = undefined;
