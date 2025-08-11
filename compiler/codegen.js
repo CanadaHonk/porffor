@@ -890,7 +890,21 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
   ];
 };
 
-const concatStrings = (scope, left, right, leftType, rightType) => [
+const concatStrings = (scope, left, right, leftType, rightType) => ((knownType(scope, leftType) | TYPE_FLAGS.parity) === TYPES.bytestring && (knownType(scope, rightType) | TYPE_FLAGS.parity) === TYPES.bytestring) ? [
+  // known types, use strcat direct
+  ...left,
+  Opcodes.i32_to_u,
+  ...leftType,
+
+  ...right,
+  Opcodes.i32_to_u,
+  ...rightType,
+
+  [ Opcodes.call, includeBuiltin(scope, '__Porffor_strcat').index ],
+  ...setLastType(scope),
+  Opcodes.i32_from_u
+] : [
+  // unknown types, check if need to coerce
   ...left,
   ...(valtypeBinary === Valtype.i32 ? [ [ Opcodes.f64_convert_i32_s ] ] : []),
   ...leftType,
