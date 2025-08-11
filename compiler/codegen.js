@@ -553,9 +553,7 @@ const lookup = (scope, name, failEarly = false) => {
 
   if (!Object.hasOwn(funcIndex, name) && Object.hasOwn(builtinFuncs, name)) {
     includeBuiltin(scope, name);
-  }
-
-  if (Object.hasOwn(internalConstrs, name)) {
+  } else if (Object.hasOwn(internalConstrs, name)) {
     // todo: return an actual something
     return [ number(1) ];
   }
@@ -2397,6 +2395,9 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   let idx;
   if (decl._funcIdx) {
     idx = decl._funcIdx;
+  } else if (Object.hasOwn(internalConstrs, name) && !decl._noInternalConstr) {
+    if (decl._new && internalConstrs[name].notConstr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
+    return internalConstrs[name].generate(scope, decl, _global, _name);
   } else if (Object.hasOwn(funcIndex, name)) {
     idx = funcIndex[name];
   } else if (scope.name === name) {
@@ -2410,9 +2411,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
     includeBuiltin(scope, name);
     idx = funcIndex[name];
-  } else if (Object.hasOwn(internalConstrs, name)) {
-    if (decl._new && internalConstrs[name].notConstr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
-    return internalConstrs[name].generate(scope, decl, _global, _name);
   } else if (!decl._new && name && name.startsWith('__Porffor_wasm_')) {
     const wasmOps = {
       // pointer, align, offset
@@ -5512,14 +5510,13 @@ const makeData = (scope, elements, page = null, itemType = 'i8') => {
   return { idx, size: bytes.length };
 };
 
-const printStaticStr = str => {
+const printStaticStr = (scope, str) => {
+  scope.usesImports = true;
   const out = [];
 
   for (let i = 0; i < str.length; i++) {
     out.push(
-      // number(str.charCodeAt(i)),
-      number(str.charCodeAt(i), Valtype.i32),
-      [ Opcodes.f64_convert_i32_u ],
+      number(str.charCodeAt(i)),
       [ Opcodes.call, importedFuncs.printChar ]
     );
   }
@@ -7197,10 +7194,8 @@ const internalConstrs = {
 
   __Porffor_printStatic: {
     generate: (scope, decl) => {
-      scope.usesImports = true;
-
       const str = decl.arguments[0].value;
-      const out = printStaticStr(str);
+      const out = printStaticStr(scope, str);
       out.push(number(UNDEFINED));
       return out;
     },
@@ -7248,6 +7243,46 @@ const internalConstrs = {
     }),
     notConstr: true,
     length: 1
+  },
+
+  __console_log: {
+    // compile-time aware console.log to optimize fast paths
+    // todo: this breaks console.group, etc - disable this if those are used but edge case for now
+    generate: (scope, decl) => {
+      const slow = () => {
+        decl._noInternalConstr = true;
+        return generate(scope, decl);
+      };
+      const fast = name => {
+        return [
+          ...generate(scope, {
+            ...decl,
+            callee: {
+              type: 'Identifier',
+              name
+            }
+          }),
+          ...printStaticStr(scope, '\n')
+        ];
+      };
+      if (decl.arguments.length !== 1) return slow();
+
+      generate(scope, decl.arguments[0]); // generate first to get accurate type
+      const type = knownTypeWithGuess(scope, getNodeType(scope, decl.arguments[0]));
+
+      // if we know the type skip the entire print logic, use type's func directly
+      if (type === TYPES.string || type === TYPES.bytestring) {
+        return fast('__Porffor_printString');
+      } else if (type === TYPES.number) {
+        return fast('print');
+      }
+
+      // one arg, skip most of console to avoid rest arg etc
+      return fast('__Porffor_consolePrint');
+    },
+    type: TYPES.undefined,
+    notConstr: true,
+    length: 0
   }
 };
 
