@@ -534,8 +534,9 @@ export default ({ funcs, globals, data, pages }) => {
         case Opcodes.if: {
           let cond = removeBrackets(vals.pop());
           if (!lastCond) {
-            if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} != 0e+0`;
-              else cond = `(${cond}) != 0`;
+            // if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} != 0e+0`;
+            //   else cond = `(${cond}) != 0`;
+            cond = `(${cond}) != 0`;
           }
 
           line(`// if ${invValtype[i[1]] ?? ''}`, false);
@@ -772,8 +773,9 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
           let cond = removeBrackets(vals.pop());
           if (!lastCond) {
-            if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} != 0e+0`;
-              else cond = `(${cond}) != 0`;
+            // if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} != 0e+0`;
+            //   else cond = `(${cond}) != 0`;
+            cond = `(${cond}) != 0`;
           }
 
           line(`if (${cond}) {`, false);
