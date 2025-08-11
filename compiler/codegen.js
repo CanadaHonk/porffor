@@ -4948,7 +4948,7 @@ const generateForOf = (scope, decl) => {
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Wasm', wasm: nextWasm }, undefined, true);
   } else {
     // todo: verify this is correct
-    const global = scope.name === '#main' && decl.left.kind === 'var';
+    const global = scope.name === '#main';
     setVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Wasm', wasm: nextWasm }, undefined, global);
   }
 
@@ -5015,7 +5015,7 @@ const generateForIn = (scope, decl) => {
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
-    const global = scope.name === '#main' && decl.left.kind === 'var';
+    const global = scope.name === '#main';
     setVar = generateVarDstr(scope, decl.left.kind, decl.left?.declarations?.[0]?.id ?? decl.left, { type: 'Identifier', name: tmpName }, undefined, global);
   }
 
