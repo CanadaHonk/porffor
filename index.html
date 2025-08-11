@@ -430,7 +430,7 @@
       background: var(--background-secondary);
 
       width: 100%;
-      height: 8vh;
+      height: auto;
       font-size: 14px;
       padding: 6px;
 
@@ -984,14 +984,14 @@
     <hr>
     <h2 class="gui-header">Playground</h2>
     <p>You can try Porffor here online or locally with <code>npm i -g porffor@latest && porf</code></p>
-    <select id="examples_dropdown"></select>
+    <!-- <select id="examples_dropdown"></select> -->
     <!-- Valtype <select id="valtype_dropdown"></select> -->
     <!-- <span title="Optimization level">-O</span> <select id="opt_dropdown"></select> -->
-    <span title="JS parser to use">Parser</span>
-    <select id="parser_dropdown"></select>
-    <span title="Experimental!">Target</span>
-    <select id="target_dropdown"></select>
-    <input type="text" placeholder="Extra arguments" id="args" />
+    <!-- <span title="JS parser to use">Parser</span> -->
+    <!-- <select id="parser_dropdown"></select> -->
+    <!-- <span title="Experimental!">Target</span> -->
+    <!-- <select id="target_dropdown"></select> -->
+    <!-- <input type="text" placeholder="Extra arguments" id="args" /> -->
     <div id="split"></div>
     <div id="output"></div>
     <div id="status"></div>
@@ -1027,61 +1027,34 @@
       split.appendChild(wasmView);
 
       const status = document.getElementById('status');
+      let code = `
+console.log(\`Hello from \${navigator.userAgent}! Did you know:\\n\`);
 
-      const examples = {
-        'Prime Numbers': `const isPrime = number => {
-  if (number < 2) return false;
+const rows = [
+  [ 'Engine', 'Execution model' ],
+  [ 'Porffor', 'Compiles ahead-of-time (Wasm + native)' ],
+  [ 'V8', 'Compiles just-in-time' ],
+  [ 'SpiderMonkey', 'Compiles just-in-time' ],
+  [ 'JavaScriptCore', 'Compiles just-in-time' ],
+  [ 'QuickJS', 'Interprets' ],
+  [ 'Hermes', 'Interprets (ahead-of-time bytecode)' ]
+];
 
-  for (let i = 2; i < number; i++) {
-    if (number % i == 0) return false;
-  }
-
-  return true;
+const widths = [0, 0];
+for (const r of rows) {
+  if (r[0].length > widths[0]) widths[0] = r[0].length;
+  if (r[1].length > widths[1]) widths[1] = r[1].length;
 }
 
-let counter = 0;
-while (counter <= 10000) {
-  if (isPrime(counter)) Porffor.numberLog(counter);
-  counter++;
-}`,
-        Fibonacci: `let a = 0, b = 1;
-Porffor.numberLog(a); Porffor.numberLog(b);
-
-for (let i = 2; i <= 45; i++) {
-  let t = b + a;
-  a = b;
-  b = t;
-
-  Porffor.numberLog(t);
-}`,
-        Factorial: `const factorial = n => n === 0 ? 1 : (n * factorial(n - 1));
-Porffor.numberLog(factorial(10));`,
-        'Sum of Digits': `let n = 654, sum = 0;
-while (n > 0) {
-  sum += n % 10;
-  n /= 10;
+const border = '+' + '-'.repeat(widths[0] + 2) + '+' + '-'.repeat(widths[1] + 2) + '+';
+console.log(border);
+for (let i = 0; i < rows.length; i++) {
+  const r = rows[i];
+  console.log('| ' + r[0].padEnd(widths[0], ' ') + ' | ' + r[1].padEnd(widths[1], ' ') + ' |');
+  if (i === 0) console.log(border);
 }
-
-Porffor.numberLog(sum);`,
-        Exception: `throw new Error('Hello, world!')`,
-        'Array Reading': `let arr = [ 2, 4, 8, 16 ];
-for (let i = 0; i < arr.length; i++) Porffor.numberLog(arr[i]);`,
-        'Array Prototype': `let arr = [ 1, 2, 3 ];
-arr.push(4); // 4
-arr.shift(); // 1
-arr.pop(); // 4
-
-arr.at(0); // 2
-arr.at(-1); // 3`,
-        'Math Proposals': `Porffor.numberLog(Math.signbit(1)) // false
-Porffor.numberLog(Math.signbit(-1)) // true
-Porffor.numberLog(Math.radians(180)) // 3.141592...
-Porffor.numberLog(Math.RAD_PER_DEG) // 0.017453...
-Porffor.numberLog(Math.clamp(12, 0, 10)) // 10
-Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
-      };
-      const defaultExample = 'Prime Numbers';
-      let code = examples[defaultExample];
+console.log(border);
+`.trim();
 
       const addOptions = (container, options, def) => {
         for (const x of options) {
@@ -1093,40 +1066,32 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         }
       };
 
-      addOptions(examples_dropdown, Object.keys(examples), defaultExample);
-
       if (location.hash) {
         code = atob(location.hash.slice(1));
-        examples_dropdown.selectedIndex = -1;
       }
 
       // addOptions(valtype_dropdown, [ 'i32', 'f64' ], 'f64');
       // addOptions(opt_dropdown, [ 0, 1, 2, 3 ], 1);
-      addOptions(
-        parser_dropdown,
-        ['acorn', 'meriyah', 'hermes-parser', '@babel/parser'],
-        'acorn',
-      );
-      addOptions(target_dropdown, ['wasm', 'c'], 'wasm');
+      // addOptions(
+      //   parser_dropdown,
+      //   ['acorn', 'meriyah', 'hermes-parser', '@babel/parser'],
+      //   'acorn',
+      // );
+      // addOptions(target_dropdown, ['wasm', 'c'], 'wasm');
 
-      examples_dropdown.oninput = () => {
-        code = examples[examples_dropdown.value];
-        editor.setValue(code);
-        comp();
-      };
+      // parser_dropdown.oninput = async () => {
+      //   setProcess();
+      //   globalThis.argvChanged?.();
+      //   await globalThis._porf_loadParser();
+      //   comp();
+      // };
 
-      parser_dropdown.oninput = async () => {
-        setProcess();
-        await globalThis._porf_loadParser();
-        comp();
-      };
-
-      target_dropdown.oninput = () => comp();
+      // target_dropdown.oninput = () => comp();
 
       window.editor = monaco.editor.create(monacoContainer, {
         value: code,
         codeLens: false,
-        language: 'javascript',
+        language: 'typescript',
         theme: 'vs-dark',
         minimap: {
           enabled: false,
@@ -1147,23 +1112,24 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
           argv: [
             '',
             '',
-            ...args.value.split(' '),
-            `--parser=${parser_dropdown.value}`,
-            `--target=${target_dropdown.value}`,
+            // ...args.value.split(' '),
+            // `--parser=${parser_dropdown.value}`,
+            // `--target=${target_dropdown.value}`,
             '--disassemble',
           ],
         };
       };
 
       setProcess();
+      // load version
+      globalThis.version = (await (await fetch('../runtime/index.js')).text()).split('\'')[3];
       const compile = (await import('../compiler/wrap.js')).default;
 
       const comp = async () => {
         setProcess();
         globalThis.argvChanged?.();
 
-        if (code !== examples[examples_dropdown.value])
-          location.hash = '#' + btoa(code);
+        // location.hash = '#' + btoa(code);
 
         jsSize.textContent = `${new Blob([code]).size} bytes`;
 
@@ -1180,26 +1146,20 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
 
         let wasm, exports, times, disasms, c;
         try {
-          0,
-            ({ wasm, exports, times, disasms, c } = compile(
-              code,
-              true,
-              {},
-              print,
-            ));
+          ({ wasm, exports, times, disasms, c } = compile(code, true, print));
         } catch (e) {
           console.error(e);
           status.textContent = `${e.constructor.name}: ${e.message}`;
           return;
         }
 
-        if (target_dropdown.value === 'c') {
-          wasmView.textContent = c.trim();
-        } else {
+        // if (target_dropdown.value === 'c') {
+        //   wasmView.textContent = c.trim();
+        // } else {
           wasmView.innerHTML =
             `<div id='wasm-size'>${wasm.byteLength} bytes</div>` +
             ansi(disasms.join('\n'));
-        }
+        // }
 
         status.textContent = `Compiled in ${times[0].toFixed(0)}ms`;
 
@@ -1229,7 +1189,7 @@ Porffor.numberLog(Math.scale(4, 0, 10, 0, 1)) // 0.4`,
         compDebounce();
       });
 
-      args.oninput = () => compDebounce();
+      // args.oninput = () => compDebounce();
 
       comp();
 
