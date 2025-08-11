@@ -2847,7 +2847,7 @@ params:[127,127],typedParams:1,returns:[127,127],jsLength:0,
 locals:[],localNames:["_this","_this#type"]
 }
 this.__RegExp_prototype_toString = {
-wasm:(_,{i32ify,makeString,builtin})=>eval("[...i32ify(makeString(_,\"/\",1)),[183],[65,195,1],[32,0],[65,9],[16,builtin('__RegExp_prototype_source$get')],[33,4],[183],[32,4],[16,builtin('__Porffor_concatStrings')],[34,4],...i32ify(makeString(_,\"/\",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[34,4],[32,0],[65,9],[16,builtin('__RegExp_prototype_flags$get')],[33,4],[183],[32,4],[16,builtin('__Porffor_concatStrings')],[33,4],[252,3],[32,4],[15]]"),
+wasm:(_,{i32ify,makeString,builtin})=>eval("[...i32ify(makeString(_,\"/\",1)),[183],[65,195,1],[32,0],[65,9],[16,builtin('__RegExp_prototype_source$get')],[33,4],[183],[32,4],[16,builtin('__Porffor_concatStrings')],[34,4],...i32ify(makeString(_,\"/\",1)),[183],[65,195,1],[16,builtin('__Porffor_concatStrings')],[33,4],[65,195,1],[32,0],[65,9],[16,builtin('__RegExp_prototype_flags$get')],[33,4],[183],[32,4],[16,builtin('__Porffor_concatStrings')],[33,4],[252,3],[32,4],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],jsLength:0,
 locals:[127,127,127,127,127],localNames:["_this","_this#type","#member_obj_369","#member_prop_369","#last_type","#member_obj_370","#member_prop_370"]
 }

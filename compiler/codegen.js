@@ -1769,6 +1769,8 @@ const getNodeType = (scope, node) => {
         (knownLeft === TYPES.stringobject || knownRight === TYPES.stringobject)
       ) return TYPES.string;
 
+      if (knownLeft === TYPES.bytestring && knownRight === TYPES.bytestring) return TYPES.bytestring;
+
       // guess bytestring, could really be bytestring or string
       if (knownLeft === TYPES.bytestring || knownRight === TYPES.bytestring)
         guess = TYPES.bytestring;
