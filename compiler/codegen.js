@@ -1540,8 +1540,9 @@ const generateLogicExp = (scope, decl) =>
   performLogicOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
 
 const getInferred = (scope, name, global = false) => {
+  const isConst = getVarMetadata(scope, name, global)?.kind === 'const';
   if (global) {
-    if (globalInfer.has(name) && inferLoopPrev.length === 0) return globalInfer.get(name);
+    if (globalInfer.has(name) && (isConst || inferLoopPrev.length === 0)) return globalInfer.get(name);
   } else if (scope.inferTree) {
     for (let i = scope.inferTree.length - 1; i >= 0; i--) {
       const x = scope.inferTree[i];
@@ -1553,11 +1554,12 @@ const getInferred = (scope, name, global = false) => {
 };
 
 const setInferred = (scope, name, type, global = false) => {
+  const isConst = getVarMetadata(scope, name, global)?.kind === 'const';
   scope.inferTree ??= [];
 
   if (global) {
     // set inferred type in global if not already and not in a loop, else make it null
-    globalInfer.set(name, globalInfer.has(name) || inferLoopPrev.length > 0 ? null : type);
+    globalInfer.set(name, globalInfer.has(name) || (!isConst && inferLoopPrev.length > 0) ? null : type);
   } else {
     // set inferred type in top
     const top = scope.inferTree.at(-1);
@@ -3087,6 +3089,11 @@ const allocVar = (scope, name, global = false, type = true, redecl = false, i32 
   }
 
   return idx;
+};
+
+const getVarMetadata = (scope, name, global = false) => {
+  const target = global ? globals : scope.locals;
+  return target[name]?.metadata;
 };
 
 const setVarMetadata = (scope, name, global = false, metadata = {}) => {
