@@ -857,7 +857,8 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           includes.set('math.h', true);
           break;
         case Opcodes.f64_trunc:
-          vals.push(`(i32)(${removeBrackets(vals.pop())})`); // this is ~10x faster than math.h's trunc() with clang??
+          vals.push(`trunc(${vals.pop()})`);
+          includes.set('math.h', true);
           break;
         case Opcodes.f64_nearest:
           vals.push(`round(${vals.pop()})`);
