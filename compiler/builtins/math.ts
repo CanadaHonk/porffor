@@ -427,15 +427,23 @@ export const __Math_asin = (x: number): number => {
 export const __Math_acos = (x: number): number => Math.asin(x) - Math.PI / 2;
 
 export const __Math_atan = (x: number): number => {
-  if (x == Infinity) return Math.PI / 2
+  if (x == Infinity) return Math.PI / 2;
   if (x == -Infinity) return -Math.PI / 2;
+  if (x == 0) return x;
 
-  // Taylor series
+  // atan(x) = π/2 - atan(1/x) for |x| > 1
+  if (Math.abs(x) > 1) {
+    const sign = x > 0 ? 1 : -1;
+    return sign * (Math.PI / 2 - __Math_atan(1 / Math.abs(x)));
+  }
+
+  // taylor series for |x| <= 1
   let sum: number = x;
   let term: number = x;
   let n: number = 1;
+  const maxIterations: number = 1000;
 
-  while (Math.abs(term) > 1e-15) {
+  while (Math.abs(term) > 1e-15 && n < maxIterations) {
     term *= -x * x * (2 * n - 1) / ((2 * n) * (2 * n + 1));
     sum += term;
     n++;
@@ -448,7 +456,7 @@ export const __Math_atan2 = (y: number, x: number): number => {
   if (x == 0) {
     if (y > 0) return Math.PI / 2;
     if (y < 0) return -Math.PI / 2;
-
+    if (y == 0) return y;
     return NaN;
   }
 
