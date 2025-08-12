@@ -221,6 +221,7 @@ export default ({ funcs, globals, data, pages }) => {
     includes.set('stdlib.h', true);
     prepend.set('_memory', `char* _memory; u32 _memoryPages = ${Math.ceil((pages.size * pageSize) / PageSize)};\n`);
     prependMain.set('_initMemory', `_memory = malloc(_memoryPages * ${PageSize});\n`);
+    prependMain.set('_initMemory', `_memory = calloc(1, _memoryPages * ${PageSize});\n`);
     if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
 
@@ -881,6 +882,7 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           line(`const u32 _oldPages${id} = _memoryPages`);
           line(`_memoryPages += ${vals.pop()}`);
           line(`_memory = realloc(_memory, _memoryPages * ${PageSize})`);
+          line(`memset(_memory + (_memoryPages - 1) * ${PageSize}, 0, ${PageSize})`);
           vals.push(`_oldPages${id}`);
           break;
         }
