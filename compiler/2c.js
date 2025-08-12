@@ -278,6 +278,9 @@ export default ({ funcs, globals, data, pages }) => {
   let ffiFuncs = {};
   const cified = new Set();
   const cify = f => {
+    if (cified.has(f.name)) return '';
+    cified.add(f.name);
+
     let out = '';
 
     let depth = 1;
@@ -698,11 +701,8 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             break;
           }
 
-          if (!cified.has(func.name) && func.name !== f.name) {
-            cified.add(func.name);
-            if (!ffiFuncs[func.name]) {
-              cify(func);
-            }
+          if (!cified.has(func.name) && !ffiFuncs[func.name]) {
+            cify(func);
           }
 
           let args = [];
@@ -912,7 +912,9 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
     globalThis.out = globalThis.out + out;
   };
 
-  cify(funcs.find(x => x.name === '#main'));
+  for (const x of funcs) {
+    if (x.export || x.name === '#main') cify(x);
+  }
 
   const rawParams = f => {
     if (ffiFuncs[f.name]) return ffiFuncs[f.name].parameters;
