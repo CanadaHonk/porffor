@@ -623,26 +623,21 @@ export default ({ funcs, globals, data, pages }) => {
                 includes.set('stdio.h', true);
                 break;
 
-              case 'time':
-                line(`double _time_out`);
-                platformSpecific(
-`LARGE_INTEGER _time_freq, _time_t;
-QueryPerformanceFrequency(&_time_freq);
-QueryPerformanceCounter(&_time_t);
-_time_out = ((double)_time_t.QuadPart / _time_freq.QuadPart) * 1000.;`,
-`struct timespec _time;
-clock_gettime(CLOCK_MONOTONIC, &_time);
-_time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
-                vals.push(`_time_out`);
+              case 'time': {
+                const id = tmpId++;
+                line(`time_t _time_t${id}`);
+                line(`time(&_time_t${id})`);
+                line(`f64 _time_out${id} = (f64)_time_t${id} * 1000.0`);
+                vals.push(`_time_out${id}`);
 
-                unixIncludes.set('time.h', true);
-                winIncludes.set('windows.h', true);
+                includes.set('time.h', true);
                 break;
+              }
 
-              case 'timeOrigin':
-                // todo: actually implement
-                vals.push('0');
+              case 'timeOrigin': {
+                vals.push('0.0');
                 break;
+              }
 
               case '__Porffor_readArgv': {
                 prepend.set('__Porffor_readArgv',
