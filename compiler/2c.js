@@ -810,10 +810,10 @@ export default ({ funcs, globals, data, pages }) => {
           const val = vals.pop();
           line(`printf("Uncaught ")`);
 
-          const id = tmpId++;
-          line(`const struct ReturnValue _t${id} = __ecma262_ToString(${val}, ${type})`);
-          line(`__Porffor_printString(_t${id}.value, _t${id}.type)`);
-          line(`printf("\\n")`);
+          // const id = tmpId++;
+          // line(`const struct ReturnValue _t${id} = __ecma262_ToString(${val}, ${type})`);
+          // line(`__Porffor_printString(_t${id}.value, _t${id}.type)`);
+          // line(`printf("\\n")`);
           line(`exit(1)`);
 
           includes.set('stdio.h', true);
