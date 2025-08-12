@@ -57,6 +57,7 @@ const progressClear = () => {
   if (globalThis.onProgress) return;
   if (!process.stdout.isTTY) return;
 
+  clearInterval(progressInterval);
   process.stdout.write(`\u001b[${progressLines}F\u001b[0J`);
   progressLines = 0;
 };
@@ -281,7 +282,7 @@ export default (code, module = Prefs.module) => {
       encoding: 'utf8'
     });
 
-    if (logProgress) progressStart(`compiled C to native (using ${compiler})`, t5);
+    if (logProgress) progressDone(`compiled C to native (using ${compiler})`, t5);
 
     if (Prefs.native) {
       const cleanup = () => {
