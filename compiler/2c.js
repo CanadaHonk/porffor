@@ -864,6 +864,17 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           includes.set('math.h', true);
           break;
 
+        case Opcodes.i32_rotl: {
+          const shift = vals.pop();
+          const x = vals.pop();
+          const id = tmpId++;
+          line(`const i32 _x${id} = ${x}`);
+          line(`const i32 _shift${id} = ${shift}`);
+          line(`const i32 _out${id} = (_x${id} << _shift${id}) | (_x${id} >> (32 - _shift${id}))`);
+          vals.push(`_out${id}`);
+          break;
+        }
+
         case Opcodes.memory_grow: {
           const id = localTmpId++;
           line(`const u32 _oldPages${id} = _memoryPages`);
