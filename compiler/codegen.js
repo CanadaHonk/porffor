@@ -5361,6 +5361,20 @@ const ensureTag = (exceptionMode = Prefs.exceptionMode ?? 'stack') => {
 };
 
 const generateThrow = (scope, decl) => {
+  if (Prefs.unreachableExceptions) {
+    return [
+      ...generate(scope, {
+        type: 'CallExpression',
+        callee: {
+          type: 'Identifier',
+          name: '__console_log'
+        },
+        arguments: [ decl.argument ]
+      }),
+      [ Opcodes.unreachable ]
+    ];
+  }
+
   if (Prefs.wasmExceptions === false) {
     return [
       ...(scope.returns.length === 0 ? [] : [ number(0, scope.returns[0]) ]),
