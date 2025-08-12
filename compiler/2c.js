@@ -461,6 +461,16 @@ export default ({ funcs, globals, data, pages }) => {
           case 0x03:
             vals.push(`(u32)(${vals.pop()})`);
             break;
+
+          // memory_copy
+          case 0x0a: {
+            const size = vals.pop();
+            const src = vals.pop();
+            const dst = vals.pop();
+            line(`memcpy(_memory + ${dst}, _memory + ${src}, ${size})`);
+            includes.set('string.h', true);
+            break;
+          }
         }
 
         lastCond = false;
