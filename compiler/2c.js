@@ -887,7 +887,7 @@ export default ({ funcs, globals, data, pages }) => {
           line(`const u32 _oldPages${id} = _memoryPages`);
           line(`_memoryPages += ${vals.pop()}`);
           line(`_memory = realloc(_memory, _memoryPages * ${PageSize})`);
-          line(`memset(_memory + (_memoryPages - 1) * ${PageSize}, 0, ${PageSize})`);
+          line(`memset(_memory + _oldPages${id} * ${PageSize}, 0, (_memoryPages - _oldPages${id}) * ${PageSize})`);
           vals.push(`_oldPages${id}`);
           break;
         }
