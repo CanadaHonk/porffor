@@ -220,7 +220,6 @@ export default ({ funcs, globals, data, pages }) => {
   if (pages.size > 0) {
     includes.set('stdlib.h', true);
     prepend.set('_memory', `char* _memory; u32 _memoryPages = ${Math.ceil((pages.size * pageSize) / PageSize)};\n`);
-    prependMain.set('_initMemory', `_memory = malloc(_memoryPages * ${PageSize});\n`);
     prependMain.set('_initMemory', `_memory = calloc(1, _memoryPages * ${PageSize});\n`);
     if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
