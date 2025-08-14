@@ -945,7 +945,7 @@
 
     <p>Instead of a slow interpreter or multiple JIT tiers carefully balancing compilation speed (startup/loading time) and JS performance, compiling AOT allows you to compile first and run later. While compile speed for AOT remains important for DX, it no longer effects UX; allowing Porffor to perform static analysis for optimizations like C++ or Rust do today.</p>
 
-    <p>The main drawback of AOT is that runtime JS execution (eval, new Function, etc) is infeasible. Also as Porffor is early, it is unstable and not all JS works yet.</p>
+    <p id="test262">The main drawback of AOT is that runtime JS execution (eval, new Function, etc) is infeasible. Also as Porffor is early, it is unstable and not all JS works yet.</p>
 
     <!-- <section class="bars">
       <div>
