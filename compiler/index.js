@@ -284,7 +284,7 @@ int m()`);
       console.log(`\u001b[2m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
     }
 
-    if (process.version) process.exit();
+    if (process.version && !Prefs.lambda) process.exit();
   }
 
   if (target === 'native') {

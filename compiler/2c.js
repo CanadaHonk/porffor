@@ -350,8 +350,11 @@ export default ({ funcs, globals, data, pages }) => {
     const typedReturns = f.returnType == null;
 
     const shouldInline = false; // f.internal;
-    if (f.name === '#main') out += `int main(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
-      else out += `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
+    if (f.name === '#main') {
+      out += `int ${Prefs.lambda ? 'user_main' : 'main'}(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
+    } else {
+      out += `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
+    }
 
     if (f.name === '__Porffor_promise_runJobs') {
       out += '}';
@@ -968,6 +971,175 @@ extern ${importFunc.returns.length > 0 ? CValtype[importFunc.returns[0]] : 'void
     const shouldInline = false;
     return `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${ffiFuncs[f.name] ? '(*' : ''}${sanitize(f.name)}${ffiFuncs[f.name] ? ')' : ''}(${rawParams(f).map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')});`;
   }).join('\n'));
+
+  if (Prefs.lambda) {
+    includes.set('stdio.h', true);
+    includes.set('stdlib.h', true);
+    includes.set('string.h', true);
+    includes.set('unistd.h', true);
+    includes.set('netdb.h', true);
+    includes.set('sys/socket.h', true);
+    includes.set('signal.h', true);
+    includes.set('execinfo.h', true);
+
+    let copyGlobals = '';
+    let restoreGlobals = '';
+    for (const x in globals) {
+      const g = globals[x];
+
+      copyGlobals += `${CValtype[g.type]} copy_${sanitize(x)} = ${sanitize(x)};\n`;
+      restoreGlobals += `${sanitize(x)} = copy_${sanitize(x)};\n`;
+    }
+
+    const lambdaWrapper = `
+#define BUF_SIZE 65536
+
+// minimal http send/receive
+static int send_http(const char *host, const char *port, const char *req, char *resp, size_t resp_size) {
+  struct addrinfo hints = {0}, *res;
+  int sock;
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  if (getaddrinfo(host, port, &hints, &res) != 0) return -1;
+
+  sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+  if (sock < 0) return -1;
+  if (connect(sock, res->ai_addr, res->ai_addrlen) != 0) {
+    close(sock);
+    freeaddrinfo(res);
+    return -1;
+  }
+
+  write(sock, req, strlen(req));
+
+  int len = 0;
+  if (resp) {
+    len = read(sock, resp, resp_size - 1);
+    if (len >= 0) resp[len] = '\\0';
+  }
+
+  close(sock);
+  freeaddrinfo(res);
+  return len;
+}
+
+void crash_handler(int sig) {
+  void *array[20];
+  size_t size = backtrace(array, 20);
+  fprintf(stderr, "Caught signal %d\\n", sig);
+  backtrace_symbols_fd(array, size, STDERR_FILENO);
+  _exit(1);
+}
+
+int main(void) {
+  signal(SIGSEGV, crash_handler);
+  signal(SIGABRT, crash_handler);
+  signal(SIGBUS, crash_handler);
+  signal(SIGILL, crash_handler);
+
+  user_main();
+
+  i32 _memory_pages = _memoryPages;
+  char* _memory_clone = calloc(1, _memory_pages * ${PageSize});
+  memcpy(_memory_clone, _memory, _memory_pages * ${PageSize});
+
+  ${copyGlobals}
+
+  char *api = getenv("AWS_LAMBDA_RUNTIME_API");
+  if (!api) {
+      // Not in Lambda — error
+      printf("AWS_LAMBDA_RUNTIME_API not set\\n");
+      exit(1);
+  }
+
+  char host[256], port[16] = "80";
+  char *colon = strchr(api, ':');
+  if (colon) {
+      strncpy(host, api, colon - api);
+      host[colon - api] = '\\0';
+      strncpy(port, colon + 1, sizeof(port) - 1);
+  } else {
+      strncpy(host, api, sizeof(host) - 1);
+  }
+
+  char req[BUF_SIZE], resp[BUF_SIZE];
+  char request_id[128];
+
+  i32 request_count = 0;
+  while (1) {
+    // 1. GET next event
+    snprintf(req, sizeof(req),
+              "GET /2018-06-01/runtime/invocation/next HTTP/1.1\\r\\n"
+              "Host: %s\\r\\n\\r\\n", host);
+    if (send_http(host, port, req, resp, sizeof(resp)) <= 0) {
+      fprintf(stderr, "send_http failed\\n");
+      break;
+    }
+
+    char *rid = strstr(resp, "Lambda-Runtime-Aws-Request-Id: ");
+    if (!rid) {
+      fprintf(stderr, "No Request ID header in response:\\n%s\\n", resp);
+      break;
+    }
+
+    rid += strlen("Lambda-Runtime-Aws-Request-Id: ");
+    char *end = strchr(rid, '\\r');
+    if (!end) {
+      fprintf(stderr, "No CR after Request ID in response:\\n%s\\n", resp);
+      break;
+    }
+    size_t rid_len = end - rid;
+    strncpy(request_id, rid, rid_len);
+    request_id[rid_len] = '\\0';
+
+    // 2. Parse event data from response body
+    char *body = strstr(resp, "\\r\\n\\r\\n");
+    void *event = NULL;
+    if (body) {
+      body += 4; // skip \\r\\n\\r\\n
+      event = body;
+    }
+
+    if (request_count++ > 0) {
+      _memoryPages = _memory_pages;
+      free(_memory);
+      _memory = calloc(1, _memory_pages * ${PageSize});
+      memcpy(_memory, _memory_clone, _memory_pages * ${PageSize});
+
+      ${restoreGlobals}
+    }
+
+    // Call handler function and JSON.stringify the result
+    // size_t eventLen = strlen(event);
+    // i32 eventPtr = __Porffor_allocateBytes(eventLen + 4);
+    // memcpy((char*)eventPtr, &eventLen, 4);
+    // memcpy((char*)eventPtr + 4, event, eventLen);
+
+    // char* resp = _memory + (i32)__Porffor_handler((f64)eventPtr, 195).value + 4;
+    i32 ret = (i32)__Porffor_handler().value;
+    char* ret_str = _memory + ret + 4;
+    i32 ret_str_len = *((i32*)(ret_str - 4));
+
+    // 3. POST response
+    snprintf(req, sizeof(req),
+              "POST /2018-06-01/runtime/invocation/%s/response HTTP/1.1\\r\\n"
+              "Host: %s\\r\\n"
+              "Content-Type: text/plain\\r\\n"
+              "Content-Length: %zu\\r\\n\\r\\n"
+              "%s", request_id, host, ret_str_len, ret_str);
+    send_http(host, port, req, resp, sizeof(resp));
+  }
+  return 0;
+}`;
+    out += lambdaWrapper;
+
+    // preallocate 1 chunk allocator chunk
+//     out = out.replace(`_memory = calloc(1, _memoryPages * ${PageSize});\n`, `
+// jjporfjjchunkPtr = _memoryPages * 65536;
+// jjporfjjchunkOffset = 0;
+// _memoryPages += 16;
+// _memory = calloc(1, _memoryPages * ${PageSize});`);
+  }
 
   const makeIncludes = includes => [...includes.keys()].map(x => `#include <${x}>\n`).join('');
   out = platformSpecific(makeIncludes(winIncludes), makeIncludes(unixIncludes), false) + '\n' + makeIncludes(includes) + '\n' + alwaysPreface + [...prepend.values()].join('\n') + '\n\n' + out;

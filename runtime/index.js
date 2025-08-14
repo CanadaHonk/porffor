@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-globalThis.version = '0.60.5';
+globalThis.version = '0.60.6';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -9,7 +9,7 @@ if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
 
 const start = performance.now();
 
-if (process.argv.includes('--help') || process.argv.includes('-h')) {
+const help = () => {
   // description + version
   console.log(`\x1B[1m\x1B[35mPorffor\x1B[0m is a JavaScript/TypeScript engine/compiler/runtime. \x1B[2m(${globalThis.version})\x1B[0m`);
 
@@ -23,6 +23,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     wasm: [ 34, 'foo.js foo.wasm', 'Compile to a Wasm binary' ],
     c: [ 94, 'foo.js foo.c', 'Compile to C source code' ],
     native: [ 94, 'foo.js foo', 'Compile to a native binary' ],
+    lambda: [ 36, 'foo.js function.zip', 'Compile Lambda code to a deployable zip' ],
 
     'Analyze': [],
     profile: [ 93, 'foo.js', 'View detailed func-by-func performance' ],
@@ -81,6 +82,10 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 
   console.log();
   process.exit(0);
+};
+
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  help();
 }
 
 const done = async () => {
@@ -90,7 +95,9 @@ const done = async () => {
 };
 
 let file = process.argv.slice(2).find(x => x[0] !== '-');
-if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'dissect'].includes(file)) {
+if (file === 'help') help();
+
+if (['precompile', 'run', 'wasm', 'native', 'c', 'lambda', 'profile', 'debug'].includes(file)) {
   // remove this arg
   process.argv.splice(process.argv.indexOf(file), 1);
 
@@ -113,9 +120,10 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'profile', 'debug', 'dissect'].
     process.argv.push(`--target=${file}`);
   }
 
-  // if (file === 'dissect') {
-  //   process.argv.push('--asur', '--wasm-debug');
-  // }
+  if (file === 'lambda') {
+    await import('./lambda.js');
+    await done();
+  }
 
   file = process.argv.slice(2).find(x => x[0] !== '-');
 
