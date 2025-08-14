@@ -326,7 +326,7 @@ export const __JSON_parse = (_: bytestring) => {
       }
 
       while (true) {
-        arr.push(parseValue());
+        Porffor.array.fastPush(arr, parseValue());
         skipWhitespace();
         if (pos >= len) throw new SyntaxError('Unterminated array');
 
