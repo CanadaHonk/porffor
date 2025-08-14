@@ -6233,7 +6233,8 @@ const generateAwait = (scope, decl) => {
 const generateClass = (scope, decl) => {
   const expr = decl.type === 'ClassExpression';
 
-  const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
+  if (!decl.id) decl.id = { type: 'Identifier', name: `#anonymous${uniqId()}` };
+  const name = decl.id.name;
   if (!expr) hoist(scope, name, 2, true);
 
   const body = decl.body.body;
@@ -6708,7 +6709,8 @@ const builtinFuncByName = name => {
 const generateFunc = (scope, decl, forceNoExpr = false) => {
   doNotMarkFuncRef = false;
 
-  const name = decl.id ? decl.id.name : `#anonymous${uniqId()}`;
+  if (!decl.id) decl.id = { type: 'Identifier', name: `#anonymous${uniqId()}` };
+  const name = decl.id.name;
   if (decl.type.startsWith('Class')) {
     const out = generateClass(scope, {
       ...decl,
