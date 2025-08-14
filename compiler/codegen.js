@@ -4292,8 +4292,6 @@ const generateUnary = (scope, decl) => {
         if (object.type === 'Super') return internalThrow(scope, 'ReferenceError', 'Cannot delete super property', true);
 
         const property = getProperty(decl.argument);
-        if (property.value === 'length' || property.value === 'name') scope.noFastFuncMembers = true;
-
         const coctc = coctcOffset(decl.argument);
         const objectTmp = coctc > 0 && localTmp(scope, '#coctc_object', Valtype.i32);
 
@@ -5808,19 +5806,7 @@ const generateMember = (scope, decl, _global, _name) => {
   let final = [], finalEnd, extraBC = {};
   let name = decl.object.name;
 
-  // todo: handle globalThis.foo
-
-  // hack: .name
-  if (decl.property.name === 'name' && hasFuncWithName(name) && !scope.noFastFuncMembers) {
-    // function name can mismatch variable/access name
-    name = funcByName(name)?.name ?? name;
-
-    // eg: __String_prototype_toLowerCase -> toLowerCase
-    if (name.startsWith('__')) name = name.split('_').pop();
-    if (name.startsWith('#')) name = '';
-
-    return withType(scope, makeString(scope, name, true), TYPES.bytestring);
-  }
+  // todo: handle globalThis.foo efficiently
 
   const object = decl.object;
   const property = getProperty(decl);
@@ -5837,16 +5823,6 @@ const generateMember = (scope, decl, _global, _name) => {
   // hack: .length
   if (decl.property.name === 'length') {
     // todo: support optional
-
-    if (!scope.noFastFuncMembers) {
-      const func = funcByName(name);
-      if (func) return withType(scope, [ number(countLength(func, name)) ], TYPES.number);
-
-      if (Object.hasOwn(builtinFuncs, name)) return withType(scope, [ number(countLength(builtinFuncs[name], name)) ], TYPES.number);
-      if (Object.hasOwn(importedFuncs, name)) return withType(scope, [ number(importedFuncs[name].params.length) ], TYPES.number);
-      if (Object.hasOwn(internalConstrs, name)) return withType(scope, [ number(internalConstrs[name].length ?? 0) ], TYPES.number);
-    }
-
     const out = [
       ...generate(scope, object),
       Opcodes.i32_to_u
