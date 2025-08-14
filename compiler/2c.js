@@ -612,6 +612,21 @@ export default ({ funcs, globals, data, pages }) => {
           let func = funcs.find(x => x.index === i[1]);
           if (!func) {
             const importFunc = importFuncs[i[1]];
+            if (Prefs['2cWasmImports']) {
+              const name = '__porf_import_' + importFunc.name;
+              if (!prepend.has(name)) {
+                prepend.set(name, `
+__attribute__((import_module(""), import_name("${importFunc.import}")))
+extern ${importFunc.returns.length > 0 ? CValtype[importFunc.returns[0]] : 'void'} ${name}(${importFunc.params.map(x => CValtype[x]).join(', ')});`);
+              }
+
+              const call = `${name}(${importFunc.params.length > 0 ? vals.pop() : ''})`;
+              if (importFunc.returns.length > 0) vals.push(call);
+                else line(call);
+
+              break;
+            }
+
             switch (importFunc.name) {
               case 'print':
                 line(`printf("${valtype === 'f64' ? '%.15g' : '%i'}", ${vals.pop()})`);
@@ -807,6 +822,8 @@ export default ({ funcs, globals, data, pages }) => {
           // todo: allow catching
           const type = vals.pop();
           const val = vals.pop();
+          if (Prefs['2cWasmImports']) break;
+
           line(`printf("Uncaught ")`);
 
           // const id = tmpId++;
