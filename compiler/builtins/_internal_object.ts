@@ -206,8 +206,8 @@ local.set x#type`;
 
     if (Porffor.fastOr(
       Porffor.type(_obj) == Porffor.TYPES.string,
-      Porffor.type(_obj) == Porffor.TYPES.stringobject)
-    ) {
+      Porffor.type(_obj) == Porffor.TYPES.stringobject
+    )) {
       const len: i32 = (obj as string).length;
       __Porffor_object_fastAdd(underlying, 'length', len, 0b0000);
 

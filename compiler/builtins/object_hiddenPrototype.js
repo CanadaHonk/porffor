@@ -3,8 +3,7 @@ export default ({ TYPES, TYPE_NAMES }) => {
 export const __Porffor_object_getHiddenPrototype = (trueType: i32): any => {
   if (Porffor.comptime.flag\`hasFunc.#get___String_prototype\`) {
     if (Porffor.fastOr(
-      trueType == Porffor.TYPES.string,
-      trueType == Porffor.TYPES.bytestring,
+      (trueType | 0b10000000) == Porffor.TYPES.bytestring,
       trueType == Porffor.TYPES.stringobject
     )) return __String_prototype;
   }

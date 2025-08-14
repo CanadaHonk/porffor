@@ -49,9 +49,8 @@ export const __ecma262_ToNumber = (argument: unknown): number => {
   if (argument === true) return 1;
 
   // 6. If argument is a String, return StringToNumber(argument).
-  if (Porffor.fastOr(
-    Porffor.type(argument) == Porffor.TYPES.string,
-    Porffor.type(argument) == Porffor.TYPES.bytestring)) return __ecma262_StringToNumber(argument);
+  if ((Porffor.type(argument) | 0b10000000) == Porffor.TYPES.bytestring)
+    return __ecma262_StringToNumber(argument);
 
   // 7. Assert: argument is an Object.
   // 8. Let primValue be ? ToPrimitive(argument, number).
@@ -121,9 +120,8 @@ export const __ecma262_ToIndex = (value: unknown): number => {
 // https://tc39.es/ecma262/#sec-tostring
 export const __ecma262_ToString = (argument: unknown): any => {
   // 1. If argument is a String, return argument.
-  if (Porffor.fastOr(
-    Porffor.type(argument) == Porffor.TYPES.string,
-    Porffor.type(argument) == Porffor.TYPES.bytestring)) return argument;
+  if ((Porffor.type(argument) | 0b10000000) == Porffor.TYPES.bytestring)
+    return argument;
 
   // 2. If argument is a Symbol, throw a TypeError exception.
   if (Porffor.type(argument) == Porffor.TYPES.symbol) throw new TypeError('Cannot convert a Symbol value to a string');

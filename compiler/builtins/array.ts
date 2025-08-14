@@ -42,7 +42,7 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
 
   if (Porffor.fastOr(
     Porffor.type(arg) == Porffor.TYPES.array,
-    Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
+    (Porffor.type(arg) | 0b10000000) == Porffor.TYPES.bytestring,
     Porffor.type(arg) == Porffor.TYPES.set,
     Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array)
   )) {

@@ -690,8 +690,7 @@ export const __Object_prototype_toString = (_this: any) => {
     Porffor.type(_this) == Porffor.TYPES.number,
     Porffor.type(_this) == Porffor.TYPES.numberobject)) return '[object Number]';
   if (Porffor.fastOr(
-    Porffor.type(_this) == Porffor.TYPES.string,
-    Porffor.type(_this) == Porffor.TYPES.bytestring,
+    (Porffor.type(_this) | 0b10000000) == Porffor.TYPES.bytestring,
     Porffor.type(_this) == Porffor.TYPES.stringobject)) return '[object String]';
   if (Porffor.type(_this) == Porffor.TYPES.date) return '[object Date]';
   if (Porffor.type(_this) == Porffor.TYPES.regexp) return '[object RegExp]';
