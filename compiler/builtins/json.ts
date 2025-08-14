@@ -311,7 +311,7 @@ export const __JSON_parse = (_: bytestring) => {
           Porffor.bytestring.appendChar(out, ch);
           pos++;
         }
-      }3
+      }
       throw new SyntaxError('Unterminated string');
     }
 
@@ -396,7 +396,7 @@ export const __JSON_parse = (_: bytestring) => {
           else break;
       }
 
-      return +ecma262.StringToNumber(__ByteString_prototype_slice(text, start, pos));
+      return ecma262.StringToNumber(__ByteString_prototype_slice(text, start, pos));
     }
 
     throw new SyntaxError('Unexpected token');
