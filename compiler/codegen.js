@@ -5,7 +5,9 @@ import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './bui
 import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
 import parse from './parse.js';
 import { log } from './log.js';
-import { allocPage, allocStr } from './allocator.js';
+import { allocPage, allocStr, allocBytes } from './allocator.js';
+import fs from 'node:fs';
+import path from 'node:path';
 import './prefs.js';
 
 const todo = (scope, msg, expectsValue = undefined) => {
@@ -407,10 +409,64 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
     case 'TSEnumDeclaration':
       return cacheAst(decl, generateEnum(scope, decl));
 
+    case 'ImportDeclaration':
+      // ignore type imports
+      if (decl.importKind === 'type') {
+        return cacheAst(decl, [ number(UNDEFINED) ]);
+      }
+
+      // check for import assertions/attributes (with { type: "bytes" })
+      const attributes = decl.attributes || decl.assertions;
+      if (attributes && attributes.length > 0) {
+        const typeAttr = attributes.find(a => a.key.name === 'type');
+        if (typeAttr && typeAttr.value.value === 'bytes') {
+          if (Prefs.d) log('codegen', `found bytes import: ${decl.source.value}`);
+          
+          if (decl.specifiers.length === 1 && decl.specifiers[0].type === 'ImportDefaultSpecifier') {
+            const name = decl.specifiers[0].local.name;
+            const importPath = decl.source.value;
+            const resolvedPath = path.resolve(importPath);
+            
+            try {
+              const fileBytes = fs.readFileSync(resolvedPath);
+              if (Prefs.d) log('codegen', `read ${fileBytes.length} bytes from ${resolvedPath}`);
+              
+              // Create array of literals from file bytes
+              const byteElements = Array.from(fileBytes).map(b => ({ type: 'Literal', value: b }));
+              
+              // Generate like: const name = new Uint8Array([byte0, byte1, ...])
+              const fakeVarDecl = {
+                type: 'VariableDeclaration',
+                kind: 'const',
+                declarations: [{
+                  type: 'VariableDeclarator',
+                  id: { type: 'Identifier', name },
+                  init: {
+                    type: 'NewExpression',
+                    callee: { type: 'Identifier', name: 'Uint8Array' },
+                    arguments: [{
+                      type: 'ArrayExpression',
+                      elements: byteElements
+                    }]
+                  }
+                }]
+              };
+              
+              return cacheAst(decl, generateVar(scope, fakeVarDecl));
+            } catch (e) {
+              return cacheAst(decl, todo(scope, `failed to read bytes from ${importPath}: ${e.message}`, true));
+            }
+          }
+          
+          return cacheAst(decl, [ number(UNDEFINED) ]);
+        }
+      }
+      
+      return cacheAst(decl, todo(scope, `import declarations not yet supported`, true));
+
     default:
       // ignore typescript nodes
-      if (decl.type.startsWith('TS') ||
-          decl.type === 'ImportDeclaration' && decl.importKind === 'type') {
+      if (decl.type.startsWith('TS')) {
         return cacheAst(decl, [ number(UNDEFINED) ]);
       }
 
