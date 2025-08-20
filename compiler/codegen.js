@@ -2638,7 +2638,8 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       args.push({
         type: 'ArrayExpression',
         elements: restArgs,
-        _doNotMarkTypeUsed: true
+        _doNotMarkTypeUsed: true,
+        _staticAlloc: func.internal
       });
     }
   }
@@ -5594,7 +5595,7 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
   const out = [];
   let pointer;
 
-  if (staticAlloc) {
+  if (staticAlloc || decl._staticAlloc) {
     const uniqueName = name === '$undeclared' ? name + uniqId() : name;
 
     const ptr = allocPage({ scope, pages }, uniqueName);
