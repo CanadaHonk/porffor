@@ -643,9 +643,13 @@ extern ${importFunc.returns.length > 0 ? CValtype[importFunc.returns[0]] : 'void
 
               case 'time': {
                 const id = tmpId++;
-                line(`time_t _time_t${id}`);
-                line(`time(&_time_t${id})`);
-                line(`f64 _time_out${id} = (f64)_time_t${id} * 1000.0`);
+                platformSpecific(`
+time_t _time_t${id};
+time(&_time_t${id});
+f64 _time_out${id} = (f64)_time_t${id} * 1000.0;`, `
+struct timespec _ts${id};
+clock_gettime(CLOCK_REALTIME, &_ts${id});
+f64 _time_out${id} = (f64)_ts${id}.tv_sec * 1000.0 + (f64)_ts${id}.tv_nsec / 1.0e6;`);
                 vals.push(`_time_out${id}`);
 
                 includes.set('time.h', true);
