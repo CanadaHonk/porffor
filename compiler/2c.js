@@ -429,6 +429,7 @@ export default ({ funcs, globals, data, pages }) => {
         for (const name in symbols) {
           line(`*(void**)(&${name}) = dlsym(_dl, "${name}")`);
           ffiFuncs[name] = symbols[name];
+          cified.add(name, true);
         }
 
         continue;
