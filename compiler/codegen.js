@@ -5,8 +5,67 @@ import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './bui
 import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
 import parse from './parse.js';
 import { log } from './log.js';
-import { allocPage, allocStr } from './allocator.js';
 import './prefs.js';
+
+const pagePtr = ind => {
+  if (ind === 0) return 16;
+  return ind * pageSize;
+};
+
+const allocPage = (scope, name) => {
+  if (!name.startsWith('#')) {
+    name = `${scope.name}/${name}`;
+    if (globalThis.precompile) name = `${globalThis.precompile}/${name}`;
+  }
+
+  if (pages.has(name)) {
+    return pagePtr(pages.get(name));
+  }
+
+  const ind = pages.size;
+  pages.set(name, ind);
+
+  scope.pages ??= new Map();
+  scope.pages.set(name, ind);
+
+  return pagePtr(ind);
+};
+
+const allocBytes = (scope, reason, bytes) => {
+  bytes += 2; // overallocate by 2 bytes to ensure null termination
+
+  const allocs = pages.allocs ??= new Map();
+  const bins = pages.bins ??= [];
+
+  if (allocs.has(reason)) {
+    return allocs.get(reason);
+  }
+
+  let bin = bins.find(x => (pageSize - x.used) >= bytes);
+  if (!bin) {
+    // new bin
+    const page = pages.size;
+    bin = {
+      used: 0,
+      page
+    };
+
+    const id = bins.push(bin);
+    pages.set(`#bin: ${id}`, page);
+  }
+
+  const ptr = pagePtr(bin.page) + bin.used;
+  bin.used += bytes;
+
+  allocs.set(reason, ptr);
+  return ptr;
+};
+
+export const allocStr = (scope, str, bytestring) => {
+  // basic string interning for ~free
+  const bytes = 4 + str.length * (bytestring ? 1 : 2);
+  return allocBytes(scope, str, bytes);
+};
 
 const todo = (scope, msg, expectsValue = undefined) => {
   msg = `todo: ${msg}`;
@@ -1465,10 +1524,10 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
     wasm.push(Opcodes.i32_to_u);
     return wasm;
   },
-  allocPage: (scope, name) => allocPage({ scope, pages }, name),
+  allocPage,
   allocLargePage: (scope, name) => {
-    const _ = allocPage({ scope, pages }, name);
-    allocPage({ scope, pages }, name + '#2');
+    const _ = allocPage(scope, name);
+    allocPage(scope, name + '#2');
 
     return _;
   }
@@ -5582,7 +5641,7 @@ const makeString = (scope, str, bytestring = true) => {
     if (c > 0xFF) bytestring = false;
   }
 
-  const ptr = allocStr({ scope, pages }, str, bytestring);
+  const ptr = allocStr(scope, str, bytestring);
   makeData(scope, elements, str, bytestring ? 'i8' : 'i16');
 
   return [ number(ptr) ];
@@ -5598,7 +5657,7 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
   if (staticAlloc || decl._staticAlloc) {
     const uniqueName = name === '$undeclared' ? name + uniqId() : name;
 
-    const ptr = allocPage({ scope, pages }, uniqueName);
+    const ptr = allocPage(scope, uniqueName);
     pointer = number(ptr, Valtype.i32);
 
     scope.arrays ??= new Map();

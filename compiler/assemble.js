@@ -197,10 +197,10 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   }
   time('func section');
 
-  if (pages.has('func lut')) {
+  if (pages.has('#func lut')) {
     if (data.addedFuncArgcLut) {
       // remove existing data
-      data = data.filter(x => x.page !== 'func lut');
+      data = data.filter(x => x.page !== '#func lut');
     }
 
     // generate func lut data
@@ -233,7 +233,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     if (Prefs.debugFuncLut) log('assemble', `func lut using ${bytes.length}/${pageSize * 2} (${bytesPerFunc} bytes per func)`);
 
     data.push({
-      page: 'func lut',
+      page: '#func lut',
       bytes
     });
     data.addedFuncArgcLut = true;

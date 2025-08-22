@@ -820,7 +820,7 @@ export const BuiltinFuncs = function() {
         number(funcs.bytesPerFuncLut(), Valtype.i32)
       ] ],
       [ Opcodes.i32_mul ],
-      [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocLargePage(scope, 'func lut')) ]
+      [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocLargePage(scope, '#func lut')) ]
     ],
     table: true
   };
@@ -837,7 +837,7 @@ export const BuiltinFuncs = function() {
       [ Opcodes.i32_mul ],
       number(2, Valtype.i32),
       [ Opcodes.i32_add ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocLargePage(scope, 'func lut')) ]
+      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocLargePage(scope, '#func lut')) ]
     ],
     table: true
   };
@@ -854,7 +854,7 @@ export const BuiltinFuncs = function() {
       [ Opcodes.i32_mul ],
       number(3, Valtype.i32),
       [ Opcodes.i32_add ],
-      number(allocLargePage(scope, 'func lut'), Valtype.i32),
+      number(allocLargePage(scope, '#func lut'), Valtype.i32),
       [ Opcodes.i32_add ]
     ],
     table: true
