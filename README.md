@@ -92,11 +92,9 @@ Porffor uses a unique versioning system, here's an example: `0.48.7`. Let's brea
 - `compiler`: contains the compiler itself
   - `builtins`: built-in apis written in typescript
   - `2c.js`: custom wasm-to-c engine
-  - `allocator.js`: static/compile-time allocator
   - `assemble.js`: assembles wasm ops and metadata into a spec-compliant wasm module/file
   - `builtins.js`: all manually written built-ins of the engine (spec, custom. vars, funcs)
-  - `builtins_object.js`: all the various built-in objects (think `String`, `globalThis`, etc.)
-  - `builtins_precompiled.js`: dynamically generated builtins from the `builtins/` folder
+  - `builtins_precompiled.js`: generated builtins from the `builtins/` folder
   - `codegen.js`: code (wasm) generation, ast -> wasm. The bulk of the effort
   - `cyclone.js`: wasm partial constant evaluator (it is fast and dangerous hence "cyclone")
   - `disassemble.js`: wasm disassembler using internal debug info
