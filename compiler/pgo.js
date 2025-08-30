@@ -1,20 +1,25 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { number } from './encoding.js';
-import { createImport, importedFuncs } from './builtins.js';
+import { createImport, importedFuncs, setImports } from './builtins.js';
 import assemble from './assemble.js';
 import wrap from './wrap.js';
 import * as Havoc from './havoc.js';
 import './prefs.js';
 
+let activeFunc, localData;
 export const setup = () => {
   // enable these prefs by default for pgo
   for (const x of [
     'typeswitchUniqueTmp', // use unique tmps for typeswitches
-    'lengthNoTmp', // use duplicated inline code instead of tmp for .length
-    'cyclone', // enable cyclone pre-evaler
+    // 'cyclone', // enable cyclone pre-evaler
   ]) {
     Prefs[x] = Prefs[x] === false ? false : true;
   }
+
+  createImport('profileLocalSet', [ Valtype.i32, Valtype.i32, Valtype.f64 ], 0, (activeFunc, i, n) => {
+    if (activeFunc == null) throw 'fail';
+    localData[activeFunc][i].push(n);
+  });
 };
 
 export const run = obj => {
@@ -34,15 +39,7 @@ export const run = obj => {
 
   time(0, `injecting PGO logging...`);
 
-  let activeFunc = null, abort = false;
-  createImport('profile1', [ Valtype.i32 ], 0, n => {
-    activeFunc = n;
-  });
-  createImport('profile2', [ Valtype.i32, Valtype.f64 ], 0, (i, n) => {
-    if (activeFunc == null) throw 'fail';
-    localData[activeFunc][i].push(n);
-  });
-
+  let abort = false;
   let funcs = [];
   for (let i = 0; i < wasmFuncs.length; i++) {
     const { name, internal, params, locals, wasm } = wasmFuncs[i];
@@ -55,16 +52,13 @@ export const run = obj => {
     funcs.push({ name, id, locals, params, invLocals });
 
     wasm.unshift(
-      // mark active func
-      number(i, Valtype.i32),
-      [ Opcodes.call, importedFuncs.profile1 ],
-
       // log args
       ...params.flatMap((_, i) => [
+        number(id, Valtype.i32),
         number(i, Valtype.i32),
         [ Opcodes.local_get, i ],
         ...(invLocals[i].type !== Valtype.f64 ? [ Opcodes.i32_from ] : []),
-        [ Opcodes.call, importedFuncs.profile2 ]
+        [ Opcodes.call, importedFuncs.profileLocalSet ]
       ])
     );
 
@@ -72,20 +66,20 @@ export const run = obj => {
       const inst = wasm[j];
       if (inst[0] === Opcodes.local_set || inst[0] === Opcodes.local_tee) {
         wasm.splice(j + 1, 0,
+          number(id, Valtype.i32),
           number(inst[1], Valtype.i32),
           [ Opcodes.local_get, inst[1] ],
           ...(invLocals[inst[1]].type !== Valtype.f64 ? [ Opcodes.i32_from ] : []),
-          [ Opcodes.call, importedFuncs.profile2 ]
+          [ Opcodes.call, importedFuncs.profileLocalSet ]
         );
       }
     }
   }
 
-  let localData = funcs.map(x => new Array(Object.keys(x.locals).length).fill(0).map(() => []));
+  localData = funcs.map(x => new Array(Object.keys(x.locals).length).fill(0).map(() => []));
 
   time(0, `injected PGO logging`);
   time(1, `running with PGO logging...`);
-
 
   try {
     obj.wasm = assemble(obj.funcs, obj.globals, obj.tags, obj.pages, obj.data, true);
@@ -93,28 +87,11 @@ export const run = obj => {
     Prefs._profileCompiler = Prefs.profileCompiler;
     Prefs.profileCompiler = false;
 
-    const { exports } = wrap(obj, undefined, {
-      readArgv: (ind, outPtr) => {
-        // const pgoInd = process.argv.indexOf('--pgo');
-        // let args = process.argv.slice(pgoInd);
-        // args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
-
-        // const str = args[ind - 1];
-        // if (pgoInd === -1 || !str) {
-        //   if (Prefs.pgoLog) console.log('\nPGO warning: script was expecting arguments, please specify args to use for PGO after --pgo arg');
-        //   return -1;
-        // }
-
-        // writeByteStr(exports.$, outPtr, str);
-        // return str.length;
-        return -1;
-      },
-      readFile: (pathPtr, outPtr) => {
-        return -1;
-      }
-    }, () => {});
-
+    const priorImports = { ...importedFuncs };
+    const { exports } = wrap(obj, undefined, () => {});
     exports.main();
+
+    setImports(priorImports);
   } catch (e) {
     throw e;
   }
@@ -242,8 +219,8 @@ export const run = obj => {
       consts.push(number(c, valtype));
     }
 
-    log += `  ${x.name}: replaced ${targets.length} locals with consts\n`;
-    if (targets.length > 0) Havoc.localsToConsts(wasmFunc, targets, consts, { localKeys: x.localKeys });
+    // log += `  ${x.name}: replaced ${targets.length} locals with consts\n`;
+    // if (targets.length > 0) Havoc.localsToConsts(wasmFunc, targets, consts, { localKeys: x.localKeys });
   }
 
   time(3, 'optimized using PGO data\n' + log);

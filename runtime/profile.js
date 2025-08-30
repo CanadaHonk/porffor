@@ -94,7 +94,7 @@ globalThis.compileCallback = ({ funcs }) => {
 };
 
 console.log('Compiling...');
-const { exports } = compile(source, undefined, {}, () => {});
+const { exports } = compile(source, undefined, () => {});
 
 // --- Execution with Progress Spinner ---
 

@@ -540,15 +540,39 @@ function verifyNotConfigurable(obj, name) {
 
 /// promiseHelper.js
 function checkSequence(arr) {
-  arr.forEach((x, i) => {
+  for (let i = 0; i < arr.length; i++) {
+    const x = arr[i];
     if (x !== (i + 1)) {
       throw new Test262Error('promiseHelper checkSequence failed');
     }
-  });
+  }
 
   return true;
 }
-// todo: checkSettledPromises
+
+function checkSettledPromises(settleds, expected) {
+  assert.sameValue(Array.isArray(settleds), true);
+  assert.sameValue(settleds.length, expected.length);
+
+  for (let i = 0; i < settleds.length; i++) {
+    const settled = settleds[i];
+    const expected = expected[i];
+
+    assert.sameValue(Object.hasOwn(settled, 'status'), true);
+    assert.sameValue(settled.status, expected.status);
+
+    if (settled.status === 'fulfilled') {
+      assert.sameValue(Object.hasOwn(settled, 'value'), true);
+      assert.sameValue(Object.hasOwn(settled, 'reason'), false);
+      assert.sameValue(settled.value, expected.value);
+    } else {
+      assert.sameValue(settled.status, 'rejected');
+      assert.sameValue(Object.hasOwn(settled, 'value'), false);
+      assert.sameValue(Object.hasOwn(settled, 'reason'), true);
+      assert.sameValue(settled.reason, expected.reason);
+    }
+  }
+}
 
 /// detachArrayBuffer.js
 function $DETACHBUFFER(buffer) {
@@ -1466,24 +1490,53 @@ const asyncTest = testFunc => {
   }
 
   try {
-    testFunc().then(
-      () => {
-        $DONE();
-      },
-      error => {
-        $DONE(error);
-      }
-    );
+    testFunc().then(() => {
+      $DONE();
+    }, error => {
+      $DONE(error);
+    });
   } catch (syncError) {
     $DONE(syncError);
   }
 };
 
-// todo: assert.throwsAsync
+var __assert_throwsAsync = (expectedErrorConstructor, func) => {
+  if (typeof func !== 'function') {
+    throw new Test262Error('assert.throwsAsync invoked with a non-function value');
+  }
+
+  let res;
+  try {
+    res = func();
+  } catch {
+    throw new Test262Error('assert.throwsAsync failed: function threw synchronously');
+  }
+
+  if (res === null || typeof res !== 'object' || typeof res.then !== 'function') {
+    throw new Test262Error('assert.throwsAsync failed: result was not a thenable');
+  }
+
+  return res.then(
+    () => {
+      throw new Test262Error('assert.throwsAsync failed: no exception was thrown');
+    },
+    thrown => {
+      // if (thrown === null || typeof thrown !== 'object') {
+      //   throw new Test262Error('assert.throwsAsync failed: thrown value was not an object');
+      // }
+      // if (thrown.constructor !== expectedErrorConstructor) {
+      //   throw new Test262Error('assert.throwsAsync failed: wrong error constructor');
+      // }
+    }
+  );
+};
 
 /// nativeFunctionMatcher.js
 // todo: throw and make looser
-const validateNativeFunctionSource = source => source.startsWith('function ') && source.endsWith('() { [native code] }');
+const validateNativeFunctionSource = source => {
+  if (source.startsWith('function ') && source.endsWith('() { [native code] }')) return;
+  throw new Test262Error('validateNativeFunctionSource failed');
+};
 
 const assertToStringOrNativeFunction = function(fn, expected) {
   const actual = fn.toString();
@@ -1516,6 +1569,103 @@ var __assert_compareIterator = (iter, validators) => {
   assert(result.done);
   assert.sameValue(result.value, undefined);
 };
+
+/// regExpUtils.js
+function buildString(args) {
+  const loneCodePoints = args.loneCodePoints;
+  const ranges = args.ranges;
+  let result = String.fromCodePoint(...loneCodePoints);
+  for (let i = 0; i < ranges.length; i++) {
+    let range = ranges[i];
+    let start = range[0];
+    let end = range[1];
+    for (let codePoint = start; codePoint <= end; codePoint++) {
+      result += String.fromCodePoint(codePoint);
+    }
+  }
+  return result;
+}
+
+// function printCodePoint(codePoint) {
+//   const hex = codePoint
+//     .toString(16)
+//     .toUpperCase()
+//     .padStart(6, "0");
+//   return `U+${hex}`;
+// }
+
+// function printStringCodePoints(string) {
+//   const buf = [];
+//   for (let symbol of string) {
+//     let formatted = printCodePoint(symbol.codePointAt(0));
+//     buf.push(formatted);
+//   }
+//   return buf.join(' ');
+// }
+
+function testPropertyEscapes(regExp, string, expression) {
+  if (!regExp.test(string)) {
+    for (let symbol of string) {
+      // let formatted = printCodePoint(symbol.codePointAt(0));
+      assert(
+        regExp.test(symbol),
+        // `\`${ expression }\` should match ${ formatted } (\`${ symbol }\`)`
+      );
+    }
+  }
+}
+
+function testPropertyOfStrings(args) {
+  // Use member expressions rather than destructuring `args` for improved
+  // compatibility with engines that only implement assignment patterns
+  // partially or not at all.
+  const regExp = args.regExp;
+  const expression = args.expression;
+  const matchStrings = args.matchStrings;
+  const nonMatchStrings = args.nonMatchStrings;
+  const allStrings = matchStrings.join('');
+  if (!regExp.test(allStrings)) {
+    for (let string of matchStrings) {
+      assert(
+        regExp.test(string),
+        // `\`${ expression }\` should match ${ string } (${ printStringCodePoints(string) })`
+      );
+    }
+  }
+
+  if (!nonMatchStrings) return;
+
+  const allNonMatchStrings = nonMatchStrings.join('');
+  if (regExp.test(allNonMatchStrings)) {
+    for (let string of nonMatchStrings) {
+      assert(
+        !regExp.test(string),
+        // `\`${ expression }\` should not match ${ string } (${ printStringCodePoints(string) })`
+      );
+    }
+  }
+}
+
+// The exact same logic can be used to test extended character classes
+// as enabled through the RegExp `v` flag. This is useful to test not
+// just standalone properties of strings, but also string literals, and
+// set operations.
+const testExtendedCharacterClass = testPropertyOfStrings;
+
+// Returns a function that validates a RegExp match result.
+//
+// Example:
+//
+//    var validate = matchValidator(['b'], 1, 'abc');
+//    validate(/b/.exec('abc'));
+//
+function matchValidator(expectedEntries, expectedIndex, expectedInput) {
+  return function(match) {
+    assert.compareArray(match, expectedEntries, 'Match entries');
+    assert.sameValue(match.index, expectedIndex, 'Match index');
+    assert.sameValue(match.input, expectedInput, 'Match input');
+  }
+}
 
 /// sm/non262.js
 function print() {}

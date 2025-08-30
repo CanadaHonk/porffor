@@ -172,15 +172,15 @@ local.set ${obj}`;
     // it does not, make it
     const underlying: object = {};
     if (Porffor.type(_obj) == Porffor.TYPES.function) {
+      __Porffor_object_fastAdd(underlying, 'length', __Porffor_funcLut_length(obj), 0b0010);
+      __Porffor_object_fastAdd(underlying, 'name', __Porffor_funcLut_name(obj), 0b0010);
+
       if (ecma262.IsConstructor(_obj)) { // constructor
         // set prototype and prototype.constructor if function and constructor
         const proto: object = {};
         __Porffor_object_fastAdd(underlying, 'prototype', proto, 0b1000);
         __Porffor_object_fastAdd(proto, 'constructor', _obj, 0b1010);
       }
-
-      __Porffor_object_fastAdd(underlying, 'name', __Porffor_funcLut_name(obj), 0b0010);
-      __Porffor_object_fastAdd(underlying, 'length', __Porffor_funcLut_length(obj), 0b0010);
     }
 
     if (Porffor.type(_obj) == Porffor.TYPES.array) {
@@ -206,8 +206,8 @@ local.set x#type`;
 
     if (Porffor.fastOr(
       Porffor.type(_obj) == Porffor.TYPES.string,
-      Porffor.type(_obj) == Porffor.TYPES.stringobject)
-    ) {
+      Porffor.type(_obj) == Porffor.TYPES.stringobject
+    )) {
       const len: i32 = (obj as string).length;
       __Porffor_object_fastAdd(underlying, 'length', len, 0b0000);
 

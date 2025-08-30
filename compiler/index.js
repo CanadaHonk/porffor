@@ -58,6 +58,7 @@ const progressClear = () => {
   if (globalThis.onProgress) return;
   if (!process.stdout.isTTY) return;
 
+  clearInterval(progressInterval);
   process.stdout.write(`\u001b[${progressLines}F\u001b[0J`);
   progressLines = 0;
 };
@@ -75,9 +76,6 @@ export default (code, module = Prefs.module) => {
 
   let outFile = Prefs.o;
   const logProgress = Prefs.profileCompiler || (outFile && !Prefs.native);
-
-  globalThis.valtype = Prefs.valtype ?? 'f64';
-  globalThis.valtypeBinary = Valtype[valtype];
 
   // use smaller page sizes internally (65536 / 4 = 16384)
   globalThis.pageSize = Prefs.pageSize ?? (PageSize / 4);
@@ -203,7 +201,7 @@ export default (code, module = Prefs.module) => {
   const out = { funcs, globals, tags, exceptions, pages, data, times: [ t0, t1, t2, t3 ] };
   if (globalThis.precompile) return out;
 
-  const wasm = out.wasm = assemble(funcs, globals, tags, pages, data);
+  let wasm = out.wasm = assemble(funcs, globals, tags, pages, data);
   if (logProgress) progressDone('assembled', t3);
 
   if (Prefs.optFuncs || Prefs.f) logFuncs(funcs, globals, exceptions);
@@ -213,6 +211,48 @@ export default (code, module = Prefs.module) => {
     const bytes = wasmPages * 65536;
     log('alloc', `\x1B[1mallocated ${bytes / 1024}KiB\x1B[0m for ${pages.size} things using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}`);
     console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n') + '\n');
+  }
+
+  if (Prefs.emscripten) {
+    const tmpFile = 'porffor_tmp.wasm';
+    const cO = Prefs._cO ?? 'Oz';
+
+    const args = [
+      'emcc',
+      '-xc', '-', // use stdin as c source in
+      '-s', 'STANDALONE_WASM=1',
+      '-s', 'NO_FILESYSTEM=1',
+      '-s', 'EXPORTED_FUNCTIONS=\'["_m"]\'',
+      '-nostartfiles',
+      '-Wl,--no-entry',
+      '-o', tmpFile,
+      '-' + cO,
+      Prefs.d ? '-g' : ''
+    ];
+
+    if (Prefs.clangFast) args.push('-flto=thin', '-march=native', '-ffast-math', '-fno-asynchronous-unwind-tables');
+
+    if (Prefs.s) args.push('-s');
+
+    Prefs['2cWasmImports'] = true;
+    const c = toc(out)
+    .replace(`int main()`, `
+void __wasi_proc_exit(int code) {
+  __builtin_trap();
+}
+
+int m()`);
+    Prefs['2cWasmImports'] = false;
+
+    // obvious command escape is obvious
+    execSync(args.join(' '), {
+      stdio: [ 'pipe', 'inherit', 'inherit' ],
+      input: c,
+      encoding: 'utf8'
+    });
+
+    out.wasm = wasm = fs.readFileSync(tmpFile, null);
+    fs.unlinkSync(tmpFile);
   }
 
   if (target === 'wasm' && outFile) {
@@ -245,7 +285,7 @@ export default (code, module = Prefs.module) => {
       console.log(`\u001b[2m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
     }
 
-    if (process.version) process.exit();
+    if (process.version && !Prefs.lambda) process.exit();
   }
 
   if (target === 'native') {
@@ -285,7 +325,7 @@ export default (code, module = Prefs.module) => {
       encoding: 'utf8'
     });
 
-    if (logProgress) progressStart(`compiled C to native (using ${compiler})`, t5);
+    if (logProgress) progressDone(`compiled C to native (using ${compiler})`, t5);
 
     if (Prefs.native) {
       const cleanup = () => {

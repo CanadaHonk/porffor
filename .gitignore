@@ -1,5 +1,5 @@
 *.wasm
-*.csv
+#*.csv
 *.txt
 *.exe
 

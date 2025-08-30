@@ -220,7 +220,7 @@ export default ({ funcs, globals, data, pages }) => {
   if (pages.size > 0) {
     includes.set('stdlib.h', true);
     prepend.set('_memory', `char* _memory; u32 _memoryPages = ${Math.ceil((pages.size * pageSize) / PageSize)};\n`);
-    prependMain.set('_initMemory', `_memory = malloc(_memoryPages * ${PageSize});\n`);
+    prependMain.set('_initMemory', `_memory = calloc(1, _memoryPages * ${PageSize});\n`);
     if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
 
@@ -278,6 +278,9 @@ export default ({ funcs, globals, data, pages }) => {
   let ffiFuncs = {};
   const cified = new Set();
   const cify = f => {
+    if (cified.has(f.name)) return '';
+    cified.add(f.name);
+
     let out = '';
 
     let depth = 1;
@@ -347,8 +350,11 @@ export default ({ funcs, globals, data, pages }) => {
     const typedReturns = f.returnType == null;
 
     const shouldInline = false; // f.internal;
-    if (f.name === '#main') out += `int main(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
-      else out += `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
+    if (f.name === '#main') {
+      out += `int ${Prefs.lambda ? 'user_main' : 'main'}(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
+    } else {
+      out += `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
+    }
 
     if (f.name === '__Porffor_promise_runJobs') {
       out += '}';
@@ -423,6 +429,7 @@ export default ({ funcs, globals, data, pages }) => {
         for (const name in symbols) {
           line(`*(void**)(&${name}) = dlsym(_dl, "${name}")`);
           ffiFuncs[name] = symbols[name];
+          cified.add(name, true);
         }
 
         continue;
@@ -457,6 +464,16 @@ export default ({ funcs, globals, data, pages }) => {
           case 0x03:
             vals.push(`(u32)(${vals.pop()})`);
             break;
+
+          // memory_copy
+          case 0x0a: {
+            const size = vals.pop();
+            const src = vals.pop();
+            const dst = vals.pop();
+            line(`memcpy(_memory + ${dst}, _memory + ${src}, ${size})`);
+            includes.set('string.h', true);
+            break;
+          }
         }
 
         lastCond = false;
@@ -534,8 +551,9 @@ export default ({ funcs, globals, data, pages }) => {
         case Opcodes.if: {
           let cond = removeBrackets(vals.pop());
           if (!lastCond) {
-            if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} != 0e+0`;
-              else cond = `(${cond}) != 0`;
+            // if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} != 0e+0`;
+            //   else cond = `(${cond}) != 0`;
+            cond = `(${cond}) != 0`;
           }
 
           line(`// if ${invValtype[i[1]] ?? ''}`, false);
@@ -598,9 +616,24 @@ export default ({ funcs, globals, data, pages }) => {
           let func = funcs.find(x => x.index === i[1]);
           if (!func) {
             const importFunc = importFuncs[i[1]];
+            if (Prefs['2cWasmImports']) {
+              const name = '__porf_import_' + importFunc.name;
+              if (!prepend.has(name)) {
+                prepend.set(name, `
+__attribute__((import_module(""), import_name("${importFunc.import}")))
+extern ${importFunc.returns.length > 0 ? CValtype[importFunc.returns[0]] : 'void'} ${name}(${importFunc.params.map(x => CValtype[x]).join(', ')});`);
+              }
+
+              const call = `${name}(${importFunc.params.length > 0 ? vals.pop() : ''})`;
+              if (importFunc.returns.length > 0) vals.push(call);
+                else line(call);
+
+              break;
+            }
+
             switch (importFunc.name) {
               case 'print':
-                line(`printf("${valtype === 'f64' ? '%g' : '%i'}", ${vals.pop()})`);
+                line(`printf("${valtype === 'f64' ? '%.15g' : '%i'}", ${vals.pop()})`);
                 includes.set('stdio.h', true);
                 break;
               case 'printChar':
@@ -608,26 +641,25 @@ export default ({ funcs, globals, data, pages }) => {
                 includes.set('stdio.h', true);
                 break;
 
-              case 'time':
-                line(`double _time_out`);
-                platformSpecific(
-`LARGE_INTEGER _time_freq, _time_t;
-QueryPerformanceFrequency(&_time_freq);
-QueryPerformanceCounter(&_time_t);
-_time_out = ((double)_time_t.QuadPart / _time_freq.QuadPart) * 1000.;`,
-`struct timespec _time;
-clock_gettime(CLOCK_MONOTONIC, &_time);
-_time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
-                vals.push(`_time_out`);
+              case 'time': {
+                const id = tmpId++;
+                platformSpecific(`
+time_t _time_t${id};
+time(&_time_t${id});
+f64 _time_out${id} = (f64)_time_t${id} * 1000.0;`, `
+struct timespec _ts${id};
+clock_gettime(CLOCK_REALTIME, &_ts${id});
+f64 _time_out${id} = (f64)_ts${id}.tv_sec * 1000.0 + (f64)_ts${id}.tv_nsec / 1.0e6;`);
+                vals.push(`_time_out${id}`);
 
-                unixIncludes.set('time.h', true);
-                winIncludes.set('windows.h', true);
+                includes.set('time.h', true);
                 break;
+              }
 
-              case 'timeOrigin':
-                // todo: actually implement
-                vals.push('0');
+              case 'timeOrigin': {
+                vals.push('0.0');
                 break;
+              }
 
               case '__Porffor_readArgv': {
                 prepend.set('__Porffor_readArgv',
@@ -697,11 +729,8 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
             break;
           }
 
-          if (!cified.has(func.name) && func.name !== f.name) {
-            cified.add(func.name);
-            if (!ffiFuncs[func.name]) {
-              cify(func);
-            }
+          if (!cified.has(func.name) && !ffiFuncs[func.name]) {
+            cify(func);
           }
 
           let args = [];
@@ -772,8 +801,9 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
 
           let cond = removeBrackets(vals.pop());
           if (!lastCond) {
-            if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} != 0e+0`;
-              else cond = `(${cond}) != 0`;
+            // if (cond.startsWith(`(i32)`)) cond = `${cond.slice(5)} != 0e+0`;
+            //   else cond = `(${cond}) != 0`;
+            cond = `(${cond}) != 0`;
           }
 
           line(`if (${cond}) {`, false);
@@ -800,12 +830,14 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           // todo: allow catching
           const type = vals.pop();
           const val = vals.pop();
+          if (Prefs['2cWasmImports']) break;
+
           line(`printf("Uncaught ")`);
 
-          const id = tmpId++;
-          line(`const struct ReturnValue _t${id} = __ecma262_ToString(${val}, ${type})`);
-          line(`__Porffor_printString(_t${id}.value, _t${id}.type)`);
-          line(`printf("\\n")`);
+          // const id = tmpId++;
+          // line(`const struct ReturnValue _t${id} = __ecma262_ToString(${val}, ${type})`);
+          // line(`__Porffor_printString(_t${id}.value, _t${id}.type)`);
+          // line(`printf("\\n")`);
           line(`exit(1)`);
 
           includes.set('stdio.h', true);
@@ -855,18 +887,31 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
           includes.set('math.h', true);
           break;
         case Opcodes.f64_trunc:
-          vals.push(`(i32)(${removeBrackets(vals.pop())})`); // this is ~10x faster than math.h's trunc() with clang??
+          vals.push(`trunc(${vals.pop()})`);
+          includes.set('math.h', true);
           break;
         case Opcodes.f64_nearest:
           vals.push(`round(${vals.pop()})`);
           includes.set('math.h', true);
           break;
 
+        case Opcodes.i32_rotl: {
+          const shift = vals.pop();
+          const x = vals.pop();
+          const id = tmpId++;
+          line(`const i32 _x${id} = ${x}`);
+          line(`const i32 _shift${id} = ${shift}`);
+          line(`const i32 _out${id} = (_x${id} << _shift${id}) | (_x${id} >> (32 - _shift${id}))`);
+          vals.push(`_out${id}`);
+          break;
+        }
+
         case Opcodes.memory_grow: {
           const id = localTmpId++;
           line(`const u32 _oldPages${id} = _memoryPages`);
           line(`_memoryPages += ${vals.pop()}`);
           line(`_memory = realloc(_memory, _memoryPages * ${PageSize})`);
+          line(`memset(_memory + _oldPages${id} * ${PageSize}, 0, (_memoryPages - _oldPages${id}) * ${PageSize})`);
           vals.push(`_oldPages${id}`);
           break;
         }
@@ -910,7 +955,9 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
     globalThis.out = globalThis.out + out;
   };
 
-  cify(funcs.find(x => x.name === '#main'));
+  for (const x of funcs) {
+    if (x.export || x.name === '#main') cify(x);
+  }
 
   const rawParams = f => {
     if (ffiFuncs[f.name]) return ffiFuncs[f.name].parameters;
@@ -929,6 +976,175 @@ _time_out = _time.tv_nsec / 1000000. + _time.tv_sec * 1000.;`);
     const shouldInline = false;
     return `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${ffiFuncs[f.name] ? '(*' : ''}${sanitize(f.name)}${ffiFuncs[f.name] ? ')' : ''}(${rawParams(f).map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')});`;
   }).join('\n'));
+
+  if (Prefs.lambda) {
+    includes.set('stdio.h', true);
+    includes.set('stdlib.h', true);
+    includes.set('string.h', true);
+    includes.set('unistd.h', true);
+    includes.set('netdb.h', true);
+    includes.set('sys/socket.h', true);
+    includes.set('signal.h', true);
+    includes.set('execinfo.h', true);
+
+    let copyGlobals = '';
+    let restoreGlobals = '';
+    for (const x in globals) {
+      const g = globals[x];
+
+      copyGlobals += `${CValtype[g.type]} copy_${sanitize(x)} = ${sanitize(x)};\n`;
+      restoreGlobals += `${sanitize(x)} = copy_${sanitize(x)};\n`;
+    }
+
+    const lambdaWrapper = `
+#define BUF_SIZE 65536
+
+// minimal http send/receive
+static int send_http(const char *host, const char *port, const char *req, char *resp, size_t resp_size) {
+  struct addrinfo hints = {0}, *res;
+  int sock;
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  if (getaddrinfo(host, port, &hints, &res) != 0) return -1;
+
+  sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+  if (sock < 0) return -1;
+  if (connect(sock, res->ai_addr, res->ai_addrlen) != 0) {
+    close(sock);
+    freeaddrinfo(res);
+    return -1;
+  }
+
+  write(sock, req, strlen(req));
+
+  int len = 0;
+  if (resp) {
+    len = read(sock, resp, resp_size - 1);
+    if (len >= 0) resp[len] = '\\0';
+  }
+
+  close(sock);
+  freeaddrinfo(res);
+  return len;
+}
+
+void crash_handler(int sig) {
+  void *array[20];
+  size_t size = backtrace(array, 20);
+  fprintf(stderr, "Caught signal %d\\n", sig);
+  backtrace_symbols_fd(array, size, STDERR_FILENO);
+  _exit(1);
+}
+
+int main(void) {
+  signal(SIGSEGV, crash_handler);
+  signal(SIGABRT, crash_handler);
+  signal(SIGBUS, crash_handler);
+  signal(SIGILL, crash_handler);
+
+  user_main();
+
+  i32 _memory_pages = _memoryPages;
+  char* _memory_clone = calloc(1, _memory_pages * ${PageSize});
+  memcpy(_memory_clone, _memory, _memory_pages * ${PageSize});
+
+  ${copyGlobals}
+
+  char *api = getenv("AWS_LAMBDA_RUNTIME_API");
+  if (!api) {
+      // Not in Lambda — error
+      printf("AWS_LAMBDA_RUNTIME_API not set\\n");
+      exit(1);
+  }
+
+  char host[256], port[16] = "80";
+  char *colon = strchr(api, ':');
+  if (colon) {
+      strncpy(host, api, colon - api);
+      host[colon - api] = '\\0';
+      strncpy(port, colon + 1, sizeof(port) - 1);
+  } else {
+      strncpy(host, api, sizeof(host) - 1);
+  }
+
+  char req[BUF_SIZE], resp[BUF_SIZE];
+  char request_id[128];
+
+  i32 request_count = 0;
+  while (1) {
+    // 1. GET next event
+    snprintf(req, sizeof(req),
+              "GET /2018-06-01/runtime/invocation/next HTTP/1.1\\r\\n"
+              "Host: %s\\r\\n\\r\\n", host);
+    if (send_http(host, port, req, resp, sizeof(resp)) <= 0) {
+      fprintf(stderr, "send_http failed\\n");
+      break;
+    }
+
+    char *rid = strstr(resp, "Lambda-Runtime-Aws-Request-Id: ");
+    if (!rid) {
+      fprintf(stderr, "No Request ID header in response:\\n%s\\n", resp);
+      break;
+    }
+
+    rid += strlen("Lambda-Runtime-Aws-Request-Id: ");
+    char *end = strchr(rid, '\\r');
+    if (!end) {
+      fprintf(stderr, "No CR after Request ID in response:\\n%s\\n", resp);
+      break;
+    }
+    size_t rid_len = end - rid;
+    strncpy(request_id, rid, rid_len);
+    request_id[rid_len] = '\\0';
+
+    // 2. Parse event data from response body
+    char *body = strstr(resp, "\\r\\n\\r\\n");
+    void *event = NULL;
+    if (body) {
+      body += 4; // skip \\r\\n\\r\\n
+      event = body;
+    }
+
+    if (request_count++ > 0) {
+      _memoryPages = _memory_pages;
+      free(_memory);
+      _memory = calloc(1, _memory_pages * ${PageSize});
+      memcpy(_memory, _memory_clone, _memory_pages * ${PageSize});
+
+      ${restoreGlobals}
+    }
+
+    // Call handler function and JSON.stringify the result
+    // size_t eventLen = strlen(event);
+    // i32 eventPtr = __Porffor_allocateBytes(eventLen + 4);
+    // memcpy((char*)eventPtr, &eventLen, 4);
+    // memcpy((char*)eventPtr + 4, event, eventLen);
+
+    // char* resp = _memory + (i32)__Porffor_handler((f64)eventPtr, 195).value + 4;
+    i32 ret = (i32)__Porffor_handler().value;
+    char* ret_str = _memory + ret + 4;
+    i32 ret_str_len = *((i32*)(ret_str - 4));
+
+    // 3. POST response
+    snprintf(req, sizeof(req),
+              "POST /2018-06-01/runtime/invocation/%s/response HTTP/1.1\\r\\n"
+              "Host: %s\\r\\n"
+              "Content-Type: text/plain\\r\\n"
+              "Content-Length: %zu\\r\\n\\r\\n"
+              "%s", request_id, host, ret_str_len, ret_str);
+    send_http(host, port, req, resp, sizeof(resp));
+  }
+  return 0;
+}`;
+    out += lambdaWrapper;
+
+    // preallocate 1 chunk allocator chunk
+//     out = out.replace(`_memory = calloc(1, _memoryPages * ${PageSize});\n`, `
+// jjporfjjchunkPtr = _memoryPages * 65536;
+// jjporfjjchunkOffset = 0;
+// _memoryPages += 16;
+// _memory = calloc(1, _memoryPages * ${PageSize});`);
+  }
 
   const makeIncludes = includes => [...includes.keys()].map(x => `#include <${x}>\n`).join('');
   out = platformSpecific(makeIncludes(winIncludes), makeIncludes(unixIncludes), false) + '\n' + makeIncludes(includes) + '\n' + alwaysPreface + [...prepend.values()].join('\n') + '\n\n' + out;

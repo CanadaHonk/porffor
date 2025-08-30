@@ -42,7 +42,7 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
 
   if (Porffor.fastOr(
     Porffor.type(arg) == Porffor.TYPES.array,
-    Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
+    (Porffor.type(arg) | 0b10000000) == Porffor.TYPES.bytestring,
     Porffor.type(arg) == Porffor.TYPES.set,
     Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array)
   )) {
@@ -80,6 +80,29 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
   return out;
 };
 
+// 23.1.3.1 Array.prototype.at (index)
+// https://tc39.es/ecma262/multipage/indexed-collections.html#sec-array.prototype.at
+export const __Array_prototype_at = (_this: any[], index: any) => {
+  // 1. Let O be ? ToObject(this value).
+  // 2. Let len be ? LengthOfArrayLike(O).
+  const len: i32 = _this.length;
+
+  // 3. Let relativeIndex be ? ToIntegerOrInfinity(index).
+  index = ecma262.ToIntegerOrInfinity(index);
+
+  // 4. If relativeIndex ≥ 0, then
+  //        a. Let k be relativeIndex.
+  // 5. Else,
+  //        a. Let k be len + relativeIndex.
+  if (index < 0) index = len + index;
+
+  // 6. If k < 0 or k ≥ len, return undefined.
+  if (Porffor.fastOr(index < 0, index >= len)) return undefined;
+
+  // 7. Return ? Get(O, ! ToString(𝔽(k))).
+  return _this[index];
+};
+
 export const __Array_prototype_push = (_this: any[], ...items: any[]) => {
   let len: i32 = _this.length;
   const itemsLen: i32 = items.length;
@@ -89,6 +112,54 @@ export const __Array_prototype_push = (_this: any[], ...items: any[]) => {
   }
 
   return _this.length = len + itemsLen;
+};
+
+export const __Array_prototype_pop = (_this: any[]) => {
+  const len: i32 = _this.length;
+  if (len == 0) return undefined;
+
+  const lastIndex: i32 = len - 1;
+  const element: any = _this[lastIndex];
+  _this.length = lastIndex;
+
+  return element;
+};
+
+export const __Array_prototype_shift = (_this: any[]) => {
+  const len: i32 = _this.length;
+  if (len == 0) return undefined;
+
+  const element: any = _this[0];
+  _this.length = len - 1;
+
+  // shift all elements left by 1 using memory.copy
+  Porffor.wasm`;; ptr = ptr(_this) + 4
+local #shift_ptr i32
+local.get ${_this}
+i32.to_u
+i32.const 4
+i32.add
+local.set #shift_ptr
+
+;; dst = ptr (start of array)
+local.get #shift_ptr
+
+;; src = ptr + 9 (second element)
+local.get #shift_ptr
+i32.const 9
+i32.add
+
+;; size = (len - 1) * 9
+local.get ${len}
+i32.to_u
+i32.const 1
+i32.sub
+i32.const 9
+i32.mul
+
+memory.copy 0 0`;
+
+  return element;
 };
 
 export const __Array_prototype_unshift = (_this: any[], ...items: any[]) => {
@@ -454,6 +525,7 @@ export const __Array_prototype_reverse = (_this: any[]) => {
 
 // @porf-typed-array
 export const __Array_prototype_forEach = (_this: any[], callbackFn: any, thisArg: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
@@ -463,6 +535,7 @@ export const __Array_prototype_forEach = (_this: any[], callbackFn: any, thisArg
 
 // @porf-typed-array
 export const __Array_prototype_filter = (_this: any[], callbackFn: any, thisArg: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const out: any[] = Porffor.allocate();
 
   const len: i32 = _this.length;
@@ -479,6 +552,7 @@ export const __Array_prototype_filter = (_this: any[], callbackFn: any, thisArg:
 
 // @porf-typed-array
 export const __Array_prototype_map = (_this: any[], callbackFn: any, thisArg: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
   const out: any[] = Porffor.allocate();
   out.length = len;
@@ -492,6 +566,7 @@ export const __Array_prototype_map = (_this: any[], callbackFn: any, thisArg: an
 };
 
 export const __Array_prototype_flatMap = (_this: any[], callbackFn: any, thisArg: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
   const out: any[] = Porffor.allocate();
 
@@ -509,6 +584,7 @@ export const __Array_prototype_flatMap = (_this: any[], callbackFn: any, thisArg
 
 // @porf-typed-array
 export const __Array_prototype_find = (_this: any[], callbackFn: any, thisArg: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
@@ -519,6 +595,7 @@ export const __Array_prototype_find = (_this: any[], callbackFn: any, thisArg: a
 
 // @porf-typed-array
 export const __Array_prototype_findLast = (_this: any[], callbackFn: any, thisArg: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   let i: i32 = _this.length;
   while (i > 0) {
     const el: any = _this[--i];
@@ -528,15 +605,18 @@ export const __Array_prototype_findLast = (_this: any[], callbackFn: any, thisAr
 
 // @porf-typed-array
 export const __Array_prototype_findIndex = (_this: any[], callbackFn: any, thisArg: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
-    if (!!callbackFn.call(thisArg, _this[i], i++, _this)) return i;
+    if (!!callbackFn.call(thisArg, _this[i], i, _this)) return i;
+    i++;
   }
 };
 
 // @porf-typed-array
 export const __Array_prototype_findLastIndex = (_this: any[], callbackFn: any, thisArg: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   let i: i32 = _this.length;
   while (i > 0) {
     if (!!callbackFn.call(thisArg, _this[--i], i, _this)) return i;
@@ -545,6 +625,7 @@ export const __Array_prototype_findLastIndex = (_this: any[], callbackFn: any, t
 
 // @porf-typed-array
 export const __Array_prototype_every = (_this: any[], callbackFn: any, thisArg: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
@@ -557,6 +638,7 @@ export const __Array_prototype_every = (_this: any[], callbackFn: any, thisArg: 
 
 // @porf-typed-array
 export const __Array_prototype_some = (_this: any[], callbackFn: any, thisArg: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
@@ -568,10 +650,12 @@ export const __Array_prototype_some = (_this: any[], callbackFn: any, thisArg: a
 
 // @porf-typed-array
 export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialValue: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
   let acc: any = initialValue;
   let i: i32 = 0;
   if (acc === undefined) {
+    if (len == 0) throw new TypeError('Reduce of empty array with no initial value');
     acc = _this[i++];
   }
 
@@ -584,10 +668,12 @@ export const __Array_prototype_reduce = (_this: any[], callbackFn: any, initialV
 
 // @porf-typed-array
 export const __Array_prototype_reduceRight = (_this: any[], callbackFn: any, initialValue: any) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
   let acc: any = initialValue;
   let i: i32 = len;
   if (acc === undefined) {
+    if (len == 0) throw new TypeError('Reduce of empty array with no initial value');
     acc = _this[--i];
   }
 

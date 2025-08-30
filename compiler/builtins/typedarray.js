@@ -46,7 +46,7 @@ export default async () => {
 
     if (Porffor.fastOr(
       Porffor.type(arg) == Porffor.TYPES.array,
-      Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
+      (Porffor.type(arg) | 0b10000000) == Porffor.TYPES.bytestring,
       Porffor.type(arg) == Porffor.TYPES.set,
       Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array)
     )) {
@@ -77,7 +77,7 @@ export const __${name}_from = (arg: any, mapFn: any): ${name} => {
 
   if (Porffor.fastOr(
     Porffor.type(arg) == Porffor.TYPES.array,
-    Porffor.type(arg) == Porffor.TYPES.string, Porffor.type(arg) == Porffor.TYPES.bytestring,
+    (Porffor.type(arg) | 0b10000000) == Porffor.TYPES.bytestring,
     Porffor.type(arg) == Porffor.TYPES.set,
     Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array)
   )) {
@@ -102,9 +102,8 @@ export const __${name}_from = (arg: any, mapFn: any): ${name} => {
   return new ${name}(arr);
 };
 
-export const __${name}_prototype_buffer$get = (_this: ${name}) => {
-  const out: ArrayBuffer = Porffor.wasm.i32.load(_this, 0, 4) - Porffor.wasm.i32.load(_this, 0, 8);
-  return out;
+export const __${name}_prototype_buffer$get = (_this: ${name}): any|ArrayBuffer => {
+  return Porffor.wasm.i32.load(_this, 0, 4) - Porffor.wasm.i32.load(_this, 0, 8) as ArrayBuffer;
 };
 
 export const __${name}_prototype_byteLength$get = (_this: ${name}) => {
@@ -165,7 +164,7 @@ export const __${name}_prototype_set = (_this: ${name}, array: any, offset: numb
 
   if (Porffor.fastOr(
     Porffor.type(array) == Porffor.TYPES.array,
-    Porffor.type(array) == Porffor.TYPES.string, Porffor.type(array) == Porffor.TYPES.bytestring,
+    (Porffor.type(array) | 0b10000000) == Porffor.TYPES.bytestring,
     Porffor.type(array) == Porffor.TYPES.set,
     Porffor.fastAnd(Porffor.type(array) >= Porffor.TYPES.uint8clampedarray, Porffor.type(array) <= Porffor.TYPES.float64array)
   )) {

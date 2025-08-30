@@ -104,3 +104,119 @@ export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
 
   return out;
 };
+
+export const __String_fromCodePoint = (...codePoints: any[]): string => {
+  let out: string = Porffor.allocate();
+
+  const len: i32 = codePoints.length;
+  let outLength: i32 = 0;
+
+  for (let i: i32 = 0; i < len; i++) {
+    const codepoint: number = ecma262.ToNumber(codePoints[i]);
+
+    if (codepoint != (codepoint | 0)) {
+      throw new RangeError('Invalid code point');
+    }
+
+    // Check if code point is valid (0 to 0x10FFFF)
+    if (Porffor.fastOr(codepoint < 0, codepoint > 0x10FFFF)) {
+      throw new RangeError('Invalid code point');
+    }
+
+    if (codepoint <= 0xFFFF) {
+      // BMP code point - single 16-bit unit
+      outLength++;
+    } else {
+      // Supplementary code point - surrogate pair (2 units)
+      outLength += 2;
+    }
+  }
+
+  out.length = outLength;
+  let outIndex: i32 = 0;
+
+  for (let i: i32 = 0; i < len; i++) {
+    const codepoint: number = ecma262.ToNumber(codePoints[i]);
+
+    if (codepoint <= 0xFFFF) {
+      // BMP code point
+      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, codepoint, 0, 4);
+      outIndex++;
+    } else {
+      // Supplementary code point - encode as surrogate pair
+      const cpMinusBase: i32 = codepoint - 0x10000;
+      const highSurrogate: i32 = 0xD800 + (cpMinusBase >> 10);
+      const lowSurrogate: i32 = 0xDC00 + (cpMinusBase & 0x3FF);
+
+      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, highSurrogate, 0, 4);
+      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, lowSurrogate, 0, 6);
+      outIndex += 2;
+    }
+  }
+
+  return out;
+};
+
+// in f64 file as returns NaN which returns 0 in i32
+export const __String_prototype_charCodeAt = (_this: string, index: number) => {
+  const len: i32 = _this.length;
+
+  index |= 0;
+  if (Porffor.fastOr(index < 0, index >= len)) return NaN;
+
+  return Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + index * 2, 0, 4);
+};
+
+export const __ByteString_prototype_charCodeAt = (_this: bytestring, index: number) => {
+  const len: i32 = _this.length;
+
+  index |= 0;
+  if (Porffor.fastOr(index < 0, index >= len)) return NaN;
+
+  return Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4);
+};
+
+// 22.1.2.4 String.raw ( template, ...substitutions )
+// https://tc39.es/ecma262/#sec-string.raw
+export const __String_raw = (template: any, ...substitutions: any[]): string => {
+  // 1. Let substitutionCount be the number of elements in substitutions.
+  const substitutionCount: i32 = substitutions.length;
+
+  // 2. Let cooked be ? ToObject(template).
+  // 3. Let literals be ? ToObject(? Get(cooked, "raw")).
+  const literals: any = template.raw;
+
+  // 4. Let literalCount be ? LengthOfArrayLike(literals).
+  const literalCount: number = ecma262.ToIntegerOrInfinity(Porffor.type(literals) == Porffor.TYPES.object ? (literals as object)['length'] : literals.length);
+
+  // 5. If literalCount ≤ 0, return the empty String.
+  if (literalCount <= 0) return '';
+
+  // 6. Let R be the empty String.
+  let R: string = '';
+
+  // 7. Let nextIndex be 0.
+  let nextIndex: i32 = 0;
+
+  // 8. Repeat,
+  while (true) {
+    // a. Let nextLiteralVal be ? Get(literals, ! ToString(𝔽(nextIndex))).
+    // b. Let nextLiteral be ? ToString(nextLiteralVal).
+    // c. Set R to the string-concatenation of R and nextLiteral.
+    R = __Porffor_concatStrings(R, literals[nextIndex]);
+
+    // d. If nextIndex + 1 = literalCount, return R.
+    if (nextIndex + 1 == literalCount) return R;
+
+    // e. If nextIndex < substitutionCount, then
+    if (nextIndex < substitutionCount) {
+      // i. Let nextSubVal be substitutions[nextIndex].
+      // ii. Let nextSub be ? ToString(nextSubVal).
+      // iii. Set R to the string-concatenation of R and nextSub.
+      R = __Porffor_concatStrings(R, substitutions[nextIndex]);
+    }
+
+    // f. Set nextIndex to nextIndex + 1.
+    nextIndex += 1;
+  }
+};

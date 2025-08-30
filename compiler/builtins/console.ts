@@ -29,62 +29,6 @@ export const __Porffor_printHexDigit = (arg: number) => {
   }
 };
 
-export const __Porffor_numberLog = (arg: number) => {
-  print(arg);
-  Porffor.printStatic('\n');
-};
-
-export const __Porffor_miniLog = (arg: any) => {
-  switch (Porffor.type(arg)) {
-    case Porffor.TYPES.number:
-      print(arg);
-      break;
-
-    case Porffor.TYPES.boolean:
-      if (arg) {
-        Porffor.printStatic('true');
-      } else {
-        Porffor.printStatic('false');
-      }
-      break;
-
-    case Porffor.TYPES.bytestring:
-    case Porffor.TYPES.string:
-      Porffor.printStatic("'");
-      __Porffor_printString(arg);
-      Porffor.printStatic("'");
-      break;
-
-    case Porffor.TYPES.array:
-      const arrLen: i32 = arg.length - 1;
-      if (arrLen == -1) {
-        Porffor.printStatic('[]');
-      } else {
-        Porffor.printStatic('[ ');
-        for (let i: i32 = 0; i <= arrLen; i++) {
-          __Porffor_miniLog(arg[i]);
-          if (i != arrLen) Porffor.printStatic(', ');
-        }
-        Porffor.printStatic(' ]');
-      }
-      break;
-
-    case Porffor.TYPES.undefined:
-      Porffor.printStatic('undefined');
-      break;
-
-    case Porffor.TYPES.object:
-      if (arg) {
-        Porffor.printStatic('[Object]');
-      } else {
-        Porffor.printStatic('null');
-      }
-      break;
-  }
-
-  Porffor.printStatic('\n');
-};
-
 export const __Porffor_print = (arg: any, colors: boolean = true, depth: number = 0) => {
   const __Porffor_printArray = (arg: any[]|Uint8Array|Int8Array|Uint8ClampedArray|Uint16Array|Int16Array|Uint32Array|Int32Array|Float32Array|Float64Array, colors: boolean, length: boolean = false) => {
     const arrLen: i32 = arg.length;
@@ -324,12 +268,33 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
       Porffor.printStatic('WeakRef {}');
       return;
 
-    // case Porffor.TYPES.regexp:
-    //   // todo: we currently have no way of getting the source text, so this falls back
-
-    // default:
-    //   __Porffor_printString(arg.toString());
-    //   return;
+    case Porffor.TYPES.error:
+      __Porffor_printString(__Error_prototype_toString(arg));
+      return;
+    case Porffor.TYPES.aggregateerror:
+      __Porffor_printString(__AggregateError_prototype_toString(arg));
+      return;
+    case Porffor.TYPES.typeerror:
+      __Porffor_printString(__TypeError_prototype_toString(arg));
+      return;
+    case Porffor.TYPES.referenceerror:
+      __Porffor_printString(__ReferenceError_prototype_toString(arg));
+      return;
+    case Porffor.TYPES.syntaxerror:
+      __Porffor_printString(__SyntaxError_prototype_toString(arg));
+      return;
+    case Porffor.TYPES.rangeerror:
+      __Porffor_printString(__RangeError_prototype_toString(arg));
+      return;
+    case Porffor.TYPES.evalerror:
+      __Porffor_printString(__EvalError_prototype_toString(arg));
+      return;
+    case Porffor.TYPES.urierror:
+      __Porffor_printString(__URIError_prototype_toString(arg));
+      return;
+    case Porffor.TYPES.test262error:
+      __Porffor_printString(__Test262Error_prototype_toString(arg));
+      return;
   }
 };
 

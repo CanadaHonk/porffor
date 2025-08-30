@@ -39,7 +39,7 @@ if (cluster.isPrimary) {
   if (minimal) resultOnly = true;
   const lastResults = fs.existsSync(join(__dirname, 'results.json')) ? JSON.parse(fs.readFileSync(join(__dirname, 'results.json'), 'utf8')) : {};
 
-  let lastCommitResults = minimal ? [] : execSync(`git log -200 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1') || x.startsWith('test262: 2') || x.startsWith('test262: 3') || x.startsWith('test262: 4') || x.startsWith('test262: 5')).split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
+  let lastCommitResults = minimal ? [] : execSync(`git log -200 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1') || x.startsWith('test262: 2') || x.startsWith('test262: 3') || x.startsWith('test262: 4') || x.startsWith('test262: 5') || x.startsWith('test262: 6')).split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
   if (lastCommitResults.length === 8) lastCommitResults = [ ...lastCommitResults.slice(0, 7), 0, lastCommitResults[7] ];
 
   if (!resultOnly) process.stdout.write('\u001b[90mreading tests...\u001b[0m');
@@ -153,7 +153,12 @@ if (cluster.isPrimary) {
       if (timeout) clearTimeout(timeout);
       const i = queue;
       if (i >= totalTests) {
-        worker.kill();
+        if (trackErrors || profile) {
+          worker.send(null);
+        } else {
+          worker.kill();
+        }
+
         return;
       }
 
@@ -172,7 +177,7 @@ if (cluster.isPrimary) {
         } else {
           spawn();
         }
-      }, 10000);
+      }, 15000);
     };
 
     worker.on('message', int => {
@@ -243,10 +248,10 @@ if (cluster.isPrimary) {
             const tab = `  \u001b[1m${spinner[spin++ % 4]} ${percent.toFixed(1)}%\u001b[0m    ` +
               table(false, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
 
-            console.log(
+            process.stdout.write(
               (lastPercent != 0 ? `\u001b[2F\u001b[0J` : `\r${' '.repeat(100)}\r`) +
               bar([...noAnsi(tab)].length + 8, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0) +
-              '\n' + tab
+              '\n' + tab + '\n'
             );
             lastPercent = percent + 0.1;
           }
@@ -420,6 +425,14 @@ if (cluster.isPrimary) {
   const profileStats = new Array(5).fill(0);
 
   process.on('message', i => {
+    if (i === null) {
+      if (trackErrors) process.send(errors);
+      if (profile) process.send({ perTestProfile, profileStats });
+
+      cluster.worker.kill();
+      return;
+    }
+
     const test = tests[i];
     // if (!test) return;
     // console.log('\n\n\n' + cluster.worker.id, i, test.file, '\n\n\n');
@@ -455,7 +468,7 @@ if (cluster.isPrimary) {
 
     let exports;
     try {
-      const out = compile(contents, !!flags.module, {}, x => log += x);
+      const out = compile(contents, !!flags.module, x => log += x);
       exports = out.exports;
     } catch (e) {
       error = e;
@@ -522,7 +535,4 @@ if (cluster.isPrimary) {
   });
 
   process.send(null);
-
-  if (trackErrors) parentPort.postMessage(errors);
-  if (profile) parentPort.postMessage({ perTestProfile, profileStats })
 }

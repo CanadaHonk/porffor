@@ -109,7 +109,7 @@ createImport('profile2', 1, 0, n => {
 });
 
 try {
-  const { exports } = compile(source, undefined, {}, s => output += s);
+  const { exports } = compile(source, undefined, s => output += s);
   exports.main();
 } catch (e) {
   console.error(e);

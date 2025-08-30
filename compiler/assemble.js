@@ -197,10 +197,10 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   }
   time('func section');
 
-  if (pages.has('func lut')) {
+  if (pages.has('#func lut')) {
     if (data.addedFuncArgcLut) {
       // remove existing data
-      data = data.filter(x => x.page !== 'func lut');
+      data = data.filter(x => x.page !== '#func lut');
     }
 
     // generate func lut data
@@ -208,20 +208,9 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     const bytesPerFunc = funcs.bytesPerFuncLut();
     for (let i = 0; i < indirectFuncs.length; i++) {
       const func = indirectFuncs[i].wrapperOf;
-      let name = func.name;
 
       // userland exposed .length
-      let length = func.jsLength;
-      if (length == null) {
-        length = func.params.length;
-        if (func.constr) length -= 4;
-        if (func.method) length -= 2;
-        if (!func.internal || func.typedParams) length = Math.floor(length / 2);
-
-        // remove _this from internal prototype funcs
-        if (func.internal && name.includes('_prototype_')) length--;
-      }
-
+      const length = func.jsLength;
       bytes.push(length % 256, (length / 256 | 0) % 256);
 
       let flags = 0b00000000; // 8 flag bits
@@ -229,8 +218,8 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
       if (func.constr) flags |= 0b10;
       bytes.push(flags);
 
+      let name = func.name;
       if (name.startsWith('#')) name = '';
-
       // eg: __String_prototype_toLowerCase -> toLowerCase
       if (name.startsWith('__')) name = name.split('_').pop();
 
@@ -244,7 +233,7 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
     if (Prefs.debugFuncLut) log('assemble', `func lut using ${bytes.length}/${pageSize * 2} (${bytesPerFunc} bytes per func)`);
 
     data.push({
-      page: 'func lut',
+      page: '#func lut',
       bytes
     });
     data.addedFuncArgcLut = true;

@@ -3,45 +3,34 @@ import type {} from './porffor.d.ts';
 export const DataView = function (arg: any, byteOffset: any, length: any): DataView {
   if (!new.target) throw new TypeError("Constructor DataView requires 'new'");
 
-  const out: DataView = Porffor.allocateBytes(12);
-  const outPtr: i32 = Porffor.wasm`local.get ${out}`;
+  if (Porffor.fastAnd(
+    Porffor.type(arg) != Porffor.TYPES.arraybuffer,
+    Porffor.type(arg) != Porffor.TYPES.sharedarraybuffer
+  )) throw new TypeError('First argument to DataView constructor must be an ArrayBuffer');
+  if ((arg as ArrayBuffer).detached) throw new TypeError('Constructed DataView with a detached ArrayBuffer');
+
+  let offset: i32 = 0;
+  if (Porffor.type(byteOffset) != Porffor.TYPES.undefined) offset = Math.trunc(byteOffset);
+  if (offset < 0) throw new RangeError('Invalid DataView byte offset (negative)');
 
   let len: i32 = 0;
-  let bufferPtr: i32;
-
-  if (Porffor.fastOr(
-    Porffor.type(arg) == Porffor.TYPES.arraybuffer,
-    Porffor.type(arg) == Porffor.TYPES.sharedarraybuffer
-  )) {
-    bufferPtr = Porffor.wasm`local.get ${arg}`;
-
-    if (arg.detached) throw new TypeError('Constructed DataView with a detached ArrayBuffer');
-
-    let offset: i32 = 0;
-    if (Porffor.type(byteOffset) != Porffor.TYPES.undefined) offset = Math.trunc(byteOffset);
-    if (offset < 0) throw new RangeError('Invalid DataView byte offset (negative)');
-
-    Porffor.wasm.i32.store(outPtr, offset, 0, 8);
-    Porffor.wasm.i32.store(outPtr, bufferPtr + offset, 0, 4);
-
-    if (Porffor.type(length) == Porffor.TYPES.undefined) {
-      const bufferLen: i32 = Porffor.wasm.i32.load(bufferPtr, 0, 0);
-      len = bufferLen - byteOffset;
-    } else len = Math.trunc(length);
-  } else {
-    throw new TypeError('First argument to DataView constructor must be an ArrayBuffer');
-  }
+  if (Porffor.type(length) == Porffor.TYPES.undefined) {
+    const bufferLen: i32 = Porffor.wasm.i32.load(Porffor.wasm`local.get ${arg}`, 0, 0);
+    len = bufferLen - offset;
+  } else len = Math.trunc(length);
 
   if (len < 0) throw new RangeError('Invalid DataView length (negative)');
   if (len > 4294967295) throw new RangeError('Invalid DataView length (over 32 bit address space)');
 
-  Porffor.wasm.i32.store(outPtr, len, 0, 0);
+  const out: DataView = Porffor.allocateBytes(12);
+  Porffor.wasm.i32.store(out, Porffor.wasm`local.get ${arg}` + offset, 0, 4);
+  Porffor.wasm.i32.store(out, offset, 0, 8);
+  Porffor.wasm.i32.store(out, len, 0, 0);
   return out;
 };
 
 export const __DataView_prototype_buffer$get = (_this: DataView) => {
-  const out: ArrayBuffer = Porffor.wasm.i32.load(_this, 0, 4) - Porffor.wasm.i32.load(_this, 0, 8);
-  return out;
+  return (Porffor.wasm.i32.load(_this, 0, 4) - Porffor.wasm.i32.load(_this, 0, 8)) as ArrayBuffer;
 };
 
 export const __DataView_prototype_byteLength$get = (_this: DataView) => {
@@ -54,6 +43,8 @@ export const __DataView_prototype_byteOffset$get = (_this: DataView) => {
 
 
 export const __DataView_prototype_getUint8 = (_this: DataView, byteOffset: number) => {
+  if (__DataView_prototype_buffer$get(_this).detached) throw new TypeError('Cannot operate on a detached ArrayBuffer');
+
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
@@ -71,6 +62,8 @@ return`;
 };
 
 export const __DataView_prototype_setUint8 = (_this: DataView, byteOffset: number, value: number) => {
+  if (__DataView_prototype_buffer$get(_this).detached) throw new TypeError('Cannot operate on a detached ArrayBuffer');
+
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
@@ -99,6 +92,8 @@ export const __DataView_prototype_setInt8 = (_this: DataView, byteOffset: number
 
 
 export const __DataView_prototype_getUint16 = (_this: DataView, byteOffset: number, littleEndian: any) => {
+  if (__DataView_prototype_buffer$get(_this).detached) throw new TypeError('Cannot operate on a detached ArrayBuffer');
+
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 1 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
@@ -120,6 +115,8 @@ local.set ${int}`;
 };
 
 export const __DataView_prototype_setUint16 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
+  if (__DataView_prototype_buffer$get(_this).detached) throw new TypeError('Cannot operate on a detached ArrayBuffer');
+
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 1 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
@@ -156,6 +153,8 @@ export const __DataView_prototype_setInt16 = (_this: DataView, byteOffset: numbe
 
 
 export const __DataView_prototype_getUint32 = (_this: DataView, byteOffset: number, littleEndian: any) => {
+  if (__DataView_prototype_buffer$get(_this).detached) throw new TypeError('Cannot operate on a detached ArrayBuffer');
+
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 3 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 
@@ -180,6 +179,8 @@ local.set ${int}`;
 };
 
 export const __DataView_prototype_setUint32 = (_this: DataView, byteOffset: number, value: number, littleEndian: any) => {
+  if (__DataView_prototype_buffer$get(_this).detached) throw new TypeError('Cannot operate on a detached ArrayBuffer');
+
   const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
   if (Porffor.fastOr(byteOffset < 0, byteOffset + 3 >= len)) throw new RangeError('Byte offset is out of bounds of the DataView');
 

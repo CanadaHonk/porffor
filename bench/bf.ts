@@ -22,7 +22,7 @@ const interpret = (str: bytestring) => {
 
     if (c == 91) {
       starts.push(i);
-      if (!memory[ptr]) {
+      if (memory[ptr] == 0) {
         let depth: i32 = 1;
         while (depth != 0) {
           const c2: i32 = str.charCodeAt(++i);
@@ -36,7 +36,7 @@ const interpret = (str: bytestring) => {
     }
 
     if (c == 93) {
-      if (!memory[ptr]) {
+      if (memory[ptr] == 0) {
         starts.pop();
         continue;
       }

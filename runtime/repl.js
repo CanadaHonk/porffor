@@ -95,7 +95,7 @@ const run = async (source, _context, _filename, callback, run = true) => {
 
   let shouldPrint = !prev;
   try {
-    const { exports, pages } = compile(toRun, undefined, {}, str => {
+    const { exports, pages } = compile(toRun, undefined, str => {
       if (shouldPrint) process.stdout.write(str);
       if (str === '-4919') shouldPrint = true;
     });

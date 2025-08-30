@@ -6,8 +6,6 @@ import './prefs.js';
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 
-const checkOOB = (memory, ptr) => ptr >= memory.buffer.byteLength;
-
 let dv;
 const read = (ta, memory, ptr, length) => {
   if (ta === Uint8Array) return new Uint8Array(memory.buffer, ptr, length);
@@ -43,7 +41,7 @@ const porfToJSValue = ({ memory, funcs, pages }, value, type, override = undefin
     case TYPES.booleanobject: return new Boolean(value);
 
     case TYPES.object: {
-      if (value === 0 || checkOOB(memory, value)) return null;
+      if (value === 0) return null;
 
       const size = read(Uint16Array, memory, value, 1)[0];
 
@@ -483,10 +481,9 @@ export { createImport };
  *
  * @param {string} source - JavaScript source code to compile
  * @param {boolean} module - If the source is a module or not (default: false)
- * @param {object} customImports - Custom imports
  * @param {(str: string) => void} print - Function to use for printing (used by console.log etc)
  */
-export default (source, module = undefined, customImports = {}, print = str => process.stdout.write(str)) => {
+export default (source, module = undefined, print = str => process.stdout.write(str)) => {
   createImport('print', 1, 0, i => print(i.toString()));
   createImport('printChar', 1, 0, i => print(String.fromCharCode(i)));
   createImport('time', 0, 1, () => performance.now());
@@ -513,12 +510,6 @@ export default (source, module = undefined, customImports = {}, print = str => p
       return -1;
     }
   });
-
-  for (const x in customImports) {
-    const custom = customImports[x];
-    // todo: make a simpler api for just js functions at some point using function.length etc
-    createImport(x, custom.params, custom.returns, custom.js, custom.c);
-  }
 
   const times = [];
 
@@ -577,6 +568,8 @@ export default (source, module = undefined, customImports = {}, print = str => p
     instance = new WebAssembly.Instance(module, {
       '': Object.keys(importedFuncs).reduce((acc, y) => {
         const x = importedFuncs[y];
+        if (!x.import) return acc;
+
         acc[x.import] = x.js ?? (() => {});
         return acc;
       }, {})

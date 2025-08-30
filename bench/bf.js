@@ -1,4 +1,5 @@
 // const printChar = i => process.stdout.write(String.fromCharCode(i || 0));
+// const printChar = i => std.err.puts(String.fromCharCode(i || 0));
 
 const interpret = str => {
   let ptr = 0;
@@ -20,7 +21,9 @@ const interpret = str => {
 
     if (c == 91) {
       starts.push(i);
-      if (!memory[ptr]) {
+      // Porffor.array.fastPush(starts, i);
+
+      if (memory[ptr] == 0) {
         let depth = 1;
         while (depth != 0) {
           const c2 = str.charCodeAt(++i);
@@ -34,7 +37,7 @@ const interpret = str => {
     }
 
     if (c == 93) {
-      if (!memory[ptr]) {
+      if (memory[ptr] == 0) {
         starts.pop();
         continue;
       }
