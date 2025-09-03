@@ -176,7 +176,7 @@ const compile = async (file, _funcs) => {
           x.usesTag = true;
           let id;
           if (y[0] === Opcodes.i32_const && n[1] === 0) {
-            id = read_signedLEB128(y.slice(1));
+            id = y[1];
             wasm[i] = [ 'throw', exceptions[id].constructor, exceptions[id].message ];
 
             // remove throw inst
@@ -244,7 +244,7 @@ ${funcs.map(x => {
       if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
       return v;
     })
-      .replace(/\["alloc","(.*?)",(.*?)\]/g, (_, reason, valtype) => `number(allocPage(_,'${reason}'),${valtype})`)
+      .replace(/\["alloc","(.*?)",(.*?)\]/g, (_, reason, valtype) => `[${valtype === Valtype.i32 ? Opcodes.i32_const : Opcodes.f64_const},allocPage(_,'${reason}')]`)
       .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode},'${name}',${valtype})`)
       .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
       .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)

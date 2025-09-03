@@ -1,5 +1,5 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
-import { number, read_signedLEB128 } from './encoding.js';
+import { number } from './encoding.js';
 import { log } from './log.js';
 import './prefs.js';
 
@@ -177,7 +177,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // -->
           // i32.const 0
 
-          wasm[i - 1] = number(valtype === 'f64' ? lastInst[1] : read_signedLEB128(lastInst.slice(1)), Valtype.i32); // f64.const -> i32.const
+          wasm[i - 1] = number(lastInst[1], Valtype.i32); // f64.const -> i32.const
 
           wasm.splice(i, 1); // remove this inst
           i--;
@@ -192,7 +192,7 @@ export default (funcs, globals, pages, tags, exceptions) => {
           // -->
           // f64.const 0
 
-          wasm[i - 1] = number(read_signedLEB128(lastInst.slice(1))); // i32.const -> f64.const
+          wasm[i - 1] = number(lastInst[1], Valtype.f64); // i32.const -> f64.const
 
           wasm.splice(i, 1); // remove this inst
           i--;

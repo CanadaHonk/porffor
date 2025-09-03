@@ -1,5 +1,5 @@
 import { Blocktype, Opcodes, Valtype, ValtypeSize } from './wasmSpec.js';
-import { number, ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector, read_signedLEB128 } from './encoding.js';
+import { number, ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector } from './encoding.js';
 import { operatorOpcode } from './expression.js';
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
 import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
@@ -2840,7 +2840,7 @@ const knownType = (scope, type) => {
   if (typeof type === 'number') return type;
 
   if (type.length === 1 && type[0][0] === Opcodes.i32_const) {
-    return read_signedLEB128(type[0].slice(1));
+    return type[0][1];
   }
 
   if (typedInput && type.length === 1 && type[0][0] === Opcodes.local_get) {
@@ -4319,7 +4319,7 @@ const generateUnary = (scope, decl) => {
       return [
         ...toNumeric(),
         Opcodes.i32_to,
-        [ Opcodes.i32_const, ...signedLEB128(-1) ],
+        [ Opcodes.i32_const, -1 ],
         [ Opcodes.i32_xor ],
         Opcodes.i32_from
       ];
@@ -5118,14 +5118,14 @@ const generateForIn = (scope, decl) => {
         [ Opcodes.local_set, tmp ],
 
         // symbol is MSB 2 is set
-        [ Opcodes.i32_const, ...unsignedLEB128(TYPES.string) ],
-        [ Opcodes.i32_const, ...unsignedLEB128(TYPES.symbol) ],
+        [ Opcodes.i32_const, TYPES.string ],
+        [ Opcodes.i32_const, TYPES.symbol ],
         [ Opcodes.local_get, tmp ],
         number(0x40000000, Valtype.i32),
         [ Opcodes.i32_and ],
         [ Opcodes.select ],
       [ Opcodes.else ], // bytestring
-        [ Opcodes.i32_const, ...unsignedLEB128(TYPES.bytestring) ],
+        [ Opcodes.i32_const, TYPES.bytestring ],
       [ Opcodes.end ]
     ]),
 
@@ -6615,6 +6615,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
 
         const encodeFunc = ({
           [Opcodes.f64_const]: x => x,
+          [Opcodes.i32_const]: x => x,
           [Opcodes.if]: unsignedLEB128,
           [Opcodes.loop]: unsignedLEB128
         })[inst[0]] ?? signedLEB128;

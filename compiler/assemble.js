@@ -400,6 +400,13 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
         continue;
       }
 
+      // encode i32.const/i64.const ops as signed leb128 from raw number
+      if (op === Opcodes.i32_const || op === Opcodes.i64_const) {
+        byte(op);
+        signed(o[1]);
+        continue;
+      }
+
       // encode f64.const ops as ieee754 from raw number
       if (op === Opcodes.f64_const) {
         byte(op);

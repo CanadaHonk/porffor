@@ -1,5 +1,5 @@
 // cyclone: wasm partial constant evaluator (it is fast and dangerous hence "cyclone")
-import { number, read_signedLEB128 } from './encoding.js';
+import { number } from './encoding.js';
 import { Opcodes, Valtype } from './wasmSpec.js';
 import './prefs.js';
 
@@ -123,7 +123,7 @@ export default ({ name, wasm, locals: _locals, params }) => {
         }
 
         case Opcodes.i32_const: {
-          const n = read_signedLEB128(op.slice(1));
+          const n = op[1];
           push(n);
           break;
         }
