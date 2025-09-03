@@ -69,6 +69,9 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   };
 
   const unsigned = n => {
+    if (n === Infinity) return unsigned(4294967295);
+    if (n === -Infinity) return unsigned(0);
+
     n |= 0;
     if (n >= 0 && n <= 127) return byte(n);
 
@@ -84,6 +87,9 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
   };
 
   const signed = n => {
+    if (n === Infinity) return signed(2147483647);
+    if (n === -Infinity) return signed(-2147483648);
+
     n |= 0;
     if (n >= 0 && n <= 63) return byte(n);
 

@@ -23,6 +23,9 @@ export const encodeVector = data => unsignedLEB128(data.length).concat(data.flat
 
 // todo: this only works with integers within 32 bit range
 export const signedLEB128 = n => {
+  if (n === Infinity) return signedLEB128(2147483647);
+  if (n === -Infinity) return signedLEB128(-2147483648);
+
   n |= 0;
 
   // just input for small numbers (for perf as common)
@@ -49,6 +52,9 @@ export const signedLEB128 = n => {
 };
 
 export const unsignedLEB128 = n => {
+  if (n === Infinity) return unsignedLEB128(4294967295);
+  if (n === -Infinity) return unsignedLEB128(0);
+
   n |= 0;
 
   // just input for small numbers (for perf as common)
@@ -69,6 +75,9 @@ export const unsignedLEB128 = n => {
 };
 
 export const unsignedLEB128_length = n => {
+  if (n === Infinity) return unsignedLEB128_length(4294967295);
+  if (n === -Infinity) return unsignedLEB128_length(0);
+
   if (n < 0) n = n >>> 0;
   if (n <= 127) return 1;
   if (n <= 16383) return 2;
@@ -85,6 +94,9 @@ export const unsignedLEB128_length = n => {
 };
 
 export const signedLEB128_length = n => {
+  if (n === Infinity) return signedLEB128_length(2147483647);
+  if (n === -Infinity) return signedLEB128_length(-2147483648);
+
   if (n >= -64 && n <= 63) return 1;
   if (n >= -8192 && n <= 8191) return 2;
   if (n >= -1048576 && n <= 1048575) return 3;
@@ -201,6 +213,9 @@ export const read_ieee754_binary64 = buffer => new Float64Array(new Uint8Array(b
 
 // into funcs append to a given existing buffer instead of creating our own for perf
 export const signedLEB128_into = (n, buffer) => {
+  if (n === Infinity) return signedLEB128_into(2147483647, buffer);
+  if (n === -Infinity) return signedLEB128_into(-2147483648, buffer);
+
   n |= 0;
 
   // just input for small numbers (for perf as common)
@@ -224,6 +239,9 @@ export const signedLEB128_into = (n, buffer) => {
 };
 
 export const unsignedLEB128_into = (n, buffer) => {
+  if (n === Infinity) return unsignedLEB128_into(4294967295, buffer);
+  if (n === -Infinity) return unsignedLEB128_into(0, buffer);
+
   n |= 0;
 
   // just input for small numbers (for perf as common)
