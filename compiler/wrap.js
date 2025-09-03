@@ -586,7 +586,10 @@ export default (source, module = undefined, print = str => process.stdout.write(
   }
 
   times.push(performance.now() - t2);
-  if (Prefs.profileCompiler && !globalThis.onProgress) console.log(`instantiated in ${times[1].toFixed(2)}ms`);
+  if (Prefs.profileCompiler) {
+    if (globalThis.onProgress) globalThis.onProgress('instantiated', times[1]);
+      else console.log(`instantiated in ${times[1].toFixed(2)}ms`);
+  }
 
   const exports = {};
   const rawValues = Prefs.d;

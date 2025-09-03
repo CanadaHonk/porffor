@@ -51,12 +51,16 @@ if (cluster.isPrimary) {
   }, {});
 
   const tests = await readTest262(test262Path, whatTests, preludes, lastResults.timeouts);
+  process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mcaching tests to tmp...\u001b[0m`);
+
+  fs.writeFileSync(workerDataPath, JSON.stringify(tests));
+  process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mstarting ${threads} runners...\u001b[0m`);
 
   const profile = process.argv.includes('--profile');
   if (profile) process.argv.push('--profile-compiler');
 
   const perTestProfile = {};
-  const profileStats = new Array(5).fill(0);
+  const profileStats = new Array(7).fill(0);
 
   const trackErrors = process.argv.includes('--errors');
   const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
@@ -136,13 +140,6 @@ if (cluster.isPrimary) {
   const totalTests = tests.length;
 
   const noAnsi = s => s.replace(/\u001b\[[0-9]+m/g, '');
-
-  const workerData = {
-    argv: process.argv,
-    tests,
-    threads
-  };
-  fs.writeFileSync(workerDataPath, JSON.stringify(workerData));
 
   let queue = 0;
   const spawn = () => {
@@ -391,8 +388,8 @@ if (cluster.isPrimary) {
     console.log('\n\x1b[4mtime spent on compiler stages\x1b[0m');
 
     let n = 0;
-    const total = profileStats[n++];
-    for (const x of [ 'parse', 'codegen', 'opt', 'assemble' ]) {
+    const total = profileStats[n];
+    for (const x of [ 'total', 'parse', 'codegen', 'opt', 'assemble', 'instantiate', 'execute' ]) {
       const y = profileStats[n++];
       console.log(`${x}\x1B[90m: \x1B[0m\x1B[1m${((y / total) * 100).toFixed(0)}%\x1B[0m (${(y / 1000 / threads).toFixed(2)}s)`);
     }
@@ -404,10 +401,9 @@ if (cluster.isPrimary) {
     console.log(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | ` + table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos));
   }
 } else {
-  const { tests, argv } = JSON.parse(fs.readFileSync(workerDataPath, 'utf8'));
+  const tests = JSON.parse(fs.readFileSync(workerDataPath, 'utf8'));
   const errors = {};
 
-  process.argv = argv;
   const trackErrors = process.argv.includes('--errors');
   const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
   const logErrors = process.argv.includes('--log-errors');
@@ -422,7 +418,7 @@ if (cluster.isPrimary) {
 
   const profile = process.argv.includes('--profile');
   const perTestProfile = {};
-  const profileStats = new Array(5).fill(0);
+  const profileStats = new Array(7).fill(0);
 
   process.on('message', i => {
     if (i === null) {
@@ -434,9 +430,6 @@ if (cluster.isPrimary) {
     }
 
     const test = tests[i];
-    // if (!test) return;
-    // console.log('\n\n\n' + cluster.worker.id, i, test.file, '\n\n\n');
-
     let error, stage = 0;
     let contents = test.contents,
         flags = test.flags,
@@ -444,12 +437,13 @@ if (cluster.isPrimary) {
 
     if (profile) {
       globalThis.onProgress = (msg, t) => {
-        let id = 1;
+        let id = 0;
+        if (msg === 'parsed') id = 1;
         if (msg === 'generated wasm') id = 2;
         if (msg === 'optimized') id = 3;
         if (msg === 'assembled') id = 4;
-        // if (msg === 'instantiated') id = 5;
-        // if (msg === 'executed') id = 6;
+        if (msg === 'instantiated') id = 5;
+        if (msg === 'executed') id = 6;
 
         profileStats[0] += t;
         profileStats[id] += t;
@@ -475,8 +469,13 @@ if (cluster.isPrimary) {
     }
 
     if (!error) try {
-      // timeout(exports.main);
-      exports.main();
+      if (profile) {
+        const t = performance.now();
+        exports.main();
+        globalThis.onProgress('executed', performance.now() - t);
+      } else {
+        exports.main();
+      }
       stage = 2;
     } catch (e) {
       if (e?.name === 'Test262Error' && debugAsserts && log) {
