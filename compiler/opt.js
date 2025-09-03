@@ -215,18 +215,18 @@ export default (funcs, globals, pages, tags, exceptions) => {
           continue;
         }
 
-        if (false && i === wasm.length - 1 && inst[0] === Opcodes.return) {
-          // replace final return, end -> end (wasm has implicit return)
-          // return
-          // end
-          // -->
-          // end
+        // if (i === wasm.length - 1 && inst[0] === Opcodes.return) {
+        //   // replace final return, end -> end (wasm has implicit return)
+        //   // return
+        //   // end
+        //   // -->
+        //   // end
 
-          wasm.splice(i, 1); // remove this inst (return)
-          i--;
-          // if (Prefs.optLog) log('opt', `removed redundant return at end`);
-          continue;
-        }
+        //   wasm.splice(i, 1); // remove this inst (return)
+        //   i--;
+        //   // if (Prefs.optLog) log('opt', `removed redundant return at end`);
+        //   continue;
+        // }
 
         // remove unneeded before get with update exprs (n++, etc) when value is unused
         if (i < wasm.length - 4 && lastInst[1] === inst[1] && lastInst[0] === Opcodes.local_get && inst[0] === Opcodes.local_get && wasm[i + 1][0] === Opcodes.const && [Opcodes.add, Opcodes.sub].includes(wasm[i + 2][0]) && wasm[i + 3][0] === Opcodes.local_set && wasm[i + 3][1] === inst[1] && (wasm[i + 4][0] === Opcodes.drop || wasm[i + 4][0] === Opcodes.br)) {
