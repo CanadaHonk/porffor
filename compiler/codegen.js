@@ -41,24 +41,30 @@ const allocBytes = (scope, reason, bytes) => {
     return allocs.get(reason);
   }
 
-  let bin = bins.find(x => (pageSize - x.used) >= bytes);
-  if (!bin) {
-    // new bin
-    const page = pages.size;
-    bin = {
-      used: 0,
-      page
-    };
+  let startingPtr = 0;
+  while (bytes > 0) {
+    const alloc = Math.min(bytes, pageSize);
+    bytes -= alloc;
 
-    const id = bins.push(bin);
-    pages.set(`#bin: ${id}`, page);
+    let bin = bins.find(x => (pageSize - x.used) >= alloc);
+    if (!bin) {
+      // new bin
+      const page = pages.size;
+      bin = {
+        used: 0,
+        page
+      };
+
+      const id = bins.push(bin);
+      pages.set(`#bin: ${id}`, page);
+    }
+
+    if (!startingPtr) startingPtr = pagePtr(bin.page) + bin.used;
+    bin.used += alloc;
   }
 
-  const ptr = pagePtr(bin.page) + bin.used;
-  bin.used += bytes;
-
-  allocs.set(reason, ptr);
-  return ptr;
+  allocs.set(reason, startingPtr);
+  return startingPtr;
 };
 
 export const allocStr = (scope, str, bytestring) => {
