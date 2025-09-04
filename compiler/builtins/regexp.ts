@@ -35,6 +35,10 @@ import type {} from './porffor.d.ts';
 //   dot - 0x09
 //   back reference - 0x0a:
 //     index (u8)
+//   lookahead positive - 0x0b:
+//     target (u16) - where to jump if lookahead succeeds  
+//   lookahead negative - 0x0c:
+//     target (u16) - where to jump if lookahead fails
 //   ----------------------------
 //   accept - 0x10
 //   reject - 0x11
@@ -402,27 +406,59 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
       if (char == 40) { // '('
         lastAtomStart = bcPtr;
 
-        // Check for non-capturing group
+        // Check for special group types
         let ncg: boolean = false;
+        let isLookahead: boolean = false;
+        let isNegativeLookahead: boolean = false;
+        
         if (patternPtr < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 63) { // '?'
-          if ((patternPtr + 1) < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 5) == 58) { // ':'
-            ncg = true;
-            patternPtr += 2;
+          if ((patternPtr + 1) < patternEndPtr) {
+            const nextChar = Porffor.wasm.i32.load8_u(patternPtr, 0, 5);
+            if (nextChar == 58) { // ':' - non-capturing group
+              ncg = true;
+              patternPtr += 2;
+            } else if (nextChar == 61) { // '=' - positive lookahead
+              isLookahead = true;
+              patternPtr += 2;
+            } else if (nextChar == 33) { // '!' - negative lookahead
+              isLookahead = true;
+              isNegativeLookahead = true;
+              patternPtr += 2;
+            }
           }
         }
 
         Porffor.array.fastPushI32(groupStack, lastAtomStart);
 
-        groupDepth += 1;
-        if (!ncg) {
-          Porffor.wasm.i32.store8(bcPtr, 0x30, 0, 0); // start capture
-          Porffor.wasm.i32.store8(bcPtr, captureIndex, 0, 1);
-          bcPtr += 2;
-
-          Porffor.array.fastPushI32(groupStack, captureIndex);
-          captureIndex += 1;
+        if (isLookahead) {
+          // Generate lookahead opcodes
+          if (isNegativeLookahead) {
+            Porffor.wasm.i32.store8(bcPtr, 0x0c, 0, 0); // lookahead negative
+          } else {
+            Porffor.wasm.i32.store8(bcPtr, 0x0b, 0, 0); // lookahead positive
+          }
+          
+          // Store placeholder for target address (will be filled when we see closing paren)
+          const lookaheadJumpPtr = bcPtr + 1;
+          Porffor.wasm.i32.store16(bcPtr, 0, 0, 1);
+          bcPtr += 3;
+          
+          // Store jump address on stack to fill in later, and special marker
+          Porffor.array.fastPushI32(groupStack, lookaheadJumpPtr);
+          Porffor.array.fastPushI32(groupStack, isNegativeLookahead ? -2 : -3);
+          groupDepth += 1;
         } else {
-          Porffor.array.fastPushI32(groupStack, -1);
+          groupDepth += 1;
+          if (!ncg) {
+            Porffor.wasm.i32.store8(bcPtr, 0x30, 0, 0); // start capture
+            Porffor.wasm.i32.store8(bcPtr, captureIndex, 0, 1);
+            bcPtr += 2;
+
+            Porffor.array.fastPushI32(groupStack, captureIndex);
+            captureIndex += 1;
+          } else {
+            Porffor.array.fastPushI32(groupStack, -1);
+          }
         }
 
         lastWasAtom = false;
@@ -442,7 +478,18 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
         groupDepth -= 1;
 
         const capturePop: i32 = Porffor.array.fastPopI32(groupStack);
-        if (capturePop != -1) {
+        
+        // Handle lookaheads
+        if (capturePop == -2 || capturePop == -3) {
+          const jumpPtr: i32 = Porffor.array.fastPopI32(groupStack);
+          
+          // Emit accept to properly end the lookahead
+          Porffor.wasm.i32.store8(bcPtr, 0x10, 0, 0); // accept
+          bcPtr += 1;
+          
+          // Update the jump target to point past this closing paren
+          Porffor.wasm.i32.store16(jumpPtr, bcPtr - jumpPtr - 2, 0, 0);
+        } else if (capturePop != -1) {
           Porffor.wasm.i32.store8(bcPtr, 0x31, 0, 0); // end capture
           Porffor.wasm.i32.store8(bcPtr, capturePop, 0, 1);
           bcPtr += 2;
@@ -955,10 +1002,45 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
     while (true) {
       const op: i32 = Porffor.wasm.i32.load8_u(pc, 0, 0);
+
       if (op == 0x10) { // accept
-        matched = true;
-        finalSp = sp;
-        break;
+        // Check if this is a lookahead accept
+        if (backtrackStack.length >= 4) {
+          const marker = backtrackStack[backtrackStack.length - 1];
+          if (marker == -2000 || marker == -3000) { // lookahead markers
+            // This is a lookahead accept
+            const isNegative = marker == -2000;
+
+            const savedMarker = Porffor.array.fastPopI32(backtrackStack);
+            const savedCapturesLen = Porffor.array.fastPopI32(backtrackStack);
+            const savedSp = Porffor.array.fastPopI32(backtrackStack);
+            const lookaheadEndPc = Porffor.array.fastPopI32(backtrackStack);
+            
+            // Restore string position (lookaheads don't consume)
+            sp = savedSp;
+            captures.length = savedCapturesLen;
+            
+            if (isNegative) {
+              // Negative lookahead: pattern matched, so fail completely
+              matched = false;
+              break;
+            } else {
+              // Positive lookahead: pattern matched, so continue after lookahead
+              pc = lookaheadEndPc;
+              continue;
+            }
+          } else {
+            // Normal accept
+            matched = true;
+            finalSp = sp;
+            break;
+          }
+        } else {
+          // Normal accept
+          matched = true;
+          finalSp = sp;
+          break;
+        }
       }
 
       let backtrack: boolean = false;
@@ -1186,6 +1268,25 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             }
           }
         }
+      } else if (op == 0x0b || op == 0x0c) { // positive or negative lookahead
+        const jumpOffset = Porffor.wasm.i32.load16_s(pc, 0, 1);
+        const lookaheadEndPc = pc + jumpOffset + 3;
+        const savedSp = sp; // Save current string position
+        
+
+        // Use fork to test the lookahead pattern
+        Porffor.array.fastPushI32(backtrackStack, lookaheadEndPc); // Continue point after lookahead
+        Porffor.array.fastPushI32(backtrackStack, savedSp); // Restore original sp
+        Porffor.array.fastPushI32(backtrackStack, captures.length);
+        
+        // Mark this as a lookahead with special values
+        if (op == 0x0c) { // negative lookahead
+          Porffor.array.fastPushI32(backtrackStack, -2000); // Special marker for negative
+        } else { // positive lookahead  
+          Porffor.array.fastPushI32(backtrackStack, -3000); // Special marker for positive
+        }
+        
+        pc = pc + 3; // Jump to lookahead content
       } else if (op == 0x20) { // jump
         pc += Porffor.wasm.i32.load16_s(pc, 0, 1);
       } else if (op == 0x21) { // fork
@@ -1217,6 +1318,35 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
       if (backtrack) {
         if (backtrackStack.length == 0) break;
+        
+
+        // Check if we're backtracking from a lookahead
+        if (backtrackStack.length >= 4) {
+          const marker = backtrackStack[backtrackStack.length - 1];
+          if (marker == -2000 || marker == -3000) { // lookahead markers
+            const isNegative = marker == -2000;
+            const savedMarker = Porffor.array.fastPopI32(backtrackStack);
+            const savedCapturesLen = Porffor.array.fastPopI32(backtrackStack);
+            const savedSp = Porffor.array.fastPopI32(backtrackStack);
+            const lookaheadEndPc = Porffor.array.fastPopI32(backtrackStack);
+            
+            // Restore state
+            sp = savedSp;
+            captures.length = savedCapturesLen;
+            
+            if (isNegative) {
+              // Negative lookahead: pattern failed to match, so succeed and continue
+              pc = lookaheadEndPc;
+              backtrack = false;
+            } else {
+              // Positive lookahead: pattern failed to match, so fail
+              backtrack = true;
+            }
+            continue;
+          }
+        }
+        
+        // Normal backtracking
         // Porffor.log(`backtrack! before: captures.length = ${captures.length}, sp = ${sp}, pc = ${pc}`);
         captures.length = Porffor.array.fastPopI32(backtrackStack);
         sp = Porffor.array.fastPopI32(backtrackStack);
