@@ -51,10 +51,10 @@ if (cluster.isPrimary) {
   }, {});
 
   const tests = await readTest262(test262Path, whatTests, preludes, lastResults.timeouts);
-  process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mcaching tests to tmp...\u001b[0m`);
+  if (!resultOnly) process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mcaching tests to tmp...\u001b[0m`);
 
   fs.writeFileSync(workerDataPath, JSON.stringify(tests));
-  process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mstarting ${threads} runners...\u001b[0m`);
+  if (!resultOnly) process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mstarting ${threads} runners...\u001b[0m`);
 
   const profile = process.argv.includes('--profile');
   if (profile) process.argv.push('--profile-compiler');
