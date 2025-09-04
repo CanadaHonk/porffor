@@ -2874,25 +2874,25 @@ locals:[127,127,127,127,127,127,127,127],localNames:["#newtarget","#newtarget#ty
 constr:1,usesTag:1
 }
 this.__RegExp_prototype_exec = {
-wasm:(_,{builtin})=>eval("[[32,0],[65,9],[32,2],[65,195],[65,0],[65,2],[16,builtin('__Porffor_regex_interpret')],[34,4],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,3],[65,195],[71],[4,64],[32,2],[183],[32,3],[16,builtin('__ecma262_ToString')],[33,4],[252,2],[33,2],[32,4],[33,3],[11],[32,0],[65,9],[32,2],[32,3],[65,0],[65,2],[16,builtin('__Porffor_regex_interpret')],[34,4],[15]]"),
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
 locals:[127],localNames:["_this","_this#type","input","input#type","#last_type"]
 }
 this.__RegExp_prototype_test = {
-wasm:(_,{builtin})=>eval("[[32,0],[65,9],[32,2],[65,195],[65,1],[65,2],[16,builtin('__Porffor_regex_interpret')],[34,4],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,3],[65,195],[71],[4,64],[32,2],[183],[32,3],[16,builtin('__ecma262_ToString')],[33,4],[252,2],[33,2],[32,4],[33,3],[11],[32,0],[65,9],[32,2],[32,3],[65,1],[65,2],[16,builtin('__Porffor_regex_interpret')],[34,4],[15]]"),
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
 locals:[127],localNames:["_this","_this#type","input","input#type","#last_type"]
 }
 this.__String_prototype_match = {
-wasm:(_,{builtin,internalThrow})=>eval("[[32,1],[65,67],[71],[4,64],[32,1],[69],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.match expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],[65,9],[65,9],[71],[4,64],[65,24],[65,6],[65,0],[65,7],[32,2],[65,9],[65,0],[65,0],[16,builtin('RegExp')],[33,2],[11],[32,2],[33,4],[65,9],[33,5],[32,4],[32,5],[32,0],[65,67],[16,builtin('__RegExp_prototype_exec')],[34,6],[15]]"),
+wasm:(_,{builtin,internalThrow})=>eval("[[32,1],[65,67],[71],[4,64],[32,1],[69],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.match expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],[32,3],[65,9],[71],[4,64],[65,24],[65,6],[65,0],[65,7],[32,2],[32,3],[65,0],[65,0],[16,builtin('RegExp')],[33,2],[65,9],[33,3],[11],[32,2],[32,3],[32,0],[65,67],[16,builtin('__RegExp_prototype_exec')],[34,4],[15]]"),
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
-locals:[127,127,127],localNames:["_this","_this#type","regexp","regexp#type","#proto_target","#proto_target#type","#last_type"],
+locals:[127],localNames:["_this","_this#type","regexp","regexp#type","#last_type"],
 usesTag:1
 }
 this.__ByteString_prototype_match = {
-wasm:(_,{builtin})=>eval("[[65,9],[65,9],[71],[4,64],[65,24],[65,6],[65,0],[65,7],[32,2],[65,9],[65,0],[65,0],[16,builtin('RegExp')],[33,2],[11],[32,2],[33,4],[65,9],[33,5],[32,4],[32,5],[32,0],[65,195],[16,builtin('__RegExp_prototype_exec')],[34,6],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,3],[65,9],[71],[4,64],[65,24],[65,6],[65,0],[65,7],[32,2],[32,3],[65,0],[65,0],[16,builtin('RegExp')],[33,2],[65,9],[33,3],[11],[32,2],[32,3],[32,0],[65,195],[16,builtin('__RegExp_prototype_exec')],[34,4],[15]]"),
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
-locals:[127,127,127],localNames:["_this","_this#type","regexp","regexp#type","#proto_target","#proto_target#type","#last_type"]
+locals:[127],localNames:["_this","_this#type","regexp","regexp#type","#last_type"]
 }
 this.__Set_prototype_size$get = {
 wasm:(_,{internalThrow})=>eval("[[32,1],[65,11],[71],[4,64],...internalThrow(_,'TypeError',`Set.prototype.size$get expects 'this' to be a Set`),[11],[32,0],[252,2],[40,0,0],[183],[65,1],[15]]"),

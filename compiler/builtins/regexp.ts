@@ -36,7 +36,7 @@ import type {} from './porffor.d.ts';
 //   back reference - 0x0a:
 //     index (u8)
 //   lookahead positive - 0x0b:
-//     target (u16) - where to jump if lookahead succeeds  
+//     target (u16) - where to jump if lookahead succeeds
 //   lookahead negative - 0x0c:
 //     target (u16) - where to jump if lookahead fails
 //   ----------------------------
@@ -410,7 +410,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
         let ncg: boolean = false;
         let isLookahead: boolean = false;
         let isNegativeLookahead: boolean = false;
-        
+
         if (patternPtr < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 63) { // '?'
           if ((patternPtr + 1) < patternEndPtr) {
             const nextChar = Porffor.wasm.i32.load8_u(patternPtr, 0, 5);
@@ -437,12 +437,12 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
           } else {
             Porffor.wasm.i32.store8(bcPtr, 0x0b, 0, 0); // lookahead positive
           }
-          
+
           // Store placeholder for target address (will be filled when we see closing paren)
           const lookaheadJumpPtr = bcPtr + 1;
           Porffor.wasm.i32.store16(bcPtr, 0, 0, 1);
           bcPtr += 3;
-          
+
           // Store jump address on stack to fill in later, and special marker
           Porffor.array.fastPushI32(groupStack, lookaheadJumpPtr);
           Porffor.array.fastPushI32(groupStack, isNegativeLookahead ? -2 : -3);
@@ -478,15 +478,15 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
         groupDepth -= 1;
 
         const capturePop: i32 = Porffor.array.fastPopI32(groupStack);
-        
+
         // Handle lookaheads
         if (capturePop == -2 || capturePop == -3) {
           const jumpPtr: i32 = Porffor.array.fastPopI32(groupStack);
-          
+
           // Emit accept to properly end the lookahead
           Porffor.wasm.i32.store8(bcPtr, 0x10, 0, 0); // accept
           bcPtr += 1;
-          
+
           // Update the jump target to point past this closing paren
           Porffor.wasm.i32.store16(jumpPtr, bcPtr - jumpPtr - 2, 0, 0);
         } else if (capturePop != -1) {
@@ -1015,11 +1015,11 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             const savedCapturesLen = Porffor.array.fastPopI32(backtrackStack);
             const savedSp = Porffor.array.fastPopI32(backtrackStack);
             const lookaheadEndPc = Porffor.array.fastPopI32(backtrackStack);
-            
+
             // Restore string position (lookaheads don't consume)
             sp = savedSp;
             captures.length = savedCapturesLen;
-            
+
             if (isNegative) {
               // Negative lookahead: pattern matched, so fail completely
               matched = false;
@@ -1272,20 +1272,20 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         const jumpOffset = Porffor.wasm.i32.load16_s(pc, 0, 1);
         const lookaheadEndPc = pc + jumpOffset + 3;
         const savedSp = sp; // Save current string position
-        
+
 
         // Use fork to test the lookahead pattern
         Porffor.array.fastPushI32(backtrackStack, lookaheadEndPc); // Continue point after lookahead
         Porffor.array.fastPushI32(backtrackStack, savedSp); // Restore original sp
         Porffor.array.fastPushI32(backtrackStack, captures.length);
-        
+
         // Mark this as a lookahead with special values
         if (op == 0x0c) { // negative lookahead
           Porffor.array.fastPushI32(backtrackStack, -2000); // Special marker for negative
-        } else { // positive lookahead  
+        } else { // positive lookahead
           Porffor.array.fastPushI32(backtrackStack, -3000); // Special marker for positive
         }
-        
+
         pc = pc + 3; // Jump to lookahead content
       } else if (op == 0x20) { // jump
         pc += Porffor.wasm.i32.load16_s(pc, 0, 1);
@@ -1318,7 +1318,7 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
       if (backtrack) {
         if (backtrackStack.length == 0) break;
-        
+
 
         // Check if we're backtracking from a lookahead
         if (backtrackStack.length >= 4) {
@@ -1329,11 +1329,11 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             const savedCapturesLen = Porffor.array.fastPopI32(backtrackStack);
             const savedSp = Porffor.array.fastPopI32(backtrackStack);
             const lookaheadEndPc = Porffor.array.fastPopI32(backtrackStack);
-            
+
             // Restore state
             sp = savedSp;
             captures.length = savedCapturesLen;
-            
+
             if (isNegative) {
               // Negative lookahead: pattern failed to match, so succeed and continue
               pc = lookaheadEndPc;
@@ -1345,7 +1345,7 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             continue;
           }
         }
-        
+
         // Normal backtracking
         // Porffor.log(`backtrack! before: captures.length = ${captures.length}, sp = ${sp}, pc = ${pc}`);
         captures.length = Porffor.array.fastPopI32(backtrackStack);
@@ -1504,26 +1504,22 @@ export const RegExp = function (pattern: any, flags: any): RegExp {
 };
 
 
-export const __RegExp_prototype_exec = (_this: RegExp, input: bytestring) => {
+export const __RegExp_prototype_exec = (_this: RegExp, input: any) => {
+  if (Porffor.type(input) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
   return __Porffor_regex_interpret(_this, input, false);
 };
 
-export const __RegExp_prototype_test = (_this: RegExp, input: bytestring) => {
+export const __RegExp_prototype_test = (_this: RegExp, input: any) => {
+  if (Porffor.type(input) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
   return __Porffor_regex_interpret(_this, input, true);
 };
 
-export const __String_prototype_match = (_this: string, regexp: RegExp) => {
-  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) {
-    regexp = new RegExp(regexp);
-  }
-
-  return regexp.exec(_this);
+export const __String_prototype_match = (_this: string, regexp: any) => {
+  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
+  return __RegExp_prototype_exec(regexp, _this);
 };
 
-export const __ByteString_prototype_match = (_this: bytestring, regexp: RegExp) => {
-  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) {
-    regexp = new RegExp(regexp);
-  }
-
-  return regexp.exec(_this);
+export const __ByteString_prototype_match = (_this: bytestring, regexp: any) => {
+  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
+  return __RegExp_prototype_exec(regexp, _this);
 };
