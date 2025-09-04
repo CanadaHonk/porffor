@@ -449,6 +449,10 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
           groupDepth += 1;
         } else {
           groupDepth += 1;
+          // Store the alternation scope start for this group depth in altStack
+          // We'll use even indices for jump targets and odd indices for scope starts
+          const scopeStackIdx = groupDepth * 2 + 1;
+          if (scopeStackIdx < 6144) altStack[scopeStackIdx] = bcPtr;
           if (!ncg) {
             Porffor.wasm.i32.store8(bcPtr, 0x30, 0, 0); // start capture
             Porffor.wasm.i32.store8(bcPtr, captureIndex, 0, 1);
@@ -504,18 +508,32 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
       if (char == 124) { // '|'
         altDepth[groupDepth] += 1;
 
-        const atomSize: i32 = bcPtr - lastAtomStart;
-        Porffor.wasm.memory.copy(lastAtomStart + 5, lastAtomStart, atomSize, 0, 0);
+        let forkPos: i32 = lastAtomStart;
+        if (altDepth[groupDepth] == 1) {
+          // First alternation - go back to start of alternation scope
+          if (groupDepth == 0) {
+            // Top level alternation
+            forkPos = bcStart;
+          } else {
+            // Group alternation - get stored scope start
+            const scopeStackIdx = groupDepth * 2 + 1;
+            if (scopeStackIdx < 6144 && altStack[scopeStackIdx] > 0) {
+              forkPos = altStack[scopeStackIdx];
+            }
+          }
+        }
+
+        Porffor.wasm.memory.copy(forkPos + 5, forkPos, bcPtr - forkPos, 0, 0);
         bcPtr += 5;
 
-        Porffor.wasm.i32.store8(lastAtomStart, 0x21, 0, 0); // fork
-        Porffor.wasm.i32.store16(lastAtomStart, 5, 0, 1); // branch1: after fork
+        Porffor.wasm.i32.store8(forkPos, 0x21, 0, 0); // fork
+        Porffor.wasm.i32.store16(forkPos, 5, 0, 1); // branch1: try this alternative
 
         Porffor.wasm.i32.store8(bcPtr, 0x20, 0, 0); // jump
-        Porffor.array.fastPushI32(altStack, bcPtr); // target: to be written in later
+        Porffor.array.fastPushI32(altStack, bcPtr); // save jump target location
         bcPtr += 3;
 
-        Porffor.wasm.i32.store16(lastAtomStart, bcPtr - lastAtomStart, 0, 3); // fork branch2: after jump
+        Porffor.wasm.i32.store16(forkPos, bcPtr - forkPos, 0, 3); // fork branch2: next alternative
 
         lastAtomStart = bcPtr;
         lastWasAtom = false;
