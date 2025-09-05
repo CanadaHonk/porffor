@@ -74,7 +74,9 @@ export default async (test262Path, filter, preludes, first = []) => {
     if (filter.endsWith('.js')) await read(join(testPath, filter));
       else await scan(join(testPath, filter));
   } else {
-    for (let x of first) read(join(testPath, x));
+    let wait = [];
+    for (const x of first) wait.push(read(join(testPath, x)));
+    await Promise.all(wait);
     await scan(testPath);
   }
 
