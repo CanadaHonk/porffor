@@ -89,7 +89,7 @@ const isFuncType = type =>
   type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression' ||
   type === 'ClassDeclaration' || type === 'ClassExpression';
 const hasFuncWithName = name =>
-  Object.hasOwn(funcIndex, name) || Object.hasOwn(builtinFuncs, name) || Object.hasOwn(importedFuncs, name) || Object.hasOwn(internalConstrs, name);
+  name in funcIndex || name in builtinFuncs || name in importedFuncs || name in internalConstrs;
 
 const astCache = new WeakMap();
 const cacheAst = (decl, wasm) => {
@@ -541,8 +541,8 @@ const generateEnum = (scope, decl) => {
 const optional = (op, clause = op.at(-1)) => clause || clause === 0 ? (Array.isArray(op[0]) ? op : [ op ]) : [];
 
 const lookupName = (scope, name) => {
-  if (Object.hasOwn(scope.locals, name)) return [ scope.locals[name], false ];
-  if (Object.hasOwn(globals, name)) return [ globals[name], true ];
+  if (name in scope.locals) return [ scope.locals[name], false ];
+  if (name in globals) return [ globals[name], true ];
 
   return [ undefined, undefined ];
 };
@@ -608,7 +608,7 @@ const hoistLookupType = (scope, name) => {
 const lookup = (scope, name, failEarly = false) => {
   let local = scope.locals[name];
 
-  if (Object.hasOwn(builtinVars, name)) {
+  if (name in builtinVars) {
     let wasm = builtinVars[name];
     if (wasm.usesImports) scope.usesImports = true;
 
@@ -616,9 +616,9 @@ const lookup = (scope, name, failEarly = false) => {
     return wasm.slice();
   }
 
-  if (!Object.hasOwn(funcIndex, name) && Object.hasOwn(builtinFuncs, name)) {
+  if (!(name in funcIndex) && name in builtinFuncs) {
     includeBuiltin(scope, name);
-  } else if (Object.hasOwn(internalConstrs, name)) {
+  } else if (name in internalConstrs) {
     // todo: return an actual something
     return [ number(1) ];
   }
@@ -662,16 +662,16 @@ const lookup = (scope, name, failEarly = false) => {
     }
 
     // no local var with name
-    if (Object.hasOwn(globals, name)) return [ [ Opcodes.global_get, globals[name].idx ] ];
-    if (Object.hasOwn(funcIndex, name)) return funcRef(funcByName(name));
-    if (Object.hasOwn(importedFuncs, name)) return [ number(importedFuncs[name] - importedFuncs.length) ];
+    if (name in globals) return [ [ Opcodes.global_get, globals[name].idx ] ];
+    if (name in funcIndex) return funcRef(funcByName(name));
+    if (name in importedFuncs) return [ number(importedFuncs[name] - importedFuncs.length) ];
 
     if (name.startsWith('__')) {
       // return undefined if unknown key in already known var
       let parent = name.slice(2).split('_').slice(0, -1).join('_');
       if (parent.includes('_')) parent = '__' + parent;
 
-      if (Object.hasOwn(builtinFuncs, name + '$get')) {
+      if ((name + '$get') in builtinFuncs) {
         // hack: force error as accessors should only be used with objects anyway
         return internalThrow(scope, 'TypeError', 'Accessor called without object');
       }
@@ -1474,7 +1474,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
   },
   glbl: (opcode, name, type) => {
     const globalName = '#porf#' + name; // avoid potential name clashing with user js
-    if (!Object.hasOwn(globals, globalName)) {
+    if (!(globalName in globals)) {
       const idx = globals['#ind']++;
       globals[globalName] = { idx, type };
 
@@ -1509,7 +1509,7 @@ const asmFuncToAsm = (scope, func, extra) => func(scope, {
     return out;
   },
   loc: (name, type) => {
-    if (!Object.hasOwn(scope.locals, name)) {
+    if (!(name in scope.locals)) {
       const idx = scope.localInd++;
       scope.locals[name] = { idx, type };
     }
@@ -1551,7 +1551,7 @@ const asmFunc = (name, func) => {
   if (existing) return existing;
 
   const allLocals = params.concat(localTypes);
-  const locals = {};
+  const locals = Object.create(null);
   for (let i = 0; i < allLocals.length; i++) {
     locals[localNames[i] ?? `l${i}`] = { idx: i, type: allLocals[i] };
   }
@@ -1646,14 +1646,14 @@ const getType = (scope, name, failEarly = false) => {
     [ null, () => hoistLookupType(scope, name) ]
   ];
 
-  if (Object.hasOwn(builtinVars, name)) return [ number(builtinVars[name].type ?? TYPES.number, Valtype.i32) ];
+  if (name in builtinVars) return [ number(builtinVars[name].type ?? TYPES.number, Valtype.i32) ];
 
   let metadata, typeLocal, global = null;
-  if (Object.hasOwn(scope.locals, name)) {
+  if (name in scope.locals) {
     metadata = scope.locals[name].metadata;
     typeLocal = scope.locals[name + '#type'];
     global = false;
-  } else if (Object.hasOwn(globals, name)) {
+  } else if (name in globals) {
     metadata = globals[name].metadata;
     typeLocal = globals[name + '#type'];
     global = true;
@@ -1687,10 +1687,10 @@ const setType = (scope, name, type, noInfer = false) => {
   const out = typeof type === 'number' ? [ number(type, Valtype.i32) ] : type;
 
   let metadata, typeLocal, global = false;
-  if (Object.hasOwn(scope.locals, name)) {
+  if (name in scope.locals) {
     metadata = scope.locals[name].metadata;
     typeLocal = scope.locals[name + '#type'];
-  } else if (Object.hasOwn(globals, name)) {
+  } else if (name in globals) {
     metadata = globals[name].metadata;
     typeLocal = globals[name + '#type'];
     global = true;
@@ -1797,8 +1797,8 @@ const getNodeType = (scope, node) => {
         if (func.returnType != null) return func.returnType;
       }
 
-      if (Object.hasOwn(builtinFuncs, name) && builtinFuncs[name].returnType != null) return builtinFuncs[name].returnType;
-      if (Object.hasOwn(internalConstrs, name) && internalConstrs[name].type != null) return internalConstrs[name].type;
+      if (name in builtinFuncs && builtinFuncs[name].returnType != null) return builtinFuncs[name].returnType;
+      if (name in internalConstrs && internalConstrs[name].type != null) return internalConstrs[name].type;
 
       if (name.startsWith('__Porffor_wasm_')) {
         // todo: return undefined for non-returning ops
@@ -2171,7 +2171,7 @@ const createThisArg = (scope, decl) => {
   const name = decl.callee?.name;
   if (decl._new) {
     // if precompiling or builtin func, just make it null as unused
-    if (!decl._forceCreateThis && (globalThis.precompile || Object.hasOwn(builtinFuncs, name))) return [
+    if (!decl._forceCreateThis && (globalThis.precompile || name in builtinFuncs)) return [
       number(NULL),
       number(TYPES.object, Valtype.i32)
     ];
@@ -2338,7 +2338,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     target.name = spl.slice(0, -1).join('_');
 
     if (builtinFuncs['__' + target.name + '_' + protoName]) protoName = null;
-      else if (lookupName(scope, target.name)[0] == null && !Object.hasOwn(builtinFuncs, target.name)) {
+      else if (lookupName(scope, target.name)[0] == null && !(target.name in builtinFuncs)) {
         if (lookupName(scope, '__' + target.name)[0] != null || builtinFuncs['__' + target.name]) target.name = '__' + target.name;
           else protoName = null;
       }
@@ -2478,18 +2478,18 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   let idx;
   if (decl._funcIdx) {
     idx = decl._funcIdx;
-  } else if (Object.hasOwn(internalConstrs, name) && !decl._noInternalConstr) {
+  } else if (name in internalConstrs && !decl._noInternalConstr) {
     if (decl._new && internalConstrs[name].notConstr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
     return internalConstrs[name].generate(scope, decl, _global, _name);
-  } else if (Object.hasOwn(funcIndex, name)) {
+  } else if (name in funcIndex) {
     idx = funcIndex[name];
   } else if (scope.name === name) {
     // fallback for own func but with a different var/id name
     idx = scope.index;
-  } else if (Object.hasOwn(importedFuncs, name)) {
+  } else if (name in importedFuncs) {
     idx = importedFuncs[name];
     scope.usesImports = true;
-  } else if (Object.hasOwn(builtinFuncs, name)) {
+  } else if (name in builtinFuncs) {
     if (decl._new && !builtinFuncs[name].constr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
 
     includeBuiltin(scope, name);
@@ -3136,7 +3136,7 @@ const allocVar = (scope, name, global = false, type = true, redecl = false, i32 
   const target = global ? globals : scope.locals;
 
   // already declared
-  if (Object.hasOwn(target, name)) {
+  if (name in target) {
     if (redecl) {
       // force change old local name(s)
       target['#redecl_' + name + uniqId()] = target[name];
@@ -3332,7 +3332,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       const [ _func, out ] = generateFunc(scope, init, true);
 
       const funcName = init.id?.name;
-      if (name !== funcName && Object.hasOwn(funcIndex, funcName)) {
+      if (name !== funcName && funcName in funcIndex) {
         funcIndex[name] = funcIndex[funcName];
         delete funcIndex[funcName];
       }
@@ -3347,7 +3347,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     }
 
     let out = [];
-    if (topLevel && Object.hasOwn(builtinVars, name)) {
+    if (topLevel && name in builtinVars) {
       // cannot redeclare
       if (kind !== 'var') return internalThrow(scope, 'SyntaxError', `Identifier '${unhackName(name)}' has already been declared`);
 
@@ -3395,7 +3395,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       }
 
       if (globalThis.precompile && global) {
-        scope.globalInits ??= {};
+        scope.globalInits ??= Object.create(null);
         scope.globalInits[name] = newOut;
       }
     } else {
@@ -4214,7 +4214,7 @@ const generateAssign = (scope, decl, _global, _name, valueUnused = false) => {
       ];
     }
 
-    if (Object.hasOwn(builtinVars, name)) {
+    if (name in builtinVars) {
       if (scope.strict) return internalThrow(scope, 'TypeError', `Cannot assign to non-writable global ${name}`, true);
 
       // just return rhs (eg `NaN = 2`)
@@ -5845,7 +5845,7 @@ const wrapBC = (bc, { prelude = [], postlude = [] } = {}) => {
 
 const countParams = (func, name = undefined) => {
   if (!func) {
-    if (Object.hasOwn(importedFuncs, name)) {
+    if (name in importedFuncs) {
       // reverse lookup then normal lookup
       func = importedFuncs[importedFuncs[name]];
       if (func) return func.params?.length ?? func.params;
@@ -6577,6 +6577,7 @@ const generateTemplate = (scope, decl) => {
 
 const generateTaggedTemplate = (scope, decl, global = false, name = undefined, valueUnused = false) => {
   const intrinsics = {
+    __proto__: null,
     __Porffor_wasm: str => {
       let out = [];
 
@@ -6603,12 +6604,12 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
         const immediates = asm.slice(1).map(x => {
           const n = parseFloat(x);
           if (Number.isNaN(n) && x !== 'NaN') {
-            if (Object.hasOwn(builtinFuncs, x)) {
+            if (x in builtinFuncs) {
               if (funcIndex[x] == null) includeBuiltin(scope, x);
               return funcIndex[x];
             }
 
-            if (Object.hasOwn(importedFuncs, x)) {
+            if (x in importedFuncs) {
               scope.usesImports = true;
               return importedFuncs[x];
             }
@@ -6648,7 +6649,7 @@ const generateTaggedTemplate = (scope, decl, global = false, name = undefined, v
   };
 
   const { quasis, expressions } = decl.quasi;
-  if (Object.hasOwn(intrinsics, decl.tag.name)) {
+  if (decl.tag.name in intrinsics) {
     let str = quasis[0].value.raw;
 
     for (let i = 0; i < expressions.length; i++) {
@@ -6732,7 +6733,7 @@ const objectHack = node => {
       if (objectName !== 'Object_prototype' && (node.property.name === 'propertyIsEnumerable' || node.property.name === 'hasOwnProperty' || node.property.name === 'isPrototypeOf')) return abortOut;
 
       const name = '__' + objectName + '_' + node.property.name;
-      if ((!hasFuncWithName(name) && !Object.hasOwn(builtinVars, name) && !hasFuncWithName(name + '$get')) && (hasFuncWithName(objectName) || Object.hasOwn(builtinVars, objectName) || hasFuncWithName('__' + objectName) || Object.hasOwn(builtinVars, '__' + objectName))) return abortOut;
+      if ((!hasFuncWithName(name) && !(name in builtinVars) && !hasFuncWithName(name + '$get')) && (hasFuncWithName(objectName) || objectName in builtinVars || hasFuncWithName('__' + objectName) || ('__' + objectName) in builtinVars)) return abortOut;
 
       if (Prefs.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
 
@@ -6795,7 +6796,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   const arrow = decl.type === 'ArrowFunctionExpression' || decl.type === 'Program';
   const func = {
     start: decl.start,
-    locals: {},
+    locals: Object.create(null),
     localInd: 0,
     returns: [ valtypeBinary, Valtype.i32 ], // value, type
     name,
@@ -7005,7 +7006,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         wasm.push(...getNodeType(func, getLastNode(decl.body.body)));
 
         // inject promise job runner func at the end of main if promises are made
-        if (Object.hasOwn(funcIndex, 'Promise') || Object.hasOwn(funcIndex, '__Promise_resolve') || Object.hasOwn(funcIndex, '__Promise_reject')) {
+        if (('Promise' in funcIndex) || ('__Promise_resolve' in funcIndex) || ('__Promise_reject' in funcIndex)) {
           wasm.push(
             [ Opcodes.call, includeBuiltin(func, '__Porffor_promise_runJobs').index ]
           );
@@ -7180,6 +7181,7 @@ const generateBlock = (scope, decl) => {
 };
 
 const internalConstrs = {
+  __proto__: null,
   __Array_of: {
     // this is not a constructor but best fits internal structure here
     generate: (scope, decl, global, name) => {
@@ -7369,7 +7371,8 @@ const internalConstrs = {
 
 let globals, tags, exceptions, funcs, indirectFuncs, funcIndex, currentFuncIndex, depth, pages, data, typeswitchDepth, usedTypes, coctc, globalInfer, builtinFuncs, builtinVars, lastValtype;
 export default program => {
-  globals = { ['#ind']: 0 };
+  globals = Object.create(null);
+  globals['#ind'] = 0;
   tags = [];
   exceptions = [];
   funcs = []; indirectFuncs = [];
@@ -7377,7 +7380,7 @@ export default program => {
     return indirectFuncs._bytesPerFuncLut ??=
       Math.min(Math.floor((pageSize * 2) / indirectFuncs.length), indirectFuncs.reduce((acc, x) => x.name.length > acc ? x.name.length : acc, 0) + 8);
   };
-  funcIndex = {};
+  funcIndex = Object.create(null);
   depth = [];
   pages = new Map();
   data = [];

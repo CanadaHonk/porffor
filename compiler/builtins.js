@@ -6,7 +6,12 @@ import './prefs.js';
 
 export let importedFuncs;
 export const setImports = (v = null) => {
-  importedFuncs = v ?? { length: 0 };
+  if (v == null) {
+    v = Object.create(null);
+    v.length = 0;
+  }
+
+  importedFuncs = v;
 };
 setImports();
 
