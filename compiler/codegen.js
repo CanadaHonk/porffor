@@ -7404,8 +7404,8 @@ export default program => {
   // keep builtins between compiles as much as possible
   if (lastValtype !== valtypeBinary) {
     lastValtype = valtypeBinary;
-    builtinFuncs = new BuiltinFuncs();
-    builtinVars = new BuiltinVars({ builtinFuncs });
+    builtinFuncs = BuiltinFuncs();
+    builtinVars = BuiltinVars({ builtinFuncs });
 
     const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
     objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
