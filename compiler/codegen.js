@@ -458,6 +458,12 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       if (Prefs.d) log.warning('codegen', 'with is not supported, treating as expression');
       return cacheAst(decl, generate(scope, decl.body));
 
+    case 'PrivateIdentifier':
+      return cacheAst(decl, generate(scope, {
+        type: 'Literal',
+        value: privateIDName(decl.name)
+      }));
+
     case 'TSEnumDeclaration':
       return cacheAst(decl, generateEnum(scope, decl));
 
@@ -1934,6 +1940,13 @@ const getNodeType = (scope, node) => {
 
     if (node.type === 'LabeledStatement') {
       return getNodeType(scope, node.body);
+    }
+
+    if (node.type === 'PrivateIdentifier') {
+      return getNodeType(scope, {
+        type: 'Literal',
+        value: privateIDName(node.name)
+      });
     }
 
     if (node.type.endsWith('Statement') || node.type.endsWith('Declaration')) {
