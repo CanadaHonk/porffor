@@ -1310,8 +1310,7 @@ console.log(border);
             runtimeError,
             wasmError,
             compileError,
-            timeout,
-            todo,
+            timeout
           ] = history[i].results;
 
           const when = (history[i].time - oldest) / dateRange;
@@ -1324,7 +1323,7 @@ console.log(border);
 
           run(pass, 'pass');
           run(fail, 'fail');
-          run(runtimeError + todo + timeout, 'runtimeError');
+          run(runtimeError + timeout, 'runtimeError');
           run(compileError + wasmError, 'compileError');
         }
 

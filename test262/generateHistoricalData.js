@@ -20,11 +20,41 @@ for (let i = 0; i < log.length; i++) {
   while (log[j].length !== 51 || log[j].split(' ').length !== 2) j++;
   let [ hash, timestamp ] = log[j].split(' ');
 
-  let results = x.split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
-  if (results.length === 8) results = [ ...results.slice(0, 7), 0, results[7] ];
+  const results = new Array(8).fill(0); // %, total tests, passes, fails, runtime errors, wasm errors, compile errors, timeout errors
+  for (let [ what, number ] of x.split('|').map(x => x.trim().split(' ').slice(0, 2))) {
+    number = parseFloat(number);
 
-  // commit specific hacks due to bad history
-  if (hash === '10deaeb214342e16ad2d01100a848f97dc3e6316') results[8] = 6116;
+    let i;
+    switch (what) {
+      case 'test262:':
+        i = 0;
+        break;
+      case '🧪':
+        i = 1;
+        break;
+      case '🤠':
+        i = 2;
+        break;
+      case '❌':
+        i = 3;
+        break;
+      case '📝':
+      case '💀':
+        i = 4;
+        break;
+      case '🧩':
+      case '🏗️':
+        i = 5;
+        break;
+      case '💥':
+        i = 6;
+        break;
+      case '⏰':
+        i = 7;
+        break;
+    }
+    if (i != null) results[i] += number;
+  }
 
   out.push({ results, time: parseInt(timestamp) * 1000, hash, title });
 }

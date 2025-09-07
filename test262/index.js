@@ -65,12 +65,8 @@ if (cluster.isPrimary) {
   const trackErrors = process.argv.includes('--errors');
   const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
   const logErrors = process.argv.includes('--log-errors');
-  const debugAsserts = process.argv.includes('--debug-asserts');
-  const subdirs = process.argv.includes('--subdirs');
   const dontWriteResults = process.argv.includes('--dont-write-results');
   const plainResults = process.argv.includes('--plain-results');
-
-  const todoTime = process.argv.find(x => x.startsWith('--todo-time='))?.split('=')[1] ?? 'runtime';
 
   const runIconTable = plainResults ? [ 'pass:', 'todo:', 'wasm compile error:', 'compile error:', 'fail:', 'timeout:', 'runtime error:' ] : [ '🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀' ];
   const table = (overall, ...arr) => {
@@ -87,13 +83,6 @@ if (cluster.isPrimary) {
 
       if (i !== arr.length - 1) str += resultOnly ? ' | ' : '\u001b[90m | \u001b[0m';
       out += str;
-    }
-
-    if (todoTime === 'runtime' && !resultOnly) {
-      // move todo and timeout to after runtime errors
-      const spl = out.split(resultOnly ? ' | ' : '\u001b[90m | \u001b[0m');
-      spl.splice(4, 0, spl.pop(), spl.pop());
-      out = spl.join(resultOnly ? ' | ' : '\u001b[90m | \u001b[0m');
     }
 
     return out;
@@ -123,7 +112,7 @@ if (cluster.isPrimary) {
 
   const passFiles = [], wasmErrorFiles = [], compileErrorFiles = [], timeoutFiles = [];
   let dirs = new Map(), features = new Map(), errors = new Map(), pagesUsed = new Map();
-  let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0, todos = 0;
+  let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0;
 
   if (logErrors) threads = 1;
 
@@ -220,8 +209,6 @@ if (cluster.isPrimary) {
       if (pass) {
         passes++;
         if (!resultOnly) passFiles.push(file);
-      } else if (result === 1) {
-        todos++;
       } else if (result === 2) {
         wasmErrors++;
         if (!resultOnly) wasmErrorFiles.push(file);
@@ -243,11 +230,11 @@ if (cluster.isPrimary) {
           // if (percent > lastPercent) process.stdout.write(`\r${' '.repeat(200)}\r\u001b[90m${percent.toFixed(0).padStart(4, ' ')}% |\u001b[0m \u001b[${pass ? '92' : (result === 4 ? '93' : '91')}m${file}\u001b[0m`);
           if (percent > lastPercent) {
             const tab = `  \u001b[1m${spinner[spin++ % 4]} ${percent.toFixed(1)}%\u001b[0m    ` +
-              table(false, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
+              table(false, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts);
 
             process.stdout.write(
               (lastPercent != 0 ? `\u001b[2F\u001b[0J` : `\r${' '.repeat(100)}\r`) +
-              bar([...noAnsi(tab)].length + 8, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0) +
+              bar([...noAnsi(tab)].length + 8, total, passes, fails, runtimeErrors + timeouts, compileErrors + wasmErrors, 0) +
               '\n' + tab + '\n'
             );
             lastPercent = percent + 0.1;
@@ -284,7 +271,7 @@ if (cluster.isPrimary) {
 
   if (resultOnly) {
     process.stdout.write(`test262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | `);
-    console.log(table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos));
+    console.log(table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts));
     process.exit();
   }
 
@@ -297,8 +284,8 @@ if (cluster.isPrimary) {
   const togo = next => `${Math.floor((total * next / 100) - passes)} to go until ${next}%`;
 
   console.log(`\u001b[1m${whatTests || 'test262'}: ${passes}/${total} passed - ${percent.toFixed(2)}%${whatTests === '' && percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''}\u001b[0m \u001b[90m(${togo(nextMinorPercent)}, ${togo(nextMajorPercent)})\u001b[0m`);
-  const tab = table(whatTests === '', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos);
-  console.log(bar([...noAnsi(tab)].length + 10, total, passes, fails, runtimeErrors + (todoTime === 'runtime' ? todos : 0) + timeouts, compileErrors + (todoTime === 'compile' ? todos : 0) + wasmErrors, 0));
+  const tab = table(whatTests === '', total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts);
+  console.log(bar([...noAnsi(tab)].length + 10, total, passes, fails, runtimeErrors + timeouts, compileErrors + wasmErrors, 0));
   process.stdout.write('  ');
   console.log(tab);
 
@@ -310,23 +297,10 @@ if (cluster.isPrimary) {
       process.stdout.write(' '.repeat(6) + dir + ' '.repeat(14 - dir.length));
 
       const [ total, pass, todo, wasmError, compileError, fail, timeout, runtimeError ] = results;
-      console.log(bar(120, total, pass, fail, runtimeError + (todoTime === 'runtime' ? todo : 0) + timeout, compileError + (todoTime === 'compile' ? todo : 0) + wasmError, 0));
+      console.log(bar(120, total, pass, fail, runtimeError + timeout, compileError + wasmError, 0));
       process.stdout.write(' '.repeat(6) + ' '.repeat(14 + 2));
       console.log(table(false, total, pass, fail, runtimeError, wasmError, compileError, timeout, todo));
       console.log();
-
-      // if (subdirs) {
-      //   for (const dir2 of results.keys()) {
-      //     if (['total', 'pass', 'fail', 'runtimeError', 'compileError', 'todo', 'wasmError'].includes(dir2) || dir2.endsWith('.js')) continue;
-
-      //     const results2 = results.get(dir2);
-      //     process.stdout.write(' '.repeat(8) + dir2 + ' '.repeat(30 - dir2.length));
-      //     bar(80, results2.total, results2.pass ?? 0, results2.fail ?? 0, (results2.runtimeError ?? 0) + (todoTime === 'runtime' ? (results2.todo ?? 0) : 0) + (results2.timeout ?? 0), (results2.compileError ?? 0) + (todoTime === 'compile' ? (results2.todo ?? 0) : 0) + (results2.wasmError ?? 0), 0);
-      //     process.stdout.write(' '.repeat(8) + ' '.repeat(30 + 2));
-      //     table(false, results2.total, results2.pass ?? 0, results2.fail ?? 0, results2.runtimeError ?? 0, results2.wasmError ?? 0, results2.compileError ?? 0, results2.timeout ?? 0, results2.todo ?? 0);
-      //   }
-      //   console.log();
-      // }
     }
 
     if (lastResults.compileErrors) console.log(`\n\n\u001b[4mnew compile errors\u001b[0m\n${compileErrorFiles.filter(x => !lastResults.compileErrors.includes(x)).join('\n')}\n\n`);
@@ -398,7 +372,7 @@ if (cluster.isPrimary) {
 
   if (allTests) {
     resultOnly = true;
-    console.log(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | ` + table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts, todos));
+    console.log(`\ntest262: ${percent.toFixed(2)}%${percentChange !== 0 ? ` (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(2)})` : ''} | ` + table(true, total, passes, fails, runtimeErrors, wasmErrors, compileErrors, timeouts));
   }
 } else {
   const tests = JSON.parse(fs.readFileSync(workerDataPath, 'utf8'));
@@ -408,7 +382,6 @@ if (cluster.isPrimary) {
   const onlyTrackCompilerErrors = process.argv.includes('--compiler-errors-only');
   const logErrors = process.argv.includes('--log-errors');
   const debugAsserts = process.argv.includes('--debug-asserts');
-  const subdirs = process.argv.includes('--subdirs');
   const plainResults = process.argv.includes('--plain-results');
   const runIconTable = plainResults ? [ 'pass:', 'todo:', 'wasm compile error:', 'compile error:', 'fail:', 'timeout:', 'runtime error:' ] : [ '🤠', '📝', '🏗️', '💥', '❌', '⏰', '💀' ];
 

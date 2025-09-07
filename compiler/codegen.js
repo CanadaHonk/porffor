@@ -73,17 +73,6 @@ export const allocStr = (scope, str, bytestring) => {
   return allocBytes(scope, str, bytes);
 };
 
-const todo = (scope, msg, expectsValue = undefined) => {
-  msg = `todo: ${msg}`;
-
-  switch (Prefs.todoTime ?? 'runtime') {
-    case 'compile':
-      throw new Error(msg);
-
-    case 'runtime':
-      return internalThrow(scope, 'Error', msg, expectsValue);
-  }
-};
 
 const isFuncType = type =>
   type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression' ||
@@ -443,7 +432,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
       return cacheAst(decl, generateTaggedTemplate(scope, decl, global, name, valueUnused));
 
     case 'ExportNamedDeclaration':
-      if (!decl.declaration) return todo(scope, 'unsupported export declaration', true);
+      if (!decl.declaration) return internalThrow(scope, 'Error', 'porffor: unsupported export declaration', true);
 
       const funcsBefore = funcs.map(x => x.name);
       generate(scope, decl.declaration);
@@ -479,7 +468,7 @@ const generate = (scope, decl, global = false, name = undefined, valueUnused = f
         return cacheAst(decl, [ number(UNDEFINED) ]);
       }
 
-      return cacheAst(decl, todo(scope, `no generation for ${decl.type}!`, true));
+      return cacheAst(decl, internalThrow(scope, 'Error', `porffor: no generation for ${decl.type}`, true));
   }
 };
 
@@ -905,8 +894,6 @@ const performLogicOp = (scope, op, left, right, leftType, rightType) => {
     '??': nullish
   };
 
-  if (!checks[op]) return todo(scope, `logic operator ${op} not implemented yet`, true);
-
   // generic structure for {a} OP {b}
   // _ = {a}; if (OP_CHECK) {b} else _
 
@@ -1286,7 +1273,6 @@ const performOp = (scope, op, left, right, leftType, rightType) => {
 
   // some complex ops are implemented in funcs
   if (typeof ops === 'function') return finalize(asmFuncToAsm(scope, ops, { left, right }));
-  if (!ops) return todo(scope, `operator ${op} not implemented yet`, true);
   if (!Array.isArray(ops)) ops = [ ops ];
   ops = [ ops ];
 
@@ -2021,8 +2007,6 @@ const generateLiteral = (scope, decl, global, name) => {
       ]
     });
   }
-
-  return todo(scope, `cannot generate literal of type ${typeof decl.value}`, true);
 };
 
 const generateExp = (scope, decl) => {
@@ -3525,8 +3509,6 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
             ]
           }, undefined, global)
         );
-      } else {
-        return todo(scope, `${prop.type} is not supported in object patterns`);
       }
     }
 
@@ -3567,8 +3549,6 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     }),
     [ Opcodes.drop ]
   ];
-
-  return todo(scope, `variable declarators of type ${pattern.type} are not supported yet`);
 }
 
 const generateVar = (scope, decl) => {
@@ -4437,8 +4417,6 @@ const generateUnary = (scope, decl) => {
       return out;
     }
   }
-
-  return todo(scope, `unary operator ${decl.operator} not implemented yet`, true);
 };
 
 const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
@@ -5564,7 +5542,8 @@ const generateMeta = (scope, decl) => {
     return [ number(UNDEFINED) ];
   }
 
-  return todo(scope, `meta property object ${decl.meta.name} is not supported yet`, true);
+  // todo: import.meta
+  return internalThrow(scope, 'Error', `porffor: meta property ${decl.meta.name}.${decl.property.name} is not supported yet`, true);
 };
 
 const compileBytes = (val, itemType) => {
