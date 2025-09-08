@@ -96,7 +96,7 @@ const funcRef = func => {
 
   func.generate?.();
 
-  const wrapperArgc = Prefs.indirectWrapperArgc ?? 10;
+  const wrapperArgc = Prefs.indirectWrapperArgc ?? 16;
   if (!func.wrapperFunc) {
     const locals = {
       ['#length']: { idx: 0, type: Valtype.i32 }
@@ -191,11 +191,11 @@ const funcRef = func => {
         wasm.push(
           [ Opcodes.local_get, array ],
           [ Opcodes.local_get, 5 + i * 2 ],
-          [ Opcodes.f64_store, 0, offset ],
+          [ Opcodes.f64_store, 0, ...unsignedLEB128(offset) ],
 
           [ Opcodes.local_get, array ],
           [ Opcodes.local_get, 6 + i * 2 ],
-          [ Opcodes.i32_store8, 0, offset + 8 ],
+          [ Opcodes.i32_store8, 0, ...unsignedLEB128(offset + 8) ],
         );
         offset += 9;
       }
@@ -2558,7 +2558,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     funcs.table = true;
     scope.table = true;
 
-    const wrapperArgc = Prefs.indirectWrapperArgc ?? 10;
+    const wrapperArgc = Prefs.indirectWrapperArgc ?? 16;
     const underflow = wrapperArgc - args.length;
     for (let i = 0; i < underflow; i++) args.push(DEFAULT_VALUE());
     if (args.length > wrapperArgc) args = args.slice(0, wrapperArgc);
@@ -2626,14 +2626,14 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       ...typeSwitch(scope, getNodeType(scope, callee), {
         [TYPES.function]: () => [
-          number(10 - underflow, Valtype.i32),
+          number(wrapperArgc - underflow, Valtype.i32),
           ...forceDuoValtype(scope, newTargetWasm, Valtype.f64),
           ...forceDuoValtype(scope, thisWasm, Valtype.f64),
           ...out,
 
           [ Opcodes.local_get, calleeLocal ],
           Opcodes.i32_to_u,
-          [ Opcodes.call_indirect, args.length + 2, 0,  ],
+          [ Opcodes.call_indirect, args.length + 2, 0 ],
           ...setLastType(scope)
         ],
 
