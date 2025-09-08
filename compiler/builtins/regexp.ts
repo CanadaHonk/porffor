@@ -1415,6 +1415,10 @@ export const __RegExp_prototype_source$get = (_this: RegExp) => {
   return Porffor.wasm.i32.load(_this, 0, 0) as bytestring;
 };
 
+export const __RegExp_prototype_lastIndex$get = (_this: RegExp) => {
+  return Porffor.wasm.i32.load16_u(_this, 0, 8);
+};
+
 // 22.2.6.4 get RegExp.prototype.flags
 // https://tc39.es/ecma262/multipage/text-processing.html#sec-get-regexp.prototype.flags
 export const __RegExp_prototype_flags$get = (_this: RegExp) => {

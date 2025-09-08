@@ -2816,6 +2816,11 @@ wasm:()=>eval("[[32,0],[40,0,0],[65,195],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],jsLength:0,
 locals:[],localNames:["_this","_this#type"]
 }
+x.__RegExp_prototype_lastIndex$get={
+wasm:()=>eval("[[32,0],[47,0,8],[65,1],[15]]"),
+params:[127,127],typedParams:1,returns:[127,127],jsLength:0,
+locals:[],localNames:["_this","_this#type"]
+}
 x.__RegExp_prototype_flags$get={
 wasm:(_,{builtin,internalThrow})=>eval("[[32,0],[65,9],[16,builtin('__Porffor_object_isObject')],[69],[4,64],...internalThrow(_,'TypeError',`this is a non-object`),[26],[11],[32,0],[47,0,4],[33,2],[65,16],[16,builtin('__Porffor_allocateBytes')],[33,3],[32,2],[65,64],[113],[4,64],[32,3],[183],[65,195],[65,100],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,1],[113],[4,64],[32,3],[183],[65,195],[65,103],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,2],[113],[4,64],[32,3],[183],[65,195],[65,105],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,4],[113],[4,64],[32,3],[183],[65,195],[65,109],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,8],[113],[4,64],[32,3],[183],[65,195],[65,115],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,16],[113],[4,64],[32,3],[183],[65,195],[65,117],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,128],[113],[4,64],[32,3],[183],[65,195],[65,118],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,2],[65,32],[113],[4,64],[32,3],[183],[65,195],[65,121],[183],[65,1],[16,builtin('__Porffor_bytestring_appendChar')],[252,2],[26],[11],[32,3],[65,195],[15]]"),
 params:[127,127],typedParams:1,returns:[127,127],jsLength:0,
@@ -2884,13 +2889,13 @@ params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
 locals:[127],localNames:["_this","_this#type","input","input#type","#last_type"]
 }
 x.__String_prototype_match={
-wasm:(_,{builtin,internalThrow})=>eval("[[32,1],[65,67],[71],[4,64],[32,1],[69],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.match expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],[32,3],[65,9],[71],[4,64],[65,24],[65,6],[65,0],[65,7],[32,2],[32,3],[65,0],[65,0],[16,builtin('RegExp')],[33,2],[65,9],[33,3],[11],[32,2],[32,3],[32,0],[65,67],[16,builtin('__RegExp_prototype_exec')],[34,4],[15]]"),
+wasm:(_,{builtin,internalThrow})=>eval("[[32,1],[65,67],[71],[4,64],[32,1],[69],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.match expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],[32,3],[65,9],[71],[4,64],[65,25],[65,6],[65,0],[65,7],[32,2],[32,3],[65,0],[65,0],[16,builtin('RegExp')],[33,2],[65,9],[33,3],[11],[32,2],[32,3],[32,0],[65,67],[16,builtin('__RegExp_prototype_exec')],[34,4],[15]]"),
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
 locals:[127],localNames:["_this","_this#type","regexp","regexp#type","#last_type"],
 usesTag:1
 }
 x.__ByteString_prototype_match={
-wasm:(_,{builtin})=>eval("[[32,3],[65,9],[71],[4,64],[65,24],[65,6],[65,0],[65,7],[32,2],[32,3],[65,0],[65,0],[16,builtin('RegExp')],[33,2],[65,9],[33,3],[11],[32,2],[32,3],[32,0],[65,195],[16,builtin('__RegExp_prototype_exec')],[34,4],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,3],[65,9],[71],[4,64],[65,25],[65,6],[65,0],[65,7],[32,2],[32,3],[65,0],[65,0],[16,builtin('RegExp')],[33,2],[65,9],[33,3],[11],[32,2],[32,3],[32,0],[65,195],[16,builtin('__RegExp_prototype_exec')],[34,4],[15]]"),
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
 locals:[127],localNames:["_this","_this#type","regexp","regexp#type","#last_type"]
 }
