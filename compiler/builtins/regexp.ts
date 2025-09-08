@@ -989,26 +989,16 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
   const sticky: boolean = (flags & 0b00100000) != 0;
 
   const inputLen: i32 = Porffor.wasm.i32.load(input, 0, 0);
-  let searchStart: i32 = 0;
+  let lastIndex: i32 = 0;
   if (global || sticky) {
-    searchStart = Porffor.wasm.i32.load16_u(regexp, 0, 8);
-  }
-
-  if (searchStart > inputLen) {
-    if (global || sticky) Porffor.wasm.i32.store16(regexp, 0, 0, 8);
-    return null;
+    lastIndex = Porffor.wasm.i32.load16_u(regexp, 0, 8);
   }
 
   // todo: free all at the end (or statically allocate but = [] causes memory corruption)
   const backtrackStack: i32[] = Porffor.allocate();
   const captures: i32[] = Porffor.allocateBytes(6144);
 
-  for (let i: i32 = searchStart; i <= inputLen; i++) {
-    if (sticky && i != searchStart) {
-      if (isTest) return false;
-      return null;
-    }
-
+  for (let i: i32 = lastIndex; i <= inputLen; i++) {
     backtrackStack.length = 0;
     captures.length = 0;
 
@@ -1378,7 +1368,7 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
       const matchStart: i32 = i;
       if (global || sticky) {
-        Porffor.wasm.i32.store(regexp, finalSp, 0, 8);
+        Porffor.wasm.i32.store16(regexp, finalSp, 0, 8); // write last index
       }
 
       const result: any[] = Porffor.allocateBytes(4096);
@@ -1404,10 +1394,16 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
       return result;
     }
+
+    if (sticky) { // sticky, do not go forward in string
+      Porffor.wasm.i32.store16(regexp, 0, 0, 8); // failed, write 0 last index
+      if (isTest) return false;
+      return null;
+    }
   }
 
   if (global || sticky) {
-    Porffor.wasm.i32.store(regexp, 0, 0, 8);
+    Porffor.wasm.i32.store16(regexp, 0, 0, 8); // failed, write 0 last index
   }
 
   if (isTest) return false;
