@@ -489,6 +489,9 @@ i32.load 0 4
 local.set ${obj}
 i32.load8_u 0 3
 local.set ${obj+1}`;
+
+        // if undefined, prototype is object.prototype
+        if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
       } else obj = __Porffor_object_getPrototype(obj);
       if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
 
@@ -555,6 +558,9 @@ i32.load 0 4
 local.set ${obj}
 i32.load8_u 0 3
 local.set ${obj+1}`;
+
+        // if undefined, prototype is object.prototype
+        if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
       } else obj = __Porffor_object_getPrototype(obj);
       if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
 
