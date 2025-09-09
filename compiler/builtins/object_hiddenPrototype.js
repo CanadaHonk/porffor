@@ -23,7 +23,7 @@ export const __Porffor_object_getHiddenPrototype = (trueType: i32): any => {
   }`;
 
   for (const x in TYPES) {
-    if (['undefined', 'string', 'bytestring', 'stringobject', 'number', 'numberobject', 'boolean', 'booleanobject'].includes(x)) continue;
+    if (['object', 'undefined', 'string', 'bytestring', 'stringobject', 'number', 'numberobject', 'boolean', 'booleanobject'].includes(x)) continue;
 
     const name = TYPE_NAMES[TYPES[x]];
     out += `
