@@ -1,5 +1,14 @@
 import type {} from './porffor.d.ts';
 
+// `eval` is invalid syntax so work around
+export const _eval = (source: string) => {
+  throw new SyntaxError('Dynamic code evaluation is not supported');
+};
+
+export const Function = function (source: string) {
+  throw new SyntaxError('Dynamic code evaluation is not supported');
+};
+
 export const __Function_prototype_toString = (_this: Function) => {
   const out: bytestring = Porffor.allocate();
 

@@ -1859,6 +1859,18 @@ wasm:()=>eval("[[32,1],[184],[68,36],[102],[32,1],[184],[68,44],[101],[113],[184
 params:[124,127],typedParams:1,returns:[124],returnType:2,jsLength:1,
 locals:[],localNames:["x","x#type"]
 }
+x.eval={
+wasm:(_,{internalThrow})=>eval("[...internalThrow(_,'SyntaxError',`Dynamic code evaluation is not supported`),[26],[68,0],[65,0],[15]]"),
+params:[124,127],typedParams:1,returns:[124,127],jsLength:1,
+locals:[],localNames:["source","source#type"],
+usesTag:1
+}
+x.Function={
+wasm:(_,{internalThrow})=>eval("[...internalThrow(_,'SyntaxError',`Dynamic code evaluation is not supported`),[26],[68,0],[65,0],[15]]"),
+params:[124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLength:1,
+locals:[],localNames:["#newtarget","#newtarget#type","#this","#this#type","source","source#type"],
+constr:1,usesTag:1
+}
 x.__Function_prototype_toString={
 wasm:(_,{makeString,builtin,internalThrow})=>eval("[[32,1],[65,6],[71],[4,64],...internalThrow(_,'TypeError',`Function.prototype.toString expects 'this' to be a Function`),[11],[16,builtin('__Porffor_allocate')],[183],[34,2],[65,195],...makeString(_,\"function \",1),[65,195],[16,builtin('__Porffor_bytestring_appendStr')],[26],[32,2],[65,195],[32,0],[252,2],[16,builtin('__Porffor_funcLut_name')],[183],[65,195],[16,builtin('__Porffor_bytestring_appendStr')],[26],[32,2],[65,195],...makeString(_,\"() { [native code] }\",1),[65,195],[16,builtin('__Porffor_bytestring_appendStr')],[26],[32,2],[65,195],[15]]"),
 params:[124,127],typedParams:1,returns:[124,127],jsLength:0,

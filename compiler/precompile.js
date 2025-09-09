@@ -88,6 +88,7 @@ const compile = async (file, _funcs) => {
     const body = globalThis.funcBodies[x.name];
     const bodyHasTopLevelThrow = body?.body && body.body.some(x => x.type === 'ThrowStatement');
 
+    if (x.name === '_eval') x.name = 'eval';
     if (x.data) {
       x.data = x.data.reduce((acc, x) => { acc[data[x].page] = data[x].bytes; return acc; }, {});
     }
