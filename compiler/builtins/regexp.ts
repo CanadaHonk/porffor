@@ -994,9 +994,8 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
     lastIndex = Porffor.wasm.i32.load16_u(regexp, 0, 8);
   }
 
-  // todo: free all at the end (or statically allocate but = [] causes memory corruption)
-  const backtrackStack: i32[] = Porffor.allocate();
-  const captures: i32[] = Porffor.allocateBytes(6144);
+  const backtrackStack: i32[] = [];
+  const captures: i32[] = [];
 
   for (let i: i32 = lastIndex; i <= inputLen; i++) {
     backtrackStack.length = 0;
@@ -1055,7 +1054,6 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
       if (op == 0x01) { // single
         if (sp >= inputLen) {
-          // Porffor.log(`single: oob`);
           backtrack = true;
         } else {
           let c1: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
@@ -1065,11 +1063,9 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             if (c2 >= 97 && c2 <= 122) c2 -= 32;
           }
           if (c1 == c2) {
-            // Porffor.log(`single: matched ${c1}`);
             pc += 2;
             sp += 1;
           } else {
-            // Porffor.log(`single: failed, expected ${c1}, got ${c2}`);
             backtrack = true;
           }
         }
@@ -1281,7 +1277,6 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         const lookaheadEndPc = pc + jumpOffset + 3;
         const savedSp = sp; // Save current string position
 
-
         // Use fork to test the lookahead pattern
         Porffor.array.fastPushI32(backtrackStack, lookaheadEndPc); // Continue point after lookahead
         Porffor.array.fastPushI32(backtrackStack, savedSp); // Restore original sp
@@ -1310,7 +1305,6 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
         const arrIndex = capIndex + 255; // + 255 offset for temp start, as it could never end properly
         captures[arrIndex] = sp;
-        // Porffor.log(`startCapture: captures[${arrIndex}] = ${sp} | captures.length = ${captures.length}`);
         pc += 2;
       } else if (op == 0x31) { // end capture
         const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
@@ -1318,7 +1312,6 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         while (captures.length <= arrIndex) Porffor.array.fastPushI32(captures, -1);
         captures[arrIndex - 1] = captures[capIndex + 255];
         captures[arrIndex] = sp;
-        // Porffor.log(`endCapture: captures[${arrIndex}] = ${sp} | captures.length = ${captures.length}`);
         pc += 2;
       } else { // unknown op
         backtrack = true;
@@ -1326,7 +1319,6 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
       if (backtrack) {
         if (backtrackStack.length == 0) break;
-
 
         // Check if we're backtracking from a lookahead
         if (backtrackStack.length >= 4) {
@@ -1355,11 +1347,9 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         }
 
         // Normal backtracking
-        // Porffor.log(`backtrack! before: captures.length = ${captures.length}, sp = ${sp}, pc = ${pc}`);
         captures.length = Porffor.array.fastPopI32(backtrackStack);
         sp = Porffor.array.fastPopI32(backtrackStack);
         pc = Porffor.array.fastPopI32(backtrackStack);
-        // Porffor.log(`backtrack! after: captures.length = ${captures.length}, sp = ${sp}, pc = ${pc}`);
       }
     }
 
