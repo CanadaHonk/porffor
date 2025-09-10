@@ -2900,14 +2900,19 @@ wasm:(_,{builtin})=>eval("[[32,3],[65,195],[71],[4,64],[32,2],[183],[32,3],[16,b
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
 locals:[127],localNames:["_this","_this#type","input","input#type","#last_type"]
 }
+x.__Porffor_regex_match={
+wasm:(_,{t,builtin})=>eval("[[32,1],[65,9],[71],[4,64],[65,25],[65,6],[65,0],[65,7],[32,0],[32,1],[65,0],[65,0],[16,builtin('RegExp')],[33,0],[65,9],[33,1],[11],[32,3],[65,195],[71],[4,64],[32,2],[183],[32,3],[16,builtin('__ecma262_ToString')],[33,4],[252,2],[33,2],[32,4],[33,3],[11],[32,0],[32,1],[16,builtin('__RegExp_prototype_global$get')],[33,4],[33,5],[32,4],[33,6],[2,127],...t([67,195],()=>[[32,6],[65,67],[70],[32,6],[65,195],[70],[114],[4,64],[32,5],[40,1,0],[12,1],[11]]),[32,5],[11],[4,64],[65,4096],[16,builtin('__Porffor_allocateBytes')],[33,7],[3,64],[32,0],[32,1],[32,2],[32,3],[65,0],[65,2],[16,builtin('__Porffor_regex_interpret')],[34,4],[33,9],[34,8],[4,64],[32,7],[184],[32,8],[32,8],[43,0,4],[32,8],[45,0,12],[16,builtin('__Porffor_array_fastPush')],[12,1],[11],[11],[32,7],[65,72],[15],[26],[11],[32,0],[32,1],[32,2],[32,3],[65,0],[65,2],[16,builtin('__Porffor_regex_interpret')],[34,4],[15]]"),
+params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:2,
+locals:[127,127,127,127,127,127],localNames:["regexp","regexp#type","input","input#type","#last_type","#logicinner_tmp_int","#typeswitch_tmp1","result","match","match#type"]
+}
 x.__String_prototype_match={
-wasm:(_,{builtin,internalThrow})=>eval("[[32,1],[65,67],[71],[4,64],[32,1],[69],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.match expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],[32,3],[65,9],[71],[4,64],[65,25],[65,6],[65,0],[65,7],[32,2],[32,3],[65,0],[65,0],[16,builtin('RegExp')],[33,2],[65,9],[33,3],[11],[32,2],[32,3],[32,0],[65,67],[16,builtin('__RegExp_prototype_exec')],[34,4],[15]]"),
+wasm:(_,{builtin,internalThrow})=>eval("[[32,1],[65,67],[71],[4,64],[32,1],[69],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.match expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],[32,2],[32,3],[32,0],[65,67],[16,builtin('__Porffor_regex_match')],[34,4],[15]]"),
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
 locals:[127],localNames:["_this","_this#type","regexp","regexp#type","#last_type"],
 usesTag:1
 }
 x.__ByteString_prototype_match={
-wasm:(_,{builtin})=>eval("[[32,3],[65,9],[71],[4,64],[65,25],[65,6],[65,0],[65,7],[32,2],[32,3],[65,0],[65,0],[16,builtin('RegExp')],[33,2],[65,9],[33,3],[11],[32,2],[32,3],[32,0],[65,195],[16,builtin('__RegExp_prototype_exec')],[34,4],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,2],[32,3],[32,0],[65,195],[16,builtin('__Porffor_regex_match')],[34,4],[15]]"),
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
 locals:[127],localNames:["_this","_this#type","regexp","regexp#type","#last_type"]
 }

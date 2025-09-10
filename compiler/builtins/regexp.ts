@@ -1522,12 +1522,38 @@ export const __RegExp_prototype_test = (_this: RegExp, input: any) => {
   return __Porffor_regex_interpret(_this, input, true);
 };
 
-export const __String_prototype_match = (_this: string, regexp: any) => {
+export const __Porffor_regex_match = (regexp: any, input: any) => {
   if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
-  return __RegExp_prototype_exec(regexp, _this);
+  if (Porffor.type(input) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
+
+  if (__RegExp_prototype_global$get(regexp)) {
+    // global should return all matches as just complete string result
+    const result: any[] = Porffor.allocateBytes(4096);
+    let match: any;
+    while (match = __Porffor_regex_interpret(regexp, input, false)) {
+      // read ourselves as we are in i32 space
+      Porffor.wasm`
+local.get ${result}
+f64.convert_i32_u
+local.get ${result+1}
+
+local.get ${match}
+f64.load 0 4
+local.get ${match}
+i32.load8_u 0 12
+
+call __Porffor_array_fastPush`;
+    }
+    return result;
+  }
+
+  return __Porffor_regex_interpret(regexp, input, false);
+};
+
+export const __String_prototype_match = (_this: string, regexp: any) => {
+  return __Porffor_regex_match(regexp, _this);
 };
 
 export const __ByteString_prototype_match = (_this: bytestring, regexp: any) => {
-  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
-  return __RegExp_prototype_exec(regexp, _this);
+  return __Porffor_regex_match(regexp, _this);
 };
