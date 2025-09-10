@@ -1522,6 +1522,7 @@ export const __RegExp_prototype_test = (_this: RegExp, input: any) => {
   return __Porffor_regex_interpret(_this, input, true);
 };
 
+
 export const __Porffor_regex_match = (regexp: any, input: any) => {
   if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
   if (Porffor.type(input) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
@@ -1556,4 +1557,28 @@ export const __String_prototype_match = (_this: string, regexp: any) => {
 
 export const __ByteString_prototype_match = (_this: bytestring, regexp: any) => {
   return __Porffor_regex_match(regexp, _this);
+};
+
+
+// todo: use actual iterator not array
+export const __Porffor_regex_matchAll = (regexp: any, input: any) => {
+  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
+  if (Porffor.type(input) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
+
+  if (!__RegExp_prototype_global$get(regexp)) throw new TypeError('matchAll used with non-global RegExp');
+
+  const result: any[] = Porffor.allocateBytes(4096);
+  let match: any;
+  while (match = __Porffor_regex_interpret(regexp, input, false)) {
+    Porffor.array.fastPush(result, match);
+  }
+  return result;
+};
+
+export const __String_prototype_matchAll = (_this: string, regexp: any) => {
+  return __Porffor_regex_matchAll(regexp, _this);
+};
+
+export const __ByteString_prototype_matchAll = (_this: bytestring, regexp: any) => {
+  return __Porffor_regex_matchAll(regexp, _this);
 };
