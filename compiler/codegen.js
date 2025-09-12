@@ -2197,20 +2197,22 @@ const createThisArg = (scope, decl) => {
     if (name && name.startsWith('__')) {
       let node = null;
 
-      if (name.includes('_prototype_')) {
+      // hack: default this value for primitives, do here instead of inside funcs via ToObject/etc
+      // todo: Object should not be included
+      const obj = name.slice(2, name.indexOf('_', 2));
+      if (name.includes('_prototype_') && ['Object', 'String', 'Boolean', 'Number'].includes(obj)) {
         node = {
           type: 'NewExpression',
           callee: {
             type: 'Identifier',
-            name: name.slice(2, name.indexOf('_', 2))
+            name: obj
           },
-          arguments: [],
-          _new: true
+          arguments: []
         };
       } else {
         node = {
           type: 'Identifier',
-          name: name.slice(2, name.lastIndexOf('_'))
+          name: obj
         };
 
         if (ifIdentifierErrors(scope, node)) node = null;
