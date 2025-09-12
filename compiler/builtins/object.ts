@@ -81,22 +81,22 @@ export const __Object_values = (obj: any): any[] => {
 
     let i: i32 = 0;
     for (; ptr < endPtr; ptr += 18) {
-      if (!Porffor.object.isEnumerable(ptr)) continue;
+      const tail: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 16);
+      if (!(tail & 0b0100)) continue; // not enumerable
 
-      let val: any;
-      Porffor.wasm`local ptr32 i32
-local.get ${ptr}
-i32.to_u
-local.tee ptr32
+      if (tail & 0b0001) {
+        // accessor
+        const get: Function = Porffor.object.accessorGet(ptr);
+        if (Porffor.wasm`local.get ${get}` == 0) {
+          out[i++] = undefined;
+          continue;
+        }
 
-f64.load 0 8
-local.set ${val}
+        out[i++] = get.call(obj);
+        continue;
+      }
 
-local.get ptr32
-i32.load8_u 0 17
-local.set ${val+1}`;
-
-      out[i++] = val;
+      out[i++] = Porffor.object.readValue(ptr);
     }
 
     out.length = i;
@@ -731,7 +731,6 @@ export const __Porffor_object_spread = (dst: object, src: any): object => {
 
   const len: i32 = keys.length;
   for (let i: i32 = 0; i < len; i++) {
-    // target[keys[i]] = vals[i];
     Porffor.object.expr.init(dst, keys[i], vals[i]);
   }
 
