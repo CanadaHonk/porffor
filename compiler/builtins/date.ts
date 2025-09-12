@@ -1,5 +1,7 @@
 import type {} from './porffor.d.ts';
 
+export const __ecma262_Modulo = (x: number, y: number): number => x - Math.floor(x / y) * y;
+
 // 21.4.1.3 Day (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-day
 // 1. Return 𝔽(floor(ℝ(t / msPerDay))).
@@ -8,20 +10,20 @@ export const __ecma262_Day = (t: number): number => Math.floor(t / 86400000);
 // 21.4.1.4 TimeWithinDay (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-day
 // 1. Return 𝔽(ℝ(t) modulo ℝ(msPerDay)).
-export const __ecma262_TimeWithinDay = (t: number): number => t % 86400000;
+export const __ecma262_TimeWithinDay = (t: number): number => __ecma262_Modulo(t, 86400000);
 
 // 21.4.1.5 DaysInYear (y)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-daysinyear
 export const __ecma262_DaysInYear = (y: number): number => {
   // 1. Let ry be ℝ(y).
   // 2. If (ry modulo 400) = 0, return 366𝔽.
-  if (y % 400 == 0) return 366;
+  if (__ecma262_Modulo(y, 400) == 0) return 366;
 
   // 3. If (ry modulo 100) = 0, return 365𝔽.
-  if (y % 100 == 0) return 365;
+  if (__ecma262_Modulo(y, 100) == 0) return 365;
 
   // 4. If (ry modulo 4) = 0, return 366𝔽.
-  if (y % 4 == 0) return 366;
+  if (__ecma262_Modulo(y, 4) == 0) return 366;
 
   // 5. Return 365𝔽.
   return 365;
@@ -158,27 +160,27 @@ export const __ecma262_DateFromTime = (t: number): number => {
 // 21.4.1.13 WeekDay (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-weekday
 // 1. Return 𝔽(ℝ(Day(t) + 4𝔽) modulo 7).
-export const __ecma262_WeekDay = (t: number): number => (__ecma262_Day(t) + 4) % 7;
+export const __ecma262_WeekDay = (t: number): number => __ecma262_Modulo(__ecma262_Day(t) + 4, 7);
 
 // 21.4.1.14 HourFromTime (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-hourfromtime
 // 1. Return 𝔽(floor(ℝ(t / msPerHour)) modulo HoursPerDay).
-export const __ecma262_HourFromTime = (t: number): number => Math.floor(t / 3600000) % 24;
+export const __ecma262_HourFromTime = (t: number): number => __ecma262_Modulo(Math.floor(t / 3600000), 24);
 
 // 21.4.1.15 MinFromTime (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-minfromtime
 // 1. Return 𝔽(floor(ℝ(t / msPerMinute)) modulo MinutesPerHour).
-export const __ecma262_MinFromTime = (t: number): number => Math.floor(t / 60000) % 60;
+export const __ecma262_MinFromTime = (t: number): number => __ecma262_Modulo(Math.floor(t / 60000), 60);
 
 // 21.4.1.16 SecFromTime (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-secfromtime
 // 1. Return 𝔽(floor(ℝ(t / msPerSecond)) modulo SecondsPerMinute).
-export const __ecma262_SecFromTime = (t: number): number => Math.floor(t / 1000) % 60;
+export const __ecma262_SecFromTime = (t: number): number => __ecma262_Modulo(Math.floor(t / 1000), 60);
 
 // 21.4.1.17 msFromTime (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-msfromtime
 // 1. Return 𝔽(ℝ(t) modulo ℝ(msPerSecond)).
-export const __ecma262_msFromTime = (t: number): number => t % 1000;
+export const __ecma262_msFromTime = (t: number): number => __ecma262_Modulo(t, 1000);
 
 // 21.4.1.25 LocalTime (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-localtime
@@ -229,7 +231,7 @@ export const __ecma262_MakeDay = (year: number, month: number, date: number): nu
   if (!Number.isFinite(ym)) return NaN;
 
   // 7. Let mn be 𝔽(ℝ(m) modulo 12).
-  const mn: number = m % 12;
+  const mn: number = __ecma262_Modulo(m, 12);
 
   // 8. Find a finite time value t such that YearFromTime(t) is ym, MonthFromTime(t) is mn, and DateFromTime(t) is 1𝔽;
   //    but if this is not possible (because some argument is out of range), return NaN.
@@ -946,11 +948,6 @@ export const __Date_prototype_setHours = (_this: any, hour: any, min: any, sec: 
   // 4. Let h be ? ToNumber(hour).
   const h: number = ecma262.ToNumber(hour);
 
-  // we reorder the spec steps in this func for easier arg handling
-
-  // 8. If t is NaN, return NaN.
-  if (Number.isNaN(t)) return NaN;
-
   // 9. Set t to LocalTime(t).
   t = __ecma262_LocalTime(t);
 
@@ -971,6 +968,9 @@ export const __Date_prototype_setHours = (_this: any, hour: any, min: any, sec: 
   if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 12. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
+
+  // 8. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
 
   // 13. Let date be MakeDate(Day(t), MakeTime(h, m, s, milli)).
   const date: number = __ecma262_MakeDate(__ecma262_Day(t), __ecma262_MakeTime(h, m, s, milli));
@@ -1027,11 +1027,6 @@ export const __Date_prototype_setMinutes = (_this: any, min: any, sec: any, ms: 
   // 4. Let m be ? ToNumber(min).
   const m: number = ecma262.ToNumber(min);
 
-  // we reorder the spec steps in this func for easier arg handling
-
-  // 7. If t is NaN, return NaN.
-  if (Number.isNaN(t)) return NaN;
-
   // 8. Set t to LocalTime(t).
   t = __ecma262_LocalTime(t);
 
@@ -1046,6 +1041,9 @@ export const __Date_prototype_setMinutes = (_this: any, min: any, sec: any, ms: 
   if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 10. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
+
+  // 7. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
 
   // 11. Let date be MakeDate(Day(t), MakeTime(HourFromTime(t), m, s, milli)).
   const date: number = __ecma262_MakeDate(__ecma262_Day(t), __ecma262_MakeTime(__ecma262_HourFromTime(t), m, s, milli));
@@ -1071,11 +1069,6 @@ export const __Date_prototype_setMonth = (_this: any, month: any, date: any) => 
   // 4. Let m be ? ToNumber(month).
   const m: number = ecma262.ToNumber(month);
 
-  // we reorder the spec steps in this func for easier arg handling
-
-  // 6. If t is NaN, return NaN.
-  if (Number.isNaN(t)) return NaN;
-
   // 7. Set t to LocalTime(t).
   t = __ecma262_LocalTime(t);
 
@@ -1084,6 +1077,9 @@ export const __Date_prototype_setMonth = (_this: any, month: any, date: any) => 
   if (Porffor.type(date) != Porffor.TYPES.undefined) dt = ecma262.ToNumber(date);
   // 8. If date is not present, let dt be DateFromTime(t).
     else dt = __ecma262_DateFromTime(t);
+
+  // 6. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
 
   // 9. Let newDate be MakeDate(MakeDay(YearFromTime(t), m, dt), TimeWithinDay(t)).
   const newDate: number = __ecma262_MakeDate(__ecma262_MakeDay(__ecma262_YearFromTime(t), m, dt), __ecma262_TimeWithinDay(t));
@@ -1109,10 +1105,6 @@ export const __Date_prototype_setSeconds = (_this: any, sec: any, ms: any) => {
   // 4. Let s be ? ToNumber(sec).
   const s: number = ecma262.ToNumber(sec);
 
-  // we reorder the spec steps in this func for easier arg handling
-  // 6. If t is NaN, return NaN.
-  if (Number.isNaN(t)) return NaN;
-
   // 7. Set t to LocalTime(t).
   t = __ecma262_LocalTime(t);
 
@@ -1121,6 +1113,9 @@ export const __Date_prototype_setSeconds = (_this: any, sec: any, ms: any) => {
   if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 8. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
+
+  // 6. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
 
   // 9. Let date be MakeDate(Day(t), MakeTime(HourFromTime(t), MinFromTime(t), s, milli)).
   const date: number = __ecma262_MakeDate(__ecma262_Day(t), __ecma262_MakeTime(__ecma262_HourFromTime(t), __ecma262_MinFromTime(t), s, milli));
@@ -1232,11 +1227,6 @@ export const __Date_prototype_setUTCHours = (_this: any, hour: any, min: any, se
   // 4. Let h be ? ToNumber(hour).
   const h: number = ecma262.ToNumber(hour);
 
-  // we reorder the spec steps in this func for easier arg handling
-
-  // 8. If t is NaN, return NaN.
-  if (Number.isNaN(t)) return NaN;
-
   // 5. If min is present, let m be ? ToNumber(min).
   let m: number;
   if (Porffor.type(min) != Porffor.TYPES.undefined) m = ecma262.ToNumber(min);
@@ -1254,6 +1244,9 @@ export const __Date_prototype_setUTCHours = (_this: any, hour: any, min: any, se
   if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 11. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
+
+  // 8. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
 
   // 12. Let date be MakeDate(Day(t), MakeTime(h, m, s, milli)).
   const date: number = __ecma262_MakeDate(__ecma262_Day(t), __ecma262_MakeTime(h, m, s, milli));
@@ -1307,11 +1300,6 @@ export const __Date_prototype_setUTCMinutes = (_this: any, min: any, sec: any, m
   // 4. Let m be ? ToNumber(min).
   const m: number = ecma262.ToNumber(min);
 
-  // we reorder the spec steps in this func for easier arg handling
-
-  // 7. If t is NaN, return NaN.
-  if (Number.isNaN(t)) return NaN;
-
   // 5. If sec is present, let s be ? ToNumber(sec).
   let s: number;
   if (Porffor.type(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
@@ -1323,6 +1311,9 @@ export const __Date_prototype_setUTCMinutes = (_this: any, min: any, sec: any, m
   if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
     // 9. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
+
+  // 7. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
 
   // 10. Let date be MakeDate(Day(t), MakeTime(HourFromTime(t), m, s, milli)).
   const date: number = __ecma262_MakeDate(__ecma262_Day(t), __ecma262_MakeTime(__ecma262_HourFromTime(t), m, s, milli));
@@ -1348,16 +1339,14 @@ export const __Date_prototype_setUTCMonth = (_this: any, month: any, date: any) 
   // 4. Let m be ? ToNumber(month).
   const m: number = ecma262.ToNumber(month);
 
-  // we reorder the spec steps in this func for easier arg handling
-
-  // 6. If t is NaN, return NaN.
-  if (Number.isNaN(t)) return NaN;
-
   // 5. If date is present, let dt be ? ToNumber(date).
   let dt: number;
   if (Porffor.type(date) != Porffor.TYPES.undefined) dt = ecma262.ToNumber(date);
   // 7. If date is not present, let dt be DateFromTime(t).
     else dt = __ecma262_DateFromTime(t);
+
+  // 6. If t is NaN, return NaN.
+  if (Number.isNaN(t)) return NaN;
 
   // 8. Let newDate be MakeDate(MakeDay(YearFromTime(t), m, dt), TimeWithinDay(t)).
   const newDate: number = __ecma262_MakeDate(__ecma262_MakeDay(__ecma262_YearFromTime(t), m, dt), __ecma262_TimeWithinDay(t));

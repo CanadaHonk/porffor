@@ -1183,20 +1183,25 @@ params:[124,127,124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLengt
 locals:[124,127],localNames:["_this","_this#type","byteOffset","byteOffset#type","value","value#type","littleEndian","littleEndian#type","int","#last_type"],
 usesTag:1
 }
+x.__ecma262_Modulo={
+wasm:(_,{builtin})=>eval("[[32,0],[32,0],[32,2],[163],[16,builtin('__Math_floor')],[32,2],[162],[161],[15]]"),
+params:[124,127,124,127],typedParams:1,returns:[124],returnType:1,jsLength:2,
+locals:[],localNames:["x","x#type","y","y#type"]
+}
 x.__ecma262_Day={
 wasm:(_,{builtin})=>eval("[[32,0],[68,86400000],[163],[16,builtin('__Math_floor')],[15]]"),
 params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
 locals:[],localNames:["t","t#type"]
 }
 x.__ecma262_TimeWithinDay={
-wasm:()=>eval("[[32,0],[34,2],[68,86400000],[34,3],[32,2],[32,3],[163],[157],[162],[161],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[65,1],[68,86400000],[65,1],[16,builtin('__ecma262_Modulo')],[15]]"),
 params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
-locals:[124,124],localNames:["t","t#type","#math_a","#math_b"]
+locals:[],localNames:["t","t#type"]
 }
 x.__ecma262_DaysInYear={
-wasm:()=>eval("[[32,0],[34,2],[68,400],[34,3],[32,2],[32,3],[163],[157],[162],[161],[68,0],[97],[4,64],[68,366],[15],[26],[11],[32,0],[34,2],[68,100],[34,3],[32,2],[32,3],[163],[157],[162],[161],[68,0],[97],[4,64],[68,365],[15],[26],[11],[32,0],[34,2],[68,4],[34,3],[32,2],[32,3],[163],[157],[162],[161],[68,0],[97],[4,64],[68,366],[15],[26],[11],[68,365],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[65,1],[68,400],[65,1],[16,builtin('__ecma262_Modulo')],[68,0],[97],[4,64],[68,366],[15],[26],[11],[32,0],[65,1],[68,100],[65,1],[16,builtin('__ecma262_Modulo')],[68,0],[97],[4,64],[68,365],[15],[26],[11],[32,0],[65,1],[68,4],[65,1],[16,builtin('__ecma262_Modulo')],[68,0],[97],[4,64],[68,366],[15],[26],[11],[68,365],[15]]"),
 params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
-locals:[124,124],localNames:["y","y#type","#math_a","#math_b"]
+locals:[],localNames:["y","y#type"]
 }
 x.__ecma262_DayFromYear={
 wasm:(_,{builtin})=>eval("[[68,365],[32,0],[68,1970],[161],[162],[32,0],[68,1969],[161],[68,4],[163],[16,builtin('__Math_floor')],[160],[32,0],[68,1901],[161],[68,100],[163],[16,builtin('__Math_floor')],[161],[32,0],[68,1601],[161],[68,400],[163],[16,builtin('__Math_floor')],[160],[15]]"),
@@ -1234,29 +1239,29 @@ params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
 locals:[124,124,124],localNames:["t","t#type","inLeapYear","dayWithinYear","month"]
 }
 x.__ecma262_WeekDay={
-wasm:(_,{builtin})=>eval("[[32,0],[65,1],[16,builtin('__ecma262_Day')],[68,4],[160],[34,2],[68,7],[34,3],[32,2],[32,3],[163],[157],[162],[161],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[65,1],[16,builtin('__ecma262_Day')],[68,4],[160],[65,1],[68,7],[65,1],[16,builtin('__ecma262_Modulo')],[15]]"),
 params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
-locals:[124,124],localNames:["t","t#type","#math_a","#math_b"]
+locals:[],localNames:["t","t#type"]
 }
 x.__ecma262_HourFromTime={
-wasm:(_,{builtin})=>eval("[[32,0],[68,3600000],[163],[16,builtin('__Math_floor')],[34,2],[68,24],[34,3],[32,2],[32,3],[163],[157],[162],[161],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[68,3600000],[163],[16,builtin('__Math_floor')],[65,1],[68,24],[65,1],[16,builtin('__ecma262_Modulo')],[15]]"),
 params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
-locals:[124,124],localNames:["t","t#type","#math_a","#math_b"]
+locals:[],localNames:["t","t#type"]
 }
 x.__ecma262_MinFromTime={
-wasm:(_,{builtin})=>eval("[[32,0],[68,60000],[163],[16,builtin('__Math_floor')],[34,2],[68,60],[34,3],[32,2],[32,3],[163],[157],[162],[161],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[68,60000],[163],[16,builtin('__Math_floor')],[65,1],[68,60],[65,1],[16,builtin('__ecma262_Modulo')],[15]]"),
 params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
-locals:[124,124],localNames:["t","t#type","#math_a","#math_b"]
+locals:[],localNames:["t","t#type"]
 }
 x.__ecma262_SecFromTime={
-wasm:(_,{builtin})=>eval("[[32,0],[68,1000],[163],[16,builtin('__Math_floor')],[34,2],[68,60],[34,3],[32,2],[32,3],[163],[157],[162],[161],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[68,1000],[163],[16,builtin('__Math_floor')],[65,1],[68,60],[65,1],[16,builtin('__ecma262_Modulo')],[15]]"),
 params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
-locals:[124,124],localNames:["t","t#type","#math_a","#math_b"]
+locals:[],localNames:["t","t#type"]
 }
 x.__ecma262_msFromTime={
-wasm:()=>eval("[[32,0],[34,2],[68,1000],[34,3],[32,2],[32,3],[163],[157],[162],[161],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[65,1],[68,1000],[65,1],[16,builtin('__ecma262_Modulo')],[15]]"),
 params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
-locals:[124,124],localNames:["t","t#type","#math_a","#math_b"]
+locals:[],localNames:["t","t#type"]
 }
 x.__ecma262_LocalTime={
 wasm:()=>eval("[[32,0],[15]]"),
@@ -1274,9 +1279,9 @@ params:[124,127,124,127,124,127,124,127],typedParams:1,returns:[124],returnType:
 locals:[],localNames:["hour","hour#type","min","min#type","sec","sec#type","ms","ms#type"]
 }
 x.__ecma262_MakeDay={
-wasm:(_,{builtin})=>eval("[[32,0],[16,builtin('__Number_isFinite')],[68,0],[97],[32,2],[16,builtin('__Number_isFinite')],[68,0],[97],[114],[32,4],[16,builtin('__Number_isFinite')],[68,0],[97],[114],[4,64],[68,\"NaN\"],[15],[26],[11],[32,0],[65,1],[16,builtin('__ecma262_ToIntegerOrInfinity')],[33,6],[32,2],[65,1],[16,builtin('__ecma262_ToIntegerOrInfinity')],[33,7],[32,4],[65,1],[16,builtin('__ecma262_ToIntegerOrInfinity')],[33,8],[32,6],[32,7],[68,12],[163],[16,builtin('__Math_floor')],[160],[34,9],[16,builtin('__Number_isFinite')],[68,0],[97],[4,64],[68,\"NaN\"],[15],[26],[11],[32,7],[34,11],[68,12],[34,12],[32,11],[32,12],[163],[157],[162],[161],[34,10],[68,1],[101],[4,64],[32,9],[68,1],[161],[33,9],[11],[32,9],[68,0],[102],[4,124],[32,9],[65,1],[33,14],[5],[32,9],[68,399],[161],[65,1],[33,14],[11],[68,400],[163],[16,builtin('__Math_trunc')],[33,13],[32,9],[32,13],[68,400],[162],[161],[33,15],[68,153],[32,10],[32,10],[68,1],[100],[4,124],[68,-2],[65,1],[33,14],[5],[68,10],[65,1],[33,14],[11],[160],[162],[68,2],[160],[68,5],[163],[16,builtin('__Math_trunc')],[33,16],[32,15],[68,365],[162],[32,15],[68,4],[163],[16,builtin('__Math_trunc')],[160],[32,15],[68,100],[163],[16,builtin('__Math_trunc')],[161],[32,16],[160],[33,17],[32,13],[68,146097],[162],[32,17],[160],[68,719468],[161],[34,18],[32,8],[160],[68,1],[161],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[16,builtin('__Number_isFinite')],[68,0],[97],[32,2],[16,builtin('__Number_isFinite')],[68,0],[97],[114],[32,4],[16,builtin('__Number_isFinite')],[68,0],[97],[114],[4,64],[68,\"NaN\"],[15],[26],[11],[32,0],[65,1],[16,builtin('__ecma262_ToIntegerOrInfinity')],[33,6],[32,2],[65,1],[16,builtin('__ecma262_ToIntegerOrInfinity')],[33,7],[32,4],[65,1],[16,builtin('__ecma262_ToIntegerOrInfinity')],[33,8],[32,6],[32,7],[68,12],[163],[16,builtin('__Math_floor')],[160],[34,9],[16,builtin('__Number_isFinite')],[68,0],[97],[4,64],[68,\"NaN\"],[15],[26],[11],[32,7],[65,1],[68,12],[65,1],[16,builtin('__ecma262_Modulo')],[34,10],[68,1],[101],[4,64],[32,9],[68,1],[161],[33,9],[11],[32,9],[68,0],[102],[4,124],[32,9],[65,1],[33,12],[5],[32,9],[68,399],[161],[65,1],[33,12],[11],[68,400],[163],[16,builtin('__Math_trunc')],[33,11],[32,9],[32,11],[68,400],[162],[161],[33,13],[68,153],[32,10],[32,10],[68,1],[100],[4,124],[68,-2],[65,1],[33,12],[5],[68,10],[65,1],[33,12],[11],[160],[162],[68,2],[160],[68,5],[163],[16,builtin('__Math_trunc')],[33,14],[32,13],[68,365],[162],[32,13],[68,4],[163],[16,builtin('__Math_trunc')],[160],[32,13],[68,100],[163],[16,builtin('__Math_trunc')],[161],[32,14],[160],[33,15],[32,11],[68,146097],[162],[32,15],[160],[68,719468],[161],[34,16],[32,8],[160],[68,1],[161],[15]]"),
 params:[124,127,124,127,124,127],typedParams:1,returns:[124],returnType:1,jsLength:3,
-locals:[124,124,124,124,124,124,124,124,127,124,124,124,124],localNames:["year","year#type","month","month#type","date","date#type","y","m","dt","ym","mn","#math_a","#math_b","era","#last_type","yoe","doy","doe","day"]
+locals:[124,124,124,124,124,124,127,124,124,124,124],localNames:["year","year#type","month","month#type","date","date#type","y","m","dt","ym","mn","era","#last_type","yoe","doy","doe","day"]
 }
 x.__ecma262_MakeDate={
 wasm:(_,{builtin})=>eval("[[32,0],[16,builtin('__Number_isFinite')],[68,0],[97],[32,2],[16,builtin('__Number_isFinite')],[68,0],[97],[114],[4,64],[68,\"NaN\"],[15],[26],[11],[32,0],[68,86400000],[162],[32,2],[160],[34,4],[16,builtin('__Number_isFinite')],[68,0],[97],[4,64],[68,\"NaN\"],[15],[26],[11],[32,4],[15]]"),
@@ -1447,7 +1452,7 @@ params:[124,127,124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLengt
 locals:[124,124,124,124,124,124,127],localNames:["_this","_this#type","year","year#type","month","month#type","date","date#type","t","y","m","dt","newDate","u","#last_type"]
 }
 x.__Date_prototype_setHours={
-wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,10],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,11],[32,10],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,10],[65,1],[16,builtin('__ecma262_LocalTime')],[33,10],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,12],[5],[32,10],[65,1],[16,builtin('__ecma262_MinFromTime')],[33,12],[11],[32,7],[184],[68,0],[98],[4,64],[32,6],[32,7],[16,builtin('__ecma262_ToNumber')],[33,13],[5],[32,10],[65,1],[16,builtin('__ecma262_SecFromTime')],[33,13],[11],[32,9],[184],[68,0],[98],[4,64],[32,8],[32,9],[16,builtin('__ecma262_ToNumber')],[33,14],[5],[32,10],[65,1],[16,builtin('__ecma262_msFromTime')],[33,14],[11],[32,10],[65,1],[16,builtin('__ecma262_Day')],[65,1],[32,11],[65,1],[32,12],[65,1],[32,13],[65,1],[32,14],[65,1],[16,builtin('__ecma262_MakeTime')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,15],[65,1],[16,builtin('__ecma262_UTC')],[65,1],[16,builtin('__ecma262_TimeClip')],[33,16],[32,0],[32,1],[32,16],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,16],[65,1],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,10],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,11],[32,10],[65,1],[16,builtin('__ecma262_LocalTime')],[33,10],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,12],[5],[32,10],[65,1],[16,builtin('__ecma262_MinFromTime')],[33,12],[11],[32,7],[184],[68,0],[98],[4,64],[32,6],[32,7],[16,builtin('__ecma262_ToNumber')],[33,13],[5],[32,10],[65,1],[16,builtin('__ecma262_SecFromTime')],[33,13],[11],[32,9],[184],[68,0],[98],[4,64],[32,8],[32,9],[16,builtin('__ecma262_ToNumber')],[33,14],[5],[32,10],[65,1],[16,builtin('__ecma262_msFromTime')],[33,14],[11],[32,10],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,10],[65,1],[16,builtin('__ecma262_Day')],[65,1],[32,11],[65,1],[32,12],[65,1],[32,13],[65,1],[32,14],[65,1],[16,builtin('__ecma262_MakeTime')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,15],[65,1],[16,builtin('__ecma262_UTC')],[65,1],[16,builtin('__ecma262_TimeClip')],[33,16],[32,0],[32,1],[32,16],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,16],[65,1],[15]]"),
 params:[124,127,124,127,124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLength:4,
 locals:[124,124,124,124,124,124,124,127],localNames:["_this","_this#type","hour","hour#type","min","min#type","sec","sec#type","ms","ms#type","t","h","m","s","milli","date","u","#last_type"]
 }
@@ -1457,17 +1462,17 @@ params:[124,127,124,127],typedParams:1,returns:[124,127],jsLength:1,
 locals:[124,124,124,124,127],localNames:["_this","_this#type","ms","ms#type","t","milli","time","u","#last_type"]
 }
 x.__Date_prototype_setMinutes={
-wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,8],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,9],[32,8],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,8],[65,1],[16,builtin('__ecma262_LocalTime')],[33,8],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,10],[5],[32,8],[65,1],[16,builtin('__ecma262_SecFromTime')],[33,10],[11],[32,7],[184],[68,0],[98],[4,64],[32,6],[32,7],[16,builtin('__ecma262_ToNumber')],[33,11],[5],[32,8],[65,1],[16,builtin('__ecma262_msFromTime')],[33,11],[11],[32,8],[65,1],[16,builtin('__ecma262_Day')],[65,1],[32,8],[65,1],[16,builtin('__ecma262_HourFromTime')],[65,1],[32,9],[65,1],[32,10],[65,1],[32,11],[65,1],[16,builtin('__ecma262_MakeTime')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,12],[65,1],[16,builtin('__ecma262_UTC')],[65,1],[16,builtin('__ecma262_TimeClip')],[33,13],[32,0],[32,1],[32,13],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,13],[65,1],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,8],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,9],[32,8],[65,1],[16,builtin('__ecma262_LocalTime')],[33,8],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,10],[5],[32,8],[65,1],[16,builtin('__ecma262_SecFromTime')],[33,10],[11],[32,7],[184],[68,0],[98],[4,64],[32,6],[32,7],[16,builtin('__ecma262_ToNumber')],[33,11],[5],[32,8],[65,1],[16,builtin('__ecma262_msFromTime')],[33,11],[11],[32,8],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,8],[65,1],[16,builtin('__ecma262_Day')],[65,1],[32,8],[65,1],[16,builtin('__ecma262_HourFromTime')],[65,1],[32,9],[65,1],[32,10],[65,1],[32,11],[65,1],[16,builtin('__ecma262_MakeTime')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,12],[65,1],[16,builtin('__ecma262_UTC')],[65,1],[16,builtin('__ecma262_TimeClip')],[33,13],[32,0],[32,1],[32,13],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,13],[65,1],[15]]"),
 params:[124,127,124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLength:3,
 locals:[124,124,124,124,124,124,127],localNames:["_this","_this#type","min","min#type","sec","sec#type","ms","ms#type","t","m","s","milli","date","u","#last_type"]
 }
 x.__Date_prototype_setMonth={
-wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,6],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,7],[32,6],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,6],[65,1],[16,builtin('__ecma262_LocalTime')],[33,6],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,8],[5],[32,6],[65,1],[16,builtin('__ecma262_DateFromTime')],[33,8],[11],[32,6],[65,1],[16,builtin('__ecma262_YearFromTime')],[65,1],[32,7],[65,1],[32,8],[65,1],[16,builtin('__ecma262_MakeDay')],[65,1],[32,6],[65,1],[16,builtin('__ecma262_TimeWithinDay')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,9],[65,1],[16,builtin('__ecma262_UTC')],[65,1],[16,builtin('__ecma262_TimeClip')],[33,10],[32,0],[32,1],[32,10],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,10],[65,1],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,6],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,7],[32,6],[65,1],[16,builtin('__ecma262_LocalTime')],[33,6],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,8],[5],[32,6],[65,1],[16,builtin('__ecma262_DateFromTime')],[33,8],[11],[32,6],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,6],[65,1],[16,builtin('__ecma262_YearFromTime')],[65,1],[32,7],[65,1],[32,8],[65,1],[16,builtin('__ecma262_MakeDay')],[65,1],[32,6],[65,1],[16,builtin('__ecma262_TimeWithinDay')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,9],[65,1],[16,builtin('__ecma262_UTC')],[65,1],[16,builtin('__ecma262_TimeClip')],[33,10],[32,0],[32,1],[32,10],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,10],[65,1],[15]]"),
 params:[124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLength:2,
 locals:[124,124,124,124,124,127],localNames:["_this","_this#type","month","month#type","date","date#type","t","m","dt","newDate","u","#last_type"]
 }
 x.__Date_prototype_setSeconds={
-wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,6],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,7],[32,6],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,6],[65,1],[16,builtin('__ecma262_LocalTime')],[33,6],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,8],[5],[32,6],[65,1],[16,builtin('__ecma262_msFromTime')],[33,8],[11],[32,6],[65,1],[16,builtin('__ecma262_Day')],[65,1],[32,6],[65,1],[16,builtin('__ecma262_HourFromTime')],[65,1],[32,6],[65,1],[16,builtin('__ecma262_MinFromTime')],[65,1],[32,7],[65,1],[32,8],[65,1],[16,builtin('__ecma262_MakeTime')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,9],[65,1],[16,builtin('__ecma262_UTC')],[65,1],[16,builtin('__ecma262_TimeClip')],[33,10],[32,0],[32,1],[32,10],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,10],[65,1],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,6],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,7],[32,6],[65,1],[16,builtin('__ecma262_LocalTime')],[33,6],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,8],[5],[32,6],[65,1],[16,builtin('__ecma262_msFromTime')],[33,8],[11],[32,6],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,6],[65,1],[16,builtin('__ecma262_Day')],[65,1],[32,6],[65,1],[16,builtin('__ecma262_HourFromTime')],[65,1],[32,6],[65,1],[16,builtin('__ecma262_MinFromTime')],[65,1],[32,7],[65,1],[32,8],[65,1],[16,builtin('__ecma262_MakeTime')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,9],[65,1],[16,builtin('__ecma262_UTC')],[65,1],[16,builtin('__ecma262_TimeClip')],[33,10],[32,0],[32,1],[32,10],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,10],[65,1],[15]]"),
 params:[124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLength:2,
 locals:[124,124,124,124,124,127],localNames:["_this","_this#type","sec","sec#type","ms","ms#type","t","s","milli","date","u","#last_type"]
 }
@@ -1488,7 +1493,7 @@ params:[124,127,124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLengt
 locals:[124,124,124,124,124,124,127],localNames:["_this","_this#type","year","year#type","month","month#type","date","date#type","t","y","m","dt","newDate","v","#last_type"]
 }
 x.__Date_prototype_setUTCHours={
-wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,10],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,11],[32,10],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,12],[5],[32,10],[65,1],[16,builtin('__ecma262_MinFromTime')],[33,12],[11],[32,7],[184],[68,0],[98],[4,64],[32,6],[32,7],[16,builtin('__ecma262_ToNumber')],[33,13],[5],[32,10],[65,1],[16,builtin('__ecma262_SecFromTime')],[33,13],[11],[32,9],[184],[68,0],[98],[4,64],[32,8],[32,9],[16,builtin('__ecma262_ToNumber')],[33,14],[5],[32,10],[65,1],[16,builtin('__ecma262_msFromTime')],[33,14],[11],[32,10],[65,1],[16,builtin('__ecma262_Day')],[65,1],[32,11],[65,1],[32,12],[65,1],[32,13],[65,1],[32,14],[65,1],[16,builtin('__ecma262_MakeTime')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,15],[65,1],[16,builtin('__ecma262_TimeClip')],[33,16],[32,0],[32,1],[32,16],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,16],[65,1],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,10],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,11],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,12],[5],[32,10],[65,1],[16,builtin('__ecma262_MinFromTime')],[33,12],[11],[32,7],[184],[68,0],[98],[4,64],[32,6],[32,7],[16,builtin('__ecma262_ToNumber')],[33,13],[5],[32,10],[65,1],[16,builtin('__ecma262_SecFromTime')],[33,13],[11],[32,9],[184],[68,0],[98],[4,64],[32,8],[32,9],[16,builtin('__ecma262_ToNumber')],[33,14],[5],[32,10],[65,1],[16,builtin('__ecma262_msFromTime')],[33,14],[11],[32,10],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,10],[65,1],[16,builtin('__ecma262_Day')],[65,1],[32,11],[65,1],[32,12],[65,1],[32,13],[65,1],[32,14],[65,1],[16,builtin('__ecma262_MakeTime')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,15],[65,1],[16,builtin('__ecma262_TimeClip')],[33,16],[32,0],[32,1],[32,16],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,16],[65,1],[15]]"),
 params:[124,127,124,127,124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLength:4,
 locals:[124,124,124,124,124,124,124,127],localNames:["_this","_this#type","hour","hour#type","min","min#type","sec","sec#type","ms","ms#type","t","h","m","s","milli","date","v","#last_type"]
 }
@@ -1498,12 +1503,12 @@ params:[124,127,124,127],typedParams:1,returns:[124,127],jsLength:1,
 locals:[124,124,124,124,127],localNames:["_this","_this#type","ms","ms#type","t","milli","time","v","#last_type"]
 }
 x.__Date_prototype_setUTCMinutes={
-wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,8],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,9],[32,8],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,10],[5],[32,8],[65,1],[16,builtin('__ecma262_SecFromTime')],[33,10],[11],[32,7],[184],[68,0],[98],[4,64],[32,6],[32,7],[16,builtin('__ecma262_ToNumber')],[33,11],[5],[32,8],[65,1],[16,builtin('__ecma262_msFromTime')],[33,11],[11],[32,8],[65,1],[16,builtin('__ecma262_Day')],[65,1],[32,8],[65,1],[16,builtin('__ecma262_HourFromTime')],[65,1],[32,9],[65,1],[32,10],[65,1],[32,11],[65,1],[16,builtin('__ecma262_MakeTime')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,12],[65,1],[16,builtin('__ecma262_TimeClip')],[33,13],[32,0],[32,1],[32,13],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,13],[65,1],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,8],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,9],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,10],[5],[32,8],[65,1],[16,builtin('__ecma262_SecFromTime')],[33,10],[11],[32,7],[184],[68,0],[98],[4,64],[32,6],[32,7],[16,builtin('__ecma262_ToNumber')],[33,11],[5],[32,8],[65,1],[16,builtin('__ecma262_msFromTime')],[33,11],[11],[32,8],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,8],[65,1],[16,builtin('__ecma262_Day')],[65,1],[32,8],[65,1],[16,builtin('__ecma262_HourFromTime')],[65,1],[32,9],[65,1],[32,10],[65,1],[32,11],[65,1],[16,builtin('__ecma262_MakeTime')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,12],[65,1],[16,builtin('__ecma262_TimeClip')],[33,13],[32,0],[32,1],[32,13],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,13],[65,1],[15]]"),
 params:[124,127,124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLength:3,
 locals:[124,124,124,124,124,124,127],localNames:["_this","_this#type","min","min#type","sec","sec#type","ms","ms#type","t","m","s","milli","date","v","#last_type"]
 }
 x.__Date_prototype_setUTCMonth={
-wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,6],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,7],[32,6],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,8],[5],[32,6],[65,1],[16,builtin('__ecma262_DateFromTime')],[33,8],[11],[32,6],[65,1],[16,builtin('__ecma262_YearFromTime')],[65,1],[32,7],[65,1],[32,8],[65,1],[16,builtin('__ecma262_MakeDay')],[65,1],[32,6],[65,1],[16,builtin('__ecma262_TimeWithinDay')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,9],[65,1],[16,builtin('__ecma262_TimeClip')],[33,10],[32,0],[32,1],[32,10],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,10],[65,1],[15]]"),
+wasm:(_,{builtin})=>eval("[[32,0],[32,1],[16,builtin('__Porffor_date_read')],[33,6],[32,2],[32,3],[16,builtin('__ecma262_ToNumber')],[33,7],[32,5],[184],[68,0],[98],[4,64],[32,4],[32,5],[16,builtin('__ecma262_ToNumber')],[33,8],[5],[32,6],[65,1],[16,builtin('__ecma262_DateFromTime')],[33,8],[11],[32,6],[16,builtin('__Number_isNaN')],[252,3],[4,64],[68,\"NaN\"],[65,1],[15],[26],[11],[32,6],[65,1],[16,builtin('__ecma262_YearFromTime')],[65,1],[32,7],[65,1],[32,8],[65,1],[16,builtin('__ecma262_MakeDay')],[65,1],[32,6],[65,1],[16,builtin('__ecma262_TimeWithinDay')],[65,1],[16,builtin('__ecma262_MakeDate')],[34,9],[65,1],[16,builtin('__ecma262_TimeClip')],[33,10],[32,0],[32,1],[32,10],[65,1],[16,builtin('__Porffor_date_write')],[26],[26],[32,10],[65,1],[15]]"),
 params:[124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLength:2,
 locals:[124,124,124,124,124,127],localNames:["_this","_this#type","month","month#type","date","date#type","t","m","dt","newDate","v","#last_type"]
 }
@@ -2905,12 +2910,6 @@ wasm:(_,{t,builtin})=>eval("[[32,1],[65,9],[71],[4,64],[65,25],[65,6],[65,0],[65
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:2,
 locals:[127,127,127,127,127,127],localNames:["regexp","regexp#type","input","input#type","#last_type","#logicinner_tmp_int","#typeswitch_tmp1","result","match","match#type"]
 }
-x.__Porffor_regex_matchAll={
-wasm:(_,{t,builtin,internalThrow})=>eval("[[32,1],[65,9],[71],[4,64],[65,25],[65,6],[65,0],[65,7],[32,0],[32,1],[65,0],[65,0],[16,builtin('RegExp')],[33,0],[65,9],[33,1],[11],[32,3],[65,195],[71],[4,64],[32,2],[183],[32,3],[16,builtin('__ecma262_ToString')],[33,4],[252,2],[33,2],[32,4],[33,3],[11],[32,0],[32,1],[16,builtin('__RegExp_prototype_global$get')],[33,4],[33,5],[32,4],[33,6],[2,127],...t([67,195],()=>[[32,6],[65,67],[70],[32,6],[65,195],[70],[114],[4,64],[32,5],[40,1,0],[69],[12,1],[11]]),[32,5],[69],[11],[4,64],...internalThrow(_,'TypeError',`matchAll used with non-global RegExp`),[26],[11],[65,4096],[16,builtin('__Porffor_allocateBytes')],[33,7],[3,64],[32,0],[32,1],[32,2],[32,3],[65,0],[65,2],[16,builtin('__Porffor_regex_interpret')],[34,4],[33,9],[34,8],[4,64],[32,7],[183],[65,72],[32,8],[183],[32,9],[16,builtin('__Porffor_array_fastPush')],[252,2],[26],[12,1],[11],[11],[32,7],[65,72],[15]]"),
-params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:2,
-locals:[127,127,127,127,127,127],localNames:["regexp","regexp#type","input","input#type","#last_type","#logicinner_tmp","#typeswitch_tmp1","result","match","match#type"],
-usesTag:1
-}
 x.__String_prototype_match={
 wasm:(_,{builtin,internalThrow})=>eval("[[32,1],[65,67],[71],[4,64],[32,1],[69],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.match expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],[32,2],[32,3],[32,0],[65,67],[16,builtin('__Porffor_regex_match')],[34,4],[15]]"),
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
@@ -2921,6 +2920,12 @@ x.__ByteString_prototype_match={
 wasm:(_,{builtin})=>eval("[[32,2],[32,3],[32,0],[65,195],[16,builtin('__Porffor_regex_match')],[34,4],[15]]"),
 params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:1,
 locals:[127],localNames:["_this","_this#type","regexp","regexp#type","#last_type"]
+}
+x.__Porffor_regex_matchAll={
+wasm:(_,{t,builtin,internalThrow})=>eval("[[32,1],[65,9],[71],[4,64],[65,25],[65,6],[65,0],[65,7],[32,0],[32,1],[65,0],[65,0],[16,builtin('RegExp')],[33,0],[65,9],[33,1],[11],[32,3],[65,195],[71],[4,64],[32,2],[183],[32,3],[16,builtin('__ecma262_ToString')],[33,4],[252,2],[33,2],[32,4],[33,3],[11],[32,0],[32,1],[16,builtin('__RegExp_prototype_global$get')],[33,4],[33,5],[32,4],[33,6],[2,127],...t([67,195],()=>[[32,6],[65,67],[70],[32,6],[65,195],[70],[114],[4,64],[32,5],[40,1,0],[69],[12,1],[11]]),[32,5],[69],[11],[4,64],...internalThrow(_,'TypeError',`matchAll used with non-global RegExp`),[26],[11],[65,4096],[16,builtin('__Porffor_allocateBytes')],[33,7],[3,64],[32,0],[32,1],[32,2],[32,3],[65,0],[65,2],[16,builtin('__Porffor_regex_interpret')],[34,4],[33,9],[34,8],[4,64],[32,7],[183],[65,72],[32,8],[183],[32,9],[16,builtin('__Porffor_array_fastPush')],[252,2],[26],[12,1],[11],[11],[32,7],[65,72],[15]]"),
+params:[127,127,127,127],typedParams:1,returns:[127,127],jsLength:2,
+locals:[127,127,127,127,127,127],localNames:["regexp","regexp#type","input","input#type","#last_type","#logicinner_tmp","#typeswitch_tmp1","result","match","match#type"],
+usesTag:1
 }
 x.__String_prototype_matchAll={
 wasm:(_,{builtin,internalThrow})=>eval("[[32,1],[65,67],[71],[4,64],[32,1],[69],[32,1],[65,7],[70],[32,0],[69],[113],[114],[4,64],...internalThrow(_,'TypeError',`String.prototype.matchAll expects 'this' to be non-nullish`),[11],[32,0],[183],[32,1],[16,builtin('__ecma262_ToString')],[33,1],[252,2],[33,0],[32,1],[65,195],[70],[4,64],[32,0],[16,builtin('__Porffor_bytestringToString')],[33,0],[11],[11],[32,2],[32,3],[32,0],[65,67],[16,builtin('__Porffor_regex_matchAll')],[34,4],[15]]"),
@@ -5832,13 +5837,13 @@ locals:[127],localNames:["_this","_this#type","#last_type"],
 usesTag:1
 }
 x.__WeakMap_prototype_getOrInsert={
-wasm:(_,{t,builtin,internalThrow})=>eval("[[32,1],[65,29],[71],[4,64],...internalThrow(_,'TypeError',`WeakMap.prototype.getOrInsert expects 'this' to be a WeakMap`),[11],[32,0],[65,29],[32,2],[32,3],[16,builtin('__WeakMap_prototype_has')],[33,6],[33,7],[32,6],[33,8],[2,124],...t([67,195],()=>[[32,8],[65,67],[70],[32,8],[65,195],[70],[114],[4,64],[32,7],[252,3],[40,1,0],[69],[184],[12,1],[11]]),[32,7],[68,0],[97],[184],[11],[252,3],[4,64],[32,0],[65,29],[32,2],[32,3],[32,4],[32,5],[16,builtin('__WeakMap_prototype_set')],[33,6],[26],[11],[68,0],[33,9],[65,0],[33,8],[2,124],...t([6],()=>[[32,8],[65,6],[70],[4,64],[65,2],[68,0],[65,0],[68,8],[65,6],[68,0],[65,7],[68,0],[65,0],[16,builtin('WeakMap')],[65,29],[32,0],[65,29],[32,2],[32,3],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[32,9],[252,3],[17,18,0],[33,6],[12,1],[11]]),...internalThrow(_,'TypeError',`WeakMap.prototype.get is not a function`),[68,0],[11],[32,6],[15]]"),
+wasm:(_,{t,builtin,internalThrow})=>eval("[[32,1],[65,29],[71],[4,64],...internalThrow(_,'TypeError',`WeakMap.prototype.getOrInsert expects 'this' to be a WeakMap`),[11],[32,0],[65,29],[32,2],[32,3],[16,builtin('__WeakMap_prototype_has')],[33,6],[33,7],[32,6],[33,8],[2,124],...t([67,195],()=>[[32,8],[65,67],[70],[32,8],[65,195],[70],[114],[4,64],[32,7],[252,3],[40,1,0],[69],[184],[12,1],[11]]),[32,7],[68,0],[97],[184],[11],[252,3],[4,64],[32,0],[65,29],[32,2],[32,3],[32,4],[32,5],[16,builtin('__WeakMap_prototype_set')],[33,6],[26],[11],[68,0],[33,9],[65,0],[33,8],[2,124],[32,8],[65,6],[70],[4,64],[65,2],[68,0],[65,0],[16,builtin('#get_WeakMap')],[184],[65,6],[32,0],[65,29],[32,2],[32,3],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[32,9],[252,3],[17,18,0],[33,6],[12,1],[11],...internalThrow(_,'TypeError',`WeakMap.prototype.get is not a function`),[68,0],[11],[32,6],[15]]"),
 params:[124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLength:2,
 locals:[127,124,127,124],localNames:["_this","_this#type","key","key#type","value","value#type","#last_type","#logicinner_tmp","#typeswitch_tmp1","#indirect_1077_callee"],
 table:1,usesTag:1
 }
 x.__WeakMap_prototype_getOrInsertComputed={
-wasm:(_,{t,builtin,internalThrow})=>eval("[[32,1],[65,29],[71],[4,64],...internalThrow(_,'TypeError',`WeakMap.prototype.getOrInsertComputed expects 'this' to be a WeakMap`),[11],[32,0],[65,29],[32,2],[32,3],[16,builtin('__WeakMap_prototype_has')],[33,6],[33,7],[32,6],[33,8],[2,124],...t([67,195],()=>[[32,8],[65,67],[70],[32,8],[65,195],[70],[114],[4,64],[32,7],[252,3],[40,1,0],[69],[184],[12,1],[11]]),[32,7],[68,0],[97],[184],[11],[252,3],[4,64],[32,0],[65,29],[32,2],[32,3],[32,4],[33,9],[32,5],[33,8],[2,124],...t([6],()=>[[32,8],[65,6],[70],[4,64],[65,1],[68,0],[65,0],[68,0],[65,0],[32,2],[32,3],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[32,9],[252,3],[17,18,0],[33,6],[12,1],[11]]),...internalThrow(_,'TypeError',`callbackFn is not a function`),[68,0],[11],[32,6],[16,builtin('__WeakMap_prototype_set')],[33,6],[26],[11],[68,0],[33,10],[65,0],[33,8],[2,124],...t([6],()=>[[32,8],[65,6],[70],[4,64],[65,2],[68,0],[65,0],[68,8],[65,6],[68,0],[65,7],[68,0],[65,0],[16,builtin('WeakMap')],[65,29],[32,0],[65,29],[32,2],[32,3],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[32,10],[252,3],[17,18,0],[33,6],[12,1],[11]]),...internalThrow(_,'TypeError',`WeakMap.prototype.get is not a function`),[68,0],[11],[32,6],[15]]"),
+wasm:(_,{t,builtin,internalThrow})=>eval("[[32,1],[65,29],[71],[4,64],...internalThrow(_,'TypeError',`WeakMap.prototype.getOrInsertComputed expects 'this' to be a WeakMap`),[11],[32,0],[65,29],[32,2],[32,3],[16,builtin('__WeakMap_prototype_has')],[33,6],[33,7],[32,6],[33,8],[2,124],...t([67,195],()=>[[32,8],[65,67],[70],[32,8],[65,195],[70],[114],[4,64],[32,7],[252,3],[40,1,0],[69],[184],[12,1],[11]]),[32,7],[68,0],[97],[184],[11],[252,3],[4,64],[32,0],[65,29],[32,2],[32,3],[32,4],[33,9],[32,5],[33,8],[2,124],...t([6],()=>[[32,8],[65,6],[70],[4,64],[65,1],[68,0],[65,0],[68,0],[65,0],[32,2],[32,3],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[32,9],[252,3],[17,18,0],[33,6],[12,1],[11]]),...internalThrow(_,'TypeError',`callbackFn is not a function`),[68,0],[11],[32,6],[16,builtin('__WeakMap_prototype_set')],[33,6],[26],[11],[68,0],[33,10],[65,0],[33,8],[2,124],[32,8],[65,6],[70],[4,64],[65,2],[68,0],[65,0],[16,builtin('#get_WeakMap')],[184],[65,6],[32,0],[65,29],[32,2],[32,3],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[68,0],[65,0],[32,10],[252,3],[17,18,0],[33,6],[12,1],[11],...internalThrow(_,'TypeError',`WeakMap.prototype.get is not a function`),[68,0],[11],[32,6],[15]]"),
 params:[124,127,124,127,124,127],typedParams:1,returns:[124,127],jsLength:2,
 locals:[127,124,127,124,124],localNames:["_this","_this#type","key","key#type","callbackFn","callbackFn#type","#last_type","#logicinner_tmp","#typeswitch_tmp1","#indirect_1078_callee","#indirect_1079_callee"],
 table:1,usesTag:1
