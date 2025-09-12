@@ -7132,7 +7132,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       __String_prototype_concat: 1,
       __ByteString_prototype_concat: 1,
       __Atomics_wait: 4,
-      __Atomics_notify: 3
+      __Atomics_notify: 3,
+      Date: 7
     })[name] ?? jsLength;
   }
 

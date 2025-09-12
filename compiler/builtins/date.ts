@@ -1781,7 +1781,7 @@ export const __Date_prototype_valueOf = (_this: any) => {
 
 // 21.4.2.1 Date (...values)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date
-export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown, v4: unknown, v5: unknown, v6: unknown): bytestring|Date {
+export const Date = function (...values: any[]): bytestring|Date {
   // 1. If NewTarget is undefined, then
   if (!new.target) {
     // a. Let now be the time value (UTC) identifying the current time.
@@ -1789,18 +1789,8 @@ export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown
     return __ecma262_ToDateString(__Date_now());
   }
 
-  // todo: passing undefined to params should not act like no arg was passed
-
   // 2. Let numberOfArgs be the number of elements in values.
-  // sorry.
-  const numberOfArgs: i32 =
-    (Porffor.type(v0) != Porffor.TYPES.undefined) +
-    (Porffor.type(v1) != Porffor.TYPES.undefined) +
-    (Porffor.type(v2) != Porffor.TYPES.undefined) +
-    (Porffor.type(v3) != Porffor.TYPES.undefined) +
-    (Porffor.type(v4) != Porffor.TYPES.undefined) +
-    (Porffor.type(v5) != Porffor.TYPES.undefined) +
-    (Porffor.type(v6) != Porffor.TYPES.undefined);
+  const numberOfArgs: i32 = values.length;
 
   let dv: number = 0;
 
@@ -1809,19 +1799,20 @@ export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown
     // a. Let dv be the time value (UTC) identifying the current time.
     dv = __Date_now();
   } else if (numberOfArgs == 1) {
-    // 4. Else if numberOfArgs = 1, the n
+    // 4. Else if numberOfArgs = 1, then
     // a. Let value be values[0].
-    const value: any = v0;
+    const value: any = values[0];
     let tv: number = 0;
 
     // b. If value is an Object and value has a [[DateValue]] internal slot, then
-    if (Porffor.type(v0) == Porffor.TYPES.date) {
+    if (Porffor.type(value) == Porffor.TYPES.date) {
       // i. Let tv be value.[[DateValue]].
       tv = __Porffor_date_read(value);
     } else {
       // c. Else,
+      // i. Let v be ? ToPrimitive(value).
       // ii. If v is a String, then
-      if ((Porffor.type(v0) | 0b10000000) == Porffor.TYPES.bytestring) {
+      if ((Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring) {
         // 1. Assert: The next step never returns an abrupt completion because v is a String.
 
         // 2. Let tv be the result of parsing v as a date, in exactly the same manner as for the parse method (21.4.3.2).
@@ -1840,30 +1831,30 @@ export const Date = function (v0: unknown, v1: unknown, v2: unknown, v3: unknown
     // a. Assert: numberOfArgs ≥ 2.
 
     // b. Let y be ? ToNumber(values[0]).
-    const y: number = ecma262.ToNumber(v0);
+    const y: number = ecma262.ToNumber(values[0]);
 
     // c. Let m be ? ToNumber(values[1]).
-    const m: number = ecma262.ToNumber(v1);
+    const m: number = ecma262.ToNumber(values[1]);
 
     // d. If numberOfArgs > 2, let dt be ? ToNumber(values[2]); else let dt be 1𝔽.
     let dt: number = 1;
-    if (numberOfArgs > 2) dt = ecma262.ToNumber(v2);
+    if (numberOfArgs > 2) dt = ecma262.ToNumber(values[2]);
 
     // e. If numberOfArgs > 3, let h be ? ToNumber(values[3]); else let h be +0𝔽.
     let h: number = 0;
-    if (numberOfArgs > 3) h = ecma262.ToNumber(v3);
+    if (numberOfArgs > 3) h = ecma262.ToNumber(values[3]);
 
     // f. If numberOfArgs > 4, let min be ? ToNumber(values[4]); else let min be +0𝔽.
     let min: number = 0;
-    if (numberOfArgs > 4) min = ecma262.ToNumber(v4);
+    if (numberOfArgs > 4) min = ecma262.ToNumber(values[4]);
 
     // g. If numberOfArgs > 5, let s be ? ToNumber(values[5]); else let s be +0𝔽.
     let s: number = 0;
-    if (numberOfArgs > 5) s = ecma262.ToNumber(v5);
+    if (numberOfArgs > 5) s = ecma262.ToNumber(values[5]);
 
     // h. If numberOfArgs > 6, let milli be ? ToNumber(values[6]); else let milli be +0𝔽.
     let milli: number = 0;
-    if (numberOfArgs > 6) milli = ecma262.ToNumber(v6);
+    if (numberOfArgs > 6) milli = ecma262.ToNumber(values[6]);
 
     // i. Let yr be MakeFullYear(y).
     const yr: number = __ecma262_MakeFullYear(y);
