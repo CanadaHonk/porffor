@@ -85,6 +85,9 @@ Porffor uses a unique versioning system, here's an example: `0.48.7`. Let's brea
 2. `48` - minor, total Test262 pass percentage (rounded half down, eg `49.4%` -> `48`, `49.5%` -> `49`)
 3. `7` - micro, build number for that minor (incremented each git push)
 
+### Update to latest
+`porf self_update` 
+
 ## Performance
 *For the features it supports most of the time*, Porffor is *blazingly fast* compared to most interpreters and common engines running without JIT. For those with JIT, it is usually slower by default, but can catch up with compiler arguments and typed input, even more so when compiling to native binaries.
 
