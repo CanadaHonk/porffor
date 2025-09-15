@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-pc-windows-msvc
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno install
+      - run: |
+          deno compile \
+            --allow-all \
+            --no-check \
+            --target ${{ matrix.target }} \
+            --include runtime \
+            --include compiler \
+            --output out/porf \
+            runtime/index.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: porf-${{ matrix.target }}
+          path: out/*
