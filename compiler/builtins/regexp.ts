@@ -1582,3 +1582,76 @@ export const __String_prototype_matchAll = (_this: string, regexp: any) => {
 export const __ByteString_prototype_matchAll = (_this: bytestring, regexp: any) => {
   return __Porffor_regex_matchAll(regexp, _this);
 };
+
+
+export const __Porffor_regex_escapeX = (out: bytestring, char: i32) => {
+  // 0-9 or a-z or A-Z as first char - escape as \xNN
+  Porffor.bytestring.append2Char(out, 92, 120);
+
+  let char1: i32 = 48 + Math.floor(char / 16);
+  if (char1 > 57) char1 += 39; // 58 (:) -> 97 (a)
+  let char2: i32 = 48 + char % 16;
+  if (char2 > 57) char2 += 39; // 58 (:) -> 97 (a)
+  Porffor.bytestring.append2Char(out, char1, char2);
+};
+
+export const __RegExp_escape = (str: any) => {
+  const out: bytestring = Porffor.allocate();
+
+  let i: i32 = 0;
+  const first: i32 = str.charCodeAt(0);
+  if ((first > 47 && first < 58) || (first > 96 && first < 123) || (first > 64 && first < 91)) {
+    __Porffor_regex_escapeX(out, first);
+    i++;
+  }
+
+  const len: i32 = str.length;
+  for (; i < len; i++) {
+    const char: i32 = str.charCodeAt(i);
+    // ^, $, \, ., *, +, ?, (, ), [, ], {, }, |, /
+    if (Porffor.fastOr(char == 94, char == 36, char == 92, char == 46, char == 42, char == 43, char == 63, char == 40, char == 41, char == 91, char == 93, char == 123, char == 125, char == 124, char == 47)) {
+      // regex syntax, escape with \
+      Porffor.bytestring.append2Char(out, 92, char);
+      continue;
+    }
+
+    // ,, -, =, <, >, #, &, !, %, :, ;, @, ~, ', `, "
+    if (Porffor.fastOr(char == 44, char == 45, char == 61, char == 60, char == 62, char == 35, char == 38, char == 33, char == 37, char == 58, char == 59, char == 64, char == 126, char == 39, char == 96, char == 34)) {
+      // punctuator, escape with \x
+      __Porffor_regex_escapeX(out, char);
+      continue;
+    }
+
+    // \f, \n, \r, \t, \v, \x20
+    if (char == 12) {
+      Porffor.bytestring.append2Char(out, 92, 102);
+      continue;
+    }
+    if (char == 10) {
+      Porffor.bytestring.append2Char(out, 92, 110);
+      continue;
+    }
+    if (char == 13) {
+      Porffor.bytestring.append2Char(out, 92, 114);
+      continue;
+    }
+    if (char == 9) {
+      Porffor.bytestring.append2Char(out, 92, 116);
+      continue;
+    }
+    if (char == 11) {
+      Porffor.bytestring.append2Char(out, 92, 118);
+      continue;
+    }
+    if (char == 32) {
+      Porffor.bytestring.append2Char(out, 92, 120);
+      Porffor.bytestring.append2Char(out, 50, 48);
+      continue;
+    }
+
+    // todo: surrogates
+    Porffor.bytestring.appendChar(out, char);
+  }
+
+  return out;
+};
