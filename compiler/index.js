@@ -212,48 +212,6 @@ export default (code, module = Prefs.module) => {
     console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n') + '\n');
   }
 
-  if (Prefs.emscripten) {
-    const tmpFile = 'porffor_tmp.wasm';
-    const cO = Prefs._cO ?? 'Oz';
-
-    const args = [
-      'emcc',
-      '-xc', '-', // use stdin as c source in
-      '-s', 'STANDALONE_WASM=1',
-      '-s', 'NO_FILESYSTEM=1',
-      '-s', 'EXPORTED_FUNCTIONS=\'["_m"]\'',
-      '-nostartfiles',
-      '-Wl,--no-entry',
-      '-o', tmpFile,
-      '-' + cO,
-      Prefs.d ? '-g' : ''
-    ];
-
-    if (Prefs.clangFast) args.push('-flto=thin', '-march=native', '-ffast-math', '-fno-asynchronous-unwind-tables');
-
-    if (Prefs.s) args.push('-s');
-
-    Prefs['2cWasmImports'] = true;
-    const c = toc(out)
-    .replace(`int main()`, `
-void __wasi_proc_exit(int code) {
-  __builtin_trap();
-}
-
-int m()`);
-    Prefs['2cWasmImports'] = false;
-
-    // obvious command escape is obvious
-    execSync(args.join(' '), {
-      stdio: [ 'pipe', 'inherit', 'inherit' ],
-      input: c,
-      encoding: 'utf8'
-    });
-
-    out.wasm = wasm = fs.readFileSync(tmpFile, null);
-    fs.unlinkSync(tmpFile);
-  }
-
   if (target === 'wasm' && outFile) {
     fs.writeFileSync(outFile, Buffer.from(wasm));
 
