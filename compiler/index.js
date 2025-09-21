@@ -212,6 +212,20 @@ export default (code, module = Prefs.module) => {
     console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n') + '\n');
   }
 
+  if (Prefs.wasmOpt) {
+    if (logProgress) progressStart('wasm-opt...');
+
+    const t4 = performance.now();
+    const newWasm = execSync(`wasm-opt -all -O4 -o -`, {
+      stdio: [ 'pipe', 'pipe', 'pipe' ],
+      input: wasm,
+      encoding: null
+    });
+    wasm = out.wasm = new Uint8Array(newWasm);
+
+    if (logProgress) progressDone('wasm-opt', t4);
+  }
+
   if (target === 'wasm' && outFile) {
     fs.writeFileSync(outFile, Buffer.from(wasm));
 

@@ -467,7 +467,7 @@ export default ({ name, wasm, locals: _locals, params }) => {
           break;
         }
 
-        case Opcodes.f64_copysign: { // ?
+        case Opcodes.f64_copysign: { // todo: check behavior
           if (stack.length < 2) { empty(); break; };
           const [ b, a ] = pop2();
           const v = Math.abs(a) * (b > 0 ? 1 : -1);
