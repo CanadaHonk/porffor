@@ -882,7 +882,7 @@ const generateReturn = (scope, decl) => {
 };
 
 const localTmp = (scope, name, type = valtypeBinary) => {
-  if (scope.locals[name]) return scope.locals[name].idx;
+  if (name in scope.locals) return scope.locals[name].idx;
 
   let idx = scope.localInd++;
   scope.locals[name] = { idx, type };
@@ -3131,7 +3131,7 @@ const typeIsNotOneOf = (type, types, valtype = Valtype.i32) => {
   return out;
 };
 
-const allocVar = (scope, name, global = false, type = true, redecl = false, i32 = false) => {
+const allocVar = (scope, name, global = false, type = true, i32 = false, redecl = false) => {
   const target = global ? globals : scope.locals;
 
   // already declared
@@ -6457,7 +6457,7 @@ const generateClass = (scope, decl) => {
       // define in construction instead
       if (computed) {
         // compute key now, reference in construction
-        const computedTmp = allocVar(scope, `#class_computed_prop${uniqId()}`, true, true, false, true);
+        const computedTmp = allocVar(scope, `#class_computed_prop${uniqId()}`, true, true, true);
 
         out.push(
           ...toPropertyKey(scope, generate(scope, key), getNodeType(scope, key), computed, true),
@@ -6847,7 +6847,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         const { name, def, destr, type } = args[i];
 
         func.localInd = i * 2;
-        allocVar(func, name, false, true, true);
+        allocVar(func, name, false, true, false, true);
 
         func.localInd = localInd;
         if (type) {
