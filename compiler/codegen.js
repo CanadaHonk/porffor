@@ -3015,6 +3015,34 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     return typeof def === 'function' ? def() : def;
   }
 
+  if (bc.length === 2 && (bc[0][0] === 'default' || bc[1][0] === 'default')) {
+    let trueCase, falseCase;
+    if (bc[0][0] === 'default') {
+      trueCase = bc[1];
+      falseCase = bc[0];
+    } else {
+      trueCase = bc[0];
+      falseCase = bc[1];
+    }
+
+    if (!Array.isArray(trueCase[0])) {
+      depth.push('if');
+      const out = [
+        ...type,
+        number(trueCase[0], Valtype.i32),
+        [ Opcodes.i32_eq ],
+        [ Opcodes.if, returns ],
+          ...typeof trueCase[1] === 'function' ? trueCase[1]() : trueCase[1],
+        [ Opcodes.else ],
+          ...typeof falseCase[1] === 'function' ? falseCase[1]() : falseCase[1],
+        [ Opcodes.end ],
+      ];
+      depth.pop();
+
+      return out;
+    }
+  }
+
   if (Prefs.typeswitchBrtable) {
     if (fallthrough) throw new Error(`Fallthrough is not currently supported with --typeswitch-brtable`);
     return brTable(type, bc, returns);
