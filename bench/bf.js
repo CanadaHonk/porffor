@@ -1,6 +1,14 @@
 // const printChar = i => process.stdout.write(String.fromCharCode(i || 0));
 // const printChar = i => std.err.puts(String.fromCharCode(i || 0));
 
+let lines = 0;
+const done = x => {
+  if (x == 10) {
+    lines++;
+    if (lines == 3) return true;
+  }
+};
+
 const interpret = str => {
   let ptr = 0;
   let memory = new Array(8000);
@@ -17,7 +25,10 @@ const interpret = str => {
     if (c == 43) memory[ptr] += 1;
     if (c == 45) memory[ptr] -= 1;
 
-    if (c == 46) printChar(memory[ptr]);
+    // if (c == 46) printChar(memory[ptr]);
+    if (c == 46) {
+      if (done(memory[ptr])) i = str.length;
+    }
 
     if (c == 91) {
       starts.push(i);
@@ -53,5 +64,4 @@ interpret('+++++++++++++[->++>>>+++++>++>+<<<<<<]>>>>>++++++>--->>>>>>>>>>++++++
 // hello world
 // interpret('++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.');
 
-printChar(10);
 console.log(performance.now() - t);
