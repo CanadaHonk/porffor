@@ -611,8 +611,8 @@ const lookup = (scope, name, failEarly = false) => {
     return wasm.slice();
   }
 
-  if (!(name in funcIndex) && name in builtinFuncs) {
-    includeBuiltin(scope, name);
+  if (name in builtinFuncs) {
+    if (!(name in funcIndex)) includeBuiltin(scope, name);
   } else if (name in internalConstrs) {
     // todo: return an actual something
     return [ number(1) ];
