@@ -7214,8 +7214,7 @@ const internalConstrs = {
       }, global, name);
     },
     type: TYPES.array,
-    notConstr: true,
-    length: 0
+    notConstr: true
   },
 
   __Porffor_fastOr: {
@@ -7274,8 +7273,7 @@ const internalConstrs = {
       return out;
     },
     type: TYPES.number,
-    notConstr: true,
-    length: 2
+    notConstr: true
   },
 
   __Math_min: {
@@ -7294,8 +7292,7 @@ const internalConstrs = {
       return out;
     },
     type: TYPES.number,
-    notConstr: true,
-    length: 2
+    notConstr: true
   },
 
   __Porffor_printStatic: {
@@ -7306,8 +7303,7 @@ const internalConstrs = {
       return out;
     },
     type: TYPES.undefined,
-    notConstr: true,
-    length: 1
+    notConstr: true
   },
 
   __Porffor_type: {
@@ -7316,15 +7312,13 @@ const internalConstrs = {
       Opcodes.i32_from_u
     ],
     type: TYPES.number,
-    notConstr: true,
-    length: 1
+    notConstr: true
   },
 
   __Porffor_compileType: {
     generate: (scope, decl) => makeString(scope, TYPE_NAMES[knownType(scope, getNodeType(scope, decl.arguments[0]))] ?? 'unknown'),
     type: TYPES.bytestring,
-    notConstr: true,
-    length: 1
+    notConstr: true
   },
 
   __Porffor_call: {
@@ -7347,8 +7341,7 @@ const internalConstrs = {
       _new: decl.arguments[3].value !== null,
       _forceCreateThis: true
     }),
-    notConstr: true,
-    length: 1
+    notConstr: true
   },
 
   __console_log: {
@@ -7387,8 +7380,7 @@ const internalConstrs = {
       return fast('__Porffor_consolePrint');
     },
     type: TYPES.undefined,
-    notConstr: true,
-    length: 0
+    notConstr: true
   }
 };
 
