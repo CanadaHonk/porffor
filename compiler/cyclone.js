@@ -46,6 +46,7 @@ export default ({ name, wasm, locals: _locals, params }, _globals) => {
 
     const reset = () => {
       locals = new Array(locals.length).fill(false);
+      globals = new Array(globals.length).fill(false);
       empty();
     };
 
