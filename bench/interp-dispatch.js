@@ -13,6 +13,7 @@ function bench (lc, fc) {
   return res;
 }
 
-let t1 = performance.now();
+let t1 = Date.now();
 var res = bench(4e6, 100);
-print(performance.now() - t1);
+var t2 = Date.now();
+print(t2 - t1);
