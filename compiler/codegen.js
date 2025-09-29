@@ -7429,7 +7429,7 @@ export default program => {
     objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
   }
 
-  const [ main ] = generateFunc({}, {
+  generateFunc({}, {
     type: 'Program',
     id: { name: '#main' },
     body: {
@@ -7437,9 +7437,6 @@ export default program => {
       body: program.body
     }
   });
-
-  // if wanted and blank main func and other exports, remove it
-  if (Prefs.rmBlankMain && main.wasm.length === 0 && funcs.some(x => x.export)) funcs.splice(main.index - importedFuncs.length, 1);
 
   for (let i = 0; i < funcs.length; i++) {
     const f = funcs[i];
