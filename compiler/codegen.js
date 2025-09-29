@@ -1599,11 +1599,11 @@ const generateLogicExp = (scope, decl) =>
 const getInferred = (scope, name, global = false) => {
   const isConst = getVarMetadata(scope, name, global)?.kind === 'const';
   if (global) {
-    if (globalInfer.has(name) && (isConst || inferLoopPrev.length === 0)) return globalInfer.get(name);
+    if (name in globalInfer && (isConst || inferLoopPrev.length === 0)) return globalInfer[name];
   } else if (scope.inferTree) {
     for (let i = scope.inferTree.length - 1; i >= 0; i--) {
       const x = scope.inferTree[i];
-      if (x._infer?.has(name)) return x._infer.get(name);
+      if (name in x) return x[name];
     }
   }
 
@@ -1612,21 +1612,20 @@ const getInferred = (scope, name, global = false) => {
 
 const setInferred = (scope, name, type, global = false) => {
   const isConst = getVarMetadata(scope, name, global)?.kind === 'const';
-  scope.inferTree ??= [];
+  scope.inferTree ??= [ Object.create(null) ];
 
   if (global) {
     // set inferred type in global if not already and not in a loop, else make it null
-    globalInfer.set(name, globalInfer.has(name) || (!isConst && inferLoopPrev.length > 0) ? null : type);
+    globalInfer[name] = name in globalInfer || (!isConst && inferLoopPrev.length > 0) ? null : type;
   } else {
     // set inferred type in top
     const top = scope.inferTree.at(-1);
-    top._infer ??= new Map();
-    top._infer.set(name, type);
+    top[name] = type;
 
     // invalidate inferred type above if mismatched
     for (let i = scope.inferTree.length - 2; i >= 0; i--) {
       const x = scope.inferTree[i];
-      if (x._infer && x._infer.get(name) !== type) x._infer.set(name, null);
+      if (name in x && x[name] !== type) x[name] = null;
     }
   }
 };
@@ -4523,27 +4522,26 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
   ];
 };
 
-const inferBranchStart = (scope, decl) => {
-  scope.inferTree ??= [];
-  scope.inferTree.push(decl);
+const inferBranchStart = scope => {
+  scope.inferTree ??= [ Object.create(null) ];
+  scope.inferTree.push(Object.create(null));
 };
 
 const inferBranchEnd = scope => {
   scope.inferTree.pop();
 };
 
-const inferBranchElse = (scope, decl) => {
+const inferBranchElse = scope => {
+  // todo/opt: at end of else, find inferences in common and keep them?
   inferBranchEnd(scope);
-  inferBranchStart(scope, decl);
+  inferBranchStart(scope);
 };
 
 const inferLoopPrev = [];
-const inferLoopStart = (scope, decl) => {
-  scope.inferTree ??= [];
-
+const inferLoopStart = scope => {
   // todo/opt: do not just wipe the infer tree for loops
-  inferLoopPrev.push(scope.inferTree);
-  scope.inferTree = [ decl ];
+  inferLoopPrev.push(scope.inferTree ?? [ Object.create(null) ]);
+  scope.inferTree = [ Object.create(null) ];
 };
 
 const inferLoopEnd = scope => {
@@ -4562,23 +4560,23 @@ const generateIf = (scope, decl) => {
   const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test));
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
-  inferBranchStart(scope, decl.consequent);
+  inferBranchStart(scope);
 
   out.push(
     ...generate(scope, decl.consequent),
     [ Opcodes.drop ]
   );
 
-  inferBranchEnd(scope);
+
   if (decl.alternate) {
-    inferBranchStart(scope, decl.alternate);
+    inferBranchElse(scope);
     out.push(
       [ Opcodes.else ],
       ...generate(scope, decl.alternate),
       [ Opcodes.drop ]
     );
     inferBranchEnd(scope);
-  }
+  } else inferBranchEnd(scope);
 
   out.push(
     [ Opcodes.end ],
@@ -4594,7 +4592,7 @@ const generateConditional = (scope, decl) => {
 
   out.push([ Opcodes.if, valtypeBinary ]);
   depth.push('if');
-  inferBranchStart(scope, decl.consequent);
+  inferBranchStart(scope);
 
   out.push(
     ...generate(scope, decl.consequent),
@@ -4602,7 +4600,7 @@ const generateConditional = (scope, decl) => {
   );
 
   out.push([ Opcodes.else ]);
-  inferBranchElse(scope, decl.alternate);
+  inferBranchElse(scope);
 
   out.push(
     ...generate(scope, decl.alternate),
@@ -4624,7 +4622,7 @@ const generateFor = (scope, decl) => {
     [ Opcodes.drop ]
   );
 
-  inferLoopStart(scope, decl);
+  inferLoopStart(scope);
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('for');
 
@@ -4663,7 +4661,7 @@ const generateFor = (scope, decl) => {
 
 const generateWhile = (scope, decl) => {
   const out = [];
-  inferLoopStart(scope, decl);
+  inferLoopStart(scope);
 
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('while');
@@ -4691,7 +4689,7 @@ const generateWhile = (scope, decl) => {
 
 const generateDoWhile = (scope, decl) => {
   const out = [];
-  inferLoopStart(scope, decl);
+  inferLoopStart(scope);
 
   out.push([ Opcodes.loop, Blocktype.void ]);
 
@@ -4764,7 +4762,7 @@ const generateForOf = (scope, decl) => {
     [ Opcodes.local_set, length ]
   );
 
-  inferLoopStart(scope, decl);
+  inferLoopStart(scope);
   depth.push('forof');
   depth.push('block');
 
@@ -5104,7 +5102,7 @@ const generateForIn = (scope, decl) => {
     [ Opcodes.if, Blocktype.void ]
   );
 
-  inferLoopStart(scope, decl);
+  inferLoopStart(scope);
   depth.push('if');
   depth.push('forin');
   depth.push('block');
@@ -6829,7 +6827,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     async: decl.async,
     subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
-    inferTree: [ decl ],
 
     generate() {
       if (func.wasm) return func.wasm;
@@ -7185,8 +7182,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 const generateBlock = (scope, decl) => {
   let out = [];
 
-  scope.inferTree ??= [];
-  scope.inferTree.push(decl);
+  inferBranchStart(scope);
 
   let len = decl.body.length, j = 0;
   for (let i = 0; i < len; i++) {
@@ -7197,7 +7193,7 @@ const generateBlock = (scope, decl) => {
     out = out.concat(generate(scope, x));
   }
 
-  scope.inferTree.pop();
+  inferBranchEnd(scope);
 
   if (out.length === 0) out.push(number(UNDEFINED));
   return out;
@@ -7403,7 +7399,7 @@ export default program => {
   typeswitchDepth = 0;
   usedTypes = new Set([ TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
   coctc = new Map();
-  globalInfer = new Map();
+  globalInfer = Object.create(null);
 
   // set generic opcodes for current valtype
   Opcodes.const = valtypeBinary === Valtype.i32 ? Opcodes.i32_const : Opcodes.f64_const;
