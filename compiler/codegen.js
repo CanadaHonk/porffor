@@ -2050,31 +2050,6 @@ const generateChain = (scope, decl) => {
   return out;
 };
 
-const ArrayUtil = {
-  getLengthI32: pointer => [
-    ...pointer,
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ]
-  ],
-
-  getLength: pointer => [
-    ...pointer,
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-    Opcodes.i32_from_u
-  ],
-
-  setLengthI32: (pointer, value) => [
-    ...pointer,
-    ...value,
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
-  ],
-
-  setLength: (pointer, value) => [
-    ...pointer,
-    ...value,
-    Opcodes.i32_to_u,
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
-  ]
-};
 
 const createNewTarget = (scope, decl, idx = 0, force = false) => {
   if (decl._new || force) {
@@ -2822,16 +2797,6 @@ const DEFAULT_VALUE = () => ({
   type: 'Identifier',
   name: 'undefined'
 });
-
-const codeToSanitizedStr = code => {
-  let out = '';
-  while (code > 0) {
-    out += String.fromCharCode(97 + code % 26);
-    code -= 26;
-  }
-  return out;
-};
-const sanitize = str => str.replace(/[^0-9a-zA-Z_]/g, _ => codeToSanitizedStr(_.charCodeAt(0)));
 
 const unhackName = name => {
   if (!name) return name;
