@@ -1198,6 +1198,22 @@ const nullish = (scope, wasm, type, nonbinary = true, intIn = false) => {
   ];
 };
 
+const eitherStringType = (leftType, rightType) => [
+  ...leftType,
+  number(TYPE_FLAGS.parity, Valtype.i32),
+  [ Opcodes.i32_or ],
+  number(TYPES.bytestring, Valtype.i32),
+  [ Opcodes.i32_eq ],
+
+  ...rightType,
+  number(TYPE_FLAGS.parity, Valtype.i32),
+  [ Opcodes.i32_or ],
+  number(TYPES.bytestring, Valtype.i32),
+  [ Opcodes.i32_eq ],
+
+  [ Opcodes.i32_or ]
+];
+
 const performOp = (scope, op, left, right, leftType, rightType) => {
   if (op === '||' || op === '&&' || op === '??') {
     return performLogicOp(scope, op, left, right, leftType, rightType);
@@ -1294,19 +1310,7 @@ const performOp = (scope, op, left, right, leftType, rightType) => {
 
     ops.unshift(
       // if left or right are string or bytestring
-      ...leftType,
-      number(TYPE_FLAGS.parity, Valtype.i32),
-      [ Opcodes.i32_or ],
-      number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      ...rightType,
-      number(TYPE_FLAGS.parity, Valtype.i32),
-      [ Opcodes.i32_or ],
-      number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      [ Opcodes.i32_or ],
+      ...eitherStringType(leftType, rightType),
       [ Opcodes.if, Blocktype.void ],
       ...concatStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType),
       [ Opcodes.br, 1 ],
@@ -1326,19 +1330,7 @@ const performOp = (scope, op, left, right, leftType, rightType) => {
 
     ops.unshift(
       // if left or right are string or bytestring
-      ...leftType,
-      number(TYPE_FLAGS.parity, Valtype.i32),
-      [ Opcodes.i32_or ],
-      number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      ...rightType,
-      number(TYPE_FLAGS.parity, Valtype.i32),
-      [ Opcodes.i32_or ],
-      number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      [ Opcodes.i32_or ],
+      ...eitherStringType(leftType, rightType),
       [ Opcodes.if, Blocktype.void ],
       ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType),
       ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
