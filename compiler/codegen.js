@@ -3255,8 +3255,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     try {
       let usedNames = [];
       for (const x of pattern.properties) {
-        const name = x.key.name;
-        usedNames.push(name);
+        usedNames.push(x.key.name);
       }
 
       let path = init.arguments[0].value;
@@ -3283,7 +3282,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
         // mock ffi function
         asmFunc(name, {
-          wasm: [],
+          wasm: () => [],
           params: parameters.map(x => Valtype.i32),
           returns: result ? [ Valtype.i32 ] : [],
           returnType: TYPES.number
