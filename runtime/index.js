@@ -36,7 +36,7 @@ if (process.argv.includes('self_update')) {
   process.exit(0);
 }
 import fs from 'node:fs';
-globalThis.version = '0.60.16';
+globalThis.version = '0.60.23';
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {

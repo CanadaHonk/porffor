@@ -1,6 +1,15 @@
 // const printChar = i => process.stdout.write(String.fromCharCode(i || 0));
+
 type i32 = number;
 type bytestring = string;
+
+let lines = 0;
+const done = x => {
+  if (x == 10) {
+    lines++;
+    if (lines == 3) return true;
+  }
+};
 
 const interpret = (str: bytestring) => {
   let ptr: i32 = 0;
@@ -18,7 +27,9 @@ const interpret = (str: bytestring) => {
     if (c == 43) memory[ptr] += 1;
     if (c == 45) memory[ptr] -= 1;
 
-    if (c == 46) printChar(memory[ptr]);
+    if (c == 46) {
+      if (done(memory[ptr])) i = str.length;
+    }
 
     if (c == 91) {
       starts.push(i);

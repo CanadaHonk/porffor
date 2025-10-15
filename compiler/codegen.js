@@ -611,8 +611,8 @@ const lookup = (scope, name, failEarly = false) => {
     return wasm.slice();
   }
 
-  if (!(name in funcIndex) && name in builtinFuncs) {
-    includeBuiltin(scope, name);
+  if (name in builtinFuncs) {
+    if (!(name in funcIndex)) includeBuiltin(scope, name);
   } else if (name in internalConstrs) {
     // todo: return an actual something
     return [ number(1) ];
@@ -882,7 +882,7 @@ const generateReturn = (scope, decl) => {
 };
 
 const localTmp = (scope, name, type = valtypeBinary) => {
-  if (scope.locals[name]) return scope.locals[name].idx;
+  if (name in scope.locals) return scope.locals[name].idx;
 
   let idx = scope.localInd++;
   scope.locals[name] = { idx, type };
@@ -1198,6 +1198,22 @@ const nullish = (scope, wasm, type, nonbinary = true, intIn = false) => {
   ];
 };
 
+const eitherStringType = (leftType, rightType) => [
+  ...leftType,
+  number(TYPE_FLAGS.parity, Valtype.i32),
+  [ Opcodes.i32_or ],
+  number(TYPES.bytestring, Valtype.i32),
+  [ Opcodes.i32_eq ],
+
+  ...rightType,
+  number(TYPE_FLAGS.parity, Valtype.i32),
+  [ Opcodes.i32_or ],
+  number(TYPES.bytestring, Valtype.i32),
+  [ Opcodes.i32_eq ],
+
+  [ Opcodes.i32_or ]
+];
+
 const performOp = (scope, op, left, right, leftType, rightType) => {
   if (op === '||' || op === '&&' || op === '??') {
     return performLogicOp(scope, op, left, right, leftType, rightType);
@@ -1294,19 +1310,7 @@ const performOp = (scope, op, left, right, leftType, rightType) => {
 
     ops.unshift(
       // if left or right are string or bytestring
-      ...leftType,
-      number(TYPE_FLAGS.parity, Valtype.i32),
-      [ Opcodes.i32_or ],
-      number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      ...rightType,
-      number(TYPE_FLAGS.parity, Valtype.i32),
-      [ Opcodes.i32_or ],
-      number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      [ Opcodes.i32_or ],
+      ...eitherStringType(leftType, rightType),
       [ Opcodes.if, Blocktype.void ],
       ...concatStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType),
       [ Opcodes.br, 1 ],
@@ -1326,19 +1330,7 @@ const performOp = (scope, op, left, right, leftType, rightType) => {
 
     ops.unshift(
       // if left or right are string or bytestring
-      ...leftType,
-      number(TYPE_FLAGS.parity, Valtype.i32),
-      [ Opcodes.i32_or ],
-      number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      ...rightType,
-      number(TYPE_FLAGS.parity, Valtype.i32),
-      [ Opcodes.i32_or ],
-      number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.i32_eq ],
-
-      [ Opcodes.i32_or ],
+      ...eitherStringType(leftType, rightType),
       [ Opcodes.if, Blocktype.void ],
       ...compareStrings(scope, [ [ Opcodes.local_get, tmpLeft ] ], [ [ Opcodes.local_get, tmpRight ] ], leftType, rightType),
       ...(op === '!==' || op === '!=' ? [ [ Opcodes.i32_eqz ] ] : []),
@@ -1599,11 +1591,11 @@ const generateLogicExp = (scope, decl) =>
 const getInferred = (scope, name, global = false) => {
   const isConst = getVarMetadata(scope, name, global)?.kind === 'const';
   if (global) {
-    if (globalInfer.has(name) && (isConst || inferLoopPrev.length === 0)) return globalInfer.get(name);
+    if (name in globalInfer && (isConst || inferLoopPrev.length === 0)) return globalInfer[name];
   } else if (scope.inferTree) {
     for (let i = scope.inferTree.length - 1; i >= 0; i--) {
       const x = scope.inferTree[i];
-      if (x._infer?.has(name)) return x._infer.get(name);
+      if (name in x) return x[name];
     }
   }
 
@@ -1612,21 +1604,20 @@ const getInferred = (scope, name, global = false) => {
 
 const setInferred = (scope, name, type, global = false) => {
   const isConst = getVarMetadata(scope, name, global)?.kind === 'const';
-  scope.inferTree ??= [];
+  scope.inferTree ??= [ Object.create(null) ];
 
   if (global) {
     // set inferred type in global if not already and not in a loop, else make it null
-    globalInfer.set(name, globalInfer.has(name) || (!isConst && inferLoopPrev.length > 0) ? null : type);
+    globalInfer[name] = name in globalInfer || (!isConst && inferLoopPrev.length > 0) ? null : type;
   } else {
     // set inferred type in top
     const top = scope.inferTree.at(-1);
-    top._infer ??= new Map();
-    top._infer.set(name, type);
+    top[name] = type;
 
     // invalidate inferred type above if mismatched
     for (let i = scope.inferTree.length - 2; i >= 0; i--) {
       const x = scope.inferTree[i];
-      if (x._infer && x._infer.get(name) !== type) x._infer.set(name, null);
+      if (name in x && x[name] !== type) x[name] = null;
     }
   }
 };
@@ -2051,31 +2042,6 @@ const generateChain = (scope, decl) => {
   return out;
 };
 
-const ArrayUtil = {
-  getLengthI32: pointer => [
-    ...pointer,
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ]
-  ],
-
-  getLength: pointer => [
-    ...pointer,
-    [ Opcodes.i32_load, Math.log2(ValtypeSize.i32) - 1, 0 ],
-    Opcodes.i32_from_u
-  ],
-
-  setLengthI32: (pointer, value) => [
-    ...pointer,
-    ...value,
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
-  ],
-
-  setLength: (pointer, value) => [
-    ...pointer,
-    ...value,
-    Opcodes.i32_to_u,
-    [ Opcodes.i32_store, Math.log2(ValtypeSize.i32) - 1, 0 ]
-  ]
-};
 
 const createNewTarget = (scope, decl, idx = 0, force = false) => {
   if (decl._new || force) {
@@ -2824,16 +2790,6 @@ const DEFAULT_VALUE = () => ({
   name: 'undefined'
 });
 
-const codeToSanitizedStr = code => {
-  let out = '';
-  while (code > 0) {
-    out += String.fromCharCode(97 + code % 26);
-    code -= 26;
-  }
-  return out;
-};
-const sanitize = str => str.replace(/[^0-9a-zA-Z_]/g, _ => codeToSanitizedStr(_.charCodeAt(0)));
-
 const unhackName = name => {
   if (!name) return name;
 
@@ -3015,6 +2971,34 @@ const typeSwitch = (scope, type, bc, returns = valtypeBinary, fallthrough = fals
     return typeof def === 'function' ? def() : def;
   }
 
+  if (bc.length === 2 && (bc[0][0] === 'default' || bc[1][0] === 'default')) {
+    let trueCase, falseCase;
+    if (bc[0][0] === 'default') {
+      trueCase = bc[1];
+      falseCase = bc[0];
+    } else {
+      trueCase = bc[0];
+      falseCase = bc[1];
+    }
+
+    if (!Array.isArray(trueCase[0])) {
+      depth.push('if');
+      const out = [
+        ...type,
+        number(trueCase[0], Valtype.i32),
+        [ Opcodes.i32_eq ],
+        [ Opcodes.if, returns ],
+          ...typeof trueCase[1] === 'function' ? trueCase[1]() : trueCase[1],
+        [ Opcodes.else ],
+          ...typeof falseCase[1] === 'function' ? falseCase[1]() : falseCase[1],
+        [ Opcodes.end ],
+      ];
+      depth.pop();
+
+      return out;
+    }
+  }
+
   if (Prefs.typeswitchBrtable) {
     if (fallthrough) throw new Error(`Fallthrough is not currently supported with --typeswitch-brtable`);
     return brTable(type, bc, returns);
@@ -3131,7 +3115,7 @@ const typeIsNotOneOf = (type, types, valtype = Valtype.i32) => {
   return out;
 };
 
-const allocVar = (scope, name, global = false, type = true, redecl = false, i32 = false) => {
+const allocVar = (scope, name, global = false, type = true, i32 = false, redecl = false) => {
   const target = global ? globals : scope.locals;
 
   // already declared
@@ -3271,8 +3255,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     try {
       let usedNames = [];
       for (const x of pattern.properties) {
-        const name = x.key.name;
-        usedNames.push(name);
+        usedNames.push(x.key.name);
       }
 
       let path = init.arguments[0].value;
@@ -3299,7 +3282,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
         // mock ffi function
         asmFunc(name, {
-          wasm: [],
+          wasm: () => [],
           params: parameters.map(x => Valtype.i32),
           returns: result ? [ Valtype.i32 ] : [],
           returnType: TYPES.number
@@ -4495,27 +4478,26 @@ const generateUpdate = (scope, decl, _global, _name, valueUnused = false) => {
   ];
 };
 
-const inferBranchStart = (scope, decl) => {
-  scope.inferTree ??= [];
-  scope.inferTree.push(decl);
+const inferBranchStart = scope => {
+  scope.inferTree ??= [ Object.create(null) ];
+  scope.inferTree.push(Object.create(null));
 };
 
 const inferBranchEnd = scope => {
   scope.inferTree.pop();
 };
 
-const inferBranchElse = (scope, decl) => {
+const inferBranchElse = scope => {
+  // todo/opt: at end of else, find inferences in common and keep them?
   inferBranchEnd(scope);
-  inferBranchStart(scope, decl);
+  inferBranchStart(scope);
 };
 
 const inferLoopPrev = [];
-const inferLoopStart = (scope, decl) => {
-  scope.inferTree ??= [];
-
+const inferLoopStart = scope => {
   // todo/opt: do not just wipe the infer tree for loops
-  inferLoopPrev.push(scope.inferTree);
-  scope.inferTree = [ decl ];
+  inferLoopPrev.push(scope.inferTree ?? [ Object.create(null) ]);
+  scope.inferTree = [ Object.create(null) ];
 };
 
 const inferLoopEnd = scope => {
@@ -4534,23 +4516,23 @@ const generateIf = (scope, decl) => {
   const out = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test));
   out.push([ Opcodes.if, Blocktype.void ]);
   depth.push('if');
-  inferBranchStart(scope, decl.consequent);
+  inferBranchStart(scope);
 
   out.push(
     ...generate(scope, decl.consequent),
     [ Opcodes.drop ]
   );
 
-  inferBranchEnd(scope);
+
   if (decl.alternate) {
-    inferBranchStart(scope, decl.alternate);
+    inferBranchElse(scope);
     out.push(
       [ Opcodes.else ],
       ...generate(scope, decl.alternate),
       [ Opcodes.drop ]
     );
     inferBranchEnd(scope);
-  }
+  } else inferBranchEnd(scope);
 
   out.push(
     [ Opcodes.end ],
@@ -4566,7 +4548,7 @@ const generateConditional = (scope, decl) => {
 
   out.push([ Opcodes.if, valtypeBinary ]);
   depth.push('if');
-  inferBranchStart(scope, decl.consequent);
+  inferBranchStart(scope);
 
   out.push(
     ...generate(scope, decl.consequent),
@@ -4574,7 +4556,7 @@ const generateConditional = (scope, decl) => {
   );
 
   out.push([ Opcodes.else ]);
-  inferBranchElse(scope, decl.alternate);
+  inferBranchElse(scope);
 
   out.push(
     ...generate(scope, decl.alternate),
@@ -4596,7 +4578,7 @@ const generateFor = (scope, decl) => {
     [ Opcodes.drop ]
   );
 
-  inferLoopStart(scope, decl);
+  inferLoopStart(scope);
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('for');
 
@@ -4635,7 +4617,7 @@ const generateFor = (scope, decl) => {
 
 const generateWhile = (scope, decl) => {
   const out = [];
-  inferLoopStart(scope, decl);
+  inferLoopStart(scope);
 
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('while');
@@ -4663,7 +4645,7 @@ const generateWhile = (scope, decl) => {
 
 const generateDoWhile = (scope, decl) => {
   const out = [];
-  inferLoopStart(scope, decl);
+  inferLoopStart(scope);
 
   out.push([ Opcodes.loop, Blocktype.void ]);
 
@@ -4736,7 +4718,7 @@ const generateForOf = (scope, decl) => {
     [ Opcodes.local_set, length ]
   );
 
-  inferLoopStart(scope, decl);
+  inferLoopStart(scope);
   depth.push('forof');
   depth.push('block');
 
@@ -5076,7 +5058,7 @@ const generateForIn = (scope, decl) => {
     [ Opcodes.if, Blocktype.void ]
   );
 
-  inferLoopStart(scope, decl);
+  inferLoopStart(scope);
   depth.push('if');
   depth.push('forin');
   depth.push('block');
@@ -6457,7 +6439,7 @@ const generateClass = (scope, decl) => {
       // define in construction instead
       if (computed) {
         // compute key now, reference in construction
-        const computedTmp = allocVar(scope, `#class_computed_prop${uniqId()}`, true, true, false, true);
+        const computedTmp = allocVar(scope, `#class_computed_prop${uniqId()}`, true, true, true);
 
         out.push(
           ...toPropertyKey(scope, generate(scope, key), getNodeType(scope, key), computed, true),
@@ -6801,7 +6783,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     async: decl.async,
     subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
-    inferTree: [ decl ],
 
     generate() {
       if (func.wasm) return func.wasm;
@@ -6847,7 +6828,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         const { name, def, destr, type } = args[i];
 
         func.localInd = i * 2;
-        allocVar(func, name, false, true, true);
+        allocVar(func, name, false, true, false, true);
 
         func.localInd = localInd;
         if (type) {
@@ -7157,8 +7138,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 const generateBlock = (scope, decl) => {
   let out = [];
 
-  scope.inferTree ??= [];
-  scope.inferTree.push(decl);
+  inferBranchStart(scope);
 
   let len = decl.body.length, j = 0;
   for (let i = 0; i < len; i++) {
@@ -7169,7 +7149,7 @@ const generateBlock = (scope, decl) => {
     out = out.concat(generate(scope, x));
   }
 
-  scope.inferTree.pop();
+  inferBranchEnd(scope);
 
   if (out.length === 0) out.push(number(UNDEFINED));
   return out;
@@ -7186,8 +7166,7 @@ const internalConstrs = {
       }, global, name);
     },
     type: TYPES.array,
-    notConstr: true,
-    length: 0
+    notConstr: true
   },
 
   __Porffor_fastOr: {
@@ -7246,8 +7225,7 @@ const internalConstrs = {
       return out;
     },
     type: TYPES.number,
-    notConstr: true,
-    length: 2
+    notConstr: true
   },
 
   __Math_min: {
@@ -7266,8 +7244,7 @@ const internalConstrs = {
       return out;
     },
     type: TYPES.number,
-    notConstr: true,
-    length: 2
+    notConstr: true
   },
 
   __Porffor_printStatic: {
@@ -7278,8 +7255,7 @@ const internalConstrs = {
       return out;
     },
     type: TYPES.undefined,
-    notConstr: true,
-    length: 1
+    notConstr: true
   },
 
   __Porffor_type: {
@@ -7288,15 +7264,13 @@ const internalConstrs = {
       Opcodes.i32_from_u
     ],
     type: TYPES.number,
-    notConstr: true,
-    length: 1
+    notConstr: true
   },
 
   __Porffor_compileType: {
     generate: (scope, decl) => makeString(scope, TYPE_NAMES[knownType(scope, getNodeType(scope, decl.arguments[0]))] ?? 'unknown'),
     type: TYPES.bytestring,
-    notConstr: true,
-    length: 1
+    notConstr: true
   },
 
   __Porffor_call: {
@@ -7319,8 +7293,7 @@ const internalConstrs = {
       _new: decl.arguments[3].value !== null,
       _forceCreateThis: true
     }),
-    notConstr: true,
-    length: 1
+    notConstr: true
   },
 
   __console_log: {
@@ -7359,8 +7332,7 @@ const internalConstrs = {
       return fast('__Porffor_consolePrint');
     },
     type: TYPES.undefined,
-    notConstr: true,
-    length: 0
+    notConstr: true
   }
 };
 
@@ -7383,7 +7355,7 @@ export default program => {
   typeswitchDepth = 0;
   usedTypes = new Set([ TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
   coctc = new Map();
-  globalInfer = new Map();
+  globalInfer = Object.create(null);
 
   // set generic opcodes for current valtype
   Opcodes.const = valtypeBinary === Valtype.i32 ? Opcodes.i32_const : Opcodes.f64_const;
@@ -7409,7 +7381,7 @@ export default program => {
     objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
   }
 
-  const [ main ] = generateFunc({}, {
+  generateFunc({}, {
     type: 'Program',
     id: { name: '#main' },
     body: {
@@ -7417,9 +7389,6 @@ export default program => {
       body: program.body
     }
   });
-
-  // if wanted and blank main func and other exports, remove it
-  if (Prefs.rmBlankMain && main.wasm.length === 0 && funcs.some(x => x.export)) funcs.splice(main.index - importedFuncs.length, 1);
 
   for (let i = 0; i < funcs.length; i++) {
     const f = funcs[i];

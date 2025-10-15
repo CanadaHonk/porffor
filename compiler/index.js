@@ -135,7 +135,7 @@ export default (code, module = Prefs.module) => {
 
       for (const x of funcs) {
         const preOps = x.wasm.length;
-        cyclone(x);
+        cyclone(x, globals);
 
         if (preOps !== x.wasm.length) console.log(`${x.name}: ${preOps} -> ${x.wasm.length} ops`);
       }
@@ -147,7 +147,7 @@ export default (code, module = Prefs.module) => {
       console.log(`cyclone size diff: ${oldSize - newSize} bytes (${oldSize} -> ${newSize})\n`);
     } else {
       for (const x of funcs) {
-        cyclone(x);
+        cyclone(x, globals);
       }
     }
   }
@@ -212,46 +212,18 @@ export default (code, module = Prefs.module) => {
     console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n') + '\n');
   }
 
-  if (Prefs.emscripten) {
-    const tmpFile = 'porffor_tmp.wasm';
-    const cO = Prefs._cO ?? 'Oz';
+  if (Prefs.wasmOpt) {
+    if (logProgress) progressStart('wasm-opt...');
 
-    const args = [
-      'emcc',
-      '-xc', '-', // use stdin as c source in
-      '-s', 'STANDALONE_WASM=1',
-      '-s', 'NO_FILESYSTEM=1',
-      '-s', 'EXPORTED_FUNCTIONS=\'["_m"]\'',
-      '-nostartfiles',
-      '-Wl,--no-entry',
-      '-o', tmpFile,
-      '-' + cO,
-      Prefs.d ? '-g' : ''
-    ];
-
-    if (Prefs.clangFast) args.push('-flto=thin', '-march=native', '-ffast-math', '-fno-asynchronous-unwind-tables');
-
-    if (Prefs.s) args.push('-s');
-
-    Prefs['2cWasmImports'] = true;
-    const c = toc(out)
-    .replace(`int main()`, `
-void __wasi_proc_exit(int code) {
-  __builtin_trap();
-}
-
-int m()`);
-    Prefs['2cWasmImports'] = false;
-
-    // obvious command escape is obvious
-    execSync(args.join(' '), {
-      stdio: [ 'pipe', 'inherit', 'inherit' ],
-      input: c,
-      encoding: 'utf8'
+    const t4 = performance.now();
+    const newWasm = execSync(`wasm-opt -all -O4 -o -`, {
+      stdio: [ 'pipe', 'pipe', 'pipe' ],
+      input: wasm,
+      encoding: null
     });
+    wasm = out.wasm = new Uint8Array(newWasm);
 
-    out.wasm = wasm = fs.readFileSync(tmpFile, null);
-    fs.unlinkSync(tmpFile);
+    if (logProgress) progressDone('wasm-opt', t4);
   }
 
   if (target === 'wasm' && outFile) {

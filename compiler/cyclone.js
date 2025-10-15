@@ -19,11 +19,15 @@ const f64ToI32Op = {
 // const inv = (obj, keyMap = x => x) => Object.keys(obj).reduce((acc, x) => { acc[keyMap(obj[x])] = x; return acc; }, {});
 // const invOpcodes = inv(Opcodes);
 
-export default ({ name, wasm, locals: _locals, params }) => {
+export default ({ name, wasm, locals: _locals, params }, _globals) => {
   let locals = Object.values(_locals);
-  const localNames = Object.keys(_locals);
+  // const localNames = Object.keys(_locals);
   const localValtypes = locals.map(x => x.type);
   const localNeeded = new Array(locals.length).fill(0);
+
+  let globals = Object.values(_globals);
+  const globalValtypes = globals.map(x => x.type);
+  // const globalNeeded = new Array(globals.length).fill(0);
 
   // every pass does the same initial low level things
   // each subsequent pass does it again and does more high-level things
@@ -42,6 +46,7 @@ export default ({ name, wasm, locals: _locals, params }) => {
 
     const reset = () => {
       locals = new Array(locals.length).fill(false);
+      globals = new Array(globals.length).fill(false);
       empty();
     };
 
@@ -467,7 +472,7 @@ export default ({ name, wasm, locals: _locals, params }) => {
           break;
         }
 
-        case Opcodes.f64_copysign: { // ?
+        case Opcodes.f64_copysign: { // todo: check behavior
           if (stack.length < 2) { empty(); break; };
           const [ b, a ] = pop2();
           const v = Math.abs(a) * (b > 0 ? 1 : -1);
@@ -564,6 +569,29 @@ export default ({ name, wasm, locals: _locals, params }) => {
           locals[op[1]] = x;
           replaceVal(x, localValtypes[op[1]]);
           push(x);
+          break;
+        }
+
+        case Opcodes.global_get: {
+          const x = globals[op[1]];
+          if (x === false) {
+            empty();
+          } else {
+            replaceVal(x, globalValtypes[op[1]]);
+            push(x);
+          }
+          break;
+        }
+
+        case Opcodes.global_set: {
+          if (stack.length < 1) {
+            globals[op[1]] = false;
+            empty();
+            break;
+          }
+
+          const x = peek();
+          globals[op[1]] = x;
           break;
         }
 
