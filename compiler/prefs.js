@@ -1,4 +1,4 @@
-const onByDefault = [ 'treeshakeWasmImports', 'alwaysMemory', 'indirectCalls', 'optUnused', 'data', 'passiveData', 'rmUnusedTypes', 'optTypes', 'coctc', 'ctHash' ];
+const onByDefault = [ 'treeshakeWasmImports', 'alwaysMemory', 'indirectCalls', 'optUnused', 'data', 'passiveData', 'rmUnusedTypes', 'optTypes', 'coctc', 'ctHash', 'closures' ];
 
 const nameToKey = x => x.replace(/[a-z]\-[a-z]/g, y => `${y[0]}${y[2].toUpperCase()}`);
 

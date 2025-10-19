@@ -3,6 +3,7 @@ import { number, ieee754_binary64, signedLEB128, unsignedLEB128, encodeVector } 
 import { operatorOpcode } from './expression.js';
 import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './builtins.js';
 import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
+import semantic from './semantic.js';
 import parse from './parse.js';
 import { log } from './log.js';
 import './prefs.js';
@@ -2230,7 +2231,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
       try {
         parsed = {
           type: 'BlockStatement',
-          body: parse(code).body.map(objectHack)
+          body: semantic(objectHack(parse(code)), decl._semanticScopes).body
         };
       } catch (e) {
         if (e.name === 'SyntaxError') {
@@ -2275,7 +2276,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       let parsed;
       try {
-        parsed = objectHack(parse(`(function(${args.join(',')}){${code}})`));
+        parsed = semantic(objectHack(parse(`(function(${args.join(',')}){${code}})`)), decl._semanticScopes);
       } catch (e) {
         if (e.name === 'SyntaxError') {
           // throw syntax errors of evals at runtime instead
@@ -3240,6 +3241,7 @@ const setDefaultFuncName = (decl, name) => {
     }
   }
 
+  name = name.split('#')[0];
   decl.id = { name };
 };
 
@@ -3286,7 +3288,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
           params: parameters.map(x => Valtype.i32),
           returns: result ? [ Valtype.i32 ] : [],
           returnType: TYPES.number
-        })
+        });
       }
 
       return [ [ null, 'dlopen', path, symbols ] ];
@@ -6723,9 +6725,13 @@ const objectHack = node => {
   }
 
   for (const x in node) {
-    if (node[x] != null && typeof node[x] === 'object') {
+    if (node[x] != null && typeof node[x] === 'object' && x[0] !== '_') {
       if (node[x].type) node[x] = objectHack(node[x]);
-      if (Array.isArray(node[x])) node[x] = node[x].map(objectHack);
+      if (Array.isArray(node[x])) {
+        for (let i = 0; i < node[x].length; i++) {
+          node[x][i] = objectHack(node[x][i]);
+        }
+      }
     }
   }
 
@@ -6790,7 +6796,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       // generating, stub _wasm
       let wasm = func.wasm = [];
 
-      let body = objectHack(decl.body);
+      let body = decl.body;
       if (decl.type === 'ArrowFunctionExpression' && decl.expression) {
         // hack: () => 0 -> () => return 0
         body = {
@@ -7380,6 +7386,10 @@ export default program => {
     const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
     objectHackers = ['assert', 'compareArray', 'Test262Error', ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x))];
   }
+
+  // todo/perf: make this lazy per func (again)
+  program = objectHack(program);
+  if (Prefs.closures) program = semantic(program);
 
   generateFunc({}, {
     type: 'Program',
