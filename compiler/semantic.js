@@ -1,7 +1,3 @@
-// todo: sloppy vs strict mode
-// todo: function/class decls ?
-// todo: function params
-
 const varId = name => {
   const lastFunc = scopes[scopes.lastFuncs.at(-1)];
   lastFunc._variableIds ??= Object.create(null);
@@ -14,7 +10,18 @@ const varId = name => {
 };
 
 const declVar = (name, kind, node) => {
-  const parent = kind === 'var' ? scopes[scopes.lastFuncs.at(-1)] : scopes.at(-1);
+  let parent;
+  if (kind === 'var') {
+    parent = scopes[scopes.lastFuncs.at(-1)];
+    // same id for redecl
+    if (parent._variables?.[name]) {
+      parent._variables[name].node = node;
+      return;
+    }
+  } else {
+    parent = scopes.at(-1);
+  }
+
   parent._variables ??= Object.create(null);
   parent._variables[name] = { node, id: varId(name) };
 };
@@ -53,8 +60,13 @@ const analyzePattern = (kind, node) => {
 };
 
 let scopes;
-const analyze = node => {
+const analyze = (node, strict = false) => {
   if (!node) return;
+
+  const top = scopes.at(-1);
+  if (node.directive === 'use strict') {
+    top._strict = true;
+  }
 
   let openedScope = false;
   switch (node.type) {
@@ -77,18 +89,31 @@ const analyze = node => {
       for (const x of node.declarations) analyzePattern(node.kind, x.id);
       break;
 
+    case 'ClassDeclaration':
+      if (node.id?.name) declVar(node.id.name, 'let', node);
+      break;
+
     case 'FunctionDeclaration':
+      if (node.id?.name) if (strict) {
+        declVar(node.id.name, 'let', node);
+      } else {
+        declVar(node.id.name, 'var', node);
+      }
     case 'FunctionExpression':
     case 'ArrowFunctionExpression':
       scopes.lastFuncs.push(scopes.length);
+      scopes.push(node);
+      openedScope = true;
+
+      for (const p of node.params) analyzePattern('var', p);
       break;
   }
 
   for (const x in node) {
     if (node[x] != null && typeof node[x] === 'object') {
-      if (node[x].type) analyze(node[x]);
+      if (node[x].type) analyze(node[x], strict || top._strict);
       if (Array.isArray(node[x])) {
-        for (const y of node[x]) analyze(y);
+        for (const y of node[x]) analyze(y, strict || top._strict);
       }
     }
   }
@@ -138,19 +163,21 @@ const annotate = node => {
     case 'CallExpression':
       if (node.callee.name === 'eval' || (node.callee.type === 'SequenceExpression' && node.callee.expressions.at(-1)?.name === 'eval')) {
         if (node.callee.type === 'SequenceExpression' || node.optional) {
-          // indirect eval, no scopes
-          node._semanticScopes = [ node ];
+          // indirect eval, only top scope
+          node._semanticScopes = [ scopes[0], node ];
           node._semanticScopes.lastFuncs = [ 0 ];
         } else {
           // direct eval, use existing scope
           node._semanticScopes = Object.assign([], scopes);
+          node._semanticScopes.push(node);
         }
       }
 
     case 'NewExpression':
       if (node.callee.name === 'Function') {
-        // todo: this is probably wrong and needs to add own new scope
-        node._semanticScopes = Object.assign([], scopes);
+        // new Function(...) - use global scope and self as scope
+        node._semanticScopes = [ scopes[0], node ];
+        node._semanticScopes.lastFuncs = [ 0, 1 ];
       }
       break;
   }
