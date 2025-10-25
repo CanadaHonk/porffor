@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import compile from '../compiler/wrap.js';
+import { log } from '../compiler/log.js';
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -29,8 +30,24 @@ Prefs.lambda = true;
 
 compile(source, true);
 
-if (Prefs.d) execSync(`gcc -lm -O0 -g -flto -march=x86-64-v3 -o ${binaryPath} ${cPath}`, { stdio: 'inherit' });
-  else execSync(`gcc -lm -Os -s -flto -march=x86-64-v3 -o ${binaryPath} ${cPath}`, { stdio: 'inherit' });
+let compiler = process.env.CC;
+if (!compiler) {
+  try {
+    execSync('musl-gcc --version');
+    compiler = 'musl-gcc';
+  } catch {
+    // todo: this should be in future docs somewhere and linked instead
+    log.warning('lambda', `musl-gcc is recommended for Lambda as it noticably improves deployed performance. install it or explicitly specify a compiler via CC to hide this warning. defaulting to gcc.`);
+    compiler = 'gcc';
+  }
+}
+
+if (Prefs.d) {
+  execSync(`${compiler} -lm -O0 -g -flto -march=x86-64-v3 -o ${binaryPath} ${cPath}`, { stdio: 'inherit' });
+} else {
+  execSync(`${compiler} ${compiler === 'musl-gcc' ? '-static' : ''} -lm -O3 -fomit-frame-pointer -s -flto -march=x86-64-v3 -ffunction-sections -fdata-sections -Wl,--gc-sections -o ${binaryPath} ${cPath}`, { stdio: 'inherit' });
+  execSync(`strip ${binaryPath}`, { stdio: 'inherit' });
+}
 
 try {
   execSync(`zip -r "${outputZip}" ${binaryPath}`, { stdio: 'inherit' });
