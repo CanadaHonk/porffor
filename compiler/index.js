@@ -1,4 +1,3 @@
-import { Buffer } from 'node:buffer';
 import { underline, bold, log } from './log.js';
 import { Valtype, PageSize } from './wasmSpec.js';
 import parse from './parse.js';
