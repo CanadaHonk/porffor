@@ -2393,10 +2393,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
 
       protoBC.default = decl.optional ?
         withType(scope, [ number(UNDEFINED) ], TYPES.undefined) :
-        generate(scope, {
-          ...decl,
-          _protoInternalCall: true
-        });
+        (Prefs.neverFallbackBuiltinProto ?
+          internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`, true) :
+          generate(scope, {
+            ...decl,
+            _protoInternalCall: true
+          }));
 
       // fallback to object prototype impl as a basic prototype chain hack
       if (protoBC[TYPES.object]) {
