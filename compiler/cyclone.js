@@ -91,7 +91,7 @@ export default ({ name, wasm, locals: _locals, params }, _globals) => {
       // if (Prefs.f === name) console.log(invOpcodes[opcode], stack);
       switch (opcode) {
         case Opcodes.if: {
-          if (stack.length < 1) { empty(); break; }
+          if (stack.length < 1) { reset(); break; }
           const cond = bool(pop());
 
           // find else split and end
@@ -598,7 +598,6 @@ export default ({ name, wasm, locals: _locals, params }, _globals) => {
         case Opcodes.block:
         case Opcodes.loop:
         case Opcodes.try:
-        case Opcodes.if:
         case Opcodes.else:
         case Opcodes.catch:
         case Opcodes.end: {
