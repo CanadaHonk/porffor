@@ -1411,6 +1411,165 @@ export const BuiltinFuncs = () => {
     ]
   };
 
+  // allow non-comptime redefinition later in precompiled
+  const comptime = (name, returnType, comptime) => {
+    let v = {
+      returnType,
+      comptime,
+      params: [],
+      locals: [],
+      returns: []
+    };
+
+    Object.defineProperty(_, name, {
+      get() {
+        return v;
+      },
+      set(x) {
+        // v = { ...x, comptime, returnType };
+        x.comptime = comptime;
+        x.returnType = returnType;
+        v = x;
+      }
+    });
+  };
+
+  comptime('__Array_of', TYPES.array, (scope, decl, { generate }) => generate(scope, {
+    type: 'ArrayExpression',
+    elements: decl.arguments
+  }));
+
+  comptime('__Porffor_fastOr', TYPES.boolean, (scope, decl, { generate }) => {
+    const out = [];
+
+    for (let i = 0; i < decl.arguments.length; i++) {
+      out.push(
+        ...generate(scope, decl.arguments[i]),
+        Opcodes.i32_to_u,
+        ...(i > 0 ? [ [ Opcodes.i32_or ] ] : [])
+      );
+    }
+
+    out.push(Opcodes.i32_from_u);
+    return out;
+  });
+
+  comptime('__Porffor_fastAnd', TYPES.boolean, (scope, decl, { generate }) => {
+    const out = [];
+
+    for (let i = 0; i < decl.arguments.length; i++) {
+      out.push(
+        ...generate(scope, decl.arguments[i]),
+        Opcodes.i32_to_u,
+        ...(i > 0 ? [ [ Opcodes.i32_and ] ] : [])
+      );
+    }
+
+    out.push(Opcodes.i32_from_u);
+    return out;
+  });
+
+  comptime('__Math_max', TYPES.number, (scope, decl, { generate }) => {
+    const out = [
+      number(-Infinity)
+    ];
+
+    for (let i = 0; i < decl.arguments.length; i++) {
+      out.push(
+        ...generate(scope, decl.arguments[i]),
+        [ Opcodes.f64_max ]
+      );
+    }
+
+    return out;
+  });
+
+  comptime('__Math_min', TYPES.number, (scope, decl, { generate }) => {
+    const out = [
+      number(Infinity)
+    ];
+
+    for (let i = 0; i < decl.arguments.length; i++) {
+      out.push(
+        ...generate(scope, decl.arguments[i]),
+        [ Opcodes.f64_min ]
+      );
+    }
+
+    return out;
+  });
+
+  comptime('__Porffor_printStatic', TYPES.undefined, (scope, decl, { printStaticStr }) => {
+    const str = decl.arguments[0].value;
+    const out = printStaticStr(scope, str);
+    out.push(number(UNDEFINED));
+    return out;
+  });
+
+  comptime('__Porffor_type', TYPES.number, (scope, decl, { getNodeType }) => [
+    ...getNodeType(scope, decl.arguments[0]),
+    Opcodes.i32_from_u
+  ]);
+
+  comptime('__Porffor_compileType', TYPES.bytestring, (scope, decl, { makeString, knownType }) =>
+    makeString(scope, TYPE_NAMES[knownType(scope, getNodeType(scope, decl.arguments[0]))] ?? 'unknown')
+  );
+
+  // Porffor.call(func, argArray, this, newTarget)
+  comptime('__Porffor_call', TYPES.number, (scope, decl, { generate, getNodeType }) => generate(scope, {
+    type: 'CallExpression',
+    callee: decl.arguments[0],
+    arguments: [ {
+      type: 'SpreadElement',
+      argument: decl.arguments[1],
+    } ],
+    _thisWasm: decl.arguments[2].value === null ? null : [
+      ...generate(scope, decl.arguments[2]),
+      ...getNodeType(scope, decl.arguments[2])
+    ],
+    _newTargetWasm: decl.arguments[3].value === null ? null : [
+      ...generate(scope, decl.arguments[3]),
+      ...getNodeType(scope, decl.arguments[3])
+    ],
+    _new: decl.arguments[3].value !== null,
+    _forceCreateThis: true
+  }));
+
+  // compile-time aware console.log to optimize fast paths
+  // todo: this breaks console.group, etc - disable this if those are used but edge case for now
+  comptime('__console_log', TYPES.undefined, (scope, decl, { generate, getNodeType, knownTypeWithGuess, printStaticStr }) => {
+    const slow = () => {
+      decl._noInternalConstr = true;
+      return generate(scope, decl);
+    };
+    const fast = name => {
+      return [
+        ...generate(scope, {
+          ...decl,
+          callee: {
+            type: 'Identifier',
+            name
+          }
+        }),
+        ...printStaticStr(scope, '\n')
+      ];
+    };
+    if (decl.arguments.length !== 1) return slow();
+
+    generate(scope, decl.arguments[0]); // generate first to get accurate type
+    const type = knownTypeWithGuess(scope, getNodeType(scope, decl.arguments[0]));
+
+    // if we know the type skip the entire print logic, use type's func directly
+    if (type === TYPES.string || type === TYPES.bytestring) {
+      return fast('__Porffor_printString');
+    } else if (type === TYPES.number) {
+      return fast('print');
+    }
+
+    // one arg, skip most of console to avoid rest arg etc
+    return fast('__Porffor_consolePrint');
+  });
+
   PrecompiledBuiltins.BuiltinFuncs(_);
   return _;
 };

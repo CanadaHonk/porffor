@@ -79,7 +79,7 @@ const isFuncType = type =>
   type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression' ||
   type === 'ClassDeclaration' || type === 'ClassExpression';
 const hasFuncWithName = name =>
-  name in funcIndex || name in builtinFuncs || name in importedFuncs || name in internalConstrs;
+  name in funcIndex || name in builtinFuncs || name in importedFuncs;
 
 const astCache = new WeakMap();
 const cacheAst = (decl, wasm) => {
@@ -614,9 +614,6 @@ const lookup = (scope, name, failEarly = false) => {
 
   if (name in builtinFuncs) {
     if (!(name in funcIndex)) includeBuiltin(scope, name);
-  } else if (name in internalConstrs) {
-    // todo: return an actual something
-    return [ number(1) ];
   }
 
   if (local?.idx === undefined) {
@@ -1528,8 +1525,8 @@ const asmFunc = (name, func) => {
   func = { ...func };
   let { wasm, params = [], locals: localTypes = [], localNames = [], table, usesTag, returnTypes, returnType } = func;
   if (wasm == null) { // called with no built-in
-    log.warning('codegen', `${name} has no built-in!`);
-    wasm = [];
+    if (!func.comptime) log.warning('codegen', `${name} has no built-in!`);
+    wasm = () => [];
   }
 
   const existing = builtinFuncByName(name);
@@ -1782,7 +1779,6 @@ const getNodeType = (scope, node) => {
       }
 
       if (name in builtinFuncs && builtinFuncs[name].returnType != null) return builtinFuncs[name].returnType;
-      if (name in internalConstrs && internalConstrs[name].type != null) return internalConstrs[name].type;
 
       if (name.startsWith('__Porffor_wasm_')) {
         // todo: return undefined for non-returning ops
@@ -2449,9 +2445,6 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   let idx;
   if (decl._funcIdx) {
     idx = decl._funcIdx;
-  } else if (name in internalConstrs && !decl._noInternalConstr) {
-    if (decl._new && internalConstrs[name].notConstr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
-    return internalConstrs[name].generate(scope, decl, _global, _name);
   } else if (name in funcIndex) {
     idx = funcIndex[name];
   } else if (scope.name === name) {
@@ -2462,6 +2455,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     scope.usesImports = true;
   } else if (name in builtinFuncs) {
     if (decl._new && !builtinFuncs[name].constr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
+    if (builtinFuncs[name].comptime && !decl._noComptime) return builtinFuncs[name].comptime(scope, decl, { generate, getNodeType, knownTypeWithGuess, makeString, printStaticStr });
 
     includeBuiltin(scope, name);
     idx = funcIndex[name];
@@ -7164,187 +7158,6 @@ const generateBlock = (scope, decl) => {
 
   if (out.length === 0) out.push(number(UNDEFINED));
   return out;
-};
-
-const internalConstrs = {
-  __proto__: null,
-  __Array_of: {
-    // this is not a constructor but best fits internal structure here
-    generate: (scope, decl, global, name) => {
-      // Array.of(i0, i1, ...)
-      return generateArray(scope, {
-        elements: decl.arguments
-      }, global, name);
-    },
-    type: TYPES.array,
-    notConstr: true
-  },
-
-  __Porffor_fastOr: {
-    generate: (scope, decl) => {
-      const out = [];
-
-      for (let i = 0; i < decl.arguments.length; i++) {
-        out.push(
-          ...generate(scope, decl.arguments[i]),
-          Opcodes.i32_to_u,
-          ...(i > 0 ? [ [ Opcodes.i32_or ] ] : [])
-        );
-      }
-
-      out.push(Opcodes.i32_from_u);
-
-      return out;
-    },
-    type: TYPES.boolean,
-    notConstr: true
-  },
-
-  __Porffor_fastAnd: {
-    generate: (scope, decl) => {
-      const out = [];
-
-      for (let i = 0; i < decl.arguments.length; i++) {
-        out.push(
-          ...generate(scope, decl.arguments[i]),
-          Opcodes.i32_to_u,
-          ...(i > 0 ? [ [ Opcodes.i32_and ] ] : [])
-        );
-      }
-
-      out.push(Opcodes.i32_from_u);
-
-      return out;
-    },
-    type: TYPES.boolean,
-    notConstr: true
-  },
-
-  __Math_max: {
-    generate: (scope, decl) => {
-      const out = [
-        number(-Infinity)
-      ];
-
-      for (let i = 0; i < decl.arguments.length; i++) {
-        out.push(
-          ...generate(scope, decl.arguments[i]),
-          [ Opcodes.f64_max ]
-        );
-      }
-
-      return out;
-    },
-    type: TYPES.number,
-    notConstr: true
-  },
-
-  __Math_min: {
-    generate: (scope, decl) => {
-      const out = [
-        number(Infinity)
-      ];
-
-      for (let i = 0; i < decl.arguments.length; i++) {
-        out.push(
-          ...generate(scope, decl.arguments[i]),
-          [ Opcodes.f64_min ]
-        );
-      }
-
-      return out;
-    },
-    type: TYPES.number,
-    notConstr: true
-  },
-
-  __Porffor_printStatic: {
-    generate: (scope, decl) => {
-      const str = decl.arguments[0].value;
-      const out = printStaticStr(scope, str);
-      out.push(number(UNDEFINED));
-      return out;
-    },
-    type: TYPES.undefined,
-    notConstr: true
-  },
-
-  __Porffor_type: {
-    generate: (scope, decl) => [
-      ...getNodeType(scope, decl.arguments[0]),
-      Opcodes.i32_from_u
-    ],
-    type: TYPES.number,
-    notConstr: true
-  },
-
-  __Porffor_compileType: {
-    generate: (scope, decl) => makeString(scope, TYPE_NAMES[knownType(scope, getNodeType(scope, decl.arguments[0]))] ?? 'unknown'),
-    type: TYPES.bytestring,
-    notConstr: true
-  },
-
-  __Porffor_call: {
-    // Porffor.call(func, argArray, this, newTarget)
-    generate: (scope, decl) => generate(scope, {
-      type: 'CallExpression',
-      callee: decl.arguments[0],
-      arguments: [ {
-        type: 'SpreadElement',
-        argument: decl.arguments[1],
-      } ],
-      _thisWasm: decl.arguments[2].value === null ? null : [
-        ...generate(scope, decl.arguments[2]),
-        ...getNodeType(scope, decl.arguments[2])
-      ],
-      _newTargetWasm: decl.arguments[3].value === null ? null : [
-        ...generate(scope, decl.arguments[3]),
-        ...getNodeType(scope, decl.arguments[3])
-      ],
-      _new: decl.arguments[3].value !== null,
-      _forceCreateThis: true
-    }),
-    notConstr: true
-  },
-
-  __console_log: {
-    // compile-time aware console.log to optimize fast paths
-    // todo: this breaks console.group, etc - disable this if those are used but edge case for now
-    generate: (scope, decl) => {
-      const slow = () => {
-        decl._noInternalConstr = true;
-        return generate(scope, decl);
-      };
-      const fast = name => {
-        return [
-          ...generate(scope, {
-            ...decl,
-            callee: {
-              type: 'Identifier',
-              name
-            }
-          }),
-          ...printStaticStr(scope, '\n')
-        ];
-      };
-      if (decl.arguments.length !== 1) return slow();
-
-      generate(scope, decl.arguments[0]); // generate first to get accurate type
-      const type = knownTypeWithGuess(scope, getNodeType(scope, decl.arguments[0]));
-
-      // if we know the type skip the entire print logic, use type's func directly
-      if (type === TYPES.string || type === TYPES.bytestring) {
-        return fast('__Porffor_printString');
-      } else if (type === TYPES.number) {
-        return fast('print');
-      }
-
-      // one arg, skip most of console to avoid rest arg etc
-      return fast('__Porffor_consolePrint');
-    },
-    type: TYPES.undefined,
-    notConstr: true
-  }
 };
 
 let globals, tags, exceptions, funcs, indirectFuncs, funcIndex, currentFuncIndex, depth, pages, data, typeswitchDepth, usedTypes, coctc, globalInfer, builtinFuncs, builtinVars, lastValtype;
