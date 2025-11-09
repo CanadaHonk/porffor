@@ -1,6 +1,6 @@
 {
   "name": "@honk/porffor",
-  "version": "0.60.28",
+  "version": "0.60.29",
   "exports": "./compiler/wrap.js",
   "publish": {
     "exclude": [

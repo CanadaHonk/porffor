@@ -1,169 +1,222 @@
 import type {} from './porffor.d.ts';
 
-export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestring|undefined): bytestring|undefined => {
+export const __Porffor_bytestring_bufferStr = (buffer: i32, str: bytestring): i32 => {
+  const len: i32 = str.length;
+  let strPtr: i32 = Porffor.wasm`local.get ${str}`;
+  let ptr: i32 = Porffor.wasm`local.get ${buffer}`;
+  let endPtr: i32 = ptr + len;
+
+  while (ptr + 4 <= endPtr) {
+    Porffor.wasm.i32.store(ptr, Porffor.wasm.i32.load(strPtr, 0, 4), 0, 4);
+    ptr += 4;
+    strPtr += 4;
+  }
+
+  while (ptr < endPtr) {
+    Porffor.wasm.i32.store8(ptr++, Porffor.wasm.i32.load8_u(strPtr++, 0, 4), 0, 4);
+  }
+
+  return ptr;
+};
+
+export const __Porffor_bytestring_bufferChar = (buffer: i32, char: i32): i32 => {
+  Porffor.wasm.i32.store8(buffer, char, 0, 4);
+  return buffer + 1;
+};
+
+export const __Porffor_bytestring_buffer2Char = (buffer: i32, char1: i32, char2: i32): i32 => {
+  Porffor.wasm.i32.store8(buffer, char1, 0, 4);
+  Porffor.wasm.i32.store8(buffer + 1, char2, 0, 4);
+  return buffer + 2;
+};
+
+export const __Porffor_json_canSerialize = (value: any): boolean => {
+  if (Porffor.fastOr(
+    value === null,
+    value === true,
+    value === false,
+    (Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring,
+    Porffor.type(value) == Porffor.TYPES.stringobject,
+    Porffor.type(value) == Porffor.TYPES.number,
+    Porffor.type(value) == Porffor.TYPES.numberobject,
+    Porffor.type(value) == Porffor.TYPES.array,
+    Porffor.type(value) > Porffor.TYPES.function
+  )) return true;
+
+  if (Porffor.type(value) == Porffor.TYPES.bigint) {
+    throw new TypeError('Cannot serialize BigInts');
+  }
+
+  return false;
+};
+
+export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, space: bytestring|undefined): i32 => {
   // somewhat modelled after 25.5.2.2 SerializeJSONProperty: https://tc39.es/ecma262/#sec-serializejsonproperty
-  if (value === null) return 'null';
-  if (value === true) return 'true';
-  if (value === false) return 'false';
+  let buffer: i32 = Porffor.wasm`local.get ${_buffer}`;
+  if (value === null) return __Porffor_bytestring_bufferStr(buffer, 'null');
+  if (value === true) return __Porffor_bytestring_bufferStr(buffer, 'true');
+  if (value === false) return __Porffor_bytestring_bufferStr(buffer, 'false');
 
   if (Porffor.fastOr(
     (Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring,
     Porffor.type(value) == Porffor.TYPES.stringobject
   )) { // string
-    const out: bytestring = Porffor.allocate();
-    Porffor.bytestring.appendChar(out, 34); // start "
+    buffer = __Porffor_bytestring_bufferChar(buffer, 34); // start "
 
     const len: i32 = value.length;
     for (let i: i32 = 0; i < len; i++) {
       const c: i32 = value.charCodeAt(i);
       if (c < 0x20) {
         if (c == 0x08) {
-          Porffor.bytestring.append2Char(out, 92, 98); // \b
+          buffer = __Porffor_bytestring_buffer2Char(buffer, 92, 98); // \b
           continue;
         }
 
         if (c == 0x09) {
-          Porffor.bytestring.append2Char(out, 92, 116); // \t
+          buffer = __Porffor_bytestring_buffer2Char(buffer, 92, 116); // \t
           continue;
         }
 
         if (c == 0x0a) {
-          Porffor.bytestring.append2Char(out, 92, 110); // \n
+          buffer = __Porffor_bytestring_buffer2Char(buffer, 92, 110); // \n
           continue;
         }
 
         if (c == 0x0c) {
-          Porffor.bytestring.append2Char(out, 92, 102); // \f
+          buffer = __Porffor_bytestring_buffer2Char(buffer, 92, 102); // \f
           continue;
         }
 
         if (c == 0x0d) {
-          Porffor.bytestring.append2Char(out, 92, 114); // \r
+          buffer = __Porffor_bytestring_buffer2Char(buffer, 92, 114); // \r
           continue;
         }
 
         // \u00FF
-        Porffor.bytestring.append2Char(out, 92, 117); // \u
-        Porffor.bytestring.append2Char(out, 48, 48); // 00
+        buffer = __Porffor_bytestring_buffer2Char(buffer, 92, 117); // \u
+        buffer = __Porffor_bytestring_buffer2Char(buffer, 48, 48); // 00
 
         const h1: i32 = (c & 0xf0) / 0x10;
         const h2: i32 = c & 0x0f;
-        Porffor.bytestring.appendChar(out, h1 < 10 ? h1 + 48 : h1 + 55); // 0-9 or A-F
-        Porffor.bytestring.appendChar(out, h2 < 10 ? h2 + 48 : h2 + 55); // 0-9 or A-F
+        buffer = __Porffor_bytestring_buffer2Char(buffer, h1 < 10 ? h1 + 48 : h1 + 55, h2 < 10 ? h2 + 48 : h2 + 55); // 0-9 or A-F
         continue;
       }
 
       if (c == 0x22) { // "
-        Porffor.bytestring.append2Char(out, 92, 34); // \"
+        buffer = __Porffor_bytestring_buffer2Char(buffer, 92, 34); // \"
         continue;
       }
 
       if (c == 0x5c) { // \
-        Porffor.bytestring.append2Char(out, 92, 92); // \\
+        buffer = __Porffor_bytestring_buffer2Char(buffer, 92, 92); // \\
         continue;
       }
 
       // todo: support non-bytestrings
-      Porffor.bytestring.appendChar(out, c);
+      buffer = __Porffor_bytestring_bufferChar(buffer, c);
     }
 
-    Porffor.bytestring.appendChar(out, 34); // final "
-    return out;
+    return __Porffor_bytestring_bufferChar(buffer, 34); // final "
   }
 
   if (Porffor.fastOr(
     Porffor.type(value) == Porffor.TYPES.number,
     Porffor.type(value) == Porffor.TYPES.numberobject
   )) { // number
-    if (Number.isFinite(value)) return value + '';
-    return 'null';
+    if (Number.isFinite(value)) {
+      return __Porffor_bytestring_bufferStr(buffer, __Number_prototype_toString(value, 10));
+    }
+
+    return __Porffor_bytestring_bufferStr(buffer, 'null');
   }
 
   if (Porffor.type(value) == Porffor.TYPES.array) {
-    const out: bytestring = Porffor.allocate();
-    Porffor.bytestring.appendChar(out, 91); // [
+    buffer = __Porffor_bytestring_bufferChar(buffer, 91); // [
 
     const hasSpace: boolean = space !== undefined;
     depth += 1;
 
     for (const x of (value as any[])) {
       if (hasSpace) {
-        Porffor.bytestring.appendChar(out, 10); // \n
-        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space as bytestring);
+        buffer = __Porffor_bytestring_bufferChar(buffer, 10); // \n
+        for (let i: i32 = 0; i < depth; i++) buffer = __Porffor_bytestring_bufferStr(buffer, space as bytestring);
       }
 
-      Porffor.bytestring.appendStr(out, __Porffor_json_serialize(x, depth, space) ?? 'null');
+      if (__Porffor_json_canSerialize(x)) {
+        buffer = __Porffor_json_serialize(buffer, x, depth, space);
+      } else {
+        // non-serializable value, write null
+        buffer = __Porffor_bytestring_bufferStr(buffer, 'null');
+      }
 
-      Porffor.bytestring.appendChar(out, 44); // ,
+      buffer = __Porffor_bytestring_bufferChar(buffer, 44); // ,
     }
 
     depth -= 1;
 
-    // swap trailing , with ] (or append if empty)
-    if (out.length > 1) {
+    // swap trailing , with ] (or \n or append if empty)
+    if ((buffer - _buffer) > 1) {
       if (hasSpace) {
-        Porffor.bytestring.appendChar(out, 10); // \n
-        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space as bytestring);
-        Porffor.bytestring.appendChar(out, 93); // ]
-      } else {
-        Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 93, 0, 3); // ]
+        Porffor.wasm.i32.store8(buffer, 10, 0, 3); // \n
+        for (let i: i32 = 0; i < depth; i++) buffer = __Porffor_bytestring_bufferStr(buffer, space as bytestring);
+        return __Porffor_bytestring_bufferChar(buffer, 93); // ]
       }
-    } else {
-      Porffor.bytestring.appendChar(out, 93); // ]
+
+      Porffor.wasm.i32.store8(buffer, 93, 0, 3); // ]
+      return buffer;
     }
 
-    return out;
+    return __Porffor_bytestring_bufferChar(buffer, 93); // ]
   }
 
   if (Porffor.type(value) > 0x06) {
     // non-function object
-    const out: bytestring = Porffor.allocate();
-    Porffor.bytestring.appendChar(out, 123); // {
+    buffer = __Porffor_bytestring_bufferChar(buffer, 123); // {
 
     const hasSpace: boolean = space !== undefined;
     depth += 1;
 
-    for (const key in (value as object)) {
+    for (const key: bytestring in (value as object)) {
       // skip symbol keys
       if (Porffor.type(key) == Porffor.TYPES.symbol) continue;
 
-      // skip non-serializable values (functions, etc)
-      const val: bytestring|undefined = __Porffor_json_serialize((value as object)[key], depth, space);
-      if (val == null) continue;
-
-      if (hasSpace) {
-        Porffor.bytestring.appendChar(out, 10); // \n
-        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space as bytestring);
+      const val: any = (value as object)[key];
+      if (!__Porffor_json_canSerialize(val)) {
+        // skip non-serializable value
+        continue;
       }
 
-      Porffor.bytestring.appendChar(out, 34); // "
-      Porffor.bytestring.appendStr(out, key);
-      Porffor.bytestring.appendChar(out, 34); // "
+      if (hasSpace) {
+        buffer = __Porffor_bytestring_bufferChar(buffer, 10); // \n
+        for (let i: i32 = 0; i < depth; i++) buffer = __Porffor_bytestring_bufferStr(buffer, space as bytestring);
+      }
 
-      Porffor.bytestring.appendChar(out, 58); // :
-      if (hasSpace) Porffor.bytestring.appendChar(out, 32); // space
+      buffer = __Porffor_bytestring_bufferChar(buffer, 34); // "
+      buffer = __Porffor_bytestring_bufferStr(buffer, key);
+      buffer = __Porffor_bytestring_bufferChar(buffer, 34); // "
 
-      Porffor.bytestring.appendStr(out, val);
+      buffer = __Porffor_bytestring_bufferChar(buffer, 58); // :
+      if (hasSpace) buffer = __Porffor_bytestring_bufferChar(buffer, 32); // space
 
-      Porffor.bytestring.appendChar(out, 44); // ,
+      buffer = __Porffor_json_serialize(buffer, val, depth, space);
+      buffer = __Porffor_bytestring_bufferChar(buffer, 44); // ,
     }
 
     depth -= 1;
 
-    // swap trailing , with } (or append if empty)
-    if (out.length > 1) {
+    // swap trailing , with } (or \n or append if empty)
+    if ((buffer - _buffer) > 1) {
       if (hasSpace) {
-        Porffor.bytestring.appendChar(out, 10); // \n
-        for (let i: i32 = 0; i < depth; i++) Porffor.bytestring.appendStr(out, space as bytestring);
-        Porffor.bytestring.appendChar(out, 125); // }
-      } else {
-        Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + out.length, 125, 0, 3); // }
+        Porffor.wasm.i32.store8(buffer, 10, 0, 3); // \n
+        for (let i: i32 = 0; i < depth; i++) buffer = __Porffor_bytestring_bufferStr(buffer, space as bytestring);
+        return __Porffor_bytestring_bufferChar(buffer, 125); // }
       }
-    } else {
-      Porffor.bytestring.appendChar(out, 125); // }
+
+      Porffor.wasm.i32.store8(buffer, 125, 0, 3); // }
+      return buffer;
     }
 
-    return out;
+    return __Porffor_bytestring_bufferChar(buffer, 125); // }
   }
 
   if (Porffor.type(value) == 0x04) {
@@ -171,7 +224,7 @@ export const __Porffor_json_serialize = (value: any, depth: i32, space: bytestri
     throw new TypeError('Cannot serialize BigInts');
   }
 
-  return undefined;
+  return -1;
 };
 
 export const __JSON_stringify = (value: any, replacer: any, space: any) => {
@@ -187,7 +240,7 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
       if (space < 1) {
         space = undefined;
       } else {
-        const spaceStr: bytestring = Porffor.allocate();
+        const spaceStr: bytestring = Porffor.allocateBytes(4 + space);
         for (let i: i32 = 0; i < space; i++) Porffor.bytestring.appendChar(spaceStr, 32);
 
         space = spaceStr;
@@ -209,7 +262,12 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
     }
   }
 
-  return __Porffor_json_serialize(value, 0, space);
+  const buffer: bytestring = Porffor.allocate();
+  const out = __Porffor_json_serialize(buffer, value, 0, space);
+  if (out == -1) return undefined;
+
+  buffer.length = out - (buffer as i32);
+  return buffer;
 };
 
 
