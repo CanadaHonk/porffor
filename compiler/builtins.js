@@ -1539,21 +1539,23 @@ export const BuiltinFuncs = () => {
   // todo: this breaks console.group, etc - disable this if those are used but edge case for now
   comptime('__console_log', TYPES.undefined, (scope, decl, { generate, getNodeType, knownTypeWithGuess, printStaticStr }) => {
     const slow = () => {
-      decl._noInternalConstr = true;
+      decl._noComptime = true;
       return generate(scope, decl);
     };
     const fast = name => {
       return [
-        ...generate(scope, {
+        ...(!name ? [ number(UNDEFINED) ] : generate(scope, {
           ...decl,
           callee: {
             type: 'Identifier',
             name
           }
-        }),
+        })),
         ...printStaticStr(scope, '\n')
       ];
     };
+
+    if (decl.arguments.length === 0) return fast();
     if (decl.arguments.length !== 1) return slow();
 
     generate(scope, decl.arguments[0]); // generate first to get accurate type
