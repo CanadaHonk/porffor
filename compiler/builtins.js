@@ -1411,6 +1411,17 @@ export const BuiltinFuncs = () => {
     ]
   };
 
+  _.__Porffor_memorySize = {
+    params: [],
+    returns: [ Valtype.i32 ],
+    returnType: TYPES.number,
+    wasm: () => [
+      [ Opcodes.memory_size, 0 ],
+      number(PageSize, Valtype.i32),
+      [ Opcodes.i32_mul ]
+    ]
+  };
+
   // allow non-comptime redefinition later in precompiled
   const comptime = (name, returnType, comptime) => {
     let v = {
