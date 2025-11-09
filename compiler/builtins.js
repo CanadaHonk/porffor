@@ -1527,7 +1527,7 @@ export const BuiltinFuncs = () => {
   );
 
   // Porffor.call(func, argArray, this, newTarget)
-  comptime('__Porffor_call', TYPES.number, (scope, decl, { generate, getNodeType }) => generate(scope, {
+  comptime('__Porffor_call', undefined, (scope, decl, { generate, getNodeType }) => generate(scope, {
     type: 'CallExpression',
     callee: decl.arguments[0],
     arguments: [ {
