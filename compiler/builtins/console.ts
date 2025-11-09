@@ -1,6 +1,6 @@
 import type {} from './porffor.d.ts';
 
-export const __Porffor_printString = (arg: bytestring|string) => {
+export const __Porffor_printString = (arg: bytestring|string): void => {
   let ptr: i32 = Porffor.wasm`local.get ${arg}`;
   if (Porffor.type(arg) == Porffor.TYPES.bytestring) {
     const end: i32 = ptr + arg.length;
@@ -16,7 +16,7 @@ export const __Porffor_printString = (arg: bytestring|string) => {
   }
 };
 
-export const __Porffor_printHexDigit = (arg: number) => {
+export const __Porffor_printHexDigit = (arg: number): void => {
   switch (arg) {
     case 0xf: Porffor.printStatic('f'); return;
     case 0xe: Porffor.printStatic('e'); return;
@@ -29,7 +29,7 @@ export const __Porffor_printHexDigit = (arg: number) => {
   }
 };
 
-export const __Porffor_print = (arg: any, colors: boolean = true, depth: number = 0) => {
+export const __Porffor_print = (arg: any, colors: boolean = true, depth: number = 0): void => {
   const __Porffor_printArray = (arg: any[]|Uint8Array|Int8Array|Uint8ClampedArray|Uint16Array|Int16Array|Uint32Array|Int32Array|Float32Array|Float64Array, colors: boolean, length: boolean = false) => {
     const arrLen: i32 = arg.length;
     if (length) {
@@ -299,18 +299,18 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
 };
 
 let tabLevel: i32 = 0;
-export const __Porffor_consoleIndent = () => {
+export const __Porffor_consoleIndent = (): void => {
   for (let i: i32 = 0; i < tabLevel; i++) {
     Porffor.printStatic('\t');
   }
 };
 
-export const __console_clear = () => {
+export const __console_clear = (): void => {
   Porffor.printStatic('\x1b[1;1H\x1b[J');
   tabLevel = 0;
 };
 
-export const __Porffor_consolePrint = (arg: any) => {
+export const __Porffor_consolePrint = (arg: any): void => {
   if (Porffor.fastOr(Porffor.type(arg) == Porffor.TYPES.bytestring, Porffor.type(arg) == Porffor.TYPES.string)) {
     __Porffor_printString(arg);
     return;
@@ -318,7 +318,7 @@ export const __Porffor_consolePrint = (arg: any) => {
   __Porffor_print(arg);
 };
 
-export const __console_group = (label: bytestring) => {
+export const __console_group = (label: bytestring): void => {
   if (Porffor.type(label) != Porffor.TYPES.undefined) {
     __Porffor_consoleIndent();
     __Porffor_consolePrint(label);
@@ -327,14 +327,14 @@ export const __console_group = (label: bytestring) => {
   tabLevel++;
 };
 
-export const __console_groupCollapsed = (label: bytestring) => __console_group(label);
+export const __console_groupCollapsed = (label: bytestring): void => __console_group(label);
 
-export const __console_groupEnd = () => {
+export const __console_groupEnd = (): void => {
   tabLevel--;
   if (tabLevel < 0) tabLevel = 0;
 };
 
-export const __console_log = (...args: any[]) => {
+export const __console_log = (...args: any[]): void => {
   const argLen: i32 = args.length - 1;
   for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consoleIndent();
@@ -346,7 +346,7 @@ export const __console_log = (...args: any[]) => {
   Porffor.printStatic('\n');
 };
 
-export const __console_debug = (...args: any[]) => {
+export const __console_debug = (...args: any[]): void => {
   const argLen: i32 = args.length - 1;
   for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consoleIndent();
@@ -358,7 +358,7 @@ export const __console_debug = (...args: any[]) => {
   Porffor.printStatic('\n');
 };
 
-export const __console_info = (...args: any[]) => {
+export const __console_info = (...args: any[]): void => {
   const argLen: i32 = args.length - 1;
   for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consoleIndent();
@@ -370,7 +370,7 @@ export const __console_info = (...args: any[]) => {
   Porffor.printStatic('\n');
 };
 
-export const __console_warn = (...args: any[]) => {
+export const __console_warn = (...args: any[]): void => {
   const argLen: i32 = args.length - 1;
   for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consoleIndent();
@@ -382,7 +382,7 @@ export const __console_warn = (...args: any[]) => {
   Porffor.printStatic('\n');
 };
 
-export const __console_error = (...args: any[]) => {
+export const __console_error = (...args: any[]): void => {
   const argLen: i32 = args.length - 1;
   for (let i: i32 = 0; i <= argLen; i++) {
     __Porffor_consoleIndent();
@@ -394,7 +394,7 @@ export const __console_error = (...args: any[]) => {
   Porffor.printStatic('\n');
 };
 
-export const __console_assert = (assertion: any, ...args: any[]) => {
+export const __console_assert = (assertion: any, ...args: any[]): void => {
   if (assertion) return;
 
   __Porffor_consoleIndent();
@@ -412,7 +412,7 @@ export const __console_assert = (assertion: any, ...args: any[]) => {
   Porffor.printStatic('\n');
 };
 
-export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showHidden: boolean) => {
+export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showHidden: boolean): void => {
   if (Porffor.type(obj) != Porffor.TYPES.object || depth == 0) {
     __Porffor_print(obj, colors);
     return;
@@ -436,7 +436,7 @@ export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showH
   Porffor.printStatic(' }');
 };
 
-export const __console_dir = (obj: any, options: any) => {
+export const __console_dir = (obj: any, options: any): void => {
   let colors: boolean = true;
   let depth: i32 = 2;
 
@@ -454,10 +454,10 @@ export const __console_dir = (obj: any, options: any) => {
   Porffor.printStatic('\n');
 };
 
-export const __console_dirxml = (obj: any) => __console_dir(obj);
+export const __console_dirxml = (obj: any): void => __console_dir(obj);
 
 const countMap = new Map();
-export const __console_count = (label: any) => {
+export const __console_count = (label: any): void => {
   label ??= 'default';
   const val = (countMap.get(label) ?? 0) + 1;
   countMap.set(label, val);
@@ -469,14 +469,14 @@ export const __console_count = (label: any) => {
   Porffor.printStatic('\n');
 };
 
-export const __console_countReset = (label: any) => {
+export const __console_countReset = (label: any): void => {
   label ??= 'default';
   countMap.set(label, -1);
   __console_count(label);
 };
 
 const timeMap = new Map();
-export const __console_time = (label: any) => {
+export const __console_time = (label: any): void => {
   label ??= 'default';
 
   // warn if label already exists
@@ -489,7 +489,7 @@ export const __console_time = (label: any) => {
   timeMap.set(label, performance.now());
 };
 
-export const __console_timeLog = (label: any) => {
+export const __console_timeLog = (label: any): void => {
   label ??= 'default';
   __Porffor_consoleIndent();
 
@@ -508,14 +508,14 @@ export const __console_timeLog = (label: any) => {
   Porffor.printStatic(' ms\n');
 };
 
-export const __console_timeEnd = (label: any) => {
+export const __console_timeEnd = (label: any): void => {
   label ??= 'default';
 
   __console_timeLog(label);
   timeMap.delete(label);
 };
 
-export const __Porffor_log = (arg: any) => {
+export const __Porffor_log = (arg: any): void => {
   __Porffor_consolePrint(arg);
   Porffor.printStatic('\n');
 };
