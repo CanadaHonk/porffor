@@ -441,7 +441,8 @@ i32.load8_u 0 17
 return`;
 };
 
-export const __Porffor_object_get = (obj: any, key: any): any => {
+export const __Porffor_object_get = (_obj: any, key: any): any => {
+  let obj: any = _obj;
   const trueType: i32 = Porffor.wasm`local.get ${obj+1}`;
   if (trueType != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
 
@@ -508,7 +509,7 @@ local.set ${obj+1}`;
     const get: Function = __Porffor_object_accessorGet(entryPtr);
 
     if (Porffor.wasm`local.get ${get}` == 0) return undefined;
-    return get.call(obj);
+    return get.call(_obj);
   }
 
   // data descriptor
@@ -521,7 +522,8 @@ i32.shr_u
 return`;
 };
 
-export const __Porffor_object_get_withHash = (obj: any, key: any, hash: i32): any => {
+export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): any => {
+  let obj: any = _obj;
   const trueType: i32 = Porffor.wasm`local.get ${obj+1}`;
   if (trueType != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
 
@@ -577,7 +579,7 @@ local.set ${obj+1}`;
     const get: Function = __Porffor_object_accessorGet(entryPtr);
 
     if (Porffor.wasm`local.get ${get}` == 0) return undefined;
-    return get.call(obj);
+    return get.call(_obj);
   }
 
   // data descriptor
@@ -590,7 +592,8 @@ i32.shr_u
 return`;
 };
 
-export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
+export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
+  let obj: any = _obj;
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return value;
@@ -631,7 +634,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
           const set: Function = __Porffor_object_accessorSet(entryPtr);
           if (Porffor.wasm`local.get ${set}` == 0) return value;
 
-          set.call(obj, value);
+          set.call(_obj, value);
           return value;
         }
       }
@@ -663,7 +666,7 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
       const set: Function = __Porffor_object_accessorSet(entryPtr);
       if (Porffor.wasm`local.get ${set}` == 0) return value;
 
-      set.call(obj, value);
+      set.call(_obj, value);
       return value;
     }
 
@@ -688,7 +691,8 @@ export const __Porffor_object_set = (obj: any, key: any, value: any): any => {
   return value;
 };
 
-export const __Porffor_object_set_withHash = (obj: any, key: any, value: any, hash: i32): any => {
+export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, hash: i32): any => {
+  let obj: any = _obj;
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) return value;
@@ -722,7 +726,7 @@ export const __Porffor_object_set_withHash = (obj: any, key: any, value: any, ha
           const set: Function = __Porffor_object_accessorSet(entryPtr);
           if (Porffor.wasm`local.get ${set}` == 0) return value;
 
-          set.call(obj, value);
+          set.call(_obj, value);
           return value;
         }
       }
@@ -754,7 +758,7 @@ export const __Porffor_object_set_withHash = (obj: any, key: any, value: any, ha
       const set: Function = __Porffor_object_accessorSet(entryPtr);
       if (Porffor.wasm`local.get ${set}` == 0) return value;
 
-      set.call(obj, value);
+      set.call(_obj, value);
       return value;
     }
 
@@ -779,7 +783,8 @@ export const __Porffor_object_set_withHash = (obj: any, key: any, value: any, ha
   return value;
 };
 
-export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any => {
+export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any => {
+  let obj: any = _obj;
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
 
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
@@ -821,7 +826,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
           const set: Function = __Porffor_object_accessorSet(entryPtr);
           if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
-          set.call(obj, value);
+          set.call(_obj, value);
           return value;
         }
       }
@@ -853,7 +858,7 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
       const set: Function = __Porffor_object_accessorSet(entryPtr);
       if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
-      set.call(obj, value);
+      set.call(_obj, value);
       return value;
     }
 
@@ -878,7 +883,8 @@ export const __Porffor_object_setStrict = (obj: any, key: any, value: any): any 
   return value;
 };
 
-export const __Porffor_object_setStrict_withHash = (obj: any, key: any, value: any, hash: i32): any => {
+export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: any, hash: i32): any => {
+  let obj: any = _obj;
   if (Porffor.wasm`local.get ${obj}` == 0) throw new TypeError('Cannot set property of null');
 
   if (Porffor.wasm`local.get ${obj+1}` != Porffor.TYPES.object) {
@@ -913,7 +919,7 @@ export const __Porffor_object_setStrict_withHash = (obj: any, key: any, value: a
           const set: Function = __Porffor_object_accessorSet(entryPtr);
           if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
-          set.call(obj, value);
+          set.call(_obj, value);
           return value;
         }
       }
@@ -945,7 +951,7 @@ export const __Porffor_object_setStrict_withHash = (obj: any, key: any, value: a
       const set: Function = __Porffor_object_accessorSet(entryPtr);
       if (Porffor.wasm`local.get ${set}` == 0) throw new TypeError('Cannot set property with only getter');
 
-      set.call(obj, value);
+      set.call(_obj, value);
       return value;
     }
 
