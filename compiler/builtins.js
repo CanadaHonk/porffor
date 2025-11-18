@@ -1522,7 +1522,7 @@ export const BuiltinFuncs = () => {
     Opcodes.i32_from_u
   ]);
 
-  comptime('__Porffor_compileType', TYPES.bytestring, (scope, decl, { makeString, knownType }) =>
+  comptime('__Porffor_compileType', TYPES.bytestring, (scope, decl, { makeString, knownType, getNodeType }) =>
     makeString(scope, TYPE_NAMES[knownType(scope, getNodeType(scope, decl.arguments[0]))] ?? 'unknown')
   );
 

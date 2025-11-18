@@ -2455,7 +2455,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     scope.usesImports = true;
   } else if (name in builtinFuncs) {
     if (decl._new && !builtinFuncs[name].constr) return internalThrow(scope, 'TypeError', `${unhackName(name)} is not a constructor`, true);
-    if (builtinFuncs[name].comptime && !decl._noComptime) return builtinFuncs[name].comptime(scope, decl, { generate, getNodeType, knownTypeWithGuess, makeString, printStaticStr });
+    if (builtinFuncs[name].comptime && !decl._noComptime) return builtinFuncs[name].comptime(scope, decl, { generate, getNodeType, knownType, knownTypeWithGuess, makeString, printStaticStr });
 
     includeBuiltin(scope, name);
     idx = funcIndex[name];
