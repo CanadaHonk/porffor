@@ -21,7 +21,7 @@ export const Array = function (...args: any[]): any[] {
       )) throw new RangeError('Invalid array length');
 
       const out: any[] = Porffor.allocate();
-      out.length = arg;
+      out.length = n;
       return out;
     }
 
