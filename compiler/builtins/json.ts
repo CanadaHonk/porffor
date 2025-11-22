@@ -262,8 +262,8 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
     }
   }
 
-  const buffer: bytestring = Porffor.allocate();
-  const out = __Porffor_json_serialize(buffer, value, 0, space);
+  const buffer: bytestring = Porffor.allocateBytes(4096);
+  const out: i32 = __Porffor_json_serialize(buffer, value, 0, space);
   if (out == -1) return undefined;
 
   buffer.length = out - (buffer as i32);
