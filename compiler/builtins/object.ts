@@ -3,7 +3,7 @@ import type {} from './porffor.d.ts';
 export const Object = function (value: any): any {
   if (value == null) {
     // if nullish, return new empty object
-    return Porffor.allocate() as object;
+    return Porffor.malloc() as object;
   }
 
   // primitives into primitive objects
@@ -17,7 +17,7 @@ export const Object = function (value: any): any {
 
 export const __Object_keys = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
 
   obj = __Porffor_object_underlying(obj);
   if (Porffor.type(obj) == Porffor.TYPES.object) {
@@ -72,7 +72,7 @@ local.set ${key}`;
 
 export const __Object_values = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
 
   obj = __Porffor_object_underlying(obj);
   if (Porffor.type(obj) == Porffor.TYPES.object) {
@@ -106,7 +106,7 @@ export const __Object_values = (obj: any): any[] => {
 };
 
 export const __Object_entries = (obj: any): any[] => {
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
 
   const keys: any[] = __Object_keys(obj);
   const vals: any[] = __Object_values(obj);
@@ -116,7 +116,7 @@ export const __Object_entries = (obj: any): any[] => {
 
   for (let i: i32 = 0; i < size; i++) {
     // what is memory efficiency anyway?
-    const entry: any[] = Porffor.allocate();
+    const entry: any[] = Porffor.malloc();
 
     entry.length = 2;
     entry[0] = keys[i];
@@ -408,7 +408,7 @@ export const __Object_getOwnPropertyDescriptors = (obj: any): object => {
 
 export const __Object_getOwnPropertyNames = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
 
   obj = __Porffor_object_underlying(obj);
   if (Porffor.type(obj) == Porffor.TYPES.object) {
@@ -462,7 +462,7 @@ local.set ${key}`;
 
 export const __Object_getOwnPropertySymbols = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
 
   obj = __Porffor_object_underlying(obj);
   if (Porffor.type(obj) == Porffor.TYPES.object) {
@@ -623,7 +623,7 @@ export const __Object_groupBy = (items: any, callbackFn: any): object => {
   for (const x of items) {
     const k: any = callbackFn(x, i++);
     if (!__Object_hasOwn(out, k)) {
-      const arr: any[] = Porffor.allocate();
+      const arr: any[] = Porffor.malloc();
       out[k] = arr;
     }
 

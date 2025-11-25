@@ -5,7 +5,7 @@ export const WeakRef = function (target: any): WeakRef {
 
   if (!Porffor.object.isObjectOrSymbol(target)) throw new TypeError('Target for WeakRef needs to be an object or symbol');
 
-  const out: WeakRef = Porffor.allocateBytes(9);
+  const out: WeakRef = Porffor.malloc(9);
 
   Porffor.wasm`local.get ${out}
 i32.to_u

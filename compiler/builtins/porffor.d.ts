@@ -27,8 +27,8 @@ type PorfforGlobal = {
     }
   }
 
-  allocate(): any;
-  allocateBytes(bytes: i32): any;
+  malloc(bytes?: i32): any;
+  memorySize(): i32;
 
   set: {
     read(ptr: any, index: number): i32;

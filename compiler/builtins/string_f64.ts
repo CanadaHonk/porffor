@@ -77,7 +77,7 @@ export const String = function (...args: any[]): string|bytestring|StringObject 
 };
 
 export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
-  let out: string = Porffor.allocate();
+  let out: string = Porffor.malloc();
 
   const len: i32 = codes.length;
   out.length = len;
@@ -106,7 +106,7 @@ export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
 };
 
 export const __String_fromCodePoint = (...codePoints: any[]): string => {
-  let out: string = Porffor.allocate();
+  let out: string = Porffor.malloc();
 
   const len: i32 = codePoints.length;
   let outLength: i32 = 0;

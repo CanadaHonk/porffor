@@ -69,7 +69,7 @@ export const __Porffor_array_fastPopI32 = (arr: any[]): i32 => {
 };
 
 export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytestring): RegExp => {
-  const ptr: i32 = Porffor.allocate();
+  const ptr: i32 = Porffor.malloc();
   Porffor.wasm.i32.store(ptr, patternStr, 0, 0);
 
   // parse flags
@@ -131,9 +131,9 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
 
   let groupDepth: i32 = 0;
   // todo: free all at the end (or statically allocate but = [] causes memory corruption)
-  const groupStack: i32[] = Porffor.allocateBytes(6144);
-  const altDepth: i32[] = Porffor.allocateBytes(6144); // number of |s so far at each depth
-  const altStack: i32[] = Porffor.allocateBytes(6144);
+  const groupStack: i32[] = Porffor.malloc(6144);
+  const altDepth: i32[] = Porffor.malloc(6144); // number of |s so far at each depth
+  const altStack: i32[] = Porffor.malloc(6144);
 
   while (patternPtr < patternEndPtr) {
     let char: i32 = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
@@ -1361,7 +1361,7 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         Porffor.wasm.i32.store16(regexp, finalSp, 0, 8); // write last index
       }
 
-      const result: any[] = Porffor.allocateBytes(4096);
+      const result: any[] = Porffor.malloc(4096);
       Porffor.array.fastPush(result, __ByteString_prototype_substring(input, matchStart, finalSp));
 
       for (let k = 0; k < totalCaptures; k++) {
@@ -1418,7 +1418,7 @@ export const __RegExp_prototype_flags$get = (_this: RegExp) => {
 
   // 3. Let codeUnits be a new empty List.
   const flags: i32 = Porffor.wasm.i32.load16_u(_this, 0, 4);
-  const result: bytestring = Porffor.allocateBytes(16);
+  const result: bytestring = Porffor.malloc(16);
 
   // 4. Let hasIndices be ToBoolean(? Get(R, "hasIndices")).
   // 5. If hasIndices is true, append the code unit 0x0064 (LATIN SMALL LETTER D) to codeUnits.
@@ -1529,7 +1529,7 @@ export const __Porffor_regex_match = (regexp: any, input: any) => {
 
   if (__RegExp_prototype_global$get(regexp)) {
     // global should return all matches as just complete string result
-    const result: any[] = Porffor.allocateBytes(4096);
+    const result: any[] = Porffor.malloc(4096);
     let match: any;
     while (match = __Porffor_regex_interpret(regexp, input, false)) {
       // read ourselves as we are in i32 space
@@ -1567,7 +1567,7 @@ export const __Porffor_regex_matchAll = (regexp: any, input: any) => {
 
   if (!__RegExp_prototype_global$get(regexp)) throw new TypeError('matchAll used with non-global RegExp');
 
-  const result: any[] = Porffor.allocateBytes(4096);
+  const result: any[] = Porffor.malloc(4096);
   let match: any;
   while (match = __Porffor_regex_interpret(regexp, input, false)) {
     Porffor.array.fastPush(result, match);
@@ -1596,7 +1596,7 @@ export const __Porffor_regex_escapeX = (out: bytestring, char: i32) => {
 };
 
 export const __RegExp_escape = (str: any) => {
-  const out: bytestring = Porffor.allocate();
+  const out: bytestring = Porffor.malloc();
 
   let i: i32 = 0;
   const first: i32 = str.charCodeAt(0);

@@ -1022,89 +1022,50 @@ export const BuiltinFuncs = () => {
     ]
   };
 
-  _.__Porffor_allocate = ({
-    oneshot: {
-      params: [],
-      locals: [],
-      returns: [ Valtype.i32 ],
-      returnType: TYPES.number,
-      wasm: () => [
-        number(1, Valtype.i32),
-        [ Opcodes.memory_grow, 0 ],
-        number(PageSize, Valtype.i32),
-        [ Opcodes.i32_mul ]
-      ]
-    },
-    chunk: {
-      params: [],
-      locals: [],
-      globalInits: { chunkPtr: 0, chunkOffset: 100 * PageSize },
-      returns: [ Valtype.i32 ],
-      returnType: TYPES.number,
-      wasm: (scope, { glbl }) => [
-        // if chunkOffset >= chunks:
-        ...glbl(Opcodes.global_get, 'chunkOffset', Valtype.i32),
-        number(PageSize * (Prefs.allocatorChunks ?? 16), Valtype.i32),
-        [ Opcodes.i32_ge_s ],
-        [ Opcodes.if, Valtype.i32 ],
-          // chunkOffset = 1 page
-          number(pageSize, Valtype.i32),
-          ...glbl(Opcodes.global_set, 'chunkOffset', Valtype.i32),
-
-          // return chunkPtr = allocated
-          number(Prefs.allocatorChunks ?? 16, Valtype.i32),
-          [ Opcodes.memory_grow, 0 ],
-          number(PageSize, Valtype.i32),
-          [ Opcodes.i32_mul ],
-          ...glbl(Opcodes.global_set, 'chunkPtr', Valtype.i32),
-          ...glbl(Opcodes.global_get, 'chunkPtr', Valtype.i32),
-        [ Opcodes.else ],
-          // return chunkPtr + chunkOffset
-          ...glbl(Opcodes.global_get, 'chunkPtr', Valtype.i32),
-          ...glbl(Opcodes.global_get, 'chunkOffset', Valtype.i32),
-          [ Opcodes.i32_add ],
-
-          // chunkOffset += 1 page
-          number(pageSize, Valtype.i32),
-          ...glbl(Opcodes.global_get, 'chunkOffset', Valtype.i32),
-          [ Opcodes.i32_add ],
-          ...glbl(Opcodes.global_set, 'chunkOffset', Valtype.i32),
-        [ Opcodes.end ]
-      ]
-    }
-  })[Prefs.allocator ?? 'chunk'];
-
-  _.__Porffor_allocateBytes = {
+  _.__Porffor_malloc = {
+    defaultParam: () => ({ type: 'Literal', value: pageSize }),
     params: [ Valtype.i32 ],
     locals: [],
-    globalInits: { currentPtr: 0, bytesWritten: pageSize }, // init to pageSize so we always allocate on first call
     returns: [ Valtype.i32 ],
     returnType: TYPES.number,
     wasm: (scope, { builtin, glbl }) => [
-      // if bytesWritten >= pageSize:
-      ...glbl(Opcodes.global_get, 'bytesWritten', Valtype.i32),
-      number(pageSize, Valtype.i32),
+      // if currentPtr + bytesToAllocate >= endPtr
+      ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
+      [ Opcodes.local_get, 0 ],
+      [ Opcodes.i32_add ],
+      ...glbl(Opcodes.global_get, 'endPtr', Valtype.i32),
       [ Opcodes.i32_ge_s ],
       [ Opcodes.if, Valtype.i32 ],
-        // bytesWritten = bytesToAllocate
+        // currentPtr = newly allocated pages + bytesToAllocate
+        number(Prefs.allocatorChunks ?? 16, Valtype.i32),
+        [ Opcodes.memory_grow, 0 ],
+        number(PageSize, Valtype.i32),
+        [ Opcodes.i32_mul ],
         [ Opcodes.local_get, 0 ],
-        ...glbl(Opcodes.global_set, 'bytesWritten', Valtype.i32),
-
-        // return currentPtr = newly allocated page
-        [ Opcodes.call, builtin('__Porffor_allocate') ],
+        [ Opcodes.i32_add ],
         ...glbl(Opcodes.global_set, 'currentPtr', Valtype.i32),
         ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
-      [ Opcodes.else ],
-        // return currentPtr + bytesWritten
-        ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
-        ...glbl(Opcodes.global_get, 'bytesWritten', Valtype.i32),
-        [ Opcodes.i32_add ],
 
-        // bytesWritten += bytesToAllocate
-        [ Opcodes.local_get, 0 ],
-        ...glbl(Opcodes.global_get, 'bytesWritten', Valtype.i32),
+        // endPtr = currentPtr + limit - bytesToAllocate
+        number((Prefs.allocatorChunks ?? 16) * PageSize, Valtype.i32),
         [ Opcodes.i32_add ],
-        ...glbl(Opcodes.global_set, 'bytesWritten', Valtype.i32),
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.i32_sub ],
+        ...glbl(Opcodes.global_set, 'endPtr', Valtype.i32),
+
+        // return currentPtr - bytesToAllocate
+        ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.i32_sub ],
+      [ Opcodes.else ],
+        // return currentPtr
+        ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
+
+        // currentPtr = currentPtr + bytesToAllocate
+        ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.i32_add ],
+        ...glbl(Opcodes.global_set, 'currentPtr', Valtype.i32),
       [ Opcodes.end ]
     ]
   };
@@ -1116,14 +1077,21 @@ export const BuiltinFuncs = () => {
     returns: [ Valtype.i32 ],
     returnType: TYPES.string,
     wasm: (scope, { builtin }) => [
-      // dst = allocate
-      [ Opcodes.call, builtin('__Porffor_allocate') ],
-      [ Opcodes.local_tee, 3 ],
-
-      // dst.length = src.length
+      // len = src.length
       [ Opcodes.local_get, 0 ],
       [ Opcodes.i32_load, 0, 0 ],
       [ Opcodes.local_tee, 1 ],
+
+      // dst = malloc(4 + len * 2)
+      number(2, Valtype.i32),
+      [ Opcodes.i32_mul ],
+      number(4, Valtype.i32),
+      [ Opcodes.i32_add ],
+      [ Opcodes.call, builtin('__Porffor_malloc') ],
+      [ Opcodes.local_tee, 3 ],
+
+      // dst.length = len
+      [ Opcodes.local_get, 1 ],
       [ Opcodes.i32_store, 0, 0 ],
 
       [ Opcodes.loop, Blocktype.void ],
@@ -1257,7 +1225,7 @@ export const BuiltinFuncs = () => {
       [ Opcodes.end ],
 
       number(16, Valtype.i32),
-      [ Opcodes.call, builtin('__Porffor_allocateBytes') ],
+      [ Opcodes.call, builtin('__Porffor_malloc') ],
       [ Opcodes.local_tee, 3 ],
 
       // sign is already 0
@@ -1319,7 +1287,7 @@ export const BuiltinFuncs = () => {
       [ Opcodes.end ],
 
       number(16, Valtype.i32),
-      [ Opcodes.call, builtin('__Porffor_allocateBytes') ],
+      [ Opcodes.call, builtin('__Porffor_malloc') ],
       [ Opcodes.local_tee, 3 ],
 
       // sign = x != abs

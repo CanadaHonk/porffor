@@ -347,7 +347,7 @@ export const __ecma262_WeekDayName = (tv: number): bytestring => {
   const lut: bytestring = 'SunMonTueWedThuFriSat';
   const weekday: number = __ecma262_WeekDay(tv);
 
-  let out: bytestring = Porffor.allocateBytes(8);
+  let out: bytestring = Porffor.malloc(8);
   out.length = 3;
 
   let outPtr: number = Porffor.wasm`local.get ${out}`;
@@ -365,7 +365,7 @@ export const __ecma262_MonthName = (tv: number): bytestring => {
   const lut: bytestring = 'JanFebMarAprMayJunJulAugSepOctNovDec';
   const month: number = __ecma262_MonthFromTime(tv);
 
-  let out: bytestring = Porffor.allocateBytes(8);
+  let out: bytestring = Porffor.malloc(8);
   out.length = 3;
 
   let outPtr: number = Porffor.wasm`local.get ${out}`;
@@ -1472,7 +1472,7 @@ export const __Porffor_bytestring_appendPadNum = (str: bytestring, num: number, 
 export const __ecma262_ToUTCDTSF = (t: number): bytestring => {
   const year: number = __ecma262_YearFromTime(t);
 
-  let out: bytestring = Porffor.allocateBytes(64);
+  let out: bytestring = Porffor.malloc(64);
   if (Porffor.fastOr(year < 0, year >= 10000)) {
     // extended year format
     // sign
@@ -1565,7 +1565,7 @@ export const __ecma262_TimeString = (tv: number): bytestring => {
   const second: number = __ecma262_SecFromTime(tv);
 
   // 4. Return the string-concatenation of hour, ":", minute, ":", second, the code unit 0x0020 (SPACE), and "GMT".
-  let out: bytestring = Porffor.allocateBytes(64);
+  let out: bytestring = Porffor.malloc(64);
   __Porffor_bytestring_appendPadNum(out, hour, 2);
   __Porffor_bytestring_appendChar(out, 58); // ':'
 
@@ -1601,7 +1601,7 @@ export const __ecma262_DateString = (tv: number): bytestring => {
   // 5. If yv is +0𝔽 or yv > +0𝔽, let yearSign be the empty String; otherwise, let yearSign be "-".
   // 6. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
   // 7. Return the string-concatenation of weekday, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), yearSign, and paddedYear.
-  let out: bytestring = Porffor.allocateBytes(64);
+  let out: bytestring = Porffor.malloc(64);
 
   // weekday
   __Porffor_bytestring_appendStr(out, weekday);
@@ -1638,7 +1638,7 @@ export const __ecma262_ToDateString = (tv: number) => {
   const t: number = __ecma262_LocalTime(tv);
 
   // 3. Return the string-concatenation of DateString(t), the code unit 0x0020 (SPACE), TimeString(t), and TimeZoneString(tv).
-  const out: bytestring = Porffor.allocateBytes(64);
+  const out: bytestring = Porffor.malloc(64);
   __Porffor_bytestring_appendStr(out, __ecma262_DateString(t));
   __Porffor_bytestring_appendChar(out, 32);
 
@@ -1675,7 +1675,7 @@ export const __Date_prototype_toTimeString = (_this: any) => {
   const t: number = __ecma262_LocalTime(tv);
 
   // 6. Return the string-concatenation of TimeString(t) and TimeZoneString(tv).
-  const out: bytestring = Porffor.allocateBytes(64);
+  const out: bytestring = Porffor.malloc(64);
   __Porffor_bytestring_appendStr(out, __ecma262_TimeString(t));
   __Porffor_bytestring_appendStr(out, __ecma262_TimeZoneString(tv));
   return out;
@@ -1728,7 +1728,7 @@ export const __Date_prototype_toUTCString = (_this: any) => {
   // 11. Return the string-concatenation of weekday, ",", the code unit 0x0020 (SPACE),
   // day, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE),
   // yearSign, paddedYear, the code unit 0x0020 (SPACE), and TimeString(tv).
-  const out: bytestring = Porffor.allocateBytes(64);
+  const out: bytestring = Porffor.malloc(64);
 
   // weekday
   __Porffor_bytestring_appendStr(out, weekday);
@@ -1867,7 +1867,7 @@ export const Date = function (...values: any[]): bytestring|Date {
   }
 
   // 6. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Date.prototype%", « [[DateValue]] »).
-  const O: Date = Porffor.allocateBytes(8);
+  const O: Date = Porffor.malloc(8);
 
   // 7. Set O.[[DateValue]] to dv.
   __Porffor_date_write(O, dv);

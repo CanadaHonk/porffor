@@ -22,7 +22,7 @@ export const ArrayBuffer = function (length: any): ArrayBuffer {
   if (byteLength < 0) throw new RangeError('Invalid ArrayBuffer length (negative)');
   if (byteLength > 4294967295) throw new RangeError('Invalid ArrayBuffer length (over 32 bit address space)');
 
-  const out: ArrayBuffer = Porffor.allocateBytes(byteLength + 4);
+  const out: ArrayBuffer = Porffor.malloc(byteLength + 4);
   Porffor.wasm.i32.store(out, byteLength, 0, 0);
 
   return out;
@@ -98,7 +98,7 @@ export const __ArrayBuffer_prototype_slice = (_this: ArrayBuffer, start: any, en
   }
   if (end > len) end = len;
 
-  const out: ArrayBuffer = Porffor.allocateBytes(4 + (end - start));
+  const out: ArrayBuffer = Porffor.malloc(4 + (end - start));
   Porffor.wasm.i32.store(out, end - start, 0, 0);
 
   Porffor.wasm`
@@ -185,7 +185,7 @@ export const SharedArrayBuffer = function (length: any): SharedArrayBuffer {
   if (byteLength < 0) throw new RangeError('Invalid SharedArrayBuffer length (negative)');
   if (byteLength > 4294967295) throw new RangeError('Invalid SharedArrayBuffer length (over 32 bit address space)');
 
-  const out: SharedArrayBuffer = Porffor.allocateBytes(byteLength + 4);
+  const out: SharedArrayBuffer = Porffor.malloc(byteLength + 4);
   Porffor.wasm.i32.store(out, byteLength, 0, 0);
 
   return out;
@@ -222,7 +222,7 @@ export const __SharedArrayBuffer_prototype_slice = (_this: SharedArrayBuffer, st
   }
   if (end > len) end = len;
 
-  const out: SharedArrayBuffer = Porffor.allocateBytes(4 + (end - start));
+  const out: SharedArrayBuffer = Porffor.malloc(4 + (end - start));
   Porffor.wasm.i32.store(out, end - start, 0, 0);
 
   Porffor.wasm`

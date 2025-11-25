@@ -86,7 +86,7 @@ export const __Reflect_setPrototypeOf = (target: any, proto: any) => {
 export const __Reflect_ownKeys = (target: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
 
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
 
   target = __Porffor_object_underlying(target);
   if (Porffor.type(target) == Porffor.TYPES.object) {

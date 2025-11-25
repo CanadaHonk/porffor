@@ -8,7 +8,7 @@ export const __Set_prototype_values = (_this: Set) => {
   // todo: this should return an iterator not array
   const size: number = Porffor.wasm.i32.load(_this, 0, 0);
 
-  const out: any[] = __Porffor_allocate();
+  const out: any[] = Porffor.malloc();
   for (let i: number = 0; i < size; i++) {
     Porffor.array.fastPush(out, (_this as any[])[i]);
   }
@@ -78,7 +78,7 @@ export const __Set_prototype_forEach = (_this: Set, callbackFn: any) => {
 export const Set = function (iterable: any): Set {
   if (!new.target) throw new TypeError("Constructor Set requires 'new'");
 
-  const out: Set = __Porffor_allocate();
+  const out: Set = Porffor.malloc();
 
   if (iterable != null) for (const x of iterable) {
     __Set_prototype_add(out, x);

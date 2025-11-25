@@ -240,7 +240,7 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
       if (space < 1) {
         space = undefined;
       } else {
-        const spaceStr: bytestring = Porffor.allocateBytes(4 + space);
+        const spaceStr: bytestring = Porffor.malloc(4 + space);
         for (let i: i32 = 0; i < space; i++) Porffor.bytestring.appendChar(spaceStr, 32);
 
         space = spaceStr;
@@ -262,7 +262,7 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
     }
   }
 
-  const buffer: bytestring = Porffor.allocateBytes(4096);
+  const buffer: bytestring = Porffor.malloc(4096);
   const out: i32 = __Porffor_json_serialize(buffer, value, 0, space);
   if (out == -1) return undefined;
 
@@ -329,7 +329,7 @@ export const __JSON_parse = (_: bytestring) => {
 
     if (c == 34) { // '"' - string
       pos++;
-      const out: bytestring = Porffor.allocate();
+      const out: bytestring = Porffor.malloc();
 
       while (pos < len) {
         const ch: i32 = text.charCodeAt(pos);
@@ -375,7 +375,7 @@ export const __JSON_parse = (_: bytestring) => {
 
     if (c == 91) { // '[' - array
       pos++;
-      const arr: any[] = Porffor.allocate();
+      const arr: any[] = Porffor.malloc();
       skipWhitespace();
 
       if (pos < len && text.charCodeAt(pos) == 93) { // empty array

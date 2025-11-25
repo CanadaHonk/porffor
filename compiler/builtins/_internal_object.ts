@@ -153,7 +153,7 @@ return`;
   }
 
   if (Porffor.type(_obj) > 0x05) {
-    if (underlyingStore == 0) underlyingStore = Porffor.allocate();
+    if (underlyingStore == 0) underlyingStore = Porffor.malloc();
 
     // check if underlying object already exists for obj
     const underlyingLength: i32 = Porffor.wasm.i32.load(underlyingStore, 0, 0);

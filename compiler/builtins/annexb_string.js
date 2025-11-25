@@ -21,16 +21,17 @@ export const __ByteString_prototype_${a0} = (_this: bytestring) =>
   const arg = (name, s1, s2) => out += `
 export const __String_prototype_${name} = (_this: string, arg: any) => {
   arg = ecma262.ToString(arg);
-  let escaped: bytestring = Porffor.allocate();
-  for (let i = 0; i < arg.length; i++) {
-    const c = arg.charCodeAt(i);
+  const len: i32 = arg.length;
+  const escaped: bytestring = Porffor.malloc(4 + len * 6); // overallocate in case of &quot;s
+  for (let i: i32 = 0; i < len; i++) {
+    const c: i32 = arg.charCodeAt(i);
     if (c != 34) {
       __Porffor_bytestring_appendChar(escaped, c);
     } else {
       __Porffor_bytestring_appendStr(escaped, '&quot;');
     }
   }
-  
+
   return Porffor.concatStrings(
     Porffor.concatStrings(
       Porffor.concatStrings(

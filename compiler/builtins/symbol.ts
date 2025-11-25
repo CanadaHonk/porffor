@@ -18,7 +18,7 @@ export const Symbol = (description: any): Symbol => {
   Porffor.wasm`
 local symbol i32
 i32.const 16
-call __Porffor_allocateBytes
+call __Porffor_malloc
 local.tee symbol
 local.get ${descString}
 f64.store 0 0
@@ -40,7 +40,7 @@ return`;
 };
 
 export const __Symbol_prototype_toString = (_this: Symbol) => {
-  let out: bytestring = Porffor.allocate();
+  let out: bytestring = Porffor.malloc();
 
   // Symbol(
   Porffor.wasm.i32.store8(out, 83, 0, 4);

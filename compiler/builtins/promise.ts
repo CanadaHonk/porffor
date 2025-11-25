@@ -1,7 +1,7 @@
 import type {} from './porffor.d.ts';
 
 export const __ecma262_NewPromiseReactionJob = (reaction: any[], argument: any): any[] => {
-  const job: any[] = Porffor.allocateBytes(32);
+  const job: any[] = Porffor.malloc(32);
   job[0] = reaction;
   job[1] = argument;
 
@@ -96,7 +96,7 @@ export const __Porffor_promise_noop = (x: any): any => x;
 
 export const __Porffor_promise_newReaction = (handler: Function, promise: any, flags: i32): any[] => {
   // enum ReactionType { then = 0, finally = 1 }
-  const out: any[] = Porffor.allocateBytes(32);
+  const out: any[] = Porffor.malloc(32);
   out[0] = handler;
   out[1] = promise;
   out[2] = flags;
@@ -164,7 +164,7 @@ export const __Porffor_promise_reject = (reason: any, promise: any): void => {
 
 export const __Porffor_promise_create = (): any[] => {
   // Promise [ result, state, fulfillReactions, rejectReactions ]
-  const obj: any[] = Porffor.allocateBytes(64);
+  const obj: any[] = Porffor.malloc(64);
 
   // result = undefined
   obj[0] = undefined;
@@ -174,11 +174,11 @@ export const __Porffor_promise_create = (): any[] => {
   obj[1] = 0;
 
   // fulfillReactions = []
-  const fulfillReactions: any[] = Porffor.allocateBytes(512);
+  const fulfillReactions: any[] = Porffor.malloc(512);
   obj[2] = fulfillReactions;
 
   // rejectReactions = []
-  const rejectReactions: any[] = Porffor.allocateBytes(512);
+  const rejectReactions: any[] = Porffor.malloc(512);
   obj[3] = rejectReactions;
 
   return obj;
@@ -246,7 +246,7 @@ export const __Promise_withResolvers = (): object => {
   const obj: any[] = __Porffor_promise_create();
   activePromise = obj;
 
-  const out: object = Porffor.allocate();
+  const out: object = Porffor.malloc();
   out.promise = obj as Promise;
 
   out.resolve = __Porffor_promise_resolveActive;
@@ -339,7 +339,7 @@ export const __Promise_all = (promises: any): Promise => {
   return new Promise((res, rej) => {
     _allRes = res, _allRej = rej;
 
-    const arr: any[] = Porffor.allocate();
+    const arr: any[] = Porffor.malloc();
     _allOut = arr;
     _allLen = 0;
 
@@ -375,7 +375,7 @@ export const __Promise_allSettled = (promises: any): Promise => {
   return new Promise((res, rej) => {
     _allRes = res, _allRej = rej;
 
-    const arr: any[] = Porffor.allocate();
+    const arr: any[] = Porffor.malloc();
     _allOut = arr;
     _allLen = 0;
 
@@ -420,7 +420,7 @@ export const __Promise_any = (promises: any): Promise => {
   return new Promise((res, rej) => {
     _allRes = res, _allRej = rej;
 
-    const arr: any[] = Porffor.allocate();
+    const arr: any[] = Porffor.malloc();
     _allOut = arr; // list of rejections
     _allLen = 0;
 

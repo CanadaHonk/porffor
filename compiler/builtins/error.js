@@ -8,7 +8,7 @@ export default () => {
   if (message === undefined) message = '';
     else message = ecma262.ToString(message);
 
-  const obj: ${name} = Porffor.allocateBytes(8);
+  const obj: ${name} = Porffor.malloc(8);
   Porffor.wasm.i32.store(obj, message, 0, 0);
   Porffor.wasm.i32.store8(obj, Porffor.type(message), 0, 4);
 

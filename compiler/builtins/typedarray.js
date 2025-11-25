@@ -14,7 +14,7 @@ export default async () => {
     out += `export const ${name} = function (arg: any, byteOffset: any, length: any): ${name} {
   if (!new.target) throw new TypeError("Constructor ${name} requires 'new'");
 
-  const out: ${name} = Porffor.allocateBytes(12);
+  const out: ${name} = Porffor.malloc(12);
   const outPtr: i32 = Porffor.wasm\`local.get \${out}\`;
 
   let len: i32 = 0;
@@ -41,7 +41,7 @@ export default async () => {
       if (!Number.isInteger(len)) throw new RangeError('Byte length of ${name} should be divisible by BYTES_PER_ELEMENT');
     } else len = Math.trunc(length);
   } else {
-    bufferPtr = Porffor.allocate();
+    bufferPtr = Porffor.malloc();
     Porffor.wasm.i32.store(outPtr, bufferPtr, 0, 4);
 
     if (Porffor.fastOr(
@@ -72,7 +72,7 @@ export default async () => {
 export const __${name}_of = (...items: any[]): ${name} => new ${name}(items);
 
 export const __${name}_from = (arg: any, mapFn: any): ${name} => {
-  const arr: any[] = Porffor.allocate();
+  const arr: any[] = Porffor.malloc();
   let len: i32 = 0;
 
   if (Porffor.fastOr(
@@ -142,7 +142,7 @@ export const __${name}_prototype_slice = (_this: ${name}, start: number, end: nu
   }
   if (end > len) end = len;
 
-  const out: ${name} = Porffor.allocate();
+  const out: ${name} = Porffor.malloc();
 
   if (start > end) return out;
 
@@ -194,7 +194,7 @@ export const __${name}_prototype_subarray = (_this: ${name}, start: number, end:
   }
   if (end > len) end = len;
 
-  const out: ${name} = Porffor.allocateBytes(12);
+  const out: ${name} = Porffor.malloc(12);
   Porffor.wasm.i32.store(out, end - start, 0, 0);
   Porffor.wasm.i32.store(out, Porffor.wasm.i32.load(_this, 0, 4) + start * ${name}.BYTES_PER_ELEMENT, 0, 4);
   Porffor.wasm.i32.store(out, Porffor.wasm.i32.load(_this, 0, 8) + start * ${name}.BYTES_PER_ELEMENT, 0, 8);

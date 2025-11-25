@@ -4,7 +4,7 @@ export const Array = function (...args: any[]): any[] {
   const argsLen: number = args.length;
   if (argsLen == 0) {
     // 0 args, new 0 length array
-    const out: any[] = Porffor.allocate();
+    const out: any[] = Porffor.malloc();
     return out;
   }
 
@@ -20,7 +20,7 @@ export const Array = function (...args: any[]): any[] {
         !Number.isInteger(n) // non-integer/non-finite
       )) throw new RangeError('Invalid array length');
 
-      const out: any[] = Porffor.allocate();
+      const out: any[] = Porffor.malloc();
       out.length = n;
       return out;
     }
@@ -38,7 +38,7 @@ export const __Array_isArray = (x: unknown): boolean =>
 export const __Array_from = (arg: any, mapFn: any): any[] => {
   if (arg == null) throw new TypeError('Argument cannot be nullish');
 
-  let out: any[] = Porffor.allocate();
+  let out: any[] = Porffor.malloc();
 
   if (Porffor.fastOr(
     Porffor.type(arg) == Porffor.TYPES.array,
@@ -220,7 +220,7 @@ export const __Array_prototype_slice = (_this: any[], _start: any, _end: any) =>
   }
   if (end > len) end = len;
 
-  let out: any[] = Porffor.allocate();
+  let out: any[] = Porffor.malloc();
 
   if (start > end) return out;
 
@@ -260,7 +260,7 @@ export const __Array_prototype_splice = (_this: any[], _start: any, _deleteCount
   if (deleteCount > len - start) deleteCount = len - start;
 
   // read values to be deleted into out
-  let out: any[] = Porffor.allocate();
+  let out: any[] = Porffor.malloc();
   out.length = deleteCount;
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
@@ -437,7 +437,7 @@ export const __Array_prototype_with = (_this: any[], _index: any, value: any) =>
     throw new RangeError('Invalid index');
   }
 
-  let out: any[] = Porffor.allocate();
+  let out: any[] = Porffor.malloc();
   Porffor.clone(_this, out);
 
   out[index] = value;
@@ -485,7 +485,7 @@ export const __Array_prototype_copyWithin = (_this: any[], _target: any, _start:
 // @porf-typed-array
 export const __Array_prototype_concat = (_this: any[], ...vals: any[]) => {
   // todo/perf: rewrite to use memory.copy (via some Porffor.array.append thing?)
-  let out: any[] = Porffor.allocate();
+  let out: any[] = Porffor.malloc();
   Porffor.clone(_this, out);
 
   let len: i32 = _this.length;
@@ -536,7 +536,7 @@ export const __Array_prototype_forEach = (_this: any[], callbackFn: any, thisArg
 // @porf-typed-array
 export const __Array_prototype_filter = (_this: any[], callbackFn: any, thisArg: any) => {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
 
   const len: i32 = _this.length;
   let i: i32 = 0;
@@ -554,7 +554,7 @@ export const __Array_prototype_filter = (_this: any[], callbackFn: any, thisArg:
 export const __Array_prototype_map = (_this: any[], callbackFn: any, thisArg: any) => {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
   out.length = len;
 
   let i: i32 = 0;
@@ -568,7 +568,7 @@ export const __Array_prototype_map = (_this: any[], callbackFn: any, thisArg: an
 export const __Array_prototype_flatMap = (_this: any[], callbackFn: any, thisArg: any) => {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = _this.length;
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
 
   let i: i32 = 0, j: i32 = 0;
   while (i < len) {
@@ -768,7 +768,7 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
 export const __Array_prototype_toString = (_this: any[]) => {
   // todo: this is bytestring only!
 
-  let out: bytestring = Porffor.allocate();
+  let out: bytestring = Porffor.malloc();
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
@@ -799,7 +799,7 @@ export const __Array_prototype_join = (_this: any[], _separator: any) => {
   if (Porffor.type(_separator) != Porffor.TYPES.undefined)
     separator = ecma262.ToString(_separator);
 
-  let out: bytestring = Porffor.allocate();
+  let out: bytestring = Porffor.malloc();
   const len: i32 = _this.length;
   let i: i32 = 0;
   while (i < len) {
@@ -829,7 +829,7 @@ export const __Array_prototype_toReversed = (_this: any[]) => {
   let start: i32 = 0;
   let end: i32 = len - 1;
 
-  let out: any[] = Porffor.allocate();
+  let out: any[] = Porffor.malloc();
   out.length = len;
 
   while (true) {
@@ -847,14 +847,14 @@ export const __Array_prototype_toReversed = (_this: any[]) => {
 export const __Array_prototype_toSorted = (_this: any[], callbackFn: any) => {
   // todo/perf: could be rewritten to be its own instead of cloning and using normal sort()
 
-  let out: any[] = Porffor.allocate();
+  let out: any[] = Porffor.malloc();
   Porffor.clone(_this, out);
 
   return __Array_prototype_sort(out, callbackFn);
 };
 
 export const __Array_prototype_toSpliced = (_this: any[], _start: any, _deleteCount: any, ...items: any[]) => {
-  let out: any[] = Porffor.allocate();
+  let out: any[] = Porffor.malloc();
   Porffor.clone(_this, out);
 
   const len: i32 = _this.length;
@@ -942,7 +942,7 @@ export const __Array_prototype_flat = (_this: any[], _depth: any) => {
   if (Porffor.type(_depth) == Porffor.TYPES.undefined) _depth = 1;
   let depth: i32 = ecma262.ToIntegerOrInfinity(_depth);
 
-  let out: any[] = Porffor.allocate();
+  let out: any[] = Porffor.malloc();
   if (depth <= 0) {
     Porffor.clone(_this, out);
     return out;

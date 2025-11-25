@@ -30,7 +30,7 @@ export const __Porffor_bigint_fromDigits = (negative: boolean, digits: i32[]): b
 // store small (abs(n) < 2^51 (0x8000000000000)) values inline (no allocation)
 // like a ~s52 (s53 exc 2^51+(0-2^32) for u32 as pointer) inside a f64
 export const __Porffor_bigint_inlineToDigitForm = (n: number): number => {
-  const ptr: i32 = Porffor.allocateBytes(4); // 4 meta + 1 digit
+  const ptr: i32 = Porffor.malloc(4); // 4 meta + 1 digit
   Porffor.wasm.i32.store8(ptr, n < 0, 0, 0);
   Porffor.wasm.i32.store16(ptr, 1, 0, 2);
   Porffor.wasm.i32.store(ptr, Math.abs(n), 0, 4);
@@ -46,7 +46,7 @@ export const __Porffor_bigint_fromNumber = (n: number): bigint => {
   const negative: boolean = n < 0;
   n = Math.abs(n);
 
-  const digits: i32[] = Porffor.allocate();
+  const digits: i32[] = Porffor.malloc();
   while (n > 0) {
     digits.unshift(n % 0x100000000);
     n = Math.trunc(n / 0x100000000);
@@ -90,7 +90,7 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
   // 4294967297 -> [ 1, 1 ]
 
   const BASE: i32 = 0x100000000; // 2^32
-  const digits: i32[] = Porffor.allocate(); // todo: free later
+  const digits: i32[] = Porffor.malloc(); // todo: free later
   digits.length = len - offset;
 
   let i: i32 = 0;
@@ -109,7 +109,7 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
     return acc as bigint;
   }
 
-  const result: i32[] = Porffor.allocate();
+  const result: i32[] = Porffor.malloc();
   while (digits.length > 0) {
     let carry: i32 = 0;
     for (let j: i32 = 0; j < digits.length; j++) {
@@ -156,7 +156,7 @@ export const __Porffor_bigint_add = (a: number, b: number, sub: boolean): bigint
   const bLen: i32 = Porffor.wasm.i32.load16_u(b, 0, 2);
 
   const maxLen: i32 = Math.max(aLen, bLen);
-  const digits: i32[] = Porffor.allocate();
+  const digits: i32[] = Porffor.malloc();
 
   // fast path: same sign
   let negative: boolean = false;

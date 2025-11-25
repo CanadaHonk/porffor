@@ -87,10 +87,10 @@ export const __Map_prototype_forEach = (_this: Map, callbackFn: any) => {
 export const Map = function (iterable: any): Map {
   if (!new.target) throw new TypeError("Constructor Map requires 'new'");
 
-  const out: Map = Porffor.allocateBytes(8);
+  const out: Map = Porffor.malloc(8);
 
-  const keys: any[] = Porffor.allocate();
-  const vals: any[] = Porffor.allocate();
+  const keys: any[] = Porffor.malloc();
+  const vals: any[] = Porffor.malloc();
   Porffor.wasm.i32.store(out, keys, 0, 0);
   Porffor.wasm.i32.store(out, vals, 0, 4);
 
@@ -104,7 +104,7 @@ export const Map = function (iterable: any): Map {
 
 export const __Map_prototype_keys = (_this: Map) => {
   const keys: any[] = Porffor.wasm.i32.load(_this, 0, 0);
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
 
   for (const x of keys) {
     Porffor.array.fastPush(out, x);
@@ -116,7 +116,7 @@ export const __Map_prototype_keys = (_this: Map) => {
 export const __Map_prototype_values = (_this: Map) => {
   const size: i32 = Porffor.wasm.i32.load(Porffor.wasm.i32.load(_this, 0, 0), 0, 0);
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
-  const out: any[] = Porffor.allocate();
+  const out: any[] = Porffor.malloc();
 
   for (let i: i32 = 0; i < size; i++) {
     Porffor.array.fastPush(out, vals[i]);

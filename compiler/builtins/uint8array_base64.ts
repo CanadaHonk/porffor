@@ -40,7 +40,7 @@ export const __Uint8Array_prototype_toBase64 = (_this: Uint8Array, options: any 
   const len: i32 = Porffor.wasm.i32.load(taPtr, 0, 0);
   const bufferPtr: i32 = Porffor.wasm.i32.load(taPtr, 0, 4);
 
-  const output: bytestring = Porffor.allocate();
+  const output: bytestring = Porffor.malloc();
   const outPtr: i32 = Porffor.wasm`local.get ${output}`;
 
   let alphabetStr: bytestring;
@@ -108,7 +108,7 @@ export const __Uint8Array_prototype_toHex = (_this: Uint8Array) => {
   const len: i32 = Porffor.wasm.i32.load(taPtr, 0, 0);
   const bufferPtr: i32 = Porffor.wasm.i32.load(taPtr, 0, 4);
 
-  const output: bytestring = Porffor.allocate();
+  const output: bytestring = Porffor.malloc();
   const outPtr: i32 = Porffor.wasm`local.get ${output}`;
 
   const hexChars: bytestring = '0123456789abcdef';

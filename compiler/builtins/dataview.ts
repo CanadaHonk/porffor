@@ -22,7 +22,7 @@ export const DataView = function (arg: any, byteOffset: any, length: any): DataV
   if (len < 0) throw new RangeError('Invalid DataView length (negative)');
   if (len > 4294967295) throw new RangeError('Invalid DataView length (over 32 bit address space)');
 
-  const out: DataView = Porffor.allocateBytes(12);
+  const out: DataView = Porffor.malloc(12);
   Porffor.wasm.i32.store(out, Porffor.wasm`local.get ${arg}` + offset, 0, 4);
   Porffor.wasm.i32.store(out, offset, 0, 8);
   Porffor.wasm.i32.store(out, len, 0, 0);

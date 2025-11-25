@@ -175,7 +175,8 @@ const funcRef = func => {
       locals['#array'] = { idx: array + 1, type: valtypeBinary };
 
       wasm.push(
-        [ Opcodes.call, includeBuiltin(wrapperFunc, '__Porffor_allocate').index ],
+        number(pageSize, Valtype.i32),
+        [ Opcodes.call, includeBuiltin(wrapperFunc, '__Porffor_malloc').index ],
         [ Opcodes.local_tee, array ],
         Opcodes.i32_from_u,
         [ Opcodes.local_set, array + 1 ],
@@ -2141,7 +2142,8 @@ const createThisArg = (scope, decl) => {
     const proto = getObjProp(decl.callee, 'prototype');
 
     return [
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+      number(pageSize, Valtype.i32),
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_malloc').index ],
       Opcodes.i32_from_u,
       [ Opcodes.local_tee, tmp ],
       Opcodes.i32_to_u,
@@ -2653,7 +2655,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   if (func && args.length < paramCount) {
     // too little args, push undefineds
     const underflow = paramCount - (func.hasRestArgument ? 1 : 0) - args.length;
-    for (let i = 0; i < underflow; i++) args.push(DEFAULT_VALUE());
+    for (let i = 0; i < underflow; i++) args.push(func.defaultParam ? func.defaultParam() : DEFAULT_VALUE());
   }
 
   if (func && func.hasRestArgument) {
@@ -4801,7 +4803,7 @@ const generateForOf = (scope, decl) => {
 
       // allocate out string
       number(8, Valtype.i32),
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_malloc').index ],
       [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -4845,7 +4847,7 @@ const generateForOf = (scope, decl) => {
 
       // allocate out string
       number(8, Valtype.i32),
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_malloc').index ],
       [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 1
@@ -4937,7 +4939,7 @@ const generateForOf = (scope, decl) => {
 
       // allocate out array
       number(128, Valtype.i32),
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ],
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_malloc').index ],
       [ Opcodes.local_tee, localTmp(scope, '#forof_allocd', Valtype.i32) ],
 
       // set length to 2
@@ -5648,7 +5650,8 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
   } else {
     const tmp = localTmp(scope, '#create_array' + uniqId(), Valtype.i32);
     out.push(
-      [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ],
+      number(pageSize, Valtype.i32),
+      [ Opcodes.call, includeBuiltin(scope, '__Porffor_malloc').index ],
       [ Opcodes.local_set, tmp ]
     );
 
@@ -5727,7 +5730,8 @@ const toPropertyKey = (scope, wasm, type, computed = false, i32Conv = false) => 
 
 const generateObject = (scope, decl, global = false, name = '$undeclared') => {
   const out = [
-    [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocate').index ]
+    number(pageSize, Valtype.i32),
+    [ Opcodes.call, includeBuiltin(scope, '__Porffor_malloc').index ]
   ];
 
   if (decl.properties.length > 0) {
@@ -5987,7 +5991,7 @@ const generateMember = (scope, decl, _global, _name) => {
       [TYPES.string]: () => [
         // allocate out string
         number(8, Valtype.i32),
-        [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ],
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_malloc').index ],
         [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
         // set length to 1
@@ -6022,7 +6026,7 @@ const generateMember = (scope, decl, _global, _name) => {
       [TYPES.bytestring]: () => [
         // allocate out string
         number(8, Valtype.i32),
-        [ Opcodes.call, includeBuiltin(scope, '__Porffor_allocateBytes').index ],
+        [ Opcodes.call, includeBuiltin(scope, '__Porffor_malloc').index ],
         [ Opcodes.local_tee, localTmp(scope, '#member_allocd', Valtype.i32) ],
 
         // set length to 1
@@ -7004,7 +7008,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       if (func.generator) {
         // make generator at the start
         wasm.unshift(
-          [ Opcodes.call, includeBuiltin(func, '__Porffor_allocate').index ],
+          number(pageSize, Valtype.i32),
+          [ Opcodes.call, includeBuiltin(func, '__Porffor_malloc').index ],
           Opcodes.i32_from_u,
           number(TYPES.array, Valtype.i32),
 
