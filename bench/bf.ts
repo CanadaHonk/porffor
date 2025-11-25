@@ -7,7 +7,7 @@ let lines = 0;
 const done = x => {
   if (x == 10) {
     lines++;
-    if (lines == 3) return true;
+    if (lines == 1) return true;
   }
 };
 

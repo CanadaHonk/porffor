@@ -550,9 +550,9 @@ function packet_toString() {
 Packet.prototype.toString = packet_toString;
 
 
-const start = Date.now();
+const start = performance.now();
 for (let i = 0; i < 100; i++) {
   runRichards();
 }
 
-console.log(Date.now() - start);
+console.log(performance.now() - start);
