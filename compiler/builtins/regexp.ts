@@ -68,6 +68,13 @@ export const __Porffor_array_fastPopI32 = (arr: any[]): i32 => {
   return ret;
 };
 
+export const __Porffor_regex_hexDigitToValue = (char: i32): i32 => {
+  if (char >= 48 && char <= 57) return char - 48; // '0'-'9'
+  if (char >= 97 && char <= 102) return char - 87; // 'a'-'f'
+  if (char >= 65 && char <= 70) return char - 55; // 'A'-'F'
+  throw new SyntaxError('Regex parse: invalid hex digit');
+};
+
 export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytestring): RegExp => {
   const ptr: i32 = Porffor.malloc();
   Porffor.wasm.i32.store(ptr, patternStr, 0, 0);
@@ -180,19 +187,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
           const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
           const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
-          let d1: number;
-          if (c1 >= 48 && c1 <= 57) d1 = c1 - 48;
-            else if (c1 >= 97 && c1 <= 102) d1 = c1 - 87;
-            else if (c1 >= 65 && c1 <= 70) d1 = c1 - 55;
-            else throw new SyntaxError('Regex parse: invalid \\x escape');
-
-          let d2: number;
-          if (c2 >= 48 && c2 <= 57) d2 = c2 - 48;
-            else if (c2 >= 97 && c2 <= 102) d2 = c2 - 87;
-            else if (c2 >= 65 && c2 <= 70) d2 = c2 - 55;
-            else throw new SyntaxError('Regex parse: invalid \\x escape');
-
-          v = d1 * 16 + d2;
+          v = __Porffor_regex_hexDigitToValue(c1) * 16 + __Porffor_regex_hexDigitToValue(c2);
         } else if (char == 117) { // \u
           if (patternPtr + 3 >= patternEndPtr) throw new SyntaxError('Regex parse: invalid \\u escape');
           const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
@@ -200,28 +195,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
           const c3 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
           const c4 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
-          let d1: number, d2: number, d3: number, d4: number;
-          if (c1 >= 48 && c1 <= 57) d1 = c1 - 48;
-            else if (c1 >= 97 && c1 <= 102) d1 = c1 - 87;
-            else if (c1 >= 65 && c1 <= 70) d1 = c1 - 55;
-            else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-          if (c2 >= 48 && c2 <= 57) d2 = c2 - 48;
-            else if (c2 >= 97 && c2 <= 102) d2 = c2 - 87;
-            else if (c2 >= 65 && c2 <= 70) d2 = c2 - 55;
-            else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-          if (c3 >= 48 && c3 <= 57) d3 = c3 - 48;
-            else if (c3 >= 97 && c3 <= 102) d3 = c3 - 87;
-            else if (c3 >= 65 && c3 <= 70) d3 = c3 - 55;
-            else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-          if (c4 >= 48 && c4 <= 57) d4 = c4 - 48;
-            else if (c4 >= 97 && c4 <= 102) d4 = c4 - 87;
-            else if (c4 >= 65 && c4 <= 70) d4 = c4 - 55;
-            else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-          v = d1 * 4096 + d2 * 256 + d3 * 16 + d4;
+          v = __Porffor_regex_hexDigitToValue(c1) * 4096 + __Porffor_regex_hexDigitToValue(c2) * 256 + __Porffor_regex_hexDigitToValue(c3) * 16 + __Porffor_regex_hexDigitToValue(c4);
         } else if (char == 99) { // \c
           if (patternPtr >= patternEndPtr) {
             // No character after \c, treat as literal \c
@@ -272,48 +246,15 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
               const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
               const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
-              let d1: number;
-              if (c1 >= 48 && c1 <= 57) d1 = c1 - 48;
-                else if (c1 >= 97 && c1 <= 102) d1 = c1 - 87;
-                else if (c1 >= 65 && c1 <= 70) d1 = c1 - 55;
-                else throw new SyntaxError('Regex parse: invalid \\x escape');
+              endChar = __Porffor_regex_hexDigitToValue(c1) * 16 + __Porffor_regex_hexDigitToValue(c2);
+              } else if (endChar == 117) { // \u
+               if (patternPtr + 3 >= patternEndPtr) throw new SyntaxError('Regex parse: invalid \\u escape');
+               const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+               const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+               const c3 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+               const c4 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
-              let d2: number;
-              if (c2 >= 48 && c2 <= 57) d2 = c2 - 48;
-                else if (c2 >= 97 && c2 <= 102) d2 = c2 - 87;
-                else if (c2 >= 65 && c2 <= 70) d2 = c2 - 55;
-                else throw new SyntaxError('Regex parse: invalid \\x escape');
-
-              endChar = d1 * 16 + d2;
-            } else if (endChar == 117) { // \u
-              if (patternPtr + 3 >= patternEndPtr) throw new SyntaxError('Regex parse: invalid \\u escape');
-              const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-              const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-              const c3 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-              const c4 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-
-              let d1: number, d2: number, d3: number, d4: number;
-              if (c1 >= 48 && c1 <= 57) d1 = c1 - 48;
-                else if (c1 >= 97 && c1 <= 102) d1 = c1 - 87;
-                else if (c1 >= 65 && c1 <= 70) d1 = c1 - 55;
-                else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-              if (c2 >= 48 && c2 <= 57) d2 = c2 - 48;
-                else if (c2 >= 97 && c2 <= 102) d2 = c2 - 87;
-                else if (c2 >= 65 && c2 <= 70) d2 = c2 - 55;
-                else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-              if (c3 >= 48 && c3 <= 57) d3 = c3 - 48;
-                else if (c3 >= 97 && c3 <= 102) d3 = c3 - 87;
-                else if (c3 >= 65 && c3 <= 70) d3 = c3 - 55;
-                else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-              if (c4 >= 48 && c4 <= 57) d4 = c4 - 48;
-                else if (c4 >= 97 && c4 <= 102) d4 = c4 - 87;
-                else if (c4 >= 65 && c4 <= 70) d4 = c4 - 55;
-                else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-              endChar = d1 * 4096 + d2 * 256 + d3 * 16 + d4;
+               endChar = __Porffor_regex_hexDigitToValue(c1) * 4096 + __Porffor_regex_hexDigitToValue(c2) * 256 + __Porffor_regex_hexDigitToValue(c3) * 16 + __Porffor_regex_hexDigitToValue(c4);
             } else if (endChar == 99) { // \c
               if (patternPtr >= patternEndPtr) {
                 // No character after \c, treat as literal \c
@@ -875,21 +816,9 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
         const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
         const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
-        let d1: number;
-        if (c1 >= 48 && c1 <= 57) d1 = c1 - 48;
-          else if (c1 >= 97 && c1 <= 102) d1 = c1 - 87;
-          else if (c1 >= 65 && c1 <= 70) d1 = c1 - 55;
-          else throw new SyntaxError('Regex parse: invalid \\x escape');
-
-        let d2: number;
-        if (c2 >= 48 && c2 <= 57) d2 = c2 - 48;
-          else if (c2 >= 97 && c2 <= 102) d2 = c2 - 87;
-          else if (c2 >= 65 && c2 <= 70) d2 = c2 - 55;
-          else throw new SyntaxError('Regex parse: invalid \\x escape');
-
         lastAtomStart = bcPtr;
         Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
-        Porffor.wasm.i32.store8(bcPtr, d1 * 16 + d2, 0, 1);
+        Porffor.wasm.i32.store8(bcPtr, __Porffor_regex_hexDigitToValue(c1) * 16 + __Porffor_regex_hexDigitToValue(c2), 0, 1);
         bcPtr += 2;
         lastWasAtom = true;
         continue;
@@ -901,29 +830,8 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
         const c3 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
         const c4 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
-        let d1: number, d2: number, d3: number, d4: number;
-        if (c1 >= 48 && c1 <= 57) d1 = c1 - 48;
-          else if (c1 >= 97 && c1 <= 102) d1 = c1 - 87;
-          else if (c1 >= 65 && c1 <= 70) d1 = c1 - 55;
-          else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-        if (c2 >= 48 && c2 <= 57) d2 = c2 - 48;
-          else if (c2 >= 97 && c2 <= 102) d2 = c2 - 87;
-          else if (c2 >= 65 && c2 <= 70) d2 = c2 - 55;
-          else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-        if (c3 >= 48 && c3 <= 57) d3 = c3 - 48;
-          else if (c3 >= 97 && c3 <= 102) d3 = c3 - 87;
-          else if (c3 >= 65 && c3 <= 70) d3 = c3 - 55;
-          else throw new SyntaxError('Regex parse: invalid \\u escape');
-
-        if (c4 >= 48 && c4 <= 57) d4 = c4 - 48;
-          else if (c4 >= 97 && c4 <= 102) d4 = c4 - 87;
-          else if (c4 >= 65 && c4 <= 70) d4 = c4 - 55;
-          else throw new SyntaxError('Regex parse: invalid \\u escape');
-
         Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
-        Porffor.wasm.i32.store8(bcPtr, d1 * 4096 + d2 * 256 + d3 * 16 + d4, 0, 1);
+        Porffor.wasm.i32.store8(bcPtr, __Porffor_regex_hexDigitToValue(c1) * 4096 + __Porffor_regex_hexDigitToValue(c2) * 256 + __Porffor_regex_hexDigitToValue(c3) * 16 + __Porffor_regex_hexDigitToValue(c4), 0, 1);
         bcPtr += 2;
 
         lastAtomStart = bcPtr;
