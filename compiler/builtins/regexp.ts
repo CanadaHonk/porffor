@@ -905,7 +905,23 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
   const backtrackStack: i32[] = [];
   const captures: i32[] = [];
 
+  // check if first op is char for fast scan
+  let fastChar: i32 = -1;
+  if (!Porffor.fastOr(ignoreCase, sticky)) {
+    const firstOp = Porffor.wasm.i32.load8_u(bcBase, 0, 0);
+    if (firstOp == 0x01) {
+      fastChar = Porffor.wasm.i32.load8_u(bcBase, 0, 1);
+    }
+  }
+
   for (let i: i32 = lastIndex; i <= inputLen; i++) {
+    if (fastChar != -1) {
+      while (i < inputLen && Porffor.wasm.i32.load8_u(input + i, 0, 4) != fastChar) {
+        i++;
+      }
+      if (i > inputLen) break;
+    }
+
     backtrackStack.length = 0;
     captures.length = 0;
 
@@ -915,314 +931,321 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
     let matched: boolean = false;
     let finalSp: i32 = -1;
 
-    while (true) {
+    interpreter: while (true) {
       const op: i32 = Porffor.wasm.i32.load8_u(pc, 0, 0);
+      let backtrack: boolean = false;
 
-      if (op == 0x10) { // accept
-        // Check if this is a lookahead accept
-        if (backtrackStack.length >= 4) {
-          const marker = backtrackStack[backtrackStack.length - 1];
-          if (marker == -2000 || marker == -3000) { // lookahead markers
-            // This is a lookahead accept
-            const isNegative = marker == -2000;
+      switch (op) {
+        case 0x10: { // accept
+          // Check if this is a lookahead accept
+          if (backtrackStack.length >= 4) {
+            const marker = backtrackStack[backtrackStack.length - 1];
+            if (marker == -2000 || marker == -3000) { // lookahead markers
+              // This is a lookahead accept
+              const isNegative = marker == -2000;
 
-            const savedMarker = Porffor.array.fastPopI32(backtrackStack);
-            const savedCapturesLen = Porffor.array.fastPopI32(backtrackStack);
-            const savedSp = Porffor.array.fastPopI32(backtrackStack);
-            const lookaheadEndPc = Porffor.array.fastPopI32(backtrackStack);
+              const savedMarker = Porffor.array.fastPopI32(backtrackStack);
+              const savedCapturesLen = Porffor.array.fastPopI32(backtrackStack);
+              const savedSp = Porffor.array.fastPopI32(backtrackStack);
+              const lookaheadEndPc = Porffor.array.fastPopI32(backtrackStack);
 
-            // Restore string position (lookaheads don't consume)
-            sp = savedSp;
-            captures.length = savedCapturesLen;
+              // Restore string position (lookaheads don't consume)
+              sp = savedSp;
+              captures.length = savedCapturesLen;
 
-            if (isNegative) {
-              // Negative lookahead: pattern matched, so fail completely
-              matched = false;
+              if (isNegative) {
+                // Negative lookahead: pattern matched, so fail completely
+                matched = false;
+                break interpreter;
+              } else {
+                // Positive lookahead: pattern matched, so continue after lookahead
+                pc = lookaheadEndPc;
+              }
               break;
-            } else {
-              // Positive lookahead: pattern matched, so continue after lookahead
-              pc = lookaheadEndPc;
-              continue;
             }
-          } else {
-            // Normal accept
-            matched = true;
-            finalSp = sp;
-            break;
           }
-        } else {
+
           // Normal accept
           matched = true;
           finalSp = sp;
+          break interpreter;
+        }
+
+        case 0x01: { // single
+          if (sp >= inputLen) {
+            backtrack = true;
+          } else {
+            let c1: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
+            let c2: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+            if (ignoreCase) {
+              if (c1 >= 97 && c1 <= 122) c1 -= 32;
+              if (c2 >= 97 && c2 <= 122) c2 -= 32;
+            }
+            if (c1 == c2) {
+              pc += 2;
+              sp += 1;
+            } else {
+              backtrack = true;
+            }
+          }
           break;
         }
-      }
 
-      let backtrack: boolean = false;
-
-      if (op == 0x01) { // single
-        if (sp >= inputLen) {
-          backtrack = true;
-        } else {
-          let c1: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
-          let c2: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
-          if (ignoreCase) {
-            if (c1 >= 97 && c1 <= 122) c1 -= 32;
-            if (c2 >= 97 && c2 <= 122) c2 -= 32;
-          }
-          if (c1 == c2) {
-            pc += 2;
-            sp += 1;
-          } else {
+        case 0x02: // class
+        case 0x03: { // negated class
+          if (sp >= inputLen) {
             backtrack = true;
-          }
-        }
-      } else if (op == 0x02 || op == 0x03) { // class or negated class
-        if (sp >= inputLen) {
-          backtrack = true;
-        } else {
-          let char: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
-          let classPc: i32 = pc + 1;
-          let charInClass: boolean = false;
-          while (true) {
-            const marker: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 0);
-            if (marker == 0xFF) break; // end of class
-
-            if (marker == 0x00) { // range
-              let from: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
-              let to: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 2);
-              let cCheck: i32 = char;
-              if (ignoreCase) {
-                if (from >= 97 && from <= 122) from -= 32;
-                if (to >= 97 && to <= 122) to -= 32;
-                if (cCheck >= 97 && cCheck <= 122) cCheck -= 32;
-              }
-              if (cCheck >= from && cCheck <= to) {
-                charInClass = true;
-                break;
-              }
-              classPc += 3;
-            } else if (marker == 0x01) { // char
-              let c1: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
-              let c2: i32 = char;
-              if (ignoreCase) {
-                if (c1 >= 97 && c1 <= 122) c1 -= 32;
-                if (c2 >= 97 && c2 <= 122) c2 -= 32;
-              }
-              if (c1 == c2) {
-                charInClass = true;
-                break;
-              }
-              classPc += 2;
-            } else if (marker == 0x02) { // predefined
-              const classId: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
-              let isMatch: boolean = false;
-              if (classId == 1) isMatch = char >= 48 && char <= 57;
-              else if (classId == 2) isMatch = !(char >= 48 && char <= 57);
-              else if (classId == 3) isMatch = Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
-              else if (classId == 4) isMatch = !Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
-              else if (classId == 5) isMatch = (char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95;
-              else if (classId == 6) isMatch = !((char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95);
-
-              if (isMatch) {
-                charInClass = true;
-                break;
-              }
-              classPc += 2;
-            }
-          }
-
-          if (op == 0x03) charInClass = !charInClass;
-
-          if (charInClass) {
-            while (Porffor.wasm.i32.load8_u(classPc, 0, 0) != 0xFF) {
+          } else {
+            let char: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+            let classPc: i32 = pc + 1;
+            let charInClass: boolean = false;
+            while (true) {
               const marker: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 0);
-              if (marker == 0x00) classPc += 3;
-              else if (marker == 0x01) classPc += 2;
-              else if (marker == 0x02) classPc += 2;
-            }
-            pc = classPc + 1;
-            sp += 1;
-          } else {
-            backtrack = true;
-          }
-        }
-      } else if (op == 0x04) { // predefined class
-        if (sp >= inputLen) {
-          backtrack = true;
-        } else {
-          const classId: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
-          const char: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
-          let isMatch: boolean = false;
-          if (classId == 1) isMatch = char >= 48 && char <= 57;
-          else if (classId == 2) isMatch = !(char >= 48 && char <= 57);
-          else if (classId == 3) isMatch = Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
-          else if (classId == 4) isMatch = !Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
-          else if (classId == 5) isMatch = (char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95;
-          else if (classId == 6) isMatch = !((char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95);
+              if (marker == 0xFF) break; // end of class
 
-          if (isMatch) {
-            pc += 2;
-            sp += 1;
-          } else {
-            backtrack = true;
-          }
-        }
-      } else if (op == 0x05) { // start
-        if (sp == 0 || (multiline && sp > 0 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) == 10)) {
-          pc += 1;
-        } else {
-          backtrack = true;
-        }
-      } else if (op == 0x06) { // end
-        if (sp == inputLen || (multiline && sp < inputLen && Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 10)) {
-          pc += 1;
-        } else {
-          backtrack = true;
-        }
-      } else if (op == 0x07) { // word boundary
-        let prevIsWord: boolean = false;
-        if (sp > 0) {
-          const prevChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 3);
-          prevIsWord = Porffor.fastOr(
-            prevChar >= 65 && prevChar <= 90, // A-Z
-            prevChar >= 97 && prevChar <= 122, // a-z
-            prevChar >= 48 && prevChar <= 57, // 0-9
-            prevChar == 95 // _
-          );
-        }
-
-        let nextIsWord: boolean = false;
-        if (sp < inputLen) {
-          const nextChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
-          nextIsWord = Porffor.fastOr(
-            nextChar >= 65 && nextChar <= 90, // A-Z
-            nextChar >= 97 && nextChar <= 122, // a-z
-            nextChar >= 48 && nextChar <= 57, // 0-9
-            nextChar == 95 // _
-          );
-        }
-
-        if (prevIsWord != nextIsWord) {
-          pc += 1;
-        } else {
-          backtrack = true;
-        }
-      } else if (op == 0x08) { // non-word boundary
-        let prevIsWord: boolean = false;
-        if (sp > 0) {
-          const prevChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 3);
-          prevIsWord = Porffor.fastOr(
-            prevChar >= 65 && prevChar <= 90, // A-Z
-            prevChar >= 97 && prevChar <= 122, // a-z
-            prevChar >= 48 && prevChar <= 57, // 0-9
-            prevChar == 95 // _
-          );
-        }
-
-        let nextIsWord: boolean = false;
-        if (sp < inputLen) {
-          const nextChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
-          nextIsWord = Porffor.fastOr(
-            nextChar >= 65 && nextChar <= 90, // A-Z
-            nextChar >= 97 && nextChar <= 122, // a-z
-            nextChar >= 48 && nextChar <= 57, // 0-9
-            nextChar == 95 // _
-          );
-        }
-
-        if (prevIsWord == nextIsWord) {
-          pc += 1;
-        } else {
-          backtrack = true;
-        }
-      } else if (op == 0x09) { // dot
-        if (sp >= inputLen || (!dotAll && Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 10)) {
-          backtrack = true;
-        } else {
-          pc += 1;
-          sp += 1;
-        }
-      } else if (op == 0x0a) { // back reference
-        const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
-        const arrIndex = (capIndex - 1) * 2;
-        if (arrIndex + 1 >= captures.length) { // reference to group that hasn't been seen
-          pc += 2;
-        } else {
-          const capStart = captures[arrIndex];
-          const capEnd = captures[arrIndex + 1];
-          if (capStart == -1 || capEnd == -1) { // reference to unmatched group
-            pc += 2;
-          } else {
-            const capLen = capEnd - capStart;
-            if (sp + capLen > inputLen) {
-              backtrack = true;
-            } else {
-              let matches = true;
-              for (let k = 0; k < capLen; k++) {
-                let c1 = Porffor.wasm.i32.load8_u(input + capStart + k, 0, 4);
-                let c2 = Porffor.wasm.i32.load8_u(input + sp + k, 0, 4);
+              if (marker == 0x00) { // range
+                let from: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
+                let to: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 2);
+                let cCheck: i32 = char;
+                if (ignoreCase) {
+                  if (from >= 97 && from <= 122) from -= 32;
+                  if (to >= 97 && to <= 122) to -= 32;
+                  if (cCheck >= 97 && cCheck <= 122) cCheck -= 32;
+                }
+                if (cCheck >= from && cCheck <= to) {
+                  charInClass = true;
+                  break;
+                }
+                classPc += 3;
+              } else if (marker == 0x01) { // char
+                let c1: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
+                let c2: i32 = char;
                 if (ignoreCase) {
                   if (c1 >= 97 && c1 <= 122) c1 -= 32;
                   if (c2 >= 97 && c2 <= 122) c2 -= 32;
                 }
-                if (c1 != c2) {
-                  matches = false;
+                if (c1 == c2) {
+                  charInClass = true;
                   break;
                 }
+                classPc += 2;
+              } else if (marker == 0x02) { // predefined
+                const classId: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
+                let isMatch: boolean = false;
+                if (classId == 1) isMatch = char >= 48 && char <= 57;
+                else if (classId == 2) isMatch = !(char >= 48 && char <= 57);
+                else if (classId == 3) isMatch = Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
+                else if (classId == 4) isMatch = !Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
+                else if (classId == 5) isMatch = (char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95;
+                else if (classId == 6) isMatch = !((char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95);
+
+                if (isMatch) {
+                  charInClass = true;
+                  break;
+                }
+                classPc += 2;
               }
-              if (matches) {
-                sp += capLen;
-                pc += 2;
-              } else {
+            }
+
+            if (op == 0x03) charInClass = !charInClass;
+
+            if (charInClass) {
+              while (Porffor.wasm.i32.load8_u(classPc, 0, 0) != 0xFF) {
+                const marker: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 0);
+                if (marker == 0x00) classPc += 3;
+                else if (marker == 0x01) classPc += 2;
+                else if (marker == 0x02) classPc += 2;
+              }
+              pc = classPc + 1;
+              sp += 1;
+            } else {
+              backtrack = true;
+            }
+          }
+          break;
+        }
+
+        case 0x04: { // predefined class
+          if (sp >= inputLen) {
+            backtrack = true;
+          } else {
+            const classId: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
+            const char: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+            let isMatch: boolean = false;
+            if (classId == 1) isMatch = char >= 48 && char <= 57;
+            else if (classId == 2) isMatch = !(char >= 48 && char <= 57);
+            else if (classId == 3) isMatch = Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
+            else if (classId == 4) isMatch = !Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
+            else if (classId == 5) isMatch = (char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95;
+            else if (classId == 6) isMatch = !((char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95);
+
+            if (isMatch) {
+              pc += 2;
+              sp += 1;
+            } else {
+              backtrack = true;
+            }
+          }
+          break;
+        }
+
+        case 0x05: // start
+          if (sp == 0 || (multiline && sp > 0 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) == 10)) {
+            pc += 1;
+          } else {
+            backtrack = true;
+          }
+          break;
+
+        case 0x06: // end
+          if (sp == inputLen || (multiline && sp < inputLen && Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 10)) {
+            pc += 1;
+          } else {
+            backtrack = true;
+          }
+          break;
+
+        case 0x07: // word boundary
+        case 0x08: { // non-word boundary
+          let prevIsWord: boolean = false;
+          if (sp > 0) {
+            const prevChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 3);
+            prevIsWord = Porffor.fastOr(
+              prevChar >= 65 && prevChar <= 90, // A-Z
+              prevChar >= 97 && prevChar <= 122, // a-z
+              prevChar >= 48 && prevChar <= 57, // 0-9
+              prevChar == 95 // _
+            );
+          }
+
+          let nextIsWord: boolean = false;
+          if (sp < inputLen) {
+            const nextChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+            nextIsWord = Porffor.fastOr(
+              nextChar >= 65 && nextChar <= 90, // A-Z
+              nextChar >= 97 && nextChar <= 122, // a-z
+              nextChar >= 48 && nextChar <= 57, // 0-9
+              nextChar == 95 // _
+            );
+          }
+
+          const isWordBoundary = prevIsWord != nextIsWord;
+          if ((op == 0x07 && isWordBoundary) || (op == 0x08 && !isWordBoundary)) {
+            pc += 1;
+          } else {
+            backtrack = true;
+          }
+          break;
+        }
+
+        case 0x09: // dot
+          if (sp >= inputLen || (!dotAll && Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 10)) {
+            backtrack = true;
+          } else {
+            pc += 1;
+            sp += 1;
+          }
+          break;
+
+        case 0x0a: { // back reference
+          const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
+          const arrIndex = (capIndex - 1) * 2;
+          if (arrIndex + 1 >= captures.length) { // reference to group that hasn't been seen
+            pc += 2;
+          } else {
+            const capStart = captures[arrIndex];
+            const capEnd = captures[arrIndex + 1];
+            if (capStart == -1 || capEnd == -1) { // reference to unmatched group
+              pc += 2;
+            } else {
+              const capLen = capEnd - capStart;
+              if (sp + capLen > inputLen) {
                 backtrack = true;
+              } else {
+                let matches = true;
+                for (let k = 0; k < capLen; k++) {
+                  let c1 = Porffor.wasm.i32.load8_u(input + capStart + k, 0, 4);
+                  let c2 = Porffor.wasm.i32.load8_u(input + sp + k, 0, 4);
+                  if (ignoreCase) {
+                    if (c1 >= 97 && c1 <= 122) c1 -= 32;
+                    if (c2 >= 97 && c2 <= 122) c2 -= 32;
+                  }
+                  if (c1 != c2) {
+                    matches = false;
+                    break;
+                  }
+                }
+                if (matches) {
+                  sp += capLen;
+                  pc += 2;
+                } else {
+                  backtrack = true;
+                }
               }
             }
           }
-        }
-      } else if (op == 0x0b || op == 0x0c) { // positive or negative lookahead
-        const jumpOffset = Porffor.wasm.i32.load16_s(pc, 0, 1);
-        const lookaheadEndPc = pc + jumpOffset + 3;
-        const savedSp = sp; // Save current string position
-
-        // Use fork to test the lookahead pattern
-        Porffor.array.fastPushI32(backtrackStack, lookaheadEndPc); // Continue point after lookahead
-        Porffor.array.fastPushI32(backtrackStack, savedSp); // Restore original sp
-        Porffor.array.fastPushI32(backtrackStack, captures.length);
-
-        // Mark this as a lookahead with special values
-        if (op == 0x0c) { // negative lookahead
-          Porffor.array.fastPushI32(backtrackStack, -2000); // Special marker for negative
-        } else { // positive lookahead
-          Porffor.array.fastPushI32(backtrackStack, -3000); // Special marker for positive
+          break;
         }
 
-        pc = pc + 3; // Jump to lookahead content
-      } else if (op == 0x20) { // jump
-        pc += Porffor.wasm.i32.load16_s(pc, 0, 1);
-      } else if (op == 0x21) { // fork
-        const branch1Offset = Porffor.wasm.i32.load16_s(pc, 0, 1);
-        const branch2Offset = Porffor.wasm.i32.load16_s(pc, 0, 3);
+        case 0x0b:
+        case 0x0c: { // positive or negative lookahead
+          const jumpOffset = Porffor.wasm.i32.load16_s(pc, 0, 1);
+          const lookaheadEndPc = pc + jumpOffset + 3;
+          const savedSp = sp; // Save current string position
 
-        Porffor.array.fastPushI32(backtrackStack, pc + branch2Offset);
-        Porffor.array.fastPushI32(backtrackStack, sp);
-        Porffor.array.fastPushI32(backtrackStack, captures.length);
+          // Use fork to test the lookahead pattern
+          Porffor.array.fastPushI32(backtrackStack, lookaheadEndPc); // Continue point after lookahead
+          Porffor.array.fastPushI32(backtrackStack, savedSp); // Restore original sp
+          Porffor.array.fastPushI32(backtrackStack, captures.length);
 
-        pc += branch1Offset;
-      } else if (op == 0x30) { // start capture
-        const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
-        const arrIndex = capIndex + 255; // + 255 offset for temp start, as it could never end properly
-        captures[arrIndex] = sp;
-        pc += 2;
-      } else if (op == 0x31) { // end capture
-        const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
-        const arrIndex = (capIndex - 1) * 2 + 1;
-        while (captures.length <= arrIndex) Porffor.array.fastPushI32(captures, -1);
-        captures[arrIndex - 1] = captures[capIndex + 255];
-        captures[arrIndex] = sp;
-        pc += 2;
-      } else { // unknown op
-        backtrack = true;
+          // Mark this as a lookahead with special values
+          if (op == 0x0c) { // negative lookahead
+            Porffor.array.fastPushI32(backtrackStack, -2000); // Special marker for negative
+          } else { // positive lookahead
+            Porffor.array.fastPushI32(backtrackStack, -3000); // Special marker for positive
+          }
+
+          pc = pc + 3; // Jump to lookahead content
+          break;
+        }
+
+        case 0x20: // jump
+          pc += Porffor.wasm.i32.load16_s(pc, 0, 1);
+          break;
+
+        case 0x21: { // fork
+          const branch1Offset = Porffor.wasm.i32.load16_s(pc, 0, 1);
+          const branch2Offset = Porffor.wasm.i32.load16_s(pc, 0, 3);
+
+          Porffor.array.fastPushI32(backtrackStack, pc + branch2Offset);
+          Porffor.array.fastPushI32(backtrackStack, sp);
+          Porffor.array.fastPushI32(backtrackStack, captures.length);
+
+          pc += branch1Offset;
+          break;
+        }
+
+        case 0x30: { // start capture
+          const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
+          const arrIndex = capIndex + 255; // + 255 offset for temp start, as it could never end properly
+          captures[arrIndex] = sp;
+          pc += 2;
+          break;
+        }
+
+        case 0x31: { // end capture
+          const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
+          const arrIndex = (capIndex - 1) * 2 + 1;
+          while (captures.length <= arrIndex) Porffor.array.fastPushI32(captures, -1);
+          captures[arrIndex - 1] = captures[capIndex + 255];
+          captures[arrIndex] = sp;
+          pc += 2;
+          break;
+        }
+
+        default:
+          backtrack = true;
+          break;
       }
 
       if (backtrack) {
