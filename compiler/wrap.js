@@ -421,6 +421,19 @@ ${flags & 0b0001 ? `    get func idx: ${get}
               break;
             }
 
+            case 0x0b: {
+              const [ target ] = read(Int16Array, bc, i, 1);
+              i += 2;
+              console.log('\x1b[93mpositive lookahead\x1b[0m', target, `\x1b[2m(${i + target - 3})\x1b[0m`);
+              break;
+            }
+            case 0x0c: {
+              const [ target ] = read(Int16Array, bc, i, 1);
+              i += 2;
+              console.log('\x1b[93mnegative lookahead\x1b[0m', target, `\x1b[2m(${i + target - 3})\x1b[0m`);
+              break;
+            }
+
             case 0x10: {
               console.log('\x1b[92maccept\x1b[0m');
               break;
