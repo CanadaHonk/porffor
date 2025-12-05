@@ -738,3 +738,10 @@ export const isFinite = (number: any): boolean => {
   const num: number = ecma262.ToNumber(number);
   return Number.isFinite(num);
 };
+
+// 19.2.3 isNaN (number)
+// https://tc39.es/ecma262/#sec-isnan-number
+export const isNaN = (number: any): boolean => {
+  const num: number = ecma262.ToNumber(number);
+  return Number.isNaN(num);
+};
