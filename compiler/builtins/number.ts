@@ -731,3 +731,10 @@ export const parseFloat = (input: any): f64 => {
 };
 
 export const __Number_parseFloat = (input: any): f64 => parseFloat(input);
+
+// 19.2.2 isFinite (number)
+// https://tc39.es/ecma262/#sec-isfinite-number
+export const isFinite = (number: any): boolean => {
+  const num: number = ecma262.ToNumber(number);
+  return Number.isFinite(num);
+};
