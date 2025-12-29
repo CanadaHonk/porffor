@@ -5073,7 +5073,10 @@ const generateForIn = (scope, decl) => {
 
   let setVar;
   if (decl.left.type === 'Identifier') {
-    if (!isIdentAssignable(scope, decl.left.name)) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    if (!isIdentAssignable(scope, decl.left.name)) {
+      inferLoopEnd(scope);
+      return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    }
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
