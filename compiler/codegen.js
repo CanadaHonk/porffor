@@ -5652,8 +5652,13 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
     scope.arrays.set(uniqueName, ptr);
   } else {
     const tmp = localTmp(scope, '#create_array' + uniqId(), Valtype.i32);
+
+    // calculate required bytes: 4 (length prefix) + length * 9 (f64 value + type byte)
+    const requiredBytes = ValtypeSize.i32 + length * (ValtypeSize[valtype] + 1);
+    const allocSize = Math.max(requiredBytes, pageSize);
+
     out.push(
-      number(pageSize, Valtype.i32),
+      number(allocSize, Valtype.i32),
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_malloc').index ],
       [ Opcodes.local_set, tmp ]
     );
