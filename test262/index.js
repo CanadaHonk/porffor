@@ -52,7 +52,7 @@ if (cluster.isPrimary) {
   const tests = await readTest262(test262Path, whatTests, preludes, lastResults.timeouts);
   if (!resultOnly) process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mcaching tests to tmp...\u001b[0m`);
 
-  fs.writeFileSync(workerDataPath, JSON.stringify(tests));
+  fs.writeFileSync(workerDataPath, JSON.stringify(tests, undefined, 2));
   if (!resultOnly) process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mstarting ${threads} runners...\u001b[0m`);
 
   const profile = process.argv.includes('--profile');
@@ -109,7 +109,7 @@ if (cluster.isPrimary) {
 
   const start = performance.now();
 
-  const passFiles = [], wasmErrorFiles = [], compileErrorFiles = [], timeoutFiles = [];
+  const passFiles = [], wasmErrorFiles = [], compileErrorFiles = [], timeoutFiles = [], failFiles = [];
   let dirs = new Map(), features = new Map(), errors = new Map(), pagesUsed = new Map();
   let total = 0, passes = 0, fails = 0, compileErrors = 0, wasmErrors = 0, runtimeErrors = 0, timeouts = 0;
 
@@ -216,6 +216,7 @@ if (cluster.isPrimary) {
         if (!resultOnly) compileErrorFiles.push(file);
       } else if (result === 4) {
         fails++;
+        if (!resultOnly) failFiles.push(file);
       } else if (result === 5) {
         timeouts++;
         if (!resultOnly) timeoutFiles.push(file);
@@ -308,7 +309,28 @@ if (cluster.isPrimary) {
     if (lastResults.passes) console.log(`\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastResults.passes.includes(x)).join('\n')}\n\n`);
     if (lastResults.passes) console.log(`\u001b[4mnew fails\u001b[0m\n${lastResults.passes.filter(x => !passFiles.includes(x)).join('\n')}`);
 
-    if (!dontWriteResults) fs.writeFileSync(join(__dirname, 'results.json'), JSON.stringify({ passes: passFiles, compileErrors: compileErrorFiles, wasmErrors: wasmErrorFiles, timeouts: timeoutFiles, total }));
+    if (!dontWriteResults) {
+      const alphabetically = (a, b) => a.localeCompare(b);
+      passFiles.sort(alphabetically);
+      failFiles.sort(alphabetically);
+      compileErrorFiles.sort(alphabetically);
+      wasmErrorFiles.sort(alphabetically);
+      timeoutFiles.sort(alphabetically);
+
+      fs.writeFileSync(
+        join(__dirname, 'results.json'),
+        JSON.stringify(
+          {
+            passes: passFiles,
+            fails: failFiles,
+            compileErrors: compileErrorFiles,
+            wasmErrors: wasmErrorFiles,
+            timeouts: timeoutFiles,
+            total
+          },
+          null,
+          2));
+    }
   }
 
   const timeStr = ms => {
