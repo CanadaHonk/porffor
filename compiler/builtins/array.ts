@@ -33,7 +33,7 @@ export const Array = function (...args: any[]): any[] {
 };
 
 export const __Array_isArray = (x: unknown): boolean =>
-  Porffor.type(x) == Porffor.TYPES.array;
+  Porffor.type(x) == Porffor.TYPES.array || x === Array.prototype;
 
 export const __Array_from = (arg: any, mapFn: any): any[] => {
   if (arg == null) throw new TypeError('Argument cannot be nullish');
