@@ -252,6 +252,7 @@ ${funcs.map(x => {
   const rewriteWasm = wasm => {
     const str = JSON.stringify(wasm.filter(x => x.length && (x[0] != null || typeof x[1] === 'string')), (k, v) => {
       if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
+      if (Object.is(v, -0)) return '-0';
       return v;
     })
       .replace(/\["alloc","(.*?)",(.*?)\]/g, (_, reason, valtype) => `[${+valtype === Valtype.i32 ? Opcodes.i32_const : Opcodes.f64_const},allocPage(_,'${reason}')]`)
@@ -281,7 +282,8 @@ ${funcs.map(x => {
 
         const [ id, extra ] = flag.split('.');
         return `[null,()=>{const a=Prefs;Prefs={...defaultPrefs,${JSON.stringify(diffPrefs).slice(1, -1)}};resetGlobals(Valtype,Opcodes);const b=generate(_,${comptimeFlagChecks[id](extra)}?${passAst}:${failAst});if(b.at(-1)[0]>=0x41&&b.at(-1)[0]<=0x44)b.pop();Prefs=a;resetGlobals(Valtype,Opcodes);return b;}]`;
-      });
+      })
+      .replaceAll('"-0"', '-0');
 
     return `(_,{${str.includes('usedTypes.') ? 'usedTypes,' : ''}${str.includes('hasFunc(') ? 'hasFunc,' : ''}${str.includes('Valtype') ? 'Valtype,' : ''}${str.includes('i32ify') ? 'i32ify,' : ''}${str.includes('Opcodes') ? 'Opcodes,' : ''}${str.includes('...t(') ? 't,' : ''}${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('makeString(') ? 'makeString,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('funcRef(') ? 'funcRef,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}${str.includes('generate(') ? 'generate,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + `eval(${JSON.stringify(str)})`;
   };
