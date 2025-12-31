@@ -1391,10 +1391,11 @@ export const BuiltinFuncs = () => {
   };
 
   // allow non-comptime redefinition later in precompiled
-  const comptime = (name, returnType, comptime) => {
+  const comptime = (name, returnType, comptime, jsLength = 0) => {
     let v = {
       returnType,
       comptime,
+      jsLength,
       params: [],
       locals: [],
       returns: []
@@ -1461,7 +1462,7 @@ export const BuiltinFuncs = () => {
     }
 
     return out;
-  });
+  }, 2);
 
   comptime('__Math_min', TYPES.number, (scope, decl, { generate }) => {
     const out = [
@@ -1476,7 +1477,7 @@ export const BuiltinFuncs = () => {
     }
 
     return out;
-  });
+  }, 2);
 
   comptime('__Porffor_printStatic', TYPES.undefined, (scope, decl, { printStaticStr }) => {
     const str = decl.arguments[0].value;
