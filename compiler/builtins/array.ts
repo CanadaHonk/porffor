@@ -35,7 +35,7 @@ export const Array = function (...args: any[]): any[] {
 export const __Array_isArray = (x: unknown): boolean =>
   Porffor.type(x) == Porffor.TYPES.array;
 
-export const __Array_from = (arg: any, mapFn: any): any[] => {
+export const __Array_from = (arg: any, mapFn: any, thisArg: any = undefined): any[] => {
   if (arg == null) throw new TypeError('Argument cannot be nullish');
 
   let out: any[] = Porffor.malloc();
@@ -51,7 +51,7 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
       if (Porffor.type(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
 
       for (const x of arg) {
-        out[i] = mapFn(x, i);
+        out[i] = mapFn.call(thisArg, x, i);
         i++;
       }
     } else {
@@ -69,8 +69,16 @@ export const __Array_from = (arg: any, mapFn: any): any[] => {
     if (len > 4294967295) throw new RangeError('Invalid array length');
     if (len < 0) len = 0;
 
-    for (let i: i32 = 0; i < len; i++) {
-      out[i] = (arg as object)[i];
+    if (Porffor.type(mapFn) != Porffor.TYPES.undefined) {
+      if (Porffor.type(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
+
+      for (let i: i32 = 0; i < len; i++) {
+        out[i] = mapFn.call(thisArg, (arg as object)[i], i);
+      }
+    } else {
+      for (let i: i32 = 0; i < len; i++) {
+        out[i] = (arg as object)[i];
+      }
     }
 
     out.length = len;
