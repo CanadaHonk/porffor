@@ -154,7 +154,7 @@ export const __Math_pow = (base: number, exponent: number): number => {
     }
 
     // 5. If base is -∞𝔽, then
-    const isOdd = exponent % 2 == 1;
+    const isOdd = Math.abs(exponent) % 2 == 1;
 
     // a. If exponent > +0𝔽, then
     if (exponent > 0) {
@@ -178,7 +178,7 @@ export const __Math_pow = (base: number, exponent: number): number => {
     }
 
     // 7. If base is -0𝔽, then
-    const isOdd = exponent % 2 == 1;
+    const isOdd = Math.abs(exponent) % 2 == 1;
 
     // a. If exponent > +0𝔽, then
     if (exponent > 0) {
