@@ -104,6 +104,11 @@ export const __Array_prototype_at = (_this: any[], index: any) => {
 };
 
 export const __Array_prototype_push = (_this: any[], ...items: any[]) => {
+  // handle non-array objects generically
+  if (Porffor.type(_this) == Porffor.TYPES.object) {
+    return __Object_prototype_push(_this, ...items);
+  }
+
   let len: i32 = _this.length;
   const itemsLen: i32 = items.length;
 
