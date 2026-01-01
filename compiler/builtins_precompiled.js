@@ -2201,7 +2201,7 @@ params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
 locals:[124,124,124],localNames:["x","x#type","sum","term","n"]
 }
 x.__Math_acos={
-wasm:(_,{builtin})=>eval("[[32,0],[65,1],[16,builtin('__Math_asin')],[68,3.141592653589793],[68,2],[163],[161],[15]]"),
+wasm:(_,{builtin})=>eval("[[68,3.141592653589793],[68,2],[163],[32,0],[65,1],[16,builtin('__Math_asin')],[161],[15]]"),
 params:[124,127],typedParams:1,returns:[124],returnType:1,jsLength:1,
 locals:[],localNames:["x","x#type"]
 }

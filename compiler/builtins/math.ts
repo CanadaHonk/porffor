@@ -460,7 +460,7 @@ export const __Math_asin = (x: number): number => {
   return sum;
 };
 
-export const __Math_acos = (x: number): number => Math.asin(x) - Math.PI / 2;
+export const __Math_acos = (x: number): number => Math.PI / 2 - Math.asin(x);
 
 export const __Math_atan = (x: number): number => {
   if (x == Infinity) return Math.PI / 2;
