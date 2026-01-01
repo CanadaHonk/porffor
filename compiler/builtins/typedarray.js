@@ -114,9 +114,10 @@ export const __${name}_prototype_byteOffset$get = (_this: ${name}) => {
   return Porffor.wasm.i32.load(_this, 0, 8);
 };
 
-export const __${name}_prototype_at = (_this: ${name}, index: number) => {
+export const __${name}_prototype_at = (_this: ${name}, index: any) => {
+  index = ecma262.ToIntegerOrInfinity(index);
+
   const len: i32 = _this.length;
-  index |= 0;
   if (index < 0) {
     index = len + index;
     if (index < 0) return undefined;
@@ -126,10 +127,11 @@ export const __${name}_prototype_at = (_this: ${name}, index: number) => {
   return _this[index];
 };
 
-export const __${name}_prototype_slice = (_this: ${name}, start: number, end: number) => {
+export const __${name}_prototype_slice = (_this: ${name}, start: any, end: any) => {
   const len: i32 = _this.length;
-  start |= 0;
-  end |= 0;
+  start = ecma262.ToIntegerOrInfinity(start);
+  if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
+    else end = ecma262.ToIntegerOrInfinity(end);
 
   if (start < 0) {
     start = len + start;
@@ -176,12 +178,11 @@ export const __${name}_prototype_set = (_this: ${name}, array: any, offset: numb
   }
 };
 
-export const __${name}_prototype_subarray = (_this: ${name}, start: number, end: any) => {
+export const __${name}_prototype_subarray = (_this: ${name}, start: any, end: any) => {
   const len: i32 = _this.length;
+  start = ecma262.ToIntegerOrInfinity(start);
   if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
-
-  start |= 0;
-  end |= 0;
+    else end = ecma262.ToIntegerOrInfinity(end);
 
   if (start < 0) {
     start = len + start;
