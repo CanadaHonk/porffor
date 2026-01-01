@@ -548,7 +548,6 @@ export const BuiltinFuncs = () => {
   for (const [ name, op, prefix = [ [ Opcodes.local_get, 0 ] ] ] of [
     [ 'sqrt', Opcodes.f64_sqrt ],
     [ 'abs', Opcodes.f64_abs ],
-    [ 'sign', Opcodes.f64_copysign, [ number(1), [ Opcodes.local_get, 0 ] ] ],
     [ 'floor', Opcodes.f64_floor ],
     [ 'ceil', Opcodes.f64_ceil ],
     [ 'round', Opcodes.f64_nearest ],
@@ -577,6 +576,43 @@ export const BuiltinFuncs = () => {
       Opcodes.i32_to_u,
       [ Opcodes.i32_clz ],
       Opcodes.i32_from
+    ]
+  };
+
+  // Math.sign - per spec:
+  // - If x is NaN, return NaN
+  // - If x is -0, return -0
+  // - If x is +0, return +0
+  // - If x < 0, return -1
+  // - If x > 0, return 1
+  _.__Math_sign = {
+    params: [ Valtype.f64 ],
+    locals: [],
+    returns: [ Valtype.f64 ],
+    returnType: TYPES.number,
+    wasm: () => [
+      // First: check if x == 0
+      [ Opcodes.local_get, 0 ],
+      number(0),
+      [ Opcodes.f64_eq ],
+      [ Opcodes.if, Valtype.f64 ],
+        // x is zero, return x (preserves -0 vs +0)
+        [ Opcodes.local_get, 0 ],
+      [ Opcodes.else ],
+        // x is not zero, check if NaN
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.local_get, 0 ],
+        [ Opcodes.f64_ne ],
+        [ Opcodes.if, Valtype.f64 ],
+          // x is NaN, return NaN
+          number(NaN),
+        [ Opcodes.else ],
+          // x is not zero and not NaN, return copysign(1, x)
+          number(1),
+          [ Opcodes.local_get, 0 ],
+          [ Opcodes.f64_copysign ],
+        [ Opcodes.end ],
+      [ Opcodes.end ]
     ]
   };
 
