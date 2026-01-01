@@ -1401,6 +1401,7 @@ export const BuiltinFuncs = () => {
     };
 
     Object.defineProperty(_, name, {
+      enumerable: true,
       get() {
         return v;
       },
@@ -1454,8 +1455,13 @@ export const BuiltinFuncs = () => {
     ];
 
     for (let i = 0; i < decl.arguments.length; i++) {
+      // coerce argument to number via ToNumber
       out.push(
-        ...generate(scope, decl.arguments[i]),
+        ...generate(scope, {
+          type: 'CallExpression',
+          callee: { type: 'Identifier', name: '__ecma262_ToNumber' },
+          arguments: [ decl.arguments[i] ]
+        }),
         [ Opcodes.f64_max ]
       );
     }
@@ -1469,8 +1475,13 @@ export const BuiltinFuncs = () => {
     ];
 
     for (let i = 0; i < decl.arguments.length; i++) {
+      // coerce argument to number via ToNumber
       out.push(
-        ...generate(scope, decl.arguments[i]),
+        ...generate(scope, {
+          type: 'CallExpression',
+          callee: { type: 'Identifier', name: '__ecma262_ToNumber' },
+          arguments: [ decl.arguments[i] ]
+        }),
         [ Opcodes.f64_min ]
       );
     }
