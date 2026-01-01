@@ -679,8 +679,12 @@ export const __ByteString_prototype_endsWith = (_this: bytestring, searchString:
 };
 
 
-export const __String_prototype_indexOf = (_this: string, searchString: string, position: number = 0) => {
-  // todo: handle bytestring searchString
+export const __String_prototype_indexOf = (_this: string, searchString: any, position: any = 0) => {
+  searchString = ecma262.ToString(searchString);
+  if (Porffor.wasm`local.get ${searchString+1}` == Porffor.TYPES.bytestring) {
+    searchString = Porffor.bytestringToString(searchString);
+  }
+  position = ecma262.ToIntegerOrInfinity(position);
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
@@ -717,10 +721,12 @@ export const __String_prototype_indexOf = (_this: string, searchString: string, 
   return -1;
 };
 
-export const __ByteString_prototype_indexOf = (_this: bytestring, searchString: bytestring, position: number = 0) => {
-  // if searching non-bytestring, bytestring will not start with it
-  // todo: change this to just check if = string and ToString others
-  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES.bytestring) return -1;
+export const __ByteString_prototype_indexOf = (_this: bytestring, searchString: any, position: any = 0) => {
+  searchString = ecma262.ToString(searchString);
+  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES.bytestring) {
+    return __String_prototype_indexOf(Porffor.bytestringToString(_this), searchString, position);
+  }
+  position = ecma262.ToIntegerOrInfinity(position);
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
@@ -758,8 +764,11 @@ export const __ByteString_prototype_indexOf = (_this: bytestring, searchString: 
 };
 
 
-export const __String_prototype_lastIndexOf = (_this: string, searchString: string, position: any = undefined) => {
-  // todo: handle bytestring searchString
+export const __String_prototype_lastIndexOf = (_this: string, searchString: any, position: any = undefined) => {
+  searchString = ecma262.ToString(searchString);
+  if (Porffor.wasm`local.get ${searchString+1}` == Porffor.TYPES.bytestring) {
+    searchString = Porffor.bytestringToString(searchString);
+  }
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
@@ -802,10 +811,11 @@ export const __String_prototype_lastIndexOf = (_this: string, searchString: stri
   return -1;
 };
 
-export const __ByteString_prototype_lastIndexOf = (_this: bytestring, searchString: bytestring, position: any = undefined) => {
-  // if searching non-bytestring, bytestring will not start with it
-  // todo: change this to just check if = string and ToString others
-  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES.bytestring) return -1;
+export const __ByteString_prototype_lastIndexOf = (_this: bytestring, searchString: any, position: any = undefined) => {
+  searchString = ecma262.ToString(searchString);
+  if (Porffor.wasm`local.get ${searchString+1}` != Porffor.TYPES.bytestring) {
+    return __String_prototype_lastIndexOf(Porffor.bytestringToString(_this), searchString, position);
+  }
 
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
   const searchPtr: i32 = Porffor.wasm`local.get ${searchString}`;
