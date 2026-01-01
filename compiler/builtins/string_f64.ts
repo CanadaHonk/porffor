@@ -185,6 +185,7 @@ export const __String_raw = (template: any, ...substitutions: any[]): string => 
   // 2. Let cooked be ? ToObject(template).
   // 3. Let literals be ? ToObject(? Get(cooked, "raw")).
   const literals: any = template.raw;
+  if (literals == null) throw new TypeError('Cannot convert undefined or null to object');
 
   // 4. Let literalCount be ? LengthOfArrayLike(literals).
   const literalCount: number = ecma262.ToIntegerOrInfinity(Porffor.type(literals) == Porffor.TYPES.object ? (literals as object)['length'] : literals.length);
