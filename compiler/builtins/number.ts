@@ -687,7 +687,6 @@ export const parseInt = (input: any, radix: any): f64 => {
 export const __Number_parseInt = (input: any, radix: any): f64 => parseInt(input, radix);
 
 export const parseFloat = (input: any): f64 => {
-  // todo: handle exponents
   input = ecma262.ToString(input).trim();
 
   let n: f64 = NaN;
@@ -721,6 +720,18 @@ export const parseFloat = (input: any): f64 => {
     } else if (chr == 46) { // .
       if (dec) break;
       dec = 1;
+    } else if (chr == 101 || chr == 69) { // e or E
+      if (Number.isNaN(n)) break; // No mantissa before exponent
+
+      const exp: f64 = __Porffor_parseExp(input, i, len, false);
+      if (!Number.isNaN(exp)) {
+        if (exp < 0) {
+          n = n / (10 ** -exp);
+        } else {
+          n = n * (10 ** exp);
+        }
+      }
+      break;
     } else {
       break;
     }

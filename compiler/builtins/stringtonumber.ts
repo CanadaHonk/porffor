@@ -1,3 +1,44 @@
+// Parse exponent part after 'e' or 'E'
+// Returns the exponent value (can be negative), or NaN on failure
+// strict: if true, returns NaN on any non-digit char; if false, stops at non-digit
+export const __Porffor_parseExp = (str: unknown, i: i32, len: i32, strict: boolean): f64 => {
+  let expNeg: boolean = false;
+  let exp: i32 = 0;
+  let hasDigit: boolean = false;
+
+  // Check for +/- after E
+  if (i < len) {
+    const sign: i32 = str.charCodeAt(i);
+    if (sign == 43) { // +
+      i++;
+    } else if (sign == 45) { // -
+      expNeg = true;
+      i++;
+    }
+  }
+
+  // Must have at least one digit
+  if (strict && i >= len) return NaN;
+
+  // Parse exponent digits
+  while (i < len) {
+    const chr: i32 = str.charCodeAt(i);
+    if (chr >= 48 && chr <= 57) { // 0-9
+      exp = (exp * 10) + chr - 48;
+      hasDigit = true;
+      i++;
+    } else {
+      if (strict) return NaN;
+      break;
+    }
+  }
+
+  if (!hasDigit) return NaN;
+
+  if (expNeg) return -exp;
+  return exp;
+};
+
 export const __Porffor_stn_int = (str: unknown, radix: i32, i: i32): f64 => {
   let nMax: i32 = 58;
   if (radix < 10) nMax = 48 + radix;
@@ -46,6 +87,11 @@ export const __Porffor_stn_float = (str: unknown, i: i32): f64 => {
     } else if (chr == 46) { // .
       if (dec) return NaN;
       dec = 1;
+    } else if (chr == 69 || chr == 101) { // E or e
+      const exp: f64 = __Porffor_parseExp(str, i, len, true);
+      if (Number.isNaN(exp)) return NaN;
+      if (exp < 0) return n / (10 ** -exp);
+      return n * (10 ** exp);
     } else {
       return NaN;
     }
@@ -115,7 +161,6 @@ export const __ecma262_StringToNumber = (str: unknown): number => {
     return NaN;
   }
 
-  // todo: handle exponents
   const n: f64 = __Porffor_stn_float(str, i);
 
   if (negative) return -n;
