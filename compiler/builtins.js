@@ -353,6 +353,12 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       props.name = { value: '', configurable: true };
     }
 
+    // special case: Array.prototype.length = 0
+    // Per spec, Array.prototype is an Array exotic object with length = 0
+    if (x === '__Array_prototype') {
+      props.length = { value: 0, writable: true, configurable: false };
+    }
+
     // add constructor for constructors
     const name = x.slice(2, x.indexOf('_', 2));
     if (builtinFuncs[name]?.constr) {
