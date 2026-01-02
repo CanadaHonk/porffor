@@ -1,6 +1,15 @@
 // general widely used ecma262/spec functions
 import type {} from './porffor.d.ts';
 
+// https://tc39.es/ecma262/#sec-samevaluezero
+// Like === but NaN === NaN is true, and +0 === -0 is true
+export const __ecma262_SameValueZero = (x: any, y: any): boolean => {
+  if (x === y) return true;
+  // NaN !== NaN, but SameValueZero(NaN, NaN) should be true
+  if (Number.isNaN(x) && Number.isNaN(y)) return true;
+  return false;
+};
+
 export const __ecma262_ToPrimitive_Number = (input: any): any => {
   // todo: %Symbol.toPrimitive%
 
