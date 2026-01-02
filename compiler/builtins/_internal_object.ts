@@ -246,7 +246,8 @@ return`;
 export const __Porffor_object_isObject = (arg: any): boolean => {
   const t: i32 = Porffor.wasm`local.get ${arg+1}`;
   return Porffor.fastAnd(
-    arg != 0, // null
+    // exclude null but not falsy boxed values
+    arg != 0 || t > 0x07,
     t > 0x05,
     t != Porffor.TYPES.string,
     t != Porffor.TYPES.bytestring
