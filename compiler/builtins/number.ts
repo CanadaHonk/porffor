@@ -695,6 +695,10 @@ export const parseFloat = (input: any): f64 => {
   let negative: boolean = false;
 
   let i: i32 = 0;
+  const len: i32 = input.length;
+
+  if (len == 0) return NaN;
+
   const start: i32 = input.charCodeAt(0);
 
   // +, ignore
@@ -708,7 +712,22 @@ export const parseFloat = (input: any): f64 => {
     negative = true;
   }
 
-  const len: i32 = input.length;
+  // Check for "Infinity"
+  if (len - i >= 8) {
+    // Check if remaining string starts with "Infinity"
+    if (input.charCodeAt(i) == 73 &&      // I
+        input.charCodeAt(i + 1) == 110 && // n
+        input.charCodeAt(i + 2) == 102 && // f
+        input.charCodeAt(i + 3) == 105 && // i
+        input.charCodeAt(i + 4) == 110 && // n
+        input.charCodeAt(i + 5) == 105 && // i
+        input.charCodeAt(i + 6) == 116 && // t
+        input.charCodeAt(i + 7) == 121) { // y
+      if (negative) return -Infinity;
+      return Infinity;
+    }
+  }
+
   while (i < len) {
     const chr: i32 = input.charCodeAt(i++);
 
