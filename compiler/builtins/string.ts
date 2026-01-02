@@ -1617,7 +1617,7 @@ export const __String_prototype_split = (_this: string, separator: any, limit: a
     return out;
   }
 
-  if (separator == null) {
+  if (Porffor.wasm`local.get ${separator+1}` == Porffor.TYPES.undefined) {
     out.length = 1;
     // out[0] = _this; (but in wasm as it is a f64 array and we are in i32 space)
     Porffor.wasm`
@@ -1632,9 +1632,7 @@ i32.store8 0 12`;
     return out;
   }
 
-  if (Porffor.type(separator) != Porffor.TYPES.string && Porffor.type(separator) != Porffor.TYPES.bytestring) {
-    separator = ecma262.ToString(separator);
-  }
+  separator = ecma262.ToString(separator);
 
   let tmp: string = Porffor.malloc(), tmpLen: i32 = 0;
   const thisLen: i32 = _this.length * 2, sepLen: i32 = separator.length;
@@ -1789,7 +1787,7 @@ export const __ByteString_prototype_split = (_this: bytestring, separator: any, 
     return out;
   }
 
-  if (separator == null) {
+  if (Porffor.wasm`local.get ${separator+1}` == Porffor.TYPES.undefined) {
     out.length = 1;
     // out[0] = _this; (but in wasm as it is a f64 array and we are in i32 space)
     Porffor.wasm`
@@ -1804,9 +1802,7 @@ i32.store8 0 12`;
     return out;
   }
 
-  if (Porffor.type(separator) != Porffor.TYPES.string && Porffor.type(separator) != Porffor.TYPES.bytestring) {
-    separator = ecma262.ToString(separator);
-  }
+  separator = ecma262.ToString(separator);
 
   let tmp: bytestring = Porffor.malloc(), tmpLen: i32 = 0;
   const thisLen: i32 = _this.length, sepLen: i32 = separator.length;
