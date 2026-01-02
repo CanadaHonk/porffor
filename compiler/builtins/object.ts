@@ -28,9 +28,12 @@ export const __Object_keys = (obj: any): any[] => {
     for (; ptr < endPtr; ptr += 18) {
       if (!Porffor.object.isEnumerable(ptr)) continue;
 
+      // if key is a symbol skip it
+      const rawKey: i32 = Porffor.wasm.i32.load(ptr, 0, 4);
+      if ((rawKey >>> 30) == 3) continue;
+
       let key: any;
       Porffor.wasm`local raw i32
-local msb i32
 local.get ${ptr}
 i32.to_u
 i32.load 0 4
@@ -39,14 +42,8 @@ local.set raw
 local.get raw
 i32.const 30
 i32.shr_u
-local.tee msb
 if 127
-  i32.const 5 ;; symbol
   i32.const 67 ;; string
-  local.get msb
-  i32.const 3
-  i32.eq
-  select
   local.set ${key+1}
 
   local.get raw
@@ -83,6 +80,10 @@ export const __Object_values = (obj: any): any[] => {
     for (; ptr < endPtr; ptr += 18) {
       const tail: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 16);
       if (!(tail & 0b0100)) continue; // not enumerable
+
+      // if key is a symbol skip it
+      const rawKey: i32 = Porffor.wasm.i32.load(ptr, 0, 4);
+      if ((rawKey >>> 30) == 3) continue;
 
       if (tail & 0b0001) {
         // accessor
@@ -205,14 +206,67 @@ export const __Porffor_object_instanceof = (obj: any, constr: any, checkProto: a
 export const __Object_assign = (target: any, ...sources: any[]): any => {
   if (target == null) throw new TypeError('Argument is nullish, expected object');
 
-  for (const x of sources) {
-    // todo: switch to for..in once it supports non-pure-object
-    const keys: any[] = __Object_keys(x);
-    const vals: any[] = __Object_values(x);
+  for (let src of sources) {
+    if (src == null) continue;
 
-    const len: i32 = keys.length;
-    for (let i: i32 = 0; i < len; i++) {
-      target[keys[i]] = vals[i];
+    
+    src = __Porffor_object_underlying(src);
+    if (Porffor.type(src) == Porffor.TYPES.object) {
+      let ptr: i32 = Porffor.wasm`local.get ${src}` + 8;
+      const endPtr: i32 = ptr + Porffor.wasm.i32.load16_u(src, 0, 0) * 18;
+
+      for (; ptr < endPtr; ptr += 18) {
+        const tail: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 16);
+        if (!(tail & 0b0100)) continue; // not enumerable
+
+        let key: any;
+        Porffor.wasm`local raw i32
+local msb i32
+local.get ${ptr}
+i32.to_u
+i32.load 0 4
+local.set raw
+
+local.get raw
+i32.const 30
+i32.shr_u
+local.tee msb
+if 127
+  i32.const 5 ;; symbol
+  i32.const 67 ;; string
+  local.get msb
+  i32.const 3
+  i32.eq
+  select
+  local.set ${key+1}
+
+  local.get raw
+  i32.const 1073741823
+  i32.and ;; unset 2 MSBs
+else
+  i32.const 195
+  local.set ${key+1}
+
+  local.get raw
+end
+i32.from_u
+local.set ${key}`;
+
+        let value: any;
+        if (tail & 0b0001) {
+          // accessor - call getter
+          const get: Function = Porffor.object.accessorGet(ptr);
+          if (Porffor.wasm`local.get ${get}` == 0) {
+            value = undefined;
+          } else {
+            value = get.call(src);
+          }
+        } else {
+          value = Porffor.object.readValue(ptr);
+        }
+
+        target[key] = value;
+      }
     }
   }
 
