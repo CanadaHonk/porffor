@@ -24,7 +24,7 @@ export const __Set_prototype_has = (_this: Set, value: any) => {
   const size: number = Porffor.wasm.i32.load(_this, 0, 0);
 
   for (let i: number = 0; i < size; i++) {
-    if ((_this as any[])[i] === value) return true;
+    if (__ecma262_SameValueZero((_this as any[])[i], value)) return true;
   }
 
   return false;
@@ -35,7 +35,7 @@ export const __Set_prototype_add = (_this: Set, value: any) => {
 
   // check if already in set
   for (let i: number = 0; i < size; i++) {
-    if ((_this as any[])[i] === value) return _this;
+    if (__ecma262_SameValueZero((_this as any[])[i], value)) return _this;
   }
 
   // not, add it
@@ -52,7 +52,7 @@ export const __Set_prototype_delete = (_this: Set, value: any) => {
   // check if already in set
   const size: number = Porffor.wasm.i32.load(_this, 0, 0);
   for (let i: number = 0; i < size; i++) {
-    if ((_this as any[])[i] === value) {
+    if (__ecma262_SameValueZero((_this as any[])[i], value)) {
       // found, delete
       Porffor.array.fastRemove(_this, i, size);
       return true;
