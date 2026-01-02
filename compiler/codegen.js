@@ -7145,14 +7145,53 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   return [ func, out ];
 };
 
+// Do an initial pass to find all bare `var` declarations (e.g. `var foo;`) and hoist them
+// This ensures that, in strict mode, late `var`s are not considered a reference error
+const hoistVarDeclarations = (body) => {
+  const varDeclarations = [];
+
+  const result = body.map(statement => {
+    if (statement.kind === 'var' && statement.type === 'VariableDeclaration') {
+      return {
+        ...statement,
+        // filter out bare `var` declarations
+        declarations: statement.declarations.filter(declaration => {
+          if (declaration.type === 'VariableDeclarator' && declaration.init === null) {
+            varDeclarations.push(declaration);
+            return false;
+          }
+          return true;
+        })
+      };
+    }
+    return statement;
+  });
+
+  // hoist
+  result.unshift(
+    ...varDeclarations.map(declaration => ({
+      type: 'VariableDeclaration',
+      kind: 'var',
+      // since this is a kind of pseudo-node not in source code, set start/end to 0
+      start: 0,
+      end: 0,
+      declarations: [declaration]
+    }))
+  );
+
+  return result;
+};
+
 const generateBlock = (scope, decl) => {
   let out = [];
 
   inferBranchStart(scope);
 
-  let len = decl.body.length, j = 0;
+  const body = hoistVarDeclarations(decl.body);
+
+  let len = body.length, j = 0;
   for (let i = 0; i < len; i++) {
-    const x = decl.body[i];
+    const x = body[i];
     if (isEmptyNode(x)) continue;
 
     if (j++ > 0) out.push([ Opcodes.drop ]);
