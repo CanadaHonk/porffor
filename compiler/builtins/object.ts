@@ -721,6 +721,27 @@ export const __Object_prototype_valueOf = (_this: any) => {
   return _this;
 };
 
+// https://tc39.es/ecma262/#sec-array.prototype.push
+// Object impl for generic array-like objects
+export const __Object_prototype_push = (_this: object, ...items: any[]) => {
+  let len: number = ecma262.ToIntegerOrInfinity(_this['length']);
+  if (len < 0) len = 0;
+
+  const argCount: number = items.length;
+
+  // If len + argCount > 2**53 - 1, throw a TypeError exception.
+  if (len + argCount > 9007199254740991) throw new TypeError('Array length exceeds maximum');
+
+  for (let i: number = 0; i < argCount; i++) {
+    _this[len] = items[i];
+    len++;
+  }
+
+  _this['length'] = len;
+
+  return len;
+};
+
 
 export const __Porffor_object_spread = (dst: object, src: any): object => {
   if (src == null) return dst;
