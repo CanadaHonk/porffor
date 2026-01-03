@@ -4,13 +4,23 @@ export default () => {
   const errors = [];
   const error = name => {
     errors.push(name);
-    out += `export const ${name} = function (message: any): ${name} {
+    out += `
+export const ${name} = function (
+  ${name === 'AggregateError' ? 'errors: any,' : ''} message: any
+): ${name} {
   if (message === undefined) message = '';
     else message = ecma262.ToString(message);
 
   const obj: ${name} = Porffor.malloc(8);
   Porffor.wasm.i32.store(obj, message, 0, 0);
   Porffor.wasm.i32.store8(obj, Porffor.type(message), 0, 4);
+
+  // https://tc39.es/ecma262/multipage/fundamental-objects.html#sec-aggregate-error
+  ${name === 'AggregateError' ? `
+  const errorsList: any[] = __Array_from(errors);
+  // TODO: should not be enumerable
+  obj.errors = errorsList;
+  ` : ''}
 
   return obj;
 };
