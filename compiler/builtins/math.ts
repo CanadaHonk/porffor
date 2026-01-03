@@ -110,14 +110,39 @@ export const __Math_log = (y: number): number => {
   return 2 * sum + m * Math.LN2;
 };
 
-export const __Math_log10 = (x: number): number => {
-  if (x <= 0) {
-    if (x == 0) return -Infinity;
+export const __Math_log10 = (x: any): number => {
+  const n: number = ecma262.ToNumber(x);
+  if (Number.isNaN(n)) return NaN;
+  if (n <= 0) {
+    if (n == 0) return -Infinity;
     return NaN;
   }
-  if (!Number.isFinite(x)) return x;
+  if (!Number.isFinite(n)) return n;
 
-  return Math.log(x) / Math.LN10;
+  // Handle exact powers of 10 to avoid floating-point errors
+  // Only integer values can be exact powers of 10
+  if (n == Math.floor(n) && n >= 1 && n <= 1e15) {
+    switch (n) {
+      case 1: return 0;
+      case 10: return 1;
+      case 100: return 2;
+      case 1000: return 3;
+      case 10000: return 4;
+      case 100000: return 5;
+      case 1000000: return 6;
+      case 10000000: return 7;
+      case 100000000: return 8;
+      case 1000000000: return 9;
+      case 10000000000: return 10;
+      case 100000000000: return 11;
+      case 1000000000000: return 12;
+      case 10000000000000: return 13;
+      case 100000000000000: return 14;
+      case 1000000000000000: return 15;
+    }
+  }
+
+  return Math.log(n) / Math.LN10;
 };
 
 // 21.3.2.26 Math.pow (base, exponent)
