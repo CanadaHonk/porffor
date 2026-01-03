@@ -37,7 +37,27 @@ if (cluster.isPrimary) {
 
   let minimal = process.argv.includes('--minimal');
   if (minimal) resultOnly = true;
-  const lastResults = fs.existsSync(join(__dirname, 'results.json')) ? JSON.parse(fs.readFileSync(join(__dirname, 'results.json'), 'utf8')) : {};
+  const resultsPath = join(__dirname, 'results.txt');
+  let lastResults = {};
+  if (fs.existsSync(resultsPath)) {
+    const lines = fs.readFileSync(resultsPath, 'utf8').split('\n').filter(l => l && !l.startsWith('#'));
+    lastResults = {
+      passes: [],
+      fails: [],
+      compileErrors: [],
+      wasmErrors: [],
+      timeouts: []
+    };
+    for (const line of lines) {
+      const [status, ...pathParts] = line.split(' ');
+      const path = pathParts.join(' ');
+      if (status === 'pass') lastResults.passes.push(path);
+      else if (status === 'fail') lastResults.fails.push(path);
+      else if (status === 'compile_error') lastResults.compileErrors.push(path);
+      else if (status === 'wasm_error') lastResults.wasmErrors.push(path);
+      else if (status === 'timeout') lastResults.timeouts.push(path);
+    }
+  }
 
   let lastCommitResults = minimal ? [] : execSync(`git log -200 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1') || x.startsWith('test262: 2') || x.startsWith('test262: 3') || x.startsWith('test262: 4') || x.startsWith('test262: 5') || x.startsWith('test262: 6')).split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
 
@@ -303,33 +323,48 @@ if (cluster.isPrimary) {
       console.log();
     }
 
-    if (lastResults.compileErrors) console.log(`\n\n\u001b[4mnew compile errors\u001b[0m\n${compileErrorFiles.filter(x => !lastResults.compileErrors.includes(x)).join('\n')}\n\n`);
-    if (lastResults.wasmErrors) console.log(`\u001b[4mnew wasm errors\u001b[0m\n${wasmErrorFiles.filter(x => !lastResults.wasmErrors.includes(x)).join('\n')}\n\n`);
+    const lastNonPasses = new Set([
+      ...(lastResults.fails || []),
+      ...(lastResults.compileErrors || []),
+      ...(lastResults.wasmErrors || []),
+      ...(lastResults.timeouts || [])
+    ]);
+    const currentNonPasses = new Set([...failFiles, ...compileErrorFiles, ...wasmErrorFiles, ...timeoutFiles]);
 
-    if (lastResults.passes) console.log(`\u001b[4mnew passes\u001b[0m\n${passFiles.filter(x => !lastResults.passes.includes(x)).join('\n')}\n\n`);
-    if (lastResults.passes) console.log(`\u001b[4mnew fails\u001b[0m\n${lastResults.passes.filter(x => !passFiles.includes(x)).join('\n')}`);
+    const newPasses = passFiles.filter(x => lastNonPasses.has(x));
+    const newFails = [...currentNonPasses].filter(x => !lastNonPasses.has(x));
+
+    if (lastNonPasses.size > 0) {
+      console.log(`\n\n\u001b[4mnew compile errors\u001b[0m\n${compileErrorFiles.filter(x => !lastResults.compileErrors?.includes(x)).join('\n')}\n\n`);
+      console.log(`\u001b[4mnew wasm errors\u001b[0m\n${wasmErrorFiles.filter(x => !lastResults.wasmErrors?.includes(x)).join('\n')}\n\n`);
+      console.log(`\u001b[4mnew passes\u001b[0m\n${newPasses.join('\n')}\n\n`);
+      console.log(`\u001b[4mnew fails\u001b[0m\n${newFails.join('\n')}`);
+    }
 
     if (!dontWriteResults) {
       const alphabetically = (a, b) => a.localeCompare(b);
-      passFiles.sort(alphabetically);
-      failFiles.sort(alphabetically);
-      compileErrorFiles.sort(alphabetically);
-      wasmErrorFiles.sort(alphabetically);
-      timeoutFiles.sort(alphabetically);
+
+      const results = [];
+      for (const file of passFiles.sort(alphabetically)) {
+        results.push(`pass ${file}`);
+      }
+      for (const file of failFiles.sort(alphabetically)) {
+        results.push(`fail ${file}`);
+      }
+      for (const file of compileErrorFiles.sort(alphabetically)) {
+        results.push(`compile_error ${file}`);
+      }
+      for (const file of wasmErrorFiles.sort(alphabetically)) {
+        results.push(`wasm_error ${file}`);
+      }
+      for (const file of timeoutFiles.sort(alphabetically)) {
+        results.push(`timeout ${file}`);
+      }
 
       fs.writeFileSync(
-        join(__dirname, 'results.json'),
-        JSON.stringify(
-          {
-            passes: passFiles,
-            fails: failFiles,
-            compileErrors: compileErrorFiles,
-            wasmErrors: wasmErrorFiles,
-            timeouts: timeoutFiles,
-            total
-          },
-          null,
-          2));
+        join(__dirname, 'results.txt'),
+        results.join('\n') + '\n'
+      );
     }
   }
 

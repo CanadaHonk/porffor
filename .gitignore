@@ -1,6 +1,7 @@
 *.wasm
 #*.csv
 *.txt
+!/test262/results.txt
 *.exe
 
 node_modules
