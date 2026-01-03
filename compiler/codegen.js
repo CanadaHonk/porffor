@@ -1434,7 +1434,27 @@ const generateBinaryExp = (scope, decl) => {
     }
   }
 
-  const out = performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
+  // bitwise operators require ToNumber conversion of operands
+  const bitwiseOps = ['&', '|', '^', '<<', '>>', '>>>'];
+  let leftNode = decl.left;
+  let rightNode = decl.right;
+  if (bitwiseOps.includes(decl.operator)) {
+    // wrap operands in ToNumber to handle string/other type coercion
+    const wrapToNumber = node => ({
+      type: 'CallExpression',
+      callee: { type: 'Identifier', name: '__ecma262_ToNumber' },
+      arguments: [ node ]
+    });
+
+    const leftKnown = knownType(scope, getNodeType(scope, decl.left));
+    const rightKnown = knownType(scope, getNodeType(scope, decl.right));
+
+    // only wrap if not known to be a number
+    if (leftKnown !== TYPES.number) leftNode = wrapToNumber(decl.left);
+    if (rightKnown !== TYPES.number) rightNode = wrapToNumber(decl.right);
+  }
+
+  const out = performOp(scope, decl.operator, generate(scope, leftNode), generate(scope, rightNode), getNodeType(scope, leftNode), getNodeType(scope, rightNode));
   if (valtype !== 'i32' && ['==', '===', '!=', '!==', '>', '>=', '<', '<='].includes(decl.operator)) out.push(Opcodes.i32_from_u);
 
   return out;
