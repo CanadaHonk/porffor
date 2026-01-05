@@ -885,7 +885,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
 };
 
 
-export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: boolean): any => {
+export const __Porffor_regex_interpret = (regexp: RegExp, _input: any, isTest: boolean): any => {
   const bcBase: i32 = regexp + 10;
   const flags: i32 = Porffor.wasm.i32.load16_u(regexp, 0, 4);
   const totalCaptures: i32 = Porffor.wasm.i32.load16_u(regexp, 0, 6);
@@ -896,6 +896,8 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
   const global: boolean = (flags & 0b00000001) != 0;
   const sticky: boolean = (flags & 0b00100000) != 0;
 
+  const isTwoByte: i32 = Porffor.type(_input) == Porffor.TYPES.string ? 1 : 0;
+  const input: i32 = _input;
   const inputLen: i32 = Porffor.wasm.i32.load(input, 0, 0);
   let lastIndex: i32 = 0;
   if (global || sticky) {
@@ -916,8 +918,14 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
   for (let i: i32 = lastIndex; i <= inputLen; i++) {
     if (fastChar != -1) {
-      while (i < inputLen && Porffor.wasm.i32.load8_u(input + i, 0, 4) != fastChar) {
-        i++;
+      if (isTwoByte) {
+        while (i < inputLen && Porffor.wasm.i32.load16_u(input + i * 2, 0, 4) != fastChar) {
+          i++;
+        }
+      } else {
+        while (i < inputLen && Porffor.wasm.i32.load8_u(input + i, 0, 4) != fastChar) {
+          i++;
+        }
       }
       if (i > inputLen) break;
     }
@@ -976,7 +984,9 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             backtrack = true;
           } else {
             let c1: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
-            let c2: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+            let c2: i32;
+            if (isTwoByte) c2 = Porffor.wasm.i32.load16_u(input + sp * 2, 0, 4);
+            else c2 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
             if (ignoreCase) {
               if (c1 >= 97 && c1 <= 122) c1 -= 32;
               if (c2 >= 97 && c2 <= 122) c2 -= 32;
@@ -996,7 +1006,9 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
           if (sp >= inputLen) {
             backtrack = true;
           } else {
-            let char: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+            let char: i32;
+            if (isTwoByte) char = Porffor.wasm.i32.load16_u(input + sp * 2, 0, 4);
+            else char = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
             let classPc: i32 = pc + 1;
             let charInClass: boolean = false;
             while (true) {
@@ -1070,7 +1082,9 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             backtrack = true;
           } else {
             const classId: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
-            const char: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+            let char: i32;
+            if (isTwoByte) char = Porffor.wasm.i32.load16_u(input + sp * 2, 0, 4);
+            else char = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
             let isMatch: boolean = false;
             if (classId == 1) isMatch = char >= 48 && char <= 57;
             else if (classId == 2) isMatch = !(char >= 48 && char <= 57);
@@ -1089,27 +1103,45 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
           break;
         }
 
-        case 0x05: // start
-          if (sp == 0 || (multiline && sp > 0 && Porffor.wasm.i32.load8_u(input + sp, 0, 3) == 10)) {
+        case 0x05: { // start
+          let isStart: boolean = sp == 0;
+          if (!isStart && multiline && sp > 0) {
+            let prevChar: i32;
+            if (isTwoByte) prevChar = Porffor.wasm.i32.load16_u(input + (sp - 1) * 2, 0, 4);
+            else prevChar = Porffor.wasm.i32.load8_u(input + sp, 0, 3);
+            isStart = prevChar == 10;
+          }
+          if (isStart) {
             pc += 1;
           } else {
             backtrack = true;
           }
           break;
+        }
 
-        case 0x06: // end
-          if (sp == inputLen || (multiline && sp < inputLen && Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 10)) {
+        case 0x06: { // end
+          let isEnd: boolean = sp == inputLen;
+          if (!isEnd && multiline && sp < inputLen) {
+            let currChar: i32;
+            if (isTwoByte) currChar = Porffor.wasm.i32.load16_u(input + sp * 2, 0, 4);
+            else currChar = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+            isEnd = currChar == 10;
+          }
+          if (isEnd) {
             pc += 1;
           } else {
             backtrack = true;
           }
           break;
+        }
 
         case 0x07: // word boundary
         case 0x08: { // non-word boundary
           let prevIsWord: boolean = false;
           if (sp > 0) {
-            const prevChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 3);
+            let prevChar: i32;
+            if (isTwoByte) prevChar = Porffor.wasm.i32.load16_u(input + (sp - 1) * 2, 0, 4);
+            else prevChar = Porffor.wasm.i32.load8_u(input + sp, 0, 3);
             prevIsWord = Porffor.fastOr(
               prevChar >= 65 && prevChar <= 90, // A-Z
               prevChar >= 97 && prevChar <= 122, // a-z
@@ -1120,7 +1152,9 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
           let nextIsWord: boolean = false;
           if (sp < inputLen) {
-            const nextChar: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+            let nextChar: i32;
+            if (isTwoByte) nextChar = Porffor.wasm.i32.load16_u(input + sp * 2, 0, 4);
+            else nextChar = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
             nextIsWord = Porffor.fastOr(
               nextChar >= 65 && nextChar <= 90, // A-Z
               nextChar >= 97 && nextChar <= 122, // a-z
@@ -1138,14 +1172,22 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
           break;
         }
 
-        case 0x09: // dot
-          if (sp >= inputLen || (!dotAll && Porffor.wasm.i32.load8_u(input + sp, 0, 4) == 10)) {
+        case 0x09: { // dot
+          let isDotMatch: boolean = sp < inputLen;
+          if (isDotMatch && !dotAll) {
+            let currChar: i32;
+            if (isTwoByte) currChar = Porffor.wasm.i32.load16_u(input + sp * 2, 0, 4);
+            else currChar = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
+            isDotMatch = currChar != 10;
+          }
+          if (!isDotMatch) {
             backtrack = true;
           } else {
             pc += 1;
             sp += 1;
           }
           break;
+        }
 
         case 0x0a: { // back reference
           const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
@@ -1163,9 +1205,14 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
                 backtrack = true;
               } else {
                 let matches = true;
-                for (let k = 0; k < capLen; k++) {
-                  let c1 = Porffor.wasm.i32.load8_u(input + capStart + k, 0, 4);
-                  let c2 = Porffor.wasm.i32.load8_u(input + sp + k, 0, 4);
+                let k: i32 = 0;
+                while (k < capLen) {
+                  let c1: i32;
+                  let c2: i32;
+                  if (isTwoByte) c1 = Porffor.wasm.i32.load16_u(input + (capStart + k) * 2, 0, 4);
+                  else c1 = Porffor.wasm.i32.load8_u(input + capStart + k, 0, 4);
+                  if (isTwoByte) c2 = Porffor.wasm.i32.load16_u(input + (sp + k) * 2, 0, 4);
+                  else c2 = Porffor.wasm.i32.load8_u(input + sp + k, 0, 4);
                   if (ignoreCase) {
                     if (c1 >= 97 && c1 <= 122) c1 -= 32;
                     if (c2 >= 97 && c2 <= 122) c2 -= 32;
@@ -1174,6 +1221,7 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
                     matches = false;
                     break;
                   }
+                  k++;
                 }
                 if (matches) {
                   sp += capLen;
@@ -1293,7 +1341,8 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
       }
 
       const result: any[] = Porffor.malloc(4096);
-      Porffor.array.fastPush(result, __ByteString_prototype_substring(input, matchStart, finalSp));
+      if (isTwoByte) Porffor.array.fastPush(result, __String_prototype_substring(input as string, matchStart, finalSp));
+      else Porffor.array.fastPush(result, __ByteString_prototype_substring(input as bytestring, matchStart, finalSp));
 
       for (let k = 0; k < totalCaptures; k++) {
         const arrIdx = k * 2;
@@ -1301,7 +1350,8 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
           const capStart = captures[arrIdx];
           const capEnd = captures[arrIdx + 1];
           if (capStart != -1 && capEnd != -1) {
-            Porffor.array.fastPush(result, __ByteString_prototype_substring(input, capStart, capEnd));
+            if (isTwoByte) Porffor.array.fastPush(result, __String_prototype_substring(input as string, capStart, capEnd));
+            else Porffor.array.fastPush(result, __ByteString_prototype_substring(input as bytestring, capStart, capEnd));
           } else {
             Porffor.array.fastPush(result, undefined);
           }
@@ -1311,7 +1361,8 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
       }
 
       result.index = matchStart;
-      result.input = input as bytestring;
+      if (isTwoByte) result.input = input as string;
+      else result.input = input as bytestring;
 
       return result;
     }
@@ -1444,19 +1495,31 @@ export const RegExp = function (pattern: any, flags: any): RegExp {
 
 
 export const __RegExp_prototype_exec = (_this: RegExp, input: any) => {
-  if (Porffor.type(input) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
+  const t: i32 = Porffor.type(input);
+  if (t != Porffor.TYPES.bytestring && t != Porffor.TYPES.string) {
+    input = ecma262.ToString(input);
+  }
+
   return __Porffor_regex_interpret(_this, input, false);
 };
 
 export const __RegExp_prototype_test = (_this: RegExp, input: any) => {
-  if (Porffor.type(input) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
+  const t: i32 = Porffor.type(input);
+  if (t != Porffor.TYPES.bytestring && t != Porffor.TYPES.string) {
+    input = ecma262.ToString(input);
+  }
+
   return __Porffor_regex_interpret(_this, input, true);
 };
 
 
 export const __Porffor_regex_match = (regexp: any, input: any) => {
   if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
-  if (Porffor.type(input) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
+
+  const t: i32 = Porffor.type(input);
+  if (t != Porffor.TYPES.bytestring && t != Porffor.TYPES.string) {
+    input = ecma262.ToString(input);
+  }
 
   if (__RegExp_prototype_global$get(regexp)) {
     // global should return all matches as just complete string result
