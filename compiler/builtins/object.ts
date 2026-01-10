@@ -643,7 +643,11 @@ export const __Object_setPrototypeOf = (obj: any, proto: any): any => {
   if (obj == null) throw new TypeError('Object is nullish, expected object');
   if (!Porffor.object.isObjectOrNull(proto)) throw new TypeError('Prototype should be an object or null');
 
-  // todo: if inextensible, throw if proto != current prototype
+  // If object is inextensible, throw if new proto is different from current
+  if (Porffor.object.isObject(obj) && Porffor.object.isInextensible(obj)) {
+    const currentProto: any = Porffor.object.getPrototypeWithHidden(obj, Porffor.type(obj));
+    if (proto !== currentProto) throw new TypeError('Cannot set prototype of non-extensible object');
+  }
 
   Porffor.object.setPrototype(obj, proto);
   return obj;
