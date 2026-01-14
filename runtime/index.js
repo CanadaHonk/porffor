@@ -24,6 +24,7 @@ const help = () => {
     c: [ 94, 'foo.js foo.c', 'Compile to C source code' ],
     native: [ 94, 'foo.js foo', 'Compile to a native binary' ],
     lambda: [ 36, 'foo.js function.zip', 'Compile Lambda code to a deployable zip' ],
+    'run-wasm': [ 35, 'foo.wasm', 'Execute a pre-compiled Wasm file' ],
 
     'Analyze': [],
     profile: [ 93, 'foo.js', 'View detailed func-by-func performance' ],
@@ -97,7 +98,7 @@ const done = async () => {
 let file = process.argv.slice(2).find(x => x[0] !== '-');
 if (file === 'help') help();
 
-if (['precompile', 'run', 'wasm', 'native', 'c', 'lambda', 'profile', 'debug'].includes(file)) {
+if (['precompile', 'run', 'wasm', 'native', 'c', 'lambda', 'profile', 'debug', 'run-wasm'].includes(file)) {
   // remove this arg
   process.argv.splice(process.argv.indexOf(file), 1);
 
@@ -113,6 +114,44 @@ if (['precompile', 'run', 'wasm', 'native', 'c', 'lambda', 'profile', 'debug'].i
 
   if (file === 'debug') {
     await import('./debug.js');
+    await done();
+  }
+
+  if (file === 'run-wasm') {
+    // Handle WASM file execution
+    const wasmFile = process.argv.slice(2).find(x => x[0] !== '-' && x.endsWith('.wasm'));
+    if (!wasmFile) {
+      console.error('Error: No .wasm file specified for run-wasm command');
+      process.exit(1);
+    }
+    
+    try {
+      const runWasmFile = (await import('./wasm-runner.js')).default;
+      const runStart = performance.now();
+      const { exports } = await runWasmFile(wasmFile);
+      
+      let ret;
+      if (exports.main && !process.argv.includes('--no-run')) {
+        ret = exports.main();
+      }
+      
+      if (process.argv.includes('-t')) {
+        console.log(`execution time: ${(performance.now() - runStart).toFixed(2)}ms`);
+      }
+      
+      if (process.argv.includes('-p') || process.argv.includes('--print')) {
+        console.log(ret);
+      }
+      
+    } catch (e) {
+      let out = e;
+      if (!process.argv.includes('-d') && Object.getPrototypeOf(e).message != null) {
+        out = `${e.name}${e.message != null ? `: ${e.message}` : ''}`;
+      }
+      console.error(out);
+      process.exit(1);
+    }
+    
     await done();
   }
 
