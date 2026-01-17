@@ -429,7 +429,7 @@ export const __Promise_any = (promises: any): Promise => {
         x.then(r => {
           _allRes(r);
         }, r => {
-          if (Porffor.array.fastPush(_allOut, r) == _allLen) _allRes(new AggregateError(_allRes));
+          if (Porffor.array.fastPush(_allOut, r) == _allLen) _allRes(new AggregateError(_allOut));
         });
       } else {
         return _allRes(x);
@@ -438,7 +438,7 @@ export const __Promise_any = (promises: any): Promise => {
 
     if (_allLen == 0) {
       // empty iterable: immediately reject
-      _allRej(new AggregateError(_allRes));
+      _allRej(new AggregateError(_allOut));
     }
   });
 };
