@@ -69,9 +69,11 @@ export const __Set_prototype_clear = (_this: Set) => {
   Porffor.wasm.i32.store(_this, 0, 0, 0);
 };
 
-export const __Set_prototype_forEach = (_this: Set, callbackFn: any) => {
+export const __Set_prototype_forEach = (_this: Set, callbackFn: any, thisArg: any = undefined) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('callbackFn is not a function');
+
   for (const x of _this) {
-    callbackFn(x, x, _this);
+    callbackFn.call(thisArg, x, x, _this);
   }
 };
 

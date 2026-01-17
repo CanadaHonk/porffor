@@ -39,6 +39,7 @@ export const __Porffor_json_canSerialize = (value: any): boolean => {
     Porffor.type(value) == Porffor.TYPES.stringobject,
     Porffor.type(value) == Porffor.TYPES.number,
     Porffor.type(value) == Porffor.TYPES.numberobject,
+    Porffor.type(value) == Porffor.TYPES.booleanobject,
     Porffor.type(value) == Porffor.TYPES.array,
     Porffor.type(value) > Porffor.TYPES.function
   )) return true;
@@ -56,6 +57,12 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
   if (value === null) return __Porffor_bytestring_bufferStr(buffer, 'null');
   if (value === true) return __Porffor_bytestring_bufferStr(buffer, 'true');
   if (value === false) return __Porffor_bytestring_bufferStr(buffer, 'false');
+
+  // Handle Boolean objects by extracting [[BooleanData]]
+  if (Porffor.type(value) == Porffor.TYPES.booleanobject) {
+    if (value.valueOf()) return __Porffor_bytestring_bufferStr(buffer, 'true');
+    return __Porffor_bytestring_bufferStr(buffer, 'false');
+  }
 
   if (Porffor.fastOr(
     (Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring,

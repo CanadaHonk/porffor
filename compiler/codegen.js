@@ -583,6 +583,12 @@ const hoistLookup = (scope, name) => {
       return lookupOrError(scope, name, true);
 
     case 1: // decl
+      // var has been hoisted - check if it's been allocated yet
+      // if allocated, return actual lookup (value is undefined until assigned)
+      // this is needed for loops where var is declared inside but accessed before declaration
+      if (name in globals || name in scope.locals) {
+        return lookupOrError(scope, name, true);
+      }
       return [ number(UNDEFINED) ];
 
     case 2: // pdz
@@ -597,6 +603,18 @@ const hoistLookupType = (scope, name) => {
       return getType(scope, name, true);
 
     case 1: // decl
+      // var has been hoisted - check if it's been allocated yet
+      // For hoisted vars, we must read the runtime type, not the inferred type
+      // because the access may be before the assignment executes at runtime
+      if (name in globals) {
+        const typeLocal = globals[name + '#type'];
+        if (typeLocal) return [ [ Opcodes.global_get, typeLocal.idx ] ];
+      } else if (name in scope.locals) {
+        const typeLocal = scope.locals[name + '#type'];
+        if (typeLocal) return [ [ Opcodes.local_get, typeLocal.idx ] ];
+      }
+      return [ number(TYPES.undefined, Valtype.i32) ];
+
     case 2: // pdz
       return [ number(TYPES.undefined, Valtype.i32) ];
   }
@@ -5073,7 +5091,10 @@ const generateForIn = (scope, decl) => {
 
   let setVar;
   if (decl.left.type === 'Identifier') {
-    if (!isIdentAssignable(scope, decl.left.name)) return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    if (!isIdentAssignable(scope, decl.left.name)) {
+      inferLoopEnd(scope);
+      return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
+    }
     setVar = generateVarDstr(scope, 'var', decl.left, { type: 'Identifier', name: tmpName }, undefined, true);
   } else {
     // todo: verify this is correct
@@ -5649,8 +5670,13 @@ const generateArray = (scope, decl, global = false, name = '$undeclared', static
     scope.arrays.set(uniqueName, ptr);
   } else {
     const tmp = localTmp(scope, '#create_array' + uniqId(), Valtype.i32);
+
+    // calculate required bytes: 4 (length prefix) + length * 9 (f64 value + type byte)
+    const requiredBytes = ValtypeSize.i32 + length * (ValtypeSize[valtype] + 1);
+    const allocSize = Math.max(requiredBytes, pageSize);
+
     out.push(
-      number(pageSize, Valtype.i32),
+      number(allocSize, Valtype.i32),
       [ Opcodes.call, includeBuiltin(scope, '__Porffor_malloc').index ],
       [ Opcodes.local_set, tmp ]
     );
