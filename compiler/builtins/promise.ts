@@ -414,7 +414,6 @@ export const __Promise_allSettled = (promises: any): Promise => {
 };
 
 export const __Promise_any = (promises: any): Promise => {
-  // todo: use new AggregateError(_allOut, msg) instead of new AggregateError(msg) when supported
   _allPromises = promises;
 
   return new Promise((res, rej) => {
@@ -430,7 +429,7 @@ export const __Promise_any = (promises: any): Promise => {
         x.then(r => {
           _allRes(r);
         }, r => {
-          if (Porffor.array.fastPush(_allOut, r) == _allLen) _allRes(new AggregateError());
+          if (Porffor.array.fastPush(_allOut, r) == _allLen) _allRes(new AggregateError(_allOut));
         });
       } else {
         return _allRes(x);
@@ -439,7 +438,7 @@ export const __Promise_any = (promises: any): Promise => {
 
     if (_allLen == 0) {
       // empty iterable: immediately reject
-      _allRej(new AggregateError());
+      _allRej(new AggregateError(_allOut));
     }
   });
 };
