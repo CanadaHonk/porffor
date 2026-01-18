@@ -59,6 +59,44 @@ const analyzePattern = (kind, node) => {
   }
 };
 
+// Do an initial pass to find all bare `var` declarations (e.g. `var foo;`) and hoist them
+// This ensures that, in strict mode, late `var`s are not considered a reference error
+// The node is assumed to be either a Program or Body node
+const hoistVarDeclarations = (node) => {
+  const varDeclarations = [];
+
+  const result = node.body.map(statement => {
+    if (statement.kind === 'var' && statement.type === 'VariableDeclaration') {
+      return {
+        ...statement,
+        // filter out bare `var` declarations
+        declarations: statement.declarations.filter(declaration => {
+          if (declaration.type === 'VariableDeclarator' && declaration.init === null) {
+            varDeclarations.push(declaration);
+            return false;
+          }
+          return true;
+        })
+      };
+    }
+    return statement;
+  });
+
+  // hoist
+  result.unshift(
+    ...varDeclarations.map(declaration => ({
+      type: 'VariableDeclaration',
+      kind: 'var',
+      // since this is a kind of pseudo-node not in source code, set start/end to 0
+      start: 0,
+      end: 0,
+      declarations: [declaration]
+    }))
+  );
+
+  node.body = result;
+};
+
 let scopes;
 const analyze = (node, strict = false) => {
   if (!node) return;
@@ -77,6 +115,9 @@ const analyze = (node, strict = false) => {
     case 'BlockStatement':
       scopes.push(node);
       openedScope = true;
+      if (node.type === 'BlockStatement') {
+        hoistVarDeclarations(node);
+      }
       break;
 
     case 'CatchClause':
@@ -106,6 +147,9 @@ const analyze = (node, strict = false) => {
       openedScope = true;
 
       for (const p of node.params) analyzePattern('var', p);
+      break;
+    case 'Program':
+      hoistVarDeclarations(node);
       break;
   }
 
