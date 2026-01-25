@@ -176,6 +176,100 @@ export const __ByteString_prototype_charCodeAt = (_this: bytestring, index: numb
   return Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4);
 };
 
+// in f64 file as needs to check for Infinity which is lost when truncated to i32
+export const __String_prototype_repeat = (_this: string, cnt: any) => {
+  // 5. Let n be ? ToIntegerOrInfinity(count).
+  const n: number = ecma262.ToIntegerOrInfinity(cnt);
+  // 6. If n < 0, throw a RangeError exception.
+  // 7. If n is +∞, throw a RangeError exception.
+  if (n < 0 || !Number.isFinite(n)) throw new RangeError('Invalid count value');
+  // Now safe to use as i32
+  const count: i32 = n;
+  // 8. If n is 0, return the empty String.
+  // 9. (combined) If S is the empty String, return the empty String.
+  const thisLen: i32 = _this.length * 2;
+  if (thisLen == 0 || count == 0) return '';
+
+  let out: string = Porffor.malloc();
+
+  for (let i: i32 = 0; i < count; i++) {
+    Porffor.wasm`
+;; dst = out + 4 + i * thisLen
+local.get ${out}
+i32.trunc_sat_f64_s
+i32.const 4
+i32.add
+local.get ${i}
+i32.trunc_sat_f64_s
+local.get ${thisLen}
+i32.trunc_sat_f64_s
+i32.mul
+i32.add
+
+;; src = this + 4
+local.get ${_this}
+i32.trunc_sat_f64_s
+i32.const 4
+i32.add
+
+;; size = thisLen
+local.get ${thisLen}
+i32.trunc_sat_f64_s
+
+memory.copy 0 0`;
+  }
+
+  Porffor.wasm.i32.store(out, thisLen * count, 0, 0);
+  return out;
+};
+
+// in f64 file as needs to check for Infinity which is lost when truncated to i32
+export const __ByteString_prototype_repeat = (_this: bytestring, cnt: any) => {
+  // 5. Let n be ? ToIntegerOrInfinity(count).
+  const n: number = ecma262.ToIntegerOrInfinity(cnt);
+  // 6. If n < 0, throw a RangeError exception.
+  // 7. If n is +∞, throw a RangeError exception.
+  if (n < 0 || !Number.isFinite(n)) throw new RangeError('Invalid count value');
+  // Now safe to use as i32
+  const count: i32 = n;
+  // 8. If n is 0, return the empty String.
+  // 9. (combined) If S is the empty String, return the empty String.
+  const thisLen: i32 = _this.length;
+  if (thisLen == 0 || count == 0) return '';
+
+  let out: bytestring = Porffor.malloc();
+
+  for (let i: i32 = 0; i < count; i++) {
+    Porffor.wasm`
+;; dst = out + 4 + i * thisLen
+local.get ${out}
+i32.trunc_sat_f64_s
+i32.const 4
+i32.add
+local.get ${i}
+i32.trunc_sat_f64_s
+local.get ${thisLen}
+i32.trunc_sat_f64_s
+i32.mul
+i32.add
+
+;; src = this + 4
+local.get ${_this}
+i32.trunc_sat_f64_s
+i32.const 4
+i32.add
+
+;; size = thisLen
+local.get ${thisLen}
+i32.trunc_sat_f64_s
+
+memory.copy 0 0`;
+  }
+
+  Porffor.wasm.i32.store(out, thisLen * count, 0, 0);
+  return out;
+};
+
 // 22.1.2.4 String.raw ( template, ...substitutions )
 // https://tc39.es/ecma262/#sec-string.raw
 export const __String_raw = (template: any, ...substitutions: any[]): string => {
