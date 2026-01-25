@@ -7,7 +7,7 @@ export const __Map_prototype_size$get = (_this: Map) => {
 export const __Map_prototype_has = (_this: Map, key: any) => {
   const keys: any[] = Porffor.wasm.i32.load(_this, 0, 0);
   for (const x of keys) {
-    if (x === key) return true;
+    if (__ecma262_SameValueZero(x, key)) return true;
   }
 
   return false;
@@ -19,7 +19,7 @@ export const __Map_prototype_get = (_this: Map, key: any) => {
 
   const size: i32 = Porffor.wasm.i32.load(keys, 0, 0);
   for (let i: i32 = 0; i < size; i++) {
-    if (keys[i] === key) return vals[i];
+    if (__ecma262_SameValueZero(keys[i], key)) return vals[i];
   }
 
   return undefined;
@@ -31,7 +31,7 @@ export const __Map_prototype_set = (_this: Map, key: any, value: any) => {
 
   const size: i32 = keys.length;
   for (let i: i32 = 0; i < size; i++) {
-    if (keys[i] === key) {
+    if (__ecma262_SameValueZero(keys[i], key)) {
       vals[i] = value;
       return _this;
     }
@@ -54,7 +54,7 @@ export const __Map_prototype_delete = (_this: Map, key: any) => {
 
   const size: i32 = keys.length;
   for (let i: i32 = 0; i < size; i++) {
-    if (keys[i] === key) {
+    if (__ecma262_SameValueZero(keys[i], key)) {
       Porffor.array.fastRemove(keys, i, size);
       Porffor.array.fastRemove(vals, i, size);
       return true;
