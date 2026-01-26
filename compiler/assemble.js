@@ -25,14 +25,12 @@ export default (funcs, globals, tags, pages, data, noTreeshake = false) => {
       if (f.usesImports) for (let j = 0; j < f.wasm.length; j++) {
         const x = f.wasm[j];
         if (x[0] === Opcodes.call && x[1] < importedFuncs.length) {
-          const idx = x[1];
-          const func = importedFuncs[idx];
-
+          const func = importedFuncs[x[1]];
           if (!remap.has(func)) {
             remap.set(func, importFuncs.length);
             importFuncs.push(func);
           }
-          x[1] = remap.get(func);
+          f.wasm[j] = [ x[0], remap.get(func) ];
         }
       }
     }
