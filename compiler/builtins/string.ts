@@ -366,7 +366,6 @@ export const __String_prototype_at = (_this: string, index: number) => {
     Porffor.wasm`local.get ${out}`,
     Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + index * 2, 0, 4),
     0, 4);
-
   return out;
 };
 
@@ -383,7 +382,6 @@ export const __ByteString_prototype_at = (_this: bytestring, index: number) => {
     Porffor.wasm`local.get ${out}`,
     Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4),
     0, 4);
-
   return out;
 };
 
@@ -399,7 +397,6 @@ export const __String_prototype_charAt = (_this: string, index: number) => {
     Porffor.wasm`local.get ${out}`,
     Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + index * 2, 0, 4),
     0, 4);
-
   return out;
 };
 
@@ -415,7 +412,6 @@ export const __ByteString_prototype_charAt = (_this: bytestring, index: number) 
     Porffor.wasm`local.get ${out}`,
     Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4),
     0, 4);
-
   return out;
 };
 
@@ -944,7 +940,6 @@ export const __String_prototype_padStart = (_this: string, targetLength: number,
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
 
   const len: i32 = _this.length;
-
   const todo: i32 = targetLength - len;
   if (todo > 0) {
     if (Porffor.wasm`local.get ${padString+1}` == Porffor.TYPES.undefined) {
@@ -991,7 +986,6 @@ export const __ByteString_prototype_padStart = (_this: bytestring, targetLength:
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
 
   const len: i32 = _this.length;
-
   const todo: i32 = targetLength - len;
   if (todo > 0) {
     if (Porffor.wasm`local.get ${padString+1}` == Porffor.TYPES.undefined) {
@@ -1071,7 +1065,6 @@ export const __String_prototype_padEnd = (_this: string, targetLength: number, p
       } else out.length = len;
     }
   } else out.length = len;
-
   return out;
 };
 
@@ -1114,7 +1107,6 @@ export const __ByteString_prototype_padEnd = (_this: bytestring, targetLength: n
       } else out.length = len;
     }
   } else out.length = len;
-
   return out;
 };
 
@@ -1151,7 +1143,6 @@ export const __String_prototype_substring = (_this: string, start: number, end: 
   }
 
   out.length = end - start;
-
   return out;
 };
 
@@ -1184,23 +1175,18 @@ export const __ByteString_prototype_substring = (_this: bytestring, start: numbe
   }
 
   out.length = end - start;
-
   return out;
 };
 
 
 export const __String_prototype_substr = (_this: string, start: number, length: number) => {
   const len: i32 = _this.length;
-
-
   if (start < 0) {
     start = len + start;
     if (start < 0) start = 0;
   }
 
   if (Porffor.wasm`local.get ${length+1}` == Porffor.TYPES.undefined) length = len - start;
-
-
   if (start + length > len) length = len - start;
 
   let out: string = Porffor.malloc();
@@ -1220,22 +1206,17 @@ export const __String_prototype_substr = (_this: string, start: number, length: 
   }
 
   out.length = length;
-
   return out;
 };
 
 export const __ByteString_prototype_substr = (_this: bytestring, start: number, length: number) => {
   const len: i32 = _this.length;
-
-
   if (start < 0) {
     start = len + start;
     if (start < 0) start = 0;
   }
 
   if (Porffor.wasm`local.get ${length+1}` == Porffor.TYPES.undefined) length = len - start;
-
-
   if (start + length > len) length = len - start;
 
   let out: bytestring = Porffor.malloc();
@@ -1252,7 +1233,6 @@ export const __ByteString_prototype_substr = (_this: bytestring, start: number, 
   }
 
   out.length = length;
-
   return out;
 };
 
@@ -1260,7 +1240,6 @@ export const __ByteString_prototype_substr = (_this: bytestring, start: number, 
 export const __String_prototype_slice = (_this: string, start: number, end: number) => {
   const len: i32 = _this.length;
   if (Porffor.wasm`local.get ${end+1}` == Porffor.TYPES.undefined) end = len;
-
 
   if (start < 0) {
     start = len + start;
@@ -1292,14 +1271,12 @@ export const __String_prototype_slice = (_this: string, start: number, end: numb
   }
 
   out.length = end - start;
-
   return out;
 };
 
 export const __ByteString_prototype_slice = (_this: bytestring, start: number, end: number) => {
   const len: i32 = _this.length;
   if (Porffor.wasm`local.get ${end+1}` == Porffor.TYPES.undefined) end = len;
-
 
   if (start < 0) {
     start = len + start;
@@ -1328,7 +1305,6 @@ export const __ByteString_prototype_slice = (_this: bytestring, start: number, e
   }
 
   out.length = end - start;
-
   return out;
 };
 
@@ -1363,7 +1339,6 @@ export const __String_prototype_trimStart = (_this: string) => {
   }
 
   out.length = len - n;
-
   return out;
 };
 
@@ -1395,7 +1370,6 @@ export const __ByteString_prototype_trimStart = (_this: bytestring) => {
   }
 
   out.length = len - n;
-
   return out;
 };
 
@@ -1434,7 +1408,6 @@ export const __String_prototype_trimEnd = (_this: string) => {
   }
 
   out.length = len - n;
-
   return out;
 };
 
@@ -1471,7 +1444,6 @@ export const __ByteString_prototype_trimEnd = (_this: bytestring) => {
   }
 
   out.length = len - n;
-
   return out;
 };
 
@@ -2089,7 +2061,6 @@ export const __ByteString_prototype_toWellFormed = (_this: bytestring) => {
   // bytestrings cannot have surrogates, so just copy
   let out: bytestring = Porffor.malloc();
   Porffor.clone(_this, out);
-
   return out;
 };
 
