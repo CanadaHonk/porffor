@@ -6885,6 +6885,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
                   [ Opcodes.local_get, func.locals[name].idx + 1 ],
                   number(0),
                   number(TYPES.undefined, Valtype.i32),
+                  number(0),
+                  number(TYPES.undefined, Valtype.i32),
                   [ Opcodes.call, includeBuiltin(scope, '__Array_from').index ],
                   [ Opcodes.local_set, func.locals[name].idx ],
 
