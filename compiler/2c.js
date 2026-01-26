@@ -2,7 +2,6 @@ import { read_unsignedLEB128 } from './encoding.js';
 import { Blocktype, Opcodes, Valtype, PageSize } from './wasmSpec.js';
 import { operatorOpcode } from './expression.js';
 import { log } from './log.js';
-import './prefs.js';
 
 const CValtype = {
   i8: 'u8',
@@ -209,7 +208,7 @@ export default ({ funcs, globals, data, pages }) => {
 
   includes.set('stdint.h', true);
 
-  globalThis.out = ``;
+  let out = '';
 
   for (const x in globals) {
     const g = globals[x];
@@ -281,6 +280,7 @@ export default ({ funcs, globals, data, pages }) => {
     if (cified.has(f.name)) return '';
     cified.add(f.name);
 
+    let topOfOut = '';
     let out = '';
 
     let depth = 1;
@@ -358,8 +358,7 @@ export default ({ funcs, globals, data, pages }) => {
 
     if (f.name === '__Porffor_promise_runJobs') {
       out += '}';
-      globalThis.out = globalThis.out + out;
-      return;
+      return topOfOut + out;
     }
 
     if (f.name === '#main') {
@@ -730,7 +729,7 @@ f64 _time_out${id} = (f64)_ts${id}.tv_sec * 1000.0 + (f64)_ts${id}.tv_nsec / 1.0
           }
 
           if (!cified.has(func.name) && !ffiFuncs[func.name]) {
-            cify(func);
+            topOfOut += cify(func);
           }
 
           let args = [];
@@ -951,12 +950,11 @@ f64 _time_out${id} = (f64)_ts${id}.tv_sec * 1000.0 + (f64)_ts${id}.tv_nsec / 1.0
     }
 
     out += '}\n\n';
-
-    globalThis.out = globalThis.out + out;
+    return topOfOut + out;
   };
 
   for (const x of funcs) {
-    if (x.export || x.name === '#main') cify(x);
+    if (x.export || x.name === '#main') out += cify(x);
   }
 
   const rawParams = f => {
