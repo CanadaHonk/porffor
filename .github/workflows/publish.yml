@@ -1,0 +1,31 @@
+name: Bump version and publish
+
+on:
+  push:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    if: >
+      github.event.head_commit
+      && github.event.head_commit.author.email == 'honk@goose.icu'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node publish.js
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json jsr.json runtime/index.js test262/history.json
+          git commit -m "publish: $(node -p \"require('./package.json').version\")"
+          git push
+      - run: npm publish
+      - run: npx jsr publish
