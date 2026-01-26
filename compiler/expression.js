@@ -1,14 +1,40 @@
-import { Opcodes, Valtype } from './wasmSpec.js';
+import { Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { TYPES } from './types.js';
 
-const f64ifyBitwise = op => (_1, _2, { left, right }) => [
-  ...left,
-  Opcodes.i32_trunc_sat_f64_s,
-  ...right,
-  Opcodes.i32_trunc_sat_f64_s,
-  [ op ],
-  [ Opcodes.f64_convert_i32_s ]
-];
+const f64ifyBitwise = (op, outConv = Opcodes.f64_convert_i32_s) => (_1, { Opcodes, Valtype, loc }, { left, right }) => {
+  const tmp = loc('#bitwise_tmp', Valtype.f64);
+  const toI32 = () => [
+    [ Opcodes.f64_trunc ],
+    [ Opcodes.local_tee, tmp ],
+    [ Opcodes.local_get, tmp ],
+    [ Opcodes.f64_const, 4294967296 ],
+    [ Opcodes.f64_div ],
+    [ Opcodes.f64_trunc ],
+    [ Opcodes.f64_const, 4294967296 ],
+    [ Opcodes.f64_mul ],
+    [ Opcodes.f64_sub ],
+    [ Opcodes.local_tee, tmp ],
+    [ Opcodes.f64_const, 0 ],
+    [ Opcodes.f64_lt ],
+    [ Opcodes.if, Blocktype.void ],
+      [ Opcodes.local_get, tmp ],
+      [ Opcodes.f64_const, 4294967296 ],
+      [ Opcodes.f64_add ],
+      [ Opcodes.local_set, tmp ],
+    [ Opcodes.end ],
+    [ Opcodes.local_get, tmp ],
+    Opcodes.i32_trunc_sat_f64_u
+  ];
+
+  return [
+    ...left,
+    ...toI32(),
+    ...right,
+    ...toI32(),
+    [ op ],
+    [ outConv ]
+  ];
+};
 
 export const operatorOpcode = {
   i32: {
@@ -92,6 +118,6 @@ export const operatorOpcode = {
     '^': f64ifyBitwise(Opcodes.i32_xor),
     '<<': f64ifyBitwise(Opcodes.i32_shl),
     '>>': f64ifyBitwise(Opcodes.i32_shr_s),
-    '>>>': f64ifyBitwise(Opcodes.i32_shr_u)
+    '>>>': f64ifyBitwise(Opcodes.i32_shr_u, Opcodes.f64_convert_i32_u)
   }
 };
