@@ -1469,7 +1469,7 @@ export const __ByteString_prototype_match = (_this: bytestring, regexp: any) => 
 
 // todo: use actual iterator not array
 export const __Porffor_regex_matchAll = (regexp: any, input: any) => {
-  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
+  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp, 'g');
   if (Porffor.type(input) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
 
   if (!__RegExp_prototype_global$get(regexp)) throw new TypeError('matchAll used with non-global RegExp');
