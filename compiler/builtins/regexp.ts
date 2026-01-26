@@ -190,16 +190,16 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
         else if (char == 48) v = 0; // \0
         else if (char == 120) { // \x
           if (patternPtr + 1 >= patternEndPtr) throw new SyntaxError('Regex parse: invalid \\x escape');
-          const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-          const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+          const c1: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+          const c2: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
           v = __Porffor_regex_hexDigitToValue(c1) * 16 + __Porffor_regex_hexDigitToValue(c2);
         } else if (char == 117) { // \u
           if (patternPtr + 3 >= patternEndPtr) throw new SyntaxError('Regex parse: invalid \\u escape');
-          const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-          const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-          const c3 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-          const c4 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+          const c1: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+          const c2: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+          const c3: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+          const c4: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
           v = __Porffor_regex_hexDigitToValue(c1) * 4096 + __Porffor_regex_hexDigitToValue(c2) * 256 + __Porffor_regex_hexDigitToValue(c3) * 16 + __Porffor_regex_hexDigitToValue(c4);
         } else if (char == 99) { // \c
@@ -207,7 +207,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
             // No character after \c, treat as literal \c
             v = char;
           } else {
-            const ctrlChar = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+            const ctrlChar: i32 = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
             if ((ctrlChar >= 65 && ctrlChar <= 90) || (ctrlChar >= 97 && ctrlChar <= 122)) {
               patternPtr++;
               v = ctrlChar & 0x1F;
@@ -249,16 +249,16 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
             else if (endChar == 48) endChar = 0;
             else if (endChar == 120) { // \x
               if (patternPtr + 1 >= patternEndPtr) throw new SyntaxError('Regex parse: invalid \\x escape');
-              const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-              const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+              const c1: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+              const c2: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
               endChar = __Porffor_regex_hexDigitToValue(c1) * 16 + __Porffor_regex_hexDigitToValue(c2);
-              } else if (endChar == 117) { // \u
+            } else if (endChar == 117) { // \u
                if (patternPtr + 3 >= patternEndPtr) throw new SyntaxError('Regex parse: invalid \\u escape');
-               const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-               const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-               const c3 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-               const c4 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+               const c1: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+               const c2: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+               const c3: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+               const c4: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
                endChar = __Porffor_regex_hexDigitToValue(c1) * 4096 + __Porffor_regex_hexDigitToValue(c2) * 256 + __Porffor_regex_hexDigitToValue(c3) * 16 + __Porffor_regex_hexDigitToValue(c4);
             } else if (endChar == 99) { // \c
@@ -266,7 +266,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
                 // No character after \c, treat as literal \c
                 endChar = endChar;
               } else {
-                const ctrlChar = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+                const ctrlChar: i32 = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
                 if ((ctrlChar >= 65 && ctrlChar <= 90) || (ctrlChar >= 97 && ctrlChar <= 122)) {
                   patternPtr++;
                   endChar = ctrlChar & 0x1F;
@@ -388,7 +388,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
           }
 
           // Store placeholder for target address (will be filled when we see closing paren)
-          const lookaheadJumpPtr = bcPtr + 1;
+          const lookaheadJumpPtr: i32 = bcPtr + 1;
           Porffor.wasm.i32.store16(bcPtr, 0, 0, 1);
           bcPtr += 3;
 
@@ -400,7 +400,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
           groupDepth += 1;
           // Store the alternation scope start for this group depth in altStack
           // We'll use even indices for jump targets and odd indices for scope starts
-          const scopeStackIdx = groupDepth * 2 + 1;
+          const scopeStackIdx: i32 = groupDepth * 2 + 1;
           if (scopeStackIdx < 6144) altStack[scopeStackIdx] = bcPtr;
           if (!ncg) {
             Porffor.wasm.i32.store8(bcPtr, 0x30, 0, 0); // start capture
@@ -436,8 +436,8 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
         if (capturePop == -2 || capturePop == -3) {
           const jumpPtr: i32 = Porffor.array.fastPopI32(groupStack);
 
-          // Emit accept to properly end the lookahead
-          Porffor.wasm.i32.store8(bcPtr, 0x10, 0, 0); // accept
+          // accept
+          Porffor.wasm.i32.store8(bcPtr, 0x10, 0, 0);
           bcPtr += 1;
 
           // Update the jump target to point past this closing paren
@@ -465,7 +465,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
             forkPos = bcStart;
           } else {
             // Group alternation - get stored scope start
-            const scopeStackIdx = groupDepth * 2 + 1;
+            const scopeStackIdx: i32 = groupDepth * 2 + 1;
             if (scopeStackIdx < 6144 && altStack[scopeStackIdx] > 0) {
               forkPos = altStack[scopeStackIdx];
             }
@@ -821,8 +821,8 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
       }
       if (char == 120) { // \x
         if (patternPtr + 1 >= patternEndPtr) throw new SyntaxError('Regex parse: invalid \\x escape');
-        const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-        const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+        const c1: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+        const c2: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
         lastAtomStart = bcPtr;
         Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
@@ -833,10 +833,10 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
       }
       if (char == 117) { // \u
         if (patternPtr + 3 >= patternEndPtr) throw new SyntaxError('Regex parse: invalid \\u escape');
-        const c1 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-        const c2 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-        const c3 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
-        const c4 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+        const c1: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+        const c2: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+        const c3: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
+        const c4: i32 = Porffor.wasm.i32.load8_u(patternPtr++, 0, 4);
 
         Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0);
         Porffor.wasm.i32.store8(bcPtr, __Porffor_regex_hexDigitToValue(c1) * 4096 + __Porffor_regex_hexDigitToValue(c2) * 256 + __Porffor_regex_hexDigitToValue(c3) * 16 + __Porffor_regex_hexDigitToValue(c4), 0, 1);
@@ -850,7 +850,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
         if (patternPtr >= patternEndPtr) {
           // No character after \c, treat as literal \c - fall through to default case
         } else {
-          const ctrlChar = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+          const ctrlChar: i32 = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
           if ((ctrlChar >= 65 && ctrlChar <= 90) || (ctrlChar >= 97 && ctrlChar <= 122)) {
             patternPtr++;
             lastAtomStart = bcPtr;
@@ -947,23 +947,17 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         case 0x10: { // accept
           const len: i32 = backtrackStack.length;
           if (len >= 4) {
-            const marker = backtrackStack[len - 1];
+            const marker: i32 = backtrackStack[len - 1];
             if (marker == -2000 || marker == -3000) {
               // lookahead passed
-              const isNegative = marker == -2000;
-
-              const savedCapturesLen = backtrackStack[len - 2];
-              const savedSp = backtrackStack[len - 3];
-              const lookaheadEndPc = backtrackStack[len - 4];
+              sp = backtrackStack[len - 3];
+              captures.length = backtrackStack[len - 2];
               backtrackStack.length = len - 4;
 
-              sp = savedSp;
-              captures.length = savedCapturesLen;
-
-              if (isNegative) {
+              if (marker == -2000) {
                 break interpreter;
               } else {
-                pc = lookaheadEndPc;
+                pc = backtrackStack[len - 4];
               }
               break;
             }
@@ -1120,7 +1114,7 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             );
           }
 
-          const isWordBoundary = prevIsWord != nextIsWord;
+          const isWordBoundary: boolean = prevIsWord != nextIsWord;
           if ((op == 0x07 && isWordBoundary) || (op == 0x08 && !isWordBoundary)) {
             pc += 1;
           } else {
@@ -1139,24 +1133,24 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
           break;
 
         case 0x0a: { // back reference
-          const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
-          const arrIndex = (capIndex - 1) * 2;
+          const capIndex: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
+          const arrIndex: i32 = (capIndex - 1) * 2;
           if (arrIndex + 1 >= captures.length) { // reference to group that hasn't been seen
             pc += 2;
           } else {
-            const capStart = captures[arrIndex];
-            const capEnd = captures[arrIndex + 1];
+            const capStart: i32 = captures[arrIndex];
+            const capEnd: i32 = captures[arrIndex + 1];
             if (capStart == -1 || capEnd == -1) { // reference to unmatched group
               pc += 2;
             } else {
-              const capLen = capEnd - capStart;
+              const capLen: i32 = capEnd - capStart;
               if (sp + capLen > inputLen) {
                 backtrack = true;
               } else {
-                let matches = true;
-                for (let k = 0; k < capLen; k++) {
-                  let c1 = Porffor.wasm.i32.load8_u(input + capStart + k, 0, 4);
-                  let c2 = Porffor.wasm.i32.load8_u(input + sp + k, 0, 4);
+                let matches: boolean = true;
+                for (let k: i32 = 0; k < capLen; k++) {
+                  let c1: i32 = Porffor.wasm.i32.load8_u(input + capStart + k, 0, 4);
+                  let c2: i32 = Porffor.wasm.i32.load8_u(input + sp + k, 0, 4);
                   if (ignoreCase) {
                     if (c1 >= 97 && c1 <= 122) c1 -= 32;
                     if (c2 >= 97 && c2 <= 122) c2 -= 32;
@@ -1180,9 +1174,9 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
         case 0x0b:
         case 0x0c: { // positive or negative lookahead
-          const jumpOffset = Porffor.wasm.i32.load16_s(pc, 0, 1);
-          const lookaheadEndPc = pc + jumpOffset + 3;
-          const savedSp = sp;
+          const jumpOffset: i32 = Porffor.wasm.i32.load16_s(pc, 0, 1);
+          const lookaheadEndPc: i32 = pc + jumpOffset + 3;
+          const savedSp: i32 = sp;
 
           const len: i32 = backtrackStack.length;
           backtrackStack[len] = lookaheadEndPc;
@@ -1204,8 +1198,8 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
           break;
 
         case 0x21: { // fork
-          const branch1Offset = Porffor.wasm.i32.load16_s(pc, 0, 1);
-          const branch2Offset = Porffor.wasm.i32.load16_s(pc, 0, 3);
+          const branch1Offset: i32 = Porffor.wasm.i32.load16_s(pc, 0, 1);
+          const branch2Offset: i32 = Porffor.wasm.i32.load16_s(pc, 0, 3);
 
           const len: i32 = backtrackStack.length;
           backtrackStack[len] = pc + branch2Offset;
@@ -1218,16 +1212,16 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         }
 
         case 0x30: { // start capture
-          const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
-          const arrIndex = capIndex + 255; // + 255 offset for temp start, as it could never end properly
-          captures[arrIndex] = sp;
+          const capIndex: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
+          // + 255 offset for temp start, as it could never end properly
+          captures[capIndex + 255] = sp;
           pc += 2;
           break;
         }
 
         case 0x31: { // end capture
-          const capIndex = Porffor.wasm.i32.load8_u(pc, 0, 1);
-          const arrIndex = (capIndex - 1) * 2 + 1;
+          const capIndex: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
+          const arrIndex: i32 = (capIndex - 1) * 2 + 1;
           while (captures.length <= arrIndex) Porffor.array.fastPushI32(captures, -1);
           captures[arrIndex - 1] = captures[capIndex + 255];
           captures[arrIndex] = sp;
@@ -1245,19 +1239,13 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         if (len == 0) break;
 
         if (len >= 4) {
-          const marker = backtrackStack[len - 1];
-          if (marker == -2000 || marker == -3000) { // lookahead markers
-            const isNegative = marker == -2000;
-            // const savedMarker = backtrackStack[len - 1];
-            const savedCapturesLen = backtrackStack[len - 2];
-            const savedSp = backtrackStack[len - 3];
-            const lookaheadEndPc = backtrackStack[len - 4];
+          const marker: i32 = backtrackStack[len - 1];
+          if (marker == -2000 || marker == -3000) {
+            // lookahead failed
+            sp = backtrackStack[len - 3];
+            captures.length = backtrackStack[len - 2];
+            if (marker == -2000) pc = backtrackStack[len - 4];
             backtrackStack.length = len - 4;
-
-            sp = savedSp;
-            captures.length = savedCapturesLen;
-
-            if (isNegative) pc = lookaheadEndPc;
             continue;
           }
         }
@@ -1280,11 +1268,11 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
       const result: any[] = Porffor.malloc(4096);
       Porffor.array.fastPush(result, __ByteString_prototype_substring(input, matchStart, finalSp));
 
-      for (let k = 0; k < totalCaptures; k++) {
-        const arrIdx = k * 2;
+      for (let k: i32 = 0; k < totalCaptures; k++) {
+        const arrIdx: i32 = k * 2;
         if (arrIdx + 1 < captures.length) {
-          const capStart = captures[arrIdx];
-          const capEnd = captures[arrIdx + 1];
+          const capStart: i32 = captures[arrIdx];
+          const capEnd: i32 = captures[arrIdx + 1];
           if (capStart != -1 && capEnd != -1) {
             Porffor.array.fastPush(result, __ByteString_prototype_substring(input, capStart, capEnd));
           } else {
