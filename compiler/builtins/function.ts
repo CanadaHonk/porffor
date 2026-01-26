@@ -21,8 +21,7 @@ export const __Function_prototype_toString = (_this: Function) => {
 export const __Function_prototype_toLocaleString = (_this: Function) => __Function_prototype_toString(_this);
 
 export const __Function_prototype_apply = (_this: Function, thisArg: any, argsArray: any) => {
-  argsArray = Array.from(argsArray ?? []);
-  return Porffor.call(_this, argsArray, thisArg, null);
+  return Porffor.call(_this, Array.from(argsArray ?? []) as any[], thisArg, null);
 };
 
 export const __Function_prototype_bind = (_this: Function, thisArg: any, argsArray: any) => {
