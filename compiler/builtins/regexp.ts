@@ -945,12 +945,11 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
       switch (op) {
         case 0x10: { // accept
-          // Check if this is a lookahead accept
           const len: i32 = backtrackStack.length;
           if (len >= 4) {
             const marker = backtrackStack[len - 1];
-            if (marker == -2000 || marker == -3000) { // lookahead markers
-              // This is a lookahead accept
+            if (marker == -2000 || marker == -3000) {
+              // lookahead passed
               const isNegative = marker == -2000;
 
               const savedCapturesLen = backtrackStack[len - 2];
@@ -958,23 +957,18 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
               const lookaheadEndPc = backtrackStack[len - 4];
               backtrackStack.length = len - 4;
 
-              // Restore string position (lookaheads don't consume)
               sp = savedSp;
               captures.length = savedCapturesLen;
 
               if (isNegative) {
-                // Negative lookahead: pattern matched, so fail completely
-                matched = false;
                 break interpreter;
               } else {
-                // Positive lookahead: pattern matched, so continue after lookahead
                 pc = lookaheadEndPc;
               }
               break;
             }
           }
 
-          // Normal accept
           matched = true;
           finalSp = sp;
           break interpreter;
@@ -1250,7 +1244,6 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         const len: i32 = backtrackStack.length;
         if (len == 0) break;
 
-        // Check if we're backtracking from a lookahead
         if (len >= 4) {
           const marker = backtrackStack[len - 1];
           if (marker == -2000 || marker == -3000) { // lookahead markers
@@ -1261,23 +1254,14 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             const lookaheadEndPc = backtrackStack[len - 4];
             backtrackStack.length = len - 4;
 
-            // Restore state
             sp = savedSp;
             captures.length = savedCapturesLen;
 
-            if (isNegative) {
-              // Negative lookahead: pattern failed to match, so succeed and continue
-              pc = lookaheadEndPc;
-              backtrack = false;
-            } else {
-              // Positive lookahead: pattern failed to match, so fail
-              backtrack = true;
-            }
+            if (isNegative) pc = lookaheadEndPc;
             continue;
           }
         }
 
-        // Normal backtracking
         captures.length = backtrackStack[len - 1];
         sp = backtrackStack[len - 2];
         pc = backtrackStack[len - 3];
