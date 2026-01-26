@@ -1528,8 +1528,9 @@ export const BuiltinFuncs = () => {
       decl._noComptime = true;
       return generate(scope, decl);
     };
-    const fast = name => {
+    const fast = (name, before = '', after = '\n') => {
       return [
+        ...(before ? printStaticStr(scope, before) : []),
         ...(!name ? [ number(UNDEFINED) ] : generate(scope, {
           ...decl,
           callee: {
@@ -1537,7 +1538,7 @@ export const BuiltinFuncs = () => {
             name
           }
         })),
-        ...printStaticStr(scope, '\n')
+        ...printStaticStr(scope, after)
       ];
     };
 
@@ -1551,7 +1552,7 @@ export const BuiltinFuncs = () => {
     if (type === TYPES.string || type === TYPES.bytestring) {
       return fast('__Porffor_printString');
     } else if (type === TYPES.number) {
-      return fast('print');
+      return fast('print', '\x1b[33m', '\x1b[0m\n');
     }
 
     // one arg, skip most of console to avoid rest arg etc
