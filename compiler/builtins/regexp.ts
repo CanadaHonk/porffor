@@ -21,7 +21,8 @@ import type {} from './porffor.d.ts';
 //   single - 0x01:
 //     char (u8)
 //   class - 0x02 / negated class - 0x03:
-//     items (variable):
+//     length (u8)
+//     items (u32[]):
 //       RANGE_MARKER (0x00) (u8) + from (u8) + to (u8)
 //       CHAR_MARKER (0x01) (u8) + char (u8)
 //       PREDEF_MARKER (0x02) (u8) + classId (u8)
@@ -133,7 +134,8 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
 
   let lastWasAtom: boolean = false;
   let lastAtomStart: i32 = 0;
-  let inClass: boolean = false;
+  let classPtr: i32 = 0;
+  let classLength: i32 = 0;
   let captureIndex: i32 = 1;
 
   let groupDepth: i32 = 0;
@@ -156,12 +158,16 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
       patternPtr = patternPtr + 1;
     }
 
-    if (inClass) {
+    if (classPtr) {
       if (notEscaped && char == 93) { // ']'
-        inClass = false;
+        // set class length
+        Porffor.wasm.i32.store8(classPtr, classLength, 0, 1);
+
         // end class
         Porffor.wasm.i32.store8(bcPtr, 0xFF, 0, 0);
         bcPtr += 1;
+
+        classPtr = 0;
         lastWasAtom = true;
         continue;
       }
@@ -278,37 +284,37 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
           if (predefClassId > 0) {
             Porffor.wasm.i32.store8(bcPtr, 0x02, 0, 0); // PREDEF_MARKER
             Porffor.wasm.i32.store8(bcPtr, predefClassId, 0, 1);
-            bcPtr += 2;
           } else {
             Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0); // CHAR_MARKER
             Porffor.wasm.i32.store8(bcPtr, v, 0, 1);
-            bcPtr += 2;
           }
+          bcPtr += 4;
 
           // emit hyphen
           Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0); // CHAR_MARKER
           Porffor.wasm.i32.store8(bcPtr, 45, 0, 1);
-          bcPtr += 2;
+          bcPtr += 4;
 
           // emit end char/predef
           if (endPredefClassId > 0) {
             Porffor.wasm.i32.store8(bcPtr, 0x02, 0, 0); // PREDEF_MARKER
             Porffor.wasm.i32.store8(bcPtr, endPredefClassId, 0, 1);
-            bcPtr += 2;
           } else {
             Porffor.wasm.i32.store8(bcPtr, 0x01, 0, 0); // CHAR_MARKER
             Porffor.wasm.i32.store8(bcPtr, endChar, 0, 1);
-            bcPtr += 2;
           }
+
+          classLength += 2;
         } else {
           if (v > endChar) throw new SyntaxError('Regex parse: invalid range');
 
           Porffor.wasm.i32.store8(bcPtr, 0x00, 0, 0); // RANGE_MARKER
           Porffor.wasm.i32.store8(bcPtr, v, 0, 1);
           Porffor.wasm.i32.store8(bcPtr, endChar, 0, 2);
-          bcPtr += 3;
         }
 
+        bcPtr += 4;
+        classLength++;
         continue;
       }
 
@@ -321,26 +327,28 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
         Porffor.wasm.i32.store8(bcPtr, v, 0, 1);
       }
 
-      bcPtr += 2;
+      bcPtr += 4;
+      classLength++;
       continue;
     }
 
     if (notEscaped) {
       if (char == 91) { // '['
         lastAtomStart = bcPtr;
-        inClass = true;
+        classPtr = bcPtr;
+        classLength = 0;
         if (patternPtr < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 94) {
           patternPtr += 1;
 
           // negated
           Porffor.wasm.i32.store8(bcPtr, 0x03, 0, 0);
-          bcPtr += 1;
+          bcPtr += 2;
           continue;
         }
 
         // not negated
         Porffor.wasm.i32.store8(bcPtr, 0x02, 0, 0);
-        bcPtr += 1;
+        bcPtr += 2;
         continue;
       }
 
@@ -866,7 +874,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
   }
 
   if (groupDepth != 0) throw new SyntaxError('Regex parse: Unmatched (');
-  if (inClass) throw new SyntaxError('Regex parse: Unmatched [');
+  if (classPtr) throw new SyntaxError('Regex parse: Unmatched [');
 
   let thisAltDepth: i32 = altDepth[groupDepth];
   while (thisAltDepth-- > 0) {
@@ -899,6 +907,10 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
   if (global || sticky) {
     lastIndex = Porffor.wasm.i32.load16_u(regexp, 0, 8);
   }
+  if (lastIndex > inputLen) {
+    if (global || sticky) Porffor.wasm.i32.store16(regexp, 0, 0, 8);
+    return isTest ? false : null;
+  }
 
   const backtrackStack: i32[] = [];
   const captures: i32[] = [];
@@ -914,9 +926,7 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
   for (let i: i32 = lastIndex; i <= inputLen; i++) {
     if (fastChar != -1) {
-      while (i < inputLen && Porffor.wasm.i32.load8_u(input + i, 0, 4) != fastChar) {
-        i++;
-      }
+      while (i < inputLen && Porffor.wasm.i32.load8_u(input + i, 0, 4) != fastChar) i++;
       if (i > inputLen) break;
     }
 
@@ -996,68 +1006,56 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             backtrack = true;
           } else {
             let char: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
-            let classPc: i32 = pc + 1;
-            let charInClass: boolean = false;
+            const classLength: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
+            const beforeClassPc: i32 = pc;
+            const afterClassPc: i32 = pc + 3 + classLength * 4;
+
+            let match: boolean = false;
+            if (ignoreCase && char >= 97 && char <= 122) char -= 32;
+
             while (true) {
-              const marker: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 0);
-              if (marker == 0xFF) break; // end of class
+              const marker: i32 = Porffor.wasm.i32.load8_u(pc, 0, 2);
+              if (marker == 0xFF) break;
 
               if (marker == 0x00) { // range
-                let from: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
-                let to: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 2);
-                let cCheck: i32 = char;
+                let from: i32 = Porffor.wasm.i32.load8_u(pc, 0, 3);
+                let to: i32 = Porffor.wasm.i32.load8_u(pc, 0, 4);
                 if (ignoreCase) {
                   if (from >= 97 && from <= 122) from -= 32;
                   if (to >= 97 && to <= 122) to -= 32;
-                  if (cCheck >= 97 && cCheck <= 122) cCheck -= 32;
                 }
-                if (cCheck >= from && cCheck <= to) {
-                  charInClass = true;
+                if (char >= from && char <= to) {
+                  match = true;
                   break;
                 }
-                classPc += 3;
               } else if (marker == 0x01) { // char
-                let c1: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
-                let c2: i32 = char;
-                if (ignoreCase) {
-                  if (c1 >= 97 && c1 <= 122) c1 -= 32;
-                  if (c2 >= 97 && c2 <= 122) c2 -= 32;
-                }
-                if (c1 == c2) {
-                  charInClass = true;
+                let check: i32 = Porffor.wasm.i32.load8_u(pc, 0, 3);
+                if (ignoreCase && check >= 97 && check <= 122) check -= 32;
+                if (check == char) {
+                  match = true;
                   break;
                 }
-                classPc += 2;
               } else if (marker == 0x02) { // predefined
-                const classId: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 1);
-                let isMatch: boolean = false;
-                if (classId == 1) isMatch = char >= 48 && char <= 57;
-                else if (classId == 2) isMatch = !(char >= 48 && char <= 57);
-                else if (classId == 3) isMatch = Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
-                else if (classId == 4) isMatch = !Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
-                else if (classId == 5) isMatch = (char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95;
-                else if (classId == 6) isMatch = !((char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95);
+                const classId: i32 = Porffor.wasm.i32.load8_u(pc, 0, 3);
+                if (classId == 1) match = Porffor.fastAnd(char >= 48, char <= 57);
+                  else if (classId == 2) match = Porffor.fastOr(char < 48, char > 57);
+                  else if (classId == 3) match = Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
+                  else if (classId == 4) match = Porffor.fastAnd(char != 32, char != 9, char != 10, char != 13, char != 11, char != 12);
+                  else if (classId == 5) match = Porffor.fastOr(char >= 65 && char <= 90, char >= 97 && char <= 122, char >= 48 && char <= 57, char == 95);
+                  else if (classId == 6) match = Porffor.fastAnd(char < 65 || char > 90, char < 97 || char > 122, char < 48 || char > 57, char != 95);
 
-                if (isMatch) {
-                  charInClass = true;
-                  break;
-                }
-                classPc += 2;
+                if (match) break;
               }
+
+              pc += 4;
             }
 
-            if (op == 0x03) charInClass = !charInClass;
-
-            if (charInClass) {
-              while (Porffor.wasm.i32.load8_u(classPc, 0, 0) != 0xFF) {
-                const marker: i32 = Porffor.wasm.i32.load8_u(classPc, 0, 0);
-                if (marker == 0x00) classPc += 3;
-                else if (marker == 0x01) classPc += 2;
-                else if (marker == 0x02) classPc += 2;
-              }
-              pc = classPc + 1;
+            if (op == 0x03) match = !match;
+            if (match) {
+              pc = afterClassPc;
               sp += 1;
             } else {
+              pc = beforeClassPc;
               backtrack = true;
             }
           }
@@ -1071,12 +1069,12 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
             const classId: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
             const char: i32 = Porffor.wasm.i32.load8_u(input + sp, 0, 4);
             let isMatch: boolean = false;
-            if (classId == 1) isMatch = char >= 48 && char <= 57;
-            else if (classId == 2) isMatch = !(char >= 48 && char <= 57);
-            else if (classId == 3) isMatch = Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
-            else if (classId == 4) isMatch = !Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
-            else if (classId == 5) isMatch = (char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95;
-            else if (classId == 6) isMatch = !((char >= 65 && char <= 90) || (char >= 97 && char <= 122) || (char >= 48 && char <= 57) || char == 95);
+            if (classId == 1) isMatch = Porffor.fastAnd(char >= 48, char <= 57);
+              else if (classId == 2) isMatch = Porffor.fastOr(char < 48, char > 57);
+              else if (classId == 3) isMatch = Porffor.fastOr(char == 32, char == 9, char == 10, char == 13, char == 11, char == 12);
+              else if (classId == 4) isMatch = Porffor.fastAnd(char != 32, char != 9, char != 10, char != 13, char != 11, char != 12);
+              else if (classId == 5) isMatch = Porffor.fastOr(char >= 65 && char <= 90, char >= 97 && char <= 122, char >= 48 && char <= 57, char == 95);
+              else if (classId == 6) isMatch = Porffor.fastAnd(char < 65 || char > 90, char < 97 || char > 122, char < 48 || char > 57, char != 95);
 
             if (isMatch) {
               pc += 2;
@@ -1257,7 +1255,7 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
           const marker = backtrackStack[len - 1];
           if (marker == -2000 || marker == -3000) { // lookahead markers
             const isNegative = marker == -2000;
-            const savedMarker = backtrackStack[len - 1];
+            // const savedMarker = backtrackStack[len - 1];
             const savedCapturesLen = backtrackStack[len - 2];
             const savedSp = backtrackStack[len - 3];
             const lookaheadEndPc = backtrackStack[len - 4];

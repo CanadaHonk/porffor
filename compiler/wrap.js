@@ -365,24 +365,25 @@ ${flags & 0b0001 ? `    get func idx: ${get}
 
             case 0x02:
             case 0x03: {
+              const length = bc[i++];
               const negated = opcode === 0x03;
               console.log(`\x1b[31m${negated ? 'negated ' : ''}class\x1b[0m\x1b[2m:\x1b[0m`);
               classLoop: while (true) {
                 const itemcode = bc[i++];
                 switch (itemcode) {
                   case 0x00: {
-                    const from = bc[i++];
-                    const to = bc[i++];
+                    const from = bc[i + 1];
+                    const to = bc[i + 2];
                     console.log('        \x1b[36mrange\x1b[0m', String.fromCharCode(from), '\x1b[2m-\x1b[0m', String.fromCharCode(to));
                     break;
                   }
                   case 0x01: {
-                    const char = bc[i++];
+                    const char = bc[i + 1];
                     console.log('        \x1b[36mchar\x1b[0m', String.fromCharCode(char));
                     break;
                   }
                   case 0x02: {
-                    const id = bc[i++];
+                    const id = bc[i + 1];
                     console.log('        \x1b[36mpredef\x1b[0m', id);
                     break;
                   }
@@ -390,6 +391,7 @@ ${flags & 0b0001 ? `    get func idx: ${get}
                     break classLoop;
                   }
                 }
+                i += 3;
               }
               break;
             }
