@@ -3143,7 +3143,7 @@ const allocVar = (scope, name, global = false, type = true, i32 = false, redecl 
     if (redecl) {
       // force change old local name(s)
       target['#redecl_' + name + uniqId()] = target[name];
-      if (type) target['#redecl_' + name + '#type' + uniqId()] = target[name + '#type'];
+      if (type) target['#redecl_' + name + uniqId() + '#type'] = target[name + '#type'];
     } else {
       return target[name].idx;
     }
