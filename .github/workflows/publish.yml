@@ -25,7 +25,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add package.json jsr.json runtime/index.js test262/history.json
-          git commit -m "publish: $(node -p \"require('./package.json').version\")"
+          version="$(node -p 'require("./package.json").version')"
+          git commit -m "publish: $version"
           git push
       - run: npm publish
       - run: npx jsr publish
