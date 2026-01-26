@@ -359,7 +359,7 @@ export const __String_prototype_at = (_this: string, index: number) => {
   if (index < 0) index = len + index;
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
 
-  let out: string = Porffor.malloc(8);
+  const out: string = Porffor.malloc(8);
   Porffor.wasm.i32.store(out, 1, 0, 0); // out.length = 1
 
   Porffor.wasm.i32.store16(
@@ -375,7 +375,7 @@ export const __ByteString_prototype_at = (_this: bytestring, index: number) => {
   if (index < 0) index = len + index;
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
 
-  let out: bytestring = Porffor.malloc(8);
+  const out: bytestring = Porffor.malloc(8);
   Porffor.wasm.i32.store(out, 1, 0, 0); // out.length = 1
 
   Porffor.wasm.i32.store8(
@@ -390,7 +390,7 @@ export const __String_prototype_charAt = (_this: string, index: number) => {
 
   if (Porffor.fastOr(index < 0, index >= len)) return '';
 
-  let out: string = Porffor.malloc(8);
+  const out: string = Porffor.malloc(8);
   Porffor.wasm.i32.store(out, 1, 0, 0); // out.length = 1
 
   Porffor.wasm.i32.store16(
@@ -405,7 +405,7 @@ export const __ByteString_prototype_charAt = (_this: bytestring, index: number) 
 
   if (Porffor.fastOr(index < 0, index >= len)) return '';
 
-  let out: bytestring = Porffor.malloc(8);
+  const out: bytestring = Porffor.malloc(8);
   Porffor.wasm.i32.store(out, 1, 0, 0); // out.length = 1
 
   Porffor.wasm.i32.store8(
@@ -419,7 +419,7 @@ export const __String_prototype_toUpperCase = (_this: string) => {
   // todo: unicode not just ascii
   const len: i32 = _this.length;
 
-  let out: string = Porffor.malloc();
+  const out: string = Porffor.malloc(6 + len * 2);
   Porffor.wasm.i32.store(out, len, 0, 0);
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
@@ -442,7 +442,7 @@ export const __String_prototype_toUpperCase = (_this: string) => {
 export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
   const len: i32 = _this.length;
 
-  let out: bytestring = Porffor.malloc();
+  const out: bytestring = Porffor.malloc(6 + len);
   Porffor.wasm.i32.store(out, len, 0, 0);
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
@@ -464,7 +464,7 @@ export const __String_prototype_toLowerCase = (_this: string) => {
   // todo: unicode not just ascii
   const len: i32 = _this.length;
 
-  let out: string = Porffor.malloc();
+  const out: string = Porffor.malloc(6 + len * 2);
   Porffor.wasm.i32.store(out, len, 0, 0);
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
@@ -487,7 +487,7 @@ export const __String_prototype_toLowerCase = (_this: string) => {
 export const __ByteString_prototype_toLowerCase = (_this: bytestring) => {
   const len: i32 = _this.length;
 
-  let out: bytestring = Porffor.malloc();
+  const out: bytestring = Porffor.malloc(6 + len);
   Porffor.wasm.i32.store(out, len, 0, 0);
 
   let i: i32 = Porffor.wasm`local.get ${_this}`,
@@ -934,7 +934,7 @@ export const __ByteString_prototype_includes = (_this: bytestring, searchString:
 
 
 export const __String_prototype_padStart = (_this: string, targetLength: number, padString: any = undefined) => {
-  let out: string = Porffor.malloc();
+  const out: string = Porffor.malloc();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -980,7 +980,7 @@ export const __String_prototype_padStart = (_this: string, targetLength: number,
 };
 
 export const __ByteString_prototype_padStart = (_this: bytestring, targetLength: number, padString: any = undefined) => {
-  let out: bytestring = Porffor.malloc();
+  const out: bytestring = Porffor.malloc();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -1023,7 +1023,7 @@ export const __ByteString_prototype_padStart = (_this: bytestring, targetLength:
 
 
 export const __String_prototype_padEnd = (_this: string, targetLength: number, padString: any = undefined) => {
-  let out: string = Porffor.malloc();
+  const out: string = Porffor.malloc();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -1069,7 +1069,7 @@ export const __String_prototype_padEnd = (_this: string, targetLength: number, p
 };
 
 export const __ByteString_prototype_padEnd = (_this: bytestring, targetLength: number, padString: any = undefined) => {
-  let out: bytestring = Porffor.malloc();
+  const out: bytestring = Porffor.malloc();
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -1126,7 +1126,7 @@ export const __String_prototype_substring = (_this: string, start: number, end: 
   if (end < 0) end = 0;
   if (end > len) end = len;
 
-  let out: string = Porffor.malloc();
+  const out: string = Porffor.malloc(6 + (end - start) * 2);
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -1161,7 +1161,7 @@ export const __ByteString_prototype_substring = (_this: bytestring, start: numbe
   if (end < 0) end = 0;
   if (end > len) end = len;
 
-  let out: bytestring = Porffor.malloc();
+  const out: bytestring = Porffor.malloc(6 + (end - start));
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -1189,7 +1189,7 @@ export const __String_prototype_substr = (_this: string, start: number, length: 
   if (Porffor.wasm`local.get ${length+1}` == Porffor.TYPES.undefined) length = len - start;
   if (start + length > len) length = len - start;
 
-  let out: string = Porffor.malloc();
+  const out: string = Porffor.malloc(6 + length * 2);
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -1219,7 +1219,7 @@ export const __ByteString_prototype_substr = (_this: bytestring, start: number, 
   if (Porffor.wasm`local.get ${length+1}` == Porffor.TYPES.undefined) length = len - start;
   if (start + length > len) length = len - start;
 
-  let out: bytestring = Porffor.malloc();
+  const out: bytestring = Porffor.malloc(6 + length);
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
@@ -1252,7 +1252,7 @@ export const __String_prototype_slice = (_this: string, start: number, end: numb
   }
   if (end > len) end = len;
 
-  let out: string = Porffor.malloc();
+  const out: string = Porffor.malloc(6 + (end - start) * 2);
 
   if (start > end) return out;
 
@@ -1289,7 +1289,7 @@ export const __ByteString_prototype_slice = (_this: bytestring, start: number, e
   }
   if (end > len) end = len;
 
-  let out: bytestring = Porffor.malloc();
+  const out: bytestring = Porffor.malloc(6 + (end - start));
 
   if (start > end) return out;
 
@@ -1310,12 +1310,11 @@ export const __ByteString_prototype_slice = (_this: bytestring, start: number, e
 
 
 export const __String_prototype_trimStart = (_this: string) => {
-  let out: string = Porffor.malloc();
+  const len: i32 = _this.length;
+  const out: string = Porffor.malloc(6 + len * 2);
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-
-  const len: i32 = _this.length;
 
   const thisPtrEnd: i32 = thisPtr + len * 2;
 
@@ -1343,12 +1342,11 @@ export const __String_prototype_trimStart = (_this: string) => {
 };
 
 export const __ByteString_prototype_trimStart = (_this: bytestring) => {
-  let out: bytestring = Porffor.malloc();
+  const len: i32 = _this.length;
+  const out: bytestring = Porffor.malloc(6 + len);
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-
-  const len: i32 = _this.length;
 
   const thisPtrEnd: i32 = thisPtr + len;
 
@@ -1375,12 +1373,11 @@ export const __ByteString_prototype_trimStart = (_this: bytestring) => {
 
 
 export const __String_prototype_trimEnd = (_this: string) => {
-  let out: string = Porffor.malloc();
+  const len: i32 = _this.length;
+  const out: string = Porffor.malloc(6 + len * 2);
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-
-  const len: i32 = _this.length;
 
   const thisPtrStart: i32 = thisPtr;
 
@@ -1412,12 +1409,11 @@ export const __String_prototype_trimEnd = (_this: string) => {
 };
 
 export const __ByteString_prototype_trimEnd = (_this: bytestring) => {
-  let out: bytestring = Porffor.malloc();
+  const len: i32 = _this.length;
+  const out: bytestring = Porffor.malloc(6 + len);
 
   let outPtr: i32 = Porffor.wasm`local.get ${out}`;
   let thisPtr: i32 = Porffor.wasm`local.get ${_this}`;
-
-  const len: i32 = _this.length;
 
   const thisPtrStart: i32 = thisPtr;
 
@@ -1459,7 +1455,7 @@ export const __ByteString_prototype_trim = (_this: bytestring) => {
 
 
 export const __String_prototype_concat = (_this: string, ...vals: any[]) => {
-  let out: any = Porffor.malloc();
+  const out: any = Porffor.malloc();
   Porffor.clone(_this, out);
 
   // copy _this type to out
@@ -1498,7 +1494,7 @@ local.set ${out}`;
 };
 
 export const __ByteString_prototype_concat = (_this: bytestring, ...vals: any[]) => {
-  let out: any = Porffor.malloc();
+  const out: any = Porffor.malloc();
   Porffor.clone(_this, out);
 
   // copy _this type to out
@@ -1540,10 +1536,10 @@ export const __String_prototype_repeat = (_this: string, cnt: any) => {
   const count: number = ecma262.ToIntegerOrInfinity(cnt);
   if (count < 0) throw new RangeError('Invalid count value');
 
-  let out: string = Porffor.malloc();
   const thisLen: i32 = _this.length * 2;
   if (thisLen == 0) return '';
 
+  const out: string = Porffor.malloc(6 + thisLen * count * 2);
   for (let i: i32 = 0; i < count; i++) {
     Porffor.wasm`
 ;; dst = out + 4 + i * thisLen
@@ -1574,10 +1570,10 @@ export const __ByteString_prototype_repeat = (_this: bytestring, cnt: any) => {
   const count: number = ecma262.ToIntegerOrInfinity(cnt);
   if (count < 0) throw new RangeError('Invalid count value');
 
-  let out: bytestring = Porffor.malloc();
   const thisLen: i32 = _this.length;
   if (thisLen == 0) return '';
 
+  const out: bytestring = Porffor.malloc(6 + thisLen * count);
   for (let i: i32 = 0; i < count; i++) {
     Porffor.wasm`
 ;; dst = out + 4 + i * thisLen
@@ -1606,7 +1602,7 @@ memory.copy 0 0`;
 
 
 export const __String_prototype_split = (_this: string, separator: any, limit: any) => {
-  let out: any[] = Porffor.malloc(), outLen: i32 = 0;
+  const out: any[] = Porffor.malloc(), outLen: i32 = 0;
 
   if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
   if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
@@ -1776,7 +1772,7 @@ i32.store8 0 12`;
 };
 
 export const __ByteString_prototype_split = (_this: bytestring, separator: any, limit: any) => {
-  let out: any[] = Porffor.malloc(), outLen: i32 = 0;
+  const out: any[] = Porffor.malloc(), outLen: i32 = 0;
 
   if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
   if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
@@ -2025,11 +2021,12 @@ export const __ByteString_prototype_isWellFormed = (_this: bytestring) => {
 };
 
 export const __String_prototype_toWellFormed = (_this: string) => {
-  let out: string = Porffor.malloc();
-  Porffor.clone(_this, out);
+  const len: i32 = _this.length;
+  const out: string = Porffor.malloc(6 + len * 2);
+  Porffor.wasm.memory.copy(out, _this, 4 + len * 2, 0, 0);
 
   let ptr: i32 = Porffor.wasm`local.get ${out}`;
-  const endPtr: i32 = ptr + out.length * 2;
+  const endPtr: i32 = ptr + len * 2;
   while (ptr < endPtr) {
     const c1: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 4);
 
@@ -2058,10 +2055,8 @@ export const __String_prototype_toWellFormed = (_this: string) => {
 };
 
 export const __ByteString_prototype_toWellFormed = (_this: bytestring) => {
-  // bytestrings cannot have surrogates, so just copy
-  let out: bytestring = Porffor.malloc();
-  Porffor.clone(_this, out);
-  return out;
+  // bytestrings cannot have surrogates, so just return this
+  return _this;
 };
 
 
