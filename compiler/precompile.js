@@ -57,7 +57,7 @@ const compile = async (file, _funcs) => {
     first = source.slice(0, source.indexOf('\n'));
   }
 
-  let args = ['--module', '--truthy=no_nan_negative', '--no-rm-unused-types', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data', '--no-treeshake-wasm-imports', '--no-coctc', '--no-closures', '--never-fallback-builtin-proto'];
+  let args = ['--module', '--truthy=no_nan_negative', '--no-rm-unused-types', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data', '--no-treeshake-wasm-imports', '--no-coctc', '--no-closures', '--never-fallback-builtin-proto', '--unroll-threshold=0'];
   if (!defaultPrefs) {
     process.argv = argv.concat(args);
     globalThis.argvChanged?.();
