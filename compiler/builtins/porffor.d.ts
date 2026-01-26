@@ -96,6 +96,7 @@ type PorfforGlobal = {
   }
 
   print(x: any): i32;
+  printStatic(str: string): void;
 
   randomByte(): i32;
 
@@ -127,10 +128,6 @@ type PorfforGlobal = {
 
   s(...args: any): string;
   bs(...args: any): bytestring;
-
-  printStatic(str: string): void;
-  readArgv(index: i32, out: bytestring): i32;
-  readFile(path: bytestring, out: bytestring): i32;
 };
 
 declare global {

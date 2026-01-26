@@ -504,28 +504,6 @@ export default (source, module = undefined, print = str => process.stdout.write(
   createImport('time', 0, 1, () => performance.now());
   createImport('timeOrigin', 0, 1, () => performance.timeOrigin);
 
-  // todo: these should be provided elsewhere in runtime itself
-  createImport('__Porffor_readArgv', 2, 1, (ind, outPtr) => {
-    let args = process.argv.slice(2);
-    args = args.slice(args.findIndex(x => !x.startsWith('-')) + 1);
-
-    const str = args[ind - 1];
-    if (!str) return -1;
-
-    writeByteStr(memory, outPtr, str);
-    return str.length;
-  });
-  createImport('__Porffor_readFile', 2, 1, (pathPtr, outPtr) => { // readFile
-    try {
-      const path = pathPtr === 0 ? 0 : readByteStr(memory, pathPtr);
-      const contents = fs.readFileSync(path, 'utf8');
-      writeByteStr(memory, outPtr, contents);
-      return contents.length;
-    } catch {
-      return -1;
-    }
-  });
-
   const times = [];
 
   const t1 = performance.now();

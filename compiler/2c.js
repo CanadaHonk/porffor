@@ -660,66 +660,6 @@ f64 _time_out${id} = (f64)_ts${id}.tv_sec * 1000.0 + (f64)_ts${id}.tv_nsec / 1.0
                 break;
               }
 
-              case '__Porffor_readArgv': {
-                prepend.set('__Porffor_readArgv',
-`i32 __Porffor_readArgv(u32 index, u32 outPtr) {
-  if (index >= _argc) {
-    return -1;
-  }
-
-  char* arg = _argv[index];
-
-  u32 read = 0;
-  char* out = _memory + outPtr + 4;
-  char ch;
-  while ((ch = *(arg++)) != 0) {
-    out[read++] = ch;
-  }
-
-  *((i32*)(_memory + outPtr)) = (i32)read;
-  return read;
-}`);
-
-                const outPtr = vals.pop();
-                const index = vals.pop();
-                vals.push(`(f64)__Porffor_readArgv((u32)(${index}), (u32)(${outPtr}))`);
-                break;
-              }
-
-              case '__Porffor_readFile': {
-                includes.set('stdio.h', true);
-
-                prepend.set('__Porffor_readFile',
-`i32 __Porffor_readFile(u32 pathPtr, u32 outPtr) {
-  FILE* fp;
-  if (pathPtr == 0) {
-    fp = stdin;
-  } else {
-    char* path = _memory + pathPtr + 4;
-    fp = fopen(path, "r");
-    if (fp == NULL) {
-      return -1;
-    }
-  }
-
-  u32 read = 0;
-  char* out = _memory + outPtr + 4;
-  char ch;
-  while ((ch = fgetc(fp)) != EOF) {
-    out[read++] = ch;
-  }
-
-  fclose(fp);
-
-  *((i32*)(_memory + outPtr)) = (i32)read;
-  return read;
-}`);
-                const outPtr = vals.pop();
-                const pathPtr = vals.pop();
-                vals.push(`(f64)__Porffor_readFile((u32)(${pathPtr}), (u32)(${outPtr}))`);
-                break;
-              }
-
               default:
                 log.warning('2c', `unimplemented import: ${importFunc.name}`);
                 break;
