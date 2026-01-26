@@ -136,7 +136,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
   let lastAtomStart: i32 = 0;
   let classPtr: i32 = 0;
   let classLength: i32 = 0;
-  let captureIndex: i32 = 1;
+  let captureIndex: i32 = 0;
 
   let groupDepth: i32 = 0;
   // todo: free all at the end (or statically allocate but = [] causes memory corruption)
@@ -885,7 +885,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
 
   // accept
   Porffor.wasm.i32.store8(bcPtr, 0x10, 0, 0);
-  Porffor.wasm.i32.store16(ptr, captureIndex - 1, 0, 6);
+  Porffor.wasm.i32.store16(ptr, captureIndex, 0, 6);
 
   return ptr as RegExp;
 };
@@ -1213,17 +1213,20 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
 
         case 0x30: { // start capture
           const capIndex: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
-          // + 255 offset for temp start, as it could never end properly
-          captures[capIndex + 255] = sp;
+          captures[capIndex + 1024] = sp;
           pc += 2;
           break;
         }
 
         case 0x31: { // end capture
           const capIndex: i32 = Porffor.wasm.i32.load8_u(pc, 0, 1);
-          const arrIndex: i32 = (capIndex - 1) * 2 + 1;
-          while (captures.length <= arrIndex) Porffor.array.fastPushI32(captures, -1);
-          captures[arrIndex - 1] = captures[capIndex + 255];
+          const arrIndex: i32 = capIndex * 2 + 1;
+          const len: i32 = captures.length;
+          if (len <= arrIndex) {
+            captures.length = arrIndex + 1;
+            for (let j: i32 = len; j < arrIndex - 1; j++) captures[j] = -1;
+          }
+          captures[arrIndex - 1] = captures[capIndex + 1024];
           captures[arrIndex] = sp;
           pc += 2;
           break;
