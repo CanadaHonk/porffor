@@ -875,10 +875,8 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
   }
   altDepth[groupDepth] = 0;
 
-  // Accept
+  // accept
   Porffor.wasm.i32.store8(bcPtr, 0x10, 0, 0);
-
-  // Store capture count
   Porffor.wasm.i32.store16(ptr, captureIndex - 1, 0, 6);
 
   return ptr as RegExp;
@@ -938,16 +936,17 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
       switch (op) {
         case 0x10: { // accept
           // Check if this is a lookahead accept
-          if (backtrackStack.length >= 4) {
-            const marker = backtrackStack[backtrackStack.length - 1];
+          const len: i32 = backtrackStack.length;
+          if (len >= 4) {
+            const marker = backtrackStack[len - 1];
             if (marker == -2000 || marker == -3000) { // lookahead markers
               // This is a lookahead accept
               const isNegative = marker == -2000;
 
-              const savedMarker = Porffor.array.fastPopI32(backtrackStack);
-              const savedCapturesLen = Porffor.array.fastPopI32(backtrackStack);
-              const savedSp = Porffor.array.fastPopI32(backtrackStack);
-              const lookaheadEndPc = Porffor.array.fastPopI32(backtrackStack);
+              const savedCapturesLen = backtrackStack[len - 2];
+              const savedSp = backtrackStack[len - 3];
+              const lookaheadEndPc = backtrackStack[len - 4];
+              backtrackStack.length = len - 4;
 
               // Restore string position (lookaheads don't consume)
               sp = savedSp;
@@ -1191,21 +1190,20 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         case 0x0c: { // positive or negative lookahead
           const jumpOffset = Porffor.wasm.i32.load16_s(pc, 0, 1);
           const lookaheadEndPc = pc + jumpOffset + 3;
-          const savedSp = sp; // Save current string position
+          const savedSp = sp;
 
-          // Use fork to test the lookahead pattern
-          Porffor.array.fastPushI32(backtrackStack, lookaheadEndPc); // Continue point after lookahead
-          Porffor.array.fastPushI32(backtrackStack, savedSp); // Restore original sp
-          Porffor.array.fastPushI32(backtrackStack, captures.length);
-
-          // Mark this as a lookahead with special values
+          const len: i32 = backtrackStack.length;
+          backtrackStack[len] = lookaheadEndPc;
+          backtrackStack[len + 1] = savedSp;
+          backtrackStack[len + 2] = captures.length;
           if (op == 0x0c) { // negative lookahead
-            Porffor.array.fastPushI32(backtrackStack, -2000); // Special marker for negative
+            backtrackStack[len + 3] = -2000;
           } else { // positive lookahead
-            Porffor.array.fastPushI32(backtrackStack, -3000); // Special marker for positive
+            backtrackStack[len + 3] = -3000;
           }
+          backtrackStack.length = len + 4;
 
-          pc = pc + 3; // Jump to lookahead content
+          pc += 3;
           break;
         }
 
@@ -1217,9 +1215,11 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
           const branch1Offset = Porffor.wasm.i32.load16_s(pc, 0, 1);
           const branch2Offset = Porffor.wasm.i32.load16_s(pc, 0, 3);
 
-          Porffor.array.fastPushI32(backtrackStack, pc + branch2Offset);
-          Porffor.array.fastPushI32(backtrackStack, sp);
-          Porffor.array.fastPushI32(backtrackStack, captures.length);
+          const len: i32 = backtrackStack.length;
+          backtrackStack[len] = pc + branch2Offset;
+          backtrackStack[len + 1] = sp;
+          backtrackStack[len + 2] = captures.length;
+          backtrackStack.length = len + 3;
 
           pc += branch1Offset;
           break;
@@ -1249,17 +1249,19 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
       }
 
       if (backtrack) {
-        if (backtrackStack.length == 0) break;
+        const len: i32 = backtrackStack.length;
+        if (len == 0) break;
 
         // Check if we're backtracking from a lookahead
-        if (backtrackStack.length >= 4) {
-          const marker = backtrackStack[backtrackStack.length - 1];
+        if (len >= 4) {
+          const marker = backtrackStack[len - 1];
           if (marker == -2000 || marker == -3000) { // lookahead markers
             const isNegative = marker == -2000;
-            const savedMarker = Porffor.array.fastPopI32(backtrackStack);
-            const savedCapturesLen = Porffor.array.fastPopI32(backtrackStack);
-            const savedSp = Porffor.array.fastPopI32(backtrackStack);
-            const lookaheadEndPc = Porffor.array.fastPopI32(backtrackStack);
+            const savedMarker = backtrackStack[len - 1];
+            const savedCapturesLen = backtrackStack[len - 2];
+            const savedSp = backtrackStack[len - 3];
+            const lookaheadEndPc = backtrackStack[len - 4];
+            backtrackStack.length = len - 4;
 
             // Restore state
             sp = savedSp;
@@ -1278,9 +1280,10 @@ export const __Porffor_regex_interpret = (regexp: RegExp, input: i32, isTest: bo
         }
 
         // Normal backtracking
-        captures.length = Porffor.array.fastPopI32(backtrackStack);
-        sp = Porffor.array.fastPopI32(backtrackStack);
-        pc = Porffor.array.fastPopI32(backtrackStack);
+        captures.length = backtrackStack[len - 1];
+        sp = backtrackStack[len - 2];
+        pc = backtrackStack[len - 3];
+        backtrackStack.length = len - 3;
       }
     }
 
