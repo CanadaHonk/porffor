@@ -22,7 +22,7 @@ export const __ByteString_prototype_${a0} = (_this: bytestring) =>
 export const __String_prototype_${name} = (_this: string, arg: any) => {
   arg = ecma262.ToString(arg);
   const len: i32 = arg.length;
-  const escaped: bytestring = Porffor.malloc(4 + len * 6); // overallocate in case of &quot;s
+  const escaped: bytestring = Porffor.malloc(6 + len * 6); // overallocate in case of &quot;s
   for (let i: i32 = 0; i < len; i++) {
     const c: i32 = arg.charCodeAt(i);
     if (c != 34) {

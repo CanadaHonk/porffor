@@ -247,7 +247,7 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
       if (space < 1) {
         space = undefined;
       } else {
-        const spaceStr: bytestring = Porffor.malloc(4 + space);
+        const spaceStr: bytestring = Porffor.malloc(6 + space);
         for (let i: i32 = 0; i < space; i++) Porffor.bytestring.appendChar(spaceStr, 32);
 
         space = spaceStr;

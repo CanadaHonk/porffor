@@ -287,7 +287,7 @@ export const __Porffor_strcat = (a: any, b: any): any => {
   if (Porffor.wasm`local.get ${a+1}` == Porffor.TYPES.bytestring) {
     if (Porffor.wasm`local.get ${b+1}` == Porffor.TYPES.bytestring) {
       // bytestring, bytestring
-      const out: bytestring = Porffor.malloc(4 + al + bl);
+      const out: bytestring = Porffor.malloc(6 + al + bl);
 
       // out.length = a.length + b.length
       Porffor.wasm.i32.store(out, al + bl, 0, 0);
@@ -301,7 +301,7 @@ export const __Porffor_strcat = (a: any, b: any): any => {
       return out;
     } else {
       // bytestring, string
-      const out: string = Porffor.malloc(4 + (al + bl) * 2);
+      const out: string = Porffor.malloc(6 + (al + bl) * 2);
 
       // out.length = a.length + b.length
       Porffor.wasm.i32.store(out, al + bl, 0, 0);
@@ -319,7 +319,7 @@ export const __Porffor_strcat = (a: any, b: any): any => {
   } else {
     if (Porffor.wasm`local.get ${b+1}` == Porffor.TYPES.bytestring) {
       // string, bytestring
-      const out: string = Porffor.malloc(4 + (al + bl) * 2);
+      const out: string = Porffor.malloc(6 + (al + bl) * 2);
 
       // out.length = a.length + b.length
       Porffor.wasm.i32.store(out, al + bl, 0, 0);
@@ -336,7 +336,7 @@ export const __Porffor_strcat = (a: any, b: any): any => {
       return out;
     } else {
       // string, string
-      const out: string = Porffor.malloc(4 + (al + bl) * 2);
+      const out: string = Porffor.malloc(6 + (al + bl) * 2);
 
       // out.length = a.length + b.length
       Porffor.wasm.i32.store(out, al + bl, 0, 0);

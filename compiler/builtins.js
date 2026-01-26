@@ -1088,10 +1088,10 @@ export const BuiltinFuncs = () => {
       [ Opcodes.i32_load, 0, 0 ],
       [ Opcodes.local_tee, 1 ],
 
-      // dst = malloc(4 + len * 2)
+      // dst = malloc(6 + len * 2)
       number(2, Valtype.i32),
       [ Opcodes.i32_mul ],
-      number(4, Valtype.i32),
+      number(6, Valtype.i32),
       [ Opcodes.i32_add ],
       [ Opcodes.call, builtin('__Porffor_malloc') ],
       [ Opcodes.local_tee, 3 ],
