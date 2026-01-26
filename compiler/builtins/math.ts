@@ -154,7 +154,7 @@ export const __Math_pow = (base: number, exponent: number): number => {
     }
 
     // 5. If base is -∞𝔽, then
-    const isOdd = exponent % 2 == 1;
+    const isOdd = Math.abs(exponent) % 2 == 1;
 
     // a. If exponent > +0𝔽, then
     if (exponent > 0) {
@@ -178,7 +178,7 @@ export const __Math_pow = (base: number, exponent: number): number => {
     }
 
     // 7. If base is -0𝔽, then
-    const isOdd = exponent % 2 == 1;
+    const isOdd = Math.abs(exponent) % 2 == 1;
 
     // a. If exponent > +0𝔽, then
     if (exponent > 0) {
@@ -282,7 +282,10 @@ export const __Math_expm1 = (x: number): number => {
 };
 
 export const __Math_log1p = (x: number): number => {
+  // log1p(0) = 0 (preserve sign)
+  if (x == 0) return x;
   if (x == -1) return -Infinity; // log(0) = -inf
+  if (x < -1) return NaN; // log of negative is NaN
   if (!Number.isFinite(x)) return x;
 
   // opt: use exp(x) - 1 for large x
@@ -305,7 +308,7 @@ export const __Math_log1p = (x: number): number => {
 
 export const __Math_sqrt = (y: number): number => {
   if (y <= 0) {
-    if (y == 0) return 0;
+    if (y == 0) return y; // sqrt(0) = 0 (preserve sign)
     return NaN;
   }
   if (!Number.isFinite(y)) return y;
@@ -323,7 +326,7 @@ export const __Math_sqrt = (y: number): number => {
 };
 
 export const __Math_cbrt = (y: number): number => {
-  if (y == 0) return 0; // cbrt(0) = 0
+  if (y == 0) return y; // cbrt(0) = 0 (preserves sign)
   if (!Number.isFinite(y)) return y;
 
   // Babylonian method
@@ -341,9 +344,16 @@ export const __Math_cbrt = (y: number): number => {
 
 
 // todo: varargs
-export const __Math_hypot = (x: number, y: number): number => Math.sqrt(x * x + y * y);
+export const __Math_hypot = (x: number, y: number): number => {
+  // If any argument is ±Infinity, return +Infinity (even if other args are NaN)
+  if (x == Infinity || x == -Infinity || y == Infinity || y == -Infinity) return Infinity;
+  return Math.sqrt(x * x + y * y);
+};
 
 export const __Math_sin = (x: number): number => {
+  // sin(0) = 0 (preserve sign)
+  if (x == 0) return x;
+
   // -inf <= x <= inf -> 0 <= x <= 2pi
   const piX2: number = Math.PI * 2;
   x %= piX2;
@@ -381,21 +391,47 @@ export const __Math_sin = (x: number): number => {
   // );
 };
 
-export const __Math_cos = (x: number): number => Math.sin(x - Math.PI / 2);
-export const __Math_tan = (x: number): number => Math.sin(x) / Math.cos(x);
+export const __Math_cos = (x: number): number => {
+  if (x == 0) return 1;
+  return Math.sin(x + Math.PI / 2);
+};
+export const __Math_tan = (x: number): number => {
+  // tan(0) = 0 (preserve sign)
+  if (x == 0) return x;
+  return Math.sin(x) / Math.cos(x);
+};
 
-export const __Math_sinh = (x: number): number => (Math.exp(x) - Math.exp(-x)) / 2;
+export const __Math_sinh = (x: number): number => {
+  // sinh(0) = 0 (preserve sign)
+  if (x == 0) return x;
+  return (Math.exp(x) - Math.exp(-x)) / 2;
+};
 export const __Math_cosh = (x: number): number => (Math.exp(x) + Math.exp(-x)) / 2;
-export const __Math_tanh = (x: number): number => Math.sinh(x) / Math.cosh(x);
+export const __Math_tanh = (x: number): number => {
+  // tanh(0) = 0 (preserve sign)
+  if (x == 0) return x;
+  if (x == Infinity) return 1;
+  if (x == -Infinity) return -1;
+  return Math.sinh(x) / Math.cosh(x);
+};
 
 
-export const __Math_asinh = (x: number): number => Math.log(x + Math.sqrt(x * x + 1));
+export const __Math_asinh = (x: number): number => {
+  // asinh(0) = 0 (preserve sign)
+  if (x == 0) return x;
+  if (!Number.isFinite(x)) return x;
+  return Math.log(x + Math.sqrt(x * x + 1));
+};
 export const __Math_acosh = (x: number): number => {
   if (x < 1) return NaN;
   return Math.log(x + Math.sqrt(x * x - 1));
 };
 export const __Math_atanh = (x: number): number => {
-  if (Math.abs(x) >= 1) return NaN;
+  // atanh(0) = 0 (preserve sign)
+  if (x == 0) return x;
+  if (x == 1) return Infinity;
+  if (x == -1) return -Infinity;
+  if (Math.abs(x) > 1) return NaN;
   return 0.5 * Math.log((1 + x) / (1 - x));
 };
 
@@ -424,7 +460,7 @@ export const __Math_asin = (x: number): number => {
   return sum;
 };
 
-export const __Math_acos = (x: number): number => Math.asin(x) - Math.PI / 2;
+export const __Math_acos = (x: number): number => Math.PI / 2 - Math.asin(x);
 
 export const __Math_atan = (x: number): number => {
   if (x == Infinity) return Math.PI / 2;

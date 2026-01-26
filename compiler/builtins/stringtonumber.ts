@@ -96,8 +96,9 @@ export const __ecma262_StringToNumber = (str: unknown): number => {
     i = 1;
   }
 
-  if (str.charCodeAt(i) == 73) {
-    // next char is 'I', likely 'Infinity' so check each char lol
+  if (i + 8 == str.length &&
+      str.charCodeAt(i) == 73) { // I
+    // likely 'Infinity' so check each char lol
     if (
       str.charCodeAt(i + 1) == 110 && // n
       str.charCodeAt(i + 2) == 102 && // f
@@ -105,7 +106,7 @@ export const __ecma262_StringToNumber = (str: unknown): number => {
       str.charCodeAt(i + 4) == 110 && // n
       str.charCodeAt(i + 5) == 105 && // i
       str.charCodeAt(i + 6) == 116 && // t
-      str.charCodeAt(i + 7) == 121 // y
+      str.charCodeAt(i + 7) == 121    // y
     ) {
       // no way, it matched
       let n: f64 = Infinity;

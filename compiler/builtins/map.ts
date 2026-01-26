@@ -72,7 +72,9 @@ export const __Map_prototype_clear = (_this: Map) => {
   vals.length = 0;
 };
 
-export const __Map_prototype_forEach = (_this: Map, callbackFn: any) => {
+export const __Map_prototype_forEach = (_this: Map, callbackFn: any, thisArg: any = undefined) => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('callbackFn is not a function');
+
   const keys: any[] = Porffor.wasm.i32.load(_this, 0, 0);
   const vals: any[] = Porffor.wasm.i32.load(_this, 0, 4);
 
@@ -80,7 +82,7 @@ export const __Map_prototype_forEach = (_this: Map, callbackFn: any) => {
 
   let i: i32 = 0;
   while (i < size) {
-    callbackFn(vals[i], keys[i++], _this);
+    callbackFn.call(thisArg, vals[i], keys[i++], _this);
   }
 };
 
