@@ -94,11 +94,7 @@ const analyze = (node, strict = false) => {
       break;
 
     case 'FunctionDeclaration':
-      if (node.id?.name) if (strict) {
-        declVar(node.id.name, 'let', node);
-      } else {
-        declVar(node.id.name, 'var', node);
-      }
+      if (node.id?.name) declVar(node.id.name, strict ? 'let' : 'var', node);
     case 'FunctionExpression':
     case 'ArrowFunctionExpression':
       scopes.lastFuncs.push(scopes.length);
