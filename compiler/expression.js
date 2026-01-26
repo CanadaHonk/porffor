@@ -1,13 +1,13 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { TYPES } from './types.js';
 
-const f64ifyBitwise = op => (_1, _2, { left, right }) => [
+const f64ifyBitwise = (op, outConv = Opcodes.f64_convert_i32_s) => (_1, _2, { left, right }) => [
   ...left,
   Opcodes.i32_trunc_sat_f64_s,
   ...right,
   Opcodes.i32_trunc_sat_f64_s,
   [ op ],
-  [ Opcodes.f64_convert_i32_s ]
+  [ outConv ]
 ];
 
 export const operatorOpcode = {
@@ -92,6 +92,6 @@ export const operatorOpcode = {
     '^': f64ifyBitwise(Opcodes.i32_xor),
     '<<': f64ifyBitwise(Opcodes.i32_shl),
     '>>': f64ifyBitwise(Opcodes.i32_shr_s),
-    '>>>': f64ifyBitwise(Opcodes.i32_shr_u)
+    '>>>': f64ifyBitwise(Opcodes.i32_shr_u, Opcodes.f64_convert_i32_u)
   }
 };
