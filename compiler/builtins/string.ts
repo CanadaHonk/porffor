@@ -1881,7 +1881,6 @@ i32.store8 0 12`;
 
       Porffor.wasm.i32.store8(Porffor.wasm`local.get ${tmp}`, x, 0, 4);
       tmp.length = tmpLen;
-      out.length = outLen;
 
 Porffor.wasm`
 local.get ${out}
@@ -1903,6 +1902,7 @@ i32.store8 0 12`;
       outLen++;
       produced++;
     }
+    out.length = outLen;
     return out;
   } else {
     let sepInd: i32 = 0;
