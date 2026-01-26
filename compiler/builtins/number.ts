@@ -40,7 +40,7 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
     radix = 10;
   }
 
-  radix |= 0;
+  radix = Math.trunc(radix);
   if (radix < 2 || radix > 36) {
     throw new RangeError('toString() radix argument must be between 2 and 36');
   }
@@ -268,7 +268,7 @@ export const __Number_prototype_toString = (_this: number, radix: number|any) =>
 };
 
 export const __Number_prototype_toFixed = (_this: number, fractionDigits: number) => {
-  fractionDigits |= 0;
+  fractionDigits = Math.trunc(fractionDigits);
   if (fractionDigits < 0 || fractionDigits > 100) {
     throw new RangeError('toFixed() fractionDigits argument must be between 0 and 100');
   }
@@ -367,7 +367,7 @@ export const __Number_prototype_toExponential = (_this: number, fractionDigits: 
     // todo: string to number
     fractionDigits = undefined;
   } else {
-    fractionDigits |= 0;
+    fractionDigits = Math.trunc(fractionDigits);
     if (fractionDigits < 0 || fractionDigits > 100) {
       throw new RangeError('toExponential() fractionDigits argument must be between 0 and 100');
     }

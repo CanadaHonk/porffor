@@ -161,7 +161,7 @@ export const __${name}_prototype_slice = (_this: ${name}, start: any, end: any) 
 export const __${name}_prototype_set = (_this: ${name}, array: any, offset: number) => {
   const len: i32 = _this.length;
 
-  offset |= 0;
+  offset = Math.trunc(offset);
   if (Porffor.fastOr(offset < 0, offset > len)) throw new RangeError('Offset out of bounds');
 
   if (Porffor.fastOr(

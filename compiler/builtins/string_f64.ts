@@ -114,7 +114,7 @@ export const __String_fromCodePoint = (...codePoints: any[]): string => {
   for (let i: i32 = 0; i < len; i++) {
     const codepoint: number = ecma262.ToNumber(codePoints[i]);
 
-    if (codepoint != (codepoint | 0)) {
+    if (codepoint != Math.trunc(codepoint)) {
       throw new RangeError('Invalid code point');
     }
 
@@ -161,7 +161,7 @@ export const __String_fromCodePoint = (...codePoints: any[]): string => {
 export const __String_prototype_charCodeAt = (_this: string, index: number) => {
   const len: i32 = _this.length;
 
-  index |= 0;
+  index = Math.trunc(index);
   if (Porffor.fastOr(index < 0, index >= len)) return NaN;
 
   return Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + index * 2, 0, 4);
@@ -170,7 +170,7 @@ export const __String_prototype_charCodeAt = (_this: string, index: number) => {
 export const __ByteString_prototype_charCodeAt = (_this: bytestring, index: number) => {
   const len: i32 = _this.length;
 
-  index |= 0;
+  index = Math.trunc(index);
   if (Porffor.fastOr(index < 0, index >= len)) return NaN;
 
   return Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4);

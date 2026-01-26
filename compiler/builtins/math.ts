@@ -246,7 +246,7 @@ export const __Math_pow = (base: number, exponent: number): number => {
       }
 
       currentBase *= currentBase;
-      currentExponent >>= 1;
+      currentExponent = Math.trunc(currentExponent / 2);
     } else {
       // Handle fractional part
       result *= Math.exp(currentExponent * Math.log(Math.abs(currentBase)));
