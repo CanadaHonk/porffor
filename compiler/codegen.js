@@ -4603,28 +4603,46 @@ const generateFor = (scope, decl) => {
   out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('for');
 
-  if (decl.test) out.push(...generate(scope, decl.test), Opcodes.i32_to);
-    else out.push(number(1, Valtype.i32));
+  const test = decl.test ? [
+    ...generate(scope, decl.test),
+    Opcodes.i32_to
+  ] : [ number(1, Valtype.i32) ];
 
   out.push(
+    ...test,
     [ Opcodes.if, Blocktype.void ],
     [ Opcodes.block, Blocktype.void ]
   );
-  depth.push('if', 'block');
+  depth.push('if');
+
+  const update = decl.update ? [
+    ...generate(scope, decl.update, false, undefined, true),
+    [ Opcodes.drop ]
+  ] : [];
+  depth.push('block');
+
+  const body = generate(scope, decl.body);
+  const unrolls = body.length < (Prefs.unrollThreshold ?? 100) ? 3 : 0;
+  for (let i = 0; i < unrolls; i++) {
+    out.push(
+      ...body,
+      [ Opcodes.drop ],
+      ...update,
+      ...test,
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.br_if, 1 ]
+    );
+  }
 
   out.push(
-    ...generate(scope, decl.body),
+    ...body,
     [ Opcodes.drop ],
     [ Opcodes.end ]
   );
   depth.pop();
 
-  if (decl.update) out.push(
-    ...generate(scope, decl.update, false, undefined, true),
-    [ Opcodes.drop ]
-  );
-
   out.push(
+    ...update,
     [ Opcodes.br, 1 ],
     [ Opcodes.end ],
     [ Opcodes.end ],
@@ -4640,18 +4658,33 @@ const generateWhile = (scope, decl) => {
   const out = [];
   inferLoopStart(scope);
 
-  out.push([ Opcodes.loop, Blocktype.void ]);
   depth.push('while');
 
+  const test = generate(scope, decl.test);
   out.push(
-    ...generate(scope, decl.test),
+    [ Opcodes.loop, Blocktype.void ],
+    ...test,
     Opcodes.i32_to,
     [ Opcodes.if, Blocktype.void ]
   );
   depth.push('if');
 
+  const body = generate(scope, decl.body);
+  const unrolls = body.length < (Prefs.unrollThreshold ?? 100) ? 3 : 0;
+  for (let i = 0; i < unrolls; i++) {
+    out.push(
+      ...body,
+      [ Opcodes.drop ],
+
+      ...test,
+      Opcodes.i32_to,
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.br_if, 0 ]
+    );
+  }
+
   out.push(
-    ...generate(scope, decl.body),
+    ...body,
     [ Opcodes.drop ],
     [ Opcodes.br, 1 ],
     [ Opcodes.end ],
@@ -4668,33 +4701,41 @@ const generateDoWhile = (scope, decl) => {
   const out = [];
   inferLoopStart(scope);
 
-  out.push([ Opcodes.loop, Blocktype.void ]);
-
-  // block for break (includes all)
-  out.push([ Opcodes.block, Blocktype.void ]);
-
-  // block for continue
-  // includes body but not test+loop so we can exit body at anytime
-  // and still test+loop after
-  out.push([ Opcodes.block, Blocktype.void ]);
+  out.push(
+    [ Opcodes.loop, Blocktype.void ],
+    [ Opcodes.block, Blocktype.void ],
+    [ Opcodes.block, Blocktype.void ]
+  );
   depth.push('dowhile', 'block', 'block');
 
-  out.push(
-    ...generate(scope, decl.body),
-    [ Opcodes.drop ],
-    [ Opcodes.end ]
-  );
-  depth.pop();
+  const body = generate(scope, decl.body);
+  const test = generate(scope, decl.test);
+  const unrolls = body.length < (Prefs.unrollThreshold ?? 100) ? 3 : 0;
+  for (let i = 0; i < unrolls; i++) {
+    out.push(
+      ...body,
+      [ Opcodes.drop ],
+
+      ...test,
+      Opcodes.i32_to,
+      [ Opcodes.i32_eqz ],
+      [ Opcodes.br_if, 1 ]
+    );
+  }
 
   out.push(
-    ...generate(scope, decl.test),
+    ...body,
+    [ Opcodes.drop ],
+    [ Opcodes.end ],
+
+    ...test,
     Opcodes.i32_to,
     [ Opcodes.br_if, 1 ],
     [ Opcodes.end ],
     [ Opcodes.end ],
     number(UNDEFINED)
   );
-  depth.pop(); depth.pop();
+  depth.pop(); depth.pop(); depth.pop();
 
   inferLoopEnd(scope);
   return out;
