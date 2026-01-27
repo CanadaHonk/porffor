@@ -1,6 +1,7 @@
 *.wasm
 #*.csv
 *.txt
+!/test262/results.txt
 *.exe
 
 node_modules
@@ -12,6 +13,5 @@ pnpm-lock.yaml
 .repl_history
 
 /test262/test262
-/test262/results.json
 /test262/.threads
 /envoy
