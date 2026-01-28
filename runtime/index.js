@@ -1,4 +1,40 @@
 #!/usr/bin/env node
+import { execSync } from 'node:child_process';
+
+// Custom self_update command: directly detects package manager and updates porffor
+if (process.argv.includes('self_update')) {
+  function detectPackageManager() {
+    try {
+      if (execSync('npm list -g --depth=0', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).includes('porffor')) return 'npm';
+    } catch { }
+    try {
+      if (execSync('pnpm list -g', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).includes('porffor')) return 'pnpm';
+    } catch { }
+
+    return 'unknown';
+  }
+
+  const pm = detectPackageManager();
+  let cmd;
+  switch (pm) {
+    case 'npm':
+      cmd = 'npm install -g porffor';
+      break;
+    case 'pnpm':
+      cmd = 'pnpm add -g porffor';
+      break;
+    default:
+      console.error('Could not detect package manager or unsupported package manager.');
+      process.exit(1);
+  }
+  try {
+    console.log(`Detected package manager: ${pm}`);
+    execSync(cmd, { stdio: 'inherit' });
+  } catch (e) {
+    process.exit(e.status || 1);
+  }
+  process.exit(0);
+}
 import fs from 'node:fs';
 globalThis.version = '0.61.5';
 
@@ -17,17 +53,20 @@ const help = () => {
   console.log(`Usage: \x1B[1mporf <command> [...prefs] path/to/script.js [...args]\x1B[0m`);
 
   // commands
-  for (let [ cmd, [ color, post, desc ] ] of Object.entries({
+  for (let [cmd, [color, post, desc]] of Object.entries({
     'Compile': [],
-    '': [ 34, 'foo.js', 'Compile and execute a file' ],
-    wasm: [ 34, 'foo.js foo.wasm', 'Compile to a Wasm binary' ],
-    c: [ 94, 'foo.js foo.c', 'Compile to C source code' ],
-    native: [ 94, 'foo.js foo', 'Compile to a native binary' ],
-    lambda: [ 36, 'foo.js function.zip', 'Compile Lambda code to a deployable zip' ],
+    '': [34, 'foo.js', 'Compile and execute a file'],
+    wasm: [34, 'foo.js foo.wasm', 'Compile to a Wasm binary'],
+    c: [94, 'foo.js foo.c', 'Compile to C source code'],
+    native: [94, 'foo.js foo', 'Compile to a native binary'],
+    lambda: [36, 'foo.js function.zip', 'Compile Lambda code to a deployable zip'],
+
+    'Maintenance': [],
+    self_update: [32, '', 'Update porffor to the latest version using the detected package manager'],
 
     'Analyze': [],
-    profile: [ 93, 'foo.js', 'View detailed func-by-func performance' ],
-    debug: [ 33, 'foo.js', 'Debug the source of a file' ],
+    profile: [93, 'foo.js', 'View detailed func-by-func performance'],
+    debug: [33, 'foo.js', 'Debug the source of a file'],
     // dissect: [ 33, 'foo.js', 'Debug the compiled Wasm of a file' ],
   })) {
     if (color == null) {
@@ -43,7 +82,7 @@ const help = () => {
 
   // flags
   console.log(`\n\x1B[1m\x1B[4mFlags\x1B[0m`);
-  for (let [ flag, desc ] of Object.entries({
+  for (let [flag, desc] of Object.entries({
     'On': 'Optimization level, use -O(0|\x1B[1m1\x1B[0m|2|3)',
     t: 'Force parsing input as TypeScript',
     d: 'Debug mode (include names in Wasm and debug logs)',
@@ -58,7 +97,7 @@ const help = () => {
 
   // niche flags
   if (process.argv.includes('all')) {
-    for (let [ flag, desc ] of Object.entries({
+    for (let [flag, desc] of Object.entries({
       f: 'Print disassembled Wasm generated from user functions',
       pgo: 'Enable profile-guided optimization',
       valtype: 'Valtype to use, not well supported (i32|\x1B[1mf64\x1B[0m)',
