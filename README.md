@@ -140,3 +140,4 @@ Porffor intentionally does not use Wasm proposals which are not commonly impleme
 - No other JS engine is purple colored
 - Purple is pretty cool
 - Purple apparently represents "ambition", which is one word to describe this project
+- Purple is a color associated with power and royalty
