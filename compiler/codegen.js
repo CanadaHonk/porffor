@@ -7194,15 +7194,16 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       __Atomics_wait: 4,
       __Atomics_notify: 3,
       Date: 7,
+
+      // todo: these should just use optional args later need to
+      //       clean up the funcs and optimize optional args
+      //       (eg ` = undefined` ~= noop at runtime)
       Set: 0,
       Map: 0,
       WeakSet: 0,
       WeakMap: 0,
 
-      // Array static methods
       __Array_from: 1,
-
-      // Array.prototype methods (spec length values)
       __Array_prototype_every: 1,
       __Array_prototype_fill: 1,
       __Array_prototype_filter: 1,
@@ -7222,20 +7223,15 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       __Array_prototype_some: 1,
       __Array_prototype_copyWithin: 2,
 
-      // Math methods
       __Math_max: 2,
       __Math_min: 2,
 
-      // Function.prototype methods
       __Function_prototype_bind: 1,
 
-      // Symbol constructor
       Symbol: 0,
 
-      // BigInt.prototype methods
       __BigInt_prototype_toString: 0,
 
-      // DataView constructor and methods
       DataView: 1,
       __DataView_prototype_getFloat32: 1,
       __DataView_prototype_getFloat64: 1,
@@ -7254,16 +7250,13 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       __DataView_prototype_setBigInt64: 2,
       __DataView_prototype_setBigUint64: 2,
 
-      // Date.prototype locale methods
       __Date_prototype_toLocaleString: 0,
       __Date_prototype_toLocaleDateString: 0,
       __Date_prototype_toLocaleTimeString: 0,
 
-      // ArrayBuffer.prototype methods
       __ArrayBuffer_prototype_transfer: 0,
       __ArrayBuffer_prototype_transferToFixedLength: 0,
 
-      // TypedArray constructor and static methods
       __TypedArray: 0,
       __Uint8Array_from: 1,
       __Int8Array_from: 1,
@@ -7277,7 +7270,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       __BigInt64Array_from: 1,
       __BigUint64Array_from: 1,
 
-      // TypedArray.prototype methods
       __Uint8Array_prototype_every: 1,
       __Uint8Array_prototype_fill: 1,
       __Uint8Array_prototype_filter: 1,
