@@ -31,7 +31,12 @@ export default async (test262Path, filter, preludes, first = []) => {
     if (done[file]) return;
     done[file] = true;
 
-    let contents = await fs.readFile(file, 'utf8');
+    let contents;
+    try {
+      contents = await fs.readFile(file, 'utf8');
+    } catch {
+      return;
+    }
 
     const flags = {};
     let flagsRaw = contents.match(/^flags: \[(.*)\]$/m)?.[1];
