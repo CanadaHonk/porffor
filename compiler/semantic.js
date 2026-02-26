@@ -135,7 +135,9 @@ const annotate = node => {
 
   switch (node.type) {
     case 'Identifier':
+      if (node.name === 'Temporal') scopes[0]._usesTemporal = true;
       if (objectHackers.includes(node.name)) break;
+
       for (let i = scopes.length - 1; i >= 0; i--) {
         if (scopes[i]._variables?.[node.name]) {
           const variable = scopes[i]._variables[node.name];
@@ -145,7 +147,17 @@ const annotate = node => {
       }
       break;
 
+    case 'Literal':
+      if (typeof node.value === 'string' && node.value === 'Temporal') scopes[0]._usesTemporal = true;
+      break;
+
     case 'MemberExpression':
+      if (node.object?.type === 'Identifier' && ['globalThis', 'window', 'self'].includes(node.object.name)) {
+        if (!node.computed && node.property?.type === 'Identifier' && node.property.name === 'Temporal') {
+          scopes[0]._usesTemporal = true;
+        }
+      }
+
       if (node.computed) annotate(node.property);
       annotate(node.object);
       return;

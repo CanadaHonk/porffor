@@ -5,6 +5,7 @@ import { BuiltinFuncs, BuiltinVars, importedFuncs, NULL, UNDEFINED } from './bui
 import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
 import semantic from './semantic.js';
 import parse from './parse.js';
+import temporalPolyfillSource from './temporal.js';
 import { log } from './log.js';
 import './prefs.js';
 
@@ -7555,6 +7556,14 @@ export default program => {
   // todo/perf: make this lazy per func (again)
   program = objectHack(program);
   if (Prefs.closures) program = semantic(program);
+
+  if (!globalThis.precompile && program._usesTemporal) {
+    const temporalPolyfillAst = parse(temporalPolyfillSource);
+    const temporalPolyfillBody = temporalPolyfillAst?.body ?? [];
+    if (temporalPolyfillBody.length > 0) {
+      program.body = temporalPolyfillBody.concat(program.body);
+    }
+  }
 
   generateFunc({}, {
     type: 'Program',
