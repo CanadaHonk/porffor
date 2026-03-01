@@ -740,6 +740,8 @@ export const __Array_prototype_sort = (_this: any[], callbackFn: any) => {
     };
   }
 
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
+
   // insertion sort, i guess
   const len: i32 = _this.length;
   for (let i: i32 = 0; i < len; i++) {
