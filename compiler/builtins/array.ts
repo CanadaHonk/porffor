@@ -64,8 +64,9 @@ export const __Array_from = (arg: any, mapFn: any, thisArg: any = undefined): an
     return out;
   }
 
-  if (Porffor.type(arg) == Porffor.TYPES.object) {
-    let len: i32 = ecma262.ToIntegerOrInfinity((arg as object)['length']);
+  if (__Porffor_object_isObject(arg)) {
+    const obj: object = Porffor.type(arg) == Porffor.TYPES.object ? arg : __Porffor_object_underlying(arg);
+    let len: i32 = ecma262.ToIntegerOrInfinity(obj['length']);
     if (len > 4294967295) throw new RangeError('Invalid array length');
     if (len < 0) len = 0;
 
@@ -73,11 +74,11 @@ export const __Array_from = (arg: any, mapFn: any, thisArg: any = undefined): an
       if (Porffor.type(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
 
       for (let i: i32 = 0; i < len; i++) {
-        out[i] = mapFn.call(thisArg, (arg as object)[i], i);
+        out[i] = mapFn.call(thisArg, obj[i], i);
       }
     } else {
       for (let i: i32 = 0; i < len; i++) {
-        out[i] = (arg as object)[i];
+        out[i] = obj[i];
       }
     }
 
