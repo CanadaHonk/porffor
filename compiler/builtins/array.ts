@@ -448,7 +448,7 @@ export const __Array_prototype_with = (_this: any[], _index: any, value: any) =>
     }
   }
 
-  if (index > len) {
+  if (index >= len) {
     throw new RangeError('Invalid index');
   }
 
