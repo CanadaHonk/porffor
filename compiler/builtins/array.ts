@@ -529,7 +529,7 @@ export const __Array_prototype_reverse = (_this: any[]) => {
   let end: i32 = len - 1;
 
   while (start < end) {
-    const tmp: i32 = _this[start];
+    const tmp: any = _this[start];
     _this[start++] = _this[end];
     _this[end--] = tmp;
   }
