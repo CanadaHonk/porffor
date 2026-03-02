@@ -57,6 +57,9 @@ export default input => {
     let ast = parser === 'oxc-parser' ? parse('js', input, options) : parse(input, options);
     if (ast.program) ast = ast.program;
 
+    // intentionally loose matching
+    if (input.includes('Temporal')) ast._usesTemporal = true;
+
     return ast;
   } catch (e) {
     // normalize error class thrown by 3rd party parsers

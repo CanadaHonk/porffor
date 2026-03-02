@@ -7558,11 +7558,7 @@ export default program => {
   if (Prefs.closures) program = semantic(program);
 
   if (!globalThis.precompile && program._usesTemporal) {
-    const temporalPolyfillAst = parse(temporalPolyfillSource);
-    const temporalPolyfillBody = temporalPolyfillAst?.body ?? [];
-    if (temporalPolyfillBody.length > 0) {
-      program.body = temporalPolyfillBody.concat(program.body);
-    }
+    program.body = parse(temporalPolyfillSource).body.concat(program.body);
   }
 
   generateFunc({}, {
