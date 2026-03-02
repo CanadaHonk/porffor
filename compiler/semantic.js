@@ -128,7 +128,7 @@ const annotate = node => {
   if (!node) return;
 
   let openedScope = false;
-  if (node._variables) {
+  if (node._variables || (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression')) {
     scopes.push(node);
     openedScope = true;
   }
@@ -137,11 +137,24 @@ const annotate = node => {
     case 'Identifier':
       if (objectHackers.includes(node.name)) break;
 
+      const name = node.name;
+      let resolved = false;
       for (let i = scopes.length - 1; i >= 0; i--) {
-        if (scopes[i]._variables?.[node.name]) {
-          const variable = scopes[i]._variables[node.name];
-          if (variable.id > 0) node.name = node.name + '#' + variable.id;
+        if (scopes[i]._variables?.[name]) {
+          const variable = scopes[i]._variables[name];
+          resolved = true;
+          if (variable.id > 0) node.name = name + '#' + variable.id;
           break;
+        }
+      }
+
+      if (!resolved && name === 'arguments') {
+        for (let i = scopes.length - 1; i >= 0; i--) {
+          const scope = scopes[i];
+          if (scope.type === 'FunctionDeclaration' || scope.type === 'FunctionExpression') {
+            scope._usesArguments = true;
+            return;
+          }
         }
       }
       break;

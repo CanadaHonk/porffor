@@ -222,6 +222,10 @@ const funcRef = func => {
       _funcIdx: func.index,
       arguments: args,
       _insideIndirect: true,
+      _argcWasm: [
+        [ Opcodes.local_get, 0 ],
+        ...(valtypeBinary === Valtype.i32 ? [] : [ [ Opcodes.f64_convert_i32_s ] ])
+      ],
       _newTargetWasm: [
         [ Opcodes.local_get, 1 ],
         [ Opcodes.local_get, 2 ]
@@ -638,8 +642,7 @@ const lookup = (scope, name, failEarly = false) => {
 
   if (local?.idx === undefined) {
     if (name === 'arguments' && !scope.arrow) {
-      // todo: not compliant
-      let len = countLength(scope);
+      const len = countParams(scope);
       const names = new Array(len);
       const off = scope.constr ? 4 : (scope.method ? 2 : 0);
       for (const x in scope.locals) {
@@ -653,20 +656,18 @@ const lookup = (scope, name, failEarly = false) => {
         [ Opcodes.local_get, localTmp(scope, '#arguments') ],
         ...Opcodes.eqz,
         [ Opcodes.if, Blocktype.void ],
-          ...generateObject(scope, {
-            properties: [
-              {
-                key: { type: 'Literal', value: 'length' },
-                value: { type: 'Literal', value: len },
-                kind: 'init'
-              },
-              ...names.map((x, i) => ({
-                key: { type: 'Literal', value: i },
-                value: { type: 'Identifier', name: x },
-                kind: 'init'
-              }))
+          ...generate(scope, {
+            type: 'CallExpression',
+            callee: {
+              type: 'Identifier',
+              name: '__Porffor_generateArgumentsObject'
+            },
+            arguments: [
+              { type: 'Identifier', name: '#argc' },
+              { type: 'Literal', value: !!scope.hasRestArgument },
+              ...names.map(name => ({ type: 'Identifier', name }))
             ]
-          }, '#arguments', false),
+          }),
           [ Opcodes.local_set, localTmp(scope, '#arguments') ],
         [ Opcodes.end ],
 
@@ -2646,6 +2647,7 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
   const typedParams = userFunc || func?.typedParams;
   const typedReturns = func && func.returnType == null;
   let paramCount = countParams(func, name);
+  const passedArgc = args.length;
 
   let paramOffset = 0;
   if (decl._new && func && !func.constr) {
@@ -2731,6 +2733,12 @@ const generateCall = (scope, decl, _global, _name, unusedValue = false) => {
     }
 
     if (typedParams) out = out.concat(arg._callType ?? getNodeType(scope, arg));
+  }
+
+  if (func?.usesArguments) {
+    const argcWasm = decl._argcWasm ?? [ number(passedArgc) ];
+    out.push(...argcWasm);
+    if (typedParams) out.push(number(TYPES.number, Valtype.i32));
   }
 
   out.push([ Opcodes.call, idx ]);
@@ -5908,6 +5916,7 @@ const countParams = (func, name = undefined) => {
   if (func.constr) params -= 4;
   if (func.method) params -= 2;
   if (!func.internal || func.typedParams) params = Math.floor(params / 2);
+  if (func.usesArguments) params--;
 
   return func.argc = params;
 };
@@ -6860,6 +6869,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     async: decl.async,
     subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _onlyThisMethod: decl._onlyThisMethod,
     strict: scope.strict || decl.strict,
+    usesArguments: decl._usesArguments,
 
     generate() {
       if (func.wasm) return func.wasm;
@@ -7178,6 +7188,16 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     args.push({ name, def, destr, type: typedInput && x.typeAnnotation });
   }
 
+  if (func.usesArguments) {
+    if (!func.hasRestArgument) {
+      for (let i = args.length - (func.constr ? 2 : (func.method ? 1 : 0)); i < 8; i++) {
+        args.push({ name: `#arguments_pad${i}` });
+      }
+    }
+
+    args.push({ name: '#argc' });
+  }
+
   // custom built-in length changes
   if (globalThis.precompile) {
     if (name.includes('_prototype_')) jsLength--;
@@ -7471,7 +7491,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     })[name] ?? jsLength;
   }
 
-  func.params = new Array((params.length + (func.constr ? 2 : (func.method ? 1 : 0))) * 2).fill(0).map((_, i) => i % 2 ? Valtype.i32 : valtypeBinary);
+  func.params = new Array(args.length * 2).fill(0).map((_, i) => i % 2 ? Valtype.i32 : valtypeBinary);
   func.jsLength = jsLength;
 
   // force generate for main

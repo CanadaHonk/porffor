@@ -28,3 +28,27 @@ export const __Function_prototype_bind = (_this: Function, thisArg: any, argsArr
   // todo: no good way to bind without dynamic functions or closure yet, just return function
   return _this;
 };
+
+
+export const __Porffor_generateArgumentsObject = (argc: i32, hasRest: boolean, ...args: any[]) => {
+  let obj: object = {}, i: i32 = 0, limit: i32 = args.length;
+  if (hasRest) limit--;
+  limit = Math.min(argc, limit);
+
+  while (i < limit) {
+    obj[i] = args[i];
+    i++;
+  }
+
+  if (hasRest) {
+    const rest: any[] = args[limit];
+    const len: i32 = rest.length;
+    for (let j: i32 = 0; j < len; j++) {
+      obj[i] = rest[j];
+      i++;
+    }
+  }
+
+  obj.length = i;
+  return obj;
+};
