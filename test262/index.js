@@ -49,6 +49,26 @@ if (cluster.isPrimary) {
     return acc;
   }, {});
 
+  // Fallback to upstream Test262 harness files for any include not in our local merged harness.
+  const harnessPath = join(test262Path, 'harness');
+  const loadHarness = dir => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        loadHarness(fullPath);
+        continue;
+      }
+
+      if (!entry.isFile() || !entry.name.endsWith('.js')) continue;
+
+      const relPath = fullPath.slice(harnessPath.length + 1).replaceAll('\\', '/');
+      if (preludes[relPath] !== undefined) continue;
+      preludes[relPath] = fs.readFileSync(fullPath, 'utf8') + '\n';
+    }
+  };
+
+  if (fs.existsSync(harnessPath)) loadHarness(harnessPath);
+
   const tests = await readTest262(test262Path, whatTests, preludes, lastResults.timeouts);
   if (!resultOnly) process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mcaching tests to tmp...\u001b[0m`);
 

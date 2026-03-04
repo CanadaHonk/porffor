@@ -1,3 +1,6 @@
+// Portions of this file are adapted from Test262 (https://github.com/tc39/test262)
+// Test262 is BSD-3-Clause licensed; see the upstream LICENSE file
+
 /// sta.js
 // define our $262 here too
 // var $262 = {
@@ -593,651 +596,6 @@ function $DONE(error) {
   }
 }
 
-/// byteConversionValues.js
-var byteConversionValues = {
-  values: [
-    127,         // 2 ** 7 - 1
-    128,         // 2 ** 7
-    32767,       // 2 ** 15 - 1
-    32768,       // 2 ** 15
-    2147483647,  // 2 ** 31 - 1
-    2147483648,  // 2 ** 31
-    255,         // 2 ** 8 - 1
-    256,         // 2 ** 8
-    65535,       // 2 ** 16 - 1
-    65536,       // 2 ** 16
-    4294967295,  // 2 ** 32 - 1
-    4294967296,  // 2 ** 32
-    9007199254740991, // 2 ** 53 - 1
-    9007199254740992, // 2 ** 53
-    1.1,
-    0.1,
-    0.5,
-    0.50000001,
-    0.6,
-    0.7,
-    undefined,
-    -1,
-    -0,
-    -0.1,
-    -1.1,
-    NaN,
-    -127,        // - ( 2 ** 7 - 1 )
-    -128,        // - ( 2 ** 7 )
-    -32767,      // - ( 2 ** 15 - 1 )
-    -32768,      // - ( 2 ** 15 )
-    -2147483647, // - ( 2 ** 31 - 1 )
-    -2147483648, // - ( 2 ** 31 )
-    -255,        // - ( 2 ** 8 - 1 )
-    -256,        // - ( 2 ** 8 )
-    -65535,      // - ( 2 ** 16 - 1 )
-    -65536,      // - ( 2 ** 16 )
-    -4294967295, // - ( 2 ** 32 - 1 )
-    -4294967296, // - ( 2 ** 32 )
-    Infinity,
-    -Infinity,
-    0,
-    2049,                         // an integer which rounds down under ties-to-even when cast to float16
-    2051,                         // an integer which rounds up under ties-to-even when cast to float16
-    0.00006103515625,             // smallest normal float16
-    0.00006097555160522461,       // largest subnormal float16
-    5.960464477539063e-8,         // smallest float16
-    2.9802322387695312e-8,        // largest double which rounds to 0 when cast to float16
-    2.980232238769532e-8,         // smallest double which does not round to 0 when cast to float16
-    8.940696716308594e-8,         // a double which rounds up to a subnormal under ties-to-even when cast to float16
-    1.4901161193847656e-7,        // a double which rounds down to a subnormal under ties-to-even when cast to float16
-    1.490116119384766e-7,         // the next double above the one on the previous line one
-    65504,                        // max finite float16
-    65520,                        // smallest double which rounds to infinity when cast to float16
-    65519.99999999999,            // largest double which does not round to infinity when cast to float16
-    0.000061005353927612305,      // smallest double which rounds to a non-subnormal when cast to float16
-    0.0000610053539276123         // largest double which rounds to a subnormal when cast to float16
-  ],
-
-  expected: {
-    Int8: [
-      127,  // 127
-      -128, // 128
-      -1,   // 32767
-      0,    // 32768
-      -1,   // 2147483647
-      0,    // 2147483648
-      -1,   // 255
-      0,    // 256
-      -1,   // 65535
-      0,    // 65536
-      -1,   // 4294967295
-      0,    // 4294967296
-      -1,   // 9007199254740991
-      0,    // 9007199254740992
-      1,    // 1.1
-      0,    // 0.1
-      0,    // 0.5
-      0,    // 0.50000001,
-      0,    // 0.6
-      0,    // 0.7
-      0,    // undefined
-      -1,   // -1
-      0,    // -0
-      0,    // -0.1
-      -1,   // -1.1
-      0,    // NaN
-      -127, // -127
-      -128, // -128
-      1,    // -32767
-      0,    // -32768
-      1,    // -2147483647
-      0,    // -2147483648
-      1,    // -255
-      0,    // -256
-      1,    // -65535
-      0,    // -65536
-      1,    // -4294967295
-      0,    // -4294967296
-      0,    // Infinity
-      0,    // -Infinity
-      0,    // 0
-      1,    // 2049
-      3,    // 2051
-      0,    // 0.00006103515625
-      0,    // 0.00006097555160522461
-      0,    // 5.960464477539063e-8
-      0,    // 2.9802322387695312e-8
-      0,    // 2.980232238769532e-8
-      0,    // 8.940696716308594e-8
-      0,    // 1.4901161193847656e-7
-      0,    // 1.490116119384766e-7
-      -32,  // 65504
-      -16,  // 65520
-      -17,  // 65519.99999999999
-      0,    // 0.000061005353927612305
-      0     // 0.0000610053539276123
-    ],
-    Uint8: [
-      127, // 127
-      128, // 128
-      255, // 32767
-      0,   // 32768
-      255, // 2147483647
-      0,   // 2147483648
-      255, // 255
-      0,   // 256
-      255, // 65535
-      0,   // 65536
-      255, // 4294967295
-      0,   // 4294967296
-      255, // 9007199254740991
-      0,   // 9007199254740992
-      1,   // 1.1
-      0,   // 0.1
-      0,   // 0.5
-      0,   // 0.50000001,
-      0,   // 0.6
-      0,   // 0.7
-      0,   // undefined
-      255, // -1
-      0,   // -0
-      0,   // -0.1
-      255, // -1.1
-      0,   // NaN
-      129, // -127
-      128, // -128
-      1,   // -32767
-      0,   // -32768
-      1,   // -2147483647
-      0,   // -2147483648
-      1,   // -255
-      0,   // -256
-      1,   // -65535
-      0,   // -65536
-      1,   // -4294967295
-      0,   // -4294967296
-      0,   // Infinity
-      0,   // -Infinity
-      0,   // 0
-      1,   // 2049
-      3,   // 2051
-      0,   // 0.00006103515625
-      0,   // 0.00006097555160522461
-      0,   // 5.960464477539063e-8
-      0,   // 2.9802322387695312e-8
-      0,   // 2.980232238769532e-8
-      0,   // 8.940696716308594e-8
-      0,   // 1.4901161193847656e-7
-      0,   // 1.490116119384766e-7
-      224, // 65504
-      240, // 65520
-      239, // 65519.99999999999
-      0,   // 0.000061005353927612305
-      0    // 0.0000610053539276123
-    ],
-    Uint8Clamped: [
-      127, // 127
-      128, // 128
-      255, // 32767
-      255, // 32768
-      255, // 2147483647
-      255, // 2147483648
-      255, // 255
-      255, // 256
-      255, // 65535
-      255, // 65536
-      255, // 4294967295
-      255, // 4294967296
-      255, // 9007199254740991
-      255, // 9007199254740992
-      1,   // 1.1,
-      0,   // 0.1
-      0,   // 0.5
-      1,   // 0.50000001,
-      1,   // 0.6
-      1,   // 0.7
-      0,   // undefined
-      0,   // -1
-      0,   // -0
-      0,   // -0.1
-      0,   // -1.1
-      0,   // NaN
-      0,   // -127
-      0,   // -128
-      0,   // -32767
-      0,   // -32768
-      0,   // -2147483647
-      0,   // -2147483648
-      0,   // -255
-      0,   // -256
-      0,   // -65535
-      0,   // -65536
-      0,   // -4294967295
-      0,   // -4294967296
-      255, // Infinity
-      0,   // -Infinity
-      0,   // 0
-      255, // 2049
-      255, // 2051
-      0,   // 0.00006103515625
-      0,   // 0.00006097555160522461
-      0,   // 5.960464477539063e-8
-      0,   // 2.9802322387695312e-8
-      0,   // 2.980232238769532e-8
-      0,   // 8.940696716308594e-8
-      0,   // 1.4901161193847656e-7
-      0,   // 1.490116119384766e-7
-      255, // 65504
-      255, // 65520
-      255, // 65519.99999999999
-      0,   // 0.000061005353927612305
-      0    // 0.0000610053539276123
-    ],
-    Int16: [
-      127,    // 127
-      128,    // 128
-      32767,  // 32767
-      -32768, // 32768
-      -1,     // 2147483647
-      0,      // 2147483648
-      255,    // 255
-      256,    // 256
-      -1,     // 65535
-      0,      // 65536
-      -1,     // 4294967295
-      0,      // 4294967296
-      -1,     // 9007199254740991
-      0,      // 9007199254740992
-      1,      // 1.1
-      0,      // 0.1
-      0,      // 0.5
-      0,      // 0.50000001,
-      0,      // 0.6
-      0,      // 0.7
-      0,      // undefined
-      -1,     // -1
-      0,      // -0
-      0,      // -0.1
-      -1,     // -1.1
-      0,      // NaN
-      -127,   // -127
-      -128,   // -128
-      -32767, // -32767
-      -32768, // -32768
-      1,      // -2147483647
-      0,      // -2147483648
-      -255,   // -255
-      -256,   // -256
-      1,      // -65535
-      0,      // -65536
-      1,      // -4294967295
-      0,      // -4294967296
-      0,      // Infinity
-      0,      // -Infinity
-      0,      // 0
-      2049,   // 2049
-      2051,   // 2051
-      0,      // 0.00006103515625
-      0,      // 0.00006097555160522461
-      0,      // 5.960464477539063e-8
-      0,      // 2.9802322387695312e-8
-      0,      // 2.980232238769532e-8
-      0,      // 8.940696716308594e-8
-      0,      // 1.4901161193847656e-7
-      0,      // 1.490116119384766e-7
-      -32,    // 65504
-      -16,    // 65520
-      -17,    // 65519.99999999999
-      0,      // 0.000061005353927612305
-      0       // 0.0000610053539276123
-    ],
-    Uint16: [
-      127,   // 127
-      128,   // 128
-      32767, // 32767
-      32768, // 32768
-      65535, // 2147483647
-      0,     // 2147483648
-      255,   // 255
-      256,   // 256
-      65535, // 65535
-      0,     // 65536
-      65535, // 4294967295
-      0,     // 4294967296
-      65535, // 9007199254740991
-      0,     // 9007199254740992
-      1,     // 1.1
-      0,     // 0.1
-      0,     // 0.5
-      0,     // 0.50000001,
-      0,     // 0.6
-      0,     // 0.7
-      0,     // undefined
-      65535, // -1
-      0,     // -0
-      0,     // -0.1
-      65535, // -1.1
-      0,     // NaN
-      65409, // -127
-      65408, // -128
-      32769, // -32767
-      32768, // -32768
-      1,     // -2147483647
-      0,     // -2147483648
-      65281, // -255
-      65280, // -256
-      1,     // -65535
-      0,     // -65536
-      1,     // -4294967295
-      0,     // -4294967296
-      0,     // Infinity
-      0,     // -Infinity
-      0,     // 0
-      2049,  // 2049
-      2051,  // 2051
-      0,     // 0.00006103515625
-      0,     // 0.00006097555160522461
-      0,     // 5.960464477539063e-8
-      0,     // 2.9802322387695312e-8
-      0,     // 2.980232238769532e-8
-      0,     // 8.940696716308594e-8
-      0,     // 1.4901161193847656e-7
-      0,     // 1.490116119384766e-7
-      65504, // 65504
-      65520, // 65520
-      65519, // 65519.99999999999
-      0,     // 0.000061005353927612305
-      0      // 0.0000610053539276123
-    ],
-    Int32: [
-      127,         // 127
-      128,         // 128
-      32767,       // 32767
-      32768,       // 32768
-      2147483647,  // 2147483647
-      -2147483648, // 2147483648
-      255,         // 255
-      256,         // 256
-      65535,       // 65535
-      65536,       // 65536
-      -1,          // 4294967295
-      0,           // 4294967296
-      -1,          // 9007199254740991
-      0,           // 9007199254740992
-      1,           // 1.1
-      0,           // 0.1
-      0,           // 0.5
-      0,           // 0.50000001,
-      0,           // 0.6
-      0,           // 0.7
-      0,           // undefined
-      -1,          // -1
-      0,           // -0
-      0,           // -0.1
-      -1,          // -1.1
-      0,           // NaN
-      -127,        // -127
-      -128,        // -128
-      -32767,      // -32767
-      -32768,      // -32768
-      -2147483647, // -2147483647
-      -2147483648, // -2147483648
-      -255,        // -255
-      -256,        // -256
-      -65535,      // -65535
-      -65536,      // -65536
-      1,           // -4294967295
-      0,           // -4294967296
-      0,           // Infinity
-      0,           // -Infinity
-      0,           // 0
-      2049,        // 2049
-      2051,        // 2051
-      0,           // 0.00006103515625
-      0,           // 0.00006097555160522461
-      0,           // 5.960464477539063e-8
-      0,           // 2.9802322387695312e-8
-      0,           // 2.980232238769532e-8
-      0,           // 8.940696716308594e-8
-      0,           // 1.4901161193847656e-7
-      0,           // 1.490116119384766e-7
-      65504,       // 65504
-      65520,       // 65520
-      65519,       // 65519.99999999999
-      0,           // 0.000061005353927612305
-      0            // 0.0000610053539276123
-    ],
-    Uint32: [
-      127,        // 127
-      128,        // 128
-      32767,      // 32767
-      32768,      // 32768
-      2147483647, // 2147483647
-      2147483648, // 2147483648
-      255,        // 255
-      256,        // 256
-      65535,      // 65535
-      65536,      // 65536
-      4294967295, // 4294967295
-      0,          // 4294967296
-      4294967295, // 9007199254740991
-      0,          // 9007199254740992
-      1,          // 1.1
-      0,          // 0.1
-      0,          // 0.5
-      0,          // 0.50000001,
-      0,          // 0.6
-      0,          // 0.7
-      0,          // undefined
-      4294967295, // -1
-      0,          // -0
-      0,          // -0.1
-      4294967295, // -1.1
-      0,          // NaN
-      4294967169, // -127
-      4294967168, // -128
-      4294934529, // -32767
-      4294934528, // -32768
-      2147483649, // -2147483647
-      2147483648, // -2147483648
-      4294967041, // -255
-      4294967040, // -256
-      4294901761, // -65535
-      4294901760, // -65536
-      1,          // -4294967295
-      0,          // -4294967296
-      0,          // Infinity
-      0,          // -Infinity
-      0,          // 0
-      2049,       // 2049
-      2051,       // 2051
-      0,          // 0.00006103515625
-      0,          // 0.00006097555160522461
-      0,          // 5.960464477539063e-8
-      0,          // 2.9802322387695312e-8
-      0,          // 2.980232238769532e-8
-      0,          // 8.940696716308594e-8
-      0,          // 1.4901161193847656e-7
-      0,          // 1.490116119384766e-7
-      65504,      // 65504
-      65520,      // 65520
-      65519,      // 65519.99999999999
-      0,          // 0.000061005353927612305
-      0           // 0.0000610053539276123
-    ],
-    Float16: [
-      127,                    // 127
-      128,                    // 128
-      32768,                  // 32767
-      32768,                  // 32768
-      Infinity,               // 2147483647
-      Infinity,               // 2147483648
-      255,                    // 255
-      256,                    // 256
-      Infinity,               // 65535
-      Infinity,               // 65536
-      Infinity,               // 4294967295
-      Infinity,               // 4294967296
-      Infinity,               // 9007199254740991
-      Infinity,               // 9007199254740992
-      1.099609375,            // 1.1
-      0.0999755859375,        // 0.1
-      0.5,                    // 0.5
-      0.5,                    // 0.50000001,
-      0.60009765625,          // 0.6
-      0.7001953125,           // 0.7
-      NaN,                    // undefined
-      -1,                     // -1
-      -0,                     // -0
-      -0.0999755859375,       // -0.1
-      -1.099609375,           // -1.1
-      NaN,                    // NaN
-      -127,                   // -127
-      -128,                   // -128
-      -32768,                 // -32767
-      -32768,                 // -32768
-      -Infinity,              // -2147483647
-      -Infinity,              // -2147483648
-      -255,                   // -255
-      -256,                   // -256
-      -Infinity,              // -65535
-      -Infinity,              // -65536
-      -Infinity,              // -4294967295
-      -Infinity,              // -4294967296
-      Infinity,               // Infinity
-      -Infinity,              // -Infinity
-      0,                      // 0
-      2048,                   // 2049
-      2052,                   // 2051
-      0.00006103515625,       // 0.00006103515625
-      0.00006097555160522461, // 0.00006097555160522461
-      5.960464477539063e-8,   // 5.960464477539063e-8
-      0,                      // 2.9802322387695312e-8
-      5.960464477539063e-8,   // 2.980232238769532e-8
-      1.1920928955078125e-7,  // 8.940696716308594e-8
-      1.1920928955078125e-7,  // 1.4901161193847656e-7
-      1.7881393432617188e-7,  // 1.490116119384766e-7
-      65504,                  // 65504
-      Infinity,               // 65520
-      65504,                  // 65519.99999999999
-      0.00006103515625,       // 0.000061005353927612305
-      0.00006097555160522461  // 0.0000610053539276123
-    ],
-    Float32: [
-      127,                     // 127
-      128,                     // 128
-      32767,                   // 32767
-      32768,                   // 32768
-      2147483648,              // 2147483647
-      2147483648,              // 2147483648
-      255,                     // 255
-      256,                     // 256
-      65535,                   // 65535
-      65536,                   // 65536
-      4294967296,              // 4294967295
-      4294967296,              // 4294967296
-      9007199254740992,        // 9007199254740991
-      9007199254740992,        // 9007199254740992
-      1.100000023841858,       // 1.1
-      0.10000000149011612,     // 0.1
-      0.5,                     // 0.5
-      0.5,                     // 0.50000001,
-      0.6000000238418579,      // 0.6
-      0.699999988079071,       // 0.7
-      NaN,                     // undefined
-      -1,                      // -1
-      -0,                      // -0
-      -0.10000000149011612,    // -0.1
-      -1.100000023841858,      // -1.1
-      NaN,                     // NaN
-      -127,                    // -127
-      -128,                    // -128
-      -32767,                  // -32767
-      -32768,                  // -32768
-      -2147483648,             // -2147483647
-      -2147483648,             // -2147483648
-      -255,                    // -255
-      -256,                    // -256
-      -65535,                  // -65535
-      -65536,                  // -65536
-      -4294967296,             // -4294967295
-      -4294967296,             // -4294967296
-      Infinity,                // Infinity
-      -Infinity,               // -Infinity
-      0,                       // 0
-      2049,                    // 2049
-      2051,                    // 2051
-      0.00006103515625,        // 0.00006103515625
-      0.00006097555160522461,  // 0.00006097555160522461
-      5.960464477539063e-8,    // 5.960464477539063e-8
-      2.9802322387695312e-8,   // 2.9802322387695312e-8
-      2.9802322387695312e-8,   // 2.980232238769532e-8
-      8.940696716308594e-8,    // 8.940696716308594e-8
-      1.4901161193847656e-7,   // 1.4901161193847656e-7
-      1.4901161193847656e-7,   // 1.490116119384766e-7
-      65504,                   // 65504
-      65520,                   // 65520
-      65520,                   // 65519.99999999999
-      0.000061005353927612305, // 0.000061005353927612305
-      0.000061005353927612305  // 0.0000610053539276123
-    ],
-    Float64: [
-      127,         // 127
-      128,         // 128
-      32767,       // 32767
-      32768,       // 32768
-      2147483647,  // 2147483647
-      2147483648,  // 2147483648
-      255,         // 255
-      256,         // 256
-      65535,       // 65535
-      65536,       // 65536
-      4294967295,  // 4294967295
-      4294967296,  // 4294967296
-      9007199254740991, // 9007199254740991
-      9007199254740992, // 9007199254740992
-      1.1,         // 1.1
-      0.1,         // 0.1
-      0.5,         // 0.5
-      0.50000001,  // 0.50000001,
-      0.6,         // 0.6
-      0.7,         // 0.7
-      NaN,         // undefined
-      -1,          // -1
-      -0,          // -0
-      -0.1,        // -0.1
-      -1.1,        // -1.1
-      NaN,         // NaN
-      -127,        // -127
-      -128,        // -128
-      -32767,      // -32767
-      -32768,      // -32768
-      -2147483647, // -2147483647
-      -2147483648, // -2147483648
-      -255,        // -255
-      -256,        // -256
-      -65535,      // -65535
-      -65536,      // -65536
-      -4294967295, // -4294967295
-      -4294967296, // -4294967296
-      Infinity,    // Infinity
-      -Infinity,   // -Infinity
-      0,           // 0
-      2049,                    // 2049
-      2051,                    // 2051
-      0.00006103515625,        // 0.00006103515625
-      0.00006097555160522461,  // 0.00006097555160522461
-      5.960464477539063e-8,    // 5.960464477539063e-8
-      2.9802322387695312e-8,   // 2.9802322387695312e-8
-      2.980232238769532e-8,    // 2.980232238769532e-8
-      8.940696716308594e-8,    // 8.940696716308594e-8
-      1.4901161193847656e-7,   // 1.4901161193847656e-7
-      1.490116119384766e-7,    // 1.490116119384766e-7
-      65504,                   // 65504
-      65520,                   // 65520
-      65519.99999999999,       // 65519.99999999999
-      0.000061005353927612305, // 0.000061005353927612305
-      0.0000610053539276123    // 0.0000610053539276123
-    ]
-  }
-};
-
 /// deepEqual.js
 var EQUAL = 1;
 var NOT_EQUAL = -1;
@@ -1763,6 +1121,189 @@ function assertThrowsInstanceOfWithMessage(f, ctor) {
 
 function assertThrowsInstanceOfWithMessageContains(f, ctor) {
   assertThrowsInstanceOfWithMessageCheck(f, ctor);
+}
+
+/// sm/non262-TypedArray-shell.js
+// const sharedConstructors = new WeakMap();
+
+// Synthesize a constructor for a shared memory array from the constructor
+// for unshared memory. This has "good enough" fidelity for many uses. In
+// cases where it's not good enough, call isSharedConstructor for local
+// workarounds.
+// function sharedConstructor(baseConstructor) {
+//   // Create SharedTypedArray as a subclass of %TypedArray%, following the
+//   // built-in %TypedArray% subclasses.
+//   class SharedTypedArray extends Object.getPrototypeOf(baseConstructor) {
+//       constructor(...args) {
+//           var array = Reflect_construct(baseConstructor, args);
+//           var {buffer, byteOffset, length} = array;
+//           var sharedBuffer = new SharedArrayBuffer(buffer.byteLength);
+//           var sharedArray = Reflect_construct(baseConstructor,
+//                                               [sharedBuffer, byteOffset, length],
+//                                               new.target);
+//           for (var i = 0; i < length; i++)
+//               sharedArray[i] = array[i];
+//           assertEq(sharedArray.buffer, sharedBuffer);
+//           return sharedArray;
+//       }
+//   }
+
+//   // 22.2.5.1 TypedArray.BYTES_PER_ELEMENT
+//   Object.defineProperty(SharedTypedArray, "BYTES_PER_ELEMENT",
+//                         {__proto__: null, value: baseConstructor.BYTES_PER_ELEMENT});
+
+//   // 22.2.6.1 TypedArray.prototype.BYTES_PER_ELEMENT
+//   Object.defineProperty(SharedTypedArray.prototype, "BYTES_PER_ELEMENT",
+//                         {__proto__: null, value: baseConstructor.BYTES_PER_ELEMENT});
+
+//   // Share the same name with the base constructor to avoid calling
+//   // isSharedConstructor() in multiple places.
+//   Object.defineProperty(SharedTypedArray, "name",
+//                         {__proto__: null, value: baseConstructor.name});
+
+//   sharedConstructors.set(SharedTypedArray, baseConstructor);
+
+//   return SharedTypedArray;
+// }
+
+/**
+* All TypedArray constructors for unshared memory.
+*/
+const typedArrayConstructors = [
+  Int8Array,
+  Uint8Array,
+  Uint8ClampedArray,
+  Int16Array,
+  Uint16Array,
+  Int32Array,
+  Uint32Array,
+  Float32Array,
+  Float64Array,
+];
+
+/**
+* All TypedArray constructors for shared memory.
+*/
+const sharedTypedArrayConstructors = 
+  [];
+  // typeof SharedArrayBuffer === "function"
+  // ? typedArrayConstructors.map(sharedConstructor)
+  // : [];
+
+/**
+* All TypedArray constructors for unshared and shared memory.
+*/
+const anyTypedArrayConstructors = [
+  ...typedArrayConstructors, ...sharedTypedArrayConstructors,
+];
+
+/**
+* Returns `true` if `constructor` is a TypedArray constructor for shared
+* memory.
+*/
+function isSharedConstructor(constructor) {
+  return false; // Reflect_apply(WeakMap_prototype_has, sharedConstructors, [constructor]);
+}
+
+/**
+* Returns `true` if `constructor` is a TypedArray constructor for shared
+* or unshared memory, with an underlying element type of one of Float16, Float32
+* or Float64.
+*/
+function isFloatConstructor(constructor) {
+  // if (isSharedConstructor(constructor))
+  //     constructor = Reflect_apply(WeakMap_prototype_get, sharedConstructors, [constructor]);
+  return constructor == Float32Array || constructor == Float64Array || (Float16Array && constructor == Float16Array);
+}
+
+/**
+* Returns `true` if `constructor` is a TypedArray constructor for shared
+* or unshared memory, with an underlying element type of one of Uint8,
+* Uint8Clamped, Uint16, or Uint32.
+*/
+function isUnsignedConstructor(constructor) {
+  // if (isSharedConstructor(constructor))
+  //     constructor = Reflect_apply(WeakMap_prototype_get, sharedConstructors, [constructor]);
+  return constructor == Uint8Array ||
+         constructor == Uint8ClampedArray ||
+         constructor == Uint16Array ||
+         constructor == Uint32Array;
+}
+
+/// sm/non262-Date-shell.js
+const msPerDay = 1000 * 60 * 60 * 24;
+const msPerHour = 1000 * 60 * 60;
+
+const TZ_ADJUST = 0;
+
+function DaysInYear(y) {
+  return y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) ? 366 : 365;
+}
+
+function TimeInYear(y) {
+  return DaysInYear(y) * msPerDay;
+}
+
+const UTC_01_JAN_1900 = -2208988800000;
+const UTC_01_JAN_2000 = 946684800000;
+const UTC_29_FEB_2000 = UTC_01_JAN_2000 + 31 * msPerDay + 28 * msPerDay;
+const UTC_01_JAN_2005 = UTC_01_JAN_2000 + TimeInYear(2000) + TimeInYear(2001) +
+                        TimeInYear(2002) + TimeInYear(2003) + TimeInYear(2004);
+
+const Month = {
+  January: 0,
+  February: 1,
+  March: 2,
+  April: 3,
+  May: 4,
+  June: 5,
+  July: 6,
+  August: 7,
+  September: 8,
+  October: 9,
+  November: 10,
+  December: 11,
+};
+
+function inTimeZone(tzname, fn) {
+  fn();
+}
+
+function withLocale(locale, fn) {
+  fn();
+}
+
+function assertDateTime(date, expected, ...alternativeTimeZones) {
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].join("|");
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].join("|");
+  const datePart = String.raw `(?:${weekdays}) (?:${months}) \d{2}`;
+  const timePart = String.raw `\d{4,6} \d{2}:\d{2}:\d{2} GMT[+-]\d{4}`;
+  // todo: regex engine does not parse this
+  const dateTimeRE = new RegExp(String.raw `^(${datePart} ${timePart})(?: \((.+)\))?$`);
+
+    let actual = date.toString();
+    assertEq(dateTimeRE.test(expected), true, `${expected}`);
+    assertEq(dateTimeRE.test(actual), true, `${actual}`);
+
+    let [, expectedDateTime, expectedTimeZone] = dateTimeRE.exec(expected);
+    let [, actualDateTime, actualTimeZone] = dateTimeRE.exec(actual);
+
+    assertEq(actualDateTime, expectedDateTime);
+
+    // The time zone identifier is optional, so only compare its value if
+    // it's present in |actual| and |expected|.
+    if (expectedTimeZone !== undefined && actualTimeZone !== undefined) {
+        // Test against the alternative time zone identifiers if necessary.
+        if (actualTimeZone !== expectedTimeZone) {
+            for (let alternativeTimeZone of alternativeTimeZones) {
+                if (actualTimeZone === alternativeTimeZone) {
+                    expectedTimeZone = alternativeTimeZone;
+                    break;
+                }
+            }
+        }
+        assertEq(actualTimeZone, expectedTimeZone);
+    }
 }
 
 /// temporalHelpers.js
