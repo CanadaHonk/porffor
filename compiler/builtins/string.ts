@@ -1602,16 +1602,22 @@ memory.copy 0 0`;
 
 
 export const __String_prototype_split = (_this: string, separator: any, limit: any) => {
-  const out: any[] = Porffor.malloc(), outLen: i32 = 0;
+  const out: any[] = Porffor.malloc();
+  let outLen: i32 = 0;
 
-  if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
-  if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
-  if (limit == 0) {
-    out.length = 0;
-    return out;
+  if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) {
+    limit = Number.MAX_SAFE_INTEGER;
+  } else {
+    limit = ecma262.ToIntegerOrInfinity(limit);
+    if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
   }
 
   if (Porffor.wasm`local.get ${separator+1}` == Porffor.TYPES.undefined) {
+    if (limit == 0) {
+      out.length = 0;
+      return out;
+    }
+
     out.length = 1;
     // out[0] = _this; (but in wasm as it is a f64 array and we are in i32 space)
     Porffor.wasm`
@@ -1626,7 +1632,46 @@ i32.store8 0 12`;
     return out;
   }
 
+  if (Porffor.wasm`local.get ${separator+1}` == Porffor.TYPES.regexp) {
+    if (limit == 0) {
+      out.length = 0;
+      return out;
+    }
+
+    let lastIndex: number = 0;
+    let lastWasEmptyMatch: boolean = false;
+    const thisLen: number = _this.length;
+    while (lastIndex < thisLen && outLen < limit) {
+      const match: string[] = separator.exec(__String_prototype_substring(_this, lastIndex, thisLen));
+      if (match == 0) break;
+
+      const matchIndex: number = lastIndex + match.index;
+      const matchLen: number = __Array_prototype_at(match, 0).length;
+      if (matchLen == 0 && matchIndex == lastIndex) {
+        outLen = Porffor.array.fastPush(out, __String_prototype_substring(_this, lastIndex, lastIndex + 1));
+        lastIndex++;
+        lastWasEmptyMatch = true;
+        continue;
+      }
+
+      outLen = Porffor.array.fastPush(out, __String_prototype_substring(_this, lastIndex, matchIndex));
+      lastIndex = matchIndex + matchLen;
+      lastWasEmptyMatch = false;
+    }
+
+    if (outLen < limit && (lastIndex < thisLen || !lastWasEmptyMatch)) {
+      outLen = Porffor.array.fastPush(out, __String_prototype_substring(_this, lastIndex, thisLen));
+    }
+
+    out.length = outLen;
+    return out;
+  }
+
   separator = ecma262.ToString(separator);
+  if (limit == 0) {
+    out.length = 0;
+    return out;
+  }
 
   let tmp: string = Porffor.malloc(), tmpLen: i32 = 0;
   const thisLen: i32 = _this.length * 2, sepLen: i32 = separator.length;
@@ -1772,16 +1817,22 @@ i32.store8 0 12`;
 };
 
 export const __ByteString_prototype_split = (_this: bytestring, separator: any, limit: any) => {
-  const out: any[] = Porffor.malloc(), outLen: i32 = 0;
+  const out: any[] = Porffor.malloc();
+  let outLen: i32 = 0;
 
-  if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) limit = Number.MAX_SAFE_INTEGER;
-  if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
-  if (limit == 0) {
-    out.length = 0;
-    return out;
+  if (Porffor.wasm`local.get ${limit+1}` == Porffor.TYPES.undefined) {
+    limit = Number.MAX_SAFE_INTEGER;
+  } else {
+    limit = ecma262.ToIntegerOrInfinity(limit);
+    if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
   }
 
   if (Porffor.wasm`local.get ${separator+1}` == Porffor.TYPES.undefined) {
+    if (limit == 0) {
+      out.length = 0;
+      return out;
+    }
+
     out.length = 1;
     // out[0] = _this; (but in wasm as it is a f64 array and we are in i32 space)
     Porffor.wasm`
@@ -1796,7 +1847,46 @@ i32.store8 0 12`;
     return out;
   }
 
+  if (Porffor.wasm`local.get ${separator+1}` == Porffor.TYPES.regexp) {
+    if (limit == 0) {
+      out.length = 0;
+      return out;
+    }
+
+    let lastIndex: number = 0;
+    let lastWasEmptyMatch: boolean = false;
+    const thisLen: number = _this.length;
+    while (lastIndex < thisLen && outLen < limit) {
+      const match: bytestring[] = separator.exec(__ByteString_prototype_substring(_this, lastIndex, thisLen));
+      if (match == 0) break;
+
+      const matchIndex: number = lastIndex + match.index;
+      const matchLen: number = __Array_prototype_at(match, 0).length;
+      if (matchLen == 0 && matchIndex == lastIndex) {
+        outLen = Porffor.array.fastPush(out, __ByteString_prototype_substring(_this, lastIndex, lastIndex + 1));
+        lastIndex++;
+        lastWasEmptyMatch = true;
+        continue;
+      }
+
+      outLen = Porffor.array.fastPush(out, __ByteString_prototype_substring(_this, lastIndex, matchIndex));
+      lastIndex = matchIndex + matchLen;
+      lastWasEmptyMatch = false;
+    }
+
+    if (outLen < limit && (lastIndex < thisLen || !lastWasEmptyMatch)) {
+      outLen = Porffor.array.fastPush(out, __ByteString_prototype_substring(_this, lastIndex, thisLen));
+    }
+
+    out.length = outLen;
+    return out;
+  }
+
   separator = ecma262.ToString(separator);
+  if (limit == 0) {
+    out.length = 0;
+    return out;
+  }
 
   let tmp: bytestring = Porffor.malloc(), tmpLen: i32 = 0;
   const thisLen: i32 = _this.length, sepLen: i32 = separator.length;
