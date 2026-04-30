@@ -220,6 +220,10 @@ export default ({ funcs, globals, data, pages }) => {
     includes.set('stdlib.h', true);
     prepend.set('_memory', `char* _memory; u32 _memoryPages = ${Math.ceil((pages.size * pageSize) / PageSize)};\n`);
     prependMain.set('_initMemory', `_memory = calloc(1, _memoryPages * ${PageSize});\n`);
+    if (Prefs.icp) {
+      prepend.set('icp_header', `extern void __load_ic_arg();\n`);
+      prependMain.set('_ic_arg', `__load_ic_arg();\n`);
+    }
     if (Prefs['2cMemcpy']) includes.set('string.h', true);
   }
 
@@ -351,7 +355,7 @@ export default ({ funcs, globals, data, pages }) => {
 
     const shouldInline = false; // f.internal;
     if (f.name === '#main') {
-      out += `int ${Prefs.lambda ? 'user_main' : 'main'}(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
+      out += `int ${Prefs.lambda ? 'user_main' : (Prefs.icp ? 'porffor_init' : 'main')}(${prependMain.has('argv') ? 'int argc, char* argv[]' : ''}) {\n`;
     } else {
       out += `${!typedReturns ? (returns ? CValtype[f.returns[0]] : 'void') : 'struct ReturnValue'} ${shouldInline ? 'inline ' : ''}${sanitize(f.name)}(${f.params.map((x, i) => `${CValtype[x]} ${invLocals[i]}`).join(', ')}) {\n`;
     }
@@ -373,6 +377,18 @@ export default ({ funcs, globals, data, pages }) => {
     }
 
     if (localKeys.length !== 0) out += '\n';
+
+    if (f.name === '#main' && Prefs.icp) {
+      // Export a reset function for ICP
+      let resetCode = `void porffor_reset() {\n`;
+      for (const x in globals) {
+        const g = globals[x];
+        resetCode += `  ${sanitize(x)} = ${g.init ?? 0};\n`;
+      }
+      resetCode += `  _memoryPages = ${Math.ceil((pages.size * pageSize) / PageSize)};\n`;
+      resetCode += `}\n\n`;
+      topOfOut = resetCode + topOfOut;
+    }
 
     const rets = [];
     const runOnEnd = [];
@@ -707,6 +723,13 @@ f64 _time_out${id} = (f64)_ts${id}.tv_sec * 1000.0 + (f64)_ts${id}.tv_nsec / 1.0
                 args[j] = `(void*)${x}`;
               }
             }
+          }
+
+          if (Prefs.icp && Prefs.entry === func.name) {
+            // inject dynamic type for first JS argument
+            if (args.length === 6) args[5] = '__ic_argjjtype';
+            else if (args.length === 2) args[1] = '__ic_argjjtype';
+            else if (args.length > 0 && args.length % 2 === 0) args[args.length - 1] = '__ic_argjjtype';
           }
 
           if (func.returns.length > 0) {
