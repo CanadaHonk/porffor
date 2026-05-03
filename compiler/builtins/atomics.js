@@ -100,7 +100,7 @@ ${only3264 ? `
     throw new TypeError('Atomics can only be used with an integer typed array');`}
 
   index = ecma262.ToIntegerOrInfinity(index);
-  if (Porffor.fastOr(index < 0, index > ta.length))
+  if (Porffor.fastOr(index < 0, index >= ta.length))
     throw new RangeError('Index out of bounds');
 
   ${args.split(',').map(arg => {
