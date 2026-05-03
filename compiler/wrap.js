@@ -325,6 +325,19 @@ ${flags & 0b0001 ? `    get func idx: ${get}
       return out;
     }
 
+    case TYPES.__porffor_asyncgenerator: {
+      const values = porfToJSValue({ memory, funcs, pages }, value, TYPES.array);
+
+      const out = { values };
+      Object.defineProperty(out, Symbol.for('nodejs.util.inspect.custom'), {
+        value(depth, opts, inspect) {
+          return `${opts.colors ? '\x1B[36m' : ''}AsyncGenerator${opts.colors ? '\x1B[0m' : ''} ()`;
+        }
+      });
+
+      return out;
+    }
+
     case TYPES.bigint: {
       if (Math.abs(value) < 0x8000000000000) {
         return BigInt(value);
