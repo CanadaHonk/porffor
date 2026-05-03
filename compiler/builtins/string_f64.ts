@@ -62,7 +62,7 @@ export const String = function (...args: any[]): string|bytestring|StringObject 
     if (!new.target && Porffor.type(value) == Porffor.TYPES.symbol) return __Symbol_prototype_toString(value);
 
     // b. Let s be ? ToString(value).
-    s = ecma262.ToString(value);
+    s = (Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring ? value : ecma262.ToString(value);
   }
 
   // 3. If NewTarget is undefined, return s.
