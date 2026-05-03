@@ -589,123 +589,127 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
       }
 
       if (char == 123) { // {n,m}
-        if (!lastWasAtom) throw new SyntaxError('Regex parser: quantifier without atom');
-
-        // parse n
+        let quantifierPtr: i32 = patternPtr;
+        let isQuantifier: boolean = false;
         let n: i32 = 0;
         let m: i32 = -1;
         let sawComma: boolean = false;
         let sawDigit: boolean = false;
-        while (patternPtr < patternEndPtr) {
-          const d: i32 = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+        while (quantifierPtr < patternEndPtr) {
+          const d: i32 = Porffor.wasm.i32.load8_u(quantifierPtr, 0, 4);
           if (Porffor.fastAnd(d >= 48, d <= 57)) { // digit
             n = n * 10 + (d - 48);
             sawDigit = true;
-            patternPtr++;
+            quantifierPtr++;
             continue;
           }
 
           if (d == 44) { // ','
             sawComma = true;
-            patternPtr++;
+            quantifierPtr++;
             break;
           }
 
           if (d == 125) { // '}'
-            patternPtr++;
+            quantifierPtr++;
+            isQuantifier = sawDigit;
             break;
           }
 
-          throw new SyntaxError('Regex parse: invalid {n,m} quantifier');
+          break;
         }
 
-        if (!sawDigit) throw new SyntaxError('Regex parse: invalid {n,m} quantifier');
-        if (patternPtr > patternEndPtr) throw new SyntaxError('Regex parse: unterminated {n,m} quantifier');
-
-        if (sawComma) {
-          // parse m (or none)
+        if (sawDigit && sawComma) {
           let mVal: i32 = 0;
           let sawMDigit: boolean = false;
-          while (patternPtr < patternEndPtr) {
-            const d: i32 = Porffor.wasm.i32.load8_u(patternPtr, 0, 4);
+          while (quantifierPtr < patternEndPtr) {
+            const d: i32 = Porffor.wasm.i32.load8_u(quantifierPtr, 0, 4);
             if (Porffor.fastAnd(d >= 48, d <= 57)) {
               mVal = mVal * 10 + (d - 48);
               sawMDigit = true;
-              patternPtr++;
+              quantifierPtr++;
               continue;
             }
 
             if (d == 125) {
-              patternPtr++;
+              quantifierPtr++;
+              isQuantifier = true;
               break;
             }
 
-            throw new SyntaxError('Regex parse: invalid {n,m} quantifier');
+            break;
           }
 
           if (sawMDigit) {
             m = mVal;
-            if (m < n) throw new SyntaxError('Regex parse: {n,m} with m < n');
           } else {
             m = -1; // open
           }
-        } else {
+        } else if (isQuantifier) {
           m = n;
         }
 
-        // check for lazy
-        let lazyBrace: boolean = false;
-        if (patternPtr < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 63) { // '?'
-          lazyBrace = true;
-          patternPtr++;
-        }
-
-        // emit n times
-        const atomSize: i32 = bcPtr - lastAtomStart;
-        for (let i: i32 = 1; i < n; i++) {
-          for (let j: i32 = 0; j < atomSize; ++j) {
-            Porffor.wasm.i32.store8(bcPtr + j, Porffor.wasm.i32.load8_u(lastAtomStart + j, 0, 0), 0, 0);
-          }
-          bcPtr += atomSize;
-        }
-
-        if (m == n) {
-          // exactly n
-        } else if (m == -1) {
-          // {n,} - infinite (like * after n mandatory matches)
-          Porffor.wasm.i32.store8(bcPtr, 0x21, 0, 0); // fork
-          if (lazyBrace) {
-            Porffor.wasm.i32.store16(bcPtr, 5, 0, 1); // branch1: continue (done)
-            Porffor.wasm.i32.store16(bcPtr, -(bcPtr - lastAtomStart), 0, 3); // branch2: back to atom
-          } else {
-            Porffor.wasm.i32.store16(bcPtr, -(bcPtr - lastAtomStart), 0, 1); // branch1: back to atom
-            Porffor.wasm.i32.store16(bcPtr, 5, 0, 3); // branch2: continue (done)
-          }
-          bcPtr += 5;
+        if (!isQuantifier) {
+          if (flags & 0b10010000) throw new SyntaxError('Regex parse: invalid {n,m} quantifier');
         } else {
-          // {n,m} - exactly between n and m matches
-          // Create chain of forks, each executing atom inline
-          for (let i: i32 = n; i < m; i++) {
-            Porffor.wasm.i32.store8(bcPtr, 0x21, 0, 0); // fork
-            if (lazyBrace) {
-              Porffor.wasm.i32.store16(bcPtr, 5 + atomSize, 0, 1); // branch1: skip this match
-              Porffor.wasm.i32.store16(bcPtr, 5, 0, 3); // branch2: execute atom
-            } else {
-              Porffor.wasm.i32.store16(bcPtr, 5, 0, 1); // branch1: execute atom
-              Porffor.wasm.i32.store16(bcPtr, 5 + atomSize, 0, 3); // branch2: skip this match
-            }
-            bcPtr += 5;
+          if (!lastWasAtom) throw new SyntaxError('Regex parser: quantifier without atom');
+          if (m != -1 && m < n) throw new SyntaxError('Regex parse: {n,m} with m < n');
+          patternPtr = quantifierPtr;
 
-            // Copy the atom inline
-            for (let j: i32 = 0; j < atomSize; j++) {
+          // check for lazy
+          let lazyBrace: boolean = false;
+          if (patternPtr < patternEndPtr && Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 63) { // '?'
+            lazyBrace = true;
+            patternPtr++;
+          }
+
+          // emit n times
+          const atomSize: i32 = bcPtr - lastAtomStart;
+          for (let i: i32 = 1; i < n; i++) {
+            for (let j: i32 = 0; j < atomSize; ++j) {
               Porffor.wasm.i32.store8(bcPtr + j, Porffor.wasm.i32.load8_u(lastAtomStart + j, 0, 0), 0, 0);
             }
             bcPtr += atomSize;
           }
-        }
 
-        lastWasAtom = false;
-        continue;
+          if (m == n) {
+            // exactly n
+          } else if (m == -1) {
+            // {n,} - infinite (like * after n mandatory matches)
+            Porffor.wasm.i32.store8(bcPtr, 0x21, 0, 0); // fork
+            if (lazyBrace) {
+              Porffor.wasm.i32.store16(bcPtr, 5, 0, 1); // branch1: continue (done)
+              Porffor.wasm.i32.store16(bcPtr, -(bcPtr - lastAtomStart), 0, 3); // branch2: back to atom
+            } else {
+              Porffor.wasm.i32.store16(bcPtr, -(bcPtr - lastAtomStart), 0, 1); // branch1: back to atom
+              Porffor.wasm.i32.store16(bcPtr, 5, 0, 3); // branch2: continue (done)
+            }
+            bcPtr += 5;
+          } else {
+            // {n,m} - exactly between n and m matches
+            // Create chain of forks, each executing atom inline
+            for (let i: i32 = n; i < m; i++) {
+              Porffor.wasm.i32.store8(bcPtr, 0x21, 0, 0); // fork
+              if (lazyBrace) {
+                Porffor.wasm.i32.store16(bcPtr, 5 + atomSize, 0, 1); // branch1: skip this match
+                Porffor.wasm.i32.store16(bcPtr, 5, 0, 3); // branch2: execute atom
+              } else {
+                Porffor.wasm.i32.store16(bcPtr, 5, 0, 1); // branch1: execute atom
+                Porffor.wasm.i32.store16(bcPtr, 5 + atomSize, 0, 3); // branch2: skip this match
+              }
+              bcPtr += 5;
+
+              // Copy the atom inline
+              for (let j: i32 = 0; j < atomSize; j++) {
+                Porffor.wasm.i32.store8(bcPtr + j, Porffor.wasm.i32.load8_u(lastAtomStart + j, 0, 0), 0, 0);
+              }
+              bcPtr += atomSize;
+            }
+          }
+
+          lastWasAtom = false;
+          continue;
+        }
       }
     } else {
       // handle escapes outside class OR literal chars if escaped and not special
