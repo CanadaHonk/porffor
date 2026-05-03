@@ -4,6 +4,10 @@ export const __WeakMap_prototype_has = (_this: WeakMap, key: any) => {
   return __Map_prototype_has(_this as Map, key);
 };
 
+export const __WeakMap_prototype_get = (_this: WeakMap, key: any) => {
+  return __Map_prototype_get(_this as Map, key);
+};
+
 export const __WeakMap_prototype_set = (_this: WeakMap, key: any, value: any) => {
   if (!Porffor.object.isObjectOrSymbol(key)) throw new TypeError('Value in WeakSet needs to be an object or symbol');
 
