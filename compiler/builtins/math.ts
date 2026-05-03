@@ -583,3 +583,55 @@ export const __Math_sumPrecise = (values: any[]): number => {
 
   return sum;
 };
+
+export const __Math_max = (...args: any[]): number => {
+  let max: number = -Infinity;
+  let sawNaN: boolean = false;
+  const len: i32 = args.length;
+
+  for (let i: i32 = 0; i < len; i++) {
+    const n: number = __ecma262_ToNumber(args[i]);
+    if (Number.isNaN(n)) {
+      sawNaN = true;
+      continue;
+    }
+
+    if (n > max) {
+      max = n;
+      continue;
+    }
+
+    if (n == 0 && max == 0 && 1 / n > 1 / max) {
+      max = n;
+    }
+  }
+
+  if (sawNaN) return NaN;
+  return max;
+};
+
+export const __Math_min = (...args: any[]): number => {
+  let min: number = Infinity;
+  let sawNaN: boolean = false;
+  const len: i32 = args.length;
+
+  for (let i: i32 = 0; i < len; i++) {
+    const n: number = __ecma262_ToNumber(args[i]);
+    if (Number.isNaN(n)) {
+      sawNaN = true;
+      continue;
+    }
+
+    if (n < min) {
+      min = n;
+      continue;
+    }
+
+    if (n == 0 && min == 0 && 1 / n < 1 / min) {
+      min = n;
+    }
+  }
+
+  if (sawNaN) return NaN;
+  return min;
+};

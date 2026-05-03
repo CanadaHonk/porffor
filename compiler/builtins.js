@@ -1473,36 +1473,6 @@ export const BuiltinFuncs = () => {
     return out;
   });
 
-  comptime('__Math_max', TYPES.number, (scope, decl, { generate }) => {
-    const out = [
-      number(-Infinity)
-    ];
-
-    for (let i = 0; i < decl.arguments.length; i++) {
-      out.push(
-        ...generate(scope, decl.arguments[i]),
-        [ Opcodes.f64_max ]
-      );
-    }
-
-    return out;
-  }, 2);
-
-  comptime('__Math_min', TYPES.number, (scope, decl, { generate }) => {
-    const out = [
-      number(Infinity)
-    ];
-
-    for (let i = 0; i < decl.arguments.length; i++) {
-      out.push(
-        ...generate(scope, decl.arguments[i]),
-        [ Opcodes.f64_min ]
-      );
-    }
-
-    return out;
-  }, 2);
-
   comptime('__Porffor_printStatic', TYPES.undefined, (scope, decl, { printStaticStr }) => {
     const str = decl.arguments[0].value;
     const out = printStaticStr(scope, str);
