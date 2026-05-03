@@ -373,6 +373,18 @@ export const __Porffor_regex_compile = (patternStr: bytestring, flagsStr: bytest
               isLookahead = true;
               isNegativeLookahead = true;
               patternPtr += 2;
+            } else if (nextChar == 60) { // '<' - named capturing group
+              patternPtr += 2;
+              let foundNameEnd: boolean = false;
+              while (patternPtr < patternEndPtr) {
+                if (Porffor.wasm.i32.load8_u(patternPtr, 0, 4) == 62) { // '>'
+                  patternPtr++;
+                  foundNameEnd = true;
+                  break;
+                }
+                patternPtr++;
+              }
+              if (!foundNameEnd) throw new SyntaxError('Regex parse: invalid named capture');
             }
           }
         }
