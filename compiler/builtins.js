@@ -1485,6 +1485,16 @@ export const BuiltinFuncs = () => {
     Opcodes.i32_from_u
   ]);
 
+  comptime('__Porffor_as', undefined, (scope, decl, { generate }) => {
+    const typeArg = decl.arguments[1];
+    if (typeArg?.type !== 'Identifier' || !typeArg.name.startsWith('__Porffor_TYPES_')) {
+      throw new Error('Porffor.as type must be a compile-time Porffor.TYPES.* value');
+    }
+
+    decl._type = TYPES[typeArg.name.slice('__Porffor_TYPES_'.length)];
+    return generate(scope, decl.arguments[0]);
+  });
+
   comptime('__Porffor_compileType', TYPES.bytestring, (scope, decl, { makeString, knownType, getNodeType }) =>
     makeString(scope, TYPE_NAMES[knownType(scope, getNodeType(scope, decl.arguments[0]))] ?? 'unknown')
   );

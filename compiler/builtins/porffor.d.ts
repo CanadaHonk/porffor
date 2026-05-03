@@ -101,6 +101,7 @@ type PorfforGlobal = {
   randomByte(): i32;
 
   type(x: any): i32;
+  as<T = any>(value: any, type: i32): T;
   typeName(type: i32): bytestring;
   TYPES: {
     number: i32;
