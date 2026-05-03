@@ -123,6 +123,9 @@ type PorfforGlobal = {
 
   clone(source: any, destination: any): void;
 
+  call(func: any, argArray: any[], thisArg: any, newTarget: any): any;
+  callThis(func: any, thisArg: any, ...args: any[]): any;
+
   fastOr(...args: any): boolean;
   fastAnd(...args: any): boolean;
 

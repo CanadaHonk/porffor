@@ -1509,6 +1509,19 @@ export const BuiltinFuncs = () => {
     _forceCreateThis: true
   }));
 
+  // Porffor.callThis(func, this, ...args)
+  comptime('__Porffor_callThis', undefined, (scope, decl, { generate, getNodeType }) => generate(scope, {
+    type: 'CallExpression',
+    callee: decl.arguments[0],
+    arguments: decl.arguments.slice(2),
+    _thisWasm: decl.arguments[1].value === null ? null : [
+      ...generate(scope, decl.arguments[1]),
+      ...getNodeType(scope, decl.arguments[1])
+    ],
+    _newTargetWasm: null,
+    _forceCreateThis: true
+  }));
+
   // compile-time aware console.log to optimize fast paths
   // todo: this breaks console.group, etc - disable this if those are used but edge case for now
   comptime('__console_log', TYPES.undefined, (scope, decl, { generate, getNodeType, knownTypeWithGuess, printStaticStr }) => {
