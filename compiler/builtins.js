@@ -86,46 +86,6 @@ export const BuiltinVars = ({ builtinFuncs }) => {
   ];
   _.__performance_timeOrigin.usesImports = true;
 
-  _.__Uint8Array_BYTES_PER_ELEMENT = () => [ number(1) ];
-  _.__Int8Array_BYTES_PER_ELEMENT = () => [ number(1) ];
-  _.__Uint8ClampedArray_BYTES_PER_ELEMENT = () => [ number(1) ];
-  _.__Uint16Array_BYTES_PER_ELEMENT = () => [ number(2) ];
-  _.__Int16Array_BYTES_PER_ELEMENT = () => [ number(2) ];
-  _.__Uint32Array_BYTES_PER_ELEMENT = () => [ number(4) ];
-  _.__Int32Array_BYTES_PER_ELEMENT = () => [ number(4) ];
-  _.__Float32Array_BYTES_PER_ELEMENT = () => [ number(4) ];
-  _.__Float64Array_BYTES_PER_ELEMENT = () => [ number(8) ];
-  _.__BigInt64Array_BYTES_PER_ELEMENT = () => [ number(8) ];
-  _.__BigUint64Array_BYTES_PER_ELEMENT = () => [ number(8) ];
-
-  // well-known symbols
-  for (const x of [
-    'asyncIterator', 'hasInstance',
-    'isConcatSpreadable', 'iterator',
-    'match', 'matchAll', 'replace',
-    'search', 'species', 'split',
-    'toPrimitive', 'toStringTag', 'unscopables',
-    'dispose', 'asyncDispose'
-  ]) {
-   _[`__Symbol_${x}`] = (scope, { glbl, builtin, makeString }) => [
-      [ Opcodes.block, Valtype.f64 ],
-        ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
-        Opcodes.i32_to_u,
-        [ Opcodes.if, Blocktype.void ],
-          ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
-          [ Opcodes.br, 1 ],
-        [ Opcodes.end ],
-
-        ...makeString(scope, `Symbol.${x}`),
-        number(TYPES.bytestring, Valtype.i32),
-        [ Opcodes.call, builtin('Symbol') ],
-        ...glbl(Opcodes.global_set, `#wellknown_${x}`, Valtype.f64),
-        ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
-      [ Opcodes.end ]
-    ];
-   _[`__Symbol_${x}`].type = TYPES.symbol;
-  }
-
   // builtin objects
   const makePrefix = name => (name.startsWith('__') ? '' : '__') + name + '_';
 
@@ -331,6 +291,54 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     ...autoFuncs('Math')
   });
 
+  const typedArrayBytesPerElement = {
+    Uint8Array: 1,
+    Int8Array: 1,
+    Uint8ClampedArray: 1,
+    Uint16Array: 2,
+    Int16Array: 2,
+    Uint32Array: 4,
+    Int32Array: 4,
+    Float32Array: 4,
+    Float64Array: 8,
+    BigInt64Array: 8,
+    BigUint64Array: 8
+  };
+
+  const wellKnownSymbols = [
+    'asyncIterator', 'hasInstance',
+    'isConcatSpreadable', 'iterator',
+    'match', 'matchAll', 'replace',
+    'search', 'species', 'split',
+    'toPrimitive', 'toStringTag', 'unscopables',
+    'dispose', 'asyncDispose'
+  ];
+
+  const wellKnownSymbolProps = props({
+    writable: false,
+    enumerable: false,
+    configurable: false
+  }, Object.fromEntries(wellKnownSymbols.map(x => [x, (scope, { glbl, builtin, makeString }) => [
+    [ Opcodes.block, Valtype.f64 ],
+      ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
+      Opcodes.i32_to_u,
+      [ Opcodes.if, Blocktype.void ],
+        ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
+        [ Opcodes.br, 1 ],
+      [ Opcodes.end ],
+
+      ...makeString(scope, `Symbol.${x}`),
+      number(TYPES.bytestring, Valtype.i32),
+      [ Opcodes.call, builtin('Symbol') ],
+      ...glbl(Opcodes.global_set, `#wellknown_${x}`, Valtype.f64),
+      ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
+    [ Opcodes.end ]
+  ]])));
+
+  for (const x of wellKnownSymbols) {
+    wellKnownSymbolProps[x].value.type = TYPES.symbol;
+  }
+
   // automatically generate objects for prototypes
   for (const x of builtinFuncKeys.reduce((acc, x) => {
     const ind = x.indexOf('_prototype_');
@@ -420,7 +428,17 @@ export const BuiltinVars = ({ builtinFuncs }) => {
   }
 
   for (const x of [ 'Array', 'ArrayBuffer', 'Atomics', 'Date', 'Error', 'JSON', 'Object', 'Promise', 'Reflect', 'String', 'Symbol', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'SharedArrayBuffer', 'BigInt', 'Boolean', 'DataView', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'Function', 'Map', 'RegExp', 'Set', 'WeakMap', 'WeakRef', 'WeakSet' ]) {
-    object(x, autoFuncs(x));
+    object(x, {
+      ...(typedArrayBytesPerElement[x] == null ? {} : props({
+        writable: false,
+        enumerable: false,
+        configurable: false
+      }, {
+        BYTES_PER_ELEMENT: typedArrayBytesPerElement[x]
+      })),
+      ...(x === 'Symbol' ? wellKnownSymbolProps : {}),
+      ...autoFuncs(x)
+    });
   }
 
   const enumerableGlobals = [ 'atob', 'btoa', 'performance', 'crypto', 'navigator' ];
