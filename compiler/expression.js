@@ -1,14 +1,16 @@
 import { Opcodes, Valtype } from './wasmSpec.js';
 import { TYPES } from './types.js';
 
-// ToInt32 (ECMA-262): non-finite values (NaN, ±Infinity) become +0, otherwise
-// truncate towards zero and take the result modulo 2^32. Truncating to i64
-// first and then wrapping to i32 gives the modulo wrapping for any finite value
-// representable as an integer (up to 2^53). `value - value` is 0 only for
-// finite values (it is NaN for ±Infinity and NaN), so it guards the non-finite
-// case which would otherwise saturate to i64 min/max.
-const bitwiseOperandToI32 = (value, { loc }, localName) => {
-  const local = loc(localName, Valtype.f64);
+// ECMA-262 ToInt32: coerce an f64 operand to a wrapped (mod 2^32) i32.
+// Non-finite values (NaN, ±Infinity) become +0; finite values truncate towards
+// zero and take the result modulo 2^32. Truncating to i64 first then wrapping to
+// i32 gives the modulo wrapping for any finite value representable as an integer
+// (up to 2^53). `value - value` is 0 only for finite values (it is NaN for
+// ±Infinity and NaN), guarding the non-finite case which would otherwise
+// saturate to i64 min/max. Needs a scratch f64 local (`loc`) since the value is
+// used both for the finiteness guard and the truncation.
+const toInt32 = (value, loc, name) => {
+  const local = loc(name, Valtype.f64);
 
   return [
   ...value,
@@ -27,18 +29,18 @@ const bitwiseOperandToI32 = (value, { loc }, localName) => {
   ];
 };
 
-const f64ifyBitwise = op => (_1, ctx, { left, right }) => [
-  ...bitwiseOperandToI32(left, ctx, '#bitwise_left'),
-  ...bitwiseOperandToI32(right, ctx, '#bitwise_right'),
+const f64ifyBitwise = op => (_1, { loc }, { left, right }) => [
+  ...toInt32(left, loc, '#bitwise_left'),
+  ...toInt32(right, loc, '#bitwise_right'),
   [ op ],
   [ Opcodes.f64_convert_i32_s ]
 ];
 
 // >>> returns a Uint32 (ECMA-262 unsigned right shift operator), so the i32
 // result must be reinterpreted as unsigned when converting back to f64.
-const f64ifyUSHR = (_1, ctx, { left, right }) => [
-  ...bitwiseOperandToI32(left, ctx, '#ushr_left'),
-  ...bitwiseOperandToI32(right, ctx, '#ushr_right'),
+const f64ifyUSHR = (_1, { loc }, { left, right }) => [
+  ...toInt32(left, loc, '#ushr_left'),
+  ...toInt32(right, loc, '#ushr_right'),
   [ Opcodes.i32_shr_u ],
   [ Opcodes.f64_convert_i32_u ]
 ];
