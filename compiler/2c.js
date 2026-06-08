@@ -441,6 +441,16 @@ export default ({ funcs, globals, data, pages }) => {
         const a = vals.pop();
 
         let op = invOperatorOpcode[i[0]];
+
+        // unsigned right shift (>>>) must be a logical shift in C, so cast the
+        // operand to unsigned. otherwise C performs an arithmetic shift on the
+        // signed i32 and diverges from wasm's i32.shr_u for negative values.
+        if (op === '>>>') {
+          lastCond = false;
+          vals.push(`((u32)(${a}) >> ${b})`);
+          continue;
+        }
+
         if (op.length === 3) op = op.slice(0, 2);
 
         if (['==', '!=', '>', '>=', '<', '<='].includes(op)) lastCond = true;
@@ -462,6 +472,16 @@ export default ({ funcs, globals, data, pages }) => {
           // i32_trunc_sat_f64_u
           case 0x03:
             vals.push(`(u32)(${vals.pop()})`);
+            break;
+
+          // i64_trunc_sat_f64_s
+          case 0x06:
+            vals.push(`(i64)(${vals.pop()})`);
+            break;
+
+          // i64_trunc_sat_f64_u
+          case 0x07:
+            vals.push(`(u64)(${vals.pop()})`);
             break;
 
           // memory_copy
@@ -522,6 +542,11 @@ export default ({ funcs, globals, data, pages }) => {
         case Opcodes.f64_convert_i64_s:
           // int to f64
           vals.push(`(f64)(${removeBrackets(vals.pop())})`);
+          break;
+
+        case Opcodes.i32_wrap_i64:
+          // i64 to i32 (take low 32 bits)
+          vals.push(`(i32)(${removeBrackets(vals.pop())})`);
           break;
 
         case Opcodes.i32_eqz:
@@ -840,7 +865,9 @@ f64 _time_out${id} = (f64)_ts${id}.tv_sec * 1000.0 + (f64)_ts${id}.tv_nsec / 1.0
           const id = tmpId++;
           line(`const i32 _x${id} = ${x}`);
           line(`const i32 _shift${id} = ${shift}`);
-          line(`const i32 _out${id} = (_x${id} << _shift${id}) | (_x${id} >> (32 - _shift${id}))`);
+          // the wrap-around half of the rotate must be a logical shift, so cast
+          // to unsigned to avoid C's arithmetic shift on negative values.
+          line(`const i32 _out${id} = (_x${id} << _shift${id}) | ((u32)_x${id} >> (32 - _shift${id}))`);
           vals.push(`_out${id}`);
           break;
         }
