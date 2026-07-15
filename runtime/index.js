@@ -22,19 +22,13 @@ const help = () => {
   console.log(`Usage: \x1B[1mporf [command] [...prefs] path/to/script.js [...args]\x1B[0m`);
 
   // commands
-  for (let [ cmd, [ color, post, desc ] ] of Object.entries({
-    'Run': [],
-    '': [ 34, 'foo.js', 'Run a script' ],
-    'Compile': [],
-    c: [ 94, 'foo.js foo.c', 'Compile to C source code' ],
-    native: [ 94, 'foo.js foo', 'Compile to a native binary' ],
-  })) {
-    if (color == null) {
-      // header
-      console.log(`\n\x1B[1m\x1B[4m${cmd}\x1B[0m`);
-      continue;
-    }
-
+  console.log(`\n\x1B[1m\x1B[4mCommands\x1B[0m`);
+  for (let [ cmd, color, post, desc ] of [
+    [ '', 34, '', 'Start a REPL' ],
+    [ '', 34, 'foo.js', 'Run a script' ],
+    [ 'c', 94, 'foo.js foo.c', 'Compile to C source code' ],
+    [ 'native', 94, 'foo.js foo', 'Compile to a native binary' ],
+  ]) {
     if (cmd.length > 0) post = ' ' + post;
 
     console.log(`  \x1B[2mporf\x1B[0m \x1B[1m\x1B[${color}m${cmd}\x1B[0m${post} ${' '.repeat(30 - cmd.length - post.length)}${desc}`);
