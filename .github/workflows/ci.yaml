@@ -263,6 +263,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd out
-          sha256sum *.tar.gz > SHASUMS256.txt
-          gh release create '${{ needs.prepare.outputs.tag }}' --repo '${{ github.repository }}' --target '${{ github.sha }}' --title '${{ needs.prepare.outputs.version }}' --generate-notes * ||
-            gh release upload '${{ needs.prepare.outputs.tag }}' --repo '${{ github.repository }}' * --clobber
+          gh release create '${{ needs.prepare.outputs.tag }}' --repo '${{ github.repository }}' --target '${{ github.sha }}' --title '${{ needs.prepare.outputs.version }}' --generate-notes *.tar.gz
