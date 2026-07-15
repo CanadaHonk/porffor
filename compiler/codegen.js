@@ -5122,14 +5122,22 @@ export default (program, opts = {}) => {
   if (Prefs.p) {
     const last = getLastNode(program.body);
     const lastIndex = program.body.indexOf(last);
-    if (lastIndex !== -1 && last.type === 'ExpressionStatement') program.body[lastIndex] = {
-      ...last,
-      expression: {
-        type: 'CallExpression',
-        callee: { type: 'Identifier', name: '__console_log' },
-        arguments: [ last.expression ]
-      }
-    };
+    if (lastIndex !== -1 && last.type === 'ExpressionStatement') {
+      program.body.splice(lastIndex, 1,
+        {
+          type: 'VariableDeclaration', kind: 'const',
+          declarations: [ { type: 'VariableDeclarator', id: identNode('#repl_result'), init: last.expression } ]
+        },
+        {
+          type: 'ExpressionStatement',
+          expression: { type: 'CallExpression', callee: identNode('__Porffor_promise_runJobs'), arguments: [] }
+        },
+        {
+          ...last,
+          expression: { type: 'CallExpression', callee: identNode('__console_log'), arguments: [ identNode('#repl_result') ] }
+        }
+      );
+    }
   }
   inferDirectCallParamTypes(program);
 
