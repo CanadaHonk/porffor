@@ -212,6 +212,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: apply release version
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          node --input-type=module - <<'EOF'
+          import fs from 'node:fs';
+          const path = 'runtime/index.js';
+          const pattern = /globalThis\.version = '.*?';/;
+          const src = fs.readFileSync(path, 'utf8');
+          if (!pattern.test(src)) throw new Error('version string not found');
+          fs.writeFileSync(path, src.replace(pattern, `globalThis.version = '${process.env.VERSION}';`));
+          EOF
       - name: download release compiler
         uses: actions/download-artifact@v4
         with:
