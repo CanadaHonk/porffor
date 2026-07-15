@@ -1,9 +1,6 @@
 # experimental stuff that shouldn't be committed yet
 /exp
 
-# avoid committing some tests/benches which can be cloned/downloaded independently
-/bench/v8-v7
-
 # selfhosted artifacts
 selfhosted/bundle.js
 selfhosted/porf*

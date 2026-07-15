@@ -31,7 +31,7 @@ const parityCases = [
   [ 'linked_list', 'bench/linked_list.js', null, { compareNativeOutput: false } ],
   [ 'bf', 'bench/bf.js', null, { compareNativeOutput: false } ],
   [ 'richards', 'bench/richards.js', null, { compareNativeOutput: false } ],
-  [ 'v8_v7', 'bench/v8-v7/combined.js', null, { compareNativeOutput: false } ],
+  [ 'v8_v7', 'bench/v8-v7.js', null, { compareNativeOutput: false } ],
   [ 'string_methods', 'bench/string_methods.js', null, { compareNativeOutput: false } ],
   [ 'regex', 'bench/regex.js', null, { compareNativeOutput: false } ],
   [ 'temporal', temporalFile, () => fs.writeFileSync(temporalFile, 'Temporal;\n'), { compareNativeOutput: false } ],
