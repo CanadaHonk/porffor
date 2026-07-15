@@ -209,6 +209,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: checkout test262
+        uses: actions/checkout@v4
+        with:
+          repository: tc39/test262
+          ref: 6eec1ac9ee144dafd8f344d73a21f36bfc9f6755
+          path: test262/test262
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -240,7 +246,7 @@ jobs:
       - name: verify selfhost compiler
         run: ./selfhost verify
       - name: test selfhost test262 harness
-        run: node test262/selfhost.js harness --expect-passes=107
+        run: node test262/selfhost.js harness --threads=4 --expect-passes=107
 
   release:
     needs: [prepare, build, test]
