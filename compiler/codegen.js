@@ -3466,6 +3466,11 @@ const genLoop = (scope, decl, type) => {
   return valUndefined();
 };
 
+// top-level await: synchronously drain promise jobs as there is no coroutine to suspend
+const awaitValue = (scope, value) => scope.topLevel
+  ? builtinCall(scope, '__Porffor_promise_awaitSync', [ value ])
+  : Await(value);
+
 const generateForOf = (scope, decl) => {
   const root = reuse(scope, generate(scope, decl.right));
   const rootKnown = knownType(scope, getNodeType(scope, decl.right));
@@ -3584,7 +3589,7 @@ const generateForOf = (scope, decl) => {
       [ 'default', () => { stmt(scope, Unreachable()); return valUndefined(); } ]
     ]);
 
-    setLocalWithType(scope, valName, false, isAwait ? Await(nextVal) : nextVal);
+    setLocalWithType(scope, valName, false, isAwait ? awaitValue(scope, nextVal) : nextVal);
     generateLoopBinding(scope, decl.left, identNode(valName));
     genStmt(scope, decl.body);
   });
@@ -4180,7 +4185,7 @@ const generateMember = (scope, decl, objValue = null) => {
 };
 
 const generateAwait = (scope, decl) =>
-  Await(generate(scope, decl.argument));
+  awaitValue(scope, generate(scope, decl.argument));
 
 const bindClassFieldInitializerThis = (node, owner, currentArrow = null) => {
   if (!node || typeof node !== 'object') return;
