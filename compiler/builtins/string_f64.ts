@@ -6,7 +6,6 @@ export const __Porffor_compareStrings = (a: any, b: any): boolean => {
     // check if it is bad type or value
     if (Porffor.fastOr(
       a == null,
-
       Porffor.type(a) == Porffor.TYPES.symbol,
       Porffor.type(a) == Porffor.TYPES.boolean
     )) return false;
@@ -19,7 +18,6 @@ export const __Porffor_compareStrings = (a: any, b: any): boolean => {
     // check if it is bad type or value
     if (Porffor.fastOr(
       b == null,
-
       Porffor.type(b) == Porffor.TYPES.symbol,
       Porffor.type(b) == Porffor.TYPES.boolean
     )) return false;
@@ -47,7 +45,7 @@ export const __Porffor_concatStrings = (a: any, b: any): any => {
 
 // 22.1.1.1 String (value)
 // https://tc39.es/ecma262/#sec-string-constructor-string-value
-export const String = function (...args: any[]): string|bytestring|StringObject {
+export const String = function (_argc: i32, value: any): string|bytestring|any {
   let s: bytestring|string = '';
 
   // 1. If value is not present, then
@@ -55,11 +53,9 @@ export const String = function (...args: any[]): string|bytestring|StringObject 
   // s is already empty
 
   // 2. Else,
-  if (args.length > 0) {
-    const value: any = args[0];
-
+  if (_argc > 0) {
     // a. If NewTarget is undefined and value is a Symbol, return SymbolDescriptiveString(value).
-    if (!new.target && Porffor.type(value) == Porffor.TYPES.symbol) return __Symbol_prototype_toString(value);
+    if (!new.target && Porffor.type(value) == Porffor.TYPES.symbol) return Porffor.callThis(__Symbol_prototype_toString, value);
 
     // b. Let s be ? ToString(value).
     s = (Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring ? value : ecma262.ToString(value);
@@ -77,7 +73,7 @@ export const String = function (...args: any[]): string|bytestring|StringObject 
 };
 
 export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
-  let out: string = Porffor.malloc();
+  const out: string = Porffor.malloc();
 
   const len: i32 = codes.length;
   out.length = len;
@@ -87,16 +83,13 @@ export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
     const v: i32 = __ecma262_ToIntegerOrInfinity(codes[i]);
     if (v > 0xFF) bytestringable = false;
 
-    Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + i * 2, v, 0, 4);
+    Porffor.IR.storeU16(Porffor.IR.ptr(out) + i * 2, 4, v);
   }
 
   if (bytestringable) {
-    let out2: bytestring = Porffor.wasm`local.get ${out}`;
+    let out2: bytestring = Porffor.IR.ptr(out);
     for (let i: i32 = 0; i < len; i++) {
-      Porffor.wasm.i32.store8(
-        Porffor.wasm`local.get ${out}` + i,
-        Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${out}` + i * 2, 0, 4),
-        0, 4);
+      Porffor.IR.storeU8(Porffor.IR.ptr(out) + i, 4, Porffor.IR.loadU8(Porffor.IR.ptr(out) + i * 2, 4));
     }
 
     return out2;
@@ -106,7 +99,7 @@ export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
 };
 
 export const __String_fromCodePoint = (...codePoints: any[]): string => {
-  let out: string = Porffor.malloc();
+  const out: string = Porffor.malloc();
 
   const len: i32 = codePoints.length;
   let outLength: i32 = 0;
@@ -118,16 +111,15 @@ export const __String_fromCodePoint = (...codePoints: any[]): string => {
       throw new RangeError('Invalid code point');
     }
 
-    // Check if code point is valid (0 to 0x10FFFF)
     if (Porffor.fastOr(codepoint < 0, codepoint > 0x10FFFF)) {
       throw new RangeError('Invalid code point');
     }
 
     if (codepoint <= 0xFFFF) {
-      // BMP code point - single 16-bit unit
+      // bmp: 1 unit
       outLength++;
     } else {
-      // Supplementary code point - surrogate pair (2 units)
+      // supplementary: 2 units
       outLength += 2;
     }
   }
@@ -139,17 +131,16 @@ export const __String_fromCodePoint = (...codePoints: any[]): string => {
     const codepoint: number = ecma262.ToNumber(codePoints[i]);
 
     if (codepoint <= 0xFFFF) {
-      // BMP code point
-      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, codepoint, 0, 4);
+      Porffor.IR.storeU16(Porffor.IR.ptr(out) + outIndex * 2, 4, codepoint);
       outIndex++;
     } else {
-      // Supplementary code point - encode as surrogate pair
+      // supplementary: surrogate pair
       const cpMinusBase: i32 = codepoint - 0x10000;
       const highSurrogate: i32 = 0xD800 + (cpMinusBase >> 10);
       const lowSurrogate: i32 = 0xDC00 + (cpMinusBase & 0x3FF);
 
-      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, highSurrogate, 0, 4);
-      Porffor.wasm.i32.store16(Porffor.wasm`local.get ${out}` + outIndex * 2, lowSurrogate, 0, 6);
+      Porffor.IR.storeU16(Porffor.IR.ptr(out) + outIndex * 2, 4, highSurrogate);
+      Porffor.IR.storeU16(Porffor.IR.ptr(out) + outIndex * 2, 6, lowSurrogate);
       outIndex += 2;
     }
   }
@@ -158,22 +149,22 @@ export const __String_fromCodePoint = (...codePoints: any[]): string => {
 };
 
 // in f64 file as returns NaN which returns 0 in i32
-export const __String_prototype_charCodeAt = (_this: string, index: number) => {
-  const len: i32 = _this.length;
+export const __String_prototype_charCodeAt = function (this: string, index: number) {
+  const len: i32 = this.length;
 
   index = Math.trunc(index);
   if (Porffor.fastOr(index < 0, index >= len)) return NaN;
 
-  return Porffor.wasm.i32.load16_u(Porffor.wasm`local.get ${_this}` + index * 2, 0, 4);
+  return Porffor.IR.loadU16(Porffor.IR.ptr(this) + index * 2, 4);
 };
 
-export const __ByteString_prototype_charCodeAt = (_this: bytestring, index: number) => {
-  const len: i32 = _this.length;
+export const __ByteString_prototype_charCodeAt = function (this: bytestring, index: number) {
+  const len: i32 = this.length;
 
   index = Math.trunc(index);
   if (Porffor.fastOr(index < 0, index >= len)) return NaN;
 
-  return Porffor.wasm.i32.load8_u(Porffor.wasm`local.get ${_this}` + index, 0, 4);
+  return Porffor.IR.loadU8(Porffor.IR.ptr(this) + index, 4);
 };
 
 // 22.1.2.4 String.raw ( template, ...substitutions )

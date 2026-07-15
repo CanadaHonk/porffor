@@ -1,0 +1,1676 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawn, spawnSync } from 'node:child_process';
+
+const homeTcc = path.join(process.env.HOME ?? '/Users/honk', 'tcc');
+const hasHomeLibtcc = () => fs.existsSync(path.join(homeTcc, 'libtcc.h')) && fs.existsSync(path.join(homeTcc, 'libtcc.a'));
+const hasHomeTccSource = () => fs.existsSync(path.join(homeTcc, 'tcc')) && fs.existsSync(path.join(homeTcc, 'libtcc.c')) && fs.existsSync(path.join(homeTcc, 'libtcc.h'));
+const selfhostDir = 'selfhosted';
+const inSelfhost = file => path.join(selfhostDir, file);
+const tmpDir = '/tmp/porffor-selfhost';
+const inTmp = file => path.join(tmpDir, file);
+
+const bundle = inSelfhost('bundle.js');
+const stage1C = inSelfhost('stage1.c');
+const porf = inSelfhost('porf');
+const compileHistory = inTmp('compile-history.jsonl');
+const stage2C = inTmp('stage2.c');
+const stage2Native = inTmp('stage2-native');
+const pgoProfile = inTmp('release.profdata');
+const pgoRaw = inTmp('release.profraw');
+const pgoCompiler = inTmp('pgo-compiler');
+const pgoOutput = inTmp('pgo-stage2.c');
+const helloFile = inTmp('hello.js');
+const temporalFile = inTmp('temporal.js');
+const parityCases = [
+  [ 'hello', helloFile, () => fs.writeFileSync(helloFile, 'console.log("hello world")\n') ],
+  [ 'exceptions', 'bench/exceptions.js', null, { compareNativeOutput: false } ],
+  [ 'json_stringify', 'bench/json_stringify.js', null, { compareNativeOutput: false } ],
+  [ 'indirect', 'bench/indirect.js', null, { compareNativeOutput: false } ],
+  [ 'linked_list', 'bench/linked_list.js', null, { compareNativeOutput: false } ],
+  [ 'bf', 'bench/bf.js', null, { compareNativeOutput: false } ],
+  [ 'richards', 'bench/richards.js', null, { compareNativeOutput: false } ],
+  [ 'v8_v7', 'bench/v8-v7/combined.js', null, { compareNativeOutput: false } ],
+  [ 'string_methods', 'bench/string_methods.js', null, { compareNativeOutput: false } ],
+  [ 'regex', 'bench/regex.js', null, { compareNativeOutput: false } ],
+  [ 'temporal', temporalFile, () => fs.writeFileSync(temporalFile, 'Temporal;\n'), { compareNativeOutput: false } ],
+];
+const detailBenchCases = [ 'v8_v7', 'richards', 'regex', 'temporal', 'selfhost' ];
+
+const color = process.stdout.isTTY && !process.env.NO_COLOR;
+const ansi = code => color ? `\x1b[${code}m` : '';
+const reset = ansi(0);
+const bold = x => `${ansi(1)}${x}${reset}`;
+const dim = x => `${ansi(2)}${x}${reset}`;
+const green = x => `${ansi(92)}${x}${reset}`;
+const red = x => `${ansi(31)}${x}${reset}`;
+const stripAnsi = x => x.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '');
+const trimEndAnsi = text => {
+  let end = text.length;
+  const suffix = [];
+  while (end > 0) {
+    const ansi = text.slice(0, end).match(/\x1B\[[0-?]*[ -/]*[@-~]$/);
+    if (ansi) {
+      suffix.unshift(ansi[0]);
+      end -= ansi[0].length;
+    } else if (text[end - 1] === ' ') {
+      end--;
+    } else {
+      break;
+    }
+  }
+  return text.slice(0, end) + suffix.join('');
+};
+const cyan = x => `${ansi(36)}${x}${reset}`;
+const yellow = x => `${ansi(93)}${x}${reset}`;
+const formatTime = ms => ms >= 60_000 ? `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s` : ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms.toFixed(0)}ms`;
+const formatSize = bytes => bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)}MB` : `${(bytes / 1000).toFixed(1)}KB`;
+const formatNumber = value => value.toLocaleString('en-US');
+
+const defaultOpts = {
+  ccOpts: process.env.CC_OPTS?.split(/\s+/).filter(Boolean) ?? [ '-O0', '-g' ],
+  compiler: process.env.SELFHOST_CC ?? process.env.TCC ?? (fs.existsSync(path.join(homeTcc, 'tcc')) ? path.join(homeTcc, 'tcc') : 'tcc'),
+  diffContext: +(process.env.SELFHOST_DIFF_CONTEXT ?? 2),
+  monitor: process.env.SELFHOST_MONITOR !== '0',
+  nativeChecks: process.env.SELFHOST_NATIVE_CHECKS === '1',
+  verifyBench: true,
+  noopPrecompiled: process.env.SELFHOST_NOOP_PRECOMPILED === '1',
+  benchRuns: +(process.env.SELFHOST_BENCH_RUNS ?? 1),
+  detail: false,
+  pollEvery: +(process.env.POLL_EVERY ?? 5),
+  compare: process.env.SELFHOST_COMPARE ?? '1',
+  sizeGraph: process.env.SELFHOST_SIZE_GRAPH ?? null,
+  porfFlags: [],
+  profilePgo: false,
+  release: false,
+  skip: [],
+  skipBundle: false,
+  splitDiff: process.stdin.isTTY && process.stdout.isTTY && process.env.CI !== '1',
+  stackEvery: +(process.env.STACK_EVERY ?? 0),
+  verbose: false
+};
+
+const helpRows = rows => rows.map(([ name, text ]) => `  ${cyan(name.padEnd(22))}${text}`).join('\n');
+
+const usage = () => {
+  console.log(`${bold('Porffor Selfhost')}
+
+${dim('usage')} ${bold('./selfhost')} ${cyan('<command>')} ${dim('[options]')}
+
+${bold('Commands')}
+${helpRows([
+  [ 'help', 'show this help' ],
+  [ 'bundle', 'rebuild the selfhost compiler bundle' ],
+  [ 'compile', 'build the selfhosted native compiler with node Porffor' ],
+  [ 'verify', 'check c parity cases, then compare host and selfhost bundle c' ],
+  [ 'bench', 'benchmark host vs selfhosted c compile time for verify cases' ],
+  [ 'c', 'compile the selfhost bundle to stage2 c' ],
+  [ 'native', 'compile the selfhost bundle to a stage2 native binary' ],
+  [ 'all', 'run compile and verify' ],
+  [ 'compare', 'pick two compiles from history and compare them' ],
+  [ 'clean', 'remove generated selfhost files and logs' ]
+])}
+
+${bold('Options')}
+${helpRows([
+  [ '-O0|-O1|-O2|-O3', 'c compiler optimization level for compile (default: -O0 -g)' ],
+  [ '--cc-opts="..."', 'c compiler options for compile (default: -O0 -g)' ],
+  [ '--release', 'compile stage1 with cc -O3 -flto=thin and strip local symbols' ],
+  [ '--profile-pgo', 'regenerate the cached release PGO profile' ],
+  [ '--tcc[=PATH]', 'compile stage1 with TinyCC' ],
+  [ '--diff-context=N', 'context lines for mismatch diffs (default: 2)' ],
+  [ '--no-split-diff', 'use text diffoscope output for c even in a TTY' ],
+  [ '--no-monitor', 'run checkpoints without RSS polling' ],
+  [ '--native-checks', 'also compare native binaries and their output for verify cases' ],
+  [ '--no-verify', 'bench: skip host/selfhost output parity checks' ],
+  [ '--noop-precompiled', 'build a temporary bundle without precompiled builtins' ],
+  [ '--bench-runs=N', 'runs per compiler for bench (default: 1)' ],
+  [ '--detail', 'bench: show phase timings for representative cases' ],
+  [ '--skip=a,b', 'skip named cases for verify and bench' ],
+  [ '--poll=N', 'monitor poll interval in seconds (default: 5)' ],
+  [ '--compare=X', 'compare report against the compile N runs ago, or nearest to a date/time (default: 1)' ],
+  [ '--size-graph[=FILE]', 'write compare history binary-size SVG (default: /tmp/porffor-selfhost/size.svg)' ],
+  [ '--svg[=FILE]', 'alias for --size-graph' ],
+  [ '--skip-bundle', 'compile using the existing selfhost bundle' ],
+  [ '--split-diff', 'use side-by-side difftastic output for c' ],
+  [ '--stack=N', 'lldb stack interval in seconds; 0 disables (default: 0)' ],
+  [ '-v', 'show commands and detailed compiler output' ],
+  [ '--<anything>', 'unknown flags pass through to porf (eg --compress-data)' ]
+])}
+`);
+};
+
+const parseArgs = argv => {
+  const opts = { ...defaultOpts, porfFlags: [ ...defaultOpts.porfFlags ] };
+  const rest = [];
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '--no-monitor') opts.monitor = false;
+    else if (arg === '--native-checks') opts.nativeChecks = true;
+    else if (arg === '--no-verify') opts.verifyBench = false;
+    else if (arg === '--noop-precompiled') opts.noopPrecompiled = true;
+    else if (arg.startsWith('--bench-runs=')) opts.benchRuns = +arg.slice('--bench-runs='.length);
+    else if (arg === '--detail') opts.detail = true;
+    else if (arg === '--no-split-diff') opts.splitDiff = false;
+    else if (arg === '--split-diff') opts.splitDiff = true;
+    else if (arg === '--release') {
+      opts.compiler = process.env.SELFHOST_RELEASE_CC ?? process.env.CC ?? 'cc';
+      opts.ccOpts = [ '-O3', '-flto=thin' ];
+      opts.release = true;
+    }
+    else if (arg === '--profile-pgo') opts.profilePgo = true;
+    else if (/^-O(?:[0-3g]|fast|s|z)$/.test(arg)) {
+      opts.ccOpts = opts.ccOpts.filter(x => !/^-O(?:[0-3g]|fast|s|z)$/.test(x));
+      opts.ccOpts.unshift(arg);
+    }
+    else if (arg.startsWith('--cc-opts=')) opts.ccOpts = arg.slice('--cc-opts='.length).split(/\s+/).filter(Boolean);
+    else if (arg === '--tcc') opts.compiler = process.env.TCC ?? 'tcc';
+    else if (arg.startsWith('--tcc=')) opts.compiler = arg.slice('--tcc='.length);
+    else if (arg.startsWith('--diff-context=')) opts.diffContext = +arg.slice('--diff-context='.length);
+    else if (arg.startsWith('--poll=')) opts.pollEvery = +arg.slice('--poll='.length);
+    else if (arg.startsWith('--compare=')) opts.compare = arg.slice('--compare='.length);
+    else if (arg === '--compare') opts.compare = argv[++i] ?? '1';
+    else if (arg.startsWith('--size-graph=')) opts.sizeGraph = arg.slice('--size-graph='.length);
+    else if (arg === '--size-graph') opts.sizeGraph = argv[i + 1]?.[0] === '-' || argv[i + 1] == null ? inTmp('size.svg') : argv[++i];
+    else if (arg.startsWith('--svg=')) opts.sizeGraph = arg.slice('--svg='.length);
+    else if (arg === '--svg') opts.sizeGraph = argv[i + 1]?.[0] === '-' || argv[i + 1] == null ? inTmp('size.svg') : argv[++i];
+    else if (arg.startsWith('--skip=')) opts.skip = arg.slice('--skip='.length).split(',').map(x => x.trim()).filter(Boolean);
+    else if (arg === '--skip-bundle') opts.skipBundle = true;
+    else if (arg.startsWith('--stack=')) opts.stackEvery = +arg.slice('--stack='.length);
+    else if (arg === '-v') opts.verbose = true;
+    else if (arg[0] === '-') opts.porfFlags.push(arg); // unknown flags pass through to porf
+    else rest.push(arg);
+  }
+
+  if (isTinyCC(compilerArgs(opts))) opts.ccOpts = opts.ccOpts.filter(x => !x.startsWith('-flto'));
+
+  return { cmd: rest[0] ?? 'help', opts };
+};
+
+const logPath = name => inTmp(`${name}.log`);
+const lldbLogPath = name => inTmp(`${name}-lldb.log`);
+
+const quote = value => {
+  if (/^[A-Za-z0-9_./:=+-]+$/.test(value)) return value;
+  return JSON.stringify(value);
+};
+
+const commandText = (cmd, args) => [ cmd, ...args ].map(quote).join(' ');
+let printedCommand = false;
+const hostPorfDebugArgs = opts => [ '-d', ...opts.porfFlags ];
+const porfDebugArgs = opts => [ ...opts.porfFlags ];
+const commandExists = cmd => spawnSync(cmd, [ '--version' ], { stdio: 'ignore' }).status === 0;
+const bundleCommand = () => process.env.SELFHOST_BUNDLE_CMD ?? (commandExists('bun') ? 'bun' : 'node');
+
+const llvmProfdataCommand = compiler => {
+  if (process.env.SELFHOST_LLVM_PROFDATA) return process.env.SELFHOST_LLVM_PROFDATA.split(/\s+/).filter(Boolean);
+  const sibling = path.join(path.dirname(compiler[0]), 'llvm-profdata');
+  if (fs.existsSync(sibling)) return [ sibling ];
+  if (commandExists('llvm-profdata')) return [ 'llvm-profdata' ];
+  if (process.platform === 'darwin' && spawnSync('xcrun', [ '-f', 'llvm-profdata' ], { stdio: 'ignore' }).status === 0) return [ 'xcrun', 'llvm-profdata' ];
+
+  console.log(red('missing llvm-profdata'));
+  console.log(dim('set SELFHOST_LLVM_PROFDATA to the matching llvm-profdata command'));
+  process.exit(1);
+};
+
+const compilerArgs = opts => {
+  const compiler = opts.compiler.split(/\s+/).filter(Boolean);
+  if (compiler.length === 0) compiler.push('cc');
+
+  if (path.basename(compiler[0]) === 'tcc' && compiler.every(x => !x.startsWith('-B'))) {
+    const base = path.dirname(compiler[0]);
+    if (base !== '.' && fs.existsSync(path.join(base, 'libtcc1.a'))) compiler.push(`-B${base}`);
+      else if (fs.existsSync(path.join(homeTcc, 'libtcc1.a'))) compiler.push(`-B${homeTcc}`);
+  }
+
+  return compiler;
+};
+
+const isTinyCC = compiler => path.basename(compiler[0]) === 'tcc';
+
+const releaseStripArgs = (compiler, opts) =>
+  !opts.release ? [] :
+    process.platform === 'darwin' && !isTinyCC(compiler) ? [ '-Wl,-x' ] : [ '-s' ];
+
+const patchMachOStackSize = (file, stackSize = 0x4000000n) => {
+  if (process.platform !== 'darwin') return;
+
+  const buf = fs.readFileSync(file);
+  if (buf.length < 32 || buf.readUInt32LE(0) !== 0xfeedfacf) return;
+
+  const ncmds = buf.readUInt32LE(16);
+  let off = 32;
+  for (let i = 0; i < ncmds && off + 8 <= buf.length; i++) {
+    const cmd = buf.readUInt32LE(off);
+    const cmdsize = buf.readUInt32LE(off + 4);
+    if (cmd === 0x80000028 && cmdsize >= 24 && off + 24 <= buf.length) {
+      if (buf.readBigUInt64LE(off + 16) !== stackSize) {
+        buf.writeBigUInt64LE(stackSize, off + 16);
+        fs.writeFileSync(file, buf);
+        spawnSync('codesign', [ '-s', '-', '-f', file ], { stdio: 'ignore' });
+      }
+      return;
+    }
+    if (cmdsize < 8) return;
+    off += cmdsize;
+  }
+};
+
+// compile reports only compare same-kind entries: release (optimized) vs debug
+const buildKind = opts => opts.ccOpts.some(x => /^-O(?:[1-3]|fast|s|z)$/.test(x)) ? 'release' : 'debug';
+const entryKind = build => build === 'release' || build === 'debug' ? build :
+  build == null ? null : /-O(?:[1-3]|fast|s|z)\b/.test(build) ? 'release' : 'debug';
+
+const libtccInputs = [
+  'libtcc.c',
+  'tcc.h',
+  'tcctok.h',
+  'config.h',
+  'tccpp.c',
+  'tccgen.c',
+  'tccdbg.c',
+  'tccelf.c',
+  'tccasm.c',
+  'tccrun.c',
+  'arm64-gen.c',
+  'arm64-link.c',
+  'arm64-asm.c',
+  'tccmacho.c',
+  'runtime-embed.S',
+  'libtcc1.a',
+  'runmain.o'
+].map(file => path.join(homeTcc, file));
+
+const isFresh = (output, stamp, stampText, inputs) => {
+  if (!fs.existsSync(output) || !fs.existsSync(stamp) || fs.readFileSync(stamp, 'utf8') !== stampText) return false;
+  const outTime = fs.statSync(output).mtimeMs;
+  return inputs.every(file => fs.existsSync(file) && fs.statSync(file).mtimeMs <= outTime);
+};
+
+const ensureEmbeddedLibtcc = async (compiler, opts) => {
+  if (!hasHomeTccSource()) return null;
+
+  const tccBuild = isTinyCC(compiler);
+  const dir = path.join(homeTcc, tccBuild ? 'porffor-tcc-libtcc' : 'porffor-cc-libtcc');
+  const obj = path.join(dir, 'libtcc.o');
+  const runtimeObj = path.join(dir, 'runtime-embed.o');
+  const archive = path.join(dir, 'libtcc.a');
+  const stamp = path.join(dir, 'build.stamp');
+  const cc = tccBuild ? compiler : (process.env.SELFHOST_LIBTCC_CC ?? process.env.CC ?? 'cc').split(/\s+/).filter(Boolean);
+  const compileArgs = tccBuild ?
+    [
+      ...compiler.slice(1),
+      ...(compiler.some(x => x.startsWith('-B')) ? [] : [ `-B${homeTcc}` ]),
+      '-DCONFIG_TCC_EMBED_RUNTIME',
+      '-DCONFIG_TCCDIR=""',
+      `-I${homeTcc}`,
+      '-c', path.join(homeTcc, 'libtcc.c'),
+      '-o', obj
+    ] :
+    [
+      ...cc.slice(1),
+      '-O3',
+      '-fPIC',
+      '-DCONFIG_TCC_EMBED_RUNTIME',
+      '-DCONFIG_TCCDIR=""',
+      `-I${homeTcc}`,
+      '-c', path.join(homeTcc, 'libtcc.c'),
+      '-o', obj
+    ];
+  const archiveCmd = tccBuild ? compiler[0] : 'ar';
+  const archiveArgs = tccBuild ?
+    [
+      ...compiler.slice(1),
+      ...(compiler.some(x => x.startsWith('-B')) ? [] : [ `-B${homeTcc}` ]),
+      '-ar', 'rcs', archive, obj, runtimeObj
+    ] :
+    [ 'rcs', archive, obj, runtimeObj ];
+  const stampText = JSON.stringify({ tccBuild, cc, compileArgs, archiveCmd, archiveArgs }) + '\n';
+
+  if (isFresh(archive, stamp, stampText, libtccInputs)) return archive;
+
+  fs.mkdirSync(dir, { recursive: true });
+  await run(`${tccBuild ? 'tcc' : 'cc'} libtcc object`, tccBuild ? compiler[0] : cc[0], compileArgs, null, opts);
+  await run(`${tccBuild ? 'tcc' : 'cc'} embedded tcc runtime`, tccBuild ? compiler[0] : cc[0], [
+    ...(tccBuild ? compiler.slice(1) : cc.slice(1)),
+    `-I${homeTcc}`,
+    '-c', path.join(homeTcc, 'runtime-embed.S'),
+    '-o', runtimeObj
+  ], null, opts);
+  await run(`${tccBuild ? 'tcc' : 'cc'} libtcc archive`, archiveCmd, archiveArgs, null, opts);
+  fs.writeFileSync(stamp, stampText);
+  return archive;
+};
+
+const embeddedTccArgs = async (compiler, opts) => {
+  const libtcc = await ensureEmbeddedLibtcc(compiler, opts);
+  return libtcc ? {
+    compile: [ '-DPORFFOR_EMBED_TCC' ],
+    link: [ libtcc ]
+  } : { compile: [], link: [] };
+};
+
+const tail = (file, lines = 40) => {
+  if (!fs.existsSync(file)) return;
+  const text = fs.readFileSync(file, 'utf8');
+  const out = text.split('\n').slice(-lines).join('\n').trimEnd();
+  if (out) console.log(out);
+};
+
+const formatCompileTime = ms => ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(0)}ms`;
+
+async function runCompileStep(label, cmd, args, { env = {} } = {}) {
+  if (process.stdout.isTTY) process.stdout.write(`${dim('[.....]')} ${label}`);
+
+  const start = performance.now();
+  const child = spawn(cmd, args, {
+    env: { ...process.env, ...env },
+    stdio: [ 'ignore', 'pipe', 'pipe' ]
+  });
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', x => stdout += x);
+  child.stderr.on('data', x => stderr += x);
+
+  const rc = await new Promise(resolve => child.on('close', resolve));
+  const prefix = dim(`[${formatCompileTime(performance.now() - start)}]`);
+
+  if (process.stdout.isTTY) process.stdout.write('\r\x1b[0K');
+  if (rc === 0) {
+    process.stdout.write(`${prefix} ${green(label)}\n`);
+    return;
+  }
+
+  process.stdout.write(`${prefix} ${red(label)}\n`);
+  if (stdout) process.stdout.write(stdout);
+  if (stderr) process.stderr.write(stderr);
+  fail(label, `rc=${rc}`);
+  process.exit(rc || 1);
+}
+
+let transientMode = false;
+const transientLog = text => {
+  process.stdout.write(text);
+};
+
+const pass = (label, details = '') => console.log(`${dim('[')}${green('ok')}${dim(']')} ${label}${details ? ` ${dim(details)}` : ''}`);
+const fail = (label, details = '') => console.log(`${dim('[')}${red('fail')}${dim(']')} ${label}${details ? ` ${dim(details)}` : ''}`);
+const casePass = (label, details = '') => console.log(`  ${dim('[')}${green('ok')}${dim(']')} ${label}${details ? ` ${dim(details)}` : ''}`);
+const caseFail = (label, details = '') => console.log(`  ${dim('[')}${red('fail')}${dim(']')} ${label}${details ? ` ${dim(details)}` : ''}`);
+
+const run = async (label, cmd, args, log, opts, { monitor = false, env = {}, quiet = false, silent = false } = {}) => {
+  const verbose = opts.verbose && !silent;
+  const transient = transientMode && !silent;
+  const capture = quiet || silent || (!verbose && !transient);
+  if (verbose || transient) {
+    const text = `${printedCommand ? '\n' : ''}${dim('$')} ${commandText(cmd, args)}\n`;
+    if (verbose) process.stdout.write(text);
+      else transientLog(text);
+    printedCommand = true;
+  }
+  if (log) {
+    if (verbose || transient) {
+      const text = `${dim(`log ${log}`)}\n`;
+      if (verbose) process.stdout.write(text);
+        else transientLog(text);
+    }
+    fs.mkdirSync(path.dirname(log), { recursive: true });
+    fs.writeFileSync(log, '');
+  }
+
+  if (!monitor || !opts.monitor) {
+    const child = spawn(cmd, args, {
+      env: { ...process.env, ...env },
+      stdio: log || capture ? [ 'ignore', 'pipe', 'pipe' ] : 'inherit'
+    });
+    const stream = log ? fs.createWriteStream(log, { flags: 'a' }) : null;
+    let stdout = '';
+    let stderr = '';
+    if (stream) {
+      child.stdout.pipe(stream);
+      child.stderr.pipe(stream);
+    }
+    if (capture) {
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
+      child.stdout.on('data', x => stdout += x);
+      child.stderr.on('data', x => stderr += x);
+    } else if (transient && log) {
+      child.stdout.on('data', x => transientLog(x.toString()));
+      child.stderr.on('data', x => transientLog(x.toString()));
+    }
+
+    const rc = await new Promise(resolve => child.on('close', resolve));
+    stream?.end();
+    if (log && verbose) tail(log, 80);
+    if (log && transient) {
+      const text = fs.readFileSync(log, 'utf8');
+      if (text) transientLog(text);
+    }
+    if (rc !== 0) {
+      fail(label, `rc=${rc}${log ? ` log=${log}` : ''}`);
+      if (!verbose) {
+        console.log(`\n${dim('$')} ${commandText(cmd, args)}`);
+        if (log) console.log(dim(`log ${log}`));
+      }
+      if (capture && stdout) process.stdout.write(stdout);
+      if (capture && stderr) process.stderr.write(stderr);
+      if (log && silent) tail(log, 80);
+      process.exit(rc || 1);
+    }
+    return;
+  }
+
+  const lldbLog = lldbLogPath(path.basename(log, '.log'));
+  fs.writeFileSync(lldbLog, '');
+  const child = spawn(cmd, args, {
+    env: { ...process.env, ...env },
+    stdio: [ 'ignore', 'pipe', 'pipe' ]
+  });
+  const stream = fs.createWriteStream(log, { flags: 'a' });
+  child.stdout.pipe(stream);
+  child.stderr.pipe(stream);
+  if (transient) {
+    child.stdout.on('data', x => transientLog(x.toString()));
+    child.stderr.on('data', x => transientLog(x.toString()));
+  }
+
+  const start = Date.now();
+  let lastLines = 0;
+  let lastStack = 0;
+  const pid = child.pid;
+  if (verbose || transient) {
+    const text = `${dim(`pid ${pid}`)}\n`;
+    if (verbose) process.stdout.write(text);
+      else transientLog(text);
+  }
+
+  const timer = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - start) / 1000);
+    const ps = spawnSync('ps', [ '-o', 'rss=', '-p', String(pid) ], { encoding: 'utf8' });
+    const rssKb = +(ps.stdout.trim() || 0);
+    const rss = rssKb ? `${Math.floor(rssKb / 1024)}mb` : 'unknown';
+    const elapsedText = elapsed >= 60 ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s` : `${elapsed}s`;
+    if (verbose || transient) {
+      const text = `${dim(elapsedText)} ${dim(`pid=${pid}`)} ${bold(rss)}\n`;
+      if (verbose) process.stdout.write(text);
+        else transientLog(text);
+    }
+
+    const text = fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '';
+    const lines = text.split('\n');
+    if ((verbose || transient) && lines.length - 1 > lastLines) {
+      const text = lines.slice(lastLines, -1).join('\n') + '\n';
+      if (verbose) process.stdout.write(text);
+        else transientLog(text);
+      lastLines = lines.length - 1;
+    }
+
+    if (opts.stackEvery > 0 && elapsed - lastStack >= opts.stackEvery) {
+      lastStack = elapsed;
+      sampleStack(pid, elapsedText, rss, lldbLog);
+    }
+  }, Math.max(1, opts.pollEvery) * 1000);
+
+  const stop = () => {
+    if (!child.killed) child.kill('SIGKILL');
+  };
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
+
+  const rc = await new Promise(resolve => child.on('close', resolve));
+  clearInterval(timer);
+  stream.end();
+  process.removeListener('SIGINT', stop);
+  process.removeListener('SIGTERM', stop);
+  if (rc !== 0) {
+    fail(label, `rc=${rc}${log ? ` log=${log}` : ''}`);
+    if (!verbose) {
+      console.log(`${dim('$')} ${commandText(cmd, args)}`);
+      if (log) console.log(dim(`log ${log}`));
+      console.log(dim(`pid ${pid}`));
+    }
+    tail(log, 80);
+    process.exit(rc || 1);
+  }
+  if (verbose) tail(log, 80);
+};
+
+const runCapture = async (label, cmd, args, opts, { env = {}, silent = false } = {}) => {
+  const verbose = opts.verbose && !silent;
+  if (verbose) console.log(`\n${dim('$')} ${commandText(cmd, args)}`);
+  const child = spawn(cmd, args, {
+    env: { ...process.env, ...env },
+    stdio: [ 'ignore', 'pipe', 'pipe' ]
+  });
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', x => stdout += x);
+  child.stderr.on('data', x => stderr += x);
+
+  const rc = await new Promise(resolve => child.on('close', resolve));
+  if (rc !== 0) {
+    if (!verbose) console.log(`\n${dim('$')} ${commandText(cmd, args)}`);
+    if (stdout) process.stdout.write(stdout);
+    if (stderr) process.stderr.write(stderr);
+    fail(label, `rc=${rc}`);
+    process.exit(rc || 1);
+  }
+
+  return { stdout, stderr, rc };
+};
+
+const showDiff = (expected, actual, opts, { beforeCommand = '\n' } = {}) => {
+  let diffExpected = expected;
+  let diffActual = actual;
+
+  const diffExt = path.extname(diffExpected);
+  if (opts.splitDiff && (diffExt === '.wat' || diffExt === '.c') && diffExt === path.extname(diffActual)) {
+    const args = [
+      '--display', 'side-by-side-show-both',
+      '--color', color ? 'always' : 'never',
+      ...(process.stdout.columns ? [ '--width', String(process.stdout.columns) ] : []),
+      '--context', String(opts.diffContext),
+      diffActual,
+      diffExpected
+    ];
+
+    console.log(`${beforeCommand}${dim('$')} ${commandText('difft', args)}`);
+    const result = spawnSync('difft', args, {
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024
+    });
+    if (result.error) {
+      console.log(red('difft failed'), dim(result.error.message));
+      process.exit(1);
+    }
+    const lines = (result.stdout ?? '').split('\n');
+    const out = lines.map((line, i) => {
+      if (!/ --- [0-9]+\/[0-9]+ --- /.test(stripAnsi(line))) return line;
+
+      const next = lines.slice(i + 1).map(stripAnsi).find(x => x && !/ --- [0-9]+\/[0-9]+ --- /.test(x));
+      const matches = next ? [ ...next.matchAll(/\s{2,}(?:[0-9]+|\.\.\.)\s/g) ] : [];
+      const rightColumn = matches[1] ? matches[1].index + matches[1][0].search(/[0-9.]/) : 40;
+      return `${red('selfhost')}${' '.repeat(Math.max(1, rightColumn - 'selfhost'.length))}${green('host')}`;
+    }).join('\n');
+    if (out) process.stdout.write(out);
+    if (result.stderr) process.stderr.write(result.stderr);
+    return;
+  }
+
+  const args = [
+    '--text', '-',
+    '--text-color', color ? 'always' : 'never',
+    '--diff-context', String(opts.diffContext),
+    '--max-text-report-size', String(512 * 1024),
+    '--max-diff-block-lines', '200',
+    diffExpected,
+    diffActual
+  ];
+
+  console.log(`${beforeCommand}${dim('$')} ${commandText('diffoscope', args)}`);
+  const result = spawnSync('diffoscope', args, {
+    encoding: 'utf8',
+    maxBuffer: 1024 * 1024
+  });
+
+  if (result.error) {
+    console.log(red('diffoscope failed'), dim(result.error.message));
+    process.exit(1);
+  }
+
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+};
+
+const sampleStack = (pid, elapsed, rss, lldbLog) => {
+  fs.appendFileSync(lldbLog, `\n=== ${new Date().toISOString()} elapsed=${elapsed} pid=${pid} rss=${rss} ===\n`);
+  const result = spawnSync('lldb', [
+    '-b', '-x',
+    '-o', 'settings set interpreter.prompt-on-quit false',
+    '-o', 'settings set use-color false',
+    '-o', `process attach --pid ${pid}`,
+    '-o', 'thread backtrace',
+    '-o', 'process detach',
+    '-o', 'quit'
+  ], { encoding: 'utf8' });
+  fs.appendFileSync(lldbLog, (result.stdout ?? '') + (result.stderr ?? ''));
+
+  const frames = (result.stdout ?? '').split('\n')
+    .filter(x => /frame #/.test(x))
+    .filter(x => !/_jjindirect_|__porffor_indirect_dispatch_/.test(x))
+    .slice(0, 10)
+    .map(x => `  ${x.replace(/ at [^ ]+\.[ch]:[0-9]+(:[0-9]+)?/, '')}`);
+  if (frames.length > 0) console.log(frames.join('\n'));
+};
+
+const buildBundle = async (opts, quiet = false) => {
+  const start = performance.now();
+  await run('bundle', bundleCommand(), [ 'selfhosted/build.mjs' ], null, opts, {
+    env: { SELFHOST_NOOP_PRECOMPILED: opts.noopPrecompiled ? '1' : '0' },
+    quiet: true
+  });
+  if (!quiet || opts.verbose) showFinished('bundled porffor', bundle, performance.now() - start);
+};
+
+const requireBuiltSelfhost = () => {
+  if (!fs.existsSync(porf)) {
+    console.log(red(`missing selfhost binary: ${porf}`));
+    console.log(dim('run ./selfhost compile'));
+    process.exit(1);
+  }
+};
+
+const compileSelfhost = async opts => {
+  const start = performance.now();
+  const transient = !opts.verbose && process.stdout.isTTY;
+  if (opts.skipBundle) {
+    if (!fs.existsSync(bundle)) {
+      console.log(red(`missing selfhost bundle: ${bundle}`));
+      console.log(dim('run ./selfhost bundle or ./selfhost compile'));
+      process.exit(1);
+    }
+  } else {
+    await runCompileStep('bundled selfhost compiler', bundleCommand(), [ 'selfhosted/build.mjs' ], {
+      env: { SELFHOST_NOOP_PRECOMPILED: opts.noopPrecompiled ? '1' : '0' }
+    });
+  }
+  await runCompileStep('compiled selfhost bundle to C', './porf', [ 'c', '--compress-data', ...hostPorfDebugArgs(opts), '--profile-compiler', bundle, stage1C ]);
+  const compiler = compilerArgs(opts);
+  const tccArgs = await embeddedTccArgs(compiler, opts);
+  const releaseCodegenArgs = opts.release ? [ '-mllvm', '-force-attribute=porf_strict_eq:noinline' ] : [];
+  if (opts.release && (opts.profilePgo || !fs.existsSync(pgoProfile))) {
+    fs.rmSync(pgoRaw, { force: true });
+    await runCompileStep('compiled PGO training binary', compiler[0], [
+      ...compiler.slice(1),
+      ...tccArgs.compile,
+      stage1C, '-o', pgoCompiler, '-lm',
+      ...tccArgs.link,
+      ...(process.platform === 'darwin' && !isTinyCC(compiler) ? [ '-Wl,-stack_size,0x4000000' ] : []),
+      ...opts.ccOpts,
+      `-fprofile-instr-generate=${pgoRaw}`
+    ]);
+    await runCompileStep('profiled selfhost compiler', pgoCompiler, [ 'c', bundle, pgoOutput ]);
+    const profdata = llvmProfdataCommand(compiler);
+    await runCompileStep('merged PGO profile', profdata[0], [ ...profdata.slice(1), 'merge', '-o', pgoProfile, pgoRaw ]);
+  }
+  await runCompileStep(opts.release ? 'compiled release binary' : 'compiled selfhost binary', compiler[0], [
+    ...compiler.slice(1),
+    ...tccArgs.compile,
+    stage1C, '-o', porf, '-lm',
+    ...tccArgs.link,
+    ...(process.platform === 'darwin' && !isTinyCC(compiler) ? [ '-Wl,-stack_size,0x4000000' ] : []),
+    ...releaseStripArgs(compiler, opts),
+    ...releaseCodegenArgs,
+    ...opts.ccOpts,
+    ...(opts.release ? [ `-fprofile-instr-use=${pgoProfile}` ] : [])
+  ]);
+  patchMachOStackSize(porf);
+  if (transient || opts.verbose) process.stdout.write('\n');
+  showFinished(`compiled ${porf}`, porf, performance.now() - start);
+  showSelfhostReport(opts);
+  showSelfhostDone(porf, performance.now() - start, opts);
+};
+
+const c = async opts => {
+  requireBuiltSelfhost();
+  await run('selfhost to c', porf, [ 'c', ...porfDebugArgs(opts), bundle, stage2C ], logPath('stage2-c'), opts, { monitor: true });
+  showFile(stage2C);
+};
+
+const native = async opts => {
+  requireBuiltSelfhost();
+  await run('selfhost to native', porf, [ 'native', ...porfDebugArgs(opts), bundle, stage2Native ], logPath('stage2-native'), opts, { monitor: true });
+  showFile(stage2Native);
+};
+
+const compareFiles = async (label, expected, actual, opts, { grouped = false, debugRerun = null } = {}) => {
+  const expectedBytes = fs.readFileSync(expected);
+  const actualBytes = fs.readFileSync(actual);
+  if (expectedBytes.equals(actualBytes)) {
+    (grouped ? casePass : pass)(label, `${actualBytes.length}/${expectedBytes.length} bytes match`);
+    return;
+  }
+
+  (grouped ? caseFail : fail)(label, `${actual} differs from ${expected}`);
+  showDiff(expected, actual, opts);
+  if (debugRerun) {
+    console.log(`\n${bold('-d rerun')}`);
+    const [ debugExpected, debugActual ] = await debugRerun();
+    if (fs.readFileSync(debugExpected).equals(fs.readFileSync(debugActual))) {
+      console.log(dim(`${debugActual} matches ${debugExpected}`));
+    } else {
+      showDiff(debugExpected, debugActual, opts, { beforeCommand: '' });
+    }
+  }
+  process.exit(1);
+};
+
+const verifyParityCase = async ([ name, file, setup, caseOpts = {} ], opts, first = false) => {
+  setup?.();
+  if (opts.nativeChecks) {
+    if (!first) console.log();
+    console.log(bold(name));
+  }
+
+  const hostC = inTmp(`${name}-host.c`);
+  const selfC = inTmp(`${name}-selfhost.c`);
+  const nativeTmp = inTmp(`${name}-native-tmp`);
+  const hostNative = inTmp(`${name}-host-native`);
+  const selfNative = inTmp(`${name}-selfhost-native`);
+
+  await run(`host ${name} to c`, './porf', [ 'c', ...porfDebugArgs(opts), '--profile-compiler', file, hostC ], null, opts, { silent: true });
+  await run(`selfhost ${name} to c`, porf, [ 'c', ...porfDebugArgs(opts), file, selfC ], logPath(`${name}-c`), opts, { silent: true });
+  await compareFiles(opts.nativeChecks ? 'c parity' : `${name} c parity`, hostC, selfC, opts, {
+    grouped: opts.nativeChecks,
+    debugRerun: async () => {
+      const hostDebugC = inTmp(`${name}-host-debug.c`);
+      const selfDebugC = inTmp(`${name}-selfhost-debug.c`);
+      await run(`host ${name} to c -d`, './porf', [ 'c', '-d', ...porfDebugArgs(opts), '--profile-compiler', file, hostDebugC ], null, opts, { silent: true });
+      await run(`selfhost ${name} to c -d`, porf, [ 'c', '-d', ...porfDebugArgs(opts), file, selfDebugC ], logPath(`${name}-c-debug`), opts, { silent: true });
+      return [ hostDebugC, selfDebugC ];
+    }
+  });
+  if (!opts.nativeChecks) return;
+
+  fs.rmSync(nativeTmp, { force: true });
+  await run(`host ${name} to native`, './porf', [ 'native', ...porfDebugArgs(opts), '--profile-compiler', file, nativeTmp ], null, opts, { silent: true });
+  fs.renameSync(nativeTmp, hostNative);
+  await run(`selfhost ${name} to native`, porf, [ 'native', ...porfDebugArgs(opts), file, nativeTmp ], logPath(`${name}-native`), opts, { silent: true });
+  fs.renameSync(nativeTmp, selfNative);
+  await compareFiles('native binary parity', hostNative, selfNative, opts, {
+    grouped: true,
+    debugRerun: async () => {
+      const hostDebugNative = inTmp(`${name}-host-debug-native`);
+      const selfDebugNative = inTmp(`${name}-selfhost-debug-native`);
+      const nativeDebugTmp = inTmp(`${name}-native-debug-tmp`);
+      fs.rmSync(nativeDebugTmp, { force: true });
+      await run(`host ${name} to native -d`, './porf', [ 'native', '-d', ...porfDebugArgs(opts), '--profile-compiler', file, nativeDebugTmp ], null, opts, { silent: true });
+      fs.renameSync(nativeDebugTmp, hostDebugNative);
+      await run(`selfhost ${name} to native -d`, porf, [ 'native', '-d', ...porfDebugArgs(opts), file, nativeDebugTmp ], logPath(`${name}-native-debug`), opts, { silent: true });
+      fs.renameSync(nativeDebugTmp, selfDebugNative);
+      return [ hostDebugNative, selfDebugNative ];
+    }
+  });
+
+  const hostRun = await runCapture(`run host ${name} native`, hostNative, [], opts, { silent: true });
+  const selfRun = await runCapture(`run selfhost ${name} native`, selfNative, [], opts, { silent: true });
+  if (caseOpts.compareNativeOutput === false) {
+    casePass('native run', `exit code ${selfRun.rc}`);
+    return;
+  }
+
+  if (hostRun.stdout === selfRun.stdout && hostRun.stderr === selfRun.stderr) {
+    casePass('native output parity', `${hostRun.stdout.length + hostRun.stderr.length} bytes match`);
+  } else {
+    caseFail('native output parity');
+    console.log(dim('host stdout:')); process.stdout.write(hostRun.stdout);
+    console.log(dim('selfhost stdout:')); process.stdout.write(selfRun.stdout);
+    console.log(dim('host stderr:')); process.stderr.write(hostRun.stderr);
+    console.log(dim('selfhost stderr:')); process.stderr.write(selfRun.stderr);
+    process.exit(1);
+  }
+};
+
+const warnUnknownSkips = (opts, names) => {
+  const unknown = opts.skip.filter(name => !names.includes(name));
+  if (unknown.length) console.log(dim(`skip: unknown case${unknown.length === 1 ? '' : 's'} ${unknown.join(', ')}`));
+};
+
+const verifyParityCases = async opts => {
+  const cases = parityCases.filter(x => !opts.skip.includes(x[0]));
+  warnUnknownSkips(opts, parityCases.map(x => x[0]));
+  for (let i = 0; i < cases.length; i++) await verifyParityCase(cases[i], opts, i === 0);
+};
+
+const verify = async opts => {
+  requireBuiltSelfhost();
+  await verifyParityCases(opts);
+  const stage2HostC = inTmp('stage2-host.c');
+  await run('host selfhost bundle to C', './porf', [ 'c', ...porfDebugArgs(opts), '--profile-compiler', bundle, stage2HostC ], null, opts, { silent: true });
+  await run('selfhost to C', porf, [ 'c', ...porfDebugArgs(opts), bundle, stage2C ], logPath('stage2-c'), opts, { monitor: true, silent: true });
+  const same = fs.readFileSync(stage2HostC).equals(fs.readFileSync(stage2C));
+  if (same) {
+    await compareFiles('stage2 c parity', stage2HostC, stage2C, opts);
+    return;
+  }
+
+  fail('stage2 c parity', 'stage2.c differs from host baseline');
+  showDiff(stage2HostC, stage2C, opts);
+  console.log(`\n${bold('-d rerun')}`);
+  const stage2HostDebugC = inTmp('stage2-host-debug.c');
+  const stage2SelfDebugC = inTmp('stage2-selfhost-debug.c');
+  await run('host selfhost bundle to C -d', './porf', [ 'c', '-d', ...porfDebugArgs(opts), '--profile-compiler', bundle, stage2HostDebugC ], null, opts, { silent: true });
+  await run('selfhost bundle to C -d', porf, [ 'c', '-d', ...porfDebugArgs(opts), bundle, stage2SelfDebugC ], logPath('stage2-c-debug'), opts, { monitor: true, silent: true });
+  if (fs.readFileSync(stage2HostDebugC).equals(fs.readFileSync(stage2SelfDebugC))) {
+    console.log(dim(`${stage2SelfDebugC} matches ${stage2HostDebugC}`));
+  } else {
+    showDiff(stage2HostDebugC, stage2SelfDebugC, opts, { beforeCommand: '' });
+  }
+  process.exit(1);
+};
+
+const plainLength = text => stripAnsi(text).length;
+const fit = (text, width, right = false) => {
+  const pad = Math.max(0, width - plainLength(text));
+  return right ? ' '.repeat(pad) + text : text + ' '.repeat(pad);
+};
+
+const benchTime = ms => ms == null ? dim('–') : ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${Math.round(ms)}ms`;
+const benchMem = bytes => bytes == null ? dim('–') : bytes >= 1_073_741_824 ? `${(bytes / 1_073_741_824).toFixed(2)}GB` : `${Math.round(bytes / 1_048_576)}MB`;
+const ratioColor = ratio => ratio <= 1 ? green : ratio <= 1.5 ? yellow : red;
+const benchRatio = ratio => ratio == null ? dim('–') : ratioColor(ratio)(`${ratio.toFixed(2)}×`);
+const compilerProfilePhases = [
+  [ 'parsed', 'parse' ],
+  [ 'generated IR', 'codegen' ],
+  [ 'rendered C', 'render' ]
+];
+const spinnerFrames = [ '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' ];
+const spinner = () => cyan(spinnerFrames[Math.floor(performance.now() / 80) % spinnerFrames.length]);
+
+const gaugeEighths = [ '', '▏', '▎', '▍', '▌', '▋', '▊', '▉' ];
+const benchGauge = (ratio, half) => {
+  const mark = dim('█');
+  if (ratio == null) return ' '.repeat(half) + mark + ' '.repeat(half);
+  const paint = ratioColor(ratio);
+  const cells = ratio >= 1 ?
+    Math.min(half, Math.max(0, ratio - 1) * half) :
+    Math.min(half, Math.max(0, 1 - ratio) * 2 * half);
+
+  if (ratio >= 1) {
+    let full = Math.floor(cells);
+    let frac = Math.round((cells - full) * 8);
+    if (frac === 8) { full++; frac = 0; }
+    if (full === 0 && frac === 0 && ratio !== 1) frac = 1;
+    const bar = '█'.repeat(full) + gaugeEighths[frac];
+    return ' '.repeat(half) + mark + paint(bar) + ' '.repeat(half - bar.length);
+  }
+
+  const full = Math.floor(cells);
+  const frac = cells - full;
+  const partial = full >= half ? '' : frac >= 0.75 ? '█' : frac >= 0.25 || full === 0 ? '▐' : '';
+  const bar = partial + '█'.repeat(full);
+  return ' '.repeat(half - bar.length) + paint(bar) + mark + ' '.repeat(half);
+};
+
+const benchGlyph = row => {
+  if (row.status === 'running-host' || row.status === 'running-self') return spinner();
+  if (row.status === 'failed') return red('✗');
+  if (row.status === 'done') return green('✓');
+  return dim('·');
+};
+
+const benchStepCell = (row, opts) => {
+  const elapsed = benchTime(performance.now() - (row.stepStart ?? performance.now()));
+  return yellow(opts.benchRuns > 1 ? `${row.stepRun + 1}/${opts.benchRuns} ${elapsed}` : elapsed);
+};
+
+const renderBench = (rows, opts, started) => {
+  const cases = rows;
+  const done = cases.filter(x => x.hostMs != null && x.selfMs != null);
+  const completed = cases.filter(x => x.status === 'done' || x.status === 'failed');
+  const showMem = rows.some(x => x.hostRss != null || x.selfRss != null);
+  const phases = opts.detail ? compilerProfilePhases : [];
+  const w = {
+    case: Math.max(9, ...rows.map(x => x.name.length), ...phases.map(x => x[1].length + 2)),
+    time: 9 + (opts.benchRuns > 1 ? String(opts.benchRuns).length * 2 + 2 : 0),
+    ratio: 7,
+    mem: Math.max(8, ...rows.flatMap(x => [ plainLength(benchMem(x.hostRss)), plainLength(benchMem(x.selfRss)) ]))
+  };
+  const graphCount = showMem ? 2 : 1;
+  const graphMin = showMem ? 4 : 8;
+  const graphMax = showMem ? 16 : 32;
+  const nonGraphCells = [
+    w.case + 2,
+    w.time,
+    w.time,
+    w.ratio,
+    ...(showMem ? [ w.mem, w.mem, w.ratio ] : [])
+  ];
+  const nonGraphWidth = nonGraphCells.reduce((n, x) => n + x, 0) + (nonGraphCells.length + graphCount - 1) * 2;
+  const graphHeaderText = half => fit('0.5×', half) + '1×' + fit('2×', half - 1, true);
+  const graphWidth = half => Math.max(plainLength(graphHeaderText(half)), half * 2 + 1);
+  const terminalWidth = process.stdout.columns || 120;
+  let half = graphMax;
+  while (half > graphMin && 2 + nonGraphWidth + graphCount * graphWidth(half) + 2 > terminalWidth) half--;
+  const graphCellWidth = graphWidth(half);
+  const graphCell = text => text + ' '.repeat(Math.max(0, graphCellWidth - plainLength(text)));
+  const graph = ratio => graphCell(benchGauge(ratio, half));
+  const graphHeader = graphCell(dim(graphHeaderText(half)));
+  const tableLine = cells => `  ${trimEndAnsi(cells.join('  '))}  `;
+  const boldBest = (hostValue, selfValue, hostCell, selfCell) => {
+    if (hostValue == null || selfValue == null) return [ hostCell, selfCell ];
+    if (hostValue <= selfValue) hostCell = bold(hostCell);
+    if (selfValue <= hostValue) selfCell = bold(selfCell);
+    return [ hostCell, selfCell ];
+  };
+
+  const lines = [ '' ];
+  const header = [
+    fit(dim('case'), w.case + 2),
+    fit(dim('host'), w.time, true),
+    fit(dim('self'), w.time, true),
+    fit(dim('ratio'), w.ratio, true),
+    graphHeader,
+    ...(showMem ? [
+      fit(dim('host'), w.mem, true),
+      fit(dim('self'), w.mem, true),
+      fit(dim('ratio'), w.ratio, true),
+      graphHeader
+    ] : [])
+  ].join('  ');
+  const tableWidth = plainLength(header);
+  lines.push(tableLine([ header ]));
+
+  for (const row of rows) {
+    const hostMs = row.hostMs;
+    const selfMs = row.selfMs;
+    const ratio = hostMs != null && selfMs != null && hostMs > 0 ? selfMs / hostMs : null;
+    const parityFail = row.status === 'failed' && !row.failedStep;
+    const name = row.status === 'pending' ? dim(row.name) : parityFail ? red(row.name) : row.name;
+    let hostCell = row.status === 'running-host' ? benchStepCell(row, opts) :
+      row.failedStep === 'host' ? red('fail') : benchTime(hostMs);
+    let selfCell = row.status === 'running-self' ? benchStepCell(row, opts) :
+      row.failedStep === 'self' ? red('fail') : benchTime(selfMs);
+    [ hostCell, selfCell ] = boldBest(hostMs, selfMs, hostCell, selfCell);
+    const memRatio = row.hostRss && row.selfRss ? row.selfRss / row.hostRss : null;
+    let hostMemCell = benchMem(row.hostRss);
+    let selfMemCell = benchMem(row.selfRss);
+    [ hostMemCell, selfMemCell ] = boldBest(row.hostRss, row.selfRss, hostMemCell, selfMemCell);
+    lines.push(tableLine([
+      fit(`${benchGlyph(row)} ${name}`, w.case + 2),
+      fit(hostCell, w.time, true),
+      fit(selfCell, w.time, true),
+      fit(benchRatio(ratio), w.ratio, true),
+      graph(ratio),
+      ...(showMem ? [
+        fit(hostMemCell, w.mem, true),
+        fit(selfMemCell, w.mem, true),
+        fit(benchRatio(memRatio), w.ratio, true),
+        graph(memRatio)
+      ] : [])
+    ]));
+
+    const rowPhases = opts.detail ? compilerProfilePhases : [];
+    for (let i = 0; i < rowPhases.length; i++) {
+      const [ phase, label ] = rowPhases[i];
+      const hostPhaseMs = row.hostDetail?.[phase] ?? null;
+      const selfPhaseMs = row.selfDetail?.[phase] ?? null;
+      const phaseRatio = hostPhaseMs != null && selfPhaseMs != null && hostPhaseMs > 0 ? selfPhaseMs / hostPhaseMs : null;
+      let hostPhaseCell = benchTime(hostPhaseMs);
+      let selfPhaseCell = benchTime(selfPhaseMs);
+      [ hostPhaseCell, selfPhaseCell ] = boldBest(hostPhaseMs, selfPhaseMs, hostPhaseCell, selfPhaseCell);
+      lines.push(tableLine([
+        fit(`  ${dim(`${i === rowPhases.length - 1 ? '└' : '├'} ${label}`)}`, w.case + 2),
+        fit(hostPhaseCell, w.time, true),
+        fit(selfPhaseCell, w.time, true),
+        fit(benchRatio(phaseRatio), w.ratio, true),
+        graph(phaseRatio),
+        ...(showMem ? [
+          fit('', w.mem),
+          fit('', w.mem),
+          fit('', w.ratio),
+          graphCell('')
+        ] : [])
+      ]));
+    }
+  }
+
+  if (completed.length === cases.length) {
+    const ratios = done.map(x => x.hostMs > 0 && x.selfMs > 0 ? x.selfMs / x.hostMs : null).filter(x => x != null);
+    const geomean = ratios.length ? Math.exp(ratios.reduce((n, x) => n + Math.log(x), 0) / ratios.length) : null;
+    const rssRatios = done.map(x => x.hostRss > 0 && x.selfRss > 0 ? x.selfRss / x.hostRss : null).filter(x => x != null);
+    const rssGeomean = rssRatios.length ? Math.exp(rssRatios.reduce((n, x) => n + Math.log(x), 0) / rssRatios.length) : null;
+    lines.push(tableLine([ dim('┈'.repeat(tableWidth)) ]));
+    lines.push(tableLine([
+      fit('  geomean', w.case + 2),
+      fit(dim('–'), w.time, true),
+      fit(dim('–'), w.time, true),
+      fit(benchRatio(geomean), w.ratio, true),
+      graph(geomean),
+      ...(showMem ? [
+        fit(dim('–'), w.mem, true),
+        fit(dim('–'), w.mem, true),
+        fit(benchRatio(rssGeomean), w.ratio, true),
+        graph(rssGeomean)
+      ] : [])
+    ]));
+  } else {
+    lines.push('');
+    const width = 24;
+    const filled = Math.round(completed.length / cases.length * width);
+    lines.push(`  ${spinner()} ${completed.length}${dim(`/${cases.length} cases`)}  ${cyan('█'.repeat(filled))}${dim('░'.repeat(width - filled))}  ${dim(formatTime(performance.now() - started))}`);
+  }
+  lines.push('');
+  return lines;
+};
+
+const timeBin = '/usr/bin/time';
+const hasTimeMem = fs.existsSync(timeBin);
+const timeMemFlag = process.platform === 'linux' ? '-v' : '-l';
+const parseMaxRss = text => {
+  // BSD/macOS: "<bytes>  maximum resident set size"
+  let m = text.match(/^\s*(\d+)\s+maximum resident set size/mi);
+  if (m) return +m[1];
+  // GNU: "Maximum resident set size (kbytes): <kbytes>"
+  m = text.match(/maximum resident set size \(kbytes\):\s*(\d+)/i);
+  if (m) return +m[1] * 1024;
+  return null;
+};
+
+const parseCompilerDetail = text => {
+  const detail = {};
+  for (const line of stripAnsi(text).split('\n')) {
+    const match = line.match(/^\s*(\d+(?:\.\d+)?)ms\s+(.+?)\s*$/);
+    if (match) detail[match[2]] = +match[1];
+  }
+  return detail;
+};
+
+const runBenchCompile = async (label, cmd, args, log, failures, detail) => {
+  fs.mkdirSync(path.dirname(log), { recursive: true });
+  fs.writeFileSync(log, '');
+  const fd = fs.openSync(log, 'a');
+  const spawnCmd = hasTimeMem ? timeBin : cmd;
+  const spawnArgs = hasTimeMem ? [ timeMemFlag, cmd, ...args ] : args;
+  const start = performance.now();
+  const child = spawn(spawnCmd, spawnArgs, {
+    env: { ...process.env, _: cmd },
+    stdio: [ 'ignore', fd, hasTimeMem ? 'pipe' : fd ]
+  });
+  let stderr = '';
+  if (hasTimeMem) {
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', x => { stderr += x; fs.writeSync(fd, x); });
+  }
+  const [ rc, signal ] = await new Promise(resolve => child.on('close', (code, sig) => resolve([ code, sig ])));
+  fs.closeSync(fd);
+  if (rc !== 0) {
+    failures.push({ type: 'compile', label, rc: rc ?? signal, log });
+    return null;
+  }
+  return {
+    ms: performance.now() - start,
+    rss: hasTimeMem ? parseMaxRss(stderr) : null,
+    detail: detail ? parseCompilerDetail(fs.readFileSync(log, 'utf8')) : {}
+  };
+};
+
+const benchAverage = async (fn, runs) => {
+  let total = 0;
+  let peakRss = 0;
+  const detail = {};
+  for (let i = 0; i < runs; i++) {
+    const r = await fn(i);
+    if (r == null || r.ms == null) return null;
+    total += r.ms;
+    if (r.rss != null) peakRss = Math.max(peakRss, r.rss);
+    for (const [ phase, ms ] of Object.entries(r.detail)) detail[phase] = (detail[phase] ?? 0) + ms;
+  }
+  for (const phase in detail) detail[phase] /= runs;
+  return { ms: total / runs, rss: peakRss || null, detail };
+};
+
+const bench = async opts => {
+  requireBuiltSelfhost();
+  opts.benchRuns = Number.isFinite(opts.benchRuns) && opts.benchRuns > 0 ? Math.floor(opts.benchRuns) : 1;
+
+  const verifyCases = [
+    ...parityCases,
+    [ 'selfhost', bundle ]
+  ];
+  const benchCases = verifyCases.filter(([ name ]) =>
+    !opts.skip.includes(name) && (!opts.detail || detailBenchCases.includes(name)));
+  warnUnknownSkips(opts, verifyCases.map(x => x[0]));
+  const rows = benchCases.map(([ name ]) => ({ name, status: 'pending', hostMs: null, selfMs: null, hostRss: null, selfRss: null, same: null }));
+  const started = performance.now();
+  const failures = [];
+  const tty = process.stdout.isTTY;
+
+  let prevLines = 0;
+  const paint = (final = false) => {
+    const lines = renderBench(rows, opts, started);
+    if (!tty) {
+      if (final) console.log(lines.join('\n'));
+      return;
+    }
+    process.stdout.write(
+      (prevLines ? `\x1b[${prevLines}F` : '') +
+      lines.map(x => `\x1b[2K${x}`).join('\n') + '\n' +
+      '\x1b[0J'
+    );
+    prevLines = lines.length;
+  };
+
+  const restoreCursor = () => { if (tty) process.stdout.write('\x1b[?25h'); };
+  const onSigint = () => { restoreCursor(); process.exit(130); };
+  if (tty) {
+    process.stdout.write('\x1b[?25l');
+    process.once('SIGINT', onSigint);
+  }
+  const timer = tty ? setInterval(paint, 100) : null;
+  paint();
+
+  try {
+    for (let i = 0; i < benchCases.length; i++) {
+      const [ name, file, setup ] = benchCases[i];
+      setup?.();
+      const row = rows[i];
+      const hostC = inTmp(`bench-${name}-host.c`);
+      const selfC = inTmp(`bench-${name}-selfhost.c`);
+
+      row.status = 'running-host';
+      const host = await benchAverage(runId => {
+        row.stepStart = performance.now();
+        row.stepRun = runId;
+        paint();
+        return runBenchCompile(`host ${name} c bench`, './porf', [ 'c', ...porfDebugArgs(opts), '--profile-compiler', file, hostC ], logPath(`bench-${name}-host-${runId}`), failures, opts.detail);
+      }, opts.benchRuns);
+      row.hostMs = host?.ms ?? null;
+      row.hostRss = host?.rss ?? null;
+      row.hostDetail = host?.detail;
+      if (row.hostMs == null) {
+        row.status = 'failed';
+        row.failedStep = 'host';
+        continue;
+      }
+
+      row.status = 'running-self';
+      const self = await benchAverage(runId => {
+        row.stepStart = performance.now();
+        row.stepRun = runId;
+        paint();
+        return runBenchCompile(`selfhost ${name} c bench`, porf, [ 'c', ...porfDebugArgs(opts), file, selfC ], logPath(`bench-${name}-self-${runId}`), failures, opts.detail);
+      }, opts.benchRuns);
+      row.selfMs = self?.ms ?? null;
+      row.selfRss = self?.rss ?? null;
+      row.selfDetail = self?.detail;
+      if (row.selfMs == null) {
+        row.status = 'failed';
+        row.failedStep = 'self';
+        continue;
+      }
+
+      if (opts.verifyBench) {
+        row.same = fs.existsSync(hostC) && fs.existsSync(selfC) && fs.readFileSync(hostC).equals(fs.readFileSync(selfC));
+        row.status = row.same ? 'done' : 'failed';
+        if (!row.same) failures.push({ type: 'parity', name, hostC, selfC });
+      } else {
+        row.status = 'done';
+      }
+      paint();
+    }
+  } finally {
+    if (timer) clearInterval(timer);
+    if (tty) process.removeListener('SIGINT', onSigint);
+    paint(true);
+    restoreCursor();
+  }
+
+  for (const f of failures) {
+    if (f.type === 'compile') {
+      fail(f.label, `rc=${f.rc} log=${f.log}`);
+      tail(f.log, 40);
+    } else {
+      fail(`${f.name} c parity`, `${f.selfC} differs from ${f.hostC}`);
+      showDiff(f.hostC, f.selfC, opts);
+    }
+  }
+  if (failures.length) process.exitCode = 1;
+};
+
+const showFile = (file, suffix = '') => {
+  if (!fs.existsSync(file)) return;
+  const stat = fs.statSync(file);
+  console.log(`${green(file)} ${dim(`${(stat.size / 1024 / 1024).toFixed(1)}MB`)}${suffix ? ` ${suffix}` : ''}`);
+};
+
+const showFinished = (label, output, total) => {
+  if (!fs.existsSync(output)) return;
+  const outputPath = output;
+  // const text = `${dim(`[${formatTime(total)}]`)} ${green(`compiled ${outputPath}`)}${ansi(90)} (${formatSize(fs.statSync(output).size)})${reset}\n`;
+  const text = `${dim(`[${formatCompileTime(total)}]`)} ${green(`compiled ${outputPath}`)}${ansi(90)}${reset}\n`;
+  if (transientMode) transientLog(text);
+    else process.stdout.write(text);
+};
+
+const fileLoc = file => {
+  const source = fs.readFileSync(file, 'utf8');
+  if (source.length === 0) return 0;
+  let lines = 1;
+  for (let i = 0; i < source.length; i++) {
+    if (source.charCodeAt(i) === 10) lines++;
+  }
+  if (source.charCodeAt(source.length - 1) === 10) lines--;
+  return lines;
+};
+
+const reportLines = lines => {
+  if (lines >= 1_000_000) return `${(lines / 1_000_000).toFixed(3)}M lines`;
+  if (lines >= 1_000) return `${(lines / 1_000).toFixed(2)}K lines`;
+  return `${formatNumber(lines)} lines`;
+};
+const reportPercentDelta = (current, previous) => {
+  const value = previous === 0 ? 0 : ((current - previous) / previous) * 100;
+  const sign = value >= 0 ? '+' : '-';
+  return { text: `${sign}${Math.abs(value).toFixed(2)}%`, value };
+};
+const currentSizeText = stats => {
+  const bytes = stats.bytes;
+  return bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(2)}MB` : `${(bytes / 1000).toFixed(2)}KB`;
+};
+const reportDeltaMargin = 0.1;
+const deltaColor = delta => Math.abs(delta.percent) <= reportDeltaMargin ? dim : delta.value < 0 ? green : red;
+const metricDelta = (current, previous) => {
+  if (!previous) return null;
+  const percent = reportPercentDelta(current, previous);
+  return { text: `(${percent.text})`, percent: percent.value, value: current - previous };
+};
+const lineDelta = (stats, previous) => metricDelta(stats.lines, previous?.lines);
+const sizeDelta = (stats, previous) => metricDelta(stats.bytes, previous?.bytes);
+const metricPlain = metric => metric.delta ? `${metric.current} ${metric.delta.text}` : metric.current;
+const reportRow = (row, firstWidth, sizeWidth) => {
+  const firstPlain = metricPlain(row.first);
+  const firstPad = row.second ? ' '.repeat(firstWidth - firstPlain.length) : '';
+  const first = row.color(row.first.current) + (row.first.delta ? ` ${deltaColor(row.first.delta)(row.first.delta.text)}` : '') + firstPad;
+  const second = row.second ?
+    `  ${yellow(row.second.current.padEnd(sizeWidth))}${row.second.delta ? ` ${deltaColor(row.second.delta)(row.second.delta.text)}` : ''}` :
+    '';
+  console.log(`  ${dim(row.label.padEnd(6))}    ${first}${second}`);
+};
+
+const readHistory = () => {
+  if (!fs.existsSync(compileHistory)) return [];
+  return fs.readFileSync(compileHistory, 'utf8').split('\n').filter(Boolean).flatMap(line => {
+    try { return [ JSON.parse(line) ]; } catch { return []; }
+  });
+};
+
+const svgEscape = value => String(value)
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;');
+
+const niceStep = raw => {
+  if (!Number.isFinite(raw) || raw <= 0) return 1;
+  const exp = Math.floor(Math.log10(raw));
+  const base = 10 ** exp;
+  const n = raw / base;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * base;
+};
+
+const graphDateText = (time, span) => {
+  const d = new Date(time);
+  const pad2 = n => String(n).padStart(2, '0');
+  const timeText = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  if (span < 36 * 3600_000) return timeText;
+  const dateText = `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  if (span < 180 * 86400_000) return dateText;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+};
+
+const graphPointTitle = x =>
+  `${entryKind(x.build) ?? 'unknown'} ${new Date(x.time).toLocaleString('en-US')} ${formatSize(x.porf.bytes)}`;
+
+const sizeGraphSvg = history => {
+  const entries = history
+    .filter(x => x.time != null && x.porf?.bytes != null && (entryKind(x.build) === 'debug' || entryKind(x.build) === 'release'))
+    .sort((a, b) => a.time - b.time);
+  if (entries.length === 0) return null;
+
+  const width = 960;
+  const height = 540;
+  const margin = { top: 76, right: 44, bottom: 72, left: 92 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const minTime = Math.min(...entries.map(x => x.time));
+  const maxTime = Math.max(...entries.map(x => x.time));
+  const xMin = minTime === maxTime ? minTime - 1 : minTime;
+  const xMax = minTime === maxTime ? maxTime + 1 : maxTime;
+  const timeSpan = xMax - xMin;
+
+  let yMin = Math.min(...entries.map(x => x.porf.bytes));
+  let yMax = Math.max(...entries.map(x => x.porf.bytes));
+  const yPad = Math.max(1, (yMax - yMin || yMax * 0.02) * 0.12);
+  yMin = Math.max(0, yMin - yPad);
+  yMax += yPad;
+  const yStep = niceStep((yMax - yMin) / 5);
+  yMin = Math.max(0, Math.floor(yMin / yStep) * yStep);
+  yMax = Math.ceil(yMax / yStep) * yStep;
+  if (yMin === yMax) yMax += yStep;
+
+  const x = time => margin.left + ((time - xMin) / timeSpan) * plotWidth;
+  const y = bytes => margin.top + (1 - (bytes - yMin) / (yMax - yMin)) * plotHeight;
+  const pointsFor = build => entries.filter(x => entryKind(x.build) === build).map(entry => ({ entry, x: x(entry.time), y: y(entry.porf.bytes) }));
+  const pathFor = points => points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const yTicks = [];
+  for (let tick = yMin; tick <= yMax + yStep / 2; tick += yStep) yTicks.push(tick);
+  const xTicks = Array.from({ length: 6 }, (_, i) => xMin + (timeSpan * i) / 5);
+  const series = [
+    { build: 'debug', label: 'debug', color: '#2563eb', points: pointsFor('debug') },
+    { build: 'release', label: 'release', color: '#dc2626', points: pointsFor('release') }
+  ];
+  const first = new Date(minTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const last = new Date(maxTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  const grid = yTicks.map(tick => {
+    const yy = y(tick);
+    return `<line x1="${margin.left}" y1="${yy.toFixed(1)}" x2="${width - margin.right}" y2="${yy.toFixed(1)}" class="grid"/><text x="${margin.left - 12}" y="${(yy + 4).toFixed(1)}" class="tick" text-anchor="end">${svgEscape(formatSize(tick))}</text>`;
+  }).join('\n    ');
+  const xAxis = xTicks.map(tick => {
+    const xx = x(tick);
+    return `<line x1="${xx.toFixed(1)}" y1="${height - margin.bottom}" x2="${xx.toFixed(1)}" y2="${height - margin.bottom + 6}" class="axis-tick"/><text x="${xx.toFixed(1)}" y="${height - margin.bottom + 26}" class="tick" text-anchor="middle">${svgEscape(graphDateText(tick, timeSpan))}</text>`;
+  }).join('\n    ');
+  const lines = series.map(({ color, points }) => points.length > 1 ?
+    `<path d="${pathFor(points)}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>` :
+    '').join('\n    ');
+  const dots = series.flatMap(({ build, color, points }) => points.map(p =>
+    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${color}" opacity="0.76"><title>${svgEscape(graphPointTitle({ ...p.entry, build }))}</title></circle>`
+  )).join('\n    ');
+  const legend = series.map(({ label, color, points }, i) => {
+    const latest = points.at(-1)?.entry;
+    const value = latest ? formatSize(latest.porf.bytes) : 'no data';
+    const yy = 104 + i * 28;
+    return `<line x1="724" y1="${yy}" x2="754" y2="${yy}" stroke="${color}" stroke-width="3" stroke-linecap="round"/><circle cx="739" cy="${yy}" r="3" fill="${color}"/><text x="766" y="${yy + 5}" class="legend">${svgEscape(label)} <tspan class="legend-value">${svgEscape(value)}</tspan></text>`;
+  }).join('\n    ');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc">
+  <title id="title">Porffor selfhost binary size over time</title>
+  <desc id="desc">Debug and release selfhost compiler binary sizes plotted on one shared axis.</desc>
+  <style>
+    .bg { fill: #fbfcff; }
+    .panel { fill: #ffffff; stroke: #d9e2ef; }
+    .grid { stroke: #e7edf5; stroke-width: 1; }
+    .axis { stroke: #64748b; stroke-width: 1.2; }
+    .axis-tick { stroke: #64748b; stroke-width: 1; }
+    .title { fill: #0f172a; font: 700 25px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .subtitle { fill: #64748b; font: 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .tick { fill: #64748b; font: 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .axis-label { fill: #334155; font: 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .legend { fill: #334155; font: 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .legend-value { fill: #0f172a; font-weight: 700; }
+  </style>
+  <rect class="bg" width="${width}" height="${height}"/>
+  <rect class="panel" x="24" y="20" width="${width - 48}" height="${height - 40}" rx="14"/>
+  <text x="54" y="55" class="title">Selfhost binary size</text>
+  <text x="54" y="80" class="subtitle">${svgEscape(entries.length)} compiles, ${svgEscape(first)} to ${svgEscape(last)}</text>
+  <g>
+    ${grid}
+    <line x1="${margin.left}" y1="${height - margin.bottom}" x2="${width - margin.right}" y2="${height - margin.bottom}" class="axis"/>
+    <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${height - margin.bottom}" class="axis"/>
+    ${xAxis}
+    ${lines}
+    ${dots}
+    ${legend}
+    <text x="${margin.left + plotWidth / 2}" y="${height - 24}" class="axis-label" text-anchor="middle">compile time</text>
+    <text transform="translate(28 ${margin.top + plotHeight / 2}) rotate(-90)" class="axis-label" text-anchor="middle">binary size</text>
+  </g>
+</svg>
+`;
+};
+
+const writeSizeGraph = output => {
+  const svg = sizeGraphSvg(readHistory());
+  if (!svg) {
+    console.log(dim(`no recorded debug or release compiles (${compileHistory})`));
+    return;
+  }
+
+  const file = output || inTmp('size.svg');
+  if (file === '-') {
+    process.stdout.write(svg);
+    return;
+  }
+
+  const out = path.resolve(file);
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, svg);
+  console.log(`${green(out)} ${dim('selfhost size graph')}`);
+};
+
+const relativeAge = ms => {
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${(s / 3600).toFixed(1)}h ago`;
+  return `${(s / 86400).toFixed(1)}d ago`;
+};
+
+const resolveCompare = (history, compare) => {
+  if (!history.length) return -1;
+  const raw = String(compare ?? '1').trim();
+  if (/^\d+$/.test(raw)) return Math.max(0, history.length - Math.max(1, +raw));
+  const target = Date.parse(raw);
+  if (Number.isNaN(target)) return history.length - 1;
+  let best = -1, bestDiff = Infinity;
+  for (let i = 0; i < history.length; i++) {
+    if (history[i].time == null) continue;
+    const diff = Math.abs(history[i].time - target);
+    if (diff < bestDiff) { bestDiff = diff; best = i; }
+  }
+  return best === -1 ? history.length - 1 : best;
+};
+
+const printComparison = (stats, previous) => {
+  const rows = [
+    {
+      label: 'bundle',
+      first: {
+        current: reportLines(stats.bundle.lines),
+        delta: lineDelta(stats.bundle, previous?.bundle)
+      },
+      color: cyan,
+      second: {
+        current: currentSizeText(stats.bundle),
+        delta: sizeDelta(stats.bundle, previous?.bundle)
+      }
+    },
+    {
+      label: 'c',
+      first: {
+        current: reportLines(stats.stage1C.lines),
+        delta: lineDelta(stats.stage1C, previous?.stage1C)
+      },
+      color: cyan,
+      second: {
+        current: currentSizeText(stats.stage1C),
+        delta: sizeDelta(stats.stage1C, previous?.stage1C)
+      }
+    },
+    {
+      label: 'binary',
+      first: {
+        current: currentSizeText(stats.porf),
+        delta: sizeDelta(stats.porf, previous?.porf)
+      },
+      color: yellow
+    }
+  ];
+  const firstWidth = Math.max(...rows.map(x => metricPlain(x.first).length));
+  const sizeWidth = Math.max(...rows.filter(x => x.second).map(x => x.second.current.length));
+  for (const row of rows) reportRow(row, firstWidth, sizeWidth);
+};
+
+const showSelfhostReport = opts => {
+  if (!fs.existsSync(bundle) || !fs.existsSync(stage1C) || !fs.existsSync(porf)) return;
+
+  const build = buildKind(opts);
+  const history = readHistory().filter(x => entryKind(x.build) === build);
+  const prevIndex = resolveCompare(history, opts.compare);
+  const previous = prevIndex >= 0 ? history[prevIndex] : null;
+  if (previous) {
+    const back = history.length - prevIndex;
+    const age = previous.time ? `, ${relativeAge(Date.now() - previous.time)}` : '';
+    console.log(`  ${dim(`vs ${back} ${build} compile${back === 1 ? '' : 's'} ago${age}`)}`);
+  }
+  const stats = {
+    bundle: { file: bundle, lines: fileLoc(bundle), bytes: fs.statSync(bundle).size },
+    stage1C: { file: stage1C, lines: fileLoc(stage1C), bytes: fs.statSync(stage1C).size },
+    porf: { file: porf, bytes: fs.statSync(porf).size }
+  };
+  printComparison(stats, previous);
+
+  fs.mkdirSync(path.dirname(compileHistory), { recursive: true });
+  fs.appendFileSync(compileHistory, JSON.stringify({ time: Date.now(), build, ...stats }) + '\n');
+};
+
+const showSelfhostDone = (output, total, opts) => {
+  if (!fs.existsSync(output)) return;
+  if (opts.verbose) console.log(`\n${green(bold(`compiled selfhost in ${formatTime(total)}!`))}`);
+};
+
+// interactive history browser: pick two compiles, diff them
+const compareTui = async opts => {
+  if (opts.sizeGraph != null) {
+    writeSizeGraph(opts.sizeGraph);
+    return;
+  }
+
+  const history = readHistory().filter(x => x.time != null && x.bundle && x.stage1C && x.porf);
+  if (history.length < 2) {
+    console.log(dim(`need at least 2 recorded compiles (${compileHistory})`));
+    return;
+  }
+
+  const max = Math.min(history.length, Math.max(4, (process.stdout.rows ?? 24) - 6));
+  const entries = history.slice(-max).reverse(); // newest first
+  const pad2 = n => String(n).padStart(2, '0');
+  const stamp = x => {
+    const d = new Date(x.time);
+    return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  };
+  const kindText = x => {
+    const kind = entryKind(x.build);
+    return kind === 'release' ? yellow('release') : kind === 'debug' ? cyan('debug  ') : dim('?      ');
+  };
+  const entryText = x =>
+    `${stamp(x)}  ${relativeAge(Date.now() - x.time).padStart(9)}  c ${currentSizeText(x.stage1C).padStart(8)}  binary ${currentSizeText(x.porf).padStart(8)}`;
+
+  const tty = process.stdin.isTTY && process.stdout.isTTY;
+  if (!tty) {
+    for (const x of entries) console.log(`  ${kindText(x)}  ${entryText(x)}`);
+    console.log(dim('tty required to select and compare'));
+    return;
+  }
+
+  let cursor = 0;
+  const selected = [];
+  const lineFor = i => {
+    const x = entries[i];
+    const cur = i === cursor ? cyan('>') : ' ';
+    const sel = selected.includes(i) ? green(selected[0] === i ? 'a' : 'b') : ' ';
+    return ` ${cur}${sel} ${kindText(x)}  ${i === cursor ? entryText(x) : dim(entryText(x))}`;
+  };
+  const footer = dim('↑/↓ move · space/enter select two · q cancel');
+  const paint = first => {
+    if (!first) process.stdout.write(`\x1b[${entries.length + 1}A`);
+    for (let i = 0; i < entries.length; i++) process.stdout.write(`\x1b[2K${lineFor(i)}\n`);
+    process.stdout.write(`\x1b[2K${footer}\n`);
+  };
+
+  // key queue: a stdin chunk can hold several keypresses; keep escape sequences whole
+  const keys = [];
+  let waiter = null, ended = false;
+  const wake = () => { if (waiter) { const w = waiter; waiter = null; w(); } };
+  const onData = d => {
+    const s = d.toString();
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === '\x1b' && s[i + 1] === '[' && i + 2 < s.length) { keys.push(s.slice(i, i + 3)); i += 2; }
+        else keys.push(s[i]);
+    }
+    wake();
+  };
+  const onEnd = () => { ended = true; wake(); };
+  const nextKey = async () => {
+    while (keys.length === 0) {
+      if (ended) return null;
+      await new Promise(resolve => waiter = resolve);
+    }
+    return keys.shift();
+  };
+
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+  process.stdin.on('data', onData);
+  process.stdin.on('end', onEnd);
+  process.stdout.write('\x1b[?25l');
+  const cleanup = () => {
+    process.stdout.write('\x1b[?25h');
+    process.stdin.removeListener('data', onData);
+    process.stdin.removeListener('end', onEnd);
+    process.stdin.setRawMode(false);
+    process.stdin.pause();
+  };
+
+  try {
+    paint(true);
+    while (selected.length < 2) {
+      const k = await nextKey();
+      if (k == null || k === 'q' || k === '\x03' || k === '\x1b') return;
+      if (k === '\x1b[A' || k === 'k') cursor = (cursor + entries.length - 1) % entries.length;
+        else if (k === '\x1b[B' || k === 'j') cursor = (cursor + 1) % entries.length;
+        else if (k === ' ' || k === '\r' || k === '\n') {
+          const at = selected.indexOf(cursor);
+          if (at !== -1) selected.splice(at, 1);
+            else selected.push(cursor);
+        }
+      paint();
+    }
+  } finally {
+    cleanup();
+  }
+
+  // first chosen (a) = current, second (b) = baseline
+  const [ current, baseline ] = selected.map(i => entries[i]);
+  const ageText = x => x === entries[0] ? 'now' : relativeAge(Date.now() - x.time);
+  console.log(`  ${dim(`selfhosted ${ageText(current)} vs ${ageText(baseline)}`)}`);
+  printComparison(current, baseline);
+};
+
+const clean = () => {
+  for (const file of fs.readdirSync(selfhostDir)) {
+    if (
+      file === 'build.mjs' ||
+      file === 'native.js'
+    ) continue;
+
+    fs.rmSync(path.join(selfhostDir, file), { recursive: true, force: true });
+  }
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  console.log(green('clean ok'));
+};
+
+const main = async () => {
+  const { cmd, opts } = parseArgs(process.argv.slice(2));
+  fs.mkdirSync(selfhostDir, { recursive: true });
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  if (cmd === 'help' || cmd === '--help' || cmd === '-h') usage();
+  else if (cmd === 'bundle') await buildBundle(opts);
+  else if (cmd === 'compile') await compileSelfhost(opts);
+  else if (cmd === 'verify') await verify(opts);
+  else if (cmd === 'bench') await bench(opts);
+  else if (cmd === 'c') await c(opts);
+  else if (cmd === 'native') await native(opts);
+  else if (cmd === 'compare') await compareTui(opts);
+  else if (cmd === 'all') {
+    await compileSelfhost(opts);
+    await verify(opts);
+  } else if (cmd === 'clean') clean();
+  else {
+    usage();
+    process.exit(2);
+  }
+};
+
+await main();

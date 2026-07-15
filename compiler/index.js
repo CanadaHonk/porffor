@@ -1,33 +1,31 @@
-import { underline, bold, log } from './log.js';
-import { Valtype, PageSize } from './wasmSpec.js';
+import { underline, bold } from './log.js';
 import parse from './parse.js';
 import codegen from './codegen.js';
-import opt from './opt.js';
-import assemble from './assemble.js';
-import disassemble from './disassemble.js';
-import toc from './2c.js';
-import * as pgo from './pgo.js';
-import cyclone from './cyclone.js';
+import render from './render.js';
 import './prefs.js';
 
-globalThis.disassemble = disassemble;
-
-const logFuncs = (funcs, globals, exceptions) => {
+const logFuncs = (funcs, globals) => {
   console.log('\n' + underline(bold('funcs')));
 
   let wanted = Prefs.f;
   if (typeof wanted !== 'string') wanted = null;
 
   for (const f of funcs) {
+    if (!f) continue;
     if ((wanted && (f.name !== wanted && wanted !== '!')) || (!wanted && f.internal)) continue;
-    console.log(disassemble(f.wasm, f.name, f.index, f.locals, f.params, f.returns, funcs, globals, exceptions));
+    console.log(`${f.name}(${f.params.map(x => `${x.name}:${x.type}`).join(', ')}) -> ${f.retType}`);
+    console.log(JSON.stringify(f.body, null, 2));
   }
 
   console.log();
 };
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
-const execSync = (typeof process?.version !== 'undefined' ? (await import('node:child_process')).execSync : undefined);
+const { execSync, spawn } = (typeof process?.version !== 'undefined' ? (await import('node:child_process')) : {});
+const uwebsockets = (typeof process?.version !== 'undefined' ? (await import('./uwebsockets.js')) : undefined);
+
+const formatTime = ms => ms >= 60_000 ? `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s` : ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms.toFixed(0)}ms`;
+const formatSize = bytes => bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)}MB` : `${(bytes / 1000).toFixed(1)}KB`;
 
 let progressLines = 0, progressInterval;
 let spinner = ['-', '\\', '|', '/'], spin = 0;
@@ -42,7 +40,8 @@ const progressStart = msg => {
   log();
 
   globalThis.progress = log;
-  progressInterval = setInterval(log, 100);
+  // selfhosted timers keep the process spinning forever: animate node-hosted only
+  if (process.argv0 === 'node') progressInterval = setInterval(log, 100);
 };
 const progressDone = (msg, start) => {
   if (globalThis.onProgress) return globalThis.onProgress(msg, performance.now() - start);
@@ -61,271 +60,202 @@ const progressClear = () => {
   process.stdout.write(`\u001b[${progressLines}F\u001b[0J`);
   progressLines = 0;
 };
-
-export default (code, module = Prefs.module) => {
+export default (code, module = Prefs.module, run = false) => {
   Prefs.module = module;
 
-  globalThis.valtype = Prefs.valtype ?? 'f64';
-  globalThis.valtypeBinary = Valtype[valtype];
+  const optPref = process.argv.find(x => x.startsWith('-O'))?.[2];
 
-  const optLevel = parseInt(process.argv.find(x => x.startsWith('-O'))?.[2] ?? 1);
-
-  let target = Prefs.target ?? 'wasm';
-  if (Prefs.native) target = 'native';
+  let target = Prefs.target ?? 'c';
 
   let outFile = Prefs.o;
-  const logProgress = Prefs.profileCompiler || (outFile && !Prefs.native);
+  const logProgress = !Prefs.quiet && (Prefs.profileCompiler || !!outFile);
 
-  // use smaller page sizes internally (65536 / 4 = 16384)
-  globalThis.pageSize = Prefs.pageSize ?? (PageSize / 4);
-
-  // change some prefs by default for c/native
-  if (target !== 'wasm') {
-    // Prefs.pgo = Prefs.pgo === false || globalThis.document ? false : true; // enable pgo by default
-    Prefs.passiveData = false; // disable using passive Wasm data as unsupported by 2c for now
-  }
-
-  // change some prefs by default for -O2
-  if (optLevel >= 2) {
-    Prefs.cyclone = Prefs.cyclone === false ? false : true; // enable cyclone
-  }
-
-  if (Prefs.pgo) pgo.setup();
+  globalThis.pageSize = Prefs.pageSize ?? (65536 / 4);
 
   if (logProgress) progressStart('parsing...');
   const t0 = performance.now();
   const program = parse(code);
   if (logProgress) progressDone('parsed', t0);
 
-  if (logProgress) progressStart('generating wasm...');
+  // --parse-only: stop after parsing
+  if (Prefs.parseOnly) return { program };
+
+  if (logProgress) progressStart('generating IR...');
   const t1 = performance.now();
-  const { funcs, globals, tags, exceptions, pages, data } = codegen(program);
-  if (globalThis.compileCallback) globalThis.compileCallback({ funcs, globals, tags, exceptions, pages, data });
+  const cg = codegen(program);
+  if (globalThis.compileCallback) globalThis.compileCallback(cg);
+  cg.times = [ t0, t1, performance.now() ];
 
-  if (logProgress) progressDone('generated wasm', t1);
+  if (logProgress) progressDone('generated IR', t1);
 
-  if (Prefs.funcs) logFuncs(funcs, globals, exceptions);
+  if (Prefs.funcs || Prefs.optFuncs || Prefs.f) logFuncs(cg.funcs, cg.globals);
+  if (globalThis.precompile) return cg;
 
-  if (logProgress) progressStart('optimizing...');
-  const t2 = performance.now();
-  opt(funcs, globals, pages, tags, exceptions);
-
-  if (Prefs.pgo) {
-    if (Prefs.pgoLog) {
-      const oldSize = assemble(funcs, globals, tags, pages, data, true).byteLength;
-      const t = performance.now();
-
-      pgo.run({ funcs, globals, tags, exceptions, pages, data });
-      opt(funcs, globals, pages, tags, exceptions);
-
-      console.log(`PGO total time: ${(performance.now() - t).toFixed(2)}ms`);
-
-      const newSize = assemble(funcs, globals, tags, pages, data, true).byteLength;
-      console.log(`PGO size diff: ${oldSize - newSize} bytes (${oldSize} -> ${newSize})\n`);
-    } else {
-      pgo.run({ funcs, globals, tags, exceptions, pages, data });
-      opt(funcs, globals, pages, tags, exceptions);
-    }
-  }
-
-  if (Prefs.cyclone) {
-    if (Prefs.cycloneLog) {
-      const oldSize = assemble(funcs, globals, tags, pages, data, true).byteLength;
-      const t = performance.now();
-
-      for (const x of funcs) {
-        const preOps = x.wasm.length;
-        cyclone(x, globals);
-
-        if (preOps !== x.wasm.length) console.log(`${x.name}: ${preOps} -> ${x.wasm.length} ops`);
-      }
-      opt(funcs, globals, pages, tags, exceptions);
-
-      console.log(`cyclone total time: ${(performance.now() - t).toFixed(2)}ms`);
-
-      const newSize = assemble(funcs, globals, tags, pages, data, true).byteLength;
-      console.log(`cyclone size diff: ${oldSize - newSize} bytes (${oldSize} -> ${newSize})\n`);
-    } else {
-      for (const x of funcs) {
-        cyclone(x, globals);
-      }
-    }
-  }
-
-  if (logProgress) progressDone('optimized', t2);
-
-  if (Prefs.builtinTree) {
-    let data = funcs.filter(x => x.includes);
-    if (typeof Prefs.builtinTree === 'string') data = data.filter(x => x.includes.has(Prefs.builtinTree));
-
-    const funcsByName = funcs.reduce((acc, x) => { acc[x.name] = x; return acc; }, {});
-
-    const done = new Set();
-    for (let i = 0; i < data.length; i++) {
-      const run = x => {
-        const out = [ x.name, [] ];
-        if (x.includes && !done.has(x.name)) {
-          done.add(x.name);
-          for (const y of x.includes) {
-            out[1].push(run(funcsByName[y], done));
-          }
-        }
-
-        return out;
-      };
-      data[i] = run(data[i]);
-    }
-
-    const print = (x, depth = []) => {
-      for (const [ name, inc ] of x) {
-        if (inc.length === 0) continue;
-        console.log(name);
-
-        for (let i = 0; i < inc.length; i++) {
-          if (inc[i][1].length === 0) continue;
-          process.stdout.write(`${depth.join(' ')}${depth.length > 0 ? ' ' : ''}${i != inc.length - 1 ? '├' : '└' } `);
-
-          const newDepth = [...depth];
-          newDepth.push(i != inc.length - 1 ? '│' : '');
-
-          print([ inc[i] ], newDepth);
-        }
-      }
-    };
-    print(data);
-  }
-
-  if (logProgress) progressStart('assembling...');
-  const t3 = performance.now();
-  const out = { funcs, globals, tags, exceptions, pages, data, times: [ t0, t1, t2, t3 ] };
-  if (globalThis.precompile) return out;
-
-  let wasm = out.wasm = assemble(funcs, globals, tags, pages, data);
-  if (logProgress) progressDone('assembled', t3);
-
-  if (Prefs.optFuncs || Prefs.f) logFuncs(funcs, globals, exceptions);
-
-  if (Prefs.compileAllocLog) {
-    const wasmPages = Math.ceil((pages.size * pageSize) / 65536);
-    const bytes = wasmPages * 65536;
-    log('alloc', `\x1B[1mallocated ${bytes / 1024}KiB\x1B[0m for ${pages.size} things using ${wasmPages} Wasm page${wasmPages === 1 ? '' : 's'}`);
-    console.log([...pages.keys()].map(x => `\x1B[36m - ${x}\x1B[0m`).join('\n') + '\n');
-  }
-
-  if (Prefs.wasmOpt) {
-    if (logProgress) progressStart('wasm-opt...');
-
-    const t4 = performance.now();
-    const newWasm = execSync(`wasm-opt -all -O4 -o -`, {
-      stdio: [ 'pipe', 'pipe', 'pipe' ],
-      input: wasm,
-      encoding: null
-    });
-    wasm = out.wasm = new Uint8Array(newWasm);
-
-    if (logProgress) progressDone('wasm-opt', t4);
-  }
-
-  if (target === 'wasm' && outFile) {
-    fs.writeFileSync(outFile, Buffer.from(wasm));
-
-    if (logProgress) {
-      const total = performance.now();
-      progressClear();
-      console.log(`\u001b[2m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
-    }
-
-    if (process.version) process.exit();
-  }
+  if (logProgress) progressStart('rendering C...');
+  const t4 = performance.now();
+  const cOut = render(cg);
+  const c = typeof cOut === 'string' ? cOut : cOut.c;
+  // stop the render spinner on every target, or the native path's setInterval spins forever
+  if (logProgress) progressDone('rendered C', t4);
 
   if (target === 'c') {
-    if (Prefs.wasm) fs.writeFileSync(Prefs.wasm, Buffer.from(wasm));
-
-    const c = toc(out);
-    out.c = c;
-
-    if (outFile) {
-      fs.writeFileSync(outFile, c);
-    } else {
-      console.log(c);
-    }
+    if (Prefs.nativeFetch) {
+      if (!outFile) throw new Error('native fetch C output requires an output directory');
+      uwebsockets.writeNativeFetchPackage(outFile, cOut);
+    } else if (outFile) fs.writeFileSync(outFile, c);
+    else console.log(c);
 
     if (logProgress) {
       const total = performance.now();
       progressClear();
-      console.log(`\u001b[2m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
+      if (!outFile) return cg;
+      const detail = Prefs.nativeFetch ? 'C bundle' : formatSize(fs.statSync(outFile).size);
+      console.log(`\u001b[2m[${formatTime(total)}]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${detail})\u001b[0m`);
     }
 
-    if (process.version && !Prefs.lambda) process.exit();
+    return cg;
   }
 
   if (target === 'native') {
-    outFile ??= Prefs.native ? './porffor_tmp' : file.split('/').at(-1).split('.')[0];
+    outFile ??= file.split('/').at(-1).split('.')[0];
 
-    const compiler = (Prefs.compiler ?? process.env.CC ?? 'cc').split(' ');
-    const cO = Prefs._cO ?? 'O3';
+    let compiler = (Prefs.compiler ?? process.env.CC ?? 'cc').split(' ');
+    let cxx = (Prefs.cxx ?? process.env.CXX ?? 'c++').split(' ');
+    if (Prefs.musl) compiler = [ 'zig', 'cc', '-target', 'x86_64-linux-musl' ];
+    if (Prefs.musl) cxx = [ 'zig', 'c++', '-target', 'x86_64-linux-musl' ];
+    const useEmbeddedTcc = compiler.length === 1 && compiler[0] === 'tcc' && typeof globalThis.tcc === 'function';
+    if (!Prefs.d && Prefs.flto == null) Prefs.flto = !Prefs.musl && !useEmbeddedTcc;
 
-    const args = [
-      ...compiler,
-      '-xc', '-', // use stdin as c source in
-      '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), // set path for output
+    const compilerArgPrefs = [ 'march', 'flto' ];
+    const compilerArgs = [];
+    for (const x of compilerArgPrefs) {
+      const value = Prefs[x];
+      if (value == null || value === false) continue;
+      compilerArgs.push(value === true ? `-${x}` : `-${x}=${value}`);
+    }
+    const linkStripArgs = process.platform === 'darwin' ?
+      [ '-Wl,-stack_size,0x4000000', ...(Prefs.d ? [] : [ '-Wl,-dead_strip', '-Wl,-dead_strip_dylibs', '-Wl,-x' ]) ] :
+      [ '-Wl,--gc-sections' ];
+    const darwinReleaseCompileArgs = process.platform === 'darwin' && !Prefs.d ? [ '-fvisibility=hidden' ] : [];
 
-      // default cc args, always
-      '-lm', // link math.h
-      '-fno-exceptions', // disable exceptions
-      '-fno-ident', '-ffunction-sections', '-fdata-sections', // remove unneeded binary sections
-      '-' + cO
-    ];
+    const compileNativeFetch = () => {
+      const tempDir = fs.mkdtempSync('/tmp/porffor-uws-native-');
+      const objectFile = `${tempDir}/porffor.o`;
+      const shimFile = `${tempDir}/server.cpp`;
 
-    if (Prefs.clangFast) args.push('-flto=thin', '-march=native', '-ffast-math', '-fno-asynchronous-unwind-tables');
+      try {
+        if (logProgress) progressStart(`compiling native fetch code (using ${compiler[0]})...`);
+        let t5 = performance.now();
 
-    if (Prefs.s) args.push('-s');
+        execSync([
+          ...compiler,
+          '-xc', '-', '-c',
+          '-o', objectFile,
+          '-fno-exceptions',
+          '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
+          '-fno-ident', '-ffunction-sections', '-fdata-sections',
+          ...darwinReleaseCompileArgs,
+          ...compilerArgs,
+          `-O${optPref ?? 3}`
+        ].join(' '), {
+          stdio: [ 'pipe', 'inherit', 'inherit' ],
+          input: c,
+          encoding: 'utf8'
+        });
 
-    if (logProgress) progressStart('compiling Wasm to C...');
-    const t4 = performance.now();
-    const c = toc(out);
-    if (logProgress) progressDone('compiled Wasm to C', t4);
+        if (logProgress) progressDone(`compiled native fetch code (using ${compiler[0]})`, t5);
 
-    if (logProgress) progressStart(`compiling C to native (using ${compiler})...`);
-    const t5 = performance.now();
+        if (logProgress) progressStart(`linking native fetch server (using ${cxx[0]})...`);
+        t5 = performance.now();
 
-    // obvious command escape is obvious
-    execSync(args.join(' '), {
-      stdio: [ 'pipe', 'inherit', 'inherit' ],
-      input: c,
-      encoding: 'utf8'
-    });
+        const uwsDir = uwebsockets.ensureUWebSockets();
+        const uSocketsArchive = uwebsockets.ensureUSocketsBuilt(uwsDir);
+        fs.writeFileSync(shimFile, uwebsockets.makeUWebSocketsShimSource());
 
-    if (logProgress) progressDone(`compiled C to native (using ${compiler})`, t5);
+        const linkArgs = [
+          ...cxx,
+          ...(Prefs.musl ? [ '-static' ] : []),
+          '-std=c++20',
+          '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'),
+          '-DUWS_NO_ZLIB',
+          '-DUWS_HTTPRESPONSE_NO_WRITEMARK',
+          '-I', `${uwsDir}/src`,
+          '-I', `${uwsDir}/uSockets/src`,
+          '-pthread',
+          '-fno-exceptions',
+          '-fno-rtti',
+          '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
+          '-fno-ident', '-ffunction-sections', '-fdata-sections',
+          ...darwinReleaseCompileArgs,
+          ...linkStripArgs,
+          ...compilerArgs,
+          `-O${optPref ?? 3}`,
+          shimFile,
+          objectFile,
+          uSocketsArchive,
+          '-lm'
+        ];
+        if (Prefs.s) linkArgs.push('-s');
 
-    if (Prefs.native) {
-      const cleanup = () => {
-        try {
-          fs.unlinkSync(outFile);
-        } catch {}
-      };
+        execSync(linkArgs.join(' '), { stdio: 'inherit' });
 
-      process.on('exit', cleanup);
-      process.on('beforeExit', cleanup);
-      process.on('SIGINT', () => {
-        cleanup();
-        process.exit();
+        if (logProgress) progressDone(`linked native fetch server (using ${cxx[0]})`, t5);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    };
+
+    if (Prefs.nativeFetch) {
+      compileNativeFetch();
+    } else if (useEmbeddedTcc) {
+      if (logProgress) progressStart('compiling C to native (using embedded tcc)...');
+      const t5 = performance.now();
+
+      const runStatus = globalThis.tcc(c, outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), run);
+      if (run) cg.runStatus = runStatus;
+
+      if (logProgress) progressDone('compiled C to native (using embedded tcc)', t5);
+    } else {
+      const args = [
+        ...compiler,
+        ...(Prefs.musl ? [ '-static' ] : []),
+        '-xc', '-', // use stdin as c source in
+        '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), // set path for output
+
+        // default cc args, always
+        '-lm', // link math.h
+        '-fno-exceptions', // disable exceptions
+        '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
+        '-fno-ident', '-ffunction-sections', '-fdata-sections', // remove unneeded binary sections
+        ...(cOut.threads ? [ '-pthread' ] : []),
+        ...darwinReleaseCompileArgs,
+        ...linkStripArgs,
+        ...compilerArgs,
+        `-O${optPref ?? 3}`
+      ];
+
+      if (Prefs.s) args.push('-s');
+
+      if (logProgress) progressStart(`compiling C to native (using ${compiler})...`);
+      const t5 = performance.now();
+
+      execSync(args.join(' '), {
+        stdio: [ 'pipe', 'inherit', 'inherit' ],
+        input: c,
+        encoding: 'utf8'
       });
 
-      const runArgs = process.argv.slice(2).filter(x => !x.startsWith('-'));
-      try {
-        execSync([ outFile, ...runArgs.slice(1) ].join(' '), { stdio: 'inherit' });
-      } catch {}
+      if (logProgress) progressDone(`compiled C to native (using ${compiler})`, t5);
     }
 
     if (logProgress) {
       const total = performance.now();
       progressClear();
-      console.log(`\u001b[2m[${total.toFixed(0)}ms]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${(fs.statSync(outFile).size / 1000).toFixed(1)}KB)\u001b[0m`);
+      console.log(`\u001b[2m[${formatTime(total)}]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${formatSize(fs.statSync(outFile).size)})\u001b[0m`);
     }
 
-    process.exit();
+    return cg;
   }
 
-  return out;
+  return cg;
 };

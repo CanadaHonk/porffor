@@ -1,0 +1,39 @@
+diff --git a/src/Loop.h b/src/Loop.h
+index 31cf61f..69fce72 100644
+--- a/src/Loop.h
++++ b/src/Loop.h
+@@ -69,7 +69,7 @@ private:
+ 
+         /* After every event loop iteration, we must not hold the cork buffer */
+         if (loopData->corkedSocket) {
+-            std::cerr << "Error: Cork buffer must not be held across event loop iterations!" << std::endl;
++            std::cerr << "cork held" << std::endl;
+             std::terminate();
+         }
+     }
+diff --git a/src/AsyncSocket.h b/src/AsyncSocket.h
+index c4a55e5..2b5fadc 100644
+--- a/src/AsyncSocket.h
++++ b/src/AsyncSocket.h
+@@ -133,7 +133,7 @@ public:
+     void cork() {
+         /* Extra check for invalid corking of others */
+         if (getLoopData()->corkOffset && getLoopData()->corkedSocket != this) {
+-            std::cerr << "Error: Cork buffer must not be acquired without checking canCork!" << std::endl;
++            std::cerr << "cork unchecked" << std::endl;
+             std::terminate();
+         }
+ 
+diff --git a/src/HttpContext.h b/src/HttpContext.h
+index e69d6f9..1264cc6 100644
+--- a/src/HttpContext.h
++++ b/src/HttpContext.h
+@@ -215,7 +215,7 @@ struct HttpContext {
+                 /* Returning from a request handler without responding or attaching an onAborted handler is ill-use */
+                 if (!((HttpResponse<SSL> *) s)->hasResponded() && !httpResponseData->onAborted) {
+                     /* Throw exception here? */
+-                    std::cerr << "Error: Returning from a request handler without responding or attaching an abort handler is forbidden!"
++                    std::cerr << "no response"
+                               << std::endl
+                               << "\tMethod: \"" << httpRequest->getCaseSensitiveMethod() << "\"" << std::endl
+                               << "\tURL: \"" << httpRequest->getUrl() << "\"" << std::endl;

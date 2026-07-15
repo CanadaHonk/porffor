@@ -39,7 +39,6 @@ const registerInternalType = (name, flags = [], overrideType = undefined) => {
   TYPE_NAMES[n] = name;
 };
 
-// note: when adding a new internal type, please also add a deserializer to wrap.js
 registerInternalType('ByteString', ['iterable', 'length'], TYPES.string | TYPE_FLAGS.parity);
 
 registerInternalType('Array', ['iterable', 'length']);
@@ -69,7 +68,7 @@ registerInternalType('StringObject');
 registerInternalType('__Porffor_Generator');
 registerInternalType('__Porffor_AsyncGenerator');
 
-for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval', 'URI', 'Test262' ])
+for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval', 'URI' ])
   registerInternalType(`${x}Error`);
 
 if (Prefs.largestTypes) {

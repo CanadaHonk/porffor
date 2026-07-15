@@ -1,6 +1,5 @@
 export default ({ TYPES, TYPE_NAMES }) => {
-  let out = `// @porf --valtype=i32
-export const __Porffor_object_getHiddenPrototype = (trueType: i32): any => {
+  let out = `export const __Porffor_object_getHiddenPrototype = (trueType: i32): any => {
   if (Porffor.comptime.flag\`hasFunc.#get___String_prototype\`) {
     if (Porffor.fastOr(
       (trueType | 0b10000000) == Porffor.TYPES.bytestring,

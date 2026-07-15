@@ -15,67 +15,52 @@ export const Symbol = (description: any): Symbol => {
   }
 
   // 4. Return a new Symbol whose [[Description]] is descString.
-  Porffor.wasm`
-local symbol i32
-i32.const 16
-call __Porffor_malloc
-local.tee symbol
-local.get ${descString}
-f64.store 0 0
-local.get symbol
-local.get ${descString+1}
-i32.store8 0 8`;
-
+  const symbol: Symbol = Porffor.malloc(8);
+  Porffor.IR.storeJv(symbol, 0, descString);
   return symbol;
 };
 
-export const __Symbol_prototype_description$get = (_this: Symbol) => {
-  Porffor.wasm`local.get ${_this}
-i32.to_u
-f64.load 0 0
-local.get ${_this}
-i32.to_u
-i32.load8_u 0 8
-return`;
+export const __Symbol_prototype_description$get = function (this: Symbol) {
+  return Porffor.IR.loadJv(this, 0);
 };
 
-export const __Symbol_prototype_toString = (_this: Symbol) => {
-  let out: bytestring = Porffor.malloc();
+export const __Symbol_prototype_toString = function (this: Symbol) {
+  const out: bytestring = Porffor.malloc();
 
   // Symbol(
-  Porffor.wasm.i32.store8(out, 83, 0, 4);
-  Porffor.wasm.i32.store8(out, 121, 0, 5);
-  Porffor.wasm.i32.store8(out, 109, 0, 6);
-  Porffor.wasm.i32.store8(out, 98, 0, 7);
-  Porffor.wasm.i32.store8(out, 111, 0, 8);
-  Porffor.wasm.i32.store8(out, 108, 0, 9);
-  Porffor.wasm.i32.store8(out, 40, 0, 10);
+  Porffor.IR.storeU8(out, 4, 83);
+  Porffor.IR.storeU8(out, 5, 121);
+  Porffor.IR.storeU8(out, 6, 109);
+  Porffor.IR.storeU8(out, 7, 98);
+  Porffor.IR.storeU8(out, 8, 111);
+  Porffor.IR.storeU8(out, 9, 108);
+  Porffor.IR.storeU8(out, 10, 40);
 
-  const description: any = _this.description;
+  const description: any = this.description;
   let descLen: i32 = 0;
   if (description !== undefined) {
     descLen = description.length;
 
     // todo: support regular string
-    let outPtr: i32 = Porffor.wasm`local.get ${out}` + 7;
-    let descPtr: i32 = Porffor.wasm`local.get ${description}`;
+    let outPtr: i32 = Porffor.IR.ptr(out) + 7;
+    let descPtr: i32 = Porffor.IR.ptr(description);
     const descPtrEnd: i32 = descPtr + descLen;
     while (descPtr < descPtrEnd) {
-      Porffor.wasm.i32.store8(outPtr++, Porffor.wasm.i32.load8_u(descPtr++, 0, 4), 0, 4);
+      Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(descPtr++, 4));
     }
   }
 
   // )
-  Porffor.wasm.i32.store8(Porffor.wasm`local.get ${out}` + descLen, 41, 0, 11);
+  Porffor.IR.storeU8(Porffor.IR.ptr(out) + descLen, 11, 41);
 
   out.length = 8 + descLen;
   return out;
 };
 
-export const __Symbol_prototype_toLocaleString = (_this: Symbol) => __Symbol_prototype_toString(_this);
+export const __Symbol_prototype_toLocaleString = function (this: Symbol) { return Porffor.callThis(__Symbol_prototype_toString, this); };
 
-export const __Symbol_prototype_valueOf = (_this: Symbol) => {
-  return _this;
+export const __Symbol_prototype_valueOf = function (this: Symbol) {
+  return this;
 };
 
 const forStore: Map = new Map();

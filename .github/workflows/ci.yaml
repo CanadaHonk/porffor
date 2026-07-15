@@ -1,39 +1,157 @@
 name: CI
 
 on:
-  workflow_run:
-    workflows: ['Bump version and publish']
-    types:
-      - completed
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  build:
-    if: github.event.workflow_run.conclusion == 'success'
+  release:
+    if: >
+      github.event.head_commit
+      && github.event.head_commit.author.email == 'honk@goose.icu'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
-          - x86_64-pc-windows-msvc
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
     steps:
       - uses: actions/checkout@v4
-      - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
-      - run: deno install
-      - run: |
-          deno compile \
-            --allow-all \
-            --no-check \
-            --target ${{ matrix.target }} \
-            --include runtime \
-            --include compiler \
-            --output out/porf \
-            runtime/index.js
-      - uses: actions/upload-artifact@v4
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
         with:
-          name: porf-${{ matrix.target }}
-          path: out/*
+          node-version: '24'
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: install LLVM 21
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y llvm-21
+          echo /usr/lib/llvm-21/bin >> "$GITHUB_PATH"
+      - name: determine version
+        id: version
+        run: |
+          node --input-type=module - <<'EOF'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const tags = execFileSync('git', [ 'tag', '--list', 'pre-alpha-*' ], { encoding: 'utf8' }).trim().split('\n');
+          let latest = 0;
+          for (const tag of tags) {
+            const match = tag.match(/^pre-alpha-(\d+)$/);
+            if (match) latest = Math.max(latest, +match[1]);
+          }
+          const release = `pre-alpha ${latest + 1}`;
+          const sha = process.env.GITHUB_SHA.slice(0, 7);
+          const date = new Date().toISOString().slice(0, 10);
+          const version = `${release} (${sha} ${date})`;
+          const path = 'runtime/index.js';
+          const src = fs.readFileSync(path, 'utf8');
+          const replaced = src.replace(/globalThis\.version = '.*?';/, `globalThis.version = '${version}';`);
+          if (replaced === src) throw new Error('version string not found');
+          fs.writeFileSync(path, replaced);
+          const tag = release.replace(' ', '-');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `release=${release}\nversion=${version}\ntag=${tag}\n`);
+          EOF
+      - name: bundle selfhost compiler
+        run: node selfhosted/build.mjs
+      - name: compile bundle to c
+        run: ./porf c --compress-data selfhosted/bundle.js selfhosted/stage1.c
+      - name: build embedded tcc
+        run: |
+          src=/tmp/tinycc
+          cross=/tmp/tinycc-cross
+          targets=/tmp/tinycc-targets
+          commit=3d8a6344cf879f4a82e781e6758b565ff7f8dc74
+
+          git init "$src"
+          git -C "$src" remote add origin https://github.com/CanadaHonk/tinycc.git
+          git -C "$src" fetch --depth=1 origin "$commit"
+          git -C "$src" checkout --detach FETCH_HEAD
+
+          mkdir -p "$cross" "$targets"
+          cd "$cross"
+          "$src/configure" --source-path="$src" --cc=clang --ar=llvm-ar
+          make -j"$(nproc)" cross-x86_64 cross-arm64 cross-x86_64-osx cross-arm64-osx
+
+          build() {
+            name=$1; triple=$2; cpu=$3; os=$4; runtime=$5; musl=$6
+            dir="$targets/$name"
+            mkdir -p "$dir"
+            cd "$dir"
+
+            args=(--source-path="$src" --cc=clang --ar=llvm-ar --cpu="$cpu" --targetos="$os" '--extra-cflags=-O3 -fPIC')
+            if test "$musl" = yes; then args+=(--config-musl); fi
+            if test "$os" = Darwin; then args+=('--sysincludepaths={B}/include:/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include'); fi
+            "$src/configure" "${args[@]}"
+
+            cp "$cross/tccdefs_.h" .
+            cp "$cross/$runtime" libtcc1.a
+            leading=()
+            case "$triple" in *-macos) leading=(-D__leading_underscore);; esac
+            zig cc -target "$triple" -O3 -g0 -w "${leading[@]}" -c "$src/lib/runmain.c" -o runmain.o
+            zig cc -target "$triple" -O3 -g0 -fPIC -w -DCONFIG_TCC_EMBED_RUNTIME '-DCONFIG_TCCDIR=""' \
+              -I"$dir" -I"$src" -c "$src/libtcc.c" -o libtcc.o
+            zig cc -target "$triple" -g0 -w -I"$dir" -I"$src" -c "$src/runtime-embed.S" -o runtime-embed.o
+            zig ar rcs libtcc.a libtcc.o runtime-embed.o
+          }
+
+          build linux-x64 x86_64-linux-gnu.2.28 x86_64 Linux x86_64-libtcc1.a no
+          build linux-arm64 aarch64-linux-gnu.2.28 arm64 Linux arm64-libtcc1.a no
+          build linux-x64-musl x86_64-linux-musl x86_64 Linux x86_64-libtcc1.a yes
+          build linux-arm64-musl aarch64-linux-musl arm64 Linux arm64-libtcc1.a yes
+          build darwin-x64 x86_64-macos x86_64 Darwin x86_64-osx-libtcc1.a no
+          build darwin-arm64 aarch64-macos arm64 Darwin arm64-osx-libtcc1.a no
+      - name: profile selfhost compiler
+        run: |
+          mkdir -p /tmp/porffor-pgo
+          clang -O3 -flto=thin -fuse-ld=lld -fno-sanitize=undefined -w \
+            -fprofile-instr-generate=/tmp/porffor-pgo/release.profraw \
+            -DPORFFOR_EMBED_TCC selfhosted/stage1.c /tmp/tinycc-targets/linux-x64/libtcc.a \
+            -o /tmp/porffor-pgo/porf -lm -ldl -lpthread
+          /tmp/porffor-pgo/porf c selfhosted/bundle.js /tmp/porffor-pgo/stage2.c
+          llvm-profdata merge -o /tmp/porffor-pgo/release.profdata /tmp/porffor-pgo/release.profraw
+      - name: cross compile
+        run: |
+          build() {
+            name=$1; triple=$2
+            mkdir -p "build/$name"
+            lto=-flto=thin
+            link=
+            libs='-lm -ldl -lpthread'
+            case "$triple" in *-macos) lto=; link=-Wl,-stack_size,0x4000000; libs=-lm;; esac
+            zig cc -O3 $lto -fno-sanitize=undefined -w -s -target "$triple" $link \
+              -fprofile-instr-use=/tmp/porffor-pgo/release.profdata \
+              -mllvm -force-attribute=porf_strict_eq:noinline \
+              -DPORFFOR_EMBED_TCC selfhosted/stage1.c "/tmp/tinycc-targets/$name/libtcc.a" \
+              -o "build/$name/porf" $libs
+            tar -czf "out/porffor-$name.tar.gz" -C "build/$name" porf
+          }
+          mkdir -p out
+          build linux-x64 x86_64-linux-gnu.2.28
+          build linux-arm64 aarch64-linux-gnu.2.28
+          build linux-x64-musl x86_64-linux-musl
+          build linux-arm64-musl aarch64-linux-musl
+          build darwin-x64 x86_64-macos
+          build darwin-arm64 aarch64-macos
+      - name: verify release version
+        run: test "$(build/linux-x64/porf --version)" = '${{ steps.version.outputs.version }}'
+      - name: use release compiler for selfhost tests
+        run: cp build/linux-x64/porf selfhosted/porf
+      - name: verify selfhost compiler
+        run: ./selfhost verify
+      - name: test selfhost test262 harness
+        run: node test262/selfhost.js harness --expect-passes=107
+      - name: create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd out
+          sha256sum *.tar.gz > SHASUMS256.txt
+          gh release create '${{ steps.version.outputs.tag }}' --target '${{ github.sha }}' --title '${{ steps.version.outputs.version }}' --generate-notes * ||
+            gh release upload '${{ steps.version.outputs.tag }}' * --clobber

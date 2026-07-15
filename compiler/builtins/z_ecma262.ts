@@ -1,12 +1,11 @@
 // general widely used ecma262/spec functions
 import type {} from './porffor.d.ts';
 
-// https://tc39.es/ecma262/#sec-samevaluezero
-// Like === but NaN === NaN is true, and +0 === -0 is true
+// https://tc39.es/ecma262/#sec-samevaluezero: === but NaN equals NaN
 export const __ecma262_SameValueZero = (x: any, y: any): boolean => {
   if (x === y) return true;
   // NaN !== NaN, but SameValueZero(NaN, NaN) should be true
-  if (Number.isNaN(x) && Number.isNaN(y)) return true;
+  if (Porffor.type(x) == Porffor.TYPES.number && Number.isNaN(x) && Number.isNaN(y)) return true;
   return false;
 };
 
@@ -77,7 +76,7 @@ export const __ecma262_ToNumeric = (value: unknown): number => {
   // 1. Let primValue be ? ToPrimitive(value, number).
   // only run ToPrimitive if pure object for perf
   let primValue: any = value;
-  if (Porffor.type(value) == Porffor.TYPES.object && Porffor.wasm`local.get ${value}` != 0)
+  if (Porffor.type(value) == Porffor.TYPES.object && Porffor.IR.ptr(value) != 0)
     primValue = __ecma262_ToPrimitive_Number(value);
 
   // 2. If primValue is a BigInt, return primValue.
@@ -139,9 +138,7 @@ export const __ecma262_ToString = (argument: unknown): any => {
   if (Porffor.type(argument) == Porffor.TYPES.undefined) return 'undefined';
 
   // 4. If argument is null, return "null".
-  if (Porffor.fastAnd(
-    Porffor.type(argument) == Porffor.TYPES.object,
-    argument == 0)) return 'null';
+  if (argument === null) return 'null';
 
   if (Porffor.type(argument) == Porffor.TYPES.boolean) {
     // 5. If argument is true, return "true".
@@ -152,7 +149,7 @@ export const __ecma262_ToString = (argument: unknown): any => {
   }
 
   // 7. If argument is a Number, return Number::toString(argument, 10).
-  if (Porffor.type(argument) == Porffor.TYPES.number) return __Number_prototype_toString(argument, 10);
+  if (Porffor.type(argument) == Porffor.TYPES.number) return Porffor.callThis(__Number_prototype_toString, argument, 10);
 
   // 8. If argument is a BigInt, return BigInt::toString(argument, 10).
   if (Porffor.comptime.flag`hasType.bigint`) {
@@ -179,7 +176,7 @@ export const __ecma262_ToPropertyKey = (argument: any): any => {
   // 1. Let key be ? ToPrimitive(argument, string).
   // only run ToPrimitive if pure object for perf
   let key: any = argument;
-  if (Porffor.type(argument) == Porffor.TYPES.object && Porffor.wasm`local.get ${argument}` != 0)
+  if (Porffor.type(argument) == Porffor.TYPES.object && Porffor.IR.ptr(argument) != 0)
     key = __ecma262_ToPrimitive_String(argument);
 
   // 2. If key is a Symbol, then

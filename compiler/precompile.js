@@ -1,12 +1,7 @@
-import { Opcodes, Valtype } from './wasmSpec.js';
-import { TYPES, TYPE_NAMES } from './types.js';
-import { createImport, importedFuncs } from './builtins.js';
-import { log } from './log.js';
 
-createImport('print', 1, 0);
-createImport('printChar', 1, 0);
-createImport('time', 0, 1);
-createImport('timeOrigin', 0, 1);
+import { TYPES, TYPE_NAMES } from './types.js';
+import { K, T } from './ir.js';
+import { ieee754_binary64 } from './encoding.js';
 
 import process from 'node:process';
 globalThis.process = process;
@@ -19,35 +14,10 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 globalThis.precompileCompilerPath = __dirname;
 globalThis.precompile = true;
 
-globalThis.valtypeOverrides = {
-  returns: {
-    __Porffor_object_get: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_get_withHash: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_readValue: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_set: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_set_withHash: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_setStrict: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_setStrict_withHash: [ Valtype.f64, Valtype.i32 ],
-    __Porffor_object_packAccessor: [ Valtype.f64 ]
-  },
-  params: {
-    __Porffor_object_set: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
-    __Porffor_object_set_withHash: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
-    __Porffor_object_setStrict: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
-    __Porffor_object_setStrict_withHash: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
-    __Porffor_object_expr_init: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
-    __Porffor_object_fastAdd: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
-    __Porffor_object_class_value: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
-    __Porffor_object_class_method: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32 ],
-    __Porffor_object_define: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i32, Valtype.f64, Valtype.i32, Valtype.i32, Valtype.i32 ],
-    __Porffor_object_underlying: [ Valtype.f64, Valtype.i32 ]
-  }
-};
-
 const argv = process.argv.slice();
-
 const timing = {};
 let defaultPrefs = null;
+
 const compile = async (file, _funcs) => {
   let source = fs.readFileSync(file, 'utf8');
   let first = source.slice(0, source.indexOf('\n'));
@@ -57,252 +27,561 @@ const compile = async (file, _funcs) => {
     first = source.slice(0, source.indexOf('\n'));
   }
 
-  let args = ['--module', '--truthy=no_nan_negative', '--no-rm-unused-types', '--fast-length', '--parse-types', '--opt-types', '--no-passive-data', '--active-data', '--no-treeshake-wasm-imports', '--no-coctc', '--no-closures', '--never-fallback-builtin-proto', '--unroll-threshold=0'];
+  let args = ['--module', '--fast-length', '--parse-types', '--opt-types', '--no-closures', '--never-fallback-builtin-proto'];
   if (!defaultPrefs) {
     process.argv = argv.concat(args);
     globalThis.argvChanged?.();
     defaultPrefs = globalThis.Prefs;
   }
-
-  if (first.startsWith('// @porf')) {
-    args = first.slice('// @porf '.length).split(' ').concat(args);
-  }
+  if (first.startsWith('// @porf')) args = args.concat(first.slice('// @porf '.length).split(' '));
   process.argv = argv.concat(args);
   globalThis.argvChanged?.();
 
+  globalThis.file = file;
   const porfCompile = (await import(`./index.js?_=${Date.now()}`)).default;
 
-  let { funcs, globals, data, exceptions, times } = porfCompile(source);
+  const { funcs, data, times } = porfCompile(source);
+  const funcsByIndex = new Map();
+  for (const f of funcs) if (f) funcsByIndex.set(f.index, f);
 
-  timing.parse ??= 0;
-  timing.parse += times[1] - times[0];
-  timing.codegen ??= 0;
-  timing.codegen += times[2] - times[1];
-  timing.opt ??= 0;
-  timing.opt += times[3] - times[2];
+  timing.parse = (timing.parse ?? 0) + (times[1] - times[0]);
+  timing.codegen = (timing.codegen ?? 0) + (times[2] - times[1]);
 
-  const allocated = new Set();
-
-  const invGlobals = Object.keys(globals).reduce((acc, y) => {
-    acc[globals[y].idx] = { ...globals[y], name: y };
-    return acc;
-  }, {});
-
-  const main = funcs.find(x => x.name === '#main');
-  const exports = funcs.filter(x => x.export && x.name !== '#main');
-  for (const x of exports) {
-    const body = globalThis.funcBodies[x.name];
-    const bodyHasTopLevelThrow = body?.body && body.body.some(x => x.type === 'ThrowStatement');
-
-    if (x.name === '_eval') x.name = 'eval';
-    if (x.data) {
-      x.data = x.data.reduce((acc, x) => { acc[data[x].page] = data[x].bytes; return acc; }, {});
+  const remapCallTargets = (node, owner) => {
+    if (node == null || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      if (node.length === 6 && node[0] === K.Call && typeof node[3] === 'number') {
+        const target = funcsByIndex.get(node[3]);
+        if (!target?.name) throw new Error(`${owner}: missing precompiled call target ${node[3]}`);
+        node[3] = target.name;
+      }
+      for (const x of node) remapCallTargets(x, owner);
+      return;
     }
 
-    if (x.exceptions) {
-      x.exceptions = x.exceptions.map(x => {
-        const obj = exceptions[x];
-        if (obj) obj.exceptId = x;
-        return obj;
-      }).filter(x => x);
+    for (const x of Object.values(node)) remapCallTargets(x, owner);
+  };
+
+  const collectDataRefs = (node, refs) => {
+    if (node == null || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      if (node.length === 6 && node[0] === K.DataRef) refs.add(node[3]);
+      for (const x of node) collectDataRefs(x, refs);
+      return;
     }
 
-    const rewriteWasm = (x, wasm, rewriteLocals = false) => {
-      const locals = Object.keys(x.locals).reduce((acc, y) => {
-        acc[x.locals[y].idx] = { ...x.locals[y], name: y };
-        return acc;
-      }, {});
+    for (const x of Object.values(node)) collectDataRefs(x, refs);
+  };
+  const collectFuncDataRefs = (node, refs) => {
+    if (node == null || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      if (
+        node.length === 6 &&
+        node[0] === K.Box &&
+        Array.isArray(node[3]) && node[3][0] === K.DataRef &&
+        Array.isArray(node[4]) && node[4][0] === K.Const && node[4][3] === TYPES.function
+      ) {
+        const id = node[3][3];
+        const bytes = data[id];
+        const idx = bytes?.[0] | (bytes?.[1] << 8) | (bytes?.[2] << 16) | (bytes?.[3] << 24);
+        const env = bytes?.[4] | (bytes?.[5] << 8) | (bytes?.[6] << 16) | (bytes?.[7] << 24);
+        const target = funcsByIndex.get(idx);
+        if (!target?.name || env !== 0) throw new Error(`invalid precompiled function ref data ${id}`);
+        refs[id] = target.name;
+      }
+      for (const x of node) collectFuncDataRefs(x, refs);
+      return;
+    }
 
-      let depth = 0;
-      for (let i = 0; i < wasm.length; i++) {
-        const y = wasm[i];
-        const n = wasm[i + 1];
-
-        if (y[0] === Opcodes.block || y[0] === Opcodes.loop || y[0] === Opcodes.if || y[0] === Opcodes.try) depth++;
-        if (y[0] === Opcodes.end) depth--;
-
-        if (y[0] === Opcodes.call) {
-          const idx = y[1];
-          const f = funcs.find(x => x.index === idx);
-          if (!f) {
-            if (idx < importedFuncs.length) {
-              wasm[i] = [ Opcodes.call, importedFuncs[idx].name ];
-            }
-
-            continue;
-          }
-
-          wasm[i] = [ Opcodes.call, f.name ];
-        }
-
-        if (y[0] === Opcodes.global_get || y[0] === Opcodes.global_set) {
-          const global = invGlobals[y[1]];
-          wasm[i] = [ 'global', y[0], global.name, global.type ];
-
-          if (!x.globalInits) {
-            if (!main.rewrittenGlobalInits) {
-              for (const z in main.globalInits) {
-                rewriteWasm(main, main.globalInits[z], true);
-              }
-
-              main.rewrittenGlobalInits = true;
-            }
-
-            x.globalInits = main.globalInits;
-          }
-        }
-
-        if (rewriteLocals && typeof y[1] === 'number' && (y[0] === Opcodes.local_get || y[0] === Opcodes.local_set || y[0] === Opcodes.local_tee)) {
-          const local = locals[y[1]];
-          wasm[i] = [ y[0], 'local', local.name, local.type ];
-        }
-
-        if (!n) continue;
-
-        const alloc = l => {
-          if (!l) return;
-          if (![TYPES.array].includes(l.metadata?.type)) return;
-          if (!x.pages) return;
-
-          const pageName = [...x.pages.keys()].find(z => z.endsWith(l.name));
-          if (!pageName || allocated.has(pageName)) return;
-          allocated.add(pageName);
-
-          wasm[i] = [ 'alloc', pageName, valtypeBinary ];
-        };
-
-        if (y[0] === Opcodes.const &&(n[0] === Opcodes.local_set || n[0] === Opcodes.local_tee)) {
-          alloc(locals[n[1]]);
-        }
-
-        if (y[0] === Opcodes.const && n[0] === Opcodes.global_set) {
-          alloc(invGlobals[n[1]]);
-        }
-
-        if (n[0] === Opcodes.throw) {
-          x.usesTag = true;
-          let id;
-          if (y[0] === Opcodes.i32_const && n[1] === 0) {
-            id = y[1];
-            wasm[i] = [ 'throw', exceptions[id].constructor, exceptions[id].message ];
-
-            // remove throw inst
-            wasm.splice(i + 1, 1);
-          } else {
-            n[1]--;
-          }
-
-          if (!bodyHasTopLevelThrow && depth === 0) log.warning('codegen', `top-level throw in ${x.name} (${exceptions[id].constructor}: ${exceptions[id].message})`);
-        }
-
-        if (n[0] === Opcodes.catch) {
-          x.usesTag = true;
+    for (const x of Object.values(node)) collectFuncDataRefs(x, refs);
+  };
+  const collectFuncIndexRefs = (node, refs) => {
+    if (!Array.isArray(node)) return;
+    for (let i = 0; i < node.length; i++) {
+      const stmt = node[i];
+      if (
+        Array.isArray(stmt) &&
+        stmt.length === 6 &&
+        stmt[0] === K.Assign &&
+        Array.isArray(stmt[3]) && stmt[3][0] === K.Local &&
+        Array.isArray(stmt[4]) && stmt[4][0] === K.Alloc &&
+        stmt[4][4] === TYPES.function &&
+        Array.isArray(stmt[4][3]) && stmt[4][3][0] === K.Const && stmt[4][3][3] === 8
+      ) {
+        const localName = stmt[3][3];
+        const next = node[i + 1];
+        const value = next?.[5]?.[2];
+        if (
+          Array.isArray(next) &&
+          next.length === 6 &&
+          next[0] === K.Store &&
+          next[3] === 'u32' &&
+          Array.isArray(next[4]) && next[4][0] === K.Local && next[4][3] === localName &&
+          Array.isArray(next[5]) && next[5][0] === 0 &&
+          Array.isArray(value) && value[0] === K.Const && value[1] === T.u32
+        ) {
+          const target = funcsByIndex.get(value[3]);
+          if (!target?.name) throw new Error(`invalid precompiled function index ${value[3]}`);
+          refs[value[3]] = target.name;
         }
       }
-    };
 
-    rewriteWasm(x, x.wasm);
+      collectFuncIndexRefs(stmt, refs);
+    }
+  };
+  const collectGlobalRefs = (node, refs) => {
+    if (node == null || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      if (node.length === 6 && node[0] === K.Global) refs.add(node[3]);
+      for (const x of node) collectGlobalRefs(x, refs);
+      return;
+    }
+
+    for (const x of Object.values(node)) collectGlobalRefs(x, refs);
+  };
+
+  const exports = funcs.filter(x => x && x.export && x.name !== '#main');
+  const main = funcs.find(x => x?.name === '#main');
+  const globalInits = Object.create(null);
+  for (const stmt of main?.body ?? []) {
+    if (Array.isArray(stmt) && stmt[0] === K.Assign && Array.isArray(stmt[3]) && stmt[3][0] === K.Global) {
+      globalInits[stmt[3][3]] = stmt;
+    }
   }
+  for (const x of exports) {
+    if (x.name === '_eval') x.name = 'eval';
+    if (Object.keys(globalInits).length !== 0) {
+      const globalRefs = new Set();
+      collectGlobalRefs(x.body, globalRefs);
+      for (const name of globalRefs) {
+        if (globalInits[name]) (x.globalInits ??= Object.create(null))[name] = globalInits[name];
+      }
+    }
+    remapCallTargets(x.body, x.name);
+    if (x.globalInits) for (const name in x.globalInits) remapCallTargets(x.globalInits[name], x.name);
 
+    // keep referenced data segments with the body so DataRef ids remap into the user compile's arena
+    const dataRefs = new Set();
+    collectDataRefs(x.body, dataRefs);
+    if (x.globalInits) for (const name in x.globalInits) collectDataRefs(x.globalInits[name], dataRefs);
+    if (dataRefs.size !== 0) {
+      x.data = {};
+      for (const i of dataRefs) {
+        if (!data[i]) throw new Error(`${x.name}: missing data segment ${i}`);
+        x.data[i] = data[i];
+      }
+    }
+    const funcData = {};
+    collectFuncDataRefs(x.body, funcData);
+    if (x.globalInits) for (const name in x.globalInits) collectFuncDataRefs(x.globalInits[name], funcData);
+    if (Object.keys(funcData).length !== 0) x.funcData = funcData;
+    const funcRefs = {};
+    collectFuncIndexRefs(x.body, funcRefs);
+    if (x.globalInits) for (const name in x.globalInits) collectFuncIndexRefs(x.globalInits[name], funcRefs);
+    if (Object.keys(funcRefs).length !== 0) x.funcRefs = funcRefs;
+  }
   _funcs.push(...exports);
 };
 
+// IR to token stream: tags are non-base36 chars so they can't collide with bare integer tokens, unflatten is
+// the build-time roundtrip mirror (the runtime one is emitted into builtins_precompiled.js)
+const F64_HEX = v => ieee754_binary64(v).map(x => x.toString(16).padStart(2, '0')).join('');
+const fromF64Hex = hex => {
+  const b = new Uint8Array(8);
+  for (let i = 0; i < 8; i++) b[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return new Float64Array(b.buffer)[0];
+};
+
+const newIntern = () => {
+  const strings = [];
+  const ids = new Map();
+  return {
+    strings,
+    intern: v => {
+      let id = ids.get(v);
+      if (id == null) { id = strings.length; ids.set(v, id); strings.push(v); }
+      return id;
+    }
+  };
+};
+
+const flatten = (value, out, intern) => {
+  if (value === null) { out.push('_'); return; }
+  if (value === undefined) { out.push('U'); return; }
+  if (value === true) { out.push('T'); return; }
+  if (value === false) { out.push('F'); return; }
+  const t = typeof value;
+  if (t === 'string') { out.push('@' + intern(value).toString(36)); return; }
+  if (t === 'bigint') { out.push('B' + intern(value.toString()).toString(36)); return; }
+  if (t === 'number') {
+    if (Number.isInteger(value) && Number.isSafeInteger(value) && !Object.is(value, -0)) out.push(value.toString(36));
+    else out.push('D' + F64_HEX(value));
+    return;
+  }
+  if (Array.isArray(value)) {
+    out.push('A' + value.length.toString(36));
+    for (const x of value) flatten(x, out, intern);
+    return;
+  }
+  const keys = Object.keys(value);
+  out.push('O' + keys.length.toString(36));
+  for (const k of keys) { out.push('@' + intern(k).toString(36)); flatten(value[k], out, intern); }
+};
+
+const unflatten = (cur, strings) => {
+  const tok = cur.tokens[cur.i++];
+  const tag = tok[0];
+  if (tag === '_') return null;
+  if (tag === 'U') return undefined;
+  if (tag === 'T') return true;
+  if (tag === 'F') return false;
+  if (tag === '@') return strings[parseInt(tok.slice(1), 36)];
+  if (tag === 'B') return BigInt(strings[parseInt(tok.slice(1), 36)]);
+  if (tag === 'D') return fromF64Hex(tok.slice(1));
+  if (tag === 'A') {
+    const len = parseInt(tok.slice(1), 36);
+    const a = new Array(len);
+    for (let j = 0; j < len; j++) a[j] = unflatten(cur, strings);
+    return a;
+  }
+  if (tag === 'O') {
+    const len = parseInt(tok.slice(1), 36);
+    const o = {};
+    for (let j = 0; j < len; j++) { const k = unflatten(cur, strings); o[k] = unflatten(cur, strings); }
+    return o;
+  }
+  return parseInt(tok, 36);
+};
+
+// huffman-code the token streams
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_';
+
+const buildHuffman = streams => {
+  const freqs = new Map();
+  for (const s of streams) for (const tok of s) freqs.set(tok, (freqs.get(tok) ?? 0) + 1);
+  if (freqs.size === 0) freqs.set('', 1);
+
+  const nodes = [...freqs.entries()].map(([ token, freq ], id) => ({ token, freq, id }));
+  const queue = nodes.slice();
+  while (queue.length > 1) {
+    queue.sort((a, b) => a.freq - b.freq);
+    const left = queue.shift(), right = queue.shift();
+    queue.push({ freq: left.freq + right.freq, left, right });
+  }
+  const codes = new Map();
+  const walk = (node, code) => {
+    if (node.token != null) { codes.set(node.token, code || '0'); return node.id; }
+    return [ walk(node.left, code + '0'), walk(node.right, code + '1') ];
+  };
+  const tree = walk(queue[0], '');
+  return { tree, codes, tokens: nodes.map(x => x.token) };
+};
+
+const huffEncode = (stream, codes) => {
+  let bits = '';
+  for (const tok of stream) bits += codes.get(tok);
+  let out = '';
+  for (let i = 0; i < bits.length; i += 6) out += ALPHABET[parseInt(bits.slice(i, i + 6).padEnd(6, '0'), 2)];
+  return `${bits.length.toString(36)}:${out}`;
+};
+
+const huffDecode = (data, tree, tokens) => {
+  const out = [];
+  let node = tree;
+  const split = data.indexOf(':');
+  const bits = parseInt(data.slice(0, split), 36);
+  data = data.slice(split + 1);
+  for (let i = 0; i < bits; i++) {
+    const value = ALPHABET.indexOf(data[(i / 6) | 0]);
+    node = node[(value >> (5 - (i % 6))) & 1];
+    if (typeof node === 'number') { out.push(tokens[node]); node = tree; }
+  }
+  return out;
+};
+
+// runtime decoder source emitted into builtins_precompiled.js.
+const runtimeDecoderSource = `
+const strings = __PORFFOR_STRINGS__;
+const huffTree = __PORFFOR_TREE__;
+const huffTokens = __PORFFOR_TOKENS__;
+
+const huffValue = c => c >= 97 ? c - 71 : c >= 65 && c <= 90 ? c - 65 : c >= 48 && c <= 57 ? c + 4 : c === 36 ? 62 : 63;
+const huffDecode = data => {
+  const out = [];
+  let node = 0;
+  const split = data.indexOf(':');
+  const bits = parseInt(data.slice(0, split), 36);
+  const start = split + 1;
+  for (let i = 0; i < bits; i++) {
+    const value = huffValue(data.charCodeAt(start + ((i / 6) | 0)));
+    node = huffTree[node][(value >> (5 - (i % 6))) & 1];
+    if (node < 0) { out.push(huffTokens[-node - 1]); node = 0; }
+  }
+  return out;
+};
+
+const f64Bytes = new Uint8Array(8);
+const f64View = new Float64Array(f64Bytes.buffer);
+const fromF64Hex = hex => {
+  for (let i = 0; i < 8; i++) f64Bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return f64View[0];
+};
+
+// reconstruct one IR value from a token cursor { tokens, i }. (Phase 4 will thread the dynamic
+// h.* helpers - builtin inclusion, lazy typeswitch gating, comptime, data remap - through here.)
+const unflatten = cur => {
+  const tok = cur.tokens[cur.i++];
+  const tag = tok[0];
+  if (tag === '_') return null;
+  if (tag === 'U') return undefined;
+  if (tag === 'T') return true;
+  if (tag === 'F') return false;
+  if (tag === '@') return strings[parseInt(tok.slice(1), 36)];
+  if (tag === 'B') return BigInt(strings[parseInt(tok.slice(1), 36)]);
+  if (tag === 'D') return fromF64Hex(tok.slice(1));
+  if (tag === 'A') {
+    const len = parseInt(tok.slice(1), 36);
+    const a = new Array(len);
+    for (let j = 0; j < len; j++) a[j] = unflatten(cur);
+    return a;
+  }
+  if (tag === 'O') {
+    const len = parseInt(tok.slice(1), 36);
+    const o = {};
+    for (let j = 0; j < len; j++) { const k = unflatten(cur); o[k] = unflatten(cur); }
+    return o;
+  }
+  return parseInt(tok, 36);
+};
+
+// IR node kinds the dynamic walk cares about (mirrors ir.js K.*).
+const K_Const = ${K.Const}, K_DataRef = ${K.DataRef}, K_Global = ${K.Global}, K_TypeSwitch = ${K.TypeSwitch}, K_Call = ${K.Call}, K_Alloc = ${K.Alloc}, K_Store = ${K.Store}, K_ThrowNew = ${K.ThrowNew};
+const T_u32 = ${T.u32};
+
+// is \`v\` an IR node array (defensive: length-6, numeric kind/type/fx)? a value-array such as a
+// case tuple or a list of type ids fails this, and the per-kind guards below disambiguate the
+// rare collision (e.g. a 6-long type-id list whose [0] equals a kind number).
+const isNode = v => Array.isArray(v) && v.length === 6 && typeof v[0] === 'number' && typeof v[1] === 'number' && typeof v[2] === 'number';
+const isComptimeFlag = v => v && typeof v === 'object' && !Array.isArray(v) && v.__porfComptimeFlag;
+const resolveComptimeFlag = (h, kind, value) => kind === 'hasFunc' ? h.hasFunc(value) : h.usesAnyType([ value ]);
+
+// the dynamic resolution pass walks the reconstructed IR tree, threading the codegen helpers \`h\`:
+//   - live Call to a builtin       -> h.includeBuiltin(name)   (so it gets compiled + emitted)
+//   - DataRef / Alloc / Global     -> h.remap* / h.global      (rebind to the user compile's arena)
+//   - TypeSwitch case              -> deferred to h.onFinalize, gated on h.usesAnyType(typeIds)
+//     when usedTypes is final, so a dead case's subtree is never walked (its builtins/strings are
+//     never included -> never emitted), while a type first used by a later builtin still activates.
+const walk = (node, h) => {
+  if (isComptimeFlag(node)) return node;
+  if (!isNode(node)) {
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) {
+        const x = node[i];
+        if (isComptimeFlag(x)) {
+          h.onFinalize(() => {
+            const pos = node.indexOf(x);
+            if (pos === -1) return;
+            const [ kind, value, thenBranch, elseBranch ] = x.__porfComptimeFlag;
+            const selected = resolveComptimeFlag(h, kind, value) ? thenBranch : elseBranch;
+            node.splice(pos, 1, ...selected);
+            for (let j = pos; j < pos + selected.length; j++) walk(node[j], h);
+          });
+        } else node[i] = walk(x, h);
+      }
+    }
+    return node;
+  }
+
+  const kind = node[0];
+  if (kind === K_TypeSwitch && Array.isArray(node[4]) && node[4].every(c => Array.isArray(c))) {
+    walk(node[3], h); // subject is always live
+    for (const c of node[4]) {
+      const typeIds = c[0];
+      let walkedCase = false;
+      h.onFinalize(() => {
+        if (walkedCase || !h.usesAnyType(typeIds)) return;
+        walkedCase = true;
+        for (let j = 1; j < c.length; j++) walk(c[j], h);
+      });
+    }
+    walk(node[5], h); // default
+    return node;
+  }
+
+  if (kind === K_Call && typeof node[3] === 'string' && h.hasBuiltin(node[3])) h.includeBuiltin(node[3]);
+  // a throwable error type is usable: its accessors/toString must survive type gating
+  else if (kind === K_ThrowNew) h.typeUsed(node[3]);
+  else if (kind === K_DataRef) node[3] = h.remapData(node[3]);
+  else if (kind === K_Alloc && Array.isArray(node[5])) node[5][0] = h.remapAllocSite(node[5][0]);
+  else if (
+    kind === K_Store &&
+    node[3] === 'u32' &&
+    Array.isArray(node[5]) && node[5][0] === 0 &&
+    Array.isArray(node[5][2]) && node[5][2][0] === K_Const && node[5][2][1] === T_u32
+  ) {
+    node[5][2][3] = h.remapFuncIndex(node[5][2][3]);
+  }
+  else if (kind === K_Global && typeof node[3] === 'string') h.global(node[3], node[1]);
+
+  walk(node[3], h);
+  walk(node[4], h);
+  walk(node[5], h);
+  return node;
+};
+
+const decodeIR = (h, data) => walk(unflatten({ tokens: huffDecode(data), i: 0 }), h);
+`;
+
 const precompile = async () => {
-  if (globalThis._porf_loadParser) await globalThis._porf_loadParser('@babel/parser');
-
   const dir = join(__dirname, 'builtins');
-
   const t = performance.now();
 
-  let funcs = [];
+  const funcs = [];
   let fileCount = 0;
   for (const file of fs.readdirSync(dir).toSorted()) {
     if (file.endsWith('.d.ts')) continue;
     fileCount++;
-
     globalThis.precompile = file;
-    const t = performance.now();
-
+    const ft = performance.now();
     try {
       await compile(join(dir, file), funcs);
     } catch (e) {
       console.log(`\r${' '.repeat(80)}\r${' '.repeat(12)}${file}\r`);
       throw e;
     }
-
-    process.stdout.write(`\r${' '.repeat(80)}\r\u001b[2m${`[${(performance.now() - t).toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92m${file}\u001b[0m\r`);
+    process.stdout.write(`\r${' '.repeat(80)}\r[2m${`[${(performance.now() - ft).toFixed(2)}ms]`.padEnd(12)}[0m[92m${file}[0m\r`);
   }
 
   const total = performance.now() - t;
-  console.log(`\r${' '.repeat(80)}\r\u001b[2m${`[${total.toFixed(2)}ms]`.padEnd(12, ' ')}\u001b[0m\u001b[92mcompiled ${funcs.length} funcs from ${fileCount} files\u001b[0m \u001b[90m(${['parse', 'codegen', 'opt'].map(x => `${x}: ${((timing[x] / total) * 100).toFixed(0)}%`).join(', ')})\u001b[0m`);
+  console.log(`\r${' '.repeat(80)}\r[2m${`[${total.toFixed(2)}ms]`.padEnd(12)}[0m[92mcompiled ${funcs.length} funcs from ${fileCount} files[0m [90m(${['parse', 'codegen'].map(x => `${x}: ${((timing[x] / total) * 100).toFixed(0)}%`).join(', ')})[0m`);
 
-  const comptimeFlagChecks = {
-    hasFunc: x => `hasFunc('${x}')`,
-    hasType: x => `usedTypes.has(${TYPES[x]})`
+  const { strings, intern } = newIntern();
+  const streamOf = body => { const out = []; flatten(body, out, intern); return out; };
+
+  const streams = [];
+  for (const x of funcs) {
+    x._bodyStream = streamOf(x.body);
+    streams.push(x._bodyStream);
+    if (x.globalInits) {
+      x._globalInitStreams = {};
+      for (const g in x.globalInits) {
+        const s = streamOf(x.globalInits[g]);
+        x._globalInitStreams[g] = s;
+        streams.push(s);
+      }
+    }
+
+    // metadata record: everything except body/globalInits
+    const params = x.params.map(p => [ p.name, p.type ]);
+    const locals = Object.entries(x.locals).filter(([ n ]) => !x.params.some(p => p.name === n));
+    const localNames = locals.map(([ n ]) => n);
+    const localTypes = locals.map(([ , l ]) => l.type);
+    const localMeta = locals.flatMap(([ , l ], i) => l.metadata?.type != null ? [ i, l.metadata.type ] : []);
+    const returnTypes = [ ...(x.returnTypes ?? []) ].filter(t => ![ TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ].includes(t));
+
+    const meta = { params, retType: x.retType };
+    if (x.returnType != null) meta.returnType = x.returnType;
+    if (returnTypes.length) meta.returnTypes = returnTypes;
+    meta.jsLength = x.jsLength;
+    if (localNames.length) { meta.localNames = localNames; meta.localTypes = localTypes; }
+    if (localMeta.length) meta.localMetadata = localMeta;
+    if (x.data && Object.keys(x.data).length) meta.data = x.data;
+    if (x.funcData && Object.keys(x.funcData).length) meta.funcData = x.funcData;
+    if (x.funcRefs && Object.keys(x.funcRefs).length) meta.funcRefs = x.funcRefs;
+    if (x.constr) meta.constr = 1;
+    if (x.closureAware) meta.closureAware = 1;
+    if (x.selfAware) meta.selfAware = 1;
+    if (x.hasRestArgument) meta.hasRestArgument = 1;
+    if (x.usesArguments) meta.usesArguments = 1;
+    x._metaValue = meta;
+    x._metaStream = streamOf(meta);
+    streams.push(x._metaStream);
+  }
+
+  const { tree, codes, tokens } = buildHuffman(streams);
+
+  // per-func roundtrip self-check: encode -> decode must reproduce the body
+  const eq = (a, b) => {
+    if (a === b) return true;
+    if (typeof a === 'bigint' || typeof b === 'bigint') return a === b;
+    if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => eq(x, b[i]));
+    if (a && b && typeof a === 'object' && typeof b === 'object') {
+      const ka = Object.keys(a), kb = Object.keys(b);
+      return ka.length === kb.length && ka.every(k => eq(a[k], b[k]));
+    }
+    return Object.is(a, b);
   };
+  for (const x of funcs) {
+    const rebuilt = unflatten({ tokens: huffDecode(huffEncode(x._bodyStream, codes), tree, tokens), i: 0 }, strings);
+    if (!eq(x.body, rebuilt)) throw new Error(`precompile roundtrip failed for ${x.name}`);
+    const rebuiltMeta = unflatten({ tokens: huffDecode(huffEncode(x._metaStream, codes), tree, tokens), i: 0 }, strings);
+    if (!eq(x._metaValue, rebuiltMeta)) throw new Error(`precompile meta roundtrip failed for ${x.name}`);
+  }
 
-  return `// autogenerated by compiler/precompile.js
-import { number } from './encoding.js';
+  // one record per builtin: name \x01 body \x01 meta [\x01 global \x01 init ...]
+  const records = funcs.map(x => [
+    x.name,
+    huffEncode(x._bodyStream, codes),
+    huffEncode(x._metaStream, codes),
+    ...(x._globalInitStreams
+      ? Object.keys(x._globalInitStreams).flatMap(g => [ g, huffEncode(x._globalInitStreams[g], codes) ])
+      : [])
+  ].join('\x01'));
 
+  const flatTree = [];
+  const flattenTree = node => {
+    if (typeof node === 'number') return -node - 1;
+    const id = flatTree.length;
+    flatTree.push(null);
+    flatTree[id] = [ flattenTree(node[0]), flattenTree(node[1]) ];
+    return id;
+  };
+  flattenTree(tree);
+
+  const decoder = runtimeDecoderSource
+    .replace('__PORFFOR_STRINGS__', JSON.stringify(strings))
+    .replace('__PORFFOR_TREE__', JSON.stringify(flatTree))
+    .replace('__PORFFOR_TOKENS__', JSON.stringify(tokens));
+
+  return `// autogenerated by compiler/precompile.js - do not edit
 const defaultPrefs = ${JSON.stringify(defaultPrefs)};
-const resetGlobals = (Valtype,Opcodes)=>{valtype=Prefs.valtype??'f64';valtypeBinary=Valtype[valtype];Opcodes.const=valtypeBinary===Valtype.i32?Opcodes.i32_const:Opcodes.f64_const;Opcodes.eq=valtypeBinary===Valtype.i32?Opcodes.i32_eq:Opcodes.f64_eq;Opcodes.eqz=valtypeBinary===Valtype.i32?[[Opcodes.i32_eqz]]:[number(0),[Opcodes.f64_eq]];Opcodes.mul=valtypeBinary===Valtype.i32?Opcodes.i32_mul:Opcodes.f64_mul;Opcodes.add=valtypeBinary===Valtype.i32?Opcodes.i32_add:Opcodes.f64_add;Opcodes.sub=valtypeBinary===Valtype.i32?Opcodes.i32_sub:Opcodes.f64_sub;Opcodes.i32_to=valtypeBinary===Valtype.i32?[]:Opcodes.i32_trunc_sat_f64_s;Opcodes.i32_to_u=valtypeBinary===Valtype.i32?[]:Opcodes.i32_trunc_sat_f64_u;Opcodes.i32_from=valtypeBinary===Valtype.i32?[]:[Opcodes.f64_convert_i32_s];Opcodes.i32_from_u=valtypeBinary===Valtype.i32?[]:[Opcodes.f64_convert_i32_u];Opcodes.load=valtypeBinary===Valtype.i32?Opcodes.i32_load:Opcodes.f64_load;Opcodes.store=valtypeBinary===Valtype.i32?Opcodes.i32_store:Opcodes.f64_store;};
+${decoder}
+// b(data) lazily decodes a compressed IR body the first time it is read.
+const b = data => {
+  const out = h => decodeIR(h, data);
+  out.precompiled = true;
+  return out;
+};
+
+// one \\x02-separated record per builtin: name \\x01 body \\x01 meta [\\x01 global \\x01 init ...].
+// entries are registered as replace-on-first-read accessors, so a compile only decodes the
+// builtins it actually touches and the table stays one flat string instead of generated code
+const funcsTable = ${JSON.stringify(records.join('\x02'))};
+const entryOf = parts => {
+  const entry = unflatten({ tokens: huffDecode(parts[2]), i: 0 });
+  entry.body = b(parts[1]);
+  for (let i = 3; i < parts.length; i += 2) (entry.globalInits ??= {})[parts[i]] = b(parts[i + 1]);
+  return entry;
+};
 
 export const BuiltinFuncs = x => {
-${funcs.map(x => {
-  const rewriteWasm = wasm => {
-    const str = JSON.stringify(wasm.filter(x => x.length && (x[0] != null || typeof x[1] === 'string')), (k, v) => {
-      if (Number.isNaN(v) || v === Infinity || v === -Infinity) return v.toString();
-      if (Object.is(v, -0)) return '-0';
-      return v;
-    })
-      .replace(/\["alloc","(.*?)",(.*?)\]/g, (_, reason, valtype) => `[${+valtype === Valtype.i32 ? Opcodes.i32_const : Opcodes.f64_const},allocPage(_,'${reason}')]`)
-      .replace(/\["global",(.*?),"(.*?)",(.*?)\]/g, (_, opcode, name, valtype) => `...glbl(${opcode},'${name}',${valtype})`)
-      .replace(/\"local","(.*?)",(.*?)\]/g, (_, name, valtype) => `loc('${name}',${valtype})]`)
-      .replace(/\[16,"(.*?)"]/g, (_, name) => `[16,builtin('${name}')]`)
-      .replace(/\["funcref",(.*?),"(.*?)"]/g, (_1, op, name) => op === '65' ? `...i32ify(funcRef('${name}'))` : `...funcRef('${name}')`)
-      .replace(/\["str",(.*?),"(.*?)",(.*?)]/g, (_1, op, str, bytestring) => op === '65' ? `...i32ify(makeString(_,"${str}",${bytestring === 'true' ? 1 : 0}))` : `...makeString(_,"${str}",${bytestring === 'true' ? 1 : 0})`)
-      .replace(/\["throw","(.*?)","(.*?)"\]/g, (_, constructor, message) => `...internalThrow(_,'${constructor}',\`${message}\`)`)
-      .replace(/\["get object","(.*?)"\]/g, (_, objName) => `...generateIdent(_,{name:'${objName}'})`)
-      .replace(/\[null,"typeswitch case start",\[(.*?)\]\],/g, (_, types) => `...t([${types}],()=>[`)
-      .replaceAll(',[null,"typeswitch case end"]', '])')
-      .replace(/\[null,"comptime_flag","(.*?)",(\{.*?\}),"#",(\{.*?\}),"#",(\{.*?\})\]/g, (_, flag, passAst, failAst, prefs) => {
-        const processAst = ast => JSON.stringify(
-          JSON.parse(ast.replaceAll('\n', '\\n')),
-          (k, v) => {
-            if (k === 'loc' || k === 'start' || k === 'end') return undefined;
-            return v;
-          }
-        );
-        passAst = processAst(passAst);
-        failAst = processAst(failAst);
-
-        // ignore default prefs in prefs for better diff and size
-        prefs = JSON.parse(prefs);
-        const diffPrefs = Object.keys(prefs).reduce((acc, x) => { if (prefs[x] !== defaultPrefs[x]) acc[x] = prefs[x]; return acc; }, {});
-
-        const [ id, extra ] = flag.split('.');
-        return `[null,()=>{const a=Prefs;Prefs={...defaultPrefs,${JSON.stringify(diffPrefs).slice(1, -1)}};resetGlobals(Valtype,Opcodes);const b=generate(_,${comptimeFlagChecks[id](extra)}?${passAst}:${failAst});if(b.at(-1)[0]>=0x41&&b.at(-1)[0]<=0x44)b.pop();Prefs=a;resetGlobals(Valtype,Opcodes);return b;}]`;
-      })
-      .replaceAll('"-0"', '-0');
-
-    return `(_,{${str.includes('usedTypes.') ? 'usedTypes,' : ''}${str.includes('hasFunc(') ? 'hasFunc,' : ''}${str.includes('Valtype') ? 'Valtype,' : ''}${str.includes('i32ify') ? 'i32ify,' : ''}${str.includes('Opcodes') ? 'Opcodes,' : ''}${str.includes('...t(') ? 't,' : ''}${`${str.includes('allocPage(') ? 'allocPage,' : ''}${str.includes('makeString(') ? 'makeString,' : ''}${str.includes('glbl(') ? 'glbl,' : ''}${str.includes('loc(') ? 'loc,' : ''}${str.includes('builtin(') ? 'builtin,' : ''}${str.includes('funcRef(') ? 'funcRef,' : ''}${str.includes('internalThrow(') ? 'internalThrow,' : ''}${str.includes('generateIdent(') ? 'generateIdent,' : ''}${str.includes('generate(') ? 'generate,' : ''}`.slice(0, -1)}})=>`.replace('_,{}', '') + `eval(${JSON.stringify(str)})`;
-  };
-
-  const locals = Object.entries(x.locals).sort((a,b) => a[1].idx - b[1].idx)
-
-  // todo: check for other identifier unsafe characters
-  const name = x.name.includes('#') ? `['${x.name}']` : `.${x.name}`;
-
-  const returnTypes = [...(x.returnTypes ?? [])].filter(x => ![ TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ].includes(x));
-  return `x${name}={
-wasm:${rewriteWasm(x.wasm)},
-params:${JSON.stringify(x.params)},typedParams:1,returns:${JSON.stringify(x.returns)},${x.returnType != null ? `returnType:${JSON.stringify(x.returnType)},` : ''}${returnTypes.length > 0 ? `returnTypes:${JSON.stringify(returnTypes)},` : ''}jsLength:${x.jsLength},
-locals:${JSON.stringify(locals.slice(x.params.length).map(x => x[1].type))},localNames:${JSON.stringify(locals.map(x => x[0]))},
-${x.globalInits ? `globalInits:{${Object.keys(x.globalInits).map(y => `${y}:${rewriteWasm(x.globalInits[y])}`).join(',')}},` : ''}${x.data && Object.keys(x.data).length > 0 ? `data:${JSON.stringify(x.data)},` : ''}
-${x.table ? `table:1,` : ''}${x.constr ? `constr:1,` : ''}${x.hasRestArgument ? `hasRestArgument:1,` : ''}${x.usesTag ? `usesTag:1,` : ''}${x.usesImports ? `usesImports:1,` : ''}
-}`.replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll('\n\n', '\n').replaceAll(',\n}', '\n}');
-}).join('\n')}
+  for (const rec of funcsTable.split('\\x02')) {
+    const parts = rec.split('\\x01');
+    const name = parts[0];
+    if (name in x) { x[name] = entryOf(parts); continue; } // assignment: comptime wrappers merge via their setter
+    const materialize = v => Object.defineProperty(x, name, { value: v, writable: true, enumerable: true, configurable: true });
+    Object.defineProperty(x, name, {
+      configurable: true,
+      enumerable: true,
+      get() { const entry = entryOf(parts); materialize(entry); return entry; },
+      set: materialize
+    });
+  }
 }`;
 };
 
-fs.writeFileSync(join(__dirname, 'builtins_precompiled.js'), await precompile());
+if (import.meta.url === `file://${process.argv[1]}`) {
+  fs.writeFileSync(join(__dirname, 'builtins_precompiled.js'), await precompile());
+}
+
+export { newIntern, flatten, unflatten, buildHuffman, huffEncode, huffDecode };

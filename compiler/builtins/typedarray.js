@@ -4,10 +4,7 @@ export default async () => {
   const arrayCode = (await import('node:fs')).readFileSync(globalThis.precompileCompilerPath + '/builtins/array.ts', 'utf8');
   const typedArrayFuncs = [...arrayCode.matchAll(/\/\/ @porf-typed-array[\s\S]+?^};$/gm)].map(x => x[0]);
 
-  // TypedArrays are stored like this in memory:
-  // length (i32)
-  // bufferPtr (i32) - buffer + byteOffset
-  // byteOffset (i32) - only used for getter
+  // typedarray layout: length (i32), bufferPtr (i32, buffer + byteOffset), byteOffset (i32, getter only)
 
   for (const x of [ 'Uint8', 'Int8', 'Uint8Clamped', 'Uint16', 'Int16', 'Uint32', 'Int32', 'Float32', 'Float64', 'BigInt64', 'BigUint64' ]) {
     const name = x + 'Array';
@@ -15,34 +12,58 @@ export default async () => {
   if (!new.target) throw new TypeError("Constructor ${name} requires 'new'");
 
   const out: ${name} = Porffor.malloc(12);
-  const outPtr: i32 = Porffor.wasm\`local.get \${out}\`;
+  const outPtr: i32 = Porffor.IR.ptr(out);
+  Porffor.IR.storeI32(outPtr, 0, 0);
+  Porffor.IR.storeI32(outPtr, 4, 0);
+  Porffor.IR.storeI32(outPtr, 8, 0);
 
   let len: i32 = 0;
+  let byteLength: number = 0;
   let bufferPtr: i32;
 
   if (Porffor.fastOr(
     Porffor.type(arg) == Porffor.TYPES.arraybuffer,
     Porffor.type(arg) == Porffor.TYPES.sharedarraybuffer
   )) {
-    bufferPtr = Porffor.wasm\`local.get \${arg}\`;
+    bufferPtr = Porffor.IR.ptr(arg);
     if (arg.detached) throw new TypeError('Constructed ${name} with a detached ArrayBuffer');
 
     let offset: i32 = 0;
     if (Porffor.type(byteOffset) != Porffor.TYPES.undefined) offset = Math.trunc(byteOffset);
     if (offset < 0) throw new RangeError('Invalid DataView byte offset (negative)');
 
-    Porffor.wasm.i32.store(outPtr, offset, 0, 8);
-    Porffor.wasm.i32.store(outPtr, bufferPtr + offset, 0, 4);
+    Porffor.IR.storeI32(outPtr, 8, offset);
+    Porffor.IR.storeI32(outPtr, 4, bufferPtr + offset);
 
     if (Porffor.type(length) == Porffor.TYPES.undefined) {
-      const bufferLen: i32 = Porffor.wasm.i32.load(bufferPtr, 0, 0);
-      len = (bufferLen - byteOffset) / ${name}.BYTES_PER_ELEMENT;
+      const bufferLen: i32 = Porffor.IR.loadI32(bufferPtr, 0);
+      len = (bufferLen - offset) / ${name}.BYTES_PER_ELEMENT;
 
       if (!Number.isInteger(len)) throw new RangeError('Byte length of ${name} should be divisible by BYTES_PER_ELEMENT');
     } else len = Math.trunc(length);
+
+    byteLength = len * ${name}.BYTES_PER_ELEMENT;
   } else {
-    bufferPtr = Porffor.malloc();
-    Porffor.wasm.i32.store(outPtr, bufferPtr, 0, 4);
+    if (Porffor.fastOr(
+      Porffor.type(arg) == Porffor.TYPES.array,
+      (Porffor.type(arg) | 0b10000000) == Porffor.TYPES.bytestring,
+      Porffor.type(arg) == Porffor.TYPES.set,
+      Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array)
+    )) {
+      len = arg.length;
+    } else if (Porffor.type(arg) == Porffor.TYPES.number) {
+      len = Math.trunc(arg);
+    }
+
+    byteLength = len * ${name}.BYTES_PER_ELEMENT;
+
+    if (len < 0) throw new RangeError('Invalid TypedArray length (negative)');
+    if (byteLength > 2147483643) throw new RangeError('Invalid ArrayBuffer length (over maximum supported length)');
+
+    bufferPtr = Porffor.malloc(4 + byteLength);
+    Porffor.IR.storeI32(outPtr, 4, bufferPtr);
+    Porffor.IR.storeI32(bufferPtr, 0, byteLength);
+    Porffor.IR.fill(bufferPtr + 4, 0, byteLength);
 
     if (Porffor.fastOr(
       Porffor.type(arg) == Porffor.TYPES.array,
@@ -54,25 +75,23 @@ export default async () => {
       for (const x of arg) {
         out[i++] = x;
       }
-      len = i;
-    } else if (Porffor.type(arg) == Porffor.TYPES.number) {
-      len = Math.trunc(arg);
     }
-
-    Porffor.wasm.i32.store(bufferPtr, len * ${name}.BYTES_PER_ELEMENT, 0, 0);
   }
 
   if (len < 0) throw new RangeError('Invalid TypedArray length (negative)');
-  if (len > 4294967295) throw new RangeError('Invalid ArrayBuffer length (over 32 bit address space)');
+  if (byteLength > 2147483643) throw new RangeError('Invalid ArrayBuffer length (over maximum supported length)');
 
-  Porffor.wasm.i32.store(outPtr, len, 0, 0);
+  Porffor.IR.storeI32(outPtr, 0, len);
+  // the buffer malloc above can run a minor that promotes out in place; the raw
+  // buffer store has no barrier, so remember it before the frame's locals die
+  Porffor.IR.gcBarrier(out, Porffor.type(out));
   return out;
 };
 
 export const __${name}_of = (...items: any[]): ${name} => new ${name}(items);
 
 export const __${name}_from = (arg: any, mapFn: any): ${name} => {
-  const arr: any[] = Porffor.malloc();
+  const arr: any[] = Porffor.array.new(4);
   let len: i32 = 0;
 
   if (Porffor.fastOr(
@@ -102,33 +121,33 @@ export const __${name}_from = (arg: any, mapFn: any): ${name} => {
   return new ${name}(arr);
 };
 
-export const __${name}_prototype_buffer$get = (_this: ${name}): any|ArrayBuffer => {
-  return Porffor.wasm.i32.load(_this, 0, 4) - Porffor.wasm.i32.load(_this, 0, 8) as ArrayBuffer;
+export const __${name}_prototype_buffer$get = function (this: ${name}): any|ArrayBuffer {
+  return Porffor.IR.loadI32(this, 4) - Porffor.IR.loadI32(this, 8) as ArrayBuffer;
 };
 
-export const __${name}_prototype_byteLength$get = (_this: ${name}) => {
-  return Porffor.wasm.i32.load(_this, 0, 0) * ${name}.BYTES_PER_ELEMENT;
+export const __${name}_prototype_byteLength$get = function (this: ${name}) {
+  return Porffor.IR.loadI32(this, 0) * ${name}.BYTES_PER_ELEMENT;
 };
 
-export const __${name}_prototype_byteOffset$get = (_this: ${name}) => {
-  return Porffor.wasm.i32.load(_this, 0, 8);
+export const __${name}_prototype_byteOffset$get = function (this: ${name}) {
+  return Porffor.IR.loadI32(this, 8);
 };
 
-export const __${name}_prototype_at = (_this: ${name}, index: any) => {
+export const __${name}_prototype_at = function (this: ${name}, index: any) {
   index = ecma262.ToIntegerOrInfinity(index);
 
-  const len: i32 = _this.length;
+  const len: i32 = this.length;
   if (index < 0) {
     index = len + index;
     if (index < 0) return undefined;
   }
   if (index >= len) return undefined;
 
-  return _this[index];
+  return this[index];
 };
 
-export const __${name}_prototype_slice = (_this: ${name}, start: any, end: any) => {
-  const len: i32 = _this.length;
+export const __${name}_prototype_slice = function (this: ${name}, start: any, end: any) {
+  const len: i32 = this.length;
   start = ecma262.ToIntegerOrInfinity(start);
   if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
     else end = ecma262.ToIntegerOrInfinity(end);
@@ -144,22 +163,20 @@ export const __${name}_prototype_slice = (_this: ${name}, start: any, end: any) 
   }
   if (end > len) end = len;
 
-  const out: ${name} = Porffor.malloc();
-
-  if (start > end) return out;
+  const outLen: i32 = start > end ? 0 : end - start;
+  const out: ${name} = new ${name}(outLen);
 
   let i: i32 = start;
   let j: i32 = 0;
-  while (i < end) {
-    out[j++] = _this[i++];
+  while (j < outLen) {
+    out[j++] = this[i++];
   }
 
-  out.length = end - start;
   return out;
 };
 
-export const __${name}_prototype_set = (_this: ${name}, array: any, offset: number) => {
-  const len: i32 = _this.length;
+export const __${name}_prototype_set = function (this: ${name}, array: any, offset: number) {
+  const len: i32 = this.length;
 
   offset = Math.trunc(offset);
   if (Porffor.fastOr(offset < 0, offset > len)) throw new RangeError('Offset out of bounds');
@@ -172,14 +189,14 @@ export const __${name}_prototype_set = (_this: ${name}, array: any, offset: numb
   )) {
     let i: i32 = offset;
     for (const x of array) {
-      _this[i++] = Porffor.type(x) == Porffor.TYPES.number ? x : 0;
+      this[i++] = Porffor.type(x) == Porffor.TYPES.number ? x : 0;
       if (i > len) throw new RangeError('Array is too long for given offset');
     }
   }
 };
 
-export const __${name}_prototype_subarray = (_this: ${name}, start: any, end: any) => {
-  const len: i32 = _this.length;
+export const __${name}_prototype_subarray = function (this: ${name}, start: any, end: any) {
+  const len: i32 = this.length;
   start = ecma262.ToIntegerOrInfinity(start);
   if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
     else end = ecma262.ToIntegerOrInfinity(end);
@@ -196,9 +213,9 @@ export const __${name}_prototype_subarray = (_this: ${name}, start: any, end: an
   if (end > len) end = len;
 
   const out: ${name} = Porffor.malloc(12);
-  Porffor.wasm.i32.store(out, end - start, 0, 0);
-  Porffor.wasm.i32.store(out, Porffor.wasm.i32.load(_this, 0, 4) + start * ${name}.BYTES_PER_ELEMENT, 0, 4);
-  Porffor.wasm.i32.store(out, Porffor.wasm.i32.load(_this, 0, 8) + start * ${name}.BYTES_PER_ELEMENT, 0, 8);
+  Porffor.IR.storeI32(out, 0, end - start);
+  Porffor.IR.storeI32(out, 4, Porffor.IR.loadI32(this, 4) + start * ${name}.BYTES_PER_ELEMENT);
+  Porffor.IR.storeI32(out, 8, Porffor.IR.loadI32(this, 8) + start * ${name}.BYTES_PER_ELEMENT);
 
   return out;
 };

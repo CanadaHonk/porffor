@@ -5,12 +5,12 @@ const run = (func) => {
   }
 };
 
-const zero = () => {};
-const single = (a) => {};
-const two = (a,b) => {};
-const four = (a,b,c,d) => {};
-const eight = (a,b,c,d,e,f,g,h) => {};
-const sixteen = (a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p) => {};
+const zero = () => { Porffor.c`asm volatile("" ::: "memory");`; };
+const single = (a) => { Porffor.c`asm volatile("" ::: "memory");`; };
+const two = (a,b) => { Porffor.c`asm volatile("" ::: "memory");`; };
+const four = (a,b,c,d) => { Porffor.c`asm volatile("" ::: "memory");`; };
+const eight = (a,b,c,d,e,f,g,h) => { Porffor.c`asm volatile("" ::: "memory");`; };
+const sixteen = (a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p) => { Porffor.c`asm volatile("" ::: "memory");`; };
 
 console.log("argcount,direct,indirect");
 

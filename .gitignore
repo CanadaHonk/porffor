@@ -1,17 +1,15 @@
-*.wasm
-#*.csv
-*.txt
-*.exe
+# experimental stuff that shouldn't be committed yet
+/exp
 
-node_modules
-package-lock.json
-bun.lock
-deno.lock
-pnpm-lock.yaml
+# avoid committing some tests/benches which can be cloned/downloaded independently
+/bench/v8-v7
 
-.repl_history
+# selfhosted artifacts
+selfhosted/bundle.js
+selfhosted/porf*
+selfhosted/*.c
 
 /test262/test262
-/test262/results.json
+# todo: commit some json to git history to help historical/collaborative info
+/test262/*.json
 /test262/.threads
-/envoy

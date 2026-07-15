@@ -1,16 +1,15 @@
 import type {} from './porffor.d.ts';
 
 export const __Porffor_printString = (arg: bytestring|string): void => {
-  let ptr: i32 = Porffor.wasm`local.get ${arg}`;
+  let ptr: i32 = Porffor.IR.ptr(arg);
   if (Porffor.type(arg) == Porffor.TYPES.bytestring) {
-    const end: i32 = ptr + arg.length;
-    while (ptr < end) {
-      printChar(Porffor.wasm.i32.load8_u(ptr++, 0, 4));
-    }
+    const len: i32 = arg.length;
+    Porffor.c`printf("%.*s", len, (char*)(MEM + ptr + 4));`;
   } else { // regular string
     const end: i32 = ptr + arg.length * 2;
     while (ptr < end) {
-      printChar(Porffor.wasm.i32.load16_u(ptr, 0, 4));
+      const c: i32 = Porffor.IR.loadU16(ptr, 4);
+      Porffor.c`printf("%c", c);`;
       ptr += 2;
     }
   }
@@ -25,7 +24,7 @@ export const __Porffor_printHexDigit = (arg: number): void => {
     case 0xb: Porffor.printStatic('b'); return;
     case 0xa: Porffor.printStatic('a'); return;
 
-    default: print(arg);
+    default: Porffor.c`printf("%.15g", arg.val);`;
   }
 };
 
@@ -34,7 +33,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
     const arrLen: i32 = arg.length;
     if (length) {
       Porffor.printStatic('(');
-      print(arrLen);
+      Porffor.c`printf("%d", arrLen);`;
       Porffor.printStatic(') ');
     }
 
@@ -54,7 +53,14 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
   switch (Porffor.type(arg)) {
     case Porffor.TYPES.number:
       if (colors) Porffor.printStatic('\x1b[33m'); // yellow
-      print(arg);
+      Porffor.c`printf("%.15g", arg.val);`;
+      if (colors) Porffor.printStatic('\x1b[0m');
+      return;
+
+    case Porffor.TYPES.bigint:
+      if (colors) Porffor.printStatic('\x1b[33m'); // yellow
+      __Porffor_printString(__Porffor_bigint_toString(arg, 10));
+      Porffor.printStatic('n');
       if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
@@ -127,13 +133,13 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
 
     case Porffor.TYPES.date:
       if (colors) Porffor.printStatic('\x1b[35m'); // purple
-      __Porffor_printString(__Date_prototype_toISOString(arg));
+      __Porffor_printString(Porffor.callThis(__Date_prototype_toISOString, arg));
       if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
     case Porffor.TYPES.symbol:
       if (colors) Porffor.printStatic('\x1b[32m'); // green
-      __Porffor_printString(__Symbol_prototype_toString(arg));
+      __Porffor_printString(Porffor.callThis(__Symbol_prototype_toString, arg));
       if (colors) Porffor.printStatic('\x1b[0m');
       return;
 
@@ -208,7 +214,8 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
 
       Porffor.printStatic('>,\n  byteLength: ');
       if (colors) Porffor.printStatic('\x1b[33m'); // yellow
-      print(arg.byteLength);
+      const byteLength: number = arg.byteLength;
+      Porffor.c`printf("%.15g", byteLength);`;
       if (colors) Porffor.printStatic('\x1b[0m');
       Porffor.printStatic('\n}');
       return;
@@ -216,11 +223,11 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
     case Porffor.TYPES.dataview:
       Porffor.printStatic('DataView {\n');
       Porffor.printStatic('  byteLength: ');
-      __Porffor_print(__DataView_prototype_byteLength$get(arg), colors);
+      __Porffor_print(Porffor.callThis(__DataView_prototype_byteLength$get, arg), colors);
       Porffor.printStatic(',\n  byteOffset: ');
-      __Porffor_print(__DataView_prototype_byteOffset$get(arg), colors);
+      __Porffor_print(Porffor.callThis(__DataView_prototype_byteOffset$get, arg), colors);
       Porffor.printStatic(',\n  buffer: ');
-      __Porffor_print(__DataView_prototype_buffer$get(arg), colors);
+      __Porffor_print(Porffor.callThis(__DataView_prototype_buffer$get, arg), colors);
       Porffor.printStatic('\n}');
       return;
 
@@ -230,16 +237,16 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
         else Porffor.printStatic('Map');
       Porffor.printStatic('(');
 
-      const map: any[] = __Map_prototype_keys(arg);
+      const map: any[] = Porffor.callThis(__Map_prototype_keys, arg);
       const mapLen: i32 = map.length - 1;
-      print(mapLen + 1);
+      Porffor.c`printf("%d", mapLen + 1);`;
       Porffor.printStatic(') { ');
 
       for (let i: i32 = 0; i < mapLen; i++) {
         const key: any = map[i];
         __Porffor_print(key, colors);
         Porffor.printStatic(' => ');
-        __Porffor_print(__Map_prototype_get(arg, key), colors);
+        __Porffor_print(Porffor.callThis(__Map_prototype_get, arg, key), colors);
         if (i != mapLen) Porffor.printStatic(', ');
       }
 
@@ -252,9 +259,9 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
         else Porffor.printStatic('Set');
       Porffor.printStatic('(');
 
-      const set: any[] = __Set_prototype_values(arg);
+      const set: any[] = Porffor.callThis(__Set_prototype_values, arg);
       const setLen: i32 = set.length - 1;
-      print(setLen + 1);
+      Porffor.c`printf("%d", setLen + 1);`;
       Porffor.printStatic(') { ');
 
       for (let i: i32 = 0; i <= setLen; i++) {
@@ -270,31 +277,28 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
       return;
 
     case Porffor.TYPES.error:
-      __Porffor_printString(__Error_prototype_toString(arg));
+      __Porffor_printString(Porffor.callThis(__Error_prototype_toString, arg));
       return;
     case Porffor.TYPES.aggregateerror:
-      __Porffor_printString(__AggregateError_prototype_toString(arg));
+      __Porffor_printString(Porffor.callThis(__AggregateError_prototype_toString, arg));
       return;
     case Porffor.TYPES.typeerror:
-      __Porffor_printString(__TypeError_prototype_toString(arg));
+      __Porffor_printString(Porffor.callThis(__TypeError_prototype_toString, arg));
       return;
     case Porffor.TYPES.referenceerror:
-      __Porffor_printString(__ReferenceError_prototype_toString(arg));
+      __Porffor_printString(Porffor.callThis(__ReferenceError_prototype_toString, arg));
       return;
     case Porffor.TYPES.syntaxerror:
-      __Porffor_printString(__SyntaxError_prototype_toString(arg));
+      __Porffor_printString(Porffor.callThis(__SyntaxError_prototype_toString, arg));
       return;
     case Porffor.TYPES.rangeerror:
-      __Porffor_printString(__RangeError_prototype_toString(arg));
+      __Porffor_printString(Porffor.callThis(__RangeError_prototype_toString, arg));
       return;
     case Porffor.TYPES.evalerror:
-      __Porffor_printString(__EvalError_prototype_toString(arg));
+      __Porffor_printString(Porffor.callThis(__EvalError_prototype_toString, arg));
       return;
     case Porffor.TYPES.urierror:
-      __Porffor_printString(__URIError_prototype_toString(arg));
-      return;
-    case Porffor.TYPES.test262error:
-      __Porffor_printString(__Test262Error_prototype_toString(arg));
+      __Porffor_printString(Porffor.callThis(__URIError_prototype_toString, arg));
       return;
   }
 };
@@ -466,7 +470,7 @@ export const __console_count = (label: any): void => {
   __Porffor_consoleIndent();
   __Porffor_consolePrint(label);
   Porffor.printStatic(': ');
-  print(val);
+  Porffor.c`printf("%.15g", val.val);`;
   Porffor.printStatic('\n');
 };
 
@@ -505,7 +509,8 @@ export const __console_timeLog = (label: any): void => {
   __Porffor_consolePrint(label);
   Porffor.printStatic(': ');
 
-  print(performance.now() - val);
+  const elapsed: number = performance.now() - val;
+  Porffor.c`printf("%.15g", elapsed);`;
   Porffor.printStatic(' ms\n');
 };
 

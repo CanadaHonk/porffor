@@ -1,6 +1,6 @@
-const onByDefault = [ 'treeshakeWasmImports', 'alwaysMemory', 'indirectCalls', 'optUnused', 'data', 'passiveData', 'rmUnusedTypes', 'optTypes', 'ctHash', 'closures', '2cMemcpy' ];
+const onByDefault = [ 'indirectCalls', 'optUnused', 'optTypes', 'ctHash', 'closures', 'lazyObjects' ];
 
-const nameToKey = x => x.replace(/[a-z]\-[a-z]/g, y => `${y[0]}${y[2].toUpperCase()}`);
+const nameToKey = x => (x === 'secure' ? 'safe' : x).replace(/[a-z]\-[a-z]/g, y => `${y[0]}${y[2].toUpperCase()}`);
 
 const getPrefs = () => {
   const prefs = globalThis.Prefs = {};

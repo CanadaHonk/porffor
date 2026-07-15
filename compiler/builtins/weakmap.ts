@@ -1,58 +1,60 @@
 import type {} from './porffor.d.ts';
 
-export const __WeakMap_prototype_has = (_this: WeakMap, key: any) => {
-  return __Map_prototype_has(_this as Map, key);
+// map container with keys restricted to objects/symbols (identity hash), the gc
+// sweep tombstones dead keys via a C mirror of __Porffor_hashIdentity - keep in sync
+
+export const __WeakMap_prototype_has = function (this: WeakMap, key: any) {
+  if (!Porffor.object.isObjectOrSymbol(key)) return false;
+  return Porffor.callThis(__Map_prototype_has, this as Map, key);
 };
 
-export const __WeakMap_prototype_get = (_this: WeakMap, key: any) => {
-  return __Map_prototype_get(_this as Map, key);
+export const __WeakMap_prototype_get = function (this: WeakMap, key: any) {
+  if (!Porffor.object.isObjectOrSymbol(key)) return undefined;
+  return Porffor.callThis(__Map_prototype_get, this as Map, key);
 };
 
-export const __WeakMap_prototype_set = (_this: WeakMap, key: any, value: any) => {
+export const __WeakMap_prototype_set = function (this: WeakMap, key: any, value: any) {
   if (!Porffor.object.isObjectOrSymbol(key)) throw new TypeError('Value in WeakMap needs to be an object or symbol');
 
-  __Map_prototype_set(_this as Map, key, value);
-  return _this;
+  Porffor.callThis(__Map_prototype_set, this as Map, key, value);
+  return this;
 };
 
-export const __WeakMap_prototype_delete = (_this: WeakMap, key: any) => {
-  return __Map_prototype_delete(_this as Map, key);
+export const __WeakMap_prototype_delete = function (this: WeakMap, key: any) {
+  if (!Porffor.object.isObjectOrSymbol(key)) return false;
+  return Porffor.callThis(__Map_prototype_delete, this as Map, key);
 };
 
 export const WeakMap = function (iterable: any): WeakMap {
   if (!new.target) throw new TypeError("Constructor WeakMap requires 'new'");
 
-  const out: WeakMap = Porffor.malloc(8);
-
-  const keys: any[] = Porffor.malloc();
-  const vals: any[] = Porffor.malloc();
-  Porffor.wasm.i32.store(out, keys, 0, 0);
-  Porffor.wasm.i32.store(out, vals, 0, 4);
+  const out: WeakMap = __Porffor_hashtableNew(true);
+  Porffor.IR.gcBarrier(out, Porffor.TYPES.weakmap);
 
   if (iterable != null) for (const x of iterable) {
     if (!Porffor.object.isObject(x)) throw new TypeError('Iterator contains non-object');
-    __WeakMap_prototype_set(out, x[0], x[1]);
+    Porffor.callThis(__WeakMap_prototype_set, out, x[0], x[1]);
   }
 
   return out;
 };
 
-export const __WeakMap_prototype_toString = (_this: WeakMap) => '[object WeakMap]';
-export const __WeakMap_prototype_toLocaleString = (_this: WeakMap) => __WeakMap_prototype_toString(_this);
+export const __WeakMap_prototype_toString = function (this: WeakMap) { return '[object WeakMap]'; };
+export const __WeakMap_prototype_toLocaleString = function (this: WeakMap) { return Porffor.callThis(__WeakMap_prototype_toString, this); };
 
 // https://github.com/tc39/proposal-upsert
-export const __WeakMap_prototype_getOrInsert = (_this: WeakMap, key: any, value: any) => {
-  if (!__WeakMap_prototype_has(_this, key)) {
-    __WeakMap_prototype_set(_this, key, value);
+export const __WeakMap_prototype_getOrInsert = function (this: WeakMap, key: any, value: any) {
+  if (!Porffor.callThis(__WeakMap_prototype_has, this, key)) {
+    Porffor.callThis(__WeakMap_prototype_set, this, key, value);
   }
 
-  return __WeakMap_prototype_get(_this, key);
+  return Porffor.callThis(__WeakMap_prototype_get, this, key);
 };
 
-export const __WeakMap_prototype_getOrInsertComputed = (_this: WeakMap, key: any, callbackFn: any) => {
-  if (!__WeakMap_prototype_has(_this, key)) {
-    __WeakMap_prototype_set(_this, key, callbackFn(key));
+export const __WeakMap_prototype_getOrInsertComputed = function (this: WeakMap, key: any, callbackFn: any) {
+  if (!Porffor.callThis(__WeakMap_prototype_has, this, key)) {
+    Porffor.callThis(__WeakMap_prototype_set, this, key, callbackFn(key));
   }
 
-  return __WeakMap_prototype_get(_this, key);
+  return Porffor.callThis(__WeakMap_prototype_get, this, key);
 };

@@ -20,7 +20,7 @@ for (let i = 0; i < log.length; i++) {
   while (log[j].length !== 51 || log[j].split(' ').length !== 2) j++;
   let [ hash, timestamp ] = log[j].split(' ');
 
-  const results = new Array(8).fill(0); // %, total tests, passes, fails, runtime errors, wasm errors, compile errors, timeout errors
+  const results = new Array(8).fill(0); // %, total tests, passes, fails, runtime errors, native errors, compile errors, timeout errors
   for (let [ what, number ] of x.split('|').map(x => x.trim().split(' ').slice(0, 2))) {
     number = parseFloat(number);
 

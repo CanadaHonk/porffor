@@ -12,8 +12,7 @@ export const ${name} = function (
     else message = ecma262.ToString(message);
 
   const obj: ${name} = Porffor.malloc(8);
-  Porffor.wasm.i32.store(obj, message, 0, 0);
-  Porffor.wasm.i32.store8(obj, Porffor.type(message), 0, 4);
+  Porffor.IR.storeJv(obj, 0, message);
 
   // https://tc39.es/ecma262/multipage/fundamental-objects.html#sec-aggregate-error
   ${name === 'AggregateError' ? `
@@ -25,30 +24,21 @@ export const ${name} = function (
   return obj;
 };
 
-export const __${name}_prototype_constructor$get = (_this: ${name}) => {
+export const __${name}_prototype_constructor$get = function (this: ${name}) {
   return ${name};
 };
 
-export const __${name}_prototype_name$get = (_this: ${name}) => {
+export const __${name}_prototype_name$get = function (this: ${name}) {
   return '${name}';
 };
 
-export const __${name}_prototype_message$get = (_this: ${name}) => {
-  Porffor.wasm\`
-local.get \${_this}
-i32.trunc_sat_f64_u
-i32.load 0 0
-f64.convert_i32_u
-
-local.get \${_this}
-i32.trunc_sat_f64_u
-i32.load8_u 0 4
-return\`;
+export const __${name}_prototype_message$get = function (this: ${name}) {
+  return Porffor.IR.loadJv(this, 0);
 };
 
-export const __${name}_prototype_toString = (_this: ${name}) => {
-  const name: any = _this.name;
-  const message: any = _this.message;
+export const __${name}_prototype_toString = function (this: ${name}) {
+  const name: any = this.name;
+  const message: any = this.message;
   if (message.length == 0) {
     return name;
   }
@@ -65,14 +55,9 @@ export const __${name}_prototype_toString = (_this: ${name}) => {
   error('RangeError');
   error('EvalError');
   error('URIError');
-  error('Test262Error');
 
   out += `
-export const __Test262Error_thrower = message => {
-  throw new Test262Error(message);
-};
-
-export const __Error_isError = (x: unknown): boolean => Porffor.fastAnd(Porffor.type(x) >= Porffor.TYPES.error, Porffor.type(x) <= Porffor.TYPES.test262error);`;
+export const __Error_isError = (x: unknown): boolean => Porffor.fastAnd(Porffor.type(x) >= Porffor.TYPES.error, Porffor.type(x) <= Porffor.TYPES.urierror);`;
 
   return out;
 };

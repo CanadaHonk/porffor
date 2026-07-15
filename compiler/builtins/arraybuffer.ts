@@ -9,7 +9,7 @@ export const __ArrayBuffer_isView = (value: any): boolean => {
 
 export const __Porffor_arraybuffer_detach = (buffer: any): void => {
   // mark as detached by setting length = "-1"
-  Porffor.wasm.i32.store(buffer, 4294967295, 0, 0);
+  Porffor.IR.storeI32(buffer, 0, 4294967295);
 };
 
 export const ArrayBuffer = function (length: any): ArrayBuffer {
@@ -20,68 +20,37 @@ export const ArrayBuffer = function (length: any): ArrayBuffer {
   const byteLength: number = ecma262.ToIndex(length);
 
   if (byteLength < 0) throw new RangeError('Invalid ArrayBuffer length (negative)');
-  if (byteLength > 4294967295) throw new RangeError('Invalid ArrayBuffer length (over 32 bit address space)');
+  if (byteLength > 2147483643) throw new RangeError('Invalid ArrayBuffer length (over maximum supported length)');
 
   const out: ArrayBuffer = Porffor.malloc(byteLength + 4);
-  Porffor.wasm.i32.store(out, byteLength, 0, 0);
+  Porffor.IR.storeI32(out, 0, byteLength);
+  Porffor.IR.fill(Porffor.IR.ptr(out) + 4, 0, byteLength);
 
   return out;
 };
 
-export const __ArrayBuffer_prototype_byteLength$get = (_this: ArrayBuffer) => {
-  Porffor.wasm`
-local read i32
-local.get ${_this}
-i32.to_u
-i32.load 0 0
-local.tee read
-i32.const 0
-local.get read
-i32.const 0
-i32.ge_s
-select
-i32.from_u
-i32.const 1
-return`;
+export const __ArrayBuffer_prototype_byteLength$get = function (this: ArrayBuffer) {
+  const read: i32 = Porffor.IR.loadI32(this, 0);
+  return read >= 0 ? read : 0;
 };
 
-export const __ArrayBuffer_prototype_maxByteLength$get = (_this: ArrayBuffer) => {
-  Porffor.wasm`
-local read i32
-local.get ${_this}
-i32.to_u
-i32.load 0 0
-local.tee read
-i32.const 0
-local.get read
-i32.const 0
-i32.ge_s
-select
-i32.from_u
-i32.const 1
-return`;
+export const __ArrayBuffer_prototype_maxByteLength$get = function (this: ArrayBuffer) {
+  const read: i32 = Porffor.IR.loadI32(this, 0);
+  return read >= 0 ? read : 0;
 };
 
-export const __ArrayBuffer_prototype_detached$get = (_this: ArrayBuffer) => {
-  Porffor.wasm`
-local.get ${_this}
-i32.to_u
-i32.load 0 0
-i32.const 4294967295
-i32.eq
-i32.from_u
-i32.const 2
-return`;
+export const __ArrayBuffer_prototype_detached$get = function (this: ArrayBuffer) {
+  return Porffor.IR.loadI32(this, 0) == 4294967295;
 };
 
-export const __ArrayBuffer_prototype_resizable$get = (_this: ArrayBuffer) => {
+export const __ArrayBuffer_prototype_resizable$get = function (this: ArrayBuffer) {
   return false;
 };
 
-export const __ArrayBuffer_prototype_slice = (_this: ArrayBuffer, start: any, end: any) => {
-  if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.slice on a detached ArrayBuffer');
+export const __ArrayBuffer_prototype_slice = function (this: ArrayBuffer, start: any, end: any) {
+  if (this.detached) throw new TypeError('Called ArrayBuffer.prototype.slice on a detached ArrayBuffer');
 
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  const len: i32 = Porffor.IR.loadI32(this, 0);
   if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
 
   start = ecma262.ToIntegerOrInfinity(start);
@@ -99,77 +68,34 @@ export const __ArrayBuffer_prototype_slice = (_this: ArrayBuffer, start: any, en
   if (end > len) end = len;
 
   const out: ArrayBuffer = Porffor.malloc(4 + (end - start));
-  Porffor.wasm.i32.store(out, end - start, 0, 0);
+  Porffor.IR.storeI32(out, 0, end - start);
 
-  Porffor.wasm`
-;; dst = out + 4
-local.get ${out}
-i32.to_u
-i32.const 4
-i32.add
-
-;; src = this + 4 + start
-local.get ${_this}
-i32.to_u
-i32.const 4
-i32.add
-local.get ${start}
-i32.to_u
-i32.add
-
-;; size = end - start
-local.get ${end}
-i32.to_u
-local.get ${start}
-i32.to_u
-i32.sub
-
-memory.copy 0 0`;
+  Porffor.IR.copy(Porffor.IR.ptr(out) + 4, Porffor.IR.ptr(this) + 4 + start, end - start);
 
   return out;
 };
 
 
-export const __ArrayBuffer_prototype_transfer = (_this: ArrayBuffer, newLength: any) => {
-  if (_this.detached) throw new TypeError('Called ArrayBuffer.prototype.transfer on a detached ArrayBuffer');
+export const __ArrayBuffer_prototype_transfer = function (this: ArrayBuffer, newLength: any) {
+  if (this.detached) throw new TypeError('Called ArrayBuffer.prototype.transfer on a detached ArrayBuffer');
 
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+  const len: i32 = Porffor.IR.loadI32(this, 0);
   if (Porffor.type(newLength) == Porffor.TYPES.undefined) newLength = len;
 
   // make new arraybuffer
   const out: ArrayBuffer = new ArrayBuffer(newLength);
-  Porffor.wasm.i32.store(out, newLength, 0, 0);
+  Porffor.IR.storeI32(out, 0, newLength);
 
-  // copy data to it
-  Porffor.wasm`
-;; dst = out + 4
-local.get ${out}
-i32.to_u
-i32.const 4
-i32.add
+  Porffor.IR.copy(Porffor.IR.ptr(out) + 4, Porffor.IR.ptr(this) + 4, Math.min(newLength, len));
 
-;; src = this + 4
-local.get ${_this}
-i32.to_u
-i32.const 4
-i32.add
-
-;; size = min(newLength, len)
-local.get ${newLength}
-local.get ${len}
-f64.min
-i32.to_u
-
-memory.copy 0 0`;
-
-  __Porffor_arraybuffer_detach(_this);
+  __Porffor_arraybuffer_detach(this);
 
   return out;
 };
 
-export const __ArrayBuffer_prototype_transferToFixedLength = (_this: ArrayBuffer, newLength: any) => __ArrayBuffer_prototype_transfer(_this, newLength);
+export const __ArrayBuffer_prototype_transferToFixedLength = function (this: ArrayBuffer, newLength: any) { return Porffor.callThis(__ArrayBuffer_prototype_transfer, this, newLength); };
 
-export const __ArrayBuffer_prototype_resize = (_this: ArrayBuffer, newLength: any) => {
+export const __ArrayBuffer_prototype_resize = function (this: ArrayBuffer, newLength: any) {
   // todo: resizable not implemented yet so just always fail
   throw new TypeError('Called ArrayBuffer.prototype.resize on a non-resizable ArrayBuffer');
 };
@@ -183,29 +109,30 @@ export const SharedArrayBuffer = function (length: any): SharedArrayBuffer {
   const byteLength: number = ecma262.ToIndex(length);
 
   if (byteLength < 0) throw new RangeError('Invalid SharedArrayBuffer length (negative)');
-  if (byteLength > 4294967295) throw new RangeError('Invalid SharedArrayBuffer length (over 32 bit address space)');
+  if (byteLength > 2147483643) throw new RangeError('Invalid SharedArrayBuffer length (over maximum supported length)');
 
   const out: SharedArrayBuffer = Porffor.malloc(byteLength + 4);
-  Porffor.wasm.i32.store(out, byteLength, 0, 0);
+  Porffor.IR.storeI32(out, 0, byteLength);
+  Porffor.IR.fill(Porffor.IR.ptr(out) + 4, 0, byteLength);
 
   return out;
 };
 
-export const __SharedArrayBuffer_prototype_byteLength$get = (_this: SharedArrayBuffer) => {
-  return Porffor.wasm.i32.load(_this, 0, 0);
+export const __SharedArrayBuffer_prototype_byteLength$get = function (this: SharedArrayBuffer) {
+  return Porffor.IR.loadI32(this, 0);
 };
 
-export const __SharedArrayBuffer_prototype_maxByteLength$get = (_this: SharedArrayBuffer) => {
-  return Porffor.wasm.i32.load(_this, 0, 0);
+export const __SharedArrayBuffer_prototype_maxByteLength$get = function (this: SharedArrayBuffer) {
+  return Porffor.IR.loadI32(this, 0);
 };
 
-export const __SharedArrayBuffer_prototype_growable$get = (_this: SharedArrayBuffer) => {
+export const __SharedArrayBuffer_prototype_growable$get = function (this: SharedArrayBuffer) {
   return false;
 };
 
 
-export const __SharedArrayBuffer_prototype_slice = (_this: SharedArrayBuffer, start: any, end: any) => {
-  const len: i32 = Porffor.wasm.i32.load(_this, 0, 0);
+export const __SharedArrayBuffer_prototype_slice = function (this: SharedArrayBuffer, start: any, end: any) {
+  const len: i32 = Porffor.IR.loadI32(this, 0);
   if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
 
   start = ecma262.ToIntegerOrInfinity(start);
@@ -223,37 +150,14 @@ export const __SharedArrayBuffer_prototype_slice = (_this: SharedArrayBuffer, st
   if (end > len) end = len;
 
   const out: SharedArrayBuffer = Porffor.malloc(4 + (end - start));
-  Porffor.wasm.i32.store(out, end - start, 0, 0);
+  Porffor.IR.storeI32(out, 0, end - start);
 
-  Porffor.wasm`
-;; dst = out + 4
-local.get ${out}
-i32.to_u
-i32.const 4
-i32.add
-
-;; src = this + 4 + start
-local.get ${_this}
-i32.to_u
-i32.const 4
-i32.add
-local.get ${start}
-i32.to_u
-i32.add
-
-;; size = end - start
-local.get ${end}
-i32.to_u
-local.get ${start}
-i32.to_u
-i32.sub
-
-memory.copy 0 0`;
+  Porffor.IR.copy(Porffor.IR.ptr(out) + 4, Porffor.IR.ptr(this) + 4 + start, end - start);
 
   return out;
 };
 
-export const __SharedArrayBuffer_prototype_grow = (_this: SharedArrayBuffer, newLength: any) => {
+export const __SharedArrayBuffer_prototype_grow = function (this: SharedArrayBuffer, newLength: any) {
   // todo: growable not implemented yet so just always fail
   throw new TypeError('Called SharedArrayBuffer.prototype.grow on a non-growable SharedArrayBuffer');
 };

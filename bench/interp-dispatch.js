@@ -15,4 +15,5 @@ function bench (lc, fc) {
 
 let t1 = performance.now();
 var res = bench(4e6, 100);
-console.log(performance.now() - t1);
+let time = performance.now() - t1;
+console.log(`${res}\x1b[2K\r${time}ms`);

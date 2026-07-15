@@ -40,7 +40,11 @@ export const __Reflect_defineProperty = (target: any, prop: any, descriptor: any
 export const __Reflect_deleteProperty = (target: any, prop: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
 
-  return delete target[prop];
+  try {
+    return delete target[prop];
+  } catch {
+    return false;
+  }
 };
 
 export const __Reflect_getOwnPropertyDescriptor = (target: any, prop: any) => {
@@ -86,54 +90,30 @@ export const __Reflect_setPrototypeOf = (target: any, proto: any) => {
 export const __Reflect_ownKeys = (target: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
 
-  const out: any[] = Porffor.malloc();
+  const out: any[] = Porffor.array.new(4);
+  let i: i32 = 0;
+
+  if (Porffor.type(target) == Porffor.TYPES.array) {
+    const arrayLen: i32 = (target as any[]).length;
+    for (let j: i32 = 0; j < arrayLen; j++) {
+      if (!__Porffor_array_has(target as any[], j)) continue;
+      out[i++] = Porffor.callThis(__Number_prototype_toString, j);
+    }
+  }
 
   target = __Porffor_object_underlying(target);
   if (Porffor.type(target) == Porffor.TYPES.object) {
-    let ptr: i32 = Porffor.wasm`local.get ${target}` + 8;
-    const endPtr: i32 = ptr + Porffor.wasm.i32.load16_u(target, 0, 0) * 18;
+    let ptr: i32 = Porffor.object.entriesPtr(target);
+    const endPtr: i32 = ptr + Porffor.IR.loadU16(target, 0) * 20;
 
-    let i: i32 = 0;
-    for (; ptr < endPtr; ptr += 18) {
-      let key: any;
-      Porffor.wasm`local raw i32
-local msb i32
-local.get ${ptr}
-i32.to_u
-i32.load 0 4
-local.set raw
-
-local.get raw
-i32.const 30
-i32.shr_u
-local.tee msb
-if 127
-  i32.const 5 ;; symbol
-  i32.const 67 ;; string
-  local.get msb
-  i32.const 3
-  i32.eq
-  select
-  local.set ${key+1}
-
-  local.get raw
-  i32.const 1073741823
-  i32.and ;; unset 2 MSBs
-else
-  i32.const 195
-  local.set ${key+1}
-
-  local.get raw
-end
-i32.from_u
-local.set ${key}`;
+    for (; ptr < endPtr; ptr += 20) {
+      let key: any = Porffor.as(Porffor.IR.loadI32(ptr, 4), Porffor.IR.loadU8(ptr, 18));
 
       out[i++] = key;
     }
-
-    out.length = i;
   }
 
+  out.length = i;
   return out;
 };
 
@@ -144,5 +124,7 @@ export const __Reflect_apply = (target: any, thisArgument: any, argumentsList: a
 
 export const __Reflect_construct = (target: any, argumentsList: any, newTarget: any = target) => {
   // todo: giving undefined/null to newTarget should not default
+  if (!__ecma262_IsConstructor(target)) throw new TypeError('Target is not a constructor');
+  if (!__ecma262_IsConstructor(newTarget)) throw new TypeError('newTarget is not a constructor');
   return Porffor.call(target, argumentsList, null, newTarget);
 };

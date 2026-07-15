@@ -1,90 +1,32 @@
 import * as PrecompiledBuiltins from './builtins_precompiled.js';
-import { PageSize, Blocktype, Opcodes, Valtype } from './wasmSpec.js';
 import { TYPES, TYPE_NAMES } from './types.js';
-import { number, unsignedLEB128 } from './encoding.js';
+import { Bin, Un, T, K, Const, JvConst, Box, JvType, JvNum, JvPtr, Convert, Reinterpret, CONVERT_SIGNED, N_KIND, N_TYPE, N_A, N_B, Local, DeclLocal, Assign, Call, CallDynamic, If, TypeSwitch, Return, RawC, BlockStmt } from './ir.js';
 import './prefs.js';
 
-export let importedFuncs;
-export const setImports = (v = null) => {
-  if (v == null) {
-    v = Object.create(null);
-    v.length = 0;
-  }
-
-  importedFuncs = v;
+const f64FromBytes = bytes => {
+  const floats = new Float64Array(1);
+  const raw = new Uint8Array(floats.buffer);
+  for (let i = 0; i < 8; i++) raw[i] = bytes[i];
+  return floats[0];
 };
-setImports();
-
-/**
- * Create an import function for the Porffor world to use.
- *
- * @param {string} name - Name of the import
- * @param {number} params - Number of parameters
- * @param {number} results - Number of results
- * @param {function} js - Native (your world) function to call as import implementation
- * @param {string} c - C source code to compile as import implementation
- */
-export const createImport = (name, params, returns, js = null, c = null) => {
-  if (!globalThis.valtypeBinary) {
-    globalThis.valtype ??= Prefs.valtype ?? 'f64';
-    globalThis.valtypeBinary = Valtype[valtype];
-  }
-
-  if (typeof params === 'number') params = new Array(params).fill(valtypeBinary);
-  if (typeof returns === 'number') returns = new Array(returns).fill(valtypeBinary);
-
-  if (name in importedFuncs) {
-    // overwrite existing import
-    const existing = importedFuncs[name];
-    const call = +existing;
-    const replacement = new Number(call);
-    replacement.name = name;
-    replacement.import = existing.import;
-    replacement.params = params;
-    replacement.returns = returns;
-    replacement.js = js;
-    replacement.c = c;
-
-    importedFuncs[name] = replacement;
-    return;
-  }
-
-  const call = importedFuncs.length;
-  const ident = String.fromCharCode(97 + importedFuncs.length);
-
-  const obj = importedFuncs[name] = importedFuncs[call] = new Number(call);
-  obj.name = name;
-  obj.import = ident;
-  obj.params = params;
-  obj.returns = returns;
-  obj.js = js;
-  obj.c = c;
-
-  importedFuncs.length = call + 1;
-};
-
-export const UNDEFINED = 0;
-export const NULL = 0;
 
 export const BuiltinVars = ({ builtinFuncs }) => {
   const _ = Object.create(null);
-  _.undefined = () => [ number(UNDEFINED) ];
+  _.undefined = () => JvConst(TYPES.undefined, 0);
   _.undefined.type = TYPES.undefined;
 
-  _.null = () => [ number(NULL) ];
+  _.null = () => JvConst(TYPES.object, 0);
   _.null.type = TYPES.object;
 
-  _.NaN = () => [ number(NaN) ];
-  _.Infinity = () => [ number(Infinity) ];
+  _.NaN = () => Box(Const(T.f64, NaN), Const(T.i32, TYPES.number));
+  _.Infinity = () => Box(Const(T.f64, Infinity), Const(T.i32, TYPES.number));
 
   for (const x in TYPES) {
-   _['__Porffor_TYPES_' + x] = () => [ number(TYPES[x]) ];
+   _['__Porffor_TYPES_' + x] = () => Const(T.i32, TYPES[x]);
   }
 
-  _.__performance_timeOrigin = [
-    [ Opcodes.call, importedFuncs.timeOrigin ]
-  ];
-  _.__performance_timeOrigin.usesImports = true;
+  _.__performance_timeOrigin = () => Box(Call('porf_performance_time_origin', [], T.f64), Const(T.i32, TYPES.number));
+  _.__performance_timeOrigin.type = TYPES.number;
 
   // builtin objects
   const makePrefix = name => (name.startsWith('__') ? '' : '__') + name + '_';
@@ -93,107 +35,128 @@ export const BuiltinVars = ({ builtinFuncs }) => {
   const object = (name, props) => {
     done.add(name);
     const prefix = name === 'globalThis' ? '' : makePrefix(name);
+    const lazyKind = name === 'globalThis' ? 'global'
+      : name.startsWith('__') && name.endsWith('_prototype') ? 'proto' : null;
 
-    // already a func
     const existingFunc = builtinFuncs[name];
 
-    builtinFuncs['#get_' + name] = {
+    const getName = '#get_' + name;
+    builtinFuncs[getName] = existingFunc ? {
       params: [],
-      locals: [ Valtype.i32 ],
-      returns: [ Valtype.i32 ],
+      retType: T.ptr,
+      returnType: TYPES.function,
+      body: ({ funcRefPtr }) => [
+        Return(globalThis.precompile ? Const(T.ptr, 0) : funcRefPtr(name))
+      ]
+    } : {
+      params: [],
+      retType: T.ptr,
       returnType: TYPES.object,
-      wasm: (scope, { allocPage, makeString, generate, getNodeType, builtin, funcRef, glbl }) => {
-        if (globalThis.precompile) return [ [ 'get object', name ] ];
+      body: ({ includeBuiltin, funcRefPtr, global, makeString, globalThisUserSync, onFinalize, hasFunc }) => {
+        if (globalThis.precompile) return [ Return(Const(T.ptr, 0)) ];
 
-        // todo/perf: precompute bytes here instead of calling real funcs if we really care about perf later
+        includeBuiltin('__Porffor_object_new');
 
-        let ptr;
-        if (existingFunc) {
-          ptr = funcRef(name)[0][1];
-        } else {
-          ptr = allocPage(scope, `builtin object: ${name}`);
-        }
+        const getPtr = global(`getptr_${name}`, T.ptr);
+        const obj = Local('obj', T.jsval);
 
-        const getPtr = glbl(Opcodes.global_get, `getptr_${name}`, Valtype.i32)[0];
+        // globalThis: user top-level decls are own props, re-synced from bindings on access (globalThisUserSync)
+        const sync = [];
+        if (name === 'globalThis') globalThisUserSync(Box(getPtr, Const(T.i32, TYPES.object)), sync);
+
         const out = [
-          // check if already made/cached
-          getPtr,
-          [ Opcodes.if, Blocktype.void ],
-            getPtr,
-            [ Opcodes.return ],
-          [ Opcodes.end ],
-
-          // set cache & ptr for use
-          number(ptr, Valtype.i32),
-          [ Opcodes.local_tee, 0 ],
-          glbl(Opcodes.global_set, `getptr_${name}`, Valtype.i32)[0],
-
-          [ Opcodes.local_get, 0 ],
-          Opcodes.i32_from_u,
-          number(existingFunc ? TYPES.function : TYPES.object, Valtype.i32),
-          [ Opcodes.call, builtin('__Porffor_object_underlying') ],
-          [ Opcodes.drop ],
-          [ Opcodes.local_set, 0 ]
+          If(getPtr, [ BlockStmt(sync), Return(getPtr) ]),
+          DeclLocal(T.jsval, 'obj', Call('__Porffor_object_new', [ Const(T.i32, Object.keys(props).length) ])),
+          Assign(getPtr, JvPtr(obj))
         ];
 
-        for (const x in props) {
-          let value = {
-            type: 'Identifier',
-            name: prefix + x
-          };
-
-          if (x === '__proto__') {
-            out.push(
-              [ Opcodes.local_get, 0 ],
-              number(TYPES.object, Valtype.i32),
-
-              ...generate(scope, value),
-              Opcodes.i32_to_u,
-              ...getNodeType(scope, value),
-
-              [ Opcodes.call, builtin('__Porffor_object_setPrototype') ]
-            );
-            continue;
+        const funcValue = name => Box(funcRefPtr(name), Const(T.i32, TYPES.function));
+        const propValue = (key, d) => {
+          if (key === name) return obj;
+          if (key in builtinFuncs) return funcValue(key);
+          if (key === 'undefined') return JvConst(TYPES.undefined, 0);
+          if (key === 'null') return JvConst(TYPES.object, 0);
+          if (key === 'NaN') return Box(Const(T.f64, NaN), Const(T.i32, TYPES.number));
+          if (key === 'Infinity') return Box(Const(T.f64, Infinity), Const(T.i32, TYPES.number));
+          const getter = '#get_' + key;
+          if (getter in builtinFuncs) {
+            includeBuiltin(getter);
+            return Box(Call(getter, [], T.ptr), Const(T.i32, _[key]?.type ?? TYPES.object));
+          }
+          if ('value' in d) {
+            const value = d.value;
+            if (typeof value === 'function') return value(_, { includeBuiltin, funcRefPtr, makeString });
+            if (typeof value === 'number') return Box(Const(T.f64, value), Const(T.i32, TYPES.number));
+            if (typeof value === 'string') return makeString(value);
+            if (value === null) return JvConst(TYPES.object, 0);
           }
 
-          let add = true;
-          if (existingFunc && (x === 'prototype' || x === 'constructor')) add = false;
+          throw new Error(`unsupported builtin object property ${name}.${key}`);
+        };
+
+        includeBuiltin('__Porffor_object_fastAdd');
+        const emitProp = (out, x, d) => {
+          const key = prefix + x;
+          const value = propValue(key, d);
+
+          if (x === '__proto__') {
+            includeBuiltin('__Porffor_object_setPrototype');
+            out.push(Call('__Porffor_object_setPrototype', [ obj, value ], T.none));
+            return;
+          }
 
           let flags = 0b0000;
-          const d = props[x];
           if (d.configurable) flags |= 0b0010;
           if (d.enumerable) flags |= 0b0100;
           if (d.writable) flags |= 0b1000;
 
-          out.push(
-            [ Opcodes.local_get, 0 ],
-            number(TYPES.object, Valtype.i32),
+          out.push(Call('__Porffor_object_fastAdd', [ obj, makeString(x), value, Const(T.i32, flags) ], T.none));
+        };
 
-            ...makeString(scope, x),
-            Opcodes.i32_to_u,
-            number(TYPES.bytestring, Valtype.i32),
-
-            ...generate(scope, value),
-            ...getNodeType(scope, value),
-
-            number(flags, Valtype.i32),
-            number(TYPES.number, Valtype.i32),
-
-            [ Opcodes.call, builtin(add ? '__Porffor_object_fastAdd' : '__Porffor_object_define') ]
-          );
+        if (lazyKind && Prefs.lazyObjects) {
+          // entries only for included methods/globals, explicit X.prototype marks __full -> everything
+          const ctorName = lazyKind === 'proto' ? name.slice(2, name.indexOf('_prototype')) : null;
+          const adds = [];
+          onFinalize(() => {
+            adds.length = 0;
+            for (const x in props) {
+              const key = prefix + x;
+              if (lazyKind === 'proto') {
+                if (key in builtinFuncs) {
+                  if (builtinFuncs[getName].__full) includeBuiltin(key);
+                    else if (!hasFunc(key)) continue;
+                }
+                if (x === 'constructor') {
+                  if (builtinFuncs[getName].__full) includeBuiltin(ctorName);
+                    else if (!hasFunc(ctorName)) continue;
+                }
+              } else {
+                if (key in builtinFuncs) {
+                  if (!hasFunc(key)) continue;
+                } else if (('#get_' + key) in builtinFuncs) {
+                  if (!hasFunc('#get_' + key)) continue;
+                }
+              }
+              emitProp(adds, x, props[x]);
+            }
+          });
+          out.push(BlockStmt(adds));
+        } else {
+          for (const x in props) emitProp(out, x, props[x]);
         }
 
-        // return ptr
-        out.push(getPtr);
+        out.push(BlockStmt(sync));
+        out.push(Return(getPtr));
         return out;
       }
     };
 
-   _[name] = (scope, { builtin }) => [
-      [ Opcodes.call, builtin('#get_' + name) ],
-      Opcodes.i32_from_u
-    ];
-   _[name].type = existingFunc ? TYPES.function : TYPES.object;
+   _[name] = (_scope, { includeBuiltin }) => {
+      if (lazyKind === 'proto') builtinFuncs[getName].__full = true;
+      includeBuiltin('#get_' + name);
+      return Box(Call('#get_' + name, [], T.ptr), Const(T.i32, existingFunc ? TYPES.function : TYPES.object));
+    };
+    _[name].type = existingFunc ? TYPES.function : TYPES.object;
 
     for (const x in props) {
       const d = props[x];
@@ -206,13 +169,13 @@ export const BuiltinVars = ({ builtinFuncs }) => {
         }
 
         if (typeof d.value === 'number') {
-         _[k] = [ number(d.value) ];
+         _[k] = () => Box(Const(T.f64, d.value), Const(T.i32, TYPES.number));
          _[k].type = TYPES.number;
           continue;
         }
 
         if (typeof d.value === 'string') {
-         _[k] = (scope, { makeString }) => makeString(scope, d.value);
+         _[k] = (_scope, { makeString }) => makeString(d.value);
          _[k].type = TYPES.bytestring;
           continue;
         }
@@ -231,14 +194,12 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     const out = {};
 
     if (Array.isArray(vals)) {
-      // array of keys with no value
       for (const x of vals) {
         out[x] = {
           ...base
         };
       }
     } else for (const x in vals) {
-      // object of key values
       out[x] = {
         ...base,
         value: vals[x]
@@ -318,22 +279,10 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     writable: false,
     enumerable: false,
     configurable: false
-  }, Object.fromEntries(wellKnownSymbols.map(x => [x, (scope, { glbl, builtin, makeString }) => [
-    [ Opcodes.block, Valtype.f64 ],
-      ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
-      Opcodes.i32_to_u,
-      [ Opcodes.if, Blocktype.void ],
-        ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
-        [ Opcodes.br, 1 ],
-      [ Opcodes.end ],
-
-      ...makeString(scope, `Symbol.${x}`),
-      number(TYPES.bytestring, Valtype.i32),
-      [ Opcodes.call, builtin('Symbol') ],
-      ...glbl(Opcodes.global_set, `#wellknown_${x}`, Valtype.f64),
-      ...glbl(Opcodes.global_get, `#wellknown_${x}`, Valtype.f64),
-    [ Opcodes.end ]
-  ]])));
+  }, Object.fromEntries(wellKnownSymbols.map(x => [x, (_scope, { includeBuiltin, makeString, global }) => {
+    includeBuiltin('Symbol');
+    return global(`#wellknown_${x}`, T.jsval, Call('Symbol', [ makeString(`Symbol.${x}`) ], T.jsval));
+  }])));
 
   for (const x of wellKnownSymbols) {
     wellKnownSymbolProps[x].value.type = TYPES.symbol;
@@ -361,8 +310,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       props.name = { value: '', configurable: true };
     }
 
-    // special case: Array.prototype.length = 0
-    // Per spec, Array.prototype is an Array exotic object with length = 0
+    // per spec Array.prototype is an array exotic object with length = 0
     if (x === '__Array_prototype') {
       props.length = { value: 0, writable: true, configurable: false };
     }
@@ -370,7 +318,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     // add constructor for constructors
     const name = x.slice(2, x.indexOf('_', 2));
     if (builtinFuncs[name]?.constr) {
-      const value = (scope, { funcRef }) => funcRef(name);
+      const value = (_scope, { funcRefPtr }) => Box(funcRefPtr(name), Const(T.i32, TYPES.function));
       value.type = TYPES.function;
 
       props.constructor = {
@@ -394,11 +342,11 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       NaN: NaN,
       POSITIVE_INFINITY: Infinity,
       NEGATIVE_INFINITY: -Infinity,
-      MAX_VALUE: valtype === 'i32' ? 2147483647 : 1.7976931348623157e+308,
-      MIN_VALUE: valtype === 'i32' ? -2147483648 : 5e-324,
-      MAX_SAFE_INTEGER: valtype === 'i32' ? 2147483647 : 9007199254740991,
-      MIN_SAFE_INTEGER: valtype === 'i32' ? -2147483648 : -9007199254740991,
-      EPSILON: 2.220446049250313e-16
+      MAX_VALUE: f64FromBytes([ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xef, 0x7f ]),
+      MIN_VALUE: f64FromBytes([ 1, 0, 0, 0, 0, 0, 0, 0 ]),
+      MAX_SAFE_INTEGER: 9007199254740991,
+      MIN_SAFE_INTEGER: -9007199254740991,
+      EPSILON: f64FromBytes([ 0, 0, 0, 0, 0, 0, 0xb0, 0x3c ])
     }),
 
     ...autoFuncs('Number')
@@ -417,7 +365,6 @@ export const BuiltinVars = ({ builtinFuncs }) => {
 
   for (const x of [
     'console',
-    'crypto',
     'performance',
   ]) {
     object(x, props({
@@ -441,7 +388,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     });
   }
 
-  const enumerableGlobals = [ 'atob', 'btoa', 'performance', 'crypto', 'navigator' ];
+  const enumerableGlobals = [ 'atob', 'btoa', 'performance', 'navigator' ];
   object('globalThis', {
     // 19.1 Value Properties of the Global Object
     // https://tc39.es/ecma262/#sec-value-properties-of-the-global-object
@@ -478,940 +425,294 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     }, enumerableGlobals)
   });
 
-  if (Prefs.logMissingObjects) for (const x of Object.keys(builtinFuncs).concat(Object.keys(_))) {
-    if (!x.startsWith('__')) continue;
-    const name = x.split('_').slice(2, -1).join('_');
-
-    let t = globalThis;
-    for (const x of name.split('_')) {
-      t = t[x];
-      if (!t) break;
-    }
-    if (!t) continue;
-
-    if (!done.has(name) && !done.has('__' + name)) {
-      console.log(name, !!builtinFuncs[name]);
-      done.add(name);
-    }
-  }
-
   return _;
 };
 
 export const BuiltinFuncs = () => {
   const _ = Object.create(null);
   _.isNaN = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
+    params: [ { name: 'x', type: T.f64 } ],
+    retType: T.jsval,
     returnType: TYPES.boolean,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_ne ],
-      Opcodes.i32_from
-    ]
+    body: [ Return(Box(Bin('!=', T.f64, Local('x', T.f64), Local('x', T.f64)), Const(T.i32, TYPES.boolean))) ]
   };
   _.__Number_isNaN = _.isNaN;
 
   _.isFinite = {
-    params: [ valtypeBinary ],
-    locals: [ valtypeBinary ],
-    returns: [ valtypeBinary ],
+    params: [ { name: 'x', type: T.f64 } ],
+    retType: T.jsval,
     returnType: TYPES.boolean,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_sub ],
-      [ Opcodes.local_tee, 1 ],
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.f64_eq ],
-      Opcodes.i32_from
-    ]
+    body: [ Return(Box(Bin('==', T.f64, Bin('-', T.f64, Local('x', T.f64), Local('x', T.f64)), Bin('-', T.f64, Local('x', T.f64), Local('x', T.f64))), Const(T.i32, TYPES.boolean))) ]
   };
   _.__Number_isFinite = _.isFinite;
 
-  // todo: should be false for +-Infinity
-  _.__Number_isInteger = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.boolean,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_trunc ],
-      [ Opcodes.f64_eq ],
-      Opcodes.i32_from
+  // libm-backed Math: jsval params so public methods do ToNumber, boxed returns for builtin callers
+  const nativeMathArg = name => JvNum(Call('__ecma262_ToNumber', [ Local(name, T.jsval) ]));
+  const nativeMathUnary = name => {
+    _[`__Math_${name}`] = {
+      params: [ { name: 'x', type: T.jsval } ],
+      retType: T.jsval,
+      returnType: TYPES.number,
+      body: [
+        DeclLocal(T.f64, 'n', nativeMathArg('x')),
+        RawC(`return porf_box_num(${name}(n));`, false)
+      ]
+    };
+  };
+
+  for (const name of [
+    'exp', 'log2', 'log', 'log10', 'expm1', 'log1p', 'sqrt', 'cbrt',
+    'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh',
+    'atanh', 'asin', 'acos', 'atan'
+  ]) nativeMathUnary(name);
+
+  _.__Math_atan2 = {
+    params: [ { name: 'y', type: T.jsval }, { name: 'x', type: T.jsval } ],
+    retType: T.jsval,
+    returnType: TYPES.number,
+    body: [
+      DeclLocal(T.f64, 'yNum', nativeMathArg('y')),
+      DeclLocal(T.f64, 'xNum', nativeMathArg('x')),
+      RawC('return porf_box_num(atan2(yNum, xNum));', false)
     ]
   };
 
-  _.__Number_isSafeInteger = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.boolean,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_trunc ],
-      [ Opcodes.f64_ne ],
-      [ Opcodes.if, Blocktype.void ],
-      number(0),
-      [ Opcodes.return ],
-      [ Opcodes.end ],
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_abs ],
-      number(9007199254740991),
-      [ Opcodes.f64_le ],
-      Opcodes.i32_from
+  // C pow() returns 1 where JS requires NaN
+  _.__Math_pow = {
+    params: [ { name: 'base', type: T.jsval }, { name: 'exponent', type: T.jsval } ],
+    retType: T.jsval,
+    returnType: TYPES.number,
+    body: [
+      DeclLocal(T.f64, 'baseNum', nativeMathArg('base')),
+      DeclLocal(T.f64, 'exponentNum', nativeMathArg('exponent')),
+      RawC(`if (exponentNum != exponentNum) return porf_box_num(NAN);
+if ((baseNum == 1.0 || baseNum == -1.0) && isinf(exponentNum)) return porf_box_num(NAN);
+return porf_box_num(pow(baseNum, exponentNum));`, false)
     ]
   };
 
-
-  for (const [ name, op, prefix = [ [ Opcodes.local_get, 0 ] ] ] of [
-    [ 'sqrt', Opcodes.f64_sqrt ],
-    [ 'abs', Opcodes.f64_abs ],
-    [ 'sign', Opcodes.f64_copysign, [ number(1), [ Opcodes.local_get, 0 ] ] ],
-    [ 'floor', Opcodes.f64_floor ],
-    [ 'ceil', Opcodes.f64_ceil ],
-    [ 'round', Opcodes.f64_nearest ],
-    [ 'trunc', Opcodes.f64_trunc ]
+  for (const [ name, op ] of [
+    [ 'abs', 'abs' ],
+    [ 'floor', 'floor' ],
+    [ 'ceil', 'ceil' ],
+    [ 'round', 'nearest' ],
+    [ 'trunc', 'trunc' ]
   ]) {
    _[`__Math_${name}`] = {
-      params: [ Valtype.f64 ],
-      locals: [],
-      returns: [ Valtype.f64 ],
+      params: [ { name: 'x', type: T.jsval } ],
+      retType: T.jsval,
       returnType: TYPES.number,
-      wasm: () => [
-        ...prefix,
-        [ op ]
+      body: [
+        DeclLocal(T.f64, 'n', nativeMathArg('x')),
+        Return(Box(Un(op, T.f64, Local('n', T.f64)), Const(T.i32, TYPES.number)))
       ]
     };
   }
 
+  _.__Math_sign = {
+    params: [ { name: 'x', type: T.jsval } ],
+    retType: T.jsval,
+    returnType: TYPES.number,
+    body: [
+      DeclLocal(T.f64, 'n', nativeMathArg('x')),
+      RawC('if (n != n || n == 0.0) return porf_box_num(n);\nreturn porf_box_num(copysign(1.0, n));', false)
+    ]
+  };
+
   // todo: does not follow spec with +-Infinity and values >2**32
   _.__Math_clz32 = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
+    params: [ { name: 'x', type: T.jsval } ],
+    retType: T.jsval,
     returnType: TYPES.number,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      Opcodes.i32_to_u,
-      [ Opcodes.i32_clz ],
-      Opcodes.i32_from
+    body: [
+      DeclLocal(T.f64, 'n', nativeMathArg('x')),
+      RawC('return porf_box_num((f64)porf_clz32(porf_f64_to_u32(n)));', false)
     ]
   };
 
   _.__Math_fround = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
+    params: [ { name: 'x', type: T.jsval } ],
+    retType: T.jsval,
     returnType: TYPES.number,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f32_demote_f64 ],
-      [ Opcodes.f64_promote_f32 ]
+    body: [
+      DeclLocal(T.f64, 'n', nativeMathArg('x')),
+      RawC('return porf_box_num((f64)(f32)n);', false)
     ]
   };
 
-  // todo: this does not overflow correctly
   _.__Math_imul = {
-    params: [ valtypeBinary, valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
+    params: [ { name: 'x', type: T.jsval }, { name: 'y', type: T.jsval } ],
+    retType: T.jsval,
     returnType: TYPES.number,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      Opcodes.i32_to,
-      [ Opcodes.local_get, 1 ],
-      Opcodes.i32_to,
-      [ Opcodes.i32_mul ],
-      Opcodes.i32_from
+    body: [
+      DeclLocal(T.f64, 'xNum', nativeMathArg('x')),
+      DeclLocal(T.f64, 'yNum', nativeMathArg('y')),
+      RawC(`f64 xd = trunc(xNum);
+xd -= floor(xd / 4294967296.0) * 4294967296.0;
+if (xd < 0.0) xd += 4294967296.0;
+f64 yd = trunc(yNum);
+yd -= floor(yd / 4294967296.0) * 4294967296.0;
+if (yd < 0.0) yd += 4294967296.0;
+return porf_box_num((f64)(i32)((u32)xd * (u32)yd));`, false)
     ]
   };
 
-  const prngSeed0 = (Math.random() * (2 ** 30)) | 0, prngSeed1 = (Math.random() * (2 ** 30)) | 0;
-  const prng = {
-    localNames: ['s1', 's0'],
-    ...({
-      'xorshift32+': {
-        globalInits: { state0: prngSeed0 },
-        locals: [ Valtype.i32 ],
-        returns: Valtype.i32,
-        wasm: (scope, { glbl }) => [
-          // setup: s1 = state0
-          ...glbl(Opcodes.global_get, 'state0', Valtype.i32), // state0
-          [ Opcodes.local_tee, 0 ], // s1
-
-          // s1 ^= s1 << 13
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.i32_const, 13 ],
-          [ Opcodes.i32_shl ], // <<
-          [ Opcodes.i32_xor ], // ^
-          [ Opcodes.local_tee, 0 ], // s1
-
-          // s1 ^= s1 >> 17
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.i32_const, 17 ],
-          [ Opcodes.i32_shr_s ], // >>
-          [ Opcodes.i32_xor ], // ^
-          [ Opcodes.local_tee, 0 ], // s1
-
-          // s1 ^= s1 << 5
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.i32_const, 5 ],
-          [ Opcodes.i32_shl ], // <<
-          [ Opcodes.i32_xor ], // ^
-          [ Opcodes.local_tee, 0 ], // s1
-
-          // state0 = s1
-          ...glbl(Opcodes.global_set, 'state0', Valtype.i32),
-
-          // s1
-          [ Opcodes.local_get, 0 ],
-        ],
-      },
-
-      'xorshift64+': {
-        globalInits: { state0: prngSeed0 },
-        locals: [ Valtype.i64 ],
-        returns: Valtype.i64,
-        wasm: (scope, { glbl }) => [
-          // setup: s1 = state0
-          ...glbl(Opcodes.global_get, 'state0', Valtype.i64), // state0
-          [ Opcodes.local_tee, 0 ], // s1
-
-          // s1 ^= s1 >> 12
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.i64_const, 12 ],
-          [ Opcodes.i64_shr_s ], // >>
-          [ Opcodes.i64_xor ], // ^
-          [ Opcodes.local_tee, 0 ], // s1
-
-          // s1 ^= s1 << 25
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.i64_const, 25 ],
-          [ Opcodes.i64_shl ], // <<
-          [ Opcodes.i64_xor ], // ^
-          [ Opcodes.local_tee, 0 ], // s1
-
-          // s1 ^= s1 >> 27
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.i64_const, 27 ],
-          [ Opcodes.i64_shr_s ], // >>
-          [ Opcodes.i64_xor ], // ^
-          [ Opcodes.local_tee, 0 ], // s1
-
-          // state0 = s1
-          ...glbl(Opcodes.global_set, 'state0', Valtype.i64),
-
-          // s1
-          [ Opcodes.local_get, 0 ],
-        ],
-      },
-
-      'xorshift128+': {
-        globalInits: { state0: prngSeed0, state1: prngSeed1 },
-        locals: [ Valtype.i64, Valtype.i64 ],
-        returns: Valtype.i64,
-        wasm: (scope, { glbl }) => [
-          // setup: s1 = state0, s0 = state1, state0 = s0
-          ...glbl(Opcodes.global_get, 'state0', Valtype.i64), // state0
-          [ Opcodes.local_tee, 0 ], // s1
-          ...glbl(Opcodes.global_get, 'state1', Valtype.i64), // state1
-          [ Opcodes.local_tee, 1, ], // s0
-          ...glbl(Opcodes.global_set, 'state0', Valtype.i64), // state0
-
-          // s1 ^= s1 << 23
-          // [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.i64_const, 23 ],
-          [ Opcodes.i64_shl ], // <<
-          [ Opcodes.i64_xor ], // ^
-          [ Opcodes.local_set, 0 ], // s1
-
-          // state1 = s1 ^ s0 ^ (s1 >> 17) ^ (s0 >> 26)
-          // s1 ^ s0
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.local_get, 1 ], // s0
-          [ Opcodes.i64_xor ], // ^
-
-          // ^ (s1 >> 17)
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.i64_const, 17 ],
-          [ Opcodes.i64_shr_u ], // >>
-          [ Opcodes.i64_xor ], // ^
-
-          // ^ (s0 >> 26)
-          [ Opcodes.local_get, 1 ], // s0
-          [ Opcodes.i64_const, 26 ],
-          [ Opcodes.i64_shr_u ], // >>
-          [ Opcodes.i64_xor ], // ^
-
-          // state1 =
-          ...glbl(Opcodes.global_set, 'state1', Valtype.i64),
-
-          // state1 + s0
-          ...glbl(Opcodes.global_get, 'state1', Valtype.i64), // state1
-          [ Opcodes.local_get, 1 ], // s0
-          [ Opcodes.i64_add ]
-        ]
-      },
-
-      'xoroshiro128+': {
-        globalInits: { state0: prngSeed0, state1: prngSeed1 },
-        locals: [ Valtype.i64, Valtype.i64, Valtype.i64 ],
-        returns: Valtype.i64,
-        wasm: (scope, { glbl }) => [
-          // setup: s1 = state1, s0 = state0
-          ...glbl(Opcodes.global_get, 'state1', Valtype.i64), // state0
-          [ Opcodes.local_tee, 0 ], // s1
-          ...glbl(Opcodes.global_get, 'state0', Valtype.i64), // state1
-          [ Opcodes.local_tee, 1, ], // s0
-
-          // result = s0 + s1
-          [ Opcodes.i64_add ],
-          [ Opcodes.local_set, 2 ], // result
-
-          // s1 ^= s0
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.local_get, 1 ], // s0
-          [ Opcodes.i64_xor ],
-          [ Opcodes.local_set, 0 ], // s1
-
-          // state0 = rotl(s0, 24) ^ s1 ^ (s1 << 16)
-
-          // rotl(s0, 24) ^ s1
-          [ Opcodes.local_get, 1 ], // s0
-          number(24, Valtype.i64),
-          [ Opcodes.i64_rotl ],
-          [ Opcodes.local_get, 0 ], // s1
-          [ Opcodes.i64_xor ],
-
-          // ^ (s1 << 16)
-          [ Opcodes.local_get, 0 ], // s1
-          number(16, Valtype.i64),
-          [ Opcodes.i64_shl ],
-          [ Opcodes.i64_xor ],
-
-          // state0 =
-          ...glbl(Opcodes.global_set, 'state0', Valtype.i64), // state0
-
-          // state1 = rotl(s1, 37)
-          [ Opcodes.local_get, 0 ], // s1
-          number(37, Valtype.i64),
-          [ Opcodes.i64_rotl ],
-          ...glbl(Opcodes.global_set, 'state1', Valtype.i64), // state1
-
-          // result
-          [ Opcodes.local_get, 2 ],
-        ]
-      },
-
-      'xoshiro128+': {
-        globalInits: { state0: prngSeed0, state1: prngSeed1, state2: (prngSeed0 * 17) | 0, state3: (prngSeed1 * 31) | 0 },
-        locals: [ Valtype.i32, Valtype.i32 ],
-        returns: Valtype.i32,
-        wasm: (scope, { glbl }) => [
-          // result = state0 + state3
-          ...glbl(Opcodes.global_get, 'state0', Valtype.i32), // state0
-          ...glbl(Opcodes.global_get, 'state3', Valtype.i32), // state0
-          [ Opcodes.i32_add ],
-          [ Opcodes.local_set, 0 ], // result
-
-          // t = state1 << 9
-          ...glbl(Opcodes.global_get, 'state1', Valtype.i32), // state1
-          number(9, Valtype.i32),
-          [ Opcodes.i32_shl ],
-          [ Opcodes.local_set, 1 ], // t
-
-          // state2 ^= state0
-          ...glbl(Opcodes.global_get, 'state2', Valtype.i32), // state2
-          ...glbl(Opcodes.global_get, 'state0', Valtype.i32), // state0
-          [ Opcodes.i32_xor ],
-          ...glbl(Opcodes.global_set, 'state2', Valtype.i32), // state2
-
-          // state3 ^= state1
-          ...glbl(Opcodes.global_get, 'state3', Valtype.i32), // state3
-          ...glbl(Opcodes.global_get, 'state1', Valtype.i32), // state1
-          [ Opcodes.i32_xor ],
-          ...glbl(Opcodes.global_set, 'state3', Valtype.i32), // state3
-
-          // state1 ^= state2
-          ...glbl(Opcodes.global_get, 'state1', Valtype.i32), // state1
-          ...glbl(Opcodes.global_get, 'state2', Valtype.i32), // state2
-          [ Opcodes.i32_xor ],
-          ...glbl(Opcodes.global_set, 'state1', Valtype.i32), // state1
-
-          // state0 ^= state3
-          ...glbl(Opcodes.global_get, 'state0', Valtype.i32), // state2
-          ...glbl(Opcodes.global_get, 'state3', Valtype.i32), // state0
-          [ Opcodes.i32_xor ],
-          ...glbl(Opcodes.global_set, 'state0', Valtype.i32), // state2
-
-          // state2 ^= t
-          ...glbl(Opcodes.global_get, 'state2', Valtype.i32), // state2
-          [ Opcodes.local_get, 1 ], // t
-          [ Opcodes.i32_xor ],
-          ...glbl(Opcodes.global_set, 'state2', Valtype.i32), // state2
-
-          // state3 = rotl(state3, 11)
-          ...glbl(Opcodes.global_get, 'state3', Valtype.i32), // state3
-          number(11, Valtype.i32),
-          [ Opcodes.i32_rotl ],
-          ...glbl(Opcodes.global_set, 'state3', Valtype.i32), // state3
-
-          // result
-          [ Opcodes.local_get, 0 ],
-        ]
-      }
-    })[Prefs.prng ?? 'xorshift128+']
-  }
-
-  if (!prng) throw new Error(`unknown prng algo: ${Prefs.prng}`);
-
-  _.__Math_random = {
-    ...prng,
+  _.__Porffor_prng = {
     params: [],
-    returns: [ Valtype.f64 ],
-    returnType: TYPES.number,
-    wasm: (scope, utils) => [
-      ...prng.wasm(scope, utils),
-      ...(prng.returns === Valtype.i64 ? [
-        number((1 << 53) - 1, Valtype.i64),
-        [ Opcodes.i64_and ],
+    retType: T.u64,
+    body: ({ global }) => {
+      const state0 = global('state0', T.u64);
+      const state1 = global('state1', T.u64);
+      const s1 = Local('s1', T.u64);
+      const s0 = Local('s0', T.u64);
+      const result = Local('result', T.u64);
 
-        // double(mantissa)
-        [ Opcodes.f64_convert_i64_u ],
-
-        // / (1 << 53)
-        number(1 << 53),
-        [ Opcodes.f64_div ]
-      ] : [
-        number((1 << 21) - 1, Valtype.i32),
-        [ Opcodes.i32_and ],
-
-        // double(mantissa)
-        [ Opcodes.f64_convert_i32_u ],
-
-        // / (1 << 21)
-        number(1 << 21),
-        [ Opcodes.f64_div ]
-      ])
-    ]
-  };
-
-  _.__Porffor_randomByte = {
-    ...prng,
-    params: [],
-    returns: [ Valtype.i32 ],
-    returnType: TYPES.number,
-    wasm: (scope, utils) => [
-      ...prng.wasm(scope, utils),
-      ...(prng.returns === Valtype.i64 ? [
-        // the lowest bits of the output generated by xorshift128+ have low quality
-        number(56, Valtype.i64),
-        [ Opcodes.i64_shr_u ],
-
-        [ Opcodes.i32_wrap_i64 ],
-      ] : []),
-
-      number(0xff, Valtype.i32),
-      [ Opcodes.i32_and ],
-    ]
-  };
-
-  _.__Math_radians = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      number(Math.PI / 180),
-      [ Opcodes.f64_mul ]
-    ]
-  };
-
-  _.__Math_degrees = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      number(180 / Math.PI),
-      [ Opcodes.f64_mul ]
-    ]
-  };
-
-  _.__Math_clamp = {
-    params: [ valtypeBinary, valtypeBinary, valtypeBinary ],
-    locals: [],
-    localNames: [ 'x', 'lower', 'upper' ],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.f64_max ],
-      [ Opcodes.local_get, 2 ],
-      [ Opcodes.f64_min ]
-    ]
-  };
-
-  _.__Math_scale = {
-    params: [ valtypeBinary, valtypeBinary, valtypeBinary, valtypeBinary, valtypeBinary ],
-    locals: [],
-    localNames: [ 'x', 'inLow', 'inHigh', 'outLow', 'outHigh' ],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: () => [
-      // (x − inLow) * (outHigh − outLow) / (inHigh - inLow) + outLow
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.f64_sub ],
-
-      [ Opcodes.local_get, 4 ],
-      [ Opcodes.local_get, 3 ],
-      [ Opcodes.f64_sub ],
-
-      [ Opcodes.f64_mul ],
-
-      [ Opcodes.local_get, 2 ],
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.f64_sub ],
-
-      [ Opcodes.f64_div ],
-
-      [ Opcodes.local_get, 3 ],
-      [ Opcodes.f64_add ]
-    ]
-  };
-
-  // todo: fix for -0
-  _.__Math_signbit = {
-    params: [ valtypeBinary ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.boolean,
-    wasm: () => [
-      [ Opcodes.local_get, 0 ],
-      number(0),
-      [ Opcodes.f64_le ],
-      Opcodes.i32_from
-    ]
-  };
-
-
-  _.__performance_now = {
-    params: [],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.number,
-    wasm: () => [
-      [ Opcodes.call, importedFuncs.time ]
-    ]
-  };
-  _.__performance_now.usesImports = true;
-
-
-  _.__Porffor_typeName = {
-    params: [ Valtype.i32 ],
-    locals: [],
-    returns: [ valtypeBinary ],
-    returnType: TYPES.bytestring,
-    wasm: (scope, { typeSwitch, makeString }) => {
-      const bc = {};
-      for (const x in TYPE_NAMES) {
-        bc[x] = () => makeString(scope, TYPE_NAMES[x]);
-      }
-
-      return typeSwitch(scope, [ [ Opcodes.local_get, 0 ] ], bc);
+      return [
+        If(Bin('==', T.u64, Bin('|', T.u64, state0, state1), Const(T.u64, 0)), [
+          Assign(state0, Const(T.u64, 0x7b1dcdaf)),
+          Assign(state1, Const(T.u64, 0x21b965f5))
+        ]),
+        DeclLocal(T.u64, 's1', state1),
+        DeclLocal(T.u64, 's0', state0),
+        DeclLocal(T.u64, 'result', Bin('+', T.u64, s0, s1)),
+        Assign(s1, Bin('^', T.u64, s1, s0)),
+        Assign(state0, Bin('^', T.u64,
+          Bin('^', T.u64, Bin('rotl', T.u64, s0, Const(T.u64, 24)), s1),
+          Bin('<<', T.u64, s1, Const(T.u64, 16)))),
+        Assign(state1, Bin('rotl', T.u64, s1, Const(T.u64, 37))),
+        Return(result)
+      ];
     }
   };
 
-  _.__Porffor_clone = {
-    params: [ Valtype.i32, Valtype.i32 ],
-    locals: [],
-    returns: [],
-    returnType: TYPES.undefined,
-    wasm: () => [
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.local_get, 0 ],
-      number(pageSize, Valtype.i32),
-      [ ...Opcodes.memory_copy, 0x00, 0x00 ],
+  _.__Math_random = {
+    params: [],
+    retType: T.f64,
+    returnType: TYPES.number,
+    body: [ Return(Bin('*', T.f64, Convert(T.f64, Bin('>>', T.u64, Call('__Porffor_prng', [], T.u64), Const(T.u64, 11)), 0), Const(T.f64, 2 ** -53))) ]
+  };
+
+  _.__Porffor_randomByte = {
+    params: [],
+    retType: T.i32,
+    returnType: TYPES.number,
+    body: [ Return(Convert(T.i32, Bin('&', T.u64, Bin('>>', T.u64, Call('__Porffor_prng', [], T.u64), Const(T.u64, 56)), Const(T.u64, 0xff)))) ]
+  };
+
+  _.__performance_now = {
+    params: [],
+    retType: T.jsval,
+    returnType: TYPES.number,
+    body: [ Return(Box(Call('porf_performance_now', [], T.f64), Const(T.i32, TYPES.number))) ]
+  };
+
+  _.__Porffor_typeName = {
+    params: [ { name: 'type', type: T.i32 } ],
+    retType: T.jsval,
+    returnType: TYPES.bytestring,
+    body: ({ makeString }) => [
+      TypeSwitch(Local('type', T.i32),
+        Object.entries(TYPE_NAMES).map(([ type, name ]) => [ [ +type ], [ Return(makeString(name)) ] ]),
+        [ Return(makeString('unknown')) ])
     ]
   };
 
-  _.__Porffor_malloc = {
-    defaultParam: () => ({ type: 'Literal', value: pageSize }),
-    params: [ Valtype.i32 ],
-    locals: [],
-    returns: [ Valtype.i32 ],
-    returnType: TYPES.number,
-    wasm: (scope, { builtin, glbl }) => [
-      // if currentPtr + bytesToAllocate >= endPtr
-      ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.i32_add ],
-      ...glbl(Opcodes.global_get, 'endPtr', Valtype.i32),
-      [ Opcodes.i32_ge_s ],
-      [ Opcodes.if, Valtype.i32 ],
-        // currentPtr = newly allocated pages + bytesToAllocate
-        number(Prefs.allocatorChunks ?? 16, Valtype.i32),
-        [ Opcodes.memory_grow, 0 ],
-        number(PageSize, Valtype.i32),
-        [ Opcodes.i32_mul ],
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.i32_add ],
-        ...glbl(Opcodes.global_set, 'currentPtr', Valtype.i32),
-        ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
-
-        // endPtr = currentPtr + limit - bytesToAllocate
-        number((Prefs.allocatorChunks ?? 16) * PageSize, Valtype.i32),
-        [ Opcodes.i32_add ],
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.i32_sub ],
-        ...glbl(Opcodes.global_set, 'endPtr', Valtype.i32),
-
-        // return currentPtr - bytesToAllocate
-        ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.i32_sub ],
-      [ Opcodes.else ],
-        // return currentPtr
-        ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
-
-        // currentPtr = currentPtr + bytesToAllocate
-        ...glbl(Opcodes.global_get, 'currentPtr', Valtype.i32),
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.i32_add ],
-        ...glbl(Opcodes.global_set, 'currentPtr', Valtype.i32),
-      [ Opcodes.end ]
-    ]
+  _.__Porffor_clone = {
+    params: [ { name: 'dst', type: T.ptr }, { name: 'src', type: T.ptr } ],
+    retType: T.none,
+    returnType: TYPES.undefined,
+    body: [ RawC('memcpy(MEM + dst, MEM + src, pageSize);', false) ]
   };
 
   _.__Porffor_bytestringToString = {
-    params: [ Valtype.i32 ],
-    locals: [ Valtype.i32, Valtype.i32, Valtype.i32 ],
-    localNames: [ 'src', 'len', 'counter', 'dst' ],
-    returns: [ Valtype.i32 ],
+    params: [ { name: 'src', type: T.ptr } ],
+    retType: T.jsval,
     returnType: TYPES.string,
-    wasm: (scope, { builtin }) => [
-      // len = src.length
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.i32_load, 0, 0 ],
-      [ Opcodes.local_tee, 1 ],
-
-      // dst = malloc(6 + len * 2)
-      number(2, Valtype.i32),
-      [ Opcodes.i32_mul ],
-      number(6, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.call, builtin('__Porffor_malloc') ],
-      [ Opcodes.local_tee, 3 ],
-
-      // dst.length = len
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.i32_store, 0, 0 ],
-
-      [ Opcodes.loop, Blocktype.void ],
-
-      // base for store later
-      [ Opcodes.local_get, 2 ],
-      [ Opcodes.i32_const, 2 ],
-      [ Opcodes.i32_mul ],
-      [ Opcodes.local_get, 3 ],
-      [ Opcodes.i32_add ],
-
-      // load char from src
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.local_get, 2 ],
-      [ Opcodes.i32_add ],
-      [ Opcodes.i32_load8_u, 0, 4 ],
-
-      // store char to dst
-      [ Opcodes.i32_store16, 0, 4 ],
-
-      // counter++
-      [ Opcodes.local_get, 2 ],
-      [ Opcodes.i32_const, 1 ],
-      [ Opcodes.i32_add ],
-      [ Opcodes.local_tee, 2 ],
-
-      // loop if counter < len
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.i32_lt_s ],
-      [ Opcodes.br_if, 0 ],
-      [ Opcodes.end ],
-
-      // return dst
-      [ Opcodes.local_get, 3 ]
-    ]
+    body: [ RawC(`u32 len = *(u32*)(MEM + src);
+u32 dst = porf_alloc(6u + len * 2u, ${TYPES.string});
+*(u32*)(MEM + dst) = len;
+for (u32 i = 0; i < len; i++) *(u16*)(MEM + dst + 4u + i * 2u) = *(u8*)(MEM + src + 4u + i);
+return porf_box((f64)dst, ${TYPES.string});`, false) ]
   };
 
-  _.__Porffor_funcLut_length = {
-    params: [ Valtype.i32 ],
-    returns: [ Valtype.i32 ],
-    returnType: TYPES.number,
-    wasm: (scope, { allocLargePage, funcs }) => [
-      [ Opcodes.local_get, 0 ],
-      [ null, () => [
-        number(funcs.bytesPerFuncLut(), Valtype.i32)
-      ] ],
-      [ Opcodes.i32_mul ],
-      [ Opcodes.i32_load16_u, 0, ...unsignedLEB128(allocLargePage(scope, '#func lut')) ]
-    ],
-    table: true
-  };
+  // Function.prototype.length/flags/name from render-emitted tables (porf_fnlen/fnflags/fnname),
+  // indexed by fn index: `*(u32*)(MEM + (u32)fn.val)`, same decode as porf_call_dynamic
+  const lutFn = (returnType, body) => ({ params: [ { name: 'fn', type: T.jsval } ], retType: T.jsval, returnType, body: [ RawC(body, false) ] });
+  const lutRead = table => `${table}[*(u32*)(MEM + (u32)fn.val)]`;
 
-  _.__Porffor_funcLut_flags = {
-    params: [ Valtype.i32 ],
-    returns: [ Valtype.i32 ],
-    returnType: TYPES.number,
-    wasm: (scope, { allocLargePage, funcs }) => [
-      [ Opcodes.local_get, 0 ],
-      [ null, () => [
-        number(funcs.bytesPerFuncLut(), Valtype.i32)
-      ] ],
-      [ Opcodes.i32_mul ],
-      number(2, Valtype.i32),
-      [ Opcodes.i32_add ],
-      [ Opcodes.i32_load8_u, 0, ...unsignedLEB128(allocLargePage(scope, '#func lut')) ]
-    ],
-    table: true
-  };
+  _.__Porffor_funcLut_length = lutFn(TYPES.number, `return porf_box_num((f64)${lutRead('porf_fnlen')});`);
 
-  _.__Porffor_funcLut_name = {
-    params: [ Valtype.i32 ],
-    returns: [ Valtype.i32 ],
-    returnType: TYPES.bytestring,
-    wasm: (scope, { allocLargePage, funcs }) => [
-      [ Opcodes.local_get, 0 ],
-      [ null, () => [
-        number(funcs.bytesPerFuncLut(), Valtype.i32)
-      ] ],
-      [ Opcodes.i32_mul ],
-      number(3, Valtype.i32),
-      [ Opcodes.i32_add ],
-      number(allocLargePage(scope, '#func lut'), Valtype.i32),
-      [ Opcodes.i32_add ]
-    ],
-    table: true
-  };
+  _.__Porffor_funcLut_flags = lutFn(TYPES.number, `return porf_box_num((f64)((${lutRead('porf_fnflags')} >> 3) & 3));`);
+
+  _.__Porffor_funcLut_name = lutFn(TYPES.bytestring, `return porf_box((f64)${lutRead('porf_fnname')}, ${TYPES.bytestring});`);
 
   _.__Porffor_number_getExponent = {
-    params: [ Valtype.f64 ],
-    returns: [ Valtype.i32 ],
+    params: [ { name: 'x', type: T.f64 } ],
+    retType: T.i32,
     returnType: TYPES.number,
-    wasm: () => [
-      // extract exponent bits from f64 with bit manipulation
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.i64_reinterpret_f64 ],
-      number(52, Valtype.i64),
-      [ Opcodes.i64_shr_u ],
-      number(0x7FF, Valtype.i64),
-      [ Opcodes.i64_and ],
-      [ Opcodes.i32_wrap_i64 ],
-      number(1023, Valtype.i32),
-      [ Opcodes.i32_sub ]
-    ]
+    body: [ Return(Bin('-', T.i32, Convert(T.i32, Bin('&', T.u64, Bin('>>', T.u64, Reinterpret(T.u64, Local('x', T.f64)), Const(T.u64, 52)), Const(T.u64, 0x7ff))), Const(T.i32, 1023))) ]
   };
 
   _.__Porffor_bigint_fromU64 = {
-    params: [ Valtype.i64 ],
-    locals: [ Valtype.i32, Valtype.i32, Valtype.i32 ],
-    localNames: [ 'x', 'hi', 'lo', 'ptr' ],
-    returns: [ Valtype.f64 ],
+    params: [ { name: 'x', type: T.i64 } ],
+    retType: T.jsval,
     returnType: TYPES.bigint,
-    wasm: (scope, { builtin }) => [
-      // x is u64 so abs(x) = x
-      [ Opcodes.local_get, 0 ],
-      number(32, Valtype.i64),
-      [ Opcodes.i64_shr_u ],
-      [ Opcodes.i32_wrap_i64 ],
-      [ Opcodes.local_tee, 1 ],
-
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.i32_wrap_i64 ],
-      [ Opcodes.local_set, 2 ],
-
-      // if abs(x) < 0x8000000000000, return x as bigint
-      number(0x8000000000000 / (2 ** 32), Valtype.i32),
-      [ Opcodes.i32_lt_u ],
-      [ Opcodes.if, Blocktype.void ],
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.f64_convert_i64_u ],
-        [ Opcodes.return ],
-      [ Opcodes.end ],
-
-      number(16, Valtype.i32),
-      [ Opcodes.call, builtin('__Porffor_malloc') ],
-      [ Opcodes.local_tee, 3 ],
-
-      // sign is already 0
-      // digit count = 2
-      number(2, Valtype.i32),
-      [ Opcodes.i32_store16, 0, 2 ],
-
-      // hi and lo as digits
-      [ Opcodes.local_get, 3 ],
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.i32_store, 0, 4 ],
-
-      [ Opcodes.local_get, 3 ],
-      [ Opcodes.local_get, 2 ],
-      [ Opcodes.i32_store, 0, 8 ],
-
-      [ Opcodes.local_get, 3 ],
-      Opcodes.i32_from_u,
-      number(0x8000000000000, Valtype.f64),
-      [ Opcodes.f64_add ]
-    ]
+    body: [ RawC(`u64 ux = (u64)x;
+u32 hi = (u32)(ux >> 32);
+u32 lo = (u32)ux;
+if (hi < 0x80000u) return porf_box((f64)ux, ${TYPES.bigint});
+u32 ptr = porf_alloc(16, ${TYPES.bigint});
+*(u8*)(MEM + ptr) = 0;
+*(u16*)(MEM + ptr + 2) = 2;
+*(u32*)(MEM + ptr + 4) = hi;
+*(u32*)(MEM + ptr + 8) = lo;
+return porf_box((f64)ptr + 2251799813685248.0, ${TYPES.bigint});`, false) ]
   };
 
   _.__Porffor_bigint_fromS64 = {
-    params: [ Valtype.i64 ],
-    locals: [ Valtype.i32, Valtype.i32, Valtype.i32, Valtype.i64 ],
-    localNames: [ 'x', 'hi', 'lo', 'ptr', 'abs' ],
-    returns: [ Valtype.f64 ],
+    params: [ { name: 'x', type: T.i64 } ],
+    retType: T.jsval,
     returnType: TYPES.bigint,
-    wasm: (scope, { builtin }) => [
-      // abs = abs(x) = ((x >> 63) ^ x) - (x >> 63)
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.i64_const, 63 ],
-      [ Opcodes.i64_shr_s ],
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.i64_xor ],
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.i64_const, 63 ],
-      [ Opcodes.i64_shr_s ],
-      [ Opcodes.i64_sub ],
-      [ Opcodes.local_tee, 4 ],
-
-      number(32, Valtype.i64),
-      [ Opcodes.i64_shr_u ],
-      [ Opcodes.i32_wrap_i64 ],
-      [ Opcodes.local_tee, 1 ],
-
-      [ Opcodes.local_get, 4 ],
-      [ Opcodes.i32_wrap_i64 ],
-      [ Opcodes.local_set, 2 ],
-
-      // if hi < (0x8000000000000 / 2**32), return (hi * 2**32) + lo as bigint
-      number(0x8000000000000 / (2 ** 32), Valtype.i32),
-      [ Opcodes.i32_lt_u ],
-      [ Opcodes.if, Blocktype.void ],
-        [ Opcodes.local_get, 0 ],
-        [ Opcodes.f64_convert_i64_s ],
-        [ Opcodes.return ],
-      [ Opcodes.end ],
-
-      number(16, Valtype.i32),
-      [ Opcodes.call, builtin('__Porffor_malloc') ],
-      [ Opcodes.local_tee, 3 ],
-
-      // sign = x != abs
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.local_get, 4 ],
-      [ Opcodes.i64_ne ],
-      [ Opcodes.i32_store8, 0, 0 ],
-
-      // digit count = 2
-      [ Opcodes.local_get, 3 ],
-      number(2, Valtype.i32),
-      [ Opcodes.i32_store16, 0, 2 ],
-
-      // hi and lo as digits
-      [ Opcodes.local_get, 3 ],
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.i32_store, 0, 4 ],
-
-      [ Opcodes.local_get, 3 ],
-      [ Opcodes.local_get, 2 ],
-      [ Opcodes.i32_store, 0, 8 ],
-
-      [ Opcodes.local_get, 3 ],
-      Opcodes.i32_from_u,
-      number(0x8000000000000, Valtype.f64),
-      [ Opcodes.f64_add ]
-    ]
+    body: [ RawC(`i64 signBits = x >> 63;
+u64 ax = (u64)((x ^ signBits) - signBits);
+u32 hi = (u32)(ax >> 32);
+u32 lo = (u32)ax;
+if (hi < 0x80000u) return porf_box((f64)x, ${TYPES.bigint});
+u32 ptr = porf_alloc(16, ${TYPES.bigint});
+*(u8*)(MEM + ptr) = x != (i64)ax;
+*(u16*)(MEM + ptr + 2) = 2;
+*(u32*)(MEM + ptr + 4) = hi;
+*(u32*)(MEM + ptr + 8) = lo;
+return porf_box((f64)ptr + 2251799813685248.0, ${TYPES.bigint});`, false) ]
   };
 
   _.__Porffor_bigint_toI64 = {
-    params: [ Valtype.f64 ],
-    locals: [ Valtype.i32, Valtype.i32 ],
-    localNames: [ 'x', 'ptr', 'digits' ],
-    returns: [ Valtype.i64 ],
+    params: [ { name: 'x', type: T.jsval } ],
+    retType: T.i64,
     returnType: TYPES.bigint,
-    wasm: () => [
-      // if abs(x) < 0x8000000000000, return x as u64
-      [ Opcodes.local_get, 0 ],
-      [ Opcodes.f64_abs ],
-      number(0x8000000000000, Valtype.f64),
-      [ Opcodes.f64_lt ],
-      [ Opcodes.if, Blocktype.void ],
-        [ Opcodes.local_get, 0 ],
-        Opcodes.i64_trunc_sat_f64_s,
-        [ Opcodes.return ],
-      [ Opcodes.end ],
-
-      [ Opcodes.local_get, 0 ],
-      number(0x8000000000000, Valtype.f64),
-      [ Opcodes.f64_sub ],
-      Opcodes.i32_to_u,
-      [ Opcodes.local_tee, 1 ],
-
-      // if sign == 1, * -1, else * 1
-      [ Opcodes.i32_load8_u, 0, 0 ],
-      [ Opcodes.if, Valtype.i64 ],
-        number(-1, Valtype.i64),
-      [ Opcodes.else ],
-        number(1, Valtype.i64),
-      [ Opcodes.end ],
-
-      // move ptr to final 2 digits
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.i32_load16_u, 0, 2 ],
-      [ Opcodes.local_tee, 2 ],
-      [ Opcodes.i32_const, 2 ],
-      [ Opcodes.i32_gt_u ],
-      [ Opcodes.if, Blocktype.void ],
-        [ Opcodes.local_get, 2 ],
-        [ Opcodes.i32_const, 2 ],
-        [ Opcodes.i32_sub ],
-        [ Opcodes.i32_const, 4 ],
-        [ Opcodes.i32_mul ],
-        [ Opcodes.local_get, 1 ],
-        [ Opcodes.i32_add ],
-        [ Opcodes.local_set, 1 ],
-      [ Opcodes.end ],
-
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.i32_load, 0, 4 ],
-      [ Opcodes.i64_extend_i32_u ],
-      [ Opcodes.i64_const, 128, 128, 128, 128, 16 ], // todo: fix >2**32 for regular seb 128 encoding
-      [ Opcodes.i64_mul ],
-      [ Opcodes.local_get, 1 ],
-      [ Opcodes.i32_load, 0, 8 ],
-      [ Opcodes.i64_extend_i32_u ],
-      [ Opcodes.i64_add ],
-      [ Opcodes.i64_mul ] // * sign earlier
-    ]
+    body: [ RawC(`f64 d = x.val;
+if (fabs(d) < 2251799813685248.0) return (i64)d;
+u32 ptr = (u32)(d - 2251799813685248.0);
+i64 sign = *(u8*)(MEM + ptr) ? -1 : 1;
+u32 digits = *(u16*)(MEM + ptr + 2);
+if (digits == 0) return 0;
+if (digits == 1) return sign * (i64)(u64)*(u32*)(MEM + ptr + 4);
+if (digits > 2) ptr += (digits - 2) * 4;
+return sign * (i64)((((u64)*(u32*)(MEM + ptr + 4)) << 32) + (u64)*(u32*)(MEM + ptr + 8));`, false) ]
   };
 
   _.__Porffor_memorySize = {
     params: [],
-    returns: [ Valtype.i32 ],
+    retType: T.i32,
     returnType: TYPES.number,
-    wasm: () => [
-      [ Opcodes.memory_size, 0 ],
-      number(PageSize, Valtype.i32),
-      [ Opcodes.i32_mul ]
-    ]
+    body: [ RawC('return (i32)porf_heap_committed;', false) ]
+  };
+
+  _.__Porffor_gc = {
+    params: [],
+    retType: T.none,
+    returnType: TYPES.undefined,
+    body: [ RawC('porf_gc_collect_impl(0);', false) ]
   };
 
   // allow non-comptime redefinition later in precompiled
@@ -1430,7 +731,6 @@ export const BuiltinFuncs = () => {
         return v;
       },
       set(x) {
-        // v = { ...x, comptime, returnType };
         x.comptime = comptime;
         x.returnType = returnType;
         v = x;
@@ -1443,56 +743,37 @@ export const BuiltinFuncs = () => {
     elements: decl.arguments
   }));
 
-  comptime('__Porffor_fastOr', TYPES.boolean, (scope, decl, { generate }) => {
-    const out = [];
+  const fastBoolArg = x => x[N_TYPE] === T.i32 ? x :
+    x[N_KIND] === K.Box && x[N_B][N_KIND] === K.Const && x[N_B][N_A] === TYPES.boolean && (x[N_A][N_TYPE] === T.i32 || x[N_A][N_TYPE] === T.u32) ? Un('!', T.i32, Un('!', T.i32, x[N_A])) :
+    Convert(T.i32, JvNum(x), CONVERT_SIGNED);
+  const fastBool = x => Box(x, Const(T.i32, TYPES.boolean));
 
-    for (let i = 0; i < decl.arguments.length; i++) {
-      out.push(
-        ...generate(scope, decl.arguments[i]),
-        Opcodes.i32_to_u,
-        ...(i > 0 ? [ [ Opcodes.i32_or ] ] : [])
-      );
-    }
+  comptime('__Porffor_fastOr', TYPES.boolean, (scope, decl, { generate }) =>
+    fastBool(decl.arguments.map(a => fastBoolArg(generate(scope, a))).reduce((x, y) => Bin('|', T.i32, x, y))));
 
-    out.push(Opcodes.i32_from_u);
-    return out;
-  });
-
-  comptime('__Porffor_fastAnd', TYPES.boolean, (scope, decl, { generate }) => {
-    const out = [];
-
-    for (let i = 0; i < decl.arguments.length; i++) {
-      out.push(
-        ...generate(scope, decl.arguments[i]),
-        Opcodes.i32_to_u,
-        ...(i > 0 ? [ [ Opcodes.i32_and ] ] : [])
-      );
-    }
-
-    out.push(Opcodes.i32_from_u);
-    return out;
-  });
+  comptime('__Porffor_fastAnd', TYPES.boolean, (scope, decl, { generate }) =>
+    fastBool(decl.arguments.map(a => fastBoolArg(generate(scope, a))).reduce((x, y) => Bin('&', T.i32, x, y))));
 
   comptime('__Porffor_printStatic', TYPES.undefined, (scope, decl, { printStaticStr }) => {
     const str = decl.arguments[0].value;
     const out = printStaticStr(scope, str);
-    out.push(number(UNDEFINED));
+    out.push(JvConst(TYPES.undefined, 0));
     return out;
   });
 
-  comptime('__Porffor_type', TYPES.number, (scope, decl, { getNodeType }) => [
-    ...getNodeType(scope, decl.arguments[0]),
-    Opcodes.i32_from_u
-  ]);
+  comptime('__Porffor_type', TYPES.number, (scope, decl, { generate, getNodeType, knownType }) => {
+    const type = knownType(scope, getNodeType(scope, decl.arguments[0]));
+    if (type != null) return Const(T.i32, type);
+    return JvType(generate(scope, decl.arguments[0]));
+  });
 
   comptime('__Porffor_as', undefined, (scope, decl, { generate }) => {
     const typeArg = decl.arguments[1];
-    if (typeArg?.type !== 'Identifier' || !typeArg.name.startsWith('__Porffor_TYPES_')) {
-      throw new Error('Porffor.as type must be a compile-time Porffor.TYPES.* value');
+    if (typeArg?.type === 'Identifier' && typeArg.name.startsWith('__Porffor_TYPES_')) {
+      return Box(generate(scope, decl.arguments[0]), Const(T.i32, TYPES[typeArg.name.slice('__Porffor_TYPES_'.length)]));
     }
 
-    decl._type = TYPES[typeArg.name.slice('__Porffor_TYPES_'.length)];
-    return generate(scope, decl.arguments[0]);
+    return Box(generate(scope, decl.arguments[0]), generate(scope, typeArg));
   });
 
   comptime('__Porffor_compileType', TYPES.bytestring, (scope, decl, { makeString, knownType, getNodeType }) =>
@@ -1500,70 +781,57 @@ export const BuiltinFuncs = () => {
   );
 
   // Porffor.call(func, argArray, this, newTarget)
-  comptime('__Porffor_call', undefined, (scope, decl, { generate, getNodeType }) => generate(scope, {
-    type: 'CallExpression',
-    callee: decl.arguments[0],
-    arguments: [ {
-      type: 'SpreadElement',
-      argument: decl.arguments[1],
-    } ],
-    _thisWasm: decl.arguments[2].value === null ? null : [
-      ...generate(scope, decl.arguments[2]),
-      ...getNodeType(scope, decl.arguments[2])
-    ],
-    _newTargetWasm: decl.arguments[3].value === null ? null : [
-      ...generate(scope, decl.arguments[3]),
-      ...getNodeType(scope, decl.arguments[3])
-    ],
-    _new: decl.arguments[3].value !== null,
-    _forceCreateThis: true
-  }));
+  comptime('__Porffor_call', undefined, (scope, decl, { generate, createThisArg }) => {
+    const noNewTarget = decl.arguments[3].value === null ||
+      (decl.arguments[3].type === 'Identifier' && decl.arguments[3].name === 'undefined');
+    const newTarget = noNewTarget ? null : generate(scope, decl.arguments[3]);
+    const thisArg = decl.arguments[2].value === null
+      ? createThisArg(scope, noNewTarget
+        ? { type: 'CallExpression', callee: decl.arguments[0], arguments: [] }
+        : { type: 'NewExpression', callee: decl.arguments[3], arguments: [], _new: true, _forceCreateThis: true })
+      : generate(scope, decl.arguments[2]);
+
+    return CallDynamic(generate(scope, decl.arguments[0]), thisArg, [], newTarget, generate(scope, decl.arguments[1]));
+  });
 
   // Porffor.callThis(func, this, ...args)
-  comptime('__Porffor_callThis', undefined, (scope, decl, { generate, getNodeType }) => generate(scope, {
+  comptime('__Porffor_callThis', undefined, (scope, decl, { generate }) => generate(scope, {
     type: 'CallExpression',
     callee: decl.arguments[0],
     arguments: decl.arguments.slice(2),
-    _thisWasm: decl.arguments[1].value === null ? null : [
-      ...generate(scope, decl.arguments[1]),
-      ...getNodeType(scope, decl.arguments[1])
-    ],
-    _newTargetWasm: null,
-    _forceCreateThis: true
+    _thisArg: decl.arguments[1]
   }));
 
   // compile-time aware console.log to optimize fast paths
   // todo: this breaks console.group, etc - disable this if those are used but edge case for now
-  comptime('__console_log', TYPES.undefined, (scope, decl, { generate, getNodeType, knownTypeWithGuess, printStaticStr }) => {
+  comptime('__console_log', TYPES.undefined, (scope, decl, { generate, getNodeType, knownType, printStaticStr, exprStmt }) => {
     const slow = () => {
       decl._noComptime = true;
       return generate(scope, decl);
     };
     const fast = (name, before = '', after = '\n') => {
-      return [
-        ...(before ? printStaticStr(scope, before) : []),
-        ...(!name ? [ number(UNDEFINED) ] : generate(scope, {
+      if (before) for (const x of printStaticStr(scope, before)) exprStmt(scope, x);
+      if (name) exprStmt(scope, generate(scope, {
           ...decl,
           callee: {
             type: 'Identifier',
             name
           }
-        })),
-        ...printStaticStr(scope, after)
-      ];
+        }));
+      if (after) for (const x of printStaticStr(scope, after)) exprStmt(scope, x);
+      return JvConst(TYPES.undefined, 0);
     };
 
     if (decl.arguments.length === 0) return fast();
     if (decl.arguments.length !== 1) return slow();
 
-    generate(scope, decl.arguments[0]); // generate first to get accurate type
-    const type = knownTypeWithGuess(scope, getNodeType(scope, decl.arguments[0]));
+    const type = knownType(scope, getNodeType(scope, decl.arguments[0]));
 
     // if we know the type skip the entire print logic, use type's func directly
     if (type === TYPES.string || type === TYPES.bytestring) {
       return fast('__Porffor_printString');
     } else if (type === TYPES.number) {
-      return fast('print', '\x1b[33m', '\x1b[0m\n');
+      return fast('__Porffor_print');
     }
 
     // one arg, skip most of console to avoid rest arg etc
@@ -1571,5 +839,7 @@ export const BuiltinFuncs = () => {
   });
 
   PrecompiledBuiltins.BuiltinFuncs(_);
+  _.__Math_hypot.jsLength = 2;
+
   return _;
 };
