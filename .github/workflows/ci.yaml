@@ -120,6 +120,7 @@ jobs:
         run: |
           build() {
             name=$1; triple=$2
+            echo "$name"
             mkdir -p "build/$name"
             lto=-flto=thin
             link=
