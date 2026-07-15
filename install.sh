@@ -25,11 +25,11 @@ tildify() {
 }
 
 if [ "${OS:-}" = "Windows_NT" ]; then
-  error "please use WSL to install porffor on Windows"
+  error "please use WSL to install Porffor on Windows"
 fi
 
-command -v curl >/dev/null || error "curl is required to install porffor"
-command -v tar >/dev/null || error "tar is required to install porffor"
+command -v curl >/dev/null || error "curl is required to install Porffor"
+command -v tar >/dev/null || error "tar is required to install Porffor"
 
 case "$(uname -s)" in
   Darwin) os=darwin ;;
@@ -82,7 +82,7 @@ version="$("$exe" --version 2>/dev/null)" ||
   error "installed binary failed to run"
 
 echo
-echo "${green}porffor $version was installed to $(tildify "$exe")${reset}"
+echo "${green}Porffor $version was installed to $(tildify "$exe")${reset}"
 
 resolved="$(command -v porf 2>/dev/null || true)"
 
