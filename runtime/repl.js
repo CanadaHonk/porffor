@@ -47,7 +47,7 @@ if (host.startsWith('Bun')) host = '\x1B[93m' + host;
 if (host.startsWith('Porffor')) host = '\x1B[38;2;156;96;224m' + host;
 
 console.log(host.startsWith('\x1B[38;2;156;96;224mPorffor') ?
-  `Welcome to \x1B[1m\x1B[38;2;156;96;224mPorffor\x1B[0m \x1B[2m${globalThis.version}\x1B[0m \x1B[1;38;2;245;240;255;48;2;124;58;237m SELF-HOSTED \x1B[0m${host.slice(host.lastIndexOf('(') + 1, -1) === globalThis.version ? '' : ` \x1B[2m(${host.slice(host.lastIndexOf('(') + 1, -1)})\x1B[0m`}` :
+  `Welcome to \x1B[1m\x1B[38;2;156;96;224mPorffor\x1B[0m \x1B[2m${globalThis.version}\x1B[0m \x1B[1;38;2;245;240;255;48;2;124;58;237m SELF-HOSTED \x1B[0m` :
   `Welcome to \x1B[1m\x1B[38;2;156;96;224mPorffor\x1B[0m \x1B[2m${globalThis.version}\x1B[0m running on \x1B[1m${host}\x1B[0m`);
 console.log();
 
