@@ -113,7 +113,7 @@ jobs:
           clang -O3 -flto=thin -fuse-ld=lld -fno-sanitize=undefined -w \
             -fprofile-instr-generate=/tmp/porffor-pgo/release.profraw \
             -DPORFFOR_EMBED_TCC selfhosted/stage1.c /tmp/tinycc-targets/linux-x64/libtcc.a \
-            -o /tmp/porffor-pgo/porf -lm -ldl -lpthread
+            -o /tmp/porffor-pgo/porf -lm -ldl
           /tmp/porffor-pgo/porf c selfhosted/bundle.js /tmp/porffor-pgo/stage2.c
           llvm-profdata merge -o /tmp/porffor-pgo/release.profdata /tmp/porffor-pgo/release.profraw
       - name: cross compile
@@ -123,7 +123,7 @@ jobs:
             mkdir -p "build/$name"
             lto=-flto=thin
             link=
-            libs='-lm -ldl -lpthread'
+            libs='-lm -ldl'
             case "$triple" in *-macos) lto=; link=-Wl,-stack_size,0x4000000; libs=-lm;; esac
             zig cc -O3 $lto -fno-sanitize=undefined -w -s -target "$triple" $link \
               -fprofile-instr-use=/tmp/porffor-pgo/release.profdata \
