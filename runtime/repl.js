@@ -35,6 +35,7 @@ const runNativeSource = (source, output, module = Prefs.module) => {
 
 Prefs.optUnused = false;
 Prefs.p = true;
+Prefs.module = true;
 
 let host = typeof navigator === 'object' ? navigator.userAgent : null;
 if (typeof process !== 'undefined' && process.argv0 === 'node') host = 'Node/' + process.versions.node;
