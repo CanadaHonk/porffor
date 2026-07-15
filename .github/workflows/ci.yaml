@@ -20,6 +20,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      previous_tag: ${{ steps.version.outputs.previous_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,7 +60,8 @@ jobs:
           if (replaced === src) throw new Error('version string not found');
           fs.writeFileSync(path, replaced);
           const tag = release.replace(' ', '-');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `release=${release}\nversion=${version}\ntag=${tag}\n`);
+          const previousTag = latest === 0 ? '' : `pre-alpha-${latest}`;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `release=${release}\nversion=${version}\ntag=${tag}\nprevious_tag=${previousTag}\n`);
           EOF
       - name: bundle selfhost compiler
         run: node selfhosted/build.mjs
@@ -252,15 +254,28 @@ jobs:
     needs: [prepare, build, test]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: download release archives
         uses: actions/download-artifact@v4
         with:
           pattern: release-*
           path: out
           merge-multiple: true
+      - name: generate release notes
+        env:
+          PREVIOUS_TAG: ${{ needs.prepare.outputs.previous_tag }}
+        run: |
+          if test -n "$PREVIOUS_TAG"; then
+            range="$PREVIOUS_TAG..$GITHUB_SHA"
+          else
+            range="$GITHUB_SHA"
+          fi
+          git log --first-parent --format='- [`%h`](https://github.com/${{ github.repository }}/commit/%H) %s' "$range" > out/release-notes.md
       - name: create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd out
-          gh release create '${{ needs.prepare.outputs.tag }}' --repo '${{ github.repository }}' --target '${{ github.sha }}' --title '${{ needs.prepare.outputs.version }}' --generate-notes *.tar.gz
+          gh release create '${{ needs.prepare.outputs.tag }}' --repo '${{ github.repository }}' --target '${{ github.sha }}' --title '${{ needs.prepare.outputs.version }}' --notes-file release-notes.md *.tar.gz
