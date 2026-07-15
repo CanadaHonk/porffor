@@ -1953,8 +1953,8 @@ static void porf_commit(u32 end) {
 
 static void porf_gc_maybe_trim_memory(void) {
   const u32 trim_granule = 1u << 20;
-  const u32 keep_slack = 16u * 1024u * 1024u;
-  const u32 min_trim = 16u * 1024u * 1024u;
+  const u32 keep_slack = ${prefs.nativeFetch ? '0u' : '16u * 1024u * 1024u'};
+  const u32 min_trim = ${prefs.nativeFetch ? '1u << 20' : '16u * 1024u * 1024u'};
 
   u64 wanted64 = ((u64)porf_heap_top + keep_slack + trim_granule - 1ull) & ~((u64)trim_granule - 1ull);
   const u64 min_committed = (u64)porf_heap_base + 65536ull;
