@@ -235,19 +235,6 @@ export const __Object_assign = (target: any, ...sources: any[]): any => {
   return target;
 };
 
-// Object.assign but also non enumerable properties and 1 source
-export const __Porffor_object_assignAll = (target: any, source: any): any => {
-  if (target == null) throw new TypeError('Argument is nullish, expected object');
-
-  const keys: any[] = Reflect.ownKeys(source);
-  for (const x of keys) {
-    target[x] = source[x];
-  }
-
-  return target;
-};
-
-
 export const __Object_prototype_propertyIsEnumerable = function (this: any, prop: any) {
   if (this == null) throw new TypeError('Argument is nullish, expected object');
 

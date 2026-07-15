@@ -48,27 +48,3 @@ export const __Function_prototype_bind = function (this: Function, thisArg: any,
 
   return bound;
 };
-
-
-export const __Porffor_generateArgumentsObject = (argc: i32, hasRest: boolean, ...args: any[]) => {
-  let obj: object = {}, i: i32 = 0, limit: i32 = args.length;
-  if (hasRest) limit--;
-  limit = Math.min(argc, limit);
-
-  while (i < limit) {
-    obj[i] = args[i];
-    i++;
-  }
-
-  if (hasRest) {
-    const rest: any[] = args[limit];
-    const len: i32 = rest.length;
-    for (let j: i32 = 0; j < len; j++) {
-      obj[i] = rest[j];
-      i++;
-    }
-  }
-
-  obj.length = i;
-  return obj;
-};

@@ -81,15 +81,6 @@ export const __Porffor_promise_dequeueReaction = (): i32 => {
   return reaction;
 };
 
-export const __ecma262_HostEnqueuePromiseJob = (reaction: i32, argument: any): void => {
-  __Porffor_promise_enqueueReaction(reaction, argument);
-};
-
-export const __ecma262_NewPromiseReactionJob = (reaction: i32, argument: any): i32 => {
-  __Porffor_promise_enqueueReaction(reaction, argument);
-  return reaction;
-};
-
 export const __Porffor_promise_appendFulfillReaction = (promise: any, reaction: i32): void => {
   const tail: i32 = Porffor.IR.loadI32(promise, 12);
   if (tail == 0) {
@@ -268,29 +259,6 @@ export const __Porffor_promise_aggSettle = (kind: i32, agg: any, index: i32, val
     if (kind == 8) __ecma262_RejectPromise(agg, new AggregateError(results, 'All promises were rejected'));
     else __ecma262_FulfillPromise(agg, results);
   }
-};
-
-export const __Porffor_promise_ctxCreate = (): Promise => {
-  return __Porffor_promise_create();
-};
-
-export const __Porffor_promise_awaitPending = (value: any): boolean => {
-  if (Porffor.type(value) != Porffor.TYPES.promise) return false;
-  return __Porffor_promise_state(value) == 0;
-};
-
-export const __Porffor_promise_attachResume = (awaited: any, ctx: any): void => {
-  const ok: i32 = __Porffor_promise_newReaction(undefined, ctx, 11);
-  const err: i32 = __Porffor_promise_newReaction(undefined, ctx, 11);
-  __Porffor_promise_reactionSetPayload(err, 1);
-  __Porffor_then(awaited, ok, err);
-};
-
-let resumeCtx: any = undefined;
-export const __Porffor_promise_takeResumeCtx = (): any => {
-  const c: any = resumeCtx;
-  resumeCtx = undefined;
-  return c;
 };
 
 export const __Porffor_promise_runOne = (reaction: i32): void => {

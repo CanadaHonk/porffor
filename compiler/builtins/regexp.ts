@@ -153,19 +153,6 @@ export const __Porffor_regex_ucdInitGc = (): void => {
   __Porffor_regex_ucdGcN = n;
 };
 
-export const __Porffor_regex_gcOf = (cp: i32): i32 => {
-  const starts: i32 = Porffor.IR.ptr(__Porffor_regex_ucdGcDec);
-  const n: i32 = __Porffor_regex_ucdGcN;
-  let lo: i32 = 0;
-  let hi: i32 = n - 1;
-  while (lo < hi) {
-    const mid: i32 = (lo + hi + 1) >> 1;
-    if (Porffor.IR.loadI32(starts + mid * 4, 0) <= cp) lo = mid;
-      else hi = mid - 1;
-  }
-  return Porffor.IR.loadU8(starts + n * 4 + lo, 0);
-};
-
 export const __Porffor_regex_ucdInitMap = (which: i32): void => {
   // which: 0 = iu fold, 1 = non-u canon
   if (which == 0 ? __Porffor_regex_ucdFoldDec != 0 : __Porffor_regex_ucdCanonDec != 0) return;
