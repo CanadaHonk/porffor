@@ -131,6 +131,30 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
       Porffor.printStatic(']');
       return;
 
+    case Porffor.TYPES.promise: {
+      const state: i32 = __Porffor_promise_state(arg);
+
+      if (colors) Porffor.printStatic('\x1b[36m'); // cyan
+      Porffor.printStatic('Promise');
+      if (colors) Porffor.printStatic('\x1b[0m');
+      Porffor.printStatic(' (state: ');
+
+      if (colors) {
+        if (state == 0) Porffor.printStatic('\x1b[93m'); // yellow
+          else if (state == 1) Porffor.printStatic('\x1b[32m'); // green
+          else Porffor.printStatic('\x1b[31m'); // red
+      }
+      if (state == 0) Porffor.printStatic('<pending>');
+        else if (state == 1) Porffor.printStatic('<fulfilled>');
+        else Porffor.printStatic('<rejected>');
+      if (colors) Porffor.printStatic('\x1b[0m');
+
+      Porffor.printStatic(', result: ');
+      __Porffor_print(__Porffor_promise_result(arg), colors, depth + 1);
+      Porffor.printStatic(')');
+      return;
+    }
+
     case Porffor.TYPES.date:
       if (colors) Porffor.printStatic('\x1b[35m'); // purple
       __Porffor_printString(Porffor.callThis(__Date_prototype_toISOString, arg));
