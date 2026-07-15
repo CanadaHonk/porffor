@@ -224,6 +224,8 @@ jobs:
           if (!pattern.test(src)) throw new Error('version string not found');
           fs.writeFileSync(path, src.replace(pattern, `globalThis.version = '${process.env.VERSION}';`));
           EOF
+      - name: bundle selfhost compiler
+        run: node selfhosted/build.mjs
       - name: download release compiler
         uses: actions/download-artifact@v4
         with:
