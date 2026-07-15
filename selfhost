@@ -617,6 +617,26 @@ const showDiff = (expected, actual, opts, { beforeCommand = '\n' } = {}) => {
     diffActual
   ];
 
+  if (!commandExists('diffoscope')) {
+    const fallbackArgs = [
+      'diff', '--no-index', '--no-color', `--unified=${opts.diffContext}`, '--',
+      diffExpected,
+      diffActual
+    ];
+    console.log(`${beforeCommand}${dim('$')} ${commandText('git', fallbackArgs)}`);
+    const fallback = spawnSync('git', fallbackArgs, {
+      encoding: 'utf8',
+      maxBuffer: 1024 * 1024
+    });
+    if (fallback.error) {
+      console.log(red('git diff failed'), dim(fallback.error.message));
+      process.exit(1);
+    }
+    if (fallback.stdout) process.stdout.write(fallback.stdout);
+    if (fallback.stderr) process.stderr.write(fallback.stderr);
+    return;
+  }
+
   console.log(`${beforeCommand}${dim('$')} ${commandText('diffoscope', args)}`);
   const result = spawnSync('diffoscope', args, {
     encoding: 'utf8',
