@@ -12,11 +12,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  prepare:
     if: >
       github.event.head_commit
       && github.event.head_commit.author.email == 'honk@goose.icu'
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -129,43 +132,117 @@ jobs:
             -o /tmp/porffor-pgo/porf -lm -ldl
           /tmp/porffor-pgo/porf c selfhosted/bundle.js /tmp/porffor-pgo/stage2.c
           llvm-profdata merge -o /tmp/porffor-pgo/release.profdata /tmp/porffor-pgo/release.profraw
-      - name: cross compile
+      - name: collect build inputs
         run: |
-          build() {
-            name=$1; triple=$2
-            echo "$name"
-            mkdir -p "build/$name"
-            lto=-flto=thin
-            link=
-            libs='-lm -ldl'
-            case "$triple" in *-macos) lto=; link=-Wl,-stack_size,0x4000000; libs=-lm;; esac
-            zig cc -O3 $lto -fno-sanitize=undefined -w -s -target "$triple" $link \
-              -fprofile-instr-use=/tmp/porffor-pgo/release.profdata \
-              -mllvm -force-attribute=porf_strict_eq:noinline \
-              -DPORFFOR_EMBED_TCC selfhosted/stage1.c "/tmp/tinycc-targets/$name/libtcc.a" \
-              -o "build/$name/porf" $libs
-            tar -czf "out/porffor-$name.tar.gz" -C "build/$name" porf
-          }
-          mkdir -p out
-          build linux-x64 x86_64-linux-gnu.2.28
-          build linux-arm64 aarch64-linux-gnu.2.28
-          build linux-x64-musl x86_64-linux-musl
-          build linux-arm64-musl aarch64-linux-musl
-          build darwin-x64 x86_64-macos
-          build darwin-arm64 aarch64-macos
+          mkdir -p build-inputs
+          cp selfhosted/stage1.c build-inputs/
+          cp /tmp/porffor-pgo/release.profdata build-inputs/
+      - name: upload build inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-inputs
+          path: build-inputs
+          retention-days: 1
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            triple: x86_64-linux-gnu.2.28
+          - name: linux-arm64
+            triple: aarch64-linux-gnu.2.28
+          - name: linux-x64-musl
+            triple: x86_64-linux-musl
+          - name: linux-arm64-musl
+            triple: aarch64-linux-musl
+          - name: darwin-x64
+            triple: x86_64-macos
+          - name: darwin-arm64
+            triple: aarch64-macos
+    name: build ${{ matrix.name }}
+    steps:
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: download build inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: build-inputs
+          path: build-inputs
+      - name: restore embedded tcc
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/tinycc-targets
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v1
+          fail-on-cache-miss: true
+      - name: compile
+        env:
+          NAME: ${{ matrix.name }}
+          TRIPLE: ${{ matrix.triple }}
+        run: |
+          echo "$NAME"
+          mkdir -p build out selfhosted
+          cp build-inputs/stage1.c selfhosted/stage1.c
+          lto=-flto=thin
+          link=
+          libs='-lm -ldl'
+          case "$TRIPLE" in *-macos) lto=; link=-Wl,-stack_size,0x4000000; libs=-lm;; esac
+          zig cc -O3 $lto -fno-sanitize=undefined -w -s -target "$TRIPLE" $link \
+            -fprofile-instr-use=build-inputs/release.profdata \
+            -mllvm -force-attribute=porf_strict_eq:noinline \
+            -DPORFFOR_EMBED_TCC selfhosted/stage1.c "/tmp/tinycc-targets/$NAME/libtcc.a" \
+            -o build/porf $libs
+          tar -czf "out/porffor-$NAME.tar.gz" -C build porf
+      - name: upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.name }}
+          path: out/porffor-${{ matrix.name }}.tar.gz
+          retention-days: 1
+
+  test:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: download release compiler
+        uses: actions/download-artifact@v4
+        with:
+          name: release-linux-x64
+          path: build/linux-x64
+      - name: extract release compiler
+        run: tar -xzf build/linux-x64/porffor-linux-x64.tar.gz -C build/linux-x64
       - name: verify release version
-        run: test "$(build/linux-x64/porf --version)" = '${{ steps.version.outputs.version }}'
+        run: test "$(build/linux-x64/porf --version)" = '${{ needs.prepare.outputs.version }}'
       - name: use release compiler for selfhost tests
         run: cp build/linux-x64/porf selfhosted/porf
       - name: verify selfhost compiler
         run: ./selfhost verify
       - name: test selfhost test262 harness
         run: node test262/selfhost.js harness --expect-passes=107
+
+  release:
+    needs: [prepare, build, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: download release archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: out
+          merge-multiple: true
       - name: create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd out
           sha256sum *.tar.gz > SHASUMS256.txt
-          gh release create '${{ steps.version.outputs.tag }}' --target '${{ github.sha }}' --title '${{ steps.version.outputs.version }}' --generate-notes * ||
-            gh release upload '${{ steps.version.outputs.tag }}' * --clobber
+          gh release create '${{ needs.prepare.outputs.tag }}' --repo '${{ github.repository }}' --target '${{ github.sha }}' --title '${{ needs.prepare.outputs.version }}' --generate-notes * ||
+            gh release upload '${{ needs.prepare.outputs.tag }}' --repo '${{ github.repository }}' * --clobber
