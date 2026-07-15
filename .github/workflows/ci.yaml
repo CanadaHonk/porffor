@@ -62,7 +62,14 @@ jobs:
         run: node selfhosted/build.mjs
       - name: compile bundle to c
         run: ./porf c --compress-data selfhosted/bundle.js selfhosted/stage1.c
+      - name: restore embedded tcc
+        id: cache-tcc
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/tinycc-targets
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v1
       - name: build embedded tcc
+        if: steps.cache-tcc.outputs.cache-hit != 'true'
         run: |
           src=/tmp/tinycc
           cross=/tmp/tinycc-cross
@@ -107,6 +114,12 @@ jobs:
           build linux-arm64-musl aarch64-linux-musl arm64 Linux arm64-libtcc1.a yes
           build darwin-x64 x86_64-macos x86_64 Darwin x86_64-osx-libtcc1.a no
           build darwin-arm64 aarch64-macos arm64 Darwin arm64-osx-libtcc1.a no
+      - name: save embedded tcc
+        if: steps.cache-tcc.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/tinycc-targets
+          key: ${{ steps.cache-tcc.outputs.cache-primary-key }}
       - name: profile selfhost compiler
         run: |
           mkdir -p /tmp/porffor-pgo
