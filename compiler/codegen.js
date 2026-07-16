@@ -2401,6 +2401,12 @@ const extractTypeAnnotation = decl => {
 
   if (!types && type != null) types = [ type ];
 
+  // outside precompile, string means string|bytestring
+  if (!globalThis.precompile && type === TYPES.string) {
+    type = null;
+    types = [ TYPES.string, TYPES.bytestring ];
+  }
+
   return { type, types, elementType, irType };
 };
 
