@@ -2393,7 +2393,13 @@ const extractTypeAnnotation = decl => {
     type = 'array';
     elementType = extractTypeAnnotation(a.elementType).type;
   } else if (a.type === 'TSUnionType') {
-    types = a.types.map(x => extractTypeAnnotation(x).type);
+    types = [];
+    for (const x of a.types) {
+      const inner = extractTypeAnnotation(x);
+      if (inner.types) for (const t of inner.types) {
+        if (!types.includes(t)) types.push(t);
+      }
+    }
   }
 
   irType = typeAnnoToIrType(type);
