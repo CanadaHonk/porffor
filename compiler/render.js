@@ -7,9 +7,6 @@ import {
 import { TYPES, TYPE_NAMES } from './types.js';
 import { ieee754_binary64 } from './encoding.js';
 
-// -d only: map a type id to its name so uncaught throws can print "Uncaught <Type>".
-const PORF_TYPE_NAME_FN = `static const char* porf_type_name(i32 t) {\n  switch (t) {\n${Object.entries(TYPE_NAMES).sort(([ a ], [ b ]) => +a - +b).map(([ id, name ]) => `    case ${id}: return ${JSON.stringify(name)};`).join('\n')}\n    default: return "value";\n  }\n}\n`;
-
 // C type per IR value type
 const CT = [];
 CT[T.none] = 'void';
@@ -820,7 +817,7 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
   };
 
   const head = [];
-  const toStr = prefs.d && funcs.find(x => x && x.name === '__ecma262_ToString' && x.body);
+  const toStr = funcs.find(x => x && x.name === '__ecma262_ToString' && x.body);
   head.push(RUNTIME_HEAD(dataOffsets.staticEnd, prefs, usesThreads, usesCoro, toStr ? fnSym(toStr) : null));
   if (usesCoro) head.push(CORO_RUNTIME(usesThreads));
 
@@ -5095,7 +5092,6 @@ ${usesThreads ? '' : `${st}jmp_buf porf_try_stack[256];
 ${st}i32 porf_try_depth = 0;
 ${st}jsval porf_exception = {0.0, ${TYPES.undefined}};
 `}\
-${prefs.d ? PORF_TYPE_NAME_FN : ''}
 ${toStr ? `jsval ${toStr}(jsval);
 ` : ''}\
 #if defined(__GNUC__) || defined(__clang__)
@@ -5104,12 +5100,9 @@ __attribute__((cold, noinline, noreturn))
 ${st}void porf_throw(jsval v) {
   porf_exception = v;
   if (porf_try_depth > 0) _longjmp(porf_try_stack[porf_try_depth - 1], 1);
-${prefs.d ? `  const i32 _t = porf_jv_type(v);
-  const u32 _p = (u32)v.val;
-${toStr ? `  // stringify object exceptions (user error classes) via ToString so they report
-  // as \`Uncaught <ToString(v)>\` like real hosts; guarded against ToString throwing
+${toStr ? `
   static i32 _uncaught_busy = 0;
-  if (_t == ${TYPES.object} && _p && !_uncaught_busy) {
+  if (!_uncaught_busy) {
     _uncaught_busy = 1;
     const jsval _s = ${toStr}(v);
     const i32 _st = porf_jv_type(_s);
@@ -5124,21 +5117,7 @@ ${toStr ? `  // stringify object exceptions (user error classes) via ToString so
     }
   }
 ` : ''}\
-  if (_t >= ${TYPES.error} && _t <= ${TYPES.urierror} && _p) {
-    const jsval _m = porf_unpack(*(jsbits*)(MEM + _p));
-    const u32 _mp = (u32)_m.val;
-    const i32 _mt = porf_jv_type(_m);
-    if (_mt == ${TYPES.bytestring} && _mp && *(u32*)(MEM + _mp)) fprintf(stderr, "Uncaught %s: %.*s\\n", porf_type_name(_t), (int)*(u32*)(MEM + _mp), (const char*)(MEM + _mp + 4));
-    else if (_mt == ${TYPES.string} && _mp && *(u32*)(MEM + _mp)) {
-      const u32 _ml = *(u32*)(MEM + _mp);
-      fprintf(stderr, "Uncaught %s: ", porf_type_name(_t));
-      for (u32 _i = 0; _i < _ml; _i++) { const u16 _c = porf_load_un_u16(MEM + _mp + 4 + _i * 2); fputc(_c < 128 ? (int)_c : '?', stderr); }
-      fputc('\\n', stderr);
-    }
-    else fprintf(stderr, "Uncaught %s\\n", porf_type_name(_t));
-  }
-  else if ((_t == ${TYPES.string} || _t == ${TYPES.bytestring}) && _p) fprintf(stderr, "Uncaught %s: %.*s\\n", porf_type_name(_t), (int)*(u32*)(MEM + _p), (const char*)(MEM + _p + 4));
-  else fprintf(stderr, "Uncaught %s\\n", porf_type_name(_t));` : `  fprintf(stderr, "Uncaught exception\\n");`}
+  fprintf(stderr, "Uncaught exception\\n");
   exit(1);
 }
 
