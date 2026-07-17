@@ -97,6 +97,26 @@ export const BuiltinVars = ({ builtinFuncs }) => {
         includeBuiltin('__Porffor_object_fastAdd');
         const emitProp = (out, x, d) => {
           const key = prefix + x;
+
+          if (d.accessor) {
+            let flags = 0b0001; // accessor
+            if (d.configurable) flags |= 0b0010;
+            if (d.enumerable) flags |= 0b0100;
+
+            // define via the accessor helper so get/set funcs are stored as
+            // funcrefs and gc-barriered (not packed into a numeric value)
+            includeBuiltin('__Porffor_object_defineAccessor');
+            const undef = JvConst(TYPES.undefined, 0);
+            out.push(Call('__Porffor_object_defineAccessor', [
+              obj,
+              makeString(x),
+              d.get ? funcValue(key + '$get') : undef,
+              d.set ? funcValue(key + '$set') : undef,
+              Const(T.i32, flags)
+            ], T.none));
+            return;
+          }
+
           const value = propValue(key, d);
 
           if (x === '__proto__') {
@@ -121,8 +141,16 @@ export const BuiltinVars = ({ builtinFuncs }) => {
             adds.length = 0;
             for (const x in props) {
               const key = prefix + x;
+              const d = props[x];
               if (lazyKind === 'proto') {
-                if (key in builtinFuncs) {
+                if (d.accessor) {
+                  // gate on the underlying getter/setter funcs (eg `size$get`)
+                  const accessorKeys = [];
+                  if (d.get) accessorKeys.push(key + '$get');
+                  if (d.set) accessorKeys.push(key + '$set');
+                  if (builtinFuncs[getName].__full) for (const k of accessorKeys) includeBuiltin(k);
+                    else if (!accessorKeys.some(hasFunc)) continue;
+                } else if (key in builtinFuncs) {
                   if (builtinFuncs[getName].__full) includeBuiltin(key);
                     else if (!hasFunc(key)) continue;
                 }
@@ -214,20 +242,37 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     const prefix = makePrefix(name);
     return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length)).filter(x => !x.startsWith('prototype_'));
   };
-  const autoFuncs = name => ({
-    ...props({
+  const autoFuncs = name => {
+    const out = props({
       writable: true,
       enumerable: false,
       configurable: true
-    }, autoFuncKeys(name)),
-    ...(_[`__${name}_prototype`] ? {
-      prototype: {
-        writable: false,
+    }, autoFuncKeys(name));
+
+    // combine getter/setter funcs (eg `size$get`) into accessor properties (eg `size`)
+    for (const key of Object.keys(out)) {
+      const isGet = key.endsWith('$get');
+      if (!isGet && !key.endsWith('$set')) continue;
+
+      const base = key.slice(0, -4);
+      const desc = out[base] ??= {
+        accessor: true,
         enumerable: false,
-        configurable: false
-      }
-    } : {})
-  });
+        configurable: true
+      };
+      if (isGet) desc.get = true;
+      else desc.set = true;
+      delete out[key];
+    }
+
+    if (_[`__${name}_prototype`]) out.prototype = {
+      writable: false,
+      enumerable: false,
+      configurable: false
+    };
+
+    return out;
+  };
 
   object('Math', {
     ...props({
