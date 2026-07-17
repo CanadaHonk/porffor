@@ -83,7 +83,7 @@ const run = (source, _context, _filename, callback) => {
   } catch (e) {
     const visible = visibleOutput();
     if (visible) process.stdout.write(visible);
-    console.log('Uncaught', e.stack ? e.stack : e);
+    if (e?.status == null) console.log('Uncaught', e.stack ? e.stack : e);
   }
 
   callback();

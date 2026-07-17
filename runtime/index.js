@@ -163,7 +163,14 @@ entrypoint: {
       }
     }
 
-    if (runAfterCompile) execFileSync(Prefs.o, [], { stdio: 'inherit' });
+    if (runAfterCompile) {
+      try {
+        execFileSync(Prefs.o, [], { stdio: 'inherit' });
+      } catch (e) {
+        if (e?.status == null && e?.signal == null) throw e;
+        runStatus = e.status ?? 1;
+      }
+    }
   } finally {
     if (tmpRunDir) fs.rmSync(tmpRunDir, { recursive: true, force: true });
   }
