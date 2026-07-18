@@ -155,6 +155,7 @@ const storageExpressionType = node => {
   if (node._type != null) return typeof node._type === 'number' ? node._type : null;
 
   if (node.type === 'Literal') {
+    if (node.bigint != null) return TYPES.bigint;
     if (node.regex) return TYPES.regexp;
     if (typeof node.value === 'string') return TYPES.bytestring;
     return TYPES[typeof node.value] ?? null;
@@ -239,7 +240,7 @@ export const unknownValue = Symbol('Porffor.unknownValue');
 export const knownValue = (scope, node) => {
   if (!node) return undefined;
 
-  if (node.type === 'Literal') return node.value;
+  if (node.type === 'Literal' && node.value !== undefined) return node.value;
 
   if (node.type === 'TemplateLiteral') {
     let out = '';

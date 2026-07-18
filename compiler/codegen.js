@@ -23,7 +23,6 @@ const valNull = () => JvConst(TYPES.object, 0);
 const valBool = b => JvConst(TYPES.boolean, b ? 1 : 0);
 const valOf = (payloadExpr, typeExpr) => Box(payloadExpr, typeof typeExpr === 'number' ? Const(T.i32, typeExpr) : typeExpr);
 const valNumber = x => x[N_TYPE] === T.jsval ? x : Box(x, Const(T.i32, TYPES.number));
-const valNumBits = bits => valNumber(Reinterpret(T.f64, Const(T.u64, bits)));
 const numValue = x => x[N_TYPE] === T.f64 ? x
   : x[N_TYPE] === T.i32 ? Convert(T.f64, x, CONVERT_SIGNED)
   : x[N_TYPE] === T.u32 || x[N_TYPE] === T.ptr ? Convert(T.f64, x)
@@ -1419,7 +1418,8 @@ const getNodeType = (scope, node) => {
   let ret = null;
   if (node.type === 'TSAsExpression') ret = extractTypeAnnotation(node).type;
   else if (node.type === 'Literal') {
-    if (node.regex) ret = TYPES.regexp;
+    if (node.bigint != null) ret = TYPES.bigint;
+    else if (node.regex) ret = TYPES.regexp;
     else if (typeof node.value === 'string' && byteStringable(node.value)) ret = TYPES.bytestring;
     else ret = TYPES[typeof node.value] ?? null;
   }
@@ -1540,16 +1540,15 @@ const getNodeType = (scope, node) => {
 };
 
 const generateLiteral = (scope, decl) => {
+  if (decl.bigint != null) {
+    // todo/opt: parse and inline small BigInt literals instead of constructing them at runtime
+    return builtinCall(scope, '__Porffor_bigint_fromString', [ makeString(scope, decl.bigint) ]);
+  }
+
   if (decl.value === null) return valNull();
 
   switch (typeof decl.value) {
     case 'number':
-      if (decl.raw != null) {
-        const raw = decl.raw.replace(/_/g, '').toLowerCase();
-        if (raw === '1.7976931348623157e+308') return valNumBits('0x7fefffffffffffff');
-        if (raw === '5e-324') return valNumBits('0x0000000000000001');
-        if (raw === '2.220446049250313e-16') return valNumBits('0x3cb0000000000000');
-      }
       return valNum(decl.value);
 
     case 'boolean':
@@ -1557,54 +1556,6 @@ const generateLiteral = (scope, decl) => {
 
     case 'string':
       return makeString(scope, decl.value);
-
-    case 'bigint':
-      let n = decl.value;
-      let raw = decl.bigint;
-
-      if (raw != null) {
-        let digits = raw;
-        let radix = 10;
-        if (digits[0] === '+') digits = digits.slice(1);
-        else if (digits[0] === '-') digits = digits.slice(1);
-        if (digits[0] === '0' && digits.length > 1) {
-          const prefix = digits.charCodeAt(1) | 0x20;
-          if (prefix === 'x') { radix = 16; digits = digits.slice(2); }
-          else if (prefix === 'o') { radix = 8; digits = digits.slice(2); }
-          else if (prefix === 'b') { radix = 2; digits = digits.slice(2); }
-        }
-        while (digits.length > 1 && digits[0] === '0') digits = digits.slice(1);
-
-        const limit = radix === 16 ? '8000000000000'
-          : radix === 8 ? '100000000000000000'
-          : radix === 2 ? '1000000000000000000000000000000000000000000000000000'
-          : '2251799813685248';
-        const small = digits.length < limit.length || (digits.length === limit.length && digits < limit);
-        if (small) {
-          const prefixLen = radix === 10 ? 0 : 2;
-          return valOf(Const(T.f64, Number.parseInt(raw[0] === '-' || raw[0] === '+' ? raw[0] + raw.slice(1 + prefixLen) : raw.slice(prefixLen), radix)), TYPES.bigint);
-        }
-      }
-
-      // inline if small enough (a boxed value carrying the bigint type)
-      if ((n < 0 ? -n : n) < 0x8000000000000n) {
-        return valOf(Const(T.f64, Number(n)), TYPES.bigint);
-      }
-
-      // todo/opt: calculate and statically store digits
-      return generate(scope, {
-        type: 'CallExpression',
-        callee: {
-          type: 'Identifier',
-          name: '__Porffor_bigint_fromString'
-        },
-        arguments: [
-          {
-            type: 'Literal',
-            value: decl.bigint ?? decl.value.toString()
-          }
-        ]
-      });
   }
 
   if (decl.regex) {
@@ -3193,8 +3144,12 @@ const generateUnary = (scope, decl) => {
       return generate(scope, { type: 'CallExpression', callee: { type: 'Identifier', name: '__ecma262_ToNumber' }, arguments: [ decl.argument ] });
 
     case '-':
-      if (decl.prefix && decl.argument.type === 'Literal' && (typeof decl.argument.value === 'number' || typeof decl.argument.value === 'bigint'))
-        return generate(scope, { type: 'Literal', value: -decl.argument.value });
+      if (decl.prefix && decl.argument.type === 'Literal') {
+        if (decl.argument.bigint != null)
+          return generate(scope, { type: 'Literal', bigint: `-${decl.argument.bigint}` });
+        if (typeof decl.argument.value === 'number')
+          return generate(scope, { type: 'Literal', value: -decl.argument.value });
+      }
       // todo: proper bigint support
       return Box(Un('neg', T.f64, numValue(toNumeric())), Const(T.i32, TYPES.number));
 
@@ -4949,6 +4904,7 @@ const generateBlock = (scope, decl) => {
 const staticDirectArgType = node => {
   if (!node) return null;
   if (node.type === 'Literal') {
+    if (node.bigint != null) return TYPES.bigint;
     if (node.value === null) return TYPES.object;
     if (node.regex) return TYPES.regexp;
     if (typeof node.value === 'string') return byteStringable(node.value) ? TYPES.bytestring : TYPES.string;

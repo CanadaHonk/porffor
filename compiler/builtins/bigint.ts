@@ -83,17 +83,17 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
   }
 
   let radix: i32 = 10;
-  if (offset == 0 && len >= 2 && n[0] == '0') {
-    const prefix: i32 = n.charCodeAt(1) | 0x20;
+  if (len - offset >= 2 && n[offset] == '0') {
+    const prefix: i32 = n.charCodeAt(offset + 1) | 0x20;
     if (prefix == 120) { // x
       radix = 16;
-      offset = 2;
+      offset += 2;
     } else if (prefix == 111) { // o
       radix = 8;
-      offset = 2;
+      offset += 2;
     } else if (prefix == 98) { // b
       radix = 2;
-      offset = 2;
+      offset += 2;
     }
   }
 
@@ -167,7 +167,16 @@ export const __ecma262_ToBigInt = (argument: any): bigint => {
   //     1. Let n be StringToBigInt(prim).
   //     2. If n is undefined, throw a SyntaxError exception.
   //     3. Return n.
-  if ((Porffor.type(prim) | 0b10000000) == Porffor.TYPES.bytestring) return __Porffor_bigint_fromString(prim);
+  if ((Porffor.type(prim) | 0b10000000) == Porffor.TYPES.bytestring) {
+    // folded literals allow signed radix; StringToBigInt does not
+    if ((prim[0] == '-' || prim[0] == '+') && prim.length >= 3 && prim[1] == '0') {
+      const prefix: i32 = prim.charCodeAt(2) | 0x20;
+      if (prefix == 120 || prefix == 111 || prefix == 98)
+        throw new SyntaxError('Invalid character in BigInt string');
+    }
+
+    return __Porffor_bigint_fromString(prim);
+  }
 
   // Boolean 	Return 1n if prim is true and 0n if prim is false.
   if (Porffor.type(prim) == Porffor.TYPES.boolean) return prim ? 1n : 0n;

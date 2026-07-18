@@ -1610,11 +1610,7 @@ const parseExprAtom = (refDE, noIn, forNew) => {
     }
 
     case T_BIGINT: {
-      let value = null;
-      try {
-        value = BigInt(tokValue);
-      } catch {}
-      const node = { type: 'Literal', start, end: tokEnd, value, bigint: value === null ? tokValue : value.toString() };
+      const node = { type: 'Literal', start, end: tokEnd, bigint: tokValue };
       next();
       return node;
     }
