@@ -19,28 +19,11 @@ const usesTemporal = node => {
   if (node.type === 'ClassDeclaration' || node.type === 'ClassExpression') return usesTemporal(node.superClass) || usesTemporal(node.body);
 
   for (const key in node) {
-    if (key[0] === '_' || key === 'start' || key === 'end' || key === 'loc' || key === 'range') continue;
+    if (key[0] === '_' || key === 'start' || key === 'end') continue;
     if (usesTemporal(node[key])) return true;
   }
 
   return false;
-};
-
-const normalizeBigIntLiterals = (node, input) => {
-  if (node == null || typeof node !== 'object') return;
-  if (Array.isArray(node)) {
-    for (const x of node) normalizeBigIntLiterals(x, input);
-    return;
-  }
-
-  if (node.type === 'Literal' && node.bigint != null && typeof node.start === 'number' && typeof node.end === 'number') {
-    node.bigint = input.slice(node.start, node.end - 1).replace(/_/g, '');
-  }
-
-  for (const key in node) {
-    if (key[0] === '_' || key === 'start' || key === 'end' || key === 'loc' || key === 'range') continue;
-    normalizeBigIntLiterals(node[key], input);
-  }
 };
 
 export default input => {
@@ -48,7 +31,6 @@ export default input => {
   globalThis.typedInput = types && Prefs.optTypes;
 
   const ast = parse(input, { module: !!Prefs.module, ts: types });
-  normalizeBigIntLiterals(ast, input);
   if (usesTemporal(ast)) ast._usesTemporal = true;
   return ast;
 };

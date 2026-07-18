@@ -488,10 +488,6 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
     case 'ArrowFunctionExpression':
     case 'FunctionDeclaration':
     case 'FunctionExpression':
-      // ignore body-less function definitions, likely ts overload signatures
-      if (!decl.body) {
-        return valUndefined();
-      }
       return generateFunc(scope, decl)[1];
 
     case 'BlockStatement':
@@ -681,9 +677,6 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
 
 const generateEnum = (scope, decl) => {
   // todo: opt const enum into compile-time values
-
-  if (decl.body) decl = decl.body; // non-standard ast node :)
-
   const properties = [];
 
   let value = -1;
