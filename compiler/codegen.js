@@ -320,12 +320,6 @@ const closureOwnerDepth = (scope, owner) => {
     cursor = cursor.parentFunc;
   }
 
-  if (globalThis.closureDepthDebug) {
-    let chain = [];
-    let c = scope;
-    while (c) { chain.push(`${c.name}(ast.start=${c.ast?.start} src.start=${c.ast?._closureSource?.start}${hasClosureOwnEnv(c) || hasClosureSnapshotEnv(c) ? ',env' : ''})`); c = c.parentFunc; }
-    throw new Error(`closureOwnerDepth: owner start=${owner?.start} not found from ${scope.name}; chain: ${chain.join(' -> ')}`);
-  }
   return 0;
 };
 
