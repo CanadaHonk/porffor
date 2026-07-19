@@ -120,16 +120,12 @@ const collect = (scope, fn) => {
   return list;
 };
 
-const TMP_TAG = {
-  [T.f64]: 'f', [T.i32]: 'i', [T.u32]: 'u', [T.i64]: 'q', [T.u64]: 'w', [T.jsval]: 'v', [T.ptr]: 'p'
-};
-
 // scratch temp from the per-type pool, minted on first use
 const tmp = (scope, type = T.jsval, init = null) => {
   const pool = scope.tmpPool[type] ??= [];
   let name = pool.pop();
   if (name === undefined) {
-    name = `#${TMP_TAG[type] ?? 'x'}${scope.tmpCount[type] = (scope.tmpCount[type] ?? 0) + 1}`;
+    name = `#${type}${scope.tmpCount[type] = (scope.tmpCount[type] ?? 0) + 1}`;
     scope.locals[name] = { type, temp: true };
   }
   scope.tmpBusy.push({ name, type });
