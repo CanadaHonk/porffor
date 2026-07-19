@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v2
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v3
       - name: build embedded tcc
         if: steps.cache-tcc.outputs.cache-hit != 'true'
         run: |
@@ -104,9 +104,11 @@ jobs:
 
             cp "$cross/tccdefs_.h" .
             cp "$cross/$runtime" libtcc1.a
-            leading=()
-            case "$triple" in *-macos) leading=(-D__leading_underscore);; esac
-            zig cc -target "$triple" -O3 -g0 -w "${leading[@]}" -c "$src/lib/runmain.c" -o runmain.o
+            runtime_target="$cpu"
+            if test "$os" = Darwin; then runtime_target="$runtime_target-osx"; fi
+            runtime_tcc="$cross/$runtime_target-tcc"
+            "$runtime_tcc" -B"$src" -w -c "$src/lib/runmain.c" -o runmain.o
+            file runmain.o | grep -q 'ELF .* relocatable'
             zig cc -target "$triple" -O3 -g0 -fPIC -w -DCONFIG_TCC_EMBED_RUNTIME '-DCONFIG_TCCDIR=""' \
               -I"$dir" -I"$src" -c "$src/libtcc.c" -o libtcc.o
             zig cc -target "$triple" -g0 -w -I"$dir" -I"$src" -c "$src/runtime-embed.S" -o runtime-embed.o
@@ -172,7 +174,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v2
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v3
           fail-on-cache-miss: true
       - name: compile
         env:
@@ -226,7 +228,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v2
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v3
           fail-on-cache-miss: true
       - name: compile
         env:
@@ -296,7 +298,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v2
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v3
           fail-on-cache-miss: true
       - name: verify selfhost compiler
         run: ./selfhost verify
