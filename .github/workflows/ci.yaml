@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v1
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v2
       - name: build embedded tcc
         if: steps.cache-tcc.outputs.cache-hit != 'true'
         run: |
@@ -113,6 +113,13 @@ jobs:
             zig ar rcs libtcc.a libtcc.o runtime-embed.o
           }
 
+          native=/tmp/tinycc-native
+          mkdir -p "$native"
+          cd "$native"
+          "$src/configure" --source-path="$src" --cc=clang --ar=llvm-ar --prefix="$targets/native"
+          make -j"$(nproc)"
+          make install
+
           build linux-x64 x86_64-linux-gnu.2.28 x86_64 Linux x86_64-libtcc1.a no
           build linux-arm64 aarch64-linux-gnu.2.28 arm64 Linux arm64-libtcc1.a no
           build linux-x64-musl x86_64-linux-musl x86_64 Linux x86_64-libtcc1.a yes
@@ -128,7 +135,7 @@ jobs:
       - name: profile selfhost compiler
         run: |
           mkdir -p /tmp/porffor-pgo
-          clang -O3 -flto=thin -fuse-ld=lld -fno-sanitize=undefined -w \
+          clang -O0 -fuse-ld=lld -fno-sanitize=undefined -w \
             -fprofile-instr-generate=/tmp/porffor-pgo/release.profraw \
             -DPORFFOR_EMBED_TCC selfhosted/stage1.c /tmp/tinycc-targets/linux-x64/libtcc.a \
             -o /tmp/porffor-pgo/porf -lm -ldl
@@ -146,6 +153,48 @@ jobs:
           path: build-inputs
           retention-days: 1
 
+  # the runner-native build is its own job (not a matrix leg) so test can
+  # start as soon as it finishes instead of waiting for the slowest leg
+  build-host:
+    needs: prepare
+    runs-on: ubuntu-latest
+    name: build linux-x64
+    steps:
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: download build inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: build-inputs
+          path: build-inputs
+      - name: restore embedded tcc
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/tinycc-targets
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v2
+          fail-on-cache-miss: true
+      - name: compile
+        env:
+          NAME: linux-x64
+          TRIPLE: x86_64-linux-gnu.2.28
+        run: |
+          echo "$NAME"
+          mkdir -p build out selfhosted
+          cp build-inputs/stage1.c selfhosted/stage1.c
+          zig cc -O3 -flto=thin -fno-sanitize=undefined -w -s -target "$TRIPLE" \
+            -fprofile-instr-use=build-inputs/release.profdata \
+            -mllvm -force-attribute=porf_strict_eq:noinline \
+            -DPORFFOR_EMBED_TCC selfhosted/stage1.c "/tmp/tinycc-targets/$NAME/libtcc.a" \
+            -o build/porf -lm -ldl
+          tar -czf "out/porffor-$NAME.tar.gz" -C build porf
+      - name: upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-x64
+          path: out/porffor-linux-x64.tar.gz
+          retention-days: 1
+
   build:
     needs: prepare
     runs-on: ubuntu-latest
@@ -153,8 +202,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: linux-x64
-            triple: x86_64-linux-gnu.2.28
           - name: linux-arm64
             triple: aarch64-linux-gnu.2.28
           - name: linux-x64-musl
@@ -179,7 +226,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v1
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v2
           fail-on-cache-miss: true
       - name: compile
         env:
@@ -207,7 +254,7 @@ jobs:
           retention-days: 1
 
   test:
-    needs: [prepare, build]
+    needs: [prepare, build-host]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -245,13 +292,21 @@ jobs:
         run: test "$(build/linux-x64/porf --version)" = '${{ needs.prepare.outputs.version }}'
       - name: use release compiler for selfhost tests
         run: cp build/linux-x64/porf selfhosted/porf
+      - name: restore embedded tcc
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/tinycc-targets
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v2
+          fail-on-cache-miss: true
       - name: verify selfhost compiler
         run: ./selfhost verify
       - name: test selfhost test262 harness
+        env:
+          PORFFOR_TEST262_TCC: /tmp/tinycc-targets/native/bin/tcc
         run: node test262/selfhost.js harness --threads=4 --expect-passes=107
 
   release:
-    needs: [prepare, build, test]
+    needs: [prepare, build-host, build, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
