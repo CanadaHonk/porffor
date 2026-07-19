@@ -4735,6 +4735,10 @@ ${usesThreads ? `#include <pthread.h>
 #include <sys/wait.h>
 #include <time.h>
 
+${prefs.repl ? `static int porf_repl_output_enabled = 1;
+#define printf(...) (porf_repl_output_enabled ? fprintf(stdout, __VA_ARGS__) : 0)
+` : ''}
+
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef int32_t i32;

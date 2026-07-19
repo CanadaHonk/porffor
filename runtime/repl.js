@@ -16,6 +16,18 @@ const runNativeSource = (source, output, module = Prefs.module) => {
     Prefs.target = 'native';
     Prefs.o = outFile;
     Prefs.quiet = true;
+
+    if (typeof globalThis.tcc === 'function') {
+      Prefs.compiler = 'tcc';
+      const result = compile(source, module, true);
+      if (result?.runStatus !== 0) {
+        const e = new Error(`tcc run failed (status ${result?.runStatus})`);
+        e.status = result?.runStatus ?? 1;
+        throw e;
+      }
+      return;
+    }
+
     compile(source, module);
     try {
       const out = execFileSync(outFile, [], { encoding: 'utf8', stdio: [ 'ignore', 'pipe', 'pipe' ] });
@@ -36,6 +48,7 @@ const runNativeSource = (source, output, module = Prefs.module) => {
 Prefs.optUnused = false;
 Prefs.p = true;
 Prefs.module = true;
+Prefs.repl = true;
 
 let host = typeof navigator === 'object' ? navigator.userAgent : null;
 if (typeof process !== 'undefined' && process.argv0 === 'node') host = 'Node/' + process.versions.node;
@@ -52,7 +65,6 @@ console.log(host.startsWith('\x1B[38;2;156;96;224mPorffor') ?
   `Welcome to \x1B[1m\x1B[38;2;156;96;224mPorffor\x1B[0m \x1B[2m${globalThis.version}\x1B[0m running on \x1B[1m${host}\x1B[0m`);
 console.log();
 
-const marker = '\x1Eporf-repl-marker\x1E';
 let prev = '';
 
 const run = (source, _context, _filename, callback) => {
@@ -63,26 +75,17 @@ const run = (source, _context, _filename, callback) => {
   }
 
   const current = source.startsWith('{') && source.endsWith('}') ? '(' + source + ')' : source;
-  const toRun = prev ? prev + `;\nconsole.log(${JSON.stringify(marker)});\n` + current : current;
+  const toRun = prev ? `(() => { Porffor.c\`porf_repl_output_enabled = 0;\`; })();
+${prev};
+(() => { Porffor.c\`porf_repl_output_enabled = 1;\`; })();
+${current}` : current;
   let out = '';
-  const visibleOutput = () => {
-    if (!prev) return out;
-    const markerIndex = out.indexOf(marker);
-    if (markerIndex === -1) return out;
-
-    let visible = out.slice(markerIndex + marker.length);
-    if (visible.startsWith('\r\n')) visible = visible.slice(2);
-      else if (visible.startsWith('\n')) visible = visible.slice(1);
-    return visible;
-  };
   try {
     runNativeSource(toRun, x => { out += x; });
-    const visible = visibleOutput();
-    if (visible) process.stdout.write(visible);
+    if (out) process.stdout.write(out);
     prev = prev ? prev + ';\n' + current : current;
   } catch (e) {
-    const visible = visibleOutput();
-    if (visible) process.stdout.write(visible);
+    if (out) process.stdout.write(out);
     if (e?.status == null) console.log('Uncaught', e.stack ? e.stack : e);
   }
 
