@@ -303,7 +303,9 @@ jobs:
       - name: test selfhost test262 harness
         env:
           PORFFOR_TEST262_TCC: /tmp/tinycc-targets/native/bin/tcc
-        run: node test262/selfhost.js harness --threads=4 --expect-passes=107
+        # --no-tcc-server: the run-server's forked execution crashes (SIGBUS/
+        # SIGABRT) on linux x86-64; plain tcc -run per test works
+        run: node test262/selfhost.js harness --threads=4 --expect-passes=107 --no-tcc-server
 
   release:
     needs: [prepare, build-host, build, test]
