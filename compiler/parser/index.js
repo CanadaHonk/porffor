@@ -1145,10 +1145,6 @@ const checkLValSimple = (node, bindingType = 0) => {
       if (strict) raise(node.start, 'Assigning to rvalue');
       break;
 
-    case 'ParenthesizedExpression':
-      if (isBind) raise(node.start, 'Binding parenthesized expression');
-      return checkLValSimple(node.expression, bindingType);
-
     case 'TSAsExpression': case 'TSSatisfiesExpression': case 'TSNonNullExpression':
       return checkLValSimple(node.expression, bindingType);
 
@@ -2534,7 +2530,7 @@ const parseCatchClauseParam = () => {
   const simple = param.type === 'Identifier';
   enterScope(simple ? SCOPE_SIMPLE_CATCH : 0);
   checkLValPattern(param, simple ? BIND_SIMPLE_CATCH : BIND_LEXICAL);
-  if (ts && tokKind === T_COLON) tsCatchAnnotation(param);
+  if (ts && tokKind === T_COLON) tsParamAnnotation(param);
   expect(T_RPAREN);
   return param;
 };
@@ -4062,12 +4058,6 @@ const tsParamAnnotation = left => {
   left.typeAnnotation = tsTypeAnnotation();
   left.end = prevEnd;
   return left;
-};
-
-const tsCatchAnnotation = param => {
-  param.typeAnnotation = tsTypeAnnotation();
-  param.end = prevEnd;
-  return param;
 };
 
 const tsParseBindingListItem = param => {
