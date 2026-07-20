@@ -530,10 +530,7 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
       case K.Await: return [`porf_await(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
       case K.Yield: return [`porf_yield(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
 
-      case K.Alloc: {
-        const [siteId, raw] = node[N_C];
-        return [`porf_alloc(${rx(node[N_A], P_COMMA)}, ${node[N_B]}u)`, P_POSTFIX];
-      }
+      case K.Alloc: return [`porf_alloc(${rx(node[N_A], P_COMMA)}, ${node[N_B]}u)`, P_POSTFIX];
 
       case K.ArrGet: return [`porf_arr_get(${rx(node[N_A], P_COMMA)}, ${rx(node[N_B], P_COMMA)})`, P_POSTFIX];
       case K.LenGet: return [`*(i32*)(MEM + ${rx(node[N_A], P_ADD)})`, P_UNARY];

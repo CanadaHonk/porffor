@@ -366,8 +366,8 @@ export const Await = jv => [K.Await, T.jsval, FX.call | fxOf(jv), jv, 0, 0];
 export const Yield = jv => [K.Yield, T.jsval, FX.call | fxOf(jv), jv, 0, 0];
 
 // alloc / gc
-export const Alloc = (bytes, typeId, siteId = 0, raw = false) =>
-  [K.Alloc, T.ptr, FX.call | fxOf(bytes), bytes, typeId, [siteId, raw]];
+export const Alloc = (bytes, typeId) =>
+  [K.Alloc, T.ptr, FX.call | fxOf(bytes), bytes, typeId, 0];
 export const GcBarrier = (ptr, typeExpr) =>
   [K.GcBarrier, T.none, fxOf(ptr) | fxOf(typeExpr) | FX.writeMem, ptr, typeExpr, 0];
 
