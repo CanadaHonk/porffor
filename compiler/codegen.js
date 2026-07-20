@@ -1211,7 +1211,6 @@ const irBuiltinHelpers = (scope, name, def) => ({
       }
     };
 
-    globalThisSyncFinalizers.push(finalizer);
     onFinalize(finalizer);
   }
 });
@@ -4995,15 +4994,13 @@ const inferDirectCallParamTypes = root => {
   if (root?.type === 'Program') visitBody(root.body);
 };
 
-let globals, funcs, funcsByIndex, tableFuncs, funcIndex, funcNameCollisions, currentFuncIndex, depth, data, dataCache, rawHead, builtinGlobalInits, includedBuiltinGlobalInits, usedTypes, globalInfer, builtinFuncs, builtinVars, builtinPrototypeFuncs, builtinPrototypeGetters, builtinPrototypeObjectGetters, topLevelFunc, globalThisSyncFinalizers;
+let globals, funcs, funcsByIndex, funcIndex, funcNameCollisions, currentFuncIndex, depth, data, dataCache, rawHead, builtinGlobalInits, includedBuiltinGlobalInits, usedTypes, globalInfer, builtinFuncs, builtinVars, builtinPrototypeFuncs, builtinPrototypeGetters, builtinPrototypeObjectGetters, topLevelFunc;
 
 export default (program, opts = {}) => {
   const entryName = opts.entryName ?? '#main';
   globals = Object.create(null);
   globals['#ind'] = 0;
-  funcs = []; funcsByIndex = []; tableFuncs = [];
-  funcs.tableFuncs = tableFuncs;
-  funcs.indirectWrapperArgc = 0;
+  funcs = []; funcsByIndex = [];
   funcIndex = Object.create(null);
   funcNameCollisions = Object.create(null);
   depth = [];
@@ -5015,7 +5012,6 @@ export default (program, opts = {}) => {
   irFinalizers = [];
   memberDemands = new Set();
   topLevelFunc = null;
-  globalThisSyncFinalizers = [];
   onFinalize(() => resolveMemberDemands(topLevelFunc));
   currentFuncIndex = 0;
   usedTypes = new Set([ TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
