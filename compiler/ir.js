@@ -68,7 +68,6 @@ export const K = {
   Eq: k++,       // a: strict bool, b, c: jsvals -> i32 (JS == / ===)
   Add: k++,      // a, b: jsvals -> jsval (JS +: string concat or numeric)
   Cmp: k++,      // a, b: jsvals -> i32 (relational: -1/0/1, 2=unordered)
-  ToNum: k++,    // a: jsval -> f64 (ToNumber)
   JvTruthy: k++, // a: jsval -> i32
 
   // memory (ptr = u32 arena offset; renders *(T*)(MEM + p + off))
@@ -290,7 +289,6 @@ export const Eq = (strict, a, b) => [K.Eq, T.i32, fxOf(a) | fxOf(b) | (strict ? 
 // JS coercing binary operators (may run valueOf/toString)
 export const Add = (a, b) => [K.Add, T.jsval, fxOf(a) | fxOf(b) | FX.call, a, b, 0];
 export const Cmp = (a, b) => [K.Cmp, T.i32, fxOf(a) | fxOf(b) | FX.call, a, b, 0];
-export const ToNum = x => [K.ToNum, T.f64, fxOf(x) | FX.call, x, 0, 0];
 const foldedJvTruthy = jv => {
   if (jv[N_KIND] === K.Box && jv[N_B][N_KIND] === K.Const && jv[N_B][N_A] === TYPES.boolean) return jv[N_A];
   if (jv[N_KIND] === K.JvConst && jv[N_A] === TYPES.boolean) return Const(T.i32, jv[N_B] !== 0 ? 1 : 0);

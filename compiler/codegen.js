@@ -2,7 +2,7 @@ import {
   K, T, FX, N_KIND, N_TYPE, N_FX, N_A, N_B, N_C,
   Const, JvConst, DataRef, Local, Global, Assign,
   Bin, Un, Select, Convert, CONVERT_SIGNED, CONVERT_RANGE_KNOWN,
-  Reinterpret, Box, JvType, JvNum, JvPtr, Eq, Add, Cmp, ToNum, JvTruthy, JvFalsy, JvNullish,
+  Reinterpret, Box, JvType, JvNum, JvPtr, Eq, Add, Cmp, JvTruthy, JvFalsy, JvNullish,
   Load, Store, MemCopy, MemFill,
   If, Loop, Break, Continue, BlockStmt, TypeSwitch, Return, Unreachable,
   Call, CallDynamic, Try, Throw, ThrowNew, Await, Yield,

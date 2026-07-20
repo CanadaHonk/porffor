@@ -471,7 +471,6 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
       case K.Eq: return [`${node[N_A] ? 'porf_strict_eq' : 'porf_loose_eq'}(${jsArg(node[N_B])}, ${jsArg(node[N_C])})`, P_POSTFIX];
       case K.Add: return [`porf_add(${jsArg(node[N_A])}, ${jsArg(node[N_B])})`, P_POSTFIX];
       case K.Cmp: return [`porf_cmp(${jsArg(node[N_A])}, ${jsArg(node[N_B])})`, P_POSTFIX];
-      case K.ToNum: return [`porf_to_num(${jsArg(node[N_A])})`, P_POSTFIX];
       case K.JvTruthy: return [`porf_truthy(${jsArg(node[N_A])})`, P_POSTFIX];
       case K.JvFalsy: return [`porf_falsy(${jsArg(node[N_A])})`, P_POSTFIX];
       case K.JvNullish: return [`porf_nullish(${jsArg(node[N_A])})`, P_POSTFIX];
