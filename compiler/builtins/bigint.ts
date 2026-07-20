@@ -25,18 +25,6 @@ export const __Porffor_bigint_fromDigits = (negative: boolean, digits: i32[]): b
   return (ptr + 0x8000000000000) as bigint;
 };
 
-// store small (abs(n) < 2^51 (0x8000000000000)) values inline (no allocation)
-// like a ~s52 (s53 exc 2^51+(0-2^32) for u32 as pointer) inside a f64
-export const __Porffor_bigint_inlineToDigitForm = (n: number): number => {
-  const ptr: i32 = Porffor.malloc(8); // 4 meta + 1 digit
-  Porffor.IR.storeU8(ptr, 0, n < 0);
-  Porffor.IR.storeU16(ptr, 2, 1);
-  Porffor.IR.storeI32(ptr, 4, Math.abs(n));
-
-  return ptr;
-};
-
-
 export const __Porffor_bigint_fromNumber = (n: number): bigint => {
   if (!Number.isInteger(n) || !Number.isFinite(n)) throw new RangeError('Cannot use non-integer as BigInt');
   if (Math.abs(n) < 0x8000000000000) return n as bigint;

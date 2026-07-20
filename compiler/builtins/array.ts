@@ -1183,25 +1183,3 @@ export const __Porffor_array_fastPush = (arr: any[], el: any): i32 => {
   arr.length = ++len;
   return len;
 };
-
-export const __Porffor_array_fastIndexOf = (arr: any[], el: number): i32 => {
-  const len: i32 = arr.length;
-  for (let i: i32 = 0; i < len; i++) {
-    if (!__Porffor_array_has(arr, i)) continue;
-    if (arr[i] == el) return i;
-  }
-
-  return -1;
-};
-
-// functional to arr.splice(i, 1)
-export const __Porffor_array_fastRemove = (arr: any[], i: i32, len: i32): void => {
-  __Porffor_array_ensure(arr, 0);
-  arr.length = len - 1;
-
-  const entries: i32 = Porffor.IR.loadI32(arr, 4);
-
-  // offset all elements after by -1 ind
-  const offset: i32 = entries + i * 8;
-  Porffor.IR.copy(offset, offset + 8, (len - i - 1) * 8);
-};
