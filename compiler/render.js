@@ -1209,7 +1209,7 @@ ${st}jsval porf_coro_start(u8 flags, u32 idx, jsval callee, u32 env, jsval thisv
 	  porf_coro_call* call = porf_coro_call_new(idx, callee, env, thisv, newtv, argc, argv);
 	  const u8 kind = flags & 7u;
 
-	  if (kind == ${FN_GENERATOR}) {
+	  if (kind == ${FN_GENERATOR} || kind == ${FN_ASYNC_GENERATOR}) {
 	    if (flags & ${FN_CORO_INIT}u) {
 	      const i32 try_idx = porf_try_depth++;
 	      if (_setjmp(porf_try_stack[try_idx]) == 0) {
@@ -1224,25 +1224,7 @@ ${st}jsval porf_coro_start(u8 flags, u32 idx, jsval callee, u32 env, jsval thisv
 	        porf_throw(porf_exception);
 	      }
 	    }
-	    return porf_coro_box(call, ${TYPES.__porffor_generator});
-	  }
-
-	  if (kind == ${FN_ASYNC_GENERATOR}) {
-	    if (flags & ${FN_CORO_INIT}u) {
-	      const i32 try_idx = porf_try_depth++;
-	      if (_setjmp(porf_try_stack[try_idx]) == 0) {
-	        (void)porf_coro_call_step(call, JV_UNDEFINED, 0);
-	        porf_try_depth = try_idx;
-	      } else {
-	        porf_try_depth = try_idx;
-	        porf_coro_set_current_stack_top(call->coro.caller_stack_top);
-	        porf_coro_cur = call->coro.parent;
-	        call->coro.state = 3;
-	        porf_coro_call_free(call);
-	        porf_throw(porf_exception);
-	      }
-	    }
-	    return porf_coro_box(call, ${TYPES.__porffor_asyncgenerator});
+	    return porf_coro_box(call, kind == ${FN_GENERATOR} ? ${TYPES.__porffor_generator} : ${TYPES.__porffor_asyncgenerator});
 	  }
 
   const jsval out_promise = porf_promise_pending();
