@@ -2892,7 +2892,7 @@ static void porf_gc_scan_body(i32 body, i32 type) {
           if (get != 0) porf_gc_mark_js((f64)get, ${TYPES.function});
           if (set != 0) porf_gc_mark_js((f64)set, ${TYPES.function});
         } else {
-          porf_gc_mark_js(*(f64*)(MEM + entry + 8), *(u8*)(MEM + entry + 17));
+          porf_gc_mark_js(porf_load_un_f64(MEM + entry + 8), *(u8*)(MEM + entry + 17));
         }
       }
       break;
@@ -3099,7 +3099,7 @@ static void porf_gc_scan_object_entries(i32 entries) {
       if (set != 0) porf_gc_mark_js((f64)set, ${TYPES.function});
     } else {
       const i32 value_type = *(u8*)(MEM + entry + 17);
-      if (porf_gc_type_can_reference(value_type)) porf_gc_mark_js(*(f64*)(MEM + entry + 8), value_type);
+      if (porf_gc_type_can_reference(value_type)) porf_gc_mark_js(porf_load_un_f64(MEM + entry + 8), value_type);
     }
   }
 }
@@ -5063,11 +5063,25 @@ ${sti}f64 porf_performance_time_origin(void) {
   return porf_performance_time_origin_value;
 }
 
-// unaligned access (DataView etc): memcpy folds to plain loads on x86/arm
+// unaligned access (DataView, object entry values): memcpy folds to plain loads on x86/arm
+// tcc: plain derefs instead - it emits real memcpy calls, and it never optimizes on alignment UB
+#ifdef __TINYC__
+#define porf_load_un_u16(p) (*(const u16*)(p))
+#define porf_load_un_u32(p) (*(const u32*)(p))
+#define porf_load_un_u64(p) (*(const u64*)(p))
+#define porf_load_un_f32(p) (*(const f32*)(p))
+#define porf_load_un_f64(p) (*(const f64*)(p))
+#define porf_store_un_u16(p, v) (*(u16*)(p) = (v))
+#define porf_store_un_u32(p, v) (*(u32*)(p) = (v))
+#define porf_store_un_u64(p, v) (*(u64*)(p) = (v))
+#define porf_store_un_f32(p, v) (*(f32*)(p) = (v))
+#define porf_store_un_f64(p, v) (*(f64*)(p) = (v))
+#else
 #define PORF_UN(ctype) \\
   static inline ctype porf_load_un_##ctype(const u8* p) { ctype v; memcpy(&v, p, sizeof v); return v; } \\
   static inline void porf_store_un_##ctype(u8* p, ctype v) { memcpy(p, &v, sizeof v); }
 PORF_UN(u16) PORF_UN(u32) PORF_UN(u64) PORF_UN(f32) PORF_UN(f64)
+#endif
 
 // exceptions: setjmp-based, exception is a jsval
 ${usesThreads ? '' : `${st}jmp_buf porf_try_stack[256];

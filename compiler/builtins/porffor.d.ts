@@ -27,12 +27,14 @@ type PorfforGlobal = {
     loadI64(ptr: any, offset?: i32): i64;  loadU64(ptr: any, offset?: i32): i64;
     loadF32(ptr: any, offset?: i32): f64;  loadF64(ptr: any, offset?: i32): f64;
     loadJv(ptr: any, offset?: i32): any;
+    loadUnF64(ptr: any, offset?: i32): f64;
     storeU8(ptr: any, offset: i32, value: i32): void;   storeI8(ptr: any, offset: i32, value: i32): void;
     storeU16(ptr: any, offset: i32, value: i32): void;  storeI16(ptr: any, offset: i32, value: i32): void;
     storeI32(ptr: any, offset: i32, value: i32): void;  storeU32(ptr: any, offset: i32, value: i32): void;
     storeI64(ptr: any, offset: i32, value: i64): void;  storeU64(ptr: any, offset: i32, value: i64): void;
     storeF32(ptr: any, offset: i32, value: f64): void;  storeF64(ptr: any, offset: i32, value: f64): void;
     storeJv(ptr: any, offset: i32, value: any): void;
+    storeUnF64(ptr: any, offset: i32, value: f64): void;
     copy(dst: any, src: any, bytes: i32): void;
     fill(dst: any, byte: i32, bytes: i32): void;
     ptr(value: any): i32;

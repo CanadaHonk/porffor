@@ -13,14 +13,16 @@ import type {} from './porffor.d.ts';
 // per entry (20):
 //  key - hash (u32, 4)
 //  key - value (u32, 4)
-//  value (packed jsval, 8)
+//  value (f64, 8) or accessor pair (u32, 4 each)
 //  flags (u8, 1):
 //   accessor - 0b0001
 //   configurable - 0b0010
 //   enumerable - 0b0100
 //   writable - 0b1000
+//  value - type (u8, 1)
 //  key - type (u8, 1)
-//  padding (u8, 2)
+//  padding (u8, 1)
+// 20-byte stride means the value payload is only 8-aligned every other entry: it needs unaligned loads/stores
 
 // hash key for hashmap
 export const __Porffor_object_hashMix = (hash: i32, word: i32): i32 => {
@@ -165,14 +167,14 @@ export const __Porffor_object_appendEntry = (obj: any, key: any, hash: i32): i32
 export const __Porffor_object_fastAdd = (obj: any, key: any, value: any, flags: i32): void => {
   const entryPtr: i32 = __Porffor_object_appendEntry(obj, key, __Porffor_object_hash(key));
 
-  Porffor.IR.storeF64(entryPtr, 8, value);
+  Porffor.IR.storeUnF64(entryPtr, 8, value);
   Porffor.IR.storeU8(entryPtr, 16, flags);
   Porffor.IR.storeU8(entryPtr, 17, Porffor.type(value));
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, value);
 };
 
 export const __Porffor_object_readValue = (entryPtr: i32): any => {
-  return Porffor.as(Porffor.IR.loadF64(entryPtr, 8), Porffor.IR.loadU8(entryPtr, 17));
+  return Porffor.as(Porffor.IR.loadUnF64(entryPtr, 8), Porffor.IR.loadU8(entryPtr, 17));
 };
 
 // store underlying (real) objects for hidden types
@@ -775,7 +777,7 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
     flags = tail & 0xff;
   }
 
-  Porffor.IR.storeF64(entryPtr, 8, value);
+  Porffor.IR.storeUnF64(entryPtr, 8, value);
   Porffor.IR.storeU8(entryPtr, 16, flags);
   Porffor.IR.storeU8(entryPtr, 17, Porffor.type(value));
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, value);
@@ -863,7 +865,7 @@ export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, h
     flags = tail & 0xff;
   }
 
-  Porffor.IR.storeF64(entryPtr, 8, value);
+  Porffor.IR.storeUnF64(entryPtr, 8, value);
   Porffor.IR.storeU8(entryPtr, 16, flags);
   Porffor.IR.storeU8(entryPtr, 17, Porffor.type(value));
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, value);
@@ -979,7 +981,7 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
     flags = tail & 0xff;
   }
 
-  Porffor.IR.storeF64(entryPtr, 8, value);
+  Porffor.IR.storeUnF64(entryPtr, 8, value);
   Porffor.IR.storeU8(entryPtr, 16, flags);
   Porffor.IR.storeU8(entryPtr, 17, Porffor.type(value));
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, value);
@@ -1068,7 +1070,7 @@ export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: 
     flags = tail & 0xff;
   }
 
-  Porffor.IR.storeF64(entryPtr, 8, value);
+  Porffor.IR.storeUnF64(entryPtr, 8, value);
   Porffor.IR.storeU8(entryPtr, 16, flags);
   Porffor.IR.storeU8(entryPtr, 17, Porffor.type(value));
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, value);
@@ -1118,7 +1120,7 @@ export const __Porffor_object_define = (obj: any, key: any, value: any, flags: i
     }
   }
 
-  Porffor.IR.storeF64(entryPtr, 8, value);
+  Porffor.IR.storeUnF64(entryPtr, 8, value);
   Porffor.IR.storeU8(entryPtr, 16, flags);
   Porffor.IR.storeU8(entryPtr, 17, Porffor.type(value));
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, value);
@@ -1279,7 +1281,7 @@ export const __Porffor_object_expr_init = (obj: any, key: any, value: any): void
     entryPtr = __Porffor_object_appendEntry(obj, key, hash);
   }
 
-  Porffor.IR.storeF64(entryPtr, 8, value);
+  Porffor.IR.storeUnF64(entryPtr, 8, value);
   Porffor.IR.storeU8(entryPtr, 16, 0b1110);
   Porffor.IR.storeU8(entryPtr, 17, Porffor.type(value));
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, value);
@@ -1350,7 +1352,7 @@ export const __Porffor_object_class_value = (obj: any, key: any, value: any): vo
     entryPtr = __Porffor_object_appendEntry(obj, key, hash);
   }
 
-  Porffor.IR.storeF64(entryPtr, 8, value);
+  Porffor.IR.storeUnF64(entryPtr, 8, value);
   Porffor.IR.storeU8(entryPtr, 16, 0b1110);
   Porffor.IR.storeU8(entryPtr, 17, Porffor.type(value));
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, value);
@@ -1372,7 +1374,7 @@ export const __Porffor_object_class_method = (obj: any, key: any, value: any): v
     entryPtr = __Porffor_object_appendEntry(obj, key, hash);
   }
 
-  Porffor.IR.storeF64(entryPtr, 8, value);
+  Porffor.IR.storeUnF64(entryPtr, 8, value);
   Porffor.IR.storeU8(entryPtr, 16, 0b1010);
   Porffor.IR.storeU8(entryPtr, 17, Porffor.type(value));
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, value);

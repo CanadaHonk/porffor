@@ -1785,14 +1785,15 @@ const generateIRIntrinsic = (scope, op, args) => {
     : ctype === 'u64' || ctype === 'i64' ? Convert(T.i64, numValue(v), ctype === 'i64' ? CONVERT_SIGNED : 0)
     : Convert(T.i32, numValue(v), ctype[0] === 'i' ? CONVERT_SIGNED : 0);
   let m;
-  if (m = /^(load|store)(\w+)$/.exec(op)) {
-    const ct = m[2] === 'Jv' ? 'jsval' : m[2].toLowerCase();
+  if (m = /^(load|store)(Un)?(\w+)$/.exec(op)) {
+    const ct = m[3] === 'Jv' ? 'jsval' : m[3].toLowerCase();
+    const unaligned = m[2] != null;
     const off = args[1] == null ? 0 : knownValue(scope, args[1]);
     if (typeof off !== 'number') throw new Error(`Porffor.IR.${op}: offset must be a compile-time constant`);
-    if (m[1] === 'load') return Load(ct, rawPtr(a(0)), off);
+    if (m[1] === 'load') return Load(ct, rawPtr(a(0)), off, unaligned);
     const ptr = rawPtr(a(0));
     const value = rawFor(ct, a(2));
-    const out = Store(ct, ptr, off, value);
+    const out = Store(ct, ptr, off, value, unaligned);
     return out;
   }
   if (op === 'bitsToF32') return Reinterpret(T.f64, a(0), 'bitsToF32');
@@ -2829,7 +2830,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       const value = reuse(scope, generate(scope, decl.right));
       const env = reuse(scope, generate(scope, decl.left.object));
       const entries = Load('u32', JvPtr(env), 12);
-      stmt(scope, Store('f64', entries, closureSlot * 20 + 8, JvNum(value)));
+      stmt(scope, Store('f64', entries, closureSlot * 20 + 8, JvNum(value), true));
       stmt(scope, Store('u8', entries, closureSlot * 20 + 17, JvType(value)));
       stmt(scope, If(canReferenceCheck(scope, value), [
         GcBarrier(JvPtr(env), Const(T.i32, TYPES.object))
@@ -3983,7 +3984,7 @@ const generateMember = (scope, decl, objValue = null) => {
   const closureSlot = closureEnvSlot(scope, decl);
   if (closureSlot != null) {
     const entries = Load('u32', JvPtr(objValue ?? generate(scope, decl.object)), 12);
-    return Box(Load('f64', entries, closureSlot * 20 + 8), Load('u8', entries, closureSlot * 20 + 17));
+    return Box(Load('f64', entries, closureSlot * 20 + 8, true), Load('u8', entries, closureSlot * 20 + 17));
   }
 
   const object = decl.object;
