@@ -2597,7 +2597,7 @@ static int porf_gc_object_shape_valid(i32 body) {
   const u32 capacity = *(u16*)(MEM + body + 2);
   if (size > capacity) return 0;
   const i32 entries = *(u32*)(MEM + body + 12);
-  const u64 entry_bytes = (u64)capacity * 20ull;
+  const u64 entry_bytes = (u64)capacity * 24ull;
   if (entries == body + 16) return 16ull + entry_bytes <= (u64)block_size;
   if (!porf_gc_is_block_start(entries)) return 0;
   return (u64)porf_gc_header(entries)[0] >= entry_bytes;
@@ -2609,7 +2609,7 @@ static int porf_gc_static_object_shape_valid(i32 body) {
   const u32 capacity = *(u16*)(MEM + body + 2);
   if (size > capacity) return 0;
   const i32 entries = *(u32*)(MEM + body + 12);
-  const u64 entry_bytes = (u64)capacity * 20ull;
+  const u64 entry_bytes = (u64)capacity * 24ull;
   if (entries == body + 16) return porf_gc_static_range(body, 16ull + entry_bytes);
   if (porf_gc_in_static(entries)) return porf_gc_static_range(entries, entry_bytes);
   if (!porf_gc_is_block_start(entries)) return 0;
@@ -2893,13 +2893,13 @@ static void porf_gc_scan_body(i32 body, i32 type) {
         if (entries != body + 16) {
           porf_gc_set_kind(entries, PORF_GC_KIND_OBJECT_ENTRIES);
           if (porf_gc_is_block_start(entries)) {
-            const u32 max_size = porf_gc_header(entries)[0] / 20u;
+            const u32 max_size = porf_gc_header(entries)[0] / 24u;
             if (size > max_size) size = max_size;
           }
         }
       }
       for (u32 i = 0; i < size; i++) {
-        const i32 entry = entries + (i32)(i * 20u);
+        const i32 entry = entries + (i32)(i * 24u);
         const u32 key_raw = *(u32*)(MEM + entry + 4);
         const i32 key_type = *(u8*)(MEM + entry + 18);
         porf_gc_mark_js((f64)key_raw, key_type);
@@ -3104,9 +3104,9 @@ static void porf_gc_drain_mark_queue(void) {
 
 static void porf_gc_scan_object_entries(i32 entries) {
   if (!porf_gc_is_block_start(entries)) return;
-  const u32 capacity = porf_gc_header(entries)[0] / 20u;
+  const u32 capacity = porf_gc_header(entries)[0] / 24u;
   for (u32 i = 0; i < capacity; i++) {
-    const i32 entry = entries + (i32)(i * 20u);
+    const i32 entry = entries + (i32)(i * 24u);
     const i32 key_type = *(u8*)(MEM + entry + 18);
     if (porf_gc_type_can_reference(key_type)) porf_gc_mark_js((f64)(*(u32*)(MEM + entry + 4)), key_type);
     const u8 flags = *(u8*)(MEM + entry + 16);

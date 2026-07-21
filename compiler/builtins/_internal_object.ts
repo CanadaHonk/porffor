@@ -10,17 +10,18 @@ import type {} from './porffor.d.ts';
 //  padding (u16, 2)
 //  prototype (u32, 4)
 //  entries pointer (u32, 4)
-// per entry (20):
+// per entry (24):
 //  key - hash (u32, 4)
 //  key - value (u32, 4)
-//  value (packed jsval, 8)
+//  value (f64, 8) or accessor pair (u32, 4 each)
 //  flags (u8, 1):
 //   accessor - 0b0001
 //   configurable - 0b0010
 //   enumerable - 0b0100
 //   writable - 0b1000
+//  value - type (u8, 1)
 //  key - type (u8, 1)
-//  padding (u8, 2)
+//  padding (u8, 5)
 
 // hash key for hashmap
 export const __Porffor_object_hashMix = (hash: i32, word: i32): i32 => {
@@ -103,7 +104,7 @@ export const __Porffor_object_writeKey = (ptr: i32, key: any, hash: i32): void =
 };
 
 export const __Porffor_object_new = (capacity: i32 = 4): object => {
-  const obj: object = Porffor.malloc(16 + capacity * 20);
+  const obj: object = Porffor.malloc(16 + capacity * 24);
   Porffor.IR.storeU16(obj, 0, 0);
   Porffor.IR.storeU16(obj, 2, capacity);
   Porffor.IR.storeU8(obj, 4, 0);
@@ -114,7 +115,7 @@ export const __Porffor_object_new = (capacity: i32 = 4): object => {
 };
 
 export const __Porffor_object_newShared = (capacity: i32 = 4): object => {
-  const obj: object = __Porffor_mallocShared(16 + capacity * 20);
+  const obj: object = __Porffor_mallocShared(16 + capacity * 24);
   Porffor.IR.storeU16(obj, 0, 0);
   Porffor.IR.storeU16(obj, 2, capacity);
   Porffor.IR.storeU8(obj, 4, 0);
@@ -140,10 +141,10 @@ export const __Porffor_object_ensureCapacity = (obj: any, needed: i32): i32 => {
   if (capacity == 0) capacity = 1;
   while (capacity < needed) capacity *= 2;
 
-  const newEntriesPtr: i32 = Porffor.malloc(capacity * 20);
+  const newEntriesPtr: i32 = Porffor.malloc(capacity * 24);
   const size: i32 = Porffor.IR.loadU16(obj, 0);
   if (size > 0) {
-    Porffor.IR.copy(newEntriesPtr, entriesPtr, size * 20);
+    Porffor.IR.copy(newEntriesPtr, entriesPtr, size * 24);
   }
 
   Porffor.IR.storeU16(obj, 2, capacity);
@@ -156,7 +157,7 @@ export const __Porffor_object_appendEntry = (obj: any, key: any, hash: i32): i32
   const size: i32 = Porffor.IR.loadU16(obj, 0);
   const entriesPtr: i32 = __Porffor_object_ensureCapacity(obj, size + 1);
   Porffor.IR.storeU16(obj, 0, size + 1);
-  const entryPtr: i32 = entriesPtr + size * 20;
+  const entryPtr: i32 = entriesPtr + size * 24;
   __Porffor_object_writeKey(entryPtr, key, hash);
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, key);
   return entryPtr;
@@ -442,9 +443,9 @@ export const __Porffor_object_overrideAllFlags = (obj: any, overrideOr: i32, ove
 
   let ptr: i32 = __Porffor_object_entriesPtr(obj);
   const size: i32 = Porffor.IR.loadU16(obj, 0);
-  const endPtr: i32 = ptr + size * 20;
+  const endPtr: i32 = ptr + size * 24;
 
-  for (; ptr < endPtr; ptr += 20) {
+  for (; ptr < endPtr; ptr += 24) {
     let flags: i32 = Porffor.IR.loadU8(ptr, 16);
     flags = (flags | overrideOr) & overrideAnd;
     Porffor.IR.storeU8(ptr, 16, flags);
@@ -459,9 +460,9 @@ export const __Porffor_object_checkAllFlags = (obj: any, dataAnd: i32, accessorA
 
   let ptr: i32 = __Porffor_object_entriesPtr(obj);
   const size: i32 = Porffor.IR.loadU16(obj, 0);
-  const endPtr: i32 = ptr + size * 20;
+  const endPtr: i32 = ptr + size * 24;
 
-  for (; ptr < endPtr; ptr += 20) {
+  for (; ptr < endPtr; ptr += 24) {
     const flags: i32 = Porffor.IR.loadU8(ptr, 16);
     if (flags & 0b0001) {
       // accessor
@@ -499,11 +500,11 @@ export const __Porffor_object_lookup = (obj: any, target: any, targetHash: i32):
   if (Porffor.IR.ptr(obj) == 0) return 0;
 
   let ptr: i32 = __Porffor_object_entriesPtr(obj);
-  const endPtr: i32 = ptr + Porffor.IR.loadU16(obj, 0) * 20;
+  const endPtr: i32 = ptr + Porffor.IR.loadU16(obj, 0) * 24;
 
   if (Porffor.comptime.flag`hasType.symbol`) {
     if (Porffor.type(target) == Porffor.TYPES.symbol) {
-      for (; ptr < endPtr; ptr += 20) {
+      for (; ptr < endPtr; ptr += 24) {
         const key: i32 = Porffor.IR.loadI32(ptr, 4);
         if (Porffor.IR.loadU8(ptr, 18) == Porffor.TYPES.symbol) {
           // todo: remove casts once weird bug which breaks unrelated things is fixed (https://github.com/CanadaHonk/porffor/commit/5747f0c1f3a4af95283ebef175cdacb21e332a52)
@@ -515,7 +516,7 @@ export const __Porffor_object_lookup = (obj: any, target: any, targetHash: i32):
     }
   }
 
-  for (; ptr < endPtr; ptr += 20) {
+  for (; ptr < endPtr; ptr += 24) {
     if (Porffor.IR.loadI32(ptr, 0) == targetHash) {
       return ptr;
     }
@@ -1201,14 +1202,14 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
     return false;
   }
 
-  const ind: i32 = (entryPtr - __Porffor_object_entriesPtr(obj)) / 20;
+  const ind: i32 = (entryPtr - __Porffor_object_entriesPtr(obj)) / 24;
 
   // decrement size
   let size: i32 = Porffor.IR.loadU16(obj, 0);
   Porffor.IR.storeU16(obj, 0, --size);
 
   if (size > ind) {
-    Porffor.IR.copy(entryPtr, entryPtr + 20, (size - ind) * 20);
+    Porffor.IR.copy(entryPtr, entryPtr + 24, (size - ind) * 24);
   }
 
   return true;
@@ -1243,14 +1244,14 @@ export const __Porffor_object_deleteStrict = (obj: any, key: any): boolean => {
     throw new TypeError('Cannot delete non-configurable property of object');
   }
 
-  const ind: i32 = (entryPtr - __Porffor_object_entriesPtr(obj)) / 20;
+  const ind: i32 = (entryPtr - __Porffor_object_entriesPtr(obj)) / 24;
 
   // decrement size
   let size: i32 = Porffor.IR.loadU16(obj, 0);
   Porffor.IR.storeU16(obj, 0, --size);
 
   if (size > ind) {
-    Porffor.IR.copy(entryPtr, entryPtr + 20, (size - ind) * 20);
+    Porffor.IR.copy(entryPtr, entryPtr + 24, (size - ind) * 24);
   }
 
   return true;

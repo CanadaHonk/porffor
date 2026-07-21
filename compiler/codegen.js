@@ -2834,8 +2834,8 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       const value = reuse(scope, generate(scope, decl.right));
       const env = reuse(scope, generate(scope, decl.left.object));
       const entries = Load('u32', JvPtr(env), 12);
-      stmt(scope, Store('f64', entries, closureSlot * 20 + 8, JvNum(value)));
-      stmt(scope, Store('u8', entries, closureSlot * 20 + 17, JvType(value)));
+      stmt(scope, Store('f64', entries, closureSlot * 24 + 8, JvNum(value)));
+      stmt(scope, Store('u8', entries, closureSlot * 24 + 17, JvType(value)));
       const type = reuse(scope, JvType(value));
       stmt(scope, If(Bin('&&', T.i32,
         Bin('&&', T.i32,
@@ -3997,7 +3997,7 @@ const generateMember = (scope, decl, objValue = null) => {
   const closureSlot = closureEnvSlot(scope, decl);
   if (closureSlot != null) {
     const entries = Load('u32', JvPtr(objValue ?? generate(scope, decl.object)), 12);
-    return Box(Load('f64', entries, closureSlot * 20 + 8), Load('u8', entries, closureSlot * 20 + 17));
+    return Box(Load('f64', entries, closureSlot * 24 + 8), Load('u8', entries, closureSlot * 24 + 17));
   }
 
   const object = decl.object;
