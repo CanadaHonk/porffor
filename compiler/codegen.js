@@ -360,6 +360,11 @@ const closureLocalReadNode = name => ({
   _skipClosureOwnLocals: true
 });
 
+// mirror a binding into the scope's own closure env
+const mirrorToClosureEnv = (scope, name, right = closureLocalReadNode(name)) =>
+  genStmt(scope, { type: 'AssignmentExpression', operator: '=',
+    left: closureMemberNode(scope, name, scope.ast), right });
+
 const closureOwnLocalReadIsLocal = (scope, name) =>
   name in scope.locals &&
   !scope.closureOwnLocals?.[name]?.node?._writes;
@@ -1754,6 +1759,20 @@ const buildDirectArgs = (scope, decl, func, userArgs, newTargetVal, thisVal, env
   return out;
 };
 
+// runtime check: can this jsval hold a GC reference? (not undefined/number/boolean or their objects)
+const canReferenceCheck = (scope, v) => {
+  const t = reuse(scope, JvType(v));
+  return Bin('&&', T.i32,
+    Bin('&&', T.i32,
+      Bin('!=', T.i32, t, Const(T.i32, TYPES.undefined)),
+      Bin('!=', T.i32, t, Const(T.i32, TYPES.number))),
+    Bin('&&', T.i32,
+      Bin('!=', T.i32, t, Const(T.i32, TYPES.boolean)),
+      Bin('&&', T.i32,
+        Bin('!=', T.i32, t, Const(T.i32, TYPES.numberobject)),
+        Bin('!=', T.i32, t, Const(T.i32, TYPES.booleanobject)))));
+};
+
 const generateIRIntrinsic = (scope, op, args) => {
   const a = i => {
     const v = knownValue(scope, args[i]);
@@ -1765,18 +1784,6 @@ const generateIRIntrinsic = (scope, op, args) => {
     : ctype === 'f64' || ctype === 'f32' ? numValue(v)
     : ctype === 'u64' || ctype === 'i64' ? Convert(T.i64, numValue(v), ctype === 'i64' ? CONVERT_SIGNED : 0)
     : Convert(T.i32, numValue(v), ctype[0] === 'i' ? CONVERT_SIGNED : 0);
-  const canReferenceCheck = v => {
-    const t = reuse(scope, JvType(v));
-    return Bin('&&', T.i32,
-      Bin('&&', T.i32,
-        Bin('!=', T.i32, t, Const(T.i32, TYPES.undefined)),
-        Bin('!=', T.i32, t, Const(T.i32, TYPES.number))),
-      Bin('&&', T.i32,
-        Bin('!=', T.i32, t, Const(T.i32, TYPES.boolean)),
-        Bin('&&', T.i32,
-          Bin('!=', T.i32, t, Const(T.i32, TYPES.numberobject)),
-          Bin('!=', T.i32, t, Const(T.i32, TYPES.booleanobject)))));
-  };
   let m;
   if (m = /^(load|store)(\w+)$/.exec(op)) {
     const ct = m[2] === 'Jv' ? 'jsval' : m[2].toLowerCase();
@@ -1804,7 +1811,7 @@ const generateIRIntrinsic = (scope, op, args) => {
     if (known != null) return GcBarrier(ptr, type);
     const value = a(2);
     const jv = value[N_TYPE] === T.jsval ? value : valNumber(value);
-    return If(canReferenceCheck(jv), [ GcBarrier(ptr, type) ]);
+    return If(canReferenceCheck(scope, jv), [ GcBarrier(ptr, type) ]);
   }
   throw new Error(`unknown Porffor.IR.${op}`);
 };
@@ -2500,14 +2507,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       }
 
       // mirror the binding into the closure env when an inner closure captures it
-      if (scope.closureOwnLocals?.[name]) {
-        genStmt(scope, {
-          type: 'AssignmentExpression',
-          operator: '=',
-          left: closureMemberNode(scope, name, scope.ast),
-          right: closureLocalReadNode(name)
-        });
-      }
+      if (scope.closureOwnLocals?.[name]) mirrorToClosureEnv(scope, name);
 
       return valUndefined();
     }
@@ -2575,12 +2575,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     }
 
     if (scope.closureOwnLocals?.[name] && (!redecl || init)) {
-      genStmt(scope, {
-        type: 'AssignmentExpression',
-        operator: '=',
-        left: closureMemberNode(scope, name, scope.ast),
-        right: init ? closureLocalReadNode(name) : DEFAULT_VALUE
-      });
+      mirrorToClosureEnv(scope, name, init ? closureLocalReadNode(name) : DEFAULT_VALUE);
     }
 
     return valUndefined();
@@ -2836,16 +2831,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       const entries = Load('u32', JvPtr(env), 12);
       stmt(scope, Store('f64', entries, closureSlot * 20 + 8, JvNum(value)));
       stmt(scope, Store('u8', entries, closureSlot * 20 + 17, JvType(value)));
-      const type = reuse(scope, JvType(value));
-      stmt(scope, If(Bin('&&', T.i32,
-        Bin('&&', T.i32,
-          Bin('!=', T.i32, type, Const(T.i32, TYPES.undefined)),
-          Bin('!=', T.i32, type, Const(T.i32, TYPES.number))),
-        Bin('&&', T.i32,
-          Bin('!=', T.i32, type, Const(T.i32, TYPES.boolean)),
-          Bin('&&', T.i32,
-            Bin('!=', T.i32, type, Const(T.i32, TYPES.numberobject)),
-            Bin('!=', T.i32, type, Const(T.i32, TYPES.booleanobject))))), [
+      stmt(scope, If(canReferenceCheck(scope, value), [
         GcBarrier(JvPtr(env), Const(T.i32, TYPES.object))
       ]));
       return valueUnused ? valUndefined() : value;
@@ -4336,10 +4322,7 @@ const generateClass = (scope, decl) => {
   else func.body.unshift(...fieldInits);
   func.body.unshift(...guard);
 
-  if (!expr && scope.closureOwnLocals?.[name]) {
-    genStmt(scope, { type: 'AssignmentExpression', operator: '=',
-      left: closureMemberNode(scope, name, scope.ast), right: closureLocalReadNode(name) });
-  }
+  if (!expr && scope.closureOwnLocals?.[name]) mirrorToClosureEnv(scope, name);
 
   return expr ? classRoot : valUndefined();
 };
@@ -4725,27 +4708,18 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       if (hasClosureOwnEnv(func)) {
         for (const { name: argName } of args) {
           if (!func.closureOwnLocals?.[argName]) continue;
-          genStmt(func, { type: 'AssignmentExpression', operator: '=',
-            left: closureMemberNode(func, argName, func.ast), right: closureLocalReadNode(argName) });
+          mirrorToClosureEnv(func, argName);
         }
 
-        if (func.closureOwnLocals?.[func.name]) {
-          genStmt(func, { type: 'AssignmentExpression', operator: '=',
-            left: closureMemberNode(func, func.name, func.ast), right: closureLocalReadNode(func.name) });
-        }
-
-        if (func.closureOwnThis) {
-          genStmt(func, { type: 'AssignmentExpression', operator: '=',
-            left: closureMemberNode(func, '#this', func.ast), right: { type: 'ThisExpression' } });
-        }
+        if (func.closureOwnLocals?.[func.name]) mirrorToClosureEnv(func, func.name);
+        if (func.closureOwnThis) mirrorToClosureEnv(func, '#this', { type: 'ThisExpression' });
 
         if (body.type === 'BlockStatement') {
           for (const node of body.body) {
             if (node.type !== 'FunctionDeclaration') continue;
             if (!func.closureOwnLocals?.[node.id?.name]) continue;
             generateFunc(func, node, true);
-            genStmt(func, { type: 'AssignmentExpression', operator: '=',
-              left: closureMemberNode(func, node.id.name, func.ast), right: closureLocalReadNode(node.id.name) });
+            mirrorToClosureEnv(func, node.id.name);
           }
         }
       }
