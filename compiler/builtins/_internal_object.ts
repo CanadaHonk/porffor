@@ -131,13 +131,9 @@ export const __Porffor_object_entriesPtr = (obj: any): i32 => {
 };
 
 export const __Porffor_object_ensureCapacity = (obj: any, needed: i32): i32 => {
-  Porffor.IR.gcBarrier(obj, Porffor.TYPES.object);
   let capacity: i32 = Porffor.IR.loadU16(obj, 2);
   const entriesPtr: i32 = Porffor.IR.loadI32(obj, 12);
-  if (needed <= capacity) {
-    Porffor.IR.gcBarrier(obj, Porffor.TYPES.object);
-    return entriesPtr;
-  }
+  if (needed <= capacity) return entriesPtr;
 
   if (capacity == 0) capacity = 1;
   while (capacity < needed) capacity *= 2;
