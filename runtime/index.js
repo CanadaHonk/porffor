@@ -171,6 +171,14 @@ entrypoint: {
         runStatus = e.status ?? 1;
       }
     }
+  } catch (e) {
+    // parse/compile errors: report cleanly instead of a raw Node stack (-d keeps the stack)
+    if (e instanceof SyntaxError && !Prefs.d) {
+      process.stderr.write(`\x1B[31m\x1B[1mSyntaxError\x1B[0m: ${e.message}\n`);
+      process.exitCode = 1;
+      break entrypoint;
+    }
+    throw e;
   } finally {
     if (tmpRunDir) fs.rmSync(tmpRunDir, { recursive: true, force: true });
   }
