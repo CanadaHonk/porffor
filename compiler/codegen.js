@@ -1208,7 +1208,16 @@ const irBuiltinHelpers = (scope, name, def) => ({
       for (const name in globals) {
         if (name[0] === '#' || seen.has(name) || globals[name].metadata?.kind !== 'var') continue;
         const type = globals[name].type ?? T.jsval;
-        push(name, type === T.jsval ? Global(name, T.jsval) : valNumber(Global(name, type)));
+        const value = type === T.jsval ? Global(name, T.jsval) : valNumber(Global(name, type));
+        if (globals[name].metadata?.implicit) {
+          // a deleted implicit global is no longer an own property of the global object
+          seen.add(name);
+          sync.push(If(Bin('==', T.i32, Global(implicitGlobalDeletedFlag(name), T.i32), Const(T.i32, 0)),
+            [ builtinCall(scope, '__Porffor_object_set', [ objJv, makeString(scope, name), value ]) ],
+            [ builtinCall(scope, '__Porffor_object_delete', [ objJv, makeString(scope, name) ]) ]));
+        } else {
+          push(name, value);
+        }
       }
     };
 
@@ -2889,6 +2898,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
   if (check) {
     if (local !== undefined) {
       // fast path: conditional in-place store, the var itself is the result: if (check(x)) x = y
+      guardImplicitGlobalRead(scope, name);
       const ref = isGlobal ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval);
       const cond = check(scope, ref, getType(scope, name));
       setInferred(scope, name, knownType(scope, getNodeType(scope, decl)), isGlobal);
@@ -3128,6 +3138,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
   }
 
   // compound assignment: left @= right -> left = left @ right
+  guardImplicitGlobalRead(scope, name);
   const cur = isGlobal ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval);
   const newVal = performOp(scope, op, cur, generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right));
   setInferred(scope, name, knownType(scope, getNodeType(scope, decl)), isGlobal);
@@ -3252,6 +3263,7 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
   const [ local, isGlobal ] = lookupName(scope, name);
   if (local != null) {
     // fast path: a local/global. todo: not as compliant as the slow path (non-numbers)
+    guardImplicitGlobalRead(scope, name);
     const ref = isGlobal ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval);
     const inc = v => Bin(decl.operator === '++' ? '+' : '-', T.f64, numValue(v), Const(T.f64, 1));
     const incForRef = v => ref[N_TYPE] === T.jsval ? valNumber(inc(v))
