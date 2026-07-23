@@ -818,6 +818,7 @@ const generateIdent = (scope, decl) => {
   if (decl._builtinMember && decl.name in builtinFuncs) return materializeFunctionValue(scope, includeBuiltin(scope, decl.name));
 
   if (decl.name in scope.locals) (scope.locals[decl.name].metadata ??= {}).read = true;
+  if (!decl._skipImplicitGuard) guardImplicitGlobalRead(scope, decl.name);
   return lookup(scope, decl.name, !(decl.name === 'arguments' && decl._resolvedBinding))
     ?? internalThrow(scope, 'ReferenceError', `${unhackName(decl.name)} is not defined`);
 };
@@ -2222,6 +2223,26 @@ const addVarMetadata = (scope, name, global = false, metadata = {}) => {
   }
 };
 
+// sloppy `a = 1` with no declaration is a configurable global: `delete a` removes it
+// and later reads throw. A companion i32 global (0 = defined, 1 = deleted) tracks this.
+const implicitGlobalDeletedFlag = name => '#implicitdel#' + name;
+const isImplicitGlobal = name => globals[name]?.metadata?.implicit === true;
+
+const markImplicitGlobal = (scope, name) => {
+  globals[name].metadata ??= {};
+  globals[name].metadata.implicit = true;
+  allocVar(scope, implicitGlobalDeletedFlag(name), true, T.i32);
+};
+
+const setImplicitGlobalDeleted = (scope, name, deleted) =>
+  stmt(scope, Assign(Global(implicitGlobalDeletedFlag(name), T.i32), Const(T.i32, deleted ? 1 : 0)));
+
+const guardImplicitGlobalRead = (scope, name) => {
+  if (name in scope.locals || !isImplicitGlobal(name)) return;
+  emitIf(scope, Bin('!=', T.i32, Global(implicitGlobalDeletedFlag(name), T.i32), Const(T.i32, 0)),
+    () => internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`));
+};
+
 const HOIST_DECL = 1;
 const markVarHoists = (scope, body) => {
   scope.hoists ??= new Map();
@@ -2378,6 +2399,8 @@ const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType
     : ref[N_TYPE] === T.f64 ? numValue(value)
     : ref[N_TYPE] === T.ptr ? JvPtr(value)
     : coerceValue(value, ref[N_TYPE]));
+  // a write redefines the binding, clearing any prior delete
+  if (isGlobal && isImplicitGlobal(name)) setImplicitGlobalDeleted(scope, name, false);
   return tee ? (ref[N_TYPE] === T.f64 ? valNumber(ref) : ref) : undefined;
 };
 
@@ -3093,6 +3116,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
 
     // set global and return (eg a = 2)
     generateVarDstr(scope, 'var', name, decl.right, undefined, true);
+    markImplicitGlobal(scope, name);
     return valueUnused ? valUndefined() : generate(scope, decl.left);
   }
 
@@ -3171,7 +3195,13 @@ const generateUnary = (scope, decl) => {
 
       let toReturn = true, toGenerate = true;
       if (decl.argument.type === 'Identifier') {
+        const name = decl.argument.name;
         if (ifIdentifierErrors(scope, decl.argument)) { toReturn = true; toGenerate = false; }
+        else if (!(name in scope.locals) && isImplicitGlobal(name)) {
+          // configurable implicit global: mark deleted so later reads throw
+          setImplicitGlobalDeleted(scope, name, true);
+          toReturn = true; toGenerate = false;
+        }
         else toReturn = false;
       }
       if (toGenerate) exprStmt(scope, generate(scope, decl.argument));
@@ -3181,8 +3211,13 @@ const generateUnary = (scope, decl) => {
     case 'typeof': {
       if (ifIdentifierErrors(scope, decl.argument)) return makeString(scope, 'undefined');
 
+      // typeof a deleted implicit global reads 'undefined' without throwing: skip the guard, branch on the flag
+      const typeofName = decl.argument.type === 'Identifier' ? decl.argument.name : null;
+      const implicitTypeof = typeofName != null && !(typeofName in scope.locals) && isImplicitGlobal(typeofName);
+      if (implicitTypeof) decl.argument._skipImplicitGuard = true;
+
       const arg = reuse(scope, generate(scope, decl.argument));
-      return typeSwitch(scope, arg, knownType(scope, getNodeType(scope, decl.argument)), [
+      const result = typeSwitch(scope, arg, knownType(scope, getNodeType(scope, decl.argument)), [
         [ TYPES.number, () => makeString(scope, 'number') ],
         [ TYPES.boolean, () => makeString(scope, 'boolean') ],
         [ [ TYPES.string, TYPES.bytestring ], () => makeString(scope, 'string') ],
@@ -3193,6 +3228,14 @@ const generateUnary = (scope, decl) => {
 
         [ 'default', () => makeString(scope, 'object') ]
       ]);
+
+      if (implicitTypeof) {
+        const res = tmp(scope, T.jsval, result);
+        emitIf(scope, Bin('!=', T.i32, Global(implicitGlobalDeletedFlag(typeofName), T.i32), Const(T.i32, 0)),
+          () => stmt(scope, Assign(res, makeString(scope, 'undefined'))));
+        return res;
+      }
+      return result;
     }
   }
 };
