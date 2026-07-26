@@ -523,7 +523,7 @@ export const __console_timeLog = (label: any): void => {
   __Porffor_consoleIndent();
 
   const val = timeMap.get(label);
-  if (!val) {
+  if (val === undefined) {
     Porffor.printStatic("Timer '");
     __Porffor_consolePrint(label);
     Porffor.printStatic("' does not exist\n");
