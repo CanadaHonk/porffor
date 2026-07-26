@@ -41,6 +41,7 @@ const autoBundleNativeFetchModule = filename => {
       '--format=esm',
       '--platform=neutral',
       '--target=es2022',
+      '--conditions=worker',
       '--main-fields=browser,module,main',
       '--loader=ts',
       `--banner:js=${FETCH_GLOBALS}`,
