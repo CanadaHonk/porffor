@@ -65,6 +65,7 @@ const autoBundleNativeFetchModule = filename => {
 
 export default (file, source) => {
   Prefs.nativeFetch = true;
+  if (Prefs.eventLoop == null) Prefs.eventLoop = true;
   Prefs.gc = true;
   globalThis.file = 'fetch.mjs';
 
