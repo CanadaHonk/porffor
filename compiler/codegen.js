@@ -4613,14 +4613,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
       func.identFailEarly = true;
 
-      // a named function expression sees its own name
-      if (decl.type === 'FunctionExpression' && decl.id?.name && (func.selfAware || func.closureOwnLocals?.[func.name])) {
-        allocVar(func, func.name);
-        setVarMetadata(func, func.name, false, { kind: 'function-name' });
-        setLocalWithType(func, func.name, false,
-          func.selfAware ? Local('#callee', T.jsval) : materializeFunctionValue(func, func), false, TYPES.function);
-      }
-
       // closure env: object holding this func's captured locals (+ #this), chained to the inherited env
       if (hasClosureOwnEnv(func)) {
         const closureEnvNames = Object.keys(func.closureOwnLocals ?? {});
@@ -4644,6 +4636,14 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
             () => exprStmt(func, builtinCall(func, '__Porffor_object_setPrototype', [
               Local('#closure_env_local', T.jsval), valOf(Local('#env', T.ptr), TYPES.object) ])));
         }
+      }
+
+      // a named function expression sees its own name
+      if (decl.type === 'FunctionExpression' && decl.id?.name && (func.selfAware || func.closureOwnLocals?.[func.name])) {
+        allocVar(func, func.name);
+        setVarMetadata(func, func.name, false, { kind: 'function-name' });
+        setLocalWithType(func, func.name, false,
+          func.selfAware ? Local('#callee', T.jsval) : materializeFunctionValue(func, func), false, TYPES.function);
       }
 
       // dynamic calls can deliver any receiver: prototype builtins coerce or type-guard #this by annotated type
