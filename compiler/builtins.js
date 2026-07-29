@@ -592,13 +592,6 @@ return porf_box_num((f64)(i32)((u32)xd * (u32)yd));`, false)
     body: [ Return(Bin('*', T.f64, Convert(T.f64, Bin('>>', T.u64, Call('__Porffor_prng', [], T.u64), Const(T.u64, 11)), 0), Const(T.f64, 2 ** -53))) ]
   };
 
-  _.__Porffor_randomByte = {
-    params: [],
-    retType: T.i32,
-    returnType: TYPES.number,
-    body: [ Return(Convert(T.i32, Bin('&', T.u64, Bin('>>', T.u64, Call('__Porffor_prng', [], T.u64), Const(T.u64, 56)), Const(T.u64, 0xff)))) ]
-  };
-
   _.__performance_now = {
     params: [],
     retType: T.jsval,
@@ -768,10 +761,6 @@ return sign * (i64)((((u64)*(u32*)(MEM + ptr + 4)) << 32) + (u64)*(u32*)(MEM + p
 
     return Box(generate(scope, decl.arguments[0]), generate(scope, typeArg));
   });
-
-  comptime('__Porffor_compileType', TYPES.bytestring, (scope, decl, { makeString, knownType, getNodeType }) =>
-    makeString(scope, TYPE_NAMES[knownType(scope, getNodeType(scope, decl.arguments[0]))] ?? 'unknown')
-  );
 
   // Porffor.call(func, argArray, this, newTarget)
   comptime('__Porffor_call', undefined, (scope, decl, { generate, createThisArg }) => {

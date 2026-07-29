@@ -46,11 +46,6 @@ type PorfforGlobal = {
     f64ToBits(value: f64): i64;
   }
 
-  set: {
-    read(ptr: any, index: number): i32;
-    write(ptr: any, index: number, value: any): boolean;
-  }
-
   array: {
     new(capacity: i32): any[];
     fastPush(arr: any[], el: any): i32;
@@ -114,8 +109,6 @@ type PorfforGlobal = {
   }
 
   printStatic(str: string): void;
-
-  randomByte(): i32;
 
   type(x: any): i32;
   as<T = any>(value: any, type: i32): T;
