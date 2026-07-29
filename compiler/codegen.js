@@ -4582,7 +4582,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
     // render's C signature return type (IR T.*), porffor TYPES inference type rides in
     // `returnType`, coroutine kind in `flags` (async/generator bodies are otherwise plain)
-    retType: T.jsval,
+    retType: topLevel ? T.none : T.jsval,
+    returnType: topLevel ? TYPES.undefined : undefined,
 
     generate() {
       if (func.body) return func.body;
