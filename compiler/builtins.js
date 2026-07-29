@@ -617,13 +617,6 @@ return porf_box_num((f64)(i32)((u32)xd * (u32)yd));`, false)
     ]
   };
 
-  _.__Porffor_clone = {
-    params: [ { name: 'dst', type: T.ptr }, { name: 'src', type: T.ptr } ],
-    retType: T.none,
-    returnType: TYPES.undefined,
-    body: [ RawC('memcpy(MEM + dst, MEM + src, pageSize);', false) ]
-  };
-
   _.__Porffor_bytestringToString = {
     params: [ { name: 'src', type: T.ptr } ],
     retType: T.jsval,

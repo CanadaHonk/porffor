@@ -139,8 +139,6 @@ type PorfforGlobal = {
     [key: string]: i32;
   }
 
-  clone(source: any, destination: any): void;
-
   call(func: any, argArray: any[], thisArg: any, newTarget: any): any;
   callThis(func: any, thisArg: any, ...args: any[]): any;
 
