@@ -79,7 +79,7 @@ const defaultOpts = {
   benchRuns: +(process.env.SELFHOST_BENCH_RUNS ?? 1),
   detail: false,
   pollEvery: +(process.env.POLL_EVERY ?? 5),
-  compare: process.env.SELFHOST_COMPARE ?? '1',
+  compare: process.env.SELFHOST_COMPARE ?? null,
   sizeGraph: process.env.SELFHOST_SIZE_GRAPH ?? null,
   porfFlags: [],
   profilePgo: false,
@@ -124,6 +124,7 @@ ${helpRows([
   [ '--no-monitor', 'run checkpoints without RSS polling' ],
   [ '--native-checks', 'also compare native binaries and their output for verify cases' ],
   [ '--no-verify', 'bench: skip host/selfhost output parity checks' ],
+  [ '--compare PATH', 'bench: compare against given porf binary instead of ./porf' ],
   [ '--noop-precompiled', 'build a temporary bundle without precompiled builtins' ],
   [ '--bench-runs=N', 'runs per compiler for bench (default: 1)' ],
   [ '--detail', 'bench: show phase timings for representative cases' ],
@@ -1144,6 +1145,21 @@ const bench = async opts => {
   requireBuiltSelfhost();
   opts.benchRuns = Number.isFinite(opts.benchRuns) && opts.benchRuns > 0 ? Math.floor(opts.benchRuns) : 1;
 
+  let benchHost = './porf';
+  if (opts.compare != null) {
+    if (!fs.existsSync(opts.compare)) {
+      console.log(red(`--compare binary not found: ${opts.compare}`));
+      process.exit(1);
+    }
+    benchHost = opts.compare;
+    if (opts.verifyBench) {
+      opts.verifyBench = false;
+      console.log(dim(`comparing against ${benchHost} (parity check disabled)`));
+    } else {
+      console.log(dim(`comparing against ${benchHost}`));
+    }
+  }
+
   const verifyCases = [
     ...parityCases,
     [ 'selfhost', bundle ]
@@ -1193,7 +1209,7 @@ const bench = async opts => {
         row.stepStart = performance.now();
         row.stepRun = runId;
         paint();
-        return runBenchCompile(`host ${name} c bench`, './porf', [ 'c', ...porfDebugArgs(opts), '--profile-compiler', file, hostC ], logPath(`bench-${name}-host-${runId}`), failures, opts.detail);
+        return runBenchCompile(`host ${name} c bench`, benchHost, [ 'c', ...porfDebugArgs(opts), '--profile-compiler', file, hostC ], logPath(`bench-${name}-host-${runId}`), failures, opts.detail);
       }, opts.benchRuns);
       row.hostMs = host?.ms ?? null;
       row.hostRss = host?.rss ?? null;
