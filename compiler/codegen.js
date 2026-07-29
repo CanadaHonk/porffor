@@ -13,7 +13,6 @@ import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
 import semantic, { knownValue, unknownValue } from './semantic.js';
 import parse from './parse.js';
 import temporalPolyfillSource from './temporal.js';
-import { log } from './log.js';
 import './prefs.js';
 
 // jsval constants
@@ -4455,8 +4454,6 @@ const objectHack = node => {
 
       const name = '__' + objectName + '_' + node.property.name;
       if ((!hasFuncWithName(name) && !(name in builtinVars) && !hasFuncWithName(name + '$get')) && (hasFuncWithName(objectName) || objectName in builtinVars || hasFuncWithName('__' + objectName) || ('__' + objectName) in builtinVars)) return;
-
-      if (Prefs.codeLog) log('codegen', `object hack! ${node.object.name}.${node.property.name} -> ${name}`);
 
       return {
         type: 'Identifier',

@@ -88,7 +88,7 @@ export default (code, module = Prefs.module, run = false) => {
 
   if (logProgress) progressDone('generated IR', t1);
 
-  if (Prefs.funcs || Prefs.optFuncs || Prefs.f) logFuncs(cg.funcs, cg.globals);
+  if (Prefs.f) logFuncs(cg.funcs, cg.globals);
   if (globalThis.precompile) return cg;
 
   if (logProgress) progressStart('rendering C...');

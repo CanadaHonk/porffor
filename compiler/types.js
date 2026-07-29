@@ -1,5 +1,3 @@
-import './prefs.js';
-
 export const TYPE_FLAGS = {
   parity:    0b10000000,
   length:    0b01000000,
@@ -70,22 +68,3 @@ registerInternalType('__Porffor_AsyncGenerator');
 
 for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval', 'URI' ])
   registerInternalType(`${x}Error`);
-
-if (Prefs.largestTypes) {
-  const typeKeys = Object.keys(TYPES);
-  const typeVals = Object.values(TYPES);
-
-  const largestType = (vals, keys) => {
-    const val = Math.max(...vals);
-    const key = keys[vals.indexOf(val)];
-    return [ val, key ];
-  };
-
-  const logType = (label, val, key) => console.log(`${label}    ${key} - ${val} (0x${val.toString(16)}, 0b${val.toString(2).padStart(8, '0')})`);
-
-  const largestUnflagged = largestType(typeVals.map(x => x & 0b00111111), typeKeys);
-  logType(`largest type:         `, ...largestUnflagged);
-  logType(`largest type w/ flags:`, ...largestType(typeVals, typeKeys));
-  console.log('types left:', 0b00111111 - largestUnflagged[0]);
-  console.log();
-}
