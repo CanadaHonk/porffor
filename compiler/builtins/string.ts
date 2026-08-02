@@ -1659,6 +1659,13 @@ export const __String_prototype_split = function (this: string, separator: any, 
       produced++;
     }
   } else {
+    if (thisLen < sepLen) {
+      if (limit > 0) {
+        outLen = Porffor.array.fastPush(out, Porffor.callThis(__String_prototype_substring, this, 0, thisLen));
+      }
+      out.length = outLen;
+      return out;
+    }
     let start: i32 = 0;
     const maxStart: i32 = thisLen - sepLen;
     let i: i32 = 0;
@@ -1762,6 +1769,13 @@ export const __ByteString_prototype_split = function (this: bytestring, separato
       produced++;
     }
   } else {
+    if (thisLen < sepLen) {
+      if (limit > 0) {
+        outLen = Porffor.array.fastPush(out, Porffor.callThis(__ByteString_prototype_substring, this, 0, thisLen));
+      }
+      out.length = outLen;
+      return out;
+    }
     let start: i32 = 0;
     const maxStart: i32 = thisLen - sepLen;
     let i: i32 = 0;
