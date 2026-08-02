@@ -1,4 +1,4 @@
-const crypto = {};
+globalThis.crypto = {};
 
 class Headers {
   constructor(init = undefined) {
