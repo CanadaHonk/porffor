@@ -44,10 +44,7 @@ const resolveTccPath = tcc => {
 };
 const resolveTcc = () => resolveTccPath(process.env.PORFFOR_TEST262_TCC ?? process.env.TCC ?? 'tcc');
 
-// darwin: the coroutine runtime uses ucontext under tcc, whose SDK header
-// #errors without _XOPEN_SOURCE; _DARWIN_C_SOURCE keeps BSD symbols
-// (MAP_ANONYMOUS etc) visible despite it
-const tccArgs = [ '-w', '-lm', ...(process.platform === 'darwin' ? [ '-D_XOPEN_SOURCE=600', '-D_DARWIN_C_SOURCE' ] : []), '-run' ];
+const tccArgs = [ '-w', '-lm', '-run' ];
 
 if (cluster.isPrimary) {
   // raise the stack soft limit to 64MB (matching porf native's -Wl,-stack_size)
