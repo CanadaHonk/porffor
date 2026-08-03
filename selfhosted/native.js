@@ -389,126 +389,6 @@ if (path_owned) free(path_owned);
 `;
 };
 
-const tccNew = () => {
-  let state = 0;
-  Porffor.c`
-#ifdef PORFFOR_EMBED_TCC
-extern void *tcc_new(void);
-void *s = tcc_new();
-if (s) state = (f64)(u64)s;
-#endif
-`;
-  if (state === 0) throw new Error('tcc unavailable');
-  return state;
-};
-
-const tccDelete = state => {
-  Porffor.c`
-#ifdef PORFFOR_EMBED_TCC
-extern void tcc_delete(void *);
-tcc_delete((void*)(u64)state.val);
-#endif
-`;
-};
-
-const tccSetOutputType = (state, run) => {
-  let status = 0;
-  Porffor.c`
-#ifdef PORFFOR_EMBED_TCC
-extern int tcc_set_output_type(void *, int);
-status = tcc_set_output_type((void*)(u64)state.val, run.val ? 1 : 2);
-#endif
-`;
-  if (status !== 0) throw new Error('tcc set output type failed');
-};
-
-const tccCompileString = (state, source) => {
-  const sourceType = Porffor.type(source);
-  let status = 0;
-  Porffor.c`
-#ifdef PORFFOR_EMBED_TCC
-extern int tcc_compile_string(void *, const char *);
-char *source_owned;
-char *source_ptr = __porffor_node_cstr(MEM, source, (i32)sourceType.val, &source_owned);
-status = tcc_compile_string((void*)(u64)state.val, source_ptr);
-if (source_owned) free(source_owned);
-#endif
-`;
-  if (status !== 0) throw new Error('tcc compile failed');
-};
-
-const tccAddLibrary = (state, library) => {
-  const libraryType = Porffor.type(library);
-  let status = 0;
-  Porffor.c`
-#ifdef PORFFOR_EMBED_TCC
-extern int tcc_add_library(void *, const char *);
-char *library_owned;
-char *library_ptr = __porffor_node_cstr(MEM, library, (i32)libraryType.val, &library_owned);
-status = tcc_add_library((void*)(u64)state.val, library_ptr);
-if (library_owned) free(library_owned);
-#endif
-`;
-  if (status !== 0) throw new Error('tcc add library failed');
-};
-
-const tccOutputFile = (state, path) => {
-  const pathType = Porffor.type(path);
-  let status = 0;
-  Porffor.c`
-#ifdef PORFFOR_EMBED_TCC
-extern int tcc_output_file(void *, const char *);
-char *path_owned;
-char *path_ptr = __porffor_node_cstr(MEM, path, (i32)pathType.val, &path_owned);
-status = tcc_output_file((void*)(u64)state.val, path_ptr);
-if (path_owned) free(path_owned);
-#endif
-`;
-  if (status !== 0) throw new Error('tcc output file failed');
-};
-
-const tccRun = (state, path) => {
-  const pathType = Porffor.type(path);
-  let status = 0;
-  Porffor.c`
-#ifdef PORFFOR_EMBED_TCC
-extern int tcc_run(void *, int, char **);
-char *path_owned;
-char *path_ptr = __porffor_node_cstr(MEM, path, (i32)pathType.val, &path_owned);
-char *argv[] = { path_ptr, NULL };
-status = tcc_run((void*)(u64)state.val, 1, argv);
-if (path_owned) free(path_owned);
-#endif
-`;
-  if (status < 0) throw new Error('tcc run failed');
-  return status;
-};
-
-const tccCompile = (source, outputFile, run = false) => {
-  const state = tccNew();
-
-  try {
-    tccSetOutputType(state, run);
-    tccCompileString(state, source);
-    tccAddLibrary(state, 'm');
-    if (run) return tccRun(state, outputFile);
-    tccOutputFile(state, outputFile);
-    return 0;
-  } finally {
-    tccDelete(state);
-  }
-};
-
-const hasNativeTcc = () => {
-  let out = 0;
-  Porffor.c`
-#ifdef PORFFOR_EMBED_TCC
-out = 1;
-#endif
-`;
-  return out !== 0;
-};
-
 const execSync = (cmd, options = {}) => {
   const cmdType = Porffor.type(cmd);
   const input = options.input;
@@ -922,7 +802,6 @@ globalThis.Buffer = {
 
 globalThis.setInterval = () => 0;
 globalThis.clearInterval = () => {};
-if (hasNativeTcc()) globalThis.tcc = tccCompile;
 
 globalThis.process = {
   argv,

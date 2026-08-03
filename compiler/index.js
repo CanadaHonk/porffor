@@ -63,7 +63,7 @@ const progressClear = () => {
 export default (code, module = Prefs.module, run = false) => {
   Prefs.module = module;
 
-  const optPref = process.argv.find(x => x.startsWith('-O'))?.[2];
+  const optPref = process.argv.find(x => x.startsWith('-O'))?.[2] ?? Prefs.O;
 
   let target = Prefs.target ?? 'c';
 
@@ -123,11 +123,12 @@ export default (code, module = Prefs.module, run = false) => {
     let cxx = (Prefs.cxx ?? process.env.CXX ?? 'c++').split(' ');
     if (Prefs.musl) compiler = [ 'zig', 'cc', '-target', 'x86_64-linux-musl' ];
     if (Prefs.musl) cxx = [ 'zig', 'c++', '-target', 'x86_64-linux-musl' ];
-    const useEmbeddedTcc = compiler.length === 1 && compiler[0] === 'tcc' && typeof globalThis.tcc === 'function';
-    if (!Prefs.d && Prefs.flto == null) Prefs.flto = !Prefs.musl && !useEmbeddedTcc;
+    const isTinyCC = compiler[0].endsWith('tcc');
+    if (!Prefs.d && Prefs.flto == null) Prefs.flto = !Prefs.musl && !isTinyCC;
 
     const compilerArgPrefs = [ 'march', 'flto' ];
-    const compilerArgs = [];
+    const compilerArgs = isTinyCC && process.platform === 'darwin' ?
+      [ '-D_XOPEN_SOURCE=600', '-D_DARWIN_C_SOURCE' ] : [];
     for (const x of compilerArgPrefs) {
       const value = Prefs[x];
       if (value == null || value === false) continue;
@@ -207,14 +208,6 @@ export default (code, module = Prefs.module, run = false) => {
 
     if (Prefs.nativeFetch) {
       compileNativeFetch();
-    } else if (useEmbeddedTcc) {
-      if (logProgress) progressStart('compiling C to native (using embedded tcc)...');
-      const t5 = performance.now();
-
-      const runStatus = globalThis.tcc(c, outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), run);
-      if (run) cg.runStatus = runStatus;
-
-      if (logProgress) progressDone('compiled C to native (using embedded tcc)', t5);
     } else {
       const args = [
         ...compiler,
@@ -229,7 +222,7 @@ export default (code, module = Prefs.module, run = false) => {
         '-fno-ident', '-ffunction-sections', '-fdata-sections', // remove unneeded binary sections
         ...(cOut.threads ? [ '-pthread' ] : []),
         ...darwinReleaseCompileArgs,
-        ...linkStripArgs,
+        ...(isTinyCC ? [] : linkStripArgs),
         ...compilerArgs,
         `-O${optPref ?? 3}`
       ];

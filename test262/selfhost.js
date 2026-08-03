@@ -78,7 +78,10 @@ const resolveTccPath = tcc => {
   return tcc;
 };
 
-const tccArgs = [ '-w', '-lm', '-run' ];
+// darwin: the coroutine runtime uses ucontext under tcc, whose SDK header
+// #errors without _XOPEN_SOURCE; _DARWIN_C_SOURCE keeps BSD symbols
+// (MAP_ANONYMOUS etc) visible despite it
+const tccArgs = [ '-w', '-lm', ...(process.platform === 'darwin' ? [ '-D_XOPEN_SOURCE=600', '-D_DARWIN_C_SOURCE' ] : []), '-run' ];
 
 const veryStart = performance.now();
 

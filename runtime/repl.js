@@ -17,17 +17,6 @@ const runNativeSource = (source, output, module = Prefs.module) => {
     Prefs.o = outFile;
     Prefs.quiet = true;
 
-    if (typeof globalThis.tcc === 'function') {
-      Prefs.compiler = 'tcc';
-      const result = compile(source, module, true);
-      if (result?.runStatus !== 0) {
-        const e = new Error(`tcc run failed (status ${result?.runStatus})`);
-        e.status = result?.runStatus ?? 1;
-        throw e;
-      }
-      return;
-    }
-
     compile(source, module);
     try {
       const out = execFileSync(outFile, [], { encoding: 'utf8', stdio: [ 'ignore', 'pipe', 'pipe' ] });
@@ -46,6 +35,7 @@ const runNativeSource = (source, output, module = Prefs.module) => {
 };
 
 Prefs.optUnused = false;
+Prefs.O = 1;
 Prefs.p = true;
 Prefs.module = true;
 Prefs.repl = true;

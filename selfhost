@@ -4,8 +4,6 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 
 const homeTcc = path.join(process.env.HOME ?? '/Users/honk', 'tcc');
-const hasHomeLibtcc = () => fs.existsSync(path.join(homeTcc, 'libtcc.h')) && fs.existsSync(path.join(homeTcc, 'libtcc.a'));
-const hasHomeTccSource = () => fs.existsSync(path.join(homeTcc, 'tcc')) && fs.existsSync(path.join(homeTcc, 'libtcc.c')) && fs.existsSync(path.join(homeTcc, 'libtcc.h'));
 const selfhostDir = 'selfhosted';
 const inSelfhost = file => path.join(selfhostDir, file);
 const tmpDir = '/tmp/porffor-selfhost';
@@ -217,6 +215,8 @@ const llvmProfdataCommand = compiler => {
   process.exit(1);
 };
 
+const isTinyCC = compiler => path.basename(compiler[0]) === 'tcc';
+
 const compilerArgs = opts => {
   const compiler = opts.compiler.split(/\s+/).filter(Boolean);
   if (compiler.length === 0) compiler.push('cc');
@@ -226,11 +226,11 @@ const compilerArgs = opts => {
     if (base !== '.' && fs.existsSync(path.join(base, 'libtcc1.a'))) compiler.push(`-B${base}`);
       else if (fs.existsSync(path.join(homeTcc, 'libtcc1.a'))) compiler.push(`-B${homeTcc}`);
   }
+  if (process.platform === 'darwin' && isTinyCC(compiler))
+    compiler.push('-D_XOPEN_SOURCE=600', '-D_DARWIN_C_SOURCE');
 
   return compiler;
 };
-
-const isTinyCC = compiler => path.basename(compiler[0]) === 'tcc';
 
 const releaseStripArgs = (compiler, opts) =>
   !opts.release ? [] :
@@ -264,108 +264,6 @@ const patchMachOStackSize = (file, stackSize = 0x4000000n) => {
 const buildKind = opts => opts.ccOpts.some(x => /^-O(?:[1-3]|fast|s|z)$/.test(x)) ? 'release' : 'debug';
 const entryKind = build => build === 'release' || build === 'debug' ? build :
   build == null ? null : /-O(?:[1-3]|fast|s|z)\b/.test(build) ? 'release' : 'debug';
-
-const libtccInputs = [
-  'libtcc.c',
-  'tcc.h',
-  'tcctok.h',
-  'config.h',
-  'tccpp.c',
-  'tccgen.c',
-  'tccdbg.c',
-  'tccelf.c',
-  'tccasm.c',
-  'tccrun.c',
-  'arm64-gen.c',
-  'arm64-link.c',
-  'arm64-asm.c',
-  'tccmacho.c',
-  'runtime-embed.S',
-  'libtcc1.a',
-  'runmain.o',
-  'include/float.h',
-  'include/stdalign.h',
-  'include/stdarg.h',
-  'include/stdatomic.h',
-  'include/stdbool.h',
-  'include/stddef.h',
-  'include/stdnoreturn.h',
-  'include/tccdefs.h',
-  'include/tgmath.h',
-  'include/varargs.h'
-].map(file => path.join(homeTcc, file));
-
-const isFresh = (output, stamp, stampText, inputs) => {
-  if (!fs.existsSync(output) || !fs.existsSync(stamp) || fs.readFileSync(stamp, 'utf8') !== stampText) return false;
-  const outTime = fs.statSync(output).mtimeMs;
-  return inputs.every(file => fs.existsSync(file) && fs.statSync(file).mtimeMs <= outTime);
-};
-
-const ensureEmbeddedLibtcc = async (compiler, opts) => {
-  if (!hasHomeTccSource()) return null;
-
-  const tccBuild = isTinyCC(compiler);
-  const dir = path.join(homeTcc, tccBuild ? 'porffor-tcc-libtcc' : 'porffor-cc-libtcc');
-  const obj = path.join(dir, 'libtcc.o');
-  const runtimeObj = path.join(dir, 'runtime-embed.o');
-  const archive = path.join(dir, 'libtcc.a');
-  const stamp = path.join(dir, 'build.stamp');
-  const cc = tccBuild ? compiler : (process.env.SELFHOST_LIBTCC_CC ?? process.env.CC ?? 'cc').split(/\s+/).filter(Boolean);
-  const compileArgs = tccBuild ?
-    [
-      ...compiler.slice(1),
-      ...(compiler.some(x => x.startsWith('-B')) ? [] : [ `-B${homeTcc}` ]),
-      '-DCONFIG_TCC_EMBED_RUNTIME',
-      '-DCONFIG_TCC_EMBED_HEADERS',
-      '-DCONFIG_TCCDIR=""',
-      `-I${homeTcc}`,
-      '-c', path.join(homeTcc, 'libtcc.c'),
-      '-o', obj
-    ] :
-    [
-      ...cc.slice(1),
-      '-O3',
-      '-fPIC',
-      '-DCONFIG_TCC_EMBED_RUNTIME',
-      '-DCONFIG_TCC_EMBED_HEADERS',
-      '-DCONFIG_TCCDIR=""',
-      `-I${homeTcc}`,
-      '-c', path.join(homeTcc, 'libtcc.c'),
-      '-o', obj
-    ];
-  const archiveCmd = tccBuild ? compiler[0] : 'ar';
-  const archiveArgs = tccBuild ?
-    [
-      ...compiler.slice(1),
-      ...(compiler.some(x => x.startsWith('-B')) ? [] : [ `-B${homeTcc}` ]),
-      '-ar', 'rcs', archive, obj, runtimeObj
-    ] :
-    [ 'rcs', archive, obj, runtimeObj ];
-  const stampText = JSON.stringify({ tccBuild, cc, compileArgs, archiveCmd, archiveArgs }) + '\n';
-
-  if (isFresh(archive, stamp, stampText, libtccInputs)) return archive;
-
-  fs.mkdirSync(dir, { recursive: true });
-  await run(`${tccBuild ? 'tcc' : 'cc'} libtcc object`, tccBuild ? compiler[0] : cc[0], compileArgs, null, opts);
-  await run(`${tccBuild ? 'tcc' : 'cc'} embedded tcc runtime`, tccBuild ? compiler[0] : cc[0], [
-    ...(tccBuild ? compiler.slice(1) : cc.slice(1)),
-    '-DCONFIG_TCC_EMBED_HEADERS',
-    `-I${homeTcc}`,
-    '-c', path.join(homeTcc, 'runtime-embed.S'),
-    '-o', runtimeObj
-  ], null, opts);
-  await run(`${tccBuild ? 'tcc' : 'cc'} libtcc archive`, archiveCmd, archiveArgs, null, opts);
-  fs.writeFileSync(stamp, stampText);
-  return archive;
-};
-
-const embeddedTccArgs = async (compiler, opts) => {
-  const libtcc = await ensureEmbeddedLibtcc(compiler, opts);
-  return libtcc ? {
-    compile: [ '-DPORFFOR_EMBED_TCC' ],
-    link: [ libtcc ]
-  } : { compile: [], link: [] };
-};
 
 const tail = (file, lines = 40) => {
   if (!fs.existsSync(file)) return;
@@ -720,15 +618,12 @@ const compileSelfhost = async opts => {
   }
   await runCompileStep('compiled selfhost bundle to C', './porf', [ 'c', '--compress-data', ...hostPorfDebugArgs(opts), '--profile-compiler', bundle, stage1C ]);
   const compiler = compilerArgs(opts);
-  const tccArgs = await embeddedTccArgs(compiler, opts);
   const releaseCodegenArgs = opts.release ? [ '-mllvm', '-force-attribute=porf_strict_eq:noinline' ] : [];
   if (opts.release && (opts.profilePgo || !fs.existsSync(pgoProfile))) {
     fs.rmSync(pgoRaw, { force: true });
     await runCompileStep('compiled PGO training binary', compiler[0], [
       ...compiler.slice(1),
-      ...tccArgs.compile,
       stage1C, '-o', pgoCompiler, '-lm',
-      ...tccArgs.link,
       ...(process.platform === 'darwin' && !isTinyCC(compiler) ? [ '-Wl,-stack_size,0x4000000' ] : []),
       ...opts.ccOpts,
       `-fprofile-instr-generate=${pgoRaw}`
@@ -739,9 +634,7 @@ const compileSelfhost = async opts => {
   }
   await runCompileStep(opts.release ? 'compiled release binary' : 'compiled selfhost binary', compiler[0], [
     ...compiler.slice(1),
-    ...tccArgs.compile,
     stage1C, '-o', porf, '-lm',
-    ...tccArgs.link,
     ...(process.platform === 'darwin' && !isTinyCC(compiler) ? [ '-Wl,-stack_size,0x4000000' ] : []),
     ...releaseStripArgs(compiler, opts),
     ...releaseCodegenArgs,

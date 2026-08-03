@@ -28,11 +28,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - uses: mlugg/setup-zig@v2
-        with:
-          version: 0.16.0
-          # disable cache as zig does not track .incbin
-          use-cache: false
       - name: install LLVM 21
         run: |
           wget -q https://apt.llvm.org/llvm.sh
@@ -69,82 +64,12 @@ jobs:
         run: node selfhosted/build.mjs
       - name: compile bundle to c
         run: ./porf c --compress-data selfhosted/bundle.js selfhosted/stage1.c
-      - name: restore embedded tcc
-        id: cache-tcc
-        uses: actions/cache/restore@v4
-        with:
-          path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-5327ff4d76585369377346a640b2e146e9495464-zig-0.16.0-llvm-21-v6
-      - name: build embedded tcc
-        if: steps.cache-tcc.outputs.cache-hit != 'true'
-        run: |
-          src=/tmp/tinycc
-          cross=/tmp/tinycc-cross
-          targets=/tmp/tinycc-targets
-          commit=5327ff4d76585369377346a640b2e146e9495464
-
-          git init "$src"
-          git -C "$src" remote add origin https://github.com/CanadaHonk/tinycc.git
-          git -C "$src" fetch --depth=1 origin "$commit"
-          git -C "$src" checkout --detach FETCH_HEAD
-
-          mkdir -p "$cross" "$targets"
-          cd "$cross"
-          "$src/configure" --source-path="$src" --cc=clang --ar=llvm-ar
-          make -j"$(nproc)" cross-x86_64 cross-arm64 cross-x86_64-osx cross-arm64-osx
-
-          build() {
-            name=$1; triple=$2; cpu=$3; os=$4; runtime=$5; musl=$6
-            dir="$targets/$name"
-            mkdir -p "$dir"
-            cd "$dir"
-
-            args=(--source-path="$src" --cc=clang --ar=llvm-ar --cpu="$cpu" --targetos="$os" '--extra-cflags=-O3 -fPIC')
-            if test "$musl" = yes; then args+=(--config-musl); fi
-            if test "$os" = Darwin; then args+=('--sysincludepaths={B}/include:/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include'); fi
-            "$src/configure" "${args[@]}"
-
-            mkdir -p include
-            cp "$src"/include/*.h include/
-            cp "$cross/tccdefs_.h" .
-            cp "$cross/$runtime" libtcc1.a
-            runtime_target="$cpu"
-            if test "$os" = Darwin; then runtime_target="$runtime_target-osx"; fi
-            runtime_tcc="$cross/$runtime_target-tcc"
-            "$runtime_tcc" -B"$src" -w -c "$src/lib/runmain.c" -o runmain.o
-            file runmain.o | grep -q 'ELF .* relocatable'
-            zig cc -target "$triple" -O3 -g0 -fPIC -w -DCONFIG_TCC_EMBED_RUNTIME -DCONFIG_TCC_EMBED_HEADERS '-DCONFIG_TCCDIR=""' \
-              -I"$dir" -I"$src" -c "$src/libtcc.c" -o libtcc.o
-            zig cc -target "$triple" -g0 -w -DCONFIG_TCC_EMBED_HEADERS -I"$dir" -I"$src" -c "$src/runtime-embed.S" -o runtime-embed.o
-            zig ar rcs libtcc.a libtcc.o runtime-embed.o
-          }
-
-          native=/tmp/tinycc-native
-          mkdir -p "$native"
-          cd "$native"
-          "$src/configure" --source-path="$src" --cc=clang --ar=llvm-ar --prefix="$targets/native"
-          make -j"$(nproc)"
-          make install
-
-          build linux-x64 x86_64-linux-gnu.2.28 x86_64 Linux x86_64-libtcc1.a no
-          build linux-arm64 aarch64-linux-gnu.2.28 arm64 Linux arm64-libtcc1.a no
-          build linux-x64-musl x86_64-linux-musl x86_64 Linux x86_64-libtcc1.a yes
-          build linux-arm64-musl aarch64-linux-musl arm64 Linux arm64-libtcc1.a yes
-          build darwin-x64 x86_64-macos x86_64 Darwin x86_64-osx-libtcc1.a no
-          build darwin-arm64 aarch64-macos arm64 Darwin arm64-osx-libtcc1.a no
-      - name: save embedded tcc
-        if: steps.cache-tcc.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: /tmp/tinycc-targets
-          key: ${{ steps.cache-tcc.outputs.cache-primary-key }}
       - name: profile selfhost compiler
         run: |
           mkdir -p /tmp/porffor-pgo
           clang -O0 -fuse-ld=lld -fno-sanitize=undefined -w \
             -fprofile-instr-generate=/tmp/porffor-pgo/release.profraw \
-            -DPORFFOR_EMBED_TCC selfhosted/stage1.c /tmp/tinycc-targets/linux-x64/libtcc.a \
-            -o /tmp/porffor-pgo/porf -lm -ldl
+            selfhosted/stage1.c -o /tmp/porffor-pgo/porf -lm
           /tmp/porffor-pgo/porf c selfhosted/bundle.js /tmp/porffor-pgo/stage2.c
           llvm-profdata merge -o /tmp/porffor-pgo/release.profdata /tmp/porffor-pgo/release.profraw
       - name: collect build inputs
@@ -174,12 +99,6 @@ jobs:
         with:
           name: build-inputs
           path: build-inputs
-      - name: restore embedded tcc
-        uses: actions/cache/restore@v4
-        with:
-          path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-5327ff4d76585369377346a640b2e146e9495464-zig-0.16.0-llvm-21-v6
-          fail-on-cache-miss: true
       - name: compile
         env:
           NAME: linux-x64
@@ -191,8 +110,7 @@ jobs:
           zig cc -O3 -flto=thin -fno-sanitize=undefined -w -s -target "$TRIPLE" \
             -fprofile-instr-use=build-inputs/release.profdata \
             -mllvm -force-attribute=porf_strict_eq:noinline \
-            -DPORFFOR_EMBED_TCC selfhosted/stage1.c "/tmp/tinycc-targets/$NAME/libtcc.a" \
-            -o build/porf -lm -ldl
+            selfhosted/stage1.c -o build/porf -lm
           tar -czf "out/porffor-$NAME.tar.gz" -C build porf
       - name: upload release archive
         uses: actions/upload-artifact@v4
@@ -228,12 +146,6 @@ jobs:
         with:
           name: build-inputs
           path: build-inputs
-      - name: restore embedded tcc
-        uses: actions/cache/restore@v4
-        with:
-          path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-5327ff4d76585369377346a640b2e146e9495464-zig-0.16.0-llvm-21-v6
-          fail-on-cache-miss: true
       - name: compile
         env:
           NAME: ${{ matrix.name }}
@@ -244,13 +156,11 @@ jobs:
           cp build-inputs/stage1.c selfhosted/stage1.c
           lto=-flto=thin
           link=
-          libs='-lm -ldl'
-          case "$TRIPLE" in *-macos) lto=; link=-Wl,-stack_size,0x4000000; libs=-lm;; esac
+          case "$TRIPLE" in *-macos) lto=; link=-Wl,-stack_size,0x4000000;; esac
           zig cc -O3 $lto -fno-sanitize=undefined -w -s -target "$TRIPLE" $link \
             -fprofile-instr-use=build-inputs/release.profdata \
             -mllvm -force-attribute=porf_strict_eq:noinline \
-            -DPORFFOR_EMBED_TCC selfhosted/stage1.c "/tmp/tinycc-targets/$NAME/libtcc.a" \
-            -o build/porf $libs
+            selfhosted/stage1.c -o build/porf -lm
           tar -czf "out/porffor-$NAME.tar.gz" -C build porf
       - name: upload release archive
         uses: actions/upload-artifact@v4
@@ -273,6 +183,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: install external tcc
+        run: sudo apt-get update && sudo apt-get install -y tcc
       - name: apply release version
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
@@ -296,25 +208,16 @@ jobs:
         run: tar -xzf build/linux-x64/porffor-linux-x64.tar.gz -C build/linux-x64
       - name: verify release version
         run: test "$(build/linux-x64/porf --version)" = '${{ needs.prepare.outputs.version }}'
-      - name: verify embedded tcc native compile
+      - name: verify external tcc native compile
         run: |
-          build/linux-x64/porf native --compiler=tcc bench/hello.js /tmp/porffor-embedded-tcc-smoke
-          /tmp/porffor-embedded-tcc-smoke | grep -qx 'hello world!'
+          build/linux-x64/porf native --compiler=tcc bench/hello.js /tmp/porffor-external-tcc-smoke
+          /tmp/porffor-external-tcc-smoke | grep -qx 'hello world!'
       - name: use release compiler for selfhost tests
         run: cp build/linux-x64/porf selfhosted/porf
-      - name: restore embedded tcc
-        uses: actions/cache/restore@v4
-        with:
-          path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-5327ff4d76585369377346a640b2e146e9495464-zig-0.16.0-llvm-21-v6
-          fail-on-cache-miss: true
       - name: verify selfhost compiler
         run: ./selfhost verify
       - name: test selfhost test262 harness
-        env:
-          PORFFOR_TEST262_TCC: /tmp/tinycc-targets/native/bin/tcc
-        # --no-tcc-server: the run-server's forked execution crashes (SIGBUS/
-        # SIGABRT) on linux x86-64; plain tcc -run per test works
+        # The packaged tcc has no run-server extension; use plain tcc -run.
         run: node test262/selfhost.js harness --threads=4 --expect-passes=107 --no-tcc-server
 
   release:
