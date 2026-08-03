@@ -349,6 +349,7 @@ jobs:
       - name: announce release on discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.prepare.outputs.version }}
           TAG: ${{ needs.prepare.outputs.tag }}
           PREVIOUS_TAG: ${{ needs.prepare.outputs.previous_tag }}
@@ -356,6 +357,10 @@ jobs:
           if test -z "$DISCORD_WEBHOOK"; then
             echo 'DISCORD_RELEASE_WEBHOOK not set, skipping announce'
             exit 0
+          fi
+          mkdir -p previous-release
+          if test -n "$PREVIOUS_TAG"; then
+            gh release download "$PREVIOUS_TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.tar.gz' --dir previous-release
           fi
           node --input-type=module - <<'EOF'
           import fs from 'node:fs';
@@ -372,9 +377,16 @@ jobs:
             const files = stat.match(/(\d+) files? changed/);
             const insertions = stat.match(/(\d+) insertions?\(/);
             const deletions = stat.match(/(\d+) deletions?\(/);
-            if (files) changes += `, ${files[1]} file${files[1] === '1' ? '' : 's'} changed`;
-            if (insertions) changes += `, +${(+insertions[1]).toLocaleString('en-US')}`;
-            if (deletions) changes += `, -${(+deletions[1]).toLocaleString('en-US')}`;
+            let separator = ', ';
+            if (files) {
+              changes += `, ${files[1]} file${files[1] === '1' ? '' : 's'} changed.`;
+              separator = ' ';
+            }
+            if (insertions) {
+              changes += `${separator}+${(+insertions[1]).toLocaleString('en-US')}`;
+              separator = ', ';
+            }
+            if (deletions) changes += `${separator}-${(+deletions[1]).toLocaleString('en-US')}`;
           }
 
           let description = changes + '\n\n';
@@ -387,14 +399,35 @@ jobs:
           if (shown < commits.length) description += `...and ${commits.length - shown} more`;
 
           const formatSize = bytes => bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-          const downloads = fs.readdirSync('out')
+          const formatDelta = (current, previous) => {
+            if (previous === undefined) return '';
+            const difference = current - previous;
+            const sign = difference > 0 ? '+' : difference < 0 ? '-' : '';
+            const percentage = Math.abs(difference / previous * 100);
+            return ` (${sign}${percentage.toFixed(1)}%)`;
+          };
+          const binarySize = path => +execFileSync(
+            'bash', [ '-o', 'pipefail', '-c', 'tar -xOzf "$1" porf | wc -c', 'bash', path ], { encoding: 'utf8' }
+          ).trim();
+          const sizes = fs.readdirSync('out')
             .filter(name => name.endsWith('.tar.gz'))
             .sort()
             .map(name => {
               const platform = name.replace(/^porffor-/, '').replace(/\.tar\.gz$/, '');
-              const size = formatSize(fs.statSync(`out/${name}`).size);
-              return `[${platform}](https://github.com/${repo}/releases/download/${tag}/${name}) - ${size}`;
-            })
+              const archive = `out/${name}`;
+              const previousArchive = `previous-release/${name}`;
+              const downloadBytes = fs.statSync(archive).size;
+              const binaryBytes = binarySize(archive);
+              const hasPrevious = fs.existsSync(previousArchive);
+              const previousDownloadBytes = hasPrevious ? fs.statSync(previousArchive).size : undefined;
+              const previousBinaryBytes = hasPrevious ? binarySize(previousArchive) : undefined;
+              return { name, platform, downloadBytes, binaryBytes, previousDownloadBytes, previousBinaryBytes };
+            });
+          const downloads = sizes
+            .map(({ name, platform, downloadBytes, binaryBytes, previousDownloadBytes, previousBinaryBytes }) =>
+              `[${platform}](https://github.com/${repo}/releases/download/${tag}/${name}) - `
+                + `**${formatSize(downloadBytes)}**${formatDelta(downloadBytes, previousDownloadBytes)} / `
+                + `**${formatSize(binaryBytes)}**${formatDelta(binaryBytes, previousBinaryBytes)}`)
             .join('\n');
 
           const payload = {
