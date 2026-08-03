@@ -437,6 +437,21 @@ if (source_owned) free(source_owned);
   if (status !== 0) throw new Error('tcc compile failed');
 };
 
+const tccAddLibrary = (state, library) => {
+  const libraryType = Porffor.type(library);
+  let status = 0;
+  Porffor.c`
+#ifdef PORFFOR_EMBED_TCC
+extern int tcc_add_library(void *, const char *);
+char *library_owned;
+char *library_ptr = __porffor_node_cstr(MEM, library, (i32)libraryType.val, &library_owned);
+status = tcc_add_library((void*)(u64)state.val, library_ptr);
+if (library_owned) free(library_owned);
+#endif
+`;
+  if (status !== 0) throw new Error('tcc add library failed');
+};
+
 const tccOutputFile = (state, path) => {
   const pathType = Porffor.type(path);
   let status = 0;
@@ -475,6 +490,7 @@ const tccCompile = (source, outputFile, run = false) => {
   try {
     tccSetOutputType(state, run);
     tccCompileString(state, source);
+    tccAddLibrary(state, 'm');
     if (run) return tccRun(state, outputFile);
     tccOutputFile(state, outputFile);
     return 0;
