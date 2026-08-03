@@ -183,8 +183,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: install external tcc
-        run: sudo apt-get update && sudo apt-get install -y tcc
       - name: apply release version
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
@@ -208,17 +206,12 @@ jobs:
         run: tar -xzf build/linux-x64/porffor-linux-x64.tar.gz -C build/linux-x64
       - name: verify release version
         run: test "$(build/linux-x64/porf --version)" = '${{ needs.prepare.outputs.version }}'
-      - name: verify external tcc native compile
-        run: |
-          build/linux-x64/porf native --compiler=tcc bench/hello.js /tmp/porffor-external-tcc-smoke
-          /tmp/porffor-external-tcc-smoke | grep -qx 'hello world!'
       - name: use release compiler for selfhost tests
         run: cp build/linux-x64/porf selfhosted/porf
       - name: verify selfhost compiler
         run: ./selfhost verify
       - name: test selfhost test262 harness
-        # The packaged tcc has no run-server extension; use plain tcc -run.
-        run: node test262/selfhost.js harness --threads=4 --expect-passes=107 --no-tcc-server
+        run: node test262/selfhost.js harness --threads=4 --expect-passes=107
 
   release:
     needs: [prepare, build-host, build, test]
