@@ -282,7 +282,17 @@ const libtccInputs = [
   'tccmacho.c',
   'runtime-embed.S',
   'libtcc1.a',
-  'runmain.o'
+  'runmain.o',
+  'include/float.h',
+  'include/stdalign.h',
+  'include/stdarg.h',
+  'include/stdatomic.h',
+  'include/stdbool.h',
+  'include/stddef.h',
+  'include/stdnoreturn.h',
+  'include/tccdefs.h',
+  'include/tgmath.h',
+  'include/varargs.h'
 ].map(file => path.join(homeTcc, file));
 
 const isFresh = (output, stamp, stampText, inputs) => {
@@ -306,6 +316,7 @@ const ensureEmbeddedLibtcc = async (compiler, opts) => {
       ...compiler.slice(1),
       ...(compiler.some(x => x.startsWith('-B')) ? [] : [ `-B${homeTcc}` ]),
       '-DCONFIG_TCC_EMBED_RUNTIME',
+      '-DCONFIG_TCC_EMBED_HEADERS',
       '-DCONFIG_TCCDIR=""',
       `-I${homeTcc}`,
       '-c', path.join(homeTcc, 'libtcc.c'),
@@ -316,6 +327,7 @@ const ensureEmbeddedLibtcc = async (compiler, opts) => {
       '-O3',
       '-fPIC',
       '-DCONFIG_TCC_EMBED_RUNTIME',
+      '-DCONFIG_TCC_EMBED_HEADERS',
       '-DCONFIG_TCCDIR=""',
       `-I${homeTcc}`,
       '-c', path.join(homeTcc, 'libtcc.c'),
@@ -337,6 +349,7 @@ const ensureEmbeddedLibtcc = async (compiler, opts) => {
   await run(`${tccBuild ? 'tcc' : 'cc'} libtcc object`, tccBuild ? compiler[0] : cc[0], compileArgs, null, opts);
   await run(`${tccBuild ? 'tcc' : 'cc'} embedded tcc runtime`, tccBuild ? compiler[0] : cc[0], [
     ...(tccBuild ? compiler.slice(1) : cc.slice(1)),
+    '-DCONFIG_TCC_EMBED_HEADERS',
     `-I${homeTcc}`,
     '-c', path.join(homeTcc, 'runtime-embed.S'),
     '-o', runtimeObj

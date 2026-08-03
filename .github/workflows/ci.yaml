@@ -74,14 +74,14 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v4
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-5327ff4d76585369377346a640b2e146e9495464-zig-0.16.0-llvm-21-v6
       - name: build embedded tcc
         if: steps.cache-tcc.outputs.cache-hit != 'true'
         run: |
           src=/tmp/tinycc
           cross=/tmp/tinycc-cross
           targets=/tmp/tinycc-targets
-          commit=3d8a6344cf879f4a82e781e6758b565ff7f8dc74
+          commit=5327ff4d76585369377346a640b2e146e9495464
 
           git init "$src"
           git -C "$src" remote add origin https://github.com/CanadaHonk/tinycc.git
@@ -104,6 +104,8 @@ jobs:
             if test "$os" = Darwin; then args+=('--sysincludepaths={B}/include:/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include'); fi
             "$src/configure" "${args[@]}"
 
+            mkdir -p include
+            cp "$src"/include/*.h include/
             cp "$cross/tccdefs_.h" .
             cp "$cross/$runtime" libtcc1.a
             runtime_target="$cpu"
@@ -111,9 +113,9 @@ jobs:
             runtime_tcc="$cross/$runtime_target-tcc"
             "$runtime_tcc" -B"$src" -w -c "$src/lib/runmain.c" -o runmain.o
             file runmain.o | grep -q 'ELF .* relocatable'
-            zig cc -target "$triple" -O3 -g0 -fPIC -w -DCONFIG_TCC_EMBED_RUNTIME '-DCONFIG_TCCDIR=""' \
+            zig cc -target "$triple" -O3 -g0 -fPIC -w -DCONFIG_TCC_EMBED_RUNTIME -DCONFIG_TCC_EMBED_HEADERS '-DCONFIG_TCCDIR=""' \
               -I"$dir" -I"$src" -c "$src/libtcc.c" -o libtcc.o
-            zig cc -target "$triple" -g0 -w -I"$dir" -I"$src" -c "$src/runtime-embed.S" -o runtime-embed.o
+            zig cc -target "$triple" -g0 -w -DCONFIG_TCC_EMBED_HEADERS -I"$dir" -I"$src" -c "$src/runtime-embed.S" -o runtime-embed.o
             zig ar rcs libtcc.a libtcc.o runtime-embed.o
           }
 
@@ -176,7 +178,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v4
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-5327ff4d76585369377346a640b2e146e9495464-zig-0.16.0-llvm-21-v6
           fail-on-cache-miss: true
       - name: compile
         env:
@@ -230,7 +232,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v4
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-5327ff4d76585369377346a640b2e146e9495464-zig-0.16.0-llvm-21-v6
           fail-on-cache-miss: true
       - name: compile
         env:
@@ -294,13 +296,17 @@ jobs:
         run: tar -xzf build/linux-x64/porffor-linux-x64.tar.gz -C build/linux-x64
       - name: verify release version
         run: test "$(build/linux-x64/porf --version)" = '${{ needs.prepare.outputs.version }}'
+      - name: verify embedded tcc native compile
+        run: |
+          build/linux-x64/porf native --compiler=tcc bench/hello.js /tmp/porffor-embedded-tcc-smoke
+          /tmp/porffor-embedded-tcc-smoke | grep -qx 'hello world!'
       - name: use release compiler for selfhost tests
         run: cp build/linux-x64/porf selfhosted/porf
       - name: restore embedded tcc
         uses: actions/cache/restore@v4
         with:
           path: /tmp/tinycc-targets
-          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-3d8a6344cf879f4a82e781e6758b565ff7f8dc74-zig-0.16.0-llvm-21-v4
+          key: embedded-tcc-${{ runner.os }}-${{ runner.arch }}-5327ff4d76585369377346a640b2e146e9495464-zig-0.16.0-llvm-21-v6
           fail-on-cache-miss: true
       - name: verify selfhost compiler
         run: ./selfhost verify
