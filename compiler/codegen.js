@@ -218,12 +218,16 @@ const coroTypeUsed = func => {
   if (func.async && func.generator) usedTypes.add(TYPES.promise);
 };
 
-// function value with no env: one static [fnIdx][0] record per func
-const funcRef = (func, markReferenced = true) => {
+const useFunctionValue = (func, markReferenced = true) => {
   if (markReferenced && !doNotMarkFuncRef) func.referenced = true;
   func.indirect = true;
   coroTypeUsed(func);
-  func.generate?.();
+  if (markReferenced) func.generate?.();
+};
+
+// function value with no env: one static [fnIdx][0] record per func
+const funcRef = (func, markReferenced = true) => {
+  useFunctionValue(func, markReferenced);
   return valOf(dataRef(`#funcrec:${func.index}`, [ ...i32Bytes(func.index), ...i32Bytes(0) ]), TYPES.function);
 };
 
@@ -235,7 +239,7 @@ const closureAwareFunc = func =>
   !!(func.closureCaptures || func.closureCapturesThis || func.closurePassThrough);
 
 const hasClosureOwnEnv = scope =>
-  !!(scope.closureOwnLocals || scope.closureOwnThis);
+  !!(scope.closureOwnThis || closureOwnSlotNames(scope).length > 0);
 
 const hasClosureCaptures = func =>
   !!(func.closureCaptures || func.closureCapturesThis || func.closurePassThrough);
@@ -252,6 +256,19 @@ const directCallOnlyRefs = node =>
   (node?._directCallRefs ?? 0) > 0 &&
   (node?._valueRefs ?? 0) === 0 &&
   (node?._writes ?? 0) === 0;
+
+const directCallOnlyFunctionNode = node =>
+  isFuncType(node?.type) &&
+  !node._selfAware &&
+  !node._usesArguments &&
+  directCallOnlyRefs(node);
+
+const closureBindingNeedsSlot = capture =>
+  !directCallOnlyFunctionNode(capture?.node);
+
+const closureOwnSlotNames = scope =>
+  Object.keys(scope.closureOwnLocals ?? {}).filter(name =>
+    closureBindingNeedsSlot(scope.closureOwnLocals[name]));
 
 const getPerIterationClosureCaptureNames = func => {
   if (!func) return [];
@@ -353,10 +370,11 @@ const closureMemberNode = (scope, name, owner) => {
     _skipChainDepth: true
   });
 };
-const closureLocalReadNode = name => ({
+const closureLocalReadNode = (name, markReferenced = true) => ({
   type: 'Identifier',
   name,
-  _skipClosureOwnLocals: true
+  _skipClosureOwnLocals: true,
+  _markFunctionReferenced: markReferenced
 });
 
 // mirror a binding into the scope's own closure env
@@ -394,10 +412,7 @@ const closureEnvSlot = (scope, decl) => {
 
 // closure value: heap [fnIdx][env] record, per-iteration captures get a snapshot env chained to the parent
 const makeClosureRecord = (scope, func, markReferenced = true) => {
-  if (markReferenced && !doNotMarkFuncRef) func.referenced = true;
-  func.indirect = true;
-  coroTypeUsed(func);
-  func.generate?.();
+  useFunctionValue(func, markReferenced);
 
   let env = currentClosureEnv(scope);
   const snap = getClosureSnapshotCaptureNames(func);
@@ -427,10 +442,7 @@ const staticFuncIdentity = func =>
 
 // non-capturing nested funcs still mint a fresh record per evaluation for identity
 const makeFreshFuncRecord = (scope, func, markReferenced = true) => {
-  if (markReferenced && !doNotMarkFuncRef) func.referenced = true;
-  func.indirect = true;
-  coroTypeUsed(func);
-  func.generate?.();
+  useFunctionValue(func, markReferenced);
   const rec = reuse(scope, Alloc(Const(T.i32, 8), TYPES.function));
   stmt(scope, Store('u32', rec, 0, Const(T.u32, func.index)));
   stmt(scope, Store('u32', rec, 4, Const(T.u32, 0)));
@@ -478,8 +490,15 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
     case 'Identifier':
       return generateIdent(scope, decl);
 
+    case 'FunctionDeclaration': {
+      const out = generateFunc(scope, decl)[1];
+      const capture = scope.closureOwnLocals?.[decl.id?.name];
+      if (capture && closureBindingNeedsSlot(capture))
+        mirrorToClosureEnv(scope, decl.id.name, closureLocalReadNode(decl.id.name, false));
+      return out;
+    }
+
     case 'ArrowFunctionExpression':
-    case 'FunctionDeclaration':
     case 'FunctionExpression':
       return generateFunc(scope, decl)[1];
 
@@ -745,7 +764,7 @@ const internalThrow = (scope, constructor, message) => {
   return valUndefined();
 };
 
-const lookup = (scope, name, allowImplicitArguments = true) => {
+const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenced = true) => {
   if (globalThis.precompile && name === '_argc' && scope.usesArguments)
     return Box(Convert(T.f64, LenGet(JvPtr(Local('#allargs', T.jsval)))), Const(T.i32, TYPES.number));
 
@@ -784,7 +803,7 @@ const lookup = (scope, name, allowImplicitArguments = true) => {
   }
 
   const namedFunc = resolveNamedFunction(scope, name);
-  if (namedFunc) return materializeFunctionValue(scope, namedFunc);
+  if (namedFunc) return materializeFunctionValue(scope, namedFunc, markFunctionReferenced);
   if (name in builtinFuncs && !(name in funcIndex)) includeBuiltin(scope, name);
   if (name in funcIndex) return materializeFunctionValue(scope, funcByName(name));
 
@@ -811,18 +830,19 @@ const generateIdent = (scope, decl) => {
     return currentClosureEnv(scope);
   }
 
-  if (decl._closureFunc && !(decl.name in scope.locals)) {
-    return generate(scope, closureMemberNode(scope, decl.name, decl._closureFunc));
-  }
-
-  if (!decl._skipClosureOwnLocals && scope.closureOwnLocals?.[decl.name] && !closureOwnLocalReadIsLocal(scope, decl.name)) {
-    return generate(scope, closureMemberNode(scope, decl.name, scope.ast));
+  let closureOwner = null;
+  if (decl._closureFunc && !(decl.name in scope.locals)) closureOwner = decl._closureFunc;
+  else if (!decl._skipClosureOwnLocals && scope.closureOwnLocals?.[decl.name] && !closureOwnLocalReadIsLocal(scope, decl.name)) closureOwner = scope.ast;
+  if (closureOwner) {
+    const func = decl._resolvedVariable?.node?._porfforFunc ?? resolveNamedFunction(scope, decl.name);
+    if (func) useFunctionValue(func, decl._markFunctionReferenced !== false);
+    return generate(scope, closureMemberNode(scope, decl.name, closureOwner));
   }
 
   if (decl._builtinMember && decl.name in builtinFuncs) return materializeFunctionValue(scope, includeBuiltin(scope, decl.name));
 
   if (decl.name in scope.locals) (scope.locals[decl.name].metadata ??= {}).read = true;
-  return lookup(scope, decl.name, !(decl.name === 'arguments' && decl._resolvedBinding))
+  return lookup(scope, decl.name, !(decl.name === 'arguments' && decl._resolvedBinding), decl._markFunctionReferenced !== false)
     ?? internalThrow(scope, 'ReferenceError', `${unhackName(decl.name)} is not defined`);
 };
 
@@ -1976,7 +1996,7 @@ const generateCall = (scope, decl) => {
     const isLocal = decl.callee.type === 'Identifier' && !isBuiltinMember && lookupName(scope, name)[0] != null;
     const closureBacked = decl.callee.type === 'Identifier' && (decl.callee._closureFunc || scope.closureCaptures?.[name] || (!decl.callee._skipClosureOwnLocals && scope.closureOwnLocals?.[name]));
     const binding = decl.callee._resolvedVariable?.node ?? scope.closureCaptures?.[name]?.node ?? scope.closureOwnLocals?.[name]?.node;
-    if (!isBuiltinMember && closureBacked && name && isFuncType(binding) && directCallOnlyRefs(binding)) {
+    if (!isBuiltinMember && closureBacked && name && isFuncType(binding?.type) && directCallOnlyRefs(binding)) {
       func = resolveNamedFunction(scope, name);
       const owner = decl.callee._closureFunc ?? scope.closureCaptures?.[name]?.func;
       if (func?.closureAware && owner) directCallEnv = generate(scope, closureEnvNode(scope, owner, name));
@@ -2047,6 +2067,11 @@ const generateThis = (scope, decl) => {
   if (decl._closureThisFunc) return generate(scope, closureMemberNode(scope, '#this', decl._closureThisFunc));
 
   if (scope.overrideThis) return scope.overrideThis;
+
+  // ordinary direct calls have a fixed receiver
+  if (scope.directCallOnly) return scope.strict
+    ? valUndefined()
+    : generate(scope, { type: 'Identifier', name: 'globalThis' });
 
   // top-level strict module: `this` is undefined
   if (scope.ast?.type === 'Program' && scope.strict) return valUndefined();
@@ -4546,6 +4571,10 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   if (!decl.id) decl.id = { type: 'Identifier', name: `#${globalThis.precompile ? 'builtin_' : ''}anonymous${uniqId()}` };
   const name = decl.id.name;
   const topLevel = !!decl._topLevel || decl.type === 'Program';
+  const directCallOnly =
+    !scope.topLevel &&
+    decl.type === 'FunctionDeclaration' &&
+    directCallOnlyFunctionNode(decl);
   if (decl.type.startsWith('Class')) {
     const out = generateClass(scope, { ...decl, id: { name } });
     const func = resolveNamedFunction(scope, name);
@@ -4562,7 +4591,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     index: currentFuncIndex++,
     arrow,
     topLevel,
-    constr: !arrow && !decl.generator && !decl.async && !decl._method, // constructable
+    constr: !directCallOnly && !arrow && !decl.generator && !decl.async && !decl._method, // constructable
     method: !arrow && (decl._method || decl.generator || decl.async), // has this, not constructable
     async: decl.async,
     generator: decl.generator,
@@ -4572,6 +4601,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     ast: decl,
     parentFunc: scope.name ? scope : null,
     selfAware: !!decl._selfAware,
+    directCallOnly,
     inEval: !!decl._evalBody,
     closureCaptures: decl._captures && Object.keys(decl._captures).length > 0 ? decl._captures : null,
     closureOwnLocals: decl._capturedVars && Object.keys(decl._capturedVars).length > 0 ? decl._capturedVars : null,
@@ -4612,6 +4642,16 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
       markVarHoists(func, body);
 
+      // pick numeric var storage before emitting refs
+      if (!func.topLevel) {
+        for (const [localName, variable] of Object.entries(decl._variables ?? {})) {
+          if (func.hoists?.get(localName) !== HOIST_DECL) continue;
+          if (variable.node?._storageType !== TYPES.number) continue;
+          if (func.closureOwnLocals?.[localName] || func.closureCaptures?.[localName]) continue;
+          allocVar(func, localName, false, T.f64);
+        }
+      }
+
       // hoist function decls so earlier calls stay direct
       if (body.type === 'BlockStatement') {
         let b = body.body, j = 0;
@@ -4633,7 +4673,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
       // closure env: object holding this func's captured locals (+ #this), chained to the inherited env
       if (hasClosureOwnEnv(func)) {
-        const closureEnvNames = Object.keys(func.closureOwnLocals ?? {});
+        const closureEnvNames = closureOwnSlotNames(func);
         if (func.closureOwnThis) closureEnvNames.push('#this');
         func.closureEnvSlots = Object.create(null);
         for (let i = 0; i < closureEnvNames.length; i++) func.closureEnvSlots[closureEnvNames[i]] = i;
@@ -4724,15 +4764,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
         if (func.closureOwnLocals?.[func.name]) mirrorToClosureEnv(func, func.name);
         if (func.closureOwnThis) mirrorToClosureEnv(func, '#this', { type: 'ThisExpression' });
-
-        if (body.type === 'BlockStatement') {
-          for (const node of body.body) {
-            if (node.type !== 'FunctionDeclaration') continue;
-            if (!func.closureOwnLocals?.[node.id?.name]) continue;
-            generateFunc(func, node, true);
-            mirrorToClosureEnv(func, node.id.name);
-          }
-        }
       }
 
       func.identFailEarly = false;
@@ -4877,6 +4908,7 @@ const generateBlock = (scope, decl) => {
 
 const staticDirectArgType = node => {
   if (!node) return null;
+  if (typeof node._type === 'number') return node._type;
   if (node.type === 'Literal') {
     if (node.bigint != null) return TYPES.bigint;
     if (node.value === null) return TYPES.object;
@@ -4887,6 +4919,9 @@ const staticDirectArgType = node => {
   if (node.type === 'Identifier') {
     if (node.name === 'undefined') return TYPES.undefined;
     if (node.name === 'NaN' || node.name === 'Infinity') return TYPES.number;
+    if (node._resolvedVariable?.node?._directInferredType != null)
+      return node._resolvedVariable.node._directInferredType;
+    if (node._resolvedVariable?.node?._storageType === TYPES.number) return TYPES.number;
     return null;
   }
   if (node.type === 'UnaryExpression') {
@@ -4894,14 +4929,37 @@ const staticDirectArgType = node => {
     if (node.operator === 'void') return TYPES.undefined;
     if (node.operator === 'typeof') return TYPES.bytestring;
     const t = staticDirectArgType(node.argument);
-    return t === TYPES.bigint ? TYPES.bigint : TYPES.number;
+    if (node.operator === '+') return TYPES.number;
+    return t === TYPES.bigint || t === TYPES.number ? t : null;
   }
   if (node.type === 'BinaryExpression') {
     if (['==', '===', '!=', '!==', '>', '>=', '<', '<=', 'instanceof', 'in'].includes(node.operator)) return TYPES.boolean;
     const l = staticDirectArgType(node.left), r = staticDirectArgType(node.right);
-    if (l === TYPES.bigint || r === TYPES.bigint) return TYPES.bigint;
-    if (node.operator !== '+') return TYPES.number;
+    if (l === TYPES.bigint || r === TYPES.bigint)
+      return l === TYPES.bigint && r === TYPES.bigint ? TYPES.bigint : null;
+    if (node.operator !== '+') return l === TYPES.number && r === TYPES.number ? TYPES.number : null;
     return l === TYPES.number && r === TYPES.number ? TYPES.number : null;
+  }
+  if (node.type === 'UpdateExpression') {
+    const t = staticDirectArgType(node.argument);
+    return t === TYPES.bigint || t === TYPES.number ? t : null;
+  }
+  if (node.type === 'AssignmentExpression') {
+    if (node.operator === '=') return staticDirectArgType(node.right);
+    if (['||=', '&&=', '??='].includes(node.operator)) return null;
+    const l = staticDirectArgType(node.left), r = staticDirectArgType(node.right);
+    if (node.operator !== '+=') {
+      if (l === TYPES.bigint || r === TYPES.bigint)
+        return l === TYPES.bigint && r === TYPES.bigint ? TYPES.bigint : null;
+      return l === TYPES.number && r === TYPES.number ? TYPES.number : null;
+    }
+    return l === TYPES.number && r === TYPES.number ? TYPES.number : null;
+  }
+  if (node.type === 'SequenceExpression') return staticDirectArgType(node.expressions.at(-1));
+  if (node.type === 'ConditionalExpression' || node.type === 'LogicalExpression') {
+    const l = staticDirectArgType(node.consequent ?? node.left);
+    const r = staticDirectArgType(node.alternate ?? node.right);
+    return l != null && l === r ? l : null;
   }
   if (node.type === 'ArrayExpression') return TYPES.array;
   if (node.type === 'ObjectExpression') return TYPES.object;
@@ -4909,74 +4967,63 @@ const staticDirectArgType = node => {
 };
 
 const inferDirectCallParamTypes = root => {
-  const visitBody = body => {
-    const infos = new Map();
-    for (const node of body) {
-      if (node.type !== 'FunctionDeclaration' || !node.id?.name || !node.body) continue;
-      const prev = infos.get(node.id.name);
-      if (prev) prev.ambiguous = true;
-      else infos.set(node.id.name, { decl: node, calls: 0, refs: 0, writes: 0, types: [], ambiguous: false });
-    }
+  const infos = new Map();
 
-    const scan = (node, parent = null, key = null) => {
-      if (!node || typeof node !== 'object') return;
+  const recordCall = node => {
+    if (node.type !== 'CallExpression' || node.optional || node.callee?.type !== 'Identifier') return;
+    const decl = node.callee._resolvedVariable?.node;
+    if (!directCallOnlyFunctionNode(decl)) return;
 
-      if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression' || node.type === 'ClassDeclaration' || node.type === 'ClassExpression') {
-        return;
-      }
-
-      if (node.type === 'Identifier') {
-        const info = infos.get(node.name);
-        if (info) {
-          const direct = (parent?.type === 'CallExpression' || parent?.type === 'NewExpression') && key === 'callee';
-          const write = (parent?.type === 'AssignmentExpression' && key === 'left') || (parent?.type === 'UpdateExpression' && key === 'argument');
-          if (direct) {
-            info.calls++;
-            const args = parent.arguments ?? [];
-            for (let i = 0; i < args.length; i++) {
-              if (args[i]?.type === 'SpreadElement') { info.refs++; continue; }
-              const t = staticDirectArgType(args[i]);
-              if (t == null) { info.refs++; continue; }
-              if (info.types[i] == null) info.types[i] = t;
-              else if (info.types[i] !== t) info.refs++;
-            }
-          } else if (write) {
-            info.writes++;
-          } else {
-            info.refs++;
-          }
-        }
-      }
-
-      for (const k in node) {
-        if (k[0] === '_') continue;
-        const v = node[k];
-        if (Array.isArray(v)) for (const x of v) scan(x, node, k);
-        else scan(v, node, k);
-      }
-    };
-
-    for (const node of body) scan(node);
-
-    for (const info of infos.values()) {
-      if (!info.ambiguous && info.calls > 0 && info.refs === 0 && info.writes === 0) {
-        const params = info.decl.params ?? [];
-        const ok = info.types.length <= params.length && info.types.every((t, i) =>
-          t != null && params[i]?.type === 'Identifier');
-        if (ok) info.decl._directParamTypes = info.types;
-      }
-    }
-
-    for (const node of body) {
-      if ((node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression') && node.body?.type === 'BlockStatement') {
-        visitBody(node.body.body);
-      } else if ((node.type === 'ClassDeclaration' || node.type === 'ClassExpression') && node.body?.body) {
-        for (const x of node.body.body) if (x.value?.body?.type === 'BlockStatement') visitBody(x.value.body.body);
-      }
-    }
+    let calls = infos.get(decl);
+    if (!calls) infos.set(decl, calls = []);
+    calls.push(node);
   };
 
-  if (root?.type === 'Program') visitBody(root.body);
+  const scan = node => {
+    if (!node || typeof node !== 'object') return;
+    recordCall(node);
+    for (const key in node) {
+      if (key[0] === '_') continue;
+      const value = node[key];
+      if (Array.isArray(value)) for (const x of value) scan(x);
+      else scan(value);
+    }
+  };
+  scan(root);
+
+  // propagate argument types through direct-only call chains
+  let changed;
+  do {
+    changed = false;
+    for (const [decl, calls] of infos) {
+      for (let i = 0; i < (decl.params?.length ?? 0); i++) {
+        const param = decl.params[i];
+        if (param?.type !== 'Identifier' || param._directInferredType != null) continue;
+
+        let inferred = null;
+        let valid = calls.length > 0;
+        for (const call of calls) {
+          let spread = false;
+          for (let j = 0; j <= i; j++) if (call.arguments[j]?.type === 'SpreadElement') spread = true;
+          const arg = call.arguments[i];
+          const type = spread ? null : arg == null ? TYPES.undefined : staticDirectArgType(arg);
+          if (type == null || (inferred != null && inferred !== type)) { valid = false; break; }
+          inferred = type;
+        }
+        if (valid && inferred != null) {
+          param._directInferredType = inferred;
+          changed = true;
+        }
+      }
+    }
+  } while (changed);
+
+  for (const [decl] of infos) {
+    // only number has a specialized user-function ABI
+    const inferred = (decl.params ?? []).map(param =>
+      param._directInferredType === TYPES.number ? TYPES.number : undefined);
+    if (inferred.some(type => type != null)) decl._directParamTypes = inferred;
+  }
 };
 
 let globals, funcs, funcsByIndex, funcIndex, funcNameCollisions, currentFuncIndex, depth, data, dataCache, rawHead, builtinGlobalInits, includedBuiltinGlobalInits, usedTypes, globalInfer, builtinFuncs, builtinVars, builtinPrototypeFuncs, builtinPrototypeGetters, builtinPrototypeObjectGetters, topLevelFunc;
