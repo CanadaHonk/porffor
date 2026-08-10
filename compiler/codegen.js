@@ -2008,7 +2008,9 @@ const generateCall = (scope, decl) => {
       // per-iteration snapshot envs can't be recomputed from the caller's env
       if (getPerIterationClosureCaptureNames(func).length > 0) func = null;
       const owner = decl.callee._closureFunc ?? scope.closureCaptures?.[name]?.func;
-      if (func?.closureAware && owner) directCallEnv = generate(scope, closureEnvNode(scope, owner, name));
+      // a fully elided env chain leaves the caller envless; the callee then only has
+      // elided captures itself, so it never reads the env
+      if (func?.closureAware && owner && (hasClosureOwnEnv(scope) || scope.closureAware)) directCallEnv = generate(scope, closureEnvNode(scope, owner, name));
     }
     if (isBuiltinMember) {
       isBuiltin = true;
