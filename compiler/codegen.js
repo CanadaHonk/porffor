@@ -4928,6 +4928,7 @@ const staticDirectArgType = node => {
     if (node.operator === '!') return TYPES.boolean;
     if (node.operator === 'void') return TYPES.undefined;
     if (node.operator === 'typeof') return TYPES.bytestring;
+    if (node.operator === 'delete') return TYPES.boolean;
     const t = staticDirectArgType(node.argument);
     if (node.operator === '+') return TYPES.number;
     return t === TYPES.bigint || t === TYPES.number ? t : null;
