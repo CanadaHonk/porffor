@@ -270,6 +270,8 @@ target_include_directories(${targetName} PRIVATE
 
 target_compile_definitions(${targetName} PRIVATE
   _POSIX_C_SOURCE=200809L
+  _GNU_SOURCE
+  $<$<PLATFORM_ID:Darwin>:_DARWIN_C_SOURCE>
   UWS_NO_ZLIB
   UWS_HTTPRESPONSE_NO_WRITEMARK
 )
