@@ -351,7 +351,7 @@ export const writeNativeFetchPackage = (outDir, cOut) => {
   materializeUWebSocketsDir(resolvedDir);
 };
 
-export const makeUWebSocketsShimSource = (threads = false) => `
+export const makeUWebSocketsShimSource = () => `
 #include "App.h"
 #include <cstdio>
 #include <cstdlib>
@@ -361,9 +361,6 @@ export const makeUWebSocketsShimSource = (threads = false) => `
 #include <string>
 #include <string_view>
 #include <unordered_map>
-${threads ? `#include <pthread.h>
-#include <thread>
-#include <vector>` : ''}
 
 extern "C" {
 typedef int i32;
@@ -402,10 +399,8 @@ void porf_native_fetch_drain_microtasks(void);
 void porf_native_fetch_fire_timer(u32 id);
 }
 
-${threads ? `static pthread_rwlock_t __porffor_js_rwlock = PTHREAD_RWLOCK_INITIALIZER;
-static inline void __porffor_js_enter(void) { pthread_rwlock_rdlock(&__porffor_js_rwlock); }
-static inline void __porffor_js_exit(void) { pthread_rwlock_unlock(&__porffor_js_rwlock); }` : `static inline void __porffor_js_enter(void) {}
-static inline void __porffor_js_exit(void) {}`}
+static inline void __porffor_js_enter(void) {}
+static inline void __porffor_js_exit(void) {}
 
 ${Prefs.eventLoop ? `struct NativeTimer {
   u32 id = 0;
@@ -641,10 +636,7 @@ static const size_t REQUEST_BODY_MAX_BYTES = 1024u * 1024u;
 
 static void collect_after_request(void) {
   volatile int porf_stack_anchor = 0;
-${threads ? `  if (!porf_native_fetch_should_collect()) return;
-  pthread_rwlock_wrlock(&__porffor_js_rwlock);
   porf_native_fetch_collect_normal_from((void*)&porf_stack_anchor);
-  pthread_rwlock_unlock(&__porffor_js_rwlock);` : '  porf_native_fetch_collect_normal_from((void*)&porf_stack_anchor);'}
 }
 
 static void respond_with_error(uWS::HttpResponse<false>* res, std::string_view status, std::string_view body, bool close_connection = false) {
@@ -936,67 +928,6 @@ static void on_request(uWS::HttpResponse<false>* res, uWS::HttpRequest* req) {
     }
   });
 }
-${threads ? `
-#define SERVER_THREADS_MAX 256
-
-static uWS::App* server_apps[SERVER_THREADS_MAX];
-static std::atomic<int> server_apps_ready{0};
-static std::atomic<unsigned int> server_rr{0};
-static std::mutex server_apps_mutex;
-
-static LIBUS_SOCKET_DESCRIPTOR distribute_socket(struct us_socket_context_t* context, LIBUS_SOCKET_DESCRIPTOR fd) {
-  (void)context;
-  const int ready = server_apps_ready.load(std::memory_order_acquire);
-  if (ready <= 0) return fd;
-
-  uWS::App* receiver = server_apps[server_rr.fetch_add(1, std::memory_order_relaxed) % (unsigned int)ready];
-  receiver->getLoop()->defer([receiver, fd]() {
-    receiver->adoptSocket(fd);
-  });
-  return (LIBUS_SOCKET_DESCRIPTOR)-1;
-}
-
-static void serve(int port, int worker_index) {
-  (void)worker_index;
-
-  uWS::App app;
-  app.any("/*", [](auto* res, auto* req) {
-    on_request(res, req);
-  }).preOpen(distribute_socket).listen(port, [port, worker_index](auto* token) {
-    if (!token) {
-      std::fprintf(stderr, "Failed to bind native fetch server (thread %d)\\n", worker_index);
-      exit(1);
-    }
-  });
-
-  {
-    std::lock_guard<std::mutex> lock(server_apps_mutex);
-    const int idx = server_apps_ready.load(std::memory_order_relaxed);
-    server_apps[idx] = &app;
-    server_apps_ready.store(idx + 1, std::memory_order_release);
-  }
-
-  app.run();
-}
-
-int main(void) {
-  porf_native_fetch_runtime_init();
-  porf_native_fetch_static_init();
-
-  const int port = (int)porf_native_fetch_get_port();
-  int n = ${parseInt(Prefs.threadsPool) || 0};
-  if (n < 1) n = (int)std::thread::hardware_concurrency();
-  if (n < 1) n = 1;
-  if (n > SERVER_THREADS_MAX) n = SERVER_THREADS_MAX;
-
-  std::fprintf(stderr, "Porffor native fetch server listening on http://127.0.0.1:%d (%d threads)\\n", port, n);
-
-  std::vector<std::thread> workers;
-  for (int i = 1; i < n; i++) workers.emplace_back(serve, port, i);
-  serve(port, 0);
-  for (auto& w : workers) w.join();
-  return 0;
-}` : `
 int main(void) {
   porf_native_fetch_runtime_init();
   porf_native_fetch_static_init();
@@ -1018,4 +949,4 @@ int main(void) {
   }
 
   return 0;
-}`}`;
+}`;
