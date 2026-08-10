@@ -3978,6 +3978,8 @@ const resolveMemberDemands = scope => {
   }
 };
 
+let icSite, icChunk;
+
 const generateMember = (scope, decl, objValue = null) => {
   if (!globalThis.precompile) demandMemberRead(decl);
   const closureSlot = closureEnvSlot(scope, decl);
@@ -4036,9 +4038,19 @@ const generateMember = (scope, decl, objValue = null) => {
 
   const genericMemberGet = () => {
     const key = toPropertyKey(scope, prop, decl.computed);
-    return hash != null
-      ? builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ])
-      : builtinCall(scope, '__Porffor_object_get', [ obj, key ]);
+    if (hash == null) return builtinCall(scope, '__Porffor_object_get', [ obj, key ]);
+
+    if (Prefs.ic && (known == null || known === TYPES.object)) {
+      const index = icSite++ % 256;
+      if (index === 0)
+        icChunk = dataSeg(`#ic:${icSite}`, new Array(256).fill(i32Bytes(0x7fffffff)).flat());
+
+      const chunk = DataRef(icChunk);
+      const slot = index === 0 ? chunk : Bin('+', T.i32, chunk, Const(T.i32, index * 4));
+      return builtinCall(scope, '__Porffor_object_get_ic', [ obj, key, Const(T.i32, hash), slot ]);
+    }
+
+    return builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ]);
   };
 
   const genericMemberGetBC = [
@@ -4987,6 +4999,8 @@ export default (program, opts = {}) => {
   topLevelFunc = null;
   onFinalize(() => resolveMemberDemands(topLevelFunc));
   currentFuncIndex = 0;
+  icSite = 0;
+  icChunk = null;
   usedTypes = new Set([ TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
   globalInfer = Object.create(null);
 

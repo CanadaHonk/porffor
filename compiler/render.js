@@ -106,6 +106,11 @@ const cReservedNames = new Set([
   'clock_getres', 'ctime_r', 'asctime_r', 'gmtime_r', 'localtime_r', 'gettimeofday'
 ]);
 
+// inlining these has little perf benefit and significantly increases binary size
+const NEVER_INLINE = new Set([
+  '__Porffor_object_get_ic', '__Porffor_object_get_icMiss', '__Porffor_object_get_withHash'
+]);
+
 const sanitizeMemo = Object.create(null);
 const sanitizeUsed = Object.create(null);
 export const sanitize = str => {
@@ -778,7 +783,7 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
   const renderFunc = f => {
     const ret = CT[f.retType];
     const params = f.params.map(p => `${CT[p.type]} ${sanitize(p.name)}`).join(', ');
-    emit(`${ret} ${fnSym(f)}(${params || 'void'}) {\n`);
+    emit(`${NEVER_INLINE.has(f.name) ? 'PORF_NOINLINE ' : ''}${ret} ${fnSym(f)}(${params || 'void'}) {\n`);
     depth = 1;
     activeTryDepth = 0;
     loopStack.length = 0;
@@ -4250,6 +4255,7 @@ static _Thread_local NativeFetchResponseParts* porf_native_fetch_response_parts_
 // 0x400000000 is used as a hint for deterministic debugging when free.
 ${prefs.nativeFetch ? '' : st}u8* porf_mem;
 #define MEM porf_mem
+#define PORF_NOINLINE __attribute__((noinline))
 #define PORF_ARENA_HINT ((void*)0x400000000ull)
 #define PORF_ARENA_RESERVE (1ull << 32)
 #define PORF_STATIC_END ${staticEnd}u

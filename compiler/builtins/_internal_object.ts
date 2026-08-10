@@ -613,6 +613,44 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
   return __Porffor_object_readValue(entryPtr);
 };
 
+// per-call-site slot cache stores byte offsets into object entries
+// IC_EMPTY is i32 max so unset and stale slots fail the bounds/hash checks
+export const __Porffor_object_get_ic = (_obj: any, key: any, hash: i32, slot: i32): any => {
+  if (Porffor.type(_obj) == Porffor.TYPES.object) {
+    if (Porffor.IR.ptr(_obj) != 0) {
+      const off: i32 = Porffor.IR.loadI32(slot, 0);
+      if (off < Porffor.IR.loadU16(_obj, 0) * 20) {
+        const entryPtr: i32 = Porffor.IR.loadI32(_obj, 12) + off;
+        if (Porffor.IR.loadI32(entryPtr, 0) == hash) {
+          if ((Porffor.IR.loadU16(entryPtr, 16) & 0b0001) == 0) return __Porffor_object_readValue(entryPtr);
+        }
+      }
+    }
+  }
+
+  return __Porffor_object_get_icMiss(_obj, key, hash, slot);
+};
+
+export const __Porffor_object_get_icMiss = (_obj: any, key: any, hash: i32, slot: i32): any => {
+  if (Porffor.type(_obj) == Porffor.TYPES.object) {
+    if (Porffor.IR.ptr(_obj) != 0) {
+      const entriesPtr: i32 = Porffor.IR.loadI32(_obj, 12);
+      let ptr: i32 = entriesPtr;
+      const endPtr: i32 = ptr + Porffor.IR.loadU16(_obj, 0) * 20;
+      for (; ptr < endPtr; ptr += 20) {
+        if (Porffor.IR.loadI32(ptr, 0) == hash) {
+          // first writer wins so polymorphic sites miss instead of storing each time
+          if (Porffor.IR.loadI32(slot, 0) == 2147483647) Porffor.IR.storeI32(slot, 0, ptr - entriesPtr);
+          if ((Porffor.IR.loadU16(ptr, 16) & 0b0001) == 0) return __Porffor_object_readValue(ptr);
+          break;
+        }
+      }
+    }
+  }
+
+  return __Porffor_object_get_withHash(_obj, key, hash);
+};
+
 export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): any => {
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);

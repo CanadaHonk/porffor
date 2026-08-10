@@ -27,7 +27,7 @@ const compile = async (file, _funcs) => {
     first = source.slice(0, source.indexOf('\n'));
   }
 
-  let args = ['--module', '--fast-length', '--parse-types', '--opt-types', '--no-closures', '--never-fallback-builtin-proto'];
+  let args = ['--module', '--fast-length', '--parse-types', '--opt-types', '--no-closures', '--never-fallback-builtin-proto', '--no-ic'];
   if (!defaultPrefs) {
     process.argv = argv.concat(args);
     globalThis.argvChanged?.();
