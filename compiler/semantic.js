@@ -164,7 +164,7 @@ const storageExpressionType = node => {
   if (node.type === 'Identifier') {
     if (node.name === 'undefined') return TYPES.undefined;
     if (node.name === 'NaN' || node.name === 'Infinity') return TYPES.number;
-    return (node._resolvedVariable ?? resolveVariable(node.name))?.node?._storageType === TYPES.number ? TYPES.number : null;
+    return !node._noStorageInfer && (node._resolvedVariable ?? resolveVariable(node.name))?.node?._storageType === TYPES.number ? TYPES.number : null;
   }
 
   if (node.type === 'UnaryExpression') {
@@ -424,6 +424,12 @@ const analyze = (node, strict = false) => {
         if (x.id?.type === 'Identifier') x.id._declarator = x;
         analyzePattern(node.kind, x.id);
       }
+      // only an initializer at the top of the func body dominates later reads
+      if (scopes.length - 1 - scopes.lastFuncs.at(-1) <= 1) {
+        for (const x of node.declarations) {
+          if (x.init && x.id?.type === 'Identifier') x.id._storageTopDecl = true;
+        }
+      }
       break;
 
     case 'CallExpression':
@@ -512,9 +518,15 @@ const annotate = (node, parent = null, key = null) => {
       break;
 
     case 'VariableDeclarator':
+      annotate(node.id, node, 'id');
+      annotate(node.init, node, 'init');
       if (node.init) recordStorageWrite(node.id, node.init);
         else if (node.id.type === 'Identifier') node.id._uninitialized = true;
-      break;
+      if (node.init && node.id._storageTopDecl) {
+        const variable = node.id._variable ?? resolveVariable(node.id.name);
+        if (variable) variable.node._storageInitSeen = true;
+      }
+      return;
 
     case 'ForInStatement':
     case 'ForOfStatement':
@@ -526,6 +538,8 @@ const annotate = (node, parent = null, key = null) => {
       break;
 
     case 'AssignmentExpression':
+      annotate(node.left, node, 'left');
+      annotate(node.right, node, 'right');
       markWrite(node.left);
       recordStorageWrite(node.left, node.operator === '=' ? node.right : {
         type: ['||=', '&&=', '??='].includes(node.operator) ? 'LogicalExpression' : 'BinaryExpression',
@@ -533,7 +547,7 @@ const annotate = (node, parent = null, key = null) => {
         right: node.right,
         operator: node.operator.slice(0, -1)
       });
-      break;
+      return;
 
     case 'UpdateExpression':
       markWrite(node.argument);
@@ -558,6 +572,11 @@ const annotate = (node, parent = null, key = null) => {
         node._resolvedBinding = true;
         node._resolvedVariable = variable;
         variable.node._refs = (variable.node._refs ?? 0) + 1;
+        // reads from other funcs or before the dominating init can see undefined
+        if (variable.func !== currentFunc || !variable.node._storageInitSeen) {
+          node._noStorageInfer = true;
+          variable.node._storageHazardRef = true;
+        }
         if (parent?.type === 'CallExpression' && key === 'callee' && !parent.optional) {
           variable.node._directCallRefs = (variable.node._directCallRefs ?? 0) + 1;
           variable.node._directCallMinStart = variable.node._directCallMinStart == null ?

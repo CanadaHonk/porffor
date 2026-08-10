@@ -4658,6 +4658,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         for (const [localName, variable] of Object.entries(decl._variables ?? {})) {
           if (func.hoists?.get(localName) !== HOIST_DECL) continue;
           if (variable.node?._storageType !== TYPES.number) continue;
+          if (!variable.node._storageInitSeen || variable.node._storageHazardRef) continue;
           if (func.closureOwnLocals?.[localName] || func.closureCaptures?.[localName]) continue;
           allocVar(func, localName, false, T.f64);
         }
@@ -4932,7 +4933,7 @@ const staticDirectArgType = node => {
     if (node.name === 'NaN' || node.name === 'Infinity') return TYPES.number;
     if (node._resolvedVariable?.node?._directInferredType != null)
       return node._resolvedVariable.node._directInferredType;
-    if (node._resolvedVariable?.node?._storageType === TYPES.number) return TYPES.number;
+    if (!node._noStorageInfer && node._resolvedVariable?.node?._storageType === TYPES.number) return TYPES.number;
     return null;
   }
   if (node.type === 'UnaryExpression') {
