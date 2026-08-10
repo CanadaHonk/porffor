@@ -257,10 +257,17 @@ const directCallOnlyRefs = node =>
   (node?._valueRefs ?? 0) === 0 &&
   (node?._writes ?? 0) === 0;
 
+const nodeHasPerIterationCaptures = node => {
+  const captures = node?._captures ?? {};
+  for (const name in captures) if (captures[name].perIteration) return true;
+  return false;
+};
+
 const directCallOnlyFunctionNode = node =>
   isFuncType(node?.type) &&
   !node._selfAware &&
   !node._usesArguments &&
+  !nodeHasPerIterationCaptures(node) &&
   directCallOnlyRefs(node);
 
 const closureBindingNeedsSlot = capture =>
@@ -1998,6 +2005,8 @@ const generateCall = (scope, decl) => {
     const binding = decl.callee._resolvedVariable?.node ?? scope.closureCaptures?.[name]?.node ?? scope.closureOwnLocals?.[name]?.node;
     if (!isBuiltinMember && closureBacked && name && isFuncType(binding?.type) && directCallOnlyRefs(binding)) {
       func = resolveNamedFunction(scope, name);
+      // per-iteration snapshot envs can't be recomputed from the caller's env
+      if (getPerIterationClosureCaptureNames(func).length > 0) func = null;
       const owner = decl.callee._closureFunc ?? scope.closureCaptures?.[name]?.func;
       if (func?.closureAware && owner) directCallEnv = generate(scope, closureEnvNode(scope, owner, name));
     }

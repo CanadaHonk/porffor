@@ -312,6 +312,12 @@ const evalCallKind = node => {
 
 const declVar = (name, kind, node) => {
   const func = scopes[scopes.lastFuncs.at(-1)];
+  // sloppy function decls hoist as var, but each loop iteration still makes a fresh binding
+  if (kind === 'var' && node?.type === 'FunctionDeclaration') {
+    for (let i = scopes.lastFuncs.at(-1) + 1; i < scopes.length; i++) {
+      if (isLoopScope(scopes[i])) { node._loopScopedFuncDecl = true; break; }
+    }
+  }
   let parent;
   if (kind === 'var') {
     parent = nearestStrictEvalScope() ?? func;
@@ -584,7 +590,7 @@ const annotate = (node, parent = null, key = null) => {
                 func: variable.func,
                 kind: variable.kind,
                 node: variable.node,
-                perIteration: variable.kind !== 'var' && bindingHasLoopScope(variable)
+                perIteration: (variable.kind !== 'var' && bindingHasLoopScope(variable)) || !!variable.node?._loopScopedFuncDecl
               };
 
               variable.func._capturedVars ??= Object.create(null);
