@@ -82,7 +82,7 @@ const markWrite = node => {
   if (!node || typeof node !== 'object') return;
 
   if (node.type === 'Identifier') {
-    const variable = node._variable ?? resolveVariable(node.name);
+    const variable = node._resolvedVariable ?? node._variable ?? resolveVariable(node.name);
     if (variable) {
       variable.node._writes = (variable.node._writes ?? 0) + 1;
     }
@@ -111,7 +111,7 @@ const recordStorageWrite = (target, value) => {
   if (!target || typeof target !== 'object') return;
 
   if (target.type === 'Identifier') {
-    const variable = target._variable ?? resolveVariable(target.name);
+    const variable = target._resolvedVariable ?? target._variable ?? resolveVariable(target.name);
     if (!variable) return;
 
     if (variable.node._storageType !== null) {
