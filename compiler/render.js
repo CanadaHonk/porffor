@@ -4694,7 +4694,7 @@ ${st}jsval porf_num_to_str(f64 d) {
   if (d != d) n = snprintf(buf, sizeof buf, "NaN");
     else if (d == INFINITY) n = snprintf(buf, sizeof buf, "Infinity");
     else if (d == -INFINITY) n = snprintf(buf, sizeof buf, "-Infinity");
-    else if (d == (f64)(i64)d && fabs(d) < 1e21) n = snprintf(buf, sizeof buf, "%lld", (i64)d);
+    else if (d == trunc(d) && fabs(d) < 1e21) n = snprintf(buf, sizeof buf, "%.0f", d == 0.0 ? 0.0 : d);
     else {
     for (int prec = 1; prec <= 17; prec++) {
       n = snprintf(buf, sizeof buf, "%.*g", prec, d);
