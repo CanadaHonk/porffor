@@ -26,8 +26,8 @@ const help = () => {
   for (let [ cmd, color, post, desc ] of [
     [ '', 34, '', 'Start a REPL' ],
     [ '', 34, 'foo.js', 'Run a script' ],
-    [ 'c', 94, 'foo.js foo.c', 'Compile to C source code' ],
-    [ 'native', 94, 'foo.js foo', 'Compile to a native binary' ],
+    [ 'c', 94, 'foo.js -o foo.c', 'Compile to C source code' ],
+    [ 'native', 94, 'foo.js -o foo', 'Compile to a native binary' ],
   ]) {
     if (cmd.length > 0) post = ' ' + post;
 
@@ -81,6 +81,10 @@ entrypoint: {
   const args = process.argv.slice(2);
   const nonFlagArgs = [];
   for (let i = 0; i < args.length; i++) {
+    if (args[i] === '-o') {
+      Prefs.o = args[++i];
+      continue;
+    }
     if (args[i] === '-e' || args[i] === '-p') {
       i++;
       continue;
@@ -100,14 +104,10 @@ entrypoint: {
     inputFile = globalThis.file = nonFlagArgs[1];
   }
 
-  const fileIndex = inputFile == null ? -1 : nonFlagArgs.indexOf(inputFile);
-  const nonOptOutFile = fileIndex === -1 ? undefined : nonFlagArgs[fileIndex + 1];
   if (!command && inputFile && !Prefs.e && !Prefs.p) {
     command = 'native';
     Prefs.target = 'native';
-    if (nonOptOutFile) {
-      Prefs.o = nonOptOutFile;
-    } else {
+    if (Prefs.o == null) {
       tmpRunDir = fs.mkdtempSync('/tmp/porffor-run-');
       Prefs.o = `${tmpRunDir}/out`;
       Prefs.quiet = true;
@@ -116,8 +116,6 @@ entrypoint: {
   }
 
   if (command) {
-    if (nonOptOutFile) Prefs.o = nonOptOutFile;
-
     if (['native', 'c'].includes(command)) Prefs.target = command;
   }
 
