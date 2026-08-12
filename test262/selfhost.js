@@ -426,7 +426,7 @@ const runTest = async (file, slot) => {
   // compiled test print "Uncaught <Type>: <message>" (how runtime errors are
   // classified), -quiet to suppress stage timing logs
   let t = profile ? performance.now() : 0;
-  const comp = await execAsync(selfhostBin, [ 'c', slot.js, slot.c, '-d', '-quiet', ...(parseOnly ? [ '-parse-only' ] : []), test.flags.module ? '-module' : '-no-module' ]);
+  const comp = await execAsync(selfhostBin, [ 'c', slot.js, '-o', slot.c, '-d', '-quiet', ...(parseOnly ? [ '-parse-only' ] : []), test.flags.module ? '-module' : '-no-module' ]);
   if (profile) slot.compileMs += performance.now() - t;
 
   if (parseOnly) {

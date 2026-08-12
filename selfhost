@@ -616,7 +616,7 @@ const compileSelfhost = async opts => {
       env: { SELFHOST_NOOP_PRECOMPILED: opts.noopPrecompiled ? '1' : '0' }
     });
   }
-  await runCompileStep('compiled selfhost bundle to C', './porf', [ 'c', '--compress-data', ...hostPorfDebugArgs(opts), '--profile-compiler', bundle, stage1C ]);
+  await runCompileStep('compiled selfhost bundle to C', './porf', [ 'c', '--compress-data', ...hostPorfDebugArgs(opts), '--profile-compiler', bundle, '-o', stage1C ]);
   const compiler = compilerArgs(opts);
   const releaseCodegenArgs = opts.release ? [ '-mllvm', '-force-attribute=porf_strict_eq:noinline' ] : [];
   if (opts.release && (opts.profilePgo || !fs.existsSync(pgoProfile))) {
@@ -628,7 +628,7 @@ const compileSelfhost = async opts => {
       ...opts.ccOpts,
       `-fprofile-instr-generate=${pgoRaw}`
     ]);
-    await runCompileStep('profiled selfhost compiler', pgoCompiler, [ 'c', bundle, pgoOutput ]);
+    await runCompileStep('profiled selfhost compiler', pgoCompiler, [ 'c', bundle, '-o', pgoOutput ]);
     const profdata = llvmProfdataCommand(compiler);
     await runCompileStep('merged PGO profile', profdata[0], [ ...profdata.slice(1), 'merge', '-o', pgoProfile, pgoRaw ]);
   }
@@ -650,13 +650,13 @@ const compileSelfhost = async opts => {
 
 const c = async opts => {
   requireBuiltSelfhost();
-  await run('selfhost to c', porf, [ 'c', ...porfDebugArgs(opts), bundle, stage2C ], logPath('stage2-c'), opts, { monitor: true });
+  await run('selfhost to c', porf, [ 'c', ...porfDebugArgs(opts), bundle, '-o', stage2C ], logPath('stage2-c'), opts, { monitor: true });
   showFile(stage2C);
 };
 
 const native = async opts => {
   requireBuiltSelfhost();
-  await run('selfhost to native', porf, [ 'native', ...porfDebugArgs(opts), bundle, stage2Native ], logPath('stage2-native'), opts, { monitor: true });
+  await run('selfhost to native', porf, [ 'native', ...porfDebugArgs(opts), bundle, '-o', stage2Native ], logPath('stage2-native'), opts, { monitor: true });
   showFile(stage2Native);
 };
 
@@ -695,24 +695,24 @@ const verifyParityCase = async ([ name, file, setup, caseOpts = {} ], opts, firs
   const hostNative = inTmp(`${name}-host-native`);
   const selfNative = inTmp(`${name}-selfhost-native`);
 
-  await run(`host ${name} to c`, './porf', [ 'c', ...porfDebugArgs(opts), '--profile-compiler', file, hostC ], null, opts, { silent: true });
-  await run(`selfhost ${name} to c`, porf, [ 'c', ...porfDebugArgs(opts), file, selfC ], logPath(`${name}-c`), opts, { silent: true });
+  await run(`host ${name} to c`, './porf', [ 'c', ...porfDebugArgs(opts), '--profile-compiler', file, '-o', hostC ], null, opts, { silent: true });
+  await run(`selfhost ${name} to c`, porf, [ 'c', ...porfDebugArgs(opts), file, '-o', selfC ], logPath(`${name}-c`), opts, { silent: true });
   await compareFiles(opts.nativeChecks ? 'c parity' : `${name} c parity`, hostC, selfC, opts, {
     grouped: opts.nativeChecks,
     debugRerun: async () => {
       const hostDebugC = inTmp(`${name}-host-debug.c`);
       const selfDebugC = inTmp(`${name}-selfhost-debug.c`);
-      await run(`host ${name} to c -d`, './porf', [ 'c', '-d', ...porfDebugArgs(opts), '--profile-compiler', file, hostDebugC ], null, opts, { silent: true });
-      await run(`selfhost ${name} to c -d`, porf, [ 'c', '-d', ...porfDebugArgs(opts), file, selfDebugC ], logPath(`${name}-c-debug`), opts, { silent: true });
+      await run(`host ${name} to c -d`, './porf', [ 'c', '-d', ...porfDebugArgs(opts), '--profile-compiler', file, '-o', hostDebugC ], null, opts, { silent: true });
+      await run(`selfhost ${name} to c -d`, porf, [ 'c', '-d', ...porfDebugArgs(opts), file, '-o', selfDebugC ], logPath(`${name}-c-debug`), opts, { silent: true });
       return [ hostDebugC, selfDebugC ];
     }
   });
   if (!opts.nativeChecks) return;
 
   fs.rmSync(nativeTmp, { force: true });
-  await run(`host ${name} to native`, './porf', [ 'native', ...porfDebugArgs(opts), '--profile-compiler', file, nativeTmp ], null, opts, { silent: true });
+  await run(`host ${name} to native`, './porf', [ 'native', ...porfDebugArgs(opts), '--profile-compiler', file, '-o', nativeTmp ], null, opts, { silent: true });
   fs.renameSync(nativeTmp, hostNative);
-  await run(`selfhost ${name} to native`, porf, [ 'native', ...porfDebugArgs(opts), file, nativeTmp ], logPath(`${name}-native`), opts, { silent: true });
+  await run(`selfhost ${name} to native`, porf, [ 'native', ...porfDebugArgs(opts), file, '-o', nativeTmp ], logPath(`${name}-native`), opts, { silent: true });
   fs.renameSync(nativeTmp, selfNative);
   await compareFiles('native binary parity', hostNative, selfNative, opts, {
     grouped: true,
@@ -721,9 +721,9 @@ const verifyParityCase = async ([ name, file, setup, caseOpts = {} ], opts, firs
       const selfDebugNative = inTmp(`${name}-selfhost-debug-native`);
       const nativeDebugTmp = inTmp(`${name}-native-debug-tmp`);
       fs.rmSync(nativeDebugTmp, { force: true });
-      await run(`host ${name} to native -d`, './porf', [ 'native', '-d', ...porfDebugArgs(opts), '--profile-compiler', file, nativeDebugTmp ], null, opts, { silent: true });
+      await run(`host ${name} to native -d`, './porf', [ 'native', '-d', ...porfDebugArgs(opts), '--profile-compiler', file, '-o', nativeDebugTmp ], null, opts, { silent: true });
       fs.renameSync(nativeDebugTmp, hostDebugNative);
-      await run(`selfhost ${name} to native -d`, porf, [ 'native', '-d', ...porfDebugArgs(opts), file, nativeDebugTmp ], logPath(`${name}-native-debug`), opts, { silent: true });
+      await run(`selfhost ${name} to native -d`, porf, [ 'native', '-d', ...porfDebugArgs(opts), file, '-o', nativeDebugTmp ], logPath(`${name}-native-debug`), opts, { silent: true });
       fs.renameSync(nativeDebugTmp, selfDebugNative);
       return [ hostDebugNative, selfDebugNative ];
     }
@@ -763,8 +763,8 @@ const verify = async opts => {
   requireBuiltSelfhost();
   await verifyParityCases(opts);
   const stage2HostC = inTmp('stage2-host.c');
-  await run('host selfhost bundle to C', './porf', [ 'c', ...porfDebugArgs(opts), '--profile-compiler', bundle, stage2HostC ], null, opts, { silent: true });
-  await run('selfhost to C', porf, [ 'c', ...porfDebugArgs(opts), bundle, stage2C ], logPath('stage2-c'), opts, { monitor: true, silent: true });
+  await run('host selfhost bundle to C', './porf', [ 'c', ...porfDebugArgs(opts), '--profile-compiler', bundle, '-o', stage2HostC ], null, opts, { silent: true });
+  await run('selfhost to C', porf, [ 'c', ...porfDebugArgs(opts), bundle, '-o', stage2C ], logPath('stage2-c'), opts, { monitor: true, silent: true });
   const same = fs.readFileSync(stage2HostC).equals(fs.readFileSync(stage2C));
   if (same) {
     await compareFiles('stage2 c parity', stage2HostC, stage2C, opts);
@@ -776,8 +776,8 @@ const verify = async opts => {
   console.log(`\n${bold('-d rerun')}`);
   const stage2HostDebugC = inTmp('stage2-host-debug.c');
   const stage2SelfDebugC = inTmp('stage2-selfhost-debug.c');
-  await run('host selfhost bundle to C -d', './porf', [ 'c', '-d', ...porfDebugArgs(opts), '--profile-compiler', bundle, stage2HostDebugC ], null, opts, { silent: true });
-  await run('selfhost bundle to C -d', porf, [ 'c', '-d', ...porfDebugArgs(opts), bundle, stage2SelfDebugC ], logPath('stage2-c-debug'), opts, { monitor: true, silent: true });
+  await run('host selfhost bundle to C -d', './porf', [ 'c', '-d', ...porfDebugArgs(opts), '--profile-compiler', bundle, '-o', stage2HostDebugC ], null, opts, { silent: true });
+  await run('selfhost bundle to C -d', porf, [ 'c', '-d', ...porfDebugArgs(opts), bundle, '-o', stage2SelfDebugC ], logPath('stage2-c-debug'), opts, { monitor: true, silent: true });
   if (fs.readFileSync(stage2HostDebugC).equals(fs.readFileSync(stage2SelfDebugC))) {
     console.log(dim(`${stage2SelfDebugC} matches ${stage2HostDebugC}`));
   } else {
@@ -1115,7 +1115,7 @@ const bench = async opts => {
         row.stepStart = performance.now();
         row.stepRun = runId;
         paint();
-        return runBenchCompile(`host ${name} c bench`, benchHost, [ 'c', ...porfDebugArgs(opts), '--profile-compiler', file, hostC ], logPath(`bench-${name}-host-${runId}`), failures, opts.detail);
+        return runBenchCompile(`host ${name} c bench`, benchHost, [ 'c', ...porfDebugArgs(opts), '--profile-compiler', file, '-o', hostC ], logPath(`bench-${name}-host-${runId}`), failures, opts.detail);
       }, opts.benchRuns);
       row.hostMs = host?.ms ?? null;
       row.hostRss = host?.rss ?? null;
@@ -1131,7 +1131,7 @@ const bench = async opts => {
         row.stepStart = performance.now();
         row.stepRun = runId;
         paint();
-        return runBenchCompile(`selfhost ${name} c bench`, porf, [ 'c', ...porfDebugArgs(opts), file, selfC ], logPath(`bench-${name}-self-${runId}`), failures, opts.detail);
+        return runBenchCompile(`selfhost ${name} c bench`, porf, [ 'c', ...porfDebugArgs(opts), file, '-o', selfC ], logPath(`bench-${name}-self-${runId}`), failures, opts.detail);
       }, opts.benchRuns);
       row.selfMs = self?.ms ?? null;
       row.selfRss = self?.rss ?? null;

@@ -63,14 +63,14 @@ jobs:
       - name: bundle selfhost compiler
         run: node selfhosted/build.mjs
       - name: compile bundle to c
-        run: ./porf c --compress-data selfhosted/bundle.js selfhosted/stage1.c
+        run: ./porf c --compress-data selfhosted/bundle.js -o selfhosted/stage1.c
       - name: profile selfhost compiler
         run: |
           mkdir -p /tmp/porffor-pgo
           clang -O0 -fuse-ld=lld -fno-sanitize=undefined -w \
             -fprofile-instr-generate=/tmp/porffor-pgo/release.profraw \
             selfhosted/stage1.c -o /tmp/porffor-pgo/porf -lm
-          /tmp/porffor-pgo/porf c selfhosted/bundle.js /tmp/porffor-pgo/stage2.c
+          /tmp/porffor-pgo/porf c selfhosted/bundle.js -o /tmp/porffor-pgo/stage2.c
           llvm-profdata merge -o /tmp/porffor-pgo/release.profdata /tmp/porffor-pgo/release.profraw
       - name: collect build inputs
         run: |
