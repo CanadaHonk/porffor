@@ -41,11 +41,17 @@ jobs:
           node --input-type=module - <<'EOF'
           import fs from 'node:fs';
           import { execFileSync } from 'node:child_process';
-          const tags = execFileSync('git', [ 'tag', '--list', 'alpha-*' ], { encoding: 'utf8' }).trim().split('\n');
+          const tags = execFileSync('git', [ 'tag', '--list' ], { encoding: 'utf8' }).trim().split('\n');
           let latest = 0;
+          let latestPreAlpha = 0;
           for (const tag of tags) {
-            const match = tag.match(/^alpha-(\d+)$/);
-            if (match) latest = Math.max(latest, +match[1]);
+            let match = tag.match(/^alpha-(\d+)$/);
+            if (match) {
+              latest = Math.max(latest, +match[1]);
+              continue;
+            }
+            match = tag.match(/^pre-alpha-(\d+)$/);
+            if (match) latestPreAlpha = Math.max(latestPreAlpha, +match[1]);
           }
           const release = `alpha ${latest + 1}`;
           const sha = process.env.GITHUB_SHA.slice(0, 7);
@@ -57,7 +63,9 @@ jobs:
           if (replaced === src) throw new Error('version string not found');
           fs.writeFileSync(path, replaced);
           const tag = release.replace(' ', '-');
-          const previousTag = latest === 0 ? '' : `alpha-${latest}`;
+          const previousTag = latest === 0
+            ? (latestPreAlpha === 0 ? '' : `pre-alpha-${latestPreAlpha}`)
+            : `alpha-${latest}`;
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `release=${release}\nversion=${version}\ntag=${tag}\nprevious_tag=${previousTag}\n`);
           EOF
       - name: bundle selfhost compiler
