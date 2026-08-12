@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import '../compiler/prefs.js';
-globalThis.version = 'pre-alpha 1 (ba4813d 2026-07-15)';
+globalThis.version = 'alpha 1 (ba4813d 2026-07-15)';
 
 const DEFAULT_EXPORT_PATTERN = /^\s*export\s+(?:default\b|\{[^}]*\bdefault\b[^}]*\})/m;
 const MODULE_SYNTAX_PATTERN = /^\s*(?:export|import)\s/m;
