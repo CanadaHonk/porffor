@@ -11,6 +11,12 @@ concurrency:
   group: release
   cancel-in-progress: false
 
+env:
+  WASI_SDK_VERSION: '33'
+  WASI_SDK_RELEASE: 'wasi-sdk-33.0-x86_64-linux'
+  WASMTIME_VERSION: 'v47.0.3'
+  WASI_TARGET: 'wasm32-wasip2'
+
 jobs:
   prepare:
     if: >
@@ -221,8 +227,32 @@ jobs:
       - name: test selfhost test262 harness
         run: node test262/selfhost.js harness --threads=4 --expect-passes=107
 
+  test-wasi:
+    needs: prepare
+    name: test wasi
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: install wasi-sdk
+        run: |
+          url="https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_SDK_VERSION}/${WASI_SDK_RELEASE}.tar.gz"
+          curl -fsSL "$url" -o /tmp/wasi-sdk.tar.gz
+          mkdir -p /opt/wasi-sdk
+          tar -xzf /tmp/wasi-sdk.tar.gz -C /opt/wasi-sdk --strip-components=1
+          echo "WASI_SDK_PATH=/opt/wasi-sdk" >> "$GITHUB_ENV"
+      - name: install wasmtime
+        uses: bytecodealliance/actions/wasmtime/setup@v1
+        with:
+          version: ${{ env.WASMTIME_VERSION }}
+      - name: compile and run benches
+        run: ./scripts/run-benchs-wasi.sh
+
   release:
-    needs: [prepare, build-host, build, test]
+    needs: [prepare, build-host, build, test, test-wasi]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
