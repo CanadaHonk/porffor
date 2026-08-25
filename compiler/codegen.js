@@ -1524,10 +1524,6 @@ const getNodeType = (scope, node) => {
       const objType = getNodeType(scope, node.object);
       if (objType != null) {
         if (name === 'length' && (objType & TYPE_FLAGS.length) !== 0) ret = TYPES.number;
-        else if (node.computed) {
-          if (objType === TYPES.string) ret = TYPES.string;
-          else if (objType === TYPES.bytestring) ret = TYPES.bytestring;
-        }
       }
     }
   }
@@ -4122,12 +4118,17 @@ const generateMember = (scope, decl, objValue = null) => {
     builtinCall(scope, signed ? '__Porffor_bigint_fromS64' : '__Porffor_bigint_fromU64', [ Load('i64', taAddr(8), 4) ]);
 
   const strGet = (ctype, size, strType) => () => {
-    const out = reuse(scope, Alloc(Const(T.i32, 8), strType));
-    stmt(scope, Store('u32', out, 0, Const(T.u32, 1)));
-    const src = Bin('+', T.u32, Bin('+', T.u32, JvPtr(obj), Const(T.u32, 4)),
-      size === 1 ? Convert(T.u32, numValue(prop), 0) : Bin('*', T.u32, Convert(T.u32, numValue(prop), 0), Const(T.u32, size)));
-    stmt(scope, Store(ctype, out, 4, Load(ctype, src, 0)));
-    return valOf(out, strType);
+    const { idx, valid } = denseArrayIndexKey(scope, prop);
+    const res = tmp(scope, T.jsval);
+    emitIf(scope, valid, () => emitIf(scope, Bin('<', T.u32, idx, LenGet(JvPtr(obj))), () => {
+      const out = reuse(scope, Alloc(Const(T.i32, 8), strType));
+      stmt(scope, Store('u32', out, 0, Const(T.u32, 1)));
+      const src = Bin('+', T.u32, Bin('+', T.u32, JvPtr(obj), Const(T.u32, 4)),
+        size === 1 ? idx : Bin('*', T.u32, idx, Const(T.u32, size)));
+      stmt(scope, Store(ctype, out, 4, Load(ctype, src, 0)));
+      assign(scope, res, valOf(out, strType));
+    }, () => assign(scope, res, valUndefined())), () => assign(scope, res, genericMemberGet()));
+    return res;
   };
 
   const indexedMemberGetBC = [
