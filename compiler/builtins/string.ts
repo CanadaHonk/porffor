@@ -679,176 +679,138 @@ export const __ByteString_prototype_includes = function (this: bytestring, searc
 };
 
 
-export const __String_prototype_padStart = function (this: string, targetLength: number, padString: any = undefined) {
-  const out: string = Porffor.malloc();
-
-  let outPtr: i32 = Porffor.IR.ptr(out);
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-
+export const __String_prototype_padStart = function (this: string, targetLength: any, padString: any = undefined) {
   const len: i32 = this.length;
+  targetLength = ecma262.ToIntegerOrInfinity(targetLength);
+  if (targetLength <= len) return this;
+
+  if (Porffor.type(padString) == Porffor.TYPES.undefined) padString = ' ';
+  else padString = ecma262.ToString(padString);
+  if (Porffor.type(padString) == Porffor.TYPES.bytestring) padString = Porffor.bytestringToString(padString);
+
+  const padStringLen: i32 = padString.length;
+  if (padStringLen == 0) return this;
+  if (targetLength > 1073741820) throw new RangeError('Invalid string length');
+
   const todo: i32 = targetLength - len;
-  if (todo > 0) {
-    if (Porffor.type(padString) == Porffor.TYPES.undefined) {
-      for (let i: i32 = 0; i < todo; i++) {
-        Porffor.IR.storeU16(outPtr, 4, 32);
-        outPtr += 2;
-      }
+  const out: string = Porffor.malloc(6 + targetLength * 2);
+  let outPtr: i32 = Porffor.IR.ptr(out);
+  for (let i: i32 = 0; i < todo; i++) {
+    Porffor.IR.storeU16(outPtr, 4, Porffor.IR.loadU16(Porffor.IR.ptr(padString) + (i % padStringLen) * 2, 4));
+    outPtr += 2;
+  }
 
-      out.length = targetLength;
-    } else {
-      padString = ecma262.ToString(padString);
-      // utf-16 access below needs a full string
-      if (Porffor.type(padString) == Porffor.TYPES.bytestring) {
-        padString = Porffor.bytestringToString(padString);
-      }
-      const padStringLen: i32 = padString.length;
-      if (padStringLen > 0) {
-        for (let i: i32 = 0; i < todo; i++) {
-          Porffor.IR.storeU16(outPtr, 4, Porffor.IR.loadU16(Porffor.IR.ptr(padString) + (i % padStringLen) * 2, 4));
-          outPtr += 2;
-        }
-        out.length = targetLength;
-      } else out.length = len;
-    }
-  } else out.length = len;
-
+  let thisPtr: i32 = Porffor.IR.ptr(this);
   const thisPtrEnd: i32 = thisPtr + len * 2;
-
   while (thisPtr < thisPtrEnd) {
     Porffor.IR.storeU16(outPtr, 4, Porffor.IR.loadU16(thisPtr, 4));
-
     thisPtr += 2;
     outPtr += 2;
   }
 
+  out.length = targetLength;
   return out;
 };
 
-export const __ByteString_prototype_padStart = function (this: bytestring, targetLength: number, padString: any = undefined) {
-  const out: bytestring = Porffor.malloc();
-
-  let outPtr: i32 = Porffor.IR.ptr(out);
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-
+export const __ByteString_prototype_padStart = function (this: bytestring, targetLength: any, padString: any = undefined) {
   const len: i32 = this.length;
-  const todo: i32 = targetLength - len;
-  if (todo > 0) {
-    if (Porffor.type(padString) == Porffor.TYPES.undefined) {
-      for (let i: i32 = 0; i < todo; i++) {
-        Porffor.IR.storeU8(outPtr++, 4, 32);
-      }
+  targetLength = ecma262.ToIntegerOrInfinity(targetLength);
+  if (targetLength <= len) return this;
 
-      out.length = targetLength;
-    } else {
-      padString = ecma262.ToString(padString);
-      // non-bytestring pad: delegate to the string version
-      if (Porffor.type(padString) != Porffor.TYPES.bytestring) {
-        return Porffor.callThis(__String_prototype_padStart, Porffor.bytestringToString(this), targetLength, padString);
-      }
-      const padStringLen: i32 = padString.length;
-      if (padStringLen > 0) {
-        for (let i: i32 = 0; i < todo; i++) {
-          Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(Porffor.IR.ptr(padString) + (i % padStringLen), 4));
-        }
-
-        out.length = targetLength;
-      } else out.length = len;
+  if (Porffor.type(padString) != Porffor.TYPES.undefined) {
+    padString = ecma262.ToString(padString);
+    if (Porffor.type(padString) != Porffor.TYPES.bytestring) {
+      return Porffor.callThis(__String_prototype_padStart, Porffor.bytestringToString(this), targetLength, padString);
     }
-  } else out.length = len;
+    if (padString.length == 0) return this;
+  }
+  if (targetLength > 2147483641) throw new RangeError('Invalid string length');
 
-  const thisPtrEnd: i32 = thisPtr + len;
-
-  while (thisPtr < thisPtrEnd) {
-    Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(thisPtr++, 4));
+  const todo: i32 = targetLength - len;
+  const out: bytestring = Porffor.malloc(6 + targetLength);
+  let outPtr: i32 = Porffor.IR.ptr(out);
+  if (Porffor.type(padString) == Porffor.TYPES.undefined) {
+    for (let i: i32 = 0; i < todo; i++) Porffor.IR.storeU8(outPtr++, 4, 32);
+  } else {
+    const padStringLen: i32 = padString.length;
+    for (let i: i32 = 0; i < todo; i++) {
+      Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(Porffor.IR.ptr(padString) + (i % padStringLen), 4));
+    }
   }
 
+  let thisPtr: i32 = Porffor.IR.ptr(this);
+  const thisPtrEnd: i32 = thisPtr + len;
+  while (thisPtr < thisPtrEnd) Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(thisPtr++, 4));
+
+  out.length = targetLength;
   return out;
 };
 
 
-export const __String_prototype_padEnd = function (this: string, targetLength: number, padString: any = undefined) {
-  const out: string = Porffor.malloc();
+export const __String_prototype_padEnd = function (this: string, targetLength: any, padString: any = undefined) {
+  const len: i32 = this.length;
+  targetLength = ecma262.ToIntegerOrInfinity(targetLength);
+  if (targetLength <= len) return this;
 
+  if (Porffor.type(padString) == Porffor.TYPES.undefined) padString = ' ';
+  else padString = ecma262.ToString(padString);
+  if (Porffor.type(padString) == Porffor.TYPES.bytestring) padString = Porffor.bytestringToString(padString);
+
+  const padStringLen: i32 = padString.length;
+  if (padStringLen == 0) return this;
+  if (targetLength > 1073741820) throw new RangeError('Invalid string length');
+
+  const out: string = Porffor.malloc(6 + targetLength * 2);
   let outPtr: i32 = Porffor.IR.ptr(out);
   let thisPtr: i32 = Porffor.IR.ptr(this);
-
-  const len: i32 = this.length;
-
   const thisPtrEnd: i32 = thisPtr + len * 2;
-
   while (thisPtr < thisPtrEnd) {
     Porffor.IR.storeU16(outPtr, 4, Porffor.IR.loadU16(thisPtr, 4));
-
     thisPtr += 2;
     outPtr += 2;
   }
 
   const todo: i32 = targetLength - len;
-  if (todo > 0) {
-    if (Porffor.type(padString) == Porffor.TYPES.undefined) {
-      for (let i: i32 = 0; i < todo; i++) {
-        Porffor.IR.storeU16(outPtr, 4, 32);
-        outPtr += 2;
-      }
+  for (let i: i32 = 0; i < todo; i++) {
+    Porffor.IR.storeU16(outPtr, 4, Porffor.IR.loadU16(Porffor.IR.ptr(padString) + (i % padStringLen) * 2, 4));
+    outPtr += 2;
+  }
 
-      out.length = targetLength;
-    } else {
-      padString = ecma262.ToString(padString);
-      // utf-16 access below needs a full string
-      if (Porffor.type(padString) == Porffor.TYPES.bytestring) {
-        padString = Porffor.bytestringToString(padString);
-      }
-      const padStringLen: i32 = padString.length;
-      if (padStringLen > 0) {
-        for (let i: i32 = 0; i < todo; i++) {
-          Porffor.IR.storeU16(outPtr, 4, Porffor.IR.loadU16(Porffor.IR.ptr(padString) + (i % padStringLen) * 2, 4));
-          outPtr += 2;
-        }
-        out.length = targetLength;
-      } else out.length = len;
-    }
-  } else out.length = len;
+  out.length = targetLength;
   return out;
 };
 
-export const __ByteString_prototype_padEnd = function (this: bytestring, targetLength: number, padString: any = undefined) {
-  const out: bytestring = Porffor.malloc();
+export const __ByteString_prototype_padEnd = function (this: bytestring, targetLength: any, padString: any = undefined) {
+  const len: i32 = this.length;
+  targetLength = ecma262.ToIntegerOrInfinity(targetLength);
+  if (targetLength <= len) return this;
 
+  if (Porffor.type(padString) != Porffor.TYPES.undefined) {
+    padString = ecma262.ToString(padString);
+    if (Porffor.type(padString) != Porffor.TYPES.bytestring) {
+      return Porffor.callThis(__String_prototype_padEnd, Porffor.bytestringToString(this), targetLength, padString);
+    }
+    if (padString.length == 0) return this;
+  }
+  if (targetLength > 2147483641) throw new RangeError('Invalid string length');
+
+  const out: bytestring = Porffor.malloc(6 + targetLength);
   let outPtr: i32 = Porffor.IR.ptr(out);
   let thisPtr: i32 = Porffor.IR.ptr(this);
-
-  const len: i32 = this.length;
-
   const thisPtrEnd: i32 = thisPtr + len;
-
-  while (thisPtr < thisPtrEnd) {
-    Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(thisPtr++, 4));
-  }
+  while (thisPtr < thisPtrEnd) Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(thisPtr++, 4));
 
   const todo: i32 = targetLength - len;
-  if (todo > 0) {
-    if (Porffor.type(padString) == Porffor.TYPES.undefined) {
-      for (let i: i32 = 0; i < todo; i++) {
-        Porffor.IR.storeU8(outPtr++, 4, 32);
-      }
-
-      out.length = targetLength;
-    } else {
-      padString = ecma262.ToString(padString);
-      // non-bytestring pad: delegate to the string version
-      if (Porffor.type(padString) != Porffor.TYPES.bytestring) {
-        return Porffor.callThis(__String_prototype_padEnd, Porffor.bytestringToString(this), targetLength, padString);
-      }
-      const padStringLen: i32 = padString.length;
-      if (padStringLen > 0) {
-        for (let i: i32 = 0; i < todo; i++) {
-          Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(Porffor.IR.ptr(padString) + (i % padStringLen), 4));
-        }
-
-        out.length = targetLength;
-      } else out.length = len;
+  if (Porffor.type(padString) == Porffor.TYPES.undefined) {
+    for (let i: i32 = 0; i < todo; i++) Porffor.IR.storeU8(outPtr++, 4, 32);
+  } else {
+    const padStringLen: i32 = padString.length;
+    for (let i: i32 = 0; i < todo; i++) {
+      Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(Porffor.IR.ptr(padString) + (i % padStringLen), 4));
     }
-  } else out.length = len;
+  }
+
+  out.length = targetLength;
   return out;
 };
 
