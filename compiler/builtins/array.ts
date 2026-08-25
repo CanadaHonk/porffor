@@ -1,5 +1,7 @@
 import type {} from './porffor.d.ts';
 
+const __Porffor_array_toStringStack: any[] = [];
+
 export const Array = function (...args: any[]): any[] {
   const argsLen: number = args.length;
   if (argsLen == 0) {
@@ -909,6 +911,12 @@ export const __Array_prototype_toString = function (this: any[]) {
   const len: i32 = this.length;
   if (len == 0) return '';
 
+  const stackLen: i32 = __Porffor_array_toStringStack.length;
+  for (let i: i32 = 0; i < stackLen; i++) {
+    if (Porffor.IR.ptr(__Porffor_array_toStringStack[i]) == Porffor.IR.ptr(this)) return '';
+  }
+  __Porffor_array_toStringStack[stackLen] = this;
+
   const parts: any[] = Porffor.array.new(len);
   const partLens: i32 = Porffor.malloc(len * 4);
 
@@ -923,7 +931,13 @@ export const __Array_prototype_toString = function (this: any[]) {
       Porffor.type(element) != Porffor.TYPES.undefined, // undefined
       Porffor.type(element) != Porffor.TYPES.object // null
     )) {
-      const part: bytestring = ecma262.ToString(element);
+      let part: bytestring;
+      try {
+        part = ecma262.ToString(element);
+      } catch (e) {
+        __Porffor_array_toStringStack.length = stackLen;
+        throw e;
+      }
       parts[i - 1] = part;
       partLen = part.length;
       outLen += partLen;
@@ -949,6 +963,7 @@ export const __Array_prototype_toString = function (this: any[]) {
     }
   }
 
+  __Porffor_array_toStringStack.length = stackLen;
   return out;
 };
 
@@ -963,6 +978,12 @@ export const __Array_prototype_join = function (this: any[], _separator: any) {
 
   const len: i32 = this.length;
   if (len == 0) return '';
+
+  const stackLen: i32 = __Porffor_array_toStringStack.length;
+  for (let i: i32 = 0; i < stackLen; i++) {
+    if (Porffor.IR.ptr(__Porffor_array_toStringStack[i]) == Porffor.IR.ptr(this)) return '';
+  }
+  __Porffor_array_toStringStack[stackLen] = this;
 
   const separatorLen: i32 = separator.length;
   let outLen: i32 = len > 1 ? separatorLen * (len - 1) : 0;
@@ -979,7 +1000,13 @@ export const __Array_prototype_join = function (this: any[], _separator: any) {
       elementType != Porffor.TYPES.object,
       Porffor.IR.ptr(element) != 0
     ))) {
-      const part: any = ecma262.ToString(element);
+      let part: any;
+      try {
+        part = ecma262.ToString(element);
+      } catch (e) {
+        __Porffor_array_toStringStack.length = stackLen;
+        throw e;
+      }
       parts[i - 1] = part;
       partLen = part.length;
       outLen += partLen;
@@ -1010,6 +1037,7 @@ export const __Array_prototype_join = function (this: any[], _separator: any) {
       }
     }
 
+    __Porffor_array_toStringStack.length = stackLen;
     return out;
   }
 
@@ -1043,6 +1071,7 @@ export const __Array_prototype_join = function (this: any[], _separator: any) {
     }
   }
 
+  __Porffor_array_toStringStack.length = stackLen;
   return out;
 };
 
