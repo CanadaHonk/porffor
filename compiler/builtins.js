@@ -430,22 +430,6 @@ export const BuiltinVars = ({ builtinFuncs }) => {
 
 export const BuiltinFuncs = () => {
   const _ = Object.create(null);
-  _.isNaN = {
-    params: [ { name: 'x', type: T.f64 } ],
-    retType: T.jsval,
-    returnType: TYPES.boolean,
-    body: [ Return(Box(Bin('!=', T.f64, Local('x', T.f64), Local('x', T.f64)), Const(T.i32, TYPES.boolean))) ]
-  };
-  _.__Number_isNaN = _.isNaN;
-
-  _.isFinite = {
-    params: [ { name: 'x', type: T.f64 } ],
-    retType: T.jsval,
-    returnType: TYPES.boolean,
-    body: [ Return(Box(Bin('==', T.f64, Bin('-', T.f64, Local('x', T.f64), Local('x', T.f64)), Bin('-', T.f64, Local('x', T.f64), Local('x', T.f64))), Const(T.i32, TYPES.boolean))) ]
-  };
-  _.__Number_isFinite = _.isFinite;
-
   // libm-backed Math: jsval params so public methods do ToNumber, boxed returns for builtin callers
   const nativeMathArg = name => JvNum(Call('__ecma262_ToNumber', [ Local(name, T.jsval) ]));
   const nativeMathUnary = name => {
