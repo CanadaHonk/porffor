@@ -531,18 +531,16 @@ export const __Array_prototype_concat = function (this: any[], ...vals: any[]) {
   const out: any[] = Porffor.array.new(len);
 
   out.length = len;
-  let isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   for (let i: i32 = 0; i < len; i++) {
-    if (Porffor.fastOr(!isArray, __Porffor_array_has(this, i))) out[i] = this[i];
+    if (Porffor.type(this) != Porffor.TYPES.array || __Porffor_array_has(this, i)) out[i] = this[i];
   }
 
   for (const x of vals) {
-    if (Porffor.type(x) & 0b01000000) { // value is iterable
+    if (Porffor.type(x) == Porffor.TYPES.array) {
       // todo: for..of is broken here because ??
       const l: i32 = x.length;
-      isArray = Porffor.type(x) == Porffor.TYPES.array;
       for (let i: i32 = 0; i < l; i++) {
-        if (Porffor.fastOr(!isArray, __Porffor_array_has(x, i))) out[len] = x[i];
+        if (__Porffor_array_has(x, i)) out[len] = x[i];
         len++;
       }
     } else {
