@@ -33,7 +33,10 @@ export const Number = function (value: any): number|any {
   return n as NumberObject;
 };
 
-export const isNaN = (value: number): boolean => value != value;
+export const isNaN = (value: any): boolean => {
+  const number: number = ecma262.ToNumber(value);
+  return number != number;
+};
 export const __Number_isNaN = isNaN;
 
 export const isFinite = (value: number): boolean => {
