@@ -931,28 +931,38 @@ export const __ByteString_prototype_substring = function (this: bytestring, star
 };
 
 
-export const __String_prototype_substr = function (this: string, start: number, length: number) {
+export const __String_prototype_substr = function (this: string, start: any, length: any) {
   const len: i32 = this.length;
+  start = ecma262.ToIntegerOrInfinity(start);
   if (start < 0) {
     start = len + start;
     if (start < 0) start = 0;
-  }
+  } else if (start > len) start = len;
 
   if (Porffor.type(length) == Porffor.TYPES.undefined) length = len - start;
-  if (start + length > len) length = len - start;
+  else {
+    length = ecma262.ToIntegerOrInfinity(length);
+    if (length < 0) length = 0;
+    else if (length > len - start) length = len - start;
+  }
 
   return __Porffor_string_substringToBest(this, start, start + length);
 };
 
-export const __ByteString_prototype_substr = function (this: bytestring, start: number, length: number) {
+export const __ByteString_prototype_substr = function (this: bytestring, start: any, length: any) {
   const len: i32 = this.length;
+  start = ecma262.ToIntegerOrInfinity(start);
   if (start < 0) {
     start = len + start;
     if (start < 0) start = 0;
-  }
+  } else if (start > len) start = len;
 
   if (Porffor.type(length) == Porffor.TYPES.undefined) length = len - start;
-  if (start + length > len) length = len - start;
+  else {
+    length = ecma262.ToIntegerOrInfinity(length);
+    if (length < 0) length = 0;
+    else if (length > len - start) length = len - start;
+  }
 
   const out: bytestring = Porffor.malloc(6 + length);
 
