@@ -8,8 +8,29 @@ export const __Porffor_printString = (arg: bytestring|string): void => {
   } else { // regular string
     const end: i32 = ptr + arg.length * 2;
     while (ptr < end) {
-      const c: i32 = Porffor.IR.loadU16(ptr, 4);
-      Porffor.c`printf("%c", c);`;
+      let c: i32 = Porffor.IR.loadU16(ptr, 4);
+      if (c >= 0xd800 && c <= 0xdbff && ptr + 2 < end) {
+        const low: i32 = Porffor.IR.loadU16(ptr + 2, 4);
+        if (low >= 0xdc00 && low <= 0xdfff) {
+          c = 0x10000 + ((c - 0xd800) << 10) + low - 0xdc00;
+          ptr += 2;
+        } else c = 0xfffd;
+      } else if (c >= 0xd800 && c <= 0xdfff) c = 0xfffd;
+
+      if (c < 0x80) Porffor.c`putchar(c);`;
+      else if (c < 0x800) {
+        Porffor.c`putchar(0xc0 | (c >> 6));`;
+        Porffor.c`putchar(0x80 | (c & 0x3f));`;
+      } else if (c < 0x10000) {
+        Porffor.c`putchar(0xe0 | (c >> 12));`;
+        Porffor.c`putchar(0x80 | ((c >> 6) & 0x3f));`;
+        Porffor.c`putchar(0x80 | (c & 0x3f));`;
+      } else {
+        Porffor.c`putchar(0xf0 | (c >> 18));`;
+        Porffor.c`putchar(0x80 | ((c >> 12) & 0x3f));`;
+        Porffor.c`putchar(0x80 | ((c >> 6) & 0x3f));`;
+        Porffor.c`putchar(0x80 | (c & 0x3f));`;
+      }
       ptr += 2;
     }
   }
