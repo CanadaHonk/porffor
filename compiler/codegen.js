@@ -2070,7 +2070,7 @@ const generateCall = (scope, decl) => {
   if (decl._new) emitIf(scope, JvFalsy(builtinCall(scope, '__ecma262_IsConstructor', [ calleeVal ])),
     () => internalThrow(scope, 'TypeError', 'value is not a constructor'));
 
-  return CallDynamic(calleeVal, thisVal, argVals, decl._new ? calleeVal : null, spreadArr);
+  return CallDynamic(calleeVal, coerceValue(thisVal, T.jsval), argVals, decl._new ? calleeVal : null, spreadArr);
 };
 
 const generateThis = (scope, decl) => {
