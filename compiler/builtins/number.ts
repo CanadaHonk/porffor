@@ -33,14 +33,25 @@ export const Number = function (value: any): number|any {
   return n as NumberObject;
 };
 
-export const isNaN = (value: number): boolean => value != value;
-export const __Number_isNaN = isNaN;
+export const isNaN = (value: any): boolean => {
+  const number: number = ecma262.ToNumber(value);
+  return number != number;
+};
 
-export const isFinite = (value: number): boolean => {
+export const __Number_isNaN = (value: any): boolean =>
+  Porffor.type(value) == Porffor.TYPES.number && value != value;
+
+export const isFinite = (value: any): boolean => {
+  const number: number = ecma262.ToNumber(value);
+  const delta: number = number - number;
+  return delta == delta;
+};
+
+export const __Number_isFinite = (value: any): boolean => {
+  if (Porffor.type(value) != Porffor.TYPES.number) return false;
   const delta: number = value - value;
   return delta == delta;
 };
-export const __Number_isFinite = isFinite;
 
 export const __Number_isInteger = (value: number): boolean => value == Infinity || value == -Infinity || value % 1 == 0;
 
