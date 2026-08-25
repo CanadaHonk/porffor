@@ -3230,8 +3230,11 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
   const { name } = decl.argument;
   const [ local, isGlobal ] = lookupName(scope, name);
   if (local != null) {
-    // fast path: a local/global. todo: not as compliant as the slow path (non-numbers)
+    // fast path: a local/global
     const ref = isGlobal ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval);
+    const numeric = ref[N_TYPE] === T.jsval && knownType(scope, getNodeType(scope, decl.argument)) !== TYPES.number
+      ? builtinCall(scope, '__ecma262_ToNumeric', [ ref ])
+      : ref;
     const inc = v => Bin(decl.operator === '++' ? '+' : '-', T.f64, numValue(v), Const(T.f64, 1));
     const incForRef = v => ref[N_TYPE] === T.jsval ? valNumber(inc(v))
       : ref[N_TYPE] === T.f64 ? inc(v)
@@ -3239,12 +3242,12 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
     setType(scope, name, TYPES.number);
 
     if (!decl.prefix && !valueUnused) {
-      const old = tmp(scope, ref[N_TYPE], ref);
+      const old = tmp(scope, numeric[N_TYPE], numeric);
       assign(scope, ref, incForRef(old));
       return valNumber(old);
     }
 
-    assign(scope, ref, incForRef(ref));
+    assign(scope, ref, incForRef(numeric));
     return valueUnused ? valUndefined() : valNumber(ref);
   }
 
