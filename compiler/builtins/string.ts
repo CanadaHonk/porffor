@@ -271,8 +271,12 @@ export const __ByteString_prototype_codePointAt = function (this: bytestring, in
   return Porffor.IR.loadU8(Porffor.IR.ptr(this) + index, 4);
 };
 
-export const __String_prototype_startsWith = function (this: string, searchString: string, position: number = 0) {
-  // todo: handle bytestring searchString
+export const __String_prototype_startsWith = function (this: string, searchString: any, position: number = 0) {
+  searchString = ecma262.ToString(searchString);
+  if (Porffor.type(searchString) == Porffor.TYPES.bytestring) {
+    searchString = Porffor.bytestringToString(searchString);
+  }
+
   // todo/perf: investigate whether for counter vs while ++s are faster
 
   let thisPtr: i32 = Porffor.IR.ptr(this);
@@ -299,10 +303,11 @@ export const __String_prototype_startsWith = function (this: string, searchStrin
   return true;
 };
 
-export const __ByteString_prototype_startsWith = function (this: bytestring, searchString: bytestring, position: number = 0) {
-  // if searching non-bytestring, bytestring will not start with it
-  // todo: change this to just check if = string and ToString others
-  if (Porffor.type(searchString) != Porffor.TYPES.bytestring) return false;
+export const __ByteString_prototype_startsWith = function (this: bytestring, searchString: any, position: number = 0) {
+  searchString = ecma262.ToString(searchString);
+  if (Porffor.type(searchString) != Porffor.TYPES.bytestring) {
+    return Porffor.callThis(__String_prototype_startsWith, Porffor.bytestringToString(this), searchString, position);
+  }
 
   // todo/perf: investigate whether for counter vs while ++s are faster
 
