@@ -418,7 +418,7 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
       case K.Un: {
         const op = node[N_A], v = node[N_B];
         switch (op) {
-          case 'neg': return [`-${rx(v, P_UNARY)}`, P_UNARY];
+          case 'neg': return [`-${rx(v, P_CAST)}`, P_UNARY];
           case '!': return [`!${rx(v, P_UNARY)}`, P_UNARY];
           case '~': return [`~${rx(v, P_UNARY)}`, P_UNARY];
           case 'abs': usesMath = true; return [`fabs(${rx(v, P_COMMA)})`, P_POSTFIX];
