@@ -3443,7 +3443,7 @@ const awaitValue = (scope, value) => scope.topLevel
   : Await(value);
 
 const generateForOf = (scope, decl) => {
-  const root = reuse(scope, generate(scope, decl.right));
+  const root = tmp(scope, T.jsval, coerceValue(generate(scope, decl.right), T.jsval));
   const rootKnown = knownType(scope, getNodeType(scope, decl.right));
   const rootTy = reuse(scope, JvType(root));
   const isAwait = decl.await === true;
