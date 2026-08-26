@@ -12,3 +12,5 @@ selfhosted/*.c
 # todo: commit some json to git history to help historical/collaborative info
 /test262/*.json
 /test262/.threads
+
+/compiler/builtins_precompiled.js
