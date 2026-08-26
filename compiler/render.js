@@ -1590,7 +1590,6 @@ static u32 porf_heap_committed = 0;
 static void porf_commit(u32 end) {
   if (end <= porf_heap_committed) return;
   u32 want = (end + (1u << 20)) & ~((1u << 20) - 1);
-  // !PORF_CAN_DECOMMIT: the arena is fully committed at init, so this is OOM
   if (!PORF_CAN_DECOMMIT || mprotect(MEM, want, PROT_READ | PROT_WRITE) != 0) {
     fprintf(stderr, "porffor: out of memory (commit %u)\\n", want);
     exit(1);
@@ -1818,7 +1817,6 @@ static void porf_commit(u64 end) {
     fprintf(stderr, "porffor: out of memory (commit %llu)\\n", (unsigned long long)want);
     exit(1);
   }
-  // !PORF_CAN_DECOMMIT: the arena is already fully committed, nothing to do
   if (PORF_CAN_DECOMMIT && mprotect(MEM, (size_t)want, PROT_READ | PROT_WRITE) != 0) {
     fprintf(stderr, "porffor: out of memory (commit %llu)\\n", (unsigned long long)want);
     exit(1);
@@ -3391,8 +3389,6 @@ static int porf_gc_sweep_span(u32 pg, int minor, u64* promoted_bytes, u64* live_
   return 2;
 }
 
-// hint to the OS that a byte range is no longer needed. no-op where the
-// platform cannot decommit (wasi declares MADV_* but ships no madvise).
 static void porf_gc_madv_dontneed(u32 start, size_t len) {
 #if PORF_CAN_DECOMMIT && defined(MADV_DONTNEED)
   (void)madvise(MEM + start, len, MADV_DONTNEED);
@@ -4136,8 +4132,6 @@ ${usesThreads ? `#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #ifndef __wasi__
-// process spawning (selfhosted/native.js shells out to a C compiler); wasi has
-// no fork/execvp/waitpid and no <sys/wait.h> at all
 #include <sys/wait.h>
 #endif
 #include <time.h>
@@ -4266,10 +4260,8 @@ ${prefs.nativeFetch ? '' : st}u8* porf_mem;
 #define MEM porf_mem
 #define PORF_NOINLINE __attribute__((noinline))
 #ifdef __wasi__
-// wasm32: 4GB of address space does not exist, and the emulated mman is
-// malloc-backed - it ignores the hint, rejects PROT_NONE, cannot mprotect a
-// region into existence later, and ships no madvise. so: reserve small, map it
-// readable/writable up front, and never decommit.
+// wasi's malloc-backed mmap ignores fixed hints and cannot change protections
+// or decommit, so use a small, fully committed arena
 #define PORF_ARENA_HINT NULL
 #define PORF_ARENA_RESERVE (1ull << 26)
 #define PORF_MMAP_RESERVE_PROT (PROT_READ | PROT_WRITE)
