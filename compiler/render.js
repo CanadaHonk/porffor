@@ -1590,7 +1590,8 @@ static u32 porf_heap_committed = 0;
 static void porf_commit(u32 end) {
   if (end <= porf_heap_committed) return;
   u32 want = (end + (1u << 20)) & ~((1u << 20) - 1);
-  if (mprotect(MEM, want, PROT_READ | PROT_WRITE) != 0) {
+  // !PORF_CAN_DECOMMIT: the arena is fully committed at init, so this is OOM
+  if (!PORF_CAN_DECOMMIT || mprotect(MEM, want, PROT_READ | PROT_WRITE) != 0) {
     fprintf(stderr, "porffor: out of memory (commit %u)\\n", want);
     exit(1);
   }
@@ -1598,7 +1599,7 @@ static void porf_commit(u32 end) {
 }
 
 static void porf_arena_init(void) {
-  void* got = mmap(PORF_ARENA_HINT, PORF_ARENA_RESERVE, PROT_NONE,
+  void* got = mmap(PORF_ARENA_HINT, PORF_ARENA_RESERVE, PORF_MMAP_RESERVE_PROT,
     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (got == MAP_FAILED) {
     fprintf(stderr, "porffor: failed to reserve arena\\n");
@@ -1607,7 +1608,7 @@ static void porf_arena_init(void) {
   porf_mem = (u8*)got;
   porf_heap_base = (PORF_STATIC_END + 4095u) & ~4095u;
   porf_heap_cur = porf_heap_base + 8;
-  porf_heap_committed = 0;
+  porf_heap_committed = PORF_CAN_DECOMMIT ? 0u : (u32)PORF_ARENA_RESERVE;
   porf_commit(porf_heap_base + 65536u);
 }
 
@@ -1817,7 +1818,8 @@ static void porf_commit(u64 end) {
     fprintf(stderr, "porffor: out of memory (commit %llu)\\n", (unsigned long long)want);
     exit(1);
   }
-  if (mprotect(MEM, (size_t)want, PROT_READ | PROT_WRITE) != 0) {
+  // !PORF_CAN_DECOMMIT: the arena is already fully committed, nothing to do
+  if (PORF_CAN_DECOMMIT && mprotect(MEM, (size_t)want, PROT_READ | PROT_WRITE) != 0) {
     fprintf(stderr, "porffor: out of memory (commit %llu)\\n", (unsigned long long)want);
     exit(1);
   }
@@ -1825,7 +1827,7 @@ static void porf_commit(u64 end) {
 }
 
 static void porf_arena_init(void) {
-  void* got = mmap(PORF_ARENA_HINT, PORF_ARENA_RESERVE, PROT_NONE,
+  void* got = mmap(PORF_ARENA_HINT, PORF_ARENA_RESERVE, PORF_MMAP_RESERVE_PROT,
     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (got == MAP_FAILED) {
     fprintf(stderr, "porffor: failed to reserve arena\\n");
@@ -1834,7 +1836,7 @@ static void porf_arena_init(void) {
   porf_mem = (u8*)got;
   porf_heap_base = (PORF_STATIC_END + PORF_GC_SPAGE_MASK) & ~PORF_GC_SPAGE_MASK;
   porf_heap_top = porf_heap_base;
-  porf_heap_committed = 0;
+  porf_heap_committed = PORF_CAN_DECOMMIT ? 0ull : (u64)PORF_ARENA_RESERVE;
   porf_commit(porf_heap_base + 65536u);
 
   const size_t kinds_bytes = (size_t)(PORF_ARENA_RESERVE >> 4);
@@ -3389,16 +3391,22 @@ static int porf_gc_sweep_span(u32 pg, int minor, u64* promoted_bytes, u64* live_
   return 2;
 }
 
-static void porf_gc_discard_range(u32 start, u32 end) {
-  if (end <= start) return;
-#if defined(MADV_DONTNEED)
-  (void)madvise(MEM + start, (size_t)(end - start), MADV_DONTNEED);
-#elif defined(MADV_FREE)
-  (void)madvise(MEM + start, (size_t)(end - start), MADV_FREE);
+// hint to the OS that a byte range is no longer needed. no-op where the
+// platform cannot decommit (wasi declares MADV_* but ships no madvise).
+static void porf_gc_madv_dontneed(u32 start, size_t len) {
+#if PORF_CAN_DECOMMIT && defined(MADV_DONTNEED)
+  (void)madvise(MEM + start, len, MADV_DONTNEED);
+#elif PORF_CAN_DECOMMIT && defined(MADV_FREE)
+  (void)madvise(MEM + start, len, MADV_FREE);
 #else
   (void)start;
-  (void)end;
+  (void)len;
 #endif
+}
+
+static void porf_gc_discard_range(u32 start, u32 end) {
+  if (end <= start) return;
+  porf_gc_madv_dontneed(start, (size_t)(end - start));
 }
 
 static void porf_gc_retreat_heap_top(void) {
@@ -3442,11 +3450,8 @@ static void porf_gc_maybe_trim_memory(void) {
   const size_t trim_bytes = (size_t)trim_bytes64;
   if (trim_bytes < min_trim) return;
 
-#if defined(MADV_DONTNEED)
-  (void)madvise(MEM + wanted, trim_bytes, MADV_DONTNEED);
-#elif defined(MADV_FREE)
-  (void)madvise(MEM + wanted, trim_bytes, MADV_FREE);
-#endif
+  if (!PORF_CAN_DECOMMIT) return;
+  porf_gc_madv_dontneed(wanted, trim_bytes);
   if (mprotect(MEM + wanted, trim_bytes, PROT_NONE) != 0) return;
   porf_heap_committed = wanted;
 }
@@ -4130,7 +4135,11 @@ ${usesThreads ? `#include <pthread.h>
 #include <dirent.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#ifndef __wasi__
+// process spawning (selfhosted/native.js shells out to a C compiler); wasi has
+// no fork/execvp/waitpid and no <sys/wait.h> at all
 #include <sys/wait.h>
+#endif
 #include <time.h>
 
 ${prefs.repl ? `static int porf_repl_output_enabled = 1;
@@ -4256,8 +4265,21 @@ static _Thread_local NativeFetchResponseParts* porf_native_fetch_response_parts_
 ${prefs.nativeFetch ? '' : st}u8* porf_mem;
 #define MEM porf_mem
 #define PORF_NOINLINE __attribute__((noinline))
+#ifdef __wasi__
+// wasm32: 4GB of address space does not exist, and the emulated mman is
+// malloc-backed - it ignores the hint, rejects PROT_NONE, cannot mprotect a
+// region into existence later, and ships no madvise. so: reserve small, map it
+// readable/writable up front, and never decommit.
+#define PORF_ARENA_HINT NULL
+#define PORF_ARENA_RESERVE (1ull << 26)
+#define PORF_MMAP_RESERVE_PROT (PROT_READ | PROT_WRITE)
+#define PORF_CAN_DECOMMIT 0
+#else
 #define PORF_ARENA_HINT ((void*)0x400000000ull)
 #define PORF_ARENA_RESERVE (1ull << 32)
+#define PORF_MMAP_RESERVE_PROT PROT_NONE
+#define PORF_CAN_DECOMMIT 1
+#endif
 #define PORF_STATIC_END ${staticEnd}u
 #define PORF_GC_ENABLED ${prefs.gc === false ? 0 : 1}
 
