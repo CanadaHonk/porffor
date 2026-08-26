@@ -80,7 +80,6 @@ const defaultOpts = {
   compare: process.env.SELFHOST_COMPARE ?? null,
   sizeGraph: process.env.SELFHOST_SIZE_GRAPH ?? null,
   porfFlags: [],
-  profilePgo: false,
   release: false,
   skip: [],
   skipBundle: false,
@@ -114,8 +113,7 @@ ${bold('Options')}
 ${helpRows([
   [ '-O0|-O1|-O2|-O3', 'c compiler optimization level for compile (default: -O0 -g)' ],
   [ '--cc-opts="..."', 'c compiler options for compile (default: -O0 -g)' ],
-  [ '--release', 'compile stage1 with cc -O3 -flto=thin and strip local symbols' ],
-  [ '--profile-pgo', 'regenerate the cached release PGO profile' ],
+  [ '--release', 'compile stage1 with fresh PGO, cc -O3 -flto=thin, and strip local symbols' ],
   [ '--tcc[=PATH]', 'compile stage1 with TinyCC' ],
   [ '--diff-context=N', 'context lines for mismatch diffs (default: 2)' ],
   [ '--no-split-diff', 'use text diffoscope output for c even in a TTY' ],
@@ -159,7 +157,6 @@ const parseArgs = argv => {
       opts.ccOpts = [ '-O3', '-flto=thin' ];
       opts.release = true;
     }
-    else if (arg === '--profile-pgo') opts.profilePgo = true;
     else if (/^-O(?:[0-3g]|fast|s|z)$/.test(arg)) {
       opts.ccOpts = opts.ccOpts.filter(x => !/^-O(?:[0-3g]|fast|s|z)$/.test(x));
       opts.ccOpts.unshift(arg);
@@ -619,7 +616,7 @@ const compileSelfhost = async opts => {
   await runCompileStep('compiled selfhost bundle to C', './porf', [ 'c', '--compress-data', ...hostPorfDebugArgs(opts), '--profile-compiler', bundle, '-o', stage1C ]);
   const compiler = compilerArgs(opts);
   const releaseCodegenArgs = opts.release ? [ '-mllvm', '-force-attribute=porf_strict_eq:noinline' ] : [];
-  if (opts.release && (opts.profilePgo || !fs.existsSync(pgoProfile))) {
+  if (opts.release) {
     fs.rmSync(pgoRaw, { force: true });
     await runCompileStep('compiled PGO training binary', compiler[0], [
       ...compiler.slice(1),
