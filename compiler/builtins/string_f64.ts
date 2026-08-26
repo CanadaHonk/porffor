@@ -45,9 +45,8 @@ export const String = function (_argc: i32, value: any): string|bytestring|any {
 };
 
 export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
-  const out: string = Porffor.malloc();
-
   const len: i32 = codes.length;
+  const out: string = Porffor.malloc(len * 2 + 6);
   out.length = len;
 
   let bytestringable: boolean = true;
