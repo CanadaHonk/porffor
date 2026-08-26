@@ -323,7 +323,7 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
   }
 
   let depth = 1;
-  const ind = () => '  '.repeat(depth);
+  const ind = () => '\t'.repeat(depth);
 
   // break/continue lower to plain C when targeting the innermost breakable, else goto,
   // labels are only emitted when goto'd
