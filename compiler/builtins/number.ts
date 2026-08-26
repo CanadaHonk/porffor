@@ -83,6 +83,12 @@ export const __Number_prototype_toString = function (this: number, radix: number
     return '0';
   }
 
+  if (radix == 10) {
+    let out: bytestring = '';
+    Porffor.c`out = porf_num_to_str(n);`;
+    return out;
+  }
+
   const out: bytestring = Porffor.malloc(512);
   let outPtr: i32 = Porffor.IR.ptr(out);
   let negative: i32 = 0;
