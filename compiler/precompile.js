@@ -310,12 +310,13 @@ const huffDecode = data => {
   const out = [];
   let node = 0;
   const split = data.indexOf(':');
-  const bits = parseInt(data.slice(0, split), 36);
-  const start = split + 1;
-  for (let i = 0; i < bits; i++) {
-    const value = huffValue(data.charCodeAt(start + ((i / 6) | 0)));
-    node = huffTree[node][(value >> (5 - (i % 6))) & 1];
-    if (node < 0) { out.push(huffTokens[-node - 1]); node = 0; }
+  let bits = parseInt(data.slice(0, split), 36);
+  for (let i = split + 1; bits > 0; i++) {
+    const value = huffValue(data.charCodeAt(i));
+    for (let shift = 5; shift >= 0 && bits > 0; shift--, bits--) {
+      node = huffTree[node][(value >> shift) & 1];
+      if (node < 0) { out.push(huffTokens[-node - 1]); node = 0; }
+    }
   }
   return out;
 };
