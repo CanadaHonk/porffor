@@ -295,6 +295,10 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
     if (needsCoro(f) || nodeUsesCoro(f?.body)) usesCoro = true;
     if (isSyncAsync(f)) usesSyncAsync = true;
   }
+  const promiseResolveFunc = funcByName.get('__Porffor_promise_resolve');
+  const settleAsyncResult = promiseResolveFunc
+    ? (value, promise) => `(void)${fnSym(promiseResolveFunc)}(${value}, ${promise});`
+    : (value, promise) => `porf_promise_settle_direct(${promise}, ${value}, 1);`;
 
   // static data segments are copied into the arena below the heap at init, DataRef(i) is a constant offset
   const dataOffsets = [];
@@ -1049,10 +1053,6 @@ ${st}jsval porf_promise_settled(jsval value, i32 state) {
   return porf_box((f64)p, ${TYPES.promise});
 }
 
-${st}jsval porf_promise_fulfilled(jsval value) {
-  return porf_promise_settled(value, 1);
-}
-
 ${st}jsval porf_promise_rejected(jsval value) {
   return porf_promise_settled(value, 2);
 }
@@ -1066,7 +1066,9 @@ ${st}jsval porf_async_call_sync(u32 idx, jsval callee, u32 env, jsval thisv, jsv
   if (_setjmp(porf_try_stack[try_idx]) == 0) {
     const jsval result = porf_invoke(idx, callee, env, thisv, newtv, argc, argv);
     porf_try_depth = try_idx;
-    return porf_promise_fulfilled(result);
+    const jsval out_promise = porf_promise_settled(JV_UNDEFINED, 0);
+    ${settleAsyncResult('result', 'out_promise')}
+    return out_promise;
   }
 
   porf_try_depth = try_idx;
@@ -1131,7 +1133,7 @@ static void porf_promise_run_coro_reaction_coro(u32 reaction) {
     if (done) {
       const jsval result = call->result;
       porf_coro_call_free(call);
-      porf_promise_settle_direct(out_promise, result, 1);
+      ${settleAsyncResult('result', 'out_promise')}
       return;
     }
 
@@ -1241,7 +1243,7 @@ ${st}jsval porf_coro_start(u8 flags, u32 idx, jsval callee, u32 env, jsval thisv
 	    if (done) {
 	      jsval result = call->result;
 	      porf_coro_call_free(call);
-	      porf_promise_settle_direct(out_promise, result, 1);
+	      ${settleAsyncResult('result', 'out_promise')}
 	    } else {
 	      porf_promise_attach_coro(call->coro.channel, call, out_promise);
 	    }

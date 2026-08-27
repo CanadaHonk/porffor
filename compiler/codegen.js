@@ -5154,6 +5154,9 @@ export default (program, opts = {}) => {
     }
   });
 
+  if (!globalThis.precompile && funcs.some(f => f.async && !f.generator))
+    includeBuiltin(topLevelFunc, '__Porffor_promise_resolve');
+
   for (const f of funcs.slice()) if (f.referenced || f.export) f.generate?.();
 
   for (let pass = 0; pass < 16; pass++) {
