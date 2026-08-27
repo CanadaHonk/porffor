@@ -111,10 +111,10 @@ const NEVER_INLINE = new Set([
   '__Porffor_object_get_ic', '__Porffor_object_get_icMiss', '__Porffor_object_get_withHash'
 ]);
 
-const sanitizeMemo = Object.create(null);
-const sanitizeUsed = Object.create(null);
+const sanitizeMemo = new Map();
+const sanitizeUsed = new Set();
 export const sanitize = str => {
-  const memod = sanitizeMemo[str];
+  const memod = sanitizeMemo.get(str);
   if (memod != null) return memod;
 
   let out = '';
@@ -128,9 +128,10 @@ export const sanitize = str => {
   if (out.length === 0) out = 'anon';
   if (out[0] >= '0' && out[0] <= '9') out = '_' + out;
   // keep prefixing: one '_' can itself collide (exit -> _exit)
-  while (cReservedNames.has(out) || sanitizeUsed[out]) out = '_' + out;
-  sanitizeUsed[out] = true;
-  return sanitizeMemo[str] = out;
+  while (cReservedNames.has(out) || sanitizeUsed.has(out)) out = '_' + out;
+  sanitizeUsed.add(out);
+  sanitizeMemo.set(str, out);
+  return out;
 };
 
 // jsval encoding constants (must match runtime header below)
