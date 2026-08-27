@@ -52,9 +52,6 @@ const help = () => {
   // niche flags
   if (process.argv.includes('all')) {
     for (let [ flag, desc ] of Object.entries({
-      f: 'Print compiler IR generated from user functions',
-      'pgo-trim': 'Enable profile-guided trimming (exact|oz|exact-oz)',
-      'blank-internal-throw-messages': 'Blank messages for compiler-generated internal throws',
       'fast-length': 'Non-compliant optimization to make .length faster',
       'profile-compiler': 'Log general compiler performance (on by default when compiling to a file)',
     })) {

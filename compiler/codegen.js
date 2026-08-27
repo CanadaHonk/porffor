@@ -761,7 +761,7 @@ const builtinShadowed = (scope, name) => {
 
 // lightweight throw: a bare error-typed jsval carrying the message bytestring offset (ThrowNew)
 const internalThrow = (scope, constructor, message) => {
-  message = Prefs.blankInternalThrowMessages ? '' : (Prefs.d ? `${message} (in ${scope.name})` : message);
+  message = Prefs.d ? `${message} (in ${scope.name})` : message;
   const msg = message
     ? dataRef(`#msg:${message}`, [ ...i32Bytes(message.length), ...[...message].map(c => c.charCodeAt(0) & 0xff) ])
     : Const(T.u32, 0);

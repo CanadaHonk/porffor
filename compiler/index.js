@@ -1,24 +1,7 @@
-import { underline, bold } from './log.js';
 import parse from './parse.js';
 import codegen from './codegen.js';
 import render from './render.js';
 import './prefs.js';
-
-const logFuncs = (funcs, globals) => {
-  console.log('\n' + underline(bold('funcs')));
-
-  let wanted = Prefs.f;
-  if (typeof wanted !== 'string') wanted = null;
-
-  for (const f of funcs) {
-    if (!f) continue;
-    if ((wanted && (f.name !== wanted && wanted !== '!')) || (!wanted && f.internal)) continue;
-    console.log(`${f.name}(${f.params.map(x => `${x.name}:${x.type}`).join(', ')}) -> ${f.retType}`);
-    console.log(JSON.stringify(f.body, null, 2));
-  }
-
-  console.log();
-};
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 const { execSync, spawn } = (typeof process?.version !== 'undefined' ? (await import('node:child_process')) : {});
@@ -88,7 +71,6 @@ export default (code, module = Prefs.module, run = false) => {
 
   if (logProgress) progressDone('generated IR', t1);
 
-  if (Prefs.f) logFuncs(cg.funcs, cg.globals);
   if (globalThis.precompile) return cg;
 
   if (logProgress) progressStart('rendering C...');
