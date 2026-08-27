@@ -2352,9 +2352,11 @@ const typeAnnoToIrType = x => {
   return null;
 };
 
-const extractTypeAnnotation = decl => {
+const extractTypeAnnotation = (decl, unwrapPromise = false) => {
   let a = decl;
   while (a.typeAnnotation) a = a.typeAnnotation;
+  if (unwrapPromise && a.type === 'TSTypeReference' && a.typeName?.name === 'Promise') a = a.typeParameters?.params?.[0];
+  if (!a) return {};
 
   let types = null, type = null, elementType = null, irType = null;
   if (a.typeName) {
@@ -4808,7 +4810,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   funcsByIndex[func.index] = func;
 
   if (typedInput && decl.returnType) {
-    const { type, types, irType } = extractTypeAnnotation(decl.returnType);
+    // unwrap Promise<T> for async functions
+    const { type, types, irType } = extractTypeAnnotation(decl.returnType, func.async && !func.generator);
     if (irType != null) func.retType = irType;
     if (type != null) { typeUsed(func, type); func.returnType = type; }
     else if (types != null) { func.returnTypes = types; for (const x of types) typeUsed(func, x); }
