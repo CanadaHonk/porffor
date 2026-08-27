@@ -4807,7 +4807,10 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   funcs.push(func);
   funcsByIndex[func.index] = func;
 
-  if (typedInput && decl.returnType) {
+  // async/generator bodies are coroutines: the annotation (Promise<T>, Generator<T>)
+  // describes what the *call* produces, not what the body returns, so applying it here
+  // would mislabel the resolved value as a promise/generator
+  if (typedInput && decl.returnType && !decl.async && !decl.generator) {
     const { type, types, irType } = extractTypeAnnotation(decl.returnType);
     if (irType != null) func.retType = irType;
     if (type != null) { typeUsed(func, type); func.returnType = type; }
