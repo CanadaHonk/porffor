@@ -743,6 +743,7 @@ const generateEnum = (scope, decl) => {
 };
 
 const lookupName = (scope, name) => {
+  if (name === undefined) return [ undefined, undefined ];
   if (name in scope.locals) return [ scope.locals[name], false ];
   if (name in globals) return [ globals[name], true ];
 
