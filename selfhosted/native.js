@@ -350,16 +350,6 @@ if (path_owned) free(path_owned);
   return ok !== 0;
 };
 
-const unlinkSync = path => {
-  const pathType = Porffor.type(path);
-  Porffor.c`
-char *path_owned;
-char *path_ptr = __porffor_node_cstr(MEM, path, (i32)pathType.val, &path_owned);
-unlink(path_ptr);
-if (path_owned) free(path_owned);
-`;
-};
-
 const mkdtempSync = prefix => {
   const prefixType = Porffor.type(prefix);
   const out = Porffor.malloc(prefix.length + 12);
@@ -424,7 +414,6 @@ if (cmd_owned) free(cmd_owned);
   }
 
   if (status !== 0) throw new Error('execSync failed');
-  return '';
 };
 
 const mkdirSync = (path, options = undefined) => {
@@ -536,13 +525,13 @@ if (path_owned) free(path_owned);
   if (status != 0) throw new Error('symlinkSync failed');
 };
 
-const cpSync = (src, dest, options = undefined) => {
+const cpSync = (src, dest) => {
   const st = statSync(src);
   if (st.isDirectory()) {
     mkdirSync(dest, { recursive: true });
     const entries = readdirSync(src);
     for (let i = 0; i < entries.length; i++) {
-      cpSync(src + '/' + entries[i], dest + '/' + entries[i], options);
+      cpSync(src + '/' + entries[i], dest + '/' + entries[i]);
     }
     return;
   }
@@ -796,10 +785,6 @@ if (nativeArgc() > 0) argv.push(nativeArgv(0));
 argv.push('runtime/index.js');
 for (let i = 1; i < nativeArgc(); i++) argv.push(nativeArgv(i));
 
-globalThis.Buffer = {
-  from: value => value
-};
-
 globalThis.setInterval = () => 0;
 globalThis.clearInterval = () => {};
 
@@ -810,7 +795,6 @@ globalThis.process = {
   platform: nativePlatform(),
   version: 'porffor-native',
   stdin: {
-    isTTY: nativeIsTTY(0),
     readLine: nativeReadLine
   },
   stdout: {
@@ -823,8 +807,7 @@ globalThis.process = {
   },
   exit: (code = 0) => {
     Porffor.c`exit((int)code.val);`;
-  },
-  on: () => {}
+  }
 };
 
 globalThis.__porfforNode = {
@@ -833,7 +816,6 @@ globalThis.__porfforNode = {
     writeFileSync,
     statSync,
     existsSync,
-    unlinkSync,
     mkdtempSync,
     rmSync,
     mkdirSync,
