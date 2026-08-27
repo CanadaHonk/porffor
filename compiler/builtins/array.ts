@@ -850,7 +850,6 @@ export const __Array_prototype_sort = function (this: any[], callbackFn: any) {
 
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
 
-  // insertion sort, i guess
   let len: i32 = this.length;
   if (Porffor.type(this) == Porffor.TYPES.array) {
     let presentLen: i32 = 0;
@@ -861,6 +860,60 @@ export const __Array_prototype_sort = function (this: any[], callbackFn: any) {
     for (let i: i32 = presentLen; i < len; i++) __Porffor_array_delete(this, i);
     len = presentLen;
   }
+
+  // bottom-up merge sort: stable, O(n log n). insertion sort below handles the short
+  // arrays, where the auxiliary buffer costs more than the quadratic loop saves
+  if (len > 24) {
+    const buf: any[] = Porffor.array.new(len);
+    buf.length = len;
+
+    let width: i32 = 1;
+    while (width < len) {
+      let lo: i32 = 0;
+      while (lo < len) {
+        let mid: i32 = lo + width;
+        if (mid > len) mid = len;
+        let hi: i32 = mid + width;
+        if (hi > len) hi = len;
+
+        let a: i32 = lo;
+        let b: i32 = mid;
+        let k: i32 = lo;
+        while (a < mid && b < hi) {
+          const x: any = this[a];
+          const y: any = this[b];
+
+          // 23.1.3.30.2 CompareArrayElements (x, y, comparefn)
+          // https://tc39.es/ecma262/#sec-comparearrayelements
+          let v: number;
+          if (Porffor.type(x) == Porffor.TYPES.undefined && Porffor.type(y) == Porffor.TYPES.undefined) v = 0;
+            else if (Porffor.type(x) == Porffor.TYPES.undefined) v = 1;
+            else if (Porffor.type(y) == Porffor.TYPES.undefined) v = -1;
+            else v = callbackFn(x, y);
+
+          // take the left run unless it compares strictly greater, so equal elements keep
+          // their original order (NaN falls here too, matching the spec's coercion to +0)
+          if (v > 0) {
+            buf[k++] = y;
+            b++;
+          } else {
+            buf[k++] = x;
+            a++;
+          }
+        }
+        while (a < mid) buf[k++] = this[a++];
+        while (b < hi) buf[k++] = this[b++];
+
+        lo = hi;
+      }
+
+      for (let i: i32 = 0; i < len; i++) this[i] = buf[i];
+      width *= 2;
+    }
+
+    return this;
+  }
+
   for (let i: i32 = 0; i < len; i++) {
     const x: any = this[i];
     let j: i32 = i;
