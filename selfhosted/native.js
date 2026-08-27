@@ -844,7 +844,6 @@ globalThis.__porfforNode = {
   },
   child_process: {
     execSync,
-    execFileSync,
-    spawn: () => { throw new Error('spawn not implemented'); }
+    execFileSync
   }
 };

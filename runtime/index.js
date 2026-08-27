@@ -151,11 +151,7 @@ entrypoint: {
     if ((Prefs.target === 'c' || Prefs.target === 'native') && DEFAULT_EXPORT_PATTERN.test(source) && source.includes('fetch')) {
       (await import('./native-fetch.js')).default(inputFile, source);
     } else {
-      const result = (await import('../compiler/index.js')).default(source, Prefs.module ?? looksLikeModule(inputFile, source), runAfterCompile);
-      if (result?.runStatus != null) {
-        runAfterCompile = false;
-        runStatus = result.runStatus;
-      }
+      (await import('../compiler/index.js')).default(source, Prefs.module ?? looksLikeModule(inputFile, source));
     }
 
     if (runAfterCompile) {

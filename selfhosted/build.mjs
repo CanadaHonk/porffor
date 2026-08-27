@@ -21,9 +21,8 @@ export const renameSync = fs.renameSync;
 export const symlinkSync = fs.symlinkSync;
 export const cpSync = fs.cpSync;
 export default fs;` ],
-  [ 'node:child_process', `export const execSync = globalThis.__porfforNode.child_process.execSync;
-export const execFileSync = globalThis.__porfforNode.child_process.execFileSync;
-export const spawn = globalThis.__porfforNode.child_process.spawn;` ],
+[ 'node:child_process', `export const execSync = globalThis.__porfforNode.child_process.execSync;
+export const execFileSync = globalThis.__porfforNode.child_process.execFileSync;` ],
   [ 'node:path', `const normalizeParts = parts => {
   const out = [];
   for (let i = 0; i < parts.length; i++) {
@@ -243,7 +242,7 @@ const load = file => {
 
   if (file.endsWith('/compiler/index.js')) {
     source = source.replace(`const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);`, `const fs = globalThis.__porfforNode.fs;`);
-    source = source.replace(`const { execSync, spawn } = (typeof process?.version !== 'undefined' ? (await import('node:child_process')) : {});`, `const { execSync, spawn } = globalThis.__porfforNode.child_process;`);
+    source = source.replace(`const { execSync } = (typeof process?.version !== 'undefined' ? (await import('node:child_process')) : {});`, `const { execSync } = globalThis.__porfforNode.child_process;`);
     source = `import * as uwebsockets from './uwebsockets.js';\n` + source;
     source = source.replace(`const uwebsockets = (typeof process?.version !== 'undefined' ? (await import('./uwebsockets.js')) : undefined);`, ``);
     source = source.replace(`outFile ??= file.split('/').at(-1).split('.')[0];`, `outFile ??= globalThis.file.split('/').at(-1).split('.')[0];`);
@@ -702,7 +701,6 @@ var Prefs, argvChanged, Buffer, process, __porfforNode;
 var version, porfforFile, typedInput, precompile, noi32F64CallConv;
 var pageSize, _uniqId = 0, funcBodies, precompileI32SignsFor;
 var importFuncs, importDelta;
-var onProgress, progress, compileCallback;
 `;
 
 for (const mod of modules) {
@@ -750,10 +748,7 @@ const optimizedGlobals = [
   'funcBodies',
   'precompileI32SignsFor',
   'importFuncs',
-  'importDelta',
-  'onProgress',
-  'progress',
-  'compileCallback'
+  'importDelta'
 ];
 for (const name of optimizedGlobals) {
   output = output.replaceAll(`globalThis.${name}`, name);

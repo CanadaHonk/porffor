@@ -4,7 +4,7 @@ import render from './render.js';
 import './prefs.js';
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
-const { execSync, spawn } = (typeof process?.version !== 'undefined' ? (await import('node:child_process')) : {});
+const { execSync } = (typeof process?.version !== 'undefined' ? (await import('node:child_process')) : {});
 const uwebsockets = (typeof process?.version !== 'undefined' ? (await import('./uwebsockets.js')) : undefined);
 
 const formatTime = ms => ms >= 60_000 ? `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s` : ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms.toFixed(0)}ms`;
@@ -13,7 +13,6 @@ const formatSize = bytes => bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(
 let progressLines = 0, progressInterval;
 let spinner = ['-', '\\', '|', '/'], spin = 0;
 const progressStart = msg => {
-  if (globalThis.onProgress) return;
   if (!process.stdout.isTTY) return;
 
   const log = (extra, after) => {
@@ -22,13 +21,10 @@ const progressStart = msg => {
   };
   log();
 
-  globalThis.progress = log;
   // selfhosted timers keep the process spinning forever: animate node-hosted only
   if (process.argv0 === 'node') progressInterval = setInterval(log, 100);
 };
 const progressDone = (msg, start) => {
-  if (globalThis.onProgress) return globalThis.onProgress(msg, performance.now() - start);
-
   clearInterval(progressInterval);
 
   const timeStr = (performance.now() - start).toFixed(0);
@@ -36,14 +32,13 @@ const progressDone = (msg, start) => {
   progressLines++;
 };
 const progressClear = () => {
-  if (globalThis.onProgress) return;
   if (!process.stdout.isTTY) return;
 
   clearInterval(progressInterval);
   process.stdout.write(`\u001b[${progressLines}F\u001b[0J`);
   progressLines = 0;
 };
-export default (code, module = Prefs.module, run = false) => {
+export default (code, module = Prefs.module) => {
   Prefs.module = module;
 
   const optPref = process.argv.find(x => x.startsWith('-O'))?.[2] ?? Prefs.O;
@@ -61,17 +56,18 @@ export default (code, module = Prefs.module, run = false) => {
   if (logProgress) progressDone('parsed', t0);
 
   // --parse-only: stop after parsing
-  if (Prefs.parseOnly) return { program };
+  if (Prefs.parseOnly) return;
 
   if (logProgress) progressStart('generating IR...');
   const t1 = performance.now();
   const cg = codegen(program);
-  if (globalThis.compileCallback) globalThis.compileCallback(cg);
-  cg.times = [ t0, t1, performance.now() ];
 
   if (logProgress) progressDone('generated IR', t1);
 
-  if (globalThis.precompile) return cg;
+  if (globalThis.precompile) {
+    cg.times = [ t0, t1, performance.now() ];
+    return cg;
+  }
 
   if (logProgress) progressStart('rendering C...');
   const t4 = performance.now();
@@ -90,12 +86,12 @@ export default (code, module = Prefs.module, run = false) => {
     if (logProgress) {
       const total = performance.now();
       progressClear();
-      if (!outFile) return cg;
+      if (!outFile) return;
       const detail = Prefs.nativeFetch ? 'C bundle' : formatSize(fs.statSync(outFile).size);
       console.log(`\u001b[2m[${formatTime(total)}]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${detail})\u001b[0m`);
     }
 
-    return cg;
+    return;
   }
 
   if (target === 'native') {
@@ -229,8 +225,6 @@ export default (code, module = Prefs.module, run = false) => {
       console.log(`\u001b[2m[${formatTime(total)}]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${formatSize(fs.statSync(outFile).size)})\u001b[0m`);
     }
 
-    return cg;
+    return;
   }
-
-  return cg;
 };
