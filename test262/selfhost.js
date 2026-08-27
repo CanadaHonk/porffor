@@ -9,7 +9,6 @@ import net from 'node:net';
 import os from 'node:os';
 import process from 'node:process';
 import { join } from 'node:path';
-import { log } from '../compiler/log.js';
 import readTest262, { readOne } from './read.js';
 
 const __dirname = import.meta.dirname;
@@ -61,7 +60,7 @@ try {
 try {
   const bundleTime = fs.statSync(join(__dirname, '..', 'selfhosted', 'bundle.js')).mtimeMs;
   if (fs.statSync(selfhostBin).mtimeMs < bundleTime)
-    log.warning('test262', `${selfhostBin} is older than selfhosted/bundle.js - results may not reflect current compiler`);
+    console.warn(`${selfhostBin} is older than selfhosted/bundle.js - results may not reflect current compiler`);
 } catch {}
 
 const resolveTccPath = tcc => {
@@ -100,7 +99,7 @@ if (Number.isNaN(threads)) try {
   threads = parseInt(fs.readFileSync(join(__dirname, '.threads'), 'utf8'));
 } catch {
   threads = Math.min(12, os.cpus().length) - 4;
-  log.warning('test262', `no --threads=n arg or .threads file found, using ${threads} as cautious default (min(12, threads) - 4)`);
+  console.warn(`no --threads=n arg or .threads file found, using ${threads} as cautious default (min(12, threads) - 4)`);
 }
 if (logErrors) threads = 1;
 

@@ -5,7 +5,6 @@ import net from 'node:net';
 import os from 'node:os';
 import process from 'node:process';
 import { join } from 'node:path';
-import { log } from '../compiler/log.js';
 import readTest262, { readOne } from './read.js';
 
 const __dirname = import.meta.dirname;
@@ -87,8 +86,8 @@ if (cluster.isPrimary) {
     threads = parseInt(fs.readFileSync(join(__dirname, '.threads'), 'utf8'));
   } catch {
     threads = Math.min(12, os.cpus().length) - 4;
-    log.warning('test262', `no --threads=n arg or .threads file found, using ${threads} as cautious default (min(12, threads) - 4)`);
-    log.warning('test262', 'please specify via either method to make test262 runs potentially much faster! (ask for tuning advice)');
+    console.warn(`no --threads=n arg or .threads file found, using ${threads} as cautious default (min(12, threads) - 4)`);
+    console.warn('please specify via either method to make test262 runs potentially much faster! (ask for tuning advice)');
   }
 
   if (process.argv.includes('--open')) execSync(`cursor ${test262Path}/test/${whatTests}`);

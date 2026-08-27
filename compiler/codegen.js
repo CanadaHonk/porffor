@@ -670,9 +670,7 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
       return value;
     }
 
-    case 'WithStatement':
-      if (Prefs.d) log.warning('codegen', 'with is not supported, treating as expression');
-      return generate(scope, decl.body);
+    case 'WithStatement': return generate(scope, decl.body);
 
     case 'PrivateIdentifier':
       return generate(scope, {
