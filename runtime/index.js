@@ -41,7 +41,7 @@ const help = () => {
     t: 'Force parsing input as TypeScript',
     d: 'Debug mode (include names and debug logs)',
     module: 'Parse input as a module',
-    safe: 'Safe mode (error on unsafe Porffor features eg FFI)'
+    safe: 'Safe mode (error on unsafe Porffor features)'
   })) {
     flag = '-' + flag;
     if (flag.length > 3) flag = '-' + flag;
