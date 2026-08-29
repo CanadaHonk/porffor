@@ -696,9 +696,6 @@ export const __Porffor_object_spread = (dst: object, src: any): object => {
       const tail: i32 = Porffor.IR.loadU16(ptr, 16);
       if (!(tail & 0b0100)) continue; // not enumerable
 
-      // if key is a symbol skip it, matching __Object_keys
-      if (Porffor.IR.loadU8(ptr, 18) == Porffor.TYPES.symbol) continue;
-
       let key: any = Porffor.as(Porffor.IR.loadI32(ptr, 4), Porffor.IR.loadU8(ptr, 18));
 
       let value: any;
