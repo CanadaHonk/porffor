@@ -18,7 +18,7 @@ const parseOnly = process.argv.includes('--parse-only');
 const resultsPath = join(__dirname, parseOnly ? 'parse-results.json' : 'results.json');
 const diffPath = join(__dirname, parseOnly ? 'parse-diff.json' : 'diff.json');
 const changedSetPath = join(__dirname, parseOnly ? 'parse-changed-set.json' : 'changed-set.json');
-const execTimeout = 10000;
+const execTimeout = 5000;
 const stackSoftLimit = () => {
   try {
     const soft = execSync('ulimit -s', { encoding: 'utf8' }).trim();
@@ -155,7 +155,28 @@ if (cluster.isPrimary) {
     } catch {}
     try {
       fs.rmSync(tccServerSock, { force: true });
+      if (tccZygotePrefix) fs.rmSync(tccZygotePrefix, { force: true });
     } catch {}
+  };
+
+  // tcc zygote: system headers parsed once per worker connection, requests fork from inside the parser
+  let tccZygotePrefix = null;
+  const makeTccZygotePrefix = tcc => {
+    if (process.argv.includes('--no-tcc-zygote')) return null;
+
+    const includes = [ ...new Set(fs.readFileSync(join(__dirname, '../compiler/render.js'), 'utf8').match(/#include <[^>]+>/g) ?? []) ].sort();
+    const path = join(os.tmpdir(), `porffor-test262-zygote-${process.pid}.h`);
+    fs.writeFileSync(path, includes.join('\n') + '\n');
+
+    const obj = join(os.tmpdir(), `porffor-test262-zygote-${process.pid}.o`);
+    const check = spawnSync(tcc, [ ...tccArgs.filter(x => x !== '-run' && x !== '-lm'), '-xc', '-c', path, '-o', obj ], { stdio: 'ignore', timeout: 5000 });
+    fs.rmSync(obj, { force: true });
+    if (check.status !== 0) {
+      fs.rmSync(path, { force: true });
+      return null;
+    }
+
+    return path;
   };
 
   const startTccServer = async () => {
@@ -176,8 +197,9 @@ if (cluster.isPrimary) {
       }
 
       tccServerSock = join(os.tmpdir(), `porffor-test262-tcc-${process.pid}.sock`);
+      tccZygotePrefix ??= makeTccZygotePrefix(tccServerPath);
       let stderr = '';
-      tccServer = spawnProcess(tccServerPath, [ '--run-server', tccServerSock, `--timeout-ms=${execTimeout}` ], { stdio: [ 'ignore', 'ignore', 'pipe' ] });
+      tccServer = spawnProcess(tccServerPath, [ '--run-server', tccServerSock, `--timeout-ms=${execTimeout}`, ...(tccZygotePrefix ? [ `--zygote-prefix=${tccZygotePrefix}` ] : []) ], { stdio: [ 'ignore', 'ignore', 'pipe' ] });
       tccServer.stderr.on('data', x => { if (stderr.length < 4096) stderr += x; });
 
       const ready = await new Promise(res => {
@@ -220,7 +242,7 @@ if (cluster.isPrimary) {
 
   await startTccServer();
 
-  if (!resultOnly && !process.argv.includes('--json-results')) process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mstarting ${threads} runners${tccServer ? ' with tcc server' : ''}...\u001b[0m`);
+  if (!resultOnly && !process.argv.includes('--json-results')) process.stdout.write(`\r${' '.repeat(60)}\r\u001b[90mstarting ${threads} runners${tccServer ? (tccZygotePrefix ? ' with tcc zygote server' : ' with tcc server') : ''}...\u001b[0m`);
 
   const profile = process.argv.includes('--profile');
   if (profile) process.argv.push('--profile-compiler');
