@@ -114,7 +114,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
         };
 
         if (lazyKind && Prefs.lazyObjects) {
-          // entries only for included methods/globals, explicit X.prototype marks __full -> everything
+          // entries only for included methods/globals, explicit X.prototype marks the proto full -> everything
           const ctorName = lazyKind === 'proto' ? name.slice(2, name.indexOf('_prototype')) : null;
           const adds = [];
           onFinalize(() => {
@@ -123,11 +123,11 @@ export const BuiltinVars = ({ builtinFuncs }) => {
               const key = prefix + x;
               if (lazyKind === 'proto') {
                 if (key in builtinFuncs) {
-                  if (builtinFuncs[getName].__full) includeBuiltin(key);
+                  if (fullPrototypes.has(getName)) includeBuiltin(key);
                     else if (!hasFunc(key)) continue;
                 }
                 if (x === 'constructor') {
-                  if (builtinFuncs[getName].__full) includeBuiltin(ctorName);
+                  if (fullPrototypes.has(getName)) includeBuiltin(ctorName);
                     else if (!hasFunc(ctorName)) continue;
                 }
               } else {
@@ -152,7 +152,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     };
 
    _[name] = (_scope, { includeBuiltin }) => {
-      if (lazyKind === 'proto') builtinFuncs[getName].__full = true;
+      if (lazyKind === 'proto') fullPrototypes.add(getName);
       includeBuiltin('#get_' + name);
       return Box(Call('#get_' + name, [], T.ptr), Const(T.i32, existingFunc ? TYPES.function : TYPES.object));
     };
@@ -427,6 +427,8 @@ export const BuiltinVars = ({ builtinFuncs }) => {
 
   return _;
 };
+
+export const fullPrototypes = new Set();
 
 export const BuiltinFuncs = () => {
   const _ = Object.create(null);

@@ -8,7 +8,7 @@ import {
   Call, CallDynamic, Try, Throw, ThrowNew, Await, Yield,
   Alloc, GcBarrier, ArrGet, ArrSet, ArrLenSet, LenGet, LenSet, RawC
 } from './ir.js';
-import { BuiltinFuncs, BuiltinVars } from './builtins.js';
+import { BuiltinFuncs, BuiltinVars, fullPrototypes } from './builtins.js';
 import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
 import semantic, { knownValue, unknownValue } from './semantic.js';
 import parse from './parse.js';
@@ -5058,6 +5058,7 @@ export default (program, opts = {}) => {
   includedBuiltinGlobalInits = new Set();
   irFinalizers = [];
   memberDemands = new Set();
+  fullPrototypes.clear();
   topLevelFunc = null;
   onFinalize(() => resolveMemberDemands(topLevelFunc));
   currentFuncIndex = 0;
