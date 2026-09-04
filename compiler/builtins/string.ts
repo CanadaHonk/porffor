@@ -680,13 +680,13 @@ export const __ByteString_prototype_includes = function (this: bytestring, searc
 
 
 export const __String_prototype_padStart = function (this: string, targetLength: number, padString: any = undefined) {
-  const out: string = Porffor.malloc();
+  const len: i32 = this.length;
+  const todo: i32 = targetLength - len;
+  const out: string = Porffor.malloc((todo > 0 ? len + todo : len) * 2 + 6);
 
   let outPtr: i32 = Porffor.IR.ptr(out);
   let thisPtr: i32 = Porffor.IR.ptr(this);
 
-  const len: i32 = this.length;
-  const todo: i32 = targetLength - len;
   if (todo > 0) {
     if (Porffor.type(padString) == Porffor.TYPES.undefined) {
       for (let i: i32 = 0; i < todo; i++) {
@@ -725,13 +725,13 @@ export const __String_prototype_padStart = function (this: string, targetLength:
 };
 
 export const __ByteString_prototype_padStart = function (this: bytestring, targetLength: number, padString: any = undefined) {
-  const out: bytestring = Porffor.malloc();
+  const len: i32 = this.length;
+  const todo: i32 = targetLength - len;
+  const out: bytestring = Porffor.malloc((todo > 0 ? len + todo : len) + 5);
 
   let outPtr: i32 = Porffor.IR.ptr(out);
   let thisPtr: i32 = Porffor.IR.ptr(this);
 
-  const len: i32 = this.length;
-  const todo: i32 = targetLength - len;
   if (todo > 0) {
     if (Porffor.type(padString) == Porffor.TYPES.undefined) {
       for (let i: i32 = 0; i < todo; i++) {
@@ -767,12 +767,12 @@ export const __ByteString_prototype_padStart = function (this: bytestring, targe
 
 
 export const __String_prototype_padEnd = function (this: string, targetLength: number, padString: any = undefined) {
-  const out: string = Porffor.malloc();
+  const len: i32 = this.length;
+  const todo: i32 = targetLength - len;
+  const out: string = Porffor.malloc((todo > 0 ? len + todo : len) * 2 + 6);
 
   let outPtr: i32 = Porffor.IR.ptr(out);
   let thisPtr: i32 = Porffor.IR.ptr(this);
-
-  const len: i32 = this.length;
 
   const thisPtrEnd: i32 = thisPtr + len * 2;
 
@@ -783,7 +783,6 @@ export const __String_prototype_padEnd = function (this: string, targetLength: n
     outPtr += 2;
   }
 
-  const todo: i32 = targetLength - len;
   if (todo > 0) {
     if (Porffor.type(padString) == Porffor.TYPES.undefined) {
       for (let i: i32 = 0; i < todo; i++) {
@@ -812,12 +811,12 @@ export const __String_prototype_padEnd = function (this: string, targetLength: n
 };
 
 export const __ByteString_prototype_padEnd = function (this: bytestring, targetLength: number, padString: any = undefined) {
-  const out: bytestring = Porffor.malloc();
+  const len: i32 = this.length;
+  const todo: i32 = targetLength - len;
+  const out: bytestring = Porffor.malloc((todo > 0 ? len + todo : len) + 5);
 
   let outPtr: i32 = Porffor.IR.ptr(out);
   let thisPtr: i32 = Porffor.IR.ptr(this);
-
-  const len: i32 = this.length;
 
   const thisPtrEnd: i32 = thisPtr + len;
 
@@ -825,7 +824,6 @@ export const __ByteString_prototype_padEnd = function (this: bytestring, targetL
     Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(thisPtr++, 4));
   }
 
-  const todo: i32 = targetLength - len;
   if (todo > 0) {
     if (Porffor.type(padString) == Porffor.TYPES.undefined) {
       for (let i: i32 = 0; i < todo; i++) {
