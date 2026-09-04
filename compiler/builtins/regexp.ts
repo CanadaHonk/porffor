@@ -2213,6 +2213,8 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
         let runPos: i32 = sp;
         let count: i32 = 0;
         let minPos: i32 = sp;
+        let limit: i32 = max;
+        if (max == 0xFFFF) limit = 0x7FFFFFFF;
 
         if (runBackward == 0 && !(cpMode && isChar && wanted >= 0xD800 && wanted <= 0xDBFF)) {
           // forward run, one tight loop per compare kind
@@ -2245,7 +2247,7 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
           count = runPos - sp;
           minPos = count < min ? runPos : sp + min;
         } else {
-          while (count < max) {
+          while (count < limit) {
             const readPos: i32 = runPos - runBackward;
             if (Porffor.fastOr(readPos < 0, readPos >= inputLen)) break;
 
@@ -2544,6 +2546,8 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
         let runPos: i32 = sp;
         let count: i32 = 0;
         let minPos: i32 = sp;
+        let limit: i32 = max;
+        if (max == 0xFFFF) limit = 0x7FFFFFFF;
 
         if (runBackward == 0 && !cpMode && !isU16) {
           // forward byte run: bitmap-only tight loop, runAny takes everything to its bound in one step
@@ -2563,7 +2567,7 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
           count = runPos - sp;
           minPos = count < min ? runPos : sp + min;
         } else {
-          while (count < max) {
+          while (count < limit) {
             const readPos: i32 = runPos - runBackward;
             if (Porffor.fastOr(readPos < 0, readPos >= inputLen)) break;
 
@@ -2647,6 +2651,8 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
         let runPos: i32 = sp;
         let count: i32 = 0;
         let minPos: i32 = sp;
+        let limit: i32 = max;
+        if (max == 0xFFFF) limit = 0x7FFFFFFF;
 
         if (runBackward == 0 && !cpMode) {
           let runEnd: i32 = inputLen;
@@ -2670,7 +2676,7 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
           count = runPos - sp;
           minPos = count < min ? runPos : sp + min;
         } else {
-          while (count < max) {
+          while (count < limit) {
             const readPos: i32 = runPos - runBackward;
             if (Porffor.fastOr(readPos < 0, readPos >= inputLen)) break;
 
