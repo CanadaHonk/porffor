@@ -70,8 +70,6 @@ export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
 };
 
 export const __String_fromCodePoint = (...codePoints: any[]): string => {
-  const out: string = Porffor.malloc();
-
   const len: i32 = codePoints.length;
   let outLength: i32 = 0;
 
@@ -95,6 +93,7 @@ export const __String_fromCodePoint = (...codePoints: any[]): string => {
     }
   }
 
+  const out: string = Porffor.malloc(outLength * 2 + 6);
   out.length = outLength;
   let outIndex: i32 = 0;
 
