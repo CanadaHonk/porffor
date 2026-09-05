@@ -619,6 +619,14 @@ const annotate = (node, parent = null, key = null) => {
               };
 
               markClosurePassThrough(currentFunc, variable.func);
+              // pass loop captures through intermediate closures
+              const capture = currentFunc._captures[node.name];
+              if (capture.perIteration) {
+                for (let cursor = currentFunc._parentFunc; cursor !== variable.func; cursor = cursor._parentFunc) {
+                  cursor._captures ??= Object.create(null);
+                  cursor._captures[node.name] ??= capture;
+                }
+              }
             }
           } else if (currentFunc._capturedVars?.[node.name]) {
             node._closureFunc = currentFunc;
