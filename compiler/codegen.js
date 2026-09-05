@@ -3933,9 +3933,9 @@ const denseArrayIndexKey = (scope, prop) => {
 };
 
 const generateObject = (scope, decl) => {
-  const capacity = Math.max(decl.properties.filter(x => x.type !== 'SpreadElement').length, 2);
-
-  const obj = reuse(scope, builtinCall(scope, '__Porffor_object_new', [ Const(T.i32, capacity) ]));
+  const obj = reuse(scope, builtinCall(scope, '__Porffor_object_new', [ Const(T.i32, Math.max(decl.properties.length, 2)) ]));
+  const keys = new Set();
+  let slot = 0;
 
   for (const x of decl.properties) {
     let { type, argument, computed, kind, value, method } = x;
@@ -3947,6 +3947,7 @@ const generateObject = (scope, decl) => {
     }
 
     if (type === 'SpreadElement') {
+      slot = -1;
       exprStmt(scope, builtinCall(scope, '__Porffor_object_spread', [ obj, generate(scope, argument) ]));
       continue;
     }
@@ -3966,11 +3967,29 @@ const generateObject = (scope, decl) => {
       value = { ...value, id, _noFuncIndex: noFuncIndex, _closureSource: value._closureSource ?? value };
     }
 
-    exprStmt(scope, builtinCall(scope, `__Porffor_object_expr_${kind}`, [
-      obj,
-      toPropertyKey(scope, generate(scope, key), computed),
-      generate(scope, value)
-    ]));
+    const hash = slot >= 0 && !computed && kind === 'init' && !keys.has(key.value)
+      ? ctHash({ property: { name: key.value } }) : null;
+    if (hash != null) {
+      keys.add(key.value);
+      const prop = reuse(scope, generate(scope, key));
+      const val = reuse(scope, generate(scope, value));
+      const entries = Load('u32', JvPtr(obj), 12);
+      stmt(scope, Store('i32', entries, slot * 20, Const(T.i32, hash)));
+      stmt(scope, Store('u32', entries, slot * 20 + 4, JvPtr(prop)));
+      stmt(scope, Store('f64', entries, slot * 20 + 8, JvNum(val), true));
+      stmt(scope, Store('u8', entries, slot * 20 + 16, Const(T.i32, 14)));
+      stmt(scope, Store('u8', entries, slot * 20 + 17, JvType(val)));
+      stmt(scope, Store('u8', entries, slot * 20 + 18, JvType(prop)));
+      stmt(scope, Store('u16', JvPtr(obj), 0, Const(T.i32, ++slot)));
+      stmt(scope, If(canReferenceCheck(scope, val), [ GcBarrier(JvPtr(obj), Const(T.i32, TYPES.object)) ]));
+    } else {
+      slot = -1;
+      exprStmt(scope, builtinCall(scope, `__Porffor_object_expr_${kind}`, [
+        obj,
+        toPropertyKey(scope, generate(scope, key), computed),
+        generate(scope, value)
+      ]));
+    }
   }
 
   typeUsed(scope, TYPES.object);
