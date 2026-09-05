@@ -622,7 +622,7 @@ const compileSelfhost = async opts => {
       ...compiler.slice(1),
       stage1C, '-o', pgoCompiler, '-lm',
       ...(process.platform === 'darwin' && !isTinyCC(compiler) ? [ '-Wl,-stack_size,0x4000000' ] : []),
-      ...opts.ccOpts,
+      '-O0',
       `-fprofile-instr-generate=${pgoRaw}`
     ]);
     await runCompileStep('profiled selfhost compiler', pgoCompiler, [ 'c', bundle, '-o', pgoOutput ]);
