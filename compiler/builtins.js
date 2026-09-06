@@ -1,6 +1,6 @@
 import * as PrecompiledBuiltins from './builtins_precompiled.js';
 import { TYPES, TYPE_NAMES } from './types.js';
-import { Bin, Un, T, K, Const, JvConst, Box, JvType, JvNum, JvPtr, Convert, Reinterpret, CONVERT_SIGNED, N_KIND, N_TYPE, N_A, N_B, Local, DeclLocal, Assign, Call, CallDynamic, If, TypeSwitch, Return, RawC, BlockStmt } from './ir.js';
+import { Bin, Un, T, K, Const, JvConst, Box, JvType, JvNum, JvPtr, Convert, Reinterpret, CONVERT_SIGNED, N_KIND, N_TYPE, N_A, N_B, Local, DeclLocal, Assign, Select, Call, CallDynamic, If, TypeSwitch, Return, RawC, BlockStmt } from './ir.js';
 import './prefs.js';
 
 const f64FromBytes = bytes => {
@@ -475,11 +475,42 @@ return porf_box_num(pow(baseNum, exponentNum));`, false)
     ]
   };
 
+  // Math.round is not f64.nearest: the spec rounds a tie towards +Infinity
+  // (21.3.2.28), while nearest rounds it to even, so 2.5 gave 2 and -1.5 gave -2.
+  // Adding 0.5 and flooring is not equivalent either - it turns
+  // 0.49999999999999994 into 1 - so the fraction is compared instead.
+  _.__Math_round = {
+    params: [ { name: 'x', type: T.jsval } ],
+    retType: T.jsval,
+    returnType: TYPES.number,
+    body: [
+      DeclLocal(T.f64, 'n', nativeMathArg('x')),
+      DeclLocal(T.f64, 'f', Un('floor', T.f64, Local('n', T.f64))),
+      // NaN and the infinities fall out of this: the subtraction is NaN or 0,
+      // so the comparison is false and floor(n) is returned unchanged.
+      DeclLocal(T.f64, 'r', Select(
+        Bin('>=', T.f64, Bin('-', T.f64, Local('n', T.f64), Local('f', T.f64)), Const(T.f64, 0.5)),
+        Bin('+', T.f64, Local('f', T.f64), Const(T.f64, 1)),
+        Local('f', T.f64)
+      )),
+      // A negative input rounding to zero keeps its sign, so Math.round(-0.5)
+      // stays -0 rather than becoming +0.
+      Return(Box(Select(
+        Bin('<', T.f64, Local('n', T.f64), Const(T.f64, 0)),
+        Select(
+          Bin('==', T.f64, Local('r', T.f64), Const(T.f64, 0)),
+          Const(T.f64, -0),
+          Local('r', T.f64)
+        ),
+        Local('r', T.f64)
+      ), Const(T.i32, TYPES.number)))
+    ]
+  };
+
   for (const [ name, op ] of [
     [ 'abs', 'abs' ],
     [ 'floor', 'floor' ],
     [ 'ceil', 'ceil' ],
-    [ 'round', 'nearest' ],
     [ 'trunc', 'trunc' ]
   ]) {
    _[`__Math_${name}`] = {
