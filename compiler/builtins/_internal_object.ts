@@ -293,14 +293,85 @@ export const __Porffor_object_underlying = (_obj: any): any => {
     Porffor.IR.storeU8(base, 12, objType);
 
     if (objType == Porffor.TYPES.function) {
-      __Porffor_object_fastAdd(underlying, 'length', __Porffor_funcLut_length(obj), 0b0010);
-      __Porffor_object_fastAdd(underlying, 'name', __Porffor_funcLut_name(obj), 0b0010);
+      // %TypedArray% intrinsic wiring: the concrete constructors (Int8Array etc.) and the
+      // shared %TypedArray% intrinsic itself have real, statically-wired prototype objects
+      // (with real methods) rather than the fresh empty one every other function gets here -
+      // link to those instead so Object.getPrototypeOf(Int8Array).prototype stays consistent
+      // with Int8Array.prototype, and Object.getPrototypeOf(Int8Array) resolves to %TypedArray%.
+      // each per-type branch below is gated on a comptime hasFunc flag (keyed off the
+      // constructor's own getter, which any reference to that constructor already includes),
+      // so a program that never touches a given typed array type doesn't pull that type's own
+      // prototype/methods in just because it calls Object.getPrototypeOf on some unrelated
+      // function. NOTE: this only tree-shakes the per-type payload (the __<Type>_prototype
+      // objects and __Porffor_TypedArray itself stay out of binaries that never reference
+      // them) - the surrounding if/else-if/isTypedArrayIntrinsic control-flow skeleton in this
+      // function is plain runtime code (not comptime-gated) and is always compiled into every
+      // binary that includes __Porffor_object_underlying's function-value branch at all (i.e.
+      // any program that reads a property off *any* function value), same as the fallback
+      // branch it wraps. That's a fixed handful of extra local vars/branches, not the 11
+      // constructors' worth of code.
+      let typedArrayProto: any = undefined;
+      let isTypedArrayIntrinsic: boolean = false;
 
-      if (ecma262.IsConstructor(_obj)) { // constructor
-        // set prototype and prototype.constructor if function and constructor
-        const proto: object = __Porffor_object_new(1);
-        __Porffor_object_fastAdd(underlying, 'prototype', proto, 0b1000);
-        __Porffor_object_fastAdd(proto, 'constructor', _obj, 0b1010);
+      if (Porffor.comptime.flag`hasFunc.#get_Int8Array`) {
+        if (_obj == Int8Array) typedArrayProto = __Int8Array_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.#get_Uint8Array`) {
+        if (_obj == Uint8Array) typedArrayProto = __Uint8Array_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.#get_Uint8ClampedArray`) {
+        if (_obj == Uint8ClampedArray) typedArrayProto = __Uint8ClampedArray_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.#get_Int16Array`) {
+        if (_obj == Int16Array) typedArrayProto = __Int16Array_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.#get_Uint16Array`) {
+        if (_obj == Uint16Array) typedArrayProto = __Uint16Array_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.#get_Int32Array`) {
+        if (_obj == Int32Array) typedArrayProto = __Int32Array_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.#get_Uint32Array`) {
+        if (_obj == Uint32Array) typedArrayProto = __Uint32Array_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.#get_Float32Array`) {
+        if (_obj == Float32Array) typedArrayProto = __Float32Array_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.#get_Float64Array`) {
+        if (_obj == Float64Array) typedArrayProto = __Float64Array_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.#get_BigInt64Array`) {
+        if (_obj == BigInt64Array) typedArrayProto = __BigInt64Array_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.#get_BigUint64Array`) {
+        if (_obj == BigUint64Array) typedArrayProto = __BigUint64Array_prototype;
+      }
+
+      if (Porffor.type(typedArrayProto) != Porffor.TYPES.undefined) {
+        __Porffor_object_fastAdd(underlying, 'length', __Porffor_funcLut_length(obj), 0b0010);
+        __Porffor_object_fastAdd(underlying, 'name', __Porffor_funcLut_name(obj), 0b0010);
+        __Porffor_object_fastAdd(underlying, 'prototype', typedArrayProto, 0b0000);
+        __Porffor_object_setPrototype(underlying, __Porffor_TypedArray);
+        isTypedArrayIntrinsic = true;
+      } else if (Porffor.comptime.flag`hasFunc.__Porffor_TypedArray`) {
+        if (_obj == __Porffor_TypedArray) {
+          __Porffor_object_fastAdd(underlying, 'length', 0, 0b0010);
+          __Porffor_object_fastAdd(underlying, 'name', 'TypedArray', 0b0010);
+          __Porffor_object_fastAdd(underlying, 'prototype', __Porffor_TypedArray_prototype, 0b0000);
+          isTypedArrayIntrinsic = true;
+        }
+      }
+
+      if (!isTypedArrayIntrinsic) {
+        __Porffor_object_fastAdd(underlying, 'length', __Porffor_funcLut_length(obj), 0b0010);
+        __Porffor_object_fastAdd(underlying, 'name', __Porffor_funcLut_name(obj), 0b0010);
+
+        if (ecma262.IsConstructor(_obj)) { // constructor
+          // set prototype and prototype.constructor if function and constructor
+          const proto: object = __Porffor_object_new(1);
+          __Porffor_object_fastAdd(underlying, 'prototype', proto, 0b1000);
+          __Porffor_object_fastAdd(proto, 'constructor', _obj, 0b1010);
+        }
       }
     }
 

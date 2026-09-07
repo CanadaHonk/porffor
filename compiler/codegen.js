@@ -3993,6 +3993,10 @@ const primObjAlias = {
   [TYPES.bytestring]: TYPES.stringobject
 };
 
+// every concrete typed array TYPES tag - used to gate the shared %TypedArray%.prototype
+// dispatchers below (they aren't keyed to a single TYPES entry like the per-type methods are)
+const allTypedArrayTypes = [ TYPES.uint8clampedarray, TYPES.uint8array, TYPES.int8array, TYPES.uint16array, TYPES.int16array, TYPES.uint32array, TYPES.int32array, TYPES.biguint64array, TYPES.bigint64array, TYPES.float32array, TYPES.float64array ];
+
 const resolveMemberDemands = scope => {
   for (const propName of memberDemands) {
     const getterOnly = propName === 'constructor';
@@ -4010,6 +4014,16 @@ const resolveMemberDemands = scope => {
       if (!getterOnly) {
         const getter = '#get___' + tn + '_prototype';
         if (getter in builtinFuncs) includeBuiltin(scope, getter);
+      }
+    }
+
+    // %TypedArray%.prototype thin dispatchers: not keyed to a single TYPES entry (they cover
+    // all 11 typed array types via a runtime check), so the loop above never matches them
+    if (!getterOnly) {
+      const tarName = '__Porffor_TypedArray_prototype_' + propName;
+      if (tarName in builtinFuncs && usesAnyType(allTypedArrayTypes)) {
+        includeBuiltin(scope, tarName);
+        includeBuiltin(scope, '#get___Porffor_TypedArray_prototype');
       }
     }
   }

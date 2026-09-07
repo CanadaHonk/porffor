@@ -315,6 +315,33 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       props.length = { value: 0, writable: true, configurable: false };
     }
 
+    // %TypedArray%.prototype: shared intrinsic parent of every concrete typed array
+    // prototype (Object.getPrototypeOf(Int8Array.prototype) === %TypedArray%.prototype)
+    if (x.slice(2, -'_prototype'.length) in typedArrayBytesPerElement) {
+      const value = (_scope, { includeBuiltin }) => {
+        includeBuiltin('#get___Porffor_TypedArray_prototype');
+        return Box(Call('#get___Porffor_TypedArray_prototype', [], T.ptr), Const(T.i32, TYPES.object));
+      };
+      Object.defineProperty(props, '__proto__', { value: { value, configurable: true }, enumerable: true });
+    }
+
+    // %TypedArray%.prototype.constructor === %TypedArray% (name extraction below can't
+    // see through the underscore in "Porffor_TypedArray", so wire it explicitly)
+    if (x === '__Porffor_TypedArray_prototype') {
+      const value = (_scope, { includeBuiltin, funcRefPtr }) => {
+        includeBuiltin('__Porffor_TypedArray');
+        return Box(funcRefPtr('__Porffor_TypedArray'), Const(T.i32, TYPES.function));
+      };
+      value.type = TYPES.function;
+
+      props.constructor = {
+        value,
+        writable: true,
+        enumerable: false,
+        configurable: true
+      };
+    }
+
     // add constructor for constructors
     const name = x.slice(2, x.indexOf('_', 2));
     if (builtinFuncs[name]?.constr) {
