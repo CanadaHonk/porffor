@@ -315,6 +315,21 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       props.length = { value: 0, writable: true, configurable: false };
     }
 
+    // Iterator-derived internal prototypes (helper/wrapper/internal string iterator) chain
+    // to Iterator.prototype so instances inherit map/filter/take/drop/flatMap/etc.
+    // Generators are included too: per the Iterator Helpers proposal %GeneratorPrototype%
+    // itself now sits under %IteratorPrototype%, so `function* () {}().map(...)` gets the
+    // helper methods for free (matches real engines). Inclusion of Iterator.prototype's own
+    // (large) method set is demand-driven (see resolveMemberDemands in codegen.js), not
+    // forced - those are reliably discoverable because user code invokes them by name
+    // (`.map(...)`, `.filter(...)`, etc).
+    if ([ '__IteratorHelper_prototype', '__WrapForValidIterator_prototype', '__Porffor_StringIterator_prototype', '__Porffor_Generator_prototype' ].includes(x)) {
+      Object.defineProperty(props, '__proto__', {
+        value: { value: (_scope, helpers) => _['__Iterator_prototype'](_scope, helpers), configurable: true },
+        enumerable: true
+      });
+    }
+
     // add constructor for constructors
     const name = x.slice(2, x.indexOf('_', 2));
     if (builtinFuncs[name]?.constr) {
@@ -330,6 +345,22 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     }
 
     object(x, props);
+
+    // __IteratorHelper_prototype/__WrapForValidIterator_prototype/__Porffor_StringIterator_
+    // prototype only ever hold `next`/`return` - a couple of tiny methods each - and codegen's
+    // generic for-of object case (generateForOf) reaches them purely via the real runtime
+    // [[Prototype]] chain, not a statically-named call. That's invisible to
+    // resolveMemberDemands's demand tracking specifically when the for-of loop reaching them
+    // lives inside another *precompiled* builtin (eg Array.from's fast path in array.ts):
+    // that loop is compiled once, ahead of time, with demand-tracking disabled, and its body
+    // is then reused as-is - it never re-runs during the real compile to (re-)register the
+    // demand. Force-including these two tiny methods on these three prototypes is a narrow,
+    // cheap trade (see the skill-issued binary-size measurement in the commit for the
+    // reasoning) that keeps that path working without reintroducing the original blanket
+    // force across all of Iterator.prototype's much larger method set.
+    if ([ '__IteratorHelper_prototype', '__WrapForValidIterator_prototype', '__Porffor_StringIterator_prototype' ].includes(x)) {
+      builtinFuncs['#get_' + x].__full = true;
+    }
   }
 
 
@@ -374,7 +405,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     }, autoFuncKeys(x).slice(0, 12)));
   }
 
-  for (const x of [ 'Array', 'ArrayBuffer', 'Atomics', 'Date', 'Error', 'JSON', 'Object', 'Promise', 'Reflect', 'String', 'Symbol', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'SharedArrayBuffer', 'BigInt', 'Boolean', 'DataView', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'Function', 'Map', 'RegExp', 'Set', 'WeakMap', 'WeakRef', 'WeakSet' ]) {
+  for (const x of [ 'Array', 'ArrayBuffer', 'Atomics', 'Date', 'Error', 'JSON', 'Object', 'Promise', 'Reflect', 'String', 'Symbol', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'SharedArrayBuffer', 'BigInt', 'Boolean', 'DataView', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'Function', 'Iterator', 'Map', 'RegExp', 'Set', 'WeakMap', 'WeakRef', 'WeakSet' ]) {
     object(x, {
       ...(typedArrayBytesPerElement[x] == null ? {} : props({
         writable: false,

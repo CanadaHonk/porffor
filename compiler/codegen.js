@@ -1651,6 +1651,11 @@ const typeIsIterable = t => Bin('|', T.i32,
   Bin('&', T.i32,
     Bin('>=', T.i32, t, Const(T.i32, TYPES.uint8clampedarray)),
     Bin('<=', T.i32, t, Const(T.i32, TYPES.float64array))));
+// for-of only: also accept generic objects (Iterator / Iterator Helper instances, or any
+// plain object exposing a `next` method) - validated for real inside generateForOf's object
+// case (typeIsIterable proper is left untouched as it also gates array destructuring, whose
+// value-extraction path does not implement the generic object iterator protocol)
+const typeIsIterableForOf = t => Bin('|', T.i32, typeIsIterable(t), Bin('==', T.i32, t, Const(T.i32, TYPES.object)));
 const typeIsAsyncIterable = t => Bin('==', T.i32, t, Const(T.i32, TYPES.__porffor_asyncgenerator));
 
 const getKnownThisSlots = node => {
@@ -3449,7 +3454,7 @@ const generateForOf = (scope, decl) => {
   const rootTy = reuse(scope, JvType(root));
   const isAwait = decl.await === true;
 
-  emitIf(scope, Un('!', T.i32, isAwait ? Bin('|', T.i32, typeIsIterable(rootTy), typeIsAsyncIterable(rootTy)) : typeIsIterable(rootTy)),
+  emitIf(scope, Un('!', T.i32, isAwait ? Bin('|', T.i32, typeIsIterableForOf(rootTy), typeIsAsyncIterable(rootTy)) : typeIsIterableForOf(rootTy)),
     () => internalThrow(scope, 'TypeError', isAwait ? 'Tried for await..of on non-iterable type' : 'Tried for..of on non-iterable type'));
 
   if (decl.left.type === 'Identifier' && !isIdentAssignable(scope, decl.left.name))
@@ -3462,6 +3467,31 @@ const generateForOf = (scope, decl) => {
 
   assign(scope, pointer, JvPtr(root));
   assign(scope, length, LenGet(pointer));
+
+  // generic object case (Iterator / Iterator Helper / a user-defined iterable / any plain
+  // object with a callable `next`): GetIterator, once, before the loop - consult
+  // Symbol.iterator if the object has one (so a container with a *separate* iterator
+  // object, eg `class Range { [Symbol.iterator]() { return {...} } }`, works correctly),
+  // else treat the object itself as already being the iterator (covers every
+  // Iterator/IteratorHelper instance this compiler produces, none of which declare
+  // [Symbol.iterator] - see builtins/iterator.ts - as well as plain `{ next() {} }`
+  // objects). The resolved iterator and its cached `.next` method are reused every
+  // iteration below, matching real GetIterator-once-then-IteratorStep-repeatedly semantics
+  const needsObjectIteration = rootKnown == null || rootKnown === TYPES.object;
+  let objIterator, objNextMethod;
+  if (needsObjectIteration) {
+    objIterator = tmp(scope, T.jsval, valUndefined());
+    objNextMethod = tmp(scope, T.jsval, valUndefined());
+    emitIf(scope, Bin('==', T.i32, rootTy, Const(T.i32, TYPES.object)), () => {
+      assign(scope, objIterator, builtinCall(scope, '__Porffor_getIteratorForOf', [ root ]));
+      assign(scope, objNextMethod, generate(scope, {
+        type: 'MemberExpression',
+        object: identNode(objIterator[N_A]),
+        property: { type: 'Identifier', name: 'next' },
+        computed: false
+      }));
+    });
+  }
 
   const L = fresh(scope);
   const d = { type: 'forof', brk: L, cont: L, contViaBreak: false };
@@ -3555,6 +3585,15 @@ const generateForOf = (scope, decl) => {
         setLocalWithType(scope, vName, false, Load('jsval', Bin('+', T.u32, valsEnt, off), 0));
         assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
         return generate(scope, { type: 'ArrayExpression', elements: [ { type: 'Identifier', name: kName }, { type: 'Identifier', name: vName } ] });
+      } ],
+
+      // generic object (Iterator / Iterator Helper / a user-defined iterable / any object
+      // with a callable `next`) - the iterator + its `.next` method were already resolved
+      // once above (GetIterator), so just IteratorStep it each iteration
+      [ TYPES.object, () => {
+        const result = reuse(scope, builtinCall(scope, '__Porffor_iteratorStepCached', [ objIterator, objNextMethod ]));
+        emitIf(scope, JvTruthy(builtinCall(scope, '__Porffor_iteratorResultDone', [ result ])), () => stmt(scope, Break(L)));
+        return builtinCall(scope, '__Porffor_iteratorResultValue', [ result ]);
       } ],
 
       // should be unreachable (the iterable check passed)
@@ -3993,6 +4032,15 @@ const primObjAlias = {
   [TYPES.bytestring]: TYPES.stringobject
 };
 
+// Iterator/IteratorHelper/WrapForValidIterator (and the internal string iterator used by
+// Iterator.from) are plain TYPES.object, not a distinct internal type like Array/Map/Set -
+// so `tn` below never resolves through TYPES for them. Demand-gate on TYPES.object usage
+// instead of force-including the whole library into every binary regardless of use
+// (memberDemands.has(propName) - checked by the caller below - is still the real,
+// meaningfully-narrowing gate: a program that never writes `.map`/`.next`/etc anywhere
+// never adds those names to memberDemands in the first place)
+const iteratorFamilyPrototypes = new Set([ 'Iterator', 'IteratorHelper', 'WrapForValidIterator', 'Porffor_StringIterator' ]);
+
 const resolveMemberDemands = scope => {
   for (const propName of memberDemands) {
     const getterOnly = propName === 'constructor';
@@ -4005,7 +4053,10 @@ const resolveMemberDemands = scope => {
       }
 
       const t = TYPES[tn.toLowerCase()];
-      if (t == null || !usesAnyType([ t, primObjAlias[t] ])) continue;
+      if (t == null) {
+        if (!iteratorFamilyPrototypes.has(tn) || !usesAnyType([ TYPES.object ])) continue;
+      } else if (!usesAnyType([ t, primObjAlias[t] ])) continue;
+
       includeBuiltin(scope, x);
       if (!getterOnly) {
         const getter = '#get___' + tn + '_prototype';

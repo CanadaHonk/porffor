@@ -43,7 +43,12 @@ export const __Array_from = (arg: any, mapFn: any, thisArg: any = undefined): an
     Porffor.type(arg) == Porffor.TYPES.array,
     (Porffor.type(arg) | 0b10000000) == Porffor.TYPES.bytestring,
     Porffor.type(arg) == Porffor.TYPES.set,
-    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array)
+    Porffor.type(arg) == Porffor.TYPES.__porffor_generator,
+    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array),
+    // Iterator / Iterator Helper / any plain object exposing a callable `next` (see the
+    // generic for-of object case in codegen for why this is checked rather than
+    // Symbol.iterator - kept consistent with that same pragmatic iterator protocol)
+    Porffor.fastAnd(Porffor.type(arg) == Porffor.TYPES.object, Porffor.type(arg.next) == Porffor.TYPES.function)
   )) {
     let i: i32 = 0;
     if (Porffor.type(mapFn) != Porffor.TYPES.undefined) {
