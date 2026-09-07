@@ -2,7 +2,24 @@ export default async () => {
   let out = '';
 
   const arrayCode = (await import('node:fs')).readFileSync(globalThis.precompileCompilerPath + '/builtins/array.ts', 'utf8');
-  const typedArrayFuncs = [...arrayCode.matchAll(/\/\/ @porf-typed-array[\s\S]+?^};$/gm)].map(x => x[0]);
+  // a block either closes on its own opening line (single-line body, e.g. toLocaleString's
+  // `{ return ...; };`) or spans multiple lines down to a standalone "};" - try the
+  // single-line shape first, since for a multi-line body its own opening line never ends in
+  // "};" so it falls through to the multi-line alternative
+  const typedArrayFuncs = [...arrayCode.matchAll(/\/\/ @porf-typed-array\n(?:export const \w+ = function \([^)]*\)[^\n]*\{[^\n]*\};\n|export const \w+ = function \([^)]*\)[^\n]*\{\n[\s\S]*?^\};\n)/gm)].map(x => x[0]);
+
+  // loud guard: a future reformat of array.ts (e.g. changed blank-line spacing around the
+  // marker, or the closing brace no longer alone on its own line) would make this regex
+  // silently match fewer blocks than intended, quietly dropping methods (and their
+  // ValidateTypedArray detached-buffer check below) from every typed array prototype with a
+  // green build. Cross-check against a plain marker count so that class of drift throws instead.
+  // (this guard caught a real pre-existing bug: the previous single-alternative regex treated
+  // toLocaleString's single-line body as unterminated and swallowed everything up to join's
+  // closing brace, so __<Type>_prototype_join was never generated for any typed array type.)
+  const markerCount = [...arrayCode.matchAll(/\/\/ @porf-typed-array\n/g)].length;
+  if (typedArrayFuncs.length !== markerCount) {
+    throw new Error(`typedarray.js: expected to extract ${markerCount} @porf-typed-array blocks from array.ts, got ${typedArrayFuncs.length} - the extraction regex likely no longer matches array.ts's current formatting`);
+  }
 
   // typedarray layout: length (i32), bufferPtr (i32, buffer + byteOffset), byteOffset (i32, getter only)
 
@@ -134,6 +151,8 @@ export const __${name}_prototype_byteOffset$get = function (this: ${name}) {
 };
 
 export const __${name}_prototype_at = function (this: ${name}, index: any) {
+  if (this.buffer.detached) throw new TypeError('Method %TypedArray%.prototype.at called on a typed array with a detached buffer');
+
   index = ecma262.ToIntegerOrInfinity(index);
 
   const len: i32 = this.length;
@@ -147,6 +166,8 @@ export const __${name}_prototype_at = function (this: ${name}, index: any) {
 };
 
 export const __${name}_prototype_slice = function (this: ${name}, start: any, end: any) {
+  if (this.buffer.detached) throw new TypeError('Method %TypedArray%.prototype.slice called on a typed array with a detached buffer');
+
   const len: i32 = this.length;
   start = ecma262.ToIntegerOrInfinity(start);
   if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
@@ -178,8 +199,13 @@ export const __${name}_prototype_slice = function (this: ${name}, start: any, en
 export const __${name}_prototype_set = function (this: ${name}, array: any, offset: number) {
   const len: i32 = this.length;
 
+  // spec order (23.2.3.26 / 23.2.3.26.1): ToIntegerOrInfinity(offset) -> RangeError if
+  // offset < 0 -> detached-buffer TypeError (inside ValidateTypedArrayBounds, called by
+  // SetTypedArrayFromArrayLike/FromTypedArray) -> RangeError if offset is out of bounds
   offset = Math.trunc(offset);
-  if (Porffor.fastOr(offset < 0, offset > len)) throw new RangeError('Offset out of bounds');
+  if (offset < 0) throw new RangeError('Offset out of bounds');
+  if (this.buffer.detached) throw new TypeError('Method %TypedArray%.prototype.set called on a typed array with a detached buffer');
+  if (offset > len) throw new RangeError('Offset out of bounds');
 
   if (Porffor.fastOr(
     Porffor.type(array) == Porffor.TYPES.array,
@@ -201,6 +227,8 @@ export const __${name}_prototype_subarray = function (this: ${name}, start: any,
   if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
     else end = ecma262.ToIntegerOrInfinity(end);
 
+  if (this.buffer.detached) throw new TypeError('Method %TypedArray%.prototype.subarray called on a typed array with a detached buffer');
+
   if (start < 0) {
     start = len + start;
     if (start < 0) start = 0;
@@ -220,7 +248,22 @@ export const __${name}_prototype_subarray = function (this: ${name}, start: any,
   return out;
 };
 
-${typedArrayFuncs.reduce((acc, x) => acc + x.replace('// @porf-typed-array\n', '').replaceAll('Array', name).replaceAll('any[]', name) + '\n\n', '')}`;
+${typedArrayFuncs.reduce((acc, x) => {
+  let body = x.replace('// @porf-typed-array\n', '').replaceAll('Array', name).replaceAll('any[]', name);
+  // ValidateTypedArray runs before the rest of the algorithm for every one of these
+  // shared methods per spec - detached buffers must throw TypeError, not read stale memory.
+  // matches up through the opening "{" regardless of whether the body continues on the same
+  // line (e.g. toLocaleString's single-line "{ return ...; };") or the next (multi-line case)
+  const beforeInject = body;
+  body = body.replace(/^(export const \w+ = function \([^)]*\)[^\n]*\{)/, `$1\n  if (this.buffer.detached) throw new TypeError('Method called on a typed array with a detached buffer');\n`);
+  // loud guard: if the opening-line shape ever stops matching, .replace() is a silent no-op -
+  // the detached-buffer check would quietly vanish from this method with a green build.
+  // Fail the build instead of shipping a method with no ValidateTypedArray check.
+  if (body === beforeInject) {
+    throw new Error(`typedarray.js: failed to inject the detached-buffer check into ${name}'s "${x.match(/__Array_prototype_(\w+)/)?.[1] ?? '?'}" method - its opening line no longer matches the expected "export const ... = function (...) {" shape`);
+  }
+  return acc + body + '\n\n';
+}, '')}`;
   };
 
   return out;
