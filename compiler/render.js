@@ -276,6 +276,26 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
     return node.some(nodeUsesCoro);
   };
 
+  // as nodeUsesCoro, but also true for a direct (non-generator/async) call to the raw
+  // coroutine primitives - iterator helpers drive generators this way to work around a gap
+  // in generic property lookup on coroutine-boxed values (see builtins/iterator.ts). Used
+  // ONLY to decide whether the coroutine runtime section needs to be emitted at all (below) -
+  // deliberately NOT fed into needsCoro/isSyncAsync, which decide a *specific* function's own
+  // dispatch kind and must not be de-optimized into a full coroutine just because its body
+  // happens to call into another (already-a-coroutine) generator without itself suspending
+  const nodeUsesRawCoro = node => {
+    if (!Array.isArray(node)) return false;
+
+    if (typeof node[0] === 'number' && KNames[node[0]] !== undefined && node.length === 6) {
+      if (node[N_KIND] === K.Await || node[N_KIND] === K.Yield) return true;
+      if (node[N_KIND] === K.Call && (node[N_A] === '__Porffor_coroutine_resume' || node[N_A] === '__Porffor_coroutine_value')) return true;
+
+      return nodeUsesRawCoro(node[N_A]) || nodeUsesRawCoro(node[N_B]) || nodeUsesRawCoro(node[N_C]);
+    }
+
+    return node.some(nodeUsesRawCoro);
+  };
+
   const FN_CORO_INIT = 1 << 5;
   const coroKind = f => f?.async && f?.generator ? FN_ASYNC_GENERATOR : (f?.async ? FN_ASYNC : 0) | (f?.generator ? FN_GENERATOR : 0);
   const coroFlags = f => coroKind(f) | (f?.coroInit ? FN_CORO_INIT : 0);
@@ -292,7 +312,7 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
   const usesThreads = funcs.some(f => f?.name?.startsWith('__Porffor_threads_'));
   const gcEnabled = prefs.gc !== false;
   for (const f of funcs) {
-    if (needsCoro(f) || nodeUsesCoro(f?.body)) usesCoro = true;
+    if (needsCoro(f) || nodeUsesRawCoro(f?.body)) usesCoro = true;
     if (isSyncAsync(f)) usesSyncAsync = true;
   }
   const promiseResolveFunc = funcByName.get('__Porffor_promise_resolve');
