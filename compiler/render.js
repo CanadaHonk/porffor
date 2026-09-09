@@ -2684,6 +2684,7 @@ static int porf_gc_should_rescan_marked_body(i32 body, i32 type) {
       return !porf_gc_has_marked_array_like_type(body) && porf_gc_array_like_shape_valid(body);
     case ${TYPES.promise}:
       return !porf_gc_has_marked_type_simple(body, type);
+    case ${TYPES.__porffor_closureenv}:
     case ${TYPES.function}:
     case ${TYPES.map}:
     case ${TYPES.set}:
@@ -2721,6 +2722,17 @@ static int porf_gc_should_rescan_marked_body(i32 body, i32 type) {
 
 static void porf_gc_scan_body(i32 body, i32 type) {
   switch (type) {
+    case ${TYPES.__porffor_closureenv}: {
+      const u32 parent = *(u32*)(MEM + body);
+      if (parent != 0) porf_gc_mark_js((f64)parent, ${TYPES.__porffor_closureenv});
+      const u32 count = *(u32*)(MEM + body + 4);
+      for (u32 i = 0; i < count; i++) {
+        const u32 slot = body + 8u + i * 16u;
+        const u8 tag = *(u8*)(MEM + slot + 8);
+        if (porf_gc_type_can_reference(tag)) porf_gc_mark_js(*(f64*)(MEM + slot), tag);
+      }
+      break;
+    }
     case ${TYPES.object}: {
       const i32 proto = *(u32*)(MEM + body + 8);
       const i32 proto_type = *(u8*)(MEM + body + 5);
@@ -2752,7 +2764,7 @@ static void porf_gc_scan_body(i32 body, i32 type) {
       break;
     case ${TYPES.function}: {
       const i32 env = *(u32*)(MEM + body + 4);
-      if (env != 0) porf_gc_mark_js((f64)env, ${TYPES.object});
+      if (env != 0) porf_gc_mark_js((f64)env, ${TYPES.__porffor_closureenv});
       break;
     }
     case ${TYPES.map}:
@@ -3037,7 +3049,7 @@ static void porf_gc_scan_kind_block(i32 body) {
       break;
     case PORF_GC_KIND_FUNCTION: {
       const i32 env = *(u32*)(MEM + body + 4);
-      if (env != 0) porf_gc_mark_js((f64)env, ${TYPES.object});
+      if (env != 0) porf_gc_mark_js((f64)env, ${TYPES.__porffor_closureenv});
       break;
     }
     case PORF_GC_KIND_UNDERLYING_STORE:

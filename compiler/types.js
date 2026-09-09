@@ -63,6 +63,7 @@ registerInternalType('BooleanObject');
 registerInternalType('NumberObject');
 registerInternalType('StringObject');
 
+registerInternalType('__Porffor_ClosureEnv');
 registerInternalType('__Porffor_Generator');
 registerInternalType('__Porffor_AsyncGenerator');
 

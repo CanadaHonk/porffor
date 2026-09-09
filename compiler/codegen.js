@@ -308,9 +308,6 @@ const getClosureSnapshotCaptureNames = func => {
   return func.closureSnapshotCaptureNames = [ ...out ];
 };
 
-const hasClosureSnapshotEnv = scope =>
-  getClosureSnapshotCaptureNames(scope).length > 0;
-
 const closureOwnerMatches = (scope, owner) =>
   scope?.ast === owner ||
   scope?.ast?._closureSource === owner ||
@@ -320,60 +317,30 @@ const closureOwnerMatches = (scope, owner) =>
     scope.ast._variables === owner._variables
   );
 
-const closureOwnerDepth = (scope, owner) => {
-  let depth = 0;
-  let cursor = scope;
-
-  if (hasClosureOwnEnv(cursor) || hasClosureSnapshotEnv(cursor)) {
-    if (closureOwnerMatches(cursor, owner)) return 0;
-    cursor = cursor.parentFunc;
-    depth = 1;
-  } else {
-    cursor = cursor.parentFunc;
-  }
-
-  while (cursor) {
-    if (!hasClosureOwnEnv(cursor) && !hasClosureSnapshotEnv(cursor)) {
-      cursor = cursor.parentFunc;
-      continue;
+const closureEnvNode = (scope, name, owner) => {
+  let node = identNode(hasClosureOwnEnv(scope) ? '#closure_env_local' : '#closure_env');
+  let slot;
+  for (;; scope = scope.parentFunc) {
+    if (closureOwnerMatches(scope, owner)) {
+      if (name == null) return node;
+      const names = closureOwnSlotNames(scope);
+      if (scope.closureOwnThis) names.push('#this');
+      slot = names.indexOf(name) + 1;
+      break;
     }
-
-    if (closureOwnerMatches(cursor, owner)) return depth;
-    depth++;
-    cursor = cursor.parentFunc;
+    if (hasClosureOwnEnv(scope)) {
+      node = memberNode(node, { type: 'Literal', value: 0 }, true, { _closureSlot: 0 });
+    }
+    // snapshots sit between a function's own env and its parent's
+    const names = getClosureSnapshotCaptureNames(scope);
+    slot = names.indexOf(name) + 1;
+    if (slot) break;
+    if (names.length) {
+      node = memberNode(node, { type: 'Literal', value: 0 }, true, { _closureSlot: 0 });
+    }
   }
-
-  return 0;
-};
-
-const closureEnvNode = (scope, owner = undefined, name = undefined) => {
-  let node = {
-    type: 'Identifier',
-    name: hasClosureOwnEnv(scope) ? '#closure_env_local' : '#closure_env'
-  };
-
-  if (!owner) return node;
-
-  let depth = closureOwnerDepth(scope, owner);
-  if (scope.closureCaptures?.[name]?.perIteration) depth = hasClosureOwnEnv(scope) ? 1 : 0;
-  for (let i = 0; i < depth; i++) {
-    node = {
-      type: 'CallExpression',
-      callee: { type: 'Identifier', name: '__Porffor_object_getPrototype' },
-      arguments: [ node ]
-    };
-  }
-
-  return node;
-};
-
-const closureMemberNode = (scope, name, owner) => {
-  const ident = /^[A-Za-z_$][0-9A-Za-z_$]*$/.test(name);
-  return memberNode(closureEnvNode(scope, owner, name), ident ? { type: 'Identifier', name } : { type: 'Literal', value: name }, !ident, {
-    optional: false,
-    _closureName: name,
-    _closureOwner: owner,
-    // synthetic closure env lookups are outside the user's optional chain
+  return memberNode(node, { type: 'Literal', value: slot }, true, {
+    _closureSlot: slot,
     _skipChainDepth: true
   });
 };
@@ -387,14 +354,12 @@ const closureLocalReadNode = (name, markReferenced = true) => ({
 // mirror a binding into the scope's own closure env
 const mirrorToClosureEnv = (scope, name, right = closureLocalReadNode(name)) =>
   genStmt(scope, { type: 'AssignmentExpression', operator: '=',
-    left: closureMemberNode(scope, name, scope.ast), right });
+    left: closureEnvNode(scope, name, scope.ast), right });
 
 const closureOwnLocalReadIsLocal = (scope, name) =>
   name in scope.locals &&
   !scope.closureOwnLocals?.[name]?.node?._writes;
 
-// current closure env as an object jsval. ABI: render passes the env pointer to `#env`
-// (T.ptr), `#closure_env_local` is the func's own env, chained to its parent
 const currentClosureEnv = scope => {
   if (hasClosureOwnEnv(scope)) {
     if (!scope.locals['#closure_env_local']) {
@@ -402,19 +367,32 @@ const currentClosureEnv = scope => {
     }
     return Local('#closure_env_local', T.jsval);
   }
-
-  if (scope.closureAware) return valOf(Local('#env', T.ptr), TYPES.object);
-
+  if (scope.closureAware) return valOf(Local('#env', T.ptr), TYPES.__porffor_closureenv);
   return valUndefined();
 };
 
-const closureEnvSlot = (scope, decl) => {
-  if (!decl._closureName || !decl._closureOwner) return null;
-  if (scope.closureCaptures?.[decl._closureName]?.perIteration) return null;
-
-  const ownerFunc = decl._closureOwner._porfforFunc;
-  const slot = ownerFunc?.closureEnvSlots?.[decl._closureName];
-  return slot == null || slot >= 1024 ? null : slot;
+// [parent u32][count u32][payload f64, type u8, padding x7]...
+const makeClosureEnv = (scope, parent, count, values = null) => {
+  const pointer = reuse(scope, Alloc(Const(T.i32, 8 + count * 16), TYPES.__porffor_closureenv));
+  stmt(scope, Store('u32', pointer, 0, JvPtr(parent)));
+  if (values) {
+    for (let i = 0; i < values.length; i++) {
+      stmt(scope, Store('f64', pointer, 8 + i * 16, JvNum(values[i])));
+      stmt(scope, Store('u8', pointer, 16 + i * 16, JvType(values[i])));
+    }
+  } else {
+    const index = tmp(scope, T.i32, Const(T.i32, 0));
+    const slot = Bin('+', T.u32, pointer, Bin('*', T.i32, index, Const(T.i32, 16)));
+    stmt(scope, Loop(Bin('<', T.i32, index, Const(T.i32, count)), null, [
+      Store('f64', slot, 8, Const(T.f64, 0)),
+      Store('u8', slot, 16, Const(T.i32, TYPES.undefined)),
+      Assign(index, Bin('+', T.i32, index, Const(T.i32, 1)))
+    ], fresh(scope)));
+  }
+  stmt(scope, Store('u32', pointer, 4, Const(T.i32, count)));
+  stmt(scope, GcBarrier(pointer, Const(T.i32, TYPES.__porffor_closureenv)));
+  typeUsed(scope, TYPES.__porffor_closureenv);
+  return valOf(pointer, TYPES.__porffor_closureenv);
 };
 
 // closure value: heap [fnIdx][env] record, per-iteration captures get a snapshot env chained to the parent
@@ -425,16 +403,11 @@ const makeClosureRecord = (scope, func, markReferenced = true) => {
   const snap = getClosureSnapshotCaptureNames(func);
   if (snap.length > 0) {
     const parent = reuse(scope, env);
-    const snapshot = reuse(scope, generate(scope, {
-      type: 'ObjectExpression',
-      properties: snap.map(name => ({
-        type: 'Property', key: { type: 'Literal', value: name },
-        computed: false, kind: 'init', method: false, shorthand: false,
-        value: { type: 'Identifier', name }
-      }))
-    }));
-    exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototype', [ snapshot, parent ]));
-    env = snapshot;
+    const values = [];
+    for (const name of snap) {
+      values.push(reuse(scope, generate(scope, { type: 'Identifier', name, _closureFunc: func.closureCaptures?.[name]?.func })));
+    }
+    env = reuse(scope, makeClosureEnv(scope, parent, values.length, values));
   }
 
   const rec = reuse(scope, Alloc(Const(T.i32, 8), TYPES.function));
@@ -842,7 +815,7 @@ const generateIdent = (scope, decl) => {
   if (closureOwner) {
     const func = decl._resolvedVariable?.node?._porfforFunc ?? resolveNamedFunction(scope, decl.name);
     if (func) useFunctionValue(func, decl._markFunctionReferenced !== false);
-    return generate(scope, closureMemberNode(scope, decl.name, closureOwner));
+    return generate(scope, closureEnvNode(scope, decl.name, closureOwner));
   }
 
   if (decl._builtinMember && decl.name in builtinFuncs) return materializeFunctionValue(scope, includeBuiltin(scope, decl.name));
@@ -1445,9 +1418,9 @@ const getNodeType = (scope, node) => {
   else if (isFuncType(node.type)) ret = node.type.endsWith('Declaration') ? TYPES.undefined : TYPES.function;
   else if (node.type === 'Identifier') {
     if (node._closureFunc && !(node.name in scope.locals))
-      return getNodeType(scope, closureMemberNode(scope, node.name, node._closureFunc));
+      return getNodeType(scope, closureEnvNode(scope, node.name, node._closureFunc));
     if (!node._skipClosureOwnLocals && scope.closureOwnLocals?.[node.name] && !closureOwnLocalReadIsLocal(scope, node.name))
-      return getNodeType(scope, closureMemberNode(scope, node.name, scope.ast));
+      return getNodeType(scope, closureEnvNode(scope, node.name, scope.ast));
     ret = getType(scope, node.name);
   }
   else if (node.type === 'ObjectExpression' || node.type === 'Super') ret = TYPES.object;
@@ -1539,7 +1512,7 @@ const getNodeType = (scope, node) => {
     }
   }
   else if (node.type === 'ThisExpression') {
-    if (node._closureThisFunc) return getNodeType(scope, closureMemberNode(scope, '#this', node._closureThisFunc));
+    if (node._closureThisFunc) return getNodeType(scope, closureEnvNode(scope, '#this', node._closureThisFunc));
     if (scope.overrideThisType) ret = scope.overrideThisType;
     else if (scope.ast?.type === 'Program' && scope.strict) ret = TYPES.undefined;
     else if (!scope.constr && !scope.method) ret = getType(scope, 'globalThis');
@@ -2009,7 +1982,7 @@ const generateCall = (scope, decl) => {
       const owner = decl.callee._closureFunc ?? scope.closureCaptures?.[name]?.func;
       // a fully elided env chain leaves the caller envless; the callee then only has
       // elided captures itself, so it never reads the env
-      if (func?.closureAware && owner && (hasClosureOwnEnv(scope) || scope.closureAware)) directCallEnv = generate(scope, closureEnvNode(scope, owner, name));
+      if (func?.closureAware && owner && (hasClosureOwnEnv(scope) || scope.closureAware)) directCallEnv = generate(scope, closureEnvNode(scope, undefined, owner));
     }
     if (isBuiltinMember) {
       isBuiltin = true;
@@ -2074,7 +2047,7 @@ const generateCall = (scope, decl) => {
 
 const generateThis = (scope, decl) => {
   // arrows read the enclosing `this` out of the closure env
-  if (decl._closureThisFunc) return generate(scope, closureMemberNode(scope, '#this', decl._closureThisFunc));
+  if (decl._closureThisFunc) return generate(scope, closureEnvNode(scope, '#this', decl._closureThisFunc));
 
   if (scope.overrideThis) return scope.overrideThis;
 
@@ -2780,7 +2753,7 @@ const bindMemberTarget = (scope, member, prefix, coerceKey = false) => {
   generateVarDstr(scope, 'const', objName, member.object, undefined, false);
 
   let property = member.property;
-  if (member.computed) {
+  if (member.computed && member._closureSlot == null) {
     const keyName = prefix + 'key' + id;
     generateVarDstr(scope, 'const', keyName, coerceKey ? {
       type: 'CallExpression',
@@ -2791,8 +2764,7 @@ const bindMemberTarget = (scope, member, prefix, coerceKey = false) => {
   }
 
   return memberNode(identNode(objName), property, member.computed, {
-    _closureName: member._closureName,
-    _closureOwner: member._closureOwner,
+    _closureSlot: member._closureSlot,
     _skipChainDepth: member._skipChainDepth
   });
 };
@@ -2856,23 +2828,8 @@ const generateAssign = (scope, decl, valueUnused = false) => {
   if (decl.left.type === 'Identifier' && ((decl.left._closureFunc && !(decl.left.name in scope.locals)) || scope.closureOwnLocals?.[decl.left.name])) {
     return generateAssign(scope, {
       ...decl,
-      left: closureMemberNode(scope, decl.left.name, decl.left._closureFunc ?? scope.ast)
+      left: closureEnvNode(scope, decl.left.name, decl.left._closureFunc ?? scope.ast)
     }, valueUnused);
-  }
-
-  if (decl.left.type === 'MemberExpression' && decl.operator === '=') {
-    const closureSlot = closureEnvSlot(scope, decl.left);
-    if (closureSlot != null) {
-      const value = reuse(scope, generate(scope, decl.right));
-      const env = reuse(scope, generate(scope, decl.left.object));
-      const entries = Load('u32', JvPtr(env), 12);
-      stmt(scope, Store('f64', entries, closureSlot * 20 + 8, JvNum(value), true));
-      stmt(scope, Store('u8', entries, closureSlot * 20 + 17, JvType(value)));
-      stmt(scope, If(canReferenceCheck(scope, value), [
-        GcBarrier(JvPtr(env), Const(T.i32, TYPES.object))
-      ]));
-      return valueUnused ? valUndefined() : value;
-    }
   }
 
   const { type, name } = decl.left;
@@ -2910,6 +2867,20 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       left,
       right: { type: 'AssignmentExpression', operator: '=', left: rightLeft, right: decl.right }
     }, undefined, valueUnused);
+  }
+
+  if (type === 'MemberExpression' && decl.left._closureSlot != null) {
+    const slot = decl.left._closureSlot - 1;
+    const env = reuse(scope, generate(scope, decl.left.object));
+    const previous = op === '=' ? null : reuse(scope, generateMember(scope, decl.left, env));
+    const right = generate(scope, decl.right);
+    const value = reuse(scope, op === '=' ? right : performOp(scope, op, previous, right, null, getNodeType(scope, decl.right)));
+    stmt(scope, Store('f64', JvPtr(env), 8 + slot * 16, JvNum(value)));
+    stmt(scope, Store('u8', JvPtr(env), 16 + slot * 16, JvType(value)));
+    stmt(scope, If(canReferenceCheck(scope, value), [
+      GcBarrier(JvPtr(env), Const(T.i32, TYPES.__porffor_closureenv))
+    ]));
+    return valueUnused ? valUndefined() : value;
   }
 
   if (type === 'MemberExpression' && decl.left.property.name === 'length' && !decl._internalAssign) {
@@ -3224,7 +3195,7 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
   if (decl.argument.type === 'Identifier' && (decl.argument._closureFunc || scope.closureOwnLocals?.[decl.argument.name])) {
     return generateUpdate(scope, {
       ...decl,
-      argument: closureMemberNode(scope, decl.argument.name, decl.argument._closureFunc ?? scope.ast)
+      argument: closureEnvNode(scope, decl.argument.name, decl.argument._closureFunc ?? scope.ast)
     }, valueUnused);
   }
 
@@ -4038,10 +4009,11 @@ let icSite, icChunk;
 
 const generateMember = (scope, decl, objValue = null) => {
   if (!globalThis.precompile) demandMemberRead(decl);
-  const closureSlot = closureEnvSlot(scope, decl);
+  const closureSlot = decl._closureSlot;
   if (closureSlot != null) {
-    const entries = Load('u32', JvPtr(objValue ?? generate(scope, decl.object)), 12);
-    return Box(Load('f64', entries, closureSlot * 20 + 8, true), Load('u8', entries, closureSlot * 20 + 17));
+    const pointer = JvPtr(reuse(scope, objValue ?? generate(scope, decl.object)));
+    if (closureSlot === 0) return valOf(Load('u32', pointer, 0), TYPES.__porffor_closureenv);
+    return Box(Load('f64', pointer, 8 + (closureSlot - 1) * 16), Load('u8', pointer, 16 + (closureSlot - 1) * 16));
   }
 
   const object = decl.object;
@@ -4695,37 +4667,19 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
       func.identFailEarly = true;
 
-      // a named function expression sees its own name
-      if (decl.type === 'FunctionExpression' && decl.id?.name && (func.selfAware || func.closureOwnLocals?.[func.name])) {
-        allocVar(func, func.name);
-        setVarMetadata(func, func.name, false, { kind: 'function-name' });
-        setLocalWithType(func, func.name, false,
-          func.selfAware ? Local('#callee', T.jsval) : materializeFunctionValue(func, func), false, TYPES.function);
+      if (hasClosureOwnEnv(func)) {
+        const count = closureOwnSlotNames(func).length + (func.closureOwnThis ? 1 : 0);
+        const parent = reuse(func, func.closureAware ? valOf(Local('#env', T.ptr), TYPES.__porffor_closureenv) : valUndefined());
+        allocVar(func, '#closure_env_local');
+        setLocalWithType(func, '#closure_env_local', false, makeClosureEnv(func, parent, count), false, TYPES.__porffor_closureenv);
       }
 
-      // closure env: object holding this func's captured locals (+ #this), chained to the inherited env
-      if (hasClosureOwnEnv(func)) {
-        const closureEnvNames = closureOwnSlotNames(func);
-        if (func.closureOwnThis) closureEnvNames.push('#this');
-        func.closureEnvSlots = Object.create(null);
-        for (let i = 0; i < closureEnvNames.length; i++) func.closureEnvSlots[closureEnvNames[i]] = i;
-
-        allocVar(func, '#closure_env_local');
-        setLocalWithType(func, '#closure_env_local', false, generate(func, {
-          type: 'ObjectExpression',
-          properties: closureEnvNames.map(n => ({
-            type: 'Property',
-            key: { type: 'Literal', value: n },
-            computed: false, kind: 'init', method: false, shorthand: false,
-            value: DEFAULT_VALUE
-          }))
-        }), false, TYPES.object);
-
-        if (func.closureAware) {
-          emitIf(func, Bin('==', T.i32, JvType(Local('#closure_env_local', T.jsval)), Const(T.i32, TYPES.object)),
-            () => exprStmt(func, builtinCall(func, '__Porffor_object_setPrototype', [
-              Local('#closure_env_local', T.jsval), valOf(Local('#env', T.ptr), TYPES.object) ])));
-        }
+      // a named function expression sees its own name
+      if (decl.type === 'FunctionExpression' && decl.id?.name && func.selfAware) {
+        allocVar(func, func.name);
+        setVarMetadata(func, func.name, false, { kind: 'function-name' });
+        setLocalWithType(func, func.name, false, Local('#callee', T.jsval), false, TYPES.function);
+        if (func.closureOwnLocals?.[func.name]?.node === decl) mirrorToClosureEnv(func, func.name);
       }
 
       // dynamic calls can deliver any receiver: prototype builtins coerce or type-guard #this by annotated type
@@ -4794,7 +4748,6 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
           mirrorToClosureEnv(func, argName);
         }
 
-        if (func.closureOwnLocals?.[func.name]) mirrorToClosureEnv(func, func.name);
         if (func.closureOwnThis) mirrorToClosureEnv(func, '#this', { type: 'ThisExpression' });
       }
 
