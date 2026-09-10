@@ -3410,9 +3410,11 @@ const genLoop = (scope, decl, type) => {
 };
 
 // top-level await: synchronously drain promise jobs as there is no coroutine to suspend
-const awaitValue = (scope, value) => scope.topLevel
-  ? builtinCall(scope, '__Porffor_promise_awaitSync', [ value ])
-  : Await(value);
+const awaitValue = (scope, value) => {
+  if (scope.topLevel) return builtinCall(scope, '__Porffor_promise_awaitSync', [ value ]);
+  scope.hasAwait = true;
+  return Await(value);
+};
 
 const generateForOf = (scope, decl) => {
   const root = tmp(scope, T.jsval, coerceValue(generate(scope, decl.right), T.jsval));

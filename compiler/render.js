@@ -264,23 +264,11 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
 
   // flags are derived here (only consumer), no stored func.flags. coroFlags = FN_* kind, fnFlags byte:
   // bits 0-2 coroutine kind, 3 callable (has return type), 4 constructor, 5 generator init suspension
-  const nodeUsesCoro = node => {
-    if (!Array.isArray(node)) return false;
-
-    if (typeof node[0] === 'number' && KNames[node[0]] !== undefined && node.length === 6) {
-      if (node[N_KIND] === K.Await || node[N_KIND] === K.Yield) return true;
-
-      return nodeUsesCoro(node[N_A]) || nodeUsesCoro(node[N_B]) || nodeUsesCoro(node[N_C]);
-    }
-
-    return node.some(nodeUsesCoro);
-  };
-
   const FN_CORO_INIT = 1 << 5;
   const coroKind = f => f?.async && f?.generator ? FN_ASYNC_GENERATOR : (f?.async ? FN_ASYNC : 0) | (f?.generator ? FN_GENERATOR : 0);
   const coroFlags = f => coroKind(f) | (f?.coroInit ? FN_CORO_INIT : 0);
   const isCoro = f => !!(f && (f.async || f.generator));
-  const needsCoro = f => !!(f && (f.generator || (f.async && nodeUsesCoro(f.body))));
+  const needsCoro = f => !!(f && (f.generator || (f.async && f.hasAwait)));
   const isSyncAsync = f => !!(f && f.async && !f.generator && !needsCoro(f));
   const fnFlags = f => f ? (coroFlags(f) | (f.returnType != null ? 1 << 3 : 0) | (f.constr ? 1 << 4 : 0)) : 0;
   const jsArg = n => n[N_TYPE] === T.jsval ? rx(n, P_COMMA) : `porf_box_num(${rx(n, P_COMMA)})`;
@@ -292,7 +280,7 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
   const usesThreads = funcs.some(f => f?.name?.startsWith('__Porffor_threads_'));
   const gcEnabled = prefs.gc !== false;
   for (const f of funcs) {
-    if (needsCoro(f) || nodeUsesCoro(f?.body)) usesCoro = true;
+    if (needsCoro(f)) usesCoro = true;
     if (isSyncAsync(f)) usesSyncAsync = true;
   }
   const promiseResolveFunc = funcByName.get('__Porffor_promise_resolve');
@@ -502,6 +490,7 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
       }
 
       case K.Call: {
+        if (node[N_A] === '__Porffor_coroutine_resume' || node[N_A] === '__Porffor_coroutine_value') usesCoro = true;
         const f = funcOf(node[N_A]);
         // direct call to a coroutine starts it instead of running the body: split args into the invocation shape
         if (f && isCoro(f)) {
@@ -537,8 +526,12 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
         return [`porf_call_dynamic(${rx(node[N_A], P_COMMA)}, ${rx(node[N_B], P_COMMA)}, ${newt}, ${args.length}, ${argv})`, P_POSTFIX];
       }
 
-      case K.Await: return [`porf_await(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
-      case K.Yield: return [`porf_yield(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
+      case K.Await:
+        usesCoro = true;
+        return [`porf_await(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
+      case K.Yield:
+        usesCoro = true;
+        return [`porf_yield(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
 
       case K.Alloc: return [`porf_alloc(${rx(node[N_A], P_COMMA)}, ${node[N_B]}u)`, P_POSTFIX];
 
@@ -822,6 +815,8 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
     emit(`}\n\n`);
   };
 
+  for (const f of funcs) if (f) renderFunc(f);
+
   const head = [];
   const toStr = funcs.find(x => x && x.name === '__ecma262_ToString' && x.body);
   head.push(RUNTIME_HEAD(dataOffsets.staticEnd, prefs, usesThreads, usesCoro, toStr ? fnSym(toStr) : null));
@@ -985,8 +980,6 @@ export default ({ funcs, data = [], globals = [], entry = null, prefs = {}, used
     }).join(', ');
     head.push(THREAD_RUNTIME(fnSym(entryFunc), entryArgs, fnSym(promiseRunOneFunc), prefs, usesCoro));
   }
-
-  for (const f of funcs) if (f) renderFunc(f);
 
   // dynamic call: one switch dispatcher, no per-function wrappers. fn values are records
   // [fnIdx u32][env u32] (payload = offset, nonzero = truthy), each case adapts the
