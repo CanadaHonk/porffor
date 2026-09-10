@@ -1,4 +1,0 @@
-#!/bin/sh
-node "$(dirname "$0")/runtime/index.js" "$@"
-# deno run -A runtime/index.js "$@"
-# bun runtime/index.js "$@"
