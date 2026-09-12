@@ -306,20 +306,6 @@ const huffTree = __PORFFOR_TREE__;
 const huffTokens = __PORFFOR_TOKENS__;
 
 const huffValue = c => c >= 97 ? c - 71 : c >= 65 && c <= 90 ? c - 65 : c >= 48 && c <= 57 ? c + 4 : c === 36 ? 62 : 63;
-const huffDecode = data => {
-  const out = [];
-  let node = 0;
-  const split = data.indexOf(':');
-  let bits = parseInt(data.slice(0, split), 36);
-  for (let i = split + 1; bits > 0; i++) {
-    const value = huffValue(data.charCodeAt(i));
-    for (let shift = 5; shift >= 0 && bits > 0; shift--, bits--) {
-      node = huffTree[node][(value >> shift) & 1];
-      if (node < 0) { out.push(huffTokens[-node - 1]); node = 0; }
-    }
-  }
-  return out;
-};
 
 const f64Bytes = new Uint8Array(8);
 const f64View = new Float64Array(f64Bytes.buffer);
@@ -328,31 +314,56 @@ const fromF64Hex = hex => {
   return f64View[0];
 };
 
-// reconstruct one IR value from a token cursor { tokens, i }. (Phase 4 will thread the dynamic
-// h.* helpers - builtin inclusion, lazy typeswitch gating, comptime, data remap - through here.)
+// decode each distinct token once
+const huffFlat = new Array(huffTree.length * 2);
+for (let i = 0; i < huffTree.length; i++) { huffFlat[i * 2] = huffTree[i][0]; huffFlat[i * 2 + 1] = huffTree[i][1]; }
+const huffTag = new Array(huffTokens.length);
+const huffVal = new Array(huffTokens.length);
+for (let i = 0; i < huffTokens.length; i++) {
+  const tok = huffTokens[i];
+  const c = tok.charCodeAt(0);
+  if (c === 64 || c === 66) { huffTag[i] = c; huffVal[i] = strings[parseInt(tok.slice(1), 36)]; } // @ B
+  else if (c === 65 || c === 79) { huffTag[i] = c; huffVal[i] = parseInt(tok.slice(1), 36); } // A O
+  else if (c === 68) { huffTag[i] = c; huffVal[i] = fromF64Hex(tok.slice(1)); } // D
+  else if (c === 95 || c === 85 || c === 84 || c === 70) { huffTag[i] = c; huffVal[i] = 0; } // _ U T F
+  else { huffTag[i] = 0; huffVal[i] = parseInt(tok, 36); }
+}
+
+const huffDecode = data => {
+  const out = [];
+  let node = 0;
+  const split = data.indexOf(':');
+  let bits = parseInt(data.slice(0, split), 36);
+  for (let i = split + 1; bits > 0; i++) {
+    const value = huffValue(data.charCodeAt(i));
+    for (let shift = 5; shift >= 0 && bits > 0; shift--, bits--) {
+      node = huffFlat[node * 2 + ((value >> shift) & 1)];
+      if (node < 0) { out.push(-node - 1); node = 0; }
+    }
+  }
+  return out;
+};
+
 const unflatten = cur => {
-  const tok = cur.tokens[cur.i++];
-  const tag = tok[0];
-  if (tag === '_') return null;
-  if (tag === 'U') return undefined;
-  if (tag === 'T') return true;
-  if (tag === 'F') return false;
-  if (tag === '@') return strings[parseInt(tok.slice(1), 36)];
-  if (tag === 'B') return BigInt(strings[parseInt(tok.slice(1), 36)]);
-  if (tag === 'D') return fromF64Hex(tok.slice(1));
-  if (tag === 'A') {
-    const len = parseInt(tok.slice(1), 36);
-    const a = new Array(len);
-    for (let j = 0; j < len; j++) a[j] = unflatten(cur);
+  const idx = cur.tokens[cur.i++];
+  const tag = huffTag[idx];
+  const v = huffVal[idx];
+  if (tag === 0 || tag === 64 || tag === 68) return v; // int @ D
+  if (tag === 65) { // A
+    const a = new Array(v);
+    for (let j = 0; j < v; j++) a[j] = unflatten(cur);
     return a;
   }
-  if (tag === 'O') {
-    const len = parseInt(tok.slice(1), 36);
+  if (tag === 79) { // O
     const o = {};
-    for (let j = 0; j < len; j++) { const k = unflatten(cur); o[k] = unflatten(cur); }
+    for (let j = 0; j < v; j++) { const k = unflatten(cur); o[k] = unflatten(cur); }
     return o;
   }
-  return parseInt(tok, 36);
+  if (tag === 95) return null;
+  if (tag === 85) return undefined;
+  if (tag === 84) return true;
+  if (tag === 70) return false;
+  return BigInt(v); // B
 };
 
 // IR node kinds the dynamic walk cares about (mirrors ir.js K.*).
