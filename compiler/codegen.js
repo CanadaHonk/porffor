@@ -238,8 +238,7 @@ const closureAwareFunc = func =>
   !func.topLevel &&
   !!(func.closureCaptures || func.closureCapturesThis || func.closurePassThrough);
 
-const hasClosureOwnEnv = scope =>
-  !!(scope.closureOwnThis || closureOwnSlotNames(scope).length > 0);
+const hasClosureOwnEnv = scope => closureLayout(scope).count > 0;
 
 const hasClosureCaptures = func =>
   !!(func.closureCaptures || func.closureCapturesThis || func.closurePassThrough);
@@ -273,9 +272,19 @@ const directCallOnlyFunctionNode = node =>
 const closureBindingNeedsSlot = capture =>
   !directCallOnlyFunctionNode(capture?.node);
 
-const closureOwnSlotNames = scope =>
-  Object.keys(scope.closureOwnLocals ?? {}).filter(name =>
-    closureBindingNeedsSlot(scope.closureOwnLocals[name]));
+// own env layout: name -> 1-based slot
+const closureLayout = scope => {
+  if (scope.closureLayout) return scope.closureLayout;
+
+  const slots = Object.create(null);
+  let count = 0;
+  for (const name in scope.closureOwnLocals ?? {}) {
+    if (closureBindingNeedsSlot(scope.closureOwnLocals[name])) slots[name] = ++count;
+  }
+  if (scope.closureOwnThis) slots['#this'] = ++count;
+
+  return scope.closureLayout = { slots, count };
+};
 
 const getPerIterationClosureCaptureNames = func => {
   if (!func) return [];
@@ -323,9 +332,7 @@ const closureEnvNode = (scope, name, owner) => {
   for (;; scope = scope.parentFunc) {
     if (closureOwnerMatches(scope, owner)) {
       if (name == null) return node;
-      const names = closureOwnSlotNames(scope);
-      if (scope.closureOwnThis) names.push('#this');
-      slot = names.indexOf(name) + 1;
+      slot = closureLayout(scope).slots[name] ?? 0;
       break;
     }
     if (hasClosureOwnEnv(scope)) {
@@ -4670,7 +4677,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       func.identFailEarly = true;
 
       if (hasClosureOwnEnv(func)) {
-        const count = closureOwnSlotNames(func).length + (func.closureOwnThis ? 1 : 0);
+        const count = closureLayout(func).count;
         const parent = reuse(func, func.closureAware ? valOf(Local('#env', T.ptr), TYPES.__porffor_closureenv) : valUndefined());
         allocVar(func, '#closure_env_local');
         setLocalWithType(func, '#closure_env_local', false, makeClosureEnv(func, parent, count), false, TYPES.__porffor_closureenv);
@@ -4957,28 +4964,9 @@ const staticDirectArgType = node => {
 
 const inferDirectCallParamTypes = root => {
   const infos = new Map();
-
-  const recordCall = node => {
-    if (node.type !== 'CallExpression' || node.optional || node.callee?.type !== 'Identifier') return;
-    const decl = node.callee._resolvedVariable?.node;
-    if (!directCallOnlyFunctionNode(decl)) return;
-
-    let calls = infos.get(decl);
-    if (!calls) infos.set(decl, calls = []);
-    calls.push(node);
-  };
-
-  const scan = node => {
-    if (!node || typeof node !== 'object') return;
-    recordCall(node);
-    for (const key in node) {
-      if (key[0] === '_') continue;
-      const value = node[key];
-      if (Array.isArray(value)) for (const x of value) scan(x);
-      else scan(value);
-    }
-  };
-  scan(root);
+  for (const decl of root._directCallDecls ?? []) {
+    if (directCallOnlyFunctionNode(decl)) infos.set(decl, decl._directCalls);
+  }
 
   // propagate argument types through direct-only call chains
   let changed;

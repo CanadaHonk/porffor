@@ -579,6 +579,14 @@ const annotate = (node, parent = null, key = null) => {
         }
         if (parent?.type === 'CallExpression' && key === 'callee' && !parent.optional) {
           variable.node._directCallRefs = (variable.node._directCallRefs ?? 0) + 1;
+          // eval bodies are compiled without direct param type inference
+          if (!inEval) {
+            if (variable.node._directCalls) variable.node._directCalls.push(parent);
+            else {
+              variable.node._directCalls = [ parent ];
+              (scopes[0]._directCallDecls ??= []).push(variable.node);
+            }
+          }
           variable.node._directCallMinStart = variable.node._directCallMinStart == null ?
             node.start : Math.min(variable.node._directCallMinStart, node.start);
         } else {
@@ -719,8 +727,10 @@ const annotate = (node, parent = null, key = null) => {
   }
 };
 
+let inEval = false;
 const semantic = (node, _scopes = null) => {
-  const oldScopes = scopes;
+  const oldScopes = scopes, oldInEval = inEval;
+  inEval = !!_scopes;
   if (!_scopes) {
     _scopes = [ node ];
     _scopes.lastFuncs = [ 0 ];
@@ -732,6 +742,7 @@ const semantic = (node, _scopes = null) => {
 
   annotate(node);
   scopes = oldScopes;
+  inEval = oldInEval;
   return node;
 };
 export default semantic;
