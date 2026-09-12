@@ -23,6 +23,13 @@ export const __Porffor_hashSvz = (key: any): i32 => {
   if (t == Porffor.TYPES.number) {
     if (key != key) return 0x7ff8;
     if (key == 0) return 0;
+
+    // fold first: the identity path truncates f64 -> i32 saturating, sending every |key| >= 2^31 to one bucket
+    let hash: i32 = key % 2147483648;
+    hash ^= hash >>> 16;
+    hash *= 0x7feb352d;
+    hash ^= hash >>> 15;
+    return hash;
   }
 
   return __Porffor_hashIdentity(key);
