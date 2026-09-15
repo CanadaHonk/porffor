@@ -297,10 +297,14 @@ export const __Porffor_object_underlying = (_obj: any): any => {
       __Porffor_object_fastAdd(underlying, 'name', __Porffor_funcLut_name(obj), 0b0010);
 
       if (ecma262.IsConstructor(_obj)) { // constructor
-        // set prototype and prototype.constructor if function and constructor
-        const proto: object = __Porffor_object_new(1);
-        __Porffor_object_fastAdd(underlying, 'prototype', proto, 0b1000);
-        __Porffor_object_fastAdd(proto, 'constructor', _obj, 0b1010);
+        const builtinProto: any = __Porffor_object_builtinPrototype(_obj);
+        if (builtinProto !== undefined) {
+          __Porffor_object_fastAdd(underlying, 'prototype', builtinProto, 0b0000);
+        } else {
+          const proto: object = __Porffor_object_new(1);
+          __Porffor_object_fastAdd(underlying, 'prototype', proto, 0b1000);
+          __Porffor_object_fastAdd(proto, 'constructor', _obj, 0b1010);
+        }
       }
     }
 

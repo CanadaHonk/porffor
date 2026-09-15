@@ -24,16 +24,34 @@ export default ({ TYPES, TYPE_NAMES }) => {
   for (const x in TYPES) {
     if (['object', 'undefined', 'string', 'bytestring', 'stringobject', 'number', 'numberobject', 'boolean', 'booleanobject'].includes(x)) continue;
 
-    const name = TYPE_NAMES[TYPES[x]];
+    const proto = (TYPE_NAMES[TYPES[x]].startsWith('__') ? '' : '__') + TYPE_NAMES[TYPES[x]] + '_prototype';
     out += `
-  if (Porffor.comptime.flag\`hasFunc.#get___${name}_prototype\`) {
-    if (trueType == Porffor.TYPES.${x}) return __${name}_prototype;
+  if (Porffor.comptime.flag\`hasFunc.#get_${proto}\`) {
+    if (trueType == Porffor.TYPES.${x}) return ${proto};
   }`;
   }
 
   // if (trueType == Porffor.TYPES.function) return __Function_prototype;
   out += `
   return __Object_prototype;
+};
+
+export const __Porffor_object_builtinPrototype = (f: any): any => {`;
+
+  const ctors = new Set([ 'Object', 'Function', 'Symbol', 'BigInt' ]);
+  for (const x in TYPES) {
+    if (x === 'object' || x === 'undefined' || x.startsWith('__')) continue;
+    ctors.add(TYPE_NAMES[TYPES[x]].replace('Object', ''));
+  }
+  for (const x of ctors) {
+    out += `
+  if (Porffor.comptime.flag\`hasFunc.${x}\`) {
+    if (f == ${x}) return __${x}_prototype;
+  }`;
+  }
+
+  out += `
+  return undefined;
 };`;
 
   return out;
