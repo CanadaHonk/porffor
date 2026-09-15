@@ -4727,14 +4727,20 @@ ${st}jsval porf_num_to_str(f64 d) {
   if (d != d) n = snprintf(buf, sizeof buf, "NaN");
     else if (d == INFINITY) n = snprintf(buf, sizeof buf, "Infinity");
     else if (d == -INFINITY) n = snprintf(buf, sizeof buf, "-Infinity");
-    else if (d == trunc(d) && fabs(d) < 1e21) n = snprintf(buf, sizeof buf, "%.0f", d == 0.0 ? 0.0 : d);
+    else if (d == trunc(d) && fabs(d) < 18446744073709551616.0) {
+      char* p = buf + sizeof buf;
+      u64 v = (u64)fabs(d);
+      do { *--p = (char)('0' + v % 10u); v /= 10u; } while (v);
+      if (d < 0) *--p = '-';
+      n = (int)(buf + sizeof buf - p);
+      memmove(buf, p, (size_t)n);
+    } else if (d == trunc(d) && fabs(d) < 1e21) n = snprintf(buf, sizeof buf, "%.0f", d);
     else {
-    for (int prec = 1; prec <= 17; prec++) {
-      n = snprintf(buf, sizeof buf, "%.*g", prec, d);
-      f64 back; sscanf(buf, "%lf", &back);
-      if (back == d) break;
+      for (int prec = isnormal(d) ? 15 : 1;; prec++) {
+        n = snprintf(buf, sizeof buf, "%.*g", prec, d);
+        if (strtod(buf, NULL) == d || prec == 17) break;
+      }
     }
-  }
   const u32 s = porf_bstr_new((u32)n);
   memcpy(MEM + s + 4, buf, (size_t)n);
   return porf_box((f64)s, ${TYPES.bytestring});
