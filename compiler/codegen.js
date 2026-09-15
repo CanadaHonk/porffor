@@ -478,7 +478,12 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
       return generateIdent(scope, decl);
 
     case 'FunctionDeclaration': {
-      const out = generateFunc(scope, decl)[1];
+      const [ func, out ] = generateFunc(scope, decl);
+      if (decl._writes && !decl._skipVarUpdate) {
+        const name = decl.id.name, global = scope.topLevel;
+        allocVar(scope, name, global);
+        setLocalWithType(scope, name, global, materializeFunctionValue(scope, func), false, TYPES.function);
+      }
       const capture = scope.closureOwnLocals?.[decl.id?.name];
       if (capture && closureBindingNeedsSlot(capture))
         mirrorToClosureEnv(scope, decl.id.name, closureLocalReadNode(decl.id.name, false));

@@ -314,6 +314,8 @@ const declVar = (name, kind, node) => {
   const func = scopes[scopes.lastFuncs.at(-1)];
   // sloppy function decls hoist as var, but each loop iteration still makes a fresh binding
   if (kind === 'var' && node?.type === 'FunctionDeclaration') {
+    const scope = scopes.at(-1);
+    if (scopes.length - 1 - scopes.lastFuncs.at(-1) > 1 || !Array.isArray(scope.body) || !scope.body.includes(node)) node._writes = 1;
     for (let i = scopes.lastFuncs.at(-1) + 1; i < scopes.length; i++) {
       if (isLoopScope(scopes[i])) { node._loopScopedFuncDecl = true; break; }
     }
@@ -323,6 +325,8 @@ const declVar = (name, kind, node) => {
     parent = nearestStrictEvalScope() ?? func;
     if (parent._variables?.[name]) {
       const existing = parent._variables[name];
+      if (node?._writes && existing.node.type === 'Identifier' && !existing.node._declarator) node._skipVarUpdate = true;
+      if (existing.node._writes) node._writes = 1;
       existing.node = node;
       if (node && typeof node === 'object') node._variable = existing;
 
