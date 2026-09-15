@@ -3210,8 +3210,7 @@ static void porf_gc_mark_cons_roots(void) {
   const u64* hi = (const u64*)porf_c_stack_top;
   if (lo < hi) porf_gc_cons_scan_range(lo, hi);
   if (porf_try_depth > 0) {
-    const i32 td = porf_try_depth < 256 ? porf_try_depth : 256;
-    porf_gc_cons_scan_range((const u64*)porf_try_stack, (const u64*)(porf_try_stack + td));
+    porf_gc_cons_scan_range((const u64*)porf_try_stack, (const u64*)(porf_try_stack + porf_try_depth));
   }
   porf_gc_mark_promise_jobs();
   porf_gc_mark_coro_roots();
@@ -4527,9 +4526,21 @@ PORF_UN(u16) PORF_UN(u32) PORF_UN(u64) PORF_UN(f32) PORF_UN(f64)
 #endif
 
 // exceptions: setjmp-based, exception is a jsval
-${usesThreads ? '' : `${st}jmp_buf porf_try_stack[256];
+${usesThreads ? '' : `${st}jmp_buf* porf_try_data;
+${st}i32 porf_try_cap = 0;
 ${st}i32 porf_try_depth = 0;
 ${st}jsval porf_exception = {0.0, ${TYPES.undefined}};
+
+${sti}jmp_buf* porf_try_ensure(void) {
+  if (porf_try_depth > porf_try_cap) {
+    porf_try_cap = porf_try_cap ? porf_try_cap << 1 : 8;
+    porf_try_data = (jmp_buf*)realloc(porf_try_data, (size_t)porf_try_cap * sizeof(jmp_buf));
+    if (!porf_try_data) abort();
+  }
+  return porf_try_data;
+}
+
+#define porf_try_stack (porf_try_ensure())
 `}\
 ${toStr ? `jsval ${toStr}(jsval);
 ` : ''}\
