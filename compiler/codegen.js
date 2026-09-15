@@ -4302,7 +4302,7 @@ const generateClass = (scope, decl) => {
   func.knownThisSlots = getKnownThisSlots(decl);
   func.generate();
 
-  const classRoot = reuseNamed(scope, materializeFunctionValue(scope, func));
+  const classRoot = reuseNamed(scope, decl._writes ? generate(scope, root) : materializeFunctionValue(scope, func));
   const rootIdent = { type: 'Identifier', name: classRoot[N_A] };
 
   const classProto = reuse(scope, generate(scope, getObjProp(rootIdent, 'prototype')));
