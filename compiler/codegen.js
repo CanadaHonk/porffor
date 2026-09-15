@@ -827,6 +827,9 @@ const generateIdent = (scope, decl) => {
 
   if (decl._builtinMember && decl.name in builtinFuncs) return materializeFunctionValue(scope, includeBuiltin(scope, decl.name));
 
+  const boundFunc = decl._resolvedVariable?.node?._porfforFunc;
+  if (boundFunc && !decl._resolvedVariable.node._writes) return materializeFunctionValue(scope, boundFunc);
+
   if (decl.name in scope.locals) (scope.locals[decl.name].metadata ??= {}).read = true;
   return lookup(scope, decl.name, !(decl.name === 'arguments' && decl._resolvedBinding), decl._markFunctionReferenced !== false)
     ?? internalThrow(scope, 'ReferenceError', `${unhackName(decl.name)} is not defined`);
