@@ -1795,7 +1795,7 @@ const generateIRIntrinsic = (scope, op, args) => {
   const rawI32 = v => v[N_TYPE] === T.i32 ? v : Convert(T.i32, numValue(v), CONVERT_SIGNED);
   const rawFor = (ctype, v) => ctype === 'jsval' ? (v[N_TYPE] === T.jsval ? v : valNumber(v))
     : ctype === 'f64' || ctype === 'f32' ? numValue(v)
-    : ctype === 'u64' || ctype === 'i64' ? Convert(T.i64, numValue(v), ctype === 'i64' ? CONVERT_SIGNED : 0)
+    : ctype === 'u64' || ctype === 'i64' ? (v[N_TYPE] === T.i64 || v[N_TYPE] === T.u64 ? v : Convert(T.i64, numValue(v), ctype === 'i64' ? CONVERT_SIGNED : 0))
     : Convert(T.i32, numValue(v), ctype[0] === 'i' ? CONVERT_SIGNED : 0);
   let m;
   if (m = /^(load|store)(Un)?(\w+)$/.exec(op)) {
@@ -1809,7 +1809,7 @@ const generateIRIntrinsic = (scope, op, args) => {
     const out = Store(ct, ptr, off, value, unaligned);
     return out;
   }
-  if (op === 'bitsToF32') return Reinterpret(T.f64, a(0), 'bitsToF32');
+  if (op === 'bitsToF32') return Reinterpret(T.f64, rawI32(a(0)), 'bitsToF32');
   if (op === 'f32ToBits') return Reinterpret(T.i32, numValue(a(0)), 'f32ToBits');
   if (op === 'bitsToF64') return Reinterpret(T.f64, a(0));
   if (op === 'f64ToBits') return Reinterpret(T.u64, a(0));
