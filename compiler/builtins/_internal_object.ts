@@ -572,7 +572,7 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
       obj = __Porffor_object_getPrototype(obj);
       // if undefined, prototype is object.prototype
       if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
-    } else obj = __Porffor_object_getHiddenPrototype(trueType);
+    } else obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
 
     // todo/opt: put this behind comptime flag if only __proto__ is used
     if (hash == 212292208) if (Porffor.strcmp(key, '__proto__')) {
@@ -669,7 +669,7 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
       obj = __Porffor_object_getPrototype(obj);
       // if undefined, prototype is object.prototype
       if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
-    } else obj = __Porffor_object_getHiddenPrototype(trueType);
+    } else obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
 
     if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
     if (obj == null) return undefined;
