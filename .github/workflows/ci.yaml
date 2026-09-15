@@ -71,7 +71,7 @@ jobs:
       - name: bundle selfhost compiler
         run: node selfhosted/build.mjs
       - name: compile bundle to c
-        run: ./porf c --compress-data selfhosted/bundle.js -o selfhosted/stage1.c
+        run: node runtime/index.js c --compress-data selfhosted/bundle.js -o selfhosted/stage1.c
       - name: profile selfhost compiler
         run: |
           mkdir -p /tmp/porffor-pgo
