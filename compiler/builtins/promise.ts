@@ -181,9 +181,12 @@ export const __Porffor_promise_resolve = (value: any, promise: any): void => {
     // cheap prototype-chain probe for 'then' before the expensive Get below, does not invoke getters
     const thenHash: i32 = __Porffor_object_hash('then');
     let probe: any = value;
+    let lastProbe: any = probe;
     while (Porffor.type(probe) == Porffor.TYPES.object) {
       if (Porffor.object.lookup(probe, 'then', thenHash) != 0) break;
       probe = __Porffor_object_getPrototype(probe);
+      if (Porffor.IR.ptr(probe) == Porffor.IR.ptr(lastProbe)) break;
+      lastProbe = probe;
     }
     if (Porffor.type(probe) != Porffor.TYPES.object) {
       __ecma262_FulfillPromise(promise, value);
