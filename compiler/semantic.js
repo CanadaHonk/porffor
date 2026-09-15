@@ -608,7 +608,15 @@ const annotate = (node, parent = null, key = null) => {
         }
 
         if (variable.func && variable.scope?.type !== 'ClassExpression') {
-          if (variable.func !== currentFunc) {
+          if (classFieldInitializerFunc === currentFunc && variable.func === currentFunc && variable.scope?.type !== 'Program') {
+            node._closureFunc = variable.func;
+
+            variable.func._capturedVars ??= Object.create(null);
+            variable.func._capturedVars[node.name] = {
+              kind: variable.kind,
+              node: variable.node
+            };
+          } else if (variable.func !== currentFunc) {
             if (variable.scope?.type !== 'Program') {
               node._closureFunc = variable.func;
 
@@ -671,6 +679,17 @@ const annotate = (node, parent = null, key = null) => {
       return;
 
     case 'PropertyDefinition':
+      if (node.computed) annotate(node.key, node, 'key');
+      if (node.static) {
+        annotate(node.value, node, 'value');
+      } else {
+        const previous = classFieldInitializerFunc;
+        classFieldInitializerFunc = scopes[scopes.lastFuncs.at(-1)];
+        annotate(node.value, node, 'value');
+        classFieldInitializerFunc = previous;
+      }
+      return;
+
     case 'Property':
       if (node.computed) annotate(node.key, node, 'key');
       annotate(node.value, node, 'value');
@@ -727,10 +746,11 @@ const annotate = (node, parent = null, key = null) => {
   }
 };
 
-let inEval = false;
+let inEval = false, classFieldInitializerFunc = null;
 const semantic = (node, _scopes = null) => {
-  const oldScopes = scopes, oldInEval = inEval;
+  const oldScopes = scopes, oldInEval = inEval, oldClassFieldInitializerFunc = classFieldInitializerFunc;
   inEval = !!_scopes;
+  classFieldInitializerFunc = null;
   if (!_scopes) {
     _scopes = [ node ];
     _scopes.lastFuncs = [ 0 ];
@@ -743,6 +763,7 @@ const semantic = (node, _scopes = null) => {
   annotate(node);
   scopes = oldScopes;
   inEval = oldInEval;
+  classFieldInitializerFunc = oldClassFieldInitializerFunc;
   return node;
 };
 export default semantic;

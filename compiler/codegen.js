@@ -4171,8 +4171,13 @@ const generateMember = (scope, decl, objValue = null) => {
 const generateAwait = (scope, decl) =>
   awaitValue(scope, generate(scope, decl.argument));
 
-const bindClassFieldInitializerThis = (node, owner, currentArrow = null) => {
+const bindClassFieldInitializer = (node, owner, currentArrow = null) => {
   if (!node || typeof node !== 'object') return;
+
+  if (node.type === 'Identifier') {
+    if (node._closureFunc) owner._closurePassThrough = true;
+    return;
+  }
 
   if (node.type === 'ThisExpression') {
     if (!currentArrow) return;
@@ -4206,12 +4211,12 @@ const bindClassFieldInitializerThis = (node, owner, currentArrow = null) => {
     if (value == null || typeof value !== 'object') continue;
 
     if (Array.isArray(value)) {
-      for (const item of value) bindClassFieldInitializerThis(item, owner, currentArrow);
+      for (const item of value) bindClassFieldInitializer(item, owner, currentArrow);
       continue;
     }
 
     if (value.type) {
-      bindClassFieldInitializerThis(value, owner, currentArrow);
+      bindClassFieldInitializer(value, owner, currentArrow);
     }
   }
 };
@@ -4279,7 +4284,7 @@ const generateClass = (scope, decl) => {
 
   for (const x of body) {
     if (x.type === 'PropertyDefinition' && !x.static && x.value) {
-      bindClassFieldInitializerThis(x.value, constructorDecl);
+      bindClassFieldInitializer(x.value, constructorDecl);
     }
   }
 
@@ -4289,7 +4294,7 @@ const generateClass = (scope, decl) => {
   func.knownThisSlots = getKnownThisSlots(decl);
   func.generate();
 
-  const classRoot = reuseNamed(scope, expr && decl._porfDefaultName ? materializeFunctionValue(scope, func) : generate(scope, root));
+  const classRoot = reuseNamed(scope, materializeFunctionValue(scope, func));
   const rootIdent = { type: 'Identifier', name: classRoot[N_A] };
 
   const classProto = reuse(scope, generate(scope, getObjProp(rootIdent, 'prototype')));
@@ -4325,7 +4330,7 @@ const generateClass = (scope, decl) => {
     const key = getProperty(x, true);
     value ??= { type: 'Identifier', name: 'undefined' };
 
-    if (type === 'PropertyDefinition' && !_static) bindClassFieldInitializerThis(value, func.ast);
+    if (type === 'PropertyDefinition' && !_static) bindClassFieldInitializer(value, func.ast);
 
     if (isFuncType(value.type)) {
       const closureSource = value;
