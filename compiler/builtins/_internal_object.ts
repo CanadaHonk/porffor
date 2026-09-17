@@ -584,22 +584,23 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
       return obj;
     }
 
+    let proto: any = obj;
     if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
     if (obj == null) return undefined;
-    let lastProto: any = obj;
     while (true) {
       if ((entryPtr = __Porffor_object_lookup(obj, key, hash)) != 0) break;
 
       // inline get prototype
-      if (Porffor.type(obj) == Porffor.TYPES.object) {
-        obj = __Porffor_object_getPrototype(obj);
-        // if undefined, prototype is object.prototype
-        if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
-      } else obj = __Porffor_object_getPrototype(obj);
-      if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
+      obj = __Porffor_object_getPrototype(obj);
+      if (Porffor.type(obj) == Porffor.TYPES.undefined) {
+        obj = __Porffor_object_getHiddenPrototype(Porffor.type(proto));
+        if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(proto)) obj = __Object_prototype;
+      }
+      if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(proto)) break;
 
-      if (Porffor.fastOr(obj == null, Porffor.IR.ptr(obj) == Porffor.IR.ptr(lastProto))) break;
-      lastProto = obj;
+      proto = obj;
+      if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
+      if (obj == null) break;
     }
 
     if (entryPtr == 0) return undefined;
@@ -675,22 +676,23 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
       if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
     } else obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
 
+    let proto: any = obj;
     if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
     if (obj == null) return undefined;
-    let lastProto: any = obj;
     while (true) {
       if ((entryPtr = __Porffor_object_lookup(obj, key, hash)) != 0) break;
 
       // inline get prototype
-      if (Porffor.type(obj) == Porffor.TYPES.object) {
-        obj = __Porffor_object_getPrototype(obj);
-        // if undefined, prototype is object.prototype
-        if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
-      } else obj = __Porffor_object_getPrototype(obj);
-      if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
+      obj = __Porffor_object_getPrototype(obj);
+      if (Porffor.type(obj) == Porffor.TYPES.undefined) {
+        obj = __Porffor_object_getHiddenPrototype(Porffor.type(proto));
+        if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(proto)) obj = __Object_prototype;
+      }
+      if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(proto)) break;
 
-      if (Porffor.fastOr(obj == null, Porffor.IR.ptr(obj) == Porffor.IR.ptr(lastProto))) break;
-      lastProto = obj;
+      proto = obj;
+      if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
+      if (obj == null) break;
     }
 
     if (entryPtr == 0) return undefined;
