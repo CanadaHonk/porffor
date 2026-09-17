@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: release
@@ -228,6 +229,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: download release archives
         uses: actions/download-artifact@v4
         with:
@@ -250,6 +254,107 @@ jobs:
         run: |
           cd out
           gh release create '${{ needs.prepare.outputs.tag }}' --repo '${{ github.repository }}' --target '${{ github.sha }}' --title '${{ needs.prepare.outputs.version }}' --notes-file release-notes.md *.tar.gz
+      - name: publish to npm
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          export SEMVER="0.0.0-${TAG/-/.}"
+          node --input-type=module - <<'EOF'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+
+          const version = process.env.SEMVER;
+          const common = {
+            version,
+            license: 'MIT',
+            author: 'Oliver Medhurst <honk@goose.icu>',
+            repository: { type: 'git', url: 'git+https://github.com/CanadaHonk/porffor.git' },
+            homepage: 'https://porffor.dev'
+          };
+          const write = (dir, pkg) => {
+            fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(`${dir}/package.json`, JSON.stringify(pkg, null, 2) + '\n');
+            fs.copyFileSync('LICENSE', `${dir}/LICENSE`);
+          };
+
+          const targets = fs.readdirSync('out')
+            .filter(name => name.endsWith('.tar.gz'))
+            .map(name => name.slice('porffor-'.length, -'.tar.gz'.length))
+            .sort();
+          const optionalDependencies = {};
+          for (const target of targets) {
+            const [ os, cpu, libc ] = target.split('-');
+            const name = `@porffor/${target}`;
+            const dir = `npm/${name}`;
+            write(dir, {
+              name,
+              description: `Porffor binary for ${target}`,
+              ...common,
+              os: [ os ],
+              cpu: [ cpu ],
+              ...(os === 'linux' ? { libc: [ libc ?? 'glibc' ] } : {})
+            });
+            execFileSync('tar', [ '-xzf', `out/porffor-${target}.tar.gz`, '-C', dir ]);
+            optionalDependencies[name] = version;
+          }
+
+          write('npm/porffor', {
+            name: 'porffor',
+            description: 'An ahead-of-time JavaScript compiler',
+            ...common,
+            bin: { porf: 'porf' },
+            optionalDependencies
+          });
+          fs.copyFileSync('README.md', 'npm/porffor/README.md');
+          EOF
+          cat > npm/porffor/porf <<'EOF'
+          #!/bin/sh
+          # first run: replace this shim with a symlink to the matching @porffor/* binary
+          self="$0"
+          while [ -L "$self" ]; do
+            link="$(readlink "$self")"
+            case "$link" in
+              /*) self="$link" ;;
+              *) self="$(dirname "$self")/$link" ;;
+            esac
+          done
+          dir="$(dirname "$self")"
+
+          case "$(uname -s)" in
+            Darwin) os=darwin ;;
+            Linux) os=linux ;;
+            *) echo "porffor: unsupported OS: $(uname -s)" >&2; exit 1 ;;
+          esac
+          case "$(uname -m)" in
+            x86_64|amd64) cpu=x64 ;;
+            aarch64|arm64) cpu=arm64 ;;
+            *) echo "porffor: unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+          esac
+
+          targets="$os-$cpu"
+          if [ "$os" = linux ]; then
+            if [ -f /etc/alpine-release ]; then
+              targets="$os-$cpu-musl $targets"
+            else
+              targets="$targets $os-$cpu-musl"
+            fi
+          fi
+
+          for target in $targets; do
+            for bin in "node_modules/@porffor/$target/porf" "../@porffor/$target/porf"; do
+              if [ -x "$dir/$bin" ]; then
+                ln -sf "$bin" "$self" 2>/dev/null
+                exec "$dir/$bin" "$@"
+              fi
+            done
+          done
+          exec "$dir/../@porffor/$os-$cpu/porf" "$@"
+          EOF
+          chmod +x npm/porffor/porf npm/@porffor/*/porf
+          # platform packages first so porffor never references an unpublished version
+          for dir in npm/@porffor/* npm/porffor; do
+            (cd "$dir" && npm publish --access public --tag latest)
+          done
       - name: announce release on discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
