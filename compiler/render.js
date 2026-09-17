@@ -1840,7 +1840,7 @@ static void porf_arena_init(void) {
   const size_t pm_bytes = (size_t)PORF_GC_NPAGES * sizeof(struct porf_gc_page);
   const size_t side_bytes = kinds_bytes + bits_bytes * 4 + cards_bytes + pk_bytes + pm_bytes;
   u8* side = (u8*)mmap(NULL, side_bytes, PROT_READ | PROT_WRITE,
-    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
   if (side == MAP_FAILED) {
     fprintf(stderr, "porffor: failed to reserve gc metadata\\n");
     exit(1);
@@ -4266,6 +4266,9 @@ static _Thread_local NativeFetchResponseParts* porf_native_fetch_response_parts_
 ${prefs.nativeFetch ? '' : st}u8* porf_mem;
 #define MEM porf_mem
 #define PORF_NOINLINE __attribute__((noinline))
+#ifndef MAP_NORESERVE
+#define MAP_NORESERVE 0
+#endif
 #ifdef __wasi__
 // wasi's malloc-backed mmap ignores fixed hints and cannot change protections
 // or decommit, so use a small, fully committed arena
@@ -4941,10 +4944,6 @@ const CORO_RUNTIME = usesThreads => `// ---- coroutines (fiber stacks) ----
 #include <ucontext.h>
 #else
 #define PORF_CORO_USE_UCONTEXT 0
-#endif
-
-#ifndef MAP_NORESERVE
-#define MAP_NORESERVE 0
 #endif
 
 #define PORF_CORO_STACK_SIZE (256u * 1024u)
