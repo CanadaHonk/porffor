@@ -165,6 +165,7 @@ export const __Porffor_object_in = (obj: any, prop: any): boolean => {
     const handler: any = Porffor.IR.loadJv(obj, 8);
     const trap: any = __Porffor_object_get(handler, 'has');
     if (Porffor.type(trap) == Porffor.TYPES.function) return !!Porffor.callThis(trap, handler, target, prop);
+    if (trap != null) throw new TypeError('proxy handler.has is not callable');
     return __Porffor_object_in(target, prop);
   }
 

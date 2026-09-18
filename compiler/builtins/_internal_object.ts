@@ -551,6 +551,7 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
     const handler: any = Porffor.IR.loadJv(_obj, 8);
     const trap: any = __Porffor_object_get(handler, 'get');
     if (Porffor.type(trap) == Porffor.TYPES.function) return Porffor.callThis(trap, handler, target, key, _obj);
+    if (trap != null) throw new TypeError('proxy handler.get is not callable');
     return __Porffor_object_get(target, key);
   }
 
@@ -666,6 +667,7 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
     const handler: any = Porffor.IR.loadJv(_obj, 8);
     const trap: any = __Porffor_object_get(handler, 'get');
     if (Porffor.type(trap) == Porffor.TYPES.function) return Porffor.callThis(trap, handler, target, key, _obj);
+    if (trap != null) throw new TypeError('proxy handler.get is not callable');
     return __Porffor_object_get_withHash(target, key, hash);
   }
 
@@ -732,6 +734,7 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
       Porffor.callThis(trap, handler, target, key, value, _obj);
       return value;
     }
+    if (trap != null) throw new TypeError('proxy handler.set is not callable');
     return __Porffor_object_set(target, key, value);
   }
 
@@ -858,6 +861,7 @@ export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, h
       Porffor.callThis(trap, handler, target, key, value, _obj);
       return value;
     }
+    if (trap != null) throw new TypeError('proxy handler.set is not callable');
     return __Porffor_object_set_withHash(target, key, value, hash);
   }
 
@@ -958,6 +962,7 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
       if (!Porffor.callThis(trap, handler, target, key, value, _obj)) throw new TypeError('proxy set trap returned a falsy value');
       return value;
     }
+    if (trap != null) throw new TypeError('proxy handler.set is not callable');
     return __Porffor_object_setStrict(target, key, value);
   }
 
@@ -1085,6 +1090,7 @@ export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: 
       if (!Porffor.callThis(trap, handler, target, key, value, _obj)) throw new TypeError('proxy set trap returned a falsy value');
       return value;
     }
+    if (trap != null) throw new TypeError('proxy handler.set is not callable');
     return __Porffor_object_setStrict_withHash(target, key, value, hash);
   }
 
@@ -1279,6 +1285,7 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
     const handler: any = Porffor.IR.loadJv(obj, 8);
     const trap: any = __Porffor_object_get(handler, 'deleteProperty');
     if (Porffor.type(trap) == Porffor.TYPES.function) return !!Porffor.callThis(trap, handler, target, key);
+    if (trap != null) throw new TypeError('proxy handler.deleteProperty is not callable');
     return __Porffor_object_delete(target, key);
   }
 
@@ -1333,6 +1340,7 @@ export const __Porffor_object_deleteStrict = (obj: any, key: any): boolean => {
       if (!Porffor.callThis(trap, handler, target, key)) throw new TypeError('proxy deleteProperty trap returned a falsy value');
       return true;
     }
+    if (trap != null) throw new TypeError('proxy handler.deleteProperty is not callable');
     return __Porffor_object_deleteStrict(target, key);
   }
 
