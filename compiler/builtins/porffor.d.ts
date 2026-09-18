@@ -6,6 +6,10 @@ export type bytestring = string;
 export type BooleanObject = Boolean;
 export type NumberObject = Number;
 export type StringObject = String;
+// distinct from the standard lib's `Proxy` value binding (ProxyConstructor):
+// this names our own internal representation, {target, handler} storage the
+// get/set/has/deleteProperty traps in _internal_object.ts dispatch through
+export type Proxy = any;
 
 type PorfforGlobal = {
   malloc(bytes?: i32): any;
@@ -180,4 +184,5 @@ declare global {
   type BooleanObject = Boolean;
   type NumberObject = Number;
   type StringObject = String;
+  type Proxy = any;
 }

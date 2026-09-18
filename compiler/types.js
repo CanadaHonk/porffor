@@ -58,6 +58,7 @@ registerInternalType('WeakSet');
 registerInternalType('WeakMap');
 
 registerInternalType('Promise');
+registerInternalType('Proxy');
 
 registerInternalType('BooleanObject');
 registerInternalType('NumberObject');
