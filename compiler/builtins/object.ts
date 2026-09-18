@@ -15,10 +15,18 @@ export const Object = function (value: any): any {
   return value;
 };
 
-export const Proxy = function (target: any, handler: any): any {
-  if (target == null) throw new TypeError('Cannot create proxy with a non-object as target');
-  if (handler == null) throw new TypeError('Cannot create proxy with a non-object as handler');
-  return target;
+export const Proxy = function (target: any, handler: any): Proxy {
+  if (!new.target) throw new TypeError("Constructor Proxy requires 'new'");
+  if (!Porffor.object.isObject(target)) throw new TypeError('Cannot create proxy with a non-object as target');
+  if (!Porffor.object.isObject(handler)) throw new TypeError('Cannot create proxy with a non-object as handler');
+
+  const out: Proxy = Porffor.malloc(16);
+  Porffor.IR.storeJv(out, 0, target);
+  Porffor.IR.storeJv(out, 8, handler);
+  Porffor.IR.gcBarrierValue(out, Porffor.TYPES.proxy, target);
+  Porffor.IR.gcBarrierValue(out, Porffor.TYPES.proxy, handler);
+
+  return out;
 };
 
 export const __Object_keys = (obj: any): any[] => {
@@ -150,6 +158,15 @@ export const __Object_hasOwn = (obj: any, prop: any): boolean => {
 
 export const __Porffor_object_in = (obj: any, prop: any): boolean => {
   // todo: throw if obj is not an object
+
+  if (Porffor.type(obj) == Porffor.TYPES.proxy) {
+    prop = ecma262.ToPropertyKey(prop);
+    const target: any = Porffor.IR.loadJv(obj, 0);
+    const handler: any = Porffor.IR.loadJv(obj, 8);
+    const trap: any = __Porffor_object_get(handler, 'has');
+    if (Porffor.type(trap) == Porffor.TYPES.function) return !!Porffor.callThis(trap, handler, target, prop);
+    return __Porffor_object_in(target, prop);
+  }
 
   if (Porffor.callThis(__Object_prototype_hasOwnProperty, obj, prop)) {
     return true;
