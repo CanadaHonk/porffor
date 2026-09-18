@@ -217,6 +217,12 @@ export const __Porffor_object_underlying = (_obj: any): any => {
   const objType: i32 = Porffor.type(_obj);
   if (objType == Porffor.TYPES.object) return _obj;
 
+  // untrapped operations (ownKeys, getPrototypeOf, defineProperty, ...) fall
+  // through to whatever reads the underlying object directly; forwarding to
+  // the target's own underlying here is exactly the Reflect-default behaviour
+  // those operations have when a handler defines no trap for them
+  if (objType == Porffor.TYPES.proxy) return __Porffor_object_underlying(Porffor.IR.loadJv(_obj, 0));
+
   if (objType > 0x05) {
     if (underlyingStore == 0) {
       underlyingStore = Porffor.malloc();
@@ -550,6 +556,16 @@ export const __Porffor_array_propertyKeyIndex = (key: any): i32 => {
 };
 
 export const __Porffor_object_get = (_obj: any, key: any): any => {
+  if (Porffor.type(_obj) == Porffor.TYPES.proxy) {
+    key = ecma262.ToPropertyKey(key);
+    const target: any = Porffor.IR.loadJv(_obj, 0);
+    const handler: any = Porffor.IR.loadJv(_obj, 8);
+    const trap: any = __Porffor_object_get(handler, 'get');
+    if (Porffor.type(trap) == Porffor.TYPES.function) return Porffor.callThis(trap, handler, target, key, _obj);
+    if (trap != null) throw new TypeError('proxy handler.get is not callable');
+    return __Porffor_object_get(target, key);
+  }
+
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
   if (trueType == Porffor.TYPES.object) {
@@ -657,6 +673,15 @@ export const __Porffor_object_get_icMiss = (_obj: any, key: any, hash: i32, slot
 };
 
 export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): any => {
+  if (Porffor.type(_obj) == Porffor.TYPES.proxy) {
+    const target: any = Porffor.IR.loadJv(_obj, 0);
+    const handler: any = Porffor.IR.loadJv(_obj, 8);
+    const trap: any = __Porffor_object_get(handler, 'get');
+    if (Porffor.type(trap) == Porffor.TYPES.function) return Porffor.callThis(trap, handler, target, key, _obj);
+    if (trap != null) throw new TypeError('proxy handler.get is not callable');
+    return __Porffor_object_get_withHash(target, key, hash);
+  }
+
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
   if (trueType == Porffor.TYPES.object) {
@@ -711,6 +736,19 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
 };
 
 export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
+  if (Porffor.type(_obj) == Porffor.TYPES.proxy) {
+    key = ecma262.ToPropertyKey(key);
+    const target: any = Porffor.IR.loadJv(_obj, 0);
+    const handler: any = Porffor.IR.loadJv(_obj, 8);
+    const trap: any = __Porffor_object_get(handler, 'set');
+    if (Porffor.type(trap) == Porffor.TYPES.function) {
+      Porffor.callThis(trap, handler, target, key, value, _obj);
+      return value;
+    }
+    if (trap != null) throw new TypeError('proxy handler.set is not callable');
+    return __Porffor_object_set(target, key, value);
+  }
+
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
   if (Porffor.type(obj) != Porffor.TYPES.object) {
@@ -826,6 +864,18 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
 };
 
 export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, hash: i32): any => {
+  if (Porffor.type(_obj) == Porffor.TYPES.proxy) {
+    const target: any = Porffor.IR.loadJv(_obj, 0);
+    const handler: any = Porffor.IR.loadJv(_obj, 8);
+    const trap: any = __Porffor_object_get(handler, 'set');
+    if (Porffor.type(trap) == Porffor.TYPES.function) {
+      Porffor.callThis(trap, handler, target, key, value, _obj);
+      return value;
+    }
+    if (trap != null) throw new TypeError('proxy handler.set is not callable');
+    return __Porffor_object_set_withHash(target, key, value, hash);
+  }
+
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
   if (Porffor.type(obj) != Porffor.TYPES.object) {
@@ -914,6 +964,19 @@ export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, h
 };
 
 export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any => {
+  if (Porffor.type(_obj) == Porffor.TYPES.proxy) {
+    key = ecma262.ToPropertyKey(key);
+    const target: any = Porffor.IR.loadJv(_obj, 0);
+    const handler: any = Porffor.IR.loadJv(_obj, 8);
+    const trap: any = __Porffor_object_get(handler, 'set');
+    if (Porffor.type(trap) == Porffor.TYPES.function) {
+      if (!Porffor.callThis(trap, handler, target, key, value, _obj)) throw new TypeError('proxy set trap returned a falsy value');
+      return value;
+    }
+    if (trap != null) throw new TypeError('proxy handler.set is not callable');
+    return __Porffor_object_setStrict(target, key, value);
+  }
+
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
   if (Porffor.type(obj) != Porffor.TYPES.object) {
@@ -1030,6 +1093,18 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
 };
 
 export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: any, hash: i32): any => {
+  if (Porffor.type(_obj) == Porffor.TYPES.proxy) {
+    const target: any = Porffor.IR.loadJv(_obj, 0);
+    const handler: any = Porffor.IR.loadJv(_obj, 8);
+    const trap: any = __Porffor_object_get(handler, 'set');
+    if (Porffor.type(trap) == Porffor.TYPES.function) {
+      if (!Porffor.callThis(trap, handler, target, key, value, _obj)) throw new TypeError('proxy set trap returned a falsy value');
+      return value;
+    }
+    if (trap != null) throw new TypeError('proxy handler.set is not callable');
+    return __Porffor_object_setStrict_withHash(target, key, value, hash);
+  }
+
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
   if (Porffor.type(obj) != Porffor.TYPES.object) {
@@ -1215,6 +1290,16 @@ export const __Porffor_object_defineAccessor = (obj: any, key: any, get: any, se
 };
 
 export const __Porffor_object_delete = (obj: any, key: any): boolean => {
+  if (Porffor.type(obj) == Porffor.TYPES.proxy) {
+    key = ecma262.ToPropertyKey(key);
+    const target: any = Porffor.IR.loadJv(obj, 0);
+    const handler: any = Porffor.IR.loadJv(obj, 8);
+    const trap: any = __Porffor_object_get(handler, 'deleteProperty');
+    if (Porffor.type(trap) == Porffor.TYPES.function) return !!Porffor.callThis(trap, handler, target, key);
+    if (trap != null) throw new TypeError('proxy handler.deleteProperty is not callable');
+    return __Porffor_object_delete(target, key);
+  }
+
   if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot delete property of null');
 
   const trueType: i32 = Porffor.type(obj);
@@ -1257,6 +1342,19 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
 };
 
 export const __Porffor_object_deleteStrict = (obj: any, key: any): boolean => {
+  if (Porffor.type(obj) == Porffor.TYPES.proxy) {
+    key = ecma262.ToPropertyKey(key);
+    const target: any = Porffor.IR.loadJv(obj, 0);
+    const handler: any = Porffor.IR.loadJv(obj, 8);
+    const trap: any = __Porffor_object_get(handler, 'deleteProperty');
+    if (Porffor.type(trap) == Porffor.TYPES.function) {
+      if (!Porffor.callThis(trap, handler, target, key)) throw new TypeError('proxy deleteProperty trap returned a falsy value');
+      return true;
+    }
+    if (trap != null) throw new TypeError('proxy handler.deleteProperty is not callable');
+    return __Porffor_object_deleteStrict(target, key);
+  }
+
   if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot delete property of null');
 
   const trueType: i32 = Porffor.type(obj);
