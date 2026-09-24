@@ -127,7 +127,6 @@ export default (code, module = Prefs.module, opts = {}) => {
       '-fno-exceptions',
       '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
       '-fno-ident', '-ffunction-sections', '-fdata-sections',
-      ...(cOut.threads ? [ '-pthread' ] : []),
       ...darwinReleaseCompileArgs,
       ...compilerArgs,
       `-O${Prefs.O ?? 3}`
@@ -215,7 +214,7 @@ export default (code, module = Prefs.module, opts = {}) => {
         ...(objects ?? [ '-xc', '-', ...compileOnlyArgs ]),
         '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), // set path for output
         '-lm', // link math.h
-        ...(objects ? [ ...(cOut.threads ? [ '-pthread' ] : []), ...compilerArgs, `-O${Prefs.O ?? 3}` ] : []),
+        ...(objects ? [ ...compilerArgs, `-O${Prefs.O ?? 3}` ] : []),
         ...(isTinyCC ? [] : linkStripArgs)
       ];
 

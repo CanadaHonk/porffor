@@ -115,17 +115,6 @@ export const __Porffor_object_new = (capacity: i32 = 4): object => {
   return obj;
 };
 
-export const __Porffor_object_newShared = (capacity: i32 = 4): object => {
-  const obj: object = __Porffor_mallocShared(16 + capacity * 20);
-  Porffor.IR.storeU16(obj, 0, 0);
-  Porffor.IR.storeU16(obj, 2, capacity);
-  Porffor.IR.storeU8(obj, 4, 0);
-  Porffor.IR.storeU8(obj, 5, 0);
-  Porffor.IR.storeI32(obj, 8, 0);
-  Porffor.IR.storeI32(obj, 12, Porffor.IR.ptr(obj) + 16);
-  return obj;
-};
-
 export const __Porffor_object_entriesPtr = (obj: any): i32 => {
   return Porffor.IR.loadI32(obj, 12);
 };

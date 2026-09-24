@@ -311,7 +311,6 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   let usesMath = false;
   let usesCoro = false;
   let usesSyncAsync = false;
-  const usesThreads = funcs.some(f => f?.name?.startsWith('__Porffor_threads_'));
   const gcEnabled = prefs.gc !== false;
   for (const f of funcs) {
     if (needsCoro(f)) usesCoro = true;
@@ -808,7 +807,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         emit(`${ind()}{\n`);
         depth++;
         emit(`${ind()}const i32 _try_idx = porf_try_depth++;\n`);
-        emit(`${ind()}if (_setjmp(porf_try_stack[_try_idx]) == 0) {\n`);
+        emit(`${ind()}if (_setjmp(porf_try_ensure()[_try_idx]) == 0) {\n`);
         activeTryDepth++;
         depth++; renderStmts(node[N_A]);
         activeTryDepth--;
@@ -891,24 +890,8 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   const toStr = funcs.find(x => x && x.name === '__ecma262_ToString' && x.body);
   if (toStr) runtimeRefs.push(toStr);
   if (promiseResolveFunc) runtimeRefs.push(promiseResolveFunc);
-  prelude.push(RUNTIME_HEAD(prefs, usesThreads, usesCoro, toStr ? fnSym(toStr) : null));
-  if (usesCoro) prelude.push(CORO_RUNTIME(usesThreads));
-  if (usesThreads) {
-    const entryFunc = funcByName.get('__Porffor_threads_entry');
-    const promiseRunOneFunc = funcByName.get('__Porffor_promise_runOne');
-    if (!entryFunc) throw new Error('missing Porffor threads entry function');
-    if (!promiseRunOneFunc) throw new Error('missing promise reaction runner for Porffor threads');
-    const vals = [ 'fnv', 'argsv', 'promv' ];
-    const types = [ 'fnt', 'argst', 'promt' ];
-    const entryArgs = entryFunc.params.map((p, i) => {
-      if (p.type === T.jsval) return `porf_box(task->${vals[i]}, task->${types[i]})`;
-      if (p.type === T.f64) return `task->${vals[i]}`;
-      if (p.type === T.i32 || p.type === T.u32 || p.type === T.ptr) return `task->${types[i]}`;
-      return `(${CT[p.type]})task->${vals[i]}`;
-    }).join(', ');
-    runtimeRefs.push(entryFunc, promiseRunOneFunc);
-    prelude.push(THREAD_RUNTIME(fnSym(entryFunc), entryArgs, fnSym(promiseRunOneFunc), prefs, usesCoro));
-  }
+  prelude.push(RUNTIME_HEAD(prefs, toStr ? fnSym(toStr) : null));
+  if (usesCoro) prelude.push(CORO_RUNTIME());
 
   // link unit head: static data image, globals, gc roots, per-function tables
   const link = [];
@@ -1038,9 +1021,6 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     link.push(usesCoro
       ? `${st}void porf_gc_mark_coro_roots(void) {\n  for (i32 i = 0; i < porf_coro_live_len; i++) {\n    porf_coro* c = porf_coro_live[i];\n    if (c) porf_coro_gc_mark_suspended(c, 0);\n  }\n  for (porf_coro* c = porf_coro_cur; c; c = c->parent) porf_coro_gc_mark_active(c);\n}\n\n${st}void porf_gc_mark_coro_handle(uintptr_t raw) {\n  porf_coro_gc_mark_handle((porf_coro_call*)raw);\n}\n\n${st}void porf_gc_finalize_body(i32 body, i32 type) {\n  if (type == ${TYPES.__porffor_generator} || type == ${TYPES.__porffor_asyncgenerator}) {\n    uintptr_t raw = *(uintptr_t*)(MEM + body);\n    *(uintptr_t*)(MEM + body) = 0;\n    porf_coro_call_free((porf_coro_call*)raw);\n  }\n}\n\n`
       : `${st}void porf_gc_mark_coro_roots(void) {}\n${st}void porf_gc_mark_coro_handle(uintptr_t raw) { (void)raw; }\n${st}void porf_gc_finalize_body(i32 body, i32 type) { (void)body; (void)type; }\n\n`);
-    if (usesThreads) {
-      link.push(`${st}void porf_gc_mark_thread_roots(void) {\n  pthread_mutex_lock(&porf_fiber_live_lock);\n  for (porf_fiber* f = porf_fiber_live; f != NULL; f = f->live_next) {\n    porf_gc_mark_js(f->fnv, f->fnt);\n    porf_gc_mark_js(f->argsv, f->argst);\n    porf_gc_mark_js(f->promv, f->promt);\n    porf_gc_mark_js(f->fiber_exception.val, f->fiber_exception.type);\n    if (f->fiber_try_stack && f->fiber_try_depth > 0) {\n      const i32 td = f->fiber_try_depth < f->fiber_try_cap ? f->fiber_try_depth : f->fiber_try_cap;\n      porf_gc_cons_scan_range((const u64*)f->fiber_try_stack, (const u64*)(f->fiber_try_stack + td));\n    }\n    if (f != porf_fiber_current && f->sp && f->c_stack_top) porf_gc_cons_scan_range((const u64*)f->sp, (const u64*)f->c_stack_top);\n  }\n  pthread_mutex_unlock(&porf_fiber_live_lock);\n}\n\n`);
-    }
   }
 
   // per-function metadata tables, emitted before bodies so __Porffor_funcLut_* can read them.
@@ -1135,7 +1115,7 @@ ${st}jsval porf_promise_rejected(jsval value) {
       emit(`
 ${st}jsval porf_async_call_sync(u32 idx, jsval callee, u32 env, jsval thisv, jsval newtv, i32 argc, jsbits* argv) {
   const i32 try_idx = porf_try_depth++;
-  if (_setjmp(porf_try_stack[try_idx]) == 0) {
+  if (_setjmp(porf_try_ensure()[try_idx]) == 0) {
     const jsval result = porf_invoke(idx, callee, env, thisv, newtv, argc, argv);
     porf_try_depth = try_idx;
     const jsval out_promise = porf_promise_settled(JV_UNDEFINED, 0);
@@ -1199,7 +1179,7 @@ static void porf_promise_run_coro_reaction_coro(u32 reaction) {
   const i32 is_throw = (i32)*(u32*)(MEM + reaction + PORF_REACTION_PAYLOAD);
 
   const i32 try_idx = porf_try_depth++;
-  if (_setjmp(porf_try_stack[try_idx]) == 0) {
+  if (_setjmp(porf_try_ensure()[try_idx]) == 0) {
     const i32 done = porf_coro_call_step(call, value, is_throw);
     porf_try_depth = try_idx;
     if (done) {
@@ -1262,7 +1242,7 @@ static porf_coro_call* porf_coro_unbox(jsval gen) {
   // the promise-reaction resume, but re-raises on the caller's stack since the
   // sync .next/.throw/.return driver has no out-promise to settle.
   const i32 try_idx = porf_try_depth++;
-  if (_setjmp(porf_try_stack[try_idx]) == 0) {
+  if (_setjmp(porf_try_ensure()[try_idx]) == 0) {
     const i32 done = porf_coro_call_step(call, value, mode == 1);
     porf_try_depth = try_idx;
     return done;
@@ -1292,7 +1272,7 @@ ${st}jsval porf_coro_start(u8 flags, u32 idx, jsval callee, u32 env, jsval thisv
 	  if (kind == ${FN_GENERATOR} || kind == ${FN_ASYNC_GENERATOR}) {
 	    if (flags & ${FN_CORO_INIT}u) {
 	      const i32 try_idx = porf_try_depth++;
-	      if (_setjmp(porf_try_stack[try_idx]) == 0) {
+	      if (_setjmp(porf_try_ensure()[try_idx]) == 0) {
 	        (void)porf_coro_call_step(call, JV_UNDEFINED, 0);
 	        porf_try_depth = try_idx;
 	      } else {
@@ -1309,7 +1289,7 @@ ${st}jsval porf_coro_start(u8 flags, u32 idx, jsval callee, u32 env, jsval thisv
 
   const jsval out_promise = porf_promise_pending();
 	  const i32 try_idx = porf_try_depth++;
-	  if (_setjmp(porf_try_stack[try_idx]) == 0) {
+	  if (_setjmp(porf_try_ensure()[try_idx]) == 0) {
 	    const i32 done = porf_coro_call_step(call, call->coro.channel, 0);
 	    porf_try_depth = try_idx;
 	    if (done) {
@@ -1643,7 +1623,7 @@ int porf_native_fetch_read_value(jsval value, const char** out_buf, size_t* out_
   }
 
   if (entry && !prefs.nativeFetch) {
-    emit(`int main(int argc, char** argv) {\n  porf_init(argc, argv);\n  porf_data_init();\n  ${gcEnabled ? 'volatile int porf_stack_anchor = 0;\n  porf_c_stack_top = (void*)&porf_stack_anchor;\n  ' : ''}${fnSym(funcByName.get(entry))}();\n  ${usesThreads ? 'porf_threads_drain();\n  ' : ''}return 0;\n}\n`);
+    emit(`int main(int argc, char** argv) {\n  porf_init(argc, argv);\n  porf_data_init();\n  ${gcEnabled ? 'volatile int porf_stack_anchor = 0;\n  porf_c_stack_top = (void*)&porf_stack_anchor;\n  ' : ''}${fnSym(funcByName.get(entry))}();\n  return 0;\n}\n`);
   }
 
   if (usesMath) prelude.splice(1, 0, '#include <math.h>\n');
@@ -1669,8 +1649,8 @@ int porf_native_fetch_read_value(jsval value, const char** out_buf, size_t* out_
     const text = prelude.concat(link);
     for (const u of unitOrder) if (unitParts[u]) text.push(unitText(u, unitParts[u]));
     const c = text.join('');
-    if (!prefs.nativeFetch) return usesThreads ? { c, threads: true } : c;
-    return { c, nativeFetch: true, threads: usesThreads };
+    if (!prefs.nativeFetch) return c;
+    return { c, nativeFetch: true };
   }
 
   const rt = splitRuntime(prelude.join(''));
@@ -1686,7 +1666,7 @@ int porf_native_fetch_read_value(jsval value, const char** out_buf, size_t* out_
     { name: 'porf_runtime.c', c: '#include "porf.h"\n' + runtimeRefs.map(proto).join('') + rt.impl }
   ];
   for (const u of unitOrder) if (unitParts[u]) files.push({ name: unitName(u), c: unitText(u, unitParts[u]) });
-  return { files, threads: usesThreads, nativeFetch: !!prefs.nativeFetch };
+  return { files, nativeFetch: !!prefs.nativeFetch };
 };
 
 // split runtime C into header declarations and implementation
@@ -1818,12 +1798,12 @@ static inline u32 porf_gc_barrier_ptr_jsval(jsval v) { return (u32)v.val; }
 static void* porf_c_stack_top = NULL;
 ${st}i32 porf_gc_native_root_add(f64 value, i32 type) { (void)value; (void)type; return -1; }
 ${st}void porf_gc_native_root_remove(i32 slot) { (void)slot; }
-${st}void porf_gc_collect_impl(int minor) { (void)minor; }
+${st}void porf_gc_collect(int minor) { (void)minor; }
 
 `;
 };
 
-const PORF_GC_ALLOC = (prefs, usesThreads = false) => {
+const PORF_GC_ALLOC = prefs => {
   const st = 'static ';
   const sti = 'static inline ';
 
@@ -1916,17 +1896,7 @@ static u32 porf_gc_free_page_count = 0;
 #define porf_gc_bit_clear(plane, g) (porf_gc_meta[porf_gc_widx(g) + (plane)] &= ~(1ull << ((g) & 63u)))
 
 struct porf_gc_window { u32 cur, end, lo; };
-${usesThreads ? `struct porf_gc_tlab {
-  struct porf_gc_window active[PORF_GC_NCLASSES];
-  struct porf_gc_tlab* next;
-};
-static pthread_mutex_t porf_gc_thread_alloc_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t porf_gc_thread_tlab_lock = PTHREAD_MUTEX_INITIALIZER;
-static _Thread_local struct porf_gc_tlab* porf_gc_tlab = NULL;
-static struct porf_gc_tlab* porf_gc_tlabs = NULL;
-static int porf_stw_requested;
-` : `static struct porf_gc_window porf_gc_active[PORF_GC_NCLASSES];
-`}\
+static struct porf_gc_window porf_gc_active[PORF_GC_NCLASSES];
 static u32 porf_gc_partial[PORF_GC_NCLASSES];
 
 static u64 porf_gc_allocation_debt = 0;
@@ -1964,8 +1934,7 @@ static u64* porf_gc_static_marks = NULL;
 static i32 porf_gc_static_marks_len = 0;
 static i32 porf_gc_static_marks_cap = 0;
 
-${st}void porf_gc_collect_impl(int minor);
-${usesThreads ? 'static void porf_gc_collect_threaded(int minor);\n' : ''}\
+${st}void porf_gc_collect(int minor);
 static void porf_gc_mark_js(f64 value, i32 type);
 static void porf_gc_mark_raw(i32 body);
 static int porf_gc_mark_underlying_store(i32 body);
@@ -1981,7 +1950,6 @@ static void porf_gc_scan_kind_block(i32 body);
 static void porf_gc_scan_body(i32 body, i32 type);
 static void porf_gc_scan_object_entries_range(i32 entries, u32 from, u32 to);
 static u32 porf_gc_span_alloc(u32 bytes, u32 typeId);
-${usesThreads ? 'static void porf_gc_mark_thread_roots(void);\n' : ''}\
 
 static inline u32 porf_gc_align(u32 size) { return (size + 7u) & ~7u; }
 
@@ -2133,46 +2101,14 @@ static u32 porf_gc_free_page_pop(void) {
   return 0;
 }
 
-${usesThreads ? `static void porf_gc_safepoint(void);
-static void porf_stw_begin(void);
-static void porf_stw_end(void);
-static _Thread_local int porf_thread_worker;
-
-static int porf_threads_default_pool_value = ${parseInt(prefs.threadsPool) || 0};
-
-static inline int porf_threads_default_pool(void) {
-  return porf_threads_default_pool_value;
-}
-
-static void porf_threads_default_pool_init(void) {
-  if (porf_threads_default_pool_value < 1) {
-    porf_threads_default_pool_value = (int)sysconf(_SC_NPROCESSORS_ONLN);
-    if (porf_threads_default_pool_value < 1) porf_threads_default_pool_value = 1;
-  }
-}
-
-static inline i64 porf_gc_thread_budget_mutators(void) {
-  return (i64)porf_threads_default_pool();
-}
-static inline i64 porf_gc_thread_nursery_limit(void) {
-  return (i64)PORF_GC_NURSERY_BYTES * porf_gc_thread_budget_mutators();
-}
-static inline i64 porf_gc_thread_span_limit(void) {
-  return 8388608ll * porf_gc_thread_budget_mutators();
-}
-` : ''}\
 static int porf_gc_full_due(i64 additional_claimed) {
-  const i64 scale = ${usesThreads ? 'porf_gc_thread_budget_mutators()' : '1'};
   const u64 live_limit = porf_gc_last_live_bytes > 268435456ull ? porf_gc_last_live_bytes : 268435456ull;
   u64 promoted_limit = porf_gc_last_live_bytes / 2u;
   if (promoted_limit < 134217728ull) promoted_limit = 134217728ull;
   if (promoted_limit > 536870912ull) promoted_limit = 536870912ull;
-  const i64 full_at = live_limit > (u64)((1ll << 62) / scale) ? (1ll << 62) : (i64)live_limit * scale;
-  const i64 promoted_at = promoted_limit > (u64)((1ll << 62) / scale) ? (1ll << 62) : (i64)promoted_limit * scale;
-  const i64 pressure_full_at = 67108864ll * scale;
-  const i64 claimed = porf_gc_claimed_since_full > (1ll << 62) - additional_claimed ? (1ll << 62) : porf_gc_claimed_since_full + additional_claimed;
-  return claimed > full_at || porf_gc_promoted_since_full > promoted_at ||
-    (porf_heap_top > 1610612736u && claimed > pressure_full_at);
+  const i64 claimed = porf_gc_claimed_since_full + additional_claimed;
+  return claimed > (i64)live_limit || porf_gc_promoted_since_full > (i64)promoted_limit ||
+    (porf_heap_top > 1610612736u && claimed > 67108864ll);
 }
 
 static u32 porf_gc_run_cursor = 0;
@@ -2240,12 +2176,12 @@ static u32 porf_gc_claim_pages(u32 npg) {
   u32 lo = porf_gc_pool_run(npg);
   if (lo == 0) {
     if (porf_gc_full_due((i64)npg * (i64)PORF_GC_SPAGE)) {
-      ${usesThreads ? 'porf_gc_collect_threaded(0)' : 'porf_gc_collect_impl(0)'};
+      porf_gc_collect(0);
       lo = porf_gc_pool_run(npg);
     }
     if (lo == 0) {
       if ((u64)porf_heap_top + (u64)npg * PORF_GC_SPAGE >= PORF_ARENA_RESERVE) {
-        ${usesThreads ? 'porf_gc_collect_threaded(0)' : 'porf_gc_collect_impl(0)'};
+        porf_gc_collect(0);
         lo = porf_gc_pool_run(npg);
         if (lo == 0 && (u64)porf_heap_top + (u64)npg * PORF_GC_SPAGE >= PORF_ARENA_RESERVE) return 0;
       }
@@ -2261,7 +2197,8 @@ static u32 porf_gc_claim_pages(u32 npg) {
   return lo;
 }
 
-static int porf_gc_install_run(struct porf_gc_window* w, i32 ci, u32 pg) {
+static int porf_gc_install_run(i32 ci, u32 pg) {
+  struct porf_gc_window* w = &porf_gc_active[ci];
   struct porf_gc_page* m = &porf_gc_pages[pg];
   const u32 cls = porf_gc_cls_size[ci];
   const u32 slots = porf_gc_cls_slots[ci];
@@ -2279,14 +2216,24 @@ static int porf_gc_install_run(struct porf_gc_window* w, i32 ci, u32 pg) {
   return 1;
 }
 
-static void porf_gc_publish_window(struct porf_gc_window* w, i32 ci);
+static void porf_gc_publish_window(i32 ci) {
+  struct porf_gc_window* w = &porf_gc_active[ci];
+  const u32 cls = porf_gc_cls_size[ci];
+  for (u32 b = w->lo; b < w->cur; b += cls) {
+    const u32 g = porf_gc_gran(b);
+    porf_gc_bit_set(PORF_GC_B_ALLOC, g);
+    porf_gc_bit_set(PORF_GC_B_YOUNG, g);
+  }
+  w->lo = w->cur;
+}
 
-static int porf_gc_refill_window(struct porf_gc_window* w, i32 ci) {
+static int porf_gc_refill_window(i32 ci) {
+  struct porf_gc_window* w = &porf_gc_active[ci];
   if (w->end != 0) {
     const u32 pg = porf_gc_chunk_start((w->end - 1u) >> PORF_GC_SPAGE_SHIFT) >> PORF_GC_SPAGE_SHIFT;
-    porf_gc_publish_window(w, ci);
+    porf_gc_publish_window(ci);
     w->cur = w->end = w->lo = 0;
-    if (porf_gc_install_run(w, ci, pg)) return 1;
+    if (porf_gc_install_run(ci, pg)) return 1;
   }
   while (porf_gc_partial[ci] != 0) {
     const u32 pg = porf_gc_partial[ci] - 1u;
@@ -2296,7 +2243,7 @@ static int porf_gc_refill_window(struct porf_gc_window* w, i32 ci) {
     if (porf_gc_page_kind[pg] != PORF_GC_PK_SMALL || m->cidx != (u8)ci ||
       (m->flags & PORF_GC_PF_PARTIAL) == 0u) continue;
     m->flags &= (u8)~PORF_GC_PF_PARTIAL;
-    if (porf_gc_install_run(w, ci, pg)) return 1;
+    if (porf_gc_install_run(ci, pg)) return 1;
   }
   const u32 npg = porf_gc_cls_pages[ci];
   const u32 pg = porf_gc_claim_pages(npg);
@@ -2326,21 +2273,7 @@ static int porf_gc_refill_window(struct porf_gc_window* w, i32 ci) {
 
 ${st}u32 porf_alloc_slow(u32 bytes, u32 typeId);
 ${sti}u32 porf_alloc(u32 bytes, u32 typeId) {
-${usesThreads ? `  if (__atomic_load_n(&porf_stw_requested, __ATOMIC_RELAXED)) porf_gc_safepoint();
-  struct porf_gc_tlab* t = porf_gc_tlab;
-  if (t != NULL && bytes <= PORF_GC_MAX_SMALL) {
-    const u32 ci = porf_gc_cls_lut[(bytes + 7u) >> 3];
-    struct porf_gc_window* w = &t->active[ci];
-    const u32 cur = w->cur;
-    if (cur < w->end) {
-      w->cur = cur + porf_gc_cls_size[ci];
-      porf_gc_kinds[cur >> 4] = porf_gc_kind_for_type(typeId);
-      if (typeId == 0u) memset(MEM + cur, 0, porf_gc_cls_size[ci]);
-      return cur;
-    }
-  }
-  return porf_alloc_slow(bytes, typeId);
-` : `  if (bytes <= PORF_GC_MAX_SMALL) {
+  if (bytes <= PORF_GC_MAX_SMALL) {
     const u32 ci = porf_gc_cls_lut[(bytes + 7u) >> 3];
     struct porf_gc_window* w = &porf_gc_active[ci];
     const u32 cur = w->cur;
@@ -2352,7 +2285,6 @@ ${usesThreads ? `  if (__atomic_load_n(&porf_stw_requested, __ATOMIC_RELAXED)) p
     }
   }
   return porf_alloc_slow(bytes, typeId);
-`}\
 }
 
 static void porf_gc_minor(void);
@@ -2362,48 +2294,6 @@ ${st}u32 porf_alloc_slow(u32 bytes, u32 typeId) {
     porf_arena_init();
     return porf_alloc_slow(bytes, typeId);
   }
-${usesThreads ? `  while (pthread_mutex_trylock(&porf_gc_thread_alloc_lock) != 0) {
-    porf_gc_safepoint();
-    sched_yield();
-  }
-  u32 out = 0;
-  if (!porf_thread_worker && (porf_gc_window_bytes >= porf_gc_thread_nursery_limit() || porf_gc_span_bytes >= porf_gc_thread_span_limit())) {
-    porf_gc_window_bytes = 0;
-    porf_gc_span_bytes = 0;
-    porf_gc_collect_threaded(1);
-  }
-  if (bytes > PORF_GC_MAX_SMALL) {
-    out = porf_gc_span_alloc(bytes, typeId);
-    pthread_mutex_unlock(&porf_gc_thread_alloc_lock);
-    return out;
-  }
-  struct porf_gc_tlab* t = porf_gc_tlab;
-  if (t == NULL) {
-    t = (struct porf_gc_tlab*)calloc(1, sizeof(*t));
-    if (!t) abort();
-    pthread_mutex_lock(&porf_gc_thread_tlab_lock);
-    t->next = porf_gc_tlabs;
-    porf_gc_tlabs = t;
-    pthread_mutex_unlock(&porf_gc_thread_tlab_lock);
-    porf_gc_tlab = t;
-  }
-  const u32 ci = porf_gc_cls_lut[(bytes + 7u) >> 3];
-  if (porf_gc_refill_window(&t->active[ci], (i32)ci)) {
-    struct porf_gc_window* w = &t->active[ci];
-    const u32 cur = w->cur;
-    w->cur = cur + porf_gc_cls_size[ci];
-    porf_gc_kinds[cur >> 4] = porf_gc_kind_for_type(typeId);
-    if (typeId == 0u) memset(MEM + cur, 0, porf_gc_cls_size[ci]);
-    out = cur;
-  }
-  pthread_mutex_unlock(&porf_gc_thread_alloc_lock);
-  if (out == 0) {
-    fprintf(stderr, "porffor: out of memory (gc heap limit; req=%u live=%lluMB heap_top=%u)\\n",
-      bytes, (unsigned long long)(porf_gc_live_bytes / 1048576ull), porf_heap_top);
-    abort();
-  }
-  return out;
-` : `\
 ${minorsEnabled ? `  if (porf_gc_window_bytes >= (i64)PORF_GC_NURSERY_BYTES || porf_gc_span_bytes >= 8388608ll) {
     porf_gc_window_bytes = 0;
     porf_gc_span_bytes = 0;
@@ -2412,11 +2302,10 @@ ${minorsEnabled ? `  if (porf_gc_window_bytes >= (i64)PORF_GC_NURSERY_BYTES || p
 ` : ''}\
   if (bytes > PORF_GC_MAX_SMALL) return porf_gc_span_alloc(bytes, typeId);
   const u32 ci = porf_gc_cls_lut[(bytes + 7u) >> 3];
-  if (porf_gc_refill_window(&porf_gc_active[ci], (i32)ci)) return porf_alloc(bytes, typeId);
+  if (porf_gc_refill_window((i32)ci)) return porf_alloc(bytes, typeId);
   fprintf(stderr, "porffor: out of memory (gc heap limit; req=%u live=%lluMB heap_top=%u)\\n",
     bytes, (unsigned long long)(porf_gc_live_bytes / 1048576ull), porf_heap_top);
   abort();
-`}\
 }
 
 static u32 porf_gc_span_alloc(u32 bytes, u32 typeId) {
@@ -2448,35 +2337,6 @@ static u32 porf_gc_span_alloc(u32 bytes, u32 typeId) {
   return body;
 }
 
-static void porf_gc_publish_window(struct porf_gc_window* w, i32 ci) {
-  const u32 cls = porf_gc_cls_size[ci];
-  for (u32 b = w->lo; b < w->cur; b += cls) {
-    const u32 g = porf_gc_gran(b);
-    porf_gc_bit_set(PORF_GC_B_ALLOC, g);
-    porf_gc_bit_set(PORF_GC_B_YOUNG, g);
-  }
-  w->lo = w->cur;
-}
-
-static void porf_gc_publish_all(void) {
-${usesThreads ? `  pthread_mutex_lock(&porf_gc_thread_tlab_lock);
-  for (struct porf_gc_tlab* t = porf_gc_tlabs; t != NULL; t = t->next)
-    for (i32 ci = 0; ci < PORF_GC_NCLASSES; ci++) porf_gc_publish_window(&t->active[ci], ci);
-  pthread_mutex_unlock(&porf_gc_thread_tlab_lock);
-` : `  for (i32 ci = 0; ci < PORF_GC_NCLASSES; ci++) porf_gc_publish_window(&porf_gc_active[ci], ci);
-`}\
-}
-
-static void porf_gc_reset_windows(void) {
-${usesThreads ? `  pthread_mutex_lock(&porf_gc_thread_tlab_lock);
-  for (struct porf_gc_tlab* t = porf_gc_tlabs; t != NULL; t = t->next)
-    for (i32 ci = 0; ci < PORF_GC_NCLASSES; ci++) t->active[ci].cur = t->active[ci].end = t->active[ci].lo = 0;
-  pthread_mutex_unlock(&porf_gc_thread_tlab_lock);
-` : `  for (i32 ci = 0; ci < PORF_GC_NCLASSES; ci++)
-    porf_gc_active[ci].cur = porf_gc_active[ci].end = porf_gc_active[ci].lo = 0;
-`}\
-}
-
 ${st}void porf_gc_barrier_reclassify(u32 p, i32 type) {
   const u32 pg = p >> PORF_GC_SPAGE_SHIFT;
   const u8 k = porf_gc_page_kind[pg];
@@ -2502,7 +2362,7 @@ static inline u32 porf_gc_barrier_ptr_i32(i32 p) { return (u32)p; }
 static inline u32 porf_gc_barrier_ptr_jsval(jsval v) { return (u32)v.val; }
 #define porf_gc_barrier(p, type) porf_gc_barrier_impl(_Generic((p), jsval: porf_gc_barrier_ptr_jsval, i32: porf_gc_barrier_ptr_i32, default: porf_gc_barrier_ptr_u32)(p), (type))
 
-${usesThreads ? 'static _Thread_local' : 'static'} void* porf_c_stack_top = NULL;
+static void* porf_c_stack_top = NULL;
 
 ${sti}int porf_gc_type_can_reference(i32 type) {
   switch (type) {
@@ -2713,9 +2573,7 @@ static i32 porf_gc_native_root_free_slots_len = 0;
 static i32* porf_gc_native_root_active = NULL;
 static i32* porf_gc_native_root_active_pos = NULL;
 static i32 porf_gc_native_root_active_len = 0;
-${usesThreads ? 'static pthread_mutex_t porf_gc_native_root_lock = PTHREAD_MUTEX_INITIALIZER;\n' : ''}
 i32 porf_gc_native_root_add(f64 value, i32 type) {
-${usesThreads ? '  pthread_mutex_lock(&porf_gc_native_root_lock);\n' : ''}\
   if (porf_gc_native_root_free_slots_len == 0 && porf_gc_native_roots_len == porf_gc_native_roots_cap) {
     i32 new_cap = porf_gc_native_roots_cap == 0 ? 64 : porf_gc_native_roots_cap * 2;
     struct porf_gc_native_root* grown = realloc(porf_gc_native_roots, (size_t)new_cap * sizeof(*grown));
@@ -2740,14 +2598,12 @@ ${usesThreads ? '  pthread_mutex_lock(&porf_gc_native_root_lock);\n' : ''}\
   porf_gc_native_roots[slot].type = type;
   porf_gc_native_root_active_pos[slot] = porf_gc_native_root_active_len;
   porf_gc_native_root_active[porf_gc_native_root_active_len++] = slot;
-${usesThreads ? '  pthread_mutex_unlock(&porf_gc_native_root_lock);\n' : ''}\
   return slot;
 }
 
 void porf_gc_native_root_remove(i32 slot) {
   if (slot < 0 || slot >= porf_gc_native_roots_len) return;
   if (porf_gc_native_roots[slot].type == ${TYPES.undefined}) return;
-${usesThreads ? '  pthread_mutex_lock(&porf_gc_native_root_lock);\n' : ''}\
   porf_gc_native_roots[slot].value = 0;
   porf_gc_native_roots[slot].type = ${TYPES.undefined};
   porf_gc_native_root_free_slots[porf_gc_native_root_free_slots_len++] = slot;
@@ -2758,16 +2614,13 @@ ${usesThreads ? '  pthread_mutex_lock(&porf_gc_native_root_lock);\n' : ''}\
     porf_gc_native_root_active_pos[last_slot] = pos;
   }
   porf_gc_native_root_active_pos[slot] = -1;
-${usesThreads ? '  pthread_mutex_unlock(&porf_gc_native_root_lock);\n' : ''}\
 }
 
 static void porf_gc_mark_native_roots(void) {
-${usesThreads ? '  pthread_mutex_lock(&porf_gc_native_root_lock);\n' : ''}\
   for (i32 i = 0; i < porf_gc_native_root_active_len; i++) {
     const i32 slot = porf_gc_native_root_active[i];
     porf_gc_mark_js(porf_gc_native_roots[slot].value, porf_gc_native_roots[slot].type);
   }
-${usesThreads ? '  pthread_mutex_unlock(&porf_gc_native_root_lock);\n' : ''}\
 }
 
 static void porf_gc_mark_array_entries(i32 entries, u32 len) {
@@ -3412,11 +3265,10 @@ static void porf_gc_mark_cons_roots(void) {
   const u64* hi = (const u64*)porf_c_stack_top;
   if (lo < hi) porf_gc_cons_scan_range(lo, hi);
   if (porf_try_depth > 0) {
-    porf_gc_cons_scan_range((const u64*)porf_try_stack, (const u64*)(porf_try_stack + porf_try_depth));
+    porf_gc_cons_scan_range((const u64*)porf_try_data, (const u64*)(porf_try_data + porf_try_depth));
   }
   porf_gc_mark_promise_jobs();
   porf_gc_mark_coro_roots();
-${usesThreads ? '  porf_gc_mark_thread_roots();\n' : ''}\
   porf_gc_drain_mark_queue();
 }
 
@@ -3667,13 +3519,11 @@ static inline u64 porf_gc_allocation_debt_threshold(void) {
   return threshold;
 }
 static inline int porf_gc_can_grow_for_request(u32 request_size) {
+  if (porf_gc_last_live_bytes == 0) return 0;
   const u64 allocation_bytes = 8u + (u64)request_size;
   const u64 heap_slack = (u64)(PORF_ARENA_RESERVE - porf_heap_top);
   if (heap_slack <= 16ull * 1024ull * 1024ull + allocation_bytes) return 0;
   const u64 heap_bytes = porf_heap_top > porf_heap_base ? (u64)(porf_heap_top - porf_heap_base) : 0u;
-  if (porf_gc_last_live_bytes == 0) {
-${usesThreads ? '    return heap_bytes + allocation_bytes <= (u64)porf_gc_thread_nursery_limit();\n' : '    return 0;\n'}\
-  }
   const u64 live_bytes = porf_gc_last_live_bytes;
   u64 grow_window = live_bytes + 64ull * 1024ull * 1024ull;
   if (grow_window < 1ull * 1024ull * 1024ull) grow_window = 1ull * 1024ull * 1024ull;
@@ -3689,8 +3539,8 @@ static inline int porf_gc_should_collect_for(u32 request_size) {
 }
 
 static void porf_gc_minor(void) {
-  porf_gc_collect_impl(1);
-  if (porf_gc_full_due(0)) porf_gc_collect_impl(0);
+  porf_gc_collect(1);
+  if (porf_gc_full_due(0)) porf_gc_collect(0);
 }
 ${prefs.nativeFetch ? `
 // full under the debt policy, otherwise minor after enough page claims
@@ -3699,7 +3549,7 @@ ${st}int porf_gc_idle_minor_due(void) {
 }
 ${st}void porf_gc_collect_idle(void) {
   if (porf_gc_should_collect_for(0)) {
-    porf_gc_collect_impl(0);
+    porf_gc_collect(0);
     return;
   }
   if (porf_gc_idle_minor_due()) {
@@ -3710,9 +3560,9 @@ ${st}void porf_gc_collect_idle(void) {
 }
 ` : ''}\
 
-${st}void porf_gc_collect_impl(int minor) {
+${st}void porf_gc_collect(int minor) {
   if (porf_heap_base == 0) return;
-  porf_gc_publish_all();
+  for (i32 ci = 0; ci < PORF_GC_NCLASSES; ci++) porf_gc_publish_window(ci);
   porf_gc_minor_mode = minor;
   if (!minor) {
     porf_gc_claimed_since_full = 0;
@@ -3784,542 +3634,16 @@ ${st}void porf_gc_collect_impl(int minor) {
     porf_gc_discard_free_runs();
     porf_gc_maybe_trim_memory();
   }
-  porf_gc_reset_windows();
+  memset(porf_gc_active, 0, sizeof(porf_gc_active));
   porf_gc_minor_mode = 0;
 }
-`;
-};
-
-const THREAD_RUNTIME = (entrySym, entryArgs, promiseRunOneSym, prefs, usesCoro = false) => {
-  const threadsPool = parseInt(prefs.threadsPool) || 0;
-  const stackBytes = (parseInt(prefs.threadsStack) || 1024) * 1024;
-  const threadsFiberCache = parseInt(prefs.threadsFiberCache) || 1024;
-
-  return `// ---- Porffor threads ----
-#if !defined(__aarch64__) && !defined(__x86_64__)
-#error "porffor --threads requires arm64 or x86_64"
-#endif
-
-__attribute__((naked)) static void porf_ctx_switch(void** save_sp, void* to_sp) {
-#if defined(__aarch64__)
-  __asm__ volatile(
-    "sub sp, sp, #192\\n"
-    "stp x19, x20, [sp, #0]\\n"
-    "stp x21, x22, [sp, #16]\\n"
-    "stp x23, x24, [sp, #32]\\n"
-    "stp x25, x26, [sp, #48]\\n"
-    "stp x27, x28, [sp, #64]\\n"
-    "stp x29, x30, [sp, #80]\\n"
-    "stp d8, d9, [sp, #96]\\n"
-    "stp d10, d11, [sp, #112]\\n"
-    "stp d12, d13, [sp, #128]\\n"
-    "stp d14, d15, [sp, #144]\\n"
-    "mov x9, sp\\n"
-    "str x9, [x0]\\n"
-    "mov sp, x1\\n"
-    "ldp x19, x20, [sp, #0]\\n"
-    "ldp x21, x22, [sp, #16]\\n"
-    "ldp x23, x24, [sp, #32]\\n"
-    "ldp x25, x26, [sp, #48]\\n"
-    "ldp x27, x28, [sp, #64]\\n"
-    "ldp x29, x30, [sp, #80]\\n"
-    "ldp d8, d9, [sp, #96]\\n"
-    "ldp d10, d11, [sp, #112]\\n"
-    "ldp d12, d13, [sp, #128]\\n"
-    "ldp d14, d15, [sp, #144]\\n"
-    "add sp, sp, #192\\n"
-    "ret\\n"
-  );
-#elif defined(__x86_64__)
-  __asm__ volatile(
-    "pushq %rbp\\n"
-    "pushq %rbx\\n"
-    "pushq %r12\\n"
-    "pushq %r13\\n"
-    "pushq %r14\\n"
-    "pushq %r15\\n"
-    "movq %rsp, (%rdi)\\n"
-    "movq %rsi, %rsp\\n"
-    "popq %r15\\n"
-    "popq %r14\\n"
-    "popq %r13\\n"
-    "popq %r12\\n"
-    "popq %rbx\\n"
-    "popq %rbp\\n"
-    "ret\\n"
-  );
-#endif
-}
-
-typedef struct porf_runq {
-  pthread_mutex_t lock;
-  pthread_cond_t cond;
-  porf_fiber* head;
-  porf_fiber* tail;
-} porf_runq;
-
-static porf_runq* porf_runqs = NULL;
-static int porf_nworkers = 0;
-static atomic_int porf_spawn_rr = 0;
-static _Thread_local void* porf_sched_sp = NULL;
-static pthread_mutex_t porf_threads_boot_lock = PTHREAD_MUTEX_INITIALIZER;
-static atomic_int porf_threads_started = 0;
-static atomic_int porf_thread_live = 0;
-static atomic_int porf_thread_jobs_active = 0;
-
-static porf_fiber* porf_fiber_pool = NULL;
-static int porf_fiber_pool_count = 0;
-static pthread_mutex_t porf_fiber_pool_lock = PTHREAD_MUTEX_INITIALIZER;
-
-static pthread_mutex_t porf_stw_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t porf_stw_cond = PTHREAD_COND_INITIALIZER;
-static int porf_stw_requested = 0;
-static int porf_stw_mutators = 1;
-static int porf_stw_parked = 0;
-static _Thread_local int porf_stw_initiator = 0;
-
-static int porf_threads_active(void) {
-  return atomic_load_explicit(&porf_thread_live, memory_order_acquire) != 0;
-}
-
-static int porf_threads_busy(void) {
-  return porf_threads_active() ||
-    atomic_load_explicit(&porf_thread_jobs_active, memory_order_acquire) != 0;
-}
-
-static void porf_runq_push(porf_runq* q, porf_fiber* f) {
-  f->next = NULL;
-  pthread_mutex_lock(&q->lock);
-  if (q->tail) q->tail->next = f;
-    else q->head = f;
-  q->tail = f;
-  pthread_cond_signal(&q->cond);
-  pthread_mutex_unlock(&q->lock);
-}
-
-struct porf_park_entry {
-  f64 key;
-  f64 gen;
-  porf_fiber* head;
-  struct porf_park_entry* next;
-};
-static struct porf_park_entry* porf_park_entries = NULL;
-static pthread_mutex_t porf_park_lock = PTHREAD_MUTEX_INITIALIZER;
-
-static struct porf_park_entry* porf_park_find(f64 key) {
-  for (struct porf_park_entry* e = porf_park_entries; e != NULL; e = e->next) {
-    if (e->key == key) return e;
-  }
-  struct porf_park_entry* e = (struct porf_park_entry*)calloc(1, sizeof(*e));
-  if (!e) abort();
-  e->key = key;
-  e->next = porf_park_entries;
-  porf_park_entries = e;
-  return e;
-}
-
-static f64 porf_thread_park_prepare(f64 key) {
-  pthread_mutex_lock(&porf_park_lock);
-  const f64 gen = porf_park_find(key)->gen;
-  pthread_mutex_unlock(&porf_park_lock);
-  return gen;
-}
-
-static void porf_thread_wake(f64 key) {
-  pthread_mutex_lock(&porf_park_lock);
-  struct porf_park_entry* e = porf_park_find(key);
-  e->gen += 1.0;
-  porf_fiber* list = e->head;
-  e->head = NULL;
-  for (porf_fiber* f = list; f != NULL; f = f->park_next) f->parked = 0;
-  pthread_mutex_unlock(&porf_park_lock);
-
-  while (list) {
-    porf_fiber* next = list->park_next;
-    list->park_next = NULL;
-    porf_runq_push((porf_runq*)list->home_q, list);
-    list = next;
-  }
-}
-
-static void porf_thread_wake_one(f64 key) {
-  pthread_mutex_lock(&porf_park_lock);
-  struct porf_park_entry* e = porf_park_find(key);
-  e->gen += 1.0;
-  porf_fiber* f = e->head;
-  if (f) {
-    e->head = f->park_next;
-    f->park_next = NULL;
-    f->parked = 0;
-  }
-  pthread_mutex_unlock(&porf_park_lock);
-
-  if (f) porf_runq_push((porf_runq*)f->home_q, f);
-}
-
-static void porf_fiber_trampoline(void) {
-  porf_fiber* task = porf_fiber_current;
-  ${entrySym}(${entryArgs});
-  porf_gc_native_root_remove(task->fn_root);
-  porf_gc_native_root_remove(task->args_root);
-  porf_gc_native_root_remove(task->prom_root);
-  atomic_fetch_sub_explicit(&porf_thread_live, 1, memory_order_release);
-  pthread_mutex_lock(&porf_promise_job_lock);
-  pthread_cond_broadcast(&porf_promise_job_cond);
-  pthread_mutex_unlock(&porf_promise_job_lock);
-  task->done = 1;
-  porf_ctx_switch(&task->sp, porf_sched_sp);
-  __builtin_unreachable();
-}
-
-static void porf_fiber_save_runtime(porf_fiber* f) {
-  f->c_stack_top = porf_c_stack_top;
-${usesCoro ? '  f->coro_cur = porf_coro_cur;\n' : ''}\
-}
-
-static void porf_fiber_restore_runtime(porf_fiber* f) {
-  porf_c_stack_top = f->c_stack_top;
-${usesCoro ? '  porf_coro_cur = f->coro_cur;\n' : ''}\
-}
-
-static void porf_stw_mutator_register(void) {
-  pthread_mutex_lock(&porf_stw_lock);
-  porf_stw_mutators++;
-  pthread_mutex_unlock(&porf_stw_lock);
-}
-
-static void porf_gc_safepoint(void) {
-  if (!__atomic_load_n(&porf_stw_requested, __ATOMIC_RELAXED) || porf_stw_initiator) return;
-  porf_fiber* f = porf_fiber_self();
-  volatile u64 anchor = 0;
-  porf_fiber_save_runtime(f);
-  f->sp = (void*)&anchor;
-  pthread_mutex_lock(&porf_stw_lock);
-  if (porf_stw_requested && !porf_stw_initiator) {
-    porf_stw_parked++;
-    pthread_cond_broadcast(&porf_stw_cond);
-    while (porf_stw_requested) pthread_cond_wait(&porf_stw_cond, &porf_stw_lock);
-    porf_stw_parked--;
-  }
-  pthread_mutex_unlock(&porf_stw_lock);
-  (void)anchor;
-}
-
-static void porf_stw_begin(void) {
-  porf_stw_initiator = 1;
-  pthread_mutex_lock(&porf_stw_lock);
-  porf_stw_requested = 1;
-  pthread_cond_broadcast(&porf_stw_cond);
-  pthread_cond_broadcast(&porf_promise_job_cond);
-  for (int i = 0; i < porf_nworkers; i++) {
-    pthread_mutex_lock(&porf_runqs[i].lock);
-    pthread_cond_broadcast(&porf_runqs[i].cond);
-    pthread_mutex_unlock(&porf_runqs[i].lock);
-  }
-  while (porf_stw_parked < porf_stw_mutators - 1) pthread_cond_wait(&porf_stw_cond, &porf_stw_lock);
-  pthread_mutex_unlock(&porf_stw_lock);
-}
-
-static void porf_stw_end(void) {
-  pthread_mutex_lock(&porf_stw_lock);
-  porf_stw_requested = 0;
-  pthread_cond_broadcast(&porf_stw_cond);
-  pthread_mutex_unlock(&porf_stw_lock);
-  porf_stw_initiator = 0;
-}
-
-static void porf_gc_collect_threaded(int minor) {
-  porf_stw_begin();
-  porf_gc_collect_impl(minor);
-  porf_stw_end();
-}
-
-static void* porf_worker_main(void* arg) {
-  porf_runq* q = (porf_runq*)arg;
-  volatile int porf_thread_stack_anchor = 0;
-  porf_thread_worker = 1;
-  porf_stw_mutator_register();
-  porf_fiber* root = porf_fiber_self();
-  root->c_stack_top = (void*)&porf_thread_stack_anchor;
-  porf_fiber_restore_runtime(root);
-  unsigned idle_spins = 0;
-
-  while (1) {
-    porf_gc_safepoint();
-    pthread_mutex_lock(&q->lock);
-    porf_fiber* f = q->head;
-    if (f) {
-      q->head = f->next;
-      if (!q->head) q->tail = NULL;
-    }
-    pthread_mutex_unlock(&q->lock);
-
-    if (!f) {
-      if (++idle_spins < 256) {
-        for (int r = 0; r < 32; r++) {
-#if defined(__aarch64__)
-          __asm__ __volatile__("yield");
-#elif defined(__x86_64__)
-          __asm__ __volatile__("pause");
-#endif
-        }
-        continue;
-      }
-      pthread_mutex_lock(&q->lock);
-      if (!q->head) {
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_nsec += 1000000;
-        if (ts.tv_nsec >= 1000000000) { ts.tv_sec++; ts.tv_nsec -= 1000000000; }
-        pthread_cond_timedwait(&q->cond, &q->lock, &ts);
-      }
-      pthread_mutex_unlock(&q->lock);
-      continue;
-    }
-    idle_spins = 0;
-
-    porf_fiber_save_runtime(root);
-    porf_fiber_current = f;
-    porf_fiber_restore_runtime(f);
-    porf_ctx_switch(&porf_sched_sp, f->sp);
-    porf_fiber_save_runtime(f);
-    porf_fiber_current = root;
-    porf_fiber_restore_runtime(root);
-
-    if (f->park_pending) {
-      f->park_pending = 0;
-      pthread_mutex_lock(&porf_park_lock);
-      struct porf_park_entry* e = porf_park_find(f->park_key);
-      if (e->gen != f->park_gen) {
-        pthread_mutex_unlock(&porf_park_lock);
-        porf_runq_push(q, f);
-      } else {
-        f->parked = 1;
-        f->park_next = e->head;
-        e->head = f;
-        pthread_mutex_unlock(&porf_park_lock);
-      }
-      continue;
-    }
-
-    if (f->done) {
-      porf_fiber_live_remove(f);
-      int pooled = 0;
-      pthread_mutex_lock(&porf_fiber_pool_lock);
-      if (porf_fiber_pool_count < ${threadsFiberCache}) {
-        f->next = porf_fiber_pool;
-        porf_fiber_pool = f;
-        porf_fiber_pool_count++;
-        pooled = 1;
-      }
-      pthread_mutex_unlock(&porf_fiber_pool_lock);
-      if (!pooled) {
-        munmap(f->stack_base, f->stack_bytes);
-        if (f->fiber_try_heap) free(f->fiber_try_stack);
-        free(f);
-      }
-    } else {
-      porf_runq_push(q, f);
-    }
-  }
-  return NULL;
-}
-
-static void porf_threads_boot(void) {
-  pthread_mutex_lock(&porf_threads_boot_lock);
-  if (!atomic_load_explicit(&porf_threads_started, memory_order_acquire)) {
-    int n = porf_threads_default_pool();
-    porf_nworkers = n;
-    porf_runqs = (porf_runq*)calloc((size_t)n, sizeof(porf_runq));
-    if (!porf_runqs) abort();
-    for (int i = 0; i < n; i++) {
-      pthread_mutex_init(&porf_runqs[i].lock, NULL);
-      pthread_cond_init(&porf_runqs[i].cond, NULL);
-    }
-    for (int i = 0; i < n; i++) {
-      pthread_t t;
-      pthread_attr_t attr;
-      pthread_attr_init(&attr);
-      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-      if (pthread_create(&t, &attr, porf_worker_main, &porf_runqs[i]) != 0) abort();
-      pthread_attr_destroy(&attr);
-    }
-    atomic_store_explicit(&porf_threads_started, 1, memory_order_release);
-  }
-  pthread_mutex_unlock(&porf_threads_boot_lock);
-}
-
-static void porf_thread_spawn(f64 fnv, i32 fnt, f64 argsv, i32 argst, f64 promv, i32 promt) {
-  if (!atomic_load_explicit(&porf_threads_started, memory_order_acquire)) porf_threads_boot();
-
-  porf_fiber* f = NULL;
-  pthread_mutex_lock(&porf_fiber_pool_lock);
-  if (porf_fiber_pool) {
-    f = porf_fiber_pool;
-    porf_fiber_pool = f->next;
-    porf_fiber_pool_count--;
-  }
-  pthread_mutex_unlock(&porf_fiber_pool_lock);
-
-  if (!f) {
-    f = (porf_fiber*)calloc(1, sizeof(porf_fiber));
-    if (!f) abort();
-    char* base = (char*)mmap(NULL, (size_t)${stackBytes}, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (base == MAP_FAILED) abort();
-    mprotect(base, 4096, PROT_NONE);
-    f->stack_base = base;
-    f->stack_bytes = (size_t)${stackBytes};
-  } else {
-    void* sb = f->stack_base;
-    size_t sz = f->stack_bytes;
-    jmp_buf* ts = f->fiber_try_stack;
-    i32 tc = f->fiber_try_cap;
-    i32 th = f->fiber_try_heap;
-    memset(f, 0, sizeof(porf_fiber));
-    f->stack_base = sb;
-    f->stack_bytes = sz;
-    f->fiber_try_stack = ts;
-    f->fiber_try_cap = tc;
-    f->fiber_try_heap = th;
-  }
-
-  f->fnv = fnv; f->fnt = fnt;
-  f->argsv = argsv; f->argst = argst;
-  f->promv = promv; f->promt = promt;
-  f->fn_root = porf_gc_native_root_add(fnv, fnt);
-  f->args_root = porf_gc_native_root_add(argsv, argst);
-  f->prom_root = porf_gc_native_root_add(promv, promt);
-  f->fiber_exception = JV_UNDEFINED;
-
-  char* top = (char*)f->stack_base + f->stack_bytes;
-  top = (char*)((uintptr_t)top & ~(uintptr_t)15);
-  f->c_stack_top = top;
-  if (!f->fiber_try_heap) {
-    const size_t try_bytes = (8 * sizeof(jmp_buf) + 15) & ~(size_t)15;
-    top -= try_bytes;
-    f->fiber_try_stack = (jmp_buf*)top;
-    f->fiber_try_cap = 8;
-  }
-#if defined(__aarch64__)
-  void** save = (void**)(top - 192);
-  memset(save, 0, 192);
-  save[11] = (void*)&porf_fiber_trampoline;
-  f->sp = save;
-#elif defined(__x86_64__)
-  void** save = (void**)(top - 64);
-  memset(save, 0, 56);
-  save[6] = (void*)&porf_fiber_trampoline;
-  f->sp = save;
-#endif
-
-  porf_fiber_live_add(f);
-  atomic_fetch_add_explicit(&porf_thread_live, 1, memory_order_release);
-  int wi = atomic_fetch_add_explicit(&porf_spawn_rr, 1, memory_order_relaxed) % porf_nworkers;
-  f->home_q = (void*)&porf_runqs[wi];
-  porf_runq_push(&porf_runqs[wi], f);
-}
-
-static void porf_promise_run_one(u32 reaction) {
-  atomic_fetch_add_explicit(&porf_thread_jobs_active, 1, memory_order_acquire);
-  (void)${promiseRunOneSym}((i32)reaction);
-  atomic_fetch_sub_explicit(&porf_thread_jobs_active, 1, memory_order_release);
-  pthread_mutex_lock(&porf_promise_job_lock);
-  pthread_cond_broadcast(&porf_promise_job_cond);
-  pthread_mutex_unlock(&porf_promise_job_lock);
-}
-
-static void porf_thread_yield(void) {
-  porf_gc_safepoint();
-  porf_fiber* f = porf_fiber_self();
-  if (f->is_root) {
-    static _Thread_local unsigned porf_yield_spin = 0;
-    if ((++porf_yield_spin & 63u) == 0u) usleep(100);
-      else sched_yield();
-    return;
-  }
-  const u32 reaction = porf_promise_dequeue_job();
-  if (reaction != 0) {
-    porf_promise_run_one(reaction);
-    return;
-  }
-  porf_fiber_save_runtime(f);
-  porf_ctx_switch(&f->sp, porf_sched_sp);
-  porf_fiber_restore_runtime(f);
-}
-
-static void porf_thread_fence(void) {
-  atomic_thread_fence(memory_order_seq_cst);
-}
-
-#define PORF_THREAD_LOCKS_MAX 65536u
-static atomic_uint* porf_thread_locks = NULL;
-static atomic_uint porf_thread_lock_next = 0;
-static pthread_mutex_t porf_thread_locks_init_lock = PTHREAD_MUTEX_INITIALIZER;
-
-static void porf_thread_locks_ensure(void) {
-  if (porf_thread_locks) return;
-  pthread_mutex_lock(&porf_thread_locks_init_lock);
-  if (!porf_thread_locks) {
-    porf_thread_locks = (atomic_uint*)calloc(PORF_THREAD_LOCKS_MAX, sizeof(*porf_thread_locks));
-    if (!porf_thread_locks) abort();
-  }
-  pthread_mutex_unlock(&porf_thread_locks_init_lock);
-}
-
-static f64 porf_thread_lock_new(void) {
-  porf_thread_locks_ensure();
-  const u32 id = atomic_fetch_add_explicit(&porf_thread_lock_next, 1u, memory_order_relaxed);
-  if (id >= PORF_THREAD_LOCKS_MAX) abort();
-  return (f64)id;
-}
-
-static f64 porf_thread_try_lock(f64 id) {
-  porf_thread_locks_ensure();
-  unsigned expected = 0;
-  return atomic_compare_exchange_strong_explicit(&porf_thread_locks[(u32)id], &expected, 1u, memory_order_acquire, memory_order_relaxed) ? 1.0 : 0.0;
-}
-
-static void porf_thread_unlock(f64 id) {
-  atomic_store_explicit(&porf_thread_locks[(u32)id], 0u, memory_order_release);
-}
-
-static void porf_thread_park(f64 key, f64 gen) {
-  porf_gc_safepoint();
-  porf_fiber* f = porf_fiber_self();
-  if (f->is_root || f->home_q == NULL) {
-    porf_thread_yield();
-    return;
-  }
-  f->park_key = key;
-  f->park_gen = gen;
-  f->park_pending = 1;
-  porf_fiber_save_runtime(f);
-  porf_ctx_switch(&f->sp, porf_sched_sp);
-  porf_fiber_restore_runtime(f);
-}
-
-static f64 porf_thread_available(void) {
-  return 1.0;
-}
-
-static void porf_threads_drain(void) {
-  while (porf_threads_busy() || porf_promise_has_jobs()) {
-    const u32 reaction = porf_promise_dequeue_job();
-    if (reaction != 0) {
-      porf_promise_run_one(reaction);
-      continue;
-    }
-    sched_yield();
-  }
-}
-
 `;
 };
 
 // jsval encoding: f64 numbers are themselves, else 0xFFF8 (sign + quiet-NaN) << 48 |
 // type:8 << 43 | payload:32. hardware qNaN is 0x7FF8 (sign clear) so never collides,
 // sign-set NaNs from raw bytes are canonicalized at Float64Array/DataView reads (porf_canon)
-const RUNTIME_HEAD = (prefs, usesThreads = false, usesCoro = false, toStr = null) => {
+const RUNTIME_HEAD = (prefs, toStr = null) => {
   const st = 'static ';
   const sti = 'static inline ';
   return `// generated by porffor ${globalThis.version}
@@ -4329,10 +3653,6 @@ const RUNTIME_HEAD = (prefs, usesThreads = false, usesCoro = false, toStr = null
 #include <stdlib.h>
 #include <setjmp.h>
 #include <math.h>
-${usesThreads ? `#include <pthread.h>
-#include <stdatomic.h>
-#include <sched.h>
-` : ''}
 
 #include <signal.h>
 #include <unistd.h>
@@ -4358,98 +3678,7 @@ typedef float f32;
 typedef double f64;
 typedef struct jsval { f64 val; i32 type; } jsval;
 typedef u64 jsbits;
-${usesThreads ? `typedef struct porf_coro porf_coro;
-typedef struct porf_fiber {
-  void* sp;
-  void* stack_base;
-  size_t stack_bytes;
-  struct porf_fiber* next;
-  int done;
-  int is_root;
-  f64 fnv; i32 fnt;
-  f64 argsv; i32 argst;
-  f64 promv; i32 promt;
-  i32 fn_root;
-  i32 args_root;
-  i32 prom_root;
-  void* c_stack_top;
-  ${usesCoro ? 'porf_coro* coro_cur;\n  ' : ''}struct porf_fiber* live_next;
-  struct porf_fiber* live_prev;
-  i32 fiber_try_depth;
-  jsval fiber_exception;
-  jmp_buf* fiber_try_stack;
-  i32 fiber_try_cap;
-  i32 fiber_try_heap;
-  f64 park_key;
-  f64 park_gen;
-  int park_pending;
-  int parked;
-  struct porf_fiber* park_next;
-  void* home_q;
-} porf_fiber;
 
-static _Thread_local porf_fiber* porf_fiber_current = NULL;
-static _Thread_local porf_fiber porf_root_fiber;
-
-static porf_fiber* porf_fiber_live = NULL;
-static pthread_mutex_t porf_fiber_live_lock = PTHREAD_MUTEX_INITIALIZER;
-
-static void porf_fiber_live_add(porf_fiber* f) {
-  pthread_mutex_lock(&porf_fiber_live_lock);
-  f->live_next = porf_fiber_live;
-  f->live_prev = NULL;
-  if (porf_fiber_live) porf_fiber_live->live_prev = f;
-  porf_fiber_live = f;
-  pthread_mutex_unlock(&porf_fiber_live_lock);
-}
-
-static void porf_fiber_live_remove(porf_fiber* f) {
-  pthread_mutex_lock(&porf_fiber_live_lock);
-  if (f->live_prev) f->live_prev->live_next = f->live_next;
-    else if (porf_fiber_live == f) porf_fiber_live = f->live_next;
-  if (f->live_next) f->live_next->live_prev = f->live_prev;
-  f->live_next = NULL;
-  f->live_prev = NULL;
-  pthread_mutex_unlock(&porf_fiber_live_lock);
-}
-
-static inline porf_fiber* porf_fiber_self(void) {
-  porf_fiber* f = porf_fiber_current;
-  if (!f) {
-    f = &porf_root_fiber;
-    f->is_root = 1;
-    f->fiber_exception = (jsval){0.0, ${TYPES.undefined}};
-    porf_fiber_current = f;
-    porf_fiber_live_add(f);
-  }
-  return f;
-}
-
-static inline jmp_buf* porf_fiber_try_ensure(void) {
-  porf_fiber* f = porf_fiber_self();
-  if (f->fiber_try_depth > f->fiber_try_cap) {
-    i32 cap = f->fiber_try_cap ? f->fiber_try_cap << 1 : 8;
-    while (cap < f->fiber_try_depth) cap <<= 1;
-    jmp_buf* grown;
-    if (f->fiber_try_stack && !f->fiber_try_heap) {
-      grown = (jmp_buf*)malloc((size_t)cap * sizeof(jmp_buf));
-      if (grown) memcpy(grown, f->fiber_try_stack, (size_t)f->fiber_try_cap * sizeof(jmp_buf));
-    } else {
-      grown = (jmp_buf*)realloc(f->fiber_try_stack, (size_t)cap * sizeof(jmp_buf));
-    }
-    if (!grown) abort();
-    f->fiber_try_stack = grown;
-    f->fiber_try_cap = cap;
-    f->fiber_try_heap = 1;
-  }
-  return f->fiber_try_stack;
-}
-
-#define porf_try_stack (porf_fiber_try_ensure())
-#define porf_try_depth (porf_fiber_self()->fiber_try_depth)
-#define porf_exception (porf_fiber_self()->fiber_exception)
-
-` : ''}
 ${prefs.nativeFetch ? `typedef struct NativeFetchResponseParts {
   i32 status;
   jsval body;
@@ -4558,36 +3787,15 @@ static u32* porf_promise_job_queue = NULL;
 static u32 porf_promise_job_head = 0;
 static u32 porf_promise_job_len = 0;
 static u32 porf_promise_job_cap = 0;
-${usesThreads ? `static pthread_mutex_t porf_promise_job_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t porf_promise_job_cond = PTHREAD_COND_INITIALIZER;
-static _Thread_local int porf_thread_worker = 0;
-` : ''}
+
 static void (*porf_promise_run_coro_reaction_impl)(u32) = NULL;
 static void (*porf_native_fetch_run_response_reaction_impl)(u32) = NULL;
 
 static u32 porf_native_fetch_set_timer(jsval callback, jsval args, jsval delay_value, i32 repeat);
 static void porf_native_fetch_clear_timer(jsval timer);
-${usesThreads ? `static void porf_thread_spawn(f64 fnv, i32 fnt, f64 argsv, i32 argst, f64 promv, i32 promt);
-static void porf_thread_yield(void);
-static void porf_thread_fence(void);
-static void porf_promise_run_one(u32 reaction);
-static f64 porf_thread_lock_new(void);
-static f64 porf_thread_try_lock(f64 id);
-static void porf_thread_unlock(f64 id);
-static f64 porf_thread_available(void);
-static f64 porf_thread_park_prepare(f64 key);
-static void porf_thread_park(f64 key, f64 gen);
-static void porf_thread_wake(f64 key);
-static void porf_thread_wake_one(f64 key);
-static int porf_threads_active(void);
-static void porf_threads_drain(void);
-static void porf_gc_safepoint(void);
-static void porf_gc_collect_threaded(int minor);
-` : ''}
 
 static void porf_promise_enqueue_job(u32 reaction) {
   if (reaction == 0) return;
-${usesThreads ? '  pthread_mutex_lock(&porf_promise_job_lock);\n' : ''}\
   if (porf_promise_job_len == porf_promise_job_cap) {
     const u32 old_cap = porf_promise_job_cap;
     const u32 new_cap = old_cap == 0 ? 64u : old_cap * 2u;
@@ -4603,29 +3811,15 @@ ${usesThreads ? '  pthread_mutex_lock(&porf_promise_job_lock);\n' : ''}\
   }
   porf_promise_job_queue[(porf_promise_job_head + porf_promise_job_len) & (porf_promise_job_cap - 1u)] = reaction;
   porf_promise_job_len++;
-${usesThreads ? '  pthread_cond_signal(&porf_promise_job_cond);\n' : ''}\
-${usesThreads ? '  pthread_mutex_unlock(&porf_promise_job_lock);\n' : ''}\
 }
 
 static u32 porf_promise_dequeue_job(void) {
-${usesThreads ? '  porf_gc_safepoint();\n' : ''}\
-${usesThreads ? '  pthread_mutex_lock(&porf_promise_job_lock);\n' : ''}\
-${usesThreads ? '  while (porf_promise_job_len == 0 && !porf_thread_worker && porf_threads_active()) {\n    pthread_mutex_unlock(&porf_promise_job_lock);\n    porf_gc_safepoint();\n    pthread_mutex_lock(&porf_promise_job_lock);\n    if (porf_promise_job_len == 0 && !porf_thread_worker && porf_threads_active()) pthread_cond_wait(&porf_promise_job_cond, &porf_promise_job_lock);\n  }\n' : ''}\
-  if (porf_promise_job_len == 0) {
-${usesThreads ? '    pthread_mutex_unlock(&porf_promise_job_lock);\n' : ''}\
-    return 0;
-  }
+  if (porf_promise_job_len == 0) return 0;
   const u32 reaction = porf_promise_job_queue[porf_promise_job_head];
   porf_promise_job_head = (porf_promise_job_head + 1u) & (porf_promise_job_cap - 1u);
   porf_promise_job_len--;
   if (porf_promise_job_len == 0) porf_promise_job_head = 0;
-${usesThreads ? '  pthread_mutex_unlock(&porf_promise_job_lock);\n' : ''}\
   return reaction;
-}
-
-static int porf_promise_has_jobs(void) {
-${usesThreads ? '  pthread_mutex_lock(&porf_promise_job_lock);\n  const int has_jobs = porf_promise_job_len != 0;\n  pthread_mutex_unlock(&porf_promise_job_lock);\n  return has_jobs;\n' : ''}\
-${usesThreads ? '' : '  return porf_promise_job_len != 0;\n'}\
 }
 
 static void porf_promise_run_coro_reaction(u32 reaction) {
@@ -4739,7 +3933,7 @@ PORF_UN(u16) PORF_UN(u32) PORF_UN(u64) PORF_UN(f32) PORF_UN(f64)
 #endif
 
 // exceptions: setjmp-based, exception is a jsval
-${usesThreads ? '' : `${st}jmp_buf* porf_try_data;
+${st}jmp_buf* porf_try_data;
 ${st}i32 porf_try_cap = 0;
 ${st}i32 porf_try_depth = 0;
 ${st}jsval porf_exception = {0.0, ${TYPES.undefined}};
@@ -4753,13 +3947,11 @@ ${sti}jmp_buf* porf_try_ensure(void) {
   return porf_try_data;
 }
 
-#define porf_try_stack (porf_try_ensure())
-`}\
 ${toStr ? `jsval ${toStr}(jsval);
 ` : ''}\
 PORF_NORETURN ${st}void porf_throw(jsval v) {
   porf_exception = v;
-  if (porf_try_depth > 0) _longjmp(porf_try_stack[porf_try_depth - 1], 1);
+  if (porf_try_depth > 0) _longjmp(porf_try_data[porf_try_depth - 1], 1);
 ${toStr ? `
   static i32 _uncaught_busy = 0;
   if (!_uncaught_busy) {
@@ -4795,7 +3987,7 @@ PORF_NORETURN ${st}void porf_unreachable(const char* msg) {
   abort();
 }
 
-${prefs.gc === false ? PORF_BUMP_ALLOC() : PORF_GC_ALLOC(prefs, usesThreads)}
+${prefs.gc === false ? PORF_BUMP_ALLOC() : PORF_GC_ALLOC(prefs)}
 
 // ---- core layouts ----
 // array:      [len i32 @0][cap i32 @4][ent u32 @8]; entries = jsval[cap]
@@ -5132,14 +4324,13 @@ static char** porf_argv;
 static void porf_init(int argc, char** argv) {
   porf_argc = argc;
   porf_argv = argv;
-${usesThreads ? '  porf_threads_default_pool_init();\n' : ''}\
   porf_arena_init();
 }
 
 `;
 };
 
-const CORO_RUNTIME = usesThreads => `// ---- coroutines (fiber stacks) ----
+const CORO_RUNTIME = () => `// ---- coroutines (fiber stacks) ----
 #if defined(__TINYC__) || (!defined(__x86_64__) && !defined(__aarch64__))
 #define PORF_CORO_USE_UCONTEXT 1
 #include <ucontext.h>
@@ -5194,10 +4385,7 @@ typedef struct porf_coro_call {
   i32 box_type;
 } porf_coro_call;
 
-${usesThreads ? `static _Thread_local porf_coro* porf_coro_cur = 0;
-static pthread_mutex_t porf_coro_live_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t porf_coro_stack_pool_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t porf_coro_call_pool_lock = PTHREAD_MUTEX_INITIALIZER;` : 'static porf_coro* porf_coro_cur = 0;'}
+static porf_coro* porf_coro_cur = 0;
 static porf_coro* porf_coro_live[PORF_CORO_MAX];
 static i32 porf_coro_live_len = 0;
 
@@ -5335,10 +4523,8 @@ static i32 porf_coro_stack_pool_len = 0;
 
 static void porf_coro_stack_ensure(porf_coro* c) {
   if (c->stack_top) return;
-${usesThreads ? '  pthread_mutex_lock(&porf_coro_stack_pool_lock);\n' : ''}\
   if (porf_coro_stack_pool_len > 0) {
     porf_coro_stack_pool_entry e = porf_coro_stack_pool[--porf_coro_stack_pool_len];
-${usesThreads ? '    pthread_mutex_unlock(&porf_coro_stack_pool_lock);\n' : ''}\
     c->stack_map = e.stack_map;
     c->stack_map_size = e.stack_map_size;
     c->stack_lo = e.stack_lo;
@@ -5346,7 +4532,6 @@ ${usesThreads ? '    pthread_mutex_unlock(&porf_coro_stack_pool_lock);\n' : ''}\
     c->sp = 0;
     return;
   }
-${usesThreads ? '  pthread_mutex_unlock(&porf_coro_stack_pool_lock);\n' : ''}\
   const size_t page = porf_coro_page_size();
   const size_t usable = ((size_t)PORF_CORO_STACK_SIZE + page - 1u) & ~(page - 1u);
   const size_t map_size = usable + page;
@@ -5370,7 +4555,6 @@ ${usesThreads ? '  pthread_mutex_unlock(&porf_coro_stack_pool_lock);\n' : ''}\
 
 static void porf_coro_stack_free(porf_coro* c) {
   if (c->stack_map) {
-${usesThreads ? '    pthread_mutex_lock(&porf_coro_stack_pool_lock);\n' : ''}\
     if (porf_coro_stack_pool_len < PORF_CORO_STACK_POOL_MAX) {
       porf_coro_stack_pool_entry e;
       e.stack_map = c->stack_map;
@@ -5381,7 +4565,6 @@ ${usesThreads ? '    pthread_mutex_lock(&porf_coro_stack_pool_lock);\n' : ''}\
     } else {
       munmap(c->stack_map, c->stack_map_size);
     }
-${usesThreads ? '    pthread_mutex_unlock(&porf_coro_stack_pool_lock);\n' : ''}\
     c->stack_map = 0;
     c->stack_map_size = 0;
     c->stack_lo = 0;
@@ -5394,31 +4577,21 @@ ${usesThreads ? '    pthread_mutex_unlock(&porf_coro_stack_pool_lock);\n' : ''}\
 }
 
 static void porf_coro_live_add(porf_coro* c) {
-${usesThreads ? '  pthread_mutex_lock(&porf_coro_live_lock);\n' : ''}\
-  if (c->live_idx >= 0) {
-${usesThreads ? '    pthread_mutex_unlock(&porf_coro_live_lock);\n' : ''}\
-    return;
-  }
+  if (c->live_idx >= 0) return;
   if (porf_coro_live_len < PORF_CORO_MAX) {
     c->live_idx = porf_coro_live_len;
     porf_coro_live[porf_coro_live_len++] = c;
   }
-${usesThreads ? '  pthread_mutex_unlock(&porf_coro_live_lock);\n' : ''}\
 }
 
 static void porf_coro_live_remove(porf_coro* c) {
-${usesThreads ? '  pthread_mutex_lock(&porf_coro_live_lock);\n' : ''}\
   const i32 idx = c->live_idx;
-  if (idx < 0) {
-${usesThreads ? '    pthread_mutex_unlock(&porf_coro_live_lock);\n' : ''}\
-    return;
-  }
+  if (idx < 0) return;
   const i32 last = --porf_coro_live_len;
   porf_coro* moved = porf_coro_live[last];
   porf_coro_live[idx] = moved;
   moved->live_idx = idx;
   c->live_idx = -1;
-${usesThreads ? '  pthread_mutex_unlock(&porf_coro_live_lock);\n' : ''}\
 }
 
 #define PORF_CORO_CALL_POOL_MAX 8192
@@ -5427,13 +4600,10 @@ static i32 porf_coro_call_pool_len = 0;
 
 static porf_coro_call* porf_coro_call_alloc(void) {
   porf_coro_call* call;
-${usesThreads ? '  pthread_mutex_lock(&porf_coro_call_pool_lock);\n' : ''}\
   if (porf_coro_call_pool_len > 0) {
     call = porf_coro_call_pool[--porf_coro_call_pool_len];
-${usesThreads ? '    pthread_mutex_unlock(&porf_coro_call_pool_lock);\n' : ''}\
     memset(call, 0, sizeof(*call));
   } else {
-${usesThreads ? '    pthread_mutex_unlock(&porf_coro_call_pool_lock);\n' : ''}\
     call = calloc(1, sizeof(porf_coro_call));
     if (!call) abort();
   }
@@ -5445,14 +4615,8 @@ static void porf_coro_call_free(porf_coro_call* call) {
   porf_coro_live_remove(&call->coro);
   porf_coro_stack_free(&call->coro);
   free(call->argv);
-${usesThreads ? '  pthread_mutex_lock(&porf_coro_call_pool_lock);\n' : ''}\
-  if (porf_coro_call_pool_len < PORF_CORO_CALL_POOL_MAX) {
-    porf_coro_call_pool[porf_coro_call_pool_len++] = call;
-${usesThreads ? '    pthread_mutex_unlock(&porf_coro_call_pool_lock);\n' : ''}\
-  } else {
-${usesThreads ? '    pthread_mutex_unlock(&porf_coro_call_pool_lock);\n' : ''}\
-    free(call);
-  }
+  if (porf_coro_call_pool_len < PORF_CORO_CALL_POOL_MAX) porf_coro_call_pool[porf_coro_call_pool_len++] = call;
+    else free(call);
 }
 
 #if PORF_GC_ENABLED
@@ -5528,14 +4692,14 @@ static void porf_coro_save_try_stack(porf_coro* c) {
       if (!c->try_save) abort();
       c->try_save_cap = try_n;
     }
-    memcpy(c->try_save, porf_try_stack + c->entry_try_depth, (size_t)try_n * sizeof(jmp_buf));
+    memcpy(c->try_save, porf_try_data + c->entry_try_depth, (size_t)try_n * sizeof(jmp_buf));
   }
 }
 
 static void porf_coro_restore_try_stack(porf_coro* c) {
   porf_try_depth = c->saved_try_depth;
   const i32 try_n = c->saved_try_depth - c->entry_try_depth;
-  if (try_n > 0) memcpy(porf_try_stack + c->entry_try_depth, c->try_save, (size_t)try_n * sizeof(jmp_buf));
+  if (try_n > 0) memcpy(porf_try_data + c->entry_try_depth, c->try_save, (size_t)try_n * sizeof(jmp_buf));
 }
 
 static void porf_coro_prepare_run(porf_coro* c) {
@@ -5553,7 +4717,7 @@ static void porf_coro_restore_caller(porf_coro* c) {
 }
 
 #if PORF_CORO_USE_UCONTEXT
-${usesThreads ? 'static _Thread_local porf_coro* porf_coro_starting = 0;' : 'static porf_coro* porf_coro_starting = 0;'}
+static porf_coro* porf_coro_starting = 0;
 
 static void porf_coro_ucontext_bootstrap(void) {
   porf_coro* c = porf_coro_starting;
@@ -5679,20 +4843,6 @@ static int porf_coro_resume(porf_coro* c, jsval in) { return porf_coro_resume_in
 static int porf_coro_resume_throw(porf_coro* c, jsval err) { return porf_coro_resume_inner(c, err, 1); }
 
 static jsval porf_await(jsval v) {
-${usesThreads ? `\
-  if (!porf_coro_cur && porf_jv_type(v) == ${TYPES.promise}) {
-    const u32 p = (u32)v.val;
-    while (*(u8*)(MEM + p + PORF_PROMISE_STATE) == 0) {
-      const u32 reaction = porf_promise_dequeue_job();
-      if (reaction == 0) break;
-      porf_promise_run_one(reaction);
-    }
-    const u8 state = *(u8*)(MEM + p + PORF_PROMISE_STATE);
-    if (state) *(u8*)(MEM + p + PORF_PROMISE_HANDLED) = 1;
-    if (state == 1) return porf_unpack(*(jsbits*)(MEM + p + PORF_PROMISE_RESULT));
-    if (state == 2) porf_throw(porf_unpack(*(jsbits*)(MEM + p + PORF_PROMISE_RESULT)));
-  }
-` : ''}\
   if (!porf_coro_cur) return v;
   if (porf_jv_type(v) != ${TYPES.promise}) return v;
 

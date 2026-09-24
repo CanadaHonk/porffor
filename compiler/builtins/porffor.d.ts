@@ -155,22 +155,8 @@ declare global {
     IsConstructor(argument: unknown): boolean;
   }
 
-  const threadSpawn: (fn: any, fnType: i32, args: any, argsType: i32, promise: any, promiseType: i32) => void;
-  const threadYield: () => void;
-  const threadFence: () => void;
-  const threadLockNew: () => number;
-  const threadTryLock: (lock: number) => number;
-  const threadUnlock: (lock: number) => void;
-  const threadAvailable: () => number;
-  const threadParkPrepare: (key: number) => number;
-  const threadPark: (key: number, gen: number) => void;
-  const threadWake: (key: number) => void;
-  const threadWakeOne: (key: number) => void;
-
   const __Porffor_promise_create: () => any[];
   const __Promise_resolve: (value: any) => Promise<any>;
-  const __Porffor_mallocShared: (bytes: i32) => i32;
-  const __Porffor_object_newShared: (capacity?: i32) => object;
 
   type i32 = number;
   type i64 = number;

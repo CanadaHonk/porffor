@@ -704,7 +704,7 @@ return sign * (i64)((((u64)*(u32*)(MEM + ptr + 4)) << 32) + (u64)*(u32*)(MEM + p
     params: [],
     retType: T.none,
     returnType: TYPES.undefined,
-    body: [ RawC('porf_gc_collect_impl(0);', false) ]
+    body: [ RawC('porf_gc_collect(0);', false) ]
   };
 
   // allow non-comptime redefinition later in precompiled

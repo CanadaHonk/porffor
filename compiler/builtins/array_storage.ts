@@ -1,7 +1,5 @@
 import type {} from './porffor.d.ts';
 
-export const __Porffor_mallocShared = (bytes: i32): i32 => Porffor.malloc(bytes);
-
 export const __Porffor_array_ensure = (arr: i32, needed: i32): i32 => {
   let capacity: i32 = Porffor.IR.loadI32(arr, 8);
   const entries: i32 = Porffor.IR.loadI32(arr, 4);
