@@ -746,6 +746,30 @@ return sign * (i64)((((u64)*(u32*)(MEM + ptr + 4)) << 32) + (u64)*(u32*)(MEM + p
   comptime('__Porffor_fastAnd', TYPES.boolean, (scope, decl, { generate }) =>
     fastBool(decl.arguments.map(a => fastBoolArg(generate(scope, a))).reduce((x, y) => Bin('&', T.i32, x, y))));
 
+  // array storage is the C runtime's porf_arr_*
+  const rawPtr = x => x[N_TYPE] === T.jsval ? JvPtr(x) : x;
+  const rawNum = x => x[N_TYPE] === T.jsval ? JvNum(x) : x;
+  const rawI32 = x => x[N_TYPE] === T.i32 ? x : Convert(T.i32, rawNum(x));
+
+  comptime('__Porffor_array_new', TYPES.array, (scope, decl, { generate }) =>
+    Box(Call('porf_arr_new', [ Const(T.i32, 0), rawI32(generate(scope, decl.arguments[0])) ], T.u32), Const(T.i32, TYPES.array)));
+
+  comptime('__Porffor_array_ensure', TYPES.number, (scope, decl, { generate }) =>
+    Call('porf_arr_grow', [ rawPtr(generate(scope, decl.arguments[0])), rawI32(generate(scope, decl.arguments[1])) ], T.u32));
+
+  comptime('__Porffor_array_has', TYPES.boolean, (scope, decl, { generate }) =>
+    Box(Call('porf_arr_has_own', [ rawPtr(generate(scope, decl.arguments[0])), rawI32(generate(scope, decl.arguments[1])) ], T.i32), Const(T.i32, TYPES.boolean)));
+
+  comptime('__Porffor_array_delete', TYPES.undefined, (scope, decl, { generate, exprStmt }) => {
+    exprStmt(scope, Call('porf_arr_delete', [ rawPtr(generate(scope, decl.arguments[0])), rawI32(generate(scope, decl.arguments[1])) ], T.none));
+    return JvConst(TYPES.undefined, 0);
+  });
+
+  comptime('__Porffor_array_setLength', TYPES.undefined, (scope, decl, { generate, exprStmt }) => {
+    exprStmt(scope, Call('porf_arr_set_len', [ rawPtr(generate(scope, decl.arguments[0])), Convert(T.u32, rawNum(generate(scope, decl.arguments[1])), 0) ], T.none));
+    return JvConst(TYPES.undefined, 0);
+  });
+
   comptime('__Porffor_printStatic', TYPES.undefined, (scope, decl, { printStaticStr }) => {
     const str = decl.arguments[0].value;
     const out = printStaticStr(scope, str);

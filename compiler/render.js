@@ -3990,14 +3990,13 @@ PORF_NORETURN ${st}void porf_unreachable(const char* msg) {
 ${prefs.gc === false ? PORF_BUMP_ALLOC() : PORF_GC_ALLOC(prefs)}
 
 // ---- core layouts ----
-// array:      [len i32 @0][cap i32 @4][ent u32 @8]; entries = jsval[cap]
+// array:      [len i32 @0][ent u32 @4][cap i32 @8]; entries = jsval[cap]
 // object:     [count i32 @0][bcap i32 @4][ent u32 @8][buckets u32 @12]
 //             entries = {key jsval, val jsval}[count] in insertion order
 //             buckets = i32[bcap] entry indices, -1 empty (ordered hashmap)
 // bytestring: [len u32 @0][bytes @4]
 // function:   [fnIdx u32 @0][env u32 @4]; env = jsval slots
-// array layout matches builtins (array_storage.ts): len@0, ent@4, cap@8;
-// header padded to 16 so inline entries stay 8-aligned
+// array header padded to 16 so inline entries stay 8-aligned
 #define PORF_ARR_LEN(a) (*(i32*)(MEM + (a)))
 #define PORF_ARR_ENT(a) (*(u32*)(MEM + (a) + 4))
 #define PORF_ARR_CAP(a) (*(i32*)(MEM + (a) + 8))
@@ -4023,9 +4022,9 @@ ${sti}jsval porf_arr_get(u32 a, u32 i) {
   return porf_unpack(b);
 }
 
-${st}void porf_arr_grow(u32 a, i32 need) {
+${st}u32 porf_arr_grow(u32 a, i32 need) {
   i32 cap = PORF_ARR_CAP(a);
-  if (need <= cap) return;
+  if (need <= cap) return PORF_ARR_ENT(a);
   const i32 copy = PORF_ARR_LEN(a) < cap ? PORF_ARR_LEN(a) : cap;
   while (cap < need) cap += cap >> 1 > 4 ? cap >> 1 : 4;
   const u32 ent = porf_alloc((u32)cap << 3, 0);
@@ -4033,6 +4032,7 @@ ${st}void porf_arr_grow(u32 a, i32 need) {
   memset(MEM + ent + ((u64)copy << 3), 0, ((size_t)cap - (size_t)copy) << 3);
   PORF_ARR_ENT(a) = ent; PORF_ARR_CAP(a) = cap;
   porf_gc_barrier(a, ${TYPES.array});
+  return ent;
 }
 
 ${st}void porf_arr_set(u32 a, u32 i, jsval v) {
