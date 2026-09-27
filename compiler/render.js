@@ -806,16 +806,16 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
       case K.Try: {
         emit(`${ind()}{\n`);
         depth++;
-        emit(`${ind()}const i32 _try_idx = porf_try_depth++;\n`);
-        emit(`${ind()}if (_setjmp(porf_try_ensure()[_try_idx]) == 0) {\n`);
+        emit(`${ind()}porf_try_depth++;\n`);
+        emit(`${ind()}if (_setjmp(porf_try_ensure()[porf_try_depth - 1]) == 0) {\n`);
         activeTryDepth++;
         depth++; renderStmts(node[N_A]);
         activeTryDepth--;
-        emit(`${ind()}porf_try_depth = _try_idx;\n`);
+        emit(`${ind()}porf_try_depth--;\n`);
         depth--;
         emit(`${ind()}} else {\n`);
         depth++;
-        emit(`${ind()}porf_try_depth = _try_idx;\n`);
+        emit(`${ind()}porf_try_depth--;\n`);
         emit(`${ind()}jsval ${sanitize(node[N_B])} = porf_exception;\n`);
         renderStmts(node[N_C]);
         depth--;
@@ -3940,7 +3940,7 @@ ${st}jsval porf_exception = {0.0, ${TYPES.undefined}};
 
 ${sti}jmp_buf* porf_try_ensure(void) {
   if (porf_try_depth > porf_try_cap) {
-    porf_try_cap = porf_try_cap ? porf_try_cap << 1 : 8;
+    while (porf_try_depth > porf_try_cap) porf_try_cap = porf_try_cap ? porf_try_cap << 1 : 8;
     porf_try_data = (jmp_buf*)realloc(porf_try_data, (size_t)porf_try_cap * sizeof(jmp_buf));
     if (!porf_try_data) abort();
   }
@@ -4697,9 +4697,10 @@ static void porf_coro_save_try_stack(porf_coro* c) {
 }
 
 static void porf_coro_restore_try_stack(porf_coro* c) {
-  porf_try_depth = c->saved_try_depth;
   const i32 try_n = c->saved_try_depth - c->entry_try_depth;
-  if (try_n > 0) memcpy(porf_try_data + c->entry_try_depth, c->try_save, (size_t)try_n * sizeof(jmp_buf));
+  c->entry_try_depth = porf_try_depth;
+  c->saved_try_depth = porf_try_depth += try_n;
+  if (try_n > 0) memcpy(porf_try_ensure() + c->entry_try_depth, c->try_save, (size_t)try_n * sizeof(jmp_buf));
 }
 
 static void porf_coro_prepare_run(porf_coro* c) {
