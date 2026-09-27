@@ -3806,32 +3806,19 @@ const finallyCrossing = (scope, target) => {
   return fin && depth.indexOf(target) < fin.depthIndex ? fin : null;
 };
 const finallyExit = (scope, fin, kind) => {
+  fin.taken.add(kind);
   assign(scope, Local(fin.pend, T.i32), Const(T.i32, kind));
   stmt(scope, Break(fin.brk));
 };
 
 const generateTry = (scope, decl) => {
-  const tmpName = '#catch_tmp' + (scope.catchId = (scope.catchId ?? 0) + 1);
-  allocVar(scope, tmpName);
-
-  let fin = null;
-  if (decl.finalizer) {
-    const id = scope.catchId;
-    fin = { brk: fresh(scope), pend: '#fin_pend' + id, val: '#fin_val' + id, depthIndex: depth.length };
-    fin.exits = [
-      () => stmt(scope, Throw(Local(fin.val, T.jsval))),
-      () => generateReturn(scope, { type: 'ReturnStatement', argument: scope.retType === T.none ? null : identNode(fin.val) })
-    ];
-    allocVar(scope, fin.pend, false, T.i32);
-    allocVar(scope, fin.val);
-    assign(scope, Local(fin.pend, T.i32), Const(T.i32, 0));
-    (scope.finallyStack ??= []).push(fin);
-  }
-
+  const fin = decl.finalizer ? finallyStart(scope) : null;
   const tryBody = collect(scope, () => genStmt(scope, decl.block));
 
   let protectedStmts;
   if (decl.handler) {
+    const tmpName = '#catch_tmp' + (scope.catchId = (scope.catchId ?? 0) + 1);
+    allocVar(scope, tmpName);
     const param = decl.handler.param;
     const catchBody = collect(scope, () => {
       if (scope.generator) emitIf(scope, Bin('==', T.jsval, Local(tmpName, T.jsval), coroReturnSignal()),
@@ -3847,19 +3834,43 @@ const generateTry = (scope, decl) => {
     return;
   }
 
+  finallyEnd(scope, fin, protectedStmts, () => genStmt(scope, decl.finalizer));
+};
+
+// exits generated between finallyStart and finallyEnd run the finalizer first
+const finallyStart = scope => {
+  const id = scope.catchId = (scope.catchId ?? 0) + 1;
+  const fin = { brk: fresh(scope), pend: '#fin_pend' + id, val: '#fin_val' + id, catchName: '#catch_tmp' + id, depthIndex: depth.length, taken: new Set() };
+  fin.exits = [
+    () => stmt(scope, Throw(Local(fin.val, T.jsval))),
+    () => generateReturn(scope, { type: 'ReturnStatement', argument: scope.retType === T.none ? null : identNode(fin.val) })
+  ];
+  allocVar(scope, fin.pend, false, T.i32);
+  allocVar(scope, fin.val);
+  assign(scope, Local(fin.pend, T.i32), Const(T.i32, 0));
+  (scope.finallyStack ??= []).push(fin);
+  return fin;
+};
+
+const finallyEnd = (scope, fin, protectedStmts, finalize) => {
   scope.finallyStack.pop();
 
   // anything thrown out of the protected region is held while the finalizer runs
+  allocVar(scope, fin.catchName);
   const catchAll = collect(scope, () => {
-    assign(scope, Local(fin.val, T.jsval), Local(tmpName, T.jsval));
+    assign(scope, Local(fin.val, T.jsval), Local(fin.catchName, T.jsval));
     assign(scope, Local(fin.pend, T.i32), Const(T.i32, FIN_THROW));
   });
-  stmt(scope, BlockStmt([ Try(protectedStmts, tmpName, catchAll) ], fin.brk));
+  fin.taken.add(FIN_THROW);
+  stmt(scope, BlockStmt([ Try(protectedStmts, fin.catchName, catchAll) ], fin.brk));
 
-  genStmt(scope, decl.finalizer);
+  finalize();
 
   let code = 1;
-  for (const exit of fin.exits) emitIf(scope, Bin('==', T.i32, Local(fin.pend, T.i32), Const(T.i32, code++)), exit);
+  for (const exit of fin.exits) {
+    if (fin.taken.has(code)) emitIf(scope, Bin('==', T.i32, Local(fin.pend, T.i32), Const(T.i32, code)), exit);
+    code++;
+  }
 };
 
 const generateMeta = (scope, decl) => {
