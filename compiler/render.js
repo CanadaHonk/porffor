@@ -1225,6 +1225,11 @@ static porf_coro_call* porf_coro_unbox(jsval gen) {
 // suspend point, 2 = return (force completion with the value). returns 1 once done.
 	${st}i32 __Porffor_coroutine_resume(jsval gen, jsval value, i32 mode) {
 	  porf_coro_call* call = porf_coro_unbox(gen);
+	  if (mode == 2 && call->coro.state == 2) {
+	    call->result = value;
+	    value = PORF_CORO_RETURN;
+	    mode = 1;
+	  }
 	  if (mode == 2 || call->coro.state == 3) {
 	    if (call->coro.state != 3) {
 	      porf_coro_live_remove(&call->coro);
@@ -1254,6 +1259,7 @@ static porf_coro_call* porf_coro_unbox(jsval gen) {
   porf_coro_live_remove(&call->coro);
   porf_coro_stack_free(&call->coro);
   call->coro.state = 3;
+  if (porf_jv_eq(porf_exception, PORF_CORO_RETURN)) return 1;
   porf_throw(porf_exception);
 }
 
@@ -4386,6 +4392,7 @@ typedef struct porf_coro_call {
 } porf_coro_call;
 
 static porf_coro* porf_coro_cur = 0;
+#define PORF_CORO_RETURN porf_box(0.0, ${TYPES.__porffor_generator})
 static porf_coro* porf_coro_live[PORF_CORO_MAX];
 static i32 porf_coro_live_len = 0;
 

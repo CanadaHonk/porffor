@@ -1646,6 +1646,8 @@ const typeIsIterable = t => Bin('|', T.i32,
     Bin('<=', T.i32, t, Const(T.i32, TYPES.float64array))));
 const typeIsAsyncIterable = t => Bin('==', T.i32, t, Const(T.i32, TYPES.__porffor_asyncgenerator));
 
+const coroReturnSignal = () => JvConst(TYPES.__porffor_generator, 0);
+
 const getKnownThisSlots = node => {
   const slots = new Set();
   const walk = node => {
@@ -3832,6 +3834,8 @@ const generateTry = (scope, decl) => {
   if (decl.handler) {
     const param = decl.handler.param;
     const catchBody = collect(scope, () => {
+      if (scope.generator) emitIf(scope, Bin('==', T.jsval, Local(tmpName, T.jsval), coroReturnSignal()),
+        () => stmt(scope, Throw(Local(tmpName, T.jsval))));
       if (param) generateVarDstr(scope, 'let', param, { type: 'Identifier', name: tmpName }, undefined, false);
       genStmt(scope, decl.handler.body);
     });
