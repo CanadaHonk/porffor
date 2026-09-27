@@ -348,7 +348,7 @@ export const __Porffor_object_underlying = (_obj: any): any => {
 export const __Porffor_object_isObject = (arg: any): boolean => {
   const t: i32 = Porffor.type(arg);
   return Porffor.fastAnd(
-    Porffor.fastOr(arg != 0, t != Porffor.TYPES.object), // null
+    arg !== null,
     t > 0x05,
     t != Porffor.TYPES.string,
     t != Porffor.TYPES.bytestring
@@ -367,7 +367,7 @@ export const __Porffor_object_isObjectOrNull = (arg: any): boolean => {
 export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
   const t: i32 = Porffor.type(arg);
   return Porffor.fastAnd(
-    Porffor.fastOr(arg != 0, t != Porffor.TYPES.object), // null
+    arg !== null,
     t > 0x04,
     t != Porffor.TYPES.string,
     t != Porffor.TYPES.bytestring
