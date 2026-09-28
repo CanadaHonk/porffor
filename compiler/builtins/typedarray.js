@@ -181,6 +181,13 @@ export const __${name}_prototype_set = function (this: ${name}, array: any, offs
   offset = Math.trunc(offset);
   if (Porffor.fastOr(offset < 0, offset > len)) throw new RangeError('Offset out of bounds');
 
+  if (Porffor.type(array) == Porffor.TYPES.${name.toLowerCase()}) {
+    const srcLen: i32 = (array as ${name}).length;
+    if (offset + srcLen > len) throw new RangeError('Array is too long for given offset');
+    Porffor.IR.copy(Porffor.IR.loadI32(this, 4) + 4 + offset * ${name}.BYTES_PER_ELEMENT, Porffor.IR.loadI32(array, 4) + 4, srcLen * ${name}.BYTES_PER_ELEMENT);
+    return;
+  }
+
   if (Porffor.fastOr(
     Porffor.type(array) == Porffor.TYPES.array,
     (Porffor.type(array) | 0b10000000) == Porffor.TYPES.bytestring,
