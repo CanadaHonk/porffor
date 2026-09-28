@@ -119,12 +119,17 @@ const walk = (node, h) => {
     return node;
   }
 
-  if (kind === K_Call && typeof node[3] === 'string' && h.hasBuiltin(node[3])) h.includeBuiltin(node[3]);
+  // bind by index: a user function sharing a builtin's name (eg an inner `resolve`) must not capture it
+  if (kind === K_Call && typeof node[3] === 'string' && h.hasBuiltin(node[3])) node[3] = h.includeBuiltin(node[3]).index;
   // a throwable error type is usable: its accessors/toString must survive type gating
   else if (kind === K_ThrowNew) h.typeUsed(node[3]);
   else if (kind === K_DataRef) node[3] = h.remapData(node[3]);
   else if (kind === K_Alloc && Array.isArray(node[5])) node[5][0] = h.remapAllocSite(node[5][0]);
-  else if (kind === K_FuncIdx || kind === K_FuncRec) h.includeBuiltin(node[3]).indirect = true;
+  else if (kind === K_FuncIdx || kind === K_FuncRec) {
+    const f = h.includeBuiltin(node[3]);
+    f.indirect = true;
+    node[3] = f.index;
+  }
   else if (kind === K_Global && typeof node[3] === 'string') h.global(node[3], node[1]);
 
   walk(node[3], h);
