@@ -406,21 +406,25 @@ const makeClosureEnv = (scope, parent, count, values = null) => {
   return valOf(pointer, TYPES.__porffor_closureenv);
 };
 
-// closure value: heap [fnIdx][env] record, per-iteration captures get a snapshot env chained to the parent
+// per-iteration captures get a snapshot env chained to the parent
+const closureEnvFor = (scope, func) => {
+  const env = currentClosureEnv(scope);
+  const snap = getClosureSnapshotCaptureNames(func);
+  if (snap.length === 0) return env;
+
+  const parent = reuse(scope, env);
+  const values = [];
+  for (const name of snap) {
+    values.push(reuse(scope, generate(scope, { type: 'Identifier', name, _closureFunc: func.closureCaptures?.[name]?.func })));
+  }
+  return reuse(scope, makeClosureEnv(scope, parent, values.length, values));
+};
+
+// closure value: heap [fnIdx][env] record
 const makeClosureRecord = (scope, func, markReferenced = true) => {
   useFunctionValue(func, markReferenced);
 
-  let env = currentClosureEnv(scope);
-  const snap = getClosureSnapshotCaptureNames(func);
-  if (snap.length > 0) {
-    const parent = reuse(scope, env);
-    const values = [];
-    for (const name of snap) {
-      values.push(reuse(scope, generate(scope, { type: 'Identifier', name, _closureFunc: func.closureCaptures?.[name]?.func })));
-    }
-    env = reuse(scope, makeClosureEnv(scope, parent, values.length, values));
-  }
-
+  const env = closureEnvFor(scope, func);
   const rec = reuse(scope, Alloc(Const(T.i32, 8), TYPES.function));
   stmt(scope, Store('u32', rec, 0, FuncIdx(func.index)));
   stmt(scope, Store('u32', rec, 4, JvPtr(env)));
@@ -1848,9 +1852,11 @@ const generateCall = (scope, decl) => {
   let name = decl.callee.name;
 
   // opt: virtualize IIFEs -> call the generated func by name
+  let iifeEnv = null;
   if (decl.callee.type === 'FunctionExpression' || decl.callee.type === 'ArrowFunctionExpression') {
     const [ func ] = generateFunc(scope, decl.callee, true);
     name = func.name;
+    if (getClosureSnapshotCaptureNames(func).length > 0) iifeEnv = closureEnvFor(scope, func);
   }
 
   if (name?.startsWith('__Porffor_IR_')) {
@@ -1990,7 +1996,7 @@ const generateCall = (scope, decl) => {
   }
 
   // resolve the callee to a known user func for a direct call
-  let func, directCallEnv = null, isBuiltin = false;
+  let func, directCallEnv = iifeEnv, isBuiltin = false;
   if (decl._funcIdx) func = funcByIndex(decl._funcIdx);
   else {
     const isBuiltinMember = decl.callee._builtinMember && name in builtinFuncs;
