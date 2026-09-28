@@ -4092,7 +4092,7 @@ const resolveMemberDemands = scope => {
         tn = x.slice(2, x.indexOf('_prototype_'));
       }
 
-      const t = TYPES[tn.toLowerCase()];
+      const t = TYPES[tn.toLowerCase()] ?? TYPES['__' + tn.toLowerCase()];
       if (t == null || !usesAnyType([ t, primObjAlias[t] ])) continue;
       includeBuiltin(scope, x);
       if (!getterOnly) {
