@@ -144,20 +144,35 @@ class TextEncoder {
     let length = 0;
     for (let i = 0; i < text.length; i++) {
       const code = text.charCodeAt(i);
-      length += code < 0x80 ? 1 : code < 0x800 ? 2 : 3;
+      const next = text.charCodeAt(i + 1);
+      if (code >= 0xd800 && code <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) {
+        length += 4;
+        i++;
+      } else length += code < 0x80 ? 1 : code < 0x800 ? 2 : 3;
     }
 
     const out = new Uint8Array(length);
     let offset = 0;
     for (let i = 0; i < text.length; i++) {
-      const code = text.charCodeAt(i);
+      let code = text.charCodeAt(i);
+      const next = text.charCodeAt(i + 1);
+      if (code >= 0xd800 && code <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) {
+        code = 0x10000 + ((code - 0xd800) << 10) + next - 0xdc00;
+        i++;
+      } else if (code >= 0xd800 && code <= 0xdfff) code = 0xfffd;
+
       if (code < 0x80) {
         out[offset++] = code;
       } else if (code < 0x800) {
         out[offset++] = 0xc0 | code >> 6;
         out[offset++] = 0x80 | code & 0x3f;
-      } else {
+      } else if (code < 0x10000) {
         out[offset++] = 0xe0 | code >> 12;
+        out[offset++] = 0x80 | code >> 6 & 0x3f;
+        out[offset++] = 0x80 | code & 0x3f;
+      } else {
+        out[offset++] = 0xf0 | code >> 18;
+        out[offset++] = 0x80 | code >> 12 & 0x3f;
         out[offset++] = 0x80 | code >> 6 & 0x3f;
         out[offset++] = 0x80 | code & 0x3f;
       }
@@ -168,9 +183,16 @@ class TextEncoder {
 
   encodeInto(source, destination) {
     const bytes = this.encode(source);
-    const length = Math.min(bytes.length, destination.length);
-    for (let i = 0; i < length; i++) destination[i] = bytes[i];
-    return { read: String(source).length, written: length };
+    let written = Math.min(bytes.length, destination.length);
+    while (written < bytes.length && (bytes[written] & 0xc0) == 0x80) written--;
+
+    let read = 0;
+    for (let i = 0; i < written; i++) {
+      destination[i] = bytes[i];
+      if ((bytes[i] & 0xc0) != 0x80) read += bytes[i] < 0xf0 ? 1 : 2;
+    }
+
+    return { read, written };
   }
 }
 
