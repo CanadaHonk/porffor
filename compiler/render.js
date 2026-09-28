@@ -56,6 +56,8 @@ const cReservedNames = new Set([
   'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2', 'sinh', 'cosh', 'tanh',
   'fabs', 'floor', 'ceil', 'round', 'trunc', 'fmod', 'hypot', 'remainder',
   'clock', 'times', 'gmtime', 'localtime',
+  'HUGE', 'HUGE_VAL', 'HUGE_VALF', 'HUGE_VALL', 'MAXFLOAT', 'FP_NAN', 'FP_INFINITE', 'FP_ZERO', 'FP_NORMAL', 'FP_SUBNORMAL',
+  'M_E', 'M_LOG2E', 'M_LOG10E', 'M_LN2', 'M_LN10', 'M_PI', 'M_PI_2', 'M_PI_4', 'M_1_PI', 'M_2_PI', 'M_2_SQRTPI', 'M_SQRT2', 'M_SQRT1_2', 'errno',
   // string.h / strings.h (index is the big one: legacy strchr alias)
   'index', 'rindex', 'bcopy', 'bzero', 'bcmp', 'ffs', 'ffsl', 'ffsll', 'fls', 'flsl', 'flsll',
   'strcasecmp', 'strncasecmp', 'strcpy', 'strncpy', 'strcat', 'strncat', 'strcmp', 'strncmp',
