@@ -235,7 +235,7 @@ export const __Array_prototype_shift = function (this: any[]) {
   const element: any = this[0];
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   for (let i: i32 = 1; i < len; i++) {
-    if (Porffor.fastOr(!isArray, __Porffor_array_has(this, i))) this[i - 1] = this[i];
+    if (!isArray || __Porffor_array_has(this, i)) this[i - 1] = this[i];
       else __Porffor_array_delete(this, i - 1);
   }
   __Porffor_array_setLength(this, len - 1);
@@ -251,7 +251,7 @@ export const __Array_prototype_unshift = function (this: any[], ...items: any[])
   let i: i32 = len;
   while (i > 0) {
     i--;
-    if (Porffor.fastOr(!isArray, __Porffor_array_has(this, i))) this[i + itemsLen] = this[i];
+    if (!isArray || __Porffor_array_has(this, i)) this[i + itemsLen] = this[i];
       else __Porffor_array_delete(this, i + itemsLen);
   }
 
@@ -294,7 +294,7 @@ export const __Array_prototype_slice = function (this: any[], _start: any, _end:
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   let j: i32 = 0;
   for (let i: i32 = start; i < end; i++) {
-    if (Porffor.fastOr(!isArray, __Porffor_array_has(this, i))) out[j] = this[i];
+    if (!isArray || __Porffor_array_has(this, i)) out[j] = this[i];
     j++;
   }
 
@@ -394,7 +394,7 @@ export const __Array_prototype_indexOf = function (this: any[], searchElement: a
 
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   for (let i: i32 = position; i < len; i++) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i))) continue;
+    if (isArray && !__Porffor_array_has(this, i)) continue;
     if (this[i] === searchElement) return i;
   }
 
@@ -415,7 +415,7 @@ export const __Array_prototype_lastIndexOf = function (this: any[], searchElemen
 
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   for (let i: i32 = position; i >= 0; i--) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i))) continue;
+    if (isArray && !__Porffor_array_has(this, i)) continue;
     if (this[i] === searchElement) return i;
   }
 
@@ -515,7 +515,7 @@ export const __Array_prototype_copyWithin = function (this: any[], _target: any,
   }
 
   while (count > 0) {
-    if (Porffor.fastOr(!isArray, __Porffor_array_has(this, start))) this[target] = this[start];
+    if (!isArray || __Porffor_array_has(this, start)) this[target] = this[start];
       else __Porffor_array_delete(this, target);
     start += direction;
     target += direction;
@@ -594,7 +594,7 @@ export const __Array_prototype_forEach = function (this: any[], callbackFn: any,
   let i: i32 = 0;
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   while (i < len) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i))) {
+    if (isArray && !__Porffor_array_has(this, i)) {
       i++;
       continue;
     }
@@ -616,7 +616,7 @@ export const __Array_prototype_filter = function (this: any[], callbackFn: any, 
   let j: i32 = 0;
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   while (i < len) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i))) {
+    if (isArray && !__Porffor_array_has(this, i)) {
       i++;
       continue;
     }
@@ -643,7 +643,7 @@ export const __Array_prototype_map = function (this: any[], callbackFn: any, thi
   let i: i32 = 0;
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   while (i < len) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i))) {
+    if (isArray && !__Porffor_array_has(this, i)) {
       i++;
       continue;
     }
@@ -666,7 +666,7 @@ export const __Array_prototype_flatMap = function (this: any[], callbackFn: any,
   let i: i32 = 0, j: i32 = 0;
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   while (i < len) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i))) {
+    if (isArray && !__Porffor_array_has(this, i)) {
       i++;
       continue;
     }
@@ -730,7 +730,7 @@ export const __Array_prototype_every = function (this: any[], callbackFn: any, t
   let i: i32 = 0;
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   while (i < len) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i))) {
+    if (isArray && !__Porffor_array_has(this, i)) {
       i++;
       continue;
     }
@@ -748,7 +748,7 @@ export const __Array_prototype_some = function (this: any[], callbackFn: any, th
   let i: i32 = 0;
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   while (i < len) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i))) {
+    if (isArray && !__Porffor_array_has(this, i)) {
       i++;
       continue;
     }
@@ -766,13 +766,13 @@ export const __Array_prototype_reduce = function (this: any[], callbackFn: any, 
   let i: i32 = 0;
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   if (acc === undefined) {
-    while (Porffor.fastAnd(i < len, isArray, !__Porffor_array_has(this, i))) i++;
+    while (i < len && isArray && !__Porffor_array_has(this, i)) i++;
     if (i == len) throw new TypeError('Reduce of empty array with no initial value');
     acc = this[i++];
   }
 
   while (i < len) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i))) {
+    if (isArray && !__Porffor_array_has(this, i)) {
       i++;
       continue;
     }
@@ -790,13 +790,13 @@ export const __Array_prototype_reduceRight = function (this: any[], callbackFn: 
   let i: i32 = len;
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   if (acc === undefined) {
-    while (Porffor.fastAnd(i > 0, isArray, !__Porffor_array_has(this, i - 1))) i--;
+    while (i > 0 && isArray && !__Porffor_array_has(this, i - 1)) i--;
     if (i == 0) throw new TypeError('Reduce of empty array with no initial value');
     acc = this[--i];
   }
 
   while (i > 0) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i - 1))) {
+    if (isArray && !__Porffor_array_has(this, i - 1)) {
       i--;
       continue;
     }
@@ -1150,7 +1150,7 @@ export const __Array_prototype_flat = function (this: any[], _depth: any) {
     out.length = len;
     const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
     for (let i: i32 = 0; i < len; i++) {
-      if (Porffor.fastOr(!isArray, __Porffor_array_has(this, i))) out[i] = this[i];
+      if (!isArray || __Porffor_array_has(this, i)) out[i] = this[i];
     }
     return out;
   }
@@ -1158,7 +1158,7 @@ export const __Array_prototype_flat = function (this: any[], _depth: any) {
   let i: i32 = 0, j: i32 = 0;
   const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
   while (i < len) {
-    if (Porffor.fastAnd(isArray, !__Porffor_array_has(this, i))) {
+    if (isArray && !__Porffor_array_has(this, i)) {
       i++;
       continue;
     }
