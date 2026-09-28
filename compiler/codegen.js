@@ -2957,7 +2957,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     const obj = reuse(scope, generate(scope, decl.left.object));
     const res = tmp(scope, T.jsval);
     emitIf(scope, Bin('!=', T.i32, Bin('&', T.i32, JvType(obj), Const(T.i32, TYPE_FLAGS.length)), Const(T.i32, 0)),
-      () => assign(scope, res, storeLength(JvPtr(obj), Bin('==', T.i32, JvType(obj), Const(T.i32, TYPES.array)))),
+      () => assign(scope, res, coerceValue(storeLength(JvPtr(obj), Bin('==', T.i32, JvType(obj), Const(T.i32, TYPES.array))), T.jsval)),
       () => assign(scope, res, generate(scope, { ...decl, _internalAssign: true })));
     return valueUnused ? valUndefined() : res;
   }
