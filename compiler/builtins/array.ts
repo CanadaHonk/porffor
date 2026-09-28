@@ -233,10 +233,13 @@ export const __Array_prototype_shift = function (this: any[]) {
   if (len == 0) return undefined;
 
   const element: any = this[0];
-  const isArray: boolean = Porffor.type(this) == Porffor.TYPES.array;
-  for (let i: i32 = 1; i < len; i++) {
-    if (!isArray || __Porffor_array_has(this, i)) this[i - 1] = this[i];
-      else __Porffor_array_delete(this, i - 1);
+  if (Porffor.type(this) == Porffor.TYPES.array) {
+    // holes are zero entries, so they move with the rest
+    const entries: i32 = __Porffor_array_ensure(this, len);
+    Porffor.IR.copy(entries, entries + 8, (len - 1) * 8);
+    Porffor.IR.gcBarrier(this, Porffor.TYPES.array);
+  } else {
+    for (let i: i32 = 1; i < len; i++) this[i - 1] = this[i];
   }
   __Porffor_array_setLength(this, len - 1);
 
