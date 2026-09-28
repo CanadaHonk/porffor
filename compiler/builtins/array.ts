@@ -825,6 +825,49 @@ export const __Porffor_strlt = (a: string|bytestring, b: string|bytestring) => {
   return aLen < bLen;
 };
 
+// 23.1.3.30.2 CompareArrayElements (x, y, comparefn)
+// https://tc39.es/ecma262/#sec-comparearrayelements
+export const __ecma262_CompareArrayElements = (x: any, y: any, comparefn: any): number => {
+  // 1. If x and y are both undefined, return +0𝔽.
+  // 2. If x is undefined, return 1𝔽.
+  if (Porffor.type(x) == Porffor.TYPES.undefined) {
+    if (Porffor.type(y) == Porffor.TYPES.undefined) return 0;
+    return 1;
+  }
+  // 3. If y is undefined, return -1𝔽.
+  if (Porffor.type(y) == Porffor.TYPES.undefined) return -1;
+  // 4. a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
+  // perf: ToNumber and the NaN check are unneeded as callers just check < 0
+  const v: number = comparefn(x, y);
+  return v;
+};
+
+export const __Porffor_array_mergeSort = (items: any[], len: i32, comparefn: any): void => {
+  const left: any[] = Porffor.array.new(len);
+  left.length = len;
+  for (let width: i32 = 1; width < len; width *= 2) {
+    for (let lo: i32 = 0; lo < len; lo += width * 2) {
+      let mid: i32 = lo + width;
+      if (mid > len) mid = len;
+      let hi: i32 = lo + width * 2;
+      if (hi > len) hi = len;
+      if (mid == hi || !(ecma262.CompareArrayElements(items[mid], items[mid - 1], comparefn) < 0)) continue;
+
+      const leftLen: i32 = mid - lo;
+      for (let k: i32 = 0; k < leftLen; k++) left[k] = items[lo + k];
+
+      let i: i32 = 0;
+      let j: i32 = mid;
+      let k: i32 = lo;
+      while (i < leftLen && j < hi) {
+        if (ecma262.CompareArrayElements(items[j], left[i], comparefn) < 0) items[k++] = items[j++];
+          else items[k++] = left[i++];
+      }
+      while (i < leftLen) items[k++] = left[i++];
+    }
+  }
+};
+
 // @porf-typed-array
 export const __Array_prototype_sort = function (this: any[], callbackFn: any) {
   if (callbackFn === undefined) {
@@ -853,7 +896,6 @@ export const __Array_prototype_sort = function (this: any[], callbackFn: any) {
 
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
 
-  // insertion sort, i guess
   let len: i32 = this.length;
   if (Porffor.type(this) == Porffor.TYPES.array) {
     let presentLen: i32 = 0;
@@ -864,41 +906,16 @@ export const __Array_prototype_sort = function (this: any[], callbackFn: any) {
     for (let i: i32 = presentLen; i < len; i++) __Porffor_array_delete(this, i);
     len = presentLen;
   }
-  for (let i: i32 = 0; i < len; i++) {
-    const x: any = this[i];
-    let j: i32 = i;
-    while (j > 0) {
-      const y: any = this[j - 1];
-
-      // 23.1.3.30.2 CompareArrayElements (x, y, comparefn)
-      // https://tc39.es/ecma262/#sec-comparearrayelements
-      let v: number;
-
-      // 1. If x and y are both undefined, return +0𝔽.
-      if (Porffor.type(x) == Porffor.TYPES.undefined && Porffor.type(y) == Porffor.TYPES.undefined) v = 0;
-        // 2. If x is undefined, return 1𝔽.
-        else if (Porffor.type(x) == Porffor.TYPES.undefined) v = 1;
-        // 3. If y is undefined, return -1𝔽.
-        else if (Porffor.type(y) == Porffor.TYPES.undefined) v = -1;
-        else {
-          // 4. If comparefn is not undefined, then
-          // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
-          // perf: ToNumber unneeded as we just check >= 0
-          v = callbackFn(x, y);
-
-          // b. If v is NaN, return +0𝔽.
-          // perf: unneeded as we just check >= 0
-          // if (Number.isNaN(v)) v = 0;
-
-          // c. Return v.
-        }
-
-      if (v >= 0) break;
-      this[j--] = y;
-    }
-
-    this[j] = x;
+  // merge sort works on jsval arrays, so typed arrays sort a copy
+  const inPlace: boolean = Porffor.type(this) == Porffor.TYPES.array;
+  let items: any = this;
+  if (!inPlace) {
+    items = Porffor.array.new(len);
+    items.length = len;
+    for (let i: i32 = 0; i < len; i++) items[i] = this[i];
   }
+  __Porffor_array_mergeSort(items, len, callbackFn);
+  if (!inPlace) for (let i: i32 = 0; i < len; i++) this[i] = items[i];
 
   return this;
 };
