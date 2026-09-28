@@ -4896,7 +4896,11 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   if (typedInput && decl.returnType) {
     // unwrap Promise<T> for async functions
     const { type, types, irType } = extractTypeAnnotation(decl.returnType, func.async && !func.generator);
-    if (irType != null) func.retType = irType;
+    if (irType != null) {
+      func.retType = irType;
+      // a raw return type cannot carry the constructed object
+      if (irType !== T.jsval) func.constr = false;
+    }
     if (type != null) { typeUsed(func, type); func.returnType = type; }
     else if (types != null) { func.returnTypes = types; for (const x of types) typeUsed(func, x); }
   }
