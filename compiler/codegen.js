@@ -1939,6 +1939,11 @@ const generateCall = (scope, decl) => {
       const targetTmp = reuseNamed(scope, targetVal);
       const targetIdent = { type: 'Identifier', name: targetTmp[N_A] };
 
+      // don't duplicate function literals in typeSwitch
+      const args = decl.arguments.map(x => isFuncType(x?.type)
+        ? { type: 'Identifier', name: reuseNamed(scope, generate(scope, x))[N_A] }
+        : x);
+
       const protoBC = {};
       for (const x of builtinProtoCands) {
         const tn = x.split('_prototype_')[0].toLowerCase();
@@ -1953,7 +1958,7 @@ const generateCall = (scope, decl) => {
           type: 'CallExpression',
           optional: decl.optional,
           callee: { type: 'Identifier', name: x },
-          arguments: decl.arguments,
+          arguments: args,
           _thisArg: targetIdent,
           _protoInternalCall: true
         });
