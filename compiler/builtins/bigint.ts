@@ -220,6 +220,7 @@ export const __BigInt_asUintN = (bits: any, bigint: any): bigint => {
   return __Porffor_bigint_fromNumber(n);
 };
 
+export const __BigInt_prototype_$$toStringTag = 'BigInt';
 export const __BigInt_prototype_toString = function (this: bigint, radix: any) {
   return __Porffor_bigint_toString(this, radix);
 };

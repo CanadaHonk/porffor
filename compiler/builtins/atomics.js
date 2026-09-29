@@ -32,5 +32,7 @@ export const __Atomics_${name} = (${args}): ${retType} => {
   stub('wait', 'ta: any, index: any, value: any, timeout: any = Infinity', 'bytestring');
   stub('notify', 'ta: any, index: any, count: any = Infinity', 'f64');
 
+  out += `export const __Atomics_$$toStringTag = 'Atomics';`
+
   return out;
 };

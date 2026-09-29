@@ -97,6 +97,10 @@ export const BuiltinVars = ({ builtinFuncs }) => {
         };
 
         includeBuiltin('__Porffor_object_fastAdd');
+
+        const symbolKeysObservable = () =>
+          hasFunc('__Porffor_symbol_wellKnown') || hasFunc('__Reflect_ownKeys') || hasFunc('__Object_getOwnPropertySymbols');
+
         const emitProp = (out, x, d) => {
           const key = prefix + x;
           const value = propValue(key, d);
@@ -111,8 +115,8 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           if (d.configurable) flags |= 0b0010;
           if (d.enumerable) flags |= 0b0100;
           if (d.writable) flags |= 0b1000;
-
-          out.push(Call('__Porffor_object_fastAdd', [ obj, makeString(x), value, Const(T.i32, flags) ], T.none));
+          const prop = x.startsWith('$$') ? wellKnownSymbol(x.slice(2), { includeBuiltin, makeString, global }) : makeString(x);
+          out.push(Call('__Porffor_object_fastAdd', [ obj, prop, value, Const(T.i32, flags) ], T.none));
         };
 
         if (lazyKind && Prefs.lazyObjects) {
@@ -122,6 +126,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           onFinalize(() => {
             adds.length = 0;
             for (const x in props) {
+              if (x.startsWith('$$') && !symbolKeysObservable()) continue;
               const key = prefix + x;
               if (lazyKind === 'proto') {
                 if (key in builtinFuncs) {
@@ -144,7 +149,15 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           });
           out.push(BlockStmt(adds));
         } else {
-          for (const x in props) emitProp(out, x, props[x]);
+          for (const x in props) if (!x.startsWith('$$')) emitProp(out, x, props[x]);
+
+          const symbolAdds = [];
+          onFinalize(() => {
+            symbolAdds.length = 0;
+            if (!symbolKeysObservable()) return;
+            for (const x in props) if (x.startsWith('$$')) emitProp(symbolAdds, x, props[x]);
+          });
+          out.push(BlockStmt(symbolAdds));
         }
 
         out.push(BlockStmt(sync));
@@ -163,6 +176,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     for (const x in props) {
       const d = props[x];
       const k = prefix + x;
+      if (x.startsWith('$$')) continue;
 
       if ('value' in d && !(k in builtinFuncs) && !(k in _)) {
         if (Array.isArray(d.value) || typeof d.value === 'function') {
@@ -212,16 +226,31 @@ export const BuiltinVars = ({ builtinFuncs }) => {
   };
 
   const builtinFuncKeys = Object.keys(builtinFuncs);
+  const builtinConsts = PrecompiledBuiltins.BuiltinConsts ?? {};
+
   const autoFuncKeys = name => {
     const prefix = makePrefix(name);
     return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length)).filter(x => !x.startsWith('prototype_'));
   };
+
+  const autoSymbolConsts = name => {
+    const prefix = makePrefix(name) + '$$';
+    const out = {};
+    for (const x in builtinConsts) {
+      if (x.startsWith(prefix)) {
+        out[x.slice(prefix.length - 2)] = { value: builtinConsts[x], writable: false, enumerable: false, configurable: true };
+      }
+    }
+    return out;
+  };
+
   const autoFuncs = name => ({
     ...props({
       writable: true,
       enumerable: false,
       configurable: true
     }, autoFuncKeys(name)),
+    ...autoSymbolConsts(name),
     ...(_[`__${name}_prototype`] ? {
       prototype: {
         writable: false,
@@ -277,27 +306,32 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     'dispose', 'asyncDispose'
   ];
 
+  const wellKnownSymbol = (x, { includeBuiltin, makeString, global }) => {
+    if (!globalThis.precompile) includeBuiltin('__Porffor_symbol_wellKnown');
+    return global(`#wellknown_${x}`, T.jsval, Call('__Porffor_symbol_wellKnown', [ makeString(`Symbol.${x}`) ], T.jsval));
+  };
+
   const wellKnownSymbolProps = props({
     writable: false,
     enumerable: false,
     configurable: false
-  }, Object.fromEntries(wellKnownSymbols.map(x => [x, (_scope, { includeBuiltin, makeString, global }) => {
-    includeBuiltin('Symbol');
-    return global(`#wellknown_${x}`, T.jsval, Call('Symbol', [ makeString(`Symbol.${x}`) ], T.jsval));
-  }])));
+  }, Object.fromEntries(wellKnownSymbols.map(x => [x, (_scope, ctx) => wellKnownSymbol(x, ctx)])));
 
   for (const x of wellKnownSymbols) {
     wellKnownSymbolProps[x].value.type = TYPES.symbol;
   }
 
   // automatically generate objects for prototypes
-  for (const x of builtinFuncKeys.reduce((acc, x) => {
+  const prototypes = new Set();
+  const addPrototype = x => {
     const ind = x.indexOf('_prototype_');
-    if (ind === -1) return acc;
+    if (ind !== -1) prototypes.add(x.slice(0, ind + 10));
+  };
 
-    acc.add(x.slice(0, ind + 10));
-    return acc;
-  }, new Set())) {
+  for (const x of builtinFuncKeys) addPrototype(x);
+  for (const x in builtinConsts) addPrototype(x);
+
+  for (const x of prototypes) {
     const props = autoFuncs(x);
 
     // special case: Object.prototype.__proto__ = null

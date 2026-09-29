@@ -140,3 +140,5 @@ export const __Math_min = (...args: any[]): number => {
   if (sawNaN) return NaN;
   return min;
 };
+
+export const __Math_$$toStringTag = 'Math';

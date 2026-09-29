@@ -665,6 +665,9 @@ export const __Object_prototype_toString = function (this: any) {
   if (Porffor.type(this) == Porffor.TYPES.date) return '[object Date]';
   if (Porffor.type(this) == Porffor.TYPES.regexp) return '[object RegExp]';
 
+  let tag = Porffor.object.get(this, Symbol.toStringTag);
+  if (typeof tag === 'string') return `[object ${tag}]`;
+
   return '[object Object]';
 };
 

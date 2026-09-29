@@ -128,3 +128,5 @@ export const __Reflect_construct = (target: any, argumentsList: any, newTarget: 
   if (!__ecma262_IsConstructor(newTarget)) throw new TypeError('newTarget is not a constructor');
   return Porffor.call(target, argumentsList, null, newTarget);
 };
+
+export const __Reflect_$$toStringTag = 'Reflect';

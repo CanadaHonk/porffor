@@ -177,3 +177,5 @@ export const __DataView_prototype_setFloat64 = function (this: DataView, byteOff
   Porffor.IR.storeI32(ptr, 8, !!littleEndian ? hi : __Porffor_dataview_swap32(lo));
   return undefined;
 };
+
+export const __DataView_prototype_$$toStringTag = 'DataView';

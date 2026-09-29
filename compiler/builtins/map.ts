@@ -129,6 +129,7 @@ export const __Map_prototype_entries = function (this: Map) {
   return out;
 };
 
+export const __Map_prototype_$$toStringTag = 'Map';
 export const __Map_prototype_toString = function (this: Map) { return '[object Map]'; };
 export const __Map_prototype_toLocaleString = function (this: Map) { return Porffor.callThis(__Map_prototype_toString, this); };
 

@@ -39,6 +39,7 @@ export const WeakMap = function (iterable: any): WeakMap {
   return out;
 };
 
+export const __WeakMap_prototype_$$toStringTag = 'WeakMap';
 export const __WeakMap_prototype_toString = function (this: WeakMap) { return '[object WeakMap]'; };
 export const __WeakMap_prototype_toLocaleString = function (this: WeakMap) { return Porffor.callThis(__WeakMap_prototype_toString, this); };
 

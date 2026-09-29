@@ -508,6 +508,7 @@ export const __Promise_try = (cb: any, ...args: any[]): Promise => {
   return obj;
 };
 
+export const __Promise_prototype_$$toStringTag = 'Promise';
 export const __Promise_prototype_toString = function (this: any) { return '[object Promise]'; };
 export const __Promise_prototype_toLocaleString = function (this: any) { return Porffor.callThis(__Promise_prototype_toString, this); };
 

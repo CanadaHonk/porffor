@@ -4113,6 +4113,13 @@ const resolveMemberDemands = scope => {
       }
     }
   }
+
+  if (funcIndex['__Porffor_object_getHiddenPrototype'] != null) {
+    for (const [ tn, getter ] of builtinPrototypeObjectGetters) {
+      const t = TYPES[tn.toLowerCase()] ?? TYPES['__' + tn.toLowerCase()];
+      if (t != null && usesAnyType([ t, primObjAlias[t] ])) includeBuiltin(scope, getter);
+    }
+  }
 };
 
 let icSites;

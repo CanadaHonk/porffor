@@ -20,9 +20,17 @@ export const Symbol = (description: any): Symbol => {
   return symbol;
 };
 
+export const __Porffor_symbol_wellKnown = (description: bytestring): Symbol => {
+  const symbol: Symbol = Porffor.malloc(8);
+  Porffor.IR.storeJv(symbol, 0, description);
+  return symbol;
+};
+
 export const __Symbol_prototype_description$get = function (this: Symbol) {
   return Porffor.IR.loadJv(this, 0);
 };
+
+export const __Symbol_prototype_$$toStringTag = 'Symbol';
 
 export const __Symbol_prototype_toString = function (this: Symbol) {
   const out: bytestring = Porffor.malloc();
