@@ -1814,6 +1814,15 @@ export const __ByteString_prototype_split = function (this: bytestring, separato
 };
 
 
+// todo: unicode normalization
+export const __String_prototype_normalize = function (this: string, form: any = undefined) {
+  return this;
+};
+export const __ByteString_prototype_normalize = function (this: bytestring, form: any = undefined) {
+  return this;
+};
+
+
 export const __String_prototype_localeCompare = function (this: string, compareString: any) {
   compareString = ecma262.ToString(compareString);
 
