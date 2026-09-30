@@ -3660,6 +3660,26 @@ export const __String_prototype_matchAll = function (this: string, regexp: any) 
 export const __ByteString_prototype_matchAll = function (this: bytestring, regexp: any) {
   return __Porffor_regex_matchAll(regexp, this);
 };
+
+export const __Porffor_regex_search = (regexp: any, input: any) => {
+  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
+  if ((Porffor.type(input) | 0b10000000) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
+
+  const lastIndex: i32 = Porffor.IR.loadI32(regexp, 8);
+  Porffor.IR.storeI32(regexp, 8, 0);
+  const end: i32 = __Porffor_regex_interpret(regexp, input, 2);
+  Porffor.IR.storeI32(regexp, 8, lastIndex);
+  if (end == -1) return -1;
+  return __Porffor_regex_mStart;
+};
+
+export const __String_prototype_search = function (this: string, regexp: any) {
+  return __Porffor_regex_search(regexp, this);
+};
+export const __ByteString_prototype_search = function (this: bytestring, regexp: any) {
+  return __Porffor_regex_search(regexp, this);
+};
+
 export const __Porffor_regex_escapeX = (out: bytestring, char: i32) => {
   // 0-9 or a-z or A-Z as first char - escape as \xNN
   Porffor.bytestring.append2Char(out, 92, 120);
