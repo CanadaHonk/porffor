@@ -104,13 +104,13 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
           continue;
         }
 
-        // \u00FF
+        // \u00ff
         buffer = __Porffor_bytestring_buffer2Char(buffer, 92, 117); // \u
         buffer = __Porffor_bytestring_buffer2Char(buffer, 48, 48); // 00
 
         const h1: i32 = (c & 0xf0) / 0x10;
         const h2: i32 = c & 0x0f;
-        buffer = __Porffor_bytestring_buffer2Char(buffer, h1 < 10 ? h1 + 48 : h1 + 55, h2 < 10 ? h2 + 48 : h2 + 55); // 0-9 or A-F
+        buffer = __Porffor_bytestring_buffer2Char(buffer, h1 < 10 ? h1 + 48 : h1 + 87, h2 < 10 ? h2 + 48 : h2 + 87); // 0-9 or a-f
         continue;
       }
 
