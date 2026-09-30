@@ -255,7 +255,7 @@ export default (entrySource, entryFile, opts = {}) => {
     if (mod.esm) collectModule(mod);
     else mod.body.unshift(
       varDecl('const', 'module', { type: 'ObjectExpression', properties: [ property(ident('exports'), { type: 'ObjectExpression', properties: [] }) ] }),
-      varDecl('const', 'exports', member(ident('module'), 'exports'))
+      varDecl('let', 'exports', member(ident('module'), 'exports'))
     );
     return mod;
   };
@@ -638,7 +638,7 @@ export default (entrySource, entryFile, opts = {}) => {
   const moduleOf = name => name.startsWith('module#m') && cjsIds.has(name.slice(8)) ? name.slice(8) : null;
   const baseRef = node => node.type === 'MemberExpression' && !node.computed && node.property.name === 'exports' && node.object.type === 'Identifier' ? moduleOf(node.object.name) : null;
   const shakeExports = () => {
-    const alias = Object.create(null), forward = Object.create(null);
+    const alias = Object.create(null), forward = Object.create(null), rebound = [];
     const collect = node => {
       if (!node || typeof node !== 'object') return;
       if (Array.isArray(node)) { for (const x of node) collect(x); return; }
@@ -646,6 +646,7 @@ export default (entrySource, entryFile, opts = {}) => {
       const name = node.type === 'VariableDeclarator' ? node.id.name : assign ? node.left.name : null;
       const value = node.type === 'VariableDeclarator' ? node.init : assign ? node.right : null;
       const x = value && name?.includes('#m') && baseRef(value);
+      if (assign && name?.includes('#m') && (!x || alias[name] != null)) rebound.push(name);
       if (x) alias[name] = alias[name] == null || alias[name] === x ? x : false;
 
       const from = assign && baseRef(node.left);
@@ -663,6 +664,7 @@ export default (entrySource, entryFile, opts = {}) => {
     };
 
     const used = Object.create(null), escaped = Object.create(null);
+    for (const name of rebound) if (alias[name]) escaped[alias[name]] = escaped[follow(alias[name])] = true;
     const visit = (node, parent) => {
       if (!node || typeof node !== 'object') return;
       if (Array.isArray(node)) { for (const x of node) visit(x, parent); return; }
@@ -686,7 +688,7 @@ export default (entrySource, entryFile, opts = {}) => {
       const callee = node.type === 'CallExpression' ? node.callee : node.tag;
       if (callee?.type === 'MemberExpression' && refOf(callee.object)) escaped[refOf(callee.object)] = true;
       if (node.type === 'AssignmentExpression' && node.operator === '=' && node.left.type === 'MemberExpression' && !node.left.computed && refOf(node.left.object)) return visit(node.right, node);
-      if (node.type === 'AssignmentExpression' && node.operator === '=' && forward[baseRef(node.left)]) return;
+      if (node.type === 'AssignmentExpression' && node.operator === '=' && forward[baseRef(node.left)] && parent.type === 'ExpressionStatement') return;
       for (const key in node) if (key !== 'start' && key !== 'end') visit(node[key], node);
     };
     visit(body, null);
