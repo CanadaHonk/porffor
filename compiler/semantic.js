@@ -763,7 +763,7 @@ const semantic = (node, _scopes = null) => {
   }
   scopes = _scopes;
 
-  analyze(node, !!scopes.at(-1)?._strictEval);
+  analyze(node, node.sourceType === 'module' || !!scopes.at(-1)?._strictEval);
   if (scopes.length !== _scopes.length) throw new Error('Scope mismatch');
 
   annotate(node);
