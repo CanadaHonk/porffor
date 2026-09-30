@@ -11,6 +11,8 @@ const uwebsockets = (typeof process?.version !== 'undefined' ? (await import('./
 const formatTime = ms => ms >= 60_000 ? `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s` : ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms.toFixed(0)}ms`;
 const formatSize = bytes => bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)}MB` : `${(bytes / 1000).toFixed(1)}KB`;
 
+const ansi = code => process.stdout.isTTY ? `\u001b[${code}m` : '';
+
 let progressLines = 0, progressInterval;
 let spinner = ['-', '\\', '|', '/'], spin = 0;
 const progressStart = msg => {
@@ -29,7 +31,7 @@ const progressDone = (msg, start) => {
   clearInterval(progressInterval);
 
   const timeStr = (performance.now() - start).toFixed(0);
-  console.log(`${process.stdout.isTTY ? `\r${' '.repeat(60)}\r` : ''}\u001b[2m${' '.repeat(10 - timeStr.length)}${timeStr}ms\u001b[0m  \u001b[92m${msg}\u001b[0m`);
+  console.log(`${process.stdout.isTTY ? `\r${' '.repeat(60)}\r` : ''}${ansi(2)}${' '.repeat(10 - timeStr.length)}${timeStr}ms${ansi(0)}  ${ansi(92)}${msg}${ansi(0)}`);
   progressLines++;
 };
 const progressClear = () => {
@@ -94,7 +96,7 @@ export default (code, module = Prefs.module, opts = {}) => {
       progressClear();
       if (!outFile) return;
       const detail = Prefs.nativeFetch ? 'C bundle' : split ? `${cOut.files.length} files` : formatSize(fs.statSync(outFile).size);
-      console.log(`\u001b[2m[${formatTime(total)}]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${detail})\u001b[0m`);
+      console.log(`${ansi(2)}[${formatTime(total)}]${ansi(0)} ${ansi(32)}compiled ${globalThis.file} ${ansi(90)}->${ansi(0)} ${ansi(92)}${outFile}${ansi(90)} (${detail})${ansi(0)}`);
     }
 
     return;
@@ -235,7 +237,7 @@ export default (code, module = Prefs.module, opts = {}) => {
     if (logProgress) {
       const total = performance.now();
       progressClear();
-      if (!Prefs.run) console.log(`\u001b[2m[${formatTime(total)}]\u001b[0m \u001b[32mcompiled ${globalThis.file} \u001b[90m->\u001b[0m \u001b[92m${outFile}\u001b[90m (${formatSize(fs.statSync(outFile).size)})\u001b[0m`);
+      if (!Prefs.run) console.log(`${ansi(2)}[${formatTime(total)}]${ansi(0)} ${ansi(32)}compiled ${globalThis.file} ${ansi(90)}->${ansi(0)} ${ansi(92)}${outFile}${ansi(90)} (${formatSize(fs.statSync(outFile).size)})${ansi(0)}`);
     }
 
     return;

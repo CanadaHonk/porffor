@@ -14,15 +14,17 @@ if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
 
 const start = performance.now();
 
+const ansi = code => process.stdout.isTTY ? `\x1B[${code}m` : '';
+
 const help = () => {
   // description + version
-  console.log(`\x1B[1m\x1B[38;2;156;96;224mPorffor\x1B[0m is a JavaScript/TypeScript engine/compiler/runtime. \x1B[2m(${globalThis.version})\x1B[0m`);
+  console.log(`${ansi('1;38;2;156;96;224')}Porffor${ansi(0)} is a JavaScript/TypeScript engine/compiler/runtime. ${ansi(2)}(${globalThis.version})${ansi(0)}`);
 
   // basic usage
-  console.log(`Usage: \x1B[1mporf [command] [...prefs] path/to/script.js [...args]\x1B[0m`);
+  console.log(`Usage: ${ansi(1)}porf [command] [...prefs] path/to/script.js [...args]${ansi(0)}`);
 
   // commands
-  console.log(`\n\x1B[1m\x1B[4mCommands\x1B[0m`);
+  console.log(`\n${ansi(1)}${ansi(4)}Commands${ansi(0)}`);
   for (let [ cmd, color, post, desc ] of [
     [ '', 34, '', 'Start a REPL' ],
     [ '', 34, 'foo.js', 'Run a script' ],
@@ -31,13 +33,13 @@ const help = () => {
   ]) {
     if (cmd.length > 0) post = ' ' + post;
 
-    console.log(`  \x1B[2mporf\x1B[0m \x1B[1m\x1B[${color}m${cmd}\x1B[0m${post} ${' '.repeat(30 - cmd.length - post.length)}${desc}`);
+    console.log(`  ${ansi(2)}porf${ansi(0)} ${ansi(1)}${ansi(color)}${cmd}${ansi(0)}${post} ${' '.repeat(30 - cmd.length - post.length)}${desc}`);
   }
 
   // flags
-  console.log(`\n\x1B[1m\x1B[4mFlags\x1B[0m`);
+  console.log(`\n${ansi(1)}${ansi(4)}Flags${ansi(0)}`);
   for (let [ flag, desc ] of Object.entries({
-    'On': 'Optimization level, use -O(0|\x1B[1m1\x1B[0m|2|3)',
+    'On': `Optimization level, use -O(0|${ansi(1)}1${ansi(0)}|2|3)`,
     t: 'Force parsing input as TypeScript',
     d: 'Debug mode (include names and debug logs)',
     module: 'Parse input as a module',
@@ -46,7 +48,7 @@ const help = () => {
     flag = '-' + flag;
     if (flag.length > 3) flag = '-' + flag;
 
-    console.log(`  \x1B[1m${flag}\x1B[0m${' '.repeat(36 - flag.length)}${desc}`);
+    console.log(`  ${ansi(1)}${flag}${ansi(0)}${' '.repeat(36 - flag.length)}${desc}`);
   }
 
   // niche flags
@@ -59,10 +61,10 @@ const help = () => {
       flag = '-' + flag;
       if (flag.length > 3) flag = '-' + flag;
 
-      console.log(`  \x1B[1m${flag}\x1B[0m${' '.repeat(36 - flag.length)}${desc}`);
+      console.log(`  ${ansi(1)}${flag}${ansi(0)}${' '.repeat(36 - flag.length)}${desc}`);
     }
   } else {
-    console.log(`  \x1B[90m(To view all flags use --help all)\x1B[0m`);
+    console.log(`  ${ansi(90)}(To view all flags use --help all)${ansi(0)}`);
   }
 
   console.log();
