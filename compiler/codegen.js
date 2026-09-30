@@ -782,7 +782,7 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
     return Local('#allargs', T.jsval);
 
   // self-reference reads the function's own value (#callee), preserving identity
-  if (scope.selfAware && name === scope.name) return Local('#callee', T.jsval);
+  if (scope.selfAware && name === scope.name && !scope.ast._reassigned) return Local('#callee', T.jsval);
 
   if (name in globals) {
     const global = Global(name, globals[name].type ?? T.jsval);

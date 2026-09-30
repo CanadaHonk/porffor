@@ -85,6 +85,7 @@ const markWrite = node => {
     const variable = node._resolvedVariable ?? node._variable ?? resolveVariable(node.name);
     if (variable) {
       variable.node._writes = (variable.node._writes ?? 0) + 1;
+      if (variable.node.type === 'FunctionDeclaration') variable.node._reassigned = true;
     }
     return;
   }
@@ -604,7 +605,7 @@ const annotate = (node, parent = null, key = null) => {
           isSelfReferenceContext(currentFunc, variable.node)
         ) {
           if (variable.node.type !== 'ClassExpression') variable.node._selfAware = true;
-          node._selfBinding = variable.node;
+          if (variable.node.type !== 'FunctionDeclaration') node._selfBinding = variable.node;
         }
         if (variable.node.type === 'ClassExpression' && variable.scope?.type === 'ClassExpression') {
           node._selfBinding = variable.node;
