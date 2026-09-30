@@ -3424,8 +3424,9 @@ const genLoop = (scope, decl, type) => {
 
   const updateStmts = type === 'for' && decl.update ? collect(scope, () => genStmt(scope, decl.update)) : [];
   const testInBody = condStmts.length > 0 || type === 'dowhile';
-  const updateInClause = type === 'for' && updateStmts.length <= 1;
-  const bodyUpdate = type === 'for' && updateStmts.length > 1;
+  const updateInClause = type === 'for' && (updateStmts.length === 0 || (updateStmts.length === 1 &&
+    (updateStmts[0][N_KIND] === K.Assign || updateStmts[0][N_TYPE] !== T.none)));
+  const bodyUpdate = type === 'for' && !updateInClause;
 
   const L = fresh(scope);
   const C = bodyUpdate || type === 'dowhile' ? fresh(scope) : null;
