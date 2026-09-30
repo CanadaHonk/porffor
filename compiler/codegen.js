@@ -5002,7 +5002,11 @@ const generateModules = (scope, body) => {
   let unit = null, group = [];
   const flush = () => {
     if (group.length === 0) return;
-    const [ func ] = generateFunc(scope, { type: 'Program', id: { name: `#mod_${unit}` }, _module: true, _unit: unit, strict: scope.strict, body: { type: 'BlockStatement', body: group } });
+    const [ func ] = generateFunc(scope, {
+      type: 'Program', id: { name: `#mod_${unit}` }, _module: true, _unit: unit, strict: scope.strict,
+      _capturedVars: scope.ast._capturedVars, _capturedThis: scope.ast._capturedThis, _variables: scope.ast._variables,
+      body: { type: 'BlockStatement', body: group }
+    });
     exprStmt(scope, Call(func.index, [], T.none));
     group = [];
   };
