@@ -313,6 +313,15 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   const jsArg = n => n[N_TYPE] === T.jsval ? rx(n, P_COMMA) : `porf_box_num(${rx(n, P_COMMA)})`;
   const packArg = n => `porf_pack(${jsArg(n)})`;
 
+  // dynamic calls with few args pass them in registers to a per-func thunk
+  const DYN_REGS = 4;
+  const hasParam = (f, name) => f.params.some(p => p.name === name);
+  const dynRegThunk = f => f.indirect && coroKind(f) === 0 && !hasParam(f, '#rest') && !hasParam(f, '#allargs');
+  const dynRegs = (n = DYN_REGS) => Array.from({ length: n }, (_, j) => `jsval a${j}`);
+  const dynCallParams = n => [ 'jsval fn', 'jsval thisv', ...dynRegs(n) ].join(', ');
+  const dynThunkParams = [ 'u64 ra', 'jsval thisv', ...dynRegs() ].join(', ');
+  let usesDynReg = false;
+
   let usesMath = false;
   let usesCoro = false;
   let usesSyncAsync = false;
@@ -597,6 +606,10 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         const newt = newTarget ? rx(newTarget, P_COMMA) : 'JV_UNDEFINED';
         if (spreadArr) {
           return [`porf_call_dynamic_arr(${rx(node[N_A], P_COMMA)}, ${rx(node[N_B], P_COMMA)}, ${newt}, ${rx(spreadArr, P_COMMA)})`, P_POSTFIX];
+        }
+        if (!newTarget && args.length <= DYN_REGS) {
+          usesDynReg = true;
+          return [`porf_call${args.length}(${[ node[N_A], node[N_B] ].map(a => rx(a, P_COMMA)).concat(args.map(jsArg)).join(', ')})`, P_POSTFIX];
         }
         const argv = args.length === 0 ? '(jsbits[]){JV_UNDEFINED_BITS}'
           : `(jsbits[]){ ${args.map(packArg).join(', ')} }`;
@@ -985,6 +998,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     `${st}jsval porf_call_dynamic(jsval fn, jsval thisv, jsval newtv, i32 argc, jsbits* argv);\n`,
     `${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr);\n`
   ];
+  if (usesDynReg) for (let n = 0; n <= DYN_REGS; n++) linkProtos.push(`${split ? '' : 'static inline '}jsval porf_call${n}(${dynCallParams(n)});\n`);
   if (usesSyncAsync) linkProtos.push(`${st}jsval porf_async_call_sync(u32 idx, jsval callee, u32 env, jsval thisv, jsval newtv, i32 argc, jsbits* argv);\n`);
   if (usesCoro) {
     // coroutine entry points called from user code / builtins above their definitions
@@ -1045,54 +1059,105 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   cur = partsOf('main');
   for (const f of linkFuncs) cur.protos[f.index] = f;
 
-  // dynamic call: one switch dispatcher, no per-function wrappers. fn values are records
-  // [fnIdx u32][env u32] (payload = offset, nonzero = truthy), each case adapts the
-  // uniform (env,thisv,newtv,argc,argv) ABI to the specialized call inline
+  // adapt a uniform dynamic-call ABI to f's signature
+  const dynInvokeCall = (f, src) => {
+    const pre = [];
+    const args = [];
+    let j = 0;
+    for (const p of f.params) {
+      if (p.name === '#env') { args.push(src.env); continue; }
+      if (p.name === '#this') { args.push('thisv'); continue; }
+      if (p.name === '#newtarget') { args.push(src.newtv); continue; }
+      if (p.name === '#callee') { args.push(src.callee); continue; }
+      if (p.name === '#allargs') {
+        pre.push('u32 _aa = porf_arr_new(argc, argc > 4 ? argc : 4);');
+        pre.push('for (i32 _k = 0; _k < argc; _k++) porf_arr_set(_aa, (u32)_k, porf_unpack(argv[_k]));');
+        args.push(`porf_box((f64)_aa, ${TYPES.array})`);
+        continue;
+      }
+      if (p.name === '#rest') {
+        // pack remaining argv into an array (twin helpers; die at step 3)
+        pre.push(`u32 _rest = porf_arr_new(0, argc > ${j} ? argc - ${j} : 4);`);
+        pre.push(`for (i32 _k = ${j}; _k < argc; _k++) (void)porf_arr_push(_rest, porf_unpack(argv[_k]));`);
+        args.push(`porf_box((f64)_rest, ${TYPES.array})`);
+        continue;
+      }
+      const arg = src.arg(j);
+      if (p.type === T.f64) args.push(`(${arg}).val`);
+        else if (p.type === T.i64 || p.type === T.u64) args.push(`(i64)(${arg}).val`);
+        else if (p.type === T.i32 || p.type === T.u32 || p.type === T.ptr) args.push(`(i32)(${arg}).val`);
+        else args.push(arg);
+      j++;
+    }
+    const call = `${fnSym(f)}(${args.join(', ')})`;
+    let ret;
+    if (f.retType === T.none) ret = `${call}; return JV_UNDEFINED;`;
+      else if (f.retType === T.f64) ret = `return porf_box_num(${call});`;
+      else if (f.retType === T.i64 || f.retType === T.u64) ret = `return porf_box_num((f64)${call});`;
+      else if (f.retType === T.i32 || f.retType === T.u32 || f.retType === T.ptr) ret = `return porf_box_num((f64)${call});`;
+      else ret = `return ${call};`;
+    return pre.length ? `{ ${pre.join(' ')} ${ret} }` : ret;
+  };
+
+  if (usesDynReg) {
+    const regsVoid = dynRegs().map((_, j) => `(void)a${j};`).join(' ');
+    emit(`${st}jsval porf_thk_slow(${dynThunkParams}) {
+  jsbits argv[${DYN_REGS}] = { ${dynRegs().map((_, j) => `porf_pack(a${j})`).join(', ')} };
+  return porf_call_dynamic(porf_box((f64)(u32)ra, ${TYPES.function}), thisv, JV_UNDEFINED, (i32)(ra >> 32), argv);
+}
+${st}jsval porf_thk_bad(${dynThunkParams}) {
+  (void)ra; (void)thisv; ${regsVoid}
+  porf_unreachable("uncompiled function");
+  return JV_UNDEFINED;
+}
+`);
+    const table = [];
+    for (let i = 0; i < linkFuncs.length; i++) {
+      const f = linkFuncs[i];
+      if (!dynRegThunk(f)) {
+        table.push(f.indirect || needsCoro(f) || isSyncAsync(f) ? 'porf_thk_slow' : 'porf_thk_bad');
+        continue;
+      }
+      const body = dynInvokeCall(f, {
+        env: '(*(u32*)(MEM + (u32)ra + 4))',
+        callee: `porf_box((f64)(u32)ra, ${TYPES.function})`,
+        newtv: 'JV_UNDEFINED',
+        arg: j => j < DYN_REGS ? `a${j}` : 'JV_UNDEFINED'
+      });
+      emit(`${st}jsval porf_thk_${i}(${dynThunkParams}) { (void)ra; (void)thisv; ${regsVoid} ${body} }\n`);
+      table.push(`porf_thk_${i}`);
+    }
+    emit(`${st}jsval (*const porf_thk[${linkFuncs.length || 1}])(${dynThunkParams}) = { ${table.join(', ') || 'porf_thk_bad'} };\n\n`);
+
+    for (let n = 0; n <= DYN_REGS; n++) {
+      const regs = Array.from({ length: DYN_REGS }, (_, j) => j < n ? `a${j}` : 'JV_UNDEFINED');
+      emit(`${split ? '' : 'static inline '}jsval porf_call${n}(${dynCallParams(n)}) {
+  if (porf_jv_type(fn) != ${TYPES.function}) porf_throw_new(${TYPES.typeerror}, 0);
+  const u32 rec = (u32)fn.val;
+  const u32 idx = *(u32*)(MEM + rec);
+  if (idx >= ${linkFuncs.length}u) porf_unreachable("bad function index");
+  return porf_thk[idx]((u64)rec | ((u64)${n} << 32), thisv, ${regs.join(', ')});
+}
+`);
+    }
+  }
+
+  // fn values are records [fnIdx u32][env u32], funcs a thunk fully serves fall through to it
   emit(`${st}jsval porf_invoke(u32 idx, jsval callee, u32 env, jsval thisv, jsval newtv, i32 argc, jsbits* argv) {\n`);
     emit('  (void)callee; (void)env; (void)thisv; (void)newtv; (void)argc; (void)argv;\n');
     emit('  switch (idx) {\n');
     for (let i = 0; i < linkFuncs.length; i++) {
       const f = linkFuncs[i];
       if (!f.indirect && !needsCoro(f) && !isSyncAsync(f)) continue;
-      const pre = [];
-      const args = [];
-      let j = 0;
-      for (const p of f.params) {
-        if (p.name === '#env') { args.push('env'); continue; }
-        if (p.name === '#this') { args.push('thisv'); continue; }
-        if (p.name === '#newtarget') { args.push('newtv'); continue; }
-        if (p.name === '#callee') { args.push('callee'); continue; }
-        if (p.name === '#allargs') {
-          pre.push('u32 _aa = porf_arr_new(argc, argc > 4 ? argc : 4);');
-          pre.push('for (i32 _k = 0; _k < argc; _k++) porf_arr_set(_aa, (u32)_k, porf_unpack(argv[_k]));');
-          args.push(`porf_box((f64)_aa, ${TYPES.array})`);
-          continue;
-        }
-        if (p.name === '#rest') {
-          // pack remaining argv into an array (twin helpers; die at step 3)
-          pre.push(`u32 _rest = porf_arr_new(0, argc > ${j} ? argc - ${j} : 4);`);
-          pre.push(`for (i32 _k = ${j}; _k < argc; _k++) (void)porf_arr_push(_rest, porf_unpack(argv[_k]));`);
-          args.push(`porf_box((f64)_rest, ${TYPES.array})`);
-          continue;
-        }
-        const src = `porf_unpack(argc > ${j} ? argv[${j}] : JV_UNDEFINED_BITS)`;
-        if (p.type === T.f64) args.push(`(${src}).val`);
-          else if (p.type === T.i64 || p.type === T.u64) args.push(`(i64)(${src}).val`);
-          else if (p.type === T.i32 || p.type === T.u32 || p.type === T.ptr) args.push(`(i32)(${src}).val`);
-          else args.push(src);
-        j++;
-      }
-      const call = `${fnSym(f)}(${args.join(', ')})`;
-      let ret;
-      if (f.retType === T.none) ret = `${call}; return JV_UNDEFINED;`;
-        else if (f.retType === T.f64) ret = `return porf_box_num(${call});`;
-        else if (f.retType === T.i64 || f.retType === T.u64) ret = `return porf_box_num((f64)${call});`;
-        else if (f.retType === T.i32 || f.retType === T.u32 || f.retType === T.ptr) ret = `return porf_box_num((f64)${call});`;
-        else ret = `return ${call};`;
-      emit(pre.length ? `    case ${i}: { ${pre.join(' ')} ${ret} }\n` : `    case ${i}: ${ret}\n`);
+      if (usesDynReg && dynRegThunk(f) && !hasParam(f, '#newtarget') && f.params.filter(p => p.name[0] !== '#').length <= DYN_REGS) continue;
+      emit(`    case ${i}: ${dynInvokeCall(f, {
+        env: 'env', callee: 'callee', newtv: 'newtv',
+        arg: j => `porf_unpack(argc > ${j} ? argv[${j}] : JV_UNDEFINED_BITS)`
+      })}\n`);
     }
     emit('  }\n');
-    emit('  porf_unreachable("uncompiled function");\n  return JV_UNDEFINED;\n}\n');
+    if (usesDynReg) emit(`  return porf_thk[idx]((u64)(u32)callee.val | ((u64)(u32)argc << 32), thisv, ${dynRegs().map((_, j) => `argc > ${j} ? porf_unpack(argv[${j}]) : JV_UNDEFINED`).join(', ')});\n}\n`);
+      else emit('  porf_unreachable("uncompiled function");\n  return JV_UNDEFINED;\n}\n');
 
     if (usesCoro || usesSyncAsync) {
       emit(`
