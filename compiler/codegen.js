@@ -858,46 +858,33 @@ const generateYield = (scope, decl) => {
   }
 
   if (decl.delegate) {
-    const known = knownType(scope, getNodeType(scope, arg));
-    if (known === TYPES.__porffor_generator) {
-      const delegate = reuse(scope, generate(scope, arg));
-      const sent = tmp(scope, T.jsval, valUndefined());
-      const result = tmp(scope, T.jsval, valUndefined());
-      const L = fresh(scope);
-      stmt(scope, Loop(null, null, collect(scope, () => {
-        const done = reuse(scope, Call('__Porffor_coroutine_resume', [ delegate, sent, Const(T.i32, 0) ], T.i32));
-        emitIf(scope, done, () => {
-          assign(scope, result, Call('__Porffor_coroutine_value', [ delegate ]));
-          stmt(scope, Break(L));
-        });
-        assign(scope, sent, Yield(Call('__Porffor_coroutine_value', [ delegate ])));
-      }), L));
-      return result;
-    }
-
-    const valueName = '#yieldstar' + uniqId(scope);
-    generateForOf(scope, {
-      type: 'ForOfStatement',
-      left: {
-        type: 'VariableDeclaration',
-        kind: 'const',
-        declarations: [ {
-          type: 'VariableDeclarator',
-          id: { type: 'Identifier', name: valueName },
-          init: null
-        } ]
-      },
-      right: arg,
-      body: {
-        type: 'ExpressionStatement',
-        expression: {
-          type: 'YieldExpression',
-          argument: { type: 'Identifier', name: valueName },
-          delegate: false
-        }
+    const gen = !scope.async && knownType(scope, getNodeType(scope, arg)) === TYPES.__porffor_generator ? reuse(scope, generate(scope, arg)) : null;
+    const rec = gen ? null : reuse(scope, builtinCall(scope, scope.async ? '__Porffor_iterator_getAsync' : '__Porffor_iterator_get', [ generate(scope, arg) ]));
+    const received = tmp(scope, T.jsval, valUndefined());
+    const mode = tmp(scope, T.i32, Const(T.i32, 0));
+    const value = tmp(scope, T.jsval);
+    const L = fresh(scope);
+    stmt(scope, Loop(null, null, collect(scope, () => {
+      let done;
+      if (gen) {
+        done = reuse(scope, Call('__Porffor_coroutine_resume', [ gen, received, mode ], T.i32));
+        stmt(scope, Call('__Porffor_coroutine_setRaw', [ Call('__Porffor_coroutine_raw', [ gen ], T.i32) ], T.none));
+        assign(scope, value, Call('__Porffor_coroutine_value', [ gen ]));
+      } else {
+        assign(scope, value, scope.async
+          ? builtinCall(scope, '__Porffor_iterator_complete', [ rec, awaitValue(scope, builtinCall(scope, '__Porffor_iterator_call', [ rec, received, mode ])) ])
+          : builtinCall(scope, '__Porffor_iterator_resume', [ rec, received, mode ]));
+        done = iteratorDone(rec);
       }
-    });
-    return valUndefined();
+
+      emitIf(scope, done, () => {
+        emitIf(scope, Bin('==', T.i32, mode, Const(T.i32, 2)), () => generateReturn(scope, { type: 'ReturnStatement', argument: identNode(value[N_A]) }));
+        stmt(scope, Break(L));
+      });
+      assign(scope, received, Call('porf_yield_delegate', [ value ], T.jsval));
+      assign(scope, mode, Call('porf_yield_mode', [], T.i32));
+    }), L));
+    return value;
   }
 
   return Yield(generate(scope, arg));
@@ -1643,14 +1630,34 @@ const aliasPrimObjsBC = bc => {
   add(TYPES.string, TYPES.stringobject);
 };
 
-const typeIsIterable = t => Bin('|', T.i32,
-  typeIsOneOf(t, [ TYPES.array, TYPES.set, TYPES.map, TYPES.string, TYPES.bytestring, TYPES.__porffor_generator ]),
-  Bin('&', T.i32,
-    Bin('>=', T.i32, t, Const(T.i32, TYPES.uint8clampedarray)),
-    Bin('<=', T.i32, t, Const(T.i32, TYPES.float64array))));
-const typeIsAsyncIterable = t => Bin('==', T.i32, t, Const(T.i32, TYPES.__porffor_asyncgenerator));
+const iteratorRecord = (scope, value, known, inPlace, getter = '__Porffor_iterator_get') => {
+  if (inPlace.includes(known) || (known >= TYPES.uint8clampedarray && known <= TYPES.float64array)) return null;
 
-const coroReturnSignal = () => JvConst(TYPES.__porffor_generator, 0);
+  // linked so a throw leaving the loop or pattern closes it
+  const rec = tmp(scope, T.jsval);
+  const open = () => {
+    assign(scope, rec, builtinCall(scope, getter, [ value ]));
+    stmt(scope, Call('porf_iter_link', [ rec ], T.none));
+  };
+  if (known != null) {
+    open();
+    return rec;
+  }
+
+  assign(scope, rec, valUndefined());
+  const t = reuse(scope, JvType(value));
+  emitIf(scope, Un('!', T.i32, Bin('|', T.i32, typeIsOneOf(t, inPlace),
+    Bin('&', T.i32,
+      Bin('>=', T.i32, t, Const(T.i32, TYPES.uint8clampedarray)),
+      Bin('<=', T.i32, t, Const(T.i32, TYPES.float64array))))), open);
+  return rec;
+};
+
+const closeIterator = (scope, rec, isAwait = false) => emitIf(scope, Bin('!=', T.jsval, rec, valUndefined()), () => {
+  stmt(scope, Call('porf_iter_unlink', [], T.none));
+  exprStmt(scope, isAwait ? awaitValue(scope, builtinCall(scope, '__Porffor_iterator_closeAsync', [ rec ])) : builtinCall(scope, '__Porffor_iterator_close', [ rec ]));
+});
+const iteratorDone = rec => JvTruthy(ArrGet(JvPtr(rec), Const(T.i32, 2)));
 
 const getKnownThisSlots = node => {
   const slots = new Set();
@@ -1865,8 +1872,9 @@ const generateCall = (scope, decl) => {
   }
   if (name === '__Porffor_malloc') return generateMallocIntrinsic(scope, decl.arguments, decl._porfMallocType ?? 0);
 
-  if (name === '__Porffor_coroutine_resume' || name === '__Porffor_coroutine_value')
-    return Call(name, decl.arguments.map(a => generate(scope, a)), name === '__Porffor_coroutine_resume' ? T.i32 : T.jsval);
+  if (name?.startsWith('__Porffor_coroutine_'))
+    return Call(name, decl.arguments.map(a => generate(scope, a)),
+      name === '__Porffor_coroutine_value' ? T.jsval : name === '__Porffor_coroutine_setRaw' ? T.none : T.i32);
 
   // eval('known/literal string') -> inline the parsed program
   if (!decl._funcIdx && !decl._new && (name === 'eval' || (decl.callee.type === 'SequenceExpression' && decl.callee.expressions.at(-1)?.name === 'eval'))) {
@@ -2462,23 +2470,31 @@ const generatePatternDstr = (scope, tmpPrefix, pattern, init, defaultValue, emit
 
   const tmpRef = Local(tmpName, scope.locals[tmpName]?.type ?? T.jsval);
   if (pattern.type === 'ArrayPattern') {
-    const t = reuse(scope, JvType(tmpRef));
-    emitIf(scope, Un('!', T.i32, typeIsIterable(t)),
-      () => internalThrow(scope, 'TypeError', 'Cannot array destructure a non-iterable'));
+    const known = knownType(scope, getType(scope, tmpName));
+    const rec = iteratorRecord(scope, tmpRef, known, [ TYPES.array, TYPES.string, TYPES.bytestring ]);
+    const recNode = rec && identNode(rec[N_A]);
+    const iterCall = name => ({ type: 'CallExpression', callee: identNode(name), arguments: [ recNode ] });
+    const read = (indexed, iterated) => {
+      if (!rec) return indexed;
+      if (known != null) return iterated;
+      const test = { type: 'BinaryExpression', operator: '!==', left: recNode, right: identNode('undefined') };
+      return { type: 'ConditionalExpression', test, consequent: iterated, alternate: indexed };
+    };
 
     let i = 0;
     const elements = pattern.elements.slice();
     for (const e of elements) {
       if (!e) {
+        if (rec) genStmt(scope, read(identNode('undefined'), iterCall('__Porffor_iterator_skip')));
         i++;
         continue;
       }
 
       if (e.type === 'RestElement') {
-        if (e.argument.type === 'ArrayPattern') {
+        if (e.argument.type === 'ArrayPattern' && !rec) {
           elements.push(...e.argument.elements);
         } else {
-          emit(e.argument, {
+          emit(e.argument, read({
             type: 'CallExpression',
             callee: { type: 'Identifier', name: '__Array_prototype_slice' },
             arguments: [
@@ -2486,18 +2502,20 @@ const generatePatternDstr = (scope, tmpPrefix, pattern, init, defaultValue, emit
             ],
             _thisArg: identNode(tmpName),
             _protoInternalCall: true
-          });
+          }, iterCall('__Porffor_iterator_rest')));
         }
 
         continue;
       }
 
       emit(e.type === 'AssignmentPattern' ? e.left : e,
-        memberNode(identNode(tmpName), { type: 'Literal', value: i }, true),
+        read(memberNode(identNode(tmpName), { type: 'Literal', value: i }, true), iterCall('__Porffor_iterator_step')),
         e.type === 'AssignmentPattern' ? e.right : undefined);
 
       i++;
     }
+
+    if (rec) closeIterator(scope, rec);
   } else if (pattern.type === 'ObjectPattern') {
     emitIf(scope, nullish(scope, tmpRef, getType(scope, tmpName)),
       () => internalThrow(scope, 'TypeError', 'Cannot object destructure undefined or null'));
@@ -3470,11 +3488,8 @@ const awaitValue = (scope, value) => {
 const generateForOf = (scope, decl) => {
   const root = tmp(scope, T.jsval, coerceValue(generate(scope, decl.right), T.jsval));
   const rootKnown = knownType(scope, getNodeType(scope, decl.right));
-  const rootTy = reuse(scope, JvType(root));
   const isAwait = decl.await === true;
-
-  emitIf(scope, Un('!', T.i32, isAwait ? Bin('|', T.i32, typeIsIterable(rootTy), typeIsAsyncIterable(rootTy)) : typeIsIterable(rootTy)),
-    () => internalThrow(scope, 'TypeError', isAwait ? 'Tried for await..of on non-iterable type' : 'Tried for..of on non-iterable type'));
+  const rec = iteratorRecord(scope, root, rootKnown, [ TYPES.array, TYPES.set, TYPES.map, TYPES.string, TYPES.bytestring ], isAwait ? '__Porffor_iterator_getAsync' : '__Porffor_iterator_get');
 
   if (decl.left.type === 'Identifier' && !isIdentAssignable(scope, decl.left.name))
     return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
@@ -3490,6 +3505,7 @@ const generateForOf = (scope, decl) => {
   const L = fresh(scope);
   const d = { type: 'forof', brk: L, cont: L, contViaBreak: false };
   consumePendingLabels(scope, d);
+  const fin = rec ? finallyStart(scope) : null;
   depth.push(d);
   inferLoopStart(scope);
 
@@ -3522,7 +3538,7 @@ const generateForOf = (scope, decl) => {
 
   const valName = tmp(scope, T.jsval)[N_A];
   const body = collect(scope, () => {
-    const nextVal = typeSwitch(scope, root, rootKnown, [
+    const cases = [
       [ [ TYPES.array ], () => {
         emitIf(scope, Bin('>=', T.i32, counter, LenGet(pointer)), () => stmt(scope, Break(L)));
         const v = reuse(scope, ArrGet(pointer, counter));
@@ -3533,14 +3549,9 @@ const generateForOf = (scope, decl) => {
       [ TYPES.__porffor_generator, () => {
         const done = reuse(scope, Call('__Porffor_coroutine_resume', [ root, valUndefined(), Const(T.i32, 0) ], T.i32));
         emitIf(scope, done, () => stmt(scope, Break(L)));
-        return Call('__Porffor_coroutine_value', [ root ]);
-      } ],
-
-      [ TYPES.__porffor_asyncgenerator, () => {
-        if (!isAwait) { stmt(scope, Unreachable()); return valUndefined(); }
-        const done = reuse(scope, Call('__Porffor_coroutine_resume', [ root, valUndefined(), Const(T.i32, 0) ], T.i32));
-        emitIf(scope, done, () => stmt(scope, Break(L)));
-        return Call('__Porffor_coroutine_value', [ root ]);
+        const v = tmp(scope, T.jsval, Call('__Porffor_coroutine_value', [ root ]));
+        emitIf(scope, Call('__Porffor_coroutine_raw', [ root ], T.i32), () => assign(scope, v, builtinCall(scope, '__Porffor_Generator_value', [ root ])));
+        return v;
       } ],
 
       [ TYPES.string, strNext('u16', 2, TYPES.string) ],
@@ -3561,7 +3572,7 @@ const generateForOf = (scope, decl) => {
         const count = reuse(scope, Load('u32', length, 0));
         const entries = reuse(scope, Load('u32', length, 4));
         skipTombstones(count, entries);
-        emitIf(scope, Bin('==', T.i32, counter, count), () => stmt(scope, Break(L)));
+        emitIf(scope, Bin('>=', T.i32, counter, count), () => stmt(scope, Break(L)));
         const v = reuse(scope, Load('jsval', Bin('+', T.u32, entries, Bin('*', T.u32, counter, Const(T.u32, 8))), 0));
         assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
         return v;
@@ -3572,7 +3583,7 @@ const generateForOf = (scope, decl) => {
         const keysEnt = reuse(scope, Load('u32', length, 4));
         const valsEnt = reuse(scope, Load('u32', Load('u32', pointer, 4), 4));
         skipTombstones(count, keysEnt);
-        emitIf(scope, Bin('==', T.i32, counter, count), () => stmt(scope, Break(L)));
+        emitIf(scope, Bin('>=', T.i32, counter, count), () => stmt(scope, Break(L)));
         const off = Bin('*', T.u32, counter, Const(T.u32, 8));
         const kName = tmp(scope, T.jsval)[N_A], vName = tmp(scope, T.jsval)[N_A];
         setLocalWithType(scope, kName, false, Load('jsval', Bin('+', T.u32, keysEnt, off), 0));
@@ -3581,18 +3592,41 @@ const generateForOf = (scope, decl) => {
         return generate(scope, { type: 'ArrayExpression', elements: [ { type: 'Identifier', name: kName }, { type: 'Identifier', name: vName } ] });
       } ],
 
-      // should be unreachable (the iterable check passed)
-      [ 'default', () => { stmt(scope, Unreachable()); return valUndefined(); } ]
-    ]);
+      [ 'default', () => {
+        const v = tmp(scope, T.jsval);
+        const step = () => {
+          assign(scope, v, builtinCall(scope, '__Porffor_iterator_step', [ rec ]));
+          emitIf(scope, iteratorDone(rec), () => stmt(scope, Break(L)));
+          if (isAwait) assign(scope, v, awaitValue(scope, v));
+        };
+        // async iterators' values are not awaited
+        if (isAwait) emitIf(scope, Bin('==', T.jsval, ArrGet(JvPtr(rec), Const(T.i32, 3)), valNum(2)), () => {
+          assign(scope, v, builtinCall(scope, '__Porffor_iterator_stepAsync', [ rec, awaitValue(scope, builtinCall(scope, '__Porffor_iterator_nextAsync', [ rec ])) ]));
+          emitIf(scope, iteratorDone(rec), () => stmt(scope, Break(L)));
+        }, step);
+          else step();
+        return v;
+      } ]
+    ];
 
-    setLocalWithType(scope, valName, false, isAwait ? awaitValue(scope, nextVal) : nextVal);
+    // values from sync sources are awaited
+    const nextVal = typeSwitch(scope, root, rootKnown, !isAwait ? cases
+      : cases.map(([ types, next ]) => [ types, types === 'default' ? next : () => awaitValue(scope, next()) ]));
+
+    setLocalWithType(scope, valName, false, nextVal);
     generateLoopBinding(scope, decl.left, identNode(valName));
     genStmt(scope, decl.body);
   });
 
   inferLoopEnd(scope);
   depth.pop();
-  stmt(scope, Loop(null, null, body, L));
+  const loop = Loop(null, null, body, L);
+  if (!fin) {
+    stmt(scope, loop);
+    return valUndefined();
+  }
+
+  finallyEnd(scope, fin, [ loop ], () => closeIterator(scope, rec, isAwait), false);
   return valUndefined();
 };
 
@@ -3833,7 +3867,7 @@ const generateTry = (scope, decl) => {
     allocVar(scope, tmpName);
     const param = decl.handler.param;
     const catchBody = collect(scope, () => {
-      if (scope.generator) emitIf(scope, Bin('==', T.jsval, Local(tmpName, T.jsval), coroReturnSignal()),
+      if (scope.generator) emitIf(scope, Bin('==', T.jsval, Local(tmpName, T.jsval), JvConst(TYPES.__porffor_generator, 0)),
         () => stmt(scope, Throw(Local(tmpName, T.jsval))));
       if (param) generateVarDstr(scope, 'let', param, { type: 'Identifier', name: tmpName }, undefined, false);
       genStmt(scope, decl.handler.body);
@@ -3864,17 +3898,20 @@ const finallyStart = scope => {
   return fin;
 };
 
-const finallyEnd = (scope, fin, protectedStmts, finalize) => {
+const finallyEnd = (scope, fin, protectedStmts, finalize, catchThrows = true) => {
   scope.finallyStack.pop();
 
   // anything thrown out of the protected region is held while the finalizer runs
-  allocVar(scope, fin.catchName);
-  const catchAll = collect(scope, () => {
-    assign(scope, Local(fin.val, T.jsval), Local(fin.catchName, T.jsval));
-    assign(scope, Local(fin.pend, T.i32), Const(T.i32, FIN_THROW));
-  });
-  fin.taken.add(FIN_THROW);
-  stmt(scope, BlockStmt([ Try(protectedStmts, fin.catchName, catchAll) ], fin.brk));
+  if (catchThrows) {
+    allocVar(scope, fin.catchName);
+    const catchAll = collect(scope, () => {
+      assign(scope, Local(fin.val, T.jsval), Local(fin.catchName, T.jsval));
+      assign(scope, Local(fin.pend, T.i32), Const(T.i32, FIN_THROW));
+    });
+    protectedStmts = [ Try(protectedStmts, fin.catchName, catchAll) ];
+    fin.taken.add(FIN_THROW);
+  }
+  stmt(scope, BlockStmt(protectedStmts, fin.brk));
 
   finalize();
 

@@ -15,9 +15,13 @@ type PorfforGlobal = {
 
   // coroutines (render.js runtime): resume delivers value to the suspend point
   // (mode 0 = next, 1 = throw, 2 = return), returns done. value = last yielded/returned
+  // raw: value is a result passed through by yield*, awaiting: value is an awaited promise
   coroutine: {
     resume(gen: any, value: any, mode: i32): boolean;
     value(gen: any): any;
+    raw(gen: any): boolean;
+    awaiting(gen: any): boolean;
+    setRaw(raw: i32): void;
   }
 
   IR: {

@@ -39,12 +39,7 @@ export const __Array_from = (arg: any, mapFn: any, thisArg: any = undefined): an
   if (arg == null) throw new TypeError('Argument cannot be nullish');
 
   const out: any[] = Porffor.array.new(4);
-  if (Porffor.fastOr(
-    Porffor.type(arg) == Porffor.TYPES.array,
-    (Porffor.type(arg) | 0b10000000) == Porffor.TYPES.bytestring,
-    Porffor.type(arg) == Porffor.TYPES.set,
-    Porffor.fastAnd(Porffor.type(arg) >= Porffor.TYPES.uint8clampedarray, Porffor.type(arg) <= Porffor.TYPES.float64array)
-  )) {
+  if (__Porffor_iterator_inPlace(Porffor.type(arg)) || Porffor.type(arg[Symbol.iterator]) == Porffor.TYPES.function) {
     let i: i32 = 0;
     if (Porffor.type(mapFn) != Porffor.TYPES.undefined) {
       if (Porffor.type(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
@@ -187,7 +182,7 @@ export const __Array_prototype_push = function (this: any[], ...items: any[]) {
 export const __Porffor_array_spread = (arr: any[], src: any) => {
   let len: i32 = arr.length;
 
-  switch (Porffor.type(src)) {
+  if (Porffor.type(src) != Porffor.TYPES.array) switch (Porffor.type(src)) {
     case Porffor.TYPES.set:
       return __Porffor_array_spread(arr, Porffor.callThis(__Set_prototype_values, src));
 
@@ -196,14 +191,21 @@ export const __Porffor_array_spread = (arr: any[], src: any) => {
 
     case Porffor.TYPES.__porffor_generator:
       while (!Porffor.coroutine.resume(src, undefined, 0 as i32)) {
-        arr[len] = Porffor.coroutine.value(src);
+        const value: any = Porffor.coroutine.value(src);
+        arr[len] = Porffor.coroutine.raw(src) ? value.value : value;
         len++;
       }
 
       return len;
 
-    case Porffor.TYPES.__porffor_asyncgenerator:
-      throw new TypeError('Cannot spread async generator');
+    case Porffor.TYPES.string:
+    case Porffor.TYPES.bytestring:
+      break;
+
+    default:
+      const t: i32 = Porffor.type(src);
+      if (Porffor.fastOr(t < Porffor.TYPES.uint8clampedarray, t > Porffor.TYPES.float64array))
+        return __Porffor_array_spread(arr, __Porffor_iterator_rest(__Porffor_iterator_get(src)));
   }
 
   const srcLen: i32 = src.length;
