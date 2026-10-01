@@ -4801,10 +4801,11 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
       // a named function expression sees its own name
       if (decl.type === 'FunctionExpression' && decl.id?.name && func.selfAware) {
-        allocVar(func, func.name);
-        setVarMetadata(func, func.name, false, { kind: 'function-name' });
-        setLocalWithType(func, func.name, false, Local('#callee', T.jsval), false, TYPES.function);
-        if (func.closureOwnLocals?.[func.name]?.node === decl) mirrorToClosureEnv(func, func.name);
+        const selfName = decl._variable?.internalName ?? func.name;
+        allocVar(func, selfName);
+        setVarMetadata(func, selfName, false, { kind: 'function-name' });
+        setLocalWithType(func, selfName, false, Local('#callee', T.jsval), false, TYPES.function);
+        if (func.closureOwnLocals?.[selfName]?.node === decl) mirrorToClosureEnv(func, selfName);
       }
 
       // dynamic calls can deliver any receiver: prototype builtins coerce or type-guard #this by annotated type

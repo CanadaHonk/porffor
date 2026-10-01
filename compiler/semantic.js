@@ -602,7 +602,7 @@ const annotate = (node, parent = null, key = null) => {
 
         if (
           (variable.node.type === 'FunctionDeclaration' || variable.node.type === 'FunctionExpression' || variable.node.type === 'ClassExpression') &&
-          variable.node.id?.name === node.name &&
+          variable.node.id?.name === name &&
           isSelfReferenceContext(currentFunc, variable.node)
         ) {
           if (variable.node.type !== 'ClassExpression') variable.node._selfAware = true;
