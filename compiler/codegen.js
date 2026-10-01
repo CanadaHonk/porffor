@@ -4385,15 +4385,9 @@ const classSuperExpr = () => ({
   ]
 });
 
-const generateClass = (scope, decl) => {
+const declareClass = (scope, decl) => {
   const expr = decl.type === 'ClassExpression';
-  if (!expr && !classHasDefinitionSideEffects(decl) && (decl._refs ?? 0) === 0) {
-    return valUndefined();
-  }
-
-  if (!decl.id) decl.id = { type: 'Identifier', name: anonymousName(decl) };
   const name = decl.id.name;
-
   const body = decl.body.body;
   const root = { type: 'Identifier', name };
 
@@ -4436,6 +4430,21 @@ const generateClass = (scope, decl) => {
   if (expr && name.includes('#')) func.jsName = name.split('#')[0];
   bindNamedFunction(scope, name, func);
   func.knownThisSlots = getKnownThisSlots(decl);
+  return decl._classFunc = func;
+};
+
+const generateClass = (scope, decl) => {
+  const expr = decl.type === 'ClassExpression';
+  if (!expr && !classHasDefinitionSideEffects(decl) && (decl._refs ?? 0) === 0) {
+    return valUndefined();
+  }
+
+  if (!decl.id) decl.id = { type: 'Identifier', name: anonymousName(decl) };
+  const name = decl.id.name;
+  const body = decl.body.body;
+  const root = { type: 'Identifier', name };
+
+  const func = decl._classFunc ?? declareClass(scope, decl);
   func.generate();
 
   const classRoot = reuseNamed(scope, decl._writes ? generate(scope, root) : materializeFunctionValue(scope, func));
@@ -4825,6 +4834,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         for (let i = 0; i < b.length; i++) {
           if (b[i].type === 'FunctionDeclaration') b.splice(j++, 0, b.splice(i, 1)[0]);
         }
+        for (const x of b) if (x.type === 'ClassDeclaration' && x._refs) declareClass(func, x);
       }
 
       func.identFailEarly = true;
