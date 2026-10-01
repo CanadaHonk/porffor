@@ -115,7 +115,19 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           if (d.configurable) flags |= 0b0010;
           if (d.enumerable) flags |= 0b0100;
           if (d.writable) flags |= 0b1000;
-          const prop = x.startsWith('$$') ? wellKnownSymbol(x.slice(2), { includeBuiltin, makeString, global }) : makeString(x);
+
+          let prop;
+          if (x.startsWith('$$')) {
+            if (x.endsWith('$get')) {
+              prop = wellKnownSymbol(x.slice(2, -4), { includeBuiltin, makeString, global });
+              includeBuiltin('__Porffor_object_defineAccessor');
+              out.push(Call('__Porffor_object_defineAccessor', [ obj, prop, value, JvConst(TYPES.undefined, 0), Const(T.i32, (flags & 0b0110) | 0b0001) ], T.none));
+              return;
+            }
+            prop = wellKnownSymbol(x.slice(2), { includeBuiltin, makeString, global });
+          } else {
+            prop = makeString(x);
+          }
           out.push(Call('__Porffor_object_fastAdd', [ obj, prop, value, Const(T.i32, flags) ], T.none));
         };
 
@@ -126,7 +138,11 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           onFinalize(() => {
             adds.length = 0;
             for (const x in props) {
-              if (x.startsWith('$$') && !symbolKeysObservable()) continue;
+              if (x.startsWith('$$')) {
+                if (symbolKeysObservable()) emitProp(adds, x, props[x]);
+                continue;
+              }
+
               const key = prefix + x;
               if (lazyKind === 'proto') {
                 if (key in builtinFuncs) {
@@ -344,6 +360,15 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     if (x === '__Function_prototype') {
       props.length = { value: 0, configurable: true };
       props.name = { value: '', configurable: true };
+    }
+
+    // typed array prototypes inherit from %TypedArray%.prototype
+    if (x.slice(2, -'_prototype'.length) in typedArrayBytesPerElement && prototypes.has('__TypedArray_prototype')) {
+      const value = (_scope, { includeBuiltin }) => {
+        includeBuiltin('#get___TypedArray_prototype');
+        return Box(Call('#get___TypedArray_prototype', [], T.ptr), Const(T.i32, TYPES.object));
+      };
+      Object.defineProperty(props, '__proto__', { value: { value }, enumerable: true });
     }
 
     // per spec Array.prototype is an array exotic object with length = 0

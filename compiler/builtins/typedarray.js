@@ -6,6 +6,12 @@ export default async () => {
 
   // typedarray layout: length (i32), bufferPtr (i32, buffer + byteOffset), byteOffset (i32, getter only)
 
+  out += `export const __TypedArray_prototype_$$toStringTag$get = function (this: any) {
+  const type: i32 = Porffor.type(this);
+  if (Porffor.fastOr(type < Porffor.TYPES.uint8clampedarray, type > Porffor.TYPES.float64array)) return undefined;
+  return Porffor.typeName(type);
+};`;
+
   for (const x of [ 'Uint8', 'Int8', 'Uint8Clamped', 'Uint16', 'Int16', 'Uint32', 'Int32', 'Float32', 'Float64', 'BigInt64', 'BigUint64' ]) {
     const name = x + 'Array';
     out += `export const ${name} = function (arg: any, byteOffset: any, length: any): ${name} {
