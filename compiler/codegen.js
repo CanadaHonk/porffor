@@ -4156,6 +4156,13 @@ let icSites;
 
 const generateMember = (scope, decl, objValue = null) => {
   if (!globalThis.precompile) demandMemberRead(decl);
+  // builtins unless reassigned via globalThis
+  const globalName = decl.object.name === 'globalThis' && !decl.computed && decl.property.name;
+  if (globalName && !globalName.startsWith('__') && globalName !== 'null' && !(globalName in globals)) {
+    const v = builtinVars[globalName];
+    if (v) return typeof v === 'function' ? v(scope, irBuiltinHelpers(scope, globalName, {})) : v;
+    if (globalName in builtinFuncs) return materializeFunctionValue(scope, includeBuiltin(scope, globalName));
+  }
   const closureSlot = decl._closureSlot;
   if (closureSlot != null) {
     const pointer = JvPtr(reuse(scope, objValue ?? generate(scope, decl.object)));
@@ -4642,6 +4649,7 @@ const objectHack = node => {
       if (node.computed || node.optional || node.property.type === 'PrivateIdentifier') return;
 
       let objectName = node.object.name;
+      if (node.object.object?.name === 'globalThis' && !node.object.computed) objectName = node.object.property.name;
 
       // block length/name: accessible on functions / need method receivers. 'call' passes:
       // the checks below only rewrite when a __X_call builtin exists (only Function.prototype.call)
