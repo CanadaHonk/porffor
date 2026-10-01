@@ -28,5 +28,3 @@ export const WeakSet = function (iterable: any): WeakSet {
 };
 
 export const __WeakSet_prototype_$$toStringTag = 'WeakSet';
-export const __WeakSet_prototype_toString = function (this: WeakSet) { return '[object WeakSet]'; };
-export const __WeakSet_prototype_toLocaleString = function (this: WeakSet) { return Porffor.callThis(__WeakSet_prototype_toString, this); };

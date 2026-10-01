@@ -130,8 +130,6 @@ export const __Map_prototype_entries = function (this: Map) {
 };
 
 export const __Map_prototype_$$toStringTag = 'Map';
-export const __Map_prototype_toString = function (this: Map) { return '[object Map]'; };
-export const __Map_prototype_toLocaleString = function (this: Map) { return Porffor.callThis(__Map_prototype_toString, this); };
 
 // https://github.com/tc39/proposal-upsert
 export const __Map_prototype_getOrInsert = function (this: Map, key: any, value: any) {

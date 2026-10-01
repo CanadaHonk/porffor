@@ -168,5 +168,3 @@ export const __Set_prototype_isDisjointFrom = function (this: Set, other: any) {
 };
 
 export const __Set_prototype_$$toStringTag = 'Set';
-export const __Set_prototype_toString = function (this: Set) { return '[object Set]'; };
-export const __Set_prototype_toLocaleString = function (this: Set) { return Porffor.callThis(__Set_prototype_toString, this); };
