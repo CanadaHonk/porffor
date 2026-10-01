@@ -576,7 +576,7 @@ export const parseInt = (input: any, radix: any): f64 => {
     }
 
     // 0, potential start of hex
-    if ((defaultRadix || radix == 16) && startChr == 48) {
+    if ((defaultRadix || radix == 16) && startChr == 48 && len > 1) {
       const second: i32 = Porffor.IR.loadU8(i + 1, 4);
       // 0x or 0X
       if (second == 120 || second == 88) {
@@ -626,7 +626,7 @@ export const parseInt = (input: any, radix: any): f64 => {
   }
 
   // 0, potential start of hex
-  if ((defaultRadix || radix == 16) && startChr == 48) {
+  if ((defaultRadix || radix == 16) && startChr == 48 && len > 1) {
     const second: i32 = Porffor.IR.loadU16(i + 2, 4);
     // 0x or 0X
     if (second == 120 || second == 88) {
