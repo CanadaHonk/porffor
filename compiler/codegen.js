@@ -4877,6 +4877,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       }
 
       if (hasClosureOwnEnv(func) && func.closureOwnThis) mirrorToClosureEnv(func, '#this', { type: 'ThisExpression' });
+      if (func.closureOwnLocals?.arguments) mirrorToClosureEnv(func, 'arguments');
 
       for (let i = 0; i < args.length; i++) {
         const { name: argName, def, destr, type, inferredType } = args[i];

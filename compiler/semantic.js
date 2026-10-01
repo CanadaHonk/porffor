@@ -661,6 +661,13 @@ const annotate = (node, parent = null, key = null) => {
           const scope = scopes[i];
           if (scope.type === 'FunctionDeclaration' || scope.type === 'FunctionExpression') {
             scope._usesArguments = true;
+            // arrow: owner's arguments via its closure env
+            if (scope !== currentFunc) {
+              node._closureFunc = scope;
+              (currentFunc._captures ??= Object.create(null)).arguments = { func: scope, kind: 'var', node };
+              (scope._capturedVars ??= Object.create(null)).arguments = { kind: 'var', node };
+              markClosurePassThrough(currentFunc, scope);
+            }
             return;
           }
         }
