@@ -58,12 +58,11 @@ export const __Map_prototype_forEach = function (this: Map, callbackFn: any, thi
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('callbackFn is not a function');
 
   const keys: any[] = Porffor.IR.loadI32(this, 0);
-  const keysEntries: i32 = Porffor.IR.loadI32(keys, 4);
   const vals: any[] = Porffor.IR.loadI32(this, 4);
 
-  const size: i32 = keys.length;
-  for (let i: i32 = 0; i < size; i++) {
-    if (Porffor.IR.loadU64(keysEntries + i * 8, 0) == -1) continue;
+  // callbackFn can add entries, which must be visited and can move the entries buffer
+  for (let i: i32 = 0; i < keys.length; i++) {
+    if (Porffor.IR.loadU64(Porffor.IR.loadI32(keys, 4) + i * 8, 0) == -1) continue;
     callbackFn.call(thisArg, vals[i], keys[i], this);
   }
 };
