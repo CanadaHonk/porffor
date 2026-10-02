@@ -271,7 +271,7 @@ export const __Number_prototype_toFixed = function (this: number, fractionDigits
 
   let i: f64 = Math.trunc(n);
 
-  let digits: bytestring = ''; // byte "array"
+  let digits: bytestring = Porffor.malloc(512); // byte "array"
 
   let l: i32 = 0;
 
@@ -366,7 +366,7 @@ export const __Number_prototype_toExponential = function (this: number, fraction
 
   let i: f64 = n;
 
-  let digits: bytestring = ''; // byte "array"
+  let digits: bytestring = Porffor.malloc(512); // byte "array"
 
   let l: i32 = 0;
   let e: i32 = 0;
