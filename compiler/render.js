@@ -41,7 +41,7 @@ const cReservedNames = new Set([
   '_Alignas', '_Alignof', '_Atomic', '_BitInt', '_Bool', '_Complex', '_Generic', '_Imaginary', '_Noreturn', '_Static_assert', '_Thread_local',
   'alignas', 'alignof', 'constexpr', 'nullptr', 'static_assert', 'thread_local', 'typeof_unqual',
   '__alignof', '__alignof__', '__nullptr', '__typeof_unqual', '__typeof_unqual__',
-  'asm', 'typeof', 'main', '_return',
+  'asm', 'typeof', 'main', '_return', 'porf_fr', 'porf_frs',
   'i8', 'u8', 'i16', 'u16', 'i32', 'u32', 'i64', 'u64', 'f32', 'f64', 'jsval',
   'NULL', 'NAN', 'INFINITY',
   'stdin', 'stdout', 'stderr', 'FILE', 'EOF',
@@ -368,7 +368,9 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   const unitParts = Object.create(null);
   const partsOf = u => unitParts[u] ??= { out: [], chunks: [], protos: [], globals: Object.create(null), fnbases: Object.create(null), dbases: Object.create(null) };
   let cur = partsOf('main');
+  let emitBuf = null;
   const emit = s => {
+    if (emitBuf) { emitBuf.push(s); return; }
     cur.out.push(s);
     if (cur.out.length === 4096) {
       cur.chunks.push(cur.out.join(''));
@@ -617,11 +619,8 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
       }
 
       case K.Await:
-        usesCoro = true;
-        return [`porf_await(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
       case K.Yield:
-        usesCoro = true;
-        return [`porf_yield(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
+        throw new Error(`render: ${KNames[node[N_KIND]]} outside a coroutine body`);
 
       case K.Alloc: return [`porf_alloc(${rx(node[N_A], P_COMMA)}, ${node[N_B]}u)`, P_POSTFIX];
 
@@ -651,6 +650,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     if (node == null) return;
     switch (node[N_KIND]) {
       case K.Assign:
+        if (coro && isSuspend(node[N_B])) return renderSuspend(node[N_A], node[N_B]);
         if (node[N_A][N_KIND] === K.Global) cur.globals[node[N_A][N_A]] = true;
         emit(`${ind()}${sanitize(node[N_A][N_A])} = ${rx(node[N_B], P_COMMA)};\n`);
         return;
@@ -695,7 +695,16 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
           : update[N_KIND] === K.Assign
             ? `${sanitize(update[N_A][N_A])} = ${rx(update[N_B], P_COMMA)}`
             : rx(update, P_COMMA);
-        if (update) emit(`${ind()}for (; ${cond ? rx(cond, P_COMMA) : ''}; ${updateC}) {\n`);
+        // resume through the header, a second loop entry would make the cfg irreducible
+        const region = coro && hasSuspend(stmts) ? { id: coro.regions.length, cases: [] } : null;
+        if (region) {
+          coro.regions.push(region);
+          emit(`${ind()}_porf_t${region.id}:\n`);
+          emit(`${ind()}for (;; ${updateC ?? ''}) {\n`);
+          emit(`${ind()}\tif (porf_fr->resume) switch (porf_fr->resume) {\x00${region.id}\x00}\n`);
+          if (cond) emit(`${ind()}\telse if (!(${rx(cond, P_COMMA)})) break;\n`);
+          coro.path.push(region);
+        } else if (update) emit(`${ind()}for (; ${cond ? rx(cond, P_COMMA) : ''}; ${updateC}) {\n`);
           else if (cond) emit(`${ind()}while (${rx(cond, P_COMMA)}) {\n`);
         else emit(`${ind()}while (1) {\n`);
         loopStack.push(label);
@@ -703,6 +712,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         if (label) labelTry.set(label, activeTryDepth);
         depth++;
         renderStmts(stmts);
+        if (region) coro.path.pop();
         if (label && usedLabels.has(label + '_c')) emit(`${ind()}${sanitize(label)}_c:;\n`);
         depth--;
         breakStack.pop();
@@ -822,19 +832,31 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         return;
 
       case K.Try: {
+        // resume re-enters the try from the top to re-arm its jmp_buf
+        const region = coro && hasSuspend(node[N_A]) ? { id: coro.regions.length, cases: [] } : null;
         emit(`${ind()}{\n`);
         depth++;
+        if (region) {
+          coro.regions.push(region);
+          emit(`${ind()}_porf_t${region.id}:;\n`);
+        }
         emit(`${ind()}porf_try_depth++;\n`);
         emit(`${ind()}if (_setjmp(porf_try_ensure()[porf_try_depth - 1]) == 0) {\n`);
         activeTryDepth++;
-        depth++; renderStmts(node[N_A]);
+        depth++;
+        if (region) {
+          emit(`${ind()}if (porf_fr->resume) switch (porf_fr->resume) {\x00${region.id}\x00}\n`);
+          coro.path.push(region);
+        }
+        renderStmts(node[N_A]);
+        if (region) coro.path.pop();
         activeTryDepth--;
         emit(`${ind()}porf_try_depth--;\n`);
         depth--;
         emit(`${ind()}} else {\n`);
         depth++;
         emit(`${ind()}porf_try_depth--;\n`);
-        emit(`${ind()}jsval ${sanitize(node[N_B])} = porf_exception;\n`);
+        emit(`${ind()}${coro ? '' : 'jsval '}${sanitize(node[N_B])} = porf_exception;\n`);
         renderStmts(node[N_C]);
         depth--;
         emit(`${ind()}}\n`);
@@ -880,8 +902,447 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     }
   };
 
+  const invokeArgs = (f, v) => {
+    const pre = [], args = [];
+    let j = 0;
+    for (const p of f.params) {
+      if (p.name === '#env') { args.push(v.env); continue; }
+      if (p.name === '#this') { args.push(v.thisv); continue; }
+      if (p.name === '#newtarget') { args.push(v.newtv); continue; }
+      if (p.name === '#callee') { args.push(v.callee); continue; }
+      if (p.name === '#allargs') {
+        pre.push(`u32 _aa = porf_arr_new(${v.argc}, ${v.argc} > 4 ? ${v.argc} : 4);`);
+        pre.push(`for (i32 _k = 0; _k < ${v.argc}; _k++) porf_arr_set(_aa, (u32)_k, porf_unpack(${v.argv}[_k]));`);
+        args.push(`porf_box((f64)_aa, ${TYPES.array})`);
+        continue;
+      }
+      if (p.name === '#rest') {
+        // pack remaining argv into an array (twin helpers; die at step 3)
+        pre.push(`u32 _rest = porf_arr_new(0, ${v.argc} > ${j} ? ${v.argc} - ${j} : 4);`);
+        pre.push(`for (i32 _k = ${j}; _k < ${v.argc}; _k++) (void)porf_arr_push(_rest, porf_unpack(${v.argv}[_k]));`);
+        args.push(`porf_box((f64)_rest, ${TYPES.array})`);
+        continue;
+      }
+      const src = v.arg(j);
+      if (p.type === T.f64) args.push(`(${src}).val`);
+        else if (p.type === T.i64 || p.type === T.u64) args.push(`(i64)(${src}).val`);
+        else if (p.type === T.i32 || p.type === T.u32 || p.type === T.ptr) args.push(`(i32)(${src}).val`);
+        else args.push(src);
+      j++;
+    }
+    return { pre, args };
+  };
+
+  // stackless coroutines: suspend spills live locals to the frame and returns, resume reloads + gotos
+  const isSuspend = n => n[N_KIND] === K.Await || n[N_KIND] === K.Yield;
+  let suspendMemo = null;
+  const hasSuspend = node => {
+    if (!Array.isArray(node)) return false;
+    if (!isNode(node)) {
+      for (let i = 0; i < node.length; i++) if (hasSuspend(node[i])) return true;
+      return false;
+    }
+    const k = node[N_KIND];
+    if ((node[N_FX] & FX.call) === 0 && k !== K.If && k !== K.Loop && k !== K.Block &&
+      k !== K.Switch && k !== K.TypeSwitch && k !== K.Try) return false;
+    let r = suspendMemo.get(node);
+    if (r === undefined) {
+      r = k === K.Await || k === K.Yield || hasSuspend(node[N_A]) || hasSuspend(node[N_B]) || hasSuspend(node[N_C]);
+      suspendMemo.set(node, r);
+    }
+    return r;
+  };
+
+  const kidsOf = (v, out) => {
+    if (!Array.isArray(v)) return;
+    if (isNode(v)) out.push(v);
+      else for (let i = 0; i < v.length; i++) kidsOf(v[i], out);
+  };
+  const mapVal = (v, fn) => !Array.isArray(v) ? v : isNode(v) ? fn(v) : v.map(x => mapVal(x, fn));
+  const mapKids = (node, fn) => {
+    const copy = node.slice();
+    for (let i = N_A; i <= N_C; i++) copy[i] = mapVal(node[i], fn);
+    return copy;
+  };
+  const isStable = n => {
+    const k = n[N_KIND];
+    return k === K.Const || k === K.JvConst || k === K.DataRef || k === K.FuncIdx || k === K.FuncRec || k === K.Local;
+  };
+
+  let coroTmps = null, coroTmpN = 0, coroLocals = null;
+  const coroTmp = type => {
+    let name;
+    do name = `#coro${coroTmpN++}`; while (name in coroLocals);
+    coroTmps[name] = type;
+    coroLocals[name] = true;
+    return [K.Local, type, FX.none, name, 0, 0];
+  };
+  const assignTo = (target, value) => [K.Assign, T.none, FX.writeLocal | value[N_FX], target, value, 0];
+  const suspendOf = (node, arg) => [node[N_KIND], T.jsval, FX.call, arg, node[N_B], 0];
+
+  const lowerExpr = (node, out) => {
+    if (!hasSuspend(node)) return node;
+    const k = node[N_KIND];
+    if (k === K.Await || k === K.Yield) {
+      const arg = lowerExpr(node[N_A], out);
+      const t = coroTmp(T.jsval);
+      out.push(assignTo(t, suspendOf(node, arg)));
+      return t;
+    }
+
+    if (k === K.Select) {
+      const cond = lowerExpr(node[N_A], out);
+      const t = coroTmp(node[N_TYPE]);
+      const a = [], b = [];
+      a.push(assignTo(t, lowerExpr(node[N_B], a)));
+      b.push(assignTo(t, lowerExpr(node[N_C], b)));
+      out.push([K.If, T.none, cond[N_FX], cond, a, b]);
+      return t;
+    }
+    if (k === K.Bin && (node[N_A] === '&&' || node[N_A] === '||')) {
+      const l = lowerExpr(node[N_B], out);
+      const t = coroTmp(T.i32);
+      const rest = [];
+      const r = lowerExpr(node[N_C], rest);
+      rest.push(assignTo(t, [K.Bin, T.i32, r[N_FX], '!=', r, [K.Const, r[N_TYPE], FX.none, 0, 0, 0]]));
+      const and = node[N_A] === '&&';
+      out.push(assignTo(t, [K.Const, T.i32, FX.none, and ? 0 : 1, 0, 0]));
+      out.push([K.If, T.none, l[N_FX], and ? l : [K.Un, T.i32, l[N_FX], '!', l, 0], rest, null]);
+      return t;
+    }
+
+    // spill operands evaluated before the last suspend
+    const kids = [];
+    kidsOf(node[N_A], kids); kidsOf(node[N_B], kids); kidsOf(node[N_C], kids);
+    let last = -1;
+    for (let i = 0; i < kids.length; i++) if (hasSuspend(kids[i])) last = i;
+    let at = 0;
+    return mapKids(node, kid => {
+      const i = at++;
+      if (i > last) return kid;
+      const x = lowerExpr(kid, out);
+      if (i === last || isStable(x)) return x;
+      const t = coroTmp(x[N_TYPE]);
+      out.push(assignTo(t, x));
+      return t;
+    });
+  };
+
+  const lowerStmts = stmts => {
+    const out = [];
+    for (let i = 0; i < stmts.length; i++) lowerStmt(stmts[i], out);
+    return out;
+  };
+  const lowerStmt = (s, out) => {
+    if (s == null || !hasSuspend(s)) {
+      out.push(s);
+      return;
+    }
+    switch (s[N_KIND]) {
+      case K.If: {
+        const cond = lowerExpr(s[N_A], out);
+        out.push([K.If, T.none, s[N_FX], cond, lowerStmts(s[N_B]), s[N_C] ? lowerStmts(s[N_C]) : null]);
+        return;
+      }
+      case K.Block:
+        out.push([K.Block, T.none, s[N_FX], lowerStmts(s[N_A]), s[N_B], 0]);
+        return;
+      case K.Try:
+        out.push([K.Try, T.none, s[N_FX], lowerStmts(s[N_A]), s[N_B], lowerStmts(s[N_C])]);
+        return;
+      case K.Switch:
+      case K.TypeSwitch: {
+        const subj = lowerExpr(s[N_A], out);
+        const cases = s[N_B].map(c => {
+          const x = c.slice();
+          x[1] = lowerStmts(c[1]);
+          return x;
+        });
+        out.push([s[N_KIND], T.none, s[N_FX], subj, cases, s[N_C] ? lowerStmts(s[N_C]) : null]);
+        return;
+      }
+      case K.Loop: {
+        const cond = s[N_A], update = s[N_B];
+        const [stmts, label] = s[N_C];
+        if (!hasSuspend(cond) && !hasSuspend(update)) {
+          out.push([K.Loop, T.none, s[N_FX], cond, update, [lowerStmts(stmts), label]]);
+          return;
+        }
+        // suspend in the header: test and update move into the body
+        const first = coroTmp(T.i32);
+        out.push(assignTo(first, [K.Const, T.i32, FX.none, 1, 0, 0]));
+        const body = [];
+        if (update) {
+          const u = [];
+          lowerStmt(update, u);
+          body.push([K.If, T.none, FX.none, [K.Un, T.i32, FX.none, '!', first, 0], u, null]);
+        }
+        body.push(assignTo(first, [K.Const, T.i32, FX.none, 0, 0, 0]));
+        if (cond) {
+          const c = lowerExpr(cond, body);
+          body.push([K.If, T.none, c[N_FX], [K.Un, T.i32, c[N_FX], '!', c, 0], [ [K.Break, T.none, FX.none, label, 0, 0] ], null]);
+        }
+        for (const x of lowerStmts(stmts)) body.push(x);
+        out.push([K.Loop, T.none, FX.none, null, null, [body, label]]);
+        return;
+      }
+      case K.Assign: {
+        const v = s[N_B];
+        if (isSuspend(v) && s[N_A][N_KIND] === K.Local) {
+          out.push(assignTo(s[N_A], suspendOf(v, lowerExpr(v[N_A], out))));
+          return;
+        }
+        out.push(assignTo(s[N_A], lowerExpr(v, out)));
+        return;
+      }
+      default: {
+        const x = lowerExpr(s, out);
+        if (x[N_KIND] !== K.Local) out.push(x);
+        return;
+      }
+    }
+  };
+  const collectCatchNames = node => {
+    if (!Array.isArray(node)) return;
+    if (isNode(node)) {
+      const k = node[N_KIND];
+      if (k === K.Try) coroLocals[node[N_B]] ??= T.jsval;
+      if (k === K.If || k === K.Loop || k === K.Block || k === K.Switch || k === K.TypeSwitch || k === K.Try) {
+        collectCatchNames(node[N_A]); collectCatchNames(node[N_B]); collectCatchNames(node[N_C]);
+      }
+      return;
+    }
+    for (let i = 0; i < node.length; i++) collectCatchNames(node[i]);
+  };
+
+  // locals live across some suspend, null = all (RawC)
+  const coroLive = body => {
+    const saved = new Set();
+    let all = false;
+    const reads = (node, set) => {
+      if (!Array.isArray(node)) return;
+      if (isNode(node)) {
+        const k = node[N_KIND];
+        if (k === K.Local) { set.add(node[N_A]); return; }
+        if (k === K.RawC) all = true;
+        reads(node[N_A], set); reads(node[N_B], set); reads(node[N_C], set);
+        return;
+      }
+      for (let i = 0; i < node.length; i++) reads(node[i], set);
+    };
+    const union = (a, b) => {
+      const out = new Set(a);
+      for (const x of b) out.add(x);
+      return out;
+    };
+    const same = (a, b) => {
+      if (a.size !== b.size) return false;
+      for (const x of a) if (!b.has(x)) return false;
+      return true;
+    };
+    const withLabel = (map, label, set) => {
+      if (!label) return map;
+      const out = new Map(map);
+      out.set(label, set);
+      return out;
+    };
+
+    const list = (stmts, out, ctx) => {
+      let live = out;
+      for (let i = stmts.length - 1; i >= 0; i--) live = stmt(stmts[i], live, ctx);
+      return live;
+    };
+    const stmt = (s, out, ctx) => {
+      if (s == null) return out;
+      switch (s[N_KIND]) {
+        case K.Assign: {
+          const live = new Set(out);
+          if (s[N_A][N_KIND] === K.Local) live.delete(s[N_A][N_A]);
+          if (isSuspend(s[N_B])) {
+            for (const x of live) saved.add(x);
+            for (const x of ctx.extra) saved.add(x);
+          }
+          reads(s[N_B], live);
+          return live;
+        }
+        case K.If: {
+          const live = union(list(s[N_B], out, ctx), s[N_C] ? list(s[N_C], out, ctx) : out);
+          reads(s[N_A], live);
+          return live;
+        }
+        case K.Block:
+          return list(s[N_A], out, { ...ctx, brk: withLabel(ctx.brk, s[N_B], out) });
+        case K.Loop: {
+          const cond = s[N_A], update = s[N_B];
+          const [body, label] = s[N_C];
+          let head = new Set(cond ? out : []);
+          if (cond) reads(cond, head);
+          for (;;) {
+            const cont = update ? stmt(update, head, ctx) : head;
+            const inner = { ...ctx, brk: withLabel(ctx.brk, label, out), cont: withLabel(ctx.cont, label, cont), innerBrk: out, innerCont: cont };
+            const next = union(cond ? out : [], list(body, cont, inner));
+            if (cond) reads(cond, next);
+            if (same(next, head)) return head;
+            head = next;
+          }
+        }
+        case K.Switch:
+        case K.TypeSwitch: {
+          const inner = { ...ctx, innerBrk: out };
+          const def = s[N_C] && s[N_C].length ? s[N_C] : null;
+          // fallthrough may skip dropped cases: flow into everything after
+          let after = def ? list(def, out, inner) : out;
+          const live = new Set(after);
+          after = union(after, out);
+          for (let i = s[N_B].length - 1; i >= 0; i--) {
+            const c = s[N_B][i];
+            const caseIn = list(c[1], c[2] ? after : out, inner);
+            for (const x of caseIn) live.add(x);
+            after = union(after, caseIn);
+          }
+          reads(s[N_A], live);
+          return live;
+        }
+        case K.Try: {
+          const catchIn = new Set(list(s[N_C], out, ctx));
+          catchIn.delete(s[N_B]);
+          return union(list(s[N_A], out, { ...ctx, extra: union(ctx.extra, catchIn) }), catchIn);
+        }
+        case K.Break: {
+          const to = s[N_A] ? ctx.brk.get(s[N_A]) : ctx.innerBrk;
+          if (to == null) all = true;
+          return to ?? out;
+        }
+        case K.Continue: {
+          const to = s[N_A] ? ctx.cont.get(s[N_A]) : ctx.innerCont;
+          if (to == null) all = true;
+          return to ?? out;
+        }
+        case K.Return: {
+          const live = new Set();
+          reads(s[N_A], live);
+          return live;
+        }
+        case K.Throw:
+        case K.ThrowNew: {
+          const live = new Set(ctx.extra);
+          reads(s[N_A], live);
+          reads(s[N_B], live);
+          return live;
+        }
+        case K.Unreachable:
+          return new Set();
+        default: {
+          const live = new Set(out);
+          reads(s, live);
+          return live;
+        }
+      }
+    };
+
+    list(body, new Set(), { brk: new Map(), cont: new Map(), innerBrk: null, innerCont: null, extra: new Set() });
+    return all ? null : saved;
+  };
+
+  // regions: the function, then each loop/try holding a suspend. path: regions enclosing the current stmt
+  let coro = null;
+  const coroFrameBytes = [];
+  const renderSuspend = (target, node) => {
+    const k = ++coro.points;
+    const path = coro.path;
+    path[path.length - 1].cases.push(`case ${k}: goto _porf_r${k};`);
+    for (let i = 0; i < path.length - 1; i++) path[i].cases.push(`case ${k}: goto _porf_t${path[i + 1].id};`);
+
+    const t = sanitize(target[N_A]);
+    const leave = `porf_fr->resume = ${k};${activeTryDepth ? ` porf_try_depth -= ${activeTryDepth};` : ''} goto _porf_save;`;
+    if (node[N_KIND] === K.Await) {
+      emit(`${ind()}${t} = ${rx(node[N_A], P_COMMA)};\n`);
+      emit(`${ind()}if (!porf_await_ready(&${t})) {\n`);
+      emit(`${ind()}\tporf_fr->channel = ${t}; porf_fr->awaiting = 1; ${leave}\n`);
+      emit(`${ind()}\t_porf_r${k}: ${t} = porf_coro_received(porf_fr, 0);\n`);
+      emit(`${ind()}}\n`);
+      return;
+    }
+    emit(`${ind()}porf_fr->channel = ${rx(node[N_A], P_COMMA)}; ${leave}\n`);
+    emit(`${ind()}_porf_r${k}: ${t} = porf_coro_received(porf_fr, ${node[N_B]});\n`);
+  };
+
+  const zeroReturn = t => t === T.none ? 'return;' : t === T.jsval ? 'return JV_UNDEFINED;' : 'return 0;';
+
+  const renderCoroFunc = f => {
+    const sym = fnSym(f);
+    suspendMemo = new Map();
+    coroTmps = Object.create(null);
+    coroTmpN = 0;
+    coroLocals = Object.create(null);
+    for (const p of f.params) coroLocals[p.name] = true;
+    for (const name in f.locals) coroLocals[name] = true;
+    collectCatchNames(f.body);
+    const body = lowerStmts(f.body);
+
+    const live = coroLive(body);
+    const locals = [], frame = [];
+    const seen = new Set();
+    const add = (name, t) => {
+      if (seen.has(name) || t === T.none) return;
+      seen.add(name);
+      locals.push([ sanitize(name), t ]);
+      if (live == null || live.has(name)) frame.push([ sanitize(name), t ]);
+    };
+    for (const p of f.params) add(p.name, p.type);
+    for (const name in f.locals) add(name, f.locals[name].type);
+    for (const name in coroLocals) if (typeof coroLocals[name] === 'number') add(name, coroLocals[name]);
+    for (const name in coroTmps) add(name, coroTmps[name]);
+
+    const ctSize = t => t === T.jsval ? 16 : (t === T.f64 || t === T.i64 || t === T.u64) ? 8 : 4;
+    frame.sort((a, b) => ctSize(b[1]) - ctSize(a[1]));
+    const frameBytes = Math.max(8, (frame.reduce((n, [ , t ]) => n + ctSize(t), 0) + 7) & ~7);
+    coroFrameBytes[f.index] = frameBytes;
+
+    const frameT = `porf_frame_${sym}`;
+    coro = { regions: [ { id: 0, cases: [] } ], path: [], points: 0 };
+    coro.path.push(coro.regions[0]);
+    emitBuf = [];
+    emit(`typedef struct {${frame.map(([n, t]) => ` ${CT[t]} ${n};`).join('') || ' u64 _;'} } ${frameT};\n`);
+    emit(`_Static_assert(sizeof(${frameT}) <= ${frameBytes}u, "coroutine frame layout");\n`);
+    emit(`${NEVER_INLINE.has(f.name) ? 'PORF_NOINLINE ' : ''}${CT[f.retType]} ${sym}(porf_coro_call* porf_fr) {\n`);
+    depth = 1;
+    activeTryDepth = 0;
+    loopStack.length = 0;
+    usedLabels = new Set();
+    for (const [n, t] of locals) emit(`  ${CT[t]} ${n}${t === T.jsval ? ' = JV_UNDEFINED' : ' = 0'};\n`);
+
+    const { pre, args } = invokeArgs(f, { env: 'porf_fr->env', thisv: 'porf_fr->thisv', newtv: 'porf_fr->newtv', callee: 'porf_fr->callee', argc: 'porf_fr->argc', argv: 'porf_coro_argv(porf_fr)',
+      arg: j => `porf_unpack(porf_fr->argc > ${j} ? porf_coro_argv(porf_fr)[${j}] : JV_UNDEFINED_BITS)` });
+    emit(`  if (porf_fr->resume == 0) {\n`);
+    for (const x of pre) emit(`    ${x}\n`);
+    f.params.forEach((p, i) => emit(`    ${sanitize(p.name)} = ${args[i]};\n`));
+    emit(`  } else {\n`);
+    emit(`    const ${frameT}* porf_frs = (const ${frameT}*)porf_coro_frame(porf_fr);\n`);
+    for (const [n] of frame) emit(`    ${n} = porf_frs->${n};\n`);
+    emit(`    switch (porf_fr->resume) {\x000\x00default: porf_unreachable("bad coroutine resume point");}\n`);
+    emit(`  }\n`);
+
+    renderStmts(body);
+
+    emit(`  ${zeroReturn(f.retType)}\n`);
+    emit(`_porf_save:;\n`);
+    emit(`  ${frameT}* porf_frs = (${frameT}*)porf_coro_frame(porf_fr);\n`);
+    for (const [n] of frame) emit(`  porf_frs->${n} = ${n};\n`);
+    emit(`  porf_coro_touch(porf_fr);\n`);
+    emit(`  ${zeroReturn(f.retType)}\n`);
+    emit(`}\n\n`);
+
+    const text = emitBuf.join('');
+    const regions = coro.regions;
+    emitBuf = coro = null;
+    emit(text.replace(/\x00(\d+)\x00/g, (_, id) => regions[id].cases.join(' ') + ' '));
+    suspendMemo = coroTmps = coroLocals = null;
+  };
+
   const renderFunc = f => {
     cur = partsOf(unitOf(f));
+    if (needsCoro(f)) return renderCoroFunc(f);
     const ret = CT[f.retType];
     const params = f.params.map(p => `${CT[p.type]} ${sanitize(p.name)}`).join(', ');
     emit(`${f.ast?._module ? 'PORF_ONCE ' : NEVER_INLINE.has(f.name) ? 'PORF_NOINLINE ' : ''}${ret} ${fnSym(f)}(${params || 'void'}) {\n`);
@@ -889,7 +1350,6 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     activeTryDepth = 0;
     loopStack.length = 0;
     usedLabels = new Set();
-    if (needsCoro(f)) emit(`  porf_coro_prologue();\n`);
     const paramNames = new Set(f.params.map(p => p.name));
     for (const name in f.locals) {
       if (paramNames.has(name)) continue;
@@ -995,7 +1455,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     link.push('static void porf_data_init(void) {}\n\n');
   }
 
-  const proto = f => `${CT[f.retType]} ${fnSym(f)}(${f.params.map(p => CT[p.type]).join(', ') || 'void'});\n`;
+  const proto = f => `${CT[f.retType]} ${fnSym(f)}(${needsCoro(f) ? 'porf_coro_call*' : f.params.map(p => CT[p.type]).join(', ') || 'void'});\n`;
   const linkProtos = [
     `${st}jsval porf_call_dynamic(jsval fn, jsval thisv, jsval newtv, i32 argc, jsbits* argv);\n`,
     `${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr);\n`
@@ -1043,8 +1503,8 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     link.push(`${st}void porf_gc_mark_global_roots(void) {\n${markGlobalRootLines.join('\n') || '  (void)0;'}\n}\n\n`);
     link.push(`${st}void porf_gc_mark_global_raw_roots(void) {\n${markGlobalRawLines.join('\n') || '  (void)0;'}\n}\n\n`);
     link.push(usesCoro
-      ? `${st}void porf_gc_mark_coro_roots(void) {\n  for (i32 i = 0; i < porf_coro_live_len; i++) {\n    porf_coro* c = porf_coro_live[i];\n    if (c) porf_coro_gc_mark_suspended(c, 0);\n  }\n  for (porf_coro* c = porf_coro_cur; c; c = c->parent) porf_coro_gc_mark_active(c);\n}\n\n${st}void porf_gc_mark_coro_handle(uintptr_t raw) {\n  porf_coro_gc_mark_handle((porf_coro_call*)raw);\n}\n\n${st}void porf_gc_finalize_body(i32 body, i32 type) {\n  if (type == ${TYPES.__porffor_generator} || type == ${TYPES.__porffor_asyncgenerator}) {\n    uintptr_t raw = *(uintptr_t*)(MEM + body);\n    *(uintptr_t*)(MEM + body) = 0;\n    porf_coro_call_free((porf_coro_call*)raw);\n  }\n}\n\n`
-      : `${st}void porf_gc_mark_coro_roots(void) {}\n${st}void porf_gc_mark_coro_handle(uintptr_t raw) { (void)raw; }\n${st}void porf_gc_finalize_body(i32 body, i32 type) { (void)body; (void)type; }\n\n`);
+      ? `${st}void porf_gc_mark_coro_roots(void) {\n  for (porf_coro_call* c = porf_coro_cur; c; c = c->parent) {\n    if (c->heap) porf_gc_mark_coro(c->heap);\n      else porf_coro_gc_scan(c);\n  }\n}\n\n${st}void porf_gc_mark_coro(u32 body) {\n  if (body != 0 && porf_gc_mark_body((i32)body)) porf_coro_gc_scan((porf_coro_call*)(MEM + body));\n}\n\n${st}void porf_gc_scan_coro(i32 body) {\n  porf_coro_gc_scan((porf_coro_call*)(MEM + body));\n}\n\n`
+      : `${st}void porf_gc_mark_coro_roots(void) {}\n${st}void porf_gc_mark_coro(u32 body) { (void)body; }\n${st}void porf_gc_scan_coro(i32 body) { (void)body; }\n\n`);
   }
 
   // per-function metadata tables, emitted before bodies so __Porffor_funcLut_* can read them.
@@ -1064,43 +1524,16 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   cur = partsOf('main');
   for (const f of linkFuncs) cur.protos[f.index] = f;
 
+  const returnBoxed = (f, call) =>
+    f.retType === T.none ? `${call}; return JV_UNDEFINED;` :
+    f.retType === T.f64 ? `return porf_box_num(${call});` :
+    f.retType === T.jsval ? `return ${call};` :
+    `return porf_box_num((f64)${call});`;
+
   // adapt a uniform dynamic-call ABI to f's signature
-  const dynInvokeCall = (f, src) => {
-    const pre = [];
-    const args = [];
-    let j = 0;
-    for (const p of f.params) {
-      if (p.name === '#env') { args.push(src.env); continue; }
-      if (p.name === '#this') { args.push('thisv'); continue; }
-      if (p.name === '#newtarget') { args.push(src.newtv); continue; }
-      if (p.name === '#callee') { args.push(src.callee); continue; }
-      if (p.name === '#allargs') {
-        pre.push('u32 _aa = porf_arr_new(argc, argc > 4 ? argc : 4);');
-        pre.push('for (i32 _k = 0; _k < argc; _k++) porf_arr_set(_aa, (u32)_k, porf_unpack(argv[_k]));');
-        args.push(`porf_box((f64)_aa, ${TYPES.array})`);
-        continue;
-      }
-      if (p.name === '#rest') {
-        // pack remaining argv into an array (twin helpers; die at step 3)
-        pre.push(`u32 _rest = porf_arr_new(0, argc > ${j} ? argc - ${j} : 4);`);
-        pre.push(`for (i32 _k = ${j}; _k < argc; _k++) (void)porf_arr_push(_rest, porf_unpack(argv[_k]));`);
-        args.push(`porf_box((f64)_rest, ${TYPES.array})`);
-        continue;
-      }
-      const arg = src.arg(j);
-      if (p.type === T.f64) args.push(`(${arg}).val`);
-        else if (p.type === T.i64 || p.type === T.u64) args.push(`(i64)(${arg}).val`);
-        else if (p.type === T.i32 || p.type === T.u32 || p.type === T.ptr) args.push(`(i32)(${arg}).val`);
-        else args.push(arg);
-      j++;
-    }
-    const call = `${fnSym(f)}(${args.join(', ')})`;
-    let ret;
-    if (f.retType === T.none) ret = `${call}; return JV_UNDEFINED;`;
-      else if (f.retType === T.f64) ret = `return porf_box_num(${call});`;
-      else if (f.retType === T.i64 || f.retType === T.u64) ret = `return porf_box_num((f64)${call});`;
-      else if (f.retType === T.i32 || f.retType === T.u32 || f.retType === T.ptr) ret = `return porf_box_num((f64)${call});`;
-      else ret = `return ${call};`;
+  const dynInvokeCall = (f, v) => {
+    const { pre, args } = invokeArgs(f, v);
+    const ret = returnBoxed(f, `${fnSym(f)}(${args.join(', ')})`);
     return pre.length ? `{ ${pre.join(' ')} ${ret} }` : ret;
   };
 
@@ -1125,6 +1558,7 @@ ${st}jsval porf_thk_bad(${dynThunkParams}) {
       }
       const body = dynInvokeCall(f, {
         env: '(*(u32*)(MEM + (u32)ra + 4))',
+        thisv: 'thisv',
         callee: `porf_box((f64)(u32)ra, ${TYPES.function})`,
         newtv: 'JV_UNDEFINED',
         arg: j => j < DYN_REGS ? `a${j}` : 'JV_UNDEFINED'
@@ -1153,16 +1587,31 @@ ${st}jsval porf_thk_bad(${dynThunkParams}) {
     emit('  switch (idx) {\n');
     for (let i = 0; i < linkFuncs.length; i++) {
       const f = linkFuncs[i];
-      if (!f.indirect && !needsCoro(f) && !isSyncAsync(f)) continue;
+      if (needsCoro(f) || (!f.indirect && !isSyncAsync(f))) continue;
       if (usesDynReg && dynRegThunk(f) && !hasParam(f, '#newtarget') && f.params.filter(p => p.name[0] !== '#').length <= DYN_REGS) continue;
       emit(`    case ${i}: ${dynInvokeCall(f, {
-        env: 'env', callee: 'callee', newtv: 'newtv',
+        env: 'env', thisv: 'thisv', callee: 'callee', newtv: 'newtv', argc: 'argc', argv: 'argv',
         arg: j => `porf_unpack(argc > ${j} ? argv[${j}] : JV_UNDEFINED_BITS)`
       })}\n`);
     }
     emit('  }\n');
     if (usesDynReg) emit(`  return porf_thk[idx]((u64)(u32)callee.val | ((u64)(u32)argc << 32), thisv, ${dynRegs().map((_, j) => `argc > ${j} ? porf_unpack(argv[${j}]) : JV_UNDEFINED`).join(', ')});\n}\n`);
       else emit('  porf_unreachable("uncompiled function");\n  return JV_UNDEFINED;\n}\n');
+
+    if (usesCoro) {
+      emit(`${st}jsval porf_coro_dispatch(porf_coro_call* call) {\n  switch (call->idx) {\n`);
+      for (let i = 0; i < linkFuncs.length; i++) {
+        const f = linkFuncs[i];
+        if (needsCoro(f)) emit(`    case ${i}: ${returnBoxed(f, `${fnSym(f)}(call)`)}\n`);
+      }
+      emit('  }\n  porf_unreachable("uncompiled coroutine");\n  return JV_UNDEFINED;\n}\n');
+      emit(`${st}u32 porf_coro_frame_bytes(u32 idx) {\n  switch (idx) {\n`);
+      for (let i = 0; i < linkFuncs.length; i++) {
+        const f = linkFuncs[i];
+        if (needsCoro(f)) emit(`    case ${i}: return ${coroFrameBytes[f.index]}u;\n`);
+      }
+      emit('  }\n  return 0;\n}\n');
+    }
 
     if (usesCoro || usesSyncAsync) {
       emit(`
@@ -1215,40 +1664,8 @@ ${st}jsval porf_async_call_sync(u32 idx, jsval callee, u32 env, jsval thisv, jsv
 	  return a;
 	}
 
-static void porf_coro_call_thunk(void* arg) {
-  porf_coro_call* call = (porf_coro_call*)arg;
-  call->result = porf_invoke(call->idx, call->callee, call->env, call->thisv, call->newtv, call->argc, call->argv);
-}
-
-static porf_coro_call* porf_coro_call_new(u32 idx, jsval callee, u32 env, jsval thisv, jsval newtv, i32 argc, jsbits* argv) {
-  porf_coro_call* call = porf_coro_call_alloc();
-  call->coro.live_idx = -1;
-  call->idx = idx;
-  call->callee = callee;
-  call->env = env;
-  call->thisv = thisv;
-  call->newtv = newtv;
-  call->argc = argc;
-  call->argv = argc > 0 ? malloc((size_t)argc * sizeof(jsbits)) : 0;
-  if (argc > 0 && !call->argv) abort();
-  for (i32 i = 0; i < argc; i++) call->argv[i] = argv[i];
-  call->result = JV_UNDEFINED;
-  return call;
-}
-
-static i32 porf_coro_call_step(porf_coro_call* call, jsval value, i32 is_throw) {
-  if (!call->started) {
-    call->started = 1;
-    return porf_coro_enter(&call->coro, porf_coro_call_thunk, call);
-  }
-
-  return is_throw ?
-    porf_coro_resume_throw(&call->coro, value) :
-    porf_coro_resume(&call->coro, value);
-}
-
 static void porf_promise_run_coro_reaction_coro(u32 reaction) {
-  porf_coro_call* call = (porf_coro_call*)(uintptr_t)*(u64*)(MEM + reaction + PORF_REACTION_HANDLER);
+  porf_coro_call* call = (porf_coro_call*)(MEM + (u32)*(u64*)(MEM + reaction + PORF_REACTION_HANDLER));
   const jsval out_promise = porf_unpack(*(jsbits*)(MEM + reaction + PORF_REACTION_OUT_PROMISE));
   const jsval value = porf_unpack(*(jsbits*)(MEM + reaction + PORF_REACTION_VALUE));
   const i32 is_throw = (i32)*(u32*)(MEM + reaction + PORF_REACTION_PAYLOAD);
@@ -1259,69 +1676,48 @@ static void porf_promise_run_coro_reaction_coro(u32 reaction) {
     porf_try_depth = try_idx;
     if (done) {
       const jsval result = call->result;
-      porf_coro_call_free(call);
       ${settleAsyncResult('result', 'out_promise')}
       return;
     }
 
-    porf_promise_attach_coro(call->coro.channel, call, out_promise);
+    porf_promise_attach_coro(call->channel, call, out_promise);
     return;
   }
 
   porf_try_depth = try_idx;
-  porf_coro_restore_caller(&call->coro);
-  call->coro.state = 3;
-  porf_coro_call_free(call);
+  porf_coro_abort(call);
   porf_promise_settle_direct(out_promise, porf_exception, 2);
 }
-
-	static jsval porf_coro_box(porf_coro_call* call, i32 type) {
-	  const u32 p = porf_alloc((u32)sizeof(uintptr_t), type);
-	  *(uintptr_t*)(MEM + p) = (uintptr_t)call;
-	  call->box_body = p;
-	  call->box_type = type;
-	#if PORF_GC_ENABLED
-	  porf_gc_set_kind((i32)p, (u32)type);
-	#endif
-	  return porf_box((f64)p, type);
-	}
 
 static porf_coro_call* porf_coro_unbox(jsval gen) {
   const i32 type = porf_jv_type(gen);
   if (type != ${TYPES.__porffor_generator} && type != ${TYPES.__porffor_asyncgenerator}) {
     porf_throw_new(${TYPES.typeerror}, 0);
   }
-  return (porf_coro_call*)(uintptr_t)(*(uintptr_t*)(MEM + (u32)gen.val));
+  return (porf_coro_call*)(MEM + (u32)gen.val);
 }
 
 // TS-facing coroutine mechanism (generator.ts + for-of build the iterator protocol and
 // the { value, done } result on top of these). mode: 0 = next, 1 = throw the value at the
 // suspend point, 2 = return (force completion with the value). returns 1 once done.
-	${st}i32 __Porffor_coroutine_resume(jsval gen, jsval value, i32 mode) {
-	  porf_coro_call* call = porf_coro_unbox(gen);
-	  if (mode == 2 && call->coro.state == 2) {
-	    call->result = value;
-	    value = PORF_CORO_RETURN;
-	    mode = 1;
-	  }
-	  if (call->coro.state == 1) porf_throw_new(${TYPES.typeerror}, 0);
-	  if (mode != 0 ? call->coro.state != 2 : call->coro.state == 3) {
-	    if (call->coro.state != 3) {
-	      porf_coro_live_remove(&call->coro);
-	      porf_coro_stack_free(&call->coro);
-	    }
-	    call->coro.state = 3;
-	    call->result = mode == 2 ? value : JV_UNDEFINED;
-	    if (mode == 1) porf_throw(value);
-	    return 1;
+${st}i32 __Porffor_coroutine_resume(jsval gen, jsval value, i32 mode) {
+  porf_coro_call* call = porf_coro_unbox(gen);
+  if (mode == 2 && call->state == 2) {
+    call->result = value;
+    porf_coro_touch(call);
+    value = PORF_CORO_RETURN;
+    mode = 1;
+  }
+  if (call->state == 1) porf_throw_new(${TYPES.typeerror}, 0);
+  if (mode != 0 ? call->state != 2 : call->state == 3) {
+    porf_coro_finish(call);
+    call->result = mode == 2 ? value : JV_UNDEFINED;
+    porf_coro_touch(call);
+    if (mode == 1) porf_throw(value);
+    return 1;
   }
 
-  // boundary for an exception escaping the coroutine body (uncaught inside, or
-  // re-raised by a finally during a throw). without it the throw longjmps across
-  // the coroutine's separate stack with no landing pad on the resumer side and
-  // hits the top-level uncaught handler. mirrors the guard in porf_coro_start /
-  // the promise-reaction resume, but re-raises on the caller's stack since the
-  // sync .next/.throw/.return driver has no out-promise to settle.
+  // an exception escaping the body finishes it, re-raise to the caller
   const i32 try_idx = porf_try_depth++;
   if (_setjmp(porf_try_ensure()[try_idx]) == 0) {
     const i32 done = porf_coro_call_step(call, value, mode == 1);
@@ -1330,10 +1726,7 @@ static porf_coro_call* porf_coro_unbox(jsval gen) {
   }
 
   porf_try_depth = try_idx;
-  porf_coro_restore_caller(&call->coro);
-  porf_coro_live_remove(&call->coro);
-  porf_coro_stack_free(&call->coro);
-  call->coro.state = 3;
+  porf_coro_abort(call);
   if (porf_jv_eq(porf_exception, PORF_CORO_RETURN)) return 1;
   porf_throw(porf_exception);
 }
@@ -1342,15 +1735,15 @@ static porf_coro_call* porf_coro_unbox(jsval gen) {
 // most recently yielded value
 ${st}jsval __Porffor_coroutine_value(jsval gen) {
   porf_coro_call* call = porf_coro_unbox(gen);
-  return call->coro.state == 3 ? call->result : call->coro.channel;
+  return call->state == 3 ? call->result : call->channel;
 }
 
 ${st}i32 __Porffor_coroutine_raw(jsval gen) {
-  return porf_coro_unbox(gen)->coro.raw;
+  return porf_coro_unbox(gen)->raw;
 }
 
 ${st}i32 __Porffor_coroutine_awaiting(jsval gen) {
-  return porf_coro_unbox(gen)->coro.awaiting;
+  return porf_coro_unbox(gen)->awaiting;
 }
 
 ${st}void __Porffor_coroutine_setRaw(i32 raw) {
@@ -1358,49 +1751,53 @@ ${st}void __Porffor_coroutine_setRaw(i32 raw) {
 }
 
 ${st}jsval porf_coro_start(u8 flags, u32 idx, jsval callee, u32 env, jsval thisv, jsval newtv, i32 argc, jsbits* argv) {
-	  porf_promise_run_coro_reaction_impl = porf_promise_run_coro_reaction_coro;
-	  porf_coro_call* call = porf_coro_call_new(idx, callee, env, thisv, newtv, argc, argv);
-	  const u8 kind = flags & 7u;
+  porf_promise_run_coro_reaction_impl = porf_promise_run_coro_reaction_coro;
+  const u32 frame = porf_coro_frame_bytes(idx);
+  const u8 kind = flags & 7u;
 
-	  if (kind == ${FN_GENERATOR} || kind == ${FN_ASYNC_GENERATOR}) {
-	    if (flags & ${FN_CORO_INIT}u) {
-	      const i32 try_idx = porf_try_depth++;
-	      if (_setjmp(porf_try_ensure()[try_idx]) == 0) {
-	        (void)porf_coro_call_step(call, JV_UNDEFINED, 0);
-	        porf_try_depth = try_idx;
-	      } else {
-	        porf_try_depth = try_idx;
-	        porf_coro_restore_caller(&call->coro);
-	        call->coro.state = 3;
-	        porf_coro_call_free(call);
-	        porf_throw(porf_exception);
-	      }
-	    }
-	    return porf_coro_box(call, kind == ${FN_GENERATOR} ? ${TYPES.__porffor_generator} : ${TYPES.__porffor_asyncgenerator});
-	  }
+  if (kind == ${FN_GENERATOR} || kind == ${FN_ASYNC_GENERATOR}) {
+    const u32 type = kind == ${FN_GENERATOR} ? ${TYPES.__porffor_generator}u : ${TYPES.__porffor_asyncgenerator}u;
+    porf_coro_call* call = porf_coro_alloc(type, frame, argc);
+    porf_coro_init(call, call->heap, frame, idx, callee, env, thisv, newtv, argc, argv);
+    if (flags & ${FN_CORO_INIT}u) {
+      const i32 try_idx = porf_try_depth++;
+      if (_setjmp(porf_try_ensure()[try_idx]) == 0) {
+        (void)porf_coro_call_step(call, JV_UNDEFINED, 0);
+        porf_try_depth = try_idx;
+      } else {
+        porf_try_depth = try_idx;
+        porf_coro_abort(call);
+        porf_throw(porf_exception);
+      }
+    }
+    return porf_box((f64)call->heap, type);
+  }
 
+  // record on the C stack until it first suspends
+  const u32 bytes = PORF_CORO_BYTES(frame, argc);
+  porf_coro_call* call = bytes <= 1024u ? (porf_coro_call*)__builtin_alloca(bytes) : porf_coro_alloc(PORF_GC_KIND_CORO, frame, argc);
+  porf_coro_init(call, bytes <= 1024u ? 0 : call->heap, frame, idx, callee, env, thisv, newtv, argc, argv);
   const jsval out_promise = porf_promise_pending();
-	  const i32 try_idx = porf_try_depth++;
-	  if (_setjmp(porf_try_ensure()[try_idx]) == 0) {
-	    const i32 done = porf_coro_call_step(call, call->coro.channel, 0);
-	    porf_try_depth = try_idx;
-	    if (done) {
-	      jsval result = call->result;
-	      porf_coro_call_free(call);
-	      ${settleAsyncResult('result', 'out_promise')}
-	    } else {
-	      porf_promise_attach_coro(call->coro.channel, call, out_promise);
-	    }
-	    return out_promise;
-	  }
+  const i32 try_idx = porf_try_depth++;
+  if (_setjmp(porf_try_ensure()[try_idx]) == 0) {
+    const i32 done = porf_coro_call_step(call, JV_UNDEFINED, 0);
+    porf_try_depth = try_idx;
+    if (done) {
+      jsval result = call->result;
+      ${settleAsyncResult('result', 'out_promise')}
+    } else {
+      porf_coro_call* heap = porf_coro_promote(call);
+      porf_promise_attach_coro(heap->channel, heap, out_promise);
+    }
+    return out_promise;
+  }
 
-	  porf_try_depth = try_idx;
-	  porf_coro_restore_caller(&call->coro);
-	  call->coro.state = 3;
-	  porf_coro_call_free(call);
-	  porf_promise_settle_direct(out_promise, porf_exception, 2);
-	  return out_promise;
-	}
+  porf_try_depth = try_idx;
+  porf_coro_abort(call);
+  porf_promise_settle_direct(out_promise, porf_exception, 2);
+  return out_promise;
+}
+
 	`);
     }
     emit(`${st}jsval porf_call_dynamic(jsval fn, jsval thisv, jsval newtv, i32 argc, jsbits* argv) {
@@ -1941,6 +2338,7 @@ static const u16 porf_gc_cls_slots[PORF_GC_NCLASSES] = { ${classes.map((c, i) =>
 static const u8 porf_gc_cls_lut[1025] = { ${lut.join(',')} };
 
 // kind bytes: 0 conservative, 1..195 type IDs, 248+ internal
+#define PORF_GC_KIND_CORO 247u
 #define PORF_GC_KIND_OBJECT_ENTRIES 249u
 #define PORF_GC_KIND_ARRAY_ENTRIES 250u
 #define PORF_GC_KIND_FUNCTION 251u
@@ -1953,7 +2351,6 @@ static const u8 porf_gc_cls_lut[1025] = { ${lut.join(',')} };
 #define PORF_GC_PK_TAIL 3u
 
 #define PORF_GC_PF_TOUCHED 1u
-#define PORF_GC_PF_FIN 2u
 #define PORF_GC_PF_PARTIAL 4u
 #define PORF_GC_PF_TAIL 8u
 
@@ -2031,8 +2428,8 @@ static void porf_gc_mark_raw(i32 body);
 static int porf_gc_mark_underlying_store(i32 body);
 static u32 porf_gc_underlying_old = 0;
 static void porf_gc_mark_regex_cache(i32 cache);
-static void porf_gc_mark_coro_handle(uintptr_t raw);
-static void porf_gc_finalize_body(i32 body, i32 type);
+static void porf_gc_mark_coro(u32 body);
+static void porf_gc_scan_coro(i32 body);
 static void porf_gc_cons_scan_range(const u64* lo, const u64* hi);
 static void porf_gc_mark_global_roots(void);
 static void porf_gc_mark_global_raw_roots(void);
@@ -2139,8 +2536,6 @@ static inline void porf_gc_set_kind(i32 body, u32 kind) {
     if (((u32)body & PORF_GC_SPAGE_MASK) != 0u) return;
   } else return;
   porf_gc_kinds[porf_gc_gran(body)] = (u8)kind;
-  if (kind == ${TYPES.__porffor_generator}u || kind == ${TYPES.__porffor_asyncgenerator}u)
-    porf_gc_pages[pg].flags |= PORF_GC_PF_FIN;
 }
 
 static inline void porf_gc_set_marked_type(i32 body, i32 type) {
@@ -2437,8 +2832,6 @@ ${st}void porf_gc_barrier_reclassify(u32 p, i32 type) {
     if ((p & PORF_GC_SPAGE_MASK) != 0u) return;
   } else return;
   porf_gc_kinds[p >> 4] = (u8)type;
-  if (type == ${TYPES.__porffor_generator} || type == ${TYPES.__porffor_asyncgenerator})
-    porf_gc_pages[pg].flags |= PORF_GC_PF_FIN;
 }
 ${sti}void porf_gc_barrier_impl(u32 p, i32 type) {
   if (porf_heap_base == 0 || p == 0) return;
@@ -2766,15 +3159,19 @@ static void porf_gc_mark_promise_reaction_chain(u32 raw) {
   }
 }
 
+static void porf_gc_scan_promise_reaction(u32 raw) {
+  const u8 kind = *(u8*)(MEM + raw + PORF_REACTION_KIND);
+  if (kind == 11) porf_gc_mark_coro((u32)*(u64*)(MEM + raw + PORF_REACTION_HANDLER));
+    else if (kind != 12) porf_gc_mark_jsbits(*(jsbits*)(MEM + raw + PORF_REACTION_HANDLER));
+  porf_gc_mark_jsbits(*(jsbits*)(MEM + raw + PORF_REACTION_OUT_PROMISE));
+  porf_gc_mark_jsbits(*(jsbits*)(MEM + raw + PORF_REACTION_VALUE));
+}
+
 static void porf_gc_mark_promise_reaction(u32 raw) {
   if (raw == 0 || !porf_gc_is_block_start((i32)raw)) return;
   if (!porf_gc_mark_body((i32)raw) && porf_gc_kind((i32)raw) == PORF_GC_KIND_PROMISE_REACTION) return;
   porf_gc_set_kind((i32)raw, PORF_GC_KIND_PROMISE_REACTION);
-  const u8 kind = *(u8*)(MEM + raw + PORF_REACTION_KIND);
-  if (kind == 11) porf_gc_mark_coro_handle((uintptr_t)*(u64*)(MEM + raw + PORF_REACTION_HANDLER));
-    else if (kind != 12) porf_gc_mark_jsbits(*(jsbits*)(MEM + raw + PORF_REACTION_HANDLER));
-  porf_gc_mark_jsbits(*(jsbits*)(MEM + raw + PORF_REACTION_OUT_PROMISE));
-  porf_gc_mark_jsbits(*(jsbits*)(MEM + raw + PORF_REACTION_VALUE));
+  porf_gc_scan_promise_reaction(raw);
 }
 
 static void porf_gc_mark_promise_jobs(void) {
@@ -2881,7 +3278,7 @@ static void porf_gc_scan_body(i32 body, i32 type) {
       break;
     case ${TYPES.__porffor_generator}:
     case ${TYPES.__porffor_asyncgenerator}:
-      porf_gc_mark_coro_handle(*(uintptr_t*)(MEM + body));
+      porf_gc_scan_coro(body);
       break;
     case ${TYPES.function}: {
       const i32 env = *(u32*)(MEM + body + 4);
@@ -3204,7 +3601,10 @@ static void porf_gc_scan_kind_block(i32 body) {
       porf_gc_scan_regex_cache(body);
       break;
     case PORF_GC_KIND_PROMISE_REACTION:
-      porf_gc_mark_promise_reaction((u32)body);
+      porf_gc_scan_promise_reaction((u32)body);
+      break;
+    case PORF_GC_KIND_CORO:
+      porf_gc_scan_coro(body);
       break;
     default:
       if (kind >= 1u && kind <= 195u) porf_gc_scan_body(body, (i32)kind);
@@ -3466,23 +3866,11 @@ static int porf_gc_sweep_page_small(u32 pg, int minor, u64* promoted_bytes, u64*
   const u32 cls = m->cls;
   const u32 npg = porf_gc_cls_pages[m->cidx];
   u64* blk = porf_gc_meta + ((size_t)pg << 5);
-  const int fin = (m->flags & PORF_GC_PF_FIN) != 0;
   u32 live = 0, young_left = 0;
   for (u32 w = 0; w < npg * 8u; w++) {
     u64* grp = blk + ((size_t)w << 2);
     u64 a = grp[0], mk = grp[1], y = grp[2], g = grp[3];
     const u64 dead = minor ? (y & ~mk) : (a & ~mk);
-    if (fin && dead != 0ull) {
-      u64 d = dead;
-      while (d != 0ull) {
-        const int b = __builtin_ctzll(d);
-        d &= d - 1ull;
-        const u32 body = (pg << PORF_GC_SPAGE_SHIFT) + (((u32)w * 64u + (u32)b) << 4);
-        const u8 kd = porf_gc_kinds[porf_gc_gran(body)];
-        if (kd == ${TYPES.__porffor_generator}u || kd == ${TYPES.__porffor_asyncgenerator}u)
-          porf_gc_finalize_body((i32)body, (i32)kd);
-      }
-    }
     a &= ~dead;
     u64 newy = 0;
     if (minor) {
@@ -3520,9 +3908,6 @@ static int porf_gc_sweep_span(u32 pg, int minor, u64* promoted_bytes, u64* live_
   const int marked = porf_gc_bit(PORF_GC_B_MARK, g) != 0u;
   if (minor && !young) { *live_bytes += (u64)npg * PORF_GC_SPAGE; return 1; }
   if (!marked) {
-    const u8 kd = porf_gc_kinds[g];
-    if (kd == ${TYPES.__porffor_generator}u || kd == ${TYPES.__porffor_asyncgenerator}u)
-      porf_gc_finalize_body((i32)body, (i32)kd);
     porf_gc_bit_clear(PORF_GC_B_ALLOC, g);
     porf_gc_bit_clear(PORF_GC_B_YOUNG, g);
     porf_gc_bit_clear(PORF_GC_B_AGED, g);
@@ -4461,71 +4846,44 @@ static void porf_init(int argc, char** argv) {
 `;
 };
 
-const CORO_RUNTIME = () => `// ---- coroutines (fiber stacks) ----
-#if defined(__TINYC__) || (!defined(__x86_64__) && !defined(__aarch64__))
-#define PORF_CORO_USE_UCONTEXT 1
-#include <ucontext.h>
-#else
-#define PORF_CORO_USE_UCONTEXT 0
-#endif
-
-#define PORF_CORO_STACK_SIZE (256u * 1024u)
-#define PORF_CORO_MAX 16384
-
-typedef struct porf_coro {
-  char* stack_map;        // mmap reservation, including the low guard page
-  size_t stack_map_size;
-  char* stack_lo;         // first usable byte, above the guard page
-  char* stack_top;        // high end of the downward-growing usable stack
-  char* sp;               // saved stack pointer for GC while suspended
-  char* caller_sp;        // inactive caller stack lower bound while running
-  void* caller_stack_top;
-#if PORF_CORO_USE_UCONTEXT
-  ucontext_t ctx;
-  ucontext_t caller_ctx;
-  void (*fn)(void*);
-  void* arg;
-  i32 ctx_init;
-#else
-  jmp_buf resume_pt;      // inside the coroutine, at the await/yield
-  jmp_buf caller_pt;      // latest frame that ran/resumed it
-#endif
-  jsval channel;          // value (or thrown exception) crossing the boundary
-  i32 raw;                // channel is an iterator result to pass through as-is
-  i32 awaiting;           // suspended at an await (channel is its promise), not a yield
-  i32 state;              // 0 idle, 1 running, 2 suspended, 3 done
-  i32 throw_pending;      // resume delivers channel as a throw at the await
-  i32 entry_try_depth;    // porf_try_depth when the coroutine started
-  i32 saved_try_depth;    // porf_try_depth at suspension
-  jmp_buf* try_save;      // try-stack entries [entry..saved) opened inside
-  i32 try_save_cap;
-  i32 live_idx;           // index in porf_coro_live, or -1 if not tracked
-  jsval iter_open;        // porf_iter_open inside it
-  jsval caller_iter_open;
-  i32 caller_iter_base;
-  struct porf_coro* parent;
-} porf_coro;
-
+const CORO_RUNTIME = () => `// ---- coroutines (stackless) ----
+// record: header, frame, args. a generator is its record
 typedef struct porf_coro_call {
-  porf_coro coro;
-  u32 idx;
   jsval callee;
-  u32 env;
   jsval thisv;
   jsval newtv;
-  i32 argc;
-  jsbits* argv;
   jsval result;
-  i32 started;
-  u32 box_body;
-  i32 box_type;
+  jsval channel;          // value (or thrown exception) crossing the boundary
+  jsval iter_open;        // porf_iter_open inside it
+  jsval caller_iter_open;
+  struct porf_coro_call* parent;
+  u32 heap;               // block offset in the GC heap, 0 while on the C stack
+  u32 idx;
+  u32 env;
+  u32 frame_size;
+  i32 argc;
+  i32 state;              // 0 idle, 1 running, 2 suspended, 3 done
+  i32 resume;             // suspend point to re-enter at, 0 = start
+  i32 throw_pending;      // resume delivers channel as a throw at the suspend point
+  i32 raw;                // channel is an iterator result to pass through as-is
+  i32 awaiting;           // suspended at an await (channel is its promise), not a yield
+  i32 caller_iter_base;
 } porf_coro_call;
+#define PORF_CORO_HDR ((u32)((sizeof(porf_coro_call) + 7u) & ~7u))
+#define PORF_CORO_BYTES(frame, argc) (PORF_CORO_HDR + (frame) + (u32)(argc) * 8u)
 
-static porf_coro* porf_coro_cur = 0;
+static porf_coro_call* porf_coro_cur = 0;
 #define PORF_CORO_RETURN porf_box(0.0, ${TYPES.__porffor_generator})
 static i32 porf_coro_mode = 0;
-static porf_coro* porf_coro_live[PORF_CORO_MAX];
-static i32 porf_coro_live_len = 0;
+static jsval porf_coro_dispatch(porf_coro_call* call);
+static u32 porf_coro_frame_bytes(u32 idx);
+#ifndef PORF_GC_KIND_CORO
+#define PORF_GC_KIND_CORO 247u
+#endif
+
+static inline void* porf_coro_frame(porf_coro_call* c) { return (u8*)c + PORF_CORO_HDR; }
+static inline jsbits* porf_coro_argv(porf_coro_call* c) { return (jsbits*)((u8*)c + PORF_CORO_HDR + c->frame_size); }
+static inline void porf_coro_touch(porf_coro_call* c) { if (c->heap) porf_gc_barrier(c->heap, 0); }
 
 static jsval porf_promise_pending(void) {
   const u32 p = porf_alloc(PORF_PROMISE_SIZE, ${TYPES.promise});
@@ -4569,7 +4927,7 @@ static void porf_promise_settle_direct(jsval promise, jsval value, i32 state) {
 
 static u32 porf_promise_new_coro_reaction(porf_coro_call* call, jsval out_promise, i32 is_throw) {
   const u32 reaction = porf_alloc(PORF_REACTION_SIZE, 0);
-  *(u64*)(MEM + reaction + PORF_REACTION_HANDLER) = (u64)(uintptr_t)call;
+  *(u64*)(MEM + reaction + PORF_REACTION_HANDLER) = (u64)call->heap;
   *(jsbits*)(MEM + reaction + PORF_REACTION_OUT_PROMISE) = porf_pack(out_promise);
   *(jsbits*)(MEM + reaction + PORF_REACTION_VALUE) = JV_UNDEFINED_BITS;
   *(u32*)(MEM + reaction + PORF_REACTION_NEXT) = 0;
@@ -4602,420 +4960,139 @@ static void porf_promise_attach_coro(jsval awaited, porf_coro_call* call, jsval 
   porf_promise_append_raw_reaction(p, porf_promise_new_coro_reaction(call, out_promise, 1), 1);
 }
 
-static void porf_coro_prologue(void) {
-  // stack selection happens at coroutine entry; the compiled body stays plain C.
+static void porf_coro_init(porf_coro_call* c, u32 heap, u32 frame, u32 idx, jsval callee, u32 env, jsval thisv, jsval newtv, i32 argc, jsbits* argv) {
+  c->callee = callee;
+  c->thisv = thisv;
+  c->newtv = newtv;
+  c->result = JV_UNDEFINED;
+  c->channel = JV_UNDEFINED;
+  c->parent = 0;
+  c->heap = heap;
+  c->idx = idx;
+  c->env = env;
+  c->frame_size = frame;
+  c->argc = argc;
+  c->state = 0;
+  c->resume = 0;
+  c->throw_pending = 0;
+  c->raw = 0;
+  c->awaiting = 0;
+  c->iter_open = JV_UNDEFINED;
+  c->caller_iter_open = JV_UNDEFINED;
+  jsbits* a = porf_coro_argv(c);
+  for (i32 i = 0; i < argc; i++) a[i] = argv[i];
 }
 
-static size_t porf_coro_page_size(void) {
-  const long p = sysconf(_SC_PAGESIZE);
-  return p > 0 ? (size_t)p : 4096u;
-}
-
-static char* porf_coro_read_sp(void) {
-  void* sp;
-#if !PORF_CORO_USE_UCONTEXT && defined(__x86_64__)
-  __asm__ volatile("mov %%rsp, %0" : "=r"(sp));
-#elif !PORF_CORO_USE_UCONTEXT && defined(__aarch64__)
-  __asm__ volatile("mov %0, sp" : "=r"(sp));
-#else
-  char probe;
-  sp = &probe;
-#endif
-  return (char*)sp;
-}
-
-static inline char* porf_coro_align_lo(char* p) {
-  return (char*)(((uintptr_t)p + 7u) & ~(uintptr_t)7u);
-}
-
-static inline char* porf_coro_align_hi(char* p) {
-  return (char*)((uintptr_t)p & ~(uintptr_t)7u);
-}
-
-static inline void* porf_coro_current_stack_top(void) {
+static porf_coro_call* porf_coro_alloc(u32 kind, u32 frame, i32 argc) {
+  const u32 p = porf_alloc(PORF_CORO_BYTES(frame, argc), kind);
 #if PORF_GC_ENABLED
-  return porf_c_stack_top;
-#else
-  return 0;
+  porf_gc_set_kind((i32)p, kind);
 #endif
+  porf_coro_call* c = (porf_coro_call*)(MEM + p);
+  c->heap = p;
+  return c;
 }
 
-static inline void porf_coro_set_current_stack_top(void* top) {
-#if PORF_GC_ENABLED
-  porf_c_stack_top = top;
-#else
-  (void)top;
-#endif
-}
-
-typedef struct porf_coro_stack_pool_entry {
-  char* stack_map;
-  size_t stack_map_size;
-  char* stack_lo;
-  char* stack_top;
-} porf_coro_stack_pool_entry;
-
-#define PORF_CORO_STACK_POOL_MAX 8192
-static porf_coro_stack_pool_entry porf_coro_stack_pool[PORF_CORO_STACK_POOL_MAX];
-static i32 porf_coro_stack_pool_len = 0;
-
-static void porf_coro_stack_ensure(porf_coro* c) {
-  if (c->stack_top) return;
-  if (porf_coro_stack_pool_len > 0) {
-    porf_coro_stack_pool_entry e = porf_coro_stack_pool[--porf_coro_stack_pool_len];
-    c->stack_map = e.stack_map;
-    c->stack_map_size = e.stack_map_size;
-    c->stack_lo = e.stack_lo;
-    c->stack_top = e.stack_top;
-    c->sp = 0;
-    return;
-  }
-  const size_t page = porf_coro_page_size();
-  const size_t usable = ((size_t)PORF_CORO_STACK_SIZE + page - 1u) & ~(page - 1u);
-  const size_t map_size = usable + page;
-  void* mem = mmap(NULL, map_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-  if (mem == MAP_FAILED) {
-    fprintf(stderr, "porffor: failed to reserve coroutine stack\\n");
-    abort();
-  }
-  char* lo = (char*)mem + page;
-  if (mprotect(lo, usable, PROT_READ | PROT_WRITE) != 0) {
-    munmap(mem, map_size);
-    fprintf(stderr, "porffor: failed to commit coroutine stack\\n");
-    abort();
-  }
-  c->stack_map = (char*)mem;
-  c->stack_map_size = map_size;
-  c->stack_lo = lo;
-  c->stack_top = lo + usable;
-  c->sp = 0;
-}
-
-static void porf_coro_stack_free(porf_coro* c) {
-  if (c->stack_map) {
-    if (porf_coro_stack_pool_len < PORF_CORO_STACK_POOL_MAX) {
-      porf_coro_stack_pool_entry e;
-      e.stack_map = c->stack_map;
-      e.stack_map_size = c->stack_map_size;
-      e.stack_lo = c->stack_lo;
-      e.stack_top = c->stack_top;
-      porf_coro_stack_pool[porf_coro_stack_pool_len++] = e;
-    } else {
-      munmap(c->stack_map, c->stack_map_size);
-    }
-    c->stack_map = 0;
-    c->stack_map_size = 0;
-    c->stack_lo = 0;
-    c->stack_top = 0;
-    c->sp = 0;
-  }
-  free(c->try_save);
-  c->try_save = 0;
-  c->try_save_cap = 0;
-}
-
-static void porf_coro_live_add(porf_coro* c) {
-  if (c->live_idx >= 0) return;
-  if (porf_coro_live_len < PORF_CORO_MAX) {
-    c->live_idx = porf_coro_live_len;
-    porf_coro_live[porf_coro_live_len++] = c;
-  }
-}
-
-static void porf_coro_live_remove(porf_coro* c) {
-  const i32 idx = c->live_idx;
-  if (idx < 0) return;
-  const i32 last = --porf_coro_live_len;
-  porf_coro* moved = porf_coro_live[last];
-  porf_coro_live[idx] = moved;
-  moved->live_idx = idx;
-  c->live_idx = -1;
-}
-
-#define PORF_CORO_CALL_POOL_MAX 8192
-static porf_coro_call* porf_coro_call_pool[PORF_CORO_CALL_POOL_MAX];
-static i32 porf_coro_call_pool_len = 0;
-
-static porf_coro_call* porf_coro_call_alloc(void) {
-  porf_coro_call* call;
-  if (porf_coro_call_pool_len > 0) {
-    call = porf_coro_call_pool[--porf_coro_call_pool_len];
-    memset(call, 0, sizeof(*call));
-  } else {
-    call = calloc(1, sizeof(porf_coro_call));
-    if (!call) abort();
-  }
-  return call;
-}
-
-static void porf_coro_call_free(porf_coro_call* call) {
-  if (!call) return;
-  porf_coro_live_remove(&call->coro);
-  porf_coro_stack_free(&call->coro);
-  free(call->argv);
-  if (porf_coro_call_pool_len < PORF_CORO_CALL_POOL_MAX) porf_coro_call_pool[porf_coro_call_pool_len++] = call;
-    else free(call);
-}
-
-#if PORF_GC_ENABLED
-static void porf_coro_gc_scan_mem(const void* lo0, const void* hi0) {
-  char* lo = porf_coro_align_lo((char*)lo0);
-  char* hi = porf_coro_align_hi((char*)hi0);
-  if (lo < hi) porf_gc_cons_scan_range((const u64*)lo, (const u64*)hi);
-}
-
-static void porf_coro_gc_scan_stack(porf_coro* c, char* sp) {
-  if (!c || !sp || !c->stack_top) return;
-  porf_coro_gc_scan_mem(sp, c->stack_top);
-}
-
-static void porf_coro_gc_scan_saved_context(porf_coro* c) {
-#if PORF_CORO_USE_UCONTEXT
-  porf_coro_gc_scan_mem(&c->ctx, (const char*)&c->ctx + sizeof(c->ctx));
-#else
-  porf_coro_gc_scan_mem(&c->resume_pt, (const char*)&c->resume_pt + sizeof(c->resume_pt));
-#endif
-}
-
-static void porf_coro_gc_scan_caller_context(porf_coro* c) {
-#if PORF_CORO_USE_UCONTEXT
-  porf_coro_gc_scan_mem(&c->caller_ctx, (const char*)&c->caller_ctx + sizeof(c->caller_ctx));
-#else
-  porf_coro_gc_scan_mem(&c->caller_pt, (const char*)&c->caller_pt + sizeof(c->caller_pt));
-#endif
-}
-
-static void porf_coro_gc_mark_call_fields(porf_coro_call* call, i32 mark_box) {
-  if (!call) return;
-  if (mark_box && call->box_body) porf_gc_mark_js((f64)call->box_body, call->box_type);
-  porf_gc_mark_js(call->callee.val, call->callee.type);
-  porf_gc_mark_js(call->thisv.val, call->thisv.type);
-  porf_gc_mark_js(call->newtv.val, call->newtv.type);
-  porf_gc_mark_js(call->result.val, call->result.type);
-  porf_gc_mark_js(call->coro.channel.val, call->coro.channel.type);
-  porf_gc_mark_js(call->coro.iter_open.val, call->coro.iter_open.type);
-  for (i32 i = 0; i < call->argc; i++) {
-    const jsval v = porf_unpack(call->argv[i]);
-    porf_gc_mark_js(v.val, v.type);
-  }
-}
-
-static void porf_coro_gc_mark_suspended(porf_coro* c, i32 mark_box) {
-  porf_coro_gc_mark_call_fields((porf_coro_call*)c, mark_box);
-  if (c->sp) porf_coro_gc_scan_stack(c, c->sp);
-  porf_coro_gc_scan_saved_context(c);
-  if (c->try_save && c->saved_try_depth > c->entry_try_depth)
-    porf_coro_gc_scan_mem(c->try_save, (const char*)c->try_save + (size_t)(c->saved_try_depth - c->entry_try_depth) * sizeof(jmp_buf));
-}
-
-static void porf_coro_gc_mark_handle(porf_coro_call* call) {
-  if (!call) return;
-  if (call->coro.state == 2) porf_coro_gc_mark_suspended(&call->coro, 0);
-  else porf_coro_gc_mark_call_fields(call, 0);
-}
-
-static void porf_coro_gc_mark_active(porf_coro* c) {
-  porf_coro_gc_mark_call_fields((porf_coro_call*)c, 1);
-  porf_gc_mark_js(c->caller_iter_open.val, c->caller_iter_open.type);
-  if (c->caller_sp && c->caller_stack_top) porf_coro_gc_scan_mem(c->caller_sp, c->caller_stack_top);
-  porf_coro_gc_scan_caller_context(c);
-}
-#endif
-
-static void porf_coro_save_try_stack(porf_coro* c) {
-  c->saved_try_depth = porf_try_depth;
-  const i32 try_n = porf_try_depth - c->entry_try_depth;
-  if (try_n > 0) {
-    if (try_n > c->try_save_cap) {
-      free(c->try_save);
-      c->try_save = malloc((size_t)try_n * sizeof(jmp_buf));
-      if (!c->try_save) abort();
-      c->try_save_cap = try_n;
-    }
-    memcpy(c->try_save, porf_try_data + c->entry_try_depth, (size_t)try_n * sizeof(jmp_buf));
-  }
-}
-
-static void porf_coro_restore_try_stack(porf_coro* c) {
-  const i32 try_n = c->saved_try_depth - c->entry_try_depth;
-  c->entry_try_depth = porf_try_depth;
-  c->saved_try_depth = porf_try_depth += try_n;
-  if (try_n > 0) memcpy(porf_try_ensure() + c->entry_try_depth, c->try_save, (size_t)try_n * sizeof(jmp_buf));
-}
-
-static void porf_coro_prepare_run(porf_coro* c) {
-  c->caller_sp = porf_coro_read_sp();
-  c->caller_stack_top = porf_coro_current_stack_top();
-  c->parent = porf_coro_cur;
-  porf_coro_cur = c;
-  porf_coro_set_current_stack_top(c->stack_top);
-  c->caller_iter_open = porf_iter_open;
-  c->caller_iter_base = porf_iter_base;
-  porf_iter_open = c->iter_open;
-  porf_iter_base = c->entry_try_depth;
-}
-
-static void porf_coro_restore_caller(porf_coro* c) {
-  porf_coro_set_current_stack_top(c->caller_stack_top);
-  porf_coro_cur = c->parent;
-  c->iter_open = porf_iter_open;
-  porf_iter_open = c->caller_iter_open;
-  porf_iter_base = c->caller_iter_base;
-  if (c->state == 3) porf_coro_stack_free(c);
-}
-
-#if PORF_CORO_USE_UCONTEXT
-static porf_coro* porf_coro_starting = 0;
-
-static void porf_coro_ucontext_bootstrap(void) {
-  porf_coro* c = porf_coro_starting;
-  porf_coro_starting = 0;
-  c->fn(c->arg);
+static void porf_coro_finish(porf_coro_call* c) {
   c->state = 3;
-  porf_coro_set_current_stack_top(c->caller_stack_top);
-  setcontext(&c->caller_ctx);
-  abort();
-}
-#else
-__attribute__((noreturn, noinline))
-static void porf_coro_bootstrap(porf_coro* c, void (*fn)(void*), void* arg) {
-  fn(arg);
-  c->state = 3;
-  porf_coro_set_current_stack_top(c->caller_stack_top);
-  _longjmp(c->caller_pt, 1);
+  c->resume = 0;
 }
 
-__attribute__((noreturn, noinline))
-static void porf_coro_switch_start(char* stack_top, porf_coro* c, void (*fn)(void*), void* arg) {
-  uintptr_t sp = (uintptr_t)stack_top & ~(uintptr_t)15u;
-#if defined(__x86_64__)
-  __asm__ volatile(
-    "mov %0, %%rsp\\n"
-    "call *%1\\n"
-    :
-    : "r"(sp), "r"(porf_coro_bootstrap), "D"(c), "S"(fn), "d"(arg)
-    : "memory");
-#elif defined(__aarch64__)
-  __asm__ volatile(
-    "mov sp, %0\\n"
-    "mov x0, %1\\n"
-    "mov x1, %2\\n"
-    "mov x2, %3\\n"
-    "br %4\\n"
-    :
-    : "r"(sp), "r"(c), "r"(fn), "r"(arg), "r"(porf_coro_bootstrap)
-    : "memory");
-#endif
-  __builtin_unreachable();
-}
-#endif
-
-// run fn-with-context as a coroutine; returns 1 if it completed, 0 if it
-// suspended. completion leaves through the latest caller context/jump point.
-__attribute__((noinline))
-static int porf_coro_enter(porf_coro* c, void (*fn)(void*), void* arg) {
-  porf_coro_stack_ensure(c);
-  c->state = 1;
-  c->entry_try_depth = porf_try_depth;
-  volatile i32 outer_try = porf_try_depth;
-  porf_coro_prepare_run(c);
-#if PORF_CORO_USE_UCONTEXT
-  c->fn = fn;
-  c->arg = arg;
-  if (!c->ctx_init) {
-    if (getcontext(&c->ctx) != 0) abort();
-    c->ctx.uc_stack.ss_sp = c->stack_lo;
-    c->ctx.uc_stack.ss_size = (size_t)(c->stack_top - c->stack_lo);
-    c->ctx.uc_link = NULL;
-    makecontext(&c->ctx, porf_coro_ucontext_bootstrap, 0);
-    c->ctx_init = 1;
-  }
-  porf_coro_starting = c;
-  if (swapcontext(&c->caller_ctx, &c->ctx) != 0) abort();
-#else
-  if (_setjmp(c->caller_pt) == 0) porf_coro_switch_start(c->stack_top, c, fn, arg);
-#endif
-  porf_try_depth = outer_try; // suspension left the coroutine's depth active
-  porf_coro_restore_caller(c);
-  return c->state == 3;
-}
-
-__attribute__((noinline))
-static jsval porf_coro_suspend(jsval out, i32 delegate) {
-  porf_coro* c = porf_coro_cur;
-  if (!c) porf_unreachable("await outside coroutine");
-  c->channel = out;
-  porf_coro_save_try_stack(c);
-  porf_coro_live_add(c);
-  c->state = 2;
-#if PORF_CORO_USE_UCONTEXT
-  c->sp = porf_coro_read_sp();
-  porf_coro_set_current_stack_top(c->caller_stack_top);
-  if (swapcontext(&c->ctx, &c->caller_ctx) != 0) abort();
-#else
-  if (_setjmp(c->resume_pt) == 0) {
-    c->sp = porf_coro_read_sp();
-    porf_coro_set_current_stack_top(c->caller_stack_top);
-    _longjmp(c->caller_pt, 1);
-  }
-#endif
-  // resumed: stack + try entries restored; deliver value or throw
+// yield* gets throw/return as values, porf_yield_mode says which
+static inline jsval porf_coro_received(porf_coro_call* c, i32 delegate) {
+  c->resume = 0;
   if (c->throw_pending) {
     c->throw_pending = 0;
     if (!delegate) porf_throw(c->channel);
     porf_coro_mode = porf_jv_eq(c->channel, PORF_CORO_RETURN) ? 2 : 1;
-    return porf_coro_mode == 2 ? ((porf_coro_call*)c)->result : c->channel;
+    return porf_coro_mode == 2 ? c->result : c->channel;
   }
   porf_coro_mode = 0;
   return c->channel;
 }
 
-__attribute__((noinline))
-static int porf_coro_resume_inner(porf_coro* c, jsval in, i32 is_throw) {
-  if (c->state != 2) porf_unreachable("resume of non-suspended coroutine");
-  porf_coro_live_remove(c);
-  c->sp = 0;
-  c->channel = in;
-  c->raw = 0;
-  c->awaiting = 0;
-  c->throw_pending = is_throw;
-  c->state = 1;
-  volatile i32 my_try = porf_try_depth;
-  porf_coro_restore_try_stack(c);
-  porf_coro_prepare_run(c);
-#if PORF_CORO_USE_UCONTEXT
-  if (swapcontext(&c->caller_ctx, &c->ctx) != 0) abort();
-#else
-  if (_setjmp(c->caller_pt) == 0) _longjmp(c->resume_pt, 1);
+// 0 if v is a pending promise, else *v = its result
+static inline i32 porf_await_ready(jsval* v) {
+  if (porf_jv_type(*v) != ${TYPES.promise}) return 1;
+  const u32 p = (u32)v->val;
+  const u8 state = *(u8*)(MEM + p + PORF_PROMISE_STATE);
+  if (state == 0) return 0;
+  *(u8*)(MEM + p + PORF_PROMISE_HANDLED) = 1;
+  const jsval r = porf_unpack(*(jsbits*)(MEM + p + PORF_PROMISE_RESULT));
+  if (state == 2) porf_throw(r);
+  *v = r;
+  return 1;
+}
+
+#if PORF_GC_ENABLED
+static void porf_coro_gc_scan(porf_coro_call* call) {
+  porf_gc_mark_js(call->callee.val, call->callee.type);
+  porf_gc_mark_js(call->thisv.val, call->thisv.type);
+  porf_gc_mark_js(call->newtv.val, call->newtv.type);
+  porf_gc_mark_js(call->result.val, call->result.type);
+  porf_gc_mark_js(call->channel.val, call->channel.type);
+  porf_gc_mark_js(call->iter_open.val, call->iter_open.type);
+  if (call->state == 1) porf_gc_mark_js(call->caller_iter_open.val, call->caller_iter_open.type);
+  const jsbits* argv = porf_coro_argv(call);
+  for (i32 i = 0; i < call->argc; i++) porf_gc_mark_jsbits(argv[i]);
+  if (call->state == 2) {
+    const u8* frame = (const u8*)porf_coro_frame(call);
+    porf_gc_cons_scan_range((const u64*)frame, (const u64*)(frame + call->frame_size));
+  }
+}
 #endif
-  porf_try_depth = my_try; // restore resumer's depth (coroutine's was active)
+
+static void porf_coro_restore_caller(porf_coro_call* c) {
+  porf_coro_cur = c->parent;
+  c->iter_open = porf_iter_open;
+  porf_iter_open = c->caller_iter_open;
+  porf_iter_base = c->caller_iter_base;
+  porf_coro_touch(c);
+}
+
+static i32 porf_coro_run(porf_coro_call* c) {
+  c->state = 1;
+  c->parent = porf_coro_cur;
+  porf_coro_cur = c;
+  c->caller_iter_open = porf_iter_open;
+  c->caller_iter_base = porf_iter_base;
+  porf_coro_touch(c);
+  porf_iter_open = c->iter_open;
+  porf_iter_base = porf_try_depth;
+  const jsval r = porf_coro_dispatch(c);
+  if (c->resume == 0) c->result = r;
   porf_coro_restore_caller(c);
+  c->state = c->resume != 0 ? 2 : 3;
   return c->state == 3;
 }
-static int porf_coro_resume(porf_coro* c, jsval in) { return porf_coro_resume_inner(c, in, 0); }
-static int porf_coro_resume_throw(porf_coro* c, jsval err) { return porf_coro_resume_inner(c, err, 1); }
 
-static jsval porf_await(jsval v) {
-  if (!porf_coro_cur) return v;
-  if (porf_jv_type(v) != ${TYPES.promise}) return v;
-
-  const u32 p = (u32)v.val;
-  const u8 state = *(u8*)(MEM + p + PORF_PROMISE_STATE);
-  if (state) *(u8*)(MEM + p + PORF_PROMISE_HANDLED) = 1;
-  if (state == 1) return porf_unpack(*(jsbits*)(MEM + p + PORF_PROMISE_RESULT));
-  if (state == 2) porf_throw(porf_unpack(*(jsbits*)(MEM + p + PORF_PROMISE_RESULT)));
-
-  porf_coro_cur->awaiting = 1;
-  return porf_coro_suspend(v, 0);
-}
-static jsval porf_yield(jsval v) {
-  return porf_coro_suspend(v, 0);
+static i32 porf_coro_call_step(porf_coro_call* call, jsval value, i32 is_throw) {
+  if (call->state == 0) return porf_coro_run(call);
+  if (call->state != 2) porf_unreachable("resume of non-suspended coroutine");
+  call->channel = value;
+  call->raw = 0;
+  call->awaiting = 0;
+  call->throw_pending = is_throw;
+  porf_coro_touch(call);
+  return porf_coro_run(call);
 }
 
-// yield* gets throw and return as values, porf_yield_mode says which
-static jsval porf_yield_delegate(jsval v) {
-  return porf_coro_suspend(v, 1);
+static void porf_coro_abort(porf_coro_call* call) {
+  porf_coro_restore_caller(call);
+  porf_coro_finish(call);
 }
+
+static porf_coro_call* porf_coro_promote(porf_coro_call* c) {
+  if (c->heap) return c;
+  porf_coro_call* h = porf_coro_alloc(PORF_GC_KIND_CORO, c->frame_size, 0);
+  const u32 heap = h->heap;
+  memcpy(h, c, PORF_CORO_HDR + c->frame_size);
+  h->heap = heap;
+  h->argc = 0;
+  h->parent = 0;
+  return h;
+}
+
 static i32 porf_yield_mode(void) {
   return porf_coro_mode;
 }

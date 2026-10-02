@@ -881,7 +881,7 @@ const generateYield = (scope, decl) => {
         emitIf(scope, Bin('==', T.i32, mode, Const(T.i32, 2)), () => generateReturn(scope, { type: 'ReturnStatement', argument: identNode(value[N_A]) }));
         stmt(scope, Break(L));
       });
-      assign(scope, received, Call('porf_yield_delegate', [ value ], T.jsval));
+      assign(scope, received, Yield(value, 1));
       assign(scope, mode, Call('porf_yield_mode', [], T.i32));
     }), L));
     return value;
@@ -1250,6 +1250,7 @@ const materializeIRBuiltin = (func, name, def) => {
   func.returnType = def.returnType;
   func.returnTypes = def.returnTypes;
   func.constr = !!def.constr;
+  func.async = func.hasAwait = !!def.async;
   func.locals = Object.create(null);
   for (const p of func.params) func.locals[p.name] = { type: p.type, metadata: { param: true } };
   if (def.localTypes) {

@@ -1,7 +1,7 @@
 // @porf --closures
 import type {} from './porffor.d.ts';
 
-// generators are fiber-stack coroutines (runtime in render.js): yield/await suspend, the
+// generators are stackless coroutines (runtime in render.js): yield/await suspend, the
 // generator value is the coroutine handle. C owns only the mechanism (Porffor.coroutine.*),
 // the iterator protocol and { value, done } results live here.
 

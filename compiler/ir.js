@@ -97,7 +97,7 @@ export const K = {
 
   // coroutines
   Await: k++,    // a: jsval -> jsval
-  Yield: k++,    // a: jsval -> jsval
+  Yield: k++,    // a: jsval -> jsval, b: 1 = yield* (throw/return arrive as values)
 
   // alloc / gc
   Alloc: k++,    // a: bytes expr, b: typeId, c: [siteId, raw]
@@ -362,7 +362,7 @@ export const ThrowNew = (errTypeId, msgId) => [K.ThrowNew, T.none, FX.call, errT
 
 // coroutines
 export const Await = jv => [K.Await, T.jsval, FX.call | fxOf(jv), jv, 0, 0];
-export const Yield = jv => [K.Yield, T.jsval, FX.call | fxOf(jv), jv, 0, 0];
+export const Yield = (jv, delegate = 0) => [K.Yield, T.jsval, FX.call | fxOf(jv), jv, delegate, 0];
 
 // alloc / gc
 export const Alloc = (bytes, typeId) =>

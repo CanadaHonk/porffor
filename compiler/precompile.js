@@ -447,6 +447,7 @@ const precompile = async () => {
     if (x.selfAware) meta.selfAware = 1;
     if (x.hasRestArgument) meta.hasRestArgument = 1;
     if (x.usesArguments) meta.usesArguments = 1;
+    if (x.async) meta.async = 1;
     x._metaValue = meta;
     x._metaStream = streamOf(meta);
     streams.push(x._metaStream);
