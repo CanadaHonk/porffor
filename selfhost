@@ -196,7 +196,7 @@ const quote = value => {
 
 const commandText = (cmd, args) => [ cmd, ...args ].map(quote).join(' ');
 let printedCommand = false;
-const hostPorfDebugArgs = opts => [ '-d', ...opts.porfFlags ];
+const hostPorfDebugArgs = opts => [ ...(opts.release ? [] : [ '-d' ]), ...opts.porfFlags ];
 const porfDebugArgs = opts => [ ...opts.porfFlags ];
 const commandExists = cmd => spawnSync(cmd, [ '--version' ], { stdio: 'ignore' }).status === 0;
 const bundleCommand = () => process.env.SELFHOST_BUNDLE_CMD ?? (commandExists('bun') ? 'bun' : 'node');

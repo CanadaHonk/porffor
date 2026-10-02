@@ -2070,7 +2070,7 @@ const generateCall = (scope, decl) => {
     calleeVal = generateMember(scope, callee, thisVal);
   } else {
     calleeVal = generate(scope, decl.callee);
-    thisVal = decl._thisArg ? reuse(scope, generate(scope, decl._thisArg)) : createThisArg(scope, decl);
+    if (!decl._new) thisVal = decl._thisArg ? reuse(scope, generate(scope, decl._thisArg)) : createThisArg(scope, decl);
   }
   calleeVal = reuse(scope, calleeVal);
 
@@ -2083,8 +2083,14 @@ const generateCall = (scope, decl) => {
 
   const argVals = hasSpread ? [] : userArgs.map(a => reuse(scope, generate(scope, a)));
 
-  if (decl._new) emitIf(scope, JvFalsy(builtinCall(scope, '__ecma262_IsConstructor', [ calleeVal ])),
-    () => internalThrow(scope, 'TypeError', 'value is not a constructor'));
+  if (decl._new) {
+    emitIf(scope, JvFalsy(builtinCall(scope, '__ecma262_IsConstructor', [ calleeVal ])),
+      () => internalThrow(scope, 'TypeError', `${Prefs.d ? exprText(callee) : 'value'} is not a constructor`));
+    thisVal = decl._thisArg ? reuse(scope, generate(scope, decl._thisArg)) : createThisArg(scope, decl);
+  } else if (Prefs.d) {
+    emitIf(scope, Bin('!=', T.i32, JvType(calleeVal), Const(T.i32, TYPES.function)),
+      () => internalThrow(scope, 'TypeError', `${exprText(callee)} is not a function`));
+  }
 
   return CallDynamic(calleeVal, coerceValue(thisVal, T.jsval), argVals, decl._new ? calleeVal : null, spreadArr);
 };
@@ -2803,10 +2809,19 @@ const propertyNameForError = decl => {
   if (value !== unknownValue && value !== undefined) return String(value);
 };
 
+const exprText = node => {
+  if (node.type === 'Identifier') return unhackName(node.name);
+  if (node.type === 'ThisExpression') return 'this';
+  if (node.type === 'MemberExpression' && !node.computed) return `${exprText(node.object)}.${node.property.name}`;
+  if (node.type === 'MemberExpression' && node.property.type === 'Literal') return `${exprText(node.object)}[${JSON.stringify(node.property.value)}]`;
+  return '(intermediate value)';
+};
+
 const propertyErrorMessage = (action, target, decl) => {
-  if (Prefs.d) {
-    const name = decl && propertyNameForError(decl);
-    if (name != null) return `Cannot ${action} property '${name}' of ${target}`;
+  if (Prefs.d && decl) {
+    const name = propertyNameForError(decl);
+    const object = exprText(decl.object);
+    return `Cannot ${action} property ${name != null ? `'${name}' ` : ''}of ${target}` + (object !== '(intermediate value)' ? ` (${object})` : '');
   }
   return `Cannot ${action} property of ${target}`;
 };
@@ -3101,6 +3116,9 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       ...(objectKnownValue === null ? [ [ TYPES.object, () => {
         if (op === '=') exprStmt(scope, simpleValue);
         return internalThrow(scope, 'TypeError', propertyErrorMessage(op === '=' ? 'set' : 'read', 'null', decl.left));
+      } ] ] : Prefs.d ? [ [ TYPES.object, () => {
+        emitIf(scope, Bin('==', T.i32, JvPtr(obj), Const(T.u32, 0)), () => internalThrow(scope, 'TypeError', propertyErrorMessage(op === '=' ? 'set' : 'read', 'null', decl.left)));
+        return genericMemberSet();
       } ] ] : []),
       [ 'default', genericMemberSet ]
     ];
@@ -4246,9 +4264,13 @@ const generateMember = (scope, decl, objValue = null) => {
     [ 'default', () => genericMemberGet() ]
   ];
 
-  // -d: undefined errors include the property name
-  if (Prefs.d)
-    genericMemberGetBC.unshift([ TYPES.undefined, () => internalThrow(scope, 'TypeError', propertyErrorMessage('read', 'undefined', decl)) ]);
+  // -d: nullish errors include the property name
+  if (Prefs.d) genericMemberGetBC.unshift(
+    [ TYPES.undefined, () => internalThrow(scope, 'TypeError', propertyErrorMessage('read', 'undefined', decl)) ],
+    [ TYPES.object, () => {
+      emitIf(scope, Bin('==', T.i32, JvPtr(obj), Const(T.u32, 0)), () => internalThrow(scope, 'TypeError', propertyErrorMessage('read', 'null', decl)));
+      return genericMemberGet();
+    } ]);
 
   const lengthMemberGet = () => {
     const lengthVal = () => Box(Convert(T.f64, LenGet(JvPtr(obj))), Const(T.i32, TYPES.number));
