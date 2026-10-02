@@ -524,3 +524,5 @@ export const __JSON_parse = (_: bytestring) => {
 
   return __Porffor_json_parseValue(_, posPtr, _.length);
 };
+
+export const __JSON_$$toStringTag = 'JSON';

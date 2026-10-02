@@ -100,6 +100,8 @@ export const __ArrayBuffer_prototype_resize = function (this: ArrayBuffer, newLe
   throw new TypeError('Called ArrayBuffer.prototype.resize on a non-resizable ArrayBuffer');
 };
 
+export const __ArrayBuffer_prototype_$$toStringTag = 'ArrayBuffer';
+
 
 export const SharedArrayBuffer = function (length: any): SharedArrayBuffer {
   // 1. If NewTarget is undefined, throw a TypeError exception.
@@ -161,3 +163,5 @@ export const __SharedArrayBuffer_prototype_grow = function (this: SharedArrayBuf
   // todo: growable not implemented yet so just always fail
   throw new TypeError('Called SharedArrayBuffer.prototype.grow on a non-growable SharedArrayBuffer');
 };
+
+export const __SharedArrayBuffer_prototype_$$toStringTag = 'SharedArrayBuffer';

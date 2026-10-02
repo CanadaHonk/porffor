@@ -15,5 +15,4 @@ export const __WeakRef_prototype_deref = function (this: WeakRef) {
   return Porffor.IR.loadJv(this, 0);
 };
 
-export const __WeakRef_prototype_toString = function (this: WeakRef) { return '[object WeakRef]'; };
-export const __WeakRef_prototype_toLocaleString = function (this: WeakRef) { return Porffor.callThis(__WeakRef_prototype_toString, this); };
+export const __WeakRef_prototype_$$toStringTag = 'WeakRef';

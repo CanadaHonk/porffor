@@ -1,0 +1,31 @@
+{
+  "editor.formatOnSave": false,
+  "editor.formatOnPaste": false,
+  "editor.formatOnType": false,
+  "editor.defaultFormatter": "vscode.typescript-language-features",
+  "js/ts.format.enable": false,
+  "eslint.format.enable": false,
+  "prettier.enable": false,
+  "prettier.requireConfig": true,
+  "[javascript]": {
+    "editor.formatOnSave": false,
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false,
+    "editor.defaultFormatter": "TypeScriptTeam.native-preview"
+  },
+  "[typescript]": {
+    "editor.formatOnSave": false,
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false,
+    "editor.defaultFormatter": "TypeScriptTeam.native-preview"
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "never",
+    "source.fixAll.eslint": "never",
+    "source.organizeImports": "never",
+    "source.organizeImports.biome": "never",
+    "source.removeUnusedImports": "never",
+    "source.addMissingImports.ts": "never",
+    "source.sortImports": "never"
+  }
+}

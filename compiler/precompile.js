@@ -2,6 +2,7 @@
 import { TYPES, TYPE_NAMES } from './types.js';
 import { K } from './ir.js';
 import { ieee754_binary64 } from './encoding.js';
+import parse from './parser/index.js';
 
 import process from 'node:process';
 globalThis.process = process;
@@ -17,6 +18,7 @@ globalThis.precompile = true;
 const argv = process.argv.slice();
 const timing = {};
 let defaultPrefs = null;
+const consts = Object.create(null);
 
 const compile = async (file, _funcs) => {
   let source = fs.readFileSync(file, 'utf8');
@@ -25,6 +27,14 @@ const compile = async (file, _funcs) => {
   if (first.startsWith('export default')) {
     source = await (await import('file://' + file)).default({ TYPES, TYPE_NAMES });
     first = source.slice(0, source.indexOf('\n'));
+  }
+
+  for (const node of parse(source, {module: true, ts: true}).body) {
+    if (node.type !== 'ExportNamedDeclaration') continue;
+    if (node.declaration?.type !== 'VariableDeclaration') continue;
+    for (const decl of node.declaration.declarations) {
+      if (decl.id?.type === 'Identifier') consts[decl.id.name] = decl.init.value;
+    }
   }
 
   let args = ['--module', '--fast-length', '--parse-types', '--opt-types', '--no-closures', '--never-fallback-builtin-proto', '--no-ic'];
@@ -535,7 +545,8 @@ export const BuiltinFuncs = x => {
       set: materialize
     });
   }
-}`;
+}
+export const BuiltinConsts = ${JSON.stringify(consts)};`;
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {

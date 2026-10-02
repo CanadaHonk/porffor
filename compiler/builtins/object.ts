@@ -650,22 +650,45 @@ export const __Object_prototype_toString = function (this: any) {
   // 2. If the this value is null, return "[object Null]".
   if (this === null) return '[object Null]';
 
-  // todo: toStringTag support
-  if (Porffor.type(this) == Porffor.TYPES.array) return '[object Array]';
-  if (Porffor.type(this) == Porffor.TYPES.function) return '[object Function]';
-  if (Porffor.fastOr(
-    Porffor.type(this) == Porffor.TYPES.boolean,
-    Porffor.type(this) == Porffor.TYPES.booleanobject)) return '[object Boolean]';
-  if (Porffor.fastOr(
-    Porffor.type(this) == Porffor.TYPES.number,
-    Porffor.type(this) == Porffor.TYPES.numberobject)) return '[object Number]';
-  if (Porffor.fastOr(
-    (Porffor.type(this) | 0b10000000) == Porffor.TYPES.bytestring,
-    Porffor.type(this) == Porffor.TYPES.stringobject)) return '[object String]';
-  if (Porffor.type(this) == Porffor.TYPES.date) return '[object Date]';
-  if (Porffor.type(this) == Porffor.TYPES.regexp) return '[object RegExp]';
+  let builtinTag = '';
 
-  return '[object Object]';
+  if (Porffor.type(this) == Porffor.TYPES.array) {
+    builtinTag = 'Array';
+  } else if (Porffor.type(this) == Porffor.TYPES.function) {
+    builtinTag = 'Function';
+  } else if (
+    Porffor.fastOr(
+      Porffor.type(this) == Porffor.TYPES.boolean,
+      Porffor.type(this) == Porffor.TYPES.booleanobject,
+    )
+  ) {
+    builtinTag = 'Boolean';
+  } else if (
+    Porffor.fastOr(
+      Porffor.type(this) == Porffor.TYPES.number,
+      Porffor.type(this) == Porffor.TYPES.numberobject,
+    )
+  ) {
+    builtinTag = 'Number';
+  } else if (
+    Porffor.fastOr(
+      (Porffor.type(this) | 0b10000000) == Porffor.TYPES.bytestring,
+      Porffor.type(this) == Porffor.TYPES.stringobject,
+    )
+  ) {
+    builtinTag = 'String';
+  } else if (Porffor.type(this) == Porffor.TYPES.date) {
+    builtinTag = 'Date';
+  } else if (Porffor.type(this) == Porffor.TYPES.regexp) {
+    builtinTag = 'RegExp';
+  } else {
+    builtinTag = 'Object';
+  }
+
+  let tag = Porffor.object.get(this, Symbol.toStringTag);
+  if (typeof tag !== 'string') tag = builtinTag;
+
+  return `[object ${tag}]`;
 };
 
 export const __Object_prototype_toLocaleString = function (this: any) { return Porffor.callThis(__Object_prototype_toString, this); };
