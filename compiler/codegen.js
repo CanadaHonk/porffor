@@ -1913,7 +1913,9 @@ const generateCall = (scope, decl) => {
         if (e.name === 'SyntaxError') return internalThrow(scope, 'SyntaxError', e.message);
         throw e;
       }
-      return generate(scope, parsed.body[0].expression);
+      const fn = parsed.body[0].expression;
+      fn.strict = false;
+      return generate(scope, fn);
     }
   }
 
@@ -4777,7 +4779,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     async: decl.async,
     generator: decl.generator,
     subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _noGlobalThis: decl._noGlobalThis,
-    strict: scope.strict || decl.strict,
+    strict: decl.strict ?? scope.strict,
     usesArguments: decl._usesArguments,
     ast: decl,
     unit: decl._unit ?? scope.unit,
