@@ -4911,11 +4911,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
         if (args[i].rest) {
           setLocalWithType(func, argName, false, Local('#rest', T.jsval), false, TYPES.array);
-          if (hasClosureOwnEnv(func) && func.closureOwnLocals?.[argName]) mirrorToClosureEnv(func, argName);
-          continue;
-        }
-
-        if (def) {
+        } else if (def) {
           const ref = Local(argName, func.locals[argName]?.type ?? T.jsval);
           if (ref[N_TYPE] === T.jsval) emitIf(func, Bin('==', T.i32, JvType(ref), Const(T.i32, TYPES.undefined)), () => {
             const known = getNodeType(func, def);
