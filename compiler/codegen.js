@@ -3058,12 +3058,12 @@ const generateAssign = (scope, decl, valueUnused = false) => {
 
     const taAddr = size => reuse(scope, Bin('+', T.u32, Load('u32', JvPtr(obj), 4),
       size === 1 ? Convert(T.u32, numValue(prop), 0) : Bin('*', T.u32, Convert(T.u32, numValue(prop), 0), Const(T.u32, size))));
-    const taSet = (ctype, size, signed) => () => {
+    const taSet = (ctype, size) => () => {
       const addr = taAddr(size);
       const v = reuse(scope, op === '=' ? simpleValue
         : performOp(scope, op, Box(Convert(T.f64, Load(ctype, addr, 4)), Const(T.i32, TYPES.number)), generate(scope, decl.right), TYPES.number, getNodeType(scope, decl.right)));
       const f = numValue(v);
-      stmt(scope, Store(ctype, addr, 4, ctype === 'f64' || ctype === 'f32' ? f : signed ? Convert(T.i32, f) : Convert(T.u32, f, 0)));
+      stmt(scope, Store(ctype, addr, 4, ctype === 'f64' || ctype === 'f32' ? f : toUint32(scope, f)));
       return v[N_TYPE] === T.jsval ? v : valNumber(v);
     };
     const taSetClamped = () => {
@@ -3083,15 +3083,15 @@ const generateAssign = (scope, decl, valueUnused = false) => {
 
     const indexedMemberSetBC = [
       [ TYPES.array, arraySet ],
-      [ TYPES.uint8array, taSet('u8', 1, false) ],
+      [ TYPES.uint8array, taSet('u8', 1) ],
       [ TYPES.uint8clampedarray, taSetClamped ],
-      [ TYPES.int8array, taSet('i8', 1, true) ],
-      [ TYPES.uint16array, taSet('u16', 2, false) ],
-      [ TYPES.int16array, taSet('i16', 2, true) ],
-      [ TYPES.uint32array, taSet('u32', 4, false) ],
-      [ TYPES.int32array, taSet('i32', 4, true) ],
-      [ TYPES.float32array, taSet('f32', 4, false) ],
-      [ TYPES.float64array, taSet('f64', 8, false) ],
+      [ TYPES.int8array, taSet('i8', 1) ],
+      [ TYPES.uint16array, taSet('u16', 2) ],
+      [ TYPES.int16array, taSet('i16', 2) ],
+      [ TYPES.uint32array, taSet('u32', 4) ],
+      [ TYPES.int32array, taSet('i32', 4) ],
+      [ TYPES.float32array, taSet('f32', 4) ],
+      [ TYPES.float64array, taSet('f64', 8) ],
       [ TYPES.bigint64array, taSetBig ],
       [ TYPES.biguint64array, taSetBig ]
     ];
