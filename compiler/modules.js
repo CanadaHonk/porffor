@@ -243,6 +243,7 @@ export default (entrySource, entryFile, opts = {}) => {
     modules.set(file, mod);
 
     if (kind === 'json' || kind === 'text') {
+      mod.json = kind === 'json';
       mod.body = [ varDecl('const', 'default', kind === 'json' ? jsonToAst(JSON.parse(source)) : literal(source)) ];
       mod.exports.set('default', { local: 'default' });
       return mod;
@@ -413,7 +414,7 @@ export default (entrySource, entryFile, opts = {}) => {
     const requireTarget = node => {
       if (node.callee.type !== 'Identifier' || node.callee.name !== 'require' || shadowed('require') || node.arguments.length !== 1 || typeof node.arguments[0].value !== 'string') return null;
       const d = dep(mod, { source: node.arguments[0] }, true);
-      return d.error ? throwExpr(d.error) : d.esm ? ident(nsName(d)) : exportsOf(d);
+      return d.error ? throwExpr(d.error) : d.json ? ident(globalName(d, 'default')) : d.esm ? ident(nsName(d)) : exportsOf(d);
     };
     const scoped = (names, fn) => { scopes.push(names); fn(); scopes.pop(); };
     const walkKeys = node => {
