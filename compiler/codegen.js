@@ -1014,7 +1014,7 @@ const toUint32 = (scope, d) => {
   const w = reuse(scope, Bin('-', T.f64, t, Bin('*', T.f64,
     Un('trunc', T.f64, Bin('/', T.f64, t, Const(T.f64, 4294967296))), Const(T.f64, 4294967296))));
   return Convert(T.u32, Select(Bin('<', T.f64, w, Const(T.f64, 0)),
-    Bin('+', T.f64, w, Const(T.f64, 4294967296)), w), CONVERT_RANGE_KNOWN);
+    Bin('+', T.f64, w, Const(T.f64, 4294967296)), w));
 };
 
 // bitwise on f64s: ToUint32 both, run it as i32, mask shifts, back to f64
@@ -3209,7 +3209,7 @@ const generateUnary = (scope, decl) => {
 
     case '~':
       // todo: proper bigint support
-      return Box(Convert(T.f64, Un('~', T.i32, Convert(T.i32, numValue(toNumeric())))), Const(T.i32, TYPES.number));
+      return Box(Convert(T.f64, Un('~', T.i32, Convert(T.i32, toUint32(scope, numValue(toNumeric())), CONVERT_RANGE_KNOWN | CONVERT_SIGNED)), CONVERT_SIGNED), Const(T.i32, TYPES.number));
 
     case '!': {
       const arg = decl.argument;
