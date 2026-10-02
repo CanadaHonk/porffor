@@ -1397,7 +1397,7 @@ export const __Porffor_regex_parseTerm = (): i32 => {
       if (c2 == 61 || c2 == 33) { // (?= (?!
         __Porffor_regex_pPos += 3;
         const look: i32 = __Porffor_regex_node(7, c2 == 33 ? 1 : 0);
-        Porffor.IR.storeI32(__Porffor_regex_nPtr(look), 12, __Porffor_regex_parseDisjunction());
+        __Porffor_regex_appendChild(look, __Porffor_regex_parseDisjunction());
         if (__Porffor_regex_pAt(__Porffor_regex_pPos) != 41) __Porffor_regex_err('Regex parse: unmatched (');
         __Porffor_regex_pPos += 1;
         if (!uvMode) return __Porffor_regex_parseQuantifier(look); // lookahead is quantifiable per annexB
@@ -1408,7 +1408,7 @@ export const __Porffor_regex_parseTerm = (): i32 => {
         if (c3 == 61 || c3 == 33) { // lookbehind
           __Porffor_regex_pPos += 4;
           const look: i32 = __Porffor_regex_node(7, (c3 == 33 ? 1 : 0) | 2);
-          Porffor.IR.storeI32(__Porffor_regex_nPtr(look), 12, __Porffor_regex_parseDisjunction());
+          __Porffor_regex_appendChild(look, __Porffor_regex_parseDisjunction());
           if (__Porffor_regex_pAt(__Porffor_regex_pPos) != 41) __Porffor_regex_err('Regex parse: unmatched (');
           __Porffor_regex_pPos += 1;
           return look;
@@ -1421,7 +1421,7 @@ export const __Porffor_regex_parseTerm = (): i32 => {
         __Porffor_regex_addName(name, capIdx);
         const g: i32 = __Porffor_regex_node(6, 0);
         Porffor.IR.storeI32(__Porffor_regex_nPtr(g), 4, capIdx);
-        Porffor.IR.storeI32(__Porffor_regex_nPtr(g), 12, __Porffor_regex_parseDisjunction());
+        __Porffor_regex_appendChild(g, __Porffor_regex_parseDisjunction());
         if (__Porffor_regex_pAt(__Porffor_regex_pPos) != 41) __Porffor_regex_err('Regex parse: unmatched (');
         __Porffor_regex_pPos += 1;
         return __Porffor_regex_parseQuantifier(g);
@@ -1429,7 +1429,7 @@ export const __Porffor_regex_parseTerm = (): i32 => {
       if (c2 == 58) { // (?:
         __Porffor_regex_pPos += 3;
         const g: i32 = __Porffor_regex_node(6, 1);
-        Porffor.IR.storeI32(__Porffor_regex_nPtr(g), 12, __Porffor_regex_parseDisjunction());
+        __Porffor_regex_appendChild(g, __Porffor_regex_parseDisjunction());
         if (__Porffor_regex_pAt(__Porffor_regex_pPos) != 41) __Porffor_regex_err('Regex parse: unmatched (');
         __Porffor_regex_pPos += 1;
         return __Porffor_regex_parseQuantifier(g);
@@ -1442,7 +1442,7 @@ export const __Porffor_regex_parseTerm = (): i32 => {
     __Porffor_regex_pCaps += 1;
     const g: i32 = __Porffor_regex_node(6, 0);
     Porffor.IR.storeI32(__Porffor_regex_nPtr(g), 4, capIdx);
-    Porffor.IR.storeI32(__Porffor_regex_nPtr(g), 12, __Porffor_regex_parseDisjunction());
+    __Porffor_regex_appendChild(g, __Porffor_regex_parseDisjunction());
     if (__Porffor_regex_pAt(__Porffor_regex_pPos) != 41) __Porffor_regex_err('Regex parse: unmatched (');
     __Porffor_regex_pPos += 1;
     return __Porffor_regex_parseQuantifier(g);
