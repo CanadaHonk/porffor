@@ -323,7 +323,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
 
     // add constructor for constructors
     const name = x.slice(2, x.indexOf('_', 2));
-    if (builtinFuncs[name]?.constr) {
+    if (name in builtinFuncs) {
       const value = (_scope, { funcRefPtr }) => Box(funcRefPtr(name), Const(T.i32, TYPES.function));
       value.type = TYPES.function;
 
