@@ -473,7 +473,7 @@ const precompile = async () => {
     if (!eq(x._metaValue, rebuiltMeta)) throw new Error(`precompile meta roundtrip failed for ${x.name}`);
   }
 
-  // one record per builtin: name \x01 body \x01 meta [\x01 global \x01 init ...]
+  // one record per builtin: [ name, body, meta, global, init, ... ]
   const records = funcs.map(x => [
     x.name,
     huffEncode(x._bodyStream, codes),
@@ -481,7 +481,7 @@ const precompile = async () => {
     ...(x._globalInitStreams
       ? Object.keys(x._globalInitStreams).flatMap(g => [ g, huffEncode(x._globalInitStreams[g], codes) ])
       : [])
-  ].join('\x01'));
+  ]);
 
   const flatTree = [];
   const flattenTree = node => {
@@ -512,10 +512,10 @@ const b = data => {
   return out;
 };
 
-// one \\x02-separated record per builtin: name \\x01 body \\x01 meta [\\x01 global \\x01 init ...].
+// one record per builtin: [ name, body, meta, global, init, ... ].
 // entries are registered as replace-on-first-read accessors, so a compile only decodes the
-// builtins it actually touches and the table stays one flat string instead of generated code
-const funcsTable = ${JSON.stringify(records.join('\x02'))};
+// builtins it actually touches
+const funcsTable = ${JSON.stringify(records)};
 const entryOf = parts => {
   const entry = unflatten({ tokens: huffDecode(parts[2]), i: 0 });
   entry.body = b(parts[1]);
@@ -524,8 +524,7 @@ const entryOf = parts => {
 };
 
 export const BuiltinFuncs = x => {
-  for (const rec of funcsTable.split('\\x02')) {
-    const parts = rec.split('\\x01');
+  for (const parts of funcsTable) {
     const name = parts[0];
     if (name in x) { x[name] = entryOf(parts); continue; } // assignment: comptime wrappers merge via their setter
     const materialize = v => Object.defineProperty(x, name, { value: v, writable: true, enumerable: true, configurable: true });
