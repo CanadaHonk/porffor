@@ -212,10 +212,14 @@ export const BuiltinVars = ({ builtinFuncs }) => {
   };
 
   const builtinFuncKeys = Object.keys(builtinFuncs);
-  const autoFuncKeys = name => {
-    const prefix = makePrefix(name);
-    return builtinFuncKeys.filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length)).filter(x => !x.startsWith('prototype_'));
-  };
+  // __Array_prototype_at -> __Array_prototype_: [ at ]
+  const funcKeysByPrefix = Object.create(null);
+  for (const x of builtinFuncKeys) {
+    const ind = x.indexOf('_prototype_');
+    const split = ind === -1 ? x.indexOf('_', 2) : ind + 10;
+    (funcKeysByPrefix[x.slice(0, split + 1)] ??= []).push(x.slice(split + 1));
+  }
+  const autoFuncKeys = name => funcKeysByPrefix[makePrefix(name)] ?? [];
   const autoFuncs = name => ({
     ...props({
       writable: true,
