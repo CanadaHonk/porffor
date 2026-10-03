@@ -4578,36 +4578,30 @@ const generateClass = (scope, decl) => {
 };
 
 const generateTemplate = (scope, decl) => {
-  let current = null;
-  const append = val => {
-    if (val.value && !byteStringable(val.value)) decl._type = TYPES.string;
+  const parts = [];
+  const { expressions, quasis } = decl;
+  for (let i = 0; i < quasis.length; i++) {
+    const value = quasis[i].value.cooked;
+    if (!byteStringable(value)) decl._type = TYPES.string;
+    parts.push({ type: 'Literal', value });
 
-    if (!current) {
-      current = val;
-      return;
-    }
+    if (i < expressions.length) parts.push(expressions[i]);
+  }
 
-    current = {
+  // balanced so big templates copy each part log(n) times, not n
+  const concat = (start, end) => {
+    if (end - start === 1) return parts[start];
+
+    const mid = (start + end) >> 1;
+    return {
       type: 'BinaryExpression',
       operator: '+',
-      left: current,
-      right: val
+      left: concat(start, mid),
+      right: concat(mid, end)
     };
   };
 
-  const { expressions, quasis } = decl;
-  for (let i = 0; i < quasis.length; i++) {
-    append({
-      type: 'Literal',
-      value: quasis[i].value.cooked
-    });
-
-    if (i < expressions.length) {
-      append(expressions[i]);
-    }
-  }
-
-  return generate(scope, current);
+  return generate(scope, concat(0, parts.length));
 };
 
 const generateTaggedTemplate = (scope, decl) => {
