@@ -1163,7 +1163,18 @@ const generateBinaryExp = (scope, decl) => {
     }
   }
 
-  return performOp(scope, decl.operator, generate(scope, decl.left), generate(scope, decl.right), getNodeType(scope, decl.left), getNodeType(scope, decl.right));
+  let left = generate(scope, decl.left);
+  const block = curBlock(scope), len = block.length;
+  const right = generate(scope, decl.right);
+
+  // right emitted statements: evaluate left before them
+  if (block.length !== len && left[N_FX] !== FX.none) {
+    const lhs = local(scope, `#lhs${scope.labelId++}`, left[N_TYPE]);
+    block.splice(len, 0, Assign(lhs, left));
+    left = lhs;
+  }
+
+  return performOp(scope, decl.operator, left, right, getNodeType(scope, decl.left), getNodeType(scope, decl.right));
 };
 
 const usesAnyType = types => {
