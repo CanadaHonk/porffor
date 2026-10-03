@@ -879,16 +879,17 @@ const renderBench = (rows, opts, started) => {
     return [ hostCell, selfCell ];
   };
 
+  const [ hostLabel, selfLabel ] = opts.compare != null ? [ 'old', 'new' ] : [ 'host', 'self' ];
   const lines = [ '' ];
   const header = [
     fit(dim('case'), w.case + 2),
-    fit(dim('host'), w.time, true),
-    fit(dim('self'), w.time, true),
+    fit(dim(hostLabel), w.time, true),
+    fit(dim(selfLabel), w.time, true),
     fit(dim('ratio'), w.ratio, true),
     graphHeader,
     ...(showMem ? [
-      fit(dim('host'), w.mem, true),
-      fit(dim('self'), w.mem, true),
+      fit(dim(hostLabel), w.mem, true),
+      fit(dim(selfLabel), w.mem, true),
       fit(dim('ratio'), w.ratio, true),
       graphHeader
     ] : [])
