@@ -38,7 +38,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     const lazyKind = name === 'globalThis' ? 'global'
       : name.startsWith('__') && name.endsWith('_prototype') ? 'proto' : null;
 
-    const existingFunc = builtinFuncs[name];
+    const existingFunc = name in builtinFuncs;
 
     const getName = '#get_' + name;
     builtinFuncs[getName] = existingFunc ? {
