@@ -508,7 +508,15 @@ export const __Porffor_object_lookup = (obj: any, target: any, targetHash: i32):
 
   for (; ptr < endPtr; ptr += 20) {
     if (Porffor.IR.loadI32(ptr, 0) == targetHash) {
-      return ptr;
+      // hashes can collide: confirm the key, by pointer first then by contents
+      if (Porffor.IR.loadI32(ptr, 4) == Porffor.IR.ptr(target)) return ptr;
+
+      const keyType: i32 = Porffor.IR.loadU8(ptr, 18);
+      if (Porffor.comptime.flag`hasType.symbol`) {
+        if (keyType == Porffor.TYPES.symbol) continue;
+      }
+
+      if (Porffor.strcmp(Porffor.as(Porffor.IR.loadI32(ptr, 4), keyType), target)) return ptr;
     }
   }
 
@@ -608,14 +616,14 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
 };
 
 // per-call-site slot cache stores byte offsets into object entries
-// IC_EMPTY is i32 max so unset and stale slots fail the bounds/hash checks
+// IC_EMPTY is i32 max so unset and stale slots fail the bounds/key checks
 export const __Porffor_object_get_ic = (_obj: any, key: any, hash: i32, slot: i32): any => {
   if (Porffor.type(_obj) == Porffor.TYPES.object) {
     if (Porffor.IR.ptr(_obj) != 0) {
       const off: i32 = Porffor.IR.loadI32(slot, 0);
       if (off < Porffor.IR.loadU16(_obj, 0) * 20) {
         const entryPtr: i32 = Porffor.IR.loadI32(_obj, 12) + off;
-        if (Porffor.IR.loadI32(entryPtr, 0) == hash) {
+        if (Porffor.IR.loadI32(entryPtr, 4) == Porffor.IR.ptr(key)) {
           if ((Porffor.IR.loadU16(entryPtr, 16) & 0b0001) == 0) return __Porffor_object_readValue(entryPtr);
         }
       }
@@ -626,19 +634,16 @@ export const __Porffor_object_get_ic = (_obj: any, key: any, hash: i32, slot: i3
 };
 
 export const __Porffor_object_get_icMiss = (_obj: any, key: any, hash: i32, slot: i32): any => {
-  if (Porffor.type(_obj) == Porffor.TYPES.object) {
-    if (Porffor.IR.ptr(_obj) != 0) {
-      const entriesPtr: i32 = Porffor.IR.loadI32(_obj, 12);
-      let ptr: i32 = entriesPtr;
-      const endPtr: i32 = ptr + Porffor.IR.loadU16(_obj, 0) * 20;
-      for (; ptr < endPtr; ptr += 20) {
-        if (Porffor.IR.loadI32(ptr, 0) == hash) {
-          // first writer wins so polymorphic sites miss instead of storing each time
-          if (Porffor.IR.loadI32(slot, 0) == 2147483647) Porffor.IR.storeI32(slot, 0, ptr - entriesPtr);
-          if ((Porffor.IR.loadU16(ptr, 16) & 0b0001) == 0) return __Porffor_object_readValue(ptr);
-          break;
-        }
+  if (Porffor.type(_obj) == Porffor.TYPES.object && Porffor.IR.ptr(_obj) != 0) {
+    const entryPtr: i32 = __Porffor_object_lookup(_obj, key, hash);
+    if (entryPtr != 0) {
+      // only cache entries keyed by this site's static string: the fast path hits by pointer
+      if (Porffor.IR.loadI32(entryPtr, 4) == Porffor.IR.ptr(key)) {
+        // first writer wins so polymorphic sites miss instead of storing each time
+        if (Porffor.IR.loadI32(slot, 0) == 2147483647) Porffor.IR.storeI32(slot, 0, entryPtr - __Porffor_object_entriesPtr(_obj));
       }
+      // lookup confirmed the key, so an equal key under another pointer reads here without a second scan
+      if ((Porffor.IR.loadU16(entryPtr, 16) & 0b0001) == 0) return __Porffor_object_readValue(entryPtr);
     }
   }
 
@@ -651,7 +656,7 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
   if (trueType == Porffor.TYPES.object) {
     if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot get property of null');
   } else {
-    if (trueType == Porffor.TYPES.undefined) throw new TypeError('Cannot get property of null');
+    if (trueType == Porffor.TYPES.undefined) throw new TypeError('Cannot get property of undefined');
     obj = __Porffor_object_underlying(obj);
   }
 
