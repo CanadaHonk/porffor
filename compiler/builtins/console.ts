@@ -1,17 +1,32 @@
 import type {} from './porffor.d.ts';
 
 export const __Porffor_printString = (arg: bytestring|string): void => {
-  let ptr: i32 = Porffor.IR.ptr(arg);
-  if (Porffor.type(arg) == Porffor.TYPES.bytestring) {
-    const len: i32 = arg.length;
-    Porffor.c`printf("%.*s", len, (char*)(MEM + ptr + 4));`;
-  } else { // regular string
-    const end: i32 = ptr + arg.length * 2;
-    while (ptr < end) {
-      const c: i32 = Porffor.IR.loadU16(ptr, 4);
-      Porffor.c`printf("%c", c);`;
-      ptr += 2;
+  const ptr: i32 = Porffor.IR.ptr(arg);
+  const len: i32 = arg.length;
+  if (Porffor.type(arg) == Porffor.TYPES.bytestring) { // latin-1 -> utf-8
+    Porffor.c`
+    const u8* s = MEM + ptr + 4;
+    i32 i = 0;
+    while (i < len && s[i] < 0x80) i++;
+    fwrite(s, 1, i, stdout);
+    for (; i < len; i++) {
+      if (s[i] < 0x80) putchar(s[i]);
+        else { putchar(0xc0 | s[i] >> 6); putchar(0x80 | (s[i] & 0x3f)); }
     }
+    `;
+  } else { // utf-16 -> utf-8
+    Porffor.c`
+    const u16* s = (const u16*)(MEM + ptr + 4);
+    for (i32 i = 0; i < len; i++) {
+      u32 c = s[i];
+      if (c >= 0xd800 && c < 0xdc00 && i + 1 < len && s[i + 1] >= 0xdc00 && s[i + 1] < 0xe000) c = 0x10000 + ((c - 0xd800) << 10) + (s[++i] - 0xdc00);
+        else if (c >= 0xd800 && c < 0xe000) c = 0xfffd;
+      if (c < 0x80) putchar(c);
+        else if (c < 0x800) { putchar(0xc0 | c >> 6); putchar(0x80 | (c & 0x3f)); }
+        else if (c < 0x10000) { putchar(0xe0 | c >> 12); putchar(0x80 | (c >> 6 & 0x3f)); putchar(0x80 | (c & 0x3f)); }
+        else { putchar(0xf0 | c >> 18); putchar(0x80 | (c >> 12 & 0x3f)); putchar(0x80 | (c >> 6 & 0x3f)); putchar(0x80 | (c & 0x3f)); }
+    }
+    `;
   }
 };
 
