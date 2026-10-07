@@ -490,7 +490,8 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
       if (decl._writes && !decl._skipVarUpdate) {
         const name = decl.id.name, global = scope.topLevel;
         allocVar(scope, name, global);
-        setLocalWithType(scope, name, global, materializeFunctionValue(scope, func), false, TYPES.function);
+        func.referenced = true;
+        setLocalWithType(scope, name, global, materializeFunctionValue(scope, func, false), false, TYPES.function);
       }
       const capture = scope.closureOwnLocals?.[decl.id?.name];
       if (capture && closureBindingNeedsSlot(capture))
