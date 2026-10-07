@@ -4174,7 +4174,7 @@ const resolveMemberDemands = scope => {
       }
 
       const t = TYPES[tn.toLowerCase()] ?? TYPES['__' + tn.toLowerCase()];
-      if (t == null || !usesAnyType([ t, primObjAlias[t] ])) continue;
+      if (t == null || (!usesAnyType([ t, primObjAlias[t] ]) && !(t === TYPES.string && usedTypes.has(TYPES.bytestring)))) continue;
       includeBuiltin(scope, x);
       if (!getterOnly) {
         const getter = '#get___' + tn + '_prototype';
