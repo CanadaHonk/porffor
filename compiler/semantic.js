@@ -676,7 +676,7 @@ const annotate = (node, parent = null, key = null) => {
 
     case 'ThisExpression': {
       const currentFunc = scopes[scopes.lastFuncs.at(-1)];
-      const owner = findLexicalThisOwner(currentFunc, classFieldInitializerFunc);
+      const owner = currentFunc === classStaticFunc ? null : findLexicalThisOwner(currentFunc, classFieldInitializerFunc);
       if (owner) {
         node._closureThisFunc = owner;
         currentFunc._capturesThis = owner;
@@ -691,10 +691,22 @@ const annotate = (node, parent = null, key = null) => {
       annotate(node.object, node, 'object');
       return;
 
+    case 'StaticBlock': {
+      const previous = classStaticFunc;
+      classStaticFunc = scopes[scopes.lastFuncs.at(-1)];
+      for (const x of node.body) annotate(x, node, 'body');
+      classStaticFunc = previous;
+      if (openedScope) scopes.pop();
+      return;
+    }
+
     case 'PropertyDefinition':
       if (node.computed) annotate(node.key, node, 'key');
       if (node.static) {
+        const previous = classStaticFunc;
+        classStaticFunc = scopes[scopes.lastFuncs.at(-1)];
         annotate(node.value, node, 'value');
+        classStaticFunc = previous;
       } else {
         const previous = classFieldInitializerFunc;
         classFieldInitializerFunc = scopes[scopes.lastFuncs.at(-1)];
@@ -759,11 +771,12 @@ const annotate = (node, parent = null, key = null) => {
   }
 };
 
-let inEval = false, classFieldInitializerFunc = null;
+let inEval = false, classFieldInitializerFunc = null, classStaticFunc = null;
 const semantic = (node, _scopes = null) => {
-  const oldScopes = scopes, oldInEval = inEval, oldClassFieldInitializerFunc = classFieldInitializerFunc;
+  const oldScopes = scopes, oldInEval = inEval, oldClassFieldInitializerFunc = classFieldInitializerFunc, oldClassStaticFunc = classStaticFunc;
   inEval = !!_scopes;
   classFieldInitializerFunc = null;
+  classStaticFunc = null;
   if (!_scopes) {
     _scopes = [ node ];
     _scopes.lastFuncs = [ 0 ];
@@ -777,6 +790,7 @@ const semantic = (node, _scopes = null) => {
   scopes = oldScopes;
   inEval = oldInEval;
   classFieldInitializerFunc = oldClassFieldInitializerFunc;
+  classStaticFunc = oldClassStaticFunc;
   return node;
 };
 export default semantic;

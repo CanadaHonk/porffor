@@ -1538,6 +1538,7 @@ const getNodeType = (scope, node) => {
   else if (node.type === 'ThisExpression') {
     if (node._closureThisFunc) return getNodeType(scope, closureEnvNode(scope, '#this', node._closureThisFunc));
     if (scope.overrideThisType) ret = scope.overrideThisType;
+    else if (scope.overrideThis) ret = getNodeType(scope, scope.overrideThis);
     else if (scope.ast?.type === 'Program' && scope.strict) ret = TYPES.undefined;
     else if (!scope.constr && !scope.method) ret = getType(scope, 'globalThis');
     else ret = null; // runtime `this` type
@@ -2111,7 +2112,7 @@ const generateThis = (scope, decl) => {
   // arrows read the enclosing `this` out of the closure env
   if (decl._closureThisFunc) return generate(scope, closureEnvNode(scope, '#this', decl._closureThisFunc));
 
-  if (scope.overrideThis) return scope.overrideThis;
+  if (scope.overrideThis) return generate(scope, scope.overrideThis);
 
   // ordinary direct calls have a fixed receiver
   if (scope.directCallOnly) return scope.strict
@@ -4510,7 +4511,7 @@ const generateClass = (scope, decl) => {
   }
 
   // `this` in the (static) class body refers to the class itself
-  scope.overrideThis = classRoot;
+  scope.overrideThis = root;
 
   const fieldInits = [];
   for (const x of body) {
