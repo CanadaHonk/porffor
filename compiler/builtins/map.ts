@@ -82,50 +82,15 @@ export const Map = function (iterable: any): Map {
 };
 
 export const __Map_prototype_keys = function (this: Map) {
-  const keys: any[] = Porffor.IR.loadI32(this, 0);
-  const keysEntries: i32 = Porffor.IR.loadI32(keys, 4);
-  const out: any[] = Porffor.array.new(4);
-
-  const size: i32 = keys.length;
-  for (let i: i32 = 0; i < size; i++) {
-    if (Porffor.IR.loadU64(keysEntries + i * 8, 0) == -1) continue;
-    Porffor.array.fastPush(out, keys[i]);
-  }
-
-  return out;
+  return __Porffor_iterator_toObject(this, 1);
 };
 
 export const __Map_prototype_values = function (this: Map) {
-  const keys: any[] = Porffor.IR.loadI32(this, 0);
-  const keysEntries: i32 = Porffor.IR.loadI32(keys, 4);
-  const vals: any[] = Porffor.IR.loadI32(this, 4);
-  const out: any[] = Porffor.array.new(4);
-
-  const size: i32 = keys.length;
-  for (let i: i32 = 0; i < size; i++) {
-    if (Porffor.IR.loadU64(keysEntries + i * 8, 0) == -1) continue;
-    Porffor.array.fastPush(out, vals[i]);
-  }
-
-  return out;
+  return __Porffor_iterator_toObject(this, 2);
 };
 
 export const __Map_prototype_entries = function (this: Map) {
-  const keys: any[] = Porffor.IR.loadI32(this, 0);
-  const keysEntries: i32 = Porffor.IR.loadI32(keys, 4);
-  const vals: any[] = Porffor.IR.loadI32(this, 4);
-  const out: any[] = Porffor.array.new(4);
-
-  const size: i32 = keys.length;
-  for (let i: i32 = 0; i < size; i++) {
-    if (Porffor.IR.loadU64(keysEntries + i * 8, 0) == -1) continue;
-    const entry: any[] = Porffor.array.new(2);
-    Porffor.array.fastPush(entry, keys[i]);
-    Porffor.array.fastPush(entry, vals[i]);
-    Porffor.array.fastPush(out, entry);
-  }
-
-  return out;
+  return __Porffor_iterator_toObject(this, 0);
 };
 
 export const __Map_prototype_toString = function (this: Map) { return '[object Map]'; };
@@ -146,4 +111,8 @@ export const __Map_prototype_getOrInsertComputed = function (this: Map, key: any
   }
 
   return Porffor.callThis(__Map_prototype_get, this, key);
+};
+
+export const __Map_prototype_Symbol_iterator = function (this: Map) {
+  return __Porffor_iterator_toObject(this, 0);
 };

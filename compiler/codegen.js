@@ -4152,7 +4152,8 @@ let memberDemands;
 
 const demandMemberRead = decl => {
   const propName = decl.computed
-    ? (decl.property.type === 'Literal' && typeof decl.property.value === 'string' ? decl.property.value : null)
+    ? (decl.property.type === 'Literal' && typeof decl.property.value === 'string' ? decl.property.value
+      : decl.property.name?.startsWith('__Symbol_') ? decl.property.name.slice(2) : null)
     : decl.property.name;
   if (propName && propName !== '__proto__') memberDemands.add(propName);
 };
@@ -5330,7 +5331,7 @@ export default (program, opts = {}) => {
         },
         {
           ...last,
-          expression: { type: 'CallExpression', callee: identNode('__console_log'), arguments: [ identNode('#repl_result') ] }
+          expression: { type: 'CallExpression', callee: identNode(Prefs.repl ? '__Porffor_print' : '__console_log'), arguments: [ identNode('#repl_result') ] }
         }
       );
     }

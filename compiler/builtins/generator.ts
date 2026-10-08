@@ -131,6 +131,36 @@ export const __Porffor_iterator_step = (rec: any[]): any => {
   return iter[i];
 };
 
+// kind: 0 iteration values, 1 keys, 2 values, 3 entries
+export const __Porffor_iterator_toObject = (iter: any, kind: number): object => {
+  const rec: any[] = __Porffor_iterator_new(iter, 0, 0);
+  const out: object = {};
+  out.next = () => {
+    let value: any = __Porffor_iterator_step(rec);
+    if (Porffor.fastAnd(kind != 0, !rec[2])) {
+      if (Porffor.type(iter) == Porffor.TYPES.map) {
+        value = value[kind - 1];
+      } else {
+        const key: any = Porffor.type(iter) == Porffor.TYPES.set ? value : rec[1] - 1;
+        if (kind == 1) {
+          value = key;
+        } else {
+          const entry: any[] = Porffor.array.new(2);
+          entry[0] = key;
+          entry[1] = value;
+          value = entry;
+        }
+      }
+    }
+
+    return { value: value, done: rec[2] };
+  };
+  out[Symbol.iterator] = function (this: any): any {
+    return this;
+  };
+  return out;
+};
+
 // unwraps results passed through by yield*
 export const __Porffor_Generator_value = (gen: any): any => {
   const value: any = Porffor.coroutine.value(gen);

@@ -1086,6 +1086,26 @@ export const __Array_prototype_valueOf = function (this: any[]) {
 };
 
 // @porf-typed-array
+export const __Array_prototype_values = function (this: any[]) {
+  return __Porffor_iterator_toObject(this, 0);
+};
+
+// @porf-typed-array
+export const __Array_prototype_Symbol_iterator = function (this: any[]) {
+  return __Porffor_iterator_toObject(this, 0);
+};
+
+// @porf-typed-array
+export const __Array_prototype_keys = function (this: any[]) {
+  return __Porffor_iterator_toObject(this, 1);
+};
+
+// @porf-typed-array
+export const __Array_prototype_entries = function (this: any[]) {
+  return __Porffor_iterator_toObject(this, 3);
+};
+
+// @porf-typed-array
 export const __Array_prototype_toReversed = function (this: any[]) {
   const len: i32 = this.length;
   if (len == 0) {

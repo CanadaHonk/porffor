@@ -108,7 +108,8 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           if (d.enumerable) flags |= 0b0100;
           if (d.writable) flags |= 0b1000;
 
-          out.push(Call('__Porffor_object_fastAdd', [ obj, makeString(x), value, Const(T.i32, flags) ], T.none));
+          const keyValue = x.startsWith('Symbol_') ? wellKnownSymbolProps[x.slice(7)].value(_, { includeBuiltin, makeString, global }) : makeString(x);
+          out.push(Call('__Porffor_object_fastAdd', [ obj, keyValue, value, Const(T.i32, flags) ], T.none));
         };
 
         if (lazyKind && Prefs.lazyObjects) {

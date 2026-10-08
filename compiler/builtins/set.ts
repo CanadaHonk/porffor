@@ -8,18 +8,7 @@ export const __Set_prototype_size$get = function (this: Set) {
 };
 
 export const __Set_prototype_values = function (this: Set) {
-  // todo: this should return an iterator not array
-  const keys: any[] = Porffor.IR.loadI32(this, 0);
-  const keysEntries: i32 = Porffor.IR.loadI32(keys, 4);
-  const out: any[] = Porffor.array.new(4);
-
-  const size: i32 = keys.length;
-  for (let i: i32 = 0; i < size; i++) {
-    if (Porffor.IR.loadU64(keysEntries + i * 8, 0) == -1) continue;
-    Porffor.array.fastPush(out, keys[i]);
-  }
-
-  return out;
+  return __Porffor_iterator_toObject(this, 0);
 };
 
 export const __Set_prototype_keys = function (this: Set) {
@@ -78,18 +67,7 @@ export const Set = function (iterable: any): Set {
 };
 
 export const __Set_prototype_entries = function (this: Set) {
-  const values: any[] = Porffor.callThis(__Set_prototype_values, this);
-  const out: any[] = Porffor.array.new(4);
-
-  const size: i32 = values.length;
-  for (let i: i32 = 0; i < size; i++) {
-    const entry: any[] = Porffor.array.new(2);
-    Porffor.array.fastPush(entry, values[i]);
-    Porffor.array.fastPush(entry, values[i]);
-    Porffor.array.fastPush(out, entry);
-  }
-
-  return out;
+  return __Porffor_iterator_toObject(this, 3);
 };
 
 export const __Set_prototype_union = function (this: Set, other: any) {
@@ -169,3 +147,7 @@ export const __Set_prototype_isDisjointFrom = function (this: Set, other: any) {
 
 export const __Set_prototype_toString = function (this: Set) { return '[object Set]'; };
 export const __Set_prototype_toLocaleString = function (this: Set) { return Porffor.callThis(__Set_prototype_toString, this); };
+
+export const __Set_prototype_Symbol_iterator = function (this: Set) {
+  return __Porffor_iterator_toObject(this, 0);
+};
