@@ -72,7 +72,7 @@ ${current}` : current;
   let out = '';
   try {
     runNativeSource(toRun, x => { out += x; });
-    if (out) process.stdout.write(out);
+    if (out) process.stdout.write(out.endsWith('\n') ? out : out + '\n');
     prev = prev ? prev + ';\n' + current : current;
   } catch (e) {
     if (out) process.stdout.write(out);
