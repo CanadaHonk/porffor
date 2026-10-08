@@ -6,7 +6,7 @@ const FETCH_GLOBALS = fs.readFileSync(new URL('./fetch-globals.js', import.meta.
 const NATIVE_FETCH_RESPONSE_FINALIZER = `
 export function __porffor_native_fetch_response_finalize(response) {
   const status = response.status | 0;
-  const body = String(response.body);
+  const body = response.body == null ? '' : String(response.body);
   const headersEntries = response.headers._entries;
 
   Porffor.c\`porf_native_fetch_response_parts_out->status = (i32)status;
