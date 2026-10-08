@@ -184,10 +184,24 @@ export const __Porffor_array_spread = (arr: any[], src: any) => {
 
   if (Porffor.type(src) != Porffor.TYPES.array) switch (Porffor.type(src)) {
     case Porffor.TYPES.set:
-      return __Porffor_array_spread(arr, Porffor.callThis(__Set_prototype_values, src));
-
     case Porffor.TYPES.map:
-      return __Porffor_array_spread(arr, Porffor.callThis(__Map_prototype_entries, src));
+      const keys: any[] = Porffor.IR.loadI32(src, 0);
+      const keysEntries: i32 = Porffor.IR.loadI32(keys, 4);
+      const vals: any[] = Porffor.IR.loadI32(src, 4);
+      for (let i: i32 = 0; i < keys.length; i++) {
+        if (Porffor.IR.loadU64(keysEntries + i * 8, 0) == -1) continue;
+        if (Porffor.type(src) == Porffor.TYPES.set) {
+          arr[len] = keys[i];
+        } else {
+          const entry: any[] = Porffor.array.new(2);
+          entry[0] = keys[i];
+          entry[1] = vals[i];
+          arr[len] = entry;
+        }
+        len++;
+      }
+
+      return len;
 
     case Porffor.TYPES.__porffor_generator:
       while (!Porffor.coroutine.resume(src, undefined, 0 as i32)) {
