@@ -27,6 +27,10 @@ export const __Porffor_Generator_prototype_throw = function (this: __Porffor_Gen
   return __Porffor_Generator_step(this, value, 1);
 };
 
+export const __Porffor_Generator_prototype_Symbol_iterator = function (this: __Porffor_Generator): any {
+  return this;
+};
+
 
 // [ iterator, next method or index, done, kind (0 in place, 1 sync, 2 async), prev, depth ]
 export const __Porffor_iterator_new = (iter: any, next: any, kind: i32): any[] => {
@@ -349,6 +353,10 @@ export const __Porffor_AsyncGenerator_prototype_return = function (this: __Porff
 
 export const __Porffor_AsyncGenerator_prototype_throw = function (this: __Porffor_AsyncGenerator, value: any) {
   return __Porffor_AsyncGenerator_step(this, value, 1);
+};
+
+export const __Porffor_AsyncGenerator_prototype_Symbol_asyncIterator = function (this: __Porffor_AsyncGenerator): any {
+  return this;
 };
 
 // an async generator is its own async iterator (handled in codegen)
