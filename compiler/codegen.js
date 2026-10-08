@@ -4166,6 +4166,10 @@ const primObjAlias = {
 
 const resolveMemberDemands = scope => {
   for (const propName of memberDemands) {
+    for (const x of builtinStaticFuncs.get(propName) ?? []) {
+      if (funcIndex['#get_' + x.slice(2, x.indexOf('_', 2))] != null) includeBuiltin(scope, x);
+    }
+
     const getterOnly = propName === 'constructor';
     for (const x of getterOnly ? builtinPrototypeObjectGetters.values() : (builtinPrototypeFuncs.get(propName) ?? [])) {
       let tn;
@@ -5227,7 +5231,7 @@ const inferDirectCallParamTypes = root => {
   }
 };
 
-let globals, funcs, funcsByIndex, funcIndex, funcNameCollisions, currentFuncIndex, depth, data, dataUnits, dataCache, modular, rawHead, builtinGlobalInits, includedBuiltinGlobalInits, usedTypes, globalInfer, builtinFuncs, builtinVars, builtinPrototypeFuncs, builtinPrototypeGetters, builtinPrototypeObjectGetters, topLevelFunc;
+let globals, funcs, funcsByIndex, funcIndex, funcNameCollisions, currentFuncIndex, depth, data, dataUnits, dataCache, modular, rawHead, builtinGlobalInits, includedBuiltinGlobalInits, usedTypes, globalInfer, builtinFuncs, builtinVars, builtinPrototypeFuncs, builtinStaticFuncs, builtinPrototypeGetters, builtinPrototypeObjectGetters, topLevelFunc;
 
 export default (program, opts = {}) => {
   const entryName = opts.entryName ?? '#main';
@@ -5259,6 +5263,7 @@ export default (program, opts = {}) => {
     builtinVars = BuiltinVars({ builtinFuncs });
 
     builtinPrototypeFuncs = new Map();
+    builtinStaticFuncs = new Map();
     builtinPrototypeGetters = new Map();
     builtinPrototypeObjectGetters = new Map();
     for (const x in builtinFuncs) {
@@ -5273,6 +5278,11 @@ export default (program, opts = {}) => {
         else map.set(name, [ x ]);
       } else if (x.startsWith('#get___') && x.endsWith('_prototype')) {
         builtinPrototypeObjectGetters.set(x.slice(7, -'_prototype'.length), x);
+      } else if (/^__[A-Z][A-Za-z0-9]*_[A-Za-z$][A-Za-z0-9$]*$/.test(x) && !x.startsWith('__Porffor_') && !builtinFuncs[x].comptime) {
+        const name = x.slice(x.indexOf('_', 2) + 1);
+        const entries = builtinStaticFuncs.get(name);
+        if (entries) entries.push(x);
+        else builtinStaticFuncs.set(name, [ x ]);
       }
     }
 

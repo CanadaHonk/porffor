@@ -35,29 +35,22 @@ export const BuiltinVars = ({ builtinFuncs }) => {
   const object = (name, props) => {
     done.add(name);
     const prefix = name === 'globalThis' ? '' : makePrefix(name);
-    const lazyKind = name === 'globalThis' ? 'global'
-      : name.startsWith('__') && name.endsWith('_prototype') ? 'proto' : null;
-
     const existingFunc = name in builtinFuncs;
+    const lazyKind = name === 'globalThis' ? 'global'
+      : name.startsWith('__') && name.endsWith('_prototype') ? 'proto'
+      : existingFunc ? 'static' : null;
 
     const getName = '#get_' + name;
-    builtinFuncs[getName] = existingFunc ? {
-      params: [],
-      retType: T.ptr,
-      returnType: TYPES.function,
-      body: ({ funcRefPtr }) => [
-        Return(globalThis.precompile ? Const(T.ptr, 0) : funcRefPtr(name))
-      ]
-    } : {
+    builtinFuncs[getName] = {
       params: [],
       localNames: [ 'obj' ],
       localTypes: [ T.jsval ],
       retType: T.ptr,
-      returnType: TYPES.object,
+      returnType: existingFunc ? TYPES.function : TYPES.object,
       body: ({ includeBuiltin, funcRefPtr, global, makeString, globalThisUserSync, onFinalize, hasFunc }) => {
         if (globalThis.precompile) return [ Return(Const(T.ptr, 0)) ];
 
-        includeBuiltin('__Porffor_object_new');
+        includeBuiltin(existingFunc ? '__Porffor_object_underlying' : '__Porffor_object_new');
 
         const getPtr = global(`getptr_${name}`, T.ptr);
         const obj = Local('obj', T.jsval);
@@ -66,13 +59,16 @@ export const BuiltinVars = ({ builtinFuncs }) => {
         const sync = [];
         if (name === 'globalThis') globalThisUserSync(Box(getPtr, Const(T.i32, TYPES.object)), sync);
 
-        const out = [
+        const funcValue = name => Box(funcRefPtr(name), Const(T.i32, TYPES.function));
+        const out = existingFunc ? [
+          If(getPtr, [ Return(funcRefPtr(name)) ]),
+          Assign(getPtr, Const(T.ptr, 1)),
+          Assign(obj, Call('__Porffor_object_underlying', [ funcValue(name) ], T.jsval))
+        ] : [
           If(getPtr, [ BlockStmt(sync), Return(getPtr) ]),
           Assign(obj, Call('__Porffor_object_new', [ Const(T.i32, Object.keys(props).length) ])),
           Assign(getPtr, JvPtr(obj))
         ];
-
-        const funcValue = name => Box(funcRefPtr(name), Const(T.i32, TYPES.function));
         const propValue = (key, d) => {
           if (key === name) return obj;
           if (key in builtinFuncs) return funcValue(key);
@@ -87,7 +83,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           }
           if ('value' in d) {
             const value = d.value;
-            if (typeof value === 'function') return value(_, { includeBuiltin, funcRefPtr, makeString });
+            if (typeof value === 'function') return value(_, { includeBuiltin, funcRefPtr, makeString, global });
             if (typeof value === 'number') return Box(Const(T.f64, value), Const(T.i32, TYPES.number));
             if (typeof value === 'string') return makeString(value);
             if (value === null) return JvConst(TYPES.object, 0);
@@ -148,7 +144,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
         }
 
         out.push(BlockStmt(sync));
-        out.push(Return(getPtr));
+        out.push(Return(existingFunc ? funcRefPtr(name) : getPtr));
         return out;
       }
     };
