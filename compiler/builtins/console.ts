@@ -272,40 +272,31 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
 
     case Porffor.TYPES.weakmap:
     case Porffor.TYPES.map:
-      if (Porffor.type(arg) == Porffor.TYPES.weakmap) Porffor.printStatic('WeakMap');
-        else Porffor.printStatic('Map');
-      Porffor.printStatic('(');
-
-      const map: any[] = Porffor.callThis(__Map_prototype_keys, arg);
-      const mapLen: i32 = map.length - 1;
-      Porffor.c`printf("%d", mapLen + 1);`;
-      Porffor.printStatic(') { ');
-
-      for (let i: i32 = 0; i < mapLen; i++) {
-        const key: any = map[i];
-        __Porffor_print(key, colors);
-        Porffor.printStatic(' => ');
-        __Porffor_print(Porffor.callThis(__Map_prototype_get, arg, key), colors);
-        if (i != mapLen) Porffor.printStatic(', ');
-      }
-
-      Porffor.printStatic(' }');
-      return;
-
     case Porffor.TYPES.weakset:
     case Porffor.TYPES.set:
-      if (Porffor.type(arg) == Porffor.TYPES.weakset) Porffor.printStatic('WeakSet');
+      if (Porffor.fastOr(Porffor.type(arg) == Porffor.TYPES.weakmap, Porffor.type(arg) == Porffor.TYPES.weakset)) Porffor.printStatic('Weak');
+      if (Porffor.fastOr(Porffor.type(arg) == Porffor.TYPES.map, Porffor.type(arg) == Porffor.TYPES.weakmap)) Porffor.printStatic('Map');
         else Porffor.printStatic('Set');
       Porffor.printStatic('(');
 
-      const set: any[] = Porffor.callThis(__Set_prototype_values, arg);
-      const setLen: i32 = set.length - 1;
-      Porffor.c`printf("%d", setLen + 1);`;
+      const keys: any[] = Porffor.IR.loadI32(arg, 0);
+      const keysEntries: i32 = Porffor.IR.loadI32(keys, 4);
+      const vals: any[] = Porffor.IR.loadI32(arg, 4);
+      const size: i32 = keys.length - Porffor.IR.loadI32(arg, 16);
+      Porffor.c`printf("%d", size);`;
       Porffor.printStatic(') { ');
 
-      for (let i: i32 = 0; i <= setLen; i++) {
-        __Porffor_print(set[i], colors);
-        if (i != setLen) Porffor.printStatic(', ');
+      let first: boolean = true;
+      for (let i: i32 = 0; i < keys.length; i++) {
+        if (Porffor.IR.loadU64(keysEntries + i * 8, 0) == -1) continue;
+        if (!first) Porffor.printStatic(', ');
+        first = false;
+
+        __Porffor_print(keys[i], colors);
+        if (Porffor.fastOr(Porffor.type(arg) == Porffor.TYPES.map, Porffor.type(arg) == Porffor.TYPES.weakmap)) {
+          Porffor.printStatic(' => ');
+          __Porffor_print(vals[i], colors);
+        }
       }
 
       Porffor.printStatic(' }');
