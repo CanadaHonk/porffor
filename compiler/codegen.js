@@ -1520,7 +1520,7 @@ const getNodeType = (scope, node) => {
       const objType = getNodeType(scope, node.object);
       if (objType != null) {
         if (name === 'length' && (objType & TYPE_FLAGS.length) !== 0) ret = TYPES.number;
-        else if (node.computed) {
+        else if (node.computed && getNodeType(scope, node.property) === TYPES.number) {
           if (objType === TYPES.string) ret = TYPES.string;
           else if (objType === TYPES.bytestring) ret = TYPES.bytestring;
         }
