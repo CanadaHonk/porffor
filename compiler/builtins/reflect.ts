@@ -1,15 +1,21 @@
 import type {} from './porffor.d.ts';
 
 // todo: support receiver
-export const __Reflect_get = (target: any, prop: any) => {
+export const __Reflect_get = (target: any, prop: any, receiver: any = target) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_get(target, ecma262.ToPropertyKey(prop), receiver);
+  }
 
   return target[prop];
 };
 
 // todo: support receiver
-export const __Reflect_set = (target: any, prop: any, value: any) => {
+export const __Reflect_set = (target: any, prop: any, value: any, receiver: any = target) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_set(target, ecma262.ToPropertyKey(prop), value, receiver);
+  }
 
   try {
     target[prop] = value;
@@ -28,6 +34,9 @@ export const __Reflect_has = (target: any, prop: any) => {
 export const __Reflect_defineProperty = (target: any, prop: any, descriptor: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
   if (!Porffor.object.isObject(descriptor)) throw new TypeError('Descriptor is a non-object');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_defineProperty(target, ecma262.ToPropertyKey(prop), descriptor);
+  }
 
   try {
     Object.defineProperty(target, prop, descriptor);
@@ -39,6 +48,9 @@ export const __Reflect_defineProperty = (target: any, prop: any, descriptor: any
 
 export const __Reflect_deleteProperty = (target: any, prop: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_delete(target, ecma262.ToPropertyKey(prop));
+  }
 
   try {
     return delete target[prop];
@@ -61,6 +73,9 @@ export const __Reflect_isExtensible = (target: any) => {
 
 export const __Reflect_preventExtensions = (target: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_preventExtensions(target);
+  }
 
   try {
     Object.preventExtensions(target);
@@ -78,6 +93,9 @@ export const __Reflect_getPrototypeOf = (target: any) => {
 
 export const __Reflect_setPrototypeOf = (target: any, proto: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_setPrototypeOf(target, proto);
+  }
 
   try {
     Object.setPrototypeOf(target, proto);
@@ -89,6 +107,9 @@ export const __Reflect_setPrototypeOf = (target: any, proto: any) => {
 
 export const __Reflect_ownKeys = (target: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_ownKeys(target);
+  }
 
   const out: any[] = Porffor.array.new(4);
   let i: i32 = 0;

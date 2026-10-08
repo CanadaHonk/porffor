@@ -376,6 +376,12 @@ export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
 
 
 export const __Porffor_object_preventExtensions = (obj: any): void => {
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(obj) == Porffor.TYPES.proxy) {
+      __Porffor_proxy_preventExtensions(obj);
+      return;
+    }
+  }
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return;
@@ -385,6 +391,9 @@ export const __Porffor_object_preventExtensions = (obj: any): void => {
 };
 
 export const __Porffor_object_isInextensible = (obj: any): boolean => {
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(obj) == Porffor.TYPES.proxy) return !__Porffor_proxy_isExtensible(obj);
+  }
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return false;
@@ -394,6 +403,12 @@ export const __Porffor_object_isInextensible = (obj: any): boolean => {
 };
 
 export const __Porffor_object_setPrototype = (obj: any, proto: any): void => {
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(obj) == Porffor.TYPES.proxy) {
+      if (!__Porffor_proxy_setPrototypeOf(obj, proto)) throw new TypeError('Proxy setPrototypeOf trap returned false');
+      return;
+    }
+  }
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return;
@@ -407,6 +422,9 @@ export const __Porffor_object_setPrototype = (obj: any, proto: any): void => {
 };
 
 export const __Porffor_object_getPrototype = (obj: any): any => {
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_getPrototypeOf(obj);
+  }
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) {
@@ -541,6 +559,9 @@ export const __Porffor_array_propertyKeyIndex = (key: any): i32 => {
 export const __Porffor_object_get = (_obj: any, key: any): any => {
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (trueType == Porffor.TYPES.proxy) return __Porffor_proxy_get(_obj, ecma262.ToPropertyKey(key), _obj);
+  }
   if (trueType == Porffor.TYPES.object) {
     if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot get property of null');
   } else {
@@ -573,6 +594,9 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
       return obj;
     }
 
+    if (Porffor.comptime.flag`hasFunc.Proxy`) {
+      if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_get(obj, key, _obj);
+    }
     let proto: any = obj;
     if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
     if (obj == null) return undefined;
@@ -584,6 +608,9 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
       if (Porffor.type(obj) == Porffor.TYPES.undefined) {
         obj = __Porffor_object_getHiddenPrototype(Porffor.type(proto));
         if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(proto)) obj = __Object_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.Proxy`) {
+        if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_get(obj, key, _obj);
       }
       if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(proto)) break;
 
@@ -648,6 +675,9 @@ export const __Porffor_object_get_icMiss = (_obj: any, key: any, hash: i32, slot
 export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): any => {
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (trueType == Porffor.TYPES.proxy) return __Porffor_proxy_get(_obj, key, _obj);
+  }
   if (trueType == Porffor.TYPES.object) {
     if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot get property of null');
   } else {
@@ -665,6 +695,9 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
       if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
     } else obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
 
+    if (Porffor.comptime.flag`hasFunc.Proxy`) {
+      if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_get(obj, key, _obj);
+    }
     let proto: any = obj;
     if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
     if (obj == null) return undefined;
@@ -676,6 +709,9 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
       if (Porffor.type(obj) == Porffor.TYPES.undefined) {
         obj = __Porffor_object_getHiddenPrototype(Porffor.type(proto));
         if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(proto)) obj = __Object_prototype;
+      }
+      if (Porffor.comptime.flag`hasFunc.Proxy`) {
+        if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_get(obj, key, _obj);
       }
       if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(proto)) break;
 
@@ -702,6 +738,12 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
 export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (trueType == Porffor.TYPES.proxy) {
+      __Porffor_proxy_set(_obj, ecma262.ToPropertyKey(key), value, _obj);
+      return value;
+    }
+  }
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return value;
@@ -748,12 +790,24 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
     // check prototype chain for setter
     let proto: any = __Porffor_object_getPrototype(obj);
     if (proto != null) {
+      if (Porffor.comptime.flag`hasFunc.Proxy`) {
+        if (Porffor.type(proto) == Porffor.TYPES.proxy) {
+          __Porffor_proxy_set(proto, key, value, _obj);
+          return value;
+        }
+      }
       if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
       let lastProto: any = proto;
       while (true) {
         if ((entryPtr = __Porffor_object_lookup(proto, key, hash)) != 0) break;
 
         proto = __Porffor_object_getPrototype(proto);
+        if (Porffor.comptime.flag`hasFunc.Proxy`) {
+          if (Porffor.type(proto) == Porffor.TYPES.proxy) {
+            __Porffor_proxy_set(proto, key, value, _obj);
+            return value;
+          }
+        }
         if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
         if (Porffor.fastOr(proto == null, Porffor.IR.ptr(proto) == Porffor.IR.ptr(lastProto))) break;
         lastProto = proto;
@@ -815,6 +869,12 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
 };
 
 export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, hash: i32): any => {
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(_obj) == Porffor.TYPES.proxy) {
+      __Porffor_proxy_set(_obj, key, value, _obj);
+      return value;
+    }
+  }
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
   if (Porffor.type(obj) != Porffor.TYPES.object) {
@@ -836,12 +896,24 @@ export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, h
     // check prototype chain for setter
     let proto: any = __Porffor_object_getPrototype(obj);
     if (proto != null) {
+      if (Porffor.comptime.flag`hasFunc.Proxy`) {
+        if (Porffor.type(proto) == Porffor.TYPES.proxy) {
+          __Porffor_proxy_set(proto, key, value, _obj);
+          return value;
+        }
+      }
       if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
       let lastProto: any = proto;
       while (true) {
         if ((entryPtr = __Porffor_object_lookup(proto, key, hash)) != 0) break;
 
         proto = __Porffor_object_getPrototype(proto);
+        if (Porffor.comptime.flag`hasFunc.Proxy`) {
+          if (Porffor.type(proto) == Porffor.TYPES.proxy) {
+            __Porffor_proxy_set(proto, key, value, _obj);
+            return value;
+          }
+        }
         if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
         if (Porffor.fastOr(proto == null, Porffor.IR.ptr(proto) == Porffor.IR.ptr(lastProto))) break;
         lastProto = proto;
@@ -903,6 +975,12 @@ export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, h
 };
 
 export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any => {
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(_obj) == Porffor.TYPES.proxy) {
+      if (!__Porffor_proxy_set(_obj, ecma262.ToPropertyKey(key), value, _obj)) throw new TypeError('Cannot assign to read only property of proxy');
+      return value;
+    }
+  }
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
   if (Porffor.type(obj) != Porffor.TYPES.object) {
@@ -951,6 +1029,12 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
     // check prototype chain for setter
     let proto: any = __Porffor_object_getPrototype(obj);
     if (proto != null) {
+      if (Porffor.comptime.flag`hasFunc.Proxy`) {
+        if (Porffor.type(proto) == Porffor.TYPES.proxy) {
+          __Porffor_proxy_set(proto, key, value, _obj);
+          return value;
+        }
+      }
       if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
 
       let lastProto: any = proto;
@@ -958,6 +1042,12 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
         if ((entryPtr = __Porffor_object_lookup(proto, key, hash)) != 0) break;
 
         proto = __Porffor_object_getPrototype(proto);
+        if (Porffor.comptime.flag`hasFunc.Proxy`) {
+          if (Porffor.type(proto) == Porffor.TYPES.proxy) {
+            __Porffor_proxy_set(proto, key, value, _obj);
+            return value;
+          }
+        }
         if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
         if (Porffor.fastOr(proto == null, Porffor.IR.ptr(proto) == Porffor.IR.ptr(lastProto))) break;
         lastProto = proto;
@@ -1019,6 +1109,12 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
 };
 
 export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: any, hash: i32): any => {
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(_obj) == Porffor.TYPES.proxy) {
+      if (!__Porffor_proxy_set(_obj, key, value, _obj)) throw new TypeError('Cannot assign to read only property of proxy');
+      return value;
+    }
+  }
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
   if (Porffor.type(obj) != Porffor.TYPES.object) {
@@ -1040,6 +1136,12 @@ export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: 
     // check prototype chain for setter
     let proto: any = __Porffor_object_getPrototype(obj);
     if (proto != null) {
+      if (Porffor.comptime.flag`hasFunc.Proxy`) {
+        if (Porffor.type(proto) == Porffor.TYPES.proxy) {
+          __Porffor_proxy_set(proto, key, value, _obj);
+          return value;
+        }
+      }
       if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
 
       let lastProto: any = proto;
@@ -1047,6 +1149,12 @@ export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: 
         if ((entryPtr = __Porffor_object_lookup(proto, key, hash)) != 0) break;
 
         proto = __Porffor_object_getPrototype(proto);
+        if (Porffor.comptime.flag`hasFunc.Proxy`) {
+          if (Porffor.type(proto) == Porffor.TYPES.proxy) {
+            __Porffor_proxy_set(proto, key, value, _obj);
+            return value;
+          }
+        }
         if (Porffor.type(proto) != Porffor.TYPES.object) proto = __Porffor_object_underlying(proto);
         if (Porffor.fastOr(proto == null, Porffor.IR.ptr(proto) == Porffor.IR.ptr(lastProto))) break;
         lastProto = proto;
@@ -1207,6 +1315,9 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
   if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot delete property of null');
 
   const trueType: i32 = Porffor.type(obj);
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (trueType == Porffor.TYPES.proxy) return __Porffor_proxy_delete(obj, ecma262.ToPropertyKey(key));
+  }
   if (trueType == Porffor.TYPES.array) {
     const index: i32 = __Porffor_array_propertyKeyIndex(ecma262.ToPropertyKey(key));
     if (index != -1) {
@@ -1247,6 +1358,12 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
 
 export const __Porffor_object_deleteStrict = (obj: any, key: any): boolean => {
   if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot delete property of null');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(obj) == Porffor.TYPES.proxy) {
+      if (!__Porffor_proxy_delete(obj, ecma262.ToPropertyKey(key))) throw new TypeError('Cannot delete proxy property');
+      return true;
+    }
+  }
 
   const trueType: i32 = Porffor.type(obj);
   if (trueType == Porffor.TYPES.array) {

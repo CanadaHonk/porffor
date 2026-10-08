@@ -15,14 +15,32 @@ export const Object = function (value: any): any {
   return value;
 };
 
-export const Proxy = function (target: any, handler: any): any {
-  if (target == null) throw new TypeError('Cannot create proxy with a non-object as target');
-  if (handler == null) throw new TypeError('Cannot create proxy with a non-object as handler');
-  return target;
+// proxies enumerate through their ownKeys and getOwnPropertyDescriptor traps
+export const __Porffor_proxy_keys = (proxy: any, kind: i32): any[] => {
+  const keys: any[] = __Porffor_proxy_ownKeys(proxy);
+  const out: any[] = Porffor.array.new(4);
+  for (let i: i32 = 0; i < keys.length; i++) {
+    const key: any = keys[i];
+    const isSymbol: boolean = Porffor.type(key) == Porffor.TYPES.symbol;
+    if (kind == 2) {
+      if (isSymbol) Porffor.array.fastPush(out, key);
+      continue;
+    }
+    if (isSymbol) continue;
+    if (kind == 0) {
+      const desc: any = __Porffor_proxy_getOwnPropertyDescriptor(proxy, key);
+      if (desc === undefined || !desc.enumerable) continue;
+    }
+    Porffor.array.fastPush(out, key);
+  }
+  return out;
 };
 
 export const __Object_keys = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_keys(obj, 0);
+  }
   const out: any[] = Porffor.array.new(4);
 
   let i: i32 = 0;
@@ -119,6 +137,9 @@ export const __Object_fromEntries = (iterable: any): object => {
 export const __Object_prototype_hasOwnProperty = function (this: any, prop: any) {
   if (this == null) throw new TypeError('Argument is nullish, expected object');
   const p: any = ecma262.ToPropertyKey(prop);
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(this) == Porffor.TYPES.proxy) return __Porffor_proxy_getOwnPropertyDescriptor(this, p) !== undefined;
+  }
 
   if (Porffor.type(this) == Porffor.TYPES.object) {
     return Porffor.object.lookup(this, p, __Porffor_object_hash(p)) != 0;
@@ -150,6 +171,9 @@ export const __Object_hasOwn = (obj: any, prop: any): boolean => {
 
 export const __Porffor_object_in = (obj: any, prop: any): boolean => {
   // todo: throw if obj is not an object
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_has(obj, ecma262.ToPropertyKey(prop));
+  }
 
   if (Porffor.callThis(__Object_prototype_hasOwnProperty, obj, prop)) {
     return true;
@@ -158,6 +182,9 @@ export const __Porffor_object_in = (obj: any, prop: any): boolean => {
   let lastProto: any = obj;
   while (true) {
     obj = Porffor.object.getPrototypeWithHidden(obj, Porffor.type(obj));
+    if (Porffor.comptime.flag`hasFunc.Proxy`) {
+      if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_has(obj, ecma262.ToPropertyKey(prop));
+    }
     if (Porffor.fastOr(obj == null, Porffor.IR.ptr(obj) == Porffor.IR.ptr(lastProto))) break;
 
     if (Porffor.callThis(__Object_prototype_hasOwnProperty, obj, prop)) return true;
@@ -194,6 +221,16 @@ export const __Object_assign = (target: any, ...sources: any[]): any => {
 
   for (let src of sources) {
     if (src == null) continue;
+
+    if (Porffor.comptime.flag`hasFunc.Proxy`) {
+      if (Porffor.type(src) == Porffor.TYPES.proxy) {
+        for (const key of __Porffor_proxy_ownKeys(src)) {
+          const desc: any = __Porffor_proxy_getOwnPropertyDescriptor(src, key);
+          if (desc !== undefined && desc.enumerable) target[key] = __Porffor_proxy_get(src, key, src);
+        }
+        continue;
+      }
+    }
 
     if (Porffor.type(src) == Porffor.TYPES.array) {
       const arrayLen: i32 = (src as any[]).length;
@@ -356,6 +393,9 @@ export const __Object_isSealed = (obj: any): boolean => {
 export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|undefined => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const p: any = ecma262.ToPropertyKey(prop);
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_getOwnPropertyDescriptor(obj, p);
+  }
   const arr: any[] = obj as any[];
   let idx: i32 = -1;
 
@@ -417,7 +457,7 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|u
 export const __Object_getOwnPropertyDescriptors = (obj: any): object => {
   const out: object = {};
 
-  if (Porffor.type(obj) != Porffor.TYPES.object) {
+  if (Porffor.fastAnd(Porffor.type(obj) != Porffor.TYPES.object, Porffor.type(obj) != Porffor.TYPES.proxy)) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return out;
   }
@@ -433,6 +473,9 @@ export const __Object_getOwnPropertyDescriptors = (obj: any): object => {
 
 export const __Object_getOwnPropertyNames = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_keys(obj, 1);
+  }
   const out: any[] = Porffor.array.new(4);
 
   let i: i32 = 0;
@@ -463,6 +506,9 @@ export const __Object_getOwnPropertyNames = (obj: any): any[] => {
 
 export const __Object_getOwnPropertySymbols = (obj: any): any[] => {
   if (obj == null) throw new TypeError('Argument is nullish, expected object');
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_keys(obj, 2);
+  }
   const out: any[] = Porffor.array.new(4);
 
   obj = __Porffor_object_underlying(obj);
@@ -489,6 +535,12 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any): any 
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
   if (!Porffor.object.isObject(desc)) throw new TypeError('Descriptor is a non-object');
   const p: any = ecma262.ToPropertyKey(prop);
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(target) == Porffor.TYPES.proxy) {
+      if (!__Porffor_proxy_defineProperty(target, p, desc)) throw new TypeError('Proxy defineProperty trap returned false');
+      return target;
+    }
+  }
   let arrayIndex: i32 = -1;
 
   if (Porffor.type(target) == Porffor.TYPES.array) {
@@ -679,6 +731,16 @@ export const __Object_prototype_valueOf = function (this: any) {
 export const __Porffor_object_spread = (dst: object, src: any): object => {
   if (src == null) return dst;
 
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(src) == Porffor.TYPES.proxy) {
+      for (const key of __Porffor_proxy_ownKeys(src)) {
+        const desc: any = __Porffor_proxy_getOwnPropertyDescriptor(src, key);
+        if (desc !== undefined && desc.enumerable) Porffor.object.expr.init(dst, key, __Porffor_proxy_get(src, key, src));
+      }
+      return dst;
+    }
+  }
+
   if (Porffor.type(src) == Porffor.TYPES.array) {
     const arrayLen: i32 = (src as any[]).length;
     for (let j: i32 = 0; j < arrayLen; j++) {
@@ -716,6 +778,17 @@ export const __Porffor_object_spread = (dst: object, src: any): object => {
 
 export const __Porffor_object_rest = (dst: object, src: any, ...blocklist: any[]): object => {
   if (src == null) return dst;
+
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(src) == Porffor.TYPES.proxy) {
+      for (const key of __Porffor_proxy_ownKeys(src)) {
+        if (Porffor.callThis(__Array_prototype_includes, blocklist, key)) continue;
+        const desc: any = __Porffor_proxy_getOwnPropertyDescriptor(src, key);
+        if (desc !== undefined && desc.enumerable) Porffor.object.expr.init(dst, key, __Porffor_proxy_get(src, key, src));
+      }
+      return dst;
+    }
+  }
 
   if (Porffor.type(src) == Porffor.TYPES.array) {
     const arrayLen: i32 = (src as any[]).length;

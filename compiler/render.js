@@ -259,6 +259,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
 
   const funcByName = new Map();
   for (const f of funcs) if (f) funcByName.set(f.name, f);
+  const proxyCall = funcByName.get('__Porffor_proxy_call');
   const funcOf = ref => typeof ref === 'number' ? funcs[ref] : funcByName.get(ref);
 
   // contiguous function indices per unit in source order: fnbase_<unit> + local
@@ -1571,7 +1572,13 @@ ${st}jsval porf_thk_bad(${dynThunkParams}) {
     for (let n = 0; n <= DYN_REGS; n++) {
       const regs = Array.from({ length: DYN_REGS }, (_, j) => j < n ? `a${j}` : 'JV_UNDEFINED');
       emit(`${split ? '' : 'static inline '}jsval porf_call${n}(${dynCallParams(n)}) {
-  if (porf_jv_type(fn) != ${TYPES.function}) porf_throw_new(${TYPES.typeerror}, 0);
+  if (porf_jv_type(fn) != ${TYPES.function}) {
+    ${proxyCall ? `if (porf_jv_type(fn) == ${TYPES.proxy}) {
+      jsbits argv[${n || 1}] = { ${n ? regs.slice(0, n).map(x => `porf_pack(${x})`).join(', ') : '0'} };
+      return porf_call_dynamic(fn, thisv, JV_UNDEFINED, ${n}, argv);
+    }` : ''}
+    porf_throw_new(${TYPES.typeerror}, 0);
+  }
   const u32 rec = (u32)fn.val;
   const u32 idx = *(u32*)(MEM + rec);
   if (idx >= ${linkFuncs.length}u) porf_unreachable("bad function index");
@@ -1801,7 +1808,16 @@ ${st}jsval porf_coro_start(u8 flags, u32 idx, jsval callee, u32 env, jsval thisv
 	`);
     }
     emit(`${st}jsval porf_call_dynamic(jsval fn, jsval thisv, jsval newtv, i32 argc, jsbits* argv) {
-  if (porf_jv_type(fn) != ${TYPES.function}) porf_throw_new(${TYPES.typeerror}, 0);
+  if (porf_jv_type(fn) != ${TYPES.function}) {
+    ${proxyCall ? `// __Porffor_proxy_call(proxy, this, newTarget, ...args)
+    if (porf_jv_type(fn) == ${TYPES.proxy}) {
+      jsbits nargv[argc + 3];
+      nargv[0] = porf_pack(fn); nargv[1] = porf_pack(thisv); nargv[2] = porf_pack(newtv);
+      if (argc > 0) memcpy(nargv + 3, argv, (size_t)argc * sizeof(jsbits));
+      return porf_invoke(${linkIdx[proxyCall.index]}u, JV_UNDEFINED, 0, JV_UNDEFINED, JV_UNDEFINED, argc + 3, nargv);
+    }` : ''}
+    porf_throw_new(${TYPES.typeerror}, 0);
+  }
   const u32 rec = (u32)fn.val;
   const u32 idx = *(u32*)(MEM + rec);
   const u32 env = *(u32*)(MEM + rec + 4);
@@ -3375,6 +3391,8 @@ weakmap_seen:
 }
 
 static void porf_gc_mark_js(f64 value, i32 type) {
+  // proxies are [ target, handler ] arrays
+  if (type == ${TYPES.proxy}) type = ${TYPES.array};
   switch (type) {
     case ${TYPES.undefined}:
     case ${TYPES.number}:

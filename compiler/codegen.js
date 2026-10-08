@@ -1334,7 +1334,10 @@ const includeBuiltin = (scope, builtin) => {
   scope.includes ??= new Set();
   scope.includes.add(builtin);
 
-  return asmFunc(builtin, builtinFuncs[builtin]);
+  const func = asmFunc(builtin, builtinFuncs[builtin]);
+  // dynamic calls of proxies go through their apply/construct traps
+  if (builtin === 'Proxy') includeBuiltin(scope, '__Porffor_proxy_call').indirect = true;
+  return func;
 };
 const builtinCall = (scope, name, args, retType) => {
   const f = name in builtinFuncs ? includeBuiltin(scope, name) : null;
@@ -3286,6 +3289,7 @@ const generateUnary = (scope, decl) => {
         [ TYPES.function, () => makeString(scope, 'function') ],
         [ TYPES.symbol, () => makeString(scope, 'symbol') ],
         [ TYPES.bigint, () => makeString(scope, 'bigint') ],
+        [ TYPES.proxy, () => builtinCall(scope, '__Porffor_proxy_typeof', [ arg ]) ],
 
         [ 'default', () => makeString(scope, 'object') ]
       ]);
@@ -4927,7 +4931,9 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
           emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, t)),
             t === TYPES.number
               ? () => emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, TYPES.numberobject)), guard)
-              : guard);
+              : t === TYPES.function
+                ? () => emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, TYPES.proxy)), guard)
+                : guard);
         }
       }
 

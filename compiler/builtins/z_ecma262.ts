@@ -190,6 +190,9 @@ export const __ecma262_ToPropertyKey = (argument: any): any => {
 };
 
 export const __ecma262_IsConstructor = (argument: any): boolean => {
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(argument) == Porffor.TYPES.proxy) return __ecma262_IsConstructor(__Porffor_proxy_target(argument));
+  }
   if (Porffor.type(argument) != Porffor.TYPES.function) return false;
   return (__Porffor_funcLut_flags(argument) & 0b10) == 2;
 };
