@@ -188,16 +188,14 @@ export const __Porffor_hashtableTombstone = (container: any, key: any, index: an
 };
 
 export const __Porffor_hashtableNew = (withVals: boolean): any => {
-  const out: any = Porffor.malloc(20);
-
+  // container last: the gc does not trace it until the caller's barrier
   const keys: any[] = Porffor.array.new(4);
+  let vals: any = 0;
+  if (withVals) vals = Porffor.array.new(4);
+
+  const out: any = Porffor.malloc(20);
   Porffor.IR.storeI32(out, 0, keys);
-  if (withVals) {
-    const vals: any[] = Porffor.array.new(4);
-    Porffor.IR.storeI32(out, 4, vals);
-  } else {
-    Porffor.IR.storeI32(out, 4, 0);
-  }
+  Porffor.IR.storeI32(out, 4, vals);
   Porffor.IR.storeI32(out, 8, 0);
   Porffor.IR.storeI32(out, 12, 0);
   Porffor.IR.storeI32(out, 16, 0);
