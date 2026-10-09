@@ -3101,7 +3101,8 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       const addr = taAddr(1);
       const v = reuse(scope, op === '=' ? simpleValue
         : performOp(scope, op, Box(Convert(T.f64, Load('u8', addr, 4)), Const(T.i32, TYPES.number)), generate(scope, decl.right), TYPES.number, getNodeType(scope, decl.right)));
-      stmt(scope, Store('u8', addr, 4, Convert(T.u32, Bin('min', T.f64, Bin('max', T.f64, numValue(v), Const(T.f64, 0)), Const(T.f64, 255)), 0)));
+      // ToUint8Clamp: clamp then round half to even
+      stmt(scope, Store('u8', addr, 4, Convert(T.u32, Un('nearest', T.f64, Bin('min', T.f64, Bin('max', T.f64, numValue(v), Const(T.f64, 0)), Const(T.f64, 255))), 0)));
       return v[N_TYPE] === T.jsval ? v : valNumber(v);
     };
     const taSetBig = () => {
