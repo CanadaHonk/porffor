@@ -2019,7 +2019,7 @@ const generateCall = (scope, decl) => {
 
       aliasPrimObjsBC(protoBC);
 
-      const entries = Object.keys(protoBC).map(x => [ +x, protoBC[x] ]);
+      const entries = Object.keys(protoBC).map(x => [ +x, protoBC[x] ]).sort((a, b) => a[0] - b[0]);
       if (typedArrayCall) entries.push([ TYPED_ARRAY_TYPES, typedArrayCall ]);
       entries.push([ 'default', () => Prefs.neverFallbackBuiltinProto && !decl.optional
         ? internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
