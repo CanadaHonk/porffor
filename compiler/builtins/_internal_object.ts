@@ -582,6 +582,7 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
       // if undefined, prototype is object.prototype
       if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
     } else obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
+    if (obj == null) return undefined;
 
     // todo/opt: put this behind comptime flag if only __proto__ is used
     if (hash == 212292208) if (Porffor.strcmp(key, '__proto__')) {
@@ -594,7 +595,6 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
     }
     let proto: any = obj;
     if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
-    if (obj == null) return undefined;
     while (true) {
       if ((entryPtr = __Porffor_object_lookup(obj, key, hash)) != 0) break;
 
@@ -775,7 +775,8 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   let flags: i32;
   if (entryPtr == 0) {
-    if (hash == 212292208) if (Porffor.strcmp(key, '__proto__')) {
+    let proto: any = __Porffor_object_getPrototype(obj);
+    if (hash == 212292208) if (Porffor.fastAnd(Porffor.strcmp(key, '__proto__'), proto !== null)) {
       // set prototype
       __Porffor_object_setPrototype(obj, value);
       return value;
@@ -783,7 +784,6 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
 
     // todo/opt: skip if no setters used
     // check prototype chain for setter
-    let proto: any = __Porffor_object_getPrototype(obj);
     if (proto != null) {
       if (Porffor.comptime.flag`hasFunc.Proxy`) {
         if (Porffor.type(proto) == Porffor.TYPES.proxy) {
@@ -1014,7 +1014,8 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   let flags: i32;
   if (entryPtr == 0) {
-    if (hash == 212292208) if (Porffor.strcmp(key, '__proto__')) {
+    let proto: any = __Porffor_object_getPrototype(obj);
+    if (hash == 212292208) if (Porffor.fastAnd(Porffor.strcmp(key, '__proto__'), proto !== null)) {
       // set prototype
       __Porffor_object_setPrototype(obj, value);
       return value;
@@ -1022,7 +1023,6 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
 
     // todo/opt: skip if no setters used
     // check prototype chain for setter
-    let proto: any = __Porffor_object_getPrototype(obj);
     if (proto != null) {
       if (Porffor.comptime.flag`hasFunc.Proxy`) {
         if (Porffor.type(proto) == Porffor.TYPES.proxy) {
