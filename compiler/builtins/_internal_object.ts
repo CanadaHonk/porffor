@@ -1412,12 +1412,6 @@ export const __Porffor_object_expr_init = (obj: any, key: any, value: any): void
   const hash: i32 = __Porffor_object_hash(key);
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   if (entryPtr == 0) {
-    if (hash == 212292208) if (Porffor.strcmp(key, '__proto__')) {
-      // set prototype
-      __Porffor_object_setPrototype(obj, value);
-      return value;
-    }
-
     // add new entry
     entryPtr = __Porffor_object_appendEntry(obj, key, hash);
   }

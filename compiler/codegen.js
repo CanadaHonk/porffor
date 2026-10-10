@@ -4138,6 +4138,11 @@ const generateObject = (scope, decl) => {
     }
 
     const key = getProperty(x, true);
+    if (!computed && !x.shorthand && !method && kind === 'init' && key.value === '__proto__') {
+      exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototype', [ obj, generate(scope, value) ]));
+      continue;
+    }
+
     if (isFuncType(value.type)) {
       let id = value.id;
       let noFuncIndex = false;
