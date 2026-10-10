@@ -53,6 +53,8 @@ registerInternalType('DataView');
 for (const x of [ 'Uint8Clamped', 'Uint8', 'Int8', 'Uint16', 'Int16', 'Uint32', 'Int32', 'BigUint64', 'BigInt64', 'Float32', 'Float64' ])
   registerInternalType(`${x}Array`, ['iterable', 'length']);
 
+export const TYPED_ARRAY_TYPES = Object.values(TYPES).filter(x => x >= TYPES.uint8clampedarray && x <= TYPES.float64array);
+
 registerInternalType('WeakRef');
 registerInternalType('WeakSet');
 registerInternalType('WeakMap');

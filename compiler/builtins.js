@@ -158,7 +158,10 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     };
 
    _[name] = (_scope, { includeBuiltin }) => {
-      if (lazyKind === 'proto') fullPrototypes.add(getName);
+      if (lazyKind === 'proto') {
+        fullPrototypes.add(getName);
+        if (typedArrayProtos.includes(name)) fullPrototypes.add('#get___TypedArray_prototype');
+      }
       includeBuiltin('#get_' + name);
       return Box(Call('#get_' + name, [], T.ptr), Const(T.i32, existingFunc ? TYPES.function : TYPES.object));
     };
@@ -298,14 +301,30 @@ export const BuiltinVars = ({ builtinFuncs }) => {
   }
 
   // automatically generate objects for prototypes
+  const typedArrayProtos = Object.keys(typedArrayBytesPerElement).map(x => `__${x}_prototype`);
   for (const x of builtinFuncKeys.reduce((acc, x) => {
     const ind = x.indexOf('_prototype_');
     if (ind === -1) return acc;
 
     acc.add(x.slice(0, ind + 10));
     return acc;
-  }, new Set())) {
+  }, new Set(typedArrayProtos))) {
     const props = autoFuncs(x);
+
+    if (typedArrayProtos.includes(x)) {
+      props.BYTES_PER_ELEMENT = {
+        value: typedArrayBytesPerElement[x.slice(2, -'_prototype'.length)],
+        writable: false,
+        enumerable: false,
+        configurable: false
+      };
+
+      const value = (_scope, { includeBuiltin }) => {
+        includeBuiltin('#get___TypedArray_prototype');
+        return Box(Call('#get___TypedArray_prototype', [], T.ptr), Const(T.i32, TYPES.object));
+      };
+      Object.defineProperty(props, '__proto__', { value: { value }, enumerable: true });
+    }
 
     // special case: Object.prototype.__proto__ = null
     if (x === '__Object_prototype') {
@@ -383,8 +402,8 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     }, autoFuncKeys(x)));
   }
 
-  for (const x of [ 'Array', 'ArrayBuffer', 'Atomics', 'Date', 'Error', 'JSON', 'Object', 'Promise', 'Reflect', 'String', 'Symbol', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'SharedArrayBuffer', 'BigInt', 'Boolean', 'DataView', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'Proxy', 'Function', 'Map', 'RegExp', 'Set', 'WeakMap', 'WeakRef', 'WeakSet' ]) {
-    object(x, {
+  for (const x of [ 'Array', 'ArrayBuffer', 'Atomics', 'Date', 'Error', 'JSON', 'Object', 'Promise', 'Reflect', 'String', 'Symbol', 'TypedArray', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'SharedArrayBuffer', 'BigInt', 'Boolean', 'DataView', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'Proxy', 'Function', 'Map', 'RegExp', 'Set', 'WeakMap', 'WeakRef', 'WeakSet' ]) {
+    const ctorProps = {
       ...(typedArrayBytesPerElement[x] == null ? {} : props({
         writable: false,
         enumerable: false,
@@ -394,7 +413,9 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       })),
       ...(x === 'Symbol' ? wellKnownSymbolProps : {}),
       ...autoFuncs(x)
-    });
+    };
+    if (typedArrayBytesPerElement[x] != null) Object.defineProperty(ctorProps, '__proto__', { value: { value: _.TypedArray }, enumerable: true });
+    object(x, ctorProps);
   }
 
   const enumerableGlobals = [ 'atob', 'btoa', 'performance', 'navigator' ];
@@ -425,7 +446,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       writable: true,
       enumerable: false,
       configurable: true
-    }, builtinFuncKeys.filter(x => !x.startsWith('__') && !enumerableGlobals.includes(x) && !x.startsWith('f64') && !x.startsWith('i32'))),
+    }, builtinFuncKeys.filter(x => !x.startsWith('__') && !enumerableGlobals.includes(x) && !x.startsWith('f64') && !x.startsWith('i32') && x !== 'TypedArray')),
 
     ...props({
       writable: true,

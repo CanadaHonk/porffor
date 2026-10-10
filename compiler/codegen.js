@@ -9,7 +9,7 @@ import {
   Alloc, GcBarrier, ArrGet, ArrSet, ArrLenSet, LenGet, LenSet, RawC, FuncIdx, FuncRec
 } from './ir.js';
 import { BuiltinFuncs, BuiltinVars, fullPrototypes } from './builtins.js';
-import { TYPES, TYPE_FLAGS, TYPE_NAMES } from './types.js';
+import { TYPES, TYPE_FLAGS, TYPE_NAMES, TYPED_ARRAY_TYPES } from './types.js';
 import semantic, { knownValue, unknownValue } from './semantic.js';
 import parse from './parse.js';
 import temporalPolyfillSource from './temporal.js';
@@ -796,6 +796,9 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
   // Porffor.TYPES.x folds to its id
   if (name.startsWith('__Porffor_TYPES_')) return Const(T.i32, TYPES[name.slice(16)]);
 
+  // %TypedArray% is not a global
+  if (name === 'TypedArray' && !globalThis.precompile) return null;
+
   // builtin value globals like Number.MAX_VALUE
   if (name in builtinVars) {
     const v = builtinVars[name];
@@ -1459,6 +1462,12 @@ const getNodeType = (scope, node) => {
       else if (name === 'String') ret = TYPES.stringobject;
       else { const tn = name?.toLowerCase(); if (tn != null && TYPES[tn] != null) ret = TYPES[tn]; }
     }
+    if (ret == null && node.type === 'CallExpression' && node.callee._builtinThis) ret = TYPES[node.callee._builtinThis.toLowerCase()];
+    if (ret == null && node.type === 'CallExpression' && node.callee.type === 'MemberExpression' && !node.callee.computed &&
+        typedArraySameTypeMethods.includes(node.callee.property.name)) {
+      const t = knownType(scope, getNodeType(scope, node.callee.object));
+      if (TYPED_ARRAY_TYPES.includes(t)) ret = t;
+    }
     if (ret == null) {
       // `x.call(...)` -> type of x
       if (name == null && node.callee.type === 'MemberExpression' && node.callee.property.name === 'call') name = node.callee.object.name;
@@ -1634,6 +1643,15 @@ const setObjProp = (obj, prop, value) => objectHack({
   right: value
 });
 
+const protoOwnerOf = name => name.slice(2, name.indexOf('_prototype'));
+const protoOwnerTypes = owner => {
+  if (owner === 'TypedArray') return TYPED_ARRAY_TYPES;
+  const t = TYPES[owner.toLowerCase()] ?? TYPES['__' + owner.toLowerCase()];
+  return t == null ? [] : [ t ];
+};
+
+const typedArraySameTypeMethods = [ 'copyWithin', 'fill', 'filter', 'map', 'reverse', 'slice', 'sort', 'subarray', 'toReversed', 'toSorted', 'with' ];
+
 const aliasPrimObjsBC = bc => {
   const add = (x, y) => {
     if (bc[x] == null) return;
@@ -1750,7 +1768,7 @@ const createThisArg = (scope, decl) => {
 
   // primitive receivers of builtin prototype methods get boxed (ToObject)
   if (name && name.startsWith('__')) {
-    const obj = name.slice(2, name.indexOf('_', 2));
+    const obj = decl.callee._builtinThis ?? name.slice(2, name.indexOf('_', 2));
     if (name.includes('_prototype_') && ['Object', 'String', 'Boolean', 'Number'].includes(obj)) {
       return generate(scope, { type: 'NewExpression', callee: { type: 'Identifier', name: obj }, arguments: [] });
     }
@@ -1972,16 +1990,10 @@ const generateCall = (scope, decl) => {
         : x);
 
       const protoBC = {};
+      let typedArrayCall;
       for (const x of builtinProtoCands) {
-        const tn = x.split('_prototype_')[0].toLowerCase();
-        const t = TYPES[tn.slice(2)] ?? TYPES[tn];
-        if (t == null) continue;
-        // Object prototype methods fall back through normal lookup so own props win
-        if (t === TYPES.object) {
-          includeBuiltin(scope, x);
-          continue;
-        }
-        protoBC[t] = () => generate(scope, {
+        const owner = protoOwnerOf(x);
+        const call = () => generate(scope, {
           type: 'CallExpression',
           optional: decl.optional,
           callee: { type: 'Identifier', name: x },
@@ -1989,15 +2001,31 @@ const generateCall = (scope, decl) => {
           _thisArg: targetIdent,
           _protoInternalCall: true
         });
-      }
 
-      protoBC.default = () => Prefs.neverFallbackBuiltinProto && !decl.optional
-        ? internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
-        : generate(scope, { ...decl, _protoInternalCall: true });
+        if (owner === 'TypedArray') {
+          typedArrayCall = call;
+          continue;
+        }
+
+        const t = protoOwnerTypes(owner)[0];
+        if (t == null) continue;
+        // own props win over Object.prototype methods
+        if (t === TYPES.object) {
+          includeBuiltin(scope, x);
+          continue;
+        }
+        protoBC[t] = call;
+      }
 
       aliasPrimObjsBC(protoBC);
 
-      return typeSwitch(scope, JvType(targetTmp), targetKnownType, protoBC);
+      const entries = Object.keys(protoBC).map(x => [ +x, protoBC[x] ]);
+      if (typedArrayCall) entries.push([ TYPED_ARRAY_TYPES, typedArrayCall ]);
+      entries.push([ 'default', () => Prefs.neverFallbackBuiltinProto && !decl.optional
+        ? internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
+        : generate(scope, { ...decl, _protoInternalCall: true }) ]);
+
+      return typeSwitch(scope, JvType(targetTmp), targetKnownType, entries);
     }
   }
 
@@ -4178,21 +4206,22 @@ const resolveMemberDemands = scope => {
 
     const getterOnly = propName === 'constructor';
     for (const x of getterOnly ? builtinPrototypeObjectGetters.values() : (builtinPrototypeFuncs.get(propName) ?? [])) {
-      let tn;
-      if (getterOnly) {
-        tn = x.slice(7, -'_prototype'.length);
-      } else {
-        tn = x.slice(2, x.indexOf('_prototype_'));
-      }
+      const tn = getterOnly ? x.slice(7, -'_prototype'.length) : protoOwnerOf(x);
+      if (getterOnly && tn === 'TypedArray') continue;
 
-      const t = TYPES[tn.toLowerCase()] ?? TYPES['__' + tn.toLowerCase()];
-      if (t == null || (!usesAnyType([ t, primObjAlias[t] ]) && !(t === TYPES.string && usedTypes.has(TYPES.bytestring)))) continue;
+      const used = protoOwnerTypes(tn).filter(t => usesAnyType([ t, primObjAlias[t] ]) || (t === TYPES.string && usedTypes.has(TYPES.bytestring)));
+      if (used.length === 0) continue;
       includeBuiltin(scope, x);
       if (!getterOnly) {
         const getter = '#get___' + tn + '_prototype';
         if (getter in builtinFuncs) includeBuiltin(scope, getter);
+
+        if (tn === 'TypedArray') for (const t of used) includeBuiltin(scope, '#get___' + TYPE_NAMES[t] + '_prototype');
       }
     }
+
+    const shared = '__TypedArray_' + propName;
+    if (shared in builtinFuncs && TYPED_ARRAY_TYPES.some(t => TYPE_NAMES[t] in funcIndex)) includeBuiltin(scope, shared);
   }
 };
 
@@ -4202,7 +4231,7 @@ const generateMember = (scope, decl, objValue = null) => {
   if (!globalThis.precompile) demandMemberRead(decl);
   // builtins unless reassigned via globalThis
   const globalName = decl.object.name === 'globalThis' && !decl.computed && decl.property.name;
-  if (globalName && !globalName.startsWith('__') && globalName !== 'null' && !(globalName in globals)) {
+  if (globalName && !globalName.startsWith('__') && globalName !== 'null' && globalName !== 'TypedArray' && !(globalName in globals)) {
     const v = builtinVars[globalName];
     if (v) return typeof v === 'function' ? v(scope, irBuiltinHelpers(scope, globalName, {})) : v;
     if (globalName in builtinFuncs) return materializeFunctionValue(scope, includeBuiltin(scope, globalName));
@@ -4248,14 +4277,14 @@ const generateMember = (scope, decl, objValue = null) => {
     const bc = [];
     const cands = builtinPrototypeGetters.get(decl.property.name) ?? [];
     for (const x of cands) {
-      const t = TYPES[x.split('_prototype_')[0].slice(2).toLowerCase()];
-      if (t == null) continue;
+      const types = protoOwnerTypes(protoOwnerOf(x));
+      if (types.length === 0) continue;
 
       const getter = includeBuiltin(scope, x);
       const callGetter = recv => Call(getter.index, buildDirectArgs(scope, decl, getter, [], null, recv), getter.retType ?? T.jsval);
 
-      if (t === known) return callGetter(obj);
-      bc.push([ t, () => callGetter(obj) ]);
+      if (types.includes(known)) return callGetter(obj);
+      bc.push([ types, () => callGetter(obj) ]);
     }
 
     if (known == null) extraBC = bc;
@@ -4712,6 +4741,13 @@ const objectHack = node => {
       if (!objectName || (!objectHackers.includes(objectName) && !objectHackers.some(x => objectName.startsWith(`${x}_`)))) return;
 
       const name = '__' + objectName + '_' + node.property.name;
+      const inherited = '__TypedArray_' + node.property.name;
+      if (TYPED_ARRAY_TYPES.some(t => TYPE_NAMES[t] === objectName) && hasFuncWithName(inherited)) return {
+        type: 'Identifier',
+        name: inherited,
+        _builtinMember: true,
+        _builtinThis: objectName
+      };
       if ((!hasFuncWithName(name) && !(name in builtinVars) && !hasFuncWithName(name + '$get')) && (hasFuncWithName(objectName) || objectName in builtinVars || hasFuncWithName('__' + objectName) || ('__' + objectName) in builtinVars)) return;
 
       return {
@@ -5295,7 +5331,7 @@ export default (program, opts = {}) => {
     }
 
     const getObjectName = x => x.startsWith('__') && x.slice(2, x.indexOf('_', 2));
-    allObjectHackers = [ ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x)) ];
+    allObjectHackers = [ ...new Set(Object.keys(builtinFuncs).map(getObjectName).concat(Object.keys(builtinVars).map(getObjectName)).filter(x => x && (globalThis.precompile || x !== 'TypedArray'))) ];
     semantic.objectHack = objectHack;
   }
 

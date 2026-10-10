@@ -370,7 +370,6 @@ export const __Array_prototype_splice = function (this: any[], _start: any, _del
   return out;
 };
 
-// @porf-typed-array
 export const __Array_prototype_fill = function (this: any[], value: any, _start: any, _end: any) {
   const len: i32 = this.length;
 
@@ -398,7 +397,6 @@ export const __Array_prototype_fill = function (this: any[], value: any, _start:
   return this;
 };
 
-// @porf-typed-array
 export const __Array_prototype_indexOf = function (this: any[], searchElement: any, _position: any) {
   const len: i32 = this.length;
   if (len == 0) return -1;
@@ -420,7 +418,6 @@ export const __Array_prototype_indexOf = function (this: any[], searchElement: a
   return -1;
 };
 
-// @porf-typed-array
 export const __Array_prototype_lastIndexOf = function (this: any[], searchElement: any, _position: any) {
   const len: i32 = this.length;
   if (len == 0) return -1;
@@ -441,7 +438,6 @@ export const __Array_prototype_lastIndexOf = function (this: any[], searchElemen
   return -1;
 };
 
-// @porf-typed-array
 export const __Array_prototype_includes = function (this: any[], searchElement: any, _position: any) {
   const len: i32 = this.length;
   if (len == 0) return false;
@@ -461,7 +457,6 @@ export const __Array_prototype_includes = function (this: any[], searchElement: 
   return false;
 };
 
-// @porf-typed-array
 export const __Array_prototype_with = function (this: any[], _index: any, value: any) {
   const len: i32 = this.length;
 
@@ -487,7 +482,6 @@ export const __Array_prototype_with = function (this: any[], _index: any, value:
   return out;
 };
 
-// @porf-typed-array
 export const __Array_prototype_copyWithin = function (this: any[], _target: any, _start: any, _end: any) {
   const len: i32 = this.length;
 
@@ -544,7 +538,6 @@ export const __Array_prototype_copyWithin = function (this: any[], _target: any,
   return this;
 };
 
-// @porf-typed-array
 export const __Array_prototype_concat = function (this: any[], ...vals: any[]) {
   let len: i32 = this.length;
   const out: any[] = Porffor.array.new(len);
@@ -571,7 +564,6 @@ export const __Array_prototype_concat = function (this: any[], ...vals: any[]) {
   return out;
 };
 
-// @porf-typed-array
 export const __Array_prototype_reverse = function (this: any[]) {
   const len: i32 = this.length;
 
@@ -606,7 +598,6 @@ export const __Array_prototype_reverse = function (this: any[]) {
 };
 
 
-// @porf-typed-array
 export const __Array_prototype_forEach = function (this: any[], callbackFn: any, thisArg: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = this.length;
@@ -621,7 +612,6 @@ export const __Array_prototype_forEach = function (this: any[], callbackFn: any,
   }
 };
 
-// @porf-typed-array
 export const __Array_prototype_filter = function (this: any[], callbackFn: any, thisArg: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = this.length;
@@ -647,7 +637,6 @@ export const __Array_prototype_filter = function (this: any[], callbackFn: any, 
   return out;
 };
 
-// @porf-typed-array
 export const __Array_prototype_map = function (this: any[], callbackFn: any, thisArg: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = this.length;
@@ -699,7 +688,6 @@ export const __Array_prototype_flatMap = function (this: any[], callbackFn: any,
   return out;
 };
 
-// @porf-typed-array
 export const __Array_prototype_find = function (this: any[], callbackFn: any, thisArg: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = this.length;
@@ -710,7 +698,6 @@ export const __Array_prototype_find = function (this: any[], callbackFn: any, th
   }
 };
 
-// @porf-typed-array
 export const __Array_prototype_findLast = function (this: any[], callbackFn: any, thisArg: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   let i: i32 = this.length;
@@ -720,7 +707,6 @@ export const __Array_prototype_findLast = function (this: any[], callbackFn: any
   }
 };
 
-// @porf-typed-array
 export const __Array_prototype_findIndex = function (this: any[], callbackFn: any, thisArg: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = this.length;
@@ -732,7 +718,6 @@ export const __Array_prototype_findIndex = function (this: any[], callbackFn: an
   return -1;
 };
 
-// @porf-typed-array
 export const __Array_prototype_findLastIndex = function (this: any[], callbackFn: any, thisArg: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   let i: i32 = this.length;
@@ -742,7 +727,6 @@ export const __Array_prototype_findLastIndex = function (this: any[], callbackFn
   return -1;
 };
 
-// @porf-typed-array
 export const __Array_prototype_every = function (this: any[], callbackFn: any, thisArg: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = this.length;
@@ -760,7 +744,6 @@ export const __Array_prototype_every = function (this: any[], callbackFn: any, t
   return true;
 };
 
-// @porf-typed-array
 export const __Array_prototype_some = function (this: any[], callbackFn: any, thisArg: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = this.length;
@@ -777,7 +760,6 @@ export const __Array_prototype_some = function (this: any[], callbackFn: any, th
   return false;
 };
 
-// @porf-typed-array
 export const __Array_prototype_reduce = function (this: any[], callbackFn: any, initialValue: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = this.length;
@@ -801,7 +783,6 @@ export const __Array_prototype_reduce = function (this: any[], callbackFn: any, 
   return acc;
 };
 
-// @porf-typed-array
 export const __Array_prototype_reduceRight = function (this: any[], callbackFn: any, initialValue: any) {
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
   const len: i32 = this.length;
@@ -884,7 +865,6 @@ export const __Porffor_array_mergeSort = (items: any[], len: i32, comparefn: any
   }
 };
 
-// @porf-typed-array
 export const __Array_prototype_sort = function (this: any[], callbackFn: any) {
   if (callbackFn === undefined) {
     // default callbackFn, convert to strings and sort by char code
@@ -936,7 +916,6 @@ export const __Array_prototype_sort = function (this: any[], callbackFn: any) {
   return this;
 };
 
-// @porf-typed-array
 export const __Array_prototype_toString = function (this: any[]) {
   // todo: this is bytestring only!
 
@@ -986,10 +965,8 @@ export const __Array_prototype_toString = function (this: any[]) {
   return out;
 };
 
-// @porf-typed-array
 export const __Array_prototype_toLocaleString = function (this: any[]) { return Porffor.callThis(__Array_prototype_toString, this); };
 
-// @porf-typed-array
 export const __Array_prototype_join = function (this: any[], _separator: any) {
   let separator: any = ',';
   if (Porffor.type(_separator) != Porffor.TYPES.undefined)
@@ -1080,32 +1057,26 @@ export const __Array_prototype_join = function (this: any[], _separator: any) {
   return out;
 };
 
-// @porf-typed-array
 export const __Array_prototype_valueOf = function (this: any[]) {
   return this;
 };
 
-// @porf-typed-array
 export const __Array_prototype_values = function (this: any[]) {
   return __Porffor_iterator_toObject(this, 0);
 };
 
-// @porf-typed-array
 export const __Array_prototype_Symbol_iterator = function (this: any[]) {
   return __Porffor_iterator_toObject(this, 0);
 };
 
-// @porf-typed-array
 export const __Array_prototype_keys = function (this: any[]) {
   return __Porffor_iterator_toObject(this, 1);
 };
 
-// @porf-typed-array
 export const __Array_prototype_entries = function (this: any[]) {
   return __Porffor_iterator_toObject(this, 3);
 };
 
-// @porf-typed-array
 export const __Array_prototype_toReversed = function (this: any[]) {
   const len: i32 = this.length;
   if (len == 0) {
@@ -1130,7 +1101,6 @@ export const __Array_prototype_toReversed = function (this: any[]) {
   return out;
 };
 
-// @porf-typed-array
 export const __Array_prototype_toSorted = function (this: any[], callbackFn: any) {
   // todo/perf: could be rewritten to be its own instead of cloning and using normal sort()
   if (Porffor.type(callbackFn) != Porffor.TYPES.undefined) {

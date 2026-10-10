@@ -11,7 +11,6 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-globalThis.precompileCompilerPath = __dirname;
 globalThis.precompile = true;
 
 const argv = process.argv.slice();
