@@ -4404,11 +4404,12 @@ const generateMember = (scope, decl, objValue = null) => {
 const generateAwait = (scope, decl) =>
   awaitValue(scope, generate(scope, decl.argument));
 
-const bindClassFieldInitializer = (node, owner, currentArrow = null) => {
+const bindClassFieldInitializer = (node, owner, currentArrow = null, root = node) => {
   if (!node || typeof node !== 'object') return;
 
   if (node.type === 'Identifier') {
-    if (node._closureFunc) owner._closurePassThrough = true;
+    // captures of bindings declared inside the initializer stay within it
+    if (node._closureFunc && !(node._closureFunc.start >= root.start && node._closureFunc.end <= root.end)) owner._closurePassThrough = true;
     return;
   }
 
@@ -4444,12 +4445,12 @@ const bindClassFieldInitializer = (node, owner, currentArrow = null) => {
     if (value == null || typeof value !== 'object') continue;
 
     if (Array.isArray(value)) {
-      for (const item of value) bindClassFieldInitializer(item, owner, currentArrow);
+      for (const item of value) bindClassFieldInitializer(item, owner, currentArrow, root);
       continue;
     }
 
     if (value.type) {
-      bindClassFieldInitializer(value, owner, currentArrow);
+      bindClassFieldInitializer(value, owner, currentArrow, root);
     }
   }
 };
