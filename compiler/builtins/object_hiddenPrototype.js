@@ -34,24 +34,6 @@ export default ({ TYPES, TYPE_NAMES }) => {
   // if (trueType == Porffor.TYPES.function) return __Function_prototype;
   out += `
   return __Object_prototype;
-};
-
-export const __Porffor_object_builtinPrototype = (f: any): any => {`;
-
-  const ctors = new Set([ 'Object', 'Function', 'Symbol', 'BigInt' ]);
-  for (const x in TYPES) {
-    if (x === 'object' || x === 'undefined' || x.startsWith('__')) continue;
-    ctors.add(TYPE_NAMES[TYPES[x]].replace('Object', ''));
-  }
-  for (const x of ctors) {
-    out += `
-  if (Porffor.comptime.flag\`hasFunc.${x}\`) {
-    if (f == ${x}) return __${x}_prototype;
-  }`;
-  }
-
-  out += `
-  return undefined;
 };`;
 
   return out;

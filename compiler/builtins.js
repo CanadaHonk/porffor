@@ -71,16 +71,16 @@ export const BuiltinVars = ({ builtinFuncs }) => {
         ];
         const propValue = (key, d) => {
           if (key === name) return obj;
-          if (key in builtinFuncs) return funcValue(key);
-          if (key === 'undefined') return JvConst(TYPES.undefined, 0);
-          if (key === 'null') return JvConst(TYPES.object, 0);
-          if (key === 'NaN') return Box(Const(T.f64, NaN), Const(T.i32, TYPES.number));
-          if (key === 'Infinity') return Box(Const(T.f64, Infinity), Const(T.i32, TYPES.number));
           const getter = '#get_' + key;
           if (getter in builtinFuncs) {
             includeBuiltin(getter);
             return Box(Call(getter, [], T.ptr), Const(T.i32, _[key]?.type ?? TYPES.object));
           }
+          if (key in builtinFuncs) return funcValue(key);
+          if (key === 'undefined') return JvConst(TYPES.undefined, 0);
+          if (key === 'null') return JvConst(TYPES.object, 0);
+          if (key === 'NaN') return Box(Const(T.f64, NaN), Const(T.i32, TYPES.number));
+          if (key === 'Infinity') return Box(Const(T.f64, Infinity), Const(T.i32, TYPES.number));
           if ('value' in d) {
             const value = d.value;
             if (typeof value === 'function') return value(_, { includeBuiltin, funcRefPtr, makeString, global });
@@ -92,7 +92,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           throw new Error(`unsupported builtin object property ${name}.${key}`);
         };
 
-        includeBuiltin('__Porffor_object_fastAdd');
+        includeBuiltin(existingFunc ? '__Porffor_object_define' : '__Porffor_object_fastAdd');
         const emitProp = (out, x, d) => {
           const key = prefix + x;
           const value = propValue(key, d);
@@ -116,7 +116,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           }
 
           const keyValue = x.startsWith('Symbol_') ? wellKnownSymbolProps[x.slice(7)].value(_, { includeBuiltin, makeString, global }) : makeString(x);
-          out.push(Call('__Porffor_object_fastAdd', [ obj, keyValue, value, Const(T.i32, flags) ], T.none));
+          out.push(Call(existingFunc ? '__Porffor_object_define' : '__Porffor_object_fastAdd', [ obj, keyValue, value, Const(T.i32, flags) ], T.none));
         };
 
         if (lazyKind && Prefs.lazyObjects) {
@@ -139,7 +139,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
               } else {
                 if (key in builtinFuncs) {
                   if (!hasFunc(key)) continue;
-                } else if (('#get_' + key) in builtinFuncs) {
+                } else if (('#get_' + key) in builtinFuncs && x !== 'prototype') {
                   if (!hasFunc('#get_' + key)) continue;
                 }
               }
@@ -327,7 +327,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     // add constructor for constructors
     const name = x.slice(2, x.indexOf('_', 2));
     if (name in builtinFuncs) {
-      const value = (_scope, { funcRefPtr }) => Box(funcRefPtr(name), Const(T.i32, TYPES.function));
+      const value = (scope, helpers) => _[name](scope, helpers);
       value.type = TYPES.function;
 
       props.constructor = {
