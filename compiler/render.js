@@ -505,6 +505,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
           case 'abs': usesMath = true; return [`fabs(${rx(v, P_COMMA)})`, P_POSTFIX];
           case 'floor': case 'ceil': case 'trunc': case 'sqrt':
             usesMath = true; return [`${op}(${rx(v, P_COMMA)})`, P_POSTFIX];
+          case 'round': usesMath = true; return [`porf_round(${rx(v, P_COMMA)})`, P_POSTFIX];
           case 'nearest': usesMath = true; return [`porf_nearest(${rx(v, P_COMMA)})`, P_POSTFIX];
           case 'clz': return [`porf_clz32(${rx(v, P_COMMA)})`, P_POSTFIX];
           case 'ctz': return [`porf_ctz32(${rx(v, P_COMMA)})`, P_POSTFIX];
@@ -4375,6 +4376,7 @@ static inline u32 porf_rotl32(u32 x, u32 k) { k &= 31u; return (x << k) | (x >> 
 static inline u32 porf_rotr32(u32 x, u32 k) { k &= 31u; return (x >> k) | (x << ((0u - k) & 31u)); }
 static inline u64 porf_rotl64(u64 x, u64 k) { k &= 63ull; return (x << k) | (x >> ((0ull - k) & 63ull)); }
 static inline u64 porf_rotr64(u64 x, u64 k) { k &= 63ull; return (x >> k) | (x << ((0ull - k) & 63ull)); }
+static inline f64 porf_round(f64 d) { f64 r = floor(d); if (d - r >= 0.5) r += 1.0; return copysign(r, d); }
 static inline f64 porf_nearest(f64 d) { f64 r = round(d); if (fabs(d - trunc(d)) == 0.5 && ((i64)r & 1)) r -= d < 0 ? -1.0 : 1.0; return r; }
 static inline f64 porf_f64_min(f64 a, f64 b) { return a != a ? a : b != b ? b : a < b ? a : b; }
 static inline f64 porf_f64_max(f64 a, f64 b) { return a != a ? a : b != b ? b : a > b ? a : b; }

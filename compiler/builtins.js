@@ -517,7 +517,7 @@ return porf_box_num(pow(baseNum, exponentNum));`, false)
     [ 'abs', 'abs' ],
     [ 'floor', 'floor' ],
     [ 'ceil', 'ceil' ],
-    [ 'round', 'nearest' ],
+    [ 'round', 'round' ],
     [ 'trunc', 'trunc' ]
   ]) {
    _[`__Math_${name}`] = {

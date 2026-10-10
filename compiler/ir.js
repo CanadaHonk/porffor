@@ -48,7 +48,7 @@ export const K = {
 
   // arithmetic / compare / bits - op strings are C operators
   Bin: k++,      // a: op string, b: left, c: right  (type = operand type; cmp result i32)
-  Un: k++,       // a: op string ('neg','!','~','abs','floor','ceil','trunc','nearest','sqrt','clz','ctz','popcnt'), b: value
+  Un: k++,       // a: op string ('neg','!','~','abs','floor','ceil','trunc','round','nearest','sqrt','clz','ctz','popcnt'), b: value
   Select: k++,   // a: cond, b: then, c: else
 
   // conversions
@@ -201,6 +201,7 @@ export const Un = (op, type, a) => {
       case 'floor': return Const(type, Math.floor(x));
       case 'ceil': return Const(type, Math.ceil(x));
       case 'trunc': return Const(type, Math.trunc(x));
+      case 'round': return Const(type, Math.round(x));
       case 'sqrt': return Const(type, Math.sqrt(x));
     }
   }
