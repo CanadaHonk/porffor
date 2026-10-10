@@ -846,17 +846,14 @@ const functionFlags = (async, generator) =>
   SCOPE_FUNCTION | (async ? SCOPE_ASYNC : 0) | (generator ? SCOPE_GENERATOR : 0);
 
 // per-scope name bitmap: 1 = var, 2 = lexical, 4 = function.
-// '__proto__' needs a scalar slot: computed ['__proto__'] writes don't stick selfhosted
 const enterScope = flags => {
-  scopeStack.push({ flags, names: { __proto__: null }, protoBits: 0, catchParam: null });
+  scopeStack.push({ flags, names: { __proto__: null }, catchParam: null });
 };
 
-const nameBits = (scope, name) =>
-  name === '__proto__' ? scope.protoBits : (scope.names[name] | 0);
+const nameBits = (scope, name) => scope.names[name] | 0;
 
 const addNameBit = (scope, name, bit) => {
-  if (name === '__proto__') scope.protoBits |= bit;
-  else scope.names[name] = (scope.names[name] | 0) | bit;
+  scope.names[name] = (scope.names[name] | 0) | bit;
 };
 const exitScope = () => scopeStack.pop();
 
