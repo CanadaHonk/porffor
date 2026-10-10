@@ -4651,29 +4651,319 @@ ${st}i32 porf_str_eq(jsval a, jsval b) {
   return 1;
 }
 
-${st}jsval porf_num_to_str(f64 d) {
-  char buf[32];
-  int n;
-  if (d != d) n = snprintf(buf, sizeof buf, "NaN");
-    else if (d == INFINITY) n = snprintf(buf, sizeof buf, "Infinity");
-    else if (d == -INFINITY) n = snprintf(buf, sizeof buf, "-Infinity");
-    else if (d == trunc(d) && fabs(d) < 18446744073709551616.0) {
-      char* p = buf + sizeof buf;
-      u64 v = (u64)fabs(d);
-      do { *--p = (char)('0' + v % 10u); v /= 10u; } while (v);
-      if (d < 0) *--p = '-';
-      n = (int)(buf + sizeof buf - p);
-      memmove(buf, p, (size_t)n);
-    } else if (d == trunc(d) && fabs(d) < 1e21) n = snprintf(buf, sizeof buf, "%.0f", d);
-    else {
-      for (int prec = isnormal(d) ? 15 : 1;; prec++) {
-        n = snprintf(buf, sizeof buf, "%.*g", prec, d);
-        if (strtod(buf, NULL) == d || prec == 17) break;
-      }
-    }
-  const u32 s = porf_bstr_new((u32)n);
-  memcpy(MEM + s + 4, buf, (size_t)n);
+${st}jsval porf_bstr_of(const char* buf, u32 len) {
+  const u32 s = porf_bstr_new(len);
+  memcpy(MEM + s + 4, buf, len);
   return porf_box((f64)s, ${TYPES.bytestring});
+}
+
+// would rounding x * 10^k to an integer hit an exact tie
+static int porf_num_tie(f64 x, i32 k) {
+  x = fabs(x);
+  if (k >= 0) {
+    const f64 t = ldexp(x, k + 1);
+    return t == trunc(t) && fmod(t, 2.0) == 1.0;
+  }
+  if (k < -22) return 0;
+  f64 m = 1;
+  for (i32 i = 0; i < -k; i++) m *= 10;
+  return fmod(x, m) == m / 2;
+}
+
+static int porf_digits_inc(char* s, i32 n) {
+  for (i32 i = n - 1; i >= 0; i--) {
+    if (s[i] == '.') continue;
+    if (s[i] != '9') {
+      s[i]++;
+      return 0;
+    }
+    s[i] = '0';
+  }
+  return 1;
+}
+
+// C rounds exact ties to even, JS away from zero
+static i32 porf_num_digits(f64 x, i32 prec, char* digits) {
+  char buf[128];
+  snprintf(buf, sizeof buf, "%.*e", prec - 1, x);
+  i32 e = atoi(strchr(buf, 'e') + 1);
+  const int tie = porf_num_tie(x, prec - 1 - e);
+  if (tie) snprintf(buf, sizeof buf, "%.*e", prec, x);
+  digits[0] = buf[0];
+  memcpy(digits + 1, buf + 2, (size_t)(prec - 1));
+  if (tie && porf_digits_inc(digits, prec)) {
+    digits[0] = '1';
+    e++;
+  }
+  return e;
+}
+
+static i32 porf_num_shortest(f64 x, char* digits, i32* e) {
+  char buf[32];
+  i32 prec = isnormal(x) ? 15 : 1;
+  for (; prec < 17; prec++) {
+    snprintf(buf, sizeof buf, "%.*e", prec - 1, x);
+    if (strtod(buf, NULL) == x) break;
+  }
+  if (prec == 17) snprintf(buf, sizeof buf, "%.16e", x);
+  *e = atoi(strchr(buf, 'e') + 1);
+  digits[0] = buf[0];
+  memcpy(digits + 1, buf + 2, (size_t)(prec - 1));
+  while (prec > 1 && digits[prec - 1] == '0') prec--;
+  return prec;
+}
+
+static char* porf_num_write_exp(char* p, const char* digits, i32 k, i32 e) {
+  *p++ = digits[0];
+  if (k > 1) {
+    *p++ = '.';
+    memcpy(p, digits + 1, (size_t)(k - 1));
+    p += k - 1;
+  }
+  return p + sprintf(p, "e%+d", e);
+}
+
+${st}jsval porf_num_to_str(f64 d) {
+  if (d != d) return porf_bstr_of("NaN", 3);
+  if (d == INFINITY) return porf_bstr_of("Infinity", 8);
+  if (d == -INFINITY) return porf_bstr_of("-Infinity", 9);
+
+  char buf[32];
+  char* p = buf;
+  if (d < 0) {
+    *p++ = '-';
+    d = -d;
+  }
+
+  if (d == trunc(d) && d < 9007199254740992.0) {
+    char tmp[16];
+    i32 n = 0;
+    u64 v = (u64)d;
+    do tmp[n++] = (char)('0' + v % 10u); while (v /= 10u);
+    while (n) *p++ = tmp[--n];
+    return porf_bstr_of(buf, (u32)(p - buf));
+  }
+
+  char digits[17];
+  i32 e;
+  const i32 k = porf_num_shortest(d, digits, &e), n = e + 1;
+  if (k <= n && n <= 21) {
+    memcpy(p, digits, (size_t)k);
+    memset(p + k, '0', (size_t)(n - k));
+    p += n;
+  } else if (0 < n && n <= 21) {
+    memcpy(p, digits, (size_t)n);
+    p += n;
+    *p++ = '.';
+    memcpy(p, digits + n, (size_t)(k - n));
+    p += k - n;
+  } else if (-6 < n && n <= 0) {
+    *p++ = '0';
+    *p++ = '.';
+    memset(p, '0', (size_t)-n);
+    p += -n;
+    memcpy(p, digits, (size_t)k);
+    p += k;
+  } else p = porf_num_write_exp(p, digits, k, n - 1);
+  return porf_bstr_of(buf, (u32)(p - buf));
+}
+
+${st}jsval porf_num_to_fixed(f64 d, i32 f) {
+  if (!(fabs(d) < 1e21)) return porf_num_to_str(d);
+  if (d == 0) d = 0;
+  char buf[128];
+  if (!porf_num_tie(d, f)) return porf_bstr_of(buf, (u32)snprintf(buf, sizeof buf, "%.*f", f, d));
+
+  i32 n = snprintf(buf, sizeof buf, "%.*f", f + 1, d) - (f == 0 ? 2 : 1);
+  const i32 start = d < 0;
+  if (porf_digits_inc(buf + start, n - start)) {
+    memmove(buf + start + 1, buf + start, (size_t)(n - start));
+    buf[start] = '1';
+    n++;
+  }
+  return porf_bstr_of(buf, (u32)n);
+}
+
+// f < 0: as many digits as needed
+${st}jsval porf_num_to_exponential(f64 d, i32 f) {
+  if (!isfinite(d)) return porf_num_to_str(d);
+  char buf[128], digits[101];
+  char* p = buf;
+  if (d < 0) {
+    *p++ = '-';
+    d = -d;
+  }
+
+  i32 k, e = 0;
+  if (d == 0) {
+    k = f < 0 ? 1 : f + 1;
+    memset(digits, '0', (size_t)k);
+  } else if (f < 0) k = porf_num_shortest(d, digits, &e);
+    else e = porf_num_digits(d, k = f + 1, digits);
+  p = porf_num_write_exp(p, digits, k, e);
+  return porf_bstr_of(buf, (u32)(p - buf));
+}
+
+${st}jsval porf_num_to_precision(f64 d, i32 prec) {
+  if (!isfinite(d)) return porf_num_to_str(d);
+  char buf[128], digits[100];
+  char* p = buf;
+  if (d < 0) {
+    *p++ = '-';
+    d = -d;
+  }
+
+  i32 e = 0;
+  if (d == 0) memset(digits, '0', (size_t)prec);
+    else e = porf_num_digits(d, prec, digits);
+  if (e < -6 || e >= prec) p = porf_num_write_exp(p, digits, prec, e);
+  else if (e >= 0) {
+    memcpy(p, digits, (size_t)(e + 1));
+    p += e + 1;
+    if (e + 1 < prec) {
+      *p++ = '.';
+      memcpy(p, digits + e + 1, (size_t)(prec - e - 1));
+      p += prec - e - 1;
+    }
+  } else {
+    *p++ = '0';
+    *p++ = '.';
+    memset(p, '0', (size_t)(-e - 1));
+    p += -e - 1;
+    memcpy(p, digits, (size_t)prec);
+    p += prec;
+  }
+  return porf_bstr_of(buf, (u32)(p - buf));
+}
+
+${st}jsval porf_num_to_radix(f64 d, i32 radix) {
+  if (radix == 10 || !isfinite(d)) return porf_num_to_str(d);
+  static const char chars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+  char buf[2200];
+  i32 lo = 1100, hi = 1100;
+  const int negative = d < 0;
+  if (negative) d = -d;
+
+  f64 integer = floor(d), fraction = d - integer;
+  f64 delta = fmax(0.5 * (nextafter(d, INFINITY) - d), nextafter(0.0, 1.0));
+  if (fraction >= delta) {
+    buf[hi++] = '.';
+    do {
+      fraction *= radix;
+      delta *= radix;
+      const i32 digit = (i32)fraction;
+      buf[hi++] = chars[digit];
+      fraction -= digit;
+      if ((fraction > 0.5 || (fraction == 0.5 && (digit & 1))) && fraction + delta > 1) {
+        while (1) {
+          if (--hi == 1100) {
+            integer += 1;
+            break;
+          }
+          const char c = buf[hi];
+          const i32 v = c > '9' ? c - 'a' + 10 : c - '0';
+          if (v + 1 < radix) {
+            buf[hi++] = chars[v + 1];
+            break;
+          }
+        }
+        break;
+      }
+    } while (fraction >= delta);
+  }
+
+  while (integer / radix >= 9007199254740992.0) {
+    integer /= radix;
+    buf[--lo] = '0';
+  }
+  do {
+    const f64 r = fmod(integer, radix);
+    buf[--lo] = chars[(i32)r];
+    integer = (integer - r) / radix;
+  } while (integer > 0);
+
+  if (negative) buf[--lo] = '-';
+  return porf_bstr_of(buf + lo, (u32)(hi - lo));
+}
+
+// non-ascii as 0x7f so strtod stops there
+static char* porf_str_cstr(jsval s, char* small, u32 cap) {
+  const u32 p = (u32)s.val, len = *(u32*)(MEM + p);
+  char* buf = len < cap ? small : (char*)malloc(len + 1);
+  for (u32 i = 0; i < len; i++) {
+    const u32 c = s.type == ${TYPES.string} ? ((u16*)(MEM + p + 4))[i] : MEM[p + 4 + i];
+    buf[i] = c < 0x80 ? (char)c : 0x7f;
+  }
+  buf[len] = 0;
+  return buf;
+}
+
+static f64 porf_digits_radix(const char* q, i32 radix, const char** end) {
+  f64 n = 0;
+  for (;; q++) {
+    const i32 v = *q >= '0' && *q <= '9' ? *q - '0' : (*q | 32) >= 'a' && (*q | 32) <= 'z' ? (*q | 32) - 'a' + 10 : 36;
+    if (v >= radix) break;
+    n = n * radix + v;
+  }
+  *end = q;
+  return n;
+}
+
+${st}f64 porf_str_to_num(jsval s, i32 strict) {
+  char small[256];
+  char* buf = porf_str_cstr(s, small, sizeof small);
+  const char* q = buf + (buf[0] == '+' || buf[0] == '-');
+  const char* end = q;
+  f64 n = NAN;
+
+  // strtod also takes hex floats, inf and nan
+  if (q[0] == '0' && ((q[1] | 32) == 'x' || (q[1] | 32) == 'o' || (q[1] | 32) == 'b')) {
+    const i32 radix = (q[1] | 32) == 'x' ? 16 : (q[1] | 32) == 'o' ? 8 : 2;
+    if (strict) {
+      if (q == buf && q[2]) n = porf_digits_radix(q + 2, radix, &end);
+    } else {
+      n = buf[0] == '-' ? -0.0 : 0;
+      end = q + 1;
+    }
+  } else if ((q[0] | 32) == 'i' || (q[0] | 32) == 'n') {
+    if (strncmp(q, "Infinity", 8) == 0) {
+      n = buf[0] == '-' ? -INFINITY : INFINITY;
+      end = q + 8;
+    }
+  } else n = strtod(buf, (char**)&end);
+
+  if (end <= q || (strict && *end)) n = NAN;
+  if (buf != small) free(buf);
+  return n;
+}
+
+${st}f64 porf_parse_int(jsval s, i32 radix) {
+  char small[256];
+  char* buf = porf_str_cstr(s, small, sizeof small);
+  char* q = buf + (buf[0] == '+' || buf[0] == '-');
+  f64 n = NAN;
+  if (radix == 0 || radix == 16) {
+    if (q[0] == '0' && (q[1] | 32) == 'x') {
+      q += 2;
+      radix = 16;
+    }
+  }
+  if (radix == 0) radix = 10;
+
+  if (radix >= 2 && radix <= 36) {
+    const char* end;
+    n = porf_digits_radix(q, radix, &end);
+    if (end == q) n = NAN;
+    else if (radix == 10) {
+      const char c = *end;
+      *(char*)end = 0;
+      n = strtod(q, NULL);
+      *(char*)end = c;
+    }
+    if (buf[0] == '-') n = -n;
+  }
+  if (buf != small) free(buf);
+  return n;
 }
 
 // ToString for + and template literals

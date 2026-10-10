@@ -33,6 +33,17 @@ export const __ecma262_ToPrimitive_String = (input: any): any => {
   throw new TypeError('Cannot convert an object to primitive');
 };
 
+// 7.1.4.1.1 StringToNumber (str)
+// https://tc39.es/ecma262/#sec-stringtonumber
+export const __ecma262_StringToNumber = (str: string|bytestring): number => {
+  str = str.trim();
+  if (str.length == 0) return 0;
+
+  let n: f64 = 0;
+  Porffor.c`n = porf_str_to_num(str, 1);`;
+  return n;
+};
+
 // 7.1.4 ToNumber (argument)
 // https://tc39.es/ecma262/#sec-tonumber
 export const __ecma262_ToNumber = (argument: unknown): number => {
