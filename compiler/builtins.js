@@ -108,6 +108,13 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           if (d.enumerable) flags |= 0b0100;
           if (d.writable) flags |= 0b1000;
 
+          // $get funcs are accessors, except spec data props only implemented as getters
+          if (x.endsWith('$get') && !(x.slice(0, -4) in props) && ![ 'lastIndex', 'name', 'message' ].includes(x.slice(0, -4))) {
+            includeBuiltin('__Porffor_object_defineAccessor');
+            out.push(Call('__Porffor_object_defineAccessor', [ obj, makeString(x.slice(0, -4)), value, JvConst(TYPES.undefined, 0), Const(T.i32, 0b0011) ], T.none));
+            return;
+          }
+
           const keyValue = x.startsWith('Symbol_') ? wellKnownSymbolProps[x.slice(7)].value(_, { includeBuiltin, makeString, global }) : makeString(x);
           out.push(Call('__Porffor_object_fastAdd', [ obj, keyValue, value, Const(T.i32, flags) ], T.none));
         };
