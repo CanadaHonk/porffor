@@ -1130,18 +1130,6 @@ const knownNullish = decl => {
 
 const generateBinaryExp = (scope, decl) => {
   if (decl.operator === 'instanceof') {
-    // hack: check type for primitive objects
-    const rightName = decl.right.name;
-    if (rightName) {
-      let checkType = TYPES[rightName.toLowerCase()];
-      if (checkType != null && rightName === TYPE_NAMES[checkType] && !rightName.endsWith('Error')) {
-        if (checkType === TYPES.number) checkType = TYPES.numberobject;
-        else if (checkType === TYPES.boolean) checkType = TYPES.booleanobject;
-        else if (checkType === TYPES.string) checkType = TYPES.stringobject;
-        return Box(Bin('==', T.i32, JvType(reuse(scope, generate(scope, decl.left))), Const(T.i32, checkType)), Const(T.i32, TYPES.boolean));
-      }
-    }
-
     return generate(scope, {
       type: 'CallExpression',
       callee: { type: 'Identifier', name: '__Porffor_object_instanceof' },
