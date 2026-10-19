@@ -10,6 +10,16 @@ export const Function = function (source: string) {
   throw new SyntaxError('Dynamic code evaluation is not supported');
 };
 
+export const __Porffor_function_setName = (fn: any, key: any, prefix: any): void => {
+  let name: any = key;
+  if (Porffor.type(key) == Porffor.TYPES.symbol) {
+    const description: any = (key as Symbol).description;
+    name = description === undefined ? '' : '[' + description + ']';
+  }
+
+  __Porffor_object_define(__Porffor_object_underlying(fn), 'name', prefix + name, 0b0010);
+};
+
 export const __Function_prototype_toString = function (this: Function) {
   const out: bytestring = Porffor.malloc(256);
   Porffor.IR.storeI32(out, 0, 0);

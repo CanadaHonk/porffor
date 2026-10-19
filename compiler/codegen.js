@@ -4395,6 +4395,15 @@ const denseArrayIndexKey = (scope, prop) => {
   };
 };
 
+// anonymous functions under computed keys are named at runtime (SetFunctionName)
+const nameByKey = (scope, value, key, computed, kind) => {
+  if (!computed || !isFuncType(value.type) || value.id) return generate(scope, value);
+
+  const fn = reuse(scope, generate(scope, value));
+  exprStmt(scope, builtinCall(scope, '__Porffor_function_setName', [ fn, key, makeString(scope, kind === 'get' || kind === 'set' ? kind + ' ' : '') ]));
+  return fn;
+};
+
 const generateObject = (scope, decl) => {
   const obj = reuse(scope, builtinCall(scope, '__Porffor_object_new', [ Const(T.i32, Math.max(decl.properties.length, 2)) ]));
   const keys = new Set();
@@ -4452,11 +4461,8 @@ const generateObject = (scope, decl) => {
       stmt(scope, If(canReferenceCheck(scope, val), [ GcBarrier(JvPtr(obj), Const(T.i32, TYPES.object)) ]));
     } else {
       slot = -1;
-      exprStmt(scope, builtinCall(scope, `__Porffor_object_expr_${kind}`, [
-        obj,
-        toPropertyKey(scope, generate(scope, key), computed),
-        generate(scope, value)
-      ]));
+      const k = reuse(scope, toPropertyKey(scope, generate(scope, key), computed));
+      exprStmt(scope, builtinCall(scope, `__Porffor_object_expr_${kind}`, [ obj, k, nameByKey(scope, value, k, computed, kind) ]));
     }
   }
 
@@ -4902,11 +4908,8 @@ const generateClass = (scope, decl) => {
       let initKind = type === 'MethodDefinition' ? 'method' : 'value';
       if (kind === 'get' || kind === 'set') initKind = kind;
 
-      exprStmt(scope, builtinCall(scope, `__Porffor_object_class_${initKind}`, [
-        _static ? classRoot : classProto,
-        toPropertyKey(scope, generate(scope, key), computed),
-        generate(scope, value)
-      ]));
+      const k = reuse(scope, toPropertyKey(scope, generate(scope, key), computed));
+      exprStmt(scope, builtinCall(scope, `__Porffor_object_class_${initKind}`, [ _static ? classRoot : classProto, k, nameByKey(scope, value, k, computed, kind) ]));
     }
   }
 
