@@ -2433,9 +2433,11 @@ const generateThis = (scope, decl) => {
     decl._noGlobalThis // this generation known to not be globalThis
   ) return Local('#this', T.jsval);
 
-  const block = curBlock(scope);
-  const marker = Symbol('this default');
-  stmt(scope, marker);
+  // defaulted once at entry
+  if (scope.thisDefault) return Local('#this', T.jsval);
+  const block = scope.body;
+  const marker = scope.thisDefault = Symbol('this default');
+  block.unshift(marker);
   onFinalize(() => {
     const i = block.indexOf(marker);
     if (i === -1) return;
