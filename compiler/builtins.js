@@ -308,7 +308,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     enumerable: false,
     configurable: false
   }, Object.fromEntries(wellKnownSymbols.map(x => [x, (_scope, { includeBuiltin, makeString, global }) => {
-    return global(`#wellknown_${x}`, T.jsval, Call(includeBuiltin('Symbol').index, [ makeString(`Symbol.${x}`) ], T.jsval));
+    return global(`#wellknown_${x}`, T.jsval, Call(includeBuiltin('Symbol').index, [ JvConst(TYPES.undefined, 0), JvConst(TYPES.undefined, 0), makeString(`Symbol.${x}`) ], T.jsval));
   }])));
 
   for (const x of wellKnownSymbols) {

@@ -2,9 +2,9 @@ import type {} from './porffor.d.ts';
 
 // 20.4.1.1 Symbol ([ description ])
 // https://tc39.es/ecma262/#sec-symbol-description
-export const Symbol = (description: any): Symbol => {
+export const Symbol = function (description: any): Symbol {
   // 1. If NewTarget is not undefined, throw a TypeError exception.
-  // This is an arrow function so happens implicitly
+  if (new.target) throw new TypeError('Symbol is not a constructor');
 
   // 2. If description is undefined, let descString be undefined.
   let descString: any = undefined;
