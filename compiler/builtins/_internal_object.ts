@@ -254,6 +254,17 @@ export const __Porffor_object_underlyingPtr = (_obj: any): i32 => {
   }
 };
 
+// these types materialize own props into their underlying object, reads of other types need not create one
+export const __Porffor_object_underlyingToRead = (_obj: any, t: i32): any => {
+  if (Porffor.fastOr(
+    t == Porffor.TYPES.function, t == Porffor.TYPES.regexp,
+    t == Porffor.TYPES.string, t == Porffor.TYPES.stringobject, t == Porffor.TYPES.bytestring,
+    Porffor.fastAnd(t >= Porffor.TYPES.error, t <= Porffor.TYPES.suppressederror),
+    t == Porffor.TYPES.__porffor_generator, t == Porffor.TYPES.__porffor_asyncgenerator
+  )) return __Porffor_object_underlying(_obj);
+  return __Porffor_object_underlyingIfAny(_obj);
+};
+
 export const __Porffor_object_underlyingIfAny = (_obj: any): any => {
   const objType: i32 = Porffor.type(_obj);
   if (objType == Porffor.TYPES.object) return _obj;
@@ -701,7 +712,7 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
     if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot get property of null');
   } else {
     if (trueType == Porffor.TYPES.undefined) throw new TypeError('Cannot get property of null');
-    obj = __Porffor_object_underlying(obj);
+    obj = __Porffor_object_underlyingToRead(obj, trueType);
   }
 
   key = ecma262.ToPropertyKey(key);
@@ -720,14 +731,15 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
 
   const hash: i32 = __Porffor_object_hash(key);
   let entryPtr: i32 = 0;
-  if (Porffor.type(obj) == Porffor.TYPES.object) entryPtr = __Porffor_object_lookup(obj, key, hash);
+  if (Porffor.type(obj) == Porffor.TYPES.object) if (Porffor.IR.ptr(obj) != 0) entryPtr = __Porffor_object_lookup(obj, key, hash);
   if (entryPtr == 0) {
     // check prototype chain
     if (trueType == Porffor.TYPES.object) {
       obj = __Porffor_object_getPrototype(obj);
       // if undefined, prototype is object.prototype
       if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
-    } else obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
+    } else if (obj == null) obj = __Porffor_object_getHiddenPrototype(trueType);
+      else obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
     if (obj == null) return undefined;
 
     // todo/opt: put this behind comptime flag if only __proto__ is used
@@ -832,18 +844,19 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
     if (trueType == Porffor.TYPES.undefined) throw new TypeError('Cannot get property of null');
     if (trueType == Porffor.TYPES.regexp) if (__Porffor_object_regexLiKey(_obj, key)) return Porffor.IR.loadI32(_obj, 8);
     if (trueType == Porffor.TYPES.array) return __Porffor_object_get(_obj, key);
-    obj = __Porffor_object_underlying(obj);
+    obj = __Porffor_object_underlyingToRead(obj, trueType);
   }
 
   let entryPtr: i32 = 0;
-  if (Porffor.type(obj) == Porffor.TYPES.object) entryPtr = __Porffor_object_lookup(obj, key, hash);
+  if (Porffor.type(obj) == Porffor.TYPES.object) if (Porffor.IR.ptr(obj) != 0) entryPtr = __Porffor_object_lookup(obj, key, hash);
   if (entryPtr == 0) {
     // check prototype chain
     if (trueType == Porffor.TYPES.object) {
       obj = __Porffor_object_getPrototype(obj);
       // if undefined, prototype is object.prototype
       if (Porffor.type(obj) == Porffor.TYPES.undefined) obj = __Object_prototype;
-    } else obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
+    } else if (obj == null) obj = __Porffor_object_getHiddenPrototype(trueType);
+      else obj = __Porffor_object_getPrototypeWithHidden(obj, trueType);
 
     if (Porffor.comptime.flag`hasFunc.Proxy`) {
       if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_get(obj, key, _obj);
