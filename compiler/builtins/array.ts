@@ -32,6 +32,15 @@ export const Array = function (...args: any[]): any[] {
   return args;
 };
 
+export const __Porffor_array_unscopables = (): object => {
+  const out: object = {
+    at: true, copyWithin: true, entries: true, fill: true, find: true, findIndex: true, findLast: true, findLastIndex: true,
+    flat: true, flatMap: true, includes: true, keys: true, toReversed: true, toSorted: true, toSpliced: true, values: true
+  };
+  Porffor.object.setPrototype(out, null);
+  return out;
+};
+
 export const __Array_isArray = (x: unknown): boolean =>
   Porffor.type(x) == Porffor.TYPES.array;
 

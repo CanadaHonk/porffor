@@ -396,6 +396,12 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     // per spec Array.prototype is an array exotic object with length = 0
     if (x === '__Array_prototype') {
       props.length = { value: 0, writable: true, configurable: false };
+
+      const value = (_scope, { includeBuiltin }) => {
+        includeBuiltin('__Porffor_array_unscopables');
+        return Call('__Porffor_array_unscopables', [], T.jsval);
+      };
+      props.Symbol_unscopables = { value, writable: false, configurable: true };
     }
 
     if (x in iteratorProtos) {
