@@ -2423,9 +2423,11 @@ const generateThis = (scope, decl) => {
   onFinalize(() => {
     const i = block.indexOf(marker);
     if (i === -1) return;
+    const thisv = Local('#this', T.jsval);
     block.splice(i, 1, ...(scope.onlyNew !== false && !scope.referenced ? [] : [
-      If(Bin('==', T.i32, JvType(Local('#this', T.jsval)), Const(T.i32, TYPES.undefined)),
-        [ Assign(Local('#this', T.jsval), generate(scope, { type: 'Identifier', name: 'globalThis' })) ], null)
+      If(JvNullish(thisv),
+        [ Assign(thisv, generate(scope, { type: 'Identifier', name: 'globalThis' })) ],
+        [ If(Un('!', T.i32, jvIsObject(thisv, JvType(thisv))), [ Assign(thisv, builtinCall(scope, '__ecma262_ToObject', [ thisv ])) ], null) ])
     ]));
   });
   return Local('#this', T.jsval);
