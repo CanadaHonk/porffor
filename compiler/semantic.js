@@ -384,7 +384,7 @@ const declVar = (name, kind, node) => {
   const evalScope = parent._evalScope ? parent : (kind === 'var' ? null : activeEvalScope);
   const internalName = evalScope ? `${evalScope._evalName}_${name}${id > 0 ? `#${id}` : ''}` :
     (id > 0 || shadowsOuterFuncBinding ? `${name}#${id}` : null);
-  const variable = { node, id, func, kind, scope: parent, internalName, inParams: paramDecl != null || paramTdz?.func === func };
+  const variable = { node, id, func, kind, scope: parent, internalName, inParams: paramDecl != null || paramTdz?.func === func, unit };
   parent._variables[name] = variable;
   if (node && typeof node === 'object') node._variable = variable;
 
@@ -450,7 +450,7 @@ const analyzePattern = (kind, node) => {
 
     case 'ObjectPattern':
       for (const x of node.properties) {
-        analyzePattern(kind, x.value);
+        analyzePattern(kind, x);
       }
       break;
 
@@ -578,7 +578,11 @@ const analyze = (node, strict = false) => {
     const value = node[x];
     if (value != null && typeof value === 'object') {
       if (Array.isArray(value)) {
-        for (const y of value) analyze(y, strict || top._strict);
+        for (const y of value) {
+          // linked modules share one program, so source offsets only compare within a unit
+          if (node.type === 'Program') unit = y._unit;
+          analyze(y, strict || top._strict);
+        }
       } else if (value.type) analyze(value, strict || top._strict);
     }
   }
@@ -713,6 +717,9 @@ const annotate = (node, parent = null, key = null) => {
         const param = variable.node._param;
         if (param?.func === currentFunc && paramTdz?.func === currentFunc &&
           (param.index > paramTdz.index || (param.index === paramTdz.index && node.start < (variable.node._paramEnd ?? variable.node.end)))) node._tdz = true;
+        // read before its lexical declaration in the same func
+        if ((variable.kind === 'let' || variable.kind === 'const') && variable.node.type !== 'FunctionDeclaration' && variable.func === currentFunc &&
+          !inEval && classFieldInitializerFunc !== currentFunc && variable.unit === unit && node.start < (variable.node._declarator?.end ?? variable.node.start)) node._tdz = true;
         variable.node._refs = (variable.node._refs ?? 0) + 1;
         // reads from other funcs or before the dominating init can see undefined
         if (variable.func !== currentFunc || !variable.node._storageInitSeen) {
@@ -978,7 +985,10 @@ const annotate = (node, parent = null, key = null) => {
     const value = node[x];
     if (value != null && typeof value === 'object') {
       if (Array.isArray(value)) {
-        for (const y of value) annotate(y, node, x);
+        for (const y of value) {
+          if (node.type === 'Program') unit = y._unit;
+          annotate(y, node, x);
+        }
       } else if (value.type) annotate(value, node, x);
     }
   }
@@ -1009,7 +1019,7 @@ const evalVarNames = (node, out = [], top = true) => {
   return out;
 };
 
-let paramDecl = null, paramTdz = null;
+let paramDecl = null, paramTdz = null, unit;
 let inEval = false, classFieldInitializerFunc = null, classStaticFunc = null, paramsFunc = null, heritage = null, classStack = [];
 const isStrictBlock = body => {
   for (const x of body) {
@@ -1020,7 +1030,7 @@ const isStrictBlock = body => {
 };
 // direct eval code keeps the class context it is evaluated in
 const semantic = (node, _scopes = null, direct = false) => {
-  const oldScopes = scopes, oldInEval = inEval, oldClassFieldInitializerFunc = classFieldInitializerFunc, oldClassStaticFunc = classStaticFunc, oldClassStack = classStack;
+  const oldScopes = scopes, oldInEval = inEval, oldClassFieldInitializerFunc = classFieldInitializerFunc, oldClassStaticFunc = classStaticFunc, oldClassStack = classStack, oldUnit = unit;
   inEval = !!_scopes;
   if (!direct) {
     classFieldInitializerFunc = null;
@@ -1042,6 +1052,7 @@ const semantic = (node, _scopes = null, direct = false) => {
   classFieldInitializerFunc = oldClassFieldInitializerFunc;
   classStaticFunc = oldClassStaticFunc;
   classStack = oldClassStack;
+  unit = oldUnit;
   return node;
 };
 export default semantic;

@@ -3244,6 +3244,12 @@ const ctHash = prop => {
 
 
 const generateAssign = (scope, decl, valueUnused = false) => {
+
+  if (decl.left._tdz) {
+    if (decl.operator === '=') exprStmt(scope, generate(scope, decl.right));
+    return internalThrow(scope, 'ReferenceError', `Cannot access '${unhackName(decl.left.name)}' before initialization`);
+  }
+
   if (decl.left.type === 'Identifier' && decl.left._selfBinding) {
     if (scope.strict || decl.left._classBinding) return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${decl.left.name}`);
 
