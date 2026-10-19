@@ -1578,7 +1578,7 @@ export const __ecma262_ToUTCDTSF = (t: number): bytestring => {
     __Porffor_bytestring_appendChar(out, year > 0 ? 43 : 45);
 
     // 6 digit year
-    __Porffor_bytestring_appendPadNum(out, year, 6);
+    __Porffor_bytestring_appendPadNum(out, Math.abs(year), 6);
   } else {
     // 4 digit year
     __Porffor_bytestring_appendPadNum(out, year, 4);
@@ -1718,7 +1718,7 @@ export const __ecma262_DateString = (tv: number): bytestring => {
 
   // year
   if (yv < 0) __Porffor_bytestring_appendChar(out, 45); // sign
-  __Porffor_bytestring_appendPadNum(out, yv, 4);
+  __Porffor_bytestring_appendPadNum(out, Math.abs(yv), 4);
   return out;
 };
 
@@ -1849,7 +1849,7 @@ export const __Date_prototype_toUTCString = function (this: any) {
 
   // year
   if (yv < 0) __Porffor_bytestring_appendChar(out, 45); // sign
-  __Porffor_bytestring_appendPadNum(out, yv, 4);
+  __Porffor_bytestring_appendPadNum(out, Math.abs(yv), 4);
 
   __Porffor_bytestring_appendChar(out, 32); // ' '
   __Porffor_bytestring_appendStr(out, __ecma262_TimeString(tv));
