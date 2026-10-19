@@ -11,7 +11,8 @@ const __dirname = import.meta.dirname;
 
 let resultOnly = process.env.RESULT_ONLY;
 
-const workerDataPath = '/tmp/workerData.json';
+// per run, so concurrent runs do not clobber each other's test lists
+const workerDataPath = join(os.tmpdir(), `porffor-test262-workerData-${cluster.isPrimary ? process.pid : process.ppid}.json`);
 // --parse-only: only parse each test (no codegen/exec), pass = parse outcome matches
 // the test's expectation (negative phase: parse). results kept in separate files
 const parseOnly = process.argv.includes('--parse-only');
@@ -1246,6 +1247,8 @@ if (cluster.isPrimary) {
         errors[errorStr] = (errors[errorStr] ?? 0) + 1;
       }
     }
+
+    if (process.env.T262_LOG) fs.appendFileSync(`${process.env.T262_LOG}.${process.pid}`, `${job.file}\t${out}\t${error ? `${error.constructor?.name ?? error.name}: ${String(error.message).split('\n')[0].slice(0, 200)}` : ''}\n`);
 
     out += (job.i << 4);
 
