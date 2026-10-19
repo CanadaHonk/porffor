@@ -3289,14 +3289,12 @@ static void porf_gc_scan_body(i32 body, i32 type) {
       if (proto != 0 || proto_type != ${TYPES.undefined}) porf_gc_mark_js((f64)proto, proto_type);
       u32 size = *(u16*)(MEM + body);
       const i32 entries = *(u32*)(MEM + body + 12);
-      if (entries != 0) {
+      if (entries != 0 && entries != body + 16) {
         porf_gc_mark_body(entries);
-        if (entries != body + 16) {
-          porf_gc_set_kind(entries, PORF_GC_KIND_OBJECT_ENTRIES);
-          if (porf_gc_is_block_start(entries)) {
-            const u32 max_size = porf_gc_block_size(entries) / 20u;
-            if (size > max_size) size = max_size;
-          }
+        porf_gc_set_kind(entries, PORF_GC_KIND_OBJECT_ENTRIES);
+        if (porf_gc_is_block_start(entries)) {
+          const u32 max_size = porf_gc_block_size(entries) / 20u;
+          if (size > max_size) size = max_size;
         }
       }
       porf_gc_scan_object_entries_range(entries, 0, size);
