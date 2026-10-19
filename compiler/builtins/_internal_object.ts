@@ -224,6 +224,8 @@ export const __Porffor_underlyingRebuild = (): void => {
 };
 
 export const __Porffor_object_underlyingPtr = (_obj: any): i32 => {
+  // arrays cache their underlying object in header slot 12
+  if (Porffor.type(_obj) == Porffor.TYPES.array) return Porffor.IR.loadI32(_obj, 12);
   if (underlyingStore == 0) return 0;
   if (Porffor.IR.loadI32(underlyingStore, 0) == 0) return 0;
   if (underlyingBuckets == 0) __Porffor_underlyingRebuild();
@@ -293,6 +295,11 @@ export const __Porffor_object_underlying = (_obj: any): any => {
   if (objType == Porffor.TYPES.object) return _obj;
 
   if (objType > 0x05) {
+    if (objType == Porffor.TYPES.array) {
+      const cached: i32 = Porffor.IR.loadI32(_obj, 12);
+      if (cached != 0) return cached as object;
+    }
+
     if (underlyingStore == 0) {
       underlyingStore = Porffor.malloc();
       Porffor.IR.storeI32(underlyingStore, 0, 0);
@@ -449,6 +456,7 @@ export const __Porffor_object_underlying = (_obj: any): any => {
       Porffor.IR.storeU8(underlying, 4, 0b0001);
     }
 
+    if (objType == Porffor.TYPES.array) Porffor.IR.storeI32(obj, 12, Porffor.IR.ptr(underlying));
     if (Porffor.fastOr(underlyingBuckets == 0, (underlyingLength + 2) * 4 > underlyingBucketsCap * 3)) {
       __Porffor_underlyingRebuild();
     } else {

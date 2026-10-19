@@ -1908,6 +1908,7 @@ const makeArrayFromValues = (scope, values) => {
   stmt(scope, LenSet(pointer, Const(T.i32, 0)));
   stmt(scope, Store('u32', pointer, 4, Bin('+', T.u32, pointer, Const(T.u32, 16))));
   stmt(scope, Store('i32', pointer, 8, Const(T.i32, capacity)));
+  stmt(scope, Store('i32', pointer, 12, Const(T.i32, 0)));
   for (let i = 0; i < values.length; i++) stmt(scope, ArrSet(pointer, Const(T.u32, i), values[i]));
   stmt(scope, LenSet(pointer, Const(T.i32, values.length)));
   if (values.some(v => v[N_TYPE] === T.jsval || v[N_TYPE] === T.ptr))
@@ -4229,6 +4230,7 @@ const generateArray = (scope, decl, name = '$undeclared', staticAlloc = false) =
   stmt(scope, LenSet(pointer, Const(T.i32, 0)));
   stmt(scope, Store('u32', pointer, 4, Bin('+', T.u32, pointer, Const(T.u32, 16))));
   stmt(scope, Store('i32', pointer, 8, Const(T.i32, capacity)));
+  if (!isStatic) stmt(scope, Store('i32', pointer, 12, Const(T.i32, 0)));
   if (!isStatic) stmt(scope, MemFill(Bin('+', T.u32, pointer, Const(T.u32, 16)), Const(T.i32, 0), Const(T.i32, capacity * 8)));
 
   // fast path: store leading non-spread elements straight into their slots (a jsval each)

@@ -1675,7 +1675,7 @@ ${st}jsval porf_async_call_sync(u32 idx, jsval callee, u32 env, jsval thisv, jsv
 	  if (cap < len) cap = len;
 	  if (cap < 4) cap = 4;
 	  const u32 a = porf_alloc(16 + ((u32)cap << 3), type);
-	  PORF_ARR_LEN(a) = len; PORF_ARR_ENT(a) = a + 16; PORF_ARR_CAP(a) = cap;
+	  PORF_ARR_LEN(a) = len; PORF_ARR_ENT(a) = a + 16; PORF_ARR_CAP(a) = cap; PORF_ARR_UNDERLYING(a) = 0;
 	  memset(MEM + PORF_ARR_ENT(a), 0, (size_t)cap << 3);
 	  return a;
 	}
@@ -4538,12 +4538,14 @@ ${prefs.gc === false ? PORF_BUMP_ALLOC() : PORF_GC_ALLOC(prefs)}
 #define PORF_ARR_LEN(a) (*(i32*)(MEM + (a)))
 #define PORF_ARR_ENT(a) (*(u32*)(MEM + (a) + 4))
 #define PORF_ARR_CAP(a) (*(i32*)(MEM + (a) + 8))
+// cached underlying object (props beyond the elements), see __Porffor_object_underlyingPtr
+#define PORF_ARR_UNDERLYING(a) (*(u32*)(MEM + (a) + 12))
 
 ${st}u32 porf_arr_new(i32 len, i32 cap) {
   if (cap < len) cap = len;
   if (cap < 4) cap = 4;
   const u32 a = porf_alloc(16 + ((u32)cap << 3), ${TYPES.array});
-  PORF_ARR_LEN(a) = len; PORF_ARR_ENT(a) = a + 16; PORF_ARR_CAP(a) = cap;
+  PORF_ARR_LEN(a) = len; PORF_ARR_ENT(a) = a + 16; PORF_ARR_CAP(a) = cap; PORF_ARR_UNDERLYING(a) = 0;
   memset(MEM + PORF_ARR_ENT(a), 0, (size_t)cap << 3);
   return a;
 }
