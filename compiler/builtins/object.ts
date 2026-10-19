@@ -168,8 +168,8 @@ export const __Object_fromEntries = (iterable: any): object => {
 
 
 export const __Object_prototype_hasOwnProperty = function (this: any, prop: any) {
-  if (this == null) throw new TypeError('Argument is nullish, expected object');
   const p: any = ecma262.ToPropertyKey(prop);
+  if (this == null) throw new TypeError('Argument is nullish, expected object');
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (Porffor.type(this) == Porffor.TYPES.proxy) return __Porffor_proxy_getOwnPropertyDescriptor(this, p) !== undefined;
   }
