@@ -965,7 +965,7 @@ export const __Date_prototype_setDate = function (this: any, date: any) {
 
 // 21.4.4.21 Date.prototype.setFullYear (year [, month [, date ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setfullyear
-export const __Date_prototype_setFullYear = function (this: any, year: any, month: any, date: any) {
+export const __Date_prototype_setFullYear = function (this: any, _argc: i32, year: any, month: any, date: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
@@ -980,12 +980,12 @@ export const __Date_prototype_setFullYear = function (this: any, year: any, mont
 
   // 6. If month is not present, let m be MonthFromTime(t); otherwise, let m be ? ToNumber(month).
   let m: number;
-  if (Porffor.type(month) == Porffor.TYPES.undefined) m = __ecma262_MonthFromTime(t);
+  if (_argc <= 1) m = __ecma262_MonthFromTime(t);
     else m = ecma262.ToNumber(month);
 
   // 7. If date is not present, let dt be DateFromTime(t); otherwise, let dt be ? ToNumber(date).
   let dt: number;
-  if (Porffor.type(date) == Porffor.TYPES.undefined) dt = __ecma262_DateFromTime(t);
+  if (_argc <= 2) dt = __ecma262_DateFromTime(t);
     else dt = ecma262.ToNumber(date);
 
   // 8. Let newDate be MakeDate(MakeDay(y, m, dt), TimeWithinDay(t)).
@@ -1037,7 +1037,7 @@ export const __Date_prototype_setYear = function (this: any, year: any) {
 
 // 21.4.4.22 Date.prototype.setHours (hour [, min [, sec [, ms ]]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.sethours
-export const __Date_prototype_setHours = function (this: any, hour: any, min: any, sec: any, ms: any) {
+export const __Date_prototype_setHours = function (this: any, _argc: i32, hour: any, min: any, sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
@@ -1051,19 +1051,19 @@ export const __Date_prototype_setHours = function (this: any, hour: any, min: an
 
   // 5. If min is present, let m be ? ToNumber(min).
   let m: number;
-  if (Porffor.type(min) != Porffor.TYPES.undefined) m = ecma262.ToNumber(min);
+  if (_argc > 1) m = ecma262.ToNumber(min);
     // 10. If min is not present, let m be MinFromTime(t).
     else m = __ecma262_MinFromTime(t);
 
   // 6. If sec is present, let s be ? ToNumber(sec).
   let s: number;
-  if (Porffor.type(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
+  if (_argc > 2) s = ecma262.ToNumber(sec);
     // 11. If sec is not present, let s be SecFromTime(t).
     else s = __ecma262_SecFromTime(t);
 
   // 7. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (_argc > 3) milli = ecma262.ToNumber(ms);
     // 12. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1116,7 +1116,7 @@ export const __Date_prototype_setMilliseconds = function (this: any, ms: any) {
 
 // 21.4.4.24 Date.prototype.setMinutes (min [, sec [, ms ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setminutes
-export const __Date_prototype_setMinutes = function (this: any, min: any, sec: any, ms: any) {
+export const __Date_prototype_setMinutes = function (this: any, _argc: i32, min: any, sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
@@ -1130,13 +1130,13 @@ export const __Date_prototype_setMinutes = function (this: any, min: any, sec: a
 
   // 5. If sec is present, let s be ? ToNumber(sec).
   let s: number;
-  if (Porffor.type(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
+  if (_argc > 1) s = ecma262.ToNumber(sec);
     // 9. If sec is not present, let s be SecFromTime(t).
     else s = __ecma262_SecFromTime(t);
 
   // 6. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (_argc > 2) milli = ecma262.ToNumber(ms);
     // 10. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1158,7 +1158,7 @@ export const __Date_prototype_setMinutes = function (this: any, min: any, sec: a
 
 // 21.4.4.25 Date.prototype.setMonth (month [, date ])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setmonth
-export const __Date_prototype_setMonth = function (this: any, month: any, date: any) {
+export const __Date_prototype_setMonth = function (this: any, _argc: i32, month: any, date: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
@@ -1172,7 +1172,7 @@ export const __Date_prototype_setMonth = function (this: any, month: any, date: 
 
   // 5. If date is present, let dt be ? ToNumber(date).
   let dt: number;
-  if (Porffor.type(date) != Porffor.TYPES.undefined) dt = ecma262.ToNumber(date);
+  if (_argc > 1) dt = ecma262.ToNumber(date);
   // 8. If date is not present, let dt be DateFromTime(t).
     else dt = __ecma262_DateFromTime(t);
 
@@ -1194,7 +1194,7 @@ export const __Date_prototype_setMonth = function (this: any, month: any, date: 
 
 // 21.4.4.26 Date.prototype.setSeconds (sec [, ms ])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setseconds
-export const __Date_prototype_setSeconds = function (this: any, sec: any, ms: any) {
+export const __Date_prototype_setSeconds = function (this: any, _argc: i32, sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
@@ -1208,7 +1208,7 @@ export const __Date_prototype_setSeconds = function (this: any, sec: any, ms: an
 
   // 5. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (_argc > 1) milli = ecma262.ToNumber(ms);
     // 8. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1279,7 +1279,7 @@ export const __Date_prototype_setUTCDate = function (this: any, date: any) {
 
 // 21.4.4.29 Date.prototype.setUTCFullYear (year [, month [, date ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutcfullyear
-export const __Date_prototype_setUTCFullYear = function (this: any, year: any, month: any, date: any) {
+export const __Date_prototype_setUTCFullYear = function (this: any, _argc: i32, year: any, month: any, date: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
@@ -1293,12 +1293,12 @@ export const __Date_prototype_setUTCFullYear = function (this: any, year: any, m
 
   // 6. If month is not present, let m be MonthFromTime(t); otherwise, let m be ? ToNumber(month).
   let m: number;
-  if (Porffor.type(month) == Porffor.TYPES.undefined) m = __ecma262_MonthFromTime(t);
+  if (_argc <= 1) m = __ecma262_MonthFromTime(t);
     else m = ecma262.ToNumber(month);
 
   // 7. If date is not present, let dt be DateFromTime(t); otherwise, let dt be ? ToNumber(date).
   let dt: number;
-  if (Porffor.type(date) == Porffor.TYPES.undefined) dt = __ecma262_DateFromTime(t);
+  if (_argc <= 2) dt = __ecma262_DateFromTime(t);
     else dt = ecma262.ToNumber(date);
 
   // 8. Let newDate be MakeDate(MakeDay(y, m, dt), TimeWithinDay(t)).
@@ -1316,7 +1316,7 @@ export const __Date_prototype_setUTCFullYear = function (this: any, year: any, m
 
 // 21.4.4.30 Date.prototype.setUTCHours (hour [, min [, sec [, ms ]]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutchours
-export const __Date_prototype_setUTCHours = function (this: any, hour: any, min: any, sec: any, ms: any) {
+export const __Date_prototype_setUTCHours = function (this: any, _argc: i32, hour: any, min: any, sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
@@ -1327,19 +1327,19 @@ export const __Date_prototype_setUTCHours = function (this: any, hour: any, min:
 
   // 5. If min is present, let m be ? ToNumber(min).
   let m: number;
-  if (Porffor.type(min) != Porffor.TYPES.undefined) m = ecma262.ToNumber(min);
+  if (_argc > 1) m = ecma262.ToNumber(min);
     // 9. If min is not present, let m be MinFromTime(t).
     else m = __ecma262_MinFromTime(t);
 
   // 6. If sec is present, let s be ? ToNumber(sec).
   let s: number;
-  if (Porffor.type(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
+  if (_argc > 2) s = ecma262.ToNumber(sec);
     // 10. If sec is not present, let s be SecFromTime(t).
     else s = __ecma262_SecFromTime(t);
 
   // 7. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (_argc > 3) milli = ecma262.ToNumber(ms);
     // 11. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1389,7 +1389,7 @@ export const __Date_prototype_setUTCMilliseconds = function (this: any, ms: any)
 
 // 21.4.4.32 Date.prototype.setUTCMinutes (min [, sec [, ms ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutcminutes
-export const __Date_prototype_setUTCMinutes = function (this: any, min: any, sec: any, ms: any) {
+export const __Date_prototype_setUTCMinutes = function (this: any, _argc: i32, min: any, sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
@@ -1400,13 +1400,13 @@ export const __Date_prototype_setUTCMinutes = function (this: any, min: any, sec
 
   // 5. If sec is present, let s be ? ToNumber(sec).
   let s: number;
-  if (Porffor.type(sec) != Porffor.TYPES.undefined) s = ecma262.ToNumber(sec);
+  if (_argc > 1) s = ecma262.ToNumber(sec);
     // 8. If sec is not present, let s be SecFromTime(t).
     else s = __ecma262_SecFromTime(t);
 
   // 6. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (_argc > 2) milli = ecma262.ToNumber(ms);
     // 9. If ms is not present, let milli be msFromTime(t).
     else milli = __ecma262_msFromTime(t);
 
@@ -1428,7 +1428,7 @@ export const __Date_prototype_setUTCMinutes = function (this: any, min: any, sec
 
 // 21.4.4.33 Date.prototype.setUTCMonth (month [, date ])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutcmonth
-export const __Date_prototype_setUTCMonth = function (this: any, month: any, date: any) {
+export const __Date_prototype_setUTCMonth = function (this: any, _argc: i32, month: any, date: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
@@ -1439,7 +1439,7 @@ export const __Date_prototype_setUTCMonth = function (this: any, month: any, dat
 
   // 5. If date is present, let dt be ? ToNumber(date).
   let dt: number;
-  if (Porffor.type(date) != Porffor.TYPES.undefined) dt = ecma262.ToNumber(date);
+  if (_argc > 1) dt = ecma262.ToNumber(date);
   // 7. If date is not present, let dt be DateFromTime(t).
     else dt = __ecma262_DateFromTime(t);
 
@@ -1461,7 +1461,7 @@ export const __Date_prototype_setUTCMonth = function (this: any, month: any, dat
 
 // 21.4.4.34 Date.prototype.setUTCSeconds (sec [, ms ])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.setutcseconds
-export const __Date_prototype_setUTCSeconds = function (this: any, sec: any, ms: any) {
+export const __Date_prototype_setUTCSeconds = function (this: any, _argc: i32, sec: any, ms: any) {
   // 1. Let dateObject be the this value.
   // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
   // 3. Let t be dateObject.[[DateValue]].
@@ -1472,13 +1472,13 @@ export const __Date_prototype_setUTCSeconds = function (this: any, sec: any, ms:
 
   // 5. If ms is present, let milli be ? ToNumber(ms).
   let milli: number;
-  if (Porffor.type(ms) != Porffor.TYPES.undefined) milli = ecma262.ToNumber(ms);
+  if (_argc > 1) milli = ecma262.ToNumber(ms);
 
   // 6. If t is NaN, return NaN.
   if (Number.isNaN(t)) return NaN;
 
   // 7. If ms is not present, let milli be msFromTime(t).
-  if (Porffor.type(ms) == Porffor.TYPES.undefined) milli = __ecma262_msFromTime(t);
+  if (_argc <= 1) milli = __ecma262_msFromTime(t);
 
   // 8. Let date be MakeDate(Day(t), MakeTime(HourFromTime(t), MinFromTime(t), s, milli)).
   const date: number = __ecma262_MakeDate(__ecma262_Day(t), __ecma262_MakeTime(__ecma262_HourFromTime(t), __ecma262_MinFromTime(t), s, milli));
