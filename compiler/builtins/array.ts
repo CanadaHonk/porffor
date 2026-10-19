@@ -75,112 +75,240 @@ export const __Array_of = function (this: any, ...items: any[]): any {
   return A;
 };
 
-export const __Array_from = (arg: any, mapFn: any, thisArg: any = undefined): any[] => {
-  if (arg == null) throw new TypeError('Argument cannot be nullish');
+export const __Porffor_array_iteratorCloseThrow = (iterator: any): void => {
+  try {
+    const ret: any = iterator.return;
+    if (ret != null) ret.call(iterator);
+  } catch {}
+};
 
-  const out: any[] = Porffor.array.new(4);
-  if (__Porffor_iterator_inPlace(Porffor.type(arg)) || Porffor.type(arg[Symbol.iterator]) == Porffor.TYPES.function) {
+// 23.1.2.1 Array.from (items [, mapper [, thisArg]])
+// https://tc39.es/ecma262/#sec-array.from
+export const __Array_from = function (this: any, items: any, mapper: any = undefined, thisArg: any = undefined): any {
+  // 1. Let C be the this value.
+  const C: any = this;
+  const custom: boolean = Porffor.fastAnd(C !== Array, ecma262.IsConstructor(C));
+
+  // 2. If mapper is undefined, let mapping be false.
+  // 3. Else, if IsCallable(mapper) is false, throw a TypeError exception; else let mapping be true.
+  const mapping: boolean = Porffor.type(mapper) != Porffor.TYPES.undefined;
+  if (mapping) if (Porffor.type(mapper) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapper');
+  if (items == null) throw new TypeError('Argument cannot be nullish');
+
+  if (!custom) if (__Porffor_iterator_inPlace(Porffor.type(items))) {
+    const out: any[] = Porffor.array.new(4);
     let i: i32 = 0;
-    if (Porffor.type(mapFn) != Porffor.TYPES.undefined) {
-      if (Porffor.type(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
-
-      for (const x of arg) {
-        out[i] = mapFn.call(thisArg, x, i);
+    if (mapping) {
+      for (const x of items) {
+        out[i] = mapper.call(thisArg, x, i);
         i++;
       }
     } else {
-      for (const x of arg) {
-        out[i++] = x;
-      }
+      for (const x of items) out[i++] = x;
     }
 
     out.length = i;
     return out;
   }
 
-  if (__Porffor_object_isObject(arg)) {
-    const obj: object = Porffor.type(arg) == Porffor.TYPES.object ? arg : __Porffor_object_underlying(arg);
-    // check before i32 truncation: huge lengths saturate to exactly 2147483647
-    const lenRaw: number = ecma262.ToIntegerOrInfinity(obj['length']);
-    if (lenRaw > 2147483647) throw new RangeError('Invalid array length');
-    let len: i32 = lenRaw;
-    if (len < 0) len = 0;
+  // 4. Let usingIterator be ? GetMethod(items, %Symbol.iterator%).
+  const usingIterator: any = items[Symbol.iterator];
 
-    if (Porffor.type(mapFn) != Porffor.TYPES.undefined) {
-      if (Porffor.type(mapFn) != Porffor.TYPES.function) throw new TypeError('Called Array.from with a non-function mapFn');
+  // 5. If usingIterator is not undefined, then
+  if (usingIterator != null) {
+    if (Porffor.type(usingIterator) != Porffor.TYPES.function) throw new TypeError('Symbol.iterator is not a function');
 
-      for (let i: i32 = 0; i < len; i++) {
-        out[i] = mapFn.call(thisArg, obj[i], i);
+    // a. If IsConstructor(C) is true, let A be ? Construct(C); else let A be ! ArrayCreate(0).
+    const A: any = custom ? Porffor.call(C, [], null, C) : Porffor.array.new(4);
+
+    // b. Let iteratorRecord be ? GetIteratorFromMethod(items, usingIterator).
+    const iterator: any = usingIterator.call(items);
+    if (!Porffor.object.isObject(iterator)) throw new TypeError('Iterator is not an object');
+    const next: any = iterator.next;
+
+    // c. Let k be 0.
+    // d. Repeat,
+    let k: number = 0;
+    while (true) {
+      // iii. Let next be ? IteratorStepValue(iteratorRecord).
+      const result: any = next.call(iterator);
+      if (!Porffor.object.isObject(result)) throw new TypeError('Iterator result is not an object');
+
+      // iv. If next is done, then
+      if (result.done) {
+        // 1. Perform ? Set(A, "length", 𝔽(k), true).
+        __Porffor_array_setLengthOf(A, k);
+
+        // 2. Return A.
+        return A;
       }
-    } else {
-      for (let i: i32 = 0; i < len; i++) {
-        out[i] = obj[i];
+
+      // v-viii. Map and define the value, closing the iterator on abrupt completions
+      let value: any = result.value;
+      try {
+        if (mapping) value = mapper.call(thisArg, value, k);
+        __Porffor_array_createDataProperty(A, k, value);
+      } catch (e) {
+        __Porffor_array_iteratorCloseThrow(iterator);
+        throw e;
       }
+
+      // ix. Set k to k + 1.
+      k++;
     }
-
-    out.length = len;
-    return out;
   }
 
-  return out;
+  // 6. NOTE: items is not an Iterable so assume it is an array-like object.
+  // 7. Let arrayLike be ! ToObject(items).
+  const arrayLike: any = ecma262.ToObject(items);
+
+  // 8. Let len be ? LengthOfArrayLike(arrayLike).
+  const len: number = __Porffor_array_lengthOf(arrayLike);
+
+  // 9. If IsConstructor(C) is true, let A be ? Construct(C, « 𝔽(len) »); else let A be ? ArrayCreate(len).
+  const A: any = custom ? Porffor.call(C, [ len ], null, C) : __Porffor_array_create(len);
+
+  // 10. Let k be 0.
+  // 11. Repeat, while k < len,
+  for (let k: number = 0; k < len; k++) {
+    // a-b. Let kValue be ? Get(arrayLike, Pk).
+    let value: any = __Porffor_array_get(arrayLike, k);
+
+    // c-d. Let mappedValue be ? Call(mapper, thisArg, « kValue, 𝔽(k) ») if mapping.
+    if (mapping) value = mapper.call(thisArg, value, k);
+
+    // e. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+    __Porffor_array_createDataProperty(A, k, value);
+  }
+
+  // 12. Perform ? Set(A, "length", 𝔽(len), true).
+  __Porffor_array_setLengthOf(A, len);
+
+  // 13. Return A.
+  return A;
 };
 
 // 23.1.2.2 Array.fromAsync (items [, mapper [, thisArg]])
-// https://tc39.es/ecma262/multipage/indexed-collections.html#sec-array.fromasync
-export const __Array_fromAsync = async function (items: any, mapper: any = undefined, thisArg: any = undefined) {
+// https://tc39.es/proposal-array-from-async/
+export const __Array_fromAsync = async function (this: any, items: any, mapper: any = undefined, thisArg: any = undefined) {
+  // 1. Let C be the this value.
+  const C: any = this;
+  const custom: boolean = Porffor.fastAnd(C !== Array, ecma262.IsConstructor(C));
+
+  // 3.a. If mapper is undefined, let mapping be false.
+  // 3.b. Else, if IsCallable(mapper) is false, throw a TypeError exception; else let mapping be true.
+  const mapping: boolean = Porffor.type(mapper) != Porffor.TYPES.undefined;
+  if (mapping) if (Porffor.type(mapper) != Porffor.TYPES.function) throw new TypeError('Called Array.fromAsync with a non-function mapper');
   if (items == null) throw new TypeError('Argument cannot be nullish');
 
-  const out: any[] = Porffor.array.new(4);
-  const mapping: boolean = Porffor.type(mapper) != Porffor.TYPES.undefined;
-  if (mapping && Porffor.type(mapper) != Porffor.TYPES.function) throw new TypeError('Called Array.fromAsync with a non-function mapper');
+  // c. Let usingAsyncIterator be ? GetMethod(asyncItems, %Symbol.asyncIterator%).
+  const usingAsyncIterator: any = items[Symbol.asyncIterator];
+  if (usingAsyncIterator != null) if (Porffor.type(usingAsyncIterator) != Porffor.TYPES.function) throw new TypeError('Symbol.asyncIterator is not a function');
 
-  if (Porffor.fastOr(
-    Porffor.type(items) == Porffor.TYPES.array,
-    (Porffor.type(items) | 0b10000000) == Porffor.TYPES.bytestring,
-    Porffor.type(items) == Porffor.TYPES.set,
-    Porffor.type(items) == Porffor.TYPES.map,
-    Porffor.type(items) == Porffor.TYPES.__porffor_generator,
-    Porffor.type(items) == Porffor.TYPES.__porffor_asyncgenerator,
-    Porffor.fastAnd(Porffor.type(items) >= Porffor.TYPES.uint8clampedarray, Porffor.type(items) <= Porffor.TYPES.float64array)
-  )) {
-    let i: i32 = 0;
-    if (mapping) {
-      for await (const x of items) {
-        out[i] = await mapper.call(thisArg, x, i);
-        i++;
-      }
-    } else {
-      for await (const x of items) {
-        out[i++] = x;
-      }
-    }
-
-    out.length = i;
-    return out;
+  // d. If usingAsyncIterator is undefined, then
+  //   i. Let usingSyncIterator be ? GetMethod(asyncItems, %Symbol.iterator%).
+  let usingSyncIterator: any = undefined;
+  if (usingAsyncIterator == null) {
+    usingSyncIterator = items[Symbol.iterator];
+    if (usingSyncIterator != null) if (Porffor.type(usingSyncIterator) != Porffor.TYPES.function) throw new TypeError('Symbol.iterator is not a function');
   }
 
-  if (__Porffor_object_isObject(items)) {
-    const obj: object = Porffor.type(items) == Porffor.TYPES.object ? items : __Porffor_object_underlying(items);
-    const lenRaw: number = ecma262.ToIntegerOrInfinity(obj['length']);
-    if (lenRaw > 2147483647) throw new RangeError('Invalid array length');
-    let len: i32 = lenRaw;
-    if (len < 0) len = 0;
+  // f. If iteratorRecord is not undefined, then
+  if (Porffor.fastOr(usingAsyncIterator != null, usingSyncIterator != null)) {
+    // i. If IsConstructor(C) is true, let A be ? Construct(C); else let A be ! ArrayCreate(0).
+    const A: any = custom ? Porffor.call(C, [], null, C) : Porffor.array.new(4);
 
-    if (mapping) {
-      for (let i: i32 = 0; i < len; i++) {
-        out[i] = await mapper.call(thisArg, await obj[i], i);
+    // e. Let iteratorRecord be GetIteratorFromMethod (sync iterators act as CreateAsyncFromSyncIterator).
+    const isAsync: boolean = usingAsyncIterator != null;
+    const iterator: any = isAsync ? usingAsyncIterator.call(items) : usingSyncIterator.call(items);
+    if (!Porffor.object.isObject(iterator)) throw new TypeError('Iterator is not an object');
+    const next: any = iterator.next;
+
+    // ii. Let k be 0.
+    // iii. Repeat,
+    let k: number = 0;
+    while (true) {
+      // 3. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
+      // 4. Set nextResult to ? Await(nextResult).
+      let result: any = next.call(iterator);
+      if (isAsync) result = await result;
+
+      // 5. If nextResult is not an Object, throw a TypeError exception.
+      if (!Porffor.object.isObject(result)) throw new TypeError('Iterator result is not an object');
+
+      // 6. Let done be ? IteratorComplete(nextResult).
+      // 7. If done is true, then
+      if (result.done) {
+        // a. Perform ? Set(A, "length", 𝔽(k), true).
+        __Porffor_array_setLengthOf(A, k);
+
+        // b. Return A.
+        return A;
       }
-    } else {
-      for (let i: i32 = 0; i < len; i++) {
-        out[i] = await obj[i];
+
+      // 8. Let nextValue be ? IteratorValue(nextResult).
+      let value: any = result.value;
+
+      try {
+        // async-from-sync iterators await each value
+        if (!isAsync) value = await value;
+
+        // 9. If mapping is true, then
+        //   a. Let mappedValue be Call(mapper, thisArg, « nextValue, 𝔽(k) »).
+        //   c. Set mappedValue to Await(mappedValue).
+        if (mapping) value = await mapper.call(thisArg, value, k);
+
+        // 11. Let defineStatus be CreateDataPropertyOrThrow(A, Pk, mappedValue).
+        __Porffor_array_createDataProperty(A, k, value);
+      } catch (e) {
+        // 12. If defineStatus is an abrupt completion, return ? AsyncIteratorClose(iteratorRecord, defineStatus).
+        try {
+          const ret: any = iterator.return;
+          if (ret != null) {
+            const r: any = ret.call(iterator);
+            if (isAsync) await r;
+          }
+        } catch {}
+        throw e;
       }
+
+      // 13. Set k to k + 1.
+      k++;
     }
-
-    out.length = len;
-    return out;
   }
 
-  return out;
+  // g. Else,
+  //   i. NOTE: asyncItems is neither an AsyncIterable nor an Iterable so assume it is an array-like object.
+  //   ii. Let arrayLike be ! ToObject(asyncItems).
+  const arrayLike: any = ecma262.ToObject(items);
+
+  //   iii. Let len be ? LengthOfArrayLike(arrayLike).
+  const len: number = __Porffor_array_lengthOf(arrayLike);
+
+  //   iv. If IsConstructor(C) is true, let A be ? Construct(C, « 𝔽(len) »); else let A be ? ArrayCreate(len).
+  const A: any = custom ? Porffor.call(C, [ len ], null, C) : __Porffor_array_create(len);
+
+  //   v. Let k be 0.
+  //   vi. Repeat, while k < len,
+  for (let k: number = 0; k < len; k++) {
+    // 2. Let kValue be ? Get(arrayLike, Pk).
+    // 3. Set kValue to ? Await(kValue).
+    let value: any = await __Porffor_array_get(arrayLike, k);
+
+    // 4. If mapping is true, then
+    //   a. Let mappedValue be ? Call(mapper, thisArg, « kValue, 𝔽(k) »).
+    //   b. Set mappedValue to ? Await(mappedValue).
+    if (mapping) value = await mapper.call(thisArg, value, k);
+
+    // 6. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+    __Porffor_array_createDataProperty(A, k, value);
+  }
+
+  //   vii. Perform ? Set(A, "length", 𝔽(len), true).
+  __Porffor_array_setLengthOf(A, len);
+
+  //   viii. Return A.
+  return A;
 };
 
 
