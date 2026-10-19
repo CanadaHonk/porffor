@@ -915,9 +915,12 @@ export const __ByteString_prototype_substr = function (this: bytestring, _start:
 };
 
 
-export const __String_prototype_slice = function (this: string, start: number, end: any) {
+export const __String_prototype_slice = function (this: string, _start: any, _end: any) {
   const len: i32 = this.length;
-  if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
+  if (Porffor.type(_end) == Porffor.TYPES.undefined) _end = len;
+
+  let start: number = ecma262.ToIntegerOrInfinity(_start);
+  let end: number = ecma262.ToIntegerOrInfinity(_end);
 
   if (start < 0) {
     start = len + start;
@@ -935,9 +938,12 @@ export const __String_prototype_slice = function (this: string, start: number, e
   return __Porffor_string_substringToBest(this, start, end);
 };
 
-export const __ByteString_prototype_slice = function (this: bytestring, start: number, end: any) {
+export const __ByteString_prototype_slice = function (this: bytestring, _start: any, _end: any) {
   const len: i32 = this.length;
-  if (Porffor.type(end) == Porffor.TYPES.undefined) end = len;
+  if (Porffor.type(_end) == Porffor.TYPES.undefined) _end = len;
+
+  let start: number = ecma262.ToIntegerOrInfinity(_start);
+  let end: number = ecma262.ToIntegerOrInfinity(_end);
 
   if (start < 0) {
     start = len + start;
