@@ -1798,6 +1798,8 @@ export const __Porffor_object_class_value = (obj: any, key: any, value: any): vo
     }
 
     entryPtr = __Porffor_object_appendEntry(obj, key, hash);
+  } else if ((Porffor.IR.loadU8(entryPtr, 16) & 0b0010) == 0) {
+    throw new TypeError('Cannot redefine property');
   }
 
   Porffor.IR.storeUnF64(entryPtr, 8, value);
@@ -1820,6 +1822,8 @@ export const __Porffor_object_class_method = (obj: any, key: any, value: any): v
     }
 
     entryPtr = __Porffor_object_appendEntry(obj, key, hash);
+  } else if ((Porffor.IR.loadU8(entryPtr, 16) & 0b0010) == 0) {
+    throw new TypeError('Cannot redefine property');
   }
 
   Porffor.IR.storeUnF64(entryPtr, 8, value);
@@ -1843,6 +1847,8 @@ export const __Porffor_object_class_get = (obj: any, key: any, get: any): void =
     }
 
     entryPtr = __Porffor_object_appendEntry(obj, key, hash);
+  } else if ((Porffor.IR.loadU8(entryPtr, 16) & 0b0010) == 0) {
+    throw new TypeError('Cannot redefine property');
   } else if (Porffor.IR.loadU8(entryPtr, 16) & 0b0001) {
     // existing entry, keep set (if exists)
     set = __Porffor_object_accessorSet(entryPtr);
@@ -1872,6 +1878,8 @@ export const __Porffor_object_class_set = (obj: any, key: any, set: any): void =
     }
 
     entryPtr = __Porffor_object_appendEntry(obj, key, hash);
+  } else if ((Porffor.IR.loadU8(entryPtr, 16) & 0b0010) == 0) {
+    throw new TypeError('Cannot redefine property');
   } else if (Porffor.IR.loadU8(entryPtr, 16) & 0b0001) {
     // existing entry, keep get (if exists)
     get = __Porffor_object_accessorGet(entryPtr);
