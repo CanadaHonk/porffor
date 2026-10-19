@@ -3245,6 +3245,8 @@ const ctHash = prop => {
 
 
 const generateAssign = (scope, decl, valueUnused = false) => {
+  // NamedEvaluation, not for parenthesized targets
+  if (decl.left.type === 'Identifier' && decl.left._resolvedVariable && decl.left.start === decl.start && isFuncType(decl.right.type) && [ '=', '||=', '&&=', '??=' ].includes(decl.operator)) setDefaultFuncName(decl.right, decl.left.name);
 
   if (decl.left._tdz) {
     if (decl.operator === '=') exprStmt(scope, generate(scope, decl.right));
