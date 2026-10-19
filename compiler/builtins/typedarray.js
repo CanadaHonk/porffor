@@ -267,7 +267,10 @@ export const __Porffor_typedArray_speciesCreate = (exemplar: any, a: any, b: any
   if (!ecma262.IsConstructor(S)) throw new TypeError('Typed array species is not a constructor');
 
   const isLength: boolean = Porffor.type(a) == Porffor.TYPES.number;
-  const result: any = isLength ? new S(a) : new S(a, b, c);
+  let result: any;
+  if (isLength) result = Porffor.call(S, [ a ], null, S);
+    else if (Porffor.type(c) == Porffor.TYPES.undefined) result = Porffor.call(S, [ a, b ], null, S);
+    else result = Porffor.call(S, [ a, b, c ], null, S);
   const len: i32 = isLength ? __Porffor_typedArray_validateWrite(result) : __Porffor_typedArray_validate(result);
   if (isLength && len < a) throw new TypeError('Species constructor returned a too small typed array');
   if (__Porffor_typedArray_isBig(Porffor.type(result)) != __Porffor_typedArray_isBig(t)) throw new TypeError('Cannot mix BigInt and other types');
@@ -292,7 +295,7 @@ export const __TypedArray_from = function (this: any, source: any, mapFn: any = 
   const values: any[] = __Array_from(source, undefined, undefined);
   const len: i32 = values.length;
 
-  const target: any = new C(len);
+  const target: any = Porffor.call(C, [ len ], null, C);
   if (__Porffor_typedArray_validateWrite(target) < len) throw new TypeError('Constructed typed array is too small');
 
   const t: i32 = Porffor.type(target);
@@ -317,7 +320,7 @@ export const __TypedArray_of = function (this: any, ...items: any[]) {
   if (!ecma262.IsConstructor(C)) throw new TypeError('TypedArray.of called on non-constructor');
 
   const len: i32 = items.length;
-  const target: any = new C(len);
+  const target: any = Porffor.call(C, [ len ], null, C);
   if (__Porffor_typedArray_validateWrite(target) < len) throw new TypeError('Constructed typed array is too small');
 
   const t: i32 = Porffor.type(target);
