@@ -1931,16 +1931,18 @@ export const Date = function (...values: any[]): bytestring|Date {
     } else {
       // c. Else,
       // i. Let v be ? ToPrimitive(value).
+      const v: any = ecma262.ToPrimitive(value, 'default');
+
       // ii. If v is a String, then
-      if ((Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring) {
+      if ((Porffor.type(v) | 0b10000000) == Porffor.TYPES.bytestring) {
         // 1. Assert: The next step never returns an abrupt completion because v is a String.
 
         // 2. Let tv be the result of parsing v as a date, in exactly the same manner as for the parse method (21.4.3.2).
-        tv = __Date_parse(value);
+        tv = __Date_parse(v);
       } else {
         // iii. Else,
         // 1. Let tv be ? ToNumber(v).
-        tv = ecma262.ToNumber(value);
+        tv = ecma262.ToNumber(v);
       }
     }
 
