@@ -14,6 +14,7 @@ import semantic, { knownValue, unknownValue } from './semantic.js';
 import parse from './parse.js';
 import temporalPolyfillSource from './temporal.js';
 import desugarUsing from './using.js';
+import intlPolyfillSource from './intl/intl.js';
 import './prefs.js';
 
 // jsval constants
@@ -5503,6 +5504,11 @@ export default (program, opts = {}) => {
   if (program._usesTemporal) {
     const polyfill = parse(temporalPolyfillSource).body;
     if (program._units) for (const x of polyfill) x._unit = 'temporal';
+    program.body = polyfill.concat(program.body);
+  }
+  if (program._usesIntl) {
+    const polyfill = parse(intlPolyfillSource).body;
+    if (program._units) for (const x of polyfill) x._unit = 'intl';
     program.body = polyfill.concat(program.body);
   }
 
