@@ -58,8 +58,9 @@ export const __Reflect_defineProperty = (target: any, prop: any, descriptor: any
 
 export const __Reflect_deleteProperty = (target: any, prop: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  prop = ecma262.ToPropertyKey(prop);
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
-    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_delete(target, ecma262.ToPropertyKey(prop));
+    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_delete(target, prop);
   }
 
   try {
