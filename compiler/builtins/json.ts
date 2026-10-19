@@ -56,6 +56,14 @@ export const __Porffor_json_canSerialize = (value: any): boolean => {
   return false;
 };
 
+export const __Porffor_json_toJSON = (value: any, key: any): any => {
+  if (Porffor.object.isObject(value)) {
+    const toJSON: any = value.toJSON;
+    if (Porffor.type(toJSON) == Porffor.TYPES.function) return toJSON.call(value, ecma262.ToString(key));
+  }
+  return value;
+};
+
 export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, space: bytestring|undefined): i32 => {
   // somewhat modelled after 25.5.2.2 SerializeJSONProperty: https://tc39.es/ecma262/#sec-serializejsonproperty
   let buffer: i32 = _buffer;
@@ -239,8 +247,56 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
   return -1;
 };
 
+// replacer (and toJSON) applied up front into a plain tree, so the serializer can run twice
+export const __Porffor_json_prepare = (holder: any, key: any, value: any, replacer: any, keys: any, stack: any[]): any => {
+  value = __Porffor_json_toJSON(value, key);
+  if (Porffor.type(replacer) == Porffor.TYPES.function) value = replacer.call(holder, key, value);
+
+  if (Porffor.fastOr(!Porffor.object.isObject(value), Porffor.type(value) == Porffor.TYPES.function, __Porffor_json_canSerialize(value) == false)) return value;
+  if (Porffor.fastOr(Porffor.type(value) == Porffor.TYPES.numberobject, Porffor.type(value) == Porffor.TYPES.stringobject, Porffor.type(value) == Porffor.TYPES.booleanobject)) return value;
+  if (stack.includes(value)) throw new TypeError('Converting circular structure to JSON');
+  Porffor.array.fastPush(stack, value);
+
+  let out: any;
+  if (Array.isArray(value)) {
+    out = Porffor.array.new(0);
+    const len: i32 = value.length;
+    for (let i: i32 = 0; i < len; i++) {
+      const v: any = __Porffor_json_prepare(value, Porffor.callThis(__Number_prototype_toString, i), value[i], replacer, keys, stack);
+      out[i] = __Porffor_json_canSerialize(v) ? v : null;
+    }
+  } else {
+    out = {};
+    const objKeys: any[] = keys ?? Object.keys(value);
+    for (let i: i32 = 0; i < objKeys.length; i++) {
+      const k: any = objKeys[i];
+      const v: any = __Porffor_json_prepare(value, k, value[k], replacer, keys, stack);
+      if (__Porffor_json_canSerialize(v)) out[k] = v;
+    }
+  }
+
+  stack.pop();
+  return out;
+};
+
 export const __JSON_stringify = (value: any, replacer: any, space: any) => {
-  // todo: replacer
+  if (Porffor.type(replacer) == Porffor.TYPES.function) {
+    const holder: object = {};
+    holder[''] = value;
+    value = __Porffor_json_prepare(holder, '', value, replacer, undefined, Porffor.array.new(0));
+  } else if (Array.isArray(replacer)) {
+    const keys: any[] = Porffor.array.new(0);
+    for (let i: i32 = 0; i < replacer.length; i++) {
+      const x: any = replacer[i];
+      let k: any = undefined;
+      if (Porffor.fastOr((Porffor.type(x) | 0b10000000) == Porffor.TYPES.bytestring, Porffor.type(x) == Porffor.TYPES.number,
+        Porffor.type(x) == Porffor.TYPES.stringobject, Porffor.type(x) == Porffor.TYPES.numberobject)) k = ecma262.ToString(x);
+      if (k !== undefined && !keys.includes(k)) Porffor.array.fastPush(keys, k);
+    }
+    const holder: object = {};
+    holder[''] = value;
+    value = __Porffor_json_prepare(holder, '', value, undefined, keys, Porffor.array.new(0));
+  }
 
   if (space !== undefined) {
     if (Porffor.fastOr(
