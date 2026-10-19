@@ -1147,7 +1147,7 @@ export const __ByteString_prototype_concat = function (this: bytestring, ...vals
 
 export const __String_prototype_repeat = function (this: string, cnt: any) {
   const count: number = ecma262.ToIntegerOrInfinity(cnt);
-  if (count < 0) throw new RangeError('Invalid count value');
+  if (Porffor.fastOr(count < 0, count == Infinity)) throw new RangeError('Invalid count value');
 
   const thisLen: i32 = this.length * 2;
   if (thisLen == 0) return '';
@@ -1163,7 +1163,7 @@ export const __String_prototype_repeat = function (this: string, cnt: any) {
 
 export const __ByteString_prototype_repeat = function (this: bytestring, cnt: any) {
   const count: number = ecma262.ToIntegerOrInfinity(cnt);
-  if (count < 0) throw new RangeError('Invalid count value');
+  if (Porffor.fastOr(count < 0, count == Infinity)) throw new RangeError('Invalid count value');
 
   const thisLen: i32 = this.length;
   if (thisLen == 0) return '';
