@@ -277,7 +277,7 @@ export const __Porffor_object_ordinaryHasInstance = (constr: any, obj: any): boo
 
 
 export const __Object_assign = (target: any, ...sources: any[]): any => {
-  if (target == null) throw new TypeError('Argument is nullish, expected object');
+  target = ecma262.ToObject(target);
 
   for (let src of sources) {
     if (src == null) continue;
