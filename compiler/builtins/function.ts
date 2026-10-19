@@ -61,10 +61,16 @@ export const __Function_prototype_bind = function (this: Function, thisArg: any,
   };
 
   // property/descriptor paths (not funcLut) so chained binds see the bound name/length
-  Object.defineProperty(bound, 'name', { value: 'bound ' + (this as any).name, configurable: true });
+  let name: any = (this as any).name;
+  if ((Porffor.type(name) | 0b10000000) != Porffor.TYPES.bytestring) name = '';
+  Object.defineProperty(bound, 'name', { value: 'bound ' + name, configurable: true });
 
-  let length: f64 = (Object.getOwnPropertyDescriptor(this, 'length') as any).value - args.length;
-  if (length < 0) length = 0;
+  const lengthDesc: any = Object.getOwnPropertyDescriptor(this, 'length');
+  let length: number = 0;
+  if (lengthDesc !== undefined && Porffor.type(lengthDesc.value) == Porffor.TYPES.number) {
+    length = ecma262.ToIntegerOrInfinity(lengthDesc.value) - args.length;
+    if (length < 0) length = 0;
+  }
   Object.defineProperty(bound, 'length', { value: length, configurable: true });
 
   // bound functions have no own prototype property: drop the one given to constructor closures
