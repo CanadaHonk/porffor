@@ -116,3 +116,7 @@ export const __Map_prototype_getOrInsertComputed = function (this: Map, key: any
 export const __Map_prototype_Symbol_iterator = function (this: Map) {
   return __Porffor_MapIterator_new(this, 0);
 };
+
+export const __Map_Symbol_species$get = function (this: any): any {
+  return this;
+};

@@ -250,3 +250,7 @@ export const __Set_prototype_toLocaleString = function (this: Set) { return Porf
 export const __Set_prototype_Symbol_iterator = function (this: Set) {
   return __Porffor_SetIterator_new(this, 0);
 };
+
+export const __Set_Symbol_species$get = function (this: any): any {
+  return this;
+};

@@ -4127,12 +4127,11 @@ const toPropertyKey = (scope, key, computed = false) =>
   computed ? builtinCall(scope, '__ecma262_ToPropertyKey', [ key[N_TYPE] === T.jsval ? key : valNumber(key) ]) : key;
 
 // views on resizable buffers have length -1 and compute it from their buffer
-const typedArrayLength = (scope, obj) => {
+const typedArrayLength = (scope, obj, slow = '__Porffor_typedArray_length') => {
   const len = reuse(scope, LenGet(JvPtr(obj)));
-  return Select(Bin('==', T.i32, len, Const(T.i32, -1)), builtinCall(scope, '__Porffor_typedArray_length', [ obj ], T.i32), len);
+  return Select(Bin('==', T.i32, len, Const(T.i32, -1)), builtinCall(scope, slow, [ obj ], T.i32), len);
 };
 
-// element ctype, size, signed
 const typedArrayElements = {
   [TYPES.uint8array]: [ 'u8', 1, false ],
   [TYPES.uint8clampedarray]: [ 'u8', 1, false ],
@@ -4150,19 +4149,19 @@ const typedArrayElements = {
 const typedArrayElementAddr = (obj, idx, size) =>
   Bin('+', T.u32, Load('u32', JvPtr(obj), 4), size === 1 ? idx : Bin('*', T.u32, idx, Const(T.u32, size)));
 
-// IsValidIntegerIndex for a number key
-const typedArrayIndex = (scope, obj, prop) => {
+// stores also need a writable (not immutable) buffer
+const typedArrayIndex = (scope, obj, prop, write = false) => {
   const num = reuse(scope, numValue(prop));
   const idx = reuse(scope, Convert(T.u32, num, 0));
   return {
     idx,
     valid: Bin('&&', T.i32,
       Bin('==', T.i32, num, Convert(T.f64, idx, 0)),
-      Bin('<', T.u32, idx, Convert(T.u32, typedArrayLength(scope, obj))))
+      Bin('<', T.u32, idx, Convert(T.u32, typedArrayLength(scope, obj, write ? '__Porffor_typedArray_writeLength' : '__Porffor_typedArray_length'))))
   };
 };
 
-// element idx boxed as a value, idx must be in bounds
+// idx must be in bounds
 const typedArrayLoad = (scope, obj, idx, t) => {
   const [ ctype, size, signed ] = typedArrayElements[t];
   const loaded = Load(ctype, typedArrayElementAddr(obj, idx, size), 4);
@@ -4172,7 +4171,6 @@ const typedArrayLoad = (scope, obj, idx, t) => {
     : Box(ctype === 'f32' || ctype === 'f64' ? loaded : Convert(T.f64, loaded, signed ? CONVERT_SIGNED : 0), Const(T.i32, TYPES.number));
 };
 
-// integer-indexed [[Get]] for a number key: undefined unless a valid index
 const typedArrayGet = (scope, obj, prop, t) => {
   const { idx, valid } = typedArrayIndex(scope, obj, prop);
   const res = tmp(scope, T.jsval);
@@ -4180,7 +4178,6 @@ const typedArrayGet = (scope, obj, prop, t) => {
   return res;
 };
 
-// TypedArraySetElement for a number key: convert the value, then store if a valid index
 const typedArraySet = (scope, obj, prop, t, v) => {
   const [ ctype, size ] = typedArrayElements[t];
   let n;
@@ -4195,7 +4192,7 @@ const typedArraySet = (scope, obj, prop, t, v) => {
       () => assign(scope, n, numValue(builtinCall(scope, '__ecma262_ToNumber', [ v ]))));
   }
 
-  const { idx, valid } = typedArrayIndex(scope, obj, prop);
+  const { idx, valid } = typedArrayIndex(scope, obj, prop, true);
   emitIf(scope, valid, () => {
     const addr = reuse(scope, typedArrayElementAddr(obj, idx, size));
     let stored;

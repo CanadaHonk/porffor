@@ -21,7 +21,6 @@ export const __Porffor_typedArray_buffer = (ta: any): i32 =>
 export const __Porffor_typedArray_detached = (ta: any): boolean =>
   Porffor.IR.loadI32(__Porffor_typedArray_buffer(ta), 0) < 0;
 
-// current length, -1 if out of bounds or detached
 export const __Porffor_typedArray_lengthOrOOB = (ta: any): i32 => {
   const len: i32 = Porffor.IR.loadI32(ta, 0);
   const offset: i32 = Porffor.IR.loadI32(ta, 8);
@@ -40,7 +39,6 @@ export const __Porffor_typedArray_lengthOrOOB = (ta: any): i32 => {
   return fixed;
 };
 
-// TypedArrayLength, 0 if out of bounds
 export const __Porffor_typedArray_length = (ta: any): i32 => {
   const len: i32 = __Porffor_typedArray_lengthOrOOB(ta);
   return len < 0 ? 0 : len;
@@ -59,12 +57,11 @@ export const __Porffor_typedArray_validate = (ta: any): i32 => {
   return len;
 };
 
-// CanonicalNumericIndexString of a property key, undefined if not numeric
 export const __Porffor_typedArray_numericKey = (key: any): any => {
   if ((Porffor.type(key) | 0b10000000) != Porffor.TYPES.bytestring) return undefined;
   if ((key as bytestring).length == 0) return undefined;
 
-  // fast reject: canonical numeric strings start with a digit, - or I(nfinity)/N(aN)
+  // canonical numeric strings start with a digit, - or I(nfinity)/N(aN)
   const c: i32 = key.charCodeAt(0);
   if (Porffor.fastAnd(Porffor.fastOr(c < 48, c > 57), c != 45, c != 73, c != 78)) return undefined;
 
@@ -75,19 +72,16 @@ export const __Porffor_typedArray_numericKey = (key: any): any => {
   return undefined;
 };
 
-// IsValidIntegerIndex
 export const __Porffor_typedArray_validIndex = (ta: any, n: number): boolean => {
   if (!Number.isInteger(n)) return false;
   return Porffor.fastAnd(n >= 0, n < __Porffor_typedArray_length(ta));
 };
 
-// TypedArraySetElement for a numeric key
 export const __Porffor_typedArray_setIndex = (ta: any, n: number, value: any): any => {
   ta[n] = value;
   return value;
 };
 
-// typed array [[DefineOwnProperty]] for a numeric key
 export const __Porffor_typedArray_defineIndex = (ta: any, n: number, desc: any): boolean => {
   if (!__Porffor_typedArray_validIndex(ta, n)) return false;
   if (Porffor.fastAnd(__Porffor_object_in(desc, 'configurable'), !desc.configurable)) return false;
@@ -98,7 +92,21 @@ export const __Porffor_typedArray_defineIndex = (ta: any, n: number, desc: any):
   return true;
 };
 
-export const __Porffor_typedArray_coerce =(t: i32, value: any): any => {
+export const __Porffor_typedArray_immutable = (ta: any): boolean =>
+  __Porffor_arraybuffer_isImmutable(__Porffor_typedArray_buffer(ta));
+
+export const __Porffor_typedArray_validateWrite = (ta: any): i32 => {
+  __Porffor_typedArray_check(ta);
+  if (__Porffor_typedArray_immutable(ta)) throw new TypeError('Cannot write to an immutable ArrayBuffer');
+  return __Porffor_typedArray_validate(ta);
+};
+
+export const __Porffor_typedArray_writeLength = (ta: any): i32 => {
+  if (__Porffor_typedArray_immutable(ta)) return 0;
+  return __Porffor_typedArray_length(ta);
+};
+
+export const __Porffor_typedArray_coerce = (t: i32, value: any): any => {
   if (Porffor.comptime.flag\`hasType.bigint64array\`) {
     if (t == Porffor.TYPES.bigint64array) return ecma262.ToBigInt(value);
   }
@@ -160,8 +168,8 @@ export const __Porffor_typedArray_init = (ta: any, arg: any, byteOffset: any, le
     if (bufferLen < 0) throw new TypeError('Cannot construct typed array with a detached ArrayBuffer');
 
     const resizable: boolean = __Porffor_arraybuffer_maxByteLength(bufferPtr) >= 0;
+    const dynamic: boolean = Porffor.fastOr(resizable, __Porffor_arraybuffer_isImmutable(bufferPtr));
     if (Porffor.fastAnd(!lengthGiven, resizable)) {
-      // length-tracking
       if (offsetNum > bufferLen) throw new RangeError('Start offset is outside the bounds of the buffer');
       Porffor.IR.storeI32(ta, 0, -1);
       Porffor.IR.storeI32(ta, 12, -1);
@@ -177,7 +185,7 @@ export const __Porffor_typedArray_init = (ta: any, arg: any, byteOffset: any, le
       }
 
       // views on resizable buffers can go out of bounds so are always dynamic
-      Porffor.IR.storeI32(ta, 0, resizable ? -1 : newByteLength / bpe);
+      Porffor.IR.storeI32(ta, 0, dynamic ? -1 : newByteLength / bpe);
       Porffor.IR.storeI32(ta, 12, newByteLength / bpe);
     }
 
@@ -247,6 +255,25 @@ export const __Porffor_typedArray_construct = (t: i32, a: any, b: any, c: any): 
   throw new TypeError('Invalid typed array type');
 };
 
+export const __Porffor_typedArray_speciesCreate = (exemplar: any, a: any, b: any, c: any): any => {
+  const t: i32 = Porffor.type(exemplar);
+  const C: any = exemplar.constructor;
+  let S: any = undefined;
+  if (C !== undefined) {
+    if (!Porffor.object.isObject(C)) throw new TypeError('Typed array constructor is not an object');
+    S = C[Symbol.species];
+  }
+  if (S == null) return __Porffor_typedArray_construct(t, a, b, c);
+  if (!ecma262.IsConstructor(S)) throw new TypeError('Typed array species is not a constructor');
+
+  const isLength: boolean = Porffor.type(a) == Porffor.TYPES.number;
+  const result: any = isLength ? new S(a) : new S(a, b, c);
+  const len: i32 = isLength ? __Porffor_typedArray_validateWrite(result) : __Porffor_typedArray_validate(result);
+  if (isLength && len < a) throw new TypeError('Species constructor returned a too small typed array');
+  if (__Porffor_typedArray_isBig(Porffor.type(result)) != __Porffor_typedArray_isBig(t)) throw new TypeError('Cannot mix BigInt and other types');
+  return result;
+};
+
 // 23.2.1.1 %TypedArray% ()
 // https://tc39.es/ecma262/#sec-%typedarray%
 export const TypedArray = function () {
@@ -266,7 +293,7 @@ export const __TypedArray_from = function (this: any, source: any, mapFn: any = 
   const len: i32 = values.length;
 
   const target: any = new C(len);
-  if (__Porffor_typedArray_validate(target) < len) throw new TypeError('Constructed typed array is too small');
+  if (__Porffor_typedArray_validateWrite(target) < len) throw new TypeError('Constructed typed array is too small');
 
   const t: i32 = Porffor.type(target);
   const big: boolean = __Porffor_typedArray_isBig(t);
@@ -279,6 +306,10 @@ export const __TypedArray_from = function (this: any, source: any, mapFn: any = 
   return target;
 };
 
+export const __TypedArray_Symbol_species$get = function (this: any): any {
+  return this;
+};
+
 // 23.2.2.2 %TypedArray%.of (...items)
 // https://tc39.es/ecma262/#sec-%typedarray%.of
 export const __TypedArray_of = function (this: any, ...items: any[]) {
@@ -287,7 +318,7 @@ export const __TypedArray_of = function (this: any, ...items: any[]) {
 
   const len: i32 = items.length;
   const target: any = new C(len);
-  if (__Porffor_typedArray_validate(target) < len) throw new TypeError('Constructed typed array is too small');
+  if (__Porffor_typedArray_validateWrite(target) < len) throw new TypeError('Constructed typed array is too small');
 
   const t: i32 = Porffor.type(target);
   const big: boolean = __Porffor_typedArray_isBig(t);
@@ -334,7 +365,7 @@ export const __TypedArray_prototype_at = function (this: any, index: any) {
 };
 
 export const __TypedArray_prototype_copyWithin = function (this: any, target: any, start: any, end: any = undefined) {
-  const len: i32 = __Porffor_typedArray_validate(this);
+  const len: i32 = __Porffor_typedArray_validateWrite(this);
   const to: i32 = __Porffor_typedArray_relIndex(target, len);
   const from: i32 = __Porffor_typedArray_relIndex(start, len);
   const final: i32 = Porffor.type(end) == Porffor.TYPES.undefined ? len : __Porffor_typedArray_relIndex(end, len);
@@ -374,7 +405,7 @@ export const __TypedArray_prototype_every = function (this: any, callbackFn: any
 };
 
 export const __TypedArray_prototype_fill = function (this: any, value: any, start: any = undefined, end: any = undefined) {
-  const len: i32 = __Porffor_typedArray_validate(this);
+  const len: i32 = __Porffor_typedArray_validateWrite(this);
   const v: any = __Porffor_typedArray_coerce(Porffor.type(this), value);
   const k: i32 = __Porffor_typedArray_relIndex(start, len);
   let final: i32 = Porffor.type(end) == Porffor.TYPES.undefined ? len : __Porffor_typedArray_relIndex(end, len);
@@ -398,7 +429,7 @@ export const __TypedArray_prototype_filter = function (this: any, callbackFn: an
     if (!!Porffor.callThis(callbackFn, thisArg, kValue, k, this)) kept[captured++] = kValue;
   }
 
-  const A: any = __Porffor_typedArray_construct(Porffor.type(this), captured, undefined, undefined);
+  const A: any = __Porffor_typedArray_speciesCreate(this, captured, undefined, undefined);
   for (let n: i32 = 0; n < captured; n++) A[n] = kept[n];
   return A;
 };
@@ -540,7 +571,7 @@ export const __TypedArray_prototype_map = function (this: any, callbackFn: any, 
   if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('Callback must be a function');
 
   const t: i32 = Porffor.type(this);
-  const A: any = __Porffor_typedArray_construct(t, len, undefined, undefined);
+  const A: any = __Porffor_typedArray_speciesCreate(this, len, undefined, undefined);
   const big: boolean = __Porffor_typedArray_isBig(t);
   for (let k: i32 = 0; k < len; k++) {
     const v: any = Porffor.callThis(callbackFn, thisArg, this[k], k, this);
@@ -582,7 +613,7 @@ export const __TypedArray_prototype_reduceRight = function (this: any, _argc: i3
 };
 
 export const __TypedArray_prototype_reverse = function (this: any) {
-  const len: i32 = __Porffor_typedArray_validate(this);
+  const len: i32 = __Porffor_typedArray_validateWrite(this);
 
   let lower: i32 = 0;
   let upper: i32 = len;
@@ -597,6 +628,7 @@ export const __TypedArray_prototype_reverse = function (this: any) {
 
 export const __TypedArray_prototype_set = function (this: any, source: any, offset: any = undefined) {
   __Porffor_typedArray_check(this);
+  if (__Porffor_typedArray_immutable(this)) throw new TypeError('Cannot write to an immutable ArrayBuffer');
   const targetOffsetNum: number = ecma262.ToIntegerOrInfinity(offset);
   if (targetOffsetNum < 0) throw new RangeError('Offset is out of bounds');
 
@@ -659,15 +691,27 @@ export const __TypedArray_prototype_slice = function (this: any, start: any, end
   let count: i32 = final > k ? final - k : 0;
 
   const t: i32 = Porffor.type(this);
-  const A: any = __Porffor_typedArray_construct(t, count, undefined, undefined);
+  const A: any = __Porffor_typedArray_speciesCreate(this, count, undefined, undefined);
   if (count > 0) {
     // coercions could have shrunk this
     const newLen: i32 = __Porffor_typedArray_validate(this);
     if (count > newLen - k) count = newLen - k;
 
     if (count > 0) {
-      const bpe: i32 = __Porffor_typedArray_bpe(t);
-      Porffor.IR.copy(Porffor.IR.loadI32(A, 4) + 4, Porffor.IR.loadI32(this, 4) + 4 + k * bpe, count * bpe);
+      if (Porffor.type(A) == t) {
+        const bpe: i32 = __Porffor_typedArray_bpe(t);
+        const dst: i32 = Porffor.IR.loadI32(A, 4) + 4;
+        const src: i32 = Porffor.IR.loadI32(this, 4) + 4 + k * bpe;
+        const bytes: i32 = count * bpe;
+        if (__Porffor_typedArray_buffer(A) == __Porffor_typedArray_buffer(this)) {
+          // a species result can share this buffer: copy bytewise forwards like the spec
+          for (let i: i32 = 0; i < bytes; i++) Porffor.IR.storeU8(dst + i, 0, Porffor.IR.loadU8(src + i, 0));
+        } else {
+          Porffor.IR.copy(dst, src, bytes);
+        }
+      } else {
+        for (let n: i32 = 0; n < count; n++) A[n] = this[k + n];
+      }
     }
   }
 
@@ -692,7 +736,7 @@ export const __TypedArray_prototype_sort = function (this: any, comparefn: any) 
     comparefn = __Porffor_typedArray_compare;
   }
 
-  const len: i32 = __Porffor_typedArray_validate(this);
+  const len: i32 = __Porffor_typedArray_validateWrite(this);
 
   const items: any[] = Porffor.array.new(len);
   items.length = len;
@@ -717,14 +761,28 @@ export const __TypedArray_prototype_subarray = function (this: any, start: any, 
   const buffer: any = Porffor.callThis(__TypedArray_prototype_buffer$get, this);
   const beginByteOffset: i32 = Porffor.IR.loadI32(this, 8) + beginIndex * __Porffor_typedArray_bpe(t);
 
-  // length-tracking stays length-tracking
-  if (Porffor.fastAnd(Porffor.type(end) == Porffor.TYPES.undefined, Porffor.IR.loadI32(this, 0) < 0, Porffor.IR.loadI32(this, 12) < 0))
-    return __Porffor_typedArray_construct(t, buffer, beginByteOffset, undefined);
-  return __Porffor_typedArray_construct(t, buffer, beginByteOffset, newLength);
+  const tracking: boolean = Porffor.fastAnd(Porffor.type(end) == Porffor.TYPES.undefined, Porffor.IR.loadI32(this, 0) < 0, Porffor.IR.loadI32(this, 12) < 0);
+  return __Porffor_typedArray_speciesCreate(this, buffer, beginByteOffset, tracking ? undefined : newLength);
 };
 
 export const __TypedArray_prototype_toLocaleString = function (this: any) {
-  return Porffor.callThis(__TypedArray_prototype_join, this, undefined);
+  const len: i32 = __Porffor_typedArray_validate(this);
+
+  const out: any[] = Porffor.array.new(len);
+  out.length = len;
+  for (let k: i32 = 0; k < len; k++) {
+    // elements read undefined if the buffer shrank meanwhile
+    const element: any = this[k];
+    if (element != null) {
+      // Invoke(element, "toLocaleString") so overridden prototype methods are called
+      const key: bytestring = 'toLocaleString';
+      const fn: any = element[key];
+      if (Porffor.type(fn) != Porffor.TYPES.function) throw new TypeError('toLocaleString is not a function');
+      out[k] = ecma262.ToString(fn.call(element));
+    }
+  }
+
+  return Porffor.callThis(__Array_prototype_join, out, ',');
 };
 
 export const __TypedArray_prototype_toReversed = function (this: any) {
@@ -769,14 +827,17 @@ export const __TypedArray_prototype_with = function (this: any, index: any, valu
 
   const t: i32 = Porffor.type(this);
   const v: any = __Porffor_typedArray_coerce(t, value);
-  if (Porffor.fastOr(
-    actualIndex < 0,
-    actualIndex >= len,
-    __Porffor_typedArray_detached(this)
-  )) throw new RangeError('Invalid typed array index');
+  // the coercion could have shrunk this
+  const newLen: i32 = __Porffor_typedArray_length(this);
+  if (Porffor.fastOr(actualIndex < 0, actualIndex >= newLen)) throw new RangeError('Invalid typed array index');
 
   const A: any = __Porffor_typedArray_construct(t, len, undefined, undefined);
-  Porffor.IR.copy(Porffor.IR.loadI32(A, 4) + 4, Porffor.IR.loadI32(this, 4) + 4, len * __Porffor_typedArray_bpe(t));
+  if (newLen >= len) {
+    Porffor.IR.copy(Porffor.IR.loadI32(A, 4) + 4, Porffor.IR.loadI32(this, 4) + 4, len * __Porffor_typedArray_bpe(t));
+  } else {
+    // elements past the new length read as undefined
+    for (let k: i32 = 0; k < len; k++) A[k] = __Porffor_typedArray_coerce(t, this[k]);
+  }
 
   const i: i32 = actualIndex;
   A[i] = v;

@@ -45,7 +45,6 @@ export const __DataView_prototype_buffer$get = function (this: DataView): any {
   return buffer as ArrayBuffer;
 };
 
-// GetViewByteLength, -1 if out of bounds or detached
 export const __Porffor_dataview_lengthOrOOB = (view: DataView): i32 => {
   const offset: i32 = Porffor.IR.loadI32(view, 8);
   const bufferLen: i32 = Porffor.IR.loadI32(Porffor.IR.loadI32(view, 4) - offset - 4, 0);
@@ -72,6 +71,10 @@ export const __DataView_prototype_byteOffset$get = function (this: DataView) {
   return Porffor.IR.loadI32(this, 8);
 };
 
+export const __Porffor_dataview_checkWrite = (view: DataView): void => {
+  if (__Porffor_arraybuffer_isImmutable(Porffor.IR.loadI32(view, 4) - Porffor.IR.loadI32(view, 8) - 4)) throw new TypeError('Cannot write to an immutable ArrayBuffer');
+};
+
 export const __Porffor_dataview_ptr = function (this: DataView, byteOffset: number, size: i32): i32 {
   const len: i32 = __Porffor_dataview_lengthOrOOB(this);
   if (len < 0) throw new TypeError('DataView is out of bounds');
@@ -91,6 +94,7 @@ export const __DataView_prototype_getUint8 = function (this: DataView, byteOffse
 };
 
 export const __DataView_prototype_setUint8 = function (this: DataView, byteOffset: any, value: any) {
+  __Porffor_dataview_checkWrite(this);
   byteOffset = ecma262.ToIndex(byteOffset);
   value = ecma262.ToNumber(value);
   Porffor.IR.storeU8(Porffor.callThis(__Porffor_dataview_ptr, this, byteOffset, 1), 4, value | 0);
@@ -111,6 +115,7 @@ export const __DataView_prototype_getUint16 = function (this: DataView, byteOffs
 };
 
 export const __DataView_prototype_setUint16 = function (this: DataView, byteOffset: any, value: any, littleEndian: any = false) {
+  __Porffor_dataview_checkWrite(this);
   byteOffset = ecma262.ToIndex(byteOffset);
   value = (ecma262.ToNumber(value) | 0) & 0xffff;
   Porffor.IR.storeU16(Porffor.callThis(__Porffor_dataview_ptr, this, byteOffset, 2), 4, !!littleEndian ? value : __Porffor_dataview_swap16(value));
@@ -133,6 +138,7 @@ export const __DataView_prototype_getUint32 = function (this: DataView, byteOffs
 };
 
 export const __DataView_prototype_setUint32 = function (this: DataView, byteOffset: any, value: any, littleEndian: any = false) {
+  __Porffor_dataview_checkWrite(this);
   byteOffset = ecma262.ToIndex(byteOffset);
   value = ecma262.ToNumber(value) | 0;
   Porffor.IR.storeI32(Porffor.callThis(__Porffor_dataview_ptr, this, byteOffset, 4), 4, !!littleEndian ? value : __Porffor_dataview_swap32(value));
@@ -166,6 +172,7 @@ export const __DataView_prototype_getBigInt64 = function (this: DataView, byteOf
 };
 
 export const __DataView_prototype_setBigUint64 = function (this: DataView, byteOffset: any, value: any, littleEndian: any = false) {
+  __Porffor_dataview_checkWrite(this);
   byteOffset = ecma262.ToIndex(byteOffset);
   value = ecma262.ToBigInt(value);
   Porffor.IR.storeI64(__Porffor_dataview_reinterpretTemp, 0, __Porffor_bigint_toI64(value));
@@ -185,6 +192,7 @@ export const __DataView_prototype_getFloat32 = function (this: DataView, byteOff
 };
 
 export const __DataView_prototype_setFloat32 = function (this: DataView, byteOffset: any, value: any, littleEndian: any = false) {
+  __Porffor_dataview_checkWrite(this);
   byteOffset = ecma262.ToIndex(byteOffset);
   value = ecma262.ToNumber(value);
   const bits: i32 = Porffor.IR.f32ToBits(value);
@@ -203,6 +211,7 @@ export const __DataView_prototype_getFloat64 = function (this: DataView, byteOff
 };
 
 export const __DataView_prototype_setFloat64 = function (this: DataView, byteOffset: any, value: any, littleEndian: any = false) {
+  __Porffor_dataview_checkWrite(this);
   byteOffset = ecma262.ToIndex(byteOffset);
   value = ecma262.ToNumber(value);
   Porffor.IR.storeF64(__Porffor_dataview_reinterpretTemp, 0, value);
@@ -212,4 +221,72 @@ export const __DataView_prototype_setFloat64 = function (this: DataView, byteOff
   Porffor.IR.storeI32(ptr, 4, !!littleEndian ? lo : __Porffor_dataview_swap32(hi));
   Porffor.IR.storeI32(ptr, 8, !!littleEndian ? hi : __Porffor_dataview_swap32(lo));
   return undefined;
+};
+
+export const __Porffor_dataview_f16ToF64 = (bits: i32): number => {
+  const exp: i32 = (bits >> 10) & 0x1f;
+  const frac: i32 = bits & 0x3ff;
+  let value: number = 0;
+  if (exp == 0) value = frac * 5.960464477539063e-8; // 2 ** -24
+    else if (exp == 31) value = frac == 0 ? Infinity : NaN;
+    else {
+      const e: number = exp;
+      value = (1 + frac / 1024) * Math.pow(2, e - 15);
+    }
+
+  return (bits & 0x8000) ? -value : value;
+};
+
+export const __Porffor_dataview_roundEven = (x: number): number => {
+  const floor: number = Math.floor(x);
+  const diff: number = x - floor;
+  if (diff < 0.5) return floor;
+  if (diff > 0.5) return floor + 1;
+  return floor % 2 == 0 ? floor : floor + 1;
+};
+
+export const __Porffor_dataview_f64ToF16 = (value: number): i32 => {
+  if (value != value) return 0x7e00;
+
+  let sign: i32 = 0;
+  if (Porffor.fastOr(value < 0, Porffor.fastAnd(value == 0, 1 / value < 0))) {
+    sign = 0x8000;
+    value = -value;
+  }
+
+  if (value >= 65520) return sign | 0x7c00;
+
+  // subnormals (and zero) are multiples of 2 ** -24
+  if (value < 6.103515625e-5) return sign | __Porffor_dataview_roundEven(value * 16777216);
+
+  let exp: i32 = 0;
+  let m: number = value;
+  while (m >= 2) {
+    m /= 2;
+    exp++;
+  }
+  while (m < 1) {
+    m *= 2;
+    exp--;
+  }
+
+  let frac: i32 = __Porffor_dataview_roundEven((m - 1) * 1024);
+  if (frac == 1024) {
+    frac = 0;
+    exp++;
+  }
+  if (exp > 15) return sign | 0x7c00;
+
+  return sign | ((exp + 15) << 10) | frac;
+};
+
+export const __DataView_prototype_getFloat16 = function (this: DataView, byteOffset: any, littleEndian: any = false) {
+  const value: i32 = Porffor.callThis(__DataView_prototype_getUint16, this, byteOffset, littleEndian);
+  return __Porffor_dataview_f16ToF64(value);
+};
+
+export const __DataView_prototype_setFloat16 = function (this: DataView, byteOffset: any, value: any, littleEndian: any = false) {
+  __Porffor_dataview_checkWrite(this);
+  byteOffset = ecma262.ToIndex(byteOffset);
+  return Porffor.callThis(__DataView_prototype_setUint16, this, byteOffset, __Porffor_dataview_f64ToF16(ecma262.ToNumber(value)), littleEndian);
 };

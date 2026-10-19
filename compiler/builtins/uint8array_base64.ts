@@ -1,6 +1,5 @@
 import type {} from './porffor.d.ts';
 
-// returns length
 export const __Porffor_uint8array_validate = (ta: any): i32 => {
   if (Porffor.type(ta) != Porffor.TYPES.uint8array) {
     throw new TypeError('Method called on incompatible receiver');

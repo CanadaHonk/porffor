@@ -3765,3 +3765,7 @@ export const __RegExp_escape = (str: any) => {
 
   return out;
 };
+
+export const __RegExp_Symbol_species$get = function (this: any): any {
+  return this;
+};
