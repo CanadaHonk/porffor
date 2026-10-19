@@ -114,7 +114,27 @@ export const __ArrayBuffer_prototype_slice = function (this: ArrayBuffer, start:
   if (end > len) end = len;
 
   const newLen: i32 = end > start ? end - start : 0;
-  const out: ArrayBuffer = __Porffor_arraybuffer_alloc(newLen, -1, false);
+
+  // SpeciesConstructor(this, %ArrayBuffer%)
+  const C: any = this.constructor;
+  let S: any = undefined;
+  if (C !== undefined) {
+    if (!Porffor.object.isObject(C)) throw new TypeError('ArrayBuffer constructor is not an object');
+    S = C[Symbol.species];
+  }
+
+  let out: any;
+  if (Porffor.fastOr(S == null, S === ArrayBuffer)) {
+    out = __Porffor_arraybuffer_alloc(newLen, -1, false) as ArrayBuffer;
+  } else {
+    if (!ecma262.IsConstructor(S)) throw new TypeError('ArrayBuffer species is not a constructor');
+    out = Porffor.call(S, [ newLen ], null, S);
+    if (Porffor.type(out) != Porffor.TYPES.arraybuffer) throw new TypeError('Species constructor did not return an ArrayBuffer');
+    if (Porffor.IR.loadI32(out, 0) < 0) throw new TypeError('Species constructor returned a detached ArrayBuffer');
+    if (__Porffor_arraybuffer_isImmutable(Porffor.IR.ptr(out))) throw new TypeError('Species constructor returned an immutable ArrayBuffer');
+    if (out === this) throw new TypeError('Species constructor returned the same ArrayBuffer');
+    if (Porffor.IR.loadI32(out, 0) < newLen) throw new TypeError('Species constructor returned a too small ArrayBuffer');
+  }
 
   // conversions above could have detached or shrunk this
   const currentLen: i32 = Porffor.IR.loadI32(this, 0);
@@ -171,7 +191,7 @@ export const __ArrayBuffer_prototype_transferToFixedLength = function (this: Arr
   return __Porffor_arraybuffer_copyAndDetach(this, newLength, -1);
 };
 
-export const __ArrayBuffer_prototype_transferToImmutable = function (this: ArrayBuffer, newLength: any) {
+export const __ArrayBuffer_prototype_transferToImmutable = function (this: ArrayBuffer, newLength: any = undefined) {
   return __Porffor_arraybuffer_copyAndDetach(this, newLength, -2);
 };
 
