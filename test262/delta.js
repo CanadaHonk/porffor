@@ -83,7 +83,6 @@ const buildComparisons = () => {
   return out;
 };
 
-// ---- rendering ----
 const tty = process.stdout.isTTY && process.stdin.isTTY;
 const esc = (code, s) => `[${code}m${s}[0m`;
 const dim = s => esc(90, s);
@@ -165,7 +164,6 @@ const overviewLines = (comp, width) => {
   return lines;
 };
 
-// ---- change tree ----
 const CLS_ORDER = { regressions: 0, lateral: 1, 'set changes': 2, improvements: 3 };
 
 const buildTree = (list, sortByPath) => {
@@ -262,7 +260,6 @@ const treeRow = (row, width, selected) => {
   return selected ? `\x1b[7m${out}\x1b[0m` : out;
 };
 
-// ---- static (non-tty) mode ----
 const staticMode = comps => {
   for (const comp of comps) {
     for (const l of overviewLines(comp, process.stdout.columns || 120)) console.log(l);
@@ -273,7 +270,6 @@ const staticMode = comps => {
   }
 };
 
-// ---- interactive tui ----
 const tui = comps => new Promise(resolve => {
   let compIdx = 0;
   let view = 'overview'; // overview | list | detail

@@ -2256,8 +2256,7 @@ const splitRuntime = text => {
 const PORF_BUMP_ALLOC = () => {
   const st = 'static ';
   const sti = 'static inline ';
-  return `// ---- arena ----
-// fixed-address reserve; commit-on-demand; NEVER moves. 32-bit offsets.
+  return `// fixed-address reserve; commit-on-demand; NEVER moves. 32-bit offsets.
 static u32 porf_heap_base = 0;
 static u32 porf_heap_cur = 0;
 static u32 porf_heap_committed = 0;
@@ -4528,7 +4527,6 @@ PORF_NORETURN ${st}void porf_unreachable(const char* msg) {
 
 ${prefs.gc === false ? PORF_BUMP_ALLOC() : PORF_GC_ALLOC(prefs)}
 
-// ---- core layouts ----
 // array:      [len i32 @0][ent u32 @4][cap i32 @8]; entries = jsval[cap]
 // object:     [count i32 @0][bcap i32 @4][ent u32 @8][buckets u32 @12]
 //             entries = {key jsval, val jsval}[count] in insertion order
@@ -4633,7 +4631,6 @@ ${st}jsval porf_arr_push(u32 a, jsval v) {
   return porf_box_num((f64)(len + 1));
 }
 
-// ---- strings ----
 ${st}u32 porf_bstr_new(u32 len) {
   const u32 s = porf_alloc(4 + len, ${TYPES.bytestring});
   *(u32*)(MEM + s) = len;
@@ -5294,8 +5291,7 @@ static void porf_promise_settle_direct(jsval promise, jsval value, i32 state) {
 }
 `;
 
-const CORO_RUNTIME = () => `// ---- coroutines (stackless) ----
-// record: header, frame, args. a generator is its record
+const CORO_RUNTIME = () => `// record: header, frame, args. a generator is its record
 typedef struct porf_coro_call {
   jsval callee;
   jsval thisv;
