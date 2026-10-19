@@ -267,11 +267,11 @@ if ((i32)len > 0) {
 *(MEM + out_ptr + 4 + (i32)len) = 0;
   `;
   if (encoding !== undefined) {
-    let units = 0;
+    var units = 0;
     Porffor.c`units = __porffor_utf8_units(MEM, out, 195);`;
     if (units < 0) return Porffor.as(out, Porffor.TYPES.bytestring);
 
-    const str = Porffor.malloc(units * 2 + 6);
+    var str = Porffor.malloc(units * 2 + 6);
     Porffor.c`
 u32 str_ptr = str.val < 0 ? (u32)(i32)str.val : (u32)str.val;
 *((i32*)(MEM + str_ptr)) = (i32)units;

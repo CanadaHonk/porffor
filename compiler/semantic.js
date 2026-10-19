@@ -382,8 +382,10 @@ const declVar = (name, kind, node) => {
   }
   const activeEvalScope = nearestEvalScope();
   const evalScope = parent._evalScope ? parent : (kind === 'var' ? null : activeEvalScope);
+  // block scoped bindings stay hidden from unresolved names (not in builtins)
+  const blockScoped = !globalThis.precompile && (kind === 'let' || kind === 'const') && name[0] !== '#' && node?.type !== 'FunctionDeclaration' && parent !== func && parent !== func.body;
   const internalName = evalScope ? `${evalScope._evalName}_${name}${id > 0 ? `#${id}` : ''}` :
-    (id > 0 || shadowsOuterFuncBinding ? `${name}#${id}` : null);
+    (id > 0 || shadowsOuterFuncBinding || blockScoped ? `${name}#${id}` : null);
   const variable = { node, id, func, kind, scope: parent, internalName, inParams: paramDecl != null || paramTdz?.func === func, unit };
   parent._variables[name] = variable;
   if (node && typeof node === 'object') node._variable = variable;

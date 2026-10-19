@@ -200,7 +200,8 @@ const withReference = (scope, decl) => {
   if (ident.type !== 'Identifier' || !ident._withs) return null;
 
   const { _withs, ...plain } = ident;
-  const name = ident.name;
+  // with objects see the source name
+  const name = ident.name.split('#')[0];
   // the innermost object having the name, resolved once
   let found = identNode('undefined');
   for (let i = _withs.length - 1; i >= 0; i--) found = {
@@ -2486,7 +2487,7 @@ const unhackName = name => {
   if (!name) return name;
 
   if (name.startsWith('__')) return name.slice(2).replaceAll('_', '.');
-  return name.replace(/(?!^)#m\w+$/, '');
+  return name.replace(/(?!^)#(m\w+|\d+)$/, '');
 };
 
 const knownType = (scope, type) => typeof type === 'number' ? type : null;
@@ -3527,7 +3528,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     return valueUnused ? valUndefined() : generate(scope, decl.left);
   }
 
-  if (local.metadata?.kind === 'const') return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${name}`);
+  if (local.metadata?.kind === 'const') return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${unhackName(name)}`);
 
   if (op === '=') {
     if (valueUnused) { setLocalWithType(scope, name, isGlobal, decl.right); return valUndefined(); }
@@ -5197,7 +5198,7 @@ const generateClass = (scope, decl) => {
   // the constructor must be invoked via `new`; field initialisers run after super() in a
   // subclass (at the marker generateCall left), else at the top of the body
   const guard = collect(func, () => emitIf(func, Un('!', T.i32, JvTruthy(Local('#newtarget', T.jsval))),
-    () => internalThrow(func, 'TypeError', `Class constructor ${name} requires 'new'`)));
+    () => internalThrow(func, 'TypeError', `Class constructor ${unhackName(name)} requires 'new'`)));
   const markerIdx = func.body.indexOf(CLASS_FIELD_INIT_MARKER);
   if (markerIdx !== -1) func.body.splice(markerIdx, 1, ...fieldInits);
   else func.body.unshift(...fieldInits);
