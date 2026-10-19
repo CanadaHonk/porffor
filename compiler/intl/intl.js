@@ -3667,7 +3667,7 @@ $IntlHooks$ = {
   upper(x, locales) { return I$transformCase(I$requireCoercibleString(x, 'toLocaleUpperCase'), locales, true); },
   date(x, locales, options) { return I$dateToLocale(x, locales, options, 'any', 'all'); },
   temporal(x, kind, locales, options) {
-    if (kind === 'Duration') return new I$DurationFormat(locales, options).format(x);
+    if (kind === 'Duration') return I$partsToString(I$durationParts(I$slotsOf(new I$DurationFormat(locales, options), 'an Intl.DurationFormat'), I$toDurationRecord(x)));
     const req = kind === 'PlainTime' ? 'time' : kind === 'PlainDate' || kind === 'PlainYearMonth' || kind === 'PlainMonthDay' ? 'date' : 'any';
     if (kind !== 'ZonedDateTime') {
       const o = I$createDateTimeFormat(locales, options, req, req === 'any' ? 'all' : req);

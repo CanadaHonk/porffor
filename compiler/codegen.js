@@ -5697,7 +5697,14 @@ export default (program, opts = {}) => {
     program.body = polyfill.concat(program.body);
   }
   if (program._usesIntl) {
-    const polyfill = parse(intlPolyfillSource).body;
+    let polyfill = parse(intlPolyfillSource).body;
+    if (program._usesIntl !== true) {
+      // unregistered services and hooks are never referenced, so never compiled
+      const { services, hooks } = program._usesIntl;
+      polyfill = polyfill.filter(x => x.expression?.callee?.name !== 'I$defineService' || services.has(x.expression.arguments[2].value));
+      const hookObject = polyfill.find(x => x.expression?.left?.name === '$IntlHooks$').expression.right;
+      hookObject.properties = hookObject.properties.filter(x => hooks.has(x.key.name));
+    }
     if (program._units) for (const x of polyfill) x._unit = 'intl';
     // its replacements of builtin prototype methods are methods: not constructors, no prototype
     for (const x of polyfill) if (x.type === 'FunctionDeclaration' && x.id.name.includes('_prototype_')) x._builtinShadow = true;
