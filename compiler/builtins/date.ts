@@ -1814,19 +1814,19 @@ export const __Date_prototype_toGMTString = function (this: any) {
 
 // 21.4.4.38 Date.prototype.toLocaleDateString ([ reserved1 [, reserved2 ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tolocaledatestring
-export const __Date_prototype_toLocaleDateString = function (this: any, reserved1: any, reserved2: any) {
+export const __Date_prototype_toLocaleDateString = function (this: any) {
   return Porffor.callThis(__Date_prototype_toDateString, this);
 };
 
 // 21.4.4.39 Date.prototype.toLocaleString ([ reserved1 [, reserved2 ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tolocalestring
-export const __Date_prototype_toLocaleString = function (this: any, reserved1: any, reserved2: any) {
+export const __Date_prototype_toLocaleString = function (this: any) {
   return Porffor.callThis(__Date_prototype_toString, this);
 };
 
 // 21.4.4.40 Date.prototype.toLocaleTimeString ([ reserved1 [, reserved2 ]])
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tolocaletimestring
-export const __Date_prototype_toLocaleTimeString = function (this: any, reserved1: any, reserved2: any) {
+export const __Date_prototype_toLocaleTimeString = function (this: any) {
   return Porffor.callThis(__Date_prototype_toTimeString, this);
 };
 
