@@ -353,6 +353,12 @@ export const __TypedArray_prototype_length$get = function (this: any) {
   return __Porffor_typedArray_length(this);
 };
 
+export const __TypedArray_prototype_Symbol_toStringTag$get = function (this: any): any {
+  const t: i32 = Porffor.type(this);
+  if (Porffor.fastOr(t < Porffor.TYPES.uint8clampedarray, t > Porffor.TYPES.float64array)) return undefined;
+  return Porffor.typeName(t);
+};
+
 export const __TypedArray_prototype_at = function (this: any, index: any) {
   const len: i32 = __Porffor_typedArray_validate(this);
   const rel: number = ecma262.ToIntegerOrInfinity(index);
