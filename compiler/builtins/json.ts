@@ -392,7 +392,29 @@ export const __Porffor_json_skipWhitespace = (text: bytestring, pos: i32, len: i
   return pos;
 };
 
-export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i32): any => {
+export const __Porffor_json_skipDigits = (text: bytestring, pos: i32, len: i32): i32 => {
+  while (pos < len) {
+    const c: i32 = text.charCodeAt(pos);
+    if (c < 48 || c > 57) break;
+    pos++;
+  }
+
+  return pos;
+};
+
+// parse records for reviver source text: [ value, source or child records ]
+export const __Porffor_json_parseRecord = (text: bytestring, posPtr: i32, len: i32): any[] => {
+  const start: i32 = __Porffor_json_skipWhitespace(text, Porffor.IR.loadI32(posPtr, 0), len);
+  Porffor.IR.storeI32(posPtr, 0, start);
+
+  const rec: any[] = Porffor.array.new(2);
+  rec.length = 2;
+  rec[0] = __Porffor_json_parseValue(text, posPtr, len, rec);
+  if (!Porffor.object.isObject(rec[0])) rec[1] = Porffor.callThis(__ByteString_prototype_slice, text, start, Porffor.IR.loadI32(posPtr, 0));
+  return rec;
+};
+
+export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i32, rec: any): any => {
   let pos: i32 = __Porffor_json_skipWhitespace(text, Porffor.IR.loadI32(posPtr, 0), len);
   if (pos >= len) throw new SyntaxError('Unexpected end of JSON input');
 
@@ -511,7 +533,8 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
   if (c == 91) { // '[' - array
     pos++;
     const arr: any[] = Porffor.array.new(4);
-    __Porffor_json_skipWhitespace();
+    if (rec !== undefined) rec[1] = Porffor.array.new(4);
+    pos = __Porffor_json_skipWhitespace(text, pos, len);
 
     if (pos < len && text.charCodeAt(pos) == 93) { // empty array
       pos++;
@@ -521,7 +544,13 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
 
     while (true) {
       Porffor.IR.storeI32(posPtr, 0, pos);
-      Porffor.array.fastPush(arr, __Porffor_json_parseValue(text, posPtr, len));
+      if (rec === undefined) {
+        Porffor.array.fastPush(arr, __Porffor_json_parseValue(text, posPtr, len, undefined));
+      } else {
+        const child: any[] = __Porffor_json_parseRecord(text, posPtr, len);
+        Porffor.array.fastPush(rec[1], child);
+        Porffor.array.fastPush(arr, child[0]);
+      }
       pos = __Porffor_json_skipWhitespace(text, Porffor.IR.loadI32(posPtr, 0), len);
       if (pos >= len) throw new SyntaxError('Unterminated array');
 
@@ -543,7 +572,8 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
   if (c == 123) { // '{' - object
     pos++;
     const obj: any = {};
-    __Porffor_json_skipWhitespace();
+    if (rec !== undefined) rec[1] = __Object_create(null);
+    pos = __Porffor_json_skipWhitespace(text, pos, len);
 
     if (pos < len && text.charCodeAt(pos) == 125) { // empty object
       pos++;
@@ -556,14 +586,19 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
       if (pos >= len || text.charCodeAt(pos) != 34) throw new SyntaxError('Expected string key');
 
       Porffor.IR.storeI32(posPtr, 0, pos);
-      const key: any = __Porffor_json_parseValue(text, posPtr, len);
+      const key: any = __Porffor_json_parseValue(text, posPtr, len, undefined);
       pos = __Porffor_json_skipWhitespace(text, Porffor.IR.loadI32(posPtr, 0), len);
       if (pos >= len || text.charCodeAt(pos) != 58) throw new SyntaxError('Expected :');
       pos++;
 
       Porffor.IR.storeI32(posPtr, 0, pos);
-      const value: any = __Porffor_json_parseValue(text, posPtr, len);
-      obj[key] = value;
+      if (rec === undefined) {
+        __Porffor_object_define(obj, key, __Porffor_json_parseValue(text, posPtr, len, undefined), 0b1110);
+      } else {
+        const child: any[] = __Porffor_json_parseRecord(text, posPtr, len);
+        __Porffor_object_define(rec[1], key, child, 0b1110);
+        __Porffor_object_define(obj, key, child[0], 0b1110);
+      }
 
       pos = __Porffor_json_skipWhitespace(text, Porffor.IR.loadI32(posPtr, 0), len);
       if (pos >= len) throw new SyntaxError('Unterminated object');
@@ -588,12 +623,23 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
     const start: i32 = pos;
     if (c == 45) pos++; // skip -
 
-    while (pos < len) {
-      const ch: i32 = text.charCodeAt(pos);
-      if (ch >= 48 && ch <= 57) pos++; // 0-9
-        else if (ch == 46 || ch == 101 || ch == 69) pos++; // . e E
-        else if ((ch == 43 || ch == 45) && pos > start + 1) pos++; // + - (not at start)
-        else break;
+    // int part is 0 or starts with 1-9
+    const intStart: i32 = pos;
+    pos = __Porffor_json_skipDigits(text, pos, len);
+    if (pos == intStart || (text.charCodeAt(intStart) == 48 && pos > intStart + 1)) throw new SyntaxError('Invalid number');
+
+    if (pos < len && text.charCodeAt(pos) == 46) { // .
+      const fracStart: i32 = ++pos;
+      pos = __Porffor_json_skipDigits(text, pos, len);
+      if (pos == fracStart) throw new SyntaxError('Invalid number');
+    }
+
+    if (pos < len && (text.charCodeAt(pos) | 32) == 101) { // e E
+      pos++;
+      if (pos < len && (text.charCodeAt(pos) == 43 || text.charCodeAt(pos) == 45)) pos++; // + -
+      const expStart: i32 = pos;
+      pos = __Porffor_json_skipDigits(text, pos, len);
+      if (pos == expStart) throw new SyntaxError('Invalid number');
     }
 
     Porffor.IR.storeI32(posPtr, 0, pos);
@@ -603,10 +649,49 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
   throw new SyntaxError('Unexpected token');
 };
 
-export const __JSON_parse = (_: bytestring) => {
+export const __Porffor_json_internalize = (holder: any, name: any, reviver: any, rec: any): any => {
+  const val: any = holder[name];
+  const context: object = {};
+
+  // records only describe values the reviver has not replaced
+  let recs: any = undefined;
+  if (rec != null) if (__Object_is(rec[0], val)) recs = rec[1];
+  if (Porffor.object.isObject(val)) {
+    const isArray: boolean = Array.isArray(val);
+    const keys: any = isArray ? undefined : __Object_keys(val);
+    const len: number = isArray ? __Porffor_array_lengthOf(val) : keys.length;
+    for (let i: number = 0; i < len; i++) {
+      const k: any = isArray ? ecma262.ToString(i) : keys[i];
+      const v: any = __Porffor_json_internalize(val, k, reviver, recs === undefined ? undefined : recs[k]);
+      if (v === undefined) __Reflect_deleteProperty(val, k);
+        else __Reflect_defineProperty(val, k, { value: v, writable: true, enumerable: true, configurable: true });
+    }
+  } else if (recs !== undefined) __Porffor_object_fastAdd(context, 'source', recs, 0b1110);
+
+  return reviver.call(holder, name, val, context);
+};
+
+export const __JSON_parse = (_: any, reviver: any) => {
   // todo: support non-bytestrings
+  const text: bytestring = ecma262.ToString(_);
   const posPtr: i32 = Porffor.malloc(4);
   Porffor.IR.storeI32(posPtr, 0, 0);
 
-  return __Porffor_json_parseValue(_, posPtr, _.length);
+  const len: i32 = text.length;
+  if (Porffor.comptime.flag`hasFunc.__Porffor_json_reviverUsed`) {
+    if (Porffor.type(reviver) == Porffor.TYPES.function) {
+      const rec: any = __Porffor_json_parseRecord(text, posPtr, len);
+      if (__Porffor_json_skipWhitespace(text, Porffor.IR.loadI32(posPtr, 0), len) < len) throw new SyntaxError('Unexpected token after JSON');
+
+      const root: object = {};
+      __Porffor_object_fastAdd(root, '', rec[0], 0b1110);
+      return __Porffor_json_internalize(root, '', reviver, rec);
+    }
+  }
+
+  const value: any = __Porffor_json_parseValue(text, posPtr, len, undefined);
+  if (__Porffor_json_skipWhitespace(text, Porffor.IR.loadI32(posPtr, 0), len) < len) throw new SyntaxError('Unexpected token after JSON');
+  return value;
 };
+
+export const __Porffor_json_reviverUsed = (): void => {};

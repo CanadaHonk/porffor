@@ -909,6 +909,8 @@ const generateIdent = (scope, decl) => {
     return generate(scope, closureEnvNode(scope, decl.name, closureOwner));
   }
 
+  // JSON.parse called indirectly may get a reviver
+  if (decl.name === '__JSON_parse' && !globalThis.precompile) includeBuiltin(scope, '__Porffor_json_reviverUsed');
   if (decl._builtinMember && decl.name in builtinFuncs) return materializeFunctionValue(scope, builtinShadow(decl.name) ?? includeBuiltin(scope, decl.name));
 
   const boundFunc = decl._resolvedVariable?.node?._porfforFunc;
@@ -2114,6 +2116,9 @@ const generateCall = (scope, decl) => {
     const key = decl.arguments[1];
     if (key?.type === 'Literal' && typeof key.value === 'string' && key.value !== 'constructor') (scope.memberReads ??= new Set()).add(key.value);
   }
+
+  // JSON.parse only compiles its reviver path when a reviver can be passed
+  if (name === '__JSON_parse' && !globalThis.precompile && (decl.arguments.length > 1 || decl.arguments.some(x => x.type === 'SpreadElement'))) includeBuiltin(scope, '__Porffor_json_reviverUsed');
 
   if (name?.startsWith('__Porffor_coroutine_'))
     return Call(name, decl.arguments.map(a => generate(scope, a)),
