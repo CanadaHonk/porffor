@@ -497,6 +497,15 @@ export const __Porffor_with_has = (obj: any, key: any): boolean => {
   return !__Porffor_object_isObject(unscopables) || !unscopables[key];
 };
 
+// GetValue of an unresolvable reference
+export const __Porffor_global_get = (key: any, hash: i32): any => {
+  const entryPtr: i32 = __Porffor_object_lookup(globalThis, key, hash);
+  if (Porffor.fastAnd(entryPtr != 0, (Porffor.IR.loadU16(entryPtr, 16) & 0b0001) == 0)) return __Porffor_object_readValue(entryPtr);
+
+  if (!(key in globalThis)) throw new ReferenceError(key + ' is not defined');
+  return globalThis[key];
+};
+
 export const __Porffor_object_isObjectOrNull = (arg: any): boolean => {
   const t: i32 = Porffor.type(arg);
   return Porffor.fastAnd(

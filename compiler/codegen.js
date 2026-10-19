@@ -913,8 +913,12 @@ const generateIdent = (scope, decl) => {
   if (boundFunc && !decl._selfBinding && decl._resolvedVariable.scope.type !== 'Program' && !decl._resolvedVariable.node._writes) return materializeFunctionValue(scope, boundFunc);
 
   if (decl.name in scope.locals) (scope.locals[decl.name].metadata ??= {}).read = true;
-  return lookup(scope, decl.name, !(decl.name === 'arguments' && decl._resolvedBinding), decl._markFunctionReferenced !== false)
-    ?? internalThrow(scope, 'ReferenceError', `${unhackName(decl.name)} is not defined`);
+  const out = lookup(scope, decl.name, !(decl.name === 'arguments' && decl._resolvedBinding), decl._markFunctionReferenced !== false);
+  if (out) return out;
+
+  // unresolvable names can still be global object properties
+  if (globalObjectUsed) return globalGet(scope, decl.name);
+  return internalThrow(scope, 'ReferenceError', `${unhackName(decl.name)} is not defined`);
 };
 
 const generateYield = (scope, decl) => {
@@ -1315,7 +1319,7 @@ const generateBinaryExp = (scope, decl) => {
   let left = generate(scope, decl.left);
   const leftType = getNodeType(scope, decl.left);
   const r = decl.right.type;
-  if (r !== 'Literal' && r !== 'Identifier' && r !== 'ThisExpression') left = snapshot(scope, left);
+  if (r !== 'Literal' && !(r === 'Identifier' && !ifIdentifierErrors(scope, decl.right)) && r !== 'ThisExpression') left = snapshot(scope, left);
   const right = generate(scope, decl.right);
   return performOp(scope, decl.operator, left, right, leftType, getNodeType(scope, decl.right));
 };
@@ -3126,10 +3130,14 @@ const propertyErrorMessage = (action, target, decl) => {
   return `Cannot ${action} property of ${target}`;
 };
 
-const globalThisBindingName = decl => {
-  if (decl.type !== 'MemberExpression' || decl.object?.type !== 'Identifier' || decl.object.name !== 'globalThis') return;
+const globalThisBindingName = (scope, decl) => {
+  if (decl.type !== 'MemberExpression') return;
+  const viaThis = decl.object.type === 'ThisExpression' && scope.topLevel && !Prefs.module;
+  if (!viaThis && (decl.object.type !== 'Identifier' || decl.object.name !== 'globalThis')) return;
 
   const name = propertyNameForError(decl);
+  // top-level this only reaches declared globals, the rest stay plain properties
+  if (viaThis && name != null && lookupName(scope, name)[0] == null && lookupHoistedVar(scope, name) == null) return;
   if (name != null && /^[A-Za-z_$][0-9A-Za-z_$]*$/.test(name) && !(name in builtinVars)) return name;
 };
 
@@ -3333,7 +3341,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     const propertyType = getNodeType(scope, property);
     const propertyKnown = knownType(scope, propertyType);
     const canFastComputedIndex = decl.left.computed && propertyKnown === TYPES.number;
-    const globalThisName = op === '=' && globalThisBindingName(decl.left);
+    const globalThisName = op === '=' && globalThisBindingName(scope, decl.left);
     const objectType = getNodeType(scope, object);
     const objectKnown = knownType(scope, objectType);
     const objectKnownValue = knownValue(scope, object);
@@ -3447,7 +3455,8 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     }
 
     // only allow = for this, or if in strict mode always throw
-    if (!isIdentAssignable(scope, name, op)) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
+    const assignable = isIdentAssignable(scope, name, op);
+    if (!assignable && type !== 'Identifier') return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
 
     if (type !== 'Identifier') {
       const tmpName = '#rhs' + uniqId(scope);
@@ -3463,7 +3472,14 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       return generate(scope, decl.right);
     }
 
-    // set global and return (eg a = 2)
+    // undeclared names are global object properties (eg a = 2)
+    if (globalObjectUsed && (!assignable || (lookupHoistedVar(scope, name) == null && !hasFuncWithName(name)))) {
+      if (!assignable) exprStmt(scope, globalGet(scope, name));
+      if (op === '=') return builtinCall(scope, '__Porffor_object_set_withHash', [ generate(scope, identNode('globalThis')), makeString(scope, name), generate(scope, decl.right), globalHash(scope, name) ]);
+      return generate(scope, { ...decl, left: memberNode(identNode('globalThis'), identNode(name)) }, undefined, valueUnused);
+    }
+    if (!assignable) return internalThrow(scope, 'ReferenceError', `${unhackName(name)} is not defined`);
+
     generateVarDstr(scope, 'var', name, decl.right, undefined, true);
     return valueUnused ? valUndefined() : generate(scope, decl.left);
   }
@@ -3483,6 +3499,27 @@ const generateAssign = (scope, decl, valueUnused = false) => {
   if (valueUnused) { setLocalWithType(scope, name, isGlobal, newVal, false, getNodeType(scope, decl)); return valUndefined(); }
   return setLocalWithType(scope, name, isGlobal, newVal, true, getNodeType(scope, decl));
 };
+
+// without these the global object can't be observed, so undeclared names stay static globals
+let globalObjectUsed;
+const usesGlobalObject = (node, top) => {
+  if (!node || typeof node !== 'object') return false;
+  if (Array.isArray(node)) return node.some(x => usesGlobalObject(x, top));
+  if (node.type === 'ThisExpression') return top;
+  if (node.type === 'Identifier') return node.name === 'globalThis' || node.name === 'Function';
+  if (node.type === 'WithStatement' || node._evalParsed || (node.operator === 'delete' && node.argument.type === 'Identifier')) return true;
+  // an unread capture (var global = this) observes nothing
+  if (node.type === 'VariableDeclarator' && node.id._refs === 0 && node.init?.type === 'ThisExpression') return false;
+  const inner = top && node.type !== 'FunctionDeclaration' && node.type !== 'FunctionExpression' && node.type !== 'ClassBody';
+  for (const k in node) if (k[0] !== '_' && usesGlobalObject(node[k], inner)) return true;
+  return false;
+};
+
+const globalHash = (scope, name) => {
+  const hash = ctHash({ property: { name } });
+  return hash != null ? Const(T.i32, hash) : builtinCall(scope, '__Porffor_object_hash', [ makeString(scope, name) ], T.i32);
+};
+const globalGet = (scope, name) => builtinCall(scope, '__Porffor_global_get', [ makeString(scope, name), globalHash(scope, name) ]);
 
 const ifIdentifierErrors = (scope, decl) => {
   if (decl.type === 'Identifier') {
@@ -3565,6 +3602,8 @@ const generateUnary = (scope, decl) => {
         return builtinCall(scope, scope.strict ? '__Porffor_object_deleteStrict' : '__Porffor_object_delete', [ obj, key ]);
       }
 
+      // sloppy delete of an unresolvable name deletes a global object property
+      if (globalObjectUsed && !scope.strict && ifIdentifierErrors(scope, decl.argument)) return generate(scope, { ...decl, argument: memberNode(identNode('globalThis'), identNode(decl.argument.name)) });
       let toReturn = true, toGenerate = true;
       if (decl.argument.type === 'Identifier') {
         if (ifIdentifierErrors(scope, decl.argument)) { toReturn = true; toGenerate = false; }
@@ -3575,7 +3614,7 @@ const generateUnary = (scope, decl) => {
     }
 
     case 'typeof': {
-      if (ifIdentifierErrors(scope, decl.argument)) return makeString(scope, 'undefined');
+      if (ifIdentifierErrors(scope, decl.argument)) return globalObjectUsed ? generate(scope, { ...decl, argument: memberNode(identNode('globalThis'), identNode(decl.argument.name)) }) : makeString(scope, 'undefined');
 
       const arg = reuse(scope, generate(scope, decl.argument));
       return typeSwitch(scope, arg, knownType(scope, getNodeType(scope, decl.argument)), [
@@ -6000,6 +6039,7 @@ export default (program, opts = {}) => {
   mayHaveBigInt = globalThis.precompile || usesBigInt(program);
   if (mayHaveBigInt) usedTypes.add(TYPES.bigint);
   definedKeys = collectDefinedKeys(program);
+  globalObjectUsed = usesGlobalObject(program, !Prefs.module);
   if (Prefs.p) {
     const last = getLastNode(program.body);
     const lastIndex = program.body.indexOf(last);
