@@ -655,6 +655,26 @@ return porf_box_num(pow(baseNum, exponentNum));`, false)
     ]
   };
 
+  _.__Math_f16round = {
+    params: [ { name: 'x', type: T.jsval } ],
+    localNames: [ 'n' ],
+    localTypes: [ T.f64 ],
+    retType: T.jsval,
+    returnType: TYPES.number,
+    body: [
+      Assign(Local('n', T.f64), nativeMathArg('x')),
+      // round to binary16 precision, ties to even
+      RawC(`f64 a = fabs(n);
+if (a != a || a == 0.0 || a == INFINITY) return porf_box_num(n);
+if (a >= 65520.0) return porf_box_num(copysign(INFINITY, n));
+int e;
+frexp(a, &e);
+if (e < -13) e = -13;
+f64 ulp = ldexp(1.0, e - 11);
+return porf_box_num(copysign(nearbyint(a / ulp) * ulp, n));`, false)
+    ]
+  };
+
   _.__Math_imul = {
     params: [ { name: 'x', type: T.jsval }, { name: 'y', type: T.jsval } ],
     localNames: [ 'xNum', 'yNum' ],
