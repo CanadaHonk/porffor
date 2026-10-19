@@ -12,7 +12,7 @@ import { BuiltinFuncs, BuiltinVars, fullPrototypes } from './builtins.js';
 import { TYPES, TYPE_FLAGS, TYPE_NAMES, TYPED_ARRAY_TYPES, ITERATOR_TYPES } from './types.js';
 import semantic, { knownValue, unknownValue } from './semantic.js';
 import parse from './parse.js';
-import temporalPolyfillSource from './temporal.js';
+import temporalPolyfillSource from './intl/temporal.js';
 import intlPolyfillSource from './intl/intl.js';
 import desugarUsing from './using.js';
 import './prefs.js';
