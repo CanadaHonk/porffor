@@ -59,8 +59,16 @@ export const Set = function (iterable: any): Set {
   const out: Set = __Porffor_hashtableNew(false);
   Porffor.IR.gcBarrier(out, Porffor.TYPES.set);
 
-  if (iterable != null) for (const x of iterable) {
-    Porffor.callThis(__Set_prototype_add, out, x);
+  if (iterable != null) {
+    // a subclass's adder is looked up on its prototype
+    if (new.target !== Set) __Porffor_object_setPrototypeFromConstructor(out, new.target);
+    const adder: any = __Porffor_object_get(out, 'add');
+    if (Porffor.type(adder) != Porffor.TYPES.function) throw new TypeError('Set.prototype.add is not a function');
+
+    for (const x of iterable) {
+      if (adder === __Set_prototype_add) Porffor.callThis(__Set_prototype_add, out, x);
+        else adder.call(out, x);
+    }
   }
 
   return out;

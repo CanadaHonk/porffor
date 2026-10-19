@@ -73,9 +73,17 @@ export const Map = function (iterable: any): Map {
   const out: Map = __Porffor_hashtableNew(true);
   Porffor.IR.gcBarrier(out, Porffor.TYPES.map);
 
-  if (iterable != null) for (const x of iterable) {
-    if (!Porffor.object.isObject(x)) throw new TypeError('Iterator contains non-object');
-    Porffor.callThis(__Map_prototype_set, out, x[0], x[1]);
+  if (iterable != null) {
+    // a subclass's adder is looked up on its prototype
+    if (new.target !== Map) __Porffor_object_setPrototypeFromConstructor(out, new.target);
+    const adder: any = __Porffor_object_get(out, 'set');
+    if (Porffor.type(adder) != Porffor.TYPES.function) throw new TypeError('Map.prototype.set is not a function');
+
+    for (const x of iterable) {
+      if (!Porffor.object.isObject(x)) throw new TypeError('Iterator contains non-object');
+      if (adder === __Map_prototype_set) Porffor.callThis(__Map_prototype_set, out, x[0], x[1]);
+        else adder.call(out, x[0], x[1]);
+    }
   }
 
   return out;
