@@ -122,6 +122,96 @@ export const __ecma262_ToNumeric = (value: unknown): number => {
   return __ecma262_ToNumber(primValue);
 };
 
+// 7.2.13 IsLessThan: -1/0/1, or 2 when undefined (NaN)
+export const __Porffor_compare = (x: any, y: any): i32 => {
+  if (Porffor.object.isObject(x)) x = __ecma262_ToPrimitive_Number(x);
+  if (Porffor.object.isObject(y)) y = __ecma262_ToPrimitive_Number(y);
+
+  const sx: boolean = (Porffor.type(x) | 0b10000000) == Porffor.TYPES.bytestring;
+  const sy: boolean = (Porffor.type(y) | 0b10000000) == Porffor.TYPES.bytestring;
+  if (sx && sy) {
+    if (x < y) return -1;
+    if (x > y) return 1;
+    return 0;
+  }
+
+  if (Porffor.type(x) == Porffor.TYPES.bigint && sy) {
+    y = __Porffor_bigint_fromStringOrUndefined(y);
+    if (y === undefined) return 2;
+  } else if (sx && Porffor.type(y) == Porffor.TYPES.bigint) {
+    x = __Porffor_bigint_fromStringOrUndefined(x);
+    if (x === undefined) return 2;
+  }
+
+  // ToNumeric, left first (ToNumber throws for Symbols)
+  if (Porffor.type(x) != Porffor.TYPES.bigint) x = __ecma262_ToNumber(x);
+  if (Porffor.type(y) != Porffor.TYPES.bigint) y = __ecma262_ToNumber(y);
+
+  const bx: boolean = Porffor.type(x) == Porffor.TYPES.bigint;
+  if (bx == (Porffor.type(y) == Porffor.TYPES.bigint)) {
+    if (x < y) return -1;
+    if (x > y) return 1;
+    if (x == y) return 0;
+    return 2;
+  }
+
+  // BigInt vs Number: compare against floor(n) exactly
+  const big: any = bx ? x : y;
+  const n: number = bx ? y : x;
+  if (Number.isNaN(n)) return 2;
+  let c: i32 = 0;
+  if (n == Infinity) c = -1;
+  else if (n == -Infinity) c = 1;
+  else {
+    const f: number = Math.floor(n);
+    const fb: any = __Porffor_bigint_fromNumber(f);
+    if (big < fb) c = -1;
+    else if (big > fb) c = 1;
+    else if (f != n) c = -1;
+  }
+  return bx ? c : -c;
+};
+
+// 7.2.14 IsLooselyEqual
+export const __Porffor_looseEq = (x: any, y: any): i32 => {
+  const nx: boolean = Porffor.fastOr(Porffor.type(x) == Porffor.TYPES.undefined, x === null);
+  const ny: boolean = Porffor.fastOr(Porffor.type(y) == Porffor.TYPES.undefined, y === null);
+  if (Porffor.fastOr(nx, ny)) return nx && ny ? 1 : 0;
+
+  if (Porffor.type(x) == Porffor.TYPES.boolean) return __Porffor_looseEq(x ? 1 : 0, y);
+  if (Porffor.type(y) == Porffor.TYPES.boolean) return __Porffor_looseEq(x, y ? 1 : 0);
+
+  // Dates default to the string hint
+  const ox: boolean = Porffor.object.isObject(x), oy: boolean = Porffor.object.isObject(y);
+  if (ox && oy) return x === y ? 1 : 0;
+  if (ox) return __Porffor_looseEq(Porffor.type(x) == Porffor.TYPES.date ? __ecma262_ToPrimitive_String(x) : __ecma262_ToPrimitive_Number(x), y);
+  if (oy) return __Porffor_looseEq(x, Porffor.type(y) == Porffor.TYPES.date ? __ecma262_ToPrimitive_String(y) : __ecma262_ToPrimitive_Number(y));
+
+  const tx: i32 = Porffor.type(x), ty: i32 = Porffor.type(y);
+  const sx: boolean = (tx | 0b10000000) == Porffor.TYPES.bytestring;
+  const sy: boolean = (ty | 0b10000000) == Porffor.TYPES.bytestring;
+  if (Porffor.fastOr(tx == ty, sx && sy)) return x === y ? 1 : 0;
+
+  if (sx) {
+    if (ty == Porffor.TYPES.number) return __ecma262_StringToNumber(x) === y ? 1 : 0;
+    if (ty == Porffor.TYPES.bigint) {
+      const n: any = __Porffor_bigint_fromStringOrUndefined(x);
+      return n !== undefined && n === y ? 1 : 0;
+    }
+    return 0;
+  }
+  if (sy) return __Porffor_looseEq(y, x);
+
+  if (tx == Porffor.TYPES.number && ty == Porffor.TYPES.bigint) return __Porffor_looseEq(y, x);
+  if (tx == Porffor.TYPES.bigint && ty == Porffor.TYPES.number) {
+    const n: number = y;
+    if (Porffor.fastOr(!Number.isFinite(n), !Number.isInteger(n))) return 0;
+    return x === __Porffor_bigint_fromNumber(n) ? 1 : 0;
+  }
+
+  return 0;
+};
+
 // 7.1.5 ToIntegerOrInfinity (argument)
 // https://tc39.es/ecma262/#sec-tointegerorinfinity
 export const __ecma262_ToIntegerOrInfinity = (argument: unknown): number => {

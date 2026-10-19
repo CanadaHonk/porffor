@@ -130,7 +130,7 @@ export const __Number_prototype_toPrecision = function (this: number, precision:
 // https://tc39.es/ecma262/#sec-number.prototype.valueof
 export const __Number_prototype_valueOf = function (this: number) {
   // 1. Return ? ThisNumberValue(this value).
-  return this;
+  return this as f64;
 };
 
 

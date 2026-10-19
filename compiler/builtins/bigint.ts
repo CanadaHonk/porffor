@@ -182,6 +182,15 @@ export const __Porffor_bigint_toString = (x: f64, radix: any): string|bytestring
   return out;
 };
 
+// 7.1.14 StringToBigInt (str)
+export const __Porffor_bigint_fromStringOrUndefined = (str: string|bytestring): any => {
+  try {
+    return __ecma262_ToBigInt(str.trim());
+  } catch {
+    return undefined;
+  }
+};
+
 // 7.1.13 ToBigInt (argument)
 // https://tc39.es/ecma262/#sec-tobigint
 export const __ecma262_ToBigInt = (argument: any): bigint => {

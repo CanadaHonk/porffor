@@ -1074,6 +1074,12 @@ const rawIntOp = (op, left, right) => {
   return null;
 };
 
+// reuse, but copy variables too: a later operand may reassign them (x < (x = 1))
+const snapshot = (scope, expr) => {
+  const k = expr[N_KIND];
+  return k === K.Local || k === K.Global ? tmp(scope, expr[N_TYPE], expr) : reuse(scope, expr);
+};
+
 const bigintOps = { '+': 0, '-': 1, '*': 2, '/': 3, '%': 4, '**': 5 };
 
 // any binary op on two values, types are inferred TYPES or null, gives a jsval
@@ -1096,7 +1102,22 @@ const performOp = (scope, op, left, right, leftType, rightType, noBigint = false
     const rawInt = rawIntType(left, right);
     if (rawInt != null) r = Bin(neg ? '!=' : '==', rawInt, rawIntValue(rawInt, left), rawIntValue(rawInt, right));
     else if ((knownLeft === TYPES.number || isRawNum(left)) && (knownRight === TYPES.number || isRawNum(right))) r = Bin(neg ? '!=' : '==', T.f64, numValue(left), numValue(right));
-    else { r = Eq(strict, left, right); if (neg) r = Un('!', T.i32, r); }
+    else if (globalThis.precompile && !strict) {
+      // builtins keep raw == (x == 0 pointer checks), see porf_loose_eq_raw
+      r = Eq(2, left, right);
+      if (neg) r = Un('!', T.i32, r);
+    } else if (strict || (knownLeft != null && knownLeft === knownRight) || (isStr(knownLeft) && isStr(knownRight) && knownLeft !== TYPES.stringobject && knownRight !== TYPES.stringobject) ||
+      knownLeft === TYPES.undefined || knownRight === TYPES.undefined) {
+      r = Eq(strict, left, right);
+      if (neg) r = Un('!', T.i32, r);
+    } else {
+      // porf_loose_eq gives 2 when coercion is needed (objects vs primitives, strings/BigInts vs numbers)
+      const l = reuse(scope, left), rr = reuse(scope, right);
+      r = tmp(scope, T.i32, Eq(false, l, rr));
+      emitIf(scope, Bin('==', T.i32, r, Const(T.i32, 2)),
+        () => assign(scope, r, builtinCall(scope, '__Porffor_looseEq', [ l, rr ], T.i32)));
+      if (neg) r = Un('!', T.i32, r);
+    }
     return boolBox(r);
   }
 
@@ -1105,7 +1126,20 @@ const performOp = (scope, op, left, right, leftType, rightType, noBigint = false
     const rawInt = rawIntType(left, right);
     if (rawInt != null) return boolBox(Bin(op, rawInt, rawIntValue(rawInt, left), rawIntValue(rawInt, right)));
     if ((knownLeft === TYPES.number || isRawNum(left)) && (knownRight === TYPES.number || isRawNum(right))) return boolBox(Bin(op, T.f64, numValue(left), numValue(right)));
-    const c = reuse(scope, Cmp(left, right));
+    const numish = ty => ty === TYPES.number || ty === TYPES.boolean || ty === TYPES.undefined;
+    const strish = ty => ty === TYPES.string || ty === TYPES.bytestring;
+    const direct = (numish(knownLeft) && numish(knownRight)) || (strish(knownLeft) && strish(knownRight)) ||
+      (knownLeft === TYPES.bigint && knownRight === TYPES.bigint);
+    let c;
+    // builtins keep raw comparisons: no coercion, 3 compares false like unordered
+    if (direct || globalThis.precompile) c = reuse(scope, Cmp(left, right));
+    else {
+      // porf_cmp gives 3 when coercion is needed (objects, string vs number, mixed BigInts)
+      const l = reuse(scope, left), r = reuse(scope, right);
+      c = tmp(scope, T.i32, Cmp(l, r));
+      emitIf(scope, Bin('==', T.i32, c, Const(T.i32, 3)),
+        () => assign(scope, c, builtinCall(scope, '__Porffor_compare', [ l, r ], T.i32)));
+    }
     let r;
     if (op === '<') r = Bin('==', T.i32, c, Const(T.i32, -1));
     else if (op === '>') r = Bin('==', T.i32, c, Const(T.i32, 1));
@@ -1206,18 +1240,13 @@ const generateBinaryExp = (scope, decl) => {
     }
   }
 
+  // the right operand may reassign a variable read by the left (x * (x = 1)): evaluate left first
   let left = generate(scope, decl.left);
-  const block = curBlock(scope), len = block.length;
+  const leftType = getNodeType(scope, decl.left);
+  const r = decl.right.type;
+  if (r !== 'Literal' && r !== 'Identifier' && r !== 'ThisExpression') left = snapshot(scope, left);
   const right = generate(scope, decl.right);
-
-  // right emitted statements: evaluate left before them
-  if (block.length !== len && left[N_FX] !== FX.none) {
-    const lhs = local(scope, `#lhs${scope.labelId++}`, left[N_TYPE]);
-    block.splice(len, 0, Assign(lhs, left));
-    left = lhs;
-  }
-
-  return performOp(scope, decl.operator, left, right, getNodeType(scope, decl.left), getNodeType(scope, decl.right));
+  return performOp(scope, decl.operator, left, right, leftType, getNodeType(scope, decl.right));
 };
 
 const usesAnyType = types => {
@@ -1572,7 +1601,11 @@ const getNodeType = (scope, node) => {
       ret = argType === TYPES.bigint ? TYPES.bigint : (argType == null && node.operator === '-' ? null : TYPES.number);
     }
   }
-  else if (node.type === 'UpdateExpression') ret = TYPES.number;
+  else if (node.type === 'UpdateExpression') {
+    // identifiers may hold BigInts (see generateUpdate)
+    const argType = getNodeType(scope, node.argument);
+    ret = argType === TYPES.bigint ? TYPES.bigint : (argType == null && node.argument.type === 'Identifier' ? null : TYPES.number);
+  }
   else if (node.type === 'MemberExpression') {
     const name = node.property.name;
     if (name === 'length' && (hasFuncWithName(node.object.name) || Prefs.fastLength)) ret = TYPES.number;
@@ -3401,6 +3434,30 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
     const incForRef = v => ref[N_TYPE] === T.jsval ? valNumber(inc(v))
       : ref[N_TYPE] === T.f64 ? inc(v)
       : Convert(ref[N_TYPE], inc(v), ref[N_TYPE] === T.i32 ? CONVERT_SIGNED : 0);
+
+    const argType = knownType(scope, getNodeType(scope, decl.argument));
+    if (ref[N_TYPE] === T.jsval && argType !== TYPES.number) {
+      const stepBig = v => builtinCall(scope, '__Porffor_bigint_binop', [ Const(T.i32, decl.operator === '++' ? 0 : 1), v, generate(scope, { type: 'Literal', bigint: '1' }) ]);
+      const update = (big, wantOld) => {
+        const old = wantOld ? tmp(scope, T.jsval, ref) : ref;
+        assign(scope, ref, big ? stepBig(old) : incForRef(old));
+        return old;
+      };
+      const wantOld = !decl.prefix && !valueUnused;
+      if (argType === TYPES.bigint) {
+        const old = update(true, wantOld);
+        setType(scope, name, TYPES.bigint);
+        return valueUnused ? valUndefined() : wantOld ? old : ref;
+      }
+      if (argType == null) {
+        const out = tmp(scope, T.jsval);
+        emitIf(scope, Bin('==', T.i32, JvType(ref), Const(T.i32, TYPES.bigint)),
+          () => assign(scope, out, update(true, wantOld)),
+          () => assign(scope, out, wantOld ? valNumber(update(false, true)) : update(false, false)));
+        setType(scope, name, null);
+        return valueUnused ? valUndefined() : out;
+      }
+    }
     setType(scope, name, TYPES.number);
 
     if (!decl.prefix && !valueUnused) {

@@ -565,7 +565,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
       case K.JvBits: return [`porf_pack(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
       case K.JvFromBits: return [`porf_unpack(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
       case K.JvIsNum: return [`porf_jv_is_num(${rx(node[N_A], P_COMMA)})`, P_POSTFIX];
-      case K.Eq: return [`${node[N_A] ? 'porf_strict_eq' : 'porf_loose_eq'}(${jsArg(node[N_B])}, ${jsArg(node[N_C])})`, P_POSTFIX];
+      case K.Eq: return [`${node[N_A] === 2 ? 'porf_loose_eq_raw' : node[N_A] ? 'porf_strict_eq' : 'porf_loose_eq'}(${jsArg(node[N_B])}, ${jsArg(node[N_C])})`, P_POSTFIX];
       case K.Add: return [`porf_add(${jsArg(node[N_A])}, ${jsArg(node[N_B])})`, P_POSTFIX];
       case K.Cmp: return [`porf_cmp(${jsArg(node[N_A])}, ${jsArg(node[N_B])})`, P_POSTFIX];
       case K.JvTruthy: return [`porf_truthy(${jsArg(node[N_A])})`, P_POSTFIX];
@@ -5169,8 +5169,12 @@ ${sti}jsval porf_div(jsval a, jsval b) {
 }
 
 // JS abstract relational comparison: -1/0/1, 2 = unordered (NaN involved).
-// numeric coercion, or lexicographic when both sides are strings.
-// twin helper: dies when string.ts/coercion builtins port (step 3).
+// 3 = needs ToPrimitive/StringToNumber/BigInt mixing: codegen falls back to __Porffor_compare
+static inline int porf_cmp_numish(jsval v) {
+  const i32 t = porf_jv_type(v);
+  return t == ${TYPES.number} || t == ${TYPES.boolean} || t == ${TYPES.undefined} || (t == ${TYPES.object} && (u32)v.val == 0);
+}
+
 ${sti}i32 porf_cmp(jsval a, jsval b) {
   const i32 ta = porf_jv_type(a), tb = porf_jv_type(b);
   if (ta == ${TYPES.bigint} && tb == ${TYPES.bigint}) return porf_bigint_cmp(a, b);
@@ -5178,33 +5182,63 @@ ${sti}i32 porf_cmp(jsval a, jsval b) {
     const u32 pa = (u32)a.val, pb = (u32)b.val;
     const u32 la = *(u32*)(MEM + pa), lb = *(u32*)(MEM + pb);
     const u32 n = la < lb ? la : lb;
-    const int c = memcmp(MEM + pa + 4, MEM + pb + 4, n);
-    if (c != 0) return c < 0 ? -1 : 1;
+    if (ta == ${TYPES.bytestring} && tb == ${TYPES.bytestring}) {
+      const int c = memcmp(MEM + pa + 4, MEM + pb + 4, n);
+      if (c != 0) return c < 0 ? -1 : 1;
+    } else {
+      for (u32 i = 0; i < n; i++) {
+        const u32 ca = ta == ${TYPES.string} ? (u32)MEM[pa + 4 + i * 2] | (u32)MEM[pa + 5 + i * 2] << 8 : MEM[pa + 4 + i];
+        const u32 cb = tb == ${TYPES.string} ? (u32)MEM[pb + 4 + i * 2] | (u32)MEM[pb + 5 + i * 2] << 8 : MEM[pb + 4 + i];
+        if (ca != cb) return ca < cb ? -1 : 1;
+      }
+    }
     return la == lb ? 0 : la < lb ? -1 : 1;
   }
+  if (!porf_cmp_numish(a) || !porf_cmp_numish(b)) return 3;
   const f64 x = porf_to_num(a), y = porf_to_num(b);
   if (x != x || y != y) return 2;
   return x < y ? -1 : x > y ? 1 : 0;
 }
 
-// loose ==: common matrix (num/num, str/str, bool->num, null<->undefined);
-// str<->num coercion arrives with the ToNumber builtin port
+// loose ==: 0/1, or 2 when coercion is needed: codegen falls back to __Porffor_looseEq
+static inline int porf_is_prim_type(i32 t) {
+  return t == ${TYPES.undefined} || t == ${TYPES.number} || t == ${TYPES.boolean} || t == ${TYPES.string} ||
+    t == ${TYPES.bytestring} || t == ${TYPES.bigint} || t == ${TYPES.symbol};
+}
+
 ${sti}i32 porf_loose_eq(jsval a, jsval b) {
   const i32 ta = porf_jv_type(a), tb = porf_jv_type(b);
   if (ta == ${TYPES.number} && tb == ${TYPES.number}) return a.val == b.val;
   const int an = ta == ${TYPES.undefined} || (ta == ${TYPES.object} && (u32)a.val == 0);
   const int bn = tb == ${TYPES.undefined} || (tb == ${TYPES.object} && (u32)b.val == 0);
   if (an || bn) return an && bn;
-  if ((ta == ${TYPES.bytestring} || ta == ${TYPES.string}) && (tb == ${TYPES.bytestring} || tb == ${TYPES.string}))
-    return porf_str_eq(a, b);
+  const int sa = ta == ${TYPES.bytestring} || ta == ${TYPES.string}, sb = tb == ${TYPES.bytestring} || tb == ${TYPES.string};
+  if (sa && sb) return porf_str_eq(a, b);
+  if (ta == ${TYPES.boolean}) return porf_loose_eq(porf_box_num((f64)(u32)a.val), b);
+  if (tb == ${TYPES.boolean}) return porf_loose_eq(a, porf_box_num((f64)(u32)b.val));
+  if (ta == ${TYPES.bigint} && tb == ${TYPES.bigint}) return porf_bigint_cmp(a, b) == 0;
+  const int pa = porf_is_prim_type(ta), pb = porf_is_prim_type(tb);
+  if (!pa && !pb) return porf_jv_eq(a, b);
+  if (pa && pb) {
+    // string/number and BigInt/string|number coerce, symbols only equal themselves
+    if (ta == ${TYPES.symbol} || tb == ${TYPES.symbol}) return porf_jv_eq(a, b);
+    if (ta == tb) return porf_jv_eq(a, b);
+  }
+  return 2;
+}
+
+// == inside builtins: pointer/zero checks (x == 0) must not coerce, strings only equal 0 when empty
+${sti}i32 porf_loose_eq_raw(jsval a, jsval b) {
+  const i32 r = porf_loose_eq(a, b);
+  if (r != 2) return r;
+  if (porf_jv_type(a) == ${TYPES.boolean}) a = porf_box_num((f64)(u32)a.val);
+  if (porf_jv_type(b) == ${TYPES.boolean}) b = porf_box_num((f64)(u32)b.val);
+  const i32 ta = porf_jv_type(a), tb = porf_jv_type(b);
   if ((ta == ${TYPES.bytestring} || ta == ${TYPES.string}) && tb == ${TYPES.number})
     return b.val == 0.0 && ((u32)a.val == 0u || *(u32*)(MEM + (u32)a.val) == 0u);
   if (ta == ${TYPES.number} && (tb == ${TYPES.bytestring} || tb == ${TYPES.string}))
     return a.val == 0.0 && ((u32)b.val == 0u || *(u32*)(MEM + (u32)b.val) == 0u);
-  if (ta == ${TYPES.boolean}) return porf_loose_eq(porf_box_num((f64)(u32)a.val), b);
-  if (tb == ${TYPES.boolean}) return porf_loose_eq(a, porf_box_num((f64)(u32)b.val));
-  if (ta == ${TYPES.bigint} && tb == ${TYPES.bigint}) return porf_bigint_cmp(a, b) == 0;
-  return porf_jv_eq(a, b);
+  return 0;
 }
 
 // === : numbers as f64, strings by content, else identity
