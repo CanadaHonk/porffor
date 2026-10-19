@@ -3179,8 +3179,12 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     // regexp.lastIndex: store i32 at offset 8
     if (op === '=' && !decl.left.computed && decl.left.property.name === 'lastIndex' && objectKnown === TYPES.regexp) {
       const v = simpleValue;
-      const n = knownType(scope, getNodeType(scope, decl.right)) === TYPES.number ? v : builtinCall(scope, '__ecma262_ToIntegerOrInfinity', [ v ]);
-      stmt(scope, Store('i32', JvPtr(obj), 8, Convert(T.i32, JvNum(n))));
+      let num = JvNum(v);
+      if (knownType(scope, getNodeType(scope, decl.right)) !== TYPES.number) {
+        const n = builtinCall(scope, '__ecma262_ToIntegerOrInfinity', [ v ]);
+        num = n[N_TYPE] === T.f64 ? n : JvNum(n);
+      }
+      stmt(scope, Store('i32', JvPtr(obj), 8, Convert(T.i32, num)));
       return valueUnused ? valUndefined() : v;
     }
 

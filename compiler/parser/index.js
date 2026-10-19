@@ -1585,7 +1585,8 @@ const parseExprAtom = (refDE, noIn, forNew) => {
 
     case T_REGEXP: {
       const { pattern, flags } = tokValue;
-      let value = null;
+      // undefined (not null) if the host cannot construct it
+      let value;
       try {
         value = new RegExp(pattern, flags);
       } catch {}
