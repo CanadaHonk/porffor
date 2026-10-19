@@ -156,7 +156,9 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
     const hasSpace: boolean = space !== undefined;
     depth += 1;
 
-    for (const x of (value as any[])) {
+    let i: i32 = 0;
+    for (const item of (value as any[])) {
+      const x: any = __Porffor_json_toJSON(item, i++);
       if (hasSpace) {
         buffer = __Porffor_bytestring_bufferChar(buffer, 10); // \n
         for (let i: i32 = 0; i < depth; i++) buffer = __Porffor_bytestring_bufferStr(buffer, space as bytestring);
@@ -200,7 +202,7 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
       // skip symbol keys
       if (Porffor.type(key) == Porffor.TYPES.symbol) continue;
 
-      const val: any = value[key];
+      const val: any = __Porffor_json_toJSON(value[key], key);
       if (!__Porffor_json_canSerialize(val)) {
         // skip non-serializable value
         continue;
@@ -296,6 +298,8 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
     const holder: object = {};
     holder[''] = value;
     value = __Porffor_json_prepare(holder, '', value, undefined, keys, Porffor.array.new(0));
+  } else {
+    value = __Porffor_json_toJSON(value, '');
   }
 
   if (space !== undefined) {
