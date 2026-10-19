@@ -2108,6 +2108,12 @@ const generateCall = (scope, decl) => {
         ? { type: 'Identifier', name: reuseNamed(scope, generate(scope, x))[N_A] }
         : x);
 
+      // the target is already evaluated (targetTmp), so the generic call must not evaluate it again
+      const calleeMember = (decl.callee.expression ?? decl.callee).type === 'MemberExpression' ? (decl.callee.expression ?? decl.callee) : null;
+      const fallbackCall = !calleeMember ? { ...decl, _protoInternalCall: true }
+        : decl.callee.type === 'MemberExpression' ? { ...decl, callee: { ...calleeMember, object: targetIdent }, arguments: args, _protoInternalCall: true }
+        : { ...decl, callee: { ...decl.callee, expression: { ...calleeMember, object: targetIdent } }, arguments: args, _protoInternalCall: true };
+
       const protoBC = {};
       let typedArrayCall;
       for (const x of builtinProtoCands) {
@@ -2124,11 +2130,10 @@ const generateCall = (scope, decl) => {
           _protoInternalCall: true
         };
         // regexps with own state (own props, a subclass prototype) can shadow their methods
-        const memberCallee = (decl.callee.expression ?? decl.callee).type === 'MemberExpression' ? (decl.callee.expression ?? decl.callee) : null;
-        const call = owner === 'RegExp' && memberCallee && !globalThis.precompile ? () => generate(scope, {
+        const call = owner === 'RegExp' && calleeMember && !globalThis.precompile ? () => generate(scope, {
           type: 'ConditionalExpression',
           test: { type: 'CallExpression', callee: { type: 'Identifier', name: '__Porffor_object_underlyingIfAny' }, arguments: [ targetIdent ] },
-          consequent: { ...decl, callee: { ...memberCallee, object: targetIdent }, arguments: args, _protoInternalCall: true },
+          consequent: fallbackCall,
           alternate: builtinCallNode
         }) : () => generate(scope, builtinCallNode);
 
@@ -2153,7 +2158,7 @@ const generateCall = (scope, decl) => {
       if (typedArrayCall) entries.push([ TYPED_ARRAY_TYPES, typedArrayCall ]);
       entries.push([ 'default', () => Prefs.neverFallbackBuiltinProto && !decl.optional
         ? internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
-        : generate(scope, { ...decl, _protoInternalCall: true }) ]);
+        : generate(scope, fallbackCall) ]);
 
       return typeSwitch(scope, JvType(targetTmp), targetKnownType, entries);
     }
