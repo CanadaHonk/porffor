@@ -135,41 +135,45 @@ export const __Porffor_compare = (x: any, y: any): i32 => {
     return 0;
   }
 
-  if (Porffor.type(x) == Porffor.TYPES.bigint && sy) {
-    y = __Porffor_bigint_fromStringOrUndefined(y);
-    if (y === undefined) return 2;
-  } else if (sx && Porffor.type(y) == Porffor.TYPES.bigint) {
-    x = __Porffor_bigint_fromStringOrUndefined(x);
-    if (x === undefined) return 2;
+  if (Porffor.comptime.flag`hasType.bigint`) {
+    if (Porffor.type(x) == Porffor.TYPES.bigint && sy) {
+      y = __Porffor_bigint_fromStringOrUndefined(y);
+      if (y === undefined) return 2;
+    } else if (sx && Porffor.type(y) == Porffor.TYPES.bigint) {
+      x = __Porffor_bigint_fromStringOrUndefined(x);
+      if (x === undefined) return 2;
+    }
   }
 
   // ToNumeric, left first (ToNumber throws for Symbols)
   if (Porffor.type(x) != Porffor.TYPES.bigint) x = __ecma262_ToNumber(x);
   if (Porffor.type(y) != Porffor.TYPES.bigint) y = __ecma262_ToNumber(y);
 
-  const bx: boolean = Porffor.type(x) == Porffor.TYPES.bigint;
-  if (bx == (Porffor.type(y) == Porffor.TYPES.bigint)) {
-    if (x < y) return -1;
-    if (x > y) return 1;
-    if (x == y) return 0;
-    return 2;
+  if (Porffor.comptime.flag`hasType.bigint`) {
+    const bx: boolean = Porffor.type(x) == Porffor.TYPES.bigint;
+    if (bx != (Porffor.type(y) == Porffor.TYPES.bigint)) {
+      // BigInt vs Number: compare against floor(n) exactly
+      const big: any = bx ? x : y;
+      const n: number = bx ? y : x;
+      if (Number.isNaN(n)) return 2;
+      let c: i32 = 0;
+      if (n == Infinity) c = -1;
+      else if (n == -Infinity) c = 1;
+      else {
+        const f: number = Math.floor(n);
+        const fb: any = __Porffor_bigint_fromNumber(f);
+        if (big < fb) c = -1;
+        else if (big > fb) c = 1;
+        else if (f != n) c = -1;
+      }
+      return bx ? c : -c;
+    }
   }
 
-  // BigInt vs Number: compare against floor(n) exactly
-  const big: any = bx ? x : y;
-  const n: number = bx ? y : x;
-  if (Number.isNaN(n)) return 2;
-  let c: i32 = 0;
-  if (n == Infinity) c = -1;
-  else if (n == -Infinity) c = 1;
-  else {
-    const f: number = Math.floor(n);
-    const fb: any = __Porffor_bigint_fromNumber(f);
-    if (big < fb) c = -1;
-    else if (big > fb) c = 1;
-    else if (f != n) c = -1;
-  }
-  return bx ? c : -c;
+  if (x < y) return -1;
+  if (x > y) return 1;
+  if (x == y) return 0;
+  return 2;
 };
 
 // 7.2.14 IsLooselyEqual
@@ -194,19 +198,23 @@ export const __Porffor_looseEq = (x: any, y: any): i32 => {
 
   if (sx) {
     if (ty == Porffor.TYPES.number) return __ecma262_StringToNumber(x) === y ? 1 : 0;
-    if (ty == Porffor.TYPES.bigint) {
-      const n: any = __Porffor_bigint_fromStringOrUndefined(x);
-      return n !== undefined && n === y ? 1 : 0;
+    if (Porffor.comptime.flag`hasType.bigint`) {
+      if (ty == Porffor.TYPES.bigint) {
+        const n: any = __Porffor_bigint_fromStringOrUndefined(x);
+        return n !== undefined && n === y ? 1 : 0;
+      }
     }
     return 0;
   }
   if (sy) return __Porffor_looseEq(y, x);
 
-  if (tx == Porffor.TYPES.number && ty == Porffor.TYPES.bigint) return __Porffor_looseEq(y, x);
-  if (tx == Porffor.TYPES.bigint && ty == Porffor.TYPES.number) {
-    const n: number = y;
-    if (Porffor.fastOr(!Number.isFinite(n), !Number.isInteger(n))) return 0;
-    return x === __Porffor_bigint_fromNumber(n) ? 1 : 0;
+  if (Porffor.comptime.flag`hasType.bigint`) {
+    if (tx == Porffor.TYPES.number && ty == Porffor.TYPES.bigint) return __Porffor_looseEq(y, x);
+    if (tx == Porffor.TYPES.bigint && ty == Porffor.TYPES.number) {
+      const n: number = y;
+      if (Porffor.fastOr(!Number.isFinite(n), !Number.isInteger(n))) return 0;
+      return x === __Porffor_bigint_fromNumber(n) ? 1 : 0;
+    }
   }
 
   return 0;

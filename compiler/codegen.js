@@ -179,6 +179,13 @@ const emitIf = (scope, cond, thenFn, elseFn = null) => {
   stmt(scope, If(cond, then, els));
 };
 
+// a BigInt dispatch: precompiled builtins only keep it for programs that use BigInts
+const emitBigIntIf = (scope, cond, bigFn, otherFn) => {
+  if (!globalThis.precompile) return emitIf(scope, cond, bigFn, otherFn);
+  const dispatch = collect(scope, () => emitIf(scope, cond, bigFn, otherFn));
+  stmt(scope, { __porfComptimeFlag: [ 'hasType', TYPES.bigint, dispatch, collect(scope, otherFn) ] });
+};
+
 const fresh = scope => `L${scope.labelId++}`;
 const identNode = name => typeof name === 'string' ? { type: 'Identifier', name } : name;
 const memberNode = (object, property, computed = false, extra = null) => extra
@@ -1172,7 +1179,7 @@ const performOp = (scope, op, left, right, leftType, rightType, noBigint = false
   }
 
   const bigOp = bigintOps[op];
-  if (bigOp !== undefined && !noBigint) {
+  if (bigOp !== undefined && !noBigint && mayHaveBigInt) {
     const binop = (l, r) => builtinCall(scope, '__Porffor_bigint_binop', [ Const(T.i32, bigOp), l, r ]);
     if (knownLeft === TYPES.bigint || knownRight === TYPES.bigint) return binop(left, right);
     const lMaybe = knownLeft == null && !isRawNum(left), rMaybe = knownRight == null && !isRawNum(right);
@@ -1180,7 +1187,7 @@ const performOp = (scope, op, left, right, leftType, rightType, noBigint = false
       const l = reuse(scope, left), r = reuse(scope, right);
       const isBig = x => Bin('==', T.i32, JvType(x), Const(T.i32, TYPES.bigint));
       const out = tmp(scope, T.jsval);
-      emitIf(scope, lMaybe && rMaybe ? Bin('|', T.i32, isBig(l), isBig(r)) : isBig(lMaybe ? l : r),
+      emitBigIntIf(scope, lMaybe && rMaybe ? Bin('|', T.i32, isBig(l), isBig(r)) : isBig(lMaybe ? l : r),
         () => assign(scope, out, binop(l, r)),
         () => assign(scope, out, coerceValue(performOp(scope, op, l, r, knownLeft, knownRight, true), T.jsval)));
       return out;
@@ -1612,7 +1619,7 @@ const getNodeType = (scope, node) => {
       }
 
       if (anyBigint) ret = TYPES.bigint;
-      else if (node.operator !== '+') ret = anyUnknown && !anyNumeric && bigintOps[node.operator] !== undefined ? null : TYPES.number; // unknown operands may be BigInts
+      else if (node.operator !== '+') ret = anyUnknown && !anyNumeric && mayHaveBigInt && bigintOps[node.operator] !== undefined ? null : TYPES.number; // unknown operands may be BigInts
       else if (anyKnown && !anyStringLike) ret = TYPES.number;
       else if (anyString) ret = TYPES.string;
       else if (allBytes) ret = TYPES.bytestring;
@@ -1626,13 +1633,13 @@ const getNodeType = (scope, node) => {
     else if (node.operator === 'typeof') ret = TYPES.bytestring;
     else {
       const argType = getNodeType(scope, node.argument);
-      ret = argType === TYPES.bigint ? TYPES.bigint : (argType == null && (node.operator === '-' || node.operator === '~') ? null : TYPES.number);
+      ret = argType === TYPES.bigint ? TYPES.bigint : (argType == null && mayHaveBigInt && (node.operator === '-' || node.operator === '~') ? null : TYPES.number);
     }
   }
   else if (node.type === 'UpdateExpression') {
     // identifiers may hold BigInts (see generateUpdate)
     const argType = getNodeType(scope, node.argument);
-    ret = argType === TYPES.bigint ? TYPES.bigint : (argType == null && node.argument.type === 'Identifier' ? null : TYPES.number);
+    ret = argType === TYPES.bigint ? TYPES.bigint : (argType == null && mayHaveBigInt && node.argument.type === 'Identifier' ? null : TYPES.number);
   }
   else if (node.type === 'MemberExpression') {
     const name = node.property.name;
@@ -2357,7 +2364,8 @@ const unhackName = name => {
 const knownType = (scope, type) => typeof type === 'number' ? type : null;
 
 const typeUsed = (scope, x) => {
-  if (x == null) return;
+  // no BigInt value can exist then, so its type switch cases are dead
+  if (x == null || (x === TYPES.bigint && !mayHaveBigInt)) return;
   usedTypes.add(x);
 
   scope.usedTypes ??= new Set();
@@ -3395,10 +3403,10 @@ const generateUnary = (scope, decl) => {
       {
         const argType = knownType(scope, getNodeType(scope, decl.argument));
         if (argType === TYPES.bigint) return builtinCall(scope, '__Porffor_bigint_arith', [ Const(T.i32, 1), Const(T.f64, 0), generate(scope, decl.argument) ]);
-        if (argType == null) {
+        if (argType == null && mayHaveBigInt) {
           const v = reuse(scope, coerceValue(toNumeric(), T.jsval));
           const out = tmp(scope, T.jsval);
-          emitIf(scope, Bin('==', T.i32, JvType(v), Const(T.i32, TYPES.bigint)),
+          emitBigIntIf(scope, Bin('==', T.i32, JvType(v), Const(T.i32, TYPES.bigint)),
             () => assign(scope, out, builtinCall(scope, '__Porffor_bigint_arith', [ Const(T.i32, 1), Const(T.f64, 0), v ])),
             () => assign(scope, out, Box(Un('neg', T.f64, JvNum(v)), Const(T.i32, TYPES.number))));
           return out;
@@ -3412,10 +3420,10 @@ const generateUnary = (scope, decl) => {
       const numNot = v => Box(Convert(T.f64, Un('~', T.i32, Convert(T.i32, toUint32(scope, v), CONVERT_RANGE_KNOWN | CONVERT_SIGNED)), CONVERT_SIGNED), Const(T.i32, TYPES.number));
       const argType = knownType(scope, getNodeType(scope, decl.argument));
       if (argType === TYPES.bigint) return bigNot(generate(scope, decl.argument));
-      if (argType == null) {
+      if (argType == null && mayHaveBigInt) {
         const v = reuse(scope, coerceValue(toNumeric(), T.jsval));
         const out = tmp(scope, T.jsval);
-        emitIf(scope, Bin('==', T.i32, JvType(v), Const(T.i32, TYPES.bigint)),
+        emitBigIntIf(scope, Bin('==', T.i32, JvType(v), Const(T.i32, TYPES.bigint)),
           () => assign(scope, out, bigNot(v)),
           () => assign(scope, out, numNot(JvNum(v))));
         return out;
@@ -3507,9 +3515,9 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
         setType(scope, name, TYPES.bigint);
         return valueUnused ? valUndefined() : wantOld ? old : ref;
       }
-      if (argType == null) {
+      if (argType == null && mayHaveBigInt) {
         const out = tmp(scope, T.jsval);
-        emitIf(scope, Bin('==', T.i32, JvType(ref), Const(T.i32, TYPES.bigint)),
+        emitBigIntIf(scope, Bin('==', T.i32, JvType(ref), Const(T.i32, TYPES.bigint)),
           () => assign(scope, out, update(true, wantOld)),
           () => assign(scope, out, wantOld ? valNumber(update(false, true)) : update(false, false)));
         setType(scope, name, null);
@@ -5008,6 +5016,22 @@ let objectHackers = [], allObjectHackers = [];
 // builtin members the program writes (eg RegExp.prototype.exec = f) stay real member accesses
 let objectHackAssigned = new Set();
 
+// without bigint literals or these names no BigInt can exist, so untyped values need no BigInt dispatch
+let mayHaveBigInt = true;
+const BIGINT_NAMES = new Set([ 'BigInt', 'BigInt64Array', 'BigUint64Array', 'getBigInt64', 'getBigUint64' ]);
+const usesBigInt = node => {
+  if (!node || typeof node !== 'object') return false;
+  if (Array.isArray(node)) return node.some(usesBigInt);
+  if (node.type === 'Literal') return node.bigint != null || BIGINT_NAMES.has(node.value);
+  if (node.type === 'Identifier') return BIGINT_NAMES.has(node.name);
+  // new Function sources are only parsed while generating
+  if ((node.type === 'CallExpression' || node.type === 'NewExpression') && node.callee.name === 'Function' &&
+    node.arguments.some(x => /\d[\d_]*n\b/.test(x.value ?? x.quasis?.map(q => q.value.cooked).join('') ?? ''))) return true;
+  if (node._evalParsed && usesBigInt(node._evalParsed)) return true;
+  for (const k in node) if (k[0] !== '_' && k !== 'start' && k !== 'end' && usesBigInt(node[k])) return true;
+  return false;
+};
+
 // property names the program may define (keys, uncalled members, strings), so builtin method calls know what can shadow them
 let definedKeys = new Set();
 const collectDefinedKeys = program => {
@@ -5748,6 +5772,8 @@ export default (program, opts = {}) => {
   objectHackAssigned = assignedBuiltinMembers(program);
   program = objectHack(program);
   if (Prefs.closures) program = semantic(program);
+  mayHaveBigInt = globalThis.precompile || usesBigInt(program);
+  if (mayHaveBigInt) usedTypes.add(TYPES.bigint);
   definedKeys = collectDefinedKeys(program);
   if (Prefs.p) {
     const last = getLastNode(program.body);
@@ -5832,6 +5858,7 @@ export default (program, opts = {}) => {
     globals: renderGlobals,
     entry: entryName,
     prefs: rawHead.length ? { ...Prefs, rawHead: [ Prefs.rawHead, ...rawHead ].filter(Boolean).join('\n') } : Prefs,
-    usedTypes
+    usedTypes,
+    bigints: mayHaveBigInt
   };
 };
