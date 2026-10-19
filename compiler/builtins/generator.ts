@@ -38,9 +38,17 @@ export const __Porffor_iterator_new = (iter: any, next: any, kind: i32): any[] =
   return rec;
 };
 
-export const __Porffor_iterator_inPlace = (t: i32): boolean => Porffor.fastOr(t == Porffor.TYPES.array, t == Porffor.TYPES.set, t == Porffor.TYPES.map,
-  t == Porffor.TYPES.string, t == Porffor.TYPES.bytestring, t == Porffor.TYPES.__porffor_generator,
-  Porffor.fastAnd(t >= Porffor.TYPES.uint8clampedarray, t <= Porffor.TYPES.float64array));
+export const __Porffor_array_iteratorPatched = (): void => {};
+
+export const __Porffor_iterator_inPlace = (t: i32): boolean => {
+  if (Porffor.comptime.flag`hasFunc.__Porffor_array_iteratorPatched`) {
+    if (t == Porffor.TYPES.array) return false;
+  }
+
+  return Porffor.fastOr(t == Porffor.TYPES.array, t == Porffor.TYPES.set, t == Porffor.TYPES.map,
+    t == Porffor.TYPES.string, t == Porffor.TYPES.bytestring, t == Porffor.TYPES.__porffor_generator,
+    Porffor.fastAnd(t >= Porffor.TYPES.uint8clampedarray, t <= Porffor.TYPES.float64array));
+};
 
 export const __Porffor_iterator_get = (obj: any): any[] => {
   let iter: any = obj;

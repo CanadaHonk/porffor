@@ -1828,6 +1828,10 @@ const aliasPrimObjsBC = bc => {
 };
 
 const iteratorRecord = (scope, value, known, inPlace, getter = '__Porffor_iterator_get') => {
+  if (definedKeys.has('#arrayIterator')) {
+    includeBuiltin(scope, '__Porffor_array_iteratorPatched');
+    inPlace = inPlace.filter(x => x !== TYPES.array);
+  }
   if (inPlace.includes(known) || (known >= TYPES.uint8clampedarray && known <= TYPES.float64array)) return null;
 
   // linked so a throw leaving the loop or pattern closes it
@@ -3963,6 +3967,9 @@ const generateForOf = (scope, decl) => {
       } ]
     ];
 
+    // a replaced Array.prototype[Symbol.iterator] iterates arrays through the record
+    if (definedKeys.has('#arrayIterator')) cases.shift();
+
     // values from sync sources are awaited
     const nextVal = typeSwitch(scope, root, rootKnown, !isAwait ? cases
       : cases.map(([ types, next ]) => [ types, types === 'default' ? next : () => awaitValue(scope, next()) ]));
@@ -5259,6 +5266,9 @@ const collectDefinedKeys = program => {
       for (const x of node.arguments) for (const w of (x.value ?? x.quasis?.map(q => q.value.cooked).join('') ?? '').match?.(/[\w$]+/g) ?? []) out.add(w);
     if ((node.type === 'Property' || node.type === 'MethodDefinition' || node.type === 'PropertyDefinition') && !node.computed) out.add(node.key.name ?? String(node.key.value));
     if (node.type === 'MemberExpression' && !node.computed && !called) out.add(node.property.name);
+    // writes to Array.prototype[Symbol.iterator] make arrays iterate through it
+    const target = node.type === 'AssignmentExpression' ? node.left : node.operator === 'delete' ? node.argument : null;
+    if (target?.object?.name === '__Array_prototype' && target.property.name === '__Symbol_iterator') out.add('#arrayIterator');
     if (node._evalParsed) walk(node._evalParsed);
     for (const k in node) if (k[0] !== '_' && k !== 'start' && k !== 'end') walk(node[k], node.type === 'CallExpression' && k === 'callee');
   };
