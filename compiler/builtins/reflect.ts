@@ -1,16 +1,15 @@
 import type {} from './porffor.d.ts';
 
-// todo: support receiver
 export const __Reflect_get = (target: any, prop: any, receiver: any = target) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_get(target, ecma262.ToPropertyKey(prop), receiver);
   }
+  if (receiver !== target) return __Porffor_object_getWithReceiver(target, prop, receiver);
 
   return target[prop];
 };
 
-// todo: support receiver
 export const __Reflect_set = (target: any, prop: any, value: any, receiver: any = target) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
@@ -26,6 +25,7 @@ export const __Reflect_set = (target: any, prop: any, value: any, receiver: any 
   )) {
     if (!__Porffor_typedArray_validIndex(target, prop)) return true;
   }
+  if (receiver !== target) return __Porffor_object_setWithReceiver(target, prop, value, receiver);
 
   try {
     target[prop] = value;

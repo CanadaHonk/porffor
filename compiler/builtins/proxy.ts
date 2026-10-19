@@ -51,8 +51,7 @@ export const __Porffor_proxy_get = (proxy: any, key: any, receiver: any): any =>
   const target: any = __Porffor_proxy_target(proxy);
   const trap: any = __Porffor_proxy_trap(handler, 'get');
   if (trap === undefined) {
-    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_get(target, key, receiver);
-    return target[key];
+    return __Porffor_object_getWithReceiver(target, key, receiver);
   }
 
   const result: any = trap.call(handler, target, key, receiver);
@@ -70,9 +69,7 @@ export const __Porffor_proxy_set = (proxy: any, key: any, value: any, receiver: 
   const target: any = __Porffor_proxy_target(proxy);
   const trap: any = __Porffor_proxy_trap(handler, 'set');
   if (trap === undefined) {
-    if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_set(target, key, value, receiver);
-    target[key] = value;
-    return true;
+    return __Porffor_object_setWithReceiver(target, key, value, receiver);
   }
 
   const ok: boolean = !!trap.call(handler, target, key, value, receiver);

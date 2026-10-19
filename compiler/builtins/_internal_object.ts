@@ -794,6 +794,33 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
   return __Porffor_object_readValue(entryPtr);
 };
 
+// [[Get]] with a receiver
+export const __Porffor_object_getWithReceiver = (obj: any, key: any, receiver: any): any => {
+  key = ecma262.ToPropertyKey(key);
+  const hash: i32 = __Porffor_object_hash(key);
+  let proto: any = obj;
+  while (proto != null) {
+    if (Porffor.comptime.flag`hasFunc.Proxy`) {
+      if (Porffor.type(proto) == Porffor.TYPES.proxy) return __Porffor_proxy_get(proto, key, receiver);
+    }
+
+    const entryPtr: i32 = __Porffor_object_lookup(__Porffor_object_underlying(proto), key, hash);
+    if (entryPtr != 0) {
+      if ((Porffor.IR.loadU16(entryPtr, 16) & 0b0001) == 0) break;
+
+      const get: Function = __Porffor_object_accessorGet(entryPtr);
+      if (Porffor.IR.ptr(get) == 0) return undefined;
+      return Porffor.callThis(get, receiver);
+    }
+
+    const next: any = __Porffor_object_getPrototypeWithHidden(proto, Porffor.type(proto));
+    if (Porffor.IR.ptr(next) == Porffor.IR.ptr(proto)) break;
+    proto = next;
+  }
+
+  return obj[key];
+};
+
 // per-call-site slot cache stores byte offsets into object entries
 // IC_EMPTY is i32 max so unset and stale slots fail the bounds/hash checks
 export const __Porffor_object_get_ic = (_obj: any, key: any, hash: i32, slot: i32): any => {
@@ -1432,6 +1459,45 @@ export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: 
   Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, value);
 
   return value;
+};
+
+// OrdinarySet with a receiver
+export const __Porffor_object_setWithReceiver = (obj: any, key: any, value: any, receiver: any): boolean => {
+  key = ecma262.ToPropertyKey(key);
+  const hash: i32 = __Porffor_object_hash(key);
+  let proto: any = obj;
+  while (proto != null) {
+    if (Porffor.comptime.flag`hasFunc.Proxy`) {
+      if (Porffor.type(proto) == Porffor.TYPES.proxy) return __Porffor_proxy_set(proto, key, value, receiver);
+    }
+
+    const entryPtr: i32 = __Porffor_object_lookup(__Porffor_object_underlying(proto), key, hash);
+    if (entryPtr != 0) {
+      const tail: i32 = Porffor.IR.loadU16(entryPtr, 16);
+      if ((tail & 0b0001) == 0) {
+        if ((tail & 0b1000) == 0) return false;
+        break;
+      }
+
+      const set: Function = __Porffor_object_accessorSet(entryPtr);
+      if (Porffor.IR.ptr(set) == 0) return false;
+      Porffor.callThis(set, receiver, value);
+      return true;
+    }
+
+    const next: any = __Porffor_object_getPrototypeWithHidden(proto, Porffor.type(proto));
+    if (Porffor.IR.ptr(next) == Porffor.IR.ptr(proto)) break;
+    proto = next;
+  }
+
+  if (!Porffor.object.isObject(receiver)) return false;
+  const existing: any = __Reflect_getOwnPropertyDescriptor(receiver, key);
+  if (existing !== undefined) {
+    if (existing.writable !== true) return false;
+    return __Reflect_defineProperty(receiver, key, { value });
+  }
+
+  return __Reflect_defineProperty(receiver, key, { value, writable: true, enumerable: true, configurable: true });
 };
 
 export const __Porffor_object_define = (obj: any, key: any, value: any, flags: i32): void => {
