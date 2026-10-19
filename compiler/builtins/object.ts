@@ -242,7 +242,7 @@ export const __Porffor_object_instanceof = (obj: any, constr: any, checkProto: a
     throw new TypeError('instanceof right-hand side is not a function');
   }
 
-  if (!Porffor.object.isObject(checkProto)) {
+  if (Porffor.fastOr(!Porffor.object.isObject(obj), !Porffor.object.isObject(checkProto))) {
     return false;
   }
 

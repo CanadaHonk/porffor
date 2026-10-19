@@ -1238,11 +1238,9 @@ const generateBinaryExp = (scope, decl) => {
       }
     }
 
-    return generate(scope, {
-      type: 'CallExpression',
-      callee: { type: 'Identifier', name: '__Porffor_object_instanceof' },
-      arguments: [ decl.left, decl.right, getObjProp(decl.right, 'prototype') ]
-    });
+    // copy the left value first: the right side may reassign it
+    const left = tmp(scope, T.jsval, coerceValue(generate(scope, decl.left), T.jsval));
+    return builtinCall(scope, '__Porffor_object_instanceof', [ left, generate(scope, decl.right), generate(scope, getObjProp(decl.right, 'prototype')) ]);
   }
 
   if (decl.operator === 'in') {
