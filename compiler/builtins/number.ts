@@ -52,15 +52,11 @@ export const __Number_isSafeInteger = (value: any): boolean => {
   return value >= -9007199254740991 && value <= 9007199254740991;
 };
 
-// radix: number|any for type check
-export const __Number_prototype_toString = function (this: number, radix: number|any) {
+export const __Number_prototype_toString = function (this: number, radix: any) {
   let n: number = this;
-  if (Porffor.type(radix) != Porffor.TYPES.number) {
-    // todo: string to number
-    radix = 10;
-  }
+  if (Porffor.type(radix) == Porffor.TYPES.undefined) radix = 10;
+    else radix = ecma262.ToIntegerOrInfinity(radix);
 
-  radix = Math.trunc(radix);
   if (radix < 2 || radix > 36) {
     throw new RangeError('toString() radix argument must be between 2 and 36');
   }
@@ -84,17 +80,16 @@ export const __Number_prototype_toFixed = function (this: number, fractionDigits
 
 export const __Number_prototype_toLocaleString = function (this: number) { return Porffor.callThis(__Number_prototype_toString, this, 10); };
 
-// fractionDigits: number|any for type check
-export const __Number_prototype_toExponential = function (this: number, fractionDigits: number|any) {
+export const __Number_prototype_toExponential = function (this: number, fractionDigits: any) {
   let n: number = this;
-  let f: i32 = -1;
-  if (Porffor.type(fractionDigits) == Porffor.TYPES.number) {
-    fractionDigits = Math.trunc(fractionDigits);
-    if (Number.isFinite(n) && (fractionDigits < 0 || fractionDigits > 100)) {
-      throw new RangeError('toExponential() fractionDigits argument must be between 0 and 100');
-    }
-    f = fractionDigits;
+  const digits: number = ecma262.ToIntegerOrInfinity(fractionDigits);
+  if (Number.isFinite(n) && (digits < 0 || digits > 100)) {
+    throw new RangeError('toExponential() fractionDigits argument must be between 0 and 100');
   }
+
+  // undefined means as many digits as needed
+  let f: i32 = -1;
+  if (Porffor.type(fractionDigits) != Porffor.TYPES.undefined) f = digits;
 
   let out: bytestring = '';
   Porffor.c`out = porf_num_to_exponential(n, f);`;
