@@ -458,12 +458,104 @@ export const __Porffor_bigint_divModMag = (a: number[], b: number[]): any[] => {
   return [ q, r ];
 };
 
-// op: 0 + 1 - 2 * 3 / 4 % 5 **
+export const __Porffor_bigint_twos = (mag: number[], negative: boolean, len: i32): number[] => {
+  const out: number[] = Porffor.array.new(len);
+  out.length = len;
+  // negative: ~(mag - 1)
+  let borrow: number = negative ? 1 : 0;
+  for (let i: i32 = 0; i < len; i++) {
+    let d: number = i < mag.length ? mag[i] : 0;
+    if (negative) {
+      d -= borrow;
+      borrow = 0;
+      if (d < 0) {
+        d += 65536;
+        borrow = 1;
+      }
+      d = 65535 - d;
+    }
+    out[i] = d;
+  }
+  return out;
+};
+
+export const __Porffor_bigint_fromTwos = (t: number[], negative: boolean): bigint => {
+  if (negative) {
+    // magnitude: ~t + 1
+    let carry: number = 1;
+    for (let i: i32 = 0; i < t.length; i++) {
+      let d: number = 65535 - t[i] + carry;
+      carry = 0;
+      if (d == 65536) {
+        d = 0;
+        carry = 1;
+      }
+      t[i] = d;
+    }
+  }
+  while (t.length > 0 && t[t.length - 1] == 0) t.length = t.length - 1;
+  return __Porffor_bigint_fromMag(negative, t);
+};
+
+export const __Porffor_bigint_shlMag = (m: number[], n: number): number[] => {
+  const limbs: number = Math.floor(n / 16);
+  if (limbs + m.length > 4096) throw new RangeError('Maximum BigInt size exceeded');
+  const scale: number = 2 ** (n % 16);
+  const out: number[] = Porffor.array.new(m.length + limbs + 1);
+  for (let i: i32 = 0; i < limbs; i++) out.push(0);
+  let carry: number = 0;
+  for (let i: i32 = 0; i < m.length; i++) {
+    const v: number = m[i] * scale + carry;
+    carry = Math.floor(v / 65536);
+    out.push(v - carry * 65536);
+  }
+  if (carry > 0) out.push(carry);
+  return out;
+};
+
+export const __Porffor_bigint_shrMag = (m: number[], n: number): number[] => {
+  const limbs: number = Math.floor(n / 16);
+  const scale: number = 2 ** (n % 16);
+  const out: number[] = Porffor.array.new(8);
+  for (let i: number = limbs; i < m.length; i++) {
+    const high: number = i + 1 < m.length ? m[i + 1] % scale : 0;
+    out.push(Math.floor(m[i] / scale) + high * (65536 / scale));
+  }
+  while (out.length > 0 && out[out.length - 1] == 0) out.length = out.length - 1;
+  return out;
+};
+
+// op: 0 + 1 - 2 * 3 / 4 % 5 ** 6 & 7 | 8 ^ 9 << 10 >> 11 >>>
 export const __Porffor_bigint_arith = (op: i32, a: f64, b: f64): bigint => {
   const an: boolean = __Porffor_bigint_isNegative(a);
   const bn: boolean = __Porffor_bigint_isNegative(b);
   const am: number[] = __Porffor_bigint_mag(a);
   const bm: number[] = __Porffor_bigint_mag(b);
+
+  if (op >= 6 && op <= 8) {
+    const len: i32 = (am.length > bm.length ? am.length : bm.length) + 1;
+    const at: number[] = __Porffor_bigint_twos(am, an, len);
+    const bt: number[] = __Porffor_bigint_twos(bm, bn, len);
+    for (let i: i32 = 0; i < len; i++) at[i] = op == 6 ? at[i] & bt[i] : op == 7 ? at[i] | bt[i] : at[i] ^ bt[i];
+    return __Porffor_bigint_fromTwos(at, op == 6 ? an && bn : op == 7 ? an || bn : an != bn);
+  }
+
+  if (op == 11) throw new TypeError('BigInts have no unsigned right shift, use >> instead');
+  if (op == 9 || op == 10) {
+    let n: number = __Porffor_bigint_toNumber(b);
+    let left: boolean = op == 9;
+    if (n < 0) {
+      n = -n;
+      left = !left;
+    }
+    if (left) return __Porffor_bigint_fromMag(an, __Porffor_bigint_shlMag(am, n));
+    if (!an) return __Porffor_bigint_fromMag(false, __Porffor_bigint_shrMag(am, n));
+
+    // floor for negatives: -(((|a| - 1) >> n) + 1)
+    const one: number[] = Porffor.array.new(1);
+    one.push(1);
+    return __Porffor_bigint_fromMag(true, __Porffor_bigint_addMag(__Porffor_bigint_shrMag(__Porffor_bigint_subMag(am, one), n), one));
+  }
 
   if (op == 0 || op == 1) {
     const bneg: boolean = op == 1 ? !bn : bn;

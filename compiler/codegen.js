@@ -1101,7 +1101,7 @@ const snapshot = (scope, expr) => {
   return k === K.Local || k === K.Global ? tmp(scope, expr[N_TYPE], expr) : reuse(scope, expr);
 };
 
-const bigintOps = { '+': 0, '-': 1, '*': 2, '/': 3, '%': 4, '**': 5 };
+const bigintOps = { '+': 0, '-': 1, '*': 2, '/': 3, '%': 4, '**': 5, '&': 6, '|': 7, '^': 8, '<<': 9, '>>': 10, '>>>': 11 };
 
 // any binary op on two values, types are inferred TYPES or null, gives a jsval
 const performOp = (scope, op, left, right, leftType, rightType, noBigint = false) => {
@@ -1114,9 +1114,11 @@ const performOp = (scope, op, left, right, leftType, rightType, noBigint = false
   const isStr = ty => ty === TYPES.string || ty === TYPES.bytestring || ty === TYPES.stringobject;
   const boolBox = e => Box(e, Const(T.i32, TYPES.boolean));
   // unknown runtime type: full coercion path (StringToNumber/ToPrimitive)
-  const numOperand = (node, ty) => isRawNum(node) || ty === TYPES.number || ty === TYPES.bigint
-    ? numValue(node)
-    : numValue(builtinCall(scope, '__ecma262_ToNumeric', [ node ]));
+  const numOperand = (node, ty) => {
+    if (isRawNum(node) || ty === TYPES.number || ty === TYPES.bigint) return numValue(node);
+    const v = reuse(scope, node);
+    return Select(JvIsNum(v), JvNum(v), numValue(builtinCall(scope, '__ecma262_ToNumeric', [ v ])));
+  };
 
   if (eqEq) {
     let r;
@@ -1592,7 +1594,7 @@ const getNodeType = (scope, node) => {
     if (['==', '===', '!=', '!==', '>', '>=', '<', '<=', 'instanceof', 'in'].includes(node.operator)) ret = TYPES.boolean;
     else {
       const stack = [ node ];
-      let anyBigint = false, anyKnown = false, anyUnknown = false, anyStringLike = false, anyString = false, allBytes = true;
+      let anyBigint = false, anyKnown = false, anyUnknown = false, anyNumeric = false, anyStringLike = false, anyString = false, allBytes = true;
       while (stack.length !== 0) {
         const n = stack.pop();
         if (n.type === 'BinaryExpression' && n.operator === node.operator) {
@@ -1604,13 +1606,15 @@ const getNodeType = (scope, node) => {
         if (known === TYPES.bigint) anyBigint = true;
         if (known != null) anyKnown = true;
           else anyUnknown = true;
+        // ToNumeric of these is never a BigInt, so the result is a Number (or a mixing TypeError)
+        if (known === TYPES.number || known === TYPES.boolean || known === TYPES.undefined || known === TYPES.string || known === TYPES.bytestring) anyNumeric = true;
         if (known === TYPES.string || known === TYPES.bytestring || known === TYPES.stringobject) anyStringLike = true;
         if (known === TYPES.string || known === TYPES.stringobject) anyString = true;
         if (known !== TYPES.bytestring) allBytes = false;
       }
 
       if (anyBigint) ret = TYPES.bigint;
-      else if (node.operator !== '+') ret = anyUnknown && bigintOps[node.operator] !== undefined ? null : TYPES.number; // unknown operands may be BigInts
+      else if (node.operator !== '+') ret = anyUnknown && !anyNumeric && bigintOps[node.operator] !== undefined ? null : TYPES.number; // unknown operands may be BigInts
       else if (anyKnown && !anyStringLike) ret = TYPES.number;
       else if (anyString) ret = TYPES.string;
       else if (allBytes) ret = TYPES.bytestring;
@@ -1624,7 +1628,7 @@ const getNodeType = (scope, node) => {
     else if (node.operator === 'typeof') ret = TYPES.bytestring;
     else {
       const argType = getNodeType(scope, node.argument);
-      ret = argType === TYPES.bigint ? TYPES.bigint : (argType == null && node.operator === '-' ? null : TYPES.number);
+      ret = argType === TYPES.bigint ? TYPES.bigint : (argType == null && (node.operator === '-' || node.operator === '~') ? null : TYPES.number);
     }
   }
   else if (node.type === 'UpdateExpression') {
@@ -3403,9 +3407,22 @@ const generateUnary = (scope, decl) => {
       }
       return Box(Un('neg', T.f64, numValue(toNumeric())), Const(T.i32, TYPES.number));
 
-    case '~':
-      // todo: proper bigint support
-      return Box(Convert(T.f64, Un('~', T.i32, Convert(T.i32, toUint32(scope, numValue(toNumeric())), CONVERT_RANGE_KNOWN | CONVERT_SIGNED)), CONVERT_SIGNED), Const(T.i32, TYPES.number));
+    case '~': {
+      // ~x is -x - 1n for BigInts
+      const bigNot = v => builtinCall(scope, '__Porffor_bigint_arith', [ Const(T.i32, 1), builtinCall(scope, '__Porffor_bigint_arith', [ Const(T.i32, 1), Const(T.f64, 0), v ]), Const(T.f64, 1) ]);
+      const numNot = v => Box(Convert(T.f64, Un('~', T.i32, Convert(T.i32, toUint32(scope, v), CONVERT_RANGE_KNOWN | CONVERT_SIGNED)), CONVERT_SIGNED), Const(T.i32, TYPES.number));
+      const argType = knownType(scope, getNodeType(scope, decl.argument));
+      if (argType === TYPES.bigint) return bigNot(generate(scope, decl.argument));
+      if (argType == null) {
+        const v = reuse(scope, coerceValue(toNumeric(), T.jsval));
+        const out = tmp(scope, T.jsval);
+        emitIf(scope, Bin('==', T.i32, JvType(v), Const(T.i32, TYPES.bigint)),
+          () => assign(scope, out, bigNot(v)),
+          () => assign(scope, out, numNot(JvNum(v))));
+        return out;
+      }
+      return numNot(numValue(toNumeric()));
+    }
 
     case '!': {
       const arg = decl.argument;
