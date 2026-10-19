@@ -1,5 +1,9 @@
-// generates the unicode table section of compiler/builtins/regexp.ts from node's own ICU
-// usage: node compiler/gen-regexp-unicode.mjs <output.ts>, then splice into regexp.ts
+// usage: bun compiler/gen-regexp-unicode.mjs <output.ts> (bun ships newer unicode than node), then splice into regexp.ts
+
+import { scriptNames } from './parser/unicode-scripts.js';
+
+// must match the running engine (emoji sequence files are fetched for it)
+const UNICODE_VERSION = '17.0.0';
 
 const MAX = 0x110000;
 
@@ -35,6 +39,7 @@ const xorRangesSimple = (a, b) => { // symmetric difference (one-off, bitset is 
 
 // scan a \p property via node's regex engine
 
+const chunkStrs = new Map();
 const scanProp = expr => {
   const re = new RegExp(`\\p{${expr}}`, 'gu');
   const reSingle = new RegExp(`\\p{${expr}}`, 'u');
@@ -53,10 +58,14 @@ const scanProp = expr => {
     for (let cp = Math.max(base, 0xD800); cp < Math.min(end, 0xE000); cp++) {
       if (reSingle.test(String.fromCodePoint(cp))) push(cp);
     }
-    let str = '';
-    for (let cp = base; cp < end; cp++) {
-      if (cp >= 0xD800 && cp <= 0xDFFF) continue;
-      str += String.fromCodePoint(cp);
+    let str = chunkStrs.get(base);
+    if (str == null) {
+      str = '';
+      for (let cp = base; cp < end; cp++) {
+        if (cp >= 0xD800 && cp <= 0xDFFF) continue;
+        str += String.fromCodePoint(cp);
+      }
+      chunkStrs.set(base, str);
     }
     re.lastIndex = 0;
     let m;
@@ -268,6 +277,129 @@ const foldEnc = encodeMap(foldRep);
 const canonEnc = encodeMap(canonNonU);
 console.error(`iu fold: ${foldEnc.runs} runs, ${foldEnc.bytes.length} bytes; non-u canon: ${canonEnc.runs} runs, ${canonEnc.bytes.length} bytes`);
 
+// Hrkt is valid but has no cps
+const SCRIPTS = scriptNames.split(';').map(x => x.split(','));
+
+console.error('scanning scripts...');
+const scOf = new Uint8Array(MAX).fill(255);
+const scxOf = new Map();
+for (let i = 0; i < SCRIPTS.length; i++) {
+  if (SCRIPTS[i][0] === 'Hrkt') continue;
+  for (const [s, e] of scanProp(`Script=${SCRIPTS[i][0]}`)) scOf.fill(i, s, e + 1);
+  for (const [s, e] of scanProp(`Script_Extensions=${SCRIPTS[i][0]}`)) {
+    for (let cp = s; cp <= e; cp++) {
+      if (!scxOf.has(cp)) scxOf.set(cp, []);
+      scxOf.get(cp).push(i);
+    }
+  }
+}
+if (scOf.includes(255)) throw new Error('cp without script');
+
+// sc blob: run count, then varint length + script index per run
+const scBytes = [];
+{
+  const runs = [];
+  let runStart = 0;
+  for (let i = 1; i <= MAX; i++) {
+    if (i === MAX || scOf[i] !== scOf[runStart]) { runs.push([i - runStart, scOf[runStart]]); runStart = i; }
+  }
+  varint(scBytes, runs.length);
+  for (const [len, sc] of runs) { varint(scBytes, len); scBytes.push(sc); }
+  console.error(`sc: ${runs.length} runs, ${scBytes.length} bytes`);
+}
+
+// scx blob for cps whose scx != {sc}: set count, sets (varint len + indices), run count, runs (varint gap, len - 1, set idx)
+const scxBytes = [];
+{
+  const sets = [], setIdx = new Map(), runs = [];
+  for (let cp = 0; cp < MAX; cp++) {
+    const l = scxOf.get(cp) ?? [];
+    if (l.length === 1 && l[0] === scOf[cp]) continue;
+    const key = l.join(',');
+    if (!setIdx.has(key)) { setIdx.set(key, sets.length); sets.push(l); }
+    const last = runs[runs.length - 1];
+    if (last && last.end === cp - 1 && last.set === setIdx.get(key)) last.end = cp;
+    else runs.push({ start: cp, end: cp, set: setIdx.get(key) });
+  }
+  varint(scxBytes, sets.length);
+  for (const l of sets) { varint(scxBytes, l.length); for (const x of l) scxBytes.push(x); }
+  varint(scxBytes, runs.length);
+  let last = 0;
+  for (const r of runs) { varint(scxBytes, r.start - last); varint(scxBytes, r.end - r.start); varint(scxBytes, r.set); last = r.end + 1; }
+  console.error(`scx: ${sets.length} sets, ${runs.length} runs, ${scxBytes.length} bytes`);
+}
+const scDirStr = scriptNames;
+
+const STRPROPS = ['Basic_Emoji', 'Emoji_Keycap_Sequence', 'RGI_Emoji_Flag_Sequence', 'RGI_Emoji_Modifier_Sequence', 'RGI_Emoji_Tag_Sequence', 'RGI_Emoji_ZWJ_Sequence'];
+console.error('fetching emoji sequences...');
+const strProps = Object.fromEntries(STRPROPS.map(x => [x, []]));
+for (const file of ['emoji-sequences.txt', 'emoji-zwj-sequences.txt']) {
+  const text = await (await fetch(`https://www.unicode.org/Public/${UNICODE_VERSION}/emoji/${file}`)).text();
+  for (const line of text.split('\n')) {
+    const l = line.split('#')[0].trim();
+    if (!l) continue;
+    const [cps, prop] = l.split(';').map(x => x.trim());
+    if (!strProps[prop]) throw new Error('unknown string property ' + prop);
+    if (cps.includes('..')) {
+      const [a, b] = cps.split('..').map(x => parseInt(x, 16));
+      for (let c = a; c <= b; c++) strProps[prop].push([c]);
+    } else strProps[prop].push(cps.split(' ').map(x => parseInt(x, 16)));
+  }
+}
+
+// per property: single cp ranges, X FE0F pair ranges, then skeletons with skin tone (1F3FB..1F3FF) slots
+// skeleton cps: 0 slot, 1 ZWJ, 2 FE0F, else zigzag delta from last literal + 3. tuples: 0 all 5^n, 1 distinct pairs, else count + 2 then base-5 codes
+const strBytes = [];
+for (const prop of STRPROPS) {
+  const re = new RegExp(`^\\p{${prop}}$`, 'v');
+  const list = strProps[prop];
+  for (const s of list) if (!re.test(String.fromCodePoint(...s))) throw new Error(`${prop} mismatch: ${s.map(x => x.toString(16))}`);
+
+  const rangesOf = cps => {
+    const out = [];
+    for (const c of cps.sort((a, b) => a - b)) {
+      if (out.length && out[out.length - 1][1] === c - 1) out[out.length - 1][1] = c;
+        else out.push([c, c]);
+    }
+    return out;
+  };
+  const writeRanges = rs => {
+    varint(strBytes, rs.length);
+    let last = 0;
+    for (const [s, e] of rs) { varint(strBytes, s - last); varint(strBytes, e - s); last = e + 1; }
+  };
+  writeRanges(rangesOf(list.filter(s => s.length === 1).map(s => s[0])));
+  writeRanges(rangesOf(list.filter(s => s.length === 2 && s[1] === 0xFE0F).map(s => s[0])));
+
+  const skels = new Map();
+  for (const s of list) {
+    if (s.length === 1 || (s.length === 2 && s[1] === 0xFE0F)) continue;
+    const tones = [];
+    const skel = s.map(c => { if (c >= 0x1F3FB && c <= 0x1F3FF) { tones.push(c - 0x1F3FB); return -1; } return c; });
+    const k = skel.join();
+    if (!skels.has(k)) skels.set(k, { skel, tuples: [] });
+    skels.get(k).tuples.push(tones.reduce((v, t) => v * 5 + t, 0));
+  }
+  varint(strBytes, skels.size);
+  let prev = 0;
+  for (const { skel, tuples } of skels.values()) {
+    varint(strBytes, skel.length);
+    for (const c of skel) {
+      if (c === -1) strBytes.push(0);
+        else if (c === 0x200D) strBytes.push(1);
+        else if (c === 0xFE0F) strBytes.push(2);
+        else { varint(strBytes, zigzag(c - prev) + 3); prev = c; }
+    }
+    const n = skel.filter(c => c === -1).length;
+    if (n === 0) continue;
+    const distinct = n === 2 && tuples.length === 20 && tuples.every(v => Math.floor(v / 5) !== v % 5);
+    if (tuples.length === 5 ** n) strBytes.push(0);
+      else if (distinct) strBytes.push(1);
+      else { varint(strBytes, tuples.length + 2); for (const v of tuples) varint(strBytes, v); }
+  }
+}
+console.error(`string properties: ${strBytes.length} bytes`);
+
 // property name directory: "name=code" entries joined by ';', code b<idx> = binary prop, g<hex> = gc mask
 
 const GC_LONG = {
@@ -332,9 +464,17 @@ export const __Porffor_regex_ucdDir = (): bytestring => ${wrap(dirStr.replace(/\
 export const __Porffor_regex_ucdFold = (): bytestring => ${wrap(escStr(foldEnc.bytes))};
 
 export const __Porffor_regex_ucdCanon = (): bytestring => ${wrap(escStr(canonEnc.bytes))};
+
+export const __Porffor_regex_ucdSc = (): bytestring => ${wrap(escStr(scBytes))};
+
+export const __Porffor_regex_ucdScx = (): bytestring => ${wrap(escStr(scxBytes))};
+
+export const __Porffor_regex_ucdScDir = (): bytestring => ${wrap(scDirStr)};
+
+export const __Porffor_regex_ucdStrs = (): bytestring => ${wrap(escStr(strBytes))};
 `;
 
-const total = gcBytes.length + propBytes.length + propOffsetsBytes.length + dirStr.length + foldEnc.bytes.length + canonEnc.bytes.length;
+const total = gcBytes.length + propBytes.length + propOffsetsBytes.length + dirStr.length + foldEnc.bytes.length + canonEnc.bytes.length + scBytes.length + scxBytes.length + scDirStr.length + strBytes.length;
 console.error(`total data: ${total} bytes (${(total / 1024).toFixed(1)}KB)`);
 
 import fs from 'node:fs';

@@ -1,5 +1,6 @@
 // porffor's own JS + TS parser, single module by design (selfhosted bundling: no cross-module mutable bindings)
 import { isIdStartUni, isIdContinueUni } from './unicode.js';
+import { scriptNames } from './unicode-scripts.js';
 
 // token kinds
 const T_EOF = 0, T_NAME = 1, T_NUM = 2, T_BIGINT = 3, T_STRING = 4, T_REGEXP = 5, T_PRIVATE = 6,
@@ -792,10 +793,88 @@ const readRegexp = () => {
   try {
     new RegExp(pattern, flags);
   } catch (e) {
-    raise(tokStart, `Invalid regular expression: ${e.message}`);
+    // the host may predate this syntax: retry rewritten
+    let ok = false;
+    const compat = hostCompatRegex(pattern, flags);
+    if (compat !== pattern) {
+      try {
+        new RegExp(compat, flags);
+        ok = true;
+      } catch {}
+    }
+    if (!ok) raise(tokStart, `Invalid regular expression: ${e.message}`);
   }
 
   finishToken(T_REGEXP, { pattern, flags });
+};
+
+const hostCompatRegex = (pattern, flags) => {
+  if (/[uv]/.test(flags)) pattern = pattern.replace(/\\([pP])\{(?:Script|sc|Script_Extensions|scx)=(\w+)\}/g,
+    (m, p, v) => (';' + scriptNames + ';').replace(/,/g, ';').includes(';' + v + ';') ? `\\${p}{sc=Latn}` : m);
+
+  const v = flags.includes('v');
+  let out = '';
+  let classDepth = 0;
+  let nextDisj = 1;
+  const path = [ [ 0, 0 ] ]; // [disjunction id, alternative index] down to the current position
+  const names = new Map();
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i];
+    if (c === '\\') {
+      out += c + (pattern[i + 1] ?? '');
+      i++;
+      continue;
+    }
+    if (classDepth > 0) {
+      if (c === '[' && v) classDepth++;
+      if (c === ']') classDepth--;
+      out += c;
+      continue;
+    }
+    if (c === '[') {
+      classDepth = 1;
+      out += c;
+      continue;
+    }
+    if (c === '|') path[path.length - 1][1]++;
+    if (c === ')' && path.length > 1) path.pop();
+    if (c !== '(') {
+      out += c;
+      continue;
+    }
+
+    const rest = pattern.slice(i);
+    const mod = rest.match(/^\(\?([ims]*)(?:-([ims]*))?:/);
+    const named = rest.match(/^\(\?<([^=!>][^>]*)>/);
+    if (mod && rest[2] !== ':') {
+      const all = mod[1] + (mod[2] ?? '');
+      if (new Set(all).size === all.length && !(mod[2] !== undefined && all.length === 0)) {
+        out += '(?:';
+        i += mod[0].length - 1;
+      } else out += c;
+    } else if (named) {
+      const name = named[1];
+      const snap = path.map(x => x.slice());
+      const prev = names.get(name);
+      if (prev) {
+        // legal iff every earlier group with this name sits in a different alternative of a shared disjunction
+        const diverged = prev.every(p => {
+          for (let k = 0; k < Math.min(p.length, snap.length) && p[k][0] === snap[k][0]; k++) {
+            if (p[k][1] !== snap[k][1]) return true;
+          }
+          return false;
+        });
+        out += diverged ? `(?<${name}$${prev.length}>` : named[0];
+        prev.push(snap);
+      } else {
+        names.set(name, [ snap ]);
+        out += named[0];
+      }
+      i += named[0].length - 1;
+    } else out += c;
+    path.push([ nextDisj++, 0 ]);
+  }
+  return out;
 };
 
 // splits a >>-family token in type contexts: consumes one '>' and re-forms the rest

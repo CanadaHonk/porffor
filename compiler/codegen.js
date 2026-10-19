@@ -4138,7 +4138,13 @@ const byteStringable = str => {
   return true;
 };
 
+// big regexp unicode tables and v-mode classes are only linked in when some string could name them / be v flags
+const regexTableUses = [ [ /sc=|scx=|Script/, '__Porffor_regex_ucdScUsed' ], [ /Emoji/, '__Porffor_regex_ucdStrsUsed' ], [ /^[dgimsuy]*v[dgimsuyv]*$/, '__Porffor_regex_vUsed' ] ];
+
 const makeString = (scope, str, bytestring = true) => {
+  if (!globalThis.precompile) for (const [ re, marker ] of regexTableUses) {
+    if (!(marker in funcIndex) && re.test(str)) includeBuiltin(scope, marker);
+  }
   for (let i = 0; i < str.length; i++) if (str.charCodeAt(i) > 0xFF) { bytestring = false; break; }
   typeUsed(scope, bytestring ? TYPES.bytestring : TYPES.string);
 
