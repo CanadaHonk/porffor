@@ -306,8 +306,14 @@ const parseEval = node => {
   const code = knownEvalSource(node._evalSource ?? node.arguments[0]);
   if (code == null) return;
 
+  let context = null;
+  if (!node._indirectEval) {
+    const owner = thisFunc(scopes[scopes.lastFuncs.at(-1)]);
+    context = { fieldInit: !owner, privateNames: classStack.flatMap(x => Object.keys(x._privates)), superProperty: !owner || !!owner._homeOwner, superCall: !!owner?._derivedCtor, newTarget: owner?.type !== 'Program' };
+  }
+
   try {
-    const body = semantic(semantic.objectHack(parse(code)), node._semanticScopes).body;
+    const body = semantic(semantic.objectHack(parse(code, null, context)), node._semanticScopes, !node._indirectEval).body;
     // eval code's function declarations are initialized before it runs
     let at = 0;
     while (at < body.length && body[at].directive) at++;
@@ -982,11 +988,15 @@ const isStrictBlock = body => {
   }
   return false;
 };
-const semantic = (node, _scopes = null) => {
-  const oldScopes = scopes, oldInEval = inEval, oldClassFieldInitializerFunc = classFieldInitializerFunc, oldClassStaticFunc = classStaticFunc;
+// direct eval code keeps the class context it is evaluated in
+const semantic = (node, _scopes = null, direct = false) => {
+  const oldScopes = scopes, oldInEval = inEval, oldClassFieldInitializerFunc = classFieldInitializerFunc, oldClassStaticFunc = classStaticFunc, oldClassStack = classStack;
   inEval = !!_scopes;
-  classFieldInitializerFunc = null;
-  classStaticFunc = null;
+  if (!direct) {
+    classFieldInitializerFunc = null;
+    classStaticFunc = null;
+    classStack = [];
+  }
   if (!_scopes) {
     _scopes = [ node ];
     _scopes.lastFuncs = [ 0 ];
@@ -1001,6 +1011,7 @@ const semantic = (node, _scopes = null) => {
   inEval = oldInEval;
   classFieldInitializerFunc = oldClassFieldInitializerFunc;
   classStaticFunc = oldClassStaticFunc;
+  classStack = oldClassStack;
   return node;
 };
 export default semantic;

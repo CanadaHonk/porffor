@@ -910,7 +910,7 @@ const initLexer = (src, module, typescript) => {
 
 const SCOPE_TOP = 1, SCOPE_FUNCTION = 2, SCOPE_ASYNC = 4, SCOPE_GENERATOR = 8, SCOPE_ARROW = 16,
   SCOPE_SIMPLE_CATCH = 32, SCOPE_SUPER = 64, SCOPE_DIRECT_SUPER = 128, SCOPE_STATIC_BLOCK = 256,
-  SCOPE_FIELD_INIT = 512, SCOPE_VAR = SCOPE_TOP | SCOPE_FUNCTION | SCOPE_STATIC_BLOCK;
+  SCOPE_FIELD_INIT = 512, SCOPE_NEW_TARGET = 1024, SCOPE_VAR = SCOPE_TOP | SCOPE_FUNCTION | SCOPE_STATIC_BLOCK;
 const BIND_VAR = 1, BIND_LEXICAL = 2, BIND_FUNCTION = 3, BIND_SIMPLE_CATCH = 4, BIND_OUTSIDE = 5;
 
 let strict = false;
@@ -964,7 +964,7 @@ const allowDirectSuper = () => (currentThisScope().flags & SCOPE_DIRECT_SUPER) >
 const allowNewDotTarget = () => {
   for (let i = scopeStack.length - 1; i >= 0; i--) {
     const flags = scopeStack[i].flags;
-    if ((flags & (SCOPE_STATIC_BLOCK | SCOPE_FIELD_INIT)) ||
+    if ((flags & (SCOPE_STATIC_BLOCK | SCOPE_FIELD_INIT | SCOPE_NEW_TARGET)) ||
         ((flags & SCOPE_FUNCTION) && !(flags & SCOPE_ARROW))) return true;
   }
   return false;
@@ -1098,7 +1098,7 @@ const inClassStaticBlock = () => (currentVarScope().flags & SCOPE_STATIC_BLOCK) 
 const checkUnreserved = (start, name) => {
   if (inGenerator() && name === 'yield') raise(start, "Cannot use 'yield' as identifier inside a generator");
   if (inAsync() && name === 'await') raise(start, "Cannot use 'await' as identifier inside an async function");
-  if (!(currentThisScope().flags & SCOPE_VAR) && name === 'arguments') raise(start, "Cannot use 'arguments' in class field initializer");
+  if ((currentThisScope().flags & SCOPE_FIELD_INIT) && name === 'arguments') raise(start, "Cannot use 'arguments' in class field initializer");
   if (inClassStaticBlock() && (name === 'arguments' || name === 'await'))
     raise(start, `Cannot use ${name} in class static initialization block`);
   if (typeof keywordKinds[name] === 'number') raise(start, `Unexpected keyword '${name}'`);
@@ -4651,7 +4651,7 @@ export default (src, opts = {}) => {
   strict = isModule;
   scopeStack = [];
   labels = [];
-  privateStack = [];
+  privateStack = opts.eval?.privateNames ? [ { declared: Object.fromEntries(opts.eval.privateNames.map(x => [ x, true ])), used: [] } ] : [];
   potentialArrowAt = -1;
   potentialArrowInForAwait = false;
   yieldPos = 0;
@@ -4660,7 +4660,10 @@ export default (src, opts = {}) => {
   undefinedExports = isModule ? new Map() : null;
   exportsSeen = isModule ? {} : null;
 
-  enterScope(SCOPE_TOP);
+  // direct eval code inherits what its surrounding function allows
+  const ev = opts.eval;
+  enterScope(SCOPE_TOP | (ev?.fieldInit ? SCOPE_FIELD_INIT | SCOPE_SUPER :
+    (ev?.superProperty ? SCOPE_SUPER : 0) | (ev?.superCall ? SCOPE_DIRECT_SUPER : 0) | (ev?.newTarget ? SCOPE_NEW_TARGET : 0)));
   if (!isModule && strictDirective(pos)) strict = true;
 
   next();
@@ -4677,6 +4680,9 @@ export default (src, opts = {}) => {
 
   if (undefinedExports) {
     for (const [ name, p ] of undefinedExports) raise(p, `Export '${name}' is not defined`);
+  }
+  if (privateStack.length) {
+    for (const id of privateStack[0].used) if (!privateStack[0].declared[id.name]) raise(id.start, `Private field '#${id.name}' must be declared in an enclosing class`);
   }
   exitScope();
 

@@ -59,14 +59,14 @@ const INTL_HOOKS = {
 const POLYFILL_NAMES = new Set([ 'Temporal', 'Intl', ...INTL_SERVICES, ...Object.keys(INTL_HOOKS) ]);
 
 // entry: link options for a program entry ({ file?, scripts? }), null for a lone source
-export default (input, entry = null) => {
+export default (input, entry = null, evalContext = null) => {
   const types = Prefs.parseTypes || Prefs.t || globalThis.file?.endsWith('.ts');
   globalThis.typedInput = types && Prefs.optTypes;
 
   const file = entry?.file ?? globalThis.file;
   // scripts only need linking for the modules their import() calls pull in
   const linked = entry && !globalThis.precompile && (Prefs.module || /\bimport\s*\(/.test(input));
-  const ast = linked ? link(input, file[0] === '/' ? file : process.cwd() + '/' + file, { ts: types, scripts: entry.scripts, script: !Prefs.module }) : parse(input, { module: !!Prefs.module, ts: types });
+  const ast = linked ? link(input, file[0] === '/' ? file : process.cwd() + '/' + file, { ts: types, scripts: entry.scripts, script: !Prefs.module }) : parse(input, { module: !!Prefs.module, ts: types, eval: evalContext });
   if (ast._ts) globalThis.typedInput = Prefs.optTypes;
   const used = usedNames(ast, POLYFILL_NAMES);
   if (used.has('Temporal')) ast._usesTemporal = true;
