@@ -1157,6 +1157,7 @@ if (cluster.isPrimary) {
       // to stderr, which is how runtime errors are classified below
       const out = render({ ...cg, prefs: { ...cg.prefs, d: true } });
       job.c = typeof out === 'string' ? out : out.c;
+      job.c = '#define PORF_IGNORE_UNHANDLED_REJECTIONS 1\n' + job.c;
       if (profile) job.addProfile(3, performance.now() - t);
     } catch (e) {
       job.error = e;
