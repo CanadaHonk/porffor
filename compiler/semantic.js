@@ -423,6 +423,7 @@ const analyzePattern = (kind, node) => {
   switch (node.type) {
     case 'Identifier':
       node._binding = true;
+      node._param = paramDecl;
       declVar(node.name, kind, node);
       break;
 
@@ -431,6 +432,8 @@ const analyzePattern = (kind, node) => {
       break;
 
     case 'AssignmentPattern':
+      // initialized once its default has run
+      node.left._paramEnd = node.end;
       analyzePattern(kind, node.left);
       break;
 
@@ -550,7 +553,11 @@ const analyze = (node, strict = false) => {
         declVar(node._newTargetBinding.name, 'let', node._newTargetBinding);
       }
 
-      for (const p of node.params) analyzePattern('var', p);
+      for (let i = 0; i < node.params.length; i++) {
+        paramDecl = { func: node, index: i };
+        analyzePattern('var', node.params[i]);
+      }
+      paramDecl = null;
       break;
   }
 
@@ -590,9 +597,26 @@ const annotate = (node, parent = null, key = null) => {
   switch (node.type) {
     case 'FunctionDeclaration':
     case 'FunctionExpression':
-    case 'ArrowFunctionExpression':
+    case 'ArrowFunctionExpression': {
       for (const param of node.params) recordStorageWrite(param, null);
-      break;
+
+      // a param is uninitialized until its own initializer has run
+      const previous = paramTdz, previousParamsFunc = paramsFunc;
+      // direct eval in a (non-arrow) function's parameters cannot declare arguments
+      paramsFunc = node.type !== 'ArrowFunctionExpression' ? node : null;
+      for (let i = 0; i < node.params.length; i++) {
+        paramTdz = { func: node, index: i };
+        annotate(node.params[i], node, 'params');
+      }
+      paramTdz = previous;
+
+      paramsFunc = null;
+      annotate(node.body, node, 'body');
+      paramsFunc = previousParamsFunc;
+      scopes.pop();
+      scopes.lastFuncs.pop();
+      return;
+    }
 
     case 'VariableDeclarator':
       annotate(node.id, node, 'id');
@@ -650,6 +674,9 @@ const annotate = (node, parent = null, key = null) => {
         node._resolvedBinding = true;
         node._resolvedVariable = variable;
         if (variable.node === heritage?.cls && currentFunc === heritage.func) node._tdz = true;
+        const param = variable.node._param;
+        if (param?.func === currentFunc && paramTdz?.func === currentFunc &&
+          (param.index > paramTdz.index || (param.index === paramTdz.index && node.start < (variable.node._paramEnd ?? variable.node.end)))) node._tdz = true;
         variable.node._refs = (variable.node._refs ?? 0) + 1;
         // reads from other funcs or before the dominating init can see undefined
         if (variable.func !== currentFunc || !variable.node._storageInitSeen) {
@@ -910,19 +937,15 @@ const annotate = (node, parent = null, key = null) => {
       break;
   }
 
-  const previousParamsFunc = paramsFunc;
   for (const x in node) {
     if (x[0] === '_') continue;
     const value = node[x];
     if (value != null && typeof value === 'object') {
-      // direct eval in a (non-arrow) function's parameters cannot declare arguments
-      if (openedFunc) paramsFunc = x === 'params' && node.type !== 'ArrowFunctionExpression' ? node : null;
       if (Array.isArray(value)) {
         for (const y of value) annotate(y, node, x);
       } else if (value.type) annotate(value, node, x);
     }
   }
-  paramsFunc = previousParamsFunc;
 
   if (openedScope) {
     scopes.pop();
@@ -950,6 +973,7 @@ const evalVarNames = (node, out = [], top = true) => {
   return out;
 };
 
+let paramDecl = null, paramTdz = null;
 let inEval = false, classFieldInitializerFunc = null, classStaticFunc = null, paramsFunc = null, heritage = null, classStack = [];
 const isStrictBlock = body => {
   for (const x of body) {
