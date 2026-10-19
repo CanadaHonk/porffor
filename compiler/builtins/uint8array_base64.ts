@@ -1,13 +1,12 @@
 import type {} from './porffor.d.ts';
 
-export const __Porffor_uint8array_validate = (ta: any) => {
+// returns length
+export const __Porffor_uint8array_validate = (ta: any): i32 => {
   if (Porffor.type(ta) != Porffor.TYPES.uint8array) {
     throw new TypeError('Method called on incompatible receiver');
   }
 
-  if (Porffor.IR.loadI32(Porffor.IR.loadI32(Porffor.IR.ptr(ta), 4), 0) == 4294967295) {
-    throw new TypeError('Uint8Array has a detached ArrayBuffer');
-  }
+  return __Porffor_typedArray_validate(ta);
 };
 
 export const __Uint8Array_prototype_toBase64 = function (this: Uint8Array, options: any = undefined) {
@@ -34,9 +33,8 @@ export const __Uint8Array_prototype_toBase64 = function (this: Uint8Array, optio
     throw new TypeError('Invalid alphabet');
   }
 
-  __Porffor_uint8array_validate(this);
+  const len: i32 = __Porffor_uint8array_validate(this);
   const taPtr: i32 = Porffor.IR.ptr(this);
-  const len: i32 = Porffor.IR.loadI32(taPtr, 0);
   const bufferPtr: i32 = Porffor.IR.loadI32(taPtr, 4);
 
   const output: bytestring = Porffor.malloc();
@@ -102,9 +100,8 @@ export const __Uint8Array_prototype_toBase64 = function (this: Uint8Array, optio
 };
 
 export const __Uint8Array_prototype_toHex = function (this: Uint8Array) {
-  __Porffor_uint8array_validate(this);
+  const len: i32 = __Porffor_uint8array_validate(this);
   const taPtr: i32 = Porffor.IR.ptr(this);
-  const len: i32 = Porffor.IR.loadI32(taPtr, 0);
   const bufferPtr: i32 = Porffor.IR.loadI32(taPtr, 4);
 
   const output: bytestring = Porffor.malloc();
@@ -535,9 +532,8 @@ export const __Uint8Array_prototype_setFromBase64 = function (this: Uint8Array, 
     throw new TypeError('Invalid lastChunkHandling');
   }
 
-  __Porffor_uint8array_validate(this);
+  const byteLength: i32 = __Porffor_uint8array_validate(this);
   const taPtr: i32 = Porffor.IR.ptr(this);
-  const byteLength: i32 = Porffor.IR.loadI32(taPtr, 0);
   const bufferPtr: i32 = Porffor.IR.loadI32(taPtr, 4);
 
   const result: i32 = __Porffor_fromBase64(str, alphabet, lastChunkHandling, bufferPtr, byteLength);
@@ -616,9 +612,8 @@ export const __Uint8Array_prototype_setFromHex = function (this: Uint8Array, str
     throw new TypeError('First argument must be a string');
   }
 
-  __Porffor_uint8array_validate(this);
+  const byteLength: i32 = __Porffor_uint8array_validate(this);
   const taPtr: i32 = Porffor.IR.ptr(this);
-  const byteLength: i32 = Porffor.IR.loadI32(taPtr, 0);
   const bufferPtr: i32 = Porffor.IR.loadI32(taPtr, 4);
 
   const result: i32 = __Porffor_fromHex(str, bufferPtr, byteLength);

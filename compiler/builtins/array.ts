@@ -85,6 +85,21 @@ export const __Array_from = (arg: any, mapFn: any, thisArg: any = undefined): an
   return out;
 };
 
+// array copy of a non-array this for generic array methods
+export const __Porffor_array_fromThis = (obj: any): any[] => {
+  const t: i32 = Porffor.type(obj);
+  if (Porffor.fastAnd(t >= Porffor.TYPES.uint8clampedarray, t <= Porffor.TYPES.float64array)) {
+    // out of bounds typed arrays have length 0 instead of throwing on iteration
+    const len: i32 = __Porffor_typedArray_length(obj);
+    const out: any[] = Porffor.array.new(len);
+    out.length = len;
+    for (let i: i32 = 0; i < len; i++) out[i] = obj[i];
+    return out;
+  }
+
+  return __Array_from(obj, undefined, undefined);
+};
+
 // 23.1.2.2 Array.fromAsync (items [, mapper [, thisArg]])
 // https://tc39.es/ecma262/multipage/indexed-collections.html#sec-array.fromasync
 export const __Array_fromAsync = async function (items: any, mapper: any = undefined, thisArg: any = undefined) {

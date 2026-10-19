@@ -3395,8 +3395,8 @@ weakmap_seen:
     case ${TYPES.dataview}: {
       const i32 ptr = *(u32*)(MEM + body + 4);
       const i32 byte_offset = *(u32*)(MEM + body + 8);
-      const i32 buffer = ptr - byte_offset;
-      if (buffer != 0) porf_gc_mark_body(buffer);
+      const i32 buffer = ptr - byte_offset - 4;
+      if (ptr != 0) porf_gc_mark_body(buffer);
       break;
     }
     case ${TYPES.uint8clampedarray}:
@@ -3410,8 +3410,8 @@ weakmap_seen:
     case ${TYPES.float64array}:
     case ${TYPES.bigint64array}:
     case ${TYPES.biguint64array}: {
-      const i32 buffer = *(u32*)(MEM + body + 4) - *(u32*)(MEM + body + 8);
-      if (buffer != 0) porf_gc_mark_body(buffer);
+      const i32 ptr = *(u32*)(MEM + body + 4);
+      if (ptr != 0) porf_gc_mark_body(ptr - *(u32*)(MEM + body + 8) - 4);
       break;
     }
   }

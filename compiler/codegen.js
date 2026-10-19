@@ -2,7 +2,7 @@ import {
   K, T, FX, N_KIND, N_TYPE, N_FX, N_A, N_B, N_C,
   Const, JvConst, DataRef, Local, Global, Assign,
   Bin, Un, Select, Convert, CONVERT_SIGNED, CONVERT_RANGE_KNOWN,
-  Reinterpret, Box, JvType, JvNum, JvPtr, Eq, Add, Cmp, JvTruthy, JvFalsy, JvNullish,
+  Reinterpret, Box, JvType, JvNum, JvPtr, JvIsNum, Eq, Add, Cmp, JvTruthy, JvFalsy, JvNullish,
   Load, Store, MemCopy, MemFill,
   If, Loop, Break, Continue, BlockStmt, TypeSwitch, Return, Unreachable,
   Call, CallDynamic, Try, Throw, ThrowNew, Await, Yield,
@@ -3160,45 +3160,16 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       return res;
     };
 
-    const taAddr = size => reuse(scope, Bin('+', T.u32, Load('u32', JvPtr(obj), 4),
-      size === 1 ? Convert(T.u32, numValue(prop), 0) : Bin('*', T.u32, Convert(T.u32, numValue(prop), 0), Const(T.u32, size))));
-    const taSet = (ctype, size) => () => {
-      const addr = taAddr(size);
+    const taSet = t => () => {
       const v = reuse(scope, op === '=' ? simpleValue
-        : performOp(scope, op, Box(Convert(T.f64, Load(ctype, addr, 4)), Const(T.i32, TYPES.number)), generate(scope, decl.right), TYPES.number, getNodeType(scope, decl.right)));
-      const f = numValue(v);
-      stmt(scope, Store(ctype, addr, 4, ctype === 'f64' || ctype === 'f32' ? f : toUint32(scope, f)));
+        : performOp(scope, op, typedArrayGet(scope, obj, prop, t), generate(scope, decl.right), null, getNodeType(scope, decl.right)));
+      typedArraySet(scope, obj, prop, t, v);
       return v[N_TYPE] === T.jsval ? v : valNumber(v);
-    };
-    const taSetClamped = () => {
-      const addr = taAddr(1);
-      const v = reuse(scope, op === '=' ? simpleValue
-        : performOp(scope, op, Box(Convert(T.f64, Load('u8', addr, 4)), Const(T.i32, TYPES.number)), generate(scope, decl.right), TYPES.number, getNodeType(scope, decl.right)));
-      // ToUint8Clamp: clamp then round half to even
-      stmt(scope, Store('u8', addr, 4, Convert(T.u32, Un('nearest', T.f64, Bin('min', T.f64, Bin('max', T.f64, numValue(v), Const(T.f64, 0)), Const(T.f64, 255))), 0)));
-      return v[N_TYPE] === T.jsval ? v : valNumber(v);
-    };
-    const taSetBig = () => {
-      const addr = taAddr(8);
-      const v = reuse(scope, op === '=' ? builtinCall(scope, '__ecma262_ToBigInt', [ simpleValue ])
-        : performOp(scope, op, builtinCall(scope, '__Porffor_bigint_fromS64', [ Load('i64', addr, 4) ]), builtinCall(scope, '__ecma262_ToBigInt', [ generate(scope, decl.right) ]), TYPES.bigint, TYPES.bigint));
-      stmt(scope, Store('i64', addr, 4, builtinCall(scope, '__Porffor_bigint_toI64', [ v ])));
-      return v;
     };
 
     const indexedMemberSetBC = [
       [ TYPES.array, arraySet ],
-      [ TYPES.uint8array, taSet('u8', 1) ],
-      [ TYPES.uint8clampedarray, taSetClamped ],
-      [ TYPES.int8array, taSet('i8', 1) ],
-      [ TYPES.uint16array, taSet('u16', 2) ],
-      [ TYPES.int16array, taSet('i16', 2) ],
-      [ TYPES.uint32array, taSet('u32', 4) ],
-      [ TYPES.int32array, taSet('i32', 4) ],
-      [ TYPES.float32array, taSet('f32', 4) ],
-      [ TYPES.float64array, taSet('f64', 8) ],
-      [ TYPES.bigint64array, taSetBig ],
-      [ TYPES.biguint64array, taSetBig ]
+      ...TYPED_ARRAY_TYPES.map(t => [ t, taSet(t) ])
     ];
 
     const genericMemberSetBC = [
@@ -3621,12 +3592,10 @@ const generateForOf = (scope, decl) => {
   depth.push(d);
   inferLoopStart(scope);
 
-  const num = x => Box(Convert(T.f64, x), Const(T.i32, TYPES.number));
-  const taNext = (ctype, size, box) => () => {
-    emitIf(scope, Bin('==', T.i32, counter, length), () => stmt(scope, Break(L)));
-    const addr = reuse(scope, Bin('+', T.u32, Load('u32', pointer, 4),
-      size === 1 ? counter : Bin('*', T.u32, counter, Const(T.u32, size))));
-    const v = reuse(scope, box(Load(ctype, addr, 4)));
+  const taNext = t => () => {
+    // length is rechecked each step as a resizable buffer can change it
+    emitIf(scope, Bin('>=', T.i32, counter, typedArrayLength(scope, root, '__Porffor_typedArray_validate')), () => stmt(scope, Break(L)));
+    const v = reuse(scope, typedArrayLoad(scope, root, counter, t));
     assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
     return v;
   };
@@ -3681,16 +3650,7 @@ const generateForOf = (scope, decl) => {
       [ TYPES.string, strNext('u16', 2, TYPES.string) ],
       [ TYPES.bytestring, strNext('u8', 1, TYPES.bytestring) ],
 
-      [ [ TYPES.uint8array, TYPES.uint8clampedarray ], taNext('u8', 1, num) ],
-      [ TYPES.int8array, taNext('i8', 1, num) ],
-      [ TYPES.uint16array, taNext('u16', 2, num) ],
-      [ TYPES.int16array, taNext('i16', 2, num) ],
-      [ TYPES.uint32array, taNext('u32', 4, num) ],
-      [ TYPES.int32array, taNext('i32', 4, num) ],
-      [ TYPES.float32array, taNext('f32', 4, num) ],
-      [ TYPES.float64array, taNext('f64', 8, x => Box(x, Const(T.i32, TYPES.number))) ],
-      [ TYPES.bigint64array, taNext('i64', 8, x => Box(builtinCall(scope, '__Porffor_bigint_fromS64', [ x ]), Const(T.i32, TYPES.bigint))) ],
-      [ TYPES.biguint64array, taNext('i64', 8, x => Box(builtinCall(scope, '__Porffor_bigint_fromU64', [ x ]), Const(T.i32, TYPES.bigint))) ],
+      ...TYPED_ARRAY_TYPES.map(t => [ t, taNext(t) ]),
 
       [ TYPES.set, () => {
         const count = reuse(scope, Load('u32', length, 0));
@@ -4163,6 +4123,87 @@ const generateArray = (scope, decl, name = '$undeclared', staticAlloc = false) =
 const toPropertyKey = (scope, key, computed = false) =>
   computed ? builtinCall(scope, '__ecma262_ToPropertyKey', [ key[N_TYPE] === T.jsval ? key : valNumber(key) ]) : key;
 
+// views on resizable buffers have length -1 and compute it from their buffer
+const typedArrayLength = (scope, obj) => {
+  const len = reuse(scope, LenGet(JvPtr(obj)));
+  return Select(Bin('==', T.i32, len, Const(T.i32, -1)), builtinCall(scope, '__Porffor_typedArray_length', [ obj ], T.i32), len);
+};
+
+// element ctype, size, signed
+const typedArrayElements = {
+  [TYPES.uint8array]: [ 'u8', 1, false ],
+  [TYPES.uint8clampedarray]: [ 'u8', 1, false ],
+  [TYPES.int8array]: [ 'i8', 1, true ],
+  [TYPES.uint16array]: [ 'u16', 2, false ],
+  [TYPES.int16array]: [ 'i16', 2, true ],
+  [TYPES.uint32array]: [ 'u32', 4, false ],
+  [TYPES.int32array]: [ 'i32', 4, true ],
+  [TYPES.float32array]: [ 'f32', 4, true ],
+  [TYPES.float64array]: [ 'f64', 8, true ],
+  [TYPES.bigint64array]: [ 'i64', 8, true ],
+  [TYPES.biguint64array]: [ 'i64', 8, false ]
+};
+
+const typedArrayElementAddr = (obj, idx, size) =>
+  Bin('+', T.u32, Load('u32', JvPtr(obj), 4), size === 1 ? idx : Bin('*', T.u32, idx, Const(T.u32, size)));
+
+// IsValidIntegerIndex for a number key
+const typedArrayIndex = (scope, obj, prop) => {
+  const num = reuse(scope, numValue(prop));
+  const idx = reuse(scope, Convert(T.u32, num, 0));
+  return {
+    idx,
+    valid: Bin('&&', T.i32,
+      Bin('==', T.i32, num, Convert(T.f64, idx, 0)),
+      Bin('<', T.u32, idx, Convert(T.u32, typedArrayLength(scope, obj))))
+  };
+};
+
+// element idx boxed as a value, idx must be in bounds
+const typedArrayLoad = (scope, obj, idx, t) => {
+  const [ ctype, size, signed ] = typedArrayElements[t];
+  const loaded = Load(ctype, typedArrayElementAddr(obj, idx, size), 4);
+  const big = ctype === 'i64' ? builtinCall(scope, signed ? '__Porffor_bigint_fromS64' : '__Porffor_bigint_fromU64', [ loaded ]) : null;
+  return big
+    ? (big[N_TYPE] === T.jsval ? big : Box(big, Const(T.i32, TYPES.bigint)))
+    : Box(ctype === 'f32' || ctype === 'f64' ? loaded : Convert(T.f64, loaded, signed ? CONVERT_SIGNED : 0), Const(T.i32, TYPES.number));
+};
+
+// integer-indexed [[Get]] for a number key: undefined unless a valid index
+const typedArrayGet = (scope, obj, prop, t) => {
+  const { idx, valid } = typedArrayIndex(scope, obj, prop);
+  const res = tmp(scope, T.jsval);
+  emitIf(scope, valid, () => assign(scope, res, typedArrayLoad(scope, obj, idx, t)), () => assign(scope, res, valUndefined()));
+  return res;
+};
+
+// TypedArraySetElement for a number key: convert the value, then store if a valid index
+const typedArraySet = (scope, obj, prop, t, v) => {
+  const [ ctype, size ] = typedArrayElements[t];
+  let n;
+  if (ctype === 'i64') {
+    n = reuse(scope, builtinCall(scope, '__ecma262_ToBigInt', [ v ]));
+  } else if (isRawNum(v)) {
+    n = reuse(scope, numValue(v));
+  } else {
+    n = tmp(scope, T.f64);
+    emitIf(scope, JvIsNum(v),
+      () => assign(scope, n, JvNum(v)),
+      () => assign(scope, n, numValue(builtinCall(scope, '__ecma262_ToNumber', [ v ]))));
+  }
+
+  const { idx, valid } = typedArrayIndex(scope, obj, prop);
+  emitIf(scope, valid, () => {
+    const addr = reuse(scope, typedArrayElementAddr(obj, idx, size));
+    let stored;
+    if (ctype === 'i64') stored = builtinCall(scope, '__Porffor_bigint_toI64', [ n ]);
+      else if (ctype === 'f32' || ctype === 'f64') stored = n;
+      else if (t === TYPES.uint8clampedarray) stored = Convert(T.u32, Un('nearest', T.f64, Bin('min', T.f64, n, Const(T.f64, 255))), 0);
+      else stored = toUint32(scope, n);
+    stmt(scope, Store(ctype, addr, 4, stored));
+  });
+};
+
 const denseArrayIndexKey = (scope, prop) => {
   const num = reuse(scope, numValue(prop));
   const idx = reuse(scope, Convert(T.u32, num, 0));
@@ -4432,7 +4473,7 @@ const generateMember = (scope, decl, objValue = null) => {
     } ]);
 
   const lengthMemberGet = () => {
-    const lengthVal = () => Box(Convert(T.f64, LenGet(JvPtr(obj))), Const(T.i32, TYPES.number));
+    const lengthVal = () => Box(Convert(T.f64, known != null && !TYPED_ARRAY_TYPES.includes(known) ? LenGet(JvPtr(obj)) : typedArrayLength(scope, obj)), Const(T.i32, TYPES.number));
     const arrayLengthVal = () => Box(Convert(T.f64, Load('u32', JvPtr(obj), 0)), Const(T.i32, TYPES.number));
     if (known === TYPES.array) return arrayLengthVal();
     if (Prefs.fastLength || (known != null && (known & TYPE_FLAGS.length) !== 0)) return lengthVal();
@@ -4446,16 +4487,6 @@ const generateMember = (scope, decl, objValue = null) => {
         () => assign(scope, res, genericMemberGet())));
     return res;
   };
-
-  const taAddr = size => Bin('+', T.u32, Load('u32', JvPtr(obj), 4),
-    size === 1 ? Convert(T.u32, numValue(prop), 0) : Bin('*', T.u32, Convert(T.u32, numValue(prop), 0), Const(T.u32, size)));
-  const taGet = (ctype, size, signed = true) => () => {
-    const loaded = Load(ctype, taAddr(size), 4);
-    const f = ctype === 'f32' || ctype === 'f64' ? loaded : Convert(T.f64, loaded, signed ? CONVERT_SIGNED : 0);
-    return Box(f, Const(T.i32, TYPES.number));
-  };
-  const taGetBig = signed => () =>
-    builtinCall(scope, signed ? '__Porffor_bigint_fromS64' : '__Porffor_bigint_fromU64', [ Load('i64', taAddr(8), 4) ]);
 
   const strGet = (ctype, size, strType) => () => {
     const out = reuse(scope, Alloc(Const(T.i32, 8), strType));
@@ -4477,16 +4508,7 @@ const generateMember = (scope, decl, objValue = null) => {
     } ],
     [ TYPES.string, strGet('u16', 2, TYPES.string) ],
     [ TYPES.bytestring, strGet('u8', 1, TYPES.bytestring) ],
-    [ [ TYPES.uint8array, TYPES.uint8clampedarray ], taGet('u8', 1, false) ],
-    [ TYPES.int8array, taGet('i8', 1, true) ],
-    [ TYPES.uint16array, taGet('u16', 2, false) ],
-    [ TYPES.int16array, taGet('i16', 2, true) ],
-    [ TYPES.uint32array, taGet('u32', 4, false) ],
-    [ TYPES.int32array, taGet('i32', 4, true) ],
-    [ TYPES.float32array, taGet('f32', 4) ],
-    [ TYPES.float64array, taGet('f64', 8) ],
-    [ TYPES.bigint64array, taGetBig(true) ],
-    [ TYPES.biguint64array, taGetBig(false) ],
+    ...TYPED_ARRAY_TYPES.map(t => [ t, () => typedArrayGet(scope, obj, prop, t) ]),
     ...genericMemberGetBC
   ];
 
@@ -5060,7 +5082,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         const prettyName = name.slice(2).replace('_prototype_', '.prototype.');
         if (t === TYPES.array) {
           emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, TYPES.array)),
-            () => assign(func, thisRef(), builtinCall(func, '__Array_from', [ thisRef(), valUndefined(), valUndefined() ])));
+            () => assign(func, thisRef(), builtinCall(func, '__Porffor_array_fromThis', [ thisRef() ])));
         } else if (t === TYPES.string) {
           emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, TYPES.string)), () => {
             const nonNullish = () => internalThrow(func, 'TypeError', `${prettyName} expects 'this' to be non-nullish`);

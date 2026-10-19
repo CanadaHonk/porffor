@@ -122,6 +122,10 @@ export const __Porffor_iterator_step = (rec: any[]): any => {
     return entry;
   }
 
+  if (Porffor.fastAnd(t >= Porffor.TYPES.uint8clampedarray, t <= Porffor.TYPES.float64array)) {
+    if (__Porffor_typedArray_lengthOrOOB(iter) < 0) throw new TypeError('Typed array is detached or out of bounds');
+  }
+
   const len: i32 = iter.length;
   if (i >= len) {
     rec[2] = true;

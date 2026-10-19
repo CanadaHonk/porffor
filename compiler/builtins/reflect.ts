@@ -17,6 +17,16 @@ export const __Reflect_set = (target: any, prop: any, value: any, receiver: any 
     if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_set(target, ecma262.ToPropertyKey(prop), value, receiver);
   }
 
+  // typed array [[Set]] with another receiver ignores invalid integer indices
+  if (Porffor.fastAnd(
+    Porffor.type(target) >= Porffor.TYPES.uint8clampedarray,
+    Porffor.type(target) <= Porffor.TYPES.float64array,
+    Porffor.type(prop) == Porffor.TYPES.number,
+    receiver !== target
+  )) {
+    if (!__Porffor_typedArray_validIndex(target, prop)) return true;
+  }
+
   try {
     target[prop] = value;
     return true;
@@ -113,6 +123,12 @@ export const __Reflect_ownKeys = (target: any) => {
 
   const out: any[] = Porffor.array.new(4);
   let i: i32 = 0;
+
+  const taType: i32 = Porffor.type(target);
+  if (Porffor.fastAnd(taType >= Porffor.TYPES.uint8clampedarray, taType <= Porffor.TYPES.float64array)) {
+    const taLen: i32 = __Porffor_typedArray_length(target);
+    for (let j: i32 = 0; j < taLen; j++) out[i++] = Porffor.callThis(__Number_prototype_toString, j);
+  }
 
   if (Porffor.type(target) == Porffor.TYPES.array) {
     const arrayLen: i32 = (target as any[]).length;

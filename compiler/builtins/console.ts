@@ -248,10 +248,10 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
       if (colors) Porffor.printStatic('\x1b[0m');
       Porffor.printStatic('): <');
 
-      const buffer = new Uint8Array(arg);
-      const bufferLen = buffer.length - 1;
+      const bufferPtr: i32 = Porffor.IR.ptr(arg);
+      const bufferLen: i32 = Porffor.IR.loadI32(bufferPtr, 0) - 1;
       for (let i: i32 = 0; i <= bufferLen; i++) {
-        const ele = buffer[i];
+        const ele: i32 = Porffor.IR.loadU8(bufferPtr + 8 + i, 0);
         __Porffor_printHexDigit((ele & 0xF0) / 16);
         __Porffor_printHexDigit(ele & 0xF);
         if (i != bufferLen) Porffor.printStatic(' ');
