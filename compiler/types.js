@@ -56,6 +56,7 @@ for (const x of [ 'Uint8Clamped', 'Uint8', 'Int8', 'Uint16', 'Int16', 'Uint32', 
 export const TYPED_ARRAY_TYPES = Object.values(TYPES).filter(x => x >= TYPES.uint8clampedarray && x <= TYPES.float64array);
 
 registerInternalType('WeakRef');
+registerInternalType('FinalizationRegistry');
 registerInternalType('WeakSet');
 registerInternalType('WeakMap');
 
@@ -70,5 +71,8 @@ registerInternalType('__Porffor_ClosureEnv');
 registerInternalType('__Porffor_Generator');
 registerInternalType('__Porffor_AsyncGenerator');
 
-for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval', 'URI' ])
+for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval', 'URI', 'Suppressed' ])
   registerInternalType(`${x}Error`);
+
+registerInternalType('DisposableStack');
+registerInternalType('AsyncDisposableStack');

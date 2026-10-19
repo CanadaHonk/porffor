@@ -19,7 +19,8 @@ let defaultPrefs = null;
 
 // spec .length read off the host's builtin: counting params gets optional and rest args wrong
 const hostLength = name => {
-  if (!name.startsWith('__') || name.startsWith('__Porffor_') || name.startsWith('__console_')) return;
+  if (!name.startsWith('__')) return typeof globalThis[name] === 'function' ? globalThis[name].length : undefined;
+  if (name.startsWith('__Porffor_') || name.startsWith('__console_')) return;
 
   // accessors: getters have no params and setters one, like the host's
   if (/\$[gs]et$/.test(name)) return;
@@ -464,6 +465,7 @@ const precompile = async () => {
     if (x.returnType != null) meta.returnType = x.returnType;
     if (returnTypes.length) meta.returnTypes = returnTypes;
     meta.jsLength = x.jsLength;
+    if (x.memberReads?.size) meta.memberReads = [ ...x.memberReads ];
     if (localNames.length) { meta.localNames = localNames; meta.localTypes = localTypes; }
     if (localMeta.length) meta.localMetadata = localMeta;
     if (x.data && Object.keys(x.data).length) meta.data = x.data;

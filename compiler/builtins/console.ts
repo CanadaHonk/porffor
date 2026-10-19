@@ -313,28 +313,15 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
       return;
 
     case Porffor.TYPES.error:
-      __Porffor_printString(Porffor.callThis(__Error_prototype_toString, arg));
-      return;
     case Porffor.TYPES.aggregateerror:
-      __Porffor_printString(Porffor.callThis(__AggregateError_prototype_toString, arg));
-      return;
     case Porffor.TYPES.typeerror:
-      __Porffor_printString(Porffor.callThis(__TypeError_prototype_toString, arg));
-      return;
     case Porffor.TYPES.referenceerror:
-      __Porffor_printString(Porffor.callThis(__ReferenceError_prototype_toString, arg));
-      return;
     case Porffor.TYPES.syntaxerror:
-      __Porffor_printString(Porffor.callThis(__SyntaxError_prototype_toString, arg));
-      return;
     case Porffor.TYPES.rangeerror:
-      __Porffor_printString(Porffor.callThis(__RangeError_prototype_toString, arg));
-      return;
     case Porffor.TYPES.evalerror:
-      __Porffor_printString(Porffor.callThis(__EvalError_prototype_toString, arg));
-      return;
     case Porffor.TYPES.urierror:
-      __Porffor_printString(Porffor.callThis(__URIError_prototype_toString, arg));
+    case Porffor.TYPES.suppressederror:
+      __Porffor_printString(Porffor.callThis(__Error_prototype_toString, arg));
       return;
   }
 };

@@ -472,8 +472,6 @@ export const __Promise_prototype_finally = function (this: any, onFinally: any) 
 };
 
 export const __Porffor_promise_getResolve = (C: any): any => {
-  // referenced so Promise.resolve exists on the lazily built Promise object
-  const intrinsic: any = __Promise_resolve;
   const resolve: any = C.resolve;
   if (Porffor.type(resolve) != Porffor.TYPES.function) throw new TypeError('Promise resolve is not callable');
   return resolve;

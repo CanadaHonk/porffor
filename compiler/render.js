@@ -3247,6 +3247,10 @@ static int porf_gc_should_rescan_marked_body(i32 body, i32 type) {
     case ${TYPES.rangeerror}:
     case ${TYPES.evalerror}:
     case ${TYPES.urierror}:
+    case ${TYPES.suppressederror}:
+    case ${TYPES.disposablestack}:
+    case ${TYPES.asyncdisposablestack}:
+    case ${TYPES.finalizationregistry}:
     case ${TYPES.regexp}:
     case ${TYPES.dataview}:
     case ${TYPES.uint8clampedarray}:
@@ -3363,7 +3367,11 @@ weakmap_seen:
     case ${TYPES.syntaxerror}:
     case ${TYPES.rangeerror}:
     case ${TYPES.evalerror}:
-    case ${TYPES.urierror}: {
+    case ${TYPES.urierror}:
+    case ${TYPES.suppressederror}:
+    case ${TYPES.disposablestack}:
+    case ${TYPES.asyncdisposablestack}:
+    case ${TYPES.finalizationregistry}: {
       const jsval v = porf_unpack(*(jsbits*)(MEM + body));
       porf_gc_mark_js(v.val, v.type);
       break;
@@ -3471,6 +3479,10 @@ static void porf_gc_mark_js(f64 value, i32 type) {
     case ${TYPES.rangeerror}:
     case ${TYPES.evalerror}:
     case ${TYPES.urierror}:
+    case ${TYPES.suppressederror}:
+    case ${TYPES.disposablestack}:
+    case ${TYPES.asyncdisposablestack}:
+    case ${TYPES.finalizationregistry}:
       break;
     default:
       return;

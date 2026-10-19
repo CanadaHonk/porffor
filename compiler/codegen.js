@@ -13,6 +13,7 @@ import { TYPES, TYPE_FLAGS, TYPE_NAMES, TYPED_ARRAY_TYPES } from './types.js';
 import semantic, { knownValue, unknownValue } from './semantic.js';
 import parse from './parse.js';
 import temporalPolyfillSource from './temporal.js';
+import desugarUsing from './using.js';
 import './prefs.js';
 
 // jsval constants
@@ -1281,6 +1282,7 @@ const materializeIRBuiltin = (func, name, def) => {
     }
   }
   func.jsLength = def.jsLength ?? func.params.filter(p => p.name[0] !== '#').length;
+  if (!globalThis.precompile && def.memberReads) for (const x of def.memberReads) memberDemands.add(x);
 
   const helpers = irBuiltinHelpers(func, name, def);
   const bodyFn = typeof def.body === 'function' ? def.body : null;
@@ -1643,8 +1645,10 @@ const setObjProp = (obj, prop, value) => objectHack({
 });
 
 const protoOwnerOf = name => name.slice(2, name.indexOf('_prototype'));
+const ERROR_TYPES = Object.values(TYPES).filter(x => x >= TYPES.error && x <= TYPES.suppressederror);
 const protoOwnerTypes = owner => {
   if (owner === 'TypedArray') return TYPED_ARRAY_TYPES;
+  if (owner === 'Error') return ERROR_TYPES;
   const t = TYPES[owner.toLowerCase()] ?? TYPES['__' + owner.toLowerCase()];
   return t == null ? [] : [ t ];
 };
@@ -2926,7 +2930,7 @@ const isIdentAssignable = (scope, name, op = '=') => {
 };
 
 // todo: generate this array procedurally
-const builtinPrototypeGets = ['size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor', 'source', 'flags', 'global', 'ignoreCase', 'multiline', 'dotAll', 'unicode', 'sticky', 'hasIndices', 'unicodeSets', 'lastIndex'];
+const builtinPrototypeGets = ['size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor', 'source', 'flags', 'global', 'ignoreCase', 'multiline', 'dotAll', 'unicode', 'sticky', 'hasIndices', 'unicodeSets', 'lastIndex', 'disposed'];
 
 const ctHash = prop => {
   if (!Prefs.ctHash || !prop ||
@@ -4202,12 +4206,15 @@ const generateObject = (scope, decl) => {
 
 let memberDemands;
 
-const demandMemberRead = decl => {
+// precompiled builtins keep theirs, demanded once they are included
+const demandMemberRead = (scope, decl) => {
   const propName = decl.computed
     ? (decl.property.type === 'Literal' && typeof decl.property.value === 'string' ? decl.property.value
       : decl.property.name?.startsWith('__Symbol_') ? decl.property.name.slice(2) : null)
     : decl.property.name;
-  if (propName && propName !== '__proto__') memberDemands.add(propName);
+  if (!propName || propName === '__proto__') return;
+  if (globalThis.precompile) (scope.memberReads ??= new Set()).add(propName);
+    else memberDemands.add(propName);
 };
 
 const primObjAlias = {
@@ -4239,6 +4246,16 @@ const resolveMemberDemands = scope => {
       }
     }
 
+    // error instances inherit name, message and Error.prototype methods through their own prototype
+    if (propName === 'name' || propName === 'message' || propName === 'constructor' || (builtinPrototypeFuncs.get(propName) ?? []).some(x => protoOwnerOf(x) === 'Error')) {
+      for (const t of ERROR_TYPES) {
+        if (!usedTypes.has(t)) continue;
+        includeBuiltin(scope, '#get___Error_prototype');
+        includeBuiltin(scope, '#get___' + TYPE_NAMES[t] + '_prototype');
+        if (propName === 'constructor') includeBuiltin(scope, TYPE_NAMES[t]);
+      }
+    }
+
     const shared = '__TypedArray_' + propName;
     if (shared in builtinFuncs && TYPED_ARRAY_TYPES.some(t => TYPE_NAMES[t] in funcIndex)) includeBuiltin(scope, shared);
   }
@@ -4247,7 +4264,7 @@ const resolveMemberDemands = scope => {
 let icSites;
 
 const generateMember = (scope, decl, objValue = null) => {
-  if (!globalThis.precompile) demandMemberRead(decl);
+  if (!globalThis.precompile) demandMemberRead(scope, decl);
   // builtins unless reassigned via globalThis
   const globalName = decl.object.name === 'globalThis' && !decl.computed && decl.property.name;
   if (globalName && !globalName.startsWith('__') && globalName !== 'null' && globalName !== 'TypedArray' && !(globalName in globals)) {
@@ -4274,6 +4291,8 @@ const generateMember = (scope, decl, objValue = null) => {
 
   const type = getNodeType(scope, object);
   const known = knownType(scope, type);
+  // reads in builtins of unknown objects can reach any prototype
+  if (globalThis.precompile && (known == null || known === TYPES.object)) demandMemberRead(scope, decl);
   const propertyType = getNodeType(scope, property);
   const propertyKnown = knownType(scope, propertyType);
   const objectKnownValue = knownValue(scope, object);
@@ -5379,7 +5398,7 @@ export default (program, opts = {}) => {
 
   // todo/perf: make this lazy per func (again)
   // semantic relies on object hack happening before
-  program = objectHack(program);
+  program = objectHack(desugarUsing(program));
   if (Prefs.closures) program = semantic(program);
   if (Prefs.p) {
     const last = getLastNode(program.body);

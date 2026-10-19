@@ -292,6 +292,12 @@ export const __Porffor_object_underlying = (_obj: any): any => {
       }
     }
 
+    if (Porffor.fastAnd(objType >= Porffor.TYPES.error, objType <= Porffor.TYPES.suppressederror)) {
+      // the message slot is the own message property, if any
+      const message: any = Porffor.IR.loadJv(obj, 0);
+      if (message !== undefined) __Porffor_object_fastAdd(underlying, 'message', message, 0b1010);
+    }
+
     if (objType == Porffor.TYPES.array) {
       // index props are not materialized (the live array is the source of truth), only expando props and length live here
       const len: i32 = Porffor.IR.loadI32(obj, 0);

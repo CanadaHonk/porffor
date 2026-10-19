@@ -702,22 +702,39 @@ export const __Object_prototype_toString = function (this: any) {
   // 2. If the this value is null, return "[object Null]".
   if (this === null) return '[object Null]';
 
-  // todo: toStringTag support
-  if (Porffor.type(this) == Porffor.TYPES.array) return '[object Array]';
-  if (Porffor.type(this) == Porffor.TYPES.function) return '[object Function]';
-  if (Porffor.fastOr(
-    Porffor.type(this) == Porffor.TYPES.boolean,
-    Porffor.type(this) == Porffor.TYPES.booleanobject)) return '[object Boolean]';
-  if (Porffor.fastOr(
-    Porffor.type(this) == Porffor.TYPES.number,
-    Porffor.type(this) == Porffor.TYPES.numberobject)) return '[object Number]';
-  if (Porffor.fastOr(
-    (Porffor.type(this) | 0b10000000) == Porffor.TYPES.bytestring,
-    Porffor.type(this) == Porffor.TYPES.stringobject)) return '[object String]';
-  if (Porffor.type(this) == Porffor.TYPES.date) return '[object Date]';
-  if (Porffor.type(this) == Porffor.TYPES.regexp) return '[object RegExp]';
+  const t: i32 = Porffor.type(this);
+  let builtinTag: any = 'Object';
+  if (t == Porffor.TYPES.array) builtinTag = 'Array';
+    else if (t == Porffor.TYPES.function) builtinTag = 'Function';
+    else if (Porffor.fastAnd(t >= Porffor.TYPES.error, t <= Porffor.TYPES.suppressederror)) builtinTag = 'Error';
+    else if (Porffor.fastOr(t == Porffor.TYPES.boolean, t == Porffor.TYPES.booleanobject)) builtinTag = 'Boolean';
+    else if (Porffor.fastOr(t == Porffor.TYPES.number, t == Porffor.TYPES.numberobject)) builtinTag = 'Number';
+    else if (Porffor.fastOr((t | 0b10000000) == Porffor.TYPES.bytestring, t == Porffor.TYPES.stringobject)) builtinTag = 'String';
+    else if (t == Porffor.TYPES.date) builtinTag = 'Date';
+    else if (t == Porffor.TYPES.regexp) builtinTag = 'RegExp';
 
-  return '[object Object]';
+  const tag: any = this[Symbol.toStringTag];
+  if (Porffor.type(tag) == Porffor.TYPES.bytestring) builtinTag = tag;
+    else if (Porffor.type(tag) == Porffor.TYPES.string) builtinTag = tag;
+    else if (Porffor.fastAnd(tag === undefined, __Porffor_object_getPrototypeWithHidden(this, t) === __Porffor_object_getHiddenPrototype(Porffor.TYPES.object))) {
+      // builtin prototypes are built lazily: use their own toStringTag
+      if (t == Porffor.TYPES.map) builtinTag = 'Map';
+        else if (t == Porffor.TYPES.set) builtinTag = 'Set';
+        else if (t == Porffor.TYPES.weakmap) builtinTag = 'WeakMap';
+        else if (t == Porffor.TYPES.weakset) builtinTag = 'WeakSet';
+        else if (t == Porffor.TYPES.weakref) builtinTag = 'WeakRef';
+        else if (t == Porffor.TYPES.promise) builtinTag = 'Promise';
+        else if (t == Porffor.TYPES.symbol) builtinTag = 'Symbol';
+        else if (t == Porffor.TYPES.bigint) builtinTag = 'BigInt';
+        else if (t == Porffor.TYPES.arraybuffer) builtinTag = 'ArrayBuffer';
+        else if (t == Porffor.TYPES.sharedarraybuffer) builtinTag = 'SharedArrayBuffer';
+        else if (t == Porffor.TYPES.dataview) builtinTag = 'DataView';
+        else if (t == Porffor.TYPES.finalizationregistry) builtinTag = 'FinalizationRegistry';
+        else if (t == Porffor.TYPES.disposablestack) builtinTag = 'DisposableStack';
+        else if (t == Porffor.TYPES.asyncdisposablestack) builtinTag = 'AsyncDisposableStack';
+    }
+
+  return '[object ' + builtinTag + ']';
 };
 
 export const __Object_prototype_toLocaleString = function (this: any) { return Porffor.callThis(__Object_prototype_toString, this); };
