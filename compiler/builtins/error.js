@@ -50,6 +50,35 @@ export const __Error_prototype_toString = function (this: any) {
   return name + ': ' + message;
 };
 
+export const __Error_prototype_stack$get = function (this: any) {
+  if (!Porffor.object.isObject(this)) throw new TypeError('Error.prototype.stack getter called on non-object');
+  if (!__Error_isError(this)) return undefined;
+  return Porffor.callThis(__Error_prototype_toString, this);
+};
+
+export const __Error_prototype_stack$set = function (this: any, _argc: i32, value: any) {
+  if (!Porffor.object.isObject(this)) throw new TypeError('Error.prototype.stack setter called on non-object');
+  if (_argc == 0) throw new TypeError('Error.prototype.stack setter requires a value');
+  if (this === Error.prototype) throw new TypeError('Cannot set stack on Error.prototype');
+  if (Porffor.comptime.flag\`hasFunc.Proxy\`) {
+    if (Porffor.type(this) == Porffor.TYPES.proxy) {
+      if (__Reflect_getOwnPropertyDescriptor(this, 'stack') === undefined) {
+        if (!__Reflect_defineProperty(this, 'stack', { value, writable: true, enumerable: true, configurable: true })) throw new TypeError('Cannot define stack');
+      } else if (!__Reflect_set(this, 'stack', value)) throw new TypeError('Cannot set stack');
+      return;
+    }
+  }
+
+  const obj: object = __Porffor_object_underlying(this);
+  if (__Porffor_object_lookup(obj, 'stack', __Porffor_object_hash('stack')) != 0) {
+    __Porffor_object_setStrict(this, 'stack', value);
+    return;
+  }
+
+  if (!__Object_isExtensible(this)) throw new TypeError('Cannot define stack');
+  __Porffor_object_define(obj, 'stack', value, 0b1110);
+};
+
 export const __Error_isError = (x: unknown): boolean => Porffor.fastAnd(Porffor.type(x) >= Porffor.TYPES.error, Porffor.type(x) <= Porffor.TYPES.suppressederror);`;
 
   return out;
