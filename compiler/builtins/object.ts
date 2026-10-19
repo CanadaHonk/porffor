@@ -483,10 +483,10 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|u
     if (idx != -1) {
       if (!__Porffor_array_has(arr, idx)) return undefined;
       const out: object = {};
-      out.configurable = true;
-      out.enumerable = true;
-      out.writable = true;
       out.value = arr[idx];
+      out.writable = true;
+      out.enumerable = true;
+      out.configurable = true;
       return out;
     }
 
@@ -495,11 +495,10 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|u
       const v: any = obj[p];
       if (v != null) {
         const out: object = {};
+        out.value = v;
         out.writable = false;
         out.enumerable = false;
         out.configurable = true;
-
-        out.value = v;
         return out;
       }
     }
@@ -509,22 +508,16 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|u
 
   const tail: i32 = Porffor.IR.loadU16(entryPtr, 16);
   const out: object = {};
-  out.configurable = !!(tail & 0b0010);
-  out.enumerable = !!(tail & 0b0100);
-
   if (tail & 0b0001) {
     out.get = Porffor.object.accessorGet(entryPtr);
     out.set = Porffor.object.accessorSet(entryPtr);
-
-    return out;
+  } else {
+    out.value = Porffor.object.readValue(entryPtr);
+    out.writable = !!(tail & 0b1000);
   }
 
-  // data descriptor
-  const value: any = Porffor.object.readValue(entryPtr);
-
-  out.writable = !!(tail & 0b1000);
-  out.value = value;
-
+  out.enumerable = !!(tail & 0b0100);
+  out.configurable = !!(tail & 0b0010);
   return out;
 };
 
