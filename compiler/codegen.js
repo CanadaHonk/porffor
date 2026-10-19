@@ -2117,6 +2117,9 @@ const generateCall = (scope, decl) => {
     if (key?.type === 'Literal' && typeof key.value === 'string' && key.value !== 'constructor') (scope.memberReads ??= new Set()).add(key.value);
   }
 
+  // Number() of nothing is 0, of undefined NaN
+  if (decl.callee.name === 'Number' && !decl.callee._resolvedVariable && decl.arguments.length === 0) decl = { ...decl, arguments: [ { type: 'Literal', value: 0 } ] };
+
   // JSON.parse only compiles its reviver path when a reviver can be passed
   if (name === '__JSON_parse' && !globalThis.precompile && (decl.arguments.length > 1 || decl.arguments.some(x => x.type === 'SpreadElement'))) includeBuiltin(scope, '__Porffor_json_reviverUsed');
 

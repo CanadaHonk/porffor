@@ -3,24 +3,17 @@ import type {} from './porffor.d.ts';
 // 21.1.1.1 Number (value)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-number-constructor-number-value
 export const Number = function (value: any): number|any {
-  let n: number = 0;
-
   // 1. If value is present, then
-  // todo: handle undefined (NaN) and not present (0) args differently
-  if (Porffor.type(value) != Porffor.TYPES.undefined) {
-    // a. Let prim be ? ToNumeric(value).
-    let prim: any = value;
-    if (Porffor.object.isObject(prim)) prim = __ecma262_ToPrimitive_Number(prim);
+  // 2. Else, let n be +0𝔽: codegen passes 0 for a missing value
+  // a. Let prim be ? ToNumeric(value).
+  let prim: any = value;
+  if (Porffor.object.isObject(prim)) prim = __ecma262_ToPrimitive_Number(prim);
 
-    // b. If prim is a BigInt, let n be 𝔽(ℝ(prim)).
-    // c. Otherwise, let n be prim.
-    if (Porffor.type(prim) == Porffor.TYPES.bigint) n = __Porffor_bigint_toNumber(prim);
-      else n = ecma262.ToNumber(prim);
-  }
-
-  // 2. Else,
-  // a. Let n be +0𝔽.
-  // n is already 0 (from init value)
+  // b. If prim is a BigInt, let n be 𝔽(ℝ(prim)).
+  // c. Otherwise, let n be prim.
+  let n: number;
+  if (Porffor.type(prim) == Porffor.TYPES.bigint) n = __Porffor_bigint_toNumber(prim);
+    else n = ecma262.ToNumber(prim);
 
   // 3. If NewTarget is undefined, return n.
   if (!new.target) return n;
