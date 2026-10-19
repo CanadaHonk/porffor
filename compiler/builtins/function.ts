@@ -40,6 +40,7 @@ export const __Function_prototype_arguments$get = function (this: any) { return 
 export const __Function_prototype_toLocaleString = function (this: Function) { return Porffor.callThis(__Function_prototype_toString, this); };
 
 export const __Function_prototype_apply = function (this: Function, thisArg: any, argsArray: any) {
+  if (argsArray != null && !Porffor.object.isObject(argsArray)) throw new TypeError('CreateListFromArrayLike called on non-object');
   return Porffor.call(this, Array.from(argsArray ?? []) as any[], thisArg, null);
 };
 
