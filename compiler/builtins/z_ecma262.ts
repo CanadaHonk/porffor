@@ -9,29 +9,52 @@ export const __ecma262_SameValueZero = (x: any, y: any): boolean => {
   return false;
 };
 
-export const __ecma262_ToPrimitive_Number = (input: any): any => {
-  // todo: %Symbol.toPrimitive%
+// 7.1.1 ToPrimitive (input [, preferredType])
+// https://tc39.es/ecma262/#sec-toprimitive
+export const __ecma262_ToPrimitive = (input: any, hint: bytestring): any => {
+  if (!Porffor.object.isObject(input)) return input;
 
-  let value: any = input.valueOf?.();
-  if (value != null && !Porffor.object.isObjectOrNull(value)) return value;
+  const exoticToPrim: any = input[Symbol.toPrimitive];
+  if (exoticToPrim != null) {
+    if (Porffor.type(exoticToPrim) != Porffor.TYPES.function) throw new TypeError('Symbol.toPrimitive is not a function');
+    const result: any = Porffor.callThis(exoticToPrim, input, hint);
+    if (Porffor.object.isObject(result)) throw new TypeError('Cannot convert an object to primitive');
+    return result;
+  }
 
-  value = input.toString?.();
-  if (value != null && !Porffor.object.isObjectOrNull(value)) return value;
+  // primitive wrappers cannot be passed as a dynamic receiver losslessly, call their methods directly
+  if (Porffor.fastOr(
+    Porffor.type(input) == Porffor.TYPES.numberobject,
+    Porffor.type(input) == Porffor.TYPES.booleanobject,
+    Porffor.type(input) == Porffor.TYPES.stringobject
+  )) {
+    let value: any = hint == 'string' ? input.toString?.() : input.valueOf?.();
+    if (value != null && !Porffor.object.isObjectOrNull(value)) return value;
+
+    value = hint == 'string' ? input.valueOf?.() : input.toString?.();
+    if (value != null && !Porffor.object.isObjectOrNull(value)) return value;
+
+    throw new TypeError('Cannot convert an object to primitive');
+  }
+
+  const first: any = hint == 'string' ? input.toString : input.valueOf;
+  if (Porffor.type(first) == Porffor.TYPES.function) {
+    const value: any = Porffor.callThis(first, input);
+    if (!Porffor.object.isObject(value)) return value;
+  }
+
+  const second: any = hint == 'string' ? input.valueOf : input.toString;
+  if (Porffor.type(second) == Porffor.TYPES.function) {
+    const value: any = Porffor.callThis(second, input);
+    if (!Porffor.object.isObject(value)) return value;
+  }
 
   throw new TypeError('Cannot convert an object to primitive');
 };
 
-export const __ecma262_ToPrimitive_String = (input: any): any => {
-  // todo: %Symbol.toPrimitive%
+export const __ecma262_ToPrimitive_Number = (input: any): any => __ecma262_ToPrimitive(input, 'number');
 
-  let value: any = input.toString?.();
-  if (value != null && !Porffor.object.isObjectOrNull(value)) return value;
-
-  value = input.valueOf?.();
-  if (value != null && !Porffor.object.isObjectOrNull(value)) return value;
-
-  throw new TypeError('Cannot convert an object to primitive');
-};
+export const __ecma262_ToPrimitive_String = (input: any): any => __ecma262_ToPrimitive(input, 'string');
 
 // 7.1.4.1.1 StringToNumber (str)
 // https://tc39.es/ecma262/#sec-stringtonumber
