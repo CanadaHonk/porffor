@@ -121,37 +121,7 @@ export const __Reflect_ownKeys = (target: any) => {
     if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_ownKeys(target);
   }
 
-  const out: any[] = Porffor.array.new(4);
-  let i: i32 = 0;
-
-  const taType: i32 = Porffor.type(target);
-  if (Porffor.fastAnd(taType >= Porffor.TYPES.uint8clampedarray, taType <= Porffor.TYPES.float64array)) {
-    const taLen: i32 = __Porffor_typedArray_length(target);
-    for (let j: i32 = 0; j < taLen; j++) out[i++] = Porffor.callThis(__Number_prototype_toString, j);
-  }
-
-  if (Porffor.type(target) == Porffor.TYPES.array) {
-    const arrayLen: i32 = (target as any[]).length;
-    for (let j: i32 = 0; j < arrayLen; j++) {
-      if (!__Porffor_array_has(target as any[], j)) continue;
-      out[i++] = Porffor.callThis(__Number_prototype_toString, j);
-    }
-  }
-
-  target = __Porffor_object_underlying(target);
-  if (Porffor.type(target) == Porffor.TYPES.object) {
-    let ptr: i32 = Porffor.object.entriesPtr(target);
-    const endPtr: i32 = ptr + Porffor.IR.loadU16(target, 0) * 20;
-
-    for (; ptr < endPtr; ptr += 20) {
-      let key: any = Porffor.as(Porffor.IR.loadI32(ptr, 4), Porffor.IR.loadU8(ptr, 18));
-
-      out[i++] = key;
-    }
-  }
-
-  out.length = i;
-  return out;
+  return __Porffor_object_ownKeys(target, 0b011);
 };
 
 
