@@ -612,8 +612,9 @@ export const __ByteString_prototype_includes = function (this: bytestring, searc
 };
 
 
-export const __String_prototype_padStart = function (this: string, targetLength: number, padString: any = undefined) {
+export const __String_prototype_padStart = function (this: string, _targetLength: any, padString: any = undefined) {
   const len: i32 = this.length;
+  const targetLength: number = ecma262.ToLength(_targetLength);
   const todo: i32 = targetLength - len;
   const out: string = Porffor.malloc((todo > 0 ? len + todo : len) * 2 + 6);
 
@@ -657,8 +658,9 @@ export const __String_prototype_padStart = function (this: string, targetLength:
   return out;
 };
 
-export const __ByteString_prototype_padStart = function (this: bytestring, targetLength: number, padString: any = undefined) {
+export const __ByteString_prototype_padStart = function (this: bytestring, _targetLength: any, padString: any = undefined) {
   const len: i32 = this.length;
+  const targetLength: number = ecma262.ToLength(_targetLength);
   const todo: i32 = targetLength - len;
   const out: bytestring = Porffor.malloc((todo > 0 ? len + todo : len) + 5);
 
@@ -699,8 +701,9 @@ export const __ByteString_prototype_padStart = function (this: bytestring, targe
 };
 
 
-export const __String_prototype_padEnd = function (this: string, targetLength: number, padString: any = undefined) {
+export const __String_prototype_padEnd = function (this: string, _targetLength: any, padString: any = undefined) {
   const len: i32 = this.length;
+  const targetLength: number = ecma262.ToLength(_targetLength);
   const todo: i32 = targetLength - len;
   const out: string = Porffor.malloc((todo > 0 ? len + todo : len) * 2 + 6);
 
@@ -743,8 +746,9 @@ export const __String_prototype_padEnd = function (this: string, targetLength: n
   return out;
 };
 
-export const __ByteString_prototype_padEnd = function (this: bytestring, targetLength: number, padString: any = undefined) {
+export const __ByteString_prototype_padEnd = function (this: bytestring, _targetLength: any, padString: any = undefined) {
   const len: i32 = this.length;
+  const targetLength: number = ecma262.ToLength(_targetLength);
   const todo: i32 = targetLength - len;
   const out: bytestring = Porffor.malloc((todo > 0 ? len + todo : len) + 5);
 
