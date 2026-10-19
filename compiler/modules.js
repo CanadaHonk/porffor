@@ -125,7 +125,10 @@ const isEsmSource = (file, src) => {
 };
 
 const ident = name => ({ type: 'Identifier', name });
+const assign = (left, right) => ({ type: 'ExpressionStatement', expression: { type: 'AssignmentExpression', operator: '=', left, right } });
 const literal = value => ({ type: 'Literal', value });
+const call = (name, args = []) => ({ type: 'CallExpression', callee: ident(name), arguments: args, optional: false });
+const throwNew = (type, message) => ({ type: 'ThrowStatement', argument: { type: 'NewExpression', callee: ident(type), arguments: [ literal(message) ] } });
 const member = (object, name) => ({ type: 'MemberExpression', object, property: ident(name), computed: false, optional: false });
 const property = (key, value, kind = 'init') => ({ type: 'Property', kind, computed: false, shorthand: false, method: false, key, value });
 const varDecl = (kind, name, init) => ({
@@ -229,6 +232,7 @@ const constValue = node => {
 
 export default (entrySource, entryFile, opts = {}) => {
   const modules = new Map();
+  const runtimeImportSites = [];
   const entryDir = dirname(entryFile);
   const nodeEnv = Prefs.d ? 'development' : 'production';
   let anyTs = false;
@@ -251,17 +255,18 @@ export default (entrySource, entryFile, opts = {}) => {
 
     const ts = /\.[cm]?tsx?$/.test(file) || !!(entry ? opts.ts : Prefs.parseTypes || Prefs.t);
     anyTs ||= ts;
-    mod.esm = entry || isEsmSource(file, source);
+    mod.esm = entry ? !opts.script : isEsmSource(file, source);
     mod.body = parse(source, { module: mod.esm, ts }).body;
     if (mod.esm) collectModule(mod);
-    else mod.body.unshift(
+    else if (!entry) mod.body.unshift(
       varDecl('const', 'module', { type: 'ObjectExpression', properties: [ property(ident('exports'), { type: 'ObjectExpression', properties: [] }) ] }),
       varDecl('let', 'exports', member(ident('module'), 'exports'))
     );
     return mod;
   };
 
-  const dep = (mod, node, lazy = false) => {
+  // 'dynamic'/'deferred' targets are evaluated when first needed unless something imports them normally
+  const dep = (mod, node, lazy = false, as = null) => {
     const attrs = node.attributes ?? [];
     const type = attrs.find(x => (x.key.name ?? x.key.value) === 'type')?.value.value;
     let file;
@@ -274,13 +279,12 @@ export default (entrySource, entryFile, opts = {}) => {
     }
     const kind = type === 'json' || type === 'text' ? type : (file.endsWith('.json') ? 'json' : null);
     const d = load(file, null, kind);
-    if (!mod.deps.includes(d)) mod.deps.push(d);
+    if (as) d[as] = true;
+      else if (!mod.deps.includes(d)) mod.deps.push(d);
     return d;
   };
   const exportName = node => node.name ?? node.value;
-  const throwExpr = (message, error = 'Error') => ({ type: 'CallExpression', optional: false, arguments: [], callee: { type: 'ArrowFunctionExpression', params: [], async: false, generator: false, expression: false, body: { type: 'BlockStatement', body: [
-    { type: 'ThrowStatement', argument: { type: 'NewExpression', callee: ident(error), arguments: [ literal(message) ] } }
-  ] } } });
+  const throwExpr = (message, error = 'Error') => ({ type: 'CallExpression', optional: false, arguments: [], callee: { type: 'ArrowFunctionExpression', params: [], async: false, generator: false, expression: false, body: { type: 'BlockStatement', body: [ throwNew(error, message) ] } } });
 
   // import/export syntax becomes binding records, the rest of the body stays
   const collectModule = mod => {
@@ -289,11 +293,12 @@ export default (entrySource, entryFile, opts = {}) => {
       switch (node.type) {
         case 'ImportDeclaration': {
           if (node.importKind === 'type') break;
-          const d = dep(mod, node);
+          const deferred = node.phase === 'defer';
+          const d = dep(mod, node, false, deferred ? 'deferred' : null);
           for (const spec of node.specifiers) {
             if (spec.importKind === 'type') continue;
             const name = spec.type === 'ImportDefaultSpecifier' ? 'default' : spec.type === 'ImportNamespaceSpecifier' ? '*' : exportName(spec.imported);
-            mod.imports.push({ local: spec.local.name, dep: d, name, spec: node.source.value });
+            mod.imports.push({ local: spec.local.name, dep: d, name, spec: node.source.value, deferred });
           }
           break;
         }
@@ -346,7 +351,7 @@ export default (entrySource, entryFile, opts = {}) => {
 
         case 'TSImportEqualsDeclaration':
           if (node.moduleReference.type !== 'TSExternalModuleReference') break;
-          body.push(varDecl('const', node.id.name, { type: 'CallExpression', callee: ident('require'), arguments: [ node.moduleReference.expression ], optional: false }));
+          body.push(varDecl('const', node.id.name, call('require', [ node.moduleReference.expression ])));
           if (node.isExport) mod.exports.set(node.id.name, { local: node.id.name });
           break;
 
@@ -379,11 +384,16 @@ export default (entrySource, entryFile, opts = {}) => {
       return resolveExport(imp.dep, imp.name, seen);
     }
     if (name === 'default') return null;
+    // star exports: the same binding through several stars is fine, different ones are ambiguous
+    let found = null;
     for (const star of mod.stars) {
       const r = resolveExport(star, name, seen);
-      if (r) return r;
+      if (!r) continue;
+      if (r.ambiguous) return r;
+      if (found && (found.global !== r.global || found.ns !== r.ns || found.cjs !== r.cjs || found.prop !== r.prop)) return { ambiguous: true };
+      found ??= r;
     }
-    return null;
+    return found;
   };
   const exportNames = (mod, out = Object.create(null), seen = Object.create(null)) => {
     if (seen[mod.id]) return out;
@@ -394,17 +404,20 @@ export default (entrySource, entryFile, opts = {}) => {
   };
   const exportExpr = r => r.global ? ident(r.global) : r.ns ? ident(nsName(r.ns)) : r.prop != null ? member(exportsOf(r.cjs), r.prop) : exportsOf(r.cjs);
 
-  // esm namespace: live getters. cjs: module.exports itself
-  const namespaceExpr = mod => {
+  const namespaceExpr = (mod, evaluate = null) => {
     if (!mod.esm) return exportsOf(mod);
-    const properties = [];
+    const names = [], properties = [];
     for (const name of Object.keys(exportNames(mod)).sort()) {
       const r = resolveExport(mod, name);
-      if (!r) continue;
+      if (!r || r.ambiguous) continue;
+      names.push(literal(name));
       properties.push(property(literal(name), { type: 'FunctionExpression', id: null, params: [], async: false, generator: false, body: { type: 'BlockStatement', body: [ { type: 'ReturnStatement', argument: exportExpr(r) } ] } }, 'get'));
     }
-    return { type: 'ObjectExpression', properties };
+    return call('__Porffor_module_namespace', [
+      { type: 'ArrayExpression', elements: names }, { type: 'ObjectExpression', properties }, evaluate ?? ident('undefined')
+    ]);
   };
+  const dnsName = mod => { mod.dnsUsed = true; return `#dns#m${mod.id}`; };
 
   // map: original name -> new name or replacement node
   const rename = (mod, map, imported) => {
@@ -452,14 +465,50 @@ export default (entrySource, entryFile, opts = {}) => {
         }
 
         case 'MetaProperty':
-          if (node.meta.name === 'import') return { type: 'ObjectExpression', properties: [ property(ident('url'), literal('file://' + mod.file)) ] };
+          if (node.meta.name === 'import') { mod.metaUsed = true; return ident(`#meta#m${mod.id}`); }
           return node;
 
         case 'ImportExpression': {
-          if (node.source.type !== 'Literal') return node;
-          const d = dep(mod, { source: node.source }, true);
-          if (d.error) return { type: 'CallExpression', callee: member(ident('Promise'), 'reject'), arguments: [ { type: 'NewExpression', callee: ident('Error'), arguments: [ literal(d.error) ] } ], optional: false };
-          return { type: 'CallExpression', callee: member(ident('Promise'), 'resolve'), arguments: [ d.esm ? ident(nsName(d)) : exportsOf(d) ], optional: false };
+          node.source = walk(node.source);
+          if (node.options) node.options = walk(node.options);
+
+          // wrapped in an async arrow so abrupt completions reject like the spec's import()
+          let result;
+          if (node.source.type === 'Literal' && typeof node.source.value === 'string' && node.phase !== 'source') {
+            const attrs = node.options?.type === 'ObjectExpression' ? node.options.properties.find(x => (x.key?.name ?? x.key?.value) === 'with')?.value : null;
+            const d = dep(mod, { source: node.source, attributes: attrs?.type === 'ObjectExpression' ? attrs.properties : [] }, true, 'dynamic');
+            if (d.error) result = { error: d.error };
+              else { if (d.esm) nsName(d); result = { ns: call(`#import#m${d.id}`) }; }
+          } else if (node.phase === 'source') {
+            result = { error: 'Source phase import is not available for source text modules', errorType: 'SyntaxError' };
+          } else {
+            if (!mod.runtimeImports) {
+              mod.runtimeImports = true;
+              // module paths written as literals in the source are likely targets too
+              for (const m of mod.src.matchAll(/(['"`])(\.\.?\/[^'"`\n]+?\.m?[jt]s)\1/g)) dep(mod, { source: literal(m[2]) }, true, 'dynamic');
+            }
+            const cases = [];
+            runtimeImportSites.push(cases);
+            result = { runtime: { type: 'SwitchStatement', discriminant: call('__Porffor_module_resolve', [ literal(dirname(mod.file)), ident('#import_s') ]), cases } };
+          }
+
+          const s = ident('#import_s'), o = ident('#import_o');
+          const typeofIs = (x, t) => ({ type: 'BinaryExpression', operator: '===', left: { type: 'UnaryExpression', operator: 'typeof', prefix: true, argument: x }, right: literal(t) });
+          const not = x => ({ type: 'UnaryExpression', operator: '!', prefix: true, argument: x });
+          const and = (a, b) => ({ type: 'LogicalExpression', operator: '&&', left: a, right: b });
+          const or = (a, b) => ({ type: 'LogicalExpression', operator: '||', left: a, right: b });
+          const body = [
+            assign(ident('#import_s'), { type: 'TemplateLiteral', quasis: [ { type: 'TemplateElement', value: { raw: '', cooked: '' }, tail: false }, { type: 'TemplateElement', value: { raw: '', cooked: '' }, tail: true } ], expressions: [ s ] }),
+            { type: 'IfStatement', test: and(not(typeofIs(o, 'undefined')), not(or(typeofIs(o, 'function'), and(typeofIs(o, 'object'), { type: 'BinaryExpression', operator: '!==', left: o, right: literal(null) })))),
+              consequent: throwNew('TypeError', 'import() options must be an object'), alternate: null },
+            result.error ? throwNew(result.errorType ?? 'TypeError', result.error) : result.runtime ?? { type: 'ReturnStatement', argument: result.ns },
+            ...(result.runtime ? [ throwNew('TypeError', 'porffor: import() target is not part of the bundle') ] : [])
+          ];
+          return {
+            type: 'CallExpression', optional: false,
+            callee: { type: 'ArrowFunctionExpression', params: [ s, o ], async: true, generator: false, expression: false, body: { type: 'BlockStatement', body } },
+            arguments: [ node.source, node.options ?? ident('undefined') ]
+          };
         }
 
         case 'CallExpression':
@@ -576,10 +625,11 @@ export default (entrySource, entryFile, opts = {}) => {
     for (const mod of pending) {
       mod.renamed = true;
       const map = new Map();
-      for (const name of lexicalNames(mod.body, varNames(mod.body, []))) {
+      // a script entry's top-level names are globals, so they keep their names
+      if (!(mod.entry && opts.script)) for (const name of lexicalNames(mod.body, varNames(mod.body, []))) {
         if (!(mod.entry && isHostHook(name))) map.set(name, globalName(mod, name));
       }
-      if (!mod.esm) {
+      if (!mod.esm && !mod.entry) {
         map.set('__filename', literal(mod.file));
         map.set('__dirname', literal(dirname(mod.file)));
       }
@@ -588,8 +638,13 @@ export default (entrySource, entryFile, opts = {}) => {
       for (const imp of mod.imports) {
         imported[imp.local] = true;
         const r = imp.name === '*' ? (imp.dep.esm ? { ns: imp.dep } : { cjs: imp.dep, prop: null }) : resolveExport(imp.dep, imp.name);
-        if (!r) throw new SyntaxError(`The requested module '${imp.spec}' does not provide an export named '${imp.name}'`);
+        if (!r || r.ambiguous) {
+          // only fatal if the module is evaluated eagerly, see below
+          mod.linkError ??= `The requested module '${imp.spec}' does not provide an export named '${imp.name}'`;
+          continue;
+        }
         if (r.global) { map.set(imp.local, r.global); continue; }
+        if (imp.deferred && imp.name === '*') { map.set(imp.local, dnsName(imp.dep)); continue; }
         if (r.ns) { map.set(imp.local, r.ns.esm ? { ns: r.ns } : nsName(r.ns)); continue; }
         // cjs exports are read once after the module ran. default follows __esModule interop
         const value = imp.name === 'default' ? {
@@ -604,7 +659,31 @@ export default (entrySource, entryFile, opts = {}) => {
     }
   }
 
+  // indirect exports must resolve too
+  for (const mod of modules.values()) {
+    if (!mod.esm) continue;
+    for (const [ name, x ] of mod.exports) {
+      if (x.from == null) continue;
+      const r = resolveExport(mod, name);
+      if (!r || r.ambiguous) mod.linkError ??= `The requested module '${x.from.rel}' does not provide an export named '${x.name}'`;
+    }
+  }
+
   visitPost(entryMod);
+  for (const mod of order) if (mod.linkError) throw new SyntaxError(mod.linkError);
+  const eagerCount = order.length;
+  for (const mod of modules.values()) if (mod.dynamic || mod.deferred) visitPost(mod);
+  for (let i = eagerCount; i < order.length; i++) order[i].lazy = true;
+
+  if (runtimeImportSites.length > 0) {
+    for (const mod of order) {
+      mod.dynamic = true;
+      if (mod.esm) nsName(mod);
+    }
+    for (const cases of runtimeImportSites) {
+      for (const mod of order) cases.push({ type: 'SwitchCase', test: literal(mod.file), consequent: [ { type: 'ReturnStatement', argument: call(`#import#m${mod.id}`) } ] });
+    }
+  }
   for (let more = true; more;) {
     more = false;
     for (const mod of order) {
@@ -613,6 +692,70 @@ export default (entrySource, entryFile, opts = {}) => {
       more = true;
     }
   }
+  const lazyBody = mod => {
+    const names = [], hoisted = [], stmts = [];
+    for (const x of mod.body) {
+      if (x.type === 'FunctionDeclaration') { hoisted.push(x); continue; }
+      if (x.type === 'ClassDeclaration') {
+        names.push(x.id.name);
+        stmts.push(assign(ident(x.id.name), { ...x, type: 'ClassExpression' }));
+        continue;
+      }
+      if (x.type === 'VariableDeclaration') {
+        for (const d of x.declarations) {
+          patternNames(d.id, names);
+          if (d.init) stmts.push(assign(d.id, d.init));
+            else if (x.kind !== 'var') stmts.push(assign(d.id, ident('undefined')));
+        }
+        continue;
+      }
+      stmts.push(x);
+    }
+
+    // state: 0 not evaluated, 1 evaluating, 2 threw, 3 evaluated
+    const state = ident(`#state#m${mod.id}`), error = ident(`#error#m${mod.id}`);
+    const bin = (operator, left, right) => ({ type: 'BinaryExpression', operator, left, right });
+    const isAsync = lazyAsync(mod);
+    const evalDeps = mod.deps.filter(d => d.lazy).map(d => ({ type: 'ExpressionStatement', expression: lazyAsync(d) ? { type: 'AwaitExpression', argument: call(`#eval#m${d.id}`) } : call(`#eval#m${d.id}`) }));
+    const run = mod.linkError ? [ throwNew('SyntaxError', mod.linkError) ] : [ ...evalDeps, ...stmts, assign(state, literal(3)) ];
+    const evalFn = { type: 'FunctionDeclaration', id: ident(`#eval#m${mod.id}`), params: [], async: isAsync, generator: false, expression: false, body: { type: 'BlockStatement', body: [
+      { type: 'IfStatement', test: bin('===', state, literal(2)), consequent: { type: 'ThrowStatement', argument: error }, alternate: null },
+      { type: 'IfStatement', test: bin('!==', state, literal(0)), consequent: { type: 'ReturnStatement', argument: null }, alternate: null },
+      assign(state, literal(1)),
+      { type: 'TryStatement', block: { type: 'BlockStatement', body: run }, handler: { type: 'CatchClause', param: ident('#e'), body: { type: 'BlockStatement', body: [
+        assign(state, literal(2)), assign(error, ident('#e')), { type: 'ThrowStatement', argument: ident('#e') }
+      ] } }, finalizer: null }
+    ] } };
+
+    // a deferred namespace evaluates synchronously, never re-entrantly
+    const deferFn = mod.dnsUsed && { type: 'FunctionDeclaration', id: ident(`#defer#m${mod.id}`), params: [], async: false, generator: false, expression: false, body: { type: 'BlockStatement', body: [
+      { type: 'IfStatement', test: bin('===', state, literal(1)), consequent: throwNew('TypeError', 'Deferred module is being evaluated'), alternate: null },
+      { type: 'ExpressionStatement', expression: call(`#eval#m${mod.id}`) }
+    ] } };
+
+    return [
+      { type: 'VariableDeclaration', kind: 'var', declarations: [ ...names, error.name ].map(x => ({ type: 'VariableDeclarator', id: ident(x), init: null })) },
+      varDecl('var', state.name, literal(0)),
+      ...hoisted, evalFn, ...(deferFn ? [ deferFn ] : [])
+    ];
+  };
+
+  // top-level await anywhere in a lazy module's graph makes its evaluation async
+  const hasTopLevelAwait = node => {
+    if (!node || typeof node !== 'object') return false;
+    if (Array.isArray(node)) return node.some(hasTopLevelAwait);
+    if (isFunc(node) || node.type === 'ClassExpression' || node.type === 'ClassDeclaration') return false;
+    if (node.type === 'AwaitExpression' || (node.type === 'ForOfStatement' && node.await) || (node.type === 'VariableDeclaration' && node.kind === 'await using')) return true;
+    for (const key in node) if (key !== 'start' && key !== 'end' && hasTopLevelAwait(node[key])) return true;
+    return false;
+  };
+  const lazyAsync = (mod, seen = new Set()) => {
+    if (mod.async != null) return mod.async;
+    if (seen.has(mod)) return false;
+    seen.add(mod);
+    return mod.async = hasTopLevelAwait(mod.body) || mod.deps.some(d => d.lazy && lazyAsync(d, seen));
+  };
+
   const body = [];
   // host scripts define globals, so they stay unrenamed and run first
   for (let i = 0; i < (opts.scripts ?? []).length; i++) {
@@ -621,13 +764,30 @@ export default (entrySource, entryFile, opts = {}) => {
   // namespaces declared up front for cycles, filled after the module's last class
   for (const mod of order) {
     if (mod.nsExpr) body.push(varDecl('let', nsName(mod), null));
+    if (mod.dnsUsed) body.push(varDecl('let', dnsName(mod), null));
   }
-  for (const mod of order) {
+  // lazy modules only declare things so go first, functions are only defined once their unit's init runs
+  for (const mod of [ ...order.slice(eagerCount), ...order.slice(0, eagerCount) ]) {
     if (mod.nsExpr) {
       const at = mod.body.findLastIndex(x => x.type === 'ClassDeclaration') + 1;
-      mod.body.splice(at, 0, { type: 'ExpressionStatement', expression: { type: 'AssignmentExpression', operator: '=', left: ident(nsName(mod)), right: mod.nsExpr } });
+      mod.body.splice(at, 0, assign(ident(nsName(mod)), mod.nsExpr));
     }
-    for (const x of mod.body) { x._unit = mod.id; body.push(x); }
+    if (mod.metaUsed) mod.body.unshift(varDecl('var', `#meta#m${mod.id}`, { type: 'ObjectExpression', properties: [
+      property(ident('__proto__'), literal(null)), property(ident('url'), literal('file://' + mod.file))
+    ] }));
+    const out = mod.lazy ? lazyBody(mod) : mod.body;
+    if (mod.dynamic) {
+      const ns = mod.esm ? ident(nsName(mod)) : exportsOf(mod);
+      const evalStmts = mod.lazy ? [ { type: 'ExpressionStatement', expression: { type: 'AwaitExpression', argument: call(`#eval#m${mod.id}`) } } ] : [];
+      out.unshift({ type: 'FunctionDeclaration', id: ident(`#import#m${mod.id}`), params: [], async: true, generator: false, expression: false,
+        body: { type: 'BlockStatement', body: [ ...evalStmts, { type: 'ReturnStatement', argument: ns } ] } });
+    }
+    if (mod.dnsUsed) out.push(assign(ident(dnsName(mod)), namespaceExpr(mod, mod.lazy ? ident(`#defer#m${mod.id}`) : { type: 'ArrowFunctionExpression', params: [], async: false, generator: false, expression: true, body: ident('undefined') })));
+    // a script entry stays global code
+    for (const x of out) {
+      if (!(mod.entry && opts.script)) x._unit = mod.id;
+      body.push(x);
+    }
   }
 
   // tree shaking: renamed names are unique program-wide, so one ref count covers all modules
@@ -727,7 +887,7 @@ export default (entrySource, entryFile, opts = {}) => {
   }
 
   return {
-    type: 'Program', sourceType: 'module', body,
+    type: 'Program', sourceType: opts.script ? 'script' : 'module', body,
     _ts: anyTs,
     _units: order.map(mod => ({ id: mod.id, name: mod.rel }))
   };

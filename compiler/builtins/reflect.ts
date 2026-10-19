@@ -153,7 +153,7 @@ export const __Reflect_construct = (target: any, argumentsList: any, newTarget: 
   if (newTarget !== target) {
     const t: i32 = Porffor.type(out);
     if (Porffor.fastOr(
-      Porffor.fastAnd(t != Porffor.TYPES.object, t != Porffor.TYPES.function),
+      Porffor.fastAnd(t != Porffor.TYPES.object, t != Porffor.TYPES.function, t != Porffor.TYPES.proxy),
       __Object_getPrototypeOf(out) === target.prototype
     )) {
       const proto: any = newTarget.prototype;

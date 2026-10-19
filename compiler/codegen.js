@@ -2078,7 +2078,7 @@ const generateCall = (scope, decl) => {
       emitIf(scope, Bin('&&', T.i32, jvIsObject(res, t), Un('!', T.i32, Eq(true, res, thisRef))), () => {
         const sup = reuseNamed(scope, superCtor);
         const parentProto = generate(scope, getObjProp({ type: 'Identifier', name: sup[N_A] }, 'prototype'));
-        const builtinInstance = Bin('&&', T.i32, Bin('!=', T.i32, t, Const(T.i32, TYPES.object)), Bin('!=', T.i32, t, Const(T.i32, TYPES.function)));
+        const builtinInstance = Bin('&&', T.i32, Bin('&&', T.i32, Bin('!=', T.i32, t, Const(T.i32, TYPES.object)), Bin('!=', T.i32, t, Const(T.i32, TYPES.function))), Bin('!=', T.i32, t, Const(T.i32, TYPES.proxy)));
         emitIf(scope, Bin('||', T.i32, builtinInstance, Eq(true, builtinCall(scope, '__Object_getPrototypeOf', [ res ]), parentProto)), () =>
           exprStmt(scope, builtinCall(scope, '__Object_setPrototypeOf', [ res, builtinCall(scope, '__Object_getPrototypeOf', [ thisRef ]) ])));
         stmt(scope, Assign(thisRef, res));

@@ -33,7 +33,9 @@ export default (input, entry = null) => {
   globalThis.typedInput = types && Prefs.optTypes;
 
   const file = entry?.file ?? globalThis.file;
-  const ast = entry && Prefs.module && !globalThis.precompile ? link(input, file[0] === '/' ? file : process.cwd() + '/' + file, { ts: types, scripts: entry.scripts }) : parse(input, { module: !!Prefs.module, ts: types });
+  // scripts only need linking for the modules their import() calls pull in
+  const linked = entry && !globalThis.precompile && (Prefs.module || /\bimport\s*\(/.test(input));
+  const ast = linked ? link(input, file[0] === '/' ? file : process.cwd() + '/' + file, { ts: types, scripts: entry.scripts, script: !Prefs.module }) : parse(input, { module: !!Prefs.module, ts: types });
   if (ast._ts) globalThis.typedInput = Prefs.optTypes;
   if (usesTemporal(ast)) ast._usesTemporal = true;
   return ast;
