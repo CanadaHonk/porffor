@@ -1855,7 +1855,7 @@ const aliasPrimObjsBC = bc => {
     if (bc[x] == null) return;
 
     // intentionally duplicate to avoid extra bc for prim objs as rarely used
-    bc[y] = bc[x];
+    bc[y] ??= bc[x];
   };
 
   add(TYPES.boolean, TYPES.booleanobject);
@@ -2230,13 +2230,15 @@ const generateCall = (scope, decl) => {
           _thisArg: targetIdent,
           _protoInternalCall: true
         };
-        // regexps with own state (own props, a subclass prototype) can shadow their methods
-        const call = owner === 'RegExp' && calleeMember && !globalThis.precompile && definedKeys.has(protoName) ? () => generate(scope, {
+        // regexps and wrapper objects with own state can shadow their methods
+        const shadowable = calleeMember && !globalThis.precompile && definedKeys.has(protoName);
+        const shadowed = () => generate(scope, {
           type: 'ConditionalExpression',
           test: { type: 'CallExpression', callee: { type: 'Identifier', name: '__Porffor_object_underlyingIfAny' }, arguments: [ targetIdent ] },
           consequent: fallbackCall,
           alternate: builtinCallNode
-        }) : () => generate(scope, builtinCallNode);
+        });
+        const call = owner === 'RegExp' && shadowable ? shadowed : () => generate(scope, builtinCallNode);
 
         if (owner === 'TypedArray') {
           typedArrayCall = call;
@@ -2251,6 +2253,7 @@ const generateCall = (scope, decl) => {
           continue;
         }
         protoBC[t] = call;
+        if (shadowable && primObjAlias[t] && t !== TYPES.bytestring) protoBC[primObjAlias[t]] = shadowed;
       }
 
       aliasPrimObjsBC(protoBC);
