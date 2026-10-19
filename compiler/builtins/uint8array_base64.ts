@@ -1,46 +1,54 @@
 import type {} from './porffor.d.ts';
 
-export const __Porffor_uint8array_validate = (ta: any): i32 => {
+export const __Porffor_uint8array_validate = (ta: any): void => {
   if (Porffor.type(ta) != Porffor.TYPES.uint8array) {
     throw new TypeError('Method called on incompatible receiver');
   }
-
-  return __Porffor_typedArray_validate(ta);
 };
 
-export const __Uint8Array_prototype_toBase64 = function (this: Uint8Array, options: any = undefined) {
-  let alphabet: string = 'base64';
+// GetOptionsObject then its alphabet, true for base64url
+export const __Porffor_base64_alphabet = (options: any): boolean => {
+  if (Porffor.type(options) == Porffor.TYPES.undefined) return false;
+  if (!Porffor.object.isObject(options)) throw new TypeError('Options must be an object');
+
+  const alphabet: any = options.alphabet;
+  if (Porffor.type(alphabet) == Porffor.TYPES.undefined) return false;
+  if ((Porffor.type(alphabet) | 0b10000000) == Porffor.TYPES.bytestring) {
+    if (Porffor.strcmp(alphabet, 'base64')) return false;
+    if (Porffor.strcmp(alphabet, 'base64url')) return true;
+  }
+  throw new TypeError('Invalid alphabet');
+};
+
+// 0 loose, 1 strict, 2 stop-before-partial
+export const __Porffor_base64_lastChunkHandling = (options: any): i32 => {
+  if (Porffor.type(options) == Porffor.TYPES.undefined) return 0;
+
+  const handling: any = options.lastChunkHandling;
+  if (Porffor.type(handling) == Porffor.TYPES.undefined) return 0;
+  if ((Porffor.type(handling) | 0b10000000) == Porffor.TYPES.bytestring) {
+    if (Porffor.strcmp(handling, 'loose')) return 0;
+    if (Porffor.strcmp(handling, 'strict')) return 1;
+    if (Porffor.strcmp(handling, 'stop-before-partial')) return 2;
+  }
+  throw new TypeError('Invalid lastChunkHandling');
+};
+
+export const __Uint8Array_prototype_toBase64 = function (this: any, options: any = undefined) {
+  __Porffor_uint8array_validate(this);
+  const url: boolean = __Porffor_base64_alphabet(options);
   let omitPadding: boolean = false;
+  if (Porffor.type(options) != Porffor.TYPES.undefined) omitPadding = !!options.omitPadding;
 
-  if (Porffor.type(options) != Porffor.TYPES.undefined) {
-    if (Porffor.type(options) != Porffor.TYPES.object) {
-      throw new TypeError('Options must be an object');
-    }
-
-    const alphabetProp: any = options.alphabet;
-    if (Porffor.type(alphabetProp) != Porffor.TYPES.undefined) {
-      alphabet = alphabetProp;
-    }
-
-    const paddingProp: any = options.omitPadding;
-    if (Porffor.type(paddingProp) != Porffor.TYPES.undefined) {
-      omitPadding = !!paddingProp;
-    }
-  }
-
-  if (!Porffor.strcmp(alphabet, 'base64') && !Porffor.strcmp(alphabet, 'base64url')) {
-    throw new TypeError('Invalid alphabet');
-  }
-
-  const len: i32 = __Porffor_uint8array_validate(this);
+  const len: i32 = __Porffor_typedArray_validate(this);
   const taPtr: i32 = Porffor.IR.ptr(this);
   const bufferPtr: i32 = Porffor.IR.loadI32(taPtr, 4);
 
-  const output: bytestring = Porffor.malloc();
+  const output: bytestring = Porffor.malloc(4 + Math.ceil(len / 3) * 4);
   const outPtr: i32 = Porffor.IR.ptr(output);
 
   let alphabetStr: bytestring;
-  if (Porffor.strcmp(alphabet, 'base64url')) {
+  if (url) {
     alphabetStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
   } else {
     alphabetStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -50,7 +58,7 @@ export const __Uint8Array_prototype_toBase64 = function (this: Uint8Array, optio
   let i: i32 = 0;
   let j: i32 = outPtr;
 
-  const fullChunks: i32 = (len / 3) * 3;
+  const fullChunks: i32 = Math.floor(len / 3) * 3;
   while (i < fullChunks) {
     const b1: i32 = Porffor.IR.loadU8(bufferPtr + i++, 4);
     const b2: i32 = Porffor.IR.loadU8(bufferPtr + i++, 4);
@@ -98,12 +106,13 @@ export const __Uint8Array_prototype_toBase64 = function (this: Uint8Array, optio
   return output;
 };
 
-export const __Uint8Array_prototype_toHex = function (this: Uint8Array) {
-  const len: i32 = __Porffor_uint8array_validate(this);
+export const __Uint8Array_prototype_toHex = function (this: any) {
+  __Porffor_uint8array_validate(this);
+  const len: i32 = __Porffor_typedArray_validate(this);
   const taPtr: i32 = Porffor.IR.ptr(this);
   const bufferPtr: i32 = Porffor.IR.loadI32(taPtr, 4);
 
-  const output: bytestring = Porffor.malloc();
+  const output: bytestring = Porffor.malloc(4 + len * 2);
   const outPtr: i32 = Porffor.IR.ptr(output);
 
   const hexChars: bytestring = '0123456789abcdef';
@@ -121,507 +130,195 @@ export const __Uint8Array_prototype_toHex = function (this: Uint8Array) {
   return output;
 };
 
-// -> (charsRead << 16) | bytesWritten
-export const __Porffor_fromBase64 = (str: any, alphabet: any, lastChunkHandling: any, destPtr: i32, maxLength: i32) => {
-  const strPtr: i32 = Porffor.IR.ptr(str);
-  const strLen: i32 = str.length;
+export const __Porffor_base64_value = (c: i32, url: boolean): i32 => {
+  if (Porffor.fastAnd(c >= 65, c <= 90)) return c - 65; // A-Z
+  if (Porffor.fastAnd(c >= 97, c <= 122)) return c - 71; // a-z
+  if (Porffor.fastAnd(c >= 48, c <= 57)) return c + 4; // 0-9
+  if (url) {
+    if (c == 45) return 62; // -
+    if (c == 95) return 63; // _
+  } else {
+    if (c == 43) return 62; // +
+    if (c == 47) return 63; // /
+  }
+  return 64;
+};
 
-  if (!Porffor.strcmp(alphabet, 'base64') && !Porffor.strcmp(alphabet, 'base64url')) {
-    throw new TypeError('Invalid alphabet');
+export const __Porffor_base64_skipWhitespace = (ptr: i32, wide: boolean, i: i32, length: i32): i32 => {
+  while (i < length) {
+    const c: i32 = wide ? Porffor.IR.loadU16(ptr + i * 2, 4) : Porffor.IR.loadU8(ptr + i, 4);
+    if (Porffor.fastAnd(c != 9, c != 10, c != 12, c != 13, c != 32)) break;
+    i++;
+  }
+  return i;
+};
+
+// decode a final 2 or 3 char chunk -> bytes written
+export const __Porffor_base64_partialChunk = (chunk: i32, chunkLength: i32, strict: boolean, dest: i32): i32 => {
+  if (chunkLength == 2) {
+    if (Porffor.fastAnd(strict, (chunk & 15) != 0)) throw new SyntaxError('Invalid base64 padding');
+    Porffor.IR.storeU8(dest, 4, chunk >> 4);
+    return 1;
   }
 
-  const isBase64Url: boolean = Porffor.strcmp(alphabet, 'base64url');
+  if (Porffor.fastAnd(strict, (chunk & 3) != 0)) throw new SyntaxError('Invalid base64 padding');
+  Porffor.IR.storeU8(dest, 4, chunk >> 10);
+  Porffor.IR.storeU8(dest + 1, 4, (chunk >> 2) & 255);
+  return 2;
+};
 
-  let j: i32 = destPtr;
+// FromBase64, writing decoded chunks to dest as it goes -> { read, written }
+export const __Porffor_fromBase64 = (str: any, url: boolean, lastChunkHandling: i32, dest: i32, maxLength: i32): object => {
+  const ptr: i32 = Porffor.IR.ptr(str);
+  const wide: boolean = Porffor.type(str) == Porffor.TYPES.string;
+  const length: i32 = str.length;
 
+  let read: i32 = 0;
+  let written: i32 = 0;
+  let chunk: i32 = 0;
+  let chunkLength: i32 = 0;
   let i: i32 = 0;
-  while (i < strLen) {
-    let c1: i32 = 0, c2: i32 = 0, c3: i32 = 0, c4: i32 = 0;
-    let chunkLength: i32 = 0;
-    let chunkStartPos: i32 = i;
-
-    while (i < strLen) {
-      const ch: i32 = Porffor.IR.loadU8(strPtr + i++, 4);
-      if (ch >= 65 && ch <= 90) { // A-Z
-        c1 = ch - 65;
-        chunkLength = 1;
-        break;
+  while (written < maxLength) {
+    i = __Porffor_base64_skipWhitespace(ptr, wide, i, length);
+    if (i == length) {
+      if (chunkLength > 0) {
+        if (lastChunkHandling == 2) break;
+        if (Porffor.fastOr(lastChunkHandling == 1, chunkLength == 1)) throw new SyntaxError('Invalid base64 string');
+        written += __Porffor_base64_partialChunk(chunk, chunkLength, false, dest + written);
       }
-      if (ch >= 97 && ch <= 122) { // a-z
-        c1 = ch - 71;
-        chunkLength = 1;
-        break;
-      }
-      if (ch >= 48 && ch <= 57) { // 0-9
-        c1 = ch + 4;
-        chunkLength = 1;
-        break;
-      }
-      if (ch == 43) { // +
-        if (isBase64Url) {
-          throw new SyntaxError('Invalid base64url character');
-        }
-        c1 = 62;
-        chunkLength = 1;
-        break;
-      }
-      if (ch == 47) { // /
-        if (isBase64Url) {
-          throw new SyntaxError('Invalid base64url character');
-        }
-        c1 = 63;
-        chunkLength = 1;
-        break;
-      }
-      if (ch == 45) { // -
-        if (!isBase64Url) {
-          throw new SyntaxError('Invalid base64 character');
-        }
-        c1 = 62;
-        chunkLength = 1;
-        break;
-      }
-      if (ch == 95) { // _
-        if (!isBase64Url) {
-          throw new SyntaxError('Invalid base64 character');
-        }
-        c1 = 63;
-        chunkLength = 1;
-        break;
-      }
-      if (ch == 61) { // =
-        return (i << 16) | (j - destPtr);
-      }
+      read = length;
+      break;
     }
 
-    while (i < strLen) {
-      const ch: i32 = Porffor.IR.loadU8(strPtr + i++, 4);
-      if (ch >= 65 && ch <= 90) { // A-Z
-        c2 = ch - 65;
-        chunkLength = 2;
-        break;
-      }
-      if (ch >= 97 && ch <= 122) { // a-z
-        c2 = ch - 71;
-        chunkLength = 2;
-        break;
-      }
-      if (ch >= 48 && ch <= 57) { // 0-9
-        c2 = ch + 4;
-        chunkLength = 2;
-        break;
-      }
-      if (ch == 43) { // +
-        if (isBase64Url) {
-          throw new SyntaxError('Invalid base64url character');
-        }
-        c2 = 62;
-        chunkLength = 2;
-        break;
-      }
-      if (ch == 47) { // /
-        if (isBase64Url) {
-          throw new SyntaxError('Invalid base64url character');
-        }
-        c2 = 63;
-        chunkLength = 2;
-        break;
-      }
-      if (ch == 45) { // -
-        if (!isBase64Url) {
-          throw new SyntaxError('Invalid base64 character');
-        }
-        c2 = 62;
-        chunkLength = 2;
-        break;
-      }
-      if (ch == 95) { // _
-        if (!isBase64Url) {
-          throw new SyntaxError('Invalid base64 character');
-        }
-        c2 = 63;
-        chunkLength = 2;
-        break;
-      }
-      if (ch == 61) { // =
-        return (i << 16) | (j - destPtr);
-      }
-    }
-
-    while (i < strLen) {
-      const ch: i32 = Porffor.IR.loadU8(strPtr + i++, 4);
-      if (ch >= 65 && ch <= 90) { // A-Z
-        c3 = ch - 65;
-        chunkLength = 3;
-        break;
-      }
-      if (ch >= 97 && ch <= 122) { // a-z
-        c3 = ch - 71;
-        chunkLength = 3;
-        break;
-      }
-      if (ch >= 48 && ch <= 57) { // 0-9
-        c3 = ch + 4;
-        chunkLength = 3;
-        break;
-      }
-      if (ch == 43) { // +
-        if (isBase64Url) {
-          throw new SyntaxError('Invalid base64url character');
-        }
-        c3 = 62;
-        chunkLength = 3;
-        break;
-      }
-      if (ch == 47) { // /
-        if (isBase64Url) {
-          throw new SyntaxError('Invalid base64url character');
-        }
-        c3 = 63;
-        chunkLength = 3;
-        break;
-      }
-      if (ch == 45) { // -
-        if (!isBase64Url) {
-          throw new SyntaxError('Invalid base64 character');
-        }
-        c3 = 62;
-        chunkLength = 3;
-        break;
-      }
-      if (ch == 95) { // _
-        if (!isBase64Url) {
-          throw new SyntaxError('Invalid base64 character');
-        }
-        c3 = 63;
-        chunkLength = 3;
-        break;
-      }
-      if (ch == 61) { // =
-        if (j - destPtr + 1 > maxLength) {
-          return (chunkStartPos << 16) | (j - destPtr); // not enough space
-        }
-        if (Porffor.strcmp(lastChunkHandling, 'strict') && (c2 & 15) != 0) {
+    const c: i32 = wide ? Porffor.IR.loadU16(ptr + i * 2, 4) : Porffor.IR.loadU8(ptr + i, 4);
+    i++;
+    if (c == 61) { // =
+      if (chunkLength < 2) throw new SyntaxError('Invalid base64 padding');
+      i = __Porffor_base64_skipWhitespace(ptr, wide, i, length);
+      if (chunkLength == 2) {
+        if (i == length) {
+          if (lastChunkHandling == 2) break;
           throw new SyntaxError('Invalid base64 padding');
         }
-        const b1: i32 = (c1 << 2) | (c2 >> 4);
-        Porffor.IR.storeU8(j++, 4, b1);
-
-        // consume a second '='
-        if (i < strLen && Porffor.IR.loadU8(strPtr + i, 4) == 61) {
-          i++;
-        }
-
-        return (i << 16) | (j - destPtr);
+        const next: i32 = wide ? Porffor.IR.loadU16(ptr + i * 2, 4) : Porffor.IR.loadU8(ptr + i, 4);
+        if (next == 61) i = __Porffor_base64_skipWhitespace(ptr, wide, i + 1, length);
       }
+      if (i < length) throw new SyntaxError('Invalid base64 padding');
+
+      written += __Porffor_base64_partialChunk(chunk, chunkLength, lastChunkHandling == 1, dest + written);
+      read = length;
+      break;
     }
 
-    while (i < strLen) {
-      const ch: i32 = Porffor.IR.loadU8(strPtr + i++, 4);
-      if (ch >= 65 && ch <= 90) { // A-Z
-        c4 = ch - 65;
-        chunkLength = 4;
-        break;
-      }
-      if (ch >= 97 && ch <= 122) { // a-z
-        c4 = ch - 71;
-        chunkLength = 4;
-        break;
-      }
-      if (ch >= 48 && ch <= 57) { // 0-9
-        c4 = ch + 4;
-        chunkLength = 4;
-        break;
-      }
-      if (ch == 43) { // +
-        if (isBase64Url) {
-          throw new SyntaxError('Invalid base64url character');
-        }
-        c4 = 62;
-        chunkLength = 4;
-        break;
-      }
-      if (ch == 47) { // /
-        if (isBase64Url) {
-          throw new SyntaxError('Invalid base64url character');
-        }
-        c4 = 63;
-        chunkLength = 4;
-        break;
-      }
-      if (ch == 45) { // -
-        if (!isBase64Url) {
-          throw new SyntaxError('Invalid base64 character');
-        }
-        c4 = 62;
-        chunkLength = 4;
-        break;
-      }
-      if (ch == 95) { // _
-        if (!isBase64Url) {
-          throw new SyntaxError('Invalid base64 character');
-        }
-        c4 = 63;
-        chunkLength = 4;
-        break;
-      }
-      if (ch == 61) { // =
-        if (j - destPtr + 2 > maxLength) {
-          return (chunkStartPos << 16) | (j - destPtr); // not enough space
-        }
-        if (Porffor.strcmp(lastChunkHandling, 'strict') && (c3 & 3) != 0) {
-          throw new SyntaxError('Invalid base64 padding');
-        }
-        const b1: i32 = (c1 << 2) | (c2 >> 4);
-        const b2: i32 = ((c2 & 15) << 4) | (c3 >> 2);
-        Porffor.IR.storeU8(j++, 4, b1);
-        Porffor.IR.storeU8(j++, 4, b2);
-        return (i << 16) | (j - destPtr);
-      }
-    }
+    const value: i32 = __Porffor_base64_value(c, url);
+    if (value == 64) throw new SyntaxError('Invalid base64 character');
 
-    // full 4-char chunk: need space for 3 bytes
+    // stop before a partial chunk that would not fit
+    const remaining: i32 = maxLength - written;
+    if (Porffor.fastOr(Porffor.fastAnd(remaining == 1, chunkLength == 2), Porffor.fastAnd(remaining == 2, chunkLength == 3))) break;
+
+    chunk = (chunk << 6) | value;
+    chunkLength++;
     if (chunkLength == 4) {
-      if (j - destPtr + 3 > maxLength) {
-        return (chunkStartPos << 16) | (j - destPtr); // not enough space
-      }
-
-    const b1: i32 = (c1 << 2) | (c2 >> 4);
-    const b2: i32 = ((c2 & 15) << 4) | (c3 >> 2);
-    const b3: i32 = ((c3 & 3) << 6) | c4;
-
-    Porffor.IR.storeU8(j++, 4, b1);
-    Porffor.IR.storeU8(j++, 4, b2);
-    Porffor.IR.storeU8(j++, 4, b3);
+      Porffor.IR.storeU8(dest + written, 4, chunk >> 16);
+      Porffor.IR.storeU8(dest + written + 1, 4, (chunk >> 8) & 255);
+      Porffor.IR.storeU8(dest + written + 2, 4, chunk & 255);
+      written += 3;
+      chunk = 0;
+      chunkLength = 0;
+      read = i;
     }
   }
 
-  // partial final chunk: apply lastChunkHandling
-  if (chunkLength > 0) {
-    if (Porffor.strcmp(lastChunkHandling, 'stop-before-partial')) {
-      return (chunkStartPos << 16) | (j - destPtr); // don't decode partial chunk
-    }
-
-    if (Porffor.strcmp(lastChunkHandling, 'strict')) {
-      throw new SyntaxError('Invalid base64 string');
-    }
-
-    // loose: decode partial chunk
-    if (chunkLength == 1) {
-      throw new SyntaxError('Invalid base64 string'); // 1 leftover char can't decode
-    }
-
-    if (chunkLength == 2) {
-      if (j - destPtr + 1 > maxLength) {
-        return (chunkStartPos << 16) | (j - destPtr); // not enough space
-      }
-      if (Porffor.strcmp(lastChunkHandling, 'strict') && (c2 & 15) != 0) {
-        throw new SyntaxError('Invalid base64 padding');
-      }
-      const b1: i32 = (c1 << 2) | (c2 >> 4);
-      Porffor.IR.storeU8(j++, 4, b1);
-    } else if (chunkLength == 3) {
-      if (j - destPtr + 2 > maxLength) {
-        return (chunkStartPos << 16) | (j - destPtr); // not enough space
-      }
-      if (Porffor.strcmp(lastChunkHandling, 'strict') && (c3 & 3) != 0) {
-        throw new SyntaxError('Invalid base64 padding');
-      }
-      const b1: i32 = (c1 << 2) | (c2 >> 4);
-      const b2: i32 = ((c2 & 15) << 4) | (c3 >> 2);
-      Porffor.IR.storeU8(j++, 4, b1);
-      Porffor.IR.storeU8(j++, 4, b2);
-    }
-  }
-
-  return (strLen << 16) | (j - destPtr);
+  const result: object = {};
+  result.read = read;
+  result.written = written;
+  return result;
 };
 
 export const __Uint8Array_fromBase64 = (str: any, options: any = undefined) => {
-  if (Porffor.type(str) != Porffor.TYPES.bytestring) {
+  if ((Porffor.type(str) | 0b10000000) != Porffor.TYPES.bytestring) {
     throw new TypeError('First argument must be a string');
   }
 
-  let alphabet: string = 'base64';
-  let lastChunkHandling: string = 'loose';
+  const url: boolean = __Porffor_base64_alphabet(options);
+  const lastChunkHandling: i32 = __Porffor_base64_lastChunkHandling(options);
 
-  if (Porffor.type(options) != Porffor.TYPES.undefined) {
-    if (Porffor.type(options) != Porffor.TYPES.object) {
-      throw new TypeError('Options must be an object');
-    }
+  // never more bytes than chars
+  const bytes: i32 = Porffor.malloc(4 + str.length);
+  const written: i32 = __Porffor_fromBase64(str, url, lastChunkHandling, bytes, str.length).written;
 
-    const alphabetProp: any = options.alphabet;
-    if (Porffor.type(alphabetProp) != Porffor.TYPES.undefined) {
-      alphabet = alphabetProp;
-    }
-
-    const lastChunkProp: any = options.lastChunkHandling;
-    if (Porffor.type(lastChunkProp) != Porffor.TYPES.undefined) {
-      lastChunkHandling = lastChunkProp;
-    }
-  }
-
-  if (!Porffor.strcmp(alphabet, 'base64') && !Porffor.strcmp(alphabet, 'base64url')) {
-    throw new TypeError('Invalid alphabet');
-  }
-
-  if (!Porffor.strcmp(lastChunkHandling, 'loose') && !Porffor.strcmp(lastChunkHandling, 'strict') && !Porffor.strcmp(lastChunkHandling, 'stop-before-partial')) {
-    throw new TypeError('Invalid lastChunkHandling');
-  }
-
-  // exact output size from length and padding
-  let exactSize: i32 = 0;
-  const strLen: i32 = str.length;
-
-  if (strLen == 0) {
-    exactSize = 0;
-  } else {
-    // count trailing '='
-    let paddingCount: i32 = 0;
-    const strPtr: i32 = Porffor.IR.ptr(str);
-    let i: i32 = strLen - 1;
-    while (i >= 0 && Porffor.IR.loadU8(strPtr + i, 4) == 61) {
-      paddingCount++;
-      i--;
-    }
-
-    // 4 chars -> 3 bytes, minus padding
-    const nonPaddingChars: i32 = strLen - paddingCount;
-    exactSize = (nonPaddingChars * 3) / 4;
-  }
-
-  const ta: Uint8Array = new Uint8Array(exactSize);
-  const taPtr: i32 = Porffor.IR.ptr(ta);
-  const bufferPtr: i32 = Porffor.IR.loadI32(taPtr, 4);
-
-  __Porffor_fromBase64(str, alphabet, lastChunkHandling, bufferPtr, exactSize);
-
+  const ta: Uint8Array = new Uint8Array(written);
+  Porffor.IR.copy(Porffor.IR.loadI32(Porffor.IR.ptr(ta), 4) + 4, bytes + 4, written);
   return ta;
 };
 
-export const __Uint8Array_prototype_setFromBase64 = function (this: Uint8Array, str: any, options: any = undefined) {
-  if (Porffor.type(str) != Porffor.TYPES.bytestring) {
+export const __Uint8Array_prototype_setFromBase64 = function (this: any, str: any, options: any = undefined) {
+  __Porffor_uint8array_validate(this);
+  if (__Porffor_typedArray_immutable(this)) throw new TypeError('Cannot write to an immutable ArrayBuffer');
+  if ((Porffor.type(str) | 0b10000000) != Porffor.TYPES.bytestring) {
     throw new TypeError('First argument must be a string');
   }
 
-  let alphabet: string = 'base64';
-  let lastChunkHandling: string = 'loose';
+  const url: boolean = __Porffor_base64_alphabet(options);
+  const lastChunkHandling: i32 = __Porffor_base64_lastChunkHandling(options);
 
-  if (Porffor.type(options) != Porffor.TYPES.undefined) {
-    if (Porffor.type(options) != Porffor.TYPES.object) {
-      throw new TypeError('Options must be an object');
-    }
-
-    const alphabetProp: any = options.alphabet;
-    if (Porffor.type(alphabetProp) != Porffor.TYPES.undefined) {
-      alphabet = alphabetProp;
-    }
-
-    const lastChunkProp: any = options.lastChunkHandling;
-    if (Porffor.type(lastChunkProp) != Porffor.TYPES.undefined) {
-      lastChunkHandling = lastChunkProp;
-    }
-  }
-
-  if (!Porffor.strcmp(alphabet, 'base64') && !Porffor.strcmp(alphabet, 'base64url')) {
-    throw new TypeError('Invalid alphabet');
-  }
-
-  if (!Porffor.strcmp(lastChunkHandling, 'loose') && !Porffor.strcmp(lastChunkHandling, 'strict') && !Porffor.strcmp(lastChunkHandling, 'stop-before-partial')) {
-    throw new TypeError('Invalid lastChunkHandling');
-  }
-
-  const byteLength: i32 = __Porffor_uint8array_validate(this);
-  const taPtr: i32 = Porffor.IR.ptr(this);
-  const bufferPtr: i32 = Porffor.IR.loadI32(taPtr, 4);
-
-  const result: i32 = __Porffor_fromBase64(str, alphabet, lastChunkHandling, bufferPtr, byteLength);
-  const charsRead: i32 = result >> 16;
-  const bytesWritten: i32 = result & 0xFFFF;
-
-  const resultObj: object = {};
-  resultObj.read = charsRead;
-  resultObj.written = bytesWritten;
-
-  return resultObj;
+  const byteLength: i32 = __Porffor_typedArray_validate(this);
+  return __Porffor_fromBase64(str, url, lastChunkHandling, Porffor.IR.loadI32(this, 4), byteLength);
 };
 
-// -> (charsRead << 16) | bytesWritten
-export const __Porffor_fromHex = (str: bytestring, destPtr: i32, maxLength: i32) => {
-  const strPtr: i32 = Porffor.IR.ptr(str);
-  const strLen: i32 = str.length;
+export const __Porffor_hexValue = (c: i32): i32 => {
+  if (Porffor.fastAnd(c >= 48, c <= 57)) return c - 48; // 0-9
+  if (Porffor.fastAnd(c >= 97, c <= 102)) return c - 87; // a-f
+  if (Porffor.fastAnd(c >= 65, c <= 70)) return c - 55; // A-F
+  return 16;
+};
 
-  if ((strLen & 1) != 0) {
+// FromHex, writing bytes to dest as it goes -> { read, written }
+export const __Porffor_fromHex = (str: any, dest: i32, maxLength: i32): object => {
+  const ptr: i32 = Porffor.IR.ptr(str);
+  const wide: boolean = Porffor.type(str) == Porffor.TYPES.string;
+  const length: i32 = str.length;
+
+  if ((length & 1) != 0) {
     throw new SyntaxError('Hex string must have even length');
   }
 
-  let j: i32 = destPtr;
+  let read: i32 = 0;
+  let written: i32 = 0;
+  while (Porffor.fastAnd(read < length, written < maxLength)) {
+    const hi: i32 = __Porffor_hexValue(wide ? Porffor.IR.loadU16(ptr + read * 2, 4) : Porffor.IR.loadU8(ptr + read, 4));
+    const lo: i32 = __Porffor_hexValue(wide ? Porffor.IR.loadU16(ptr + read * 2 + 2, 4) : Porffor.IR.loadU8(ptr + read + 1, 4));
+    if (Porffor.fastOr(hi == 16, lo == 16)) throw new SyntaxError('Invalid hex character');
 
-  let i: i32 = 0;
-  const maxBytes: i32 = strLen / 2;
-  const limit: i32 = maxBytes < maxLength ? maxBytes : maxLength;
-
-  while (i < limit) {
-    const h1: i32 = Porffor.IR.loadU8(strPtr + i * 2, 4);
-    const h2: i32 = Porffor.IR.loadU8(strPtr + i * 2 + 1, 4);
-
-    let v1: i32 = -1;
-    let v2: i32 = -1;
-
-    if (h1 >= 48 && h1 <= 57) v1 = h1 - 48; // 0-9
-    else if (h1 >= 97 && h1 <= 102) v1 = h1 - 87; // a-f
-    else if (h1 >= 65 && h1 <= 70) v1 = h1 - 55; // A-F
-
-    if (h2 >= 48 && h2 <= 57) v2 = h2 - 48; // 0-9
-    else if (h2 >= 97 && h2 <= 102) v2 = h2 - 87; // a-f
-    else if (h2 >= 65 && h2 <= 70) v2 = h2 - 55; // A-F
-
-    if (v1 == -1 || v2 == -1) {
-      throw new SyntaxError('Invalid hex character');
-    }
-
-    const byte: i32 = (v1 << 4) | v2;
-    Porffor.IR.storeU8(j++, 4, byte);
-
-    i++;
+    Porffor.IR.storeU8(dest + written, 4, (hi << 4) | lo);
+    written++;
+    read += 2;
   }
 
-  const charsRead: i32 = i * 2;
-  return (charsRead << 16) | (j - destPtr);
+  const result: object = {};
+  result.read = read;
+  result.written = written;
+  return result;
 };
 
 export const __Uint8Array_fromHex = (str: any) => {
-  if (Porffor.type(str) != Porffor.TYPES.bytestring) {
+  if ((Porffor.type(str) | 0b10000000) != Porffor.TYPES.bytestring) {
     throw new TypeError('First argument must be a string');
   }
 
-  // 2 chars -> 1 byte
-  const exactSize: i32 = str.length / 2;
-  const ta: Uint8Array = new Uint8Array(exactSize);
-  const taPtr: i32 = Porffor.IR.ptr(ta);
-  const bufferPtr: i32 = Porffor.IR.loadI32(taPtr, 4);
-
-  __Porffor_fromHex(str, bufferPtr, exactSize);
-
+  const ta: Uint8Array = new Uint8Array(str.length >> 1);
+  __Porffor_fromHex(str, Porffor.IR.loadI32(Porffor.IR.ptr(ta), 4), str.length >> 1);
   return ta;
 };
 
-export const __Uint8Array_prototype_setFromHex = function (this: Uint8Array, str: any) {
-  if (Porffor.type(str) != Porffor.TYPES.bytestring) {
+export const __Uint8Array_prototype_setFromHex = function (this: any, str: any) {
+  __Porffor_uint8array_validate(this);
+  if (__Porffor_typedArray_immutable(this)) throw new TypeError('Cannot write to an immutable ArrayBuffer');
+  if ((Porffor.type(str) | 0b10000000) != Porffor.TYPES.bytestring) {
     throw new TypeError('First argument must be a string');
   }
 
-  const byteLength: i32 = __Porffor_uint8array_validate(this);
-  const taPtr: i32 = Porffor.IR.ptr(this);
-  const bufferPtr: i32 = Porffor.IR.loadI32(taPtr, 4);
-
-  const result: i32 = __Porffor_fromHex(str, bufferPtr, byteLength);
-  const charsRead: i32 = result >> 16;
-  const bytesWritten: i32 = result & 0xFFFF;
-
-  const resultObj: object = {};
-  resultObj.read = charsRead;
-  resultObj.written = bytesWritten;
-
-  return resultObj;
+  const byteLength: i32 = __Porffor_typedArray_validate(this);
+  return __Porffor_fromHex(str, Porffor.IR.loadI32(this, 4), byteLength);
 };
