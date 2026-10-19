@@ -135,6 +135,9 @@ export const __Map_prototype_getOrInsert = function (this: Map, key: any, value:
 };
 
 export const __Map_prototype_getOrInsertComputed = function (this: Map, key: any, callbackFn: any) {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('callbackFn is not a function');
+  if (key === 0) key = 0;
+
   if (!Porffor.callThis(__Map_prototype_has, this, key)) {
     Porffor.callThis(__Map_prototype_set, this, key, callbackFn(key));
   }
