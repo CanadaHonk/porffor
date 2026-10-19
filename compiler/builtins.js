@@ -1,6 +1,6 @@
 import * as PrecompiledBuiltins from './builtins_precompiled.js';
 import { TYPES, TYPE_NAMES, ERROR_NAMES } from './types.js';
-import { Bin, Un, T, K, Const, JvConst, Box, JvType, JvNum, JvPtr, Convert, Reinterpret, CONVERT_SIGNED, N_KIND, N_TYPE, N_A, N_B, Local, Assign, Call, CallDynamic, If, TypeSwitch, Return, RawC, BlockStmt } from './ir.js';
+import { Bin, Un, T, K, Const, JvConst, Box, JvType, JvNum, JvPtr, Convert, Reinterpret, CONVERT_SIGNED, N_KIND, N_TYPE, N_A, N_B, Local, Assign, Call, CallDynamic, If, TypeSwitch, Return, RawC, BlockStmt, Store } from './ir.js';
 import './prefs.js';
 
 const f64FromBytes = bytes => {
@@ -77,6 +77,8 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           Assign(obj, Call('__Porffor_object_new', [ Const(T.i32, Object.keys(props).length) ])),
           Assign(getPtr, JvPtr(obj))
         ];
+        // index keys on these are visible through array holes, see __Porffor_object_appendEntry
+        if (name === '__Object_prototype' || name === '__Array_prototype') out.push(Store('u8', getPtr, 4, Const(T.i32, 0b0010)));
         const propValue = (key, d) => {
           if (key === name) return obj;
           const getter = '#get_' + key;

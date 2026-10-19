@@ -139,23 +139,19 @@ export const __Porffor_object_ensureCapacity = (obj: any, needed: i32): i32 => {
   return newEntriesPtr;
 };
 
-// set once Object.prototype or Array.prototype (or its prototype) may have index keys: until then holes skip prototype lookups
+// set once Object.prototype or Array.prototype (flag 0b0010) may have index keys: until then holes skip prototype lookups
 let indexKeysUsed: i32 = 0;
 export const __Porffor_object_indexKeysUsed = (): i32 => indexKeysUsed;
 
-export const __Porffor_object_isArrayProtoChain = (obj: any): boolean =>
-  Porffor.fastOr(
-    Porffor.IR.ptr(obj) == Porffor.IR.ptr(__Object_prototype),
-    Porffor.IR.ptr(obj) == Porffor.IR.ptr(__Porffor_object_getHiddenPrototype(Porffor.TYPES.array))
-  );
-
 export const __Porffor_object_appendEntry = (obj: any, key: any, hash: i32): i32 => {
-  if (indexKeysUsed == 0) {
+  if (Porffor.IR.loadU8(obj, 4) & 0b0010) {
     const keyType: i32 = Porffor.type(key);
     if (Porffor.fastOr(keyType == Porffor.TYPES.string, keyType == Porffor.TYPES.bytestring)) {
-      if (key.length > 0) {
-        const c: i32 = key.charCodeAt(0);
-        if (Porffor.fastAnd(c >= 48, c <= 57)) if (__Porffor_object_isArrayProtoChain(obj)) indexKeysUsed = 1;
+      const keyPtr: i32 = Porffor.IR.ptr(key);
+      if (Porffor.IR.loadI32(keyPtr, 0) > 0) {
+        let c: i32 = Porffor.IR.loadU8(keyPtr, 4);
+        if (keyType == Porffor.TYPES.string) c = Porffor.IR.loadU16(keyPtr, 4);
+        if (Porffor.fastAnd(c >= 48, c <= 57)) indexKeysUsed = 1;
       }
     }
   }
@@ -536,7 +532,7 @@ export const __Porffor_object_setPrototype = (obj: any, proto: any): void => {
 
   if (__Porffor_object_isObjectOrNull(proto)) {
     // a custom prototype for Array.prototype may have index props
-    if (indexKeysUsed == 0) if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(__Porffor_object_getHiddenPrototype(Porffor.TYPES.array))) {
+    if (Porffor.IR.loadU8(obj, 4) & 0b0010) {
       if (Porffor.fastAnd(Porffor.IR.ptr(obj) != Porffor.IR.ptr(__Object_prototype), Porffor.IR.ptr(proto) != Porffor.IR.ptr(__Object_prototype))) indexKeysUsed = 1;
     }
     Porffor.IR.storeI32(obj, 8, proto);
