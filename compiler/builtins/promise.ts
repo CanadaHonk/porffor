@@ -522,7 +522,7 @@ export const __Porffor_promise_combinatorElement = (st: any[], index: any, kind:
 export const __Porffor_promise_combinate = (C: any, cap: any[], promiseResolve: any, x: any, st: any[], index: i32, variant: i32): void => {
   const nextPromise: any = promiseResolve.call(C, x);
   if (variant == 3) {
-    nextPromise.then(cap[1], cap[2]);
+    __Porffor_promise_invokeThen(nextPromise, cap[1], cap[2]);
     return;
   }
 
@@ -534,11 +534,11 @@ export const __Porffor_promise_combinate = (C: any, cap: any[], promiseResolve: 
   const alreadyCalled: any[] = Porffor.array.new(1);
   alreadyCalled[0] = false;
   if (variant == 0) {
-    nextPromise.then(__Porffor_promise_combinatorElement(st, index, 0, alreadyCalled), cap[2]);
+    __Porffor_promise_invokeThen(nextPromise, __Porffor_promise_combinatorElement(st, index, 0, alreadyCalled), cap[2]);
   } else if (variant == 1) {
-    nextPromise.then(__Porffor_promise_combinatorElement(st, index, 1, alreadyCalled), __Porffor_promise_combinatorElement(st, index, 2, alreadyCalled));
+    __Porffor_promise_invokeThen(nextPromise, __Porffor_promise_combinatorElement(st, index, 1, alreadyCalled), __Porffor_promise_combinatorElement(st, index, 2, alreadyCalled));
   } else {
-    nextPromise.then(cap[1], __Porffor_promise_combinatorElement(st, index, 3, alreadyCalled));
+    __Porffor_promise_invokeThen(nextPromise, cap[1], __Porffor_promise_combinatorElement(st, index, 3, alreadyCalled));
   }
 };
 
