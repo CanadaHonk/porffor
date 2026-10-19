@@ -1639,8 +1639,8 @@ const getNodeType = (scope, node) => {
       if (TYPED_ARRAY_TYPES.includes(t)) ret = t;
     }
     if (ret == null) {
-      // `x.call(...)` -> type of x
-      if (name == null && node.callee.type === 'MemberExpression' && node.callee.property.name === 'call') name = node.callee.object.name;
+      // x.call(...) has x's return type, except comptime builtins
+      if (name == null && node.callee.type === 'MemberExpression' && node.callee.property.name === 'call' && !builtinFuncs[node.callee.object.name]?.comptime) name = node.callee.object.name;
       if (name != null) {
         const func = resolveNamedFunction(scope, name) ?? funcByName(name);
         if (node.type === 'CallExpression' && (func?.generator || func?.async)) ret = func.async
