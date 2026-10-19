@@ -147,5 +147,19 @@ export const __Reflect_construct = (target: any, argumentsList: any, newTarget: 
   // todo: giving undefined/null to newTarget should not default
   if (!__ecma262_IsConstructor(target)) throw new TypeError('Target is not a constructor');
   if (!__ecma262_IsConstructor(newTarget)) throw new TypeError('newTarget is not a constructor');
-  return Porffor.call(target, argumentsList, null, newTarget);
+  const out: any = Porffor.call(target, argumentsList, null, newTarget);
+
+  // builtins create instances with their default prototype: swap in newTarget's
+  if (newTarget !== target) {
+    const t: i32 = Porffor.type(out);
+    if (Porffor.fastOr(
+      Porffor.fastAnd(t != Porffor.TYPES.object, t != Porffor.TYPES.function),
+      __Object_getPrototypeOf(out) === target.prototype
+    )) {
+      const proto: any = newTarget.prototype;
+      if (Porffor.object.isObject(proto)) __Object_setPrototypeOf(out, proto);
+    }
+  }
+
+  return out;
 };
