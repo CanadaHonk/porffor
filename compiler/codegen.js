@@ -518,6 +518,7 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
 
   const withRef = withReference(scope, decl);
   if (withRef) return withRef;
+  if (scope.inEval && completionResets.has(decl.type)) setCompletion(scope, valUndefined());
 
   switch (decl.type) {
     case 'BinaryExpression':
@@ -1765,8 +1766,20 @@ const generateExp = (scope, decl) => {
     return valUndefined();
   }
 
-  return generate(scope, decl.expression, undefined, !scope.inEval);
+  if (!scope.inEval) return generate(scope, decl.expression, undefined, true);
+
+  setCompletion(scope, generate(scope, decl.expression));
+  return valUndefined();
 };
+
+// eval code's completion value, kept in the scope.inEval local
+const completion = scope => {
+  allocVar(scope, scope.inEval);
+  return Local(scope.inEval, T.jsval);
+};
+const setCompletion = (scope, value) => assign(scope, completion(scope), coerceValue(value, T.jsval));
+// these complete with undefined unless their body has a value
+const completionResets = new Set([ 'IfStatement', 'WhileStatement', 'DoWhileStatement', 'ForStatement', 'ForInStatement', 'ForOfStatement', 'SwitchStatement', 'TryStatement', 'WithStatement' ]);
 
 const generateSequence = (scope, decl) => {
   const exprs = decl.expressions;
@@ -2104,7 +2117,8 @@ const generateCall = (scope, decl) => {
       }
 
       const oldInEval = scope.inEval;
-      scope.inEval = true;
+      scope.inEval = '#completion' + uniqId(scope);
+      setCompletion(scope, valUndefined());
       const out = generate(scope, parsed);
       scope.inEval = oldInEval;
       return out;
@@ -4280,7 +4294,13 @@ const generateTry = (scope, decl) => {
     return;
   }
 
-  finallyEnd(scope, fin, protectedStmts, () => genStmt(scope, decl.finalizer));
+  // a finally block's value never completes the try
+  finallyEnd(scope, fin, protectedStmts, () => {
+    const inEval = scope.inEval;
+    scope.inEval = null;
+    genStmt(scope, decl.finalizer);
+    scope.inEval = inEval;
+  });
 };
 
 // exits generated between finallyStart and finallyEnd run the finalizer first
@@ -5510,7 +5530,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     parentFunc: scope.name ? scope : null,
     selfAware: !!decl._selfAware,
     directCallOnly,
-    inEval: !!decl._evalBody,
+    inEval: decl._evalBody ? '#completion' : null,
     closureCaptures: decl._captures && Object.keys(decl._captures).length > 0 ? decl._captures : null,
     closureOwnLocals: decl._capturedVars && Object.keys(decl._capturedVars).length > 0 ? decl._capturedVars : null,
     closureCapturesThis: decl._capturesThis ?? null,
@@ -5805,24 +5825,11 @@ const generateModules = (scope, body) => {
 
 const generateBlock = (scope, decl) => {
   inferBranchStart(scope);
-  let last = -1;
-  if (scope.inEval) {
-    for (let i = decl.body.length - 1; i >= 0; i--) {
-      if (isEmptyNode(decl.body[i])) continue;
-      if (decl.body[i].type === 'ExpressionStatement') last = i;
-      break;
-    }
-  }
-
-  let out = null;
-  for (let i = 0; i < decl.body.length; i++) {
-    const x = decl.body[i];
-    if (isEmptyNode(x)) continue;
-    if (i === last) out = generate(scope, x);
-    else genStmt(scope, x);
+  for (const x of decl.body) {
+    if (!isEmptyNode(x)) genStmt(scope, x);
   }
   inferBranchEnd(scope);
-  return out ?? valUndefined();
+  return scope.inEval ? completion(scope) : valUndefined();
 };
 
 const staticDirectArgType = node => {
