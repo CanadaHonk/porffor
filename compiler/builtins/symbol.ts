@@ -63,6 +63,10 @@ export const __Symbol_prototype_valueOf = function (this: Symbol) {
   return this;
 };
 
+export const __Symbol_prototype_Symbol_toPrimitive = function (this: Symbol, hint: any) {
+  return this;
+};
+
 const forStore: Map = new Map();
 export const __Symbol_for = (key: any): Symbol => {
   key = ecma262.ToString(key);

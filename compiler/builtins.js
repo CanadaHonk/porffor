@@ -377,6 +377,8 @@ export const BuiltinVars = ({ builtinFuncs }) => {
 
     // Function.prototype[@@hasInstance] is fixed
     if (props.Symbol_hasInstance) props.Symbol_hasInstance.writable = props.Symbol_hasInstance.configurable = false;
+    // @@toPrimitive methods are read-only
+    if (props.Symbol_toPrimitive) props.Symbol_toPrimitive.writable = false;
 
     // special case: Object.prototype.__proto__ = null
     if (x === '__Object_prototype') {
