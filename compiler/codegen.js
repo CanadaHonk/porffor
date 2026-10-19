@@ -13,8 +13,8 @@ import { TYPES, TYPE_FLAGS, TYPE_NAMES, TYPED_ARRAY_TYPES, ITERATOR_TYPES } from
 import semantic, { knownValue, unknownValue } from './semantic.js';
 import parse from './parse.js';
 import temporalPolyfillSource from './temporal.js';
-import desugarUsing from './using.js';
 import intlPolyfillSource from './intl/intl.js';
+import desugarUsing from './using.js';
 import './prefs.js';
 
 // jsval constants
@@ -861,7 +861,7 @@ const generateIdent = (scope, decl) => {
     return generate(scope, closureEnvNode(scope, decl.name, closureOwner));
   }
 
-  if (decl._builtinMember && decl.name in builtinFuncs) return materializeFunctionValue(scope, includeBuiltin(scope, decl.name));
+  if (decl._builtinMember && decl.name in builtinFuncs) return materializeFunctionValue(scope, builtinShadow(decl.name) ?? includeBuiltin(scope, decl.name));
 
   const boundFunc = decl._resolvedVariable?.node?._porfforFunc;
   if (boundFunc && !decl._selfBinding && decl._resolvedVariable.scope.type !== 'Program' && !decl._resolvedVariable.node._writes) return materializeFunctionValue(scope, boundFunc);
@@ -1213,7 +1213,8 @@ const usesAnyType = types => {
 const irBuiltinHelpers = (scope, name, def) => ({
   includeBuiltin: builtin => includeBuiltin(scope, builtin),
   typeUsed: x => typeUsed(scope, x),
-  funcRefPtr: name => JvPtr(funcRef(includeBuiltin(scope, name))),
+  // a builtin shadow is also the prototype's value
+  funcRefPtr: name => JvPtr(funcRef(builtinShadow(name) ?? includeBuiltin(scope, name))),
   hasBuiltin: name => name in builtinFuncs,
   makeString: str => makeString(scope, str),
   usesAnyType,
@@ -4960,6 +4961,9 @@ const resolveNamedFunction = (scope, name) => {
   return null;
 };
 
+// a user top-level function of the same name replaces the builtin prototype method (eg from the Intl polyfill)
+const builtinShadow = name => name.includes('_prototype_') && funcIndex[name] != null ? funcs.find(x => x.name === name && !x.internal) : null;
+
 const builtinFuncByName = name => {
   const normal = funcByName(name);
   if (!normal || normal.internal) return normal;
@@ -4999,8 +5003,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     index: currentFuncIndex++,
     arrow,
     topLevel,
-    constr: !directCallOnly && !arrow && !decl.generator && !decl.async && !decl._method, // constructable
-    method: !arrow && (decl._method || decl.generator || decl.async), // has this, not constructable
+    constr: !directCallOnly && !arrow && !decl.generator && !decl.async && !decl._method && !decl._builtinShadow,
+    method: !arrow && (decl._method || decl._builtinShadow || decl.generator || decl.async),
     async: decl.async,
     generator: decl.generator,
     subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _noGlobalThis: decl._noGlobalThis,
@@ -5026,7 +5030,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       closurePassThrough: !!decl._closurePassThrough
     }),
     closureOwnThis: !!decl._capturedThis,
-    knownThisSlots: !arrow && !decl.generator && !decl.async && !decl._method ? getKnownThisSlots(decl) : null,
+    knownThisSlots: !arrow && !decl.generator && !decl.async && !decl._method && !decl._builtinShadow ? getKnownThisSlots(decl) : null,
 
     // render's C signature return type (IR T.*), porffor TYPES inference type rides in
     // `returnType`, coroutine kind in `flags` (async/generator bodies are otherwise plain)
@@ -5509,6 +5513,8 @@ export default (program, opts = {}) => {
   if (program._usesIntl) {
     const polyfill = parse(intlPolyfillSource).body;
     if (program._units) for (const x of polyfill) x._unit = 'intl';
+    // its replacements of builtin prototype methods are methods: not constructors, no prototype
+    for (const x of polyfill) if (x.type === 'FunctionDeclaration' && x.id.name.includes('_prototype_')) x._builtinShadow = true;
     program.body = polyfill.concat(program.body);
   }
 
