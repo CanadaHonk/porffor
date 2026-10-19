@@ -295,6 +295,13 @@ const knownEvalSource = node => {
   return value === unknownValue ? null : String(value);
 };
 
+// owner of this, super and new.target, null in field initializers and static blocks
+const thisFunc = currentFunc => {
+  const init = classFieldInitializerFunc ?? classStaticFunc;
+  if (currentFunc.type !== 'ArrowFunctionExpression') return currentFunc === init ? null : currentFunc;
+  return findLexicalThisOwner(currentFunc, init);
+};
+
 const parseEval = node => {
   const code = knownEvalSource(node._evalSource ?? node.arguments[0]);
   if (code == null) return;
@@ -375,6 +382,40 @@ const declVar = (name, kind, node) => {
   if (node && typeof node === 'object') node._variable = variable;
 
   if (internalName) renameBindingNode(node, internalName);
+};
+
+// hidden binding for the [[HomeObject]] super resolves from
+const declHome = node => {
+  node._home = { type: 'Identifier', name: `#home_${node.start}`, _binding: true };
+  declVar(node._home.name, 'let', node._home);
+};
+
+// hidden class bindings: home object, private name WeakMaps (#priv_), instance private methods (#privfn_)
+const declClass = node => {
+  declHome(node);
+  node._privates = Object.create(null);
+  for (const x of node.body.body) {
+    if (x.type === 'MethodDefinition') {
+      x.value._homeOwner = node;
+      x.value._homeStatic = x.static;
+      if (x.kind === 'constructor' && node.superClass) x.value._derivedCtor = true;
+    }
+    if (x.key?.type !== 'PrivateIdentifier') continue;
+
+    const name = x.key.name;
+    let info = node._privates[name];
+    if (!info) {
+      info = node._privates[name] = { map: { type: 'Identifier', name: `#priv_${node.start}_${name}`, _binding: true, _writes: 1 }, fn: null, kind: 'field', static: !!x.static };
+      declVar(info.map.name, 'let', info.map);
+    }
+    if (x.type !== 'MethodDefinition') continue;
+
+    info.kind = x.kind === 'method' ? 'method' : 'accessor';
+    if (!x.static && !info.fn) {
+      info.fn = { type: 'Identifier', name: `#privfn_${node.start}_${name}`, _binding: true, _writes: 1 };
+      declVar(info.fn.name, 'let', info.fn);
+    }
+  }
 };
 
 const analyzePattern = (kind, node) => {
@@ -463,14 +504,24 @@ const analyze = (node, strict = false) => {
         node.id._binding = true;
         declVar(node.id.name, 'let', node);
       }
+      declClass(node);
       break;
 
     case 'ClassExpression':
+      declClass(node);
       scopes.push(node);
       openedScope = true;
       if (node.id?.name) {
         node.id._binding = true;
         declVar(node.id.name, 'function-name', node);
+      }
+      break;
+
+    case 'ObjectExpression':
+      for (const x of node.properties) {
+        if (!x.method && x.kind !== 'get' && x.kind !== 'set') continue;
+        x.value._homeOwner = node;
+        node._home ?? declHome(node);
       }
       break;
 
@@ -490,6 +541,13 @@ const analyze = (node, strict = false) => {
       if (node.type === 'FunctionExpression' && node.id?.name) {
         node.id._binding = true;
         declVar(node.id.name, 'function-name', node);
+      }
+
+      if (node._derivedCtor) {
+        node._thisBinding = { type: 'Identifier', name: `#this_${node.start}`, _binding: true, _writes: 1 };
+        declVar(node._thisBinding.name, 'let', node._thisBinding);
+        node._newTargetBinding = { type: 'Identifier', name: `#newtarget_${node.start}`, _binding: true };
+        declVar(node._newTargetBinding.name, 'let', node._newTargetBinding);
       }
 
       for (const p of node.params) analyzePattern('var', p);
@@ -591,6 +649,7 @@ const annotate = (node, parent = null, key = null) => {
       if (variable) {
         node._resolvedBinding = true;
         node._resolvedVariable = variable;
+        if (variable.node === heritage?.cls && currentFunc === heritage.func) node._tdz = true;
         variable.node._refs = (variable.node._refs ?? 0) + 1;
         // reads from other funcs or before the dominating init can see undefined
         if (variable.func !== currentFunc || !variable.node._storageInitSeen) {
@@ -690,6 +749,20 @@ const annotate = (node, parent = null, key = null) => {
 
     case 'ThisExpression': {
       const currentFunc = scopes[scopes.lastFuncs.at(-1)];
+      // arrows in static initializers see the class
+      const func = thisFunc(currentFunc);
+      if (classStaticFunc && currentFunc.type === 'ArrowFunctionExpression' && !func) {
+        node._classThis = { type: 'Identifier', name: `#home_${classStack.at(-1).start}` };
+        annotate(node._classThis, node, '_classThis');
+        break;
+      }
+
+      if (func?._derivedCtor) {
+        node._derivedThis = { type: 'Identifier', name: `#this_${func.start}` };
+        annotate(node._derivedThis, node, '_derivedThis');
+        break;
+      }
+
       const owner = currentFunc === classStaticFunc ? null : findLexicalThisOwner(currentFunc, classFieldInitializerFunc);
       if (owner) {
         node._closureThisFunc = owner;
@@ -700,34 +773,101 @@ const annotate = (node, parent = null, key = null) => {
       break;
     }
 
-    case 'MemberExpression':
-      if (node.computed) annotate(node.property, node, 'property');
-      annotate(node.object, node, 'object');
-      return;
+    case 'Super': {
+      node._this = { type: 'ThisExpression' };
+      annotate(node._this, node, '_this');
+      if (key === 'callee') {
+        node._newTarget = { type: 'MetaProperty', meta: { type: 'Identifier', name: 'new' }, property: { type: 'Identifier', name: 'target' } };
+        annotate(node._newTarget, node, '_newTarget');
+      }
 
-    case 'StaticBlock': {
-      const previous = classStaticFunc;
-      classStaticFunc = scopes[scopes.lastFuncs.at(-1)];
-      for (const x of node.body) annotate(x, node, 'body');
-      classStaticFunc = previous;
+      // a constructor's own super() call uses its callee instead
+      const currentFunc = scopes[scopes.lastFuncs.at(-1)];
+      if (key === 'callee' && currentFunc.type !== 'ArrowFunctionExpression') break;
+
+      // the enclosing method, else a field initializer or static block of the innermost class
+      const method = thisFunc(currentFunc);
+      const owner = method?._homeOwner ?? classStack.at(-1);
+      node._home = { type: 'Identifier', name: `#home_${owner.start}` };
+      node._homeProto = key !== 'callee' && owner.type !== 'ObjectExpression' && !(method ? method._homeStatic : classStaticFunc);
+      annotate(node._home, node, '_home');
+      break;
+    }
+
+    case 'ClassDeclaration':
+    case 'ClassExpression': {
+      // the class binding is uninitialized while the heritage evaluates
+      const previous = heritage;
+      heritage = { cls: node, func: scopes[scopes.lastFuncs.at(-1)] };
+      annotate(node.superClass, node, 'superClass');
+      heritage = previous;
+
+      // the constructor adds instance private elements, reading their bindings like field initializers
+      const previousInit = classFieldInitializerFunc;
+      classFieldInitializerFunc = scopes[scopes.lastFuncs.at(-1)];
+      for (const name in node._privates) {
+        const info = node._privates[name];
+        if (info.static) continue;
+
+        annotate(info.ctorMap = { type: 'Identifier', name: `#priv_${node.start}_${name}` }, node, '_privates');
+        if (info.fn) annotate(info.ctorFn = { type: 'Identifier', name: `#privfn_${node.start}_${name}` }, node, '_privates');
+      }
+      classFieldInitializerFunc = previousInit;
+
+      classStack.push(node);
+      annotate(node.body, node, 'body');
+      classStack.pop();
       if (openedScope) scopes.pop();
       return;
     }
 
-    case 'PropertyDefinition':
-      if (node.computed) annotate(node.key, node, 'key');
-      if (node.static) {
-        const previous = classStaticFunc;
-        classStaticFunc = scopes[scopes.lastFuncs.at(-1)];
-        annotate(node.value, node, 'value');
-        classStaticFunc = previous;
-      } else {
-        const previous = classFieldInitializerFunc;
-        classFieldInitializerFunc = scopes[scopes.lastFuncs.at(-1)];
-        annotate(node.value, node, 'value');
-        classFieldInitializerFunc = previous;
+    case 'PrivateIdentifier': {
+      const cls = classStack.findLast(x => x._privates[node.name]);
+      node._private = cls._privates[node.name];
+      node._map = { type: 'Identifier', name: `#priv_${cls.start}_${node.name}` };
+      annotate(node._map, node, '_map');
+      break;
+    }
+
+    case 'MetaProperty': {
+      if (node.meta.name !== 'new') return;
+
+      // field initializers and static blocks have no new.target
+      const func = thisFunc(scopes[scopes.lastFuncs.at(-1)]);
+      if (!func) node._undefined = true;
+      if (func?._derivedCtor) {
+        node._binding = { type: 'Identifier', name: `#newtarget_${func.start}` };
+        annotate(node._binding, node, '_binding');
       }
       return;
+    }
+
+    case 'MemberExpression':
+      if (node.computed || node.property.type === 'PrivateIdentifier') annotate(node.property, node, 'property');
+      annotate(node.object, node, 'object');
+      return;
+
+    case 'StaticBlock': {
+      const previous = [ classStaticFunc, classFieldInitializerFunc ];
+      classStaticFunc = scopes[scopes.lastFuncs.at(-1)];
+      classFieldInitializerFunc = null;
+      for (const x of node.body) annotate(x, node, 'body');
+      [ classStaticFunc, classFieldInitializerFunc ] = previous;
+      if (openedScope) scopes.pop();
+      return;
+    }
+
+    case 'PropertyDefinition': {
+      if (node.computed) annotate(node.key, node, 'key');
+      // an element is in exactly one of the static or instance contexts
+      const previous = [ classStaticFunc, classFieldInitializerFunc ];
+      const func = scopes[scopes.lastFuncs.at(-1)];
+      classStaticFunc = node.static ? func : null;
+      classFieldInitializerFunc = node.static ? null : func;
+      annotate(node.value, node, 'value');
+      [ classStaticFunc, classFieldInitializerFunc ] = previous;
+      return;
+    }
 
     case 'Property':
       if (node.computed) annotate(node.key, node, 'key');
@@ -810,7 +950,7 @@ const evalVarNames = (node, out = [], top = true) => {
   return out;
 };
 
-let inEval = false, classFieldInitializerFunc = null, classStaticFunc = null, paramsFunc = null;
+let inEval = false, classFieldInitializerFunc = null, classStaticFunc = null, paramsFunc = null, heritage = null, classStack = [];
 const isStrictBlock = body => {
   for (const x of body) {
     if (x.type !== 'ExpressionStatement' || x.expression.type !== 'Literal' || typeof x.expression.value !== 'string') return false;

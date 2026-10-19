@@ -365,8 +365,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   const fnNameSegs = [];
   const fnNameOff = [];
   for (const f of linkFuncs) {
-    let name = f.jsName ?? f.name;
-    name = name.startsWith('__') ? builtinName(name) : name.split('#')[0];
+    const name = f.jsName ?? (f.name.startsWith('__') ? builtinName(f.name) : f.name.split('#')[0]);
     if (name.length === 0) { fnNameOff.push(0); continue; }
     const bytes = [ name.length & 0xff, (name.length >>> 8) & 0xff, (name.length >>> 16) & 0xff, (name.length >>> 24) & 0xff ];
     for (let k = 0; k < name.length; k++) bytes.push(name.charCodeAt(k) & 0xff);

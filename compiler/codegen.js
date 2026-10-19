@@ -679,12 +679,6 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
 
     case 'WithStatement': return generate(scope, decl.body);
 
-    case 'PrivateIdentifier':
-      return generate(scope, {
-        type: 'Literal',
-        value: privateIDName(decl.name)
-      });
-
     case 'TSEnumDeclaration':
       return generateEnum(scope, decl);
 
@@ -972,10 +966,20 @@ const generateReturn = (scope, decl) => {
     return;
   }
 
+  // builtin constructors take their prototype from new.target
+  if (scope.constr && globalThis.precompile && scope.retType === T.jsval && staticFuncIdentity(scope) && !hasClosureCaptures(scope)) {
+    const ret = reuse(scope, coerceReturnValue(scope, generate(scope, arg)));
+    const newTarget = Local('#newtarget', T.jsval);
+    emitIf(scope, Bin('&&', T.i32, JvTruthy(newTarget), Bin('!=', T.i32, JvPtr(newTarget), JvPtr(funcRef(scope, false)))),
+      () => exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototypeFromConstructor', [ ret, newTarget ])));
+    stmt(scope, Return(ret));
+    return;
+  }
+
   // constructors coerce their return value
   if (scope.constr && !globalThis.precompile) {
     const constructing = () => JvTruthy(Local('#newtarget', T.jsval));
-    const retThis = () => stmt(scope, Return(Local('#this', T.jsval)));
+    const retThis = () => stmt(scope, Return(scope.ast._thisBinding ? derivedThis(scope, identNode(scope.ast._thisBinding.name)) : Local('#this', T.jsval)));
 
     // return undefined / return this give back the new instance when constructing
     if ((arg.type === 'Identifier' && arg.name === 'undefined') || arg.type === 'ThisExpression') {
@@ -1232,6 +1236,9 @@ const knownNullish = decl => {
 };
 
 const generateBinaryExp = (scope, decl) => {
+  if (decl.operator === 'in' && decl.left.type === 'PrivateIdentifier')
+    return builtinCall(scope, '__Porffor_private_has', [ generate(scope, decl.left._map), generate(scope, decl.right) ]);
+
   if (decl.operator === 'instanceof') {
     // hack: check type for primitive objects
     const rightName = decl.right.name;
@@ -1677,7 +1684,6 @@ const getNodeType = (scope, node) => {
   else if (node.type === 'ChainExpression') ret = getNodeType(scope, node.expression);
   else if (node.type === 'BlockStatement') ret = getNodeType(scope, getLastNode(node.body));
   else if (node.type === 'LabeledStatement') ret = getNodeType(scope, node.body);
-  else if (node.type === 'PrivateIdentifier') ret = getNodeType(scope, { type: 'Literal', value: privateIDName(node.name) });
   else if (node.type.endsWith('Statement') || node.type.endsWith('Declaration')) ret = TYPES.undefined;
 
   if (!node._doNotMarkTypeUsed) typeUsed(scope, ret);
@@ -1863,7 +1869,7 @@ const getKnownThisSlots = node => {
   return slots;
 };
 
-const createThisArg = (scope, decl) => {
+const createThisArg = (scope, decl, calleeVal = null) => {
   const name = decl.callee?.name;
   if (decl._new) {
     if (!decl._forceCreateThis && globalThis.precompile) return valNull();
@@ -1882,7 +1888,8 @@ const createThisArg = (scope, decl) => {
     }
 
     const obj = reuse(scope, builtinCall(scope, '__Porffor_object_new', [ Const(T.i32, knownSlotCount) ]));
-    exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototype', [ obj, generate(scope, getObjProp(decl.callee, 'prototype')) ]));
+    const proto = calleeVal ? generateMember(scope, memberNode(decl.callee, identNode('prototype'), false), calleeVal) : generate(scope, getObjProp(decl.callee, 'prototype'));
+    exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototype', [ obj, proto ]));
     return obj;
   }
 
@@ -2095,9 +2102,10 @@ const generateCall = (scope, decl) => {
     }
   }
 
-  if (!decl._new && !name && (decl.callee.type === 'MemberExpression' || decl.callee.type === 'ChainExpression')) {
-    const prop = (decl.callee.expression ?? decl.callee).property;
-    const object = (decl.callee.expression ?? decl.callee).object;
+  const member = decl.callee.expression ?? decl.callee;
+  if (!decl._new && !name && member.type === 'MemberExpression' && member.object.type !== 'Super' && member.property.type !== 'PrivateIdentifier') {
+    const prop = member.property;
+    const object = member.object;
     protoName = prop?.name;
     target = object;
   }
@@ -2181,17 +2189,28 @@ const generateCall = (scope, decl) => {
   }
   const userArgs = hasSpread ? [] : decl.arguments;
 
-  // super(...): invoke the parent constructor on #this, threading new.target through,
-  // a marker is left so subclass field initialisers inject right after the super() call
+  // super(): construct with the parent, field initializers follow the marker
   if (decl.callee.type === 'Super') {
-    const superCtor = reuse(scope, generate(scope, scope.ast?._superClassExpr ?? {
-      type: 'CallExpression',
-      callee: { type: 'Identifier', name: '__Porffor_object_getPrototype' },
-      arguments: [ { type: 'Identifier', name: scope.name } ]
-    }));
+    const superCtor = reuse(scope, decl.callee._home ? generateSuper(scope, decl.callee) : generate(scope, scope.ast._superClassExpr));
     const argVals = hasSpread ? [] : userArgs.map(a => reuse(scope, generate(scope, a)));
-    const res = reuse(scope, CallDynamic(superCtor, generate(scope, { type: 'ThisExpression', _noGlobalThis: true }),
-      argVals, Local('#newtarget', T.jsval), spreadArr));
+    emitIf(scope, JvFalsy(builtinCall(scope, '__ecma262_IsConstructor', [ superCtor ])),
+      () => internalThrow(scope, 'TypeError', 'Super constructor is not a constructor'));
+    const newTarget = reuse(scope, generate(scope, decl.callee._newTarget ?? { type: 'MetaProperty', meta: { name: 'new' }, property: { name: 'target' } }));
+
+    // arrows have no preallocated this, the parent gets a fresh one from new.target
+    let thisArg = Local('#this', T.jsval);
+    if (!scope.subclass) {
+      thisArg = reuse(scope, builtinCall(scope, '__Porffor_object_new', [ Const(T.i32, 4) ]));
+      exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototypeFromConstructor', [ thisArg, newTarget ]));
+    }
+
+    const res = reuseNamed(scope, CallDynamic(superCtor, thisArg, argVals, newTarget, spreadArr));
+    const binding = scope.subclass ? scope.ast._thisBinding && identNode(scope.ast._thisBinding.name) : decl.callee._this._derivedThis;
+    if (binding) {
+      emitIf(scope, Bin('!=', T.i32, JvType(generate(scope, binding)), Const(T.i32, TYPES.undefined)),
+        () => internalThrow(scope, 'ReferenceError', 'Super constructor may only be called once'));
+      genStmt(scope, { type: 'AssignmentExpression', operator: '=', left: binding, right: identNode(res[N_A]) });
+    }
 
     if (scope.constr && scope.subclass && !globalThis.precompile) {
       const thisRef = Local('#this', T.jsval);
@@ -2203,9 +2222,9 @@ const generateCall = (scope, decl) => {
         emitIf(scope, Bin('||', T.i32, builtinInstance, Eq(true, builtinCall(scope, '__Object_getPrototypeOf', [ res ]), parentProto)), () =>
           exprStmt(scope, builtinCall(scope, '__Object_setPrototypeOf', [ res, builtinCall(scope, '__Object_getPrototypeOf', [ thisRef ]) ])));
         stmt(scope, Assign(thisRef, res));
-        if (hasClosureOwnEnv(scope) && scope.closureOwnThis) mirrorToClosureEnv(scope, '#this', { type: 'ThisExpression' });
       });
     }
+    if (scope.subclass && hasClosureOwnEnv(scope) && scope.closureOwnThis) mirrorToClosureEnv(scope, '#this', { type: 'ThisExpression' });
 
     stmt(scope, CLASS_FIELD_INIT_MARKER);
     return res;
@@ -2269,7 +2288,10 @@ const generateCall = (scope, decl) => {
 
   let calleeVal, thisVal = null;
   const callee = decl.callee.expression ?? decl.callee;
-  if (!decl._new && (callee.type === 'MemberExpression')) {
+  if (!decl._new && callee.type === 'MemberExpression' && callee.object.type === 'Super') {
+    thisVal = reuse(scope, generate(scope, callee.object._this));
+    calleeVal = generateSuperMember(scope, callee, thisVal);
+  } else if (!decl._new && callee.type === 'MemberExpression') {
     thisVal = reuse(scope, generate(scope, callee.object));
     calleeVal = generateMember(scope, callee, thisVal);
   } else {
@@ -2290,7 +2312,7 @@ const generateCall = (scope, decl) => {
   if (decl._new) {
     emitIf(scope, JvFalsy(builtinCall(scope, '__ecma262_IsConstructor', [ calleeVal ])),
       () => internalThrow(scope, 'TypeError', `${Prefs.d ? exprText(callee) : 'value'} is not a constructor`));
-    thisVal = decl._thisArg ? reuse(scope, generate(scope, decl._thisArg)) : createThisArg(scope, decl);
+    thisVal = decl._thisArg ? reuse(scope, generate(scope, decl._thisArg)) : createThisArg(scope, decl, calleeVal);
   } else if (Prefs.d) {
     emitIf(scope, Bin('!=', T.i32, JvType(calleeVal), Const(T.i32, TYPES.function)),
       () => internalThrow(scope, 'TypeError', `${exprText(callee)} is not a function`));
@@ -2299,11 +2321,24 @@ const generateCall = (scope, decl) => {
   return CallDynamic(calleeVal, coerceValue(thisVal, T.jsval), argVals, decl._new ? calleeVal : null, spreadArr);
 };
 
+// derived constructors have no this until super() returns
+const derivedThis = (scope, binding) => {
+  const value = reuse(scope, generate(scope, binding));
+  emitIf(scope, Bin('==', T.i32, JvType(value), Const(T.i32, TYPES.undefined)),
+    () => internalThrow(scope, 'ReferenceError', 'Must call super constructor before accessing this'));
+  return value;
+};
+
 const generateThis = (scope, decl) => {
+  if (decl._classThis) return generate(scope, decl._classThis);
+
   // arrows read the enclosing `this` out of the closure env
   if (decl._closureThisFunc) return generate(scope, closureEnvNode(scope, '#this', decl._closureThisFunc));
 
   if (scope.overrideThis) return generate(scope, scope.overrideThis);
+
+  if (decl._derivedThis) return derivedThis(scope, decl._derivedThis);
+  if (scope.ast?._thisBinding) return derivedThis(scope, identNode(scope.ast._thisBinding.name));
 
   // ordinary direct calls have a fixed receiver
   if (scope.directCallOnly) return scope.strict
@@ -2338,19 +2373,34 @@ const generateThis = (scope, decl) => {
   return Local('#this', T.jsval);
 };
 
-const generateSuper = (scope, decl) => generate(scope, {
-  type: 'CallExpression',
-  callee: { type: 'Identifier', name: '__Porffor_object_getPrototype' },
-  arguments: [
-    {
-      type: 'CallExpression',
-      callee: { type: 'Identifier', name: '__Porffor_object_getPrototype' },
-      arguments: [
-        { type: 'ThisExpression', _noGlobalThis: true }
-      ]
-    }
-  ]
-});
+// super's base is the prototype of the [[HomeObject]]
+const generateSuper = (scope, decl) => builtinCall(scope, '__Object_getPrototypeOf', [
+  generate(scope, decl._homeProto ? getObjProp(decl._home, 'prototype') : decl._home)
+]);
+
+// super[key] looks up from the base but getters see this
+const generateSuperMember = (scope, decl, thisVal = reuse(scope, generate(scope, decl.object._this))) => {
+  const key = reuse(scope, generate(scope, getProperty(decl)));
+  return builtinCall(scope, '__Porffor_object_getWithReceiver', [ generate(scope, decl.object), key, thisVal ]);
+};
+
+// o.#x reads the name's WeakMap, throwing without the element
+const privateGet = (scope, prop, obj) =>
+  builtinCall(scope, prop._private.kind === 'accessor' ? '__Porffor_private_getAccessor' : '__Porffor_private_get', [ generate(scope, prop._map), obj ]);
+
+const privateSet = (scope, prop, obj, value) => {
+  const map = generate(scope, prop._map);
+  if (prop._private.kind === 'method') return builtinCall(scope, '__Porffor_private_setMethod', [ map, obj ]);
+  return builtinCall(scope, prop._private.kind === 'accessor' ? '__Porffor_private_setAccessor' : '__Porffor_private_set', [ map, obj, value ]);
+};
+
+const writeBinding = (scope, binding, value, type) => {
+  // classes in field initializers are generated inside the constructor
+  const global = binding._variable.func.type === 'Program';
+  allocVar(scope, binding.name, global);
+  setLocalWithType(scope, binding.name, global, value, false, type);
+  if (scope.closureOwnLocals?.[binding.name]) mirrorToClosureEnv(scope, binding.name);
+};
 
 const DEFAULT_VALUE = { type: 'Identifier', name: 'undefined' };
 
@@ -2912,7 +2962,8 @@ const generatePatternAssign = (scope, pattern, init, defaultValue) => {
     setDefaultFuncName(defaultValue, pattern.name);
   }
 
-  if (pattern.type === 'MemberExpression' && init?.type === 'MemberExpression') {
+  if (pattern.type === 'MemberExpression' && init?.type === 'MemberExpression' &&
+      pattern.object.type !== 'Super' && pattern.property.type !== 'PrivateIdentifier') {
     // a.b = c.d: bind source key, target object and property up-front for evaluation order
     const id = uniqId(scope);
     const sourceKeyName = '#assign_source_key' + id;
@@ -2992,14 +3043,13 @@ const generateVar = (scope, decl) => {
   return valUndefined();
 };
 
-const privateIDName = name => '__#' + name;
 const getProperty = (decl, forceValueStr = false) => {
   const prop = decl.property ?? decl.key;
   if (decl.computed) return prop;
 
   if (prop.name != null) return {
     type: 'Literal',
-    value: prop.type === 'PrivateIdentifier' ? privateIDName(prop.name) : prop.name,
+    value: prop.name,
   };
 
   if (forceValueStr && prop.value != null) return {
@@ -3045,7 +3095,7 @@ const globalThisBindingName = decl => {
 const bindMemberTarget = (scope, member, prefix, coerceKey = false) => {
   const id = uniqId(scope);
   const objName = prefix + 'obj' + id;
-  generateVarDstr(scope, 'const', objName, member.object, undefined, false);
+  if (member.object.type !== 'Super') generateVarDstr(scope, 'const', objName, member.object, undefined, false);
 
   let property = member.property;
   if (member.computed && member._closureSlot == null) {
@@ -3058,7 +3108,7 @@ const bindMemberTarget = (scope, member, prefix, coerceKey = false) => {
     property = identNode(keyName);
   }
 
-  return memberNode(identNode(objName), property, member.computed, {
+  return memberNode(member.object.type === 'Super' ? member.object : identNode(objName), property, member.computed, {
     _closureSlot: member._closureSlot,
     _skipChainDepth: member._skipChainDepth
   });
@@ -3080,10 +3130,7 @@ const isIdentAssignable = (scope, name, op = '=') => {
 const builtinPrototypeGets = ['size', 'description', 'byteLength', 'byteOffset', 'buffer', 'detached', 'resizable', 'growable', 'maxByteLength', 'name', 'message', 'constructor', 'source', 'flags', 'global', 'ignoreCase', 'multiline', 'dotAll', 'unicode', 'sticky', 'hasIndices', 'unicodeSets', 'lastIndex', 'disposed'];
 
 const ctHash = prop => {
-  if (!Prefs.ctHash || !prop ||
-    prop.computed || prop.optional ||
-    prop.property.type === 'PrivateIdentifier'
-  ) return null;
+  if (!Prefs.ctHash || !prop || prop.computed || prop.optional) return null;
 
   prop = prop.property.name;
   // typed arrays treat Infinity and NaN as numeric keys
@@ -3163,6 +3210,29 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       left,
       right: { type: 'AssignmentExpression', operator: '=', left: rightLeft, right: decl.right }
     }, undefined, valueUnused);
+  }
+
+  if (type === 'MemberExpression' && decl.left.object.type === 'Super') {
+    const thisVal = reuse(scope, generate(scope, decl.left.object._this));
+    let key = reuse(scope, generate(scope, getProperty(decl.left)));
+    const base = reuse(scope, generate(scope, decl.left.object));
+    if (op !== '=') key = reuse(scope, toPropertyKey(scope, key, decl.left.computed));
+
+    const value = reuse(scope, coerceValue(op === '=' ? generate(scope, decl.right) : performOp(scope, op,
+      builtinCall(scope, '__Porffor_object_getWithReceiver', [ base, key, thisVal ]),
+      generate(scope, decl.right), null, getNodeType(scope, decl.right)), T.jsval));
+    const ok = builtinCall(scope, '__Porffor_object_setWithReceiver', [ base, key, value, thisVal ]);
+    if (scope.strict) emitIf(scope, JvFalsy(ok), () => internalThrow(scope, 'TypeError', 'Cannot assign to super property'));
+      else exprStmt(scope, ok);
+    return valueUnused ? valUndefined() : value;
+  }
+
+  if (type === 'MemberExpression' && decl.left.property.type === 'PrivateIdentifier') {
+    const obj = reuse(scope, generate(scope, decl.left.object));
+    const value = reuse(scope, coerceValue(op === '=' ? generate(scope, decl.right) : performOp(scope, op,
+      privateGet(scope, decl.left.property, obj), generate(scope, decl.right), null, getNodeType(scope, decl.right)), T.jsval));
+    exprStmt(scope, privateSet(scope, decl.left.property, obj, value));
+    return valueUnused ? valUndefined() : value;
   }
 
   if (type === 'MemberExpression' && decl.left._closureSlot != null) {
@@ -4172,6 +4242,8 @@ const finallyEnd = (scope, fin, protectedStmts, finalize, catchThrows = true) =>
 const generateMeta = (scope, decl) => {
   if (decl.meta.name === 'new' && decl.property.name === 'target') {
     // new.target: the hidden #newtarget param (the constructor when invoked via `new`)
+    if (decl._undefined) return valUndefined();
+    if (decl._binding) return generate(scope, decl._binding);
     if (scope.constr) return Local('#newtarget', T.jsval);
 
     // todo: access upper-scoped new.target
@@ -4406,6 +4478,7 @@ const nameByKey = (scope, value, key, computed, kind) => {
 
 const generateObject = (scope, decl) => {
   const obj = reuse(scope, builtinCall(scope, '__Porffor_object_new', [ Const(T.i32, Math.max(decl.properties.length, 2)) ]));
+  if (decl._home?._refs) writeBinding(scope, decl._home, obj, TYPES.object);
   const keys = new Set();
   let slot = 0;
 
@@ -4558,6 +4631,7 @@ let icSites;
 
 const generateMember = (scope, decl, objValue = null) => {
   const demanded = globalThis.precompile ? null : demandMemberRead(scope, decl);
+  if (decl.object.type === 'Super') return generateSuperMember(scope, decl);
   // builtins unless reassigned via globalThis
   const globalName = decl.object.name === 'globalThis' && !decl.computed && decl.property.name;
   if (globalName && !globalName.startsWith('__') && globalName !== 'null' && globalName !== 'TypedArray' && !(globalName in globals)) {
@@ -4600,6 +4674,8 @@ const generateMember = (scope, decl, objValue = null) => {
       stmt(scope, Break(scope.chainLabel));
     });
   }
+
+  if (decl.property.type === 'PrivateIdentifier') return privateGet(scope, decl.property, obj);
 
   const prop = reuse(scope, generate(scope, property));
 
@@ -4746,6 +4822,9 @@ const bindClassFieldInitializer = (node, owner, currentArrow = null, root = node
     return;
   }
 
+  if (node._evalParsed) bindClassFieldInitializer(node._evalParsed, owner, currentArrow, root);
+  if (node._home) bindClassFieldInitializer(node._home, owner, currentArrow, root);
+
   for (const key in node) {
     if (key[0] === '_') continue;
 
@@ -4798,7 +4877,7 @@ const declareClass = (scope, decl) => {
         type: 'ExpressionStatement',
         expression: {
           type: 'CallExpression',
-          callee: { type: 'Super' },
+          callee: { type: 'Super', _this: { type: 'ThisExpression', _noGlobalThis: true } },
           arguments: [ { type: 'SpreadElement', argument: { type: 'Identifier', name: 'args' } } ]
         }
       }
@@ -4823,11 +4902,17 @@ const declareClass = (scope, decl) => {
       bindClassFieldInitializer(x.value, constructorDecl);
     }
   }
+  for (const name in decl._privates) {
+    const x = decl._privates[name];
+    if (x.ctorMap) bindClassFieldInitializer(x.ctorMap, constructorDecl);
+    if (x.ctorFn) bindClassFieldInitializer(x.ctorFn, constructorDecl);
+  }
 
   const [ func ] = generateFunc(scope, constructorDecl);
   if (expr && name.includes('#')) func.jsName = name.split('#')[0];
   bindNamedFunction(scope, name, func);
   func.knownThisSlots = getKnownThisSlots(decl);
+  decl._porfforFunc = func;
   return decl._classFunc = func;
 };
 
@@ -4842,6 +4927,12 @@ const generateClass = (scope, decl) => {
   const body = decl.body.body;
   const root = { type: 'Identifier', name };
 
+  const privates = Object.values(decl._privates);
+
+  // the constructor may read the home and private bindings, a class expression's is generated as it is declared
+  const bindings = privates.flatMap(x => x.fn ? [ x.map, x.fn ] : [ x.map ]);
+  if (decl._home._refs) bindings.push(decl._home);
+  for (const x of bindings) allocVar(scope, x.name, x._variable.func.type === 'Program');
   const func = decl._classFunc ?? declareClass(scope, decl);
   func.generate();
 
@@ -4849,6 +4940,9 @@ const generateClass = (scope, decl) => {
   const rootIdent = { type: 'Identifier', name: classRoot[N_A] };
 
   const classProto = reuse(scope, generate(scope, getObjProp(rootIdent, 'prototype')));
+
+  if (decl._home._refs) writeBinding(scope, decl._home, classRoot, TYPES.function);
+  for (const x of privates) writeBinding(scope, x.map, builtinCall(scope, '__Porffor_private_new', []), TYPES.weakmap);
 
   // wire constructor + prototype chains to the superclass, null superclass included
   if (decl.superClass) {
@@ -4858,40 +4952,78 @@ const generateClass = (scope, decl) => {
     emitIf(scope, Bin('&&', T.i32, Bin('==', T.i32, JvType(sup), Const(T.i32, TYPES.object)), Un('!', T.i32, JvTruthy(sup))),
       () => exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototype', [ classProto, valNull() ])),
       () => {
+        emitIf(scope, JvFalsy(builtinCall(scope, '__ecma262_IsConstructor', [ sup ])),
+          () => internalThrow(scope, 'TypeError', 'Class extends value is not a constructor or null'));
+        const supProto = reuse(scope, generate(scope, getObjProp(supIdent, 'prototype')));
+        emitIf(scope, JvFalsy(builtinCall(scope, '__Porffor_object_isObjectOrNull', [ supProto ])),
+          () => internalThrow(scope, 'TypeError', 'Class extends value does not have a valid prototype'));
         exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototype', [ classRoot, sup ]));
-        exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototype', [ classProto, generate(scope, getObjProp(supIdent, 'prototype')) ]));
+        exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototype', [ classProto, supProto ]));
       });
   }
+
+  exprStmt(scope, builtinCall(scope, '__Porffor_object_define', [ classRoot, makeString(scope, 'prototype'), classProto, Const(T.i32, 0) ]));
 
   // `this` in the (static) class body refers to the class itself
   scope.overrideThis = root;
 
+  const elementValue = (x, value) => {
+    if (x.type === 'MethodDefinition') { value._method = true; value._noGlobalThis = true; }
+    if (!isFuncType(value.type)) return value;
+
+    const name = x.key.type === 'PrivateIdentifier' ? '#' + x.key.name : !x.computed ? getProperty(x, true).value : null;
+    let id = value.id;
+    let noFuncIndex = false;
+    if (typeof name === 'string' && !id) { id = { type: 'Identifier', name: x.kind === 'get' || x.kind === 'set' ? `${x.kind} ${name}` : name }; noFuncIndex = true; }
+    // private names start with # which internal names reserve
+    const jsName = x.key.type === 'PrivateIdentifier' && !value.id ? id.name : undefined;
+    return { ...value, id, _noFuncIndex: noFuncIndex, strict: true, _noGlobalThis: true, _jsName: jsName, _closureSource: value._closureSource ?? value };
+  };
+
+  // private methods: static ones on the class, instance ones via the constructor
+  const privateMethods = Object.create(null);
+  for (const x of body) {
+    if (x.type !== 'MethodDefinition' || x.key.type !== 'PrivateIdentifier') continue;
+
+    const fn = elementValue(x, x.value);
+    if (x.kind === 'method') privateMethods[x.key.name] = fn;
+      else (privateMethods[x.key.name] ??= { type: 'ArrayExpression', elements: [ DEFAULT_VALUE, DEFAULT_VALUE ] }).elements[x.kind === 'get' ? 0 : 1] = fn;
+  }
+  for (const name in privateMethods) {
+    const x = decl._privates[name];
+    const value = generate(scope, privateMethods[name]);
+    if (x.static) exprStmt(scope, builtinCall(scope, '__Porffor_private_add', [ generate(scope, identNode(x.map.name)), classRoot, value ]));
+      else writeBinding(scope, x.fn, value);
+  }
+
   const fieldInits = [];
+  const addToThis = (x, value) => fieldInits.push(...collect(func, () => exprStmt(func, builtinCall(func, '__Porffor_private_add', [
+    generate(func, x.ctorMap), generate(func, { type: 'ThisExpression', _noGlobalThis: true }), generate(func, value) ]))));
+  for (const x of privates) if (x.ctorFn) addToThis(x, x.ctorFn);
+
   for (const x of body) {
     let { type, value, kind, static: _static, computed } = x;
     if (kind === 'constructor') continue;
-
-    if (type === 'MethodDefinition') { value._method = true; value._noGlobalThis = true; }
 
     if (type === 'StaticBlock') {
       genStmt(scope, { type: 'BlockStatement', body: x.body });
       continue;
     }
 
-    const key = getProperty(x, true);
+    if (type === 'MethodDefinition' && x.key.type === 'PrivateIdentifier') continue;
+
     value ??= { type: 'Identifier', name: 'undefined' };
-
     if (type === 'PropertyDefinition' && !_static) bindClassFieldInitializer(value, func.ast);
+    value = elementValue(x, value);
 
-    if (isFuncType(value.type)) {
-      const closureSource = value;
-      let id = value.id;
-      let noFuncIndex = false;
-      if (typeof key.value === 'string' && !id) { id = { type: 'Identifier', name: key.value }; noFuncIndex = true; }
-      value = { ...value, id, _noFuncIndex: noFuncIndex, strict: true, _noGlobalThis: true,
-        _closureSource: closureSource._closureSource ?? closureSource };
+    if (x.key.type === 'PrivateIdentifier') {
+      const priv = decl._privates[x.key.name];
+      if (_static) exprStmt(scope, builtinCall(scope, '__Porffor_private_add', [ generate(scope, identNode(priv.map.name)), classRoot, generate(scope, value) ]));
+        else addToThis(priv, value);
+      continue;
     }
 
+    const key = getProperty(x, true);
     if (type === 'PropertyDefinition' && !_static) {
       let keyNode;
       if (computed) {
@@ -5246,7 +5378,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     method: !arrow && (decl._method || decl._builtinShadow || decl.generator || decl.async),
     async: decl.async,
     generator: decl.generator,
-    subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _noGlobalThis: decl._noGlobalThis,
+    subclass: decl._subclass, _onlyConstr: decl._onlyConstr, _noGlobalThis: decl._noGlobalThis, jsName: decl._jsName,
     strict: decl.strict ?? scope.strict,
     usesArguments: decl._usesArguments,
     ast: decl,
@@ -5364,7 +5496,11 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         }
       }
 
-      if (hasClosureOwnEnv(func) && func.closureOwnThis) mirrorToClosureEnv(func, '#this', { type: 'ThisExpression' });
+      if (hasClosureOwnEnv(func) && func.closureOwnThis && !func.subclass) mirrorToClosureEnv(func, '#this', { type: 'ThisExpression' });
+      if (decl._thisBinding) {
+        writeBinding(func, decl._thisBinding, valUndefined());
+        if (decl._newTargetBinding._refs) writeBinding(func, decl._newTargetBinding, Local('#newtarget', T.jsval), TYPES.function);
+      }
       if (func.closureOwnLocals?.arguments) mirrorToClosureEnv(func, 'arguments');
 
       for (let i = 0; i < args.length; i++) {

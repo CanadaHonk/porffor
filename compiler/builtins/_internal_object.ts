@@ -560,6 +560,12 @@ export const __Porffor_object_setPrototype = (obj: any, proto: any): void => {
   }
 };
 
+// GetPrototypeFromConstructor
+export const __Porffor_object_setPrototypeFromConstructor = (obj: any, newTarget: any): void => {
+  const proto: any = newTarget.prototype;
+  if (Porffor.object.isObject(proto)) __Porffor_object_setPrototype(obj, proto);
+};
+
 export const __Porffor_object_getPrototype = (obj: any): any => {
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_getPrototypeOf(obj);
