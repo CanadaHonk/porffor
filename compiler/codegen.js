@@ -3726,10 +3726,23 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
     target = bindMemberTarget(scope, target, '#update', true);
   }
 
-  const tmpName = tmp(scope, T.f64)[N_A];
-  addVarMetadata(scope, tmpName, false, { type: TYPES.number });
-
-  setLocalWithType(scope, tmpName, false, { type: 'UnaryExpression', operator: '+', prefix: true, argument: target }, false, TYPES.number);
+  let tmpName, one = { type: 'Literal', value: 1 };
+  if (mayHaveBigInt) {
+    // ToNumeric, then step by 1n for bigints
+    const old = tmp(scope, T.jsval);
+    tmpName = old[N_A];
+    assign(scope, old, coerceValue(generate(scope, { type: 'CallExpression', callee: identNode('__ecma262_ToNumeric'), arguments: [ target ] }), T.jsval));
+    one = {
+      type: 'ConditionalExpression',
+      test: { type: 'BinaryExpression', operator: '===', left: { type: 'UnaryExpression', operator: 'typeof', prefix: true, argument: identNode(tmpName) }, right: { type: 'Literal', value: 'bigint' } },
+      consequent: { type: 'Literal', bigint: '1' },
+      alternate: one
+    };
+  } else {
+    tmpName = tmp(scope, T.f64)[N_A];
+    addVarMetadata(scope, tmpName, false, { type: TYPES.number });
+    setLocalWithType(scope, tmpName, false, { type: 'UnaryExpression', operator: '+', prefix: true, argument: target }, false, TYPES.number);
+  }
 
   const assignNode = {
     type: 'AssignmentExpression',
@@ -3739,7 +3752,7 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
       type: 'BinaryExpression',
       operator: decl.operator[0],
       left: { type: 'Identifier', name: tmpName },
-      right: { type: 'Literal', value: 1 }
+      right: one
     }
   };
 
