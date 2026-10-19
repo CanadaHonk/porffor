@@ -5247,6 +5247,12 @@ const collectDefinedKeys = program => {
       return;
     }
     if (node.type === 'Literal' && typeof node.value === 'string') out.add(node.value);
+    // string keys passed after an object or listed in an array can name builtin members (verifyProperty(o, 'key'), for (const k of ['a', 'b']) o[k])
+    if (node.type === 'CallExpression' && !globalThis.precompile && (node.arguments.length > 1 ? typeof node.arguments[0].value !== 'string' :
+      node.callee.property?.name === 'hasOwnProperty' || node.callee.property?.name === 'propertyIsEnumerable'))
+      for (const x of node.arguments) if (typeof x.value === 'string') memberDemands.add(x.value);
+    if (node.type === 'ArrayExpression' && !globalThis.precompile)
+      for (const x of node.elements) if (typeof x?.value === 'string') memberDemands.add(x.value);
     if (node.type === 'TemplateElement') out.add(node.value.cooked);
     // new Function sources are only parsed while generating
     if ((node.type === 'CallExpression' || node.type === 'NewExpression') && node.callee.name === 'Function')
