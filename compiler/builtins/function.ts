@@ -55,11 +55,12 @@ export const __Function_prototype_Symbol_hasInstance = function (this: any, V: a
 export const __Function_prototype_bind = function (this: Function, thisArg: any, ...args: any[]) {
   // capture the receiver before bound's own `this` shadows it
   const target: Function = this;
-  const bound = function (...callArgs: any[]) {
+  // only constructors bind to a constructor
+  const bound: any = ecma262.IsConstructor(target) ? function (...callArgs: any[]) {
     // new.target passes through, bound itself maps to the target
     if (new.target === undefined) return Porffor.call(target, args.concat(callArgs), thisArg, undefined);
     return Porffor.call(target, args.concat(callArgs), null, new.target === bound ? target : new.target);
-  };
+  } : (...callArgs: any[]) => Porffor.call(target, args.concat(callArgs), thisArg, undefined);
 
   // property/descriptor paths (not funcLut) so chained binds see the bound name/length
   let name: any = (this as any).name;
