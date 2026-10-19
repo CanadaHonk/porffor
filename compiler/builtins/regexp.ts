@@ -3645,6 +3645,7 @@ export const __Porffor_regex_compile = (patternStr: bytestring|string, flagsStr:
   Porffor.IR.storeI32(re, 16, names == 0 ? 0 : Porffor.IR.ptr(names));
   Porffor.IR.storeU8(re, 20, 0);
   Porffor.IR.storeU8(re, 22, Porffor.type(patternStr));
+  Porffor.IR.storeU8(re, 23, 0); // 1: [[LegacyFeaturesEnabled]] false (made by a subclass)
   return re as RegExp;
 };
 
@@ -3852,7 +3853,11 @@ export const __Porffor_regex_interpretFrom = (regexp: RegExp, input: any, mode: 
   return result;
 };
 
-export const __RegExp_prototype_source$get = function (this: RegExp) {
+export const __RegExp_prototype_source$get = function (this: any) {
+  if (Porffor.type(this) != Porffor.TYPES.regexp) {
+    if (Porffor.object.isObject(this)) if (this === __Porffor_object_getHiddenPrototype(Porffor.TYPES.regexp)) return '(?:)';
+    throw new TypeError('RegExp.prototype.source getter called on incompatible receiver');
+  }
   const src: i32 = Porffor.IR.loadI32(this, 0);
   const srcType: i32 = Porffor.IR.loadU8(this, 22);
   if (src == 0 || (src as bytestring).length == 0) return '(?:)';
@@ -3911,11 +3916,11 @@ export const __RegExp_prototype_lastIndex$get = function (this: RegExp) {
   return Porffor.IR.loadI32(this, 8);
 };
 
-export const __RegExp_prototype_flags$get = function (this: RegExp) {
-  if (!Porffor.object.isObject(this)) throw new TypeError('this is a non-object');
-  const flags: i32 = Porffor.IR.loadU16(this, 4);
+// [[OriginalFlags]] of a regexp as a string
+export const __Porffor_regex_origFlags = (R: any): bytestring => {
   const result: bytestring = Porffor.malloc(16);
   Porffor.IR.storeI32(result, 0, 0);
+  const flags: i32 = Porffor.IR.loadU16(R, 4);
   if (flags & 0b01000000) Porffor.bytestring.appendChar(result, 0x64);
   if (flags & 0b00000001) Porffor.bytestring.appendChar(result, 0x67);
   if (flags & 0b00000010) Porffor.bytestring.appendChar(result, 0x69);
@@ -3927,47 +3932,85 @@ export const __RegExp_prototype_flags$get = function (this: RegExp) {
   return result;
 };
 
-export const __RegExp_prototype_global$get = function (this: RegExp) {
-  return (Porffor.IR.loadU16(this, 4) & 0b00000001) != 0;
-};
-export const __RegExp_prototype_ignoreCase$get = function (this: RegExp) {
-  return (Porffor.IR.loadU16(this, 4) & 0b00000010) != 0;
-};
-export const __RegExp_prototype_multiline$get = function (this: RegExp) {
-  return (Porffor.IR.loadU16(this, 4) & 0b00000100) != 0;
-};
-export const __RegExp_prototype_dotAll$get = function (this: RegExp) {
-  return (Porffor.IR.loadU16(this, 4) & 0b00001000) != 0;
-};
-export const __RegExp_prototype_unicode$get = function (this: RegExp) {
-  return (Porffor.IR.loadU16(this, 4) & 0b00010000) != 0;
-};
-export const __RegExp_prototype_sticky$get = function (this: RegExp) {
-  return (Porffor.IR.loadU16(this, 4) & 0b00100000) != 0;
-};
-export const __RegExp_prototype_hasIndices$get = function (this: RegExp) {
-  return (Porffor.IR.loadU16(this, 4) & 0b01000000) != 0;
-};
-export const __RegExp_prototype_unicodeSets$get = function (this: RegExp) {
-  return (Porffor.IR.loadU16(this, 4) & 0b10000000) != 0;
+export const __RegExp_prototype_flags$get = function (this: any) {
+  const R: any = this;
+  if (!Porffor.object.isObject(R)) throw new TypeError('RegExp.prototype.flags getter called on non-object');
+
+  // a regexp without own props: read its flags directly
+  if (Porffor.type(R) == Porffor.TYPES.regexp) {
+    const own: any = __Porffor_object_underlyingIfAny(R);
+    if (Porffor.IR.ptr(own) == 0) return __Porffor_regex_origFlags(R);
+    if (Porffor.IR.loadU16(own, 0) == 0) return __Porffor_regex_origFlags(R);
+  }
+
+  const result: bytestring = Porffor.malloc(16);
+  Porffor.IR.storeI32(result, 0, 0);
+
+  if (!!Porffor.object.get(R, 'hasIndices')) Porffor.bytestring.appendChar(result, 0x64);
+  if (!!Porffor.object.get(R, 'global')) Porffor.bytestring.appendChar(result, 0x67);
+  if (!!Porffor.object.get(R, 'ignoreCase')) Porffor.bytestring.appendChar(result, 0x69);
+  if (!!Porffor.object.get(R, 'multiline')) Porffor.bytestring.appendChar(result, 0x6d);
+  if (!!Porffor.object.get(R, 'dotAll')) Porffor.bytestring.appendChar(result, 0x73);
+  if (!!Porffor.object.get(R, 'unicode')) Porffor.bytestring.appendChar(result, 0x75);
+  if (!!Porffor.object.get(R, 'unicodeSets')) Porffor.bytestring.appendChar(result, 0x76);
+  if (!!Porffor.object.get(R, 'sticky')) Porffor.bytestring.appendChar(result, 0x79);
+  return result;
 };
 
-export const __RegExp_prototype_toString = function (this: RegExp) {
-  return '/' + this.source + '/' + this.flags;
+// flag getters: a regexp's flag bit, undefined for RegExp.prototype itself, else TypeError
+export const __Porffor_regex_flagGet = (R: any, bit: i32): any => {
+  if (Porffor.type(R) == Porffor.TYPES.regexp) return (Porffor.IR.loadU16(R, 4) & bit) != 0;
+  if (Porffor.object.isObject(R)) if (R === __Porffor_object_getHiddenPrototype(Porffor.TYPES.regexp)) return undefined;
+  throw new TypeError('RegExp flag getter called on incompatible receiver');
+};
+
+export const __RegExp_prototype_global$get = function (this: any) {
+  return __Porffor_regex_flagGet(this, 0b00000001);
+};
+export const __RegExp_prototype_ignoreCase$get = function (this: any) {
+  return __Porffor_regex_flagGet(this, 0b00000010);
+};
+export const __RegExp_prototype_multiline$get = function (this: any) {
+  return __Porffor_regex_flagGet(this, 0b00000100);
+};
+export const __RegExp_prototype_dotAll$get = function (this: any) {
+  return __Porffor_regex_flagGet(this, 0b00001000);
+};
+export const __RegExp_prototype_unicode$get = function (this: any) {
+  return __Porffor_regex_flagGet(this, 0b00010000);
+};
+export const __RegExp_prototype_sticky$get = function (this: any) {
+  return __Porffor_regex_flagGet(this, 0b00100000);
+};
+export const __RegExp_prototype_hasIndices$get = function (this: any) {
+  return __Porffor_regex_flagGet(this, 0b01000000);
+};
+export const __RegExp_prototype_unicodeSets$get = function (this: any) {
+  return __Porffor_regex_flagGet(this, 0b10000000);
+};
+
+export const __RegExp_prototype_toString = function (this: any) {
+  if (!Porffor.object.isObject(this)) throw new TypeError('RegExp.prototype.toString called on non-object');
+  const source: any = __Porffor_regex_toStr(Porffor.object.get(this, 'source'));
+  const flags: any = __Porffor_regex_toStr(Porffor.object.get(this, 'flags'));
+  return __Porffor_strcat(__Porffor_strcat(__Porffor_strcat('/', source), '/'), flags);
 };
 
 export const RegExp = function (pattern: any, flags: any): RegExp {
-  let patternSrc, flagsSrc;
-  if (Porffor.type(pattern) === Porffor.TYPES.regexp) {
-    patternSrc = Porffor.callThis(__RegExp_prototype_source$get, pattern);
-    if (flags === undefined) {
-      flagsSrc = Porffor.callThis(__RegExp_prototype_flags$get, pattern);
-    } else {
-      flagsSrc = flags;
-    }
-  } else {
-    patternSrc = pattern;
-    flagsSrc = flags;
+  const patternIsRegExp: boolean = __Porffor_regex_isRegExp(pattern);
+  if (new.target === undefined) if (patternIsRegExp) if (flags === undefined) {
+    if (Porffor.object.get(pattern, 'constructor') === RegExp) return pattern;
+  }
+
+  let patternSrc: any = pattern;
+  let flagsSrc: any = flags;
+  if (Porffor.type(pattern) == Porffor.TYPES.regexp) {
+    const src: i32 = Porffor.IR.loadI32(pattern, 0);
+    patternSrc = src == 0 ? '' : Porffor.as(src, Porffor.IR.loadU8(pattern, 22));
+    if (flags === undefined) flagsSrc = __Porffor_regex_origFlags(pattern);
+  } else if (patternIsRegExp) {
+    patternSrc = Porffor.object.get(pattern, 'source');
+    if (flags === undefined) flagsSrc = Porffor.object.get(pattern, 'flags');
   }
 
   if (patternSrc === undefined) patternSrc = '';
@@ -3975,23 +4018,170 @@ export const RegExp = function (pattern: any, flags: any): RegExp {
   if (flagsSrc === undefined) flagsSrc = '';
     else if ((Porffor.type(flagsSrc) | 0b10000000) !== Porffor.TYPES.bytestring) flagsSrc = ecma262.ToString(flagsSrc);
 
-  return __Porffor_regex_compile(patternSrc, flagsSrc);
+  const re: RegExp = __Porffor_regex_compile(patternSrc, flagsSrc);
+  if (new.target !== undefined) if (new.target !== RegExp) Porffor.IR.storeU8(re, 23, 1);
+  return re;
 };
 
-export const __RegExp_prototype_exec = function (this: RegExp, input: any) {
+export const __RegExp_Symbol_species$get = function (this: any): any {
+  return this;
+};
+
+export const __RegExp_prototype_exec = function (this: any, input: any) {
+  if (Porffor.type(this) != Porffor.TYPES.regexp) throw new TypeError('RegExp.prototype.exec called on incompatible receiver');
   if ((Porffor.type(input) | 0b10000000) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
   return __Porffor_regex_interpret(this, input, 0);
 };
 
-export const __RegExp_prototype_test = function (this: RegExp, input: any) {
-  if ((Porffor.type(input) | 0b10000000) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
-  return __Porffor_regex_interpret(this, input, 1);
+// annex b: reinitialize in place from a new pattern/flags
+export const __RegExp_prototype_compile = function (this: any, pattern: any, flags: any) {
+  if (Porffor.type(this) != Porffor.TYPES.regexp) throw new TypeError('RegExp.prototype.compile called on incompatible receiver');
+  if (Porffor.IR.loadU8(this, 23) != 0) throw new TypeError('RegExp.prototype.compile called on a subclass instance');
+  let fresh: any = undefined;
+  if (Porffor.type(pattern) == Porffor.TYPES.regexp) {
+    if (flags !== undefined) throw new TypeError('RegExp.prototype.compile flags must be undefined for a RegExp pattern');
+    fresh = new RegExp(pattern);
+  } else fresh = __Porffor_regex_create(pattern, flags);
+
+  // source ptr, flags, caps, lastIndex, blob, names, source type: all of it, then lastIndex = 0
+  Porffor.IR.copy(Porffor.IR.ptr(this), Porffor.IR.ptr(fresh), 24);
+  Porffor.IR.storeI32(this, 8, 0);
+  Porffor.IR.gcBarrier(this, Porffor.TYPES.regexp);
+  return this;
 };
 
-export const __Porffor_regex_match = (regexp: any, input: any) => {
-  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
+// a real regexp's own exec is not consulted here, other objects go through RegExpExec
+export const __RegExp_prototype_test = function (this: any, input: any) {
+  if (!Porffor.object.isObject(this)) throw new TypeError('RegExp.prototype.test called on non-object');
   if ((Porffor.type(input) | 0b10000000) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
+  if (Porffor.type(this) == Porffor.TYPES.regexp) return __Porffor_regex_interpret(this, input, 1);
+  return __Porffor_regex_specExec(this, input) !== null;
+};
 
+// spec plumbing for the Symbol.match/matchAll/replace/search/split protocol
+
+export const __Porffor_regex_toStr = (v: any): any => {
+  if ((Porffor.type(v) | 0b10000000) == Porffor.TYPES.bytestring) return v;
+  return ecma262.ToString(v);
+};
+
+export const __Porffor_regex_toLength = (v: any): number => {
+  const n: number = ecma262.ToIntegerOrInfinity(v);
+  if (n <= 0) return 0;
+  if (n > 9007199254740991) return 9007199254740991;
+  return n;
+};
+
+// LengthOfArrayLike (builtins' .length is a raw read, only valid on arrays/strings)
+export const __Porffor_regex_lengthOf = (o: any): number => {
+  if (Porffor.type(o) == Porffor.TYPES.array) return (o as any[]).length;
+  return __Porffor_regex_toLength(Porffor.object.get(o, 'length'));
+};
+
+// Get(o, i) for an index, arrays read directly
+export const __Porffor_regex_getIdx = (o: any, i: i32): any => {
+  if (Porffor.type(o) == Porffor.TYPES.array) if (i < (o as any[]).length) return (o as any[])[i];
+  return Porffor.object.get(o, i);
+};
+
+export const __Porffor_regex_sameValue = (a: any, b: any): boolean => {
+  if (Porffor.type(a) == Porffor.TYPES.number && Porffor.type(b) == Porffor.TYPES.number) {
+    if (a != a) return b != b;
+    if (a == 0 && b == 0) return 1 / a == 1 / b;
+    return a == b;
+  }
+  return a === b;
+};
+
+// AdvanceStringIndex
+export const __Porffor_regex_advance = (s: any, index: number, unicode: boolean): number => {
+  if (!unicode) return index + 1;
+  if (index + 1 >= s.length) return index + 1;
+  if (Porffor.type(s) == Porffor.TYPES.string) {
+    const p: i32 = Porffor.IR.ptr(s) + index * 2;
+    const u1: i32 = Porffor.IR.loadU16(p, 4);
+    const u2: i32 = Porffor.IR.loadU16(p, 6);
+    if (u1 >= 0xD800 && u1 <= 0xDBFF && u2 >= 0xDC00 && u2 <= 0xDFFF) return index + 2;
+  }
+  return index + 1;
+};
+
+export const __Porffor_regex_flagIn = (flags: any, c: i32): boolean => {
+  const len: i32 = flags.length;
+  for (let i: i32 = 0; i < len; i++) {
+    if (flags.charCodeAt(i) == c) return true;
+  }
+  return false;
+};
+
+// Get of a method without allocating an underlying object for a regexp without own props
+export const __Porffor_regex_getData = (o: any, key: any): any => {
+  if (Porffor.type(o) == Porffor.TYPES.regexp) if (Porffor.IR.ptr(__Porffor_object_underlyingIfAny(o)) == 0)
+    return Porffor.object.get(__Porffor_object_getHiddenPrototype(Porffor.TYPES.regexp), key);
+  return Porffor.object.get(o, key);
+};
+
+// regexp without own props and builtin exec: uses the engine directly, RegExp.prototype getter overrides are not observed
+export const __Porffor_regex_pristine = (rx: any): boolean => {
+  if (Porffor.type(rx) != Porffor.TYPES.regexp) return false;
+  const own: any = __Porffor_object_underlyingIfAny(rx);
+  if (Porffor.IR.ptr(own) != 0) if (Porffor.IR.loadU16(own, 0) != 0) return false;
+  return __Porffor_regex_getData(rx, 'exec') === __RegExp_prototype_exec;
+};
+
+export const __Porffor_regex_requireObject = (rx: any): void => {
+  if (!Porffor.object.isObject(rx)) throw new TypeError('RegExp method called on non-object');
+};
+
+// RegExpExec
+export const __Porffor_regex_specExec = (rx: any, s: any): any => {
+  const exec: any = __Porffor_regex_getData(rx, 'exec');
+  if (Porffor.type(exec) == Porffor.TYPES.function) {
+    const result: any = Porffor.callThis(exec, rx, s);
+    if (result !== null && !Porffor.object.isObject(result)) throw new TypeError('RegExp exec method returned something other than an Object or null');
+    return result;
+  }
+  if (Porffor.type(rx) != Porffor.TYPES.regexp) throw new TypeError('RegExp exec method called on incompatible receiver');
+  return __Porffor_regex_interpret(rx, s, 0);
+};
+
+// RegExpCreate
+export const __Porffor_regex_create = (p: any, f: any): any => {
+  return __Porffor_regex_compile(p === undefined ? '' : __Porffor_regex_toStr(p), f === undefined ? '' : __Porffor_regex_toStr(f));
+};
+
+// IsRegExp
+export const __Porffor_regex_isRegExp = (arg: any): boolean => {
+  if (!Porffor.object.isObject(arg)) return false;
+  const matcher: any = Porffor.object.get(arg, Symbol.match);
+  if (matcher !== undefined) return !!matcher;
+  return Porffor.type(arg) == Porffor.TYPES.regexp;
+};
+
+// SpeciesConstructor(rx, %RegExp%)
+export const __Porffor_regex_species = (rx: any): any => {
+  const c: any = __Porffor_regex_getData(rx, 'constructor');
+  if (c === undefined) return RegExp;
+  if (!Porffor.object.isObject(c)) throw new TypeError('RegExp constructor property is not an object');
+  // RegExp itself without own props: nothing defined a species on it
+  if (c === RegExp) if (Porffor.IR.ptr(__Porffor_object_underlyingIfAny(c)) == 0) return RegExp;
+  const s: any = Porffor.object.get(c, Symbol.species);
+  if (s == null) return RegExp;
+  if (ecma262.IsConstructor(s)) return s;
+  throw new TypeError('RegExp species is not a constructor');
+};
+
+// ToUint32(limit), undefined -> 2^32 - 1
+export const __Porffor_regex_splitLimit = (limit: any): number => {
+  if (limit === undefined) return 4294967295;
+  const n: number = ecma262.ToNumber(limit);
+  if (n != n || n == Infinity || n == -Infinity) return 0;
+  const t: number = Math.trunc(n) % 4294967296;
+  return t < 0 ? t + 4294967296 : t;
+};
+
+// match for a pristine regexp
+export const __Porffor_regex_match = (regexp: any, input: any) => {
   if (Porffor.callThis(__RegExp_prototype_global$get, regexp)) {
     Porffor.IR.storeI32(regexp, 8, 0);
     const result: any[] = Porffor.array.new(4);
@@ -4002,7 +4192,10 @@ export const __Porffor_regex_match = (regexp: any, input: any) => {
       if (end == -1) break;
       Porffor.array.fastPush(result, __Porffor_regex_inputSubstring(input, inputType, __Porffor_regex_mStart, end));
       if (end == __Porffor_regex_mStart) { // empty match, advance by hand (a whole cp in u mode)
-        if (end >= inputLen) break;
+        if (end >= inputLen) {
+          Porffor.IR.storeI32(regexp, 8, 0);
+          break;
+        }
         let adv: i32 = end + 1;
         if ((Porffor.IR.loadU16(regexp, 4) & 0b10010000) != 0 && inputType == Porffor.TYPES.string && adv < inputLen) {
           const u1: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(input) + end * 2, 4);
@@ -4019,64 +4212,99 @@ export const __Porffor_regex_match = (regexp: any, input: any) => {
   return __Porffor_regex_interpret(regexp, input, 0);
 };
 
-export const __String_prototype_match = function (this: string, regexp: any) {
-  return __Porffor_regex_match(regexp, this);
-};
-export const __ByteString_prototype_match = function (this: bytestring, regexp: any) {
-  return __Porffor_regex_match(regexp, this);
-};
+export const __RegExp_prototype_Symbol_match = function (this: any, string: any) {
+  const rx: any = this;
+  __Porffor_regex_requireObject(rx);
+  const s: any = __Porffor_regex_toStr(string);
+  if (__Porffor_regex_pristine(rx)) return __Porffor_regex_match(rx, s);
 
-export const __Porffor_regex_matchAll = (regexp: any, input: any) => {
-  if ((Porffor.type(input) | 0b10000000) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
-
-  let matcher: RegExp;
-  if (Porffor.type(regexp) === Porffor.TYPES.regexp) {
-    if (!Porffor.callThis(__RegExp_prototype_global$get, regexp)) throw new TypeError('matchAll used with non-global RegExp');
-    matcher = new RegExp(regexp);
-    Porffor.IR.storeI32(matcher, 8, Porffor.IR.loadI32(regexp, 8));
-  } else {
-    matcher = new RegExp(regexp, 'g');
+  const flags: any = __Porffor_regex_toStr(Porffor.object.get(rx, 'flags'));
+  if (!__Porffor_regex_flagIn(flags, 103)) return __Porffor_regex_specExec(rx, s); // g
+  const fullUnicode: boolean = __Porffor_regex_flagIn(flags, 117) || __Porffor_regex_flagIn(flags, 118);
+  rx.lastIndex = 0;
+  const out: any[] = Porffor.array.new(4);
+  while (true) {
+    const result: any = __Porffor_regex_specExec(rx, s);
+    if (result === null) break;
+    const matchStr: any = __Porffor_regex_toStr(__Porffor_regex_getIdx(result, 0));
+    Porffor.array.fastPush(out, matchStr);
+    if (matchStr.length == 0) rx.lastIndex = __Porffor_regex_advance(s, __Porffor_regex_toLength(Porffor.object.get(rx, 'lastIndex')), fullUnicode);
   }
-
-  let done: boolean = false;
-  const out: object = {};
-  out.next = () => {
-    if (done) return { value: undefined, done: true };
-
-    const match: any = __Porffor_regex_interpret(matcher, input, 0);
-    if (match == null) {
-      done = true;
-      return { value: undefined, done: true };
-    }
-
-    const li: i32 = Porffor.IR.loadI32(matcher, 8);
-    if (match.index == li) {
-      let adv: i32 = li + 1;
-      if ((Porffor.IR.loadU16(matcher, 4) & 0b10010000) != 0 && Porffor.type(input) == Porffor.TYPES.string && adv < (input as string).length) {
-        const u1: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(input) + li * 2, 4);
-        const u2: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(input) + adv * 2, 4);
-        if (u1 >= 0xD800 && u1 <= 0xDBFF && u2 >= 0xDC00 && u2 <= 0xDFFF) adv += 1;
-      }
-      Porffor.IR.storeI32(matcher, 8, adv);
-    }
-
-    return { value: match, done: false };
-  };
-  Porffor.object.setPrototype(out, __Iterator_prototype);
+  if (out.length == 0) return null;
   return out;
 };
 
-export const __String_prototype_matchAll = function (this: string, regexp: any) {
-  return __Porffor_regex_matchAll(regexp, this);
-};
-export const __ByteString_prototype_matchAll = function (this: bytestring, regexp: any) {
-  return __Porffor_regex_matchAll(regexp, this);
+export const __RegExp_prototype_Symbol_matchAll = function (this: any, string: any) {
+  const r: any = this;
+  __Porffor_regex_requireObject(r);
+  const s: any = __Porffor_regex_toStr(string);
+  const c: any = __Porffor_regex_species(r);
+  const flags: any = __Porffor_regex_toStr(Porffor.object.get(r, 'flags'));
+  const matcher: any = new c(r, flags);
+  matcher.lastIndex = __Porffor_regex_toLength(Porffor.object.get(r, 'lastIndex'));
+
+  // %RegExpStringIterator%: a plain object, its slots [matcher, string, global, fullUnicode, done] behind a private symbol
+  const iter: object = Porffor.object.new(1);
+  __Porffor_object_setPrototype(iter, __Porffor_RegExpStringIterator_prototype);
+  // referenced here so the (lazily filled) prototype carries them
+  let methods: any = __Porffor_RegExpStringIterator_prototype_next;
+  methods = __Iterator_prototype_Symbol_iterator;
+  const slots: any[] = Porffor.array.new(5);
+  Porffor.array.fastPush(slots, matcher);
+  Porffor.array.fastPush(slots, s);
+  Porffor.array.fastPush(slots, __Porffor_regex_flagIn(flags, 103));
+  Porffor.array.fastPush(slots, __Porffor_regex_flagIn(flags, 117) || __Porffor_regex_flagIn(flags, 118));
+  Porffor.array.fastPush(slots, false);
+  Porffor.object.define(iter, __Porffor_regex_iterSlotsKey(), slots, 0b0000);
+  return iter;
 };
 
+let __Porffor_regex_iterSlotsSym: any = 0;
+export const __Porffor_regex_iterSlotsKey = (): any => {
+  if (__Porffor_regex_iterSlotsSym == 0) __Porffor_regex_iterSlotsSym = Symbol('RegExpStringIterator');
+  return __Porffor_regex_iterSlotsSym;
+};
+
+export const __Porffor_regex_iterResult = (value: any, done: boolean): object => {
+  const result: object = {};
+  result.value = value;
+  result.done = done;
+  return result;
+};
+
+export const __Porffor_RegExpStringIterator_prototype_next = function (this: any) {
+  const O: any = this;
+  if (!Porffor.object.isObject(O)) throw new TypeError('RegExp String Iterator next called on non-object');
+  // own slots only: an object inheriting from an iterator is not one
+  let slots: any = undefined;
+  if (Porffor.type(O) == Porffor.TYPES.object) {
+    const key: any = __Porffor_regex_iterSlotsKey();
+    const entryPtr: i32 = __Porffor_object_lookup(O, key, __Porffor_object_hash(key));
+    if (entryPtr != 0) slots = __Porffor_object_readValue(entryPtr);
+  }
+  if (Porffor.type(slots) != Porffor.TYPES.array) throw new TypeError('RegExp String Iterator next called on incompatible receiver');
+  if ((slots as any[])[4]) return __Porffor_regex_iterResult(undefined, true);
+
+  const r: any = (slots as any[])[0];
+  const s: any = (slots as any[])[1];
+  const match: any = __Porffor_regex_specExec(r, s);
+  if (match === null) {
+    (slots as any[])[4] = true;
+    return __Porffor_regex_iterResult(undefined, true);
+  }
+
+  if ((slots as any[])[2]) { // global: keep going, stepping over empty matches
+    const matchStr: any = __Porffor_regex_toStr(__Porffor_regex_getIdx(match, 0));
+    if (matchStr.length == 0) r.lastIndex = __Porffor_regex_advance(s, __Porffor_regex_toLength(Porffor.object.get(r, 'lastIndex')), (slots as any[])[3]);
+    return __Porffor_regex_iterResult(match, false);
+  }
+
+  (slots as any[])[4] = true;
+  return __Porffor_regex_iterResult(match, false);
+};
+
+// search for a pristine regexp
 export const __Porffor_regex_search = (regexp: any, input: any) => {
-  if (Porffor.type(regexp) !== Porffor.TYPES.regexp) regexp = new RegExp(regexp);
-  if ((Porffor.type(input) | 0b10000000) !== Porffor.TYPES.bytestring) input = ecma262.ToString(input);
-
   const lastIndex: i32 = Porffor.IR.loadI32(regexp, 8);
   Porffor.IR.storeI32(regexp, 8, 0);
   const end: i32 = __Porffor_regex_interpret(regexp, input, 2);
@@ -4085,86 +4313,492 @@ export const __Porffor_regex_search = (regexp: any, input: any) => {
   return __Porffor_regex_mStart;
 };
 
-export const __String_prototype_search = function (this: string, regexp: any) {
-  return __Porffor_regex_search(regexp, this);
-};
-export const __ByteString_prototype_search = function (this: bytestring, regexp: any) {
-  return __Porffor_regex_search(regexp, this);
-};
+export const __RegExp_prototype_Symbol_search = function (this: any, string: any) {
+  const rx: any = this;
+  __Porffor_regex_requireObject(rx);
+  const s: any = __Porffor_regex_toStr(string);
+  if (__Porffor_regex_pristine(rx)) return __Porffor_regex_search(rx, s);
 
-export const __Porffor_regex_escapeX = (out: bytestring, char: i32) => {
-  // 0-9 or a-z or A-Z as first char - escape as \xNN
-  Porffor.bytestring.append2Char(out, 92, 120);
-
-  let char1: i32 = 48 + Math.floor(char / 16);
-  if (char1 > 57) char1 += 39; // 58 (:) -> 97 (a)
-  let char2: i32 = 48 + char % 16;
-  if (char2 > 57) char2 += 39; // 58 (:) -> 97 (a)
-  Porffor.bytestring.append2Char(out, char1, char2);
+  const previousLastIndex: any = Porffor.object.get(rx, 'lastIndex');
+  if (!__Porffor_regex_sameValue(previousLastIndex, 0)) rx.lastIndex = 0;
+  const result: any = __Porffor_regex_specExec(rx, s);
+  if (!__Porffor_regex_sameValue(Porffor.object.get(rx, 'lastIndex'), previousLastIndex)) rx.lastIndex = previousLastIndex;
+  if (result === null) return -1;
+  return Porffor.object.get(result, 'index');
 };
 
-export const __RegExp_escape = (str: any) => {
-  const out: bytestring = Porffor.malloc();
-  Porffor.IR.storeI32(out, 0, 0);
-
+// GetSubstitution
+export const __Porffor_regex_getSubstitution = (matched: any, str: any, position: i32, captures: any[], namedCaptures: any, template: any): any => {
+  const strType: i32 = Porffor.type(str);
+  const stringLength: i32 = str.length;
+  const tLen: i32 = template.length;
+  const tType: i32 = Porffor.type(template);
+  const captureLen: i32 = captures.length;
+  let out: any = '';
+  let lit: i32 = 0; // start of the pending literal run
   let i: i32 = 0;
-  const first: i32 = str.charCodeAt(0);
-  if ((first > 47 && first < 58) || (first > 96 && first < 123) || (first > 64 && first < 91)) {
-    __Porffor_regex_escapeX(out, first);
-    i++;
+  while (i < tLen) {
+    if (template.charCodeAt(i) != 36 || i + 1 >= tLen) { // not $
+      i += 1;
+      continue;
+    }
+
+    const next: i32 = template.charCodeAt(i + 1);
+    let rep: any = undefined;
+    let refLen: i32 = 0;
+    if (next == 36) { // $$
+      rep = '$';
+      refLen = 2;
+    } else if (next == 96) { // $`
+      rep = __Porffor_regex_inputSubstring(str, strType, 0, position);
+      refLen = 2;
+    } else if (next == 38) { // $&
+      rep = matched;
+      refLen = 2;
+    } else if (next == 39) { // $'
+      let tailPos: i32 = position + matched.length;
+      if (tailPos > stringLength) tailPos = stringLength;
+      rep = __Porffor_regex_inputSubstring(str, strType, tailPos, stringLength);
+      refLen = 2;
+    } else if (next >= 48 && next <= 57) { // $n $nn
+      let digitCount: i32 = 1;
+      let index: i32 = next - 48;
+      if (i + 2 < tLen) {
+        const d2: i32 = template.charCodeAt(i + 2);
+        if (d2 >= 48 && d2 <= 57) {
+          digitCount = 2;
+          index = index * 10 + d2 - 48;
+        }
+      }
+      if (index > captureLen && digitCount == 2) {
+        digitCount = 1;
+        index = next - 48;
+      }
+      if (index >= 1 && index <= captureLen) {
+        rep = captures[index - 1];
+        if (rep === undefined) rep = '';
+        refLen = 1 + digitCount;
+      }
+    } else if (next == 60) { // $<
+      if (namedCaptures !== undefined) {
+        let gt: i32 = -1;
+        for (let j: i32 = i + 2; j < tLen; j++) {
+          if (template.charCodeAt(j) == 62) {
+            gt = j;
+            break;
+          }
+        }
+        if (gt != -1) {
+          const capture: any = namedCaptures[__Porffor_regex_inputSubstring(template, tType, i + 2, gt)];
+          rep = capture === undefined ? '' : __Porffor_regex_toStr(capture);
+          refLen = gt + 1 - i;
+        }
+      }
+    }
+
+    if (refLen == 0) { // lone $
+      i += 1;
+      continue;
+    }
+    out = __Porffor_strcat(__Porffor_strcat(out, __Porffor_regex_inputSubstring(template, tType, lit, i)), rep);
+    i += refLen;
+    lit = i;
+  }
+  if (lit == 0) return template;
+  return __Porffor_strcat(out, __Porffor_regex_inputSubstring(template, tType, lit, tLen));
+};
+
+// replace for a pristine regexp and a replacement string without $
+export const __Porffor_regex_replacePlain = (searchValue: any, str: any, repl: any) => {
+  const thisLen: i32 = str.length;
+  const strType: i32 = Porffor.type(str);
+  const flags: i32 = Porffor.IR.loadU16(searchValue, 4);
+  const global: boolean = (flags & 0b00000001) != 0;
+  const uv: boolean = (flags & 0b10010000) != 0;
+
+  let out: any = '';
+  let matched: boolean = false;
+  let appendIndex: i32 = 0;
+  // non-global sticky starts at lastIndex, everything else at 0
+  let searchIndex: i32 = 0;
+  if (!global && (flags & 0b00100000) != 0) {
+    searchIndex = Porffor.IR.loadI32(searchValue, 8);
+    if (searchIndex > thisLen) {
+      Porffor.IR.storeI32(searchValue, 8, 0);
+      return str;
+    }
   }
 
-  const len: i32 = str.length;
-  for (; i < len; i++) {
-    const char: i32 = str.charCodeAt(i);
-    // ^, $, \, ., *, +, ?, (, ), [, ], {, }, |, /
-    if (Porffor.fastOr(char == 94, char == 36, char == 92, char == 46, char == 42, char == 43, char == 63, char == 40, char == 41, char == 91, char == 93, char == 123, char == 125, char == 124, char == 47)) {
-      // regex syntax, escape with \
-      Porffor.bytestring.append2Char(out, 92, char);
-      continue;
-    }
+  // all-bytestring case builds one growing buffer instead of strcat chains
+  if (strType == Porffor.TYPES.bytestring && Porffor.type(repl) == Porffor.TYPES.bytestring) {
+    const replLen: i32 = (repl as bytestring).length;
+    let cap: i32 = thisLen + replLen + 16;
+    let buf: i32 = Porffor.malloc(cap + 8);
+    let bufLen: i32 = 0;
+    while (searchIndex <= thisLen) {
+      const matchEnd: i32 = __Porffor_regex_interpretFrom(searchValue, str, 2, searchIndex);
+      if (matchEnd == -1) break;
+      const matchIndex: i32 = __Porffor_regex_matchStart();
+      matched = true;
+      const segLen: i32 = matchIndex - appendIndex;
+      if (bufLen + segLen + replLen > cap) {
+        while (cap < bufLen + segLen + replLen) cap *= 2;
+        const nbuf: i32 = Porffor.malloc(cap + 8);
+        Porffor.IR.copy(nbuf + 4, buf + 4, bufLen);
+        buf = nbuf;
+      }
+      Porffor.IR.copy(buf + 4 + bufLen, Porffor.IR.ptr(str) + 4 + appendIndex, segLen);
+      bufLen += segLen;
+      Porffor.IR.copy(buf + 4 + bufLen, Porffor.IR.ptr(repl) + 4, replLen);
+      bufLen += replLen;
 
-    // ,, -, =, <, >, #, &, !, %, :, ;, @, ~, ', `, "
-    if (Porffor.fastOr(char == 44, char == 45, char == 61, char == 60, char == 62, char == 35, char == 38, char == 33, char == 37, char == 58, char == 59, char == 64, char == 126, char == 39, char == 96, char == 34)) {
-      // punctuator, escape with \x
-      __Porffor_regex_escapeX(out, char);
-      continue;
+      appendIndex = matchEnd;
+      if (!global) break;
+      if (matchEnd == matchIndex) {
+        if (matchEnd >= thisLen) break;
+        searchIndex = matchEnd + 1;
+        continue;
+      }
+      searchIndex = matchEnd;
     }
-
-    // \f, \n, \r, \t, \v, \x20
-    if (char == 12) {
-      Porffor.bytestring.append2Char(out, 92, 102);
-      continue;
+    if (global) Porffor.IR.storeI32(searchValue, 8, 0);
+    if (!matched) return str;
+    const tailLen: i32 = thisLen - appendIndex;
+    if (bufLen + tailLen > cap) {
+      cap = bufLen + tailLen;
+      const nbuf: i32 = Porffor.malloc(cap + 8);
+      Porffor.IR.copy(nbuf + 4, buf + 4, bufLen);
+      buf = nbuf;
     }
-    if (char == 10) {
-      Porffor.bytestring.append2Char(out, 92, 110);
-      continue;
-    }
-    if (char == 13) {
-      Porffor.bytestring.append2Char(out, 92, 114);
-      continue;
-    }
-    if (char == 9) {
-      Porffor.bytestring.append2Char(out, 92, 116);
-      continue;
-    }
-    if (char == 11) {
-      Porffor.bytestring.append2Char(out, 92, 118);
-      continue;
-    }
-    if (char == 32) {
-      Porffor.bytestring.append2Char(out, 92, 120);
-      Porffor.bytestring.append2Char(out, 50, 48);
-      continue;
-    }
-
-    // todo: surrogates
-    Porffor.bytestring.appendChar(out, char);
+    Porffor.IR.copy(buf + 4 + bufLen, Porffor.IR.ptr(str) + 4 + appendIndex, tailLen);
+    bufLen += tailLen;
+    Porffor.IR.storeI32(buf, 0, bufLen);
+    return buf as bytestring;
   }
 
+  while (searchIndex <= thisLen) {
+    const matchEnd: i32 = __Porffor_regex_interpretFrom(searchValue, str, 2, searchIndex);
+    if (matchEnd == -1) break;
+    const matchIndex: i32 = __Porffor_regex_matchStart();
+    matched = true;
+    out = __Porffor_strcat(out, __Porffor_regex_inputSubstring(str, strType, appendIndex, matchIndex));
+    out = __Porffor_strcat(out, repl);
+
+    appendIndex = matchEnd;
+    if (!global) break;
+
+    if (matchEnd == matchIndex) {
+      if (matchEnd >= thisLen) break;
+      searchIndex = matchEnd + 1;
+      if (uv && strType == Porffor.TYPES.string && searchIndex < thisLen) {
+        const u1: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(str) + matchEnd * 2, 4);
+        const u2: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(str) + searchIndex * 2, 4);
+        if (u1 >= 0xD800 && u1 <= 0xDBFF && u2 >= 0xDC00 && u2 <= 0xDFFF) searchIndex += 1;
+      }
+      continue;
+    }
+
+    searchIndex = matchEnd;
+  }
+
+  if (global) Porffor.IR.storeI32(searchValue, 8, 0);
+  if (!matched) return str;
+  return __Porffor_strcat(out, __Porffor_regex_inputSubstring(str, strType, appendIndex, thisLen));
+};
+
+export const __RegExp_prototype_Symbol_replace = function (this: any, string: any, replaceValue: any) {
+  const rx: any = this;
+  __Porffor_regex_requireObject(rx);
+  const s: any = __Porffor_regex_toStr(string);
+  const sType: i32 = Porffor.type(s);
+  const lengthS: i32 = s.length;
+  const functional: boolean = Porffor.type(replaceValue) == Porffor.TYPES.function;
+  if (!functional) replaceValue = __Porffor_regex_toStr(replaceValue);
+
+  const pristine: boolean = __Porffor_regex_pristine(rx);
+  if (pristine && !functional && __Porffor_regex_flagIn(replaceValue, 36) == false) return __Porffor_regex_replacePlain(rx, s, replaceValue);
+
+  let global: boolean = false;
+  let fullUnicode: boolean = false;
+  if (pristine) {
+    const iflags: i32 = Porffor.IR.loadU16(rx, 4);
+    global = (iflags & 0b00000001) != 0;
+    fullUnicode = (iflags & 0b10010000) != 0;
+  } else {
+    const flags: any = __Porffor_regex_toStr(Porffor.object.get(rx, 'flags'));
+    global = __Porffor_regex_flagIn(flags, 103);
+    if (global) fullUnicode = __Porffor_regex_flagIn(flags, 117) || __Porffor_regex_flagIn(flags, 118);
+  }
+  if (global) rx.lastIndex = 0;
+
+  const results: any[] = Porffor.array.new(4);
+  while (true) {
+    const result: any = pristine ? __Porffor_regex_interpret(rx, s, 0) : __Porffor_regex_specExec(rx, s);
+    if (result === null) break;
+    Porffor.array.fastPush(results, result);
+    if (!global) break;
+    const matchStr: any = __Porffor_regex_toStr(__Porffor_regex_getIdx(result, 0));
+    if (matchStr.length == 0) rx.lastIndex = __Porffor_regex_advance(s, __Porffor_regex_toLength(Porffor.object.get(rx, 'lastIndex')), fullUnicode);
+  }
+
+  let acc: any = '';
+  let nextPos: i32 = 0;
+  const nResults: i32 = results.length;
+  for (let r: i32 = 0; r < nResults; r++) {
+    const result: any = results[r];
+    let nCaptures: number = __Porffor_regex_lengthOf(result) - 1;
+    if (nCaptures < 0) nCaptures = 0;
+    const matched: any = __Porffor_regex_toStr(__Porffor_regex_getIdx(result, 0));
+    let position: number = ecma262.ToIntegerOrInfinity(Porffor.object.get(result, 'index'));
+    if (position < 0) position = 0;
+    if (position > lengthS) position = lengthS;
+
+    const captures: any[] = Porffor.array.new(4);
+    for (let n: i32 = 1; n <= nCaptures; n++) {
+      let capN: any = __Porffor_regex_getIdx(result, n);
+      if (capN !== undefined) capN = __Porffor_regex_toStr(capN);
+      Porffor.array.fastPush(captures, capN);
+    }
+    let namedCaptures: any = Porffor.object.get(result, 'groups');
+
+    let replacement: any = undefined;
+    if (functional) {
+      const args: any[] = Porffor.array.new(nCaptures + 4);
+      Porffor.array.fastPush(args, matched);
+      for (let n: i32 = 0; n < nCaptures; n++) Porffor.array.fastPush(args, captures[n]);
+      Porffor.array.fastPush(args, position);
+      Porffor.array.fastPush(args, s);
+      if (namedCaptures !== undefined) Porffor.array.fastPush(args, namedCaptures);
+      replacement = __Porffor_regex_toStr(Porffor.call(replaceValue, args, undefined, undefined));
+    } else {
+      // ToObject: only null throws, Gets on a primitive see its wrapper's props anyway
+      if (namedCaptures === null) throw new TypeError('Cannot convert null to object');
+      replacement = __Porffor_regex_getSubstitution(matched, s, position, captures, namedCaptures, replaceValue);
+    }
+
+    if (position >= nextPos) {
+      acc = __Porffor_strcat(__Porffor_strcat(acc, __Porffor_regex_inputSubstring(s, sType, nextPos, position)), replacement);
+      nextPos = position + matched.length;
+    }
+  }
+
+  if (nResults == 0) return s;
+  if (nextPos >= lengthS) return acc;
+  return __Porffor_strcat(acc, __Porffor_regex_inputSubstring(s, sType, nextPos, lengthS));
+};
+
+export const __RegExp_prototype_Symbol_split = function (this: any, string: any, limit: any) {
+  const rx: any = this;
+  __Porffor_regex_requireObject(rx);
+  const s: any = __Porffor_regex_toStr(string);
+  const c: any = __Porffor_regex_species(rx);
+
+  // pristine non-sticky regexp: scan forward with the engine instead of a sticky splitter copy
+  if (c === RegExp && __Porffor_regex_pristine(rx) && (Porffor.IR.loadU16(rx, 4) & 0b00100000) == 0) {
+    const lim: number = __Porffor_regex_splitLimit(limit);
+    const out: any[] = Porffor.array.new(4);
+    if (lim == 0) return out;
+    const lastIndex: i32 = Porffor.IR.loadI32(rx, 8);
+    __Porffor_string_splitRegex(s, rx, lim, out);
+    Porffor.IR.storeI32(rx, 8, lastIndex);
+    return out;
+  }
+
+  const flags: any = __Porffor_regex_toStr(Porffor.object.get(rx, 'flags'));
+  const unicodeMatching: boolean = __Porffor_regex_flagIn(flags, 117) || __Porffor_regex_flagIn(flags, 118);
+  const newFlags: any = __Porffor_regex_flagIn(flags, 121) ? flags : __Porffor_strcat(flags, 'y');
+  const splitter: any = new c(rx, newFlags);
+
+  const out: any[] = Porffor.array.new(4);
+  const lim: number = __Porffor_regex_splitLimit(limit);
+  if (lim == 0) return out;
+
+  const sType: i32 = Porffor.type(s);
+  const size: i32 = s.length;
+  if (size == 0) {
+    if (__Porffor_regex_specExec(splitter, s) !== null) return out;
+    Porffor.array.fastPush(out, s);
+    return out;
+  }
+
+  let lengthA: i32 = 0;
+  let p: i32 = 0;
+  let q: i32 = 0;
+  while (q < size) {
+    splitter.lastIndex = q;
+    const z: any = __Porffor_regex_specExec(splitter, s);
+    if (z === null) {
+      q = __Porffor_regex_advance(s, q, unicodeMatching);
+      continue;
+    }
+    let e: number = __Porffor_regex_toLength(Porffor.object.get(splitter, 'lastIndex'));
+    if (e > size) e = size;
+    if (e == p) {
+      q = __Porffor_regex_advance(s, q, unicodeMatching);
+      continue;
+    }
+    lengthA = Porffor.array.fastPush(out, __Porffor_regex_inputSubstring(s, sType, p, q));
+    if (lengthA == lim) return out;
+    p = e;
+    let nCaps: number = __Porffor_regex_lengthOf(z) - 1;
+    if (nCaps < 0) nCaps = 0;
+    for (let i: i32 = 1; i <= nCaps; i++) {
+      lengthA = Porffor.array.fastPush(out, __Porffor_regex_getIdx(z, i));
+      if (lengthA == lim) return out;
+    }
+    q = p;
+  }
+  Porffor.array.fastPush(out, __Porffor_regex_inputSubstring(s, sType, p, size));
   return out;
 };
 
-export const __RegExp_Symbol_species$get = function (this: any): any {
-  return this;
+// String.prototype.match/matchAll/search: defer to the argument's symbol method, else a fresh regexp's
+
+export const __Porffor_regex_strMatch = (o: any, regexp: any) => {
+  if (Porffor.object.isObject(regexp)) {
+    const matcher: any = __Porffor_regex_getData(regexp, Symbol.match);
+    if (matcher === __RegExp_prototype_Symbol_match) return Porffor.callThis(__RegExp_prototype_Symbol_match, regexp, o);
+    if (matcher != null) return Porffor.callThis(matcher, regexp, o);
+  }
+  const s: any = __Porffor_regex_toStr(o);
+  const rx: any = __Porffor_regex_create(regexp, undefined);
+  const f: any = __Porffor_regex_getData(rx, Symbol.match);
+  if (f === __RegExp_prototype_Symbol_match) return Porffor.callThis(__RegExp_prototype_Symbol_match, rx, s);
+  return Porffor.callThis(f, rx, s);
+};
+
+export const __String_prototype_match = function (this: string, regexp: any) {
+  return __Porffor_regex_strMatch(this, regexp);
+};
+export const __ByteString_prototype_match = function (this: bytestring, regexp: any) {
+  return __Porffor_regex_strMatch(this, regexp);
+};
+
+export const __Porffor_regex_strMatchAll = (o: any, regexp: any) => {
+  if (Porffor.object.isObject(regexp)) {
+    if (__Porffor_regex_isRegExp(regexp)) {
+      const flags: any = Porffor.object.get(regexp, 'flags');
+      if (flags == null) throw new TypeError('RegExp flags is null or undefined');
+      if (!__Porffor_regex_flagIn(__Porffor_regex_toStr(flags), 103)) throw new TypeError('matchAll used with non-global RegExp');
+    }
+    const matcher: any = __Porffor_regex_getData(regexp, Symbol.matchAll);
+    if (matcher === __RegExp_prototype_Symbol_matchAll) return Porffor.callThis(__RegExp_prototype_Symbol_matchAll, regexp, o);
+    if (matcher != null) return Porffor.callThis(matcher, regexp, o);
+  }
+  const s: any = __Porffor_regex_toStr(o);
+  const rx: any = __Porffor_regex_create(regexp, 'g');
+  const f: any = __Porffor_regex_getData(rx, Symbol.matchAll);
+  if (f === __RegExp_prototype_Symbol_matchAll) return Porffor.callThis(__RegExp_prototype_Symbol_matchAll, rx, s);
+  return Porffor.callThis(f, rx, s);
+};
+
+export const __String_prototype_matchAll = function (this: string, regexp: any) {
+  return __Porffor_regex_strMatchAll(this, regexp);
+};
+export const __ByteString_prototype_matchAll = function (this: bytestring, regexp: any) {
+  return __Porffor_regex_strMatchAll(this, regexp);
+};
+
+export const __Porffor_regex_strSearch = (o: any, regexp: any) => {
+  if (Porffor.object.isObject(regexp)) {
+    const searcher: any = __Porffor_regex_getData(regexp, Symbol.search);
+    if (searcher === __RegExp_prototype_Symbol_search) return Porffor.callThis(__RegExp_prototype_Symbol_search, regexp, o);
+    if (searcher != null) return Porffor.callThis(searcher, regexp, o);
+  }
+  const s: any = __Porffor_regex_toStr(o);
+  const rx: any = __Porffor_regex_create(regexp, undefined);
+  const f: any = __Porffor_regex_getData(rx, Symbol.search);
+  if (f === __RegExp_prototype_Symbol_search) return Porffor.callThis(__RegExp_prototype_Symbol_search, rx, s);
+  return Porffor.callThis(f, rx, s);
+};
+
+export const __String_prototype_search = function (this: string, regexp: any) {
+  return __Porffor_regex_strSearch(this, regexp);
+};
+export const __ByteString_prototype_search = function (this: bytestring, regexp: any) {
+  return __Porffor_regex_strSearch(this, regexp);
+};
+
+export const __Porffor_regex_escPut = (out: i32, wide: boolean, n: i32, c: i32): i32 => {
+  if (wide) Porffor.IR.storeU16(out + n * 2, 4, c);
+    else Porffor.IR.storeU8(out + n, 4, c);
+  return n + 1;
+};
+
+// \xHH or \uHHHH (lowercase hex)
+export const __Porffor_regex_escHex = (out: i32, wide: boolean, n: i32, c: i32): i32 => {
+  n = __Porffor_regex_escPut(out, wide, n, 92);
+  const digits: i32 = c <= 0xFF ? 2 : 4;
+  n = __Porffor_regex_escPut(out, wide, n, digits == 2 ? 120 : 117);
+  for (let k: i32 = digits - 1; k >= 0; k--) {
+    const d: i32 = (c >> (k * 4)) & 15;
+    n = __Porffor_regex_escPut(out, wide, n, d < 10 ? 48 + d : 87 + d);
+  }
+  return n;
+};
+
+// how EncodeForRegExpEscape treats unit c (not part of a pair): 1 \c, 2 control escape, 3 hex escape, 0 itself
+export const __Porffor_regex_escKind = (c: i32): i32 => {
+  // ^ $ \ . * + ? ( ) [ ] { } | /
+  if (Porffor.fastOr(c == 94, c == 36, c == 92, c == 46, c == 42, c == 43, c == 63, c == 40, c == 41, c == 91, c == 93, c == 123, c == 125, c == 124, c == 47)) return 1;
+  if (c >= 9 && c <= 13) return 2;
+  // , - = < > # & ! % : ; @ ~ ' ` "
+  if (Porffor.fastOr(c == 44, c == 45, c == 61, c == 60, c == 62, c == 35, c == 38, c == 33, c == 37, c == 58, c == 59, c == 64, c == 126, c == 39, c == 96, c == 34)) return 3;
+  // whitespace, line terminators, (lone) surrogates
+  if (Porffor.fastOr(c == 0x20, c == 0xA0, c == 0x1680, c == 0x2028, c == 0x2029, c == 0x202F, c == 0x205F, c == 0x3000, c == 0xFEFF)) return 3;
+  if (Porffor.fastOr(c >= 0x2000 && c <= 0x200A, c >= 0xD800 && c <= 0xDFFF)) return 3;
+  return 0;
+};
+
+export const __RegExp_escape = (str: any) => {
+  if ((Porffor.type(str) | 0b10000000) != Porffor.TYPES.bytestring) throw new TypeError('RegExp.escape requires a string');
+  const len: i32 = str.length;
+  const isU16: boolean = Porffor.type(str) == Porffor.TYPES.string;
+
+  // escapes are ascii, the output is only wide if some unit > 0xff is kept as is
+  let wide: boolean = false;
+  if (isU16) for (let i: i32 = 0; i < len; i++) {
+    const c: i32 = str.charCodeAt(i);
+    if (c > 0xFF) if (__Porffor_regex_escKind(c) == 0 || (c >= 0xD800 && c <= 0xDFFF)) {
+      wide = true;
+      break;
+    }
+  }
+
+  const out: i32 = Porffor.malloc(8 + len * (wide ? 12 : 6));
+  let n: i32 = 0;
+  for (let i: i32 = 0; i < len; i++) {
+    const c: i32 = str.charCodeAt(i);
+
+    // surrogate pairs stay as they are
+    if (c >= 0xD800 && c <= 0xDBFF && i + 1 < len) {
+      const c2: i32 = str.charCodeAt(i + 1);
+      if (c2 >= 0xDC00 && c2 <= 0xDFFF) {
+        n = __Porffor_regex_escPut(out, wide, n, c);
+        n = __Porffor_regex_escPut(out, wide, n, c2);
+        i += 1;
+        continue;
+      }
+    }
+
+    // a leading digit or ascii letter would continue an escape before it
+    if (i == 0 && ((c >= 48 && c <= 57) || (c >= 97 && c <= 122) || (c >= 65 && c <= 90))) {
+      n = __Porffor_regex_escHex(out, wide, n, c);
+      continue;
+    }
+
+    const kind: i32 = __Porffor_regex_escKind(c);
+    if (kind == 1) {
+      n = __Porffor_regex_escPut(out, wide, n, 92);
+      n = __Porffor_regex_escPut(out, wide, n, c);
+    } else if (kind == 2) {
+      n = __Porffor_regex_escPut(out, wide, n, 92);
+      n = __Porffor_regex_escPut(out, wide, n, c == 9 ? 116 : (c == 10 ? 110 : (c == 11 ? 118 : (c == 12 ? 102 : 114))));
+    } else if (kind == 3) n = __Porffor_regex_escHex(out, wide, n, c);
+      else n = __Porffor_regex_escPut(out, wide, n, c);
+  }
+
+  Porffor.IR.storeI32(out, 0, n);
+  if (wide) return out as string;
+  return out as bytestring;
 };

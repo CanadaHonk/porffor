@@ -127,8 +127,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
             return;
           }
 
-          const keyValue = propKey(x);
-          out.push(Call(existingFunc ? '__Porffor_object_define' : '__Porffor_object_fastAdd', [ obj, keyValue, value, Const(T.i32, flags) ], T.none));
+          out.push(Call(existingFunc ? '__Porffor_object_define' : '__Porffor_object_fastAdd', [ obj, propKey(x), value, Const(T.i32, flags) ], T.none));
         };
 
         if (lazyKind && Prefs.lazyObjects) {
@@ -332,7 +331,8 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     __Porffor_ArrayIterator_prototype: [ '__Iterator_prototype', 'Array Iterator' ],
     __Porffor_MapIterator_prototype: [ '__Iterator_prototype', 'Map Iterator' ],
     __Porffor_SetIterator_prototype: [ '__Iterator_prototype', 'Set Iterator' ],
-    __Porffor_StringIterator_prototype: [ '__Iterator_prototype', 'String Iterator' ]
+    __Porffor_StringIterator_prototype: [ '__Iterator_prototype', 'String Iterator' ],
+    __Porffor_RegExpStringIterator_prototype: [ '__Iterator_prototype', 'RegExp String Iterator' ]
   };
 
   // [[Prototype]] of (async) generator functions, also .constructor of their instances' prototypes

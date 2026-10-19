@@ -250,6 +250,38 @@ export const __Porffor_object_underlyingPtr = (_obj: any): i32 => {
   }
 };
 
+// the underlying object if one was ever made, else null (so no own props), never allocates
+export const __Porffor_object_underlyingIfAny = (_obj: any): any => {
+  const objType: i32 = Porffor.type(_obj);
+  if (objType == Porffor.TYPES.object) return _obj;
+  if (Porffor.fastOr(objType <= 0x05, underlyingStore == 0)) return null;
+  if (Porffor.fastAnd(underlyingBuckets == 0, Porffor.IR.loadI32(underlyingStore, 0) > 0)) __Porffor_underlyingRebuild();
+  if (underlyingBuckets == 0) return null;
+
+  let lookupHash: i32 = Porffor.IR.ptr(_obj);
+  lookupHash = lookupHash >>> 3;
+  lookupHash ^= lookupHash >>> 16;
+  lookupHash *= 0x7feb352d;
+  lookupHash ^= lookupHash >>> 15;
+  lookupHash ^= objType;
+
+  let slot: i32 = lookupHash & (underlyingBucketsCap - 1);
+  while (true) {
+    const entry: i32 = Porffor.IR.loadI32(underlyingBuckets + slot * 4, 0);
+    if (entry == 0) return null;
+
+    const base: i32 = underlyingStore + 8 + (entry - 1) * 16;
+    if (Porffor.fastAnd(
+      Porffor.IR.ptr(Porffor.IR.loadJv(base, 0)) == Porffor.IR.ptr(_obj),
+      Porffor.IR.loadU8(base, 12) == objType
+    ))
+      return Porffor.IR.loadI32(base, 8) as object;
+
+    slot = (slot + 1) & (underlyingBucketsCap - 1);
+  }
+  return null;
+};
+
 export const __Porffor_object_underlyingPeek = (_obj: any): any => {
   const ptr: i32 = __Porffor_object_underlyingPtr(_obj);
   if (ptr == 0) return null;
@@ -679,6 +711,7 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
   }
 
   const hash: i32 = __Porffor_object_hash(key);
+  if (trueType == Porffor.TYPES.regexp) if (hash == -1322609992) if (Porffor.strcmp(key, 'lastIndex')) return Porffor.IR.loadI32(_obj, 8);
   let entryPtr: i32 = 0;
   if (Porffor.type(obj) == Porffor.TYPES.object) entryPtr = __Porffor_object_lookup(obj, key, hash);
   if (entryPtr == 0) {

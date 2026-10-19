@@ -1408,6 +1408,11 @@ const asmFunc = (name, func) => {
 const includeBuiltin = (scope, builtin) => {
   scope.includes ??= new Set();
   scope.includes.add(builtin);
+  // regexps can exist from now on (eg from RegExp() without any literal), and generic gets on them need their (lazy) prototype
+  if (builtinFuncs[builtin]?.returnType === TYPES.regexp) {
+    typeUsed(scope, TYPES.regexp);
+    if (!('#get___RegExp_prototype' in funcIndex)) includeBuiltin(scope, '#get___RegExp_prototype');
+  }
 
   const func = asmFunc(builtin, builtinFuncs[builtin]);
   // dynamic calls of proxies go through their apply/construct traps
@@ -1992,6 +1997,12 @@ const generateCall = (scope, decl) => {
     return generateIRIntrinsic(scope, name.slice(13), decl.arguments);
   }
   if (name === '__Porffor_malloc') return generateMallocIntrinsic(scope, decl.arguments, decl._porfMallocType ?? 0);
+
+  // generic gets with a literal key in builtins are member reads too (eg accessors on lazy prototypes)
+  if (globalThis.precompile && name === '__Porffor_object_get') {
+    const key = decl.arguments[1];
+    if (key?.type === 'Literal' && typeof key.value === 'string') (scope.memberReads ??= new Set()).add(key.value);
+  }
 
   if (name?.startsWith('__Porffor_coroutine_'))
     return Call(name, decl.arguments.map(a => generate(scope, a)),
@@ -4478,9 +4489,10 @@ const resolveMemberDemands = scope => {
       }
     }
 
-    // %Iterator.prototype% accessors are not dispatched by type
+    // accessors on included prototypes are reachable by generic gets (not dispatched by type),
+    // eg %Iterator.prototype% ones, or RegExp flags read by RegExp.prototype.flags
     for (const x of builtinPrototypeGetters.get(propName) ?? []) {
-      if (protoOwnerOf(x) === 'Iterator' && funcIndex['#get___Iterator_prototype'] != null) includeBuiltin(scope, x);
+      if (funcIndex['#get___' + protoOwnerOf(x) + '_prototype'] != null) includeBuiltin(scope, x);
     }
 
     const shared = '__TypedArray_' + propName;

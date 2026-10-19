@@ -1367,115 +1367,18 @@ export const __Porffor_string_applyReplacer = (str: any, match: any[], position:
 };
 
 export const __Porffor_string_replace = (str: any, searchValue: any, replaceValue: any) => {
-  const thisLen: i32 = str.length;
-
-  if (Porffor.type(searchValue) == Porffor.TYPES.regexp) {
-    const global: boolean = Porffor.callThis(__RegExp_prototype_global$get, searchValue);
-    const strType: i32 = Porffor.type(str);
-    const uv: boolean = (Porffor.IR.loadU16(searchValue, 4) & 0b10010000) != 0;
-
-    let out: any = __Porffor_string_emptyLike(str);
-    let matched: boolean = false;
-    let appendIndex: i32 = 0;
-    let searchIndex: i32 = 0;
-
-    // plain replacement (no '$') only needs match positions
-    let plain: boolean = false;
-    let repl: any = replaceValue;
-    if (Porffor.type(replaceValue) != Porffor.TYPES.function) {
-      repl = ecma262.ToString(replaceValue);
-      plain = __Porffor_string_indexOfLike(repl, '$', 0) == -1;
+  if (Porffor.object.isObject(searchValue)) {
+    const replacer: any = __Porffor_regex_getData(searchValue, Symbol.replace);
+    if (Porffor.comptime.flag`hasType.regexp`) {
+      if (replacer === __RegExp_prototype_Symbol_replace) return Porffor.callThis(__RegExp_prototype_Symbol_replace, searchValue, str, replaceValue);
     }
-
-    // all-bytestring case builds one growing buffer instead of strcat chains
-    if (plain && strType == Porffor.TYPES.bytestring && Porffor.type(repl) == Porffor.TYPES.bytestring) {
-      const replLen: i32 = (repl as bytestring).length;
-      let cap: i32 = thisLen + replLen + 16;
-      let buf: i32 = Porffor.malloc(cap + 8);
-      let bufLen: i32 = 0;
-      while (searchIndex <= thisLen) {
-        const matchEnd: i32 = __Porffor_regex_interpretFrom(searchValue, str, 2, searchIndex);
-        if (matchEnd == -1) break;
-        const matchIndex: i32 = __Porffor_regex_matchStart();
-        matched = true;
-        const segLen: i32 = matchIndex - appendIndex;
-        if (bufLen + segLen + replLen > cap) {
-          while (cap < bufLen + segLen + replLen) cap *= 2;
-          const nbuf: i32 = Porffor.malloc(cap + 8);
-          Porffor.IR.copy(nbuf + 4, buf + 4, bufLen);
-          buf = nbuf;
-        }
-        Porffor.IR.copy(buf + 4 + bufLen, Porffor.IR.ptr(str) + 4 + appendIndex, segLen);
-        bufLen += segLen;
-        Porffor.IR.copy(buf + 4 + bufLen, Porffor.IR.ptr(repl) + 4, replLen);
-        bufLen += replLen;
-
-        appendIndex = matchEnd;
-        if (!global) break;
-        if (matchEnd == matchIndex) {
-          if (matchEnd >= thisLen) break;
-          searchIndex = matchEnd + 1;
-          continue;
-        }
-        searchIndex = matchEnd;
-      }
-      if (!matched) return str;
-      const tailLen: i32 = thisLen - appendIndex;
-      if (bufLen + tailLen > cap) {
-        cap = bufLen + tailLen;
-        const nbuf: i32 = Porffor.malloc(cap + 8);
-        Porffor.IR.copy(nbuf + 4, buf + 4, bufLen);
-        buf = nbuf;
-      }
-      Porffor.IR.copy(buf + 4 + bufLen, Porffor.IR.ptr(str) + 4 + appendIndex, tailLen);
-      bufLen += tailLen;
-      Porffor.IR.storeI32(buf, 0, bufLen);
-      return buf as bytestring;
-    }
-
-    while (searchIndex <= thisLen) {
-      let matchIndex: i32 = 0;
-      let matchEnd: i32 = 0;
-      if (plain) {
-        matchEnd = __Porffor_regex_interpretFrom(searchValue, str, 2, searchIndex);
-        if (matchEnd == -1) break;
-        matchIndex = __Porffor_regex_matchStart();
-        matched = true;
-        out = __Porffor_strcat(out, __Porffor_regex_inputSubstring(str, strType, appendIndex, matchIndex));
-        out = __Porffor_strcat(out, repl);
-      } else {
-        const match: any = __Porffor_regex_interpretFrom(searchValue, str, 0, searchIndex);
-        if (match == null) break;
-        matched = true;
-        matchIndex = match.index;
-        const matchValue: any = match[0];
-        matchEnd = matchIndex + matchValue.length;
-        out = __Porffor_strcat(out, __Porffor_regex_inputSubstring(str, strType, appendIndex, matchIndex));
-        out = __Porffor_strcat(out, __Porffor_string_applyReplacer(str, match, matchIndex, replaceValue));
-      }
-
-      appendIndex = matchEnd;
-      if (!global) break;
-
-      if (matchEnd == matchIndex) {
-        if (matchEnd >= thisLen) break;
-        searchIndex = matchEnd + 1;
-        if (uv && strType == Porffor.TYPES.string && searchIndex < thisLen) {
-          const u1: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(str) + matchEnd * 2, 4);
-          const u2: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(str) + searchIndex * 2, 4);
-          if (u1 >= 0xD800 && u1 <= 0xDBFF && u2 >= 0xDC00 && u2 <= 0xDFFF) searchIndex += 1;
-        }
-        continue;
-      }
-
-      searchIndex = matchEnd;
-    }
-
-    if (!matched) return str;
-    return __Porffor_strcat(out, __Porffor_regex_inputSubstring(str, strType, appendIndex, thisLen));
+    if (replacer != null) return Porffor.callThis(replacer, searchValue, str, replaceValue);
   }
 
+  if ((Porffor.type(str) | 0b10000000) != Porffor.TYPES.bytestring) str = ecma262.ToString(str);
+  const thisLen: i32 = str.length;
   searchValue = ecma262.ToString(searchValue);
+  if (Porffor.type(replaceValue) != Porffor.TYPES.function) replaceValue = ecma262.ToString(replaceValue);
   const searchLen: i32 = searchValue.length;
   const matchIndex: i32 = searchLen == 0 ? 0 : __Porffor_string_indexOfLike(str, searchValue, 0);
   if (matchIndex == -1) return str;
@@ -1491,7 +1394,8 @@ export const __Porffor_string_replace = (str: any, searchValue: any, replaceValu
   return __Porffor_strcat(out, __Porffor_string_substringLike(str, matchIndex + searchLen, thisLen));
 };
 
-export const __String_prototype_replace = function (this: string, searchValue: any, replaceValue: any) {
+export const __String_prototype_replace = function (this: any, searchValue: any, replaceValue: any) {
+  if (this == null) throw new TypeError('String.prototype.replace called on null or undefined');
   return __Porffor_string_replace(this, searchValue, replaceValue);
 };
 
@@ -1500,17 +1404,24 @@ export const __ByteString_prototype_replace = function (this: bytestring, search
 };
 
 export const __Porffor_string_replaceAll = (str: any, searchValue: any, replaceValue: any) => {
-  const thisLen: i32 = str.length;
-
-  if (Porffor.type(searchValue) == Porffor.TYPES.regexp) {
-    if (!Porffor.callThis(__RegExp_prototype_global$get, searchValue)) {
-      throw new TypeError('String.prototype.replaceAll called with a non-global RegExp argument');
+  if (Porffor.object.isObject(searchValue)) {
+    if (__Porffor_regex_isRegExp(searchValue)) {
+      const flags: any = Porffor.object.get(searchValue, 'flags');
+      if (flags == null) throw new TypeError('RegExp flags is null or undefined');
+      if (!__Porffor_regex_flagIn(ecma262.ToString(flags), 103)) throw new TypeError('String.prototype.replaceAll called with a non-global RegExp argument');
     }
 
-    return __Porffor_string_replace(str, searchValue, replaceValue);
+    const replacer: any = __Porffor_regex_getData(searchValue, Symbol.replace);
+    if (Porffor.comptime.flag`hasType.regexp`) {
+      if (replacer === __RegExp_prototype_Symbol_replace) return Porffor.callThis(__RegExp_prototype_Symbol_replace, searchValue, str, replaceValue);
+    }
+    if (replacer != null) return Porffor.callThis(replacer, searchValue, str, replaceValue);
   }
 
+  if ((Porffor.type(str) | 0b10000000) != Porffor.TYPES.bytestring) str = ecma262.ToString(str);
+  const thisLen: i32 = str.length;
   searchValue = ecma262.ToString(searchValue);
+  if (Porffor.type(replaceValue) != Porffor.TYPES.function) replaceValue = ecma262.ToString(replaceValue);
   const searchLen: i32 = searchValue.length;
   const match: any[] = Porffor.array.new(1);
   match[0] = searchValue;
@@ -1544,7 +1455,8 @@ export const __Porffor_string_replaceAll = (str: any, searchValue: any, replaceV
   return __Porffor_strcat(out, __Porffor_string_substringLike(str, appendIndex, thisLen));
 };
 
-export const __String_prototype_replaceAll = function (this: string, searchValue: any, replaceValue: any) {
+export const __String_prototype_replaceAll = function (this: any, searchValue: any, replaceValue: any) {
+  if (this == null) throw new TypeError('String.prototype.replaceAll called on null or undefined');
   return __Porffor_string_replaceAll(this, searchValue, replaceValue);
 };
 
@@ -1575,6 +1487,7 @@ export const __Porffor_string_splitRegex = (str: any, separator: any, limit: num
     const e: i32 = __Porffor_regex_interpretFrom(separator, str, 2, q);
     if (e == -1) break;
     const mi: i32 = __Porffor_regex_matchStart();
+    if (mi >= thisLen) break; // only matches starting before the end split
     if (e == p) { // empty match at previous split point: advance
       q = mi + 1;
       if (uv && strType == Porffor.TYPES.string && q < thisLen) {
@@ -1604,15 +1517,17 @@ export const __Porffor_string_splitRegex = (str: any, separator: any, limit: num
 };
 
 export const __String_prototype_split = function (this: string, separator: any, limit: any) {
+  if (Porffor.object.isObject(separator)) {
+    const splitter: any = __Porffor_regex_getData(separator, Symbol.split);
+    if (Porffor.comptime.flag`hasType.regexp`) {
+      if (splitter === __RegExp_prototype_Symbol_split) return Porffor.callThis(__RegExp_prototype_Symbol_split, separator, this, limit);
+    }
+    if (splitter != null) return Porffor.callThis(splitter, separator, this, limit);
+  }
+
   const out: any[] = Porffor.array.new(4);
   let outLen: i32 = 0;
-
-  if (Porffor.type(limit) == Porffor.TYPES.undefined) {
-    limit = Number.MAX_SAFE_INTEGER;
-  } else {
-    limit = ecma262.ToIntegerOrInfinity(limit);
-    if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
-  }
+  limit = __Porffor_regex_splitLimit(limit);
 
   if (Porffor.type(separator) == Porffor.TYPES.undefined) {
     if (limit == 0) {
@@ -1623,15 +1538,6 @@ export const __String_prototype_split = function (this: string, separator: any, 
     out.length = 1;
     Porffor.IR.storeJv(Porffor.IR.loadI32(out, 4), 0, this);
     return out;
-  }
-
-  if (Porffor.type(separator) == Porffor.TYPES.regexp) {
-    if (limit == 0) {
-      out.length = 0;
-      return out;
-    }
-
-    return __Porffor_string_splitRegex(this, separator, limit, out);
   }
 
   separator = ecma262.ToString(separator);
@@ -1709,15 +1615,17 @@ export const __String_prototype_split = function (this: string, separator: any, 
 };
 
 export const __ByteString_prototype_split = function (this: bytestring, separator: any, limit: any) {
+  if (Porffor.object.isObject(separator)) {
+    const splitter: any = __Porffor_regex_getData(separator, Symbol.split);
+    if (Porffor.comptime.flag`hasType.regexp`) {
+      if (splitter === __RegExp_prototype_Symbol_split) return Porffor.callThis(__RegExp_prototype_Symbol_split, separator, this, limit);
+    }
+    if (splitter != null) return Porffor.callThis(splitter, separator, this, limit);
+  }
+
   const out: any[] = Porffor.array.new(4);
   let outLen: i32 = 0;
-
-  if (Porffor.type(limit) == Porffor.TYPES.undefined) {
-    limit = Number.MAX_SAFE_INTEGER;
-  } else {
-    limit = ecma262.ToIntegerOrInfinity(limit);
-    if (limit < 0) limit = Number.MAX_SAFE_INTEGER;
-  }
+  limit = __Porffor_regex_splitLimit(limit);
 
   if (Porffor.type(separator) == Porffor.TYPES.undefined) {
     if (limit == 0) {
@@ -1728,15 +1636,6 @@ export const __ByteString_prototype_split = function (this: bytestring, separato
     out.length = 1;
     Porffor.IR.storeJv(Porffor.IR.loadI32(out, 4), 0, this);
     return out;
-  }
-
-  if (Porffor.type(separator) == Porffor.TYPES.regexp) {
-    if (limit == 0) {
-      out.length = 0;
-      return out;
-    }
-
-    return __Porffor_string_splitRegex(this, separator, limit, out);
   }
 
   separator = ecma262.ToString(separator);
