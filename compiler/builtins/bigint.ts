@@ -42,21 +42,39 @@ export const __Porffor_bigint_fromNumber = (n: number): bigint => {
   return __Porffor_bigint_fromDigits(negative, digits);
 };
 
+// round half to even, digits are base 2^32 most significant first
 export const __Porffor_bigint_toNumber = (x: f64): f64 => {
   if (Math.abs(x) < 0x8000000000000) return x as number;
-  x -= 0x8000000000000;
+  const ptr: i32 = x - 0x8000000000000;
 
-  const negative: boolean = Porffor.IR.loadU8(x, 0) != 0;
-  const len: i32 = Porffor.IR.loadU16(x, 2);
+  const negative: boolean = Porffor.IR.loadU8(ptr, 0) != 0;
+  const len: i32 = Porffor.IR.loadU16(ptr, 2);
+  let first: i32 = 0;
+  while (first < len && Porffor.IR.loadI32(ptr + first * 4, 4) == 0) first++;
+  if (first == len) return 0;
 
-  let out: number = 0;
-  for (let i: i32 = 0; i < len; i++) {
-    const d: number = Porffor.IR.loadI32(x + i * 4, 4) >>> 0;
-    out = out * 0x100000000 + d;
+  const top: number = Porffor.IR.loadI32(ptr + first * 4, 4) >>> 0;
+  const bits: i32 = (len - first - 1) * 32 + 32 - Math.clz32(top);
+  const take: i32 = bits < 53 ? bits : 53;
+  let m: number = 0;
+  for (let i: i32 = bits - 1; i >= bits - take; i--)
+    m = m * 2 + ((Porffor.IR.loadI32(ptr + (len - 1 - (i >> 5)) * 4, 4) >>> (i & 31)) & 1);
+
+  if (bits > 53) {
+    const r: i32 = (Porffor.IR.loadI32(ptr + (len - 1 - ((bits - 54) >> 5)) * 4, 4) >>> ((bits - 54) & 31)) & 1;
+    let sticky: boolean = false;
+    for (let i: i32 = bits - 55; i >= 0; i--) {
+      if (((Porffor.IR.loadI32(ptr + (len - 1 - (i >> 5)) * 4, 4) >>> (i & 31)) & 1) != 0) {
+        sticky = true;
+        break;
+      }
+    }
+    if (r == 1 && (sticky || m % 2 == 1)) m += 1;
+    m *= 2 ** (bits - 53);
   }
 
-  if (negative) out = -out;
-  return out;
+  if (negative) m = -m;
+  return m;
 };
 
 export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
