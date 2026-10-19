@@ -529,7 +529,7 @@ export const __Porffor_object_isObjectOrSymbol = (arg: any): boolean => {
 export const __Porffor_object_preventExtensions = (obj: any): void => {
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (Porffor.type(obj) == Porffor.TYPES.proxy) {
-      __Porffor_proxy_preventExtensions(obj);
+      if (!__Porffor_proxy_preventExtensions(obj)) throw new TypeError('Proxy preventExtensions trap returned false');
       return;
     }
   }
