@@ -95,8 +95,9 @@ export const __Porffor_strcat = (a: any, b: any): any => {
 };
 
 
-export const __String_prototype_at = function (this: string, index: number) {
+export const __String_prototype_at = function (this: string, _index: any) {
   const len: i32 = this.length;
+  let index: number = ecma262.ToIntegerOrInfinity(_index);
 
   if (index < 0) index = len + index;
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
@@ -108,8 +109,9 @@ export const __String_prototype_at = function (this: string, index: number) {
   return out;
 };
 
-export const __ByteString_prototype_at = function (this: bytestring, index: number) {
+export const __ByteString_prototype_at = function (this: bytestring, _index: any) {
   const len: i32 = this.length;
+  let index: number = ecma262.ToIntegerOrInfinity(_index);
 
   if (index < 0) index = len + index;
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
@@ -121,8 +123,9 @@ export const __ByteString_prototype_at = function (this: bytestring, index: numb
   return out;
 };
 
-export const __String_prototype_charAt = function (this: string, index: number) {
+export const __String_prototype_charAt = function (this: string, _index: any) {
   const len: i32 = this.length;
+  const index: number = ecma262.ToIntegerOrInfinity(_index);
 
   if (Porffor.fastOr(index < 0, index >= len)) return '';
 
@@ -133,8 +136,9 @@ export const __String_prototype_charAt = function (this: string, index: number) 
   return out;
 };
 
-export const __ByteString_prototype_charAt = function (this: bytestring, index: number) {
+export const __ByteString_prototype_charAt = function (this: bytestring, _index: any) {
   const len: i32 = this.length;
+  const index: number = ecma262.ToIntegerOrInfinity(_index);
 
   if (Porffor.fastOr(index < 0, index >= len)) return '';
 
@@ -240,19 +244,19 @@ export const __ByteString_prototype_toLocaleUpperCase = function (this: bytestri
 export const __String_prototype_toLocaleLowerCase = function (this: string) { return Porffor.callThis(__String_prototype_toLowerCase, this); };
 export const __ByteString_prototype_toLocaleLowerCase = function (this: bytestring) { return Porffor.callThis(__ByteString_prototype_toLowerCase, this); };
 
-export const __String_prototype_codePointAt = function (this: string, index: number) {
+export const __String_prototype_codePointAt = function (this: string, _index: any) {
   const len: i32 = this.length;
+  const index: number = ecma262.ToIntegerOrInfinity(_index);
 
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
 
-  index *= 2;
-  const c1: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(this) + index, 4);
+  const c1: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(this) + index * 2, 4);
   if (Porffor.fastAnd(c1 >= 0xD800, c1 <= 0xDBFF)) {
     // 1st char is leading surrogate, handle 2nd char
     // check oob
     if (index + 1 >= len) return c1;
 
-    const c2: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(this) + index + 2, 4);
+    const c2: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(this) + index * 2 + 2, 4);
     if (Porffor.fastAnd(c2 >= 0xDC00, c2 <= 0xDFFF)) {
       // 2nd char is trailing surrogate, return code point
       return (c1 << 10) + c2 - 56613888;
@@ -262,8 +266,9 @@ export const __String_prototype_codePointAt = function (this: string, index: num
   return c1;
 };
 
-export const __ByteString_prototype_codePointAt = function (this: bytestring, index: number) {
+export const __ByteString_prototype_codePointAt = function (this: bytestring, _index: any) {
   const len: i32 = this.length;
+  const index: number = ecma262.ToIntegerOrInfinity(_index);
 
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
 

@@ -228,14 +228,15 @@ export const __Porffor_looseEq = (x: any, y: any): i32 => {
 // https://tc39.es/ecma262/#sec-tointegerorinfinity
 export const __ecma262_ToIntegerOrInfinity = (argument: unknown): number => {
   // 1. Let number be ? ToNumber(argument).
-  let number: number = __ecma262_ToNumber(argument);
+  let number: number = argument;
+  if (Porffor.type(argument) != Porffor.TYPES.number) number = __ecma262_ToNumber(argument);
 
   // 2. If number is one of NaN, +0𝔽, or -0𝔽, return 0.
-  if (Number.isNaN(number)) return 0;
+  if (Porffor.fastOr(number != number, number == 0)) return 0;
 
   // 3. If number is +∞𝔽, return +∞.
   // 4. If number is -∞𝔽, return -∞.
-  if (!Number.isFinite(number)) return number;
+  if (Porffor.fastOr(number == Infinity, number == -Infinity)) return number;
 
   // 5. Return truncate(ℝ(number)).
   number = Math.trunc(number);
