@@ -5018,7 +5018,8 @@ const assignedBuiltinMembers = program => {
   const add = target => {
     if (target?.type !== 'MemberExpression') return;
     const p = path(target);
-    if (p != null && p.includes('_')) out.add('__' + p);
+    // builtins never read Math methods back, so writes to them can stay static globals (constants are read-only)
+    if (p != null && p.includes('_') && !/^Math_[a-z]/.test(p)) out.add('__' + p);
   };
   const walk = node => {
     if (!node || typeof node !== 'object') return;
