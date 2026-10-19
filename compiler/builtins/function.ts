@@ -46,5 +46,13 @@ export const __Function_prototype_bind = function (this: Function, thisArg: any,
   if (length < 0) length = 0;
   Object.defineProperty(bound, 'length', { value: length, configurable: true });
 
+  // bound functions have no own prototype property: drop the one given to constructor closures
+  const underlying: any = __Porffor_object_underlying(bound);
+  const entryPtr: i32 = __Porffor_object_lookup(underlying, 'prototype', __Porffor_object_hash('prototype'));
+  if (entryPtr != 0) {
+    Porffor.IR.storeU8(entryPtr, 16, Porffor.IR.loadU8(entryPtr, 16) | 0b0010);
+    __Porffor_object_delete(underlying, 'prototype');
+  }
+
   return bound;
 };
