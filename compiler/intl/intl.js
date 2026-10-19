@@ -2225,7 +2225,7 @@ const I$bestFitComponents = (fmt, hc) => {
   }
   if (fmt.hour !== undefined && fmt.minute !== undefined && fmt.second !== undefined) fmt.second = '2-digit';
 };
-const I$createDateTimeFormat = (locales, options, required, defaults) => {
+const I$createDateTimeFormat = (locales, options, required, defaults, toLocaleStringTimeZone) => {
   const requested = I$canonicalizeLocaleList(locales);
   options = I$coerceOptionsToObject(options);
   const o = I$newDtfSlots();
@@ -2248,7 +2248,11 @@ const I$createDateTimeFormat = (locales, options, required, defaults) => {
     if (hc === null || hc === undefined) hc = hcDefault;
   }
   let timeZone = options.timeZone;
-  if (timeZone === undefined) timeZone = 'UTC';
+  if (toLocaleStringTimeZone !== undefined) {
+    // Temporal.ZonedDateTime.prototype.toLocaleString formats in its own time zone
+    if (timeZone !== undefined) throw new TypeError('timeZone option is not allowed when formatting a Temporal.ZonedDateTime');
+    timeZone = toLocaleStringTimeZone;
+  } else if (timeZone === undefined) timeZone = 'UTC';
   else timeZone = I$toStr(timeZone);
   const tz = I$resolveTimeZone(timeZone);
   o.timeZone = tz.id;
@@ -2728,11 +2732,8 @@ const I$dtParts = (o, v) => {
 const I$dateValue = (o, t) => ({ kind: '', t, c: I$dtfComponents(o), offset: o.tzOffset, zone: true });
 const I$formatDateTime = (o, t) => I$partsToString(I$dtParts(o, I$dateValue(o, t)));
 
-const I$temporalKind = x => {
-  if (!I$isObj(x)) return '';
-  const b = x._temporalBrand;
-  return typeof b === 'string' && b.slice(0, 9) === 'Temporal.' ? b.slice(9) : '';
-};
+// the Temporal polyfill registers how to recognise its objects
+const I$temporalKind = x => $IntlHooks$.temporalKind === undefined ? '' : $IntlHooks$.temporalKind(x);
 const I$DATE_FIELDS = [ 'weekday', 'era', 'year', 'month', 'day' ], I$TIME_FIELDS = [ 'dayPeriod', 'hour', 'minute', 'second', 'fractionalSecondDigits' ];
 const I$temporalFields = kind => {
   if (kind === 'PlainDate') return I$DATE_FIELDS;
@@ -2830,15 +2831,16 @@ const I$temporalIsoMs = (kind, x) => {
   }
   return I$daysFromCivil(y, mo, d) * 86400000 + ((h * 60 + mi) * 60 + sec) * 1000 + ms;
 };
+const I$instantValue = (o, x) => {
+  const c = o.dateStyle !== undefined || o.timeStyle !== undefined ? I$dtfComponents(o) : I$temporalComponents(o, 'Instant');
+  if (o.dateStyle === undefined && o.timeStyle === undefined && o.explicit.timeZoneName !== undefined) c.timeZoneName = o.explicit.timeZoneName;
+  return { kind: 'Instant', t: x.epochMilliseconds, c, offset: o.tzOffset, zone: true };
+};
 const I$toDTValue = (o, x) => {
   const kind = I$temporalKind(x);
   if (kind === '') return I$dateValue(o, I$toDateValue(x));
   if (kind === 'ZonedDateTime') throw new TypeError('Temporal.ZonedDateTime is not supported by Intl.DateTimeFormat');
-  if (kind === 'Instant') {
-    const c = o.dateStyle !== undefined || o.timeStyle !== undefined ? I$dtfComponents(o) : I$temporalComponents(o, kind);
-    if (o.dateStyle === undefined && o.timeStyle === undefined && o.explicit.timeZoneName !== undefined) c.timeZoneName = o.explicit.timeZoneName;
-    return { kind, t: x.epochMilliseconds, c, offset: o.tzOffset, zone: true };
-  }
+  if (kind === 'Instant') return I$instantValue(o, x);
   if (kind === 'Duration') throw new TypeError('Temporal.Duration cannot be formatted by Intl.DateTimeFormat');
   if (kind !== 'PlainTime') {
     const cal = x.calendarId;
@@ -3662,6 +3664,21 @@ $IntlHooks$ = {
   lower(x, locales) { return I$transformCase(I$requireCoercibleString(x, 'toLocaleLowerCase'), locales, false); },
   upper(x, locales) { return I$transformCase(I$requireCoercibleString(x, 'toLocaleUpperCase'), locales, true); },
   date(x, locales, options) { return I$dateToLocale(x, locales, options, 'any', 'all'); },
+  temporal(x, kind, locales, options) {
+    if (kind === 'Duration') return new I$DurationFormat(locales, options).format(x);
+    const req = kind === 'PlainTime' ? 'time' : kind === 'PlainDate' || kind === 'PlainYearMonth' || kind === 'PlainMonthDay' ? 'date' : 'any';
+    if (kind !== 'ZonedDateTime') {
+      const o = I$createDateTimeFormat(locales, options, req, req === 'any' ? 'all' : req);
+      return I$partsToString(I$dtParts(o, I$toDTValue(o, x)));
+    }
+    const oz = I$createDateTimeFormat(locales, options, 'any', 'all', x.timeZoneId);
+    const cal = x.calendarId;
+    if (cal !== 'iso8601' && cal !== oz.calendar) throw new RangeError('Calendar ' + cal + ' does not match the formatter calendar ' + oz.calendar);
+    let v = I$instantValue(oz, x), explicitAny = false;
+    for (const k in oz.explicit) if (oz.explicit[k] !== undefined) explicitAny = true;
+    if (oz.dateStyle === undefined && oz.timeStyle === undefined && !explicitAny) v.c.timeZoneName = 'short';
+    return I$partsToString(I$dtParts(oz, v));
+  },
   dateDate(x, locales, options) { return I$dateToLocale(x, locales, options, 'date', 'date'); },
   dateTime(x, locales, options) { return I$dateToLocale(x, locales, options, 'time', 'time'); },
   array(x, locales, options) {

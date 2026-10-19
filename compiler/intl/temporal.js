@@ -2,6 +2,8 @@ import { calendarData, tzData } from './temporal-data.js';
 
 export default String.raw`
 const T$slots = new WeakMap();
+// shared with the intl polyfill when both are included
+var $IntlHooks$;
 const T$B_INSTANT = 1, T$B_ZDT = 2, T$B_DATE = 3, T$B_DATETIME = 4, T$B_TIME = 5, T$B_YM = 6, T$B_MD = 7, T$B_DURATION = 8;
 
 const T$get = (o, brand, name) => {
@@ -3219,7 +3221,13 @@ const T$Duration = class Duration {
     return T$temporalDurationToString(rounded, precision.precision);
   }
   toJSON() { return T$temporalDurationToString(T$get(this, T$B_DURATION, 'toJSON').d, 'auto'); }
-  toLocaleString(locales = undefined, options = undefined) { return T$temporalDurationToString(T$get(this, T$B_DURATION, 'toLocaleString').d, 'auto'); }
+  toLocaleString(locales = undefined, options = undefined) {
+    if ($IntlHooks$ !== undefined) {
+      T$get(this, T$B_DURATION, 'toLocaleString');
+      return $IntlHooks$.temporal(this, 'Duration', locales, options);
+    }
+    return T$temporalDurationToString(T$get(this, T$B_DURATION, 'toLocaleString').d, 'auto');
+  }
   valueOf() { throw new TypeError('Temporal.Duration cannot be converted to a primitive'); }
 };
 
@@ -3297,7 +3305,13 @@ const T$Instant = class Instant {
     return T$temporalInstantToString(ns, tz, precision.precision);
   }
   toJSON() { return T$temporalInstantToString(T$get(this, T$B_INSTANT, 'toJSON').epochNs, undefined, 'auto'); }
-  toLocaleString(locales = undefined, options = undefined) { return T$temporalInstantToString(T$get(this, T$B_INSTANT, 'toLocaleString').epochNs, undefined, 'auto'); }
+  toLocaleString(locales = undefined, options = undefined) {
+    if ($IntlHooks$ !== undefined) {
+      T$get(this, T$B_INSTANT, 'toLocaleString');
+      return $IntlHooks$.temporal(this, 'Instant', locales, options);
+    }
+    return T$temporalInstantToString(T$get(this, T$B_INSTANT, 'toLocaleString').epochNs, undefined, 'auto');
+  }
   valueOf() { throw new TypeError('Temporal.Instant cannot be converted to a primitive'); }
   toZonedDateTimeISO(timeZone) {
     const sl = T$get(this, T$B_INSTANT, 'toZonedDateTimeISO');
@@ -3407,7 +3421,13 @@ const T$PlainDate = class PlainDate {
     const show = T$getShowCalendarOption(T$getOptionsObject(options));
     return T$temporalDateToString(s, show);
   }
-  toLocaleString(locales = undefined, options = undefined) { return T$temporalDateToString(T$get(this, T$B_DATE, 'toLocaleString'), 'auto'); }
+  toLocaleString(locales = undefined, options = undefined) {
+    if ($IntlHooks$ !== undefined) {
+      T$get(this, T$B_DATE, 'toLocaleString');
+      return $IntlHooks$.temporal(this, 'PlainDate', locales, options);
+    }
+    return T$temporalDateToString(T$get(this, T$B_DATE, 'toLocaleString'), 'auto');
+  }
   toJSON() { return T$temporalDateToString(T$get(this, T$B_DATE, 'toJSON'), 'auto'); }
   valueOf() { throw new TypeError('Temporal.PlainDate cannot be converted to a primitive'); }
 };
@@ -3513,6 +3533,10 @@ const T$PlainDateTime = class PlainDateTime {
     return T$isoDateTimeToString(result, s.calendar, precision.precision, showCalendar);
   }
   toLocaleString(locales = undefined, options = undefined) {
+    if ($IntlHooks$ !== undefined) {
+      T$get(this, T$B_DATETIME, 'toLocaleString');
+      return $IntlHooks$.temporal(this, 'PlainDateTime', locales, options);
+    }
     const s = T$get(this, T$B_DATETIME, 'toLocaleString');
     return T$isoDateTimeToString(s.dateTime, s.calendar, 'auto', 'auto');
   }
@@ -3607,7 +3631,13 @@ const T$PlainTime = class PlainTime {
     const precision = T$toSecondsStringPrecision(smallestUnit, digits);
     return T$formatTimeString(T$roundTime(s.time, precision.increment, precision.unit, roundingMode), precision.precision);
   }
-  toLocaleString(locales = undefined, options = undefined) { return T$formatTimeString(T$get(this, T$B_TIME, 'toLocaleString').time, 'auto'); }
+  toLocaleString(locales = undefined, options = undefined) {
+    if ($IntlHooks$ !== undefined) {
+      T$get(this, T$B_TIME, 'toLocaleString');
+      return $IntlHooks$.temporal(this, 'PlainTime', locales, options);
+    }
+    return T$formatTimeString(T$get(this, T$B_TIME, 'toLocaleString').time, 'auto');
+  }
   toJSON() { return T$formatTimeString(T$get(this, T$B_TIME, 'toJSON').time, 'auto'); }
   valueOf() { throw new TypeError('Temporal.PlainTime cannot be converted to a primitive'); }
 };
@@ -3683,7 +3713,13 @@ const T$PlainYearMonth = class PlainYearMonth {
     const s = T$get(this, T$B_YM, 'toString');
     return T$temporalYearMonthToString(s, T$getShowCalendarOption(T$getOptionsObject(options)));
   }
-  toLocaleString(locales = undefined, options = undefined) { return T$temporalYearMonthToString(T$get(this, T$B_YM, 'toLocaleString'), 'auto'); }
+  toLocaleString(locales = undefined, options = undefined) {
+    if ($IntlHooks$ !== undefined) {
+      T$get(this, T$B_YM, 'toLocaleString');
+      return $IntlHooks$.temporal(this, 'PlainYearMonth', locales, options);
+    }
+    return T$temporalYearMonthToString(T$get(this, T$B_YM, 'toLocaleString'), 'auto');
+  }
   toJSON() { return T$temporalYearMonthToString(T$get(this, T$B_YM, 'toJSON'), 'auto'); }
   valueOf() { throw new TypeError('Temporal.PlainYearMonth cannot be converted to a primitive'); }
   toPlainDate(item) {
@@ -3727,7 +3763,13 @@ const T$PlainMonthDay = class PlainMonthDay {
     const s = T$get(this, T$B_MD, 'toString');
     return T$temporalMonthDayToString(s, T$getShowCalendarOption(T$getOptionsObject(options)));
   }
-  toLocaleString(locales = undefined, options = undefined) { return T$temporalMonthDayToString(T$get(this, T$B_MD, 'toLocaleString'), 'auto'); }
+  toLocaleString(locales = undefined, options = undefined) {
+    if ($IntlHooks$ !== undefined) {
+      T$get(this, T$B_MD, 'toLocaleString');
+      return $IntlHooks$.temporal(this, 'PlainMonthDay', locales, options);
+    }
+    return T$temporalMonthDayToString(T$get(this, T$B_MD, 'toLocaleString'), 'auto');
+  }
   toJSON() { return T$temporalMonthDayToString(T$get(this, T$B_MD, 'toJSON'), 'auto'); }
   valueOf() { throw new TypeError('Temporal.PlainMonthDay cannot be converted to a primitive'); }
   toPlainDate(item) {
@@ -3902,7 +3944,13 @@ const T$ZonedDateTime = class ZonedDateTime {
     const precision = T$toSecondsStringPrecision(smallestUnit, digits);
     return T$temporalZonedDateTimeToString(s, precision.precision, showCalendar, showTimeZone, showOffset, precision.increment, precision.unit, roundingMode);
   }
-  toLocaleString(locales = undefined, options = undefined) { return T$temporalZonedDateTimeToString(T$get(this, T$B_ZDT, 'toLocaleString'), 'auto', 'auto', 'auto', 'auto'); }
+  toLocaleString(locales = undefined, options = undefined) {
+    if ($IntlHooks$ !== undefined) {
+      T$get(this, T$B_ZDT, 'toLocaleString');
+      return $IntlHooks$.temporal(this, 'ZonedDateTime', locales, options);
+    }
+    return T$temporalZonedDateTimeToString(T$get(this, T$B_ZDT, 'toLocaleString'), 'auto', 'auto', 'auto', 'auto');
+  }
   toJSON() { return T$temporalZonedDateTimeToString(T$get(this, T$B_ZDT, 'toJSON'), 'auto', 'auto', 'auto', 'auto'); }
   valueOf() { throw new TypeError('Temporal.ZonedDateTime cannot be converted to a primitive'); }
   startOfDay() {
@@ -3982,6 +4030,11 @@ T$defineHidden(Temporal, 'PlainTime', T$PlainTime);
 T$defineHidden(Temporal, 'PlainYearMonth', T$PlainYearMonth);
 T$defineHidden(Temporal, 'ZonedDateTime', T$ZonedDateTime);
 T$defineTag(Temporal, 'Temporal');
+const T$KIND_NAMES = [ '', 'Instant', 'ZonedDateTime', 'PlainDate', 'PlainDateTime', 'PlainTime', 'PlainYearMonth', 'PlainMonthDay', 'Duration' ];
+if ($IntlHooks$ !== undefined) $IntlHooks$.temporalKind = x => {
+  const sl = T$slotsOf(x);
+  return sl === undefined ? '' : T$KIND_NAMES[sl.brand];
+};
 T$defineHidden(globalThis, 'Temporal', Temporal);
 T$defineTag(T$Now, 'Temporal.Now');
 {
