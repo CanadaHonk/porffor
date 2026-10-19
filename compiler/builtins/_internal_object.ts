@@ -250,7 +250,6 @@ export const __Porffor_object_underlyingPtr = (_obj: any): i32 => {
   }
 };
 
-// the underlying object if one was ever made, else null (so no own props), never allocates
 export const __Porffor_object_underlyingIfAny = (_obj: any): any => {
   const objType: i32 = Porffor.type(_obj);
   if (objType == Porffor.TYPES.object) return _obj;
@@ -294,6 +293,24 @@ export const __Porffor_object_coroutinePrototype = (gen: any, underlying: object
 
   const proto: any = callee.prototype;
   if (Porffor.object.isObject(proto)) Porffor.object.setPrototype(underlying, proto);
+};
+
+// regexp lastIndex lives in the header (i32 at 8) until an underlying object holds it as a real prop (header byte 20 set)
+export const __Porffor_object_regexLiKey = (_obj: any, key: any): boolean => {
+  if (Porffor.IR.loadU8(_obj, 20) != 0) return false;
+  if ((Porffor.type(key) | 0b10000000) != Porffor.TYPES.bytestring) return false;
+  return Porffor.strcmp(key, 'lastIndex');
+};
+
+export const __Porffor_object_regexLiStore = (_obj: any, value: any): boolean => {
+  if (Porffor.type(value) != Porffor.TYPES.number) return false;
+  const n: number = value;
+  if (n != Math.trunc(n)) return false;
+  if (Porffor.fastOr(n > 2147483647, n < -2147483648)) return false;
+  if (n == 0) if (1 / n < 0) return false;
+  const v: i32 = n;
+  Porffor.IR.storeI32(_obj, 8, v);
+  return true;
 };
 
 export const __Porffor_object_underlying = (_obj: any): any => {
@@ -384,7 +401,6 @@ export const __Porffor_object_underlying = (_obj: any): any => {
         __Porffor_object_fastAdd(underlying, 'prototype', proto, 0b1000);
         __Porffor_object_fastAdd(proto, 'constructor', _obj, 0b1010);
       } else {
-        // (async) generator functions inherit from %(Async)GeneratorFunction.prototype% and have an instance prototype
         if (Porffor.comptime.flag`hasType.__porffor_generator`) {
           if (__Porffor_funcLut_coroKind(_obj) == 2) {
             Porffor.object.setPrototype(underlying, __Porffor_GeneratorFunction_prototype);
@@ -410,12 +426,16 @@ export const __Porffor_object_underlying = (_obj: any): any => {
       if (message !== undefined) __Porffor_object_fastAdd(underlying, 'message', message, 0b1010);
     }
 
-    // (async) generator instances inherit from their function's prototype
     if (Porffor.comptime.flag`hasType.__porffor_generator`) {
       if (objType == Porffor.TYPES.__porffor_generator) __Porffor_object_coroutinePrototype(obj, underlying);
     }
     if (Porffor.comptime.flag`hasType.__porffor_asyncgenerator`) {
       if (objType == Porffor.TYPES.__porffor_asyncgenerator) __Porffor_object_coroutinePrototype(obj, underlying);
+    }
+
+    if (objType == Porffor.TYPES.regexp) {
+      __Porffor_object_fastAdd(underlying, 'lastIndex', Porffor.IR.loadI32(obj, 8), 0b1000);
+      Porffor.IR.storeU8(obj, 20, 1);
     }
 
     if (objType == Porffor.TYPES.array) {
@@ -689,6 +709,7 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (trueType == Porffor.TYPES.proxy) return __Porffor_proxy_get(_obj, ecma262.ToPropertyKey(key), _obj);
   }
+  if (trueType == Porffor.TYPES.regexp) if (__Porffor_object_regexLiKey(_obj, key)) return Porffor.IR.loadI32(_obj, 8);
   if (trueType == Porffor.TYPES.object) {
     if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot get property of null');
   } else {
@@ -711,7 +732,6 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
   }
 
   const hash: i32 = __Porffor_object_hash(key);
-  if (trueType == Porffor.TYPES.regexp) if (hash == -1322609992) if (Porffor.strcmp(key, 'lastIndex')) return Porffor.IR.loadI32(_obj, 8);
   let entryPtr: i32 = 0;
   if (Porffor.type(obj) == Porffor.TYPES.object) entryPtr = __Porffor_object_lookup(obj, key, hash);
   if (entryPtr == 0) {
@@ -823,14 +843,9 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
     if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot get property of null');
   } else {
     if (trueType == Porffor.TYPES.undefined) throw new TypeError('Cannot get property of null');
+    if (trueType == Porffor.TYPES.regexp) if (__Porffor_object_regexLiKey(_obj, key)) return Porffor.IR.loadI32(_obj, 8);
     if (trueType == Porffor.TYPES.array) return __Porffor_object_get(_obj, key);
     obj = __Porffor_object_underlying(obj);
-  }
-
-  // integer-indexed exotic objects never look numeric keys up on the prototype chain
-  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
-    const n: any = __Porffor_typedArray_numericKey(key);
-    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_validIndex(_obj, n) ? _obj[n] : undefined;
   }
 
   let entryPtr: i32 = 0;
@@ -903,6 +918,7 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
       return value;
     }
   }
+  if (trueType == Porffor.TYPES.regexp) if (__Porffor_object_regexLiKey(_obj, key)) if (__Porffor_object_regexLiStore(_obj, value)) return value;
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return value;
@@ -938,15 +954,11 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
     }
   }
 
-  if (trueType == Porffor.TYPES.regexp) if (hash == -1322609992) if (Porffor.strcmp(key, 'lastIndex')) {
-    Porffor.IR.storeI32(_obj, 8, ecma262.ToIntegerOrInfinity(value));
-    return value;
-  }
-
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   let flags: i32;
   if (entryPtr == 0) {
-    let proto: any = __Porffor_object_getPrototype(obj);
+    // builtin-typed values inherit setters and getter-only accessors from their hidden prototype
+    let proto: any = trueType == Porffor.TYPES.object ? __Porffor_object_getPrototype(obj) : __Porffor_object_getPrototypeWithHidden(obj, trueType);
     if (hash == 212292208) if (Porffor.fastAnd(Porffor.strcmp(key, '__proto__'), proto !== null)) {
       // set prototype
       __Porffor_object_setPrototype(obj, value);
@@ -1043,10 +1055,7 @@ export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, h
   }
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
-  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
-    const n: any = __Porffor_typedArray_numericKey(key);
-    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_setIndex(_obj, n, value);
-  }
+  if (trueType == Porffor.TYPES.regexp) if (__Porffor_object_regexLiKey(_obj, key)) if (__Porffor_object_regexLiStore(_obj, value)) return value;
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return value;
@@ -1054,17 +1063,13 @@ export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, h
 
   if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot set property of null');
 
-  if (trueType == Porffor.TYPES.regexp) if (hash == -1322609992) if (Porffor.strcmp(key, 'lastIndex')) {
-    Porffor.IR.storeI32(_obj, 8, ecma262.ToIntegerOrInfinity(value));
-    return value;
-  }
-
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   let flags: i32;
   if (entryPtr == 0) {
     // todo/opt: skip if no setters used
     // check prototype chain for setter
-    let proto: any = __Porffor_object_getPrototype(obj);
+    // builtin-typed values inherit setters and getter-only accessors from their hidden prototype
+    let proto: any = trueType == Porffor.TYPES.object ? __Porffor_object_getPrototype(obj) : __Porffor_object_getPrototypeWithHidden(obj, trueType);
     if (proto != null) {
       if (Porffor.comptime.flag`hasFunc.Proxy`) {
         if (Porffor.type(proto) == Porffor.TYPES.proxy) {
@@ -1153,6 +1158,7 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
   }
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
+  if (trueType == Porffor.TYPES.regexp) if (__Porffor_object_regexLiKey(_obj, key)) if (__Porffor_object_regexLiStore(_obj, value)) return value;
   if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
     key = ecma262.ToPropertyKey(key);
     const n: any = __Porffor_typedArray_numericKey(key);
@@ -1193,15 +1199,11 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
     }
   }
 
-  if (trueType == Porffor.TYPES.regexp) if (hash == -1322609992) if (Porffor.strcmp(key, 'lastIndex')) {
-    Porffor.IR.storeI32(_obj, 8, ecma262.ToIntegerOrInfinity(value));
-    return value;
-  }
-
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   let flags: i32;
   if (entryPtr == 0) {
-    let proto: any = __Porffor_object_getPrototype(obj);
+    // builtin-typed values inherit setters and getter-only accessors from their hidden prototype
+    let proto: any = trueType == Porffor.TYPES.object ? __Porffor_object_getPrototype(obj) : __Porffor_object_getPrototypeWithHidden(obj, trueType);
     if (hash == 212292208) if (Porffor.fastAnd(Porffor.strcmp(key, '__proto__'), proto !== null)) {
       // set prototype
       __Porffor_object_setPrototype(obj, value);
@@ -1299,10 +1301,7 @@ export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: 
   }
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
-  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
-    const n: any = __Porffor_typedArray_numericKey(key);
-    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_setIndex(_obj, n, value);
-  }
+  if (trueType == Porffor.TYPES.regexp) if (__Porffor_object_regexLiKey(_obj, key)) if (__Porffor_object_regexLiStore(_obj, value)) return value;
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return value;
@@ -1310,17 +1309,13 @@ export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: 
 
   if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot set property of null');
 
-  if (trueType == Porffor.TYPES.regexp) if (hash == -1322609992) if (Porffor.strcmp(key, 'lastIndex')) {
-    Porffor.IR.storeI32(_obj, 8, ecma262.ToIntegerOrInfinity(value));
-    return value;
-  }
-
   let entryPtr: i32 = __Porffor_object_lookup(obj, key, hash);
   let flags: i32;
   if (entryPtr == 0) {
     // todo/opt: skip if no setters used
     // check prototype chain for setter
-    let proto: any = __Porffor_object_getPrototype(obj);
+    // builtin-typed values inherit setters and getter-only accessors from their hidden prototype
+    let proto: any = trueType == Porffor.TYPES.object ? __Porffor_object_getPrototype(obj) : __Porffor_object_getPrototypeWithHidden(obj, trueType);
     if (proto != null) {
       if (Porffor.comptime.flag`hasFunc.Proxy`) {
         if (Porffor.type(proto) == Porffor.TYPES.proxy) {
@@ -1506,10 +1501,7 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
   }
   if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
     const n: any = __Porffor_typedArray_numericKey(ecma262.ToPropertyKey(key));
-    if (Porffor.type(n) == Porffor.TYPES.number) {
-      if (!__Porffor_typedArray_validIndex(obj, n)) return true;
-      return false;
-    }
+    if (Porffor.type(n) == Porffor.TYPES.number) return !__Porffor_typedArray_validIndex(obj, n);
   }
 
   if (trueType == Porffor.TYPES.array) {

@@ -18,7 +18,6 @@ export const __WeakRef_prototype_deref = function (this: WeakRef) {
 export const __WeakRef_prototype_toString = function (this: WeakRef) { return '[object WeakRef]'; };
 export const __WeakRef_prototype_toLocaleString = function (this: WeakRef) { return Porffor.callThis(__WeakRef_prototype_toString, this); };
 
-// CanBeHeldWeakly(v): objects and symbols not in the global registry
 export const __Porffor_canBeHeldWeakly = (v: any): boolean => {
   if (Porffor.type(v) == Porffor.TYPES.symbol) return __Symbol_keyFor(v) === undefined;
   return Porffor.object.isObject(v);

@@ -1,4 +1,4 @@
-export default () => {
+export default ({ ERROR_NAMES }) => {
   let out = '';
 
   // [message jsval], an own message property once the underlying object exists so internal throws stay a bare block
@@ -16,7 +16,6 @@ export const ${name} = function (${args}): ${name} {
   ${name === 'SuppressedError' ? `
   __Porffor_object_fastAdd(__Porffor_object_underlying(obj), 'error', error, 0b1010);
   __Porffor_object_fastAdd(__Porffor_object_underlying(obj), 'suppressed', suppressed, 0b1010);` : `
-  // InstallErrorCause
   if (Porffor.object.isObject(options)) {
     if ('cause' in options) __Porffor_object_fastAdd(__Porffor_object_underlying(obj), 'cause', options.cause, 0b1010);
   }`}
@@ -32,7 +31,7 @@ export const ${name} = function (${args}): ${name} {
 `;
   };
 
-  for (const x of [ 'Error', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'SuppressedError' ]) error(x);
+  for (const x of ERROR_NAMES) error(x);
 
   out += `
 export const __Error_prototype_toString = function (this: any) {

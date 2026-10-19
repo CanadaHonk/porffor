@@ -1,5 +1,5 @@
 import * as PrecompiledBuiltins from './builtins_precompiled.js';
-import { TYPES, TYPE_NAMES } from './types.js';
+import { TYPES, TYPE_NAMES, ERROR_NAMES } from './types.js';
 import { Bin, Un, T, K, Const, JvConst, Box, JvType, JvNum, JvPtr, Convert, Reinterpret, CONVERT_SIGNED, N_KIND, N_TYPE, N_A, N_B, Local, Assign, Call, CallDynamic, If, TypeSwitch, Return, RawC, BlockStmt } from './ir.js';
 import './prefs.js';
 
@@ -102,7 +102,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
 
         includeBuiltin(existingFunc ? '__Porffor_object_define' : '__Porffor_object_fastAdd');
         const emitProp = (out, x, d) => {
-          const key = prefix + x;
+          const key = prefix + (d.func ?? x);
           const value = propValue(key, d);
 
           if (x === '__proto__') {
@@ -137,7 +137,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           onFinalize(() => {
             adds.length = 0;
             for (const x in props) {
-              const key = prefix + x;
+              const key = prefix + (props[x].func ?? x);
               if (lazyKind === 'proto') {
                 if (key in builtinFuncs) {
                   if (fullPrototypes.has(getName)) includeBuiltin(key);
@@ -149,8 +149,8 @@ export const BuiltinVars = ({ builtinFuncs }) => {
                 }
               } else {
                 if (key in builtinFuncs) {
-                  // symbol-keyed (species getters) are only reached via computed keys
-                  if (x.startsWith('Symbol_')) includeBuiltin(key);
+                  // symbol-keyed (species getters) and accessors (annex B RegExp.$1, ...) can be reached via computed keys
+                  if (x.startsWith('Symbol_') || x.endsWith('$get') || x.endsWith('$set')) includeBuiltin(key);
                     else if (!hasFunc(key)) continue;
                 } else if (('#get_' + key) in builtinFuncs && x !== 'prototype') {
                   if (!hasFunc('#get_' + key)) continue;
@@ -322,7 +322,6 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     return value;
   };
 
-  // builtin iterator prototypes: [ [[Prototype]], @@toStringTag ]
   const iteratorProtos = {
     __Porffor_Generator_prototype: [ '__Iterator_prototype', 'Generator' ],
     __Porffor_AsyncGenerator_prototype: [ '__Porffor_AsyncIterator_prototype', 'AsyncGenerator' ],
@@ -335,7 +334,6 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     __Porffor_RegExpStringIterator_prototype: [ '__Iterator_prototype', 'RegExp String Iterator' ]
   };
 
-  // [[Prototype]] of (async) generator functions, also .constructor of their instances' prototypes
   const generatorFunctionProtos = {
     __Porffor_GeneratorFunction_prototype: [ '__Porffor_Generator_prototype', 'GeneratorFunction' ],
     __Porffor_AsyncGeneratorFunction_prototype: [ '__Porffor_AsyncGenerator_prototype', 'AsyncGeneratorFunction' ]
@@ -343,8 +341,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
 
   // automatically generate objects for prototypes
   const typedArrayProtos = Object.keys(typedArrayBytesPerElement).map(x => `__${x}_prototype`);
-  const errorNames = [ 'Error', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'SuppressedError' ];
-  const errorProtos = errorNames.map(x => `__${x}_prototype`);
+  const errorProtos = ERROR_NAMES.map(x => `__${x}_prototype`);
   for (const x of builtinFuncKeys.reduce((acc, x) => {
     const ind = x.indexOf('_prototype_');
     if (ind === -1) return acc;
@@ -354,7 +351,6 @@ export const BuiltinVars = ({ builtinFuncs }) => {
   }, new Set([ ...typedArrayProtos, ...errorProtos ]))) {
     const props = autoFuncs(x);
 
-    // NativeError.prototype: name and message data props, inheriting Error.prototype
     if (errorProtos.includes(x)) {
       const name = x.slice(2, -'_prototype'.length);
       props.name = { value: name, writable: true, enumerable: false, configurable: true };
@@ -394,7 +390,6 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       props.length = { value: 0, writable: true, configurable: false };
     }
 
-    // builtin iterator prototypes inherit from %Iterator.prototype%
     if (x in iteratorProtos) {
       const [ parent, tag ] = iteratorProtos[x];
       Object.defineProperty(props, '__proto__', { value: { value: protoValue(parent) }, enumerable: true });
@@ -485,7 +480,11 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       ...autoFuncs(x)
     };
     if (typedArrayBytesPerElement[x] != null) Object.defineProperty(ctorProps, '__proto__', { value: { value: _.TypedArray }, enumerable: true });
-    if (errorNames.includes(x) && x !== 'Error') Object.defineProperty(ctorProps, '__proto__', { value: { value: _.Error }, enumerable: true });
+    if (ERROR_NAMES.includes(x) && x !== 'Error') Object.defineProperty(ctorProps, '__proto__', { value: { value: _.Error }, enumerable: true });
+    // annex B legacy RegExp statics without identifier names share their long-named getters
+    if (x === 'RegExp') for (const [ short, long ] of [ [ '$&', 'lastMatch' ], [ '$+', 'lastParen' ], [ '$`', 'leftContext' ], [ "$'", 'rightContext' ] ]) {
+      if (ctorProps[long + '$get']) ctorProps[short + '$get'] = { ...ctorProps[long + '$get'], func: long + '$get' };
+    }
     object(x, ctorProps);
   }
 

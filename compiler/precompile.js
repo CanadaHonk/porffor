@@ -1,5 +1,5 @@
 
-import { TYPES, TYPE_NAMES } from './types.js';
+import { TYPES, TYPE_NAMES, ERROR_NAMES } from './types.js';
 import { K } from './ir.js';
 import { ieee754_binary64 } from './encoding.js';
 
@@ -48,7 +48,7 @@ const compile = async (file, _funcs) => {
   let first = source.slice(0, source.indexOf('\n'));
 
   if (first.startsWith('export default')) {
-    source = await (await import('file://' + file)).default({ TYPES, TYPE_NAMES });
+    source = await (await import('file://' + file)).default({ TYPES, TYPE_NAMES, ERROR_NAMES });
     first = source.slice(0, source.indexOf('\n'));
   }
 

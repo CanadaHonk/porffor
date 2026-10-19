@@ -271,136 +271,95 @@ export const __ByteString_prototype_codePointAt = function (this: bytestring, in
   return Porffor.IR.loadU8(Porffor.IR.ptr(this) + index, 4);
 };
 
-export const __String_prototype_startsWith = function (this: string, searchString: string, position: number = 0) {
-  // todo: handle bytestring searchString
-  // todo/perf: investigate whether for counter vs while ++s are faster
-
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-  const searchPtr: i32 = Porffor.IR.ptr(searchString);
-
-  // todo/perf: make position oob handling optional (via pref or fast variant?)
-  const len: i32 = this.length;
-  if (position > 0) {
-    if (position > len) position = len;
-  } else position = 0;
-
-  if (searchString.length > len - position) return false;
-
-  thisPtr += position * 2;
-
-  const searchLen: i32 = searchString.length * 2;
-  for (let i: i32 = 0; i < searchLen; i += 2) {
-    let chr: i32 = Porffor.IR.loadU16(thisPtr + i, 4);
-    let expected: i32 = Porffor.IR.loadU16(searchPtr + i, 4);
-
-    if (chr != expected) return false;
+export const __Porffor_string_searchArg = (searchString: any): any => {
+  if (Porffor.object.isObject(searchString)) {
+    let isRegExp: boolean = false;
+    if (Porffor.comptime.flag`hasType.regexp`) {
+      isRegExp = __Porffor_regex_isRegExp(searchString);
+    } else {
+      const matcher: any = Porffor.object.get(searchString, Symbol.match);
+      isRegExp = matcher !== undefined && !!matcher;
+    }
+    if (isRegExp) throw new TypeError('First argument must not be a regular expression');
   }
+  if ((Porffor.type(searchString) | 0b10000000) == Porffor.TYPES.bytestring) return searchString;
+  return ecma262.ToString(searchString);
+};
 
+export const __Porffor_string_clampPos = (pos: any, len: i32): i32 => {
+  const n: number = ecma262.ToIntegerOrInfinity(pos);
+  if (n <= 0) return 0;
+  if (n >= len) return len;
+  return n;
+};
+
+export const __String_prototype_startsWith = function (this: string, searchString: any, position: any = undefined) {
+  searchString = __Porffor_string_searchArg(searchString);
+  const len: i32 = this.length;
+  const start: i32 = __Porffor_string_clampPos(position, len);
+  if (Porffor.type(searchString) == Porffor.TYPES.bytestring) searchString = Porffor.bytestringToString(searchString);
+
+  const searchLen: i32 = searchString.length;
+  if (searchLen > len - start) return false;
+
+  const thisPtr: i32 = Porffor.IR.ptr(this) + start * 2;
+  const searchPtr: i32 = Porffor.IR.ptr(searchString);
+  for (let i: i32 = 0; i < searchLen * 2; i += 2) {
+    if (Porffor.IR.loadU16(thisPtr + i, 4) != Porffor.IR.loadU16(searchPtr + i, 4)) return false;
+  }
   return true;
 };
 
-export const __ByteString_prototype_startsWith = function (this: bytestring, searchString: bytestring, position: number = 0) {
-  // if searching non-bytestring, bytestring will not start with it
-  // todo: change this to just check if = string and ToString others
-  if (Porffor.type(searchString) != Porffor.TYPES.bytestring) return false;
-
-  // todo/perf: investigate whether for counter vs while ++s are faster
-
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-  const searchPtr: i32 = Porffor.IR.ptr(searchString);
-
-  // todo/perf: make position oob handling optional (via pref or fast variant?)
+export const __ByteString_prototype_startsWith = function (this: bytestring, searchString: any, position: any = undefined) {
+  searchString = __Porffor_string_searchArg(searchString);
   const len: i32 = this.length;
-  if (position > 0) {
-    if (position > len) position = len;
-  } else position = 0;
-
-  if (searchString.length > len - position) return false;
-
-  thisPtr += position;
+  const start: i32 = __Porffor_string_clampPos(position, len);
+  if (Porffor.type(searchString) != Porffor.TYPES.bytestring) return Porffor.callThis(__String_prototype_startsWith, Porffor.bytestringToString(this), searchString, start);
 
   const searchLen: i32 = searchString.length;
+  if (searchLen > len - start) return false;
+
+  const thisPtr: i32 = Porffor.IR.ptr(this) + start;
+  const searchPtr: i32 = Porffor.IR.ptr(searchString);
   for (let i: i32 = 0; i < searchLen; i++) {
-    let chr: i32 = Porffor.IR.loadU8(thisPtr + i, 4);
-    let expected: i32 = Porffor.IR.loadU8(searchPtr + i, 4);
-
-    if (chr != expected) return false;
+    if (Porffor.IR.loadU8(thisPtr + i, 4) != Porffor.IR.loadU8(searchPtr + i, 4)) return false;
   }
-
   return true;
 };
 
-
-export const __String_prototype_endsWith = function (this: string, searchString: string, endPosition: any = undefined) {
-  // todo: handle bytestring searchString
-
-  let i: i32 = Porffor.IR.ptr(this),
-      j: i32 = Porffor.IR.ptr(searchString);
+export const __String_prototype_endsWith = function (this: string, searchString: any, endPosition: any = undefined) {
+  searchString = __Porffor_string_searchArg(searchString);
+  const len: i32 = this.length;
+  const end: i32 = endPosition === undefined ? len : __Porffor_string_clampPos(endPosition, len);
+  if (Porffor.type(searchString) == Porffor.TYPES.bytestring) searchString = Porffor.bytestringToString(searchString);
 
   const searchLen: i32 = searchString.length;
+  const start: i32 = end - searchLen;
+  if (start < 0) return false;
 
-  // todo/perf: make position oob handling optional (via pref or fast variant?)
-  const len: i32 = this.length;
-
-  if (Porffor.type(endPosition) == Porffor.TYPES.undefined) endPosition = len;
-
-  if (endPosition > 0) {
-    if (endPosition > len) endPosition = len;
-  } else endPosition = 0;
-
-  endPosition -= searchLen;
-
-  if (endPosition < 0) return false;
-
-  i += endPosition * 2;
-
-  const endPtr: i32 = j + searchLen * 2;
-  while (j < endPtr) {
-    let chr: i32 = Porffor.IR.loadU16(i, 4);
-    let expected: i32 = Porffor.IR.loadU16(j, 4);
-
-    i += 2;
-    j += 2;
-
-    if (chr != expected) return false;
+  const thisPtr: i32 = Porffor.IR.ptr(this) + start * 2;
+  const searchPtr: i32 = Porffor.IR.ptr(searchString);
+  for (let i: i32 = 0; i < searchLen * 2; i += 2) {
+    if (Porffor.IR.loadU16(thisPtr + i, 4) != Porffor.IR.loadU16(searchPtr + i, 4)) return false;
   }
-
   return true;
 };
 
-export const __ByteString_prototype_endsWith = function (this: bytestring, searchString: bytestring, endPosition: any = undefined) {
-  // if searching non-bytestring, bytestring will not start with it
-  // todo: change this to just check if = string and ToString others
-  if (Porffor.type(searchString) != Porffor.TYPES.bytestring) return false;
-
-  let i: i32 = Porffor.IR.ptr(this),
-      j: i32 = Porffor.IR.ptr(searchString);
+export const __ByteString_prototype_endsWith = function (this: bytestring, searchString: any, endPosition: any = undefined) {
+  searchString = __Porffor_string_searchArg(searchString);
+  const len: i32 = this.length;
+  const end: i32 = endPosition === undefined ? len : __Porffor_string_clampPos(endPosition, len);
+  if (Porffor.type(searchString) != Porffor.TYPES.bytestring) return Porffor.callThis(__String_prototype_endsWith, Porffor.bytestringToString(this), searchString, end);
 
   const searchLen: i32 = searchString.length;
+  const start: i32 = end - searchLen;
+  if (start < 0) return false;
 
-  // todo/perf: make position oob handling optional (via pref or fast variant?)
-  const len: i32 = this.length;
-
-  if (Porffor.type(endPosition) == Porffor.TYPES.undefined) endPosition = len;
-
-  if (endPosition > 0) {
-    if (endPosition > len) endPosition = len;
-  } else endPosition = 0;
-
-  endPosition -= searchLen;
-
-  if (endPosition < 0) return false;
-
-  i += endPosition;
-
-  const endPtr: i32 = j + searchLen;
-  while (j < endPtr) {
-    let chr: i32 = Porffor.IR.loadU8(i++, 4);
-    let expected: i32 = Porffor.IR.loadU8(j++, 4);
-
-    if (chr != expected) return false;
+  const thisPtr: i32 = Porffor.IR.ptr(this) + start;
+  const searchPtr: i32 = Porffor.IR.ptr(searchString);
+  for (let i: i32 = 0; i < searchLen; i++) {
+    if (Porffor.IR.loadU8(thisPtr + i, 4) != Porffor.IR.loadU8(searchPtr + i, 4)) return false;
   }
-
   return true;
 };
 
@@ -496,102 +455,70 @@ export const __ByteString_prototype_indexOf = function (this: bytestring, search
 };
 
 
+export const __Porffor_string_lastPos = (position: any): number => {
+  const n: number = ecma262.ToNumber(position);
+  if (n != n) return Infinity;
+  return ecma262.ToIntegerOrInfinity(n);
+};
+
 export const __String_prototype_lastIndexOf = function (this: string, searchString: any, position: any = undefined) {
   searchString = ecma262.ToString(searchString);
-  if (Porffor.type(searchString) == Porffor.TYPES.bytestring) {
-    searchString = Porffor.bytestringToString(searchString);
-  }
+  const pos: number = __Porffor_string_lastPos(position);
+  if (Porffor.type(searchString) == Porffor.TYPES.bytestring) searchString = Porffor.bytestringToString(searchString);
 
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-  const searchPtr: i32 = Porffor.IR.ptr(searchString);
-
-  const searchLen: i32 = searchString.length;
-  const searchLenX2: i32 = searchLen * 2;
-
-  // todo/perf: make position oob handling optional (via pref or fast variant?)
   const len: i32 = this.length;
+  const searchLen: i32 = searchString.length;
   if (searchLen > len) return -1;
 
-  if (Porffor.type(position) == Porffor.TYPES.undefined) position = len - searchLen;
+  let start: i32 = len - searchLen;
+  if (pos < start) start = pos < 0 ? 0 : pos;
 
-  if (position > 0) {
-    const max: i32 = len - searchLen;
-    if (position > max) position = max;
-  } else position = 0;
-
-  const thisPtrStart: i32 = thisPtr;
-
-  thisPtr += position * 2;
-
-  while (thisPtr >= thisPtrStart) {
+  const thisPtr: i32 = Porffor.IR.ptr(this);
+  const searchPtr: i32 = Porffor.IR.ptr(searchString);
+  for (let k: i32 = start; k >= 0; k--) {
     let match: boolean = true;
-    for (let i: i32 = 0; i < searchLenX2; i += 2) {
-      let chr: i32 = Porffor.IR.loadU8(thisPtr + i, 4);
-      let expected: i32 = Porffor.IR.loadU8(searchPtr + i, 4);
-
-      if (chr != expected) {
+    for (let i: i32 = 0; i < searchLen; i++) {
+      if (Porffor.IR.loadU16(thisPtr + (k + i) * 2, 4) != Porffor.IR.loadU16(searchPtr + i * 2, 4)) {
         match = false;
         break;
       }
     }
-
-    if (match) return (thisPtr - Porffor.IR.ptr(this)) / 2;
-
-    thisPtr -= 2;
+    if (match) return k;
   }
-
   return -1;
 };
 
 export const __ByteString_prototype_lastIndexOf = function (this: bytestring, searchString: any, position: any = undefined) {
   searchString = ecma262.ToString(searchString);
-  if (Porffor.type(searchString) != Porffor.TYPES.bytestring) {
-    return Porffor.callThis(__String_prototype_lastIndexOf, Porffor.bytestringToString(this), searchString, position);
-  }
+  const pos: number = __Porffor_string_lastPos(position);
+  if (Porffor.type(searchString) != Porffor.TYPES.bytestring) return Porffor.callThis(__String_prototype_lastIndexOf, Porffor.bytestringToString(this), searchString, pos);
 
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-  const searchPtr: i32 = Porffor.IR.ptr(searchString);
-
-  const searchLen: i32 = searchString.length;
-
-  // todo/perf: make position oob handling optional (via pref or fast variant?)
   const len: i32 = this.length;
+  const searchLen: i32 = searchString.length;
   if (searchLen > len) return -1;
 
-  if (Porffor.type(position) == Porffor.TYPES.undefined) position = len - searchLen;
+  let start: i32 = len - searchLen;
+  if (pos < start) start = pos < 0 ? 0 : pos;
 
-  if (position > 0) {
-    const max: i32 = len - searchLen;
-    if (position > max) position = max;
-  } else position = 0;
-
-  const thisPtrStart: i32 = thisPtr;
-
-  thisPtr += position;
-
-  while (thisPtr >= thisPtrStart) {
+  const thisPtr: i32 = Porffor.IR.ptr(this);
+  const searchPtr: i32 = Porffor.IR.ptr(searchString);
+  for (let k: i32 = start; k >= 0; k--) {
     let match: boolean = true;
     for (let i: i32 = 0; i < searchLen; i++) {
-      let chr: i32 = Porffor.IR.loadU8(thisPtr + i, 4);
-      let expected: i32 = Porffor.IR.loadU8(searchPtr + i, 4);
-
-      if (chr != expected) {
+      if (Porffor.IR.loadU8(thisPtr + k + i, 4) != Porffor.IR.loadU8(searchPtr + i, 4)) {
         match = false;
         break;
       }
     }
-
-    if (match) return thisPtr - Porffor.IR.ptr(this);
-
-    thisPtr--;
+    if (match) return k;
   }
-
   return -1;
 };
 
 
-export const __String_prototype_includes = function (this: string, searchString: any, position: number = 0) {
-  searchString = ecma262.ToString(searchString);
+export const __String_prototype_includes = function (this: string, searchString: any, position: any = undefined) {
+  searchString = __Porffor_string_searchArg(searchString);
+  position = __Porffor_string_clampPos(position, this.length);
   if (Porffor.type(searchString) == Porffor.TYPES.bytestring) {
     searchString = Porffor.bytestringToString(searchString);
   }
@@ -634,8 +561,9 @@ export const __String_prototype_includes = function (this: string, searchString:
   return false;
 };
 
-export const __ByteString_prototype_includes = function (this: bytestring, searchString: any, position: number = 0) {
-  searchString = ecma262.ToString(searchString);
+export const __ByteString_prototype_includes = function (this: bytestring, searchString: any, position: any = undefined) {
+  searchString = __Porffor_string_searchArg(searchString);
+  position = __Porffor_string_clampPos(position, this.length);
   if (Porffor.type(searchString) != Porffor.TYPES.bytestring) {
     return Porffor.callThis(__String_prototype_includes, Porffor.bytestringToString(this), searchString, position);
   }
@@ -1406,7 +1334,7 @@ export const __ByteString_prototype_replace = function (this: bytestring, search
 export const __Porffor_string_replaceAll = (str: any, searchValue: any, replaceValue: any) => {
   if (Porffor.object.isObject(searchValue)) {
     if (__Porffor_regex_isRegExp(searchValue)) {
-      const flags: any = Porffor.object.get(searchValue, 'flags');
+      const flags: any = __Porffor_regex_getData(searchValue, 'flags');
       if (flags == null) throw new TypeError('RegExp flags is null or undefined');
       if (!__Porffor_regex_flagIn(ecma262.ToString(flags), 103)) throw new TypeError('String.prototype.replaceAll called with a non-global RegExp argument');
     }

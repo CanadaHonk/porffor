@@ -71,14 +71,14 @@ registerInternalType('__Porffor_ClosureEnv');
 registerInternalType('__Porffor_Generator');
 registerInternalType('__Porffor_AsyncGenerator');
 
-for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval', 'URI', 'Suppressed' ])
-  registerInternalType(`${x}Error`);
+export const ERROR_NAMES = [ 'Error', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'SuppressedError' ];
+for (const x of ERROR_NAMES) registerInternalType(x);
 
 registerInternalType('DisposableStack');
 registerInternalType('AsyncDisposableStack');
 
-// builtin iterator objects: state records (arrays) retagged so each gets its own hidden prototype
-export const ITERATOR_TYPES = [ 'IteratorHelper', 'WrapForValidIterator', 'ArrayIterator', 'MapIterator', 'SetIterator', 'StringIterator' ].map(x => {
+// state records (arrays) retagged so each gets its own hidden prototype
+export const ITERATOR_TYPES = [ 'IteratorHelper', 'WrapForValidIterator', 'ArrayIterator', 'MapIterator', 'SetIterator', 'StringIterator', 'RegExpStringIterator' ].map(x => {
   registerInternalType(`__Porffor_${x}`);
   return TYPES[`__porffor_${x.toLowerCase()}`];
 });

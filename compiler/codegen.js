@@ -831,6 +831,13 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
         arguments: [],
         _thisArg: { type: 'Identifier', name: '__Iterator_prototype' }
       });
+      const owner = name.slice(2, name.indexOf('_', 2));
+      if (!name.includes('_prototype_') && owner in builtinFuncs) return generate(scope, {
+        type: 'CallExpression',
+        callee: { type: 'Identifier', name: name + '$get' },
+        arguments: [],
+        _thisArg: { type: 'Identifier', name: owner }
+      });
       return internalThrow(scope, 'TypeError', 'Accessor called without object');
     }
     let parent = name.slice(2).split('_').slice(0, -1).join('_');
@@ -1408,8 +1415,8 @@ const asmFunc = (name, func) => {
 const includeBuiltin = (scope, builtin) => {
   scope.includes ??= new Set();
   scope.includes.add(builtin);
-  // regexps can exist from now on (eg from RegExp() without any literal), and generic gets on them need their (lazy) prototype
-  if (builtinFuncs[builtin]?.returnType === TYPES.regexp) {
+  // regexps can exist without a literal (RegExp()), generic gets on them need the lazy prototype
+  if (builtinFuncs[builtin]?.returnType === TYPES.regexp || builtin === 'RegExp') {
     typeUsed(scope, TYPES.regexp);
     if (!('#get___RegExp_prototype' in funcIndex)) includeBuiltin(scope, '#get___RegExp_prototype');
   }
@@ -1998,10 +2005,10 @@ const generateCall = (scope, decl) => {
   }
   if (name === '__Porffor_malloc') return generateMallocIntrinsic(scope, decl.arguments, decl._porfMallocType ?? 0);
 
-  // generic gets with a literal key in builtins are member reads too (eg accessors on lazy prototypes)
-  if (globalThis.precompile && name === '__Porffor_object_get') {
+  // literal-key generic gets in builtins are member reads too, except constructor (would pull in every used constructor)
+  if (globalThis.precompile && (name === '__Porffor_object_get' || name === '__Porffor_regex_getData')) {
     const key = decl.arguments[1];
-    if (key?.type === 'Literal' && typeof key.value === 'string') (scope.memberReads ??= new Set()).add(key.value);
+    if (key?.type === 'Literal' && typeof key.value === 'string' && key.value !== 'constructor') (scope.memberReads ??= new Set()).add(key.value);
   }
 
   if (name?.startsWith('__Porffor_coroutine_'))
@@ -2072,7 +2079,8 @@ const generateCall = (scope, decl) => {
     target = object;
   }
 
-  if (protoName && target) {
+  // super.method(): the receiver is this, not the home object's prototype, so no builtin dispatch on it
+  if (protoName && target && target.type !== 'Super') {
     const targetKnownType = knownType(scope, getNodeType(scope, target));
 
     const builtinProtoCands = builtinPrototypeFuncs.get(protoName) ?? [];
@@ -2090,15 +2098,26 @@ const generateCall = (scope, decl) => {
       const protoBC = {};
       let typedArrayCall;
       for (const x of builtinProtoCands) {
+        // a builtin method the program overwrites is looked up dynamically
+        if (objectHackAssigned.has(x)) continue;
+
         const owner = protoOwnerOf(x);
-        const call = () => generate(scope, {
+        const builtinCallNode = {
           type: 'CallExpression',
           optional: decl.optional,
           callee: { type: 'Identifier', name: x },
           arguments: args,
           _thisArg: targetIdent,
           _protoInternalCall: true
-        });
+        };
+        // regexps with own state (own props, a subclass prototype) can shadow their methods
+        const memberCallee = (decl.callee.expression ?? decl.callee).type === 'MemberExpression' ? (decl.callee.expression ?? decl.callee) : null;
+        const call = owner === 'RegExp' && memberCallee && !globalThis.precompile ? () => generate(scope, {
+          type: 'ConditionalExpression',
+          test: { type: 'CallExpression', callee: { type: 'Identifier', name: '__Porffor_object_underlyingIfAny' }, arguments: [ targetIdent ] },
+          consequent: { ...decl, callee: { ...memberCallee, object: targetIdent }, arguments: args, _protoInternalCall: true },
+          alternate: builtinCallNode
+        }) : () => generate(scope, builtinCallNode);
 
         if (owner === 'TypedArray') {
           typedArrayCall = call;
@@ -3038,7 +3057,8 @@ const ctHash = prop => {
   ) return null;
 
   prop = prop.property.name;
-  if (!prop || prop === '__proto__' || !byteStringable(prop)) return null;
+  // typed arrays treat Infinity and NaN as numeric keys
+  if (!prop || prop === '__proto__' || prop === 'Infinity' || prop === 'NaN' || !byteStringable(prop)) return null;
 
   let i = 0;
   const len = prop.length;
@@ -3186,18 +3206,6 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     const obj = needSnapshot ? snapshotRef(generate(scope, object)) : reuse(scope, generate(scope, object));
     const prop = needSnapshot ? snapshotRef(generate(scope, property)) : reuse(scope, generate(scope, property));
     const simpleValue = op === '=' ? reuse(scope, generate(scope, decl.right)) : null;
-
-    // regexp.lastIndex: store i32 at offset 8
-    if (op === '=' && !decl.left.computed && decl.left.property.name === 'lastIndex' && objectKnown === TYPES.regexp) {
-      const v = simpleValue;
-      let num = JvNum(v);
-      if (knownType(scope, getNodeType(scope, decl.right)) !== TYPES.number) {
-        const n = builtinCall(scope, '__ecma262_ToIntegerOrInfinity', [ v ]);
-        num = n[N_TYPE] === T.f64 ? n : JvNum(n);
-      }
-      stmt(scope, Store('i32', JvPtr(obj), 8, Convert(T.i32, num)));
-      return valueUnused ? valUndefined() : v;
-    }
 
     const hash = ctHash(decl.left);
 
@@ -3724,7 +3732,6 @@ const generateForOf = (scope, decl) => {
     stmt(scope, Store(ctype, out, 4, c));
     assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
 
-    // a lead surrogate followed by a trail surrogate is one code point
     if (size === 2) emitIf(scope, Bin('==', T.i32, Bin('&', T.i32, c, Const(T.i32, 0xFC00)), Const(T.i32, 0xD800)), () =>
       emitIf(scope, Bin('<', T.i32, counter, length), () => {
         const d = reuse(scope, Load(ctype, src, 2));
@@ -4489,8 +4496,7 @@ const resolveMemberDemands = scope => {
       }
     }
 
-    // accessors on included prototypes are reachable by generic gets (not dispatched by type),
-    // eg %Iterator.prototype% ones, or RegExp flags read by RegExp.prototype.flags
+    // accessors on included prototypes are reachable by generic gets, eg flags read by RegExp.prototype.flags
     for (const x of builtinPrototypeGetters.get(propName) ?? []) {
       if (funcIndex['#get___' + protoOwnerOf(x) + '_prototype'] != null) includeBuiltin(scope, x);
     }
@@ -4965,6 +4971,36 @@ let anonymousId = 0;
 const anonymousName = decl => globalThis.precompile || decl.start == null ? `#${globalThis.precompile ? 'builtin_' : ''}anonymous${anonymousId++}` : `#anonymous_${decl.start}`;
 const uniqId = scope => '_' + (scope.uniqId = (scope.uniqId ?? 0) + 1);
 let objectHackers = [], allObjectHackers = [];
+// builtin members the program writes (eg RegExp.prototype.exec = f) stay real member accesses
+let objectHackAssigned = new Set();
+const assignedBuiltinMembers = program => {
+  const out = new Set();
+  const path = node => {
+    if (node.type === 'Identifier') return node.name;
+    if (node.type !== 'MemberExpression' || node.computed || node.property.type !== 'Identifier') return null;
+    const obj = path(node.object);
+    return obj == null ? null : obj + '_' + node.property.name;
+  };
+  const add = target => {
+    if (target?.type !== 'MemberExpression') return;
+    const p = path(target);
+    if (p != null && p.includes('_')) out.add('__' + p);
+  };
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const x of node) walk(x);
+      return;
+    }
+    if (node.type === 'AssignmentExpression') add(node.left);
+      else if (node.type === 'UpdateExpression') add(node.argument);
+      else if (node.type === 'UnaryExpression' && node.operator === 'delete') add(node.argument);
+    for (const k in node) if (k[0] !== '_' && k !== 'loc' && k !== 'range') walk(node[k]);
+  };
+  walk(program);
+  return out;
+};
+
 const objectHack = node => {
   if (!node) return node;
 
@@ -5001,6 +5037,7 @@ const objectHack = node => {
       if (!objectName || (!objectHackers.includes(objectName) && !objectHackers.some(x => objectName.startsWith(`${x}_`)))) return;
 
       const name = '__' + objectName + '_' + node.property.name;
+      if (objectHackAssigned.has(name)) return;
       const inherited = '__TypedArray_' + node.property.name;
       if (TYPED_ARRAY_TYPES.some(t => TYPE_NAMES[t] === objectName) && hasFuncWithName(inherited)) return {
         type: 'Identifier',
@@ -5008,6 +5045,8 @@ const objectHack = node => {
         _builtinMember: true,
         _builtinThis: objectName
       };
+      // accessors with a setter stay real member accesses, so assignments reach the setter
+      if (!hasFuncWithName(name) && hasFuncWithName(name + '$set')) return;
       if ((!hasFuncWithName(name) && !(name in builtinVars) && !hasFuncWithName(name + '$get')) && (hasFuncWithName(objectName) || objectName in builtinVars || hasFuncWithName('__' + objectName) || ('__' + objectName) in builtinVars)) return;
 
       return {
@@ -5633,7 +5672,9 @@ export default (program, opts = {}) => {
 
   // todo/perf: make this lazy per func (again)
   // semantic relies on object hack happening before
-  program = objectHack(desugarUsing(program));
+  program = desugarUsing(program);
+  objectHackAssigned = assignedBuiltinMembers(program);
+  program = objectHack(program);
   if (Prefs.closures) program = semantic(program);
   if (Prefs.p) {
     const last = getLastNode(program.body);

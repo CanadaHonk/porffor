@@ -1,5 +1,3 @@
-// using declarations: the statement list runs in try/catch/finally, the finally disposes resources in reverse order
-
 const ident = name => ({ type: 'Identifier', name });
 const call = (name, args) => ({ type: 'CallExpression', callee: ident(name), arguments: args, optional: false });
 const exprStmt = expression => ({ type: 'ExpressionStatement', expression });
@@ -9,7 +7,6 @@ const decl = (kind, name, init) => ({ type: 'VariableDeclaration', kind, declara
 const isUsing = x => x?.type === 'VariableDeclaration' && (x.kind === 'using' || x.kind === 'await using');
 
 let uid = 0;
-// pre: [ name, hint ] of a binding declared outside body to add as the first resource
 const wrap = (body, isAsync, pre = null) => {
   const id = uid++;
   const res = `#using_res${id}`, err = `#using_err${id}`, has = `#using_has${id}`, e = `#using_e${id}`;
@@ -67,17 +64,14 @@ const walk = node => {
 
     case 'ForOfStatement':
     case 'ForInStatement':
-      // for ([await] using x of y): each iteration's binding is a resource of the body
+      walk(node.right);
+      node.body = walk(node.body) ?? node.body;
+
       if (isUsing(node.left)) {
         const hint = node.left.kind === 'await using' ? 1 : 0;
         node.left = { ...node.left, kind: 'const' };
-        walk(node.right);
-        node.body = walk(node.body) ?? node.body;
         node.body = { type: 'BlockStatement', body: wrap([ node.body ], hint === 1, [ node.left.declarations[0].id.name, hint ]) };
-        return;
       }
-      walk(node.right);
-      node.body = walk(node.body) ?? node.body;
       return;
 
     case 'ForStatement':

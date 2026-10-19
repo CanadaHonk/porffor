@@ -133,7 +133,6 @@ export const __Porffor_iterator_step = (rec: any[]): any => {
   }
 
   rec[1] = i + 1;
-  // strings iterate code points
   if (Porffor.fastAnd(t == Porffor.TYPES.string, i + 1 < len)) {
     const lead: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(iter) + i * 2, 4);
     const trail: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(iter) + i * 2, 6);
@@ -339,7 +338,6 @@ export const __Porffor_AsyncGenerator_prototype_throw = function (this: __Porffo
   return __Porffor_AsyncGenerator_step(this, value, 1);
 };
 
-// %AsyncIteratorPrototype%
 export const __Porffor_AsyncIterator_prototype_Symbol_asyncIterator = function (this: any): any {
   return this;
 };

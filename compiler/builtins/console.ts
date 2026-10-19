@@ -324,7 +324,6 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
       __Porffor_printString(Porffor.callThis(__Error_prototype_toString, arg));
       return;
 
-    // generators and builtin iterators
     default: {
       const tag: any = arg[Symbol.toStringTag];
       if (Porffor.fastOr(Porffor.type(tag) == Porffor.TYPES.bytestring, Porffor.type(tag) == Porffor.TYPES.string)) {

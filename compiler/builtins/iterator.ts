@@ -14,13 +14,11 @@ export const Iterator = function (): any {
   return obj;
 };
 
-// GetIteratorDirect
 export const __Porffor_iterator_direct = (obj: any): any[] => {
   if (!Porffor.object.isObject(obj)) throw new TypeError('Iterator is not an object');
   return __Porffor_iterator_new(obj, obj.next, 1);
 };
 
-// GetIteratorFlattenable
 export const __Porffor_iterator_flattenable = (obj: any, allowStrings: boolean): any[] => {
   if (!Porffor.object.isObject(obj)) {
     const t: i32 = Porffor.type(obj);
@@ -37,7 +35,6 @@ export const __Porffor_iterator_flattenable = (obj: any, allowStrings: boolean):
   return __Porffor_iterator_direct(iter);
 };
 
-// IteratorClose with a throw completion, the caller rethrows
 export const __Porffor_iterator_closeThrow = (rec: any[]): void => {
   try {
     __Porffor_iterator_close(rec);
@@ -65,7 +62,6 @@ export const __Porffor_iterator_result = (value: any, done: boolean): object => 
   return out;
 };
 
-// SetterThatIgnoresPrototypeProperties
 export const __Porffor_iterator_setIgnoringProto = (obj: any, home: any, key: any, value: any): void => {
   if (!Porffor.object.isObject(obj)) throw new TypeError('Setter called on non-object');
   if (obj === home) throw new TypeError('Cannot assign to read only property');
@@ -124,7 +120,6 @@ export const __Porffor_IteratorHelper_new = (step: any, rec: any, fn: any, count
   return Porffor.as(h, Porffor.TYPES.__porffor_iteratorhelper);
 };
 
-// IteratorCloseAll: closes in reverse, the first error wins (done records are skipped)
 export const __Porffor_iterator_closeAll = (iters: any[], hasError: boolean, error: any): void => {
   for (let i: i32 = iters.length - 1; i >= 0; i--) {
     try {
@@ -282,7 +277,6 @@ export const __Porffor_IteratorHelper_prototype_next = function (this: any): obj
   return __Porffor_iterator_result(value, false);
 };
 
-// closes inner (flatMap, concat) then iterated, zip closes all of inner (a list, extra set)
 export const __Porffor_IteratorHelper_prototype_return = function (this: any): object {
   const h: any[] = __Porffor_IteratorHelper_record(this);
   const state: i32 = h[0];
@@ -461,7 +455,6 @@ export const __Iterator_from = (obj: any): any => {
   const rec: any[] = __Porffor_iterator_flattenable(obj, true);
   const iter: any = rec[0];
 
-  // OrdinaryHasInstance(%Iterator%, iter)
   let proto: any = Porffor.object.getPrototypeWithHidden(iter, Porffor.type(iter));
   while (proto != null) {
     if (proto === __Iterator_prototype) return iter;
@@ -600,7 +593,6 @@ export const __Iterator_concat = (...items: any[]): any => {
 
 
 // https://tc39.es/proposal-joint-iteration/
-// GetIterator(obj, sync)
 export const __Porffor_iterator_getSync = (obj: any): any[] => {
   const method: any = obj[Symbol.iterator];
   if (Porffor.type(method) != Porffor.TYPES.function) throw new TypeError('Object is not iterable');
@@ -747,7 +739,6 @@ export const __Iterator_zipKeyed = (iterables: any, options: any = undefined): a
   return __Porffor_IteratorHelper_zipNew(iters, mode, padding, keys);
 };
 
-// IteratorZip closure step
 export const __Porffor_IteratorHelper_zip = (h: any[]): any => {
   const iters: any[] = h[3];
   const mode: i32 = h[4];
@@ -798,7 +789,6 @@ export const __Porffor_IteratorHelper_zip = (h: any[]): any => {
           return undefined;
         }
 
-        // longest: done once all are
         let anyOpen: boolean = false;
         for (let k: i32 = 0; k < open.length; k++) {
           const other: any[] = open[k];

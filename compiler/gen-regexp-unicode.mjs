@@ -198,39 +198,23 @@ for (const [name, baseMask] of BINPROPS) {
 propOffsets.push(propBytes.length);
 console.error(`binary props total: ${propBytes.length} bytes`);
 
-const cpLower = cp => { const s = String.fromCodePoint(cp).toLowerCase(); return [...s].length === 1 ? s.codePointAt(0) : cp; };
-const cpUpper = cp => { const s = String.fromCodePoint(cp).toUpperCase(); return [...s].length === 1 ? s.codePointAt(0) : cp; };
 
 console.error('building iu fold classes...');
+// u/v + i canonicalize (22.2.2.7.3): CaseFolding.txt C+S classes, represented by their smallest member
 const foldRep = new Map(); // cp -> canonical rep (min of ui-equivalence class)
 {
-  const seen = new Set();
-  for (let cp = 0; cp < MAX; cp++) {
-    if (seen.has(cp)) continue;
-    if (cpLower(cp) === cp && cpUpper(cp) === cp) continue;
-
-    const cls = new Set([cp]);
-    const queue = [cp];
-    while (queue.length) {
-      const c = queue.pop();
-      for (const n of [cpLower(c), cpUpper(c)]) {
-        if (!cls.has(n)) { cls.add(n); queue.push(n); }
-      }
-    }
-
-    // partition the closure by node's actual ui equivalence (closure can over-join)
-    const members = [...cls].sort((a, b) => a - b);
-    const groups = [];
-    for (const c of members) {
-      let placed = false;
-      for (const g of groups) {
-        if (new RegExp(`^\\u{${g[0].toString(16)}}$`, 'iu').test(String.fromCodePoint(c))) { g.push(c); placed = true; break; }
-      }
-      if (!placed) groups.push([c]);
-    }
-    for (const g of groups) {
-      for (const c of g) { seen.add(c); if (g.length > 1 && c !== g[0]) foldRep.set(c, g[0]); }
-    }
+  const text = await (await fetch(`https://www.unicode.org/Public/${UNICODE_VERSION}/ucd/CaseFolding.txt`)).text();
+  const classes = new Map();
+  for (const line of text.split('\n')) {
+    const m = line.match(/^([0-9A-F]+); ([CS]); ([0-9A-F]+);/);
+    if (!m) continue;
+    const cp = parseInt(m[1], 16), to = parseInt(m[3], 16);
+    if (!classes.has(to)) classes.set(to, new Set([ to ]));
+    classes.get(to).add(cp);
+  }
+  for (const cls of classes.values()) {
+    const g = [...cls].sort((a, b) => a - b);
+    for (const c of g) if (c !== g[0]) foldRep.set(c, g[0]);
   }
   console.error(`iu fold: ${foldRep.size} mapped cps`);
 }
