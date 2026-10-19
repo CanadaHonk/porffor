@@ -1737,7 +1737,7 @@ const getNodeType = (scope, node) => {
     else ret = null; // runtime `this` type
   }
   else if (node.type === 'MetaProperty')
-    ret = scope.constr && node.meta.name === 'new' && node.property.name === 'target' ? null : TYPES.undefined;
+    ret = (scope.constr || node._binding) && node.meta.name === 'new' && node.property.name === 'target' ? null : TYPES.undefined;
   else if (node.type === 'SequenceExpression') ret = getNodeType(scope, node.expressions.at(-1));
   else if (node.type === 'ChainExpression') ret = getNodeType(scope, node.expression);
   else if (node.type === 'BlockStatement') ret = getNodeType(scope, getLastNode(node.body));
@@ -5712,10 +5712,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
       }
 
       if (hasClosureOwnEnv(func) && func.closureOwnThis && !func.subclass) mirrorToClosureEnv(func, '#this', { type: 'ThisExpression' });
-      if (decl._thisBinding) {
-        writeBinding(func, decl._thisBinding, valUndefined());
-        if (decl._newTargetBinding._refs) writeBinding(func, decl._newTargetBinding, Local('#newtarget', T.jsval), TYPES.function);
-      }
+      if (decl._thisBinding) writeBinding(func, decl._thisBinding, valUndefined());
+      if (decl._newTargetBinding?._refs) writeBinding(func, decl._newTargetBinding, func.constr ? Local('#newtarget', T.jsval) : valUndefined());
       if (func.closureOwnLocals?.arguments) mirrorToClosureEnv(func, 'arguments');
 
       for (let i = 0; i < args.length; i++) {

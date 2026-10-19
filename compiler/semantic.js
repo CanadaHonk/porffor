@@ -563,6 +563,8 @@ const analyze = (node, strict = false) => {
       if (node._derivedCtor) {
         node._thisBinding = { type: 'Identifier', name: `#this_${node.start}`, _binding: true, _writes: 1 };
         declVar(node._thisBinding.name, 'let', node._thisBinding);
+      }
+      if (node.type !== 'ArrowFunctionExpression') {
         node._newTargetBinding = { type: 'Identifier', name: `#newtarget_${node.start}`, _binding: true };
         declVar(node._newTargetBinding.name, 'let', node._newTargetBinding);
       }
@@ -907,7 +909,8 @@ const annotate = (node, parent = null, key = null) => {
       // field initializers and static blocks have no new.target
       const func = thisFunc(scopes[scopes.lastFuncs.at(-1)]);
       if (!func) node._undefined = true;
-      if (func?._derivedCtor) {
+      // arrows read their function's new.target through a binding
+      if (func?._newTargetBinding && (func._derivedCtor || func !== scopes[scopes.lastFuncs.at(-1)])) {
         node._binding = { type: 'Identifier', name: `#newtarget_${func.start}` };
         annotate(node._binding, node, '_binding');
       }
