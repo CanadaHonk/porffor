@@ -4241,8 +4241,8 @@ const generateObject = (scope, decl) => {
   for (const x of decl.properties) {
     let { type, argument, computed, kind, value, method } = x;
 
-    // tag function as not a constructor
-    if (method) {
+    // accessors are method definitions too
+    if (method || kind === 'get' || kind === 'set') {
       value._method = true;
       value._noGlobalThis = true;
     }
@@ -4265,7 +4265,7 @@ const generateObject = (scope, decl) => {
 
       // todo: support computed names properly
       if (typeof key.value === 'string' && !id) {
-        id = { type: 'Identifier', name: key.value };
+        id = { type: 'Identifier', name: kind === 'get' || kind === 'set' ? `${kind} ${key.value}` : key.value };
         noFuncIndex = true;
       }
 
