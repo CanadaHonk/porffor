@@ -6,12 +6,12 @@ import { execFileSync } from 'node:child_process';
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const DAY = 86400000;
-const temporalPath = new URL('./temporal.js', import.meta.url).pathname;
+const tzPath = new URL('./tz.js', import.meta.url).pathname;
 const dataPath = new URL('./temporal-data.js', import.meta.url).pathname;
 
 // truncate must agree with the posix rules the polyfill applies at runtime
 const ctx = vm.createContext({});
-vm.runInContext((await import(temporalPath)).default +
+vm.runInContext((await import(tzPath)).default +
   ';globalThis.R = { parse: T$posixParse, off: T$posixOffsetAt, next: T$posixTransition };', ctx);
 const R = ctx.R;
 

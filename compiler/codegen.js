@@ -14,6 +14,7 @@ import semantic, { knownValue, unknownValue } from './semantic.js';
 import parse from './parse.js';
 import temporalPolyfillSource from './intl/temporal.js';
 import intlPolyfillSource from './intl/intl.js';
+import tzSource from './intl/tz.js';
 import desugarUsing from './using.js';
 import './prefs.js';
 
@@ -5680,6 +5681,11 @@ export default (program, opts = {}) => {
     // its replacements of builtin prototype methods are methods: not constructors, no prototype
     for (const x of polyfill) if (x.type === 'FunctionDeclaration' && x.id.name.includes('_prototype_')) x._builtinShadow = true;
     program.body = polyfill.concat(program.body);
+  }
+  if (program._usesTemporal || program._usesIntl) {
+    const tz = parse(tzSource).body;
+    if (program._units) for (const x of tz) x._unit = 'tz';
+    program.body = tz.concat(program.body);
   }
 
   // todo/perf: make this lazy per func (again)

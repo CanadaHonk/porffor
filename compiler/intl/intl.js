@@ -2203,10 +2203,13 @@ const I$resolveTimeZone = I$memo(tz => {
   const lower = I$asciiLower(tz);
   const name = lower === null ? undefined : I$zoneData().lower[lower];
   if (name === undefined) throw new RangeError('Invalid time zone specified: ' + tz);
-  let off = 0;
-  if (name.slice(0, 7) === 'Etc/GMT' && name.length > 7) off = -60 * +name.slice(7);
-  return { id: name, offset: off };
+  return { id: name, offset: null };
 });
+const I$zoneOffset = (o, t) => {
+  if (o.tzOffset !== null) return o.tzOffset;
+  const z = T$tzZone(o.timeZone);
+  return z === null ? 0 : T$tzOffsetSec(z, Math.floor(t / 1000)) / 60;
+};
 const I$newDtfSlots = () => ({
   locale: '', dataLocale: '', calendar: '', numberingSystem: '', timeZone: '', tzOffset: 0, hourCycle: undefined,
   weekday: undefined, era: undefined, year: undefined, month: undefined, day: undefined, dayPeriod: undefined, hour: undefined,
@@ -2541,8 +2544,7 @@ const I$dayPeriodName = (h, m, width) => {
   if (h >= 18 && h < 21) return 'in the evening';
   return 'at night';
 };
-const I$tzName = (o, style) => {
-  const off = o.tzOffset;
+const I$tzName = (o, style, off) => {
   if (o.timeZone === 'UTC' || o.timeZone === 'Etc/UTC' || o.timeZone === 'Etc/GMT' || o.timeZone === 'GMT') {
     if (style === 'short') return 'UTC';
     if (style === 'long') return 'Coordinated Universal Time';
@@ -2590,7 +2592,7 @@ const I$dtfComponents = o => {
   return c;
 };
 const I$dtParts = (o, v) => {
-  const c = v.c, f = I$dateFields(v.t, v.offset), out = [];
+  const c = v.c, off = v.zone ? I$zoneOffset(o, v.t) : 0, f = I$dateFields(v.t, off), out = [];
   const add = (type, value, group) => {
     const p = I$part(type, value);
     p.group = group;
@@ -2725,11 +2727,11 @@ const I$dtParts = (o, v) => {
   }
   if (c.timeZoneName !== undefined && v.zone) {
     add('literal', hasTime ? ' ' : ', ', 'time');
-    add('timeZoneName', I$tzName(o, c.timeZoneName), 'time');
+    add('timeZoneName', I$tzName(o, c.timeZoneName, off), 'time');
   }
   return out;
 };
-const I$dateValue = (o, t) => ({ kind: '', t, c: I$dtfComponents(o), offset: o.tzOffset, zone: true });
+const I$dateValue = (o, t) => ({ kind: '', t, c: I$dtfComponents(o), zone: true });
 const I$formatDateTime = (o, t) => I$partsToString(I$dtParts(o, I$dateValue(o, t)));
 
 // the Temporal polyfill registers how to recognise its objects
@@ -2834,7 +2836,7 @@ const I$temporalIsoMs = (kind, x) => {
 const I$instantValue = (o, x) => {
   const c = o.dateStyle !== undefined || o.timeStyle !== undefined ? I$dtfComponents(o) : I$temporalComponents(o, 'Instant');
   if (o.dateStyle === undefined && o.timeStyle === undefined && o.explicit.timeZoneName !== undefined) c.timeZoneName = o.explicit.timeZoneName;
-  return { kind: 'Instant', t: x.epochMilliseconds, c, offset: o.tzOffset, zone: true };
+  return { kind: 'Instant', t: x.epochMilliseconds, c, zone: true };
 };
 const I$toDTValue = (o, x) => {
   const kind = I$temporalKind(x);
@@ -2846,7 +2848,7 @@ const I$toDTValue = (o, x) => {
     const cal = x.calendarId;
     if (cal !== o.calendar && (cal !== 'iso8601' || kind === 'PlainYearMonth' || kind === 'PlainMonthDay')) throw new RangeError('Calendar ' + cal + ' does not match the formatter calendar ' + o.calendar);
   }
-  return { kind, t: I$temporalIsoMs(kind, x), c: I$temporalComponents(o, kind), offset: 0, zone: false };
+  return { kind, t: I$temporalIsoMs(kind, x), c: I$temporalComponents(o, kind), zone: false };
 };
 const I$rangeValues = (o, start, end) => {
   if (start === undefined || end === undefined) throw new TypeError('startDate and endDate are required');
