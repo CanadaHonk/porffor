@@ -71,8 +71,8 @@ const renameBindingNode = (node, name) => {
   }
 };
 
-const resolveVariable = name => {
-  for (let i = scopes.length - 1; i >= 0; i--) {
+const resolveVariable = (name, below = scopes.length) => {
+  for (let i = below - 1; i >= 0; i--) {
     const variable = scopes[i]._variables?.[name];
     if (variable) return variable;
   }
@@ -384,7 +384,7 @@ const declVar = (name, kind, node) => {
   const evalScope = parent._evalScope ? parent : (kind === 'var' ? null : activeEvalScope);
   const internalName = evalScope ? `${evalScope._evalName}_${name}${id > 0 ? `#${id}` : ''}` :
     (id > 0 || shadowsOuterFuncBinding ? `${name}#${id}` : null);
-  const variable = { node, id, func, kind, scope: parent, internalName };
+  const variable = { node, id, func, kind, scope: parent, internalName, inParams: paramDecl != null || paramTdz?.func === func };
   parent._variables[name] = variable;
   if (node && typeof node === 'object') node._variable = variable;
 
@@ -702,7 +702,9 @@ const annotate = (node, parent = null, key = null) => {
 
       const name = node.name;
       const currentFunc = scopes[scopes.lastFuncs.at(-1)];
-      const variable = resolveVariable(name);
+      let variable = resolveVariable(name);
+      // params do not see the body's vars
+      if (variable?.kind === 'var' && !variable.inParams && variable.scope === paramTdz?.func) variable = resolveVariable(name, scopes.indexOf(variable.scope));
       if (name[0] !== '#') markWiths(node, variable);
       if (variable) {
         node._resolvedBinding = true;
