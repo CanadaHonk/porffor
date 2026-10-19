@@ -12,10 +12,11 @@ export const __Porffor_bigint_fromDigits = (negative: boolean, digits: i32[]): b
 
   let allZero: boolean = true;
   for (let i: i32 = 0; i < len; i++) {
-    const d: i32 = digits[i];
+    // digits can be >= 2^31: wrap into i32 instead of saturating
+    const d: number = digits[i];
     if (d != 0) allZero = false;
 
-    Porffor.IR.storeI32(ptr + i * 4, 4, d);
+    Porffor.IR.storeI32(ptr + i * 4, 4, d | 0);
   }
 
   if (allZero) {
@@ -84,6 +85,7 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
       offset += 2;
     }
   }
+  if (Porffor.fastAnd(offset > 0, offset == len)) throw new SyntaxError('Invalid character in BigInt string');
 
   // n -> base 2^32 digits (most to least significant)
   // 4294967295 -> [ 4294967295 ]
@@ -100,7 +102,10 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
   while (i < digitLen) {
     const char: i32 = n.charCodeAt(offset + i);
     let digit: i32 = char - 48;
-    if (digit > 9) digit = (char | 0x20) - 87;
+    if (digit > 9) {
+      digit = (char | 0x20) - 87;
+      if (digit < 10) digit = -1; // @ or `
+    }
     if (Porffor.fastOr(digit < 0, digit >= radix)) throw new SyntaxError('Invalid character in BigInt string');
 
     digits[i++] = digit;
@@ -115,7 +120,7 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
 
   const result: i32[] = Porffor.array.new(digitLen);
   while (digits.length > 0) {
-    let carry: i32 = 0;
+    let carry: number = 0;
     for (let j: i32 = 0; j < digits.length; j++) {
       let value: number = carry * radix + digits[j];
       let quotient: i32 = Math.floor(value / BASE);
@@ -131,9 +136,50 @@ export const __Porffor_bigint_fromString = (n: string|bytestring): bigint => {
   return __Porffor_bigint_fromDigits(negative, result);
 };
 
-export const __Porffor_bigint_toString = (x: number, radix: any): string|bytestring => {
-  // todo: actually use bigint
-  return Porffor.callThis(__Number_prototype_toString, Math.trunc(__Porffor_bigint_toNumber(x)), radix);
+export const __Porffor_bigint_toString = (x: f64, radix: any): string|bytestring => {
+  if (Math.abs(x) < 0x8000000000000) return Porffor.callThis(__Number_prototype_toString, x, radix);
+
+  let r: i32 = 10;
+  if (radix !== undefined) {
+    const rn: number = Math.trunc(ecma262.ToNumber(radix));
+    if (Porffor.fastOr(rn < 2, rn > 36)) throw new RangeError('toString() radix argument must be between 2 and 36');
+    r = rn;
+  }
+
+  const ptr: i32 = x - 0x8000000000000;
+  const negative: boolean = Porffor.IR.loadU8(ptr, 0) != 0;
+  const len: i32 = Porffor.IR.loadU16(ptr, 2);
+  const digits: number[] = Porffor.array.new(len);
+  for (let i: i32 = 0; i < len; i++) digits[i] = Porffor.IR.loadI32(ptr + i * 4, 4) >>> 0;
+
+  // base 2^32 needs at most 32 output digits per input digit
+  const rev: bytestring = Porffor.malloc(len * 32 + 8);
+  let l: i32 = 0;
+  let start: i32 = 0;
+  while (start < len) {
+    let carry: number = 0;
+    for (let j: i32 = start; j < len; j++) {
+      const v: number = carry * 0x100000000 + digits[j];
+      const q: number = Math.floor(v / r);
+      carry = v - q * r;
+      digits[j] = q;
+    }
+
+    let c: i32 = carry;
+    if (c < 10) c += 48;
+      else c += 87;
+    Porffor.IR.storeU8(Porffor.IR.ptr(rev) + l, 4, c);
+    l++;
+
+    while (start < len && digits[start] == 0) start++;
+  }
+
+  const out: bytestring = Porffor.malloc(l + 8);
+  let outPtr: i32 = Porffor.IR.ptr(out);
+  if (negative) Porffor.IR.storeU8(outPtr++, 4, 45);
+  for (let i: i32 = l - 1; i >= 0; i--) Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(Porffor.IR.ptr(rev) + i, 4));
+  out.length = outPtr - Porffor.IR.ptr(out);
+  return out;
 };
 
 // 7.1.13 ToBigInt (argument)
@@ -230,4 +276,218 @@ export const __BigInt_prototype_toLocaleString = function (this: bigint) {
 
 export const __BigInt_prototype_valueOf = function (this: bigint) {
   return this;
+};
+
+// arithmetic on magnitudes as little-endian base 2^16 limbs (products stay exact in f64)
+export const __Porffor_bigint_mag = (x: f64): number[] => {
+  const out: number[] = Porffor.array.new(8);
+  if (Math.abs(x) < 0x8000000000000) {
+    let v: number = Math.abs(x);
+    while (v > 0) {
+      const q: number = Math.floor(v / 65536);
+      out.push(v - q * 65536);
+      v = q;
+    }
+    return out;
+  }
+
+  const ptr: i32 = x - 0x8000000000000;
+  const len: i32 = Porffor.IR.loadU16(ptr, 2);
+  for (let i: i32 = len - 1; i >= 0; i--) {
+    const d: number = Porffor.IR.loadI32(ptr + i * 4, 4) >>> 0;
+    const hi: number = Math.floor(d / 65536);
+    out.push(d - hi * 65536);
+    out.push(hi);
+  }
+  while (out.length > 0 && out[out.length - 1] == 0) out.length = out.length - 1;
+  return out;
+};
+
+export const __Porffor_bigint_isNegative = (x: f64): boolean => {
+  if (Math.abs(x) < 0x8000000000000) return x < 0;
+  return Porffor.IR.loadU8(x - 0x8000000000000, 0) != 0;
+};
+
+export const __Porffor_bigint_fromMag = (negative: boolean, mag: number[]): bigint => {
+  const n: i32 = mag.length;
+  if (n == 0) return 0 as bigint;
+
+  if (n <= 3) {
+    // below 2^48: inline
+    let v: number = 0;
+    for (let i: i32 = n - 1; i >= 0; i--) v = v * 65536 + mag[i];
+    if (negative) v = -v;
+    return v as bigint;
+  }
+
+  const nd: i32 = (n + 1) >> 1;
+  const digits: number[] = Porffor.array.new(nd);
+  digits.length = nd;
+  for (let i: i32 = 0; i < nd; i++) {
+    const lo: number = mag[i * 2];
+    const hi: number = i * 2 + 1 < n ? mag[i * 2 + 1] : 0;
+    digits[nd - 1 - i] = hi * 65536 + lo;
+  }
+  return __Porffor_bigint_fromDigits(negative, digits);
+};
+
+export const __Porffor_bigint_cmpMag = (a: number[], b: number[]): i32 => {
+  if (a.length != b.length) return a.length < b.length ? -1 : 1;
+  for (let i: i32 = a.length - 1; i >= 0; i--) {
+    if (a[i] != b[i]) return a[i] < b[i] ? -1 : 1;
+  }
+  return 0;
+};
+
+export const __Porffor_bigint_addMag = (a: number[], b: number[]): number[] => {
+  const n: i32 = a.length > b.length ? a.length : b.length;
+  const out: number[] = Porffor.array.new(n + 1);
+  let carry: number = 0;
+  for (let i: i32 = 0; i < n; i++) {
+    let s: number = carry;
+    if (i < a.length) s += a[i];
+    if (i < b.length) s += b[i];
+    carry = s >= 65536 ? 1 : 0;
+    out.push(s - carry * 65536);
+  }
+  if (carry != 0) out.push(carry);
+  return out;
+};
+
+// a >= b
+export const __Porffor_bigint_subMag = (a: number[], b: number[]): number[] => {
+  const out: number[] = Porffor.array.new(a.length);
+  let borrow: number = 0;
+  for (let i: i32 = 0; i < a.length; i++) {
+    let s: number = a[i] - borrow;
+    if (i < b.length) s -= b[i];
+    borrow = s < 0 ? 1 : 0;
+    out.push(s + borrow * 65536);
+  }
+  while (out.length > 0 && out[out.length - 1] == 0) out.length = out.length - 1;
+  return out;
+};
+
+export const __Porffor_bigint_mulMag = (a: number[], b: number[]): number[] => {
+  const n: i32 = a.length + b.length;
+  const out: number[] = Porffor.array.new(n);
+  out.length = n;
+  for (let i: i32 = 0; i < n; i++) out[i] = 0;
+  for (let i: i32 = 0; i < a.length; i++) {
+    let carry: number = 0;
+    const ai: number = a[i];
+    for (let j: i32 = 0; j < b.length; j++) {
+      const t: number = out[i + j] + ai * b[j] + carry;
+      carry = Math.floor(t / 65536);
+      out[i + j] = t - carry * 65536;
+    }
+    let k: i32 = i + b.length;
+    while (carry != 0) {
+      const t: number = out[k] + carry;
+      carry = Math.floor(t / 65536);
+      out[k] = t - carry * 65536;
+      k++;
+    }
+  }
+  while (out.length > 0 && out[out.length - 1] == 0) out.length = out.length - 1;
+  return out;
+};
+
+export const __Porffor_bigint_divModMag = (a: number[], b: number[]): any[] => {
+  const q: number[] = Porffor.array.new(a.length);
+  q.length = a.length;
+  for (let i: i32 = 0; i < a.length; i++) q[i] = 0;
+
+  if (b.length == 1) {
+    const d: number = b[0];
+    let rem: number = 0;
+    for (let i: i32 = a.length - 1; i >= 0; i--) {
+      const cur: number = rem * 65536 + a[i];
+      const qd: number = Math.floor(cur / d);
+      q[i] = qd;
+      rem = cur - qd * d;
+    }
+    const rm: number[] = Porffor.array.new(1);
+    if (rem != 0) rm.push(rem);
+    while (q.length > 0 && q[q.length - 1] == 0) q.length = q.length - 1;
+    return [ q, rm ];
+  }
+
+  let r: number[] = Porffor.array.new(b.length + 1);
+  for (let i: i32 = a.length * 16 - 1; i >= 0; i--) {
+    let carry: number = Math.floor(a[i >> 4] / (1 << (i & 15))) % 2;
+    for (let j: i32 = 0; j < r.length; j++) {
+      const t: number = r[j] * 2 + carry;
+      carry = t >= 65536 ? 1 : 0;
+      r[j] = t - carry * 65536;
+    }
+    if (carry != 0) r.push(carry);
+    if (__Porffor_bigint_cmpMag(r, b) >= 0) {
+      r = __Porffor_bigint_subMag(r, b);
+      q[i >> 4] += 1 << (i & 15);
+    }
+  }
+  while (q.length > 0 && q[q.length - 1] == 0) q.length = q.length - 1;
+  return [ q, r ];
+};
+
+// op: 0 + 1 - 2 * 3 / 4 % 5 **
+export const __Porffor_bigint_arith = (op: i32, a: f64, b: f64): bigint => {
+  const an: boolean = __Porffor_bigint_isNegative(a);
+  const bn: boolean = __Porffor_bigint_isNegative(b);
+  const am: number[] = __Porffor_bigint_mag(a);
+  const bm: number[] = __Porffor_bigint_mag(b);
+
+  if (op == 0 || op == 1) {
+    const bneg: boolean = op == 1 ? !bn : bn;
+    if (an == bneg) return __Porffor_bigint_fromMag(an, __Porffor_bigint_addMag(am, bm));
+    const c: i32 = __Porffor_bigint_cmpMag(am, bm);
+    if (c == 0) return 0 as bigint;
+    if (c > 0) return __Porffor_bigint_fromMag(an, __Porffor_bigint_subMag(am, bm));
+    return __Porffor_bigint_fromMag(bneg, __Porffor_bigint_subMag(bm, am));
+  }
+
+  if (op == 2) return __Porffor_bigint_fromMag(an != bn, __Porffor_bigint_mulMag(am, bm));
+
+  if (op == 3 || op == 4) {
+    // truncating division, the remainder takes the dividend's sign
+    if (bm.length == 0) throw new RangeError('Division by zero');
+    const qr: any[] = __Porffor_bigint_divModMag(am, bm);
+    if (op == 3) return __Porffor_bigint_fromMag(an != bn, qr[0]);
+    return __Porffor_bigint_fromMag(an, qr[1]);
+  }
+
+  if (bn) throw new RangeError('Exponent must be non-negative');
+  let e: number = __Porffor_bigint_toNumber(b);
+  const odd: boolean = e % 2 == 1;
+  let result: number[] = Porffor.array.new(1);
+  result.push(1);
+  let base: number[] = am;
+  while (e > 0) {
+    if (e % 2 == 1) result = __Porffor_bigint_mulMag(result, base);
+    e = Math.floor(e / 2);
+    if (e > 0) {
+      if (base.length > 4096) throw new RangeError('Maximum BigInt size exceeded');
+      base = __Porffor_bigint_mulMag(base, base);
+    }
+    if (result.length > 4096) throw new RangeError('Maximum BigInt size exceeded');
+  }
+  return __Porffor_bigint_fromMag(an && odd, result);
+};
+
+export const __Porffor_bigint_binop = (op: i32, a: any, b: any): any => {
+  if (op == 0) {
+    a = ecma262.ToPrimitive.Number(a);
+    b = ecma262.ToPrimitive.Number(b);
+    if (Porffor.fastOr((Porffor.type(a) | 0b10000000) == Porffor.TYPES.bytestring, (Porffor.type(b) | 0b10000000) == Porffor.TYPES.bytestring)) {
+      const sa: any = ecma262.ToString(a);
+      const sb: any = ecma262.ToString(b);
+      return sa + sb;
+    }
+  }
+  if (Porffor.type(a) != Porffor.TYPES.bigint) a = ecma262.ToNumeric(a);
+  if (Porffor.type(b) != Porffor.TYPES.bigint) b = ecma262.ToNumeric(b);
+  if (Porffor.fastOr(Porffor.type(a) != Porffor.TYPES.bigint, Porffor.type(b) != Porffor.TYPES.bigint))
+    throw new TypeError('Cannot mix BigInts and non-BigInts in numeric expressions');
+  return __Porffor_bigint_arith(op, a, b);
 };
