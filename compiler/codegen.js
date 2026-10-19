@@ -2130,7 +2130,7 @@ const generateCall = (scope, decl) => {
   if (!decl._funcIdx && name === 'Function') {
     const knowns = decl.arguments.map(x => knownValue(scope, x));
     if (knowns.every(x => x !== unknownValue)) {
-      const code = String(knowns[knowns.length - 1]);
+      const code = knowns.length ? String(knowns[knowns.length - 1]) : '';
       const fnArgs = knowns.slice(0, -1).map(x => String(x));
       let parsed;
       try {
@@ -2141,6 +2141,7 @@ const generateCall = (scope, decl) => {
       }
       const fn = parsed.body[0].expression;
       fn.strict = false;
+      fn._jsName = 'anonymous';
       return generate(scope, fn);
     }
   }
