@@ -5130,9 +5130,11 @@ const generateClass = (scope, decl) => {
         keyNode = () => Global(keyGlobal, T.jsval);
       } else keyNode = () => generate(func, key);
 
-      fieldInits.push(...collect(func, () => exprStmt(func,
-        builtinCall(func, '__Porffor_object_class_value', [
-          generate(func, { type: 'ThisExpression', _noGlobalThis: true }), keyNode(), generate(func, value) ]))));
+      fieldInits.push(...collect(func, () => {
+        const k = keyNode();
+        exprStmt(func, builtinCall(func, '__Porffor_object_class_value', [
+          generate(func, { type: 'ThisExpression', _noGlobalThis: true }), k, nameByKey(func, value, k, computed, kind) ]));
+      }));
     } else {
       let initKind = type === 'MethodDefinition' ? 'method' : 'value';
       if (kind === 'get' || kind === 'set') initKind = kind;
