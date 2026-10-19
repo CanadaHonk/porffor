@@ -67,20 +67,17 @@ export const __Porffor_json_toJSON = (value: any, key: any): any => {
 export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, space: bytestring|undefined): i32 => {
   // somewhat modelled after 25.5.2.2 SerializeJSONProperty: https://tc39.es/ecma262/#sec-serializejsonproperty
   let buffer: i32 = _buffer;
+
+  // boxed primitives -> their primitive
+  if (Porffor.type(value) == Porffor.TYPES.numberobject) value = ecma262.ToNumber(value);
+    else if (Porffor.type(value) == Porffor.TYPES.stringobject) value = ecma262.ToString(value);
+    else if (Porffor.type(value) == Porffor.TYPES.booleanobject) value = Porffor.callThis(__Boolean_prototype_valueOf, value);
+
   if (value === null) return __Porffor_bytestring_bufferStr(buffer, 'null');
   if (value === true) return __Porffor_bytestring_bufferStr(buffer, 'true');
   if (value === false) return __Porffor_bytestring_bufferStr(buffer, 'false');
 
-  // boolean object -> [[BooleanData]]
-  if (Porffor.type(value) == Porffor.TYPES.booleanobject) {
-    if (value.valueOf()) return __Porffor_bytestring_bufferStr(buffer, 'true');
-    return __Porffor_bytestring_bufferStr(buffer, 'false');
-  }
-
-  if (Porffor.fastOr(
-    (Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring,
-    Porffor.type(value) == Porffor.TYPES.stringobject
-  )) { // string
+  if ((Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring) {
     buffer = __Porffor_bytestring_bufferChar(buffer, 34); // start "
 
     const len: i32 = value.length;
@@ -139,10 +136,7 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
     return __Porffor_bytestring_bufferChar(buffer, 34); // final "
   }
 
-  if (Porffor.fastOr(
-    Porffor.type(value) == Porffor.TYPES.number,
-    Porffor.type(value) == Porffor.TYPES.numberobject
-  )) { // number
+  if (Porffor.type(value) == Porffor.TYPES.number) {
     if (Number.isFinite(value)) {
       return __Porffor_bytestring_bufferStr(buffer, Porffor.callThis(__Number_prototype_toString, value, 10));
     }
