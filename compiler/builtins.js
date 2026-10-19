@@ -522,7 +522,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       writable: true,
       enumerable: false,
       configurable: true
-    }, builtinFuncKeys.filter(x => !x.startsWith('__') && !enumerableGlobals.includes(x) && !x.startsWith('f64') && !x.startsWith('i32') && x !== 'TypedArray')),
+    }, builtinFuncKeys.filter(x => !x.startsWith('__') && !enumerableGlobals.includes(x) && !x.startsWith('f64') && !x.startsWith('i32') && x !== 'TypedArray').concat([ 'Atomics', 'JSON', 'Math', 'Reflect' ])),
 
     ...props({
       writable: true,

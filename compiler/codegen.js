@@ -4665,7 +4665,10 @@ const generateObject = (scope, decl) => {
   return obj;
 };
 
-let memberDemands;
+let memberDemands, globalDemands;
+// values that can be the global object: globalThis, this, a param such as (function (global) {})(this)
+const mayBeGlobal = node => node?.type === 'ThisExpression' || node?.name === 'globalThis' || !!node?._resolvedVariable?.node._param ||
+  (node?.type === 'Identifier' && mayBeGlobal(node._resolvedVariable?.node._declarator?.init));
 
 // precompiled builtins keep theirs, demanded once they are included
 const demandMemberRead = (scope, decl) => {
@@ -4676,6 +4679,7 @@ const demandMemberRead = (scope, decl) => {
   if (!propName || propName === '__proto__') return null;
   if (globalThis.precompile) (scope.memberReads ??= new Set()).add(propName);
     else memberDemands.add(propName);
+  if (!globalThis.precompile && !propName.startsWith('__') && mayBeGlobal(decl.object)) globalDemands.add(propName);
   return propName;
 };
 
@@ -4704,6 +4708,12 @@ const resolveMemberDemands = scope => {
     fullPrototypes.add(getter);
     includeBuiltin(scope, getter);
     includeBuiltin(scope, '__Iterator_prototype_Symbol_iterator');
+  }
+
+  // globals read off a materialized globalThis
+  if (funcIndex['#get_globalThis'] != null) for (const propName of globalDemands) {
+    if (('#get_' + propName) in builtinFuncs) includeBuiltin(scope, '#get_' + propName);
+      else if (propName in builtinFuncs) includeBuiltin(scope, propName);
   }
 
   for (const propName of memberDemands) {
@@ -5325,6 +5335,10 @@ const collectDefinedKeys = program => {
       return;
     }
     if (node.type === 'Literal' && typeof node.value === 'string') out.add(node.value);
+    if (node.type === 'VariableDeclarator' && node.id.type === 'ObjectPattern' && !globalThis.precompile && mayBeGlobal(node.init))
+      for (const x of node.id.properties) if (x.key?.name) globalDemands.add(x.key.name);
+    if (node.type === 'CallExpression' && !globalThis.precompile && mayBeGlobal(node.arguments[0]))
+      for (const x of node.arguments) if (typeof x.value === 'string') globalDemands.add(x.value);
     // string keys passed after an object or listed in an array can name builtin members (verifyProperty(o, 'key'), for (const k of ['a', 'b']) o[k])
     if (node.type === 'CallExpression' && !globalThis.precompile && (node.arguments.length > 1 ? typeof node.arguments[0].value !== 'string' :
       node.callee.property?.name === 'hasOwnProperty' || node.callee.property?.name === 'propertyIsEnumerable'))
@@ -5967,6 +5981,7 @@ export default (program, opts = {}) => {
   irFinalizers = [];
   irLateFinalizers = [];
   memberDemands = new Set();
+  globalDemands = new Set();
   iteratorDemands = new Set();
   fullPrototypes.clear();
   topLevelFunc = null;
