@@ -325,8 +325,6 @@ export const __Porffor_array_isTyped = (O: any): boolean => {
   return Porffor.fastAnd(t >= Porffor.TYPES.uint8clampedarray, t <= Porffor.TYPES.float64array);
 };
 
-// true if a hole in arr cannot be shadowed by anything: no own props beyond the dense ones
-// and no index-like keys added to any object (so none on its prototype chain)
 export const __Porffor_array_holeEmpty = (arr: any[]): boolean => {
   if (__Porffor_object_indexKeysUsed() != 0) return false;
   return __Porffor_object_underlyingPtr(arr) == 0;
@@ -365,8 +363,8 @@ export const __Porffor_array_set = (O: any, k: number, V: any): void => {
       return;
     }
 
-    if (__Porffor_object_underlyingPtr(O) == 0) {
-      // no own props other than dense ones and the array is extensible
+    if (__Porffor_array_holeEmpty(O as any[])) {
+      // no own props other than dense ones, extensible, and nothing to hit on the prototype chain
       if (k <= 2147483646) {
         (O as any[])[k] = V;
         return;
@@ -407,7 +405,7 @@ export const __Porffor_array_lengthEntry = (arr: any[]): i32 => {
 
 export const __Porffor_array_truncate = (arr: any[], newLen: number): number => {
   let finalLen: number = newLen;
-  const u: any = __Porffor_object_underlyingPeek(arr);
+  const u: any = __Porffor_object_underlyingIfAny(arr);
   if (u != null) {
     const entriesPtr: i32 = Porffor.object.entriesPtr(u);
     let ptr: i32 = entriesPtr + Porffor.IR.loadU16(u, 0) * 20;
@@ -510,7 +508,7 @@ export const __Porffor_array_setLengthOf = (O: any, len: number): void => {
   if (Porffor.type(O) == Porffor.TYPES.array) {
     if (len > 4294967295) throw new RangeError('Invalid array length');
 
-    const u: any = __Porffor_object_underlyingPeek(O);
+    const u: any = __Porffor_object_underlyingIfAny(O);
     if (u != null) {
       const entryPtr: i32 = __Porffor_object_lookup(u, 'length', __Porffor_object_hash('length'));
       if (entryPtr != 0) if ((Porffor.IR.loadU8(entryPtr, 16) & 0b1000) == 0) throw new TypeError('Cannot assign to read only property \'length\'');
@@ -525,7 +523,7 @@ export const __Porffor_array_setLengthOf = (O: any, len: number): void => {
 
 export const __Porffor_array_createDataProperty = (A: any, k: number, V: any): void => {
   if (Porffor.type(A) == Porffor.TYPES.array) {
-    const u: any = __Porffor_object_underlyingPeek(A);
+    const u: any = __Porffor_object_underlyingIfAny(A);
     if (u == null) {
       (A as any[])[k] = V;
       return;
@@ -644,8 +642,8 @@ export const __Array_prototype_push = function (this: any, ...items: any[]) {
   if (Porffor.type(this) == Porffor.TYPES.array) {
     const arr: any[] = this;
     const arrLen: i32 = arr.length;
-    const u: any = __Porffor_object_underlyingPeek(arr);
-    if (Porffor.fastAnd(arrLen + itemsLen <= 2147483647, Porffor.fastOr(u == null, !Porffor.object.isInextensible(u)))) {
+    const u: any = __Porffor_object_underlyingIfAny(arr);
+    if (Porffor.fastAnd(arrLen + itemsLen <= 2147483647, __Porffor_object_indexKeysUsed() == 0, Porffor.fastOr(u == null, !Porffor.object.isInextensible(u)))) {
       if (u != null) __Porffor_array_setLengthOf(arr, arrLen); // throws for non-writable length
 
       for (let i: i32 = 0; i < itemsLen; i++) {
@@ -738,7 +736,9 @@ export const __Porffor_array_spread = (arr: any[], src: any) => {
   return newLen;
 };
 export const __Porffor_array_fastMutable = (arr: any[]): boolean => {
-  const u: any = __Porffor_object_underlyingPeek(arr);
+  // new indices could hit setters/read-only props on the prototype chain
+  if (__Porffor_object_indexKeysUsed() != 0) return false;
+  const u: any = __Porffor_object_underlyingIfAny(arr);
   if (u == null) return true;
   if (Porffor.object.isInextensible(u)) return false;
 

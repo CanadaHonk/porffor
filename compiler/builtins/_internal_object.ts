@@ -139,9 +139,15 @@ export const __Porffor_object_ensureCapacity = (obj: any, needed: i32): i32 => {
   return newEntriesPtr;
 };
 
-// set once any index-like key is added to an object: until then array holes can skip prototype lookups
+// set once Object.prototype or Array.prototype (or its prototype) may have index keys: until then holes skip prototype lookups
 let indexKeysUsed: i32 = 0;
 export const __Porffor_object_indexKeysUsed = (): i32 => indexKeysUsed;
+
+export const __Porffor_object_isArrayProtoChain = (obj: any): boolean =>
+  Porffor.fastOr(
+    Porffor.IR.ptr(obj) == Porffor.IR.ptr(__Object_prototype),
+    Porffor.IR.ptr(obj) == Porffor.IR.ptr(__Porffor_object_getHiddenPrototype(Porffor.TYPES.array))
+  );
 
 export const __Porffor_object_appendEntry = (obj: any, key: any, hash: i32): i32 => {
   if (indexKeysUsed == 0) {
@@ -149,7 +155,7 @@ export const __Porffor_object_appendEntry = (obj: any, key: any, hash: i32): i32
     if (Porffor.fastOr(keyType == Porffor.TYPES.string, keyType == Porffor.TYPES.bytestring)) {
       if (key.length > 0) {
         const c: i32 = key.charCodeAt(0);
-        if (Porffor.fastAnd(c >= 48, c <= 57)) indexKeysUsed = 1;
+        if (Porffor.fastAnd(c >= 48, c <= 57)) if (__Porffor_object_isArrayProtoChain(obj)) indexKeysUsed = 1;
       }
     }
   }
@@ -253,35 +259,8 @@ export const __Porffor_object_underlyingPtr = (_obj: any): i32 => {
 export const __Porffor_object_underlyingIfAny = (_obj: any): any => {
   const objType: i32 = Porffor.type(_obj);
   if (objType == Porffor.TYPES.object) return _obj;
-  if (Porffor.fastOr(objType <= 0x05, underlyingStore == 0)) return null;
-  if (Porffor.fastAnd(underlyingBuckets == 0, Porffor.IR.loadI32(underlyingStore, 0) > 0)) __Porffor_underlyingRebuild();
-  if (underlyingBuckets == 0) return null;
+  if (objType <= 0x05) return null;
 
-  let lookupHash: i32 = Porffor.IR.ptr(_obj);
-  lookupHash = lookupHash >>> 3;
-  lookupHash ^= lookupHash >>> 16;
-  lookupHash *= 0x7feb352d;
-  lookupHash ^= lookupHash >>> 15;
-  lookupHash ^= objType;
-
-  let slot: i32 = lookupHash & (underlyingBucketsCap - 1);
-  while (true) {
-    const entry: i32 = Porffor.IR.loadI32(underlyingBuckets + slot * 4, 0);
-    if (entry == 0) return null;
-
-    const base: i32 = underlyingStore + 8 + (entry - 1) * 16;
-    if (Porffor.fastAnd(
-      Porffor.IR.ptr(Porffor.IR.loadJv(base, 0)) == Porffor.IR.ptr(_obj),
-      Porffor.IR.loadU8(base, 12) == objType
-    ))
-      return Porffor.IR.loadI32(base, 8) as object;
-
-    slot = (slot + 1) & (underlyingBucketsCap - 1);
-  }
-  return null;
-};
-
-export const __Porffor_object_underlyingPeek = (_obj: any): any => {
   const ptr: i32 = __Porffor_object_underlyingPtr(_obj);
   if (ptr == 0) return null;
   return ptr as object;
@@ -556,6 +535,10 @@ export const __Porffor_object_setPrototype = (obj: any, proto: any): void => {
   }
 
   if (__Porffor_object_isObjectOrNull(proto)) {
+    // a custom prototype for Array.prototype may have index props
+    if (indexKeysUsed == 0) if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(__Porffor_object_getHiddenPrototype(Porffor.TYPES.array))) {
+      if (Porffor.fastAnd(Porffor.IR.ptr(obj) != Porffor.IR.ptr(__Object_prototype), Porffor.IR.ptr(proto) != Porffor.IR.ptr(__Object_prototype))) indexKeysUsed = 1;
+    }
     Porffor.IR.storeI32(obj, 8, proto);
     Porffor.IR.storeU8(obj, 5, Porffor.type(proto));
     Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, proto);
@@ -936,7 +919,9 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
 
     const index: i32 = __Porffor_array_propertyKeyIndex(key);
     if (Porffor.fastAnd(index != -1, __Porffor_object_lookup(obj, key, hash) == 0)) {
-      // adding a new index to an inextensible array fails
+      // a new index may hit setters or read-only props on the prototype chain
+      if (Porffor.fastOr(indexKeysUsed != 0, Porffor.IR.loadU8(obj, 5) != 0)) if (!__Porffor_array_has(_obj as any[], index)) if (__Porffor_object_setIndexProto(_obj, key, hash, value, false)) return value;
+
       if (!__Porffor_array_has(_obj as any[], index)) if (__Porffor_object_isInextensible(obj)) return value;
       let arr: i32 = Porffor.IR.ptr(_obj);
       const needed: i32 = index + 1;
@@ -1149,6 +1134,40 @@ export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, h
   return value;
 };
 
+export const __Porffor_object_setIndexProto = (_obj: any, key: any, hash: i32, value: any, strict: boolean): boolean => {
+  let proto: any = __Porffor_object_getPrototypeWithHidden(_obj, Porffor.type(_obj));
+  for (let depth: i32 = 0; depth < 10000; depth++) {
+    if (proto == null) break;
+    if (Porffor.comptime.flag`hasFunc.Proxy`) {
+      if (Porffor.type(proto) == Porffor.TYPES.proxy) break;
+    }
+
+    const o: any = Porffor.type(proto) == Porffor.TYPES.object ? proto : __Porffor_object_underlying(proto);
+    if (Porffor.type(o) != Porffor.TYPES.object) break;
+    const entryPtr: i32 = __Porffor_object_lookup(o, key, hash);
+    if (entryPtr != 0) {
+      const tail: i32 = Porffor.IR.loadU16(entryPtr, 16);
+      if (tail & 0b0001) {
+        const set: Function = __Porffor_object_accessorSet(entryPtr);
+        if (Porffor.IR.ptr(set) != 0) {
+          Porffor.callThis(set, _obj, value);
+          return true;
+        }
+      } else if (tail & 0b1000) return false;
+
+      if (strict) throw new TypeError('Cannot assign to read only property');
+      return true;
+    }
+
+    let next: any = __Porffor_object_getPrototype(o);
+    if (Porffor.type(next) == Porffor.TYPES.undefined) next = Porffor.IR.ptr(o) == Porffor.IR.ptr(__Object_prototype) ? null : __Object_prototype;
+    if (next != null) if (Porffor.IR.ptr(next) == Porffor.IR.ptr(proto)) break;
+    proto = next;
+  }
+
+  return false;
+};
+
 export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any => {
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (Porffor.type(_obj) == Porffor.TYPES.proxy) {
@@ -1181,7 +1200,9 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
 
     const index: i32 = __Porffor_array_propertyKeyIndex(key);
     if (Porffor.fastAnd(index != -1, __Porffor_object_lookup(obj, key, hash) == 0)) {
-      // adding a new index to an inextensible array fails
+      // a new index may hit setters or read-only props on the prototype chain
+      if (Porffor.fastOr(indexKeysUsed != 0, Porffor.IR.loadU8(obj, 5) != 0)) if (!__Porffor_array_has(_obj as any[], index)) if (__Porffor_object_setIndexProto(_obj, key, hash, value, true)) return value;
+
       if (!__Porffor_array_has(_obj as any[], index)) if (__Porffor_object_isInextensible(obj)) throw new TypeError('Cannot add property to inextensible object');
       let arr: i32 = Porffor.IR.ptr(_obj);
       const needed: i32 = index + 1;
