@@ -416,64 +416,113 @@ export const __ecma262_ParseMonthName = (ptr: number): number => {
 };
 
 
+// fixed width decimal at ptr, NaN if out of bounds or not digits
+export const __Porffor_date_digits = (ptr: i32, count: i32, endPtr: i32): number => {
+  if (ptr + count > endPtr) return NaN;
+
+  let n: number = 0;
+  for (let i: i32 = 0; i < count; i++) {
+    const chr: i32 = Porffor.IR.loadU8(ptr + i, 4);
+    if (Porffor.fastOr(chr < 48, chr > 57)) return NaN;
+    n = n * 10 + (chr - 48);
+  }
+
+  return n;
+};
+
 // DTSF parser
 export const __ecma262_ParseDTSF = (string: bytestring): number => {
-  // formats we need to support:
-  // > new Date().toISOString()
-  // '2024-05-12T02:44:01.529Z'
+  // YYYY[-MM[-DD]][THH:mm[:ss[.sss]][Z|+HH:mm|-HH:mm]], expanded years are +YYYYYY or -YYYYYY
+  let ptr: i32 = Porffor.IR.ptr(string);
+  const endPtr: i32 = ptr + string.length;
 
-  let y: number = 0;
+  let y: number;
+  let chr: i32 = Porffor.IR.loadU8(ptr, 4);
+  if (Porffor.fastOr(chr == 43, chr == 45)) { // + -
+    y = __Porffor_date_digits(ptr + 1, 6, endPtr);
+    if (chr == 45) {
+      if (y == 0) return NaN;
+      y = -y;
+    }
+    ptr += 7;
+  } else {
+    y = __Porffor_date_digits(ptr, 4, endPtr);
+    ptr += 4;
+  }
+
   let m: number = 0;
   let dt: number = 1;
+  // YYYY/MM/DD is a common local time variant
+  const sep: i32 = ptr < endPtr ? Porffor.IR.loadU8(ptr, 4) : 0;
+  let local: boolean = sep == 47;
+  if (Porffor.fastOr(sep == 45, sep == 47)) { // - /
+    m = __Porffor_date_digits(ptr + 1, 2, endPtr) - 1;
+    ptr += 3;
+    if (Porffor.fastAnd(ptr < endPtr, Porffor.IR.loadU8(ptr, 4) == sep)) {
+      dt = __Porffor_date_digits(ptr + 1, 2, endPtr);
+      ptr += 3;
+    }
+  }
+
   let h: number = 0;
   let min: number = 0;
   let s: number = 0;
   let milli: number = 0;
-  let tzHour: number = 0;
-  let tzMin: number = 0;
+  chr = ptr + 1 < endPtr ? Porffor.IR.loadU8(ptr, 4) : 0;
+  if (Porffor.fastOr(chr == 84, chr == 116, Porffor.fastAnd(chr == 32, Porffor.IR.loadU8(ptr + 1, 4) >= 48, Porffor.IR.loadU8(ptr + 1, 4) <= 57))) { // T t or a space before digits
+    // date-time forms without an offset are local time
+    local = true;
+    h = __Porffor_date_digits(ptr + 1, 2, endPtr);
+    if (Porffor.IR.loadU8(ptr + 3, 4) != 58) return NaN; // :
+    min = __Porffor_date_digits(ptr + 4, 2, endPtr);
+    ptr += 6;
 
-  let n: number = 0;
-  let nInd: number = 0;
+    if (Porffor.fastAnd(ptr < endPtr, Porffor.IR.loadU8(ptr, 4) == 58)) { // :
+      s = __Porffor_date_digits(ptr + 1, 2, endPtr);
+      ptr += 3;
 
-  const len: i32 = string.length;
-  const endPtr: i32 = Porffor.IR.ptr(string) + len;
-  let ptr: i32 = Porffor.IR.ptr(string);
-
-  while (ptr <= endPtr) { // <= to include extra null byte to set last n
-    const chr: i32 = Porffor.IR.loadU8(ptr++, 4);
-    if (Porffor.fastAnd(chr >= 48, chr <= 57)) { // 0-9
-      n *= 10;
-      n += chr - 48;
-      continue;
+      if (Porffor.fastAnd(ptr < endPtr, Porffor.IR.loadU8(ptr, 4) == 46)) { // .
+        // any number of fraction digits, only milliseconds count
+        ptr++;
+        let scale: number = 100;
+        const start: i32 = ptr;
+        while (ptr < endPtr) {
+          const d: i32 = Porffor.IR.loadU8(ptr, 4) - 48;
+          if (Porffor.fastOr(d < 0, d > 9)) break;
+          milli += d * scale;
+          scale /= 10;
+          ptr++;
+        }
+        if (ptr == start) return NaN;
+        milli = Math.floor(milli);
+      }
     }
 
-    if (chr == 45) { // -
-      if (Porffor.fastOr(ptr == Porffor.IR.ptr(string), nInd == 7)) n = -n;
-    }
+    if (Porffor.fastOr(h > 24, min > 59, s > 59, Porffor.fastAnd(h == 24, min + s + milli > 0))) return NaN;
 
-    if (n > 0) {
-      if (nInd == 0) y = n;
-        else if (nInd == 1) m = n - 1;
-        else if (nInd == 2) dt = n;
-        else if (nInd == 3) h = n;
-        else if (nInd == 4) min = n;
-        else if (nInd == 5) s = n;
-        else if (nInd == 6) milli = n;
-        else if (nInd == 7) tzHour = n;
-        else if (nInd == 8) tzMin = n;
-
-      n = 0;
-      nInd++;
+    chr = Porffor.IR.loadU8(ptr, 4);
+    if (Porffor.fastAnd(ptr < endPtr, Porffor.fastOr(chr == 90, chr == 122))) { // Z z
+      local = false;
+      ptr++;
+    } else if (Porffor.fastAnd(ptr < endPtr, Porffor.fastOr(chr == 43, chr == 45))) { // + -
+      if (Porffor.IR.loadU8(ptr + 3, 4) != 58) return NaN; // :
+      const offsetH: number = __Porffor_date_digits(ptr + 1, 2, endPtr);
+      const offsetM: number = __Porffor_date_digits(ptr + 4, 2, endPtr);
+      if (Porffor.fastOr(offsetH > 23, offsetM > 59)) return NaN;
+      const offset: number = offsetH * 60 + offsetM;
+      if (chr == 43) min -= offset;
+        else min += offset;
+      local = false;
+      ptr += 6;
     }
   }
 
-  h += tzHour;
-  min += tzMin;
+  while (Porffor.fastAnd(ptr < endPtr, Porffor.IR.loadU8(ptr, 4) == 32)) ptr++;
+  if (Porffor.fastOr(ptr != endPtr, m < 0, m > 11, dt < 1, dt > 31)) return NaN;
 
-  return __ecma262_TimeClip(__ecma262_MakeDate(
-    __ecma262_MakeDay(y, m, dt),
-    __ecma262_MakeTime(h, min, s, milli)
-  ));
+  const t: number = __ecma262_MakeDate(__ecma262_MakeDay(y, m, dt), __ecma262_MakeTime(h, min, s, milli));
+  if (local) return __ecma262_TimeClip(__ecma262_UTC(t));
+  return __ecma262_TimeClip(t);
 };
 
 // RFC 7231 or Date.prototype.toString() parser
@@ -579,9 +628,9 @@ export const __Date_parse = (string: bytestring): number => {
   // > new Date().toString()
   // 'Sun May 12 2024 02:44:13 GMT+0000 (UTC)'
 
-  // if first char is numerical, use DTSF parser
+  // if first char is numerical or a year sign, use DTSF parser
   const chr: i32 = Porffor.IR.loadU8(string, 4);
-  if (Porffor.fastAnd(chr >= 48, chr <= 57)) { // 0-9
+  if (Porffor.fastOr(Porffor.fastAnd(chr >= 48, chr <= 57), chr == 43, chr == 45)) { // 0-9 + -
     return __ecma262_ParseDTSF(string);
   }
 
