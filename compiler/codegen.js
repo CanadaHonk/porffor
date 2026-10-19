@@ -3689,6 +3689,7 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
 
   const { name } = decl.argument;
   const [ local, isGlobal ] = lookupName(scope, name);
+  if (local?.metadata?.kind === 'const') return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${unhackName(name)}`);
   if (local != null) {
     // fast path: a local/global. todo: not as compliant as the slow path (non-numbers)
     const ref = isGlobal ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval);
@@ -3699,6 +3700,8 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
 
     const argType = knownType(scope, getNodeType(scope, decl.argument));
     if (ref[N_TYPE] === T.jsval && argType !== TYPES.number) {
+      if (argType !== TYPES.bigint) emitIf(scope, Bin('!=', T.i32, JvType(ref), Const(T.i32, TYPES.number)),
+        () => assign(scope, ref, builtinCall(scope, '__ecma262_ToNumeric', [ ref ])));
       const stepBig = v => builtinCall(scope, '__Porffor_bigint_binop', [ Const(T.i32, decl.operator === '++' ? 0 : 1), v, generate(scope, { type: 'Literal', bigint: '1' }) ]);
       const update = (big, wantOld) => {
         const old = wantOld ? tmp(scope, T.jsval, ref) : ref;
