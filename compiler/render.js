@@ -4595,15 +4595,16 @@ ${st}void porf_iter_unlink(void) {
 
 jsval ${iterClose}(jsval);
 
-// close the records a throw leaves, dropping errors from closing
+// close the records a throw leaves, dropping errors from closing unless it is a generator return
 static void porf_iter_unwind(void) {
-  const jsval exception = porf_exception;
+  jsval exception = porf_exception;
   while (porf_jv_type(porf_iter_open) != ${TYPES.undefined} &&
          porf_iter_base + (i32)porf_arr_get((u32)porf_iter_open.val, 5).val >= porf_try_depth) {
     const jsval rec = porf_iter_open;
     porf_iter_open = porf_arr_get((u32)rec.val, 4);
     const i32 depth = porf_try_depth++;
     if (_setjmp(porf_try_ensure()[depth]) == 0) ${iterClose}(rec);
+      else if (porf_jv_eq(exception, porf_box(0.0, ${TYPES.__porffor_generator}))) exception = porf_exception;
     porf_try_depth = depth;
   }
   porf_exception = exception;
