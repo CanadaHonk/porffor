@@ -64,7 +64,7 @@ export const __Porffor_json_toJSON = (value: any, key: any): any => {
   return value;
 };
 
-export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, space: bytestring|undefined): i32 => {
+export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, space: bytestring|undefined, stack: any[]): i32 => {
   // somewhat modelled after 25.5.2.2 SerializeJSONProperty: https://tc39.es/ecma262/#sec-serializejsonproperty
   let buffer: i32 = _buffer;
 
@@ -144,6 +144,12 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
     return __Porffor_bytestring_bufferStr(buffer, 'null');
   }
 
+  if (Porffor.type(value) > 0x06) {
+    // ancestors are stack[0..depth), a cycle keeps recursing so checking at powers of two still finds it
+    if ((depth & (depth - 1)) == 0) for (let i: i32 = 0; i < depth; i++) if (stack[i] === value) throw new TypeError('Converting circular structure to JSON');
+    stack[depth] = value;
+  }
+
   if (Porffor.type(value) == Porffor.TYPES.array) {
     buffer = __Porffor_bytestring_bufferChar(buffer, 91); // [
 
@@ -159,7 +165,7 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
       }
 
       if (__Porffor_json_canSerialize(x)) {
-        buffer = __Porffor_json_serialize(buffer, x, depth, space);
+        buffer = __Porffor_json_serialize(buffer, x, depth, space, stack);
       } else {
         // non-serializable value, write null
         buffer = __Porffor_bytestring_bufferStr(buffer, 'null');
@@ -214,7 +220,7 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
       buffer = __Porffor_bytestring_bufferChar(buffer, 58); // :
       if (hasSpace) buffer = __Porffor_bytestring_bufferChar(buffer, 32); // space
 
-      buffer = __Porffor_json_serialize(buffer, val, depth, space);
+      buffer = __Porffor_json_serialize(buffer, val, depth, space, stack);
       buffer = __Porffor_bytestring_bufferChar(buffer, 44); // ,
     }
 
@@ -332,7 +338,7 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
   let cap: i32 = 4096;
   let buffer: bytestring = Porffor.malloc(6 + cap);
   __Porffor_json_bufLimit = (buffer as i32) + 4 + cap;
-  let out: i32 = __Porffor_json_serialize(buffer, value, 0, space);
+  let out: i32 = __Porffor_json_serialize(buffer, value, 0, space, Porffor.array.new(0));
   if (out == -1) return undefined;
 
   const needed: i32 = out - (buffer as i32);
@@ -340,7 +346,7 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
     cap = needed;
     buffer = Porffor.malloc(6 + cap);
     __Porffor_json_bufLimit = (buffer as i32) + 4 + cap;
-    out = __Porffor_json_serialize(buffer, value, 0, space);
+    out = __Porffor_json_serialize(buffer, value, 0, space, Porffor.array.new(0));
   }
 
   buffer.length = out - (buffer as i32);
