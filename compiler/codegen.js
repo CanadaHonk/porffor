@@ -863,15 +863,15 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
   // missing member of an existing namespace reads as undefined
   if (name.startsWith('__')) {
     if ((name + '$get') in builtinFuncs) {
-      // %Iterator.prototype% accessors accept their home object as receiver
-      if (name.startsWith('__Iterator_prototype_')) return generate(scope, {
+      // X.prototype.accessor reads with the prototype as receiver
+      if (name.includes('_prototype_')) return generate(scope, {
         type: 'CallExpression',
         callee: { type: 'Identifier', name: name + '$get' },
         arguments: [],
-        _thisArg: { type: 'Identifier', name: '__Iterator_prototype' }
+        _thisArg: { type: 'Identifier', name: name.slice(0, name.indexOf('_prototype_') + 10) }
       });
       const owner = name.slice(2, name.indexOf('_', 2));
-      if (!name.includes('_prototype_') && owner in builtinFuncs) return generate(scope, {
+      if (owner in builtinFuncs) return generate(scope, {
         type: 'CallExpression',
         callee: { type: 'Identifier', name: name + '$get' },
         arguments: [],
