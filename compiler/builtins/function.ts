@@ -30,6 +30,13 @@ export const __Function_prototype_toString = function (this: Function) {
   return out;
 };
 
+// %ThrowTypeError%, sloppy functions read null
+export const __Function_prototype_caller$get = function (this: any) {
+  if (Porffor.type(this) == Porffor.TYPES.function && (__Porffor_funcLut_flags(this) & 0b1000) != 0) return null;
+  throw new TypeError("'caller' and 'arguments' cannot be accessed on strict functions");
+};
+export const __Function_prototype_arguments$get = function (this: any) { return Porffor.callThis(__Function_prototype_caller$get, this); };
+
 export const __Function_prototype_toLocaleString = function (this: Function) { return Porffor.callThis(__Function_prototype_toString, this); };
 
 export const __Function_prototype_apply = function (this: Function, thisArg: any, argsArray: any) {

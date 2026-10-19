@@ -125,7 +125,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           if (x.endsWith('$get') && !Object.hasOwn(props, x.slice(0, -4)) && ![ 'lastIndex', 'name', 'message' ].includes(x.slice(0, -4))) {
             const setter = x.slice(0, -4) + '$set';
             includeBuiltin('__Porffor_object_defineAccessor');
-            out.push(Call('__Porffor_object_defineAccessor', [ obj, propKey(x.slice(0, -4)), value, Object.hasOwn(props, setter) ? propValue(prefix + setter, props[setter]) : JvConst(TYPES.undefined, 0), Const(T.i32, 0b0011) ], T.none));
+            out.push(Call('__Porffor_object_defineAccessor', [ obj, propKey(x.slice(0, -4)), value, Object.hasOwn(props, setter) ? propValue(prefix + (props[setter].func ?? setter), props[setter]) : JvConst(TYPES.undefined, 0), Const(T.i32, 0b0011) ], T.none));
             return;
           }
 
@@ -388,6 +388,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     if (x === '__Function_prototype') {
       props.length = { value: 0, configurable: true };
       props.name = { value: '', configurable: true };
+      props.caller$set = props.arguments$get = props.arguments$set = { ...props.caller$get, func: 'caller$get' };
     }
 
     // per spec Array.prototype is an array exotic object with length = 0
@@ -738,7 +739,7 @@ return porf_box((f64)dst, ${TYPES.string});`, false) ]
 
   _.__Porffor_funcLut_length = lutFn(TYPES.number, `return porf_box_num((f64)${lutRead('porf_fnlen')});`);
 
-  _.__Porffor_funcLut_flags = lutFn(TYPES.number, `return porf_box_num((f64)((${lutRead('porf_fnflags')} >> 3) & 3));`);
+  _.__Porffor_funcLut_flags = lutFn(TYPES.number, `return porf_box_num((f64)(${lutRead('porf_fnflags')} >> 3));`);
 
   // FN_ASYNC 1, FN_GENERATOR 2, FN_ASYNC_GENERATOR 4
   _.__Porffor_funcLut_coroKind = lutFn(TYPES.number, `return porf_box_num((f64)(${lutRead('porf_fnflags')} & 7u));`);

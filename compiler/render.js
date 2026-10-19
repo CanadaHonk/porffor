@@ -304,14 +304,14 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   };
 
   // flags are derived here (only consumer), no stored func.flags. coroFlags = FN_* kind, fnFlags byte:
-  // bits 0-2 coroutine kind, 3 callable (has return type), 4 constructor, 5 generator init suspension
+  // bits 0-2 coroutine kind, 3 callable (has return type), 4 constructor, 5 generator init suspension, 6 sloppy ordinary function
   const FN_CORO_INIT = 1 << 5;
   const coroKind = f => f?.async && f?.generator ? FN_ASYNC_GENERATOR : (f?.async ? FN_ASYNC : 0) | (f?.generator ? FN_GENERATOR : 0);
   const coroFlags = f => coroKind(f) | (f?.coroInit ? FN_CORO_INIT : 0);
   const isCoro = f => !!(f && (f.async || f.generator));
   const needsCoro = f => !!(f && (f.generator || (f.async && f.hasAwait)));
   const isSyncAsync = f => !!(f && f.async && !f.generator && !needsCoro(f));
-  const fnFlags = f => f ? (coroFlags(f) | (f.returnType != null ? 1 << 3 : 0) | (f.constr ? 1 << 4 : 0)) : 0;
+  const fnFlags = f => f ? (coroFlags(f) | (f.returnType != null ? 1 << 3 : 0) | (f.constr ? 1 << 4 : 0) | (f.constr && !f.strict && !f.internal ? 1 << 6 : 0)) : 0;
   const jsArg = n => n[N_TYPE] === T.jsval ? rx(n, P_COMMA) : `porf_box_num(${rx(n, P_COMMA)})`;
   const packArg = n => `porf_pack(${jsArg(n)})`;
 
@@ -1518,7 +1518,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
 
   // per-function metadata tables, emitted before bodies so __Porffor_funcLut_* can read them.
   // porf_fnflags: bits 0-2 coroutine dispatch (masked off in porf_call_dynamic), bit 3 callable,
-  // bit 4 constructor, funcLut.flags recovers legacy callable|constr<<1 via (flags >> 3) & 3
+  // bit 4 constructor, funcLut.flags recovers legacy callable|constr<<1 (| sloppy<<3) via flags >> 3
   link.push(`${st}const u8 porf_fnflags[] = { ${linkFuncs.map(fnFlags).join(', ') || '0'} };\n`);
   if (usesSyncAsync) link.push(`${st}const u8 porf_fnneeds_coro[] = { ${linkFuncs.map(f => needsCoro(f) ? 1 : 0).join(', ') || '0'} };\n`);
   link.push(`${st}const u16 porf_fnlen[] = { ${linkFuncs.map(f => f.jsLength ?? 0).join(', ') || '0'} };\n`);

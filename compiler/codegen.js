@@ -4696,7 +4696,7 @@ const resolveMemberDemands = scope => {
     }
 
     const getterOnly = propName === 'constructor';
-    for (const x of getterOnly ? builtinPrototypeObjectGetters.values() : (builtinPrototypeFuncs.get(propName) ?? [])) {
+    for (const x of getterOnly ? builtinPrototypeObjectGetters.values() : [ ...(builtinPrototypeFuncs.get(propName) ?? []), ...(builtinPrototypeGetters.get(propName) ?? []) ]) {
       const tn = getterOnly ? x.slice(7, -'_prototype'.length) : protoOwnerOf(x);
       if (getterOnly && tn === 'TypedArray') continue;
 
