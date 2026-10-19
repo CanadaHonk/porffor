@@ -1241,15 +1241,26 @@ const performOp = (scope, op, left, right, leftType, rightType, noBigint = false
 
   // +: concat when either side is stringish, else numeric
   if (op === '+') {
-    if (isStr(knownLeft) || isStr(knownRight)) return concatStrings(scope, left, right, knownLeft, knownRight);
+    const primitive = t => t === TYPES.number || t === TYPES.boolean || t === TYPES.undefined || t === TYPES.bigint || isStr(t);
+    // objects convert with ToPrimitive first
+    const operand = (x, known) => {
+      const v = reuse(scope, x[N_TYPE] === T.jsval ? x : valNumber(x));
+      if (globalThis.precompile || primitive(known)) return v;
+      const prim = builtinCall(scope, '__ecma262_ToPrimitive', [ v, makeString(scope, 'default') ]);
+      return reuse(scope, known == null ? Select(jvIsObject(v, JvType(v)), prim, v) : prim);
+    };
+    if (isStr(knownLeft) || isStr(knownRight)) return concatStrings(scope, operand(left, knownLeft), operand(right, knownRight), knownLeft, knownRight);
     const rawType = rawAddType(left, right);
     if (rawType != null) return Bin('+', rawType, Convert(rawType, left, rawType === T.i32 ? CONVERT_SIGNED : 0), Convert(rawType, right, rawType === T.i32 ? CONVERT_SIGNED : 0));
     if ((knownLeft === TYPES.number || isRawNum(left)) && (knownRight === TYPES.number || isRawNum(right))) return Box(Bin('+', T.f64, numValue(left), numValue(right)), Const(T.i32, TYPES.number));
     if (bothNum) return Box(Bin('+', T.f64, numValue(left), numValue(right)), Const(T.i32, TYPES.number));
-    if (knownLeft == null || knownRight == null) {
+    if (globalThis.precompile ? knownLeft == null || knownRight == null : !primitive(knownLeft) || !primitive(knownRight)) {
       const l = reuse(scope, left[N_TYPE] === T.jsval ? left : valNumber(left));
       const r = reuse(scope, right[N_TYPE] === T.jsval ? right : valNumber(right));
-      return Add(l, r);
+      if (globalThis.precompile) return Add(l, r);
+
+      // off the number fast path
+      return Select(Bin('&&', T.i32, JvIsNum(l), JvIsNum(r)), Box(Bin('+', T.f64, JvNum(l), JvNum(r)), Const(T.i32, TYPES.number)), builtinCall(scope, '__Porffor_add', [ l, r ]));
     }
     return Box(Bin('+', T.f64, numOperand(left, knownLeft), numOperand(right, knownRight)), Const(T.i32, TYPES.number));
   }
@@ -1648,7 +1659,7 @@ const getNodeType = (scope, node) => {
     if (['==', '===', '!=', '!==', '>', '>=', '<', '<=', 'instanceof', 'in'].includes(node.operator)) ret = TYPES.boolean;
     else {
       const stack = [ node ];
-      let anyBigint = false, anyKnown = false, anyUnknown = false, anyNumeric = false, anyStringLike = false, anyString = false, allBytes = true;
+      let anyBigint = false, anyKnown = false, anyUnknown = false, anyNumeric = false, anyStringLike = false, anyString = false, allBytes = true, allNumeric = true, allPrimitive = true;
       while (stack.length !== 0) {
         const n = stack.pop();
         if (n.type === 'BinaryExpression' && n.operator === node.operator) {
@@ -1665,11 +1676,15 @@ const getNodeType = (scope, node) => {
         if (known === TYPES.string || known === TYPES.bytestring || known === TYPES.stringobject) anyStringLike = true;
         if (known === TYPES.string || known === TYPES.stringobject) anyString = true;
         if (known !== TYPES.bytestring) allBytes = false;
+        if (known !== TYPES.number && known !== TYPES.boolean && known !== TYPES.undefined) allNumeric = false;
+        if (known !== TYPES.number && known !== TYPES.boolean && known !== TYPES.undefined && known !== TYPES.bigint) allPrimitive = false;
       }
 
-      if (anyBigint) ret = TYPES.bigint;
+      // + of a BigInt and a string or object may concat instead
+      if (anyBigint && (node.operator !== '+' || allPrimitive)) ret = TYPES.bigint;
       else if (node.operator !== '+') ret = anyUnknown && !anyNumeric && mayHaveBigInt && bigintOps[node.operator] !== undefined ? null : TYPES.number; // unknown operands may be BigInts
-      else if (anyKnown && !anyStringLike) ret = TYPES.number;
+      // unknown operands and objects may convert to strings
+      else if (globalThis.precompile ? anyKnown && !anyStringLike : allNumeric) ret = TYPES.number;
       else if (anyString) ret = TYPES.string;
       else if (allBytes) ret = TYPES.bytestring;
       else ret = null; // string or number, only known at runtime
@@ -5168,23 +5183,24 @@ const generateTemplate = (scope, decl) => {
     if (!byteStringable(value)) decl._type = TYPES.string;
     parts.push({ type: 'Literal', value });
 
-    if (i < expressions.length) parts.push(expressions[i]);
+    // substitutions use ToString, not the ToPrimitive of +
+    if (i < expressions.length) {
+      const t = knownType(scope, getNodeType(scope, expressions[i]));
+      const primitive = t === TYPES.number || t === TYPES.boolean || t === TYPES.undefined || t === TYPES.bigint || t === TYPES.string || t === TYPES.bytestring;
+      parts.push(primitive ? expressions[i] : { type: 'CallExpression', callee: identNode('__ecma262_ToString'), arguments: [ expressions[i] ] });
+    }
   }
 
   // balanced so big templates copy each part log(n) times, not n
   const concat = (start, end) => {
-    if (end - start === 1) return parts[start];
+    if (end - start === 1) return generate(scope, parts[start]);
 
     const mid = (start + end) >> 1;
-    return {
-      type: 'BinaryExpression',
-      operator: '+',
-      left: concat(start, mid),
-      right: concat(mid, end)
-    };
+    const left = snapshot(scope, concat(start, mid));
+    return builtinCall(scope, '__Porffor_concatStrings', [ left, concat(mid, end) ]);
   };
 
-  return generate(scope, concat(0, parts.length));
+  return concat(0, parts.length);
 };
 
 const generateTaggedTemplate = (scope, decl) => {

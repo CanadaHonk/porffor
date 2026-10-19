@@ -910,7 +910,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
 
       default: {
         if ((node[N_FX] & (FX.call | FX.writeMem | FX.writeLocal)) !== 0) {
-          emit(`${ind()}${node[N_TYPE] !== T.none ? '(void)' : ''}${rx(node, P_COMMA)};\n`);
+          emit(`${ind()}${node[N_TYPE] !== T.none ? '(void)' : ''}${rx(node, node[N_TYPE] !== T.none ? P_CAST : P_COMMA)};\n`);
         }
         return;
       }

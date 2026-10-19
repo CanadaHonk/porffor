@@ -56,6 +56,13 @@ export const __ecma262_OrdinaryToPrimitive = (input: any, hint: bytestring): any
   throw new TypeError('Cannot convert an object to primitive');
 };
 
+// 13.15.3 ApplyStringOrNumericBinaryOperator, for + on possible objects
+export const __Porffor_add = (a: any, b: any): any => {
+  a = __ecma262_ToPrimitive(a, 'default');
+  b = __ecma262_ToPrimitive(b, 'default');
+  return a + b;
+};
+
 export const __ecma262_ToPrimitive_Number = (input: any): any => __ecma262_ToPrimitive(input, 'number');
 
 export const __ecma262_ToPrimitive_String = (input: any): any => __ecma262_ToPrimitive(input, 'string');
