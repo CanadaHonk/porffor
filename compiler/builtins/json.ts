@@ -73,6 +73,7 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
     else if (Porffor.type(value) == Porffor.TYPES.stringobject) value = ecma262.ToString(value);
     else if (Porffor.type(value) == Porffor.TYPES.booleanobject) value = Porffor.callThis(__Boolean_prototype_valueOf, value);
 
+  if (__JSON_isRawJSON(value)) return __Porffor_bytestring_bufferStr(buffer, value.rawJSON);
   if (value === null) return __Porffor_bytestring_bufferStr(buffer, 'null');
   if (value === true) return __Porffor_bytestring_bufferStr(buffer, 'true');
   if (value === false) return __Porffor_bytestring_bufferStr(buffer, 'false');
@@ -255,7 +256,7 @@ export const __Porffor_json_prepare = (holder: any, key: any, value: any, replac
   if (Porffor.type(replacer) == Porffor.TYPES.function) value = replacer.call(holder, key, value);
 
   if (Porffor.fastOr(!Porffor.object.isObject(value), Porffor.type(value) == Porffor.TYPES.function, __Porffor_json_canSerialize(value) == false)) return value;
-  if (Porffor.fastOr(Porffor.type(value) == Porffor.TYPES.numberobject, Porffor.type(value) == Porffor.TYPES.stringobject, Porffor.type(value) == Porffor.TYPES.booleanobject)) return value;
+  if (Porffor.fastOr(Porffor.type(value) == Porffor.TYPES.numberobject, Porffor.type(value) == Porffor.TYPES.stringobject, Porffor.type(value) == Porffor.TYPES.booleanobject, __JSON_isRawJSON(value))) return value;
   if (stack.includes(value)) throw new TypeError('Converting circular structure to JSON');
   Porffor.array.fastPush(stack, value);
 
@@ -279,6 +280,31 @@ export const __Porffor_json_prepare = (holder: any, key: any, value: any, replac
 
   stack.pop();
   return out;
+};
+
+export const __JSON_rawJSON = (text: any): object => {
+  const jsonString: bytestring = ecma262.ToString(text);
+  const len: i32 = jsonString.length;
+  if (len == 0) throw new SyntaxError('Invalid raw JSON text');
+
+  // no surrounding whitespace, objects or arrays
+  const first: i32 = jsonString.charCodeAt(0);
+  const last: i32 = jsonString.charCodeAt(len - 1);
+  if (Porffor.fastOr(first == 9, first == 10, first == 13, first == 32, first == 91, first == 123,
+    last == 9, last == 10, last == 13, last == 32)) throw new SyntaxError('Invalid raw JSON text');
+  __JSON_parse(jsonString, undefined);
+
+  const out: object = __Object_create(null);
+  __Porffor_object_fastAdd(out, 'rawJSON', jsonString, 0b0100);
+
+  // inextensible + [[IsRawJSON]]
+  Porffor.IR.storeU8(out, 4, 0b0101);
+  return out;
+};
+
+export const __JSON_isRawJSON = (O: any): boolean => {
+  if (Porffor.fastOr(Porffor.type(O) != Porffor.TYPES.object, O === null)) return false;
+  return (Porffor.IR.loadU8(O, 4) & 0b0100) != 0;
 };
 
 export const __JSON_stringify = (value: any, replacer: any, space: any) => {

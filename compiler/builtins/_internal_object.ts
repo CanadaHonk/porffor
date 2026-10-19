@@ -6,6 +6,7 @@ import type {} from './porffor.d.ts';
 //  capacity (u16, 2)
 //  root flags (u8, 1):
 //   inextensible - 0b0001
+//   raw JSON - 0b0100
 //  prototype type (u8, 1)
 //  padding (u16, 2)
 //  prototype (u32, 4)
