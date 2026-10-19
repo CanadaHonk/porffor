@@ -204,6 +204,7 @@ export const __Object_prototype_hasOwnProperty = function (this: any, prop: any)
 };
 
 export const __Object_hasOwn = (obj: any, prop: any): boolean => {
+  if (obj == null) throw new TypeError('Argument is nullish, expected object');
   return Porffor.callThis(__Object_prototype_hasOwnProperty, obj, prop);
 };
 
@@ -528,6 +529,7 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|u
 };
 
 export const __Object_getOwnPropertyDescriptors = (obj: any): object => {
+  if (obj == null) throw new TypeError('Argument is nullish, expected object');
   const out: object = {};
 
   if (Porffor.fastAnd(Porffor.type(obj) != Porffor.TYPES.object, Porffor.type(obj) != Porffor.TYPES.proxy)) {
