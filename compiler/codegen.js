@@ -3391,6 +3391,8 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     const simpleValue = op === '=' ? reuse(scope, generate(scope, decl.right)) : null;
 
     const hash = ctHash(decl.left);
+    // writes can reach inherited setters
+    if (!globalThis.precompile) demandMemberRead(scope, decl.left);
 
     // compound ops reuse one converted key for their get + set
     const keyOf = () => decl.left.computed && op !== '=' ? builtinCall(scope, '__ecma262_ToPropertyKey', [ prop ]) : prop;
