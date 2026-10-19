@@ -482,6 +482,11 @@ const analyze = (node, strict = false) => {
       openedScope = true;
       break;
 
+    case 'WithStatement':
+      // a fresh object binding each time the statement runs, closures keep theirs
+      declVar(`#with_${node.start}`, 'let', { type: 'Identifier', name: `#with_${node.start}` });
+      break;
+
     case 'CatchClause':
       scopes.push(node);
       if (node.param) analyzePattern('let', node.param);
@@ -586,6 +591,16 @@ const analyze = (node, strict = false) => {
   }
 };
 
+// resolving past with statements checks their objects first
+const markWiths = (node, variable) => {
+  for (let i = scopes.length - 1; i >= 0 && scopes[i] !== variable?.scope; i--) {
+    if (scopes[i].type !== 'WithStatement') continue;
+    const ref = { type: 'Identifier', name: `#with_${scopes[i].start}` };
+    annotate(ref, node, '_withs');
+    (node._withs ??= []).push(ref);
+  }
+};
+
 const annotate = (node, parent = null, key = null) => {
   if (!node) return;
 
@@ -626,6 +641,7 @@ const annotate = (node, parent = null, key = null) => {
 
     case 'VariableDeclarator':
       annotate(node.id, node, 'id');
+      if (node.init && node.id.type === 'Identifier') markWiths(node.id, node.id._variable);
       annotate(node.init, node, 'init');
       if (node.init) recordStorageWrite(node.id, node.init);
         else if (node.id.type === 'Identifier') node.id._uninitialized = true;
@@ -644,6 +660,16 @@ const annotate = (node, parent = null, key = null) => {
     case 'CatchClause':
       recordStorageWrite(node.param, null);
       break;
+
+    case 'WithStatement':
+      node._withWrite = { type: 'Identifier', name: `#with_${node.start}` };
+      annotate(node._withWrite, node, '_withWrite');
+      markWrite(node._withWrite);
+      annotate(node.object, node, 'object');
+      scopes.push(node);
+      annotate(node.body, node, 'body');
+      scopes.pop();
+      return;
 
     case 'AssignmentExpression':
       annotate(node.left, node, 'left');
@@ -676,6 +702,7 @@ const annotate = (node, parent = null, key = null) => {
       const name = node.name;
       const currentFunc = scopes[scopes.lastFuncs.at(-1)];
       const variable = resolveVariable(name);
+      if (name[0] !== '#') markWiths(node, variable);
       if (variable) {
         node._resolvedBinding = true;
         node._resolvedVariable = variable;

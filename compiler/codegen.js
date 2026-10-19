@@ -192,6 +192,37 @@ const memberNode = (object, property, computed = false, extra = null) => extra
   ? { type: 'MemberExpression', object, property, computed, ...extra }
   : { type: 'MemberExpression', object, property, computed };
 
+// references through with statements check their objects first
+const withReference = (scope, decl) => {
+  const key = decl.type === 'Identifier' ? null : decl.type === 'AssignmentExpression' ? 'left' :
+    decl.type === 'UpdateExpression' || decl.type === 'UnaryExpression' ? 'argument' : decl.type === 'CallExpression' ? 'callee' : null;
+  const ident = key ? decl[key] : decl;
+  if (ident.type !== 'Identifier' || !ident._withs) return null;
+
+  const { _withs, ...plain } = ident;
+  const name = ident.name;
+  // the innermost object having the name, resolved once
+  let found = identNode('undefined');
+  for (let i = _withs.length - 1; i >= 0; i--) found = {
+    type: 'ConditionalExpression',
+    test: { type: 'CallExpression', callee: identNode('__Porffor_with_has'), arguments: [ _withs[i], { type: 'Literal', value: name } ] },
+    consequent: _withs[i],
+    alternate: found
+  };
+  const obj = identNode(reuseNamed(scope, generate(scope, found))[N_A]);
+  const test = { type: 'BinaryExpression', operator: '!==', left: obj, right: identNode('undefined') };
+  const pick = (a, b) => ({ type: 'ConditionalExpression', test, consequent: a, alternate: b });
+  const member = memberNode(obj, identNode(name));
+
+  // a direct eval stays a plain call so its source can still be compiled
+  if (decl.type === 'CallExpression' && name !== 'eval') return generate(scope, { ...decl, callee: pick(member, plain), _thisArg: obj });
+  if (decl.type === 'AssignmentExpression' && decl.operator === '=') {
+    const right = identNode(reuseNamed(scope, generate(scope, decl.right))[N_A]);
+    return generate(scope, pick({ ...decl, left: member, right }, { ...decl, left: plain, right }));
+  }
+  return generate(scope, key ? pick({ ...decl, [key]: member }, { ...decl, [key]: plain }) : pick(member, plain));
+};
+
 const genStmt = (scope, node) => {
   const m = mark(scope);
   exprStmt(scope, generate(scope, node));
@@ -485,6 +516,9 @@ const cachedFunctionValue = (scope, func, markReferenced = true) => {
 const generate = (scope, decl, name = undefined, valueUnused = false) => {
   if (valueUnused && !Prefs.optUnused) valueUnused = false;
 
+  const withRef = withReference(scope, decl);
+  if (withRef) return withRef;
+
   switch (decl.type) {
     case 'BinaryExpression':
       return generateBinaryExp(scope, decl);
@@ -677,7 +711,9 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
       return value;
     }
 
-    case 'WithStatement': return generate(scope, decl.body);
+    case 'WithStatement':
+      genStmt(scope, { type: 'AssignmentExpression', operator: '=', left: decl._withWrite, right: { type: 'CallExpression', callee: identNode('__ecma262_ToObject'), arguments: [ decl.object ] } });
+      return generate(scope, decl.body);
 
     case 'TSEnumDeclaration':
       return generateEnum(scope, decl);
@@ -3036,7 +3072,9 @@ const generateVar = (scope, decl) => {
 
   for (const x of decl.declarations) {
     const m = mark(scope);
-    generateVarDstr(scope, decl.kind, x.id, x.init, undefined, global);
+    // var initializers inside with statements assign through them
+    generateVarDstr(scope, decl.kind, x.id, x.id._withs ? undefined : x.init, undefined, global);
+    if (x.id._withs && x.init) genStmt(scope, { type: 'AssignmentExpression', operator: '=', left: x.id, right: x.init });
     release(scope, m);
   }
 

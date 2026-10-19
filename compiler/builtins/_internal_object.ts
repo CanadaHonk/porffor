@@ -490,6 +490,13 @@ export const __Porffor_object_isObject = (arg: any): boolean => {
   );
 };
 
+// HasBinding of a with statement's object environment
+export const __Porffor_with_has = (obj: any, key: any): boolean => {
+  if (!(key in obj)) return false;
+  const unscopables: any = obj[Symbol.unscopables];
+  return !__Porffor_object_isObject(unscopables) || !unscopables[key];
+};
+
 export const __Porffor_object_isObjectOrNull = (arg: any): boolean => {
   const t: i32 = Porffor.type(arg);
   return Porffor.fastAnd(
