@@ -89,6 +89,27 @@ export const Map = function (iterable: any): Map {
   return out;
 };
 
+export const __Map_groupBy = (items: any, callbackFn: any): Map => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('callbackFn is not a function');
+  const out: Map = new Map();
+
+  let i: i32 = 0;
+  for (const x of items) {
+    let k: any = callbackFn(x, i++);
+    if (k === 0) k = 0;
+
+    let arr: any = Porffor.callThis(__Map_prototype_get, out, k);
+    if (arr === undefined) {
+      arr = Porffor.array.new(4);
+      Porffor.callThis(__Map_prototype_set, out, k, arr);
+    }
+
+    Porffor.array.fastPush(arr, x);
+  }
+
+  return out;
+};
+
 export const __Map_prototype_keys = function (this: Map) {
   return __Porffor_MapIterator_new(this, 1);
 };
