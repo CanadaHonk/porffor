@@ -27,10 +27,6 @@ export const __Porffor_Generator_prototype_throw = function (this: __Porffor_Gen
   return __Porffor_Generator_step(this, value, 1);
 };
 
-export const __Porffor_Generator_prototype_Symbol_iterator = function (this: __Porffor_Generator): any {
-  return this;
-};
-
 
 // [ iterator, next method or index, done, kind (0 in place, 1 sync, 2 async), prev, depth ]
 export const __Porffor_iterator_new = (iter: any, next: any, kind: i32): any[] => {
@@ -126,43 +122,27 @@ export const __Porffor_iterator_step = (rec: any[]): any => {
     return entry;
   }
 
-  if (i >= iter.length) {
+  const len: i32 = iter.length;
+  if (i >= len) {
     rec[2] = true;
     return undefined;
   }
 
   rec[1] = i + 1;
-  return iter[i];
-};
-
-// kind: 0 iteration values, 1 keys, 2 values, 3 entries
-export const __Porffor_iterator_toObject = (iter: any, kind: number): object => {
-  const rec: any[] = __Porffor_iterator_new(iter, 0, 0);
-  const out: object = {};
-  out.next = () => {
-    let value: any = __Porffor_iterator_step(rec);
-    if (Porffor.fastAnd(kind != 0, !rec[2])) {
-      if (Porffor.type(iter) == Porffor.TYPES.map) {
-        value = value[kind - 1];
-      } else {
-        const key: any = Porffor.type(iter) == Porffor.TYPES.set ? value : rec[1] - 1;
-        if (kind == 1) {
-          value = key;
-        } else {
-          const entry: any[] = Porffor.array.new(2);
-          entry[0] = key;
-          entry[1] = value;
-          value = entry;
-        }
-      }
+  // strings iterate code points
+  if (Porffor.fastAnd(t == Porffor.TYPES.string, i + 1 < len)) {
+    const lead: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(iter) + i * 2, 4);
+    const trail: i32 = Porffor.IR.loadU16(Porffor.IR.ptr(iter) + i * 2, 6);
+    if (Porffor.fastAnd((lead & 0xFC00) == 0xD800, (trail & 0xFC00) == 0xDC00)) {
+      rec[1] = i + 2;
+      const pair: string = Porffor.malloc(8);
+      Porffor.IR.storeI32(pair, 0, 2);
+      Porffor.IR.storeU16(Porffor.IR.ptr(pair), 4, lead);
+      Porffor.IR.storeU16(Porffor.IR.ptr(pair), 6, trail);
+      return pair;
     }
-
-    return { value: value, done: rec[2] };
-  };
-  out[Symbol.iterator] = function (this: any): any {
-    return this;
-  };
-  return out;
+  }
+  return iter[i];
 };
 
 // unwraps results passed through by yield*
@@ -355,8 +335,30 @@ export const __Porffor_AsyncGenerator_prototype_throw = function (this: __Porffo
   return __Porffor_AsyncGenerator_step(this, value, 1);
 };
 
-export const __Porffor_AsyncGenerator_prototype_Symbol_asyncIterator = function (this: __Porffor_AsyncGenerator): any {
+// %AsyncIteratorPrototype%
+export const __Porffor_AsyncIterator_prototype_Symbol_asyncIterator = function (this: any): any {
   return this;
+};
+
+export const __Porffor_AsyncIterator_prototype_Symbol_asyncDispose = function (this: any): Promise {
+  const promise: Promise = __Porffor_promise_create();
+  try {
+    const ret: any = this.return;
+    if (Porffor.fastOr(ret === undefined, ret === null)) {
+      __Porffor_promise_resolve(undefined, promise);
+    } else {
+      if (Porffor.type(ret) != Porffor.TYPES.function) throw new TypeError('Iterator return is not a function');
+      const wrapper: Promise = __Porffor_promise_create();
+      __Porffor_promise_resolve(ret.call(this, undefined), wrapper);
+      Porffor.callThis(__Promise_prototype_then, wrapper,
+        (v: any): void => __Porffor_promise_resolve(undefined, promise),
+        (e: any): void => __Porffor_promise_reject(e, promise));
+    }
+  } catch (e) {
+    __Porffor_promise_reject(e, promise);
+  }
+
+  return promise;
 };
 
 // an async generator is its own async iterator (handled in codegen)

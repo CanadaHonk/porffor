@@ -4,7 +4,7 @@ import {
   FN_ASYNC, FN_GENERATOR, FN_ASYNC_GENERATOR,
   CONVERT_RANGE_KNOWN, CONVERT_SIGNED
 } from './ir.js';
-import { TYPES, TYPE_NAMES } from './types.js';
+import { TYPES, TYPE_NAMES, ITERATOR_TYPES } from './types.js';
 import { ieee754_binary64 } from './encoding.js';
 
 // C type per IR value type
@@ -605,6 +605,9 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
             else if (pn === '#newtarget') newtv = s;
             else if (!rawArgv) argv.push(a);
           });
+          // static (envless) generators still know their function: instances get its .prototype
+          if (callee === 'JV_UNDEFINED' && f.generator && !f.params.some(p => p.name === '#env'))
+            callee = `porf_box((f64)(${split ? `porf_fnrecs + ${fnIdxExpr(f)} * 8u` : `${fnrecBase + linkIdx[f.index] * 8}u`}), ${TYPES.function})`;
           const argvArr = argv.length ? `(jsbits[]){ ${argv.map(a => packArg(a)).join(', ')} }` : '(jsbits[]){JV_UNDEFINED_BITS}';
           return [needsCoro(f)
             ? `porf_coro_start(${coroFlags(f)}u, ${fnIdxExpr(f)}, ${callee}, ${env}, ${thisv}, ${newtv}, ${argv.length}, ${argvArr})`
@@ -1482,6 +1485,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     linkProtos.push(`${st}i32 __Porffor_coroutine_raw(jsval gen);\n`);
     linkProtos.push(`${st}i32 __Porffor_coroutine_awaiting(jsval gen);\n`);
     linkProtos.push(`${st}void __Porffor_coroutine_setRaw(i32 raw);\n`);
+    linkProtos.push(`${st}jsval __Porffor_coroutine_callee(jsval gen);\n`);
   }
   if (!split) {
     for (const f of linkFuncs) link.push(proto(f));
@@ -1766,6 +1770,10 @@ ${st}i32 __Porffor_coroutine_awaiting(jsval gen) {
 
 ${st}void __Porffor_coroutine_setRaw(i32 raw) {
   porf_coro_cur->raw = raw;
+}
+
+${st}jsval __Porffor_coroutine_callee(jsval gen) {
+  return porf_coro_unbox(gen)->callee;
 }
 
 ${st}jsval porf_coro_start(u8 flags, u32 idx, jsval callee, u32 env, jsval thisv, jsval newtv, i32 argc, jsbits* argv) {
@@ -3410,8 +3418,8 @@ weakmap_seen:
 }
 
 static void porf_gc_mark_js(f64 value, i32 type) {
-  // proxies are [ target, handler ] arrays
-  if (type == ${TYPES.proxy}) type = ${TYPES.array};
+  // proxies ([ target, handler ]) and builtin iterators are arrays
+  if (type == ${TYPES.proxy}${ITERATOR_TYPES.map(x => ` || type == ${x}`).join('')}) type = ${TYPES.array};
   switch (type) {
     case ${TYPES.undefined}:
     case ${TYPES.number}:

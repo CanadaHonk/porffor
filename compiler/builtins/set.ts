@@ -8,7 +8,7 @@ export const __Set_prototype_size$get = function (this: Set) {
 };
 
 export const __Set_prototype_values = function (this: Set) {
-  return __Porffor_iterator_toObject(this, 0);
+  return __Porffor_SetIterator_new(this, 0);
 };
 
 export const __Set_prototype_keys = function (this: Set) {
@@ -67,7 +67,7 @@ export const Set = function (iterable: any): Set {
 };
 
 export const __Set_prototype_entries = function (this: Set) {
-  return __Porffor_iterator_toObject(this, 3);
+  return __Porffor_SetIterator_new(this, 3);
 };
 
 // GetSetRecord(obj) as [ set, size, has, keys ]
@@ -248,5 +248,5 @@ export const __Set_prototype_toString = function (this: Set) { return '[object S
 export const __Set_prototype_toLocaleString = function (this: Set) { return Porffor.callThis(__Set_prototype_toString, this); };
 
 export const __Set_prototype_Symbol_iterator = function (this: Set) {
-  return __Porffor_iterator_toObject(this, 0);
+  return __Porffor_SetIterator_new(this, 0);
 };

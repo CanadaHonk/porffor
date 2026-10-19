@@ -3663,9 +3663,7 @@ export const __Porffor_regex_matchAll = (regexp: any, input: any) => {
 
     return { value: match, done: false };
   };
-  out[Symbol.iterator] = function (this: any): any {
-    return this;
-  };
+  Porffor.object.setPrototype(out, __Iterator_prototype);
   return out;
 };
 

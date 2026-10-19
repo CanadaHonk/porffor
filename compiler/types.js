@@ -76,3 +76,9 @@ for (const x of [ '', 'Aggregate', 'Type', 'Reference', 'Syntax', 'Range', 'Eval
 
 registerInternalType('DisposableStack');
 registerInternalType('AsyncDisposableStack');
+
+// builtin iterator objects: state records (arrays) retagged so each gets its own hidden prototype
+export const ITERATOR_TYPES = [ 'IteratorHelper', 'WrapForValidIterator', 'ArrayIterator', 'MapIterator', 'SetIterator', 'StringIterator' ].map(x => {
+  registerInternalType(`__Porffor_${x}`);
+  return TYPES[`__porffor_${x.toLowerCase()}`];
+});

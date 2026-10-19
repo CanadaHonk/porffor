@@ -82,15 +82,15 @@ export const Map = function (iterable: any): Map {
 };
 
 export const __Map_prototype_keys = function (this: Map) {
-  return __Porffor_iterator_toObject(this, 1);
+  return __Porffor_MapIterator_new(this, 1);
 };
 
 export const __Map_prototype_values = function (this: Map) {
-  return __Porffor_iterator_toObject(this, 2);
+  return __Porffor_MapIterator_new(this, 2);
 };
 
 export const __Map_prototype_entries = function (this: Map) {
-  return __Porffor_iterator_toObject(this, 0);
+  return __Porffor_MapIterator_new(this, 0);
 };
 
 export const __Map_prototype_toString = function (this: Map) { return '[object Map]'; };
@@ -114,5 +114,5 @@ export const __Map_prototype_getOrInsertComputed = function (this: Map, key: any
 };
 
 export const __Map_prototype_Symbol_iterator = function (this: Map) {
-  return __Porffor_iterator_toObject(this, 0);
+  return __Porffor_MapIterator_new(this, 0);
 };

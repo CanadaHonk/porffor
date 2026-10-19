@@ -202,6 +202,14 @@ export const __Porffor_underlyingRebuild = (): void => {
   }
 };
 
+export const __Porffor_object_coroutinePrototype = (gen: any, underlying: object): void => {
+  const callee: any = Porffor.coroutine.callee(gen);
+  if (Porffor.type(callee) != Porffor.TYPES.function) return;
+
+  const proto: any = callee.prototype;
+  if (Porffor.object.isObject(proto)) Porffor.object.setPrototype(underlying, proto);
+};
+
 export const __Porffor_object_underlying = (_obj: any): any => {
   const objType: i32 = Porffor.type(_obj);
   if (objType == Porffor.TYPES.object) return _obj;
@@ -289,6 +297,24 @@ export const __Porffor_object_underlying = (_obj: any): any => {
         const proto: object = __Porffor_object_new(1);
         __Porffor_object_fastAdd(underlying, 'prototype', proto, 0b1000);
         __Porffor_object_fastAdd(proto, 'constructor', _obj, 0b1010);
+      } else {
+        // (async) generator functions inherit from %(Async)GeneratorFunction.prototype% and have an instance prototype
+        if (Porffor.comptime.flag`hasType.__porffor_generator`) {
+          if (__Porffor_funcLut_coroKind(_obj) == 2) {
+            Porffor.object.setPrototype(underlying, __Porffor_GeneratorFunction_prototype);
+            const proto: object = __Porffor_object_new(0);
+            Porffor.object.setPrototype(proto, __Porffor_Generator_prototype);
+            __Porffor_object_fastAdd(underlying, 'prototype', proto, 0b1000);
+          }
+        }
+        if (Porffor.comptime.flag`hasType.__porffor_asyncgenerator`) {
+          if (__Porffor_funcLut_coroKind(_obj) == 4) {
+            Porffor.object.setPrototype(underlying, __Porffor_AsyncGeneratorFunction_prototype);
+            const proto: object = __Porffor_object_new(0);
+            Porffor.object.setPrototype(proto, __Porffor_AsyncGenerator_prototype);
+            __Porffor_object_fastAdd(underlying, 'prototype', proto, 0b1000);
+          }
+        }
       }
     }
 
@@ -296,6 +322,14 @@ export const __Porffor_object_underlying = (_obj: any): any => {
       // the message slot is the own message property, if any
       const message: any = Porffor.IR.loadJv(obj, 0);
       if (message !== undefined) __Porffor_object_fastAdd(underlying, 'message', message, 0b1010);
+    }
+
+    // (async) generator instances inherit from their function's prototype
+    if (Porffor.comptime.flag`hasType.__porffor_generator`) {
+      if (objType == Porffor.TYPES.__porffor_generator) __Porffor_object_coroutinePrototype(obj, underlying);
+    }
+    if (Porffor.comptime.flag`hasType.__porffor_asyncgenerator`) {
+      if (objType == Porffor.TYPES.__porffor_asyncgenerator) __Porffor_object_coroutinePrototype(obj, underlying);
     }
 
     if (objType == Porffor.TYPES.array) {

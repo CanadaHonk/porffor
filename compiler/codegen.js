@@ -9,7 +9,7 @@ import {
   Alloc, GcBarrier, ArrGet, ArrSet, ArrLenSet, LenGet, LenSet, RawC, FuncIdx, FuncRec
 } from './ir.js';
 import { BuiltinFuncs, BuiltinVars, fullPrototypes } from './builtins.js';
-import { TYPES, TYPE_FLAGS, TYPE_NAMES, TYPED_ARRAY_TYPES } from './types.js';
+import { TYPES, TYPE_FLAGS, TYPE_NAMES, TYPED_ARRAY_TYPES, ITERATOR_TYPES } from './types.js';
 import semantic, { knownValue, unknownValue } from './semantic.js';
 import parse from './parse.js';
 import temporalPolyfillSource from './temporal.js';
@@ -802,6 +802,12 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
 
   // builtin value globals like Number.MAX_VALUE
   if (name in builtinVars) {
+    // a well-known symbol can be used as a key on anything (eg Object.getOwnPropertyDescriptor)
+    if (name.startsWith('__Symbol_') && !globalThis.precompile) {
+      memberDemands.add(name.slice(2));
+      iteratorDemands.add(name.slice(2));
+    }
+
     const v = builtinVars[name];
     return typeof v === 'function' ? v(scope, irBuiltinHelpers(scope, name, {})) : v;
   }
@@ -813,7 +819,16 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
 
   // missing member of an existing namespace reads as undefined
   if (name.startsWith('__')) {
-    if ((name + '$get') in builtinFuncs) return internalThrow(scope, 'TypeError', 'Accessor called without object');
+    if ((name + '$get') in builtinFuncs) {
+      // %Iterator.prototype% accessors accept their home object as receiver
+      if (name.startsWith('__Iterator_prototype_')) return generate(scope, {
+        type: 'CallExpression',
+        callee: { type: 'Identifier', name: name + '$get' },
+        arguments: [],
+        _thisArg: { type: 'Identifier', name: '__Iterator_prototype' }
+      });
+      return internalThrow(scope, 'TypeError', 'Accessor called without object');
+    }
     let parent = name.slice(2).split('_').slice(0, -1).join('_');
     if (parent.includes('_')) parent = '__' + parent;
     if (lookup(scope, parent) != null) return valUndefined();
@@ -1198,6 +1213,7 @@ const irBuiltinHelpers = (scope, name, def) => ({
   usesAnyType,
   hasFunc: name => funcIndex[name] != null,
   onFinalize,
+  onLateFinalize,
   remapData: id => {
     if (!def.data || !Object.hasOwn(def.data, id)) throw new Error(`${name}: missing precompiled data segment ${id}`);
     return dataSeg('builtins', `builtin:${name}:${id}`, def.data[id]);
@@ -1341,6 +1357,8 @@ const includeBuiltin = (scope, builtin) => {
   const func = asmFunc(builtin, builtinFuncs[builtin]);
   // dynamic calls of proxies go through their apply/construct traps
   if (builtin === 'Proxy') includeBuiltin(scope, '__Porffor_proxy_call').indirect = true;
+  // these read @@iterator off any iterable
+  if ((builtin === '__Porffor_iterator_flattenable' || builtin === '__Porffor_iterator_getSync' || builtin === '__Iterator_concat') && !globalThis.precompile) memberDemands.add('Symbol_iterator');
   return func;
 };
 const builtinCall = (scope, name, args, retType) => {
@@ -1646,6 +1664,8 @@ const setObjProp = (obj, prop, value) => objectHack({
 
 const protoOwnerOf = name => name.slice(2, name.indexOf('_prototype'));
 const ERROR_TYPES = Object.values(TYPES).filter(x => x >= TYPES.error && x <= TYPES.suppressederror);
+const iteratorProtoTypes = [ TYPES.object, TYPES.__porffor_generator, ...ITERATOR_TYPES ];
+const asyncIteratorProtoTypes = [ TYPES.object, TYPES.__porffor_asyncgenerator ];
 const protoOwnerTypes = owner => {
   if (owner === 'TypedArray') return TYPED_ARRAY_TYPES;
   if (owner === 'Error') return ERROR_TYPES;
@@ -1912,7 +1932,7 @@ const generateCall = (scope, decl) => {
 
   if (name?.startsWith('__Porffor_coroutine_'))
     return Call(name, decl.arguments.map(a => generate(scope, a)),
-      name === '__Porffor_coroutine_value' ? T.jsval : name === '__Porffor_coroutine_setRaw' ? T.none : T.i32);
+      name === '__Porffor_coroutine_value' || name === '__Porffor_coroutine_callee' ? T.jsval : name === '__Porffor_coroutine_setRaw' ? T.none : T.i32);
 
   // eval('known/literal string') -> inline the parsed program
   if (!decl._funcIdx && !decl._new && (name === 'eval' || (decl.callee.type === 'SequenceExpression' && decl.callee.expressions.at(-1)?.name === 'eval'))) {
@@ -1982,6 +2002,7 @@ const generateCall = (scope, decl) => {
     const targetKnownType = knownType(scope, getNodeType(scope, target));
 
     const builtinProtoCands = builtinPrototypeFuncs.get(protoName) ?? [];
+    if (!globalThis.precompile && mayBeIterator(targetKnownType)) iteratorDemands.add(protoName);
     if (!decl._protoInternalCall && builtinProtoCands.length > 0) {
       const targetVal = generate(scope, target);
       const targetTmp = reuseNamed(scope, targetVal);
@@ -2542,7 +2563,8 @@ const generatePatternDstr = (scope, tmpPrefix, pattern, init, defaultValue, emit
   const tmpRef = Local(tmpName, scope.locals[tmpName]?.type ?? T.jsval);
   if (pattern.type === 'ArrayPattern') {
     const known = knownType(scope, getType(scope, tmpName));
-    const rec = iteratorRecord(scope, tmpRef, known, [ TYPES.array, TYPES.string, TYPES.bytestring ]);
+    // (utf-16) strings iterate code points, so are not indexed directly
+    const rec = iteratorRecord(scope, tmpRef, known, [ TYPES.array, TYPES.bytestring ]);
     const recNode = rec && identNode(rec[N_A]);
     const iterCall = name => ({ type: 'CallExpression', callee: identNode(name), arguments: [ recNode ] });
     const read = (indexed, iterated) => {
@@ -3607,10 +3629,22 @@ const generateForOf = (scope, decl) => {
     emitIf(scope, Bin('==', T.i32, counter, length), () => stmt(scope, Break(L)));
     const out = reuse(scope, Alloc(Const(T.i32, 8), strType));
     stmt(scope, Store('u32', out, 0, Const(T.u32, 1)));
-    const src = Bin('+', T.u32, Bin('+', T.u32, JvPtr(root), Const(T.u32, 4)),
-      size === 1 ? counter : Bin('*', T.u32, counter, Const(T.u32, size)));
-    stmt(scope, Store(ctype, out, 4, Load(ctype, src, 0)));
+    const src = reuse(scope, Bin('+', T.u32, Bin('+', T.u32, JvPtr(root), Const(T.u32, 4)),
+      size === 1 ? counter : Bin('*', T.u32, counter, Const(T.u32, size))));
+    const c = reuse(scope, Load(ctype, src, 0));
+    stmt(scope, Store(ctype, out, 4, c));
     assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
+
+    // a lead surrogate followed by a trail surrogate is one code point
+    if (size === 2) emitIf(scope, Bin('==', T.i32, Bin('&', T.i32, c, Const(T.i32, 0xFC00)), Const(T.i32, 0xD800)), () =>
+      emitIf(scope, Bin('<', T.i32, counter, length), () => {
+        const d = reuse(scope, Load(ctype, src, 2));
+        emitIf(scope, Bin('==', T.i32, Bin('&', T.i32, d, Const(T.i32, 0xFC00)), Const(T.i32, 0xDC00)), () => {
+          stmt(scope, Store('u32', out, 0, Const(T.u32, 2)));
+          stmt(scope, Store(ctype, out, 6, d));
+          assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
+        });
+      }));
     return valOf(out, strType);
   };
   const skipTombstones = (count, entries) => {
@@ -4212,10 +4246,16 @@ const demandMemberRead = (scope, decl) => {
     ? (decl.property.type === 'Literal' && typeof decl.property.value === 'string' ? decl.property.value
       : decl.property.name?.startsWith('__Symbol_') ? decl.property.name.slice(2) : null)
     : decl.property.name;
-  if (!propName || propName === '__proto__') return;
+  if (!propName || propName === '__proto__') return null;
   if (globalThis.precompile) (scope.memberReads ??= new Set()).add(propName);
     else memberDemands.add(propName);
+  return propName;
 };
+
+// %Iterator.prototype% members are only included for reads on possible iterators
+let iteratorDemands;
+const mayBeIterator = known => known == null || known === TYPES.proxy || iteratorProtoTypes.includes(known);
+
 
 const primObjAlias = {
   [TYPES.boolean]: TYPES.booleanobject,
@@ -4225,6 +4265,21 @@ const primObjAlias = {
 };
 
 const resolveMemberDemands = scope => {
+  // builtin iterators are iterated generically without member reads, generators only by helpers or a reachable prototype
+  for (const t of [ TYPES.__porffor_generator, TYPES.__porffor_asyncgenerator, ...ITERATOR_TYPES ]) {
+    const getter = '#get_' + TYPE_NAMES[t] + '_prototype';
+    if (!usedTypes.has(t) || !(getter in builtinFuncs)) continue;
+    if (t === TYPES.__porffor_asyncgenerator) {
+      if (funcIndex[getter] != null) fullPrototypes.add(getter);
+      continue;
+    }
+    if (t === TYPES.__porffor_generator && funcIndex['__Porffor_iterator_direct'] == null && funcIndex[getter] == null) continue;
+
+    fullPrototypes.add(getter);
+    includeBuiltin(scope, getter);
+    includeBuiltin(scope, '__Iterator_prototype_Symbol_iterator');
+  }
+
   for (const propName of memberDemands) {
     for (const x of builtinStaticFuncs.get(propName) ?? []) {
       if (funcIndex['#get_' + x.slice(2, x.indexOf('_', 2))] != null) includeBuiltin(scope, x);
@@ -4235,7 +4290,9 @@ const resolveMemberDemands = scope => {
       const tn = getterOnly ? x.slice(7, -'_prototype'.length) : protoOwnerOf(x);
       if (getterOnly && tn === 'TypedArray') continue;
 
-      const used = protoOwnerTypes(tn).filter(t => usesAnyType([ t, primObjAlias[t] ]) || (t === TYPES.string && usedTypes.has(TYPES.bytestring)));
+      // any object can inherit from %Iterator.prototype%
+      if (tn === 'Iterator' && !getterOnly && !iteratorDemands.has(propName)) continue;
+      const used = (tn === 'Iterator' ? iteratorProtoTypes : tn === 'Porffor_AsyncIterator' ? asyncIteratorProtoTypes : protoOwnerTypes(tn)).filter(t => usesAnyType([ t, primObjAlias[t] ]) || (t === TYPES.string && usedTypes.has(TYPES.bytestring)));
       if (used.length === 0) continue;
       includeBuiltin(scope, x);
       if (!getterOnly) {
@@ -4243,6 +4300,7 @@ const resolveMemberDemands = scope => {
         if (getter in builtinFuncs) includeBuiltin(scope, getter);
 
         if (tn === 'TypedArray') for (const t of used) includeBuiltin(scope, '#get___' + TYPE_NAMES[t] + '_prototype');
+
       }
     }
 
@@ -4256,6 +4314,11 @@ const resolveMemberDemands = scope => {
       }
     }
 
+    // %Iterator.prototype% accessors are not dispatched by type
+    for (const x of builtinPrototypeGetters.get(propName) ?? []) {
+      if (protoOwnerOf(x) === 'Iterator' && funcIndex['#get___Iterator_prototype'] != null) includeBuiltin(scope, x);
+    }
+
     const shared = '__TypedArray_' + propName;
     if (shared in builtinFuncs && TYPED_ARRAY_TYPES.some(t => TYPE_NAMES[t] in funcIndex)) includeBuiltin(scope, shared);
   }
@@ -4264,7 +4327,7 @@ const resolveMemberDemands = scope => {
 let icSites;
 
 const generateMember = (scope, decl, objValue = null) => {
-  if (!globalThis.precompile) demandMemberRead(scope, decl);
+  const demanded = globalThis.precompile ? null : demandMemberRead(scope, decl);
   // builtins unless reassigned via globalThis
   const globalName = decl.object.name === 'globalThis' && !decl.computed && decl.property.name;
   if (globalName && !globalName.startsWith('__') && globalName !== 'null' && globalName !== 'TypedArray' && !(globalName in globals)) {
@@ -4293,6 +4356,7 @@ const generateMember = (scope, decl, objValue = null) => {
   const known = knownType(scope, type);
   // reads in builtins of unknown objects can reach any prototype
   if (globalThis.precompile && (known == null || known === TYPES.object)) demandMemberRead(scope, decl);
+  if (demanded && mayBeIterator(known)) iteratorDemands.add(demanded);
   const propertyType = getNodeType(scope, property);
   const propertyKnown = knownType(scope, propertyType);
   const objectKnownValue = knownValue(scope, object);
@@ -4862,6 +4926,10 @@ const builtinFuncByName = name => {
 let irFinalizers;
 const onFinalize = fn => { (irFinalizers ??= []).push(fn); };
 
+// run once everything else converged, eg comptime hasFunc flags which cannot be revisited
+let irLateFinalizers = [];
+const onLateFinalize = fn => { irLateFinalizers.push(fn); };
+
 const generateFunc = (scope, decl, forceNoExpr = false) => {
   doNotMarkFuncRef = false;
 
@@ -5334,7 +5402,9 @@ export default (program, opts = {}) => {
   builtinGlobalInits = [];
   includedBuiltinGlobalInits = new Set();
   irFinalizers = [];
+  irLateFinalizers = [];
   memberDemands = new Set();
+  iteratorDemands = new Set();
   fullPrototypes.clear();
   topLevelFunc = null;
   onFinalize(() => resolveMemberDemands(topLevelFunc));
@@ -5355,6 +5425,7 @@ export default (program, opts = {}) => {
       const ind = x.indexOf('_prototype_');
       if (x.startsWith('__') && ind !== -1) {
         let name = x.slice(ind + '_prototype_'.length);
+        if (name.endsWith('$set')) continue;
         const getters = name.endsWith('$get');
         if (getters) name = name.slice(0, -'$get'.length);
         const map = getters ? builtinPrototypeGetters : builtinPrototypeFuncs;
@@ -5445,7 +5516,7 @@ export default (program, opts = {}) => {
 
   for (const f of funcs.slice()) if (f.referenced || f.export) f.generate?.();
 
-  for (let pass = 0; pass < 16; pass++) {
+  for (let pass = 0; pass < 64; pass++) {
     const beforeFinalizers = irFinalizers.length;
     const beforeFuncs = funcs.length;
     const beforeTypes = usedTypes.size;
@@ -5453,8 +5524,13 @@ export default (program, opts = {}) => {
     for (let i = 0; i < irFinalizers.length; i++) irFinalizers[i]();
     for (const f of funcs.slice()) if (f.referenced || f.export) f.generate?.();
 
-    if (irFinalizers.length === beforeFinalizers && funcs.length === beforeFuncs && usedTypes.size === beforeTypes) break;
-    if (pass === 15) throw new Error('IR finalizers did not converge');
+    if (irFinalizers.length === beforeFinalizers && funcs.length === beforeFuncs && usedTypes.size === beforeTypes) {
+      if (irLateFinalizers.length === 0) break;
+      const late = irLateFinalizers;
+      irLateFinalizers = [];
+      for (const f of late) f();
+    }
+    if (pass === 63) throw new Error('IR finalizers did not converge');
   }
   irFinalizers.length = 0;
 

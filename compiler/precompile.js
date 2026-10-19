@@ -350,7 +350,7 @@ const walk = (node, h) => {
       for (let i = 0; i < node.length; i++) {
         const x = node[i];
         if (isComptimeFlag(x)) {
-          h.onFinalize(() => {
+          (h.onLateFinalize ?? h.onFinalize)(() => {
             const pos = node.indexOf(x);
             if (pos === -1) return;
             const [ kind, value, thenBranch, elseBranch ] = x.__porfComptimeFlag;

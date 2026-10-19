@@ -212,7 +212,10 @@ export const __Porffor_array_spread = (arr: any[], src: any) => {
 
       return len;
 
+    // strings iterate code points
     case Porffor.TYPES.string:
+      return __Porffor_array_spread(arr, __Porffor_iterator_rest(__Porffor_iterator_get(src)));
+
     case Porffor.TYPES.bytestring:
       break;
 
@@ -1061,20 +1064,27 @@ export const __Array_prototype_valueOf = function (this: any[]) {
   return this;
 };
 
-export const __Array_prototype_values = function (this: any[]) {
-  return __Porffor_iterator_toObject(this, 0);
+// CreateArrayIterator works on any object: array-likes are not copied (Array.from would
+// itself iterate them)
+export const __Porffor_array_iteratorSource = (obj: any): any => {
+  if (obj == null) throw new TypeError('Array iterator called on null or undefined');
+  return obj;
 };
 
-export const __Array_prototype_Symbol_iterator = function (this: any[]) {
-  return __Porffor_iterator_toObject(this, 0);
+export const __Array_prototype_values = function (this: any) {
+  return __Porffor_ArrayIterator_new(__Porffor_array_iteratorSource(this), 0);
 };
 
-export const __Array_prototype_keys = function (this: any[]) {
-  return __Porffor_iterator_toObject(this, 1);
+export const __Array_prototype_Symbol_iterator = function (this: any) {
+  return __Porffor_ArrayIterator_new(__Porffor_array_iteratorSource(this), 0);
 };
 
-export const __Array_prototype_entries = function (this: any[]) {
-  return __Porffor_iterator_toObject(this, 3);
+export const __Array_prototype_keys = function (this: any) {
+  return __Porffor_ArrayIterator_new(__Porffor_array_iteratorSource(this), 1);
+};
+
+export const __Array_prototype_entries = function (this: any) {
+  return __Porffor_ArrayIterator_new(__Porffor_array_iteratorSource(this), 3);
 };
 
 export const __Array_prototype_toReversed = function (this: any[]) {

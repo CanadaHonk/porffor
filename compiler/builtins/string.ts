@@ -1978,5 +1978,5 @@ export const __ByteString_prototype_valueOf = function (this: bytestring) {
 };
 
 export const __String_prototype_Symbol_iterator = function (this: string) {
-  return __Porffor_iterator_toObject(this, 0);
+  return __Porffor_StringIterator_new(this);
 };

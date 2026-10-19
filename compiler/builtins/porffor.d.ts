@@ -22,6 +22,7 @@ type PorfforGlobal = {
     raw(gen: any): boolean;
     awaiting(gen: any): boolean;
     setRaw(raw: i32): void;
+    callee(gen: any): any;
   }
 
   IR: {

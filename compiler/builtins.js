@@ -116,16 +116,18 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           if (d.enumerable) flags |= 0b0100;
           if (d.writable) flags |= 0b1000;
 
-          const keyOf = x => x.startsWith('Symbol_') ? wellKnownSymbolProps[x.slice(7)].value(_, { includeBuiltin, makeString, global }) : makeString(x);
+          const propKey = x => x.startsWith('Symbol_') ? wellKnownSymbolProps[x.slice(7)].value(_, { includeBuiltin, makeString, global }) : makeString(x);
 
-          // $get funcs are accessors, except spec data props only implemented as getters
-          if (x.endsWith('$get') && !(x.slice(0, -4) in props) && ![ 'lastIndex', 'name', 'message' ].includes(x.slice(0, -4))) {
+          // $get funcs (with an optional $set) are accessors, except spec data props only implemented as getters
+          if (x.endsWith('$set') && Object.hasOwn(props, x.slice(0, -4) + '$get')) return;
+          if (x.endsWith('$get') && !Object.hasOwn(props, x.slice(0, -4)) && ![ 'lastIndex', 'name', 'message' ].includes(x.slice(0, -4))) {
+            const setter = x.slice(0, -4) + '$set';
             includeBuiltin('__Porffor_object_defineAccessor');
-            out.push(Call('__Porffor_object_defineAccessor', [ obj, keyOf(x.slice(0, -4)), value, JvConst(TYPES.undefined, 0), Const(T.i32, 0b0011) ], T.none));
+            out.push(Call('__Porffor_object_defineAccessor', [ obj, propKey(x.slice(0, -4)), value, Object.hasOwn(props, setter) ? propValue(prefix + setter, props[setter]) : JvConst(TYPES.undefined, 0), Const(T.i32, 0b0011) ], T.none));
             return;
           }
 
-          const keyValue = keyOf(x);
+          const keyValue = propKey(x);
           out.push(Call(existingFunc ? '__Porffor_object_define' : '__Porffor_object_fastAdd', [ obj, keyValue, value, Const(T.i32, flags) ], T.none));
         };
 
@@ -142,7 +144,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
                   if (fullPrototypes.has(getName)) includeBuiltin(key);
                     else if (!hasFunc(key)) continue;
                 }
-                if (x === 'constructor') {
+                if (x === 'constructor' && ctorName in builtinFuncs) {
                   if (fullPrototypes.has(getName)) includeBuiltin(ctorName);
                     else if (!hasFunc(ctorName)) continue;
                 }
@@ -312,6 +314,33 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     wellKnownSymbolProps[x].value.type = TYPES.symbol;
   }
 
+  const protoValue = name => {
+    const value = (_scope, { includeBuiltin }) => {
+      includeBuiltin('#get_' + name);
+      return Box(Call('#get_' + name, [], T.ptr), Const(T.i32, TYPES.object));
+    };
+    value.type = TYPES.object;
+    return value;
+  };
+
+  // builtin iterator prototypes: [ [[Prototype]], @@toStringTag ]
+  const iteratorProtos = {
+    __Porffor_Generator_prototype: [ '__Iterator_prototype', 'Generator' ],
+    __Porffor_AsyncGenerator_prototype: [ '__Porffor_AsyncIterator_prototype', 'AsyncGenerator' ],
+    __Porffor_IteratorHelper_prototype: [ '__Iterator_prototype', 'Iterator Helper' ],
+    __Porffor_WrapForValidIterator_prototype: [ '__Iterator_prototype', null ],
+    __Porffor_ArrayIterator_prototype: [ '__Iterator_prototype', 'Array Iterator' ],
+    __Porffor_MapIterator_prototype: [ '__Iterator_prototype', 'Map Iterator' ],
+    __Porffor_SetIterator_prototype: [ '__Iterator_prototype', 'Set Iterator' ],
+    __Porffor_StringIterator_prototype: [ '__Iterator_prototype', 'String Iterator' ]
+  };
+
+  // [[Prototype]] of (async) generator functions, also .constructor of their instances' prototypes
+  const generatorFunctionProtos = {
+    __Porffor_GeneratorFunction_prototype: [ '__Porffor_Generator_prototype', 'GeneratorFunction' ],
+    __Porffor_AsyncGeneratorFunction_prototype: [ '__Porffor_AsyncGenerator_prototype', 'AsyncGeneratorFunction' ]
+  };
+
   // automatically generate objects for prototypes
   const typedArrayProtos = Object.keys(typedArrayBytesPerElement).map(x => `__${x}_prototype`);
   const errorNames = [ 'Error', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'SuppressedError' ];
@@ -371,9 +400,19 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       props.length = { value: 0, writable: true, configurable: false };
     }
 
+    // builtin iterator prototypes inherit from %Iterator.prototype%
+    if (x in iteratorProtos) {
+      const [ parent, tag ] = iteratorProtos[x];
+      Object.defineProperty(props, '__proto__', { value: { value: protoValue(parent) }, enumerable: true });
+      if (tag) props.Symbol_toStringTag = { value: tag, configurable: true };
+
+      const fnProto = Object.keys(generatorFunctionProtos).find(y => generatorFunctionProtos[y][0] === x);
+      if (fnProto) props.constructor = { value: protoValue(fnProto), configurable: true };
+    }
+
     // add constructor for constructors
     const name = x.slice(2, x.indexOf('_', 2));
-    if (name in builtinFuncs) {
+    if (name in builtinFuncs && !(`${x}_constructor$set` in builtinFuncs)) {
       const value = (scope, helpers) => _[name](scope, helpers);
       value.type = TYPES.function;
 
@@ -385,6 +424,16 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       };
     }
 
+    object(x, props);
+  }
+
+  for (const x in generatorFunctionProtos) {
+    const [ instanceProto, tag ] = generatorFunctionProtos[x];
+    const props = {
+      prototype: { value: protoValue(instanceProto), configurable: true },
+      Symbol_toStringTag: { value: tag, configurable: true }
+    };
+    Object.defineProperty(props, '__proto__', { value: { value: protoValue('__Function_prototype') }, enumerable: true });
     object(x, props);
   }
 
@@ -430,7 +479,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     }, autoFuncKeys(x)));
   }
 
-  for (const x of [ 'Array', 'ArrayBuffer', 'Atomics', 'Date', 'Error', 'JSON', 'Object', 'Promise', 'Reflect', 'String', 'Symbol', 'TypedArray', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'SharedArrayBuffer', 'BigInt', 'Boolean', 'DataView', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'SuppressedError', 'DisposableStack', 'AsyncDisposableStack', 'FinalizationRegistry', 'Proxy', 'Function', 'Map', 'RegExp', 'Set', 'WeakMap', 'WeakRef', 'WeakSet' ]) {
+  for (const x of [ 'Array', 'ArrayBuffer', 'Atomics', 'Date', 'Error', 'JSON', 'Object', 'Promise', 'Reflect', 'String', 'Symbol', 'TypedArray', 'Uint8Array', 'Int8Array', 'Uint8ClampedArray', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'SharedArrayBuffer', 'BigInt', 'Boolean', 'DataView', 'AggregateError', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'EvalError', 'URIError', 'SuppressedError', 'DisposableStack', 'AsyncDisposableStack', 'FinalizationRegistry', 'Proxy', 'Function', 'Iterator', 'Map', 'RegExp', 'Set', 'WeakMap', 'WeakRef', 'WeakSet' ]) {
     const ctorProps = {
       ...(typedArrayBytesPerElement[x] == null ? {} : props({
         writable: false,
@@ -692,6 +741,9 @@ return porf_box((f64)dst, ${TYPES.string});`, false) ]
   _.__Porffor_funcLut_length = lutFn(TYPES.number, `return porf_box_num((f64)${lutRead('porf_fnlen')});`);
 
   _.__Porffor_funcLut_flags = lutFn(TYPES.number, `return porf_box_num((f64)((${lutRead('porf_fnflags')} >> 3) & 3));`);
+
+  // FN_ASYNC 1, FN_GENERATOR 2, FN_ASYNC_GENERATOR 4
+  _.__Porffor_funcLut_coroKind = lutFn(TYPES.number, `return porf_box_num((f64)(${lutRead('porf_fnflags')} & 7u));`);
 
   _.__Porffor_funcLut_name = lutFn(TYPES.bytestring, `return porf_box((f64)${lutRead('porf_fnname')}, ${TYPES.bytestring});`);
 

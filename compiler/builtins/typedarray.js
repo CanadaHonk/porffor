@@ -275,7 +275,7 @@ export const __TypedArray_prototype_copyWithin = function (this: any, target: an
 
 export const __TypedArray_prototype_entries = function (this: any) {
   __Porffor_typedArray_validate(this);
-  return __Porffor_iterator_toObject(this, 3);
+  return __Porffor_ArrayIterator_new(this, 3);
 };
 
 export const __TypedArray_prototype_every = function (this: any, callbackFn: any, thisArg: any = undefined) {
@@ -424,7 +424,7 @@ export const __TypedArray_prototype_join = function (this: any, separator: any) 
 
 export const __TypedArray_prototype_keys = function (this: any) {
   __Porffor_typedArray_validate(this);
-  return __Porffor_iterator_toObject(this, 1);
+  return __Porffor_ArrayIterator_new(this, 1);
 };
 
 export const __TypedArray_prototype_lastIndexOf = function (this: any, _argc: i32, searchElement: any, fromIndex: any = undefined) {
@@ -659,12 +659,12 @@ export const __TypedArray_prototype_toString = function (this: any) {
 
 export const __TypedArray_prototype_values = function (this: any) {
   __Porffor_typedArray_validate(this);
-  return __Porffor_iterator_toObject(this, 0);
+  return __Porffor_ArrayIterator_new(this, 0);
 };
 
 export const __TypedArray_prototype_Symbol_iterator = function (this: any) {
   __Porffor_typedArray_validate(this);
-  return __Porffor_iterator_toObject(this, 0);
+  return __Porffor_ArrayIterator_new(this, 0);
 };
 
 export const __TypedArray_prototype_with = function (this: any, index: any, value: any) {
