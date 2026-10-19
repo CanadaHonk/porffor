@@ -330,7 +330,7 @@ export const __TypedArray_of = function (this: any, ...items: any[]) {
   return target;
 };
 
-export const __TypedArray_prototype_buffer$get = function (this: any): any {
+export const __TypedArray_prototype_buffer$get = function (this: any): ArrayBuffer|SharedArrayBuffer {
   __Porffor_typedArray_check(this);
   const buffer: i32 = __Porffor_typedArray_buffer(this);
   if (__Porffor_arraybuffer_isShared(buffer)) return buffer as SharedArrayBuffer;

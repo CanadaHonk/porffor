@@ -39,7 +39,7 @@ export const DataView = function (arg: any, byteOffset: any, length: any): DataV
   return out;
 };
 
-export const __DataView_prototype_buffer$get = function (this: DataView): any {
+export const __DataView_prototype_buffer$get = function (this: DataView): ArrayBuffer|SharedArrayBuffer {
   const buffer: i32 = Porffor.IR.loadI32(this, 4) - Porffor.IR.loadI32(this, 8) - 4;
   if (__Porffor_arraybuffer_isShared(buffer)) return buffer as SharedArrayBuffer;
   return buffer as ArrayBuffer;
