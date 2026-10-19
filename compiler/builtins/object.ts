@@ -45,6 +45,12 @@ export const __Object_keys = (obj: any): any[] => {
 
   let i: i32 = 0;
   let arrayLen: i32 = -1;
+  const taType: i32 = Porffor.type(obj);
+  if (Porffor.fastAnd(taType >= Porffor.TYPES.uint8clampedarray, taType <= Porffor.TYPES.float64array)) {
+    const taLen: i32 = __Porffor_typedArray_length(obj);
+    for (let j: i32 = 0; j < taLen; j++) out[i++] = Porffor.callThis(__Number_prototype_toString, j);
+  }
+
   if (Porffor.type(obj) == Porffor.TYPES.array) {
     const arrayObj: any[] = obj as any[];
     arrayLen = arrayObj.length;
@@ -145,6 +151,11 @@ export const __Object_prototype_hasOwnProperty = function (this: any, prop: any)
     return Porffor.object.lookup(this, p, __Porffor_object_hash(p)) != 0;
   }
 
+  if (Porffor.fastAnd(Porffor.type(this) >= Porffor.TYPES.uint8clampedarray, Porffor.type(this) <= Porffor.TYPES.float64array)) {
+    const n: any = __Porffor_typedArray_numericKey(p);
+    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_validIndex(this, n);
+  }
+
   if (Porffor.type(this) == Porffor.TYPES.array) {
     const idx: i32 = __Porffor_array_propertyKeyIndex(p);
     if (idx != -1) {
@@ -173,6 +184,11 @@ export const __Porffor_object_in = (obj: any, prop: any): boolean => {
   // todo: throw if obj is not an object
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_has(obj, ecma262.ToPropertyKey(prop));
+  }
+
+  if (Porffor.fastAnd(Porffor.type(obj) >= Porffor.TYPES.uint8clampedarray, Porffor.type(obj) <= Porffor.TYPES.float64array)) {
+    const n: any = __Porffor_typedArray_numericKey(ecma262.ToPropertyKey(prop));
+    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_validIndex(obj, n);
   }
 
   if (Porffor.callThis(__Object_prototype_hasOwnProperty, obj, prop)) {
@@ -396,6 +412,19 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|u
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_getOwnPropertyDescriptor(obj, p);
   }
+  if (Porffor.fastAnd(Porffor.type(obj) >= Porffor.TYPES.uint8clampedarray, Porffor.type(obj) <= Porffor.TYPES.float64array)) {
+    const n: any = __Porffor_typedArray_numericKey(p);
+    if (Porffor.type(n) == Porffor.TYPES.number) {
+      if (!__Porffor_typedArray_validIndex(obj, n)) return undefined;
+      const out: object = {};
+      out.value = obj[n];
+      out.writable = true;
+      out.enumerable = true;
+      out.configurable = true;
+      return out;
+    }
+  }
+
   const arr: any[] = obj as any[];
   let idx: i32 = -1;
 
@@ -479,6 +508,12 @@ export const __Object_getOwnPropertyNames = (obj: any): any[] => {
   const out: any[] = Porffor.array.new(4);
 
   let i: i32 = 0;
+  const taType: i32 = Porffor.type(obj);
+  if (Porffor.fastAnd(taType >= Porffor.TYPES.uint8clampedarray, taType <= Porffor.TYPES.float64array)) {
+    const taLen: i32 = __Porffor_typedArray_length(obj);
+    for (let j: i32 = 0; j < taLen; j++) out[i++] = Porffor.callThis(__Number_prototype_toString, j);
+  }
+
   if (Porffor.type(obj) == Porffor.TYPES.array) {
     const arrayLen: i32 = (obj as any[]).length;
     for (let j: i32 = 0; j < arrayLen; j++) {
@@ -541,6 +576,14 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any): any 
       return target;
     }
   }
+  if (Porffor.fastAnd(Porffor.type(target) >= Porffor.TYPES.uint8clampedarray, Porffor.type(target) <= Porffor.TYPES.float64array)) {
+    const n: any = __Porffor_typedArray_numericKey(p);
+    if (Porffor.type(n) == Porffor.TYPES.number) {
+      if (!__Porffor_typedArray_defineIndex(target, n, desc)) throw new TypeError('Cannot redefine typed array element');
+      return target;
+    }
+  }
+
   let arrayIndex: i32 = -1;
 
   if (Porffor.type(target) == Porffor.TYPES.array) {

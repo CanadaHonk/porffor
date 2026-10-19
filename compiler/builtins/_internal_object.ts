@@ -605,6 +605,12 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
   }
 
   key = ecma262.ToPropertyKey(key);
+
+  // integer-indexed exotic objects never look numeric keys up on the prototype chain
+  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
+    const n: any = __Porffor_typedArray_numericKey(key);
+    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_validIndex(_obj, n) ? _obj[n] : undefined;
+  }
   if (trueType == Porffor.TYPES.array) {
     const index: i32 = __Porffor_array_propertyKeyIndex(key);
     if (index != -1) {
@@ -720,6 +726,12 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
     obj = __Porffor_object_underlying(obj);
   }
 
+  // integer-indexed exotic objects never look numeric keys up on the prototype chain
+  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
+    const n: any = __Porffor_typedArray_numericKey(key);
+    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_validIndex(_obj, n) ? _obj[n] : undefined;
+  }
+
   let entryPtr: i32 = 0;
   if (Porffor.type(obj) == Porffor.TYPES.object) entryPtr = __Porffor_object_lookup(obj, key, hash);
   if (entryPtr == 0) {
@@ -773,6 +785,11 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
 export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
+  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
+    key = ecma262.ToPropertyKey(key);
+    const n: any = __Porffor_typedArray_numericKey(key);
+    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_setIndex(_obj, n, value);
+  }
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (trueType == Porffor.TYPES.proxy) {
       __Porffor_proxy_set(_obj, ecma262.ToPropertyKey(key), value, _obj);
@@ -912,6 +929,10 @@ export const __Porffor_object_set_withHash = (_obj: any, key: any, value: any, h
   }
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
+  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
+    const n: any = __Porffor_typedArray_numericKey(key);
+    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_setIndex(_obj, n, value);
+  }
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return value;
@@ -1018,6 +1039,11 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
   }
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
+  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
+    key = ecma262.ToPropertyKey(key);
+    const n: any = __Porffor_typedArray_numericKey(key);
+    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_setIndex(_obj, n, value);
+  }
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return value;
@@ -1152,6 +1178,10 @@ export const __Porffor_object_setStrict_withHash = (_obj: any, key: any, value: 
   }
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
+  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
+    const n: any = __Porffor_typedArray_numericKey(key);
+    if (Porffor.type(n) == Porffor.TYPES.number) return __Porffor_typedArray_setIndex(_obj, n, value);
+  }
   if (Porffor.type(obj) != Porffor.TYPES.object) {
     obj = __Porffor_object_underlying(obj);
     if (Porffor.type(obj) != Porffor.TYPES.object) return value;
@@ -1353,6 +1383,14 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (trueType == Porffor.TYPES.proxy) return __Porffor_proxy_delete(obj, ecma262.ToPropertyKey(key));
   }
+  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
+    const n: any = __Porffor_typedArray_numericKey(ecma262.ToPropertyKey(key));
+    if (Porffor.type(n) == Porffor.TYPES.number) {
+      if (!__Porffor_typedArray_validIndex(obj, n)) return true;
+      return false;
+    }
+  }
+
   if (trueType == Porffor.TYPES.array) {
     const index: i32 = __Porffor_array_propertyKeyIndex(ecma262.ToPropertyKey(key));
     if (index != -1) {
@@ -1401,6 +1439,14 @@ export const __Porffor_object_deleteStrict = (obj: any, key: any): boolean => {
   }
 
   const trueType: i32 = Porffor.type(obj);
+  if (Porffor.fastAnd(trueType >= Porffor.TYPES.uint8clampedarray, trueType <= Porffor.TYPES.float64array)) {
+    const n: any = __Porffor_typedArray_numericKey(ecma262.ToPropertyKey(key));
+    if (Porffor.type(n) == Porffor.TYPES.number) {
+      if (!__Porffor_typedArray_validIndex(obj, n)) return true;
+      throw new TypeError('Cannot delete typed array element');
+    }
+  }
+
   if (trueType == Porffor.TYPES.array) {
     const index: i32 = __Porffor_array_propertyKeyIndex(ecma262.ToPropertyKey(key));
     if (index != -1) {
