@@ -5701,14 +5701,14 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
               () => assign(func, thisRef(), builtinCall(func, '__Porffor_bytestringToString', [ thisRef() ])));
           });
         } else if ([
-          TYPES.number, TYPES.promise, TYPES.symbol, TYPES.function,
+          TYPES.number, TYPES.boolean, TYPES.promise, TYPES.symbol, TYPES.function,
           TYPES.set, TYPES.map, TYPES.weakref, TYPES.weakset, TYPES.weakmap,
           TYPES.arraybuffer, TYPES.sharedarraybuffer, TYPES.dataview
         ].includes(t)) {
           const guard = () => internalThrow(func, 'TypeError', `${prettyName} expects 'this' to be a ${TYPE_NAMES[t]}`);
           emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, t)),
-            t === TYPES.number
-              ? () => emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, TYPES.numberobject)), guard)
+            t === TYPES.number || t === TYPES.boolean
+              ? () => emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, primObjAlias[t])), guard)
               : t === TYPES.function
                 ? () => emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, TYPES.proxy)), guard)
                 : guard);
