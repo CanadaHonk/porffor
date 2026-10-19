@@ -237,14 +237,30 @@ export const __Porffor_object_in = (obj: any, prop: any): boolean => {
   return false;
 };
 
-export const __Porffor_object_instanceof = (obj: any, constr: any, checkProto: any): boolean => {
-  if (Porffor.type(constr) != Porffor.TYPES.function) {
-    throw new TypeError('instanceof right-hand side is not a function');
-  }
+// 13.10.2 InstanceofOperator (V, target)
+// https://tc39.es/ecma262/#sec-instanceofoperator
+export const __Porffor_object_hasInstanceUsed = (): void => {};
 
-  if (Porffor.fastOr(!Porffor.object.isObject(obj), !Porffor.object.isObject(checkProto))) {
-    return false;
+export const __Porffor_object_instanceof = (obj: any, constr: any): boolean => {
+  if (!Porffor.object.isObject(constr)) throw new TypeError('instanceof right-hand side is not an object');
+
+  // only programs mentioning Symbol.hasInstance can override it
+  if (Porffor.comptime.flag`hasFunc.__Porffor_object_hasInstanceUsed`) {
+    const handler: any = constr[Symbol.hasInstance];
+    if (handler != null) return !!Porffor.callThis(handler, constr, obj);
   }
+  if (Porffor.type(constr) != Porffor.TYPES.function) throw new TypeError('instanceof right-hand side is not a function');
+
+  return __Porffor_object_ordinaryHasInstance(constr, obj);
+};
+
+// 7.3.22 OrdinaryHasInstance (C, O)
+// https://tc39.es/ecma262/#sec-ordinaryhasinstance
+export const __Porffor_object_ordinaryHasInstance = (constr: any, obj: any): boolean => {
+  if (Porffor.fastOr(Porffor.type(constr) != Porffor.TYPES.function, !Porffor.object.isObject(obj))) return false;
+
+  const checkProto: any = constr.prototype;
+  if (!Porffor.object.isObject(checkProto)) throw new TypeError('instanceof prototype is not an object');
 
   let lastProto: any = obj;
   while (true) {

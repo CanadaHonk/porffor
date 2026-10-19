@@ -375,6 +375,9 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       Object.defineProperty(props, '__proto__', { value: { value }, enumerable: true });
     }
 
+    // Function.prototype[@@hasInstance] is fixed
+    if (props.Symbol_hasInstance) props.Symbol_hasInstance.writable = props.Symbol_hasInstance.configurable = false;
+
     // special case: Object.prototype.__proto__ = null
     if (x === '__Object_prototype') {
       Object.defineProperty(props, '__proto__', { value: { value: null, configurable: true }, enumerable: true });

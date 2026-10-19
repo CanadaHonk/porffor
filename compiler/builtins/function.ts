@@ -40,6 +40,10 @@ export const __Function_prototype_call = function (this: Function, thisArg: any,
   return Porffor.call(this, args, thisArg, null);
 };
 
+export const __Function_prototype_Symbol_hasInstance = function (this: any, V: any) {
+  return __Porffor_object_ordinaryHasInstance(this, V);
+};
+
 export const __Function_prototype_bind = function (this: Function, thisArg: any, ...args: any[]) {
   // capture the receiver before bound's own `this` shadows it
   const target: Function = this;

@@ -1285,7 +1285,7 @@ const generateBinaryExp = (scope, decl) => {
     const rightName = decl.right.name;
     if (rightName) {
       let checkType = TYPES[rightName.toLowerCase()];
-      if (checkType != null && rightName === TYPE_NAMES[checkType] && !rightName.endsWith('Error')) {
+      if (checkType != null && rightName === TYPE_NAMES[checkType] && rightName in builtinFuncs && !rightName.endsWith('Error')) {
         if (checkType === TYPES.number) checkType = TYPES.numberobject;
         else if (checkType === TYPES.boolean) checkType = TYPES.booleanobject;
         else if (checkType === TYPES.string) checkType = TYPES.stringobject;
@@ -1295,7 +1295,8 @@ const generateBinaryExp = (scope, decl) => {
 
     // copy the left value first: the right side may reassign it
     const left = tmp(scope, T.jsval, coerceValue(generate(scope, decl.left), T.jsval));
-    return builtinCall(scope, '__Porffor_object_instanceof', [ left, generate(scope, decl.right), generate(scope, getObjProp(decl.right, 'prototype')) ]);
+    if (definedKeys.has('#hasInstance')) includeBuiltin(scope, '__Porffor_object_hasInstanceUsed');
+    return builtinCall(scope, '__Porffor_object_instanceof', [ left, generate(scope, decl.right) ]);
   }
 
   if (decl.operator === 'in') {
@@ -5328,6 +5329,7 @@ const collectDefinedKeys = program => {
     // writes to Array.prototype[Symbol.iterator] make arrays iterate through it
     const target = node.type === 'AssignmentExpression' ? node.left : node.operator === 'delete' ? node.argument : null;
     if (target?.object?.name === '__Array_prototype' && target.property.name === '__Symbol_iterator') out.add('#arrayIterator');
+    if (node.name === '__Symbol_hasInstance') out.add('#hasInstance');
     if (node._evalParsed) walk(node._evalParsed);
     for (const k in node) if (k[0] !== '_' && k !== 'start' && k !== 'end') walk(node[k], node.type === 'CallExpression' && k === 'callee');
   };
