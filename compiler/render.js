@@ -350,12 +350,22 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   }
   const fnrecBase = off;
   off += linkFuncs.length * 8;
+  const builtinName = name => {
+    const accessor = name.match(/\$([gs]et)$/)?.[1];
+    if (accessor) name = name.slice(0, -4);
+    const proto = name.indexOf('_prototype_');
+    const owner = name.indexOf('_', 2);
+    name = proto !== -1 ? name.slice(proto + 11) : owner !== -1 ? name.slice(owner + 1) : name.slice(2);
+    if (name.startsWith('Symbol_')) name = `[Symbol.${name.slice(7)}]`;
+    return accessor ? `${accessor} ${name}` : name;
+  };
+
   // empty names reuse offset 0 (0-length bytestring in the null region)
   const fnNameSegs = [];
   const fnNameOff = [];
   for (const f of linkFuncs) {
     let name = f.jsName ?? f.name;
-    name = name.startsWith('__') ? name.split('_').pop() : name.split('#')[0];
+    name = name.startsWith('__') ? builtinName(name) : name.split('#')[0];
     if (name.length === 0) { fnNameOff.push(0); continue; }
     const bytes = [ name.length & 0xff, (name.length >>> 8) & 0xff, (name.length >>> 16) & 0xff, (name.length >>> 24) & 0xff ];
     for (let k = 0; k < name.length; k++) bytes.push(name.charCodeAt(k) & 0xff);

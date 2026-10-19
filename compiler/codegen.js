@@ -894,6 +894,15 @@ const generateYield = (scope, decl) => {
   return Yield(generate(scope, arg));
 };
 
+// inlined so plain classes don't pull in the object machinery
+const jvIsObject = (v, t) => Bin('&&', T.i32,
+  Bin('&&', T.i32,
+    Bin('>', T.i32, t, Const(T.i32, TYPES.symbol)),
+    Bin('||', T.i32, Bin('!=', T.i32, JvPtr(v), Const(T.i32, 0)), Bin('!=', T.i32, t, Const(T.i32, TYPES.object)))),
+  Bin('&&', T.i32,
+    Bin('!=', T.i32, t, Const(T.i32, TYPES.string)),
+    Bin('!=', T.i32, t, Const(T.i32, TYPES.bytestring))));
+
 const generateReturn = (scope, decl) => {
   const arg = decl.argument ?? DEFAULT_VALUE;
 
@@ -945,18 +954,8 @@ const generateReturn = (scope, decl) => {
       // undefined from a subclass gives back the new instance
       if (scope.subclass)
         emitIf(scope, Bin('==', T.i32, JvType(ret), Const(T.i32, TYPES.undefined)), retThis);
-      // non-object return -> the new instance (TypeError for subclasses). inlined so a plain
-      // class never drags in the object machinery: object iff type id > symbol (strings have
-      // length/parity flags, so excluded) and not null (object type, null pointer)
-      const t = reuse(scope, JvType(ret));
-      const isObject = Bin('&&', T.i32,
-        Bin('&&', T.i32,
-          Bin('>', T.i32, t, Const(T.i32, TYPES.symbol)),
-          Bin('||', T.i32, Bin('!=', T.i32, JvPtr(ret), Const(T.i32, 0)), Bin('!=', T.i32, t, Const(T.i32, TYPES.object)))),
-        Bin('&&', T.i32,
-          Bin('!=', T.i32, t, Const(T.i32, TYPES.string)),
-          Bin('!=', T.i32, t, Const(T.i32, TYPES.bytestring))));
-      emitIf(scope, Un('!', T.i32, isObject), () => {
+      // non-object return -> the new instance (TypeError for subclasses)
+      emitIf(scope, Un('!', T.i32, jvIsObject(ret, reuse(scope, JvType(ret)))), () => {
         if (scope.subclass) internalThrow(scope, 'TypeError', 'Subclass can only return an object or undefined');
         else retThis();
       });
@@ -2047,6 +2046,21 @@ const generateCall = (scope, decl) => {
     const argVals = hasSpread ? [] : userArgs.map(a => reuse(scope, generate(scope, a)));
     const res = reuse(scope, CallDynamic(superCtor, generate(scope, { type: 'ThisExpression', _noGlobalThis: true }),
       argVals, Local('#newtarget', T.jsval), spreadArr));
+
+    if (scope.constr && scope.subclass && !globalThis.precompile) {
+      const thisRef = Local('#this', T.jsval);
+      const t = reuse(scope, JvType(res));
+      emitIf(scope, Bin('&&', T.i32, jvIsObject(res, t), Un('!', T.i32, Eq(true, res, thisRef))), () => {
+        const sup = reuseNamed(scope, superCtor);
+        const parentProto = generate(scope, getObjProp({ type: 'Identifier', name: sup[N_A] }, 'prototype'));
+        const builtinInstance = Bin('&&', T.i32, Bin('!=', T.i32, t, Const(T.i32, TYPES.object)), Bin('!=', T.i32, t, Const(T.i32, TYPES.function)));
+        emitIf(scope, Bin('||', T.i32, builtinInstance, Eq(true, builtinCall(scope, '__Object_getPrototypeOf', [ res ]), parentProto)), () =>
+          exprStmt(scope, builtinCall(scope, '__Object_setPrototypeOf', [ res, builtinCall(scope, '__Object_getPrototypeOf', [ thisRef ]) ])));
+        stmt(scope, Assign(thisRef, res));
+        if (hasClosureOwnEnv(scope) && scope.closureOwnThis) mirrorToClosureEnv(scope, '#this', { type: 'ThisExpression' });
+      });
+    }
+
     stmt(scope, CLASS_FIELD_INIT_MARKER);
     return res;
   }
