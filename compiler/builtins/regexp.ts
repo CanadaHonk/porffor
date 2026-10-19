@@ -4498,6 +4498,7 @@ export const __Porffor_regex_replacePlain = (searchValue: any, str: any, repl: a
   let searchIndex: i32 = 0;
   if (!global && (flags & 0b00100000) != 0) {
     searchIndex = Porffor.IR.loadI32(searchValue, 8);
+    if (searchIndex < 0) searchIndex = 0;
     if (searchIndex > thisLen) {
       Porffor.IR.storeI32(searchValue, 8, 0);
       return str;
