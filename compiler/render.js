@@ -1270,15 +1270,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
 
     const t = sanitize(target[N_A]);
     const leave = `porf_fr->resume = ${k};${activeTryDepth ? ` porf_try_depth -= ${activeTryDepth};` : ''} goto _porf_save;`;
-    if (node[N_KIND] === K.Await) {
-      emit(`${ind()}${t} = ${rx(node[N_A], P_COMMA)};\n`);
-      emit(`${ind()}if (!porf_await_ready(&${t})) {\n`);
-      emit(`${ind()}\tporf_fr->channel = ${t}; porf_fr->awaiting = 1; ${leave}\n`);
-      emit(`${ind()}\t_porf_r${k}: ${t} = porf_coro_received(porf_fr, 0);\n`);
-      emit(`${ind()}}\n`);
-      return;
-    }
-    emit(`${ind()}porf_fr->channel = ${rx(node[N_A], P_COMMA)}; ${leave}\n`);
+    emit(`${ind()}porf_fr->channel = ${rx(node[N_A], P_COMMA)};${node[N_KIND] === K.Await ? ' porf_fr->awaiting = 1;' : ''} ${leave}\n`);
     emit(`${ind()}_porf_r${k}: ${t} = porf_coro_received(porf_fr, ${node[N_B]});\n`);
   };
 
@@ -5371,9 +5363,18 @@ static void porf_promise_append_raw_reaction(u32 promise, u32 reaction, i32 reje
 }
 
 static void porf_promise_attach_coro(jsval awaited, porf_coro_call* call, jsval out_promise) {
-  if (awaited.type != ${TYPES.promise}) porf_unreachable("coroutine awaited non-pending non-promise");
+  if (awaited.type != ${TYPES.promise}) porf_unreachable("coroutine awaited non-promise");
   const u32 p = (u32)awaited.val;
   *(u8*)(MEM + p + PORF_PROMISE_HANDLED) = 1;
+  const u8 state = *(u8*)(MEM + p + PORF_PROMISE_STATE);
+  if (state != 0) {
+    // already settled: resume in a job, like then on a settled promise
+    const u32 reaction = porf_promise_new_coro_reaction(call, out_promise, state == 2);
+    *(jsbits*)(MEM + reaction + PORF_REACTION_VALUE) = *(jsbits*)(MEM + p + PORF_PROMISE_RESULT);
+    porf_gc_barrier(reaction, PORF_GC_KIND_PROMISE_REACTION);
+    porf_promise_enqueue_job(reaction);
+    return;
+  }
   porf_promise_append_raw_reaction(p, porf_promise_new_coro_reaction(call, out_promise, 0), 0);
   porf_promise_append_raw_reaction(p, porf_promise_new_coro_reaction(call, out_promise, 1), 1);
 }
@@ -5427,19 +5428,6 @@ static inline jsval porf_coro_received(porf_coro_call* c, i32 delegate) {
   }
   porf_coro_mode = 0;
   return c->channel;
-}
-
-// 0 if v is a pending promise, else *v = its result
-static inline i32 porf_await_ready(jsval* v) {
-  if (porf_jv_type(*v) != ${TYPES.promise}) return 1;
-  const u32 p = (u32)v->val;
-  const u8 state = *(u8*)(MEM + p + PORF_PROMISE_STATE);
-  if (state == 0) return 0;
-  *(u8*)(MEM + p + PORF_PROMISE_HANDLED) = 1;
-  const jsval r = porf_unpack(*(jsbits*)(MEM + p + PORF_PROMISE_RESULT));
-  if (state == 2) porf_throw(r);
-  *v = r;
-  return 1;
 }
 
 #if PORF_GC_ENABLED

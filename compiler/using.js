@@ -36,7 +36,13 @@ const wrap = (body, isAsync, pre = null) => {
         assign(ident(has), { type: 'Literal', value: true }),
         assign(ident(err), ident(e))
       ] } },
-      finalizer: { type: 'BlockStatement', body: [ exprStmt(isAsync ? { type: 'AwaitExpression', argument: dispose } : dispose) ] }
+      // an await using only awaits on exit if a resource was actually added
+      finalizer: { type: 'BlockStatement', body: [ isAsync ? {
+        type: 'IfStatement',
+        test: { type: 'BinaryExpression', operator: '!==', left: { type: 'MemberExpression', object: ident(res), property: ident('length'), computed: false, optional: false }, right: { type: 'Literal', value: 0 } },
+        consequent: exprStmt({ type: 'AwaitExpression', argument: dispose }),
+        alternate: exprStmt(call('__Porffor_using_dispose', [ ident(res), ident(has), ident(err) ]))
+      } : exprStmt(dispose) ] }
     }
   ];
 };

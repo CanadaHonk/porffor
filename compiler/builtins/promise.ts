@@ -647,3 +647,11 @@ export const __Porffor_promise_awaitSync = (value: any): any => {
   if (state == 1) return result;
   throw result;
 };
+
+export const __Porffor_promise_awaitValue = (value: any): any => {
+  if (__ecma262_IsPromise(value) && value.constructor === Promise) return value;
+
+  const obj: Promise = __Porffor_promise_create();
+  __Porffor_promise_resolve(value, obj);
+  return obj;
+};

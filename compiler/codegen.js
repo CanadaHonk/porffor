@@ -906,6 +906,18 @@ const generateYield = (scope, decl) => {
           ? builtinCall(scope, '__Porffor_iterator_complete', [ rec, awaitValue(scope, builtinCall(scope, '__Porffor_iterator_call', [ rec, received, mode ])) ])
           : builtinCall(scope, '__Porffor_iterator_resume', [ rec, received, mode ]));
         done = iteratorDone(rec);
+
+        // sync iterator values are awaited as by CreateAsyncFromSyncIterator, rejections close it unless done
+        if (scope.async) emitIf(scope, Bin('!=', T.i32, Convert(T.i32, JvNum(ArrGet(JvPtr(rec), Const(T.i32, 3)))), Const(T.i32, 2)), () => {
+          const tmpName = '#catch_tmp' + (scope.catchId = (scope.catchId ?? 0) + 1);
+          allocVar(scope, tmpName);
+          const caught = Local(tmpName, T.jsval);
+          stmt(scope, Try(collect(scope, () => assign(scope, value, awaitValue(scope, value))), tmpName, collect(scope, () => {
+            emitIf(scope, Bin('==', T.jsval, caught, JvConst(TYPES.__porffor_generator, 0)), () => stmt(scope, Throw(caught)));
+            emitIf(scope, Un('!', T.i32, iteratorDone(rec)), () => exprStmt(scope, builtinCall(scope, '__Porffor_iterator_close', [ rec ])));
+            stmt(scope, Throw(caught));
+          })));
+        });
       }
 
       emitIf(scope, done, () => {
@@ -3688,7 +3700,7 @@ const genLoop = (scope, decl, type) => {
 const awaitValue = (scope, value) => {
   if (scope.topLevel) return builtinCall(scope, '__Porffor_promise_awaitSync', [ value ]);
   scope.hasAwait = true;
-  return Await(value);
+  return Await(builtinCall(scope, '__Porffor_promise_awaitValue', [ value ]));
 };
 
 const generateForOf = (scope, decl) => {

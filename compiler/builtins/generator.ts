@@ -287,10 +287,44 @@ export const __Porffor_iterator_complete = (rec: any[], res: any): any => {
 // async generators: same protocol but every step is async - next/return/throw return
 // promises and the produced value is itself awaited
 
+// requests made while an async generator runs one: [ gen, queue ]..., entries [ value, mode, promise ]
+const asyncGeneratorQueues: any[] = [];
+
+export const __Porffor_AsyncGenerator_queue = (gen: any): i32 => {
+  for (let i: i32 = 0; i < asyncGeneratorQueues.length; i += 2) {
+    if (asyncGeneratorQueues[i] === gen) return i;
+  }
+  return -1;
+};
+
 export const __Porffor_AsyncGenerator_step = (gen: __Porffor_AsyncGenerator, value: any, mode: i32): Promise => {
   const promise: Promise = __Porffor_promise_create();
+  const i: i32 = __Porffor_AsyncGenerator_queue(gen);
+  if (i != -1) {
+    const request: any[] = Porffor.array.new(3);
+    request[0] = value;
+    request[1] = mode;
+    request[2] = promise;
+    Porffor.array.fastPush(asyncGeneratorQueues[i + 1], request);
+    return promise;
+  }
+
+  Porffor.array.fastPush(asyncGeneratorQueues, gen);
+  Porffor.array.fastPush(asyncGeneratorQueues, Porffor.array.new(2));
   __Porffor_AsyncGenerator_run(gen, value, mode, promise);
   return promise;
+};
+
+export const __Porffor_AsyncGenerator_drain = (gen: any): void => {
+  const i: i32 = __Porffor_AsyncGenerator_queue(gen);
+  const queue: any[] = asyncGeneratorQueues[i + 1];
+  if (queue.length == 0) {
+    asyncGeneratorQueues.splice(i, 2);
+    return;
+  }
+
+  const request: any[] = queue.shift();
+  __Porffor_AsyncGenerator_run(gen, request[0], request[1], request[2]);
 };
 
 // resume until the body yields or finishes, following its awaits
@@ -310,19 +344,20 @@ export const __Porffor_AsyncGenerator_run = (gen: __Porffor_AsyncGenerator, valu
           result.value = v;
           result.done = done;
           __Porffor_promise_resolve(result, promise);
+          __Porffor_AsyncGenerator_drain(gen);
         },
-        (e: any): void => {
-          Porffor.coroutine.resume(gen, undefined, 2 as i32);
-          __Porffor_promise_reject(e, promise);
-        });
+        // yield awaits its operand: a rejection is thrown in at the yield
+        (e: any): void => __Porffor_AsyncGenerator_run(gen, e, 1, promise));
     } else {
       const result: object = {};
       result.value = yielded;
       result.done = done;
       __Porffor_promise_resolve(result, promise);
+      __Porffor_AsyncGenerator_drain(gen);
     }
   } catch (e) {
     __Porffor_promise_reject(e, promise);
+    __Porffor_AsyncGenerator_drain(gen);
   }
 };
 
