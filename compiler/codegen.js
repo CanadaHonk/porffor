@@ -4208,9 +4208,7 @@ const generateSwitch = (scope, decl) => {
   setLocalWithType(scope, discName, false, decl.discriminant);
 
   const cases = decl.cases.slice();
-  const defIdx = cases.findIndex(x => x.test == null);
-  if (defIdx !== -1) cases.push(cases.splice(defIdx, 1)[0]);
-  else cases.push({ test: null, consequent: [] });
+  if (!cases.some(x => x.test == null)) cases.push({ test: null, consequent: [] });
   const N = cases.length;
 
   const switchL = fresh(scope);
@@ -4222,13 +4220,11 @@ const generateSwitch = (scope, decl) => {
 
   const comparisons = collect(scope, () => {
     for (let i = 0; i < N; i++) {
-      if (cases[i].test) {
-        emitIf(scope, JvTruthy(generate(scope, { type: 'BinaryExpression', operator: '===', left: { type: 'Identifier', name: discName }, right: cases[i].test })),
-          () => stmt(scope, Break(labels[N - 1 - i])));
-      } else {
-        stmt(scope, Break(labels[N - 1 - i])); // default
-      }
+      if (cases[i].test) emitIf(scope, JvTruthy(generate(scope, { type: 'BinaryExpression', operator: '===', left: { type: 'Identifier', name: discName }, right: cases[i].test })),
+        () => stmt(scope, Break(labels[N - 1 - i])));
     }
+    // default is taken last, wherever it is
+    stmt(scope, Break(labels[N - 1 - cases.findIndex(x => x.test == null)]));
   });
 
   let cur = BlockStmt(comparisons, labels[N - 1]);
