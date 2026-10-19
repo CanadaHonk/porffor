@@ -1060,13 +1060,16 @@ const numericOp = (scope, op, l, r) => {
 };
 
 const rawIntOp = (op, left, right) => {
-  if (rawIntType(left, right) == null) return null;
+  const type = rawIntType(left, right);
+  if (type == null) return null;
   const l = rawIntValue(T.u32, left);
   const r = rawIntValue(T.u32, right);
+  // wrapping math in u32, i32 operands get their result back signed
+  const signed = v => type === T.i32 ? Convert(T.i32, v, CONVERT_RANGE_KNOWN | CONVERT_SIGNED) : v;
   if (op === '>>>') return Bin('>>', T.u32, l, Bin('&', T.u32, r, Const(T.u32, 31)));
-  if (op === '<<' || op === '>>') return Bin(op, T.u32, l, Bin('&', T.u32, r, Const(T.u32, 31)));
-  if (op === '*' || op === '&' || op === '|' || op === '^') return Bin(op, T.u32, l, r);
-  if (op === '-') return Bin('-', T.u32, l, r);
+  if (op === '>>' && type === T.i32) return Bin('>>', T.i32, signed(l), signed(Bin('&', T.u32, r, Const(T.u32, 31))));
+  if (op === '<<' || op === '>>') return signed(Bin(op, T.u32, l, Bin('&', T.u32, r, Const(T.u32, 31))));
+  if (op === '*' || op === '&' || op === '|' || op === '^' || op === '-') return signed(Bin(op, T.u32, l, r));
   return null;
 };
 
