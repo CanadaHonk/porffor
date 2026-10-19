@@ -1637,15 +1637,17 @@ export const __Date_prototype_toISOString = function (this: any) {
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date.prototype.tojson
 export const __Date_prototype_toJSON = function (this: any, key: any) {
   // 1. Let O be ? ToObject(this value).
+  const O: any = ecma262.ToObject(this);
+
   // 2. Let tv be ? ToPrimitive(O, number).
-  // todo: use generic ecma262.ToNumber() once it supports Date
-  const tv: number = __Porffor_date_read(this);
+  const tv: any = ecma262.ToPrimitive_Number(O);
 
   // 3. If tv is a Number and tv is not finite, return null.
-  if (!Number.isFinite(tv)) return null;
+  if (Porffor.type(tv) == Porffor.TYPES.number && !Number.isFinite(tv)) return null;
 
   // 4. Return ? Invoke(O, "toISOString").
-  return Porffor.callThis(__Date_prototype_toISOString, this);
+  const toISOString: any = __Porffor_object_get(O, 'toISOString');
+  return toISOString.call(O);
 };
 
 
