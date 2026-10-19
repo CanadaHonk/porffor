@@ -2868,13 +2868,21 @@ const generatePatternDstr = (scope, tmpPrefix, pattern, init, defaultValue, emit
       () => internalThrow(scope, 'TypeError', 'Cannot object destructure undefined or null'));
 
     const usedProps = [];
+    const hasRest = pattern.properties.at(-1)?.type === 'RestElement';
     for (const prop of pattern.properties) {
       if (prop.type == 'Property') {
-        usedProps.push(getProperty(prop));
+        let key = prop.key;
+        // the rest excludes computed keys as property keys, evaluated once
+        if (hasRest && prop.computed) {
+          const keyName = '#dstr_key' + uniqId(scope);
+          generateVarDstr(scope, 'const', keyName, { type: 'CallExpression', callee: identNode('__ecma262_ToPropertyKey'), arguments: [ key ] }, undefined, false);
+          key = identNode(keyName);
+        }
+        usedProps.push(prop.computed ? key : getProperty(prop, true));
 
         const memberComputed = prop.computed || prop.key.type === 'Literal';
         emit(prop.value.type === 'AssignmentPattern' ? prop.value.left : prop.value,
-          memberNode(identNode(tmpName), prop.key, memberComputed),
+          memberNode(identNode(tmpName), key, memberComputed),
           prop.value.type === 'AssignmentPattern' ? prop.value.right : undefined);
       } else if (prop.type === 'RestElement') {
         emit(prop.argument, {
