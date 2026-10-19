@@ -715,7 +715,9 @@ export const __Object_create = (proto: any, props: any): object => {
 
 
 export const __Object_groupBy = (items: any, callbackFn: any): object => {
+  if (Porffor.type(callbackFn) != Porffor.TYPES.function) throw new TypeError('callbackFn is not a function');
   const out: object = {};
+  Porffor.object.setPrototype(out, null);
 
   let i: i32 = 0;
   for (const x of items) {
