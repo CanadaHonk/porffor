@@ -4854,15 +4854,6 @@ const generateMember = (scope, decl, objValue = null) => {
     return res;
   };
 
-  const strGet = (ctype, size, strType) => () => {
-    const out = reuse(scope, Alloc(Const(T.i32, 8), strType));
-    stmt(scope, Store('u32', out, 0, Const(T.u32, 1)));
-    const src = Bin('+', T.u32, Bin('+', T.u32, JvPtr(obj), Const(T.u32, 4)),
-      size === 1 ? Convert(T.u32, numValue(prop), 0) : Bin('*', T.u32, Convert(T.u32, numValue(prop), 0), Const(T.u32, size)));
-    stmt(scope, Store(ctype, out, 4, Load(ctype, src, 0)));
-    return valOf(out, strType);
-  };
-
   const indexedMemberGetBC = [
     [ TYPES.array, () => {
       const { idx, valid } = denseArrayIndexKey(scope, prop);
@@ -4872,8 +4863,7 @@ const generateMember = (scope, decl, objValue = null) => {
         () => assign(scope, res, genericMemberGet()));
       return res;
     } ],
-    [ TYPES.string, strGet('u16', 2, TYPES.string) ],
-    [ TYPES.bytestring, strGet('u8', 1, TYPES.bytestring) ],
+    [ [ TYPES.string, TYPES.bytestring ], () => builtinCall(scope, '__Porffor_string_get', [ obj, prop ]) ],
     ...TYPED_ARRAY_TYPES.map(t => [ t, () => typedArrayGet(scope, obj, prop, t) ]),
     ...genericMemberGetBC
   ];

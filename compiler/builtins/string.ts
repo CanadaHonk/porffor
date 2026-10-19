@@ -149,6 +149,23 @@ export const __ByteString_prototype_charAt = function (this: bytestring, _index:
   return out;
 };
 
+// str[index], out of range or non-integer indices are property lookups
+export const __Porffor_string_get = (str: any, index: number): any => {
+  if (Porffor.fastOr(index < 0, index >= str.length, Math.trunc(index) != index)) return __Porffor_object_get(str, index);
+
+  if (Porffor.type(str) == Porffor.TYPES.bytestring) {
+    const out: bytestring = Porffor.malloc(8);
+    Porffor.IR.storeI32(out, 0, 1);
+    Porffor.IR.storeU8(Porffor.IR.ptr(out), 4, Porffor.IR.loadU8(Porffor.IR.ptr(str) + index, 4));
+    return out;
+  }
+
+  const out: string = Porffor.malloc(8);
+  Porffor.IR.storeI32(out, 0, 1);
+  Porffor.IR.storeU16(Porffor.IR.ptr(out), 4, Porffor.IR.loadU16(Porffor.IR.ptr(str) + index * 2, 4));
+  return out;
+};
+
 export const __String_prototype_toUpperCase = function (this: string) {
   // todo: unicode not just ascii
   const len: i32 = this.length;
