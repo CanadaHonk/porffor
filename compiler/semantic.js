@@ -224,18 +224,28 @@ const nearestStrictEvalScope = () => {
   return scope && (scope._strictEval || scope._strict) ? scope : null;
 };
 
-const evalLexicalConflict = name => {
-  const evalScope = nearestEvalScope();
-  if (!evalScope) return false;
-
-  const evalInd = scopes.indexOf(evalScope);
-  for (let i = evalInd + 1; i < scopes.length; i++) {
+const lexicalConflict = (name, from, to) => {
+  for (let i = from; i < to; i++) {
     const variable = scopes[i]._variables?.[name];
     if (variable && variable.kind !== 'var' && variable.kind !== 'function-name') return true;
   }
-
   return false;
 };
+
+const evalLexicalConflict = name => {
+  const evalScope = nearestEvalScope();
+  return !!evalScope && lexicalConflict(name, scopes.indexOf(evalScope) + 1, scopes.length);
+};
+
+const isBlockFunction = node => {
+  const scope = scopes.at(-1);
+  // a function's body block is one scope below it, the program's body is the program
+  const depth = scopes.length - 1 - scopes.lastFuncs.at(-1);
+  return depth > (scopes[scopes.lastFuncs.at(-1)].type === 'Program' ? 0 : 1) || !Array.isArray(scope.body) || !scope.body.includes(node);
+};
+
+// a sloppy block function whose var would clash with an enclosing lexical binding stays block scoped
+const blockFunctionConflict = node => isBlockFunction(node) && lexicalConflict(node.id.name, scopes.lastFuncs.at(-1), scopes.length - 1);
 
 export const unknownValue = Symbol('Porffor.unknownValue');
 export const knownValue = (scope, node) => {
@@ -320,8 +330,7 @@ const declVar = (name, kind, node) => {
   const func = scopes[scopes.lastFuncs.at(-1)];
   // sloppy function decls hoist as var, but each loop iteration still makes a fresh binding
   if (kind === 'var' && node?.type === 'FunctionDeclaration') {
-    const scope = scopes.at(-1);
-    if (scopes.length - 1 - scopes.lastFuncs.at(-1) > 1 || !Array.isArray(scope.body) || !scope.body.includes(node)) node._writes = 1;
+    if (isBlockFunction(node)) node._writes = 1;
     for (let i = scopes.lastFuncs.at(-1) + 1; i < scopes.length; i++) {
       if (isLoopScope(scopes[i])) { node._loopScopedFuncDecl = true; break; }
     }
@@ -468,7 +477,7 @@ const analyze = (node, strict = false) => {
     case 'FunctionDeclaration':
       if (node.id?.name) {
         node.id._binding = true;
-        declVar(node.id.name, (strict || evalLexicalConflict(node.id.name)) ? 'let' : 'var', node);
+        declVar(node.id.name, (strict || evalLexicalConflict(node.id.name) || blockFunctionConflict(node)) ? 'let' : 'var', node);
       }
     case 'FunctionExpression':
     case 'ArrowFunctionExpression':

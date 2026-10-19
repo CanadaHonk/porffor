@@ -489,6 +489,8 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
     case 'FunctionDeclaration': {
       const [ func, out ] = generateFunc(scope, decl);
       if (decl._writes && !decl._skipVarUpdate) {
+        // generated now so globals its body implicitly creates exist for later code
+        func.generate?.();
         const name = decl.id.name, global = scope.topLevel;
         allocVar(scope, name, global);
         func.referenced = true;
@@ -2406,6 +2408,9 @@ const markVarHoists = (scope, body, moduleTop = false) => {
 
     switch (node.type) {
       case 'FunctionDeclaration':
+        if (node._writes && node.id) mark(node.id);
+        return;
+
       case 'FunctionExpression':
       case 'ArrowFunctionExpression':
       case 'ClassDeclaration':
