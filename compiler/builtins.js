@@ -880,7 +880,6 @@ return sign * (i64)((((u64)*(u32*)(MEM + ptr + 4)) << 32) + (u64)*(u32*)(MEM + p
   });
 
   PrecompiledBuiltins.BuiltinFuncs(_);
-  _.__Math_hypot.jsLength = 2;
 
   return _;
 };

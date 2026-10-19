@@ -17,6 +17,31 @@ const argv = process.argv.slice();
 const timing = {};
 let defaultPrefs = null;
 
+// spec .length read off the host's builtin: counting params gets optional and rest args wrong
+const hostLength = name => {
+  if (!name.startsWith('__') || name.startsWith('__Porffor_') || name.startsWith('__console_')) return;
+
+  // accessors: getters have no params and setters one, like the host's
+  if (/\$[gs]et$/.test(name)) return;
+
+  // greedy: property names can contain _ themselves
+  const parts = name.slice(2).replace(/^ByteString_/, 'String_').split('_');
+  let obj = globalThis;
+  for (let i = 0; i < parts.length;) {
+    let j = parts.length;
+    for (; j > i; j--) {
+      const key = parts.slice(i, j).join('_');
+      if (key in Object(obj)) break;
+    }
+    if (j === i) return;
+
+    obj = obj[parts.slice(i, j).join('_')];
+    i = j;
+  }
+
+  if (typeof obj === 'function') return obj.length;
+};
+
 const compile = async (file, _funcs) => {
   let source = fs.readFileSync(file, 'utf8');
   let first = source.slice(0, source.indexOf('\n'));
@@ -92,6 +117,7 @@ const compile = async (file, _funcs) => {
   }
   for (const x of exports) {
     if (x.name === '_eval') x.name = 'eval';
+    x.jsLength = hostLength(x.name) ?? x.jsLength;
     if (Object.keys(globalInits).length !== 0) {
       const globalRefs = new Set();
       collectGlobalRefs(x.body, globalRefs);

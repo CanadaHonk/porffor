@@ -5057,7 +5057,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   }
 
   const args = [];
-  let jsLength = 0;
+  // .length counts params before the first default or rest
+  let jsLength;
   for (let i = 0; i < params.length; i++) {
     let argName, def, destr, typeAnnotation;
     const x = params[i];
@@ -5074,10 +5075,10 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
           if (typeAnnotation) func.overrideThisType = extractTypeAnnotation(x).type;
           continue;
         }
-        jsLength++;
         break;
       }
       case 'AssignmentPattern': {
+        jsLength ??= args.length;
         def = x.right;
         typeAnnotation = x.typeAnnotation ?? x.left.typeAnnotation;
         if (x.left.name) argName = x.left.name;
@@ -5085,6 +5086,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         break;
       }
       case 'RestElement': {
+        jsLength ??= args.length;
         argName = x.argument.name ?? ('#arg_dstr' + i);
         if (!x.argument.name) destr = x.argument;
         func.hasRestArgument = true;
@@ -5092,7 +5094,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         continue;
       }
       default:
-        argName = '#arg_dstr' + i; destr = x; jsLength++; break;
+        argName = '#arg_dstr' + i; destr = x; break;
     }
     args.push({ name: argName, def, destr, type: typedInput && typeAnnotation,
       inferredType: !def && !destr ? decl._directParamTypes?.[args.length] : null });
@@ -5125,7 +5127,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
   for (const p of func.params) func.locals[p.name] = { type: p.type, metadata: { param: true } };
 
-  func.jsLength = jsLength;
+  func.jsLength = jsLength ?? args.length;
 
   if (func.topLevel) func.generate();
   if (globalThis.precompile) func.generate();
