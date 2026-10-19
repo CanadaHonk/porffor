@@ -290,9 +290,14 @@ const parseEval = node => {
   if (code == null) return;
 
   try {
+    const body = semantic(semantic.objectHack(parse(code)), node._semanticScopes).body;
+    // eval code's function declarations are initialized before it runs
+    let at = 0;
+    while (at < body.length && body[at].directive) at++;
+    const funcs = body.filter(x => x.type === 'FunctionDeclaration');
     node._evalParsed = {
       type: 'BlockStatement',
-      body: semantic(semantic.objectHack(parse(code)), node._semanticScopes).body
+      body: [ ...body.slice(0, at), ...funcs, ...body.slice(at).filter(x => x.type !== 'FunctionDeclaration') ]
     };
   } catch (e) {
     if (e.name !== 'SyntaxError') throw e;
@@ -739,6 +744,10 @@ const annotate = (node, parent = null, key = null) => {
 
         if (evalKind === 'call') node._evalSource = node.arguments[1];
         parseEval(node);
+
+        const parsed = node._evalParsed;
+        if (evalKind === 'direct' && paramsFunc && parsed && !isStrictBlock(parsed.body) && !isStrictBlock(paramsFunc.body?.body ?? []) &&
+            evalVarNames(parsed).includes('arguments')) node._evalSyntaxError = 'Cannot declare arguments in eval code in parameters';
       }
       break;
     }
@@ -752,15 +761,19 @@ const annotate = (node, parent = null, key = null) => {
       break;
   }
 
+  const previousParamsFunc = paramsFunc;
   for (const x in node) {
     if (x[0] === '_') continue;
     const value = node[x];
     if (value != null && typeof value === 'object') {
+      // direct eval in a (non-arrow) function's parameters cannot declare arguments
+      if (openedFunc) paramsFunc = x === 'params' && node.type !== 'ArrowFunctionExpression' ? node : null;
       if (Array.isArray(value)) {
         for (const y of value) annotate(y, node, x);
       } else if (value.type) annotate(value, node, x);
     }
   }
+  paramsFunc = previousParamsFunc;
 
   if (openedScope) {
     scopes.pop();
@@ -771,7 +784,31 @@ const annotate = (node, parent = null, key = null) => {
   }
 };
 
-let inEval = false, classFieldInitializerFunc = null, classStaticFunc = null;
+const evalVarNames = (node, out = [], top = true) => {
+  if (!node || typeof node !== 'object') return out;
+  if (Array.isArray(node)) { for (const x of node) evalVarNames(x, out, top); return out; }
+  if (node.type === 'FunctionDeclaration') { if (top && node.id) out.push(node.id.name); return out; }
+  if (node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression' || node.type === 'ClassDeclaration' || node.type === 'ClassExpression') return out;
+  if (node.type === 'VariableDeclaration' && node.kind === 'var') {
+    const names = d => d.type === 'Identifier' ? [ d.name ] : [];
+    for (const d of node.declarations) out.push(...names(d.id));
+  }
+  for (const key in node) {
+    if (key[0] === '_' || key === 'start' || key === 'end') continue;
+    // only top-level statements' function declarations are var scoped
+    if (node[key] && typeof node[key] === 'object') evalVarNames(node[key], out, top && (key === 'body' && node.type === 'BlockStatement'));
+  }
+  return out;
+};
+
+let inEval = false, classFieldInitializerFunc = null, classStaticFunc = null, paramsFunc = null;
+const isStrictBlock = body => {
+  for (const x of body) {
+    if (x.type !== 'ExpressionStatement' || x.expression.type !== 'Literal' || typeof x.expression.value !== 'string') return false;
+    if (x.expression.value === 'use strict') return true;
+  }
+  return false;
+};
 const semantic = (node, _scopes = null) => {
   const oldScopes = scopes, oldInEval = inEval, oldClassFieldInitializerFunc = classFieldInitializerFunc, oldClassStaticFunc = classStaticFunc;
   inEval = !!_scopes;
