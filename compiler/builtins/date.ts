@@ -1839,6 +1839,15 @@ export const __Date_prototype_valueOf = function (this: any) {
   return __Porffor_date_read(this);
 };
 
+// 21.4.4.45 Date.prototype [ %Symbol.toPrimitive% ] (hint)
+// https://tc39.es/ecma262/#sec-date.prototype-%symbol.toprimitive%
+export const __Date_prototype_Symbol_toPrimitive = function (this: any, hint: any) {
+  if (!Porffor.object.isObject(this)) throw new TypeError('Date.prototype[Symbol.toPrimitive] called on non-object');
+  if (Porffor.fastOr(hint === 'string', hint === 'default')) return __ecma262_OrdinaryToPrimitive(this, 'string');
+  if (hint === 'number') return __ecma262_OrdinaryToPrimitive(this, 'number');
+  throw new TypeError('Invalid hint');
+};
+
 // 21.4.2.1 Date (...values)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-date
 export const Date = function (...values: any[]): bytestring|Date {

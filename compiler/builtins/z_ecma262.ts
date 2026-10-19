@@ -37,6 +37,10 @@ export const __ecma262_ToPrimitive = (input: any, hint: bytestring): any => {
     throw new TypeError('Cannot convert an object to primitive');
   }
 
+  return __ecma262_OrdinaryToPrimitive(input, hint);
+};
+
+export const __ecma262_OrdinaryToPrimitive = (input: any, hint: bytestring): any => {
   const first: any = hint == 'string' ? input.toString : input.valueOf;
   if (Porffor.type(first) == Porffor.TYPES.function) {
     const value: any = Porffor.callThis(first, input);
