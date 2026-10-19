@@ -51,7 +51,7 @@ export const __String_fromCharCode = (...codes: any[]): bytestring|string => {
 
   let bytestringable: boolean = true;
   for (let i: i32 = 0; i < len; i++) {
-    const v: i32 = __ecma262_ToIntegerOrInfinity(codes[i]);
+    const v: i32 = __ecma262_ToNumber(codes[i]) & 0xFFFF;
     if (v > 0xFF) bytestringable = false;
 
     Porffor.IR.storeU16(Porffor.IR.ptr(out) + i * 2, 4, v);
