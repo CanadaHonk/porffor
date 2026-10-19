@@ -526,9 +526,9 @@ export const __TypedArray_prototype_indexOf = function (this: any, searchElement
   if (n >= 0) k = n;
     else if (len + n > 0) k = len + n;
 
-  if (__Porffor_typedArray_detached(this)) return -1;
-
-  for (; k < len; k++) {
+  // coercion may have shrunk it
+  const end: i32 = Math.min(len, __Porffor_typedArray_length(this));
+  for (; k < end; k++) {
     if (this[k] === searchElement) return k;
   }
 
@@ -566,7 +566,9 @@ export const __TypedArray_prototype_lastIndexOf = function (this: any, _argc: i3
   if (n < 0) k = len + n;
     else if (n < len - 1) k = n;
 
-  if (__Porffor_typedArray_detached(this)) return -1;
+  // coercion may have shrunk it
+  const newLen: i32 = __Porffor_typedArray_length(this);
+  if (k >= newLen) k = newLen - 1;
 
   for (; k >= 0; k--) {
     if (this[k] === searchElement) return k;
