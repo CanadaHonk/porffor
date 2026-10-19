@@ -122,7 +122,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
 
           // $get funcs (with an optional $set) are accessors, except spec data props only implemented as getters
           if (x.endsWith('$set') && Object.hasOwn(props, x.slice(0, -4) + '$get')) return;
-          if (x.endsWith('$get') && !Object.hasOwn(props, x.slice(0, -4)) && ![ 'lastIndex', 'name', 'message' ].includes(x.slice(0, -4))) {
+          if (x.endsWith('$get') && (x === '__proto__$get' || !Object.hasOwn(props, x.slice(0, -4))) && ![ 'lastIndex', 'name', 'message' ].includes(x.slice(0, -4))) {
             const setter = x.slice(0, -4) + '$set';
             includeBuiltin('__Porffor_object_defineAccessor');
             out.push(Call('__Porffor_object_defineAccessor', [ obj, propKey(x.slice(0, -4)), value, Object.hasOwn(props, setter) ? propValue(prefix + (props[setter].func ?? setter), props[setter]) : JvConst(TYPES.undefined, 0), Const(T.i32, 0b0011) ], T.none));

@@ -103,6 +103,7 @@ export const __Reflect_getPrototypeOf = (target: any) => {
 
 export const __Reflect_setPrototypeOf = (target: any, proto: any) => {
   if (!Porffor.object.isObject(target)) throw new TypeError('Target is a non-object');
+  if (!Porffor.object.isObjectOrNull(proto)) throw new TypeError('Prototype should be an object or null');
   if (Porffor.comptime.flag`hasFunc.Proxy`) {
     if (Porffor.type(target) == Porffor.TYPES.proxy) return __Porffor_proxy_setPrototypeOf(target, proto);
   }

@@ -745,15 +745,33 @@ export const __Object_getPrototypeOf = (obj: any): any => {
 export const __Object_setPrototypeOf = (obj: any, proto: any): any => {
   if (obj == null) throw new TypeError('Object is nullish, expected object');
   if (!Porffor.object.isObjectOrNull(proto)) throw new TypeError('Prototype should be an object or null');
+  if (!Porffor.object.isObject(obj)) return obj;
 
-  // inextensible: only the current proto is allowed
-  if (Porffor.object.isObject(obj) && Porffor.object.isInextensible(obj)) {
-    const currentProto: any = Porffor.object.getPrototypeWithHidden(obj, Porffor.type(obj));
-    if (proto !== currentProto) throw new TypeError('Cannot set prototype of non-extensible object');
+  // proxies run their own trap
+  if (Porffor.type(obj) != Porffor.TYPES.proxy) {
+    if (proto === Porffor.object.getPrototypeWithHidden(obj, Porffor.type(obj))) return obj;
+    if (Porffor.object.isInextensible(obj)) throw new TypeError('Cannot set prototype of non-extensible object');
+    if (obj === __Object_prototype) throw new TypeError('Cannot set prototype of Object.prototype');
+
+    let p: any = proto;
+    while (p != null) {
+      if (p === obj) throw new TypeError('Cyclic prototype value');
+      if (Porffor.type(p) == Porffor.TYPES.proxy) break;
+      p = Porffor.object.getPrototypeWithHidden(p, Porffor.type(p));
+    }
   }
 
   Porffor.object.setPrototype(obj, proto);
   return obj;
+};
+
+export const __Object_prototype___proto__$get = function (this: any) {
+  return __Object_getPrototypeOf(this);
+};
+
+export const __Object_prototype___proto__$set = function (this: any, proto: any) {
+  if (this == null) throw new TypeError('Object is nullish, expected object');
+  if (Porffor.fastAnd(Porffor.object.isObject(this), Porffor.object.isObjectOrNull(proto))) __Object_setPrototypeOf(this, proto);
 };
 
 export const __Object_prototype_isPrototypeOf = function (this: any, obj: any) {

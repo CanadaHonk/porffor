@@ -1012,7 +1012,7 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
     let proto: any = trueType == Porffor.TYPES.object ? __Porffor_object_getPrototype(obj) : __Porffor_object_getPrototypeWithHidden(obj, trueType);
     if (hash == 212292208) if (Porffor.fastAnd(Porffor.strcmp(key, '__proto__'), proto !== null)) {
       // set prototype
-      __Porffor_object_setPrototype(obj, value);
+      if (Porffor.object.isObjectOrNull(value)) __Object_setPrototypeOf(_obj, value);
       return value;
     }
 
@@ -1293,7 +1293,7 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
     let proto: any = trueType == Porffor.TYPES.object ? __Porffor_object_getPrototype(obj) : __Porffor_object_getPrototypeWithHidden(obj, trueType);
     if (hash == 212292208) if (Porffor.fastAnd(Porffor.strcmp(key, '__proto__'), proto !== null)) {
       // set prototype
-      __Porffor_object_setPrototype(obj, value);
+      if (Porffor.object.isObjectOrNull(value)) __Object_setPrototypeOf(_obj, value);
       return value;
     }
 
