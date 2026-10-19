@@ -1802,8 +1802,10 @@ export const __ByteString_prototype_toWellFormed = function (this: bytestring) {
 
 // 22.1.3.29 String.prototype.toString ()
 // https://tc39.es/ecma262/#sec-string.prototype.tostring
-export const __String_prototype_toString = function (this: string) {
+export const __String_prototype_toString = function (this: any) {
   // 1. Return ? ThisStringValue(this value).
+  if (Porffor.type(this) == Porffor.TYPES.stringobject) return this as string;
+  if ((Porffor.type(this) | 0b10000000) != Porffor.TYPES.bytestring) throw new TypeError('String.prototype.toString requires that \'this\' be a String');
   return this;
 };
 
@@ -1817,8 +1819,10 @@ export const __ByteString_prototype_toLocaleString = function (this: bytestring)
 
 // 22.1.3.35 String.prototype.valueOf ()
 // https://tc39.es/ecma262/#sec-string.prototype.valueof
-export const __String_prototype_valueOf = function (this: string) {
+export const __String_prototype_valueOf = function (this: any) {
   // 1. Return ? ThisStringValue(this value).
+  if (Porffor.type(this) == Porffor.TYPES.stringobject) return this as string;
+  if ((Porffor.type(this) | 0b10000000) != Porffor.TYPES.bytestring) throw new TypeError('String.prototype.valueOf requires that \'this\' be a String');
   return this;
 };
 
