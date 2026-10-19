@@ -2132,7 +2132,7 @@ const generateCall = (scope, decl) => {
           _protoInternalCall: true
         };
         // regexps with own state (own props, a subclass prototype) can shadow their methods
-        const call = owner === 'RegExp' && calleeMember && !globalThis.precompile ? () => generate(scope, {
+        const call = owner === 'RegExp' && calleeMember && !globalThis.precompile && definedKeys.has(protoName) ? () => generate(scope, {
           type: 'ConditionalExpression',
           test: { type: 'CallExpression', callee: { type: 'Identifier', name: '__Porffor_object_underlyingIfAny' }, arguments: [ targetIdent ] },
           consequent: fallbackCall,
@@ -5005,6 +5005,31 @@ const uniqId = scope => '_' + (scope.uniqId = (scope.uniqId ?? 0) + 1);
 let objectHackers = [], allObjectHackers = [];
 // builtin members the program writes (eg RegExp.prototype.exec = f) stay real member accesses
 let objectHackAssigned = new Set();
+
+// property names the program may define (keys, uncalled members, strings), so builtin method calls know what can shadow them
+let definedKeys = new Set();
+const collectDefinedKeys = program => {
+  const out = new Set();
+  const walk = (node, called = false) => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const x of node) walk(x);
+      return;
+    }
+    if (node.type === 'Literal' && typeof node.value === 'string') out.add(node.value);
+    if (node.type === 'TemplateElement') out.add(node.value.cooked);
+    // new Function sources are only parsed while generating
+    if ((node.type === 'CallExpression' || node.type === 'NewExpression') && node.callee.name === 'Function')
+      for (const x of node.arguments) for (const w of (x.value ?? x.quasis?.map(q => q.value.cooked).join('') ?? '').match?.(/[\w$]+/g) ?? []) out.add(w);
+    if ((node.type === 'Property' || node.type === 'MethodDefinition' || node.type === 'PropertyDefinition') && !node.computed) out.add(node.key.name ?? String(node.key.value));
+    if (node.type === 'MemberExpression' && !node.computed && !called) out.add(node.property.name);
+    if (node._evalParsed) walk(node._evalParsed);
+    for (const k in node) if (k[0] !== '_' && k !== 'start' && k !== 'end') walk(node[k], node.type === 'CallExpression' && k === 'callee');
+  };
+  walk(program);
+  return out;
+};
+
 const assignedBuiltinMembers = program => {
   const out = new Set();
   const path = node => {
@@ -5721,6 +5746,7 @@ export default (program, opts = {}) => {
   objectHackAssigned = assignedBuiltinMembers(program);
   program = objectHack(program);
   if (Prefs.closures) program = semantic(program);
+  definedKeys = collectDefinedKeys(program);
   if (Prefs.p) {
     const last = getLastNode(program.body);
     const lastIndex = program.body.indexOf(last);
