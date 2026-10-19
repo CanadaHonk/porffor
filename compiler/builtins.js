@@ -615,7 +615,6 @@ return porf_box_num(pow(baseNum, exponentNum));`, false)
     ]
   };
 
-  // todo: does not follow spec with +-Infinity and values >2**32
   _.__Math_clz32 = {
     params: [ { name: 'x', type: T.jsval } ],
     localNames: [ 'n' ],
@@ -624,7 +623,9 @@ return porf_box_num(pow(baseNum, exponentNum));`, false)
     returnType: TYPES.number,
     body: [
       Assign(Local('n', T.f64), nativeMathArg('x')),
-      RawC('return porf_box_num((f64)porf_clz32(porf_f64_to_u32(n)));', false)
+      RawC('if (n != n || n == INFINITY || n == -INFINITY) return porf_box_num(32.0);\n' +
+        'f64 m = fmod(trunc(n), 4294967296.0);\nif (m < 0.0) m += 4294967296.0;\n' +
+        'return porf_box_num((f64)porf_clz32((u32)m));', false)
     ]
   };
 
