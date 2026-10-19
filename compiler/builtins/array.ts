@@ -41,8 +41,16 @@ export const __Porffor_array_unscopables = (): object => {
   return out;
 };
 
-export const __Array_isArray = (x: unknown): boolean =>
-  Porffor.type(x) == Porffor.TYPES.array;
+export const __Array_isArray = (x: unknown): boolean => {
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.type(x) == Porffor.TYPES.proxy) {
+      __Porffor_proxy_handler(x);
+      return __Array_isArray(__Porffor_proxy_target(x));
+    }
+  }
+
+  return Porffor.type(x) == Porffor.TYPES.array;
+};
 
 // 23.1.2.5 get Array [ @@species ]
 // https://tc39.es/ecma262/#sec-get-array-@@species
