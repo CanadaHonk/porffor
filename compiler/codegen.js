@@ -3185,12 +3185,14 @@ const bindMemberTarget = (scope, member, prefix, coerceKey = false) => {
   let property = member.property;
   if (member.computed && member._closureSlot == null) {
     const keyName = prefix + 'key' + id;
-    generateVarDstr(scope, 'const', keyName, coerceKey ? {
-      type: 'CallExpression',
-      callee: { type: 'Identifier', name: '__ecma262_ToPropertyKey' },
-      arguments: [ member.property ]
-    } : member.property, undefined, false);
+    generateVarDstr(scope, 'const', keyName, member.property, undefined, false);
     property = identNode(keyName);
+    if (coerceKey) {
+      // a nullish base throws before its key is converted
+      if (member.object.type !== 'Super') emitIf(scope, nullish(scope, generate(scope, identNode(objName)), knownType(scope, getType(scope, objName))), () => internalThrow(scope, 'TypeError', 'Cannot read properties of null or undefined'));
+      generateVarDstr(scope, 'const', keyName + 'p', { type: 'CallExpression', callee: identNode('__ecma262_ToPropertyKey'), arguments: [ property ] }, undefined, false);
+      property = identNode(keyName + 'p');
+    }
   }
 
   return memberNode(member.object.type === 'Super' ? member.object : identNode(objName), property, member.computed, {
@@ -3404,7 +3406,12 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     if (!globalThis.precompile) demandMemberRead(scope, decl.left);
 
     // compound ops reuse one converted key for their get + set
-    const keyOf = () => decl.left.computed && op !== '=' ? builtinCall(scope, '__ecma262_ToPropertyKey', [ prop ]) : prop;
+    const keyOf = () => {
+      if (!decl.left.computed || op === '=') return prop;
+      // a nullish base throws before its key is converted
+      emitIf(scope, nullish(scope, obj, knownType(scope, getNodeType(scope, object))), () => internalThrow(scope, 'TypeError', 'Cannot read properties of null or undefined'));
+      return builtinCall(scope, '__ecma262_ToPropertyKey', [ prop ]);
+    };
     const setBuiltin = scope.strict ? '__Porffor_object_setStrict' : '__Porffor_object_set';
 
     if (globalThisName) {
