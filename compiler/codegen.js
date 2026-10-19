@@ -859,7 +859,8 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
   const namedFunc = resolveNamedFunction(scope, name);
   if (namedFunc) return materializeFunctionValue(scope, namedFunc, markFunctionReferenced);
   if (name in builtinFuncs && !(name in funcIndex)) includeBuiltin(scope, name);
-  if (name in funcIndex) return materializeFunctionValue(scope, funcByName(name));
+  const globalFunc = globalFuncByName(scope, name);
+  if (globalFunc) return materializeFunctionValue(scope, globalFunc);
 
   // missing member of an existing namespace reads as undefined
   if (name.startsWith('__')) {
@@ -2340,8 +2341,7 @@ const generateCall = (scope, decl) => {
     if (isBuiltinMember) {
       isBuiltin = true;
     } else if (!func && !isLocal && !closureBacked && name) {
-      func = resolveNamedFunction(scope, name);
-      if (!func && name in funcIndex) func = funcByName(name);
+      func = resolveNamedFunction(scope, name) ?? globalFuncByName(scope, name);
       if (!func && name in builtinFuncs) isBuiltin = true;
     }
     if (!func && !isBuiltin && !isLocal && !closureBacked && scope.name === name) func = scope;
@@ -5530,6 +5530,13 @@ const funcByIndex = idx => {
   return funcs.find(x => x.index === idx);
 };
 const funcByName = name => funcByIndex(funcIndex[name]);
+// a closure is only callable from within its defining function
+const globalFuncByName = (scope, name) => {
+  const func = funcByName(name);
+  if (!func?.closureAware) return func;
+  for (let cursor = scope; cursor; cursor = cursor.parentFunc) if (cursor === func.parentFunc) return func;
+  return null;
+};
 const hasAmbiguousFuncName = name => funcNameCollisions?.[name] === true;
 const setFuncIndex = (name, index) => {
   if (funcIndex[name] != null && funcIndex[name] !== index) {
@@ -5550,7 +5557,7 @@ const resolveNamedFunction = (scope, name) => {
     if (func) return func;
   }
 
-  if (!hasAmbiguousFuncName(name)) return funcByName(name);
+  if (!hasAmbiguousFuncName(name)) return globalFuncByName(scope, name);
   return null;
 };
 
