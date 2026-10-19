@@ -4374,13 +4374,14 @@ static inline i32 porf_jv_eq(jsval a, jsval b) {
 static inline i32 porf_truthy(jsval v) {
   if (v.type == ${TYPES.number}) return v.val == v.val && v.val != 0.0;
   if (v.type == ${TYPES.string} || v.type == ${TYPES.bytestring}) return *(u32*)(MEM + (u32)v.val) != 0u;
-  return (u32)v.val != 0u;
+  // Boolean/Number objects hold their primitive inline but are always truthy
+  return (u32)v.val != 0u || v.type == ${TYPES.booleanobject} || v.type == ${TYPES.numberobject};
 }
 
 static inline i32 porf_falsy(jsval v) {
   if (v.type == ${TYPES.number}) return v.val != v.val || v.val == 0.0;
   if (v.type == ${TYPES.string} || v.type == ${TYPES.bytestring}) return *(u32*)(MEM + (u32)v.val) == 0u;
-  return (u32)v.val == 0u;
+  return (u32)v.val == 0u && v.type != ${TYPES.booleanobject} && v.type != ${TYPES.numberobject};
 }
 
 static inline i32 porf_nullish(jsval v) {
@@ -4550,13 +4551,14 @@ ${st}u32 porf_arr_new(i32 len, i32 cap) {
   return a;
 }
 
+// length can exceed capacity (a.length = n doesn't grow): slots past cap are holes
 ${sti}int porf_arr_has_own(u32 a, u32 i) {
-  if (i >= (u32)PORF_ARR_LEN(a)) return 0;
+  if (i >= (u32)PORF_ARR_LEN(a) || i >= (u32)PORF_ARR_CAP(a)) return 0;
   return *(jsbits*)(MEM + PORF_ARR_ENT(a) + ((u64)i << 3)) != 0;
 }
 
 ${sti}jsval porf_arr_get(u32 a, u32 i) {
-  if (i >= (u32)PORF_ARR_LEN(a)) return JV_UNDEFINED;
+  if (i >= (u32)PORF_ARR_LEN(a) || i >= (u32)PORF_ARR_CAP(a)) return JV_UNDEFINED;
   const jsbits b = *(jsbits*)(MEM + PORF_ARR_ENT(a) + ((u64)i << 3));
   if (b == 0) return JV_UNDEFINED;
   return porf_unpack(b);
@@ -4610,7 +4612,7 @@ static void porf_iter_unwind(void) {
 }
 ` : ''}
 ${st}void porf_arr_delete(u32 a, u32 i) {
-  if (i >= (u32)PORF_ARR_LEN(a)) return;
+  if (i >= (u32)PORF_ARR_LEN(a) || i >= (u32)PORF_ARR_CAP(a)) return;
   *(jsbits*)(MEM + PORF_ARR_ENT(a) + ((u64)i << 3)) = 0;
 }
 

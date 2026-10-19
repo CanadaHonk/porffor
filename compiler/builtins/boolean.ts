@@ -17,7 +17,8 @@ export const Boolean = function (value: any): boolean|any {
 export const __Boolean_prototype_toString = function (this: boolean) {
   // 1. Let b be ? ThisBooleanValue(this value).
   // 2. If b is true, return "true"; else return "false".
-  if (this) return 'true';
+  // Boolean objects hold their [[BooleanData]] inline (and are always truthy)
+  if (Porffor.IR.ptr(this) != 0) return 'true';
   return 'false';
 };
 
@@ -25,5 +26,5 @@ export const __Boolean_prototype_toString = function (this: boolean) {
 // https://tc39.es/ecma262/#sec-boolean.prototype.valueof
 export const __Boolean_prototype_valueOf = function (this: boolean) {
   // 1. Return ? ThisBooleanValue(this value).
-  return this;
+  return Porffor.IR.ptr(this) != 0;
 };

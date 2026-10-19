@@ -158,6 +158,33 @@ export const __ecma262_ToIndex = (value: unknown): number => {
   return integer;
 };
 
+// 7.1.18 ToObject (argument)
+// https://tc39.es/ecma262/#sec-toobject
+export const __ecma262_ToObject = (argument: any): any => {
+  if (argument == null) throw new TypeError('Cannot convert undefined or null to object');
+  const t: i32 = Porffor.type(argument);
+  if (Porffor.fastOr(
+    t == Porffor.TYPES.number,
+    t == Porffor.TYPES.boolean,
+    (t | 0b10000000) == Porffor.TYPES.bytestring
+  )) return Object(argument);
+  return argument;
+};
+
+// 7.1.20 ToLength (argument)
+// https://tc39.es/ecma262/#sec-tolength
+export const __ecma262_ToLength = (argument: unknown): number => {
+  // 1. Let len be ? ToIntegerOrInfinity(argument).
+  const len: number = __ecma262_ToIntegerOrInfinity(argument);
+
+  // 2. If len ≤ 0, return +0𝔽.
+  if (len <= 0) return 0;
+
+  // 3. Return 𝔽(min(len, 2**53 - 1)).
+  if (len > 9007199254740991) return 9007199254740991;
+  return len;
+};
+
 // 7.1.17 ToString (argument)
 // https://tc39.es/ecma262/#sec-tostring
 export const __ecma262_ToString = (argument: unknown): any => {

@@ -1670,7 +1670,7 @@ const setObjProp = (obj, prop, value) => objectHack({
 const protoOwnerOf = name => name.slice(2, name.indexOf('_prototype'));
 const ERROR_TYPES = Object.values(TYPES).filter(x => x >= TYPES.error && x <= TYPES.suppressederror);
 const iteratorProtoTypes = [ TYPES.object, TYPES.__porffor_generator, ...ITERATOR_TYPES ];
-const asyncIteratorProtoTypes = [ TYPES.object, TYPES.__porffor_asyncgenerator ];
+const inheritedProtoTypes = { Iterator: iteratorProtoTypes, Porffor_AsyncIterator: [ TYPES.object, TYPES.__porffor_asyncgenerator ] };
 const protoOwnerTypes = owner => {
   if (owner === 'TypedArray') return TYPED_ARRAY_TYPES;
   if (owner === 'Error') return ERROR_TYPES;
@@ -3070,11 +3070,14 @@ const generateAssign = (scope, decl, valueUnused = false) => {
         Box(Convert(T.f64, LenGet(ptr)), Const(T.i32, TYPES.number)),
         generate(scope, decl.right), TYPES.number, getNodeType(scope, decl.right)));
       const lenValue = Convert(T.u32, numValue(newVal));
+      // user arrays go through ArraySetLength (RangeError, non-writable length, non-configurable elements)
+      const arrLenSet = () => globalThis.precompile ? stmt(scope, ArrLenSet(ptr, lenValue))
+        : exprStmt(scope, builtinCall(scope, '__Porffor_array_setLengthValue', [ Box(ptr, Const(T.i32, TYPES.array)), newVal, Box(Const(T.i32, scope.strict ? 1 : 0), Const(T.i32, TYPES.boolean)) ]));
       if (ensureArray === true) {
-        stmt(scope, ArrLenSet(ptr, lenValue));
+        arrLenSet();
       } else if (ensureArray) {
         emitIf(scope, ensureArray,
-          () => stmt(scope, ArrLenSet(ptr, lenValue)),
+          arrLenSet,
           () => stmt(scope, LenSet(ptr, lenValue)));
       } else {
         stmt(scope, LenSet(ptr, lenValue));
@@ -3118,7 +3121,8 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     // regexp.lastIndex: store i32 at offset 8
     if (op === '=' && !decl.left.computed && decl.left.property.name === 'lastIndex' && objectKnown === TYPES.regexp) {
       const v = simpleValue;
-      stmt(scope, Store('i32', JvPtr(obj), 8, Convert(T.i32, JvNum(v))));
+      const n = knownType(scope, getNodeType(scope, decl.right)) === TYPES.number ? v : builtinCall(scope, '__ecma262_ToIntegerOrInfinity', [ v ]);
+      stmt(scope, Store('i32', JvPtr(obj), 8, Convert(T.i32, JvNum(n))));
       return valueUnused ? valUndefined() : v;
     }
 
@@ -3637,7 +3641,7 @@ const generateForOf = (scope, decl) => {
     const cases = [
       [ [ TYPES.array ], () => {
         emitIf(scope, Bin('>=', T.i32, counter, LenGet(pointer)), () => stmt(scope, Break(L)));
-        const v = reuse(scope, ArrGet(pointer, counter));
+        const v = reuse(scope, arrayIndexGet(scope, pointer, counter));
         assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
         return v;
       } ],
@@ -4204,6 +4208,19 @@ const typedArraySet = (scope, obj, prop, t, v) => {
   });
 };
 
+// array holes may be shadowed by underlying object accessors or inherited indexed props
+const arrayIndexGet = (scope, ptr, idx) => {
+  if (globalThis.precompile) return ArrGet(ptr, idx);
+
+  // holes read as undefined, so only an undefined result needs the slow check
+  const res = tmp(scope, T.jsval);
+  assign(scope, res, ArrGet(ptr, idx));
+  emitIf(scope, Bin('==', T.i32, JvType(res), Const(T.i32, TYPES.undefined)),
+    () => emitIf(scope, Un('!', T.i32, Call('porf_arr_has_own', [ ptr, idx ], T.i32)),
+      () => assign(scope, res, builtinCall(scope, '__Porffor_array_holeGet', [ Box(ptr, Const(T.i32, TYPES.array)), idx ]))));
+  return res;
+};
+
 const denseArrayIndexKey = (scope, prop) => {
   const num = reuse(scope, numValue(prop));
   const idx = reuse(scope, Convert(T.u32, num, 0));
@@ -4302,7 +4319,6 @@ const demandMemberRead = (scope, decl) => {
 let iteratorDemands;
 const mayBeIterator = known => known == null || known === TYPES.proxy || iteratorProtoTypes.includes(known);
 
-
 const primObjAlias = {
   [TYPES.boolean]: TYPES.booleanobject,
   [TYPES.number]: TYPES.numberobject,
@@ -4338,7 +4354,7 @@ const resolveMemberDemands = scope => {
 
       // any object can inherit from %Iterator.prototype%
       if (tn === 'Iterator' && !getterOnly && !iteratorDemands.has(propName)) continue;
-      const used = (tn === 'Iterator' ? iteratorProtoTypes : tn === 'Porffor_AsyncIterator' ? asyncIteratorProtoTypes : protoOwnerTypes(tn)).filter(t => usesAnyType([ t, primObjAlias[t] ]) || (t === TYPES.string && usedTypes.has(TYPES.bytestring)));
+      const used = (inheritedProtoTypes[tn] ?? protoOwnerTypes(tn)).filter(t => usesAnyType([ t, primObjAlias[t] ]) || (t === TYPES.string && usedTypes.has(TYPES.bytestring)));
       if (used.length === 0) continue;
       includeBuiltin(scope, x);
       if (!getterOnly) {
@@ -4346,7 +4362,6 @@ const resolveMemberDemands = scope => {
         if (getter in builtinFuncs) includeBuiltin(scope, getter);
 
         if (tn === 'TypedArray') for (const t of used) includeBuiltin(scope, '#get___' + TYPE_NAMES[t] + '_prototype');
-
       }
     }
 
@@ -4502,7 +4517,7 @@ const generateMember = (scope, decl, objValue = null) => {
       const { idx, valid } = denseArrayIndexKey(scope, prop);
       const res = tmp(scope, T.jsval);
       emitIf(scope, valid,
-        () => assign(scope, res, ArrGet(JvPtr(obj), idx)),
+        () => assign(scope, res, arrayIndexGet(scope, reuse(scope, JvPtr(obj)), idx)),
         () => assign(scope, res, genericMemberGet()));
       return res;
     } ],
@@ -5080,10 +5095,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         const t = func.overrideThisType;
         const thisRef = () => Local('#this', T.jsval);
         const prettyName = name.slice(2).replace('_prototype_', '.prototype.');
-        if (t === TYPES.array) {
-          emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, TYPES.array)),
-            () => assign(func, thisRef(), builtinCall(func, '__Porffor_array_fromThis', [ thisRef() ])));
-        } else if (t === TYPES.string) {
+        if (t === TYPES.string) {
           emitIf(func, Bin('!=', T.i32, JvType(thisRef()), Const(T.i32, TYPES.string)), () => {
             const nonNullish = () => internalThrow(func, 'TypeError', `${prettyName} expects 'this' to be non-nullish`);
             emitIf(func, Bin('==', T.i32, JvType(thisRef()), Const(T.i32, TYPES.undefined)), nonNullish);

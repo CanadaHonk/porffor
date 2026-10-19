@@ -432,6 +432,7 @@ export const __Object_getOwnPropertyDescriptor = (obj: any, prop: any): object|u
     idx = __Porffor_array_propertyKeyIndex(p);
   }
 
+  if (Porffor.type(obj) == Porffor.TYPES.array) if (__Porffor_array_isLengthKey(p)) __Porffor_array_lengthEntry(arr);
   obj = __Porffor_object_underlying(obj);
   const entryPtr: i32 = Porffor.object.lookup(obj, p, __Porffor_object_hash(p));
   if (entryPtr == 0) {
@@ -587,19 +588,16 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any): any 
   let arrayIndex: i32 = -1;
 
   if (Porffor.type(target) == Porffor.TYPES.array) {
-    arrayIndex = __Porffor_array_propertyKeyIndex(p);
-    if (prop == 'length' && __Object_hasOwn(desc, 'value')) {
-      const v: any = desc.value;
-      const n: number = ecma262.ToNumber(v);
-      if (Porffor.fastOr(
-        Number.isNaN(n), // NaN
-        Math.floor(n) != n, // non integer
-        n < 0, // negative
-        n >= 4294967296, // > 2**32 - 1
-      )) throw new RangeError('Invalid array length');
+    // 10.4.2.1 [[DefineOwnProperty]] (P, Desc) of array exotic objects
+    if (__Porffor_array_isLengthKey(p)) {
+      __Porffor_array_defineLength(target as any[], desc);
+      return target;
+    }
 
-      // set real array length
-      __Porffor_array_setLength(target as any[], n);
+    arrayIndex = __Porffor_array_propertyKeyIndex(p);
+    if (arrayIndex != -1) if (arrayIndex >= (target as any[]).length) {
+      const lengthEntry: i32 = __Porffor_array_lengthEntry(target as any[]);
+      if (lengthEntry != 0) if ((Porffor.IR.loadU8(lengthEntry, 16) & 0b1000) == 0) throw new TypeError('Cannot define array index past non-writable length');
     }
   }
 
@@ -652,6 +650,25 @@ export const __Object_defineProperty = (target: any, prop: any, desc: any): any 
   if (!!configurable) flags |= 0b0010;
   if (!!enumerable) flags |= 0b0100;
   if (!!writable) flags |= 0b1000;
+
+  if (arrayIndex != -1) if (Porffor.fastAnd(!accessor, flags == 0b1110)) {
+    // a default data property is kept as a dense element
+    const u: any = __Porffor_object_underlying(target);
+    const entryPtr: i32 = Porffor.object.lookup(u, p, __Porffor_object_hash(p));
+    if (entryPtr != 0) {
+      if ((Porffor.IR.loadU8(entryPtr, 16) & 0b0010) == 0) throw new TypeError('Cannot redefine property');
+      __Porffor_object_delete(u, p);
+    } else if (!__Porffor_array_has(target as any[], arrayIndex)) {
+      if (Porffor.object.isInextensible(u)) throw new TypeError('Cannot define property, object is inextensible');
+    }
+
+    (target as any[])[arrayIndex] = value;
+    return target;
+  }
+
+  if (arrayIndex != -1) if (!__Porffor_array_has(target as any[], arrayIndex)) if (__Porffor_object_isInextensible(target)) {
+    if (Porffor.object.lookup(__Porffor_object_underlying(target), p, __Porffor_object_hash(p)) == 0) throw new TypeError('Cannot define property, object is inextensible');
+  }
 
   if (accessor) Porffor.object.defineAccessor(target, p, get, set, flags);
     else Porffor.object.define(target, p, value, flags);
@@ -780,11 +797,92 @@ export const __Object_prototype_toString = function (this: any) {
   return '[object ' + builtinTag + ']';
 };
 
-export const __Object_prototype_toLocaleString = function (this: any) { return Porffor.callThis(__Object_prototype_toString, this); };
+export const __Object_prototype_toLocaleString = function (this: any) {
+  if (this == null) throw new TypeError('Object.prototype.toLocaleString called on null or undefined');
+  return Porffor.callThis(__Object_prototype_toString, this);
+};
 
+// 20.1.3.7 Object.prototype.valueOf ()
+// https://tc39.es/ecma262/#sec-object.prototype.valueof
 export const __Object_prototype_valueOf = function (this: any) {
-  // todo: ToObject
-  return this;
+  // 1. Return ? ToObject(this value).
+  return ecma262.ToObject(this);
+};
+
+// B.2.2.2/3 Object.prototype.__defineGetter__/__defineSetter__ (P, getter)
+export const __Porffor_object_defineGetterSetter = (_this: any, P: any, fn: any, setter: boolean): void => {
+  // 1. Let O be ? ToObject(this value).
+  const O: any = ecma262.ToObject(_this);
+
+  // 2. If IsCallable(getter) is false, throw a TypeError exception.
+  if (Porffor.type(fn) != Porffor.TYPES.function) {
+    if (setter) throw new TypeError('Setter must be a function');
+    throw new TypeError('Getter must be a function');
+  }
+
+  // 3. Let desc be PropertyDescriptor { [[Get]] (or [[Set]]): getter, [[Enumerable]]: true, [[Configurable]]: true }.
+  const desc: object = {};
+  if (setter) desc.set = fn;
+    else desc.get = fn;
+  desc.enumerable = true;
+  desc.configurable = true;
+
+  // 4. Let key be ? ToPropertyKey(P).
+  // 5. Perform ? DefinePropertyOrThrow(O, key, desc).
+  __Object_defineProperty(O, ecma262.ToPropertyKey(P), desc);
+};
+
+// B.2.2.2 Object.prototype.__defineGetter__ (P, getter)
+// https://tc39.es/ecma262/#sec-object.prototype.__defineGetter__
+export const __Object_prototype___defineGetter__ = function (this: any, P: any, getter: any) {
+  __Porffor_object_defineGetterSetter(this, P, getter, false);
+};
+
+// B.2.2.3 Object.prototype.__defineSetter__ (P, setter)
+// https://tc39.es/ecma262/#sec-object.prototype.__defineSetter__
+export const __Object_prototype___defineSetter__ = function (this: any, P: any, setter: any) {
+  __Porffor_object_defineGetterSetter(this, P, setter, true);
+};
+
+// B.2.2.4/5 Object.prototype.__lookupGetter__/__lookupSetter__ (P)
+export const __Porffor_object_lookupAccessor = (_this: any, P: any, setter: boolean): any => {
+  // 1. Let O be ? ToObject(this value).
+  let O: any = ecma262.ToObject(_this);
+
+  // 2. Let key be ? ToPropertyKey(P).
+  const key: any = ecma262.ToPropertyKey(P);
+
+  // 3. Repeat,
+  while (true) {
+    // a. Let desc be ? O.[[GetOwnProperty]](key).
+    const desc: any = __Object_getOwnPropertyDescriptor(O, key);
+
+    // b. If desc is not undefined, then
+    if (desc !== undefined) {
+      // i. If IsAccessorDescriptor(desc) is true, return desc.[[Get]] (or [[Set]]).
+      // ii. Return undefined.
+      if (setter) return desc.set;
+      return desc.get;
+    }
+
+    // c. Set O to ? O.[[GetPrototypeOf]]().
+    O = __Object_getPrototypeOf(O);
+
+    // d. If O is null, return undefined.
+    if (O == null) return undefined;
+  }
+};
+
+// B.2.2.4 Object.prototype.__lookupGetter__ (P)
+// https://tc39.es/ecma262/#sec-object.prototype.__lookupGetter__
+export const __Object_prototype___lookupGetter__ = function (this: any, P: any) {
+  return __Porffor_object_lookupAccessor(this, P, false);
+};
+
+// B.2.2.5 Object.prototype.__lookupSetter__ (P)
+// https://tc39.es/ecma262/#sec-object.prototype.__lookupSetter__
+export const __Object_prototype___lookupSetter__ = function (this: any, P: any) {
+  return __Porffor_object_lookupAccessor(this, P, true);
 };
 
 

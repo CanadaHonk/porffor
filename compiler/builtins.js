@@ -359,13 +359,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       const name = x.slice(2, -'_prototype'.length);
       props.name = { value: name, writable: true, enumerable: false, configurable: true };
       props.message = { value: '', writable: true, enumerable: false, configurable: true };
-      if (name !== 'Error') {
-        const value = (_scope, { includeBuiltin }) => {
-          includeBuiltin('#get___Error_prototype');
-          return Box(Call('#get___Error_prototype', [], T.ptr), Const(T.i32, TYPES.object));
-        };
-        Object.defineProperty(props, '__proto__', { value: { value }, enumerable: true });
-      }
+      if (name !== 'Error') Object.defineProperty(props, '__proto__', { value: { value: protoValue('__Error_prototype') }, enumerable: true });
     }
 
     if (typedArrayProtos.includes(x)) {
@@ -436,7 +430,6 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     Object.defineProperty(props, '__proto__', { value: { value: protoValue('__Function_prototype') }, enumerable: true });
     object(x, props);
   }
-
 
   object('Number', {
     ...props({

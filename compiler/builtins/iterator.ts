@@ -44,6 +44,15 @@ export const __Porffor_iterator_closeThrow = (rec: any[]): void => {
   } catch (e) {}
 };
 
+export const __Porffor_iterator_callOrClose = (rec: any[], fn: any, value: any, counter: any): any => {
+  try {
+    return fn(value, counter);
+  } catch (e) {
+    __Porffor_iterator_closeThrow(rec);
+    throw e;
+  }
+};
+
 // an argument check failing before GetIteratorDirect still closes the underlying iterator
 export const __Porffor_iterator_closeObject = (obj: any): void => {
   __Porffor_iterator_closeThrow(__Porffor_iterator_new(obj, undefined, 1));
@@ -139,14 +148,7 @@ export const __Porffor_IteratorHelper_map = (h: any[]): any => {
     return undefined;
   }
 
-  const fn: any = h[3];
-  let mapped: any;
-  try {
-    mapped = fn(value, h[4]);
-  } catch (e) {
-    __Porffor_iterator_closeThrow(rec);
-    throw e;
-  }
+  const mapped: any = __Porffor_iterator_callOrClose(rec, h[3], value, h[4]);
   h[4] = h[4] + 1;
   return mapped;
 };
@@ -161,13 +163,7 @@ export const __Porffor_IteratorHelper_filter = (h: any[]): any => {
       return undefined;
     }
 
-    let selected: any;
-    try {
-      selected = fn(value, h[4]);
-    } catch (e) {
-      __Porffor_iterator_closeThrow(rec);
-      throw e;
-    }
+    const selected: any = __Porffor_iterator_callOrClose(rec, fn, value, h[4]);
     h[4] = h[4] + 1;
     if (selected) return value;
   }
@@ -256,9 +252,7 @@ export const __Porffor_IteratorHelper_concat = (h: any[]): any => {
     h[4] = i + 2;
 
     const method: any = list[i];
-    const iter: any = method.call(list[i + 1]);
-    if (!Porffor.object.isObject(iter)) throw new TypeError('Iterator is not an object');
-    h[5] = __Porffor_iterator_direct(iter);
+    h[5] = __Porffor_iterator_direct(method.call(list[i + 1]));
   }
 };
 
@@ -424,12 +418,7 @@ export const __Iterator_prototype_forEach = function (this: any, fn: any): void 
     const value: any = __Porffor_iterator_step(rec);
     if (rec[2]) return;
 
-    try {
-      fn(value, counter);
-    } catch (e) {
-      __Porffor_iterator_closeThrow(rec);
-      throw e;
-    }
+    __Porffor_iterator_callOrClose(rec, fn, value, counter);
     counter++;
   }
 };
@@ -444,13 +433,7 @@ export const __Porffor_iterator_search = (obj: any, predicate: any, mode: i32): 
     const value: any = __Porffor_iterator_step(rec);
     if (rec[2]) return mode == 1 ? true : (mode == 0 ? false : undefined);
 
-    let result: boolean;
-    try {
-      result = !!predicate(value, counter);
-    } catch (e) {
-      __Porffor_iterator_closeThrow(rec);
-      throw e;
-    }
+    const result: boolean = !!__Porffor_iterator_callOrClose(rec, predicate, value, counter);
 
     if (result != (mode == 1)) {
       __Porffor_iterator_close(rec);
@@ -529,7 +512,12 @@ export const __Porffor_iterator_inPlaceRecord = (iter: any, kind: i32): any[] =>
   return rec;
 };
 
-export const __Porffor_ArrayIterator_new = (iter: any, kind: i32): __Porffor_ArrayIterator => Porffor.as(__Porffor_iterator_inPlaceRecord(iter, kind), Porffor.TYPES.__porffor_arrayiterator);
+// CreateArrayIterator works on any object, array-likes are not copied
+export const __Porffor_ArrayIterator_new = (iter: any, kind: i32): __Porffor_ArrayIterator => {
+  if (iter == null) throw new TypeError('Array iterator called on null or undefined');
+  return Porffor.as(__Porffor_iterator_inPlaceRecord(iter, kind), Porffor.TYPES.__porffor_arrayiterator);
+};
+
 export const __Porffor_MapIterator_new = (iter: any, kind: i32): __Porffor_MapIterator => Porffor.as(__Porffor_iterator_inPlaceRecord(iter, kind), Porffor.TYPES.__porffor_mapiterator);
 export const __Porffor_SetIterator_new = (iter: any, kind: i32): __Porffor_SetIterator => Porffor.as(__Porffor_iterator_inPlaceRecord(iter, kind), Porffor.TYPES.__porffor_setiterator);
 export const __Porffor_StringIterator_new = (iter: any): __Porffor_StringIterator => Porffor.as(__Porffor_iterator_inPlaceRecord(iter, 0), Porffor.TYPES.__porffor_stringiterator);

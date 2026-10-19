@@ -139,7 +139,21 @@ export const __Porffor_object_ensureCapacity = (obj: any, needed: i32): i32 => {
   return newEntriesPtr;
 };
 
+// set once any index-like key is added to an object: until then array holes can skip prototype lookups
+let indexKeysUsed: i32 = 0;
+export const __Porffor_object_indexKeysUsed = (): i32 => indexKeysUsed;
+
 export const __Porffor_object_appendEntry = (obj: any, key: any, hash: i32): i32 => {
+  if (indexKeysUsed == 0) {
+    const keyType: i32 = Porffor.type(key);
+    if (Porffor.fastOr(keyType == Porffor.TYPES.string, keyType == Porffor.TYPES.bytestring)) {
+      if (key.length > 0) {
+        const c: i32 = key.charCodeAt(0);
+        if (Porffor.fastAnd(c >= 48, c <= 57)) indexKeysUsed = 1;
+      }
+    }
+  }
+
   const size: i32 = Porffor.IR.loadU16(obj, 0);
   const entriesPtr: i32 = __Porffor_object_ensureCapacity(obj, size + 1);
   Porffor.IR.storeU16(obj, 0, size + 1);
@@ -149,8 +163,13 @@ export const __Porffor_object_appendEntry = (obj: any, key: any, hash: i32): i32
   return entryPtr;
 };
 
+// internal adds (builtin objects, string index props) skip the index key tracking of appendEntry
 export const __Porffor_object_fastAdd = (obj: any, key: any, value: any, flags: i32): void => {
-  const entryPtr: i32 = __Porffor_object_appendEntry(obj, key, __Porffor_object_hash(key));
+  const size: i32 = Porffor.IR.loadU16(obj, 0);
+  const entryPtr: i32 = __Porffor_object_ensureCapacity(obj, size + 1) + size * 20;
+  Porffor.IR.storeU16(obj, 0, size + 1);
+  __Porffor_object_writeKey(entryPtr, key, __Porffor_object_hash(key));
+  Porffor.IR.gcBarrierValue(obj, Porffor.TYPES.object, key);
 
   Porffor.IR.storeUnF64(entryPtr, 8, value);
   Porffor.IR.storeU8(entryPtr, 16, flags);
@@ -200,6 +219,41 @@ export const __Porffor_underlyingRebuild = (): void => {
   for (let i: i32 = 0; i < len; i++) {
     __Porffor_underlyingInsertEntry(underlyingStore + 8 + i * 16, i);
   }
+};
+
+export const __Porffor_object_underlyingPtr = (_obj: any): i32 => {
+  if (underlyingStore == 0) return 0;
+  if (Porffor.IR.loadI32(underlyingStore, 0) == 0) return 0;
+  if (underlyingBuckets == 0) __Porffor_underlyingRebuild();
+
+  const objType: i32 = Porffor.type(_obj);
+  let lookupHash: i32 = Porffor.IR.ptr(_obj);
+  lookupHash = lookupHash >>> 3;
+  lookupHash ^= lookupHash >>> 16;
+  lookupHash *= 0x7feb352d;
+  lookupHash ^= lookupHash >>> 15;
+  lookupHash ^= objType;
+
+  let slot: i32 = lookupHash & (underlyingBucketsCap - 1);
+  while (true) {
+    const entry: i32 = Porffor.IR.loadI32(underlyingBuckets + slot * 4, 0);
+    if (entry == 0) return 0;
+
+    const base: i32 = underlyingStore + 8 + (entry - 1) * 16;
+    if (Porffor.fastAnd(
+      Porffor.IR.ptr(Porffor.IR.loadJv(base, 0)) == Porffor.IR.ptr(_obj),
+      Porffor.IR.loadU8(base, 12) == objType
+    ))
+      return Porffor.IR.loadI32(base, 8);
+
+    slot = (slot + 1) & (underlyingBucketsCap - 1);
+  }
+};
+
+export const __Porffor_object_underlyingPeek = (_obj: any): any => {
+  const ptr: i32 = __Porffor_object_underlyingPtr(_obj);
+  if (ptr == 0) return null;
+  return ptr as object;
 };
 
 export const __Porffor_object_coroutinePrototype = (gen: any, underlying: object): void => {
@@ -591,6 +645,12 @@ export const __Porffor_array_propertyKeyIndex = (key: any): i32 => {
   return out;
 };
 
+export const __Porffor_array_isLengthKey = (key: any): boolean => {
+  if (Porffor.type(key) != Porffor.TYPES.bytestring) return false;
+  if (Porffor.IR.loadI32(key, 0) != 6) return false;
+  return Porffor.strcmp(key, 'length');
+};
+
 export const __Porffor_object_get = (_obj: any, key: any): any => {
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
@@ -615,7 +675,7 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
     const index: i32 = __Porffor_array_propertyKeyIndex(key);
     if (index != -1) {
       if (__Porffor_array_has(_obj as any[], index)) return (_obj as any[])[index];
-    }
+    } else if (__Porffor_array_isLengthKey(key)) return (_obj as any[]).length;
   }
 
   const hash: i32 = __Porffor_object_hash(key);
@@ -640,8 +700,18 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
       if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_get(obj, key, _obj);
     }
     let proto: any = obj;
-    if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
     while (true) {
+      if (Porffor.type(obj) != Porffor.TYPES.object) {
+        // array prototypes: own dense elements and length are not in the underlying object
+        if (Porffor.type(obj) == Porffor.TYPES.array) {
+          const index: i32 = __Porffor_array_propertyKeyIndex(key);
+          if (index != -1) {
+            if (__Porffor_array_has(obj as any[], index)) return (obj as any[])[index];
+          } else if (__Porffor_array_isLengthKey(key)) return (obj as any[]).length;
+        }
+        obj = __Porffor_object_underlying(obj);
+      }
+      if (obj == null) break;
       if ((entryPtr = __Porffor_object_lookup(obj, key, hash)) != 0) break;
 
       // inline get prototype
@@ -654,10 +724,7 @@ export const __Porffor_object_get = (_obj: any, key: any): any => {
         if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_get(obj, key, _obj);
       }
       if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(proto)) break;
-
       proto = obj;
-      if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
-      if (obj == null) break;
     }
 
     if (entryPtr == 0) return undefined;
@@ -723,6 +790,7 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
     if (Porffor.IR.ptr(obj) == 0) throw new TypeError('Cannot get property of null');
   } else {
     if (trueType == Porffor.TYPES.undefined) throw new TypeError('Cannot get property of null');
+    if (trueType == Porffor.TYPES.array) return __Porffor_object_get(_obj, key);
     obj = __Porffor_object_underlying(obj);
   }
 
@@ -746,9 +814,18 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
       if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_get(obj, key, _obj);
     }
     let proto: any = obj;
-    if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
-    if (obj == null) return undefined;
     while (true) {
+      if (Porffor.type(obj) != Porffor.TYPES.object) {
+        // array prototypes: own dense elements and length are not in the underlying object
+        if (Porffor.type(obj) == Porffor.TYPES.array) {
+          const index: i32 = __Porffor_array_propertyKeyIndex(key);
+          if (index != -1) {
+            if (__Porffor_array_has(obj as any[], index)) return (obj as any[])[index];
+          } else if (__Porffor_array_isLengthKey(key)) return (obj as any[]).length;
+        }
+        obj = __Porffor_object_underlying(obj);
+      }
+      if (obj == null) break;
       if ((entryPtr = __Porffor_object_lookup(obj, key, hash)) != 0) break;
 
       // inline get prototype
@@ -761,10 +838,7 @@ export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): a
         if (Porffor.type(obj) == Porffor.TYPES.proxy) return __Porffor_proxy_get(obj, key, _obj);
       }
       if (Porffor.IR.ptr(obj) == Porffor.IR.ptr(proto)) break;
-
       proto = obj;
-      if (Porffor.type(obj) != Porffor.TYPES.object) obj = __Porffor_object_underlying(obj);
-      if (obj == null) break;
     }
 
     if (entryPtr == 0) return undefined;
@@ -806,8 +880,15 @@ export const __Porffor_object_set = (_obj: any, key: any, value: any): any => {
   key = ecma262.ToPropertyKey(key);
   const hash: i32 = __Porffor_object_hash(key);
   if (trueType == Porffor.TYPES.array) {
+    if (__Porffor_array_isLengthKey(key)) {
+      __Porffor_array_setLengthValue(_obj as any[], value, false);
+      return value;
+    }
+
     const index: i32 = __Porffor_array_propertyKeyIndex(key);
     if (Porffor.fastAnd(index != -1, __Porffor_object_lookup(obj, key, hash) == 0)) {
+      // adding a new index to an inextensible array fails
+      if (!__Porffor_array_has(_obj as any[], index)) if (__Porffor_object_isInextensible(obj)) return value;
       let arr: i32 = Porffor.IR.ptr(_obj);
       const needed: i32 = index + 1;
       const entries: i32 = __Porffor_array_ensure(arr, needed);
@@ -1054,8 +1135,15 @@ export const __Porffor_object_setStrict = (_obj: any, key: any, value: any): any
   key = ecma262.ToPropertyKey(key);
   const hash: i32 = __Porffor_object_hash(key);
   if (trueType == Porffor.TYPES.array) {
+    if (__Porffor_array_isLengthKey(key)) {
+      __Porffor_array_setLengthValue(_obj as any[], value, true);
+      return value;
+    }
+
     const index: i32 = __Porffor_array_propertyKeyIndex(key);
     if (Porffor.fastAnd(index != -1, __Porffor_object_lookup(obj, key, hash) == 0)) {
+      // adding a new index to an inextensible array fails
+      if (!__Porffor_array_has(_obj as any[], index)) if (__Porffor_object_isInextensible(obj)) throw new TypeError('Cannot add property to inextensible object');
       let arr: i32 = Porffor.IR.ptr(_obj);
       const needed: i32 = index + 1;
       const entries: i32 = __Porffor_array_ensure(arr, needed);
@@ -1392,10 +1480,15 @@ export const __Porffor_object_delete = (obj: any, key: any): boolean => {
   }
 
   if (trueType == Porffor.TYPES.array) {
-    const index: i32 = __Porffor_array_propertyKeyIndex(ecma262.ToPropertyKey(key));
+    key = ecma262.ToPropertyKey(key);
+    const index: i32 = __Porffor_array_propertyKeyIndex(key);
     if (index != -1) {
-      __Porffor_array_delete(obj as any[], index);
-      return true;
+      if (__Porffor_array_has(obj as any[], index)) {
+        __Porffor_array_delete(obj as any[], index);
+        return true;
+      }
+
+      if (__Porffor_object_underlyingPtr(obj) == 0) return true;
     }
   }
 
@@ -1448,10 +1541,15 @@ export const __Porffor_object_deleteStrict = (obj: any, key: any): boolean => {
   }
 
   if (trueType == Porffor.TYPES.array) {
-    const index: i32 = __Porffor_array_propertyKeyIndex(ecma262.ToPropertyKey(key));
+    key = ecma262.ToPropertyKey(key);
+    const index: i32 = __Porffor_array_propertyKeyIndex(key);
     if (index != -1) {
-      __Porffor_array_delete(obj as any[], index);
-      return true;
+      if (__Porffor_array_has(obj as any[], index)) {
+        __Porffor_array_delete(obj as any[], index);
+        return true;
+      }
+
+      if (__Porffor_object_underlyingPtr(obj) == 0) return true;
     }
   }
 

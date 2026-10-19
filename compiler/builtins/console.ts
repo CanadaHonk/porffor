@@ -88,7 +88,7 @@ export const __Porffor_print = (arg: any, colors: boolean = true, depth: number 
     case Porffor.TYPES.boolean:
     case Porffor.TYPES.booleanobject:
       if (colors) Porffor.printStatic('\x1b[33m'); // yellow
-      if (arg) {
+      if (Porffor.IR.ptr(arg) != 0) {
         Porffor.printStatic('true');
       } else {
         Porffor.printStatic('false');
