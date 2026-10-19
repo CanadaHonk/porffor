@@ -957,7 +957,7 @@ const annotate = (node, parent = null, key = null) => {
 
         const parsed = node._evalParsed;
         if (evalKind === 'direct' && paramsFunc && parsed && !isStrictBlock(parsed.body) && !isStrictBlock(paramsFunc.body?.body ?? []) &&
-            evalVarNames(parsed).includes('arguments')) node._evalSyntaxError = 'Cannot declare arguments in eval code in parameters';
+            evalVarNames(parsed).some(x => x.split('#')[0] === 'arguments')) node._evalSyntaxError = 'Cannot declare arguments in eval code in parameters';
       }
       break;
     }
