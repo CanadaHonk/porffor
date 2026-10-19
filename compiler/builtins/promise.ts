@@ -175,7 +175,7 @@ export const __Porffor_promise_resolve = (value: any, promise: any): void => {
       __ecma262_FulfillPromise(promise, value);
       return;
     }
-  } else if (!__ecma262_IsPromise(value)) {
+  } else if (!Porffor.object.isObject(value)) {
     __ecma262_FulfillPromise(promise, value);
     return;
   }
