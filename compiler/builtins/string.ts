@@ -1657,10 +1657,18 @@ export const __ByteString_prototype_split = function (this: bytestring, separato
 
 
 // todo: unicode normalization
+export const __Porffor_string_normalizeForm = (form: any): void => {
+  if (Porffor.type(form) == Porffor.TYPES.undefined) return;
+  form = ecma262.ToString(form);
+  if (form != 'NFC' && form != 'NFD' && form != 'NFKC' && form != 'NFKD') throw new RangeError('Invalid normalization form');
+};
+
 export const __String_prototype_normalize = function (this: string, form: any = undefined) {
+  __Porffor_string_normalizeForm(form);
   return this;
 };
 export const __ByteString_prototype_normalize = function (this: bytestring, form: any = undefined) {
+  __Porffor_string_normalizeForm(form);
   return this;
 };
 
