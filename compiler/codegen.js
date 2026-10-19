@@ -2083,11 +2083,10 @@ const generateCall = (scope, decl) => {
 
   // eval('known/literal string') -> inline the parsed program
   if (!decl._funcIdx && !decl._new && (name === 'eval' || (decl.callee.type === 'SequenceExpression' && decl.callee.expressions.at(-1)?.name === 'eval'))) {
-    const known = knownValue(scope, decl.arguments[0]);
-    if (known !== unknownValue) {
+    // semantic parsed sources it knows
+    if (decl._evalParsed || decl._evalSyntaxError) {
       if (decl._evalSyntaxError) return internalThrow(scope, 'SyntaxError', decl._evalSyntaxError);
       const parsed = decl._evalParsed;
-      if (!parsed) throw new Error('Known eval source missing semantic eval metadata');
 
       if (decl._indirectEval || decl.callee.type === 'SequenceExpression' || decl.optional) {
         // indirect eval: a separate func + scope
@@ -5205,6 +5204,38 @@ const usesBigInt = node => {
   return false;
 };
 
+// specialize literal-arg calls to functions whose new Function sources use their params
+const specializeFunctionSources = program => {
+  const find = (node, f, out = []) => {
+    if (!node || typeof node !== 'object') return out;
+    if (Array.isArray(node)) {
+      for (const x of node) find(x, f, out);
+      return out;
+    }
+    if (f(node)) out.push(node);
+    for (const k in node) if (k[0] !== '_') find(node[k], f, out);
+    return out;
+  };
+
+  const funcs = new Map();
+  for (const x of program.body) {
+    if (x.type !== 'FunctionDeclaration' || !x.params.every(p => p.type === 'Identifier')) continue;
+    const names = x.params.map(p => p.name);
+    // only names that are nothing but this declaration and its direct calls
+    if (find(program, n => n.name === x.id.name).length !== find(program, n => n.type === 'CallExpression' && n.callee.name === x.id.name).length + 1) continue;
+    if (find(x.body, n => (n.type === 'CallExpression' || n.type === 'NewExpression') && n.callee.name === 'Function').length > 0 &&
+      find(x.body, n => n.name === 'arguments' || names.includes(n.type === 'AssignmentExpression' ? n.left.name : n.type === 'UpdateExpression' && n.argument.name)).length === 0) funcs.set(x.id.name, x);
+  }
+
+  for (const call of find(program, n => n.type === 'CallExpression' && funcs.has(n.callee.name))) {
+    const func = funcs.get(call.callee.name);
+    if (call.arguments.length !== func.params.length || !call.arguments.every(x => x.type === 'Literal')) continue;
+    call.callee = { ...structuredClone(func), type: 'FunctionExpression', id: null, params: [] };
+    call.callee.body.body.unshift({ type: 'VariableDeclaration', kind: 'const', declarations: func.params.map((p, i) => ({ type: 'VariableDeclarator', id: identNode(p.name), init: call.arguments[i] })) });
+    call.arguments = [];
+  }
+};
+
 // property names the program may define (keys, uncalled members, strings), so builtin method calls know what can shadow them
 let definedKeys = new Set();
 const collectDefinedKeys = program => {
@@ -5946,6 +5977,7 @@ export default (program, opts = {}) => {
   // todo/perf: make this lazy per func (again)
   // semantic relies on object hack happening before
   program = desugarUsing(program);
+  specializeFunctionSources(program);
   objectHackAssigned = assignedBuiltinMembers(program);
   program = objectHack(program);
   if (Prefs.closures) program = semantic(program);

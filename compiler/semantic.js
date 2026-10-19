@@ -252,6 +252,7 @@ export const knownValue = (scope, node) => {
   if (!node) return undefined;
 
   if (node.type === 'Literal' && node.value !== undefined) return node.value;
+  if (node._resolvedVariable?.kind === 'const' && !node._tdz && node._resolvedVariable.node._declarator?.init) return knownValue(scope, node._resolvedVariable.node._declarator.init);
 
   if (node.type === 'TemplateLiteral') {
     let out = '';
