@@ -664,6 +664,7 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
       if (type.type === TYPES.bigint) return Box(numValue(value), Const(T.i32, TYPES.bigint));
       if (type.type != null && value[N_TYPE] !== T.jsval)
         return Box(type.type === TYPES.number ? numValue(value) : value, Const(T.i32, type.type));
+      if (type.type === TYPES.numberobject) return Box(numValue(value), Const(T.i32, type.type));
       if (type.type > 5) return Box(JvPtr(value), Const(T.i32, type.type));
       return value;
     }

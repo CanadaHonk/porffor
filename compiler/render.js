@@ -1386,6 +1386,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   if (iterClose) runtimeRefs.push(iterClose);
   if (promiseResolveFunc) runtimeRefs.push(promiseResolveFunc);
   prelude.push(RUNTIME_HEAD(prefs, toStr ? fnSym(toStr) : null, iterClose ? fnSym(iterClose) : null));
+  if (usesCoro || usesSyncAsync) prelude.push(PROMISE_DIRECT_RUNTIME());
   if (usesCoro) prelude.push(CORO_RUNTIME());
 
   // link unit head: static data image, globals, gc roots, per-function tables
@@ -5262,46 +5263,7 @@ static void porf_init(int argc, char** argv) {
 `;
 };
 
-const CORO_RUNTIME = () => `// ---- coroutines (stackless) ----
-// record: header, frame, args. a generator is its record
-typedef struct porf_coro_call {
-  jsval callee;
-  jsval thisv;
-  jsval newtv;
-  jsval result;
-  jsval channel;          // value (or thrown exception) crossing the boundary
-  jsval iter_open;        // porf_iter_open inside it
-  jsval caller_iter_open;
-  struct porf_coro_call* parent;
-  u32 heap;               // block offset in the GC heap, 0 while on the C stack
-  u32 idx;
-  u32 env;
-  u32 frame_size;
-  i32 argc;
-  i32 state;              // 0 idle, 1 running, 2 suspended, 3 done
-  i32 resume;             // suspend point to re-enter at, 0 = start
-  i32 throw_pending;      // resume delivers channel as a throw at the suspend point
-  i32 raw;                // channel is an iterator result to pass through as-is
-  i32 awaiting;           // suspended at an await (channel is its promise), not a yield
-  i32 caller_iter_base;
-} porf_coro_call;
-#define PORF_CORO_HDR ((u32)((sizeof(porf_coro_call) + 7u) & ~7u))
-#define PORF_CORO_BYTES(frame, argc) (PORF_CORO_HDR + (frame) + (u32)(argc) * 8u)
-
-static porf_coro_call* porf_coro_cur = 0;
-#define PORF_CORO_RETURN porf_box(0.0, ${TYPES.__porffor_generator})
-static i32 porf_coro_mode = 0;
-static jsval porf_coro_dispatch(porf_coro_call* call);
-static u32 porf_coro_frame_bytes(u32 idx);
-#ifndef PORF_GC_KIND_CORO
-#define PORF_GC_KIND_CORO 247u
-#endif
-
-static inline void* porf_coro_frame(porf_coro_call* c) { return (u8*)c + PORF_CORO_HDR; }
-static inline jsbits* porf_coro_argv(porf_coro_call* c) { return (jsbits*)((u8*)c + PORF_CORO_HDR + c->frame_size); }
-static inline void porf_coro_touch(porf_coro_call* c) { if (c->heap) porf_gc_barrier(c->heap, 0); }
-
-static jsval porf_promise_pending(void) {
+const PROMISE_DIRECT_RUNTIME = () => `static jsval porf_promise_pending(void) {
   const u32 p = porf_alloc(PORF_PROMISE_SIZE, ${TYPES.promise});
   *(jsbits*)(MEM + p + PORF_PROMISE_RESULT) = JV_UNDEFINED_BITS;
   *(u32*)(MEM + p + PORF_PROMISE_FULFILL_HEAD) = 0;
@@ -5340,6 +5302,46 @@ static void porf_promise_settle_direct(jsval promise, jsval value, i32 state) {
   porf_gc_barrier(p, ${TYPES.promise});
   porf_promise_trigger_reactions(reactions, value);
 }
+`;
+
+const CORO_RUNTIME = () => `// ---- coroutines (stackless) ----
+// record: header, frame, args. a generator is its record
+typedef struct porf_coro_call {
+  jsval callee;
+  jsval thisv;
+  jsval newtv;
+  jsval result;
+  jsval channel;          // value (or thrown exception) crossing the boundary
+  jsval iter_open;        // porf_iter_open inside it
+  jsval caller_iter_open;
+  struct porf_coro_call* parent;
+  u32 heap;               // block offset in the GC heap, 0 while on the C stack
+  u32 idx;
+  u32 env;
+  u32 frame_size;
+  i32 argc;
+  i32 state;              // 0 idle, 1 running, 2 suspended, 3 done
+  i32 resume;             // suspend point to re-enter at, 0 = start
+  i32 throw_pending;      // resume delivers channel as a throw at the suspend point
+  i32 raw;                // channel is an iterator result to pass through as-is
+  i32 awaiting;           // suspended at an await (channel is its promise), not a yield
+  i32 caller_iter_base;
+} porf_coro_call;
+#define PORF_CORO_HDR ((u32)((sizeof(porf_coro_call) + 7u) & ~7u))
+#define PORF_CORO_BYTES(frame, argc) (PORF_CORO_HDR + (frame) + (u32)(argc) * 8u)
+
+static porf_coro_call* porf_coro_cur = 0;
+#define PORF_CORO_RETURN porf_box(0.0, ${TYPES.__porffor_generator})
+static i32 porf_coro_mode = 0;
+static jsval porf_coro_dispatch(porf_coro_call* call);
+static u32 porf_coro_frame_bytes(u32 idx);
+#ifndef PORF_GC_KIND_CORO
+#define PORF_GC_KIND_CORO 247u
+#endif
+
+static inline void* porf_coro_frame(porf_coro_call* c) { return (u8*)c + PORF_CORO_HDR; }
+static inline jsbits* porf_coro_argv(porf_coro_call* c) { return (jsbits*)((u8*)c + PORF_CORO_HDR + c->frame_size); }
+static inline void porf_coro_touch(porf_coro_call* c) { if (c->heap) porf_gc_barrier(c->heap, 0); }
 
 static u32 porf_promise_new_coro_reaction(porf_coro_call* call, jsval out_promise, i32 is_throw) {
   const u32 reaction = porf_alloc(PORF_REACTION_SIZE, 0);
