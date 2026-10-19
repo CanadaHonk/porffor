@@ -3584,8 +3584,7 @@ const inferLoopEnd = scope => {
 };
 
 const generateLoopBinding = (scope, left, valNode) => {
-  if (left.type === 'Identifier') generateVarDstr(scope, 'var', left, valNode, undefined, true);
-  else if (left.type === 'VariableDeclaration') generateVarDstr(scope, left.kind, left.declarations[0]?.id ?? left, valNode, undefined, scope.topLevel);
+  if (left.type === 'VariableDeclaration') generateVarDstr(scope, left.kind, left.declarations[0]?.id ?? left, valNode, undefined, scope.topLevel);
   else generatePatternAssign(scope, left, valNode);
 };
 
