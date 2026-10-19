@@ -12,81 +12,117 @@ export const __Math_hypot = (...args: any[]): number => {
   return out;
 };
 
-export const __Math_sumPrecise = (values: any[]): number => {
-  // based on "Fast exact summation using small and large superaccumulators" by Radford M. Neal
-  // https://arxiv.org/abs/1505.05571
-  // accuracy is top priority, it is fine for this to be slow(er)
+export const __Math_sumPrecise = (values: any): number => {
+  // exact summation into non-overlapping partials (Shewchuk), after the proposal polyfill
+  // https://github.com/tc39/proposal-math-sum/blob/main/polyfill/polyfill.mjs
+  const partials: any[] = Porffor.array.new(4);
+  let overflow: number = 0; // in units of 2^1024
 
-  // small superaccumulator uses 67 chunks: (1 << (11 - 5)) + 3
-  //   11 is the number of exponent bits in IEEE-754 double precision
-  //   5 is the number of low-order exponent bits stored per chunk
-  const SMALL_SLOTS: number = 67;
-  const SMALL_MIN: number = -970;
-  const small: Float64Array = new Float64Array(SMALL_SLOTS);
+  // 0: minus zero, 1: finite, 2: +Infinity, 3: -Infinity, 4: NaN
+  let state: i32 = 0;
+  for (const v of values) {
+    if (Porffor.type(v) != Porffor.TYPES.number) throw new TypeError('Math.sumPrecise must have only numbers in values');
 
-  // large superaccumulator uses 4096 chunks: 1 << (11 + 1)
-  //   11 is the number of exponent bits in IEEE-754 double precision
-  const LARGE_SLOTS: number = 4096;
-  const LARGE_MIN: number = -1074;
-  const large: Float64Array = new Float64Array(LARGE_SLOTS);
+    let x: number = v;
+    if (x != x) state = 4;
+      else if (x == Infinity) {
+        if (state == 3) state = 4;
+          else if (state != 4) state = 2;
+      } else if (x == -Infinity) {
+        if (state == 2) state = 4;
+          else if (state != 4) state = 3;
+      }
+    if (Porffor.fastOr(state >= 2, x == 0 && 1 / x < 0)) continue;
+    state = 1;
 
-  for (const _ of values) {
-    if (Porffor.type(_) != Porffor.TYPES.number) throw new TypeError('Math.sumPrecise must have only numbers in values');
+    let used: i32 = 0;
+    for (let i: i32 = 0; i < partials.length; i++) {
+      let y: number = partials[i];
+      if (Math.abs(x) < Math.abs(y)) {
+        const t: number = x;
+        x = y;
+        y = t;
+      }
 
-    const v: number = _;
-    if (v == 0) continue;
+      let hi: number = x + y;
+      let lo: number = y - (hi - x);
+      if (Math.abs(hi) == Infinity) {
+        let sign: number = 1;
+        if (hi < 0) sign = -1;
+        overflow += sign;
 
-    const exp: number = Porffor.number.getExponent(v);
-
-    // check if value fits in small superaccumulator
-    if (exp >= SMALL_MIN && exp < SMALL_MIN + SMALL_SLOTS) {
-      // map the exponent to an array index (-970 -> 0, -969 -> 1, etc)
-      const slot: number = exp - SMALL_MIN;
-      let y: number = v;
-
-      // cascade up through slots, similar to carrying digits in decimal
-      // but operating in binary and handling floating point carefully
-      for (let i: number = slot; i < SMALL_SLOTS - 1; i++) {
-        const sum: number = small[i] + y;
-        y = sum;
-
-        // a number fits in slot i if its magnitude is less than 2^(i+SMALL_MIN+1)
-        const slotLimit: number = Math.pow(2, i + SMALL_MIN + 1);
-        if (y >= -slotLimit && y < slotLimit) {
-          small[i] = y;
-          y = 0;
-          break;
+        x = (x - sign * 2 ** 1023) - sign * 2 ** 1023;
+        if (Math.abs(x) < Math.abs(y)) {
+          const t: number = x;
+          x = y;
+          y = t;
         }
-
-        // doesn't fit, clear this slot and continue cascading
-        small[i] = 0;
+        hi = x + y;
+        lo = y - (hi - x);
       }
 
-      // if we still have a non-zero value after cascading through small,
-      // it needs to go into the large superaccumulator
-      if (y != 0) {
-        large[Porffor.number.getExponent(y) - LARGE_MIN] += y;
-      }
-    } else {
-      // exponent is outside small superaccumulator range,
-      // put it directly into the large superaccumulator
-      large[Porffor.number.getExponent(v) - LARGE_MIN] += v;
+      if (lo != 0) partials[used++] = lo;
+      x = hi;
     }
+
+    partials.length = used;
+    if (x != 0) Porffor.array.fastPush(partials, x);
   }
 
-  // combine results from both superaccumulators,
-  // process from highest to lowest to maintain precision
-  // todo: handle -0 (see test262 test)
-  let sum: number = -0;
-  for (let i: number = LARGE_SLOTS - 1; i >= 0; i--) {
-    sum += large[i];
+  if (state == 0) return -0;
+  if (state == 2) return Infinity;
+  if (state == 3) return -Infinity;
+  if (state == 4) return NaN;
+
+  // exact sum of the partials from the largest, until precision is lost
+  let n: i32 = partials.length - 1;
+  let hi: number = 0;
+  let lo: number = 0;
+  if (overflow != 0) {
+    let next: number = 0;
+    if (n >= 0) next = partials[n];
+    n--;
+    if (Porffor.fastOr(Math.abs(overflow) > 1, overflow > 0 && next > 0, overflow < 0 && next < 0)) {
+      if (overflow > 0) return Infinity;
+      return -Infinity;
+    }
+
+    // halved so it does not overflow
+    hi = overflow * 2 ** 1023 + next / 2;
+    lo = (next / 2 - (hi - overflow * 2 ** 1023)) * 2;
+    if (Math.abs(2 * hi) == Infinity) {
+      // half an ulp below 2^1024 rounds to MAX_VALUE only if the next partial pulls it down
+      if (hi > 0) {
+        if (hi == 2 ** 1023 && lo == -(2 ** 970) && n >= 0 && partials[n] < 0) return Number.MAX_VALUE;
+        return Infinity;
+      }
+      if (hi == -(2 ** 1023) && lo == 2 ** 970 && n >= 0 && partials[n] > 0) return -Number.MAX_VALUE;
+      return -Infinity;
+    }
+
+    if (lo != 0) {
+      partials[++n] = lo;
+      lo = 0;
+    }
+    hi *= 2;
   }
 
-  for (let i: number = SMALL_SLOTS - 1; i >= 0; i--) {
-    sum += small[i];
+  while (n >= 0) {
+    const x: number = hi;
+    const y: number = partials[n--];
+    hi = x + y;
+    lo = y - (hi - x);
+    if (lo != 0) break;
   }
 
-  return sum;
+  // a roundoff of exactly half an ulp rounds towards the next partial
+  if (n >= 0 && ((lo < 0 && partials[n] < 0) || (lo > 0 && partials[n] > 0))) {
+    const y: number = lo * 2;
+    const x: number = hi + y;
+    if (y == x - hi) hi = x;
+  }
+
+  return hi;
 };
 
 export const __Math_max = (...args: any[]): number => {
