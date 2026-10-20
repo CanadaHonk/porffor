@@ -485,7 +485,7 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
   if (c == 91) { // '[' - array
     pos++;
     const arr: any[] = Porffor.array.new(4);
-    __Porffor_json_skipWhitespace();
+    pos = __Porffor_json_skipWhitespace(text, pos, len);
 
     if (pos < len && text.charCodeAt(pos) == 93) { // empty array
       pos++;
@@ -517,8 +517,7 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
   if (c == 123) { // '{' - object
     pos++;
     const obj: any = {};
-    __Porffor_json_skipWhitespace();
-
+    pos = __Porffor_json_skipWhitespace(text, pos, len);
     if (pos < len && text.charCodeAt(pos) == 125) { // empty object
       pos++;
       Porffor.IR.storeI32(posPtr, 0, pos);
