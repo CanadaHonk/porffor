@@ -358,6 +358,8 @@ export const __Porffor_object_underlying = (_obj: any): any => {
         Porffor.IR.storeI32(newStore + i, 0, Porffor.IR.loadI32(underlyingStore + i, 0));
       }
 
+      // a stale conservative root to the old store must not mark its dead keys
+      Porffor.IR.storeI32(underlyingStore, 0, 0);
       underlyingStore = newStore;
       Porffor.IR.storeI32(underlyingStore, 4, newCapacity);
     }
