@@ -110,7 +110,7 @@ if (cluster.isPrimary) {
       results.timeouts?.length ?? 0
     ];
   };
-  const compareGitResults = () => execSync(`git log -200 --pretty=%B`).toString().split('\n').find(x => x.startsWith('test262: 1') || x.startsWith('test262: 2') || x.startsWith('test262: 3') || x.startsWith('test262: 4') || x.startsWith('test262: 5') || x.startsWith('test262: 6')).split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
+  const compareGitResults = () => execSync(`git log -200 --pretty=%B`).toString().split('\n').find(x => /^test262: \d/.test(x)).split('|').map(x => parseFloat(x.split('(')[0].trim().split(' ').pop().trim().replace('%', '')));
   let compareBaseline = minimal ? [] : (process.argv.includes('--compare-git') ? compareGitResults() : compareResults(existingResults));
 
   if (!resultOnly && !process.argv.includes('--json-results')) process.stdout.write('\u001b[90mreading tests...\u001b[0m');
