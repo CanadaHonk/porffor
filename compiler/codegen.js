@@ -3450,6 +3450,11 @@ const generateAssign = (scope, decl, valueUnused = false) => {
         : performOp(scope, op,
             hash != null ? builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ]) : builtinCall(scope, '__Porffor_object_get', [ obj, key ]),
             generate(scope, decl.right), null, getNodeType(scope, decl.right));
+      if (hash != null && Prefs.ic && (objectKnown == null || objectKnown === TYPES.object)) {
+        includeBuiltin(scope, setBuiltin + '_icMiss');
+        return Call(setBuiltin === '__Porffor_object_setStrict' ? 'porf_ic_set_strict' : 'porf_ic_set', [ coerceValue(obj, T.jsval), coerceValue(key, T.jsval), coerceValue(value, T.jsval), Const(T.i32, hash), icSlot(scope) ], T.jsval);
+      }
+
       return hash != null
         ? builtinCall(scope, setBuiltin + '_withHash', [ obj, key, value, Const(T.i32, hash) ])
         : builtinCall(scope, setBuiltin, [ obj, key, value ]);
@@ -4812,6 +4817,17 @@ const resolveMemberDemands = scope => {
 
 let icSites;
 
+const icSlot = scope => {
+  const unit = unitOf(scope);
+  const ic = icSites[unit] ??= { site: 0, chunk: null };
+  const index = ic.site++ % 256;
+  if (index === 0)
+    ic.chunk = dataSeg(unit, `#ic:${unit}:${ic.site}`, new Array(256).fill(i32Bytes(0x7fffffff)).flat());
+
+  const chunk = DataRef(ic.chunk);
+  return index === 0 ? chunk : Bin('+', T.i32, chunk, Const(T.i32, index * 4));
+};
+
 const generateMember = (scope, decl, objValue = null) => {
   const demanded = globalThis.precompile ? null : demandMemberRead(scope, decl);
   if (decl.object.type === 'Super') return generateSuperMember(scope, decl);
@@ -4887,17 +4903,8 @@ const generateMember = (scope, decl, objValue = null) => {
     const key = prop[N_TYPE] === T.jsval ? prop : valNumber(prop);
     if (hash == null) return builtinCall(scope, '__Porffor_object_get', [ obj, key ]);
 
-    if (Prefs.ic && (known == null || known === TYPES.object)) {
-      const unit = unitOf(scope);
-      const ic = icSites[unit] ??= { site: 0, chunk: null };
-      const index = ic.site++ % 256;
-      if (index === 0)
-        ic.chunk = dataSeg(unit, `#ic:${unit}:${ic.site}`, new Array(256).fill(i32Bytes(0x7fffffff)).flat());
-
-      const chunk = DataRef(ic.chunk);
-      const slot = index === 0 ? chunk : Bin('+', T.i32, chunk, Const(T.i32, index * 4));
-      return builtinCall(scope, '__Porffor_object_get_ic', [ obj, key, Const(T.i32, hash), slot ]);
-    }
+    if (Prefs.ic && (known == null || known === TYPES.object))
+      return builtinCall(scope, '__Porffor_object_get_ic', [ obj, key, Const(T.i32, hash), icSlot(scope) ]);
 
     return builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ]);
   };

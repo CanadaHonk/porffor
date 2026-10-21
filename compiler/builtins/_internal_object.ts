@@ -884,6 +884,33 @@ export const __Porffor_object_get_icMiss = (_obj: any, key: any, hash: i32, slot
   return __Porffor_object_get_withHash(_obj, key, hash);
 };
 
+export const __Porffor_object_set_icMiss = (obj: any, key: any, value: any, hash: i32, slot: i32): any => {
+  __Porffor_object_set_withHash(obj, key, value, hash);
+  __Porffor_object_icFillWrite(obj, hash, slot);
+  return value;
+};
+
+export const __Porffor_object_setStrict_icMiss = (obj: any, key: any, value: any, hash: i32, slot: i32): any => {
+  __Porffor_object_setStrict_withHash(obj, key, value, hash);
+  __Porffor_object_icFillWrite(obj, hash, slot);
+  return value;
+};
+
+export const __Porffor_object_icFillWrite = (obj: any, hash: i32, slot: i32): void => {
+  if (Porffor.type(obj) != Porffor.TYPES.object) return;
+  if (Porffor.IR.ptr(obj) == 0) return;
+  if (Porffor.IR.loadI32(slot, 0) != 2147483647) return;
+  const entriesPtr: i32 = Porffor.IR.loadI32(obj, 12);
+  let ptr: i32 = entriesPtr;
+  const endPtr: i32 = ptr + Porffor.IR.loadU16(obj, 0) * 20;
+  for (; ptr < endPtr; ptr += 20) {
+    if (Porffor.IR.loadI32(ptr, 0) == hash) {
+      if ((Porffor.IR.loadU8(ptr, 16) & 0b1001) == 0b1000) Porffor.IR.storeI32(slot, 0, ptr - entriesPtr);
+      return;
+    }
+  }
+};
+
 export const __Porffor_object_get_withHash = (_obj: any, key: any, hash: i32): any => {
   let obj: any = _obj;
   const trueType: i32 = Porffor.type(obj);
