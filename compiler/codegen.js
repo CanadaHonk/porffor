@@ -4812,6 +4812,17 @@ const resolveMemberDemands = scope => {
 
 let icSites;
 
+const icSlot = scope => {
+  const unit = unitOf(scope);
+  const ic = icSites[unit] ??= { site: 0, chunk: null };
+  const index = ic.site++ % 256;
+  if (index === 0)
+    ic.chunk = dataSeg(unit, `#ic:${unit}:${ic.site}`, new Array(256).fill([ ...i32Bytes(0x7fffffff), 0, 0, 0, 0 ]).flat());
+
+  const chunk = DataRef(ic.chunk);
+  return index === 0 ? chunk : Bin('+', T.i32, chunk, Const(T.i32, index * 8));
+};
+
 const generateMember = (scope, decl, objValue = null) => {
   const demanded = globalThis.precompile ? null : demandMemberRead(scope, decl);
   if (decl.object.type === 'Super') return generateSuperMember(scope, decl);
@@ -4888,15 +4899,8 @@ const generateMember = (scope, decl, objValue = null) => {
     if (hash == null) return builtinCall(scope, '__Porffor_object_get', [ obj, key ]);
 
     if (Prefs.ic && (known == null || known === TYPES.object)) {
-      const unit = unitOf(scope);
-      const ic = icSites[unit] ??= { site: 0, chunk: null };
-      const index = ic.site++ % 256;
-      if (index === 0)
-        ic.chunk = dataSeg(unit, `#ic:${unit}:${ic.site}`, new Array(256).fill(i32Bytes(0x7fffffff)).flat());
-
-      const chunk = DataRef(ic.chunk);
-      const slot = index === 0 ? chunk : Bin('+', T.i32, chunk, Const(T.i32, index * 4));
-      return builtinCall(scope, '__Porffor_object_get_ic', [ obj, key, Const(T.i32, hash), slot ]);
+      includeBuiltin(scope, '__Porffor_object_get_icMiss');
+      return Call('porf_ic_get', [ coerceValue(obj, T.jsval), coerceValue(key, T.jsval), Const(T.i32, hash), icSlot(scope) ], T.jsval);
     }
 
     return builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ]);
