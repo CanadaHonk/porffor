@@ -114,6 +114,7 @@ const cReservedNames = new Set([
 // inlining these has little perf benefit and significantly increases binary size
 const NEVER_INLINE = new Set([
   '__Porffor_object_get_ic', '__Porffor_object_get_icMiss', '__Porffor_object_get_withHash', '__Porffor_array_holeGet',
+  '__Porffor_object_set_icMiss', '__Porffor_object_setStrict_icMiss',
   '__ecma262_ToNumeric', '__RegExp_prototype_exec'
 ]);
 
@@ -1480,9 +1481,34 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     linkProtos.push(`${st}void __Porffor_coroutine_setRaw(i32 raw);\n`);
     linkProtos.push(`${st}jsval __Porffor_coroutine_callee(jsval gen);\n`);
   }
+  const icHelpers = [];
+  for (const [ name, miss ] of [ [ 'porf_ic_set', '__Porffor_object_set_icMiss' ], [ 'porf_ic_set_strict', '__Porffor_object_setStrict_icMiss' ] ]) {
+    const missFunc = funcByName.get(miss);
+    if (!missFunc?.body) continue;
+    if (split) icHelpers.push(proto(missFunc));
+    icHelpers.push(`static inline __attribute__((always_inline)) jsval ${name}(jsval obj, jsval key, jsval v, i32 hash, i32 slot) {
+  if (porf_jv_type(obj) == ${TYPES.object} && (u32)obj.val != 0u) {
+    const u32 o = (u32)obj.val;
+    const i32 off = *(i32*)(MEM + (u32)slot);
+    if (off < (i32)*(u16*)(MEM + o) * 20) {
+      const u32 e = *(u32*)(MEM + o + 12u) + (u32)off;
+      if (*(i32*)(MEM + e) == hash && (*(u8*)(MEM + e + 16u) & 0x9u) == 0x8u) {
+        porf_store_un_f64(MEM + e + 8u, v.val);
+        *(u8*)(MEM + e + 17u) = (u8)porf_jv_type(v);
+        if (porf_gc_type_can_reference(porf_jv_type(v))) porf_gc_barrier(o, ${TYPES.object});
+        return v;
+      }
+    }
+  }
+  return ${fnSym(missFunc)}(obj, key, v, hash, slot);
+}
+`);
+  }
+
   if (!split) {
     for (const f of linkFuncs) link.push(proto(f));
     link.push(...linkProtos);
+    link.push(...icHelpers);
   }
 
   // module globals (top-level JS bindings)
@@ -2172,7 +2198,7 @@ int porf_native_fetch_read_value(jsval value, const char** out_buf, size_t* out_
   const rt = splitRuntime(prelude.join(''));
   const header = rt.header +
     `extern const u8 porf_fnflags[];\n${usesSyncAsync ? 'extern const u8 porf_fnneeds_coro[];\n' : ''}extern const u16 porf_fnlen[];\nextern const u32 porf_fnname[];\nextern const u32 porf_fnrecs;\n` +
-    linkProtos.join('');
+    linkProtos.join('') + icHelpers.join('');
   const unitName = u => {
     const name = units?.find(x => x.id === u)?.name;
     return name ? name.replace(/^[/]/, '').replace(/[^\w.-]/g, '_') + '.' + u + '.c' : `porf_${sanitize(u)}.c`;
