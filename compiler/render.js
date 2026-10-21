@@ -3744,6 +3744,14 @@ static void porf_gc_process_weakmaps(void) {
 }
 
 static void porf_gc_cons_candidate(u32 c);
+static void porf_gc_cons_f64(f64 d) {
+  // Heap BigInts encode their offset above 2^51, including in f64 builtin arguments.
+  if (d >= 2251799813685248.0 && d < 2251804108652544.0) d -= 2251799813685248.0;
+  if (d > 0.0 && d < 4294967296.0) {
+    const u32 ptr = (u32)d;
+    if ((f64)ptr == d) porf_gc_cons_candidate(ptr);
+  }
+}
 static void porf_gc_cons_mark_block(i32 body) {
   if (!porf_gc_mark_body(body)) return;
   const u32 kind = porf_gc_kinds[porf_gc_gran(body)];
@@ -3754,10 +3762,7 @@ static void porf_gc_cons_mark_block(i32 body) {
   for (u32 off = 0; off + 4u <= size; off += 4u) porf_gc_cons_candidate(*(u32*)(MEM + body + off));
   for (u32 off = 0; off + 8u <= size; off += 8u) {
     const f64 d = *(f64*)(MEM + body + off);
-    if (d > 0.0 && d < 4294967296.0) {
-      const i64 iv = (i64)d;
-      if ((f64)iv == d) porf_gc_cons_candidate((u32)(u64)iv);
-    }
+    porf_gc_cons_f64(d);
   }
 }
 static void porf_gc_cons_candidate(u32 c) {
@@ -3784,10 +3789,7 @@ static void porf_gc_cons_scan_range(const u64* lo, const u64* hi) {
     porf_gc_cons_candidate((u32)(v >> 32));
     f64 d;
     memcpy(&d, w, 8);
-    if (d > 0.0 && d < 4294967296.0) {
-      const i64 iv = (i64)d;
-      if ((f64)iv == d) porf_gc_cons_candidate((u32)(u64)iv);
-    }
+    porf_gc_cons_f64(d);
   }
 }
 
