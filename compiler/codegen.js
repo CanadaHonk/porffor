@@ -2,7 +2,7 @@ import {
   K, T, FX, N_KIND, N_TYPE, N_FX, N_A, N_B, N_C,
   Const, JvConst, DataRef, Local, Global, Assign,
   Bin, Un, Select, Convert, CONVERT_SIGNED, CONVERT_RANGE_KNOWN,
-  Reinterpret, Box, JvType, JvNum, JvPtr, JvIsNum, Eq, Add, Cmp, JvTruthy, JvFalsy, JvNullish,
+  Reinterpret, Box, JvType, JvNum, JvPtr, JvBits, JvIsNum, Eq, Add, Cmp, JvTruthy, JvFalsy, JvNullish,
   Load, Store, MemCopy, MemFill,
   If, Loop, Break, Continue, BlockStmt, TypeSwitch, Return, Unreachable,
   Call, CallDynamic, Try, Throw, ThrowNew, Await, Yield,
@@ -1378,14 +1378,23 @@ const irBuiltinHelpers = (scope, name, def) => ({
   },
   // top-level user bindings are own props of the global object: fill `sync` (inside
   // #get_globalThis) with add-or-update writes reading current binding values, deferred
-  // until all globals exist. rerun-safe (the finalizer fixpoint runs every finalizer each pass)
-  globalThisUserSync: (objJv, sync) => {
+  // until all globals exist. `once` writes every binding when the object is built; `sync`, run on every
+  // later access, only rewrites bindings whose value changed since the last write (a packed copy of what
+  // was written is kept per binding), so a read of globalThis does not cost a hashed write per binding.
+  // rerun-safe (the finalizer fixpoint runs every finalizer each pass)
+  globalThisUserSync: (objJv, sync, once) => {
     const finalizer = () => {
       sync.length = 0;
+      once.length = 0;
       const seen = new Set();
       const push = (key, value) => {
         seen.add(key);
-        sync.push(builtinCall(scope, '__Porffor_object_set', [ objJv, makeString(scope, key), value ]));
+        const shadowName = '#gtsync_' + key;
+        if (!(shadowName in globals)) globals[shadowName] = { idx: globals['#ind']++, type: T.u64 };
+        const shadow = Global(shadowName, T.u64);
+        const write = () => [ builtinCall(scope, '__Porffor_object_set', [ objJv, makeString(scope, key), value ]), Assign(shadow, JvBits(value)) ];
+        once.push(...write());
+        sync.push(If(Bin('!=', T.u64, JvBits(value), shadow), write()));
       };
 
       for (const name in topLevelFunc?.namedFuncBindings ?? {}) {

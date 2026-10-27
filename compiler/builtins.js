@@ -63,9 +63,9 @@ export const BuiltinVars = ({ builtinFuncs }) => {
         const getPtr = global(`getptr_${name}`, T.ptr);
         const obj = Local('obj', T.jsval);
 
-        // globalThis: user top-level decls are own props, re-synced from bindings on access (globalThisUserSync)
-        const sync = [];
-        if (name === 'globalThis') globalThisUserSync(Box(getPtr, Const(T.i32, TYPES.object)), sync);
+        // globalThis: user top-level decls are own props, written when the object is built and rewritten on access only if changed (globalThisUserSync)
+        const sync = [], once = [];
+        if (name === 'globalThis') globalThisUserSync(Box(getPtr, Const(T.i32, TYPES.object)), sync, once);
 
         const funcValue = name => Box(funcRefPtr(name), Const(T.i32, TYPES.function));
         const out = existingFunc ? [
@@ -166,7 +166,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           for (const x in props) emitProp(out, x, props[x]);
         }
 
-        out.push(BlockStmt(sync));
+        out.push(BlockStmt(once));
         out.push(Return(existingFunc ? funcRefPtr(name) : getPtr));
         return out;
       }
