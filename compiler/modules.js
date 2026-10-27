@@ -3,14 +3,19 @@ import parse from './parser/index.js';
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 
-const dirname = p => p.slice(0, p.lastIndexOf('/')) || '/';
+const rootOf = p => p[0] === '/' ? '/' : p[1] === ':' && p[2] === '/' ? p.slice(0, 3) : '';
+export const toPosix = p => process.platform === 'win32' ? p.replaceAll('\\', '/') : p;
+export const absPath = file => rootOf(file) ? file : toPosix(process.cwd()) + '/' + file;
+const dirname = p => { const root = rootOf(p), i = p.lastIndexOf('/'); return i < root.length ? root || '/' : p.slice(0, i); };
 const joinPath = (dir, rel) => {
+  const full = rootOf(rel) ? rel : dir + '/' + rel;
+  const root = rootOf(full);
   const parts = [];
-  for (const x of (rel[0] === '/' ? rel : dir + '/' + rel).split('/')) {
+  for (const x of full.slice(root.length).split('/')) {
     if (x === '..') parts.pop();
     else if (x !== '.' && x !== '') parts.push(x);
   }
-  return '/' + parts.join('/');
+  return (root || '/') + parts.join('/');
 };
 const isFile = p => { try { return fs.statSync(p).isFile(); } catch { return false; } };
 const readJson = p => JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -36,7 +41,7 @@ const findPackage = (dir, name) => {
   for (;;) {
     const pkgDir = dir + '/node_modules/' + name;
     if (isFile(pkgDir + '/package.json')) return pkgDir;
-    if (dir === '/') return null;
+    if (dir === rootOf(dir)) return null;
     dir = dirname(dir);
   }
 };
@@ -84,7 +89,7 @@ const resolveExports = (exports, subpath, conditions) => {
 const nearestPackage = dir => {
   for (;; dir = dirname(dir)) {
     if (isFile(dir + '/package.json')) return dir;
-    if (dir === '/') return null;
+    if (dir === rootOf(dir)) return null;
   }
 };
 
@@ -92,7 +97,7 @@ const resolve = (spec, from, cjs) => {
   if (spec.startsWith('node:')) throw new Error(`porffor: node builtin modules are not supported (${spec})`);
   const conditions = [ 'porffor', 'worker', cjs ? 'require' : 'import', 'module', 'default', ...(Prefs.conditions ? String(Prefs.conditions).split(',') : []) ];
   let out = null;
-  if (spec[0] === '.' || spec[0] === '/') out = resolveFile(joinPath(dirname(from), spec));
+  if (spec[0] === '.' || rootOf(spec)) out = resolveFile(joinPath(dirname(from), spec));
   else if (spec[0] === '#') {
     const pkgDir = nearestPackage(dirname(from));
     const target = pkgDir && resolveMap(readJson(pkgDir + '/package.json').imports ?? {}, spec, conditions);
@@ -681,7 +686,8 @@ export default (entrySource, entryFile, opts = {}) => {
       if (mod.esm) nsName(mod);
     }
     for (const cases of runtimeImportSites) {
-      for (const mod of order) cases.push({ type: 'SwitchCase', test: literal(mod.file), consequent: [ { type: 'ReturnStatement', argument: call(`#import#m${mod.id}`) } ] });
+      // __Porffor_module_resolve start every path with /, so windows drive paths (like C:/) require a leading /
+      for (const mod of order) cases.push({ type: 'SwitchCase', test: literal(mod.file[0] === '/' ? mod.file : '/' + mod.file), consequent: [ { type: 'ReturnStatement', argument: call(`#import#m${mod.id}`) } ] });
     }
   }
   for (let more = true; more;) {
@@ -773,7 +779,7 @@ export default (entrySource, entryFile, opts = {}) => {
       mod.body.splice(at, 0, assign(ident(nsName(mod)), mod.nsExpr));
     }
     if (mod.metaUsed) mod.body.unshift(varDecl('var', `#meta#m${mod.id}`, { type: 'ObjectExpression', properties: [
-      property(ident('__proto__'), literal(null)), property(ident('url'), literal('file://' + mod.file))
+      property(ident('__proto__'), literal(null)), property(ident('url'), literal('file://' + (mod.file[0] === '/' ? '' : '/') + mod.file))
     ] }));
     const out = mod.lazy ? lazyBody(mod) : mod.body;
     if (mod.dynamic) {

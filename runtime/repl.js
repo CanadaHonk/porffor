@@ -1,10 +1,11 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import * as repl from 'node:repl';
 import { execFileSync } from 'node:child_process';
 import compile from '../compiler/index.js';
 
 const runNativeSource = (source, output, module = Prefs.module) => {
-  const tmp = fs.mkdtempSync('/tmp/porffor-run-');
+  const tmp = fs.mkdtempSync(`${os.tmpdir()}/porffor-run-`);
   const inputFile = `${tmp}/input.js`;
   const outFile = `${tmp}/out`;
   const oldPrefs = { ...Prefs };

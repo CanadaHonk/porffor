@@ -1,6 +1,6 @@
 import './prefs.js';
 import parse from './parser/index.js';
-import link from './modules.js';
+import link, { absPath } from './modules.js';
 
 const usedNames = (node, names, out = new Set()) => {
   if (node == null || typeof node !== 'object') return out;
@@ -66,7 +66,7 @@ export default (input, entry = null, evalContext = null) => {
   const file = entry?.file ?? globalThis.file;
   // scripts only need linking for the modules their import() calls pull in
   const linked = entry && !globalThis.precompile && (Prefs.module || /\bimport\s*\(/.test(input));
-  const ast = linked ? link(input, file[0] === '/' ? file : process.cwd() + '/' + file, { ts: types, scripts: entry.scripts, script: !Prefs.module }) : parse(input, { module: !!Prefs.module, ts: types, eval: evalContext });
+  const ast = linked ? link(input, absPath(file), { ts: types, scripts: entry.scripts, script: !Prefs.module }) : parse(input, { module: !!Prefs.module, ts: types, eval: evalContext });
   if (ast._ts) globalThis.typedInput = Prefs.optTypes;
   const used = usedNames(ast, POLYFILL_NAMES);
   if (used.has('Temporal')) ast._usesTemporal = true;

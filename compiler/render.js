@@ -4162,6 +4162,119 @@ ${st}void porf_gc_collect(int minor) {
 `;
 };
 
+// the posix subset the runtime uses, for windows (mingw-w64, zig cc, clang). no windows.h:
+// its macros (near, small, ERROR, ...) collide with generated names, so kernel32 is declared by hand
+const WIN32_COMPAT = `#include <time.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <io.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+__declspec(dllimport) void* __stdcall VirtualAlloc(void*, size_t, unsigned long, unsigned long);
+__declspec(dllimport) int __stdcall VirtualFree(void*, size_t, unsigned long);
+__declspec(dllimport) int __stdcall QueryPerformanceCounter(long long*);
+__declspec(dllimport) int __stdcall QueryPerformanceFrequency(long long*);
+__declspec(dllimport) void __stdcall GetSystemTimePreciseAsFileTime(unsigned long long*);
+__declspec(dllimport) void* __stdcall GetStdHandle(unsigned long);
+__declspec(dllimport) int __stdcall GetConsoleMode(void*, unsigned long*);
+__declspec(dllimport) int __stdcall SetConsoleMode(void*, unsigned long);
+__declspec(dllimport) unsigned int __stdcall GetConsoleOutputCP(void);
+__declspec(dllimport) int __stdcall SetConsoleOutputCP(unsigned int);
+
+// the arena only uses mmap/mprotect/madvise as reserve/commit/decommit, so map them onto
+// VirtualAlloc. the arena base never needs a specific address, hence no hint
+#define PORF_VA_COMMIT 0x1000
+#define PORF_VA_RESERVE 0x2000
+#define PORF_VA_DECOMMIT 0x4000
+#define PORF_VA_NOACCESS 1
+#define PORF_VA_READWRITE 4
+#define PROT_NONE 0
+#define PROT_READ 1
+#define PROT_WRITE 2
+#define MAP_PRIVATE 0x02
+#define MAP_FIXED 0x10
+#define MAP_ANONYMOUS 0x20
+#define MAP_FAILED ((void*)-1)
+#define MADV_DONTNEED 4
+// MAP_FIXED is only used to trim the arena tail: decommit. madvise decommits then recommits,
+// which leaves the pages zeroed and usable
+static void* porf_win_mmap(void* addr, size_t len, int prot, int flags) {
+  void* p;
+  if (flags & MAP_FIXED) return VirtualFree(addr, len, PORF_VA_DECOMMIT) ? addr : MAP_FAILED;
+  if (prot == PROT_NONE) p = VirtualAlloc(NULL, len, PORF_VA_RESERVE, PORF_VA_NOACCESS);
+  else p = VirtualAlloc(NULL, len, PORF_VA_RESERVE | PORF_VA_COMMIT, PORF_VA_READWRITE);
+  return p ? p : MAP_FAILED;
+}
+#define mmap(addr, len, prot, flags, fd, off) porf_win_mmap((addr), (len), (prot), (flags))
+#define mprotect(addr, len, prot) (VirtualAlloc((addr), (len), PORF_VA_COMMIT, PORF_VA_READWRITE) ? 0 : -1)
+#define madvise(addr, len, advice) (VirtualFree((addr), (len), PORF_VA_DECOMMIT) && VirtualAlloc((addr), (len), PORF_VA_COMMIT, PORF_VA_READWRITE) ? 0 : -1)
+
+// not every mingw sysroot has clock_gettime (it comes from winpthreads)
+#undef CLOCK_REALTIME
+#undef CLOCK_MONOTONIC
+#define CLOCK_REALTIME 0
+#define CLOCK_MONOTONIC 1
+static int porf_win_clock_gettime(int clk, struct timespec* ts) {
+  if (clk == CLOCK_MONOTONIC) {
+    static long long freq = 0;
+    long long ticks;
+    if (!freq) QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&ticks);
+    ts->tv_sec = (time_t)(ticks / freq);
+    ts->tv_nsec = (long)((ticks % freq) * 1000000000ll / freq);
+  } else {
+    unsigned long long ft;
+    GetSystemTimePreciseAsFileTime(&ft);
+    ft -= 116444736000000000ull;
+    ts->tv_sec = (time_t)(ft / 10000000ull);
+    ts->tv_nsec = (long)((ft % 10000000ull) * 100ull);
+  }
+  return 0;
+}
+#define clock_gettime(clk, ts) porf_win_clock_gettime((clk), (ts))
+
+// mingw headers declare _setjmp(buf, frame); frame 0 = plain register restore, no seh unwind.
+// gcc's ucrt makes _setjmp a __intrinsic_setjmpex macro, msvc's takes one argument. no ucrt _longjmp
+// split builds paste this block into porf.h and again into porf_runtime.c after it, where
+// _setjmp is already our macro and would be mistaken for the ucrt one
+#ifndef PORF_SETJMP_MAPPED
+#define PORF_SETJMP_MAPPED
+#if defined(_setjmp) && defined(_WIN64)
+#undef _setjmp
+#define _setjmp(b) __intrinsic_setjmpex((b), 0)
+#elif defined(__MINGW32__)
+#undef _setjmp
+#define _setjmp(b) _setjmp((b), 0)
+#endif
+#endif
+#define _longjmp longjmp
+
+// text mode would turn every LF into CRLF. the console is switched to utf-8 and ansi escapes,
+// and its code page is restored at exit since it outlives the process
+static unsigned int porf_win_old_cp = 0;
+static void porf_win_restore_console(void) {
+  SetConsoleOutputCP(porf_win_old_cp);
+}
+static void porf_win_init_console(void) {
+  const unsigned long vt_processing = 0x0004, std_handles[2] = { (unsigned long)-11, (unsigned long)-12 };
+  unsigned long mode;
+  int is_console = 0;
+  _setmode(_fileno(stdout), _O_BINARY);
+  _setmode(_fileno(stderr), _O_BINARY);
+  for (int i = 0; i < 2; i++) {
+    void* h = GetStdHandle(std_handles[i]);
+    if (!h || !GetConsoleMode(h, &mode)) continue;
+    SetConsoleMode(h, mode | vt_processing);
+    is_console = 1;
+  }
+  if (is_console) {
+    porf_win_old_cp = GetConsoleOutputCP();
+    SetConsoleOutputCP(65001);
+    atexit(porf_win_restore_console);
+  }
+}`;
+
 // jsval encoding: f64 numbers are themselves, else 0xFFF8 (sign + quiet-NaN) << 48 |
 // type:8 << 43 | payload:32. hardware qNaN is 0x7FF8 (sign clear) so never collides,
 // sign-set NaNs from raw bytes are canonicalized at Float64Array/DataView reads (porf_canon)
@@ -4176,6 +4289,9 @@ const RUNTIME_HEAD = (prefs, toStr = null, iterClose = null, bigints = true) => 
 #include <setjmp.h>
 #include <math.h>
 
+#ifdef _WIN32
+${WIN32_COMPAT}
+#else
 #include <signal.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -4185,6 +4301,7 @@ const RUNTIME_HEAD = (prefs, toStr = null, iterClose = null, bigints = true) => 
 #include <sys/wait.h>
 #endif
 #include <time.h>
+#endif
 
 ${prefs.repl ? `static int porf_repl_output_enabled = 1;
 #define printf(...) (porf_repl_output_enabled ? fprintf(stdout, __VA_ARGS__) : 0)
@@ -5247,6 +5364,9 @@ static char** porf_argv;
 static void porf_init(int argc, char** argv) {
   porf_argc = argc;
   porf_argv = argv;
+#ifdef _WIN32
+  porf_win_init_console();
+#endif
   porf_arena_init();
 }
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import os from 'node:os';
 import { execFileSync } from 'node:child_process';
+import { toPosix } from '../compiler/modules.js';
 import '../compiler/prefs.js';
 globalThis.version = 'alpha 1 (ba4813d 2026-07-15)';
 
@@ -82,14 +84,14 @@ entrypoint: {
   const nonFlagArgs = [];
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '-o') {
-      Prefs.o = args[++i];
+      Prefs.o = toPosix(args[++i]);
       continue;
     }
     if (args[i] === '-e' || args[i] === '-p') {
       i++;
       continue;
     }
-    if (args[i][0] !== '-') nonFlagArgs.push(args[i]);
+    if (args[i][0] !== '-') nonFlagArgs.push(toPosix(args[i]));
   }
 
   let inputFile = globalThis.file = nonFlagArgs[0];
@@ -108,7 +110,7 @@ entrypoint: {
     command = 'native';
     Prefs.target = 'native';
     if (Prefs.o == null) {
-      tmpRunDir = fs.mkdtempSync('/tmp/porffor-run-');
+      tmpRunDir = fs.mkdtempSync(`${os.tmpdir()}/porffor-run-`);
       Prefs.o = `${tmpRunDir}/out`;
       Prefs.quiet = !process.stdout.isTTY;
       Prefs.run = true;
@@ -129,7 +131,7 @@ entrypoint: {
     Prefs.optUnused = false;
     command = 'native';
     Prefs.target = 'native';
-    tmpRunDir = fs.mkdtempSync('/tmp/porffor-run-');
+    tmpRunDir = fs.mkdtempSync(`${os.tmpdir()}/porffor-run-`);
     inputFile = globalThis.file = `${tmpRunDir}/input.js`;
     Prefs.o = `${tmpRunDir}/out`;
     Prefs.quiet = true;
