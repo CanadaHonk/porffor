@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import parse from '../compiler/parser/index.js';
+import { toPosix } from "../compiler/modules.js";
 
-const root = path.resolve(new URL('../', import.meta.url).pathname);
+const root = toPosix(path.resolve(import.meta.dirname, '..'));
 const out = path.join(root, 'selfhosted/bundle.js');
 const noopPrecompiled = process.env.SELFHOST_NOOP_PRECOMPILED === '1';
 
@@ -92,9 +93,9 @@ export const relative = (from, to) => {
 };
 export const sep = '/';
 export default { join, resolve, dirname, basename, extname, relative, sep };` ],
-  [ 'node:os', `export const homedir = () => process.env.HOME ?? '/tmp';
+  [ 'node:os', `export const homedir = () => process.env.HOME ?? process.env.USERPROFILE ?? '/tmp';
 export const tmpdir = () => {
-  const t = process.env.TMPDIR;
+  const t = process.env.TMPDIR ?? process.env.TEMP;
   if (t == null || t === '') return '/tmp';
   return t[t.length - 1] === '/' ? t.slice(0, -1) : t;
 };
@@ -147,7 +148,7 @@ const modules = [];
 const seen = new Map();
 let nextModuleId = 0;
 
-const normalize = file => path.normalize(file);
+const normalize = file => toPosix(path.normalize(file));
 const prefix = id => `__m${id}_`;
 const unique = (id, name) => `${prefix(id)}${name.replace(/[^A-Za-z0-9_$]/g, '_')}`;
 const stripCommentText = source => source.replace(/[^\n\r]/g, '');
@@ -225,9 +226,9 @@ const commentRanges = source => {
 
 const resolveImport = (from, spec) => {
   if (spec === 'node:fs' || spec === 'node:child_process' || spec === 'node:repl' || spec === 'node:path' || spec === 'node:os') return spec;
-  if (!spec.startsWith('.') && !spec.startsWith('/')) return spec;
+  if (!spec.startsWith('.') && !path.isAbsolute(spec)) return spec;
 
-  let target = spec.startsWith('/') ? spec : path.resolve(path.dirname(from), spec);
+  let target = path.isAbsolute(spec) ? spec : path.resolve(path.dirname(from), spec);
   if (!path.extname(target)) target += '.js';
   return normalize(target);
 };
@@ -237,7 +238,8 @@ const load = file => {
   if (shims.has(file)) return shims.get(file);
   if (noopPrecompiled && /builtins_precompiled\.js$/.test(file)) return 'export const BuiltinFuncs = () => {};';
 
-  let source = fs.readFileSync(file, 'utf8').replace(/^#!.*\n/, '');
+  // the patches below match LF text, but core.autocrlf checkouts are CRLF
+  let source = fs.readFileSync(file, 'utf8').replaceAll('\r\n', '\n').replace(/^#!.*\n/, '');
 
   if (file.endsWith('/compiler/index.js') || file.endsWith('/compiler/modules.js')) {
     source = source.replace(`const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);`, `const fs = globalThis.__porfforNode.fs;`);
@@ -276,7 +278,7 @@ const UWS_PATCH_DIR = (() => {
 
   if (file.endsWith('/runtime/native-fetch.js')) {
     const replaced = source.replace(`const FETCH_GLOBALS = fs.readFileSync(new URL('./fetch-globals.js', import.meta.url), 'utf8');`,
-      `const FETCH_GLOBALS = ${JSON.stringify(fs.readFileSync(path.join(root, 'runtime/fetch-globals.js'), 'utf8'))};`);
+      `const FETCH_GLOBALS = ${JSON.stringify(fs.readFileSync(path.join(root, 'runtime/fetch-globals.js'), 'utf8').replaceAll('\r\n', '\n'))};`);
     if (replaced === source) throw new Error('selfhost native-fetch globals rewrite failed');
     source = replaced;
   }
@@ -705,7 +707,7 @@ var importFuncs, importDelta;
 `;
 
 for (const mod of modules) {
-  const rel = mod.file.startsWith(root) ? path.relative(root, mod.file) : mod.file;
+  const rel = mod.file.startsWith(root) ? toPosix(path.relative(root, mod.file)) : mod.file;
 
   if (!noopPrecompiled && mod.file.endsWith('/compiler/builtins_precompiled.js')) {
     const generated = rewriteGeneratedModule(mod.source, mod.id);

@@ -1,7 +1,7 @@
 import parse from './parse.js';
 import codegen from './codegen.js';
 import render from './render.js';
-import { hashId } from './modules.js';
+import { hashId, absPath } from './modules.js';
 import './prefs.js';
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
@@ -12,6 +12,9 @@ const formatTime = ms => ms >= 60_000 ? `${Math.floor(ms / 60_000)}m ${Math.roun
 const formatSize = bytes => bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)}MB` : `${(bytes / 1000).toFixed(1)}KB`;
 
 const ansi = code => process.stdout.isTTY ? `\u001b[${code}m` : '';
+
+// commands run through cmd.exe on windows, which splits on spaces
+const quoteArg = x => /\s/.test(x) ? `"${x}"` : x;
 
 let progressLines = 0, progressInterval;
 let spinner = ['-', '\\', '|', '/'], spin = 0;
@@ -105,13 +108,23 @@ export default (code, module = Prefs.module, opts = {}) => {
   if (target === 'native') {
     outFile ??= file.split('/').at(-1).split('.')[0];
 
-    let compiler = (Prefs.compiler ?? process.env.CC ?? 'cc').split(' ');
+    const isWindows = process.platform === 'win32';
+    let compiler = (Prefs.compiler ?? process.env.CC ?? (isWindows ? 'gcc' : 'cc')).split(' ');
     let cxx = (Prefs.cxx ?? process.env.CXX ?? 'c++').split(' ');
     if (Prefs.musl) compiler = [ 'zig', 'cc', '-target', 'x86_64-linux-musl' ];
     if (Prefs.musl) cxx = [ 'zig', 'c++', '-target', 'x86_64-linux-musl' ];
+
+    // cross builds name the target in a flag or in the binary (x86_64-w64-mingw32-gcc)
+    const ccName = compiler[0].split(/[\/\\]/).at(-1);
+    const triple = compiler.join(' ').match(/(?:^|\s)(?:-target\s+|--target=)(\S+)/)?.[1]
+      ?? ccName.match(/^(.+)-(?:gcc|cc|clang)(?:-[\d.]+)?(?:\.exe)?$/)?.[1];
+    const isWindowsTarget = triple ? /windows|mingw/.test(triple) : isWindows;
     const isTinyCC = compiler[0].endsWith('tcc');
+    const isMsvc = isWindowsTarget && (triple ? /msvc/.test(triple) : /^clang/.test(ccName));
+    if (isWindowsTarget && !outFile.endsWith('.exe')) outFile += '.exe';
     // split builds skip lto by default: it costs seconds at every link for ~1% throughput
-    if (!Prefs.d && Prefs.flto == null) Prefs.flto = !Prefs.musl && !isTinyCC && !split;
+    // (zig's lto link for windows is also missing libm symbols)
+    if (!Prefs.d && Prefs.flto == null) Prefs.flto = !Prefs.musl && !isTinyCC && !split && !isWindowsTarget;
 
     const compilerArgPrefs = [ 'march', 'flto' ];
     const compilerArgs = isTinyCC && process.platform === 'darwin' ?
@@ -123,11 +136,15 @@ export default (code, module = Prefs.module, opts = {}) => {
     }
     const linkStripArgs = process.platform === 'darwin' ?
       [ '-Wl,-stack_size,0x4000000', ...(Prefs.d ? [] : [ '-Wl,-dead_strip', '-Wl,-dead_strip_dylibs', '-Wl,-x' ]) ] :
+      isMsvc ? [ '-Wl,/OPT:REF', '-Wl,/STACK:67108864' ] :
+      isWindowsTarget ? [ '-Wl,--gc-sections', '-Wl,--stack,67108864' ] :
       [ '-Wl,--gc-sections' ];
     const darwinReleaseCompileArgs = process.platform === 'darwin' && !Prefs.d ? [ '-fvisibility=hidden' ] : [];
+    // win64 needs unwind tables: zig's bundled mingw crt fails to build without them
+    const unwindArgs = isWindowsTarget ? [] : [ '-fno-unwind-tables', '-fno-asynchronous-unwind-tables' ];
     const compileOnlyArgs = [
       '-fno-exceptions',
-      '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
+      ...unwindArgs,
       '-fno-ident', '-ffunction-sections', '-fdata-sections',
       ...darwinReleaseCompileArgs,
       ...compilerArgs,
@@ -136,8 +153,8 @@ export default (code, module = Prefs.module, opts = {}) => {
 
     // content-cached units: only changed ones recompile, all of them when porf.h or flags change
     const compileUnits = (files, cc, cxx = cc) => {
-      const entry = globalThis.file[0] === '/' ? globalThis.file : process.cwd() + '/' + globalThis.file;
-      const buildDir = `${process.env.HOME}/.cache/porffor/build/${hashId(entry)}`;
+      const entry = absPath(globalThis.file);
+      const buildDir = `${process.env.HOME ?? process.env.USERPROFILE}/.cache/porffor/build/${hashId(entry)}`;
       fs.mkdirSync(buildDir, { recursive: true });
       const stampFile = `${buildDir}/flags`;
       let stale = !fs.existsSync(stampFile) || fs.readFileSync(stampFile, 'utf8') !== cc + cxx;
@@ -159,8 +176,13 @@ export default (code, module = Prefs.module, opts = {}) => {
       if (logProgress) progressStart(`compiling ${changed.length}/${objects.length} units (using ${cc.split(' ')[0]})...`);
       const t5 = performance.now();
       if (changed.length > 0) {
-        const job = 'case "$0" in *.cpp) exec ' + cxx + ' "$0" -o "${0%.cpp}.o";; *) exec ' + cc + ' "$0" -o "${0%.c}.o";; esac';
-        execSync('xargs -0 -P ' + (Prefs.j ?? '$(getconf _NPROCESSORS_ONLN)') + " -n 1 sh -c '" + job + "'", { input: changed.join('\0'), stdio: [ 'pipe', 'inherit', 'inherit' ] });
+        if (isWindows) {
+          // no xargs or sh
+          for (const unit of changed) execSync(`${unit.endsWith('.cpp') ? cxx : cc} ${quoteArg(unit)} -o ${quoteArg(unit.replace(/\.c(pp)?$/, '.o'))}`, { stdio: 'inherit' });
+        } else {
+          const job = 'case "$0" in *.cpp) exec ' + cxx + ' "$0" -o "${0%.cpp}.o";; *) exec ' + cc + ' "$0" -o "${0%.c}.o";; esac';
+          execSync('xargs -0 -P ' + (Prefs.j ?? '$(getconf _NPROCESSORS_ONLN)') + " -n 1 sh -c '" + job + "'", { input: changed.join('\0'), stdio: [ 'pipe', 'inherit', 'inherit' ] });
+        }
       }
       if (logProgress) progressDone(`compiled ${changed.length}/${objects.length} units (using ${cc.split(' ')[0]})`, t5);
       return objects;
@@ -213,9 +235,9 @@ export default (code, module = Prefs.module, opts = {}) => {
       const args = [
         ...compiler,
         ...(Prefs.musl ? [ '-static' ] : []),
-        ...(objects ?? [ '-xc', '-', ...compileOnlyArgs ]),
-        '-o', outFile ?? (process.platform === 'win32' ? 'out.exe' : 'out'), // set path for output
-        '-lm', // link math.h
+        ...(objects ? objects.map(quoteArg) : [ '-xc', '-', ...compileOnlyArgs ]),
+        '-o', quoteArg(outFile), // set path for output
+        ...(isMsvc ? [] : [ '-lm' ]), // link math.h
         ...(objects ? [ ...compilerArgs, `-O${Prefs.O ?? 3}` ] : []),
         ...(isTinyCC ? [] : linkStripArgs)
       ];

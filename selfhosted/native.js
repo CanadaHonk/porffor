@@ -1,4 +1,97 @@
 Porffor.c`
+#ifdef _WIN32
+#include <dirent.h>
+#include <direct.h>
+#include <process.h>
+#define lstat stat
+#define mkdir(path, mode) _mkdir(path)
+#define symlink(target, path) (-1)
+// binary, or the piped stdin would get CRLF line endings
+#undef popen
+#define popen(cmd, mode) _popen(cmd, mode "b")
+#define pclose _pclose
+
+// not every mingw sysroot has mkdtemp, and _mktemp only has 26 names per process
+static char *__porffor_win_mkdtemp(char *tmpl) {
+  static const char chars[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+  static unsigned seed;
+  size_t len = strlen(tmpl);
+  if (len < 6 || strcmp(tmpl + len - 6, "XXXXXX")) { errno = EINVAL; return NULL; }
+  if (!seed) seed = (unsigned)time(NULL) ^ ((unsigned)_getpid() << 16) ^ (unsigned)clock();
+  for (int tries = 0; tries < 100; tries++) {
+    for (int i = 0; i < 6; i++) {
+      seed = seed * 1664525u + 1013904223u;
+      tmpl[len - 6 + i] = chars[(seed >> 16) % 36];
+    }
+    if (_mkdir(tmpl) == 0) return tmpl;
+    if (errno != EEXIST) return NULL;
+  }
+  return NULL;
+}
+#define mkdtemp __porffor_win_mkdtemp
+
+static int __porffor_win_tmpfd(void) {
+  char *name = _tempnam(NULL, "pf");
+  int fd = name ? _open(name, _O_CREAT | _O_EXCL | _O_RDWR | _O_BINARY | _O_NOINHERIT | _O_TEMPORARY, 0600) : -1;
+  free(name);
+  return fd;
+}
+
+// _spawn* joins argv into one command line without quoting, and the child's CRT splits it
+// back with the CommandLineToArgvW rules (backslashes only matter before a quote)
+static char *__porffor_win_quote(const char *s) {
+  char *out = malloc(strlen(s) * 2 + 3), *o = out;
+  int bs = 0;
+  if (*s && !strpbrk(s, " \t\"")) return strcpy(out, s);
+  *o++ = '"';
+  for (; *s; s++) {
+    if (*s == '\\') { bs++; continue; }
+    if (*s == '"') bs = bs * 2 + 1;
+    for (; bs > 0; bs--) *o++ = '\\';
+    *o++ = *s;
+  }
+  for (bs *= 2; bs > 0; bs--) *o++ = '\\';
+  *o++ = '"';
+  *o = 0;
+  return out;
+}
+
+// no fork: point fds 0-2 at the child's stdio, spawn, then restore ours. in/out/err are
+// non-inheritable, only the dup2'd copies reach the child
+static intptr_t __porffor_win_spawn(char **argv, int argn, char **env, const char *cwd, int in, int out, int err, int mode) {
+  char **qargv = calloc((size_t)argn + 2, sizeof(char*));
+  char oldcwd[4096];
+  int saved[3] = { dup(0), dup(1), dup(2) };
+  intptr_t pid;
+  for (int i = 0; i <= argn; i++) qargv[i] = __porffor_win_quote(argv[i]);
+  fflush(NULL);
+  dup2(in, 0);
+  if (mode == 0) {
+    dup2(out, 1);
+    dup2(err, 2);
+  } else if (mode == 2) {
+    int nul = open("NUL", O_WRONLY);
+    dup2(nul, 1);
+    dup2(nul, 2);
+    close(nul);
+  }
+  if (cwd) {
+    getcwd(oldcwd, sizeof(oldcwd));
+    chdir(cwd);
+  }
+  pid = env ? _spawnvpe(_P_NOWAIT, argv[0], (const char* const*)qargv, (const char* const*)env)
+            : _spawnvp(_P_NOWAIT, argv[0], (const char* const*)qargv);
+  for (int i = 0; i < 3; i++) {
+    dup2(saved[i], i);
+    close(saved[i]);
+  }
+  if (cwd) chdir(oldcwd);
+  for (int i = 0; i <= argn; i++) free(qargv[i]);
+  free(qargv);
+  return pid;
+}
+#endif
+
 static char *__porffor_node_cstr(char *memory, jsval value, i32 type, char **owned) {
   *owned = NULL;
   u32 ptr = value.val < 0 ? (u32)(i32)value.val : (u32)value.val;
@@ -551,7 +644,9 @@ const __porffor_execFile = (cmd, args, envArr, cwd, input, mode) => {
 
   Porffor.c`
 {
+#ifndef _WIN32
   signal(SIGPIPE, SIG_IGN);
+#endif
   char *cmd_owned;
   char *cmd_ptr = __porffor_node_cstr(MEM, cmd, (i32)cmdType.val, &cmd_owned);
 
@@ -587,17 +682,28 @@ const __porffor_execFile = (cmd, args, envArr, cwd, input, mode) => {
 
   // stdout/stderr go via temp files (no pipe deadlock); stdin via a pipe
   const int capture = (i32)mode.val == 0;
+  int outfd = -1, errfd = -1;
+  int inpipe[2];
+#ifdef _WIN32
+  if (capture) {
+    outfd = __porffor_win_tmpfd();
+    errfd = __porffor_win_tmpfd();
+  }
+  if (_pipe(inpipe, 65536, _O_BINARY | _O_NOINHERIT) != 0) {
+#else
   char outtmp[] = "/tmp/porffor-exec-out-XXXXXX";
   char errtmp[] = "/tmp/porffor-exec-err-XXXXXX";
-  int outfd = -1, errfd = -1;
   if (capture) {
     outfd = mkstemp(outtmp);
     errfd = mkstemp(errtmp);
   }
-  int inpipe[2];
   if (pipe(inpipe) != 0) {
+#endif
     status = -1;
   } else {
+#ifdef _WIN32
+    const intptr_t pid = __porffor_win_spawn(cargv, argn, cenv, cwd_ptr, inpipe[0], outfd, errfd, (i32)mode.val);
+#else
     const pid_t pid = fork();
     if (pid == 0) {
       if (cwd_ptr && chdir(cwd_ptr) != 0) _exit(127);
@@ -618,13 +724,14 @@ const __porffor_execFile = (cmd, args, envArr, cwd, input, mode) => {
       execvp(cmd_ptr, cargv);
       _exit(127);
     }
+#endif
     close(inpipe[0]);
     if (pid < 0) {
       close(inpipe[1]);
       status = -1;
     } else {
       if ((i32)inputType.val != 0) {
-        FILE *inf = fdopen(inpipe[1], "w");
+        FILE *inf = fdopen(inpipe[1], "wb");
         if (inf) {
           const u32 input_ptr = input.val < 0 ? (u32)(i32)input.val : (u32)input.val;
           if ((i32)inputType.val == 195) fwrite(MEM + input_ptr + 4, 1, (size_t)*((i32*)(MEM + input_ptr)), inf);
@@ -634,9 +741,14 @@ const __porffor_execFile = (cmd, args, envArr, cwd, input, mode) => {
       } else close(inpipe[1]);
 
       int child_status = 0;
+#ifdef _WIN32
+      if (_cwait(&child_status, pid, 0) < 0) status = -1;
+        else status = child_status;
+#else
       if (waitpid(pid, &child_status, 0) < 0) status = -1;
         else if (WIFEXITED(child_status)) status = WEXITSTATUS(child_status);
         else status = 128 + (WIFSIGNALED(child_status) ? WTERMSIG(child_status) : 0);
+#endif
     }
   }
 
@@ -656,8 +768,10 @@ const __porffor_execFile = (cmd, args, envArr, cwd, input, mode) => {
         else { errBuf = (f64)(u64)tmp; errLen = got; }
       close(fd);
     }
+#ifndef _WIN32
     unlink(outtmp);
     unlink(errtmp);
+#endif
   }
 
   for (i32 i = 0; i < argn + 2; i++) if (argown && argown[i]) free(argown[i]);
