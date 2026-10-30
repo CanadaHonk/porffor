@@ -1296,18 +1296,6 @@ const generateBinaryExp = (scope, decl) => {
     return builtinCall(scope, '__Porffor_private_has', [ generate(scope, decl.left._map), generate(scope, decl.right) ]);
 
   if (decl.operator === 'instanceof') {
-    // hack: check type for primitive objects
-    const rightName = decl.right.name;
-    if (rightName) {
-      let checkType = TYPES[rightName.toLowerCase()];
-      if (checkType != null && rightName === TYPE_NAMES[checkType] && rightName in builtinFuncs && !rightName.endsWith('Error')) {
-        if (checkType === TYPES.number) checkType = TYPES.numberobject;
-        else if (checkType === TYPES.boolean) checkType = TYPES.booleanobject;
-        else if (checkType === TYPES.string) checkType = TYPES.stringobject;
-        return Box(Bin('==', T.i32, JvType(reuse(scope, generate(scope, decl.left))), Const(T.i32, checkType)), Const(T.i32, TYPES.boolean));
-      }
-    }
-
     // copy the left value first: the right side may reassign it
     const left = tmp(scope, T.jsval, coerceValue(generate(scope, decl.left), T.jsval));
     if (definedKeys.has('#hasInstance')) includeBuiltin(scope, '__Porffor_object_hasInstanceUsed');
