@@ -5619,10 +5619,10 @@ const specializeFunctionSources = program => {
   for (const x of program.body) {
     if (x.type !== 'FunctionDeclaration' || !x.params.every(p => p.type === 'Identifier')) continue;
     const names = x.params.map(p => p.name);
+    if (find(x.body, n => (n.type === 'CallExpression' || n.type === 'NewExpression') && n.callee.name === 'Function').length === 0 ||
+      find(x.body, n => n.name === 'arguments' || names.includes(n.type === 'AssignmentExpression' ? n.left.name : n.type === 'UpdateExpression' && n.argument.name)).length > 0) continue;
     // only names that are nothing but this declaration and its direct calls
-    if (find(program, n => n.name === x.id.name).length !== find(program, n => n.type === 'CallExpression' && n.callee.name === x.id.name).length + 1) continue;
-    if (find(x.body, n => (n.type === 'CallExpression' || n.type === 'NewExpression') && n.callee.name === 'Function').length > 0 &&
-      find(x.body, n => n.name === 'arguments' || names.includes(n.type === 'AssignmentExpression' ? n.left.name : n.type === 'UpdateExpression' && n.argument.name)).length === 0) funcs.set(x.id.name, x);
+    if (find(program, n => n.name === x.id.name).length === find(program, n => n.type === 'CallExpression' && n.callee.name === x.id.name).length + 1) funcs.set(x.id.name, x);
   }
 
   for (const call of find(program, n => n.type === 'CallExpression' && funcs.has(n.callee.name))) {
