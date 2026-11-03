@@ -121,11 +121,15 @@ export const __Porffor_hashtableCompact = (container: any): void => {
   }
 
   keys.length = out;
+  // moved entries can land on other cards
+  Porffor.IR.gcBarrier(keys, Porffor.TYPES.array);
   if (vals != 0) {
     const valsArr: any[] = vals;
     valsArr.length = out;
+    Porffor.IR.gcBarrier(vals, Porffor.TYPES.array);
   }
   Porffor.IR.storeI32(container, 16, 0);
+  Porffor.IR.storeI32(container, 20, 0);
 
   const capacity: i32 = Porffor.IR.loadI32(container, 12);
   __Porffor_hashtableRebuild(container, capacity);
@@ -140,7 +144,7 @@ export const __Porffor_hashtableLookup = (container: any, key: any): i32 => {
   return Porffor.IR.loadI32(buckets + slot * 4, 0) - 1;
 };
 
-export const __Porffor_hashtableAppend = (container: any, key: any): i32 => {
+export const __Porffor_hashtableAppend = (container: any, key: any, hash: i32): i32 => {
   const keys: any[] = Porffor.IR.loadI32(container, 0);
   const index: i32 = keys.length;
   Porffor.array.fastPush(keys, key);
@@ -154,14 +158,34 @@ export const __Porffor_hashtableAppend = (container: any, key: any): i32 => {
   const capacity: i32 = Porffor.IR.loadI32(container, 12);
   // grow at 0.75 load (tombstones occupy slots)
   if ((index + 1) * 4 > capacity * 3) {
-    __Porffor_hashtableCompact(container);
+    if (Porffor.IR.loadI32(container, 16) != 0) __Porffor_hashtableCompact(container);
     const live: i32 = keys.length;
     if (live * 4 > capacity * 3) __Porffor_hashtableRebuild(container, capacity * 2);
     return keys.length - 1;
   }
 
-  __Porffor_hashtableInsert(container, __Porffor_hashSvz(key), index);
+  __Porffor_hashtableInsert(container, hash, index);
   return index;
+};
+
+// called directly by weakmaps so the gc never sees them as maps
+export const __Porffor_hashtableSet = (container: any, key: any, value: any): void => {
+  const vals: i32 = Porffor.IR.loadI32(container, 4);
+  const valsArr: any[] = vals;
+  const hash: i32 = __Porffor_hashSvz(key);
+
+  const buckets: i32 = Porffor.IR.loadI32(container, 8);
+  if (buckets != 0) {
+    const slot: i32 = __Porffor_hashtableFindSlot(container, key, hash);
+    if (slot != -1) {
+      if (vals != 0) valsArr[Porffor.IR.loadI32(buckets + slot * 4, 0) - 1] = value;
+      return;
+    }
+  }
+
+  // push the value first so vals stays in sync if append compacts both arrays
+  if (vals != 0) Porffor.array.fastPush(valsArr, value);
+  __Porffor_hashtableAppend(container, key, hash);
 };
 
 export const __Porffor_hashtableTombstone = (container: any, key: any, index: any): void => {
@@ -181,10 +205,8 @@ export const __Porffor_hashtableTombstone = (container: any, key: any, index: an
     Porffor.IR.storeJv(valPtr, 0, undefined);
   }
 
-  const tombstones: i32 = Porffor.IR.loadI32(container, 16) + 1;
-  Porffor.IR.storeI32(container, 16, tombstones);
-
-  if (tombstones * 2 > keys.length) __Porffor_hashtableCompact(container);
+  // compacted on the next grow so live iterators keep their indices
+  Porffor.IR.storeI32(container, 16, Porffor.IR.loadI32(container, 16) + 1);
 };
 
 export const __Porffor_hashtableNew = (withVals: boolean): any => {
@@ -193,12 +215,14 @@ export const __Porffor_hashtableNew = (withVals: boolean): any => {
   let vals: any = 0;
   if (withVals) vals = Porffor.array.new(4);
 
-  const out: any = Porffor.malloc(20);
+  // 20: weakmap index below which every entry is old
+  const out: any = Porffor.malloc(24);
   Porffor.IR.storeI32(out, 0, keys);
   Porffor.IR.storeI32(out, 4, vals);
   Porffor.IR.storeI32(out, 8, 0);
   Porffor.IR.storeI32(out, 12, 0);
   Porffor.IR.storeI32(out, 16, 0);
+  Porffor.IR.storeI32(out, 20, 0);
 
   return out;
 };

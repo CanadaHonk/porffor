@@ -166,7 +166,7 @@ export const __Porffor_promise_resolve = (value: any, promise: any): void => {
     let probe: any = value;
     let lastProbe: any = probe;
     while (Porffor.type(probe) == Porffor.TYPES.object) {
-      if (Porffor.object.lookup(probe, 'then', thenHash) != 0) break;
+      if (__Porffor_object_find(probe, 'then', thenHash) != 0) break;
       probe = __Porffor_object_getPrototype(probe);
       if (Porffor.IR.ptr(probe) == Porffor.IR.ptr(lastProbe)) break;
       lastProbe = probe;

@@ -3692,7 +3692,7 @@ export const __Porffor_regex_groupsObj = (namesPtr: i32, caps: i32, input: any, 
         v = pair;
       } else v = __Porffor_regex_inputSubstring(input, inputType, cs, ce);
       __Porffor_object_define(groups, names[i], v, 0b1110);
-    } else if (__Porffor_object_lookup(groups, names[i], __Porffor_object_hash(names[i])) == 0) __Porffor_object_define(groups, names[i], undefined, 0b1110);
+    } else if (__Porffor_object_find(groups, names[i], __Porffor_object_hash(names[i])) == 0) __Porffor_object_define(groups, names[i], undefined, 0b1110);
   }
   return groups;
 };
@@ -4219,10 +4219,10 @@ export const __Porffor_regex_getData = (o: any, key: any): any => {
   if (Porffor.type(o) == Porffor.TYPES.regexp) if (Porffor.IR.ptr(__Porffor_object_underlyingIfAny(o)) == 0) {
     // accessors still get the regexp as receiver
     const proto: any = __Porffor_object_getHiddenPrototype(Porffor.TYPES.regexp);
-    const entryPtr: i32 = __Porffor_object_lookup(proto, key, __Porffor_object_hash(key));
-    if (entryPtr == 0) return Porffor.object.get(proto, key);
-    if ((Porffor.IR.loadU16(entryPtr, 16) & 0b0001) == 0) return __Porffor_object_readValue(entryPtr);
-    const get: any = __Porffor_object_accessorGet(entryPtr);
+    const slot: i32 = __Porffor_object_find(proto, key, __Porffor_object_hash(key));
+    if (slot == 0) return Porffor.object.get(proto, key);
+    if ((__Porffor_object_slotFlags(proto, slot - 1) & 0b0001) == 0) return __Porffor_object_slotValue(proto, slot - 1);
+    const get: any = __Porffor_object_slotGetter(proto, slot - 1);
     if (Porffor.type(get) != Porffor.TYPES.function) return undefined;
     return Porffor.callThis(get, o);
   }

@@ -424,22 +424,18 @@ export const __Porffor_array_truncate = (arr: any[], newLen: number): number => 
   let finalLen: number = newLen;
   const u: any = __Porffor_object_underlyingIfAny(arr);
   if (u != null) {
-    const entriesPtr: i32 = Porffor.object.entriesPtr(u);
-    let ptr: i32 = entriesPtr + Porffor.IR.loadU16(u, 0) * 20;
-    while (ptr > entriesPtr) {
-      ptr -= 20;
-      if (Porffor.IR.loadU8(ptr, 18) == Porffor.TYPES.symbol) continue;
+    for (let n: i32 = Porffor.IR.loadU16(u, 0) - 1; n >= 0; n--) {
+      const key: any = __Porffor_object_slotKey(u, n);
+      if (Porffor.type(key) == Porffor.TYPES.symbol) continue;
 
-      const index: i32 = __Porffor_array_propertyKeyIndex(Porffor.as(Porffor.IR.loadI32(ptr, 4), Porffor.IR.loadU8(ptr, 18)));
-      if (index >= finalLen) if ((Porffor.IR.loadU8(ptr, 16) & 0b0010) == 0) finalLen = index + 1;
+      const index: i32 = __Porffor_array_propertyKeyIndex(key);
+      if (index >= finalLen) if ((__Porffor_object_slotFlags(u, n) & 0b0010) == 0) finalLen = index + 1;
     }
 
-    ptr = entriesPtr + Porffor.IR.loadU16(u, 0) * 20;
-    while (ptr > entriesPtr) {
-      ptr -= 20;
-      if (Porffor.IR.loadU8(ptr, 18) == Porffor.TYPES.symbol) continue;
+    for (let n: i32 = Porffor.IR.loadU16(u, 0) - 1; n >= 0; n--) {
+      const key: any = __Porffor_object_slotKey(u, n);
+      if (Porffor.type(key) == Porffor.TYPES.symbol) continue;
 
-      const key: any = Porffor.as(Porffor.IR.loadI32(ptr, 4), Porffor.IR.loadU8(ptr, 18));
       if (__Porffor_array_propertyKeyIndex(key) >= finalLen) __Porffor_object_delete(u, key);
     }
   }
@@ -759,14 +755,13 @@ export const __Porffor_array_fastMutable = (arr: any[]): boolean => {
   if (u == null) return true;
   if (Porffor.object.isInextensible(u)) return false;
 
-  let ptr: i32 = Porffor.object.entriesPtr(u);
-  const endPtr: i32 = ptr + Porffor.IR.loadU16(u, 0) * 20;
-  for (; ptr < endPtr; ptr += 20) {
-    if (Porffor.IR.loadU8(ptr, 18) == Porffor.TYPES.symbol) continue;
+  const size: i32 = Porffor.IR.loadU16(u, 0);
+  for (let n: i32 = 0; n < size; n++) {
+    const key: any = __Porffor_object_slotKey(u, n);
+    if (Porffor.type(key) == Porffor.TYPES.symbol) continue;
 
-    const key: any = Porffor.as(Porffor.IR.loadI32(ptr, 4), Porffor.IR.loadU8(ptr, 18));
     if (__Porffor_array_propertyKeyIndex(key) != -1) return false;
-    if ((Porffor.IR.loadU8(ptr, 16) & 0b1000) == 0) if (key == 'length') return false;
+    if ((__Porffor_object_slotFlags(u, n) & 0b1000) == 0) if (key == 'length') return false;
   }
 
   return true;

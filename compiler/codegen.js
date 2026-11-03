@@ -99,6 +99,10 @@ const initBuilder = scope => {
 
 const curBlock = scope => scope.blockStack[scope.blockStack.length - 1];
 const stmt = (scope, node) => { if (node != null) curBlock(scope).push(node); };
+
+// whether IR (a node or list) can reach a collection: only calls and allocations do
+const mayCollect = node => Array.isArray(node) &&
+  (typeof node[N_KIND] === 'number' && typeof node[N_FX] === 'number' ? (node[N_FX] & FX.call) !== 0 || node.slice(N_A).some(mayCollect) : node.some(mayCollect));
 const CLASS_FIELD_INIT_MARKER = Symbol('class field init');
 
 // evaluate for effects, discard value
@@ -443,7 +447,8 @@ const makeClosureEnv = (scope, parent, count, values = null) => {
     ], fresh(scope)));
   }
   stmt(scope, Store('u32', pointer, 4, Const(T.i32, count)));
-  stmt(scope, GcBarrier(pointer, Const(T.i32, TYPES.__porffor_closureenv)));
+  // a fresh env stays young until something collects
+  if (mayCollect(parent) || values?.some(mayCollect)) stmt(scope, GcBarrier(pointer, Const(T.i32, TYPES.__porffor_closureenv), 1));
   typeUsed(scope, TYPES.__porffor_closureenv);
   return valOf(pointer, TYPES.__porffor_closureenv);
 };
@@ -2000,10 +2005,10 @@ const makeArrayFromValues = (scope, values) => {
   stmt(scope, Store('u32', pointer, 4, Bin('+', T.u32, pointer, Const(T.u32, 16))));
   stmt(scope, Store('i32', pointer, 8, Const(T.i32, capacity)));
   stmt(scope, Store('i32', pointer, 12, Const(T.i32, 0)));
-  for (let i = 0; i < values.length; i++) stmt(scope, ArrSet(pointer, Const(T.u32, i), values[i]));
+  for (let i = 0; i < values.length; i++) stmt(scope, ArrSet(pointer, Const(T.u32, i), values[i], 0));
   stmt(scope, LenSet(pointer, Const(T.i32, values.length)));
-  if (values.some(v => v[N_TYPE] === T.jsval || v[N_TYPE] === T.ptr))
-    stmt(scope, GcBarrier(pointer, Const(T.i32, TYPES.array)));
+  if (values.some(mayCollect) && values.some(v => v[N_TYPE] === T.jsval || v[N_TYPE] === T.ptr))
+    stmt(scope, GcBarrier(pointer, Const(T.i32, TYPES.array), 1));
   typeUsed(scope, TYPES.array);
   return valOf(pointer, TYPES.array);
 };
@@ -3358,7 +3363,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     stmt(scope, Store('f64', JvPtr(env), 8 + slot * 16, JvNum(value)));
     stmt(scope, Store('u8', JvPtr(env), 16 + slot * 16, JvType(value)));
     stmt(scope, If(canReferenceCheck(scope, value), [
-      GcBarrier(JvPtr(env), Const(T.i32, TYPES.__porffor_closureenv))
+      GcBarrier(JvPtr(env), Const(T.i32, TYPES.__porffor_closureenv), 1)
     ]));
     return valueUnused ? valUndefined() : value;
   }
@@ -3450,9 +3455,9 @@ const generateAssign = (scope, decl, valueUnused = false) => {
         : performOp(scope, op,
             hash != null ? builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ]) : builtinCall(scope, '__Porffor_object_get', [ obj, key ]),
             generate(scope, decl.right), null, getNodeType(scope, decl.right));
-      return hash != null
-        ? builtinCall(scope, setBuiltin + '_withHash', [ obj, key, value, Const(T.i32, hash) ])
-        : builtinCall(scope, setBuiltin, [ obj, key, value ]);
+      if (hash == null) return builtinCall(scope, setBuiltin, [ obj, key, value ]);
+      if (Prefs.ic && (objectKnown == null || objectKnown === TYPES.object)) return icSet(scope, obj, key, value, hash, icSlot(scope), object.type === 'ThisExpression');
+      return builtinCall(scope, setBuiltin + '_withHash', [ obj, key, value, Const(T.i32, hash) ]);
     };
 
     const arraySet = () => {
@@ -4102,8 +4107,13 @@ const generateForOf = (scope, decl) => {
       : cases.map(([ types, next ]) => [ types, types === 'default' ? next : () => awaitValue(scope, next()) ]));
 
     setLocalWithType(scope, valName, false, nextVal);
-    generateLoopBinding(scope, decl.left, identNode(valName));
-    genStmt(scope, decl.body);
+    const visit = () => {
+      generateLoopBinding(scope, decl.left, identNode(valName));
+      genStmt(scope, decl.body);
+    };
+    // for-in skips keys deleted before they are visited
+    if (decl._forInObject) emitIf(scope, truthy(scope, generate(scope, { type: 'BinaryExpression', operator: 'in', left: identNode(valName), right: identNode(decl._forInObject) })), visit);
+      else visit();
   });
 
   inferLoopEnd(scope);
@@ -4126,53 +4136,63 @@ const generateForIn = (scope, decl) => {
     return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
 
   const objKnown = knownType(scope, getNodeType(scope, decl.right));
+  // each generated loop takes the statement's labels
+  const labels = pendingLabels;
+  const keysLoop = (callee, arg) => {
+    pendingLabels = labels;
+    return { type: 'ForOfStatement', left: decl.left, body: decl.body, right: { type: 'CallExpression', callee: identNode(callee), arguments: [ arg ] } };
+  };
+  // for..of over the keys, own and inherited
+  const forInKeys = () => keysLoop('__Porffor_object_forInKeys', identNode(objName));
+
   return typeSwitch(scope, Local(objName, T.jsval), objKnown, {
     [TYPES.object]: () => {
-      const counter = tmp(scope, T.i32);
-      const pointer = tmp(scope, T.u32);
-      const length = tmp(scope, T.i32);
+      // a delete in the body shifts the entries the fast path walks
+      if (find(decl.body, n => n.operator === 'delete').length > 0) {
+        genStmt(scope, { ...forInKeys(), _forInObject: objName });
+        return valUndefined();
+      }
+
+      // dictionaries and objects with inherited enumerable keys take the slow path, else the shape's keys
       const objPtr = reuse(scope, JvPtr(Local(objName, T.jsval)));
-      assign(scope, counter, Const(T.i32, 0));
-      assign(scope, length, Load('u16', objPtr, 0));
-      assign(scope, pointer, Load('u32', objPtr, 12));
+      const shape = reuse(scope, Load('u16', objPtr, 6));
+      emitIf(scope, Bin('||', T.i32, Bin('==', T.u32, shape, Const(T.u32, 0)),
+        truthy(scope, builtinCall(scope, '__Porffor_object_hasInheritedEnumerable', [ Local(objName, T.jsval) ], T.i32))), () => genStmt(scope, forInKeys()), () => {
+        pendingLabels = labels;
+        const counter = tmp(scope, T.i32);
+        const pointer = tmp(scope, T.u32);
+        const length = tmp(scope, T.i32);
+        assign(scope, counter, Const(T.i32, 0));
+        assign(scope, length, Load('u16', objPtr, 0));
+        assign(scope, pointer, Bin('+', T.u32, builtinCall(scope, '__Porffor_object_shapeDescriptors', [ shape ], T.i32), Const(T.u32, 8)));
 
-      const L = fresh(scope), C = fresh(scope);
-      const d = { type: 'forin', brk: L, cont: C, contViaBreak: true };
-      consumePendingLabels(scope, d);
-      depth.push(d);
-      inferLoopStart(scope);
+        const L = fresh(scope), C = fresh(scope);
+        const d = { type: 'forin', brk: L, cont: C, contViaBreak: true };
+        consumePendingLabels(scope, d);
+        depth.push(d);
+        inferLoopStart(scope);
 
-      const tmpName = tmp(scope, T.jsval)[N_A];
-      const body = collect(scope, () => {
-        stmt(scope, BlockStmt(collect(scope, () => {
-          setLocalWithType(scope, tmpName, false, Box(Load('u32', pointer, 4), Load('u8', pointer, 18)));
-          generateLoopBinding(scope, decl.left, identNode(tmpName));
-          emitIf(scope, Bin('&', T.i32,
-            Bin('!=', T.i32, Bin('&', T.i32, Load('u16', pointer, 16), Const(T.i32, 0b0100)), Const(T.i32, 0)),
-            Bin('!=', T.i32, Load('u8', pointer, 18), Const(T.i32, TYPES.symbol))),
-            () => genStmt(scope, decl.body));
-        }), C));
-        assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
-        assign(scope, pointer, Bin('+', T.u32, pointer, Const(T.u32, 20)));
+        const tmpName = tmp(scope, T.jsval)[N_A];
+        const body = collect(scope, () => {
+          stmt(scope, BlockStmt(collect(scope, () => {
+            setLocalWithType(scope, tmpName, false, Box(Load('u32', pointer, 4), Load('u8', pointer, 9)));
+            generateLoopBinding(scope, decl.left, identNode(tmpName));
+            emitIf(scope, Bin('&&', T.i32, Bin('!=', T.i32, Bin('&', T.i32, Load('u8', pointer, 8), Const(T.i32, 0b0100)), Const(T.i32, 0)), Bin('!=', T.i32, Load('u8', pointer, 9), Const(T.i32, TYPES.symbol))),
+              () => genStmt(scope, decl.body));
+          }), C));
+          assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
+          assign(scope, pointer, Bin('+', T.u32, pointer, Const(T.u32, 12)));
+        });
+
+        inferLoopEnd(scope);
+        depth.pop();
+        stmt(scope, Loop(Bin('!=', T.i32, counter, length), null, body, L));
       });
-
-      inferLoopEnd(scope);
-      depth.pop();
-      stmt(scope, Loop(Bin('!=', T.i32, counter, length), null, body, L));
       return valUndefined();
     },
 
     // wrap as for..of Object.keys(obj ?? 0)
-    default: () => generate(scope, {
-      type: 'ForOfStatement',
-      left: decl.left,
-      body: decl.body,
-      right: {
-        type: 'CallExpression',
-        callee: { type: 'Identifier', name: '__Object_keys' },
-        arguments: [ { type: 'LogicalExpression', left: { type: 'Identifier', name: objName }, operator: '??', right: { type: 'Literal', value: 0 } } ]
-      }
-    })
+    default: () => generate(scope, keysLoop('__Object_keys', { type: 'LogicalExpression', left: identNode(objName), operator: '??', right: { type: 'Literal', value: 0 } }))
   });
 };
 
@@ -4479,6 +4499,7 @@ const generateArray = (scope, decl, name = '$undeclared', staticAlloc = false) =
   } else {
     pointer = reuse(scope, Alloc(Const(T.i32, allocSize), TYPES.array));
   }
+  const filled = curBlock(scope).length;
 
   stmt(scope, LenSet(pointer, Const(T.i32, 0)));
   stmt(scope, Store('u32', pointer, 4, Bin('+', T.u32, pointer, Const(T.u32, 16))));
@@ -4495,7 +4516,7 @@ const generateArray = (scope, decl, name = '$undeclared', staticAlloc = false) =
     const value = elements[i].type === 'Literal' && typeof elements[i].value === 'number'
       ? valNum(elements[i].value)
       : generate(scope, elements[i]);
-    stmt(scope, ArrSet(pointer, Const(T.u32, i), value));
+    stmt(scope, ArrSet(pointer, Const(T.u32, i), value, 0));
   }
 
   // direct length = number of leading elements stored
@@ -4504,14 +4525,14 @@ const generateArray = (scope, decl, name = '$undeclared', staticAlloc = false) =
   // a collection during element evaluation can sticky-promote this fresh array to old,
   // raw stores of young pointers into it must then be remembered, so flag it to the GC
   // once after construction. skipped for static arrays / all-non-reference entries, no-op sans GC
-  if (!isStatic && i > 0 &&
+  if (!isStatic && i > 0 && mayCollect(curBlock(scope).slice(filled)) &&
       elements.slice(0, i).some(x => {
         if (x == null) return false;
         if (x.type === 'Literal' && typeof x.value === 'number') return false;
         const known = knownType(scope, getNodeType(scope, x));
         return known !== TYPES.number && known !== TYPES.boolean && known !== TYPES.undefined;
       })) {
-    stmt(scope, GcBarrier(pointer, Const(T.i32, TYPES.array)));
+    stmt(scope, GcBarrier(pointer, Const(T.i32, TYPES.array), 1));
   }
 
   for (; i < length; i++) {
@@ -4651,9 +4672,19 @@ const nameByKey = (scope, value, key, computed, kind) => {
 
 const generateObject = (scope, decl) => {
   const obj = reuse(scope, builtinCall(scope, '__Porffor_object_new', [ Const(T.i32, Math.max(decl.properties.length, 2)) ]));
+  let scanned = curBlock(scope).length;
   if (decl._home?._refs) writeBinding(scope, decl._home, obj, TYPES.object);
   const keys = new Set();
   let slot = 0;
+  let collects = false;
+  // static keys are stored as values (inline, the capacity covers them) and their shape cached per site
+  const setShape = () => {
+    const site = reuse(scope, icSlot(scope));
+    emitIf(scope, Bin('==', T.u32, Load('u32', site, 0), Const(T.u32, 0)),
+      () => exprStmt(scope, builtinCall(scope, '__Porffor_object_literalShape', [ obj, site,
+        generate(scope, { type: 'ArrayExpression', elements: [ ...keys ].map(k => ({ type: 'Literal', value: k })) }) ])),
+      () => stmt(scope, Store('u16', JvPtr(obj), 6, Load('u32', site, 0))));
+  };
 
   for (const x of decl.properties) {
     let { type, argument, computed, kind, value, method } = x;
@@ -4665,13 +4696,17 @@ const generateObject = (scope, decl) => {
     }
 
     if (type === 'SpreadElement') {
+      if (slot > 0) setShape();
       slot = -1;
       exprStmt(scope, builtinCall(scope, '__Porffor_object_spread', [ obj, generate(scope, argument) ]));
       continue;
     }
 
     const key = getProperty(x, true);
+    // the prototype re-roots the shape, keys after it are added one by one
     if (!computed && !x.shorthand && !method && kind === 'init' && key.value === '__proto__') {
+      if (slot > 0) setShape();
+      slot = -1;
       exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototype', [ obj, generate(scope, value) ]));
       continue;
     }
@@ -4694,26 +4729,69 @@ const generateObject = (scope, decl) => {
       ? ctHash({ property: { name: key.value } }) : null;
     if (hash != null) {
       keys.add(key.value);
-      const prop = reuse(scope, generate(scope, key));
       const val = reuse(scope, coerceValue(generate(scope, value), T.jsval));
-      const entries = Load('u32', JvPtr(obj), 12);
-      stmt(scope, Store('i32', entries, slot * 20, Const(T.i32, hash)));
-      stmt(scope, Store('u32', entries, slot * 20 + 4, JvPtr(prop)));
-      stmt(scope, Store('f64', entries, slot * 20 + 8, JvNum(val), true));
-      stmt(scope, Store('u8', entries, slot * 20 + 16, Const(T.i32, 14)));
-      stmt(scope, Store('u8', entries, slot * 20 + 17, JvType(val)));
-      stmt(scope, Store('u8', entries, slot * 20 + 18, JvType(prop)));
+      stmt(scope, Store('f64', JvPtr(obj), 16 + 8 + slot * 8 + ((slot >> 3) << 3), JvNum(val)));
+      stmt(scope, Store('u8', JvPtr(obj), 16 + slot + ((slot >> 3) << 6), JvType(val)));
       stmt(scope, Store('u16', JvPtr(obj), 0, Const(T.i32, ++slot)));
-      stmt(scope, If(canReferenceCheck(scope, val), [ GcBarrier(JvPtr(obj), Const(T.i32, TYPES.object)) ]));
+      if (!collects) {
+        collects = mayCollect(curBlock(scope).slice(scanned));
+        scanned = curBlock(scope).length;
+      }
+      if (collects) stmt(scope, If(canReferenceCheck(scope, val), [ GcBarrier(JvPtr(obj), Const(T.i32, TYPES.object), 1) ]));
     } else {
+      if (slot > 0) setShape();
       slot = -1;
       const k = reuse(scope, toPropertyKey(scope, generate(scope, key), computed));
       exprStmt(scope, builtinCall(scope, `__Porffor_object_expr_${kind}`, [ obj, k, nameByKey(scope, value, k, computed, kind) ]));
     }
   }
 
+  if (slot > 0) setShape();
+
   typeUsed(scope, TYPES.object);
   return obj;
+};
+
+// inline own hit, else the builtin: words direct mapped by shape & 3, each (shape << 16) | slot index
+const icHit = (scope, o, slot) => {
+  const ptr = reuse(scope, Select(Bin('==', T.i32, JvType(o), Const(T.i32, TYPES.object)), JvPtr(o), Const(T.u32, 0)));
+  const shape = reuse(scope, Select(Bin('!=', T.u32, ptr, Const(T.u32, 0)), Load('u16', ptr, 6), Const(T.u32, 0)));
+  const own = reuse(scope, Load('u32', Bin('+', T.u32, slot, Bin('*', T.u32, Bin('&', T.u32, shape, Const(T.u32, 3)), Const(T.u32, 4))), 0));
+  // only loaded on a shape hit
+  const i = Bin('&', T.u32, own, Const(T.u32, 0xffff));
+  const group = Bin('>>', T.u32, i, Const(T.u32, 3));
+  const values = Load('u32', ptr, 12);
+  const value = Bin('+', T.u32, values, Bin('+', T.u32, Bin('*', T.u32, i, Const(T.u32, 8)), Bin('*', T.u32, group, Const(T.u32, 8))));
+  const type = Bin('+', T.u32, values, Bin('+', T.u32, i, Bin('*', T.u32, group, Const(T.u32, 64))));
+  return [ value, type, Bin('&&', T.i32, Bin('!=', T.u32, shape, Const(T.u32, 0)), Bin('==', T.u32, Bin('>>', T.u32, own, Const(T.u32, 16)), shape)) ];
+};
+const icGet = (scope, obj, key, hash, slot, inline) => {
+  if (!inline) return builtinCall(scope, '__Porffor_object_get_ic', [ obj, key, Const(T.i32, hash), slot ]);
+  const o = reuse(scope, coerceValue(obj, T.jsval)), s = reuse(scope, slot);
+  const [ value, type, hit ] = icHit(scope, o, s);
+  return Select(hit, Box(Load('f64', value, 8), Load('u8', type, 0)), builtinCall(scope, '__Porffor_object_get_ic', [ o, key, Const(T.i32, hash), s ]));
+};
+const icSet = (scope, obj, key, value, hash, slot, inline) => {
+  if (!inline) return builtinCall(scope, '__Porffor_object_set_ic', [ obj, key, value, Const(T.i32, hash), slot, Const(T.i32, scope.strict ? 1 : 0) ]);
+  const o = reuse(scope, coerceValue(obj, T.jsval)), s = reuse(scope, slot), v = reuse(scope, coerceValue(value, T.jsval));
+  const [ valuePtr, typePtr, hit ] = icHit(scope, o, s);
+  emitIf(scope, hit, () => {
+    stmt(scope, Store('f64', valuePtr, 8, JvNum(v)));
+    stmt(scope, Store('u8', typePtr, 0, JvType(v)));
+    stmt(scope, If(canReferenceCheck(scope, v), [ GcBarrier(JvPtr(o), Const(T.i32, TYPES.object)) ]));
+  }, () => exprStmt(scope, builtinCall(scope, '__Porffor_object_set_ic', [ o, key, v, Const(T.i32, hash), s, Const(T.i32, scope.strict ? 1 : 0) ])));
+  return v;
+};
+// per-site inline cache slot of 12 words, layout per __Porffor_object_get_ic / set_ic
+const icSlot = scope => {
+  const unit = unitOf(scope);
+  const ic = icSites[unit] ??= { site: 0, chunk: null };
+  const index = ic.site++ % 256;
+  if (index === 0)
+    ic.chunk = dataSeg(unit, `#ic:${unit}:${ic.site}`, new Array(256 * 48).fill(0));
+
+  const chunk = DataRef(ic.chunk);
+  return index === 0 ? chunk : Bin('+', T.i32, chunk, Const(T.i32, index * 48));
 };
 
 let memberDemands, globalDemands;
@@ -4887,17 +4965,7 @@ const generateMember = (scope, decl, objValue = null) => {
     const key = prop[N_TYPE] === T.jsval ? prop : valNumber(prop);
     if (hash == null) return builtinCall(scope, '__Porffor_object_get', [ obj, key ]);
 
-    if (Prefs.ic && (known == null || known === TYPES.object)) {
-      const unit = unitOf(scope);
-      const ic = icSites[unit] ??= { site: 0, chunk: null };
-      const index = ic.site++ % 256;
-      if (index === 0)
-        ic.chunk = dataSeg(unit, `#ic:${unit}:${ic.site}`, new Array(256).fill(i32Bytes(0x7fffffff)).flat());
-
-      const chunk = DataRef(ic.chunk);
-      const slot = index === 0 ? chunk : Bin('+', T.i32, chunk, Const(T.i32, index * 4));
-      return builtinCall(scope, '__Porffor_object_get_ic', [ obj, key, Const(T.i32, hash), slot ]);
-    }
+    if (Prefs.ic && (known == null || known === TYPES.object)) return icGet(scope, obj, key, hash, icSlot(scope), decl.object.type === 'ThisExpression');
 
     return builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ]);
   };
@@ -5115,7 +5183,7 @@ const generateClass = (scope, decl) => {
   const classProto = reuse(scope, generate(scope, getObjProp(rootIdent, 'prototype')));
 
   if (decl._home._refs) writeBinding(scope, decl._home, classRoot, TYPES.function);
-  for (const x of privates) writeBinding(scope, x.map, builtinCall(scope, '__Porffor_private_new', []), TYPES.weakmap);
+  for (const x of privates) writeBinding(scope, x.map, builtinCall(scope, '__Porffor_private_new', []), TYPES.symbol);
 
   // wire constructor + prototype chains to the superclass, null superclass included
   if (decl.superClass) {
@@ -5343,19 +5411,19 @@ const usesBigInt = node => {
   return false;
 };
 
+const find = (node, f, out = []) => {
+  if (!node || typeof node !== 'object') return out;
+  if (Array.isArray(node)) {
+    for (const x of node) find(x, f, out);
+    return out;
+  }
+  if (f(node)) out.push(node);
+  for (const k in node) if (k[0] !== '_') find(node[k], f, out);
+  return out;
+};
+
 // specialize literal-arg calls to functions whose new Function sources use their params
 const specializeFunctionSources = program => {
-  const find = (node, f, out = []) => {
-    if (!node || typeof node !== 'object') return out;
-    if (Array.isArray(node)) {
-      for (const x of node) find(x, f, out);
-      return out;
-    }
-    if (f(node)) out.push(node);
-    for (const k in node) if (k[0] !== '_') find(node[k], f, out);
-    return out;
-  };
-
   const funcs = new Map();
   for (const x of program.body) {
     if (x.type !== 'FunctionDeclaration' || !x.params.every(p => p.type === 'Identifier')) continue;

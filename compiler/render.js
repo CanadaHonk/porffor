@@ -113,8 +113,15 @@ const cReservedNames = new Set([
 
 // inlining these has little perf benefit and significantly increases binary size
 const NEVER_INLINE = new Set([
-  '__Porffor_object_get_ic', '__Porffor_object_get_icMiss', '__Porffor_object_get_withHash', '__Porffor_array_holeGet',
+  '__Porffor_object_get_icMiss', '__Porffor_object_set_icMiss', '__Porffor_object_get_withHash', '__Porffor_array_holeGet',
   '__ecma262_ToNumeric', '__RegExp_prototype_exec'
+]);
+
+// hot property lookup helpers: inlined into the generic get/set paths
+const ALWAYS_INLINE = new Set([
+  '__Porffor_object_lookup', '__Porffor_object_lookupEntry', '__Porffor_object_hash', '__Porffor_object_underlyingPtr',
+  '__Porffor_object_find', '__Porffor_object_shapeFind', '__Porffor_object_shapeDescriptors', '__Porffor_object_valueAt', '__Porffor_object_typeAt',
+  '__Porffor_object_slotFlags', '__Porffor_object_slotValue', '__Porffor_object_slotWrite', '__Porffor_object_slotRead'
 ]);
 
 const sanitizeMemo = new Map();
@@ -889,7 +896,8 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         return;
 
       case K.GcBarrier:
-        emit(`${ind()}porf_gc_barrier(${rx(node[N_A], P_COMMA)}, ${rx(node[N_B], P_COMMA)});\n`);
+        if (node[N_C]) emit(`${ind()}porf_gc_card(${rx(node[N_A], P_COMMA)});\n`);
+          else emit(`${ind()}porf_gc_barrier(${rx(node[N_A], P_COMMA)}, ${rx(node[N_B], P_COMMA)});\n`);
         return;
 
       case K.ArrSet:
@@ -1352,7 +1360,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     if (needsCoro(f)) return renderCoroFunc(f);
     const ret = CT[f.retType];
     const params = f.params.map(p => `${CT[p.type]} ${sanitize(p.name)}`).join(', ');
-    emit(`${f.ast?._module ? 'PORF_ONCE ' : NEVER_INLINE.has(f.name) ? 'PORF_NOINLINE ' : ''}${ret} ${fnSym(f)}(${params || 'void'}) {\n`);
+    emit(`${f.ast?._module ? 'PORF_ONCE ' : NEVER_INLINE.has(f.name) ? 'PORF_NOINLINE ' : ALWAYS_INLINE.has(f.name) ? '__attribute__((always_inline)) ' : ''}${ret} ${fnSym(f)}(${params || 'void'}) {\n`);
     depth = 1;
     activeTryDepth = 0;
     loopStack.length = 0;
@@ -1491,16 +1499,18 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   if (gcEnabled) {
     const markGlobalRootLines = [];
     const markGlobalRawLines = [];
+    const markUnderlyingLines = [], compactUnderlyingLines = [];
     for (const g of globals) {
       const name = sanitize(g.name);
       if (g.type === T.jsval) markGlobalRootLines.push(`  porf_gc_mark_js(${name}.val, ${name}.type);`);
-      else if (g.type === T.ptr || (g.type === T.i32 && /(?:underlyingStore|underlyingBuckets|__Porffor_regex_cache)$/.test(g.name))) {
+      else if (g.type === T.ptr || (g.type === T.i32 && /(?:underlyingStore|underlyingBuckets|shapeTable|shapeHash|icMega|__Porffor_regex_cache)$/.test(g.name))) {
         if (/underlyingStore$/.test(g.name)) {
           const buckets = sanitize(g.name.replace(/underlyingStore$/, 'underlyingBuckets'));
           const bucketsCap = sanitize(g.name.replace(/underlyingStore$/, 'underlyingBucketsCap'));
-          markGlobalRawLines.push(`  if (porf_gc_mark_underlying_store((i32)${name})) { ${buckets} = 0; ${bucketsCap} = 0; }`);
+          markUnderlyingLines.push(`  changed |= porf_gc_mark_underlying_store((i32)${name});`);
+          compactUnderlyingLines.push(`  if (porf_gc_compact_underlying_store((i32)${name})) { ${buckets} = 0; ${bucketsCap} = 0; }`);
         }
-        else if (/underlyingBuckets$/.test(g.name)) markGlobalRawLines.push(`  porf_gc_mark_raw((i32)${name});`);
+        else if (/shapeTable$/.test(g.name)) markGlobalRawLines.push(`  porf_gc_mark_shapes((i32)${name}, (i32)${sanitize(g.name.replace(/shapeTable$/, 'shapeCount'))});`);
         else if (/__Porffor_regex_cache$/.test(g.name)) markGlobalRawLines.push(`  porf_gc_mark_regex_cache((i32)${name});`);
         else if (/getptr_/.test(g.name)) {
           const builtinName = g.name.slice(g.name.lastIndexOf('getptr_') + 'getptr_'.length);
@@ -1511,6 +1521,8 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     }
     link.push(`${st}void porf_gc_mark_global_roots(void) {\n${markGlobalRootLines.join('\n') || '  (void)0;'}\n}\n\n`);
     link.push(`${st}void porf_gc_mark_global_raw_roots(void) {\n${markGlobalRawLines.join('\n') || '  (void)0;'}\n}\n\n`);
+    link.push(`${st}int porf_gc_mark_underlying_stores(void) {\n  int changed = 0;\n${markUnderlyingLines.join('\n')}\n  return changed;\n}\n\n`);
+    link.push(`${st}void porf_gc_compact_underlying_stores(void) {\n${compactUnderlyingLines.join('\n') || '  (void)0;'}\n}\n\n`);
     link.push(usesCoro
       ? `${st}void porf_gc_mark_coro_roots(void) {\n  for (porf_coro_call* c = porf_coro_cur; c; c = c->parent) {\n    if (c->heap) porf_gc_mark_coro(c->heap);\n      else porf_coro_gc_scan(c);\n  }\n}\n\n${st}void porf_gc_mark_coro(u32 body) {\n  if (body != 0 && porf_gc_mark_body((i32)body)) porf_coro_gc_scan((porf_coro_call*)(MEM + body));\n}\n\n${st}void porf_gc_scan_coro(i32 body) {\n  porf_coro_gc_scan((porf_coro_call*)(MEM + body));\n}\n\n`
       : `${st}void porf_gc_mark_coro_roots(void) {}\n${st}void porf_gc_mark_coro(u32 body) { (void)body; }\n${st}void porf_gc_scan_coro(i32 body) { (void)body; }\n\n`);
@@ -2279,6 +2291,10 @@ static void porf_arena_init(void) {
     exit(1);
   }
   porf_mem = (u8*)got;
+#ifdef MADV_NOHUGEPAGE
+  // transparent huge pages would make every touched 4K of the arena (and the gc's tables) resident 2M
+  (void)madvise(got, PORF_ARENA_RESERVE, MADV_NOHUGEPAGE);
+#endif
   porf_heap_base = (porf_static_end + 4095u) & ~4095u;
   porf_heap_cur = porf_heap_base + 8;
   porf_heap_committed = PORF_CAN_DECOMMIT ? 0u : (u32)PORF_ARENA_RESERVE;
@@ -2305,11 +2321,16 @@ ${st}u32 porf_alloc_slow(u32 size) {
 }
 
 ${st}void porf_gc_barrier_impl(u32 p, i32 type) { (void)p; (void)type; }
+${sti}void porf_gc_barrier_slot(u32 owner, u32 block, u32 slot) { (void)owner; (void)block; (void)slot; }
+${sti}void porf_gc_entries_moved(u32 from, u32 to) { (void)from; (void)to; }
 ${sti}int porf_gc_type_can_reference(i32 type) { (void)type; return 0; }
+${st}i64 porf_gc_idle_due(void) { return -1; }
+${st}void porf_gc_idle(void) {}
 static inline u32 porf_gc_barrier_ptr_u32(u32 p) { return p; }
 static inline u32 porf_gc_barrier_ptr_i32(i32 p) { return (u32)p; }
 static inline u32 porf_gc_barrier_ptr_jsval(jsval v) { return (u32)v.val; }
 #define porf_gc_barrier(p, type) porf_gc_barrier_impl(_Generic((p), jsval: porf_gc_barrier_ptr_jsval, i32: porf_gc_barrier_ptr_i32, default: porf_gc_barrier_ptr_u32)(p), (type))
+#define porf_gc_card(p) ((void)(p))
 static void* porf_c_stack_top = NULL;
 ${st}i32 porf_gc_native_root_add(f64 value, i32 type) { (void)value; (void)type; return -1; }
 ${st}void porf_gc_native_root_remove(i32 slot) { (void)slot; }
@@ -2330,6 +2351,17 @@ const PORF_GC_ALLOC = prefs => {
   for (let s = 1152; s <= 2048; s += 128) classes.push(s);
   for (let s = 2304; s <= 4096; s += 256) classes.push(s);
   for (let s = 4608; s <= 8192; s += 512) classes.push(s);
+  const slotMasks = [], slotMaskAt = [];
+  for (const c of classes) {
+    const stride = c / 16;
+    slotMaskAt.push(slotMasks.length);
+    if (stride > 64) continue;
+    for (let phase = 0; phase < stride; phase++) {
+      let mask = 0n;
+      for (let b = 0; b < 64; b++) if ((b + phase) % stride === 0) mask |= 1n << BigInt(b);
+      slotMasks.push(`0x${mask.toString(16)}ull`);
+    }
+  }
   const lut = [];
   let ci = 0;
   for (let g = 0; g <= 1024; g++) {
@@ -2345,7 +2377,6 @@ const PORF_GC_ALLOC = prefs => {
     }
     return best;
   });
-  const minorsEnabled = !prefs.nativeFetch;
 
   return `static u32 porf_heap_base = 0;
 static u32 porf_heap_top = 0;
@@ -2357,15 +2388,21 @@ static u64 porf_heap_committed = 0;
 #define PORF_GC_NPAGES (1u << 19)
 #define PORF_GC_NCLASSES ${classes.length}
 #define PORF_GC_MAX_SMALL 8192u
-#define PORF_GC_NURSERY_BYTES ${Math.min(((parseInt(prefs.gcNursery) || 32) * 1024 * 1024), 256 * 1024 * 1024)}u
+// from 1MB, doubles while collections come fast and halves once they slow (porf_gc_cycle)
+static u32 porf_gc_nursery_bytes = 1048576u;
 
 static const u16 porf_gc_cls_size[PORF_GC_NCLASSES] = { ${classes.join(', ')} };
 static const u8 porf_gc_cls_pages[PORF_GC_NCLASSES] = { ${chunkPages.join(', ')} };
 static const u16 porf_gc_cls_slots[PORF_GC_NCLASSES] = { ${classes.map((c, i) => Math.floor(chunkPages[i] * 8192 / c)).join(', ')} };
 static const u8 porf_gc_cls_lut[1025] = { ${lut.join(',')} };
+// slot start bits of a 64 granule word, per class with a slot every <= 64 granules and per word phase
+static const u64 porf_gc_slot_masks[] = { ${slotMasks.join(', ')} };
+static const u16 porf_gc_slot_mask_at[PORF_GC_NCLASSES] = { ${slotMaskAt.join(', ')} };
 
-// kind bytes: 0 conservative, 1..195 type IDs, 248+ internal
+// kind bytes: 0 conservative, 1..195 type IDs, 245+ internal
+#define PORF_GC_KIND_WEAK 246u
 #define PORF_GC_KIND_CORO 247u
+#define PORF_GC_KIND_OBJECT_VALUES 245u
 #define PORF_GC_KIND_OBJECT_ENTRIES 249u
 #define PORF_GC_KIND_ARRAY_ENTRIES 250u
 #define PORF_GC_KIND_FUNCTION 251u
@@ -2396,7 +2433,6 @@ static u64* porf_gc_meta = NULL;
 #define PORF_GC_B_ALLOC 0u
 #define PORF_GC_B_MARK 1u
 #define PORF_GC_B_YOUNG 2u
-#define PORF_GC_B_AGED 3u
 #define porf_gc_widx(g) ((((size_t)(g) >> 9) << 5) | ((size_t)(((g) >> 6) & 7u) << 2))
 static u8* porf_gc_cards = NULL;
 static u8* porf_gc_page_kind = NULL;
@@ -2421,6 +2457,7 @@ static i64 porf_gc_window_bytes = 0;
 static i64 porf_gc_span_bytes = 0;
 static i64 porf_gc_claimed_since_full = 0;
 static i64 porf_gc_promoted_since_full = 0;
+static u64 porf_gc_young_survived = 0;
 static int porf_gc_minor_mode = 0;
 static int porf_gc_scan_young_seen = 0;
 
@@ -2451,8 +2488,10 @@ static i32 porf_gc_static_marks_cap = 0;
 
 ${st}void porf_gc_collect(int minor);
 static void porf_gc_mark_js(f64 value, i32 type);
+static void porf_gc_mark_js_now(f64 value, i32 type);
 static void porf_gc_mark_raw(i32 body);
 static int porf_gc_mark_underlying_store(i32 body);
+static int porf_gc_compact_underlying_store(i32 body);
 static u32 porf_gc_underlying_old = 0;
 static void porf_gc_mark_regex_cache(i32 cache);
 static void porf_gc_mark_coro(u32 body);
@@ -2460,10 +2499,15 @@ static void porf_gc_scan_coro(i32 body);
 static void porf_gc_cons_scan_range(const u64* lo, const u64* hi);
 static void porf_gc_mark_global_roots(void);
 static void porf_gc_mark_global_raw_roots(void);
+static int porf_gc_mark_underlying_stores(void);
+static void porf_gc_compact_underlying_stores(void);
 static void porf_gc_mark_coro_roots(void);
 static void porf_gc_scan_kind_block(i32 body);
+static void porf_gc_mark_weak_array(i32 arr);
 static void porf_gc_scan_body(i32 body, i32 type);
 static void porf_gc_scan_object_entries_range(i32 entries, u32 from, u32 to);
+static void porf_gc_scan_object_values_range(i32 values, u32 from, u32 to);
+static u32 porf_gc_values_slots(u32 bytes);
 static u32 porf_gc_span_alloc(u32 bytes, u32 typeId);
 
 static inline u32 porf_gc_align(u32 size) { return (size + 7u) & ~7u; }
@@ -2487,6 +2531,32 @@ static void porf_commit(u64 end) {
   porf_heap_committed = want;
 }
 
+// the heap skips offsets aliasing the low halves of the executable's addresses, false conservative roots
+static u32 porf_gc_alias_lo = 0, porf_gc_alias_hi = 0;
+static void porf_gc_alias_init(void) {
+#if defined(__APPLE__) && !defined(__TINYC__)
+  const struct mach_header_64* h = (const struct mach_header_64*)_dyld_get_image_header(0);
+  const u64 slide = (u64)_dyld_get_image_vmaddr_slide(0);
+  u64 lo = ~0ull, hi = 0;
+  const struct load_command* lc = (const struct load_command*)(h + 1);
+  for (u32 i = 0; i < h->ncmds; i++, lc = (const struct load_command*)((const u8*)lc + lc->cmdsize)) {
+    if (lc->cmd != LC_SEGMENT_64) continue;
+    const struct segment_command_64* seg = (const struct segment_command_64*)lc;
+    if (seg->initprot == 0) continue;
+    if (seg->vmaddr + slide < lo) lo = seg->vmaddr + slide;
+    if (seg->vmaddr + slide + seg->vmsize > hi) hi = seg->vmaddr + slide + seg->vmsize;
+  }
+#elif defined(__linux__) && !defined(__TINYC__)
+  extern char __executable_start[], _end[];
+  const u64 lo = (u64)(uintptr_t)__executable_start, hi = (u64)(uintptr_t)_end;
+#else
+  const u64 lo = 0, hi = 0;
+#endif
+  if (hi <= lo || (lo >> 32) != ((hi - 1u) >> 32)) return;
+  porf_gc_alias_lo = (u32)lo & ~PORF_GC_SPAGE_MASK;
+  porf_gc_alias_hi = (u32)((((hi - 1u) & 0xFFFFFFFFull) | PORF_GC_SPAGE_MASK) + 1u);
+}
+
 static void porf_arena_init(void) {
   void* got = mmap(PORF_ARENA_HINT, PORF_ARENA_RESERVE, PORF_MMAP_RESERVE_PROT,
     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -2495,8 +2565,13 @@ static void porf_arena_init(void) {
     exit(1);
   }
   porf_mem = (u8*)got;
+#ifdef MADV_NOHUGEPAGE
+  // transparent huge pages would make every touched 4K of the arena (and the gc's tables) resident 2M
+  (void)madvise(got, PORF_ARENA_RESERVE, MADV_NOHUGEPAGE);
+#endif
   porf_heap_base = (porf_static_end + PORF_GC_SPAGE_MASK) & ~PORF_GC_SPAGE_MASK;
   porf_heap_top = porf_heap_base;
+  porf_gc_alias_init();
   porf_heap_committed = PORF_CAN_DECOMMIT ? 0ull : (u64)PORF_ARENA_RESERVE;
   porf_commit(porf_heap_base + 65536u);
 
@@ -2512,6 +2587,9 @@ static void porf_arena_init(void) {
     fprintf(stderr, "porffor: failed to reserve gc metadata\\n");
     exit(1);
   }
+#ifdef MADV_NOHUGEPAGE
+  (void)madvise(side, side_bytes, MADV_NOHUGEPAGE);
+#endif
   porf_gc_kinds = side; side += kinds_bytes;
   porf_gc_meta = (u64*)side; side += bits_bytes * 4;
   porf_gc_cards = side; side += cards_bytes;
@@ -2614,11 +2692,12 @@ static u32 porf_gc_free_page_pop(void) {
   return 0;
 }
 
+static u64 porf_gc_settled_live(void);
 static int porf_gc_full_due(i64 additional_claimed) {
-  const u64 live_limit = porf_gc_last_live_bytes > ${prefs.nativeFetch ? '16777216ull' : '268435456ull'} ? porf_gc_last_live_bytes : ${prefs.nativeFetch ? '16777216ull' : '268435456ull'};
-  u64 promoted_limit = porf_gc_last_live_bytes / 2u;
-  if (promoted_limit < ${prefs.nativeFetch ? '8388608ull' : '134217728ull'}) promoted_limit = ${prefs.nativeFetch ? '8388608ull' : '134217728ull'};
-  if (promoted_limit > ${prefs.nativeFetch ? '33554432ull' : '536870912ull'}) promoted_limit = ${prefs.nativeFetch ? '33554432ull' : '536870912ull'};
+  const u64 live_limit = porf_gc_last_live_bytes > 268435456ull ? porf_gc_last_live_bytes : 268435456ull;
+  // settled, so what a full gc keeps alive of in-flight work does not raise the limit for the next one
+  u64 promoted_limit = porf_gc_settled_live() * 2u;
+  if (promoted_limit > 536870912ull) promoted_limit = 536870912ull;
   const i64 claimed = porf_gc_claimed_since_full + additional_claimed;
   return claimed > (i64)live_limit || porf_gc_promoted_since_full > (i64)promoted_limit ||
     (porf_heap_top > 1610612736u && claimed > 67108864ll);
@@ -2699,6 +2778,7 @@ static u32 porf_gc_claim_pages(u32 npg) {
         if (lo == 0 && (u64)porf_heap_top + (u64)npg * PORF_GC_SPAGE >= PORF_ARENA_RESERVE) return 0;
       }
       if (lo == 0) {
+        if (porf_heap_top < porf_gc_alias_hi && porf_heap_top + npg * PORF_GC_SPAGE > porf_gc_alias_lo) porf_heap_top = porf_gc_alias_hi;
         porf_commit((u64)porf_heap_top + (u64)npg * PORF_GC_SPAGE);
         lo = porf_heap_top >> PORF_GC_SPAGE_SHIFT;
         porf_heap_top += npg * PORF_GC_SPAGE;
@@ -2706,8 +2786,28 @@ static u32 porf_gc_claim_pages(u32 npg) {
     }
   }
   porf_gc_claimed_since_full += (i64)npg * (i64)PORF_GC_SPAGE;
-  porf_gc_allocation_debt += (u64)npg * PORF_GC_SPAGE;
   return lo;
+}
+
+// the first slot from i whose alloc bit is want, a 64 granule word at a time when slots are that dense
+static u32 porf_gc_find_slot(u32 base_addr, i32 ci, u32 i, u32 slots, u32 want) {
+  const u32 cls = porf_gc_cls_size[ci], stride = cls >> 4;
+  if (stride > 64u) {
+    while (i < slots && (u32)porf_gc_bit(PORF_GC_B_ALLOC, porf_gc_gran(base_addr + i * cls)) != want) i++;
+    return i;
+  }
+  const u64* masks = porf_gc_slot_masks + porf_gc_slot_mask_at[ci];
+  const u32 g0 = porf_gc_gran(base_addr), end = slots * stride;
+  for (u32 rel = i * stride; rel < end; rel = (rel & ~63u) + 64u) {
+    const u32 word_rel = rel & ~63u;
+    const u64 alloc = porf_gc_meta[porf_gc_widx(g0 + word_rel) + PORF_GC_B_ALLOC];
+    const u64 hits = (want ? alloc : ~alloc) & masks[word_rel % stride] & (~0ull << (rel & 63u));
+    if (hits != 0ull) {
+      const u32 slot = (word_rel + (u32)__builtin_ctzll(hits)) / stride;
+      return slot < slots ? slot : slots;
+    }
+  }
+  return slots;
 }
 
 static int porf_gc_install_run(i32 ci, u32 pg) {
@@ -2716,27 +2816,41 @@ static int porf_gc_install_run(i32 ci, u32 pg) {
   const u32 cls = porf_gc_cls_size[ci];
   const u32 slots = porf_gc_cls_slots[ci];
   const u32 base_addr = pg << PORF_GC_SPAGE_SHIFT;
-  u32 i = m->cursor;
-  while (i < slots && porf_gc_bit(PORF_GC_B_ALLOC, porf_gc_gran(base_addr + i * cls)) != 0u) i++;
+  const u32 i = porf_gc_find_slot(base_addr, ci, m->cursor, slots, 0);
   if (i >= slots) { m->cursor = (u16)slots; return 0; }
-  u32 j = i + 1;
-  while (j < slots && porf_gc_bit(PORF_GC_B_ALLOC, porf_gc_gran(base_addr + j * cls)) == 0u) j++;
+  const u32 j = porf_gc_find_slot(base_addr, ci, i + 1, slots, 1);
   m->cursor = (u16)j;
   w->lo = w->cur = base_addr + i * cls;
   w->end = base_addr + j * cls;
-  porf_gc_window_bytes += (i64)((j - i) * cls);
   porf_gc_touch_list(pg);
   return 1;
 }
 
 static void porf_gc_publish_window(i32 ci) {
   struct porf_gc_window* w = &porf_gc_active[ci];
-  const u32 cls = porf_gc_cls_size[ci];
-  for (u32 b = w->lo; b < w->cur; b += cls) {
-    const u32 g = porf_gc_gran(b);
-    porf_gc_bit_set(PORF_GC_B_ALLOC, g);
-    porf_gc_bit_set(PORF_GC_B_YOUNG, g);
+  const u32 cls = porf_gc_cls_size[ci], stride = cls >> 4;
+  if (stride > 64u) {
+    for (u32 b = w->lo; b < w->cur; b += cls) {
+      const u32 g = porf_gc_gran(b);
+      porf_gc_bit_set(PORF_GC_B_ALLOC, g);
+      porf_gc_bit_set(PORF_GC_B_YOUNG, g);
+    }
+  } else if (w->cur > w->lo) {
+    // a 64 granule word of slot starts at a time
+    const u64* masks = porf_gc_slot_masks + porf_gc_slot_mask_at[ci];
+    const u32 g0 = porf_gc_gran(porf_gc_chunk_start(w->lo >> PORF_GC_SPAGE_SHIFT));
+    const u32 hi = porf_gc_gran(w->cur);
+    for (u32 g = porf_gc_gran(w->lo); g < hi; g = (g & ~63u) + 64u) {
+      const u32 base = g & ~63u;
+      u64 bits = masks[(base - g0) % stride] & (~0ull << (g & 63u));
+      if (hi - base < 64u) bits &= (1ull << (hi - base)) - 1ull;
+      u64* word = porf_gc_meta + porf_gc_widx(g);
+      word[PORF_GC_B_ALLOC] |= bits;
+      word[PORF_GC_B_YOUNG] |= bits;
+    }
   }
+  // the nursery counts what was handed out, not the runs installed for it
+  porf_gc_window_bytes += (i64)(w->cur - w->lo);
   w->lo = w->cur;
 }
 
@@ -2779,40 +2893,43 @@ static int porf_gc_refill_window(i32 ci) {
   }
   w->lo = w->cur = pg << PORF_GC_SPAGE_SHIFT;
   w->end = (pg << PORF_GC_SPAGE_SHIFT) + (u32)porf_gc_cls_slots[ci] * porf_gc_cls_size[ci];
-  porf_gc_window_bytes += (i64)(w->end - w->cur);
   porf_gc_touch_list(pg);
   return 1;
 }
 
 ${st}u32 porf_alloc_slow(u32 bytes, u32 typeId);
-${sti}u32 porf_alloc(u32 bytes, u32 typeId) {
-  if (bytes <= PORF_GC_MAX_SMALL) {
-    const u32 ci = porf_gc_cls_lut[(bytes + 7u) >> 3];
-    struct porf_gc_window* w = &porf_gc_active[ci];
-    const u32 cur = w->cur;
-    if (cur < w->end) {
-      w->cur = cur + porf_gc_cls_size[ci];
-      porf_gc_kinds[cur >> 4] = porf_gc_kind_for_type(typeId);
-      if (typeId == 0u) memset(MEM + cur, 0, porf_gc_cls_size[ci]);
-      return cur;
-    }
+${sti}u32 porf_alloc_window(u32 ci, u32 typeId) {
+  struct porf_gc_window* w = &porf_gc_active[ci];
+  const u32 cur = w->cur;
+  if (cur < w->end) {
+    w->cur = cur + porf_gc_cls_size[ci];
+    porf_gc_kinds[cur >> 4] = porf_gc_kind_for_type(typeId);
+    if (typeId == 0u) memset(MEM + cur, 0, porf_gc_cls_size[ci]);
+    return cur;
   }
-  return porf_alloc_slow(bytes, typeId);
+  return porf_alloc_slow(porf_gc_cls_size[ci], typeId);
+}
+${st}PORF_NOINLINE u32 porf_alloc_cls(u32 ci, u32 typeId) { return porf_alloc_window(ci, typeId); }
+${sti}u32 porf_alloc(u32 bytes, u32 typeId) {
+  if (bytes > PORF_GC_MAX_SMALL) return porf_alloc_slow(bytes, typeId);
+  const u32 ci = porf_gc_cls_lut[(bytes + 7u) >> 3];
+  // a constant size calls its class's allocator instead of inlining it at every site
+  return __builtin_constant_p(bytes) ? porf_alloc_cls(ci, typeId) : porf_alloc_window(ci, typeId);
 }
 
-static void porf_gc_minor(void);
+static void porf_gc_cycle(i64 allocated);
+static i64 porf_gc_budget(void);
 
 ${st}u32 porf_alloc_slow(u32 bytes, u32 typeId) {
   if (porf_heap_base == 0) {
     porf_arena_init();
     return porf_alloc_slow(bytes, typeId);
   }
-${minorsEnabled ? `  if (porf_gc_window_bytes >= (i64)PORF_GC_NURSERY_BYTES || porf_gc_span_bytes >= 8388608ll) {
-    porf_gc_window_bytes = 0;
+  const i64 allocated = porf_gc_window_bytes + porf_gc_span_bytes;
+  if (allocated >= porf_gc_budget()) {
     porf_gc_span_bytes = 0;
-    porf_gc_minor();
+    porf_gc_cycle(allocated);
   }
-` : ''}\
   if (bytes > PORF_GC_MAX_SMALL) return porf_gc_span_alloc(bytes, typeId);
   const u32 ci = porf_gc_cls_lut[(bytes + 7u) >> 3];
   if (porf_gc_refill_window((i32)ci)) return porf_alloc(bytes, typeId);
@@ -2842,7 +2959,6 @@ static u32 porf_gc_span_alloc(u32 bytes, u32 typeId) {
   const u32 g = porf_gc_gran(body);
   porf_gc_bit_set(PORF_GC_B_ALLOC, g);
   porf_gc_bit_set(PORF_GC_B_YOUNG, g);
-  porf_gc_bit_clear(PORF_GC_B_AGED, g);
   porf_gc_bit_clear(PORF_GC_B_MARK, g);
   porf_gc_kinds[g] = porf_gc_kind_for_type(typeId);
   if (typeId == 0u) memset(MEM + body, 0, (size_t)npg * PORF_GC_SPAGE);
@@ -2860,18 +2976,41 @@ ${st}void porf_gc_barrier_reclassify(u32 p, i32 type) {
   } else return;
   porf_gc_kinds[p >> 4] = (u8)type;
 }
+// only old blocks need cards, young ones (and window blocks, with no alloc bit) are traced in full
+static inline int porf_gc_old_block(u32 p) {
+  if (p < porf_heap_base) return 1;
+  const u32 g = porf_gc_gran(p);
+  const u64* w = porf_gc_meta + porf_gc_widx(g);
+  return ((w[PORF_GC_B_ALLOC] & ~w[PORF_GC_B_YOUNG]) >> (g & 63u)) & 1ull;
+}
 ${sti}void porf_gc_barrier_impl(u32 p, i32 type) {
   if (porf_heap_base == 0 || p == 0) return;
-  porf_gc_cards[p >> 9] = 1;
+  if (porf_gc_old_block(p)) porf_gc_cards[p >> 9] = 1;
   if (type <= 0) return;
   if (type > 195 && type < 248) return;
-  if (porf_gc_kinds[p >> 4] == (u8)type) return;
+  if (porf_gc_kinds[p >> 4] == (u8)type || porf_gc_kinds[p >> 4] == PORF_GC_KIND_WEAK) return;
   porf_gc_barrier_reclassify(p, type);
+}
+// entries that aren't their own heap block (static, views) are scanned through their owner
+${sti}void porf_gc_barrier_slot(u32 owner, u32 block, u32 slot) {
+  if (porf_heap_base == 0) return;
+  if (block < porf_heap_base || !porf_gc_is_block_start((i32)block)) porf_gc_barrier_impl(owner, ${TYPES.array});
+    else if (porf_gc_old_block(block)) porf_gc_cards[slot >> 9] = 1;
+}
+// a new entries block is scanned per card from the start, the old one is garbage that may point at freed blocks
+${sti}void porf_gc_entries_moved(u32 from, u32 to) {
+  if (porf_heap_base == 0) return;
+  porf_gc_set_kind((i32)to, PORF_GC_KIND_ARRAY_ENTRIES);
+  if (from >= porf_heap_base) porf_gc_set_kind((i32)from, PORF_GC_KIND_LEAF);
 }
 static inline u32 porf_gc_barrier_ptr_u32(u32 p) { return p; }
 static inline u32 porf_gc_barrier_ptr_i32(i32 p) { return (u32)p; }
 static inline u32 porf_gc_barrier_ptr_jsval(jsval v) { return (u32)v.val; }
-#define porf_gc_barrier(p, type) porf_gc_barrier_impl(_Generic((p), jsval: porf_gc_barrier_ptr_jsval, i32: porf_gc_barrier_ptr_i32, default: porf_gc_barrier_ptr_u32)(p), (type))
+#define porf_gc_ptr(p) _Generic((p), jsval: porf_gc_barrier_ptr_jsval, i32: porf_gc_barrier_ptr_i32, default: porf_gc_barrier_ptr_u32)(p)
+#define porf_gc_barrier(p, type) porf_gc_barrier_impl(porf_gc_ptr(p), (type))
+// stores into containers allocated with their type only need the card marked
+static inline void porf_gc_card_impl(u32 p) { if (porf_heap_base != 0 && porf_gc_old_block(p)) porf_gc_cards[p >> 9] = 1; }
+#define porf_gc_card(p) porf_gc_card_impl(porf_gc_ptr(p))
 
 static void* porf_c_stack_top = NULL;
 
@@ -2904,7 +3043,8 @@ static int porf_gc_object_shape_valid(i32 body) {
   if (size > capacity) return 0;
   const i32 entries = *(u32*)(MEM + body + 12);
   if (entries == 0) return size == 0;
-  const u64 entry_bytes = (u64)capacity * 20ull;
+  // shaped objects keep values (see __Porffor_object_valuesBytes), dictionaries entries
+  const u64 entry_bytes = *(u16*)(MEM + body + 6) == 0 ? (u64)capacity * 20ull : capacity <= 8u ? 8ull + (u64)capacity * 8ull : (u64)capacity * 9ull;
   if (entries == body + 16) return 16ull + entry_bytes <= (u64)block_size;
   if (porf_gc_in_static(entries)) return porf_gc_static_range(entries, entry_bytes);
   if (!porf_gc_is_block_start(entries)) return 0;
@@ -2918,7 +3058,8 @@ static int porf_gc_static_object_shape_valid(i32 body) {
   if (size > capacity) return 0;
   const i32 entries = *(u32*)(MEM + body + 12);
   if (entries == 0) return size == 0;
-  const u64 entry_bytes = (u64)capacity * 20ull;
+  // shaped objects keep values (see __Porffor_object_valuesBytes), dictionaries entries
+  const u64 entry_bytes = *(u16*)(MEM + body + 6) == 0 ? (u64)capacity * 20ull : capacity <= 8u ? 8ull + (u64)capacity * 8ull : (u64)capacity * 9ull;
   if (entries == body + 16) return porf_gc_static_range(body, 16ull + entry_bytes);
   if (porf_gc_in_static(entries)) return porf_gc_static_range(entries, entry_bytes);
   if (!porf_gc_is_block_start(entries)) return 0;
@@ -2948,7 +3089,9 @@ static int porf_gc_static_array_like_shape_valid(i32 body) {
   if (len > capacity) len = capacity;
   const u64 bytes = (u64)len * 8ull;
   if (entries == body + 16) return porf_gc_static_range(body, 16ull + bytes);
-  return porf_gc_static_range(entries, bytes);
+  if (porf_gc_in_static(entries)) return porf_gc_static_range(entries, bytes);
+  if (!porf_gc_is_block_start(entries)) return 0;
+  return bytes <= (u64)porf_gc_block_size(entries);
 }
 
 static void porf_gc_enqueue_mark(i32 body, i32 type) {
@@ -3288,15 +3431,17 @@ static void porf_gc_scan_body(i32 body, i32 type) {
       if (proto != 0 || proto_type != ${TYPES.undefined}) porf_gc_mark_js((f64)proto, proto_type);
       u32 size = *(u16*)(MEM + body);
       const i32 entries = *(u32*)(MEM + body + 12);
+      const int shaped = *(u16*)(MEM + body + 6) != 0;
       if (entries != 0 && entries != body + 16) {
         porf_gc_mark_body(entries);
-        porf_gc_set_kind(entries, PORF_GC_KIND_OBJECT_ENTRIES);
+        porf_gc_set_kind(entries, shaped ? PORF_GC_KIND_OBJECT_VALUES : PORF_GC_KIND_OBJECT_ENTRIES);
         if (porf_gc_is_block_start(entries)) {
-          const u32 max_size = porf_gc_block_size(entries) / 20u;
+          const u32 max_size = shaped ? porf_gc_values_slots(porf_gc_block_size(entries)) : porf_gc_block_size(entries) / 20u;
           if (size > max_size) size = max_size;
         }
       }
-      porf_gc_scan_object_entries_range(entries, 0, size);
+      if (shaped) porf_gc_scan_object_values_range(entries, 0, size);
+        else porf_gc_scan_object_entries_range(entries, 0, size);
       break;
     }
     case ${TYPES.array}:
@@ -3340,14 +3485,8 @@ weakmap_seen:
         const i32 keys = *(u32*)(MEM + body);
         const i32 vals = *(u32*)(MEM + body + 4);
         const i32 buckets = *(u32*)(MEM + body + 8);
-        if (keys != 0) {
-          porf_gc_mark_body(keys);
-          porf_gc_set_marked_type(keys, ${TYPES.array});
-        }
-        if (vals != 0) {
-          porf_gc_mark_body(vals);
-          porf_gc_set_marked_type(vals, ${TYPES.array});
-        }
+        porf_gc_mark_weak_array(keys);
+        porf_gc_mark_weak_array(vals);
         if (buckets != 0) porf_gc_mark_body(buckets);
       }
       break;
@@ -3407,7 +3546,7 @@ weakmap_seen:
   }
 }
 
-static void porf_gc_mark_js(f64 value, i32 type) {
+static void porf_gc_mark_js_now(f64 value, i32 type) {
   // proxies ([ target, handler ]) and builtin iterators are arrays
   if (type == ${TYPES.proxy}${ITERATOR_TYPES.map(x => ` || type == ${x}`).join('')}) type = ${TYPES.array};
   switch (type) {
@@ -3489,17 +3628,50 @@ static void porf_gc_mark_js(f64 value, i32 type) {
   porf_gc_enqueue_mark(body, type);
 }
 
-static i32 porf_gc_drain_mark_queue_budget(i32 budget) {
-  i32 done = 0;
-  while (porf_gc_mark_queue_len > 0 && done < budget) {
-    const struct porf_gc_mark_item item = porf_gc_mark_queue[--porf_gc_mark_queue_len];
-    porf_gc_scan_body((i32)item.body, item.type);
-    done++;
+// once the heap outgrows the caches, edges wait in a ring while their mark bits, kind and header are prefetched
+#define PORF_GC_RING 16u
+#ifdef __TINYC__
+#define porf_gc_prefetch(p) ((void)(p))
+#else
+#define porf_gc_prefetch(p) __builtin_prefetch(p)
+#endif
+struct porf_gc_ring_item { f64 value; i32 type; };
+static struct porf_gc_ring_item porf_gc_ring[PORF_GC_RING];
+static u32 porf_gc_ring_head = 0, porf_gc_ring_len = 0;
+static int porf_gc_prefetching = 0;
+static void porf_gc_mark_js(f64 value, i32 type) {
+  if (!porf_gc_prefetching) {
+    porf_gc_mark_js_now(value, type);
+    return;
   }
-  return done;
+  const i32 body = (i32)value;
+  if (body > 0 && (u32)body >= porf_heap_base && (u32)body < porf_heap_top) {
+    const u32 g = porf_gc_gran(body);
+    porf_gc_prefetch(porf_gc_meta + porf_gc_widx(g));
+    porf_gc_prefetch(porf_gc_kinds + g);
+    porf_gc_prefetch(MEM + body);
+  }
+  if (porf_gc_ring_len == PORF_GC_RING) {
+    const struct porf_gc_ring_item item = porf_gc_ring[porf_gc_ring_head];
+    porf_gc_ring[porf_gc_ring_head] = (struct porf_gc_ring_item){ value, type };
+    porf_gc_ring_head = (porf_gc_ring_head + 1u) & (PORF_GC_RING - 1u);
+    porf_gc_mark_js_now(item.value, item.type);
+    return;
+  }
+  porf_gc_ring[(porf_gc_ring_head + porf_gc_ring_len++) & (PORF_GC_RING - 1u)] = (struct porf_gc_ring_item){ value, type };
 }
 static void porf_gc_drain_mark_queue(void) {
-  while (porf_gc_mark_queue_len > 0) porf_gc_drain_mark_queue_budget(4096);
+  for (;;) {
+    if (porf_gc_mark_queue_len > 0) {
+      const struct porf_gc_mark_item item = porf_gc_mark_queue[--porf_gc_mark_queue_len];
+      porf_gc_scan_body((i32)item.body, item.type);
+    } else if (porf_gc_ring_len > 0) {
+      const struct porf_gc_ring_item item = porf_gc_ring[porf_gc_ring_head];
+      porf_gc_ring_head = (porf_gc_ring_head + 1u) & (PORF_GC_RING - 1u);
+      porf_gc_ring_len--;
+      porf_gc_mark_js_now(item.value, item.type);
+    } else break;
+  }
 }
 
 static void porf_gc_scan_object_entries_range(i32 entries, u32 from, u32 to) {
@@ -3521,25 +3693,53 @@ static void porf_gc_scan_object_entries_range(i32 entries, u32 from, u32 to) {
   }
 }
 
+// slots of a values block: groups of 8 types then 8 values, a single partial group under 72 bytes
+static u32 porf_gc_values_slots(u32 bytes) {
+  if (bytes < 72u) return bytes < 8u ? 0u : (bytes - 8u) / 8u;
+  return (bytes / 72u) * 8u;
+}
+
+static void porf_gc_scan_object_values_range(i32 values, u32 from, u32 to) {
+  for (u32 i = from; i < to; i++) {
+    const u32 group = (i >> 3) << 3;
+    const u8 type = *(u8*)(MEM + values + i + group * 8u);
+    const i32 value = values + 8 + (i32)(i * 8u + group);
+    if (type == 255u) {
+      const u32 get = *(u32*)(MEM + value);
+      const u32 set = *(u32*)(MEM + value + 4);
+      if (get != 0) porf_gc_mark_js((f64)get, ${TYPES.function});
+      if (set != 0) porf_gc_mark_js((f64)set, ${TYPES.function});
+    } else if (porf_gc_type_can_reference(type)) porf_gc_mark_js(*(f64*)(MEM + value), type);
+  }
+}
+
+static void porf_gc_scan_object_values(i32 values) {
+  if (!porf_gc_is_block_start(values)) return;
+  porf_gc_scan_object_values_range(values, 0, porf_gc_values_slots(porf_gc_block_size(values)));
+}
+
+// shapes live forever: their tables, descriptors, key indexes and keys
+static void porf_gc_mark_shapes(i32 table, i32 count) {
+  if (table == 0) return;
+  porf_gc_mark_raw(table);
+  for (i32 i = 4; i < count; i++) {
+    const i32 node = table + i * 24;
+    porf_gc_mark_raw(*(u32*)(MEM + node + 8));
+    porf_gc_mark_raw(*(u32*)(MEM + node + 12));
+    const u32 key = *(u32*)(MEM + node + 16);
+    const u8 key_type = *(u8*)(MEM + node + 21);
+    if (key >= porf_heap_base && porf_gc_type_can_reference(key_type)) porf_gc_mark_js((f64)key, key_type);
+  }
+}
+
 static void porf_gc_scan_object_entries(i32 entries) {
   if (!porf_gc_is_block_start(entries)) return;
   porf_gc_scan_object_entries_range(entries, 0, porf_gc_block_size(entries) / 20u);
 }
 
-static void porf_gc_scan_underlying_store(i32 body) {
-  const u32 len = *(u32*)(MEM + body);
-  for (u32 i = 0; i < len; i++) {
-    const i32 base = body + 8 + (i32)(i * 16u);
-    const jsval original = porf_unpack(*(jsbits*)(MEM + base));
-    porf_gc_mark_js(original.val, original.type);
-    const i32 underlying = *(u32*)(MEM + base + 8);
-    if (underlying != 0) porf_gc_mark_js((f64)underlying, ${TYPES.object});
-  }
-}
-
-// minors skip the promoted prefix (entries are in creation order), returns whether entries were removed
+// minors skip the promoted prefix (entries are in creation order), returns whether anything new was marked
 static int porf_gc_mark_underlying_store(i32 body) {
-  if (!porf_gc_is_block_start(body)) return 1;
+  if (!porf_gc_is_block_start(body)) return 0;
   porf_gc_mark_body(body);
   porf_gc_set_kind(body, PORF_GC_KIND_UNDERLYING_STORE);
 
@@ -3555,7 +3755,7 @@ static int porf_gc_mark_underlying_store(i32 body) {
     porf_gc_underlying_old = p;
     start = p;
   }
-  int changed;
+  int changed, any = 0;
   do {
     changed = 0;
     for (u32 i = start; i < len; i++) {
@@ -3567,13 +3767,21 @@ static int porf_gc_mark_underlying_store(i32 body) {
       if (underlying == 0) continue;
 
       const int marked_before = porf_gc_is_marked_js((f64)(u32)underlying, ${TYPES.object});
-      porf_gc_mark_js((f64)(u32)underlying, ${TYPES.object});
+      porf_gc_mark_js_now((f64)(u32)underlying, ${TYPES.object});
       if (!marked_before && porf_gc_is_marked_js((f64)(u32)underlying, ${TYPES.object})) changed = 1;
     }
 
     if (changed) porf_gc_drain_mark_queue();
+    any |= changed;
   } while (changed);
+  return any;
+}
 
+// drops entries whose original died, returns whether any were removed
+static int porf_gc_compact_underlying_store(i32 body) {
+  if (!porf_gc_is_block_start(body)) return 1;
+  const u32 len = *(u32*)(MEM + body);
+  const u32 start = porf_gc_minor_mode ? porf_gc_underlying_old : 0u;
   u32 out = start;
   for (u32 i = start; i < len; i++) {
     const i32 base = body + 8 + (i32)(i * 16u);
@@ -3625,6 +3833,9 @@ static void porf_gc_scan_kind_block(i32 body) {
     case PORF_GC_KIND_OBJECT_ENTRIES:
       porf_gc_scan_object_entries(body);
       break;
+    case PORF_GC_KIND_OBJECT_VALUES:
+      porf_gc_scan_object_values(body);
+      break;
     case PORF_GC_KIND_ARRAY_ENTRIES:
       porf_gc_mark_array_entries(body, porf_gc_block_size(body) / 8u);
       break;
@@ -3633,8 +3844,8 @@ static void porf_gc_scan_kind_block(i32 body) {
       if (env != 0) porf_gc_mark_js((f64)env, ${TYPES.__porffor_closureenv});
       break;
     }
+    // weak, only porf_gc_mark_underlying_stores marks its entries: a stray reference must not keep every key alive
     case PORF_GC_KIND_UNDERLYING_STORE:
-      porf_gc_scan_underlying_store(body);
       break;
     case PORF_GC_KIND_REGEX_CACHE:
       porf_gc_scan_regex_cache(body);
@@ -3684,6 +3895,21 @@ static i32 porf_gc_array_entries_shallow(i32 arr, u32* len_out) {
   return entries;
 }
 
+// a minor gc starts a weakmap at its first entry that may be young
+static inline u32 porf_gc_weakmap_from(i32 body, u32 len) {
+  const u32 from = porf_gc_minor_mode ? *(u32*)(MEM + body + 20) : 0u;
+  return from < len ? from : len;
+}
+
+// a weakmap's key and value arrays are only traced by the weakmap, so card scans skip them
+static void porf_gc_mark_weak_array(i32 arr) {
+  if (arr == 0) return;
+  porf_gc_mark_body(arr);
+  porf_gc_set_kind(arr, PORF_GC_KIND_WEAK);
+  const i32 entries = *(u32*)(MEM + arr + 4);
+  if (entries != arr + 16) porf_gc_set_kind(entries, PORF_GC_KIND_WEAK);
+}
+
 static int porf_gc_mark_weakmap_values_once(void) {
   int changed = 0;
   for (i32 w = 0; w < porf_gc_weakmaps_len; w++) {
@@ -3695,20 +3921,25 @@ static int porf_gc_mark_weakmap_values_once(void) {
     const i32 keys_entries = porf_gc_array_entries_shallow(keys, &keys_len);
     const i32 vals_entries = porf_gc_array_entries_shallow(vals, &vals_len);
     const u32 len = keys_len < vals_len ? keys_len : vals_len;
-    for (u32 i = 0; i < len; i++) {
+    for (u32 i = porf_gc_weakmap_from(body, len); i < len; i++) {
       const jsbits key_bits = *(jsbits*)(MEM + keys_entries + ((u64)i << 3));
       if (key_bits == 0xffffffffffffffffull) continue;
       const jsval key = porf_unpack(key_bits);
       if (!porf_gc_is_marked_js(key.val, key.type)) continue;
       const jsval val = porf_unpack(*(jsbits*)(MEM + vals_entries + ((u64)i << 3)));
       const int marked_before = porf_gc_is_marked_js(val.val, val.type);
-      porf_gc_mark_js(val.val, val.type);
+      porf_gc_mark_js_now(val.val, val.type);
       if (!marked_before && porf_gc_is_marked_js(val.val, val.type)) changed = 1;
     }
   }
   return changed;
 }
 
+static int porf_gc_young_value(jsval v) {
+  if (!porf_gc_type_can_reference(v.type)) return 0;
+  const i32 body = porf_gc_value_body(v.val, v.type);
+  return (u32)body >= porf_heap_base && porf_gc_is_block_start(body) && porf_gc_bit(PORF_GC_B_YOUNG, porf_gc_gran(body)) != 0u;
+}
 static void porf_gc_sweep_weakmaps(void) {
   for (i32 w = 0; w < porf_gc_weakmaps_len; w++) {
     const i32 body = (i32)porf_gc_weakmaps[w];
@@ -3721,29 +3952,53 @@ static void porf_gc_sweep_weakmaps(void) {
     const i32 keys_entries = porf_gc_array_entries_shallow(keys, &keys_len);
     const i32 vals_entries = porf_gc_array_entries_shallow(vals, &vals_len);
     const u32 len = keys_len < vals_len ? keys_len : vals_len;
-    if (buckets != 0 && capacity != 0) memset(MEM + buckets, 0, (size_t)capacity * 4u);
-    for (u32 i = 0; i < len; i++) {
+    // a minor gc only tombstones dead young keys: keys never move, and lookups skip a bucket whose key is a tombstone
+    const int rebuild = !porf_gc_minor_mode && buckets != 0 && capacity != 0;
+    if (rebuild) memset(MEM + buckets, 0, (size_t)capacity * 4u);
+    for (u32 i = porf_gc_weakmap_from(body, len); i < len; i++) {
       const i32 key_ptr = keys_entries + (i32)((u64)i << 3);
       const jsbits key_bits = *(jsbits*)(MEM + key_ptr);
       if (key_bits == 0xffffffffffffffffull) continue;
       const jsval key = porf_unpack(key_bits);
       if (porf_gc_is_marked_js(key.val, key.type)) {
-        porf_gc_weakmap_insert_bucket(buckets, capacity, key.val, i);
+        if (rebuild) porf_gc_weakmap_insert_bucket(buckets, capacity, key.val, i);
         continue;
       }
       *(jsbits*)(MEM + key_ptr) = 0xffffffffffffffffull;
       *(jsbits*)(MEM + vals_entries + ((u64)i << 3)) = JV_UNDEFINED_BITS;
       *(u32*)(MEM + body + 16) += 1u;
     }
+    // young keys and values are only seen through the weakmap, so the next minor gc revisits it from the first
+    u32 first_young = len;
+    if (porf_gc_minor_mode) for (u32 i = porf_gc_weakmap_from(body, len); i < len; i++) {
+      const jsbits key_bits = *(jsbits*)(MEM + keys_entries + ((u64)i << 3));
+      if (key_bits == 0xffffffffffffffffull) continue;
+      if (porf_gc_young_value(porf_unpack(key_bits)) || porf_gc_young_value(porf_unpack(*(jsbits*)(MEM + vals_entries + ((u64)i << 3))))) {
+        first_young = i;
+        porf_gc_cards[(u32)body >> 9] = 1;
+        break;
+      }
+    }
+    *(u32*)(MEM + body + 20) = first_young;
   }
 }
 
+// weakmap values and underlying objects can each make the other reachable
 static void porf_gc_process_weakmaps(void) {
-  while (porf_gc_mark_weakmap_values_once()) porf_gc_drain_mark_queue();
+  while (porf_gc_mark_weakmap_values_once() | porf_gc_mark_underlying_stores()) porf_gc_drain_mark_queue();
   porf_gc_sweep_weakmaps();
+  porf_gc_compact_underlying_stores();
 }
 
 static void porf_gc_cons_candidate(u32 c);
+static void porf_gc_cons_f64(f64 d) {
+  if (d > 0.0 && d < 4294967296.0) {
+    const i64 iv = (i64)d;
+    if ((f64)iv == d) porf_gc_cons_candidate((u32)(u64)iv);
+  }
+  // heap bigints hold 2^51 + ptr
+  if (d >= 2251799813685248.0 && d < 2251804108652544.0) porf_gc_cons_candidate((u32)(d - 2251799813685248.0));
+}
 static void porf_gc_cons_mark_block(i32 body) {
   if (!porf_gc_mark_body(body)) return;
   const u32 kind = porf_gc_kinds[porf_gc_gran(body)];
@@ -3752,13 +4007,7 @@ static void porf_gc_cons_mark_block(i32 body) {
   if (porf_gc_array_like_shape_valid(body)) { porf_gc_enqueue_mark(body, ${TYPES.array}); return; }
   const u32 size = porf_gc_block_size(body);
   for (u32 off = 0; off + 4u <= size; off += 4u) porf_gc_cons_candidate(*(u32*)(MEM + body + off));
-  for (u32 off = 0; off + 8u <= size; off += 8u) {
-    const f64 d = *(f64*)(MEM + body + off);
-    if (d > 0.0 && d < 4294967296.0) {
-      const i64 iv = (i64)d;
-      if ((f64)iv == d) porf_gc_cons_candidate((u32)(u64)iv);
-    }
-  }
+  for (u32 off = 0; off + 8u <= size; off += 8u) porf_gc_cons_f64(*(f64*)(MEM + body + off));
 }
 static void porf_gc_cons_candidate(u32 c) {
   if (c < porf_heap_base || c >= porf_heap_top) return;
@@ -3784,10 +4033,7 @@ static void porf_gc_cons_scan_range(const u64* lo, const u64* hi) {
     porf_gc_cons_candidate((u32)(v >> 32));
     f64 d;
     memcpy(&d, w, 8);
-    if (d > 0.0 && d < 4294967296.0) {
-      const i64 iv = (i64)d;
-      if ((f64)iv == d) porf_gc_cons_candidate((u32)(u64)iv);
-    }
+    porf_gc_cons_f64(d);
   }
 }
 
@@ -3799,6 +4045,7 @@ static void porf_gc_mark_cons_roots(void) {
   volatile u64 anchor = 0;
   const u64* lo = (const u64*)(((uintptr_t)&anchor + 7) & ~(uintptr_t)7);
   const u64* hi = (const u64*)porf_c_stack_top;
+  if ((uintptr_t)lo < porf_gc_stack_lo) porf_gc_stack_lo = (uintptr_t)lo;
   if (lo < hi) porf_gc_cons_scan_range(lo, hi);
   if (porf_try_depth > 0) {
     porf_gc_cons_scan_range((const u64*)porf_try_data, (const u64*)(porf_try_data + porf_try_depth));
@@ -3808,28 +4055,22 @@ static void porf_gc_mark_cons_roots(void) {
   porf_gc_drain_mark_queue();
 }
 
+// array entries take per-slot cards (porf_arr_set), object entries their owner's
 static void porf_gc_scan_card_object(u32 base, u32 from, u32 to) {
   const u8 kind = porf_gc_kinds[porf_gc_gran(base)];
   if (kind == PORF_GC_KIND_ARRAY_ENTRIES) {
     const u32 bs = porf_gc_block_size((i32)base);
     u32 lo = from > base ? from : base;
-    u32 hi = base + bs < to ? base + bs : to;
+    const u32 hi = base + bs < to ? base + bs : to;
     lo = base + (((lo - base) >> 3) << 3);
     if (hi > lo) porf_gc_mark_array_entries((i32)lo, (hi - lo) / 8u);
     return;
   }
-  if (kind == PORF_GC_KIND_OBJECT_ENTRIES) {
-    const u32 capacity = porf_gc_block_size((i32)base) / 20u;
-    u32 i0 = from > base ? (from - base) / 20u : 0u;
-    u32 i1 = to > base ? (to - base + 19u) / 20u : 0u;
-    if (i1 > capacity) i1 = capacity;
-    if (i1 > i0) porf_gc_scan_object_entries_range((i32)base, i0, i1);
-    return;
-  }
+  if (kind == PORF_GC_KIND_OBJECT_ENTRIES || kind == PORF_GC_KIND_OBJECT_VALUES || kind == PORF_GC_KIND_WEAK) return;
   porf_gc_scan_kind_block((i32)base);
 }
 
-static void porf_gc_scan_card(u32 card, int* young_base_present) {
+static void porf_gc_scan_card(u32 card) {
   const u32 from = card << 9;
   const u32 to = from + 512u;
   const u32 pg = from >> PORF_GC_SPAGE_SHIFT;
@@ -3839,10 +4080,7 @@ static void porf_gc_scan_card(u32 card, int* young_base_present) {
     const u32 sa = porf_gc_chunk_start(pg);
     u32 base = sa + ((from - sa) / cls) * cls;
     for (; base < to; base += cls) {
-      const u32 g = porf_gc_gran(base);
-      if (porf_gc_bit(PORF_GC_B_ALLOC, g) == 0u) continue;
-      if (porf_gc_bit(PORF_GC_B_YOUNG, g) != 0u) { *young_base_present = 1; continue; }
-      porf_gc_scan_card_object(base, from, to);
+      if (porf_gc_old_block(base)) porf_gc_scan_card_object(base, from, to);
     }
     return;
   }
@@ -3851,10 +4089,7 @@ static void porf_gc_scan_card(u32 card, int* young_base_present) {
   else if (k == PORF_GC_PK_TAIL) head = porf_gc_pages[pg].aux;
   else return;
   const u32 base = head << PORF_GC_SPAGE_SHIFT;
-  const u32 g = porf_gc_gran(base);
-  if (porf_gc_bit(PORF_GC_B_ALLOC, g) == 0u) return;
-  if (porf_gc_bit(PORF_GC_B_YOUNG, g) != 0u) { *young_base_present = 1; return; }
-  porf_gc_scan_card_object(base, from, to);
+  if (porf_gc_old_block(base)) porf_gc_scan_card_object(base, from, to);
 }
 
 static void porf_gc_scan_cards(void) {
@@ -3867,11 +4102,10 @@ static void porf_gc_scan_cards(void) {
     for (u32 j = 0; j < 8u; j++) {
       const u32 c = cw + j;
       if (c < c_lo || c >= c_hi || porf_gc_cards[c] == 0) continue;
-      int young_base_present = 0;
       porf_gc_scan_young_seen = 0;
-      porf_gc_scan_card(c, &young_base_present);
+      porf_gc_scan_card(c);
       porf_gc_drain_mark_queue();
-      porf_gc_cards[c] = (porf_gc_scan_young_seen || young_base_present) ? 1 : 0;
+      porf_gc_cards[c] = porf_gc_scan_young_seen;
     }
   }
 }
@@ -3899,80 +4133,60 @@ static void porf_gc_partial_remove(u32 pg) {
   }
 }
 
-// 0 freed, 1 live without young, 2 live with young
-static int porf_gc_sweep_page_small(u32 pg, int minor, u64* promoted_bytes, u64* live_bytes) {
+// a minor gc promotes everything that survives it, so promoted blocks only point at old ones and need no card
+static void porf_gc_sweep_page_small(u32 pg, int minor, u64* young_bytes, u64* live_bytes) {
   struct porf_gc_page* m = &porf_gc_pages[pg];
   const u32 cls = m->cls;
   const u32 npg = porf_gc_cls_pages[m->cidx];
   u64* blk = porf_gc_meta + ((size_t)pg << 5);
-  u32 live = 0, young_left = 0;
+  u32 live = 0;
   for (u32 w = 0; w < npg * 8u; w++) {
     u64* grp = blk + ((size_t)w << 2);
-    u64 a = grp[0], mk = grp[1], y = grp[2], g = grp[3];
-    const u64 dead = minor ? (y & ~mk) : (a & ~mk);
-    a &= ~dead;
-    u64 newy = 0;
-    if (minor) {
-      const u64 survy = y & mk;
-      const u64 promote = survy & g;
-      newy = survy & ~g;
-      if (promote != 0ull) *promoted_bytes += (u64)__builtin_popcountll(promote) * cls;
-    }
+    const u64 mk = grp[1], y = grp[2];
+    const u64 a = grp[0] & ~(minor ? y & ~mk : ~mk);
+    *young_bytes += (u64)__builtin_popcountll(y & mk) * cls;
     grp[0] = a;
     grp[1] = 0;
-    grp[2] = newy;
-    grp[3] = newy;
+    grp[2] = 0;
     live += (u32)__builtin_popcountll(a);
-    young_left += (u32)__builtin_popcountll(newy);
   }
   if (live == 0) {
     if ((m->flags & PORF_GC_PF_PARTIAL) != 0u) porf_gc_partial_remove(pg);
     m->flags = 0;
     m->cursor = 0;
     porf_gc_release_run(pg, npg);
-    return 0;
+    return;
   }
   *live_bytes += (u64)live * cls;
   m->cursor = 0;
   if (live < (u32)porf_gc_cls_slots[m->cidx]) porf_gc_partial_push(pg);
-  return young_left > 0 ? 2 : 1;
 }
 
-static int porf_gc_sweep_span(u32 pg, int minor, u64* promoted_bytes, u64* live_bytes) {
+static void porf_gc_sweep_span(u32 pg, int minor, u64* young_bytes, u64* live_bytes) {
   struct porf_gc_page* m = &porf_gc_pages[pg];
   const u32 npg = m->aux;
   const u32 body = pg << PORF_GC_SPAGE_SHIFT;
   const u32 g = porf_gc_gran(body);
   const int young = porf_gc_bit(PORF_GC_B_YOUNG, g) != 0u;
   const int marked = porf_gc_bit(PORF_GC_B_MARK, g) != 0u;
-  if (minor && !young) { *live_bytes += (u64)npg * PORF_GC_SPAGE; return 1; }
+  if (minor && !young) { *live_bytes += (u64)npg * PORF_GC_SPAGE; return; }
+  porf_gc_bit_clear(PORF_GC_B_YOUNG, g);
   if (!marked) {
     porf_gc_bit_clear(PORF_GC_B_ALLOC, g);
-    porf_gc_bit_clear(PORF_GC_B_YOUNG, g);
-    porf_gc_bit_clear(PORF_GC_B_AGED, g);
     m->flags = 0;
     porf_gc_release_run(pg, npg);
-    return 0;
+    return;
   }
   porf_gc_bit_clear(PORF_GC_B_MARK, g);
   *live_bytes += (u64)npg * PORF_GC_SPAGE;
-  if (!minor) {
-    porf_gc_bit_clear(PORF_GC_B_YOUNG, g);
-    porf_gc_bit_clear(PORF_GC_B_AGED, g);
-    return 1;
-  }
-  if (porf_gc_bit(PORF_GC_B_AGED, g) != 0u) {
-    porf_gc_bit_clear(PORF_GC_B_YOUNG, g);
-    porf_gc_bit_clear(PORF_GC_B_AGED, g);
-    *promoted_bytes += (u64)npg * PORF_GC_SPAGE;
-    return 1;
-  }
-  porf_gc_bit_set(PORF_GC_B_AGED, g);
-  return 2;
+  if (young) *young_bytes += (u64)npg * PORF_GC_SPAGE;
 }
 
 static void porf_gc_madv_dontneed(u32 start, size_t len) {
-#if PORF_CAN_DECOMMIT && defined(MADV_DONTNEED)
+#if PORF_CAN_DECOMMIT && defined(__APPLE__)
+  // macos keeps madvised pages resident until memory pressure, a fresh mapping drops them now
+  (void)mmap(MEM + start, len, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#elif PORF_CAN_DECOMMIT && defined(MADV_DONTNEED)
   (void)madvise(MEM + start, len, MADV_DONTNEED);
 #elif PORF_CAN_DECOMMIT && defined(MADV_FREE)
   (void)madvise(MEM + start, len, MADV_FREE);
@@ -3983,6 +4197,9 @@ static void porf_gc_madv_dontneed(u32 start, size_t len) {
 }
 
 static void porf_gc_discard_range(u32 start, u32 end) {
+  // os pages can be larger than gc pages (16KB on arm64 macos), never touch a partial one
+  start = (start + 16383u) & ~16383u;
+  end &= ~16383u;
   if (end <= start) return;
   porf_gc_madv_dontneed(start, (size_t)(end - start));
 }
@@ -3997,7 +4214,7 @@ static void porf_gc_retreat_heap_top(void) {
   }
 }
 
-static void porf_gc_discard_free_runs(void) {
+static void porf_gc_discard_free_runs(u32 min_run) {
   const u32 top = porf_heap_top >> PORF_GC_SPAGE_SHIFT;
   u32 run_start = 0, run_len = 0;
   for (u32 pg = porf_heap_base >> PORF_GC_SPAGE_SHIFT; pg < top; pg++) {
@@ -4005,11 +4222,11 @@ static void porf_gc_discard_free_runs(void) {
       if (run_len == 0) run_start = pg;
       run_len++;
     } else {
-      if (run_len >= 32u) porf_gc_discard_range(run_start << PORF_GC_SPAGE_SHIFT, (run_start + run_len) << PORF_GC_SPAGE_SHIFT);
+      if (run_len >= min_run) porf_gc_discard_range(run_start << PORF_GC_SPAGE_SHIFT, (run_start + run_len) << PORF_GC_SPAGE_SHIFT);
       run_len = 0;
     }
   }
-  if (run_len >= 32u) porf_gc_discard_range(run_start << PORF_GC_SPAGE_SHIFT, (run_start + run_len) << PORF_GC_SPAGE_SHIFT);
+  if (run_len >= min_run) porf_gc_discard_range(run_start << PORF_GC_SPAGE_SHIFT, (run_start + run_len) << PORF_GC_SPAGE_SHIFT);
 }
 
 static void porf_gc_maybe_trim_memory(void) {
@@ -4030,61 +4247,81 @@ static void porf_gc_maybe_trim_memory(void) {
   if (!PORF_CAN_DECOMMIT) return;
   // replacing the tail drops its pages but keeps the reservation
   if (mmap(MEM + wanted, trim_bytes, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) == MAP_FAILED) return;
+#ifdef MADV_NOHUGEPAGE
+  (void)madvise(MEM + wanted, trim_bytes, MADV_NOHUGEPAGE);
+#endif
   porf_heap_committed = wanted;
 }
 
-static inline u64 porf_gc_allocation_debt_threshold(void) {
-  u64 threshold = porf_gc_last_live_bytes / 2u;
-  if (threshold < porf_gc_allocation_debt_min) return porf_gc_allocation_debt_min;
-  if (threshold > porf_gc_allocation_debt_max) return porf_gc_allocation_debt_max;
-  return threshold;
-}
-static inline int porf_gc_can_grow_for_request(u32 request_size) {
-  if (porf_gc_last_live_bytes == 0) return 0;
-  const u64 allocation_bytes = 8u + (u64)request_size;
-  const u64 heap_slack = (u64)(PORF_ARENA_RESERVE - porf_heap_top);
-  if (heap_slack <= 16ull * 1024ull * 1024ull + allocation_bytes) return 0;
-  const u64 heap_bytes = porf_heap_top > porf_heap_base ? (u64)(porf_heap_top - porf_heap_base) : 0u;
-  const u64 live_bytes = porf_gc_last_live_bytes;
-  u64 grow_window = live_bytes + 64ull * 1024ull * 1024ull;
-  if (grow_window < 1ull * 1024ull * 1024ull) grow_window = 1ull * 1024ull * 1024ull;
-  return heap_bytes + allocation_bytes <= grow_window;
-}
-static inline int porf_gc_should_collect_for(u32 request_size) {
-  const u64 threshold = porf_gc_allocation_debt_threshold();
-  if (porf_gc_allocation_debt < threshold) return 0;
-  if (porf_gc_last_live_bytes == 0) return !porf_gc_can_grow_for_request(request_size);
-  if (porf_gc_allocation_debt >= threshold * 4u) return 1;
-  if (porf_gc_can_grow_for_request(request_size)) return 0;
-  return 1;
+// a collection since the last idle one, and when the latest ran
+static int porf_gc_busy = 0;
+static i64 porf_gc_last_cycle_ms = 0;
+static i64 porf_gc_now_ms(void) {
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  return (i64)now.tv_sec * 1000 + now.tv_nsec / 1000000;
 }
 
-static void porf_gc_minor(void) {
-  porf_gc_collect(1);
-  if (porf_gc_full_due(0)) porf_gc_collect(0);
+// percent of what was allocated since the last gc that survived it
+static i64 porf_gc_survival = 0;
+// least live bytes after a full gc per 125ms slot over the last 8 slots: what stays, not in-flight work
+static u64 porf_gc_live_history[8];
+static i64 porf_gc_live_history_slot[8];
+static i64 porf_gc_live_slot = 0;
+static void porf_gc_record_live(u64 live) {
+  const i64 slot = porf_gc_now_ms() / 125;
+  if (slot != porf_gc_live_history_slot[slot & 7] || live < porf_gc_live_history[slot & 7]) porf_gc_live_history[slot & 7] = live;
+  porf_gc_live_history_slot[slot & 7] = slot;
+  porf_gc_live_slot = slot;
 }
-${prefs.nativeFetch ? `
-// full under the debt policy, otherwise minor after enough page claims
-${st}int porf_gc_idle_minor_due(void) {
-  return porf_gc_window_bytes + porf_gc_span_bytes >= (1ll << 20);
+static u64 porf_gc_settled_live(void) {
+  u64 least = porf_gc_last_live_bytes;
+  for (u32 i = 0; i < 8u; i++) if (porf_gc_live_slot - porf_gc_live_history_slot[i] < 8 && porf_gc_live_history[i] < least) least = porf_gc_live_history[i];
+  return least;
 }
-${st}void porf_gc_collect_idle(void) {
-  if (porf_gc_should_collect_for(0)) {
-    porf_gc_collect(0);
-    return;
-  }
-  if (porf_gc_idle_minor_due()) {
-    porf_gc_window_bytes = 0;
-    porf_gc_span_bytes = 0;
-    porf_gc_minor();
-  }
+
+// while most allocations survive the budget is twice live
+static i64 porf_gc_budget(void) {
+  const i64 grown = (i64)porf_gc_last_live_bytes * 2;
+  return porf_gc_survival > 50 && grown > (i64)porf_gc_nursery_bytes ? grown : (i64)porf_gc_nursery_bytes;
 }
-` : ''}\
+
+static void porf_gc_cycle(i64 allocated) {
+  const i64 now = porf_gc_now_ms(), ms = now - porf_gc_last_cycle_ms;
+  porf_gc_last_cycle_ms = now;
+  porf_gc_busy = 1;
+  // a small heap's nursery stays near twice what is live: fewer gcs past that only cost memory
+  const u64 near_live = porf_gc_last_live_bytes * 2u < 1048576ull ? 1048576ull : porf_gc_last_live_bytes * 2u;
+  const u32 cap = porf_gc_last_live_bytes >= 8388608ull ? 33554432u : near_live < 8388608ull ? (u32)near_live : 8388608u;
+  if (ms < 50 && porf_gc_nursery_bytes * 2u <= cap) porf_gc_nursery_bytes <<= 1;
+    else if ((ms > 1000 || porf_gc_nursery_bytes > cap) && porf_gc_nursery_bytes > 1048576u) porf_gc_nursery_bytes >>= 1;
+  // only full gcs while the heap is small or most allocations survive
+  const int full = porf_gc_last_live_bytes < 8388608ull || porf_gc_survival > 50;
+  porf_gc_collect(!full);
+  porf_gc_survival = (i64)porf_gc_young_survived * 100 / (allocated > 0 ? allocated : 1);
+  if (!full && porf_gc_full_due(0)) porf_gc_collect(0);
+}
+
+// ms until a second without collections makes an idle one due, -1 when there is nothing to collect
+${st}i64 porf_gc_idle_due(void) {
+  if (!porf_gc_busy) return -1;
+  const i64 left = 1000 - (porf_gc_now_ms() - porf_gc_last_cycle_ms);
+  return left > 0 ? left : 0;
+}
+// the loop found nothing to do for a while after allocating: collect everything and give the free pages back
+${st}void porf_gc_idle(void) {
+  if (!porf_gc_busy) return;
+  porf_gc_busy = 0;
+  porf_gc_nursery_bytes = 1048576u;
+  porf_gc_collect(0);
+  porf_gc_discard_free_runs(1u);
+}
 
 ${st}void porf_gc_collect(int minor) {
   if (porf_heap_base == 0) return;
   for (i32 ci = 0; ci < PORF_GC_NCLASSES; ci++) porf_gc_publish_window(ci);
   porf_gc_minor_mode = minor;
+  porf_gc_prefetching = porf_heap_top - porf_heap_base > 33554432u;
   if (!minor) {
     porf_gc_claimed_since_full = 0;
     porf_gc_promoted_since_full = 0;
@@ -4113,17 +4350,14 @@ ${st}void porf_gc_collect(int minor) {
 
   u64 promoted = 0, live_bytes = 0;
   if (minor) {
-    i32 out = 0;
     for (i32 i = 0; i < porf_gc_touched_len; i++) {
       const u32 pg = porf_gc_touched[i];
       const u8 k = porf_gc_page_kind[pg];
-      int status = 0;
-      if (k == PORF_GC_PK_SMALL) status = porf_gc_sweep_page_small(pg, 1, &promoted, &live_bytes);
-      else if (k == PORF_GC_PK_SPAN) status = porf_gc_sweep_span(pg, 1, &promoted, &live_bytes);
-      if (status == 2) { porf_gc_touched[out++] = pg; continue; }
+      if (k == PORF_GC_PK_SMALL) porf_gc_sweep_page_small(pg, 1, &promoted, &live_bytes);
+      else if (k == PORF_GC_PK_SPAN) porf_gc_sweep_span(pg, 1, &promoted, &live_bytes);
       porf_gc_pages[pg].flags &= (u8)~PORF_GC_PF_TOUCHED;
     }
-    porf_gc_touched_len = out;
+    porf_gc_touched_len = 0;
     porf_gc_promoted_since_full += (i64)promoted;
     porf_gc_retreat_heap_top();
     porf_gc_maybe_trim_memory();
@@ -4149,14 +4383,18 @@ ${st}void porf_gc_collect(int minor) {
       } else if (k == PORF_GC_PK_SPAN) porf_gc_sweep_span(pg, 0, &promoted, &live_bytes);
     }
     porf_gc_last_live_bytes = live_bytes;
+    porf_gc_record_live(live_bytes);
     porf_gc_live_bytes = live_bytes;
     memset(porf_gc_cards + (porf_heap_base >> 9), 0, (size_t)((porf_heap_top - porf_heap_base) >> 9) + 1);
     porf_gc_run_cache_drain();
     porf_gc_retreat_heap_top();
-    porf_gc_discard_free_runs();
+    // free pages a busy program will reuse soon stay, more than that go back
+    if ((u64)porf_gc_free_page_count * PORF_GC_SPAGE > porf_gc_last_live_bytes + 2ull * porf_gc_nursery_bytes + 16777216ull) porf_gc_discard_free_runs(32u);
     porf_gc_maybe_trim_memory();
   }
+  porf_gc_young_survived = promoted;
   memset(porf_gc_active, 0, sizeof(porf_gc_active));
+  porf_gc_window_bytes = 0;
   porf_gc_minor_mode = 0;
 }
 `;
@@ -4185,6 +4423,10 @@ const RUNTIME_HEAD = (prefs, toStr = null, iterClose = null, bigints = true) => 
 #include <sys/wait.h>
 #endif
 #include <time.h>
+#if defined(__APPLE__) && !defined(__TINYC__)
+#include <mach-o/dyld.h>
+#include <mach-o/loader.h>
+#endif
 
 ${prefs.repl ? `static int porf_repl_output_enabled = 1;
 #define printf(...) (porf_repl_output_enabled ? fprintf(stdout, __VA_ARGS__) : 0)
@@ -4313,6 +4555,8 @@ static inline jsval porf_unpack(jsbits b) {
 static inline f64 porf_canon(f64 d) { return d == d ? d : porf_bits_to_f64(0x7FF8000000000000ull); }
 
 static u32* porf_promise_job_queue = NULL;
+// bloom filter of key hashes some accessor property was defined for
+static u32 porf_accessor_keys[64];
 static u32 porf_promise_job_head = 0;
 static u32 porf_promise_job_len = 0;
 static u32 porf_promise_job_cap = 0;
@@ -4525,7 +4769,32 @@ PORF_NORETURN ${st}void porf_unreachable(const char* msg) {
   abort();
 }
 
+// deepest stack a collection has scanned
+static uintptr_t porf_gc_stack_lo = UINTPTR_MAX;
+
 ${prefs.gc === false ? PORF_BUMP_ALLOC() : PORF_GC_ALLOC(prefs)}
+
+// zero the stack below before blocking, as deep as a gc has scanned, so stale words don't become false roots
+${st}__attribute__((noinline)) void porf_scrub_stack(void) {
+  const uintptr_t here = (uintptr_t)__builtin_frame_address(0);
+  size_t depth = here > porf_gc_stack_lo ? here - porf_gc_stack_lo + 1024 : 0;
+  if (depth < 16384) depth = 16384;
+  if (depth > 262144) depth = 262144;
+  u8* pad = __builtin_alloca(depth);
+  memset(pad, 0, depth);
+  __asm__ volatile("" : : "r"(pad) : "memory");
+}
+
+// event loop waits: an idle collection that comes due meanwhile runs then
+${st}void porf_idle_sleep(f64 ms) {
+  const i64 idle_in = porf_gc_idle_due();
+  const f64 now = idle_in >= 0 && (f64)idle_in < ms ? (f64)idle_in : ms;
+  struct timespec ts = { (time_t)(now / 1000), (long)((now - (f64)((i64)now / 1000) * 1000) * 1e6) };
+  nanosleep(&ts, NULL);
+  if (now == ms) return;
+  porf_gc_idle();
+  porf_idle_sleep(ms - now);
+}
 
 // array:      [len i32 @0][ent u32 @4][cap i32 @8]; entries = jsval[cap]
 // object:     [count i32 @0][bcap i32 @4][ent u32 @8][buckets u32 @12]
@@ -4570,17 +4839,23 @@ ${st}u32 porf_arr_grow(u32 a, i32 need) {
   const u32 ent = porf_alloc((u32)cap << 3, 0);
   memcpy(MEM + ent, MEM + PORF_ARR_ENT(a), (size_t)copy << 3);
   memset(MEM + ent + ((u64)copy << 3), 0, ((size_t)cap - (size_t)copy) << 3);
+  porf_gc_entries_moved(PORF_ARR_ENT(a) != a + 16u ? PORF_ARR_ENT(a) : 0u, ent);
   PORF_ARR_ENT(a) = ent; PORF_ARR_CAP(a) = cap;
   porf_gc_barrier(a, ${TYPES.array});
   return ent;
 }
 
-${st}void porf_arr_set(u32 a, u32 i, jsval v) {
+${sti}void porf_arr_set(u32 a, u32 i, jsval v) {
   const i32 len = PORF_ARR_LEN(a);
   if (i >= (u32)PORF_ARR_CAP(a)) porf_arr_grow(a, (i32)i + 1);
   if (i >= (u32)len) PORF_ARR_LEN(a) = (i32)i + 1;
-  *(jsbits*)(MEM + PORF_ARR_ENT(a) + ((u64)i << 3)) = porf_arr_pack(v);
-  if (porf_gc_type_can_reference(v.type)) porf_gc_barrier(a, ${TYPES.array});
+  const u32 ent = PORF_ARR_ENT(a);
+  *(jsbits*)(MEM + ent + ((u64)i << 3)) = porf_arr_pack(v);
+  // separate entries take the slot's card, the header's would rescan every element
+  if (porf_gc_type_can_reference(v.type)) {
+    if (ent != a + 16u) porf_gc_barrier_slot(a, ent, ent + (i << 3));
+      else porf_gc_barrier(a, ${TYPES.array});
+  }
 }
 ${iterClose ? `
 ${st}void porf_iter_link(jsval rec) {
@@ -4627,10 +4902,13 @@ ${st}void porf_arr_set_len(u32 a, u32 new_len) {
 
 ${st}jsval porf_arr_push(u32 a, jsval v) {
   const i32 len = PORF_ARR_LEN(a);
-  porf_arr_grow(a, len + 1);
-  *(jsbits*)(MEM + PORF_ARR_ENT(a) + ((u64)len << 3)) = porf_arr_pack(v);
+  const u32 ent = porf_arr_grow(a, len + 1);
+  *(jsbits*)(MEM + ent + ((u64)len << 3)) = porf_arr_pack(v);
   PORF_ARR_LEN(a) = len + 1;
-  if (porf_gc_type_can_reference(v.type)) porf_gc_barrier(a, ${TYPES.array});
+  if (porf_gc_type_can_reference(v.type)) {
+    if (ent != a + 16u) porf_gc_barrier_slot(a, ent, ent + ((u32)len << 3));
+      else porf_gc_barrier(a, ${TYPES.array});
+  }
   return porf_box_num((f64)(len + 1));
 }
 

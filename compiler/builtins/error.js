@@ -70,7 +70,7 @@ export const __Error_prototype_stack$set = function (this: any, _argc: i32, valu
   }
 
   const obj: object = __Porffor_object_underlying(this);
-  if (__Porffor_object_lookup(obj, 'stack', __Porffor_object_hash('stack')) != 0) {
+  if (__Porffor_object_find(obj, 'stack', __Porffor_object_hash('stack')) != 0) {
     __Porffor_object_setStrict(this, 'stack', value);
     return;
   }

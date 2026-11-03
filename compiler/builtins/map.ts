@@ -18,17 +18,7 @@ export const __Map_prototype_get = function (this: Map, key: any) {
 };
 
 export const __Map_prototype_set = function (this: Map, key: any, value: any) {
-  const vals: any[] = Porffor.IR.loadI32(this, 4);
-
-  const index: i32 = __Porffor_hashtableLookup(this, key);
-  if (index != -1) {
-    vals[index] = value;
-    return this;
-  }
-
-  // push the value first so vals stays in sync if append compacts both arrays
-  Porffor.array.fastPush(vals, value);
-  __Porffor_hashtableAppend(this, key);
+  __Porffor_hashtableSet(this, key, value);
   return this;
 };
 

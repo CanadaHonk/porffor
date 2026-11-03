@@ -20,10 +20,7 @@ export const __Set_prototype_has = function (this: Set, value: any) {
 };
 
 export const __Set_prototype_add = function (this: Set, value: any) {
-  if (__Porffor_hashtableLookup(this, value) == -1) {
-    __Porffor_hashtableAppend(this, value);
-  }
-
+  __Porffor_hashtableSet(this, value, undefined);
   return this;
 };
 

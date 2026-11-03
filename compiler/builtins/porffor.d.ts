@@ -71,9 +71,6 @@ type PorfforGlobal = {
     overrideAllFlags(obj: object, overrideOr: i32, overrideAnd: i32): void;
     checkAllFlags(obj: object, dataAnd: i32, accessorAnd: i32, dataExpected: i32, accessorExpected: i32): boolean;
 
-    accessorGet(entryPtr: i32): Function;
-    accessorSet(entryPtr: i32): Function;
-
     lookup(obj: object, target: any): i32;
     get(obj: any, key: any): any;
 
@@ -82,8 +79,6 @@ type PorfforGlobal = {
     define(obj: object, key: any, value: any, flags: i32): void;
     defineAccessor(obj: object, key: any, get: any, set: any, flags: i32): void;
     delete(obj: object, key: any): boolean;
-
-    isEnumerable(entryPtr: i32): boolean;
 
     isObject(arg: any): boolean;
     isObjectOrNull(arg: any): boolean;

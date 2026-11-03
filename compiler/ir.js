@@ -101,7 +101,7 @@ export const K = {
 
   // alloc / gc
   Alloc: k++,    // a: bytes expr, b: typeId, c: [siteId, raw]
-  GcBarrier: k++,// a: ptr expr, b: type expr
+  GcBarrier: k++,// a: ptr expr, b: type expr, c: 1 if the container was allocated with its type (card only)
 
   // JS structure
   ArrGet: k++,   // a: arr ptr, b: index (u32) -> jsval
@@ -368,12 +368,12 @@ export const Yield = (jv, delegate = 0) => [K.Yield, T.jsval, FX.call | fxOf(jv)
 // alloc / gc
 export const Alloc = (bytes, typeId) =>
   [K.Alloc, T.ptr, FX.call | fxOf(bytes), bytes, typeId, 0];
-export const GcBarrier = (ptr, typeExpr) =>
-  [K.GcBarrier, T.none, fxOf(ptr) | fxOf(typeExpr) | FX.writeMem, ptr, typeExpr, 0];
+export const GcBarrier = (ptr, typeExpr, cardOnly = 0) =>
+  [K.GcBarrier, T.none, fxOf(ptr) | fxOf(typeExpr) | FX.writeMem, ptr, typeExpr, cardOnly];
 
 // JS structure
 export const ArrGet = (arr, idx) => [K.ArrGet, T.jsval, fxOf(arr) | fxOf(idx) | FX.readMem, arr, idx, 0];
-export const ArrSet = (arr, idx, value) => [K.ArrSet, T.none, fxOf(arr) | fxOf(idx) | fxOf(value) | FX.writeMem, arr, idx, value];
+export const ArrSet = (arr, idx, value, grows = 1) => [K.ArrSet, T.none, fxOf(arr) | fxOf(idx) | fxOf(value) | FX.writeMem | (grows ? FX.call : 0), arr, idx, value];
 export const ArrLenSet = (arr, len) => [K.ArrLenSet, T.none, fxOf(arr) | fxOf(len) | FX.writeMem, arr, len, 0];
 export const LenGet = ptr => [K.LenGet, T.i32, fxOf(ptr) | FX.readMem, ptr, 0, 0];
 export const LenSet = (ptr, len) => [K.LenSet, T.none, fxOf(ptr) | fxOf(len) | FX.writeMem, ptr, len, 0];
