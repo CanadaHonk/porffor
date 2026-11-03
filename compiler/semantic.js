@@ -49,7 +49,9 @@ const isSelfReferenceContext = (currentFunc, owner) => {
 const isLoopScope = scope =>
   scope?.type === 'ForStatement' ||
   scope?.type === 'ForInStatement' ||
-  scope?.type === 'ForOfStatement';
+  scope?.type === 'ForOfStatement' ||
+  scope?.type === 'WhileStatement' ||
+  scope?.type === 'DoWhileStatement';
 
 const bindingHasLoopScope = variable => {
   const funcInd = scopes.indexOf(variable.func);
@@ -513,6 +515,8 @@ const analyze = (node, strict = false) => {
     case 'ForStatement':
     case 'ForInStatement':
     case 'ForOfStatement':
+    case 'WhileStatement':
+    case 'DoWhileStatement':
     case 'SwitchStatement':
     case 'BlockStatement':
       scopes.push(node);
@@ -547,6 +551,8 @@ const analyze = (node, strict = false) => {
       if (evalCallKind(node)) {
         node._directEval = evalCallKind(node) === 'direct' && !node.optional;
         node._strictEval = node._directEval && (strict || top._strict);
+        // eval code could reach any binding
+        if (node._directEval) boxRefs = null;
       }
       break;
 
@@ -649,7 +655,8 @@ const annotate = (node, parent = null, key = null) => {
 
   let openedScope = false;
   let openedFunc = false;
-  if (node._variables || node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression') {
+  // loops too, so bindings in their bodies are known to be per iteration
+  if (node._variables || isLoopScope(node) || node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression') {
     scopes.push(node);
     openedScope = true;
     if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression') {
@@ -768,6 +775,8 @@ const annotate = (node, parent = null, key = null) => {
         if ((variable.kind === 'let' || variable.kind === 'const') && variable.node.type !== 'FunctionDeclaration' && variable.func === currentFunc &&
           !inEval && classFieldInitializerFunc !== currentFunc && variable.unit === unit && node.start < (variable.node._declarator?.end ?? variable.node.start)) node._tdz = true;
         variable.node._refs = (variable.node._refs ?? 0) + 1;
+        if (boxRefs !== null && (variable.loopBody ??= variable.kind !== 'var' && !!variable.node._declarator && !isLoopScope(variable.scope) && bindingHasLoopScope(variable)))
+          (variable.refs ??= []).push([ node, parent, key ]);
         // reads from other funcs or before the dominating init can see undefined
         if (variable.func !== currentFunc || !variable.node._storageInitSeen) {
           node._noStorageInfer = true;
@@ -831,6 +840,10 @@ const annotate = (node, parent = null, key = null) => {
               };
 
               markClosurePassThrough(currentFunc, variable.func);
+              if (boxRefs !== null && variable.loopBody) {
+                boxRefs.add(variable);
+                if (node.start < variable.node._declarator.end) variable.capturedEarly = true;
+              }
               // pass loop captures through intermediate closures
               const capture = currentFunc._captures[node.name];
               if (capture.perIteration) {
@@ -1069,6 +1082,31 @@ const evalVarNames = (node, out = [], top = true) => {
   return out;
 };
 
+// captures are snapshots: captured loop body bindings written after capture live in a per-iteration { v } box
+let boxRefs = null;
+const boxLoopBindings = variables => {
+  for (const variable of variables) {
+    const node = variable.node;
+    if (!(node._writes && variable.kind === 'let') && !(variable.capturedEarly && !node._writes)) continue;
+    if (variable.refs.some(([ ref ]) => ref._withs)) continue;
+
+    node._boxed = true;
+    node._writes = 0;
+    node._storageType = null;
+    node._valueRefs = (node._valueRefs ?? 0) + (node._directCallRefs ?? 0);
+    node._directCallRefs = 0;
+    for (const [ ref, parent, key ] of variable.refs) {
+      const member = { type: 'MemberExpression', object: ref, property: { type: 'Identifier', name: 'v' }, computed: false, optional: false, start: ref.start, end: ref.end };
+      // calls keep an undefined this
+      const out = (parent.type === 'CallExpression' && key === 'callee') || (parent.type === 'TaggedTemplateExpression' && key === 'tag') ?
+        { type: 'SequenceExpression', expressions: [ { type: 'Literal', value: 0 }, member ], start: ref.start, end: ref.end } : member;
+      if (parent.type === 'Property') parent.shorthand = false;
+      if (Array.isArray(parent[key])) parent[key][parent[key].indexOf(ref)] = out;
+        else parent[key] = out;
+    }
+  }
+};
+
 let paramDecl = null, paramTdz = null, unit;
 let inEval = false, classFieldInitializerFunc = null, classStaticFunc = null, paramsFunc = null, heritage = null, classStack = [];
 const isStrictBlock = body => {
@@ -1078,6 +1116,65 @@ const isStrictBlock = body => {
   }
   return false;
 };
+const refsName = (node, name) => {
+  if (!node || typeof node !== 'object') return false;
+  if (Array.isArray(node)) return node.some(x => refsName(x, name));
+  if (node.type === 'Identifier') return node.name === name;
+  for (const key in node) {
+    if (key === 'start' || key === 'end' || key[0] === '_') continue;
+    if ((key === 'key' && !node.computed) || (key === 'property' && node.type === 'MemberExpression' && !node.computed)) continue;
+    if (refsName(node[key], name)) return true;
+  }
+  return false;
+};
+// the inner name of a class expression is immutable, a declaration's is not
+const writesName = (node, name) => {
+  if (!node || typeof node !== 'object') return false;
+  if (Array.isArray(node)) return node.some(x => writesName(x, name));
+  if ((node.type === 'AssignmentExpression' ? node.left : node.type === 'UpdateExpression' ? node.argument : null)?.name === name) return true;
+  for (const key in node) if (key !== 'start' && key !== 'end' && key[0] !== '_' && writesName(node[key], name)) return true;
+  return false;
+};
+const suspends = node => {
+  if (!node || typeof node !== 'object') return false;
+  if (Array.isArray(node)) return node.some(suspends);
+  if (node.type === 'AwaitExpression' || node.type === 'YieldExpression') return true;
+  if (node.type?.includes('Function')) return false;
+  for (const key in node) if (key !== 'start' && key !== 'end' && key[0] !== '_' && suspends(node[key])) return true;
+  return false;
+};
+const renameRefs = (node, from, to) => {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) return node.forEach(x => renameRefs(x, from, to));
+  if (node.type === 'Identifier' && node.name === from) node.name = to;
+  for (const key in node) {
+    if (key === 'start' || key === 'end' || key[0] === '_') continue;
+    if ((key === 'key' && !node.computed) || (key === 'property' && node.type === 'MemberExpression' && !node.computed)) continue;
+    renameRefs(node[key], from, to);
+  }
+};
+// a self-referencing class expression becomes a class declaration in an arrow, so its name is an ordinary binding
+const declareSelfNamedClasses = node => {
+  if (!node || typeof node !== 'object') return node;
+  if (Array.isArray(node)) { for (let i = 0; i < node.length; i++) node[i] = declareSelfNamedClasses(node[i]); return node; }
+  for (const key in node) if (key !== 'start' && key !== 'end' && key[0] !== '_') node[key] = declareSelfNamedClasses(node[key]);
+  if (node.type !== 'ClassExpression' || !node.id || !refsName(node.body, node.id.name) || writesName([ node.superClass, node.body ], node.id.name) ||
+    suspends(node.superClass) || suspends(node.body.body.filter(x => x.computed).map(x => x.key))) return node;
+  // linked module bindings (X#m...) name the outer binding too, so the inner one gets its own
+  let name = node.id.name;
+  if (name.includes('#m')) {
+    renameRefs(node.body, name, name += 'self');
+    node = { ...node, id: { ...node.id, name } };
+  }
+  return { type: 'CallExpression', optional: false, arguments: [], start: node.start, end: node.end, callee: {
+    type: 'ArrowFunctionExpression', params: [], async: false, generator: false, expression: false, start: node.start, end: node.end,
+    body: { type: 'BlockStatement', start: node.start, end: node.end, body: [
+      { ...node, type: 'ClassDeclaration' },
+      { type: 'ReturnStatement', argument: { type: 'Identifier', name } }
+    ] }
+  } };
+};
+
 // direct eval code keeps the class context it is evaluated in
 const semantic = (node, _scopes = null, direct = false) => {
   const oldScopes = scopes, oldInEval = inEval, oldClassFieldInitializerFunc = classFieldInitializerFunc, oldClassStaticFunc = classStaticFunc, oldClassStack = classStack, oldUnit = unit;
@@ -1093,10 +1190,15 @@ const semantic = (node, _scopes = null, direct = false) => {
   }
   scopes = _scopes;
 
+  const oldBoxRefs = boxRefs;
+  boxRefs = inEval || globalThis.precompile ? null : new Set();
+  declareSelfNamedClasses(node);
   analyze(node, node.sourceType === 'module' || !!scopes.at(-1)?._strictEval);
   if (scopes.length !== _scopes.length) throw new Error('Scope mismatch');
 
   annotate(node);
+  if (boxRefs !== null) boxLoopBindings(boxRefs);
+  boxRefs = oldBoxRefs;
   scopes = oldScopes;
   inEval = oldInEval;
   classFieldInitializerFunc = oldClassFieldInitializerFunc;

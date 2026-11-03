@@ -298,6 +298,8 @@ const hasClosureCaptures = func =>
 const directCallOnlyFunctionBinding = (scope, kind, name, node, func) =>
   (kind === 'const' || (kind === 'var' && (node._directCallMinStart ?? -1) > (node._declarator?.end ?? node.end ?? node.start ?? 0))) &&
   !func.selfAware &&
+  // a direct call passes the caller's env, not the snapshot per-iteration captures need
+  getClosureSnapshotCaptureNames(func).length === 0 &&
   (node._directCallRefs ?? 0) > 0 &&
   (node._valueRefs ?? 0) === 0 &&
   (node._writes ?? 0) === 0 &&
@@ -837,7 +839,8 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
   // self-reference reads the function's own value (#callee), preserving identity
   if (scope.selfAware && name === scope.name && !scope.ast._reassigned) return Local('#callee', T.jsval);
 
-  if (name in globals) {
+  // a function declared in an enclosing function shadows a global of the same name
+  if (name in globals && !hasScopedNamedFunction(scope, name)) {
     const global = Global(name, globals[name].type ?? T.jsval);
     return (globals[name].type ?? T.jsval) === T.f64 ? valNumber(global) : global;
   }
@@ -851,6 +854,10 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
   // %TypedArray% is not a global
   if (name === 'TypedArray' && !globalThis.precompile) return null;
 
+  // a declared function shadows a builtin (function String() {}), included builtins with getters still use them
+  const namedFunc = resolveNamedFunction(scope, name);
+  if (namedFunc && !(namedFunc.internal && ('#get_' + name) in builtinFuncs)) return materializeFunctionValue(scope, namedFunc, markFunctionReferenced);
+
   // builtin value globals like Number.MAX_VALUE
   if (name in builtinVars) {
     // a well-known symbol can be used as a key on anything (eg Object.getOwnPropertyDescriptor)
@@ -863,8 +870,6 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
     return typeof v === 'function' ? v(scope, irBuiltinHelpers(scope, name, {})) : v;
   }
 
-  const namedFunc = resolveNamedFunction(scope, name);
-  if (namedFunc) return materializeFunctionValue(scope, namedFunc, markFunctionReferenced);
   if (name in builtinFuncs && !(name in funcIndex)) includeBuiltin(scope, name);
   const globalFunc = globalFuncByName(scope, name);
   if (globalFunc) return materializeFunctionValue(scope, globalFunc);
@@ -1416,6 +1421,18 @@ const usesAnyType = types => {
   return false;
 };
 
+const builtinGlobal = (name, type, init) => {
+  if (!(name in globals)) {
+    const idx = globals['#ind']++;
+    globals[name] = { idx, type };
+  }
+  if (init !== undefined && !includedBuiltinGlobalInits.has(name)) {
+    includedBuiltinGlobalInits.add(name);
+    builtinGlobalInits.push(Assign(Global(name, type), init));
+  }
+  return Global(name, type);
+};
+
 const irBuiltinHelpers = (scope, name, def) => ({
   includeBuiltin: builtin => includeBuiltin(scope, builtin),
   typeUsed: x => typeUsed(scope, x),
@@ -1433,17 +1450,7 @@ const irBuiltinHelpers = (scope, name, def) => ({
     return dataSeg('builtins', `builtin:${name}:${id}`, def.data[id]);
   },
   remapAllocSite: id => id,
-  global: (name, type, init) => {
-    if (!(name in globals)) {
-      const idx = globals['#ind']++;
-      globals[name] = { idx, type };
-    }
-    if (init !== undefined && !includedBuiltinGlobalInits.has(name)) {
-      includedBuiltinGlobalInits.add(name);
-      builtinGlobalInits.push(Assign(Global(name, type), init));
-    }
-    return Global(name, type);
-  },
+  global: builtinGlobal,
   // top-level user bindings are own props of the global object: fill `sync` (inside
   // #get_globalThis) with add-or-update writes reading current binding values, deferred
   // until all globals exist. rerun-safe (the finalizer fixpoint runs every finalizer each pass)
@@ -1451,23 +1458,37 @@ const irBuiltinHelpers = (scope, name, def) => ({
     const finalizer = () => {
       sync.length = 0;
       const seen = new Set();
-      const push = (key, value) => {
+      // after the first sync, only bindings whose value changed since they were last written
+      const first = [], changed = [];
+      const push = (key, value, appended = false) => {
         seen.add(key);
-        sync.push(builtinCall(scope, '__Porffor_object_set', [ objJv, makeString(scope, key), value ]));
+        const exposed = preludeGlobals.get(key);
+        if (exposed === false) return;
+        const read = appended ? Call('porf_str_seal', [ value ]) : value;
+        const write = [
+          exposed ? builtinCall(scope, '__Porffor_object_define', [ objJv, makeString(scope, key), read, Const(T.i32, 0b1010) ]) :
+            builtinCall(scope, '__Porffor_object_set', [ objJv, makeString(scope, key), read ]),
+          Assign(builtinGlobal('#gsync_' + key, T.jsval), value)
+        ];
+        first.push(...write);
+        changed.push(If(Bin('!=', T.u64, JvBits(value), JvBits(builtinGlobal('#gsync_' + key, T.jsval))), write, null));
       };
 
       for (const name in topLevelFunc?.namedFuncBindings ?? {}) {
-        if (name[0] === '#' || seen.has(name)) continue;
+        if (name.includes('#') || seen.has(name)) continue;
         const func = topLevelFunc.namedFuncBindings[name];
-        if (!func || func.internal) continue;
+        if (!func || func.internal || func.varBound) continue;
         push(name, funcRef(func));
       }
 
       for (const name in globals) {
-        if (name[0] === '#' || seen.has(name) || globals[name].metadata?.kind !== 'var') continue;
+        if (name.includes('#') || seen.has(name) || globals[name].metadata?.kind !== 'var') continue;
         const type = globals[name].type ?? T.jsval;
-        push(name, type === T.jsval ? Global(name, T.jsval) : valNumber(Global(name, type)));
+        push(name, type === T.jsval ? Global(name, T.jsval) : valNumber(Global(name, type)), globals[name].metadata.appended);
       }
+
+      const done = builtinGlobal('#gsync', T.i32);
+      sync.push(If(done, changed, [ ...first, Assign(done, Const(T.i32, 1)) ]));
     };
 
     onFinalize(finalizer);
@@ -2399,7 +2420,9 @@ const generateCall = (scope, decl) => {
   if (decl._funcIdx) func = funcByIndex(decl._funcIdx);
   else {
     const isBuiltinMember = decl.callee._builtinMember && name in builtinFuncs;
-    const isLocal = decl.callee.type === 'Identifier' && !isBuiltinMember && lookupName(scope, name)[0] != null;
+    const [ variable, isGlobal ] = decl.callee.type === 'Identifier' && !isBuiltinMember ? lookupName(scope, name) : [];
+    // a function bound in an enclosing function is nearer than a global of the same (#N) name
+    const isLocal = variable != null && !(isGlobal && hasScopedNamedFunction(scope, name));
     const closureBacked = decl.callee.type === 'Identifier' && (decl.callee._closureFunc || scope.closureCaptures?.[name] || (!decl.callee._skipClosureOwnLocals && scope.closureOwnLocals?.[name]));
     const binding = decl.callee._resolvedVariable?.node ?? scope.closureCaptures?.[name]?.node ?? scope.closureOwnLocals?.[name]?.node;
     if (!isBuiltinMember && closureBacked && name && isFuncType(binding?.type) && directCallOnlyRefs(binding)) {
@@ -2415,6 +2438,7 @@ const generateCall = (scope, decl) => {
       isBuiltin = true;
     } else if (!func && !isLocal && !closureBacked && name) {
       func = resolveNamedFunction(scope, name) ?? globalFuncByName(scope, name);
+      if (getClosureSnapshotCaptureNames(func).length > 0) directCallEnv = closureEnvFor(scope, func);
       if (!func && name in builtinFuncs) isBuiltin = true;
     }
     if (!func && !isBuiltin && !isLocal && !closureBacked && scope.name === name) func = scope;
@@ -3001,6 +3025,8 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       setDefaultFuncName(init, name);
       const [ func ] = generateFunc(scope, init, true);
       pattern._func = func;
+      // direct calls resolve the binding through its scope, not a program-wide name another function may share
+      bindNamedFunction(scope, name, func);
 
       const funcName = init.id?.name;
       if (name !== funcName && funcName in funcIndex) {
@@ -3010,9 +3036,12 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
 
       // an earlier-generated function already read the hoisted global
       const hoistRead = global && name in globals;
+      // globalThis gets a var's function as is when it has no global, let/const never
       if (!hoistRead && directCallOnlyFunctionBinding(scope, kind, name, pattern, func)) {
+        func.varBound = kind !== 'var';
         return valUndefined();
       }
+      func.varBound = true;
 
       // var/let function exprs need their binding value immediately (e.g. constructor .prototype reads), const stays lazy
       if (kind !== 'const' || hoistRead || hasClosureCaptures(func) || scope.closureOwnLocals?.[name]) {
@@ -3097,7 +3126,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       setInferred(scope, name, null, global);
     }
 
-    if (scope.closureOwnLocals?.[name] && (!redecl || init)) {
+    if (scope.closureOwnLocals?.[name] && (init || (!redecl && kind !== 'var'))) {
       mirrorToClosureEnv(scope, name, init ? closureLocalReadNode(name) : DEFAULT_VALUE);
     }
 
@@ -3213,6 +3242,16 @@ const generateVar = (scope, decl) => {
 
   for (const x of decl.declarations) {
     const m = mark(scope);
+    if (x.id._boxed) {
+      // the box exists before the initializer runs, closures in it snapshot the box too
+      generateVarDstr(scope, decl.kind, x.id, { type: 'ObjectExpression', properties: [] }, undefined, global);
+      if (x.init) {
+        if (isFuncType(x.init.type)) setDefaultFuncName(x.init, x.id.name);
+        genStmt(scope, { type: 'AssignmentExpression', operator: '=', left: memberNode(x.id, { type: 'Identifier', name: 'v' }), right: x.init });
+      }
+      release(scope, m);
+      continue;
+    }
     // var initializers inside with statements assign through them
     generateVarDstr(scope, decl.kind, x.id, x.id._withs ? undefined : x.init, undefined, global);
     if (x.id._withs && x.init) genStmt(scope, { type: 'AssignmentExpression', operator: '=', left: x.id, right: x.init });
@@ -5273,7 +5312,7 @@ const declareClass = (scope, decl) => {
 
   const [ func ] = generateFunc(scope, constructorDecl);
   if (expr && name.includes('#')) func.jsName = name.split('#')[0];
-  bindNamedFunction(scope, name, func);
+  if (!expr) bindNamedFunction(scope, name, func);
   func.knownThisSlots = getKnownThisSlots(decl);
   decl._porfforFunc = func;
   return decl._classFunc = func;
@@ -5303,6 +5342,8 @@ const generateClass = (scope, decl) => {
   const rootIdent = { type: 'Identifier', name: classRoot[N_A] };
 
   const classProto = reuse(scope, generate(scope, getObjProp(rootIdent, 'prototype')));
+  // static elements already see the class binding
+  if (!expr && scope.closureOwnLocals?.[name]) mirrorToClosureEnv(scope, name);
 
   if (decl._home._refs) writeBinding(scope, decl._home, classRoot, TYPES.function);
   for (const x of privates) writeBinding(scope, x.map, builtinCall(scope, '__Porffor_private_new', []), TYPES.symbol);
@@ -5421,8 +5462,6 @@ const generateClass = (scope, decl) => {
   else func.body.unshift(...fieldInits);
   func.body.unshift(...guard);
 
-  if (!expr && scope.closureOwnLocals?.[name]) mirrorToClosureEnv(scope, name);
-
   return expr ? classRoot : valUndefined();
 };
 
@@ -5517,6 +5556,8 @@ const uniqId = scope => '_' + (scope.uniqId = (scope.uniqId ?? 0) + 1);
 let objectHackers = [], allObjectHackers = [];
 // builtin members the program writes (eg RegExp.prototype.exec = f) stay real member accesses
 let objectHackAssigned = new Set();
+// builtin names the program binds itself (function String() {}) are its own, never the builtin's
+let objectHackShadowed = new Set();
 
 // without bigint literals or these names no BigInt can exist, so untyped values need no BigInt dispatch
 let mayHaveBigInt = true;
@@ -5568,6 +5609,8 @@ const specializeFunctionSources = program => {
 
 // property names the program may define (keys, uncalled members, strings), so builtin method calls know what can shadow them
 let definedKeys = new Set();
+let preludeGlobals = new Map();
+// linked modules' top-level variables, global storage even before their unit is generated
 const collectDefinedKeys = program => {
   const out = new Set();
   const walk = (node, called = false) => {
@@ -5599,6 +5642,20 @@ const collectDefinedKeys = program => {
     if (node.name === '__Symbol_hasInstance') out.add('#hasInstance');
     if (node._evalParsed) walk(node._evalParsed);
     for (const k in node) if (k[0] !== '_' && k !== 'start' && k !== 'end') walk(node[k], node.type === 'CallExpression' && k === 'callee');
+  };
+  walk(program);
+  return out;
+};
+
+const shadowedBuiltinNames = program => {
+  const out = new Set();
+  const add = id => { if (id?.type === 'Identifier' && objectHackers.includes(id.name)) out.add(id.name); };
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) { for (const x of node) walk(x); return; }
+    if (node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration' || node.type === 'VariableDeclarator') add(node.id);
+    if (node.type?.includes('Function')) for (const x of node.params) add(x);
+    for (const key in node) if (key !== 'start' && key !== 'end' && key[0] !== '_') walk(node[key]);
   };
   walk(program);
   return out;
@@ -5660,6 +5717,7 @@ const objectHack = node => {
 
       if (node.object.type !== 'Identifier' && node.object.type !== 'MemberExpression') return;
       if (objectName && ['undefined', 'null', 'NaN', 'Infinity'].includes(objectName)) return;
+      if (node.object.type === 'Identifier' && objectHackShadowed.has(objectName)) return;
 
       let objectOut;
       if (!objectName) {
@@ -5742,6 +5800,12 @@ const bindNamedFunction = (scope, name, func) => {
   scope.namedFuncBindings ??= Object.create(null);
   scope.namedFuncBindings[name] = func;
 };
+const hasScopedNamedFunction = (scope, name) => {
+  for (let cursor = scope; cursor && !cursor.topLevel; cursor = cursor.parentFunc) {
+    if (cursor.namedFuncBindings?.[name]) return true;
+  }
+  return false;
+};
 const resolveNamedFunction = (scope, name) => {
   for (let cursor = scope; cursor; cursor = cursor.parentFunc) {
     const func = cursor.namedFuncBindings?.[name];
@@ -5779,9 +5843,9 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     decl.type === 'FunctionDeclaration' &&
     directCallOnlyFunctionNode(decl);
   if (decl.type.startsWith('Class')) {
-    const out = generateClass(scope, { ...decl, id: { name } });
-    const func = resolveNamedFunction(scope, name);
-    return [ func, out ];
+    const cls = { ...decl, id: { name } };
+    const out = generateClass(scope, cls);
+    return [ cls._classFunc, out ];
   }
 
   const params = decl.params ?? [];
@@ -6097,8 +6161,33 @@ const generateModules = (scope, body) => {
   flush();
 };
 
+const identifierNames = (node, names) => {
+  if (node == null || typeof node !== 'object') return names;
+  if (Array.isArray(node)) {
+    for (const x of node) identifierNames(x, names);
+    return names;
+  }
+  if (node.type === 'Identifier') return names.add(node.name);
+  for (const key in node) {
+    if (key[0] !== '_' && key !== 'start' && key !== 'end') identifierNames(node[key], names);
+  }
+  return names;
+};
+
 const generateBlock = (scope, decl) => {
   inferBranchStart(scope);
+  // strict block functions exist on entry: move one used earlier to just before that use (not the top, closures snapshot loop bindings)
+  if (scope.strict && decl.body.some(x => x.type === 'FunctionDeclaration')) {
+    const names = decl.body.map(x => identifierNames(x, new Set()));
+    for (let j = 0; j < decl.body.length; j++) {
+      const fn = decl.body[j];
+      if (fn.type !== 'FunctionDeclaration') continue;
+      const i = names.findIndex((x, k) => k < j && x.has(fn.id.name));
+      if (i === -1) continue;
+      decl.body.splice(i, 0, decl.body.splice(j, 1)[0]);
+      names.splice(i, 0, names.splice(j, 1)[0]);
+    }
+  }
   for (const x of decl.body) {
     if (!isEmptyNode(x)) genStmt(scope, x);
   }
@@ -6288,7 +6377,7 @@ export default (program, opts = {}) => {
   }
   if (program._usesTemporal) {
     const polyfill = parse(temporalPolyfillSource).body;
-    if (program._units) for (const x of polyfill) x._unit = 'temporal';
+    for (const x of polyfill) { x._polyfill = true; if (program._units) x._unit = 'temporal'; }
     program.body = polyfill.concat(program.body);
   }
   if (program._usesIntl) {
@@ -6300,14 +6389,14 @@ export default (program, opts = {}) => {
       const hookObject = polyfill.find(x => x.expression?.left?.name === '$IntlHooks$').expression.right;
       hookObject.properties = hookObject.properties.filter(x => hooks.has(x.key.name));
     }
-    if (program._units) for (const x of polyfill) x._unit = 'intl';
+    for (const x of polyfill) { x._polyfill = true; if (program._units) x._unit = 'intl'; }
     // its replacements of builtin prototype methods are methods: not constructors, no prototype
     for (const x of polyfill) if (x.type === 'FunctionDeclaration' && x.id.name.includes('_prototype_')) x._builtinShadow = true;
     program.body = polyfill.concat(program.body);
   }
   if (program._usesTemporal || program._usesIntl) {
     const tz = parse(tzSource).body;
-    if (program._units) for (const x of tz) x._unit = 'tz';
+    for (const x of tz) { x._polyfill = true; if (program._units) x._unit = 'tz'; }
     program.body = tz.concat(program.body);
   }
 
@@ -6316,6 +6405,7 @@ export default (program, opts = {}) => {
   program = desugarUsing(program);
   specializeFunctionSources(program);
   objectHackAssigned = assignedBuiltinMembers(program);
+  objectHackShadowed = globalThis.precompile ? new Set() : shadowedBuiltinNames(program);
   program = objectHack(program);
   if (Prefs.closures) program = semantic(program);
   mayHaveBigInt = globalThis.precompile || usesBigInt(program);
