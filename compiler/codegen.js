@@ -5538,6 +5538,13 @@ const generateTaggedTemplate = (scope, decl) => {
       return valUndefined();
     },
 
+    // a native library the program must link
+    __Porffor_link: str => {
+      if (Prefs.safe) throw new Error('Porffor.link is not allowed in --safe');
+      linkLibs.add(str.trim());
+      return valUndefined();
+    },
+
     __Porffor_bs: str => makeString(scope, str, true),
     __Porffor_s: str => makeString(scope, str, false)
   };
@@ -6326,7 +6333,7 @@ const inferDirectCallParamTypes = root => {
   }
 };
 
-let globals, funcs, funcsByIndex, funcIndex, funcNameCollisions, currentFuncIndex, depth, data, dataUnits, dataCache, modular, rawHead, builtinGlobalInits, includedBuiltinGlobalInits, usedTypes, globalInfer, builtinFuncs, builtinVars, builtinPrototypeFuncs, builtinStaticFuncs, builtinPrototypeGetters, builtinPrototypeObjectGetters, topLevelFunc;
+let globals, funcs, funcsByIndex, funcIndex, funcNameCollisions, currentFuncIndex, depth, data, dataUnits, dataCache, modular, rawHead, linkLibs, builtinGlobalInits, includedBuiltinGlobalInits, usedTypes, globalInfer, builtinFuncs, builtinVars, builtinPrototypeFuncs, builtinStaticFuncs, builtinPrototypeGetters, builtinPrototypeObjectGetters, topLevelFunc;
 
 export default (program, opts = {}) => {
   const entryName = opts.entryName ?? '#main';
@@ -6341,6 +6348,7 @@ export default (program, opts = {}) => {
   dataCache = new Map();
   modular = !!program._units;
   rawHead = [];
+  linkLibs = new Set();
   builtinGlobalInits = [];
   includedBuiltinGlobalInits = new Set();
   irFinalizers = [];
@@ -6524,6 +6532,7 @@ export default (program, opts = {}) => {
     data,
     dataUnits,
     units: program._units ?? null,
+    linkLibs: [ ...linkLibs ],
     globals: renderGlobals,
     entry: entryName,
     prefs: rawHead.length ? { ...Prefs, rawHead: [ Prefs.rawHead, ...rawHead ].filter(Boolean).join('\n') } : Prefs,

@@ -1,0 +1,33 @@
+diff --git a/uSockets/src/crypto/openssl.c b/uSockets/src/crypto/openssl.c
+index 6f9b0cf..b29acdf 100644
+--- a/uSockets/src/crypto/openssl.c
++++ b/uSockets/src/crypto/openssl.c
+@@ -763,22 +763,19 @@ int us_internal_ssl_socket_write(struct us_internal_ssl_socket_t *s, const char
+     struct us_loop_t *loop = us_socket_context_loop(0, &context->sc);
+     struct loop_ssl_data *loop_ssl_data = (struct loop_ssl_data *) loop->data.ssl_data;
+ 
+-    // it makes literally no sense to touch this here! it should start at 0 and ONLY be set and reset by the on_data function!
+-    // the way is is now, triggering a write from a read will essentially delete all input data!
+-    // what we need to do is to check if this ever is non-zero and print a warning
+-
+-
+-
++    /* A write from inside a read (a response streaming its own request) must not take or drop that read's input,
++     * which continues once the write is done */
++    unsigned int read_input_length = loop_ssl_data->ssl_read_input_length;
++    struct us_socket_t *read_socket = loop_ssl_data->ssl_socket;
+     loop_ssl_data->ssl_read_input_length = 0;
+ 
+-
+     loop_ssl_data->ssl_socket = &s->s;
+     loop_ssl_data->msg_more = msg_more;
+     loop_ssl_data->last_write_was_msg_more = 0;
+-    //printf("Calling SSL_write\n");
+     int written = SSL_write(s->ssl, data, length);
+-    //printf("Returning from SSL_write\n");
+     loop_ssl_data->msg_more = 0;
++    loop_ssl_data->ssl_read_input_length = read_input_length;
++    loop_ssl_data->ssl_socket = read_socket;
+ 
+     if (loop_ssl_data->last_write_was_msg_more && !msg_more) {
+         us_socket_flush(0, &s->s);
