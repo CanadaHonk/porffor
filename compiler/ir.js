@@ -48,7 +48,7 @@ export const K = {
 
   // arithmetic / compare / bits - op strings are C operators
   Bin: k++,      // a: op string, b: left, c: right  (type = operand type; cmp result i32)
-  Un: k++,       // a: op string ('neg','!','~','abs','floor','ceil','trunc','round','nearest','sqrt','clz','ctz','popcnt'), b: value
+  Un: k++,       // a: op string ('neg','!','~','abs','floor','ceil','trunc','round','nearest','sqrt','clz','ctz','popcnt','touint32'), b: value
   Select: k++,   // a: cond, b: then, c: else
 
   // conversions
@@ -116,7 +116,8 @@ export const K = {
   JvFalsy: k++,  // a: jsval -> i32
   JvNullish: k++,// a: jsval -> i32
   FuncIdx: k++,  // a: func ref -> u32 link index
-  FuncRec: k++   // a: func ref -> ptr to its static record
+  FuncRec: k++,  // a: func ref -> ptr to its static record
+  StrJoin: k++   // a: jsvals[] -> one string of them all
 };
 
 export const KNames = [];
@@ -203,6 +204,7 @@ export const Un = (op, type, a) => {
       case 'trunc': return Const(type, Math.trunc(x));
       case 'round': return Const(type, Math.round(x));
       case 'sqrt': return Const(type, Math.sqrt(x));
+      case 'touint32': return Const(type, x >>> 0);
     }
   }
   return [K.Un, op === '!' ? T.i32 : type, fxOf(a), op, a, 0];
@@ -238,6 +240,9 @@ export const Convert = (to, value, flags = CONVERT_SIGNED) => {
       if (intTypes.has(inner[N_TYPE])) return Convert(to, inner, flags);
     }
   }
+
+  // int -> f64 -> same int is exact
+  if ((to === T.i32 || to === T.u32) && value[N_KIND] === K.Convert && value[N_B][N_TYPE] === to) return value[N_B];
 
   // f64 -> int -> f64 collapse (when the int conversion was range-known)
   if (to === T.f64 && value[N_KIND] === K.Convert && value[N_B][N_TYPE] === T.f64 && (value[N_C] & CONVERT_RANGE_KNOWN)) {
@@ -373,6 +378,7 @@ export const GcBarrier = (ptr, typeExpr, cardOnly = 0) =>
 
 // JS structure
 export const ArrGet = (arr, idx) => [K.ArrGet, T.jsval, fxOf(arr) | fxOf(idx) | FX.readMem, arr, idx, 0];
+export const StrJoin = parts => [K.StrJoin, T.jsval, parts.reduce((fx, x) => fx | fxOf(x), FX.call), parts, 0, 0];
 export const ArrSet = (arr, idx, value, grows = 1) => [K.ArrSet, T.none, fxOf(arr) | fxOf(idx) | fxOf(value) | FX.writeMem | (grows ? FX.call : 0), arr, idx, value];
 export const ArrLenSet = (arr, len) => [K.ArrLenSet, T.none, fxOf(arr) | fxOf(len) | FX.writeMem, arr, len, 0];
 export const LenGet = ptr => [K.LenGet, T.i32, fxOf(ptr) | FX.readMem, ptr, 0, 0];

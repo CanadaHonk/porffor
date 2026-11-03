@@ -495,7 +495,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         }
         if (op === '%' && t === T.f64) {
           usesMath = true;
-          return [`fmod(${rx(node[N_B], P_COMMA)}, ${rx(node[N_C], P_COMMA)})`, P_POSTFIX];
+          return [`porf_mod(${rx(node[N_B], P_COMMA)}, ${rx(node[N_C], P_COMMA)})`, P_POSTFIX];
         }
         if ((op === '==' || op === '!=') && (node[N_B][N_TYPE] === T.jsval || node[N_C][N_TYPE] === T.jsval)) {
           const eq = `porf_jv_eq(${rx(node[N_B], P_COMMA)}, ${rx(node[N_C], P_COMMA)})`;
@@ -527,6 +527,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
           case 'clz': return [`porf_clz32(${rx(v, P_COMMA)})`, P_POSTFIX];
           case 'ctz': return [`porf_ctz32(${rx(v, P_COMMA)})`, P_POSTFIX];
           case 'popcnt': return [`__builtin_popcount(${rx(v, P_COMMA)})`, P_POSTFIX];
+          case 'touint32': usesMath = true; return [`porf_to_uint32(${rx(v, P_COMMA)})`, P_POSTFIX];
         }
         throw new Error(`render: unknown unary op ${op}`);
       }
@@ -624,6 +625,9 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         const args = node[N_B].map(a => rx(a, P_COMMA)).join(', ');
         return [`${name}(${args})`, P_POSTFIX];
       }
+
+      case K.StrJoin:
+        return [`porf_str_join(${node[N_A].length}, (jsval[]){ ${node[N_A].map(jsArg).join(', ')} })`, P_POSTFIX];
 
       case K.CallDynamic: {
         const [args, newTarget, spreadArr] = node[N_C];
@@ -766,9 +770,18 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
 
       case K.Block: {
         if (node[N_A].length === 0 && !node[N_B]) return;
-        if (node[N_B]) labelTry.set(node[N_B], activeTryDepth);
+        // left-nested blocks (lowered switches) go thousands deep, so the inner ones render flat
+        const chain = [ node ];
+        for (let first = node[N_A][0]; isNode(first) && first[N_KIND] === K.Block; first = first[N_A][0]) chain.push(first);
+        for (const block of chain) if (block[N_B]) labelTry.set(block[N_B], activeTryDepth);
         emit(`${ind()}{\n`);
-        depth++; renderStmts(node[N_A]); depth--;
+        depth++;
+        for (let i = chain.length - 1; i >= 0; i--) {
+          const block = chain[i];
+          renderStmts(i === chain.length - 1 ? block[N_A] : block[N_A].slice(1));
+          if (i > 0 && block[N_B] && usedLabels.has(block[N_B] + '_b')) emit(`${ind()}${sanitize(block[N_B])}_b:;\n`);
+        }
+        depth--;
         emit(`${ind()}}\n`);
         if (node[N_B] && usedLabels.has(node[N_B] + '_b')) emit(`${ind()}${sanitize(node[N_B])}_b:;\n`);
         return;
@@ -4319,6 +4332,7 @@ ${st}void porf_gc_idle(void) {
 
 ${st}void porf_gc_collect(int minor) {
   if (porf_heap_base == 0) return;
+  memset(porf_str_builder_caps, 0, sizeof(porf_str_builder_caps));
   for (i32 ci = 0; ci < PORF_GC_NCLASSES; ci++) porf_gc_publish_window(ci);
   porf_gc_minor_mode = minor;
   porf_gc_prefetching = porf_heap_top - porf_heap_base > 33554432u;
@@ -4641,6 +4655,22 @@ static inline u32 porf_f64_to_u32(f64 d) {
   if (d >= 4294967295.0) return 4294967295u;
   return (u32)d;
 }
+// js %: positive int32 operands take the integer remainder, the rest (and -0) fmod
+static inline f64 porf_mod(f64 a, f64 b) {
+  if (a > 0.0 && a <= 2147483647.0 && b >= 1.0 && b <= 2147483647.0) {
+    const i32 ia = (i32)a, ib = (i32)b;
+    if ((f64)ia == a && (f64)ib == b) return (f64)(ia % ib);
+  }
+  return fmod(a, b);
+}
+
+// ToUint32: in i64 range the cast truncates and wraps exactly
+static inline u32 porf_to_uint32(f64 d) {
+  if (d > -9223372036854775808.0 && d < 9223372036854775808.0) return (u32)(i64)d;
+  if (d != d || d == INFINITY || d == -INFINITY) return 0;
+  const f64 w = fmod(d, 4294967296.0);
+  return (u32)(i64)(w < 0.0 ? w + 4294967296.0 : w);
+}
 
 static inline i32 porf_clz32(u32 x) { return x ? __builtin_clz(x) : 32; }
 static inline i32 porf_ctz32(u32 x) { return x ? __builtin_ctz(x) : 32; }
@@ -4768,6 +4798,12 @@ PORF_NORETURN ${st}void porf_unreachable(const char* msg) {
   fprintf(stderr, "porffor: unreachable%s%s\\n", msg ? ": " : "", msg ? msg : "");
   abort();
 }
+
+// strings porf_str_append may extend in place until a read seals them, cap 0 is a free slot, every gc clears them
+#define PORF_STR_BUILDERS 8
+static u32 porf_str_builders[PORF_STR_BUILDERS];
+static u32 porf_str_builder_caps[PORF_STR_BUILDERS];
+static u32 porf_str_builder_last = 0;
 
 // deepest stack a collection has scanned
 static uintptr_t porf_gc_stack_lo = UINTPTR_MAX;
@@ -4918,6 +4954,53 @@ ${st}u32 porf_bstr_new(u32 len) {
   return s;
 }
 
+${st}jsval porf_str_append(jsval a, jsval b) {
+  volatile u32 keep_a = (u32)a.val, keep_b = (u32)b.val;
+  const u32 pa = keep_a, pb = keep_b;
+  const u32 la = *(u32*)(MEM + pa), lb = *(u32*)(MEM + pb);
+  if (lb == 0) return a;
+  const u32 wide = a.type == ${TYPES.string} || b.type == ${TYPES.string};
+  u32 slot = 0, free = PORF_STR_BUILDERS;
+  for (; slot < PORF_STR_BUILDERS; slot++) {
+    if (porf_str_builder_caps[slot] == 0) { if (free == PORF_STR_BUILDERS) free = slot; }
+      else if (porf_str_builders[slot] == pa) break;
+  }
+
+  u32 s = pa;
+  if (slot == PORF_STR_BUILDERS || la + lb > porf_str_builder_caps[slot] || (wide && a.type == ${TYPES.bytestring})) {
+    const u32 cap = (la + lb) * 2 + 16;
+    s = porf_alloc(4 + (cap << wide), wide ? ${TYPES.string} : ${TYPES.bytestring});
+    if (wide && a.type == ${TYPES.bytestring}) {
+      u16* out = (u16*)(MEM + s + 4);
+      for (u32 i = 0; i < la; i++) out[i] = MEM[pa + 4 + i];
+    } else {
+      memcpy(MEM + s + 4, MEM + pa + 4, (size_t)la << wide);
+    }
+    // full: evict the newest builder, nested ones are short lived
+    if (slot == PORF_STR_BUILDERS) slot = porf_str_builder_last = free == PORF_STR_BUILDERS ? porf_str_builder_last : free;
+    porf_str_builders[slot] = s;
+    porf_str_builder_caps[slot] = cap;
+  }
+
+  if (!wide) {
+    memcpy(MEM + s + 4 + la, MEM + pb + 4, lb);
+  } else if (b.type == ${TYPES.string}) {
+    memcpy(MEM + s + 4 + la * 2, MEM + pb + 4, (size_t)lb * 2);
+  } else {
+    u16* out = (u16*)(MEM + s + 4) + la;
+    for (u32 i = 0; i < lb; i++) out[i] = MEM[pb + 4 + i];
+  }
+  *(u32*)(MEM + s) = la + lb;
+  return porf_box((f64)s, wide ? ${TYPES.string} : ${TYPES.bytestring});
+}
+
+${sti}jsval porf_str_seal(jsval v) {
+  if (v.type == ${TYPES.string} || v.type == ${TYPES.bytestring}) {
+    for (u32 i = 0; i < PORF_STR_BUILDERS; i++) if (porf_str_builders[i] == (u32)v.val) porf_str_builder_caps[i] = 0;
+  }
+  return v;
+}
+
 ${st}jsval porf_str_concat(jsval a, jsval b) {
   volatile u32 keep_a = (u32)a.val, keep_b = (u32)b.val;
   const u32 pa = keep_a, pb = keep_b;
@@ -4946,7 +5029,7 @@ ${st}jsval porf_str_concat(jsval a, jsval b) {
   return porf_box((f64)s, ${TYPES.string});
 }
 
-${st}i32 porf_str_eq(jsval a, jsval b) {
+${sti}i32 porf_str_eq(jsval a, jsval b) {
   const u32 pa = (u32)a.val, pb = (u32)b.val;
   if (pa == pb) return 1;
   const u32 la = *(u32*)(MEM + pa);
@@ -5309,6 +5392,37 @@ ${st}jsval porf_to_str(jsval v) {
   const u32 s = porf_bstr_new(len);
   memcpy(MEM + s + 4, lit, len);
   return porf_box((f64)s, ${TYPES.bytestring});
+}
+
+// template literals: primitives become strings, then one allocation for the whole result
+${st}jsval porf_str_join(i32 n, jsval* parts) {
+  u32 len = 0;
+  int wide = 0;
+  for (i32 i = 0; i < n; i++) {
+    if (parts[i].type != ${TYPES.bytestring} && parts[i].type != ${TYPES.string}) parts[i] = porf_to_str(parts[i]);
+    len += *(u32*)(MEM + (u32)parts[i].val);
+    wide |= parts[i].type == ${TYPES.string};
+  }
+  if (!wide) {
+    const u32 s = porf_bstr_new(len);
+    u8* out = MEM + s + 4;
+    for (i32 i = 0; i < n; i++) {
+      const u32 p = (u32)parts[i].val, l = *(u32*)(MEM + p);
+      memcpy(out, MEM + p + 4, l);
+      out += l;
+    }
+    return porf_box((f64)s, ${TYPES.bytestring});
+  }
+  const u32 s = porf_alloc(4 + len * 2, ${TYPES.string});
+  *(u32*)(MEM + s) = len;
+  u16* out = (u16*)(MEM + s + 4);
+  for (i32 i = 0; i < n; i++) {
+    const u32 p = (u32)parts[i].val, l = *(u32*)(MEM + p);
+    if (parts[i].type == ${TYPES.bytestring}) for (u32 k = 0; k < l; k++) out[k] = MEM[p + 4 + k];
+      else memcpy(out, MEM + p + 4, (size_t)l * 2);
+    out += l;
+  }
+  return porf_box((f64)s, ${TYPES.string});
 }
 
 // basic ToNumber (string parsing arrives with builtins port)

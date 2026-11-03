@@ -117,6 +117,10 @@ const recordStorageWrite = (target, value) => {
 
     if (variable.node._storageType !== null) {
       variable.node._storageType = storageExpressionType(value) === TYPES.number ? TYPES.number : null;
+      if (variable.node._storageInt !== false) {
+        const deps = variable.node._storageIntDeps ??= [];
+        variable.node._storageInt = variable.node._storageType != null && storageExpressionInt(value, deps);
+      }
     }
     return;
   }
@@ -207,6 +211,36 @@ const storageExpressionType = node => {
   if (node.type === 'ArrayExpression') return TYPES.array;
 
   return null;
+};
+
+// always an int32 when a number: locals only written these can live in an i32
+const storageExpressionInt = (node, deps) => {
+  if (node.type === 'Literal') return typeof node.value === 'number' && (node.value | 0) === node.value && !Object.is(node.value, -0);
+  if (node.type === 'Identifier') {
+    const variable = node._noStorageInfer ? null : (node._resolvedVariable ?? resolveVariable(node.name))?.node;
+    if (variable == null || variable._storageInt === false) return false;
+    deps.push(variable);
+    return true;
+  }
+
+  if (node.type === 'UnaryExpression') return node.operator === '~' || (node.operator === '-' && node.argument.type === 'Literal' && typeof node.argument.value === 'number' && node.argument.value !== 0 && (-node.argument.value | 0) === -node.argument.value);
+  if (node.type === 'BinaryExpression') return [ '|', '&', '^', '<<', '>>' ].includes(node.operator);
+  if (node.type === 'AssignmentExpression') {
+    const op = node.operator.slice(0, -1);
+    return op === '' ? storageExpressionInt(node.right, deps) : [ '|', '&', '^', '<<', '>>' ].includes(op);
+  }
+  if (node.type === 'SequenceExpression') return storageExpressionInt(node.expressions.at(-1), deps);
+  return false;
+};
+
+// int32 unless a local it copies from is not
+export const storageInt = (node, seen = new Set()) => {
+  if (node._storageInt !== true || node._storageType !== TYPES.number) return false;
+  if (seen.has(node)) return true;
+  seen.add(node);
+  if (node._storageIntDeps.every(x => storageInt(x, seen))) return true;
+  node._storageInt = false;
+  return false;
 };
 
 const nearestEvalScope = () => {
@@ -684,6 +718,7 @@ const annotate = (node, parent = null, key = null) => {
       annotate(node.left, node, 'left');
       annotate(node.right, node, 'right');
       markWrite(node.left);
+      if (node.operator === '+=' && node.left._resolvedVariable) node.left._resolvedVariable.node._appended = true;
       recordStorageWrite(node.left, node.operator === '=' ? node.right : {
         type: ['||=', '&&=', '??='].includes(node.operator) ? 'LogicalExpression' : 'BinaryExpression',
         left: node.left,
@@ -691,6 +726,14 @@ const annotate = (node, parent = null, key = null) => {
         operator: node.operator.slice(0, -1)
       });
       return;
+
+    case 'TaggedTemplateExpression':
+      // raw c writes locals as f64s
+      if (node.tag.name === '__Porffor_c') for (const quasi of node.quasi.quasis) for (const name of quasi.value.raw.match(/[A-Za-z_$][\w$]*/g) ?? []) {
+        const variable = resolveVariable(name);
+        if (variable) variable.node._storageInt = false;
+      }
+      break;
 
     case 'UpdateExpression':
       markWrite(node.argument);
@@ -920,6 +963,8 @@ const annotate = (node, parent = null, key = null) => {
     case 'MemberExpression':
       if (node.computed || node.property.type === 'PrivateIdentifier') annotate(node.property, node, 'property');
       annotate(node.object, node, 'object');
+      // reading .length cannot leak an append target (see porf_str_append)
+      if (!node.computed && node.property.name === 'length') node.object._lengthRead = true;
       return;
 
     case 'StaticBlock': {

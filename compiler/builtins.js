@@ -738,6 +738,13 @@ return porf_box_num((f64)(i32)((u32)xd * (u32)yd));`, false)
     body: [ Return(Box(Call('porf_performance_now', [], T.f64), Const(T.i32, TYPES.number))) ]
   };
 
+  _.__Porffor_bytestring_char = {
+    params: [ { name: 'c', type: T.i32 } ],
+    retType: T.jsval,
+    returnType: TYPES.bytestring,
+    body: ({ charString }) => [ Return(Box(charString(Local('c', T.i32)), Const(T.i32, TYPES.bytestring))) ]
+  };
+
   _.__Porffor_typeName = {
     params: [ { name: 'type', type: T.i32 } ],
     retType: T.jsval,

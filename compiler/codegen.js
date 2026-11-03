@@ -1,8 +1,8 @@
 import {
   K, T, FX, N_KIND, N_TYPE, N_FX, N_A, N_B, N_C,
   Const, JvConst, DataRef, Local, Global, Assign,
-  Bin, Un, Select, Convert, CONVERT_SIGNED, CONVERT_RANGE_KNOWN,
-  Reinterpret, Box, JvType, JvNum, JvPtr, JvIsNum, Eq, Add, Cmp, JvTruthy, JvFalsy, JvNullish,
+  Bin, Un, Select, Convert, CONVERT_SIGNED, StrJoin, CONVERT_RANGE_KNOWN,
+  Reinterpret, Box, JvType, JvNum, JvPtr, JvBits, JvIsNum, Eq, Add, Cmp, JvTruthy, JvFalsy, JvNullish,
   Load, Store, MemCopy, MemFill,
   If, Loop, Break, Continue, BlockStmt, TypeSwitch, Return, Unreachable,
   Call, CallDynamic, Try, Throw, ThrowNew, Await, Yield,
@@ -10,7 +10,7 @@ import {
 } from './ir.js';
 import { BuiltinFuncs, BuiltinVars, fullPrototypes } from './builtins.js';
 import { TYPES, TYPE_FLAGS, TYPE_NAMES, TYPED_ARRAY_TYPES, ITERATOR_TYPES } from './types.js';
-import semantic, { knownValue, unknownValue } from './semantic.js';
+import semantic, { knownValue, unknownValue, storageInt } from './semantic.js';
 import parse from './parse.js';
 import temporalPolyfillSource from './intl/temporal.js';
 import intlPolyfillSource from './intl/intl.js';
@@ -251,6 +251,8 @@ const dataSeg = (unit, key, bytes) => {
   return id;
 };
 const dataRef = (unit, key, bytes) => DataRef(dataSeg(unit, key, bytes));
+// one character bytestrings are static
+const charString = c => Bin('+', T.u32, dataRef('builtins', '#chars', Array.from({ length: 256 }, (_, i) => [ 1, 0, 0, 0, i, 0, 0, 0 ]).flat()), Bin('*', T.u32, c, Const(T.u32, 8)));
 
 const isFuncType = type =>
   type === 'FunctionDeclaration' || type === 'FunctionExpression' || type === 'ArrowFunctionExpression' ||
@@ -912,7 +914,7 @@ const generateIdent = (scope, decl) => {
   if (closureOwner) {
     const func = decl._resolvedVariable?.node?._porfforFunc ?? resolveNamedFunction(scope, decl.name);
     if (func) useFunctionValue(func, decl._markFunctionReferenced !== false);
-    return generate(scope, closureEnvNode(scope, decl.name, closureOwner));
+    return sealAppended(decl, generate(scope, closureEnvNode(scope, decl.name, closureOwner)));
   }
 
   // JSON.parse called indirectly may get a reviver
@@ -924,7 +926,7 @@ const generateIdent = (scope, decl) => {
 
   if (decl.name in scope.locals) (scope.locals[decl.name].metadata ??= {}).read = true;
   const out = lookup(scope, decl.name, !(decl.name === 'arguments' && decl._resolvedBinding), decl._markFunctionReferenced !== false);
-  if (out) return out;
+  if (out) return sealAppended(decl, out);
 
   // unresolvable names can still be global object properties
   if (globalObjectUsed) return globalGet(scope, decl.name);
@@ -982,7 +984,7 @@ const generateYield = (scope, decl) => {
     return value;
   }
 
-  return Yield(generate(scope, arg));
+  return Yield(coerceValue(generate(scope, arg), T.jsval));
 };
 
 // inlined so plain classes don't pull in the object machinery
@@ -1072,6 +1074,30 @@ const generateReturn = (scope, decl) => {
 
 // a + b: both known primitive strings -> direct strcat, else the coercing concatStrings builtin
 const knownStr = ty => ty === TYPES.string || ty === TYPES.bytestring;
+// x += y on an append target (see porf_str_append): strings may extend x in place, else a normal +
+const appendOp = (scope, left, right, leftType, rightType) => {
+  if (left[N_TYPE] !== T.jsval || right[N_TYPE] !== T.jsval || leftType === TYPES.number || rightType === TYPES.number) return performOp(scope, '+', left, right, leftType, rightType);
+  const l = reuse(scope, left), r = reuse(scope, right);
+  if (knownStr(leftType) && knownStr(rightType)) return Call('porf_str_append', [ l, r ]);
+
+  const isStrVal = x => Bin('==', T.i32, Bin('|', T.i32, JvType(x), Const(T.i32, 0b10000000)), Const(T.i32, TYPES.bytestring));
+  const bothStr = tmp(scope, T.i32, Const(T.i32, 0));
+  emitIf(scope, isStrVal(l), () => assign(scope, bothStr, isStrVal(r)));
+  const out = tmp(scope, T.jsval);
+  emitIf(scope, bothStr,
+    () => assign(scope, out, Call('porf_str_append', [ l, r ])),
+    () => assign(scope, out, coerceValue(performOp(scope, '+', l, r, leftType, rightType), T.jsval)));
+  return out;
+};
+// reads of an append target seal it: the string may be held elsewhere from then on
+const sealAppended = (decl, value) => {
+  if (!decl._resolvedVariable?.node._appended || decl._lengthRead || value[N_TYPE] !== T.jsval) return value;
+  // statically typed non-strings (eg f64 locals) are never builders
+  const t = JvType(value);
+  if (t[N_KIND] === K.Const && t[N_A] !== TYPES.string && t[N_A] !== TYPES.bytestring) return value;
+  return Call('porf_str_seal', [ value ]);
+};
+
 const concatStrings = (scope, left, right, leftType, rightType) =>
   builtinCall(scope, knownStr(leftType) && knownStr(rightType) ? '__Porffor_strcat' : '__Porffor_concatStrings', [ reuse(scope, left), reuse(scope, right) ]);
 
@@ -1112,14 +1138,17 @@ const nullish = (scope, node, type = null) => {
   return JvNullish(node);
 };
 
-// ToUint32 for bitwise operands: trunc, then wrap into [0, 2^32)
-const toUint32 = (scope, d) => {
-  const t = reuse(scope, Un('trunc', T.f64, d));
-  const w = reuse(scope, Bin('-', T.f64, t, Bin('*', T.f64,
-    Un('trunc', T.f64, Bin('/', T.f64, t, Const(T.f64, 4294967296))), Const(T.f64, 4294967296))));
-  return Convert(T.u32, Select(Bin('<', T.f64, w, Const(T.f64, 0)),
-    Bin('+', T.f64, w, Const(T.f64, 4294967296)), w));
+// exact f64 integer arithmetic (< 2^53) wraps the same in u32: [ u32 value, magnitude bits ]
+const exactUint32 = d => {
+  if (d[N_KIND] === K.Convert && (d[N_B][N_TYPE] === T.i32 || d[N_B][N_TYPE] === T.u32)) return [ Convert(T.u32, d[N_B], 0), 32 ];
+  if (d[N_KIND] === K.Const && d[N_TYPE] === T.f64 && Number.isInteger(d[N_A]) && Math.abs(d[N_A]) < 2 ** 32) return [ Const(T.u32, d[N_A] >>> 0), Math.max(1, Math.ceil(Math.log2(Math.abs(d[N_A]) + 1))) ];
+  if (d[N_KIND] !== K.Bin || d[N_TYPE] !== T.f64 || (d[N_A] !== '+' && d[N_A] !== '-' && d[N_A] !== '*')) return null;
+  const l = exactUint32(d[N_B]), r = l && exactUint32(d[N_C]);
+  if (!r) return null;
+  const bits = d[N_A] === '*' ? l[1] + r[1] : Math.max(l[1], r[1]) + 1;
+  return bits <= 53 ? [ Bin(d[N_A], T.u32, l[0], r[0]), bits ] : null;
 };
+const toUint32 = (scope, d) => exactUint32(d)?.[0] ?? Un('touint32', T.u32, d);
 
 // bitwise on f64s: ToUint32 both, run it as i32, mask shifts, back to f64
 const bitwiseOp = (scope, op, l, r) => {
@@ -1152,7 +1181,9 @@ const rawIntOp = (op, left, right) => {
   if (op === '>>>') return Bin('>>', T.u32, l, Bin('&', T.u32, r, Const(T.u32, 31)));
   if (op === '>>' && type === T.i32) return Bin('>>', T.i32, signed(l), signed(Bin('&', T.u32, r, Const(T.u32, 31))));
   if (op === '<<' || op === '>>') return signed(Bin(op, T.u32, l, Bin('&', T.u32, r, Const(T.u32, 31))));
-  if (op === '*' || op === '&' || op === '|' || op === '^' || op === '-') return signed(Bin(op, T.u32, l, r));
+  if (op === '&' || op === '|' || op === '^') return signed(Bin(op, T.u32, l, r));
+  // only builtins wrap * and -, js arithmetic does not
+  if ((op === '*' || op === '-') && globalThis.precompile) return signed(Bin(op, T.u32, l, r));
   return null;
 };
 
@@ -1260,7 +1291,7 @@ const performOp = (scope, op, left, right, leftType, rightType, noBigint = false
     };
     if (isStr(knownLeft) || isStr(knownRight)) return concatStrings(scope, operand(left, knownLeft), operand(right, knownRight), knownLeft, knownRight);
     const rawType = rawAddType(left, right);
-    if (rawType != null) return Bin('+', rawType, Convert(rawType, left, rawType === T.i32 ? CONVERT_SIGNED : 0), Convert(rawType, right, rawType === T.i32 ? CONVERT_SIGNED : 0));
+    if (rawType != null && (globalThis.precompile || rawType === T.f64 || rawType === T.ptr)) return Bin('+', rawType, Convert(rawType, left, rawType === T.i32 ? CONVERT_SIGNED : 0), Convert(rawType, right, rawType === T.i32 ? CONVERT_SIGNED : 0));
     if ((knownLeft === TYPES.number || isRawNum(left)) && (knownRight === TYPES.number || isRawNum(right))) return Box(Bin('+', T.f64, numValue(left), numValue(right)), Const(T.i32, TYPES.number));
     if (bothNum) return Box(Bin('+', T.f64, numValue(left), numValue(right)), Const(T.i32, TYPES.number));
     if (globalThis.precompile ? knownLeft == null || knownRight == null : !primitive(knownLeft) || !primitive(knownRight)) {
@@ -1337,11 +1368,42 @@ const generateBinaryExp = (scope, decl) => {
     }
   }
 
+  // === a string literal: length and first code unit settle most comparisons without a call
+  const strLit = x => x.type === 'Literal' && typeof x.value === 'string';
+  // typeof x === 'string' and friends (not object/function, which proxies decide) check the type tag
+  const typeofTypes = { string: [ TYPES.string, TYPES.bytestring ], number: [ TYPES.number ], boolean: [ TYPES.boolean ], undefined: [ TYPES.undefined ], symbol: [ TYPES.symbol ], bigint: [ TYPES.bigint ] };
+  if ([ '===', '!==', '==', '!=' ].includes(decl.operator) && !globalThis.precompile) {
+    const [ lit, t ] = strLit(decl.right) ? [ decl.right, decl.left ] : [ decl.left, decl.right ];
+    if (strLit(lit) && t.type === 'UnaryExpression' && t.operator === 'typeof' && Object.hasOwn(typeofTypes, lit.value) && !ifIdentifierErrors(scope, t.argument) && getNodeType(scope, t.argument) == null) {
+      const type = reuse(scope, JvType(generate(scope, t.argument)));
+      const r = typeofTypes[lit.value].map(x => Bin('==', T.i32, type, Const(T.i32, x))).reduce((a, b) => Bin('||', T.i32, a, b));
+      return Box(decl.operator[0] === '!' ? Un('!', T.i32, r) : r, Const(T.i32, TYPES.boolean));
+    }
+  }
+  if ((decl.operator === '===' || decl.operator === '!==') && !globalThis.precompile && (strLit(decl.left) || strLit(decl.right))) {
+    const [ lit, otherNode ] = strLit(decl.right) ? [ decl.right, decl.left ] : [ decl.left, decl.right ];
+    const otherType = getNodeType(scope, otherNode);
+    if (otherType == null || otherType === TYPES.string || otherType === TYPES.bytestring) {
+      const other = reuse(scope, generate(scope, otherNode));
+      const type = reuse(scope, JvType(other));
+      const ptr = JvPtr(other), str = lit.value;
+      let eq = Bin('==', T.i32, Load('i32', ptr, 0), Const(T.i32, str.length));
+      if (str.length > 0) eq = Bin('&&', T.i32, eq, Bin('==', T.i32, Select(Bin('==', T.i32, type, Const(T.i32, TYPES.bytestring)), Load('u8', ptr, 4), Load('u16', ptr, 4)), Const(T.i32, str.charCodeAt(0))));
+      if (str.length > 1) eq = Bin('&&', T.i32, eq, Call('porf_str_eq', [ other, generate(scope, lit) ], T.i32));
+      const r = Bin('&&', T.i32, Bin('||', T.i32, Bin('==', T.i32, type, Const(T.i32, TYPES.string)), Bin('==', T.i32, type, Const(T.i32, TYPES.bytestring))), eq);
+      return Box(decl.operator === '!==' ? Un('!', T.i32, r) : r, Const(T.i32, TYPES.boolean));
+    }
+  }
+
   // the right operand may reassign a variable read by the left (x * (x = 1)): evaluate left first
   let left = generate(scope, decl.left);
   const leftType = getNodeType(scope, decl.left);
   const r = decl.right.type;
-  if (r !== 'Literal' && !(r === 'Identifier' && !ifIdentifierErrors(scope, decl.right)) && r !== 'ThisExpression') left = snapshot(scope, left);
+  if (r !== 'Literal' && !(r === 'Identifier' && !ifIdentifierErrors(scope, decl.right)) && r !== 'ThisExpression') {
+    // bitwise ops only read ToUint32 of an exact integer left, so keep that instead
+    const exact = [ '|', '&', '^', '<<', '>>', '>>>' ].includes(decl.operator) && left[N_KIND] === K.Box && exactUint32(JvNum(left));
+    left = exact ? valNumber(Convert(T.f64, snapshot(scope, exact[0]), 0)) : snapshot(scope, left);
+  }
   const right = generate(scope, decl.right);
   return performOp(scope, decl.operator, left, right, leftType, getNodeType(scope, decl.right));
 };
@@ -1361,6 +1423,7 @@ const irBuiltinHelpers = (scope, name, def) => ({
   funcRefPtr: name => JvPtr(funcRef(builtinShadow(name) ?? includeBuiltin(scope, name))),
   hasBuiltin: name => name in builtinFuncs,
   makeString: str => makeString(scope, str),
+  charString,
   usesAnyType,
   hasFunc: name => funcIndex[name] != null,
   onFinalize,
@@ -1728,7 +1791,12 @@ const getNodeType = (scope, node) => {
       }
     }
   }
-  else if (node.type === 'TemplateLiteral') ret = TYPES.bytestring;
+  else if (node.type === 'TemplateLiteral') {
+    // substitutions can make it a utf-16 string
+    const types = node.expressions.map(x => knownType(scope, getNodeType(scope, x)));
+    if (types.includes(TYPES.string) || !node.quasis.every(x => byteStringable(x.value.cooked))) ret = TYPES.string;
+      else if (types.every(t => t === TYPES.number || t === TYPES.boolean || t === TYPES.undefined || t === TYPES.bigint || t === TYPES.bytestring)) ret = TYPES.bytestring;
+  }
   else if (node.type === 'TaggedTemplateExpression') {
     switch (node.tag.name) {
       case '__Porffor_bs': ret = TYPES.bytestring; break;
@@ -2794,8 +2862,10 @@ const setLocalWithType = (scope, name, isGlobal, decl, tee = false, overrideType
   if (!isGlobal && known === TYPES.number && scope.locals[name]?.type === T.jsval &&
       (metadata?.type === TYPES.number || metadata?.storageType === TYPES.number) &&
       !scope.closureOwnLocals?.[name] && !scope.closureCaptures?.[name] && !metadata?.read && !metadata?.param) {
-    scope.locals[name].type = T.f64;
+    scope.locals[name].type = metadata.storageInt ? T.i32 : T.f64;
   }
+  // a jsval write fixes the representation, later writes must not promote it
+  if (metadata && scope.locals[name]?.type === T.jsval) metadata.read = true;
   const ref = isGlobal ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval);
   const value = Array.isArray(decl) ? decl : generate(scope, decl, name);
   if (known != null && known !== TYPES.undefined && known !== TYPES.number && known !== TYPES.boolean) {
@@ -2976,8 +3046,12 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     allocVar(scope, name, global, typed?.irType ?? T.jsval);
 
     const metadata = { kind };
+    if (pattern._appended) metadata.appended = true;
     // read before any write it can observe undefined, so no raw slot
-    if (pattern._storageType != null && !(pattern._uninitialized && pattern._storageHazardRef)) metadata.storageType = pattern._storageType;
+    if (pattern._storageType != null && !(pattern._uninitialized && pattern._storageHazardRef)) {
+      metadata.storageType = pattern._storageType;
+      if (storageInt(pattern)) metadata.storageInt = true;
+    }
     if (init?.type === 'ObjectExpression') {
       metadata.ownProperties = new Set();
       for (const prop of init.properties) {
@@ -3290,7 +3364,8 @@ const generateAssign = (scope, decl, valueUnused = false) => {
   if (decl.left.type === 'Identifier' && ((decl.left._closureFunc && !(decl.left.name in scope.locals)) || scope.closureOwnLocals?.[decl.left.name])) {
     return generateAssign(scope, {
       ...decl,
-      left: closureEnvNode(scope, decl.left.name, decl.left._closureFunc ?? scope.ast)
+      left: closureEnvNode(scope, decl.left.name, decl.left._closureFunc ?? scope.ast),
+      _appended: decl.left._resolvedVariable?.node._appended
     }, valueUnused);
   }
 
@@ -3359,13 +3434,15 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     const env = reuse(scope, generate(scope, decl.left.object));
     const previous = op === '=' ? null : reuse(scope, generateMember(scope, decl.left, env));
     const right = generate(scope, decl.right);
-    const value = reuse(scope, op === '=' ? right : performOp(scope, op, previous, right, null, getNodeType(scope, decl.right)));
+    const value = reuse(scope, coerceValue(op === '=' ? right
+      : op === '+' && decl._appended ? appendOp(scope, previous, right, null, getNodeType(scope, decl.right))
+      : performOp(scope, op, previous, right, null, getNodeType(scope, decl.right)), T.jsval));
     stmt(scope, Store('f64', JvPtr(env), 8 + slot * 16, JvNum(value)));
     stmt(scope, Store('u8', JvPtr(env), 16 + slot * 16, JvType(value)));
     stmt(scope, If(canReferenceCheck(scope, value), [
       GcBarrier(JvPtr(env), Const(T.i32, TYPES.__porffor_closureenv), 1)
     ]));
-    return valueUnused ? valUndefined() : value;
+    return valueUnused ? valUndefined() : decl._appended ? Call('porf_str_seal', [ value ]) : value;
   }
 
   if (type === 'MemberExpression' && decl.left.property.name === 'length' && !decl._internalAssign) {
@@ -3480,9 +3557,19 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       return v[N_TYPE] === T.jsval ? v : valNumber(v);
     };
 
+    const taSetCall = () => {
+      const v = reuse(scope, op === '=' ? simpleValue
+        : performOp(scope, op, builtinCall(scope, '__Porffor_typedArray_getIndex', [ obj, prop ]), generate(scope, decl.right), null, getNodeType(scope, decl.right)));
+      return builtinCall(scope, '__Porffor_typedArray_setIndex', [ obj, prop, v ]);
+    };
+
+    // unknown receivers inline only Uint8Array (Buffer), other typed arrays share one call
     const indexedMemberSetBC = [
       [ TYPES.array, arraySet ],
-      ...TYPED_ARRAY_TYPES.map(t => [ t, taSet(t) ])
+      ...(objectKnown == null && !globalThis.precompile ? [
+        [ TYPES.uint8array, taSet(TYPES.uint8array) ],
+        [ TYPED_ARRAY_TYPES.filter(t => t !== TYPES.uint8array), taSetCall ]
+      ] : TYPED_ARRAY_TYPES.map(t => [ t, taSet(t) ]))
     ];
 
     const genericMemberSetBC = [
@@ -3570,11 +3657,16 @@ const generateAssign = (scope, decl, valueUnused = false) => {
 
   // compound assignment: left @= right -> left = left @ right
   const cur = isGlobal ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval);
-  const newVal = performOp(scope, op, cur, generate(scope, decl.right), getType(scope, name), getNodeType(scope, decl.right));
+  const appended = op === '+' && decl.left._resolvedVariable?.node._appended;
+  const right = generate(scope, decl.right);
+  const newVal = appended
+    ? appendOp(scope, cur, right, getType(scope, name), getNodeType(scope, decl.right))
+    : performOp(scope, op, cur, right, getType(scope, name), getNodeType(scope, decl.right));
   setInferred(scope, name, knownType(scope, getNodeType(scope, decl)), isGlobal);
 
   if (valueUnused) { setLocalWithType(scope, name, isGlobal, newVal, false, getNodeType(scope, decl)); return valUndefined(); }
-  return setLocalWithType(scope, name, isGlobal, newVal, true, getNodeType(scope, decl));
+  const value = setLocalWithType(scope, name, isGlobal, newVal, true, getNodeType(scope, decl));
+  return appended ? sealAppended(decl.left, value) : value;
 };
 
 // without these the global object can't be observed, so undeclared names stay static globals
@@ -4008,15 +4100,20 @@ const generateForOf = (scope, decl) => {
   };
   const strNext = (ctype, size, strType) => () => {
     emitIf(scope, Bin('==', T.i32, counter, length), () => stmt(scope, Break(L)));
+    if (size === 1) {
+      const out = reuse(scope, charString(Load('u8', Bin('+', T.u32, Bin('+', T.u32, JvPtr(root), Const(T.u32, 4)), counter), 0)));
+      assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
+      return valOf(out, strType);
+    }
+
     const out = reuse(scope, Alloc(Const(T.i32, 8), strType));
     stmt(scope, Store('u32', out, 0, Const(T.u32, 1)));
-    const src = reuse(scope, Bin('+', T.u32, Bin('+', T.u32, JvPtr(root), Const(T.u32, 4)),
-      size === 1 ? counter : Bin('*', T.u32, counter, Const(T.u32, size))));
+    const src = reuse(scope, Bin('+', T.u32, Bin('+', T.u32, JvPtr(root), Const(T.u32, 4)), Bin('*', T.u32, counter, Const(T.u32, size))));
     const c = reuse(scope, Load(ctype, src, 0));
     stmt(scope, Store(ctype, out, 4, c));
     assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
 
-    if (size === 2) emitIf(scope, Bin('==', T.i32, Bin('&', T.i32, c, Const(T.i32, 0xFC00)), Const(T.i32, 0xD800)), () =>
+    emitIf(scope, Bin('==', T.i32, Bin('&', T.i32, c, Const(T.i32, 0xFC00)), Const(T.i32, 0xD800)), () =>
       emitIf(scope, Bin('<', T.i32, counter, length), () => {
         const d = reuse(scope, Load(ctype, src, 2));
         emitIf(scope, Bin('==', T.i32, Bin('&', T.i32, d, Const(T.i32, 0xFC00)), Const(T.i32, 0xDC00)), () => {
@@ -4249,7 +4346,28 @@ const generateSwitch = (scope, decl) => {
 
   const labels = cases.map(() => fresh(scope));
 
-  const comparisons = collect(scope, () => {
+  // all string literal cases: only strings of a case's length can match it
+  const stringCases = N > 4 && scope.locals[discName].type === T.jsval && cases.every(x => x.test == null || (x.test.type === 'Literal' && typeof x.test.value === 'string'));
+  const comparisons = stringCases ? collect(scope, () => {
+    const disc = Local(discName, T.jsval);
+    const type = reuse(scope, JvType(disc));
+    emitIf(scope, Bin('||', T.i32, Bin('==', T.i32, type, Const(T.i32, TYPES.string)), Bin('==', T.i32, type, Const(T.i32, TYPES.bytestring))), () => {
+      const ptr = reuse(scope, JvPtr(disc));
+      const length = reuse(scope, Load('i32', ptr, 0));
+      const lengths = [ ...new Set(cases.filter(x => x.test).map(x => x.test.value.length)) ];
+      for (const len of lengths) emitIf(scope, Bin('==', T.i32, length, Const(T.i32, len)), () => {
+        // first code unit decides most cases, all of single character ones
+        const first = len > 0 ? reuse(scope, Select(Bin('==', T.i32, type, Const(T.i32, TYPES.bytestring)), Load('u8', ptr, 4), Load('u16', ptr, 4))) : null;
+        for (let i = 0; i < N; i++) {
+          const value = cases[i].test?.value;
+          if (value?.length !== len) continue;
+          const match = len === 0 ? Const(T.i32, 1) : Bin('==', T.i32, first, Const(T.i32, value.charCodeAt(0)));
+          emitIf(scope, len > 1 ? Bin('&&', T.i32, match, Call('porf_str_eq', [ disc, generate(scope, cases[i].test) ], T.i32)) : match, () => stmt(scope, Break(labels[N - 1 - i])));
+        }
+      });
+    });
+    stmt(scope, Break(labels[N - 1 - cases.findIndex(x => x.test == null)]));
+  }) : collect(scope, () => {
     for (let i = 0; i < N; i++) {
       if (cases[i].test) emitIf(scope, JvTruthy(generate(scope, { type: 'BinaryExpression', operator: '===', left: { type: 'Identifier', name: discName }, right: cases[i].test })),
         () => stmt(scope, Break(labels[N - 1 - i])));
@@ -5009,7 +5127,11 @@ const generateMember = (scope, decl, objValue = null) => {
       return res;
     } ],
     [ [ TYPES.string, TYPES.bytestring ], () => builtinCall(scope, '__Porffor_string_get', [ obj, prop ]) ],
-    ...TYPED_ARRAY_TYPES.map(t => [ t, () => typedArrayGet(scope, obj, prop, t) ]),
+    // unknown receivers inline only Uint8Array (Buffer), other typed arrays share one call
+    ...(known == null && !globalThis.precompile ? [
+      [ TYPES.uint8array, () => typedArrayGet(scope, obj, prop, TYPES.uint8array) ],
+      [ TYPED_ARRAY_TYPES.filter(t => t !== TYPES.uint8array), () => builtinCall(scope, '__Porffor_typedArray_getIndex', [ obj, prop ]) ]
+    ] : TYPED_ARRAY_TYPES.map(t => [ t, () => typedArrayGet(scope, obj, prop, t) ])),
     ...genericMemberGetBC
   ];
 
@@ -5315,21 +5437,22 @@ const generateTemplate = (scope, decl) => {
     // substitutions use ToString, not the ToPrimitive of +
     if (i < expressions.length) {
       const t = knownType(scope, getNodeType(scope, expressions[i]));
-      const primitive = t === TYPES.number || t === TYPES.boolean || t === TYPES.undefined || t === TYPES.bigint || t === TYPES.string || t === TYPES.bytestring;
+      const primitive = t === TYPES.number || t === TYPES.boolean || t === TYPES.undefined || t === TYPES.string || t === TYPES.bytestring;
       parts.push(primitive ? expressions[i] : { type: 'CallExpression', callee: identNode('__ecma262_ToString'), arguments: [ expressions[i] ] });
     }
   }
 
-  // balanced so big templates copy each part log(n) times, not n
-  const concat = (start, end) => {
-    if (end - start === 1) return generate(scope, parts[start]);
+  // primitives and strings join in one allocation
+  if (parts.length > 2) {
+    const values = parts.map((x, i) => {
+      const v = generate(scope, x);
+      return i < parts.length - 1 && v[N_KIND] !== K.Const && v[N_KIND] !== K.JvConst ? snapshot(scope, v) : v;
+    });
+    if (values.every(v => v[N_TYPE] === T.jsval || v[N_TYPE] === T.f64)) return StrJoin(values);
+    return values.slice(1).reduce((a, b) => builtinCall(scope, '__Porffor_concatStrings', [ a, b ]), values[0]);
+  }
 
-    const mid = (start + end) >> 1;
-    const left = snapshot(scope, concat(start, mid));
-    return builtinCall(scope, '__Porffor_concatStrings', [ left, concat(mid, end) ]);
-  };
-
-  return concat(0, parts.length);
+  return generate(scope, parts[0]);
 };
 
 const generateTaggedTemplate = (scope, decl) => {
@@ -5730,7 +5853,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
           if (variable.node?._storageType !== TYPES.number) continue;
           if (!variable.node._storageInitSeen || variable.node._storageHazardRef) continue;
           if (func.closureOwnLocals?.[localName] || func.closureCaptures?.[localName]) continue;
-          allocVar(func, localName, false, T.f64);
+          allocVar(func, localName, false, storageInt(variable.node) ? T.i32 : T.f64);
         }
       }
 

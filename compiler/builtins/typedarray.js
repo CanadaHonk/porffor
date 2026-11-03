@@ -77,6 +77,8 @@ export const __Porffor_typedArray_validIndex = (ta: any, n: number): boolean => 
   return Porffor.fastAnd(n >= 0, n < __Porffor_typedArray_length(ta));
 };
 
+export const __Porffor_typedArray_getIndex = (ta: any, n: number): any => ta[n];
+
 export const __Porffor_typedArray_setIndex = (ta: any, n: number, value: any): any => {
   ta[n] = value;
   return value;
@@ -255,15 +257,52 @@ export const __Porffor_typedArray_construct = (t: i32, a: any, b: any, c: any): 
   throw new TypeError('Invalid typed array type');
 };
 
+export const __Porffor_typedArray_isIntrinsic = (t: i32, C: any): boolean => {`;
+
+  for (const x of ctors) {
+    const name = `${x}Array`;
+    out += `
+  if (Porffor.comptime.flag\`hasType.${name.toLowerCase()}\`) {
+    if (t == Porffor.TYPES.${name.toLowerCase()}) return C === ${name};
+  }`;
+  }
+
+  out += `
+  return false;
+};
+
+// types whose species is their intrinsic constructor, valid for one ic epoch
+let speciesTypes: i32 = 0;
+let speciesEpoch: i32 = -1;
+// set by the intrinsic @@species getter, other getters and data properties are never cached
+let speciesIntrinsic: boolean = false;
+
 export const __Porffor_typedArray_speciesCreate = (exemplar: any, a: any, b: any, c: any): any => {
   const t: i32 = Porffor.type(exemplar);
+  const bit: i32 = 1 << (t - Porffor.TYPES.uint8clampedarray);
+  const plain: boolean = __Porffor_object_underlyingPtr(exemplar) == 0;
+  // the epoch misses plain writes to constructor, so that is still read
+  if (Porffor.fastAnd(plain, speciesEpoch == __Porffor_object_icEpoch(), (speciesTypes & bit) != 0))
+    if (__Porffor_typedArray_isIntrinsic(t, exemplar.constructor)) return __Porffor_typedArray_construct(t, a, b, c);
+
   const C: any = exemplar.constructor;
   let S: any = undefined;
   if (C !== undefined) {
     if (!Porffor.object.isObject(C)) throw new TypeError('Typed array constructor is not an object');
+    speciesIntrinsic = false;
     S = C[Symbol.species];
   }
   if (S == null) return __Porffor_typedArray_construct(t, a, b, c);
+  if (Porffor.fastAnd(plain, S === C, speciesIntrinsic, __Porffor_typedArray_isIntrinsic(t, C))) {
+    // where constructor and @@species live
+    __Porffor_object_icFlagProto(__Porffor_object_getHiddenPrototype(t));
+    __Porffor_object_icFlagProto(__Porffor_object_underlying(C));
+    __Porffor_object_icFlagProto(__Porffor_object_underlying(TypedArray));
+    if (speciesEpoch != __Porffor_object_icEpoch()) speciesTypes = 0;
+    speciesTypes |= bit;
+    speciesEpoch = __Porffor_object_icEpoch();
+    return __Porffor_typedArray_construct(t, a, b, c);
+  }
   if (!ecma262.IsConstructor(S)) throw new TypeError('Typed array species is not a constructor');
 
   const isLength: boolean = Porffor.type(a) == Porffor.TYPES.number;
@@ -310,6 +349,7 @@ export const __TypedArray_from = function (this: any, source: any, mapFn: any = 
 };
 
 export const __TypedArray_Symbol_species$get = function (this: any): any {
+  speciesIntrinsic = true;
   return this;
 };
 

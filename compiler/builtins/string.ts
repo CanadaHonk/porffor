@@ -116,11 +116,7 @@ export const __ByteString_prototype_at = function (this: bytestring, _index: any
   if (index < 0) index = len + index;
   if (Porffor.fastOr(index < 0, index >= len)) return undefined;
 
-  const out: bytestring = Porffor.malloc(8);
-  Porffor.IR.storeI32(out, 0, 1); // out.length = 1
-
-  Porffor.IR.storeU8(Porffor.IR.ptr(out), 4, Porffor.IR.loadU8(Porffor.IR.ptr(this) + index, 4));
-  return out;
+  return __Porffor_bytestring_char(Porffor.IR.loadU8(Porffor.IR.ptr(this) + index, 4));
 };
 
 export const __String_prototype_charAt = function (this: string, _index: any) {
@@ -142,23 +138,14 @@ export const __ByteString_prototype_charAt = function (this: bytestring, _index:
 
   if (Porffor.fastOr(index < 0, index >= len)) return '';
 
-  const out: bytestring = Porffor.malloc(8);
-  Porffor.IR.storeI32(out, 0, 1); // out.length = 1
-
-  Porffor.IR.storeU8(Porffor.IR.ptr(out), 4, Porffor.IR.loadU8(Porffor.IR.ptr(this) + index, 4));
-  return out;
+  return __Porffor_bytestring_char(Porffor.IR.loadU8(Porffor.IR.ptr(this) + index, 4));
 };
 
 // str[index], out of range or non-integer indices are property lookups
 export const __Porffor_string_get = (str: any, index: number): any => {
   if (Porffor.fastOr(index < 0, index >= str.length, Math.trunc(index) != index)) return __Porffor_object_get(str, index);
 
-  if (Porffor.type(str) == Porffor.TYPES.bytestring) {
-    const out: bytestring = Porffor.malloc(8);
-    Porffor.IR.storeI32(out, 0, 1);
-    Porffor.IR.storeU8(Porffor.IR.ptr(out), 4, Porffor.IR.loadU8(Porffor.IR.ptr(str) + index, 4));
-    return out;
-  }
+  if (Porffor.type(str) == Porffor.TYPES.bytestring) return __Porffor_bytestring_char(Porffor.IR.loadU8(Porffor.IR.ptr(str) + index, 4));
 
   const out: string = Porffor.malloc(8);
   Porffor.IR.storeI32(out, 0, 1);
@@ -880,12 +867,7 @@ export const __ByteString_prototype_substring = function (this: bytestring, _sta
     start = tmp;
   }
 
-  const outLen: i32 = end - start;
-  const out: bytestring = Porffor.malloc(6 + outLen);
-  if (outLen > 0) Porffor.IR.copy(Porffor.IR.ptr(out) + 4, Porffor.IR.ptr(this) + 4 + start, outLen);
-
-  out.length = outLen;
-  return out;
+  return __Porffor_bytestring_sub(this, start, end);
 };
 
 
@@ -915,24 +897,12 @@ export const __ByteString_prototype_substr = function (this: bytestring, _start:
 
   if (Porffor.type(_length) == Porffor.TYPES.undefined) _length = len - start;
 
+  if (start > len) start = len;
   let length: number = ecma262.ToIntegerOrInfinity(_length);
   if (start + length > len) length = len - start;
+  if (length < 0) length = 0;
 
-  const out: bytestring = Porffor.malloc(6 + length);
-
-  let outPtr: i32 = Porffor.IR.ptr(out);
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-
-  thisPtr += start;
-
-  const thisPtrEnd: i32 = thisPtr + length;
-
-  while (thisPtr < thisPtrEnd) {
-    Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(thisPtr++, 4));
-  }
-
-  out.length = length;
-  return out;
+  return __Porffor_bytestring_sub(this, start, start + length);
 };
 
 
@@ -979,166 +949,72 @@ export const __ByteString_prototype_slice = function (this: bytestring, _start: 
 
   if (start > end) end = start;
 
-  const out: bytestring = Porffor.malloc(6 + (end - start));
+  return __Porffor_bytestring_sub(this, start, end);
+};
 
-  let outPtr: i32 = Porffor.IR.ptr(out);
-  let thisPtr: i32 = Porffor.IR.ptr(this);
 
-  const thisPtrEnd: i32 = thisPtr + end;
+// WhiteSpace and LineTerminator code units
+export const __Porffor_string_isSpace = (c: i32): boolean =>
+  Porffor.fastOr(c == 0x20, Porffor.fastAnd(c >= 0x9, c <= 0xd), c == 0xa0, c == 0x1680, Porffor.fastAnd(c >= 0x2000, c <= 0x200a), c == 0x2028, c == 0x2029, c == 0x202f, c == 0x205f, c == 0x3000, c == 0xfeff);
 
-  thisPtr += start;
-
-  while (thisPtr < thisPtrEnd) {
-    Porffor.IR.storeU8(outPtr++, 4, Porffor.IR.loadU8(thisPtr++, 4));
-  }
-
+export const __Porffor_string_sub = (str: string, start: i32, end: i32): string => {
+  if (Porffor.fastAnd(start == 0, end == str.length)) return str;
+  const out: string = Porffor.malloc(6 + (end - start) * 2);
+  Porffor.IR.copy(Porffor.IR.ptr(out) + 4, Porffor.IR.ptr(str) + 4 + start * 2, (end - start) * 2);
   out.length = end - start;
   return out;
 };
 
+export const __Porffor_bytestring_sub = (str: bytestring, start: i32, end: i32): bytestring => {
+  if (Porffor.fastAnd(start == 0, end == str.length)) return str;
+  const out: bytestring = Porffor.malloc(6 + (end - start));
+  Porffor.IR.copy(Porffor.IR.ptr(out) + 4, Porffor.IR.ptr(str) + 4 + start, end - start);
+  out.length = end - start;
+  return out;
+};
 
 export const __String_prototype_trimStart = function (this: string) {
-  const len: i32 = this.length;
-  const out: string = Porffor.malloc(6 + len * 2);
-
-  let outPtr: i32 = Porffor.IR.ptr(out);
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-
-  const thisPtrEnd: i32 = thisPtr + len * 2;
-
-  let n: i32 = 0, start: boolean = true;
-  while (thisPtr < thisPtrEnd) {
-    const chr: i32 = Porffor.IR.loadU16(thisPtr, 4);
-    thisPtr += 2;
-
-    if (start) {
-      // todo: not spec compliant, needs more unicode chars
-      if (Porffor.fastOr(chr == 0x9, chr == 0xb, chr == 0xc, chr == 0xfeff, chr == 0x20, chr == 0xa0, chr == 0x1680, chr == 0x2000, chr == 0x2001, chr == 0x2002, chr == 0x2003, chr == 0x2004, chr == 0x2005, chr == 0x2006, chr == 0x2007, chr == 0x2008, chr == 0x2009, chr == 0x200a, chr == 0x202f, chr == 0x205f, chr == 0x3000, chr == 0xa, chr == 0xd, chr == 0x2028, chr == 0x2029)) {
-        n++;
-        continue;
-      }
-
-      start = false;
-    }
-
-    Porffor.IR.storeU16(outPtr, 4, chr);
-    outPtr += 2;
-  }
-
-  out.length = len - n;
-  return out;
+  const len: i32 = this.length, ptr: i32 = Porffor.IR.ptr(this);
+  let start: i32 = 0;
+  while (start < len && __Porffor_string_isSpace(Porffor.IR.loadU16(ptr + start * 2, 4))) start++;
+  return __Porffor_string_sub(this, start, len);
 };
 
 export const __ByteString_prototype_trimStart = function (this: bytestring) {
-  const len: i32 = this.length;
-  const out: bytestring = Porffor.malloc(6 + len);
-
-  let outPtr: i32 = Porffor.IR.ptr(out);
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-
-  const thisPtrEnd: i32 = thisPtr + len;
-
-  let n: i32 = 0, start: boolean = true;
-  while (thisPtr < thisPtrEnd) {
-    const chr: i32 = Porffor.IR.loadU8(thisPtr++, 4);
-
-    if (start) {
-      // todo: not spec compliant, needs more unicode chars
-      if (Porffor.fastOr(chr == 0x9, chr == 0xb, chr == 0xc, chr == 0xfeff, chr == 0x20, chr == 0xa0, chr == 0x1680, chr == 0x2000, chr == 0x2001, chr == 0x2002, chr == 0x2003, chr == 0x2004, chr == 0x2005, chr == 0x2006, chr == 0x2007, chr == 0x2008, chr == 0x2009, chr == 0x200a, chr == 0x202f, chr == 0x205f, chr == 0x3000, chr == 0xa, chr == 0xd, chr == 0x2028, chr == 0x2029)) {
-        n++;
-        continue;
-      }
-
-      start = false;
-    }
-
-    Porffor.IR.storeU8(outPtr++, 4, chr);
-  }
-
-  out.length = len - n;
-  return out;
+  const len: i32 = this.length, ptr: i32 = Porffor.IR.ptr(this);
+  let start: i32 = 0;
+  while (start < len && __Porffor_string_isSpace(Porffor.IR.loadU8(ptr + start, 4))) start++;
+  return __Porffor_bytestring_sub(this, start, len);
 };
 
-
 export const __String_prototype_trimEnd = function (this: string) {
-  const len: i32 = this.length;
-  const out: string = Porffor.malloc(6 + len * 2);
-
-  let outPtr: i32 = Porffor.IR.ptr(out);
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-
-  const thisPtrStart: i32 = thisPtr;
-
-  thisPtr += len * 2;
-  outPtr += len * 2;
-
-  let n: i32 = 0, start: boolean = true;
-  while (thisPtr > thisPtrStart) {
-    thisPtr -= 2;
-    const chr: i32 = Porffor.IR.loadU16(thisPtr, 4);
-
-    outPtr -= 2;
-
-    if (start) {
-      // todo: not spec compliant, needs more unicode chars
-      if (Porffor.fastOr(chr == 0x9, chr == 0xb, chr == 0xc, chr == 0xfeff, chr == 0x20, chr == 0xa0, chr == 0x1680, chr == 0x2000, chr == 0x2001, chr == 0x2002, chr == 0x2003, chr == 0x2004, chr == 0x2005, chr == 0x2006, chr == 0x2007, chr == 0x2008, chr == 0x2009, chr == 0x200a, chr == 0x202f, chr == 0x205f, chr == 0x3000, chr == 0xa, chr == 0xd, chr == 0x2028, chr == 0x2029)) {
-        n++;
-        continue;
-      }
-
-      start = false;
-    }
-
-    Porffor.IR.storeU16(outPtr, 4, chr);
-  }
-
-  out.length = len - n;
-  return out;
+  const ptr: i32 = Porffor.IR.ptr(this);
+  let end: i32 = this.length;
+  while (end > 0 && __Porffor_string_isSpace(Porffor.IR.loadU16(ptr + end * 2 - 2, 4))) end--;
+  return __Porffor_string_sub(this, 0, end);
 };
 
 export const __ByteString_prototype_trimEnd = function (this: bytestring) {
-  const len: i32 = this.length;
-  const out: bytestring = Porffor.malloc(6 + len);
-
-  let outPtr: i32 = Porffor.IR.ptr(out);
-  let thisPtr: i32 = Porffor.IR.ptr(this);
-
-  const thisPtrStart: i32 = thisPtr;
-
-  thisPtr += len;
-  outPtr += len;
-
-  let n: i32 = 0, start: boolean = true;
-  while (thisPtr > thisPtrStart) {
-    const chr: i32 = Porffor.IR.loadU8(--thisPtr, 4);
-
-    outPtr--;
-
-    if (start) {
-      // todo: not spec compliant, needs more unicode chars
-      if (Porffor.fastOr(chr == 0x9, chr == 0xb, chr == 0xc, chr == 0xfeff, chr == 0x20, chr == 0xa0, chr == 0x1680, chr == 0x2000, chr == 0x2001, chr == 0x2002, chr == 0x2003, chr == 0x2004, chr == 0x2005, chr == 0x2006, chr == 0x2007, chr == 0x2008, chr == 0x2009, chr == 0x200a, chr == 0x202f, chr == 0x205f, chr == 0x3000, chr == 0xa, chr == 0xd, chr == 0x2028, chr == 0x2029)) {
-        n++;
-        continue;
-      }
-
-      start = false;
-    }
-
-    Porffor.IR.storeU8(outPtr, 4, chr);
-  }
-
-  out.length = len - n;
-  return out;
+  const ptr: i32 = Porffor.IR.ptr(this);
+  let end: i32 = this.length;
+  while (end > 0 && __Porffor_string_isSpace(Porffor.IR.loadU8(ptr + end - 1, 4))) end--;
+  return __Porffor_bytestring_sub(this, 0, end);
 };
 
 export const __String_prototype_trim = function (this: string) {
-  // todo/perf: optimize and not just reuse
-  return Porffor.callThis(__String_prototype_trimStart, Porffor.callThis(__String_prototype_trimEnd, this));
+  const ptr: i32 = Porffor.IR.ptr(this);
+  let start: i32 = 0, end: i32 = this.length;
+  while (start < end && __Porffor_string_isSpace(Porffor.IR.loadU16(ptr + start * 2, 4))) start++;
+  while (end > start && __Porffor_string_isSpace(Porffor.IR.loadU16(ptr + end * 2 - 2, 4))) end--;
+  return __Porffor_string_sub(this, start, end);
 };
 
 export const __ByteString_prototype_trim = function (this: bytestring) {
-  // todo/perf: optimize and not just reuse
-  return Porffor.callThis(__ByteString_prototype_trimStart, Porffor.callThis(__ByteString_prototype_trimEnd, this));
+  const ptr: i32 = Porffor.IR.ptr(this);
+  let start: i32 = 0, end: i32 = this.length;
+  while (start < end && __Porffor_string_isSpace(Porffor.IR.loadU8(ptr + start, 4))) start++;
+  while (end > start && __Porffor_string_isSpace(Porffor.IR.loadU8(ptr + end - 1, 4))) end--;
+  return __Porffor_bytestring_sub(this, start, end);
 };
 
 

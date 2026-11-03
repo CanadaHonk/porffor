@@ -121,6 +121,11 @@ export const __String_fromCodePoint = (...codePoints: any[]): string => {
 // in f64 file as returns NaN which returns 0 in i32
 export const __String_prototype_charCodeAt = function (this: string, _index: any) {
   const len: i32 = this.length;
+  if (Porffor.type(_index) == Porffor.TYPES.number) {
+    const fast: number = _index;
+    if (Porffor.fastAnd(fast >= 0, fast < len)) return Porffor.IR.loadU16(Porffor.IR.ptr(this) + (fast | 0) * 2, 4);
+  }
+
   const index: number = ecma262.ToIntegerOrInfinity(_index);
 
   if (Porffor.fastOr(index < 0, index >= len)) return NaN;
@@ -130,6 +135,11 @@ export const __String_prototype_charCodeAt = function (this: string, _index: any
 
 export const __ByteString_prototype_charCodeAt = function (this: bytestring, _index: any) {
   const len: i32 = this.length;
+  if (Porffor.type(_index) == Porffor.TYPES.number) {
+    const fast: number = _index;
+    if (Porffor.fastAnd(fast >= 0, fast < len)) return Porffor.IR.loadU8(Porffor.IR.ptr(this) + (fast | 0), 4);
+  }
+
   const index: number = ecma262.ToIntegerOrInfinity(_index);
 
   if (Porffor.fastOr(index < 0, index >= len)) return NaN;
