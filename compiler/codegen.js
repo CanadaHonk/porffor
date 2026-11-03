@@ -1343,7 +1343,7 @@ const generateBinaryExp = (scope, decl) => {
     const rightName = decl.right.name;
     if (rightName) {
       let checkType = TYPES[rightName.toLowerCase()];
-      if (checkType != null && rightName === TYPE_NAMES[checkType] && rightName in builtinFuncs && !rightName.endsWith('Error')) {
+      if (checkType != null && rightName === TYPE_NAMES[checkType] && rightName in builtinFuncs && !rightName.endsWith('Error') && rightName !== 'Object') {
         if (checkType === TYPES.number) checkType = TYPES.numberobject;
         else if (checkType === TYPES.boolean) checkType = TYPES.booleanobject;
         else if (checkType === TYPES.string) checkType = TYPES.stringobject;
