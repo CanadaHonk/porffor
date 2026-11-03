@@ -2193,6 +2193,18 @@ const generateMallocIntrinsic = (scope, args, typeId = 0) => {
   return Alloc(bytes[N_TYPE] === T.i32 ? bytes : Convert(T.i32, bytes[N_TYPE] === T.jsval ? JvNum(bytes) : bytes, CONVERT_SIGNED), typeId);
 };
 
+// hack: depd's wrapfunction builds its param list only for .length, so drop it (length 0)
+const depdWrapperBody = (scope, node) => {
+  const parts = [];
+  const flatten = x => x.type === 'BinaryExpression' && x.operator === '+' ? (flatten(x.left), flatten(x.right)) : parts.push(x);
+  flatten(node);
+  const values = parts.map(x => knownValue(scope, x));
+  const hole = values.indexOf(unknownValue);
+  if (hole === -1 || parts[hole].type !== 'Identifier' || values.some((x, i) => i !== hole && typeof x !== 'string')) return unknownValue;
+  const before = values.slice(0, hole).join(''), after = values.slice(hole + 1).join('');
+  return before === '"use strict"\nreturn function (' && after === ') {log.call(deprecate, message, site)\nreturn fn.apply(this, arguments)\n}' ? before + after : unknownValue;
+};
+
 const generateCall = (scope, decl) => {
   if (decl.type === 'NewExpression') decl._new = true;
 
@@ -2254,6 +2266,7 @@ const generateCall = (scope, decl) => {
   // new Function with compile-time-known strings compiles right here
   if (!decl._funcIdx && name === 'Function') {
     const knowns = decl.arguments.map(x => knownValue(scope, x));
+    if (knowns.at(-1) === unknownValue) knowns[knowns.length - 1] = depdWrapperBody(scope, decl.arguments.at(-1));
     if (knowns.every(x => x !== unknownValue)) {
       const code = knowns.length ? String(knowns[knowns.length - 1]) : '';
       const fnArgs = knowns.slice(0, -1).map(x => String(x));
