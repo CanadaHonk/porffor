@@ -1050,7 +1050,7 @@ const annotate = (node, parent = null, key = null) => {
   }
 
   for (const x in node) {
-    if (x[0] === '_') continue;
+    if (x[0] === '_' || x === 'label') continue;
     const value = node[x];
     if (value != null && typeof value === 'object') {
       if (Array.isArray(value)) {
