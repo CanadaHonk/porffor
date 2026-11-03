@@ -535,7 +535,7 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
       return generateBinaryExp(scope, decl);
 
     case 'LogicalExpression':
-      return generateLogicExp(scope, decl);
+      return generateLogicExp(scope, decl, valueUnused);
 
     case 'Identifier':
       return generateIdent(scope, decl);
@@ -1614,11 +1614,13 @@ const assignmentOp = op => op.slice(0, -1) || '=';
 const logicalChecks = { '||': falsy, '&&': truthy, '??': nullish };
 
 // short-circuit && / || / ??: right is generated lazily inside the branch
-const generateLogicExp = (scope, decl) => {
+const generateLogicExp = (scope, decl, valueUnused = false) => {
   const check = logicalChecks[decl.operator];
   const res = tmp(scope, T.jsval, coerceValue(generate(scope, decl.left), T.jsval));
-  emitIf(scope, check(scope, res, getNodeType(scope, decl.left)),
-    () => assign(scope, res, coerceValue(generate(scope, decl.right), T.jsval)));
+  emitIf(scope, check(scope, res, getNodeType(scope, decl.left)), () => {
+    if (valueUnused) exprStmt(scope, generate(scope, decl.right, undefined, true));
+      else assign(scope, res, coerceValue(generate(scope, decl.right), T.jsval));
+  });
   return res;
 };
 
