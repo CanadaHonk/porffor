@@ -9,17 +9,25 @@ const inSelfhost = file => path.join(selfhostDir, file);
 const tmpDir = '/tmp/porffor-selfhost';
 const inTmp = file => path.join(tmpDir, file);
 
-const bundle = inSelfhost('bundle.js');
-const stage1C = inSelfhost('stage1.c');
-const porf = inSelfhost('porf');
-const nodePorf = [ process.execPath, 'runtime/index.js' ];
+const selfhostEntry = 'runtime/index.js';
+const selfhostArgs = [ '--module', selfhostEntry ];
+const porf = process.env.PORFFOR_SELFHOST_BIN ?? inSelfhost('porf');
+const nodePorf = [ process.execPath, '--experimental-import-text', '--disable-warning=ExperimentalWarning', 'runtime/index.js' ];
 const compileHistory = inTmp('compile-history.jsonl');
 const stage2C = inTmp('stage2.c');
 const stage2Native = inTmp('stage2-native');
-const pgoProfile = inTmp('release.profdata');
-const pgoRaw = inTmp('release.profraw');
+const pgoProfile = inTmp('selfhost.profdata');
+const pgoRaw = inTmp('selfhost.profraw');
 const pgoCompiler = inTmp('pgo-compiler');
 const pgoOutput = inTmp('pgo-stage2.c');
+
+// porffor's native command caches split C units here, keyed by the absolute entry path
+const hashId = str => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(36);
+};
+const buildDir = `${process.env.HOME}/.cache/porffor/build/${hashId(path.resolve(selfhostEntry))}`;
 const helloFile = inTmp('hello.js');
 const temporalFile = inTmp('temporal.js');
 const parityCases = [
@@ -68,22 +76,20 @@ const formatSize = bytes => bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(
 const formatNumber = value => value.toLocaleString('en-US');
 
 const defaultOpts = {
-  ccOpts: process.env.CC_OPTS?.split(/\s+/).filter(Boolean) ?? [ '-O0', '-g' ],
-  compiler: process.env.SELFHOST_CC ?? process.env.TCC ?? (fs.existsSync(path.join(homeTcc, 'tcc')) ? path.join(homeTcc, 'tcc') : 'tcc'),
+  O: process.env.SELFHOST_O ?? '3',
+  compiler: process.env.SELFHOST_CC ?? process.env.CC ?? 'cc',
   diffContext: +(process.env.SELFHOST_DIFF_CONTEXT ?? 2),
   monitor: process.env.SELFHOST_MONITOR !== '0',
   nativeChecks: process.env.SELFHOST_NATIVE_CHECKS === '1',
   verifyBench: true,
-  noopPrecompiled: process.env.SELFHOST_NOOP_PRECOMPILED === '1',
   benchRuns: +(process.env.SELFHOST_BENCH_RUNS ?? 1),
   detail: false,
   pollEvery: +(process.env.POLL_EVERY ?? 5),
   compare: process.env.SELFHOST_COMPARE ?? null,
   sizeGraph: process.env.SELFHOST_SIZE_GRAPH ?? null,
   porfFlags: [],
-  release: false,
+  pgo: false,
   skip: [],
-  skipBundle: false,
   splitDiff: process.stdin.isTTY && process.stdout.isTTY && process.env.CI !== '1',
   stackEvery: +(process.env.STACK_EVERY ?? 0),
   verbose: false
@@ -99,12 +105,11 @@ ${dim('usage')} ${bold('./selfhost')} ${cyan('<command>')} ${dim('[options]')}
 ${bold('Commands')}
 ${helpRows([
   [ 'help', 'show this help' ],
-  [ 'bundle', 'rebuild the selfhost compiler bundle' ],
-  [ 'compile', 'build the selfhosted native compiler with node Porffor' ],
-  [ 'verify', 'check c parity cases, then compare host and selfhost bundle c' ],
+  [ 'compile', 'build the selfhosted native compiler (split esm, cached) with node Porffor' ],
+  [ 'verify', 'check c parity cases, then compare host and selfhost compiler c' ],
   [ 'bench', 'benchmark host vs selfhosted c compile time for verify cases' ],
-  [ 'c', 'compile the selfhost bundle to stage2 c' ],
-  [ 'native', 'compile the selfhost bundle to a stage2 native binary' ],
+  [ 'c', 'compile the selfhost compiler to stage2 c' ],
+  [ 'native', 'compile the selfhost compiler to a stage2 native binary' ],
   [ 'all', 'run compile and verify' ],
   [ 'compare', 'pick two compiles from history and compare them' ],
   [ 'clean', 'remove generated selfhost files and logs' ]
@@ -112,17 +117,16 @@ ${helpRows([
 
 ${bold('Options')}
 ${helpRows([
-  [ '-O0|-O1|-O2|-O3', 'c compiler optimization level for compile (default: -O0 -g)' ],
-  [ '--cc-opts="..."', 'c compiler options for compile (default: -O0 -g)' ],
-  [ '--release', 'compile stage1 with fresh PGO, cc -O3 -flto=thin, and strip local symbols' ],
-  [ '--tcc[=PATH]', 'compile stage1 with TinyCC' ],
+  [ '--pgo', 'compile with fresh PGO: instrument, train on the compiler, cc -O3 -flto=thin' ],
+  [ '-O0|-O1|-O2|-O3', 'c compiler optimization level for compile (default: -O3)' ],
+  [ '--tcc[=PATH]', 'compile with TinyCC' ],
+  [ '--cc=CMD', 'use CMD as the c compiler (default: cc)' ],
   [ '--diff-context=N', 'context lines for mismatch diffs (default: 2)' ],
   [ '--no-split-diff', 'use text diffoscope output for c even in a TTY' ],
   [ '--no-monitor', 'run checkpoints without RSS polling' ],
   [ '--native-checks', 'also compare native binaries and their output for verify cases' ],
   [ '--no-verify', 'bench: skip host/selfhost output parity checks' ],
   [ '--compare PATH', 'bench: compare against given porf binary instead of node Porffor' ],
-  [ '--noop-precompiled', 'build a temporary bundle without precompiled builtins' ],
   [ '--bench-runs=N', 'runs per compiler for bench (default: 1)' ],
   [ '--detail', 'bench: show phase timings for representative cases' ],
   [ '--skip=a,b', 'skip named cases for verify and bench' ],
@@ -130,7 +134,6 @@ ${helpRows([
   [ '--compare=X', 'compare report against the compile N runs ago, or nearest to a date/time (default: 1)' ],
   [ '--size-graph[=FILE]', 'write compare history binary-size SVG (default: /tmp/porffor-selfhost/size.svg)' ],
   [ '--svg[=FILE]', 'alias for --size-graph' ],
-  [ '--skip-bundle', 'compile using the existing selfhost bundle' ],
   [ '--split-diff', 'use side-by-side difftastic output for c' ],
   [ '--stack=N', 'lldb stack interval in seconds; 0 disables (default: 0)' ],
   [ '-v', 'show commands and detailed compiler output' ],
@@ -148,23 +151,15 @@ const parseArgs = argv => {
     if (arg === '--no-monitor') opts.monitor = false;
     else if (arg === '--native-checks') opts.nativeChecks = true;
     else if (arg === '--no-verify') opts.verifyBench = false;
-    else if (arg === '--noop-precompiled') opts.noopPrecompiled = true;
+    else if (arg === '--pgo') opts.pgo = true;
     else if (arg.startsWith('--bench-runs=')) opts.benchRuns = +arg.slice('--bench-runs='.length);
     else if (arg === '--detail') opts.detail = true;
     else if (arg === '--no-split-diff') opts.splitDiff = false;
     else if (arg === '--split-diff') opts.splitDiff = true;
-    else if (arg === '--release') {
-      opts.compiler = process.env.SELFHOST_RELEASE_CC ?? process.env.CC ?? 'cc';
-      opts.ccOpts = [ '-O3', '-flto=thin' ];
-      opts.release = true;
-    }
-    else if (/^-O(?:[0-3g]|fast|s|z)$/.test(arg)) {
-      opts.ccOpts = opts.ccOpts.filter(x => !/^-O(?:[0-3g]|fast|s|z)$/.test(x));
-      opts.ccOpts.unshift(arg);
-    }
-    else if (arg.startsWith('--cc-opts=')) opts.ccOpts = arg.slice('--cc-opts='.length).split(/\s+/).filter(Boolean);
+    else if (/^-O(?:[0-3g]|fast|s|z)$/.test(arg)) opts.O = arg.slice(2);
     else if (arg === '--tcc') opts.compiler = process.env.TCC ?? 'tcc';
     else if (arg.startsWith('--tcc=')) opts.compiler = arg.slice('--tcc='.length);
+    else if (arg.startsWith('--cc=')) opts.compiler = arg.slice('--cc='.length);
     else if (arg.startsWith('--diff-context=')) opts.diffContext = +arg.slice('--diff-context='.length);
     else if (arg.startsWith('--poll=')) opts.pollEvery = +arg.slice('--poll='.length);
     else if (arg.startsWith('--compare=')) opts.compare = arg.slice('--compare='.length);
@@ -174,14 +169,11 @@ const parseArgs = argv => {
     else if (arg.startsWith('--svg=')) opts.sizeGraph = arg.slice('--svg='.length);
     else if (arg === '--svg') opts.sizeGraph = argv[i + 1]?.[0] === '-' || argv[i + 1] == null ? inTmp('size.svg') : argv[++i];
     else if (arg.startsWith('--skip=')) opts.skip = arg.slice('--skip='.length).split(',').map(x => x.trim()).filter(Boolean);
-    else if (arg === '--skip-bundle') opts.skipBundle = true;
     else if (arg.startsWith('--stack=')) opts.stackEvery = +arg.slice('--stack='.length);
     else if (arg === '-v') opts.verbose = true;
     else if (arg[0] === '-') opts.porfFlags.push(arg); // unknown flags pass through to porf
     else rest.push(arg);
   }
-
-  if (isTinyCC(compilerArgs(opts))) opts.ccOpts = opts.ccOpts.filter(x => !x.startsWith('-flto'));
 
   return { cmd: rest[0] ?? 'help', opts };
 };
@@ -196,10 +188,8 @@ const quote = value => {
 
 const commandText = (cmd, args) => [ cmd, ...args ].map(quote).join(' ');
 let printedCommand = false;
-const hostPorfDebugArgs = opts => [ ...(opts.release ? [] : [ '-d' ]), ...opts.porfFlags ];
 const porfDebugArgs = opts => [ ...opts.porfFlags ];
 const commandExists = cmd => spawnSync(cmd, [ '--version' ], { stdio: 'ignore' }).status === 0;
-const bundleCommand = () => process.env.SELFHOST_BUNDLE_CMD ?? (commandExists('bun') ? 'bun' : 'node');
 
 const llvmProfdataCommand = compiler => {
   if (process.env.SELFHOST_LLVM_PROFDATA) return process.env.SELFHOST_LLVM_PROFDATA.split(/\s+/).filter(Boolean);
@@ -213,8 +203,6 @@ const llvmProfdataCommand = compiler => {
   process.exit(1);
 };
 
-const isTinyCC = compiler => path.basename(compiler[0]) === 'tcc';
-
 const compilerArgs = opts => {
   const compiler = opts.compiler.split(/\s+/).filter(Boolean);
   if (compiler.length === 0) compiler.push('cc');
@@ -224,42 +212,12 @@ const compilerArgs = opts => {
     if (base !== '.' && fs.existsSync(path.join(base, 'libtcc1.a'))) compiler.push(`-B${base}`);
       else if (fs.existsSync(path.join(homeTcc, 'libtcc1.a'))) compiler.push(`-B${homeTcc}`);
   }
-  if (process.platform === 'darwin' && isTinyCC(compiler))
-    compiler.push('-D_XOPEN_SOURCE=600', '-D_DARWIN_C_SOURCE');
 
   return compiler;
 };
 
-const releaseStripArgs = (compiler, opts) =>
-  !opts.release ? [] :
-    process.platform === 'darwin' && !isTinyCC(compiler) ? [ '-Wl,-x' ] : [ '-s' ];
-
-const patchMachOStackSize = (file, stackSize = 0x4000000n) => {
-  if (process.platform !== 'darwin') return;
-
-  const buf = fs.readFileSync(file);
-  if (buf.length < 32 || buf.readUInt32LE(0) !== 0xfeedfacf) return;
-
-  const ncmds = buf.readUInt32LE(16);
-  let off = 32;
-  for (let i = 0; i < ncmds && off + 8 <= buf.length; i++) {
-    const cmd = buf.readUInt32LE(off);
-    const cmdsize = buf.readUInt32LE(off + 4);
-    if (cmd === 0x80000028 && cmdsize >= 24 && off + 24 <= buf.length) {
-      if (buf.readBigUInt64LE(off + 16) !== stackSize) {
-        buf.writeBigUInt64LE(stackSize, off + 16);
-        fs.writeFileSync(file, buf);
-        spawnSync('codesign', [ '-s', '-', '-f', file ], { stdio: 'ignore' });
-      }
-      return;
-    }
-    if (cmdsize < 8) return;
-    off += cmdsize;
-  }
-};
-
 // compile reports only compare same-kind entries: release (optimized) vs debug
-const buildKind = opts => opts.ccOpts.some(x => /^-O(?:[1-3]|fast|s|z)$/.test(x)) ? 'release' : 'debug';
+const buildKind = opts => /^(?:[1-3]|fast|s|z)$/.test(String(opts.O)) ? 'release' : 'debug';
 const entryKind = build => build === 'release' || build === 'debug' ? build :
   build == null ? null : /-O(?:[1-3]|fast|s|z)\b/.test(build) ? 'release' : 'debug';
 
@@ -583,15 +541,6 @@ const sampleStack = (pid, elapsed, rss, lldbLog) => {
   if (frames.length > 0) console.log(frames.join('\n'));
 };
 
-const buildBundle = async (opts, quiet = false) => {
-  const start = performance.now();
-  await run('bundle', bundleCommand(), [ 'selfhosted/build.mjs' ], null, opts, {
-    env: { SELFHOST_NOOP_PRECOMPILED: opts.noopPrecompiled ? '1' : '0' },
-    quiet: true
-  });
-  if (!quiet || opts.verbose) showFinished('bundled porffor', bundle, performance.now() - start);
-};
-
 const requireBuiltSelfhost = () => {
   if (!fs.existsSync(porf)) {
     console.log(red(`missing selfhost binary: ${porf}`));
@@ -600,47 +549,30 @@ const requireBuiltSelfhost = () => {
   }
 };
 
+// node porffor builds the compiler natively (split units, cached)
 const compileSelfhost = async opts => {
   const start = performance.now();
-  const transient = !opts.verbose && process.stdout.isTTY;
-  if (opts.skipBundle) {
-    if (!fs.existsSync(bundle)) {
-      console.log(red(`missing selfhost bundle: ${bundle}`));
-      console.log(dim('run ./selfhost bundle or ./selfhost compile'));
-      process.exit(1);
-    }
-  } else {
-    await runCompileStep('bundled selfhost compiler', bundleCommand(), [ 'selfhosted/build.mjs' ], {
-      env: { SELFHOST_NOOP_PRECOMPILED: opts.noopPrecompiled ? '1' : '0' }
-    });
-  }
-  await runCompileStep('compiled selfhost bundle to C', nodePorf[0], [ ...nodePorf.slice(1), 'c', '--compress-data', ...hostPorfDebugArgs(opts), '--profile-compiler', bundle, '-o', stage1C ]);
-  const compiler = compilerArgs(opts);
-  const releaseCodegenArgs = opts.release ? [ '-mllvm', '-force-attribute=porf_strict_eq:noinline' ] : [];
-  if (opts.release) {
+  const cc = compilerArgs(opts);
+  const ccEnv = extra => ({ CC: [ ...cc, ...extra ].join(' ') });
+  const nativeArgs = (out, O, flto) => [
+    ...nodePorf.slice(1), 'native', ...selfhostArgs, '--compress-data', '-o', out, `-O${O}`,
+    ...(flto ? [ '--flto=thin' ] : []), ...porfDebugArgs(opts)
+  ];
+
+  if (opts.pgo) {
+    // instrument at -O0, train on the compiler itself, merge, then rebuild with the profile
     fs.rmSync(pgoRaw, { force: true });
-    await runCompileStep('compiled PGO training binary', compiler[0], [
-      ...compiler.slice(1),
-      stage1C, '-o', pgoCompiler, '-lm',
-      ...(process.platform === 'darwin' && !isTinyCC(compiler) ? [ '-Wl,-stack_size,0x4000000' ] : []),
-      '-O0',
-      `-fprofile-instr-generate=${pgoRaw}`
-    ]);
-    await runCompileStep('profiled selfhost compiler', pgoCompiler, [ 'c', bundle, '-o', pgoOutput ]);
-    const profdata = llvmProfdataCommand(compiler);
+    await runCompileStep('compiled PGO instrumented binary', nodePorf[0],
+      nativeArgs(pgoCompiler, '0', false), { env: ccEnv([ `-fprofile-instr-generate=${pgoRaw}` ]) });
+    await runCompileStep('profiled selfhost compiler', pgoCompiler, [ 'c', ...selfhostArgs, '-o', pgoOutput ]);
+    const profdata = llvmProfdataCommand(cc);
     await runCompileStep('merged PGO profile', profdata[0], [ ...profdata.slice(1), 'merge', '-o', pgoProfile, pgoRaw ]);
+    await runCompileStep('compiled selfhost binary (pgo)', nodePorf[0],
+      nativeArgs(porf, opts.O, true), { env: ccEnv([ `-fprofile-instr-use=${pgoProfile}`, '-mllvm', '-force-attribute=porf_strict_eq:noinline' ]) });
+  } else {
+    await runCompileStep('compiled selfhost binary', nodePorf[0], nativeArgs(porf, opts.O, false), { env: ccEnv([]) });
   }
-  await runCompileStep(opts.release ? 'compiled release binary' : 'compiled selfhost binary', compiler[0], [
-    ...compiler.slice(1),
-    stage1C, '-o', porf, '-lm',
-    ...(process.platform === 'darwin' && !isTinyCC(compiler) ? [ '-Wl,-stack_size,0x4000000' ] : []),
-    ...releaseStripArgs(compiler, opts),
-    ...releaseCodegenArgs,
-    ...opts.ccOpts,
-    ...(opts.release ? [ `-fprofile-instr-use=${pgoProfile}` ] : [])
-  ]);
-  patchMachOStackSize(porf);
-  if (transient || opts.verbose) process.stdout.write('\n');
+
   showFinished(`compiled ${porf}`, porf, performance.now() - start);
   showSelfhostReport(opts);
   showSelfhostDone(porf, performance.now() - start, opts);
@@ -648,13 +580,13 @@ const compileSelfhost = async opts => {
 
 const c = async opts => {
   requireBuiltSelfhost();
-  await run('selfhost to c', porf, [ 'c', ...porfDebugArgs(opts), bundle, '-o', stage2C ], logPath('stage2-c'), opts, { monitor: true });
+  await run('selfhost to c', porf, [ 'c', ...porfDebugArgs(opts), ...selfhostArgs, '-o', stage2C ], logPath('stage2-c'), opts, { monitor: true });
   showFile(stage2C);
 };
 
 const native = async opts => {
   requireBuiltSelfhost();
-  await run('selfhost to native', porf, [ 'native', ...porfDebugArgs(opts), bundle, '-o', stage2Native ], logPath('stage2-native'), opts, { monitor: true });
+  await run('selfhost to native', porf, [ 'native', ...porfDebugArgs(opts), ...selfhostArgs, '-o', stage2Native ], logPath('stage2-native'), opts, { monitor: true });
   showFile(stage2Native);
 };
 
@@ -761,8 +693,8 @@ const verify = async opts => {
   requireBuiltSelfhost();
   await verifyParityCases(opts);
   const stage2HostC = inTmp('stage2-host.c');
-  await run('host selfhost bundle to C', nodePorf[0], [ ...nodePorf.slice(1), 'c', ...porfDebugArgs(opts), '--profile-compiler', bundle, '-o', stage2HostC ], null, opts, { silent: true });
-  await run('selfhost to C', porf, [ 'c', ...porfDebugArgs(opts), bundle, '-o', stage2C ], logPath('stage2-c'), opts, { monitor: true, silent: true });
+  await run('host selfhost to C', nodePorf[0], [ ...nodePorf.slice(1), 'c', ...porfDebugArgs(opts), '--profile-compiler', ...selfhostArgs, '-o', stage2HostC ], null, opts, { silent: true });
+  await run('selfhost to C', porf, [ 'c', ...porfDebugArgs(opts), ...selfhostArgs, '-o', stage2C ], logPath('stage2-c'), opts, { monitor: true, silent: true });
   const same = fs.readFileSync(stage2HostC).equals(fs.readFileSync(stage2C));
   if (same) {
     await compareFiles('stage2 c parity', stage2HostC, stage2C, opts);
@@ -774,8 +706,8 @@ const verify = async opts => {
   console.log(`\n${bold('-d rerun')}`);
   const stage2HostDebugC = inTmp('stage2-host-debug.c');
   const stage2SelfDebugC = inTmp('stage2-selfhost-debug.c');
-  await run('host selfhost bundle to C -d', nodePorf[0], [ ...nodePorf.slice(1), 'c', '-d', ...porfDebugArgs(opts), '--profile-compiler', bundle, '-o', stage2HostDebugC ], null, opts, { silent: true });
-  await run('selfhost bundle to C -d', porf, [ 'c', '-d', ...porfDebugArgs(opts), bundle, '-o', stage2SelfDebugC ], logPath('stage2-c-debug'), opts, { monitor: true, silent: true });
+  await run('host selfhost to C -d', nodePorf[0], [ ...nodePorf.slice(1), 'c', '-d', ...porfDebugArgs(opts), '--profile-compiler', ...selfhostArgs, '-o', stage2HostDebugC ], null, opts, { silent: true });
+  await run('selfhost to C -d', porf, [ 'c', '-d', ...porfDebugArgs(opts), ...selfhostArgs, '-o', stage2SelfDebugC ], logPath('stage2-c-debug'), opts, { monitor: true, silent: true });
   if (fs.readFileSync(stage2HostDebugC).equals(fs.readFileSync(stage2SelfDebugC))) {
     console.log(dim(`${stage2SelfDebugC} matches ${stage2HostDebugC}`));
   } else {
@@ -1067,7 +999,7 @@ const bench = async opts => {
 
   const verifyCases = [
     ...parityCases,
-    [ 'selfhost', bundle ],
+    [ 'selfhost', selfhostEntry ],
     [ 'tsc', 'exp/tsc/out/release/bundle.js' ]
   ];
   const benchCases = verifyCases.filter(([ name ]) =>
@@ -1183,17 +1115,6 @@ const showFinished = (label, output, total) => {
   const text = `${dim(`[${formatCompileTime(total)}]`)} ${green(`compiled ${outputPath}`)}${ansi(90)}${reset}\n`;
   if (transientMode) transientLog(text);
     else process.stdout.write(text);
-};
-
-const fileLoc = file => {
-  const source = fs.readFileSync(file, 'utf8');
-  if (source.length === 0) return 0;
-  let lines = 1;
-  for (let i = 0; i < source.length; i++) {
-    if (source.charCodeAt(i) === 10) lines++;
-  }
-  if (source.charCodeAt(source.length - 1) === 10) lines--;
-  return lines;
 };
 
 const reportLines = lines => {
@@ -1404,47 +1325,38 @@ const resolveCompare = (history, compare) => {
 };
 
 const printComparison = (stats, previous) => {
-  const rows = [
-    {
-      label: 'bundle',
-      first: {
-        current: reportLines(stats.bundle.lines),
-        delta: lineDelta(stats.bundle, previous?.bundle)
-      },
-      color: cyan,
-      second: {
-        current: currentSizeText(stats.bundle),
-        delta: sizeDelta(stats.bundle, previous?.bundle)
-      }
-    },
-    {
-      label: 'c',
-      first: {
-        current: reportLines(stats.stage1C.lines),
-        delta: lineDelta(stats.stage1C, previous?.stage1C)
-      },
-      color: cyan,
-      second: {
-        current: currentSizeText(stats.stage1C),
-        delta: sizeDelta(stats.stage1C, previous?.stage1C)
-      }
-    },
-    {
-      label: 'binary',
-      first: {
-        current: currentSizeText(stats.porf),
-        delta: sizeDelta(stats.porf, previous?.porf)
-      },
-      color: yellow
-    }
-  ];
+  const rows = [];
+  if (stats.c) rows.push({
+    label: 'c',
+    first: { current: reportLines(stats.c.lines), delta: lineDelta(stats.c, previous?.c) },
+    color: cyan,
+    second: { current: currentSizeText(stats.c), delta: sizeDelta(stats.c, previous?.c) }
+  });
+  rows.push({
+    label: 'binary',
+    first: { current: currentSizeText(stats.porf), delta: sizeDelta(stats.porf, previous?.porf) },
+    color: yellow
+  });
   const firstWidth = Math.max(...rows.map(x => metricPlain(x.first).length));
-  const sizeWidth = Math.max(...rows.filter(x => x.second).map(x => x.second.current.length));
+  const sizeWidth = Math.max(...rows.filter(x => x.second).map(x => x.second.current.length), 0);
   for (const row of rows) reportRow(row, firstWidth, sizeWidth);
 };
 
+// sum the split C units porffor's native build cached for the selfhost entry
+const cachedCStats = () => {
+  if (!fs.existsSync(buildDir)) return null;
+  let lines = 0, bytes = 0;
+  for (const name of fs.readdirSync(buildDir)) {
+    if (!/\.(c|cpp|h)$/.test(name)) continue;
+    const text = fs.readFileSync(path.join(buildDir, name), 'utf8');
+    lines += text.split('\n').length;
+    bytes += Buffer.byteLength(text);
+  }
+  return { file: buildDir, lines, bytes };
+};
+
 const showSelfhostReport = opts => {
-  if (!fs.existsSync(bundle) || !fs.existsSync(stage1C) || !fs.existsSync(porf)) return;
+  if (!fs.existsSync(porf)) return;
 
   const build = buildKind(opts);
   const history = readHistory().filter(x => entryKind(x.build) === build);
@@ -1455,9 +1367,9 @@ const showSelfhostReport = opts => {
     const age = previous.time ? `, ${relativeAge(Date.now() - previous.time)}` : '';
     console.log(`  ${dim(`vs ${back} ${build} compile${back === 1 ? '' : 's'} ago${age}`)}`);
   }
+  const c = cachedCStats();
   const stats = {
-    bundle: { file: bundle, lines: fileLoc(bundle), bytes: fs.statSync(bundle).size },
-    stage1C: { file: stage1C, lines: fileLoc(stage1C), bytes: fs.statSync(stage1C).size },
+    ...(c ? { c } : {}),
     porf: { file: porf, bytes: fs.statSync(porf).size }
   };
   printComparison(stats, previous);
@@ -1478,7 +1390,7 @@ const compareTui = async opts => {
     return;
   }
 
-  const history = readHistory().filter(x => x.time != null && x.bundle && x.stage1C && x.porf);
+  const history = readHistory().filter(x => x.time != null && x.porf);
   if (history.length < 2) {
     console.log(dim(`need at least 2 recorded compiles (${compileHistory})`));
     return;
@@ -1496,7 +1408,7 @@ const compareTui = async opts => {
     return kind === 'release' ? yellow('release') : kind === 'debug' ? cyan('debug  ') : dim('?      ');
   };
   const entryText = x =>
-    `${stamp(x)}  ${relativeAge(Date.now() - x.time).padStart(9)}  c ${currentSizeText(x.stage1C).padStart(8)}  binary ${currentSizeText(x.porf).padStart(8)}`;
+    `${stamp(x)}  ${relativeAge(Date.now() - x.time).padStart(9)}  c ${currentSizeText(x.c ?? { bytes: 0 }).padStart(8)}  binary ${currentSizeText(x.porf).padStart(8)}`;
 
   const tty = process.stdin.isTTY && process.stdout.isTTY;
   if (!tty) {
@@ -1580,15 +1492,9 @@ const compareTui = async opts => {
 };
 
 const clean = () => {
-  for (const file of fs.readdirSync(selfhostDir)) {
-    if (
-      file === 'build.mjs' ||
-      file === 'native.js'
-    ) continue;
-
-    fs.rmSync(path.join(selfhostDir, file), { recursive: true, force: true });
-  }
+  fs.rmSync(selfhostDir, { recursive: true, force: true });
   fs.rmSync(tmpDir, { recursive: true, force: true });
+  fs.rmSync(buildDir, { recursive: true, force: true });
   console.log(green('clean ok'));
 };
 
@@ -1598,7 +1504,6 @@ const main = async () => {
   fs.mkdirSync(tmpDir, { recursive: true });
 
   if (cmd === 'help' || cmd === '--help' || cmd === '-h') usage();
-  else if (cmd === 'bundle') await buildBundle(opts);
   else if (cmd === 'compile') await compileSelfhost(opts);
   else if (cmd === 'verify') await verify(opts);
   else if (cmd === 'bench') await bench(opts);

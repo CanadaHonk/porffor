@@ -4,7 +4,6 @@
 /exp
 
 # selfhosted artifacts
-selfhosted/bundle.js
 selfhosted/porf*
 selfhosted/*.c
 

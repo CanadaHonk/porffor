@@ -57,7 +57,7 @@ const progressStart = msg => {
   if (process.argv0 === 'node') progressInterval = setInterval(log, 100);
 };
 const progressDone = (msg, start) => {
-  clearInterval(progressInterval);
+  if (progressInterval) clearInterval(progressInterval);
 
   const timeStr = (performance.now() - start).toFixed(0);
   console.log(`${process.stdout.isTTY ? `\r${' '.repeat(60)}\r` : ''}${ansi(2)}${' '.repeat(10 - timeStr.length)}${timeStr}ms${ansi(0)}  ${ansi(92)}${msg}${ansi(0)}`);
@@ -66,7 +66,7 @@ const progressDone = (msg, start) => {
 const progressClear = () => {
   if (!process.stdout.isTTY) return;
 
-  clearInterval(progressInterval);
+  if (progressInterval) clearInterval(progressInterval);
   process.stdout.write(`\u001b[${progressLines}F\u001b[0J`);
   progressLines = 0;
 };

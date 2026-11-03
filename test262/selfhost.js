@@ -58,9 +58,15 @@ try {
 
 // a stale binary silently misattributes compiler changes - warn loudly
 try {
-  const bundleTime = fs.statSync(join(__dirname, '..', 'selfhosted', 'bundle.js')).mtimeMs;
-  if (fs.statSync(selfhostBin).mtimeMs < bundleTime)
-    console.warn(`${selfhostBin} is older than selfhosted/bundle.js - results may not reflect current compiler`);
+  let newest = 0;
+  for (const d of [ 'compiler', 'compiler/builtins', 'compiler/parser', 'runtime', 'runtime/node' ]) {
+    const dir = join(__dirname, '..', d);
+    for (const f of fs.readdirSync(dir)) {
+      if (/\.(js|ts)$/.test(f)) newest = Math.max(newest, fs.statSync(join(dir, f)).mtimeMs);
+    }
+  }
+  if (fs.statSync(selfhostBin).mtimeMs < newest)
+    console.warn(`${selfhostBin} is older than the compiler sources - results may not reflect current compiler`);
 } catch {}
 
 const resolveTccPath = tcc => {
