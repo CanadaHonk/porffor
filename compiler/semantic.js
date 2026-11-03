@@ -763,7 +763,8 @@ const annotate = (node, parent = null, key = null) => {
       let variable = resolveVariable(name);
       // params do not see the body's vars
       if (variable?.kind === 'var' && !variable.inParams && variable.scope === paramTdz?.func) variable = resolveVariable(name, scopes.indexOf(variable.scope));
-      if (name[0] !== '#') markWiths(node, variable);
+      // objectHack's __Object_member names are builtin member reads, not with lookups
+      if (name[0] !== '#' && !node._builtinMember) markWiths(node, variable);
       if (variable) {
         node._resolvedBinding = true;
         node._resolvedVariable = variable;

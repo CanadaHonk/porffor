@@ -724,7 +724,8 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
     }
 
     case 'WithStatement':
-      genStmt(scope, { type: 'AssignmentExpression', operator: '=', left: decl._withWrite, right: { type: 'CallExpression', callee: identNode('__ecma262_ToObject'), arguments: [ decl.object ] } });
+      // declared, not assigned: strict (module) code has no implicit globals
+      genStmt(scope, { type: 'VariableDeclaration', kind: 'let', declarations: [ { type: 'VariableDeclarator', id: decl._withWrite, init: { type: 'CallExpression', callee: identNode('__ecma262_ToObject'), arguments: [ decl.object ] } } ] });
       return generate(scope, decl.body);
 
     case 'TSEnumDeclaration':
