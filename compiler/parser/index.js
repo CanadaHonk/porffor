@@ -2945,7 +2945,7 @@ const exitClassBody = () => {
 
 const isPrivateNameConflicted = (declared, element) => {
   const name = element.key.name;
-  const curr = declared[name];
+  const curr = Object.hasOwn(declared, name) && declared[name];
   let next_ = 'true';
   if (element.type === 'MethodDefinition' && (element.kind === 'get' || element.kind === 'set'))
     next_ = (element.static ? 's' : 'i') + element.kind;
