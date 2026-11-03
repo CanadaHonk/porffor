@@ -140,8 +140,8 @@ export const sanitize = str => {
   }
   if (out.length === 0) out = 'anon';
   if (out[0] >= '0' && out[0] <= '9') out = '_' + out;
-  // keep prefixing: one '_' can itself collide (exit -> _exit)
-  while (cReservedNames.has(out) || sanitizeUsed.has(out)) out = '_' + out;
+  // keep prefixing: one '_' can itself collide (exit -> _exit), and all-caps names may be header macros (FALSE, ENOENT)
+  while (cReservedNames.has(out) || /^[A-Z][A-Z0-9_]*$/.test(out) || sanitizeUsed.has(out)) out = '_' + out;
   sanitizeUsed.add(out);
   sanitizeMemo.set(str, out);
   return out;
@@ -226,6 +226,44 @@ const lz4Compress = src => {
   emitSeq(n - anchor, 0, 0);
   return { out, len: op };
 };
+
+// the executable's file, and where porf_data is in it, to map the image's pages from
+const DATA_MAP = `#include <fcntl.h>
+#if defined(__APPLE__) && !defined(__TINYC__)
+#include <mach-o/ldsyms.h>
+#endif
+static int porf_data_file(off_t *off) {
+#ifdef __TINYC__
+  return -1;
+#else
+  if (sysconf(_SC_PAGESIZE) > 16384) return -1;
+  char path[4096];
+#ifdef __APPLE__
+  uint32_t size = sizeof(path);
+  if (_NSGetExecutablePath(path, &size) != 0) return -1;
+  // __TEXT starts the file
+  *off = (off_t)(porf_data - (const u8*)&_mh_execute_header);
+#else
+  // the mapping holding porf_data: its start, file offset and path
+  FILE *maps = fopen("/proc/self/maps", "r");
+  if (!maps) return -1;
+  *off = -1;
+  while (*off < 0 && fgets(path, sizeof(path), maps)) {
+    unsigned long lo, hi, at;
+    int name = 0;
+    if (sscanf(path, "%lx-%lx %*s %lx %*s %*s %n", &lo, &hi, &at, &name) < 3 || name == 0 || (uintptr_t)porf_data < lo || (uintptr_t)porf_data >= hi) continue;
+    memmove(path, path + name, strlen(path + name) + 1);
+    path[strcspn(path, "\\n")] = 0;
+    *off = (off_t)((uintptr_t)porf_data - lo + at);
+  }
+  fclose(maps);
+  if (*off < 0) return -1;
+#endif
+  return open(path, O_RDONLY);
+#endif
+}
+
+`;
 
 const LZ4_DECODE = `static void porf_lz4_decode(const u8* src, u32 slen, u8* dst) {
   const u8* send = src + slen;
@@ -344,18 +382,22 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     ? (value, promise) => `(void)${fnSym(promiseResolveFunc)}(${value}, ${promise});`
     : (value, promise) => `porf_promise_settle_direct(${promise}, ${value}, 1);`;
 
-  // static layout: one data block per unit, then function records, then name strings
+  // static layout: one data block per unit, then function records, then name strings, then all-zero segments (not stored)
   const align8 = x => (x + 7) & ~7;
-  const dataOffsets = [], dbase = {};
+  const dataOffsets = [], dbase = {}, zbase = {};
+  const zeroed = data.map(seg => !seg.staticArray && seg.every(b => b === 0));
   let off = 16; // 0 reserved (null), small pad
-  for (const u of unitOrder) {
-    dbase[u] = off;
-    for (let i = 0; i < data.length; i++) {
-      if (dataUnits[i] !== u) continue;
-      dataOffsets[i] = off;
-      off += align8(data[i].length);
+  const placeData = (bases, zero) => {
+    for (const u of unitOrder) {
+      bases[u] = off;
+      for (let i = 0; i < data.length; i++) {
+        if (dataUnits[i] !== u || zeroed[i] !== zero) continue;
+        dataOffsets[i] = off;
+        off += align8(data[i].length);
+      }
     }
-  }
+  };
+  placeData(dbase, false);
   const fnrecBase = off;
   off += linkFuncs.length * 8;
   const builtinName = name => {
@@ -380,11 +422,13 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     fnNameSegs.push({ off, bytes });
     off += align8(bytes.length);
   }
+  const imageEnd = off;
+  placeData(zbase, true);
   const staticEnd = off;
 
   // per-unit output and what it references (externs and prototypes in split mode)
   const unitParts = Object.create(null);
-  const partsOf = u => unitParts[u] ??= { out: [], chunks: [], protos: [], globals: Object.create(null), fnbases: Object.create(null), dbases: Object.create(null) };
+  const partsOf = u => unitParts[u] ??= { out: [], chunks: [], protos: [], globals: Object.create(null), fnbases: Object.create(null), dbases: Object.create(null), zbases: Object.create(null) };
   let cur = partsOf('main');
   let emitBuf = null;
   const emit = s => {
@@ -465,6 +509,10 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         const id = node[N_A];
         if (!split) return [`${dataOffsets[id]}u`, P_PRIM];
         const u = dataUnits[id];
+        if (zeroed[id]) {
+          cur.zbases[u] = true;
+          return [`(porf_zbase_${sanitize(u)} + ${dataOffsets[id] - zbase[u]}u)`, P_PRIM];
+        }
         cur.dbases[u] = true;
         return [`(porf_dbase_${sanitize(u)} + ${dataOffsets[id] - dbase[u]}u)`, P_PRIM];
       }
@@ -1408,7 +1456,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     // static data is constant bytes at fixed offsets: one contiguous image (holes stay
     // zero) init'd by a single memcpy, emitted as string literals (~1 char per ascii byte)
     const imageBase = 16;
-    const image = new Uint8Array(staticEnd - imageBase);
+    const image = new Uint8Array(imageEnd - imageBase);
     const writeBytes = (off, bytes) => {
       off -= imageBase;
       for (let k = 0; k < bytes.length; k++) image[off + k] = bytes[k];
@@ -1422,6 +1470,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     for (let i = 0; i < linkFuncs.length; i++) writeU32(fnrecBase + i * 8, i);
     for (const { off, bytes } of fnNameSegs) writeBytes(off, bytes);
     for (let i = 0; i < data.length; i++) {
+      if (zeroed[i]) continue;
       const seg = data[i];
       const off = dataOffsets[i];
       if (seg.staticArray) {
@@ -1446,14 +1495,62 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
       writeBytes(off, seg);
     }
 
-    let blob = image, blobLen = image.length;
-    let init = `static void porf_data_init(void) {\n  memcpy(MEM + ${imageBase}, porf_data, ${image.length}u);\n}\n\n`;
-    if (prefs.compressData && image.length > 0) {
-      const compressed = lz4Compress(image);
-      if (compressed.len < image.length) {
+    // the arena starts zeroed: long zero runs (inline cache slots) are left out of the image
+    const runs = [];
+    for (let i = 0; i < image.length;) {
+      while (i < image.length && image[i] === 0) i++;
+      if (i === image.length) break;
+      let end = i, zeros = 0;
+      for (; end < image.length && zeros < 256; end++) zeros = image[end] === 0 ? zeros + 1 : 0;
+      runs.push([ i, end - zeros ]);
+      i = end;
+    }
+    let blobLen = runs.reduce((acc, [ start, end ]) => acc + end - start, 0);
+    let blob = new Uint8Array(blobLen);
+    for (let i = 0, at = 0; i < runs.length; i++) {
+      blob.set(image.subarray(runs[i][0], runs[i][1]), at);
+      at += runs[i][1] - runs[i][0];
+    }
+    const runsTable = `static const u32 porf_data_runs[] = { ${runs.map(([ start, end ]) => `${imageBase + start}u, ${end - start}u`).join(', ')} };\n`;
+    const scatter = `  for (u32 i = 0; i < ${runs.length * 2}u; i += 2) {\n    memcpy(MEM + porf_data_runs[i], src, porf_data_runs[i + 1]);\n    src += porf_data_runs[i + 1];\n  }\n`;
+    let init = runsTable + `static void porf_data_init(void) {\n  const u8* src = porf_data;\n${scatter}}\n\n`;
+    // big images (embedded files) keep their non-zero 16KB pages, mapped from the binary so unwritten ones stay shared
+    let align = '';
+    const P = 16384, full = Math.floor(imageEnd / P), pageRuns = [];
+    if (image.length >= 65536) {
+      for (let pg = 1; pg < full; pg++) {
+        if (image.subarray(pg * P - imageBase, (pg + 1) * P - imageBase).every(b => b === 0)) continue;
+        if (pageRuns.length > 0 && pageRuns.at(-1)[0] + pageRuns.at(-1)[1] === pg) pageRuns.at(-1)[1]++;
+          else pageRuns.push([ pg, 1 ]);
+      }
+    }
+    const pages = pageRuns.reduce((acc, [ , n ]) => acc + n, 0);
+    if (!prefs.compressData && pages > 0 && pages * P <= blobLen * 1.25) {
+      const tail = imageEnd - full * P;
+      blob = new Uint8Array((1 + pages) * P + tail);
+      blob.set(image.subarray(0, P - imageBase), imageBase);
+      let next = 1;
+      for (const run of pageRuns) {
+        blob.set(image.subarray(run[0] * P - imageBase, (run[0] + run[1]) * P - imageBase), next * P);
+        run.push(next);
+        next += run[1];
+      }
+      blob.set(image.subarray(full * P - imageBase), next * P);
+      blobLen = blob.length;
+      align = ' __attribute__((aligned(16384)))';
+      init = DATA_MAP + `static const u32 porf_data_pages[] = { ${pageRuns.map(([ pg, n, b ]) => `${pg * P}u, ${b * P}u, ${n * P}u`).join(', ')} };\n` +
+        `static void porf_data_init(void) {\n  memcpy(MEM + ${imageBase}, porf_data + ${imageBase}, ${P - imageBase}u);\n  memcpy(MEM + ${full * P}u, porf_data + ${next * P}u, ${tail}u);\n` +
+        `  off_t off;\n  const int fd = porf_data_file(&off);\n  for (u32 i = 0; i < ${pageRuns.length * 3}u; i += 3) {\n` +
+        `    const u32 mem = porf_data_pages[i], at = porf_data_pages[i + 1], len = porf_data_pages[i + 2];\n` +
+        `    if (fd < 0 || mmap(MEM + mem, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fd, off + at) == MAP_FAILED) memcpy(MEM + mem, porf_data + at, len);\n` +
+        `  }\n  if (fd >= 0) close(fd);\n}\n\n`;
+    } else if (prefs.compressData && blobLen > 0) {
+      // the runs compress, then decode aside and spread out, never touching the zeros between them
+      const compressed = lz4Compress(blob);
+      if (compressed.len < blobLen) {
+        init = LZ4_DECODE + runsTable + `static void porf_data_init(void) {\n  u8* const runs = mmap(NULL, ${blobLen}u, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);\n  porf_lz4_decode(porf_data, ${compressed.len}u, runs);\n  const u8* src = runs;\n${scatter}  munmap(runs, ${blobLen}u);\n}\n\n`;
         blob = compressed.out;
         blobLen = compressed.len;
-        init = LZ4_DECODE + `static void porf_data_init(void) {\n  porf_lz4_decode(porf_data, ${blobLen}u, MEM + ${imageBase});\n}\n\n`;
       }
     }
 
@@ -1479,7 +1576,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     }
     if (parts.length > 0 || lines.length === 0) lines.push('"' + parts.join('') + '"');
 
-    link.push(`static const u8 porf_data[] =\n${lines.join('\n')};\n${init}`);
+    link.push(`static const u8 porf_data[]${align} =\n${lines.join('\n')};\n${init}`);
   } else {
     link.push('static void porf_data_init(void) {}\n\n');
   }
@@ -1551,7 +1648,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   link.push(`const u32 porf_static_end = ${staticEnd}u;\n`);
   if (split) {
     link.push(`const u32 porf_fnrecs = ${fnrecBase}u;\n`);
-    for (const u of unitOrder) link.push(`const u32 porf_fnbase_${sanitize(u)} = ${fnBase[u]}u;\nconst u32 porf_dbase_${sanitize(u)} = ${dbase[u]}u;\n`);
+    for (const u of unitOrder) link.push(`const u32 porf_fnbase_${sanitize(u)} = ${fnBase[u]}u;\nconst u32 porf_dbase_${sanitize(u)} = ${dbase[u]}u;\nconst u32 porf_zbase_${sanitize(u)} = ${zbase[u]}u;\n`);
   }
   link.push('\n');
 
@@ -2178,6 +2275,7 @@ int porf_native_fetch_read_value(jsval value, const char** out_buf, size_t* out_
       text.push('#include "porf.h"\n');
       for (const x of Object.keys(parts.fnbases).sort()) text.push(`extern const u32 porf_fnbase_${sanitize(x)};\n`);
       for (const x of Object.keys(parts.dbases).sort()) text.push(`extern const u32 porf_dbase_${sanitize(x)};\n`);
+      for (const x of Object.keys(parts.zbases).sort()) text.push(`extern const u32 porf_zbase_${sanitize(x)};\n`);
       for (const x of Object.keys(parts.globals).sort()) text.push(`extern ${CT[globalTypes[x]]} ${sanitize(x)};\n`);
       for (const f of parts.protos.filter(Boolean).sort((a, b) => linkIdx[a.index] - linkIdx[b.index])) text.push(proto(f));
       text.push('\n');
@@ -2254,7 +2352,7 @@ const splitRuntime = text => {
       else if (c === '}') {
         depth--;
         // a type or initializer runs on to its `;`, a function body ends here
-        if (depth === 0 && eqAt === -1 && !/^(?:typedef|struct|union|enum)\b/.test(text.slice(start, braceAt))) { i++; break; }
+        if (depth === 0 && eqAt === -1 && !/^(?:(?:static|const)\s+)*(?:typedef|struct|union|enum)\b/.test(text.slice(start, braceAt))) { i++; break; }
       }
       else if (c === ';' && depth === 0) { i++; break; }
     }
@@ -4454,7 +4552,8 @@ typedef int64_t i64;
 typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
-typedef struct jsval { f64 val; i32 type; } jsval;
+// a full word of type: gcc handles a padded i32 half with partial register moves and merges
+typedef struct jsval { f64 val; u64 type; } jsval;
 typedef u64 jsbits;
 
 ${prefs.nativeFetch ? `typedef struct NativeFetchResponseParts {
@@ -4539,6 +4638,8 @@ static inline f64 porf_jsval_to_f64(jsval v) { return v.val; }
 
 static inline int porf_jv_is_num(jsval v) { return v.type == ${TYPES.number}; }
 static inline i32 porf_jv_type(jsval v) { return v.type; }
+static inline f64 porf_jv_val(jsval v) { return v.val; }
+static inline u32 porf_jv_ptr(jsval v) { return (u32)v.val; }
 static inline jsval porf_box_num(f64 d) { return (jsval){d, ${TYPES.number}}; }
 static inline jsval porf_box(f64 payload, i32 type) {
   return type == ${TYPES.number} ? porf_box_num(payload) : (jsval){payload, type};
