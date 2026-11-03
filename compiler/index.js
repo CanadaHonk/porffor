@@ -159,6 +159,23 @@ export default (code, module = Prefs.module, opts = {}) => {
         if (value == null || value === false) continue;
         compilerArgs.push(value === true ? `-${x}` : `-${x}=${value}`);
       }
+      // clang pgo: --pgo-gen builds write a profile per run (killed servers too), --pgo-use builds from them
+      if (Prefs.pgoGen) {
+        const dir = Prefs.pgoGen === true ? `${outFile}.pgo` : Prefs.pgoGen;
+        fs.mkdirSync(dir, { recursive: true });
+        compilerArgs.push(`-fprofile-instr-generate=${fs.realpathSync(dir)}/%c%p.profraw`);
+        if (Prefs.pgo) compilerArgs.push(`-DPORF_PGO_PORT_FILE=\\"${fs.realpathSync(dir)}/port\\"`);
+      }
+      if (Prefs.pgoUse) {
+        let profile = fs.realpathSync(Prefs.pgoUse);
+        if (fs.statSync(profile).isDirectory()) {
+          const major = execSync(`${compiler[0]} --version`, { encoding: 'utf8' }).match(/version (\d+)/)[1];
+          const profdata = process.platform === 'darwin' ? 'xcrun llvm-profdata' : [ 'llvm-profdata', `llvm-profdata-${major}` ].find(x => spawnSync(x, [ '--version' ], { stdio: 'ignore' }).status === 0);
+          execSync(`${profdata} merge -o ${profile}/merged.profdata ${profile}/*.profraw`);
+          profile += '/merged.profdata';
+        }
+        compilerArgs.push(`-fprofile-instr-use=${profile}`, '-Wno-profile-instr-unprofiled', '-Wno-profile-instr-out-of-date');
+      }
       const linkStripArgs = process.platform === 'darwin' ?
         [ '-Wl,-stack_size,0x4000000', ...(Prefs.d ? [] : [ '-Wl,-dead_strip', '-Wl,-dead_strip_dylibs', '-Wl,-x' ]) ] :
         [ '-Wl,--gc-sections' ];
@@ -176,6 +193,8 @@ export default (code, module = Prefs.module, opts = {}) => {
         '-fno-ident', '-ffunction-sections', '-fdata-sections',
         ...darwinReleaseCompileArgs,
         ...compilerArgs,
+        // linux has no continuous mode without it, and only compiles take it
+        ...(Prefs.pgoGen && process.platform !== 'darwin' ? [ '-mllvm', '-runtime-counter-relocation' ] : []),
         `-O${Prefs.O ?? 3}`
       ];
 
@@ -251,8 +270,42 @@ export default (code, module = Prefs.module, opts = {}) => {
       }
     };
 
-    native();
+    // --pgo: instrumented build, train on a run (servers load / or given paths), rebuild with its profile
+    if (Prefs.pgo) {
+      const dir = fs.mkdtempSync(`${(process.env.TMPDIR ?? '/tmp').replace(/\/$/, '')}/porf-pgo-`);
+      Prefs.pgoGen = dir;
+      native();
+      if (logProgress) progressStart('training (pgo)...');
+      const t6 = performance.now();
+      pgoTrain(fs.realpathSync(outFile), `${dir}/port`, Prefs.pgo === true ? '/' : Prefs.pgo);
+      if (logProgress) progressDone('trained (pgo)', t6);
+      Prefs.pgoGen = null;
+      Prefs.pgoUse = dir;
+      native();
+      fs.rmSync(dir, { recursive: true, force: true });
+    } else native();
 
     return;
   }
 };
+
+const pgoTrain = (bin, portFile, paths) => spawnSync(process.execPath, [ '-e', `
+const [ bin, portFile, paths ] = process.argv.slice(1);
+const fs = require('fs');
+const child = require('child_process').spawn(bin, [], { stdio: 'ignore', env: { ...process.env, PORT: '0' } });
+let exited = false;
+child.on('exit', () => exited = true);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+(async () => {
+  for (const end = Date.now() + 30000; !exited && !fs.existsSync(portFile) && Date.now() < end;) await sleep(20);
+  if (!exited && fs.existsSync(portFile)) {
+    const base = 'http://127.0.0.1:' + fs.readFileSync(portFile, 'utf8');
+    const urls = paths.split(',').map(x => base + x);
+    const end = Date.now() + 5000;
+    let next = 0;
+    await Promise.all(Array.from({ length: 4 }, async () => {
+      while (!exited && Date.now() < end) await fetch(urls[next++ % urls.length]).then(r => r.arrayBuffer()).catch(() => sleep(20));
+    }));
+  }
+  if (!exited) child.kill('SIGKILL');
+})();`, bin, portFile, paths ], { stdio: 'inherit' });
