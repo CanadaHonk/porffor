@@ -1,6 +1,10 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S node --experimental-import-text --disable-warning=ExperimentalWarning
 import fs from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { isatty } from 'node:tty';
+import { spawnSync } from 'node:child_process';
+import runtimeImports, { globals as runtimeGlobals } from './node/sources.js';
+import { hashId } from '../compiler/modules.js';
+import parseSource from '../compiler/parser/index.js';
 import '../compiler/prefs.js';
 globalThis.version = 'alpha 1 (ba4813d 2026-07-15)';
 
@@ -10,8 +14,6 @@ const MODULE_SYNTAX_PATTERN = /^\s*(?:export|import)\s/m;
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
   globalThis.process = await import('node:process');
 }
-
-const start = performance.now();
 
 const ansi = code => process.stdout.isTTY ? `\x1B[${code}m` : '';
 
@@ -53,7 +55,6 @@ const help = () => {
   // niche flags
   if (process.argv.includes('all')) {
     for (let [ flag, desc ] of Object.entries({
-      'fast-length': 'Non-compliant optimization to make .length faster',
       'profile-compiler': 'Log general compiler performance (on by default when compiling to a file)',
       'jN': 'Parallel C compile jobs for module builds (default: CPU count)',
     })) {
@@ -70,100 +71,185 @@ const help = () => {
   process.exit(0);
 };
 
-if (process.argv.includes('--help') || process.argv.includes('-h')) {
-  help();
+const looksLikeModule = (filename, source) => MODULE_SYNTAX_PATTERN.test(source) || /\.(mjs|mts)$/i.test(filename);
+const compile = async (source, module, opts) => (await import('../compiler/index.js')).default(source, module, { runtimeImports, runtimeGlobals, ...opts });
+
+// node style: porf [...options] [script.js | -e code | -p code | -] [...args]
+const VALUE_OPTIONS = [ '-e', '--eval', '-p', '--print', '-pe', '-r', '--require', '--import', '--input-type', '-C', '--conditions', '--loader', '--experimental-loader', '--env-file', '--title', '--disable-warning', '--redirect-warnings', '--test-reporter', '--test-reporter-destination', '--watch-path', '--inspect-port' ];
+
+const execArgv = [], prefArgs = [], preload = [], conditions = [];
+let evalSource = null, print = false, check = false, inputType = null;
+const readOptions = (list, record) => {
+  let i = 0;
+  for (; i < list.length && list[i][0] === '-' && list[i] !== '-'; i++) {
+    const arg = list[i];
+    if (arg === '--') return i + 1;
+    const eq = arg.indexOf('=');
+    const name = arg.startsWith('--') && eq > 0 ? arg.slice(0, eq) : arg;
+    let value = name !== arg ? arg.slice(eq + 1) : undefined;
+    if (record) execArgv.push(arg);
+    if (value === undefined && VALUE_OPTIONS.includes(name)) {
+      value = list[++i];
+      if (record) execArgv.push(value);
+    }
+    prefArgs.push(name !== arg && !VALUE_OPTIONS.includes(name) ? arg : name);
+
+    switch (name) {
+      case '-C': case '--conditions':
+        conditions.push(value);
+        break;
+      case '-p': case '--print': case '-pe':
+        print = true;
+      case '-e': case '--eval':
+        evalSource = value;
+        break;
+      case '-r': case '--require': case '--import':
+        preload.push(value);
+        break;
+      case '--input-type':
+        inputType = value;
+        break;
+      case '-c': case '--check':
+        check = true;
+        break;
+    }
+  }
+  return i;
+};
+
+const args = process.argv.slice(2);
+readOptions((process.env.NODE_OPTIONS ?? '').split(/\s+/).filter(Boolean), false);
+const scriptAt = readOptions(args, true);
+if (conditions.length > 0) prefArgs.push(`--conditions=${conditions.join(',')}`);
+const options = args.slice(0, scriptAt);
+if (args[scriptAt] === 'help' || options.includes('--help') || options.includes('-h')) help();
+if (options.includes('-v') || options.includes('--version')) {
+  console.log(globalThis.version);
+  process.exit(0);
 }
 
-const looksLikeModule = (filename, source) => MODULE_SYNTAX_PATTERN.test(source) || /\.(mjs|mts)$/i.test(filename ?? '');
-
-entrypoint: {
-  const args = process.argv.slice(2);
+if (args[scriptAt] === 'c' || args[scriptAt] === 'native' || options.includes('-o')) {
+  // porf c|native [...prefs] file: every flag is a pref
   const nonFlagArgs = [];
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '-o') {
       Prefs.o = args[++i];
       continue;
     }
-    if (args[i] === '-e' || args[i] === '-p') {
-      i++;
-      continue;
-    }
     if (args[i][0] !== '-') nonFlagArgs.push(args[i]);
   }
 
-  let inputFile = globalThis.file = nonFlagArgs[0];
-  let command;
-  let runAfterCompile = false;
-  let runStatus;
-  let tmpRunDir;
-  if (inputFile === 'help') help();
-
-  if (['native', 'c'].includes(inputFile)) {
-    command = inputFile;
-    inputFile = globalThis.file = nonFlagArgs[1];
-  }
-
-  if (!command && inputFile && !Prefs.e && !Prefs.p) {
-    command = 'native';
-    Prefs.target = 'native';
-    if (Prefs.o == null) {
-      tmpRunDir = fs.mkdtempSync('/tmp/porffor-run-');
-      Prefs.o = `${tmpRunDir}/out`;
-      Prefs.quiet = !process.stdout.isTTY;
-      Prefs.run = true;
-      runAfterCompile = true;
-    }
-  }
-
-  if (command) {
-    if (['native', 'c'].includes(command)) Prefs.target = command;
-  }
-
-  let source = '';
-  let sourceProvided = false;
-  if (Prefs.e || Prefs.p) {
-    const expr = process.argv[(Prefs.e ? process.argv.indexOf('-e') : process.argv.indexOf('-p')) + 1];
-    source = expr;
-    sourceProvided = true;
-    Prefs.optUnused = false;
-    command = 'native';
-    Prefs.target = 'native';
-    tmpRunDir = fs.mkdtempSync('/tmp/porffor-run-');
-    inputFile = globalThis.file = `${tmpRunDir}/input.js`;
-    Prefs.o = `${tmpRunDir}/out`;
-    Prefs.quiet = true;
-    runAfterCompile = true;
-  }
-
-  if (!inputFile && !source) {
-    if (process.argv.includes('-v') || process.argv.includes('--version')) {
-      // just print version
-      console.log(globalThis.version);
-      process.exit(0);
-    }
-
-    // run repl if no file given
-    await import('./repl.js');
-    break entrypoint;
-  }
-
-  if (sourceProvided) fs.writeFileSync(inputFile, source);
-    else source = fs.readFileSync(inputFile, 'utf8');
-
-  try {
-    (await import('../compiler/index.js')).default(source, Prefs.module ?? looksLikeModule(inputFile, source));
-
-    if (runAfterCompile) {
-      try {
-        execFileSync(Prefs.o, [], { stdio: 'inherit' });
-      } catch (e) {
-        if (e?.status == null && e?.signal == null) throw e;
-        runStatus = e.status ?? 1;
-      }
-    }
-  } finally {
-    if (tmpRunDir) fs.rmSync(tmpRunDir, { recursive: true, force: true });
-  }
-
-  if (runStatus != null) process.exit(runStatus);
+  const command = [ 'c', 'native' ].includes(nonFlagArgs[0]) ? nonFlagArgs.shift() : 'native';
+  const file = globalThis.file = nonFlagArgs[0];
+  Prefs.target = command;
+  const source = fs.readFileSync(file, 'utf8');
+  await compile(source, Prefs.module ?? looksLikeModule(file, source));
+  process.exit(0);
 }
+
+process.argv = [ process.argv[0], process.argv[1], ...prefArgs ];
+globalThis.argvChanged();
+delete Prefs.p;
+if (inputType) Prefs.module = inputType === 'module';
+
+const cwd = process.cwd();
+let entry, source, rest;
+if (evalSource != null) {
+  entry = `${cwd}/[eval]`;
+  source = evalSource;
+  rest = args.slice(scriptAt);
+} else if (args[scriptAt] === '-' || (args[scriptAt] == null && !isatty(0))) {
+  entry = `${cwd}/[stdin]`;
+  source = fs.readFileSync(0, 'utf8');
+  rest = args.slice(scriptAt);
+} else if (args[scriptAt] == null) {
+  await import('./repl.js');
+  process.exit(0);
+} else {
+  const path = `${args[scriptAt][0] === '/' ? '' : cwd + '/'}${args[scriptAt]}`;
+  entry = [ path, path + '.js', path + '/index.js' ].find(x => fs.statSync(x, { throwIfNoEntry: false })?.isFile());
+  if (!entry) {
+    console.error(`Error: Cannot find module '${path}'\n    at Module._resolveFilename (node:internal/modules/cjs/loader) {\n  code: 'MODULE_NOT_FOUND',\n  requireStack: []\n}`);
+    process.exit(1);
+  }
+  entry = fs.realpathSync(entry);
+  source = fs.readFileSync(entry, 'utf8');
+  rest = args.slice(scriptAt + 1);
+}
+
+const module = Prefs.module ?? looksLikeModule(entry, source);
+if (print) {
+  const body = parseSource(source, { module }).body;
+  const last = body.at(-1);
+  if (last?.type === 'ExpressionStatement') source = `${source.slice(0, last.start)}process.stdout.write(require('node:util').format((${source.slice(last.expression.start, last.expression.end)})) + '\\n');${source.slice(last.end)}`;
+}
+// preloads join the entry's first line, keeping its line numbers
+const preloadPath = x => x[0] === '.' ? `${cwd}/${x}` : x;
+source = preload.map(x => module ? `import ${JSON.stringify(preloadPath(x))};` : `require(${JSON.stringify(preloadPath(x))});`).join('') + source;
+
+// node style location then error, the parser appends the position to its messages
+const syntaxError = e => {
+  const at = / \((\d+):\d+\)$/.exec(e.message);
+  console.error(`${entry.endsWith(']') ? entry.slice(entry.lastIndexOf('/') + 1) : entry}:${at?.[1] ?? 1}\n\n${e.name}: ${at ? e.message.slice(0, at.index) : e.message}`);
+  process.exit(1);
+};
+
+if (check) {
+  try {
+    parseSource(source, { module, topReturn: !module });
+  } catch (e) {
+    if (!(e instanceof SyntaxError)) throw e;
+    syntaxError(e);
+  }
+  process.exit(0);
+}
+
+// binary cached with the entry's units, eval code keyed by its content
+globalThis.file = evalSource != null ? `${entry}-${hashId(source)}` : entry;
+const buildDir = `${process.env.HOME}/.cache/porffor/build/${hashId(globalThis.file)}`;
+fs.mkdirSync(buildDir, { recursive: true });
+const bin = `${buildDir}/run`;
+Object.assign(Prefs, { target: 'native', o: `${bin}.${process.pid}`, quiet: !isatty(1), run: true });
+
+// concurrent runs of one entry share its build dir
+const lock = `${buildDir}/lock`;
+for (;;) {
+  try {
+    fs.writeFileSync(lock, String(process.pid), { flag: 'wx' });
+    break;
+  } catch {}
+  // a lock whose owner died is stale, an empty one is still being written unless it is old
+  try {
+    const pid = +fs.readFileSync(lock, 'utf8');
+    if (pid > 0) process.kill(pid, 0);
+      else if (Date.now() - fs.statSync(lock).mtimeMs > 1000) fs.rmSync(lock, { force: true });
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+  } catch {
+    fs.rmSync(lock, { force: true });
+  }
+}
+
+try {
+  const started = Date.now();
+  await compile(source, module, { file: entry });
+
+  // a split build with no unit rebuilt keeps the last binary: macos vets every new executable on its first run
+  const mtime = x => fs.statSync(`${buildDir}/${x}`).mtimeMs;
+  const relinked = !fs.existsSync(bin) || !fs.existsSync(`${buildDir}/flags`) || mtime('flags') < started || fs.readdirSync(buildDir).some(x => x.endsWith('.o') && mtime(x) >= mtime('run'));
+  if (relinked) fs.renameSync(Prefs.o, bin);
+    else fs.rmSync(Prefs.o);
+} catch (e) {
+  fs.rmSync(Prefs.o, { force: true });
+  if (!(e instanceof SyntaxError)) throw e;
+  fs.rmSync(lock, { force: true });
+  syntaxError(e);
+} finally {
+  fs.rmSync(lock, { force: true });
+}
+
+// the program replaces this process, its argv node's: options, then the script, then its arguments
+const argv = [ bin, ...execArgv, entry, ...rest ];
+if (process.execve) process.execve(bin, argv, process.env);
+const run = spawnSync(bin, argv.slice(1), { stdio: 'inherit', argv0: argv[0] });
+if (run.signal) process.kill(process.pid, run.signal);
+process.exit(run.status ?? 1);

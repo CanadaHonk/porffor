@@ -1,10 +1,12 @@
 import fs from 'node:fs';
-import * as repl from 'node:repl';
+import readline from 'node:readline';
 import { execFileSync } from 'node:child_process';
 import compile from '../compiler/index.js';
 
+// one dir for the session: native units cache by entry path
+const tmp = fs.mkdtempSync('/tmp/porffor-repl-');
+
 const runNativeSource = (source, output, module = Prefs.module) => {
-  const tmp = fs.mkdtempSync('/tmp/porffor-run-');
   const inputFile = `${tmp}/input.js`;
   const outFile = `${tmp}/out`;
   const oldPrefs = { ...Prefs };
@@ -30,7 +32,6 @@ const runNativeSource = (source, output, module = Prefs.module) => {
     for (const key of Object.keys(Prefs)) delete Prefs[key];
     Object.assign(Prefs, oldPrefs);
     globalThis.file = oldFile;
-    fs.rmSync(tmp, { recursive: true, force: true });
   }
 };
 
@@ -57,12 +58,9 @@ console.log();
 
 let prev = '';
 
-const run = (source, _context, _filename, callback) => {
+const run = source => {
   source = source.trim();
-  if (!source) {
-    callback();
-    return;
-  }
+  if (!source) return;
 
   const current = source.startsWith('{') && source.endsWith('}') ? '(' + source + ')' : source;
   const toRun = prev ? `(() => { Porffor.c\`porf_repl_output_enabled = 0;\`; })();
@@ -78,12 +76,18 @@ ${current}` : current;
     if (out) process.stdout.write(out);
     if (e?.status == null) console.log('Uncaught', e.stack ? e.stack : e);
   }
-
-  callback();
 };
 
-const replServer = repl.start({ prompt: '> ', eval: run });
+// readline over node:repl so the selfhosted binary has it too, history newest first like node's
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: '> ', historySize: 1000 });
+rl.history = fs.existsSync('.repl_history') ? fs.readFileSync('.repl_history', 'utf8').split('\n').filter(Boolean) : [];
+rl.on('line', line => {
+  if (line.trim() === '.exit') return rl.close();
+  run(line);
+  fs.writeFileSync('.repl_history', rl.history.join('\n'));
+  rl.prompt();
+});
+rl.prompt();
 
-replServer.setupHistory('.repl_history', () => {});
-
-replServer._start?.();
+await new Promise(resolve => rl.on('close', resolve));
+fs.rmSync(tmp, { recursive: true, force: true });
