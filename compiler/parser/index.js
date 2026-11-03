@@ -913,7 +913,7 @@ const SCOPE_TOP = 1, SCOPE_FUNCTION = 2, SCOPE_ASYNC = 4, SCOPE_GENERATOR = 8, S
   SCOPE_FIELD_INIT = 512, SCOPE_NEW_TARGET = 1024, SCOPE_VAR = SCOPE_TOP | SCOPE_FUNCTION | SCOPE_STATIC_BLOCK;
 const BIND_VAR = 1, BIND_LEXICAL = 2, BIND_FUNCTION = 3, BIND_SIMPLE_CATCH = 4, BIND_OUTSIDE = 5;
 
-let strict = false;
+let strict = false, topReturn = false;
 let scopeStack = [];
 let labels = [];
 let privateStack = [];
@@ -2550,7 +2550,7 @@ const parseIfStatement = () => {
 
 const parseReturnStatement = () => {
   const start = tokStart;
-  if (!inFunction()) raise(start, "'return' outside of function");
+  if (!inFunction() && !(topReturn && currentVarScope().flags & SCOPE_TOP)) raise(start, "'return' outside of function");
   next();
   let argument = null;
   if (!eat(T_SEMI) && !canInsertSemicolon()) {
@@ -4656,6 +4656,7 @@ export default (src, opts = {}) => {
   initLexer(src, !!opts.module, !!opts.ts);
 
   strict = isModule;
+  topReturn = !!opts.topReturn;
   scopeStack = [];
   labels = [];
   privateStack = opts.eval?.privateNames ? [ { declared: Object.fromEntries(opts.eval.privateNames.map(x => [ x, true ])), used: [] } ] : [];

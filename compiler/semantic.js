@@ -405,7 +405,7 @@ const declVar = (name, kind, node) => {
   parent._variables ??= Object.create(null);
   if (node && typeof node === 'object') node._refs ??= 0;
 
-  const id = varId(name);
+  let id = varId(name);
   let shadowsOuterFuncBinding = false;
   if (kind !== 'var') {
     const currentFuncInd = scopes.lastFuncs.at(-1);
@@ -413,6 +413,8 @@ const declVar = (name, kind, node) => {
       const variable = scopes[i]._variables?.[name];
       if (!variable) continue;
       shadowsOuterFuncBinding = variable.func !== func && variable.scope?.type !== 'Program';
+      // ids count per function, and a block binding still sees the outer one
+      while (shadowsOuterFuncBinding && variable.internalName === `${name}#${id}`) id = varId(name);
       break;
     }
   }
@@ -429,9 +431,12 @@ const declVar = (name, kind, node) => {
   if (internalName) renameBindingNode(node, internalName);
 };
 
+// linked modules share the program scope, so hidden class bindings carry their unit
+const unitTag = () => unit != null ? unit + '_' : '';
+
 // hidden binding for the [[HomeObject]] super resolves from
 const declHome = node => {
-  node._home = { type: 'Identifier', name: `#home_${node.start}`, _binding: true };
+  node._home = { type: 'Identifier', name: `#home_${unitTag()}${node.start}`, _binding: true };
   declVar(node._home.name, 'let', node._home);
 };
 
@@ -450,14 +455,14 @@ const declClass = node => {
     const name = x.key.name;
     let info = node._privates[name];
     if (!info) {
-      info = node._privates[name] = { map: { type: 'Identifier', name: `#priv_${node.start}_${name}`, _binding: true, _writes: 1 }, fn: null, kind: 'field', static: !!x.static };
+      info = node._privates[name] = { map: { type: 'Identifier', name: `#priv_${unitTag()}${node.start}_${name}`, _binding: true, _writes: 1 }, fn: null, kind: 'field', static: !!x.static };
       declVar(info.map.name, 'let', info.map);
     }
     if (x.type !== 'MethodDefinition') continue;
 
     info.kind = x.kind === 'method' ? 'method' : 'accessor';
     if (!x.static && !info.fn) {
-      info.fn = { type: 'Identifier', name: `#privfn_${node.start}_${name}`, _binding: true, _writes: 1 };
+      info.fn = { type: 'Identifier', name: `#privfn_${unitTag()}${node.start}_${name}`, _binding: true, _writes: 1 };
       declVar(info.fn.name, 'let', info.fn);
     }
   }
@@ -883,7 +888,7 @@ const annotate = (node, parent = null, key = null) => {
       // arrows in static initializers see the class
       const func = thisFunc(currentFunc);
       if (classStaticFunc && currentFunc.type === 'ArrowFunctionExpression' && !func) {
-        node._classThis = { type: 'Identifier', name: `#home_${classStack.at(-1).start}` };
+        node._classThis = { type: 'Identifier', name: `#home_${unitTag()}${classStack.at(-1).start}` };
         annotate(node._classThis, node, '_classThis');
         break;
       }
@@ -919,7 +924,7 @@ const annotate = (node, parent = null, key = null) => {
       // the enclosing method, else a field initializer or static block of the innermost class
       const method = thisFunc(currentFunc);
       const owner = method?._homeOwner ?? classStack.at(-1);
-      node._home = { type: 'Identifier', name: `#home_${owner.start}` };
+      node._home = { type: 'Identifier', name: `#home_${unitTag()}${owner.start}` };
       node._homeProto = key !== 'callee' && owner.type !== 'ObjectExpression' && !(method ? method._homeStatic : classStaticFunc);
       annotate(node._home, node, '_home');
       break;
@@ -940,8 +945,8 @@ const annotate = (node, parent = null, key = null) => {
         const info = node._privates[name];
         if (info.static) continue;
 
-        annotate(info.ctorMap = { type: 'Identifier', name: `#priv_${node.start}_${name}` }, node, '_privates');
-        if (info.fn) annotate(info.ctorFn = { type: 'Identifier', name: `#privfn_${node.start}_${name}` }, node, '_privates');
+        annotate(info.ctorMap = { type: 'Identifier', name: `#priv_${unitTag()}${node.start}_${name}` }, node, '_privates');
+        if (info.fn) annotate(info.ctorFn = { type: 'Identifier', name: `#privfn_${unitTag()}${node.start}_${name}` }, node, '_privates');
       }
       classFieldInitializerFunc = previousInit;
 
@@ -955,7 +960,7 @@ const annotate = (node, parent = null, key = null) => {
     case 'PrivateIdentifier': {
       const cls = classStack.findLast(x => x._privates[node.name]);
       node._private = cls._privates[node.name];
-      node._map = { type: 'Identifier', name: `#priv_${cls.start}_${node.name}` };
+      node._map = { type: 'Identifier', name: `#priv_${unitTag()}${cls.start}_${node.name}` };
       annotate(node._map, node, '_map');
       break;
     }

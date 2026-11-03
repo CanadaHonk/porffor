@@ -12,6 +12,7 @@ import { BuiltinFuncs, BuiltinVars, fullPrototypes } from './builtins.js';
 import { TYPES, TYPE_FLAGS, TYPE_NAMES, TYPED_ARRAY_TYPES, ITERATOR_TYPES } from './types.js';
 import semantic, { knownValue, unknownValue, storageInt } from './semantic.js';
 import parse from './parse.js';
+import { patternNames } from './modules.js';
 import temporalPolyfillSource from './intl/temporal.js';
 import intlPolyfillSource from './intl/intl.js';
 import tzSource from './intl/tz.js';
@@ -274,7 +275,7 @@ const useFunctionValue = (func, markReferenced = true) => {
   if (markReferenced && !doNotMarkFuncRef) func.referenced = true;
   func.indirect = true;
   coroTypeUsed(func);
-  if (markReferenced) func.generate?.();
+  if (markReferenced && !func.ast?._lateBody) func.generate?.();
 };
 
 // function value with no env: one static [fnIdx][0] record per func
@@ -934,6 +935,9 @@ const generateIdent = (scope, decl) => {
   if (decl.name in scope.locals) (scope.locals[decl.name].metadata ??= {}).read = true;
   const out = lookup(scope, decl.name, !(decl.name === 'arguments' && decl._resolvedBinding), decl._markFunctionReferenced !== false);
   if (out) return sealAppended(decl, out);
+
+  // a variable of a module whose unit comes later
+  if (moduleVars.has(decl.name)) return Global(allocVar(scope, decl.name, true), T.jsval);
 
   // unresolvable names can still be global object properties
   if (globalObjectUsed) return globalGet(scope, decl.name);
@@ -2474,7 +2478,9 @@ const generateCall = (scope, decl) => {
   }
 
   if (func && !hasSpread) {
-    func.generate?.();
+    // a late body is generated after everything else, so it can see every module's declarations
+    if (func.ast?._lateBody) func.referenced = true;
+      else func.generate?.();
     if (func && !decl._new && !decl._insideIndirect) func.onlyNew = false;
 
     coroTypeUsed(func);
@@ -3436,6 +3442,11 @@ const generateAssign = (scope, decl, valueUnused = false) => {
   const { type, name } = decl.left;
   let [ local, isGlobal ] = lookupName(scope, name);
   if (local === undefined && type === 'Identifier' && lookupHoistedVar(scope, name)) {
+    [ local, isGlobal ] = lookupName(scope, name);
+  }
+  // a variable of a module whose unit comes later
+  if (local === undefined && type === 'Identifier' && moduleVars.has(name)) {
+    allocVar(scope, name, true);
     [ local, isGlobal ] = lookupName(scope, name);
   }
 
@@ -5647,6 +5658,7 @@ const specializeFunctionSources = program => {
 let definedKeys = new Set();
 let preludeGlobals = new Map();
 // linked modules' top-level variables, global storage even before their unit is generated
+let moduleVars = new Set();
 const collectDefinedKeys = program => {
   const out = new Set();
   const walk = (node, called = false) => {
@@ -5902,7 +5914,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     strict: decl.strict ?? scope.strict,
     usesArguments: decl._usesArguments,
     ast: decl,
-    unit: decl._unit ?? scope.unit,
+    unit: decl._unit ?? decl._hoistedUnit ?? scope.unit,
     parentFunc: scope.name ? scope : null,
     selfAware: !!decl._selfAware,
     directCallOnly,
@@ -5959,14 +5971,16 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
 
       // hoist function decls so earlier calls stay direct (module inits hoist their own)
       const moduleInits = decl.type === 'Program' && !decl._module && body.body.some(x => x._unit != null);
-      if (body.type === 'BlockStatement' && !moduleInits) {
+      // with module units only the program's own (unitless) declarations: the units hoist theirs in their inits
+      if (body.type === 'BlockStatement') {
         let b = body.body, j = 0;
         if (b[0]?.directive) j++;
         for (let i = 0; i < b.length; i++) {
-          if (b[i].type === 'FunctionDeclaration') b.splice(j++, 0, b.splice(i, 1)[0]);
+          if (b[i].type === 'FunctionDeclaration' && (!moduleInits || b[i]._unit == null)) b.splice(j++, 0, b.splice(i, 1)[0]);
         }
-        for (const x of b) if (x.type === 'ClassDeclaration' && x._refs) declareClass(func, x);
       }
+      // module units' classes too, so earlier units can reach them
+      if (body.type === 'BlockStatement') for (const x of body.body) if (x.type === 'ClassDeclaration' && x._refs && !x._classFunc) declareClass(func, x);
 
       func.identFailEarly = true;
 
@@ -6437,6 +6451,16 @@ export default (program, opts = {}) => {
     program.body = tz.concat(program.body);
   }
 
+  // module declarations are not global object properties, polyfill ones are not enumerable
+  preludeGlobals = new Map();
+  moduleVars = new Set();
+  for (const x of program.body) {
+    if (x._unit == null && !x._polyfill) continue;
+    const names = x.type === 'VariableDeclaration' ? x.declarations.flatMap(d => patternNames(d.id, [])) : x.id ? [ x.id.name ] : [];
+    for (const name of names) preludeGlobals.set(name, !!x._polyfill);
+    if (x._unit != null && x.type === 'VariableDeclaration') for (const name of names) moduleVars.add(name);
+  }
+
   // todo/perf: make this lazy per func (again)
   // semantic relies on object hack happening before
   program = desugarUsing(program);
@@ -6445,6 +6469,14 @@ export default (program, opts = {}) => {
   objectHackShadowed = globalThis.precompile ? new Set() : shadowedBuiltinNames(program);
   program = objectHack(program);
   if (Prefs.closures) program = semantic(program);
+  // module classes are declared before their unit runs, their hidden bindings with them
+  for (const x of program.body) if (x._unit != null && x._home && x.type === 'ClassDeclaration') {
+    moduleVars.add(x._home.name);
+    for (const { map, fn } of Object.values(x._privates)) {
+      moduleVars.add(map.name);
+      if (fn) moduleVars.add(fn.name);
+    }
+  }
   mayHaveBigInt = globalThis.precompile || usesBigInt(program);
   if (mayHaveBigInt) usedTypes.add(TYPES.bigint);
   definedKeys = collectDefinedKeys(program);
@@ -6476,7 +6508,8 @@ export default (program, opts = {}) => {
     type: 'Program',
     id: { name: entryName },
     _topLevel: true,
-    strict: Prefs.module,
+    // linked modules' statements can come before the script's own directives
+    strict: Prefs.module || program.body.some(x => x._unit == null && x.directive === 'use strict'),
     _captures: program._captures,
     _capturedVars: program._capturedVars,
     _capturesThis: program._capturesThis,

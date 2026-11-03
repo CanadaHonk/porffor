@@ -17,8 +17,11 @@ const getPrefs = () => {
     if (flag.startsWith('no-')) {
       prefs[nameToKey(flag.slice(3))] = false;
     } else {
-      const [ name, value ] = flag.split('=');
-      prefs[nameToKey(name)] = value ?? true;
+      // --define:a.b=x, --alias:pkg=path: the part after the colon is a key, and values can hold =
+      const eq = flag.indexOf('=');
+      const name = eq === -1 ? flag : flag.slice(0, eq);
+      const colon = name.indexOf(':');
+      prefs[colon === -1 ? nameToKey(name) : nameToKey(name.slice(0, colon)) + name.slice(colon)] = eq === -1 ? true : flag.slice(eq + 1);
     }
   }
 };

@@ -1,37 +1,6 @@
 import './prefs.js';
 import parse from './parser/index.js';
-import link from './modules.js';
-
-const usedNames = (node, names, out = new Set()) => {
-  if (node == null || typeof node !== 'object') return out;
-  if (Array.isArray(node)) {
-    for (const x of node) usedNames(x, names, out);
-    return out;
-  }
-
-  if (node.type === 'Identifier') {
-    if (names.has(node.name)) out.add(node.name);
-    return out;
-  }
-  if (node.type === 'Literal' || node.type === 'TemplateElement') return out;
-  if (node.type === 'TemplateLiteral') return usedNames(node.expressions, names, out);
-
-  if (node.type === 'Property' || node.type === 'PropertyDefinition' || node.type === 'MethodDefinition') {
-    if (node.computed) usedNames(node.key, names, out);
-    return usedNames(node.value, names, out);
-  }
-
-  if (node.type === 'VariableDeclarator') return usedNames(node.init, names, out);
-  if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression') return usedNames(node.body, names, usedNames(node.params, names, out));
-  if (node.type === 'ClassDeclaration' || node.type === 'ClassExpression') return usedNames(node.body, names, usedNames(node.superClass, names, out));
-
-  for (const key in node) {
-    if (key[0] === '_' || key === 'start' || key === 'end') continue;
-    usedNames(node[key], names, out);
-  }
-
-  return out;
-};
+import link, { usedNames } from './modules.js';
 
 const dynamicIntl = node => {
   if (node == null || typeof node !== 'object') return false;
@@ -56,7 +25,7 @@ const INTL_HOOKS = {
   toLocaleUpperCase: [ 'upper' ],
   toLocaleLowerCase: [ 'lower' ]
 };
-const POLYFILL_NAMES = new Set([ 'Temporal', 'Intl', ...INTL_SERVICES, ...Object.keys(INTL_HOOKS) ]);
+const POLYFILL_NAMES = new Set([ 'Temporal', 'Intl', ...INTL_SERVICES.map(x => 'Intl.' + x), ...Object.keys(INTL_HOOKS).flatMap(x => [ x, '.' + x ]) ]);
 
 // x!, x satisfies T and f<T> are just their expression, as are casts assigned to
 const TS_TRANSPARENT = new Set([ 'TSNonNullExpression', 'TSSatisfiesExpression', 'TSInstantiationExpression' ]);
@@ -79,23 +48,37 @@ const stripTsWrappers = node => {
 };
 
 // entry: link options for a program entry ({ file?, scripts? }), null for a lone source
-export default (input, entry = null, evalContext = null) => {
+const parseProgram = (input, entry = null, evalContext = null) => {
   const types = Prefs.parseTypes || Prefs.t || globalThis.file?.endsWith('.ts');
   globalThis.typedInput = types && Prefs.optTypes;
 
   const file = entry?.file ?? globalThis.file;
-  // scripts only need linking for the modules their import() calls pull in
-  const linked = entry && !globalThis.precompile && (Prefs.module || /\bimport\s*\(/.test(input));
-  const ast = linked ? link(input, file[0] === '/' ? file : process.cwd() + '/' + file, { ts: types, scripts: entry.scripts, script: !Prefs.module }) : parse(input, { module: !!Prefs.module, ts: types, eval: evalContext });
+  // cjs links as modules with a cjs entry
+  const cjs = !!entry && !globalThis.precompile && !Prefs.module && (entry.cjs || /\.c[jt]s$/.test(file) || /\brequire\s*(?:[(.;,)\]}]|$)|\bmodule\.exports\b|\bexports\.[\w$]|\b__(?:file|dir)name\b/m.test(input));
+  if (cjs) Prefs.module = true;
+  // scripts only for what import() pulls in and runtime globals the linker provides (process, Buffer)
+  const globals = entry?.runtimeGlobals;
+  const usesGlobals = !!globals && new RegExp(`\\b(?:${Object.keys(globals).join('|').replaceAll('.', '\\.')})\\b`).test(input);
+  const linked = entry && !globalThis.precompile && (Prefs.module || usesGlobals || /\bimport\s*\(/.test(input));
+  let ast;
+  try {
+    ast = linked ? link(input, file[0] === '/' ? file : process.cwd() + '/' + file, { ts: types, scripts: entry.scripts, script: !Prefs.module, cjs, runtimeImports: entry.runtimeImports, runtimeGlobals: globals }) : parse(input, { module: !!Prefs.module, ts: types, eval: evalContext });
+  } catch (e) {
+    // like node, a script file with a top-level return is cjs ([eval] and [stdin] are not)
+    if (!entry?.file || entry.file.endsWith(']') || Prefs.module || !e.message.startsWith("'return' outside of function")) throw e;
+    return parseProgram(input, { ...entry, cjs: true }, evalContext);
+  }
   if (ast._ts) globalThis.typedInput = Prefs.optTypes;
   if (!globalThis.precompile && (ast._ts || types)) stripTsWrappers(ast);
   const used = usedNames(ast, POLYFILL_NAMES);
   if (used.has('Temporal')) ast._usesTemporal = true;
-  if (!globalThis.precompile && (used.has('Intl') || Object.keys(INTL_HOOKS).some(x => used.has(x)))) {
+  const usedHooks = Object.keys(INTL_HOOKS).filter(x => used.has(x) || used.has('.' + x));
+  if (!globalThis.precompile && (used.has('Intl') || usedHooks.length > 0)) {
     ast._usesIntl = dynamicIntl(ast) ? true : {
-      services: new Set(INTL_SERVICES.filter(x => used.has(x))),
-      hooks: new Set(Object.keys(INTL_HOOKS).flatMap(x => used.has(x) ? INTL_HOOKS[x] : []))
+      services: new Set(INTL_SERVICES.filter(x => used.has('Intl.' + x))),
+      hooks: new Set(usedHooks.flatMap(x => INTL_HOOKS[x]))
     };
   }
   return ast;
 };
+export default parseProgram;
