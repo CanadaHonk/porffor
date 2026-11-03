@@ -2344,7 +2344,7 @@ const generateCall = (scope, decl) => {
           _thisArg: targetIdent,
           _protoInternalCall: true
         };
-        // regexps and wrapper objects with own state can shadow their methods
+        // receivers with own state (regexps, typed arrays, maps/sets, functions, generators, wrappers) can shadow their methods
         const shadowable = calleeMember && !globalThis.precompile && definedKeys.has(protoName);
         const shadowed = () => generate(scope, {
           type: 'ConditionalExpression',
@@ -2352,7 +2352,7 @@ const generateCall = (scope, decl) => {
           consequent: fallbackCall,
           alternate: builtinCallNode
         });
-        const call = owner === 'RegExp' && shadowable ? shadowed : () => generate(scope, builtinCallNode);
+        const call = (owner === 'RegExp' || owner === 'TypedArray' || owner === 'Map' || owner === 'Set' || owner === 'Function' || owner === 'Porffor_Generator' || owner === 'Porffor_AsyncGenerator') && shadowable ? shadowed : () => generate(scope, builtinCallNode);
 
         if (owner === 'TypedArray') {
           typedArrayCall = call;
