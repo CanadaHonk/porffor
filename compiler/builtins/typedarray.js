@@ -209,7 +209,7 @@ export const __Porffor_typedArray_init = (ta: any, arg: any, byteOffset: any, le
     let n: number = 0;
     if (argType == Porffor.TYPES.number && arg >= 0) n = Math.trunc(arg);
       else n = ecma262.ToIndex(arg);
-    if (n * bpe > 2147483643) throw new RangeError('Invalid typed array length');
+    if (n * bpe > 2147483643) throw new RangeError(n > 9007199254740991 ? 'Invalid typed array length: ' + n : 'Array buffer allocation failed');
     len = n;
   } else {
     if (argType == Porffor.TYPES.array) src = arg;

@@ -163,7 +163,7 @@ export const __Object_fromEntries = (iterable: any): object => {
 
   for (const x of iterable) {
     if (!Porffor.object.isObject(x)) throw new TypeError('Iterator contains non-object');
-    out[x[0]] = x[1];
+    __Porffor_object_define(out, ecma262.ToPropertyKey(x[0]), x[1], 0b1110);
   }
 
   return out;
@@ -813,7 +813,7 @@ export const __Object_prototype_toString = function (this: any) {
 
   const t: i32 = Porffor.type(this);
   let builtinTag: any = 'Object';
-  if (t == Porffor.TYPES.array) builtinTag = 'Array';
+  if (__Array_isArray(this)) builtinTag = 'Array';
     else if (t == Porffor.TYPES.function) builtinTag = 'Function';
     else if (Porffor.fastAnd(t >= Porffor.TYPES.error, t <= Porffor.TYPES.suppressederror)) builtinTag = 'Error';
     else if (Porffor.fastOr(t == Porffor.TYPES.boolean, t == Porffor.TYPES.booleanobject)) builtinTag = 'Boolean';

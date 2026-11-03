@@ -39,9 +39,18 @@ export const __Function_prototype_arguments$get = function (this: any) { return 
 
 export const __Function_prototype_toLocaleString = function (this: Function) { return Porffor.callThis(__Function_prototype_toString, this); };
 
+// 7.3.20 CreateListFromArrayLike (obj)
+// https://tc39.es/ecma262/#sec-createlistfromarraylike
+export const __ecma262_CreateListFromArrayLike = (obj: any): any[] => {
+  if (!Porffor.object.isObject(obj)) throw new TypeError('CreateListFromArrayLike called on non-object');
+  const len: i32 = __Porffor_array_lengthOf(obj);
+  const out: any[] = Porffor.array.new(len);
+  for (let i: i32 = 0; i < len; i++) Porffor.array.fastPush(out, obj[i]);
+  return out;
+};
+
 export const __Function_prototype_apply = function (this: Function, thisArg: any, argsArray: any) {
-  if (argsArray != null && !Porffor.object.isObject(argsArray)) throw new TypeError('CreateListFromArrayLike called on non-object');
-  return Porffor.call(this, Array.from(argsArray ?? []) as any[], thisArg, null);
+  return Porffor.call(this, argsArray == null ? [] : __ecma262_CreateListFromArrayLike(argsArray), thisArg, null);
 };
 
 export const __Function_prototype_call = function (this: Function, thisArg: any, ...args: any[]) {

@@ -1466,7 +1466,7 @@ export const __Porffor_array_isConcatSpreadable = (O: any): boolean => {
   if (spreadable !== undefined) return !!spreadable;
 
   // 4. Return ? IsArray(O).
-  return Porffor.type(O) == Porffor.TYPES.array;
+  return __Array_isArray(O);
 };
 
 // 23.1.3.2 Array.prototype.concat (...items)

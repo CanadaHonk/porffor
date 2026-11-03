@@ -77,7 +77,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
           Assign(obj, Call('__Porffor_object_new', [ Const(T.i32, Object.keys(props).length) ])),
           Assign(getPtr, JvPtr(obj))
         ];
-        // index keys on these are visible through array holes, see __Porffor_object_appendEntry
+        // index keys on these are visible through array holes, see __Porffor_object_add
         if (name === '__Object_prototype' || name === '__Array_prototype') out.push(Store('u8', getPtr, 4, Const(T.i32, 0b0010)));
         const propValue = (key, d) => {
           if (key === name) return obj;
@@ -707,9 +707,9 @@ return porf_box_num((f64)(i32)((u32)xd * (u32)yd));`, false)
       const result = Local('result', T.u64);
 
       return [
+        // seeded from the os on first use
         If(Bin('==', T.u64, Bin('|', T.u64, state0, state1), Const(T.u64, 0)), [
-          Assign(state0, Const(T.u64, 0x7b1dcdaf)),
-          Assign(state1, Const(T.u64, 0x21b965f5))
+          RawC('if (getentropy(&state0, sizeof state0) || getentropy(&state1, sizeof state1)) abort(); state1 |= 1')
         ]),
         Assign(s1, state1),
         Assign(s0, state0),
@@ -979,7 +979,7 @@ return sign * (i64)((((u64)*(u32*)(MEM + ptr + 4)) << 32) + (u64)*(u32*)(MEM + p
     };
 
     if (decl.arguments.length === 0) return fast();
-    if (decl.arguments.length !== 1) return slow();
+    if (decl.arguments.length !== 1 || decl.arguments[0].type === 'SpreadElement') return slow();
 
     const type = knownType(scope, getNodeType(scope, decl.arguments[0]));
 

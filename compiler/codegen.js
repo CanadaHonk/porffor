@@ -1599,6 +1599,8 @@ const includeBuiltin = (scope, builtin) => {
   const func = asmFunc(builtin, builtinFuncs[builtin]);
   // dynamic calls of proxies go through their apply/construct traps
   if (builtin === 'Proxy') includeBuiltin(scope, '__Porffor_proxy_call').indirect = true;
+  // porf_throw hands uncaught errors to it
+  if (builtin === '__Porffor_setFatalHook') includeBuiltin(scope, '__Porffor_fatal');
   // these read @@iterator off any iterable
   if ((builtin === '__Porffor_iterator_flattenable' || builtin === '__Porffor_iterator_getSync' || builtin === '__Iterator_concat') && !globalThis.precompile) memberDemands.add('Symbol_iterator');
   return func;
@@ -6054,7 +6056,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         func.export = true;
 
         // drain the microtask queue at program end when promises exist
-        if (('Promise' in funcIndex) || ('__Porffor_promise_create' in funcIndex) || ('__Promise_resolve' in funcIndex) || ('__Promise_reject' in funcIndex)) {
+        if (('Promise' in funcIndex) || ('__Porffor_promise_create' in funcIndex) || ('__Promise_resolve' in funcIndex) || ('__Promise_reject' in funcIndex) || funcs.some(f => f.async && !f.generator)) {
           exprStmt(func, builtinCall(func, '__Porffor_promise_runJobs', []));
         }
       }
@@ -6454,7 +6456,8 @@ export default (program, opts = {}) => {
         },
         {
           ...last,
-          expression: { type: 'CallExpression', callee: identNode(Prefs.repl ? '__Porffor_print' : '__console_log'), arguments: [ identNode('#repl_result') ] }
+          // the repl pipes output back to its terminal, so colors are always on
+          expression: { type: 'CallExpression', callee: identNode(Prefs.repl ? '__Porffor_print' : '__console_log'), arguments: [ identNode('#repl_result'), ...(Prefs.repl ? [ { type: 'Literal', value: true } ] : []) ] }
         }
       );
     }
@@ -6479,8 +6482,10 @@ export default (program, opts = {}) => {
     }
   });
 
-  if (!globalThis.precompile && funcs.some(f => f.async && !f.generator))
+  if (!globalThis.precompile && funcs.some(f => f.async && !f.generator)) {
     includeBuiltin(topLevelFunc, '__Porffor_promise_resolve');
+    includeBuiltin(topLevelFunc, '__ecma262_RejectPromise');
+  }
 
   for (const f of funcs.slice()) if (f.referenced || f.export) f.generate?.();
 

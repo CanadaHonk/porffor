@@ -1,6 +1,10 @@
 import type {} from './porffor.d.ts';
 
 let __Porffor_json_bufLimit: i32 = 0;
+// wide chars are buffered as uppercase \uXXXX escapes, widened at the end
+let __Porffor_json_wide: boolean = false;
+
+export const __Porffor_json_hexDigit = (n: i32, upper: boolean): i32 => n < 10 ? n + 48 : n + (upper ? 55 : 87);
 
 export const __Porffor_bytestring_bufferStr = (buffer: i32, str: bytestring): i32 => {
   const len: i32 = str.length;
@@ -73,7 +77,14 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
     else if (Porffor.type(value) == Porffor.TYPES.stringobject) value = ecma262.ToString(value);
     else if (Porffor.type(value) == Porffor.TYPES.booleanobject) value = Porffor.callThis(__Boolean_prototype_valueOf, value);
 
-  if (__JSON_isRawJSON(value)) return __Porffor_bytestring_bufferStr(buffer, value.rawJSON);
+  if (__JSON_isRawJSON(value)) {
+    let raw: any = value.rawJSON;
+    if (Porffor.type(raw) == Porffor.TYPES.string) {
+      __Porffor_json_wide = true;
+      raw = __Porffor_json_escapeWide(raw);
+    }
+    return __Porffor_bytestring_bufferStr(buffer, raw);
+  }
   if (value === null) return __Porffor_bytestring_bufferStr(buffer, 'null');
   if (value === true) return __Porffor_bytestring_bufferStr(buffer, 'true');
   if (value === false) return __Porffor_bytestring_bufferStr(buffer, 'false');
@@ -130,7 +141,16 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
         continue;
       }
 
-      // todo: support non-bytestrings
+      if (c > 0xff) {
+        // lone surrogates stay escaped in lowercase hex
+        const lone: boolean = c >= 0xd800 && c <= 0xdfff && !(c <= 0xdbff ? i + 1 < len && (value.charCodeAt(i + 1) & 0xfc00) == 0xdc00 : i > 0 && (value.charCodeAt(i - 1) & 0xfc00) == 0xd800);
+        if (!lone) __Porffor_json_wide = true;
+        buffer = __Porffor_bytestring_buffer2Char(buffer, 92, 117); // \u
+        buffer = __Porffor_bytestring_buffer2Char(buffer, __Porffor_json_hexDigit(c >> 12, !lone), __Porffor_json_hexDigit((c >> 8) & 15, !lone));
+        buffer = __Porffor_bytestring_buffer2Char(buffer, __Porffor_json_hexDigit((c >> 4) & 15, !lone), __Porffor_json_hexDigit(c & 15, !lone));
+        continue;
+      }
+
       buffer = __Porffor_bytestring_bufferChar(buffer, c);
     }
 
@@ -149,6 +169,16 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
     // ancestors are stack[0..depth), a cycle keeps recursing so checking at powers of two still finds it
     if ((depth & (depth - 1)) == 0) for (let i: i32 = 0; i < depth; i++) if (stack[i] === value) throw new TypeError('Converting circular structure to JSON');
     stack[depth] = value;
+  }
+
+  // proxied arrays read their elements through the proxy
+  if (Porffor.comptime.flag`hasFunc.Proxy`) {
+    if (Porffor.fastAnd(Porffor.type(value) == Porffor.TYPES.proxy, __Array_isArray(value))) {
+      const elements: any[] = [];
+      const length: i32 = __Porffor_array_lengthOf(value);
+      for (let i: i32 = 0; i < length; i++) Porffor.array.fastPush(elements, value[i]);
+      value = elements;
+    }
   }
 
   if (Porffor.type(value) == Porffor.TYPES.array) {
@@ -199,7 +229,7 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
     const hasSpace: boolean = space !== undefined;
     depth += 1;
 
-    for (const key: bytestring in value) {
+    for (const key: any in value) {
       // skip symbol keys
       if (Porffor.type(key) == Porffor.TYPES.symbol) continue;
 
@@ -214,10 +244,7 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
         for (let i: i32 = 0; i < depth; i++) buffer = __Porffor_bytestring_bufferStr(buffer, space as bytestring);
       }
 
-      buffer = __Porffor_bytestring_bufferChar(buffer, 34); // "
-      buffer = __Porffor_bytestring_bufferStr(buffer, key);
-      buffer = __Porffor_bytestring_bufferChar(buffer, 34); // "
-
+      buffer = __Porffor_json_serialize(buffer, key, depth, space, stack);
       buffer = __Porffor_bytestring_bufferChar(buffer, 58); // :
       if (hasSpace) buffer = __Porffor_bytestring_bufferChar(buffer, 32); // space
 
@@ -283,7 +310,7 @@ export const __Porffor_json_prepare = (holder: any, key: any, value: any, replac
 };
 
 export const __JSON_rawJSON = (text: any): object => {
-  const jsonString: bytestring = ecma262.ToString(text);
+  const jsonString: any = ecma262.ToString(text);
   const len: i32 = jsonString.length;
   if (len == 0) throw new SyntaxError('Invalid raw JSON text');
 
@@ -298,7 +325,7 @@ export const __JSON_rawJSON = (text: any): object => {
   __Porffor_object_fastAdd(out, 'rawJSON', jsonString, 0b0100);
 
   // inextensible + [[IsRawJSON]]
-  Porffor.IR.storeU8(out, 4, 0b0101);
+  Porffor.IR.storeU8(out, 4, Porffor.IR.loadU8(out, 4) | 0b0101);
   return out;
 };
 
@@ -361,12 +388,14 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
     }
   }
 
+  // a getter or toJSON can stringify mid-serialize
+  const outerWide: boolean = __Porffor_json_wide;
+  const outerLimit: i32 = __Porffor_json_bufLimit;
+  __Porffor_json_wide = false;
   let cap: i32 = 4096;
   let buffer: bytestring = Porffor.malloc(6 + cap);
   __Porffor_json_bufLimit = (buffer as i32) + 4 + cap;
   let out: i32 = __Porffor_json_serialize(buffer, value, 0, space, Porffor.array.new(0));
-  if (out == -1) return undefined;
-
   const needed: i32 = out - (buffer as i32);
   if (needed > cap) {
     cap = needed;
@@ -375,8 +404,49 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
     out = __Porffor_json_serialize(buffer, value, 0, space, Porffor.array.new(0));
   }
 
-  buffer.length = out - (buffer as i32);
-  return buffer;
+  const hasWide: boolean = __Porffor_json_wide;
+  __Porffor_json_wide = outerWide;
+  __Porffor_json_bufLimit = outerLimit;
+  if (out == -1) return undefined;
+
+  const len: i32 = out - (buffer as i32);
+  buffer.length = len;
+  if (!hasWide) return buffer;
+
+  // widen uppercase \uXXXX escapes past latin-1
+  const wide: string = Porffor.malloc(4 + len * 2);
+  const base: i32 = buffer as i32;
+  let n: i32 = 0;
+  for (let i: i32 = 0; i < len; i++) {
+    let c: i32 = Porffor.IR.loadU8(base + i, 4);
+    if (c == 92) {
+      let code: i32 = -1;
+      if (Porffor.fastAnd(i + 5 < len, Porffor.IR.loadU8(base + i + 1, 4) == 117)) {
+        code = 0;
+        for (let j: i32 = 2; j < 6; j++) {
+          const d: i32 = Porffor.IR.loadU8(base + i + j, 4);
+          if (d >= 48 && d <= 57) code = code * 16 + d - 48;
+            else if (d >= 65 && d <= 70) code = code * 16 + d - 55;
+            else code = -1;
+          if (code < 0) break;
+        }
+      }
+      if (code > 0xff) {
+        c = code;
+        i += 5;
+      } else {
+        // other escapes are copied whole so an escaped backslash can't start one
+        Porffor.IR.storeU16((wide as i32) + n * 2, 4, 92);
+        n++;
+        i++;
+        c = Porffor.IR.loadU8(base + i, 4);
+      }
+    }
+    Porffor.IR.storeU16((wide as i32) + n * 2, 4, c);
+    n++;
+  }
+  wide.length = n;
+  return wide;
 };
 
 
@@ -458,6 +528,7 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
 
   if (c == 34) { // '"' - string
     pos++;
+    const start: i32 = pos;
 
     let strEnd: i32 = pos;
     let hasEscape: boolean = false;
@@ -508,17 +579,9 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
           else if (esc == 114) Porffor.bytestring.appendChar(out, 13); // \r
           else if (esc == 116) Porffor.bytestring.appendChar(out, 9); // \t
           else if (esc == 117) { // \u
-            if (pos + 4 >= len) throw new SyntaxError('Invalid unicode escape');
-            let unicode: i32 = 0;
-            for (let i: i32 = 0; i < 4; i++) {
-              const hex: i32 = text.charCodeAt(pos + i);
-              unicode <<= 4;
-              if (hex >= 48 && hex <= 57) unicode |= hex - 48; // 0-9
-                else if (hex >= 65 && hex <= 70) unicode |= hex - 55; // A-F
-                else if (hex >= 97 && hex <= 102) unicode |= hex - 87; // a-f
-                else throw new SyntaxError('Invalid unicode escape');
-            }
+            const unicode: i32 = __Porffor_json_hex4(text, pos, len);
             pos += 4;
+            if (unicode > 0xff) return __Porffor_json_parseWideString(text, start, posPtr, len);
             Porffor.bytestring.appendChar(out, unicode);
           } else throw new SyntaxError('Invalid escape sequence');
       } else {
@@ -671,9 +734,78 @@ export const __Porffor_json_internalize = (holder: any, name: any, reviver: any,
   return reviver.call(holder, name, val, context);
 };
 
+// the 4 hex digits of a \u escape at pos
+export const __Porffor_json_hex4 = (text: bytestring, pos: i32, len: i32): i32 => {
+  if (pos + 4 >= len) throw new SyntaxError('Invalid unicode escape');
+  let out: i32 = 0;
+  for (let i: i32 = 0; i < 4; i++) {
+    const hex: i32 = text.charCodeAt(pos + i);
+    out <<= 4;
+    if (hex >= 48 && hex <= 57) out |= hex - 48; // 0-9
+      else if (hex >= 65 && hex <= 70) out |= hex - 55; // A-F
+      else if (hex >= 97 && hex <= 102) out |= hex - 87; // a-f
+      else throw new SyntaxError('Invalid unicode escape');
+  }
+  return out;
+};
+
+// strings with \u escapes past latin-1, from after the opening quote
+export const __Porffor_json_parseWideString = (text: bytestring, start: i32, posPtr: i32, len: i32): string => {
+  const out: string = Porffor.malloc(6 + (len - start) * 2);
+  let n: i32 = 0, pos: i32 = start;
+  while (pos < len) {
+    let ch: i32 = text.charCodeAt(pos++);
+    if (ch == 34) {
+      out.length = n;
+      Porffor.IR.storeI32(posPtr, 0, pos);
+      return out;
+    }
+    if (ch < 0x20) throw new SyntaxError('Unescaped control character');
+    if (ch == 92) {
+      if (pos >= len) throw new SyntaxError('Unterminated string');
+      const esc: i32 = text.charCodeAt(pos++);
+      if (esc == 98) ch = 8;
+        else if (esc == 102) ch = 12;
+        else if (esc == 110) ch = 10;
+        else if (esc == 114) ch = 13;
+        else if (esc == 116) ch = 9;
+        else if (esc == 117) {
+          ch = __Porffor_json_hex4(text, pos, len);
+          pos += 4;
+        } else if (Porffor.fastOr(esc == 34, esc == 92, esc == 47)) ch = esc;
+        else throw new SyntaxError('Invalid escape sequence');
+    }
+    Porffor.IR.storeU16((out as i32) + n * 2, 4, ch);
+    n++;
+  }
+  throw new SyntaxError('Unterminated string');
+};
+
+// wide chars are only valid inside strings, so escaped they parse as a bytestring
+export const __Porffor_json_escapeWide = (str: string): bytestring => {
+  const len: i32 = str.length;
+  let wide: i32 = 0;
+  for (let i: i32 = 0; i < len; i++) if (str.charCodeAt(i) > 0xff) wide++;
+
+  const out: bytestring = Porffor.malloc(6 + len + wide * 5);
+  Porffor.IR.storeI32(out, 0, 0);
+  let escaped: boolean = false;
+  for (let i: i32 = 0; i < len; i++) {
+    const c: i32 = str.charCodeAt(i);
+    if (c > 0xff) {
+      if (escaped) throw new SyntaxError('Invalid escape sequence');
+      Porffor.bytestring.append2Char(out, 92, 117);
+      Porffor.bytestring.append2Char(out, __Porffor_json_hexDigit(c >> 12, true), __Porffor_json_hexDigit((c >> 8) & 15, true));
+      Porffor.bytestring.append2Char(out, __Porffor_json_hexDigit((c >> 4) & 15, true), __Porffor_json_hexDigit(c & 15, true));
+    } else Porffor.bytestring.appendChar(out, c);
+    escaped = c == 92 && !escaped;
+  }
+  return out;
+};
+
 export const __JSON_parse = (_: any, reviver: any) => {
-  // todo: support non-bytestrings
-  const text: bytestring = ecma262.ToString(_);
+  const raw: any = ecma262.ToString(_);
+  const text: bytestring = Porffor.type(raw) == Porffor.TYPES.string ? __Porffor_json_escapeWide(raw) : raw;
   const posPtr: i32 = Porffor.malloc(4);
   Porffor.IR.storeI32(posPtr, 0, 0);
 

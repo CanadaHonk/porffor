@@ -2,6 +2,10 @@
 import type {} from './porffor.d.ts';
 
 const pendingRejections: any[] = [];
+// host event loop step for awaitSync before it deadlocks
+let idleHook: any = undefined;
+// host handler for unhandled rejections, oldest first
+let rejectionHook: any = undefined;
 
 export const __ecma262_IsPromise = (x: any): boolean => {
   return Porffor.type(x) == Porffor.TYPES.promise;
@@ -24,7 +28,7 @@ export const __Porffor_promise_setHandled = (promise: any): void => {
 };
 
 export const __Porffor_promise_newReaction = (handler: any, promise: any, kind: i32): i32 => {
-  const out: i32 = Porffor.malloc(40);
+  const out: i32 = Porffor.malloc(48);
   Porffor.IR.storeJv(out, 0, handler);
   Porffor.IR.storeJv(out, 8, promise);
   Porffor.IR.storeJv(out, 16, undefined);
@@ -32,8 +36,19 @@ export const __Porffor_promise_newReaction = (handler: any, promise: any, kind: 
   Porffor.IR.storeI32(out, 28, 0);
   Porffor.IR.storeU8(out, 32, kind);
   Porffor.IR.storeU8(out, 33, 0);
-  Porffor.c`porf_gc_barrier((u32)out, PORF_GC_KIND_PROMISE_REACTION);`;
+  Porffor.c`*(jsbits*)(MEM + (u32)out + PORF_REACTION_CONTEXT) = porf_async_context;
+porf_gc_barrier((u32)out, PORF_GC_KIND_PROMISE_REACTION);`;
   return out;
+};
+
+export const __Porffor_promise_getContext = (): any => {
+  let out: any;
+  Porffor.c`out = porf_unpack(porf_async_context);`;
+  return out;
+};
+
+export const __Porffor_promise_setContext = (context: any): void => {
+  Porffor.c`porf_async_context = porf_pack(context);`;
 };
 
 export const __Porffor_promise_reactionSetPayload = (reaction: i32, payload: i32): void => {
@@ -215,7 +230,15 @@ export const __Porffor_promise_create = (): Promise => {
   return obj;
 };
 
+// jobs run in the async context their reaction captured
 export const __Porffor_promise_runOne = (reaction: i32): void => {
+  const outer: any = __Porffor_promise_getContext();
+  Porffor.c`porf_async_context = *(jsbits*)(MEM + (u32)reaction + PORF_REACTION_CONTEXT);`;
+  __Porffor_promise_runReaction(reaction);
+  __Porffor_promise_setContext(outer);
+};
+
+export const __Porffor_promise_runReaction = (reaction: i32): void => {
   const kind: i32 = __Porffor_promise_reactionKind(reaction);
 
   if (kind == 11) {
@@ -233,6 +256,21 @@ export const __Porffor_promise_runOne = (reaction: i32): void => {
   const value: any = __Porffor_promise_reactionValue(reaction);
 
   if (__Porffor_promise_reactionPayload(reaction) == 1) {
+    // native then on a native promise: settle outPromise directly
+    if (Porffor.fastAnd(handler === __Promise_prototype_then, __ecma262_IsPromise(value))) {
+      let C: any;
+      try {
+        C = __Porffor_promise_speciesConstructor(value);
+      } catch (e) {
+        __Porffor_promise_reject(e, outPromise);
+        return;
+      }
+      if (C === Promise) {
+        __Porffor_then(value, __Porffor_promise_newReaction(undefined, outPromise, 0), __Porffor_promise_newReaction(undefined, outPromise, 1));
+        return;
+      }
+    }
+
     const resolvers: any[] = __Porffor_promise_createResolvingFunctions(outPromise);
     try {
       Porffor.call(handler, resolvers, value, undefined);
@@ -266,17 +304,36 @@ export const __Porffor_promise_runOne = (reaction: i32): void => {
   }
 };
 
-export const __Porffor_promise_runJobs = (): void => {
+export const __Porffor_promise_runReactions = (): void => {
   while (true) {
     const reaction: i32 = __Porffor_promise_dequeueReaction();
     if (reaction == 0) break;
 
+    // awaiting coroutines resume from c in the context they awaited in
+    if (Porffor.IR.loadU8(reaction, 32) == 11) {
+      Porffor.c`{
+  const jsbits outer = porf_async_context;
+  porf_async_context = *(jsbits*)(MEM + (u32)reaction + PORF_REACTION_CONTEXT);
+  porf_promise_run_coro_reaction((u32)reaction);
+  porf_async_context = outer;
+}`;
+      continue;
+    }
     __Porffor_promise_runOne(reaction);
   }
+};
+
+export const __Porffor_promise_runJobs = (): void => {
+  __Porffor_promise_runReactions();
 
   while (pendingRejections.length > 0) {
-    const p: any = pendingRejections.pop();
+    const hooked: boolean = Porffor.type(rejectionHook) == Porffor.TYPES.function;
+    const p: any = hooked ? pendingRejections.shift() : pendingRejections.pop();
     if (Porffor.fastAnd(!__Porffor_promise_isHandled(p), __Porffor_promise_state(p) == 2)) {
+      if (hooked) {
+        rejectionHook(__Porffor_promise_result(p), p);
+        continue;
+      }
       Porffor.c`
 #ifndef PORF_IGNORE_UNHANDLED_REJECTIONS`;
       throw __Porffor_promise_result(p);
@@ -628,6 +685,27 @@ export const __Promise_try = function (this: any, callback: any, ...args: any[])
 export const __Promise_prototype_toString = function (this: any) { return '[object Promise]'; };
 export const __Promise_prototype_toLocaleString = function (this: any) { return Porffor.callThis(__Promise_prototype_toString, this); };
 
+export const __Porffor_promise_setIdleHook = (hook: any): void => {
+  idleHook = hook;
+};
+
+export const __Porffor_promise_setRejectionHook = (hook: any): void => {
+  rejectionHook = hook;
+};
+
+// host handler for uncaught throws, does not return
+let fatalHook: any = undefined;
+export const __Porffor_setFatalHook = (hook: any): void => {
+  fatalHook = hook;
+};
+
+export const __Porffor_fatal = (e: any): any => {
+  const hook: any = fatalHook;
+  fatalHook = undefined;
+  if (Porffor.type(hook) == Porffor.TYPES.function) hook(e);
+  return undefined;
+};
+
 export const __Porffor_promise_awaitSync = (value: any): any => {
   if (Porffor.type(value) != Porffor.TYPES.promise) return value;
 
@@ -637,7 +715,10 @@ export const __Porffor_promise_awaitSync = (value: any): any => {
   if (state == 0) {
     while (__Porffor_promise_state(value) == 0) {
       const reaction: i32 = __Porffor_promise_dequeueReaction();
-      if (reaction == 0) throw new TypeError('Deadlock: awaited pending promise with no pending jobs');
+      if (reaction == 0) {
+        if (Porffor.type(idleHook) == Porffor.TYPES.function && idleHook()) continue;
+        throw new TypeError('Deadlock: awaited pending promise with no pending jobs');
+      }
       __Porffor_promise_runOne(reaction);
     }
     state = __Porffor_promise_state(value);

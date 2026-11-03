@@ -128,6 +128,7 @@ export const __Reflect_ownKeys = (target: any) => {
 
 
 export const __Reflect_apply = (target: any, thisArgument: any, argumentsList: any) => {
+  if (Porffor.type(argumentsList) != Porffor.TYPES.array) argumentsList = __ecma262_CreateListFromArrayLike(argumentsList);
   return Porffor.call(target, argumentsList, thisArgument, null);
 };
 

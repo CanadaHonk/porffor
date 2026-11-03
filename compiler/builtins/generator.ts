@@ -66,15 +66,16 @@ export const __Porffor_iterator_get = (obj: any): any[] => {
   return __Porffor_iterator_new(iter, 0, 0);
 };
 
+// async generators with an underlying object may have own next/return/throw
 export const __Porffor_iterator_getAsync = (obj: any): any[] => {
-  if (Porffor.type(obj) == Porffor.TYPES.__porffor_asyncgenerator) return __Porffor_iterator_new(obj, 0, 2);
+  if (Porffor.fastAnd(Porffor.type(obj) == Porffor.TYPES.__porffor_asyncgenerator, __Porffor_object_underlyingIfAny(obj) == null)) return __Porffor_iterator_new(obj, 0, 2);
 
   const method: any = obj[Symbol.asyncIterator];
   if (Porffor.fastOr(method === undefined, method === null)) return __Porffor_iterator_get(obj);
   if (Porffor.type(method) != Porffor.TYPES.function) throw new TypeError('Object is not async iterable');
   const iter: any = method.call(obj);
   if (!Porffor.object.isObject(iter)) throw new TypeError('Iterator is not an object');
-  if (Porffor.type(iter) == Porffor.TYPES.__porffor_asyncgenerator) return __Porffor_iterator_new(iter, 0, 2);
+  if (Porffor.fastAnd(Porffor.type(iter) == Porffor.TYPES.__porffor_asyncgenerator, __Porffor_object_underlyingIfAny(iter) == null)) return __Porffor_iterator_new(iter, 0, 2);
   return __Porffor_iterator_new(iter, iter.next, 2);
 };
 
@@ -153,6 +154,8 @@ export const __Porffor_iterator_step = (rec: any[]): any => {
       return pair;
     }
   }
+  // holes and accessor elements read through Get
+  if (t == Porffor.TYPES.array && !Porffor.array.has(iter, i)) return __Porffor_object_get(iter, i);
   return iter[i];
 };
 
@@ -208,7 +211,7 @@ export const __Porffor_iterator_closeAsync = async (rec: any[]) => {
   rec[2] = true;
 
   const iter: any = rec[0];
-  if (Porffor.type(iter) == Porffor.TYPES.__porffor_asyncgenerator) {
+  if (Porffor.fastAnd(Porffor.type(iter) == Porffor.TYPES.__porffor_asyncgenerator, Porffor.type(rec[1]) != Porffor.TYPES.function)) {
     await __Porffor_AsyncGenerator_step(iter, undefined, 2);
     return;
   }
@@ -222,7 +225,7 @@ export const __Porffor_iterator_closeAsync = async (rec: any[]) => {
 export const __Porffor_iterator_nextAsync = (rec: any[]): any => {
   rec[2] = true;
   const iter: any = rec[0];
-  if (Porffor.type(iter) == Porffor.TYPES.__porffor_asyncgenerator) return __Porffor_AsyncGenerator_step(iter, undefined, 0);
+  if (Porffor.fastAnd(Porffor.type(iter) == Porffor.TYPES.__porffor_asyncgenerator, Porffor.type(rec[1]) != Porffor.TYPES.function)) return __Porffor_AsyncGenerator_step(iter, undefined, 0);
 
   const next: any = rec[1];
   return next.call(iter);
@@ -262,7 +265,7 @@ export const __Porffor_iterator_call = (rec: any[], value: any, mode: i32): any 
   const iter: any = rec[0];
   const t: i32 = Porffor.type(iter);
   if (t == Porffor.TYPES.__porffor_generator) return __Porffor_Generator_step(iter, value, mode);
-  if (t == Porffor.TYPES.__porffor_asyncgenerator) return __Porffor_AsyncGenerator_step(iter, value, mode);
+  if (Porffor.fastAnd(t == Porffor.TYPES.__porffor_asyncgenerator, Porffor.type(rec[1]) != Porffor.TYPES.function)) return __Porffor_AsyncGenerator_step(iter, value, mode);
 
   if (rec[3] != 0) {
     const method: any = mode == 0 ? rec[1] : (mode == 1 ? iter.throw : iter.return);

@@ -37,11 +37,12 @@ export const __Porffor_arraybuffer_isShared = (buffer: i32): boolean => Porffor.
 
 // maxByteLength -1 for fixed length, -2 for immutable
 export const __Porffor_arraybuffer_alloc = (byteLength: number, maxByteLength: number, shared: boolean): i32 => {
-  if (Porffor.fastAnd(maxByteLength >= 0, byteLength > maxByteLength)) throw new RangeError('Invalid ArrayBuffer length (over maxByteLength)');
+  if (Porffor.fastAnd(maxByteLength >= 0, byteLength > maxByteLength)) throw new RangeError('Invalid array buffer max length');
 
   const capacity: number = maxByteLength >= 0 ? maxByteLength : byteLength;
   const max: i32 = maxByteLength >= 0 ? maxByteLength : (maxByteLength == -2 ? 0x7ffffffe : 0x7fffffff);
-  if (capacity > 2147483639) throw new RangeError('Invalid ArrayBuffer length (over maximum supported length)');
+  // past the 32-bit heap, fail like v8 out of memory
+  if (capacity > 2147483639) throw new RangeError('Array buffer allocation failed');
 
   const out: i32 = Porffor.malloc(capacity + 8);
   Porffor.IR.storeI32(out, 0, byteLength);

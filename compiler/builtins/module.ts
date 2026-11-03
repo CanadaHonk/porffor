@@ -82,6 +82,7 @@ export const __Porffor_module_namespace = (names: any[], getters: object, evalua
 };
 
 export const __Porffor_module_resolve = (dir: any, spec: any): any => {
+  if (spec.startsWith('file://')) return decodeURIComponent(spec.slice(7));
   if (!Porffor.fastOr(spec.startsWith('./'), spec.startsWith('../'), spec.startsWith('/'))) return spec;
 
   const parts: any[] = Porffor.array.new(8);

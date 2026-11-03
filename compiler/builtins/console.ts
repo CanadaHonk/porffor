@@ -43,7 +43,28 @@ export const __Porffor_printHexDigit = (arg: number): void => {
   }
 };
 
-export const __Porffor_print = (arg: any, colors: boolean = true, depth: number = 0): void => {
+// colors only when the stream printed to is a terminal
+let consoleColors: i32 = -1;
+let consoleErrColors: i32 = -1;
+let consoleErr: boolean = false;
+export const __Porffor_consoleColors = (): boolean => {
+  let tty: i32 = 0;
+  if (consoleErr) {
+    if (consoleErrColors == -1) {
+      Porffor.c`tty = isatty(2);`;
+      consoleErrColors = tty;
+    }
+    return consoleErrColors == 1;
+  }
+
+  if (consoleColors == -1) {
+    Porffor.c`tty = isatty(1);`;
+    consoleColors = tty;
+  }
+  return consoleColors == 1;
+};
+
+export const __Porffor_print = (arg: any, colors: boolean = __Porffor_consoleColors(), depth: number = 0): void => {
   const __Porffor_printArray = (arg: any[]|Uint8Array|Int8Array|Uint8ClampedArray|Uint16Array|Int16Array|Uint32Array|Int32Array|Float32Array|Float64Array, colors: boolean, length: boolean = false) => {
     const arrLen: i32 = arg.length;
     if (length) {
@@ -372,64 +393,84 @@ export const __console_groupEnd = (): void => {
   if (tabLevel < 0) tabLevel = 0;
 };
 
-export const __console_log = (...args: any[]): void => {
-  const argLen: i32 = args.length - 1;
-  for (let i: i32 = 0; i <= argLen; i++) {
-    __Porffor_consoleIndent();
-    __Porffor_consolePrint(args[i]);
+// a leading string formats like node's util.format: %s %d %i %f %j %o %O %c %%
+export const __Porffor_consolePrintArgs = (args: any[]): void => {
+  __Porffor_consoleIndent();
+  const argLen: i32 = args.length;
+  let i: i32 = 0;
+  const first: any = args[0];
+  if (Porffor.fastAnd(argLen > 1, Porffor.fastOr(Porffor.type(first) == Porffor.TYPES.bytestring, Porffor.type(first) == Porffor.TYPES.string))) {
+    i = 1;
+    const len: i32 = first.length;
+    let last: i32 = 0;
+    for (let j: i32 = 0; j < len - 1; j++) {
+      if (first.charCodeAt(j) != 37) continue;
+      const c: i32 = first.charCodeAt(j + 1);
+      if (c == 37) {
+        __Porffor_printString(first.slice(last, j + 1));
+        last = j + 2;
+        j++;
+        continue;
+      }
+      if (i >= argLen) continue;
+      if (Porffor.fastAnd(c != 115, c != 100, c != 105, c != 102, c != 106, c != 111, c != 79, c != 99)) continue;
 
-    if (i != argLen) Porffor.printStatic(' ');
+      __Porffor_printString(first.slice(last, j));
+      last = j + 2;
+      j++;
+      const arg: any = args[i++];
+      if (c == 115) {
+        if (Porffor.fastOr(Porffor.type(arg) == Porffor.TYPES.bytestring, Porffor.type(arg) == Porffor.TYPES.string)) __Porffor_printString(arg);
+          else __Porffor_print(arg, false);
+      } else if (Porffor.fastOr(c == 100, c == 105, c == 102)) {
+        if (Porffor.type(arg) == Porffor.TYPES.bigint) __Porffor_print(arg, false);
+          else if (Porffor.type(arg) == Porffor.TYPES.symbol) Porffor.printStatic('NaN');
+          else if (c == 100) __Porffor_print(Number(arg), false);
+          else if (c == 105) __Porffor_print(parseInt(arg), false);
+          else __Porffor_print(parseFloat(arg), false);
+      } else if (c == 106) {
+        let json: any = '[Circular]';
+        try {
+          json = JSON.stringify(arg);
+        } catch (e) {
+          if (!(e instanceof TypeError) || e.message != 'Converting circular structure to JSON') throw e;
+        }
+        __Porffor_consolePrint(json);
+      } else if (c != 99) {
+        __Porffor_print(arg);
+      }
+    }
+    __Porffor_printString(first.slice(last));
+    if (i < argLen) Porffor.printStatic(' ');
   }
 
+  for (; i < argLen; i++) {
+    __Porffor_consolePrint(args[i]);
+    if (i != argLen - 1) Porffor.printStatic(' ');
+  }
   Porffor.printStatic('\n');
 };
 
-export const __console_debug = (...args: any[]): void => {
-  const argLen: i32 = args.length - 1;
-  for (let i: i32 = 0; i <= argLen; i++) {
-    __Porffor_consoleIndent();
-    __Porffor_consolePrint(args[i]);
-
-    if (i != argLen) Porffor.printStatic(' ');
-  }
-
-  Porffor.printStatic('\n');
+export const __console_log = (...args: any[]): void => __Porffor_consolePrintArgs(args);
+export const __console_debug = (...args: any[]): void => __Porffor_consolePrintArgs(args);
+export const __console_info = (...args: any[]): void => __Porffor_consolePrintArgs(args);
+export const __Porffor_consolePrintErr = (args: any[]): void => {
+  // stdout is const on some libcs, so fd 1 points at stderr meanwhile
+  Porffor.c`fflush(stdout); const int porf_out = dup(1); dup2(2, 1);`;
+  consoleErr = true;
+  __Porffor_consolePrintArgs(args);
+  consoleErr = false;
+  Porffor.c`fflush(stdout); dup2(porf_out, 1); close(porf_out);`;
 };
 
-export const __console_info = (...args: any[]): void => {
-  const argLen: i32 = args.length - 1;
-  for (let i: i32 = 0; i <= argLen; i++) {
-    __Porffor_consoleIndent();
-    __Porffor_consolePrint(args[i]);
+export const __console_warn = (...args: any[]): void => __Porffor_consolePrintErr(args);
+export const __console_error = (...args: any[]): void => __Porffor_consolePrintErr(args);
 
-    if (i != argLen) Porffor.printStatic(' ');
-  }
-
-  Porffor.printStatic('\n');
-};
-
-export const __console_warn = (...args: any[]): void => {
-  const argLen: i32 = args.length - 1;
-  for (let i: i32 = 0; i <= argLen; i++) {
-    __Porffor_consoleIndent();
-    __Porffor_consolePrint(args[i]);
-
-    if (i != argLen) Porffor.printStatic(' ');
-  }
-
-  Porffor.printStatic('\n');
-};
-
-export const __console_error = (...args: any[]): void => {
-  const argLen: i32 = args.length - 1;
-  for (let i: i32 = 0; i <= argLen; i++) {
-    __Porffor_consoleIndent();
-    __Porffor_consolePrint(args[i]);
-
-    if (i != argLen) Porffor.printStatic(' ');
-  }
-
-  Porffor.printStatic('\n');
+// no stack, only the message
+export const __console_trace = (...args: any[]): void => {
+  if (Porffor.fastOr(Porffor.type(args[0]) == Porffor.TYPES.bytestring, Porffor.type(args[0]) == Porffor.TYPES.string)) args[0] = 'Trace: ' + args[0];
+    else args.unshift('Trace:');
+  __Porffor_consolePrintErr(args);
 };
 
 export const __console_assert = (assertion: any, ...args: any[]): void => {
@@ -475,7 +516,7 @@ export const __Porffor_dirObject = (obj: any, colors: boolean, depth: i32, showH
 };
 
 export const __console_dir = (obj: any, options: any): void => {
-  let colors: boolean = true;
+  let colors: boolean = __Porffor_consoleColors();
   let depth: i32 = 2;
 
   // todo: we currently have no concept of enumerable or nonenumerable properties, so this does nothing
