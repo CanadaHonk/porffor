@@ -246,11 +246,6 @@ export const __Porffor_promise_runReaction = (reaction: i32): void => {
     return;
   }
 
-  if (kind == 12) {
-    Porffor.c`porf_native_fetch_run_response_reaction((u32)reaction);`;
-    return;
-  }
-
   const handler: any = __Porffor_promise_reactionHandler(reaction);
   const outPromise: any = __Porffor_promise_reactionPromise(reaction);
   const value: any = __Porffor_promise_reactionValue(reaction);

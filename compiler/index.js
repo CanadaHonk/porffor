@@ -82,10 +82,7 @@ export default (code, module = Prefs.module, opts = {}) => {
   if (logProgress) progressDone('rendered C', t4);
 
   if (target === 'c') {
-    if (Prefs.nativeFetch) {
-      if (!outFile) throw new Error('native fetch C output requires an output directory');
-      uwebsockets.writeNativeFetchPackage(outFile, cOut);
-    } else if (split) {
+    if (split) {
       fs.mkdirSync(outFile, { recursive: true });
       for (const x of cOut.files) fs.writeFileSync(`${outFile}/${x.name}`, x.c);
     } else if (outFile) fs.writeFileSync(outFile, c);
@@ -95,7 +92,7 @@ export default (code, module = Prefs.module, opts = {}) => {
       const total = performance.now();
       progressClear();
       if (!outFile) return;
-      const detail = Prefs.nativeFetch ? 'C bundle' : split ? `${cOut.files.length} files` : formatSize(fs.statSync(outFile).size);
+      const detail = split ? `${cOut.files.length} files` : formatSize(fs.statSync(outFile).size);
       console.log(`${ansi(2)}[${formatTime(total)}]${ansi(0)} ${ansi(32)}compiled ${globalThis.file} ${ansi(90)}->${ansi(0)} ${ansi(92)}${outFile}${ansi(90)} (${detail})${ansi(0)}`);
     }
 

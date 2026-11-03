@@ -314,8 +314,7 @@ export default (entrySource, entryFile, opts = {}) => {
           if (node.exportKind === 'type') break;
           if (node.declaration) {
             const decl = node.declaration;
-            // entry __porffor_ names are host hooks the runtime looks up by name (native fetch): kept as exports
-            body.push(mod.entry && decl.id && isHostHook(decl.id.name) ? node : decl);
+            body.push(decl);
             if (decl.type.startsWith('TS') && decl.type !== 'TSEnumDeclaration') break;
             if (decl.type === 'VariableDeclaration') {
               for (const d of decl.declarations) for (const name of patternNames(d.id, [])) mod.exports.set(name, { local: name });

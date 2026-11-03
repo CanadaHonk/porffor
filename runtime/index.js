@@ -4,7 +4,6 @@ import { execFileSync } from 'node:child_process';
 import '../compiler/prefs.js';
 globalThis.version = 'alpha 1 (ba4813d 2026-07-15)';
 
-const DEFAULT_EXPORT_PATTERN = /^\s*export\s+(?:default\b|\{[^}]*\bdefault\b[^}]*\})/m;
 const MODULE_SYNTAX_PATTERN = /^\s*(?:export|import)\s/m;
 
 // deno compat
@@ -152,11 +151,7 @@ entrypoint: {
     else source = fs.readFileSync(inputFile, 'utf8');
 
   try {
-    if ((Prefs.target === 'c' || Prefs.target === 'native') && DEFAULT_EXPORT_PATTERN.test(source) && source.includes('fetch')) {
-      (await import('./native-fetch.js')).default(inputFile);
-    } else {
-      (await import('../compiler/index.js')).default(source, Prefs.module ?? looksLikeModule(inputFile, source));
-    }
+    (await import('../compiler/index.js')).default(source, Prefs.module ?? looksLikeModule(inputFile, source));
 
     if (runAfterCompile) {
       try {
