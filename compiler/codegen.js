@@ -1865,6 +1865,8 @@ const generateLiteral = (scope, decl) => {
       return valBool(decl.value);
 
     case 'string':
+      // intrinsic paths ('%Date.prototype.getDay%') read the method by a dynamic key
+      if (!globalThis.precompile && decl.value.includes('.prototype.')) for (const m of decl.value.matchAll(/\.prototype\.([\w$]+)/g)) memberDemands.add(m[1]);
       return makeString(scope, decl.value);
   }
 
