@@ -1803,7 +1803,7 @@ const getNodeType = (scope, node) => {
     ret = argType === TYPES.bigint ? TYPES.bigint : (argType == null && mayHaveBigInt && node.argument.type === 'Identifier' ? null : TYPES.number);
   }
   else if (node.type === 'MemberExpression') {
-    const name = node.property.name;
+    const name = node.computed ? null : node.property.name;
     if (name === 'length' && (hasFuncWithName(node.object.name) || Prefs.fastLength)) ret = TYPES.number;
     else {
       const objType = getNodeType(scope, node.object);
@@ -3492,7 +3492,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     return valueUnused ? valUndefined() : decl._appended ? Call('porf_str_seal', [ value ]) : value;
   }
 
-  if (type === 'MemberExpression' && decl.left.property.name === 'length' && !decl._internalAssign) {
+  if (type === 'MemberExpression' && !decl.left.computed && decl.left.property.name === 'length' && !decl._internalAssign) {
     const known = knownType(scope, getNodeType(scope, decl.left.object));
 
     const storeLength = (p, ensureArray = null) => {
@@ -5185,7 +5185,7 @@ const generateMember = (scope, decl, objValue = null) => {
   if (!decl.optional && objectKnownValue === null)
     return internalThrow(scope, 'TypeError', propertyErrorMessage('read', 'null', decl));
 
-  if (decl.property.name === 'length') return lengthMemberGet();
+  if (!decl.computed && decl.property.name === 'length') return lengthMemberGet();
 
   if (decl.computed) return typeSwitch(scope, prop, propertyKnown, {
     [TYPES.number]: () => typeSwitch(scope, obj, known, indexedMemberGetBC),

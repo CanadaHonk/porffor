@@ -975,6 +975,11 @@ const annotate = (node, parent = null, key = null) => {
     }
 
     case 'MemberExpression':
+      // a non-index string literal key is a static one: o['x'] is o.x
+      if (node.computed && node.property.type === 'Literal' && typeof node.property.value === 'string' && String(Number(node.property.value)) !== node.property.value) {
+        node.computed = false;
+        node.property = { type: 'Identifier', name: node.property.value, start: node.property.start, end: node.property.end };
+      }
       if (node.computed || node.property.type === 'PrivateIdentifier') annotate(node.property, node, 'property');
       annotate(node.object, node, 'object');
       // reading .length cannot leak an append target (see porf_str_append)
