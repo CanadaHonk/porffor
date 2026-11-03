@@ -4979,8 +4979,9 @@ const icSlot = scope => {
 
 let memberDemands, globalDemands;
 // values that can be the global object: globalThis, this, a param such as (function (global) {})(this)
-const mayBeGlobal = node => node?.type === 'ThisExpression' || node?.name === 'globalThis' || !!node?._resolvedVariable?.node._param ||
-  (node?.type === 'Identifier' && mayBeGlobal(node._resolvedVariable?.node._declarator?.init));
+// alias chains can loop (var a = a)
+const mayBeGlobal = (node, depth = 0) => node?.type === 'ThisExpression' || node?.name === 'globalThis' || !!node?._resolvedVariable?.node._param ||
+  (node?.type === 'Identifier' && depth < 8 && mayBeGlobal(node._resolvedVariable?.node._declarator?.init, depth + 1));
 
 // precompiled builtins keep theirs, demanded once they are included
 const demandMemberRead = (scope, decl) => {
