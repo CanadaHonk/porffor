@@ -58,6 +58,26 @@ const INTL_HOOKS = {
 };
 const POLYFILL_NAMES = new Set([ 'Temporal', 'Intl', ...INTL_SERVICES, ...Object.keys(INTL_HOOKS) ]);
 
+// x!, x satisfies T and f<T> are just their expression, as are casts assigned to
+const TS_TRANSPARENT = new Set([ 'TSNonNullExpression', 'TSSatisfiesExpression', 'TSInstantiationExpression' ]);
+const TS_CAST = new Set([ 'TSAsExpression', 'TSTypeAssertion' ]);
+const stripTsWrappers = node => {
+  if (node == null || typeof node !== 'object') return node;
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) node[i] = stripTsWrappers(node[i]);
+    return node;
+  }
+  if (TS_TRANSPARENT.has(node.type)) return stripTsWrappers(node.expression);
+  // f(this: T) declares this's type, it is not a parameter
+  if (node.params?.[0]?.type === 'Identifier' && node.params[0].name === 'this') node.params.shift();
+  if (node.type === 'AssignmentExpression') while (TS_CAST.has(node.left.type)) node.left = node.left.expression;
+  if (node.type === 'UpdateExpression') while (TS_CAST.has(node.argument.type)) node.argument = node.argument.expression;
+  for (const key in node) {
+    if (key[0] !== '_' && key !== 'start' && key !== 'end') node[key] = stripTsWrappers(node[key]);
+  }
+  return node;
+};
+
 // entry: link options for a program entry ({ file?, scripts? }), null for a lone source
 export default (input, entry = null, evalContext = null) => {
   const types = Prefs.parseTypes || Prefs.t || globalThis.file?.endsWith('.ts');
@@ -68,6 +88,7 @@ export default (input, entry = null, evalContext = null) => {
   const linked = entry && !globalThis.precompile && (Prefs.module || /\bimport\s*\(/.test(input));
   const ast = linked ? link(input, file[0] === '/' ? file : process.cwd() + '/' + file, { ts: types, scripts: entry.scripts, script: !Prefs.module }) : parse(input, { module: !!Prefs.module, ts: types, eval: evalContext });
   if (ast._ts) globalThis.typedInput = Prefs.optTypes;
+  if (!globalThis.precompile && (ast._ts || types)) stripTsWrappers(ast);
   const used = usedNames(ast, POLYFILL_NAMES);
   if (used.has('Temporal')) ast._usesTemporal = true;
   if (!globalThis.precompile && (used.has('Intl') || Object.keys(INTL_HOOKS).some(x => used.has(x)))) {

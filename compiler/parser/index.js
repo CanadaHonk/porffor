@@ -1189,6 +1189,11 @@ const toAssignable = (node, isBinding, refDE) => {
       if (!isBinding) break;
       raise(node.start, 'Binding member expression');
 
+    case 'TSAsExpression': case 'TSSatisfiesExpression': case 'TSNonNullExpression':
+      if (isBinding) raise(node.start, 'Binding rvalue');
+      toAssignable(node.expression, isBinding);
+      break;
+
     default:
       raise(node.start, (isBinding ? 'Binding' : 'Assigning to') + ' rvalue');
   }
@@ -1813,13 +1818,15 @@ const parseNew = () => {
 
   const calleeStart = tokStart;
   if (tokKind === T_IMPORT && peekToken()[0] === T_LPAREN) raise(tokStart, 'Cannot use new with import()');
-  const callee = parseSubscripts(parseExprAtom(null, false, true), calleeStart, true, false);
+  let callee = parseSubscripts(parseExprAtom(null, false, true), calleeStart, true, false), typeParameters = null;
+  // new X<T>(): the type arguments belong to the new expression, like a call's
+  if (callee.type === 'TSInstantiationExpression') ({ expression: callee, typeParameters } = callee);
   let args = [];
   if (tokKind === T_LPAREN) {
     next();
     args = parseExprList(T_RPAREN, true, false);
   }
-  return { type: 'NewExpression', start, end: prevEnd, callee, arguments: args };
+  return { type: 'NewExpression', start, end: prevEnd, callee, arguments: args, ...(typeParameters ? { typeParameters } : {}) };
 };
 
 // typeMode: parse types in the \${} slots (TS template literal types)
@@ -3475,7 +3482,7 @@ const parseExport = () => {
     const declaration = parseStatement(null);
     if (declaration.type === 'VariableDeclaration') {
       for (const decl of declaration.declarations) checkPatternExport(decl.id);
-    } else if (declaration.id && !(ts && (declaration.type === 'TSInterfaceDeclaration' || declaration.type === 'TSTypeAliasDeclaration' || declaration.type === 'TSModuleDeclaration'))) {
+    } else if (declaration.id && !(ts && (declaration.type === 'TSInterfaceDeclaration' || declaration.type === 'TSTypeAliasDeclaration' || declaration.type === 'TSModuleDeclaration' || declaration.type === 'TSDeclareFunction'))) {
       checkExport(declaration.id, declaration.id.start);
     }
     return { type: 'ExportNamedDeclaration', start, end: prevEnd, declaration, specifiers: [], source: null, attributes: [] };

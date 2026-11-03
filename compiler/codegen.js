@@ -705,7 +705,8 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
 
       return valUndefined();
 
-    case 'TSAsExpression': {
+    case 'TSAsExpression':
+    case 'TSTypeAssertion': {
       const value = generate(scope, decl.expression);
       const type = extractTypeAnnotation(decl);
       if (type.irType) {
@@ -2834,7 +2835,8 @@ const typeAnnoToIrType = x => {
 
 const extractTypeAnnotation = (decl, unwrapPromise = false) => {
   let a = decl;
-  while (a.typeAnnotation) a = a.typeAnnotation;
+  // a function type's annotation is its return type, a type predicate's the narrowed type
+  while (a.typeAnnotation && a.type !== 'TSFunctionType' && a.type !== 'TSConstructorType' && a.type !== 'TSTypePredicate') a = a.typeAnnotation;
   if (unwrapPromise && a.type === 'TSTypeReference' && a.typeName?.name === 'Promise') a = a.typeParameters?.params?.[0];
   if (!a) return {};
 
@@ -2842,6 +2844,8 @@ const extractTypeAnnotation = (decl, unwrapPromise = false) => {
   if (a.typeName) {
     type = a.typeName.name;
   }
+  if (a.type === 'TSFunctionType' || a.type === 'TSConstructorType') type = 'function';
+  if (a.type === 'TSTypePredicate') type = a.asserts ? 'undefined' : 'boolean';
   if (type == null && a.type.endsWith('Keyword')) {
     type = a.type.slice(2, -7).toLowerCase();
     if (type === 'void') type = 'undefined';
@@ -2863,11 +2867,12 @@ const extractTypeAnnotation = (decl, unwrapPromise = false) => {
 
   if (!types && type != null) types = [ type ];
 
-  // outside precompile, string means string|bytestring
+  // outside precompile, string means string|bytestring and object any non-primitive (arrays, functions, proxies)
   if (!globalThis.precompile && type === TYPES.string) {
     type = null;
     types = [ TYPES.string, TYPES.bytestring ];
   }
+  if (!globalThis.precompile && type === TYPES.object) type = types = null;
 
   return { type, types, elementType, irType };
 };
@@ -5407,7 +5412,7 @@ const generateClass = (scope, decl) => {
 
   for (const x of body) {
     let { type, value, kind, static: _static, computed } = x;
-    if (kind === 'constructor') continue;
+    if (kind === 'constructor' || type.startsWith('TS') || x.declare) continue;
 
     if (type === 'StaticBlock') {
       genStmt(scope, { type: 'BlockStatement', body: x.body });
