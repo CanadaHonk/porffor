@@ -4240,7 +4240,8 @@ const generateForOf = (scope, decl) => {
         setLocalWithType(scope, kName, false, Load('jsval', Bin('+', T.u32, keysEnt, off), 0));
         setLocalWithType(scope, vName, false, Load('jsval', Bin('+', T.u32, valsEnt, off), 0));
         assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
-        return generate(scope, { type: 'ArrayExpression', elements: [ { type: 'Identifier', name: kName }, { type: 'Identifier', name: vName } ] });
+        // a fresh entry each step, even where precompiled array literals are static
+        return generateArray(scope, { type: 'ArrayExpression', elements: [ { type: 'Identifier', name: kName }, { type: 'Identifier', name: vName } ] });
       } ],
 
       [ 'default', () => {
