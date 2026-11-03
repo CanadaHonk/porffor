@@ -3447,8 +3447,10 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       // fast path: conditional in-place store, the var itself is the result: if (check(x)) x = y
       const ref = isGlobal ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval);
       const cond = check(scope, ref, getType(scope, name));
-      setInferred(scope, name, knownType(scope, getNodeType(scope, decl)), isGlobal);
+      const type = knownType(scope, getNodeType(scope, decl));
       emitIf(scope, cond, () => setLocalWithType(scope, name, isGlobal, decl.right));
+      // the store is conditional, so the right's type isn't the variable's
+      setInferred(scope, name, type, isGlobal);
       return valueUnused ? valUndefined() : (isGlobal ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval));
     }
 
