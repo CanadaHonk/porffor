@@ -128,7 +128,8 @@ if (options.includes('-v') || options.includes('--version')) {
   process.exit(0);
 }
 
-if (args[scriptAt] === 'c' || args[scriptAt] === 'native' || options.includes('-o')) {
+// porf foo.js -o foo builds like porf native foo.js -o foo
+if (args[scriptAt] === 'c' || args[scriptAt] === 'native' || options.includes('-o') || args[scriptAt + 1] === '-o') {
   // porf c|native [...prefs] file: every flag is a pref
   const nonFlagArgs = [];
   for (let i = 0; i < args.length; i++) {

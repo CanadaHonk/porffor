@@ -10,8 +10,10 @@ curl -fsSL https://porffor.dev/install.sh | sh
 ```
 $ cat hello.js
 console.log('hello world!');
+$ porf hello.js
+hello world!
 $ porf hello.js -o hello
-[105ms] compiled hello.js -> hello (33.7KB)
+[1.1s] compiled hello.js -> hello (84.0KB)
 $ ./hello
 hello world!
 ```
