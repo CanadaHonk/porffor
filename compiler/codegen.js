@@ -3055,6 +3055,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     if (init && isFuncType(init.type)) {
       // opt: declare directly from the function expression
       setDefaultFuncName(init, name);
+      init._varInit = true;
       const [ func ] = generateFunc(scope, init, true);
       pattern._func = func;
       // direct calls resolve the binding through its scope, not a program-wide name another function may share
@@ -5842,6 +5843,11 @@ const funcByName = name => funcByIndex(funcIndex[name]);
 // a closure is only callable from within its defining function
 const globalFuncByName = (scope, name) => {
   const func = funcByName(name);
+  // a function expression's own name is only bound inside it, unless a declaration binds it (or a class's methods)
+  if (func?.ast?.type === 'FunctionExpression' && !func.ast._porfDefaultName && !func.ast._varInit && !func.ast._onlyConstr) {
+    for (let cursor = scope; cursor; cursor = cursor.parentFunc) if (cursor === func) return func;
+    return null;
+  }
   if (!func?.closureAware) return func;
   for (let cursor = scope; cursor; cursor = cursor.parentFunc) if (cursor === func.parentFunc) return func;
   return null;
