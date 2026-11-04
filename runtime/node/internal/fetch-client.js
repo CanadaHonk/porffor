@@ -74,7 +74,11 @@ const send = (request, url, redirects, resolve, reject) => {
     for (let i = 0; i < res.rawHeaders.length; i += 2) responseHeaders.append(res.rawHeaders[i], res.rawHeaders[i + 1]);
     const empty = nullBodyStatuses.includes(status) || request.method === 'HEAD';
     if (empty) res.resume();
-    const response = new Response(empty ? null : newReadableStreamFromStreamReadable(res), { status, statusText: res.statusMessage, headers: responseHeaders });
+    const response = new Response(null, { status, statusText: res.statusMessage, headers: responseHeaders });
+    if (!empty) {
+      response._source = res;
+      response._toWeb = newReadableStreamFromStreamReadable;
+    }
     response.url = url.href;
     response.redirected = redirects > 0;
     resolve(response);

@@ -120,6 +120,14 @@ export class Headers {
     return this._combined().values();
   }
 
+  keys() {
+    return this._combined().map(x => x[0]).values();
+  }
+
+  values() {
+    return this._combined().map(x => x[1]).values();
+  }
+
   forEach(callback, thisArg) {
     for (const [ name, value ] of this._combined()) callback.call(thisArg, value, name, this);
   }
@@ -243,9 +251,19 @@ const bodyText = body => body === null ? '' : typeof body === 'string' ? body : 
 const bodyBytes = body => body === null ? new Uint8Array(0) : typeof body === 'string' ? encodeUtf8(body) : body;
 
 // the whole body once, a stream read to its end first
+// a fetched body read whole skips the web stream
+const readSource = source => new Promise((resolve, reject) => {
+  const chunks = [];
+  source.on('data', chunk => chunks.push(chunk));
+  source.on('end', () => resolve(concatBytes(chunks)));
+  source.on('error', cause => reject(new TypeError('terminated', { cause })));
+  source.on('close', () => reject(new TypeError('terminated')));
+});
+
 const readBody = async target => {
   if (target.bodyUsed) throw new TypeError('Body is unusable: Body has already been read');
   target.bodyUsed = true;
+  if (target._source) return readSource(target._source);
   if (!(target._body instanceof ReadableStream)) return target._body;
   const chunks = [];
   for await (const chunk of target._body) chunks.push(chunk);
@@ -256,6 +274,7 @@ const bodyMethods = {
   // a stream body is teed, others are immutable so both share them
   clone() {
     if (this.bodyUsed) throw new TypeError('Body has already been consumed.');
+    if (this._source) streamBody(this);
     const copy = Object.assign(Object.create(Object.getPrototypeOf(this)), this);
     if (this._body instanceof ReadableStream) [ this._body, copy._body ] = this._body.tee();
     if (this._headers) copy._headers = new Headers(this._headers);
@@ -357,7 +376,12 @@ Object.defineProperty(Request.prototype, 'headers', {
   configurable: true
 });
 
+// a fetched body stays a node stream until something needs the web stream
 const streamBody = target => {
+  if (target._source) {
+    target._body = target._toWeb(target._source);
+    target._source = null;
+  }
   if (target._body === null || target._body instanceof ReadableStream) return target._body;
   const bytes = bodyBytes(target._body);
   return target._body = new ReadableStream({

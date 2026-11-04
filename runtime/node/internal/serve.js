@@ -55,7 +55,7 @@ const sendHeaders = response => {
 const respond = (slot, method, response) => {
   if (!(response instanceof Response)) response = new Response(`fetch handler did not return a Response (got ${typeof response})`, { status: 500 });
   const headers = sendHeaders(response);
-  const body = response._body ?? '';
+  const body = response._source ? response.body : response._body ?? '';
   const noBody = method === 'HEAD' || response.status === 204 || response.status === 304;
   if (body instanceof ReadableStream && !noBody) {
     uws.writeHead(slot, statusLine(response), headers);
