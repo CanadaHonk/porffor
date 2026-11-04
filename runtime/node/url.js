@@ -341,6 +341,10 @@ export class URL {
     return adaCanParse(`${input}`, base === undefined ? '' : `${base}`, base !== undefined);
   }
 
+  static parse(input, base = undefined) {
+    return URL.canParse(input, base) ? new URL(input, base) : null;
+  }
+
   [inspectCustom](depth, options, inspect) {
     const obj = { __proto__: { constructor: URL } };
     for (const key of [ 'href', 'origin', 'protocol', 'username', 'password', 'host', 'hostname', 'port', 'pathname', 'search', 'searchParams', 'hash' ]) obj[key] = this[key];
