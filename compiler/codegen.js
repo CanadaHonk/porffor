@@ -1672,8 +1672,9 @@ const getType = (scope, name) => {
   let metadata, global = false, bound = false;
   if (name in scope.locals) {
     bound = true;
-    if (scope.locals[name].type === T.f64) return TYPES.number;
     metadata = scope.locals[name].metadata;
+    // raw int locals hold numbers unless annotated otherwise
+    if (scope.locals[name].type === T.f64 || (scope.locals[name].type === T.i32 && metadata?.type == null)) return TYPES.number;
   } else if (name in globals) {
     bound = true;
     if (globals[name].type === T.f64) return TYPES.number;
