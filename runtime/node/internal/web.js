@@ -5,9 +5,10 @@ import { validateFunction } from './validators.js';
 
 export const global = globalThis;
 
+const resolved = Promise.resolve();
 export const queueMicrotask = callback => {
   validateFunction(callback, 'callback');
-  Promise.resolve().then(() => {
+  resolved.then(() => {
     try {
       callback();
     } catch (err) {
