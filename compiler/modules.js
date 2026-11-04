@@ -241,8 +241,8 @@ const isEsmSource = (file, src) => {
   if (/\.c[jt]s$/.test(file)) return false;
   const pkgDir = nearestPackage(dirname(file));
   if (pkgDir && readJson(pkgDir + '/package.json').type === 'module') return true;
-  // like node, esm when only module syntax parses (import() is fine in cjs, a line in a string is not a declaration)
-  if (!/^\s*(?:import\b(?!\s*\()|export\b)/m.test(src) && !/\bimport\.meta\b/.test(src)) return false;
+  // like node, esm when only module syntax parses (import() is fine in cjs, a statement in a string is not a declaration)
+  if (!/(?:^|[;}])\s*(?:import\b(?!\s*\()|export\b)/m.test(src) && !/\bimport\.meta\b/.test(src)) return false;
   try {
     parse(src, { module: false, topReturn: true, ts: /\.tsx?$/.test(file) });
     return false;
