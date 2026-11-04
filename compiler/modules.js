@@ -123,18 +123,22 @@ const resolveTarget = (target, conditions, star) => {
   }
   return null;
 };
-// "exports" subpaths and "imports" #specifiers: exact keys, then "*" patterns
+// "exports" subpaths and "imports" #specifiers: exact keys, then the "*" pattern with the longest prefix like node
 const resolveMap = (map, key, conditions) => {
   if (key in map) return resolveTarget(map[key], conditions);
+  let best = null, bestPre = -1;
   for (const pattern in map) {
     const i = pattern.indexOf('*');
     if (i === -1) continue;
     const pre = pattern.slice(0, i), post = pattern.slice(i + 1);
-    if (key.startsWith(pre) && key.endsWith(post) && key.length >= pattern.length) {
-      return resolveTarget(map[pattern], conditions, key.slice(pre.length, key.length - post.length));
+    if (key.startsWith(pre) && key.endsWith(post) && key.length >= pattern.length &&
+      (pre.length > bestPre || (pre.length === bestPre && pattern.length > best.length))) {
+      best = pattern;
+      bestPre = pre.length;
     }
   }
-  return null;
+  if (best == null) return null;
+  return resolveTarget(map[best], conditions, key.slice(bestPre, key.length - (best.length - bestPre - 1)));
 };
 const resolveExports = (exports, subpath, conditions) => {
   if (typeof exports !== 'object' || exports === null || Array.isArray(exports) || !Object.keys(exports).some(x => x[0] === '.')) {
@@ -213,7 +217,10 @@ const resolve = (spec, from, cjs, runtime, aliased = false) => {
     const nameEnd = spec.indexOf('/', scoped ? spec.indexOf('/') + 1 : 0);
     const name = nameEnd === -1 ? spec : spec.slice(0, nameEnd);
     const subpath = nameEnd === -1 ? '.' : '.' + spec.slice(nameEnd);
-    const pkgDir = findPackage(dirname(from), name);
+    // a package can import itself by name through its "exports"
+    const own = nearestPackage(dirname(from));
+    const ownPkg = own && readJson(own + '/package.json');
+    const pkgDir = ownPkg?.name === name && ownPkg.exports != null ? own : findPackage(dirname(from), name);
     if (pkgDir) {
       const pkg = isFile(pkgDir + '/package.json') ? readJson(pkgDir + '/package.json') : {};
       if (pkg.exports != null) {
