@@ -1987,7 +1987,8 @@ ${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr) 
   }
 
   if (usesMath) prelude.splice(1, 0, '#include <math.h>\n');
-  if (prefs.rawHead) prelude.push(prefs.rawHead + '\n');
+  // raw c may call the link prototypes
+  const rawHead = prefs.rawHead ? prefs.rawHead + '\n' : '';
 
   const globalTypes = Object.create(null);
   for (const g of globals) globalTypes[g.name] = g.type;
@@ -2007,12 +2008,12 @@ ${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr) 
   };
 
   if (!split) {
-    const text = prelude.concat(link);
+    const text = prelude.concat(link, rawHead);
     for (const u of unitOrder) if (unitParts[u]) text.push(unitText(u, unitParts[u]));
     return text.join('');
   }
 
-  const rt = splitRuntime(prelude.join(''));
+  const rt = splitRuntime(prelude.join('') + rawHead);
   const header = rt.header +
     `extern const u8 porf_fnflags[];\n${usesSyncAsync ? 'extern const u8 porf_fnneeds_coro[];\n' : ''}extern const u16 porf_fnlen[];\nextern const u32 porf_fnname[];\nextern const u32 porf_fnrecs;\n` +
     linkProtos.join('');
