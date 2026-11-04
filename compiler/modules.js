@@ -1421,11 +1421,15 @@ export default (entrySource, entryFile, opts = {}) => {
       for (const p of paths) {
         const file = mayExist(p) && resolveFile(p);
         if (!file || file.endsWith('.json') || modules.has(file) || badCandidates.has(file)) continue;
-        // candidates that do not load are left out
+        // candidates that do not load are left out, with what they pulled in
         const before = new Set(modules.keys());
+        let failed;
         try {
-          if (dep(mod, { source: literal(file) }, true, 'required').error) badCandidates.add(file);
+          failed = dep(mod, { source: literal(file) }, true, 'required').error;
         } catch {
+          failed = true;
+        }
+        if (failed) {
           badCandidates.add(file);
           for (const k of modules.keys()) if (!before.has(k)) modules.delete(k);
         }
