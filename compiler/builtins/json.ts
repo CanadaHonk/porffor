@@ -229,9 +229,12 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
     const hasSpace: boolean = space !== undefined;
     depth += 1;
 
+    // own keys only, for..in also walks inherited ones
+    const inherited: i32 = __Porffor_object_hasInheritedEnumerable(value);
     for (const key: any in value) {
       // skip symbol keys
       if (Porffor.type(key) == Porffor.TYPES.symbol) continue;
+      if (inherited && !__Object_hasOwn(value, key)) continue;
 
       const val: any = __Porffor_json_toJSON(value[key], key);
       if (!__Porffor_json_canSerialize(val)) {
