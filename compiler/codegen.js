@@ -3145,7 +3145,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       if (defaultValue) {
         const ref = global ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval);
         const doDefault = () => {
-          assign(scope, ref, generate(scope, defaultValue, name));
+          assign(scope, ref, coerceValue(generate(scope, defaultValue, name), ref[N_TYPE]));
           setType(scope, name, getNodeType(scope, defaultValue), true);
         };
         const st = getType(scope, name);
