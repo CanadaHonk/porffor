@@ -5720,7 +5720,7 @@ const shadowedBuiltinNames = program => {
     if (!node || typeof node !== 'object') return;
     if (Array.isArray(node)) { for (const x of node) walk(x); return; }
     if (node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration' || node.type === 'VariableDeclarator') add(node.id);
-    if (node.type?.includes('Function')) for (const x of node.params) add(x);
+    if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression') for (const x of node.params) add(x);
     for (const key in node) if (key !== 'start' && key !== 'end' && key[0] !== '_') walk(node[key]);
   };
   walk(program);
