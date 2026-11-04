@@ -200,7 +200,7 @@ const resolve = (spec, from, cjs, runtime, aliased = false) => {
   // undici's http parser is wasm, so it is our own over fetch
   if (spec === 'undici' && runtime) return RUNTIME_ROOT + '/node/internal/undici.js';
   // with node's runtime linked, packages resolve like under node, else to their worker builds
-  const conditions = [ 'porffor', runtime ? 'node' : 'worker', cjs ? 'require' : 'import', 'module', 'default', ...(Prefs.conditions ? String(Prefs.conditions).split(',') : []) ];
+  const conditions = [ 'porffor', runtime ? 'node' : 'worker', cjs ? 'require' : 'import', 'module-sync', 'default', ...(Prefs.conditions ? String(Prefs.conditions).split(',') : []) ];
   let out = null;
   // trailing slashes, . and .. only name directories
   if (spec[0] === '.' || spec[0] === '/') out = (/(?:^|\/)\.{0,2}$/.test(spec) ? resolveDir : resolveFile)(joinPath(dirname(from), spec));
@@ -221,7 +221,7 @@ const resolve = (spec, from, cjs, runtime, aliased = false) => {
         // no . .. or node_modules segments, the runtime resolver throws node's error
         if (target && /(?:^|\/)(?:\.\.?|node_modules)(?:\/|$)/i.test(target.slice(2))) throw new Error(`porffor: invalid "exports" target for '${spec}' in ${pkgDir}/package.json`);
         out = target ? resolveFile(joinPath(pkgDir, target)) : null;
-      } else if (subpath === '.') out = resolveFile(joinPath(pkgDir, pkg.module ?? pkg.main ?? 'index.js'));
+      } else if (subpath === '.') out = resolveFile(joinPath(pkgDir, pkg.main ?? 'index.js'));
       else out = resolveFile(joinPath(pkgDir, subpath));
     }
   }
@@ -471,7 +471,10 @@ const cjsExports = (node, out) => {
       const name = keyName(node.left.property, node.left.computed);
       if (name) out.names.add(name);
     } else if (isExports(node.left)) {
-      if (requireSpec(node.right)) out.reexports.push(requireSpec(node.right));
+      // the lexer stops after require('x'), so module.exports = require('x').y reexports x too
+      let right = node.right;
+      while (right.type === 'MemberExpression') right = right.object;
+      if (requireSpec(right)) out.reexports.push(requireSpec(right));
       if (node.right.type === 'ObjectExpression') for (const x of node.right.properties) {
         if (x.type === 'SpreadElement') { if (requireSpec(x.argument)) out.reexports.push(requireSpec(x.argument)); }
           else if (keyName(x.key, x.computed)) out.names.add(keyName(x.key, x.computed));
@@ -1456,15 +1459,16 @@ export default (entrySource, entryFile, opts = {}) => {
   const visitPost = mod => {
     if (mod.ordered) return;
     mod.ordered = true;
-    for (const d of mod.deps) if (cycles.has(d)) visitDeps(d); else visitPost(d);
+    // a module also required in place stays lazy, else an eager import could order it after its require
+    for (const d of mod.deps) if (cycles.has(d) || (d.required && inPlace(d))) visitDeps(d); else visitPost(d);
     for (const d of mod.cjsDeps ?? []) if (!mod.deps.includes(d)) visitDeps(d);
     order.push(mod);
   };
-  // modules required in place stay lazy, but their builtins are ordered before anything that may run them
+  // modules required in place stay lazy, but their builtins and esm (read statically) are ordered before anything that may run them
   const visitDeps = mod => {
     if (mod.depsVisited) return;
     mod.depsVisited = true;
-    for (const d of [ ...mod.deps, ...(mod.cjsDeps ?? []) ]) if (d.file.startsWith(RUNTIME_ROOT)) visitPost(d); else visitDeps(d);
+    for (const d of [ ...mod.deps, ...(mod.cjsDeps ?? []) ]) if (d.file.startsWith(RUNTIME_ROOT) || d.esm) visitPost(d); else visitDeps(d);
   };
 
   // cjs require() targets are discovered while renaming, so rename in load order first

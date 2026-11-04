@@ -804,7 +804,7 @@ const lookupName = (scope, name) => {
 // a builtin global shadowed by a user binding (e.g. sta.js `function Test262Error() {}`)
 // no longer refers to the builtin: name-based special-casing must not apply
 const builtinShadowed = (scope, name) => {
-  if (lookupName(scope, name)[0] != null) return true;
+  if (lookupName(scope, name)[0] != null || scope.closureCaptures?.[name] || scope.closureOwnLocals?.[name]) return true;
   const named = resolveNamedFunction(scope, name);
   return named != null && !named.internal;
 };
@@ -2218,11 +2218,11 @@ const generateCall = (scope, decl) => {
   let name = decl.callee.name;
 
   // opt: virtualize IIFEs -> call the generated func by name
-  let iifeEnv = null;
+  let iifeEnv = null, iifeFunc = null;
   if (decl.callee.type === 'FunctionExpression' || decl.callee.type === 'ArrowFunctionExpression') {
-    const [ func ] = generateFunc(scope, decl.callee, true);
-    name = func.name;
-    if (getClosureSnapshotCaptureNames(func).length > 0) iifeEnv = closureEnvFor(scope, func);
+    [ iifeFunc ] = generateFunc(scope, decl.callee, true);
+    name = iifeFunc.name;
+    if (getClosureSnapshotCaptureNames(iifeFunc).length > 0) iifeEnv = closureEnvFor(scope, iifeFunc);
   }
 
   if (name?.startsWith('__Porffor_IR_')) {
@@ -2468,6 +2468,11 @@ const generateCall = (scope, decl) => {
       if (!func && name in builtinFuncs) isBuiltin = true;
     }
     if (!func && !isBuiltin && !isLocal && !closureBacked && scope.name === name) func = scope;
+    // a named iife's name can resolve to another function of that name
+    if (iifeFunc && func) {
+      func = iifeFunc;
+      directCallEnv = iifeEnv;
+    }
   }
 
   if (isBuiltin && !hasSpread) {
