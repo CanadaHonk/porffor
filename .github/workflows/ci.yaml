@@ -34,7 +34,7 @@ jobs:
           wget -q https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 21
-          sudo apt-get install -y llvm-21 libuv1-dev
+          sudo apt-get install -y llvm-21
           echo /usr/lib/llvm-21/bin >> "$GITHUB_PATH"
       - name: determine version
         id: version
@@ -73,12 +73,19 @@ jobs:
         run: |
           mkdir -p build-inputs
           node --experimental-import-text runtime/index.js c --compress-data --module runtime/index.js -o build-inputs/stage1.c
+      - name: build libuv
+        run: |
+          curl -sSfL https://github.com/libuv/libuv/archive/refs/tags/v1.51.0.tar.gz | tar xz
+          cmake -S libuv-1.51.0 -B libuv-build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/libuv" \
+            -DLIBUV_BUILD_SHARED=OFF -DLIBUV_BUILD_TESTS=OFF -DLIBUV_BUILD_BENCH=OFF
+          cmake --build libuv-build -j
+          cmake --install libuv-build
       - name: profile selfhost compiler
         run: |
           mkdir -p /tmp/porffor-pgo
           clang -O0 -fuse-ld=lld -fno-sanitize=undefined -w \
             -fprofile-instr-generate=/tmp/porffor-pgo/release.profraw \
-            build-inputs/stage1.c -o /tmp/porffor-pgo/porf -luv -lm
+            -Ilibuv/include build-inputs/stage1.c libuv/lib/libuv.a -o /tmp/porffor-pgo/porf -lm
           /tmp/porffor-pgo/porf c --module runtime/index.js -o /tmp/porffor-pgo/stage2.c
           llvm-profdata merge -o /tmp/porffor-pgo/release.profdata /tmp/porffor-pgo/release.profraw
       - name: collect build inputs
