@@ -5497,12 +5497,23 @@ const generateClass = (scope, decl) => {
   // subclass (at the marker generateCall left), else at the top of the body
   const guard = collect(func, () => emitIf(func, Un('!', T.i32, JvTruthy(Local('#newtarget', T.jsval))),
     () => internalThrow(func, 'TypeError', `Class constructor ${unhackName(name)} requires 'new'`)));
-  const markerIdx = func.body.indexOf(CLASS_FIELD_INIT_MARKER);
-  if (markerIdx !== -1) func.body.splice(markerIdx, 1, ...fieldInits);
-  else func.body.unshift(...fieldInits);
+  if (!spliceClassFieldInits(func.body, fieldInits)) func.body.unshift(...fieldInits);
   func.body.unshift(...guard);
 
   return expr ? classRoot : valUndefined();
+};
+
+// super() can be nested (try, if), so its markers can be too
+const spliceClassFieldInits = (list, inits) => {
+  let found = false;
+  for (let i = 0; i < list.length; i++) {
+    if (list[i] === CLASS_FIELD_INIT_MARKER) {
+      list.splice(i, 1, ...inits);
+      i += inits.length - 1;
+      found = true;
+    } else if (Array.isArray(list[i]) && spliceClassFieldInits(list[i], inits)) found = true;
+  }
+  return found;
 };
 
 const generateTemplate = (scope, decl) => {
