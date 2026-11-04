@@ -761,11 +761,12 @@ const annotate = (node, parent = null, key = null) => {
 
     case 'Identifier':
       if (node._binding) break;
-      if (semantic.objectHackers.includes(node.name)) break;
 
       const name = node.name;
       const currentFunc = scopes[scopes.lastFuncs.at(-1)];
       let variable = resolveVariable(name);
+      // unbound builtin namespaces (Math, Map) are the object hack's
+      if (!variable && semantic.objectHackers.includes(name)) break;
       // params do not see the body's vars
       if (variable?.kind === 'var' && !variable.inParams && variable.scope === paramTdz?.func) variable = resolveVariable(name, scopes.indexOf(variable.scope));
       // objectHack's __Object_member names are builtin member reads, not with lookups

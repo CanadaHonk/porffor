@@ -1345,7 +1345,7 @@ const generateBinaryExp = (scope, decl) => {
   if (decl.operator === 'instanceof') {
     // hack: check type for primitive objects
     const rightName = decl.right.name;
-    if (rightName) {
+    if (rightName && !decl.right._resolvedVariable) {
       let checkType = TYPES[rightName.toLowerCase()];
       if (checkType != null && rightName === TYPE_NAMES[checkType] && rightName in builtinFuncs && !rightName.endsWith('Error') && rightName !== 'Object') {
         if (checkType === TYPES.number) checkType = TYPES.numberobject;
