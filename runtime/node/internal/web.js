@@ -91,10 +91,12 @@ Error.stackTraceLimit ??= 10;
 
 // V8's Error.captureStackTrace, or Error.prepareStackTrace over locationless call sites
 export const captureStackTrace = target => {
-  if (typeof Error.prepareStackTrace === 'function') {
-    target.stack = Error.prepareStackTrace(target, Array.from({ length: Math.max(0, Error.stackTraceLimit) || 0 }, () => unknownSite));
-    return;
+  let stack;
+  if (typeof Error.prepareStackTrace === 'function') stack = Error.prepareStackTrace(target, Array.from({ length: Math.max(0, Error.stackTraceLimit) || 0 }, () => unknownSite));
+  else {
+    const frames = (new Error().stack ?? '').split('\n').slice(2).join('\n');
+    stack = String(target) + (frames ? '\n' + frames : '');
   }
-  const frames = (new Error().stack ?? '').split('\n').slice(2).join('\n');
-  target.stack = String(target) + (frames ? '\n' + frames : '');
+  // like v8: own and non-enumerable
+  Object.defineProperty(target, 'stack', { value: stack, writable: true, configurable: true });
 };
