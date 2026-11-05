@@ -17,7 +17,7 @@ function isWindowsDeviceRoot(code) {
 }
 
 // resolves . and .. segments and drops empty ones
-function normalizeString(path, allowAboveRoot) {
+function normalizeString(path, allowAboveRoot, separator = '/', isSep = isPosixPathSeparator) {
   let res = '';
   let lastSegmentLength = 0;
   let lastSlash = -1;
@@ -25,26 +25,26 @@ function normalizeString(path, allowAboveRoot) {
   let code = 0;
   for (let i = 0; i <= path.length; ++i) {
     if (i < path.length) code = path.charCodeAt(i);
-      else if (code === CHAR_FORWARD_SLASH) break;
+      else if (isSep(code)) break;
       else code = CHAR_FORWARD_SLASH;
 
-    if (code === CHAR_FORWARD_SLASH) {
+    if (isSep(code)) {
       if (dots === 2) {
         if (res.length !== 0 && (lastSegmentLength !== 2 || !res.endsWith('..'))) {
           const lastSlashIndex = res.length - lastSegmentLength - 1;
           if (res.length > 2 && lastSlashIndex !== -1) {
             res = res.slice(0, lastSlashIndex);
-            lastSegmentLength = res.length - 1 - res.lastIndexOf('/');
+            lastSegmentLength = res.length - 1 - res.lastIndexOf(separator);
           } else {
             res = '';
             lastSegmentLength = 0;
           }
         } else if (allowAboveRoot) {
-          res += res.length > 0 ? '/..' : '..';
+          res += res.length > 0 ? `${separator}..` : '..';
           lastSegmentLength = 2;
         }
       } else if (lastSlash !== i - 1 && dots !== 1) {
-        if (res.length > 0) res += `/${path.slice(lastSlash + 1, i)}`;
+        if (res.length > 0) res += `${separator}${path.slice(lastSlash + 1, i)}`;
           else res = path.slice(lastSlash + 1, i);
         lastSegmentLength = i - lastSlash - 1;
       }
@@ -73,16 +73,17 @@ const uncRoot = path => {
   return [ serverEnd, shareStart, j ];
 };
 
-const baseOf = (path, suffix) => {
-  let start = 0, end = -1;
+// win32 starts past a drive letter and splits on both separators
+const baseOf = (path, suffix, from = 0, isSep = isPosixPathSeparator) => {
+  let start = from, end = -1;
   let matchedSlash = true;
   if (suffix !== undefined && suffix.length > 0 && suffix.length <= path.length) {
     if (suffix === path) return '';
     let extIdx = suffix.length - 1;
     let firstNonSlashEnd = -1;
-    for (let i = path.length - 1; i >= 0; --i) {
+    for (let i = path.length - 1; i >= from; --i) {
       const code = path.charCodeAt(i);
-      if (code === CHAR_FORWARD_SLASH) {
+      if (isSep(code)) {
         if (!matchedSlash) {
           start = i + 1;
           break;
@@ -108,8 +109,8 @@ const baseOf = (path, suffix) => {
     return path.slice(start, end);
   }
 
-  for (let i = path.length - 1; i >= 0; --i) {
-    if (path.charCodeAt(i) === CHAR_FORWARD_SLASH) {
+  for (let i = path.length - 1; i >= from; --i) {
+    if (isSep(path.charCodeAt(i))) {
       if (!matchedSlash) {
         start = i + 1;
         break;
@@ -164,8 +165,80 @@ const parseName = (ret, path, start, startDot, end) => {
   }
 };
 
-// win32 only as far as telling roots apart
+const formatPath = (pathObject, sep) => {
+  const dir = pathObject.dir || pathObject.root;
+  const ext = pathObject.ext ? `${pathObject.ext[0] === '.' ? '' : '.'}${pathObject.ext}` : '';
+  const base = pathObject.base || `${pathObject.name || ''}${ext}`;
+  if (!dir) return base;
+  return dir === pathObject.root ? `${dir}${base}` : `${dir}${sep}${base}`;
+};
+
+// past a leading drive letter, which basename and extname skip
+const driveEnd = path => path.length >= 2 && isWindowsDeviceRoot(path.charCodeAt(0)) && path.charCodeAt(1) === CHAR_COLON ? 2 : 0;
+
+// win32 without resolving against a cwd (resolve, relative, toNamespacedPath)
 const win32 = {
+  normalize(path) {
+    validateString(path, 'path');
+    const len = path.length;
+    if (len === 0) return '.';
+    const code = path.charCodeAt(0);
+    if (len === 1) return isPathSeparator(code) ? '\\' : path;
+
+    let rootEnd = 0, device, isAbsolute = false;
+    if (isPathSeparator(code)) {
+      isAbsolute = true;
+      rootEnd = 1;
+      const unc = isPathSeparator(path.charCodeAt(1)) ? uncRoot(path) : null;
+      if (unc !== null) {
+        if (unc[2] === len) return `\\\\${path.slice(2, unc[0])}\\${path.slice(unc[1])}\\`;
+        device = `\\\\${path.slice(2, unc[0])}\\${path.slice(unc[1], unc[2])}`;
+        rootEnd = unc[2];
+      }
+    } else if (isWindowsDeviceRoot(code) && path.charCodeAt(1) === CHAR_COLON) {
+      device = path.slice(0, 2);
+      rootEnd = 2;
+      if (len > 2 && isPathSeparator(path.charCodeAt(2))) {
+        isAbsolute = true;
+        rootEnd = 3;
+      }
+    }
+
+    let tail = rootEnd < len ? normalizeString(path.slice(rootEnd), !isAbsolute, '\\', isPathSeparator) : '';
+    if (tail.length === 0 && !isAbsolute) tail = '.';
+    if (tail.length > 0 && isPathSeparator(path.charCodeAt(len - 1))) tail += '\\';
+    return `${device ?? ''}${isAbsolute ? '\\' : ''}${tail}`;
+  },
+
+  join(...args) {
+    for (const arg of args) validateString(arg, 'path');
+    const parts = args.filter(arg => arg.length > 0);
+    if (parts.length === 0) return '.';
+    const joined = parts.join('\\');
+    // leading separators collapse to one, unless the first part starts a unc root
+    return win32.normalize(/^[\\/]{2}[^\\/]/.test(parts[0]) ? joined : joined.replace(/^[\\/]{2,}/, '\\'));
+  },
+
+  dirname(path) {
+    return win32.parse(path).dir || '.';
+  },
+
+  basename(path, suffix) {
+    if (suffix !== undefined) validateString(suffix, 'suffix');
+    validateString(path, 'path');
+    return baseOf(path, suffix, driveEnd(path), isPathSeparator);
+  },
+
+  extname(path) {
+    validateString(path, 'path');
+    const [ , startDot, end ] = scanName(path, driveEnd(path), driveEnd(path), isPathSeparator);
+    return startDot === -1 ? '' : path.slice(startDot, end);
+  },
+
+  format(pathObject) {
+    return formatPath(pathObject, '\\');
+  },
+
   isAbsolute(path) {
     validateString(path, 'path');
     const code = path.charCodeAt(0);
@@ -208,6 +281,7 @@ const win32 = {
   },
 
   sep: '\\',
+  delimiter: ';',
   win32: null,
   posix: null
 };
@@ -331,11 +405,7 @@ const posix = {
   },
 
   format(pathObject) {
-    const dir = pathObject.dir || pathObject.root;
-    const ext = pathObject.ext ? `${pathObject.ext[0] === '.' ? '' : '.'}${pathObject.ext}` : '';
-    const base = pathObject.base || `${pathObject.name || ''}${ext}`;
-    if (!dir) return base;
-    return dir === pathObject.root ? `${dir}${base}` : `${dir}/${base}`;
+    return formatPath(pathObject, '/');
   },
 
   parse(path) {
