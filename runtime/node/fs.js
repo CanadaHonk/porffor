@@ -7,6 +7,7 @@ import * as binding from './internal/fs/binding.js';
 import { constants, Dirent, Stats, getOptions, getValidatedPath } from './internal/fs/utils.js';
 import { ReadStream, WriteStream } from './internal/fs/streams.js';
 import { watch, watchFile, unwatchFile } from './internal/fs/watchers.js';
+import { createInterface } from './readline.js';
 
 export { constants, Stats, ReadStream, WriteStream, watch, watchFile, unwatchFile };
 
@@ -349,6 +350,22 @@ export function fchown(fd, uid, gid, cb) {
 
 export const fchownSync = (fd, uid, gid) => binding.fchown(fd, uid, gid);
 
+export function fchmod(fd, mode, cb) {
+  binding.fchmod(fd, mode, callback(cb));
+}
+
+export const fchmodSync = (fd, mode) => binding.fchmod(fd, mode);
+
+export function ftruncate(fd, len, cb) {
+  if (typeof len === 'function') {
+    cb = len;
+    len = 0;
+  }
+  binding.ftruncate(fd, len ?? 0, callback(cb));
+}
+
+export const ftruncateSync = (fd, len = 0) => binding.ftruncate(fd, len);
+
 export function utimes(path, atime, mtime, cb) {
   binding.utimes(path, atime, mtime, callback(cb));
 }
@@ -519,6 +536,16 @@ export function createWriteStream(path, options) {
 const promise = run => new Promise((resolve, reject) => run((err, value) => err ? reject(err) : resolve(value)));
 const promisify = fn => (...args) => promise(cb => fn(...args, cb));
 
+// a stream over a handle closes it with autoClose, else leaves its descriptor open
+const handleStream = (handle, stream) => {
+  stream._destroy = (err, cb) => {
+    if (stream.autoClose) handle.fd = -1;
+      else stream.fd = null;
+    ReadStream.prototype._destroy.call(stream, err, cb);
+  };
+  return stream;
+};
+
 class FileHandle {
   constructor(fd) {
     this.fd = fd;
@@ -549,6 +576,53 @@ class FileHandle {
 
   sync() {
     return promise(cb => binding.fsync(this.fd, cb));
+  }
+
+  datasync() {
+    return this.sync();
+  }
+
+  chmod(mode) {
+    return promise(cb => binding.fchmod(this.fd, mode, cb));
+  }
+
+  chown(uid, gid) {
+    return promise(cb => binding.fchown(this.fd, uid, gid, cb));
+  }
+
+  truncate(len = 0) {
+    return promise(cb => binding.ftruncate(this.fd, len, cb));
+  }
+
+  utimes(atime, mtime) {
+    return promise(cb => binding.futimes(this.fd, atime, mtime, cb));
+  }
+
+  async readv(buffers, position = null) {
+    let bytesRead = 0;
+    for (const buffer of buffers) {
+      const read = (await this.read(buffer, 0, buffer.byteLength, position === null ? null : position + bytesRead)).bytesRead;
+      bytesRead += read;
+      if (read < buffer.byteLength) break;
+    }
+    return { bytesRead, buffers };
+  }
+
+  async writev(buffers, position = null) {
+    const { bytesWritten } = await this.write(Buffer.concat(buffers), undefined, undefined, position);
+    return { bytesWritten, buffers };
+  }
+
+  createReadStream(options) {
+    return handleStream(this, new ReadStream(null, { ...options, fd: this.fd }));
+  }
+
+  createWriteStream(options) {
+    return handleStream(this, new WriteStream(null, { ...options, fd: this.fd }));
+  }
+
+  readLines(options) {
+    return createInterface({ input: this.createReadStream(options), crlfDelay: Infinity });
   }
 
   readFile(options) {
@@ -643,7 +717,7 @@ export const promises = {
 
 export default {
   access, accessSync, appendFile, appendFileSync, chmod, chmodSync, chown, chownSync, close, closeSync, constants, copyFile, copyFileSync, cp, cpSync,
-  createReadStream, createWriteStream, exists, existsSync, fchown, fchownSync, fdatasync, fdatasyncSync, fstat, fstatSync, fsync, fsyncSync, futimes, futimesSync,
+  createReadStream, createWriteStream, exists, existsSync, fchmod, fchmodSync, fchown, fchownSync, fdatasync, fdatasyncSync, fstat, fstatSync, fsync, fsyncSync, ftruncate, ftruncateSync, futimes, futimesSync,
   lchown, lchownSync, link, linkSync, lstat, lstatSync, mkdir, mkdirSync, mkdtemp, mkdtempSync, open, openSync, opendir, opendirSync, promises, read, readFile, readFileSync,
   readSync, readdir, readdirSync, readlink, readlinkSync, realpath, realpathSync, rename, renameSync, rm, rmSync, rmdir, rmdirSync, stat,
   statSync, symlink, symlinkSync, unlink, unlinkSync, unwatchFile, utimes, utimesSync, watch, watchFile, write, writeFile, writeFileSync, writeSync,

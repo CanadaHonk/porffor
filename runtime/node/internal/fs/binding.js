@@ -15,7 +15,7 @@ enum {
   PORF_FS_OPEN = 1, PORF_FS_CLOSE, PORF_FS_READ, PORF_FS_WRITE, PORF_FS_STAT, PORF_FS_LSTAT, PORF_FS_FSTAT, PORF_FS_READFILE, PORF_FS_WRITEFILE,
   PORF_FS_UNLINK, PORF_FS_RMDIR, PORF_FS_RM, PORF_FS_RENAME, PORF_FS_SYMLINK, PORF_FS_LINK, PORF_FS_READLINK, PORF_FS_REALPATH, PORF_FS_CHMOD,
   PORF_FS_CHOWN, PORF_FS_FCHOWN, PORF_FS_LCHOWN, PORF_FS_ACCESS, PORF_FS_MKDIR, PORF_FS_MKDIRP, PORF_FS_MKDTEMP, PORF_FS_READDIR, PORF_FS_FSYNC,
-  PORF_FS_COPYFILE, PORF_FS_UTIMES, PORF_FS_FUTIMES
+  PORF_FS_COPYFILE, PORF_FS_UTIMES, PORF_FS_FUTIMES, PORF_FS_FCHMOD, PORF_FS_FTRUNCATE
 };
 
 typedef struct {
@@ -221,6 +221,8 @@ static void porf_fs_run(void *arg) {
     case PORF_FS_CHMOD: r = chmod(o->path, (mode_t)o->mode); break;
     case PORF_FS_CHOWN: r = chown(o->path, (uid_t)o->flags, (gid_t)o->mode); break;
     case PORF_FS_FCHOWN: r = fchown(o->fd, (uid_t)o->flags, (gid_t)o->mode); break;
+    case PORF_FS_FCHMOD: r = fchmod(o->fd, (mode_t)o->mode); break;
+    case PORF_FS_FTRUNCATE: r = ftruncate(o->fd, (off_t)o->len); break;
     case PORF_FS_LCHOWN: r = lchown(o->path, (uid_t)o->flags, (gid_t)o->mode); break;
     case PORF_FS_ACCESS: r = access(o->path, o->mode); break;
     case PORF_FS_MKDIR: r = mkdir(o->path, (mode_t)o->mode); break;
@@ -256,7 +258,7 @@ static char *porf_fs_path(jsval v, f64 len) {
 
 const OPEN = 1, CLOSE = 2, READ = 3, WRITE = 4, STAT = 5, LSTAT = 6, FSTAT = 7, READFILE = 8, WRITEFILE = 9, UNLINK = 10, RMDIR = 11, RM = 12,
   RENAME = 13, SYMLINK = 14, LINK = 15, READLINK = 16, REALPATH = 17, CHMOD = 18, CHOWN = 19, FCHOWN = 20, LCHOWN = 21, ACCESS = 22, MKDIR = 23,
-  MKDIRP = 24, MKDTEMP = 25, READDIR = 26, FSYNC = 27, COPYFILE = 28, UTIMES = 29, FUTIMES = 30;
+  MKDIRP = 24, MKDTEMP = 25, READDIR = 26, FSYNC = 27, COPYFILE = 28, UTIMES = 29, FUTIMES = 30, FCHMOD = 31, FTRUNCATE = 32;
 
 const ENOENT = 2, ENOTDIR = 20, EISDIR = 21, EINVAL = 22;
 
@@ -589,6 +591,20 @@ export const fchown = (fd, uid, gid, cb) => {
   fd = getValidatedFd(fd);
   validateOwner(uid, gid);
   return call(newOp(FCHOWN, undefined, undefined, fd, uid, gid), cb, 'fchown', undefined, undefined, none);
+};
+
+export const fchmod = (fd, mode, cb) =>
+  call(newOp(FCHMOD, undefined, undefined, getValidatedFd(fd), 0, parseFileMode(mode, 'mode')), cb, 'fchmod', undefined, undefined, none);
+
+export const ftruncate = (fd, len, cb) => {
+  const op = newOp(FTRUNCATE, undefined, undefined, getValidatedFd(fd));
+  // the length rides in the 64 bit len, negative ones truncate to 0 like node
+  len = Math.max(0, len);
+  Porffor.c`{
+  porf_fs_op *o = (porf_fs_op*)(u64)porf_jv_val(op);
+  o->len = (i64)porf_jv_val(len);
+}`;
+  return call(op, cb, 'ftruncate', undefined, undefined, none);
 };
 
 // recursive gives the first directory made
