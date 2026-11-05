@@ -4147,6 +4147,11 @@ ${st}void porf_gc_idle(void) {
   porf_gc_discard_free_runs(1u);
 }
 
+static void porf_gc_clear_marks(u32 lo, u32 hi) {
+  for (size_t w = (size_t)(lo >> 4 >> 6); w < (size_t)(((hi >> 4) + 63u) >> 6); w++)
+    porf_gc_meta[(((w >> 3) << 5) | ((w & 7u) << 2)) + PORF_GC_B_MARK] = 0;
+}
+
 ${st}void porf_gc_collect(int minor) {
   if (porf_heap_base == 0) return;
   memset(porf_str_builder_caps, 0, sizeof(porf_str_builder_caps));
@@ -4156,10 +4161,11 @@ ${st}void porf_gc_collect(int minor) {
   if (!minor) {
     porf_gc_claimed_since_full = 0;
     porf_gc_promoted_since_full = 0;
-    const size_t w_lo = (size_t)(porf_heap_base >> 4 >> 6);
-    const size_t w_hi = (size_t)(((porf_heap_top >> 4) + 63u) >> 6);
-    for (size_t w = w_lo; w < w_hi; w++)
-      porf_gc_meta[(((w >> 3) << 5) | ((w & 7u) << 2)) + PORF_GC_B_MARK] = 0;
+    // the skipped alias window holds no blocks, writing its marks would only dirty pages
+    if (porf_gc_alias_lo < porf_heap_top && porf_gc_alias_hi > porf_heap_base) {
+      porf_gc_clear_marks(porf_heap_base, porf_gc_alias_lo);
+      porf_gc_clear_marks(porf_gc_alias_hi, porf_heap_top);
+    } else porf_gc_clear_marks(porf_heap_base, porf_heap_top);
   }
   porf_gc_static_marks_len = 0;
   if (porf_gc_static_marks != NULL) memset(porf_gc_static_marks, 0, (size_t)porf_gc_static_marks_cap * sizeof(*porf_gc_static_marks));
