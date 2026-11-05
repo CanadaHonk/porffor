@@ -3,6 +3,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { hashId } from './modules.js';
+// embedded, the selfhosted compiler has no source tree to read them from
+import removeDefault404 from './uwebsockets/0001-remove-default-404.patch' with { type: 'text' };
+import shortenErrors from './uwebsockets/0002-shorten-uws-errors.patch' with { type: 'text' };
+import nodeHttpServer from './uwebsockets/0003-node-http-server.patch' with { type: 'text' };
+import sslWriteInsideRead from './uwebsockets/0004-ssl-write-inside-read.patch' with { type: 'text' };
+import uwsShim from './uwebsockets/porf_uws.cpp' with { type: 'text' };
+
+export { uwsShim };
 
 export const UWS_REPO_URL = 'https://github.com/uNetworking/uWebSockets';
 export const UWS_COMMIT = '360c276d609d59af56ae6932adb95154ace9f15f';
@@ -13,13 +21,7 @@ const run = (cmd, args, opts = {}) => execFileSync(cmd, args, {
   ...opts
 });
 
-const __dirname = import.meta.dirname;
-const UWS_PATCH_DIR = path.join(__dirname, 'uwebsockets');
-
-const uWebSocketsPatches = () => fs.readdirSync(UWS_PATCH_DIR)
-  .filter(file => file.endsWith('.patch'))
-  .sort()
-  .map(file => path.join(UWS_PATCH_DIR, file));
+const patches = [ removeDefault404, shortenErrors, nodeHttpServer, sslWriteInsideRead ];
 
 const cacheRoot = path.join(os.homedir(), '.cache', 'porffor', 'deps');
 
@@ -45,14 +47,13 @@ export const cachedDep = (name, files, fill) => {
 
 // the pinned uWebSockets checkout (with uSockets), fetched once into the cache per set of patches
 export const ensureUWebSockets = () => {
-  const patches = hashId(uWebSocketsPatches().map(x => fs.readFileSync(x, 'utf8')).join(''));
-  return cachedDep(`uWebSockets-${UWS_COMMIT}-${patches}${Prefs.musl ? '-musl' : ''}`, [ 'src/App.h', 'uSockets/src' ], dir => {
+  return cachedDep(`uWebSockets-${UWS_COMMIT}-${hashId(patches.join(''))}${Prefs.musl ? '-musl' : ''}`, [ 'src/App.h', 'uSockets/src' ], dir => {
     run('git', [ 'init' ], { cwd: dir });
     run('git', [ 'remote', 'add', 'origin', UWS_REPO_URL ], { cwd: dir });
     run('git', [ 'fetch', '--depth', '1', 'origin', UWS_COMMIT ], { cwd: dir });
     run('git', [ 'checkout', '--detach', 'FETCH_HEAD' ], { cwd: dir });
     run('git', [ 'submodule', 'update', '--init', '--depth', '1', 'uSockets' ], { cwd: dir });
-    for (const patch of uWebSocketsPatches()) run('git', [ 'apply', patch ], { cwd: dir });
+    for (const patch of patches) run('git', [ 'apply' ], { cwd: dir, input: patch });
   });
 };
 
@@ -88,7 +89,7 @@ const ensureUSockets = (uwsDir, cc, cxx, cflags, ssl) => {
 export const uwsBuild = (cc, cxx, cflags, ssl) => {
   const uwsDir = ensureUWebSockets();
   return {
-    unit: { name: 'porf_uws.cpp', c: fs.readFileSync(path.join(UWS_PATCH_DIR, 'porf_uws.cpp'), 'utf8') },
+    unit: { name: 'porf_uws.cpp', c: uwsShim },
     cxxflags: [
       '-std=c++20', '-fno-rtti', '-DUWS_NO_ZLIB', '-DUWS_HTTPRESPONSE_NO_WRITEMARK', '-DLIBUS_USE_LIBUV', ssl ? '-DLIBUS_USE_OPENSSL -DPORF_UWS_SSL' : '-DLIBUS_NO_SSL',
       `-I${path.join(uwsDir, 'src')}`, `-I${path.join(uwsDir, 'uSockets', 'src')}`, ...cflags

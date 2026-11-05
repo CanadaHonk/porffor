@@ -116,10 +116,10 @@ export default (code, module = Prefs.module, opts = {}) => {
       fs.mkdirSync(outFile, { recursive: true });
       for (const x of cOut.files) fs.writeFileSync(`${outFile}/${x.name}`, x.c);
       // the uws server shim builds with the units
-      if (cg.linkLibs.includes('uws')) fs.copyFileSync(`${import.meta.dirname}/uwebsockets/porf_uws.cpp`, `${outFile}/porf_uws.cpp`);
+      if (cg.linkLibs.includes('uws')) fs.writeFileSync(`${outFile}/porf_uws.cpp`, uwebsockets.uwsShim);
     } else if (outFile) {
       fs.writeFileSync(outFile, c);
-      if (cg.linkLibs.includes('uws')) fs.copyFileSync(`${import.meta.dirname}/uwebsockets/porf_uws.cpp`, outFile.slice(0, outFile.lastIndexOf('/') + 1) + 'porf_uws.cpp');
+      if (cg.linkLibs.includes('uws')) fs.writeFileSync(outFile.slice(0, outFile.lastIndexOf('/') + 1) + 'porf_uws.cpp', uwebsockets.uwsShim);
     } else console.log(c);
 
     if (logProgress) {
