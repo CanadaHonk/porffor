@@ -2379,6 +2379,14 @@ const generateCall = (scope, decl) => {
 
       aliasPrimObjsBC(protoBC);
 
+      // dispatch on an unknown receiver is shared per method and argument count
+      if (targetKnownType == null && calleeMember && !calleeMember.computed && !decl.optional && !inOptionalChain(calleeMember) && !decl._sharedDispatch && !globalThis.precompile &&
+        Object.keys(protoBC).length > 1 && !decl.arguments.some(x => x?.type === 'SpreadElement')) {
+        const params = decl.arguments.map((_, i) => 'a' + i);
+        const func = sharedFunc(`((${[ 'r', ...params ].join(', ')}) => r.${protoName}(${params.join(', ')}))`);
+        return Call(func.index, [ targetTmp, ...args.map(x => coerceValue(generate(scope, x), T.jsval)) ], func.retType);
+      }
+
       const entries = Object.keys(protoBC).map(x => [ +x, protoBC[x] ]).sort((a, b) => a[0] - b[0]);
       if (typedArrayCall) entries.push([ TYPED_ARRAY_TYPES, typedArrayCall ]);
       entries.push([ 'default', () => Prefs.neverFallbackBuiltinProto && !decl.optional
@@ -2640,6 +2648,26 @@ const typeUsed = (scope, x) => {
 
   scope.usedTypes ??= new Set();
   scope.usedTypes.add(x);
+};
+
+// a?.b.c() short-circuits as a whole
+const inOptionalChain = node => {
+  for (; node && (node.type === 'MemberExpression' || node.type === 'CallExpression'); node = node.object ?? node.callee) if (node.optional) return true;
+  return false;
+};
+
+// one function for a dispatch many sites would otherwise inline, whose own body takes the inline path
+let sharedFuncs;
+const sharedFunc = src => {
+  if (sharedFuncs.has(src)) return sharedFuncs.get(src);
+  const fn = semantic(parse(src)).body[0].expression;
+  fn.body._sharedDispatch = true;
+  fn.strict = true;
+  fn._noClosureEnv = true;
+  const [ func ] = generateFunc({}, fn, true);
+  func.generate();
+  sharedFuncs.set(src, func);
+  return func;
 };
 
 const typeSwitch = (scope, subject, staticType, bc, fallthrough = false) => {
@@ -4237,7 +4265,13 @@ const generateForOf = (scope, decl) => {
       [ TYPES.string, strNext('u16', 2, TYPES.string) ],
       [ TYPES.bytestring, strNext('u8', 1, TYPES.bytestring) ],
 
-      ...TYPED_ARRAY_TYPES.map(t => [ t, taNext(t) ]),
+      // unknown iterables share one typed array step
+      ...(rootKnown == null && !globalThis.precompile ? [ [ TYPED_ARRAY_TYPES, () => {
+        emitIf(scope, Bin('>=', T.i32, counter, typedArrayLength(scope, root, '__Porffor_typedArray_validate')), () => stmt(scope, Break(L)));
+        const v = reuse(scope, builtinCall(scope, '__Porffor_typedArray_getIndex', [ root, valNumber(counter) ]));
+        assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
+        return v;
+      } ] ] : TYPED_ARRAY_TYPES.map(t => [ t, taNext(t) ])),
 
       [ TYPES.set, () => {
         const count = reuse(scope, Load('u32', length, 0));
@@ -5229,12 +5263,18 @@ const generateMember = (scope, decl, objValue = null) => {
       return res;
     } ],
     [ [ TYPES.string, TYPES.bytestring ], () => builtinCall(scope, '__Porffor_string_get', [ obj, prop ]) ],
-    // unknown receivers inline only Uint8Array (Buffer), other typed arrays share one call
-    ...(known == null && !globalThis.precompile ? [
-      [ TYPES.uint8array, () => typedArrayGet(scope, obj, prop, TYPES.uint8array) ],
-      [ TYPED_ARRAY_TYPES.filter(t => t !== TYPES.uint8array), () => builtinCall(scope, '__Porffor_typedArray_getIndex', [ obj, prop ]) ]
-    ] : TYPED_ARRAY_TYPES.map(t => [ t, () => typedArrayGet(scope, obj, prop, t) ])),
-    ...genericMemberGetBC
+    // unknown receivers share the rest
+    ...(known == null && !globalThis.precompile && !Prefs.d && !decl._sharedDispatch ? [ [ 'default', () => {
+      const func = sharedFunc('((o, k) => o[k])');
+      return Call(func.index, [ obj, coerceValue(prop, T.jsval) ], func.retType);
+    } ] ] : [
+      // unknown receivers inline only Uint8Array (Buffer), other typed arrays share one call
+      ...(known == null && !globalThis.precompile ? [
+        [ TYPES.uint8array, () => typedArrayGet(scope, obj, prop, TYPES.uint8array) ],
+        [ TYPED_ARRAY_TYPES.filter(t => t !== TYPES.uint8array), () => builtinCall(scope, '__Porffor_typedArray_getIndex', [ obj, prop ]) ]
+      ] : TYPED_ARRAY_TYPES.map(t => [ t, () => typedArrayGet(scope, obj, prop, t) ])),
+      ...genericMemberGetBC
+    ])
   ];
 
   if (!decl.optional && objectKnownValue === null)
@@ -6414,6 +6454,7 @@ export default (program, opts = {}) => {
   onFinalize(() => resolveMemberDemands(topLevelFunc));
   currentFuncIndex = 0;
   icSites = Object.create(null);
+  sharedFuncs = new Map();
   usedTypes = new Set([ TYPES.undefined, TYPES.number, TYPES.boolean, TYPES.function ]);
   globalInfer = Object.create(null);
 
