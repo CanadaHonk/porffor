@@ -2084,11 +2084,16 @@ const splitRuntime = text => {
     const isProto = !isType && parenAt !== -1 && braceAt === -1 && eqAt === -1 && !/\(\*\w+\)/.test(chunk);
     const unstatic = str => str.replace(/\bstatic\s+/, '');
 
-    if (isType || /^extern\b/.test(chunk) || (isFunc && /\binline\b/.test(spec)) || /^static\s+const\b/.test(chunk)) header.push(chunk);
-    else if (isFunc) {
+    // const tables without a size stay per unit, sizeof needs their initializer
+    if (isType || /^extern\b/.test(chunk) || (!isFunc && /^static\s+const\b/.test(chunk) && /\[\]\s*$/.test(chunk.slice(0, eqAt - start)))) header.push(chunk);
+    else if (isFunc && /\binline\b/.test(spec)) {
+      // c99 inline: one shared copy instead of one per unit
+      header.push(unstatic(chunk));
+      impl.push('extern ' + unstatic(chunk.slice(0, braceAt - start)).trim() + ';');
+    } else if (isFunc) {
       header.push(unstatic(chunk.slice(0, braceAt - start)).trim() + ';');
       impl.push(unstatic(chunk));
-    } else if (isProto) header.push(/\binline\b/.test(chunk) ? chunk : unstatic(chunk));
+    } else if (isProto) header.push(unstatic(chunk));
     else {
       header.push('extern ' + unstatic(eqAt === -1 ? chunk.slice(0, -1) : chunk.slice(0, eqAt - start)).trim() + ';');
       impl.push(unstatic(chunk));
