@@ -4012,26 +4012,26 @@ static void porf_gc_sweep_span(u32 pg, int minor, u64* young_bytes, u64* live_by
   if (young) *young_bytes += (u64)npg * PORF_GC_SPAGE;
 }
 
-static void porf_gc_madv_dontneed(u32 start, size_t len) {
+// os pages can be larger than gc pages (16KB on arm64 macos), never touch a partial one
+static void porf_gc_madv_dontneed(u8* lo, u8* hi) {
+  lo = (u8*)(((uintptr_t)lo + 16383u) & ~(uintptr_t)16383u);
+  hi = (u8*)((uintptr_t)hi & ~(uintptr_t)16383u);
+  if (hi <= lo) return;
 #if PORF_CAN_DECOMMIT && defined(__APPLE__)
   // macos keeps madvised pages resident until memory pressure, a fresh mapping drops them now
-  (void)mmap(MEM + start, len, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  (void)mmap(lo, (size_t)(hi - lo), PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #elif PORF_CAN_DECOMMIT && defined(MADV_DONTNEED)
-  (void)madvise(MEM + start, len, MADV_DONTNEED);
+  (void)madvise(lo, (size_t)(hi - lo), MADV_DONTNEED);
 #elif PORF_CAN_DECOMMIT && defined(MADV_FREE)
-  (void)madvise(MEM + start, len, MADV_FREE);
-#else
-  (void)start;
-  (void)len;
+  (void)madvise(lo, (size_t)(hi - lo), MADV_FREE);
 #endif
 }
 
 static void porf_gc_discard_range(u32 start, u32 end) {
-  // os pages can be larger than gc pages (16KB on arm64 macos), never touch a partial one
-  start = (start + 16383u) & ~16383u;
-  end &= ~16383u;
-  if (end <= start) return;
-  porf_gc_madv_dontneed(start, (size_t)(end - start));
+  porf_gc_madv_dontneed(MEM + start, MEM + end);
+  // free pages' kinds go unread and their bits are already clear
+  porf_gc_madv_dontneed(porf_gc_kinds + (start >> 4), porf_gc_kinds + (end >> 4));
+  porf_gc_madv_dontneed((u8*)(porf_gc_meta + ((size_t)(start >> PORF_GC_SPAGE_SHIFT) << 5)), (u8*)(porf_gc_meta + ((size_t)(end >> PORF_GC_SPAGE_SHIFT) << 5)));
 }
 
 static void porf_gc_retreat_heap_top(void) {
