@@ -3585,15 +3585,24 @@ export const __Porffor_regex_compile = (patternStr: bytestring|string, flagsStr:
     names = __Porffor_regex_mruNames;
     caps = __Porffor_regex_mruCaps;
   } else if (canCache) {
+    let prev: i32 = 0;
     let entry: i32 = __Porffor_regex_cache;
     while (entry != 0) {
-      if (Porffor.strcmp(patternStr, Porffor.IR.loadI32(entry, 4) as bytestring) &&
-          Porffor.strcmp(flagsStr, Porffor.IR.loadI32(entry, 8) as bytestring)) {
+      const pattern: i32 = Porffor.IR.loadI32(entry, 4), flags: i32 = Porffor.IR.loadI32(entry, 8);
+      if (Porffor.fastAnd(pattern == Porffor.IR.ptr(patternStr), flags == Porffor.IR.ptr(flagsStr)) ||
+          (Porffor.strcmp(patternStr, pattern as bytestring) && Porffor.strcmp(flagsStr, flags as bytestring))) {
         blob = Porffor.IR.loadI32(entry, 12);
         names = Porffor.IR.loadI32(entry, 16) == 0 ? 0 : Porffor.as(Porffor.IR.loadI32(entry, 16), Porffor.TYPES.array);
         caps = Porffor.IR.loadU16(entry, 20);
+        // move to the front, so the few regexes in use stay a short walk away
+        if (prev != 0) {
+          Porffor.IR.storeI32(prev, 0, Porffor.IR.loadI32(entry, 0));
+          Porffor.IR.storeI32(entry, 0, __Porffor_regex_cache);
+          __Porffor_regex_cache = entry;
+        }
         break;
       }
+      prev = entry;
       entry = Porffor.IR.loadI32(entry, 0);
     }
   }
