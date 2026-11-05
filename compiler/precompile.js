@@ -1,3 +1,4 @@
+#!/usr/bin/env -S node --experimental-import-text --disable-warning=ExperimentalWarning
 
 import { TYPES, TYPE_NAMES, ERROR_NAMES } from './types.js';
 import { K } from './ir.js';
