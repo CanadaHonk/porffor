@@ -3652,13 +3652,12 @@ static void porf_gc_scan_regex_cache(i32 cache) {
 }
 
 static void porf_gc_mark_regex_cache(i32 cache) {
-  while (cache != 0) {
-    if (!porf_gc_is_block_start(cache)) return;
-    porf_gc_mark_body(cache);
-    porf_gc_set_kind(cache, PORF_GC_KIND_REGEX_CACHE);
-    porf_gc_scan_regex_cache(cache);
-    cache = *(u32*)(MEM + cache);
+  for (i32 entry = cache; entry != 0 && porf_gc_is_block_start(entry); entry = *(u32*)(MEM + entry)) {
+    porf_gc_mark_body(entry);
+    porf_gc_set_kind(entry, PORF_GC_KIND_REGEX_CACHE);
   }
+  // scanning walks the rest of the chain itself
+  porf_gc_scan_regex_cache(cache);
 }
 
 static void porf_gc_scan_kind_block(i32 body) {
