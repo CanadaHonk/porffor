@@ -605,19 +605,19 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
       return generateIf(scope, decl);
 
     case 'ForStatement':
-      return genLoop(scope, decl, 'for');
+      return inLoop(scope, () => genLoop(scope, decl, 'for'));
 
     case 'WhileStatement':
-      return genLoop(scope, decl, 'while');
+      return inLoop(scope, () => genLoop(scope, decl, 'while'));
 
     case 'DoWhileStatement':
-      return genLoop(scope, decl, 'dowhile');
+      return inLoop(scope, () => genLoop(scope, decl, 'dowhile'));
 
     case 'ForOfStatement':
-      return generateForOf(scope, decl);
+      return inLoop(scope, () => generateForOf(scope, decl));
 
     case 'ForInStatement':
-      return generateForIn(scope, decl);
+      return inLoop(scope, () => generateForIn(scope, decl));
 
     case 'SwitchStatement':
       return generateSwitch(scope, decl);
@@ -3617,7 +3617,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
             hash != null ? builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ]) : builtinCall(scope, '__Porffor_object_get', [ obj, key ]),
             generate(scope, decl.right), null, getNodeType(scope, decl.right));
       if (hash == null) return builtinCall(scope, setBuiltin, [ obj, key, value ]);
-      if (Prefs.ic && (objectKnown == null || objectKnown === TYPES.object)) return icSet(scope, obj, key, value, hash, icSlot(scope), object.type === 'ThisExpression');
+      if (Prefs.ic && !runsOnce(scope) && (objectKnown == null || objectKnown === TYPES.object)) return icSet(scope, obj, key, value, hash, icSlot(scope), object.type === 'ThisExpression');
       return builtinCall(scope, setBuiltin + '_withHash', [ obj, key, value, Const(T.i32, hash) ]);
     };
 
@@ -4882,6 +4882,11 @@ const generateObject = (scope, decl) => {
   let collects = false;
   // static keys are stored as values (inline, the capacity covers them) and their shape cached per site
   const setShape = () => {
+    if (runsOnce(scope)) {
+      exprStmt(scope, builtinCall(scope, '__Porffor_object_literalShape', [ obj, dataRef(unitOf(scope), '#shapescratch', [ 0, 0, 0, 0 ]),
+        generate(scope, { type: 'ArrayExpression', elements: [ ...keys ].map(k => ({ type: 'Literal', value: k })) }) ]));
+      return;
+    }
     const site = reuse(scope, icSlot(scope));
     emitIf(scope, Bin('==', T.u32, Load('u32', site, 0), Const(T.u32, 0)),
       () => exprStmt(scope, builtinCall(scope, '__Porffor_object_literalShape', [ obj, site,
@@ -4985,6 +4990,17 @@ const icSet = (scope, obj, key, value, hash, slot, inline) => {
   }, () => exprStmt(scope, builtinCall(scope, '__Porffor_object_set_ic', [ o, key, v, Const(T.i32, hash), s, Const(T.i32, scope.strict ? 1 : 0) ])));
   return v;
 };
+// top-level code outside loops runs once, so a cache there only costs memory
+const runsOnce = scope => scope.topLevel && !scope.loops;
+const inLoop = (scope, gen) => {
+  scope.loops = (scope.loops ?? 0) + 1;
+  try {
+    return gen();
+  } finally {
+    scope.loops--;
+  }
+};
+
 // per-site inline cache slot of 12 words, layout per __Porffor_object_get_ic / set_ic
 const icSlot = scope => {
   const unit = unitOf(scope);
@@ -5169,7 +5185,7 @@ const generateMember = (scope, decl, objValue = null) => {
     const key = prop[N_TYPE] === T.jsval ? prop : valNumber(prop);
     if (hash == null) return builtinCall(scope, '__Porffor_object_get', [ obj, key ]);
 
-    if (Prefs.ic && (known == null || known === TYPES.object)) return icGet(scope, obj, key, hash, icSlot(scope), decl.object.type === 'ThisExpression');
+    if (Prefs.ic && !runsOnce(scope) && (known == null || known === TYPES.object)) return icGet(scope, obj, key, hash, icSlot(scope), decl.object.type === 'ThisExpression');
 
     return builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ]);
   };
