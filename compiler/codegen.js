@@ -6571,6 +6571,9 @@ export default (program, opts = {}) => {
   }
   irFinalizers.length = 0;
 
+  // a unit's last ic chunk only needs its sites
+  for (const unit in icSites) data[icSites[unit].chunk].length = ((icSites[unit].site - 1) % 256 + 1) * 48;
+
   if (builtinGlobalInits.length !== 0) topLevelFunc.body.unshift(...builtinGlobalInits);
 
   // render input: funcs indexed by func.index, ungenerated ones null (tree-shaken to a trapping stub), globals as {name, type}
