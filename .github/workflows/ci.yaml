@@ -72,7 +72,7 @@ jobs:
       - name: compile selfhost compiler to c
         run: |
           mkdir -p build-inputs
-          node --experimental-import-text runtime/index.js c --compress-data --module runtime/index.js -o build-inputs/stage1.c
+          node --experimental-import-text runtime/index.js c --compress-data runtime/index.js -o build-inputs/stage1.c
       - name: build libuv
         run: |
           curl -sSfL https://github.com/libuv/libuv/archive/refs/tags/v1.51.0.tar.gz | tar xz
@@ -86,7 +86,7 @@ jobs:
           clang -O0 -fuse-ld=lld -fno-sanitize=undefined -w \
             -fprofile-instr-generate=/tmp/porffor-pgo/release.profraw \
             -Ilibuv/include build-inputs/stage1.c libuv/lib/libuv.a -o /tmp/porffor-pgo/porf -lm
-          /tmp/porffor-pgo/porf c --module runtime/index.js -o /tmp/porffor-pgo/stage2.c
+          /tmp/porffor-pgo/porf c runtime/index.js -o /tmp/porffor-pgo/stage2.c
           llvm-profdata merge -o /tmp/porffor-pgo/release.profdata /tmp/porffor-pgo/release.profraw
       - name: collect build inputs
         run: cp /tmp/porffor-pgo/release.profdata build-inputs/

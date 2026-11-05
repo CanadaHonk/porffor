@@ -10,7 +10,7 @@ const tmpDir = '/tmp/porffor-selfhost';
 const inTmp = file => path.join(tmpDir, file);
 
 const selfhostEntry = 'runtime/index.js';
-const selfhostArgs = [ '--module', selfhostEntry ];
+const selfhostArgs = [ selfhostEntry ];
 const porf = process.env.PORFFOR_SELFHOST_BIN ?? inSelfhost('porf');
 const nodePorf = [ process.execPath, '--experimental-import-text', '--disable-warning=ExperimentalWarning', 'runtime/index.js' ];
 const compileHistory = inTmp('compile-history.jsonl');

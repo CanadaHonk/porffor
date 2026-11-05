@@ -243,13 +243,13 @@ const dataSource = url => {
   return url.slice(0, comma).endsWith(';base64') ? atob(url.slice(comma + 1)) : decodeURIComponent(url.slice(comma + 1).replace(/%(?![\da-f]{2})/gi, '%25'));
 };
 
-const isEsmSource = (file, src) => {
+export const isEsmSource = (file, src) => {
   if (/\.m[jt]s$/.test(file) || file.startsWith('data:')) return true;
   if (/\.c[jt]s$/.test(file)) return false;
   const pkgDir = nearestPackage(dirname(file));
   if (pkgDir && readJson(pkgDir + '/package.json').type === 'module') return true;
   // like node, esm when only module syntax parses (import() is fine in cjs, a statement in a string is not a declaration)
-  if (!/(?:^|[;}])\s*(?:import\b(?!\s*\()|export\b)/m.test(src) && !/\bimport\.meta\b/.test(src)) return false;
+  if (!/(?:^|[;}])\s*(?:import\b(?!\s*\()|export\b)/m.test(src) && !/\bimport\.meta\b|\bawait\b/.test(src)) return false;
   try {
     parse(src, { module: false, topReturn: true, ts: /\.tsx?$/.test(file) });
     return false;

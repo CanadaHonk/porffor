@@ -3,12 +3,10 @@ import fs from 'node:fs';
 import { isatty } from 'node:tty';
 import { spawnSync } from 'node:child_process';
 import runtimeImports, { globals as runtimeGlobals } from './node/sources.js';
-import { hashId } from '../compiler/modules.js';
+import { hashId, isEsmSource } from '../compiler/modules.js';
 import parseSource from '../compiler/parser/index.js';
 import '../compiler/prefs.js';
 globalThis.version = 'alpha 1 (ba4813d 2026-07-15)';
-
-const MODULE_SYNTAX_PATTERN = /^\s*(?:export|import)\s/m;
 
 // deno compat
 if (typeof process === 'undefined' && typeof Deno !== 'undefined') {
@@ -43,7 +41,6 @@ const help = () => {
     'On': `Optimization level, use -O(0|${ansi(1)}1${ansi(0)}|2|3)`,
     t: 'Force parsing input as TypeScript',
     d: 'Debug mode (include names and debug logs)',
-    module: 'Parse input as a module',
     safe: 'Safe mode (error on unsafe Porffor features)'
   })) {
     flag = '-' + flag;
@@ -56,6 +53,7 @@ const help = () => {
   if (process.argv.includes('all')) {
     for (let [ flag, desc ] of Object.entries({
       'profile-compiler': 'Log general compiler performance (on by default when compiling to a file)',
+      module: 'Parse input as a module (detected like node otherwise)',
       'jN': 'Parallel C compile jobs for module builds (default: CPU count)',
     })) {
       flag = '-' + flag;
@@ -71,7 +69,6 @@ const help = () => {
   process.exit(0);
 };
 
-const looksLikeModule = (filename, source) => MODULE_SYNTAX_PATTERN.test(source) || /\.(mjs|mts)$/i.test(filename);
 const compile = async (source, module, opts) => (await import('../compiler/index.js')).default(source, module, { runtimeImports, runtimeGlobals, ...opts });
 
 // node style: porf [...options] [script.js | -e code | -p code | -] [...args]
@@ -144,7 +141,7 @@ if (args[scriptAt] === 'c' || args[scriptAt] === 'native' || options.includes('-
   const file = globalThis.file = nonFlagArgs[0];
   Prefs.target = command;
   const source = fs.readFileSync(file, 'utf8');
-  await compile(source, Prefs.module ?? looksLikeModule(file, source));
+  await compile(source, Prefs.module ?? isEsmSource(fs.realpathSync(file), source));
   process.exit(0);
 }
 
@@ -178,7 +175,7 @@ if (evalSource != null) {
   rest = args.slice(scriptAt + 1);
 }
 
-const module = Prefs.module ?? looksLikeModule(entry, source);
+const module = Prefs.module ?? isEsmSource(entry, source);
 if (print) {
   const body = parseSource(source, { module }).body;
   const last = body.at(-1);
