@@ -351,6 +351,7 @@ const topReturns = (body, label) => {
 const lexicalNames = (body, out) => {
   for (let x of body) {
     if (x.type === 'ExportNamedDeclaration') x = x.declaration;
+    if (!x) continue;
     if (x.type === 'VariableDeclaration' && x.kind !== 'var') for (const d of x.declarations) patternNames(d.id, out);
     else if (x.type === 'FunctionDeclaration' || x.type === 'ClassDeclaration' || x.type === 'TSEnumDeclaration') { if (x.id) out.push(x.id.name); }
   }
