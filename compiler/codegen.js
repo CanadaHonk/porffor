@@ -3407,7 +3407,7 @@ const bindMemberTarget = (scope, member, prefix, coerceKey = false) => {
 const isIdentAssignable = (scope, name, op = '=') => {
   if (!scope.strict && op === '=') return true;
 
-  if (lookupName(scope, name)[0] != null) return true;
+  if (lookupName(scope, name)[0] != null || scope.closureCaptures?.[name] || scope.closureOwnLocals?.[name]) return true;
 
   if (lookupHoistedVar(scope, name) != null) return true;
 
