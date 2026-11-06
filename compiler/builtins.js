@@ -270,11 +270,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
       LOG2E: Math.LOG2E,
       PI: Math.PI,
       SQRT1_2: Math.SQRT1_2,
-      SQRT2: Math.SQRT2,
-
-      // https://github.com/rwaldron/proposal-math-extensions/issues/10
-      RAD_PER_DEG: Math.PI / 180,
-      DEG_PER_RAD: 180 / Math.PI
+      SQRT2: Math.SQRT2
     }),
 
     ...autoFuncs('Math')
