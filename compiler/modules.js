@@ -1431,7 +1431,7 @@ export default (entrySource, entryFile, opts = {}) => {
       if (plainPath(name) && !(runtime && (RUNTIME_ROOT + '/node/' + name + '.js') in runtime)) for (const dir of dirs) paths.push(joinPath(dir, name));
       for (const p of paths) {
         const file = mayExist(p) && resolveFile(p);
-        if (!file || file.endsWith('.json') || modules.has(file) || badCandidates.has(file)) continue;
+        if (!file || file.endsWith('.json') || /\.d\.[cm]?ts$/.test(file) || modules.has(file) || badCandidates.has(file)) continue;
         // candidates that do not load are left out, with what they pulled in
         const before = new Set(modules.keys());
         let failed;
