@@ -256,11 +256,12 @@ export default (code, module = Prefs.module, opts = {}) => {
       if (logProgress) progressStart(`${objects ? 'linking' : 'compiling C to'} native (using ${linker[0]})...`);
       const t5 = performance.now();
 
-      execSync(args.join(' '), {
+      const link = spawnSync(args[0], args.slice(1), {
         stdio: [ 'pipe', 'inherit', 'inherit' ],
-        input: objects ? '' : c,
-        encoding: 'utf8'
+        input: objects ? '' : c
       });
+      if (link.error) throw link.error;
+      if (link.status !== 0) throw new Error(`${linker[0]} failed (${link.signal ?? `exit ${link.status}`})`);
 
       if (logProgress) progressDone(`${objects ? 'linked' : 'compiled C to'} native (using ${linker[0]})`, t5);
 
