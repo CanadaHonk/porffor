@@ -23,7 +23,8 @@ export const linkFlags = libs => {
     try {
       flags = execSync(`pkg-config --cflags --libs ${preferStatic ? '--static ' : ''}${lib}`, quiet).trim().split(/\s+/).filter(Boolean);
     } catch {
-      flags = [ `-l${lib === 'zlib' ? 'z' : lib.replace(/^lib/, '')}` ];
+      console.error(`this program needs ${lib} to build, but pkg-config could not find it\ninstall ${lib} and pkg-config, then try again`);
+      process.exit(1);
     }
     if (preferStatic) {
       const dirs = flags.filter(x => x.startsWith('-L')).map(x => x.slice(2));
