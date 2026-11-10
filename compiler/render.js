@@ -1420,7 +1420,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     if (needsCoro(f)) return renderCoroFunc(f);
     const ret = CT[f.retType];
     const params = f.params.map(p => `${CT[p.type]} ${sanitize(p.name)}`).join(', ');
-    emit(`${f.ast?._module ? 'PORF_ONCE ' : NEVER_INLINE.has(f.name) ? 'PORF_NOINLINE ' : ALWAYS_INLINE.has(f.name) ? '__attribute__((always_inline)) ' : ''}${ret} ${fnSym(f)}(${params || 'void'}) {\n`);
+    emit(`${f.ast?._module ? 'PORF_ONCE ' : NEVER_INLINE.has(f.name) ? 'PORF_NOINLINE ' : ALWAYS_INLINE.has(f.name) ? '__attribute__((always_inline)) ' : ''}PORF_CC ${ret} ${fnSym(f)}(${params || 'void'}) {\n`);
     depth = 1;
     activeTryDepth = 0;
     loopStack.length = 0;
@@ -1582,12 +1582,12 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     link.push('static void porf_data_init(void) {}\n\n');
   }
 
-  const proto = f => `${CT[f.retType]} ${fnSym(f)}(${needsCoro(f) ? 'porf_coro_call*' : f.params.map(p => CT[p.type]).join(', ') || 'void'});\n`;
+  const proto = f => `${needsCoro(f) ? '' : 'PORF_CC '}${CT[f.retType]} ${fnSym(f)}(${needsCoro(f) ? 'porf_coro_call*' : f.params.map(p => CT[p.type]).join(', ') || 'void'});\n`;
   const linkProtos = [
     `${st}jsval porf_call_dynamic(jsval fn, jsval thisv, jsval newtv, i32 argc, jsbits* argv);\n`,
     `${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr);\n`
   ];
-  if (usesDynReg) for (let n = 0; n <= DYN_REGS; n++) linkProtos.push(`${split ? '' : 'static inline '}jsval porf_call${n}(${dynCallParams(n)});\n`);
+  if (usesDynReg) for (let n = 0; n <= DYN_REGS; n++) linkProtos.push(`${split ? '' : 'static inline '}PORF_CC jsval porf_call${n}(${dynCallParams(n)});\n`);
   if (usesSyncAsync) linkProtos.push(`${st}jsval porf_async_call_sync(u32 idx, jsval callee, u32 env, jsval thisv, jsval newtv, i32 argc, jsbits* argv);\n`);
   if (usesCoro) {
     // coroutine entry points called from user code / builtins above their definitions
@@ -1671,11 +1671,11 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
 
   if (usesDynReg) {
     const regsVoid = dynRegs().map((_, j) => `(void)a${j};`).join(' ');
-    emit(`${st}jsval porf_thk_slow(${dynThunkParams}) {
+    emit(`${st}PORF_CC jsval porf_thk_slow(${dynThunkParams}) {
   jsbits argv[${DYN_REGS}] = { ${dynRegs().map((_, j) => `porf_pack(a${j})`).join(', ')} };
   return porf_call_dynamic(porf_box((f64)(u32)ra, ${TYPES.function}), thisv, JV_UNDEFINED, (i32)(ra >> 32), argv);
 }
-${st}jsval porf_thk_bad(${dynThunkParams}) {
+${st}PORF_CC jsval porf_thk_bad(${dynThunkParams}) {
   (void)ra; (void)thisv; ${regsVoid}
   porf_unreachable("uncompiled function");
   return JV_UNDEFINED;
@@ -1695,14 +1695,14 @@ ${st}jsval porf_thk_bad(${dynThunkParams}) {
         newtv: 'JV_UNDEFINED',
         arg: j => j < DYN_REGS ? `a${j}` : 'JV_UNDEFINED'
       });
-      emit(`${st}jsval porf_thk_${i}(${dynThunkParams}) { (void)ra; (void)thisv; ${regsVoid} ${body} }\n`);
+      emit(`${st}PORF_CC jsval porf_thk_${i}(${dynThunkParams}) { (void)ra; (void)thisv; ${regsVoid} ${body} }\n`);
       table.push(`porf_thk_${i}`);
     }
-    emit(`${st}jsval (*const porf_thk[${linkFuncs.length || 1}])(${dynThunkParams}) = { ${table.join(', ') || 'porf_thk_bad'} };\n\n`);
+    emit(`${st}PORF_CC jsval (*const porf_thk[${linkFuncs.length || 1}])(${dynThunkParams}) = { ${table.join(', ') || 'porf_thk_bad'} };\n\n`);
 
     for (let n = 0; n <= DYN_REGS; n++) {
       const regs = Array.from({ length: DYN_REGS }, (_, j) => j < n ? `a${j}` : 'JV_UNDEFINED');
-      emit(`${split ? '' : 'static inline '}jsval porf_call${n}(${dynCallParams(n)}) {
+      emit(`${split ? '' : 'static inline '}PORF_CC jsval porf_call${n}(${dynCallParams(n)}) {
   if (porf_jv_type(fn) != ${TYPES.function}) {
     ${proxyCall ? `if (porf_jv_type(fn) == ${TYPES.proxy}) {
       jsbits argv[${n || 1}] = { ${n ? regs.slice(0, n).map(x => `porf_pack(${x})`).join(', ') : '0'} };
@@ -4294,6 +4294,12 @@ typedef u64 jsbits;
 ${st}u8* porf_mem;
 #define MEM porf_mem
 #define PORF_NOINLINE __attribute__((noinline))
+// js functions take and return a jsval's number in a float register and its type in a general one
+#if defined(__clang__) && defined(__aarch64__)
+#define PORF_CC __attribute__((swiftcall))
+#else
+#define PORF_CC
+#endif
 // run-once code (module init, top level): optimize for size whatever -O the unit gets
 #if defined(__clang__)
 #define PORF_ONCE __attribute__((noinline, minsize))
@@ -4574,9 +4580,9 @@ ${st}jsval porf_iter_open = {0.0, ${TYPES.undefined}};
 ${st}i32 porf_iter_base = 0;
 ${iterClose ? `static void porf_iter_unwind(void);
 ` : ''}\
-${toStr ? `jsval ${toStr}(jsval);
+${toStr ? `PORF_CC jsval ${toStr}(jsval);
 ` : ''}\
-${fatal ? `jsval ${fatal}(jsval);
+${fatal ? `PORF_CC jsval ${fatal}(jsval);
 ` : ''}\
 PORF_NORETURN ${st}void porf_throw(jsval v) {
   porf_exception = v;
@@ -4725,7 +4731,7 @@ ${st}void porf_iter_unlink(void) {
   porf_iter_open = porf_arr_get((u32)porf_iter_open.val, 4);
 }
 
-jsval ${iterClose}(jsval);
+PORF_CC jsval ${iterClose}(jsval);
 
 // close the records a throw leaves, dropping errors from closing unless it is a generator return
 static void porf_iter_unwind(void) {
