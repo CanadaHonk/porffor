@@ -1041,7 +1041,7 @@ const generateReturn = (scope, decl) => {
 
   // constructors coerce their return value
   if (scope.constr && !globalThis.precompile) {
-    const constructing = () => JvTruthy(Local('#newtarget', T.jsval));
+    const constructing = () => Bin('!=', T.i32, JvType(Local('#newtarget', T.jsval)), Const(T.i32, TYPES.undefined));
     const retThis = () => stmt(scope, Return(scope.ast._thisBinding ? derivedThis(scope, identNode(scope.ast._thisBinding.name)) : Local('#this', T.jsval)));
 
     // return undefined / return this give back the new instance when constructing
