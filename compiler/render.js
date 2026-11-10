@@ -355,7 +355,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   const packArg = n => `porf_pack(${jsArg(n)})`;
 
   // dynamic calls with few args pass them in registers to a per-func thunk
-  const DYN_REGS = 4;
+  const DYN_REGS = 6;
   const hasParam = (f, name) => f.params.some(p => p.name === name);
   const dynRegThunk = f => f.indirect && coroKind(f) === 0 && !hasParam(f, '#rest') && !hasParam(f, '#allargs');
   const dynRegs = (n = DYN_REGS) => Array.from({ length: n }, (_, j) => `jsval a${j}`);
