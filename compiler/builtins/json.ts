@@ -754,7 +754,15 @@ export const __Porffor_json_hex4 = (text: bytestring, pos: i32, len: i32): i32 =
 
 // strings with \u escapes past latin-1, from after the opening quote
 export const __Porffor_json_parseWideString = (text: bytestring, start: i32, posPtr: i32, len: i32): string => {
-  const out: string = Porffor.malloc(6 + (len - start) * 2);
+  // size by this string, not the rest of the document
+  let end: i32 = start;
+  while (end < len) {
+    const c: i32 = text.charCodeAt(end);
+    if (c == 34) break;
+    end += c == 92 ? 2 : 1;
+  }
+
+  const out: string = Porffor.malloc(6 + (end - start) * 2);
   let n: i32 = 0, pos: i32 = start;
   while (pos < len) {
     let ch: i32 = text.charCodeAt(pos++);
