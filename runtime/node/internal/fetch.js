@@ -433,6 +433,7 @@ export class Response {
   }
 
   static redirect(url, status = 302) {
+    status = Number(status) >>> 0 & 0xFFFF;
     if (status !== 301 && status !== 302 && status !== 303 && status !== 307 && status !== 308) throw new RangeError('status must be 301, 302, 303, 307, or 308.');
     return new Response(null, { status, headers: { location: `${new URL(url)}` } });
   }
