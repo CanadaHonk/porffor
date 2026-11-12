@@ -399,9 +399,13 @@ jobs:
           EOF
           chmod +x npm/porffor/porf npm/@porffor/*/porf
           # platform packages first so porffor never references an unpublished version
-          for dir in npm/@porffor/* npm/porffor; do
-            (cd "$dir" && npm publish --access public --tag latest)
+          pids=
+          for dir in npm/@porffor/*; do
+            (cd "$dir" && npm publish --access public --tag latest) &
+            pids="$pids $!"
           done
+          for pid in $pids; do wait "$pid"; done
+          (cd npm/porffor && npm publish --access public --tag latest)
       - name: announce release on discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
