@@ -73,7 +73,14 @@ jobs:
         run: |
           mkdir -p build-inputs
           node --experimental-import-text runtime/index.js c --compress-data runtime/index.js -o build-inputs/stage1.c
+      - name: cache libuv
+        id: libuv
+        uses: actions/cache@v4
+        with:
+          path: libuv
+          key: libuv-1.51.0-${{ runner.os }}-${{ runner.arch }}
       - name: build libuv
+        if: steps.libuv.outputs.cache-hit != 'true'
         run: |
           curl -sSfL https://github.com/libuv/libuv/archive/refs/tags/v1.51.0.tar.gz | tar xz
           cmake -S libuv-1.51.0 -B libuv-build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/libuv" \
@@ -109,7 +116,14 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
+      - name: cache libuv
+        id: libuv
+        uses: actions/cache@v4
+        with:
+          path: libuv
+          key: libuv-1.51.0-zig-0.16.0-${{ env.TRIPLE }}
       - name: build libuv
+        if: steps.libuv.outputs.cache-hit != 'true'
         run: |
           curl -sSfL https://github.com/libuv/libuv/archive/refs/tags/v1.51.0.tar.gz | tar xz
           printf '#!/bin/sh\nexec zig ar "$@"\n' > zig-ar
@@ -168,7 +182,14 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
+      - name: cache libuv
+        id: libuv
+        uses: actions/cache@v4
+        with:
+          path: libuv
+          key: libuv-1.51.0-zig-0.16.0-${{ env.TRIPLE }}
       - name: build libuv
+        if: steps.libuv.outputs.cache-hit != 'true'
         run: |
           curl -sSfL https://github.com/libuv/libuv/archive/refs/tags/v1.51.0.tar.gz | tar xz
           printf '#!/bin/sh\nexec zig ar "$@"\n' > zig-ar
