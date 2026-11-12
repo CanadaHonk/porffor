@@ -1663,9 +1663,9 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     `return porf_box_num((f64)${call});`;
 
   // adapt a uniform dynamic-call ABI to f's signature
-  const dynInvokeCall = (f, v) => {
+  const dynInvokeCall = (f, v, sym = fnSym(f)) => {
     const { pre, args } = invokeArgs(f, v);
-    const ret = returnBoxed(f, `${fnSym(f)}(${args.join(', ')})`);
+    const ret = returnBoxed(f, `${sym}(${args.join(', ')})`);
     return pre.length ? `{ ${pre.join(' ')} ${ret} }` : ret;
   };
 
@@ -1720,18 +1720,31 @@ ${st}PORF_CC jsval porf_thk_bad(${dynThunkParams}) {
   }
 
   // fn values are records [fnIdx u32][env u32], funcs a thunk fully serves fall through to it
+  // one case per signature, each func is called through porf_invoke_fn, slot 0 has no case
+  const invokeShapes = new Map(), invokeSlot = [], invokeFn = [ '0' ], invokeShape = [ 0 ];
+  for (let i = 0; i < linkFuncs.length; i++) {
+    const f = linkFuncs[i];
+    invokeSlot.push(0);
+    if (needsCoro(f) || (!f.indirect && !isSyncAsync(f))) continue;
+    if (usesDynReg && dynRegThunk(f) && !hasParam(f, '#newtarget') && f.params.filter(p => p.name[0] !== '#').length <= DYN_REGS) continue;
+    const call = dynInvokeCall(f, {
+      env: 'env', thisv: 'thisv', callee: 'callee', newtv: 'newtv', argc: 'argc', argv: 'argv',
+      arg: j => `porf_unpack(argc > ${j} ? argv[${j}] : JV_UNDEFINED_BITS)`
+    }, `((PORF_CC ${CT[f.retType]} (*)(${f.params.map(p => CT[p.type]).join(', ') || 'void'}))fn)`);
+    if (!invokeShapes.has(call)) invokeShapes.set(call, invokeShapes.size + 1);
+    invokeSlot[i] = invokeFn.length;
+    invokeFn.push(`(void*)${fnSym(f)}`);
+    invokeShape.push(invokeShapes.get(call));
+  }
+  emit(`${st}const ${invokeFn.length > 65535 ? 'u32' : 'u16'} porf_invoke_slot[] = { ${invokeSlot.join(', ') || '0'} };\n`);
+  emit(`${st}void* const porf_invoke_fn[] = { ${invokeFn.join(', ')} };\n`);
+  emit(`${st}const u16 porf_invoke_shape[] = { ${invokeShape.join(', ')} };\n`);
   emit(`${st}jsval porf_invoke(u32 idx, jsval callee, u32 env, jsval thisv, jsval newtv, i32 argc, jsbits* argv) {\n`);
     emit('  (void)callee; (void)env; (void)thisv; (void)newtv; (void)argc; (void)argv;\n');
-    emit('  switch (idx) {\n');
-    for (let i = 0; i < linkFuncs.length; i++) {
-      const f = linkFuncs[i];
-      if (needsCoro(f) || (!f.indirect && !isSyncAsync(f))) continue;
-      if (usesDynReg && dynRegThunk(f) && !hasParam(f, '#newtarget') && f.params.filter(p => p.name[0] !== '#').length <= DYN_REGS) continue;
-      emit(`    case ${i}: ${dynInvokeCall(f, {
-        env: 'env', thisv: 'thisv', callee: 'callee', newtv: 'newtv', argc: 'argc', argv: 'argv',
-        arg: j => `porf_unpack(argc > ${j} ? argv[${j}] : JV_UNDEFINED_BITS)`
-      })}\n`);
-    }
+    emit('  const u32 slot = porf_invoke_slot[idx];\n');
+    emit('  void* const fn = porf_invoke_fn[slot];\n');
+    emit('  switch (porf_invoke_shape[slot]) {\n');
+    for (const [ call, shape ] of invokeShapes) emit(`    case ${shape}: ${call}\n`);
     emit('  }\n');
     if (usesDynReg) emit(`  return porf_thk[idx]((u64)(u32)callee.val | ((u64)(u32)argc << 32), thisv, ${dynRegs().map((_, j) => `argc > ${j} ? porf_unpack(argv[${j}]) : JV_UNDEFINED`).join(', ')});\n}\n`);
       else emit('  porf_unreachable("uncompiled function");\n  return JV_UNDEFINED;\n}\n');
