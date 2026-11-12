@@ -5152,7 +5152,8 @@ ${st}f64 porf_str_to_num(jsval s, i32 strict) {
     }
   } else n = strtod(buf, (char**)&end);
 
-  if (end <= q || (strict && *end)) n = NAN;
+  const u32 p = (u32)s.val, len = *(u32*)(MEM + p);
+  if (end <= q || (strict && end != buf + len)) n = NAN;
   if (buf != small) free(buf);
   return n;
 }
