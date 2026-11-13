@@ -2483,7 +2483,8 @@ const parseStatement = (context, topLevel) => {
   }
 
   const maybeName = tokValue;
-  const expr = parseExpression(false);
+  // labels are not references, `arguments` can be one anywhere
+  const expr = maybeName === 'arguments' && peekToken()[0] === T_COLON ? parseIdent(true) : parseExpression(false);
   if (starttype === T_NAME && expr.type === 'Identifier' && eat(T_COLON))
     return parseLabeledStatement(start, maybeName, expr, context);
   semicolon();
@@ -2497,7 +2498,7 @@ const parseBreakContinueStatement = isBreak => {
   let label = null;
   if (!eat(T_SEMI) && !canInsertSemicolon()) {
     if (tokKind !== T_NAME) unexpected();
-    label = parseIdent(false);
+    label = parseIdent(tokValue === 'arguments');
     semicolon();
   }
 
