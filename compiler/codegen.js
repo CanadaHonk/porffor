@@ -1657,6 +1657,9 @@ const setType = (scope, name, type, noInfer = false) => {
   if (!noInfer) setInferred(scope, name, known, global);
 };
 
+// top-level `this` is undefined in modules, scripts get the global object even if strict
+const moduleThis = scope => scope.ast?.type === 'Program' && (Prefs.module || scope.ast._module);
+
 const getNodeType = (scope, node) => {
   if (node._type != null) return knownType(scope, node._type);
 
@@ -1793,7 +1796,7 @@ const getNodeType = (scope, node) => {
     if (node._closureThisFunc) return getNodeType(scope, closureEnvNode(scope, '#this', node._closureThisFunc));
     if (scope.overrideThisType) ret = scope.overrideThisType;
     else if (scope.overrideThis) ret = getNodeType(scope, scope.overrideThis);
-    else if (scope.ast?.type === 'Program' && scope.strict) ret = TYPES.undefined;
+    else if (moduleThis(scope)) ret = TYPES.undefined;
     else if (!scope.constr && !scope.method) ret = getType(scope, 'globalThis');
     else ret = null; // runtime `this` type
   }
@@ -2522,8 +2525,7 @@ const generateThis = (scope, decl) => {
     ? valUndefined()
     : generate(scope, { type: 'Identifier', name: 'globalThis' });
 
-  // top-level strict module: `this` is undefined
-  if (scope.ast?.type === 'Program' && scope.strict) return valUndefined();
+  if (moduleThis(scope)) return valUndefined();
 
   // a non-constructor, non-method function: `this` is globalThis
   if (!scope.constr && !scope.method) return generate(scope, { type: 'Identifier', name: 'globalThis' });
