@@ -391,6 +391,7 @@ const declVar = (name, kind, node) => {
     if (parent._variables?.[name]) {
       const existing = parent._variables[name];
       if (node?._writes && existing.node.type === 'Identifier' && !existing.node._declarator) node._skipVarUpdate = true;
+      if (existing.node._param && node?.type === 'FunctionDeclaration') node._writes = existing.node._funcOverwrite = 1;
       if (existing.node._writes) node._writes = 1;
       existing.node = node;
       if (node && typeof node === 'object') node._variable = existing;

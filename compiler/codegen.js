@@ -6475,7 +6475,7 @@ const inferDirectCallParamTypes = root => {
     for (const [decl, calls] of infos) {
       for (let i = 0; i < (decl.params?.length ?? 0); i++) {
         const param = decl.params[i];
-        if (param?.type !== 'Identifier' || param._directInferredType != null) continue;
+        if (param?.type !== 'Identifier' || param._directInferredType != null || param._funcOverwrite) continue;
 
         let inferred = null;
         let valid = calls.length > 0;
