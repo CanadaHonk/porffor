@@ -1157,6 +1157,7 @@ const snapshot = (scope, expr) => {
   const k = expr[N_KIND];
   return k === K.Local || k === K.Global ? tmp(scope, expr[N_TYPE], expr) : reuse(scope, expr);
 };
+const reuseBefore = (scope, expr, nodes) => nodes.length > 0 ? snapshot(scope, expr) : reuse(scope, expr);
 
 const bigintOps = { '+': 0, '-': 1, '*': 2, '/': 3, '%': 4, '**': 5, '&': 6, '|': 7, '^': 8, '<<': 9, '>>': 10, '>>>': 11 };
 
@@ -2350,16 +2351,15 @@ const generateCall = (scope, decl) => {
   }
 
   const hasSpread = decl.arguments.some(x => x?.type === 'SpreadElement');
-  let spreadArr = null;
-  if (hasSpread) {
-    spreadArr = generate(scope, { type: 'ArrayExpression', elements: decl.arguments, _doNotMarkTypeUsed: true });
-  }
+  // spread args go in one array, built once the callee is evaluated
+  const spreadArgs = () => hasSpread ? generate(scope, { type: 'ArrayExpression', elements: decl.arguments, _doNotMarkTypeUsed: true }) : null;
   const userArgs = hasSpread ? [] : decl.arguments;
 
   // super(): construct with the parent, field initializers follow the marker
   if (decl.callee.type === 'Super') {
     const superCtor = reuse(scope, decl.callee._home ? generateSuper(scope, decl.callee) : generate(scope, scope.ast._superClassExpr));
-    const argVals = hasSpread ? [] : userArgs.map(a => reuse(scope, generate(scope, a)));
+    const spreadArr = spreadArgs();
+    const argVals = userArgs.map(a => reuse(scope, generate(scope, a)));
     emitIf(scope, JvFalsy(builtinCall(scope, '__ecma262_IsConstructor', [ superCtor ])),
       () => internalThrow(scope, 'TypeError', 'Super constructor is not a constructor'));
     const newTarget = reuse(scope, generate(scope, decl.callee._newTarget ?? { type: 'MetaProperty', meta: { name: 'new' }, property: { name: 'target' } }));
@@ -2468,13 +2468,13 @@ const generateCall = (scope, decl) => {
     thisVal = reuse(scope, generate(scope, callee.object._this));
     calleeVal = generateSuperMember(scope, callee, thisVal);
   } else if (!decl._new && callee.type === 'MemberExpression') {
-    thisVal = reuse(scope, generate(scope, callee.object));
+    thisVal = reuseBefore(scope, generate(scope, callee.object), decl.arguments);
     calleeVal = generateMember(scope, callee, thisVal);
   } else {
     calleeVal = generate(scope, decl.callee);
     if (!decl._new) thisVal = decl._thisArg ? reuse(scope, generate(scope, decl._thisArg)) : createThisArg(scope, decl);
   }
-  calleeVal = reuse(scope, calleeVal);
+  calleeVal = reuseBefore(scope, calleeVal, decl.arguments);
 
   if (decl.optional) {
     emitIf(scope, nullish(scope, calleeVal), () => {
@@ -2483,7 +2483,8 @@ const generateCall = (scope, decl) => {
     });
   }
 
-  const argVals = hasSpread ? [] : userArgs.map(a => reuse(scope, generate(scope, a)));
+  const spreadArr = spreadArgs();
+  const argVals = userArgs.map(a => reuse(scope, generate(scope, a)));
 
   if (decl._new) {
     emitIf(scope, JvFalsy(builtinCall(scope, '__ecma262_IsConstructor', [ calleeVal ])),
