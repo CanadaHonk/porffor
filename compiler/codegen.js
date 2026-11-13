@@ -1298,6 +1298,8 @@ const generateBinaryExp = (scope, decl) => {
     return builtinCall(scope, '__Porffor_private_has', [ generate(scope, decl.left._map), generate(scope, decl.right) ]);
 
   if (decl.operator === 'instanceof') {
+    if (definedKeys.has('#hasInstance')) includeBuiltin(scope, '__Porffor_object_hasInstanceUsed');
+
     // hack: check type for primitive objects
     const rightName = decl.right.name;
     if (rightName && !decl.right._resolvedVariable) {
@@ -1306,13 +1308,18 @@ const generateBinaryExp = (scope, decl) => {
         if (checkType === TYPES.number) checkType = TYPES.numberobject;
         else if (checkType === TYPES.boolean) checkType = TYPES.booleanobject;
         else if (checkType === TYPES.string) checkType = TYPES.stringobject;
-        return Box(Bin('==', T.i32, JvType(reuse(scope, generate(scope, decl.left))), Const(T.i32, checkType)), Const(T.i32, TYPES.boolean));
+
+        const value = reuse(scope, coerceValue(generate(scope, decl.left), T.jsval));
+        const isType = Box(Bin('==', T.i32, JvType(value), Const(T.i32, checkType)), Const(T.i32, TYPES.boolean));
+        if (!definedKeys.has('Proxy')) return isType;
+
+        // proxies have their own type but their target's prototype
+        return Select(Bin('==', T.i32, JvType(value), Const(T.i32, TYPES.proxy)), builtinCall(scope, '__Porffor_object_instanceof', [ value, generate(scope, decl.right) ]), isType);
       }
     }
 
     // copy the left value first: the right side may reassign it
     const left = tmp(scope, T.jsval, coerceValue(generate(scope, decl.left), T.jsval));
-    if (definedKeys.has('#hasInstance')) includeBuiltin(scope, '__Porffor_object_hasInstanceUsed');
     return builtinCall(scope, '__Porffor_object_instanceof', [ left, generate(scope, decl.right) ]);
   }
 
@@ -5838,6 +5845,7 @@ const collectDefinedKeys = program => {
     const target = node.type === 'AssignmentExpression' ? node.left : node.operator === 'delete' ? node.argument : null;
     if (target?.object?.name === '__Array_prototype' && target.property.name === '__Symbol_iterator') out.add('#arrayIterator');
     if (node.name === '__Symbol_hasInstance') out.add('#hasInstance');
+    if (node.name === 'Proxy' || node.name === '__Proxy_revocable' || node.value === 'Proxy') out.add('Proxy');
     if (node._evalParsed) walk(node._evalParsed);
     for (const k in node) if (k[0] !== '_' && k !== 'start' && k !== 'end') walk(node[k], node.type === 'CallExpression' && k === 'callee');
   };
