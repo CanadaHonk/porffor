@@ -1770,13 +1770,7 @@ const getNodeType = (scope, node) => {
     if (name === 'length' && (hasFuncWithName(node.object.name) || Prefs.fastLength)) ret = TYPES.number;
     else {
       const objType = getNodeType(scope, node.object);
-      if (objType != null) {
-        if (name === 'length' && (objType & TYPE_FLAGS.length) !== 0) ret = TYPES.number;
-        else if (node.computed && getNodeType(scope, node.property) === TYPES.number) {
-          if (objType === TYPES.string) ret = TYPES.string;
-          else if (objType === TYPES.bytestring) ret = TYPES.bytestring;
-        }
-      }
+      if (objType != null && name === 'length' && (objType & TYPE_FLAGS.length) !== 0) ret = TYPES.number;
     }
   }
   else if (node.type === 'TemplateLiteral') {
