@@ -4513,7 +4513,10 @@ const LOOP_STMTS = [ 'ForStatement', 'WhileStatement', 'DoWhileStatement', 'ForO
 const generateLabel = (scope, decl) => {
   const name = decl.label.name;
 
-  if (LOOP_STMTS.includes(decl.body.type)) {
+  // every label directly on a loop can be continued to
+  let target = decl.body;
+  while (target.type === 'LabeledStatement') target = target.body;
+  if (LOOP_STMTS.includes(target.type)) {
     pendingLabels.push(name);
     return generate(scope, decl.body);
   }
