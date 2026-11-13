@@ -1316,11 +1316,9 @@ const generateBinaryExp = (scope, decl) => {
   }
 
   if (decl.operator === 'in') {
-    return generate(scope, {
-      type: 'CallExpression',
-      callee: { type: 'Identifier', name: '__Porffor_object_in' },
-      arguments: [ decl.right, decl.left ]
-    });
+    // the builtin takes the object first, but the key is evaluated first
+    const key = snapshot(scope, coerceValue(generate(scope, decl.left), T.jsval));
+    return builtinCall(scope, '__Porffor_object_in', [ generate(scope, decl.right), key ]);
   }
 
   // opt: x == null|undefined -> nullish(x)
