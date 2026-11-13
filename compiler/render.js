@@ -5165,7 +5165,8 @@ ${st}f64 porf_str_to_num(jsval s, i32 strict) {
     }
   } else n = strtod(buf, (char**)&end);
 
-  if (end <= q || (strict && *end)) n = NAN;
+  // the string may hold nul, only its real end counts
+  if (end <= q || (strict && end != buf + *(u32*)(MEM + (u32)s.val))) n = NAN;
   if (buf != small) free(buf);
   return n;
 }
