@@ -1189,7 +1189,7 @@ const toAssignable = (node, isBinding, refDE) => {
       if (!isBinding) break;
       raise(node.start, 'Binding member expression');
 
-    case 'TSAsExpression': case 'TSSatisfiesExpression': case 'TSNonNullExpression':
+    case 'TSAsExpression': case 'TSSatisfiesExpression': case 'TSNonNullExpression': case 'TSTypeAssertion':
       if (isBinding) raise(node.start, 'Binding rvalue');
       toAssignable(node.expression, isBinding);
       break;
@@ -1199,6 +1199,9 @@ const toAssignable = (node, isBinding, refDE) => {
   }
   return node;
 };
+
+// casts and x! as assignment targets are x
+const tsTarget = node => (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression' || node.type === 'TSNonNullExpression' || node.type === 'TSTypeAssertion') ? tsTarget(node.expression) : node;
 
 // raw (non-pattern) assignment target
 const checkLValSimple = (node, bindingType = 0) => {
@@ -1226,7 +1229,7 @@ const checkLValSimple = (node, bindingType = 0) => {
       if (strict) raise(node.start, 'Assigning to rvalue');
       break;
 
-    case 'TSAsExpression': case 'TSSatisfiesExpression': case 'TSNonNullExpression':
+    case 'TSAsExpression': case 'TSSatisfiesExpression': case 'TSNonNullExpression': case 'TSTypeAssertion':
       return checkLValSimple(node.expression, bindingType);
 
     default:
@@ -1711,7 +1714,8 @@ const parseExprAtom = (refDE, noIn, forNew) => {
       }
       const expr = parseParenAndDistinguishExpression(canBeArrow, noIn);
       if (refDE) {
-        if (refDE.parenthesizedAssign < 0 && !(expr.type === 'Identifier' || expr.type === 'MemberExpression'))
+        const target = tsTarget(expr);
+        if (refDE.parenthesizedAssign < 0 && !(target.type === 'Identifier' || target.type === 'MemberExpression'))
           refDE.parenthesizedAssign = start;
         if (refDE.parenthesizedBind < 0) refDE.parenthesizedBind = start;
       }
@@ -2442,6 +2446,14 @@ const parseStatement = (context, topLevel) => {
 
     case T_AT: {
       const decorators = parseDecorators();
+      // @dec export class
+      if (tokKind === T_EXPORT) {
+        const node = parseStatement(context, topLevel);
+        const cls = node.declaration;
+        if (cls?.type !== 'ClassDeclaration' || cls.decorators.length > 0) raise(start, 'Decorators are not valid here');
+        cls.decorators = decorators;
+        return node;
+      }
       if (ts && isContextual('abstract') && peekToken()[0] === T_CLASS) next();
       if (tokKind !== T_CLASS) unexpected();
       const cls = parseClass(true);
@@ -2970,11 +2982,22 @@ const parseDecoratorExpression = () => {
     return expr;
   }
   let expr = parseIdent(false);
-  while (tokKind === T_DOT) {
-    next();
-    const property = tokKind === T_PRIVATE ? parsePrivateIdent() : parseIdent(true);
-    expr = { type: 'MemberExpression', start, end: prevEnd, object: expr, property, computed: false, optional: false };
+  while (true) {
+    if (tokKind === T_DOT) {
+      next();
+      const property = tokKind === T_PRIVATE ? parsePrivateIdent() : parseIdent(true);
+      expr = { type: 'MemberExpression', start, end: prevEnd, object: expr, property, computed: false, optional: false };
+    } else if (ts && tokKind === T_PREFIX && tokValue === '!' && !newlineBefore) {
+      next();
+      expr = { type: 'TSNonNullExpression', start, end: prevEnd, expression: expr };
+    } else break;
   }
+  // @f<T>() only types the call
+  if (ts && tokKind === T_LT) tsTry(() => {
+    tsParseTypeArgs();
+    if (tokKind !== T_LPAREN) unexpected();
+    return true;
+  });
   if (tokKind === T_LPAREN) {
     next();
     const args = parseExprList(T_RPAREN, true, false);
@@ -3269,7 +3292,7 @@ const isSourcePhaseImport = () => {
 const parseImportDefaultSpecifier = () => {
   const start = tokStart;
   const local = parseIdent(false);
-  checkLValSimple(local, BIND_LEXICAL);
+  checkLValSimple(local, ts ? BIND_OUTSIDE : BIND_LEXICAL);
   return { type: 'ImportDefaultSpecifier', start, end: prevEnd, local };
 };
 
@@ -3278,7 +3301,7 @@ const parseImportNamespaceSpecifier = () => {
   next(); // *
   expectContextual('as');
   const local = parseIdent(false);
-  checkLValSimple(local, BIND_LEXICAL);
+  checkLValSimple(local, ts ? BIND_OUTSIDE : BIND_LEXICAL);
   return { type: 'ImportNamespaceSpecifier', start, end: prevEnd, local };
 };
 
@@ -3375,7 +3398,8 @@ const parseImportSpecifiers = () => {
       if (imported.type === 'Identifier') checkUnreserved(imported.start, imported.name);
       local = imported;
     }
-    checkLValSimple(local, BIND_LEXICAL);
+    // ts imports may be types a value declaration shadows, tsc checks them
+    checkLValSimple(local, ts ? BIND_OUTSIDE : BIND_LEXICAL);
     const spec = { type: 'ImportSpecifier', start, end: prevEnd, imported, local };
     if (ts) spec.importKind = specKind;
     nodes.push(spec);
@@ -3418,7 +3442,7 @@ const checkPatternExport = pattern => {
 const shouldParseExportStatement = () =>
   tokKind === T_VAR || tokKind === T_CONST || tokKind === T_FUNCTION || tokKind === T_CLASS ||
   isLetDeclaration(null) || isAsyncFunctionDecl() ||
-  (ts && (isContextual('interface') || isContextual('type') || isContextual('enum') || isContextual('namespace') ||
+  (ts && (tokKind === T_ENUM || isContextual('interface') || isContextual('type') || isContextual('namespace') ||
     isContextual('module') || isContextual('declare') || isContextual('abstract') || isContextual('import')));
 
 const parseExport = () => {
@@ -3482,7 +3506,7 @@ const parseExport = () => {
     const declaration = parseStatement(null);
     if (declaration.type === 'VariableDeclaration') {
       for (const decl of declaration.declarations) checkPatternExport(decl.id);
-    } else if (declaration.id && !(ts && (declaration.type === 'TSInterfaceDeclaration' || declaration.type === 'TSTypeAliasDeclaration' || declaration.type === 'TSModuleDeclaration' || declaration.type === 'TSDeclareFunction'))) {
+    } else if (declaration.id && !(ts && (declaration.type === 'TSInterfaceDeclaration' || declaration.type === 'TSTypeAliasDeclaration' || declaration.type === 'TSModuleDeclaration' || declaration.type === 'TSEnumDeclaration' || declaration.type === 'TSDeclareFunction'))) {
       checkExport(declaration.id, declaration.id.start);
     }
     return { type: 'ExportNamedDeclaration', start, end: prevEnd, declaration, specifiers: [], source: null, attributes: [] };
@@ -4166,8 +4190,8 @@ const tsIsParamModifier = name => {
 
 const tsParseAssignableListItem = allowModifiers => {
   const start = tokStart;
-  let decorators = [];
-  if (tokKind === T_AT) decorators = parseDecorators();
+  // parameter decorators are experimentalDecorators only
+  if (tokKind === T_AT) raise(tokStart, 'Decorators are not valid here');
 
   let accessibility = null, readonly = false, override = false;
   if (allowModifiers) {
@@ -4193,10 +4217,10 @@ const tsParseAssignableListItem = allowModifiers => {
     elem = parseMaybeDefault(tokStart);
   }
 
-  if (accessibility || readonly || override || decorators.length) {
+  if (accessibility || readonly || override) {
     elem = {
       type: 'TSParameterProperty', start, end: prevEnd, parameter: elem,
-      accessibility, readonly, override, static: false, decorators
+      accessibility, readonly, override, static: false
     };
   }
   return elem;
@@ -4665,7 +4689,7 @@ export default (src, opts = {}) => {
   yieldPos = 0;
   awaitPos = 0;
   awaitIdentPos = 0;
-  undefinedExports = isModule ? new Map() : null;
+  undefinedExports = isModule && !ts ? new Map() : null;
   exportsSeen = isModule ? {} : null;
 
   // direct eval code inherits what its surrounding function allows

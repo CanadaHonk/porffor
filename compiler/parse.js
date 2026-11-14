@@ -1,6 +1,7 @@
 import './prefs.js';
 import parse from './parser/index.js';
 import link, { usedNames } from './modules.js';
+import lowerTs from './typescript.js';
 
 const dynamicIntl = node => {
   if (node == null || typeof node !== 'object') return false;
@@ -30,6 +31,7 @@ const POLYFILL_NAMES = new Set([ 'Temporal', 'Intl', ...INTL_SERVICES.map(x => '
 // x!, x satisfies T and f<T> are just their expression, as are casts assigned to
 const TS_TRANSPARENT = new Set([ 'TSNonNullExpression', 'TSSatisfiesExpression', 'TSInstantiationExpression' ]);
 const TS_CAST = new Set([ 'TSAsExpression', 'TSTypeAssertion' ]);
+const uncast = node => TS_CAST.has(node?.type) ? uncast(node.expression) : node;
 const stripTsWrappers = node => {
   if (node == null || typeof node !== 'object') return node;
   if (Array.isArray(node)) {
@@ -39,8 +41,12 @@ const stripTsWrappers = node => {
   if (TS_TRANSPARENT.has(node.type)) return stripTsWrappers(node.expression);
   // f(this: T) declares this's type, it is not a parameter
   if (node.params?.[0]?.type === 'Identifier' && node.params[0].name === 'this') node.params.shift();
-  if (node.type === 'AssignmentExpression') while (TS_CAST.has(node.left.type)) node.left = node.left.expression;
-  if (node.type === 'UpdateExpression') while (TS_CAST.has(node.argument.type)) node.argument = node.argument.expression;
+  switch (node.type) {
+    case 'AssignmentExpression': case 'AssignmentPattern': case 'ForInStatement': case 'ForOfStatement': node.left = uncast(node.left); break;
+    case 'UpdateExpression': case 'RestElement': node.argument = uncast(node.argument); break;
+    case 'ArrayPattern': node.elements = node.elements.map(uncast); break;
+    case 'ObjectPattern': for (const x of node.properties) if (x.type === 'Property') x.value = uncast(x.value); break;
+  }
   for (const key in node) {
     if (key[0] !== '_' && key !== 'start' && key !== 'end') node[key] = stripTsWrappers(node[key]);
   }
@@ -54,7 +60,7 @@ const parseProgram = (input, entry = null, evalContext = null) => {
 
   const file = entry?.file ?? globalThis.file;
   // cjs links as modules with a cjs entry
-  const cjs = !!entry && !globalThis.precompile && !Prefs.module && (entry.cjs || /\.c[jt]s$/.test(file) || /\brequire\s*(?:[(.;,)\]}]|$)|\bmodule\.exports\b|\bexports\.[\w$]|\b__(?:file|dir)name\b/m.test(input));
+  const cjs = !!entry && !globalThis.precompile && !Prefs.module && (entry.cjs || /\.c[jt]s$/.test(file) || /\brequire\s*(?:[(.;,)\]}]|$)|\bmodule\.exports\b|\bexports\.[\w$]|\b__(?:file|dir)name\b/m.test(input) || (types && /\bexport\s*=(?!=)/.test(input)));
   if (cjs) Prefs.module = true;
   // scripts only for what import() pulls in and runtime globals the linker provides (process, Buffer)
   const globals = entry?.runtimeGlobals;
@@ -68,6 +74,7 @@ const parseProgram = (input, entry = null, evalContext = null) => {
     if (!entry?.file || entry.file.endsWith(']') || Prefs.module || !e.message.startsWith("'return' outside of function")) throw e;
     return parseProgram(input, { ...entry, cjs: true }, evalContext);
   }
+  if (types && !linked) lowerTs(ast);
   if (ast._ts) globalThis.typedInput = Prefs.optTypes;
   if (!globalThis.precompile && (ast._ts || types)) stripTsWrappers(ast);
   const used = usedNames(ast, POLYFILL_NAMES);

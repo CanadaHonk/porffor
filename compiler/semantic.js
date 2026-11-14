@@ -440,31 +440,32 @@ const declHome = node => {
   declVar(node._home.name, 'let', node._home);
 };
 
-// hidden class bindings: home object, private name WeakMaps (#priv_), instance private methods (#privfn_)
+// hidden class bindings: home object, private names (#priv_), instance private methods (#privfn_), decorations (#decorations_)
 const declClass = node => {
   declHome(node);
   node._privates = Object.create(null);
+  const hidden = name => {
+    const x = { type: 'Identifier', name, _binding: true, _writes: 1 };
+    declVar(name, 'let', x);
+    return x;
+  };
+  const declPrivate = (name, isStatic) => node._privates[name] ??= { map: hidden(`#priv_${unitTag()}${node.start}_${name}`), fn: null, kind: 'field', static: isStatic };
+
   for (const x of node.body.body) {
     if (x.type === 'MethodDefinition') {
       x.value._homeOwner = node;
       x.value._homeStatic = x.static;
       if (x.kind === 'constructor' && node.superClass) x.value._derivedCtor = true;
     }
+    if (x.type === 'AccessorProperty') declPrivate(x._storage = String(x.start), !!x.static);
+    if (!x.static && x.decorators.length > 0) node._decorations ??= hidden(`#decorations_${unitTag()}${node.start}`);
     if (x.key?.type !== 'PrivateIdentifier') continue;
 
-    const name = x.key.name;
-    let info = node._privates[name];
-    if (!info) {
-      info = node._privates[name] = { map: { type: 'Identifier', name: `#priv_${unitTag()}${node.start}_${name}`, _binding: true, _writes: 1 }, fn: null, kind: 'field', static: !!x.static };
-      declVar(info.map.name, 'let', info.map);
-    }
-    if (x.type !== 'MethodDefinition') continue;
+    const info = declPrivate(x.key.name, !!x.static);
+    if (x.type !== 'MethodDefinition' && x.type !== 'AccessorProperty') continue;
 
     info.kind = x.kind === 'method' ? 'method' : 'accessor';
-    if (!x.static && !info.fn) {
-      info.fn = { type: 'Identifier', name: `#privfn_${unitTag()}${node.start}_${name}`, _binding: true, _writes: 1 };
-      declVar(info.fn.name, 'let', info.fn);
-    }
+    if (!x.static) info.fn ??= hidden(`#privfn_${unitTag()}${node.start}_${x.key.name}`);
   }
 };
 
@@ -524,6 +525,7 @@ const analyze = (node, strict = false) => {
     case 'DoWhileStatement':
     case 'SwitchStatement':
     case 'BlockStatement':
+    case 'StaticBlock':
       scopes.push(node);
       openedScope = true;
       break;
@@ -565,15 +567,18 @@ const analyze = (node, strict = false) => {
       if (node.id?.name) {
         node.id._binding = true;
         declVar(node.id.name, 'let', node);
+        // decorators may replace the class
+        if (node.decorators.length > 0) node._writes = (node._writes ?? 0) + 1;
       }
       declClass(node);
       break;
 
     case 'ClassExpression':
       declClass(node);
-      scopes.push(node);
-      openedScope = true;
+      // the scope only holds the class's name
       if (node.id?.name) {
+        scopes.push(node);
+        openedScope = true;
         node.id._binding = true;
         declVar(node.id.name, 'function-name', node);
       }
@@ -787,7 +792,7 @@ const annotate = (node, parent = null, key = null) => {
             (beforeInit || scopes[scopes.lastFuncs[1]].type === 'FunctionDeclaration')) node._tdzCheck = variable.node._tdzCheck = true;
         }
         variable.node._refs = (variable.node._refs ?? 0) + 1;
-        if (boxRefs !== null && (variable.loopBody ??= variable.kind !== 'var' && !!variable.node._declarator && !isLoopScope(variable.scope) && bindingHasLoopScope(variable)))
+        if (boxRefs !== null && (variable.loopBody ??= variable.kind !== 'var' && !!(variable.node._declarator || variable.node.decorators?.length) && !isLoopScope(variable.scope) && bindingHasLoopScope(variable)))
           (variable.refs ??= []).push([ node, parent, key ]);
         // reads from other funcs or before the dominating init can see undefined
         if (variable.func !== currentFunc || !variable.node._storageInitSeen) {
@@ -854,7 +859,7 @@ const annotate = (node, parent = null, key = null) => {
               markClosurePassThrough(currentFunc, variable.func);
               if (boxRefs !== null && variable.loopBody) {
                 boxRefs.add(variable);
-                if (node.start < variable.node._declarator.end) variable.capturedEarly = true;
+                if (node.start < (variable.node._declarator ?? variable.node).end) variable.capturedEarly = true;
               }
               // pass loop captures through intermediate closures
               const capture = currentFunc._captures[node.name];
@@ -954,8 +959,10 @@ const annotate = (node, parent = null, key = null) => {
         annotate(info.ctorMap = { type: 'Identifier', name: `#priv_${unitTag()}${node.start}_${name}` }, node, '_privates');
         if (info.fn) annotate(info.ctorFn = { type: 'Identifier', name: `#privfn_${unitTag()}${node.start}_${name}` }, node, '_privates');
       }
+      if (node._decorations) annotate(node._decorationsCtor = { type: 'Identifier', name: node._decorations.name }, node, '_privates');
       classFieldInitializerFunc = previousInit;
 
+      for (const x of node.decorators) annotate(x, node, 'decorators');
       classStack.push(node);
       annotate(node.body, node, 'body');
       classStack.pop();
@@ -1007,7 +1014,9 @@ const annotate = (node, parent = null, key = null) => {
       return;
     }
 
-    case 'PropertyDefinition': {
+    case 'PropertyDefinition':
+    case 'AccessorProperty': {
+      for (const x of node.decorators) annotate(x, node, 'decorators');
       if (node.computed) annotate(node.key, node, 'key');
       // an element is in exactly one of the static or instance contexts
       const previous = [ classStaticFunc, classFieldInitializerFunc ];

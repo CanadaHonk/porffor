@@ -296,7 +296,7 @@ export const BuiltinVars = ({ builtinFuncs }) => {
     'match', 'matchAll', 'replace',
     'search', 'species', 'split',
     'toPrimitive', 'toStringTag', 'unscopables',
-    'dispose', 'asyncDispose'
+    'dispose', 'asyncDispose', 'metadata'
   ];
 
   const wellKnownSymbolProps = props({

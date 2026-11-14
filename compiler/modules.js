@@ -1,5 +1,6 @@
 import './prefs.js';
 import parse from './parser/index.js';
+import lowerTs from './typescript.js';
 
 const fs = (typeof process?.version !== 'undefined' ? (await import('node:fs')) : undefined);
 
@@ -49,8 +50,9 @@ export const usedNames = (node, names, out = new Set()) => {
   if (node.type === 'Literal' || node.type === 'TemplateElement') return out;
   if (node.type === 'TemplateLiteral') return usedNames(node.expressions, names, out);
 
-  if (node.type === 'Property' || node.type === 'PropertyDefinition' || node.type === 'MethodDefinition') {
+  if (node.type === 'Property' || node.type === 'PropertyDefinition' || node.type === 'MethodDefinition' || node.type === 'AccessorProperty') {
     if (node.computed) usedNames(node.key, names, out);
+    usedNames(node.decorators, names, out);
     return usedNames(node.value, names, out);
   }
 
@@ -62,7 +64,7 @@ export const usedNames = (node, names, out = new Set()) => {
     return usedNames(node.init, names, out);
   }
   if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression') return usedNames(node.body, names, usedNames(node.params, names, out));
-  if (node.type === 'ClassDeclaration' || node.type === 'ClassExpression') return usedNames(node.body, names, usedNames(node.superClass, names, out));
+  if (node.type === 'ClassDeclaration' || node.type === 'ClassExpression') return usedNames(node.body, names, usedNames(node.superClass, names, usedNames(node.decorators, names, out)));
 
   for (const key in node) {
     if (key[0] === '_' || key === 'start' || key === 'end') continue;
@@ -251,24 +253,24 @@ export const isEsmSource = (file, src) => {
   // like node, esm when only module syntax parses (import() is fine in cjs, a statement in a string is not a declaration)
   if (!/(?:^|[;}])\s*(?:import\b(?!\s*\()|export\b)/m.test(src) && !/\bimport\.meta\b|\bawait\b/.test(src)) return false;
   try {
-    parse(src, { module: false, topReturn: true, ts: /\.tsx?$/.test(file) });
-    return false;
+    // ts parses module syntax in scripts too
+    return parse(src, { module: false, topReturn: true, ts: /\.tsx?$/.test(file) }).body.some(x => x.type === 'ImportDeclaration' || x.type.startsWith('Export'));
   } catch {
     return true;
   }
 };
 
-const ident = name => ({ type: 'Identifier', name });
+export const ident = name => ({ type: 'Identifier', name });
 const assign = (left, right) => ({ type: 'ExpressionStatement', expression: { type: 'AssignmentExpression', operator: '=', left, right } });
-const literal = value => ({ type: 'Literal', value });
-const call = (name, args = []) => ({ type: 'CallExpression', callee: ident(name), arguments: args, optional: false });
+export const literal = value => ({ type: 'Literal', value });
+export const call = (name, args = []) => ({ type: 'CallExpression', callee: ident(name), arguments: args, optional: false });
 const throwNew = (type, message, props) => {
   const error = { type: 'NewExpression', callee: ident(type), arguments: [ literal(message) ] };
   return { type: 'ThrowStatement', argument: props ? { type: 'CallExpression', optional: false, callee: member(ident('Object'), 'assign'), arguments: [ error, jsonToAst(props) ] } : error };
 };
 const member = (object, name) => ({ type: 'MemberExpression', object, property: ident(name), computed: false, optional: false });
 const property = (key, value, kind = 'init') => ({ type: 'Property', kind, computed: false, shorthand: false, method: false, key, value });
-const varDecl = (kind, name, init) => ({
+export const varDecl = (kind, name, init = null) => ({
   type: 'VariableDeclaration', kind,
   declarations: [ { type: 'VariableDeclarator', id: ident(name), init } ]
 });
@@ -348,17 +350,17 @@ const topReturns = (body, label) => {
 };
 
 // names declared directly in a statement list (let/const/class/function)
-const lexicalNames = (body, out) => {
+export const lexicalNames = (body, out) => {
   for (let x of body) {
     if (x.type === 'ExportNamedDeclaration') x = x.declaration;
     if (!x) continue;
     if (x.type === 'VariableDeclaration' && x.kind !== 'var') for (const d of x.declarations) patternNames(d.id, out);
-    else if (x.type === 'FunctionDeclaration' || x.type === 'ClassDeclaration' || x.type === 'TSEnumDeclaration') { if (x.id) out.push(x.id.name); }
+    else if (x.type === 'FunctionDeclaration' || x.type === 'ClassDeclaration') { if (x.id) out.push(x.id.name); }
   }
   return out;
 };
 // var-declared names anywhere below, not crossing function boundaries
-const varNames = (node, out) => {
+export const varNames = (node, out) => {
   if (!node || typeof node !== 'object') return out;
   if (Array.isArray(node)) { for (const x of node) varNames(x, out); return out; }
   if (isFunc(node) || node.type === 'ClassExpression' || node.type === 'ClassDeclaration') return out;
@@ -366,53 +368,113 @@ const varNames = (node, out) => {
   for (const key in node) if (key !== 'start' && key !== 'end') varNames(node[key], out);
   return out;
 };
-const funcScopeNames = node => {
+export const funcScopeNames = node => {
   const out = [];
   for (const p of node.params) patternNames(p, out);
   if (node.body.type === 'BlockStatement') { lexicalNames(node.body.body, out); varNames(node.body.body, out); }
   return out;
 };
 
-// references to a name, minus where something nested declares its own
-const renameUnshadowed = (node, from, to) => {
-  if (!node || typeof node !== 'object') return;
-  if (Array.isArray(node)) { for (const x of node) renameUnshadowed(x, from, to); return; }
+export const without = (names, out) => out.some(x => names.has(x)) ? new Set([ ...names ].filter(x => !out.includes(x))) : names;
+
+// free references to names become fn(identifier)
+export const qualify = (node, names, fn) => {
+  if (!node || typeof node !== 'object' || names.size === 0) return node;
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) node[i] = qualify(node[i], names, fn);
+    return node;
+  }
+
   switch (node.type) {
     case 'Identifier':
-      if (node.name === from) node.name = to;
-      return;
+      return names.has(node.name) ? fn(node) : node;
+
     case 'MemberExpression':
-      renameUnshadowed(node.object, from, to);
-      if (node.computed) renameUnshadowed(node.property, from, to);
-      return;
-    case 'Property': case 'MethodDefinition': case 'PropertyDefinition':
-      if (node.computed) renameUnshadowed(node.key, from, to);
-      if (node.shorthand && node.value.type === 'Identifier' && node.value.name === from) {
-        node.value = { ...node.value, name: to };
-        node.shorthand = false;
-      } else renameUnshadowed(node.value, from, to);
-      return;
+      node.object = qualify(node.object, names, fn);
+      if (node.computed) node.property = qualify(node.property, names, fn);
+      return node;
+
+    case 'Property':
+    case 'MethodDefinition':
+    case 'PropertyDefinition':
+    case 'AccessorProperty':
+      if (node.computed) node.key = qualify(node.key, names, fn);
+      node.value = qualify(node.value, names, fn);
+      if (node.shorthand && (node.value.name ?? node.value.left?.name) !== node.key.name) node.shorthand = false;
+      node.decorators &&= qualify(node.decorators, names, fn);
+      return node;
+
+    case 'LabeledStatement':
+      node.body = qualify(node.body, names, fn);
+      return node;
+
+    case 'BreakStatement':
+    case 'ContinueStatement':
+    case 'MetaProperty':
+      return node;
+
+    case 'FunctionDeclaration':
+    case 'FunctionExpression':
+    case 'ArrowFunctionExpression': {
+      const declared = funcScopeNames(node);
+      if (node.type === 'FunctionExpression' && node.id) declared.push(node.id.name);
+      const inner = without(names, declared);
+      node.params = qualify(node.params, inner, fn);
+      node.body = qualify(node.body, inner, fn);
+      return node;
+    }
+
+    case 'ClassDeclaration':
+    case 'ClassExpression': {
+      node.decorators = qualify(node.decorators, names, fn);
+      const inner = node.id ? without(names, [ node.id.name ]) : names;
+      node.superClass = qualify(node.superClass, inner, fn);
+      node.body = qualify(node.body, inner, fn);
+      return node;
+    }
+
     case 'BlockStatement':
-      if (lexicalNames(node.body, []).includes(from)) return;
+      names = without(names, lexicalNames(node.body, []));
       break;
+
+    case 'StaticBlock':
+      names = without(names, varNames(node.body, lexicalNames(node.body, [])));
+      break;
+
+    case 'SwitchStatement':
+      node.discriminant = qualify(node.discriminant, names, fn);
+      node.cases = qualify(node.cases, without(names, lexicalNames(node.cases.flatMap(x => x.consequent), [])), fn);
+      return node;
+
+    case 'ForStatement':
+    case 'ForInStatement':
+    case 'ForOfStatement': {
+      const head = node.init ?? node.left;
+      if (head?.type === 'VariableDeclaration' && head.kind !== 'var') names = without(names, lexicalNames([ head ], []));
+      break;
+    }
+
     case 'CatchClause':
-      if (node.param && patternNames(node.param, []).includes(from)) return;
+      names = without(names, patternNames(node.param, []));
+      break;
+
+    default:
+      // types, not values
+      if (node.type?.startsWith('TS') && !node.expression) return node;
       break;
   }
-  if (isFunc(node)) {
-    if (node.type === 'FunctionDeclaration' && node.id?.name === from) node.id.name = to;
-    if ((node.type === 'FunctionExpression' && node.id?.name === from) || funcScopeNames(node).includes(from)) return;
-  }
-  for (const key in node) if (key !== 'start' && key !== 'end') renameUnshadowed(node[key], from, to);
+
+  for (const key in node) if (!SKIP_KEYS.has(key)) node[key] = qualify(node[key], names, fn);
+  return node;
 };
 
-const SKIP_KEYS = new Set([ 'typeAnnotation', 'typeParameters', 'typeArguments', 'returnType', 'superTypeArguments', 'implements', 'start', 'end' ]);
+export const SKIP_KEYS = new Set([ 'typeAnnotation', 'typeParameters', 'typeArguments', 'returnType', 'superTypeArguments', 'implements', 'start', 'end' ]);
 const TS_EXPR = new Set([ 'TSAsExpression', 'TSNonNullExpression', 'TSSatisfiesExpression', 'TSTypeAssertion', 'TSInstantiationExpression' ]);
 
 // side-effect free on evaluation, so droppable when unreferenced (src for @__PURE__ annotations)
 const PURE_NEW = new Set([ 'Map', 'Set', 'WeakMap', 'WeakSet', 'RegExp' ]);
-const pureClass = (node, src) => (!node.superClass || node.superClass.type === 'Identifier') &&
-  node.body.body.every(x => x.type !== 'StaticBlock' && !x.computed && (x.type !== 'PropertyDefinition' || !x.static || !x.value || pure(x.value, src)));
+const pureClass = (node, src) => (!node.superClass || node.superClass.type === 'Identifier') && node.decorators.length === 0 &&
+  node.body.body.every(x => x.type !== 'StaticBlock' && !x.computed && x.decorators.length === 0 && ((x.type !== 'PropertyDefinition' && x.type !== 'AccessorProperty') || !x.static || !x.value || pure(x.value, src)));
 const pure = (node, src) => {
   switch (node.type) {
     case 'Literal': case 'Identifier': case 'FunctionExpression': case 'ArrowFunctionExpression': return true;
@@ -521,7 +583,8 @@ const usesModuleSystem = node => {
     case 'Property':
     case 'PropertyDefinition':
     case 'MethodDefinition':
-      return (node.computed && usesModuleSystem(node.key)) || usesModuleSystem(node.value);
+    case 'AccessorProperty':
+      return (node.computed && usesModuleSystem(node.key)) || usesModuleSystem(node.decorators) || usesModuleSystem(node.value);
   }
   for (const key in node) if (key !== 'start' && key !== 'end' && usesModuleSystem(node[key])) return true;
   return false;
@@ -552,7 +615,8 @@ const requiresDynamically = (node, names) => {
     case 'Property':
     case 'PropertyDefinition':
     case 'MethodDefinition':
-      return (node.computed && requiresDynamically(node.key, names)) || requiresDynamically(node.value, names);
+    case 'AccessorProperty':
+      return (node.computed && requiresDynamically(node.key, names)) || requiresDynamically(node.decorators, names) || requiresDynamically(node.value, names);
   }
   for (const key in node) if (key !== 'start' && key !== 'end' && requiresDynamically(node[key], names)) return true;
   return false;
@@ -819,8 +883,9 @@ const vmModule = (code, id) => {
     if (node.type === 'Identifier') return imports.has(node.name) ? ref(...imports.get(node.name)) : node;
     if (node.type === 'MetaProperty' && node.meta.name === 'import') return ident('#meta');
     if (node.type === 'MemberExpression' && !node.computed) { node.object = rewrite(node.object); return node; }
-    if (node.type === 'Property' || node.type === 'PropertyDefinition' || node.type === 'MethodDefinition') {
+    if (node.type === 'Property' || node.type === 'PropertyDefinition' || node.type === 'MethodDefinition' || node.type === 'AccessorProperty') {
       if (node.shorthand && imports.has(node.key.name)) node.shorthand = false;
+      if (node.decorators) node.decorators = rewrite(node.decorators);
       if (node.computed) node.key = rewrite(node.key);
       node.value = rewrite(node.value);
       return node;
@@ -873,9 +938,12 @@ export default (entrySource, entryFile, opts = {}) => {
 
     const ts = /\.[cm]?tsx?$/.test(file) || !!(entry ? opts.ts : Prefs.parseTypes || Prefs.t);
     anyTs ||= ts;
+    mod.ts = ts;
     mod.esm = entry ? !opts.script && !opts.cjs && !/\.c[jt]s$/.test(file) : isEsmSource(file, source);
     // cjs code is a function body to node
-    mod.body = parse(source, { module: mod.esm, ts, topReturn: !mod.esm && !(entry && opts.script) }).body;
+    const ast = parse(source, { module: mod.esm, ts, topReturn: !mod.esm && !(entry && opts.script) });
+    if (ts) lowerTs(ast);
+    mod.body = ast.body;
     literalImports(mod.body);
     modules.set(file, mod);
     if (mod.esm) collectModule(mod);
@@ -890,7 +958,10 @@ export default (entrySource, entryFile, opts = {}) => {
       mod.moduleDecl.declarations[0].id._plainModule = true;
       // a cjs module's own module variable is the wrapper's parameter: node's loader keeps the module object apart
       const ownModule = varNames(mod.body, []).includes('module') || mod.body.some(x => x.type === 'FunctionDeclaration' && x.id?.name === 'module');
-      if (ownModule) renameUnshadowed(mod.body, 'module', '#module');
+      if (ownModule) {
+        qualify(mod.body, new Set([ 'module' ]), x => ({ ...x, name: '#module' }));
+        for (const x of mod.body) if (x.type === 'FunctionDeclaration' && x.id?.name === 'module') x.id.name = '#module';
+      }
       mod.body.unshift(mod.moduleDecl, varDecl('let', 'exports', member(ident('module'), 'exports')), ...(ownModule ? [ varDecl('var', '#module', ident('module')) ] : []));
     }
     return mod;
@@ -990,7 +1061,6 @@ export default (entrySource, entryFile, opts = {}) => {
           if (node.declaration) {
             const decl = node.declaration;
             body.push(decl);
-            if (decl.type.startsWith('TS') && decl.type !== 'TSEnumDeclaration') break;
             if (decl.type === 'VariableDeclaration') {
               for (const d of decl.declarations) for (const name of patternNames(d.id, [])) mod.exports.set(name, { local: name });
             } else mod.exports.set(decl.id.name, { local: decl.id.name });
@@ -1017,17 +1087,6 @@ export default (entrySource, entryFile, opts = {}) => {
           }
           break;
         }
-
-        case 'TSExportAssignment':
-          body.push(varDecl('const', 'default', node.expression));
-          mod.exports.set('default', { local: 'default' });
-          break;
-
-        case 'TSImportEqualsDeclaration':
-          if (node.moduleReference.type !== 'TSExternalModuleReference') break;
-          body.push(varDecl('const', node.id.name, call('require', [ node.moduleReference.expression ])));
-          if (node.isExport) mod.exports.set(node.id.name, { local: node.id.name });
-          break;
 
         default:
           body.push(node);
@@ -1295,6 +1354,8 @@ export default (entrySource, entryFile, opts = {}) => {
         case 'Property':
         case 'MethodDefinition':
         case 'PropertyDefinition':
+        case 'AccessorProperty':
+          if (node.decorators) node.decorators = node.decorators.map(walk);
           if (node.computed) node.key = walk(node.key);
           if (node.value) node.value = walk(node.value);
           if (node.shorthand && (node.value.name ?? node.value.left?.name) !== node.key.name) node.shorthand = false;
@@ -1334,6 +1395,7 @@ export default (entrySource, entryFile, opts = {}) => {
         case 'ClassDeclaration':
         case 'ClassExpression':
           if (node.id && node.type === 'ClassDeclaration') node.id = walk(node.id);
+          node.decorators = node.decorators.map(walk);
           if (node.superClass) node.superClass = walk(node.superClass);
           thisDepth++;
           scoped(node.id ? [ node.id.name ] : [], () => { node.body = walk(node.body); });
@@ -1357,11 +1419,6 @@ export default (entrySource, entryFile, opts = {}) => {
         }
         case 'CatchClause':
           scoped(patternNames(node.param, []), () => walkKeys(node));
-          return node;
-
-        case 'TSEnumDeclaration':
-          node.id = walk(node.id);
-          for (const m of node.members) if (m.initializer) m.initializer = walk(m.initializer);
           return node;
 
         default:
@@ -1593,7 +1650,7 @@ export default (entrySource, entryFile, opts = {}) => {
     for (const [ name, x ] of mod.exports) {
       if (x.from == null) continue;
       const r = resolveExport(mod, name);
-      if (!r || r.ambiguous) mod.linkError ??= `The requested module '${x.from.rel}' does not provide an export named '${x.name}'`;
+      if ((!r && !mod.ts) || r?.ambiguous) mod.linkError ??= `The requested module '${x.from.rel}' does not provide an export named '${x.name}'`;
     }
   }
 
@@ -1951,7 +2008,7 @@ export default (entrySource, entryFile, opts = {}) => {
     for (const d of sideDeps.get(u) ?? []) liveUnit(d);
   };
 
-  const shakeable = x => x.key && !x.computed && (x.type === 'MethodDefinition' ? x.kind !== 'constructor' :
+  const shakeable = x => x.key && !x.computed && !x.decorators?.length && (x.type === 'MethodDefinition' ? x.kind !== 'constructor' :
     x.type === 'Property' && (isFunc(x.value) || x.value.type === 'Identifier' || (x.value.type === 'ObjectExpression' && pure(x.value, ''))));
   // C.prototype: defining members on it makes no instances of C, reading them or passing it on may
   const protoOf = x => x?.type === 'MemberExpression' && !x.computed && x.property.name === 'prototype' && x.object.type === 'Identifier' ? x : null;
@@ -2001,7 +2058,8 @@ export default (entrySource, entryFile, opts = {}) => {
           return;
         }
         return scan(node.object, unit);
-      case 'Property': case 'MethodDefinition': case 'PropertyDefinition':
+      case 'Property': case 'MethodDefinition': case 'PropertyDefinition': case 'AccessorProperty':
+        scan(node.decorators, unit);
         if (node.computed) scan(node.key, unit);
         return scan(node.value, unit);
       case 'CallExpression':
@@ -2046,6 +2104,7 @@ export default (entrySource, entryFile, opts = {}) => {
       case 'ClassDeclaration':
         if (!node.id.name.includes('#m')) break;
         node.body._cls = node.id.name;
+        scan(node.decorators, unit);
         scan(node.superClass, unit);
         return scan(node.body, unit);
       case 'ObjectPattern':
@@ -2054,7 +2113,9 @@ export default (entrySource, entryFile, opts = {}) => {
       case 'ObjectExpression': case 'ClassBody':
         if (!runtimeUnits.has(unit)) break;
         for (const x of node.type === 'ObjectExpression' ? node.properties : node.body) {
-          if (node._cls && !liveCtors.has(node._cls) && (x.kind === 'constructor' || (x.type === 'PropertyDefinition' && !x.static && x.key.type !== 'PrivateIdentifier'))) wait(waitingCtors, node._cls, { node: x, unit });
+          // decorators run with the class definition
+          if (x.decorators?.length) scan(x, unit);
+            else if (node._cls && !liveCtors.has(node._cls) && (x.kind === 'constructor' || (x.type === 'PropertyDefinition' && !x.static && x.key.type !== 'PrivateIdentifier'))) wait(waitingCtors, node._cls, { node: x, unit });
             else if (node._cls && !liveInsts.has(node._cls) && x.type === 'MethodDefinition' && !x.static) wait(waitingInsts, node._cls, { node: x, unit, member: true });
             else shakeMember(x, unit);
         }

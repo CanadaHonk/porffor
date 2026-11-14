@@ -729,9 +729,6 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
       genStmt(scope, { type: 'VariableDeclaration', kind: 'let', declarations: [ { type: 'VariableDeclarator', id: decl._withWrite, init: { type: 'CallExpression', callee: identNode('__ecma262_ToObject'), arguments: [ decl.object ] } } ] });
       return generate(scope, decl.body);
 
-    case 'TSEnumDeclaration':
-      return generateEnum(scope, decl);
-
     default:
       // ignore typescript nodes
       if (decl.type.startsWith('TS') ||
@@ -741,56 +738,6 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
 
       return internalThrow(scope, 'Error', `porffor: no generation for ${decl.type}`);
   }
-};
-
-const generateEnum = (scope, decl) => {
-  // todo: opt const enum into compile-time values
-  const properties = [];
-
-  let value = -1;
-  for (const x of decl.members) {
-    if (x.initializer) {
-      value = x.initializer;
-    } else {
-      if (typeof value === 'number') {
-        value = {
-          type: 'Literal',
-          value: value + 1
-        };
-      } else {
-        value = {
-          type: 'Identifier',
-          value: undefined
-        };
-      }
-    }
-
-    // enum.key = value
-    properties.push({
-      key: x.id,
-      value,
-      kind: 'init'
-    });
-
-    // enum[value] = key
-    properties.push({
-      key: value,
-      value: {
-        type: 'Literal',
-        value: x.id.name
-      },
-      computed: true,
-      kind: 'init'
-    });
-
-    value = value?.value;
-  }
-
-  generateVarDstr(scope, decl.const ? 'const' : 'let', decl.id, {
-    type: 'ObjectExpression',
-    properties
-  }, undefined, false);
-  return valUndefined();
 };
 
 const lookupName = (scope, name) => {
@@ -937,7 +884,7 @@ const generateIdent = (scope, decl) => {
   if (decl._builtinMember && decl.name in builtinFuncs) return materializeFunctionValue(scope, builtinShadow(decl.name) ?? includeBuiltin(scope, decl.name));
 
   const boundFunc = decl._resolvedVariable?.node?._porfforFunc;
-  if (boundFunc && !decl._selfBinding && decl._resolvedVariable.scope.type !== 'Program' && !decl._resolvedVariable.node._writes) return materializeFunctionValue(scope, boundFunc);
+  if (boundFunc && !decl._selfBinding && decl._resolvedVariable.scope.type !== 'Program' && !decl._resolvedVariable.node._writes && !decl._resolvedVariable.node._boxed) return materializeFunctionValue(scope, boundFunc);
 
   if (decl.name in scope.locals) (scope.locals[decl.name].metadata ??= {}).read = true;
   const out = lookup(scope, decl.name, !(decl.name === 'arguments' && decl._resolvedBinding), decl._markFunctionReferenced !== false);
@@ -2860,6 +2807,8 @@ const markVarHoists = (scope, body, moduleTop = false) => {
     if (moduleTop && x.type === 'VariableDeclaration' && x.kind !== 'var') {
       for (const d of x.declarations) mark(d.id, HOIST_LEXICAL);
     }
+    // a decorated class's binding holds what its decorators return
+    if (moduleTop && x.type === 'ClassDeclaration' && x.decorators.length > 0) mark(x.id, HOIST_LEXICAL);
     scan(x);
   }
 };
@@ -3092,10 +3041,14 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
   if (pattern.type === 'Identifier') {
     const name = pattern.name;
 
-    if (init && isFuncType(init.type)) {
+    // decorators may replace the class
+    if (init?.type === 'ClassExpression' && init.decorators.length > 0) setDefaultFuncName(init, name);
+    else if (init && isFuncType(init.type)) {
       // opt: declare directly from the function expression
       setDefaultFuncName(init, name);
       init._varInit = true;
+      // static elements may use the var before it is assigned
+      if (kind === 'var' && init.type === 'ClassExpression') allocVar(scope, name, global);
       const [ func ] = generateFunc(scope, init, true);
       pattern._func = func;
       if (pattern._tdzCheck) tdzInit(scope, name);
@@ -4966,16 +4919,18 @@ const generateObject = (scope, decl) => {
 
     if (isFuncType(value.type)) {
       let id = value.id;
-      let noFuncIndex = false;
+      let noFuncIndex = false, jsName;
 
       // todo: support computed names properly
       if (typeof key.value === 'string' && !id) {
         id = { type: 'Identifier', name: kind === 'get' || kind === 'set' ? `${kind} ${key.value}` : key.value };
         noFuncIndex = true;
+        // internal names have a #
+        if (key.value.includes('#')) jsName = id.name;
       }
 
       // keep closure owner identity for semantic capture resolution
-      value = { ...value, id, _noFuncIndex: noFuncIndex, _closureSource: value._closureSource ?? value };
+      value = { ...value, id, _noFuncIndex: noFuncIndex, _jsName: jsName, _closureSource: value._closureSource ?? value };
     }
 
     const hash = slot >= 0 && !computed && kind === 'init' && !keys.has(key.value)
@@ -5359,12 +5314,12 @@ const bindClassFieldInitializer = (node, owner, currentArrow = null, root = node
 };
 
 const classHasDefinitionSideEffects = decl => {
-  if (decl.superClass) return true;
+  if (decl.superClass || decl.decorators.length > 0) return true;
 
   for (const x of decl.body.body) {
     if (x.type === 'StaticBlock') return true;
-    if (x.computed) return true;
-    if (x.type === 'PropertyDefinition' && x.static && x.value) return true;
+    if (x.computed || x.decorators.length > 0) return true;
+    if ((x.type === 'PropertyDefinition' || x.type === 'AccessorProperty') && x.static && x.value) return true;
   }
 
   return false;
@@ -5409,12 +5364,13 @@ const declareClass = (scope, decl) => {
     _onlyConstr: true,
     _subclass: !!decl.superClass,
     _superClassExpr: decl.superClass ? classSuperExpr() : null,
-    _baseClassFieldInit: !decl.superClass && body.some(x => x.type === 'PropertyDefinition' && !x.static),
+    _baseClassFieldInit: !decl.superClass && body.some(x => ((x.type === 'PropertyDefinition' || x.type === 'AccessorProperty') && !x.static) || x.decorators.length > 0),
+    _noFuncIndex: !expr && decl.decorators.length > 0 && decl._variable.scope.type === 'Program',
     ...(constructor ? { _closureSource: constructor } : {})
   };
 
   for (const x of body) {
-    if (x.type === 'PropertyDefinition' && !x.static && x.value) {
+    if ((x.type === 'PropertyDefinition' || x.type === 'AccessorProperty') && !x.static && x.value) {
       bindClassFieldInitializer(x.value, constructorDecl);
     }
   }
@@ -5423,10 +5379,11 @@ const declareClass = (scope, decl) => {
     if (x.ctorMap) bindClassFieldInitializer(x.ctorMap, constructorDecl);
     if (x.ctorFn) bindClassFieldInitializer(x.ctorFn, constructorDecl);
   }
+  if (decl._decorationsCtor) bindClassFieldInitializer(decl._decorationsCtor, constructorDecl);
 
   const [ func ] = generateFunc(scope, constructorDecl);
   if (expr && name.includes('#')) func.jsName = name.split('#')[0];
-  if (!expr) bindNamedFunction(scope, name, func);
+  if (!expr && !constructorDecl._noFuncIndex) bindNamedFunction(scope, name, func);
   func.knownThisSlots = getKnownThisSlots(decl);
   decl._porfforFunc = func;
   return decl._classFunc = func;
@@ -5442,17 +5399,45 @@ const generateClass = (scope, decl) => {
   const name = decl.id.name;
   const body = decl.body.body;
   const root = { type: 'Identifier', name };
+  const decorated = decl.decorators.length > 0 || body.some(x => x.decorators.length > 0);
 
   const privates = Object.values(decl._privates);
 
   // the constructor may read the home and private bindings, a class expression's is generated as it is declared
   const bindings = privates.flatMap(x => x.fn ? [ x.map, x.fn ] : [ x.map ]);
   if (decl._home._refs) bindings.push(decl._home);
+  if (decl._decorations) bindings.push(decl._decorations);
   for (const x of bindings) allocVar(scope, x.name, x._variable.func.type === 'Program');
   const func = decl._classFunc ?? declareClass(scope, decl);
   func.generate();
 
-  const classRoot = reuseNamed(scope, decl._writes ? generate(scope, root) : materializeFunctionValue(scope, func));
+  // a class in static code keeps the outer class's this
+  const outerThis = scope.overrideThis;
+  const thisNode = () => ({ type: 'ThisExpression', _noGlobalThis: true });
+  const named = (x, i = null) => {
+    const node = { type: 'Identifier', name: x[N_A] };
+    return i == null ? node : memberNode(node, { type: 'Literal', value: i }, true);
+  };
+
+  // [ receiver, decorator ] pairs in order, outside the class's this
+  const evalDecorators = list => {
+    const overrideThis = scope.overrideThis;
+    scope.overrideThis = outerThis;
+    const elements = list.flatMap(({ expression: x }) => {
+      if (x.type !== 'MemberExpression') return [ DEFAULT_VALUE, named(reuseNamed(scope, generate(scope, x))) ];
+      const object = reuseNamed(scope, generate(scope, x.object.type === 'Super' ? thisNode() : x.object));
+      return [ named(object), named(reuseNamed(scope, generate(scope, x.object.type === 'Super' ? x : { ...x, object: named(object) }))) ];
+    });
+    const out = reuseNamed(scope, generate(scope, { type: 'ArrayExpression', elements }));
+    scope.overrideThis = overrideThis;
+    return out;
+  };
+  const classDecorators = decl.decorators.length > 0 ? evalDecorators(decl.decorators) : null;
+  // the binding holds the decorated class, boxed in loops
+  if (classDecorators && !expr && decl._variable.scope.type === 'Program') allocVar(scope, name, true);
+  if (decl._boxed) generateVarDstr(scope, 'let', decl.id, { type: 'ObjectExpression', properties: [] }, undefined, scope.topLevel);
+
+  const classRoot = reuseNamed(scope, decl._writes && !classDecorators ? generate(scope, root) : materializeFunctionValue(scope, func));
   const rootIdent = { type: 'Identifier', name: classRoot[N_A] };
 
   const classProto = reuse(scope, generate(scope, getObjProp(rootIdent, 'prototype')));
@@ -5463,8 +5448,9 @@ const generateClass = (scope, decl) => {
   for (const x of privates) writeBinding(scope, x.map, builtinCall(scope, '__Porffor_private_new', []), TYPES.symbol);
 
   // wire constructor + prototype chains to the superclass, null superclass included
+  let sup = null;
   if (decl.superClass) {
-    const sup = reuseNamed(scope, generate(scope, decl.superClass));
+    sup = reuseNamed(scope, generate(scope, decl.superClass));
     const supIdent = { type: 'Identifier', name: sup[N_A] };
 
     emitIf(scope, Bin('&&', T.i32, Bin('==', T.i32, JvType(sup), Const(T.i32, TYPES.object)), Un('!', T.i32, JvTruthy(sup))),
@@ -5482,8 +5468,10 @@ const generateClass = (scope, decl) => {
 
   exprStmt(scope, builtinCall(scope, '__Porffor_object_define', [ classRoot, makeString(scope, 'prototype'), classProto, Const(T.i32, 0) ]));
 
+  const metadata = decorated ? reuse(scope, builtinCall(scope, '__Porffor_decorate_metadata', [ sup ?? valUndefined() ])) : null;
+
   // `this` in the (static) class body refers to the class itself
-  scope.overrideThis = root;
+  scope.overrideThis = rootIdent;
 
   const elementValue = (x, value) => {
     if (x.type === 'MethodDefinition') { value._method = true; value._noGlobalThis = true; }
@@ -5499,7 +5487,7 @@ const generateClass = (scope, decl) => {
   };
 
   // private methods: static ones on the class, instance ones via the constructor
-  const privateMethods = Object.create(null);
+  const privateMethods = Object.create(null), privateValues = Object.create(null);
   for (const x of body) {
     if (x.type !== 'MethodDefinition' || x.key.type !== 'PrivateIdentifier') continue;
 
@@ -5509,74 +5497,151 @@ const generateClass = (scope, decl) => {
   }
   for (const name in privateMethods) {
     const x = decl._privates[name];
-    const value = generate(scope, privateMethods[name]);
+    const value = privateValues[name] = reuseNamed(scope, generate(scope, privateMethods[name]));
     if (x.static) exprStmt(scope, builtinCall(scope, '__Porffor_private_add', [ generate(scope, identNode(x.map.name)), classRoot, value ]));
       else writeBinding(scope, x.fn, value);
   }
 
   const fieldInits = [];
-  const addToThis = (x, value) => fieldInits.push(...collect(func, () => exprStmt(func, builtinCall(func, '__Porffor_private_add', [
-    generate(func, x.ctorMap), generate(func, { type: 'ThisExpression', _noGlobalThis: true }), generate(func, value) ]))));
-  for (const x of privates) if (x.ctorFn) addToThis(x, x.ctorFn);
+  for (const x of privates) if (x.ctorFn) fieldInits.push(() => exprStmt(func, builtinCall(func, '__Porffor_private_add', [ generate(func, x.ctorMap), generate(func, thisNode()), generate(func, x.ctorFn) ])));
+  const elementInits = fieldInits.length;
 
+  // static then instance methods, then static then instance fields
+  const decorations = [ [], [], [], [] ], defines = [];
+  const define = fn => decorated ? defines.push(fn) : fn();
+  let staticExtra = null, instanceExtra = null;
+  // [ instance extra initializers, ...field records ]
+  const instanceDecorations = [ { type: 'Literal', value: null } ];
+
+  const staticInits = [];
+  let classValue = classRoot;
   for (const x of body) {
     let { type, value, kind, static: _static, computed } = x;
-    if (kind === 'constructor' || type.startsWith('TS') || x.declare) continue;
+    if (kind === 'constructor') continue;
 
     if (type === 'StaticBlock') {
-      genStmt(scope, { type: 'BlockStatement', body: x.body });
+      staticInits.push(() => genStmt(scope, { type: 'BlockStatement', body: x.body }));
       continue;
     }
 
-    if (type === 'MethodDefinition' && x.key.type === 'PrivateIdentifier') continue;
+    const isPrivate = x.key.type === 'PrivateIdentifier';
+    const priv = isPrivate ? decl._privates[x.key.name] : null;
+    const decorators = x.decorators.length > 0 ? evalDecorators(x.decorators) : null;
+    const key = isPrivate ? null : getProperty(x, true);
+    const k = isPrivate ? makeString(scope, '#' + x.key.name) : reuse(scope, toPropertyKey(scope, generate(scope, key), computed));
+    const target = _static ? classRoot : classProto;
 
-    value ??= { type: 'Identifier', name: 'undefined' };
-    if (type === 'PropertyDefinition' && !_static) bindClassFieldInitializer(value, func.ast);
-    value = elementValue(x, value);
+    const decoratorKind = type === 'PropertyDefinition' ? 'field' : type === 'AccessorProperty' ? 'accessor' : kind === 'method' ? 'method' : kind === 'get' ? 'getter' : 'setter';
+    const decorate = (value, then) => decorators && decorations[(decoratorKind === 'field' ? 2 : 0) + (_static ? 0 : 1)].push(() => {
+      let extra = valUndefined();
+      if (type === 'MethodDefinition') extra = _static ? staticExtra ??= reuse(scope, generate(scope, { type: 'ArrayExpression', elements: [] }))
+        : instanceExtra ??= reuseNamed(scope, generate(scope, { type: 'ArrayExpression', elements: [] }));
+      then(reuseNamed(scope, builtinCall(scope, '__Porffor_decorate', [ decorators, makeString(scope, decoratorKind), value(), k,
+        valBool(_static), isPrivate ? generate(scope, identNode(priv.map.name)) : valUndefined(), metadata, extra ])));
+    });
 
-    if (x.key.type === 'PrivateIdentifier') {
-      const priv = decl._privates[x.key.name];
-      if (_static) exprStmt(scope, builtinCall(scope, '__Porffor_private_add', [ generate(scope, identNode(priv.map.name)), classRoot, generate(scope, value) ]));
-        else addToThis(priv, value);
+    if (type !== 'MethodDefinition' && !_static && value) bindClassFieldInitializer(value, func.ast);
+    value = elementValue(x, value ?? DEFAULT_VALUE);
+
+    if (type === 'MethodDefinition' && isPrivate) {
+      // get and set share one pair
+      const holder = privateValues[x.key.name], slot = kind === 'get' ? 0 : 1;
+      if (kind !== 'method') decorate(() => generate(scope, named(holder, slot)), fn => exprStmt(scope, generate(scope, {
+        type: 'AssignmentExpression', operator: '=', left: named(holder, slot), right: named(fn) })));
+        else decorate(() => holder, fn => _static ? exprStmt(scope, builtinCall(scope, '__Porffor_private_set', [ generate(scope, identNode(priv.map.name)), classRoot, fn ]))
+          : writeBinding(scope, priv.fn, fn));
       continue;
     }
 
-    const key = getProperty(x, true);
-    if (type === 'PropertyDefinition' && !_static) {
-      let keyNode;
-      if (computed) {
-        const keyGlobal = `#class_computed_prop${scope.start ?? scope.index}` + uniqId(scope);
-        allocVar(scope, keyGlobal, true);
-        assign(scope, Global(keyGlobal, T.jsval), toPropertyKey(scope, generate(scope, key), true));
-        keyNode = () => Global(keyGlobal, T.jsval);
-      } else keyNode = () => generate(func, key);
-
-      fieldInits.push(...collect(func, () => {
-        const k = keyNode();
-        exprStmt(func, builtinCall(func, '__Porffor_object_class_value', [
-          generate(func, { type: 'ThisExpression', _noGlobalThis: true }), k, nameByKey(func, value, k, computed, kind) ]));
-      }));
-    } else {
-      let initKind = type === 'MethodDefinition' ? 'method' : 'value';
-      if (kind === 'get' || kind === 'set') initKind = kind;
-
-      const k = reuse(scope, toPropertyKey(scope, generate(scope, key), computed));
-      exprStmt(scope, builtinCall(scope, `__Porffor_object_class_${initKind}`, [ _static ? classRoot : classProto, k, nameByKey(scope, value, k, computed, kind) ]));
+    if (type === 'MethodDefinition') {
+      let fn = null;
+      if (decorators) {
+        const original = reuse(scope, nameByKey(scope, value, k, computed, kind));
+        decorate(() => original, r => { fn = r; });
+      }
+      define(() => exprStmt(scope, builtinCall(scope, `__Porffor_object_class_${kind === 'method' ? 'method' : kind}`, [ target, k, fn ?? nameByKey(scope, value, k, computed, kind) ])));
+      continue;
     }
+
+    let pair = null;
+    const storage = type === 'AccessorProperty' ? decl._privates[x._storage] : priv;
+    if (type === 'AccessorProperty') {
+      pair = reuseNamed(scope, builtinCall(scope, '__Porffor_accessor', [ generate(scope, identNode(storage.map.name)), k ]));
+      if (isPrivate) {
+        if (_static) exprStmt(scope, builtinCall(scope, '__Porffor_private_add', [ generate(scope, identNode(priv.map.name)), classRoot, pair ]));
+          else writeBinding(scope, priv.fn, pair);
+      } else define(() => {
+        exprStmt(scope, builtinCall(scope, '__Porffor_object_class_get', [ target, k, generate(scope, named(pair, 0)) ]));
+        exprStmt(scope, builtinCall(scope, '__Porffor_object_class_set', [ target, k, generate(scope, named(pair, 1)) ]));
+      });
+    }
+
+    let record = null, slot = null;
+    decorate(() => pair ?? valUndefined(), r => {
+      record = r;
+      if (!_static) slot = instanceDecorations.push(named(r)) - 1;
+    });
+
+    const init = (f, receiver, map, key, decorations) => {
+      let v = nameByKey(f, value, key, computed, kind);
+      if (decorations) v = builtinCall(f, '__Porffor_decorate_init', [ receiver, generate(f, decorations()), v ]);
+      exprStmt(f, storage ? builtinCall(f, '__Porffor_private_add', [ map, receiver, v ]) : builtinCall(f, '__Porffor_object_class_value', [ receiver, key, v ]));
+      if (decorations) exprStmt(f, builtinCall(f, '__Porffor_decorate_extra', [ receiver, generate(f, memberNode(decorations(), { type: 'Literal', value: 1 }, true)) ]));
+    };
+    if (_static) {
+      staticInits.push(() => init(scope, classValue, storage && generate(scope, identNode(storage.map.name)), k, record && (() => named(record))));
+      continue;
+    }
+
+    // computed keys are evaluated once
+    let keyNode = () => !storage && generate(func, key);
+    if (computed) {
+      const keyGlobal = `#class_computed_prop${scope.start ?? scope.index}` + uniqId(scope);
+      allocVar(scope, keyGlobal, true);
+      assign(scope, Global(keyGlobal, T.jsval), k);
+      keyNode = () => Global(keyGlobal, T.jsval);
+    }
+    fieldInits.push(() => init(func, generate(func, thisNode()), storage && generate(func, storage.ctorMap), keyNode(), decorators && (() => memberNode({ ...decl._decorationsCtor }, { type: 'Literal', value: slot }, true))));
   }
 
+  for (const group of decorations) for (const x of group) x();
+  for (const x of defines) x();
+  if (instanceExtra) instanceDecorations[0] = named(instanceExtra);
+  if (decl._decorations) writeBinding(scope, decl._decorations, generate(scope, { type: 'ArrayExpression', elements: instanceDecorations }));
+  // instance extra initializers run before the fields
+  if (instanceExtra) fieldInits.splice(elementInits, 0, () => exprStmt(func, builtinCall(func, '__Porffor_decorate_extra', [ generate(func, thisNode()),
+    generate(func, memberNode({ ...decl._decorationsCtor }, { type: 'Literal', value: 0 }, true)) ])));
+
+  const classExtra = classDecorators ? reuse(scope, generate(scope, { type: 'ArrayExpression', elements: [] })) : null;
+  if (classDecorators) {
+    classValue = reuseNamed(scope, builtinCall(scope, '__Porffor_decorate', [ classDecorators, makeString(scope, 'class'), classRoot,
+      name.startsWith('#') ? valUndefined() : makeString(scope, name.split('#')[0]), valBool(false), valUndefined(), metadata, classExtra ]));
+    if (decl._boxed) genStmt(scope, { type: 'AssignmentExpression', operator: '=', left: memberNode(decl.id, identNode('v')), right: named(classValue) });
+      else if (!expr) {
+        allocVar(scope, name, scope.topLevel);
+        setLocalWithType(scope, name, scope.topLevel, classValue, false, TYPES.function);
+        if (scope.closureOwnLocals?.[name]) mirrorToClosureEnv(scope, name);
+      }
+  }
+  if (decorated) exprStmt(scope, builtinCall(scope, '__Porffor_object_class_value', [ classValue, generate(scope, getObjProp('Symbol', 'metadata')), metadata ]));
+  if (staticExtra) exprStmt(scope, builtinCall(scope, '__Porffor_decorate_extra', [ classValue, staticExtra ]));
+
+  scope.overrideThis = named(classValue);
+  for (const x of staticInits) x();
+  if (classExtra) exprStmt(scope, builtinCall(scope, '__Porffor_decorate_extra', [ classValue, classExtra ]));
   if (decl._tdzCheck) tdzInit(scope, name);
 
-  delete scope.overrideThis;
+  scope.overrideThis = outerThis;
 
   // the constructor must be invoked via `new`; field initialisers run after super() in a
   // subclass (at the marker generateCall left), else at the top of the body
   const guard = collect(func, () => emitIf(func, Un('!', T.i32, JvTruthy(Local('#newtarget', T.jsval))),
     () => internalThrow(func, 'TypeError', `Class constructor ${unhackName(name)} requires 'new'`)));
-  if (!spliceClassFieldInits(func.body, fieldInits)) func.body.unshift(...fieldInits);
+  const inits = fieldInits.flatMap(x => collect(func, x));
+  if (!spliceClassFieldInits(func.body, inits)) func.body.unshift(...inits);
   func.body.unshift(...guard);
 
-  return expr ? classRoot : valUndefined();
+  return expr ? classValue : valUndefined();
 };
 
 // super() can be nested (try, if), so its markers can be too
@@ -6183,7 +6248,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   decl._porfforFunc = func;
 
   if (!decl._method && !decl._noFuncIndex) setFuncIndex(name, func.index);
-  if (decl.type === 'FunctionDeclaration') bindNamedFunction(scope, name, func);
+  if (decl.type === 'FunctionDeclaration' && !decl._onlyConstr) bindNamedFunction(scope, name, func);
   if (func.topLevel && !decl._module) topLevelFunc = func;
   funcs.push(func);
   funcsByIndex[func.index] = func;
@@ -6209,7 +6274,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
     switch (x.type) {
       case 'Identifier': {
         argName = x.name;
-        typeAnnotation = x.typeAnnotation;
+        // x?: T may be undefined
+        typeAnnotation = x.optional ? null : x.typeAnnotation;
         if (globalThis.precompile && argName === '_argc') { func.usesArguments = true; continue; }
         if (globalThis.precompile && i === 0 && argName === 'this' && !arrow) {
           // a TS this-param types the receiver, it is not a real argument
