@@ -192,6 +192,8 @@ export default (code, module = Prefs.module, opts = {}) => {
         '-fno-exceptions',
         '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
         '-fno-ident', '-ffunction-sections', '-fdata-sections',
+        // js arithmetic rounds every op, no fused multiply-add
+        '-ffp-contract=off',
         ...darwinReleaseCompileArgs,
         ...compilerArgs,
         // linux has no continuous mode without it, and only compiles take it
