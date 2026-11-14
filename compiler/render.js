@@ -6,6 +6,7 @@ import {
 } from './ir.js';
 import { TYPES, TYPE_NAMES, ITERATOR_TYPES } from './types.js';
 import { ieee754_binary64 } from './encoding.js';
+import { hashId } from './modules.js';
 
 // C type per IR value type
 const CT = [];
@@ -2032,7 +2033,15 @@ ${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr) 
     linkProtos.join('');
   const unitName = u => {
     const name = units?.find(x => x.id === u)?.name;
-    return name ? name.replace(/^[/]/, '').replace(/[^\w.-]/g, '_') + '.' + u + '.c' : `porf_${sanitize(u)}.c`;
+    if (!name) return `porf_${sanitize(u)}.c`;
+
+    const base = name.replace(/^[/]/, '').replace(/[^\w.-]/g, '_');
+    const suffix = '.' + u + '.c';
+    // a file name is limited to 255 bytes; deeply nested pnpm virtual-store
+    // paths exceed that, so shorten long names and keep a hash for uniqueness
+    if (base.length + suffix.length <= 200) return base + suffix;
+    const hash = hashId(name);
+    return base.slice(0, 200 - suffix.length - hash.length - 1) + '-' + hash + suffix;
   };
   const files = [
     { name: 'porf.h', c: header },
