@@ -778,9 +778,14 @@ const annotate = (node, parent = null, key = null) => {
         const param = variable.node._param;
         if (param?.func === currentFunc && paramTdz?.func === currentFunc &&
           (param.index > paramTdz.index || (param.index === paramTdz.index && node.start < (variable.node._paramEnd ?? variable.node.end)))) node._tdz = true;
-        // read before its lexical declaration in the same func
-        if ((variable.kind === 'let' || variable.kind === 'const') && variable.node.type !== 'FunctionDeclaration' && variable.func === currentFunc &&
-          !inEval && classFieldInitializerFunc !== currentFunc && variable.unit === unit && node.start < (variable.node._declarator?.end ?? variable.node.start)) node._tdz = true;
+        if ((variable.kind === 'let' || variable.kind === 'const') && variable.node.type !== 'FunctionDeclaration') {
+          const beforeInit = node.start < (variable.node._declarator?.end ?? variable.node.start);
+          // read before its lexical declaration in the same func
+          if (variable.func === currentFunc && !inEval && classFieldInitializerFunc !== currentFunc && variable.unit === unit && beforeInit) node._tdz = true;
+          // closures can run before a top-level let/const is initialized, hoisted functions at any time
+          if (variable.func !== currentFunc && variable.scope.type === 'Program' && unit == null && !globalThis.precompile &&
+            (beforeInit || scopes[scopes.lastFuncs[1]].type === 'FunctionDeclaration')) node._tdzCheck = variable.node._tdzCheck = true;
+        }
         variable.node._refs = (variable.node._refs ?? 0) + 1;
         if (boxRefs !== null && (variable.loopBody ??= variable.kind !== 'var' && !!variable.node._declarator && !isLoopScope(variable.scope) && bindingHasLoopScope(variable)))
           (variable.refs ??= []).push([ node, parent, key ]);

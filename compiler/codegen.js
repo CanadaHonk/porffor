@@ -907,9 +907,16 @@ const lookup = (scope, name, allowImplicitArguments = true, markFunctionReferenc
   return null;
 };
 
+// closures read top-level lexicals through an initialized flag
+const tdzFlag = (scope, name) => Global(allocVar(scope, '#init_' + name, true, T.i32), T.i32);
+const tdzCheck = (scope, name) => emitIf(scope, Bin('==', T.i32, tdzFlag(scope, name), Const(T.i32, 0)),
+  () => internalThrow(scope, 'ReferenceError', `Cannot access '${unhackName(name)}' before initialization`));
+const tdzInit = (scope, name) => assign(scope, tdzFlag(scope, name), Const(T.i32, 1));
+
 const generateIdent = (scope, decl) => {
   // TDZ: read before its let/const initializer (static flag from binding resolver)
   if (decl._tdz) return internalThrow(scope, 'ReferenceError', `Cannot access '${unhackName(decl.name)}' before initialization`);
+  if (decl._tdzCheck) tdzCheck(scope, decl.name);
 
   if (decl.name === '#closure_env') {
     if (!scope.closureAware) throw new Error(`missing closure env in ${scope.name}`);
@@ -3091,6 +3098,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
       init._varInit = true;
       const [ func ] = generateFunc(scope, init, true);
       pattern._func = func;
+      if (pattern._tdzCheck) tdzInit(scope, name);
       // direct calls resolve the binding through its scope, not a program-wide name another function may share
       bindNamedFunction(scope, name, func);
 
@@ -3195,6 +3203,7 @@ const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
     if (scope.closureOwnLocals?.[name] && (init || (!redecl && kind !== 'var'))) {
       mirrorToClosureEnv(scope, name, init ? closureLocalReadNode(name) : DEFAULT_VALUE);
     }
+    if (pattern._tdzCheck) tdzInit(scope, name);
 
     return valUndefined();
   }
@@ -3457,6 +3466,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     if (decl.operator === '=') exprStmt(scope, generate(scope, decl.right));
     return internalThrow(scope, 'ReferenceError', `Cannot access '${unhackName(decl.left.name)}' before initialization`);
   }
+  if (decl.left._tdzCheck) tdzCheck(scope, decl.left.name);
 
   if (decl.left.type === 'Identifier' && decl.left._selfBinding) {
     if (scope.strict || decl.left._classBinding) return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${decl.left.name}`);
@@ -3923,6 +3933,7 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
   }
 
   const { name } = decl.argument;
+  if (decl.argument._tdzCheck) tdzCheck(scope, name);
   const [ local, isGlobal ] = lookupName(scope, name);
   if (local?.metadata?.kind === 'const') return internalThrow(scope, 'TypeError', `Cannot assign to constant variable ${unhackName(name)}`);
   if (local != null) {
@@ -5554,6 +5565,8 @@ const generateClass = (scope, decl) => {
     }
   }
 
+  if (decl._tdzCheck) tdzInit(scope, name);
+
   delete scope.overrideThis;
 
   // the constructor must be invoked via `new`; field initialisers run after super() in a
@@ -6035,7 +6048,7 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
         globalThis.funcBodies[name] = body;
       }
 
-      markVarHoists(func, body, !!decl._module);
+      markVarHoists(func, body, !!decl._module || (decl.type === 'Program' && !globalThis.precompile));
 
       // pick numeric var storage before emitting refs
       if (!func.topLevel) {
