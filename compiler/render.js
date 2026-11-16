@@ -4391,18 +4391,14 @@ static inline jsval porf_box_num(f64 d) { return (jsval){d, ${TYPES.number}}; }
 static inline jsval porf_box(f64 payload, i32 type) {
   return type == ${TYPES.number} ? porf_box_num(payload) : (jsval){payload, type};
 }
-static u32 porf_bigint_heapify(f64 d);
+static jsbits porf_pack_bigint(f64 d);
 static inline jsbits porf_pack(jsval v) {
   if (v.type == ${TYPES.number}) {
     const jsbits b = porf_f64_to_bits(v.val);
     // negative quiet NaNs collide with the boxed encoding: canonicalize
     return (b & JV_PATTERN) == JV_PATTERN ? 0x7FF8000000000000ull : b;
   }
-  if (v.type == ${TYPES.bigint} && !(v.val >= 0.0 && v.val < 4294967296.0)) {
-    // bigints not fitting the 32-bit payload are packed as a heap pointer, flagged by bit 42
-    const u32 ptr = v.val >= 2251799813685248.0 && v.val < 2251804108652544.0 ? (u32)(v.val - 2251799813685248.0) : porf_bigint_heapify(v.val);
-    return JV_PATTERN | ((u64)${TYPES.bigint} << 43) | (1ull << 42) | (u64)ptr;
-  }
+  if (v.type == ${TYPES.bigint} && !(v.val >= 0.0 && v.val < 4294967296.0)) return porf_pack_bigint(v.val);
   return JV_PATTERN | ((u64)(v.type & 0xFF) << 43) | (u64)(u32)v.val;
 }
 ${sti}jsbits porf_arr_pack(jsval v) {
@@ -5353,6 +5349,12 @@ static u32 porf_bigint_heapify(f64 d) {
   *(u16*)(MEM + ptr + 2) = (u16)n;
   for (u32 i = 0; i < n; i++) *(u32*)(MEM + ptr + 4 + (i << 2)) = digits[n - 1 - i];
   return ptr;
+}
+
+// bigints not fitting the 32-bit payload are packed as a heap pointer, flagged by bit 42
+static jsbits porf_pack_bigint(f64 d) {
+  const u32 ptr = d >= 2251799813685248.0 && d < 2251804108652544.0 ? (u32)(d - 2251799813685248.0) : porf_bigint_heapify(d);
+  return JV_PATTERN | ((u64)${TYPES.bigint} << 43) | (1ull << 42) | (u64)ptr;
 }
 
 static PORF_NOINLINE i32 porf_bigint_cmp(jsval a, jsval b) {
