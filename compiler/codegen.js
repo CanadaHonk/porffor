@@ -1234,7 +1234,8 @@ const performOp = (scope, op, left, right, leftType, rightType, noBigint = false
     const binop = (l, r) => builtinCall(scope, '__Porffor_bigint_binop', [ Const(T.i32, bigOp), l, r ]);
     if (knownLeft === TYPES.bigint || knownRight === TYPES.bigint) return binop(left, right);
     const lMaybe = knownLeft == null && !isRawNum(left), rMaybe = knownRight == null && !isRawNum(right);
-    if ((lMaybe || rMaybe) && !(op === '+' && (isStr(knownLeft) || isStr(knownRight)))) {
+    // __Porffor_add takes BigInts itself
+    if ((lMaybe || rMaybe) && !(op === '+' && (!globalThis.precompile || isStr(knownLeft) || isStr(knownRight)))) {
       const l = reuse(scope, left), r = reuse(scope, right);
       const isBig = x => Bin('==', T.i32, JvType(x), Const(T.i32, TYPES.bigint));
       const out = tmp(scope, T.jsval);
