@@ -221,6 +221,8 @@ export const cancelTimer = timer => {
   if (typeof timer === 'number' || typeof timer === 'string') timer = timersById.get(Number(timer));
   if (!(timer instanceof Timeout)) return;
   timer._onTimeout = null;
+  timer._timerArgs = null;
+  timer._context = null;
   unenroll(timer);
 };
 
