@@ -1996,7 +1996,9 @@ ${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr) 
 }\n`);
 
   if (entry) {
-    emit(`int main(int argc, char** argv) {\n  porf_init(argc, argv);\n  porf_data_init();\n  ${gcEnabled ? 'volatile int porf_stack_anchor = 0;\n  porf_c_stack_top = (void*)&porf_stack_anchor;\n  ' : ''}${fnSym(funcByName.get(entry))}();\n  return 0;\n}\n`);
+    // units read the arena base as a constant: nothing using it shares a function with its init
+    emit(`PORF_NOINLINE static void porf_start(void) {\n  porf_data_init();\n  ${fnSym(funcByName.get(entry))}();\n}\n` +
+      `int main(int argc, char** argv) {\n  porf_init(argc, argv);\n  ${gcEnabled ? 'volatile int porf_stack_anchor = 0;\n  porf_c_stack_top = (void*)&porf_stack_anchor;\n  ' : ''}porf_start();\n  return 0;\n}\n`);
   }
 
   if (usesMath) prelude.splice(1, 0, '#include <math.h>\n');
@@ -2008,7 +2010,7 @@ ${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr) 
   const unitText = (u, parts) => {
     const text = [];
     if (split) {
-      text.push('#include "porf.h"\n');
+      text.push('#define PORF_SET_ONCE const\n#include "porf.h"\n');
       for (const x of Object.keys(parts.fnbases).sort()) text.push(`extern const u32 porf_fnbase_${sanitize(x)};\n`);
       for (const x of Object.keys(parts.dbases).sort()) text.push(`extern const u32 porf_dbase_${sanitize(x)};\n`);
       for (const x of Object.keys(parts.zbases).sort()) text.push(`extern const u32 porf_zbase_${sanitize(x)};\n`);
@@ -4304,7 +4306,11 @@ typedef u64 jsbits;
 // x86-64 has no [imm64+reg] addressing so a constant folds to a register
 // materialization anyway - a once-set global compiles to the same code.
 // 0x400000000 is used as a hint for deterministic debugging when free.
-${st}u8* porf_mem;
+// split units see it const: its load then survives stores and calls
+#ifndef PORF_SET_ONCE
+#define PORF_SET_ONCE
+#endif
+${st}u8* PORF_SET_ONCE porf_mem;
 #define MEM porf_mem
 #define PORF_NOINLINE __attribute__((noinline))
 // js functions take and return a jsval's number in a float register and its type in a general one
