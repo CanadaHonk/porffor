@@ -178,7 +178,7 @@ export default (code, module = Prefs.module, opts = {}) => {
         compilerArgs.push(`-fprofile-instr-use=${profile}`, '-Wno-profile-instr-unprofiled', '-Wno-profile-instr-out-of-date');
       }
       const linkStripArgs = process.platform === 'darwin' ?
-        [ '-Wl,-stack_size,0x4000000', ...(Prefs.d ? [] : [ '-Wl,-dead_strip', '-Wl,-dead_strip_dylibs', '-Wl,-x' ]) ] :
+        [ '-Wl,-stack_size,0x4000000', ...(Prefs.d ? [] : [ '-Wl,-dead_strip', '-Wl,-dead_strip_dylibs', '-Wl,-x', '-Wl,-exported_symbol,_main', '-Wl,-no_compact_unwind' ]) ] :
         [ '-Wl,--gc-sections' ];
       const darwinReleaseCompileArgs = process.platform === 'darwin' && !Prefs.d ? [ '-fvisibility=hidden' ] : [];
       const libs = linkFlags(cg.linkLibs);
