@@ -4877,13 +4877,25 @@ const nameByKey = (scope, value, key, computed, kind) => {
 };
 
 const generateObject = (scope, decl) => {
-  const obj = reuse(scope, builtinCall(scope, '__Porffor_object_new', [ Const(T.i32, Math.max(decl.properties.length, 2)) ]));
-  let scanned = curBlock(scope).length;
-  if (decl._home?._refs) writeBinding(scope, decl._home, obj, TYPES.object);
-  const keys = new Set();
-  let slot = 0;
-  let collects = false;
   // static keys are stored as values (inline, the capacity covers them) and their shape cached per site
+  // values first: stores right after the allocation take no barrier
+  let obj;
+  const vals = [], keys = new Set();
+  let slot = 0;
+  const put = (i, val) => {
+    stmt(scope, Store('f64', JvPtr(obj), 16 + 8 + i * 8 + ((i >> 3) << 3), JvNum(val)));
+    stmt(scope, Store('u8', JvPtr(obj), 16 + i + ((i >> 3) << 6), JvType(val)));
+  };
+  const alloc = () => {
+    obj = reuse(scope, builtinCall(scope, '__Porffor_object_new', [ Const(T.i32, Math.max(decl.properties.length, 2)) ]));
+    for (let i = 0; i < vals.length; i++) put(i, vals[i]);
+    if (vals.length > 0) stmt(scope, Store('u16', JvPtr(obj), 0, Const(T.i32, vals.length)));
+  };
+  // methods read the home object binding
+  if (decl._home?._refs) {
+    alloc();
+    writeBinding(scope, decl._home, obj, TYPES.object);
+  }
   const setShape = () => {
     if (runsOnce(scope)) {
       exprStmt(scope, builtinCall(scope, '__Porffor_object_literalShape', [ obj, dataRef(unitOf(scope), '#shapescratch', [ 0, 0, 0, 0 ]),
@@ -4896,6 +4908,12 @@ const generateObject = (scope, decl) => {
         generate(scope, { type: 'ArrayExpression', elements: [ ...keys ].map(k => ({ type: 'Literal', value: k })) }) ])),
       () => stmt(scope, Store('u16', JvPtr(obj), 6, Load('u32', site, 0))));
   };
+  // end the inline run
+  const settle = () => {
+    if (!obj) alloc();
+    if (slot > 0) setShape();
+    slot = -1;
+  };
 
   for (const x of decl.properties) {
     let { type, argument, computed, kind, value, method } = x;
@@ -4907,8 +4925,7 @@ const generateObject = (scope, decl) => {
     }
 
     if (type === 'SpreadElement') {
-      if (slot > 0) setShape();
-      slot = -1;
+      settle();
       exprStmt(scope, builtinCall(scope, '__Porffor_object_spread', [ obj, generate(scope, argument) ]));
       continue;
     }
@@ -4916,8 +4933,7 @@ const generateObject = (scope, decl) => {
     const key = getProperty(x, true);
     // the prototype re-roots the shape, keys after it are added one by one
     if (!computed && !x.shorthand && !method && kind === 'init' && key.value === '__proto__') {
-      if (slot > 0) setShape();
-      slot = -1;
+      settle();
       exprStmt(scope, builtinCall(scope, '__Porffor_object_setPrototype', [ obj, generate(scope, value) ]));
       continue;
     }
@@ -4942,24 +4958,22 @@ const generateObject = (scope, decl) => {
       ? ctHash({ property: { name: key.value } }) : null;
     if (hash != null) {
       keys.add(key.value);
-      const val = reuse(scope, coerceValue(generate(scope, value), T.jsval));
-      stmt(scope, Store('f64', JvPtr(obj), 16 + 8 + slot * 8 + ((slot >> 3) << 3), JvNum(val)));
-      stmt(scope, Store('u8', JvPtr(obj), 16 + slot + ((slot >> 3) << 6), JvType(val)));
-      stmt(scope, Store('u16', JvPtr(obj), 0, Const(T.i32, ++slot)));
-      if (!collects) {
-        collects = mayCollect(curBlock(scope).slice(scanned));
-        scanned = curBlock(scope).length;
-      }
-      if (collects) stmt(scope, If(canReferenceCheck(scope, val), [ GcBarrier(JvPtr(obj), Const(T.i32, TYPES.object), 1) ]));
+      // a later value may reassign a variable this one read
+      const val = snapshot(scope, coerceValue(generate(scope, value), T.jsval));
+      if (obj) {
+        put(slot, val);
+        stmt(scope, Store('u16', JvPtr(obj), 0, Const(T.i32, slot + 1)));
+        stmt(scope, If(canReferenceCheck(scope, val), [ GcBarrier(JvPtr(obj), Const(T.i32, TYPES.object), 1) ]));
+      } else vals.push(val);
+      slot++;
     } else {
-      if (slot > 0) setShape();
-      slot = -1;
+      settle();
       const k = reuse(scope, toPropertyKey(scope, generate(scope, key), computed));
       exprStmt(scope, builtinCall(scope, `__Porffor_object_expr_${kind}`, [ obj, k, nameByKey(scope, value, k, computed, kind) ]));
     }
   }
 
-  if (slot > 0) setShape();
+  settle();
 
   typeUsed(scope, TYPES.object);
   return obj;
