@@ -3895,9 +3895,12 @@ const generateUpdate = (scope, decl, valueUnused = false) => {
     // fast path: a local/global. todo: not as compliant as the slow path (non-numbers)
     const ref = isGlobal ? Global(name, globals[name]?.type ?? T.jsval) : Local(name, scope.locals[name]?.type ?? T.jsval);
     const inc = v => Bin(decl.operator === '++' ? '+' : '-', T.f64, numValue(v), Const(T.f64, 1));
+    // ints step as ints, saturating
+    const intLimit = ref[N_TYPE] === T.i32 ? (decl.operator === '++' ? 2147483647 : -2147483648) : (decl.operator === '++' ? 4294967295 : 0);
     const incForRef = v => ref[N_TYPE] === T.jsval ? valNumber(inc(v))
       : ref[N_TYPE] === T.f64 ? inc(v)
-      : Convert(ref[N_TYPE], inc(v), ref[N_TYPE] === T.i32 ? CONVERT_SIGNED : 0);
+      : ref[N_TYPE] !== T.i32 && ref[N_TYPE] !== T.u32 && ref[N_TYPE] !== T.ptr ? Convert(ref[N_TYPE], inc(v), 0)
+      : Select(Bin('==', ref[N_TYPE], v, Const(ref[N_TYPE], intLimit)), v, Bin(decl.operator === '++' ? '+' : '-', ref[N_TYPE], v, Const(ref[N_TYPE], 1)));
 
     const argType = knownType(scope, getNodeType(scope, decl.argument));
     if (ref[N_TYPE] === T.jsval && argType !== TYPES.number) {
