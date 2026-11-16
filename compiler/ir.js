@@ -216,8 +216,8 @@ export const Select = (cond, a, b) => {
 };
 
 // drop no-op converts, collapse same-width int chains, fold consts.
-// flags: bit 0 = signed, bit 1 = range-known (plain C cast ok)
-export const CONVERT_SIGNED = 1, CONVERT_RANGE_KNOWN = 2;
+// flags: bit 0 = signed, bit 1 = range-known (plain C cast ok), bit 2 = checked (converted back and compared)
+export const CONVERT_SIGNED = 1, CONVERT_RANGE_KNOWN = 2, CONVERT_CHECKED = 4;
 const intTypes = new Set([T.i32, T.u32, T.i64, T.u64, T.ptr]);
 
 export const Convert = (to, value, flags = CONVERT_SIGNED) => {

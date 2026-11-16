@@ -2,7 +2,7 @@ import {
   T, K, FX, KNames,
   N_KIND, N_TYPE, N_FX, N_A, N_B, N_C,
   FN_ASYNC, FN_GENERATOR, FN_ASYNC_GENERATOR,
-  CONVERT_RANGE_KNOWN, CONVERT_SIGNED
+  CONVERT_RANGE_KNOWN, CONVERT_SIGNED, CONVERT_CHECKED
 } from './ir.js';
 import { TYPES, TYPE_NAMES, ITERATOR_TYPES } from './types.js';
 import { ieee754_binary64 } from './encoding.js';
@@ -586,6 +586,13 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         const to = node[N_TYPE], from = node[N_A], v = node[N_B], flags = node[N_C];
         // f64 -> int without range knowledge: saturate (JS ToInt semantics live above this)
         if (from === T.f64 && (to === T.i32 || to === T.u32 || to === T.ptr) && !(flags & CONVERT_RANGE_KNOWN)) {
+          // an int that went through f64 clamps as an int
+          if (v[N_KIND] === K.Convert && (v[N_A] === T.i32 || v[N_A] === T.u32 || v[N_A] === T.ptr)) {
+            const signed = v[N_A] === T.i32;
+            if (signed === (to === T.i32)) return [`(${CT[to]})${rx(v[N_B], P_CAST)}`, P_CAST];
+            return [`${signed ? 'porf_i32_to_u32' : 'porf_u32_to_i32'}(${rx(v[N_B], P_COMMA)})`, P_POSTFIX];
+          }
+          if (flags & CONVERT_CHECKED) return [`porf_sat_u32(${rx(v, P_COMMA)})`, P_POSTFIX];
           return [`${to === T.i32 ? 'porf_f64_to_i32' : 'porf_f64_to_u32'}(${rx(v, P_COMMA)})`, P_POSTFIX];
         }
         if (to === T.f64 && (from === T.u32 || from === T.ptr) && !(flags & CONVERT_SIGNED)) {
@@ -4488,17 +4495,38 @@ static inline i32 porf_nullish(jsval v) {
 }
 
 // saturating f64 -> int (JS semantics handled above; this is trunc_sat)
-static inline i32 porf_f64_to_i32(f64 d) {
+static inline i32 porf_sat_i32(f64 d) {
   if (d != d) return 0;
   if (d <= -2147483648.0) return -2147483648;
   if (d >= 2147483647.0) return 2147483647;
   return (i32)d;
 }
-static inline u32 porf_f64_to_u32(f64 d) {
+static inline u32 porf_sat_u32(f64 d) {
   if (d != d || d <= 0.0) return 0;
   if (d >= 4294967295.0) return 4294967295u;
   return (u32)d;
 }
+static inline u32 porf_i32_to_u32(i32 x) { return x < 0 ? 0u : (u32)x; }
+static inline i32 porf_u32_to_i32(u32 x) { return x > 2147483647u ? 2147483647 : (i32)x; }
+// arm64 saturates so in one instruction, what the compiler can range stays in c to fold
+#if defined(__aarch64__) && !defined(__TINYC__)
+#define PORF_FOLDS(d) __builtin_constant_p((d) >= -2147483648.0 && (d) <= 4294967295.0)
+static inline i32 porf_f64_to_i32(f64 d) {
+  if (PORF_FOLDS(d)) return porf_sat_i32(d);
+  i32 r;
+  __asm__("fcvtzs %w0, %d1" : "=r"(r) : "w"(d));
+  return r;
+}
+static inline u32 porf_f64_to_u32(f64 d) {
+  if (PORF_FOLDS(d)) return porf_sat_u32(d);
+  u32 r;
+  __asm__("fcvtzu %w0, %d1" : "=r"(r) : "w"(d));
+  return r;
+}
+#else
+#define porf_f64_to_i32 porf_sat_i32
+#define porf_f64_to_u32 porf_sat_u32
+#endif
 // js %: positive int32 operands take the integer remainder, the rest (and -0) fmod
 static inline f64 porf_mod(f64 a, f64 b) {
   if (a > 0.0 && a <= 2147483647.0 && b >= 1.0 && b <= 2147483647.0) {

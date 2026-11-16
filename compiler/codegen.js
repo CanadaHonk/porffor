@@ -1,7 +1,7 @@
 import {
   K, T, FX, N_KIND, N_TYPE, N_FX, N_A, N_B, N_C,
   Const, JvConst, DataRef, Local, Global, Assign,
-  Bin, Un, Select, Convert, CONVERT_SIGNED, StrJoin, CONVERT_RANGE_KNOWN,
+  Bin, Un, Select, Convert, CONVERT_SIGNED, StrJoin, CONVERT_RANGE_KNOWN, CONVERT_CHECKED,
   Reinterpret, Box, JvType, JvNum, JvPtr, JvBits, JvIsNum, Eq, Add, Cmp, JvTruthy, JvFalsy, JvNullish,
   Load, Store, MemCopy, MemFill,
   If, Loop, Break, Continue, BlockStmt, TypeSwitch, Return, Unreachable,
@@ -4792,9 +4792,12 @@ const typedArrayElementAddr = (obj, idx, size) =>
   Bin('+', T.u32, Load('u32', JvPtr(obj), 4), size === 1 ? idx : Bin('*', T.u32, idx, Const(T.u32, size)));
 
 // stores also need a writable (not immutable) buffer
+// behind a BigInt merge only the c conversion folds
+const indexConvert = () => mayHaveBigInt && !globalThis.precompile ? CONVERT_CHECKED : 0;
+
 const typedArrayIndex = (scope, obj, prop, write = false) => {
   const num = reuse(scope, numValue(prop));
-  const idx = reuse(scope, Convert(T.u32, num, 0));
+  const idx = reuse(scope, Convert(T.u32, num, indexConvert()));
   return {
     idx,
     valid: Bin('&&', T.i32,
@@ -4861,7 +4864,7 @@ const arrayIndexGet = (scope, ptr, idx) => {
 
 const denseArrayIndexKey = (scope, prop) => {
   const num = reuse(scope, numValue(prop));
-  const idx = reuse(scope, Convert(T.u32, num, 0));
+  const idx = reuse(scope, Convert(T.u32, num, indexConvert()));
   return {
     idx,
     valid: Bin('&&', T.i32,
