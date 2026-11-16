@@ -4581,12 +4581,13 @@ ${st}i32 porf_try_cap = 0;
 ${st}i32 porf_try_depth = 0;
 ${st}jsval porf_exception = {0.0, ${TYPES.undefined}};
 
+${st}void porf_try_grow(void) {
+  while (porf_try_depth > porf_try_cap) porf_try_cap = porf_try_cap ? porf_try_cap << 1 : 8;
+  porf_try_data = (jmp_buf*)realloc(porf_try_data, (size_t)porf_try_cap * sizeof(jmp_buf));
+  if (!porf_try_data) abort();
+}
 ${sti}jmp_buf* porf_try_ensure(void) {
-  if (porf_try_depth > porf_try_cap) {
-    while (porf_try_depth > porf_try_cap) porf_try_cap = porf_try_cap ? porf_try_cap << 1 : 8;
-    porf_try_data = (jmp_buf*)realloc(porf_try_data, (size_t)porf_try_cap * sizeof(jmp_buf));
-    if (!porf_try_data) abort();
-  }
+  if (porf_try_depth > porf_try_cap) porf_try_grow();
   return porf_try_data;
 }
 
