@@ -996,7 +996,8 @@ const generateReturn = (scope, decl) => {
   // constructors coerce their return value
   if (scope.constr && !globalThis.precompile) {
     const constructing = () => Bin('!=', T.i32, JvType(Local('#newtarget', T.jsval)), Const(T.i32, TYPES.undefined));
-    const retThis = () => stmt(scope, Return(scope.ast._thisBinding ? derivedThis(scope, identNode(scope.ast._thisBinding.name)) : Local('#this', T.jsval)));
+    const thisVal = () => scope.ast._thisBinding ? derivedThis(scope, identNode(scope.ast._thisBinding.name)) : Local('#this', T.jsval);
+    const retThis = () => stmt(scope, Return(thisVal()));
 
     // return undefined / return this give back the new instance when constructing
     if ((arg.type === 'Identifier' && arg.name === 'undefined') || arg.type === 'ThisExpression') {
@@ -1019,14 +1020,12 @@ const generateReturn = (scope, decl) => {
     }
 
     const checks = () => {
+      // non-object return -> the new instance
+      if (!scope.subclass) return stmt(scope, Return(Call('porf_ctor_ret', [ ret, thisVal() ])));
       // undefined from a subclass gives back the new instance
-      if (scope.subclass)
-        emitIf(scope, Bin('==', T.i32, JvType(ret), Const(T.i32, TYPES.undefined)), retThis);
-      // non-object return -> the new instance (TypeError for subclasses)
-      emitIf(scope, Un('!', T.i32, jvIsObject(ret, reuse(scope, JvType(ret)))), () => {
-        if (scope.subclass) internalThrow(scope, 'TypeError', 'Subclass can only return an object or undefined');
-        else retThis();
-      });
+      emitIf(scope, Bin('==', T.i32, JvType(ret), Const(T.i32, TYPES.undefined)), retThis);
+      emitIf(scope, Un('!', T.i32, jvIsObject(ret, reuse(scope, JvType(ret)))),
+        () => internalThrow(scope, 'TypeError', 'Subclass can only return an object or undefined'));
     };
     if (scope._onlyConstr) checks();
     else emitIf(scope, constructing(), checks);

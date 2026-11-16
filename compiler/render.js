@@ -4477,6 +4477,12 @@ static inline i32 porf_falsy(jsval v) {
   return (u32)v.val == 0u && v.type != ${TYPES.booleanobject} && v.type != ${TYPES.numberobject};
 }
 
+// new on an explicit return: an object stands, else the instance
+${st}PORF_CC jsval porf_ctor_ret(jsval ret, jsval thisv) {
+  const i32 t = ret.type;
+  return t > ${TYPES.symbol} && ((u32)ret.val != 0 || t != ${TYPES.object}) && t != ${TYPES.string} && t != ${TYPES.bytestring} ? ret : thisv;
+}
+
 static inline i32 porf_nullish(jsval v) {
   return v.type == ${TYPES.undefined} || (v.type == ${TYPES.object} && (u32)v.val == 0u);
 }
