@@ -486,6 +486,24 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     return node.some(hasRawC);
   };
 
+  // a leading simple test that returns is inlined before direct calls
+  const guards = [];
+  const guardOf = f => {
+    if (guards[f.index] !== undefined) return guards[f.index];
+    const s = f.body?.[0];
+    const params = new Set(f.params.map(p => p.name));
+    let size = 0;
+    const simple = n => {
+      if (!Array.isArray(n)) return true;
+      if (!isNode(n)) return n.every(simple);
+      if (++size > 16 || n[N_KIND] === K.RawC || (n[N_FX] & (FX.call | FX.writeMem | FX.writeLocal)) !== 0) return false;
+      if (n[N_KIND] === K.Local && !params.has(n[N_A])) return false;
+      return simple(n[N_A]) && simple(n[N_B]) && simple(n[N_C]);
+    };
+    return guards[f.index] = !isCoro(f) && isNode(s) && s[N_KIND] === K.If && !s[N_C]?.length &&
+      s[N_B].length === 1 && isNode(s[N_B][0]) && s[N_B][0][N_KIND] === K.Return && simple(s[N_A]) && simple(s[N_B][0][N_A]) ? s : null;
+  };
+
   // code after these in a list is unreachable
   const TERMINATOR_KINDS = new Set([ K.Return, K.Throw, K.ThrowNew, K.Unreachable, K.Break, K.Continue ]);
 
@@ -675,7 +693,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
             ? `porf_coro_start(${coroFlags(f)}u, ${fnIdxExpr(f)}, ${callee}, ${env}, ${thisv}, ${newtv}, ${argv.length}, ${argvArr})`
             : `porf_async_call_sync(${fnIdxExpr(f)}, ${callee}, ${env}, ${thisv}, ${newtv}, ${argv.length}, ${argvArr})`, P_POSTFIX];
         }
-        const name = f ? fnSym(f) : sanitize(String(node[N_A]));
+        const name = f ? fnSym(f) + (guardOf(f) ? '_g' : '') : sanitize(String(node[N_A]));
         const args = node[N_B].map(a => rx(a, P_COMMA)).join(', ');
         return [`${name}(${args})`, P_POSTFIX];
       }
@@ -1590,6 +1608,17 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   }
 
   const proto = f => `${needsCoro(f) ? '' : 'PORF_CC '}${CT[f.retType]} ${fnSym(f)}(${needsCoro(f) ? 'porf_coro_call*' : f.params.map(p => CT[p.type]).join(', ') || 'void'});\n`;
+  const guard = f => {
+    if (!guardOf(f)) return '';
+    const names = f.params.map(p => sanitize(p.name));
+    emitBuf = [];
+    depth = 1;
+    activeTryDepth = 0;
+    renderStmt(guardOf(f));
+    const test = emitBuf.join('');
+    emitBuf = null;
+    return `static inline __attribute__((always_inline)) PORF_CC ${CT[f.retType]} ${fnSym(f)}_g(${f.params.map((p, i) => `${CT[p.type]} ${names[i]}`).join(', ') || 'void'}) {\n${test}  ${f.retType === T.none ? '' : 'return '}${fnSym(f)}(${names.join(', ')});\n}\n`;
+  };
   const linkProtos = [
     `${st}jsval porf_call_dynamic(jsval fn, jsval thisv, jsval newtv, i32 argc, jsbits* argv);\n`,
     `${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr);\n`
@@ -1613,6 +1642,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
 
   // module globals (top-level JS bindings)
   for (const g of globals) link.push(`${st}${CT[g.type]} ${sanitize(g.name)}${g.type === T.jsval ? ` = {0.0, ${TYPES.undefined}}` : ''};\n`);
+  if (!split) for (const f of linkFuncs) link.push(guard(f));
   link.push('\n');
   if (gcEnabled) {
     const markGlobalRootLines = [];
@@ -2018,12 +2048,16 @@ ${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr) 
     const text = [];
     if (split) {
       text.push('#define PORF_SET_ONCE const\n#include "porf.h"\n');
+      // rendered first: their tests add to what the unit references
+      const protos = parts.protos.filter(Boolean).sort((a, b) => linkIdx[a.index] - linkIdx[b.index]);
+      cur = parts;
+      const tests = protos.map(guard);
       for (const x of Object.keys(parts.fnbases).sort()) text.push(`extern const u32 porf_fnbase_${sanitize(x)};\n`);
       for (const x of Object.keys(parts.dbases).sort()) text.push(`extern const u32 porf_dbase_${sanitize(x)};\n`);
       for (const x of Object.keys(parts.zbases).sort()) text.push(`extern const u32 porf_zbase_${sanitize(x)};\n`);
       for (const x of Object.keys(parts.globals).sort()) text.push(`extern ${CT[globalTypes[x]]} ${sanitize(x)};\n`);
-      for (const f of parts.protos.filter(Boolean).sort((a, b) => linkIdx[a.index] - linkIdx[b.index])) text.push(proto(f));
-      text.push('\n');
+      for (const f of protos) text.push(proto(f));
+      text.push(...tests, '\n');
       if (u === 'main') text.push(link.join(''));
     }
     return text.concat(parts.chunks, parts.out).join('');
