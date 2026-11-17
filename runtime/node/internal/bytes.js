@@ -218,3 +218,20 @@ export const freeStrings = arr => {
   free(a);
 }`;
 };
+
+// first match of needle in haystack from start, walking back when not forward, -1 for none
+export const findBytes = (haystack, length, needle, needleLength, start, forward, step) => {
+  let at = -1;
+  Porffor.c`{
+  const u8 *h = (const u8*)porf_node_u8(haystack), *n = (const u8*)porf_node_u8(needle);
+  const i64 len = (i64)porf_jv_val(length), nlen = (i64)porf_jv_val(needleLength), st = (i64)porf_jv_val(step);
+  i64 i = (i64)porf_jv_val(start);
+  if (porf_jv_val(forward) != 0) {
+    for (i += i % st; i <= len - nlen; i += st) if (h[i] == n[0] && memcmp(h + i, n, (size_t)nlen) == 0) { at = (f64)i; break; }
+  } else {
+    if (i > len - nlen) i = len - nlen;
+    for (; i >= 0; i--) if (h[i] == n[0] && i % st == 0 && memcmp(h + i, n, (size_t)nlen) == 0) { at = (f64)i; break; }
+  }
+}`;
+  return at;
+};

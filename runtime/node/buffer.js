@@ -1,4 +1,4 @@
-import { encodeUtf8, encodeLatin1, utf8Length, utf8DecodedLength, decodeUtf8, decodeLatin1, decodeAscii, decodeUtf16le, normalizeEncoding, isUtf8Bytes } from './internal/bytes.js';
+import { encodeUtf8, encodeLatin1, utf8Length, utf8DecodedLength, decodeUtf8, decodeLatin1, decodeAscii, decodeUtf16le, normalizeEncoding, isUtf8Bytes, findBytes } from './internal/bytes.js';
 import { errBufferOutOfBounds, errInvalidArgType, errInvalidArgValue, errOutOfRange, errStringTooLong, errUnknownEncoding } from './internal/errors.js';
 import { validateInteger, validateNumber } from './internal/validators.js';
 import { Blob } from './internal/blob.js';
@@ -331,18 +331,7 @@ const searchBytes = (haystack, length, needle, offset, forward, step) => {
   }
   if (length === 0 || start <= -1 || needle.length > length || (forward && needle.length + start > length)) return -1;
 
-  const matches = i => {
-    for (let j = 0; j < needle.length; j++) {
-      if (haystack[i + j] !== needle[j]) return false;
-    }
-    return true;
-  };
-  if (forward) {
-    for (let i = start + start % step; i <= length - needle.length; i += step) if (matches(i)) return i;
-  } else {
-    for (let i = Math.min(start, length - needle.length); i >= 0; i--) if (i % step === 0 && matches(i)) return i;
-  }
-  return -1;
+  return findBytes(haystack, length, needle, needle.length, start, forward, step);
 };
 
 const bidirectionalIndexOf = (buffer, val, byteOffset, encoding, dir) => {
@@ -359,7 +348,7 @@ const bidirectionalIndexOf = (buffer, val, byteOffset, encoding, dir) => {
   byteOffset = Math.trunc(byteOffset);
 
   const length = buffer.length;
-  if (typeof val === 'number') return searchBytes(buffer, length, [ (val >>> 0) & 0xff ], byteOffset, dir, 1);
+  if (typeof val === 'number') return searchBytes(buffer, length, Uint8Array.of((val >>> 0) & 0xff), byteOffset, dir, 1);
 
   const ops = encoding === undefined ? encodingOps.utf8 : getEncodingOps(encoding);
   if (typeof val === 'string') {
