@@ -1,4 +1,4 @@
-// node's TextEncoder and TextDecoder: utf-8, utf-16le and windows-1252
+// node's TextEncoder and TextDecoder: utf-8, utf-16le, utf-16be and windows-1252
 import '../c-helpers.js';
 import { StringDecoder } from '../string_decoder.js';
 import { encodeUtf8, decodeUtf8, decodeLatin1, isUtf8Bytes, concatBytes } from './bytes.js';
@@ -7,6 +7,7 @@ import { errEncodingInvalidEncodedData, errEncodingNotSupported, errInvalidArgTy
 const labels = {
   'utf-8': [ 'unicode-1-1-utf-8', 'unicode11utf8', 'unicode20utf8', 'utf8', 'utf-8', 'x-unicode20utf8' ],
   'utf-16le': [ 'csunicode', 'iso-10646-ucs-2', 'ucs-2', 'unicode', 'unicodefeff', 'utf-16le', 'utf-16' ],
+  'utf-16be': [ 'unicodefffe', 'utf-16be' ],
   'windows-1252': [ 'ansi_x3.4-1968', 'ascii', 'cp1252', 'cp819', 'csisolatin1', 'ibm819', 'iso-8859-1', 'iso-ir-100', 'iso8859-1', 'iso88591', 'iso_8859-1', 'iso_8859-1:1987', 'l1', 'latin1', 'us-ascii', 'windows-1252', 'x-cp1252' ]
 };
 const encodings = new Map();
@@ -76,7 +77,7 @@ export class TextDecoder {
     if (this.#encoding === undefined) throw errEncodingNotSupported(encoding);
     this.#fatal = !!options?.fatal;
     this.#ignoreBOM = !!options?.ignoreBOM;
-    if (this.#encoding === 'utf-16le') this.#utf16 = new StringDecoder('utf-16le');
+    if (this.#encoding.startsWith('utf-16')) this.#utf16 = new StringDecoder('utf-16le');
   }
 
   get encoding() {
@@ -97,9 +98,26 @@ export class TextDecoder {
     let out;
     if (this.#encoding === 'windows-1252') {
       out = decodeLatin1(bytes, 0, bytes.length).replace(/[\x80-\x9f]/g, c => String.fromCharCode(cp1252[c.charCodeAt(0) - 0x80]));
-    } else if (this.#encoding === 'utf-16le') {
+    } else if (this.#utf16) {
+      // swapped to little endian, an odd byte waits for its pair
+      if (this.#encoding === 'utf-16be') {
+        if (this.#pending !== null) {
+          bytes = concatBytes([ this.#pending, bytes ]);
+          this.#pending = null;
+        }
+        if (stream && bytes.length % 2) {
+          this.#pending = bytes.slice(bytes.length - 1);
+          bytes = bytes.subarray(0, bytes.length - 1);
+        }
+        const swapped = bytes.slice();
+        for (let i = 0; i + 1 < bytes.length; i += 2) {
+          swapped[i] = bytes[i + 1];
+          swapped[i + 1] = bytes[i];
+        }
+        bytes = swapped;
+      }
       out = stream ? this.#utf16.write(bytes) : this.#utf16.end(bytes);
-      if (this.#fatal && !out.isWellFormed()) throw errEncodingInvalidEncodedData('utf-16le');
+      if (this.#fatal && !out.isWellFormed()) throw errEncodingInvalidEncodedData(this.#encoding);
       out = out.toWellFormed();
     } else {
       if (this.#pending !== null) {
