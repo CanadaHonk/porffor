@@ -601,7 +601,7 @@ export const __Porffor_json_parseValue = (text: bytestring, posPtr: i32, len: i3
           else if (esc == 117) { // \u
             const unicode: i32 = __Porffor_json_hex4(text, pos, len);
             pos += 4;
-            if (unicode > 0xff) return __Porffor_json_parseWideString(text, start, posPtr, len);
+            if (unicode > 0xff) return __Porffor_json_parseWideString(text, start, posPtr, len, strEnd);
             Porffor.bytestring.appendChar(out, unicode);
           } else throw new SyntaxError('Invalid escape sequence');
       } else {
@@ -769,9 +769,9 @@ export const __Porffor_json_hex4 = (text: bytestring, pos: i32, len: i32): i32 =
   return out;
 };
 
-// strings with \u escapes past latin-1, from after the opening quote
-export const __Porffor_json_parseWideString = (text: bytestring, start: i32, posPtr: i32, len: i32): string => {
-  const out: string = Porffor.malloc(6 + (len - start) * 2);
+// strings with \u escapes past latin-1, from after the opening quote to the closing one at end
+export const __Porffor_json_parseWideString = (text: bytestring, start: i32, posPtr: i32, len: i32, end: i32): string => {
+  const out: string = Porffor.malloc(6 + (end - start) * 2);
   let n: i32 = 0, pos: i32 = start;
   while (pos < len) {
     let ch: i32 = text.charCodeAt(pos++);
