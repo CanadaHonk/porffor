@@ -266,9 +266,10 @@ export const literal = value => ({ type: 'Literal', value });
 export const call = (name, args = []) => ({ type: 'CallExpression', callee: ident(name), arguments: args, optional: false });
 const throwNew = (type, message, props) => {
   const error = { type: 'NewExpression', callee: ident(type), arguments: [ literal(message) ] };
-  return { type: 'ThrowStatement', argument: props ? { type: 'CallExpression', optional: false, callee: member(ident('Object'), 'assign'), arguments: [ error, jsonToAst(props) ] } : error };
+  return { type: 'ThrowStatement', argument: props ? memberCall('Object', 'assign', [ error, jsonToAst(props) ]) : error };
 };
 const member = (object, name) => ({ type: 'MemberExpression', object, property: ident(name), computed: false, optional: false });
+const memberCall = (object, name, args) => ({ type: 'CallExpression', callee: member(ident(object), name), arguments: args, optional: false });
 const property = (key, value, kind = 'init') => ({ type: 'Property', kind, computed: false, shorthand: false, method: false, key, value });
 export const varDecl = (kind, name, init = null) => ({
   type: 'VariableDeclaration', kind,
@@ -762,8 +763,7 @@ const vmWrapper = (code, params, id) => {
     // vars are non-configurable global properties
     for (const name of new Set(varNames(body, []))) declares.push({ type: 'IfStatement', alternate: null,
       test: { type: 'UnaryExpression', operator: '!', prefix: true, argument: { type: 'BinaryExpression', operator: 'in', left: literal(name), right: ident('#g') } },
-      consequent: { type: 'ExpressionStatement', expression: { type: 'CallExpression', optional: false, callee: member(ident('Object'), 'defineProperty'),
-        arguments: [ ident('#g'), literal(name), jsonToAst({ writable: true, enumerable: true, configurable: false }) ] } } });
+      consequent: { type: 'ExpressionStatement', expression: memberCall('Object', 'defineProperty', [ ident('#g'), literal(name), jsonToAst({ writable: true, enumerable: true, configurable: false }) ]) } });
     body = [ ...funcs.map(x => assign(ident(x.id.name), { ...x, type: 'FunctionExpression' })), ...body.filter(x => x.type !== 'FunctionDeclaration').map(vmStatement) ];
   }
   body = vmTypeofs(vmThis(vmDynamicImports(body), false), new Set(bindingNames(body, [])));
@@ -775,7 +775,7 @@ const vmWrapper = (code, params, id) => {
     { type: 'WithStatement', start: -id, object: ident('#scope'), body: { type: 'BlockStatement', body } },
     { type: 'ReturnStatement', argument: ident('#c') }
   ] } };
-  return strict ? { type: 'CallExpression', optional: false, callee: member(ident('Object'), 'assign'), arguments: [ fn, jsonToAst({ strict }) ] } : fn;
+  return strict ? memberCall('Object', 'assign', [ fn, jsonToAst({ strict }) ]) : fn;
 };
 
 // vm SourceTextModule: instantiate() declares its bindings in the context, giving export getters and evaluate
@@ -933,7 +933,7 @@ export default (entrySource, entryFile, opts = {}) => {
       mod.json = kind === 'json';
       // a big json literal is one function too large for the c compiler
       if (mod.json) JSON.parse(source);
-      mod.body = [ varDecl('const', 'default', mod.json ? { type: 'CallExpression', callee: member(ident('JSON'), 'parse'), arguments: [ literal(source) ], optional: false } : literal(source)) ];
+      mod.body = [ varDecl('const', 'default', mod.json ? memberCall('JSON', 'parse', [ literal(source) ]) : literal(source)) ];
       mod.exports.set('default', { local: 'default' });
       return mod;
     }
