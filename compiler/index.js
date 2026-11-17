@@ -231,7 +231,9 @@ export default (code, module = Prefs.module, opts = {}) => {
           execSync('xargs -0 -P ' + (Prefs.j ?? '$(getconf _NPROCESSORS_ONLN)') + " -n 1 sh -c '" + job + "'", { input: changed.join('\0'), stdio: [ 'pipe', 'inherit', 'inherit' ] });
         }
         if (logProgress) progressDone(`compiled ${changed.length}/${objects.length} units (using ${cc.split(' ')[0]})`, t5);
-        return objects;
+        // thousands of object paths overflow the linker's arguments
+        fs.writeFileSync(`${buildDir}/objects`, objects.map(x => JSON.stringify(x)).join('\n'));
+        return [ `@${buildDir}/objects` ];
       };
       const ccUnits = [ ...compiler, '-c', ...compileOnlyArgs ].join(' ');
 
