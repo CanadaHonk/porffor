@@ -1637,7 +1637,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   }
   if (!split) {
     for (const f of linkFuncs) link.push(proto(f));
-    link.push(...linkProtos);
+    for (const x of linkProtos) link.push(x);
   }
 
   // module globals (top-level JS bindings)
@@ -2057,7 +2057,8 @@ ${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr) 
       for (const x of Object.keys(parts.zbases).sort()) text.push(`extern const u32 porf_zbase_${sanitize(x)};\n`);
       for (const x of Object.keys(parts.globals).sort()) text.push(`extern ${CT[globalTypes[x]]} ${sanitize(x)};\n`);
       for (const f of protos) text.push(proto(f));
-      text.push(...tests, '\n');
+      for (const x of tests) text.push(x);
+      text.push('\n');
       if (u === 'main') text.push(link.join(''));
     }
     return text.concat(parts.chunks, parts.out).join('');
