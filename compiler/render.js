@@ -4180,8 +4180,8 @@ static void porf_gc_cycle(i64 allocated) {
   const i64 now = porf_gc_now_ms(), ms = now - porf_gc_last_cycle_ms;
   porf_gc_last_cycle_ms = now;
   porf_gc_busy = 1;
-  // a small heap's nursery stays near twice what is live: fewer gcs past that only cost memory
-  const u64 near_live = porf_gc_last_live_bytes * 2u < 1048576ull ? 1048576ull : porf_gc_last_live_bytes * 2u;
+  // a small heap's nursery stays near eight times what is live: fewer gcs past that only cost memory
+  const u64 near_live = porf_gc_last_live_bytes * 8u < 1048576ull ? 1048576ull : porf_gc_last_live_bytes * 8u;
   const u32 cap = porf_gc_last_live_bytes >= 8388608ull ? 33554432u : near_live < 8388608ull ? (u32)near_live : 8388608u;
   if (ms < 50 && porf_gc_nursery_bytes * 2u <= cap) porf_gc_nursery_bytes <<= 1;
     else if ((ms > 1000 || porf_gc_nursery_bytes > cap) && porf_gc_nursery_bytes > 1048576u) porf_gc_nursery_bytes >>= 1;
