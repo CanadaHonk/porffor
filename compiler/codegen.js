@@ -2287,6 +2287,12 @@ const generateCall = (scope, decl) => {
         ? { type: 'Identifier', name: reuseNamed(scope, generate(scope, x))[N_A] }
         : x);
 
+      // charCodeAt of a byte string at a number index in range reads the byte inline
+      const byteAt = protoName === 'charCodeAt' && args.length === 1 && args[0].type !== 'SpreadElement' && !decl.optional && !decl._sharedDispatch &&
+        (targetKnownType == null || targetKnownType === TYPES.bytestring) && !objectHackAssigned.has('__ByteString_prototype_charCodeAt')
+        ? reuseNamed(scope, generate(scope, args[0])) : null;
+      if (byteAt) args[0] = { type: 'Identifier', name: byteAt[N_A] };
+
       // the target is already evaluated (targetTmp), so the generic call must not evaluate it again
       const calleeMember = (decl.callee.expression ?? decl.callee).type === 'MemberExpression' ? (decl.callee.expression ?? decl.callee) : null;
       const fallbackCall = !calleeMember ? { ...decl, _protoInternalCall: true }
@@ -2336,21 +2342,33 @@ const generateCall = (scope, decl) => {
 
       aliasPrimObjsBC(protoBC);
 
-      // dispatch on an unknown receiver is shared per method and argument count
-      if (targetKnownType == null && calleeMember && !calleeMember.computed && !decl.optional && !inOptionalChain(calleeMember) && !decl._sharedDispatch && !globalThis.precompile &&
-        Object.keys(protoBC).length > 1 && !decl.arguments.some(x => x?.type === 'SpreadElement')) {
-        const params = decl.arguments.map((_, i) => 'a' + i);
-        const func = sharedFunc(`((${[ 'r', ...params ].join(', ')}) => r.${protoName}(${params.join(', ')}))`);
-        return Call(func.index, [ targetTmp, ...args.map(x => coerceValue(generate(scope, x), T.jsval)) ], func.retType);
-      }
+      const dispatch = () => {
+        // dispatch on an unknown receiver is shared per method and argument count
+        if (targetKnownType == null && calleeMember && !calleeMember.computed && !decl.optional && !inOptionalChain(calleeMember) && !decl._sharedDispatch && !globalThis.precompile &&
+          Object.keys(protoBC).length > 1 && !decl.arguments.some(x => x?.type === 'SpreadElement')) {
+          const params = decl.arguments.map((_, i) => 'a' + i);
+          const func = sharedFunc(`((${[ 'r', ...params ].join(', ')}) => r.${protoName}(${params.join(', ')}))`);
+          return Call(func.index, [ targetTmp, ...args.map(x => coerceValue(generate(scope, x), T.jsval)) ], func.retType);
+        }
 
-      const entries = Object.keys(protoBC).map(x => [ +x, protoBC[x] ]).sort((a, b) => a[0] - b[0]);
-      if (typedArrayCall) entries.push([ TYPED_ARRAY_TYPES, typedArrayCall ]);
-      entries.push([ 'default', () => Prefs.neverFallbackBuiltinProto && !decl.optional
-        ? internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
-        : generate(scope, fallbackCall) ]);
+        const entries = Object.keys(protoBC).map(x => [ +x, protoBC[x] ]).sort((a, b) => a[0] - b[0]);
+        if (typedArrayCall) entries.push([ TYPED_ARRAY_TYPES, typedArrayCall ]);
+        entries.push([ 'default', () => Prefs.neverFallbackBuiltinProto && !decl.optional
+          ? internalThrow(scope, 'TypeError', `'${protoName}' proto func tried to be called on a type without an impl`)
+          : generate(scope, fallbackCall) ]);
 
-      return typeSwitch(scope, JvType(targetTmp), targetKnownType, entries);
+        return typeSwitch(scope, JvType(targetTmp), targetKnownType, entries);
+      };
+      if (!byteAt) return dispatch();
+
+      const at = numValue(byteAt);
+      let inRange = Bin('&&', T.i32, Bin('>=', T.f64, at, Const(T.f64, 0)), Bin('<', T.f64, at, Convert(T.f64, LenGet(JvPtr(targetTmp)))));
+      if (!isRawNum(byteAt)) inRange = Bin('&&', T.i32, JvIsNum(byteAt), inRange);
+      const out = tmp(scope, T.jsval);
+      emitIf(scope, Bin('&&', T.i32, Bin('==', T.i32, JvType(targetTmp), Const(T.i32, TYPES.bytestring)), inRange),
+        () => assign(scope, out, valNumber(Convert(T.f64, Load('u8', Bin('+', T.u32, JvPtr(targetTmp), Convert(T.u32, at, CONVERT_RANGE_KNOWN)), 4)))),
+        () => assign(scope, out, coerceValue(dispatch(), T.jsval)));
+      return out;
     }
   }
 
