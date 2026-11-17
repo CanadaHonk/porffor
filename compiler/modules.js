@@ -931,7 +931,9 @@ export default (entrySource, entryFile, opts = {}) => {
     if (kind === 'json' || kind === 'text') {
       modules.set(file, mod);
       mod.json = kind === 'json';
-      mod.body = [ varDecl('const', 'default', kind === 'json' ? jsonToAst(JSON.parse(source)) : literal(source)) ];
+      // a big json literal is one function too large for the c compiler
+      if (mod.json) JSON.parse(source);
+      mod.body = [ varDecl('const', 'default', mod.json ? { type: 'CallExpression', callee: member(ident('JSON'), 'parse'), arguments: [ literal(source) ], optional: false } : literal(source)) ];
       mod.exports.set('default', { local: 'default' });
       return mod;
     }
