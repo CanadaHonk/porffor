@@ -12,6 +12,7 @@ import diagnosticsChannel from './diagnostics_channel.js' with { type: 'text' };
 import dns from './dns.js' with { type: 'text' };
 import dnsPromises from './dns/promises.js' with { type: 'text' };
 import events from './events.js' with { type: 'text' };
+import ffi from './ffi.js' with { type: 'text' };
 import fs from './fs.js' with { type: 'text' };
 import fsPromises from './fs/promises.js' with { type: 'text' };
 import http from './http.js' with { type: 'text' };
@@ -107,6 +108,7 @@ export default {
   [root + 'dns.js']: dns,
   [root + 'dns/promises.js']: dnsPromises,
   [root + 'events.js']: events,
+  [root + 'ffi.js']: ffi,
   [root + 'fs.js']: fs,
   [root + 'fs/promises.js']: fsPromises,
   [root + 'http.js']: http,

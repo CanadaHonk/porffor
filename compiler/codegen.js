@@ -3054,10 +3054,6 @@ const generatePatternDstr = (scope, tmpPrefix, pattern, init, defaultValue, emit
 };
 
 const generateVarDstr = (scope, kind, pattern, init, defaultValue, global) => {
-  if (init && init.type === 'CallExpression' && init.callee.name === '__Porffor_dlopen') {
-    throw new Error('Porffor.dlopen is not yet supported in the native IR backend');
-  }
-
   pattern = identNode(pattern);
 
   const topLevel = scope.topLevel;
@@ -5882,6 +5878,68 @@ const specializeFunctionSources = program => {
   }
 };
 
+// node:ffi type codes, as runtime/node/ffi.js encodes signatures
+const FFI_CODES = {
+  __proto__: null,
+  void: 0, int8: 1, i8: 1, uint8: 2, u8: 2, bool: 2, int16: 3, i16: 3, uint16: 4, u16: 4, int32: 5, i32: 5, uint32: 6, u32: 6,
+  int64: 7, i64: 7, uint64: 8, u64: 8, float32: 9, f32: 9, float: 9, float64: 10, f64: 10, double: 10,
+  pointer: 11, ptr: 11, string: 11, str: 11, buffer: 11, arraybuffer: 11, function: 11, char: 12
+};
+
+// a wrapper factory compiling a literal { arguments, return } signature to a typed call
+const ffiWrapper = node => {
+  if (node?.type !== 'ObjectExpression') return null;
+  let ret = 'void', args = [];
+  for (const x of node.properties) {
+    const key = x.key?.name ?? x.key?.value;
+    if (x.type !== 'Property' || x.computed) return null;
+    if (key === 'return' && typeof x.value.value === 'string') ret = x.value.value;
+      else if (key === 'arguments' && x.value.type === 'ArrayExpression' && x.value.elements.every(y => typeof y?.value === 'string')) args = x.value.elements.map(y => y.value);
+      else return null;
+  }
+  if (!(ret in FFI_CODES) || args.length > 8 || !args.every(x => FFI_CODES[x])) return null;
+
+  const codes = [ ret, ...args ].map(x => FFI_CODES[x]);
+  let sig = codes.reduceRight((acc, x) => acc << 4n | BigInt(x), 0n);
+  if (codes.some(x => x === 9 || x === 10)) sig |= 1n << 40n;
+
+  const params = args.map((_, i) => 'a' + i).join(', ');
+  const cArgs = Array.from({ length: 8 }, (_, i) => i < args.length ? 'a' + i : 'JV_UNDEFINED').join(', ');
+  return parse(`(ptr, generic) => {
+  let fn = ptr;
+  return [ (${params}) => {
+    const f = fn;
+    let out, done = 0;
+    Porffor.c\`done = porf_ffi_direct((u64)f.val, 0x${sig.toString(16)}ull, ${cArgs}, &out);\`;
+    return done ? out : generic(${params});
+  }, () => { fn = 0; } ];
+}`).body[0].expression;
+};
+
+// literal signatures to dlopen, getFunctions and getFunction get a compiled wrapper as an extra argument
+const specializeFfi = program => {
+  if (Prefs.safe || !program.body.some(x => x.type === 'ClassDeclaration' && x.id?.name.startsWith('DynamicLibrary#m'))) return;
+  for (const call of find(program, n => n.type === 'CallExpression')) {
+    const callee = call.callee;
+    const name = callee.type === 'Identifier' ? callee.name.split('#')[0] : callee.type === 'MemberExpression' && !callee.computed ? callee.property.name : null;
+    const args = call.arguments;
+    if (name === 'getFunction' && args.length === 2) {
+      const wrapper = ffiWrapper(args[1]);
+      if (wrapper) args.push(wrapper);
+      continue;
+    }
+
+    const defs = name === 'dlopen' && args.length === 2 ? args[1] : name === 'getFunctions' && args.length === 1 ? args[0] : null;
+    if (defs?.type !== 'ObjectExpression') continue;
+    const properties = [];
+    for (const x of defs.properties) {
+      const wrapper = x.type === 'Property' && !x.computed && ffiWrapper(x.value);
+      if (wrapper) properties.push({ type: 'Property', kind: 'init', key: x.key, value: wrapper, computed: false, method: false, shorthand: false });
+    }
+    if (properties.length > 0) args.push({ type: 'ObjectExpression', properties });
+  }
+};
+
 // property names the program may define (keys, uncalled members, strings), so builtin method calls know what can shadow them
 let definedKeys = new Set();
 let preludeGlobals = new Map();
@@ -6701,6 +6759,7 @@ export default (program, opts = {}) => {
   // semantic relies on object hack happening before
   program = desugarUsing(program);
   specializeFunctionSources(program);
+  specializeFfi(program);
   objectHackAssigned = assignedBuiltinMembers(program);
   objectHackShadowed = globalThis.precompile ? new Set() : shadowedBuiltinNames(program);
   program = objectHack(program);

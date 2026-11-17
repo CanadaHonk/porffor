@@ -160,7 +160,7 @@ const nearestPackage = dir => {
 const RUNTIME_ROOT = '/@porffor-runtime';
 
 // internals are runtime-only, node:test-style builtins need the prefix like in node
-const PREFIX_ONLY = new Set([ 'test', 'test/reporters', 'sqlite', 'sea' ]);
+const PREFIX_ONLY = new Set([ 'test', 'test/reporters', 'sqlite', 'sea', 'ffi' ]);
 const builtinKey = (name, from, prefixed) => {
   if (!prefixed && PREFIX_ONLY.has(name)) return null;
   if ((name.startsWith('internal/') || name === 'c-helpers' || name === 'sources') && !from.startsWith(RUNTIME_ROOT)) return null;
