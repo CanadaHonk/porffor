@@ -4380,8 +4380,12 @@ const generateForIn = (scope, decl) => {
           stmt(scope, BlockStmt(collect(scope, () => {
             setLocalWithType(scope, tmpName, false, Box(Load('u32', pointer, 4), Load('u8', pointer, 9)));
             generateLoopBinding(scope, decl.left, identNode(tmpName));
+            const outerSlot = scope.forInSlot;
+            const key = decl.left.type === 'VariableDeclaration' ? decl.left.declarations[0].id : decl.left;
+            if (decl.right.type === 'Identifier' && key.type === 'Identifier') scope.forInSlot = { obj: decl.right.name, key: key.name, objPtr, shape, counter, pointer };
             emitIf(scope, Bin('&&', T.i32, Bin('!=', T.i32, Bin('&', T.i32, Load('u8', pointer, 8), Const(T.i32, 0b0100)), Const(T.i32, 0)), Bin('!=', T.i32, Load('u8', pointer, 9), Const(T.i32, TYPES.symbol))),
               () => genStmt(scope, decl.body));
+            scope.forInSlot = outerSlot;
           }), C));
           assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
           assign(scope, pointer, Bin('+', T.u32, pointer, Const(T.u32, 12)));
@@ -5156,6 +5160,31 @@ let icSites;
 const generateMember = (scope, decl, objValue = null) => {
   const demanded = globalThis.precompile ? null : demandMemberRead(scope, decl);
   if (decl.object.type === 'Super') return generateSuperMember(scope, decl);
+
+  // obj[key] in a for..in over obj reads the loop's slot while obj keeps the shape the loop walks
+  const slot = scope.forInSlot;
+  if (slot && !objValue && decl.computed && !decl.optional && decl.object.type === 'Identifier' && decl.property.type === 'Identifier' &&
+    decl.object.name === slot.obj && decl.property.name === slot.key) {
+    const obj = reuse(scope, generate(scope, decl.object)), key = reuse(scope, generate(scope, decl.property));
+    if (obj[N_TYPE] === T.jsval && key[N_TYPE] === T.jsval) {
+      const and = (...xs) => xs.reduce((a, b) => Bin('&&', T.i32, a, b));
+      const out = tmp(scope, T.jsval);
+      emitIf(scope, and(
+        Bin('==', T.i32, JvType(obj), Const(T.i32, TYPES.object)),
+        Bin('==', T.u32, JvPtr(obj), slot.objPtr),
+        Bin('==', T.u32, Load('u16', slot.objPtr, 6), slot.shape),
+        Bin('==', T.u32, JvPtr(key), Load('u32', slot.pointer, 4)),
+        Bin('==', T.i32, JvType(key), Load('u8', slot.pointer, 9)),
+        Bin('==', T.i32, Bin('&', T.i32, Load('u8', slot.pointer, 8), Const(T.i32, 0b0001)), Const(T.i32, 0))),
+        () => assign(scope, out, builtinCall(scope, '__Porffor_object_slotValue', [ obj, slot.counter ], T.jsval)),
+        () => {
+          scope.forInSlot = null;
+          assign(scope, out, coerceValue(generateMember(scope, decl), T.jsval));
+          scope.forInSlot = slot;
+        });
+      return out;
+    }
+  }
   // builtins unless reassigned via globalThis
   const globalName = decl.object.name === 'globalThis' && !decl.computed && decl.property.name;
   if (globalName && !globalName.startsWith('__') && globalName !== 'null' && globalName !== 'TypedArray' && !(globalName in globals)) {
