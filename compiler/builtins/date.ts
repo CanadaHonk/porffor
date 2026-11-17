@@ -85,11 +85,10 @@ export const __ecma262_InLeapYear = (t: number): number => __ecma262_DaysInYear(
 
 // 21.4.1.11 MonthFromTime (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-monthfromtime
-export const __ecma262_MonthFromTime = (t: number): number => {
-  // 1. Let inLeapYear be InLeapYear(t).
-  const inLeapYear: number = __ecma262_InLeapYear(t);
-  // 2. Let dayWithinYear be DayWithinYear(t).
-  const dayWithinYear: number = __ecma262_DayWithinYear(t);
+export const __ecma262_MonthFromTime = (t: number): number => __ecma262_MonthOfDay(__ecma262_DayWithinYear(t), __ecma262_InLeapYear(t));
+
+// steps 3 on, for callers that have both already
+export const __ecma262_MonthOfDay = (dayWithinYear: number, inLeapYear: number): number => {
 
   // 3. If dayWithinYear < 31𝔽, return +0𝔽.
   if (dayWithinYear < 31) return 0;
@@ -122,12 +121,13 @@ export const __ecma262_MonthFromTime = (t: number): number => {
 // 21.4.1.12 DateFromTime (t)
 // https://tc39.es/ecma262/multipage/numbers-and-dates.html#sec-datefromtime
 export const __ecma262_DateFromTime = (t: number): number => {
-  // 1. Let inLeapYear be InLeapYear(t).
   const inLeapYear: number = __ecma262_InLeapYear(t);
-  // 2. Let dayWithinYear be DayWithinYear(t).
   const dayWithinYear: number = __ecma262_DayWithinYear(t);
-  // 3. Let month be MonthFromTime(t).
-  const month: number = __ecma262_MonthFromTime(t);
+  return __ecma262_DateOfDay(dayWithinYear, inLeapYear, __ecma262_MonthOfDay(dayWithinYear, inLeapYear));
+};
+
+// steps 4 on, for callers that have all three already
+export const __ecma262_DateOfDay = (dayWithinYear: number, inLeapYear: number, month: number): number => {
 
   // 4. If month is +0𝔽, return dayWithinYear + 1𝔽.
   if (month == 0) return dayWithinYear + 1;
@@ -1581,11 +1581,14 @@ export const __ecma262_ToUTCDTSF = (t: number): bytestring => {
   __Porffor_bytestring_appendChar(out, 45); // -
 
   // 2 digit month (01-12)
-  __Porffor_bytestring_appendPadNum(out, __ecma262_MonthFromTime(t) + 1, 2);
+  const inLeapYear: number = __ecma262_DaysInYear(year) == 366 ? 1 : 0;
+  const dayWithinYear: number = __ecma262_Day(t) - __ecma262_DayFromYear(year);
+  const month: number = __ecma262_MonthOfDay(dayWithinYear, inLeapYear);
+  __Porffor_bytestring_appendPadNum(out, month + 1, 2);
   __Porffor_bytestring_appendChar(out, 45); // -
 
   // 2 digit day of the month
-  __Porffor_bytestring_appendPadNum(out, __ecma262_DateFromTime(t), 2);
+  __Porffor_bytestring_appendPadNum(out, __ecma262_DateOfDay(dayWithinYear, inLeapYear, month), 2);
   __Porffor_bytestring_appendChar(out, 84); // T
 
   // 2 digit hour
