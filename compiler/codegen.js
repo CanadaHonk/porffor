@@ -544,8 +544,8 @@ const generate = (scope, decl, name = undefined, valueUnused = false) => {
     case 'FunctionDeclaration': {
       const [ func, out ] = generateFunc(scope, decl);
       if (decl._writes && !decl._skipVarUpdate) {
-        // generated now so globals its body implicitly creates exist for later code
-        func.generate?.();
+        // after the other hoisted functions, before later code that may use globals its body creates
+        if (func.generate) (scope.hoistedGenerates ??= []).push(func);
         const name = decl.id.name, global = scope.topLevel;
         allocVar(scope, name, global);
         func.referenced = true;
@@ -6531,8 +6531,11 @@ const generateBlock = (scope, decl) => {
       names.splice(i, 0, names.splice(j, 1)[0]);
     }
   }
-  for (const x of decl.body) {
-    if (!isEmptyNode(x)) genStmt(scope, x);
+  for (let i = 0; i < decl.body.length; i++) {
+    if (!isEmptyNode(decl.body[i])) genStmt(scope, decl.body[i]);
+    if (scope.hoistedGenerates && decl.body[i + 1]?.type !== 'FunctionDeclaration') {
+      for (const func of scope.hoistedGenerates.splice(0)) func.generate();
+    }
   }
   inferBranchEnd(scope);
   return scope.inEval ? completion(scope) : valUndefined();
