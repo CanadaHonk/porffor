@@ -20,7 +20,7 @@ function toCString(str) {
 }
 
 // based on https://github.com/littledivy/blazing-fast-ffi-talk/blob/main/sqlite.deno.ts
-const { symbols } = dlopen("libsqlite3.so.0", {
+const { symbols } = dlopen(process.platform === "darwin" ? "/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib" : "libsqlite3.so.0", {
   sqlite3_initialize: {
     args: [],
     returns: "i32",
@@ -30,7 +30,7 @@ const { symbols } = dlopen("libsqlite3.so.0", {
       "ptr", // const char *filename
       "ptr", // sqlite3 **ppDb
       "i32", // int flags
-      "u64", // const char *zVfs
+      "ptr", // const char *zVfs
     ],
     returns: "i32",
   },
@@ -42,21 +42,21 @@ const { symbols } = dlopen("libsqlite3.so.0", {
 
   sqlite3_prepare_v2: {
     args: [
-      "u64", // sqlite3 *db
+      "ptr", // sqlite3 *db
       "ptr", // const char *zSql
       "i32", // int nByte
       "ptr", // sqlite3_stmt **ppStmt
-      "u64", // const char **pzTail
+      "ptr", // const char **pzTail
     ],
     returns: "i32",
   },
 
   sqlite3_exec: {
     args: [
-      "u64", // sqlite3 *db
+      "ptr", // sqlite3 *db
       "ptr", // const char *sql
-      "u64", // sqlite3_callback callback
-      "u64", // void *arg
+      "ptr", // sqlite3_callback callback
+      "ptr", // void *arg
       "ptr", // char **errmsg
     ],
     returns: "i32",

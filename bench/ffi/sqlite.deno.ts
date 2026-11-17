@@ -18,7 +18,7 @@ function toCString(str) {
 }
 
 // based on https://github.com/littledivy/blazing-fast-ffi-talk/blob/main/sqlite.deno.ts
-const { symbols } = Deno.dlopen("libsqlite3.so.0", {
+const { symbols } = Deno.dlopen(Deno.build.os === "darwin" ? "/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib" : "libsqlite3.so.0", {
   sqlite3_initialize: {
     parameters: [],
     result: "i32",
