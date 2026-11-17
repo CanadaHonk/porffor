@@ -24,7 +24,7 @@ import type {} from './porffor.d.ts';
 // cache entry (24 bytes, layout mirrored by porf_gc_scan_regex_cache in render.js):
 //   0 next, 4 pattern (bytestring), 8 flags (bytestring), 12 blob, 16 names, 20 capCount u16, 22 padding
 //
-// bytecode ops (jump targets are u16 absolute offsets from bytecode start):
+// bytecode ops (jump targets are u32 absolute offsets from bytecode start):
 //   0x00 accept
 //   0x01 char1 [u8]                     - unit compare
 //   0x02 char2 [u16]                    - unit compare
@@ -37,12 +37,12 @@ import type {} from './porffor.d.ts';
 //   0x08 runBitmap [backward u8][min u16][max u16][32B]
 //   0x09 runClass [backward u8][min u16][max u16][class payload]
 //   0x0a runAny [backward u8][min u16][max u16]
-//   0x0b fork [prefer u16][alt u16]
-//   0x0c jump [target u16]
-//   0x0d forkLoop [slot u8][prefer u16][alt u16]
-//   0x0e loopEnd [slot u8][target u16]  - empty iteration -> backtrack, else jump
+//   0x0b fork [prefer u32][alt u32]
+//   0x0c jump [target u32]
+//   0x0d forkLoop [slot u8][prefer u32][alt u32]
+//   0x0e loopEnd [slot u8][target u32]  - empty iteration -> backtrack, else jump
 //   0x0f counterReset [slot u8]
-//   0x10 counterFork [slot u8][lazy u8][min u16][max u16][exit u16]
+//   0x10 counterFork [slot u8][lazy u8][min u16][max u16][exit u32]
 //   0x11 counterInc [slot u8]
 //   0x12 capWrite [idx u8][which u8]    - which: 0 start edge, 1 end edge
 //   0x13 capClear [from u8][to u8]
@@ -52,12 +52,12 @@ import type {} from './porffor.d.ts';
 //   0x17 assertEnd
 //   0x18 assertWordB
 //   0x19 assertNotWordB
-//   0x1a lookStart [neg u8][behind u8][after u16]
+//   0x1a lookStart [neg u8][behind u8][after u32]
 //   0x1b lookEnd
 //   0x1c reject
 //   0x1d charCp [u32]                   - astral code point (u mode), consumes both units
-//   0x1e loopEndCounted [slot u8][min u16][target u16]
-//   0x1f forkLoopLazy [slot u8][exit u16]
+//   0x1e loopEndCounted [slot u8][min u16][target u32]
+//   0x1f forkLoopLazy [slot u8][exit u32]
 //   0x20 runNotChar [backward u8][min u16][max u16][unit u16]
 //   0x22 assertStartM, 0x23 assertEndM  - multiline variants (m flag or modifier)
 //   0x24 assertWordBI, 0x25 assertNotWordBI, 0x26 backrefI, 0x27 backrefMultiI - ignoring case
@@ -2155,7 +2155,7 @@ export const __Porffor_regex_eRef = (label: i32): void => {
   const fixups: any[] = __Porffor_regex_eFixups;
   Porffor.array.fastPush(fixups, __Porffor_regex_bcTop);
   Porffor.array.fastPush(fixups, label);
-  __Porffor_regex_e16(0);
+  __Porffor_regex_e32(0);
 };
 
 // [nR u16][32B bitmap][lo u32, hi u32]*, wide ranges only
@@ -2310,7 +2310,7 @@ export const __Porffor_regex_emitNode = (node: i32, bwd: i32): void => {
         const alt: i32 = __Porffor_regex_eLabel();
         __Porffor_regex_e8(0x0b); // fork, prefer this alternative, alt = the next one
         const preferAt: i32 = __Porffor_regex_bcTop;
-        __Porffor_regex_e16(preferAt + 4); // prefer: fall through
+        __Porffor_regex_e32(preferAt + 8); // prefer: fall through
         __Porffor_regex_eRef(alt);
         __Porffor_regex_emitNode(c, bwd);
         __Porffor_regex_e8(0x0c); // jump end
@@ -2414,12 +2414,12 @@ export const __Porffor_regex_emitNode = (node: i32, bwd: i32): void => {
       __Porffor_regex_e8(0x0b); // fork
       if (greedy == 1) {
         const preferAt: i32 = __Porffor_regex_bcTop;
-        __Porffor_regex_e16(preferAt + 4); // prefer the body (after operands)
+        __Porffor_regex_e32(preferAt + 8); // prefer the body (after operands)
         __Porffor_regex_eRef(exit); // alt: skip
       } else {
         __Porffor_regex_eRef(exit); // prefer: skip
         const altAt: i32 = __Porffor_regex_bcTop;
-        __Porffor_regex_e16(altAt + 2); // alt: body
+        __Porffor_regex_e32(altAt + 4); // alt: body
       }
     }
     if (capCount > 0) {
@@ -2454,7 +2454,7 @@ export const __Porffor_regex_emitNode = (node: i32, bwd: i32): void => {
     __Porffor_regex_e8(0x0d); // forkLoop
     __Porffor_regex_e8(slot);
     const preferAt: i32 = __Porffor_regex_bcTop;
-    __Porffor_regex_e16(preferAt + 4); // prefer the body
+    __Porffor_regex_e32(preferAt + 8); // prefer the body
     __Porffor_regex_eRef(exit); // alt exits the loop
   } else {
     __Porffor_regex_e8(0x1f); // forkLoopLazy
@@ -2779,12 +2779,12 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
         if ((btTop + 1) * 20 > __Porffor_regex_capBt) __Porffor_regex_btEnsure(btTop);
         const entry: i32 = Porffor.IR.ptr(__Porffor_regex_bufBt) + btTop * 20;
         Porffor.IR.storeI32(entry, 0, 0);
-        Porffor.IR.storeI32(entry, 4, Porffor.IR.loadU16(code + pc, 3));
+        Porffor.IR.storeI32(entry, 4, Porffor.IR.loadI32(code + pc, 5));
         Porffor.IR.storeI32(entry, 8, sp);
         Porffor.IR.storeI32(entry, 16, undoTop);
         btTop += 1;
 
-        pc = Porffor.IR.loadU16(code + pc, 1);
+        pc = Porffor.IR.loadI32(code + pc, 1);
       } else if (op == 0x12) { // capWrite
         const slot: i32 = Porffor.IR.loadU8(code + pc, 1) * 2 + Porffor.IR.loadU8(code + pc, 2);
 
@@ -2797,11 +2797,11 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
         Porffor.IR.storeI32(caps + slot * 4, 0, sp);
         pc += 3;
       } else if (op == 0x0c) { // jump
-        pc = Porffor.IR.loadU16(code + pc, 1);
+        pc = Porffor.IR.loadI32(code + pc, 1);
       } else if (op == 0x0e) { // loopEnd
         const slot: i32 = Porffor.IR.loadU8(code + pc, 1);
         if (sp == Porffor.IR.loadI32(loopSp + slot * 4, 0)) fail = true; // empty iteration
-          else pc = Porffor.IR.loadU16(code + pc, 2);
+          else pc = Porffor.IR.loadI32(code + pc, 2);
       } else if (op == 0x0d) { // forkLoop (greedy)
         const slot: i32 = Porffor.IR.loadU8(code + pc, 1);
 
@@ -2815,18 +2815,18 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
         if ((btTop + 1) * 20 > __Porffor_regex_capBt) __Porffor_regex_btEnsure(btTop);
         const entry: i32 = Porffor.IR.ptr(__Porffor_regex_bufBt) + btTop * 20;
         Porffor.IR.storeI32(entry, 0, 0);
-        Porffor.IR.storeI32(entry, 4, Porffor.IR.loadU16(code + pc, 4));
+        Porffor.IR.storeI32(entry, 4, Porffor.IR.loadI32(code + pc, 6));
         Porffor.IR.storeI32(entry, 8, sp);
         Porffor.IR.storeI32(entry, 16, undoTop);
         btTop += 1;
 
-        pc = Porffor.IR.loadU16(code + pc, 2);
+        pc = Porffor.IR.loadI32(code + pc, 2);
       } else if (op == 0x10) { // counterFork
         const slot: i32 = Porffor.IR.loadU8(code + pc, 1);
         const lazy: boolean = Porffor.IR.loadU8(code + pc, 2) != 0;
         const min: i32 = Porffor.IR.loadU16(code + pc, 3);
         const max: i32 = Porffor.IR.loadU16(code + pc, 5);
-        const exitPc: i32 = Porffor.IR.loadU16(code + pc, 7);
+        const exitPc: i32 = Porffor.IR.loadI32(code + pc, 7);
         const count: i32 = Porffor.IR.loadI32(counters + slot * 4, 0);
 
         if (count < min) {
@@ -2838,14 +2838,14 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
           undoTop += 1;
           Porffor.IR.storeI32(loopSp + slot * 4, 0, sp);
 
-          pc += 9;
+          pc += 11;
         } else if (count < max) {
           if (lazy) {
             // lazy: take exit, the body becomes the backtrack alternative
             if ((btTop + 1) * 20 > __Porffor_regex_capBt) __Porffor_regex_btEnsure(btTop);
             const entry: i32 = Porffor.IR.ptr(__Porffor_regex_bufBt) + btTop * 20;
             Porffor.IR.storeI32(entry, 0, 7);
-            Porffor.IR.storeI32(entry, 4, pc + 9);
+            Porffor.IR.storeI32(entry, 4, pc + 11);
             Porffor.IR.storeI32(entry, 8, sp);
             Porffor.IR.storeI32(entry, 12, slot);
             Porffor.IR.storeI32(entry, 16, undoTop);
@@ -2869,7 +2869,7 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
             Porffor.IR.storeI32(entry, 16, undoTop);
             btTop += 1;
 
-            pc += 9;
+            pc += 11;
           }
         } else {
           pc = exitPc;
@@ -3227,7 +3227,7 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
       } else if (op == 0x1a) { // lookStart
         const negated: i32 = Porffor.IR.loadU8(code + pc, 1);
         const behind: boolean = Porffor.IR.loadU8(code + pc, 2) != 0;
-        const afterPc: i32 = Porffor.IR.loadU16(code + pc, 3);
+        const afterPc: i32 = Porffor.IR.loadI32(code + pc, 3);
 
         const frame: i32 = frames + frameTop * 24;
         Porffor.IR.storeI32(frame, 0, sp);
@@ -3247,7 +3247,7 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
         frameTop += 1;
 
         backward = behind ? 1 : 0;
-        pc += 5;
+        pc += 7;
       } else if (op == 0x1b) { // lookEnd: the sub-pattern matched
         const frame: i32 = frames + (frameTop - 1) * 24;
         const negated: boolean = Porffor.IR.loadI32(frame, 20) != 0;
@@ -3303,20 +3303,20 @@ export const __Porffor_regex_attempt = (code: i32, inputPtr: i32, inputLen: i32,
 
         // empty iterations are only allowed while below min
         if (sp == Porffor.IR.loadI32(loopSp + slot * 4, 0) && Porffor.IR.loadI32(counters + slot * 4, 0) > min) fail = true;
-          else pc = Porffor.IR.loadU16(code + pc, 4);
+          else pc = Porffor.IR.loadI32(code + pc, 4);
       } else if (op == 0x1f) { // forkLoopLazy
         const slot: i32 = Porffor.IR.loadU8(code + pc, 1);
 
         if ((btTop + 1) * 20 > __Porffor_regex_capBt) __Porffor_regex_btEnsure(btTop);
         const entry: i32 = Porffor.IR.ptr(__Porffor_regex_bufBt) + btTop * 20;
         Porffor.IR.storeI32(entry, 0, 7);
-        Porffor.IR.storeI32(entry, 4, pc + 4);
+        Porffor.IR.storeI32(entry, 4, pc + 6);
         Porffor.IR.storeI32(entry, 8, sp);
         Porffor.IR.storeI32(entry, 12, slot);
         Porffor.IR.storeI32(entry, 16, undoTop);
         btTop += 1;
 
-        pc = Porffor.IR.loadU16(code + pc, 2);
+        pc = Porffor.IR.loadI32(code + pc, 2);
       } else { // 0x1c reject / unknown
         fail = true;
       }
@@ -3514,9 +3514,8 @@ export const __Porffor_regex_compileBlob = (pattern: any, flags: i32): i32 => {
   for (let i: i32 = 0; i < fixups.length; i += 2) {
     const at: i32 = fixups[i];
     const target: i32 = labels[fixups[i + 1]];
-    Porffor.IR.storeU16(Porffor.IR.ptr(__Porffor_regex_bufBc) + at, 0, target);
+    Porffor.IR.storeI32(Porffor.IR.ptr(__Porffor_regex_bufBc) + at, 0, target);
   }
-  if (__Porffor_regex_bcTop > 0xFFF0) throw new SyntaxError('Regex too large');
 
   // analysis
   if (__Porffor_regex_fsBitmap == 0) __Porffor_regex_fsBitmap = __Porffor_regex_alloc(32);
