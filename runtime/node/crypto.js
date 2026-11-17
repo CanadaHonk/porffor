@@ -1193,7 +1193,7 @@ const nodeHash = name => canonical(name?.name ?? name, hashNames).replace('-', '
 
 const normalize = algorithm => {
   if (typeof algorithm === 'string') algorithm = { name: algorithm };
-  const out = { ...algorithm, name: canonical(algorithm.name, [ 'ECDSA', 'RSASSA-PKCS1-v1_5', 'RSA-PSS', 'HMAC', 'Ed25519' ]) };
+  const out = { ...algorithm, name: canonical(algorithm.name, [ 'ECDSA', 'RSASSA-PKCS1-v1_5', 'RSA-PSS', 'HMAC', 'Ed25519', 'AES-GCM' ]) };
   if (out.hash !== undefined) out.hash = { name: canonical(out.hash.name ?? out.hash, hashNames) };
   return out;
 };
@@ -1251,6 +1251,47 @@ const signVerify = (algorithm, key, data, signature) => {
   }
 };
 
+// aes-gcm with the tag appended to the ciphertext, null when decryption fails
+const aesGcm = (key, iv, data, aad, tagLength, decrypt) => {
+  let p = 0, n = 0;
+  Porffor.c`{
+  const u32 klen = porf_crypto_len(key), tag = (u32)porf_jv_val(tagLength), dec = porf_jv_val(decrypt) != 0;
+  const u32 len = porf_crypto_len(data) - (dec ? tag : 0);
+  const unsigned char *in = porf_crypto_in(data);
+  unsigned char *buf = malloc(len + tag + 1);
+  EVP_CIPHER *cipher = EVP_CIPHER_fetch(NULL, klen == 16 ? "AES-128-GCM" : klen == 24 ? "AES-192-GCM" : "AES-256-GCM", NULL);
+  EVP_CIPHER_CTX *c = EVP_CIPHER_CTX_new();
+  int out = 0, fin = 0;
+  if (EVP_CipherInit_ex2(c, cipher, NULL, NULL, !dec, NULL)
+    && EVP_CIPHER_CTX_ctrl(c, EVP_CTRL_GCM_SET_IVLEN, porf_crypto_len(iv), NULL)
+    && EVP_CipherInit_ex2(c, NULL, porf_crypto_in(key), porf_crypto_in(iv), !dec, NULL)
+    && (porf_jv_type(aad) == 0 || EVP_CipherUpdate(c, NULL, &out, porf_crypto_in(aad), porf_crypto_len(aad)))
+    && (!dec || EVP_CIPHER_CTX_ctrl(c, EVP_CTRL_GCM_SET_TAG, tag, (void*)(in + len)))
+    && EVP_CipherUpdate(c, buf, &out, in, len)
+    && EVP_CipherFinal_ex(c, buf + out, &fin)
+    && (dec || EVP_CIPHER_CTX_ctrl(c, EVP_CTRL_GCM_GET_TAG, tag, buf + out + fin))) {
+    p = (f64)(u64)buf;
+    n = out + fin + (dec ? 0 : tag);
+  } else free(buf);
+  ERR_clear_error();
+  EVP_CIPHER_CTX_free(c);
+  EVP_CIPHER_free(cipher);
+}`;
+  return take(p, n);
+};
+
+const encryptDecrypt = (algorithm, key, data, op) => {
+  const { name, iv, additionalData, tagLength = 128 } = normalize(algorithm);
+  const slot = cryptoKeys.get(key);
+  if (!slot.usages.includes(op)) throw new DOMException(`Unable to use this key to ${op}`, 'InvalidAccessError');
+  if (name !== slot.algorithm.name) throw new DOMException('Key algorithm mismatch', 'InvalidAccessError');
+  data = viewOf(data);
+  const tag = tagLength >> 3, decrypt = op === 'decrypt' ? 1 : 0;
+  const out = decrypt && data.byteLength < tag ? null : aesGcm(keyObjects.get(slot.key).data, viewOf(iv), data, additionalData && viewOf(additionalData), tag, decrypt);
+  if (!out) throw new DOMException('The operation failed for an operation-specific reason', 'OperationError');
+  return toArrayBuffer(out);
+};
+
 const importAsymmetric = (format, keyData, name, namedCurve) => {
   if (format === 'jwk') return keyData.d === undefined ? createPublicKey({ key: keyData, format }) : createPrivateKey({ key: keyData, format });
   const bytes = Buffer.from(viewOf(keyData));
@@ -1264,7 +1305,7 @@ const importAsymmetric = (format, keyData, name, namedCurve) => {
 
 const jwkAlg = algorithm => {
   const bits = algorithm.hash?.name.slice(4);
-  return { HMAC: `HS${bits}`, 'RSASSA-PKCS1-v1_5': `RS${bits}`, 'RSA-PSS': `PS${bits}`, Ed25519: 'Ed25519' }[algorithm.name];
+  return { HMAC: `HS${bits}`, 'RSASSA-PKCS1-v1_5': `RS${bits}`, 'RSA-PSS': `PS${bits}`, Ed25519: 'Ed25519', 'AES-GCM': `A${algorithm.length}GCM` }[algorithm.name];
 };
 
 export const subtle = {
@@ -1279,6 +1320,7 @@ export const subtle = {
       const length = algorithm.length ?? (hash.name === 'SHA-384' || hash.name === 'SHA-512' ? 1024 : 512);
       return cryptoKey(createSecretKey(randomBytes(length >> 3)), { name, length, hash }, usages, extractable);
     }
+    if (name === 'AES-GCM') return cryptoKey(createSecretKey(randomBytes(algorithm.length >> 3)), { name, length: algorithm.length }, usages, extractable);
     if (name === 'ECDSA') return keyPair(generateKeyPairSync('ec', { namedCurve: curves[algorithm.namedCurve] }), { name, namedCurve: algorithm.namedCurve }, extractable, usages);
     if (name === 'Ed25519') return keyPair(generateKeyPairSync('ed25519'), { name }, extractable, usages);
     const keys = generateKeyPairSync('rsa', { modulusLength: algorithm.modulusLength, publicExponent: algorithm.publicExponent.reduce((n, b) => n * 256 + b, 0) });
@@ -1291,6 +1333,12 @@ export const subtle = {
       if (format !== 'raw' && format !== 'jwk') throw new DOMException(`Unable to import HMAC key with format ${format}`, 'NotSupportedError');
       const key = format === 'jwk' ? createSecretKey(keyData.k, 'base64url') : createSecretKey(viewOf(keyData));
       return cryptoKey(key, { name, length: key.symmetricKeySize * 8, hash }, usages, extractable);
+    }
+    if (name === 'AES-GCM') {
+      if (format !== 'raw' && format !== 'jwk') throw new DOMException(`Unable to import AES-GCM key with format ${format}`, 'NotSupportedError');
+      const key = format === 'jwk' ? createSecretKey(keyData.k, 'base64url') : createSecretKey(viewOf(keyData));
+      if (key.symmetricKeySize !== 16 && key.symmetricKeySize !== 24 && key.symmetricKeySize !== 32) throw new DOMException('Invalid key length', 'DataError');
+      return cryptoKey(key, { name, length: key.symmetricKeySize * 8 }, usages, extractable);
     }
     let key;
     try {
@@ -1314,6 +1362,14 @@ export const subtle = {
     if (format === 'raw' && keyObject.type === 'public') return toArrayBuffer(algorithm.name === 'ECDSA' ? keyBytes(keyObjects.get(keyObject), kOctets, 'pub') : keyBytes(keyObjects.get(keyObject), kRawPublic));
     if (format === 'spki' || format === 'pkcs8') return toArrayBuffer(keyObject.export({ format: 'der', type: format }));
     throw new DOMException(`Unable to export ${algorithm.name} key with format ${format}`, 'NotSupportedError');
+  },
+
+  async encrypt(algorithm, key, data) {
+    return encryptDecrypt(algorithm, key, data, 'encrypt');
+  },
+
+  async decrypt(algorithm, key, data) {
+    return encryptDecrypt(algorithm, key, data, 'decrypt');
   },
 
   async sign(algorithm, key, data) {
