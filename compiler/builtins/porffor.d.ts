@@ -155,7 +155,7 @@ declare global {
     IsConstructor(argument: unknown): boolean;
   }
 
-  const __Porffor_promise_create: () => any[];
+  const __Porffor_promise_create: () => Promise;
   const __Promise_resolve: (value: any) => Promise<any>;
 
   type i32 = number;
@@ -166,4 +166,11 @@ declare global {
   type BooleanObject = Boolean;
   type NumberObject = Number;
   type StringObject = String;
+
+  interface Set<T = any> {}
+  interface Map<K = any, V = any> {}
+  interface WeakSet<T = any> {}
+  interface WeakMap<K = any, V = any> {}
+  interface WeakRef<T = any> {}
+  interface Promise<T = any> {}
 }
