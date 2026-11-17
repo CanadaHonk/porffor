@@ -737,6 +737,8 @@ export const __Porffor_object_hasInheritedEnumerable = (obj: any): i32 => {
 // 14.7.5.9 EnumerateObjectProperties (O)
 export const __Porffor_object_forInKeys = (obj: any): any[] => {
   const out: any[] = __Porffor_object_ownKeys(obj, 0b101);
+  if (!__Porffor_object_hasInheritedEnumerable(obj)) return out;
+
   const seen: any[] = __Porffor_object_ownKeys(obj, 0b001);
   let proto: any = Porffor.object.getPrototypeWithHidden(obj, Porffor.type(obj));
   while (proto != null) {
