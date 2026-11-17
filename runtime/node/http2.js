@@ -41,7 +41,8 @@ for (const name of headers) constants['HTTP2_HEADER_' + name.replace(':', '').re
 for (const method of methods) constants['HTTP2_METHOD_' + method.replaceAll('-', '_')] = method;
 for (const code in STATUS_CODES) constants['HTTP_STATUS_' + (code === '418' ? 'TEAPOT' : STATUS_CODES[code].toUpperCase().replace(/[^A-Z]+/g, '_'))] = +code;
 
-// for instanceof checks (@hono/node-server): there is no http2 server to make one
+// for instanceof checks (@hono/node-server, @astrojs/node): there is no http2 server to make one
 export class Http2ServerRequest {}
+export class Http2ServerResponse {}
 
-export default { constants, Http2ServerRequest };
+export default { constants, Http2ServerRequest, Http2ServerResponse };
