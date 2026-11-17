@@ -105,6 +105,7 @@ const cReservedNames = new Set([
   'stat', 'fstat', 'lstat', 'fstatat', 'chmod', 'fchmod', 'fchmodat', 'mkdir', 'mkdirat',
   'mkfifo', 'mknod', 'umask', 'futimens', 'utimensat',
   'wait', 'waitpid', 'wait3', 'wait4',
+  'select', 'pselect',
   // time.h continued
   'mktime', 'ctime', 'asctime', 'strftime', 'strptime', 'difftime', 'timegm', 'timelocal',
   'tzset', 'daylight', 'timezone', 'tzname', 'nanosleep', 'clock_gettime', 'clock_settime',
