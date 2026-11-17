@@ -75,6 +75,7 @@ import querystring from './querystring.js' with { type: 'text' };
 import readline from './readline.js' with { type: 'text' };
 import readlinePromises from './readline/promises.js' with { type: 'text' };
 import stream from './stream.js' with { type: 'text' };
+import streamConsumers from './stream/consumers.js' with { type: 'text' };
 import streamPromises from './stream/promises.js' with { type: 'text' };
 import streamWeb from './stream/web.js' with { type: 'text' };
 import stringDecoder from './string_decoder.js' with { type: 'text' };
@@ -169,6 +170,7 @@ export default {
   [root + 'readline.js']: readline,
   [root + 'readline/promises.js']: readlinePromises,
   [root + 'stream.js']: stream,
+  [root + 'stream/consumers.js']: streamConsumers,
   [root + 'stream/promises.js']: streamPromises,
   [root + 'stream/web.js']: streamWeb,
   [root + 'string_decoder.js']: stringDecoder,
