@@ -89,6 +89,23 @@ export const __Porffor_json_serialize = (_buffer: i32, value: any, depth: i32, s
   if (value === true) return __Porffor_bytestring_bufferStr(buffer, 'true');
   if (value === false) return __Porffor_bytestring_bufferStr(buffer, 'false');
 
+  if (Porffor.type(value) == Porffor.TYPES.bytestring) {
+    // nothing to escape copies whole
+    const ptr: i32 = Porffor.IR.ptr(value);
+    const len: i32 = value.length;
+    let i: i32 = 0;
+    for (; i < len; i++) {
+      const c: i32 = Porffor.IR.loadU8(ptr + i, 4);
+      if (Porffor.fastOr(c < 0x20, c == 0x22, c == 0x5c)) break;
+    }
+
+    if (i == len) {
+      buffer = __Porffor_bytestring_bufferChar(buffer, 34);
+      buffer = __Porffor_bytestring_bufferStr(buffer, value as bytestring);
+      return __Porffor_bytestring_bufferChar(buffer, 34);
+    }
+  }
+
   if ((Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring) {
     buffer = __Porffor_bytestring_bufferChar(buffer, 34); // start "
 
