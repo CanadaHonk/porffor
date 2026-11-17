@@ -1545,24 +1545,19 @@ export const __Porffor_bytestring_append2Char = (str: bytestring, char1: i32, ch
 
 // fast appending padded number
 export const __Porffor_bytestring_appendPadNum = (str: bytestring, num: number, len: number): i32 => {
-  let numStr: bytestring = num.toFixed(0);
+  let n: i32 = num;
+  let digits: i32 = 1;
+  for (let rest: i32 = n; rest >= 10; rest = Math.trunc(rest / 10)) digits++;
+  if (digits > len) len = digits;
 
-  let strPtr: i32 = Porffor.IR.ptr(str) + str.length;
-
-  let numStrLen: i32 = numStr.length;
-  const strPtrEnd: i32 = strPtr + (len - numStrLen);
-  while (strPtr < strPtrEnd) {
-    Porffor.IR.storeU8(strPtr++, 4, 48);
+  const start: i32 = Porffor.IR.ptr(str) + str.length;
+  let ptr: i32 = start + len;
+  while (ptr > start) {
+    Porffor.IR.storeU8(--ptr, 4, 48 + n % 10);
+    n = Math.trunc(n / 10);
   }
 
-  let numPtr: i32 = Porffor.IR.ptr(numStr);
-  const numPtrEnd: i32 = numPtr + numStrLen;
-  while (numPtr < numPtrEnd) {
-    Porffor.IR.storeU8(strPtr++, 4, Porffor.IR.loadU8(numPtr++, 4));
-  }
-
-  str.length = strPtr - Porffor.IR.ptr(str);
-
+  str.length += len;
   return 1;
 };
 
