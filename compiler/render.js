@@ -3341,6 +3341,12 @@ static void porf_gc_scan_body(i32 body, i32 type) {
     case ${TYPES.array}:
       porf_gc_mark_array_like(body);
       break;
+    case ${TYPES.__porffor_rope}: {
+      const u32 buf = *(u32*)(MEM + body + 4), flat = *(u32*)(MEM + body + 8);
+      porf_gc_mark_body(buf);
+      if (flat != 0) porf_gc_mark_js((f64)flat, *(u32*)(MEM + buf + 8) ? ${TYPES.string} : ${TYPES.bytestring});
+      break;
+    }
     case ${TYPES.promise}:
       porf_gc_mark_promise_body(body);
       break;
@@ -4781,6 +4787,7 @@ ${sti}jsval porf_arr_get(u32 a, u32 i) {
   return porf_unpack(b);
 }
 
+
 ${st}u32 porf_arr_grow(u32 a, i32 need) {
   i32 cap = PORF_ARR_CAP(a);
   if (need <= cap) return PORF_ARR_ENT(a);
@@ -4941,6 +4948,76 @@ ${st}jsval porf_str_concat(jsval a, jsval b) {
     memcpy(out, MEM + pb + 4, (size_t)lb * 2);
   }
   return porf_box((f64)s, ${TYPES.string});
+}
+
+// rope:   [len u32 @0][buf u32 @4][flat u32 @8], the first len chars of buf, flat once made
+// buffer: [used u32 @0][cap u32 @4][wide u32 @8][chars @12], the newest view appends in place
+${st}u32 porf_rope_buffer(u32 cap, u32 wide) {
+  const u32 buf = porf_alloc(12 + (cap << wide), 0);
+  *(u32*)(MEM + buf + 4) = cap;
+  *(u32*)(MEM + buf + 8) = wide;
+  return buf;
+}
+
+${st}jsval porf_rope_new(u32 len, u32 buf) {
+  volatile u32 keep_buf = buf;
+  const u32 r = porf_alloc(12, ${TYPES.__porffor_rope});
+  *(u32*)(MEM + r) = len;
+  *(u32*)(MEM + r + 4) = keep_buf;
+  *(u32*)(MEM + r + 8) = 0;
+  return porf_box((f64)r, ${TYPES.__porffor_rope});
+}
+
+${sti}void porf_rope_copy(u32 buf, const u8* from, u32 n, u32 from_wide) {
+  const u32 used = *(u32*)(MEM + buf), wide = *(u32*)(MEM + buf + 8);
+  if (wide == from_wide) {
+    memcpy(MEM + buf + 12 + (used << wide), from, (size_t)n << wide);
+  } else {
+    u16* out = (u16*)(MEM + buf + 12) + used;
+    for (u32 i = 0; i < n; i++) out[i] = from[i];
+  }
+  *(u32*)(MEM + buf) = used + n;
+}
+
+${st}jsval porf_rope_append(jsval r, jsval s) {
+  volatile u32 keep_r = (u32)r.val, keep_s = (u32)s.val;
+  const u32 pr = keep_r, ps = keep_s;
+  const u32 len = *(u32*)(MEM + pr), ls = *(u32*)(MEM + ps), wide = s.type == ${TYPES.string};
+  if (ls == 0) return r;
+  u32 buf = *(u32*)(MEM + pr + 4);
+  const u32 buf_wide = *(u32*)(MEM + buf + 8);
+  if (len != *(u32*)(MEM + buf) || len + ls > *(u32*)(MEM + buf + 4) || wide > buf_wide) {
+    const u32 grown = porf_rope_buffer((len + ls) * 2, wide | buf_wide);
+    porf_rope_copy(grown, MEM + buf + 12, len, buf_wide);
+    buf = grown;
+  }
+  volatile u32 keep_buf = buf;
+  porf_rope_copy(buf, MEM + ps + 4, ls, wide);
+  return porf_rope_new(len + ls, keep_buf);
+}
+
+// a + b of strings for x[k] += b: long results become ropes
+${st}jsval porf_rope_add(jsval a, jsval b) {
+  volatile u32 keep_a = (u32)a.val, keep_b = (u32)b.val;
+  if (a.type != ${TYPES.__porffor_rope}) {
+    if (*(u32*)(MEM + keep_a) + *(u32*)(MEM + keep_b) < 1024) return porf_str_concat(a, b);
+    a = porf_rope_append(porf_rope_new(0, porf_rope_buffer(0, 0)), a);
+  }
+  return porf_rope_append(a, b);
+}
+
+${st}jsval porf_rope_flat(jsval r) {
+  volatile u32 keep_r = (u32)r.val;
+  const u32 pr = keep_r, wide = *(u32*)(MEM + *(u32*)(MEM + pr + 4) + 8);
+  if (*(u32*)(MEM + pr + 8) == 0) {
+    const u32 len = *(u32*)(MEM + pr);
+    const u32 flat = porf_alloc(4 + (len << wide), wide ? ${TYPES.string} : ${TYPES.bytestring});
+    *(u32*)(MEM + flat) = len;
+    memcpy(MEM + flat + 4, MEM + *(u32*)(MEM + pr + 4) + 12, (size_t)len << wide);
+    *(u32*)(MEM + pr + 8) = flat;
+    porf_gc_barrier(pr, ${TYPES.__porffor_rope});
+  }
+  return porf_box((f64)*(u32*)(MEM + pr + 8), wide ? ${TYPES.string} : ${TYPES.bytestring});
 }
 
 ${sti}i32 porf_str_eq(jsval a, jsval b) {

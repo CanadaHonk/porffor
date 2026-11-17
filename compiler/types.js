@@ -82,3 +82,6 @@ export const ITERATOR_TYPES = [ 'IteratorHelper', 'WrapForValidIterator', 'Array
   registerInternalType(`__Porffor_${x}`);
   return TYPES[`__porffor_${x.toLowerCase()}`];
 });
+
+// a string built by obj[key] += s, held only by dictionary objects (see porf_rope_append)
+registerInternalType('__Porffor_Rope');

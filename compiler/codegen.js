@@ -1053,6 +1053,24 @@ const appendOp = (scope, left, right, leftType, rightType) => {
     () => assign(scope, out, coerceValue(performOp(scope, '+', l, r, leftType, rightType), T.jsval)));
   return out;
 };
+// obj[key] += y: strings may become or extend ropes (see porf_rope_add)
+const ropeMemberAppend = (scope, obj, key, hash, right, strict, set) => {
+  const keyHash = hash != null ? Const(T.i32, hash) : reuse(scope, builtinCall(scope, '__Porffor_object_hash', [ key ], T.i32));
+  const ic = hash != null && Prefs.ic && !runsOnce(scope) ? icSlot(scope) : Const(T.i32, 0);
+  const cur = reuse(scope, builtinCall(scope, '__Porffor_object_getAppend', [ obj, key, keyHash, ic ]));
+  const r = reuse(scope, coerceValue(generate(scope, right), T.jsval));
+  const t = JvType(cur);
+  const value = tmp(scope, T.jsval);
+  emitIf(scope, Bin('||', T.i32, Bin('==', T.i32, Bin('|', T.i32, t, Const(T.i32, 0b10000000)), Const(T.i32, TYPES.bytestring)), Bin('==', T.i32, t, Const(T.i32, TYPES.__porffor_rope))),
+    () => assign(scope, value, builtinCall(scope, '__Porffor_rope_add', [ cur, r ])),
+    () => assign(scope, value, coerceValue(performOp(scope, '+', cur, r, null, getNodeType(scope, right)), T.jsval)));
+  const out = tmp(scope, T.jsval);
+  emitIf(scope, Bin('==', T.i32, JvType(value), Const(T.i32, TYPES.__porffor_rope)),
+    () => assign(scope, out, builtinCall(scope, '__Porffor_object_setAppend', [ obj, key, keyHash, value, Const(T.i32, strict ? 1 : 0) ])),
+    () => assign(scope, out, coerceValue(set(value), T.jsval)));
+  return out;
+};
+
 // reads of an append target seal it: the string may be held elsewhere from then on
 const sealAppended = (decl, value) => {
   if (!decl._resolvedVariable?.node._appended || decl._lengthRead || value[N_TYPE] !== T.jsval) return value;
@@ -3623,13 +3641,16 @@ const generateAssign = (scope, decl, valueUnused = false) => {
 
     const genericMemberSet = () => {
       const key = reuse(scope, keyOf());
-      const value = op === '=' ? simpleValue
+      const set = value => {
+        if (hash == null) return builtinCall(scope, setBuiltin, [ obj, key, value ]);
+        if (Prefs.ic && !runsOnce(scope) && (objectKnown == null || objectKnown === TYPES.object)) return icSet(scope, obj, key, value, hash, icSlot(scope), object.type === 'ThisExpression');
+        return builtinCall(scope, setBuiltin + '_withHash', [ obj, key, value, Const(T.i32, hash) ]);
+      };
+      if (op === '+' && knownType(scope, getNodeType(scope, decl.right)) !== TYPES.number) return ropeMemberAppend(scope, obj, key, hash, decl.right, setBuiltin === '__Porffor_object_setStrict', set);
+      return set(op === '=' ? simpleValue
         : performOp(scope, op,
             hash != null ? builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ]) : builtinCall(scope, '__Porffor_object_get', [ obj, key ]),
-            generate(scope, decl.right), null, getNodeType(scope, decl.right));
-      if (hash == null) return builtinCall(scope, setBuiltin, [ obj, key, value ]);
-      if (Prefs.ic && !runsOnce(scope) && (objectKnown == null || objectKnown === TYPES.object)) return icSet(scope, obj, key, value, hash, icSlot(scope), object.type === 'ThisExpression');
-      return builtinCall(scope, setBuiltin + '_withHash', [ obj, key, value, Const(T.i32, hash) ]);
+            generate(scope, decl.right), null, getNodeType(scope, decl.right)));
     };
 
     const arraySet = () => {
@@ -3694,7 +3715,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       exprStmt(scope, res);
       return valUndefined();
     }
-    return res;
+    return op === '+' ? builtinCall(scope, '__Porffor_rope_flat', [ res ]) : res;
   }
 
   if ((type === 'ArrayPattern' || type === 'ObjectPattern') && op === '=') {

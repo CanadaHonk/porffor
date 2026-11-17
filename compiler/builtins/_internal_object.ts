@@ -450,6 +450,50 @@ export const __Porffor_object_slotValue = (obj: any, i: i32): any => {
   return Porffor.as(Porffor.IR.loadF64(__Porffor_object_valueAt(values, i), 0), Porffor.IR.loadU8(__Porffor_object_typeAt(values, i), 0));
 };
 
+
+export const __Porffor_rope_flat = (value: any): any => {
+  if (Porffor.type(value) != Porffor.TYPES.__porffor_rope) return value;
+  let out: any = value;
+  Porffor.c`out = porf_rope_flat(value);`;
+  return out;
+};
+
+// obj[key] += b: strings may become or extend ropes, which only own data properties keep
+export const __Porffor_rope_add = (a: any, b: any): any => {
+  if ((Porffor.type(b) | 0b10000000) == Porffor.TYPES.bytestring) {
+    let out: any = a;
+    Porffor.c`out = porf_rope_add(a, b);`;
+    return out;
+  }
+  return __Porffor_add(__Porffor_rope_flat(a), b);
+};
+
+// a dictionary's rope as stored, shaped objects never hold one so they take the inline cache
+export const __Porffor_object_getAppend = (obj: any, key: any, hash: i32, ic: i32): any => {
+  if (Porffor.fastAnd(Porffor.type(obj) == Porffor.TYPES.object, Porffor.IR.ptr(obj) != 0) && Porffor.IR.loadU16(obj, 6) == 0) {
+    const slot: i32 = __Porffor_object_find(obj, key, hash);
+    const entryPtr: i32 = Porffor.IR.loadI32(obj, 12) + (slot - 1) * 20;
+    if (slot != 0 && (Porffor.IR.loadU8(entryPtr, 16) & 0b0001) == 0) return Porffor.as(Porffor.IR.loadUnF64(entryPtr, 8), Porffor.IR.loadU8(entryPtr, 17));
+  }
+  if (ic != 0) return __Porffor_object_get_ic(obj, key, hash, ic);
+  return __Porffor_object_get_withHash(obj, key, hash);
+};
+
+export const __Porffor_object_setAppend = (obj: any, key: any, hash: i32, value: any, strict: i32): any => {
+  if (Porffor.fastAnd(Porffor.type(obj) == Porffor.TYPES.object, Porffor.IR.ptr(obj) != 0)) {
+    const slot: i32 = __Porffor_object_find(obj, key, hash);
+    if (Porffor.fastAnd(slot != 0, (__Porffor_object_slotFlags(obj, slot - 1) & 0b1001) == 0b1000)) {
+      // only dictionaries hold ropes, so shaped reads and inline caches never check
+      __Porffor_object_dictionary(obj);
+      __Porffor_object_slotWrite(obj, slot - 1, value);
+      return value;
+    }
+  }
+  value = __Porffor_rope_flat(value);
+  if (strict) return __Porffor_object_setStrict_withHash(obj, key, value, hash);
+  return __Porffor_object_set_withHash(obj, key, value, hash);
+};
+
 export const __Porffor_object_slotWrite = (obj: any, i: i32, value: any): void => {
   if (Porffor.IR.loadU16(obj, 6) == 0) {
     const entryPtr: i32 = Porffor.IR.loadI32(obj, 12) + i * 20;
@@ -630,7 +674,11 @@ export const __Porffor_object_fastAdd = (obj: any, key: any, value: any, flags: 
 };
 
 export const __Porffor_object_readValue = (entryPtr: i32): any => {
-  return Porffor.as(Porffor.IR.loadUnF64(entryPtr, 8), Porffor.IR.loadU8(entryPtr, 17));
+  const value: any = Porffor.as(Porffor.IR.loadUnF64(entryPtr, 8), Porffor.IR.loadU8(entryPtr, 17));
+  if (Porffor.comptime.flag`hasFunc.__Porffor_rope_add`) {
+    if (Porffor.type(value) == Porffor.TYPES.__porffor_rope) return __Porffor_rope_flat(value);
+  }
+  return value;
 };
 
 // store underlying (real) objects for hidden types
