@@ -1426,7 +1426,8 @@ const irBuiltinHelpers = (scope, name, def) => ({
       const seen = new Set();
       // after the first sync, only bindings whose value changed since they were last written
       const first = [], changed = [];
-      const push = (key, value, appended = false) => {
+      // bindings only made by globalThis.x writes are not props until assigned
+      const push = (key, value, appended = false, unset = false) => {
         seen.add(key);
         const exposed = preludeGlobals.get(key);
         if (exposed === false) return;
@@ -1436,8 +1437,10 @@ const irBuiltinHelpers = (scope, name, def) => ({
             builtinCall(scope, '__Porffor_object_set', [ objJv, makeString(scope, key), read ]),
           Assign(builtinGlobal('#gsync_' + key, T.jsval), value)
         ];
-        first.push(...write);
-        changed.push(If(Bin('!=', T.u64, JvBits(value), JvBits(builtinGlobal('#gsync_' + key, T.jsval))), write, null));
+        const update = If(Bin('!=', T.u64, JvBits(value), JvBits(builtinGlobal('#gsync_' + key, T.jsval))), write, null);
+        if (unset) first.push(update);
+          else first.push(...write);
+        changed.push(update);
       };
 
       for (const name in topLevelFunc?.namedFuncBindings ?? {}) {
@@ -1450,7 +1453,7 @@ const irBuiltinHelpers = (scope, name, def) => ({
       for (const name in globals) {
         if (name.includes('#') || seen.has(name) || globals[name].metadata?.kind !== 'var') continue;
         const type = globals[name].type ?? T.jsval;
-        push(name, type === T.jsval ? Global(name, T.jsval) : valNumber(Global(name, type)), globals[name].metadata.appended);
+        push(name, type === T.jsval ? Global(name, T.jsval) : valNumber(Global(name, type)), globals[name].metadata.appended, globals[name].metadata.globalThisWrite);
       }
 
       const done = builtinGlobal('#gsync', T.i32);
@@ -3612,8 +3615,9 @@ const generateAssign = (scope, decl, valueUnused = false) => {
 
     if (globalThisName) {
       // globalThis.x writes both the global binding and the object property
+      const declared = globals[globalThisName]?.metadata?.kind === 'var';
       allocVar(scope, globalThisName, true);
-      setVarMetadata(scope, globalThisName, true, { kind: 'var' });
+      if (!declared) setVarMetadata(scope, globalThisName, true, { kind: 'var', globalThisWrite: true });
 
       const v = simpleValue;
       assign(scope, Global(globalThisName, T.jsval), v);
