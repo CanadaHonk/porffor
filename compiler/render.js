@@ -2582,10 +2582,12 @@ static u32 porf_gc_free_page_pop(void) {
 }
 
 static u64 porf_gc_settled_live(void);
+static i64 porf_gc_survival;
 static int porf_gc_full_due(i64 additional_claimed) {
   const u64 live_limit = porf_gc_last_live_bytes > 268435456ull ? porf_gc_last_live_bytes : 268435456ull;
   // settled, so what a full gc keeps alive of in-flight work does not raise the limit for the next one
-  u64 promoted_limit = porf_gc_settled_live() * 2u;
+  // what little survives a nursery mostly dies soon after, so a full gc pays off sooner
+  u64 promoted_limit = porf_gc_settled_live() * (porf_gc_survival > 25 ? 2u : 1u);
   if (promoted_limit > 536870912ull) promoted_limit = 536870912ull;
   const i64 claimed = porf_gc_claimed_since_full + additional_claimed;
   return claimed > (i64)live_limit || porf_gc_promoted_since_full > (i64)promoted_limit ||
