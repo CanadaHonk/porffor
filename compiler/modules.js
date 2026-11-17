@@ -1474,16 +1474,14 @@ export default (entrySource, entryFile, opts = {}) => {
     }
 
     for (const x of literalsOf(mod)) {
-      // '/x' is absolute, or joined onto a directory (path.join(dir, '/x'))
       const paths = x[0] === '.' ? [ joinPath(dirname(mod.file), x) ] : [];
-      if (x[0] === '/') paths.push(x);
       // a template like `./commands/${name}.js` may name any matching file in its directory
       const hole = x.indexOf('${');
       if (x[0] === '.' && hole !== -1 && x.lastIndexOf('/', hole) !== -1) {
         const dir = joinPath(dirname(mod.file), x.slice(0, x.lastIndexOf('/', hole) + 1)), suffix = x.slice(x.lastIndexOf('}') + 1);
         if (isDir(dir)) for (const f of fs.readdirSync(dir)) if (f.endsWith(suffix) && /\.[cm]?[jt]s$/.test(f)) paths.push(joinPath(dir, f));
       }
-      // a builtin's name means the builtin
+      // '/x' is joined onto a directory, a builtin's name means the builtin
       const name = x.replace(/^\//, '');
       if (plainPath(name) && !(runtime && (RUNTIME_ROOT + '/node/' + name + '.js') in runtime)) for (const dir of dirs) paths.push(joinPath(dir, name));
       for (const p of paths) {
