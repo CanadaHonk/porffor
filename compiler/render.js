@@ -241,8 +241,27 @@ static int porf_data_file(off_t *off) {
 #ifdef __APPLE__
   uint32_t size = sizeof(path);
   if (_NSGetExecutablePath(path, &size) != 0) return -1;
-  // __TEXT starts the file
+  // __TEXT starts this architecture's image: the whole file, or its slice of a universal binary
   *off = (off_t)(porf_data - (const u8*)&_mh_execute_header);
+  const int fd = open(path, O_RDONLY);
+  uint32_t fat[2];
+  if (fd >= 0 && pread(fd, fat, 8, 0) == 8 && fat[0] == 0xbebafecau) {
+    // big-endian fat_arch entries: cputype, cpusubtype, offset, size, align
+    int found = 0;
+    for (uint32_t i = 0, n = __builtin_bswap32(fat[1]); i < n && !found; i++) {
+      uint32_t arch[5];
+      if (pread(fd, arch, 20, 8 + 20 * (off_t)i) != 20) break;
+      if ((int)__builtin_bswap32(arch[0]) == _mh_execute_header.cputype) {
+        *off += __builtin_bswap32(arch[2]);
+        found = 1;
+      }
+    }
+    if (!found) {
+      close(fd);
+      return -1;
+    }
+  }
+  return fd;
 #else
   // the mapping holding porf_data: its start, file offset and path
   FILE *maps = fopen("/proc/self/maps", "r");
