@@ -18,6 +18,12 @@ export const linkFlags = libs => {
     if (headers) spec = spec.slice(8);
     // built from source by the native path
     if (spec === 'uws' || spec === 'uws-ssl' || spec === 'ada') continue;
+    // macOS frameworks have no .pc files; "needed" survives -dead_strip_dylibs when only objc_getClass reaches them
+    if (spec.startsWith('framework ')) {
+      const flag = `-Wl,-needed_framework,${spec.slice(10).trim()}`;
+      if (process.platform === 'darwin' && !ldflags.includes(flag)) ldflags.push(flag);
+      continue;
+    }
     const [ lib, preferStatic ] = spec.startsWith('static ') ? [ spec.slice(7), true ] : [ spec, false ];
     let flags;
     try {
