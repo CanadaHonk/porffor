@@ -412,7 +412,10 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
   const outerWide: boolean = __Porffor_json_wide;
   const outerLimit: i32 = __Porffor_json_bufLimit;
   __Porffor_json_wide = false;
+  // strings and numbers know their size up front, escapes past it take the retry below
   let cap: i32 = 4096;
+  if ((Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring) cap = (value as bytestring).length + 18;
+    else if (Porffor.type(value) == Porffor.TYPES.number) cap = 32;
   let buffer: bytestring = Porffor.malloc(6 + cap);
   __Porffor_json_bufLimit = (buffer as i32) + 4 + cap;
   let out: i32 = __Porffor_json_serialize(buffer, value, 0, space, Porffor.array.new(0));
@@ -431,7 +434,16 @@ export const __JSON_stringify = (value: any, replacer: any, space: any) => {
 
   const len: i32 = out - (buffer as i32);
   buffer.length = len;
-  if (!hasWide) return buffer;
+  if (!hasWide) {
+    if (len * 4 >= cap) return buffer;
+    // a small result is copied out so the rest of the buffer can be collected
+    const small: bytestring = Porffor.malloc(6 + len);
+    const src: i32 = buffer as i32;
+    const dst: i32 = small as i32;
+    Porffor.c`memcpy(MEM + (u32)dst + 4, MEM + (u32)src + 4, (u32)len);`;
+    small.length = len;
+    return small;
+  }
 
   // widen uppercase \uXXXX escapes past latin-1
   const wide: string = Porffor.malloc(4 + len * 2);
