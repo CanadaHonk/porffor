@@ -66,7 +66,7 @@ const respond = (slot, method, response) => {
 
 export const serve = options => {
   const fetch = options.fetch;
-  const port = Number(options.port ?? 3000);
+  const port = Number(options.port ?? process.env.PORT ?? 3000);
   const host = options.hostname ?? '';
   const server = { port, hostname: host || '0.0.0.0', development: false, pendingRequests: 0 };
 
