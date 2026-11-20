@@ -243,12 +243,16 @@ const unitOf = scope => scope.internal ? 'builtins' : scope.unit ?? 'main';
 const dataSeg = (unit, key, bytes) => {
   if (!modular) unit = 'main';
   if (key != null) {
-    const cached = dataCache.get(unit + '\0' + key);
+    // a builtin's copy of a string too, so keys match by pointer
+    const cached = dataCache.get(unit + '\0' + key) ?? (key.startsWith('#str:') ? dataCache.get('builtins\0' + key) : undefined);
     if (cached !== undefined) return cached;
   }
   const id = data.push(bytes) - 1;
   dataUnits[id] = unit;
-  if (key != null) dataCache.set(unit + '\0' + key, id);
+  if (key != null) {
+    dataCache.set(unit + '\0' + key, id);
+    dataKeys[id] = key;
+  }
   return id;
 };
 const dataRef = (unit, key, bytes) => DataRef(dataSeg(unit, key, bytes));
@@ -1429,9 +1433,17 @@ const irBuiltinHelpers = (scope, name, def) => ({
   hasFunc: name => funcIndex[name] != null,
   onFinalize,
   onLateFinalize,
+  // strings are shared by content (with the program's too), other data (static arrays, scratch) stays the builtin's own
   remapData: id => {
     if (!def.data || !Object.hasOwn(def.data, id)) throw new Error(`${name}: missing precompiled data segment ${id}`);
-    return dataSeg('builtins', `builtin:${name}:${id}`, def.data[id]);
+    const width = def.dataStrings?.[id], bytes = def.data[id];
+    let key = `builtin:${name}:${id}`;
+    if (width) {
+      let str = '';
+      for (let i = 4; i < bytes.length; i += width === 'b' ? 1 : 2) str += String.fromCharCode(width === 'b' ? bytes[i] : bytes[i] | (bytes[i + 1] << 8));
+      key = `#str:${width}:${str}`;
+    }
+    return dataSeg('builtins', key, bytes);
   },
   remapAllocSite: id => id,
   global: builtinGlobal,
@@ -6664,7 +6676,7 @@ const inferDirectCallParamTypes = root => {
   }
 };
 
-let globals, funcs, funcsByIndex, funcIndex, funcNameCollisions, currentFuncIndex, depth, data, dataUnits, dataCache, modular, rawHead, linkLibs, builtinGlobalInits, includedBuiltinGlobalInits, usedTypes, globalInfer, builtinFuncs, builtinVars, builtinPrototypeFuncs, builtinStaticFuncs, builtinPrototypeGetters, builtinPrototypeObjectGetters, topLevelFunc;
+let globals, funcs, funcsByIndex, funcIndex, funcNameCollisions, currentFuncIndex, depth, data, dataUnits, dataKeys, dataCache, modular, rawHead, linkLibs, builtinGlobalInits, includedBuiltinGlobalInits, usedTypes, globalInfer, builtinFuncs, builtinVars, builtinPrototypeFuncs, builtinStaticFuncs, builtinPrototypeGetters, builtinPrototypeObjectGetters, topLevelFunc;
 
 export default (program, opts = {}) => {
   const entryName = opts.entryName ?? '#main';
@@ -6676,6 +6688,7 @@ export default (program, opts = {}) => {
   depth = [];
   data = [];
   dataUnits = [];
+  dataKeys = [];
   dataCache = new Map();
   modular = !!program._units;
   rawHead = [];
@@ -6886,6 +6899,7 @@ export default (program, opts = {}) => {
     funcs: renderFuncs,
     data,
     dataUnits,
+    dataKeys,
     units: program._units ?? null,
     linkLibs: [ ...linkLibs ],
     globals: renderGlobals,

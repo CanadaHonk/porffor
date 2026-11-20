@@ -2,24 +2,9 @@ import type {} from './porffor.d.ts';
 
 export const __Porffor_strcmp = (a: any, b: any): boolean => {
   // a and b must be string or bytestring
-  // fast path: check if pointers are equal
-  if (Porffor.IR.ptr(a) == Porffor.IR.ptr(b)) return true;
-
-  const al: i32 = Porffor.IR.loadI32(a, 0);
-  const bl: i32 = Porffor.IR.loadI32(b, 0);
-
-  // fast path: check if lengths are inequal
-  if (al != bl) return false;
-
-  const aBytes: boolean = Porffor.type(a) == Porffor.TYPES.bytestring;
-  const bBytes: boolean = Porffor.type(b) == Porffor.TYPES.bytestring;
-  for (let i: i32 = 0; i < al; i++) {
-    const ac: i32 = aBytes ? Porffor.IR.loadU8(Porffor.IR.ptr(a) + i, 4) : Porffor.IR.loadU16(Porffor.IR.ptr(a) + i * 2, 4);
-    const bc: i32 = bBytes ? Porffor.IR.loadU8(Porffor.IR.ptr(b) + i, 4) : Porffor.IR.loadU16(Porffor.IR.ptr(b) + i * 2, 4);
-    if (ac != bc) return false;
-  }
-
-  return true;
+  let eq: i32 = 0;
+  Porffor.c`eq = porf_str_eq(a, b);`;
+  return eq != 0;
 };
 
 export const __Porffor_strcat = (a: any, b: any): any => {

@@ -232,6 +232,8 @@ export const __Porffor_object_shapeTransition = (shape: i32, key: any, hash: i32
   }
 
   if (shapeCount >= 65535) return 0;
+  // a key whose hash the shape already has makes a dictionary, shapes can't tell them apart
+  if (Porffor.fastAnd(shape != 2, shape != 3)) if (__Porffor_object_shapeFind(shape, hash) != 0) return 0;
   // prototypes without a constructor get a root from their second object, capped so Object.create(obj) can't exhaust shapes
   if (shape == 2) if (Porffor.IR.ptr(key) != 0) if (__Porffor_object_find(key, 'constructor', __Porffor_object_hash('constructor')) == 0) {
     const protoFlags: i32 = Porffor.IR.loadU8(key, 4);
@@ -413,7 +415,13 @@ export const __Porffor_object_find = (obj: any, key: any, hash: i32): i32 => {
       return 0;
     }
   }
-  return __Porffor_object_shapeFind(shape, hash);
+  // shapes find keys by hash, which another key can share (no shape holds both)
+  const i: i32 = __Porffor_object_shapeFind(shape, hash);
+  if (i != 0) {
+    const d: i32 = __Porffor_object_shapeDescriptors(shape) + 8 + (i - 1) * 12;
+    if (Porffor.IR.loadI32(d, 4) != Porffor.IR.ptr(key)) if (!Porffor.strcmp(key, Porffor.as(Porffor.IR.loadI32(d, 4), Porffor.IR.loadU8(d, 9)))) return 0;
+  }
+  return i;
 };
 
 export const __Porffor_object_slotFlags = (obj: any, i: i32): i32 => {
@@ -1223,18 +1231,22 @@ export const __Porffor_object_lookupEntry = (obj: any, target: any, targetHash: 
       const i: i32 = Porffor.IR.loadU16(__Porffor_object_indexSlot(index, slot), 0);
       if (i == 0) return 0;
       const entryPtr: i32 = ptr + (i - 1) * 20;
-      if (Porffor.IR.loadI32(entryPtr, 0) == targetHash) return entryPtr;
+      if (Porffor.IR.loadI32(entryPtr, 0) == targetHash) if (__Porffor_object_entryIs(entryPtr, target)) return entryPtr;
       slot = (slot + 1) & mask;
     }
   }
 
   for (; ptr < endPtr; ptr += 20) {
-    if (Porffor.IR.loadI32(ptr, 0) == targetHash) {
-      return ptr;
-    }
+    if (Porffor.IR.loadI32(ptr, 0) == targetHash) if (__Porffor_object_entryIs(ptr, target)) return ptr;
   }
 
   return 0;
+};
+
+// another key can share the hash
+export const __Porffor_object_entryIs = (entryPtr: i32, target: any): boolean => {
+  if (Porffor.IR.loadI32(entryPtr, 4) == Porffor.IR.ptr(target)) return true;
+  return Porffor.strcmp(target, Porffor.as(Porffor.IR.loadI32(entryPtr, 4), Porffor.IR.loadU8(entryPtr, 18)));
 };
 
 export const __Porffor_array_propertyKeyIndex = (key: any): i32 => {
@@ -1382,7 +1394,7 @@ export const __Porffor_object_getWithReceiver = (obj: any, key: any, receiver: a
 //  0-3: own data hits, direct mapped by shape & 3, each (shape << 16) | slot index
 //  4-7, 8-11: prototype hits [receiver shape, holder (0: absent), (holder shape << 16) | holder slot index, epoch]
 //   holder shape only for data slots of shaped holders, epoch -1 for the receiver's own prototype, else icEpoch
-// icMega: misses shared by all sites, the same 4 words (epoch -2: own) then the key hash
+// icMega: misses shared by all sites, the same 4 words (epoch -2: own) then the key pointer, as keys can share a hash
 let icMega: i32 = 0;
 
 // a cached read's slot index + 1 in its holder (p + 4, else obj for own), -1 when absent, 0 when stale
@@ -1482,7 +1494,7 @@ export const __Porffor_object_get_icSlow = (_obj: any, key: any, hash: i32, slot
 
       if (icMega != 0) {
         const p: i32 = icMega + (__Porffor_object_hashAvalanche(hash ^ (shapeKey << 15)) & 4095) * 20;
-        if (Porffor.fastAnd(Porffor.IR.loadI32(p, 0) == shapeKey, Porffor.IR.loadI32(p, 16) == hash)) {
+        if (Porffor.fastAnd(Porffor.IR.loadI32(p, 0) == shapeKey, Porffor.IR.loadI32(p, 16) == Porffor.IR.ptr(key))) {
           const i: i32 = __Porffor_object_icEntry(obj, p, hash);
           if (i != 0) {
             // warm this site too
@@ -1530,7 +1542,7 @@ export const __Porffor_object_get_icMiss = (_obj: any, key: any, hash: i32, slot
   if (own != 0) {
     if (shape != 0) {
       if ((__Porffor_object_slotFlags(o, own - 1) & 0b0001) == 0) Porffor.IR.storeI32(slot + (shape & 3) * 4, 0, (shape << 16) | (own - 1));
-      __Porffor_object_icStoreMega(shapeKey, hash, 0, own - 1, -2);
+      __Porffor_object_icStoreMega(shapeKey, hash, Porffor.IR.ptr(key), 0, own - 1, -2);
     }
     return __Porffor_object_slotRead(o, own - 1, _obj);
   }
@@ -1559,7 +1571,7 @@ export const __Porffor_object_get_icMiss = (_obj: any, key: any, hash: i32, slot
       let at: i32 = found - 1;
       const holderShape: i32 = Porffor.IR.loadU16(obj, 6);
       if (Porffor.fastAnd(holderShape != 0, (__Porffor_object_slotFlags(obj, found - 1) & 0b0001) == 0)) at |= holderShape << 16;
-      __Porffor_object_icStoreMega(shapeKey, hash, Porffor.IR.ptr(obj), at, epoch);
+      __Porffor_object_icStoreMega(shapeKey, hash, Porffor.IR.ptr(key), Porffor.IR.ptr(obj), at, epoch);
       __Porffor_object_icStoreProto(slot, shapeKey, Porffor.IR.ptr(obj), at, epoch);
       return __Porffor_object_slotRead(obj, found - 1, _obj);
     }
@@ -1569,7 +1581,7 @@ export const __Porffor_object_get_icMiss = (_obj: any, key: any, hash: i32, slot
     if (Porffor.type(obj) != Porffor.TYPES.object) return __Porffor_object_get_withHash(_obj, key, hash);
     if (Porffor.fastOr(Porffor.IR.ptr(obj) == 0, Porffor.IR.ptr(obj) == Porffor.IR.ptr(lastProto))) {
       __Porffor_object_icFlagChainTo(first, lastProto);
-      __Porffor_object_icStoreMega(shapeKey, hash, 0, 0, icEpoch);
+      __Porffor_object_icStoreMega(shapeKey, hash, Porffor.IR.ptr(key), 0, 0, icEpoch);
       __Porffor_object_icStoreProto(slot, shapeKey, 0, 0, icEpoch);
       return undefined;
     }
@@ -1589,7 +1601,7 @@ export const __Porffor_object_icFlagChainTo = (obj: any, holder: any): void => {
   }
 };
 
-export const __Porffor_object_icStoreMega = (shape: i32, hash: i32, holder: i32, i: i32, epoch: i32): void => {
+export const __Porffor_object_icStoreMega = (shape: i32, hash: i32, keyPtr: i32, holder: i32, i: i32, epoch: i32): void => {
   if (icMega == 0) {
     icMega = Porffor.malloc(4096 * 20);
     Porffor.IR.fill(icMega, 0, 4096 * 20);
@@ -1599,7 +1611,7 @@ export const __Porffor_object_icStoreMega = (shape: i32, hash: i32, holder: i32,
   Porffor.IR.storeI32(p, 4, holder);
   Porffor.IR.storeI32(p, 8, i);
   Porffor.IR.storeI32(p, 12, epoch);
-  Porffor.IR.storeI32(p, 16, hash);
+  Porffor.IR.storeI32(p, 16, keyPtr);
 };
 
 // the first entry if it is the receiver shape's or empty, else the second

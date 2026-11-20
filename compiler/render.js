@@ -121,7 +121,7 @@ const NEVER_INLINE = new Set([
 const ALWAYS_INLINE = new Set([
   '__Porffor_object_lookup', '__Porffor_object_lookupEntry', '__Porffor_object_hash', '__Porffor_object_underlyingPtr',
   '__Porffor_object_find', '__Porffor_object_shapeFind', '__Porffor_object_shapeDescriptors', '__Porffor_object_valueAt', '__Porffor_object_typeAt',
-  '__Porffor_object_slotFlags', '__Porffor_object_slotValue', '__Porffor_object_slotWrite', '__Porffor_object_slotRead'
+  '__Porffor_object_slotFlags', '__Porffor_object_slotValue', '__Porffor_object_slotWrite', '__Porffor_object_slotRead', '__Porffor_object_entryIs', '__Porffor_strcmp'
 ]);
 
 const sanitizeMemo = new Map();
@@ -5026,7 +5026,23 @@ ${sti}i32 porf_str_eq(jsval a, jsval b) {
   const u32 la = *(u32*)(MEM + pa);
   if (la != *(u32*)(MEM + pb)) return 0;
   const i32 ta = porf_jv_type(a), tb = porf_jv_type(b);
-  if (ta == tb) return memcmp(MEM + pa + 4, MEM + pb + 4, (size_t)la * (ta == ${TYPES.string} ? 2 : 1)) == 0;
+  if (ta == tb) {
+    const u8* x = MEM + pa + 4;
+    const u8* y = MEM + pb + 4;
+    const size_t n = (size_t)la * (ta == ${TYPES.string} ? 2 : 1);
+    // short ones (most keys): first and last word, overlapping
+    if (n >= 8 && n <= 16) {
+      u64 x0, y0, x1, y1;
+      memcpy(&x0, x, 8); memcpy(&y0, y, 8); memcpy(&x1, x + n - 8, 8); memcpy(&y1, y + n - 8, 8);
+      return x0 == y0 && x1 == y1;
+    }
+    if (n >= 4 && n < 8) {
+      u32 x0, y0, x1, y1;
+      memcpy(&x0, x, 4); memcpy(&y0, y, 4); memcpy(&x1, x + n - 4, 4); memcpy(&y1, y + n - 4, 4);
+      return x0 == y0 && x1 == y1;
+    }
+    return memcmp(x, y, n) == 0;
+  }
   if (ta == ${TYPES.bytestring}) {
     for (u32 i = 0; i < la; i++) if ((u16)MEM[pa + 4 + i] != *(u16*)(MEM + pb + 4 + i * 2)) return 0;
   } else {
