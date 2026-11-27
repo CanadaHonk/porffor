@@ -1183,7 +1183,7 @@ export const __Porffor_string_replaceAll = (str: any, searchValue: any, replaceV
   match[0] = searchValue;
   match.input = str;
 
-  let out: any = __Porffor_string_emptyLike(str);
+  const pieces: any[] = Porffor.array.new(0);
   let appendIndex: i32 = 0;
   let searchIndex: i32 = 0;
   let matched: boolean = false;
@@ -1194,8 +1194,8 @@ export const __Porffor_string_replaceAll = (str: any, searchValue: any, replaceV
 
     matched = true;
     match.index = matchIndex;
-    out = __Porffor_strcat(out, __Porffor_string_substringLike(str, appendIndex, matchIndex));
-    out = __Porffor_strcat(out, __Porffor_string_applyReplacer(str, match, matchIndex, replaceValue));
+    Porffor.array.fastPush(pieces, __Porffor_string_substringLike(str, appendIndex, matchIndex));
+    Porffor.array.fastPush(pieces, __Porffor_string_applyReplacer(str, match, matchIndex, replaceValue));
 
     appendIndex = matchIndex + searchLen;
     if (searchLen == 0) {
@@ -1208,7 +1208,8 @@ export const __Porffor_string_replaceAll = (str: any, searchValue: any, replaceV
   }
 
   if (!matched) return str;
-  return __Porffor_strcat(out, __Porffor_string_substringLike(str, appendIndex, thisLen));
+  Porffor.array.fastPush(pieces, __Porffor_string_substringLike(str, appendIndex, thisLen));
+  return Porffor.callThis(__Array_prototype_join, pieces, '');
 };
 
 export const __String_prototype_replaceAll = function (this: any, searchValue: any, replaceValue: any) {

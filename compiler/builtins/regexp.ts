@@ -4570,6 +4570,57 @@ export const __Porffor_regex_replacePlain = (searchValue: any, str: any, repl: a
   return buf as bytestring;
 };
 
+export const __Porffor_regex_replaceCallback = (rx: any, s: any, fn: any): any => {
+  const sType: i32 = Porffor.type(s);
+  const lengthS: i32 = s.length;
+  const fullUnicode: boolean = (Porffor.IR.loadU16(rx, 4) & 0b10010000) != 0;
+  const nCaps: i32 = Porffor.IR.loadU16(rx, 6);
+  const marks: any[] = Porffor.array.new(64);
+  Porffor.IR.storeI32(rx, 8, 0);
+  let searchIndex: i32 = 0;
+  while (true) {
+    const matchEnd: i32 = __Porffor_regex_interpretFrom(rx, s, 2, searchIndex);
+    if (matchEnd == -1) break;
+    const matchStart: i32 = __Porffor_regex_mStart;
+    Porffor.array.fastPush(marks, matchStart);
+    Porffor.array.fastPush(marks, matchEnd);
+    const caps: i32 = __Porffor_regex_capsPtr;
+    for (let k: i32 = 0; k < nCaps; k++) {
+      Porffor.array.fastPush(marks, Porffor.IR.loadI32(caps + k * 8, 0));
+      Porffor.array.fastPush(marks, Porffor.IR.loadI32(caps + k * 8, 4));
+    }
+    if (matchEnd == matchStart) searchIndex = __Porffor_regex_advance(s, matchEnd, fullUnicode);
+      else searchIndex = matchEnd;
+  }
+
+  const nMarks: i32 = marks.length;
+  if (nMarks == 0) return s;
+  const pieces: any[] = Porffor.array.new(0);
+  let nextPos: i32 = 0;
+  for (let m: i32 = 0; m < nMarks; m += 2 + nCaps * 2) {
+    const position: i32 = marks[m];
+    const end: i32 = marks[m + 1];
+    const args: any[] = Porffor.array.new(nCaps + 3);
+    Porffor.array.fastPush(args, __Porffor_regex_inputSubstring(s, sType, position, end));
+    for (let k: i32 = 0; k < nCaps; k++) {
+      const cs: i32 = marks[m + 2 + k * 2];
+      const ce: i32 = marks[m + 3 + k * 2];
+      if (cs != -1 && ce != -1) Porffor.array.fastPush(args, __Porffor_regex_inputSubstring(s, sType, cs, ce));
+        else Porffor.array.fastPush(args, undefined);
+    }
+    Porffor.array.fastPush(args, position);
+    Porffor.array.fastPush(args, s);
+    const replacement: any = ecma262.ToString(Porffor.call(fn, args, undefined, undefined));
+    if (position >= nextPos) {
+      Porffor.array.fastPush(pieces, __Porffor_regex_inputSubstring(s, sType, nextPos, position));
+      Porffor.array.fastPush(pieces, replacement);
+      nextPos = end;
+    }
+  }
+  if (nextPos < lengthS) Porffor.array.fastPush(pieces, __Porffor_regex_inputSubstring(s, sType, nextPos, lengthS));
+  return Porffor.callThis(__Array_prototype_join, pieces, '');
+};
+
 export const __RegExp_prototype_Symbol_replace = function (this: any, string: any, replaceValue: any) {
   const rx: any = this;
   __Porffor_regex_requireObject(rx);
@@ -4581,6 +4632,8 @@ export const __RegExp_prototype_Symbol_replace = function (this: any, string: an
 
   const pristine: boolean = __Porffor_regex_pristine(rx);
   if (pristine && !functional && __Porffor_regex_flagIn(replaceValue, 36) == false) return __Porffor_regex_replacePlain(rx, s, replaceValue);
+  if (pristine && functional) if ((Porffor.IR.loadU16(rx, 4) & 0b00000001) != 0) if (Porffor.IR.loadI32(rx, 16) == 0) if (Porffor.IR.loadU8(rx, 20) == 0)
+    return __Porffor_regex_replaceCallback(rx, s, replaceValue);
 
   let global: boolean = false;
   let fullUnicode: boolean = false;
@@ -4605,7 +4658,7 @@ export const __RegExp_prototype_Symbol_replace = function (this: any, string: an
     if (matchStr.length == 0) __Porffor_regex_liSet(rx, __Porffor_regex_advance(s, ecma262.ToLength(__Porffor_regex_liGet(rx)), fullUnicode));
   }
 
-  let acc: any = '';
+  const pieces: any[] = Porffor.array.new(0);
   let nextPos: i32 = 0;
   const nResults: i32 = results.length;
   for (let r: i32 = 0; r < nResults; r++) {
@@ -4641,14 +4694,15 @@ export const __RegExp_prototype_Symbol_replace = function (this: any, string: an
     }
 
     if (position >= nextPos) {
-      acc = __Porffor_strcat(__Porffor_strcat(acc, __Porffor_regex_inputSubstring(s, sType, nextPos, position)), replacement);
+      Porffor.array.fastPush(pieces, __Porffor_regex_inputSubstring(s, sType, nextPos, position));
+      Porffor.array.fastPush(pieces, replacement);
       nextPos = position + matched.length;
     }
   }
 
   if (nResults == 0) return s;
-  if (nextPos >= lengthS) return acc;
-  return __Porffor_strcat(acc, __Porffor_regex_inputSubstring(s, sType, nextPos, lengthS));
+  if (nextPos < lengthS) Porffor.array.fastPush(pieces, __Porffor_regex_inputSubstring(s, sType, nextPos, lengthS));
+  return Porffor.callThis(__Array_prototype_join, pieces, '');
 };
 
 export const __RegExp_prototype_Symbol_split = function (this: any, string: any, limit: any) {
