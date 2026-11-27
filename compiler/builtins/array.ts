@@ -2584,8 +2584,7 @@ export const __Array_prototype_entries = function (this: any) {
 
 
 export const __Porffor_array_fastPush = (arr: any[], el: any): i32 => {
-  let len: i32 = arr.length;
-  arr[len] = el;
-  arr.length = ++len;
+  let len: i32 = 0;
+  Porffor.c`len = (i32)porf_arr_push((u32)arr.val, el).val;`;
   return len;
 };
