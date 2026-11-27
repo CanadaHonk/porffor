@@ -4922,12 +4922,13 @@ ${sti}jsval porf_str_seal(jsval v) {
   return v;
 }
 
-${st}jsval porf_str_concat(jsval a, jsval b) {
+${sti}__attribute__((always_inline)) jsval porf_str_concat(jsval a, jsval b) {
   volatile u32 keep_a = (u32)a.val, keep_b = (u32)b.val;
   const u32 pa = keep_a, pb = keep_b;
   const u32 la = *(u32*)(MEM + pa), lb = *(u32*)(MEM + pb);
   if (a.type == ${TYPES.bytestring} && b.type == ${TYPES.bytestring}) {
-    const u32 s = porf_bstr_new(la + lb);
+    const u32 s = porf_alloc(4 + la + lb, ${TYPES.bytestring});
+    *(u32*)(MEM + s) = la + lb;
     memcpy(MEM + s + 4, MEM + pa + 4, la);
     memcpy(MEM + s + 4 + la, MEM + pb + 4, lb);
     return porf_box((f64)s, ${TYPES.bytestring});
@@ -5369,7 +5370,7 @@ ${st}f64 porf_parse_int(jsval s, i32 radix) {
 
 // ToString for + and template literals
 ${st}jsval porf_to_str(jsval v);
-${st}jsval porf_str_concat(jsval a, jsval b);
+${sti}jsval porf_str_concat(jsval a, jsval b);
 ${st}jsval porf_to_str(jsval v) {
   if (porf_jv_is_num(v)) return porf_num_to_str(v.val);
   const i32 t = v.type;

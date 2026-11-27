@@ -9,74 +9,9 @@ export const __Porffor_strcmp = (a: any, b: any): boolean => {
 
 export const __Porffor_strcat = (a: any, b: any): any => {
   // a and b must be string or bytestring
-
-  const al: i32 = Porffor.IR.loadI32(a, 0);
-  const bl: i32 = Porffor.IR.loadI32(b, 0);
-  const aPtr: i32 = Porffor.IR.ptr(a);
-  const bPtr: i32 = Porffor.IR.ptr(b);
-
-  if (Porffor.type(a) == Porffor.TYPES.bytestring) {
-    if (Porffor.type(b) == Porffor.TYPES.bytestring) {
-      // bytestring, bytestring
-      const out: bytestring = Porffor.malloc(6 + al + bl);
-
-      Porffor.IR.storeI32(out, 0, al + bl);
-
-      // copy left (fast memcpy)
-      Porffor.IR.copy(Porffor.IR.ptr(out) + 4, aPtr + 4, al);
-
-      // copy right (fast memcpy)
-      Porffor.IR.copy(Porffor.IR.ptr(out) + 4 + al, bPtr + 4, bl);
-
-      return out;
-    } else {
-      // bytestring, string
-      const out: string = Porffor.malloc(6 + (al + bl) * 2);
-
-      Porffor.IR.storeI32(out, 0, al + bl);
-
-      // copy left (slow bytestring -> string)
-      for (let i: i32 = 0; i < al; i++) {
-        Porffor.IR.storeU16(Porffor.IR.ptr(out) + i*2, 4, Porffor.IR.loadU8(aPtr + i, 4));
-      }
-
-      // copy right (fast memcpy)
-      Porffor.IR.copy(Porffor.IR.ptr(out) + 4 + al*2, bPtr + 4, bl * 2);
-
-      return out;
-    }
-  } else {
-    if (Porffor.type(b) == Porffor.TYPES.bytestring) {
-      // string, bytestring
-      const out: string = Porffor.malloc(6 + (al + bl) * 2);
-
-      Porffor.IR.storeI32(out, 0, al + bl);
-
-      // copy left (fast memcpy)
-      Porffor.IR.copy(Porffor.IR.ptr(out) + 4, aPtr + 4, al * 2);
-
-      // copy right (slow bytestring -> string)
-      let ptr: i32 = Porffor.IR.ptr(out) + al*2;
-      for (let i: i32 = 0; i < bl; i++) {
-        Porffor.IR.storeU16(ptr + i*2, 4, Porffor.IR.loadU8(bPtr + i, 4));
-      }
-
-      return out;
-    } else {
-      // string, string
-      const out: string = Porffor.malloc(6 + (al + bl) * 2);
-
-      Porffor.IR.storeI32(out, 0, al + bl);
-
-      // copy left (fast memcpy)
-      Porffor.IR.copy(Porffor.IR.ptr(out) + 4, aPtr + 4, al * 2);
-
-      // copy right (fast memcpy)
-      Porffor.IR.copy(Porffor.IR.ptr(out) + 4 + al*2, bPtr + 4, bl * 2);
-
-      return out;
-    }
-  }
+  let out: any = a;
+  Porffor.c`out = porf_str_concat(a, b);`;
+  return out;
 };
 
 
