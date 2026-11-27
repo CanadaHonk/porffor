@@ -141,9 +141,9 @@ export const __Porffor_compare = (x: any, y: any): i32 => {
   const sx: boolean = (Porffor.type(x) | 0b10000000) == Porffor.TYPES.bytestring;
   const sy: boolean = (Porffor.type(y) | 0b10000000) == Porffor.TYPES.bytestring;
   if (sx && sy) {
-    if (x < y) return -1;
-    if (x > y) return 1;
-    return 0;
+    let c: i32 = 0;
+    Porffor.c`c = porf_cmp(x, y);`;
+    return c;
   }
 
   if (Porffor.comptime.flag`hasType.bigint`) {
