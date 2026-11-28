@@ -6264,7 +6264,8 @@ const generateFunc = (scope, decl, forceNoExpr = false) => {
   const name = decl.id.name;
   const topLevel = !!decl._topLevel || decl.type === 'Program';
   const directCallOnly =
-    !scope.topLevel &&
+    // top-level functions are globals, but a module's are renamed
+    (!scope.topLevel || (name.includes('#m') && !globalThis.precompile)) &&
     decl.type === 'FunctionDeclaration' &&
     directCallOnlyFunctionNode(decl);
   if (decl.type.startsWith('Class')) {
