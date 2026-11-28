@@ -2657,15 +2657,16 @@ const inOptionalChain = node => {
 
 // one function for a dispatch many sites would otherwise inline, whose own body takes the inline path
 let sharedFuncs;
-const sharedFunc = src => {
-  if (sharedFuncs.has(src)) return sharedFuncs.get(src);
+const sharedFunc = (src, strict = true) => {
+  const cacheKey = strict ? src : '#sloppy:' + src;
+  if (sharedFuncs.has(cacheKey)) return sharedFuncs.get(cacheKey);
   const fn = semantic(parse(src)).body[0].expression;
   fn.body._sharedDispatch = true;
-  fn.strict = true;
+  fn.strict = strict;
   fn._noClosureEnv = true;
   const [ func ] = generateFunc({}, fn, true);
   func.generate();
-  sharedFuncs.set(src, func);
+  sharedFuncs.set(cacheKey, func);
   return func;
 };
 
@@ -3705,6 +3706,18 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     ];
 
     const memberSetBC = canFastComputedIndex ? [ ...indexedMemberSetBC, ...genericMemberSetBC ] : genericMemberSetBC;
+
+    // unknown receivers outside loops share one dispatch
+    if (op === '=' && decl.left.computed && objectKnown == null && objectKnownValue !== null && (propertyKnown == null || propertyKnown === TYPES.number) &&
+      !scope.loops && !globalThis.precompile && !Prefs.d && !decl._sharedDispatch) {
+      const func = sharedFunc('((o, k, v) => o[k] = v)', !!scope.strict);
+      const res = Call(func.index, [ coerceValue(obj, T.jsval), coerceValue(prop, T.jsval), coerceValue(simpleValue, T.jsval) ], func.retType);
+      if (valueUnused) {
+        exprStmt(scope, res);
+        return valUndefined();
+      }
+      return res;
+    }
 
     let res;
     if (decl.left.computed && propertyKnown == null) {
