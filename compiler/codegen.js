@@ -1952,12 +1952,12 @@ const aliasPrimObjsBC = bc => {
   add(TYPES.string, TYPES.stringobject);
 };
 
-const iteratorRecord = (scope, value, known, inPlace, getter = '__Porffor_iterator_get') => {
+const iteratorRecord = (scope, value, known, inPlace, getter = '__Porffor_iterator_get', typedInPlace = true) => {
   if (definedKeys.has('#arrayIterator')) {
     includeBuiltin(scope, '__Porffor_array_iteratorPatched');
     inPlace = inPlace.filter(x => x !== TYPES.array);
   }
-  if (inPlace.includes(known) || (known >= TYPES.uint8clampedarray && known <= TYPES.float64array)) return null;
+  if (inPlace.includes(known) || (typedInPlace && known >= TYPES.uint8clampedarray && known <= TYPES.float64array)) return null;
 
   // linked so a throw leaving the loop or pattern closes it
   const rec = tmp(scope, T.jsval);
@@ -1972,10 +1972,11 @@ const iteratorRecord = (scope, value, known, inPlace, getter = '__Porffor_iterat
 
   assign(scope, rec, valUndefined());
   const t = reuse(scope, JvType(value));
-  emitIf(scope, Un('!', T.i32, Bin('|', T.i32, typeIsOneOf(t, inPlace),
-    Bin('&', T.i32,
-      Bin('>=', T.i32, t, Const(T.i32, TYPES.uint8clampedarray)),
-      Bin('<=', T.i32, t, Const(T.i32, TYPES.float64array))))), open);
+  if (inPlace.length === 0) open();
+    else emitIf(scope, Un('!', T.i32, !typedInPlace ? typeIsOneOf(t, inPlace) : Bin('|', T.i32, typeIsOneOf(t, inPlace),
+      Bin('&', T.i32,
+        Bin('>=', T.i32, t, Const(T.i32, TYPES.uint8clampedarray)),
+        Bin('<=', T.i32, t, Const(T.i32, TYPES.float64array))))), open);
   return rec;
 };
 
@@ -4194,7 +4195,9 @@ const generateForOf = (scope, decl) => {
   const root = tmp(scope, T.jsval, coerceValue(generate(scope, decl.right), T.jsval));
   const rootKnown = knownType(scope, getNodeType(scope, decl.right));
   const isAwait = decl.await === true;
-  const rec = iteratorRecord(scope, root, rootKnown, [ TYPES.array, TYPES.set, TYPES.map, TYPES.string, TYPES.bytestring ], isAwait ? '__Porffor_iterator_getAsync' : '__Porffor_iterator_get');
+  // unknown iterables step arrays inline, the rest through their record
+  const shared = !isAwait && rootKnown == null && !(globalThis.precompile && /^__(TypedArray_prototype|Porffor_typedArray|Porffor_iterator)_/.test(scope.name));
+  const rec = iteratorRecord(scope, root, rootKnown, shared ? [ TYPES.array ] : [ TYPES.array, TYPES.set, TYPES.map, TYPES.string, TYPES.bytestring ], isAwait ? '__Porffor_iterator_getAsync' : '__Porffor_iterator_get', !shared);
 
   if (decl.left.type === 'Identifier' && !isIdentAssignable(scope, decl.left.name))
     return internalThrow(scope, 'ReferenceError', `${decl.left.name} is not defined`);
@@ -4328,10 +4331,11 @@ const generateForOf = (scope, decl) => {
 
     // a replaced Array.prototype[Symbol.iterator] iterates arrays through the record
     if (definedKeys.has('#arrayIterator')) cases.shift();
+    const steps = shared ? cases.filter(([ types ]) => types === 'default' || types[0] === TYPES.array) : cases;
 
     // values from sync sources are awaited
-    const nextVal = typeSwitch(scope, root, rootKnown, !isAwait ? cases
-      : cases.map(([ types, next ]) => [ types, types === 'default' ? next : () => awaitValue(scope, next()) ]));
+    const nextVal = typeSwitch(scope, root, rootKnown, !isAwait ? steps
+      : steps.map(([ types, next ]) => [ types, types === 'default' ? next : () => awaitValue(scope, next()) ]));
 
     setLocalWithType(scope, valName, false, nextVal);
     const visit = () => {
