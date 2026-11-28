@@ -3639,7 +3639,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
       const key = reuse(scope, keyOf());
       const set = value => {
         if (hash == null) return builtinCall(scope, setBuiltin, [ obj, key, value ]);
-        if (Prefs.ic && !runsOnce(scope) && (objectKnown == null || objectKnown === TYPES.object)) return icSet(scope, obj, key, value, hash, icSlot(scope), object.type === 'ThisExpression');
+        if (Prefs.ic && !runsOnce(scope) && (objectKnown == null || objectKnown === TYPES.object)) return icSet(scope, obj, key, value, icSlot(scope), object.type === 'ThisExpression');
         return builtinCall(scope, setBuiltin + '_withHash', [ obj, key, value, Const(T.i32, hash) ]);
       };
       if (op === '+' && knownType(scope, getNodeType(scope, decl.right)) !== TYPES.number) return ropeMemberAppend(scope, obj, key, hash, decl.right, setBuiltin === '__Porffor_object_setStrict', set);
@@ -5076,21 +5076,22 @@ const icHit = (scope, o, slot) => {
   const type = Bin('+', T.u32, values, Bin('+', T.u32, i, Bin('*', T.u32, group, Const(T.u32, 64))));
   return [ value, type, Bin('&&', T.i32, Bin('!=', T.u32, shape, Const(T.u32, 0)), Bin('==', T.u32, Bin('>>', T.u32, own, Const(T.u32, 16)), shape)) ];
 };
-const icGet = (scope, obj, key, hash, slot, inline) => {
-  if (!inline) return builtinCall(scope, '__Porffor_object_get_ic', [ obj, key, Const(T.i32, hash), slot ]);
+// ic keys are bytestrings, passed as their pointer
+const icGet = (scope, obj, key, slot, inline) => {
+  if (!inline) return builtinCall(scope, '__Porffor_object_get_ic', [ obj, JvPtr(key), slot ]);
   const o = reuse(scope, coerceValue(obj, T.jsval)), s = reuse(scope, slot);
   const [ value, type, hit ] = icHit(scope, o, s);
-  return Select(hit, Box(Load('f64', value, 8), Load('u8', type, 0)), builtinCall(scope, '__Porffor_object_get_ic', [ o, key, Const(T.i32, hash), s ]));
+  return Select(hit, Box(Load('f64', value, 8), Load('u8', type, 0)), builtinCall(scope, '__Porffor_object_get_ic', [ o, JvPtr(key), s ]));
 };
-const icSet = (scope, obj, key, value, hash, slot, inline) => {
-  if (!inline) return builtinCall(scope, '__Porffor_object_set_ic', [ obj, key, value, Const(T.i32, hash), slot, Const(T.i32, scope.strict ? 1 : 0) ]);
+const icSet = (scope, obj, key, value, slot, inline) => {
+  if (!inline) return builtinCall(scope, '__Porffor_object_set_ic', [ obj, JvPtr(key), value, slot, Const(T.i32, scope.strict ? 1 : 0) ]);
   const o = reuse(scope, coerceValue(obj, T.jsval)), s = reuse(scope, slot), v = reuse(scope, coerceValue(value, T.jsval));
   const [ valuePtr, typePtr, hit ] = icHit(scope, o, s);
   emitIf(scope, hit, () => {
     stmt(scope, Store('f64', valuePtr, 8, JvNum(v)));
     stmt(scope, Store('u8', typePtr, 0, JvType(v)));
     stmt(scope, If(canReferenceCheck(scope, v), [ GcBarrier(JvPtr(o), Const(T.i32, TYPES.object)) ]));
-  }, () => exprStmt(scope, builtinCall(scope, '__Porffor_object_set_ic', [ o, key, v, Const(T.i32, hash), s, Const(T.i32, scope.strict ? 1 : 0) ])));
+  }, () => exprStmt(scope, builtinCall(scope, '__Porffor_object_set_ic', [ o, JvPtr(key), v, s, Const(T.i32, scope.strict ? 1 : 0) ])));
   return v;
 };
 // top-level code outside loops runs once, so a cache there only costs memory
@@ -5104,16 +5105,17 @@ const inLoop = (scope, gen) => {
   }
 };
 
-// per-site inline cache slot of 12 words, layout per __Porffor_object_get_ic / set_ic
+// per-site inline cache: 12 words then the key's hash
+const IC_SLOT = 56;
 const icSlot = scope => {
   const unit = unitOf(scope);
   const ic = icSites[unit] ??= { site: 0, chunk: null };
   const index = ic.site++ % 256;
   if (index === 0)
-    ic.chunk = dataSeg(unit, `#ic:${unit}:${ic.site}`, new Array(256 * 48).fill(0));
+    ic.chunk = dataSeg(unit, `#ic:${unit}:${ic.site}`, new Array(256 * IC_SLOT).fill(0));
 
   const chunk = DataRef(ic.chunk);
-  return index === 0 ? chunk : Bin('+', T.i32, chunk, Const(T.i32, index * 48));
+  return index === 0 ? chunk : Bin('+', T.i32, chunk, Const(T.i32, index * IC_SLOT));
 };
 
 let memberDemands, globalDemands;
@@ -5313,7 +5315,7 @@ const generateMember = (scope, decl, objValue = null) => {
     const key = prop[N_TYPE] === T.jsval ? prop : valNumber(prop);
     if (hash == null) return builtinCall(scope, '__Porffor_object_get', [ obj, key ]);
 
-    if (Prefs.ic && !runsOnce(scope) && (known == null || known === TYPES.object)) return icGet(scope, obj, key, hash, icSlot(scope), decl.object.type === 'ThisExpression');
+    if (Prefs.ic && !runsOnce(scope) && (known == null || known === TYPES.object)) return icGet(scope, obj, key, icSlot(scope), decl.object.type === 'ThisExpression');
 
     return builtinCall(scope, '__Porffor_object_get_withHash', [ obj, key, Const(T.i32, hash) ]);
   };
@@ -6904,7 +6906,7 @@ export default (program, opts = {}) => {
   irFinalizers.length = 0;
 
   // a unit's last ic chunk only needs its sites
-  for (const unit in icSites) data[icSites[unit].chunk].length = ((icSites[unit].site - 1) % 256 + 1) * 48;
+  for (const unit in icSites) data[icSites[unit].chunk].length = ((icSites[unit].site - 1) % 256 + 1) * IC_SLOT;
 
   if (builtinGlobalInits.length !== 0) topLevelFunc.body.unshift(...builtinGlobalInits);
 

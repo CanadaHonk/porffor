@@ -483,7 +483,7 @@ export const __Porffor_object_getAppend = (obj: any, key: any, hash: i32, ic: i3
     const entryPtr: i32 = Porffor.IR.loadI32(obj, 12) + (slot - 1) * 20;
     if (slot != 0 && (Porffor.IR.loadU8(entryPtr, 16) & 0b0001) == 0) return Porffor.as(Porffor.IR.loadUnF64(entryPtr, 8), Porffor.IR.loadU8(entryPtr, 17));
   }
-  if (ic != 0) return __Porffor_object_get_ic(obj, key, hash, ic);
+  if (ic != 0) return __Porffor_object_get_ic(obj, Porffor.IR.ptr(key), ic);
   return __Porffor_object_get_withHash(obj, key, hash);
 };
 
@@ -1421,7 +1421,7 @@ export const __Porffor_object_icEntry = (obj: i32, p: i32, hash: i32): i32 => {
 };
 
 // own hits, data on the receiver's own prototype and absent keys: small enough to need no saved registers
-export const __Porffor_object_get_ic = (_obj: any, key: any, hash: i32, slot: i32): any => {
+export const __Porffor_object_get_ic = (_obj: any, key: i32, slot: i32): any => {
   if (Porffor.fastAnd(Porffor.type(_obj) == Porffor.TYPES.object, Porffor.IR.ptr(_obj) != 0)) {
     const shape: i32 = Porffor.IR.loadU16(_obj, 6);
     const own: i32 = Porffor.IR.loadI32(slot + (shape & 3) * 4, 0);
@@ -1448,11 +1448,12 @@ export const __Porffor_object_get_ic = (_obj: any, key: any, hash: i32, slot: i3
     }
   }
 
-  return __Porffor_object_get_icSlow(_obj, key, hash, slot);
+  return __Porffor_object_get_icSlow(_obj, Porffor.as(key, Porffor.TYPES.bytestring), slot);
 };
 
 // function props live in their underlying object, whose shape doesn't fix the prototype: their shape keys are tagged
-export const __Porffor_object_get_icSlow = (_obj: any, key: any, hash: i32, slot: i32): any => {
+export const __Porffor_object_get_icSlow = (_obj: any, key: any, slot: i32): any => {
+  const hash: i32 = __Porffor_object_icHash(key, slot);
   let obj: i32 = 0;
   let tag: i32 = 0;
   if (Porffor.type(_obj) == Porffor.TYPES.object) obj = Porffor.IR.ptr(_obj);
@@ -2228,7 +2229,7 @@ export const __Porffor_object_setWithReceiver = (obj: any, key: any, value: any,
 // per-site set caches, 12 words, empty words 0:
 //  0-3: own writable data hits, direct mapped by shape & 3, each (shape << 16) | slot index
 //  4-6, 7-9: appends [from shape, to shape, epoch], held while the prototype chain stays flagged
-export const __Porffor_object_set_ic = (_obj: any, key: any, value: any, hash: i32, slot: i32, strict: i32): any => {
+export const __Porffor_object_set_ic = (_obj: any, key: i32, value: any, slot: i32, strict: i32): any => {
   if (Porffor.type(_obj) == Porffor.TYPES.object) {
     if (Porffor.IR.ptr(_obj) != 0) {
       const shape: i32 = Porffor.IR.loadU16(_obj, 6);
@@ -2264,7 +2265,18 @@ export const __Porffor_object_set_ic = (_obj: any, key: any, value: any, hash: i
     }
   }
 
-  return __Porffor_object_set_icMiss(_obj, key, value, hash, slot, strict);
+  const k: any = Porffor.as(key, Porffor.TYPES.bytestring);
+  return __Porffor_object_set_icMiss(_obj, k, value, __Porffor_object_icHash(k, slot), slot, strict);
+};
+
+// site's key hash, cached past its entries (0: not yet)
+export const __Porffor_object_icHash = (key: any, slot: i32): i32 => {
+  let hash: i32 = Porffor.IR.loadI32(slot, 48);
+  if (hash == 0) {
+    hash = __Porffor_object_hash(key);
+    Porffor.IR.storeI32(slot, 48, hash);
+  }
+  return hash;
 };
 
 export const __Porffor_object_set_icMiss = (_obj: any, key: any, value: any, hash: i32, slot: i32, strict: i32): any => {
