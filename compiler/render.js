@@ -381,9 +381,9 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     ? (value, promise) => `(void)${fnSym(promiseRejectFunc)}(${promise}, ${value});`
     : (value, promise) => `porf_promise_settle_direct(${promise}, ${value}, 2);`;
 
-  // static layout: one data block per unit, then function records, then name strings, then all-zero segments (not stored)
+  // static layout: each unit's data and function records, then name strings, then all-zero segments (not stored)
   const align8 = x => (x + 7) & ~7;
-  const dataOffsets = [];
+  const dataOffsets = [], fnrecOff = [];
   const zeroed = data.map(seg => !seg.staticArray && seg.every(b => b === 0));
   let off = 16; // 0 reserved (null), small pad
   // units packed, padding between them would grow the image
@@ -394,11 +394,16 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         dataOffsets[i] = off;
         off += align8(data[i].length);
       }
+      if (!zero) for (let i = fnBase[u], n = funcsByUnit.get(u)?.length ?? 0; n > 0; i++, n--) {
+        fnrecOff[i] = off;
+        off += 8;
+      }
     }
   };
   placeData(false);
-  const fnrecBase = off;
-  off += linkFuncs.length * 8;
+  // tree-shaken funcs' record, its index traps
+  const shakenRec = off;
+  off += 8;
   const builtinName = name => {
     const accessor = name.match(/\$([gs]et)$/)?.[1];
     if (accessor) name = name.slice(0, -4);
@@ -532,7 +537,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         return [fnIdxExpr(funcOf(node[N_A])), P_PRIM];
       case K.FuncRec: {
         const f = funcOf(node[N_A]);
-        return [split ? `(porf_fnrecs + ${fnIdxExpr(f)} * 8u)` : `${fnrecBase + linkIdx[f.index] * 8}u`, P_PRIM];
+        return [`${f ? fnrecOff[linkIdx[f.index]] : shakenRec}u`, P_PRIM];
       }
 
       case K.Global:
@@ -681,7 +686,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
           });
           // static (envless) generators still know their function: instances get its .prototype
           if (callee === 'JV_UNDEFINED' && f.generator && !f.params.some(p => p.name === '#env'))
-            callee = `porf_box((f64)(${split ? `porf_fnrecs + ${fnIdxExpr(f)} * 8u` : `${fnrecBase + linkIdx[f.index] * 8}u`}), ${TYPES.function})`;
+            callee = `porf_box((f64)${fnrecOff[linkIdx[f.index]]}u, ${TYPES.function})`;
           const argvArr = argv.length ? `(jsbits[]){ ${argv.map(a => packArg(a)).join(', ')} }` : '(jsbits[]){JV_UNDEFINED_BITS}';
           return [needsCoro(f)
             ? `porf_coro_start(${coroFlags(f)}u, ${fnIdxExpr(f)}, ${callee}, ${env}, ${thisv}, ${newtv}, ${argv.length}, ${argvArr})`
@@ -1487,7 +1492,8 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
       for (let k = 0; k < 8; k++) image[off + k] = Number((bits >> BigInt(k * 8)) & 0xFFn);
     };
 
-    for (let i = 0; i < linkFuncs.length; i++) writeU32(fnrecBase + i * 8, i);
+    for (let i = 0; i < linkFuncs.length; i++) writeU32(fnrecOff[i], i);
+    writeU32(shakenRec, 0xffffffff);
     for (const { off, bytes } of fnNameSegs) writeBytes(off, bytes);
     for (let i = 0; i < data.length; i++) {
       if (zeroed[i]) continue;
@@ -1683,7 +1689,6 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   link.push(`${st}const u32 porf_fnname[] = { ${fnNameOff.join(', ') || '0'} };\n`);
   link.push(`const u32 porf_static_end = ${staticEnd}u;\n`);
   if (split) {
-    link.push(`const u32 porf_fnrecs = ${fnrecBase}u;\n`);
     for (const u of unitOrder) link.push(`const u32 porf_fnbase_${sanitize(u)} = ${fnBase[u]}u;\n`);
   }
   link.push('\n');
@@ -2068,7 +2073,7 @@ ${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr) 
 
   const rt = splitRuntime(prelude.join('') + rawHead);
   const header = rt.header +
-    `extern const u8 porf_fnflags[];\n${usesSyncAsync ? 'extern const u8 porf_fnneeds_coro[];\n' : ''}extern const u16 porf_fnlen[];\nextern const u32 porf_fnname[];\nextern const u32 porf_fnrecs;\n` +
+    `extern const u8 porf_fnflags[];\n${usesSyncAsync ? 'extern const u8 porf_fnneeds_coro[];\n' : ''}extern const u16 porf_fnlen[];\nextern const u32 porf_fnname[];\n` +
     linkProtos.join('');
   const unitName = u => {
     const name = units?.find(x => x.id === u)?.name;
