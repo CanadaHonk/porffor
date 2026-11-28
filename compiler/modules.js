@@ -1623,7 +1623,10 @@ export default (entrySource, entryFile, opts = {}) => {
   }
 
   // node's module system: cjs modules get Module objects and runtime require() finds compiled modules in #bundle
-  const moduleMod = modules.get(RUNTIME_ROOT + '/node/module.js');
+  // only when used by a module that runs, not one loaded just for its export names
+  const reached = new Set([ entryMod, ...[ ...modules.values() ].filter(mod => mod.dynamic || mod.deferred || mod.required) ]);
+  for (const mod of reached) for (const d of [ ...mod.deps, ...(mod.cjsDeps ?? []) ]) reached.add(d);
+  const moduleMod = [ ...reached ].find(mod => mod.file === RUNTIME_ROOT + '/node/module.js');
   if (moduleMod) {
     entryMod.deps.unshift(moduleMod);
     const moduleExport = name => resolveExport(moduleMod, name).global;
