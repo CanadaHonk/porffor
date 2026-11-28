@@ -2905,7 +2905,8 @@ static inline u32 porf_gc_barrier_ptr_jsval(jsval v) { return (u32)v.val; }
 #define porf_gc_ptr(p) _Generic((p), jsval: porf_gc_barrier_ptr_jsval, i32: porf_gc_barrier_ptr_i32, default: porf_gc_barrier_ptr_u32)(p)
 #define porf_gc_barrier(p, type) porf_gc_barrier_impl(porf_gc_ptr(p), (type))
 // stores into containers allocated with their type only need the card marked
-static inline void porf_gc_card_impl(u32 p) { if (porf_heap_base != 0 && porf_gc_old_block(p)) porf_gc_cards[p >> 9] = 1; }
+${st}PORF_NOINLINE void porf_gc_card_call(u32 p) { if (porf_heap_base != 0 && porf_gc_old_block(p)) porf_gc_cards[p >> 9] = 1; }
+static inline void porf_gc_card_impl(u32 p) { porf_gc_card_call(p); }
 #define porf_gc_card(p) porf_gc_card_impl(porf_gc_ptr(p))
 
 static void* porf_c_stack_top = NULL;
@@ -4459,9 +4460,13 @@ ${sti}jsbits porf_arr_pack(jsval v) {
   const jsbits b = porf_pack(v);
   return b == 0 ? JV_ZERO_BITS : b;
 }
+${st}PORF_NOINLINE jsval porf_unpack_bigint(jsbits b) {
+  return (jsval){(f64)(u32)b + 2251799813685248.0, ${TYPES.bigint}};
+}
+// inline bigints out of line
 static inline jsval porf_unpack(jsbits b) {
   if ((b & JV_PATTERN) != JV_PATTERN) return porf_box_num(porf_bits_to_f64(b));
-  if (b & (1ull << 42)) return (jsval){(f64)(u32)b + 2251799813685248.0, ${TYPES.bigint}};
+  if (b & (1ull << 42)) return porf_unpack_bigint(b);
   return (jsval){(f64)(u32)b, (i32)((b >> 43) & 0xFF)};
 }
 static inline f64 porf_canon(f64 d) { return d == d ? d : porf_bits_to_f64(0x7FF8000000000000ull); }
@@ -4518,17 +4523,21 @@ static inline i32 porf_jv_eq(jsval a, jsval b) {
 }
 
 // truthiness: number path = one compare; boxed = payload check, strings load length
-static inline i32 porf_truthy(jsval v) {
+static inline i32 porf_truthy_of(jsval v) {
   if (v.type == ${TYPES.number}) return v.val == v.val && v.val != 0.0;
   if (v.type == ${TYPES.string} || v.type == ${TYPES.bytestring}) return *(u32*)(MEM + (u32)v.val) != 0u;
   // Boolean/Number objects hold their primitive inline but are always truthy
   return (u32)v.val != 0u || v.type == ${TYPES.booleanobject} || v.type == ${TYPES.numberobject};
 }
-
+${st}PORF_NOINLINE i32 porf_truthy_call(jsval v) { return porf_truthy_of(v); }
+// numbers, booleans and undefined inline
+static inline i32 porf_truthy(jsval v) {
+  if ((u64)v.type - ${TYPES.number}u <= ${TYPES.boolean - TYPES.number}u) return v.val == v.val && v.val != 0.0;
+  if (v.type == ${TYPES.undefined}) return 0;
+  return porf_truthy_call(v);
+}
 static inline i32 porf_falsy(jsval v) {
-  if (v.type == ${TYPES.number}) return v.val != v.val || v.val == 0.0;
-  if (v.type == ${TYPES.string} || v.type == ${TYPES.bytestring}) return *(u32*)(MEM + (u32)v.val) == 0u;
-  return (u32)v.val == 0u && v.type != ${TYPES.booleanobject} && v.type != ${TYPES.numberobject};
+  return !porf_truthy(v);
 }
 
 // new on an explicit return: an object stands, else the instance
@@ -4542,16 +4551,21 @@ static inline i32 porf_nullish(jsval v) {
 }
 
 // saturating f64 -> int (JS semantics handled above; this is trunc_sat)
-static inline i32 porf_sat_i32(f64 d) {
+${st}PORF_NOINLINE i32 porf_sat_i32_call(f64 d) {
   if (d != d) return 0;
-  if (d <= -2147483648.0) return -2147483648;
-  if (d >= 2147483647.0) return 2147483647;
-  return (i32)d;
+  return d < 0.0 ? -2147483648 : 2147483647;
+}
+${st}PORF_NOINLINE u32 porf_sat_u32_call(f64 d) {
+  return d == d && d > 0.0 ? 4294967295u : 0;
+}
+// NaN and saturating ends out of line
+static inline i32 porf_sat_i32(f64 d) {
+  if (d > -2147483649.0 && d < 2147483648.0) return (i32)d;
+  return porf_sat_i32_call(d);
 }
 static inline u32 porf_sat_u32(f64 d) {
-  if (d != d || d <= 0.0) return 0;
-  if (d >= 4294967295.0) return 4294967295u;
-  return (u32)d;
+  if (d > -1.0 && d < 4294967296.0) return (u32)d;
+  return porf_sat_u32_call(d);
 }
 static inline u32 porf_i32_to_u32(i32 x) { return x < 0 ? 0u : (u32)x; }
 static inline i32 porf_u32_to_i32(u32 x) { return x > 2147483647u ? 2147483647 : (i32)x; }
@@ -4584,11 +4598,14 @@ static inline f64 porf_mod(f64 a, f64 b) {
 }
 
 // ToUint32: in i64 range the cast truncates and wraps exactly
-static inline u32 porf_to_uint32(f64 d) {
-  if (d > -9223372036854775808.0 && d < 9223372036854775808.0) return (u32)(i64)d;
+${st}PORF_NOINLINE u32 porf_to_uint32_call(f64 d) {
   if (d != d || d == INFINITY || d == -INFINITY) return 0;
   const f64 w = fmod(d, 4294967296.0);
   return (u32)(i64)(w < 0.0 ? w + 4294967296.0 : w);
+}
+static inline u32 porf_to_uint32(f64 d) {
+  if (d > -9223372036854775808.0 && d < 9223372036854775808.0) return (u32)(i64)d;
+  return porf_to_uint32_call(d);
 }
 
 static inline i32 porf_clz32(u32 x) { return x ? __builtin_clz(x) : 32; }
@@ -4951,10 +4968,12 @@ ${st}jsval porf_str_append(jsval a, jsval b) {
   return porf_box((f64)s, wide ? ${TYPES.string} : ${TYPES.bytestring});
 }
 
+${st}PORF_NOINLINE void porf_str_seal_call(u32 p) {
+  for (u32 i = 0; i < PORF_STR_BUILDERS; i++) if (porf_str_builders[i] == p) porf_str_builder_caps[i] = 0;
+}
+
 ${sti}jsval porf_str_seal(jsval v) {
-  if (v.type == ${TYPES.string} || v.type == ${TYPES.bytestring}) {
-    for (u32 i = 0; i < PORF_STR_BUILDERS; i++) if (porf_str_builders[i] == (u32)v.val) porf_str_builder_caps[i] = 0;
-  }
+  if (v.type == ${TYPES.string} || v.type == ${TYPES.bytestring}) porf_str_seal_call((u32)v.val);
   return v;
 }
 
