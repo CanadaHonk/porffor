@@ -302,17 +302,21 @@ const exportName = node => node.name ?? node.value;
 const literalImports = body => {
   for (let i = 0; i < body.length; i++) {
     const x = body[i];
-    const ret = x.type === 'FunctionDeclaration' && x.params.length === 1 && x.params[0].type === 'Identifier' && x.body.body.length === 1 && x.body.body[0].type === 'ReturnStatement' ? x.body.body[0].argument : null;
-    if (ret?.type !== 'ImportExpression' || ret.options || ret.source.type !== 'Identifier' || ret.source.name !== x.params[0].name) continue;
+    // function f(x) { return import(x); }, or a lone const/let/var f = (x) => import(x) / function (x) { ... }
+    const decl = x.type === 'VariableDeclaration' && x.declarations.length === 1 && x.declarations[0].id.type === 'Identifier' ? x.declarations[0] : null;
+    const fn = x.type === 'FunctionDeclaration' ? x : decl?.init && (decl.init.type === 'ArrowFunctionExpression' || decl.init.type === 'FunctionExpression') && !decl.init.async && !decl.init.generator ? decl.init : null;
+    const id = x.type === 'FunctionDeclaration' ? x.id : decl?.id;
+    const ret = fn && fn.params.length === 1 && fn.params[0].type === 'Identifier' ? (fn.body.type !== 'BlockStatement' ? fn.body : fn.body.body.length === 1 && fn.body.body[0].type === 'ReturnStatement' ? fn.body.body[0].argument : null) : null;
+    if (ret?.type !== 'ImportExpression' || ret.options || ret.source.type !== 'Identifier' || ret.source.name !== fn.params[0].name) continue;
 
     const calls = [];
     let others = 0;
     const find = node => {
       if (!node || typeof node !== 'object') return;
       if (Array.isArray(node)) { for (const y of node) find(y); return; }
-      if (node.type === 'CallExpression' && node.callee.type === 'Identifier' && node.callee.name === x.id.name && node.arguments.length === 1 &&
+      if (node.type === 'CallExpression' && node.callee.type === 'Identifier' && node.callee.name === id.name && node.arguments.length === 1 &&
         node.arguments[0].type === 'Literal' && typeof node.arguments[0].value === 'string') return calls.push(node);
-      if (node.type === 'Identifier' && node.name === x.id.name) others++;
+      if (node.type === 'Identifier' && node.name === id.name) others++;
       for (const key in node) if (key !== 'start' && key !== 'end') find(node[key]);
     };
     find(body.filter(y => y !== x));
