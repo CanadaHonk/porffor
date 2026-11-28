@@ -1744,10 +1744,23 @@ export default (entrySource, entryFile, opts = {}) => {
   }
   // imported lazy modules evaluate before the importer's body, required ones in place
   const lazyDeps = mod => mod.deps.filter(d => d.lazy && (!mod.cjsDeps?.has(d) || mod.importedDeps?.has(d))).map(d => ({ type: 'ExpressionStatement', expression: lazyAsync(d) ? { type: 'AwaitExpression', argument: call(`#eval#m${d.id}`) } : call(`#eval#m${d.id}`) }));
+  // an arrow reading its enclosing this, arguments, super or new.target
+  const lexicalThis = node => {
+    if (!node || typeof node !== 'object') return false;
+    if (Array.isArray(node)) return node.some(lexicalThis);
+    if (node.type === 'ThisExpression' || node.type === 'Super' || node.type === 'MetaProperty' || (node.type === 'Identifier' && node.name === 'arguments')) return true;
+    if (node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration') return false;
+    for (const k in node) if (k[0] !== '_' && k !== 'loc' && lexicalThis(node[k])) return true;
+    return false;
+  };
+  // const functions have no effects, so stay top-level consts outside the lazy body
+  const constFunc = x => x.type === 'VariableDeclaration' && x.kind === 'const' && x.declarations.every(d => d.id.type === 'Identifier' &&
+    (d.init?.type === 'FunctionExpression' || (d.init?.type === 'ArrowFunctionExpression' && !lexicalThis(d.init.body) && !lexicalThis(d.init.params))));
   const lazyBody = mod => {
-    const names = [], hoisted = [], stmts = [];
+    const names = [], hoisted = [], consts = [], stmts = [];
     for (const x of mod.body) {
       if (x.type === 'FunctionDeclaration') { hoisted.push(x); continue; }
+      if (mod.esm && constFunc(x)) { consts.push(x); continue; }
       if (x.type === 'ClassDeclaration') {
         names.push(x.id.name);
         stmts.push(assign(ident(x.id.name), { ...x, type: 'ClassExpression' }));
@@ -1788,7 +1801,7 @@ export default (entrySource, entryFile, opts = {}) => {
     return [
       { type: 'VariableDeclaration', kind: 'var', declarations: [ ...names, error.name ].map(x => ({ type: 'VariableDeclarator', id: ident(x), init: null })) },
       varDecl('var', state.name, literal(0)),
-      ...hoisted, evalFn, ...(deferFn ? [ deferFn ] : [])
+      ...consts, ...hoisted, evalFn, ...(deferFn ? [ deferFn ] : [])
     ];
   };
 
