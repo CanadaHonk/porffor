@@ -352,6 +352,12 @@ export const __Porffor_array_holeGet = (arr: any[], k: i32): any => {
   return __Porffor_object_get(arr, k);
 };
 
+// an undefined element, holes read through the prototype chain
+export const __Porffor_array_undefinedGet = (arr: any[], k: i32): any => {
+  if (__Porffor_array_has(arr, k)) return undefined;
+  return __Porffor_array_holeGet(arr, k);
+};
+
 export const __Porffor_array_hasProperty = (O: any, k: number): boolean => {
   if (Porffor.type(O) == Porffor.TYPES.array) {
     if (__Porffor_array_has(O as any[], k)) return true;

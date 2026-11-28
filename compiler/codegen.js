@@ -4978,8 +4978,7 @@ const arrayIndexGet = (scope, ptr, idx) => {
   const res = tmp(scope, T.jsval);
   assign(scope, res, ArrGet(ptr, idx));
   emitIf(scope, Bin('==', T.i32, JvType(res), Const(T.i32, TYPES.undefined)),
-    () => emitIf(scope, Un('!', T.i32, Call('porf_arr_has_own', [ ptr, idx ], T.i32)),
-      () => assign(scope, res, builtinCall(scope, '__Porffor_array_holeGet', [ Box(ptr, Const(T.i32, TYPES.array)), idx ]))));
+    () => assign(scope, res, builtinCall(scope, '__Porffor_array_undefinedGet', [ Box(ptr, Const(T.i32, TYPES.array)), idx ])));
   return res;
 };
 

@@ -113,7 +113,7 @@ const cReservedNames = new Set([
 
 // inlining these has little perf benefit and significantly increases binary size
 const NEVER_INLINE = new Set([
-  '__Porffor_object_get_icMiss', '__Porffor_object_set_icMiss', '__Porffor_object_get_withHash', '__Porffor_array_holeGet',
+  '__Porffor_object_get_icMiss', '__Porffor_object_set_icMiss', '__Porffor_object_get_withHash', '__Porffor_array_holeGet', '__Porffor_array_undefinedGet',
   '__ecma262_ToNumeric', '__RegExp_prototype_exec'
 ]);
 
