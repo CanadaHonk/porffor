@@ -1088,8 +1088,24 @@ const truthy = (scope, node, type = null) => {
   if (type === TYPES.string || type === TYPES.bytestring)
     return Bin('!=', T.i32, LenGet(JvPtr(node)), Const(T.i32, 0));
   if (type === TYPES.undefined) return Const(T.i32, 0);
+  // booleans are 0/1, only null objects are falsy
+  if (type === TYPES.boolean) return node[N_KIND] === K.Box || node[N_KIND] === K.JvConst ? JvTruthy(node) : Bin('!=', T.f64, JvNum(node), Const(T.f64, 0));
+  if (type === TYPES.object) return Bin('!=', T.u32, JvPtr(node), Const(T.u32, 0));
 
   return JvTruthy(node);
+};
+
+// a test's truth as i32, && || ! short-circuit without making values
+const condOf = (scope, node) => {
+  if (node.type === 'LogicalExpression' && (node.operator === '&&' || node.operator === '||')) {
+    const c = tmp(scope, T.i32, condOf(scope, node.left));
+    emitIf(scope, node.operator === '&&' ? c : Un('!', T.i32, c), () => assign(scope, c, condOf(scope, node.right)));
+    return c;
+  }
+  if (node.type === 'UnaryExpression' && node.operator === '!') return Un('!', T.i32, condOf(scope, node.argument));
+  // new.target is undefined or a constructor
+  if (node.type === 'MetaProperty' && node.meta.name === 'new') return Bin('!=', T.i32, JvType(coerceValue(generate(scope, node), T.jsval)), Const(T.i32, TYPES.undefined));
+  return truthy(scope, generate(scope, node), getNodeType(scope, node));
 };
 
 const falsy = (scope, node, type = null) => {
@@ -4118,7 +4134,7 @@ const generateIf = (scope, decl) => {
     return valUndefined();
   }
 
-  const cond = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test));
+  const cond = condOf(scope, decl.test);
 
   inferBranchStart(scope);
   const then = collect(scope, () => genStmt(scope, decl.consequent));
@@ -4134,7 +4150,7 @@ const generateIf = (scope, decl) => {
 };
 
 const generateConditional = (scope, decl) => {
-  const cond = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test));
+  const cond = condOf(scope, decl.test);
   const resType = getNodeType(scope, decl) === TYPES.number ? T.f64 : T.jsval;
   const res = tmp(scope, resType);
 
@@ -4155,7 +4171,7 @@ const genLoop = (scope, decl, type) => {
   const condStmts = [];
   if (decl.test) {
     scope.blockStack.push(condStmts);
-    try { cond = truthy(scope, generate(scope, decl.test), getNodeType(scope, decl.test)); }
+    try { cond = condOf(scope, decl.test); }
     finally { scope.blockStack.pop(); }
   }
 
