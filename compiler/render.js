@@ -4814,6 +4814,27 @@ ${sti}void porf_arr_set(u32 a, u32 i, jsval v) {
       else porf_gc_barrier(a, ${TYPES.array});
   }
 }
+
+// a function value: [fnIdx u32][env u32]
+${st}PORF_NOINLINE u32 porf_fn_new(u32 idx, u32 env) {
+  const u32 rec = porf_alloc(8, ${TYPES.function});
+  *(u32*)(MEM + rec) = idx;
+  *(u32*)(MEM + rec + 4) = env;
+  return rec;
+}
+
+// a closure env: [parent u32][count u32] then count slots of { f64 @8, type u8 @16 }, all undefined
+${st}PORF_NOINLINE u32 porf_env_new(u32 parent, u32 count) {
+  const u32 p = porf_alloc(8 + count * 16, ${TYPES.__porffor_closureenv});
+  *(u32*)(MEM + p) = parent;
+  for (u32 i = 0; i < count; i++) {
+    *(f64*)(MEM + p + 8 + i * 16) = 0.0;
+    *(u8*)(MEM + p + 16 + i * 16) = ${TYPES.undefined};
+  }
+  *(u32*)(MEM + p + 4) = count;
+  return p;
+}
+
 ${iterClose ? `
 ${st}void porf_iter_link(jsval rec) {
   porf_arr_set((u32)rec.val, 4, porf_iter_open);

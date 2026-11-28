@@ -439,23 +439,13 @@ const currentClosureEnv = scope => {
 
 // [parent u32][count u32][payload f64, type u8, padding x7]...
 const makeClosureEnv = (scope, parent, count, values = null) => {
-  const pointer = reuse(scope, Alloc(Const(T.i32, 8 + count * 16), TYPES.__porffor_closureenv));
-  stmt(scope, Store('u32', pointer, 0, JvPtr(parent)));
+  const pointer = reuse(scope, Call('porf_env_new', [ JvPtr(parent), Const(T.u32, count) ], T.u32));
   if (values) {
     for (let i = 0; i < values.length; i++) {
       stmt(scope, Store('f64', pointer, 8 + i * 16, JvNum(values[i])));
       stmt(scope, Store('u8', pointer, 16 + i * 16, JvType(values[i])));
     }
-  } else {
-    const index = tmp(scope, T.i32, Const(T.i32, 0));
-    const slot = Bin('+', T.u32, pointer, Bin('*', T.i32, index, Const(T.i32, 16)));
-    stmt(scope, Loop(Bin('<', T.i32, index, Const(T.i32, count)), null, [
-      Store('f64', slot, 8, Const(T.f64, 0)),
-      Store('u8', slot, 16, Const(T.i32, TYPES.undefined)),
-      Assign(index, Bin('+', T.i32, index, Const(T.i32, 1)))
-    ], fresh(scope)));
   }
-  stmt(scope, Store('u32', pointer, 4, Const(T.i32, count)));
   // a fresh env stays young until something collects
   if (mayCollect(parent) || values?.some(mayCollect)) stmt(scope, GcBarrier(pointer, Const(T.i32, TYPES.__porffor_closureenv), 1));
   typeUsed(scope, TYPES.__porffor_closureenv);
@@ -481,10 +471,7 @@ const makeClosureRecord = (scope, func, markReferenced = true) => {
   useFunctionValue(func, markReferenced);
 
   const env = closureEnvFor(scope, func);
-  const rec = reuse(scope, Alloc(Const(T.i32, 8), TYPES.function));
-  stmt(scope, Store('u32', rec, 0, FuncIdx(func.index)));
-  stmt(scope, Store('u32', rec, 4, JvPtr(env)));
-  return valOf(rec, TYPES.function);
+  return valOf(reuse(scope, Call('porf_fn_new', [ FuncIdx(func.index), JvPtr(env) ], T.u32)), TYPES.function);
 };
 
 // builtins and top-level funcs only ever have one instance, so one static record
@@ -494,10 +481,7 @@ const staticFuncIdentity = func =>
 // non-capturing nested funcs still mint a fresh record per evaluation for identity
 const makeFreshFuncRecord = (scope, func, markReferenced = true) => {
   useFunctionValue(func, markReferenced);
-  const rec = reuse(scope, Alloc(Const(T.i32, 8), TYPES.function));
-  stmt(scope, Store('u32', rec, 0, FuncIdx(func.index)));
-  stmt(scope, Store('u32', rec, 4, Const(T.u32, 0)));
-  return valOf(rec, TYPES.function);
+  return valOf(reuse(scope, Call('porf_fn_new', [ FuncIdx(func.index), Const(T.u32, 0) ], T.u32)), TYPES.function);
 };
 
 const makeFunctionValue = (scope, func, markReferenced = true) => {
