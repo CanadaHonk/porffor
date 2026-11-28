@@ -1721,11 +1721,12 @@ ${st}PORF_CC jsval porf_thk_bad(${dynThunkParams}) {
   return JV_UNDEFINED;
 }
 `);
-    const table = [];
+    // a switch, not a pointer table which needs a relocation per entry
+    const thunked = [], slow = [];
     for (let i = 0; i < linkFuncs.length; i++) {
       const f = linkFuncs[i];
       if (!dynRegThunk(f)) {
-        table.push(f.indirect || needsCoro(f) || isSyncAsync(f) ? 'porf_thk_slow' : 'porf_thk_bad');
+        if (f.indirect || needsCoro(f) || isSyncAsync(f)) slow.push(i);
         continue;
       }
       const body = dynInvokeCall(f, {
@@ -1736,9 +1737,13 @@ ${st}PORF_CC jsval porf_thk_bad(${dynThunkParams}) {
         arg: j => j < DYN_REGS ? `a${j}` : 'JV_UNDEFINED'
       });
       emit(`${st}PORF_CC jsval porf_thk_${i}(${dynThunkParams}) { (void)ra; (void)thisv; ${regsVoid} ${body} }\n`);
-      table.push(`porf_thk_${i}`);
+      thunked.push(i);
     }
-    emit(`${st}PORF_CC jsval (*const porf_thk[${linkFuncs.length || 1}])(${dynThunkParams}) = { ${table.join(', ') || 'porf_thk_bad'} };\n\n`);
+    const thunkArgs = [ 'ra', 'thisv', ...dynRegs().map((_, j) => `a${j}`) ].join(', ');
+    emit(`${st}PORF_NOINLINE PORF_CC jsval porf_thk(${dynThunkParams}) {\n  switch (*(u32*)(MEM + (u32)ra)) {\n`);
+    for (const i of thunked) emit(`    case ${i}u: return porf_thk_${i}(${thunkArgs});\n`);
+    if (slow.length > 0) emit(`    ${slow.map(i => `case ${i}u:`).join(' ')} return porf_thk_slow(${thunkArgs});\n`);
+    emit(`  }\n  return porf_thk_bad(${thunkArgs});\n}\n\n`);
 
     for (let n = 0; n <= DYN_REGS; n++) {
       const regs = Array.from({ length: DYN_REGS }, (_, j) => j < n ? `a${j}` : 'JV_UNDEFINED');
@@ -1753,7 +1758,7 @@ ${st}PORF_CC jsval porf_thk_bad(${dynThunkParams}) {
   const u32 rec = (u32)fn.val;
   const u32 idx = *(u32*)(MEM + rec);
   if (idx >= ${linkFuncs.length}u) porf_unreachable("bad function index");
-  return porf_thk[idx]((u64)rec | ((u64)${n} << 32), thisv, ${regs.join(', ')});
+  return porf_thk((u64)rec | ((u64)${n} << 32), thisv, ${regs.join(', ')});
 }
 `);
     }
@@ -1786,7 +1791,7 @@ ${st}PORF_CC jsval porf_thk_bad(${dynThunkParams}) {
     emit('  switch (porf_invoke_shape[slot]) {\n');
     for (const [ call, shape ] of invokeShapes) emit(`    case ${shape}: ${call}\n`);
     emit('  }\n');
-    if (usesDynReg) emit(`  return porf_thk[idx]((u64)(u32)callee.val | ((u64)(u32)argc << 32), thisv, ${dynRegs().map((_, j) => `argc > ${j} ? porf_unpack(argv[${j}]) : JV_UNDEFINED`).join(', ')});\n}\n`);
+    if (usesDynReg) emit(`  return porf_thk((u64)(u32)callee.val | ((u64)(u32)argc << 32), thisv, ${dynRegs().map((_, j) => `argc > ${j} ? porf_unpack(argv[${j}]) : JV_UNDEFINED`).join(', ')});\n}\n`);
       else emit('  porf_unreachable("uncompiled function");\n  return JV_UNDEFINED;\n}\n');
 
     if (usesCoro) {
