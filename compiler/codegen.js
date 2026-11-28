@@ -4732,8 +4732,47 @@ const makeString = (scope, str, bytestring = true) => {
   return valOf(dataRef(unitOf(scope), `#str:${bytestring ? 'b' : 's'}:${str}`, bytes), bytestring ? TYPES.bytestring : TYPES.string);
 };
 
+// static template items of an all-constant array literal, else null
+const constArrayItems = (scope, decl) => {
+  const items = [];
+  for (const x of decl.elements) {
+    if (x == null) { items.push({ hole: true }); continue; }
+    if (x.type === 'ArrayExpression') {
+      const inner = constArrayItems(scope, x);
+      if (inner == null) return null;
+      items.push({ items: inner });
+      continue;
+    }
+    let value = x.type === 'Literal' && x.regex == null && x.bigint == null ? x.value : undefined;
+    if (x.type === 'UnaryExpression' && x.operator === '-' && x.argument.type === 'Literal' && typeof x.argument.value === 'number') value = -x.argument.value;
+    if (typeof value === 'number') items.push({ num: value });
+      else if (typeof value === 'boolean') items.push({ jvType: TYPES.boolean, payload: value ? 1 : 0 });
+      else if (value === null && x.type === 'Literal') items.push({ jvType: TYPES.object, payload: 0 });
+      else if (typeof value === 'string') {
+        const str = makeString(scope, value);
+        if (str[N_KIND] === K.JvConst) items.push({ jvType: str[N_A], payload: str[N_B] });
+          else if (str[N_KIND] === K.Box && str[N_A][N_KIND] === K.DataRef && str[N_B][N_KIND] === K.Const) items.push({ str: str[N_A][N_A], jvType: str[N_B][N_A] });
+          else return null;
+      } else return null;
+  }
+  return items;
+};
+
+const staticArraySeg = (scope, items) => {
+  const seg = new Array(16 + items.length * 8).fill(0);
+  seg.staticArray = items.map(x => x.items ? { arr: staticArraySeg(scope, x.items) } : x);
+  return dataSeg(unitOf(scope), null, seg);
+};
+
 const generateArray = (scope, decl, name = '$undeclared', staticAlloc = false) => {
   const elements = decl.elements;
+  if (!globalThis.precompile && !staticAlloc && !decl._staticAlloc && elements.length > 0) {
+    const items = constArrayItems(scope, decl);
+    if (items) {
+      typeUsed(scope, TYPES.array);
+      return valOf(reuse(scope, Call('porf_arr_clone_static', [ DataRef(staticArraySeg(scope, items)) ], T.u32)), TYPES.array);
+    }
+  }
   const length = elements.length;
   const capacity = Math.max(length, 2);
 
@@ -4745,15 +4784,15 @@ const generateArray = (scope, decl, name = '$undeclared', staticAlloc = false) =
     const uniqueName = name === '$undeclared' ? name + uniqId(scope) : name;
     pointer = dataRef(unitOf(scope), `#staticarr:${uniqueName}`, new Array(allocSize).fill(0));
   } else {
-    pointer = reuse(scope, Alloc(Const(T.i32, allocSize), TYPES.array));
+    pointer = reuse(scope, Call('porf_arr_new', [ Const(T.i32, 0), Const(T.i32, capacity) ], T.u32));
   }
   const filled = curBlock(scope).length;
 
-  stmt(scope, LenSet(pointer, Const(T.i32, 0)));
-  stmt(scope, Store('u32', pointer, 4, Bin('+', T.u32, pointer, Const(T.u32, 16))));
-  stmt(scope, Store('i32', pointer, 8, Const(T.i32, capacity)));
-  if (!isStatic) stmt(scope, Store('i32', pointer, 12, Const(T.i32, 0)));
-  if (!isStatic) stmt(scope, MemFill(Bin('+', T.u32, pointer, Const(T.u32, 16)), Const(T.i32, 0), Const(T.i32, capacity * 8)));
+  if (isStatic) {
+    stmt(scope, LenSet(pointer, Const(T.i32, 0)));
+    stmt(scope, Store('u32', pointer, 4, Bin('+', T.u32, pointer, Const(T.u32, 16))));
+    stmt(scope, Store('i32', pointer, 8, Const(T.i32, capacity)));
+  }
 
   // fast path: store leading non-spread elements straight into their slots (a jsval each)
   let i = 0;

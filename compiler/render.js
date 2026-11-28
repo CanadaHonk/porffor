@@ -1511,7 +1511,11 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
             if (it.num === 0 && 1 / it.num === Infinity) writeU64(dst, JV_ZERO_BITS);
               else writeBytes(dst, ieee754_binary64(it.num));
           } else if (it.str !== undefined) {
-            writeU64(dst, jvConstBits(TYPES.bytestring, dataOffsets[it.str]));
+            writeU64(dst, jvConstBits(it.jvType ?? TYPES.bytestring, dataOffsets[it.str]));
+          } else if (it.arr !== undefined) {
+            writeU64(dst, jvConstBits(TYPES.array, dataOffsets[it.arr]));
+          } else if (it.hole) {
+            writeU64(dst, 0n);
           } else {
             writeU64(dst, jvConstBits(it.jvType, it.payload));
           }
@@ -4835,6 +4839,17 @@ ${st}PORF_NOINLINE u32 porf_env_new(u32 parent, u32 count) {
   return p;
 }
 
+// copy of a static array template, nested ones too
+${st}u32 porf_arr_clone_static(u32 src) {
+  const i32 len = PORF_ARR_LEN(src);
+  const u32 a = porf_arr_new(len, len);
+  memcpy(MEM + PORF_ARR_ENT(a), MEM + src + 16, (size_t)len << 3);
+  for (i32 i = 0; i < len; i++) {
+    const jsbits b = *(jsbits*)(MEM + src + 16 + ((u64)i << 3));
+    if ((b & (JV_PATTERN | (0xFFull << 43))) == (JV_PATTERN | ((u64)${TYPES.array} << 43))) porf_arr_set(a, (u32)i, porf_box(porf_arr_clone_static((u32)b), ${TYPES.array}));
+  }
+  return a;
+}
 ${iterClose ? `
 ${st}void porf_iter_link(jsval rec) {
   porf_arr_set((u32)rec.val, 4, porf_iter_open);
