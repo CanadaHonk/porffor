@@ -5348,11 +5348,14 @@ const generateMember = (scope, decl, objValue = null) => {
     if (known != null) return genericMemberGet();
 
     const res = tmp(scope, T.jsval);
+    // arrays inline, the rest through one shared dispatch
+    const shared = !globalThis.precompile && !Prefs.d && !decl._sharedDispatch ? sharedFunc('((o) => o.length)') : null;
     emitIf(scope, Bin('==', T.i32, JvType(obj), Const(T.i32, TYPES.array)),
       () => assign(scope, res, arrayLengthVal()),
-      () => emitIf(scope, Bin('!=', T.i32, Bin('&', T.i32, JvType(obj), Const(T.i32, TYPE_FLAGS.length)), Const(T.i32, 0)),
-        () => assign(scope, res, lengthVal()),
-        () => assign(scope, res, genericMemberGet())));
+      () => shared ? assign(scope, res, Call(shared.index, [ coerceValue(obj, T.jsval) ], shared.retType))
+        : emitIf(scope, Bin('!=', T.i32, Bin('&', T.i32, JvType(obj), Const(T.i32, TYPE_FLAGS.length)), Const(T.i32, 0)),
+          () => assign(scope, res, lengthVal()),
+          () => assign(scope, res, genericMemberGet())));
     return res;
   };
 
@@ -5366,18 +5369,12 @@ const generateMember = (scope, decl, objValue = null) => {
       return res;
     } ],
     [ [ TYPES.string, TYPES.bytestring ], () => builtinCall(scope, '__Porffor_string_get', [ obj, prop ]) ],
-    // unknown receivers share the rest
-    ...(known == null && !globalThis.precompile && !Prefs.d && !decl._sharedDispatch ? [ [ 'default', () => {
-      const func = sharedFunc('((o, k) => o[k])');
-      return Call(func.index, [ obj, coerceValue(prop, T.jsval) ], func.retType);
-    } ] ] : [
-      // unknown receivers inline only Uint8Array (Buffer), other typed arrays share one call
-      ...(known == null && !globalThis.precompile ? [
-        [ TYPES.uint8array, () => typedArrayGet(scope, obj, prop, TYPES.uint8array) ],
-        [ TYPED_ARRAY_TYPES.filter(t => t !== TYPES.uint8array), () => builtinCall(scope, '__Porffor_typedArray_getIndex', [ obj, prop ]) ]
-      ] : TYPED_ARRAY_TYPES.map(t => [ t, () => typedArrayGet(scope, obj, prop, t) ])),
-      ...genericMemberGetBC
-    ])
+    // unknown receivers inline only Uint8Array (Buffer), other typed arrays share one call
+    ...(known == null && !globalThis.precompile ? [
+      [ TYPES.uint8array, () => typedArrayGet(scope, obj, prop, TYPES.uint8array) ],
+      [ TYPED_ARRAY_TYPES.filter(t => t !== TYPES.uint8array), () => builtinCall(scope, '__Porffor_typedArray_getIndex', [ obj, prop ]) ]
+    ] : TYPED_ARRAY_TYPES.map(t => [ t, () => typedArrayGet(scope, obj, prop, t) ])),
+    ...genericMemberGetBC
   ];
 
   if (!decl.optional && objectKnownValue === null)
@@ -5385,6 +5382,22 @@ const generateMember = (scope, decl, objValue = null) => {
 
   if (!decl.computed && decl.property.name === 'length') return lengthMemberGet();
 
+  // unknown receivers share one dispatch, loops keep array and string reads inline
+  if (decl.computed && known == null && (propertyKnown == null || propertyKnown === TYPES.number) && !globalThis.precompile && !Prefs.d && !decl._sharedDispatch) {
+    const func = sharedFunc('((o, k) => o[k])');
+    if (!scope.loops) return Call(func.index, [ obj, coerceValue(prop, T.jsval) ], func.retType);
+
+    const o = reuse(scope, coerceValue(obj, T.jsval)), k = reuse(scope, coerceValue(prop, T.jsval));
+    const res = tmp(scope, T.jsval);
+    const shared = () => assign(scope, res, Call(func.index, [ o, k ], func.retType));
+    const t = reuse(scope, JvType(o));
+    emitIf(scope, Bin('&&', T.i32, Bin('==', T.i32, t, Const(T.i32, TYPES.array)), JvIsNum(k)), () => {
+      const { idx, valid } = denseArrayIndexKey(scope, k);
+      emitIf(scope, valid, () => assign(scope, res, arrayIndexGet(scope, reuse(scope, JvPtr(o)), idx)), shared);
+    }, () => emitIf(scope, Bin('&&', T.i32, Bin('==', T.i32, Bin('|', T.i32, t, Const(T.i32, 0b10000000)), Const(T.i32, TYPES.bytestring)), JvIsNum(k)),
+      () => assign(scope, res, builtinCall(scope, '__Porffor_string_get', [ o, k ])), shared));
+    return res;
+  }
   if (decl.computed) return typeSwitch(scope, prop, propertyKnown, {
     [TYPES.number]: () => typeSwitch(scope, obj, known, indexedMemberGetBC),
     default: () => typeSwitch(scope, obj, known, genericMemberGetBC)
