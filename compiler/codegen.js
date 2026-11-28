@@ -4079,9 +4079,16 @@ const inferLoopPrev = [];
 const inferLoopAssigned = [];
 const inferLoopStart = scope => {
   // todo/opt: do not just wipe the infer tree for loops
-  inferLoopPrev.push(scope.inferTree ?? [ Object.create(null) ]);
+  const prev = scope.inferTree ?? [ Object.create(null) ];
+  inferLoopPrev.push(prev);
   inferLoopAssigned.push(new Set());
-  scope.inferTree = [ Object.create(null) ];
+  // but consts
+  const kept = Object.create(null);
+  for (const x of prev) for (const name in x) {
+    if (x[name] != null && getVarMetadata(scope, name, false)?.kind === 'const') kept[name] = x[name];
+      else delete kept[name];
+  }
+  scope.inferTree = [ kept ];
 };
 
 const inferLoopEnd = scope => {
