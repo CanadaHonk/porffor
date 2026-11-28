@@ -1356,6 +1356,18 @@ const generateBinaryExp = (scope, decl) => {
       const r = typeofTypes[lit.value].map(x => Bin('==', T.i32, type, Const(T.i32, x))).reduce((a, b) => Bin('||', T.i32, a, b));
       return Box(decl.operator[0] === '!' ? Un('!', T.i32, r) : r, Const(T.i32, TYPES.boolean));
     }
+    // typeof x === 'object' / 'function' by tag, proxies at runtime
+    if (strLit(lit) && t.type === 'UnaryExpression' && t.operator === 'typeof' && (lit.value === 'object' || lit.value === 'function') && !ifIdentifierErrors(scope, t.argument) && getNodeType(scope, t.argument) == null) {
+      const arg = reuse(scope, generate(scope, t.argument));
+      const type = reuse(scope, JvType(arg));
+      const not = decl.operator[0] === '!';
+      const bool = r => Box(not ? Un('!', T.i32, r) : r, Const(T.i32, TYPES.boolean));
+      const named = [ TYPES.number, TYPES.boolean, TYPES.string, TYPES.bytestring, TYPES.undefined, TYPES.function, TYPES.symbol, TYPES.bigint ];
+      return typeSwitch(scope, arg, null, [
+        [ TYPES.proxy, () => bool(Call('porf_str_is', [ builtinCall(scope, '__Porffor_proxy_typeof', [ arg ]), JvPtr(makeString(scope, lit.value)), Const(T.u32, lit.value.length) ], T.i32)) ],
+        [ 'default', () => bool(lit.value === 'function' ? Bin('==', T.i32, type, Const(T.i32, TYPES.function)) : Un('!', T.i32, typeIsOneOf(type, named))) ]
+      ]);
+    }
   }
   if ((decl.operator === '===' || decl.operator === '!==') && (strLit(decl.left) || strLit(decl.right))) {
     const [ lit, otherNode ] = strLit(decl.right) ? [ decl.right, decl.left ] : [ decl.left, decl.right ];
