@@ -383,12 +383,12 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
 
   // static layout: one data block per unit, then function records, then name strings, then all-zero segments (not stored)
   const align8 = x => (x + 7) & ~7;
-  const dataOffsets = [], dbase = {}, zbase = {};
+  const dataOffsets = [];
   const zeroed = data.map(seg => !seg.staticArray && seg.every(b => b === 0));
   let off = 16; // 0 reserved (null), small pad
-  const placeData = (bases, zero) => {
+  // units packed, padding between them would grow the image
+  const placeData = zero => {
     for (const u of unitOrder) {
-      bases[u] = off;
       for (let i = 0; i < data.length; i++) {
         if (dataUnits[i] !== u || zeroed[i] !== zero) continue;
         dataOffsets[i] = off;
@@ -396,7 +396,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
       }
     }
   };
-  placeData(dbase, false);
+  placeData(false);
   const fnrecBase = off;
   off += linkFuncs.length * 8;
   const builtinName = name => {
@@ -422,12 +422,14 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
     off += align8(bytes.length);
   }
   const imageEnd = off;
-  placeData(zbase, true);
+  // split: zero segments start on a megabyte so their offsets rarely move
+  if (split) off = (off + 0xfffff) & ~0xfffff;
+  placeData(true);
   const staticEnd = off;
 
   // per-unit output and what it references (externs and prototypes in split mode)
   const unitParts = Object.create(null);
-  const partsOf = u => unitParts[u] ??= { out: [], chunks: [], protos: [], globals: Object.create(null), fnbases: Object.create(null), dbases: Object.create(null), zbases: Object.create(null) };
+  const partsOf = u => unitParts[u] ??= { out: [], chunks: [], protos: [], globals: Object.create(null), fnbases: Object.create(null) };
   let cur = partsOf('main');
   let emitBuf = null;
   const emit = s => {
@@ -523,15 +525,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
         return [`porf_box((f64)${node[N_B] >>> 0}u, ${node[N_A]})`, P_POSTFIX];
 
       case K.DataRef: {
-        const id = node[N_A];
-        if (!split) return [`${dataOffsets[id]}u`, P_PRIM];
-        const u = dataUnits[id];
-        if (zeroed[id]) {
-          cur.zbases[u] = true;
-          return [`(porf_zbase_${sanitize(u)} + ${dataOffsets[id] - zbase[u]}u)`, P_PRIM];
-        }
-        cur.dbases[u] = true;
-        return [`(porf_dbase_${sanitize(u)} + ${dataOffsets[id] - dbase[u]}u)`, P_PRIM];
+        return [`${dataOffsets[node[N_A]]}u`, P_PRIM];
       }
 
       case K.FuncIdx:
@@ -1690,7 +1684,7 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   link.push(`const u32 porf_static_end = ${staticEnd}u;\n`);
   if (split) {
     link.push(`const u32 porf_fnrecs = ${fnrecBase}u;\n`);
-    for (const u of unitOrder) link.push(`const u32 porf_fnbase_${sanitize(u)} = ${fnBase[u]}u;\nconst u32 porf_dbase_${sanitize(u)} = ${dbase[u]}u;\nconst u32 porf_zbase_${sanitize(u)} = ${zbase[u]}u;\n`);
+    for (const u of unitOrder) link.push(`const u32 porf_fnbase_${sanitize(u)} = ${fnBase[u]}u;\n`);
   }
   link.push('\n');
 
@@ -2057,8 +2051,6 @@ ${st}jsval porf_call_dynamic_arr(jsval fn, jsval thisv, jsval newtv, jsval arr) 
       cur = parts;
       const tests = protos.map(guard);
       for (const x of Object.keys(parts.fnbases).sort()) text.push(`extern const u32 porf_fnbase_${sanitize(x)};\n`);
-      for (const x of Object.keys(parts.dbases).sort()) text.push(`extern const u32 porf_dbase_${sanitize(x)};\n`);
-      for (const x of Object.keys(parts.zbases).sort()) text.push(`extern const u32 porf_zbase_${sanitize(x)};\n`);
       for (const x of Object.keys(parts.globals).sort()) text.push(`extern ${CT[globalTypes[x]]} ${sanitize(x)};\n`);
       for (const f of protos) text.push(proto(f));
       for (const x of tests) text.push(x);
