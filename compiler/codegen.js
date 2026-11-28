@@ -3686,7 +3686,7 @@ const generateAssign = (scope, decl, valueUnused = false) => {
     // unknown receivers inline only Uint8Array (Buffer), other typed arrays share one call
     const indexedMemberSetBC = [
       [ TYPES.array, arraySet ],
-      ...(objectKnown == null && !globalThis.precompile ? [
+      ...(sharesTypedArrays(scope, objectKnown) ? [
         [ TYPES.uint8array, taSet(TYPES.uint8array) ],
         [ TYPED_ARRAY_TYPES.filter(t => t !== TYPES.uint8array), taSetCall ]
       ] : TYPED_ARRAY_TYPES.map(t => [ t, taSet(t) ]))
@@ -4280,7 +4280,7 @@ const generateForOf = (scope, decl) => {
       [ TYPES.bytestring, strNext('u8', 1, TYPES.bytestring) ],
 
       // unknown iterables share one typed array step
-      ...(rootKnown == null && !globalThis.precompile ? [ [ TYPED_ARRAY_TYPES, () => {
+      ...(sharesTypedArrays(scope, rootKnown) ? [ [ TYPED_ARRAY_TYPES, () => {
         emitIf(scope, Bin('>=', T.i32, counter, typedArrayLength(scope, root, '__Porffor_typedArray_validate')), () => stmt(scope, Break(L)));
         const v = reuse(scope, builtinCall(scope, '__Porffor_typedArray_getIndex', [ root, valNumber(counter) ]));
         assign(scope, counter, Bin('+', T.i32, counter, Const(T.i32, 1)));
@@ -4857,6 +4857,9 @@ const generateArray = (scope, decl, name = '$undeclared', staticAlloc = false) =
 const toPropertyKey = (scope, key, computed = false) =>
   computed ? builtinCall(scope, '__ecma262_ToPropertyKey', [ key[N_TYPE] === T.jsval ? key : valNumber(key) ]) : key;
 
+// unknown receivers share typed array access, but not in typed array builtins
+const sharesTypedArrays = (scope, known) => known == null && !(globalThis.precompile && /^__(TypedArray_prototype|Porffor_typedArray)_/.test(scope.name));
+
 // views on resizable buffers have length -1 and compute it from their buffer
 const typedArrayLength = (scope, obj, slow = '__Porffor_typedArray_length') => {
   const len = reuse(scope, LenGet(JvPtr(obj)));
@@ -5374,7 +5377,7 @@ const generateMember = (scope, decl, objValue = null) => {
     } ],
     [ [ TYPES.string, TYPES.bytestring ], () => builtinCall(scope, '__Porffor_string_get', [ obj, prop ]) ],
     // unknown receivers inline only Uint8Array (Buffer), other typed arrays share one call
-    ...(known == null && !globalThis.precompile ? [
+    ...(sharesTypedArrays(scope, known) ? [
       [ TYPES.uint8array, () => typedArrayGet(scope, obj, prop, TYPES.uint8array) ],
       [ TYPED_ARRAY_TYPES.filter(t => t !== TYPES.uint8array), () => builtinCall(scope, '__Porffor_typedArray_getIndex', [ obj, prop ]) ]
     ] : TYPED_ARRAY_TYPES.map(t => [ t, () => typedArrayGet(scope, obj, prop, t) ])),
