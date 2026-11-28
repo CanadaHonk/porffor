@@ -1345,7 +1345,7 @@ const generateBinaryExp = (scope, decl) => {
     }
   }
 
-  // === a string literal: length and first code unit settle most comparisons without a call
+  // === a string literal through porf_str_is
   const strLit = x => x.type === 'Literal' && typeof x.value === 'string';
   // typeof x === 'string' and friends (not object/function, which proxies decide) check the type tag
   const typeofTypes = { string: [ TYPES.string, TYPES.bytestring ], number: [ TYPES.number ], boolean: [ TYPES.boolean ], undefined: [ TYPES.undefined ], symbol: [ TYPES.symbol ], bigint: [ TYPES.bigint ] };
@@ -1357,17 +1357,12 @@ const generateBinaryExp = (scope, decl) => {
       return Box(decl.operator[0] === '!' ? Un('!', T.i32, r) : r, Const(T.i32, TYPES.boolean));
     }
   }
-  if ((decl.operator === '===' || decl.operator === '!==') && !globalThis.precompile && (strLit(decl.left) || strLit(decl.right))) {
+  if ((decl.operator === '===' || decl.operator === '!==') && (strLit(decl.left) || strLit(decl.right))) {
     const [ lit, otherNode ] = strLit(decl.right) ? [ decl.right, decl.left ] : [ decl.left, decl.right ];
     const otherType = getNodeType(scope, otherNode);
-    if (otherType == null || otherType === TYPES.string || otherType === TYPES.bytestring) {
-      const other = reuse(scope, generate(scope, otherNode));
-      const type = reuse(scope, JvType(other));
-      const ptr = JvPtr(other), str = lit.value;
-      let eq = Bin('==', T.i32, Load('i32', ptr, 0), Const(T.i32, str.length));
-      if (str.length > 0) eq = Bin('&&', T.i32, eq, Bin('==', T.i32, Select(Bin('==', T.i32, type, Const(T.i32, TYPES.bytestring)), Load('u8', ptr, 4), Load('u16', ptr, 4)), Const(T.i32, str.charCodeAt(0))));
-      if (str.length > 1) eq = Bin('&&', T.i32, eq, Call('porf_str_eq', [ other, generate(scope, lit) ], T.i32));
-      const r = Bin('&&', T.i32, Bin('||', T.i32, Bin('==', T.i32, type, Const(T.i32, TYPES.string)), Bin('==', T.i32, type, Const(T.i32, TYPES.bytestring))), eq);
+    if ((otherType == null || otherType === TYPES.string || otherType === TYPES.bytestring) && byteStringable(lit.value)) {
+      const other = coerceValue(generate(scope, otherNode), T.jsval);
+      const r = Call('porf_str_is', [ other, JvPtr(makeString(scope, lit.value)), Const(T.u32, lit.value.length) ], T.i32);
       return Box(decl.operator === '!==' ? Un('!', T.i32, r) : r, Const(T.i32, TYPES.boolean));
     }
   }

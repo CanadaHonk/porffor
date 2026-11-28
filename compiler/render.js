@@ -5076,6 +5076,36 @@ ${st}jsval porf_rope_flat(jsval r) {
   return porf_box((f64)*(u32*)(MEM + pr + 8), wide ? ${TYPES.string} : ${TYPES.bytestring});
 }
 
+// a bytestring against a string of the same length
+${st}PORF_NOINLINE i32 porf_str_eq_mixed(u32 pa, u32 pb, u32 la) {
+  for (u32 i = 0; i < la; i++) if ((u16)MEM[pa + 4 + i] != *(u16*)(MEM + pb + 4 + i * 2)) return 0;
+  return 1;
+}
+
+// v === a bytestring literal of length n
+${st}PORF_NOINLINE i32 porf_str_is(jsval v, u32 lit, u32 n) {
+  if ((v.type | 128) != ${TYPES.bytestring}) return 0;
+  const u32 p = (u32)v.val;
+  if (p == lit) return 1;
+  if (*(u32*)(MEM + p) != n) return 0;
+  if (v.type != ${TYPES.bytestring}) return porf_str_eq_mixed(lit, p, n);
+  const u8* x = MEM + p + 4;
+  const u8* y = MEM + lit + 4;
+  // short: first and last word, overlapping
+  if (n >= 8 && n <= 16) {
+    u64 x0, y0, x1, y1;
+    memcpy(&x0, x, 8); memcpy(&y0, y, 8); memcpy(&x1, x + n - 8, 8); memcpy(&y1, y + n - 8, 8);
+    return x0 == y0 && x1 == y1;
+  }
+  if (n >= 4 && n < 8) {
+    u32 x0, y0, x1, y1;
+    memcpy(&x0, x, 4); memcpy(&y0, y, 4); memcpy(&x1, x + n - 4, 4); memcpy(&y1, y + n - 4, 4);
+    return x0 == y0 && x1 == y1;
+  }
+  for (u32 i = 0; i < n; i++) if (x[i] != y[i]) return 0;
+  return 1;
+}
+
 ${sti}i32 porf_str_eq(jsval a, jsval b) {
   const u32 pa = (u32)a.val, pb = (u32)b.val;
   if (pa == pb) return 1;
@@ -5099,12 +5129,7 @@ ${sti}i32 porf_str_eq(jsval a, jsval b) {
     }
     return memcmp(x, y, n) == 0;
   }
-  if (ta == ${TYPES.bytestring}) {
-    for (u32 i = 0; i < la; i++) if ((u16)MEM[pa + 4 + i] != *(u16*)(MEM + pb + 4 + i * 2)) return 0;
-  } else {
-    for (u32 i = 0; i < la; i++) if (*(u16*)(MEM + pa + 4 + i * 2) != (u16)MEM[pb + 4 + i]) return 0;
-  }
-  return 1;
+  return ta == ${TYPES.bytestring} ? porf_str_eq_mixed(pa, pb, la) : porf_str_eq_mixed(pb, pa, la);
 }
 
 ${st}jsval porf_bstr_of(const char* buf, u32 len) {
