@@ -417,9 +417,13 @@ export default ({ funcs, data = [], dataUnits = [], globals = [], entry = null, 
   // empty names reuse offset 0 (0-length bytestring in the null region)
   const fnNameSegs = [];
   const fnNameOff = [];
+  // funcs sharing a name share its string
+  const fnNameAt = new Map();
   for (const f of linkFuncs) {
     const name = f.jsName ?? (f.name.startsWith('__') ? builtinName(f.name) : f.name.split('#')[0]);
     if (name.length === 0) { fnNameOff.push(0); continue; }
+    if (fnNameAt.has(name)) { fnNameOff.push(fnNameAt.get(name)); continue; }
+    fnNameAt.set(name, off);
     const bytes = [ name.length & 0xff, (name.length >>> 8) & 0xff, (name.length >>> 16) & 0xff, (name.length >>> 24) & 0xff ];
     for (let k = 0; k < name.length; k++) bytes.push(name.charCodeAt(k) & 0xff);
     fnNameOff.push(off);
